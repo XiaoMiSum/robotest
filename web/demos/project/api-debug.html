@@ -18,11 +18,19 @@
   .tabbar__tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; }
   .tabbar__tabs::-webkit-scrollbar { display: none; }
   .tabbar__fixed { flex-shrink: 0; }
+  .ws-tab__label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 双击页签进入重命名（实现的 el-input 内联编辑） */
+  .tab-rename { width: 120px; height: 24px; padding: 0 6px; font-size: var(--font-size-xs); }
   /* 新建：链接式图标钮（对齐实现的 el-button link，不使用虚线方块） */
   .tabbar__add { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: none; background: transparent; border-radius: var(--radius-md); color: var(--n-400); cursor: pointer; flex-shrink: 0; }
   .tabbar__add svg { width: 14px; height: 14px; }
-  .tabbar__add:hover { color: var(--brand-500); }
+  .tabbar__add:hover:not(:disabled) { color: var(--brand-500); }
+  .tabbar__add:disabled { cursor: not-allowed; opacity: .3; }
   .tabbar__right { display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; margin-left: auto; padding-left: var(--space-xs); }
+  /* OPTIONS / HEAD / CONNECT 徽标色（base.css 仅内置 5 种方法色） */
+  .m-options { background: #0d5aa7; }
+  .m-head { background: #9012fe; }
+  .m-connect { background: #e8d44d; color: #333; }
 
   /* 上下分栏：请求面板 + 拖拽分割线 + 响应面板 */
   .debug__body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -104,14 +112,19 @@
 
   .reqpanel { padding: 12px; }
 
-  /* 键值表（KeyValueTable） */
-  .kv { width: 100%; border-collapse: collapse; }
+  /* 键值表（KeyValueTable）：末行空行由实现自动补出，不提供显式「添加」入口 */
+  .kv { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .kv th {
     text-align: left; font-size: 11px; color: var(--n-500); font-weight: 600;
-    text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--n-200);
+    text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--n-200);
   }
-  .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); }
-  .kv .kv__add { color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; padding: 8px; display: inline-block; }
+  .kv td { padding: 4px 6px 4px 0; }
+  .kv tbody tr:hover { background: var(--n-50); }
+  .kv .col-enable { width: 34px; text-align: center; }
+  .kv .col-op { width: 34px; text-align: center; }
+  .kv .row-del { width: 26px; height: 26px; border: none; background: none; border-radius: 4px; color: var(--n-400); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .kv .row-del svg { width: 14px; height: 14px; }
+  .kv .row-del:hover { color: var(--st-danger); background: var(--st-danger-light); }
 
   /* Body 类型分段 + 深色编辑器 */
   .bodytypes { display: inline-flex; gap: 2px; background: var(--n-50); border-radius: 6px; padding: 2px; }
@@ -119,6 +132,7 @@
   .bodytype.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
   .bodytypes-right { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
   .bodytypes-right .select { width: 118px; height: 28px; font-size: var(--font-size-xs); }
+  .body-empty { padding: 32px 0; text-align: center; color: var(--n-300); font-size: 13px; }
   .code-editor {
     margin-top: 10px; width: 100%; min-height: 150px; resize: vertical;
     padding: 12px; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
@@ -131,24 +145,41 @@
   .authform .field__hint { color: var(--n-400); }
 
   /* 响应面板 */
+  .resp-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; min-height: 180px; color: var(--n-300); font-size: var(--font-size-sm);
+  }
+  .resp-empty [data-icon] svg { width: 32px; height: 32px; opacity: .4; }
+  .resp-empty p { margin: 0; }
+  .resp-data { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .resp-status {
     display: flex; align-items: center; gap: 16px;
     padding: 8px 12px; background: var(--n-50); border-bottom: 1px solid var(--n-100);
   }
-  .resp-code { padding: 2px 10px; border-radius: 4px; font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+  .resp-code { padding: 2px 10px; border-radius: 4px; font-family: var(--font-mono); font-size: 13px; font-weight: 700; cursor: help; }
   .resp-meta { display: flex; align-items: center; gap: 5px; }
   .resp-meta b { font-size: 11px; color: var(--n-400); font-weight: 500; text-transform: uppercase; }
   .resp-meta span { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-700); }
-  .delta { font-family: var(--font-mono); font-size: var(--font-size-xs); padding: 1px 6px; border-radius: 999px; }
-  .delta--up { background: var(--st-danger-light); color: var(--st-danger-strong); }
-  .delta--down { background: var(--st-success-light); color: var(--st-success-strong); }
+  /* 执行失败横幅：状态栏空间有限，失败原因单独成行完整展示（交互 1.8 错误态） */
+  .resp-error {
+    display: flex; align-items: flex-start; gap: 6px; padding: 8px 12px;
+    border-bottom: 1px solid rgba(217, 54, 62, .25);
+    background: var(--st-danger-light); color: var(--st-danger-strong); font-size: var(--font-size-xs);
+  }
+  .resp-error [data-icon] svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .resp-error span { min-width: 0; word-break: break-all; }
   .send-hint { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; font-size: var(--font-size-xs); color: var(--n-400); }
   .resptabs { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--n-100); }
   .resptabs__group { display: flex; }
   .resptab { padding: 8px 14px; font-size: var(--font-size-xs); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; }
   .resptab.is-active { color: var(--brand-500); border-bottom-color: var(--brand-500); }
+  .resptabs__actions { display: flex; align-items: center; gap: 4px; }
+  .resp-search { display: flex; align-items: center; gap: 4px; }
+  .resp-search .input { width: 160px; height: 26px; font-size: var(--font-size-xs); }
+  .resp-search__count { font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
   .icon-btn-sm { width: 26px; height: 26px; border: none; background: none; border-radius: 4px; color: var(--n-400); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
   .icon-btn-sm:hover { color: var(--n-700); background: var(--n-100); }
+  .icon-btn-sm.is-active { color: var(--brand-500); background: var(--brand-50); }
   .icon-btn-sm svg { width: 14px; height: 14px; }
   .respmodes { display: flex; align-items: center; justify-content: space-between; padding: 5px 12px; border-bottom: 1px solid var(--n-100); }
   .respmodes__group { display: flex; gap: 2px; }
@@ -156,21 +187,49 @@
   .respmode.is-active { background: var(--n-100); color: var(--n-800); font-weight: 500; }
   .respmodes__right { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--n-400); text-transform: uppercase; }
   .respmodes__right .select { width: 108px; height: 26px; font-size: var(--font-size-xs); text-transform: none; }
+  .resp-content { flex: 1; overflow: auto; min-height: 0; }
 
-  .json-view { padding: 10px 12px; background: #1e1e1e; min-height: 100%; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.65; color: #d4d4d4; }
-  .j-row { white-space: pre; cursor: pointer; border-radius: 3px; }
-  .j-row:hover { background: rgba(255, 255, 255, .06); }
-  .j-key { color: #9cdcfe; }
-  .j-str { color: #ce9178; }
-  .j-num { color: #b5cea8; }
-  .j-bool { color: #569cd6; }
-  .j-null { color: #569cd6; }
-  .j-punc { color: #d4d4d4; }
-  .j-caret { color: #d4d4d4; cursor: pointer; }
+  /* 原始 / 预览正文（非 JSON 或搜索态回退为纯文本） */
+  .resp-pre {
+    margin: 0; padding: 10px 12px; min-height: 100%;
+    font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
+    color: #d4d4d4; background: #1e1e1e; white-space: pre-wrap; word-break: break-all;
+  }
+  .resp-pre mark { background: #ffd54d; color: #1e1e1e; border-radius: 2px; padding: 0 1px; }
+  .resp-pre mark.is-current { background: #ff9800; color: #fff; outline: 1px solid #e65100; }
+
+  /* JSON 折叠树（JsonResponseView）：行内切换折叠，子级带缩进导引线 */
+  .json-view { padding: 10px 8px; background: #1e1e1e; min-height: 100%; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.7; color: #d4d4d4; }
+  .jtn-line { display: flex; align-items: baseline; min-height: 18px; padding: 0 4px; white-space: pre; }
+  .jtn-line:hover { background: rgba(255, 255, 255, .04); }
+  .jtn-toggle { width: 14px; flex-shrink: 0; cursor: pointer; color: #8a8a8a; font-size: 10px; user-select: none; }
+  .jtn-key { color: #9cdcfe; margin-right: 4px; }
+  .jtn-token { color: #d4d4d4; }
+  .jtn-token.is-string { color: #ce9178; }
+  .jtn-token.is-number { color: #b5cea8; }
+  .jtn-token.is-bool, .jtn-token.is-null { color: #569cd6; }
+  .jtn-summary { color: #8a8a8a; margin: 0 4px; }
+  .jtn-children { border-left: 1px solid rgba(255, 255, 255, .07); margin-left: 6px; padding-left: 8px; }
+
+  /* 响应 Headers / Cookies 表 */
+  .resp-table { width: 100%; border-collapse: collapse; }
+  .resp-table th {
+    position: sticky; top: 0; background: var(--n-50); text-align: left; font-weight: 500;
+    font-size: 11px; color: var(--n-400); text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--n-100);
+  }
+  .resp-table td { padding: 6px 10px; font-size: var(--font-size-xs); vertical-align: top; border-bottom: 1px solid var(--n-50); word-break: break-all; }
+  .resp-table tr:hover td { background: var(--n-50); }
+  .resp-table__name { font-weight: 500; color: var(--n-700); font-family: var(--font-mono); white-space: nowrap; }
+  .resp-table__value { color: var(--n-600); font-family: var(--font-mono); }
+  .resp-table__attrs { color: var(--n-400); font-size: 11px; }
 
   [hidden] { display: none !important; }
   .curl-tip { margin: 0 0 var(--space-sm); font-size: var(--font-size-xs); color: var(--n-500); }
   .curl-textarea { width: 100%; min-height: 140px; font-family: var(--font-mono); font-size: var(--font-size-xs); }
+
+  /* 保存为接口定义（SaveInterfaceDialog） */
+  .save-dialog__tip { margin: 4px 0 0; font-size: var(--font-size-xs); color: var(--n-400); line-height: 1.6; }
+  .save-dialog__full { width: 100%; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -196,12 +255,12 @@
           <!-- 标签条：下划线式页签（请求会话）+ 固定「历史记录」+ 新建，三者依次跟随；导入 cURL 靠右 -->
           <div class="tabbar">
             <div class="tabbar__tabs">
-              <div class="ws-tab" data-method="POST" data-path="${BASE_URL}/api/v1/orders"><span class="ws-tab__method m-post">POST</span><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
-              <div class="ws-tab is-active" data-method="GET" data-path="${BASE_URL}/api/v1/orders/{orderId}"><span class="ws-tab__method m-get">GET</span><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
-              <div class="ws-tab" data-method="PUT" data-path="${BASE_URL}/api/v1/orders/{orderId}/cancel"><span class="ws-tab__method m-put">PUT</span><span>取消订单</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="ws-tab" data-method="POST" data-path="${BASE_URL}/api/v1/orders"><span class="ws-tab__method m-post">POST</span><span class="ws-tab__label">创建订单</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="ws-tab is-active" data-method="GET" data-path="${BASE_URL}/api/v1/orders/{orderId}"><span class="ws-tab__method m-get">GET</span><span class="ws-tab__label">查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="ws-tab" data-method="PUT" data-path="${BASE_URL}/api/v1/orders/{orderId}/cancel"><span class="ws-tab__method m-put">PUT</span><span class="ws-tab__label">取消订单</span><span class="ws-tab__close" data-close>×</span></div>
             </div>
             <div class="ws-tab tabbar__fixed" data-fixed><span data-icon="clock-circle"></span><span>历史记录</span></div>
-            <span class="tabbar__add" data-icon="plus" title="新建标签"></span>
+            <button type="button" class="tabbar__add" data-icon="plus" title="新建标签（⌘T）"></button>
             <div class="tabbar__right">
               <button type="button" class="btn btn--link btn--sm js-open-curl"><span data-icon="download"></span>导入 cURL</button>
             </div>
@@ -211,10 +270,10 @@
             <!-- ============ 请求面板 ============ -->
             <div class="debug__req">
               <div class="urlbar">
-                <select class="method-pick" data-m="GET"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
-                <input class="url-input" value="${BASE_URL}/api/v1/orders/{orderId}">
+                <select class="method-pick" data-m="GET"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option><option>CONNECT</option></select>
+                <input class="url-input" id="url-input" value="${BASE_URL}/api/v1/orders/{orderId}" placeholder="输入请求 URL，例如 https://api.example.com/users">
                 <button class="btn btn--primary" id="btn-send" data-ux-key="mod+enter" style="height:32px;font-weight:600"><span data-icon="arrow-right"></span>发送<span class="kbd">⌘↵</span></button>
-                <button class="btn btn--default" style="height:32px"><span data-icon="plus"></span>保存</button>
+                <button class="btn btn--default" id="btn-save" style="height:32px" disabled title="请先发送请求获取调试记录"><span data-icon="plus"></span>保存</button>
               </div>
               <div class="send-hint">快捷键 <span class="kbd">⌘↵</span>（Windows 为 Ctrl+Enter）发送请求</div>
 
@@ -234,41 +293,72 @@
                 <!-- Params -->
                 <div data-panel="params" hidden>
                   <table class="kv">
-                    <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th>说明</th><th style="width:40px"></th></tr></thead>
+                    <thead><tr><th class="col-enable"></th><th>参数名</th><th>值</th><th>说明</th><th class="col-op"></th></tr></thead>
                     <tbody>
                       <tr>
-                        <td><span class="checkbox checkbox--on"></span></td>
+                        <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
                         <td><input class="input" value="channel" style="height:28px"></td>
                         <td><input class="input" value="app" style="height:28px"></td>
                         <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
-                        <td><span class="op-link op-link--danger">删</span></td>
+                        <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
                       </tr>
                       <tr>
-                        <td><span class="checkbox checkbox--on"></span></td>
+                        <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
                         <td><input class="input" value="traceId" style="height:28px"></td>
                         <td><input class="input" value="${UUID}" style="height:28px"></td>
                         <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
-                        <td><span class="op-link op-link--danger">删</span></td>
+                        <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
+                      </tr>
+                      <!-- 末尾空行：实现按 Postman 口径自动补出可编辑行 -->
+                      <tr>
+                        <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" placeholder="参数名" style="height:28px"></td>
+                        <td><input class="input" placeholder="值" style="height:28px"></td>
+                        <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
+                        <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
                       </tr>
                     </tbody>
                   </table>
-                  <span class="kv__add">+ 添加参数</span>
                 </div>
 
                 <!-- Body -->
                 <div data-panel="body">
                   <div>
                     <span class="bodytypes">
-                      <button class="bodytype">none</button>
-                      <button class="bodytype">x-www-form-urlencoded</button>
-                      <button class="bodytype is-active">raw</button>
+                      <button type="button" class="bodytype" data-body="none">none</button>
+                      <button type="button" class="bodytype" data-body="urlencoded">x-www-form-urlencoded</button>
+                      <button type="button" class="bodytype is-active" data-body="raw">raw</button>
                     </span>
-                    <span class="bodytypes-right">
-                      <select class="select"><option>Json</option><option>Text</option><option>Xml</option><option>Html</option><option>JavaScript</option></select>
-                      <button class="icon-btn-sm" title="格式化（修正 JSON 缩进）"><span data-icon="sparkle"></span></button>
+                    <span class="bodytypes-right" data-body-extra="raw">
+                      <select class="select" id="raw-subtype"><option>Text</option><option selected>Json</option><option>Xml</option><option>Html</option><option>JavaScript</option></select>
+                      <button type="button" class="icon-btn-sm" id="btn-format" title="格式化（修正 JSON 缩进）"><span data-icon="sparkle"></span></button>
                     </span>
                   </div>
-                  <textarea class="code-editor" spellcheck="false">{
+
+                  <p class="body-empty" data-body-panel="none" hidden>该请求不携带请求体</p>
+
+                  <div data-body-panel="urlencoded" hidden>
+                    <table class="kv">
+                      <thead><tr><th class="col-enable"></th><th>Key</th><th>值</th><th class="col-op"></th></tr></thead>
+                      <tbody>
+                        <tr>
+                          <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
+                          <td><input class="input" value="channel" style="height:28px"></td>
+                          <td><input class="input" value="app" style="height:28px"></td>
+                          <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
+                        </tr>
+                        <tr>
+                          <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
+                          <td><input class="input" placeholder="Key" style="height:28px"></td>
+                          <td><input class="input" placeholder="值" style="height:28px"></td>
+                          <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div data-body-panel="raw">
+                    <textarea class="code-editor" id="raw-text" spellcheck="false" placeholder="原始文本（支持变量引用）">{
   "channel": "app",
   "items": [
     { "sku": "SKU-10021", "quantity": 2 },
@@ -276,51 +366,97 @@
   ],
   "addressId": "addr_30219"
 }</textarea>
+                  </div>
                 </div>
 
                 <!-- Headers -->
                 <div data-panel="headers" hidden>
+                  <datalist id="common-headers">
+                    <option value="Accept"></option>
+                    <option value="Authorization"></option>
+                    <option value="Content-Type"></option>
+                    <option value="Cookie"></option>
+                    <option value="User-Agent"></option>
+                    <option value="X-Requested-With"></option>
+                    <option value="If-None-Match"></option>
+                    <option value="Origin"></option>
+                  </datalist>
                   <table class="kv">
-                    <thead><tr><th style="width:34px"></th><th>Header 名</th><th>值</th><th>说明</th><th style="width:40px"></th></tr></thead>
-                    <tbody>
+                    <thead><tr><th class="col-enable"></th><th>Header 名</th><th>值</th><th>说明</th><th class="col-op"></th></tr></thead>
+                    <tbody id="headers-body">
                       <tr>
-                        <td><span class="checkbox checkbox--on"></span></td>
-                        <td><input class="input" value="Content-Type" style="height:28px"></td>
+                        <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" list="common-headers" value="Content-Type" style="height:28px"></td>
                         <td><input class="input" value="application/json" style="height:28px"></td>
                         <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
-                        <td><span class="op-link op-link--danger">删</span></td>
+                        <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
                       </tr>
                       <tr>
-                        <td><span class="checkbox checkbox--on"></span></td>
-                        <td><input class="input" value="Authorization" style="height:28px"></td>
+                        <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" list="common-headers" value="Authorization" style="height:28px"></td>
                         <td><input class="input" value="Bearer ${TOKEN}" style="height:28px"></td>
                         <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
-                        <td><span class="op-link op-link--danger">删</span></td>
+                        <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
                       </tr>
                       <tr>
-                        <td><span class="checkbox"></span></td>
-                        <td><input class="input" value="X-Trace-Id" style="height:28px"></td>
+                        <td class="col-enable"><span class="checkbox"></span></td>
+                        <td><input class="input" list="common-headers" value="X-Trace-Id" style="height:28px"></td>
                         <td><input class="input" value="${traceId}" style="height:28px"></td>
                         <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
-                        <td><span class="op-link op-link--danger">删</span></td>
+                        <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
+                      </tr>
+                      <tr>
+                        <td class="col-enable"><span class="checkbox checkbox--on"></span></td>
+                        <td><input class="input" list="common-headers" placeholder="Header 名" style="height:28px"></td>
+                        <td><input class="input" placeholder="值" style="height:28px"></td>
+                        <td><input class="input" placeholder="描述（可选）" style="height:28px"></td>
+                        <td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>
                       </tr>
                     </tbody>
                   </table>
-                  <span class="kv__add">+ 添加请求头</span>
-                  <p class="field__hint">常用建议：Accept / Authorization / Content-Type / Cookie / User-Agent / Origin</p>
                 </div>
 
                 <!-- Auth -->
                 <div data-panel="auth" hidden>
                   <div class="authform">
                     <div class="field">
-                      <label class="field__label">认证方式</label>
-                      <select class="select"><option>Bearer Token</option><option>No Auth</option><option>API Key</option><option>Basic Auth</option><option disabled>Digest Auth</option></select>
+                      <label class="field__label" for="auth-type">认证方式</label>
+                      <select class="select" id="auth-type">
+                        <option value="none">No Auth</option>
+                        <option value="bearer" selected>Bearer Token</option>
+                        <option value="apiKey">API Key</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="digest" disabled>Digest Auth</option>
+                      </select>
                     </div>
-                    <div class="field">
-                      <label class="field__label">Token</label>
-                      <input class="input" type="password" value="eyJhbGciOiJIUzI1NiJ9">
-                      <p class="field__hint">提交时换算为 Authorization: Bearer 头；手工同名头优先</p>
+                    <div data-auth-panel="bearer">
+                      <div class="field">
+                        <label class="field__label" for="auth-token">Token</label>
+                        <input class="input" id="auth-token" type="password" value="eyJhbGciOiJIUzI1NiJ9">
+                        <p class="field__hint">提交时换算为 Authorization: Bearer 头；手工同名头优先</p>
+                      </div>
+                    </div>
+                    <div data-auth-panel="apiKey" hidden>
+                      <div class="field">
+                        <label class="field__label" for="auth-key-name">Key 名</label>
+                        <input class="input" id="auth-key-name" placeholder="缺省为 X-API-Key">
+                      </div>
+                      <div class="field">
+                        <label class="field__label" for="auth-key-value">Key 值</label>
+                        <input class="input" id="auth-key-value" type="password" value="k_live_51H8xQ">
+                        <p class="field__hint">提交时换算为自定义请求头；手工同名头优先</p>
+                      </div>
+                    </div>
+                    <div data-auth-panel="basic" hidden>
+                      <div class="field">
+                        <label class="field__label" for="auth-username">用户名</label>
+                        <input class="input" id="auth-username" value="qa_bot">
+                      </div>
+                      <div class="field">
+                        <label class="field__label" for="auth-password">密码</label>
+                        <input class="input" id="auth-password" type="password" value="robotest">
+                        <p class="field__hint">提交时换算为 Authorization: Basic 头；手工同名头优先</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -331,49 +467,78 @@
 
             <!-- ============ 响应面板 ============ -->
             <div class="debug__resp">
-              <div class="resp-status">
-                <span class="resp-code" style="color:var(--st-success-strong);background:var(--st-success-light)">200</span>
-                <span class="resp-meta"><b>Time</b><span id="resp-time">342 ms</span><span class="delta delta--down" id="resp-delta" title="与上一次发送对比">↓ 38 ms</span></span>
-                <span class="resp-meta"><b>Size</b><span>1.4 KB</span></span>
+              <!-- 未执行态：与实现一致，发送前不展示任何响应数据 -->
+              <div class="resp-empty" id="resp-empty">
+                <span data-icon="arrow-right"></span>
+                <p>点击「发送」查看响应结果</p>
               </div>
 
-              <div class="resptabs">
-                <div class="resptabs__group">
-                  <button class="resptab is-active">Body</button>
-                  <button class="resptab">Headers (8)</button>
-                  <button class="resptab">Cookies (1)</button>
+              <div class="resp-data" id="resp-data" hidden>
+                <div class="resp-status">
+                  <span class="resp-code" id="resp-code" title="200 OK — 请求成功" style="color:var(--st-success-strong);background:var(--st-success-light)">200</span>
+                  <span class="resp-meta"><b>Time</b><span id="resp-time">—</span></span>
+                  <span class="resp-meta"><b>Size</b><span id="resp-size">—</span></span>
                 </div>
-                <div style="display:flex;align-items:center;gap:4px">
-                  <button class="icon-btn-sm" title="搜索响应体 (Ctrl+F)"><span data-icon="search"></span></button>
-                  <button class="icon-btn-sm" title="复制响应体"><span data-icon="copy"></span></button>
-                </div>
-              </div>
 
-              <div class="respmodes">
-                <div class="respmodes__group">
-                  <button class="respmode is-active">Pretty</button>
-                  <button class="respmode">Raw</button>
-                  <button class="respmode">Preview</button>
+                <div class="resp-error" id="resp-error" role="alert" hidden>
+                  <span data-icon="alert-triangle"></span>
+                  <span id="resp-error-text"></span>
                 </div>
-                <div class="respmodes__right">
-                  <span>类型</span>
-                  <select class="select"><option>json</option><option>text</option><option>xml</option><option>html</option><option>javascript</option></select>
-                </div>
-              </div>
 
-              <div class="json-view" id="json-view">
-                <div class="j-row"><span class="j-punc">{</span></div>
-                <div class="j-row">  <span class="j-key">"code"</span><span class="j-punc">: </span><span class="j-num">0</span><span class="j-punc">,</span></div>
-                <div class="j-row">  <span class="j-key">"message"</span><span class="j-punc">: </span><span class="j-str">"ok"</span><span class="j-punc">,</span></div>
-                <div class="j-row">  <span class="j-key">"data"</span><span class="j-punc">: {</span></div>
-                <div class="j-row">    <span class="j-key">"orderId"</span><span class="j-punc">: </span><span class="j-str">"ord_88213"</span><span class="j-punc">,</span></div>
-                <div class="j-row">    <span class="j-key">"status"</span><span class="j-punc">: </span><span class="j-str">"CREATED"</span><span class="j-punc">,</span></div>
-                <div class="j-row">    <span class="j-key">"amount"</span><span class="j-punc">: </span><span class="j-num">299.00</span><span class="j-punc">,</span></div>
-                <div class="j-row">    <span class="j-key">"paid"</span><span class="j-punc">: </span><span class="j-bool">false</span><span class="j-punc">,</span></div>
-                <div class="j-row">    <span class="j-key">"expireAt"</span><span class="j-punc">: </span><span class="j-null">null</span></div>
-                <div class="j-row">  <span class="j-punc">},</span></div>
-                <div class="j-row">  <span class="j-key">"traceId"</span><span class="j-punc">: </span><span class="j-str">"a1f0-77c2-9de1"</span></div>
-                <div class="j-row"><span class="j-punc">}</span></div>
+                <div class="resptabs">
+                  <div class="resptabs__group">
+                    <button type="button" class="resptab is-active" data-resp="body">Body</button>
+                    <button type="button" class="resptab" data-resp="headers">Headers (8)</button>
+                    <button type="button" class="resptab" data-resp="cookies">Cookies (1)</button>
+                  </div>
+                  <div class="resptabs__actions">
+                    <span class="resp-search" id="resp-search" hidden>
+                      <input class="input" id="search-input" placeholder="搜索响应体">
+                      <span class="resp-search__count" id="search-count"></span>
+                      <button type="button" class="icon-btn-sm" id="search-prev" title="上一处"><span data-icon="chevron-left" style="transform:rotate(90deg)"></span></button>
+                      <button type="button" class="icon-btn-sm" id="search-next" title="下一处"><span data-icon="chevron-right" style="transform:rotate(90deg)"></span></button>
+                    </span>
+                    <button type="button" class="icon-btn-sm" id="btn-search" title="搜索响应体 (Ctrl+F)"><span data-icon="search"></span></button>
+                    <button type="button" class="icon-btn-sm" id="btn-copy" title="复制响应体"><span data-icon="copy"></span></button>
+                  </div>
+                </div>
+
+                <div class="respmodes" id="mode-bar">
+                  <div class="respmodes__group">
+                    <button type="button" class="respmode is-active" data-mode="pretty">Pretty</button>
+                    <button type="button" class="respmode" data-mode="raw">Raw</button>
+                    <button type="button" class="respmode" data-mode="preview">Preview</button>
+                  </div>
+                  <div class="respmodes__right">
+                    <span>类型</span>
+                    <select class="select" id="resp-lang"><option>text</option><option selected>json</option><option>xml</option><option>html</option><option>javascript</option></select>
+                  </div>
+                </div>
+
+                <div class="resp-content">
+                  <div data-resp-panel="body">
+                    <div class="json-view" id="json-tree"></div>
+                    <pre class="resp-pre" id="resp-pre" hidden></pre>
+                  </div>
+                  <div data-resp-panel="headers" hidden>
+                    <table class="resp-table">
+                      <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                      <tbody id="resp-headers-body"></tbody>
+                    </table>
+                  </div>
+                  <div data-resp-panel="cookies" hidden>
+                    <table class="resp-table">
+                      <thead><tr><th>Name</th><th>Value</th><th>Attributes</th></tr></thead>
+                      <tbody>
+                        <tr>
+                          <td class="resp-table__name">sid</td>
+                          <td class="resp-table__value">s%3A8f21c4d2e7</td>
+                          <td class="resp-table__attrs">Path=/; HttpOnly; SameSite=Lax</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -381,7 +546,7 @@
           <!-- 历史记录视图：与请求/响应区分层同级（交互设计 1.7），点击「历史记录」页签切换为全宽列表 -->
           <div class="debug__history" id="debug-history" hidden>
             <div class="history__toolbar">
-              <input class="input history__search" id="history-search" placeholder="搜索名称、URL 或日期">
+              <input class="input history__search" id="history-search" placeholder="搜索名称或 URL">
               <span class="history__total" id="history-total"></span>
             </div>
             <div class="history__list" id="history-list"></div>
@@ -401,11 +566,79 @@
     </div>
     <div class="dialog__body">
       <p class="curl-tip">粘贴 Chrome / Charles / Fiddler 导出的 cURL 命令，仅解析不执行</p>
-      <textarea class="textarea curl-textarea" placeholder="curl -X POST https://example.com/api -H 'Content-Type: application/json' -d '{...}'"></textarea>
+      <textarea class="textarea curl-textarea" id="curl-text" placeholder="curl -X POST https://example.com/api -H 'Content-Type: application/json' -d '{...}'"></textarea>
     </div>
     <div class="dialog__footer">
       <button type="button" class="btn btn--default js-close-curl">取消</button>
-      <button type="button" class="btn btn--primary">解析并回填</button>
+      <button type="button" class="btn btn--primary" id="curl-submit" disabled>解析并回填</button>
+    </div>
+  </div>
+</div>
+
+<!-- 保存为接口定义（SaveInterfaceDialog） -->
+<div class="dialog-mask" id="saveDialog" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="save-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="save-title">保存为接口定义</span>
+      <span class="dialog__close js-close-save" role="button" tabindex="0" aria-label="关闭" data-icon="x"></span>
+    </div>
+    <div class="dialog__body">
+      <div class="field">
+        <label class="field__label" for="save-name">接口名称 <span class="req">*</span></label>
+        <input class="input save-dialog__full" id="save-name" placeholder="请输入接口名称">
+        <p class="field__error" id="save-name-err" hidden>请输入接口名称</p>
+      </div>
+      <div class="field">
+        <label class="field__label">归属方式</label>
+        <span class="segment" id="save-mode">
+          <span class="segment__item segment__item--active" data-mode="create" role="button" tabindex="0">新建接口</span>
+          <span class="segment__item" data-mode="attach" role="button" tabindex="0">归属已有接口定义</span>
+        </span>
+      </div>
+      <div class="field" data-save-panel="create">
+        <label class="field__label" for="save-module">所属模块 <span class="req">*</span></label>
+        <select class="select save-dialog__full" id="save-module">
+          <option value="">请选择所属模块</option>
+          <option value="m-order">订单服务</option>
+          <option value="m-order-trade">　交易接口</option>
+          <option value="m-order-refund">　售后接口</option>
+          <option value="m-user">用户中心</option>
+          <option value="m-user-auth">　认证接口</option>
+          <option value="m-pay">支付网关</option>
+        </select>
+        <p class="field__error" id="save-module-err" hidden>请选择所属模块</p>
+      </div>
+      <div class="field" data-save-panel="attach" hidden>
+        <label class="field__label" for="save-interface">已有接口 <span class="req">*</span></label>
+        <select class="select save-dialog__full" id="save-interface">
+          <option value="i1">GET /api/v1/orders/{orderId} — 查询订单详情</option>
+          <option value="i2">POST /api/v1/orders — 创建订单</option>
+          <option value="i3">PUT /api/v1/orders/{orderId}/cancel — 取消订单</option>
+          <option value="i4">GET /api/v1/orders — 订单列表分页</option>
+        </select>
+      </div>
+      <p class="save-dialog__tip" id="save-tip">以当前调试请求（方法/URL/头/参数/请求体）创建新的接口定义</p>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default js-close-save">取消</button>
+      <button type="button" class="btn btn--primary" id="save-submit">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 保存成功：是否前往查看（useDebugPage.handleSaved） -->
+<div class="dialog-mask" id="savedDialog" hidden>
+  <div class="dialog" style="width:420px" role="dialog" aria-modal="true" aria-labelledby="saved-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="saved-title">保存成功</span>
+      <span class="dialog__close" id="saved-close" role="button" tabindex="0" aria-label="关闭" data-icon="x"></span>
+    </div>
+    <div class="dialog__body">
+      <p class="curl-tip" id="saved-text">已保存为接口定义，是否前往查看？</p>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default" id="saved-stay">留在调试</button>
+      <button type="button" class="btn btn--primary" id="saved-view">查看接口</button>
     </div>
   </div>
 </div>
@@ -414,90 +647,366 @@
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
-  // 请求参数四页签切换（对应实现的 Params / Body / Headers / Auth）
-  document.querySelectorAll('.reqtab').forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      var key = tab.getAttribute('data-req');
-      document.querySelectorAll('.reqtab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
-      document.querySelectorAll('[data-panel]').forEach(function (p) {
-        p.hidden = p.getAttribute('data-panel') !== key;
-      });
-    });
-  });
+  /* ==================== 请求面板：参数四页签 / Body / Auth ==================== */
 
-  // 响应 Body 视图（Pretty / Raw / Preview）与请求标签的静态演示
-  document.querySelectorAll('.respmode, .resptab').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      btn.parentElement.querySelectorAll('.is-active').forEach(function (s) { s.classList.remove('is-active'); });
-      btn.classList.add('is-active');
-    });
-  });
+  // 方法徽标色板（页签条与历史记录共用；后三色为实现 METHOD_COLORS 内置色）
+  var METHOD_BADGE = {
+    GET: 'm-get', POST: 'm-post', PUT: 'm-put', PATCH: 'm-patch', DELETE: 'm-delete',
+    OPTIONS: 'm-options', HEAD: 'm-head', CONNECT: 'm-connect'
+  };
 
-  // 发送（含 ⌘↵）：按钮态反馈 + 耗时与上次对比的 delta
-  var lastTime = 342;
-  function send() {
-    var btn = document.getElementById('btn-send');
-    if (btn.disabled) return;
-    btn.disabled = true;
-    var original = btn.innerHTML;
-    btn.textContent = '发送中…';
-    window.setTimeout(function () {
-      var next = 260 + Math.floor(Math.random() * 160);
-      var diff = next - lastTime;
-      lastTime = next;
-      document.getElementById('resp-time').textContent = next + ' ms';
-      var delta = document.getElementById('resp-delta');
-      delta.textContent = (diff > 0 ? '↑ ' : '↓ ') + Math.abs(diff) + ' ms';
-      delta.className = 'delta ' + (diff > 0 ? 'delta--up' : 'delta--down');
-      delta.title = '与上一次发送（' + (diff > 0 ? '变慢' : '变快') + '）对比';
-      btn.innerHTML = original;
-      btn.disabled = false;
-      window.RTUX.toast('响应 200 · ' + next + ' ms', { type: 'success' });
-    }, 500);
+  function escapeHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  document.getElementById('btn-send').addEventListener('click', send);
 
-  // 点击 JSON 行复制其路径（如 $.data.orderId）
-  document.querySelectorAll('#json-view .j-row').forEach(function (row, idx) {
-    row.addEventListener('click', function () {
-      var key = row.querySelector('.j-key');
-      if (!key) { window.RTUX.toast('该行无路径可复制'); return; }
-      var path = key.textContent.replace(/"/g, '');
-      // 依据缩进推导层级：缩进 4 空格视为 data 子级
-      var indent = (row.textContent.match(/^ */) || [''])[0].length;
-      var full = indent >= 4 ? '$.data.' + path : '$.' + path;
-      if (navigator.clipboard) navigator.clipboard.writeText(full).catch(function () {});
-      window.RTUX.toast('已复制路径 ' + full, { type: 'success' });
+  function setParamTab(key) {
+    document.querySelectorAll('.reqtab').forEach(function (t) {
+      t.classList.toggle('is-active', t.getAttribute('data-req') === key);
+    });
+    document.querySelectorAll('[data-panel]').forEach(function (p) {
+      p.hidden = p.getAttribute('data-panel') !== key;
+    });
+  }
+
+  document.querySelectorAll('.reqtab').forEach(function (tab) {
+    tab.addEventListener('click', function () { setParamTab(tab.getAttribute('data-req')); });
+  });
+
+  // Body 类型四态：none 空态 / urlencoded 键值表 / raw 编辑器，子类型与格式化按钮仅 raw 可见
+  function setBodyType(type) {
+    document.querySelectorAll('.bodytype').forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-body') === type);
+    });
+    document.querySelectorAll('[data-body-panel]').forEach(function (p) {
+      p.hidden = p.getAttribute('data-body-panel') !== type;
+    });
+    document.querySelectorAll('[data-body-extra]').forEach(function (el) {
+      el.hidden = el.getAttribute('data-body-extra') !== type;
+    });
+  }
+  document.querySelectorAll('.bodytype').forEach(function (b) {
+    b.addEventListener('click', function () { setBodyType(b.getAttribute('data-body')); });
+  });
+
+  document.getElementById('raw-subtype').addEventListener('change', function () {
+    document.getElementById('btn-format').hidden = this.value !== 'Json';
+  });
+
+  // 格式化：真实修正 JSON 缩进，非法 JSON 走警告提示（与实现 formatJsonBody 一致）
+  document.getElementById('btn-format').addEventListener('click', function () {
+    var editor = document.getElementById('raw-text');
+    try {
+      editor.value = JSON.stringify(JSON.parse(editor.value), null, 2);
+    } catch (e) {
+      window.RTUX.toast('请求体不是合法 JSON，无法格式化', { type: 'warning' });
+    }
+  });
+
+  // 认证方式切换：各方式字段集互斥展示（Digest 禁用不可选）
+  document.getElementById('auth-type').addEventListener('change', function () {
+    var type = this.value;
+    document.querySelectorAll('[data-auth-panel]').forEach(function (p) {
+      p.hidden = p.getAttribute('data-auth-panel') !== type;
     });
   });
 
-  // 导入 cURL 弹窗
-  var curlDialog = document.getElementById('curlDialog');
-  document.querySelectorAll('.js-open-curl').forEach(function (el) {
-    el.addEventListener('click', function () { curlDialog.hidden = false; });
-  });
-  document.querySelectorAll('.js-close-curl').forEach(function (el) {
-    el.addEventListener('click', function () { curlDialog.hidden = true; });
+  // 表格行删除（键值表行内操作）
+  document.addEventListener('click', function (e) {
+    var del = e.target.closest ? e.target.closest('.row-del') : null;
+    if (del) del.closest('tr').remove();
   });
 
-  /* ---------------- 标签条：切换 / 关闭 / 新建（docs28 标签页管理表） ---------------- */
+  /* ==================== 响应面板 ==================== */
+
+  var respEmpty = document.getElementById('resp-empty');
+  var respData = document.getElementById('resp-data');
+  var respCode = document.getElementById('resp-code');
+  var respError = document.getElementById('resp-error');
+  var respErrorText = document.getElementById('resp-error-text');
+  var modeBar = document.getElementById('mode-bar');
+  var jsonTree = document.getElementById('json-tree');
+  var respPre = document.getElementById('resp-pre');
+  var respLang = document.getElementById('resp-lang');
+  var searchWrap = document.getElementById('resp-search');
+  var searchInput = document.getElementById('search-input');
+  var searchCount = document.getElementById('search-count');
+  var btnSearch = document.getElementById('btn-search');
+
+  // 演示响应体：查询订单详情（GET /api/v1/orders/{orderId}）
+  var DEMO_BODY = {
+    code: 0,
+    message: 'ok',
+    data: {
+      orderId: 'ord_88213',
+      status: 'PAID',
+      channel: 'app',
+      amount: 299,
+      items: [
+        { sku: 'SKU-10021', name: '无线机械键盘', quantity: 2, price: 129 },
+        { sku: 'SKU-10088', name: '桌面显示器支架', quantity: 1, price: 41 }
+      ],
+      paid: true,
+      createdAt: '2026-10-02T09:31:22Z',
+      expireAt: null
+    },
+    traceId: 'a1f0-77c2-9de1'
+  };
+
+  var DEMO_HEADERS = [
+    ['Content-Type', 'application/json; charset=utf-8'],
+    ['Date', 'Thu, 02 Oct 2026 10:30:12 GMT'],
+    ['Connection', 'keep-alive'],
+    ['Keep-Alive', 'timeout=5'],
+    ['Server', 'nginx/1.24.0'],
+    ['Cache-Control', 'no-store'],
+    ['X-Trace-Id', 'a1f0-77c2-9de1'],
+    ['Set-Cookie', 'sid=s%3A8f21c4d2e7; Path=/; HttpOnly; SameSite=Lax']
+  ];
+
+  var respBodyText = '';          // 当前响应正文（未发送时为空）
+  var respMode = 'pretty';
+  var respTab = 'body';
+  var searchExpanded = false;
+  var matchCount = 0;
+  var matchIndex = 0;
+
+  function renderRespHeaders() {
+    var html = '';
+    DEMO_HEADERS.forEach(function (pair) {
+      html += '<tr><td class="resp-table__name">' + escapeHtml(pair[0]) + '</td>'
+        + '<td class="resp-table__value">' + escapeHtml(pair[1]) + '</td></tr>';
+    });
+    document.getElementById('resp-headers-body').innerHTML = html;
+  }
+  renderRespHeaders();
+
+  function jsonToken(value) {
+    if (value === null) return { text: 'null', cls: 'is-null' };
+    if (typeof value === 'boolean') return { text: String(value), cls: 'is-bool' };
+    if (typeof value === 'number') return { text: String(value), cls: 'is-number' };
+    return { text: JSON.stringify(value), cls: 'is-string' };
+  }
+
+  // 递归渲染可折叠 JSON 树（结构对齐 JsonResponseView：行内折叠 + 汇总 + 缩进导引线）
+  function renderJsonNode(value, key, parentHasKey) {
+    var isCollection = value !== null && typeof value === 'object';
+    var html = '<div class="jtn"><div class="jtn-line">';
+    html += isCollection ? '<span class="jtn-toggle" data-toggle>▼</span>' : '<span class="jtn-toggle"></span>';
+    if (parentHasKey) html += '<span class="jtn-key">"' + escapeHtml(key) + '": </span>';
+    if (!isCollection) {
+      var token = jsonToken(value);
+      html += '<span class="jtn-token ' + token.cls + '">' + escapeHtml(token.text) + '</span></div></div>';
+      return html;
+    }
+    var isArray = Array.isArray(value);
+    var open = isArray ? '[' : '{';
+    var close = isArray ? ']' : '}';
+    var entries = isArray
+      ? value.map(function (item, i) { return [String(i), item]; })
+      : Object.keys(value).map(function (k) { return [k, value[k]]; });
+    var summary = isArray ? 'Array(' + entries.length + ')' : 'Object {' + entries.length + '}';
+    html += '<span class="jtn-token">' + open + '</span>'
+      + '<span class="jtn-summary" hidden>' + summary + '</span>'
+      + '<span class="jtn-token" data-close hidden>' + close + '</span></div>';
+    html += '<div class="jtn-children">';
+    entries.forEach(function (entry) {
+      html += renderJsonNode(entry[1], entry[0], !isArray);
+    });
+    html += '<div class="jtn-line"><span class="jtn-token">' + close + '</span></div>';
+    html += '</div></div>';
+    return html;
+  }
+
+  jsonTree.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.jtn-toggle');
+    if (!toggle || !toggle.hasAttribute('data-toggle')) return;
+    var node = toggle.closest('.jtn');
+    var children = node.querySelector('.jtn-children');
+    var summary = node.querySelector('.jtn-summary');
+    var closeToken = node.querySelector('[data-close]');
+    var willCollapse = !children.hidden;
+    children.hidden = willCollapse;
+    summary.hidden = !willCollapse;
+    closeToken.hidden = !willCollapse;
+    toggle.textContent = willCollapse ? '▶' : '▼';
+  });
+
+  function updateSearchCount(count) {
+    var kw = searchInput.value.trim();
+    if (!kw) { searchCount.textContent = ''; return; }
+    searchCount.textContent = count === 0 ? '无匹配' : (Math.min(matchIndex, count - 1) + 1) + '/' + count;
+  }
+
+  function renderPre() {
+    var kw = searchInput.value.trim();
+    if (!respBodyText) {
+      respPre.textContent = '（空响应体）';
+      matchCount = 0;
+      updateSearchCount(0);
+      return;
+    }
+    if (!kw) {
+      respPre.textContent = respBodyText;
+      matchCount = 0;
+      updateSearchCount(0);
+      return;
+    }
+    var lower = respBodyText.toLowerCase();
+    var needle = kw.toLowerCase();
+    var html = '';
+    var cursor = 0;
+    var found = lower.indexOf(needle);
+    var count = 0;
+    while (found >= 0 && count < 1000) {
+      if (found > cursor) html += escapeHtml(respBodyText.slice(cursor, found));
+      html += '<mark' + (count === matchIndex ? ' class="is-current"' : '') + '>'
+        + escapeHtml(respBodyText.slice(found, found + needle.length)) + '</mark>';
+      cursor = found + needle.length;
+      count += 1;
+      found = lower.indexOf(needle, cursor);
+    }
+    if (cursor < respBodyText.length) html += escapeHtml(respBodyText.slice(cursor));
+    matchCount = count;
+    if (count === 0) {
+      respPre.textContent = respBodyText;
+      updateSearchCount(0);
+      return;
+    }
+    if (matchIndex >= count) matchIndex = 0;
+    respPre.innerHTML = html;
+    updateSearchCount(count);
+  }
+
+  function renderBody() {
+    var kw = searchInput.value.trim();
+    var isJson = respLang.value === 'json';
+    var showTree = respMode === 'pretty' && isJson && !kw && respBodyText;
+    jsonTree.hidden = !showTree;
+    respPre.hidden = showTree;
+    if (showTree) {
+      jsonTree.innerHTML = renderJsonNode(DEMO_BODY, 'root', false);
+    } else {
+      renderPre();
+    }
+  }
+
+  function setRespTab(key) {
+    respTab = key;
+    document.querySelectorAll('.resptab').forEach(function (t) {
+      t.classList.toggle('is-active', t.getAttribute('data-resp') === key);
+    });
+    document.querySelectorAll('[data-resp-panel]').forEach(function (p) {
+      p.hidden = p.getAttribute('data-resp-panel') !== key;
+    });
+    // Body 子工具栏（Pretty/Raw/Preview + 类型）仅在 Body 页签下出现
+    modeBar.hidden = key !== 'body';
+    if (key === 'body') renderBody();
+  }
+
+  document.querySelectorAll('.resptab').forEach(function (btn) {
+    btn.addEventListener('click', function () { setRespTab(btn.getAttribute('data-resp')); });
+  });
+
+  document.querySelectorAll('.respmode').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      respMode = btn.getAttribute('data-mode');
+      document.querySelectorAll('.respmode').forEach(function (s) {
+        s.classList.toggle('is-active', s === btn);
+      });
+      renderBody();
+    });
+  });
+
+  respLang.addEventListener('change', renderBody);
+
+  function toggleSearch() {
+    searchExpanded = !searchExpanded;
+    searchWrap.hidden = !searchExpanded;
+    btnSearch.classList.toggle('is-active', searchExpanded);
+    if (!searchExpanded) {
+      searchInput.value = '';
+      matchIndex = 0;
+    } else {
+      setRespTab('body');
+    }
+    renderBody();
+    if (searchExpanded) searchInput.focus();
+  }
+
+  btnSearch.addEventListener('click', toggleSearch);
+  searchInput.addEventListener('input', function () { matchIndex = 0; renderBody(); });
+
+  function stepMatch(delta) {
+    if (!matchCount) return;
+    matchIndex = (matchIndex + delta + matchCount) % matchCount;
+    renderPre();
+  }
+  document.getElementById('search-prev').addEventListener('click', function () { stepMatch(-1); });
+  document.getElementById('search-next').addEventListener('click', function () { stepMatch(1); });
+
+  // 复制响应体：复制失败（非安全上下文等）时提示手动复制
+  document.getElementById('btn-copy').addEventListener('click', function () {
+    if (!respBodyText) return;
+    var btn = this;
+    if (!navigator.clipboard) {
+      window.RTUX.toast('复制失败，请手动选择复制', { type: 'warning' });
+      return;
+    }
+    navigator.clipboard.writeText(respBodyText).then(function () {
+      btn.innerHTML = '';
+      btn.setAttribute('data-icon', 'check');
+      window.RTIcons.hydrate(btn);
+      window.RTUX.toast('已复制响应体', { type: 'success' });
+      window.setTimeout(function () {
+        btn.innerHTML = '';
+        btn.setAttribute('data-icon', 'copy');
+        window.RTIcons.hydrate(btn);
+      }, 1200);
+    }).catch(function () {
+      window.RTUX.toast('复制失败，请手动选择复制', { type: 'warning' });
+    });
+  });
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  /* ==================== 标签条：切换 / 关闭 / 新建 / 重命名 ==================== */
+
   var tabBar = document.querySelector('.tabbar');
   var tabsWrap = document.querySelector('.tabbar__tabs');
   var tabAdd = document.querySelector('.tabbar__add');
+  var urlInput = document.getElementById('url-input');
+  var methodPick = document.querySelector('.method-pick');
+  var btnSend = document.getElementById('btn-send');
+  var btnSave = document.getElementById('btn-save');
+  var canSave = false;
+
   // 固定标签（历史记录）不带 data-method，既不计入会话标签也不切换请求状态
   function sessionTabs() { return tabBar.querySelectorAll('.ws-tab[data-method]'); }
+  function activeSessionTab() { return tabBar.querySelector('.ws-tab.is-active[data-method]'); }
+  function historyTab() { return tabBar.querySelector('.ws-tab[data-fixed]'); }
+
+  function updateAddState() {
+    tabAdd.disabled = sessionTabs().length >= 10; // 同时最多 10 个标签（MAX_DEBUG_TABS）
+  }
+
+  function updateSendState() {
+    btnSend.disabled = urlInput.value.trim() === '';
+  }
+  urlInput.addEventListener('input', updateSendState);
 
   // 方法下拉的文字色由 data-m 驱动（见 .method-pick[data-m] 规则）
   function setMethod(method) {
-    var pick = document.querySelector('.method-pick');
-    pick.value = method;
-    pick.setAttribute('data-m', method);
+    methodPick.value = method;
+    methodPick.setAttribute('data-m', method);
   }
 
   // 方法回显到当前标签头：徽标文案与配色随方法同步（见 .m-* 规则）
-  var METHOD_BADGE = { GET: 'm-get', POST: 'm-post', PUT: 'm-put', PATCH: 'm-patch', DELETE: 'm-delete' };
   function echoMethodToTab(method) {
-    var tab = tabBar.querySelector('.ws-tab.is-active[data-method]');
+    var tab = activeSessionTab();
     if (!tab) return; // 固定「历史记录」无请求状态
     tab.setAttribute('data-method', method);
     var badge = tab.querySelector('.ws-tab__method');
@@ -507,23 +1016,29 @@
     }
   }
 
-  document.querySelector('.method-pick').addEventListener('change', function () {
+  methodPick.addEventListener('change', function () {
     this.setAttribute('data-m', this.value);
     echoMethodToTab(this.value);
   });
+
+  function setHistoryView(show) {
+    document.querySelector('.debug__body').hidden = show;
+    document.getElementById('debug-history').hidden = !show;
+  }
 
   function activateDebugTab(tab) {
     tabBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
     var method = tab.getAttribute('data-method');
     if (method === null) {
-      // 固定「历史记录」无请求状态：主内容区切到全宽历史视图（docs28 1.7）
+      // 固定「历史记录」无请求状态：主内容区切到全宽历史视图（交互设计 1.7）
       setHistoryView(true);
       return;
     }
     setHistoryView(false);
     // 各标签独立维护请求状态：切标签即切换方法与 URL
     setMethod(method);
-    document.querySelector('.url-input').value = tab.getAttribute('data-path') || '';
+    urlInput.value = tab.getAttribute('data-path') || '';
+    updateSendState();
   }
 
   function createDebugTab(name) {
@@ -531,57 +1046,208 @@
     tab.className = 'ws-tab';
     tab.setAttribute('data-method', 'GET'); // 新标签默认 GET
     tab.setAttribute('data-path', '');
-    tab.innerHTML = '<span class="ws-tab__method m-get">GET</span><span></span><span class="ws-tab__close" data-close>×</span>';
-    tab.children[1].textContent = name;
+    tab.innerHTML = '<span class="ws-tab__method m-get">GET</span><span class="ws-tab__label"></span><span class="ws-tab__close" data-close>×</span>';
+    tab.querySelector('.ws-tab__label').textContent = name;
     // 新标签追加到页签区末尾，即固定「历史记录」与新建按钮之前
     tabsWrap.appendChild(tab);
+    updateAddState();
     return tab;
+  }
+
+  // 双击页签内联重命名（实现的 el-input：回车或失焦提交，空名不覆盖）
+  function startTabRename(tab) {
+    if (!tab || tab.hasAttribute('data-fixed')) return;
+    var label = tab.querySelector('.ws-tab__label');
+    if (!label || tab.querySelector('.tab-rename')) return;
+    var input = document.createElement('input');
+    input.className = 'input tab-rename';
+    input.value = label.textContent;
+    label.hidden = true;
+    tab.insertBefore(input, label);
+    input.focus();
+    input.select();
+    var done = false;
+    function commit() {
+      if (done) return;
+      done = true;
+      var name = input.value.trim();
+      if (name) label.textContent = name;
+      input.remove();
+      label.hidden = false;
+    }
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') commit(); });
+    input.addEventListener('blur', commit);
+  }
+
+  function closeTab(tab) {
+    if (!tab || tab.hasAttribute('data-fixed')) return;
+    var wasActive = tab.classList.contains('is-active');
+    tab.parentNode.removeChild(tab);
+    // 最后一个会话标签关闭后自动创建空白标签（固定标签不计入）
+    if (!sessionTabs().length) { activateDebugTab(createDebugTab('新建请求')); updateAddState(); return; }
+    updateAddState();
+    if (wasActive) {
+      var sibling = tab.nextElementSibling;
+      var prev = tab.previousElementSibling;
+      var target = sibling && sibling.hasAttribute('data-method') ? sibling
+        : (prev && prev.hasAttribute('data-method') ? prev : sessionTabs()[0]);
+      activateDebugTab(target);
+    }
   }
 
   // 委托到整条标签条：会话页签可滚动区与固定「历史记录」都在其内
   tabBar.addEventListener('click', function (e) {
     var tab = e.target.closest('.ws-tab');
     if (!tab) return;
-    if (e.target.closest('[data-close]')) {
-      var prev = tab.previousElementSibling;
-      var next = tab.nextElementSibling;
-      var wasActive = tab.classList.contains('is-active');
-      tab.parentNode.removeChild(tab);
-      // 最后一个会话标签关闭后自动创建空白标签（固定标签不计入）
-      if (!sessionTabs().length) { activateDebugTab(createDebugTab('新建请求')); return; }
-      if (wasActive) {
-        var target = next && next.hasAttribute('data-method') ? next
-          : (prev && prev.hasAttribute('data-method') ? prev : sessionTabs()[0]);
-        activateDebugTab(target);
-      }
-      return;
-    }
+    if (e.target.closest('[data-close]')) { closeTab(tab); return; }
+    if (e.target.closest('.tab-rename')) return;
     activateDebugTab(tab);
   });
 
+  tabBar.addEventListener('dblclick', function (e) {
+    var tab = e.target.closest('.ws-tab');
+    if (tab) startTabRename(tab);
+  });
+
+  // 中键关闭页签（实现的 handleAuxClick）
+  tabBar.addEventListener('auxclick', function (e) {
+    if (e.button !== 1) return;
+    e.preventDefault();
+    closeTab(e.target.closest('.ws-tab'));
+  });
+
   tabAdd.addEventListener('click', function () {
-    // 同时最多 10 个标签
     if (sessionTabs().length >= 10) { RTUX.toast('最多 10 个标签'); return; }
     activateDebugTab(createDebugTab('新建请求'));
   });
 
-  /* ---------------- 历史记录视图（docs28 1.7：搜索 + 时间分组 + 恢复 / 删除） ---------------- */
+  updateAddState();
+
+  /* ==================== 发送 ==================== */
+
+  // URL 缺省协议补齐（对齐 ensureUrlScheme：开发期常漏输协议）
+  function ensureUrlScheme(url) {
+    var trimmed = url.trim();
+    if (/^https?:\/\//i.test(trimmed) || trimmed.indexOf('/') === 0) return trimmed;
+    return 'http://' + trimmed;
+  }
+
+  // 自动命名：方法 + 路径（对齐 autoTabName / 后端 autoName）
+  function autoTabName(method, url) {
+    var rest = url.trim();
+    var schemeEnd = rest.indexOf('://');
+    if (schemeEnd >= 0) {
+      var pathStart = rest.indexOf('/', schemeEnd + 3);
+      rest = pathStart < 0 ? '/' : rest.slice(pathStart);
+    }
+    var query = rest.indexOf('?');
+    rest = query < 0 ? rest : rest.slice(0, query);
+    if (rest.indexOf('/') !== 0 && rest.indexOf('://') >= 0) rest = '/';
+    return method.toUpperCase() + ' ' + (rest || '/');
+  }
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function nowStamp() {
+    var d = new Date();
+    return pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  function showResponse(failed) {
+    respEmpty.hidden = true;
+    respData.hidden = false;
+    // 新一次响应重置视图口径（对齐 useDebugResponse 的 response watch）
+    searchExpanded = false;
+    searchWrap.hidden = true;
+    btnSearch.classList.remove('is-active');
+    searchInput.value = '';
+    matchIndex = 0;
+    setRespTab('body');
+    respMode = 'pretty';
+    document.querySelectorAll('.respmode').forEach(function (s) {
+      s.classList.toggle('is-active', s.getAttribute('data-mode') === 'pretty');
+    });
+    respLang.value = 'json';
+
+    if (failed) {
+      respCode.textContent = 'ERROR';
+      respCode.removeAttribute('title');
+      respCode.style.color = 'var(--st-danger-strong)';
+      respCode.style.background = 'var(--st-danger-light)';
+      respError.hidden = false;
+      respErrorText.textContent = '500 服务器内部错误 — 上游订单服务未就绪';
+      respBodyText = '';
+      document.getElementById('resp-size').textContent = '—';
+    } else {
+      respCode.textContent = '200';
+      respCode.setAttribute('title', '200 OK — 请求成功');
+      respCode.style.color = 'var(--st-success-strong)';
+      respCode.style.background = 'var(--st-success-light)';
+      respError.hidden = true;
+      respBodyText = JSON.stringify(DEMO_BODY, null, 2);
+      document.getElementById('resp-size').textContent = formatSize(new Blob([respBodyText]).size);
+    }
+    renderBody();
+  }
+
+  function send() {
+    if (btnSend.disabled) return;
+    var url = urlInput.value.trim();
+    if (!url) { window.RTUX.toast('请输入请求 URL', { type: 'warning' }); return; }
+    btnSend.disabled = true;
+    var original = btnSend.innerHTML;
+    btnSend.innerHTML = '<span data-icon="loader"></span>';
+    window.RTIcons.hydrate(btnSend);
+    window.setTimeout(function () {
+      // URL 含 error 时演示执行失败错误态（交互 1.8：失败原因横幅 + ERROR 徽标）
+      var failed = /error/i.test(url);
+      var next = 260 + Math.floor(Math.random() * 160);
+      document.getElementById('resp-time').textContent = failed ? '—' : next + ' ms';
+      showResponse(failed);
+      btnSend.innerHTML = original;
+      updateSendState();
+
+      var label = activeSessionTab() ? activeSessionTab().querySelector('.ws-tab__label') : null;
+      if (label && label.textContent === '新建请求') label.textContent = autoTabName(methodPick.value, url);
+
+      if (failed) {
+        // 失败执行不产生调试记录，保存入口回到禁用态（canSave 依赖 debugRecordId）
+        canSave = false;
+        btnSave.disabled = true;
+        btnSave.setAttribute('title', '请先发送请求获取调试记录');
+        window.RTUX.toast('请求失败：500 服务器内部错误', { type: 'danger' });
+        return;
+      }
+      // 保存入口依赖本次执行生成的调试记录（canSave = response.debugRecordId 存在）
+      canSave = true;
+      btnSave.disabled = false;
+      btnSave.removeAttribute('title');
+      pushHistoryRecord(autoTabName(methodPick.value, ensureUrlScheme(url)), 200, next);
+      window.RTUX.toast('响应 200 · ' + next + ' ms', { type: 'success' });
+    }, 500);
+  }
+  btnSend.addEventListener('click', send);
+  urlInput.addEventListener('keyup', function (e) {
+    if (e.key === 'Enter') send();
+  });
+
+  /* ==================== 历史记录视图（交互设计 1.7：搜索 + 时间分组 + 恢复 / 删除） ==================== */
   var historyView = document.getElementById('debug-history');
   var historyList = document.getElementById('history-list');
   var historyTotal = document.getElementById('history-total');
   // 演示数据：20 条，覆盖 11 个不同日期与全部 5 种请求方法；真实实现由 DebugHistoryView 走 fetchDebugRecords 加载
   var historyRecords = [
-    // 今天（09-29）
-    { id: 'r01', group: '今天', method: 'POST', code: 200, name: '创建订单', url: '${BASE_URL}/api/v1/orders', at: '09-29 10:30', ms: 342 },
-    { id: 'r02', group: '今天', method: 'GET', code: 200, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_88213', at: '09-29 10:12', ms: 118 },
-    { id: 'r03', group: '今天', method: 'GET', code: 404, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_00001', at: '09-29 09:51', ms: 96 },
-    { id: 'r04', group: '今天', method: 'DELETE', code: 500, name: '删除购物车项', url: '${BASE_URL}/api/v1/cart/items/9912', at: '09-29 09:35', ms: 2031 },
-    { id: 'r05', group: '今天', method: 'PUT', code: 200, name: '更新用户资料', url: '${BASE_URL}/api/v1/users/u_3021', at: '09-29 08:58', ms: 154 },
-    // 昨天（09-28）
-    { id: 'r06', group: '昨天', method: 'PUT', code: 200, name: '取消订单', url: '${BASE_URL}/api/v1/orders/ord_88213/cancel', at: '09-28 18:45', ms: 205 },
-    { id: 'r07', group: '昨天', method: 'PATCH', code: 200, name: '更新订单备注', url: '${BASE_URL}/api/v1/orders/ord_77402', at: '09-28 16:22', ms: 132 },
-    { id: 'r08', group: '昨天', method: 'POST', code: 201, name: '用户登录', url: '${BASE_URL}/api/v1/auth/login', at: '09-28 15:07', ms: 268 },
-    { id: 'r09', group: '昨天', method: 'GET', code: 200, name: '订单列表分页', url: '${BASE_URL}/api/v1/orders?page=1', at: '09-28 11:36', ms: 224 },
+    // 今天（10-02）
+    { id: 'r01', group: '今天', method: 'POST', code: 200, name: '创建订单', url: '${BASE_URL}/api/v1/orders', at: '10-02 10:30', ms: 342 },
+    { id: 'r02', group: '今天', method: 'GET', code: 200, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_88213', at: '10-02 10:12', ms: 118 },
+    { id: 'r03', group: '今天', method: 'GET', code: 404, name: '查询订单详情', url: '${BASE_URL}/api/v1/orders/ord_00001', at: '10-02 09:51', ms: 96 },
+    { id: 'r04', group: '今天', method: 'DELETE', code: 500, name: '删除购物车项', url: '${BASE_URL}/api/v1/cart/items/9912', at: '10-02 09:35', ms: 2031 },
+    { id: 'r05', group: '今天', method: 'PUT', code: 200, name: '更新用户资料', url: '${BASE_URL}/api/v1/users/u_3021', at: '10-02 08:58', ms: 154 },
+    // 昨天（10-01）
+    { id: 'r06', group: '昨天', method: 'PUT', code: 200, name: '取消订单', url: '${BASE_URL}/api/v1/orders/ord_88213/cancel', at: '10-01 18:45', ms: 205 },
+    { id: 'r07', group: '昨天', method: 'PATCH', code: 200, name: '更新订单备注', url: '${BASE_URL}/api/v1/orders/ord_77402', at: '10-01 16:22', ms: 132 },
+    { id: 'r08', group: '昨天', method: 'POST', code: 201, name: '用户登录', url: '${BASE_URL}/api/v1/auth/login', at: '10-01 15:07', ms: 268 },
+    { id: 'r09', group: '昨天', method: 'GET', code: 200, name: '订单列表分页', url: '${BASE_URL}/api/v1/orders?page=1', at: '10-01 11:36', ms: 224 },
     // 更早（09-12 ~ 09-27，逐日错开）
     { id: 'r10', group: '更早', method: 'GET', code: 200, name: '获取商品详情', url: '${BASE_URL}/api/v1/products/p_5581', at: '09-27 20:14', ms: 87 },
     { id: 'r11', group: '更早', method: 'POST', code: 201, name: '创建退款单', url: '${BASE_URL}/api/v1/refunds', at: '09-27 17:03', ms: 415 },
@@ -595,11 +1261,7 @@
     { id: 'r19', group: '更早', method: 'PATCH', code: 200, name: '更新优惠券状态', url: '${BASE_URL}/api/v1/coupons/c_8801', at: '09-15 11:26', ms: 143 },
     { id: 'r20', group: '更早', method: 'DELETE', code: 200, name: '清空回收站', url: '${BASE_URL}/api/v1/trash', at: '09-12 10:05', ms: 512 }
   ];
-
-  function setHistoryView(show) {
-    document.querySelector('.debug__body').hidden = show;
-    historyView.hidden = !show;
-  }
+  var historySeq = 0;
 
   function renderHistory() {
     var kw = document.getElementById('history-search').value.trim().toLowerCase();
@@ -618,8 +1280,8 @@
           + '<span class="ws-tab__method ' + (METHOD_BADGE[r.method] || '') + '">' + r.method + '</span>'
           + '<span class="history__code ' + (r.code < 400 ? 'history__code--ok' : 'history__code--fail') + '">' + r.code + '</span>'
           + '<button type="button" class="history__item-main" data-restore>'
-          + '<span class="history__item-name">' + r.name + '</span>'
-          + '<span class="history__item-url">' + r.url + '</span>'
+          + '<span class="history__item-name">' + escapeHtml(r.name) + '</span>'
+          + '<span class="history__item-url">' + escapeHtml(r.url) + '</span>'
           + '</button>'
           + '<span class="history__item-time">' + r.at + '</span>'
           + '<span class="history__item-cost">' + r.ms + 'ms</span>'
@@ -633,7 +1295,23 @@
     historyList.innerHTML = html;
   }
 
-  // 行内重命名（docs28 1.7）：输入框替换主名列，回车或失焦提交，Enter 后的 blur 不重复提交
+  // 执行成功后回写一条调试记录（真实实现由后端生成 debugRecordId 并进入列表）
+  function pushHistoryRecord(name, code, ms) {
+    historySeq += 1;
+    historyRecords.unshift({
+      id: 'rn' + historySeq,
+      group: '今天',
+      method: methodPick.value,
+      code: code,
+      name: name,
+      url: urlInput.value.trim(),
+      at: nowStamp(),
+      ms: ms
+    });
+    renderHistory();
+  }
+
+  // 行内重命名（交互设计 1.7）：输入框替换主名列，回车或失焦提交，Enter 后的 blur 不重复提交
   function startInlineRename(id, item) {
     var rec = historyRecords.filter(function (r) { return r.id === id; })[0];
     var main = item.querySelector('.history__item-main');
@@ -658,7 +1336,7 @@
     input.focus();
   }
 
-  // 恢复请求：新建标签回填该记录的方法与 URL，并切回调试视图（docs28 1.7）
+  // 恢复请求：新建标签回填该记录的方法与 URL，并切回调试视图（交互设计 1.7）
   function restoreHistoryRecord(id) {
     var rec = historyRecords.filter(function (r) { return r.id === id; })[0];
     if (!rec) return;
@@ -677,6 +1355,10 @@
     if (!item) return;
     var id = item.getAttribute('data-id');
     if (e.target.closest('[data-del]')) {
+      var rec = historyRecords.filter(function (r) { return r.id === id; })[0];
+      if (!rec) return;
+      // 删除为不可逆操作，与实现一致先确认再提交
+      if (!window.confirm('确定删除调试记录「' + (rec.name || rec.url || '') + '」？')) return;
       historyRecords = historyRecords.filter(function (r) { return r.id !== id; });
       renderHistory();
       RTUX.toast('已删除');
@@ -689,9 +1371,195 @@
     if (e.target.closest('[data-restore]')) restoreHistoryRecord(id);
   });
 
+  // 双击记录名进入重命名（实现的 item-main @dblclick）
+  historyList.addEventListener('dblclick', function (e) {
+    var main = e.target.closest('.history__item-main');
+    if (!main) return;
+    var item = main.closest('.history__item');
+    startInlineRename(item.getAttribute('data-id'), item);
+  });
+
   document.getElementById('history-search').addEventListener('input', renderHistory);
 
   renderHistory();
+
+  /* ==================== 导入 cURL（仅解析不执行） ==================== */
+
+  var curlDialog = document.getElementById('curlDialog');
+  var curlText = document.getElementById('curl-text');
+  var curlSubmit = document.getElementById('curl-submit');
+
+  document.querySelectorAll('.js-open-curl').forEach(function (el) {
+    el.addEventListener('click', function () { curlDialog.hidden = false; curlText.focus(); });
+  });
+  document.querySelectorAll('.js-close-curl').forEach(function (el) {
+    el.addEventListener('click', function () { curlDialog.hidden = true; });
+  });
+  curlText.addEventListener('input', function () { curlSubmit.disabled = !curlText.value.trim(); });
+
+  function headerRow(name, value) {
+    return '<tr>'
+      + '<td class="col-enable"><span class="checkbox checkbox--on"></span></td>'
+      + '<td><input class="input" list="common-headers" value="' + escapeHtml(name) + '" style="height:28px"></td>'
+      + '<td><input class="input" value="' + escapeHtml(value) + '" style="height:28px"></td>'
+      + '<td><input class="input" placeholder="描述（可选）" style="height:28px"></td>'
+      + '<td class="col-op"><button type="button" class="row-del" data-icon="trash" title="删除"></button></td>'
+      + '</tr>';
+  }
+
+  curlSubmit.addEventListener('click', function () {
+    var text = curlText.value.trim();
+    if (!text) return;
+    var urlMatch = text.match(/https?:\/\/[^\s'"]+/i);
+    if (!urlMatch) { window.RTUX.toast('cURL 解析失败：未找到请求 URL', { type: 'danger' }); return; }
+    var methodMatch = text.match(/(?:-X\s+|--request\s+)(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|CONNECT)\b/i);
+    var method = methodMatch ? methodMatch[1].toUpperCase() : ((/-d\b|--data|--form|-F\b/.test(text)) ? 'POST' : 'GET');
+
+    setMethod(method);
+    echoMethodToTab(method);
+    urlInput.value = urlMatch[0];
+    updateSendState();
+
+    // 请求头回填：重写 Headers 表并保持末尾自动补行
+    var headers = [];
+    var headerRe = /(?:-H\s+|--header\s+)(['"])([^'"]+)\1/g;
+    var hm;
+    while ((hm = headerRe.exec(text)) !== null) {
+      var sep = hm[2].indexOf(':');
+      if (sep > 0) headers.push([hm[2].slice(0, sep).trim(), hm[2].slice(sep + 1).trim()]);
+    }
+    if (headers.length) {
+      var rows = '';
+      headers.forEach(function (pair) { rows += headerRow(pair[0], pair[1]); });
+      rows += headerRow('', '');
+      document.getElementById('headers-body').innerHTML = rows;
+      window.RTIcons.hydrate(document.getElementById('headers-body'));
+      document.querySelector('.reqtab[data-req="headers"] .count').textContent = headers.length;
+    }
+
+    // 请求体回填：存在 -d / --data 时切到 raw 编辑器
+    var bodyMatch = text.match(/(?:--data-raw|-d|--data)\s+(?:'([^']*)'|"([^"]*)"|(\S+))/);
+    var body = bodyMatch ? (bodyMatch[1] || bodyMatch[2] || bodyMatch[3] || '') : '';
+    if (body) {
+      setParamTab('body');
+      setBodyType('raw');
+      document.getElementById('raw-text').value = body;
+      var subtype = /^\s*[[{]/.test(body) ? 'Json' : 'Text';
+      document.getElementById('raw-subtype').value = subtype;
+      document.getElementById('btn-format').hidden = subtype !== 'Json';
+    }
+
+    curlDialog.hidden = true;
+    curlText.value = '';
+    curlSubmit.disabled = true;
+    window.RTUX.toast('cURL 解析成功，已回填当前标签', { type: 'success' });
+  });
+
+  /* ==================== 保存为接口定义（SaveInterfaceDialog） ==================== */
+
+  var saveDialog = document.getElementById('saveDialog');
+  var savedDialog = document.getElementById('savedDialog');
+  var saveTitle = document.getElementById('save-title');
+  var saveName = document.getElementById('save-name');
+  var saveModule = document.getElementById('save-module');
+  var saveInterface = document.getElementById('save-interface');
+  var saveTip = document.getElementById('save-tip');
+  var saveNameErr = document.getElementById('save-name-err');
+  var saveModuleErr = document.getElementById('save-module-err');
+  var saveMode = 'create';
+
+  function setSaveMode(mode) {
+    saveMode = mode;
+    saveTitle.textContent = mode === 'create' ? '保存为接口定义' : '归属已有接口定义';
+    saveTip.textContent = mode === 'create'
+      ? '以当前调试请求（方法/URL/头/参数/请求体）创建新的接口定义'
+      : '以当前调试请求覆盖所选接口定义的最新版本（并发修改将被拒绝）';
+    document.querySelectorAll('#save-mode .segment__item').forEach(function (item) {
+      item.classList.toggle('segment__item--active', item.getAttribute('data-mode') === mode);
+    });
+    document.querySelectorAll('[data-save-panel]').forEach(function (p) {
+      p.hidden = p.getAttribute('data-save-panel') !== mode;
+    });
+    saveName.disabled = mode === 'attach';
+    saveNameErr.hidden = true;
+    saveModuleErr.hidden = true;
+  }
+
+  document.querySelectorAll('#save-mode .segment__item').forEach(function (item) {
+    item.addEventListener('click', function () { setSaveMode(item.getAttribute('data-mode')); });
+  });
+
+  btnSave.addEventListener('click', function () {
+    if (!canSave) return;
+    saveName.value = '';
+    saveModule.value = '';
+    setSaveMode('create');
+    saveDialog.hidden = false;
+    saveName.focus();
+  });
+
+  document.querySelectorAll('.js-close-save').forEach(function (el) {
+    el.addEventListener('click', function () { saveDialog.hidden = true; });
+  });
+
+  document.getElementById('save-submit').addEventListener('click', function () {
+    if (saveMode === 'create') {
+      saveNameErr.hidden = !!saveName.value.trim();
+      saveModuleErr.hidden = !!saveModule.value;
+      if (!saveName.value.trim() || !saveModule.value) return;
+    }
+    saveDialog.hidden = true;
+    var created = saveMode === 'create';
+    window.RTUX.toast(created ? '已保存为接口定义' : '已更新接口定义', { type: 'success' });
+    document.getElementById('saved-text').textContent = created
+      ? '已保存为接口定义，是否前往查看？'
+      : '已更新接口定义，是否前往查看？';
+    savedDialog.hidden = false;
+  });
+
+  function closeSaved() { savedDialog.hidden = true; }
+  document.getElementById('saved-stay').addEventListener('click', closeSaved);
+  document.getElementById('saved-close').addEventListener('click', closeSaved);
+  document.getElementById('saved-view').addEventListener('click', function () {
+    closeSaved();
+    window.RTUX.toast('演示页：跳转到接口管理查看该接口定义');
+  });
+
+  /* ==================== 快捷键（对齐 useDebugPage.onHotkey / useDebugResponse.onKeydown） ==================== */
+
+  document.addEventListener('keydown', function (e) {
+    var mod = e.ctrlKey || e.metaKey;
+    var key = e.key.toLowerCase();
+    if (mod && e.shiftKey && key === 'h') {
+      e.preventDefault();
+      var onHistory = !historyView.hidden;
+      activateDebugTab(onHistory ? (activeSessionTab() || sessionTabs()[0]) : historyTab());
+      return;
+    }
+    if (mod && key === 't') {
+      e.preventDefault();
+      tabAdd.click();
+      return;
+    }
+    if (mod && key === 'w') {
+      e.preventDefault();
+      if (historyView.hidden) closeTab(activeSessionTab());
+      return;
+    }
+    if (mod && key === 'f' && !respData.hidden) {
+      e.preventDefault();
+      toggleSearch();
+      return;
+    }
+    if (mod && key === 'g' && searchExpanded) {
+      e.preventDefault();
+      stepMatch(e.shiftKey ? -1 : 1);
+      return;
+    }
+    if (e.key === 'Escape' && searchExpanded) toggleSearch();
+  });
+
+  updateSendState();
 </script>
 </body>
 </html>
