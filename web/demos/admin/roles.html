@@ -7,7 +7,25 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .role-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+  .role-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: stretch; }
+  /* 左右两栏等高：卡片拉满栅格行高，卡体吸收剩余空间 */
+  .role-layout > .card { display: flex; flex-direction: column; min-height: 0; }
+  .role-layout .card__body,
+  .role-detail__pane { flex: 1 1 auto; min-height: 0; }
+
+  /* 角色树：分组根弱化为区块标题，具体角色沿用 role-item */
+  .role-tree { padding: 8px; }
+  .role-group + .role-group { margin-top: 4px; }
+  .role-group__head {
+    display: flex; align-items: center; gap: 6px;
+    min-height: 40px; padding: 0 8px;
+    font-size: 12px; font-weight: 600; color: var(--n-500); letter-spacing: 0.03em;
+  }
+  .role-group__caret { display: inline-flex; }
+  .role-group__caret svg { width: 14px; height: 14px; color: var(--n-400); }
+  .role-group__add { margin-left: auto; }
+  .role-group__children { padding-left: 14px; }
+
   .role-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding: 14px 16px; border-radius: var(--radius-md); cursor: pointer;
@@ -15,13 +33,43 @@
   }
   .role-item:hover { background: var(--n-25); }
   .role-item--active { background: var(--brand-50); border-color: var(--brand-100); }
+  .role-item__main { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .role-item__name { font-size: 14px; font-weight: 600; color: var(--n-900); }
-  .role-item__desc { font-size: 12px; color: var(--n-500); margin-top: 2px; }
-  .perm-group { padding: 16px 0; border-bottom: 1px dashed var(--n-200); }
-  .perm-group:last-child { border-bottom: none; }
-  .perm-group__title { font-size: 13px; font-weight: 600; color: var(--n-800); margin-bottom: 10px; }
+  /* 重命名/删除只随选中叶节点出现（预置角色恒不出现） */
+  .role-item__actions { display: none; align-items: center; gap: 2px; }
+  .role-item--active .role-item__actions { display: flex; }
+
+  .role-node-action {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0;
+    border: none; border-radius: var(--radius-sm);
+    background: transparent; color: var(--n-400); cursor: pointer;
+  }
+  .role-node-action:hover { background: var(--n-100); color: var(--n-700); }
+  .role-node-action--danger:hover { color: var(--st-danger); }
+  .role-node-action svg { width: 14px; height: 14px; }
+
+  /* 权限点/关联用户 Tab 共用等高卡体，滚动收进各 pane */
+  .role-detail .tabs { flex-shrink: 0; }
+  .role-detail__pane { padding: 12px 24px 16px; }
+
+  .perm-table { font-size: 13px; }
+  .perm-table__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .perm-table__header-main { display: flex; align-items: center; gap: 8px; }
+  .perm-table .checkbox { cursor: pointer; }
+  .perm-top { white-space: nowrap; }
   .perm-list { display: flex; flex-wrap: wrap; gap: 10px 22px; }
   .perm { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--n-600); cursor: pointer; }
+  .perm:hover { color: var(--n-900); }
+
+  /* 全选半选态：base.css 未覆盖，补齐 el-checkbox indeterminate 的视觉 */
+  .checkbox--indeterminate { background: var(--brand-500); border-color: var(--brand-500); }
+  .checkbox--indeterminate::after {
+    content: ''; position: absolute; left: 3px; top: 5px;
+    width: 6px; height: 2px; background: #fff; border-radius: 1px;
+  }
+
+  .page-size { width: 100px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
 </style>
 </head>
 <body data-shell="admin" data-active="roles" data-mode="admin">
@@ -33,123 +81,336 @@
       <h1 class="page-head__title">角色管理</h1>
       <p class="page-head__desc">系统角色的权限点配置与关联用户</p>
     </div>
-    <div class="page-head__actions">
-      <button class="btn btn--primary"><span data-icon="plus"></span>新建角色</button>
-    </div>
   </div>
 
   <div class="role-layout">
-    <!-- 角色列表 -->
+    <!-- 角色列表：分组根 + 具体角色，新增入口在分组行 -->
     <div class="card">
-      <div class="card__header"><h3 class="card__title">系统角色<span class="card__subtitle">4</span></h3></div>
-      <div class="card__body" style="padding:8px">
-        <div class="role-item role-item--active">
-          <div><div class="role-item__name">系统管理员</div><div class="role-item__desc">全部系统权限</div></div>
-          <span class="tag tag--neutral tag--sm">3 人</span>
+      <div class="card__header"><h3 class="card__title">角色列表<span class="card__subtitle">5</span></h3></div>
+      <div class="card__body role-tree">
+        <div class="role-group">
+          <div class="role-group__head">
+            <span class="role-group__caret" data-icon="chevron-down"></span>
+            <span>系统角色</span>
+            <button type="button" class="role-node-action role-group__add" aria-label="新增系统角色" data-ux-feedback="新增角色：输入角色名称后创建"><span data-icon="plus"></span></button>
+          </div>
+          <div class="role-group__children">
+            <div class="role-item">
+              <span class="role-item__main"><span class="role-item__name">系统管理员</span><span class="tag tag--warning tag--sm">预置</span></span>
+              <span class="tag tag--neutral tag--sm">3 人</span>
+            </div>
+            <div class="role-item">
+              <span class="role-item__main"><span class="role-item__name">空间管理员</span><span class="tag tag--warning tag--sm">预置</span></span>
+              <span class="tag tag--neutral tag--sm">2 人</span>
+            </div>
+          </div>
         </div>
-        <div class="role-item">
-          <div><div class="role-item__name">空间管理员</div><div class="role-item__desc">空间级管理权限</div></div>
-          <span class="tag tag--neutral tag--sm">8 人</span>
-        </div>
-        <div class="role-item">
-          <div><div class="role-item__name">测试工程师</div><div class="role-item__desc">业务执行权限</div></div>
-          <span class="tag tag--neutral tag--sm">96 人</span>
-        </div>
-        <div class="role-item">
-          <div><div class="role-item__name">只读成员</div><div class="role-item__desc">仅查看权限</div></div>
-          <span class="tag tag--neutral tag--sm">21 人</span>
+
+        <div class="role-group">
+          <div class="role-group__head">
+            <span class="role-group__caret" data-icon="chevron-down"></span>
+            <span>工作空间角色</span>
+            <button type="button" class="role-node-action role-group__add" aria-label="新增工作空间角色" data-ux-feedback="新增角色：输入角色名称后创建"><span data-icon="plus"></span></button>
+          </div>
+          <div class="role-group__children">
+            <div class="role-item">
+              <span class="role-item__main"><span class="role-item__name">管理员</span><span class="tag tag--warning tag--sm">预置</span></span>
+              <span class="tag tag--neutral tag--sm">8 人</span>
+            </div>
+            <div class="role-item">
+              <span class="role-item__main"><span class="role-item__name">成员</span><span class="tag tag--warning tag--sm">预置</span></span>
+              <span class="tag tag--neutral tag--sm">96 人</span>
+            </div>
+            <div class="role-item role-item--active">
+              <span class="role-item__main"><span class="role-item__name">测试工程师</span></span>
+              <span class="role-item__actions">
+                <button type="button" class="role-node-action" aria-label="重命名角色" data-ux-feedback="重命名角色：输入新的角色名称"><span data-icon="edit"></span></button>
+                <button type="button" class="role-node-action role-node-action--danger" aria-label="删除角色" data-ux-feedback="删除角色：确认后删除该角色"><span data-icon="trash"></span></button>
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 权限点 -->
-    <div class="card">
-      <div class="card__header">
-        <h3 class="card__title">权限点<span class="card__subtitle">系统管理员 · 64 项已授予</span></h3>
-        <div class="btn-row">
-          <button class="btn btn--text btn--sm">全部取消</button>
-          <button class="btn btn--primary btn--sm">保存权限</button>
-        </div>
+    <!-- 详情：权限点 / 关联用户共用一张卡，Tab 承担卡头 -->
+    <div class="card role-detail">
+      <div class="tabs">
+        <span class="tab tab--active" data-tab="permissions">权限点</span>
+        <span class="tab" data-tab="users">关联用户</span>
       </div>
-      <div class="card__body" style="padding-top:4px">
-        <div class="perm-group">
-          <div class="perm-group__title">系统管理</div>
-          <div class="perm-list">
-            <span class="perm"><span class="checkbox checkbox--on"></span>用户查看</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>用户编辑</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>空间查看</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>空间管理</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>角色管理</span>
-          </div>
-        </div>
-        <div class="perm-group">
-          <div class="perm-group__title">功能测试</div>
-          <div class="perm-list">
-            <span class="perm"><span class="checkbox checkbox--on"></span>用例查看</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>用例编辑</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>评审管理</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>计划执行</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>需求池维护</span>
-          </div>
-        </div>
-        <div class="perm-group">
-          <div class="perm-group__title">接口测试</div>
-          <div class="perm-list">
-            <span class="perm"><span class="checkbox checkbox--on"></span>快速调试</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>接口管理</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>Mock 服务</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>测试场景</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>测试报告</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>定时任务</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>环境管理</span>
-          </div>
-        </div>
-        <div class="perm-group">
-          <div class="perm-group__title">缺陷管理</div>
-          <div class="perm-list">
-            <span class="perm"><span class="checkbox checkbox--on"></span>缺陷查看</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>缺陷编辑</span>
-            <span class="perm"><span class="checkbox checkbox--on"></span>缺陷删除</span>
-            <span class="perm"><span class="checkbox" ></span>缺陷导出</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- 关联用户 -->
-  <div class="card block-gap">
-    <div class="card__header">
-      <h3 class="card__title">关联用户<span class="card__subtitle">系统管理员 · 3 人</span></h3>
-      <button class="btn btn--default btn--sm"><span data-icon="plus"></span>添加用户</button>
-    </div>
-    <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>用户</th><th>邮箱</th><th>状态</th><th>加入时间</th><th>操作</th></tr></thead>
-        <tbody>
-          <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">张明</span></td>
-            <td class="muted">zhangming@robotest.cn</td>
-            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td class="num">2026-03-02 09:15</td>
-            <td><span class="op-link op-link--danger">移除角色</span></td>
-          </tr>
-          <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">李华</span></td>
-            <td class="muted">lihua@robotest.cn</td>
-            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td class="num">2026-04-18 14:20</td>
-            <td><span class="op-link op-link--danger">移除角色</span></td>
-          </tr>
-          <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">刘</span><span class="cell-main">刘洋</span></td>
-            <td class="muted">liuyang@robotest.cn</td>
-            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td class="num">2026-07-25 10:08</td>
-            <td><span class="op-link op-link--danger">移除角色</span></td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- 权限点：一级/二级模块两级分组，非预置角色可勾选并保存 -->
+      <div class="role-detail__pane" data-pane="permissions">
+        <div class="table-wrap">
+          <table class="table perm-table">
+            <thead>
+              <tr>
+                <th style="width:110px">一级模块</th>
+                <th style="width:130px">二级模块</th>
+                <th>
+                  <div class="perm-table__header">
+                    <span class="perm-table__header-main">
+                      <span class="checkbox checkbox--indeterminate" id="perm-all" role="checkbox" aria-label="全选"></span>权限点
+                    </span>
+                    <span class="btn-row">
+                      <button type="button" class="btn btn--default btn--sm" id="perm-revert" disabled>撤销修改</button>
+                      <button type="button" class="btn btn--primary btn--sm" id="perm-save" disabled>保存权限</button>
+                    </span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="perm-top" rowspan="4">我的空间</td>
+                <td>空间信息</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看空间信息</span>
+                    <span class="perm"><span class="checkbox"></span>编辑空间信息</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>成员管理</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看成员</span>
+                    <span class="perm"><span class="checkbox"></span>管理成员</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>邀请链接</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看邀请链接</span>
+                    <span class="perm"><span class="checkbox"></span>管理邀请链接</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>项目列表</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看项目</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="perm-top" rowspan="4">功能测试</td>
+                <td>测试用例</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看用例</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑用例</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>测试评审</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看评审</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>发起评审</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>评审操作</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>完成评审</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>测试计划</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看计划</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>创建计划</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>执行计划</span>
+                    <span class="perm"><span class="checkbox"></span>关闭计划</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>需求池</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看需求池</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑需求池</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="perm-top" rowspan="9">接口测试</td>
+                <td>快速调试</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看调试记录</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>接口管理</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看接口</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑接口</span>
+                    <span class="perm"><span class="checkbox"></span>删除接口</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>Mock 服务</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看 Mock</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑 Mock</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>测试场景</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看场景</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑场景</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>导入场景</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>执行场景</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>测试报告</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看报告</span>
+                    <span class="perm"><span class="checkbox"></span>删除报告</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>定时任务</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看定时任务</span>
+                    <span class="perm"><span class="checkbox"></span>编辑定时任务</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>环境管理</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看环境</span>
+                    <span class="perm"><span class="checkbox"></span>编辑环境</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>函数管理</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看函数</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑函数</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑空间级函数</span>
+                    <span class="perm"><span class="checkbox"></span>编辑全局函数</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>公共组件</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看组件</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑组件</span>
+                    <span class="perm"><span class="checkbox checkbox--on"></span>编辑空间级组件</span>
+                    <span class="perm"><span class="checkbox"></span>编辑全局组件</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="perm-top" rowspan="1">缺陷管理</td>
+                <td>缺陷</td>
+                <td>
+                  <div class="perm-list">
+                    <span class="perm"><span class="checkbox checkbox--on"></span>查看缺陷</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 关联用户：空间角色按归属空间聚合，分页钉在 pane 底 -->
+      <div class="role-detail__pane" data-pane="users" hidden>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>用户名</th>
+                <th>姓名</th>
+                <th>归属空间</th>
+                <th>授权时间</th>
+                <th style="width:130px">
+                  <button type="button" class="btn btn--primary btn--sm" data-ux-feedback="添加关联用户与空间：选择用户并指定归属空间"><span data-icon="plus"></span>添加用户</button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>zhangming</td>
+                <td class="cell-main">张明</td>
+                <td><span class="tag tag--outline tag--sm">质量中台</span><span class="tag tag--outline tag--sm">供应链测试组</span></td>
+                <td class="num">2026-03-02 09:15</td>
+                <td><span class="op-link op-link--danger" data-ux-feedback="选择要移除的空间后移除">移除</span></td>
+              </tr>
+              <tr>
+                <td>lihua</td>
+                <td class="cell-main">李华</td>
+                <td><span class="tag tag--outline tag--sm">质量中台</span></td>
+                <td class="num">2026-04-18 14:20</td>
+                <td><span class="op-link op-link--danger" data-ux-feedback="确认后移除该用户在此空间中的该角色">移除</span></td>
+              </tr>
+              <tr>
+                <td>wangfang</td>
+                <td class="cell-main">王芳</td>
+                <td><span class="tag tag--outline tag--sm">数据平台验证</span></td>
+                <td class="num">2026-05-06 11:48</td>
+                <td><span class="op-link op-link--danger" data-ux-feedback="确认后移除该用户在此空间中的该角色">移除</span></td>
+              </tr>
+              <tr>
+                <td>zhoumin</td>
+                <td class="cell-main">周敏</td>
+                <td><span class="tag tag--outline tag--sm">质量中台</span><span class="tag tag--outline tag--sm">移动端专项</span></td>
+                <td class="num">2026-08-01 09:52</td>
+                <td><span class="op-link op-link--danger" data-ux-feedback="选择要移除的空间后移除">移除</span></td>
+              </tr>
+              <tr>
+                <td>chenqiang</td>
+                <td class="cell-main">陈强</td>
+                <td><span class="tag tag--outline tag--sm">供应链测试组</span></td>
+                <td class="num">2026-09-12 15:37</td>
+                <td><span class="op-link op-link--danger" data-ux-feedback="确认后移除该用户在此空间中的该角色">移除</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span class="pagination__total">共 5 人</span>
+          <select class="select page-size" aria-label="每页条数">
+            <option selected>20条/页</option>
+            <option>50条/页</option>
+            <option>100条/页</option>
+          </select>
+          <button type="button" class="page-btn" disabled>‹</button>
+          <button type="button" class="page-btn page-btn--active">1</button>
+          <button type="button" class="page-btn" disabled>›</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -157,5 +418,76 @@
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
+<script>
+  (function () {
+    /* Tab 切换：单击角色默认停在「权限点」，与 RolePage 的 el-tabs 一致 */
+    var tabs = document.querySelectorAll('.role-detail .tab');
+    var panes = document.querySelectorAll('.role-detail [data-pane]');
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var name = tab.getAttribute('data-tab');
+        tabs.forEach(function (t) { t.classList.toggle('tab--active', t === tab); });
+        panes.forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== name; });
+      });
+    });
+
+    /* 勾选态与保存快照比对得脏态，驱动撤销/保存按钮（对应 usePermissionTable.dirty） */
+    var allBox = document.getElementById('perm-all');
+    var revertBtn = document.getElementById('perm-revert');
+    var saveBtn = document.getElementById('perm-save');
+    var points = Array.prototype.slice.call(document.querySelectorAll('.perm'));
+    var savedPoints = points.filter(isChecked);
+
+    function isChecked(perm) {
+      return perm.querySelector('.checkbox').classList.contains('checkbox--on');
+    }
+
+    function refresh() {
+      var checked = points.filter(isChecked);
+      allBox.classList.toggle('checkbox--on', checked.length === points.length);
+      allBox.classList.toggle('checkbox--indeterminate', checked.length > 0 && checked.length < points.length);
+      allBox.setAttribute(
+        'aria-checked',
+        checked.length === points.length ? 'true' : checked.length === 0 ? 'false' : 'mixed'
+      );
+      var savedSet = new Set(savedPoints);
+      var dirty = checked.length !== savedPoints.length || checked.some(function (p) { return !savedSet.has(p); });
+      revertBtn.disabled = !dirty;
+      saveBtn.disabled = !dirty;
+    }
+
+    points.forEach(function (perm) {
+      perm.addEventListener('click', function () {
+        perm.querySelector('.checkbox').classList.toggle('checkbox--on');
+        refresh();
+      });
+    });
+
+    allBox.addEventListener('click', function () {
+      var turnOn = !allBox.classList.contains('checkbox--on');
+      points.forEach(function (perm) {
+        perm.querySelector('.checkbox').classList.toggle('checkbox--on', turnOn);
+      });
+      refresh();
+    });
+
+    revertBtn.addEventListener('click', function () {
+      var savedSet = new Set(savedPoints);
+      points.forEach(function (perm) {
+        perm.querySelector('.checkbox').classList.toggle('checkbox--on', savedSet.has(perm));
+      });
+      refresh();
+    });
+
+    saveBtn.addEventListener('click', function () {
+      savedPoints = points.filter(isChecked);
+      refresh();
+      if (window.RTUX) window.RTUX.toast('权限已保存', { type: 'success' });
+    });
+
+    refresh();
+  })();
+</script>
 </body>
 </html>

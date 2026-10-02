@@ -6,6 +6,29 @@
 <title>用户管理 · 系统管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 弹层靠 hidden 属性开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
+  [hidden] { display: none !important; }
+
+  /* 用户名在实际页是可点的主链接（el-link primary） */
+  .user-link { color: var(--brand-500); cursor: pointer; font-weight: 500; }
+  .user-link:hover { color: var(--brand-600); }
+
+  th .checkbox, td .checkbox { cursor: pointer; }
+
+  /* 批量操作区与分页同处一条页脚线，避免再叠一层 border-top */
+  .list-batch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: var(--space-md);
+    font-size: var(--font-size-xs);
+  }
+
+  .page-size { width: 104px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
+
+  .dialog-tip { margin: 0 0 var(--space-md); color: var(--n-600); font-size: var(--font-size-sm); }
+</style>
 </head>
 <body data-shell="admin" data-active="users" data-mode="admin">
 
@@ -17,7 +40,6 @@
       <p class="page-head__desc">平台账号、角色与启用状态</p>
     </div>
     <div class="page-head__actions">
-      <button class="btn btn--default"><span data-icon="download"></span>导出</button>
       <button class="btn btn--primary"><span data-icon="plus"></span>新建用户</button>
     </div>
   </div>
@@ -25,85 +47,118 @@
   <div class="card">
     <div class="toolbar">
       <div class="toolbar__filters">
-        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="用户名 / 邮箱"></div>
-        <select class="select"><option>全部状态</option><option>启用</option><option>停用</option></select>
-        <select class="select"><option>全部角色</option><option>系统管理员</option><option>空间管理员</option><option>测试工程师</option><option>只读成员</option></select>
-        <button class="btn btn--default btn--sm"><span data-icon="filter"></span>筛选</button>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="kw-input" placeholder="搜索用户名 / 邮箱" style="width:220px"></div>
+        <select class="select" id="status-filter" style="width:120px"><option value="">状态</option><option>启用</option><option>禁用</option><option>锁定</option></select>
+        <select class="select" id="role-filter" style="width:160px"><option value="">角色</option><option>系统管理员</option><option>空间管理员</option><option>测试工程师</option><option>只读成员</option></select>
+        <button class="btn btn--primary"><span data-icon="search"></span>查询</button>
+        <button class="btn btn--default" data-reset-filters>重置</button>
       </div>
       <div class="toolbar__count">共 128 个账号</div>
     </div>
 
     <div class="table-wrap">
-      <table class="table table--clickable">
+      <table class="table" id="user-table">
         <thead>
-          <tr><th style="width:36px"><span class="checkbox"></span></th><th>用户</th><th>邮箱</th><th>状态</th><th>系统角色</th><th>创建时间</th><th>操作</th></tr>
+          <tr>
+            <th style="width:36px"><span class="checkbox" id="check-all" data-check-all></span></th>
+            <th style="width:210px">用户</th>
+            <th style="width:210px">邮箱</th>
+            <th style="width:100px">状态</th>
+            <th style="width:170px">系统角色</th>
+            <th style="width:170px">创建时间</th>
+            <th style="width:240px">操作</th>
+          </tr>
         </thead>
         <tbody>
-          <tr>
-            <td><span class="checkbox"></span></td>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">张明</span></td>
+          <tr data-status="active" data-username="zhangming">
+            <td><span class="checkbox" data-row-check></span></td>
+            <td class="flex-center flex-gap-sm">
+              <span class="avatar avatar--sm avatar--brand">张</span>
+              <div><span class="user-link">zhangming</span><span class="cell-sub">张明</span></div>
+            </td>
             <td class="muted">zhangming@robotest.cn</td>
-            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
             <td><span class="tag tag--outline">系统管理员</span></td>
             <td class="num">2026-03-02 09:15</td>
-            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
-          <tr>
-            <td><span class="checkbox"></span></td>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">李华</span></td>
+          <tr data-status="active" data-username="lihua">
+            <td><span class="checkbox" data-row-check></span></td>
+            <td class="flex-center flex-gap-sm">
+              <span class="avatar avatar--sm">李</span>
+              <div><span class="user-link">lihua</span><span class="cell-sub">李华</span></div>
+            </td>
             <td class="muted">lihua@robotest.cn</td>
-            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td><span class="tag tag--outline">空间管理员</span></td>
+            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td><span class="tag tag--outline">空间管理员</span><span class="tag tag--outline">测试工程师</span></td>
             <td class="num">2026-04-18 14:20</td>
-            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
-          <tr>
-            <td><span class="checkbox"></span></td>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span><span class="cell-main">王芳</span></td>
+          <tr data-status="active" data-username="wangfang">
+            <td><span class="checkbox" data-row-check></span></td>
+            <td class="flex-center flex-gap-sm">
+              <span class="avatar avatar--sm">王</span>
+              <div><span class="user-link">wangfang</span><span class="cell-sub">王芳</span></div>
+            </td>
             <td class="muted">wangfang@robotest.cn</td>
-            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
             <td><span class="tag tag--outline">测试工程师</span></td>
             <td class="num">2026-05-06 11:48</td>
-            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
-          <tr>
-            <td><span class="checkbox"></span></td>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span><span class="cell-main">陈强</span></td>
+          <tr data-status="disabled" data-username="chenqiang">
+            <td><span class="checkbox" data-row-check></span></td>
+            <td class="flex-center flex-gap-sm">
+              <span class="avatar avatar--sm">陈</span>
+              <div><span class="user-link">chenqiang</span><span class="cell-sub">陈强</span></div>
+            </td>
             <td class="muted">chenqiang@robotest.cn</td>
-            <td><span class="status status--neutral"><span class="dot"></span>停用</span></td>
+            <td class="status-cell"><span class="status status--neutral"><span class="dot"></span>禁用</span></td>
             <td><span class="tag tag--outline">只读成员</span></td>
             <td class="num">2026-06-30 16:05</td>
-            <td><span class="op-link">编辑</span><span class="op-link">启用</span><span class="op-link op-link--danger">删除</span></td>
+            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link" data-set-status="active">启用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
-          <tr>
-            <td><span class="checkbox"></span></td>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">赵</span><span class="cell-main">赵磊</span></td>
+          <tr data-status="locked" data-username="zhaolei">
+            <td><span class="checkbox" data-row-check></span></td>
+            <td class="flex-center flex-gap-sm">
+              <span class="avatar avatar--sm">赵</span>
+              <div><span class="user-link">zhaolei</span><span class="cell-sub">赵磊</span></div>
+            </td>
             <td class="muted">zhaolei@robotest.cn</td>
-            <td><span class="status status--danger"><span class="dot"></span>锁定</span></td>
+            <td class="status-cell"><span class="status status--danger"><span class="dot"></span>锁定</span></td>
             <td><span class="tag tag--outline">测试工程师</span></td>
             <td class="num">2026-07-14 10:33</td>
-            <td><span class="op-link">解锁</span><span class="op-link">编辑</span><span class="op-link op-link--danger">删除</span></td>
+            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link" data-set-status="active">启用</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
-          <tr>
-            <td><span class="checkbox"></span></td>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">周</span><span class="cell-main">周敏</span></td>
+          <tr data-status="active" data-username="zhoumin">
+            <td><span class="checkbox" data-row-check></span></td>
+            <td class="flex-center flex-gap-sm">
+              <span class="avatar avatar--sm">周</span>
+              <div><span class="user-link">zhoumin</span><span class="cell-sub">周敏</span></div>
+            </td>
             <td class="muted">zhoumin@robotest.cn</td>
-            <td><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td><span class="muted">-</span></td>
             <td class="num">2026-08-01 09:52</td>
-            <td><span class="op-link">编辑</span><span class="op-link">重置密码</span><span class="op-link op-link--danger">停用</span></td>
+            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div class="pagination">
-      <span class="pagination__total">共 128 条 · 每页 20 条</span>
+      <span class="list-batch" id="batch-bar" hidden>
+        <span class="muted" id="batch-count">已选 0 项</span>
+        <button class="btn btn--default btn--sm" data-batch="disabled">批量禁用</button>
+        <button class="btn btn--default btn--sm" data-batch="active">批量启用</button>
+      </span>
+      <span class="pagination__total">共 128 条</span>
+      <select class="select page-size"><option>10条/页</option><option selected>20条/页</option><option>50条/页</option><option>100条/页</option></select>
       <button class="page-btn" disabled>‹</button>
       <button class="page-btn page-btn--active">1</button>
       <button class="page-btn">2</button>
       <button class="page-btn">3</button>
-      <button class="page-btn">…</button>
+      <button class="page-btn" disabled>…</button>
       <button class="page-btn">7</button>
       <button class="page-btn">›</button>
     </div>
@@ -111,7 +166,192 @@
 
 </main>
 
+<!-- 状态流转与批量操作的二次确认（对应实际页 ElMessageBox.confirm） -->
+<div class="dialog-mask" id="confirm-dialog" hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="confirm-title">确认操作</span>
+      <button class="dialog__close" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="confirm-dialog">取消</button>
+      <button class="btn btn--primary btn--sm" id="confirm-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重置密码：新密码 8-64 个字符，校验与实际页一致 -->
+<div class="dialog-mask" id="reset-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title">重置密码</span>
+      <button class="dialog__close" data-close="reset-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="dialog-tip">为用户「<span id="reset-username">zhangming</span>」设置新密码（8-64 个字符）。</p>
+      <input class="input" type="password" id="reset-input" placeholder="请输入新密码">
+      <div class="field__error" id="reset-error" hidden></div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="reset-dialog">取消</button>
+      <button class="btn btn--primary btn--sm" id="reset-ok">确定</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+  (function () {
+    function byId(id) { return document.getElementById(id); }
+
+    var STATUS = {
+      active: { label: '启用', dot: 'status--success' },
+      disabled: { label: '禁用', dot: 'status--neutral' },
+      locked: { label: '锁定', dot: 'status--danger' }
+    };
+
+    function statusHtml(status) {
+      return '<span class="status ' + STATUS[status].dot + '"><span class="dot"></span>' + STATUS[status].label + '</span>';
+    }
+
+    /* 操作列按当前状态重排，条件与实际页各按钮的 v-if 一致 */
+    function opsHtml(status) {
+      var html = '<span class="op-link">编辑</span>';
+      if (status !== 'active') html += '<span class="op-link" data-set-status="active">启用</span>';
+      if (status !== 'disabled') html += '<span class="op-link op-link--danger" data-set-status="disabled">禁用</span>';
+      if (status !== 'locked') html += '<span class="op-link op-link--danger" data-set-status="locked">锁定</span>';
+      return html + '<span class="op-link" data-op="reset">重置密码</span>';
+    }
+
+    var pendingConfirm = null;
+    function askConfirm(title, body, onOk) {
+      byId('confirm-title').textContent = title;
+      byId('confirm-body').textContent = body;
+      pendingConfirm = onOk || null;
+      byId('confirm-dialog').hidden = false;
+    }
+
+    function checkedRows() {
+      return Array.prototype.slice.call(document.querySelectorAll('#user-table [data-row-check].checkbox--on'));
+    }
+
+    function renderBatch() {
+      var count = checkedRows().length;
+      byId('batch-bar').hidden = count === 0;
+      byId('batch-count').textContent = '已选 ' + count + ' 项';
+    }
+
+    function applyStatus(row, status) {
+      row.setAttribute('data-status', status);
+      row.querySelector('.status-cell').innerHTML = statusHtml(status);
+      row.querySelector('.ops-cell').innerHTML = opsHtml(status);
+    }
+
+    document.addEventListener('click', function (e) {
+      var target;
+
+      if ((target = e.target.closest('[data-close]'))) {
+        byId(target.getAttribute('data-close')).hidden = true;
+        return;
+      }
+
+      if ((target = e.target.closest('[data-op="reset"]'))) {
+        var resetRow = target.closest('tr');
+        byId('reset-username').textContent = resetRow.getAttribute('data-username');
+        byId('reset-input').value = '';
+        byId('reset-error').hidden = true;
+        byId('reset-dialog').hidden = false;
+        return;
+      }
+
+      if ((target = e.target.closest('[data-set-status]'))) {
+        var changedRow = target.closest('tr');
+        var next = target.getAttribute('data-set-status');
+        askConfirm(
+          '确认操作',
+          '确定要' + STATUS[next].label + '用户「' + changedRow.getAttribute('data-username') + '」吗？',
+          function () { applyStatus(changedRow, next); }
+        );
+        return;
+      }
+
+      if ((target = e.target.closest('[data-batch]'))) {
+        var batchStatus = target.getAttribute('data-batch');
+        var rows = checkedRows();
+        if (!rows.length) return;
+        askConfirm(
+          '批量操作',
+          '确定要批量' + STATUS[batchStatus].label + '选中的 ' + rows.length + ' 个用户吗？',
+          function () {
+            rows.forEach(function (row) {
+              applyStatus(row, batchStatus);
+              row.querySelector('[data-row-check]').classList.remove('checkbox--on');
+            });
+            byId('check-all').classList.remove('checkbox--on');
+            renderBatch();
+          }
+        );
+        return;
+      }
+
+      if (e.target.closest('[data-check-all]')) {
+        var turnOn = !byId('check-all').classList.contains('checkbox--on');
+        byId('check-all').classList.toggle('checkbox--on', turnOn);
+        document.querySelectorAll('#user-table [data-row-check]').forEach(function (box) {
+          box.classList.toggle('checkbox--on', turnOn);
+        });
+        renderBatch();
+        return;
+      }
+
+      if ((target = e.target.closest('[data-row-check]'))) {
+        target.classList.toggle('checkbox--on');
+        var boxes = document.querySelectorAll('#user-table [data-row-check]');
+        var allOn = Array.prototype.every.call(boxes, function (box) {
+          return box.classList.contains('checkbox--on');
+        });
+        byId('check-all').classList.toggle('checkbox--on', allOn && boxes.length > 0);
+        renderBatch();
+        return;
+      }
+
+      if (e.target.closest('[data-reset-filters]')) {
+        byId('kw-input').value = '';
+        byId('status-filter').value = '';
+        byId('role-filter').value = '';
+      }
+    });
+
+    byId('confirm-ok').addEventListener('click', function () {
+      byId('confirm-dialog').hidden = true;
+      var onOk = pendingConfirm;
+      pendingConfirm = null;
+      if (onOk) onOk();
+    });
+
+    byId('reset-ok').addEventListener('click', function () {
+      var value = byId('reset-input').value;
+      if (!value) {
+        byId('reset-error').textContent = '请输入新密码';
+        byId('reset-error').hidden = false;
+        return;
+      }
+      if (value.length < 8 || value.length > 64) {
+        byId('reset-error').textContent = '密码长度为 8-64 个字符';
+        byId('reset-error').hidden = false;
+        return;
+      }
+      byId('reset-dialog').hidden = true;
+    });
+
+    document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+      mask.addEventListener('click', function (e) {
+        if (e.target === mask) mask.hidden = true;
+      });
+    });
+  })();
+</script>
 </body>
 </html>

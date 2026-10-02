@@ -6,6 +6,24 @@
 <title>空间详情 · 系统管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 弹层靠 hidden 属性开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
+  [hidden] { display: none !important; }
+
+  .page-size { width: 104px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
+
+  .dialog-tip { margin: 0 0 var(--space-md); color: var(--n-600); font-size: var(--font-size-sm); }
+
+  /* 成员 / 项目计数徽标：落在表单与按钮区之间，对应实际页 stat-badge */
+  .stat-row { display: flex; gap: var(--space-md); margin: var(--space-sm) 0 var(--space-lg); }
+  .stat-row .tag { height: 26px; padding: 0 10px; }
+
+  /* 已选用户与角色选择左右分列，对应实际页 pending 列表 */
+  .pending { border-top: 1px solid var(--n-200); padding-top: var(--space-md); }
+  .pending__item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) 0; }
+  .pending__name { font-size: var(--font-size-sm); color: var(--n-700); }
+  .pending__role { width: 140px; }
+</style>
 </head>
 <body data-shell="admin" data-active="workspaces" data-mode="admin">
 
@@ -21,82 +39,315 @@
     <div>
       <div class="flex-center flex-gap-sm">
         <h1 class="page-head__title">质量中台</h1>
-        <span class="status status--success"><span class="dot"></span>活跃</span>
+        <span class="status status--success" id="ws-status"><span class="dot"></span>活跃</span>
       </div>
-      <p class="page-head__desc">空间 ID <span class="mono">ws_8f3a21c4</span> · 创建于 2026-09-18 10:24</p>
+      <p class="page-head__desc">空间 ID <span class="mono">f47ac10b-58cc-4372-a567-0e02b2c3d479</span> · 创建于 2026-09-18 10:24</p>
     </div>
     <div class="page-head__actions">
-      <button class="btn btn--default"><span data-icon="edit"></span>编辑信息</button>
-      <button class="btn btn--danger"><span data-icon="ban"></span>解散空间</button>
+      <button class="btn btn--danger" id="archive-btn" data-active-only>归档空间</button>
+      <button class="btn btn--primary" id="restore-btn" data-archived-only hidden>重新启用</button>
     </div>
   </div>
 
-  <div class="card-grid card-grid--4">
-    <div class="card kpi"><div class="kpi__label"><span data-icon="userfilled"></span>成员</div><div class="kpi__value">24<span class="unit">人</span></div><div class="kpi__foot">管理员 3 · 成员 21</div></div>
-    <div class="card kpi"><div class="kpi__label"><span data-icon="folder"></span>项目</div><div class="kpi__value">6<span class="unit">个</span></div><div class="kpi__foot">活跃 5 · 归档 1</div></div>
-    <div class="card kpi"><div class="kpi__label"><span data-icon="document"></span>用例总数</div><div class="kpi__value">1,024</div><div class="kpi__foot">本周新增 <span class="kpi__delta kpi__delta--up">+37</span></div></div>
-    <div class="card kpi"><div class="kpi__label"><span data-icon="bug"></span>未关闭缺陷</div><div class="kpi__value">18</div><div class="kpi__foot">致命 1 · 严重 4</div></div>
-  </div>
-
-  <div class="card block-gap">
+  <div class="card">
     <div class="card__header"><h3 class="card__title">空间信息</h3></div>
     <div class="card__body">
       <div class="form-grid">
-        <div class="field"><label class="field__label">空间名称</label><input class="input" value="质量中台"></div>
-        <div class="field"><label class="field__label">创建人</label><input class="input" value="张明" disabled></div>
+        <div class="field">
+          <label class="field__label" for="ws-name">空间名称<span class="req">*</span></label>
+          <input class="input" id="ws-name" value="质量中台" maxlength="50">
+          <div class="field__error" id="ws-name-error" hidden></div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="ws-creator">创建人</label>
+          <input class="input" id="ws-creator" value="张明" disabled>
+        </div>
       </div>
-      <div class="field"><label class="field__label">描述</label><textarea class="textarea" style="min-height:72px">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea></div>
-      <div class="flex-center flex-gap-md" style="justify-content:flex-end;margin-bottom:0">
-        <button class="btn btn--text">重置</button>
-        <button class="btn btn--primary">保存修改</button>
+      <div class="field">
+        <label class="field__label" for="ws-desc">描述</label>
+        <textarea class="textarea" id="ws-desc" maxlength="200" style="min-height:72px">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea>
+      </div>
+
+      <div class="stat-row">
+        <span class="tag tag--outline"><span data-icon="userfilled"></span>成员 <span id="stat-members">24</span></span>
+        <span class="tag tag--outline"><span data-icon="folder"></span>项目 <span id="stat-projects">6</span></span>
+      </div>
+
+      <div class="flex-center flex-gap-md" data-active-only style="justify-content:flex-end;margin-bottom:0">
+        <button class="btn btn--text" id="reset-btn">重置</button>
+        <button class="btn btn--primary" id="save-btn">保存修改</button>
       </div>
     </div>
   </div>
 
   <div class="card block-gap">
     <div class="card__header">
-      <h3 class="card__title">成员列表<span class="card__subtitle">24 人</span></h3>
-      <button class="btn btn--default btn--sm"><span data-icon="plus"></span>添加用户</button>
+      <h3 class="card__title">成员列表<span class="card__subtitle" id="member-count">24 人</span></h3>
+      <button class="btn btn--default btn--sm" data-active-only data-open="add-dialog"><span data-icon="plus"></span>添加用户</button>
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>用户</th><th>空间角色</th><th>加入时间</th><th>操作</th></tr></thead>
+        <thead>
+          <tr>
+            <th>用户</th>
+            <th style="width:150px">空间角色</th>
+            <th style="width:180px">加入时间</th>
+            <th style="width:140px" data-active-only>操作</th>
+          </tr>
+        </thead>
         <tbody>
           <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">张明</span></td>
-            <td><span class="tag tag--info">空间管理员</span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">zhangming</span></td>
+            <td><span class="tag tag--success" data-role="admin">管理员</span></td>
             <td class="num">2026-09-18 10:24</td>
-            <td><span class="op-link op-link--muted">不可移除</span></td>
+            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="zhangming">移除</span></td>
           </tr>
           <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">李华</span></td>
-            <td><span class="tag tag--info">空间管理员</span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">lihua</span></td>
+            <td><span class="tag tag--success" data-role="admin">管理员</span></td>
             <td class="num">2026-09-18 10:31</td>
-            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="lihua">移除</span></td>
           </tr>
           <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span><span class="cell-main">王芳</span></td>
-            <td><span class="tag tag--outline">测试工程师</span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span><span class="cell-main">wangfang</span></td>
+            <td><span class="tag tag--outline" data-role="member">成员</span></td>
             <td class="num">2026-09-18 14:02</td>
-            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="wangfang">移除</span></td>
           </tr>
           <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span><span class="cell-main">陈强</span></td>
-            <td><span class="tag tag--outline">只读成员</span></td>
+            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span><span class="cell-main">chenqiang</span></td>
+            <td><span class="tag tag--outline" data-role="member">成员</span></td>
             <td class="num">2026-09-19 09:15</td>
-            <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="chenqiang">移除</span></td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="pagination"><span class="pagination__total">共 24 人</span>
-      <button class="page-btn page-btn--active">1</button><button class="page-btn">2</button><button class="page-btn">›</button>
+    <div class="pagination">
+      <span class="pagination__total" id="member-total">共 24 条</span>
+      <select class="select page-size"><option>20条/页</option><option>50条/页</option><option>100条/页</option></select>
+      <button class="page-btn" disabled>‹</button>
+      <button class="page-btn page-btn--active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">›</button>
     </div>
   </div>
 
 </main>
 
+<!-- 添加用户：搜索多选后逐个指定空间角色再一次性提交 -->
+<div class="dialog-mask" id="add-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:520px">
+    <div class="dialog__header">
+      <span class="dialog__title">添加用户</span>
+      <button class="dialog__close" data-close="add-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="field">
+        <label class="field__label" for="add-search">选择用户</label>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="add-search" placeholder="输入用户名 / 邮箱搜索"></div>
+      </div>
+      <div class="pending">
+        <div class="pending__item">
+          <span class="pending__name">赵雨欣</span>
+          <select class="select pending__role"><option>管理员</option><option selected>成员</option></select>
+        </div>
+        <div class="pending__item">
+          <span class="pending__name">周子墨</span>
+          <select class="select pending__role"><option>管理员</option><option selected>成员</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="add-dialog">取消</button>
+      <button class="btn btn--primary btn--sm" data-close="add-dialog">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 移除成员的二次确认，文案与实际页 ElMessageBox.confirm 一致 -->
+<div class="dialog-mask" id="remove-dialog" hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title">确认移除</span>
+      <button class="dialog__close" data-close="remove-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="remove-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="remove-dialog">取消</button>
+      <button class="btn btn--danger btn--sm" id="remove-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 归档需键入空间名称二次确认，文案与实际页 ElMessageBox.prompt 一致 -->
+<div class="dialog-mask" id="archive-dialog" hidden>
+  <div class="dialog" style="width:460px">
+    <div class="dialog__header">
+      <span class="dialog__title">归档空间</span>
+      <button class="dialog__close" data-close="archive-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="dialog-tip">归档后空间将转为只读，成员与数据保留，可随时重新启用。请输入工作空间名称「<span id="archive-name">质量中台</span>」以确认归档。</p>
+      <input class="input" id="archive-input" placeholder="请输入工作空间名称">
+      <div class="field__error" id="archive-error" hidden></div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="archive-dialog">取消</button>
+      <button class="btn btn--danger btn--sm" id="archive-ok">确认</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+  (function () {
+    function byId(id) { return document.getElementById(id); }
+
+    var wsName = byId('ws-name').value;
+    var initial = { name: wsName, desc: byId('ws-desc').value };
+    var memberTotal = 24;
+    var pendingRemove = null;
+
+    function roleTag(role) {
+      return '<span class="tag ' + (role === 'admin' ? 'tag--success' : 'tag--outline') +
+        '" data-role="' + role + '">' + (role === 'admin' ? '管理员' : '成员') + '</span>';
+    }
+
+    function renderCounts() {
+      byId('member-count').textContent = memberTotal + ' 人';
+      byId('member-total').textContent = '共 ' + memberTotal + ' 条';
+      byId('stat-members').textContent = memberTotal;
+    }
+
+    /* 归档态整页只读：信息与成员维护入口全部收起，仅留[重新启用]，与实际页 isDissolved 口径一致 */
+    function setArchived(on) {
+      document.body.classList.toggle('is-archived', on);
+      document.querySelectorAll('[data-active-only]').forEach(function (el) { el.hidden = on; });
+      document.querySelectorAll('[data-archived-only]').forEach(function (el) { el.hidden = !on; });
+      byId('ws-name').disabled = on;
+      byId('ws-desc').disabled = on;
+      var status = byId('ws-status');
+      status.className = 'status ' + (on ? 'status--neutral' : 'status--success');
+      status.innerHTML = '<span class="dot"></span>' + (on ? '归档' : '活跃');
+    }
+
+    // 改角色为行内编辑：角色列原地变下拉，切换即回填标签、失焦即回退
+    function startRoleEdit(trigger) {
+      var cell = trigger.closest('tr').children[1];
+      var tag = cell.querySelector('[data-role]');
+      if (!tag || cell.querySelector('select')) return;
+      var previous = tag.getAttribute('data-role');
+      var select = document.createElement('select');
+      select.className = 'select';
+      select.innerHTML = '<option value="admin">管理员</option><option value="member">成员</option>';
+      select.value = previous;
+      cell.textContent = '';
+      cell.appendChild(select);
+      select.focus();
+      select.addEventListener('change', function () { cell.innerHTML = roleTag(select.value); });
+      select.addEventListener('blur', function () {
+        if (cell.contains(select)) cell.innerHTML = roleTag(previous);
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      var target;
+
+      if ((target = e.target.closest('[data-close]'))) {
+        byId(target.getAttribute('data-close')).hidden = true;
+        return;
+      }
+
+      if ((target = e.target.closest('[data-open]'))) {
+        byId(target.getAttribute('data-open')).hidden = false;
+        return;
+      }
+
+      if ((target = e.target.closest('[data-role-edit]'))) {
+        startRoleEdit(target);
+        return;
+      }
+
+      if ((target = e.target.closest('[data-remove]'))) {
+        pendingRemove = target.closest('tr');
+        byId('remove-body').textContent = '确定要移除成员「' + target.getAttribute('data-remove') + '」吗？';
+        byId('remove-dialog').hidden = false;
+        return;
+      }
+
+      if (e.target.closest('#archive-btn')) {
+        byId('archive-input').value = '';
+        byId('archive-error').hidden = true;
+        byId('archive-dialog').hidden = false;
+        return;
+      }
+
+      if (e.target.closest('#restore-btn')) {
+        setArchived(false);
+        return;
+      }
+
+      if (e.target.closest('#reset-btn')) {
+        byId('ws-name').value = initial.name;
+        byId('ws-desc').value = initial.desc;
+        byId('ws-name-error').hidden = true;
+        return;
+      }
+    });
+
+    byId('remove-ok').addEventListener('click', function () {
+      byId('remove-dialog').hidden = true;
+      if (!pendingRemove) return;
+      pendingRemove.style.display = 'none';
+      pendingRemove = null;
+      memberTotal -= 1;
+      renderCounts();
+    });
+
+    byId('archive-ok').addEventListener('click', function () {
+      if (byId('archive-input').value.trim() !== wsName) {
+        byId('archive-error').textContent = '名称不匹配';
+        byId('archive-error').hidden = false;
+        return;
+      }
+      byId('archive-dialog').hidden = true;
+      // 实际页归档成功后跳回空间列表；演示稿就地切到归档态，便于查看只读与[重新启用]
+      setArchived(true);
+    });
+
+    byId('save-btn').addEventListener('click', function () {
+      var value = byId('ws-name').value.trim();
+      var error = byId('ws-name-error');
+      if (!value) {
+        error.textContent = '请输入工作空间名称';
+        error.hidden = false;
+        return;
+      }
+      if (value.length < 2 || value.length > 50) {
+        error.textContent = '名称长度需在 2-50 字符之间';
+        error.hidden = false;
+        return;
+      }
+      error.hidden = true;
+      wsName = value;
+      byId('archive-name').textContent = value;
+      initial.name = value;
+      initial.desc = byId('ws-desc').value;
+      var btn = byId('save-btn');
+      btn.textContent = '已保存';
+      window.setTimeout(function () { btn.textContent = '保存修改'; }, 1500);
+    });
+
+    document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+      mask.addEventListener('click', function (e) {
+        if (e.target === mask) mask.hidden = true;
+      });
+    });
+
+    if (window.location.hash === '#archived') setArchived(true);
+  })();
+</script>
 </body>
 </html>
