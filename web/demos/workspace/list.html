@@ -7,13 +7,23 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
+  /* 作者样式强于 UA [hidden]，筛选 / 空态 / 弹层显隐须显式补显隐契约 */
+  [hidden] { display: none !important; }
+
+  /* 对应 WorkspaceListPage 的自适应卡片栅格 */
   .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
   .ws-card {
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
-    padding: 22px 24px; box-shadow: var(--shadow-card); cursor: pointer; position: relative;
+    padding: 22px 24px; min-height: 200px; box-shadow: var(--shadow-card); cursor: pointer; position: relative;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   }
   .ws-card:hover { border-color: var(--brand-300); box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+
+  /* 已归档空间只读，不响应进入 */
+  .ws-card--archived { cursor: default; }
+  .ws-card--archived:hover { border-color: var(--n-200); box-shadow: var(--shadow-card); transform: none; }
+
   .ws-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   .ws-card__icon {
     width: 40px; height: 40px; border-radius: 10px; background: var(--n-900); color: #fff;
@@ -21,96 +31,203 @@
   }
   .ws-card__icon svg { width: 20px; height: 20px; }
   .ws-card__icon--brand { background: var(--brand-500); }
-  .ws-card__name { font-size: 15px; font-weight: 650; color: var(--n-900); margin-top: 14px; }
-  .ws-card__desc { font-size: 12.5px; color: var(--n-500); margin-top: 6px; line-height: 1.6; min-height: 40px; }
+  .ws-card__badges { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-xs); }
+  .ws-card__name {
+    font-size: 15px; font-weight: 650; color: var(--n-900); margin-top: 14px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .ws-card__desc {
+    font-size: 12.5px; color: var(--n-500); margin-top: 6px; line-height: 1.6; min-height: 40px;
+    display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  }
   .ws-card__stats { display: flex; gap: 18px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--n-200); font-size: 12px; color: var(--n-500); }
   .ws-card__stats b { color: var(--n-900); font-weight: 650; font-variant-numeric: tabular-nums; margin-right: 3px; }
+
+  /* 虚线新建卡片：对应实际页 create-card */
+  .ws-create {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 200px; padding: var(--space-xl) var(--card-pad);
+    border: 1px dashed var(--n-300); border-radius: var(--radius-lg);
+    background: transparent; color: var(--n-700); font: inherit; cursor: pointer; text-align: center;
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  }
+  .ws-create:hover { border-color: var(--brand-400); background: var(--brand-50); transform: translateY(-2px); }
+  .ws-create__icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px; margin-bottom: 12px;
+    border: 1px solid var(--n-200); border-radius: 50%; background: var(--n-50); color: var(--n-400);
+  }
+  .ws-create__icon svg { width: 24px; height: 24px; }
+  .ws-create strong { color: var(--n-900); font-size: var(--font-size-sm); font-weight: 600; }
+  .ws-create > span:last-child { margin-top: 4px; color: var(--n-500); font-size: var(--font-size-xs); }
 </style>
 </head>
 <body data-shell="business" data-mode="none">
 
 <main class="content">
 
+  <!-- 演示稿固定呈现具备 workspace:create 权限的视角：无权限时隐藏新建入口与创建卡片 -->
   <div class="page-head">
     <div>
       <h1 class="page-head__title">我的空间</h1>
       <p class="page-head__desc">选择一个工作空间开始协作，或创建新的空间</p>
     </div>
     <div class="page-head__actions">
-      <button class="btn btn--primary"><span data-icon="plus"></span>新建空间</button>
+      <button class="btn btn--primary" type="button" data-open="ws-create-dialog"><span data-icon="plus"></span>新建空间</button>
     </div>
   </div>
 
   <div class="card mb-lg">
     <div class="toolbar" style="border-bottom:none">
       <div class="toolbar__filters">
-        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索空间名称"></div>
-        <div class="segment">
-          <span class="segment__item segment__item--active">全部（6）</span>
-          <span class="segment__item">我管理的（2）</span>
-          <span class="segment__item">已归档（1）</span>
+        <div class="segment" id="scope-segment" role="group" aria-label="空间范围">
+          <span class="segment__item segment__item--active" data-scope="all">全部（6）</span>
+          <span class="segment__item" data-scope="managed">我管理的（2）</span>
+          <span class="segment__item" data-scope="archived">已归档（1）</span>
         </div>
+        <form id="ws-search" role="search" style="margin:0">
+          <div class="input-wrap"><span data-icon="search"></span><input class="input" type="search" id="ws-keyword" placeholder="搜索空间名称" autocomplete="off" aria-label="搜索空间名称"></div>
+        </form>
       </div>
       <div class="toolbar__count">按最近访问排序</div>
     </div>
   </div>
 
-  <div class="ws-grid">
-    <div class="ws-card">
+  <div class="ws-grid" id="ws-grid">
+
+    <div class="ws-card" data-role="admin" data-status="active" data-search="质量中台" data-enter="../project/dashboard.html">
       <div class="ws-card__head">
         <span class="ws-card__icon ws-card__icon--brand" data-icon="folder"></span>
-        <span class="tag tag--info tag--sm">我管理</span>
+        <span class="ws-card__badges">
+          <span class="tag tag--info tag--sm">管理员</span>
+          <span class="tag tag--info tag--sm">当前空间</span>
+        </span>
       </div>
       <div class="ws-card__name">质量中台</div>
       <div class="ws-card__desc">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</div>
       <div class="ws-card__stats"><span><b>24</b>成员</span><span><b>6</b>项目</span><span><b>1,024</b>用例</span></div>
     </div>
 
-    <div class="ws-card">
+    <div class="ws-card" data-role="member" data-status="active" data-search="供应链测试组" data-enter="projects.html">
       <div class="ws-card__head">
         <span class="ws-card__icon" data-icon="folder"></span>
-        <span class="tag tag--neutral tag--sm">成员</span>
+        <span class="ws-card__badges"><span class="tag tag--neutral tag--sm">成员</span></span>
       </div>
       <div class="ws-card__name">供应链测试组</div>
       <div class="ws-card__desc">仓储、履约与结算链路的日常回归，含大促专项预案验证。</div>
       <div class="ws-card__stats"><span><b>17</b>成员</span><span><b>4</b>项目</span><span><b>736</b>用例</span></div>
     </div>
 
-    <div class="ws-card">
+    <div class="ws-card" data-role="admin" data-status="active" data-search="数据平台验证" data-enter="projects.html">
       <div class="ws-card__head">
         <span class="ws-card__icon ws-card__icon--brand" data-icon="folder"></span>
-        <span class="tag tag--info tag--sm">我管理</span>
+        <span class="ws-card__badges"><span class="tag tag--info tag--sm">管理员</span></span>
       </div>
       <div class="ws-card__name">数据平台验证</div>
       <div class="ws-card__desc">数据仓库分层校验与报表口径准确性验证。</div>
       <div class="ws-card__stats"><span><b>9</b>成员</span><span><b>3</b>项目</span><span><b>412</b>用例</span></div>
     </div>
 
-    <div class="ws-card">
+    <div class="ws-card" data-role="member" data-status="active" data-search="移动端专项" data-enter="projects.html">
       <div class="ws-card__head">
         <span class="ws-card__icon" data-icon="folder"></span>
-        <span class="tag tag--neutral tag--sm">成员</span>
+        <span class="ws-card__badges"><span class="tag tag--neutral tag--sm">成员</span></span>
       </div>
       <div class="ws-card__name">移动端专项</div>
       <div class="ws-card__desc">iOS / Android 兼容性、弱网与性能专项测试空间。</div>
       <div class="ws-card__stats"><span><b>13</b>成员</span><span><b>5</b>项目</span><span><b>588</b>用例</span></div>
     </div>
 
-    <div class="ws-card">
+    <!-- 描述留空：实际页按 description || 暂无描述 兜底 -->
+    <div class="ws-card" data-role="member" data-status="active" data-search="开放平台联调" data-enter="projects.html">
       <div class="ws-card__head">
         <span class="ws-card__icon" data-icon="folder"></span>
-        <span class="tag tag--neutral tag--sm">成员</span>
+        <span class="ws-card__badges"><span class="tag tag--neutral tag--sm">成员</span></span>
       </div>
       <div class="ws-card__name">开放平台联调</div>
-      <div class="ws-card__desc">第三方接入鉴权、限流与开放 API 合同验证。</div>
+      <div class="ws-card__desc">暂无描述</div>
       <div class="ws-card__stats"><span><b>11</b>成员</span><span><b>4</b>项目</span><span><b>349</b>用例</span></div>
     </div>
 
-    <div class="ws-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:200px;background:transparent;box-shadow:none">
-      <div class="text-center">
-        <div class="state-block__icon" style="margin-bottom:12px"><span data-icon="plus"></span></div>
-        <div class="text-sm strong">新建工作空间</div>
-        <div class="text-xs muted" style="margin-top:4px">从空间开始组织你的项目与成员</div>
+    <div class="ws-card ws-card--archived" data-role="member" data-status="archived" data-search="2025大促专项">
+      <div class="ws-card__head">
+        <span class="ws-card__icon" data-icon="folder"></span>
+        <span class="ws-card__badges">
+          <span class="tag tag--neutral tag--sm">成员</span>
+          <span class="tag tag--neutral tag--sm">已归档</span>
+          <span class="tag tag--neutral tag--sm">只读</span>
+        </span>
+      </div>
+      <div class="ws-card__name">2025大促专项</div>
+      <div class="ws-card__desc">大促全链路容量与稳定性复盘，活动结束后归档留存。</div>
+      <div class="ws-card__stats"><span><b>15</b>成员</span><span><b>3</b>项目</span><span><b>652</b>用例</span></div>
+    </div>
+
+    <button class="ws-create" type="button" data-open="ws-create-dialog">
+      <span class="ws-create__icon" data-icon="plus"></span>
+      <strong>新建工作空间</strong>
+      <span>从空间开始组织你的项目与成员</span>
+    </button>
+
+  </div>
+
+  <!-- 无匹配时整段替换为空态，创建卡片随栅格一并不渲染（对应实际页 v-else-if 分支） -->
+  <div class="card" id="ws-empty-filtered" hidden>
+    <div class="state-block">
+      <div class="state-block__icon" style="font-size:22px">＋</div>
+      <div class="state-block__title">未找到匹配的工作空间</div>
+      <div class="state-block__desc">请调整名称或切换空间范围</div>
+      <div class="state-block__action"><button class="btn btn--default" type="button" id="ws-clear-filters">清除筛选</button></div>
+    </div>
+  </div>
+
+  <!-- 无归属空间时的另一空态；演示数据非空，仅保留实际页文案结构 -->
+  <div class="card" id="ws-empty-none" hidden>
+    <div class="state-block">
+      <div class="state-block__icon" style="font-size:22px">＋</div>
+      <div class="state-block__title">暂无归属的工作空间，请联系管理员</div>
+      <div class="state-block__desc">你还可以创建一个新的工作空间</div>
+      <div class="state-block__action"><button class="btn btn--default" type="button" data-open="ws-create-dialog">新建空间</button></div>
+    </div>
+  </div>
+
+  <!-- 新建弹窗：字段、占位与校验文案对齐 WorkspaceCreateDialog / useWorkspaceCreate -->
+  <div class="dialog-mask" id="ws-create-dialog" role="dialog" aria-modal="true" aria-labelledby="ws-create-title" hidden>
+    <div class="dialog" style="width:480px">
+      <div class="dialog__header">
+        <span class="dialog__title" id="ws-create-title">新建工作空间</span>
+        <span class="dialog__close" data-close="ws-create-dialog" role="button" tabindex="0" aria-label="关闭"><span data-icon="x"></span></span>
+      </div>
+      <div class="dialog__body">
+        <div class="field">
+          <label class="field__label" for="ws-create-name">名称 <span class="req">*</span></label>
+          <input class="input" id="ws-create-name" maxlength="50" placeholder="请输入工作空间名称" autocomplete="off">
+          <div class="field__hint"><span id="ws-create-name-count">0</span>/50</div>
+          <div class="field__error" id="ws-create-name-error" hidden></div>
+        </div>
+        <!-- 实际为可远程搜索的下拉（仅活跃用户），演示稿以静态选项近似，默认选中当前登录用户 -->
+        <div class="field">
+          <label class="field__label" for="ws-create-admin">管理员 <span class="req">*</span></label>
+          <select class="select" id="ws-create-admin">
+            <option value="">输入姓名搜索（仅活跃用户）</option>
+            <option value="u-zhangming" selected>张明</option>
+            <option value="u-lihua">李华</option>
+            <option value="u-wangfang">王芳</option>
+            <option value="u-chenqiang">陈强</option>
+            <option value="u-zhoumin">周敏</option>
+          </select>
+          <div class="field__error" id="ws-create-admin-error" hidden></div>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label class="field__label" for="ws-create-desc">描述</label>
+          <textarea class="textarea" id="ws-create-desc" rows="3" maxlength="200" placeholder="请输入工作空间描述（可选）"></textarea>
+          <div class="field__hint"><span id="ws-create-desc-count">0</span>/200</div>
+          <div class="field__error" id="ws-create-desc-error" hidden></div>
+        </div>
+      </div>
+      <div class="dialog__footer">
+        <button class="btn btn--default" type="button" data-close="ws-create-dialog">取消</button>
+        <button class="btn btn--primary" type="button" id="ws-create-submit">确定</button>
       </div>
     </div>
   </div>
@@ -119,5 +236,224 @@
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  var grid = document.getElementById('ws-grid');
+  var emptyFiltered = document.getElementById('ws-empty-filtered');
+  var emptyNone = document.getElementById('ws-empty-none');
+  var keyword = document.getElementById('ws-keyword');
+  var segment = document.getElementById('scope-segment');
+  var cards = Array.prototype.slice.call(grid.querySelectorAll('.ws-card'));
+  var scope = 'all';
+  var debounceTimer = null;
+  var SCOPE_LABELS = { all: '全部', managed: '我管理的', archived: '已归档' };
+
+  function matchesKeyword(card) {
+    var kw = keyword.value.trim().toLowerCase();
+    return kw === '' || card.getAttribute('data-search').toLowerCase().indexOf(kw) !== -1;
+  }
+
+  function matchesScope(card) {
+    if (scope === 'managed') return card.getAttribute('data-role') === 'admin';
+    if (scope === 'archived') return card.getAttribute('data-status') === 'archived';
+    return true;
+  }
+
+  // 计数接口随关键词联动，故分段数字按关键词过滤后的集合重算
+  function renderCounts() {
+    var counts = { all: 0, managed: 0, archived: 0 };
+    cards.forEach(function (card) {
+      if (!matchesKeyword(card)) return;
+      counts.all += 1;
+      if (card.getAttribute('data-role') === 'admin') counts.managed += 1;
+      if (card.getAttribute('data-status') === 'archived') counts.archived += 1;
+    });
+    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (item) {
+      var key = item.getAttribute('data-scope');
+      item.textContent = SCOPE_LABELS[key] + '（' + counts[key] + '）';
+    });
+  }
+
+  function render() {
+    renderCounts();
+    var shown = 0;
+    cards.forEach(function (card) {
+      var matched = matchesKeyword(card) && matchesScope(card);
+      card.hidden = !matched;
+      if (matched) shown += 1;
+    });
+    var hasFilters = keyword.value.trim() !== '' || scope !== 'all';
+    grid.hidden = shown === 0;
+    emptyFiltered.hidden = !(shown === 0 && hasFilters);
+    emptyNone.hidden = !(shown === 0 && !hasFilters);
+  }
+
+  function syncSegment() {
+    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (item) {
+      item.classList.toggle('segment__item--active', item.getAttribute('data-scope') === scope);
+    });
+  }
+
+  function resetFilters() {
+    clearTimeout(debounceTimer);
+    keyword.value = '';
+    scope = 'all';
+    syncSegment();
+  }
+
+  segment.addEventListener('click', function (e) {
+    var item = e.target.closest('.segment__item');
+    if (!item) return;
+    scope = item.getAttribute('data-scope');
+    syncSegment();
+    render();
+  });
+
+  // 与实际页一致：输入 300ms 防抖，清空或回车立即刷新
+  keyword.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    if (keyword.value === '') {
+      render();
+      return;
+    }
+    debounceTimer = setTimeout(render, 300);
+  });
+
+  document.getElementById('ws-search').addEventListener('submit', function (e) {
+    e.preventDefault();
+    clearTimeout(debounceTimer);
+    render();
+  });
+
+  document.getElementById('ws-clear-filters').addEventListener('click', function () {
+    resetFilters();
+    render();
+  });
+
+  // 进入空间：实际按是否存在默认项目跳转项目工作台或项目列表，归档空间只读不可进入
+  grid.addEventListener('click', function (e) {
+    var card = e.target.closest('.ws-card');
+    if (!card || card.classList.contains('ws-card--archived')) return;
+    window.location.href = card.getAttribute('data-enter');
+  });
+
+  /* ---------- 新建工作空间弹窗 ---------- */
+  var dialog = document.getElementById('ws-create-dialog');
+  var nameInput = document.getElementById('ws-create-name');
+  var adminSelect = document.getElementById('ws-create-admin');
+  var descInput = document.getElementById('ws-create-desc');
+  var nameError = document.getElementById('ws-create-name-error');
+  var adminError = document.getElementById('ws-create-admin-error');
+  var descError = document.getElementById('ws-create-desc-error');
+
+  function setError(input, errorEl, message) {
+    errorEl.textContent = message;
+    errorEl.hidden = !message;
+    input.classList.toggle('input--error', Boolean(message));
+  }
+
+  function updateCounters() {
+    document.getElementById('ws-create-name-count').textContent = String(nameInput.value.length);
+    document.getElementById('ws-create-desc-count').textContent = String(descInput.value.length);
+  }
+
+  // 打开即重置，对应实际页 watch(modelValue) → reset()
+  function resetDialog() {
+    nameInput.value = '';
+    descInput.value = '';
+    adminSelect.value = 'u-zhangming';
+    setError(nameInput, nameError, '');
+    setError(adminSelect, adminError, '');
+    setError(descInput, descError, '');
+    updateCounters();
+  }
+
+  function validate() {
+    var name = nameInput.value.trim();
+    var nameMsg = '';
+    if (!name) nameMsg = '请输入工作空间名称';
+    else if (name.length < 2 || name.length > 50) nameMsg = '名称长度需在 2-50 字符之间';
+    var adminMsg = adminSelect.value ? '' : '请选择空间管理员';
+    var descMsg = descInput.value.length > 200 ? '描述最多 200 个字符' : '';
+    setError(nameInput, nameError, nameMsg);
+    setError(adminSelect, adminError, adminMsg);
+    setError(descInput, descError, descMsg);
+    if (nameMsg) nameInput.focus();
+    else if (adminMsg) adminSelect.focus();
+    return !nameMsg && !adminMsg && !descMsg;
+  }
+
+  nameInput.addEventListener('input', function () {
+    setError(nameInput, nameError, '');
+    updateCounters();
+  });
+  descInput.addEventListener('input', function () {
+    setError(descInput, descError, '');
+    updateCounters();
+  });
+  adminSelect.addEventListener('change', function () {
+    setError(adminSelect, adminError, '');
+  });
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-open]');
+    if (opener) {
+      resetDialog();
+      dialog.hidden = false;
+      nameInput.focus();
+      return;
+    }
+    var closer = e.target.closest('[data-close]');
+    if (closer) document.getElementById(closer.getAttribute('data-close')).hidden = true;
+  });
+
+  // el-dialog 默认支持点击遮罩与 Esc 关闭
+  dialog.addEventListener('click', function (e) {
+    if (e.target === dialog) dialog.hidden = true;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') dialog.hidden = true;
+  });
+
+  function appendCreatedCard(name, desc) {
+    var isAdmin = adminSelect.value === 'u-zhangming';
+    var card = document.createElement('div');
+    card.className = 'ws-card';
+    card.setAttribute('data-role', isAdmin ? 'admin' : 'member');
+    card.setAttribute('data-status', 'active');
+    card.setAttribute('data-search', name);
+    card.setAttribute('data-enter', 'projects.html');
+    card.innerHTML =
+      '<div class="ws-card__head">' +
+        '<span class="ws-card__icon' + (isAdmin ? ' ws-card__icon--brand' : '') + '" data-icon="folder"></span>' +
+        '<span class="ws-card__badges"><span class="tag tag--' + (isAdmin ? 'info' : 'neutral') +
+        ' tag--sm">' + (isAdmin ? '管理员' : '成员') + '</span></span>' +
+      '</div>' +
+      '<div class="ws-card__name"></div>' +
+      '<div class="ws-card__desc"></div>' +
+      // 创建仅写入所选管理员一条成员关系，成员数即为 1
+      '<div class="ws-card__stats"><span><b>1</b>成员</span><span><b>0</b>项目</span><span><b>0</b>用例</span></div>';
+    card.querySelector('.ws-card__name').textContent = name;
+    card.querySelector('.ws-card__desc').textContent = desc || '暂无描述';
+    // 最近访问排序下，新建的空间排在首位
+    grid.insertBefore(card, grid.firstElementChild);
+    if (window.RTIcons) window.RTIcons.hydrate(card);
+    cards.unshift(card);
+  }
+
+  document.getElementById('ws-create-submit').addEventListener('click', function () {
+    if (!validate()) return;
+    var name = nameInput.value.trim();
+    var desc = descInput.value.trim();
+    dialog.hidden = true;
+    // 创建成功后实际页清空关键词与范围筛选并重新拉取列表
+    resetFilters();
+    appendCreatedCard(name, desc);
+    render();
+  });
+
+  render();
+})();
+</script>
 </body>
 </html>
