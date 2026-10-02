@@ -43,6 +43,7 @@
 | ---- | ---- | ---- | ---- |
 | project_id | uuid | NOT NULL | 所属项目，**隔离边界**，查询强制过滤 |
 | module_id | uuid | NULL | 归属模块（逻辑外键 → 项目统一模块树节点），拆解按模块归属、列表按模块筛选 |
+| system_version | varchar(50) | NULL | 被测业务系统版本（项目即被测业务系统，如 `V2.3`）；按属性变更处理，不触发状态流转与影响分析 |
 | code | varchar(20) | NOT NULL | 需求编号 `REQ-001`，项目内唯一（分配规则见 4.1） |
 | title | varchar(300) | NOT NULL | 需求标题 |
 | description | text | NULL | 需求描述正文（Markdown） |
@@ -54,17 +55,19 @@
 | source_file_id | uuid | NULL | 导入来源附件 ID（复用既有附件资源），详情回看原文 |
 | confirmed_at | timestamp | NULL | 最近一次进入已确认状态的时间 |
 
-**索引**（3 个，≤ 5，C9）：
+**索引**（4 个，≤ 5，C9）：
 
 - `uk_requirement_project_code` UNIQUE (project_id, code) WHERE is_deleted = FALSE；
 - `idx_requirement_project_status` (project_id, status) —— 列表主查询（隔离 + 状态筛选）；
-- `idx_requirement_module` (module_id) —— 模块筛选与拆解归属查询。
+- `idx_requirement_module` (module_id) —— 模块筛选与拆解归属查询；
+- `idx_requirement_system_version` (project_id, system_version) —— 版本筛选。
 
 ```sql
 CREATE TABLE requirement (
     id             uuid PRIMARY KEY,
     project_id     uuid NOT NULL,
     module_id      uuid NULL,
+    system_version varchar(50) NULL,
     code           varchar(20) NOT NULL,
     title          varchar(300) NOT NULL,
     description    text NULL,
@@ -82,6 +85,7 @@ CREATE TABLE requirement (
 CREATE UNIQUE INDEX uk_requirement_project_code ON requirement (project_id, code) WHERE is_deleted = FALSE;
 CREATE INDEX idx_requirement_project_status ON requirement (project_id, status);
 CREATE INDEX idx_requirement_module ON requirement (module_id);
+CREATE INDEX idx_requirement_system_version ON requirement (project_id, system_version);
 ```
 
 ### 2.3 需求变更记录表（requirement_change_log）
@@ -189,6 +193,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 | status | string | 否 | 状态筛选，逗号分隔多选 |
 | moduleIds | uuid | 否 | 所属模块筛选，逗号分隔 |
 | ownerId | uuid | 否 | 负责人筛选 |
+| systemVersion | string | 否 | 版本筛选（精确匹配） |
 | coverage | string | 否 | 覆盖状态筛选：`covered / partial / uncovered / pending`（联查 `trace_coverage_result`） |
 | keyword | string | 否 | 关键词：编号前缀/后缀或标题包含匹配（编号命中规则见 4.3） |
 | pageNo / pageSize | number | 否 | 分页 |
@@ -204,6 +209,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
       "title": "登录验证码",
       "moduleId": "…",
       "moduleName": "登录模块",
+      "systemVersion": "V2.3",
       "status": "confirmed",
       "coverageStatus": "partial",
       "priority": "high",
@@ -229,6 +235,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
   "title": "登录验证码",
   "description": "## 背景\n用户登录需支持短信验证码…",
   "moduleId": "…",
+  "systemVersion": "V2.3",
   "priority": "high",
   "ownerId": "…",
   "tags": ["登录", "安全"]
@@ -236,7 +243,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 ```
 
 - **响应**：需求详情对象（同 3.5），`status = draft`、`code` 已分配（见 4.1）。
-- **校验规则**：`title` 必填 ≤ 300 字符；`moduleId` 非空时须属当前项目（否则 1000018005）；`priority` ∈ `high/medium/low`；`ownerId` 须为当前工作空间成员。
+- **校验规则**：`title` 必填 ≤ 300 字符；`moduleId` 非空时须属当前项目（否则 1000018005）；`priority` ∈ `high/medium/low`；`systemVersion` ≤ 50 字符（超出返回 1000018010）；`ownerId` 须为当前工作空间成员。
 
 ### 3.4 需求详情
 
@@ -251,6 +258,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
   "description": "## 背景…",
   "moduleId": "…",
   "moduleName": "登录模块",
+  "systemVersion": "V2.3",
   "status": "confirmed",
   "priority": "high",
   "ownerId": "…",
@@ -283,7 +291,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 - **校验规则**：
   - `archived` 条目拒绝更新（1000018004）；
   - 传入 `title / description / moduleId` 且当前 `status = confirmed` → 状态自动转 `changed`，写变更记录并提交影响分析任务（见 4.4）；
-  - 仅传 `priority / ownerId / tags` 等属性 → 状态不变，只写 `change_type = attribute` 变更记录。
+  - 仅传 `systemVersion / priority / ownerId / tags` 等属性 → 状态不变，只写 `change_type = attribute` 变更记录。
 
 ### 3.6 确认需求
 
@@ -313,7 +321,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有 `pending/running` 的导入任务时拒绝重复提交（1000018013）。任务进度、产物确认与采纳走 AI 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/artifacts/confirm`），采纳落库由本模块服务承接（见 4.5）。
+- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有 `pending/running` 的导入任务时拒绝重复提交（1000018013）。任务进度、产物确认与采纳走 AI 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/artifacts/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），确认面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
 
 ### 3.9 条目内 AI 拆分
 
@@ -328,7 +336,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-- **校验规则**：条目须属当前项目且非 `archived`（否则 1000018009）；同一条目已有进行中拆分任务时拒绝（1000018013）。采纳后：新条目按 4.1 分配编号并进入 `confirmed`，原条目自动归档，`source_requirement_id` 保留关联（见 4.5）。
+- **校验规则**：条目须属当前项目且非 `archived`（否则 1000018009）；同一条目已有进行中拆分任务时拒绝（1000018013）。采纳后：新条目按 4.1 分配编号并进入 `confirmed`（`system_version` 继承原条目，可经确认面板覆盖），原条目自动归档，`source_requirement_id` 保留关联（见 4.5）。
 
 ### 3.10 变更记录
 
@@ -413,7 +421,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ### 4.4 变更与影响分析触发
 
-1. `PUT` 更新成功且变更字段 ∈ {`title`, `description`, `moduleId`} 且变更前 `status = confirmed`：
+1. `PUT` 更新成功且变更字段 ∈ {`title`, `description`, `moduleId`} 且变更前 `status = confirmed`（`systemVersion` 等属性变更不触发，见 3.5）：
    - 状态转 `changed`；
    - 写 `requirement_change_log`（`before_summary / after_summary` 为字段级前后值）；
    - **事务提交后**异步提交 `POST /api/ai/tasks`（`type = impact_analysis`，输入 `requirementId`），提交失败只记日志不回滚需求更新（下次确认时 3.6 兜底再触发）；
@@ -424,7 +432,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 1. 任务产物逐条确认（`POST /api/ai/tasks/{taskId}/artifacts/confirm`，`action = adopted / adopted_edited / rejected`）；
 2. `adopted / adopted_edited` 时由本模块 `RequirementAdoptService` 承接落库：
-   - 事务内分配编号、写 `requirement`（`status = confirmed`、`source = import/requirement`、`source_file_id` 继承来源文档）；
+   - 事务内分配编号、写 `requirement`（`status = confirmed`、`source = import/requirement`、`source_file_id` 继承来源文档）；`system_version` 取确认请求 `target.systemVersion`（确认面板修改值），缺省回退任务 `documentMeta.detectedVersion`（导入）或继承原条目（拆分），两者皆无则留空；
    - 写 `adopted_ref` 回填（任务侧记录新需求 ID），更新 `requirement_split_record.adopt_result` 与 `status`；
    - 来源为 `requirement` 时，全部产物处理完成后将原条目归档；
 3. 全部驳回：`split_record.status = rejected`，不产生任何需求；
@@ -453,7 +461,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 ```
 RequirementListPage
 ├── ListToolbar（新建需求、导入需求）
-├── RequirementFilterBar（状态/模块/负责人筛选 + keyword，角标显示条件数，查询/重置）
+├── RequirementFilterBar（状态/模块/负责人/版本筛选 + keyword，角标显示条件数，查询/重置）
 └── RequirementTable
     ├── 覆盖状态徽标（covered/partial/uncovered/pending/—）
     ├── 行操作：详情 / 确认（draft|changed 可用）/ 归档 / 更多（编辑、取消归档）
@@ -461,7 +469,7 @@ RequirementListPage
 
 RequirementDetailPage
 ├── DetailHeader（编号、标题内联编辑、状态徽标、确认/归档按钮）
-├── AttributePanel（模块、负责人、优先级、标签、来源；仅提交变更字段）
+├── AttributePanel（模块、版本、负责人、优先级、标签、来源；仅提交变更字段）
 ├── MarkdownDescription（描述渲染与编辑）
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
 ├── ChangeTimeline（变更记录时间线）
@@ -472,7 +480,7 @@ RequirementDetailPage
 ### 5.3 状态管理与交互
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入/拆分任务引用；`aiTask` store 提供任务进度订阅，任务完成回调刷新列表与拆解记录。
-- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 进度弹窗 → 审核面板逐条/批量采纳 → 刷新列表。
+- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 进度弹窗 → 审核面板（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
 - 全部状态分支：列表空态（引导新建/导入）、覆盖状态 `—`（AI 关闭）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务失败重试入口。
 
 ---
@@ -492,7 +500,7 @@ RequirementDetailPage
 | 1000018007 | 400 | 导入文件超过 20MB 限制 |
 | 1000018008 | 400 | 导入文件为空或不可解析 |
 | 1000018009 | 400 | 拆分输入不满足条件（条目不可拆分） |
-| 1000018010 | 400 | 需求属性取值非法（优先级等） |
+| 1000018010 | 400 | 需求属性取值非法（优先级、版本超长等） |
 | 1000018011 | 404 | 来源附件不存在 |
 | 1000018012 | 403 | 无需求管理权限 |
 | 1000018013 | 409 | 已存在进行中的导入或拆分任务 |
@@ -532,13 +540,14 @@ CREATE TABLE requirement ( ... );
 CREATE UNIQUE INDEX uk_requirement_project_code ON requirement (project_id, code) WHERE is_deleted = FALSE;
 CREATE INDEX idx_requirement_project_status ON requirement (project_id, status);
 CREATE INDEX idx_requirement_module ON requirement (module_id);
+CREATE INDEX idx_requirement_system_version ON requirement (project_id, system_version);
 CREATE TABLE requirement_change_log ( ... );
 CREATE INDEX idx_requirement_change_log_req ON requirement_change_log (requirement_id, created_at);
 CREATE TABLE requirement_split_record ( ... );
 CREATE INDEX idx_requirement_split_project / _source / _task ...;
 ```
 
-- UUID 主键使用框架默认策略；无物理外键；单表索引数 3 / 1 / 3，均 ≤ 5（C9）。
+- UUID 主键使用框架默认策略；无物理外键；单表索引数 4 / 1 / 3，均 ≤ 5（C9）。
 - **存量接口对齐**：若既有 `/api/project/requirements*` 接口与本文档不一致（字段、路径、错误码），以本文档为目标态迁移，差异清单在实现时随迁移说明提交。
 
 **OpenAPI**：接口随本次交付经 springdoc 暴露，分组 `requirement`；`import` 标注 multipart，`split` 标注异步任务返回。
@@ -555,3 +564,4 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
+| V1.0 | 2026-10-02 | 需求增加业务系统版本属性，导入支持 AI 识别版本，列表、筛选与属性栏同步 |
