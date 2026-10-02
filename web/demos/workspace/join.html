@@ -7,61 +7,272 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .join-wrap { min-height: 100vh; background: var(--n-50); display: flex; flex-direction: column; align-items: center; padding: 56px 24px; }
-  .join-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--n-900); margin-bottom: 28px; }
-  .join-card { width: 460px; }
-  .invite-banner {
-    display: flex; align-items: center; gap: 14px; padding: 18px 24px;
-    background: var(--n-900); color: #fff; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  .join-wrap {
+    min-height: 100vh; padding: 40px 24px;
+    background: linear-gradient(135deg, var(--brand-50) 0%, var(--n-100) 50%, var(--n-200) 100%);
+    display: flex; align-items: center; justify-content: center;
   }
-  .invite-banner .avatar { width: 40px; height: 40px; font-size: 15px; background: var(--brand-500); }
-  .invite-banner b { color: var(--brand-300); font-weight: 600; }
-  .invite-meta { display: flex; gap: 8px; margin-top: 6px; }
-  .invite-meta span { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
+  .join-card { width: 420px; padding: 32px 24px; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); }
+  .join-step { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .join-step[hidden] { display: none; }
+  .join-icon {
+    width: 72px; height: 72px; margin-bottom: 16px;
+    border-radius: var(--radius-xl);
+    background: var(--n-50); border: 1px solid var(--n-200); color: var(--n-400);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .join-icon svg { width: 30px; height: 30px; }
+  .join-icon--danger { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger); }
+  .join-icon--success { background: var(--st-success-light); border-color: var(--st-success-border); color: var(--st-success); }
+  .join-icon--loading svg { animation: join-spin 1.2s linear infinite; }
+  @keyframes join-spin { to { transform: rotate(360deg); } }
+  .join-heading { font-size: var(--font-size-xl); font-weight: 700; color: var(--n-900); }
+  .join-hint { margin: 8px 0 24px; font-size: var(--font-size-sm); color: var(--n-500); }
+  .join-hint--flush { margin: 0; }
+  .join-form { width: 100%; text-align: left; }
+  .join-back { margin-top: 4px; text-align: center; }
+  .pwd-wrap { position: relative; }
+  .pwd-wrap .input { padding-right: 36px; }
+  .pwd-eye {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; padding: 0; border: none; border-radius: var(--radius-sm);
+    background: none; color: var(--n-400); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pwd-eye:hover, .pwd-eye.is-on { color: var(--brand-500); }
+  .pwd-eye svg { width: 16px; height: 16px; }
+  .pwd-strength { display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%; }
+  .pwd-strength[hidden] { display: none; }
+  .pwd-strength__bar { flex: 1; display: flex; gap: 4px; }
+  .pwd-strength__seg { flex: 1; height: 4px; border-radius: 999px; background: var(--n-200); transition: background-color 0.3s ease; }
+  .pwd-strength__label { font-size: var(--font-size-2xs); font-weight: 500; white-space: nowrap; }
+  .join-alert { width: 100%; text-align: left; }
 </style>
 </head>
 <body data-shell="bare">
 
 <div class="join-wrap">
-  <div class="join-logo"><span class="topbar__logo-mark"><span data-icon="zap"></span></span>RoboTest</div>
+  <div class="card join-card">
 
-  <div class="card join-card" style="overflow:hidden">
-    <div class="invite-banner">
-      <span class="avatar">张</span>
-      <div>
-        <div style="font-size:14px">张明 邀请你加入 <b>质量中台</b> 空间</div>
-        <div class="invite-meta"><span>角色：测试工程师</span><span>剩余 5 次可用</span></div>
+    <!-- 步骤0: 验证邀请链接 -->
+    <div class="join-step" data-step="verifying">
+      <div class="join-icon join-icon--loading"><span data-icon="loader"></span></div>
+      <p class="join-hint join-hint--flush">正在验证邀请链接...</p>
+    </div>
+
+    <!-- 链接缺失/失效/过期 -->
+    <div class="join-step" data-step="invalid" hidden>
+      <div class="join-icon join-icon--danger"><span data-icon="x-circle"></span></div>
+      <div class="join-heading">邀请链接无效</div>
+      <p class="join-hint">邀请链接已失效或不存在</p>
+      <a class="btn btn--default btn--lg" href="../auth/login.html">返回登录</a>
+    </div>
+
+    <!-- 步骤1: 输入邮箱 -->
+    <div class="join-step" data-step="email" hidden>
+      <div class="join-icon"><span data-icon="link"></span></div>
+      <div class="join-heading">加入工作空间</div>
+      <p class="join-hint">您将被加入「质量中台」工作空间</p>
+      <div class="join-form">
+        <div class="field">
+          <label class="field__label" for="join-email">邮箱</label>
+          <input class="input" id="join-email" type="email" placeholder="请输入邮箱" value="lihua@robotest.cn" autocomplete="off">
+          <div class="field__error" id="err-email" hidden></div>
+        </div>
+        <button class="btn btn--primary btn--lg btn--block" id="btn-next">下一步</button>
       </div>
     </div>
 
-    <div class="tabs">
-      <span class="tab tab--active">已有账号，登录加入</span>
-      <span class="tab">注册新账号</span>
+    <!-- 步骤2a: 已有账号 → 密码验证 -->
+    <div class="join-step" data-step="password" hidden>
+      <div class="join-icon"><span data-icon="lock"></span></div>
+      <div class="join-heading">验证密码</div>
+      <p class="join-hint">检测到您已有账号，请输入密码验证</p>
+      <div class="join-form">
+        <div class="field">
+          <label class="field__label" for="pwd-email">邮箱</label>
+          <input class="input" id="pwd-email" type="email" disabled>
+        </div>
+        <div class="field">
+          <label class="field__label" for="pwd-pwd">密码</label>
+          <div class="pwd-wrap">
+            <input class="input" id="pwd-pwd" type="password" placeholder="8-64 字符" autocomplete="new-password">
+            <button class="pwd-eye" type="button" data-eye="pwd-pwd" aria-label="显示或隐藏密码"><span data-icon="eye"></span></button>
+          </div>
+          <div class="pwd-strength" data-for="pwd-pwd" hidden>
+            <div class="pwd-strength__bar">
+              <span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span>
+            </div>
+            <span class="pwd-strength__label"></span>
+          </div>
+          <div class="field__error" id="err-pwd" hidden></div>
+        </div>
+        <button class="btn btn--primary btn--lg btn--block" id="btn-join">加入并登录</button>
+        <div class="join-back"><button class="btn btn--link" data-back>← 返回</button></div>
+      </div>
     </div>
 
-    <div class="card__body">
-      <div class="field">
-        <label class="field__label">邮箱</label>
-        <div class="input-wrap"><span data-icon="user"></span><input class="input" placeholder="受邀邮箱" value="lihua@robotest.cn"></div>
-      </div>
-      <div class="field">
-        <label class="field__label">密码</label>
-        <div class="input-wrap"><span data-icon="lock"></span><input class="input" type="password" placeholder="登录密码" value="12345678"></div>
-      </div>
-
-      <button class="btn btn--primary btn--lg btn--block">加入空间</button>
-
-      <div class="text-xs text-light text-center" style="margin-top:20px">
-        注册新账号时需填写姓名、邮箱与密码，加入后由空间管理员分配角色
+    <!-- 步骤2b: 未检测到账号 → 创建账号 -->
+    <div class="join-step" data-step="create" hidden>
+      <div class="join-icon"><span data-icon="userfilled"></span></div>
+      <div class="join-heading">创建账号</div>
+      <p class="join-hint">未检测到账号，需创建新账号加入</p>
+      <div class="join-form">
+        <div class="field">
+          <label class="field__label" for="create-email">邮箱</label>
+          <input class="input" id="create-email" type="email" disabled>
+        </div>
+        <div class="field">
+          <label class="field__label" for="create-name">姓名</label>
+          <input class="input" id="create-name" type="text" placeholder="请输入姓名" maxlength="50" autocomplete="off">
+          <div class="field__error" id="err-name" hidden></div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="create-pwd">密码</label>
+          <div class="pwd-wrap">
+            <input class="input" id="create-pwd" type="password" placeholder="8-64 字符" autocomplete="new-password">
+            <button class="pwd-eye" type="button" data-eye="create-pwd" aria-label="显示或隐藏密码"><span data-icon="eye"></span></button>
+          </div>
+          <div class="pwd-strength" data-for="create-pwd" hidden>
+            <div class="pwd-strength__bar">
+              <span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span>
+            </div>
+            <span class="pwd-strength__label"></span>
+          </div>
+          <div class="field__error" id="err-create-pwd" hidden></div>
+        </div>
+        <button class="btn btn--primary btn--lg btn--block" id="btn-create">创建并加入</button>
+        <div class="join-back"><button class="btn btn--link" data-back>← 返回</button></div>
       </div>
     </div>
-  </div>
 
-  <div class="text-xs text-light" style="margin-top:24px">
-    邀请链接将在 <span class="mono">2026-09-27</span> 过期 · <a href="../auth/login.html">返回登录</a>
+    <!-- 加入成功（跳转前反馈） -->
+    <div class="join-step" data-step="done" hidden>
+      <div class="join-icon join-icon--success"><span data-icon="check-circle"></span></div>
+      <div class="alert alert--success join-alert"><span data-icon="check-circle"></span><div id="done-msg"></div></div>
+    </div>
+
   </div>
 </div>
 
 <script src="../assets/icons.js"></script>
+<script>
+(function () {
+  var steps = document.querySelectorAll('[data-step]');
+  function show(name) {
+    steps.forEach(function (el) { el.hidden = el.getAttribute('data-step') !== name; });
+  }
+  function setError(boxId, msg) {
+    var box = document.getElementById(boxId);
+    var input = box.parentElement.querySelector('.input');
+    box.textContent = msg || '';
+    box.hidden = !msg;
+    if (input) input.classList.toggle('input--error', !!msg);
+  }
+
+  // 演示约定：正常打开视作携带有效 token，#invalid 用于复现链接缺失/失效/过期态
+  if (location.hash === '#invalid') { show('invalid'); return; }
+
+  show('verifying');
+  setTimeout(function () { show('email'); }, 700);
+
+  var knownAccounts = ['lihua@robotest.cn'];
+  var emailInput = document.getElementById('join-email');
+
+  function pwdError(v) {
+    if (!v) return '请输入密码';
+    if (v.length < 8 || v.length > 64) return '密码长度为 8-64 个字符';
+    return '';
+  }
+
+  function succeed(msg) {
+    document.getElementById('done-msg').textContent = msg;
+    show('done');
+    // 与实现一致：加入成功后直接进入空间项目列表
+    setTimeout(function () { location.href = '../workspace/projects.html'; }, 900);
+  }
+
+  document.getElementById('btn-next').addEventListener('click', function () {
+    var v = emailInput.value.trim();
+    if (!v) { setError('err-email', '请输入邮箱'); return; }
+    setError('err-email', '');
+    document.getElementById('pwd-email').value = v;
+    document.getElementById('create-email').value = v;
+    show(knownAccounts.indexOf(v.toLowerCase()) >= 0 ? 'password' : 'create');
+  });
+
+  document.getElementById('btn-join').addEventListener('click', function () {
+    var err = pwdError(document.getElementById('pwd-pwd').value);
+    setError('err-pwd', err);
+    if (err) return;
+    succeed('已成功加入工作空间');
+  });
+
+  document.getElementById('btn-create').addEventListener('click', function () {
+    var nameOk = !!document.getElementById('create-name').value.trim();
+    setError('err-name', nameOk ? '' : '请输入姓名');
+    var err = pwdError(document.getElementById('create-pwd').value);
+    setError('err-create-pwd', err);
+    if (!nameOk || err) return;
+    succeed('欢迎加入！已自动创建账号并登录。');
+  });
+
+  document.querySelectorAll('[data-back]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      // 与实现一致：返回邮箱步骤时清空姓名与密码
+      ['create-name', 'pwd-pwd', 'create-pwd'].forEach(function (id) { document.getElementById(id).value = ''; });
+      ['err-name', 'err-pwd', 'err-create-pwd'].forEach(function (id) { setError(id, ''); });
+      document.querySelectorAll('.pwd-strength').forEach(function (bar) {
+        updateStrength(document.getElementById(bar.getAttribute('data-for')), bar);
+      });
+      show('email');
+    });
+  });
+
+  document.querySelectorAll('.pwd-eye').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = document.getElementById(btn.getAttribute('data-eye'));
+      var plain = input.type === 'password';
+      input.type = plain ? 'text' : 'password';
+      btn.classList.toggle('is-on', plain);
+    });
+  });
+
+  var STRENGTH = ['var(--st-danger)', 'var(--st-warning)', 'var(--st-success-strong)', 'var(--st-success)'];
+  function strengthOf(val) {
+    if (!val) return 0;
+    // 与 PasswordStrengthBar 一致：长度不足 8 时按长度比例给基础强度，保证始终有反馈
+    if (val.length < 8) return Math.max(1, Math.floor(val.length / 2));
+    return [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function (re) { return re.test(val); }).length;
+  }
+  function updateStrength(input, bar) {
+    var val = input.value;
+    bar.hidden = !val;
+    if (!val) return;
+    var s = Math.max(strengthOf(val), 1);
+    bar.querySelectorAll('.pwd-strength__seg').forEach(function (seg, i) {
+      seg.style.background = i < s ? STRENGTH[i] : '';
+    });
+    var label = s <= 1 ? '弱' : s === 2 ? '较弱' : s === 3 ? '中' : '强';
+    var lab = bar.querySelector('.pwd-strength__label');
+    lab.textContent = label;
+    lab.style.color = STRENGTH[s - 1];
+  }
+  document.querySelectorAll('.pwd-strength').forEach(function (bar) {
+    var input = document.getElementById(bar.getAttribute('data-for'));
+    input.addEventListener('input', function () { updateStrength(input, bar); });
+  });
+
+  emailInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('btn-next').click();
+  });
+  ['pwd-pwd', 'create-pwd'].forEach(function (id) {
+    document.getElementById(id).addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      document.getElementById(id === 'pwd-pwd' ? 'btn-join' : 'btn-create').click();
+    });
+  });
+})();
+</script>
 </body>
 </html>

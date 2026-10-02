@@ -7,6 +7,9 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
+  /* 弹层靠 hidden 属性开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
+  [hidden] { display: none !important; }
+
   /* 两张卡片左右并排：等高拉伸，表头与表尾对齐在同一水平线 */
   .members-split {
     display: grid;
@@ -21,7 +24,7 @@
     margin-top: 0;
   }
 
-  /* 左卡头部含 32px 筛选控件，右卡仅 26px 按钮，统一到左卡高度 */
+  /* 左卡头部含 32px 筛选控件，右卡仅标题描述，统一到同一高度 */
   .members-split .card__header {
     min-height: 65px;
   }
@@ -30,12 +33,20 @@
     flex: 1;
   }
 
-  /* 右卡无分页，按分页高度（14+30+14+1）占位，使两个表格区域同高 */
-  .members-split > .card:last-child::after {
-    content: "";
-    display: block;
-    height: 59px;
-    border-top: 1px solid var(--n-100);
+  .dialog-tip {
+    margin: 0 0 var(--space-md);
+    color: var(--n-600);
+    font-size: var(--font-size-sm);
+  }
+
+  .invite-link-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .invite-link-row .input {
+    flex: 1;
+    min-width: 0;
   }
 </style>
 </head>
@@ -43,14 +54,16 @@
 
 <main class="content">
 
+  <!-- 演示稿固定呈现管理员视角：实际页按 ws-member:manage / ws-invitation:manage 显隐按钮与邀请卡 -->
   <div class="page-head">
     <div>
       <h1 class="page-head__title">成员管理</h1>
       <p class="page-head__desc">管理空间成员与角色，通过邀请链接扩招</p>
     </div>
     <div class="page-head__actions">
-      <button class="btn btn--default"><span data-icon="link"></span>复制邀请链接</button>
-      <button class="btn btn--primary"><span data-icon="plus"></span>邀请成员</button>
+      <button class="btn btn--primary" data-open="invite-dialog"><span data-icon="plus"></span>邀请成员</button>
+      <button class="btn btn--default" data-open="invite-create-dialog"><span data-icon="plus"></span>生成链接</button>
+      <button class="btn btn--link" data-copy-latest><span data-icon="link"></span>复制邀请链接</button>
     </div>
   </div>
 
@@ -60,10 +73,10 @@
     <!-- 成员列表 -->
     <div class="card">
       <div class="card__header">
-        <h3 class="card__title">成员列表<span class="card__subtitle">24 人</span></h3>
+        <h3 class="card__title">成员列表<span class="card__subtitle" id="member-count">24 人</span></h3>
         <div class="toolbar__filters">
-          <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="姓名 / 邮箱" style="width:200px"></div>
-          <select class="select" style="width:150px"><option>全部角色</option><option>空间管理员</option><option>测试工程师</option><option>只读成员</option></select>
+          <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="姓名 / 邮箱" style="width:220px"></div>
+          <select class="select" style="width:160px"><option>全部角色</option><option>管理员</option><option>成员</option></select>
         </div>
       </div>
       <div class="table-wrap">
@@ -71,45 +84,45 @@
           <thead><tr><th>用户</th><th>角色</th><th>加入时间</th><th>操作</th></tr></thead>
           <tbody>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span>
+              <td class="flex-center flex-gap-sm"><span class="avatar avatar--brand">张</span>
                 <span><span class="cell-main">张明</span><span class="cell-sub">zhangming@robotest.cn</span></span></td>
-              <td><span class="tag tag--info">空间管理员</span></td>
+              <td><span class="tag tag--info" data-role="admin">管理员</span></td>
               <td class="num">2026-09-18 10:24</td>
-              <td><span class="op-link">改角色</span><span class="op-link op-link--muted">移除</span></td>
+              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-exit>退出</span></td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span>
+              <td class="flex-center flex-gap-sm"><span class="avatar">李</span>
                 <span><span class="cell-main">李华</span><span class="cell-sub">lihua@robotest.cn</span></span></td>
-              <td><span class="tag tag--info">空间管理员</span></td>
+              <td><span class="tag tag--info" data-role="admin">管理员</span></td>
               <td class="num">2026-09-18 10:31</td>
-              <td><span class="op-link">改角色</span><span class="op-link op-link--muted">移除</span></td>
+              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="李华">移除</span></td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span>
+              <td class="flex-center flex-gap-sm"><span class="avatar">王</span>
                 <span><span class="cell-main">王芳</span><span class="cell-sub">wangfang@robotest.cn</span></span></td>
-              <td><span class="tag tag--outline">测试工程师</span></td>
+              <td><span class="tag tag--outline" data-role="member">成员</span></td>
               <td class="num">2026-09-18 14:02</td>
-              <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="王芳">移除</span></td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span>
+              <td class="flex-center flex-gap-sm"><span class="avatar">陈</span>
                 <span><span class="cell-main">陈强</span><span class="cell-sub">chenqiang@robotest.cn</span></span></td>
-              <td><span class="tag tag--outline">只读成员</span></td>
+              <td><span class="tag tag--outline" data-role="member">成员</span></td>
               <td class="num">2026-09-19 09:15</td>
-              <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="陈强">移除</span></td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">周</span>
+              <td class="flex-center flex-gap-sm"><span class="avatar">周</span>
                 <span><span class="cell-main">周敏</span><span class="cell-sub">zhoumin@robotest.cn</span></span></td>
-              <td><span class="tag tag--outline">测试工程师</span></td>
+              <td><span class="tag tag--outline" data-role="member">成员</span></td>
               <td class="num">2026-09-20 16:44</td>
-              <td><span class="op-link">改角色</span><span class="op-link op-link--danger">移除</span></td>
+              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="周敏">移除</span></td>
             </tr>
           </tbody>
         </table>
       </div>
       <div class="pagination">
-        <span class="pagination__total">共 24 人 · 每页 20 条</span>
+        <span class="pagination__total" id="member-total">共 24 人 · 每页 20 条</span>
         <button class="page-btn page-btn--active">1</button><button class="page-btn">2</button><button class="page-btn">›</button>
       </div>
     </div>
@@ -118,10 +131,9 @@
     <div class="card">
       <div class="card__header">
         <h3 class="card__title">邀请链接<span class="card__subtitle">通过链接加入的成员按默认角色进入</span></h3>
-        <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>生成链接</button>
       </div>
       <div class="table-wrap">
-        <table class="table">
+        <table class="table" id="invite-table">
           <thead><tr><th>邀请链接</th><th>使用次数</th><th>过期时间</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
           <tbody>
             <tr>
@@ -130,7 +142,7 @@
               <td class="num">2026-09-27 10:00</td>
               <td><span class="status status--success"><span class="dot"></span>有效</span></td>
               <td class="num">2026-09-18 10:30</td>
-              <td><span class="op-link">复制</span><span class="op-link op-link--danger">失效</span></td>
+              <td><span class="op-link" data-copy-token="8f3a9d20b74ec4e1">复制</span><span class="op-link op-link--danger" data-expire>失效</span></td>
             </tr>
             <tr>
               <td class="mono">join/91bc…7a02</td>
@@ -138,7 +150,15 @@
               <td class="num">2026-10-15 09:00</td>
               <td><span class="status status--neutral"><span class="dot"></span>已达上限</span></td>
               <td class="num">2026-09-10 11:20</td>
-              <td><span class="op-link">复制</span><span class="op-link op-link--danger">失效</span></td>
+              <td><span class="op-link" data-copy-token="91bc7732a05d7a02">复制</span><span class="op-link op-link--danger" data-expire>失效</span></td>
+            </tr>
+            <tr>
+              <td class="mono">join/4c56…21ad</td>
+              <td class="num">3 / 不限</td>
+              <td class="num">永不过期</td>
+              <td><span class="status status--success"><span class="dot"></span>有效</span></td>
+              <td class="num">2026-09-12 09:05</td>
+              <td><span class="op-link" data-copy-token="4c56e118ff3021ad">复制</span><span class="op-link op-link--danger" data-expire>失效</span></td>
             </tr>
             <tr>
               <td class="mono">join/2d7e…19f8</td>
@@ -148,8 +168,20 @@
               <td class="num">2026-09-01 15:41</td>
               <td><span class="op-link op-link--muted">复制</span></td>
             </tr>
+            <tr>
+              <td class="mono">join/7b0e…55f2</td>
+              <td class="num">1 / 5</td>
+              <td class="num">2026-09-30 12:00</td>
+              <td><span class="status status--neutral"><span class="dot"></span>已失效</span></td>
+              <td class="num">2026-09-08 14:12</td>
+              <td><span class="op-link op-link--muted">复制</span></td>
+            </tr>
           </tbody>
         </table>
+      </div>
+      <div class="pagination">
+        <span class="pagination__total">共 5 条 · 每页 20 条</span>
+        <button class="page-btn page-btn--active">1</button>
       </div>
     </div>
 
@@ -157,7 +189,278 @@
 
 </main>
 
+<!-- 邀请成员：远端搜索多选，按空间成员角色加入 -->
+<div class="dialog-mask" id="invite-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:520px">
+    <div class="dialog__header">
+      <span class="dialog__title">邀请成员</span>
+      <button class="dialog__close" data-close="invite-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="dialog-tip">新成员将使用空间成员角色加入。</p>
+      <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="输入姓名、用户名或邮箱搜索"></div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="invite-dialog">取消</button>
+      <button class="btn btn--primary btn--sm" data-close="invite-dialog">确认邀请</button>
+    </div>
+  </div>
+</div>
+
+<!-- 生成邀请链接：两项均可留空（永不过期 / 不限次数） -->
+<div class="dialog-mask" id="invite-create-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:460px">
+    <div class="dialog__header">
+      <span class="dialog__title">生成邀请链接</span>
+      <button class="dialog__close" data-close="invite-create-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="field">
+        <label class="field__label" for="invite-expire">过期时间</label>
+        <input class="input" type="datetime-local" id="invite-expire">
+        <div class="field__hint">留空表示永不过期</div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="invite-max-uses">最大使用次数</label>
+        <input class="input" type="number" min="1" max="10000" placeholder="留空表示不限" id="invite-max-uses">
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="invite-create-dialog">取消</button>
+      <button class="btn btn--primary btn--sm" id="invite-create-ok">生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 创建成功后展示链接（实际页不可点击遮罩关闭） -->
+<div class="dialog-mask" id="invite-link-dialog" hidden>
+  <div class="dialog" style="width:540px">
+    <div class="dialog__header">
+      <span class="dialog__title">邀请链接已创建</span>
+      <button class="dialog__close" data-close="invite-link-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="dialog-tip">请复制链接并发送给受邀成员：</p>
+      <div class="invite-link-row">
+        <input class="input" id="created-invite-link" readonly value="https://robotest.example.cn/join?token=a1c97d05e8f34b62">
+        <button class="btn btn--default" data-copy-link>复制</button>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--primary btn--sm" data-close="invite-link-dialog">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 移除 / 退出 / 失效共用的二次确认 -->
+<div class="dialog-mask" id="confirm-dialog" hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="confirm-title">确认移除</span>
+      <button class="dialog__close" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="confirm-dialog">取消</button>
+      <button class="btn btn--danger btn--sm" id="confirm-ok">确认</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+  (function () {
+    function byId(id) { return document.getElementById(id); }
+
+    var pendingConfirm = null;
+
+    function askConfirm(opts, onOk) {
+      byId('confirm-title').textContent = opts.title;
+      byId('confirm-body').textContent = opts.body;
+      byId('confirm-ok').textContent = opts.ok || '确认';
+      pendingConfirm = onOk || null;
+      byId('confirm-dialog').hidden = false;
+    }
+
+    function shareText(url, exhausted) {
+      // 与实际页一致：复制的是带工作空间说明的分享文案，而非裸链接
+      return [
+        '【RoboTest 工作空间邀请】',
+        '工作空间：' + (document.body.getAttribute('data-workspace') || '当前工作空间'),
+        '邀请人：zhangming',
+        '邀请链接：' + url,
+        '说明：' + (exhausted
+          ? '该邀请已达使用上限，加入前请先确认剩余名额。'
+          : '打开链接后按页面提示完成身份验证并加入工作空间。')
+      ].join('\n');
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function () {});
+        return;
+      }
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (err) { /* 旧浏览器降级为手动复制 */ }
+      ta.remove();
+    }
+
+    function flashCopied(node) {
+      var original = node.innerHTML;
+      node.textContent = '已复制';
+      window.setTimeout(function () { node.innerHTML = original; }, 1600);
+    }
+
+    function roleTag(role) {
+      return '<span class="tag ' + (role === 'admin' ? 'tag--info' : 'tag--outline') +
+        '" data-role="' + role + '">' + (role === 'admin' ? '管理员' : '成员') + '</span>';
+    }
+
+    // 改角色为行内编辑：角色列原地变下拉，切换即提交、收起即保持原角色
+    function startRoleEdit(trigger) {
+      var cell = trigger.closest('tr').children[1];
+      var tag = cell.querySelector('[data-role]');
+      if (!tag || cell.querySelector('select')) return;
+      var previous = tag.getAttribute('data-role');
+      var select = document.createElement('select');
+      select.className = 'select';
+      select.innerHTML = '<option value="admin">管理员</option><option value="member">成员</option>';
+      select.value = previous;
+      cell.textContent = '';
+      cell.appendChild(select);
+      select.focus();
+      select.addEventListener('change', function () { cell.innerHTML = roleTag(select.value); });
+      select.addEventListener('blur', function () {
+        if (cell.contains(select)) cell.innerHTML = roleTag(previous);
+      });
+    }
+
+    var memberTotal = 24;
+    function renderMemberTotal() {
+      byId('member-count').textContent = memberTotal + ' 人';
+      byId('member-total').textContent = '共 ' + memberTotal + ' 人 · 每页 20 条';
+    }
+
+    document.addEventListener('click', function (e) {
+      var target;
+
+      if ((target = e.target.closest('[data-close]'))) {
+        byId(target.getAttribute('data-close')).hidden = true;
+        return;
+      }
+
+      if ((target = e.target.closest('[data-open]'))) {
+        byId(target.getAttribute('data-open')).hidden = false;
+        return;
+      }
+
+      if ((target = e.target.closest('[data-role-edit]'))) {
+        startRoleEdit(target);
+        return;
+      }
+
+      if ((target = e.target.closest('[data-remove]'))) {
+        var memberRow = target.closest('tr');
+        var memberName = target.getAttribute('data-remove');
+        askConfirm(
+          { title: '确认移除', body: '确定要移除成员「' + memberName + '」吗？', ok: '确认' },
+          function () {
+            memberRow.style.display = 'none';
+            memberTotal -= 1;
+            renderMemberTotal();
+          },
+        );
+        return;
+      }
+
+      if (e.target.closest('[data-exit]')) {
+        // 退出后回空间列表，对应实际页退出成功后的路由跳转
+        askConfirm(
+          {
+            title: '退出工作空间',
+            body: '确定退出该工作空间？退出后将无法访问此空间的资源。',
+            ok: '确认',
+          },
+          function () { window.location.href = 'list.html'; },
+        );
+        return;
+      }
+
+      if ((target = e.target.closest('[data-expire]'))) {
+        var inviteRow = target.closest('tr');
+        askConfirm(
+          { title: '确认失效', body: '确定要使该邀请链接失效吗？失效后将不可再使用。', ok: '确认' },
+          function () {
+            var status = inviteRow.querySelector('.status');
+            status.className = 'status status--neutral';
+            status.innerHTML = '<span class="dot"></span>已失效';
+            var expire = inviteRow.querySelector('[data-expire]');
+            if (expire) expire.remove();
+            var copy = inviteRow.querySelector('[data-copy-token]');
+            if (copy) {
+              copy.removeAttribute('data-copy-token');
+              copy.classList.add('op-link--muted');
+            }
+          },
+        );
+        return;
+      }
+
+      if ((target = e.target.closest('[data-copy-token]'))) {
+        var row = target.closest('tr');
+        var exhausted = row.querySelector('.status').textContent.indexOf('已达上限') > -1;
+        copyText(shareText('https://robotest.example.cn/join?token=' + target.getAttribute('data-copy-token'), exhausted));
+        flashCopied(target);
+        return;
+      }
+
+      if ((target = e.target.closest('[data-copy-latest]'))) {
+        // 复制最新的有效链接；全部不可用时实际页会提示暂无可复制链接
+        var rows = document.querySelectorAll('#invite-table tbody tr');
+        for (var i = 0; i < rows.length; i++) {
+          var status = rows[i].querySelector('.status');
+          var rowCopy = rows[i].querySelector('[data-copy-token]');
+          if (rows[i].style.display !== 'none' && rowCopy && status.textContent.indexOf('有效') > -1) {
+            copyText(shareText('https://robotest.example.cn/join?token=' + rowCopy.getAttribute('data-copy-token'), false));
+            flashCopied(target);
+            break;
+          }
+        }
+        return;
+      }
+
+      if ((target = e.target.closest('[data-copy-link]'))) {
+        copyText(shareText(byId('created-invite-link').value, false));
+        flashCopied(target);
+        return;
+      }
+    });
+
+    byId('invite-create-ok').addEventListener('click', function () {
+      byId('invite-create-dialog').hidden = true;
+      byId('invite-link-dialog').hidden = false;
+    });
+
+    byId('confirm-ok').addEventListener('click', function () {
+      byId('confirm-dialog').hidden = true;
+      var onOk = pendingConfirm;
+      pendingConfirm = null;
+      if (onOk) onOk();
+    });
+
+    // 仅邀请 / 创建两个弹窗支持点击遮罩关闭，创建成功弹窗与确认框需显式操作
+    document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+      mask.addEventListener('click', function (e) {
+        if (e.target === mask) mask.hidden = true;
+      });
+    });
+  })();
+</script>
 </body>
 </html>
