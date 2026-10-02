@@ -6,6 +6,16 @@
 <title>测试计划 · 功能测试 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 弹层与空态行靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
+  [hidden] { display: none !important; }
+
+  /* 实际页通过率列 align="right */
+  .table .rate-col { text-align: right; }
+
+  /* 已关闭计划在实际页走 Element 默认色，演示页禁用蓝，以中性色表达终止态 */
+  .progress__fill--muted { background: var(--n-300); }
+</style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
@@ -25,95 +35,424 @@
           <p class="page-head__desc">计划维度组织用例执行与通过率统计</p>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--primary"><span data-icon="plus"></span>新建计划</button>
+          <button class="btn btn--primary" data-open="create-dialog"><span data-icon="plus"></span>新建计划</button>
         </div>
       </div>
 
       <div class="card">
         <div class="toolbar">
           <div class="toolbar__filters">
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="计划名称 / 负责人"></div>
-            <select class="select" style="width:130px"><option>全部状态</option><option>未开始</option><option>执行中</option><option>已完成</option><option>已阻塞</option></select>
-            <select class="select" style="width:130px"><option>全部环境</option><option>staging</option><option>production</option></select>
+            <div class="input-wrap"><span data-icon="search"></span><input class="input" id="plan-keyword" placeholder="计划名称" style="width:200px"></div>
+            <select class="select" id="plan-status" style="width:130px">
+              <option value="">全部状态</option>
+              <option value="new">未开始</option>
+              <option value="in_progress">执行中</option>
+              <option value="completed">已完成</option>
+              <option value="blocked">已阻塞</option>
+              <option value="closed">已关闭</option>
+            </select>
+            <button class="btn btn--primary" id="plan-search"><span data-icon="search"></span>查询</button>
+            <button class="btn btn--default" id="plan-reset">重置</button>
           </div>
-          <div class="toolbar__count">共 18 个计划</div>
+          <div class="toolbar__count" id="plan-count">共 18 个计划</div>
         </div>
 
         <div class="table-wrap">
-          <table class="table table--clickable">
+          <table class="table">
             <thead>
-              <tr><th>名称</th><th>负责人</th><th>起止时间</th><th>环境</th><th>状态</th><th>进度</th><th>通过率</th><th>创建时间</th><th>操作</th></tr>
+              <tr><th>名称</th><th>负责人</th><th>起止时间</th><th>环境</th><th>状态</th><th>进度</th><th class="rate-col">通过率</th><th>创建时间</th><th>操作</th></tr>
             </thead>
             <tbody>
-              <tr>
-                <td class="cell-main">V1.4.2 回归测试<span class="cell-sub">关联用例 47 条</span></td>
+              <tr data-status="in_progress">
+                <td class="cell-main"><a href="plan-detail.html">V1.4.2 回归测试</a><span class="cell-sub">关联用例 47 条</span></td>
                 <td>张明</td>
                 <td class="num text-xs">09-20 ~ 09-24</td>
                 <td><span class="chip">staging</span></td>
-                <td><span class="status status--running"><span class="dot"></span>执行中</span></td>
+                <td class="status-cell"><span class="status status--running"><span class="dot"></span>执行中</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:58%"></div></div><span class="progress__text">58%</span></div></td>
-                <td class="num">94.6%</td>
+                <td class="num rate-col rate-cell">94.6%</td>
                 <td class="num">2026-09-20 09:12</td>
-                <td><span class="op-link">详情</span><span class="op-link">执行</span></td>
+                <td class="ops-cell">
+                  <a class="op-link" href="plan-detail.html">进入执行</a>
+                  <span class="op-link" style="color:var(--st-success)" data-op="complete">完成</span>
+                  <span class="op-link op-link--danger" data-op="delete">删除</span>
+                </td>
               </tr>
-              <tr>
-                <td class="cell-main">支付网关专项<span class="cell-sub">关联用例 36 条</span></td>
+              <tr data-status="blocked">
+                <td class="cell-main"><a href="plan-detail.html">支付网关专项</a><span class="cell-sub">关联用例 36 条</span></td>
                 <td>李华</td>
                 <td class="num text-xs">09-19 ~ 09-23</td>
                 <td><span class="chip">staging</span></td>
-                <td><span class="status status--blocked"><span class="dot"></span>已阻塞</span></td>
+                <td class="status-cell"><span class="status status--blocked"><span class="dot"></span>已阻塞</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--danger" style="width:31%"></div></div><span class="progress__text">31%</span></div></td>
-                <td class="num">87.2%</td>
+                <td class="num rate-col rate-cell">87.2%</td>
                 <td class="num">2026-09-19 10:40</td>
-                <td><span class="op-link">详情</span><span class="op-link">恢复</span></td>
+                <td class="ops-cell">
+                  <a class="op-link" href="plan-detail.html">查看详情</a>
+                  <span class="op-link" data-op="resume">恢复</span>
+                  <span class="op-link op-link--danger" data-op="delete">删除</span>
+                </td>
               </tr>
-              <tr>
-                <td class="cell-main">营销活动冒烟<span class="cell-sub">关联用例 32 条</span></td>
+              <tr data-status="new">
+                <td class="cell-main"><a href="plan-detail.html">营销活动冒烟</a><span class="cell-sub">关联用例 32 条</span></td>
                 <td>王芳</td>
                 <td class="num text-xs">09-22 09:00</td>
-                <td><span class="chip">production</span></td>
-                <td><span class="status status--neutral"><span class="dot"></span>未开始</span></td>
+                <td><span class="muted">—</span></td>
+                <td class="status-cell"><span class="status status--neutral"><span class="dot"></span>未开始</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:0%"></div></div><span class="progress__text">0%</span></div></td>
-                <td class="num">—</td>
+                <td class="num rate-col rate-cell text-light">—</td>
                 <td class="num">2026-09-21 16:05</td>
-                <td><span class="op-link">详情</span><span class="op-link">执行</span></td>
+                <td class="ops-cell">
+                  <a class="op-link" href="plan-detail.html">查看详情</a>
+                  <span class="op-link" style="color:var(--st-success)" data-op="complete">完成</span>
+                  <span class="op-link op-link--danger" data-op="delete">删除</span>
+                </td>
               </tr>
-              <tr>
-                <td class="cell-main">履约链路回归<span class="cell-sub">关联用例 58 条</span></td>
+              <tr data-status="completed">
+                <td class="cell-main"><a href="plan-detail.html">履约链路回归</a><span class="cell-sub">关联用例 58 条</span></td>
                 <td>周敏</td>
                 <td class="num text-xs">09-10 ~ 09-16</td>
                 <td><span class="chip">staging</span></td>
-                <td><span class="status status--success"><span class="dot"></span>已完成</span></td>
+                <td class="status-cell"><span class="status status--success"><span class="dot"></span>已完成</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:100%"></div></div><span class="progress__text">100%</span></div></td>
-                <td class="num text-success strong">96.5%</td>
+                <td class="num rate-col rate-cell text-success strong">96.5%</td>
                 <td class="num">2026-09-09 11:28</td>
-                <td><span class="op-link">详情</span><span class="op-link">报告</span></td>
+                <td class="ops-cell">
+                  <a class="op-link" href="plan-detail.html">查看详情</a>
+                  <span class="op-link op-link--danger" data-op="delete">删除</span>
+                </td>
               </tr>
-              <tr>
-                <td class="cell-main">8月版本全量回归<span class="cell-sub">关联用例 214 条</span></td>
+              <tr data-status="completed">
+                <td class="cell-main"><a href="plan-detail.html">8月版本全量回归</a><span class="cell-sub">关联用例 214 条</span></td>
                 <td>张明</td>
                 <td class="num text-xs">08-26 ~ 09-02</td>
                 <td><span class="chip">production</span></td>
-                <td><span class="status status--success"><span class="dot"></span>已完成</span></td>
+                <td class="status-cell"><span class="status status--success"><span class="dot"></span>已完成</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:100%"></div></div><span class="progress__text">100%</span></div></td>
-                <td class="num text-success strong">98.1%</td>
+                <td class="num rate-col rate-cell text-success strong">98.1%</td>
                 <td class="num">2026-08-25 14:16</td>
-                <td><span class="op-link">详情</span><span class="op-link">报告</span></td>
+                <td class="ops-cell">
+                  <a class="op-link" href="plan-detail.html">查看详情</a>
+                  <span class="op-link op-link--danger" data-op="delete">删除</span>
+                </td>
               </tr>
+              <tr data-status="closed">
+                <td class="cell-main"><a href="plan-detail.html">结算对账专项</a><span class="cell-sub">关联用例 64 条</span></td>
+                <td>赵磊</td>
+                <td class="num text-xs">09-05 ~ 09-08</td>
+                <td><span class="chip">staging</span></td>
+                <td class="status-cell"><span class="status status--neutral"><span class="dot"></span>已关闭</span></td>
+                <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--muted" style="width:72%"></div></div><span class="progress__text">72%</span></div></td>
+                <td class="num rate-col rate-cell">91.0%</td>
+                <td class="num">2026-09-04 15:33</td>
+                <td class="ops-cell">
+                  <a class="op-link" href="plan-detail.html">查看详情</a>
+                  <span class="op-link op-link--danger" data-op="delete">删除</span>
+                </td>
+              </tr>
+              <tr id="plan-empty" hidden><td colspan="9" class="muted" style="text-align:center;padding:32px 16px">暂无计划</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="pagination">
-          <span class="pagination__total">共 18 个计划 · 每页 20 条</span>
+          <span class="pagination__total" id="pager-total">共 18 个计划 · 每页 20 条</span>
+          <button class="page-btn" disabled>‹</button>
           <button class="page-btn page-btn--active">1</button>
+          <button class="page-btn" disabled>›</button>
         </div>
       </div>
     </div>
   </div>
 </main>
 
+<!-- 二次确认：对应实际页 完成 / 恢复 / 删除 的 ElMessageBox.confirm -->
+<div class="dialog-mask" id="confirm-dialog" hidden>
+  <div class="dialog" style="width:420px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="confirm-title">确认操作</span>
+      <button class="dialog__close" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-close="confirm-dialog">取消</button>
+      <button class="btn btn--primary btn--sm" id="confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新建计划：字段与校验口径同实际页 el-dialog -->
+<div class="dialog-mask" id="create-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:600px" role="dialog" aria-modal="true" aria-labelledby="create-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="create-title">新建计划</span>
+      <button class="dialog__close" data-close="create-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="field">
+        <label class="field__label" for="c-name">名称<span class="req">*</span></label>
+        <input class="input" id="c-name" maxlength="100" placeholder="请输入计划名称">
+        <div class="field__error" id="c-name-error" hidden></div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="c-desc">描述</label>
+        <textarea class="textarea" id="c-desc" placeholder="计划描述（可选）"></textarea>
+      </div>
+      <div class="field">
+        <label class="field__label" for="c-owner">负责人</label>
+        <select class="select" id="c-owner">
+          <option value="">选择负责人</option>
+          <option>张明</option>
+          <option>李华</option>
+          <option>王芳</option>
+          <option>周敏</option>
+          <option>赵磊</option>
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label" for="c-start">开始时间</label>
+          <input class="input" type="date" id="c-start">
+        </div>
+        <div class="field">
+          <label class="field__label" for="c-end">结束时间</label>
+          <input class="input" type="date" id="c-end">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="c-env">执行环境</label>
+        <input class="input" id="c-env" placeholder="如：staging / production">
+      </div>
+      <div class="field">
+        <span class="field__label">关联用例</span>
+        <div class="flex-center flex-gap-md">
+          <button class="btn btn--default btn--sm" id="c-pick">选择用例</button>
+          <span class="text-xs muted" id="c-count" hidden></span>
+        </div>
+        <div class="field__error" id="c-case-error" hidden></div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" data-close="create-dialog">取消</button>
+      <button class="btn btn--primary" id="c-submit">创建</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+
+  var total = 18;
+  var appliedKeyword = '';
+  var appliedStatus = '';
+
+  // 与实际页 planListPresentation 的标签与语义色同源
+  var STATUS = {
+    new: { label: '未开始', cls: 'status--neutral' },
+    in_progress: { label: '执行中', cls: 'status--running' },
+    completed: { label: '已完成', cls: 'status--success' },
+    blocked: { label: '已阻塞', cls: 'status--blocked' },
+    closed: { label: '已关闭', cls: 'status--neutral' }
+  };
+
+  function rowList() {
+    return Array.prototype.slice.call(document.querySelectorAll('tbody tr[data-status]'));
+  }
+
+  // 操作列条件与实际页 v-if 同源：主操作执行中进入执行，完成=活跃态，恢复=已阻塞，删除恒在
+  function opsHtml(status) {
+    var html = status === 'in_progress'
+      ? '<a class="op-link" href="plan-detail.html">进入执行</a>'
+      : '<a class="op-link" href="plan-detail.html">查看详情</a>';
+    if (status === 'new' || status === 'in_progress') {
+      html += '<span class="op-link" style="color:var(--st-success)" data-op="complete">完成</span>';
+    }
+    if (status === 'blocked') {
+      html += '<span class="op-link" data-op="resume">恢复</span>';
+    }
+    return html + '<span class="op-link op-link--danger" data-op="delete">删除</span>';
+  }
+
+  function countText() {
+    return '共 ' + total + ' 个计划';
+  }
+
+  function render() {
+    var shown = 0;
+    rowList().forEach(function (row) {
+      var name = row.querySelector('.cell-main a').textContent;
+      var matched =
+        (!appliedKeyword || name.indexOf(appliedKeyword) !== -1) &&
+        (!appliedStatus || row.getAttribute('data-status') === appliedStatus);
+      row.hidden = !matched;
+      if (matched) shown += 1;
+    });
+    byId('plan-empty').hidden = shown !== 0;
+    var text = appliedKeyword || appliedStatus ? '共 ' + shown + ' 个计划' : countText();
+    byId('plan-count').textContent = text;
+    byId('pager-total').textContent = text + ' · 每页 20 条';
+  }
+
+  function search() {
+    appliedKeyword = byId('plan-keyword').value.trim();
+    appliedStatus = byId('plan-status').value;
+    render();
+  }
+
+  function reset() {
+    byId('plan-keyword').value = '';
+    byId('plan-status').value = '';
+    appliedKeyword = '';
+    appliedStatus = '';
+    render();
+  }
+
+  byId('plan-search').addEventListener('click', search);
+  byId('plan-reset').addEventListener('click', reset);
+  byId('plan-keyword').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') search();
+  });
+
+  var pendingConfirm = null;
+  function askConfirm(title, body, onOk, danger) {
+    byId('confirm-title').textContent = title;
+    byId('confirm-body').textContent = body;
+    byId('confirm-ok').className = 'btn btn--sm ' + (danger ? 'btn--danger' : 'btn--primary');
+    pendingConfirm = onOk;
+    byId('confirm-dialog').hidden = false;
+  }
+
+  byId('confirm-ok').addEventListener('click', function () {
+    byId('confirm-dialog').hidden = true;
+    if (pendingConfirm) {
+      var fn = pendingConfirm;
+      pendingConfirm = null;
+      fn();
+    }
+  });
+
+  function setStatus(row, status) {
+    row.setAttribute('data-status', status);
+    row.querySelector('.status-cell').innerHTML =
+      '<span class="status ' + STATUS[status].cls + '"><span class="dot"></span>' + STATUS[status].label + '</span>';
+    row.querySelector('.ops-cell').innerHTML = opsHtml(status);
+  }
+
+  // 完成后进度回满、通过率转绿色口径（未执行过的计划无数据，按实际页补 0%）
+  function completeRow(row) {
+    var fill = row.querySelector('.progress__fill');
+    fill.className = 'progress__fill';
+    fill.style.width = '100%';
+    row.querySelector('.progress__text').textContent = '100%';
+    var rate = row.querySelector('.rate-cell');
+    if (rate.textContent.indexOf('%') === -1) rate.textContent = '0%';
+    rate.className = 'num rate-col rate-cell text-success strong';
+    setStatus(row, 'completed');
+    render();
+  }
+
+  // 恢复后回到执行中：进度转橙，操作列回到活跃态口径
+  function resumeRow(row) {
+    row.querySelector('.progress__fill').className = 'progress__fill progress__fill--warning';
+    setStatus(row, 'in_progress');
+    render();
+  }
+
+  function deleteRow(row) {
+    row.parentNode.removeChild(row);
+    total = Math.max(0, total - 1);
+    render();
+  }
+
+  function planName(row) {
+    return row.querySelector('.cell-main a').textContent;
+  }
+
+  var dialog = byId('create-dialog');
+  var nameInput = byId('c-name');
+
+  function setError(id, msg) {
+    var el = byId(id);
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  }
+
+  function resetCreateForm() {
+    nameInput.value = '';
+    byId('c-desc').value = '';
+    byId('c-owner').value = '';
+    byId('c-start').value = '';
+    byId('c-end').value = '';
+    byId('c-env').value = '';
+    byId('c-count').hidden = true;
+    nameInput.classList.remove('input--error');
+    setError('c-name-error', '');
+    setError('c-case-error', '');
+  }
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-open]');
+    if (opener) {
+      resetCreateForm();
+      byId(opener.getAttribute('data-open')).hidden = false;
+      return;
+    }
+    var closer = e.target.closest('[data-close]');
+    if (closer) {
+      byId(closer.getAttribute('data-close')).hidden = true;
+      return;
+    }
+    var op = e.target.closest('[data-op]');
+    if (!op) return;
+    var row = op.closest('tr');
+    var action = op.getAttribute('data-op');
+    if (action === 'complete') {
+      askConfirm('完成计划', '确定完成计划「' + planName(row) + '」？', function () { completeRow(row); });
+    } else if (action === 'resume') {
+      askConfirm('恢复计划', '确定恢复计划「' + planName(row) + '」？恢复后回到执行中。', function () { resumeRow(row); });
+    } else if (action === 'delete') {
+      askConfirm('删除计划', '确定删除计划「' + planName(row) + '」？删除后不可恢复', function () { deleteRow(row); }, true);
+    }
+  });
+
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+
+  nameInput.addEventListener('input', function () {
+    nameInput.classList.remove('input--error');
+    setError('c-name-error', '');
+  });
+
+  // CaseSelector 是独立弹层，演示页以固定已选数代替选择结果
+  byId('c-pick').addEventListener('click', function () {
+    byId('c-count').hidden = false;
+    byId('c-count').textContent = '已选 12 个用例';
+    setError('c-case-error', '');
+  });
+
+  byId('c-submit').addEventListener('click', function () {
+    if (!nameInput.value.trim()) {
+      nameInput.classList.add('input--error');
+      setError('c-name-error', '请输入计划名称');
+      return;
+    }
+    if (byId('c-count').hidden) {
+      setError('c-case-error', '请关联至少一个用例');
+      return;
+    }
+    // 创建成功后跳转计划详情，与实际页 router.push 一致
+    dialog.hidden = true;
+    window.location.href = 'plan-detail.html';
+  });
+
+  render();
+})();
+</script>
 </body>
 </html>
