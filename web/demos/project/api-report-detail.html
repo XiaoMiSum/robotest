@@ -15,6 +15,7 @@
   .rr-hero__actions { margin-left: auto; display: flex; gap: 10px; }
   .rr-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
   .rr-pill--ok { background: #fff; color: var(--st-success-strong); box-shadow: 0 1px 3px rgba(19,161,76,.12); }
+  .rr-pill--fail { background: #fff; color: var(--st-danger-strong); box-shadow: 0 1px 3px rgba(245,108,108,.12); }
   .rr-pill--on-dark { background: rgba(19,161,76,.10); color: var(--st-success-strong); }
   .rr-hero__meta { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 12.8px; color: rgba(19,161,76,.72); }
   .rr-hero__meta b { font-weight: 600; color: var(--st-success-strong); }
@@ -41,6 +42,7 @@
   .rr-scene__head { padding: 18px 20px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; background: linear-gradient(180deg, var(--n-50), #fff); border-bottom: 1px solid var(--n-200); cursor: pointer; user-select: none; }
   .rr-scene__title { font-size: 16px; font-weight: 650; margin: 0; }
   .rr-scene__meta { font-size: 12.2px; color: var(--n-600); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  .rr-scene__meta .rr-mono { color: var(--n-500); }
   .rr-scene__mini { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
   .rr-mini { background: var(--n-50); border: 1px solid var(--n-200); border-radius: 9px; padding: 6px 12px; text-align: center; min-width: 66px; }
   .rr-mini--g .rr-mini__n { color: var(--st-success-strong); }
@@ -51,34 +53,109 @@
   .rr-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .rr-badge--ok { background: var(--st-success-light); color: var(--st-success-strong); }
   .rr-badge--fail { background: var(--st-danger-light); color: var(--st-danger-strong); }
-  .rr-chev { appearance: none; border: 1px solid transparent; background: transparent; cursor: pointer; padding: 6px 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--n-500); border-radius: 6px; align-self: center; }
+  .rr-badge--skip { background: var(--n-100); color: var(--n-600); }
+  .rr-chev { appearance: none; border: 1px solid transparent; background: transparent; cursor: pointer; padding: 6px 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--n-500); border-radius: 6px; align-self: center; font-family: inherit; }
   .rr-chev:hover { background: var(--n-100); }
   .rr-chev__i { display: inline-block; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px,-2px); transition: transform .2s ease; }
   .rr-chev--open .rr-chev__i { transform: rotate(-135deg) translate(-3px,3px); }
   .rr-scene--failed .rr-scene__head { border-left: 3px solid var(--st-danger); }
   .rr-scene__body { padding: 18px 20px 20px; }
 
+  /* 前置 / 后置处理器 */
+  .rr-procs__nav { display: flex; gap: 2px; padding: 8px 14px 0; border-bottom: 1px solid var(--n-200); background: linear-gradient(180deg, var(--n-50), #fff); flex-wrap: wrap; }
+  .rr-tab { appearance: none; border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--n-600); font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 9px 9px 0 0; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; position: relative; top: 1px; transition: color .15s, background .15s; white-space: nowrap; }
+  .rr-tab:hover { color: var(--st-success); background: var(--st-success-light); }
+  .rr-tab--active { background: #fff; color: var(--st-success); border-color: var(--n-200); box-shadow: inset 0 2px 0 var(--st-success); }
+  .rr-tab__cnt { background: var(--n-200); color: var(--n-600); font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 999px; min-width: 18px; text-align: center; line-height: 16px; font-family: var(--font-mono); }
+  .rr-tab--active .rr-tab__cnt { background: var(--st-success-light); color: var(--st-success-strong); }
+  .rr-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--n-300); flex: 0 0 auto; }
+  .rr-dot--ok { background: var(--st-success); box-shadow: 0 0 0 3px rgba(103,194,58,.15); }
+  .rr-dot--fail { background: var(--st-danger); box-shadow: 0 0 0 3px rgba(245,108,108,.15); }
+  .rr-dot--skip { background: var(--st-warning); }
+  .rr-dot--empty { background: var(--n-200); }
+  .rr-procs__pane { padding: 14px 14px 16px; }
+  .rr-procs--in-scene { margin-bottom: 14px; }
+  .rr-order-tip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11.5px; color: var(--n-500); background: var(--n-50); border: 1px dashed var(--n-200); border-radius: 8px; padding: 6px 11px; margin: 0 0 14px; font-family: var(--font-mono); }
+  .rr-order-tip b { font-weight: 600; color: var(--n-600); }
+  .rr-order-tip__current { color: var(--st-success) !important; font-weight: 700 !important; }
+  .rr-order-tip__arrow { color: var(--n-300); }
+  .rr-proc { border: 1px solid var(--n-200); border-radius: 11px; background: var(--n-50); margin-bottom: 10px; overflow: hidden; }
+  .rr-proc:last-child { margin-bottom: 0; }
+  .rr-proc__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; background: linear-gradient(180deg, var(--n-50), #fff); }
+  .rr-proc__name { font-weight: 600; font-size: 13px; }
+  .rr-proc__head .rr-chev { margin-left: auto; }
+  .rr-proc__meta { font-size: 12.2px; color: var(--n-600); font-family: var(--font-mono); word-break: break-all; padding: 0 14px 10px; margin: 0; }
+  .rr-proc__body { padding: 0 14px 14px; }
+  .rr-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .rr-sub-label { font-size: 12px; font-weight: 600; color: var(--n-600); margin: 0 0 6px; }
+
   /* 测试步骤 */
-  .rsc { border: 1px solid var(--n-200); border-radius: 10px; overflow: hidden; }
-  .rsc + .rsc { margin-top: 10px; }
-  .rsc__head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--n-50); }
-  .rsc__index { width: 18px; height: 18px; border-radius: 50%; background: var(--n-200); color: var(--n-600); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-  .rsc__name { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
-  .rsc__spacer { flex: 1; }
-  .rsc__dur { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-500); }
-  .rsc__body { padding: 10px 12px; border-top: 1px solid var(--n-100); display: flex; flex-direction: column; gap: 8px; }
-  .rsc__line { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: var(--font-size-xs); }
-  .rsc__line .chip { flex-shrink: 0; }
-  .rsc__url { color: var(--n-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rsc__sub-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 600; margin: 0 0 4px; }
-  .rsc__kv { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
-  .rsc__kv th { text-align: left; padding: 3px 8px; color: var(--n-500); background: var(--n-50); border-bottom: 1px solid var(--n-100); font-weight: 600; }
-  .rsc__kv td { padding: 3px 8px; border-bottom: 1px solid var(--n-100); color: var(--n-700); font-family: var(--font-mono); }
-  .chip { display: inline-flex; align-items: center; padding: 0 7px; height: 18px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
-  .chip--get { background: #61affe; } .chip--post { background: #49cc90; } .chip--put { background: #fca130; } .chip--delete { background: #f93e3e; }
-  .chip--status { background: var(--st-success); }
-  .assert-row { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); color: var(--n-600); padding: 4px 0; }
-  .assert-row b { font-family: var(--font-mono); color: var(--n-800); font-weight: 600; }
+  .rsc__toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--n-200); }
+  .rsc__title { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--n-600); text-transform: uppercase; }
+  .rsc__btn { border: 1px solid var(--n-300); background: #fff; color: var(--n-600); border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; font-family: inherit; }
+  .rsc__btn:hover { border-color: var(--n-400); color: var(--st-success); background: var(--st-success-light); }
+  .rsc-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 0 10px; color: var(--n-500); font-size: var(--font-size-sm); }
+  .rsc-empty svg { width: 28px; height: 28px; stroke-width: 1.2; opacity: .7; }
+  .rsc__card { border: 1px solid var(--n-200); border-radius: 12px; background: #fff; margin-bottom: 12px; overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+  .rsc__card:last-child { margin-bottom: 0; }
+  .rsc__card[open] { border-color: var(--n-300); box-shadow: 0 2px 10px -6px rgba(0,0,0,.18); }
+  .rsc__head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 13.5px; flex-wrap: wrap; background: linear-gradient(180deg, var(--n-50), #fff); cursor: pointer; list-style: none; user-select: none; transition: background .15s; }
+  .rsc__head::-webkit-details-marker { display: none; }
+  .rsc__head:hover { background: var(--st-success-light); }
+  .rsc__card[open] > .rsc__head { border-bottom: 1px solid var(--n-200); }
+  .rsc__head::after { content: ""; width: 7px; height: 7px; margin-left: 8px; border-right: 2px solid var(--n-500); border-bottom: 2px solid var(--n-500); transform: rotate(-45deg); transition: transform .2s ease; flex: 0 0 auto; }
+  .rsc__card[open] > .rsc__head::after { transform: rotate(45deg) translate(-2px,-2px); }
+  .rsc__index { width: 24px; height: 24px; border-radius: 7px; background: var(--st-success-light); color: var(--st-success); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .rsc__name { font-weight: 600; color: var(--n-900); }
+  .rsc__right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .rsc__dur { font-size: 12px; color: var(--n-600); font-family: var(--font-mono); white-space: nowrap; }
+  .rsc__body { padding: 16px 16px 18px; }
+  .rsc__block { margin-top: 16px; }
+  .rsc__block:first-child { margin-top: 0; }
+  .rsc__block-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--n-600); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .rsc__block-title::after { content: ""; flex: 1; height: 1px; background: var(--n-200); }
+  .rsc__reqline { display: flex; align-items: center; gap: 10px; background: var(--n-50); border: 1px solid var(--n-200); border-radius: 9px; padding: 9px 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .rsc__url { font-family: var(--font-mono); font-size: 12.6px; color: var(--n-800); word-break: break-all; }
+  .rsc__grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .rsc__sub-label { font-size: 12px; font-weight: 600; color: var(--n-600); margin: 0 0 6px; }
+  .rsc__sub-label--gap { margin-top: 12px; }
+  .rsc__kv, .rr-kv { width: 100%; border-collapse: collapse; font-size: 12.6px; background: #fff; border: 1px solid var(--n-200); border-radius: 9px; overflow: hidden; }
+  .rsc__kv th, .rr-kv th, .rsc__kv td, .rr-kv td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--n-200); vertical-align: top; }
+  .rsc__kv tr:last-child th, .rr-kv tr:last-child th, .rsc__kv tr:last-child td, .rr-kv tr:last-child td { border-bottom: none; }
+  .rsc__kv th, .rr-kv th { background: var(--n-50); color: var(--n-600); font-weight: 600; width: 40%; }
+  .rsc__kv td, .rr-kv td { font-family: var(--font-mono); color: var(--n-800); word-break: break-all; }
+  .rsc__code, .rr-code { margin: 0; background: #1e1e1e; color: #d4d4d4; border-radius: 9px; padding: 12px 14px; font-family: var(--font-mono); font-size: 12.4px; line-height: 1.65; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  .rsc__code--light, .rr-code--light { background: var(--n-50); color: var(--n-800); border: 1px solid var(--n-200); }
+  .rsc__tbl { width: 100%; border-collapse: collapse; font-size: 12.6px; border: 1px solid var(--n-200); border-radius: 9px; overflow: hidden; }
+  .rsc__tbl th { background: var(--n-50); color: var(--n-600); font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--n-200); font-size: 12px; white-space: nowrap; }
+  .rsc__tbl td { padding: 8px 12px; border-bottom: 1px solid var(--n-200); vertical-align: top; word-break: break-all; }
+  .rsc__tbl tr:last-child td { border-bottom: none; }
+  .rsc__mono { font-family: var(--font-mono); }
+  .rsc__val-ok { color: var(--st-success-strong); font-weight: 600; }
+  .rsc__ref { font-family: var(--font-mono); color: var(--st-success); font-weight: 600; }
+  .rsc__null { color: var(--n-500); font-style: italic; }
+  .rsc-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+  .rsc-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .rsc-badge--ok { background: var(--st-success-light); color: var(--st-success-strong); }
+  .rsc-badge--fail { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .rsc-badge--skip { background: var(--n-100); color: var(--n-600); }
+
+  /* 处理器明细内的验证器 / 提取器表（对应 ReportAssertionsTable / ReportExtractorsTable） */
+  .rr-block { margin-top: 14px; }
+  .rr-block-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--n-600); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .rr-block-title::after { content: ""; flex: 1; height: 1px; background: var(--n-200); }
+  .rr-tbl { width: 100%; border-collapse: collapse; font-size: 12.6px; border: 1px solid var(--n-200); border-radius: 9px; overflow: hidden; }
+  .rr-tbl th { background: var(--n-50); color: var(--n-600); font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--n-200); font-size: 12px; white-space: nowrap; }
+  .rr-tbl td { padding: 8px 12px; border-bottom: 1px solid var(--n-200); vertical-align: top; word-break: break-all; }
+  .rr-tbl tr:last-child td { border-bottom: none; }
+  .rr-monotag { font-family: var(--font-mono); }
+  .rr-val-ok { color: var(--st-success-strong); font-weight: 600; }
+  .rr-ref { font-family: var(--font-mono); color: var(--st-success); font-weight: 600; }
+  .rr-null { color: var(--n-500); font-style: italic; }
+
+  /* 分类 chip 沿用 base.css 中性样式，仅状态类 chip 上色 */
+  .chip--ok { background: var(--st-success-light); border-color: var(--st-success-border); color: var(--st-success-strong); }
+  .chip--err { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger-strong); }
 
   .rr-footer { font-size: 12.5px; color: var(--n-600); text-align: center; margin: 22px 0 0; }
 
@@ -109,176 +186,917 @@
   <div class="rr-hero">
     <div class="rr-hero__top">
       <h1 class="rr-hero__title">支付回归夜跑-2026-09-22 03:00:04</h1>
-      <span class="rr-pill rr-pill--ok">✓ 执行成功</span>
-      <span class="rr-pill rr-pill--on-dark">平台内执行</span>
+      <span class="rr-pill rr-pill--fail">✗ 执行失败</span>
+      <span class="rr-pill rr-pill--on-dark">定时任务</span>
       <div class="rr-hero__actions">
-        <button class="btn btn--sm btn-hero" id="btn-share">分享</button>
+        <button class="btn btn--sm btn-hero" id="btn-share"><span data-icon="link"></span>分享</button>
         <a class="btn btn--sm btn-hero" href="api-reports.html">关闭</a>
       </div>
     </div>
     <div class="rr-hero__meta">
       <span>环境：<b>测试环境</b></span>
       <span>触发时间：<b>2026-09-22 03:00:04</b></span>
-      <span>总耗时：<b class="rr-mono">42.70 s</b></span>
-      <span>Task ID：<b class="rr-mono">T-20260922-03000042</b></span>
+      <span>总耗时：<b class="rr-mono">11.24 s</b></span>
+      <span>Task ID：<b class="rr-mono">9c4f1a2e-7b53-4d18-9a62-3f0c8e51b7d4</b></span>
     </div>
   </div>
 
   <!-- 套件统计 -->
   <div class="rr-card rr-card--plain">
     <div class="rr-stats">
-      <div class="rr-stat rr-stat--b"><div class="rr-stat__num">6</div><div class="rr-stat__lbl">场景总数</div></div>
-      <div class="rr-stat rr-stat--g"><div class="rr-stat__num">5</div><div class="rr-stat__lbl">通过场景</div></div>
-      <div class="rr-stat rr-stat--r"><div class="rr-stat__num">1</div><div class="rr-stat__lbl">失败场景</div></div>
-      <div class="rr-stat rr-stat--g"><div class="rr-stat__num">83.3%</div><div class="rr-stat__lbl">通过率</div></div>
-      <div class="rr-stat rr-stat--b"><div class="rr-stat__num">42.70 s</div><div class="rr-stat__lbl">总耗时</div></div>
+      <div class="rr-stat rr-stat--b"><div class="rr-stat__num">4</div><div class="rr-stat__lbl">场景总数</div></div>
+      <div class="rr-stat rr-stat--g"><div class="rr-stat__num">2</div><div class="rr-stat__lbl">通过场景</div></div>
+      <div class="rr-stat rr-stat--r"><div class="rr-stat__num">2</div><div class="rr-stat__lbl">失败场景</div></div>
+      <div class="rr-stat rr-stat--g"><div class="rr-stat__num">50.0%</div><div class="rr-stat__lbl">通过率</div></div>
+      <div class="rr-stat rr-stat--b"><div class="rr-stat__num">11.24 s</div><div class="rr-stat__lbl">总耗时</div></div>
     </div>
   </div>
+  <!-- 环境级前置 / 后置处理器：套件报告顶层执行一次 -->
+  <section class="rr-card" data-procs data-level="task">
+    <div class="rr-procs__nav">
+      <button type="button" class="rr-tab rr-tab--active" data-tab="pre">前置 <span class="rr-tab__cnt">2</span><span class="rr-dot rr-dot--ok"></span></button>
+      <button type="button" class="rr-tab" data-tab="post">后置 <span class="rr-tab__cnt">1</span><span class="rr-dot rr-dot--ok"></span></button>
+    </div>
 
-  <!-- 场景 1：失败 + 展开 -->
-  <section class="rr-card rr-scene rr-scene--failed" data-scene>
+    <div class="rr-procs__pane" data-pane="pre">
+      <p class="rr-order-tip">
+        <span>执行顺序</span>
+        <span class="rr-order-tip__arrow">›</span><b class="rr-order-tip__current" data-chain="task-pre">任务前置</b>
+        <span class="rr-order-tip__arrow">→</span><b data-chain="scene-pre">场景前置</b>
+        <span class="rr-order-tip__arrow">→</span><b data-chain="steps">步骤</b>
+        <span class="rr-order-tip__arrow">→</span><b data-chain="scene-post">场景后置</b>
+        <span class="rr-order-tip__arrow">→</span><b data-chain="task-post">任务后置</b>
+      </p>
+
+      <div class="rr-proc" data-proc>
+        <div class="rr-proc__head">
+          <span class="rr-proc__name">获取租户访问令牌</span>
+          <span class="chip">POST</span>
+          <span class="rr-badge rr-badge--ok">成功</span>
+          <button type="button" class="rr-chev" data-proc-chev aria-label="展开" title="展开/收起"><span class="rr-chev__i"></span></button>
+        </div>
+        <p class="rr-proc__meta">https://gateway.robotest.io/oauth/token</p>
+        <div class="rr-proc__body" data-proc-body hidden>
+          <div class="rr-grid2">
+            <div>
+              <p class="rr-sub-label">请求头</p>
+              <table class="rr-kv">
+                <tr><th>Content-Type</th><td>application/json</td></tr>
+                <tr><th>X-Tenant-Id</th><td>quality-platform</td></tr>
+              </table>
+            </div>
+            <div>
+              <p class="rr-sub-label">请求体</p>
+              <pre class="rr-code rr-code--light">{
+  "grantType": "client_credentials",
+  "scope": "report:write"
+}</pre>
+              <p class="rr-sub-label rsc__sub-label--gap">响应体</p>
+              <pre class="rr-code rr-code--light">{
+  "accessToken": "at-7c21f9e4b0",
+  "expiresIn": 3600
+}</pre>
+            </div>
+          </div>
+          <div class="rr-block">
+            <div class="rr-block-title">验证器（1）</div>
+            <table class="rr-tbl">
+              <thead>
+                <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="rr-monotag">status</td>
+                  <td>equals</td>
+                  <td class="rr-monotag">200</td>
+                  <td class="rr-monotag rr-val-ok">200</td>
+                  <td><span class="rr-badge rr-badge--ok">通过</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="rr-proc" data-proc>
+        <div class="rr-proc__head">
+          <span class="rr-proc__name">清理沙箱测试数据</span>
+          <span class="chip">DELETE</span>
+          <span class="rr-badge rr-badge--ok">成功</span>
+          <button type="button" class="rr-chev" data-proc-chev aria-label="展开" title="展开/收起"><span class="rr-chev__i"></span></button>
+        </div>
+        <p class="rr-proc__meta">https://sandbox.robotest.io/api/orders/cleanup</p>
+        <div class="rr-proc__body" data-proc-body hidden>
+          <div class="rr-grid2">
+            <div>
+              <p class="rr-sub-label">请求头</p>
+              <table class="rr-kv">
+                <tr><th>Content-Type</th><td>application/json</td></tr>
+                <tr><th>X-Clean-Scope</th><td>pay-regression</td></tr>
+              </table>
+            </div>
+            <div>
+              <p class="rr-sub-label">响应体</p>
+              <pre class="rr-code rr-code--light">{
+  "code": "SUCCESS",
+  "removed": 126
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rr-procs__pane" data-pane="post" hidden>
+      <p class="rr-order-tip">
+        <span>执行顺序</span>
+        <span class="rr-order-tip__arrow">›</span><b data-chain="task-pre">任务前置</b>
+        <span class="rr-order-tip__arrow">→</span><b data-chain="scene-pre">场景前置</b>
+        <span class="rr-order-tip__arrow">→</span><b data-chain="steps">步骤</b>
+        <span class="rr-order-tip__arrow">→</span><b data-chain="scene-post">场景后置</b>
+        <span class="rr-order-tip__arrow">→</span><b class="rr-order-tip__current" data-chain="task-post">任务后置</b>
+      </p>
+
+      <div class="rr-proc" data-proc>
+        <div class="rr-proc__head">
+          <span class="rr-proc__name">推送执行结果通知</span>
+          <span class="chip">POST</span>
+          <span class="rr-badge rr-badge--ok">成功</span>
+          <button type="button" class="rr-chev" data-proc-chev aria-label="展开" title="展开/收起"><span class="rr-chev__i"></span></button>
+        </div>
+        <p class="rr-proc__meta">https://oapi.robotest.io/robot/send</p>
+        <div class="rr-proc__body" data-proc-body hidden>
+          <div class="rr-grid2">
+            <div>
+              <p class="rr-sub-label">请求头</p>
+              <table class="rr-kv">
+                <tr><th>Content-Type</th><td>application/json</td></tr>
+              </table>
+            </div>
+            <div>
+              <p class="rr-sub-label">请求体</p>
+              <pre class="rr-code rr-code--light">{
+  "msgtype": "text",
+  "text": {
+    "content": "支付回归夜跑完成：2 通过 / 2 失败"
+  }
+}</pre>
+              <p class="rr-sub-label rsc__sub-label--gap">响应体</p>
+              <pre class="rr-code rr-code--light">{
+  "errcode": 0,
+  "errmsg": "ok"
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 场景 1：部分通过（含失败步骤） -->
+  <section class="rr-card rr-scene" data-scene>
     <div class="rr-scene__head">
-      <div>
+      <div class="rr-scene__ident">
         <h2 class="rr-scene__title">支付回调重放</h2>
         <div class="rr-scene__meta">
-          <span>场景 ID：<b class="rr-mono">SC-8f21c0</b></span>
-          <span>执行时间：2026-09-22 03:00:12</span>
+          <span>场景 ID：<b class="rr-mono">3a7d9c15-6e42-4f8b-b1c7-0d5a92e73f61</b></span>
+          <span>执行时间：2026-09-22 03:00:05</span>
         </div>
       </div>
       <div class="rr-scene__mini">
         <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
         <div class="rr-mini rr-mini--g"><div class="rr-mini__n">3</div><div class="rr-mini__t">通过</div></div>
         <div class="rr-mini rr-mini--r"><div class="rr-mini__n">1</div><div class="rr-mini__t">失败</div></div>
-        <div class="rr-mini"><div class="rr-mini__n">6.42 s</div><div class="rr-mini__t">耗时</div></div>
+        <div class="rr-mini"><div class="rr-mini__n">6.48 s</div><div class="rr-mini__t">耗时</div></div>
       </div>
-      <span class="rr-badge rr-badge--fail">失败</span>
-      <button class="rr-chev rr-chev--open" data-chev><span class="rr-chev__i"></span></button>
+      <span class="rr-badge rr-badge--skip">部分通过</span>
+      <button type="button" class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
     </div>
-    <div class="rr-scene__body" data-scene-body>
-      <div class="rsc">
-        <div class="rsc__head">
-          <span class="rsc__index">1</span>
-          <span class="rsc__name">查询支付单</span>
-          <span class="chip chip--post">POST</span>
-          <div class="rsc__spacer"></div>
-          <span class="rr-badge rr-badge--ok">通过</span>
-          <span class="rsc__dur">312 ms</span>
-        </div>
-        <div class="rsc__body">
-          <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/order/query</span></div>
-          <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 428 B</span></div>
-          <div>
-            <p class="rsc__sub-label">断言</p>
-            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 200</b></div>
-            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>JSON 字段 <b>$.data.status = PAID</b></div>
-          </div>
-        </div>
-      </div>
+    <div class="rr-scene__body" data-scene-body hidden>
 
-      <div class="rsc">
-        <div class="rsc__head">
-          <span class="rsc__index">2</span>
-          <span class="rsc__name">重放支付回调</span>
-          <span class="chip chip--post">POST</span>
-          <div class="rsc__spacer"></div>
-          <span class="rr-badge rr-badge--fail">失败</span>
-          <span class="rsc__dur">5 902 ms</span>
+      <!-- 场景级前置处理器 -->
+      <section class="rr-procs rr-procs--in-scene" data-procs data-level="scene">
+        <div class="rr-procs__nav">
+          <button type="button" class="rr-tab rr-tab--active" data-tab="pre">前置 <span class="rr-tab__cnt">1</span><span class="rr-dot rr-dot--ok"></span></button>
         </div>
-        <div class="rsc__body">
-          <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/pay/notify/replay</span></div>
-          <div class="rsc__line"><span class="chip" style="background:var(--st-danger)">500</span><span class="rsc__url">Internal Server Error · application/json · 176 B</span></div>
-          <div>
-            <p class="rsc__sub-label">响应头</p>
-            <table class="rsc__kv">
-              <thead><tr><th>Content-Type</th><th>X-Trace-Id</th></tr></thead>
-              <tbody><tr><td>application/json</td><td>9f3a-77c2-4e10</td></tr></tbody>
-            </table>
-          </div>
-          <div>
-            <p class="rsc__sub-label">断言</p>
-            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>状态码 <b>等于 500</b>（预期允许失败分支）</div>
-            <div class="assert-row"><span class="rr-badge rr-badge--fail">失败</span>JSON 字段 <b>$.code = NOTIFY_OK</b>，实际 <b>INTERNAL_ERROR</b></div>
-          </div>
-          <div>
-            <p class="rsc__sub-label">提取变量</p>
-            <div class="assert-row">notifyId ← <b>$.data.notifyId</b>（本次未提取到值）</div>
-          </div>
-        </div>
-      </div>
+        <div class="rr-procs__pane" data-pane="pre">
+          <p class="rr-order-tip">
+            <span>执行顺序</span>
+            <span class="rr-order-tip__arrow">›</span><b class="rr-order-tip__current" data-chain="scene-pre">场景前置</b>
+            <span class="rr-order-tip__arrow">→</span><b data-chain="steps">步骤</b>
+            <span class="rr-order-tip__arrow">→</span><b data-chain="scene-post">场景后置</b>
+          </p>
 
-      <div class="rsc">
-        <div class="rsc__head">
-          <span class="rsc__index">3</span>
-          <span class="rsc__name">校验订单状态</span>
-          <span class="chip" style="background:var(--brand-500)">SELECT</span>
-          <div class="rsc__spacer"></div>
-          <span class="rr-badge rr-badge--ok">通过</span>
-          <span class="rsc__dur">41 ms</span>
-        </div>
-        <div class="rsc__body">
-          <div class="rsc__line"><span class="chip" style="background:var(--brand-500)">SELECT</span><span class="rsc__url">SELECT status FROM t_order WHERE id = ?</span></div>
-          <div>
-            <p class="rsc__sub-label">断言</p>
-            <div class="assert-row"><span class="rr-badge rr-badge--ok">通过</span>结果集 <b>1 行</b>，status <b>= PAID</b></div>
+          <div class="rr-proc" data-proc>
+            <div class="rr-proc__head">
+              <span class="rr-proc__name">获取回调签名密钥</span>
+              <span class="chip">GET</span>
+              <span class="rr-badge rr-badge--ok">成功</span>
+              <button type="button" class="rr-chev" data-proc-chev aria-label="展开" title="展开/收起"><span class="rr-chev__i"></span></button>
+            </div>
+            <p class="rr-proc__meta">https://vault.robotest.io/secrets/pay-callback</p>
+            <div class="rr-proc__body" data-proc-body hidden>
+              <div class="rr-grid2">
+                <div>
+                  <p class="rr-sub-label">请求头</p>
+                  <table class="rr-kv">
+                    <tr><th>X-Vault-Token</th><td>s.vault.pay-regression</td></tr>
+                  </table>
+                </div>
+                <div>
+                  <p class="rr-sub-label">响应体</p>
+                  <pre class="rr-code rr-code--light">{
+  "code": "SUCCESS",
+  "data": {
+    "signKey": "sk_pay_9d3f7a41",
+    "algo": "HmacSHA256"
+  }
+}</pre>
+                </div>
+              </div>
+              <div class="rr-block">
+                <div class="rr-block-title">提取器（1）</div>
+                <table class="rr-tbl">
+                  <thead>
+                    <tr><th>引用名</th><th>字段</th><th>提取值</th><th>默认值</th><th>结果</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="rr-ref">signKey</td>
+                      <td class="rr-monotag">$.data.signKey</td>
+                      <td class="rr-monotag rr-val-ok">sk_pay_9d3f7a41</td>
+                      <td class="rr-null">-</td>
+                      <td><span class="rr-badge rr-badge--ok">成功</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="rsc">
-        <div class="rsc__head">
-          <span class="rsc__index">4</span>
-          <span class="rsc__name">补偿对账查询</span>
-          <span class="chip chip--get">GET</span>
-          <div class="rsc__spacer"></div>
-          <span class="rr-badge rr-badge--ok">通过</span>
-          <span class="rsc__dur">167 ms</span>
+      <div class="rsc" data-steps>
+        <div class="rsc__toolbar">
+          <span class="rsc__title">测试步骤（4）</span>
+          <button type="button" class="rsc__btn" data-toggle-all>全部展开</button>
         </div>
-        <div class="rsc__body">
-          <div class="rsc__line"><span class="chip chip--get">GET</span><span class="rsc__url">/api/pay/reconcile?orderId=${orderId}</span></div>
-          <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 233 B</span></div>
-        </div>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">1</span>
+            <span class="rsc__name">查询支付单</span>
+            <span class="chip">GET</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="chip chip--ok">验证器 2</span>
+            <span class="rsc__right"><span class="rsc__dur">312 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">GET</span>
+                <span class="rsc__url">/api/pay/order/query?orderId=PO202609220031</span>
+              </div>
+              <div class="rsc__grid2">
+                <div>
+                  <p class="rsc__sub-label">请求头</p>
+                  <table class="rsc__kv">
+                    <tr><th>Content-Type</th><td>application/json</td></tr>
+                    <tr><th>X-Request-Id</th><td>req-7f21c0a9</td></tr>
+                  </table>
+                </div>
+                <div>
+                  <p class="rsc__sub-label">Query 参数</p>
+                  <pre class="rsc__code rsc__code--light">{
+  "orderId": "PO202609220031"
+}</pre>
+                </div>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">200</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "SUCCESS",
+  "data": {
+    "orderId": "PO202609220031",
+    "status": "PAID",
+    "amount": 12800
+  }
+}</pre>
+              <p class="rsc__sub-label rsc__sub-label--gap">响应头</p>
+              <table class="rsc__kv">
+                <tr><th>Content-Type</th><td>application/json</td></tr>
+                <tr><th>X-Trace-Id</th><td>9f3a-77c2-4e10</td></tr>
+              </table>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（2）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">status</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">200</td>
+                    <td class="rsc__mono rsc__val-ok">200</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                  <tr>
+                    <td class="rsc__mono">$.data.status</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">PAID</td>
+                    <td class="rsc__mono rsc__val-ok">PAID</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details class="rsc__card" open>
+          <summary class="rsc__head">
+            <span class="rsc__index">2</span>
+            <span class="rsc__name">重放支付回调</span>
+            <span class="chip">POST</span>
+            <span class="rsc-badge rsc-badge--fail">失败</span>
+            <span class="chip chip--err">验证器 2</span>
+            <span class="rsc__right"><span class="rsc__dur">5.9 s</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">POST</span>
+                <span class="rsc__url">/api/pay/notify/replay</span>
+              </div>
+              <div class="rsc__grid2">
+                <div>
+                  <p class="rsc__sub-label">请求头</p>
+                  <table class="rsc__kv">
+                    <tr><th>Content-Type</th><td>application/json</td></tr>
+                    <tr><th>X-Sign</th><td>5f1a9c02d7e4b861</td></tr>
+                  </table>
+                </div>
+                <div>
+                  <p class="rsc__sub-label">请求体</p>
+                  <pre class="rsc__code rsc__code--light">{
+  "notifyId": "NTF-8842",
+  "orderId": "PO202609220031",
+  "force": true
+}</pre>
+                </div>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--err">500</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "INTERNAL_ERROR",
+  "message": "上游支付网关处理超时"
+}</pre>
+              <p class="rsc__sub-label rsc__sub-label--gap">响应头</p>
+              <table class="rsc__kv">
+                <tr><th>Content-Type</th><td>application/json</td></tr>
+                <tr><th>X-Trace-Id</th><td>9f3a-77c2-4e18</td></tr>
+              </table>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（2）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">status</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">500</td>
+                    <td class="rsc__mono rsc__val-ok">500</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                  <tr>
+                    <td class="rsc__mono">$.code</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">NOTIFY_OK</td>
+                    <td class="rsc__mono">INTERNAL_ERROR</td>
+                    <td><span class="rsc-badge rsc-badge--fail">失败</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">提取器（1）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>引用名</th><th>字段</th><th>提取值</th><th>默认值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__ref">notifyId</td>
+                    <td class="rsc__mono">$.data.notifyId</td>
+                    <td class="rsc__mono">-</td>
+                    <td class="rsc__null">-</td>
+                    <td><span class="rsc-badge rsc-badge--fail">提取失败</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="rsc__block">
+              <div class="alert alert--danger"><span data-icon="alert-triangle"></span>上游支付网关返回 INTERNAL_ERROR，步骤判定失败</div>
+            </div>
+          </div>
+        </details>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">3</span>
+            <span class="rsc__name">查询订单终态</span>
+            <span class="chip">GET</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="chip chip--ok">验证器 1</span>
+            <span class="rsc__right"><span class="rsc__dur">168 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">GET</span>
+                <span class="rsc__url">/api/pay/order/status?orderId=PO202609220031</span>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">200</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "SUCCESS",
+  "data": {
+    "status": "PAID"
+  }
+}</pre>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（1）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">$.data.status</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">PAID</td>
+                    <td class="rsc__mono rsc__val-ok">PAID</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">4</span>
+            <span class="rsc__name">清理重放数据</span>
+            <span class="chip">DELETE</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="rsc__right"><span class="rsc__dur">96 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">DELETE</span>
+                <span class="rsc__url">/api/pay/notify/replay?notifyId=${notifyId}</span>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">204</span>
+                <span class="rsc__url">HTTP/1.1</span>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </section>
-
-  <!-- 场景 2：通过 + 折叠 -->
+  <!-- 场景 2：通过 -->
   <section class="rr-card rr-scene" data-scene>
     <div class="rr-scene__head">
-      <div>
+      <div class="rr-scene__ident">
         <h2 class="rr-scene__title">下单成功主链路</h2>
         <div class="rr-scene__meta">
-          <span>场景 ID：<b class="rr-mono">SC-11ab94</b></span>
-          <span>执行时间：2026-09-22 03:00:20</span>
+          <span>场景 ID：<b class="rr-mono">b61c4f08-2ad9-4c53-8e70-1f93a2b60c44</b></span>
+          <span>执行时间：2026-09-22 03:00:12</span>
         </div>
       </div>
       <div class="rr-scene__mini">
-        <div class="rr-mini"><div class="rr-mini__n">4</div><div class="rr-mini__t">步骤</div></div>
-        <div class="rr-mini rr-mini--g"><div class="rr-mini__n">4</div><div class="rr-mini__t">通过</div></div>
+        <div class="rr-mini"><div class="rr-mini__n">3</div><div class="rr-mini__t">步骤</div></div>
+        <div class="rr-mini rr-mini--g"><div class="rr-mini__n">3</div><div class="rr-mini__t">通过</div></div>
         <div class="rr-mini rr-mini--r"><div class="rr-mini__n">0</div><div class="rr-mini__t">失败</div></div>
-        <div class="rr-mini"><div class="rr-mini__n">3.20 s</div><div class="rr-mini__t">耗时</div></div>
+        <div class="rr-mini"><div class="rr-mini__n">1.49 s</div><div class="rr-mini__t">耗时</div></div>
       </div>
       <span class="rr-badge rr-badge--ok">通过</span>
-      <button class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
+      <button type="button" class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
     </div>
     <div class="rr-scene__body" data-scene-body hidden>
-      <div class="rsc">
-        <div class="rsc__head">
-          <span class="rsc__index">1</span>
-          <span class="rsc__name">创建订单</span>
-          <span class="chip chip--post">POST</span>
-          <div class="rsc__spacer"></div>
-          <span class="rr-badge rr-badge--ok">通过</span>
-          <span class="rsc__dur">486 ms</span>
+      <div class="rsc" data-steps>
+        <div class="rsc__toolbar">
+          <span class="rsc__title">测试步骤（3）</span>
+          <button type="button" class="rsc__btn" data-toggle-all>全部展开</button>
         </div>
-        <div class="rsc__body">
-          <div class="rsc__line"><span class="chip chip--post">POST</span><span class="rsc__url">/api/order/create</span></div>
-          <div class="rsc__line"><span class="chip chip--status">200</span><span class="rsc__url">OK · application/json · 512 B</span></div>
-        </div>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">1</span>
+            <span class="rsc__name">创建订单</span>
+            <span class="chip">POST</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="chip chip--ok">验证器 2</span>
+            <span class="rsc__right"><span class="rsc__dur">486 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">POST</span>
+                <span class="rsc__url">/api/order/create</span>
+              </div>
+              <div class="rsc__grid2">
+                <div>
+                  <p class="rsc__sub-label">请求头</p>
+                  <table class="rsc__kv">
+                    <tr><th>Content-Type</th><td>application/json</td></tr>
+                    <tr><th>X-Channel</th><td>app</td></tr>
+                  </table>
+                </div>
+                <div>
+                  <p class="rsc__sub-label">请求体</p>
+                  <pre class="rsc__code rsc__code--light">{
+  "skuId": "SKU-TP2000",
+  "quantity": 1,
+  "couponCode": "SAVE30"
+}</pre>
+                </div>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">200</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "SUCCESS",
+  "data": {
+    "orderId": "PO202609220031",
+    "payAmount": 12800
+  }
+}</pre>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（2）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">status</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">200</td>
+                    <td class="rsc__mono rsc__val-ok">200</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                  <tr>
+                    <td class="rsc__mono">$.code</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">SUCCESS</td>
+                    <td class="rsc__mono rsc__val-ok">SUCCESS</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">2</span>
+            <span class="rsc__name">提交预支付</span>
+            <span class="chip">POST</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="chip chip--ok">验证器 1</span>
+            <span class="rsc__right"><span class="rsc__dur">874 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">POST</span>
+                <span class="rsc__url">/api/pay/prepay</span>
+              </div>
+              <div class="rsc__grid2">
+                <div>
+                  <p class="rsc__sub-label">请求体</p>
+                  <pre class="rsc__code rsc__code--light">{
+  "orderId": "PO202609220031",
+  "channel": "ALIPAY"
+}</pre>
+                </div>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">200</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "SUCCESS",
+  "data": {
+    "payToken": "PT-6d91af02c5",
+    "expireSeconds": 900
+  }
+}</pre>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（1）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">$.data.payToken</td>
+                    <td>contains</td>
+                    <td class="rsc__mono">PT-</td>
+                    <td class="rsc__mono rsc__val-ok">PT-6d91af02c5</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">提取器（1）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>引用名</th><th>字段</th><th>提取值</th><th>默认值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__ref">payToken</td>
+                    <td class="rsc__mono">$.data.payToken</td>
+                    <td class="rsc__mono rsc__val-ok">PT-6d91af02c5</td>
+                    <td class="rsc__null">-</td>
+                    <td><span class="rsc-badge rsc-badge--ok">成功</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">3</span>
+            <span class="rsc__name">查询订单详情</span>
+            <span class="chip">GET</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="chip chip--ok">验证器 1</span>
+            <span class="rsc__right"><span class="rsc__dur">132 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">GET</span>
+                <span class="rsc__url">/api/order/detail?orderId=${orderId}</span>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">200</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "SUCCESS",
+  "data": {
+    "orderId": "PO202609220031",
+    "status": "UNPAID"
+  }
+}</pre>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（1）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">$.data.status</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">UNPAID</td>
+                    <td class="rsc__mono rsc__val-ok">UNPAID</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </section>
 
-  <p class="rr-footer">报告生成时间 2026-09-22 03:00:46 · 来源：平台内执行 · 环境：测试环境</p>
+  <!-- 场景 3：通过 -->
+  <section class="rr-card rr-scene" data-scene>
+    <div class="rr-scene__head">
+      <div class="rr-scene__ident">
+        <h2 class="rr-scene__title">优惠券叠加校验</h2>
+        <div class="rr-scene__meta">
+          <span>场景 ID：<b class="rr-mono">f0e28b74-51ad-4a6c-9d38-7c2b64a0e915</b></span>
+          <span>执行时间：2026-09-22 03:00:13</span>
+        </div>
+      </div>
+      <div class="rr-scene__mini">
+        <div class="rr-mini"><div class="rr-mini__n">2</div><div class="rr-mini__t">步骤</div></div>
+        <div class="rr-mini rr-mini--g"><div class="rr-mini__n">2</div><div class="rr-mini__t">通过</div></div>
+        <div class="rr-mini rr-mini--r"><div class="rr-mini__n">0</div><div class="rr-mini__t">失败</div></div>
+        <div class="rr-mini"><div class="rr-mini__n">0.32 s</div><div class="rr-mini__t">耗时</div></div>
+      </div>
+      <span class="rr-badge rr-badge--ok">通过</span>
+      <button type="button" class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
+    </div>
+    <div class="rr-scene__body" data-scene-body hidden>
+      <div class="rsc" data-steps>
+        <div class="rsc__toolbar">
+          <span class="rsc__title">测试步骤（2）</span>
+          <button type="button" class="rsc__btn" data-toggle-all>全部展开</button>
+        </div>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">1</span>
+            <span class="rsc__name">校验优惠券可用性</span>
+            <span class="chip">POST</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="chip chip--ok">验证器 1</span>
+            <span class="rsc__right"><span class="rsc__dur">220 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">POST</span>
+                <span class="rsc__url">/api/coupon/preview</span>
+              </div>
+              <div class="rsc__grid2">
+                <div>
+                  <p class="rsc__sub-label">请求体</p>
+                  <pre class="rsc__code rsc__code--light">{
+  "couponCodes": ["SAVE30", "NEWUSER10"],
+  "payAmount": 12800
+}</pre>
+                </div>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">200</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "SUCCESS",
+  "data": {
+    "discount": 4000,
+    "payAmount": 8800
+  }
+}</pre>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（1）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">$.data.discount</td>
+                    <td>equals</td>
+                    <td class="rsc__mono">4000</td>
+                    <td class="rsc__mono rsc__val-ok">4000</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details class="rsc__card">
+          <summary class="rsc__head">
+            <span class="rsc__index">2</span>
+            <span class="rsc__name">查询优惠后金额</span>
+            <span class="chip">GET</span>
+            <span class="rsc-badge rsc-badge--ok">成功</span>
+            <span class="chip chip--ok">验证器 1</span>
+            <span class="rsc__right"><span class="rsc__dur">96 ms</span></span>
+          </summary>
+          <div class="rsc__body">
+            <div class="rsc__block">
+              <div class="rsc__block-title">请求</div>
+              <div class="rsc__reqline">
+                <span class="chip">GET</span>
+                <span class="rsc__url">/api/order/pay-amount?orderId=${orderId}</span>
+              </div>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">响应</div>
+              <div class="rsc__reqline">
+                <span class="chip chip--ok">200</span>
+                <span class="rsc__url">HTTP/1.1 · application/json</span>
+              </div>
+              <pre class="rsc__code">{
+  "code": "SUCCESS",
+  "data": {
+    "payAmount": 8800
+  }
+}</pre>
+            </div>
+            <div class="rsc__block">
+              <div class="rsc__block-title">验证器（1）</div>
+              <table class="rsc__tbl">
+                <thead>
+                  <tr><th>字段</th><th>规则</th><th>期望值</th><th>实际值</th><th>结果</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="rsc__mono">$.data.payAmount</td>
+                    <td>gt</td>
+                    <td class="rsc__mono">0</td>
+                    <td class="rsc__mono rsc__val-ok">8800</td>
+                    <td><span class="rsc-badge rsc-badge--ok">通过</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- 场景 4：失败（引擎未返回该场景结果，数据集为占位：无步骤明细） -->
+  <section class="rr-card rr-scene rr-scene--failed" data-scene>
+    <div class="rr-scene__head">
+      <div class="rr-scene__ident">
+        <h2 class="rr-scene__title">对账文件拉取</h2>
+        <div class="rr-scene__meta">
+          <span>场景 ID：<b class="rr-mono">-</b></span>
+          <span>执行时间：2026-09-22 03:00:14</span>
+        </div>
+      </div>
+      <div class="rr-scene__mini">
+        <div class="rr-mini"><div class="rr-mini__n">0</div><div class="rr-mini__t">步骤</div></div>
+        <div class="rr-mini rr-mini--g"><div class="rr-mini__n">0</div><div class="rr-mini__t">通过</div></div>
+        <div class="rr-mini rr-mini--r"><div class="rr-mini__n">0</div><div class="rr-mini__t">失败</div></div>
+        <div class="rr-mini"><div class="rr-mini__n">-</div><div class="rr-mini__t">耗时</div></div>
+      </div>
+      <span class="rr-badge rr-badge--fail">失败</span>
+      <button type="button" class="rr-chev" data-chev><span class="rr-chev__i"></span></button>
+    </div>
+    <div class="rr-scene__body" data-scene-body hidden>
+      <div class="rsc" data-steps>
+        <div class="rsc__toolbar">
+          <span class="rsc__title">测试步骤（0）</span>
+        </div>
+        <div class="rsc-empty"><span data-icon="document"></span>该场景无步骤明细</div>
+      </div>
+    </div>
+  </section>
+
+  <p class="rr-footer">报告生成时间 2026-09-22 03:00:16 · 来源：定时任务 · 环境：测试环境</p>
 </main>
 
 <!-- 分享弹窗（两步式：选有效期 → 生成链接；已有分享直接展示记录，对应 ReportDetailPage 的 create / record 视图） -->
@@ -324,12 +1142,54 @@
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
-  // 场景卡展开 / 折叠
+  // 套件报告默认全部折叠，点击场景头或箭头切换
   document.querySelectorAll('[data-scene]').forEach(function (scene) {
     var head = scene.querySelector('.rr-scene__head');
     var body = scene.querySelector('[data-scene-body]');
     var chev = scene.querySelector('[data-chev]');
     head.addEventListener('click', function () {
+      var open = !body.hasAttribute('hidden');
+      if (open) { body.setAttribute('hidden', ''); chev.classList.remove('rr-chev--open'); }
+      else { body.removeAttribute('hidden'); chev.classList.add('rr-chev--open'); }
+    });
+  });
+
+  // 步骤默认仅失败步骤展开，工具栏按钮一键全开/全关
+  document.querySelectorAll('[data-steps]').forEach(function (card) {
+    var btn = card.querySelector('[data-toggle-all]');
+    if (!btn) return;
+    var allOpen = false;
+    btn.addEventListener('click', function () {
+      allOpen = !allOpen;
+      card.querySelectorAll('details.rsc__card').forEach(function (d) { d.open = allOpen; });
+      btn.textContent = allOpen ? '全部收起' : '全部展开';
+    });
+  });
+
+  /* ---------------- 前置 / 后置处理器 ---------------- */
+  document.querySelectorAll('[data-procs]').forEach(function (procs) {
+    var isTask = procs.getAttribute('data-level') === 'task';
+    var chainKey = { pre: isTask ? 'task-pre' : 'scene-pre', post: isTask ? 'task-post' : 'scene-post' };
+    var tabs = procs.querySelectorAll('[data-tab]');
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var name = tab.getAttribute('data-tab');
+        tabs.forEach(function (t) { t.classList.toggle('rr-tab--active', t === tab); });
+        procs.querySelectorAll('[data-pane]').forEach(function (pane) {
+          pane.hidden = pane.getAttribute('data-pane') !== name;
+        });
+        procs.querySelectorAll('[data-chain]').forEach(function (node) {
+          node.classList.toggle('rr-order-tip__current', node.getAttribute('data-chain') === chainKey[name]);
+        });
+      });
+    });
+  });
+
+  // 处理器明细默认收起，仅按需展开
+  document.querySelectorAll('[data-proc]').forEach(function (proc) {
+    var chev = proc.querySelector('[data-proc-chev]');
+    var body = proc.querySelector('[data-proc-body]');
+    chev.addEventListener('click', function () {
       var open = !body.hasAttribute('hidden');
       if (open) { body.setAttribute('hidden', ''); chev.classList.remove('rr-chev--open'); }
       else { body.removeAttribute('hidden'); chev.classList.add('rr-chev--open'); }
