@@ -6,6 +6,205 @@
 <title>项目列表 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 作者样式强于 UA [hidden]，分段/搜索切换须显式补显隐契约 */
+  [hidden] { display: none !important; }
+
+  /* 对应 ProjectListPage 的自适应卡片栅格 */
+  .proj-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--block-gap);
+  }
+
+  .proj-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 270px;
+    padding: 20px;
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    background: var(--n-0);
+    box-shadow: var(--shadow-card);
+    color: var(--n-700);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .proj-card:hover {
+    border-color: var(--brand-300);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+
+  /* 已归档项目只读，不响应进入 */
+  .proj-card--archived { cursor: default; }
+
+  .proj-card--archived:hover {
+    border-color: var(--n-200);
+    box-shadow: var(--shadow-card);
+    transform: none;
+  }
+
+  .proj-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  .proj-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--brand-100);
+    border-radius: 10px;
+    background: var(--brand-50);
+    color: var(--brand-500);
+  }
+
+  .proj-card__icon svg { width: 19px; height: 19px; }
+
+  .proj-card__badges {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .proj-card__name {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin: 16px 0 0;
+    overflow: hidden;
+    color: var(--n-900);
+    font-size: 16px;
+    font-weight: 650;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .proj-card__star { display: inline-flex; flex-shrink: 0; margin-right: 5px; color: var(--st-warning); }
+  .proj-card__star svg { width: 15px; height: 15px; }
+
+  .proj-card__desc {
+    display: -webkit-box;
+    min-height: 42px;
+    margin: 10px 0 0;
+    overflow: hidden;
+    color: var(--n-500);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .proj-card__dates {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    color: var(--n-600);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .proj-card__creator {
+    margin-top: var(--space-xs);
+    overflow: hidden;
+    color: var(--n-400);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .proj-card__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin-top: auto;
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--n-100);
+  }
+
+  .proj-card__actions .op-link { margin-right: 10px; }
+
+  /* 归档属警示操作，用橙色区别于蓝色可点击链接 */
+  .op-link--warning { color: var(--st-warning); }
+  .op-link--warning:hover { color: var(--st-warning-strong); }
+
+  .proj-card__readonly {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    margin-right: auto;
+    padding: 2px 6px;
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-sm);
+    background: var(--n-100);
+    color: var(--n-500);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+  }
+
+  .proj-create {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 270px;
+    padding: 20px;
+    border: 1px dashed var(--brand-300);
+    border-radius: var(--radius-lg);
+    background: var(--brand-50);
+    color: var(--brand-700);
+    cursor: pointer;
+    font: inherit;
+    text-align: center;
+    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .proj-create:hover {
+    border-color: var(--brand-500);
+    background: var(--brand-100);
+    transform: translateY(-2px);
+  }
+
+  .proj-create__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--brand-200);
+    border-radius: 50%;
+    background: var(--n-0);
+    color: var(--brand-500);
+  }
+
+  .proj-create__icon svg { width: 20px; height: 20px; }
+  .proj-create strong { margin-top: var(--space-sm); font-size: var(--font-size-base); font-weight: 600; }
+  .proj-create > span:last-child { max-width: 220px; margin-top: var(--space-xs); color: var(--brand-600); font-size: var(--font-size-xs); line-height: 1.5; }
+
+  .proj-loadmore {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    margin-top: var(--space-sm);
+    color: var(--n-400);
+    font-size: var(--font-size-sm);
+    text-align: center;
+  }
+</style>
 </head>
 <body data-shell="business" data-mode="workspace" data-active="projects" data-workspace="质量中台">
 
@@ -17,90 +216,176 @@
       <p class="page-head__desc">质量中台空间下的全部项目</p>
     </div>
     <div class="page-head__actions">
-      <button class="btn btn--primary"><span data-icon="plus"></span>新建项目</button>
+      <button class="btn btn--primary" data-open="project-dialog"><span data-icon="plus"></span>新建项目</button>
     </div>
   </div>
 
   <div class="card">
-    <div class="toolbar">
+    <div class="toolbar" style="border-bottom:none">
       <div class="toolbar__filters">
-        <div class="segment">
-          <span class="segment__item segment__item--active">活跃（5）</span>
-          <span class="segment__item">已归档（1）</span>
+        <div class="segment" id="status-segment">
+          <span class="segment__item segment__item--active" data-status="active">活跃（5）</span>
+          <span class="segment__item" data-status="archived">已归档（1）</span>
         </div>
-        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="项目名称 / 描述"></div>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="project-keyword" placeholder="项目名称 / 描述" autocomplete="off"></div>
       </div>
       <div class="toolbar__count">按最近更新排序</div>
     </div>
+  </div>
 
-    <div class="table-wrap">
-      <table class="table table--clickable">
-        <thead>
-          <tr><th>项目名称</th><th>描述</th><th>开始时间</th><th>结束时间</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--brand-50);border:1px solid var(--brand-100);color:var(--brand-500);display:flex;align-items:center;justify-content:center" data-icon="monitor"></span>
-              <span class="cell-main">电商核心系统</span></span>
-              <span class="cell-sub">主链路回归 · 日常迭代</span>
-            </td>
-            <td class="muted">下单、支付、履约全链路质量保障</td>
-            <td class="num">2026-06-01</td>
-            <td class="num">2026-12-31</td>
-            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
-          </tr>
-          <tr>
-            <td>
-              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="connection"></span>
-              <span class="cell-main">开放平台</span></span>
-              <span class="cell-sub">第三方接入</span>
-            </td>
-            <td class="muted">开放 API 合同、鉴权与限流验证</td>
-            <td class="num">2026-07-15</td>
-            <td class="num">2026-11-30</td>
-            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
-          </tr>
-          <tr>
-            <td>
-              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="layers"></span>
-              <span class="cell-main">数据服务</span></span>
-              <span class="cell-sub">报表与口径</span>
-            </td>
-            <td class="muted">数仓分层校验与经营报表口径验证</td>
-            <td class="num">2026-08-01</td>
-            <td class="num">2027-03-31</td>
-            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
-          </tr>
-          <tr>
-            <td>
-              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="zap"></span>
-              <span class="cell-main">性能压测专项</span></span>
-              <span class="cell-sub">大促预案</span>
-            </td>
-            <td class="muted">大促峰值场景容量与稳定性验证</td>
-            <td class="num">2026-09-10</td>
-            <td class="num">2026-11-01</td>
-            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
-          </tr>
-          <tr>
-            <td>
-              <span class="flex-center flex-gap-sm"><span class="ic" style="width:28px;height:28px;border-radius:7px;background:var(--n-50);border:1px solid var(--n-200);color:var(--n-600);display:flex;align-items:center;justify-content:center" data-icon="shield"></span>
-              <span class="cell-main">安全合规</span></span>
-              <span class="cell-sub">等保测评</span>
-            </td>
-            <td class="muted">渗透测试与合规基线检查</td>
-            <td class="num">2026-05-20</td>
-            <td class="num">2026-10-30</td>
-            <td><span class="op-link">进入</span><span class="op-link">设置</span><span class="op-link op-link--muted">归档</span></td>
-          </tr>
-        </tbody>
-      </table>
+  <div class="proj-grid" id="proj-grid">
+
+    <article class="proj-card" data-status="active" data-search="电商核心系统 下单、支付、履约全链路质量保障" data-name="电商核心系统" data-desc="下单、支付、履约全链路质量保障" data-start="2026-06-01" data-end="2026-12-31">
+      <div class="proj-card__head">
+        <span class="proj-card__icon" data-icon="monitor"></span>
+        <span class="proj-card__badges">
+          <span class="tag tag--info tag--sm">默认项目</span>
+          <span class="tag tag--success">活跃</span>
+        </span>
+      </div>
+      <h3 class="proj-card__name"><span class="proj-card__star" data-icon="star"></span>电商核心系统</h3>
+      <p class="proj-card__desc">下单、支付、履约全链路质量保障</p>
+      <div class="proj-card__dates"><span>开始：2026-06-01</span><span>结束：2026-12-31</span></div>
+      <div class="proj-card__creator">张明 创建于 2026-05-28</div>
+      <div class="proj-card__actions">
+        <span class="op-link op-link--warning">归档</span>
+        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
+        <span class="op-link">进入</span>
+      </div>
+    </article>
+
+    <article class="proj-card" data-status="active" data-search="开放平台 开放 API 合同、鉴权与限流验证" data-name="开放平台" data-desc="开放 API 合同、鉴权与限流验证" data-start="2026-07-15" data-end="2026-11-30">
+      <div class="proj-card__head">
+        <span class="proj-card__icon" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+      </div>
+      <h3 class="proj-card__name">开放平台</h3>
+      <p class="proj-card__desc">开放 API 合同、鉴权与限流验证</p>
+      <div class="proj-card__dates"><span>开始：2026-07-15</span><span>结束：2026-11-30</span></div>
+      <div class="proj-card__creator">李华 创建于 2026-07-10</div>
+      <div class="proj-card__actions">
+        <span class="op-link">设为默认</span>
+        <span class="op-link op-link--warning">归档</span>
+        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
+        <span class="op-link">进入</span>
+      </div>
+    </article>
+
+    <article class="proj-card" data-status="active" data-search="数据服务 数仓分层校验与经营报表口径验证" data-name="数据服务" data-desc="数仓分层校验与经营报表口径验证" data-start="2026-08-01" data-end="2027-03-31">
+      <div class="proj-card__head">
+        <span class="proj-card__icon" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+      </div>
+      <h3 class="proj-card__name">数据服务</h3>
+      <p class="proj-card__desc">数仓分层校验与经营报表口径验证</p>
+      <div class="proj-card__dates"><span>开始：2026-08-01</span><span>结束：2027-03-31</span></div>
+      <div class="proj-card__creator">王芳 创建于 2026-07-29</div>
+      <div class="proj-card__actions">
+        <span class="op-link">设为默认</span>
+        <span class="op-link op-link--warning">归档</span>
+        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
+        <span class="op-link">进入</span>
+      </div>
+    </article>
+
+    <article class="proj-card" data-status="active" data-search="性能压测专项 大促峰值场景容量与稳定性验证" data-name="性能压测专项" data-desc="大促峰值场景容量与稳定性验证" data-start="2026-09-10" data-end="2026-11-01">
+      <div class="proj-card__head">
+        <span class="proj-card__icon" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+      </div>
+      <h3 class="proj-card__name">性能压测专项</h3>
+      <p class="proj-card__desc">大促峰值场景容量与稳定性验证</p>
+      <div class="proj-card__dates"><span>开始：2026-09-10</span><span>结束：2026-11-01</span></div>
+      <div class="proj-card__creator">周敏 创建于 2026-09-05</div>
+      <div class="proj-card__actions">
+        <span class="op-link">设为默认</span>
+        <span class="op-link op-link--warning">归档</span>
+        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
+        <span class="op-link">进入</span>
+      </div>
+    </article>
+
+    <article class="proj-card" data-status="active" data-search="安全合规" data-name="安全合规" data-desc="" data-start="2026-05-20" data-end="2026-10-30">
+      <div class="proj-card__head">
+        <span class="proj-card__icon" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+      </div>
+      <h3 class="proj-card__name">安全合规</h3>
+      <p class="proj-card__desc">暂无描述</p>
+      <div class="proj-card__dates"><span>开始：2026-05-20</span><span>结束：2026-10-30</span></div>
+      <div class="proj-card__creator">陈强 创建于 2026-05-18</div>
+      <div class="proj-card__actions">
+        <span class="op-link">设为默认</span>
+        <span class="op-link op-link--warning">归档</span>
+        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
+        <span class="op-link">进入</span>
+      </div>
+    </article>
+
+    <article class="proj-card proj-card--archived" data-status="archived" data-search="2025双十一大促专项 大促全链路容量与稳定性复盘" data-name="2025双十一大促专项" data-desc="大促全链路容量与稳定性复盘" data-start="2025-09-01" data-end="2025-11-30">
+      <div class="proj-card__head">
+        <span class="proj-card__icon" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--neutral">已归档</span></span>
+      </div>
+      <h3 class="proj-card__name">2025双十一大促专项</h3>
+      <p class="proj-card__desc">大促全链路容量与稳定性复盘</p>
+      <div class="proj-card__dates"><span>开始：2025-09-01</span><span>结束：2025-11-30</span></div>
+      <div class="proj-card__creator">张明 创建于 2025-08-20</div>
+      <div class="proj-card__actions">
+        <span class="proj-card__readonly">只读</span>
+        <span class="op-link op-link--muted">启封</span>
+        <span class="op-link op-link--danger">删除</span>
+      </div>
+    </article>
+
+    <button class="proj-create" type="button" data-open="project-dialog">
+      <span class="proj-create__icon" data-icon="plus"></span>
+      <strong>新建项目</strong>
+      <span>从项目开始组织测试资产与团队协作</span>
+    </button>
+
+  </div>
+
+  <div class="proj-loadmore" id="proj-loadmore">没有更多项目</div>
+
+  <div class="card block-gap" id="proj-empty" hidden>
+    <div class="state-block">
+      <div class="state-block__icon" style="font-size:24px;font-weight:600">?</div>
+      <div class="state-block__title">未找到匹配的项目</div>
+      <div class="state-block__desc">请调整项目名称或描述，或切换项目状态</div>
+      <div class="state-block__action"><button class="btn btn--default" id="clear-filters">清除筛选</button></div>
     </div>
+  </div>
 
-    <div class="pagination">
-      <span class="pagination__total">共 5 个活跃项目</span>
-      <button class="page-btn page-btn--active">1</button>
+  <div class="dialog-mask" id="project-dialog" role="dialog" aria-modal="true" aria-labelledby="project-dialog-title" hidden>
+    <div class="dialog">
+      <div class="dialog__header">
+        <span class="dialog__title" id="project-dialog-title">新建项目</span>
+        <span class="dialog__close" data-close="project-dialog"><span data-icon="x"></span></span>
+      </div>
+      <div class="dialog__body">
+        <div class="field">
+          <label class="field__label" for="project-name">名称 <span class="req">*</span></label>
+          <input class="input" id="project-name" maxlength="100" placeholder="项目名称（工作空间内唯一）">
+          <div class="field__hint"><span id="project-name-count">0</span>/100</div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="project-desc">描述</label>
+          <textarea class="textarea" id="project-desc" rows="3" placeholder="项目描述（可选）"></textarea>
+        </div>
+        <div class="field">
+          <label class="field__label" for="project-start">开始时间</label>
+          <input class="input" id="project-start" type="date" placeholder="选择开始日期">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label class="field__label" for="project-end">结束时间</label>
+          <input class="input" id="project-end" type="date" placeholder="选择结束日期">
+        </div>
+      </div>
+      <div class="dialog__footer">
+        <button class="btn btn--default" data-close="project-dialog">取消</button>
+        <button class="btn btn--primary" id="project-submit">创建</button>
+      </div>
     </div>
   </div>
 
@@ -108,5 +393,94 @@
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  var grid = document.getElementById('proj-grid');
+  var emptyState = document.getElementById('proj-empty');
+  var loadMore = document.getElementById('proj-loadmore');
+  var keyword = document.getElementById('project-keyword');
+  var segment = document.getElementById('status-segment');
+  var cards = Array.prototype.slice.call(grid.querySelectorAll('.proj-card'));
+  var createCard = grid.querySelector('.proj-create');
+  var status = 'active';
+  var debounceTimer = null;
+
+  function render() {
+    var kw = keyword.value.trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function (card) {
+      var matched =
+        card.getAttribute('data-status') === status &&
+        (!kw || card.getAttribute('data-search').toLowerCase().indexOf(kw) !== -1);
+      card.hidden = !matched;
+      if (matched) shown += 1;
+    });
+    // 无匹配结果时整段替换为空态，新建卡片与加载提示一并不渲染
+    grid.hidden = shown === 0;
+    createCard.hidden = shown === 0;
+    loadMore.hidden = shown === 0;
+    emptyState.hidden = shown !== 0;
+  }
+
+  segment.addEventListener('click', function (e) {
+    var item = e.target.closest('.segment__item');
+    if (!item) return;
+    Array.prototype.forEach.call(this.querySelectorAll('.segment__item'), function (s) {
+      s.classList.remove('segment__item--active');
+    });
+    item.classList.add('segment__item--active');
+    status = item.getAttribute('data-status');
+    render();
+  });
+
+  // 与实际页一致：按名称 / 描述搜索，输入 300ms 防抖
+  keyword.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(render, 300);
+  });
+
+  document.getElementById('clear-filters').addEventListener('click', function () {
+    clearTimeout(debounceTimer);
+    keyword.value = '';
+    status = 'active';
+    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
+      s.classList.toggle('segment__item--active', s.getAttribute('data-status') === 'active');
+    });
+    render();
+  });
+
+  var dialog = document.getElementById('project-dialog');
+  var dialogTitle = document.getElementById('project-dialog-title');
+  var nameInput = document.getElementById('project-name');
+  var descInput = document.getElementById('project-desc');
+  var startInput = document.getElementById('project-start');
+  var endInput = document.getElementById('project-end');
+  var submitBtn = document.getElementById('project-submit');
+  var nameCount = document.getElementById('project-name-count');
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-open]');
+    if (opener) {
+      // 新建 / 编辑共用弹窗，编辑时按卡片数据预填
+      var card = opener.closest('.proj-card');
+      dialogTitle.textContent = card ? '编辑项目' : '新建项目';
+      submitBtn.textContent = card ? '保存' : '创建';
+      nameInput.value = card ? card.getAttribute('data-name') : '';
+      descInput.value = card ? card.getAttribute('data-desc') : '';
+      startInput.value = card ? card.getAttribute('data-start') : '';
+      endInput.value = card ? card.getAttribute('data-end') : '';
+      nameCount.textContent = String(nameInput.value.length);
+      dialog.hidden = false;
+      return;
+    }
+    var closer = e.target.closest('[data-close]');
+    if (closer) document.getElementById(closer.getAttribute('data-close')).hidden = true;
+  });
+
+  nameInput.addEventListener('input', function () {
+    nameCount.textContent = String(nameInput.value.length);
+  });
+})();
+</script>
 </body>
 </html>
