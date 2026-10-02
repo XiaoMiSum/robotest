@@ -12,7 +12,13 @@
 
     User ──── UserRole ──── Role (type: system / workspace, scope: global / workspace, full_access: bool)
     User ──── UserWorkspace (workspaceRole: UUID → sys_role.id) ──── Workspace
+    User ──── AiAssistantConversation ──── AiAssistantMessage（按用户归属）
+    AiConfig ──── AiModelConfig / AiEmbeddingConfig / AiPromptTemplate（全局配置，不挂工作空间）
     Workspace ──── Project ──── TestCaseModule
+                     ├── Requirement ─── RequirementChangeLog / RequirementSplitRecord
+                     ├── TraceEdge / TraceCoverageResult（追溯矩阵，业务领域资源）
+                     ├── AiTask ─── AiArtifactConfirm / AiUsageLog
+                     ├── VectorIndexEntry（向量索引条目）
                      ├── TestPlan ─── PlanModuleSnapshot
                      │                PlanNodeSnapshot
                      │                PlanExecutionRecord
@@ -66,6 +72,18 @@
 | ApiScheduledTaskExecution | 任务触发记录，关联套件报告或导入结果           |
 | ApiChangeHistory     | 接口与场景的变更历史（共享追溯载体）                |
 | ApiImportRecord      | 导入结果统计与失败明细                        |
+| Requirement          | 需求条目（编号、标题、描述、状态机、归属模块），追溯链起点   |
+| RequirementChangeLog | 需求变更记录（字段级前后摘要），支撑时间线与影响分析        |
+| RequirementSplitRecord | 拆解记录（来源与采纳结果），回溯拆分链              |
+| TraceEdge            | 追溯边（派生 / 快照引用、目标版本、状态），业务领域资源      |
+| TraceCoverageResult  | 需求覆盖分析结论（覆盖状态与判定依据）                |
+| AiConfig / AiModelConfig / AiEmbeddingConfig / AiPromptTemplate | AI 配置中心四类配置（全局，管理端） |
+| AiTask               | AI 任务（类型、状态、产物），统一任务收口              |
+| AiArtifactConfirm    | AI 产物确认记录（采纳 / 驳回与落库引用）             |
+| AiUsageLog           | AI 用量明细（按次调用），支撑统计与下钻               |
+| AiAssistantConversation | 助手会话（按登录用户归属 + 上下文快照）           |
+| AiAssistantMessage   | 助手消息（意图预览与执行回执）                     |
+| VectorIndexEntry     | 向量索引条目（业务归属、分块向量，RAG 检索载体）         |
 
 ### 1.3 数据隔离与生命周期
 
@@ -83,6 +101,7 @@
   * 管理接口：`/api/admin`，需要系统角色。
   * 工作空间级业务接口：`/api/workspace`，需头 `X-Active-Workspace`。
   * 项目内业务接口：`/api/project`，需头 `X-Active-Project`。
+  * AI 能力接口：`/api/ai`，管理配置需系统角色、业务调用按权限码；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`。
 * 上下文传递：工作空间和项目 ID 通过请求头传递，不在 URL 中暴露。
 * 通用响应格式：`{ "code": 200, "message": "success", "data": {...} }`
 
@@ -101,6 +120,7 @@
 * **工作空间管理**：创建、归档/重新启用、成员管理（含设置空间管理员）。
 * **系统角色管理**：CRUD，权限配置（仅系统角色）。
 * **权限点树**：获取管理端权限树（按模块分组）。
+* **AI 配置与用量**：总开关、模型配置、向量 API、场景提示词的维护与连通性测试，用量统计与任务下钻查询。
 
 ### 2.4 业务端接口概要
 
@@ -108,6 +128,8 @@
 * **工作空间成员管理**：邀请、移除、设置空间管理员。
 * **项目管理**：CRUD、归档。
 * **测试用例**：模块树、脑图节点、用例详情。
+* **需求管理**：需求 CRUD 与归档确认、文档导入、AI 拆分、变更与影响标记、追溯查询；概要设计见 `docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
+* **AI 能力**：统一任务提交与产物确认、助手会话与意图预览执行、追溯矩阵与覆盖分析（矩阵视图、链路视图、人工修正、影响处置）；概要设计见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
 * **测试评审**：发起、快照树、模块快照树、评审记录、同步、调整用例。
 * **测试计划**：创建、快照树、模块快照树、执行记录、同步、调整用例。
 * **缺陷管理**：CRUD、状态流转。
@@ -129,3 +151,4 @@
 | V1.0 | 2026-09-24 | 初始版本 |
 | V1.0 | 2026-10-01 | 数据对象与业务端接口概要补入接口测试模块 |
 | V1.0 | 2026-10-02 | 吸收数据隔离通用口径，作为跨模块单一事实源 |
+| V1.0 | 2026-10-02 | 补入需求管理与 AI 能力的数据对象和接口概要 |
