@@ -7,171 +7,228 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
+  .page-head__desc [data-icon] svg { width: 14px; height: 14px; vertical-align: -2px; }
+  .page-head__desc .tag { margin: 0 6px; vertical-align: 1px; }
+
+  /* 快捷入口 / 项目统计：与实际工作台一致的 2×2 卡片网格 */
+  .entry-grid, .stat-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  }
+
   .quick {
     display: flex; align-items: center; gap: 12px; padding: 16px 18px;
     border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0);
     cursor: pointer; transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   }
   .quick:hover { border-color: var(--brand-300); box-shadow: var(--shadow-card-hover); }
-  .quick__ic { width: 34px; height: 34px; border-radius: 8px; background: var(--n-50); border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center; color: var(--n-600); }
+  .quick__ic { width: 34px; height: 34px; border-radius: 8px; background: var(--n-50); border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center; color: var(--n-600); flex-shrink: 0; }
   .quick__ic svg { width: 17px; height: 17px; }
   .quick__t { font-size: 13.5px; font-weight: 600; color: var(--n-900); }
   .quick__d { font-size: 11.5px; color: var(--n-500); margin-top: 1px; }
+  .quick__arrow { margin-left: auto; display: flex; color: var(--n-400); flex-shrink: 0; }
+  .quick__arrow svg { width: 16px; height: 16px; }
+
+  .stat {
+    display: flex; align-items: center; gap: 12px; padding: 16px 18px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0);
+    cursor: pointer; transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .stat:hover { border-color: var(--n-300); box-shadow: var(--shadow-card-hover); }
+  .stat__ic { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--n-50); border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center; color: var(--n-600); flex-shrink: 0; }
+  .stat__ic svg { width: 20px; height: 20px; }
+  .stat__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .stat__label { font-size: 11.5px; color: var(--n-500); }
+  .stat__value { font-size: 22px; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; color: var(--n-900); }
+  .stat--warning .stat__ic { background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong); }
+  .stat--warning .stat__value { color: var(--st-warning-strong); }
+  .stat--danger .stat__ic { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger-strong); }
+  .stat--danger .stat__value { color: var(--st-danger-strong); }
+
+  /* 最近评审 / 最近计划条目 */
+  .rlist { display: flex; flex-direction: column; }
+  .rlist__item {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 11px 12px; border-bottom: 1px solid var(--n-100); border-radius: var(--radius-md);
+    transition: background-color var(--transition-fast);
+  }
+  .rlist__item:last-child { border-bottom: none; }
+  .rlist__item:hover { background: var(--n-50); }
+  .rlist__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); }
+  .rlist__meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .rlist__date { font-size: var(--font-size-xs); color: var(--n-400); }
+
+  .timeline__body .op-link { margin-right: 0; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
+  <!-- 页头：项目名 / 状态 / 起止时间，与实际工作台一致（无操作按钮） -->
   <div class="page-head">
     <div>
       <h1 class="page-head__title">项目工作台</h1>
-      <p class="page-head__desc">电商核心系统 · 本周质量概况（09-16 ~ 09-22）</p>
-    </div>
-    <div class="page-head__actions">
-      <button class="btn btn--default"><span data-icon="download"></span>导出周报</button>
-      <a class="btn btn--primary" href="functional-testing.html"><span data-icon="play"></span>发起执行</a>
-    </div>
-  </div>
-
-  <!-- KPI -->
-  <div class="card-grid card-grid--4">
-    <div class="card kpi">
-      <div class="kpi__label"><span data-icon="document"></span>用例总数</div>
-      <div class="kpi__value">1,284</div>
-      <div class="kpi__foot">本周新增 <span class="kpi__delta kpi__delta--up">+37</span> · 覆盖 6 模块</div>
-    </div>
-    <div class="card kpi">
-      <div class="kpi__label"><span data-icon="play"></span>今日执行</div>
-      <div class="kpi__value">96<span class="unit">条</span></div>
-      <div class="kpi__foot">执行中计划 2 个</div>
-    </div>
-    <div class="card kpi">
-      <div class="kpi__label"><span data-icon="check-circle"></span>综合通过率</div>
-      <div class="kpi__value">91.2<span class="unit">%</span></div>
-      <div class="kpi__foot">较上周 <span class="kpi__delta kpi__delta--up">+2.1%</span></div>
-    </div>
-    <div class="card kpi">
-      <div class="kpi__label"><span data-icon="bug"></span>未关闭缺陷</div>
-      <div class="kpi__value">18</div>
-      <div class="kpi__foot">致命 <span class="text-danger strong">1</span> · 严重 4 · 修复中 6</div>
+      <p class="page-head__desc">
+        <span class="strong"><span data-icon="folder-open"></span>电商核心系统</span>
+        <span class="tag tag--success tag--sm">活跃</span>
+        2026-06-01 ~ 2026-12-31
+      </p>
     </div>
   </div>
 
-  <!-- 图表 -->
-  <div class="card-grid card-grid--3 block-gap">
-    <div class="card" style="grid-column:span 2">
+  <!-- 快捷入口 + 项目统计 -->
+  <div class="card-grid card-grid--2">
+    <div class="card">
       <div class="card__header">
-        <h3 class="card__title">近 7 日执行结果<span class="card__subtitle">按执行时间统计</span></h3>
-        <div class="legend">
-          <span class="legend__item"><span class="legend__swatch" style="background:#67c23a"></span>通过</span>
-          <span class="legend__item"><span class="legend__swatch" style="background:#f56c6c"></span>失败</span>
-          <span class="legend__item"><span class="legend__swatch" style="background:#c45656"></span>阻塞</span>
-        </div>
+        <h3 class="card__title">快捷入口<span class="card__subtitle">快速进入常用功能</span></h3>
       </div>
       <div class="card__body">
-        <svg class="chart" height="210" viewBox="0 0 640 210">
-          <line x1="0" y1="170" x2="640" y2="170" stroke="#e4e7ed"/>
-          <line x1="0" y1="115" x2="640" y2="115" stroke="#f0f2f5"/>
-          <line x1="0" y1="60" x2="640" y2="60" stroke="#f0f2f5"/>
-          <!-- 周一 -->
-          <rect x="30" y="96" width="44" height="74" rx="3" fill="#67c23a"/>
-          <rect x="30" y="74" width="44" height="22" rx="3" fill="#f56c6c"/>
-          <rect x="30" y="62" width="44" height="12" rx="3" fill="#c45656"/>
-          <!-- 周二 -->
-          <rect x="118" y="82" width="44" height="88" rx="3" fill="#67c23a"/>
-          <rect x="118" y="62" width="44" height="20" rx="3" fill="#f56c6c"/>
-          <!-- 周三 -->
-          <rect x="206" y="110" width="44" height="60" rx="3" fill="#67c23a"/>
-          <rect x="206" y="92" width="44" height="18" rx="3" fill="#f56c6c"/>
-          <rect x="206" y="80" width="44" height="12" rx="3" fill="#c45656"/>
-          <!-- 周四 -->
-          <rect x="294" y="66" width="44" height="104" rx="3" fill="#67c23a"/>
-          <rect x="294" y="46" width="44" height="20" rx="3" fill="#f56c6c"/>
-          <!-- 周五 -->
-          <rect x="382" y="76" width="44" height="94" rx="3" fill="#67c23a"/>
-          <rect x="382" y="54" width="44" height="22" rx="3" fill="#f56c6c"/>
-          <rect x="382" y="42" width="44" height="12" rx="3" fill="#c45656"/>
-          <!-- 周六 -->
-          <rect x="470" y="124" width="44" height="46" rx="3" fill="#67c23a"/>
-          <rect x="470" y="110" width="44" height="14" rx="3" fill="#f56c6c"/>
-          <!-- 周日 -->
-          <rect x="558" y="102" width="44" height="68" rx="3" fill="#67c23a"/>
-          <rect x="558" y="84" width="44" height="18" rx="3" fill="#f56c6c"/>
-          <text x="52" y="190" font-size="10" fill="#a8abb2" text-anchor="middle">周一</text>
-          <text x="140" y="190" font-size="10" fill="#a8abb2" text-anchor="middle">周二</text>
-          <text x="228" y="190" font-size="10" fill="#a8abb2" text-anchor="middle">周三</text>
-          <text x="316" y="190" font-size="10" fill="#a8abb2" text-anchor="middle">周四</text>
-          <text x="404" y="190" font-size="10" fill="#a8abb2" text-anchor="middle">周五</text>
-          <text x="492" y="190" font-size="10" fill="#a8abb2" text-anchor="middle">周六</text>
-          <text x="580" y="190" font-size="10" fill="#a8abb2" text-anchor="middle">周日</text>
-        </svg>
+        <div class="entry-grid">
+          <a class="quick" href="functional-testing.html">
+            <span class="quick__ic" data-icon="edit"></span>
+            <span><span class="quick__t">编写测试用例</span><span class="quick__d" style="display:block">管理项目测试用例</span></span>
+            <span class="quick__arrow" data-icon="chevron-right"></span>
+          </a>
+          <a class="quick" href="plans.html">
+            <span class="quick__ic" data-icon="calendar"></span>
+            <span><span class="quick__t">新建测试计划</span><span class="quick__d" style="display:block">安排测试执行任务</span></span>
+            <span class="quick__arrow" data-icon="chevron-right"></span>
+          </a>
+          <a class="quick" href="bug-create.html">
+            <span class="quick__ic" data-icon="plus"></span>
+            <span><span class="quick__t">提交缺陷</span><span class="quick__d" style="display:block">记录和跟踪问题</span></span>
+            <span class="quick__arrow" data-icon="chevron-right"></span>
+          </a>
+          <a class="quick" href="api-testing.html">
+            <span class="quick__ic" data-icon="connection"></span>
+            <span><span class="quick__t">接口调试</span><span class="quick__d" style="display:block">快速验证接口请求</span></span>
+            <span class="quick__arrow" data-icon="chevron-right"></span>
+          </a>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card__header"><h3 class="card__title">缺陷等级分布</h3></div>
+      <div class="card__header">
+        <h3 class="card__title">项目统计<span class="card__subtitle">当前项目数据概览</span></h3>
+      </div>
       <div class="card__body">
-        <svg class="chart" height="150" viewBox="0 0 300 150">
-          <text x="0" y="18" font-size="11" fill="#606266">致命</text>
-          <rect x="52" y="9" width="180" height="12" rx="3" fill="#fef0f0"/>
-          <rect x="52" y="9" width="26" height="12" rx="3" fill="#f56c6c"/>
-          <text x="242" y="19" font-size="11" fill="#909399" font-family="monospace">1</text>
-          <text x="0" y="50" font-size="11" fill="#606266">严重</text>
-          <rect x="52" y="41" width="180" height="12" rx="3" fill="#fdf6ec"/>
-          <rect x="52" y="41" width="74" height="12" rx="3" fill="#e6a23c"/>
-          <text x="242" y="51" font-size="11" fill="#909399" font-family="monospace">4</text>
-          <text x="0" y="82" font-size="11" fill="#606266">一般</text>
-          <rect x="52" y="73" width="180" height="12" rx="3" fill="#f4f4f5"/>
-          <rect x="52" y="73" width="130" height="12" rx="3" fill="#909399"/>
-          <text x="242" y="83" font-size="11" fill="#909399" font-family="monospace">9</text>
-          <text x="0" y="114" font-size="11" fill="#606266">轻微</text>
-          <rect x="52" y="105" width="180" height="12" rx="3" fill="#f0f9eb"/>
-          <rect x="52" y="105" width="86" height="12" rx="3" fill="#67c23a"/>
-          <text x="242" y="115" font-size="11" fill="#909399" font-family="monospace">4</text>
-          <line x1="0" y1="132" x2="300" y2="132" stroke="#e4e7ed"/>
-        </svg>
-        <div class="legend" style="margin-top:8px">
-          <span class="legend__item"><span class="legend__swatch" style="background:#f56c6c"></span>未关闭 18</span>
-          <span class="legend__item"><span class="legend__swatch" style="background:#e4e7ed"></span>已关闭 64</span>
+        <div class="stat-grid">
+          <a class="stat" href="functional-testing.html">
+            <span class="stat__ic" data-icon="document"></span>
+            <span class="stat__info">
+              <span class="stat__label">用例总数</span>
+              <span class="stat__value num">1,284</span>
+            </span>
+          </a>
+          <a class="stat stat--warning" href="reviews.html">
+            <span class="stat__ic" data-icon="check-circle"></span>
+            <span class="stat__info">
+              <span class="stat__label">进行中评审</span>
+              <span class="stat__value num">2</span>
+            </span>
+          </a>
+          <a class="stat stat--warning" href="plans.html">
+            <span class="stat__ic" data-icon="calendar"></span>
+            <span class="stat__info">
+              <span class="stat__label">进行中计划</span>
+              <span class="stat__value num">3</span>
+            </span>
+          </a>
+          <a class="stat stat--danger" href="bugs.html">
+            <span class="stat__ic" data-icon="alert-triangle"></span>
+            <span class="stat__info">
+              <span class="stat__label">未关闭缺陷</span>
+              <span class="stat__value num">18</span>
+            </span>
+          </a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 快捷入口 + 动态 -->
-  <div class="card-grid card-grid--3 block-gap">
+  <!-- 最近评审 + 最近计划 -->
+  <div class="card-grid card-grid--2 block-gap">
     <div class="card">
-      <div class="card__header"><h3 class="card__title">快捷入口</h3></div>
-      <div class="card__body" style="display:flex;flex-direction:column;gap:12px">
-        <a class="quick" href="functional-testing.html"><span class="quick__ic" data-icon="document"></span><span><span class="quick__t">编写测试用例</span><span class="quick__d" style="display:block">脑图 / 表格双模式</span></span></a>
-        <a class="quick" href="plans.html"><span class="quick__ic" data-icon="calendar"></span><span><span class="quick__t">新建测试计划</span><span class="quick__d" style="display:block">关联用例并调度执行</span></span></a>
-        <a class="quick" href="bugs.html"><span class="quick__ic" data-icon="bug"></span><span><span class="quick__t">提交缺陷</span><span class="quick__d" style="display:block">结构化重现步骤</span></span></a>
-        <a class="quick" href="api-testing.html"><span class="quick__ic" data-icon="connection"></span><span><span class="quick__t">接口调试</span><span class="quick__d" style="display:block">快速调试 · Mock · 场景</span></span></a>
+      <div class="card__header"><h3 class="card__title">最近评审</h3></div>
+      <div class="card__body">
+        <div class="rlist">
+          <a class="rlist__item" href="review-detail.html">
+            <span class="rlist__name">下单模块用例评审</span>
+            <span class="rlist__meta"><span class="tag tag--warning tag--sm">进行中</span><span class="rlist__date num">2026-09-21 14:32</span></span>
+          </a>
+          <a class="rlist__item" href="review-detail.html">
+            <span class="rlist__name">支付流程用例评审</span>
+            <span class="rlist__meta"><span class="tag tag--warning tag--sm">进行中</span><span class="rlist__date num">2026-09-21 10:05</span></span>
+          </a>
+          <a class="rlist__item" href="review-detail.html">
+            <span class="rlist__name">优惠券活动用例评审</span>
+            <span class="rlist__meta"><span class="tag tag--neutral tag--sm">待评审</span><span class="rlist__date num">2026-09-20 16:48</span></span>
+          </a>
+          <a class="rlist__item" href="review-detail.html">
+            <span class="rlist__name">核心交易回归评审</span>
+            <span class="rlist__meta"><span class="tag tag--success tag--sm">已通过</span><span class="rlist__date num">2026-09-18 16:40</span></span>
+          </a>
+          <a class="rlist__item" href="review-detail.html">
+            <span class="rlist__name">库存同步接口评审</span>
+            <span class="rlist__meta"><span class="tag tag--danger tag--sm">已驳回</span><span class="rlist__date num">2026-09-17 09:12</span></span>
+          </a>
+        </div>
       </div>
     </div>
 
-    <div class="card" style="grid-column:span 2">
-      <div class="card__header">
-        <h3 class="card__title">最近动态</h3>
-        <a class="text-sm" href="reviews.html">查看全部 →</a>
-      </div>
+    <div class="card">
+      <div class="card__header"><h3 class="card__title">最近计划</h3></div>
       <div class="card__body">
-        <ul class="timeline">
-          <li class="timeline__item"><span class="timeline__dot timeline__dot--success"></span>
-            <div class="timeline__head">V1.4.2 回归计划执行完成，通过率 <span class="text-success">94.6%</span><span class="timeline__time">14:32</span></div>
-            <div class="timeline__body">通过 216 · 失败 9 · 阻塞 4 · 耗时 18m 24s</div></li>
-          <li class="timeline__item"><span class="timeline__dot timeline__dot--danger"></span>
-            <div class="timeline__head">王芳 提交缺陷 <span class="text-danger">BUG-208</span>（严重）<span class="timeline__time">13:58</span></div>
-            <div class="timeline__body">支付回调重复入账，已指派给 李华</div></li>
-          <li class="timeline__item"><span class="timeline__dot timeline__dot--brand"></span>
-            <div class="timeline__head">张明 发起评审「下单模块用例评审」<span class="timeline__time">11:20</span></div>
-            <div class="timeline__body">参与者 4 人 · 关联用例 32 条</div></li>
-          <li class="timeline__item"><span class="timeline__dot timeline__dot--warning"></span>
-            <div class="timeline__head">定时任务「冒烟接口巡检」执行中<span class="timeline__time">09:00</span></div>
-            <div class="timeline__body">Cron 0 0 9 * * ? · 目标环境 staging</div></li>
-        </ul>
+        <div class="rlist">
+          <a class="rlist__item" href="plan-detail.html">
+            <span class="rlist__name">V1.4.2 回归计划</span>
+            <span class="rlist__meta"><span class="tag tag--warning tag--sm">执行中</span><span class="rlist__date num">2026-09-21 09:00</span></span>
+          </a>
+          <a class="rlist__item" href="plan-detail.html">
+            <span class="rlist__name">冒烟接口巡检</span>
+            <span class="rlist__meta"><span class="tag tag--warning tag--sm">执行中</span><span class="rlist__date num">2026-09-21 09:00</span></span>
+          </a>
+          <a class="rlist__item" href="plan-detail.html">
+            <span class="rlist__name">移动端兼容性专项</span>
+            <span class="rlist__meta"><span class="tag tag--warning tag--sm">执行中</span><span class="rlist__date num">2026-09-20 13:30</span></span>
+          </a>
+          <a class="rlist__item" href="plan-detail.html">
+            <span class="rlist__name">大促全链路压测计划</span>
+            <span class="rlist__meta"><span class="tag tag--neutral tag--sm">未开始</span><span class="rlist__date num">2026-09-19 15:30</span></span>
+          </a>
+          <a class="rlist__item" href="plan-detail.html">
+            <span class="rlist__name">V1.4.1 回归计划</span>
+            <span class="rlist__meta"><span class="tag tag--success tag--sm">已完成</span><span class="rlist__date num">2026-09-12 18:05</span></span>
+          </a>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 最近动态：summary + 操作人·资源 + 时间，仅可跳转的动态带「查看」 -->
+  <div class="card block-gap">
+    <div class="card__header">
+      <h3 class="card__title">最近动态<span class="card__subtitle">记录项目关键操作</span></h3>
+    </div>
+    <div class="card__body">
+      <ul class="timeline">
+        <li class="timeline__item"><span class="timeline__dot timeline__dot--warning"></span>
+          <div class="timeline__head">李华 将计划「V1.4.2 回归计划」状态更新为执行中<span class="timeline__time num">2026-09-21 16:05</span></div>
+          <div class="timeline__body flex-between"><span>李华 · V1.4.2 回归计划</span><a class="op-link" href="plan-detail.html">查看</a></div></li>
+        <li class="timeline__item"><span class="timeline__dot timeline__dot--danger"></span>
+          <div class="timeline__head">张明 提交缺陷 <span class="text-danger">BUG-208</span> 支付回调重复入账<span class="timeline__time num">2026-09-21 14:32</span></div>
+          <div class="timeline__body flex-between"><span>张明 · BUG-208 支付回调重复入账</span><a class="op-link" href="bug-detail.html">查看</a></div></li>
+        <li class="timeline__item"><span class="timeline__dot"></span>
+          <div class="timeline__head">王芳 创建了评审「下单模块用例评审」<span class="timeline__time num">2026-09-21 11:20</span></div>
+          <div class="timeline__body flex-between"><span>王芳 · 下单模块用例评审</span><a class="op-link" href="reviews.html">查看</a></div></li>
+        <li class="timeline__item"><span class="timeline__dot timeline__dot--success"></span>
+          <div class="timeline__head">陈静 的计划「V1.4.1 回归计划」执行完成<span class="timeline__time num">2026-09-20 18:40</span></div>
+          <div class="timeline__body flex-between"><span>陈静 · V1.4.1 回归计划</span><a class="op-link" href="plan-detail.html">查看</a></div></li>
+        <li class="timeline__item"><span class="timeline__dot"></span>
+          <div class="timeline__head">张明 更新了项目起止时间<span class="timeline__time num">2026-09-20 09:15</span></div>
+          <div class="timeline__body flex-between"><span>张明 · 电商核心系统</span></div></li>
+      </ul>
     </div>
   </div>
 
