@@ -452,8 +452,8 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ```
 项目工作区
-├── /projects/:projectId/requirements            → RequirementListPage（需求列表）
-└── /projects/:projectId/requirements/:id        → RequirementDetailPage（需求详情）
+├── /workspace/projects/requirements                → RequirementListPage（需求列表）
+└── /workspace/projects/requirements/:requirementId → RequirementDetailPage（需求详情）
 ```
 
 ### 5.2 组件结构
@@ -565,3 +565,4 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 需求增加业务系统版本属性，导入支持 AI 识别版本，列表、筛选与属性栏同步 |
+| V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/requirements |

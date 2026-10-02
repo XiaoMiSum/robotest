@@ -450,7 +450,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 
 ```
 项目工作区
-└── /projects/:projectId/trace    → TraceMatrixPage（追溯矩阵）
+└── /workspace/projects/trace    → TraceMatrixPage（追溯矩阵）
 ```
 
 - 需求详情的「查看追溯」入口跳转 `TraceMatrixPage` 并以 `requirementId` 定位起点（只读链路模式，复用链路视图组件）。
@@ -546,3 +546,4 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (...)
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
+| V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/trace |

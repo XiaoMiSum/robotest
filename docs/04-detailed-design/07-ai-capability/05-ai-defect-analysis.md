@@ -272,7 +272,7 @@
 
 ```
 项目工作区
-└── /projects/:projectId/bugs/analysis   → BugAnalysisPage（缺陷分析页，或缺陷页内 Tab）
+└── /workspace/projects/bugs/analysis   → BugAnalysisPage（缺陷分析页，或缺陷页内 Tab）
 ```
 
 ### 5.2 组件结构
@@ -345,3 +345,4 @@ BugAnalysisPage
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
+| V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/bugs/analysis |

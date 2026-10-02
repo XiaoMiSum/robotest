@@ -759,7 +759,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 5.2 业务端组件与状态
 
 ```
-任务中心（项目工作区 /projects/:projectId/ai/tasks → AiTaskCenterPage）
+任务中心（项目工作区 /workspace/projects/ai/tasks → AiTaskCenterPage）
 ├── TaskFilter（类型/状态筛选）
 ├── TaskTable（进度条、阶段、失败原因、取消/重试）
 └── AiTaskDetailDrawer（阶段时间线 + 产物清单）
@@ -856,3 +856,4 @@ CREATE TABLE ai_config / ai_model_config / ai_embedding_config / ai_prompt_templ
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
+| V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/ai/tasks |
