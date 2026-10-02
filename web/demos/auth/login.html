@@ -9,8 +9,8 @@
 <style>
   .auth { display: flex; min-height: 100vh; }
   .auth__brand {
-    flex: 1.1; background: var(--n-900); color: #fff;
-    padding: 56px 60px; display: flex; flex-direction: column; justify-content: space-between;
+    flex: 0 0 46%; background: var(--n-900); color: #fff;
+    padding: 48px 56px; display: flex; flex-direction: column; justify-content: space-between;
     position: relative; overflow: hidden;
   }
   .auth__brand::before {
@@ -23,21 +23,49 @@
     width: 140px; height: 140px; border-radius: 24px;
     border: 1.5px solid rgba(255,255,255,.12); transform: rotate(18deg);
   }
-  .auth__logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; position: relative; z-index: 1; }
+  .auth__logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; position: relative; z-index: 1; }
   .auth__slogan { position: relative; z-index: 1; }
-  .auth__slogan h2 { margin: 0; font-size: 34px; font-weight: 700; line-height: 1.35; letter-spacing: -0.02em; }
-  .auth__slogan h2 span { color: var(--brand-400); }
-  .auth__slogan p { margin: 16px 0 0; font-size: 14px; color: rgba(255,255,255,.55); max-width: 420px; line-height: 1.8; }
-  .auth__points { display: flex; gap: 28px; position: relative; z-index: 1; }
-  .auth__point { font-size: 12px; color: rgba(255,255,255,.45); display: flex; align-items: center; gap: 7px; }
-  .auth__point svg { width: 15px; height: 15px; color: var(--brand-400); }
+  .auth__accent { display: block; width: 40px; height: 3px; border-radius: 2px; background: var(--brand-500); margin-bottom: 24px; }
+  .auth__slogan h2 { margin: 0 0 16px; font-size: 32px; font-weight: 600; line-height: 1.45; letter-spacing: -0.02em; }
+  .auth__slogan p { margin: 0 0 48px; font-size: 14px; color: rgba(255,255,255,.55); max-width: 400px; line-height: 1.9; }
+  .auth__features { display: flex; flex-direction: column; gap: 20px; list-style: none; padding: 0; margin: 0; }
+  .auth__feature { display: flex; align-items: flex-start; gap: 12px; }
+  .auth__feature-dot { margin-top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-500); flex-shrink: 0; }
+  .auth__feature-title { font-size: var(--font-size-sm); font-weight: 600; color: rgba(255,255,255,.88); margin-bottom: 3px; }
+  .auth__feature-desc { font-size: 13px; color: rgba(255,255,255,.5); }
+  .auth__copyright { position: relative; z-index: 1; font-size: var(--font-size-xs); color: rgba(255,255,255,.35); }
   .auth__form-wrap {
     flex: 1; display: flex; align-items: center; justify-content: center;
-    background: var(--n-50); padding: 40px;
+    background: var(--n-0); padding: 40px;
   }
   .auth__card { width: 360px; }
-  .auth__title { font-size: 24px; font-weight: 650; color: var(--n-900); letter-spacing: -0.02em; }
+  .auth__title { font-size: 24px; font-weight: 600; color: var(--n-900); letter-spacing: -0.02em; }
   .auth__sub { font-size: 13px; color: var(--n-500); margin: 8px 0 32px; }
+
+  /* 输入框尾部操作（对应 el-input 的 clearable / show-password） */
+  .auth__card .input-wrap .input { padding-right: 32px; }
+  .auth__input-action {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0; border: 0;
+    background: none; color: var(--n-400); cursor: pointer; border-radius: var(--radius-sm);
+  }
+  .auth__input-action:hover { color: var(--n-600); background: var(--n-50); }
+  .auth__input-action.is-on { color: var(--brand-500); }
+  .auth__input-action svg { width: 15px; height: 15px; }
+  .auth__input-action[hidden] { display: none; }
+
+  /* 顶部消息（对应 ElMessage：警告=橙、成功=绿） */
+  .auth__toast {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    box-shadow: 0 6px 20px rgba(0,0,0,.10); z-index: 100;
+  }
+  .auth__toast[hidden] { display: none; }
+
+  /* 与实际页一致：窄屏收起品牌区，退化为居中表单 */
+  @media (max-width: 960px) {
+    .auth__brand { display: none; }
+  }
 </style>
 </head>
 <body data-shell="bare">
@@ -47,48 +75,142 @@
     <div class="auth__logo">
       <span class="topbar__logo-mark"><span data-icon="zap"></span></span>RoboTest
     </div>
+
     <div class="auth__slogan">
-      <h2>让每一次测试<br>都<span>有据可依</span></h2>
-      <p>用例、评审、计划、接口与缺陷的一体化协作平台。克制的界面，把注意力还给测试本身。</p>
+      <span class="auth__accent"></span>
+      <h2>软件测试平台</h2>
+      <p>覆盖用例管理、测试评审、测试计划与缺陷跟踪全流程，让测试协作更高效。</p>
+      <ul class="auth__features">
+        <li class="auth__feature">
+          <span class="auth__feature-dot"></span>
+          <div>
+            <div class="auth__feature-title">脑图式用例管理</div>
+            <div class="auth__feature-desc">结构化组织用例，编辑顺滑高效</div>
+          </div>
+        </li>
+        <li class="auth__feature">
+          <span class="auth__feature-dot"></span>
+          <div>
+            <div class="auth__feature-title">评审与计划协同</div>
+            <div class="auth__feature-desc">多人实时协作，评审进度一目了然</div>
+          </div>
+        </li>
+        <li class="auth__feature">
+          <span class="auth__feature-dot"></span>
+          <div>
+            <div class="auth__feature-title">缺陷全生命周期管理</div>
+            <div class="auth__feature-desc">流转状态清晰可控</div>
+          </div>
+        </li>
+      </ul>
     </div>
-    <div class="auth__points">
-      <span class="auth__point"><span data-icon="check-circle"></span>用例与脑图协同</span>
-      <span class="auth__point"><span data-icon="check-circle"></span>接口全流程测试</span>
-      <span class="auth__point"><span data-icon="check-circle"></span>质量数据看板</span>
-    </div>
+
+    <div class="auth__copyright">© <span id="auth-year">2026</span> RoboTest</div>
   </div>
 
   <div class="auth__form-wrap">
     <div class="auth__card">
       <div class="auth__title">登录</div>
-      <div class="auth__sub">使用你的平台账号继续</div>
+      <div class="auth__sub">欢迎回来，请输入你的账号信息</div>
 
       <div class="field">
-        <label class="field__label">账号</label>
-        <div class="input-wrap"><span data-icon="user"></span><input class="input" placeholder="用户名或邮箱" value="zhangming"></div>
+        <label class="field__label" for="login-identifier">账号</label>
+        <div class="input-wrap">
+          <span data-icon="user"></span>
+          <input class="input" id="login-identifier" placeholder="用户名 / 邮箱" value="zhangming" autocomplete="username">
+          <button type="button" class="auth__input-action" id="login-clear" title="清空">
+            <span data-icon="x"></span>
+          </button>
+        </div>
       </div>
       <div class="field">
-        <label class="field__label">密码</label>
-        <div class="input-wrap"><span data-icon="lock"></span><input class="input" type="password" placeholder="请输入密码" value="12345678"></div>
+        <label class="field__label" for="login-password">密码</label>
+        <div class="input-wrap">
+          <span data-icon="lock"></span>
+          <input class="input" id="login-password" type="password" placeholder="请输入密码" value="12345678" autocomplete="current-password">
+          <button type="button" class="auth__input-action" id="login-eye" title="显示密码">
+            <span data-icon="eye"></span>
+          </button>
+        </div>
       </div>
 
-      <div class="flex-between mb-lg">
-        <span class="flex-center flex-gap-sm text-sm muted" style="cursor:pointer">
-          <span class="checkbox checkbox--on"></span>记住我
-        </span>
-        <a class="text-sm" href="#">忘记密码？</a>
-      </div>
+      <button class="btn btn--primary btn--lg btn--block" id="login-submit" type="button">登 录</button>
 
-      <button class="btn btn--primary btn--lg btn--block">登 录</button>
-
-      <div class="text-xs text-light text-center" style="margin-top:28px;line-height:1.8">
-        登录即表示同意《平台使用协议》与《隐私政策》<br>
-        首次部署？<a href="../auth/init.html">初始化系统管理员</a>
+      <div class="text-xs text-light text-center" style="margin-top:24px">
+        首次部署？系统将自动引导完成初始化
       </div>
     </div>
   </div>
 </div>
 
+<div class="alert auth__toast" id="login-toast" hidden>
+  <span data-icon="alert-triangle" id="toast-warn"></span>
+  <span data-icon="check-circle" id="toast-ok" hidden></span>
+  <span id="toast-msg"></span>
+</div>
+
 <script src="../assets/icons.js"></script>
+<script>
+  // 演示稿无后端：复刻实际页的空表单校验、提交 loading 与消息反馈
+  (function () {
+    document.getElementById('auth-year').textContent = new Date().getFullYear();
+
+    var idInput = document.getElementById('login-identifier');
+    var pwInput = document.getElementById('login-password');
+    var clearBtn = document.getElementById('login-clear');
+    var eyeBtn = document.getElementById('login-eye');
+    var submitBtn = document.getElementById('login-submit');
+    var toast = document.getElementById('login-toast');
+    var toastMsg = document.getElementById('toast-msg');
+    var toastWarn = document.getElementById('toast-warn');
+    var toastOk = document.getElementById('toast-ok');
+    var toastTimer;
+
+    function syncClear() { clearBtn.hidden = !idInput.value; }
+    syncClear();
+    idInput.addEventListener('input', syncClear);
+    clearBtn.addEventListener('click', function () {
+      idInput.value = '';
+      syncClear();
+      idInput.focus();
+    });
+
+    eyeBtn.addEventListener('click', function () {
+      var shown = pwInput.type === 'text';
+      pwInput.type = shown ? 'password' : 'text';
+      eyeBtn.classList.toggle('is-on', !shown);
+      eyeBtn.title = shown ? '显示密码' : '隐藏密码';
+    });
+
+    function showToast(msg, type) {
+      toast.className = 'alert alert--' + type + ' auth__toast';
+      toastMsg.textContent = msg;
+      toastWarn.hidden = type !== 'warning';
+      toastOk.hidden = type !== 'success';
+      toast.hidden = false;
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(function () { toast.hidden = true; }, 2600);
+    }
+
+    function submit() {
+      if (submitBtn.disabled) return;
+      if (!idInput.value || !pwInput.value) {
+        showToast('请输入用户名/邮箱和密码', 'warning');
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = '登录中…';
+      window.setTimeout(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '登 录';
+        showToast('登录成功', 'success');
+      }, 900);
+    }
+
+    submitBtn.addEventListener('click', submit);
+    idInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+    pwInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+  })();
+</script>
 </body>
 </html>
