@@ -8,10 +8,10 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
-  .date-range { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--n-200); border-radius: var(--radius-md); color: var(--n-500); font-size: var(--font-size-sm); background: #fff; }
+  .date-range { display: inline-flex; align-items: center; gap: 6px; width: 280px; height: 32px; padding: 0 10px; border: 1px solid var(--n-200); border-radius: var(--radius-md); color: var(--n-500); font-size: var(--font-size-sm); background: #fff; }
   .date-range svg { width: 14px; height: 14px; color: var(--n-400); }
   .rate-bad { color: var(--st-danger); font-weight: 600; }
+  .report-empty td { text-align: center; padding: 36px 0; color: var(--n-500); font-size: var(--font-size-sm); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -38,29 +38,29 @@
         </div>
       </div>
 
-      <!-- 内联错误条：刷新失败保留旧数据，可重试 -->
-      <div class="ux-errorbar" id="report-error" style="margin-bottom:var(--block-gap)">
-        <span data-icon="alert-triangle"></span>
-        列表刷新失败（网络超时），下方为最近一次成功加载的结果
-        <span class="ux-errorbar__spacer"></span>
-        <button class="btn btn--default btn--sm" data-ux-retry>重试</button>
-        <button class="btn btn--text btn--sm" data-ux-error-dismiss>忽略</button>
-      </div>
-
       <div class="card">
         <div class="toolbar">
-          <div class="toolbar__filters" data-ux-filters="reports">
-            <select class="select" style="width:140px"><option>全部状态</option><option>通过</option><option>失败</option><option>部分通过</option></select>
-            <select class="select" style="width:160px"><option>全部执行方式</option><option>平台内执行</option></select>
-            <select class="select" style="width:180px"><option>全部场景</option><option>下单成功主链路</option><option>支付回调重放</option><option>用户注册登录</option></select>
+          <div class="toolbar__filters">
+            <select class="select" id="rp-status" style="width:140px">
+              <option value="">全部状态</option>
+              <option value="success">通过</option>
+              <option value="failed">失败</option>
+              <option value="partial">部分通过</option>
+            </select>
+            <select class="select" id="rp-mode" style="width:160px">
+              <option value="">全部执行方式</option>
+              <option value="platform">平台内执行</option>
+            </select>
+            <select class="select" id="rp-scene" style="width:180px">
+              <option value="">全部场景</option>
+              <option value="下单成功主链路">下单成功主链路</option>
+              <option value="用户注册登录">用户注册登录</option>
+              <option value="库存不足回滚">库存不足回滚</option>
+              <option value="支付回调重放">支付回调重放</option>
+            </select>
             <span class="date-range"><span data-icon="calendar"></span>开始日期 至 结束日期</span>
-            <div class="input-wrap" style="width:240px"><span data-icon="search"></span><input class="input" placeholder="搜索报告名称或场景名称"></div>
-            <span class="ux-restore" data-ux-restore-for="reports" hidden>
-              <span data-icon="check"></span>已恢复上次筛选
-              <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
-            </span>
+            <div class="input-wrap" style="width:240px"><span data-icon="search"></span><input class="input" id="rp-kw" placeholder="搜索报告名称或场景名称"></div>
           </div>
-          <div class="toolbar__count">共 46 份报告</div>
         </div>
 
         <div class="table-wrap" data-ux-batchbar="#batchbar-reports">
@@ -78,7 +78,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
+              <tr data-status="success" data-mode="platform" data-scene="下单成功主链路" data-name="下单成功主链路-2026-09-22 14:05:12">
                 <td><span class="checkbox checkbox--on"></span></td>
                 <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">下单成功主链路-2026-09-22 14:05:12</a></td>
                 <td style="text-align:center"><span class="tag">场景报告</span></td>
@@ -88,27 +88,17 @@
                 <td class="num">2026-09-22 14:05</td>
                 <td><span class="op-link">查看</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
               </tr>
-              <tr>
+              <tr data-status="failed" data-mode="platform" data-scene="" data-name="支付回归夜跑-2026-09-22 03:00:04">
                 <td><span class="checkbox checkbox--on"></span></td>
                 <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">支付回归夜跑-2026-09-22 03:00:04</a></td>
                 <td style="text-align:center"><span class="tag tag--neutral">套件报告</span></td>
                 <td style="text-align:center"><span class="tag tag--danger">失败</span></td>
-                <td class="num rate-bad" style="text-align:center">83.3%</td>
+                <td class="num" style="text-align:center">-</td>
                 <td class="num" style="text-align:center">42.7s</td>
                 <td class="num">2026-09-22 03:00</td>
                 <td><span class="op-link">查看</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
               </tr>
-              <tr>
-                <td><span class="checkbox"></span></td>
-                <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">库存不足回滚-2026-09-21 17:12:44</a></td>
-                <td style="text-align:center"><span class="tag">场景报告</span></td>
-                <td style="text-align:center"><span class="tag tag--warning">部分通过</span></td>
-                <td class="num" style="text-align:center">75.0%</td>
-                <td class="num" style="text-align:center">5.8s</td>
-                <td class="num">2026-09-21 17:12</td>
-                <td><span class="op-link">查看</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
-              </tr>
-              <tr>
+              <tr data-status="success" data-mode="platform" data-scene="用户注册登录" data-name="用户注册登录-2026-09-21 20:00:31">
                 <td><span class="checkbox"></span></td>
                 <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">用户注册登录-2026-09-21 20:00:31</a></td>
                 <td style="text-align:center"><span class="tag">场景报告</span></td>
@@ -118,15 +108,28 @@
                 <td class="num">2026-09-21 20:00</td>
                 <td><span class="op-link">查看</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
               </tr>
-              <tr>
+              <tr data-status="partial" data-mode="platform" data-scene="库存不足回滚" data-name="库存不足回滚-2026-09-21 17:12:44">
+                <td><span class="checkbox"></span></td>
+                <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">库存不足回滚-2026-09-21 17:12:44</a></td>
+                <td style="text-align:center"><span class="tag">场景报告</span></td>
+                <td style="text-align:center"><span class="tag tag--warning">部分通过</span></td>
+                <td class="num rate-bad" style="text-align:center">75.0%</td>
+                <td class="num" style="text-align:center">5.8s</td>
+                <td class="num">2026-09-21 17:12</td>
+                <td><span class="op-link">查看</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
+              </tr>
+              <tr data-status="success" data-mode="platform" data-scene="" data-name="冒烟核心接口-2026-09-21 09:15:02">
                 <td><span class="checkbox"></span></td>
                 <td><a class="text-brand" href="api-report-detail.html" style="font-weight:500">冒烟核心接口-2026-09-21 09:15:02</a></td>
                 <td style="text-align:center"><span class="tag tag--neutral">套件报告</span></td>
                 <td style="text-align:center"><span class="tag tag--success">通过</span></td>
-                <td class="num" style="text-align:center">96.4%</td>
-                <td class="num" style="text-align:center">1m 12s</td>
+                <td class="num" style="text-align:center">-</td>
+                <td class="num" style="text-align:center">72.0s</td>
                 <td class="num">2026-09-21 09:15</td>
                 <td><span class="op-link">查看</span><span class="op-link op-link--danger" data-ux-undo="tr">删除</span></td>
+              </tr>
+              <tr class="report-empty" id="rp-empty" hidden>
+                <td colspan="8">暂无测试报告，定时任务执行后生成；场景页运行报告可在场景执行历史中查看</td>
               </tr>
             </tbody>
           </table>
@@ -156,5 +159,85 @@
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
+<script>
+  // 筛选口径对齐 ReportsPage：条件变更即重查并清空勾选，关键字回车/清空时生效
+  (function () {
+    var statusSel = document.getElementById('rp-status');
+    var modeSel = document.getElementById('rp-mode');
+    var sceneSel = document.getElementById('rp-scene');
+    var kwInput = document.getElementById('rp-kw');
+    var tbody = document.querySelector('.table tbody');
+    var emptyRow = document.getElementById('rp-empty');
+    var totalEl = document.querySelector('.pagination__total');
+    var batchbar = document.getElementById('batchbar-reports');
+    if (!tbody || !emptyRow || !totalEl || !batchbar) return;
+
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-status]'));
+    var removed = [];
+    var baseTotal = totalEl.textContent;
+
+    function keyword() {
+      return kwInput ? kwInput.value.trim().toLowerCase() : '';
+    }
+
+    function filtered() {
+      return Boolean((statusSel && statusSel.value) || (modeSel && modeSel.value) || (sceneSel && sceneSel.value) || keyword());
+    }
+
+    function matches(row) {
+      if (removed.indexOf(row) >= 0) return false;
+      if (statusSel && statusSel.value && row.getAttribute('data-status') !== statusSel.value) return false;
+      if (modeSel && modeSel.value && row.getAttribute('data-mode') !== modeSel.value) return false;
+      if (sceneSel && sceneSel.value && row.getAttribute('data-scene') !== sceneSel.value) return false;
+      var kw = keyword();
+      if (kw && (row.getAttribute('data-name') || '').toLowerCase().indexOf(kw) < 0) return false;
+      return true;
+    }
+
+    function render() {
+      var shown = 0;
+      var checked = 0;
+      rows.forEach(function (row) {
+        var ok = matches(row);
+        row.hidden = !ok;
+        if (!ok) return;
+        shown += 1;
+        if (row.querySelector('.checkbox--on')) checked += 1;
+      });
+      emptyRow.hidden = shown > 0;
+      totalEl.textContent = filtered() ? '共 ' + shown + ' 份报告 · 每页 20 条' : baseTotal;
+      batchbar.querySelector('[data-ux-batch-count]').textContent = String(checked);
+      batchbar.hidden = checked === 0;
+    }
+
+    function refilter() {
+      rows.forEach(function (row) {
+        var box = row.querySelector('.checkbox');
+        if (box) box.classList.remove('checkbox--on');
+      });
+      render();
+    }
+
+    [statusSel, modeSel, sceneSel].forEach(function (el) {
+      if (el) el.addEventListener('change', refilter);
+    });
+    if (kwInput) {
+      kwInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') refilter(); });
+      kwInput.addEventListener('input', function () { if (!kwInput.value) refilter(); });
+    }
+
+    // 删除/撤销由 ux.js 发出，这里同步可见行与合计
+    tbody.addEventListener('ux:remove', function (e) {
+      if (removed.indexOf(e.target) < 0) removed.push(e.target);
+      render();
+    });
+    tbody.addEventListener('ux:restore', function (e) {
+      removed = removed.filter(function (r) { return r !== e.target; });
+      render();
+    });
+
+    render();
+  })();
+</script>
 </body>
 </html>
