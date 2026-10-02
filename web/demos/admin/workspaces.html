@@ -6,6 +6,18 @@
 <title>空间管理 · 系统管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 弹层靠 hidden 属性开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
+  [hidden] { display: none !important; }
+
+  /* 名称列在实际页是可点的主链接（el-link primary），cell-main 的深色会盖掉链接色 */
+  .ws-link { color: var(--brand-500); font-weight: 500; }
+  .ws-link:hover { color: var(--brand-600); }
+
+  .page-size { width: 104px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
+
+  .ws-empty td { text-align: center; color: var(--n-500); padding: 36px 0; }
+</style>
 </head>
 <body data-shell="admin" data-active="workspaces" data-mode="admin">
 
@@ -17,82 +29,297 @@
       <p class="page-head__desc">平台内全部工作空间及其规模</p>
     </div>
     <div class="page-head__actions">
-      <button class="btn btn--primary"><span data-icon="plus"></span>新建空间</button>
+      <button class="btn btn--primary" data-open="ws-create-dialog"><span data-icon="plus"></span>新建空间</button>
     </div>
   </div>
 
   <div class="card">
+    <!-- 无按状态计数接口，segment 不展示计数；keyword 仅匹配空间名称 -->
     <div class="toolbar">
       <div class="toolbar__filters">
-        <div class="segment">
-          <span class="segment__item segment__item--active">活跃（14）</span>
-          <span class="segment__item">已归档（2）</span>
+        <div class="segment" id="ws-segment">
+          <span class="segment__item segment__item--active" data-status="active">活跃</span>
+          <span class="segment__item" data-status="dissolved">归档</span>
         </div>
-        <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="空间名称 / 创建人"></div>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="ws-keyword" placeholder="搜索空间名称" style="width:220px" autocomplete="off"></div>
+        <button class="btn btn--primary" id="ws-search"><span data-icon="search"></span>查询</button>
+        <button class="btn btn--default" id="ws-reset">重置</button>
       </div>
       <div class="toolbar__count">按创建时间倒序</div>
     </div>
 
     <div class="table-wrap">
-      <table class="table table--clickable">
+      <table class="table table--clickable" id="ws-table">
         <thead>
           <tr><th>空间名称</th><th>描述</th><th>状态</th><th>成员</th><th>项目</th><th>创建时间</th><th>操作</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td class="cell-main">质量中台</td>
+          <tr data-status="active" data-name="质量中台">
+            <td><a class="ws-link" href="workspace-detail.html">质量中台</a></td>
             <td class="muted">核心业务线质量保障与用例资产沉淀</td>
             <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
             <td class="num">24</td><td class="num">6</td>
             <td class="num">2026-09-18 10:24</td>
-            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
-          <tr>
-            <td class="cell-main">供应链测试组</td>
+          <tr data-status="active" data-name="供应链测试组">
+            <td><a class="ws-link" href="workspace-detail.html">供应链测试组</a></td>
             <td class="muted">仓储、履约与结算链路回归</td>
             <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
             <td class="num">17</td><td class="num">4</td>
             <td class="num">2026-09-12 15:02</td>
-            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
-          <tr>
-            <td class="cell-main">数据平台验证</td>
+          <tr data-status="active" data-name="数据平台验证">
+            <td><a class="ws-link" href="workspace-detail.html">数据平台验证</a></td>
             <td class="muted">数据仓库与报表准确性验证</td>
             <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
             <td class="num">9</td><td class="num">3</td>
             <td class="num">2026-09-05 09:47</td>
-            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
-          <tr>
-            <td class="cell-main">移动端专项</td>
+          <tr data-status="active" data-name="移动端专项">
+            <td><a class="ws-link" href="workspace-detail.html">移动端专项</a></td>
             <td class="muted">iOS / Android 客户端兼容性测试</td>
             <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
             <td class="num">13</td><td class="num">5</td>
             <td class="num">2026-08-21 14:11</td>
-            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
-          <tr>
-            <td class="cell-main">开放平台联调</td>
+          <tr data-status="active" data-name="开放平台联调">
+            <td><a class="ws-link" href="workspace-detail.html">开放平台联调</a></td>
             <td class="muted">第三方接入与开放 API 验证</td>
             <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
             <td class="num">11</td><td class="num">4</td>
             <td class="num">2026-08-08 16:39</td>
-            <td><span class="op-link">详情</span><span class="op-link">编辑</span><span class="op-link op-link--danger">归档</span></td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
+          <tr data-status="active" data-name="新业务孵化">
+            <td><a class="ws-link" href="workspace-detail.html">新业务孵化</a></td>
+            <td class="muted">—</td>
+            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td class="num">5</td><td class="num">2</td>
+            <td class="num">2026-07-30 11:05</td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+          </tr>
+          <tr data-status="dissolved" data-name="旧版商城重构">
+            <td><a class="ws-link" href="workspace-detail.html">旧版商城重构</a></td>
+            <td class="muted">业务迁移至新商城后归档留存</td>
+            <td><span class="status status--neutral"><span class="dot"></span>归档</span></td>
+            <td class="num">8</td><td class="num">2</td>
+            <td class="num">2026-05-14 09:20</td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+          </tr>
+          <tr data-status="dissolved" data-name="春季大促专项">
+            <td><a class="ws-link" href="workspace-detail.html">春季大促专项</a></td>
+            <td class="muted">活动结束后归档，报告与用例保留</td>
+            <td><span class="status status--neutral"><span class="dot"></span>归档</span></td>
+            <td class="num">15</td><td class="num">3</td>
+            <td class="num">2026-04-02 16:48</td>
+            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+          </tr>
+          <tr class="ws-empty" id="ws-empty" hidden><td colspan="7">暂无数据</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="pagination">
-      <span class="pagination__total">共 14 个活跃空间 · 每页 20 条</span>
+      <span class="pagination__total" id="ws-total">共 6 条</span>
+      <select class="select page-size">
+        <option>10条/页</option>
+        <option selected>20条/页</option>
+        <option>50条/页</option>
+        <option>100条/页</option>
+      </select>
+      <button class="page-btn" disabled>‹</button>
       <button class="page-btn page-btn--active">1</button>
-      <button class="page-btn">›</button>
+      <button class="page-btn" disabled>›</button>
     </div>
   </div>
 
 </main>
 
+<!-- 新建弹窗字段与校验口径同实际页 WorkspaceCreateDialog -->
+<div class="dialog-mask" id="ws-create-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:480px">
+    <div class="dialog__header">
+      <span class="dialog__title">新建工作空间</span>
+      <button class="dialog__close" data-close="ws-create-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="field">
+        <label class="field__label" for="ws-name">名称 <span class="req">*</span></label>
+        <input class="input" id="ws-name" maxlength="50" placeholder="请输入工作空间名称">
+        <div class="field__hint"><span id="ws-name-count">0</span>/50</div>
+        <div class="field__error" id="ws-name-error" hidden></div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="ws-admin">管理员 <span class="req">*</span></label>
+        <select class="select" id="ws-admin">
+          <option value="" selected>输入姓名搜索（仅活跃用户）</option>
+          <option value="zhangming">张明</option>
+          <option value="lihua">李华</option>
+          <option value="wangfang">王芳</option>
+          <option value="zhoumin">周敏</option>
+        </select>
+        <div class="field__error" id="ws-admin-error" hidden></div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label class="field__label" for="ws-desc">描述</label>
+        <textarea class="textarea" id="ws-desc" rows="3" maxlength="200" placeholder="请输入工作空间描述（可选）"></textarea>
+        <div class="field__hint"><span id="ws-desc-count">0</span>/200</div>
+        <div class="field__error" id="ws-desc-error" hidden></div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" data-close="ws-create-dialog">取消</button>
+      <button class="btn btn--primary" id="ws-create-ok">确定</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+
+  var segment = byId('ws-segment');
+  var keyword = byId('ws-keyword');
+  var total = byId('ws-total');
+  var emptyRow = byId('ws-empty');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#ws-table tbody tr[data-status]'));
+  var status = 'active';
+  var appliedKeyword = '';
+
+  function render() {
+    var shown = 0;
+    rows.forEach(function (row) {
+      var matched =
+        row.getAttribute('data-status') === status &&
+        (!appliedKeyword || row.getAttribute('data-name').indexOf(appliedKeyword) !== -1);
+      row.hidden = !matched;
+      if (matched) shown += 1;
+    });
+    emptyRow.hidden = shown !== 0;
+    total.textContent = '共 ' + shown + ' 条';
+  }
+
+  function search() {
+    appliedKeyword = keyword.value.trim();
+    render();
+  }
+
+  function reset() {
+    keyword.value = '';
+    appliedKeyword = '';
+    status = 'active';
+    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
+      s.classList.toggle('segment__item--active', s.getAttribute('data-status') === 'active');
+    });
+    render();
+  }
+
+  segment.addEventListener('click', function (e) {
+    var item = e.target.closest('.segment__item');
+    if (!item) return;
+    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
+      s.classList.remove('segment__item--active');
+    });
+    item.classList.add('segment__item--active');
+    status = item.getAttribute('data-status');
+    // 切换即查询，与实际页 handleStatusChange 一致
+    render();
+  });
+
+  byId('ws-search').addEventListener('click', search);
+  keyword.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') search();
+  });
+  byId('ws-reset').addEventListener('click', reset);
+
+  // 行点击与名称/查看详情链接同跳详情，对应实际页 row-click → 详情
+  byId('ws-table').addEventListener('click', function (e) {
+    if (e.target.closest('a')) return;
+    if (e.target.closest('tr[data-status]')) window.location.href = 'workspace-detail.html';
+  });
+
+  var dialog = byId('ws-create-dialog');
+  var nameInput = byId('ws-name');
+  var adminSelect = byId('ws-admin');
+  var descInput = byId('ws-desc');
+
+  function setError(id, msg) {
+    var el = byId(id);
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  }
+
+  function resetCreateForm() {
+    nameInput.value = '';
+    adminSelect.value = '';
+    descInput.value = '';
+    byId('ws-name-count').textContent = '0';
+    byId('ws-desc-count').textContent = '0';
+    setError('ws-name-error', '');
+    setError('ws-admin-error', '');
+    setError('ws-desc-error', '');
+  }
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-open]');
+    if (opener) {
+      resetCreateForm();
+      dialog.hidden = false;
+      return;
+    }
+    var closer = e.target.closest('[data-close]');
+    if (closer) {
+      byId(closer.getAttribute('data-close')).hidden = true;
+    }
+  });
+
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+
+  nameInput.addEventListener('input', function () {
+    byId('ws-name-count').textContent = String(nameInput.value.length);
+    setError('ws-name-error', '');
+  });
+  descInput.addEventListener('input', function () {
+    byId('ws-desc-count').textContent = String(descInput.value.length);
+    setError('ws-desc-error', '');
+  });
+  adminSelect.addEventListener('change', function () { setError('ws-admin-error', ''); });
+
+  byId('ws-create-ok').addEventListener('click', function () {
+    var name = nameInput.value.trim();
+    if (!name) {
+      setError('ws-name-error', '请输入工作空间名称');
+      return;
+    }
+    if (name.length < 2 || name.length > 50) {
+      setError('ws-name-error', '名称长度需在 2-50 字符之间');
+      return;
+    }
+    if (!adminSelect.value) {
+      setError('ws-admin-error', '请选择空间管理员');
+      return;
+    }
+    if (descInput.value.length > 200) {
+      setError('ws-desc-error', '描述最多 200 个字符');
+      return;
+    }
+    // 实际页创建成功后跳转新空间详情
+    dialog.hidden = true;
+    window.location.href = 'workspace-detail.html';
+  });
+
+  render();
+})();
+</script>
 </body>
 </html>
