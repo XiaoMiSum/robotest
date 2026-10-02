@@ -13,6 +13,9 @@
   .ft-workspace { display: flex; gap: var(--space-lg); align-items: stretch; flex: 1; min-height: 0; }
   .ft-tree { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; }
   .ft-doc { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  .ft-doc:fullscreen { border: none; border-radius: 0; }
+  /* 未选中文档时编辑卡只剩空态（编辑区不承载文档标题栏，交互设计 06 §1.2） */
+  .ft-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
 
   /* 目录树头部：搜索 + 新建（无底色，仅与树体的分隔线） */
   .mt-toolbar {
@@ -24,13 +27,51 @@
   .ft-tree__body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 10px; }
 
   /* 层级缩进按 --depth 计算，支持无限层级模块树 */
-  .tree__item { padding-left: calc(12px + var(--depth, 0) * 18px); min-width: 0; }
+  .tree__item { position: relative; padding-left: calc(12px + var(--depth, 0) * 18px); min-width: 0; }
   .tree__twisty {
     width: 14px; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
   }
   .tree__twisty svg { width: 12px; height: 12px; }
   .tree__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 节点行内操作（新建/重命名/删除）：仅 hover 浮现，避免 280px 窄树被常驻按钮挤掉节点名 */
+  .tree__actions {
+    display: inline-flex; align-items: center; gap: 2px;
+    flex-shrink: 0; margin-left: auto;
+    opacity: 0; transition: opacity var(--transition-fast);
+  }
+  .tree__item:hover .tree__actions { opacity: 1; }
+  .tree__action {
+    display: inline-flex; padding: 3px;
+    border: none; border-radius: var(--radius-sm);
+    background: none; color: var(--n-400); cursor: pointer;
+  }
+  .tree__action:hover { background: var(--n-100); color: var(--n-700); }
+  .tree__action--danger:hover { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .tree__action svg { width: 13px; height: 13px; }
+
+  /* 展开箭头是目录唯一的收起入口：点目录行只展开（el-tree expand-on-click-node=false 口径） */
+  .tree__item[data-type="directory"] .tree__twisty { cursor: pointer; }
+  /* 无子节点的目录不渲染展开箭头（el-tree 只给有 children 的节点画箭头） */
+  .tree__twisty[hidden] { visibility: hidden; }
+
+  /* 拖拽落点指示：前/后为行缘蓝线，入目录为整行描边（蓝=落点/选中语义，非状态色） */
+  .tree__item.is-dragging { opacity: .45; }
+  .tree__item--drop-before::after,
+  .tree__item--drop-after::after {
+    content: ''; position: absolute; left: 4px; right: 4px; height: 2px;
+    background: var(--brand-500); border-radius: 2px; pointer-events: none;
+  }
+  .tree__item--drop-before::after { top: -1px; }
+  .tree__item--drop-after::after { bottom: -1px; }
+  .tree__item--drop-inner { background: var(--brand-50); box-shadow: inset 0 0 0 2px var(--brand-500); }
+
+  /* 树空态（ProjectModuleTree 的 el-empty） */
+  .tree-empty { padding: 30px 8px; text-align: center; }
+  .tree-empty .state-block__icon { width: 40px; height: 40px; margin-bottom: 10px; }
+  .tree-empty .state-block__icon svg { width: 20px; height: 20px; }
+  .tree-empty .state-block__title { font-size: var(--font-size-sm); font-weight: 500; color: var(--n-500); }
 
   /* 脑图工具条（顶部常驻）：单行不换行、左对齐、竖分隔线分组，命令组贴行末右侧；
      按钮总量宽于容器时不换行（否则命令组被挤到第二行），改为工具条自身横向滚动 */
@@ -54,6 +95,9 @@
     color: var(--n-600); cursor: pointer;
   }
   .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
+  /* 撤销/重做按历史栈可用性置灰（CaseMindMap 的 canUndo / canRedo） */
+  .mm-tool:disabled { color: var(--n-300); cursor: default; }
+  .mm-tool:disabled:hover { background: transparent; color: var(--n-300); }
   /* 图标库 svg 无固有尺寸，不给尺寸会渲染为 0×0 而不可见 */
   .mm-tool [data-icon] svg { width: 14px; height: 14px; }
   .mm-tool--flip { transform: scaleX(-1); }
@@ -75,6 +119,9 @@
   .tdot--step { background: var(--node-step); }
   .tdot--expected { background: var(--node-expected); }
 
+  /* 画布舞台：定位锚点唯一为舞台，右上在线头像与左下导航器悬浮其上、不随画布滚动 */
+  .mm-stage { position: relative; flex: 1; min-height: 0; display: flex; }
+
   /* 脑图画布：静态树形示意（dot grid 底 + 节点 + 折线）；点阵随内容滚动，避免节点与网格错位 */
   .mm {
     flex: 1; min-height: 0; padding: 26px 30px; overflow: auto;
@@ -82,6 +129,9 @@
     background-size: 18px 18px;
     background-attachment: local;
   }
+  .mm--hand { cursor: grab; }
+  .mm.is-panning { cursor: grabbing; user-select: none; }
+  .mm-inner { display: block; }
   .mm ul { list-style: none; margin: 0; padding: 0; }
   .mm ul ul { margin-top: 4px; margin-left: 10px; padding-left: 20px; border-left: 1.5px solid var(--n-300); }
   .mm li { position: relative; padding: 6px 0; }
@@ -90,7 +140,12 @@
     display: inline-flex; align-items: center; gap: 7px;
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
     padding: 4px 12px; font-size: 13px; color: var(--n-800); box-shadow: var(--shadow-card);
+    cursor: move;
   }
+  .mm--hand .mm-node { cursor: grab; }
+  .mm.is-node-dragging .mm-node { cursor: grabbing; }
+  /* 复位偏移用过渡，节点拖拽本身不加过渡以免跟手滞后 */
+  .mm-inner.is-tidying li { transition: transform 240ms ease; }
   .mm-node [data-icon] svg { width: 14px; height: 14px; }
   .mm ul ul > li > .mm-node::before {
     content: ''; position: absolute; left: -21px; top: 50%;
@@ -98,12 +153,114 @@
   }
   .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
   .mm-node--sel { border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--brand-50); }
-  .mm-type { font-size: 11px; color: var(--n-500); }
+  /* 节点徽标：对齐 minder badges.ts——[优先级][类型] 色块白字，堆叠于节点文本左侧 */
+  .mm-badge {
+    display: inline-flex; align-items: center; flex-shrink: 0;
+    height: 16px; padding: 0 5px; border-radius: 3px;
+    font-size: 10px; font-weight: 600; line-height: 1; color: #fff;
+  }
+  .mm-badge--case { background: var(--node-case); }
+  .mm-badge--precondition { background: var(--node-precondition); }
+  .mm-badge--step { background: var(--node-step); }
+  .mm-badge--expected { background: var(--node-expected); }
+  .mm-badge--p0 { background: var(--priority-p0); }
+  .mm-badge--p1 { background: var(--priority-p1); }
+  .mm-badge--p2 { background: var(--priority-p2); }
+  .mm-badge--p3 { background: var(--priority-p3); }
+  /* 文本编辑态：聚焦框只落在被编辑节点上，失焦/回车提交、Esc 取消 */
+  .mm-text[contenteditable] {
+    border-radius: var(--radius-sm);
+    box-shadow: 0 0 0 2px var(--brand-500);
+    cursor: text;
+  }
   [hidden] { display: none !important; }
+
+  /* 断线重连横幅：通栏置顶（CaseMindMap 的 mindmap-disconnect-banner） */
+  .ft-banner {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    background: var(--st-warning-light);
+    color: var(--st-warning);
+    font-size: var(--font-size-xs);
+    text-align: center;
+  }
+
+  /* 在线协作者头像：多人实时协同的在线态（Yjs onlineUsers） */
+  .mm-online {
+    position: absolute; top: 12px; right: 12px; z-index: 10;
+    display: flex; gap: 4px;
+  }
+  .mm-online .avatar { border: 2px solid var(--n-0); }
+
+  /* 画布导航器：缩放条 / 抓手 / 定位根节点 / 缩略图 / 全屏，悬浮于画布左下角（MinderNavigator） */
+  .mm-nav {
+    position: absolute; left: 12px; bottom: 12px; z-index: 15;
+    display: flex; align-items: flex-end; gap: 8px;
+  }
+  .mm-nav__bar {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 4px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-card);
+  }
+  .mm-nav__btn {
+    width: 26px; height: 26px;
+    border: none; border-radius: var(--radius-sm);
+    background: transparent; color: var(--n-600);
+    font: inherit; font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  .mm-nav__btn:hover { background: var(--n-100); color: var(--n-900); }
+  .mm-nav__btn.is-active { background: var(--brand-50); color: var(--brand-600); }
+  .mm-nav__btn.is-disabled { color: var(--n-300); cursor: default; }
+  .mm-nav__btn.is-disabled:hover { background: transparent; color: var(--n-300); }
+  /* 缩放条高度与下方百分比换算保持一致 */
+  .mm-nav__pan { position: relative; width: 26px; height: 66px; margin: 2px 0; }
+  .mm-nav__pan::before {
+    content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 2px; margin-left: -1px;
+    background: var(--n-300); border-radius: 1px;
+  }
+  .mm-nav__origin {
+    position: absolute; left: 50%; margin-left: -4px;
+    width: 8px; height: 2px;
+    background: var(--n-500); cursor: pointer;
+  }
+  .mm-nav__dot {
+    position: absolute; left: 50%; top: 0;
+    margin-left: -5px; margin-top: -4px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--brand-500);
+    transition: transform 200ms; pointer-events: none;
+  }
+  .mm-nav__sep { width: 18px; height: 1px; margin: 2px 0; background: var(--n-200); }
+  .mm-nav__thumb {
+    position: relative;
+    width: 160px; height: 120px;
+    background-color: var(--n-0);
+    background-image: radial-gradient(var(--n-200) 1px, transparent 1px);
+    background-size: 10px 10px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+    overflow: hidden; cursor: crosshair;
+  }
+  .mm-nav__node {
+    position: absolute; display: block;
+    height: 8px; border-radius: 2px;
+    background: var(--n-300);
+  }
+  .mm-nav__node--root { height: 10px; background: var(--brand-500); }
+  /* 红系仅承载失败/阻塞语义，可见视口框用品牌色表示「当前选中区域」 */
+  .mm-nav__view {
+    position: absolute;
+    border: 1.5px solid var(--brand-500);
+    background: var(--brand-50); opacity: .55;
+    border-radius: 3px;
+  }
 
   /* ===== 需求条目选取器：置于抽屉之上的模态，列表内部滚动，行内 [明细] 与勾选互不干扰（交互设计 52 §1.2） ===== */
   .req-mask { z-index: 240; padding-top: 8vh; }
-  .req-sel__search { margin-bottom: 10px; }
+  .req-sel__search { display: flex; gap: 8px; margin-bottom: 10px; }
+  .req-sel__search .input { flex: 1; min-width: 0; }
   .req-sel__list { min-height: 200px; max-height: 320px; overflow-y: auto; border: 1px solid var(--n-200); border-radius: var(--radius-md); }
   .req-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; }
   .req-item:hover { background: var(--n-50); }
@@ -111,6 +268,9 @@
   .req-item__date { flex-shrink: 0; font-size: var(--font-size-xs); color: var(--n-500); }
   .req-empty { padding: 34px 0; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
   .req-sel__count { flex: 1; text-align: right; font-size: var(--font-size-sm); color: var(--n-500); }
+  /* 选取器内分页贴列表下沿，复用列表分页的行式布局但不带卡片分隔线 */
+  .req-sel__pager { padding: 8px 0 0; border-top: none; }
+  .page-btn:disabled { color: var(--n-300); cursor: default; }
 
   /* ===== 条目明细气泡：贴锚点定位、仅渲染 Markdown 正文（52 §1.2 查看明细） ===== */
   .req-pop {
@@ -151,12 +311,14 @@
   .req-pop pre code { padding: 0; background: none; color: var(--n-700); }
   .req-pop blockquote { padding: 6px 12px; border-left: 3px solid var(--brand-500); background: var(--n-50); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 
-  /* ===== 画布右键菜单 ===== */
+  /* ===== 右键菜单与工具条/树节点下拉（复用同一壳体，--dd 为窄版） ===== */
   .ctx {
     position: fixed; z-index: 230; width: 228px; padding: 6px;
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
   }
+  .ctx--dd { width: auto; min-width: 152px; padding: 4px; }
+  .ctx--dd .ctx__item { white-space: nowrap; }
   .ctx__item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     width: 100%; padding: 7px 10px; border: none; border-radius: var(--radius-md);
@@ -191,6 +353,11 @@
   .ctx__chip--p2.is-selected { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
   .ctx__chip--p3.is-selected { background: var(--st-neutral-light); border-color: var(--n-300); color: var(--n-700); }
 
+  /* ===== 通用输入/确认弹窗（新建、重命名、删除、切换文档，对应 ElMessageBox） ===== */
+  .msgbox { width: 420px; }
+  .msgbox__msg { margin: 0 0 12px; font-size: var(--font-size-sm); color: var(--n-600); line-height: 1.7; }
+  .msgbox__field { margin-top: 4px; }
+
   .mm:focus-visible, .mm-tool:focus-visible, .tree__item:focus-visible {
     outline: 2px solid var(--brand-500); outline-offset: 2px;
   }
@@ -213,81 +380,130 @@
         <!-- 项目模块树（目录 + 用例文档，点文档打开编辑） -->
         <div class="card ft-tree">
           <div class="mt-toolbar">
-            <div class="input-wrap"><span data-icon="search" aria-hidden="true"></span><input class="input" placeholder="筛选目录 / 文档" aria-label="筛选目录 / 文档"></div>
-            <button class="btn btn--primary btn--sm" type="button"><span data-icon="plus" aria-hidden="true"></span>新建</button>
+            <div class="input-wrap"><span data-icon="search" aria-hidden="true"></span><input class="input" id="treeFilter" placeholder="搜索目录 / 文档" aria-label="搜索目录 / 文档"></div>
+            <button class="btn btn--primary btn--sm" type="button" data-menu="newMenu" aria-haspopup="menu" aria-expanded="false"><span data-icon="plus" aria-hidden="true"></span>新建</button>
           </div>
           <div class="card__body ft-tree__body">
-            <div class="tree" role="tree" aria-label="用例模块树">
-              <div class="tree__item" role="treeitem" aria-expanded="true" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">下单流程</span></div>
-              <div class="tree__item tree__item--active" role="treeitem" aria-selected="true" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">优惠券叠加规则</span></div>
-              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">库存拦截用例</span></div>
-              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">地址簿用例</span></div>
-              <div class="tree__item" role="treeitem" aria-expanded="true" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">支付中心</span></div>
-              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">支付回调幂等</span></div>
-              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">退款链路</span></div>
-              <div class="tree__item" role="treeitem" aria-expanded="true" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">履约配送</span></div>
-              <div class="tree__item" role="treeitem" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">发货时效</span></div>
-              <div class="tree__item" role="treeitem" style="--depth:0"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="tag" aria-hidden="true"></span><span class="tree__name">冒烟用例集</span></div>
+            <div class="tree" role="tree" aria-label="用例模块树" id="caseTree">
+              <div class="tree__item" role="treeitem" aria-expanded="true" data-type="directory" data-path="d1" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">下单流程</span><span class="tree__actions"><button class="tree__action" type="button" data-menu="dirNewMenu" title="新建子目录 / 文档" aria-label="新建子目录 / 文档"><span data-icon="plus" aria-hidden="true"></span></button><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item tree__item--active" role="treeitem" aria-selected="true" data-type="document" data-path="d1/x1" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">优惠券叠加规则</span><span class="tree__actions"><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" data-type="document" data-path="d1/x2" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">库存拦截用例</span><span class="tree__actions"><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" data-type="document" data-path="d1/x3" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">地址簿用例</span><span class="tree__actions"><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" aria-expanded="true" data-type="directory" data-path="d2" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">支付中心</span><span class="tree__actions"><button class="tree__action" type="button" data-menu="dirNewMenu" title="新建子目录 / 文档" aria-label="新建子目录 / 文档"><span data-icon="plus" aria-hidden="true"></span></button><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" data-type="document" data-path="d2/x1" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">支付回调幂等</span><span class="tree__actions"><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" data-type="document" data-path="d2/x2" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">退款链路</span><span class="tree__actions"><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" aria-expanded="true" data-type="directory" data-path="d3" style="--depth:0"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">履约配送</span><span class="tree__actions"><button class="tree__action" type="button" data-menu="dirNewMenu" title="新建子目录 / 文档" aria-label="新建子目录 / 文档"><span data-icon="plus" aria-hidden="true"></span></button><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" aria-expanded="true" data-type="directory" data-path="d3/s1" style="--depth:1"><span class="tree__twisty" data-icon="chevron-down" aria-hidden="true"></span><span data-icon="folder" aria-hidden="true"></span><span class="tree__name">售后寄回</span><span class="tree__actions"><button class="tree__action" type="button" data-menu="dirNewMenu" title="新建子目录 / 文档" aria-label="新建子目录 / 文档"><span data-icon="plus" aria-hidden="true"></span></button><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" data-type="document" data-path="d3/s1/x1" style="--depth:2"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">上门取件时效</span><span class="tree__actions"><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+              <div class="tree__item" role="treeitem" data-type="document" data-path="d3/x1" style="--depth:1"><span class="tree__twisty" aria-hidden="true"></span><span data-icon="document" aria-hidden="true"></span><span class="tree__name">发货时效</span><span class="tree__actions"><button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button><button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button></span></div>
+            </div>
+            <!-- 树为空时的空态（ProjectModuleTree el-empty 文案） -->
+            <div class="tree-empty" id="treeEmpty" hidden>
+              <div class="state-block__icon" data-icon="folder" aria-hidden="true"></div>
+              <div class="state-block__title">暂无模块，点击[新建]创建</div>
             </div>
           </div>
         </div>
 
-        <!-- 文档编辑卡：顶部工具条（常驻） + 用例脑图 -->
-        <div class="card ft-doc">
-          <div class="mm-bar" role="toolbar" aria-label="脑图工具条">
-            <button class="mm-tool" type="button" title="撤销 (Ctrl+Z)" aria-label="撤销"><span class="mm-tool--flip" data-icon="refresh" aria-hidden="true"></span></button>
-            <button class="mm-tool" type="button" title="重做 (Ctrl+Y)" aria-label="重做"><span data-icon="refresh" aria-hidden="true"></span></button>
+        <!-- 文档编辑卡：顶部工具条（常驻） + 用例脑图；未选中文档时整体替换为空态 -->
+        <div class="card ft-doc" id="ftDoc">
+          <!-- 断线重连态（Yjs 未连接时置顶通栏）：静态页无 WS，仅在载入时短暂呈现该状态 -->
+          <div class="ft-banner" id="ftBanner" hidden>连接已断开，正在重连...</div>
+          <div class="mm-bar" id="mmBar" role="toolbar" aria-label="脑图工具条">
+            <button class="mm-tool" type="button" data-op="undo" title="撤销 (Ctrl+Z)" aria-label="撤销" disabled><span class="mm-tool--flip" data-icon="refresh" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" data-op="redo" title="重做 (Ctrl+Y)" aria-label="重做" disabled><span data-icon="refresh" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool" type="button" title="添加子节点 (Tab)"><span data-icon="plus" aria-hidden="true"></span>下级</button>
-            <button class="mm-tool" type="button" title="添加兄弟节点 (Enter)"><span data-icon="plus" aria-hidden="true"></span>同级</button>
-            <button class="mm-tool" type="button" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit" aria-hidden="true"></span></button>
-            <button class="mm-tool mm-tool--danger" type="button" title="删除 (Delete)" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" data-op="add-child" title="添加子节点 (Tab)"><span data-icon="plus" aria-hidden="true"></span>下级</button>
+            <button class="mm-tool" type="button" data-op="add-sibling" title="添加兄弟节点 (Enter)"><span data-icon="plus" aria-hidden="true"></span>同级</button>
+            <button class="mm-tool" type="button" data-op="edit" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit" aria-hidden="true"></span></button>
+            <button class="mm-tool mm-tool--danger" type="button" data-op="delete-node" title="删除 (Delete)" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool" type="button" title="排版模板：右侧分布" aria-label="排版模板：右侧分布"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
-            <button class="mm-tool" type="button" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" id="tplBtn" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" data-op="tidy" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool type-btn is-selected" type="button" title="标记为用例" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
-            <button class="mm-tool type-btn" type="button" title="标记为前置" aria-pressed="false"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
-            <button class="mm-tool type-btn" type="button" title="标记为步骤" aria-pressed="false"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
-            <button class="mm-tool type-btn" type="button" title="标记为预期" aria-pressed="false"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
-            <button class="mm-tool" type="button" title="取消标记，恢复普通节点" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
+            <button class="mm-tool type-btn is-selected" type="button" data-type="case" title="标记为用例" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
+            <button class="mm-tool type-btn" type="button" data-type="precondition" title="标记为前置" aria-pressed="false"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
+            <button class="mm-tool type-btn" type="button" data-type="step" title="标记为步骤" aria-pressed="false"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
+            <button class="mm-tool type-btn" type="button" data-type="expected" title="标记为预期" aria-pressed="false"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
+            <button class="mm-tool" type="button" data-mark="clear" title="取消标记，恢复普通节点" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool priority-btn priority-btn--p0 is-selected" type="button" title="标记优先级 P0" aria-pressed="true">P0</button>
-            <button class="mm-tool priority-btn priority-btn--p1" type="button" title="标记优先级 P1" aria-pressed="false">P1</button>
-            <button class="mm-tool priority-btn priority-btn--p2" type="button" title="标记优先级 P2" aria-pressed="false">P2</button>
-            <button class="mm-tool priority-btn priority-btn--p3" type="button" title="标记优先级 P3" aria-pressed="false">P3</button>
+            <button class="mm-tool priority-btn priority-btn--p0 is-selected" type="button" data-priority="P0" title="标记优先级 P0" aria-pressed="true">P0</button>
+            <button class="mm-tool priority-btn priority-btn--p1" type="button" data-priority="P1" title="标记优先级 P1" aria-pressed="false">P1</button>
+            <button class="mm-tool priority-btn priority-btn--p2" type="button" data-priority="P2" title="标记优先级 P2" aria-pressed="false">P2</button>
+            <button class="mm-tool priority-btn priority-btn--p3" type="button" data-priority="P3" title="标记优先级 P3" aria-pressed="false">P3</button>
             <div class="mm-group mm-group--end">
               <button class="mm-tool" type="button" id="reqLinkBtn" title="关联需求" aria-label="关联需求"><span data-icon="link" aria-hidden="true"></span></button>
             </div>
           </div>
 
-          <div class="mm" tabindex="0" aria-label="用例脑图画布">
-            <ul role="tree" aria-label="用例节点">
-              <li role="treeitem" aria-expanded="true"><span class="mm-node mm-node--root"><span data-icon="document" aria-hidden="true"></span>优惠券叠加规则</span>
-                <ul role="group">
-                  <li role="treeitem" aria-selected="true" aria-expanded="true"><span class="mm-node mm-node--sel"><i class="tdot tdot--case" aria-hidden="true"></i>下单页优惠券叠加校验<span class="prio prio--p0">P0</span></span>
+          <div class="mm-stage" id="mmStage">
+            <div class="mm" id="mmCanvas" tabindex="0" aria-label="用例脑图画布">
+              <div class="mm-inner" id="mmInner">
+                <ul role="tree" aria-label="用例节点">
+                  <li role="treeitem" aria-expanded="true"><span class="mm-node mm-node--root"><span data-icon="document" aria-hidden="true"></span><span class="mm-text" id="mmRootName">优惠券叠加规则</span></span>
                     <ul role="group">
-                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--precondition" aria-hidden="true"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
-                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--step" aria-hidden="true"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
-                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--expected" aria-hidden="true"></i><span class="mm-type">预期</span>优惠金额为各券之和</span></li>
+                      <li role="treeitem" aria-expanded="true" aria-selected="true" data-type="case" data-prio="P0"><span class="mm-node mm-node--sel"><span class="mm-text">下单页优惠券叠加校验</span></span>
+                        <ul role="group">
+                          <li role="treeitem" data-type="precondition"><span class="mm-node"><span class="mm-text">已登录并持有可用优惠券</span></span></li>
+                          <li role="treeitem" data-type="step"><span class="mm-node"><span class="mm-text">提交含两张券的订单</span></span></li>
+                          <li role="treeitem" data-type="expected"><span class="mm-node"><span class="mm-text">优惠金额为各券之和</span></span></li>
+                        </ul>
+                      </li>
+                      <li role="treeitem" aria-expanded="true" data-type="case" data-prio="P1"><span class="mm-node"><span class="mm-text">库存不足时下单拦截</span></span>
+                        <ul role="group">
+                          <li role="treeitem" data-type="precondition"><span class="mm-node"><span class="mm-text">目标商品库存为 0</span></span></li>
+                          <li role="treeitem" data-type="expected"><span class="mm-node"><span class="mm-text">提示库存不足并阻止下单</span></span></li>
+                        </ul>
+                      </li>
+                      <li role="treeitem" aria-expanded="true" data-type="case" data-prio="P0"><span class="mm-node"><span class="mm-text">多优惠券互斥规则</span></span>
+                        <ul role="group">
+                          <li role="treeitem" data-type="step"><span class="mm-node"><span class="mm-text">勾选互斥的两张券</span></span></li>
+                          <li role="treeitem" data-type="expected"><span class="mm-node"><span class="mm-text">提示互斥，仅可使用一张</span></span></li>
+                        </ul>
+                      </li>
+                      <li role="treeitem" data-type="case" data-prio="P2"><span class="mm-node"><span class="mm-text">历史订单导出上限</span></span></li>
                     </ul>
                   </li>
-                  <li role="treeitem" aria-expanded="true"><span class="mm-node"><i class="tdot tdot--case" aria-hidden="true"></i>库存不足时下单拦截<span class="prio prio--p1">P1</span></span>
-                    <ul role="group">
-                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--precondition" aria-hidden="true"></i><span class="mm-type">前置</span>目标商品库存为 0</span></li>
-                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--expected" aria-hidden="true"></i><span class="mm-type">预期</span>提示库存不足并阻止下单</span></li>
-                    </ul>
-                  </li>
-                  <li role="treeitem" aria-expanded="true"><span class="mm-node"><i class="tdot tdot--case" aria-hidden="true"></i>多优惠券互斥规则<span class="prio prio--p0">P0</span></span>
-                    <ul role="group">
-                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--step" aria-hidden="true"></i><span class="mm-type">步骤</span>勾选互斥的两张券</span></li>
-                      <li role="treeitem"><span class="mm-node"><i class="tdot tdot--expected" aria-hidden="true"></i><span class="mm-type">预期</span>提示互斥，仅可使用一张</span></li>
-                    </ul>
-                  </li>
-                  <li role="treeitem"><span class="mm-node"><i class="tdot tdot--case" aria-hidden="true"></i>历史订单导出上限<span class="prio prio--p2">P2</span></span></li>
                 </ul>
-              </li>
-            </ul>
+              </div>
+            </div>
+
+            <div class="mm-online" aria-label="在线协作成员">
+              <span class="avatar avatar--sm avatar--brand" title="张敏">张</span>
+              <span class="avatar avatar--sm" title="李航">李</span>
+            </div>
+
+            <div class="mm-nav" role="group" aria-label="画布导航">
+              <div class="mm-nav__bar">
+                <button class="mm-nav__btn" type="button" id="navZoomIn" title="放大">＋</button>
+                <div class="mm-nav__pan">
+                  <div class="mm-nav__origin" id="navZoomReset" title="回到 100%"></div>
+                  <div class="mm-nav__dot" id="navZoomDot"></div>
+                </div>
+                <button class="mm-nav__btn" type="button" id="navZoomOut" title="缩小">－</button>
+                <span class="mm-nav__sep" aria-hidden="true"></span>
+                <button class="mm-nav__btn" type="button" id="navHand" title="抓手（拖拽画布）" aria-pressed="false">✋</button>
+                <button class="mm-nav__btn" type="button" id="navRoot" title="定位根节点">◎</button>
+                <button class="mm-nav__btn is-active" type="button" id="navThumb" title="缩略图导航" aria-pressed="true">🗺</button>
+                <button class="mm-nav__btn" type="button" id="navFull" title="全屏">⛶</button>
+              </div>
+              <div class="mm-nav__thumb" id="navThumbBox" aria-label="画布缩略图">
+                <i class="mm-nav__node mm-nav__node--root" style="left:10px;top:56px;width:34px;"></i>
+                <i class="mm-nav__node" style="left:56px;top:30px;width:30px;"></i>
+                <i class="mm-nav__node" style="left:56px;top:56px;width:30px;"></i>
+                <i class="mm-nav__node" style="left:56px;top:82px;width:30px;"></i>
+                <i class="mm-nav__node" style="left:98px;top:56px;width:26px;"></i>
+                <span class="mm-nav__view" style="left:4px;top:14px;width:78px;height:92px;"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 未选中文档：编辑区空态（TestCasePage placeholder） -->
+          <div class="ft-empty" id="ftEmpty" hidden>
+            <div class="state-block">
+              <div class="state-block__icon" data-icon="document" aria-hidden="true"></div>
+              <div class="state-block__title">请在左侧模块树中选择一个文档</div>
+            </div>
           </div>
         </div>
 
@@ -295,6 +511,47 @@
     </div>
   </div>
 </main>
+
+<!-- 排版模板下拉：6 套模板，当前项禁用（useMindmapLayout） -->
+<div class="ctx ctx--dd" id="tplMenu" role="menu" aria-label="排版模板" hidden>
+  <button class="ctx__item" type="button" role="menuitem" data-tpl disabled>思维导图</button>
+  <button class="ctx__item" type="button" role="menuitem" data-tpl>右侧分布</button>
+  <button class="ctx__item" type="button" role="menuitem" data-tpl>组织结构</button>
+  <button class="ctx__item" type="button" role="menuitem" data-tpl>目录</button>
+  <button class="ctx__item" type="button" role="menuitem" data-tpl>鱼骨图</button>
+  <button class="ctx__item" type="button" role="menuitem" data-tpl>天盘</button>
+</div>
+
+<!-- 新建下拉：树顶 [新建]（根级）与节点 [+]（子级）共用 -->
+<div class="ctx ctx--dd" id="newMenu" role="menu" aria-label="新建" hidden>
+  <button class="ctx__item" type="button" role="menuitem" data-new="directory">新建目录</button>
+  <button class="ctx__item" type="button" role="menuitem" data-new="document">新建文档</button>
+</div>
+<div class="ctx ctx--dd" id="dirNewMenu" role="menu" aria-label="在目录下新建" hidden>
+  <button class="ctx__item" type="button" role="menuitem" data-new="directory">新建子目录</button>
+  <button class="ctx__item" type="button" role="menuitem" data-new="document">新建文档</button>
+</div>
+
+<!-- 输入 / 确认弹窗：新建、重命名、删除、切换文档（对应 ElMessageBox 的 prompt / confirm） -->
+<div class="dialog-mask" id="dlgMask" hidden>
+  <div class="dialog msgbox" role="dialog" aria-modal="true" aria-labelledby="dlgTitle" aria-describedby="dlgMsg">
+    <div class="dialog__header">
+      <span class="dialog__title" id="dlgTitle"></span>
+      <button class="dialog__close" type="button" id="dlgClose" aria-label="关闭"><span data-icon="x" aria-hidden="true"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="msgbox__msg" id="dlgMsg"></p>
+      <div class="msgbox__field" id="dlgField" hidden>
+        <input class="input" id="dlgInput" aria-labelledby="dlgTitle">
+        <div class="field__error" id="dlgErr" hidden>名称不能为空</div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" id="dlgCancel">取消</button>
+      <button class="btn btn--primary" type="button" id="dlgOk">确定</button>
+    </div>
+  </div>
+</div>
 
 <!-- 需求条目选取器：工具条 [关联需求] 入口使用（交互设计 52 §1.2） -->
 <div class="dialog-mask req-mask" id="reqMask" hidden>
@@ -305,9 +562,16 @@
     </div>
     <div class="dialog__body">
       <div class="req-sel__search">
-        <input class="input" id="reqFilter" placeholder="关键字过滤" aria-label="关键字过滤">
+        <input class="input" id="reqFilter" placeholder="按标题过滤" aria-label="按标题过滤">
+        <button class="btn btn--default" type="button" id="reqSearch">过滤</button>
       </div>
       <div class="req-sel__list" id="reqList"></div>
+      <div class="pagination req-sel__pager">
+        <span class="pagination__total" id="reqTotal">共 0 条</span>
+        <button class="page-btn" type="button" id="reqPrev" aria-label="上一页">‹</button>
+        <span id="reqPages"></span>
+        <button class="page-btn" type="button" id="reqNext" aria-label="下一页">›</button>
+      </div>
     </div>
     <div class="dialog__footer">
       <span class="req-sel__count" id="reqCount">已选 0 条</span>
@@ -325,30 +589,30 @@
 
 <!-- 画布右键菜单：结构对照真实 MinderContextMenu -->
 <div class="ctx" id="ctxMenu" role="menu" hidden>
-  <button class="ctx__item" type="button" data-cmd="新建下级节点"><span>新建下级节点</span><span class="ctx__kbd">Tab</span></button>
-  <button class="ctx__item" type="button" data-cmd="新建同级节点"><span>新建同级节点</span><span class="ctx__kbd">Enter</span></button>
+  <button class="ctx__item" type="button" data-op="add-child"><span>新建下级节点</span><span class="ctx__kbd">Tab</span></button>
+  <button class="ctx__item" type="button" data-op="add-sibling"><span>新建同级节点</span><span class="ctx__kbd">Enter</span></button>
   <div class="ctx__sep"></div>
-  <button class="ctx__item" type="button" data-cmd="复制"><span>复制</span><span class="ctx__kbd">Ctrl+C</span></button>
-  <button class="ctx__item" type="button" data-cmd="剪切"><span>剪切</span><span class="ctx__kbd">Ctrl+X</span></button>
-  <button class="ctx__item" type="button" disabled><span>粘贴</span><span class="ctx__kbd">Ctrl+V</span></button>
+  <button class="ctx__item" type="button" data-op="copy"><span>复制</span><span class="ctx__kbd">Ctrl+C</span></button>
+  <button class="ctx__item" type="button" data-op="cut"><span>剪切</span><span class="ctx__kbd">Ctrl+X</span></button>
+  <button class="ctx__item" type="button" data-op="paste" disabled><span>粘贴</span><span class="ctx__kbd">Ctrl+V</span></button>
   <div class="ctx__sep"></div>
   <div class="ctx__row" data-chiprow>
     <span class="ctx__row-label">类型</span>
-    <button class="ctx__chip is-selected" type="button"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
-    <button class="ctx__chip" type="button"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
-    <button class="ctx__chip" type="button"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
-    <button class="ctx__chip" type="button"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
-    <button class="ctx__chip" type="button" data-cmd="清除标记" title="清除标记" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
+    <button class="ctx__chip is-selected" type="button" data-type="case"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
+    <button class="ctx__chip" type="button" data-type="precondition"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
+    <button class="ctx__chip" type="button" data-type="step"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
+    <button class="ctx__chip" type="button" data-type="expected"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
+    <button class="ctx__chip" type="button" data-mark="clear" title="清除标记" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
   </div>
   <div class="ctx__row" data-chiprow>
     <span class="ctx__row-label">等级</span>
-    <button class="ctx__chip ctx__chip--p0 is-selected" type="button">P0</button>
-    <button class="ctx__chip ctx__chip--p1" type="button">P1</button>
-    <button class="ctx__chip ctx__chip--p2" type="button">P2</button>
-    <button class="ctx__chip ctx__chip--p3" type="button">P3</button>
+    <button class="ctx__chip ctx__chip--p0 is-selected" type="button" data-priority="P0">P0</button>
+    <button class="ctx__chip ctx__chip--p1" type="button" data-priority="P1">P1</button>
+    <button class="ctx__chip ctx__chip--p2" type="button" data-priority="P2">P2</button>
+    <button class="ctx__chip ctx__chip--p3" type="button" data-priority="P3">P3</button>
   </div>
   <div class="ctx__sep"></div>
-  <button class="ctx__item ctx__item--danger" type="button" data-cmd="删除节点"><span>删除节点</span><span class="ctx__kbd">Delete</span></button>
+  <button class="ctx__item ctx__item--danger" type="button" data-op="delete-node"><span>删除节点</span><span class="ctx__kbd">Delete</span></button>
 </div>
 
 <script src="../assets/icons.js"></script>
@@ -362,28 +626,48 @@
     // 需求池示例数据：content 为 Markdown 正文，明细气泡按 52 §1.2 仅渲染正文（\n 写法避免反引号转义）
     var REQ_POOL = [
       {
-        id: 'r1', title: '满减券叠加规则', date: '07-30',
+        id: 'r1', title: '满减券叠加规则', date: '2026-09-28',
         content: '## 满减券叠加规则\n\n同一订单最多叠加 **3 张**优惠券，且必须满足：\n\n1. 店铺券与平台券各最多 1 张；\n2. 跨店券不可与店铺券同时使用；\n3. 优惠金额按面额从大到小顺序分摊。\n\n> 临界规则：叠加优惠金额不得大于商品小计，超出部分自动失效。'
       },
       {
-        id: 'r2', title: '新客立减活动', date: '07-28',
+        id: 'r2', title: '新客立减活动', date: '2026-09-25',
         content: '## 新客立减活动\n\n- 新注册用户首单立减 `5 元`；\n- 与满减券可叠加，但不与会员折扣叠加；\n- 活动时间：每月 1 日 00:00 至月末 23:59。\n\n**风控限制**：同一设备或 IP 仅可享受一次。'
       },
       {
-        id: 'r3', title: '优惠券过期与核销', date: '07-25',
+        id: 'r3', title: '优惠券过期与核销', date: '2026-09-18',
         content: '## 过期与核销\n\n过期券在提交订单时拦截并提示「该券已过期」。\n\n核销接口需保证幂等，同一券码重复提交时返回首次结果，不重复扣减：\n\n```\nPOST /coupon/redeem\n{ "status": "ok", "dedup": true }\n```\n\n- 券码核销后立即置为已使用；\n- 并发核销以数据库乐观锁为准。'
       },
       {
-        id: 'r4', title: '退款券返还规则', date: '07-22',
+        id: 'r4', title: '退款券返还规则', date: '2026-09-10',
         content: '## 退款与券返还\n\n- 整单退款：券在有效期内原样返还；\n- 部分退款：不返还券，仅退差价；\n- 已过期券不返还。\n\n返还张数以订单实际核销记录为准，*不支持*手工调整。'
       },
       {
-        id: 'r5', title: '会员等级折扣', date: '07-18',
+        id: 'r5', title: '会员等级折扣', date: '2026-08-29',
         content: '## 会员等级折扣\n\n- 黄金会员：95 折\n- 铂金会员：9 折\n- 钻石会员：85 折\n\n等级折扣与优惠券可叠加：先按会员等级计算折后价，再扣减优惠券。'
       },
       {
-        id: 'r6', title: '积分抵扣规则', date: '07-15',
+        id: 'r6', title: '积分抵扣规则', date: '2026-08-20',
         content: '## 积分抵扣\n\n100 积分抵扣 1 元，单笔订单最多抵扣应付金额的 **20%**。\n\n- 积分与优惠券可以叠加使用；\n- 订单退款时积分原路返还。\n\n> 示例：订单应付 200 元时，最多使用 40 元积分抵扣。'
+      },
+      {
+        id: 'r7', title: '生日礼包券发放', date: '2026-08-12',
+        content: '## 生日礼包券\n\n- 生日当月 1 日 00:00 自动发放，有效期 30 天；\n- 每账号每年仅发放 1 次，不与新客立减叠加；\n- 退回账号后券不回收，已核销部分不补发。\n\n**幂等口径**：发放任务按 `userId + 生日年份` 去重。'
+      },
+      {
+        id: 'r8', title: '券库存与发放限流', date: '2026-07-30',
+        content: '## 库存与限流\n\n单批次券库存扣减需原子化，超卖即回滚：\n\n```\nPOST /coupon/issue\n{ "code": "COUPON-2026", "remain": 0 }\n```\n\n- 库存为 0 时返回「已抢光」而非报错；\n- 同一用户单批次限领 1 张；\n- 领取接口单机 QPS 上限 500，超出排队。'
+      },
+      {
+        id: 'r9', title: '跨店满减分摊计算', date: '2026-07-18',
+        content: '## 跨店满减分摊\n\n跨店券按商品小计占比分摊到店铺：\n\n1. 计算参与分摊的商品小计之和；\n2. 按占比分配优惠额，尾差计入小计最大的店铺；\n3. 退款时按各店铺实付金额回退。\n\n> 分摊精度：金额保留两位小数，尾差不超过 0.05 元。'
+      },
+      {
+        id: 'r10', title: '券核销风控拦截', date: '2026-07-05',
+        content: '## 核销风控\n\n命中以下任一条件时拦截核销并转人工复核：\n\n- 同一券码 1 分钟内请求超过 5 次；\n- 下单 IP 与收货 IP 跨境且不一致；\n- 账号近 7 天存在恶意刷单标记。\n\n拦截结果写入风控日志，保留 180 天。'
+      },
+      {
+        id: 'r11', title: '优惠券消息触达时机', date: '2026-06-26',
+        content: '## 消息触达\n\n- 领取成功：站内信即时推送，短信仅大促批次推送；\n- 到期提醒：到期前 3 天 10:00 触发一次；\n- 退款返还：不重复推送。\n\n用户可在「消息设置」中分别关闭站内信与短信。'
       }
     ]
 
@@ -392,17 +676,939 @@
     var S = {
       // 文档已关联的需求条目（[关联需求] 入口维护，选取器按此初始化勾选）
       docReqs: ['r1', 'r2'],
-      reqSel: []
+      reqSel: [],
+      reqPage: 1,
+      reqPageSize: 10,
+      // 当前打开的文档（data-path 为文档标识；空表示编辑区处于空态）
+      docPath: 'd1/x1',
+      docName: '优惠券叠加规则',
+      // 当前浮层菜单（右键菜单与工具条/树节点下拉共用一个占位）
+      menu: null,
+      menuAnchor: null,
+      // 选中节点的标记状态：类型 normal 即未标记，优先级为空即未标记
+      nodeType: 'case',
+      nodePriority: 'P0',
+      // 应用内剪贴板：粘贴入口按此置灰（对齐 clipboard.ts 的 hasClipboard 口径）
+      clipboard: null,
+      // 正在编辑文本的节点（input 态），Esc 取消 / 回车与失焦提交
+      editing: null
     }
 
-    /* ---------------- 画布右键菜单 ---------------- */
-    function showCtx(x, y) {
-      ctx.hidden = false
-      var left = Math.max(8, Math.min(x, window.innerWidth - ctx.offsetWidth - 8))
-      var top = Math.max(8, Math.min(y, window.innerHeight - ctx.offsetHeight - 8))
-      ctx.style.left = left + 'px'
-      ctx.style.top = top + 'px'
+    /* ---------------- 浮层菜单（右键 / 下拉） ---------------- */
+    function placeMenu(menu, x, y) {
+      menu.hidden = false
+      var left = Math.max(8, Math.min(x, window.innerWidth - menu.offsetWidth - 8))
+      var top = Math.max(8, Math.min(y, window.innerHeight - menu.offsetHeight - 8))
+      menu.style.left = left + 'px'
+      menu.style.top = top + 'px'
     }
+
+    function closeMenu() {
+      if (!S.menu) return
+      S.menu.hidden = true
+      S.menu = null
+      S.menuAnchor = null
+    }
+
+    // 下拉：同一触发器再次点击收起，点击另一个触发器切换（anchor 供菜单项回溯所属节点）
+    function toggleMenu(menu, anchor) {
+      if (S.menu === menu) { closeMenu(); return }
+      closeMenu()
+      var r = anchor.getBoundingClientRect()
+      S.menu = menu
+      S.menuAnchor = anchor
+      placeMenu(menu, r.left, r.bottom + 4)
+      if (anchor.hasAttribute('aria-expanded')) anchor.setAttribute('aria-expanded', 'true')
+    }
+
+    function showCtx(x, y) {
+      closeMenu()
+      S.menu = ctx
+      placeMenu(ctx, x, y)
+    }
+
+    document.addEventListener('click', function (e) {
+      var trigger = e.target.closest ? e.target.closest('[data-menu]') : null
+      if (trigger) { toggleMenu($(trigger.getAttribute('data-menu')), trigger); return }
+      if (S.menu && !S.menu.contains(e.target)) closeMenu()
+    })
+    // 菜单为视口固定定位，画布滚动后锚点失效，先收起
+    document.addEventListener('scroll', function () { closeMenu() }, true)
+
+    /* ---------------- 输入 / 确认弹窗 ---------------- */
+    var dlgMask = $('dlgMask')
+    var dlg = { onOk: null, needInput: false }
+
+    function openDialog(opts) {
+      closeMenu()
+      $('dlgTitle').textContent = opts.title
+      $('dlgMsg').textContent = opts.message
+      $('dlgField').hidden = !opts.input
+      $('dlgErr').hidden = true
+      dlg.needInput = !!opts.input
+      dlg.onOk = opts.onOk
+      if (opts.input) {
+        $('dlgInput').value = opts.inputValue || ''
+        $('dlgInput').classList.remove('input--error')
+      }
+      dlgMask.hidden = false
+      if (opts.input) { $('dlgInput').focus(); $('dlgInput').select() }
+      else { $('dlgOk').focus() }
+    }
+
+    function closeDialog() {
+      dlgMask.hidden = true
+      dlg.onOk = null
+    }
+
+    function confirmDialog() {
+      var value = null
+      if (dlg.needInput) {
+        value = $('dlgInput').value.trim()
+        if (!value) {
+          $('dlgErr').hidden = false
+          $('dlgInput').classList.add('input--error')
+          $('dlgInput').focus()
+          return
+        }
+      }
+      var onOk = dlg.onOk
+      closeDialog()
+      if (onOk) onOk(value)
+    }
+
+    $('dlgOk').addEventListener('click', confirmDialog)
+    $('dlgCancel').addEventListener('click', closeDialog)
+    $('dlgClose').addEventListener('click', closeDialog)
+    $('dlgInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); confirmDialog() }
+      else { $('dlgErr').hidden = true; $('dlgInput').classList.remove('input--error') }
+    })
+    dlgMask.addEventListener('click', function (e) { if (e.target === dlgMask) closeDialog() })
+
+    /* ---------------- 模块树：筛选 / 展开 / 选中 / 节点操作 ---------------- */
+    var treeEl = $('caseTree')
+
+    function readItems() {
+      return Array.prototype.map.call(treeEl.querySelectorAll('.tree__item'), function (el) {
+        var name = el.querySelector('.tree__name')
+        return {
+          el: el,
+          name: name ? name.textContent.trim() : '',
+          depth: parseInt(el.style.getPropertyValue('--depth') || '0', 10),
+          isDir: el.getAttribute('data-type') === 'directory',
+          path: el.getAttribute('data-path') || '',
+          collapsed: el.getAttribute('data-collapsed') === 'true'
+        }
+      })
+    }
+
+    // 扁平 DOM 序即层级：第 i 项的子树 = 其后深度更大的连续项
+    function blockEnd(items, i) {
+      var depth = items[i].depth
+      var j = i + 1
+      while (j < items.length && items[j].depth > depth) j++
+      return j
+    }
+
+    function indexOfItem(items, el) {
+      for (var i = 0; i < items.length; i++) if (items[i].el === el) return i
+      return -1
+    }
+
+    // 插入/删除/拖动后按 DOM 序重建 data-path：筛选与插入定位都依赖前缀关系与真实层级一致
+    function reindexPaths() {
+      var stack = []
+      readItems().forEach(function (it, idx) {
+        var base = it.depth > 0 ? stack[it.depth - 1] || '' : ''
+        var path = base ? base + '/' + idx : String(idx)
+        it.el.setAttribute('data-path', path)
+        stack.length = it.depth
+        stack[it.depth] = path
+      })
+      var active = treeEl.querySelector('.tree__item--active')
+      S.docPath = active ? active.getAttribute('data-path') : ''
+    }
+
+    // 关键字命中即显示该节点；目录命中含「后代命中」，祖先链随之可见（对齐 el-tree 过滤后的展开口径）
+    function renderTree() {
+      var kw = $('treeFilter').value.trim().toLowerCase()
+      var items = readItems()
+      var visible = items.map(function () { return true })
+
+      if (kw) {
+        var own = items.map(function (it) { return it.name.toLowerCase().indexOf(kw) >= 0 })
+        var matched = own.slice()
+        for (var i = items.length - 1; i >= 0; i--) {
+          if (!items[i].isDir || matched[i]) continue
+          for (var j = i + 1; j < items.length; j++) {
+            if (matched[j] && items[j].path.indexOf(items[i].path + '/') === 0) { matched[i] = true; break }
+          }
+        }
+        visible = matched
+      } else {
+        // 收起目录只隐藏其后代：按深度维护收起栈，兄弟分支互不影响
+        var hideStack = []
+        items.forEach(function (it, idx) {
+          while (hideStack.length && it.depth <= hideStack[hideStack.length - 1]) hideStack.pop()
+          if (hideStack.length) { visible[idx] = false; return }
+          if (it.isDir && it.collapsed) hideStack.push(it.depth)
+        })
+      }
+
+      items.forEach(function (it, idx) {
+        it.el.hidden = !visible[idx]
+        if (!it.isDir) return
+        var expanded = kw ? true : !it.collapsed
+        it.el.setAttribute('aria-expanded', String(expanded))
+        var twisty = it.el.querySelector('.tree__twisty')
+        // 无子节点的目录不渲染展开箭头（el-tree 同口径），空树切换为空态
+        if (twisty) twisty.hidden = blockEnd(items, idx) <= idx + 1
+        if (twisty && twisty.childElementCount && window.RTIcons) {
+          twisty.innerHTML = window.RTIcons.svg(expanded ? 'chevron-down' : 'chevron-right')
+        }
+      })
+      $('treeEmpty').hidden = items.length > 0
+    }
+
+    $('treeFilter').addEventListener('input', renderTree)
+
+    function setExpanded(item, expanded) {
+      item.setAttribute('data-collapsed', String(!expanded))
+      renderTree()
+    }
+
+    function showEditor(hasDoc) {
+      $('mmBar').hidden = !hasDoc
+      $('mmStage').hidden = !hasDoc
+      $('ftEmpty').hidden = hasDoc
+    }
+
+    function selectDocument(item) {
+      var path = item.getAttribute('data-path')
+      var name = item.querySelector('.tree__name').textContent.trim()
+      if (path === S.docPath) return
+      // 已打开文档时切换需二次确认，防止误触打断编辑
+      if (S.docPath) {
+        openDialog({
+          title: '切换文档',
+          message: '确定离开当前文档，切换到其他文档吗？',
+          onOk: function () { applyDocument(item, path, name) }
+        })
+        return
+      }
+      applyDocument(item, path, name)
+    }
+
+    function applyDocument(item, path, name) {
+      var current = treeEl.querySelector('.tree__item--active')
+      if (current) {
+        current.classList.remove('tree__item--active')
+        current.removeAttribute('aria-selected')
+      }
+      item.classList.add('tree__item--active')
+      item.setAttribute('aria-selected', 'true')
+      S.docPath = path
+      S.docName = name
+      $('mmRootName').textContent = name
+      // 切换文档 = 重建编辑器实例，撤销/重做栈随实例销毁（hasUndo / hasRedo 归零）
+      hist.undo.length = 0
+      hist.redo.length = 0
+      syncHistoryBtns()
+      showEditor(true)
+    }
+
+    function hasChildren(item) {
+      var prefix = item.getAttribute('data-path') + '/'
+      return readItems().some(function (it) { return it.path.indexOf(prefix) === 0 })
+    }
+
+    var seq = 0
+
+    function buildItem(opts) {
+      var isDir = opts.type === 'directory'
+      var wrap = document.createElement('div')
+      wrap.innerHTML =
+        '<div class="tree__item" role="treeitem"' + (isDir ? ' aria-expanded="true"' : '') +
+        ' data-type="' + opts.type + '" data-path="' + opts.path + '" style="--depth:' + opts.depth + '">' +
+        '<span class="tree__twisty"' + (isDir ? ' data-icon="chevron-down"' : '') + ' aria-hidden="true"></span>' +
+        '<span data-icon="' + (isDir ? 'folder' : 'document') + '" aria-hidden="true"></span>' +
+        '<span class="tree__name"></span>' +
+        '<span class="tree__actions">' +
+          (isDir ? '<button class="tree__action" type="button" data-menu="dirNewMenu" title="新建子目录 / 文档" aria-label="新建子目录 / 文档"><span data-icon="plus" aria-hidden="true"></span></button>' : '') +
+          '<button class="tree__action" type="button" data-rename title="重命名" aria-label="重命名"><span data-icon="edit" aria-hidden="true"></span></button>' +
+          '<button class="tree__action tree__action--danger" type="button" data-delete title="删除" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>' +
+        '</span>' +
+        '</div>'
+      var node = wrap.firstElementChild
+      node.querySelector('.tree__name').textContent = opts.name
+      node.draggable = true
+      if (window.RTIcons) window.RTIcons.hydrate(node)
+      return node
+    }
+
+    function insertNode(type, parentItem, name) {
+      var parentPath = parentItem ? parentItem.getAttribute('data-path') : ''
+      var depth = parentItem ? parseInt(parentItem.style.getPropertyValue('--depth') || '0', 10) + 1 : 0
+      var node = buildItem({
+        type: type,
+        name: name,
+        depth: depth,
+        path: parentPath ? parentPath + '/n' + (++seq) : 'n' + (++seq)
+      })
+      if (!parentItem) {
+        treeEl.appendChild(node)
+      } else {
+        // 插到父目录最后一个后代之后，保持兄弟块连续（父目录自身若无子节点则紧跟其后）
+        var items = readItems()
+        var anchor = parentItem
+        items.forEach(function (it) {
+          if (it.path === parentPath || it.path.indexOf(parentPath + '/') === 0) anchor = it.el
+        })
+        anchor.parentNode.insertBefore(node, anchor.nextSibling)
+        parentItem.setAttribute('data-collapsed', 'false')
+      }
+      reindexPaths()
+      renderTree()
+      toast((type === 'directory' ? '目录' : '文档') + '已创建', 'success')
+    }
+
+    function promptCreate(type, parentItem) {
+      var label = type === 'directory' ? '目录' : '文档'
+      openDialog({
+        title: '新建' + label,
+        message: '请输入' + label + '名称',
+        input: true,
+        onOk: function (value) { insertNode(type, parentItem, value) }
+      })
+    }
+
+    function promptRename(item) {
+      var nameEl = item.querySelector('.tree__name')
+      openDialog({
+        title: '重命名',
+        message: '请输入新名称',
+        input: true,
+        inputValue: nameEl.textContent.trim(),
+        onOk: function (value) {
+          nameEl.textContent = value
+          if (item.getAttribute('data-path') === S.docPath) {
+            S.docName = value
+            $('mmRootName').textContent = value
+          }
+          toast('已重命名', 'success')
+        }
+      })
+    }
+
+    function confirmDelete(item) {
+      var isDir = item.getAttribute('data-type') === 'directory'
+      var name = item.querySelector('.tree__name').textContent.trim()
+      var label = isDir ? '目录' : '文档'
+      openDialog({
+        title: '删除' + label,
+        message: isDir
+          ? '确定删除目录「' + name + '」吗？目录必须为空才能删除。'
+          : '确定删除文档「' + name + '」吗？文档下所有用例数据将被级联删除。',
+        onOk: function () {
+          if (isDir && hasChildren(item)) {
+            toast('删除失败：目录必须为空', 'danger')
+            return
+          }
+          var wasActive = item.getAttribute('data-path') === S.docPath
+          item.parentNode.removeChild(item)
+          if (wasActive) {
+            S.docPath = ''
+            S.docName = ''
+            showEditor(false)
+          }
+          reindexPaths()
+          renderTree()
+          toast('已删除', 'success')
+        }
+      })
+    }
+
+    treeEl.addEventListener('click', function (e) {
+      var item = e.target.closest('.tree__item')
+      if (!item) return
+      if (e.target.closest('[data-rename]')) { promptRename(item); return }
+      if (e.target.closest('[data-delete]')) { confirmDelete(item); return }
+      // [+] 归全局浮层处理器接管
+      if (e.target.closest('[data-menu]')) return
+      if (item.getAttribute('data-type') !== 'directory') { selectDocument(item); return }
+      // 对齐 el-tree（expand-on-click-node=false）：点目录行只展开、永不收起，收起仅由展开箭头完成
+      var collapsed = item.getAttribute('data-collapsed') === 'true'
+      // 展开箭头是唯一的收起入口，因此这里必须取反当前状态形成切换
+      if (e.target.closest('.tree__twisty')) { setExpanded(item, collapsed); return }
+      if (collapsed) setExpanded(item, true)
+    })
+
+    document.querySelectorAll('[data-new]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var anchor = S.menuAnchor
+        var parent = anchor && anchor.closest ? anchor.closest('.tree__item') : null
+        promptCreate(el.getAttribute('data-new'), parent)
+      })
+    })
+
+    /* ---------------- 模块树拖拽移动（allow-drop 口径：文档只能落进目录、不可与目录行同级互换） ---------------- */
+    var dragItem = null
+
+    function clearDropMarks() {
+      treeEl.querySelectorAll('.tree__item--drop-before, .tree__item--drop-after, .tree__item--drop-inner')
+        .forEach(function (el) {
+          el.classList.remove('tree__item--drop-before', 'tree__item--drop-after', 'tree__item--drop-inner')
+        })
+    }
+
+    function dropZone(item, e) {
+      var r = item.getBoundingClientRect()
+      var ratio = (e.clientY - r.top) / r.height
+      // 目录行中段 = 落入其内，上下缘 = 前/后插位；文档行只有前/后
+      if (item.getAttribute('data-type') === 'directory' && ratio > 0.28 && ratio < 0.72) return 'inner'
+      return ratio < 0.5 ? 'before' : 'after'
+    }
+
+    function canDrop(dragEl, targetEl, zone) {
+      if (dragEl === targetEl) return false
+      var dragIsDoc = dragEl.getAttribute('data-type') === 'document'
+      if (zone !== 'inner' && dragIsDoc && targetEl.getAttribute('data-type') === 'directory') return false
+      var items = readItems()
+      var di = indexOfItem(items, dragEl)
+      var ti = indexOfItem(items, targetEl)
+      if (di < 0 || ti < 0) return false
+      // 目录不得移入自己的后代，否则会把整块结构撕断
+      return !(items[di].isDir && ti > di && ti < blockEnd(items, di))
+    }
+
+    function performDrop(dragEl, targetEl, zone) {
+      var items = readItems()
+      var di = indexOfItem(items, dragEl)
+      var ti = indexOfItem(items, targetEl)
+      if (di < 0 || ti < 0) return
+      var block = items.slice(di, blockEnd(items, di))
+      var delta = (zone === 'inner' ? items[ti].depth + 1 : items[ti].depth) - items[di].depth
+
+      block.forEach(function (it) { it.el.parentNode.removeChild(it.el) })
+      // 整块摘除后重算目标子树末尾：锚点必须落在块外，否则块会被插到自身之后
+      var post = readItems()
+      var pi = indexOfItem(post, targetEl)
+      var anchor = null
+      if (pi >= 0 && zone !== 'before') {
+        var pEnd = blockEnd(post, pi)
+        anchor = pEnd < post.length ? post[pEnd].el : null
+      } else if (pi >= 0) {
+        anchor = targetEl
+      }
+      var frag = document.createDocumentFragment()
+      block.forEach(function (it) {
+        it.el.style.setProperty('--depth', String(it.depth + delta))
+        frag.appendChild(it.el)
+      })
+      if (anchor) treeEl.insertBefore(frag, anchor)
+      else treeEl.appendChild(frag)
+      reindexPaths()
+      renderTree()
+      toast('移动成功', 'success')
+    }
+
+    function endDrag() {
+      if (dragItem) dragItem.classList.remove('is-dragging')
+      dragItem = null
+      clearDropMarks()
+    }
+
+    treeEl.addEventListener('dragstart', function (e) {
+      var item = e.target.closest('.tree__item')
+      if (!item) return
+      dragItem = item
+      item.classList.add('is-dragging')
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', item.querySelector('.tree__name').textContent)
+      }
+    })
+
+    treeEl.addEventListener('dragover', function (e) {
+      if (!dragItem) return
+      var item = e.target.closest('.tree__item')
+      if (!item) { clearDropMarks(); return }
+      var zone = dropZone(item, e)
+      if (!canDrop(dragItem, item, zone)) { clearDropMarks(); return }
+      e.preventDefault()
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+      clearDropMarks()
+      item.classList.add('tree__item--drop-' + zone)
+    })
+
+    treeEl.addEventListener('drop', function (e) {
+      if (!dragItem) return
+      var item = e.target.closest('.tree__item')
+      var zone = item ? dropZone(item, e) : ''
+      var drag = dragItem
+      endDrag()
+      if (!item || !zone) return
+      e.preventDefault()
+      if (canDrop(drag, item, zone)) performDrop(drag, item, zone)
+    })
+
+    treeEl.addEventListener('dragend', endDrag)
+
+    /* ---------------- 排版模板下拉 ---------------- */
+    $('tplMenu').querySelectorAll('[data-tpl]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        $('tplMenu').querySelectorAll('[data-tpl]').forEach(function (b) { b.disabled = false })
+        el.disabled = true
+        var label = el.textContent.trim()
+        $('tplBtn').setAttribute('title', '排版模板：' + label)
+        $('tplBtn').setAttribute('aria-label', '排版模板：' + label)
+        closeMenu()
+      })
+    })
+
+    /* ---------------- 脑图节点：选中 / 标记 / 增删改 / 剪贴板 / 历史 ---------------- */
+    var mmInner = $('mmInner')
+    var TYPE_LABEL = { case: '用例', precondition: '前置', step: '步骤', expected: '预期' }
+    // 新建节点默认名称与 DEFAULT_NODE_TEXT 一致，工具栏 / 快捷键 / 右键菜单共用
+    var NODE_DEFAULT = '分支主题'
+    var hist = { undo: [], redo: [] }
+    var suppressClick = false
+
+    function selectedLi() { return mmInner.querySelector('li[aria-selected="true"]') }
+    function isRootLi(li) { return li.parentElement.getAttribute('role') !== 'group' }
+    function nodeTextEl(li) { return li ? li.querySelector(':scope > .mm-node > .mm-text') : null }
+
+    function snapshot() { return mmInner.innerHTML }
+
+    function syncHistoryBtns() {
+      var undoBtn = document.querySelector('#mmBar [data-op="undo"]')
+      var redoBtn = document.querySelector('#mmBar [data-op="redo"]')
+      undoBtn.disabled = !hist.undo.length
+      redoBtn.disabled = !hist.redo.length
+    }
+
+    // 改动前入栈：撤销回到的是变更前的画布（对应 history.hasUndo / hasRedo 口径）
+    function pushSnapshot(html) {
+      hist.undo.push(html)
+      if (hist.undo.length > 50) hist.undo.shift()
+      hist.redo.length = 0
+      syncHistoryBtns()
+    }
+
+    function pushHistory() { pushSnapshot(snapshot()) }
+
+    function restore(html) {
+      mmInner.innerHTML = html
+      // 快照自带选中态，重建后仅需把标记状态同步回工具条
+      var li = selectedLi() || mmInner.querySelector('li')
+      if (li) selectLi(li)
+    }
+
+    function undo() {
+      if (!hist.undo.length) return
+      hist.redo.push(snapshot())
+      restore(hist.undo.pop())
+      syncHistoryBtns()
+    }
+
+    function redo() {
+      if (!hist.redo.length) return
+      hist.undo.push(snapshot())
+      restore(hist.redo.pop())
+      syncHistoryBtns()
+    }
+
+    // 徽标堆叠顺序对齐 badges.ts：[优先级][类型] 色块白字排在节点文本左侧
+    function renderBadges(li) {
+      var node = li.querySelector(':scope > .mm-node')
+      if (!node) return
+      node.querySelectorAll('.mm-badge').forEach(function (b) { b.parentNode.removeChild(b) })
+      var html = ''
+      var prio = li.getAttribute('data-prio')
+      var type = li.getAttribute('data-type') || 'normal'
+      if (prio) html += '<span class="mm-badge mm-badge--' + prio.toLowerCase() + '">' + prio + '</span>'
+      if (TYPE_LABEL[type]) html += '<span class="mm-badge mm-badge--' + type + '">' + TYPE_LABEL[type] + '</span>'
+      if (html) node.insertAdjacentHTML('afterbegin', html)
+    }
+
+    function selectLi(li) {
+      if (!li) return
+      mmInner.querySelectorAll('li[aria-selected="true"]').forEach(function (el) {
+        el.removeAttribute('aria-selected')
+        var node = el.querySelector(':scope > .mm-node')
+        if (node) node.classList.remove('mm-node--sel')
+      })
+      li.setAttribute('aria-selected', 'true')
+      var selNode = li.querySelector(':scope > .mm-node')
+      if (selNode) selNode.classList.add('mm-node--sel')
+      S.nodeType = li.getAttribute('data-type') || 'normal'
+      S.nodePriority = li.getAttribute('data-prio') || ''
+      renderMarks()
+    }
+
+    function renderMarks() {
+      // 只作用于工具条与右键菜单：模块树节点同样带 data-type，不能被选中标记误伤
+      document.querySelectorAll('#mmBar [data-type], #ctxMenu [data-type]').forEach(function (el) {
+        var on = el.getAttribute('data-type') === S.nodeType
+        el.classList.toggle('is-selected', on)
+        if (el.hasAttribute('aria-pressed')) el.setAttribute('aria-pressed', String(on))
+      })
+      document.querySelectorAll('#mmBar [data-priority], #ctxMenu [data-priority]').forEach(function (el) {
+        var on = el.getAttribute('data-priority') === S.nodePriority
+        el.classList.toggle('is-selected', on)
+        if (el.hasAttribute('aria-pressed')) el.setAttribute('aria-pressed', String(on))
+      })
+    }
+
+    function markAs(type) {
+      var li = selectedLi()
+      if (!li) return
+      pushHistory()
+      li.setAttribute('data-type', type)
+      // 与 useMindmapNodeOps 一致：标为用例时补默认等级，标为其他类型则取消等级
+      if (type === 'case' && !li.getAttribute('data-prio')) li.setAttribute('data-prio', 'P2')
+      if (type !== 'case') li.removeAttribute('data-prio')
+      renderBadges(li)
+      S.nodeType = type
+      S.nodePriority = li.getAttribute('data-prio') || ''
+      renderMarks()
+    }
+
+    function markPriority(p) {
+      var li = selectedLi()
+      if (!li) return
+      pushHistory()
+      li.setAttribute('data-prio', p)
+      // 优先级只在用例节点上成立
+      li.setAttribute('data-type', 'case')
+      renderBadges(li)
+      S.nodeType = 'case'
+      S.nodePriority = p
+      renderMarks()
+    }
+
+    function clearMark() {
+      var li = selectedLi()
+      if (!li) return
+      pushHistory()
+      li.setAttribute('data-type', 'normal')
+      li.removeAttribute('data-prio')
+      renderBadges(li)
+      S.nodeType = 'normal'
+      S.nodePriority = ''
+      renderMarks()
+    }
+
+    function buildLi(type, text) {
+      var li = document.createElement('li')
+      li.setAttribute('role', 'treeitem')
+      li.setAttribute('data-type', type)
+      li.innerHTML = '<span class="mm-node"><span class="mm-text"></span></span>'
+      li.querySelector('.mm-text').textContent = text
+      return li
+    }
+
+    // 首个子节点落位时补 aria-expanded，与静态结构的展开态声明保持一致
+    function childUl(li) {
+      var ul = li.querySelector(':scope > ul')
+      if (!ul) {
+        ul = document.createElement('ul')
+        ul.setAttribute('role', 'group')
+        li.appendChild(ul)
+        li.setAttribute('aria-expanded', 'true')
+      }
+      return ul
+    }
+
+    function addChild() {
+      var li = selectedLi()
+      if (!li) return
+      pushHistory()
+      var nli = buildLi('normal', NODE_DEFAULT)
+      childUl(li).appendChild(nli)
+      selectLi(nli)
+    }
+
+    function addSibling() {
+      var li = selectedLi()
+      // 根节点没有同级，AppendSiblingNode 静默不生效
+      if (!li || isRootLi(li)) return
+      pushHistory()
+      var nli = buildLi('normal', NODE_DEFAULT)
+      li.parentNode.insertBefore(nli, li.nextSibling)
+      selectLi(nli)
+    }
+
+    function deleteNode() {
+      var li = selectedLi()
+      // 根节点不可删除（对齐 clipboard.ts 的口径）
+      if (!li || isRootLi(li)) return
+      pushHistory()
+      var parentUl = li.parentElement
+      var parentLi = parentUl.parentElement
+      parentUl.removeChild(li)
+      if (!parentUl.children.length) {
+        parentUl.parentNode.removeChild(parentUl)
+        parentLi.removeAttribute('aria-expanded')
+      }
+      selectLi(parentLi)
+    }
+
+    function editText() {
+      var li = selectedLi()
+      var textEl = nodeTextEl(li)
+      if (!textEl || S.editing) return
+      S.editing = { li: li, original: textEl.textContent, snapshot: snapshot() }
+      textEl.setAttribute('contenteditable', 'true')
+      textEl.focus()
+      // 全选延到下一轮：双击自带的按词选区是默认动作，会覆盖本次选区
+      window.setTimeout(function () {
+        if (!S.editing) return
+        var range = document.createRange()
+        range.selectNodeContents(textEl)
+        var sel = window.getSelection()
+        sel.removeAllRanges()
+        sel.addRange(range)
+      }, 0)
+    }
+
+    function commitEdit(cancel) {
+      var ed = S.editing
+      if (!ed) return
+      S.editing = null
+      var textEl = nodeTextEl(ed.li)
+      if (!textEl) return
+      textEl.removeAttribute('contenteditable')
+      var next = textEl.textContent.trim()
+      if (cancel) { textEl.textContent = ed.original; return }
+      if (!next) { textEl.textContent = ed.original; return }
+      if (next === ed.original) return
+      // 编辑期间文本已就地改写，快照取自编辑前，只有真正改动才入撤销栈
+      pushSnapshot(ed.snapshot)
+      textEl.textContent = next
+    }
+
+    function copyNode() {
+      var li = selectedLi()
+      if (!li) return
+      S.clipboard = li.cloneNode(true)
+      syncPaste()
+    }
+
+    function cutNode() {
+      var li = selectedLi()
+      if (!li) return
+      // 根节点剪切整体拒绝且不覆盖既有剪贴板
+      if (isRootLi(li)) { toast('根节点不能剪切', 'warning'); return }
+      copyNode()
+      deleteNode()
+    }
+
+    function pasteNode() {
+      var li = selectedLi()
+      if (!li || !S.clipboard) return
+      pushHistory()
+      var clone = S.clipboard.cloneNode(true)
+      clone.removeAttribute('aria-selected')
+      var node = clone.querySelector(':scope > .mm-node')
+      if (node) node.classList.remove('mm-node--sel')
+      // 每次粘贴独立深拷贝，同一份剪贴板可重复粘贴（clipboard.ts 口径）
+      childUl(li).appendChild(clone)
+      selectLi(clone)
+    }
+
+    function syncPaste() {
+      var btn = ctx.querySelector('[data-op="paste"]')
+      if (btn) btn.disabled = !S.clipboard
+    }
+
+    function tidyLayout() {
+      var offset = mmInner.querySelectorAll('li.is-offset')
+      if (!offset.length) return
+      pushHistory()
+      mmInner.classList.add('is-tidying')
+      offset.forEach(function (li) {
+        li.classList.remove('is-offset')
+        li.style.transform = ''
+      })
+      window.setTimeout(function () { mmInner.classList.remove('is-tidying') }, 260)
+    }
+
+    var OPS = {
+      undo: undo,
+      redo: redo,
+      'add-child': addChild,
+      'add-sibling': addSibling,
+      edit: editText,
+      'delete-node': deleteNode,
+      tidy: tidyLayout,
+      copy: copyNode,
+      cut: cutNode,
+      paste: pasteNode
+    }
+
+    document.addEventListener('click', function (e) {
+      var opEl = e.target.closest('[data-op]')
+      if (opEl) {
+        // 右键菜单点任意项即整体关闭（MinderContextMenu 的 close 口径），置灰项也不例外
+        if (opEl.closest('#ctxMenu')) closeMenu()
+        if (opEl.disabled) return
+        var op = OPS[opEl.getAttribute('data-op')]
+        if (op) op()
+        return
+      }
+      var typeEl = e.target.closest('[data-type]')
+      if (typeEl && (typeEl.closest('#mmBar') || typeEl.closest('#ctxMenu'))) {
+        markAs(typeEl.getAttribute('data-type'))
+        return
+      }
+      var prioEl = e.target.closest('[data-priority]')
+      if (prioEl && (prioEl.closest('#mmBar') || prioEl.closest('#ctxMenu'))) {
+        markPriority(prioEl.getAttribute('data-priority'))
+        return
+      }
+      var clearEl = e.target.closest('[data-mark="clear"]')
+      if (clearEl && (clearEl.closest('#mmBar') || clearEl.closest('#ctxMenu'))) clearMark()
+    })
+
+    /* ---------------- 画布导航器（缩放 / 抓手 / 定位 / 缩略图 / 全屏） ---------------- */
+    var mm = $('mmCanvas')
+    var ZOOM_MIN = 30, ZOOM_MAX = 300, PAN_HEIGHT = 66
+    var zoom = 100
+
+    function zoomRatio(v) { return 1 - (v - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN) }
+
+    function renderZoom() {
+      $('mmInner').style.zoom = zoom / 100
+      $('navZoomDot').style.transform = 'translateY(' + (zoomRatio(zoom) * PAN_HEIGHT) + 'px)'
+      $('navZoomReset').style.top = (zoomRatio(100) * PAN_HEIGHT) + 'px'
+      $('navZoomIn').classList.toggle('is-disabled', zoom >= ZOOM_MAX)
+      $('navZoomOut').classList.toggle('is-disabled', zoom <= ZOOM_MIN)
+    }
+
+    function setZoom(next) {
+      zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, next))
+      renderZoom()
+    }
+
+    $('navZoomIn').addEventListener('click', function () { setZoom(zoom + 10) })
+    $('navZoomOut').addEventListener('click', function () { setZoom(zoom - 10) })
+    $('navZoomReset').addEventListener('click', function () { setZoom(100) })
+
+    var handOn = false
+    $('navHand').addEventListener('click', function () {
+      handOn = !handOn
+      $('navHand').classList.toggle('is-active', handOn)
+      $('navHand').setAttribute('aria-pressed', String(handOn))
+      mm.classList.toggle('mm--hand', handOn)
+    })
+
+    $('navRoot').addEventListener('click', function () {
+      mm.scrollTo({ left: 0, top: 0, behavior: 'smooth' })
+    })
+
+    $('navThumb').addEventListener('click', function () {
+      var open = $('navThumbBox').hidden
+      $('navThumbBox').hidden = !open
+      $('navThumb').classList.toggle('is-active', open)
+      $('navThumb').setAttribute('aria-pressed', String(open))
+    })
+
+    $('navFull').addEventListener('click', function () {
+      var target = $('ftDoc')
+      if (document.fullscreenElement) { document.exitFullscreen(); return }
+      if (!target.requestFullscreen) { toast('您的浏览器不支持全屏操作', 'warning'); return }
+      target.requestFullscreen().catch(function () { toast('您的浏览器不支持全屏操作', 'warning') })
+    })
+    document.addEventListener('fullscreenchange', function () {
+      var on = !!document.fullscreenElement
+      $('navFull').textContent = on ? '⤡' : '⛶'
+      $('navFull').setAttribute('title', on ? '退出全屏' : '全屏')
+    })
+
+    /* ---------------- 画布交互：选中 / 双击编辑 / 节点偏移拖拽 / 背景平移 ---------------- */
+    var pan = null
+    var nodeDrag = null
+
+    function readOffset(li) {
+      var m = /translate\((-?\d+(?:\.\d+)?)px,\s*(-?\d+(?:\.\d+)?)px\)/.exec(li.style.transform || '')
+      return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 }
+    }
+
+    // 抓手态或空白起手 = 平移画布；节点起手 = 拖节点偏移（阈值内按下仍算普通点击）
+    mm.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return
+      // 编辑态让位原生光标与文本选区
+      if (S.editing && e.target.isContentEditable) return
+      var node = e.target.closest('.mm-node')
+      if (handOn || !node) {
+        pan = { x: e.clientX, y: e.clientY, left: mm.scrollLeft, top: mm.scrollTop }
+        mm.classList.add('is-panning')
+        e.preventDefault()
+        return
+      }
+      var li = node.closest('li')
+      nodeDrag = { li: li, x: e.clientX, y: e.clientY, moved: false, base: readOffset(li), snapshot: snapshot() }
+      e.preventDefault()
+    })
+
+    window.addEventListener('mousemove', function (e) {
+      if (pan) {
+        mm.scrollLeft = pan.left - (e.clientX - pan.x)
+        mm.scrollTop = pan.top - (e.clientY - pan.y)
+      }
+      if (nodeDrag) {
+        var dx = e.clientX - nodeDrag.x
+        var dy = e.clientY - nodeDrag.y
+        if (!nodeDrag.moved) {
+          if (Math.abs(dx) + Math.abs(dy) < 5) return
+          nodeDrag.moved = true
+          mm.classList.add('is-node-dragging')
+        }
+        nodeDrag.li.style.transform = 'translate(' + (nodeDrag.base.x + dx) + 'px,' + (nodeDrag.base.y + dy) + 'px)'
+        nodeDrag.li.classList.add('is-offset')
+      }
+    })
+
+    window.addEventListener('mouseup', function () {
+      pan = null
+      mm.classList.remove('is-panning')
+      if (!nodeDrag) return
+      var d = nodeDrag
+      nodeDrag = null
+      mm.classList.remove('is-node-dragging')
+      if (!d.moved) return
+      pushSnapshot(d.snapshot)
+      suppressClick = true
+      // 拖到画布外松手时不会有 click 收口，下一轮事件循环复位
+      window.setTimeout(function () { suppressClick = false }, 0)
+    })
+
+    mm.addEventListener('click', function (e) {
+      if (suppressClick) { suppressClick = false; return }
+      var node = e.target.closest('.mm-node')
+      if (node) selectLi(node.closest('li'))
+    })
+
+    mm.addEventListener('dblclick', function (e) {
+      var node = e.target.closest('.mm-node')
+      if (!node) return
+      selectLi(node.closest('li'))
+      editText()
+    })
+
+    // 失焦即提交（点击别处、切换文档、关闭弹层都会走到这里）
+    mmInner.addEventListener('focusout', function (e) {
+      if (S.editing && e.target === nodeTextEl(S.editing.li)) commitEdit(false)
+    })
+
+    mmInner.addEventListener('keydown', function (e) {
+      if (!S.editing || e.target !== nodeTextEl(S.editing.li)) return
+      // input 态：回车提交、Tab 吞掉（避免焦点跳出接收器）；Esc 由全局键位统一处理
+      if (e.key === 'Enter') { e.preventDefault(); commitEdit(false) }
+      else if (e.key === 'Tab') { e.preventDefault() }
+    })
 
     /* ---------------- 需求条目选取器（交互设计 52 §1.2） ---------------- */
     // 示例级 Markdown 渲染器：静态页零外部依赖（不引 CDN/第三方库），仅覆盖条目正文所需子集
@@ -481,11 +1687,15 @@
     function renderReqList() {
       var kw = $('reqFilter').value.trim()
       var items = REQ_POOL.filter(function (r) { return !kw || r.title.indexOf(kw) >= 0 })
+      var pages = Math.max(1, Math.ceil(items.length / S.reqPageSize))
+      if (S.reqPage > pages) S.reqPage = pages
+      var start = (S.reqPage - 1) * S.reqPageSize
+      var pageItems = items.slice(start, start + S.reqPageSize)
       var box = $('reqList')
-      if (!items.length) {
+      if (!pageItems.length) {
         box.innerHTML = '<div class="req-empty">暂无需求</div>'
       } else {
-        box.innerHTML = items.map(function (r) {
+        box.innerHTML = pageItems.map(function (r) {
           var on = S.reqSel.indexOf(r.id) >= 0
           return '<label class="req-item">' +
             '<input type="checkbox" data-req="' + r.id + '"' + (on ? ' checked' : '') + '>' +
@@ -496,12 +1706,27 @@
         }).join('')
       }
       $('reqCount').textContent = '已选 ' + S.reqSel.length + ' 条'
+      $('reqTotal').textContent = '共 ' + items.length + ' 条'
+      var html = ''
+      for (var p = 1; p <= pages; p++) {
+        html += '<button class="page-btn' + (p === S.reqPage ? ' page-btn--active' : '') +
+          '" type="button" data-page="' + p + '">' + p + '</button>'
+      }
+      $('reqPages').innerHTML = html
+      $('reqPrev').disabled = S.reqPage <= 1
+      $('reqNext').disabled = S.reqPage >= pages
+    }
+
+    function searchReqList() {
+      S.reqPage = 1
+      renderReqList()
     }
 
     function openReqSel() {
       // 关闭后回焦打开选取器的入口（45 §2.9 焦点管理）
       S.reqOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null
       S.reqSel = S.docReqs.slice()
+      S.reqPage = 1
       $('reqFilter').value = ''
       renderReqList()
       closeReqPop()
@@ -545,7 +1770,18 @@
 
     $('reqLinkBtn').addEventListener('click', function () { openReqSel() })
 
-    $('reqFilter').addEventListener('input', renderReqList)
+    $('reqSearch').addEventListener('click', searchReqList)
+    $('reqFilter').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); searchReqList() }
+    })
+    $('reqPrev').addEventListener('click', function () { if (S.reqPage > 1) { S.reqPage--; renderReqList() } })
+    $('reqNext').addEventListener('click', function () { S.reqPage++; renderReqList() })
+    $('reqPages').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-page]')
+      if (!b) return
+      S.reqPage = parseInt(b.getAttribute('data-page'), 10)
+      renderReqList()
+    })
     $('reqList').addEventListener('change', function (e) {
       var cb = e.target.closest('input[data-req]')
       if (!cb) return
@@ -565,7 +1801,7 @@
     })
     $('reqConfirm').addEventListener('click', function () {
       S.docReqs = S.reqSel.slice()
-      toast('已关联 ' + S.docReqs.length + ' 条需求条目', 'success')
+      toast('已更新文档关联需求', 'success')
       closeReqSel()
     })
     $('reqCancel').addEventListener('click', closeReqSel)
@@ -581,39 +1817,82 @@
       closeReqPop()
     })
 
-    var mm = document.querySelector('.mm')
     mm.addEventListener('contextmenu', function (e) {
       e.preventDefault()
+      // 右键节点时 core 先行选中该节点，菜单命令才作用在它身上
+      var node = e.target.closest('.mm-node')
+      if (node) selectLi(node.closest('li'))
+      // 仅在有选中节点时弹出：空白处且无选中不弹菜单（useContextMenu 口径）
+      if (!selectedLi()) return
       showCtx(e.clientX, e.clientY)
     })
-    document.addEventListener('click', function (e) {
-      if (!ctx.hidden && !ctx.contains(e.target)) ctx.hidden = true
-    })
-    // 菜单为视口固定定位，画布滚动后锚点失效，先收起
-    document.addEventListener('scroll', function () { ctx.hidden = true }, true)
 
     ctx.querySelectorAll('[data-chiprow]').forEach(function (row) {
+      // 类型/等级 chip 的选中标记由 renderMarks 统一维护，此处仅负责收起菜单
       row.addEventListener('click', function (e) {
-        var chip = e.target.closest('.ctx__chip')
-        if (!chip) return
-        row.querySelectorAll('.ctx__chip').forEach(function (c) { c.classList.remove('is-selected') })
-        chip.classList.add('is-selected')
-      })
-    })
-    ctx.querySelectorAll('[data-cmd]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        ctx.hidden = true
-        toast('示例：' + el.getAttribute('data-cmd'))
+        if (e.target.closest('.ctx__chip')) closeMenu()
       })
     })
 
+    // 空格唤醒菜单：定位到选中节点下沿（useContextMenu 的 openAtSelection）
+    function openMenuAtSelection() {
+      var li = selectedLi()
+      if (!li) return
+      var r = li.querySelector(':scope > .mm-node').getBoundingClientRect()
+      closeMenu()
+      S.menu = ctx
+      placeMenu(ctx, r.left, r.bottom + 4)
+    }
+
     document.addEventListener('keydown', function (e) {
-      if (e.key !== 'Escape') return
-      // 由内向外逐层关闭：明细气泡 → 需求选取器 → 右键菜单
-      if (!$('reqPop').hidden) { closeReqPop(); return }
-      if (!reqMask.hidden) { closeReqSel(); return }
-      if (!ctx.hidden) { ctx.hidden = true; return }
+      if (e.key === 'Escape') {
+        // 由内向外逐层关闭：编辑态 → 输入/确认弹窗 → 明细气泡 → 需求选取器 → 右键菜单与下拉
+        if (S.editing) { e.preventDefault(); commitEdit(true); return }
+        if (!dlgMask.hidden) { closeDialog(); return }
+        if (!$('reqPop').hidden) { closeReqPop(); return }
+        if (!reqMask.hidden) { closeReqSel(); return }
+        if (S.menu) { closeMenu(); return }
+        return
+      }
+      // 输入态（搜索框、弹窗输入、节点编辑）不拦截快捷键
+      var t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      if ($('mmStage').hidden) return
+      var mod = e.metaKey || e.ctrlKey
+      if (mod) {
+        var k = e.key.toLowerCase()
+        if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return }
+        if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); return }
+        if (!selectedLi()) return
+        if (k === 'c') { e.preventDefault(); copyNode(); return }
+        if (k === 'x') { e.preventDefault(); cutNode(); return }
+        if (k === 'v') { e.preventDefault(); pasteNode(); return }
+        return
+      }
+      if (!selectedLi()) return
+      if (e.key === 'Tab') { e.preventDefault(); addChild(); return }
+      if (e.key === 'Enter') { e.preventDefault(); addSibling(); return }
+      if (e.key === 'Delete') { e.preventDefault(); deleteNode(); return }
+      if (e.key === 'F2') { e.preventDefault(); editText(); return }
+      if (e.key === ' ') { e.preventDefault(); openMenuAtSelection(); return }
     })
+
+    /* ---------------- 初始化 ---------------- */
+    // 树节点整体可拖（el-tree draggable）；路径先归一，后续增删拖动再重算
+    treeEl.querySelectorAll('.tree__item').forEach(function (el) { el.draggable = true })
+    reindexPaths()
+    renderTree()
+    mmInner.querySelectorAll('li').forEach(function (li) { renderBadges(li) })
+    renderZoom()
+    renderMarks()
+    syncHistoryBtns()
+    syncPaste()
+
+    // 静态页无 WebSocket：载入时短暂呈现断线重连横幅，随后按重连成功收起（仅编辑态展示）
+    window.setTimeout(function () {
+      if (!$('mmStage').hidden) $('ftBanner').hidden = false
+    }, 900)
+    window.setTimeout(function () { $('ftBanner').hidden = true }, 3800)
 
   })()
 </script>
