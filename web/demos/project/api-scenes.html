@@ -115,66 +115,37 @@
   .step-card:hover .step-card__body { overflow: visible; }
   .step-card.is-off { opacity: .55; }
 
-  /* 变量溯源：引用处高亮 + hover 来源浮层（点击跳到来源步骤） */
-  .var-ref {
-    position: relative;
-    color: var(--brand-600, #337ecc);
-    background: var(--brand-50);
-    border-bottom: 1px dashed var(--brand-400, #79bbff);
-    padding: 0 2px;
-    border-radius: 3px 3px 0 0;
-    cursor: help;
-  }
-  .var-ref:hover { background: var(--brand-100, #ecf5ff); }
-  .var-tip {
-    position: absolute;
-    left: 0;
-    bottom: calc(100% + 6px);
-    z-index: 20;
-    display: none;
-    width: max-content;
-    max-width: 260px;
-    padding: 6px 10px;
-    border-radius: var(--radius-md);
-    background: rgba(32, 35, 41, .95);
-    color: #fff;
-    font-size: var(--font-size-xs);
-    font-weight: 400;
-    line-height: 1.5;
-    white-space: normal;
-    box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .4);
-    cursor: pointer;
-  }
-  .var-tip b { color: #7cc0ff; }
-  .var-tip::after {
-    content: '';
-    position: absolute;
-    left: 12px;
-    top: 100%;
-    border: 5px solid transparent;
-    border-top-color: rgba(32, 35, 41, .95);
-  }
-  .var-ref:hover .var-tip { display: block; }
+  /* 步骤拖拽落点指示线：hover 展开放置区（对齐 StepCanvas 插入区） */
+  .step-insert { height: 4px; border-radius: var(--radius-sm); transition: height .15s, background .15s; }
+  .step-insert:hover { height: 22px; background: var(--brand-50); }
 
-  /* 行内调试结果：跑完直接显示在步骤卡下方，不弹窗 */
-  .step-run {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 6px;
-    padding: 6px 8px;
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    animation: ux-toast-in .16s ease-out;
+  /* 步骤卡正文为步骤名（方法/路径在右侧编辑区维护） */
+  .step-card__name { font-weight: 500; color: var(--n-800); }
+  .step-card__missing { font-size: 11px; color: var(--st-warning-strong); }
+
+  /* 行内展开详情（链接步骤源已删除时的快照信息） */
+  .step-card__detail { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--n-100); font-size: var(--font-size-xs); color: var(--n-500); }
+  .step-card__detail div + div { margin-top: 2px; }
+  .step-card__detail .is-warning { color: var(--st-warning-strong); }
+
+  /* 卡片「操作」与表格「更多」共用的浮动菜单（编辑 / 上移 / 下移 / 调试 / 复制 / 删除） */
+  .more-dropdown {
+    position: fixed;
+    z-index: 90;
+    min-width: 108px;
+    padding: 4px 0;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
   }
-  .step-run--pass { background: var(--st-success-light); color: var(--st-success-strong); }
-  .step-run--fail { background: var(--st-danger-light); color: var(--st-danger-strong); }
-  .step-run--running { background: var(--n-50); color: var(--n-600); }
-  .step-run__mono { font-family: var(--font-mono); }
-  .step-run__more { margin-left: auto; color: inherit; opacity: .75; text-decoration: underline; cursor: pointer; }
-  .step-run__more:hover { opacity: 1; }
-  .step-card__acts .run-btn { color: var(--brand-500); }
+  .more-dropdown__item { padding: 7px 14px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; white-space: nowrap; }
+  .more-dropdown__item:hover { background: var(--n-50); color: var(--n-900); }
+  .more-dropdown__item--danger { color: var(--st-danger); }
+  .more-dropdown__sep { margin: 4px 0; border-top: 1px solid var(--n-100); }
+
+  /* 弹窗遮罩在 200，提示条必须高过它，否则弹窗内的校验提示会被盖住 */
+  .ux-toasts { z-index: 260; }
 
   .switch { position: relative; width: 32px; height: 18px; border-radius: 9px; background: var(--n-200); border: none; cursor: pointer; flex-shrink: 0; padding: 0; transition: background .15s; }
   .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
@@ -246,6 +217,7 @@
   .pane-list { display: flex; flex-direction: column; }
   .pane-row { display: flex; align-items: center; gap: var(--space-sm); padding: 8px 0; }
   .pane-row .select { width: 148px; flex: none; height: 28px; font-size: var(--font-size-xs); }
+  .pane-row .select--n { width: 116px; }
   .pane-row .input { flex: 1; min-width: 0; height: 28px; font-size: var(--font-size-xs); }
 
   /* 变量 / 处理器面板 */
@@ -256,6 +228,107 @@
   .pane-empty { padding: 40px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
 
   .ed-footer { display: flex; align-items: center; padding: 8px 16px; border-top: 1px solid var(--n-100); font-size: var(--font-size-xs); color: var(--n-400); background: var(--n-50); }
+
+  /* 筛选条独立成卡（与模块树 / 表格卡分离），下方留出与 body-row 的间距 */
+  .filters-card { margin-bottom: var(--space-md); }
+  .filters-card .toolbar { border-bottom: none; padding: 12px 20px; }
+  .toolbar__actions { display: flex; align-items: center; gap: var(--space-sm); }
+
+  /* 场景描述：头部图标切换出的两行文本域 */
+  .ed-desc { padding: 0 16px 12px; }
+  .ed-desc textarea { width: 100%; resize: vertical; }
+
+  /* 优先级下拉（P0~P3，P2 为默认） */
+  .ed-pop { position: relative; display: inline-flex; }
+  .ed-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 60;
+    min-width: 120px;
+    padding: 4px 0;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+  }
+  .ed-menu__item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; border: none; background: none; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; text-align: left; }
+  .ed-menu__item:hover { background: var(--n-50); }
+  .ed-menu__item.is-active { color: var(--brand-600); font-weight: 600; }
+  .ed-menu__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* 执行历史浮层：状态 + 时间 + 报告入口 + 分页 */
+  .ed-history { width: 360px; padding: 10px 12px 12px; }
+  .ed-history__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .ed-history__row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--n-100); font-size: var(--font-size-xs); color: var(--n-600); }
+  .ed-history__row:last-of-type { border-bottom: none; }
+  .ed-history__status { min-width: 56px; font-weight: 600; }
+  .ed-history__status.is-success { color: var(--st-success-strong); }
+  .ed-history__status.is-failed { color: var(--st-danger-strong); }
+  .ed-history__status.is-running { color: var(--st-warning-strong); }
+  .ed-history__row .op-link { margin-left: auto; }
+  .ed-history__empty { padding: 18px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
+  .ed-history__pager { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+
+  /* 弹窗内通用小件 */
+  .dlg-field { margin-bottom: var(--space-md); }
+  .dlg-field__label { display: block; margin-bottom: 6px; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .dlg-field__label .req { color: var(--st-danger); margin-left: 2px; }
+  .dlg-field .select, .dlg-field .input { width: 100%; }
+  .dlg-hint { font-size: var(--font-size-xs); color: var(--n-500); }
+
+  /* 调试结果弹窗：状态摘要 + 请求/响应 + 验证器结果 + 提取的变量 */
+  .dbg { display: flex; flex-direction: column; gap: var(--space-md); }
+  .dbg__summary { display: flex; align-items: center; gap: var(--space-sm); }
+  .dbg__duration { font-size: var(--font-size-sm); color: var(--n-500); }
+  .dbg__section { border: 1px solid var(--n-100); border-radius: var(--radius-md); overflow: hidden; }
+  .dbg__section-title { padding: 6px 12px; background: var(--n-50); border-bottom: 1px solid var(--n-100); font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .dbg__pre { margin: 0; padding: 12px; max-height: 260px; overflow: auto; background: var(--n-50); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; white-space: pre-wrap; }
+  .dbg__section .kv { border-collapse: collapse; }
+  .dbg__section .kv td, .dbg__section .kv th { border-bottom: 1px solid var(--n-100); }
+  .dbg__section .kv tr:last-child td { border-bottom: none; }
+
+  /* 变量助手 / 函数助手：分节列表 */
+  .helper { display: flex; flex-direction: column; gap: var(--space-lg); }
+  .helper__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-xs); }
+  .helper__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .helper__row { display: flex; align-items: center; gap: var(--space-sm); padding: 6px 8px; border: 1px solid var(--n-100); border-radius: var(--radius-sm); font-size: var(--font-size-sm); }
+  .helper__row + .helper__row { margin-top: 6px; }
+  .helper__row:hover { background: var(--n-50); }
+  .helper__name { width: 30%; flex-shrink: 0; font-family: var(--font-mono); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .helper__value { flex: 1; min-width: 0; color: var(--n-500); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .helper__empty { padding: 16px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
+  .helper__code { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-700); background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-sm); padding: 1px 6px; }
+  .helper__info-row { display: flex; gap: var(--space-sm); padding: 5px 0; font-size: var(--font-size-sm); }
+  .helper__info-label { width: 48px; flex-shrink: 0; color: var(--n-400); }
+  .helper__expr-row { display: flex; gap: var(--space-sm); }
+  .helper__expr-row .input { flex: 1; font-family: var(--font-mono); }
+  .helper__trial { display: flex; align-items: center; gap: var(--space-sm); margin-top: 8px; font-size: var(--font-size-sm); color: var(--n-600); }
+
+  /* 报告详情弹窗：概览 Hero + 统计 + 场景步骤摘要 */
+  .rpt-hero { padding: 14px 16px; border-radius: var(--radius-md); background: var(--n-900, #1f2329); color: #fff; }
+  .rpt-hero__top { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .rpt-hero__title { margin: 0; font-size: var(--font-size-lg); font-weight: 600; }
+  .rpt-pill { padding: 1px 8px; border-radius: 999px; font-size: var(--font-size-xs); font-weight: 600; }
+  .rpt-pill--ok { background: rgba(103, 194, 58, .18); color: #85ce61; }
+  .rpt-pill--fail { background: rgba(245, 108, 108, .18); color: #fab6b6; }
+  .rpt-pill--on-dark { background: rgba(255, 255, 255, .14); color: #dcdfe6; }
+  .rpt-hero__meta { display: flex; gap: var(--space-md); margin-top: 8px; font-size: var(--font-size-xs); color: #c0c4cc; }
+  .rpt-mono { font-family: var(--font-mono); }
+  .rpt-stats { display: flex; gap: var(--space-md); margin-top: var(--space-md); }
+  .rpt-stat { flex: 1; padding: 10px 12px; border: 1px solid var(--n-100); border-radius: var(--radius-md); text-align: center; }
+  .rpt-stat__num { font-size: 20px; font-weight: 700; color: var(--n-800); }
+  .rpt-stat__lbl { font-size: var(--font-size-xs); color: var(--n-500); }
+  .rpt-stat--success .rpt-stat__num { color: var(--st-success-strong); }
+  .rpt-stat--danger .rpt-stat__num { color: var(--st-danger-strong); }
+  .rpt-scene { margin-top: var(--space-md); border: 1px solid var(--n-100); border-radius: var(--radius-md); overflow: hidden; }
+  .rpt-scene__head { display: flex; align-items: center; gap: var(--space-sm); padding: 10px 12px; background: var(--n-50); }
+  .rpt-scene__title { margin: 0; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .rpt-scene__head .tag { margin-left: auto; }
+  .rpt-scene__body { padding: 4px 12px 10px; }
+
+  /* 批量移动弹窗内的模块树选择 */
+  .tree-pick { max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid var(--n-100); border-radius: var(--radius-md); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -277,21 +350,47 @@
 
     <div class="split__main">
       <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：全部场景（固定）+ 已打开的编排 Tab（可关闭），
-           页签末尾紧跟虚线 [+]（无文字），docs31 1.1 -->
+           页面级新建入口固定在页签条最右端（对齐 SceneWorkspace 的「新建场景」按钮） -->
       <div class="ws-tabs">
         <div class="ws-tab is-active" data-pane="list"><span>全部场景</span></div>
         <div class="ws-tab" data-name="下单成功主链路"><span>下单成功主链路</span><span class="ws-tab__close" data-close>×</span></div>
         <div class="ws-tab" data-name="支付回调重放"><span>支付回调重放</span><span class="ws-tab__close" data-close>×</span></div>
-        <button type="button" class="ws-tabs__add" id="btn-new-scene" data-icon="plus" title="新建场景" aria-label="新建场景"></button>
+        <div class="ws-tabs__actions">
+          <button type="button" class="btn btn--primary btn--sm" id="btn-new-scene"><span data-icon="plus"></span>新建场景</button>
+        </div>
       </div>
 
       <div class="ws-pane" data-pane="list">
+        <!-- 筛选条独立成卡片：视图分段 + 关键字 + 执行/发布状态 + 查询/重置（对齐 ScenariosPage 顶部搜索卡） -->
+        <div class="card filters-card">
+          <div class="toolbar">
+            <div class="toolbar__filters" data-ux-filters="scenes">
+              <div class="segment">
+                <span class="segment__item segment__item--active">全部</span>
+                <span class="segment__item">我关注的</span>
+                <span class="segment__item">我创建的</span>
+              </div>
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索场景名称"></div>
+              <select class="select" style="width:130px"><option>执行状态</option><option>执行成功</option><option>执行失败</option><option>未执行</option></select>
+              <select class="select" style="width:130px"><option>发布状态</option><option>草稿</option><option>已发布</option></select>
+              <div class="toolbar__actions">
+                <button class="btn btn--primary btn--sm" data-ux-feedback="已按当前条件查询" data-ux-feedback-type="success"><span data-icon="search"></span>查询</button>
+                <button class="btn btn--default btn--sm" data-ux-reset-filters>重置</button>
+              </div>
+              <span class="ux-restore" data-ux-restore-for="scenes" hidden>
+                <span data-icon="check"></span>已恢复上次筛选
+                <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div class="body-row">
           <!-- 左：模块树 -->
           <div class="card tree-card">
             <div class="mt-toolbar">
               <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索目录 / 文档"></div>
-              <button class="btn btn--primary btn--sm"><span data-icon="plus"></span>新建</button>
+              <button class="btn btn--primary btn--sm" data-ux-feedback="新建目录 / 新建文档"><span data-icon="plus"></span>新建</button>
             </div>
             <ul class="mt-list">
               <li class="mt-node"><span class="folder-ic" data-icon="folder"></span>下单主流程</li>
@@ -304,26 +403,8 @@
             </ul>
           </div>
 
-          <!-- 右：场景表格（筛选工具条与表格同属一张卡） -->
+          <!-- 右：场景表格 -->
           <div class="card table-card">
-            <div class="toolbar">
-              <div class="toolbar__filters" data-ux-filters="scenes">
-                <div class="segment">
-                  <span class="segment__item segment__item--active">全部</span>
-                  <span class="segment__item">我关注的</span>
-                  <span class="segment__item">我创建的</span>
-                </div>
-                <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索场景名称"></div>
-                <select class="select" style="width:130px"><option>执行状态</option><option>执行成功</option><option>执行失败</option><option>未执行</option></select>
-                <select class="select" style="width:130px"><option>发布状态</option><option>草稿</option><option>已发布</option></select>
-                <span class="ux-restore" data-ux-restore-for="scenes" hidden>
-                  <span data-icon="check"></span>已恢复上次筛选
-                  <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
-                </span>
-              </div>
-              <div class="toolbar__count">共 28 个场景</div>
-            </div>
-
             <div class="table-wrap" data-ux-batchbar="#batchbar-scenes">
               <table class="table">
                 <thead>
@@ -352,7 +433,7 @@
                     <td><span class="tag tag--success">成功</span></td>
                     <td class="num">2026-09-22 14:05</td>
                     <td class="num">2026-09-22 09:31</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                    <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox checkbox--on"></span></td>
@@ -365,7 +446,7 @@
                     <td><span class="tag tag--danger">失败</span></td>
                     <td class="num">2026-09-22 14:05</td>
                     <td class="num">2026-09-21 17:12</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                    <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox"></span></td>
@@ -378,7 +459,7 @@
                     <td><span class="tag tag--neutral">未执行</span></td>
                     <td class="num" style="color:var(--n-400)">—</td>
                     <td class="num">2026-09-22 11:47</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                    <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox"></span></td>
@@ -391,7 +472,7 @@
                     <td><span class="tag tag--success">成功</span></td>
                     <td class="num">2026-09-21 20:00</td>
                     <td class="num">2026-09-19 15:22</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                    <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
                   </tr>
                   <tr>
                     <td><span class="checkbox"></span></td>
@@ -404,13 +485,13 @@
                     <td><span class="tag tag--warning">执行中</span></td>
                     <td class="num">2026-09-22 15:10</td>
                     <td class="num">2026-09-20 10:03</td>
-                    <td><span class="op-link">编辑</span><span class="more-caret" data-ux-feedback="更多操作：复制 / 移动 / 删除 / 查看历史">更多 ▾</span></td>
+                    <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div class="pagination" data-ux-pageable>
-              <span class="pagination__total">共 28 个场景 · 每页 20 条</span>
+              <span class="pagination__total">共 28 个场景</span>
               <button class="page-btn" disabled>‹</button>
               <button class="page-btn page-btn--active">1</button>
               <button class="page-btn">2</button>
@@ -425,20 +506,48 @@
           <!-- 场景元信息：名称 / 模块 / 状态 / 优先级 …… 运行环境 -->
           <div class="card ed-nav">
             <span class="ed-nav__req">*</span>
-            <input class="input" value="下单成功主链路" placeholder="场景名称">
+            <input class="input" value="下单成功主链路" placeholder="场景名称" maxlength="100">
             <span class="ed-nav__req">*</span>
             <select class="select"><option>下单主流程</option><option>支付回归</option><option>用户中心</option></select>
             <span class="ed-status ed-status--on">已发布</span>
-            <button class="ed-prio" style="background:var(--priority-p1)">P1</button>
-            <button class="ed-icon-link" title="场景描述"><span data-icon="document"></span></button>
-            <button class="ed-icon-link" data-panel="history-pop">执行历史</button>
+            <span class="ed-pop">
+              <button class="ed-prio" id="ed-prio-btn" style="background:var(--priority-p1)">P1</button>
+              <div class="ed-menu" id="ed-prio-menu" hidden>
+                <button class="ed-menu__item" data-prio="P0"><span class="ed-menu__dot" style="background:var(--priority-p0)"></span>P0</button>
+                <button class="ed-menu__item is-active" data-prio="P1"><span class="ed-menu__dot" style="background:var(--priority-p1)"></span>P1</button>
+                <button class="ed-menu__item" data-prio="P2"><span class="ed-menu__dot" style="background:var(--priority-p2)"></span>P2（默认）</button>
+                <button class="ed-menu__item" data-prio="P3"><span class="ed-menu__dot" style="background:var(--priority-p3)"></span>P3</button>
+              </div>
+            </span>
+            <button class="ed-icon-link" id="ed-desc-btn" title="场景描述"><span data-icon="document"></span></button>
+            <span class="ed-pop" id="ed-history-pop">
+              <button class="ed-icon-link" id="ed-history-btn">执行历史</button>
+              <div class="ed-menu ed-history" id="ed-history-panel" hidden>
+                <div class="ed-history__head">执行历史</div>
+                <div class="ed-history__row"><span class="ed-history__status is-success">success</span><span>2026-09-22 14:05</span><span class="op-link" data-open-report>报告</span></div>
+                <div class="ed-history__row"><span class="ed-history__status is-failed">failed</span><span>2026-09-21 17:12</span><span class="op-link" data-open-report>报告</span></div>
+                <div class="ed-history__row"><span class="ed-history__status is-success">success</span><span>2026-09-20 09:48</span><span class="op-link" data-open-report>报告</span></div>
+                <div class="ed-history__row"><span class="ed-history__status is-running">running</span><span>2026-09-19 21:30</span></div>
+                <div class="ed-history__pager">
+                  <button class="page-btn" disabled>‹</button>
+                  <button class="page-btn page-btn--active">1</button>
+                  <button class="page-btn">2</button>
+                  <button class="page-btn">›</button>
+                </div>
+              </div>
+            </span>
             <div class="ed-nav__spacer"></div>
-            <select class="select" style="width:170px"><option>默认环境</option><option>测试环境</option><option>预发环境</option></select>
+            <select class="select" style="width:180px"><option>默认环境</option><option>测试环境</option><option>预发环境</option></select>
             <span class="ed-nav__sep"></span>
             <button class="btn btn--primary btn--sm" id="btn-run-scene" data-ux-key="mod+enter">▶ 运行场景</button>
             <button class="btn btn--default btn--sm" data-ux-save data-ux-key="mod+s">保存为草稿</button>
             <button class="btn btn--primary btn--sm" data-ux-feedback="发布成功，场景已是最新版本" data-ux-feedback-type="success">发布</button>
-            <button class="btn btn--danger btn--sm" data-ux-undo=".scene-ed" data-ux-undo-name="下单成功主链路">删除</button>
+            <button class="btn btn--danger btn--sm" id="btn-del-scene" data-create-hide>删除</button>
+          </div>
+
+          <!-- 场景描述：头部图标切换，对应 SceneEditorHeader 的描述文本域 -->
+          <div class="ed-desc" id="ed-desc" hidden>
+            <textarea class="textarea" rows="2" placeholder="场景描述（可选）">覆盖下单主链路的正向校验：创建订单 → 查询订单 → 数据库状态核对。</textarea>
           </div>
 
           <div class="card ed-body">
@@ -450,8 +559,8 @@
               <button class="ed-tab" data-edtab="post">后置处理器</button>
               <div class="ed-tabs__spacer"></div>
               <div class="ed-tabs__extra">
-                <button class="ed-extra"><span data-icon="sparkle"></span>函数助手</button>
-                <button class="ed-extra"><span data-icon="list"></span>变量助手</button>
+                <button class="ed-extra" data-dlg="dlg-fn-helper"><span data-icon="sparkle"></span>函数助手</button>
+                <button class="ed-extra" data-dlg="dlg-var-helper"><span data-icon="list"></span>变量助手</button>
               </div>
             </div>
 
@@ -462,79 +571,81 @@
                   <div class="steps-bar">
                     <span class="steps-bar__count">4 个步骤</span>
                     <div class="steps-bar__spacer"></div>
-                    <button class="btn btn--link btn--sm">从接口添加</button>
-                    <button class="btn btn--link btn--sm">+ 添加步骤</button>
+                    <button class="btn btn--link btn--sm" data-addiface>从接口添加</button>
+                    <button class="btn btn--link btn--sm" data-addstep>+ 添加步骤</button>
                   </div>
                   <div class="steps-list">
-                    <div class="step-card is-selected" data-step data-step-idx="1">
+                    <!-- 插入位：拖拽落点指示（StepCanvas 插入区） -->
+                    <div class="step-insert"></div>
+                    <div class="step-card is-selected" data-step data-step-idx="1" data-step-type="http" data-step-name="创建订单" data-step-method="POST" data-step-url="/api/order/create">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">1</span>
                         <span class="step-type">HTTP</span>
                         <span class="method-tag mt-post">POST</span>
-                        <span class="step-src">创建订单</span>
+                        <span class="step-src">订单创建接口</span>
                         <div class="step-card__spacer"></div>
                         <button class="switch is-on" title="启用"></button>
-                        <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
+                        <span class="step-card__acts"><span data-more="step">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">POST /api/order/create</div>
-                      <!-- 行内调试结果：本步跑完直接显示在卡片下方（不弹窗） -->
-                      <div class="step-run step-run--pass" data-run-result hidden>
-                        <span>✓ 通过</span><span class="step-run__mono">200</span><span class="step-run__mono">312 ms</span><span>断言 2/2</span>
-                        <span class="step-run__more" data-ux-feedback="响应摘要：$.code=0 · orderId=ord_88213">查看响应</span>
-                      </div>
+                      <div class="step-card__body"><span class="step-card__name">创建订单</span></div>
                     </div>
 
-                    <div class="step-card" data-step data-step-idx="2">
+                    <div class="step-insert"></div>
+                    <div class="step-card" data-step data-step-idx="2" data-step-type="http" data-step-name="查询订单详情" data-step-method="GET" data-step-url="/api/order/detail">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">2</span>
                         <span class="step-type">HTTP</span>
                         <span class="method-tag mt-get">GET</span>
+                        <span class="step-src">订单查询接口</span>
                         <div class="step-card__spacer"></div>
+                        <button class="step-card__acts" data-expand style="border:none;background:none;padding:0" title="展开详情"><span data-icon="chevron-down"></span></button>
                         <button class="switch is-on" title="启用"></button>
-                        <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
+                        <span class="step-card__acts"><span data-more="step">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">GET /api/order/<span class="var-ref" data-var-src="1">${orderId}<span class="var-tip">来自 <b>步骤 1</b> · 提取器 orderId<br>表达式 $.data.orderId<br>点击跳到来源步骤</span></span></div>
-                      <div class="step-run step-run--pass" data-run-result hidden>
-                        <span>✓ 通过</span><span class="step-run__mono">200</span><span class="step-run__mono">96 ms</span><span>断言 2/2</span>
-                        <span class="step-run__more" data-ux-feedback="响应摘要：status=PAID · amount=299.00">查看响应</span>
+                      <div class="step-card__body"><span class="step-card__name">查询订单详情</span></div>
+                      <div class="step-card__detail" data-detail hidden>
+                        <div>验证器：2 条</div>
+                        <div>提取器：1 条</div>
                       </div>
                     </div>
 
-                    <div class="step-card" data-step data-step-idx="3">
+                    <div class="step-insert"></div>
+                    <div class="step-card" data-step data-step-idx="3" data-step-type="jdbc" data-step-name="核对订单状态" data-step-sql="SELECT status FROM t_order WHERE id = ?">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">3</span>
                         <span class="step-type">JDBC</span>
                         <span class="method-tag" style="background:var(--brand-500)">SELECT</span>
                         <div class="step-card__spacer"></div>
                         <button class="switch is-on" title="启用"></button>
-                        <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
+                        <span class="step-card__acts"><span data-more="step">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">SELECT status FROM t_order WHERE id = ?</div>
-                      <!-- 失败示例：断言不通过时行内给出期望 vs 实际 -->
-                      <div class="step-run step-run--fail" data-run-result hidden>
-                        <span>✗ 断言失败</span><span>结果集 <b class="step-run__mono">0 行</b>，期望 <b class="step-run__mono">1 行</b></span>
-                        <span class="step-run__more" data-ux-feedback="SQL：SELECT status FROM t_order WHERE id = 'ord_88213'">查看 SQL</span>
-                      </div>
+                      <div class="step-card__body"><span class="step-card__name">核对订单状态</span></div>
                     </div>
 
-                    <div class="step-card is-off" data-step data-step-idx="4">
+                    <div class="step-insert"></div>
+                    <div class="step-card is-off" data-step data-step-idx="4" data-step-type="http" data-step-name="取消订单" data-step-method="PUT" data-step-url="/api/order/cancel">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">4</span>
                         <span class="step-type">HTTP</span>
                         <span class="method-tag mt-put">PUT</span>
+                        <span class="step-src">订单取消接口</span>
+                        <span class="step-card__missing">源已删除</span>
                         <div class="step-card__spacer"></div>
+                        <button class="step-card__acts" data-expand style="border:none;background:none;padding:0" title="展开详情"><span data-icon="chevron-down"></span></button>
                         <button class="switch" title="已停用"></button>
-                        <span class="step-card__acts"><span class="run-btn" data-run>▶ 试运行</span><span>操作 ▾</span></span>
+                        <span class="step-card__acts"><span data-more="step">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">PUT /api/order/cancel</div>
-                      <div class="step-run step-run--pass" data-run-result hidden>
-                        <span>✓ 通过</span><span class="step-run__mono">200</span><span class="step-run__mono">143 ms</span><span>断言 1/1</span>
+                      <div class="step-card__body"><span class="step-card__name">取消订单</span></div>
+                      <div class="step-card__detail" data-detail hidden>
+                        <div class="is-warning">源已删除，使用创建时的快照执行</div>
+                        <div>验证器：1 条</div>
                       </div>
                     </div>
+                    <div class="step-insert"></div>
                   </div>
                 </div>
 
@@ -542,91 +653,189 @@
 
                 <!-- 右：步骤内联编辑 -->
                 <div class="steps-right">
+                  <!-- 空态：未选中步骤时提示（对齐 SceneEditorPage 右栏空态） -->
                   <div class="inline">
                     <div class="inline__head">
-                      <input class="input" value="创建订单" placeholder="步骤名称">
+                      <input class="input" data-step-name value="创建订单" placeholder="步骤名称">
                       <span style="font-size:var(--font-size-xs);color:var(--n-500)">启用</span>
                       <button class="switch is-on"></button>
                       <span class="inline__sep"></span>
                       <span class="radio-seg">
-                        <button class="is-active">HTTP 请求</button>
-                        <button>JDBC 请求</button>
+                        <button class="is-active" data-steptype="http">HTTP 请求</button>
+                        <button data-steptype="jdbc">JDBC 请求</button>
                       </span>
-                      <select class="select inline__ref"><option>选择环境 HTTP 配置</option><option>默认 HTTP</option></select>
+                      <select class="select inline__ref" data-stepref="http" aria-label="环境 HTTP 配置">
+                        <option>选择环境 HTTP 配置</option>
+                        <option>default（测试环境 · 默认 HTTP）</option>
+                        <option>api_http（测试环境）</option>
+                      </select>
+                      <select class="select inline__ref" data-stepref="jdbc" aria-label="环境数据源" hidden>
+                        <option>选择环境数据源</option>
+                        <option>order_db（测试环境）</option>
+                        <option>user_db（测试环境）</option>
+                      </select>
                     </div>
 
-                    <div class="req-line">
-                      <select class="select"><option>POST</option><option>GET</option><option>PUT</option><option>DELETE</option></select>
-                      <input class="input" value="/api/order/create">
-                    </div>
-
-                    <div data-etabs-root>
-                      <div class="etabs">
-                        <button class="etab is-active" data-etab="query">Query 参数<span class="count">1</span></button>
-                        <button class="etab" data-etab="body">请求体<span class="count">3</span></button>
-                        <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
-                        <button class="etab" data-etab="validators">验证器<span class="count">2</span></button>
-                        <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
+                    <!-- HTTP 请求配置：与公共组件 RequestConfigEditor 同一套页签与列 -->
+                    <div data-stepform="http">
+                      <div class="req-line">
+                        <select class="select" data-step-method><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select>
+                        <input class="input" data-step-url value="/api/order/create" placeholder="/api/endpoint (支持 ${变量} 引用)">
                       </div>
 
-                      <div class="epanel is-active" data-epanel="query">
-                        <table class="kv">
-                          <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th style="width:44px"></th></tr></thead>
-                          <tbody>
-                            <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="channel"></td><td><input class="cell-input" value="app"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                          </tbody>
-                        </table>
-                        <span class="kv__add">+ 添加参数</span>
-                      </div>
+                      <div data-etabs-root>
+                        <div class="etabs">
+                          <button class="etab is-active" data-etab="headers">请求头<span class="count">2</span></button>
+                          <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
+                          <button class="etab" data-etab="body">请求体<span class="count">1</span></button>
+                          <button class="etab" data-etab="validators">验证器<span class="count">2</span></button>
+                          <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
+                        </div>
 
-                      <div class="epanel" data-epanel="body">
-                        <span class="bodytypes">
-                          <button class="bodytype">none</button>
-                          <button class="bodytype">x-www-form-urlencoded</button>
-                          <button class="bodytype is-active">raw</button>
-                        </span>
-                        <span class="bodytypes">
-                          <button class="bodytype is-active">Json</button>
-                          <button class="bodytype">Text</button>
-                          <button class="bodytype">Xml</button>
-                        </span>
-                        <textarea class="code-editor" spellcheck="false">{
+                        <div class="epanel is-active" data-epanel="headers">
+                          <table class="kv">
+                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
+                            <tbody>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <!-- 末行自动补空行：填完即成一行，序列化时过滤空行 -->
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="Header"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="epanel" data-epanel="query">
+                          <table class="kv">
+                            <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th style="width:44px"></th></tr></thead>
+                            <tbody>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="channel"></td><td><input class="cell-input" value="app"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="参数名"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="epanel" data-epanel="body">
+                          <span class="bodytypes">
+                            <button class="bodytype" data-bodytype="none">none</button>
+                            <button class="bodytype" data-bodytype="urlencoded">x-www-form-urlencoded</button>
+                            <button class="bodytype is-active" data-bodytype="raw">raw</button>
+                          </span>
+                          <span data-bodysub="raw">
+                            <select class="select" style="width:112px;height:26px;vertical-align:top" aria-label="raw 子类型">
+                              <option>Text</option><option selected>Json</option><option>Xml</option><option>Html</option><option>Javascript</option>
+                            </select>
+                            <button class="btn btn--link btn--sm" data-ux-feedback="已格式化请求体（修正 JSON 缩进）" data-ux-feedback-type="success">格式化</button>
+                          </span>
+                          <textarea class="code-editor" data-bodysub="raw" spellcheck="false">{
   "skuId": "${skuId}",
   "quantity": 1,
   "channel": "app"
 }</textarea>
-                      </div>
+                          <p class="dlg-hint" data-bodysub="none" hidden>该请求不携带请求体。</p>
+                          <table class="kv" data-bodysub="urlencoded" hidden>
+                            <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th style="width:44px"></th></tr></thead>
+                            <tbody>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="参数名"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            </tbody>
+                          </table>
+                        </div>
 
-                      <div class="epanel" data-epanel="headers">
-                        <table class="kv">
-                          <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
-                          <tbody>
-                            <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                            <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                          </tbody>
-                        </table>
-                        <span class="kv__add">+ 添加请求头</span>
-                      </div>
+                        <div class="epanel" data-epanel="validators">
+                          <div class="pane-actions">
+                            <button class="btn btn--link btn--sm" data-addval>+ 添加验证器</button>
+                            <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
+                          </div>
+                          <div class="pane-list">
+                            <div class="pane-row">
+                              <span class="checkbox checkbox--on" title="启用"></span>
+                              <select class="select select--n"><option>状态码</option><option>JSON 字段</option><option>响应头</option><option>响应体</option><option>正则匹配</option></select>
+                              <select class="select select--n"><option>等于</option><option>不等于</option><option>大于</option><option>小于</option><option>包含</option></select>
+                              <input class="input" placeholder="表达式（如 $.code）">
+                              <input class="input" value="200" placeholder="期望值">
+                              <span class="op-link op-link--danger">删除</span>
+                            </div>
+                            <div class="pane-row">
+                              <span class="checkbox checkbox--on" title="启用"></span>
+                              <select class="select select--n"><option>JSON 字段</option><option>状态码</option><option>响应头</option><option>响应体</option><option>正则匹配</option></select>
+                              <select class="select select--n"><option>等于</option><option>不等于</option><option>包含</option><option>正则匹配</option></select>
+                              <input class="input" value="$.code" placeholder="表达式（如 $.code）">
+                              <input class="input" value="SUCCESS" placeholder="期望值">
+                              <span class="op-link op-link--danger">删除</span>
+                            </div>
+                          </div>
+                        </div>
 
-                      <div class="epanel" data-epanel="validators">
-                        <table class="kv">
-                          <thead><tr><th style="width:120px">提取来源</th><th style="width:130px">断言方式</th><th>期望值</th><th style="width:44px"></th></tr></thead>
-                          <tbody>
-                            <tr><td><select class="cell-input"><option>状态码</option></select></td><td><select class="cell-input"><option>等于</option></select></td><td><input class="cell-input" value="200"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                            <tr><td><select class="cell-input"><option>JSON 字段</option></select></td><td><select class="cell-input"><option>等于</option></select></td><td><input class="cell-input" value="$.code: SUCCESS"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                          </tbody>
-                        </table>
-                        <span class="kv__add">+ 添加验证器</span><span class="kv__add">导入验证器</span>
+                        <div class="epanel" data-epanel="extractors">
+                          <div class="pane-actions">
+                            <button class="btn btn--link btn--sm" data-addext>+ 添加提取器</button>
+                            <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
+                          </div>
+                          <div class="pane-list">
+                            <div class="pane-row">
+                              <span class="checkbox checkbox--on" title="启用"></span>
+                              <select class="select select--n"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
+                              <input class="input" value="$.data.orderId" placeholder="表达式">
+                              <input class="input" value="orderId" placeholder="变量名">
+                              <span class="op-link op-link--danger">删除</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
+                    </div>
 
-                      <div class="epanel" data-epanel="extractors">
-                        <table class="kv">
-                          <thead><tr><th style="width:120px">提取来源</th><th style="width:130px">变量名</th><th>表达式</th><th style="width:44px"></th></tr></thead>
-                          <tbody>
-                            <tr><td><select class="cell-input"><option>JSON 字段</option></select></td><td><input class="cell-input" value="orderId"></td><td><input class="cell-input" value="$.data.orderId"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                          </tbody>
-                        </table>
-                        <span class="kv__add">+ 添加提取器</span><span class="kv__add">导入提取器</span>
+                    <!-- JDBC 请求配置：SQL 与验证器/提取器同构页签（对齐 SceneStepInlineEditor 的 jdbc 分区） -->
+                    <div data-stepform="jdbc" hidden>
+                      <div data-etabs-root>
+                        <div class="etabs">
+                          <button class="etab is-active" data-etab="sql">SQL</button>
+                          <button class="etab" data-etab="validators">验证器<span class="count">1</span></button>
+                          <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
+                        </div>
+
+                        <div class="epanel is-active" data-epanel="sql">
+                          <div class="form-label">SQL 语句</div>
+                          <textarea class="code-editor" spellcheck="false" style="min-height:96px">SELECT status FROM t_order WHERE id = ?</textarea>
+                          <div class="form-label">
+                            参数（? 占位符对应）
+                            <button class="btn btn--link btn--sm" data-addarg>+ 添加参数</button>
+                          </div>
+                          <div class="arg-list">
+                            <div class="arg-row"><input class="input" value="ord_88213"><span class="op-link op-link--danger">删除</span></div>
+                          </div>
+                        </div>
+
+                        <div class="epanel" data-epanel="validators">
+                          <div class="pane-actions">
+                            <button class="btn btn--link btn--sm" data-addval>+ 添加验证器</button>
+                            <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
+                          </div>
+                          <div class="pane-list">
+                            <div class="pane-row">
+                              <span class="checkbox checkbox--on" title="启用"></span>
+                              <select class="select select--n"><option>响应体</option><option>状态码</option><option>JSON 字段</option></select>
+                              <select class="select select--n"><option>大于</option><option>等于</option><option>不等于</option></select>
+                              <input class="input" value="0" placeholder="表达式（如 $.code）">
+                              <input class="input" value="1" placeholder="期望值">
+                              <span class="op-link op-link--danger">删除</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="epanel" data-epanel="extractors">
+                          <div class="pane-actions">
+                            <button class="btn btn--link btn--sm" data-addext>+ 添加提取器</button>
+                            <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
+                          </div>
+                          <div class="pane-list">
+                            <div class="pane-row">
+                              <span class="checkbox checkbox--on" title="启用"></span>
+                              <select class="select select--n"><option>完整响应体</option><option>JSON 字段</option><option>响应头</option><option>正则匹配</option></select>
+                              <input class="input" value="status" placeholder="表达式">
+                              <input class="input" value="orderStatus" placeholder="变量名">
+                              <span class="op-link op-link--danger">删除</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -642,13 +851,13 @@
                   <div class="pane-head__spacer"></div>
                 </div>
                 <table class="kv">
-                  <thead><tr><th>变量名</th><th>值</th><th>说明</th><th style="width:60px">操作</th></tr></thead>
+                  <thead><tr><th>变量名</th><th>值</th><th>说明</th><th style="width:44px"></th></tr></thead>
                   <tbody>
                     <tr><td><input class="cell-input" value="skuId"></td><td><input class="cell-input" value="SKU10086"></td><td><input class="cell-input" value="下单商品"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                    <tr><td><input class="cell-input" value="traceId"></td><td><input class="cell-input" value="${uuid()}"></td><td><input class="cell-input" placeholder="说明（可选）"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                    <tr><td><input class="cell-input" value="traceId"></td><td><input class="cell-input" value="${uuid()}"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                    <tr><td><input class="cell-input" placeholder="变量名"></td><td><input class="cell-input" placeholder="值"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
                   </tbody>
                 </table>
-                <span class="kv__add">+ 添加变量</span>
               </div>
             </div>
 
@@ -660,33 +869,35 @@
                     <span class="steps-bar__count" data-proc-count>前置处理器（2）</span>
                     <div class="steps-bar__spacer"></div>
                     <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
-                    <button class="btn btn--link btn--sm" data-addproc>+ 添加处理器</button>
+                    <button class="btn btn--link btn--sm" data-addproc>+ 添加前置处理器</button>
                   </div>
                   <div class="steps-list proc-list" data-proc-list>
                     <div class="step-card is-selected" data-proc-item data-proctype="http" data-name="Token 预置">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">1</span>
                         <span class="step-type">HTTP</span>
+                        <span class="method-tag mt-post">POST</span>
                         <div class="step-card__spacer"></div>
                         <button class="switch is-on" title="启用"></button>
-                        <span class="step-card__acts"><span data-proc-act="up">上移</span><span data-proc-act="down">下移</span><span data-proc-act="del">删除</span></span>
+                        <span class="step-card__acts"><span data-more="proc">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">POST /oauth/token · 从环境变量获取 Token 并注入请求头</div>
+                      <div class="step-card__body"><span class="step-card__name">Token 预置</span></div>
                     </div>
                     <div class="step-card" data-proc-item data-proctype="jdbc" data-name="库存预检">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">2</span>
                         <span class="step-type">JDBC</span>
+                        <span class="method-tag" style="background:var(--brand-500)">SELECT</span>
                         <div class="step-card__spacer"></div>
                         <button class="switch is-on" title="启用"></button>
-                        <span class="step-card__acts"><span data-proc-act="up">上移</span><span data-proc-act="down">下移</span><span data-proc-act="del">删除</span></span>
+                        <span class="step-card__acts"><span data-more="proc">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">SELECT stock FROM t_inventory WHERE sku = ? · 执行前校验下单商品可用库存</div>
+                      <div class="step-card__body"><span class="step-card__name">库存预检</span></div>
                     </div>
                   </div>
-                  <div class="pane-empty" data-proc-list-empty hidden>暂无前置处理器，点击上方 [+ 添加处理器] 新增</div>
+                  <div class="pane-empty" data-proc-list-empty hidden>暂无前置处理器<div style="margin-top:8px"><button class="btn btn--default btn--sm" data-addproc><span data-icon="plus"></span>添加前置处理器</button></div></div>
                 </div>
 
                 <div class="proc-divider"><i></i></div>
@@ -716,26 +927,37 @@
 
                     <div data-sub="http">
                       <div class="req-line">
-                        <select class="select"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
-                        <input class="input" value="/oauth/token" placeholder="/api/endpoint（支持 ${变量} 引用）">
+                        <select class="select"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select>
+                        <input class="input" value="/oauth/token" placeholder="/api/endpoint (支持 ${变量} 引用)">
                       </div>
 
                       <div data-etabs-root>
                         <div class="etabs">
-                          <button class="etab is-active" data-etab="query">Query 参数<span class="count">1</span></button>
+                          <button class="etab is-active" data-etab="headers">请求头<span class="count">2</span></button>
+                          <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
                           <button class="etab" data-etab="body">请求体</button>
-                          <button class="etab" data-etab="headers">请求头<span class="count">2</span></button>
                           <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
                         </div>
 
-                        <div class="epanel is-active" data-epanel="query">
+                        <div class="epanel is-active" data-epanel="headers">
+                          <table class="kv">
+                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
+                            <tbody>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="Header"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="epanel" data-epanel="query">
                           <table class="kv">
                             <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th style="width:44px"></th></tr></thead>
                             <tbody>
                               <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="trace_id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="参数名"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
                             </tbody>
                           </table>
-                          <span class="kv__add">+ 添加参数</span>
                         </div>
 
                         <div class="epanel" data-epanel="body">
@@ -744,31 +966,19 @@
                             <button class="bodytype">x-www-form-urlencoded</button>
                             <button class="bodytype is-active">raw</button>
                           </span>
-                          <span class="bodytypes">
-                            <button class="bodytype is-active">Json</button>
-                            <button class="bodytype">Text</button>
-                            <button class="bodytype">Xml</button>
-                          </span>
+                          <select class="select" style="width:112px;height:26px;vertical-align:top" aria-label="raw 子类型">
+                            <option>Text</option><option selected>Json</option><option>Xml</option><option>Html</option><option>Javascript</option>
+                          </select>
+                          <button class="btn btn--link btn--sm" data-ux-feedback="已格式化请求体（修正 JSON 缩进）" data-ux-feedback-type="success">格式化</button>
                           <textarea class="code-editor" spellcheck="false" style="min-height:120px">{
   "username": "${username}",
   "password": "${password}"
 }</textarea>
                         </div>
 
-                        <div class="epanel" data-epanel="headers">
-                          <table class="kv">
-                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
-                            <tbody>
-                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Trace-Id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                            </tbody>
-                          </table>
-                          <span class="kv__add">+ 添加请求头</span>
-                        </div>
-
                         <div class="epanel" data-epanel="extractors">
                           <div class="pane-actions">
-                            <button class="btn btn--link btn--sm" data-addext>＋ 添加提取器</button>
+                            <button class="btn btn--link btn--sm" data-addext>+ 添加提取器</button>
                             <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
                           </div>
                           <div class="pane-list">
@@ -777,7 +987,7 @@
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.data.token" placeholder="表达式">
                               <input class="input" value="token" placeholder="变量名">
-                              <span class="op-link op-link--danger" data-delext>删除</span>
+                              <span class="op-link op-link--danger">删除</span>
                             </div>
                           </div>
                         </div>
@@ -796,16 +1006,16 @@
                           <textarea class="code-editor" spellcheck="false" style="min-height:96px">SELECT stock FROM t_inventory WHERE sku = ?</textarea>
                           <div class="form-label">
                             参数 (args)
-                            <button class="btn btn--link btn--sm" data-addarg>＋ 添加参数</button>
+                            <button class="btn btn--link btn--sm" data-addarg>+ 添加参数</button>
                           </div>
                           <div class="arg-list">
-                            <div class="arg-row"><input class="input" value="${sku}"><span class="op-link op-link--danger" data-delarg>删除</span></div>
+                            <div class="arg-row"><input class="input" value="${sku}"><span class="op-link op-link--danger">删除</span></div>
                           </div>
                         </div>
 
                         <div class="epanel" data-epanel="extractors">
                           <div class="pane-actions">
-                            <button class="btn btn--link btn--sm" data-addext>＋ 添加提取器</button>
+                            <button class="btn btn--link btn--sm" data-addext>+ 添加提取器</button>
                             <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
                           </div>
                           <div class="pane-list">
@@ -814,7 +1024,7 @@
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.stock" placeholder="表达式">
                               <input class="input" value="stock" placeholder="变量名">
-                              <span class="op-link op-link--danger" data-delext>删除</span>
+                              <span class="op-link op-link--danger">删除</span>
                             </div>
                           </div>
                         </div>
@@ -834,33 +1044,35 @@
                     <span class="steps-bar__count" data-proc-count>后置处理器（2）</span>
                     <div class="steps-bar__spacer"></div>
                     <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
-                    <button class="btn btn--link btn--sm" data-addproc>+ 添加处理器</button>
+                    <button class="btn btn--link btn--sm" data-addproc>+ 添加后置处理器</button>
                   </div>
                   <div class="steps-list proc-list" data-proc-list>
                     <div class="step-card is-selected" data-proc-item data-proctype="http" data-name="上报执行结果">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">1</span>
                         <span class="step-type">HTTP</span>
+                        <span class="method-tag mt-post">POST</span>
                         <div class="step-card__spacer"></div>
                         <button class="switch is-on" title="启用"></button>
-                        <span class="step-card__acts"><span data-proc-act="up">上移</span><span data-proc-act="down">下移</span><span data-proc-act="del">删除</span></span>
+                        <span class="step-card__acts"><span data-more="proc">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">POST /report/result · 执行结束将结果按表单上报到报表服务</div>
+                      <div class="step-card__body"><span class="step-card__name">上报执行结果</span></div>
                     </div>
                     <div class="step-card" data-proc-item data-proctype="jdbc" data-name="清理测试数据">
                       <div class="step-card__head">
-                        <span class="step-card__grip" data-icon="list"></span>
+                        <span class="step-card__grip" data-icon="list" title="拖拽排序"></span>
                         <span class="step-card__idx">2</span>
                         <span class="step-type">JDBC</span>
+                        <span class="method-tag" style="background:var(--brand-500)">DELETE</span>
                         <div class="step-card__spacer"></div>
                         <button class="switch is-on" title="启用"></button>
-                        <span class="step-card__acts"><span data-proc-act="up">上移</span><span data-proc-act="down">下移</span><span data-proc-act="del">删除</span></span>
+                        <span class="step-card__acts"><span data-more="proc">操作 ▾</span></span>
                       </div>
-                      <div class="step-card__body">DELETE FROM t_order_test WHERE biz_no = ? · 执行结束按订单号清理造数记录</div>
+                      <div class="step-card__body"><span class="step-card__name">清理测试数据</span></div>
                     </div>
                   </div>
-                  <div class="pane-empty" data-proc-list-empty hidden>暂无后置处理器，点击上方 [+ 添加处理器] 新增</div>
+                  <div class="pane-empty" data-proc-list-empty hidden>暂无后置处理器<div style="margin-top:8px"><button class="btn btn--default btn--sm" data-addproc><span data-icon="plus"></span>添加后置处理器</button></div></div>
                 </div>
 
                 <div class="proc-divider"><i></i></div>
@@ -890,26 +1102,36 @@
 
                     <div data-sub="http">
                       <div class="req-line">
-                        <select class="select"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
-                        <input class="input" value="/report/result" placeholder="/api/endpoint（支持 ${变量} 引用）">
+                        <select class="select"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select>
+                        <input class="input" value="/report/result" placeholder="/api/endpoint (支持 ${变量} 引用)">
                       </div>
 
                       <div data-etabs-root>
                         <div class="etabs">
-                          <button class="etab is-active" data-etab="query">Query 参数<span class="count">1</span></button>
+                          <button class="etab is-active" data-etab="headers">请求头<span class="count">1</span></button>
+                          <button class="etab" data-etab="query">Query 参数<span class="count">1</span></button>
                           <button class="etab" data-etab="body">请求体</button>
-                          <button class="etab" data-etab="headers">请求头<span class="count">1</span></button>
                           <button class="etab" data-etab="extractors">提取器<span class="count">1</span></button>
                         </div>
 
-                        <div class="epanel is-active" data-epanel="query">
+                        <div class="epanel is-active" data-epanel="headers">
+                          <table class="kv">
+                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
+                            <tbody>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="Header"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="epanel" data-epanel="query">
                           <table class="kv">
                             <thead><tr><th style="width:34px"></th><th>参数名</th><th>值</th><th style="width:44px"></th></tr></thead>
                             <tbody>
                               <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="trace_id"></td><td><input class="cell-input" value="${traceId}"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
+                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="参数名"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
                             </tbody>
                           </table>
-                          <span class="kv__add">+ 添加参数</span>
                         </div>
 
                         <div class="epanel" data-epanel="body">
@@ -918,30 +1140,19 @@
                             <button class="bodytype">x-www-form-urlencoded</button>
                             <button class="bodytype is-active">raw</button>
                           </span>
-                          <span class="bodytypes">
-                            <button class="bodytype is-active">Json</button>
-                            <button class="bodytype">Text</button>
-                            <button class="bodytype">Xml</button>
-                          </span>
+                          <select class="select" style="width:112px;height:26px;vertical-align:top" aria-label="raw 子类型">
+                            <option>Text</option><option selected>Json</option><option>Xml</option><option>Html</option><option>Javascript</option>
+                          </select>
+                          <button class="btn btn--link btn--sm" data-ux-feedback="已格式化请求体（修正 JSON 缩进）" data-ux-feedback-type="success">格式化</button>
                           <textarea class="code-editor" spellcheck="false" style="min-height:120px">{
   "status": "success",
   "duration": "${cost}"
 }</textarea>
                         </div>
 
-                        <div class="epanel" data-epanel="headers">
-                          <table class="kv">
-                            <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:44px"></th></tr></thead>
-                            <tbody>
-                              <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type"></td><td><input class="cell-input" value="application/json"></td><td><span class="op-link op-link--danger">删除</span></td></tr>
-                            </tbody>
-                          </table>
-                          <span class="kv__add">+ 添加请求头</span>
-                        </div>
-
                         <div class="epanel" data-epanel="extractors">
                           <div class="pane-actions">
-                            <button class="btn btn--link btn--sm" data-addext>＋ 添加提取器</button>
+                            <button class="btn btn--link btn--sm" data-addext>+ 添加提取器</button>
                             <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
                           </div>
                           <div class="pane-list">
@@ -950,7 +1161,7 @@
                               <select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>
                               <input class="input" value="$.data.taskId" placeholder="表达式">
                               <input class="input" value="taskId" placeholder="变量名">
-                              <span class="op-link op-link--danger" data-delext>删除</span>
+                              <span class="op-link op-link--danger">删除</span>
                             </div>
                           </div>
                         </div>
@@ -969,16 +1180,16 @@
                           <textarea class="code-editor" spellcheck="false" style="min-height:96px">DELETE FROM t_order_test WHERE biz_no = ?</textarea>
                           <div class="form-label">
                             参数 (args)
-                            <button class="btn btn--link btn--sm" data-addarg>＋ 添加参数</button>
+                            <button class="btn btn--link btn--sm" data-addarg>+ 添加参数</button>
                           </div>
                           <div class="arg-list">
-                            <div class="arg-row"><input class="input" value="${orderNo}"><span class="op-link op-link--danger" data-delarg>删除</span></div>
+                            <div class="arg-row"><input class="input" value="${orderNo}"><span class="op-link op-link--danger">删除</span></div>
                           </div>
                         </div>
 
                         <div class="epanel" data-epanel="extractors">
                           <div class="pane-actions">
-                            <button class="btn btn--link btn--sm" data-addext>＋ 添加提取器</button>
+                            <button class="btn btn--link btn--sm" data-addext>+ 添加提取器</button>
                             <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
                           </div>
                           <div class="pane-list"></div>
@@ -994,21 +1205,275 @@
 
           <div class="ed-footer">
             自动保存已开启
-            <span class="inline__sep"></span>
-            快捷键：<span class="kbd">⌘S</span> 保存草稿 · <span class="kbd">⌘↵</span> 运行场景 · <span class="kbd">↑</span><span class="kbd">↓</span> 切换步骤
           </div>
         </div>
       </div>
     </div>
   </div>
-  </div>
 </main>
+
+<!-- 浮动下拉：表格「更多」与卡片「操作」共用 -->
+<div class="more-dropdown" id="more-dropdown" hidden></div>
+
+<!-- 从接口添加步骤（对齐 InterfacePickerDialog） -->
+<div class="dialog-mask" id="dlg-interface" hidden>
+  <div class="dialog" style="width:640px">
+    <div class="dialog__header">
+      <span class="dialog__title">从接口添加步骤</span>
+      <button class="dialog__close" data-dlg-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="dlg-field">
+        <label class="dlg-field__label">选择接口<span class="req">*</span></label>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="iface-search" placeholder="搜索接口名称"></div>
+      </div>
+      <ul class="mt-list" id="iface-list" style="border:1px solid var(--n-100);border-radius:var(--radius-md);max-height:240px">
+        <li class="mt-node" data-iface data-name="POST /api/order/create - 创建订单"><span class="doc-ic" data-icon="document"></span>POST /api/order/create - 创建订单</li>
+        <li class="mt-node" data-iface data-name="GET /api/order/detail - 查询订单详情"><span class="doc-ic" data-icon="document"></span>GET /api/order/detail - 查询订单详情</li>
+        <li class="mt-node" data-iface data-name="GET /api/user/profile - 获取用户信息"><span class="doc-ic" data-icon="document"></span>GET /api/user/profile - 获取用户信息</li>
+        <li class="mt-node" data-iface data-name="POST /api/pay/submit - 提交支付"><span class="doc-ic" data-icon="document"></span>POST /api/pay/submit - 提交支付</li>
+      </ul>
+      <p class="dlg-hint" style="margin-top:8px">导入为复制：步骤与源接口不再关联，保存后即为独立副本。</p>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-dlg-close>取消</button>
+      <button class="btn btn--primary btn--sm" id="iface-import">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 单步调试结果（对齐 StepDebugResultDialog） -->
+<div class="dialog-mask" id="dlg-debug" hidden>
+  <div class="dialog" style="width:720px">
+    <div class="dialog__header">
+      <span class="dialog__title">调试结果</span>
+      <button class="dialog__close" data-dlg-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="dbg">
+        <div class="dbg__summary">
+          <span class="tag tag--success">success</span>
+          <span class="dbg__duration">312ms</span>
+        </div>
+        <div class="dbg__section">
+          <div class="dbg__section-title">请求</div>
+          <pre class="dbg__pre">POST https://api.test.example.com/api/order/create
+Content-Type: application/json
+
+{
+  "skuId": "SKU10086",
+  "quantity": 1,
+  "channel": "app"
+}</pre>
+        </div>
+        <div class="dbg__section">
+          <div class="dbg__section-title">响应</div>
+          <pre class="dbg__pre">HTTP 200 · 312ms
+
+{
+  "code": "SUCCESS",
+  "message": "ok",
+  "data": { "orderId": "ord_88213", "status": "CREATED" }
+}</pre>
+        </div>
+        <div class="dbg__section">
+          <div class="dbg__section-title">验证器结果</div>
+          <table class="kv">
+            <thead><tr><th style="padding-left:12px">验证器</th><th style="width:100px">结果</th></tr></thead>
+            <tbody>
+              <tr><td style="padding-left:12px">状态码 = 200</td><td><span class="tag tag--success">通过</span></td></tr>
+              <tr><td style="padding-left:12px">$.code = SUCCESS</td><td><span class="tag tag--success">通过</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dbg__section">
+          <div class="dbg__section-title">提取的变量</div>
+          <table class="kv">
+            <thead><tr><th style="padding-left:12px">变量名</th><th>值</th></tr></thead>
+            <tbody>
+              <tr><td style="padding-left:12px" class="rpt-mono">orderId</td><td class="rpt-mono">ord_88213</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-dlg-close>关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 变量助手（对齐 SceneVariableHelperDialog） -->
+<div class="dialog-mask" id="dlg-var-helper" hidden>
+  <div class="dialog" style="width:680px">
+    <div class="dialog__header">
+      <span class="dialog__title">变量助手</span>
+      <button class="dialog__close" data-dlg-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="helper">
+        <div>
+          <div class="helper__head">
+            <span class="helper__title">环境变量（测试环境）</span>
+          </div>
+          <div class="helper__row"><span class="helper__name">baseUrl</span><span class="helper__value">https://api.test.example.com</span><span class="op-link" data-copy-ref="baseUrl">复制</span></div>
+          <div class="helper__row"><span class="helper__name">clientId</span><span class="helper__value">retail-web</span><span class="op-link" data-copy-ref="clientId">复制</span></div>
+          <div class="helper__row"><span class="helper__name">clientSecret</span><span class="helper__value">****</span><span class="op-link" data-copy-ref="clientSecret">复制</span></div>
+        </div>
+        <div>
+          <div class="helper__head">
+            <span class="helper__title">场景变量（含未保存）</span>
+            <span class="tag tag--neutral">2 个</span>
+          </div>
+          <div class="helper__row"><span class="helper__name">skuId</span><span class="helper__value">SKU10086</span><span class="op-link" data-copy-ref="skuId">复制</span></div>
+          <div class="helper__row"><span class="helper__name">traceId</span><span class="helper__value">${uuid()}</span><span class="op-link" data-copy-ref="traceId">复制</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-dlg-close>关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 函数助手（对齐 FunctionHelperDialog） -->
+<div class="dialog-mask" id="dlg-fn-helper" hidden>
+  <div class="dialog" style="width:680px">
+    <div class="dialog__header">
+      <span class="dialog__title">函数助手</span>
+      <button class="dialog__close" data-dlg-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="helper">
+        <div class="dlg-field" style="margin-bottom:0">
+          <label class="dlg-field__label">选择函数</label>
+          <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索函数名称..."></div>
+          <p class="dlg-hint" style="margin-top:6px">内置函数：uuid · timestamp · randomInt · md5 · dateAdd</p>
+        </div>
+        <div>
+          <div class="helper__info-row"><span class="helper__info-label">签名</span><code class="helper__code">uuid()</code></div>
+          <div class="helper__info-row"><span class="helper__info-label">描述</span><span>生成 32 位随机 UUID（不含横线）</span></div>
+          <div class="helper__info-row"><span class="helper__info-label">示例</span><code class="helper__code">a3f9c1d24b7e40f19c8d5e6b0a172f34</code></div>
+        </div>
+        <div>
+          <label class="dlg-field__label">表达式</label>
+          <div class="helper__expr-row">
+            <input class="input" value="${uuid()}" placeholder="选择函数并填写参数后自动生成，或直接输入表达式">
+            <button class="btn btn--default btn--sm" data-ux-feedback="试算结果：a3f9c1d24b7e40f19c8d5e6b0a172f34（3ms）">试算</button>
+            <button class="btn btn--default btn--sm" data-ux-feedback="已复制到剪贴板" data-ux-feedback-type="success">复制</button>
+          </div>
+          <div class="helper__trial">
+            <span>试算结果</span>
+            <code class="helper__code">a3f9c1d24b7e40f19c8d5e6b0a172f34</code>
+            <span class="dlg-hint">（3ms）</span>
+            <span class="op-link" data-ux-feedback="已复制到剪贴板" data-ux-feedback-type="success">复制结果</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-dlg-close>关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 报告详情（对齐 ReportDetailDialog，结果数据复用报告页观感） -->
+<div class="dialog-mask" id="dlg-report" hidden>
+  <div class="dialog" style="width:1000px">
+    <div class="dialog__header">
+      <span class="dialog__title">报告详情</span>
+      <button class="dialog__close" data-dlg-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="rpt-hero">
+        <div class="rpt-hero__top">
+          <h1 class="rpt-hero__title">下单成功主链路 #184</h1>
+          <span class="rpt-pill rpt-pill--fail">失败</span>
+          <span class="rpt-pill rpt-pill--on-dark">场景执行</span>
+        </div>
+        <div class="rpt-hero__meta">
+          <span>总耗时：<b class="rpt-mono">1.42s</b></span>
+          <span>报告 ID：<b class="rpt-mono">rpt_9f21c4</b></span>
+          <span>执行环境：<b class="rpt-mono">测试环境</b></span>
+          <span>触发人：<b class="rpt-mono">张明</b></span>
+        </div>
+      </div>
+      <div class="rpt-stats">
+        <div class="rpt-stat"><div class="rpt-stat__num">4</div><div class="rpt-stat__lbl">步骤</div></div>
+        <div class="rpt-stat rpt-stat--success"><div class="rpt-stat__num">3</div><div class="rpt-stat__lbl">通过</div></div>
+        <div class="rpt-stat rpt-stat--danger"><div class="rpt-stat__num">1</div><div class="rpt-stat__lbl">失败</div></div>
+        <div class="rpt-stat"><div class="rpt-stat__num">1.42s</div><div class="rpt-stat__lbl">耗时</div></div>
+      </div>
+      <div class="rpt-scene">
+        <div class="rpt-scene__head">
+          <h2 class="rpt-scene__title">下单成功主链路</h2>
+          <span class="dlg-hint">场景 ID：scn_10023</span>
+          <span class="tag tag--danger">失败</span>
+        </div>
+        <div class="rpt-scene__body">
+          <table class="kv">
+            <thead><tr><th style="width:44px">序号</th><th>步骤</th><th style="width:88px">结果</th><th style="width:88px">耗时</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>创建订单</td><td><span class="tag tag--success">通过</span></td><td class="num">312ms</td></tr>
+              <tr><td>2</td><td>查询订单详情</td><td><span class="tag tag--success">通过</span></td><td class="num">96ms</td></tr>
+              <tr><td>3</td><td>核对订单状态</td><td><span class="tag tag--danger">失败</span></td><td class="num">84ms</td></tr>
+              <tr><td>4</td><td>取消订单（已停用）</td><td><span class="tag tag--neutral">跳过</span></td><td class="num">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-dlg-close>关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除场景确认（对齐 ScenariosPage 的确认口径） -->
+<div class="dialog-mask" id="dlg-del-scene" hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title">删除场景</span>
+      <button class="dialog__close" data-dlg-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p style="margin:0;color:var(--n-600)">删除场景「下单成功主链路」？删除后不可恢复。</p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-dlg-close>取消</button>
+      <button class="btn btn--danger btn--sm" id="del-scene-ok">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量移动到模块（对齐 ScenariosPage 的批量移动弹窗） -->
+<div class="dialog-mask" id="dlg-batch-move" hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title">批量移动到模块</span>
+      <button class="dialog__close" data-dlg-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="tree-pick">
+        <ul class="mt-list" style="padding:0">
+          <li class="mt-node" data-tree-node><span class="folder-ic" data-icon="folder"></span>下单主流程</li>
+          <li class="mt-node" style="padding-left:26px" data-tree-node><span class="folder-ic" data-icon="folder"></span>下单主流程 / 造数</li>
+          <li class="mt-node" data-tree-node><span class="folder-ic" data-icon="folder"></span>支付回归</li>
+          <li class="mt-node" data-tree-node><span class="folder-ic" data-icon="folder"></span>用户中心</li>
+          <li class="mt-node" data-tree-node><span class="folder-ic" data-icon="folder"></span>冒烟集合</li>
+        </ul>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-dlg-close>取消</button>
+      <button class="btn btn--primary btn--sm" id="batch-move-ok">确 定</button>
+    </div>
+  </div>
+</div>
 
 <!-- 底部批量操作条：勾选 ≥1 行时浮出 -->
 <div class="ux-batchbar" id="batchbar-scenes" hidden>
   <span class="ux-batchbar__count">已选 <b data-ux-batch-count>0</b> 项</span>
   <span class="ux-batchbar__sep"></span>
-  <button class="btn btn--default btn--sm" data-ux-batch-action="已批量移动到「冒烟集合」">批量移动</button>
+  <button class="btn btn--default btn--sm" data-dlg="dlg-batch-move">批量移动</button>
   <button class="btn btn--danger btn--sm" data-ux-batch-delete>批量删除</button>
   <span class="ux-batchbar__sep"></span>
   <button class="btn btn--text btn--sm" data-ux-batch-clear>清空</button>
@@ -1043,17 +1508,76 @@
     });
   });
 
+  /* ---------------- 步骤：选中卡片 → 右侧内联编辑（HTTP / JDBC 表单随步骤类型切换） ---------------- */
+  var METHOD_COLORS = { GET: '#61affe', POST: '#49cc90', PUT: '#fca130', PATCH: '#50e3c2', DELETE: '#f93e3e' };
+
+  function setStepType(right, type) {
+    right.querySelectorAll('[data-stepform]').forEach(function (f) { f.hidden = f.getAttribute('data-stepform') !== type; });
+    right.querySelectorAll('[data-stepref]').forEach(function (s) { s.hidden = s.getAttribute('data-stepref') !== type; });
+    right.querySelectorAll('[data-steptype]').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-steptype') === type); });
+    var sel = document.querySelector('[data-step].is-selected');
+    if (!sel) return;
+    sel.setAttribute('data-step-type', type);
+    sel.querySelector('.step-type').textContent = type.toUpperCase();
+    var mtag = sel.querySelector('.method-tag');
+    if (!mtag) return;
+    mtag.className = 'method-tag';
+    if (type === 'jdbc') {
+      mtag.textContent = 'SELECT';
+      mtag.style.background = 'var(--brand-500)';
+    } else {
+      var m = sel.getAttribute('data-step-method') || 'GET';
+      mtag.textContent = m;
+      mtag.style.background = METHOD_COLORS[m] || '#909399';
+    }
+  }
+
+  function selectStep(card) {
+    document.querySelectorAll('[data-step]').forEach(function (c) { c.classList.toggle('is-selected', c === card); });
+    var right = card.closest('.steps-split').querySelector('.steps-right');
+    var type = card.getAttribute('data-step-type') || 'http';
+    setStepType(right, type);
+    var nameInput = right.querySelector('[data-step-name]');
+    if (nameInput) nameInput.value = card.getAttribute('data-step-name') || '';
+    var headSw = right.querySelector('.inline__head .switch');
+    if (headSw) headSw.classList.toggle('is-on', !card.classList.contains('is-off'));
+    if (type === 'http') {
+      var method = right.querySelector('[data-step-method]');
+      var url = right.querySelector('[data-step-url]');
+      if (method && card.getAttribute('data-step-method')) method.value = card.getAttribute('data-step-method');
+      if (url) url.value = card.getAttribute('data-step-url') || '';
+    } else {
+      var sql = right.querySelector('[data-stepform="jdbc"] textarea');
+      if (sql && card.getAttribute('data-step-sql')) sql.value = card.getAttribute('data-step-sql');
+    }
+  }
+
   document.querySelectorAll('[data-step]').forEach(function (card) {
-    card.addEventListener('click', function () {
-      document.querySelectorAll('[data-step]').forEach(function (c) { c.classList.remove('is-selected'); });
-      card.classList.add('is-selected');
+    card.addEventListener('click', function (e) {
+      if (e.target.closest('[data-expand]') || e.target.closest('[data-more]')) return;
+      selectStep(card);
     });
   });
 
+  // 链接步骤展开详情（源已删除时给出快照提示 + 校验/提取条数）
+  document.querySelectorAll('[data-expand]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var detail = btn.closest('[data-step]').querySelector('[data-detail]');
+      if (detail) detail.hidden = !detail.hidden;
+    });
+  });
+
+  // 请求体类型（none / urlencoded / raw）：切换子块与 raw 子类型行
   document.querySelectorAll('.bodytype').forEach(function (btn) {
     btn.addEventListener('click', function () {
       btn.parentElement.querySelectorAll('.bodytype').forEach(function (b) { b.classList.remove('is-active'); });
       btn.classList.add('is-active');
+      var kind = btn.getAttribute('data-bodytype');
+      if (!kind) return;
+      var panel = btn.closest('[data-epanel="body"]');
+      if (!panel) return;
+      panel.querySelectorAll('[data-bodysub]').forEach(function (el) { el.hidden = el.getAttribute('data-bodysub') !== kind; });
     });
   });
 
@@ -1061,6 +1585,10 @@
     btn.addEventListener('click', function () {
       btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('is-active'); });
       btn.classList.add('is-active');
+      var type = btn.getAttribute('data-steptype');
+      if (!type) return;
+      var right = btn.closest('.steps-right');
+      if (right) setStepType(right, type);
     });
   });
 
@@ -1159,18 +1687,8 @@
   function bindProcItem(item) {
     if (item.__rtProc) return;
     item.__rtProc = true;
+    // 增删改与排序统一走「操作」浮动菜单，避免卡片上堆叠多个动作入口
     item.addEventListener('click', function () { selectProc(item); });
-    item.querySelectorAll('[data-proc-act]').forEach(function (act) {
-      act.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var list = item.closest('[data-proc-list]');
-        var kind = act.getAttribute('data-proc-act');
-        if (kind === 'up' && item.previousElementSibling) list.insertBefore(item, item.previousElementSibling);
-        else if (kind === 'down' && item.nextElementSibling) list.insertBefore(item.nextElementSibling, item);
-        else if (kind === 'del') { removeProc(item.closest('[data-edpanel]'), item); return; }
-        renumberProc(list);
-      });
-    });
   }
   document.querySelectorAll('[data-proc-item]').forEach(bindProcItem);
 
@@ -1197,11 +1715,12 @@
           '<span class="step-card__grip" data-icon="list"></span>' +
           '<span class="step-card__idx"></span>' +
           '<span class="step-type">HTTP</span>' +
+          '<span class="method-tag mt-post">POST</span>' +
           '<div class="step-card__spacer"></div>' +
           '<button class="switch is-on" title="启用"></button>' +
-          '<span class="step-card__acts"><span data-proc-act="up">上移</span><span data-proc-act="down">下移</span><span data-proc-act="del">删除</span></span>' +
+          '<span class="step-card__acts"><span data-more="proc">操作 ▾</span></span>' +
         '</div>' +
-        '<div class="step-card__body">尚未配置 · 在右侧填写请求或 SQL</div>';
+        '<div class="step-card__body"><span class="step-card__name">新处理器</span></div>';
       list.appendChild(card);
       if (window.RTIcons) window.RTIcons.hydrate(card);
       bindSwitch(card.querySelector('.switch'));
@@ -1213,122 +1732,586 @@
     });
   });
 
-  /* 处理器表单内：提取器行与 SQL 参数行的增删（保持所在页签的计数口径） */
+  /* ---------------- 配置行增删与页签计数（KV 表格 / 验证器 / 提取器 / SQL 参数） ---------------- */
   var EXT_CARD_HTML =
     '<span class="checkbox checkbox--on" title="启用"></span>' +
     '<select class="select"><option>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option></select>' +
     '<input class="input" placeholder="表达式">' +
     '<input class="input" placeholder="变量名">' +
-    '<span class="op-link op-link--danger" data-delext>删除</span>';
+    '<span class="op-link op-link--danger">删除</span>';
 
-  function syncExtCount(root) {
-    var pane = root.querySelector('[data-epanel="extractors"]');
-    var count = root.querySelector('[data-etab="extractors"] .count');
+  var VAL_CARD_HTML =
+    '<span class="checkbox checkbox--on" title="启用"></span>' +
+    '<select class="select select--n"><option>状态码</option><option>JSON 字段</option><option>响应头</option><option>响应体</option><option>正则匹配</option></select>' +
+    '<select class="select select--n"><option>等于</option><option>不等于</option><option>大于</option><option>小于</option><option>包含</option></select>' +
+    '<input class="input" placeholder="表达式（如 $.code）">' +
+    '<input class="input" placeholder="期望值">' +
+    '<span class="op-link op-link--danger">删除</span>';
+
+  // 计数徽标挂在页签上，行数变化后立即回写，避免与实际行数漂移
+  function syncTabCount(root, key) {
+    if (!root) return;
+    var pane = root.querySelector('[data-epanel="' + key + '"]');
+    var count = root.querySelector('[data-etab="' + key + '"] .count');
     if (!pane || !count) return;
     var n = pane.querySelectorAll('.pane-row').length;
     count.textContent = n;
     count.hidden = n === 0;
   }
 
+  function addPaneRow(btn, html) {
+    var pane = btn.closest('[data-epanel]');
+    var list = pane.querySelector('.pane-list');
+    var last = list.lastElementChild;
+    var card;
+    if (last) {
+      card = last.cloneNode(true);
+      card.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    } else {
+      card = document.createElement('div');
+      card.className = 'pane-row';
+      card.innerHTML = html;
+    }
+    list.appendChild(card);
+    syncTabCount(btn.closest('[data-etabs-root]'), pane.getAttribute('data-epanel'));
+    rt.toast('已添加一行', {});
+  }
+
+  // 删除按行生效，删除后按所属页签回写计数
+  function removeConfigRow(el) {
+    var pane = el.closest('[data-epanel]');
+    var row = el.closest('tr') || el.closest('.pane-row') || el.closest('.arg-row');
+    if (!row) return;
+    row.parentNode.removeChild(row);
+    syncTabCount(el.closest('[data-etabs-root]'), pane && pane.getAttribute('data-epanel'));
+    rt.toast('已删除一行', {});
+  }
+
   document.addEventListener('click', function (e) {
     if (!e.target.closest) return;
-    // 提取器行的启用就地生效，不必经由右侧表单头的开关
-    var box = e.target.closest('[data-proc-form] .pane-row .checkbox');
+    // 行内勾选就地生效，不必经由右侧表单头的开关
+    var box = e.target.closest('.kv .checkbox, .pane-row .checkbox');
     if (box) { box.classList.toggle('checkbox--on'); return; }
+    var del = e.target.closest('.kv .op-link--danger, .pane-row .op-link--danger, .arg-row .op-link--danger');
+    if (del) { removeConfigRow(del); return; }
     var addExt = e.target.closest('[data-addext]');
-    if (addExt) {
-      var pane = addExt.closest('[data-epanel]');
-      var list = pane.querySelector('.pane-list');
-      var last = list.lastElementChild;
-      var card;
-      if (last) {
-        card = last.cloneNode(true);
-        card.querySelectorAll('input').forEach(function (i) { i.value = ''; });
-      } else {
-        card = document.createElement('div');
-        card.className = 'pane-row';
-        card.innerHTML = EXT_CARD_HTML;
-      }
-      list.appendChild(card);
-      syncExtCount(addExt.closest('[data-etabs-root]'));
-      rt.toast('已添加一项', {});
-      return;
-    }
-    var delExt = e.target.closest('[data-delext]');
-    if (delExt) {
-      var cardEl = delExt.closest('.pane-row');
-      var root = delExt.closest('[data-etabs-root]');
-      if (cardEl) cardEl.remove();
-      if (root) syncExtCount(root);
-      rt.toast('已删除', {});
-      return;
-    }
+    if (addExt) { addPaneRow(addExt, EXT_CARD_HTML); return; }
+    var addVal = e.target.closest('[data-addval]');
+    if (addVal) { addPaneRow(addVal, VAL_CARD_HTML); return; }
     var addArg = e.target.closest('[data-addarg]');
     if (addArg) {
       var argList = addArg.closest('[data-epanel]').querySelector('.arg-list');
       var row = document.createElement('div');
       row.className = 'arg-row';
-      row.innerHTML = '<input class="input" placeholder="参数值"><span class="op-link op-link--danger" data-delarg>删除</span>';
+      row.innerHTML = '<input class="input" placeholder="参数值"><span class="op-link op-link--danger">删除</span>';
       argList.appendChild(row);
       row.querySelector('input').focus();
-      return;
-    }
-    var delArg = e.target.closest('[data-delarg]');
-    if (delArg) {
-      var argRow = delArg.closest('.arg-row');
-      if (argRow) argRow.remove();
     }
   });
 
-  // 单步试运行：结果内联显示在步骤卡下方（不弹窗）
-  function runStep(card) {
-    var result = card.querySelector('[data-run-result]');
-    if (!result) return;
-    var running = card.querySelector('.step-run--running');
-    if (!running) {
-      running = document.createElement('div');
-      running.className = 'step-run step-run--running';
-      running.innerHTML = '<span>运行中…</span>';
-      card.appendChild(running);
-    }
-    running.hidden = false;
-    result.hidden = true;
-    window.setTimeout(function () {
-      running.hidden = true;
-      result.hidden = false;
-    }, 500);
+  // 末行填满即自动补一行空行（对应 KV 表格「序列化时过滤空行」的约定）
+  document.addEventListener('input', function (e) {
+    if (!e.target.closest) return;
+    var row = e.target.closest('.kv tbody tr');
+    if (!row || row.nextElementSibling) return;
+    var inputs = Array.prototype.slice.call(row.querySelectorAll('input'));
+    if (!inputs.length) return;
+    if (!inputs.every(function (i) { return i.value.trim() !== ''; })) return;
+    var blank = row.cloneNode(true);
+    blank.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    row.parentNode.appendChild(blank);
+  });
+
+  // 运行场景只回执执行号：步骤结果在「报告详情」里看，避免卡片内嵌一套结果样式
+  document.getElementById('btn-run-scene').addEventListener('click', function () {
+    var n = document.querySelectorAll('[data-edpanel="steps"] [data-step]:not(.is-off)').length;
+    rt.toast('已触发场景执行（exec_2f81c0），共 ' + n + ' 个启用步骤', { type: 'success' });
+  });
+
+  /* ---------------- 卡片「操作」/ 表格「更多」共用的浮动菜单 ---------------- */
+  var moreDrop = document.getElementById('more-dropdown');
+  var moreTrigger = null;
+  var MORE_ITEMS = {
+    row: [['run', '执行'], ['copy', '复制'], ['sep'], ['del', '删除', 'danger']],
+    step: [['edit', '编辑'], ['up', '上移'], ['down', '下移'], ['debug', '调试'], ['sep'], ['copy', '复制'], ['sep'], ['del', '删除', 'danger']],
+    proc: [['edit', '编辑'], ['up', '上移'], ['down', '下移'], ['sep'], ['copy', '复制'], ['sep'], ['del', '删除', 'danger']]
+  };
+
+  function showMore(trigger) {
+    var items = MORE_ITEMS[trigger.getAttribute('data-more')];
+    if (!items) return;
+    if (moreTrigger === trigger && !moreDrop.hidden) { moreDrop.hidden = true; return; }
+    moreTrigger = trigger;
+    moreDrop.innerHTML = '';
+    items.forEach(function (it) {
+      var el = document.createElement('div');
+      if (it[0] === 'sep') {
+        el.className = 'more-dropdown__sep';
+      } else {
+        el.className = 'more-dropdown__item' + (it[2] ? ' more-dropdown__item--' + it[2] : '');
+        el.setAttribute('data-more-act', it[0]);
+        el.textContent = it[1];
+      }
+      moreDrop.appendChild(el);
+    });
+    var r = trigger.getBoundingClientRect();
+    moreDrop.hidden = false;
+    moreDrop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - moreDrop.offsetWidth - 8)) + 'px';
+    moreDrop.style.top = r.bottom + 6 + 'px';
   }
 
-  document.querySelectorAll('[data-run]').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
+  function stepsOf(list) {
+    return Array.prototype.slice.call(list.querySelectorAll('[data-step]'));
+  }
+
+  // 插入位与卡片是穿插结构，增删/排序后重建一次即可，省去逐个搬移标记
+  function normalizeInserts(list) {
+    Array.prototype.slice.call(list.querySelectorAll('.step-insert')).forEach(function (m) { m.parentNode.removeChild(m); });
+    stepsOf(list).forEach(function (c) {
+      var m = document.createElement('div');
+      m.className = 'step-insert';
+      list.insertBefore(m, c);
+    });
+    var tail = document.createElement('div');
+    tail.className = 'step-insert';
+    list.appendChild(tail);
+  }
+
+  function renumberSteps(list) {
+    stepsOf(list).forEach(function (c, i) {
+      c.querySelector('.step-card__idx').textContent = i + 1;
+      c.setAttribute('data-step-idx', i + 1);
+    });
+    var bar = list.closest('[data-edpanel]').querySelector('.steps-bar__count');
+    if (bar) bar.textContent = stepsOf(list).length + ' 个步骤';
+  }
+
+  function moveStep(card, dir) {
+    var list = card.parentElement;
+    var arr = stepsOf(list);
+    var target = arr[arr.indexOf(card) + dir];
+    if (!target) {
+      rt.toast(dir < 0 ? '已是第一个步骤' : '已是最后一个步骤', {});
+      return;
+    }
+    if (dir < 0) list.insertBefore(card, target);
+    else list.insertBefore(target, card);
+    normalizeInserts(list);
+    renumberSteps(list);
+    selectStep(card);
+    rt.toast(dir < 0 ? '已上移一步' : '已下移一步', {});
+  }
+
+  function newStepCard(name) {
+    var card = document.createElement('div');
+    card.className = 'step-card';
+    card.setAttribute('data-step', '');
+    card.setAttribute('data-step-type', 'http');
+    card.setAttribute('data-step-name', name);
+    card.setAttribute('data-step-method', 'GET');
+    card.setAttribute('data-step-url', '');
+    card.innerHTML =
+      '<div class="step-card__head">' +
+        '<span class="step-card__grip" data-icon="list" title="拖拽排序"></span>' +
+        '<span class="step-card__idx">0</span>' +
+        '<span class="step-type">HTTP</span>' +
+        '<span class="method-tag mt-get">GET</span>' +
+        '<div class="step-card__spacer"></div>' +
+        '<button class="switch is-on" title="启用"></button>' +
+        '<span class="step-card__acts"><span data-more="step">操作 ▾</span></span>' +
+      '</div>' +
+      '<div class="step-card__body"><span class="step-card__name"></span></div>';
+    card.querySelector('.step-card__name').textContent = name;
+    return card;
+  }
+
+  function bindStepCard(card) {
+    bindSwitch(card.querySelector('.switch'));
+    var exp = card.querySelector('[data-expand]');
+    if (exp) {
+      exp.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var detail = card.querySelector('[data-detail]');
+        if (detail) detail.hidden = !detail.hidden;
+      });
+    }
+    card.addEventListener('click', function (e) {
+      if (e.target.closest('[data-expand]') || e.target.closest('[data-more]')) return;
+      selectStep(card);
+    });
+  }
+
+  function appendStep(card, before) {
+    var list = document.querySelector('[data-edpanel="steps"] .steps-list');
+    if (before) list.insertBefore(card, before);
+    else list.appendChild(card);
+    if (window.RTIcons) window.RTIcons.hydrate(card);
+    bindStepCard(card);
+    normalizeInserts(list);
+    renumberSteps(list);
+    selectStep(card);
+  }
+
+  function applyMore(trigger, act) {
+    var kind = trigger.getAttribute('data-more');
+
+    if (kind === 'row') {
+      var tr = trigger.closest('tr');
+      var nameEl = tr && tr.querySelector('.cell-main .text-brand');
+      var sceneName = nameEl ? nameEl.textContent.trim() : '场景';
+      if (act === 'run') rt.toast('场景「' + sceneName + '」执行已启动', { type: 'success' });
+      else if (act === 'copy') rt.toast('已复制场景「' + sceneName + '」，新场景为草稿', { type: 'success' });
+      else if (act === 'del' && tr) {
+        tr.style.display = 'none';
+        rt.toast('已删除「' + sceneName + '」', {
+          type: 'danger',
+          duration: 5000,
+          actionLabel: '撤销',
+          onAction: function () {
+            tr.style.display = '';
+            rt.toast('已撤销删除', { type: 'success' });
+          }
+        });
+      }
+      return;
+    }
+
+    var card = trigger.closest(kind === 'step' ? '[data-step]' : '[data-proc-item]');
+    if (!card) return;
+
+    if (kind === 'step') {
+      if (act === 'edit') { selectStep(card); return; }
+      if (act === 'up') { moveStep(card, -1); return; }
+      if (act === 'down') { moveStep(card, 1); return; }
+      if (act === 'debug') { selectStep(card); openDlg('dlg-debug'); return; }
+      if (act === 'copy') {
+        var dup = card.cloneNode(true);
+        dup.classList.remove('is-selected');
+        dup.setAttribute('data-step-name', (card.getAttribute('data-step-name') || '步骤') + ' 副本');
+        dup.querySelector('.step-card__idx').textContent = '0';
+        dup.querySelector('.step-card__name').textContent = dup.getAttribute('data-step-name');
+        appendStep(dup, card.nextSibling);
+        rt.toast('已复制步骤「' + dup.getAttribute('data-step-name') + '」', { type: 'success' });
+        return;
+      }
+      if (act === 'del') {
+        var list = card.parentElement;
+        var wasSelected = card.classList.contains('is-selected');
+        var stepName = card.getAttribute('data-step-name') || '步骤';
+        card.parentNode.removeChild(card);
+        normalizeInserts(list);
+        renumberSteps(list);
+        var rest = stepsOf(list);
+        if (wasSelected && rest.length) selectStep(rest[0]);
+        rt.toast('已删除步骤「' + stepName + '」', {});
+        return;
+      }
+      return;
+    }
+
+    if (act === 'edit') { selectProc(card); return; }
+    if (act === 'up' || act === 'down') {
+      var dir = act === 'up' ? -1 : 1;
+      var procList = card.parentElement;
+      var procs = Array.prototype.slice.call(procList.querySelectorAll('[data-proc-item]'));
+      var next = procs[procs.indexOf(card) + dir];
+      if (!next) {
+        rt.toast(dir < 0 ? '已是第一个处理器' : '已是最后一个处理器', {});
+        return;
+      }
+      if (dir < 0) procList.insertBefore(card, next);
+      else procList.insertBefore(next, card);
+      renumberProc(procList);
+      selectProc(card);
+      rt.toast(dir < 0 ? '已上移一项' : '已下移一项', {});
+      return;
+    }
+    if (act === 'copy') {
+      var procDup = card.cloneNode(true);
+      procDup.classList.remove('is-selected');
+      card.parentNode.insertBefore(procDup, card.nextSibling);
+      if (window.RTIcons) window.RTIcons.hydrate(procDup);
+      bindSwitch(procDup.querySelector('.switch'));
+      bindProcItem(procDup);
+      renumberProc(card.parentElement);
+      syncProcCount(card.closest('[data-edpanel]'));
+      selectProc(procDup);
+      rt.toast('已复制处理器', { type: 'success' });
+      return;
+    }
+    if (act === 'del') removeProc(card.closest('[data-edpanel]'), card);
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    var trigger = e.target.closest('[data-more]');
+    if (trigger) {
       e.stopPropagation();
-      runStep(btn.closest('[data-step]'));
+      showMore(trigger);
+      return;
+    }
+    if (!moreDrop.hidden && !e.target.closest('#more-dropdown')) moreDrop.hidden = true;
+  });
+
+  moreDrop.addEventListener('click', function (e) {
+    var item = e.target.closest('[data-more-act]');
+    if (!item || !moreTrigger) return;
+    moreDrop.hidden = true;
+    applyMore(moreTrigger, item.getAttribute('data-more-act'));
+  });
+
+  /* ---------------- 弹窗：全部为页面本地开关（基础样式只负责展示） ---------------- */
+  function openDlg(id) {
+    var mask = document.getElementById(id);
+    if (mask) mask.hidden = false;
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    var opener = e.target.closest('[data-dlg]');
+    if (opener) { openDlg(opener.getAttribute('data-dlg')); return; }
+    var closer = e.target.closest('[data-dlg-close]');
+    if (closer) {
+      var mask = closer.closest('.dialog-mask');
+      if (mask) mask.hidden = true;
+      return;
+    }
+    if (e.target.classList && e.target.classList.contains('dialog-mask')) e.target.hidden = true;
+  });
+
+  function closePops() {
+    document.querySelectorAll('.ed-menu').forEach(function (m) { m.hidden = true; });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!moreDrop.hidden) { moreDrop.hidden = true; return; }
+    closePops();
+    var open = document.querySelector('.dialog-mask:not([hidden])');
+    if (open) open.hidden = true;
+  });
+
+  /* ---------------- 编辑器头部：优先级 / 描述 / 执行历史 / 删除 ---------------- */
+  var prioBtn = document.getElementById('ed-prio-btn');
+  var prioMenu = document.getElementById('ed-prio-menu');
+  if (prioBtn && prioMenu) {
+    prioBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var show = prioMenu.hidden;
+      closePops();
+      prioMenu.hidden = !show;
+    });
+    prioMenu.addEventListener('click', function (e) {
+      var item = e.target.closest('[data-prio]');
+      if (!item) return;
+      var prio = item.getAttribute('data-prio');
+      prioMenu.querySelectorAll('[data-prio]').forEach(function (b) { b.classList.toggle('is-active', b === item); });
+      prioBtn.textContent = prio;
+      prioBtn.style.background = 'var(--priority-' + prio.toLowerCase() + ')';
+      prioMenu.hidden = true;
+      rt.toast('优先级已改为 ' + prio, {});
+    });
+  }
+
+  var histBtn = document.getElementById('ed-history-btn');
+  var histPanel = document.getElementById('ed-history-panel');
+  if (histBtn && histPanel) {
+    histBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var show = histPanel.hidden;
+      closePops();
+      histPanel.hidden = !show;
+    });
+  }
+  document.querySelectorAll('[data-open-report]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      closePops();
+      openDlg('dlg-report');
     });
   });
 
-  // 运行整场景：依次点亮每个启用步骤的行内结果
-  document.getElementById('btn-run-scene').addEventListener('click', function () {
-    var steps = document.querySelectorAll('[data-step]:not(.is-off)');
-    steps.forEach(function (card, i) {
-      window.setTimeout(function () { runStep(card); }, i * 260);
+  var descBtn = document.getElementById('ed-desc-btn');
+  var descBox = document.getElementById('ed-desc');
+  if (descBtn && descBox) {
+    descBtn.addEventListener('click', function () { descBox.hidden = !descBox.hidden; });
+  }
+
+  var delSceneName = '下单成功主链路';
+  var delSceneBtn = document.getElementById('btn-del-scene');
+  if (delSceneBtn) {
+    delSceneBtn.addEventListener('click', function () {
+      var active = document.querySelector('.ws-tab.is-active');
+      delSceneName = (active && active.getAttribute('data-name')) || delSceneName;
+      document.querySelector('#dlg-del-scene .dialog__body p').textContent =
+        '删除场景「' + delSceneName + '」？删除后不可恢复。';
+      openDlg('dlg-del-scene');
     });
-    window.setTimeout(function () {
-      window.RTUX.toast('场景运行完成：3 通过 · 1 失败', { type: 'warning' });
-    }, steps.length * 260 + 520);
+  }
+  var delSceneOk = document.getElementById('del-scene-ok');
+  if (delSceneOk) {
+    delSceneOk.addEventListener('click', function () {
+      document.getElementById('dlg-del-scene').hidden = true;
+      if (window.SceneTabs) window.SceneTabs.closeActive();
+      rt.toast('已删除场景「' + delSceneName + '」', { type: 'success' });
+    });
+  }
+
+  // 浮层互斥：点到浮层内部时上层监听已在自身关闭，这里只处理外部点击
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest || e.target.closest('.ed-pop')) return;
+    closePops();
   });
 
-  // 变量溯源：点击引用处跳到来源步骤
-  document.querySelectorAll('.var-ref').forEach(function (ref) {
-    ref.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var src = document.querySelector('[data-step-idx="' + ref.getAttribute('data-var-src') + '"]');
-      if (!src) return;
-      document.querySelectorAll('[data-step]').forEach(function (c) { c.classList.remove('is-selected'); });
-      src.classList.add('is-selected');
-      src.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      window.RTUX.toast('已定位到来源：步骤 ' + ref.getAttribute('data-var-src'), { type: 'success' });
+  /* ---------------- 步骤与接口导入入口 ---------------- */
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-addstep]')) {
+      var stepsList = document.querySelector('[data-edpanel="steps"] .steps-list');
+      appendStep(newStepCard('步骤 ' + (stepsOf(stepsList).length + 1)));
+      rt.toast('已添加一步，请在右侧配置请求', {});
+      return;
+    }
+    if (e.target.closest('[data-addiface]')) openDlg('dlg-interface');
+  });
+
+  var ifaceList = document.getElementById('iface-list');
+  var ifaceSearch = document.getElementById('iface-search');
+  if (ifaceSearch) {
+    ifaceSearch.addEventListener('input', function () {
+      var kw = ifaceSearch.value.trim().toLowerCase();
+      ifaceList.querySelectorAll('[data-iface]').forEach(function (li) {
+        var name = (li.getAttribute('data-name') || '').toLowerCase();
+        li.hidden = !!kw && name.indexOf(kw) < 0;
+      });
+    });
+  }
+  if (ifaceList) {
+    ifaceList.addEventListener('click', function (e) {
+      var li = e.target.closest('[data-iface]');
+      if (!li) return;
+      ifaceList.querySelectorAll('[data-iface]').forEach(function (n) { n.classList.toggle('mt-node--active', n === li); });
+    });
+  }
+  var ifaceImport = document.getElementById('iface-import');
+  if (ifaceImport) {
+    ifaceImport.addEventListener('click', function () {
+      var picked = ifaceList && ifaceList.querySelector('.mt-node--active');
+      if (!picked) { rt.toast('请先选择要导入的接口', { type: 'warning' }); return; }
+      var raw = picked.getAttribute('data-name') || '';
+      var parts = raw.split(' - ');
+      var seg = parts[0].trim().split(/\s+/);
+      var method = seg[0] || 'GET';
+      var card = newStepCard((parts[1] || '新步骤').trim());
+      card.setAttribute('data-step-method', method);
+      card.setAttribute('data-step-url', seg[1] || '');
+      var tag = card.querySelector('.method-tag');
+      tag.textContent = method;
+      tag.style.background = METHOD_COLORS[method] || '#909399';
+      appendStep(card);
+      picked.classList.remove('mt-node--active');
+      document.getElementById('dlg-interface').hidden = true;
+      rt.toast('已导入为复制步骤「' + (parts[1] || '').trim() + '」', { type: 'success' });
+    });
+  }
+
+  /* ---------------- 助手弹窗的复制引用 ---------------- */
+  document.querySelectorAll('[data-copy-ref]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      rt.toast('已复制 ${' + link.getAttribute('data-copy-ref') + '}', { type: 'success' });
     });
   });
+
+  /* ---------------- 批量移动到模块 ---------------- */
+  var treePick = document.querySelector('#dlg-batch-move .tree-pick');
+  if (treePick) {
+    treePick.addEventListener('click', function (e) {
+      var node = e.target.closest('[data-tree-node]');
+      if (!node) return;
+      treePick.querySelectorAll('[data-tree-node]').forEach(function (n) { n.classList.toggle('mt-node--active', n === node); });
+    });
+  }
+  var batchMoveOk = document.getElementById('batch-move-ok');
+  if (batchMoveOk) {
+    batchMoveOk.addEventListener('click', function () {
+      var target = treePick && treePick.querySelector('.mt-node--active');
+      if (!target) { rt.toast('请选择目标模块', { type: 'warning' }); return; }
+      var checked = document.querySelectorAll('.table-wrap .checkbox--on');
+      var n = checked.length;
+      checked.forEach(function (b) { b.classList.remove('checkbox--on'); });
+      var countEl = document.querySelector('#batchbar-scenes [data-ux-batch-count]');
+      if (countEl) countEl.textContent = '0';
+      document.getElementById('batchbar-scenes').hidden = true;
+      document.getElementById('dlg-batch-move').hidden = true;
+      rt.toast('已移动 ' + n + ' 个场景到「' + target.textContent.trim() + '」', { type: 'success' });
+    });
+  }
+
+  /* ---------------- 列表筛选：查询 / 重置 / 视图分段 / 关注 ---------------- */
+  var resetBtn = document.querySelector('[data-ux-reset-filters]');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function () {
+      var form = document.querySelector('[data-ux-filters="scenes"]');
+      if (form) {
+        // 触发 change 让 ux.js 同步持久化的筛选快照，否则刷新后会还原成旧条件
+        form.querySelectorAll('input, select').forEach(function (f) {
+          if (f.tagName === 'SELECT') f.selectedIndex = 0;
+          else f.value = '';
+          f.dispatchEvent(new Event('change'));
+        });
+        form.querySelectorAll('.segment__item').forEach(function (s, i) { s.classList.toggle('segment__item--active', i === 0); });
+      }
+      var chip = document.querySelector('[data-ux-restore-for="scenes"]');
+      if (chip) chip.hidden = true;
+      rt.toast('已重置筛选条件', {});
+    });
+  }
+  document.querySelectorAll('.segment').forEach(function (seg) {
+    seg.addEventListener('click', function (e) {
+      var item = e.target.closest('.segment__item');
+      if (!item) return;
+      seg.querySelectorAll('.segment__item').forEach(function (s) { s.classList.toggle('segment__item--active', s === item); });
+    });
+  });
+  document.querySelectorAll('.star').forEach(function (star) {
+    star.addEventListener('click', function () {
+      rt.toast(star.classList.toggle('is-active') ? '已关注该场景' : '已取消关注', {});
+    });
+  });
+
+  // 分页：列表与执行历史共用，翻页只同步高亮与首末页禁用态（演示数据不变）
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.page-btn') : null;
+    if (!btn) return;
+    var box = btn.closest('.pagination, .ed-history__pager');
+    if (!box) return;
+    var all = Array.prototype.slice.call(box.querySelectorAll('.page-btn'));
+    var label = btn.textContent.trim();
+    var arrows = all.filter(function (b) { return b.textContent.trim() === '‹' || b.textContent.trim() === '›'; });
+    var pages = all.filter(function (b) { return arrows.indexOf(b) < 0; });
+    if (!pages.length) return;
+    var cur = pages.findIndex(function (b) { return b.classList.contains('page-btn--active'); });
+    var next = label === '‹' ? cur - 1 : label === '›' ? cur + 1 : pages.indexOf(btn);
+    if (next < 0) next = 0;
+    if (next > pages.length - 1) next = pages.length - 1;
+    pages.forEach(function (b, i) { b.classList.toggle('page-btn--active', i === next); });
+    arrows.forEach(function (a) {
+      if (a.textContent.trim() === '‹') a.disabled = next === 0;
+      else a.disabled = next === pages.length - 1;
+    });
+  });
+
+  // 模块树：目录节点只切换筛选口径（演示数据不变），场景节点与列表「编辑」同口径打开编排页
+  var treeList = document.querySelector('.tree-card .mt-list');
+  if (treeList) {
+    treeList.addEventListener('click', function (e) {
+      var node = e.target.closest('.mt-node');
+      if (!node) return;
+      treeList.querySelectorAll('.mt-node').forEach(function (n) { n.classList.toggle('mt-node--active', n === node); });
+      if (node.querySelector('.doc-ic') && window.SceneTabs) {
+        window.SceneTabs.open(node.textContent.trim(), false);
+      }
+    });
+  }
 </script>
 <script>
   /* ---------------- 多 Tab：列表 Tab 固定，编排 Tab 内联打开场景编辑器（SceneWorkspace 口径） ---------------- */
@@ -1340,8 +2323,8 @@
     var edStatus = editorPane.querySelector('.ed-status');
     var edPrio = editorPane.querySelector('.ed-prio');
 
-    // 页面级动作：[+] 新建入口紧跟页签末尾且恒为弱样式，
-    // 无需随激活 Tab 换级，主视觉权重自然留给编排页操作条的 [运行场景][保存为草稿][发布]
+    // 页面级「新建场景」按钮固定在页签条最右端（SceneWorkspace 口径），不随激活 Tab 变化，
+    // 主视觉权重自然留给编排页操作条的 [运行场景][保存为草稿][发布]
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
       var isList = tab.getAttribute('data-pane') === 'list';
@@ -1350,9 +2333,10 @@
       if (isList) return;
       var isNew = tab.getAttribute('data-new') === '1';
       nameInput.value = isNew ? '' : (tab.getAttribute('data-name') || '');
-      // 新建态没有发布状态与优先级
+      // 新建态没有发布状态、优先级与删除入口
       edStatus.hidden = isNew;
       edPrio.hidden = isNew;
+      editorPane.querySelectorAll('[data-create-hide]').forEach(function (el) { el.hidden = isNew; });
     }
 
     // 打开编排 Tab；同名场景复用已打开的 Tab（openEdit 的去重口径）
@@ -1368,8 +2352,8 @@
         if (isNew) found.setAttribute('data-new', '1');
         found.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
         found.firstElementChild.textContent = name;
-        // 插到末尾 [+] 之前，保证新建入口紧跟最后一个页签
-        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__add'));
+        // 插到「新建场景」按钮之前，保证新建入口紧跟最后一个页签
+        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__actions'));
       }
       activate(found);
     }
@@ -1397,10 +2381,20 @@
       });
     });
 
-    // 页签末尾 [+]：新建态 Tab（无发布状态 / 优先级）
+    // 右上角 [新建场景]：新建态 Tab（无发布状态 / 优先级 / 删除入口）
     document.getElementById('btn-new-scene').addEventListener('click', function () {
       openTab('新场景', true);
     });
+
+    // 供页面其它脚本（删除场景确认）复用页签开关
+    window.SceneTabs = {
+      open: openTab,
+      closeActive: function () {
+        var active = tabsBar.querySelector('.ws-tab.is-active');
+        if (active && active.hasAttribute('data-name')) active.parentNode.removeChild(active);
+        activate(tabsBar.querySelector('.ws-tab'));
+      }
+    };
   })();
 </script>
 </body>
