@@ -7,7 +7,9 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  /* 页面结构对齐 PlanDetailPage：面包屑 + 页头条（标题状态 + 进度统计 + 操作）+ 标签页 + 快照树(240) + 执行脑图 */
+  /* 页面结构对齐 PlanDetailPage：面包屑 + 页头条（标题状态 + 进度统计 + 操作）+ 快照树(240) + 执行脑图 */
+  [hidden] { display: none !important; }
+
   .detail-head {
     display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
@@ -21,12 +23,6 @@
   .detail-actions {
     display: flex; align-items: center; gap: 8px;
     padding-left: 20px; border-left: 1px solid var(--n-200);
-  }
-
-  /* 标签页：执行记录 / 执行顺序推荐（推荐项仅负责人与执行人可见） */
-  .detail-tabs {
-    display: flex; align-items: center; gap: 4px;
-    border-bottom: 1px solid var(--n-200); margin-bottom: 16px;
   }
 
   .rv-workspace { display: flex; gap: 16px; align-items: stretch; }
@@ -53,10 +49,20 @@
   .mm-tool [data-icon] svg { width: 14px; height: 14px; }
   .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
   .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
+  /* 当前选中节点的执行结果高亮在对应按钮上（同实际页 execResult → button type）；
+     规则置于 hover 之后，避免悬停把高亮色盖回灰底 */
+  .mm-tool[data-on] { color: #fff; font-weight: 500; }
+  .mm-tool[data-on="pass"] { background: var(--st-success); }
+  .mm-tool[data-on="fail"] { background: var(--st-danger); }
+  .mm-tool[data-on="block"] { background: var(--st-blocked); }
+  .mm-tool[data-on="untested"] { background: var(--n-500); }
+  .mm-tool[data-on]:hover { color: #fff; filter: brightness(.94); }
+  .mm-tool:disabled { color: var(--n-400); cursor: not-allowed; }
+  .mm-tool:disabled:hover { background: transparent; color: var(--n-400); filter: none; }
   /* 视口过窄时提示文案会与居中的按钮组重叠，直接隐藏 */
   @media (max-width: 1240px) { .mm-hint { display: none; } }
 
-  /* 脑图画布：快照树 + 执行标记徽标 + 推荐序号 */
+  /* 脑图画布：快照树 + 类型/优先级徽标 + 执行结果徽标 */
   .mm {
     flex: 1; min-height: 440px; padding: 26px 30px; overflow: auto;
     background-image: radial-gradient(var(--n-200) 1px, transparent 1px);
@@ -76,18 +82,31 @@
     width: 15px; border-top: 1.5px solid var(--n-300);
   }
   .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
+  /* 选中态用蓝描边（蓝仅用于按钮/链接/选中），标记与移除均作用于选中节点 */
+  .mm-node--selected { border-color: var(--brand-500); box-shadow: 0 0 0 2px var(--brand-100); }
   .mm-type { font-size: 11px; color: var(--n-500); }
   .tdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
   .tdot--case { background: #a464ff; }
+  .tdot--precondition { background: #409eff; }
+  .tdot--step { background: #67c23a; }
+  .tdot--expected { background: #e6a23c; }
+  /* 优先级徽标配色同 badges.ts 的 PRIORITY_BADGES */
+  .mm-prio {
+    font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 3px;
+    font-weight: 600; color: #fff;
+  }
+  .mm-prio--p0 { background: #f56c6c; }
+  .mm-prio--p1 { background: #e6a23c; }
+  .mm-prio--p2 { background: #409eff; }
+  .mm-prio--p3 { background: #909399; }
   .mm-badge { font-size: 11px; line-height: 1; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
   .mm-badge--pass { background: #f0f9eb; color: #67c23a; }
   .mm-badge--fail { background: #fef0f0; color: #f56c6c; }
   .mm-badge--block { background: #f9eeee; color: #c45656; }
-  .mm-badge--pending { background: var(--n-100); color: var(--n-500); }
-  .mm-order {
-    font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; font-weight: 600;
-    background: var(--brand-50); color: var(--brand-600); border: 1px solid var(--brand-100);
-  }
+
+  /* 快照树：目录行的展开箭头（对应 el-tree 展开图标） */
+  .tree__caret svg { width: 12px; height: 12px; color: var(--n-400); }
+  .tree__item--active .tree__caret svg { color: var(--brand-500); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -100,38 +119,34 @@
     <span>V1.4.2 回归测试</span>
   </div>
 
-  <!-- 页头条：标题/状态 + 进度统计 + 操作组 -->
+  <!-- 页头条：标题/状态 + 进度统计 + 操作组（按钮随计划状态显隐，口径同 PlanDetailPage 的 v-if） -->
   <div class="detail-head">
     <div class="flex-center flex-gap-sm">
       <h1 class="detail-title">V1.4.2 回归测试</h1>
-      <span class="status status--running"><span class="dot"></span>进行中</span>
+      <span class="status status--running" id="plan-status"><span class="dot"></span>执行中</span>
     </div>
     <div class="detail-extra">
       <div class="detail-progress">
         <div class="progress">
-          <div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:58%"></div></div>
-          <span class="progress__text">27/47</span>
+          <div class="progress__track"><div class="progress__fill progress__fill--warning" id="plan-fill" style="width:60%"></div></div>
+          <span class="progress__text" id="plan-percent">60%</span>
         </div>
         <div class="detail-stats">
-          <span class="text-xs" style="color:var(--st-success)">通过 24</span>
-          <span class="text-xs" style="color:var(--st-danger)">失败 2</span>
-          <span class="text-xs" style="color:var(--st-blocked)">阻塞 1</span>
-          <span class="text-xs muted">待执行 20</span>
-          <span class="text-xs muted">共 47</span>
+          <span class="text-xs" style="color:var(--st-success)">通过 <span id="stat-pass">5</span></span>
+          <span class="text-xs" style="color:var(--st-danger)">失败 <span id="stat-fail">2</span></span>
+          <span class="text-xs" style="color:var(--st-blocked)">阻塞 <span id="stat-block">2</span></span>
+          <span class="text-xs muted">待执行 <span id="stat-untested">6</span></span>
+          <span class="text-xs muted">共 <span id="stat-total">15</span></span>
         </div>
       </div>
       <div class="detail-actions">
-        <button class="btn btn--default btn--sm"><span data-icon="edit"></span>调整用例</button>
-        <button class="btn btn--default btn--sm"><span data-icon="refresh"></span>同步用例</button>
-        <button class="btn btn--primary btn--sm"><span data-icon="check"></span>完成执行</button>
+        <button class="btn btn--default btn--sm" id="act-adjust"><span data-icon="edit"></span>调整用例</button>
+        <button class="btn btn--default btn--sm" id="act-sync"><span data-icon="refresh"></span>同步用例</button>
+        <button class="btn btn--default btn--sm" id="act-block" hidden><span data-icon="pause"></span>阻塞</button>
+        <button class="btn btn--default btn--sm" id="act-resume" hidden><span data-icon="play"></span>恢复</button>
+        <button class="btn btn--primary btn--sm" id="act-complete"><span data-icon="check"></span>完成执行</button>
       </div>
     </div>
-  </div>
-
-  <!-- 标签页：执行记录（默认） / 执行顺序推荐 -->
-  <div class="detail-tabs">
-    <span class="tab tab--active">执行记录</span>
-    <span class="tab" title="仅计划负责人 / 执行人可见">执行顺序推荐 ✨</span>
   </div>
 
   <!-- 工作区：快照文档树(240) + 执行脑图 -->
@@ -142,52 +157,415 @@
         <span class="text-xs muted">只读</span>
       </div>
       <div class="card__body" style="padding:8px 10px">
-        <div class="tree">
-          <div class="tree__item"><span data-icon="folder"></span>下单模块</div>
-          <div class="tree__item tree__indent tree__item--active"><span data-icon="document"></span>下单主流程</div>
-          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>优惠券规则</div>
-          <div class="tree__item"><span data-icon="folder"></span>支付模块</div>
-          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>支付回调</div>
-          <div class="tree__item"><span data-icon="folder"></span>履约模块</div>
-          <div class="tree__item" style="padding-left:44px"><span data-icon="document"></span>发货时效</div>
+        <div class="tree" id="snapshot-tree">
+          <div class="tree__item" data-dir="下单模块"><span class="tree__caret" data-icon="chevron-down"></span><span data-icon="folder"></span>下单模块</div>
+          <div class="tree__item tree__indent tree__item--active" data-doc="doc-order"><span data-icon="document"></span>下单主流程</div>
+          <div class="tree__item tree__indent" data-doc="doc-coupon"><span data-icon="document"></span>优惠券规则</div>
+          <div class="tree__item" data-dir="支付模块"><span class="tree__caret" data-icon="chevron-down"></span><span data-icon="folder"></span>支付模块</div>
+          <div class="tree__item tree__indent" data-doc="doc-pay"><span data-icon="document"></span>支付回调</div>
+          <div class="tree__item" data-dir="履约模块"><span class="tree__caret" data-icon="chevron-down"></span><span data-icon="folder"></span>履约模块</div>
+          <div class="tree__item tree__indent" data-doc="doc-deliver"><span data-icon="document"></span>发货时效</div>
         </div>
       </div>
     </div>
 
     <div class="card rv-mind">
       <div class="mm-bar">
-        <button class="mm-tool"><span data-icon="check"></span>标记通过</button>
-        <button class="mm-tool"><span data-icon="x"></span>标记失败</button>
-        <button class="mm-tool"><span data-icon="ban"></span>标记阻塞</button>
-        <button class="mm-tool"><span data-icon="circle"></span>标记待执行</button>
+        <button class="mm-tool" data-mark="pass"><span data-icon="check"></span>通过</button>
+        <button class="mm-tool" data-mark="fail" data-on="fail"><span data-icon="x"></span>失败</button>
+        <button class="mm-tool" data-mark="block"><span data-icon="ban"></span>阻塞</button>
+        <button class="mm-tool" data-mark="untested"><span data-icon="refresh"></span>待执行</button>
         <span class="mm-sep"></span>
-        <button class="mm-tool"><span data-icon="trash"></span>移除用例</button>
-        <span class="text-xs muted mm-hint">仅关联用例节点可标记 · ① 为执行顺序推荐序号</span>
+        <button class="mm-tool" id="act-remove"><span data-icon="trash"></span>移除用例</button>
+        <span class="text-xs muted mm-hint" id="mind-hint">仅关联用例节点可标记与移除 · 快照只读</span>
       </div>
-      <div class="mm">
-        <ul>
-          <li><span class="mm-node mm-node--root"><span data-icon="document"></span>下单主流程（执行快照）</span>
-            <ul>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>库存不足时下单拦截<span class="mm-order">1</span><span class="mm-badge mm-badge--pass">通过</span></span>
-                <ul>
-                  <li><span class="mm-node"><span class="mm-type">前置</span>目标商品库存为 0</span></li>
-                  <li><span class="mm-node"><span class="mm-type">预期</span>提示库存不足并阻止下单</span></li>
-                </ul>
-              </li>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>支付回调幂等性验证<span class="mm-order">2</span><span class="mm-badge mm-badge--fail">失败</span></span></li>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>下单接口超时重试<span class="mm-order">3</span><span class="mm-badge mm-badge--block">阻塞</span></span></li>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>多优惠券互斥规则<span class="mm-badge mm-badge--pending">待执行</span></span></li>
-              <li><span class="mm-node"><i class="tdot tdot--case"></i>历史订单导出上限<span class="mm-badge mm-badge--pending">待执行</span></span></li>
-            </ul>
-          </li>
-        </ul>
-      </div>
+      <div class="mm" id="mind"></div>
     </div>
   </div>
 
 </main>
 
+<!-- 二次确认：对应实际页 阻塞 / 恢复 / 完成执行 / 同步 / 移除用例 的 ElMessageBox.confirm -->
+<div class="dialog-mask" id="confirm-dialog" hidden>
+  <div class="dialog" style="width:420px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="confirm-title">确认操作</span>
+      <button class="dialog__close" id="confirm-close" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" id="confirm-cancel">取消</button>
+      <button class="btn btn--primary btn--sm" id="confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+  function esc(text) {
+    return String(text).replace(/[&<>"]/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch];
+    });
+  }
+
+  // 状态标签与操作按钮显隐同源 planListPresentation：new/in_progress 为活跃态，blocked 仅恢复
+  var STATUS = {
+    new: { label: '未开始', cls: 'status--neutral' },
+    in_progress: { label: '执行中', cls: 'status--running' },
+    completed: { label: '已完成', cls: 'status--success' },
+    blocked: { label: '已阻塞', cls: 'status--blocked' },
+    closed: { label: '已关闭', cls: 'status--neutral' }
+  };
+  // 待执行是默认态不渲染徽标，与 badges.ts 的 EXECUTION_RESULT_BADGES 口径一致
+  var MARK = {
+    pass: { label: '通过', cls: 'mm-badge--pass' },
+    fail: { label: '失败', cls: 'mm-badge--fail' },
+    block: { label: '阻塞', cls: 'mm-badge--block' },
+    untested: { label: '待执行', cls: '' }
+  };
+  var TYPE = { precondition: '前置', step: '步骤', expected: '预期' };
+  // 非活跃态实际以校验失败 Toast 拦截，静态稿改用工具条文案提示同一约束
+  var INACTIVE_HINT = {
+    new: '',
+    in_progress: '',
+    completed: '计划已完成，不可再标记执行结果',
+    blocked: '计划已阻塞，不可标记执行结果',
+    closed: '计划已关闭，不可标记执行结果'
+  };
+
+  var status = 'in_progress';
+  var selectedId = 'c-order-2';
+
+  // 快照文档树：目录可展开/收起，文档点击切换右侧脑图（实际为单文档快照）
+  var TREE = [
+    { name: '下单模块', open: true, docs: ['doc-order', 'doc-coupon'] },
+    { name: '支付模块', open: true, docs: ['doc-pay'] },
+    { name: '履约模块', open: true, docs: ['doc-deliver'] }
+  ];
+  var DOC_NAME = {
+    'doc-order': '下单主流程',
+    'doc-coupon': '优惠券规则',
+    'doc-pay': '支付回调',
+    'doc-deliver': '发货时效'
+  };
+  var activeDoc = 'doc-order';
+
+  // 快照节点：type=case 才是已关联用例，可标记/移除；detail 为该用例的前置/步骤/预期子节点
+  var DOCS = {
+    'doc-order': {
+      root: '下单主流程（执行快照）',
+      cases: [
+        { id: 'c-order-1', title: '库存不足时下单拦截', prio: 'P0', result: 'pass', detail: [
+          { type: 'precondition', text: '目标商品库存为 0' },
+          { type: 'step', text: '提交下单请求' },
+          { type: 'expected', text: '提示库存不足并阻止下单' }
+        ] },
+        { id: 'c-order-2', title: '支付回调幂等性验证', prio: 'P1', result: 'fail', detail: [
+          { type: 'expected', text: '同一回调重复通知仅入账一次' }
+        ] },
+        { id: 'c-order-3', title: '下单接口超时重试', prio: 'P1', result: 'block', detail: [
+          { type: 'precondition', text: '下单接口返回超时' },
+          { type: 'expected', text: '自动重试两次后转人工处理' }
+        ] },
+        { id: 'c-order-4', title: '多优惠券互斥规则', prio: 'P2', result: 'untested' },
+        { id: 'c-order-5', title: '历史订单导出上限', prio: 'P2', result: 'untested' }
+      ]
+    },
+    'doc-coupon': {
+      root: '优惠券规则（执行快照）',
+      cases: [
+        { id: 'c-coupon-1', title: '优惠券叠加使用校验', prio: 'P1', result: 'pass', detail: [
+          { type: 'expected', text: '并列可用券按最优组合抵扣' }
+        ] },
+        { id: 'c-coupon-2', title: '过期优惠券不可用', prio: 'P2', result: 'pass' },
+        { id: 'c-coupon-3', title: '满减门槛计算', prio: 'P1', result: 'fail', detail: [
+          { type: 'expected', text: '订单满 200 减 30 生效' }
+        ] },
+        { id: 'c-coupon-4', title: '优惠券与积分互斥', prio: 'P2', result: 'untested' }
+      ]
+    },
+    'doc-pay': {
+      root: '支付回调（执行快照）',
+      cases: [
+        { id: 'c-pay-1', title: '回调签名校验', prio: 'P0', result: 'pass', detail: [
+          { type: 'precondition', text: '构造非法签名的回调报文' },
+          { type: 'expected', text: '回调被拒绝并记录安全日志' }
+        ] },
+        { id: 'c-pay-2', title: '重复通知幂等处理', prio: 'P1', result: 'pass' },
+        { id: 'c-pay-3', title: '回调超时重发', prio: 'P2', result: 'untested' }
+      ]
+    },
+    'doc-deliver': {
+      root: '发货时效（执行快照）',
+      cases: [
+        { id: 'c-deliver-1', title: '超时未发货自动赔付', prio: 'P1', result: 'block', detail: [
+          { type: 'precondition', text: '订单超过承诺发货时间 24 小时' },
+          { type: 'expected', text: '按订单金额比例生成赔付单' }
+        ] },
+        { id: 'c-deliver-2', title: '发货时效计算', prio: 'P2', result: 'untested' },
+        { id: 'c-deliver-3', title: '预售订单发货顺延', prio: 'P3', result: 'untested' }
+      ]
+    }
+  };
+
+  function isActive() { return status === 'new' || status === 'in_progress'; }
+
+  function findCase(id) {
+    var keys = Object.keys(DOCS);
+    for (var i = 0; i < keys.length; i++) {
+      var cases = DOCS[keys[i]].cases;
+      for (var j = 0; j < cases.length; j++) {
+        if (cases[j].id === id) return cases[j];
+      }
+    }
+    return null;
+  }
+
+  function firstDoc() {
+    for (var i = 0; i < TREE.length; i++) {
+      if (TREE[i].docs.length) return TREE[i].docs[0];
+    }
+    return '';
+  }
+
+  // ==================== 页头：状态 / 进度 / 统计 / 操作 ====================
+  function renderHead() {
+    var meta = STATUS[status];
+    var tag = byId('plan-status');
+    tag.className = 'status ' + meta.cls;
+    tag.innerHTML = '<span class="dot"></span>' + meta.label;
+
+    var counts = { pass: 0, fail: 0, block: 0, untested: 0, total: 0 };
+    Object.keys(DOCS).forEach(function (key) {
+      DOCS[key].cases.forEach(function (c) {
+        counts[c.result] += 1;
+        counts.total += 1;
+      });
+    });
+    byId('stat-pass').textContent = counts.pass;
+    byId('stat-fail').textContent = counts.fail;
+    byId('stat-block').textContent = counts.block;
+    byId('stat-untested').textContent = counts.untested;
+    byId('stat-total').textContent = counts.total;
+
+    // 进度 = 已执行 / 关联总数，进度条配色同 planProgressStatus：执行中橙、已阻塞红、其余默认
+    var percent = counts.total
+      ? Math.round((counts.total - counts.untested) * 10000 / counts.total) / 100
+      : 0;
+    byId('plan-percent').textContent = percent + '%';
+    var fill = byId('plan-fill');
+    fill.style.width = percent + '%';
+    fill.className = 'progress__fill' + (status === 'in_progress'
+      ? ' progress__fill--warning'
+      : status === 'blocked' ? ' progress__fill--danger' : '');
+
+    var active = isActive();
+    byId('act-adjust').hidden = !active;
+    byId('act-sync').hidden = !active;
+    byId('act-block').hidden = !active;
+    byId('act-resume').hidden = status !== 'blocked';
+    byId('act-complete').hidden = !active;
+  }
+
+  // ==================== 快照文档树 ====================
+  function renderTree() {
+    var html = '';
+    TREE.forEach(function (dir) {
+      html += '<div class="tree__item" data-dir="' + esc(dir.name) + '">' +
+        '<span class="tree__caret" data-icon="' + (dir.open ? 'chevron-down' : 'chevron-right') + '"></span>' +
+        '<span data-icon="folder"></span>' + esc(dir.name) + '</div>';
+      if (!dir.open) return;
+      dir.docs.forEach(function (docId) {
+        html += '<div class="tree__item tree__indent' + (docId === activeDoc ? ' tree__item--active' : '') +
+          '" data-doc="' + docId + '"><span data-icon="document"></span>' + esc(DOC_NAME[docId]) + '</div>';
+      });
+    });
+    var tree = byId('snapshot-tree');
+    // 快照文档被移空后按实际树组件的空态文案兜底
+    tree.innerHTML = html || '<div class="muted text-sm" style="padding:8px 12px">暂无快照文档</div>';
+    if (window.RTIcons) window.RTIcons.hydrate(tree);
+  }
+
+  // ==================== 执行脑图 ====================
+  function caseHtml(c) {
+    var mark = MARK[c.result];
+    var html = '<li><span class="mm-node' + (c.id === selectedId ? ' mm-node--selected' : '') +
+      '" data-case="' + c.id + '">' +
+      '<i class="tdot tdot--case"></i><span class="mm-type">用例</span>' + esc(c.title) +
+      '<span class="mm-prio mm-prio--' + c.prio.toLowerCase() + '">' + c.prio + '</span>' +
+      (mark.cls ? '<span class="mm-badge ' + mark.cls + '">' + mark.label + '</span>' : '') +
+      '</span>';
+    if (c.detail && c.detail.length) {
+      html += '<ul>';
+      c.detail.forEach(function (d) {
+        html += '<li><span class="mm-node"><i class="tdot tdot--' + d.type + '"></i>' +
+          '<span class="mm-type">' + TYPE[d.type] + '</span>' + esc(d.text) + '</span></li>';
+      });
+      html += '</ul>';
+    }
+    return html + '</li>';
+  }
+
+  function renderMind() {
+    var mind = byId('mind');
+    var doc = DOCS[activeDoc];
+    // 文档被移空后回退的空档，等价实际页 el-empty 占位
+    if (!doc) {
+      mind.innerHTML = '<div class="state-block muted text-sm">请在左侧选择一个文档</div>';
+      return;
+    }
+    var html = '<ul><li><span class="mm-node mm-node--root"><span data-icon="document"></span>' +
+      esc(doc.root) + '</span><ul>';
+    doc.cases.forEach(function (c) { html += caseHtml(c); });
+    html += '</ul></li></ul>';
+    mind.innerHTML = html;
+    if (window.RTIcons) window.RTIcons.hydrate(mind);
+  }
+
+  function renderToolbar() {
+    var active = isActive();
+    var selected = selectedId ? findCase(selectedId) : null;
+    document.querySelectorAll('[data-mark]').forEach(function (btn) {
+      btn.disabled = !active || !selected;
+      // 高亮落在「当前选中节点的结果」对应的那个按钮上，而非整组按钮
+      if (selected && active && btn.getAttribute('data-mark') === selected.result) {
+        btn.setAttribute('data-on', selected.result);
+      } else {
+        btn.removeAttribute('data-on');
+      }
+    });
+    var remove = byId('act-remove');
+    remove.hidden = !active;
+    remove.disabled = !active || !selected;
+    byId('mind-hint').textContent = !active
+      ? INACTIVE_HINT[status]
+      : selected ? '仅关联用例节点可标记与移除 · 快照只读'
+        : '请先在脑图中选中关联用例节点';
+  }
+
+  function renderAll() {
+    renderHead();
+    renderTree();
+    renderMind();
+    renderToolbar();
+  }
+
+  // ==================== 二次确认（同实际页 ElMessageBox.confirm 文案） ====================
+  var pendingConfirm = null;
+  function askConfirm(title, body, onOk, danger) {
+    byId('confirm-title').textContent = title;
+    byId('confirm-body').textContent = body;
+    byId('confirm-ok').className = 'btn btn--sm ' + (danger ? 'btn--danger' : 'btn--primary');
+    pendingConfirm = onOk;
+    byId('confirm-dialog').hidden = false;
+  }
+  function closeConfirm() {
+    byId('confirm-dialog').hidden = true;
+    pendingConfirm = null;
+  }
+  byId('confirm-ok').addEventListener('click', function () {
+    var fn = pendingConfirm;
+    closeConfirm();
+    if (fn) fn();
+  });
+  byId('confirm-cancel').addEventListener('click', closeConfirm);
+  byId('confirm-close').addEventListener('click', closeConfirm);
+
+  // ==================== 事件 ====================
+  byId('snapshot-tree').addEventListener('click', function (e) {
+    var dir = e.target.closest('[data-dir]');
+    if (dir) {
+      TREE.forEach(function (d) { if (d.name === dir.getAttribute('data-dir')) d.open = !d.open; });
+      renderTree();
+      return;
+    }
+    var doc = e.target.closest('[data-doc]');
+    if (!doc) return;
+    var docId = doc.getAttribute('data-doc');
+    if (docId === activeDoc) return;
+    // 切换文档即重载脑图，选中态随之清空（同实际页 initMinder）
+    activeDoc = docId;
+    selectedId = null;
+    renderTree();
+    renderMind();
+    renderToolbar();
+  });
+
+  byId('mind').addEventListener('click', function (e) {
+    var node = e.target.closest('[data-case]');
+    if (!node) return;
+    selectedId = node.getAttribute('data-case');
+    renderMind();
+    renderToolbar();
+  });
+
+  document.querySelectorAll('[data-mark]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (btn.disabled) return;
+      var target = findCase(selectedId);
+      if (!target) return;
+      // 未开始计划首次标记后自动转入执行中（交互设计 1.2）
+      if (status === 'new') status = 'in_progress';
+      target.result = btn.getAttribute('data-mark');
+      renderAll();
+    });
+  });
+
+  byId('act-remove').addEventListener('click', function () {
+    if (byId('act-remove').disabled) return;
+    var target = findCase(selectedId);
+    if (!target) return;
+    askConfirm('移除用例',
+      '确定从该计划中移除用例「' + target.title + '」吗？移除后该用例及其执行结果将不再展示，历史执行记录保留作审计。',
+      function () {
+        Object.keys(DOCS).forEach(function (key) {
+          var cases = DOCS[key].cases;
+          var idx = cases.indexOf(target);
+          if (idx < 0) return;
+          cases.splice(idx, 1);
+          // 整文档用例清空时后端删除该文档快照，文档树条目同步消失并回退到首个文档
+          if (!cases.length) {
+            delete DOCS[key];
+            delete DOC_NAME[key];
+            TREE.forEach(function (dir) {
+              dir.docs = dir.docs.filter(function (d) { return d !== key; });
+            });
+            TREE = TREE.filter(function (dir) { return dir.docs.length; });
+            if (activeDoc === key) { activeDoc = firstDoc(); }
+          }
+        });
+        selectedId = null;
+        renderAll();
+      }, true);
+  });
+
+  byId('act-block').addEventListener('click', function () {
+    askConfirm('阻塞计划',
+      '确定阻塞该计划吗？阻塞期间不可标记执行结果、调整用例、同步与完成。',
+      function () { status = 'blocked'; renderAll(); });
+  });
+
+  byId('act-resume').addEventListener('click', function () {
+    askConfirm('恢复计划', '确定恢复该计划吗？恢复后回到执行中。',
+      function () { status = 'in_progress'; renderAll(); });
+  });
+
+  byId('act-complete').addEventListener('click', function () {
+    askConfirm('完成执行', '确定完成该计划吗？完成后将不可再标记执行结果。',
+      function () { status = 'completed'; renderAll(); });
+  });
+
+  byId('act-sync').addEventListener('click', function () {
+    askConfirm('同步最新用例', '同步将更新快照节点属性，已有执行记录不受影响。确定同步？', function () {
+      renderAll();
+    });
+  });
+
+  renderAll();
+})();
+</script>
 </body>
 </html>
