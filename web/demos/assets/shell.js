@@ -122,12 +122,6 @@
         { key: 'workspaces', label: '空间管理', icon: 'building' },
       ],
     },
-    {
-      title: '平台配置',
-      items: [
-        { key: 'ai-config', label: 'AI 配置', icon: 'sparkle' },
-      ],
-    },
   ];
 
   function sideHtml() {
