@@ -6,6 +6,19 @@
 <title>测试评审 · 功能测试 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 弹层靠 hidden 开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
+  .dialog-mask[hidden] { display: none; }
+
+  /* 参与者：实际页为可搜索多选，静态稿用勾选列表呈现 */
+  .member-pick { display: grid; gap: 10px; }
+  .member-pick__item { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+
+  .rv-empty td { text-align: center; color: var(--n-500); padding: 36px 0; }
+
+  /* 头像堆溢出计数是文本不是头像，避免多占一位头像 */
+  .avatar-stack__more { margin-left: 6px; color: var(--n-500); font-size: var(--font-size-2xs); }
+</style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
@@ -25,81 +38,91 @@
           <p class="page-head__desc">用例评审与评审结论跟踪</p>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--primary"><span data-icon="plus"></span>发起评审</button>
+          <button class="btn btn--primary" type="button" data-open="rv-create-dialog"><span data-icon="plus"></span>发起评审</button>
         </div>
       </div>
 
       <div class="card">
         <div class="toolbar">
           <div class="toolbar__filters">
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="评审标题"></div>
-            <select class="select" style="width:130px"><option>全部状态</option><option>待评审</option><option>进行中</option><option>已通过</option><option>已驳回</option></select>
+            <div class="input-wrap"><span data-icon="search"></span><input class="input" id="rv-keyword" placeholder="评审标题"></div>
+            <select class="select" id="rv-status" style="width:130px">
+              <option value="">全部状态</option>
+              <option value="new">待评审</option>
+              <option value="in_progress">进行中</option>
+              <option value="completed">已通过</option>
+              <option value="rejected">已驳回</option>
+            </select>
+            <button class="btn btn--primary" type="button" id="rv-search"><span data-icon="search"></span>查询</button>
+            <button class="btn btn--default" type="button" id="rv-reset">重置</button>
           </div>
-          <div class="toolbar__count">共 24 场评审</div>
+          <div class="toolbar__count" id="rv-count">共 24 场评审</div>
         </div>
 
         <div class="table-wrap">
-          <table class="table table--clickable">
+          <table class="table" id="rv-table">
             <thead>
               <tr><th>标题</th><th>发起人</th><th>状态</th><th>进度</th><th>通过率</th><th>参与者</th><th>创建时间</th><th>操作</th></tr>
             </thead>
             <tbody>
-              <tr>
-                <td class="cell-main">下单模块用例评审<span class="cell-sub">关联用例 32 条</span></td>
+              <tr data-status="in_progress" data-title="下单模块用例评审">
+                <td class="cell-main"><a href="review-detail.html">下单模块用例评审</a><span class="cell-sub">关联用例 32 条</span></td>
                 <td>张明</td>
                 <td><span class="status status--running"><span class="dot"></span>进行中</span></td>
-                <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:60%"></div></div><span class="progress__text">18/30</span></div></td>
+                <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:56%"></div></div><span class="progress__text">18/32</span></div></td>
                 <td class="num">40%</td>
-                <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">张</span><span class="avatar avatar--sm">李</span><span class="avatar avatar--sm">王</span><span class="avatar avatar--sm">+1</span></span></td>
+                <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">张</span><span class="avatar avatar--sm">李</span><span class="avatar avatar--sm">王</span><span class="avatar-stack__more">+1</span></span></td>
                 <td class="num">2026-09-21 11:20</td>
-                <td><span class="op-link">进入</span></td>
+                <td><a class="op-link" href="review-detail.html">进入</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
               </tr>
-              <tr>
-                <td class="cell-main">支付中心回归用例评审<span class="cell-sub">关联用例 48 条</span></td>
+              <tr data-status="new" data-title="支付中心回归用例评审">
+                <td class="cell-main"><a href="review-detail.html">支付中心回归用例评审</a><span class="cell-sub">关联用例 48 条</span></td>
                 <td>李华</td>
                 <td><span class="status status--neutral"><span class="dot"></span>待评审</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:0%"></div></div><span class="progress__text">0/48</span></div></td>
-                <td class="num">—</td>
-                <td><span class="avatar-stack"><span class="avatar avatar--sm">李</span><span class="avatar avatar--sm">陈</span><span class="avatar avatar--sm">周</span></span></td>
+                <td class="num text-light">—</td>
+                <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">李</span><span class="avatar avatar--sm">陈</span><span class="avatar avatar--sm">周</span></span></td>
                 <td class="num">2026-09-20 15:44</td>
-                <td><span class="op-link">进入</span></td>
+                <td><a class="op-link" href="review-detail.html">进入</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
               </tr>
-              <tr>
-                <td class="cell-main">营销优惠边界用例评审<span class="cell-sub">关联用例 26 条</span></td>
+              <tr data-status="completed" data-title="营销优惠边界用例评审">
+                <td class="cell-main"><a href="review-detail.html">营销优惠边界用例评审</a><span class="cell-sub">关联用例 26 条</span></td>
                 <td>王芳</td>
                 <td><span class="status status--success"><span class="dot"></span>已通过</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:100%"></div></div><span class="progress__text">26/26</span></div></td>
                 <td class="num text-success strong">96.2%</td>
-                <td><span class="avatar-stack"><span class="avatar avatar--sm">王</span><span class="avatar avatar--sm">张</span></span></td>
+                <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">王</span><span class="avatar avatar--sm">张</span></span></td>
                 <td class="num">2026-09-17 10:12</td>
-                <td><span class="op-link">查看</span></td>
+                <td><a class="op-link" href="review-detail.html">查看</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
               </tr>
-              <tr>
-                <td class="cell-main">履约配送用例评审<span class="cell-sub">关联用例 35 条</span></td>
+              <tr data-status="rejected" data-title="履约配送用例评审">
+                <td class="cell-main"><a href="review-detail.html">履约配送用例评审</a><span class="cell-sub">关联用例 35 条</span></td>
                 <td>周敏</td>
                 <td><span class="status status--danger"><span class="dot"></span>已驳回</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--danger" style="width:100%"></div></div><span class="progress__text">35/35</span></div></td>
                 <td class="num text-danger">62.9%</td>
-                <td><span class="avatar-stack"><span class="avatar avatar--sm">周</span><span class="avatar avatar--sm">李</span><span class="avatar avatar--sm">陈</span></span></td>
+                <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">周</span><span class="avatar avatar--sm">李</span><span class="avatar avatar--sm">陈</span></span></td>
                 <td class="num">2026-09-14 14:30</td>
-                <td><span class="op-link">查看</span><span class="op-link">重新发起</span></td>
+                <td><a class="op-link" href="review-detail.html">查看</a><span class="op-link" data-op="reopen">重新发起</span><span class="op-link op-link--danger" data-op="delete">删除</span></td>
               </tr>
-              <tr>
-                <td class="cell-main">冒烟集季度清理评审<span class="cell-sub">关联用例 32 条</span></td>
+              <tr data-status="completed" data-title="冒烟集季度清理评审">
+                <td class="cell-main"><a href="review-detail.html">冒烟集季度清理评审</a><span class="cell-sub">关联用例 32 条</span></td>
                 <td>张明</td>
                 <td><span class="status status--success"><span class="dot"></span>已通过</span></td>
                 <td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:100%"></div></div><span class="progress__text">32/32</span></div></td>
                 <td class="num text-success strong">100%</td>
                 <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">张</span><span class="avatar avatar--sm">王</span></span></td>
                 <td class="num">2026-09-02 09:18</td>
-                <td><span class="op-link">查看</span></td>
+                <td><a class="op-link" href="review-detail.html">查看</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
               </tr>
+              <tr class="rv-empty" id="rv-empty" hidden><td colspan="8">暂无评审</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="pagination">
-          <span class="pagination__total">共 24 场 · 每页 20 条</span>
+          <span class="pagination__total" id="rv-pager-total">共 24 场 · 每页 20 条</span>
+          <button class="page-btn" disabled>‹</button>
           <button class="page-btn page-btn--active">1</button>
           <button class="page-btn">2</button>
           <button class="page-btn">›</button>
@@ -109,7 +132,231 @@
   </div>
 </main>
 
+<!-- 发起评审：字段与校验口径同实际页 ReviewListPage 的创建弹窗 -->
+<div class="dialog-mask" id="rv-create-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:560px">
+    <div class="dialog__header">
+      <span class="dialog__title">发起评审</span>
+      <button class="dialog__close" data-close="rv-create-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="field">
+        <label class="field__label" for="rv-title">标题<span class="req">*</span></label>
+        <input class="input" id="rv-title" maxlength="200" placeholder="请输入评审标题">
+        <div class="field__hint"><span id="rv-title-count">0</span>/200</div>
+        <div class="field__error" id="rv-title-error" hidden></div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="rv-desc">描述</label>
+        <textarea class="textarea" id="rv-desc" rows="3" placeholder="评审描述（可选）"></textarea>
+      </div>
+      <div class="field">
+        <label class="field__label">参与者<span class="req">*</span></label>
+        <div class="member-pick">
+          <div class="member-pick__item"><span class="checkbox"></span>张明</div>
+          <div class="member-pick__item"><span class="checkbox"></span>李华</div>
+          <div class="member-pick__item"><span class="checkbox"></span>王芳</div>
+          <div class="member-pick__item"><span class="checkbox"></span>周敏</div>
+          <div class="member-pick__item"><span class="checkbox"></span>陈晓</div>
+        </div>
+        <div class="field__error" id="rv-member-error" hidden></div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label class="field__label">关联用例<span class="req">*</span></label>
+        <div class="flex-center flex-gap-md">
+          <button class="btn btn--default" type="button" id="rv-pick-cases">选择用例</button>
+          <span class="text-xs muted" id="rv-cases" hidden>已选 6 个用例</span>
+        </div>
+        <div class="field__error" id="rv-case-error" hidden></div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="rv-create-dialog">取消</button>
+      <button class="btn btn--primary" type="button" id="rv-create-ok">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重新发起 / 删除共用的二次确认，文案同实际页 ElMessageBox -->
+<div class="dialog-mask" id="rv-confirm-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="rv-confirm-title">删除评审</span>
+      <button class="dialog__close" data-close="rv-confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="rv-confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="rv-confirm-dialog">取消</button>
+      <button class="btn btn--danger" type="button" id="rv-confirm-ok">确认</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+  function setError(id, msg) {
+    var el = byId(id);
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  }
+
+  /* 未筛选时展示服务端总数，筛选后按命中样例行计数 */
+  var TOTAL = 24;
+  var keyword = byId('rv-keyword');
+  var statusSel = byId('rv-status');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#rv-table tbody tr[data-status]'));
+  var emptyRow = byId('rv-empty');
+  var applied = { keyword: '', status: '' };
+
+  function render() {
+    var shown = 0;
+    rows.forEach(function (row) {
+      var matched =
+        (!applied.status || row.getAttribute('data-status') === applied.status) &&
+        (!applied.keyword || row.getAttribute('data-title').indexOf(applied.keyword) !== -1);
+      row.hidden = !matched;
+      if (matched) shown += 1;
+    });
+    var total = (applied.keyword || applied.status) ? shown : TOTAL;
+    emptyRow.hidden = shown !== 0;
+    byId('rv-count').textContent = '共 ' + total + ' 场评审';
+    byId('rv-pager-total').textContent = '共 ' + total + ' 场 · 每页 20 条';
+  }
+
+  function search() {
+    applied.keyword = keyword.value.trim();
+    applied.status = statusSel.value;
+    render();
+  }
+
+  function reset() {
+    keyword.value = '';
+    statusSel.value = '';
+    applied.keyword = '';
+    applied.status = '';
+    render();
+  }
+
+  byId('rv-search').addEventListener('click', search);
+  keyword.addEventListener('keydown', function (e) { if (e.key === 'Enter') search(); });
+  byId('rv-reset').addEventListener('click', reset);
+
+  var createDialog = byId('rv-create-dialog');
+  var confirmDialog = byId('rv-confirm-dialog');
+  var confirmAction = null;
+  var memberItems = Array.prototype.slice.call(createDialog.querySelectorAll('.member-pick__item'));
+
+  function resetCreateForm() {
+    byId('rv-title').value = '';
+    byId('rv-desc').value = '';
+    byId('rv-title-count').textContent = '0';
+    byId('rv-cases').hidden = true;
+    memberItems.forEach(function (item) { item.querySelector('.checkbox').classList.remove('checkbox--on'); });
+    setError('rv-title-error', '');
+    setError('rv-member-error', '');
+    setError('rv-case-error', '');
+  }
+
+  function askConfirm(title, body, okLabel, onOk) {
+    byId('rv-confirm-title').textContent = title;
+    byId('rv-confirm-body').textContent = body;
+    byId('rv-confirm-ok').textContent = okLabel;
+    confirmAction = onOk;
+    confirmDialog.hidden = false;
+  }
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-open]');
+    if (opener) {
+      resetCreateForm();
+      createDialog.hidden = false;
+      return;
+    }
+    var closer = e.target.closest('[data-close]');
+    if (closer) {
+      byId(closer.getAttribute('data-close')).hidden = true;
+      return;
+    }
+    var member = e.target.closest('.member-pick__item');
+    if (member) {
+      member.querySelector('.checkbox').classList.toggle('checkbox--on');
+      setError('rv-member-error', '');
+      return;
+    }
+    var op = e.target.closest('[data-op]');
+    if (!op) return;
+    var row = op.closest('tr');
+    var title = row ? row.getAttribute('data-title') : '';
+    if (op.getAttribute('data-op') === 'reopen') {
+      askConfirm('重新发起评审', '确定重新发起评审「' + title + '」？既有标记将保留，参与者可继续评审。', '重新发起', function () {
+        confirmDialog.hidden = true;
+        // 后端将已驳回置回进行中，既有标记保留，此处同步行状态
+        row.setAttribute('data-status', 'in_progress');
+        row.children[2].innerHTML = '<span class="status status--running"><span class="dot"></span>进行中</span>';
+        row.children[3].querySelector('.progress__fill').className = 'progress__fill progress__fill--warning';
+        row.children[4].className = 'num';
+        row.children[7].innerHTML = '<a class="op-link" href="review-detail.html">进入</a><span class="op-link op-link--danger" data-op="delete">删除</span>';
+        render();
+      });
+    } else if (op.getAttribute('data-op') === 'delete') {
+      askConfirm('删除评审', '确定删除评审「' + title + '」？删除后不可恢复', '删除', function () {
+        confirmDialog.hidden = true;
+        row.hidden = true;
+        rows = rows.filter(function (r) { return r !== row; });
+        TOTAL -= 1;
+        render();
+      });
+    }
+  });
+
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    createDialog.hidden = true;
+    confirmDialog.hidden = true;
+  });
+
+  byId('rv-confirm-ok').addEventListener('click', function () {
+    var action = confirmAction;
+    confirmAction = null;
+    if (action) action();
+  });
+
+  byId('rv-title').addEventListener('input', function () {
+    byId('rv-title-count').textContent = String(this.value.length);
+    setError('rv-title-error', '');
+  });
+
+  // 实际页经 CaseSelector 选择用例，静态稿给定一次选择结果
+  byId('rv-pick-cases').addEventListener('click', function () {
+    byId('rv-cases').hidden = false;
+    setError('rv-case-error', '');
+  });
+
+  byId('rv-create-ok').addEventListener('click', function () {
+    if (!byId('rv-title').value.trim()) {
+      setError('rv-title-error', '请输入评审标题');
+      return;
+    }
+    if (createDialog.querySelectorAll('.checkbox--on').length === 0) {
+      setError('rv-member-error', '请选择至少一个参与者');
+      return;
+    }
+    if (byId('rv-cases').hidden) {
+      setError('rv-case-error', '请关联至少一个用例');
+      return;
+    }
+    window.location.href = 'review-detail.html';
+  });
+})();
+</script>
 </body>
 </html>
