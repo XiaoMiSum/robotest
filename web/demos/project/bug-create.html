@@ -7,25 +7,77 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
+  /* 弹层靠 hidden 属性开关，作者样式的 display:flex 会盖过 UA [hidden]，需强制生效 */
+  [hidden] { display: none !important; }
+
   .field__label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .field__label-row .field__label { margin-bottom: 0; }
   .field__count { font-size: var(--font-size-xs); color: var(--n-400); font-variant-numeric: tabular-nums; }
 
-  /* 标题输入：大号输入 */
+  /* 标题输入：大号输入，对应 el-input size="large" */
   .title-group { display: flex; align-items: stretch; }
   .title-input { height: 40px; font-size: var(--font-size-lg); border-radius: var(--radius-md); }
+
+  /* 重现步骤：Markdown 工具栏与编辑区连体，对应 MarkdownEditor 的 toolbar 结构 */
+  .md-toolbar {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 6px 8px; border: 1px solid var(--n-300); border-bottom: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--n-50);
+  }
+  .md-toolbar__btn {
+    height: 24px; min-width: 26px; padding: 0 7px; border: 0; background: none;
+    border-radius: var(--radius-sm); color: var(--n-600);
+    font-size: var(--font-size-xs); font-family: inherit; cursor: pointer;
+  }
+  .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
+  .md-toolbar__sep { width: 1px; height: 14px; margin: 0 5px; background: var(--n-200); }
+  #f-steps { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+
+  /* 严重等级下拉：选中与候选项带等级色点，对应 el-option 内的 severity-dot */
+  .sev-select { position: relative; }
+  .sev-select__btn { display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
+  .sev-select__menu {
+    position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0;
+    padding: 4px; background: var(--n-0);
+    border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .sev-select__opt {
+    display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px;
+    border: 0; background: none; border-radius: var(--radius-sm);
+    font-family: inherit; font-size: var(--font-size-base); color: var(--n-700);
+    text-align: left; cursor: pointer;
+  }
+  .sev-select__opt:hover { background: var(--n-50); }
+  .sev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sev-dot--fatal { background: var(--bug-fatal); }
+  .sev-dot--serious { background: var(--bug-serious); }
+  .sev-dot--general { background: var(--bug-general); }
+  .sev-dot--minor { background: var(--bug-minor); }
+  .sev-select.is-error .sev-select__btn { border-color: var(--st-danger); }
 
   .upload {
     border: 1.5px dashed var(--n-300); border-radius: var(--radius-lg);
     padding: 26px; text-align: center; color: var(--n-500); font-size: 13px;
     background: var(--n-25); cursor: pointer; transition: border-color var(--transition-fast);
   }
-  .upload:hover { border-color: var(--brand-400); color: var(--brand-600); }
+  .upload:hover, .upload--over { border-color: var(--brand-400); color: var(--brand-600); }
   .upload svg { width: 22px; height: 22px; display: block; margin: 0 auto 8px; }
   .upload em { font-style: normal; color: var(--brand-500); }
   .upload:hover em { color: var(--brand-600); }
 
-  /* 顶栏：面包屑与提交操作同行，操作区复用 page-head__actions */
+  .upload-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .upload-item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+    background: var(--n-50); font-size: var(--font-size-xs); color: var(--n-700);
+  }
+  .upload-item__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .upload-item__size { color: var(--n-400); font-variant-numeric: tabular-nums; }
+  .upload-item__remove { display: flex; padding: 2px; border: 0; background: none; color: var(--n-400); cursor: pointer; }
+  .upload-item__remove:hover { color: var(--st-danger); }
+  .upload-item__remove svg { width: 14px; height: 14px; }
+
+  /* 顶栏：面包屑独占一行，提交操作移到底部 sticky footer（对应 el-page-header + bug-create__footer） */
   .page-topbar {
     display: flex;
     align-items: center;
@@ -34,6 +86,43 @@
     margin-bottom: var(--block-gap);
   }
   .page-topbar .breadcrumb { margin-bottom: 0; }
+
+  .create-footer {
+    position: sticky; bottom: 0; z-index: 10;
+    display: flex; justify-content: center; gap: 10px;
+    margin-top: var(--block-gap); padding: 14px 0;
+    pointer-events: none;
+  }
+  .create-footer .btn { pointer-events: auto; box-shadow: var(--shadow-md); }
+
+  /* 选择关联用例弹窗：对应 CaseSelector（single 模式），左模块树 + 右用例勾选 */
+  .case-selector { display: flex; gap: 12px; }
+  .case-selector__tree {
+    width: 200px; flex-shrink: 0; padding: 8px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+  }
+  .case-selector__content {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+    padding: 10px; border: 1px solid var(--n-200); border-radius: var(--radius-md);
+  }
+  .case-selector__filters { display: flex; gap: 8px; }
+  .case-selector__priority { width: 110px; flex-shrink: 0; }
+  .case-selector__toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--n-100);
+  }
+  .case-selector__tip { font-size: var(--font-size-xs); color: var(--n-400); }
+  .case-list { display: flex; flex-direction: column; gap: 4px; min-height: 180px; max-height: 300px; overflow: auto; }
+  .case-row {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    background: none; font-family: inherit; font-size: var(--font-size-sm); color: var(--n-700);
+    text-align: left; cursor: pointer;
+  }
+  .case-row:hover { background: var(--n-50); }
+  .case-row--on { background: var(--brand-50); border-color: var(--brand-100); color: var(--brand-700); }
+  .case-row__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .case-empty { padding: 48px 0; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
@@ -46,98 +135,127 @@
       <span data-icon="chevron-right"></span>
       <span>提交缺陷</span>
     </div>
-    <div class="page-head__actions">
-      <a class="btn btn--default" href="bugs.html">取消</a>
-      <button class="btn btn--primary" type="button">提交缺陷</button>
-    </div>
   </div>
 
   <div class="card-grid" style="grid-template-columns: minmax(0, 1fr) 320px; align-items:start">
     <div>
       <div class="card">
+        <div class="card__header"><h3 class="card__title">基本信息</h3></div>
         <div class="card__body">
           <div class="field">
             <div class="field__label-row">
               <label class="field__label" for="f-title">标题<span class="req">*</span></label>
-              <span class="field__count">17/300</span>
+              <span class="field__count" id="f-title-count">17/300</span>
             </div>
             <div class="title-group">
               <input class="input title-input" id="f-title" maxlength="300"
                 placeholder="用一句话描述缺陷现象"
                 value="下单超时未释放库存，二次下单报缺货">
             </div>
-          </div>
-
-          <div class="field">
-            <textarea class="textarea" id="f-steps" style="min-height:140px"
-              aria-label="重现步骤" placeholder="重现步骤（支持 Markdown，可选）">## 重现步骤
-
-
-
-## 期望结果
-
-## 实际结果
-
-</textarea>
+            <div class="field__error" id="f-title-error" hidden></div>
           </div>
 
           <div class="field" style="margin-bottom:0">
-            <label class="field__label">附件</label>
-            <div class="upload">
-              <span data-icon="upload"></span>
-              将文件拖到此处，或<em>点击选择</em>
+            <label class="field__label" for="f-steps">重现步骤</label>
+            <div class="md-toolbar">
+              <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
+              <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
+              <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
+              <span class="md-toolbar__sep"></span>
+              <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
+              <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
+              <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
+              <span class="md-toolbar__sep"></span>
+              <button class="md-toolbar__btn" type="button" data-md="insert" data-token="[链接文字](https://)">链接</button>
             </div>
-            <div class="field__hint">单个文件不超过 10MB，创建后自动上传</div>
+            <textarea class="textarea" id="f-steps" style="min-height:180px"
+              placeholder="重现步骤（支持 Markdown，可选）">## 重现步骤
+
+1. 测试账号进入下单页，提交一笔 5000 元以上的订单
+2. 在支付页停留 30 分钟以上后完成支付
+3. 返回订单列表查看库存占用情况
+
+## 期望结果
+
+支付成功后订单流转为「待发货」，超时占用的库存立即释放
+
+## 实际结果
+
+订单停留在「支付中」，库存仍被占用，再次下单提示缺货
+</textarea>
           </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__header"><h3 class="card__title">附件</h3></div>
+        <div class="card__body">
+          <input type="file" id="f-files" multiple hidden>
+          <div class="upload" id="upload-box" role="button" tabindex="0">
+            <span data-icon="upload"></span>
+            将文件拖到此处，或<em>点击选择</em>
+          </div>
+          <div class="upload-list" id="upload-list" hidden></div>
+          <div class="field__hint">单个文件不超过 10MB，创建后自动上传</div>
         </div>
       </div>
     </div>
 
     <div>
       <div class="card">
+        <div class="card__header"><h3 class="card__title">属性</h3></div>
         <div class="card__body">
           <div class="field">
             <label class="field__label" for="f-type">缺陷类型<span class="req">*</span></label>
             <select class="select" id="f-type">
-              <option selected>代码错误</option>
-              <option>界面优化</option>
-              <option>设计缺陷</option>
-              <option>配置相关</option>
-              <option>安装部署</option>
-              <option>安全相关</option>
-              <option>性能问题</option>
-              <option>标准规范</option>
-              <option>其他</option>
+              <option value="code_error" selected>代码错误</option>
+              <option value="ui_improvement">界面优化</option>
+              <option value="design_defect">设计缺陷</option>
+              <option value="configuration">配置相关</option>
+              <option value="installation">安装部署</option>
+              <option value="security">安全相关</option>
+              <option value="performance">性能问题</option>
+              <option value="standard_spec">标准规范</option>
+              <option value="other">其他</option>
             </select>
+            <div class="field__error" id="f-type-error" hidden></div>
           </div>
 
           <div class="field">
             <label class="field__label" for="f-module">所属模块</label>
             <select class="select" id="f-module">
-              <option value="" selected disabled>选择所属模块（可选）</option>
-              <option>下单流程</option>
-              <option>支付中心</option>
-              <option>履约配送</option>
+              <option value="" selected>选择所属模块（可选）</option>
+              <option value="m-order">下单流程</option>
+              <option value="m-pay">支付中心</option>
+              <option value="m-user">用户中心</option>
             </select>
           </div>
 
           <div class="field">
-            <label class="field__label" for="f-severity">严重等级<span class="req">*</span></label>
-            <select class="select" id="f-severity">
-              <option>致命</option>
-              <option>严重</option>
-              <option selected>一般</option>
-              <option>轻微</option>
-            </select>
+            <label class="field__label" for="f-severity-btn">严重等级<span class="req">*</span></label>
+            <div class="sev-select" id="f-severity" data-value="general">
+              <button class="select sev-select__btn" id="f-severity-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="sev-dot sev-dot--general" data-sev-dot></span>
+                <span data-sev-label>一般</span>
+              </button>
+              <div class="sev-select__menu" role="listbox" hidden>
+                <button class="sev-select__opt" type="button" data-value="fatal" data-label="致命"><span class="sev-dot sev-dot--fatal"></span>致命</button>
+                <button class="sev-select__opt" type="button" data-value="serious" data-label="严重"><span class="sev-dot sev-dot--serious"></span>严重</button>
+                <button class="sev-select__opt" type="button" data-value="general" data-label="一般"><span class="sev-dot sev-dot--general"></span>一般</button>
+                <button class="sev-select__opt" type="button" data-value="minor" data-label="轻微"><span class="sev-dot sev-dot--minor"></span>轻微</button>
+              </div>
+            </div>
+            <div class="field__error" id="f-severity-error" hidden></div>
           </div>
 
           <div class="field">
             <label class="field__label" for="f-priority">优先级<span class="req">*</span></label>
             <select class="select" id="f-priority">
-              <option>高</option>
-              <option selected>中</option>
-              <option>低</option>
+              <option value="high">高</option>
+              <option value="medium" selected>中</option>
+              <option value="low">低</option>
             </select>
+            <div class="field__error" id="f-priority-error" hidden></div>
           </div>
 
           <div class="field">
@@ -147,37 +265,41 @@
 
           <div class="field" style="margin-bottom:0">
             <label class="field__label" for="f-keywords">关键词</label>
-            <input class="input" id="f-keywords" maxlength="255" placeholder="多个关键词用空格分隔（可选）">
+            <input class="input" id="f-keywords" maxlength="255" placeholder="多个关键词用空格分隔（可选）" value="库存 超时释放 二次下单">
           </div>
         </div>
       </div>
 
       <div class="card">
+        <div class="card__header"><h3 class="card__title">指派与关联</h3></div>
         <div class="card__body">
           <div class="field">
             <label class="field__label" for="f-assignee">指派给<span class="req">*</span></label>
             <select class="select" id="f-assignee">
-              <option value="" disabled>选择处理人</option>
-              <option selected>张明（下单流程 Owner）</option>
-              <option>李华（支付中心 Owner）</option>
-              <option>周敏（营销优惠 Owner）</option>
+              <option value="" selected disabled>选择处理人</option>
+              <option value="u-zhangming">张明</option>
+              <option value="u-lihua">李华</option>
+              <option value="u-zhoumin">周敏</option>
+              <option value="u-wangfang">王芳</option>
+              <option value="u-chenqiang">陈强</option>
             </select>
+            <div class="field__error" id="f-assignee-error" hidden></div>
           </div>
 
           <div class="field">
             <label class="field__label">关联用例</label>
             <div class="flex-center flex-gap-md">
-              <button class="btn btn--default" type="button">选择用例</button>
-              <span class="text-xs muted">已选 1 个用例</span>
+              <button class="btn btn--default" id="btn-case" type="button">选择用例</button>
+              <span class="text-xs text-light" id="f-case-hint">已选 1 个用例</span>
             </div>
           </div>
 
           <div class="field" style="margin-bottom:0">
             <label class="field__label" for="f-plan">关联计划</label>
             <select class="select" id="f-plan">
-              <option value="" disabled>选择计划（可选）</option>
-              <option selected>V1.4.2 回归测试</option>
-              <option>V1.4.3 迭代测试</option>
+              <option value="" selected>选择计划（可选）</option>
+              <option value="p-regress">V1.4.2 回归测试</option>
+              <option value="p-iter">V1.4.3 迭代测试</option>
             </select>
           </div>
         </div>
@@ -185,9 +307,436 @@
     </div>
   </div>
 
+  <div class="create-footer">
+    <a class="btn btn--default" href="bugs.html">取消</a>
+    <button class="btn btn--primary" id="btn-submit" type="button">提交缺陷</button>
+  </div>
+
 </main>
+
+<!-- 选择关联用例：对应 CaseSelector（single 模式，打开时清空勾选） -->
+<div class="dialog-mask" id="case-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:860px">
+    <div class="dialog__header">
+      <span class="dialog__title">选择关联用例</span>
+      <button class="dialog__close" data-close="case-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="case-selector">
+        <div class="case-selector__tree">
+          <div class="tree">
+            <div class="tree__item tree__item--active" data-doc="order" role="button" tabindex="0">
+              <span data-icon="folder"></span>下单流程<span class="tree__count">4</span>
+            </div>
+            <div class="tree__item" data-doc="pay" role="button" tabindex="0">
+              <span data-icon="folder"></span>支付中心<span class="tree__count">3</span>
+            </div>
+            <div class="tree__item" data-doc="user" role="button" tabindex="0">
+              <span data-icon="folder"></span>用户中心<span class="tree__count">2</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="case-selector__content">
+          <div class="case-selector__filters">
+            <div class="input-wrap flex-1">
+              <span data-icon="search"></span>
+              <input class="input" id="case-keyword" placeholder="搜索用例名称">
+            </div>
+            <select class="select case-selector__priority" id="case-priority">
+              <option value="">优先级</option>
+              <option>P0</option>
+              <option>P1</option>
+              <option>P2</option>
+              <option>P3</option>
+            </select>
+          </div>
+
+          <div class="case-selector__toolbar">
+            <span class="case-selector__tip">仅可关联一个用例，再次选择将替换</span>
+            <span class="text-xs text-light">已选 <span class="num" id="case-count">0</span> 个用例</span>
+          </div>
+
+          <div class="case-list">
+            <div class="case-selector__doc" data-doc-section="order">
+              <button class="case-row" type="button" data-case-id="c-order-01" data-priority="P0">
+                <span class="checkbox"></span>
+                <span class="case-row__title">下单-01 提交订单校验库存</span>
+                <span class="prio prio--p0">P0</span>
+              </button>
+              <button class="case-row" type="button" data-case-id="c-order-02" data-priority="P1">
+                <span class="checkbox"></span>
+                <span class="case-row__title">下单-02 超时未支付自动释放库存</span>
+                <span class="prio prio--p1">P1</span>
+              </button>
+              <button class="case-row" type="button" data-case-id="c-order-03" data-priority="P1">
+                <span class="checkbox"></span>
+                <span class="case-row__title">下单-03 重复提交幂等校验</span>
+                <span class="prio prio--p1">P1</span>
+              </button>
+              <button class="case-row" type="button" data-case-id="c-order-04" data-priority="P2">
+                <span class="checkbox"></span>
+                <span class="case-row__title">下单-04 优惠券叠加计算</span>
+                <span class="prio prio--p2">P2</span>
+              </button>
+            </div>
+
+            <div class="case-selector__doc" data-doc-section="pay" hidden>
+              <button class="case-row" type="button" data-case-id="c-pay-01" data-priority="P0">
+                <span class="checkbox"></span>
+                <span class="case-row__title">支付-01 支付回调幂等处理</span>
+                <span class="prio prio--p0">P0</span>
+              </button>
+              <button class="case-row" type="button" data-case-id="c-pay-02" data-priority="P1">
+                <span class="checkbox"></span>
+                <span class="case-row__title">支付-02 退款状态回查</span>
+                <span class="prio prio--p1">P1</span>
+              </button>
+              <button class="case-row" type="button" data-case-id="c-pay-03" data-priority="P2">
+                <span class="checkbox"></span>
+                <span class="case-row__title">支付-03 支付方式降级</span>
+                <span class="prio prio--p2">P2</span>
+              </button>
+            </div>
+
+            <div class="case-selector__doc" data-doc-section="user" hidden>
+              <button class="case-row" type="button" data-case-id="c-user-01" data-priority="P1">
+                <span class="checkbox"></span>
+                <span class="case-row__title">用户-01 登录态过期跳转</span>
+                <span class="prio prio--p1">P1</span>
+              </button>
+              <button class="case-row" type="button" data-case-id="c-user-02" data-priority="P2">
+                <span class="checkbox"></span>
+                <span class="case-row__title">用户-02 手机号换绑校验</span>
+                <span class="prio prio--p2">P2</span>
+              </button>
+            </div>
+
+            <div class="case-empty" id="case-empty" hidden>无匹配用例</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="case-dialog">取消</button>
+      <button class="btn btn--primary" id="case-ok" type="button">确定关联 (0)</button>
+    </div>
+  </div>
+</div>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+  function toast(msg, type) {
+    if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {});
+  }
+
+  /* ---------------- 标题字数：对应 el-input show-word-limit ---------------- */
+  var titleInput = byId('f-title');
+  var titleCount = byId('f-title-count');
+  function syncTitleCount() { titleCount.textContent = titleInput.value.length + '/300'; }
+  titleInput.addEventListener('input', syncTitleCount);
+  syncTitleCount();
+
+  /* ---------------- 重现步骤：Markdown 工具栏插入 ---------------- */
+  var steps = byId('f-steps');
+  document.querySelectorAll('[data-md]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var mode = btn.getAttribute('data-md');
+      var token = btn.getAttribute('data-token');
+      var start = steps.selectionStart;
+      var end = steps.selectionEnd;
+      var selected = steps.value.slice(start, end);
+      var next = steps.value;
+      var cursor = end;
+      if (mode === 'wrap') {
+        next = steps.value.slice(0, start) + token + selected + token + steps.value.slice(end);
+        cursor = selected ? end + token.length * 2 : start + token.length;
+      } else if (mode === 'prefix') {
+        var lineStart = steps.value.lastIndexOf('\n', start - 1) + 1;
+        next = steps.value.slice(0, lineStart) + token + steps.value.slice(lineStart);
+        cursor = start + token.length;
+      } else {
+        next = steps.value.slice(0, start) + token + steps.value.slice(end);
+        cursor = start + token.length;
+      }
+      steps.value = next;
+      steps.focus();
+      steps.setSelectionRange(cursor, cursor);
+    });
+  });
+
+  /* ---------------- 严重等级：带色点下拉（对应 el-option 内 severity-dot） ---------------- */
+  var sev = byId('f-severity');
+  var sevBtn = byId('f-severity-btn');
+  var sevMenu = sev.querySelector('.sev-select__menu');
+  var sevLabel = sev.querySelector('[data-sev-label]');
+  var sevDot = sev.querySelector('[data-sev-dot]');
+
+  sevBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    sevMenu.hidden = !sevMenu.hidden;
+    sevBtn.setAttribute('aria-expanded', String(!sevMenu.hidden));
+  });
+  sevMenu.querySelectorAll('.sev-select__opt').forEach(function (opt) {
+    opt.addEventListener('click', function () {
+      var value = opt.getAttribute('data-value');
+      sev.setAttribute('data-value', value);
+      sevLabel.textContent = opt.getAttribute('data-label');
+      sevDot.className = 'sev-dot sev-dot--' + value;
+      sevMenu.hidden = true;
+      sevBtn.setAttribute('aria-expanded', 'false');
+      setError('f-severity', '');
+    });
+  });
+  document.addEventListener('click', function (e) {
+    if (!sev.contains(e.target)) {
+      sevMenu.hidden = true;
+      sevBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  /* ---------------- 附件：选择/拖拽 + 10MB 过滤（对应 el-upload） ---------------- */
+  var fileInput = byId('f-files');
+  var uploadBox = byId('upload-box');
+  var uploadList = byId('upload-list');
+  var MAX_SIZE = 10 * 1024 * 1024;
+  var pickedFiles = [];
+
+  function formatSize(size) {
+    if (size >= 1024 * 1024) return (size / 1024 / 1024).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(size / 1024)) + ' KB';
+  }
+
+  function renderFiles() {
+    uploadList.textContent = '';
+    pickedFiles.forEach(function (f, index) {
+      var item = document.createElement('div');
+      item.className = 'upload-item';
+
+      var name = document.createElement('span');
+      name.className = 'upload-item__name';
+      name.textContent = f.name;
+
+      var size = document.createElement('span');
+      size.className = 'upload-item__size';
+      size.textContent = formatSize(f.size);
+
+      var remove = document.createElement('button');
+      remove.className = 'upload-item__remove';
+      remove.type = 'button';
+      remove.setAttribute('aria-label', '移除附件');
+      remove.innerHTML = '<span data-icon="x"></span>';
+      remove.addEventListener('click', function () {
+        pickedFiles.splice(index, 1);
+        renderFiles();
+      });
+
+      item.appendChild(name);
+      item.appendChild(size);
+      item.appendChild(remove);
+      uploadList.appendChild(item);
+    });
+    uploadList.hidden = pickedFiles.length === 0;
+    if (window.RTIcons) window.RTIcons.hydrate(uploadList);
+  }
+
+  function addFiles(list) {
+    Array.prototype.forEach.call(list, function (f) {
+      if (f.size > MAX_SIZE) {
+        toast('「' + f.name + '」超过 10MB，已忽略', 'warning');
+        return;
+      }
+      pickedFiles.push(f);
+    });
+    renderFiles();
+  }
+
+  uploadBox.addEventListener('click', function () { fileInput.click(); });
+  uploadBox.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  uploadBox.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    uploadBox.classList.add('upload--over');
+  });
+  uploadBox.addEventListener('dragleave', function () { uploadBox.classList.remove('upload--over'); });
+  uploadBox.addEventListener('drop', function (e) {
+    e.preventDefault();
+    uploadBox.classList.remove('upload--over');
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files) addFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  /* ---------------- 选择关联用例弹窗（single 模式） ---------------- */
+  var caseDialog = byId('case-dialog');
+  var caseKeyword = byId('case-keyword');
+  var casePriority = byId('case-priority');
+  var caseCount = byId('case-count');
+  var caseEmpty = byId('case-empty');
+  var caseOk = byId('case-ok');
+  var selectedCase = '';
+
+  function activeSection() {
+    return caseDialog.querySelector('.case-selector__doc:not([hidden])');
+  }
+
+  function updateCount() {
+    var n = selectedCase ? 1 : 0;
+    caseCount.textContent = String(n);
+    caseOk.textContent = '确定关联 (' + n + ')';
+  }
+
+  function refreshCases() {
+    var keyword = caseKeyword.value.trim().toLowerCase();
+    var priority = casePriority.value;
+    var section = activeSection();
+    var visible = 0;
+    if (section) {
+      section.querySelectorAll('.case-row').forEach(function (row) {
+        var label = row.querySelector('.case-row__title').textContent.toLowerCase();
+        var matched = (!keyword || label.indexOf(keyword) >= 0) &&
+          (!priority || row.getAttribute('data-priority') === priority);
+        row.hidden = !matched;
+        if (matched) visible++;
+      });
+    }
+    caseEmpty.hidden = visible > 0;
+  }
+
+  function clearCaseSelection() {
+    caseDialog.querySelectorAll('.case-row--on').forEach(function (row) {
+      row.classList.remove('case-row--on');
+      row.querySelector('.checkbox').classList.remove('checkbox--on');
+    });
+    selectedCase = '';
+  }
+
+  function selectCase(row) {
+    var id = row.getAttribute('data-case-id');
+    var already = selectedCase === id;
+    clearCaseSelection();
+    if (!already) {
+      selectedCase = id;
+      row.classList.add('case-row--on');
+      row.querySelector('.checkbox').classList.add('checkbox--on');
+    }
+    updateCount();
+  }
+
+  caseDialog.querySelectorAll('[data-doc]').forEach(function (item) {
+    item.addEventListener('click', function () {
+      caseDialog.querySelectorAll('[data-doc]').forEach(function (i) {
+        i.classList.remove('tree__item--active');
+      });
+      item.classList.add('tree__item--active');
+      caseDialog.querySelectorAll('.case-selector__doc').forEach(function (section) {
+        section.hidden = section.getAttribute('data-doc-section') !== item.getAttribute('data-doc');
+      });
+      refreshCases();
+    });
+  });
+
+  caseDialog.querySelectorAll('.case-row').forEach(function (row) {
+    row.addEventListener('click', function () { selectCase(row); });
+  });
+
+  caseKeyword.addEventListener('input', refreshCases);
+  casePriority.addEventListener('change', refreshCases);
+
+  byId('btn-case').addEventListener('click', function () {
+    // 与实际页一致：弹窗常驻但打开时清空勾选与筛选
+    clearCaseSelection();
+    caseKeyword.value = '';
+    casePriority.value = '';
+    caseDialog.hidden = false;
+    refreshCases();
+    updateCount();
+  });
+
+  caseOk.addEventListener('click', function () {
+    if (!selectedCase) {
+      toast('请选择一个用例', 'warning');
+      return;
+    }
+    byId('f-case-hint').textContent = '已选 1 个用例';
+    caseDialog.hidden = true;
+  });
+
+  document.querySelectorAll('[data-close]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      byId(el.getAttribute('data-close')).hidden = true;
+    });
+  });
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !caseDialog.hidden) caseDialog.hidden = true;
+  });
+
+  /* ---------------- 校验与提交：文案与 useBugCreate rules 一致 ---------------- */
+  function setError(id, msg) {
+    var control = byId(id);
+    var cls = control.classList.contains('sev-select') ? 'is-error' : 'input--error';
+    control.classList.toggle(cls, Boolean(msg));
+    var box = byId(id + '-error');
+    box.textContent = msg;
+    box.hidden = !msg;
+  }
+
+  var RULES = {
+    'f-title': function (v) { return v.trim() ? '' : '请输入缺陷标题'; },
+    'f-type': function (v) { return v ? '' : '请选择缺陷类型'; },
+    'f-severity': function () { return sev.getAttribute('data-value') ? '' : '请选择严重等级'; },
+    'f-priority': function (v) { return v ? '' : '请选择优先级'; },
+    'f-assignee': function (v) { return v ? '' : '请选择处理人'; }
+  };
+
+  function valueOf(id) {
+    var el = byId(id);
+    return el.value === undefined ? '' : el.value.trim();
+  }
+
+  function validate() {
+    var first = '';
+    Object.keys(RULES).forEach(function (id) {
+      var msg = RULES[id](valueOf(id));
+      setError(id, msg);
+      if (msg && !first) first = id;
+    });
+    return first;
+  }
+
+  Object.keys(RULES).forEach(function (id) {
+    if (id === 'f-severity') return; // 色点下拉在选中时自行清错
+    var el = byId(id);
+    el.addEventListener(id === 'f-title' ? 'input' : 'change', function () {
+      if (byId(id + '-error').hidden) return;
+      setError(id, RULES[id](valueOf(id)));
+    });
+  });
+
+  byId('btn-submit').addEventListener('click', function () {
+    var first = validate();
+    if (first) {
+      var el = byId(first);
+      var focusable = el.matches('input, select, textarea') ? el : el.querySelector('button');
+      if (focusable) focusable.focus();
+      return;
+    }
+    toast('缺陷已提交', 'success');
+    window.setTimeout(function () { window.location.href = 'bugs.html'; }, 400);
+  });
+})();
+</script>
 </body>
 </html>
