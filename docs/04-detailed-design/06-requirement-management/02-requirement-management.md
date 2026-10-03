@@ -473,14 +473,14 @@ RequirementDetailPage
 ├── MarkdownDescription（描述渲染与编辑）
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
 ├── ChangeTimeline（变更记录时间线）
-├── SplitDialog（AI 拆分入口 → 任务进度 → 建议审核，复用 AI 产物审核面板）
+├── SplitDialog（AI 拆分入口 → 提交后跳转任务详情页，进度与建议审核在该页完成）
 └── TraceEntry（查看追溯 → TraceMatrixPage 只读链路模式）
 ```
 
 ### 5.3 状态管理与交互
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入/拆分任务引用；`aiTask` store 提供任务进度订阅，任务完成回调刷新列表与拆解记录。
-- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 进度弹窗 → 审核面板（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
+- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 进度轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
 - 全部状态分支：列表空态（引导新建/导入）、覆盖状态 `—`（AI 关闭）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务失败重试入口。
 
 ---
@@ -566,3 +566,4 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 需求增加业务系统版本属性，导入支持 AI 识别版本，列表、筛选与属性栏同步 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/requirements |
+| V1.0 | 2026-10-03 | 导入/拆分进度与建议审核统一到任务详情页（/workspace/projects/ai/tasks/:taskId），删除进度弹窗与审核面板浮层口径 |
