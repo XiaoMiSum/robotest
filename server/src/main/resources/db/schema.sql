@@ -1015,6 +1015,185 @@ CREATE TABLE trace_coverage_result (
 CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (project_id, requirement_id) WHERE is_deleted = FALSE;
 
 -- ============================================================
+-- 18. AI 能力
+-- ============================================================
+
+CREATE TABLE ai_config (
+    id                   uuid PRIMARY KEY,
+    enabled              boolean NOT NULL DEFAULT FALSE,
+    default_model_id     uuid NULL,
+    task_timeout_seconds int NOT NULL DEFAULT 600,
+    task_max_retries     int NOT NULL DEFAULT 2,
+    created_at           timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at           timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted           boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_config_singleton ON ai_config ((true)) WHERE is_deleted = FALSE;
+
+CREATE TABLE ai_model_config (
+    id                 uuid PRIMARY KEY,
+    name               varchar(50) NOT NULL,
+    provider           varchar(30) NOT NULL,
+    base_url           varchar(500) NOT NULL,
+    api_key_encrypted  varchar(500) NOT NULL,
+    model_name         varchar(100) NOT NULL,
+    capabilities       jsonb NOT NULL DEFAULT '[]',
+    priority           int NOT NULL DEFAULT 100,
+    enabled            boolean NOT NULL DEFAULT TRUE,
+    last_test_at       timestamp NULL,
+    last_test_result   jsonb NULL,
+    created_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted         boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_model_config_name ON ai_model_config (name) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ai_model_config_enabled ON ai_model_config (enabled, priority);
+
+CREATE TABLE ai_embedding_config (
+    id                uuid PRIMARY KEY,
+    provider          varchar(30) NOT NULL,
+    base_url          varchar(500) NOT NULL,
+    api_key_encrypted varchar(500) NOT NULL,
+    embedding_model   varchar(100) NOT NULL,
+    dimensions        int NOT NULL,
+    operator          varchar(20) NOT NULL DEFAULT 'cosine',
+    index_type        varchar(20) NOT NULL DEFAULT 'hnsw',
+    enabled           boolean NOT NULL DEFAULT FALSE,
+    versions          jsonb NOT NULL DEFAULT '[]',
+    last_test_at      timestamp NULL,
+    last_test_result  jsonb NULL,
+    created_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted        boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((true)) WHERE is_deleted = FALSE;
+
+CREATE TABLE ai_prompt_template (
+    id         uuid PRIMARY KEY,
+    scene      varchar(50) NOT NULL,
+    name       varchar(100) NOT NULL,
+    content    text NOT NULL,
+    variables  jsonb NOT NULL DEFAULT '[]',
+    source     varchar(20) NOT NULL DEFAULT 'custom',
+    version    int NOT NULL DEFAULT 1,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WHERE is_deleted = FALSE;
+
+CREATE TABLE ai_task (
+    id               uuid PRIMARY KEY,
+    type             varchar(30) NOT NULL,
+    status           varchar(20) NOT NULL DEFAULT 'pending',
+    progress         int NOT NULL DEFAULT 0,
+    phase            varchar(50) NULL,
+    project_id       uuid NULL,
+    workspace_id     uuid NULL,
+    submitted_by     uuid NOT NULL,
+    prompt_scene     varchar(50) NULL,
+    model_id         uuid NULL,
+    input            jsonb NOT NULL,
+    result           jsonb NULL,
+    tokens_in        int NOT NULL DEFAULT 0,
+    tokens_out       int NOT NULL DEFAULT 0,
+    error_code       int NULL,
+    error_msg        varchar(500) NULL,
+    retry_of_task_id uuid NULL,
+    created_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted       boolean NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_ai_task_project ON ai_task (project_id, created_at);
+CREATE INDEX idx_ai_task_submitter ON ai_task (submitted_by, created_at);
+CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
+
+CREATE TABLE ai_artifact_confirm (
+    id           uuid PRIMARY KEY,
+    project_id   uuid NULL,
+    task_id      uuid NOT NULL,
+    artifact_key varchar(100) NOT NULL,
+    action       varchar(20) NOT NULL,
+    operator_id  uuid NOT NULL,
+    adopted_ref  jsonb NULL,
+    note         varchar(500) NULL,
+    created_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted   boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_artifact_confirm ON ai_artifact_confirm (task_id, artifact_key) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ai_artifact_confirm_project ON ai_artifact_confirm (project_id, created_at);
+
+CREATE TABLE ai_usage_log (
+    id                uuid PRIMARY KEY,
+    project_id        uuid NULL,
+    task_id           uuid NULL,
+    user_id           uuid NOT NULL,
+    model_id          uuid NOT NULL,
+    prompt_scene      varchar(50) NULL,
+    call_type         varchar(20) NOT NULL,
+    prompt_tokens     int NOT NULL DEFAULT 0,
+    completion_tokens int NOT NULL DEFAULT 0,
+    total_tokens      int NOT NULL DEFAULT 0,
+    latency_ms        int NOT NULL DEFAULT 0,
+    status            varchar(20) NOT NULL,
+    error_code        int NULL,
+    created_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted        boolean NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_ai_usage_log_project ON ai_usage_log (project_id, created_at);
+CREATE INDEX idx_ai_usage_log_model ON ai_usage_log (model_id, created_at);
+CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id);
+
+CREATE TABLE ai_assistant_conversation (
+    id               uuid PRIMARY KEY,
+    title            varchar(100) NOT NULL,
+    user_id          uuid NOT NULL,
+    status           varchar(20) NOT NULL DEFAULT 'active',
+    context_snapshot jsonb NULL,
+    created_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted       boolean NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_ai_assistant_conversation_user ON ai_assistant_conversation (user_id, created_at);
+
+CREATE TABLE ai_assistant_message (
+    id              uuid PRIMARY KEY,
+    conversation_id uuid NOT NULL,
+    role            varchar(20) NOT NULL,
+    content         text NULL,
+    attachments     jsonb NULL,
+    intent          jsonb NULL,
+    citations       jsonb NULL,
+    execution       jsonb NULL,
+    status          varchar(20) NOT NULL DEFAULT 'done',
+    created_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted      boolean NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_ai_assistant_message_conversation ON ai_assistant_message (conversation_id, created_at);
+
+-- n = ai_embedding_config.dimensions（初始 1536；维度变更走详设 4.4 全量重建）
+CREATE TABLE ai_vector_index (
+    id               uuid PRIMARY KEY,
+    project_id       uuid NOT NULL,
+    entity_type      varchar(30) NOT NULL,
+    entity_id        uuid NOT NULL,
+    chunk_index      int NOT NULL DEFAULT 0,
+    content          text NOT NULL,
+    embedding        vector(1536) NOT NULL,
+    embedding_version varchar(64) NOT NULL,
+    indexed_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted       boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_vector_index_chunk ON ai_vector_index (entity_type, entity_id, chunk_index) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ai_vector_index_scope ON ai_vector_index (project_id, entity_type);
+CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedding vector_cosine_ops);
+
+-- ============================================================
 -- 19. 种子数据（权限点、角色）
 -- ============================================================
 
@@ -1148,13 +1327,23 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000078', 'trace:edit', '编辑追溯',     'trace', '追溯矩阵', '追溯矩阵', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
+-- 19.7 权限点（AI 能力）
+-- ------------------------------------------------------------
+
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000023', 'ai:admin',   'AI 配置与用量管理',  'ai', 'AI 能力', 'AI 能力', 'global',    1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000079', 'ai',         'AI 能力',           NULL, 'AI 能力', 'AI 能力', 'workspace', 20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000080', 'ai:task',    '发起与管理 AI 任务', 'ai',  'AI 能力', 'AI 能力', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000081', 'ai:confirm', 'AI 产物确认',        'ai',  'AI 能力', 'AI 能力', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
 -- 19.8 预置角色（含全部版本权限合并）
 -- ------------------------------------------------------------
 INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
 -- 系统管理员：拥有系统管理所有权限
 ('b0000000-0000-0000-0000-000000000001', '系统管理员',
  '拥有系统管理所有权限', 'system', TRUE,
- '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete"]',
+ '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete","ai","ai:admin"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 空间管理系统角色：拥有工作空间管理所有权限（跨空间管理）
 ('b0000000-0000-0000-0000-000000000002', '空间管理员',
@@ -1164,12 +1353,12 @@ INSERT INTO sys_role (id, name, description, type, is_system, permissions, creat
 -- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
 ('c0000000-0000-0000-0000-000000000001', '管理员',
  '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
- '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:create","requirement:edit","requirement:confirm","trace","trace:view","trace:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:create","requirement:edit","requirement:confirm","trace","trace:view","trace:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete","ai","ai:task","ai:confirm"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- workspace 普通成员：默认角色
 ('c0000000-0000-0000-0000-000000000002', '成员',
  '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
- '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:create","requirement:edit","requirement:confirm","trace","trace:view","trace:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
+ '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:create","requirement:edit","requirement:confirm","trace","trace:view","trace:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","ai","ai:task","ai:confirm"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ============================================================
@@ -1724,3 +1913,110 @@ COMMENT ON COLUMN trace_coverage_result.ai_analyzed_at IS 'AI 分析时间';
 COMMENT ON COLUMN trace_coverage_result.reviewed_by IS '人工复核修正人；非空即人工判定优先';
 COMMENT ON COLUMN trace_coverage_result.reviewed_note IS '人工修正说明';
 COMMENT ON COLUMN trace_coverage_result.reviewed_at IS '人工修正时间';
+
+-- AI 能力
+COMMENT ON TABLE ai_config IS 'AI 全局配置表（单例行）';
+COMMENT ON COLUMN ai_config.enabled IS 'AI 总开关';
+COMMENT ON COLUMN ai_config.default_model_id IS '默认模型（逻辑外键 → ai_model_config），各能力域可覆盖';
+COMMENT ON COLUMN ai_config.task_timeout_seconds IS '任务超时秒数，超时由清扫器置失败';
+COMMENT ON COLUMN ai_config.task_max_retries IS '自动重试上限（调用失败短重试，与用户手动重试独立）';
+
+COMMENT ON TABLE ai_model_config IS '模型配置表';
+COMMENT ON COLUMN ai_model_config.name IS '配置名称（展示用），唯一';
+COMMENT ON COLUMN ai_model_config.provider IS '供应商类别：openai/anthropic/azure/gemini/ollama/custom';
+COMMENT ON COLUMN ai_model_config.base_url IS '模型端点，可为云端 API 或私有化部署';
+COMMENT ON COLUMN ai_model_config.api_key_encrypted IS '密钥密文（AES 加密；接口永不回显，仅支持替换）';
+COMMENT ON COLUMN ai_model_config.model_name IS '实际调用的模型标识';
+COMMENT ON COLUMN ai_model_config.capabilities IS '能力标签：chat/vision/embedding';
+COMMENT ON COLUMN ai_model_config.priority IS '兜底顺序（默认模型失效时按 priority 升序尝试）';
+COMMENT ON COLUMN ai_model_config.enabled IS '启停开关';
+COMMENT ON COLUMN ai_model_config.last_test_at IS '最近连通性测试时间';
+COMMENT ON COLUMN ai_model_config.last_test_result IS '最近连通性测试结果 { success, latencyMs, msg }';
+
+COMMENT ON TABLE ai_embedding_config IS '向量 API 配置表（单例行）';
+COMMENT ON COLUMN ai_embedding_config.provider IS '供应商类别，取值同 ai_model_config.provider';
+COMMENT ON COLUMN ai_embedding_config.base_url IS '向量端点（独立于生成模型，可来自不同供应商）';
+COMMENT ON COLUMN ai_embedding_config.api_key_encrypted IS '密钥密文（永不回显，仅支持替换）';
+COMMENT ON COLUMN ai_embedding_config.embedding_model IS '嵌入模型标识';
+COMMENT ON COLUMN ai_embedding_config.dimensions IS '向量维度（决定 ai_vector_index.embedding 列维度）';
+COMMENT ON COLUMN ai_embedding_config.operator IS '距离算子：cosine/l2/inner_product';
+COMMENT ON COLUMN ai_embedding_config.index_type IS '索引类型：hnsw/ivfflat';
+COMMENT ON COLUMN ai_embedding_config.enabled IS '启停；未启用则 RAG 与相似检测不可用';
+COMMENT ON COLUMN ai_embedding_config.versions IS '历史版本记录 [{ version, embeddingModel, dimensions, operator, retiredAt }]';
+COMMENT ON COLUMN ai_embedding_config.last_test_at IS '最近连通性测试时间';
+COMMENT ON COLUMN ai_embedding_config.last_test_result IS '最近连通性测试结果';
+
+COMMENT ON TABLE ai_prompt_template IS '场景提示词表';
+COMMENT ON COLUMN ai_prompt_template.scene IS '场景编码（如 requirement_split），与任务 type 对应';
+COMMENT ON COLUMN ai_prompt_template.name IS '场景名称（展示用）';
+COMMENT ON COLUMN ai_prompt_template.content IS '模板正文，支持 {{variable}} 占位';
+COMMENT ON COLUMN ai_prompt_template.variables IS '可用变量清单 [{ name, desc, required }]';
+COMMENT ON COLUMN ai_prompt_template.source IS '来源：default 内置默认 / custom 自定义覆盖';
+COMMENT ON COLUMN ai_prompt_template.version IS '自定义版本号，重置后归 1';
+
+COMMENT ON TABLE ai_task IS 'AI 任务表（统一任务收口）';
+COMMENT ON COLUMN ai_task.type IS '任务类型（全量枚举见 AI 助手与任务中心详设 3.6.1）';
+COMMENT ON COLUMN ai_task.status IS '任务状态：pending/running/succeeded/failed/cancelled';
+COMMENT ON COLUMN ai_task.progress IS '进度 0–100';
+COMMENT ON COLUMN ai_task.phase IS '当前阶段（进度页阶段展示用）';
+COMMENT ON COLUMN ai_task.project_id IS '项目内任务的隔离归属（NULL = 不限项目的个人任务）';
+COMMENT ON COLUMN ai_task.workspace_id IS '执行作用域（助手类任务经 X-Active-Workspace 头写入），RAG 限权过滤依据';
+COMMENT ON COLUMN ai_task.submitted_by IS '发起人：我的任务、完成通知与重试的归属';
+COMMENT ON COLUMN ai_task.prompt_scene IS '实际使用的提示词场景，用量按场景归因';
+COMMENT ON COLUMN ai_task.model_id IS '实际调用的模型，失败重试复用同模型';
+COMMENT ON COLUMN ai_task.input IS '任务输入：源引用 + 参数（存引用不复制全文）';
+COMMENT ON COLUMN ai_task.result IS '产物明细（单一事实源），确认/驳回只指回这里';
+COMMENT ON COLUMN ai_task.tokens_in IS '任务级入向 token 汇总';
+COMMENT ON COLUMN ai_task.tokens_out IS '任务级出向 token 汇总';
+COMMENT ON COLUMN ai_task.error_code IS '失败业务错误码（10 位）';
+COMMENT ON COLUMN ai_task.error_msg IS '失败原因摘要';
+COMMENT ON COLUMN ai_task.retry_of_task_id IS '手动重试时指向原任务（重试保留原任务记录）';
+
+COMMENT ON TABLE ai_artifact_confirm IS '产物确认记录表';
+COMMENT ON COLUMN ai_artifact_confirm.project_id IS '落库目标项目（确认列表过滤），经请求头上报';
+COMMENT ON COLUMN ai_artifact_confirm.task_id IS '所属任务';
+COMMENT ON COLUMN ai_artifact_confirm.artifact_key IS '产物在 result 中的定位键';
+COMMENT ON COLUMN ai_artifact_confirm.action IS '确认动作：adopted/adopted_edited/rejected';
+COMMENT ON COLUMN ai_artifact_confirm.operator_id IS '确认操作人（审计：AI 产物必经人工）';
+COMMENT ON COLUMN ai_artifact_confirm.adopted_ref IS '采纳落库后的目标实体引用，反查产物来源';
+COMMENT ON COLUMN ai_artifact_confirm.note IS '驳回 / 编辑原因';
+
+COMMENT ON TABLE ai_usage_log IS '用量明细表';
+COMMENT ON COLUMN ai_usage_log.project_id IS '项目内调用的统计维度；管理端测试等全局调用为 NULL';
+COMMENT ON COLUMN ai_usage_log.task_id IS '关联任务（统计 → 单次调用 → 任务详情的下钻链）；助手交互调用为 NULL';
+COMMENT ON COLUMN ai_usage_log.user_id IS '调用者';
+COMMENT ON COLUMN ai_usage_log.model_id IS '调用的模型，按模型分组统计维度';
+COMMENT ON COLUMN ai_usage_log.prompt_scene IS '场景归因，按场景统计维度';
+COMMENT ON COLUMN ai_usage_log.call_type IS '调用类型：chat/embedding（向量重建同样计用量）';
+COMMENT ON COLUMN ai_usage_log.prompt_tokens IS '提示 token 消耗';
+COMMENT ON COLUMN ai_usage_log.completion_tokens IS '补全 token 消耗';
+COMMENT ON COLUMN ai_usage_log.total_tokens IS '总 token 消耗';
+COMMENT ON COLUMN ai_usage_log.latency_ms IS '单次调用耗时';
+COMMENT ON COLUMN ai_usage_log.status IS '调用结果：success/failed';
+COMMENT ON COLUMN ai_usage_log.error_code IS '失败归因错误码';
+
+COMMENT ON TABLE ai_assistant_conversation IS '助手会话表（按登录用户归属）';
+COMMENT ON COLUMN ai_assistant_conversation.title IS '会话标题（首问自动生成，可重命名）';
+COMMENT ON COLUMN ai_assistant_conversation.user_id IS '归属人 = 唯一隔离维度，仅本人可见可操作';
+COMMENT ON COLUMN ai_assistant_conversation.status IS '会话状态：active/archived';
+COMMENT ON COLUMN ai_assistant_conversation.context_snapshot IS '会话创建时的活跃上下文实体引用（不参与权限判定）';
+
+COMMENT ON TABLE ai_assistant_message IS '助手消息表';
+COMMENT ON COLUMN ai_assistant_message.conversation_id IS '所属会话（逻辑外键）';
+COMMENT ON COLUMN ai_assistant_message.role IS '消息角色：user/assistant/system';
+COMMENT ON COLUMN ai_assistant_message.content IS '消息正文（Markdown）；流式结束后落盘，断线重连续读';
+COMMENT ON COLUMN ai_assistant_message.attachments IS '用户选中的上下文实体引用集合';
+COMMENT ON COLUMN ai_assistant_message.intent IS '意图解析结构化预览：动作、目标、字段级变更、影响数量';
+COMMENT ON COLUMN ai_assistant_message.citations IS '来源引用集合（只读问答的可跳转引用）';
+COMMENT ON COLUMN ai_assistant_message.execution IS '执行回执：previewed → executed/rejected、逐项结果与执行人';
+COMMENT ON COLUMN ai_assistant_message.status IS '消息状态：streaming/done/interrupted/error';
+
+COMMENT ON TABLE ai_vector_index IS '向量索引表（pgvector）';
+COMMENT ON COLUMN ai_vector_index.project_id IS '业务归属之一：先按项目过滤再做向量检索，禁止全库比对';
+COMMENT ON COLUMN ai_vector_index.entity_type IS '业务归属之二：requirement/test_case/mindmap_node/bug/review_comment';
+COMMENT ON COLUMN ai_vector_index.entity_id IS '业务实体 ID（逻辑外键，重建时定位源）';
+COMMENT ON COLUMN ai_vector_index.chunk_index IS '分块序号（同实体多块向量）';
+COMMENT ON COLUMN ai_vector_index.content IS '嵌入原文分块（命中后直接回显上下文）';
+COMMENT ON COLUMN ai_vector_index.embedding IS '向量本体，维度取 ai_embedding_config.dimensions（初始 1536）';
+COMMENT ON COLUMN ai_vector_index.embedding_version IS '生成时的「模型 + 维度 + 算子」版本标识';
+COMMENT ON COLUMN ai_vector_index.indexed_at IS '最近重建时间';
