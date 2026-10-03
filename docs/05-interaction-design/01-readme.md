@@ -7,6 +7,8 @@
 | [03-function-testing](03-function-testing/01-readme.md)（模块：功能测试） | V1.0 | 2026-09-23 | 起草中 |
 | [04-bug-management](04-bug-management/01-readme.md)（模块：缺陷管理） | V1.0 | 2026-09-23 | 起草中 |
 | [05-api-testing](05-api-testing/01-readme.md)（模块：接口测试） | V1.0 | 2026-09-23 | 起草中 |
+| [06-requirement-management](06-requirement-management/01-readme.md)（模块：需求管理） | V1.0 | 2026-10-02 | 起草中 |
+| [07-ai-capability](07-ai-capability/01-readme.md)（模块：AI 能力） | V1.0 | 2026-10-02 | 起草中 |
 | [02-global-navigation](02-global-navigation.md)（平台级：全局导航与菜单交互） | V1.0 | 2026-09-23 | 已发布 |
 | [03-visual-design](03-visual-design.md)（平台级：视觉设计） | V1.0 | 2026-09-23 | 已发布 |
 
