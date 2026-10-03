@@ -53,7 +53,10 @@
   .demo-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .demo-card__title { font-size: 14px; font-weight: 600; color: var(--n-900); }
   .demo-card__desc { font-size: 12px; color: var(--n-500); margin-top: 5px; line-height: 1.55; }
-  .demo-card__path { font-size: 10px; font-family: var(--font-mono); color: var(--n-400); margin-top: 10px; }
+  .demo-card__path {
+    font-size: 10px; font-family: var(--font-mono); color: var(--n-400); margin-top: 10px;
+    overflow-wrap: anywhere;
+  }
   .ic {
     width: 30px; height: 30px; border-radius: 7px; background: var(--n-50);
     border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center;
@@ -72,7 +75,7 @@
     <p>克制的专业美学：中性色（白/灰/黑）为基调，色彩直接对齐 Element Plus 官方色板（primary #409EFF + 四功能色 + 中性色阶），线条扁平化图标与几何数据可视化。
     状态色逻辑全站统一 —— 绿=通过、红系=失败/阻塞、橙=警告/进行中、灰=未执行，蓝色仅用于按钮/链接/选中。</p>
     <div class="badges">
-      <span class="b">38 个路由页面</span>
+      <span class="b">26 个路由页面</span>
       <span class="b">系统字体栈</span>
       <span class="b">状态三重编码（色+形+文）</span>
       <span class="b">纯静态 · 不参与构建</span>
@@ -116,7 +119,7 @@
     <div class="demo-grid">
       <a class="demo-card" href="admin/dashboard.html">
         <div class="demo-card__top"><span class="demo-card__title">数据概览</span><span class="ic" data-icon="gauge"></span></div>
-        <div class="demo-card__desc">KPI + 趋势折线 + 环形分布 + 最近空间</div>
+        <div class="demo-card__desc">KPI + 活跃趋势折线 + 用户状态环形分布 + 最近空间</div>
         <div class="demo-card__path">/admin/dashboard</div>
       </a>
       <a class="demo-card" href="admin/users.html">
@@ -127,7 +130,7 @@
       <a class="demo-card" href="admin/user-form.html">
         <div class="demo-card__top"><span class="demo-card__title">新建 / 编辑用户</span><span class="ic" data-icon="edit"></span></div>
         <div class="demo-card__desc">分组表单 + 系统角色分配</div>
-        <div class="demo-card__path">/admin/users/create</div>
+        <div class="demo-card__path">/admin/users/create · /admin/users/:id</div>
       </a>
       <a class="demo-card" href="admin/workspaces.html">
         <div class="demo-card__top"><span class="demo-card__title">空间管理</span><span class="ic" data-icon="building"></span></div>
@@ -136,7 +139,7 @@
       </a>
       <a class="demo-card" href="admin/workspace-detail.html">
         <div class="demo-card__top"><span class="demo-card__title">空间详情</span><span class="ic" data-icon="grid"></span></div>
-        <div class="demo-card__desc">空间信息 + 统计卡 + 成员表</div>
+        <div class="demo-card__desc">空间信息 + 统计徽标 + 成员表</div>
         <div class="demo-card__path">/admin/workspaces/:id</div>
       </a>
       <a class="demo-card" href="admin/roles.html">
@@ -163,7 +166,7 @@
       </a>
       <a class="demo-card" href="workspace/members.html">
         <div class="demo-card__top"><span class="demo-card__title">成员管理</span><span class="ic" data-icon="userfilled"></span></div>
-        <div class="demo-card__desc">成员表 + 邀请链接表（双 Tab）</div>
+        <div class="demo-card__desc">成员列表 + 邀请链接双卡并排</div>
         <div class="demo-card__path">/workspace/members</div>
       </a>
       <a class="demo-card" href="workspace/projects.html">
@@ -180,7 +183,7 @@
     <div class="demo-grid">
       <a class="demo-card" href="project/dashboard.html">
         <div class="demo-card__top"><span class="demo-card__title">项目工作台</span><span class="ic" data-icon="gauge"></span></div>
-        <div class="demo-card__desc">质量 KPI + 执行趋势 + 缺陷分布 + 动态</div>
+        <div class="demo-card__desc">快捷入口 + 项目统计 + 最近评审 / 计划 / 动态</div>
         <div class="demo-card__path">/workspace/projects/dashboard</div>
       </a>
       <a class="demo-card" href="project/functional-testing.html">
@@ -205,7 +208,7 @@
       </a>
       <a class="demo-card" href="project/plan-detail.html">
         <div class="demo-card__top"><span class="demo-card__title">计划详情</span><span class="ic" data-icon="play"></span></div>
-        <div class="demo-card__desc">页头进度统计 + 快照树脑图 + 执行标记与顺序推荐</div>
+        <div class="demo-card__desc">页头进度统计 + 快照文档树 + 执行标记脑图</div>
         <div class="demo-card__path">/workspace/projects/plans/:planId</div>
       </a>
       <a class="demo-card" href="project/requirements.html">
@@ -237,75 +240,75 @@
     <div class="demo-grid">
       <a class="demo-card" href="project/api-testing.html">
         <div class="demo-card__top"><span class="demo-card__title">接口管理</span><span class="ic" data-icon="connection"></span></div>
-        <div class="demo-card__desc">多 Tab 工作区：列表 + 编辑器内联切换</div>
-        <div class="demo-card__path">/workspace/projects/api-testing</div>
+        <div class="demo-card__desc">多 Tab 工作区：接口列表 + 编辑器内联切换</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=interfaces</div>
       </a>
       <a class="demo-card" href="project/api-debug.html">
         <div class="demo-card__top"><span class="demo-card__title">快速调试</span><span class="ic" data-icon="terminal"></span></div>
         <div class="demo-card__desc">多标签请求工作台 + 响应分割视图</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/debug</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=debug</div>
       </a>
       <a class="demo-card" href="project/api-testing.html">
         <div class="demo-card__top"><span class="demo-card__title">接口编辑器</span><span class="ic" data-icon="edit"></span></div>
-        <div class="demo-card__desc">七页签请求配置 + 响应示例（在列表页 Tab 内打开）</div>
-        <div class="demo-card__path">/workspace/projects/api-testing · 编辑 Tab</div>
+        <div class="demo-card__desc">列表页内联编辑 Tab：七页签请求配置 + 响应示例</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=interfaces · 编辑 Tab</div>
       </a>
       <a class="demo-card" href="project/api-mocks.html">
         <div class="demo-card__top"><span class="demo-card__title">Mock 服务</span><span class="ic" data-icon="cpu"></span></div>
         <div class="demo-card__desc">筛选工具条 + 批量操作 + Mock 表格</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/mocks</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=mocks</div>
       </a>
       <a class="demo-card" href="project/api-scenes.html">
         <div class="demo-card__top"><span class="demo-card__title">测试场景</span><span class="ic" data-icon="operation"></span></div>
         <div class="demo-card__desc">多 Tab 工作区：模块树 + 场景表格 + 编排 Tab</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/scenes</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=scenes</div>
       </a>
       <a class="demo-card" href="project/api-scenes.html">
         <div class="demo-card__top"><span class="demo-card__title">场景编辑器</span><span class="ic" data-icon="list"></span></div>
-        <div class="demo-card__desc">步骤画布 + 分区内联编辑（在列表页 Tab 内打开）</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/scenes · 编排 Tab</div>
+        <div class="demo-card__desc">列表页内联编排 Tab：步骤画布 + 分区内联编辑</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=scenes · 编排 Tab</div>
       </a>
       <a class="demo-card" href="project/api-reports.html">
         <div class="demo-card__top"><span class="demo-card__title">测试报告</span><span class="ic" data-icon="data-chart"></span></div>
         <div class="demo-card__desc">状态 / 执行方式 / 场景多维筛选 + 报告表格</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/reports</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=reports</div>
       </a>
       <a class="demo-card" href="project/api-report-detail.html">
         <div class="demo-card__top"><span class="demo-card__title">报告详情</span><span class="ic" data-icon="check-circle"></span></div>
         <div class="demo-card__desc">状态 Hero + 统计卡 + 场景折叠明细 + 分享</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/reports/:reportId</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=reports · 报告详情</div>
       </a>
       <a class="demo-card" href="project/api-schedules.html">
         <div class="demo-card__top"><span class="demo-card__title">定时任务</span><span class="ic" data-icon="timer"></span></div>
         <div class="demo-card__desc">类型筛选 + Cron 调度 + 启停开关</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/schedules</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=schedules</div>
       </a>
       <a class="demo-card" href="project/api-schedule-form.html">
         <div class="demo-card__top"><span class="demo-card__title">新建 / 编辑定时任务</span><span class="ic" data-icon="calendar"></span></div>
         <div class="demo-card__desc">任务类型 / 执行方式 + Cron 校验与构建器</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/schedules/create</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=schedules · 新建 / 编辑弹窗</div>
       </a>
       <a class="demo-card" href="project/api-environments.html">
         <div class="demo-card__top"><span class="demo-card__title">环境管理</span><span class="ic" data-icon="compass"></span></div>
         <div class="demo-card__desc">双栏环境列表 + HTTP / 变量 / 数据源详情</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/environments</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=environments</div>
       </a>
       <a class="demo-card" href="project/api-functions.html">
         <div class="demo-card__top"><span class="demo-card__title">函数管理</span><span class="ic" data-icon="layers"></span></div>
         <div class="demo-card__desc">内置 / 自定义函数列表 + 签名与 Groovy 脚本</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/functions</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=functions</div>
       </a>
       <a class="demo-card" href="project/api-components.html">
         <div class="demo-card__top"><span class="demo-card__title">公共组件</span><span class="ic" data-icon="box"></span></div>
         <div class="demo-card__desc">类型 / 作用域筛选 + 批量启停 + 组件表格</div>
-        <div class="demo-card__path">/workspace/projects/api-testing/components</div>
+        <div class="demo-card__path">/workspace/projects/api-testing?tab=assets</div>
       </a>
     </div>
   </section>
 
 
   <footer class="text-xs text-light text-center" style="padding: 8px 0 32px;">
-    共 38 个路由页面 + 本导航页 + <a href="style-guide.html">样式总览</a> ·
+    共 26 个路由页面（web/src/router 注册，不含重定向） + 本导航页 + <a href="style-guide.html">样式总览</a> ·
     演示为纯静态资源（web/demos/），不参与前端构建
   </footer>
 
