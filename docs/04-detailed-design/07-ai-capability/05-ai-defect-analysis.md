@@ -284,7 +284,7 @@ BugAnalysisPage
 ├── MetricCards（修复时长 p50/p90、重开率、重复占比、分布环图）
 ├── AiSummaryCard（生成/重新生成 + 引用链接 + 失败重试）
 ├── TriageQueueCard（分诊顺序建议列表，可拖拽调整，只读落库）
-└── BatchClassifyEntry（批量分类发起 → 复用 AiArtifactReviewPanel 列表模式审核）
+└── BatchClassifyEntry（批量分类发起 → 跳转任务详情页，审核区列表模式）
 
 新建缺陷表单（既有 BugCreatePage 扩展）
 ├── SuggestBadge（建议值标记：类型/等级/优先级/模块/关键词，一键采纳）
@@ -346,3 +346,4 @@ BugAnalysisPage
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/bugs/analysis |
+| V1.0 | 2026-10-03 | 批量分类发起后跳转任务详情页，审核在详情页审核区（列表模式）完成 |

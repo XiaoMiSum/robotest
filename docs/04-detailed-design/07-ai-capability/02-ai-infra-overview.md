@@ -761,13 +761,14 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 任务中心（项目工作区 /workspace/projects/ai/tasks → AiTaskCenterPage）
 ├── TaskFilter（类型/状态筛选）
-├── TaskTable（进度条、阶段、失败原因、取消/重试）
-└── AiTaskDetailDrawer（阶段时间线 + 产物清单）
+└── TaskTable（进度条、阶段、失败原因、取消/重试，「详情 / 审核」跳转详情页）
 
-AiArtifactReviewPanel（通用产物审核面板，各能力域复用）
-├── ArtifactTree（产物树，kind 图标区分）
-├── ArtifactDetail（内容预览 / 与既有数据对比）
-└── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
+任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage）
+├── TaskProgress（进度条、阶段时间线、产物计数、取消 / 重试）
+└── AiArtifactReviewPanel（通用产物审核区，各能力域复用，succeeded 且有产物时渲染）
+    ├── ArtifactTree（产物树，kind 图标区分）
+    ├── ArtifactDetail（内容预览 / 与既有数据对比）
+    └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
 ```
 
 - Pinia store：
@@ -828,7 +829,7 @@ AiArtifactReviewPanel（通用产物审核面板，各能力域复用）
 | `server/.../service/ai/task/handler/*TaskHandler` | 各 `type` 的执行器（分册实现，注册到引擎） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018101–1000018123 及各分册号段 |
 | 权限点迁移脚本 | 新增 `ai:admin`（global）、`ai:task` / `ai:confirm`（workspace） |
-| `web/src/pages/admin/AiSettingsPage.vue`、`web/src/pages/project/AiTaskCenterPage.vue` 及组件 | 管理端配置中心与任务中心 |
+| `web/src/pages/admin/AiSettingsPage.vue`、`web/src/pages/project/AiTaskCenterPage.vue`、`AiTaskDetailPage.vue` 及组件 | 管理端配置中心、任务中心与任务详情页 |
 | `web/src/stores/aiAdmin.ts`、`aiTask.ts`、`web/src/services/ai.ts`、`web/src/types/ai.ts` | 状态、API 与类型 |
 
 **数据库迁移说明（C5）**
@@ -858,3 +859,4 @@ CREATE TABLE ai_config / ai_model_config / ai_embedding_config / ai_prompt_templ
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/ai/tasks |
 | V1.0 | 2026-10-03 | AI 配置中心改为页头全局项 + 左侧分组导航 + 子路由（/admin/ai/{models,embedding,prompts,usage}） |
+| V1.0 | 2026-10-03 | 任务详情抽屉与产物审核面板合并为任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage） |
