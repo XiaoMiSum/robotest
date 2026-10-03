@@ -44,5 +44,11 @@ public class AiTaskConfirmReqDTO {
 
         /** 位置策略（如 sibling / child），由承接服务解释 */
         private String position;
+
+        /**
+         * 确认面板的系统版本值（详设 4.5）：null 表示未设置，回退文档识别值（导入）或继承原条目（拆分）；
+         * 空白串为显式清空，采纳后留空待手工补录。
+         */
+        private String systemVersion;
     }
 }
