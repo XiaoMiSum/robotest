@@ -59,4 +59,9 @@ public class TaskExecutionContext {
     public String prompt(String builtInDefault) {
         return promptService.resolve(promptScene, builtInDefault);
     }
+
+    /** 场景提示词并渲染 {{变量}}（详设 3.5，handler 按本次输入提供变量） */
+    public String prompt(String builtInDefault, Map<String, String> variables) {
+        return promptService.render(promptScene, builtInDefault, variables);
+    }
 }

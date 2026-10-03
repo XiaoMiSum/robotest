@@ -10,5 +10,5 @@ import java.util.UUID;
  */
 public record AdoptContext(AiTask task, Map<String, Object> artifact, String action,
                            Map<String, Object> content, String note, UUID targetModuleId, String position,
-                           UUID projectId, UUID operatorId) {
+                           String targetSystemVersion, UUID projectId, UUID operatorId) {
 }
