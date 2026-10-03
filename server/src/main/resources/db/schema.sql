@@ -970,11 +970,56 @@ CREATE INDEX idx_function_workspace ON api_function(workspace_id, name) WHERE sc
 CREATE UNIQUE INDEX uk_function_global ON api_function(name) WHERE scope = 'global' AND is_deleted = FALSE;
 
 -- ============================================================
--- 17. 种子数据（权限点、角色）
+-- 17. 追溯矩阵
+-- ============================================================
+
+CREATE TABLE trace_edge (
+    id             uuid PRIMARY KEY,
+    project_id     uuid NOT NULL,
+    edge_type      varchar(20) NOT NULL,
+    source_type    varchar(30) NOT NULL,
+    source_id      uuid NOT NULL,
+    target_type    varchar(30) NOT NULL,
+    target_id      uuid NOT NULL,
+    target_version varchar(64) NULL,
+    status         varchar(20) NOT NULL DEFAULT 'ai_created',
+    established_by varchar(20) NOT NULL DEFAULT 'ai',
+    confirmed_by   uuid NULL,
+    confirmed_at   timestamp NULL,
+    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted     boolean NOT NULL DEFAULT FALSE
+);
+
+CREATE UNIQUE INDEX uk_trace_edge_pair ON trace_edge (source_type, source_id, target_type, target_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_trace_edge_project ON trace_edge (project_id);
+CREATE INDEX idx_trace_edge_source ON trace_edge (source_type, source_id);
+CREATE INDEX idx_trace_edge_target ON trace_edge (target_type, target_id);
+
+CREATE TABLE trace_coverage_result (
+    id               uuid PRIMARY KEY,
+    project_id       uuid NOT NULL,
+    requirement_id   uuid NOT NULL,
+    coverage_status  varchar(20) NOT NULL,
+    evidence         jsonb NULL,
+    analyzed_task_id uuid NULL,
+    ai_analyzed_at   timestamp NULL,
+    reviewed_by      uuid NULL,
+    reviewed_note    varchar(500) NULL,
+    reviewed_at      timestamp NULL,
+    created_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted       boolean NOT NULL DEFAULT FALSE
+);
+
+CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (project_id, requirement_id) WHERE is_deleted = FALSE;
+
+-- ============================================================
+-- 19. 种子数据（权限点、角色）
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 17.1 权限点（系统管理模块）
+-- 19.1 权限点（系统管理模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000001', 'user',                '用户管理',       NULL,  '用户管理',     '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -996,14 +1041,14 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('a0000000-0000-0000-0000-000000000017', 'role:delete',         '删除角色',       'role', '角色管理',     '系统管理', 'global', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 17.2 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
+-- 19.2 权限点（审计日志模块，全局系统管理，审计查询详细设计 2.1）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', '系统管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 17.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
+-- 19.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000001', 'ws-info',            '空间信息',     NULL,           '我的空间', '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1034,7 +1079,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',     'bug',          '缺陷',    '缺陷管理', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 17.4 权限点（需求管理）
+-- 19.4 权限点（需求管理）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000034', 'requirement',         '需求管理',     NULL,          '需求管理', '需求管理', 'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1044,7 +1089,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000075', 'requirement:confirm', '确认与归档需求', 'requirement', '需求管理', '需求管理', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 17.5 权限点（接口测试模块）
+-- 19.5 权限点（接口测试模块）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 -- 测试场景
@@ -1081,7 +1126,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 17.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
+-- 19.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', '接口测试', 'workspace', 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1094,7 +1139,16 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 17.6 预置角色（含全部版本权限合并）
+-- 19.6 权限点（追溯矩阵）
+-- ------------------------------------------------------------
+
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('c0000000-0000-0000-0000-000000000076', 'trace',      '追溯矩阵',     NULL,    '追溯矩阵', '追溯矩阵', 'workspace', 19, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000077', 'trace:view', '查看追溯矩阵', 'trace', '追溯矩阵', '追溯矩阵', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000078', 'trace:edit', '编辑追溯',     'trace', '追溯矩阵', '追溯矩阵', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 19.8 预置角色（含全部版本权限合并）
 -- ------------------------------------------------------------
 INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
 -- 系统管理员：拥有系统管理所有权限
@@ -1110,16 +1164,16 @@ INSERT INTO sys_role (id, name, description, type, is_system, permissions, creat
 -- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
 ('c0000000-0000-0000-0000-000000000001', '管理员',
  '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
- '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:create","requirement:edit","requirement:confirm","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:create","requirement:edit","requirement:confirm","trace","trace:view","trace:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- workspace 普通成员：默认角色
 ('c0000000-0000-0000-0000-000000000002', '成员',
  '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
- '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:create","requirement:edit","requirement:confirm","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
+ '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:create","requirement:edit","requirement:confirm","trace","trace:view","trace:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ============================================================
--- 18. 表与列注释
+-- 20. 表与列注释
 -- ============================================================
 
 -- 系统管理
@@ -1359,7 +1413,7 @@ COMMENT ON COLUMN bug_attachment.file_size IS '文件大小（字节）';
 COMMENT ON COLUMN bug_attachment.content_type IS 'MIME 类型';
 COMMENT ON COLUMN bug_attachment.uploader_id IS '上传人 ID';
 
--- 需求池
+-- 需求管理
 COMMENT ON TABLE requirement IS '需求条目表（项目内需求主表）';
 COMMENT ON COLUMN requirement.id IS '需求 ID';
 COMMENT ON COLUMN requirement.project_id IS '所属项目 ID（隔离边界）';
@@ -1643,3 +1697,30 @@ COMMENT ON COLUMN api_function.script IS 'Groovy 脚本体';
 COMMENT ON COLUMN api_function.type IS '函数类型：builtin/custom';
 COMMENT ON COLUMN api_function.enabled IS '启用状态';
 COMMENT ON COLUMN api_function.updated_by IS '最后维护人';
+
+-- 追溯矩阵
+COMMENT ON TABLE trace_edge IS '追溯边表（节点间关联的结构事实）';
+COMMENT ON COLUMN trace_edge.id IS '边 ID';
+COMMENT ON COLUMN trace_edge.project_id IS '所属项目（隔离边界），矩阵/链路/影响查询强制过滤';
+COMMENT ON COLUMN trace_edge.edge_type IS '边类型：derivation 派生边 / snapshot_ref 快照引用边';
+COMMENT ON COLUMN trace_edge.source_type IS '源节点类型：requirement/module/mindmap_document/test_case';
+COMMENT ON COLUMN trace_edge.source_id IS '源节点 ID（逻辑外键，与 source_type 组合定位）';
+COMMENT ON COLUMN trace_edge.target_type IS '目标节点类型：module/mindmap_document/test_case/test_review/test_plan';
+COMMENT ON COLUMN trace_edge.target_id IS '目标节点 ID（逻辑外键）';
+COMMENT ON COLUMN trace_edge.target_version IS '引用时目标内容的版本标识，与当前版本不一致则边转 stale';
+COMMENT ON COLUMN trace_edge.status IS '边状态：ai_created/confirmed/conflict/stale/detached';
+COMMENT ON COLUMN trace_edge.established_by IS '建立方式：ai/manual';
+COMMENT ON COLUMN trace_edge.confirmed_by IS '最近一次人工确认/修正的操作人';
+COMMENT ON COLUMN trace_edge.confirmed_at IS '最近一次人工确认/修正时间';
+
+COMMENT ON TABLE trace_coverage_result IS '覆盖结论表（需求 × 用例集合的覆盖质量结论）';
+COMMENT ON COLUMN trace_coverage_result.id IS '结论 ID';
+COMMENT ON COLUMN trace_coverage_result.project_id IS '所属项目（隔离边界）';
+COMMENT ON COLUMN trace_coverage_result.requirement_id IS '需求条目 ID（逻辑外键），每需求至多一条结论';
+COMMENT ON COLUMN trace_coverage_result.coverage_status IS '覆盖结论：covered/partial/uncovered';
+COMMENT ON COLUMN trace_coverage_result.evidence IS '判定依据：命中的用例集合、缺口说明、AI 理由摘要';
+COMMENT ON COLUMN trace_coverage_result.analyzed_task_id IS '来源覆盖分析任务 ID（逻辑外键 → ai_task）';
+COMMENT ON COLUMN trace_coverage_result.ai_analyzed_at IS 'AI 分析时间';
+COMMENT ON COLUMN trace_coverage_result.reviewed_by IS '人工复核修正人；非空即人工判定优先';
+COMMENT ON COLUMN trace_coverage_result.reviewed_note IS '人工修正说明';
+COMMENT ON COLUMN trace_coverage_result.reviewed_at IS '人工修正时间';
