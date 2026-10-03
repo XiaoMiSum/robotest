@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementCh
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -35,6 +36,9 @@ public interface RequirementService {
 
     /** 取消归档：仅归档态可取消，一律回到 draft（3.7） */
     RequirementDetailRespDTO unarchive(UUID id, UUID projectId, UUID userId);
+
+    /** 条目内 AI 拆分（3.9）：任务与拆解记录同事务提交，返回任务入口 */
+    RequirementSplitSubmitRespDTO split(UUID id, UUID projectId, UUID userId);
 
     PageResult<RequirementChangeLogRespDTO> getChangeLogs(UUID id, UUID projectId, PageParam pageParam);
 

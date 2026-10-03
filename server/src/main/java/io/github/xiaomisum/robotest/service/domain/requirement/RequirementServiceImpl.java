@@ -5,11 +5,14 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementSplitRecord;
@@ -17,28 +20,27 @@ import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecordMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
+import xyz.migoo.framework.security.core.annotation.AuditLog;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -61,8 +63,6 @@ public class RequirementServiceImpl implements RequirementService {
 
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
     private static final int SYSTEM_VERSION_MAX_LENGTH = 50;
-    /** 唯一冲突重试上限（详设 4.1：最多 3 次） */
-    private static final int CODE_ALLOCATE_MAX_RETRIES = 3;
 
     @Resource
     private RequirementMapper requirementMapper;
@@ -79,7 +79,11 @@ public class RequirementServiceImpl implements RequirementService {
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
-    private PlatformTransactionManager transactionManager;
+    private RequirementCodeAllocator codeAllocator;
+    @Resource
+    private AiTaskService aiTaskService;
+    @Resource
+    private AiTaskMapper aiTaskMapper;
 
     /** AI 任务框架（WP-4.2）接入前为 null，需求侧静默跳过影响分析触发（详设 4.4） */
     @Autowired(required = false)
@@ -150,7 +154,7 @@ public class RequirementServiceImpl implements RequirementService {
         item.setTags(reqDTO.getTags());
         item.setStatus(Constants.RequirementStatus.DRAFT);
         item.setSource("manual");
-        insertWithCodeAllocation(projectId, item);
+        codeAllocator.insertWithCodeAllocation(projectId, item);
         return buildDetail(item);
     }
 
@@ -290,6 +294,52 @@ public class RequirementServiceImpl implements RequirementService {
         return buildDetail(requirementMapper.selectById(id));
     }
 
+    // ---------- 3.9 条目内 AI 拆分 ----------
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @AuditLog(action = "SPLIT:Requirement")
+    public RequirementSplitSubmitRespDTO split(UUID id, UUID projectId, UUID userId) {
+        Requirement item = requireItem(id, projectId);
+        if (Constants.RequirementStatus.ARCHIVED.equals(item.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_SPLIT_INPUT_INVALID);
+        }
+        if (hasInProgressSplit(id)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_TASK_IN_PROGRESS);
+        }
+        Project project = projectMapper.selectById(projectId);
+        // 任务行与拆解记录同事务（3.9 / 4.5）：任一步失败整体回滚，不留无记录的任务或无任务的记录；
+        // 提交内联起跑经「直接 + 注册兜底」双保险覆盖活动事务场景（AiTaskServiceImpl.startTask）
+        AiTaskRespDTO task = aiTaskService.submitInternal("requirement_split",
+                Map.of("requirementId", id.toString()), userId, projectId,
+                project == null ? null : project.getWorkspaceId());
+        RequirementSplitRecord record = new RequirementSplitRecord();
+        record.setProjectId(projectId);
+        record.setSourceType("requirement");
+        record.setSourceRequirementId(id);
+        record.setAiTaskId(task.getTaskId());
+        record.setStatus(Constants.AiTaskStatus.PENDING);
+        splitRecordMapper.insert(record);
+
+        RequirementSplitSubmitRespDTO resp = new RequirementSplitSubmitRespDTO();
+        resp.setTaskId(task.getTaskId());
+        resp.setSplitRecordId(record.getId());
+        resp.setStatus(Constants.AiTaskStatus.PENDING);
+        return resp;
+    }
+
+    /** 同一条目已有进行中拆分任务（3.9 / 1000018013）：拆解记录待确认且关联任务仍 pending / running */
+    private boolean hasInProgressSplit(UUID requirementId) {
+        for (RequirementSplitRecord record : splitRecordMapper.selectPendingSplitBySource(requirementId)) {
+            AiTask task = aiTaskMapper.selectById(record.getAiTaskId());
+            if (task != null && (Constants.AiTaskStatus.PENDING.equals(task.getStatus())
+                    || Constants.AiTaskStatus.RUNNING.equals(task.getStatus()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---------- 3.10 变更记录 ----------
 
     @Override
@@ -332,28 +382,6 @@ public class RequirementServiceImpl implements RequirementService {
     }
 
     // ---------- 内部：编号分配 ----------
-
-    /**
-     * 编号分配（详设 4.1）：项目内 max+1 起零填充，依赖 uk_requirement_project_code 防并发，
-     * 唯一冲突时重取序号重试（最多 3 次）。每次尝试落在嵌套事务（SAVEPOINT）上，
-     * 避免 PG 唯一冲突污染外层事务状态导致重试必然失败。
-     */
-    private void insertWithCodeAllocation(UUID projectId, Requirement item) {
-        TransactionTemplate nested = new TransactionTemplate(transactionManager);
-        nested.setPropagationBehavior(TransactionDefinition.PROPAGATION_NESTED);
-        int retries = 0;
-        while (true) {
-            item.setCode(String.format("REQ-%03d", requirementMapper.selectMaxSeq(projectId) + 1));
-            try {
-                nested.executeWithoutResult(status -> requirementMapper.insert(item));
-                return;
-            } catch (DuplicateKeyException e) {
-                if (++retries > CODE_ALLOCATE_MAX_RETRIES) {
-                    throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_CODE_CONFLICT);
-                }
-            }
-        }
-    }
 
     // ---------- 内部：变更记录 ----------
 

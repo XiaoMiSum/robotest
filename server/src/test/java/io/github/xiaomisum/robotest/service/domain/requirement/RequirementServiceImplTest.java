@@ -4,11 +4,14 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementSplitRecord;
@@ -16,13 +19,16 @@ import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecordMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +39,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
@@ -42,7 +49,9 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 
+import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,6 +62,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -77,6 +87,8 @@ class RequirementServiceImplTest {
     private static final UUID MODULE_ID = UUID.randomUUID();
     private static final UUID OWNER_ID = UUID.randomUUID();
     private static final UUID OPERATOR_ID = UUID.randomUUID();
+    private static final UUID TASK_ID = UUID.randomUUID();
+    private static final UUID RECORD_ID = UUID.randomUUID();
 
     @Mock
     private RequirementMapper requirementMapper;
@@ -96,9 +108,36 @@ class RequirementServiceImplTest {
     private PlatformTransactionManager transactionManager;
     @Mock
     private ImpactAnalysisTaskPublisher impactAnalysisTaskPublisher;
+    @Mock
+    private AiTaskService aiTaskService;
+    @Mock
+    private AiTaskMapper aiTaskMapper;
+
+    /** 真实编号分配逻辑（savepoint 重试）：@Spy+@InjectMocks 组合会把非 mock 实例带入候选集，
+     *  NameBasedCandidateFilter#getMockName 对非 mock 抛 NotAMock，故手工装配 */
+    private RequirementCodeAllocator codeAllocator;
 
     @InjectMocks
     private RequirementServiceImpl service;
+
+    @BeforeEach
+    void wireCodeAllocator() {
+        // initMocks（扩展回调）先于 @BeforeEach 执行，此时 service 已注入 @Mock
+        codeAllocator = new RequirementCodeAllocator();
+        setField(codeAllocator, "requirementMapper", requirementMapper);
+        setField(codeAllocator, "transactionManager", transactionManager);
+        setField(service, "codeAllocator", codeAllocator);
+    }
+
+    private static void setField(Object target, String name, Object value) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
 
     private void stubTx() {
         lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
@@ -560,5 +599,126 @@ class RequirementServiceImplTest {
 
         assertEquals("REQ-001", result.getList().get(0).getSourceRequirementCode());
         assertEquals("adopted", result.getList().get(0).getStatus());
+    }
+
+    // ---------- 条目内 AI 拆分（3.9） ----------
+
+    private void stubProject() {
+        Project project = new Project();
+        project.setId(PROJECT_ID);
+        project.setWorkspaceId(UUID.randomUUID());
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+    }
+
+    private void stubSplitRecordInserted() {
+        doAnswer(inv -> {
+            RequirementSplitRecord record = inv.getArgument(0);
+            record.setId(RECORD_ID);
+            return 1;
+        }).when(splitRecordMapper).insert(any(RequirementSplitRecord.class));
+    }
+
+    @Test
+    void split_submitsTaskAndCreatesRecord() {
+        stubItem("draft");
+        stubProject();
+        stubSplitRecordInserted();
+        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of());
+        AiTaskRespDTO task = new AiTaskRespDTO();
+        task.setTaskId(TASK_ID);
+        when(aiTaskService.submitInternal(eq("requirement_split"), any(), eq(OPERATOR_ID), eq(PROJECT_ID), any()))
+                .thenReturn(task);
+
+        RequirementSplitSubmitRespDTO resp = service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+
+        assertEquals(TASK_ID, resp.getTaskId());
+        assertEquals(RECORD_ID, resp.getSplitRecordId());
+        assertEquals("pending", resp.getStatus());
+        ArgumentCaptor<Map<String, Object>> inputCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(aiTaskService).submitInternal(eq("requirement_split"), inputCaptor.capture(),
+                eq(OPERATOR_ID), eq(PROJECT_ID), any());
+        assertEquals(ITEM_ID.toString(), inputCaptor.getValue().get("requirementId"));
+        ArgumentCaptor<RequirementSplitRecord> recordCaptor = ArgumentCaptor.forClass(RequirementSplitRecord.class);
+        verify(splitRecordMapper).insert(recordCaptor.capture());
+        RequirementSplitRecord saved = recordCaptor.getValue();
+        assertEquals("requirement", saved.getSourceType());
+        assertEquals(ITEM_ID, saved.getSourceRequirementId());
+        assertEquals(TASK_ID, saved.getAiTaskId());
+        assertEquals("pending", saved.getStatus());
+        assertEquals(PROJECT_ID, saved.getProjectId());
+    }
+
+    @Test
+    void split_archivedItem_throwsSplitInputInvalid() {
+        stubItem("archived");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_SPLIT_INPUT_INVALID.code(), exception.getCode());
+        verifyNoInteractions(aiTaskService, splitRecordMapper);
+    }
+
+    @Test
+    void split_inProgressTask_throwsTaskInProgress() {
+        stubItem("draft");
+        RequirementSplitRecord record = new RequirementSplitRecord();
+        record.setId(UUID.randomUUID());
+        record.setAiTaskId(TASK_ID);
+        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of(record));
+        AiTask running = new AiTask();
+        running.setId(TASK_ID);
+        running.setStatus("running");
+        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(running);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_TASK_IN_PROGRESS.code(), exception.getCode());
+        verifyNoInteractions(aiTaskService);
+    }
+
+    @Test
+    void split_failedTaskRecordAllowsResubmit() {
+        stubItem("draft");
+        stubProject();
+        stubSplitRecordInserted();
+        RequirementSplitRecord stale = new RequirementSplitRecord();
+        stale.setId(UUID.randomUUID());
+        stale.setAiTaskId(TASK_ID);
+        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of(stale));
+        AiTask failed = new AiTask();
+        failed.setId(TASK_ID);
+        failed.setStatus("failed");
+        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(failed);
+        AiTaskRespDTO task = new AiTaskRespDTO();
+        task.setTaskId(TASK_ID);
+        when(aiTaskService.submitInternal(eq("requirement_split"), any(), any(), any(), any())).thenReturn(task);
+
+        service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+
+        verify(aiTaskService).submitInternal(eq("requirement_split"), any(), eq(OPERATOR_ID), eq(PROJECT_ID), any());
+    }
+
+    @Test
+    void split_notFound_throwsNotFound() {
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
+        verifyNoInteractions(aiTaskService, splitRecordMapper);
+    }
+
+    @Test
+    void split_submitFails_recordNotInserted() {
+        stubItem("draft");
+        stubProject();
+        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of());
+        when(aiTaskService.submitInternal(any(), any(), any(), any(), any()))
+                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
+        verify(splitRecordMapper, never()).insert(any(RequirementSplitRecord.class));
     }
 }

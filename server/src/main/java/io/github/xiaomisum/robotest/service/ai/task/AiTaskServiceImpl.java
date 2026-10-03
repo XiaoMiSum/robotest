@@ -265,6 +265,7 @@ public class AiTaskServiceImpl implements AiTaskService {
                         item.getContent(), item.getNote(),
                         target == null ? null : target.getModuleId(),
                         target == null ? null : target.getPosition(),
+                        target == null ? null : target.getSystemVersion(),
                         projectId, operatorId));
                 AiArtifactConfirm record = new AiArtifactConfirm();
                 record.setProjectId(projectId);

@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementCh
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -97,6 +98,14 @@ public class RequirementController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
         return Result.ok(requirementService.unarchive(id, loginUser.getActiveProjectId(), loginUser.getId()));
+    }
+
+    @PostMapping("/{id}/split")
+    @PreAuthorize("hasAuthority('requirement:edit')")
+    public Result<RequirementSplitSubmitRespDTO> splitRequirement(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        return Result.ok(requirementService.split(id, loginUser.getActiveProjectId(), loginUser.getId()));
     }
 
     @GetMapping("/{id}/change-logs")
