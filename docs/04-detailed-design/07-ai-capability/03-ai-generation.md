@@ -207,19 +207,21 @@
 
 - 需求列表 / 详情多选后「AI 生成测试设计」→ `GenerationConfigDialog`（目标项目与模块落位、生成范围回显、用例粒度偏好）；不可选需求置灰并提示原因（草稿 / 已变更 / 已归档）。
 
-### 5.2 任务进度页
+### 5.2 任务进度（任务详情页上半区）
 
 ```
-AiTaskDetailDrawer / 进度全屏页
+AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 ├── StageTimeline（六阶段时间线：当前阶段高亮，失败阶段标红）
 ├── ProgressHeader（进度条、产物数量、失败原因摘要）
 ├── Actionbar（取消、失败后重试）
 └── ArtifactCountBadges（模块/文档/用例计数）
 ```
 
-### 5.3 产物审核面板（三层树）
+提交成功后由发起对话框跳转本页，页面结构与状态分支见总册 5.2。
 
-- 复用总册 5.2 `AiArtifactReviewPanel`，生成链扩展：
+### 5.3 产物审核区（三层树，详情页下半区）
+
+- 复用总册 5.2 任务详情页内的 `AiArtifactReviewPanel`，生成链扩展：
   - 三层树渲染（模块 → 文档 → 节点，用例节点带属性徽标）；
   - 内容对比视图：AI 建议 vs 既有数据（编辑后采纳时），`sourceRefs` 引用可点击回跳需求原文；
   - 「来源需求已变更」标记、`suspectedDuplicateOf` 疑似重复警示；
@@ -283,3 +285,4 @@ AiTaskDetailDrawer / 进度全屏页
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
+| V1.0 | 2026-10-03 | 任务进度与产物审核统一为任务详情页（AiTaskDetailPage），删除抽屉/全屏页并存口径 |
