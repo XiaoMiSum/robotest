@@ -85,6 +85,10 @@
   .param-add { margin-top: 8px; }
   .param-preview { margin-top: 8px; font-size: var(--font-size-xs); color: var(--n-500); word-break: break-all; }
   .param-preview code { font-family: var(--font-mono); color: var(--brand-600); }
+  .param-error { margin: 6px 0 0; font-size: var(--font-size-xs); color: var(--st-danger); }
+
+  /* 表单底部操作条：分隔线 + 右对齐 */
+  .fn-detail__footer { display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--n-100); }
 
 </style>
 </head>
@@ -129,21 +133,35 @@
                 <button data-fntab="custom">自定义函数</button>
               </span>
 
-              <!-- 内置函数元数据与 ApiBuiltinFunctionRegistry 保持一致 -->
+              <!-- 内置函数目录与 ApiBuiltinFunctionRegistry.catalog() 一致（分组内顺序按注册顺序） -->
               <ul class="fn-items" data-fnlist="builtin">
-                <li class="fn-item is-active" data-fn="uuid" data-scope="builtin">
-                  <div class="fn-item__main">
-                    <span class="fn-item__name">uuid</span>
-                    <span class="tag tag--outline">内置</span>
-                  </div>
-                  <div class="fn-item__meta">生成随机 UUID（去连字符）</div>
-                </li>
-                <li class="fn-item" data-fn="random" data-scope="builtin">
+                <li class="fn-item is-active" data-fn="random" data-scope="builtin">
                   <div class="fn-item__main">
                     <span class="fn-item__name">random</span>
                     <span class="tag tag--outline">内置</span>
                   </div>
                   <div class="fn-item__meta">生成指定区间的随机整数</div>
+                </li>
+                <li class="fn-item" data-fn="random_string" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">random_string</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">生成指定长度的随机字符串（含字母与数字）</div>
+                </li>
+                <li class="fn-item" data-fn="faker" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">faker</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">按 Faker 表达式生成仿真测试数据</div>
+                </li>
+                <li class="fn-item" data-fn="uuid" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">uuid</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">生成随机 UUID（去连字符）</div>
                 </li>
                 <li class="fn-item" data-fn="timestamp" data-scope="builtin">
                   <div class="fn-item__main">
@@ -152,12 +170,75 @@
                   </div>
                   <div class="fn-item__meta">当前时间戳，默认毫秒；可指定秒或日期格式</div>
                 </li>
+                <li class="fn-item" data-fn="time_shift" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">time_shift</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">基于当前时间按 ISO-8601 偏移量平移后格式化输出</div>
+                </li>
+                <li class="fn-item" data-fn="json" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">json</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">将多组 k=v 参数组装为 JSON 字符串</div>
+                </li>
                 <li class="fn-item" data-fn="json_read" data-scope="builtin">
                   <div class="fn-item__main">
                     <span class="fn-item__name">json_read</span>
                     <span class="tag tag--outline">内置</span>
                   </div>
                   <div class="fn-item__meta">从 JSON 文本中按 JsonPath 提取值</div>
+                </li>
+                <li class="fn-item" data-fn="url_encode" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">url_encode</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">URL 编码（application/x-www-form-urlencoded）</div>
+                </li>
+                <li class="fn-item" data-fn="url_decode" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">url_decode</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">URL 解码</div>
+                </li>
+                <li class="fn-item" data-fn="base64_encode" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">base64_encode</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">Base64 编码</div>
+                </li>
+                <li class="fn-item" data-fn="base64_decode" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">base64_decode</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">Base64 解码</div>
+                </li>
+                <li class="fn-item" data-fn="property" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">property</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">读取平台变量值（就近作用域解析）</div>
+                </li>
+                <li class="fn-item" data-fn="digest" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">digest</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">摘要算法（md5/sha-1/sha-256 等，支持盐值）</div>
+                </li>
+                <li class="fn-item" data-fn="google2fa" data-scope="builtin">
+                  <div class="fn-item__main">
+                    <span class="fn-item__name">google2fa</span>
+                    <span class="tag tag--outline">内置</span>
+                  </div>
+                  <div class="fn-item__meta">根据 2FA 密钥生成 Google 验证码</div>
                 </li>
               </ul>
 
@@ -170,7 +251,7 @@
                     <span class="tag tag--success fn-item__state">已启用</span>
                   </div>
                   <div class="fn-item__meta">按业务规则生成签名参数</div>
-                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>
                 </li>
                 <li class="fn-item" data-fn="genOrderNo" data-scope="custom">
                   <div class="fn-item__main">
@@ -180,7 +261,7 @@
                     <span class="tag tag--success fn-item__state">已启用</span>
                   </div>
                   <div class="fn-item__meta">生成雪花订单号</div>
-                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>
                 </li>
                 <li class="fn-item is-disabled" data-fn="legacyFmt" data-scope="custom">
                   <div class="fn-item__main">
@@ -190,7 +271,7 @@
                     <span class="tag tag--outline fn-item__state">已停用</span>
                   </div>
                   <div class="fn-item__meta">旧版报文格式化（已停用）</div>
-                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>
+                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>
                 </li>
               </ul>
 
@@ -204,7 +285,9 @@
           <!-- 右：函数详情（内容由脚本按选中项渲染） -->
           <section class="fn-detail" data-fndetail="builtin">
             <div class="fn-detail__header">
-              <h4 class="fn-detail__name" id="bi-name">uuid</h4>
+              <div class="fn-detail__id">
+                <h4 class="fn-detail__name" id="bi-name">random</h4>
+              </div>
               <div class="fn-detail__header-actions">
                 <span class="tag tag--outline">内置</span>
               </div>
@@ -212,22 +295,33 @@
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">签名</label>
-              <code class="fn-detail__code fn-detail__code--block" id="bi-sign">${uuid()}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="bi-sign">${random(min, max)}</code>
             </div>
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">描述</label>
-              <p class="fn-detail__text" id="bi-desc">生成随机 UUID（去连字符）</p>
+              <p class="fn-detail__text" id="bi-desc">生成指定区间的随机整数</p>
             </div>
 
-            <div class="fn-detail__section" id="bi-params-section" hidden>
+            <div class="fn-detail__section" id="bi-params-section">
               <label class="fn-detail__label">参数</label>
-              <div class="fn-params" id="bi-params"></div>
+              <div class="fn-params" id="bi-params">
+                <div class="fn-param">
+                  <code class="fn-detail__code">min</code>
+                  <span class="tag tag--warning">必填</span>
+                  <span class="fn-param__desc">区间下界</span>
+                </div>
+                <div class="fn-param">
+                  <code class="fn-detail__code">max</code>
+                  <span class="tag tag--warning">必填</span>
+                  <span class="fn-param__desc">区间上界</span>
+                </div>
+              </div>
             </div>
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">示例</label>
-              <code class="fn-detail__code fn-detail__code--block" id="bi-example">${uuid()}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="bi-example">${random(1, 100)}</code>
             </div>
           </section>
 
@@ -245,7 +339,7 @@
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">签名</label>
-              <code class="fn-detail__code fn-detail__code--block" id="cu-sign">${signParams(appKey, timestamp)}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="cu-sign">${signParams(appKey, timestamp, signType)}</code>
             </div>
 
             <div class="fn-detail__section">
@@ -260,7 +354,7 @@
 
             <div class="fn-detail__section">
               <label class="fn-detail__label">示例</label>
-              <code class="fn-detail__code fn-detail__code--block" id="cu-example">${signParams(appKey, timestamp)}</code>
+              <code class="fn-detail__code fn-detail__code--block" id="cu-example">${signParams(appKey, timestamp, signType)}</code>
             </div>
 
             <div class="fn-detail__section">
@@ -314,7 +408,7 @@
               </table>
               <div class="param-add"><button class="btn btn--default btn--sm" id="fn-param-add" type="button">＋ 添加参数</button></div>
               <div class="param-preview">保存为参数说明：<code id="fn-params-preview">（无参数）</code></div>
-              <div class="field__error" id="fn-params-err" hidden></div>
+              <div id="fn-params-err" hidden></div>
             </div>
 
             <div class="field">
@@ -326,7 +420,7 @@
               <div class="field__error" id="fn-script-err" hidden>请输入 Groovy 脚本</div>
             </div>
 
-            <div class="btn-row" style="justify-content:flex-end">
+            <div class="fn-detail__footer">
               <button class="btn btn--default btn--sm" id="fn-cancel">取消</button>
               <button class="btn btn--primary btn--sm" id="fn-save">保存</button>
             </div>
@@ -341,20 +435,29 @@
   </div>
 </main>
 
+<!-- 删除确认（对齐 useFunctionPage.handleDelete 口径：确认后不可恢复） -->
+<div class="dialog-mask" id="fn-confirm" hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title">删除函数</span>
+      <button class="dialog__close" data-confirm-cancel aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="fn-confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default btn--sm" data-confirm-cancel>取消</button>
+      <button class="btn btn--danger btn--sm" id="fn-confirm-ok">删除</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
   var rt = window.RTUX;
 
-  // 内置函数元数据对齐后端 ApiBuiltinFunctionRegistry（分组/描述/签名/参数/示例）
+  // 内置函数元数据对齐后端 ApiBuiltinFunctionRegistry.buildMetadata（描述/签名/参数/示例）
   var BUILTIN = {
-    uuid: {
-      desc: '生成随机 UUID（去连字符）',
-      sign: '${uuid()}',
-      example: '${uuid()}',
-      params: [],
-    },
     random: {
       desc: '生成指定区间的随机整数',
       sign: '${random(min, max)}',
@@ -364,11 +467,47 @@
         { n: 'max', d: '区间上界' },
       ],
     },
+    random_string: {
+      desc: '生成指定长度的随机字符串（含字母与数字）',
+      sign: '${random_string(length)}',
+      example: '${random_string(8)}',
+      params: [{ n: 'length', d: '字符串长度' }],
+    },
+    faker: {
+      desc: '按 Faker 表达式生成仿真测试数据',
+      sign: '${faker(path[, locale])}',
+      example: '${faker(name.fullName, zh_CN)}',
+      params: [
+        { n: 'path', d: 'Faker 数据路径，如 name.fullName' },
+        { n: 'locale', req: false, d: '语言区域，默认 zh_CN' },
+      ],
+    },
+    uuid: {
+      desc: '生成随机 UUID（去连字符）',
+      sign: '${uuid()}',
+      example: '${uuid()}',
+      params: [],
+    },
     timestamp: {
       desc: '当前时间戳，默认毫秒；可指定秒或日期格式',
       sign: '${timestamp([format|_s])}',
       example: '${timestamp(_s)}',
-      params: [{ n: 'format|_s', d: '日期格式串；传 _s 返回秒级时间戳' }],
+      params: [{ n: 'format|_s', req: false, d: '日期格式串；传 _s 返回秒级时间戳' }],
+    },
+    time_shift: {
+      desc: '基于当前时间按 ISO-8601 偏移量平移后格式化输出',
+      sign: '${time_shift([format,] offset)}',
+      example: '${time_shift(+1d)}',
+      params: [
+        { n: 'format', req: false, d: '输出日期格式，默认 yyyy-MM-dd HH:mm:ss' },
+        { n: 'offset', d: 'ISO-8601 偏移量，如 +1d / -2h' },
+      ],
+    },
+    json: {
+      desc: '将多组 k=v 参数组装为 JSON 字符串',
+      sign: '${json(k1=v1, k2=v2)}',
+      example: '${json(code=0, msg=ok)}',
+      params: [{ n: 'k=v', d: '键值参数，至少一组' }],
     },
     json_read: {
       desc: '从 JSON 文本中按 JsonPath 提取值',
@@ -378,6 +517,52 @@
         { n: 'json', d: 'JSON 文本或变量引用' },
         { n: 'jsonpath', d: 'JsonPath 表达式' },
       ],
+    },
+    url_encode: {
+      desc: 'URL 编码（application/x-www-form-urlencoded）',
+      sign: '${url_encode(content)}',
+      example: '${url_encode(a b&c=1)}',
+      params: [{ n: 'content', d: '待编码文本' }],
+    },
+    url_decode: {
+      desc: 'URL 解码',
+      sign: '${url_decode(content)}',
+      example: '${url_decode(%E4%B8%AD%E6%96%87)}',
+      params: [{ n: 'content', d: '待解码文本' }],
+    },
+    base64_encode: {
+      desc: 'Base64 编码',
+      sign: '${base64_encode(content)}',
+      example: '${base64_encode(robotest)}',
+      params: [{ n: 'content', d: '待编码文本' }],
+    },
+    base64_decode: {
+      desc: 'Base64 解码',
+      sign: '${base64_decode(content)}',
+      example: '${base64_decode(cm9ib3Rlc3Q=)}',
+      params: [{ n: 'content', d: '待解码 Base64 文本' }],
+    },
+    property: {
+      desc: '读取平台变量值（就近作用域解析）',
+      sign: '${property(key)}',
+      example: '${property(token)}',
+      params: [{ n: 'key', d: '变量名' }],
+    },
+    digest: {
+      desc: '摘要算法（md5/sha-1/sha-256 等，支持盐值）',
+      sign: '${digest(algorithm, content[, salt])}',
+      example: '${digest(md5, password, salt123)}',
+      params: [
+        { n: 'algorithm', d: '摘要算法名' },
+        { n: 'content', d: '原文' },
+        { n: 'salt', req: false, d: '盐值' },
+      ],
+    },
+    google2fa: {
+      desc: '根据 2FA 密钥生成 Google 验证码',
+      sign: '${google2fa(secretKey)}',
+      example: '${google2fa(JBSWY3DPEHPK3PXP)}',
+      params: [{ n: 'secretKey', d: 'Google Authenticator 共享密钥' }],
     },
   };
 
@@ -389,7 +574,7 @@
       desc: '按业务规则生成签名参数',
       scope: 'project',
       enabled: true,
-      paramsDesc: 'appKey:应用标识, timestamp:时间戳, signType?:签名算法，默认 md5',
+      paramsDesc: 'appKey:应用标识, timestamp:时间戳, signType?:签名算法（默认 md5）',
       script: "// args 数组承接调用参数，返回值即求值结果\ndef appKey = args[0]\ndef ts = args[1]\nreturn \"${appKey}|${ts}\".encodeAsMD5()",
     },
     genOrderNo: {
@@ -433,16 +618,18 @@
   var PARAM_ERR_TEXT = '参数名与描述不支持英文逗号，参数名另不支持冒号与问号';
 
   function validateParamRows(rows) {
+    // 逐行收集而非首错即返：与实现一致地把所有行错误一并展示
+    var errs = [];
     var seen = {};
     for (var i = 0; i < rows.length; i++) {
       var name = (rows[i].n || '').trim();
-      if (!name) return '请输入参数名';
-      if (/[,:?]/.test(name)) return PARAM_ERR_TEXT;
-      if (/,/.test(rows[i].d || '')) return PARAM_ERR_TEXT;
-      if (seen[name]) return '参数「' + name + '」重复';
+      if (!name) { errs.push({ i: i, m: '请输入参数名' }); continue; }
+      if (/[,:?]/.test(name)) { errs.push({ i: i, m: PARAM_ERR_TEXT }); continue; }
+      if (/,/.test(rows[i].d || '')) { errs.push({ i: i, m: PARAM_ERR_TEXT }); continue; }
+      if (seen[name]) { errs.push({ i: i, m: '参数「' + name + '」重复' }); continue; }
       seen[name] = true;
     }
-    return '';
+    return errs;
   }
 
   function signature(name, params) {
@@ -540,12 +727,12 @@
   document.querySelectorAll('[data-fn]').forEach(function (item) {
     item.addEventListener('click', function (e) {
       // 行内操作（删除）不触发详情选中
-      if (e.target.closest('[data-act], [data-ux-undo]')) return;
+      if (e.target.closest('[data-fn-del]')) return;
       selectItem(item);
     });
   });
 
-  // 列表可见性 = 页签 + 关键字（与 functionModel.filterFunctions 口径一致：名称或描述命中）
+  // 列表可见性 = 页签 + 关键字（与 functionModel.filterFunctions 口径一致：仅名称或描述命中）
   function refreshList() {
     var kw = (searchInput.value || '').trim().toLowerCase();
     var visible = 0;
@@ -553,7 +740,10 @@
       var inTab = activeTab === 'all' || list.getAttribute('data-fnlist') === activeTab;
       var matched = 0;
       list.querySelectorAll('.fn-item').forEach(function (item) {
-        var hit = !kw || item.textContent.toLowerCase().indexOf(kw) >= 0;
+        var meta = item.querySelector('.fn-item__meta');
+        var name = (item.getAttribute('data-fn') || '').toLowerCase();
+        var desc = meta ? meta.textContent.toLowerCase() : '';
+        var hit = !kw || name.indexOf(kw) >= 0 || desc.indexOf(kw) >= 0;
         item.classList.toggle('is-hidden', !hit);
         if (hit && item.style.display !== 'none') matched += 1;
       });
@@ -581,30 +771,56 @@
     searchInput.focus();
   });
 
+  // 详情头部标识当前自定义函数；列表项被搜索隐藏时以详情名为准
+  function customKey() {
+    if (customDetail.hidden) return '';
+    var item = currentItem();
+    if (item && item.getAttribute('data-scope') === 'custom') return item.getAttribute('data-fn');
+    return document.getElementById('cu-name').textContent;
+  }
+
   // 启用 / 禁用（toggleCustomFunction）：详情头部勾选即时生效，同步列表状态标签与灰化
   document.getElementById('cu-enable').addEventListener('change', function () {
-    var item = currentItem();
-    if (!item || item.getAttribute('data-scope') !== 'custom') return;
-    var key = item.getAttribute('data-fn');
-    var fn = CUSTOM[key];
+    var key = customKey();
+    var fn = key ? CUSTOM[key] : null;
     if (!fn) return;
     fn.enabled = this.checked;
     updateListItem(key, fn);
     rt.toast(fn.enabled ? '已启用' : '已停用', { type: fn.enabled ? 'success' : 'warning' });
   });
 
-  // 删除 / 撤销：刷新列表可见性，并与实现一致地清空右侧详情（撤销后若仍选中则恢复）
-  document.addEventListener('ux:remove', function (e) {
-    var item = e.target.closest ? e.target.closest('.fn-item') : null;
-    if (!item) return;
-    if (item.classList.contains('is-active')) showPanel('empty');
-    refreshList();
+  // 删除：行内 [删除] 先二次确认，确认后永久移除（对齐 handleDelete 的确认口径）
+  var confirmBox = document.getElementById('fn-confirm');
+  var confirmFn = null;
+  function askConfirm(body, onOk) {
+    document.getElementById('fn-confirm-body').textContent = body;
+    confirmFn = onOk;
+    confirmBox.hidden = false;
+  }
+  confirmBox.addEventListener('click', function (e) {
+    if (e.target.closest('[data-confirm-cancel]')) { confirmBox.hidden = true; confirmFn = null; return; }
+    if (e.target === document.getElementById('fn-confirm-ok')) {
+      confirmBox.hidden = true;
+      if (confirmFn) confirmFn();
+      confirmFn = null;
+    }
   });
-  document.addEventListener('ux:restore', function (e) {
-    var item = e.target.closest ? e.target.closest('.fn-item') : null;
-    if (!item) return;
-    refreshList();
-    if (item.classList.contains('is-active') && !detailEmpty.hidden) selectItem(item);
+
+  document.addEventListener('click', function (e) {
+    var del = e.target.closest ? e.target.closest('[data-fn-del]') : null;
+    if (!del) return;
+    var item = del.closest('.fn-item');
+    var key = item ? item.getAttribute('data-fn') : '';
+    if (!key || !Object.prototype.hasOwnProperty.call(CUSTOM, key)) return;
+    askConfirm('删除后函数不可恢复，确认删除「' + key + '」？', function () {
+      var wasActive = item.classList.contains('is-active');
+      delete CUSTOM[key];
+      item.remove();
+      // 被删项是当前选中项时清空右栏，与实现删除后重置选中一致
+      if (wasActive) showPanel('empty');
+      refreshList();
+      rt.toast('已删除', { type: 'success' });
+    });
   });
 
   /* ---------------- 新建 / 编辑表单 ---------------- */
@@ -625,6 +841,7 @@
     nameErr.hidden = true;
     scriptErr.hidden = true;
     paramErr.hidden = true;
+    paramErr.textContent = '';
     nameInput.classList.remove('input--error');
     scriptInput.classList.remove('input--error');
   }
@@ -632,6 +849,7 @@
   function refreshParamPreview() {
     paramPreview.textContent = serializeParams(paramRows) || '（无参数）';
     paramErr.hidden = true;
+    paramErr.textContent = '';
   }
 
   function renderParamRows() {
@@ -698,14 +916,18 @@
     showPanel('form');
   }
 
-  document.getElementById('fn-add').addEventListener('click', function () { openForm(null); });
+  document.getElementById('fn-add').addEventListener('click', function () {
+    // 与 startCreate 一致：进入新建即清空当前选中，取消后落在未选中占位
+    document.querySelectorAll('.fn-item.is-active').forEach(function (i) { i.classList.remove('is-active'); });
+    openForm(null);
+  });
   document.getElementById('fn-edit').addEventListener('click', function () {
-    var item = currentItem();
-    if (item && item.getAttribute('data-scope') === 'custom') openForm(item.getAttribute('data-fn'));
+    var key = customKey();
+    if (key) openForm(key);
   });
   document.getElementById('fn-cancel').addEventListener('click', function () {
-    var item = currentItem();
-    showPanel(item ? (item.getAttribute('data-scope') === 'custom' ? 'custom' : 'builtin') : 'empty');
+    // 编辑取消回详情视图，新建取消回「选择函数查看详情」（与 cancelEdit 口径一致）
+    showPanel(editingKey ? 'custom' : 'empty');
   });
 
   saveBtn.addEventListener('click', function () {
@@ -727,21 +949,25 @@
       rt.toast('请填写 Groovy 脚本', { type: 'warning' });
       return;
     }
-    if (name !== editingKey && Object.prototype.hasOwnProperty.call(CUSTOM, name)) {
-      nameErr.hidden = false;
-      nameErr.textContent = '函数「' + name + '」已存在，请更换名称';
-      nameInput.classList.add('input--error');
-      nameInput.focus();
-      rt.toast('函数「' + name + '」已存在', { type: 'danger' });
+    // 重名校验由后端完成（1000017022），演示按接口返回文案提示
+    var duplicated = Object.prototype.hasOwnProperty.call(BUILTIN, name) ||
+      (name !== editingKey && Object.prototype.hasOwnProperty.call(CUSTOM, name));
+    if (duplicated) {
+      rt.toast('函数名与内置函数重名或同作用域已存在同名函数', { type: 'danger' });
       return;
     }
-    nameErr.textContent = '请输入函数名称';
 
-    var paramsErrText = validateParamRows(paramRows);
-    if (paramsErrText) {
-      paramErr.textContent = paramsErrText;
+    var rowErrs = validateParamRows(paramRows);
+    if (rowErrs.length) {
+      paramErr.textContent = '';
+      rowErrs.forEach(function (err) {
+        var p = document.createElement('p');
+        p.className = 'param-error';
+        p.textContent = err.m;
+        paramErr.appendChild(p);
+      });
       paramErr.hidden = false;
-      rt.toast(paramsErrText, { type: 'warning' });
+      rt.toast(rowErrs[0].m, { type: 'warning' });
       return;
     }
 
@@ -773,7 +999,7 @@
         } else {
           updateListItem(name, payload);
         }
-        rt.toast('已更新', { type: 'success' });
+        rt.toast('已保存', { type: 'success' });
       }
 
       var item = document.querySelector('[data-fn="' + name + '"]');
@@ -803,17 +1029,15 @@
         '<span class="tag fn-item__state"></span>' +
       '</div>' +
       '<div class="fn-item__meta"></div>' +
-      '<div class="fn-item__acts"><span class="op-link op-link--danger" data-ux-undo=".fn-item">删除</span></div>';
+      '<div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>';
     li.querySelector('.fn-item__name').textContent = key;
     li.querySelector('.fn-item__scope').textContent = SCOPE_LABELS[fn.scope];
     li.querySelector('.fn-item__meta').textContent = fn.desc || '';
     applyListState(li, fn);
     li.addEventListener('click', function (e) {
-      if (e.target.closest('[data-act], [data-ux-undo]')) return;
+      if (e.target.closest('[data-fn-del]')) return;
       selectItem(li);
     });
-    // 动态插入的节点补挂跨页交互（删除撤销等），内部按 __uxBound 去重
-    if (rt.bind) rt.bind(li);
     return li;
   }
 

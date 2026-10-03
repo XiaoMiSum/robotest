@@ -101,6 +101,10 @@
   .cp-form__seg { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md); }
   .cp-form__seg .radio-seg { width: auto; }
   .cp-form__seg .radio-seg button { padding: 0 14px; }
+  /* 验证器 / 提取器配置：单行等分字段（对齐 ValidatorForm / ExtractorForm 的横向排布） */
+  .cp-form__row { display: flex; align-items: flex-start; gap: var(--space-md); }
+  .cp-form__row .field { flex: 1; min-width: 0; }
+  .cp-form__row--sm { flex: 0 0 150px; }
   .cell-input { width: 100%; border: 1px solid transparent; background: none; padding: 5px 6px; border-radius: var(--radius-sm); font-family: inherit; font-size: var(--font-size-sm); color: var(--n-700); }
   .cell-input:focus { border-color: var(--n-300); background: #fff; outline: none; }
 
@@ -162,6 +166,14 @@
                   <div class="cp-item__main"><span class="cp-item__name">分页游标提取</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">提取器 · 提取下一页游标供循环步骤使用</div>
                 </li>
+                <li class="cp-item" data-cp="order">
+                  <div class="cp-item__main"><span class="cp-item__name">提取订单号</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__meta">提取器 · 从响应体提取订单号供造数步骤引用</div>
+                </li>
+                <li class="cp-item" data-cp="track">
+                  <div class="cp-item__main"><span class="cp-item__name">提取物流单号</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__meta">提取器 · 从响应头提取物流轨迹号到变量 trackNo</div>
+                </li>
                 <li class="cp-item is-disabled" data-cp="cleanup">
                   <div class="cp-item__main"><span class="cp-item__name">清理测试数据</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--outline cp-item__state">已停用</span></div>
                   <div class="cp-item__meta">后置处理器 · 执行结束按订单号清理造数记录</div>
@@ -213,20 +225,17 @@
               </div>
             </div>
 
+            <!-- 处理器提取器随「配置」一同展示（对齐 ProcessorConfigDetail），仅在有行时渲染 -->
             <div class="cp-detail__section">
               <label class="cp-detail__label">配置</label>
-              <div class="cp-meta" id="cp-cfg"></div>
-            </div>
-
-            <div class="cp-detail__section" id="cp-ext-section">
-              <label class="cp-detail__label">提取器</label>
               <div>
-                <table class="table cp-ext-table">
-                  <thead><tr><th>来源</th><th>表达式</th><th style="width:150px">目标变量名</th><th>描述</th></tr></thead>
-                  <tbody id="cp-ext"></tbody>
-                </table>
-                <div class="btn-row" style="margin-top:var(--space-sm)">
-                  <button class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
+                <div class="cp-meta" id="cp-cfg"></div>
+                <div id="cp-ext-section" hidden>
+                  <span class="cp-form__label">提取器</span>
+                  <table class="table cp-ext-table">
+                    <thead><tr><th>来源</th><th>表达式</th><th style="width:150px">目标变量名</th><th>描述</th></tr></thead>
+                    <tbody id="cp-ext"></tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -246,7 +255,6 @@
               <div class="field">
                 <label class="field__label" for="cp-f-name">名称<span class="req">*</span></label>
                 <input class="input" id="cp-f-name" maxlength="100" placeholder="如：Token 预置">
-                <div class="field__error" id="cp-f-name-err" hidden>请输入组件名称</div>
               </div>
               <div class="field">
                 <label class="field__label" for="cp-f-type">类型<span class="req">*</span></label>
@@ -261,9 +269,9 @@
               <div class="field" id="cp-f-scope-field">
                 <label class="field__label" for="cp-f-scope">作用域<span class="req">*</span></label>
                 <select class="select" id="cp-f-scope">
-                  <option value="project">项目</option>
-                  <option value="space">空间</option>
                   <option value="global">公共</option>
+                  <option value="workspace">空间</option>
+                  <option value="project">项目</option>
                 </select>
                 <div class="field__hint">编辑态不可修改作用域</div>
               </div>
@@ -291,17 +299,24 @@
                     <option>GET</option><option selected>POST</option><option>PUT</option>
                     <option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
                   </select>
-                  <input class="input" id="f-path" placeholder="/api/endpoint（支持 ${变量} 引用）">
+                  <input class="input" id="f-path" placeholder="/api/endpoint (支持 ${变量} 引用)">
                 </div>
 
                 <span class="cp-tabs" data-reqtabs>
-                  <button data-reqtab="query" class="is-active">Query 参数<i class="cp-badge" id="bd-query"></i></button>
+                  <button data-reqtab="headers" class="is-active">请求头<i class="cp-badge" id="bd-headers"></i></button>
+                  <button data-reqtab="query">Query 参数<i class="cp-badge" id="bd-query"></i></button>
                   <button data-reqtab="body">请求体<i class="cp-badge" id="bd-body"></i></button>
-                  <button data-reqtab="headers">请求头<i class="cp-badge" id="bd-headers"></i></button>
                   <button data-reqtab="ext">提取器<i class="cp-badge" id="bd-ext"></i></button>
                 </span>
 
-                <div data-reqpane="query">
+                <div data-reqpane="headers">
+                  <table class="table">
+                    <thead><tr><th style="width:36px"></th><th style="width:38%">Header</th><th>Value</th><th style="width:56px"></th></tr></thead>
+                    <tbody id="f-headers" data-kp="Header" data-vp="Value"></tbody>
+                  </table>
+                </div>
+
+                <div data-reqpane="query" hidden>
                   <table class="table">
                     <thead><tr><th style="width:36px"></th><th style="width:38%">参数名</th><th>Value</th><th style="width:56px"></th></tr></thead>
                     <tbody id="f-query" data-kp="参数名" data-vp="Value"></tbody>
@@ -316,10 +331,10 @@
                       <button data-body="raw">raw</button>
                     </span>
                     <select class="select" id="f-rawsub" hidden style="width:130px" aria-label="raw 子类型">
-                      <option>text</option><option selected>json</option><option>xml</option>
-                      <option>html</option><option>javascript</option>
+                      <option>Text</option><option selected>Json</option><option>Xml</option>
+                      <option>Html</option><option>Javascript</option>
                     </select>
-                    <button type="button" class="btn btn--link btn--sm" id="f-format" hidden>格式化</button>
+                    <button type="button" class="btn btn--link btn--sm" id="f-format" hidden title="格式化（修正 JSON 缩进）">格式化</button>
                   </div>
                   <p data-bodypane="none" class="cp-body-hint">该请求不携带请求体。</p>
                   <div data-bodypane="urlencoded" hidden>
@@ -329,21 +344,14 @@
                     </table>
                   </div>
                   <div data-bodypane="raw" hidden>
-                    <textarea class="code-view" id="f-body" rows="8" spellcheck="false" placeholder="原始文本（支持变量引用）"></textarea>
+                    <textarea class="code-view" id="f-body" rows="12" spellcheck="false" placeholder="原始文本（支持变量引用）"></textarea>
                   </div>
-                </div>
-
-                <div data-reqpane="headers" hidden>
-                  <table class="table">
-                    <thead><tr><th style="width:36px"></th><th style="width:38%">Header</th><th>Value</th><th style="width:56px"></th></tr></thead>
-                    <tbody id="f-headers" data-kp="Header" data-vp="Value"></tbody>
-                  </table>
                 </div>
 
                 <div data-reqpane="ext" hidden>
                   <div class="pane-actions">
-                    <button type="button" class="btn btn--link btn--sm" data-add="ext">＋ 添加提取器</button>
-                    <button type="button" class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
+                    <button type="button" class="btn btn--link btn--sm" data-add="ext">+ 添加提取器</button>
+                    <button type="button" class="btn btn--link btn--sm" data-import-ext>从公共组件获取</button>
                   </div>
                   <div class="pane-list" id="f-ext"></div>
                 </div>
@@ -362,7 +370,7 @@
                   </div>
                   <div class="field">
                     <label class="field__label">参数 (args)
-                      <button type="button" class="btn btn--link btn--sm" data-add="arg">＋ 添加参数</button>
+                      <button type="button" class="btn btn--link btn--sm" data-add="arg">+ 添加参数</button>
                     </label>
                     <div class="arg-list" id="f-args"></div>
                   </div>
@@ -370,66 +378,59 @@
 
                 <div data-jdbcpane="ext" hidden>
                   <div class="pane-actions">
-                    <button type="button" class="btn btn--link btn--sm" data-add="ext">＋ 添加提取器</button>
-                    <button type="button" class="btn btn--link btn--sm" data-ux-feedback="从公共组件引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button>
+                    <button type="button" class="btn btn--link btn--sm" data-add="ext">+ 添加提取器</button>
+                    <button type="button" class="btn btn--link btn--sm" data-import-ext>从公共组件获取</button>
                   </div>
                   <div class="pane-list" id="f-jdbc-ext"></div>
                 </div>
               </div>
             </div>
 
+            <!-- 验证器：四字段一行（对齐 ValidatorForm），描述仅在详情态展示 -->
             <div id="cfg-validator" hidden>
-              <div class="form-grid">
-                <div class="field">
-                  <label class="field__label" for="f-vtarget">验证目标<span class="req">*</span></label>
+              <div class="cp-form__row">
+                <div class="field cp-form__row--sm">
+                  <label class="field__label" for="f-vtarget">验证目标</label>
                   <select class="select" id="f-vtarget">
-                    <option>返回码</option><option selected>JSON 字段</option><option>响应头</option>
-                    <option>响应体</option><option>正则匹配</option><option>XPath</option><option>Groovy 脚本</option>
+                    <option>状态码</option><option>JSON 字段</option><option>响应头</option>
+                    <option>响应体</option><option>正则匹配</option>
                   </select>
                 </div>
-                <div class="field">
-                  <label class="field__label" for="f-vcond">比较条件<span class="req">*</span></label>
+                <div class="field cp-form__row--sm">
+                  <label class="field__label" for="f-vcond">比较条件</label>
                   <select class="select" id="f-vcond">
                     <option>等于</option><option>不等于</option><option>大于</option><option>小于</option>
                     <option>大于等于</option><option>小于等于</option><option>包含</option><option>不包含</option>
-                    <option>以...开头</option><option>以...结尾</option><option>匹配正则</option>
+                    <option>以…开头</option><option>以…结尾</option><option>正则匹配</option>
                   </select>
                 </div>
                 <div class="field">
                   <label class="field__label" for="f-vexpr">表达式</label>
-                  <input class="input" id="f-vexpr" placeholder="如：$.code（按目标决定是否需要）">
+                  <input class="input" id="f-vexpr" placeholder="表达式（如 $.code）">
                 </div>
                 <div class="field">
                   <label class="field__label" for="f-vexpected">期望值</label>
-                  <input class="input" id="f-vexpected" placeholder="按目标决定是否需要">
-                </div>
-                <div class="field" style="grid-column:1 / -1">
-                  <label class="field__label" for="f-vdesc">验证器描述</label>
-                  <input class="input" id="f-vdesc" placeholder="用于报告展示的验证器说明">
+                  <input class="input" id="f-vexpected" placeholder="期望值">
                 </div>
               </div>
             </div>
 
+            <!-- 提取器：三字段一行（对齐 ExtractorForm） -->
             <div id="cfg-extractor" hidden>
-              <div class="form-grid">
-                <div class="field">
-                  <label class="field__label" for="f-esource">提取来源<span class="req">*</span></label>
+              <div class="cp-form__row">
+                <div class="field cp-form__row--sm">
+                  <label class="field__label" for="f-esource">提取来源</label>
                   <select class="select" id="f-esource">
-                    <option selected>JSON 字段</option><option>XPath</option><option>正则捕获</option>
-                    <option>两个标记之间</option><option>完整响应体</option><option>Groovy 脚本</option>
+                    <option selected>JSON 字段</option><option>响应头</option><option>正则匹配</option><option>完整响应体</option>
                   </select>
                 </div>
                 <div class="field">
                   <label class="field__label" for="f-eexpr">表达式</label>
-                  <input class="input" id="f-eexpr" placeholder="如：$.data.nextCursor">
+                  <input class="input" id="f-eexpr" placeholder="表达式">
                 </div>
                 <div class="field">
-                  <label class="field__label" for="f-ename">目标变量名<span class="req">*</span></label>
-                  <input class="input" id="f-ename" placeholder="如：nextCursor">
-                </div>
-                <div class="field">
-                  <label class="field__label" for="f-edesc">提取描述</label>
-                  <input class="input" id="f-edesc" placeholder="用于报告展示的提取说明">
+                  <label class="field__label" for="f-ename">变量名</label>
+                  <input class="input" id="f-ename" placeholder="变量名">
                 </div>
               </div>
             </div>
@@ -460,6 +461,34 @@
   </div>
 </div>
 
+<!-- 从公共组件获取提取器（对齐 ExtractorAssetPicker：仅展示启用的提取器资产，引入为复制） -->
+<div class="dialog-mask" id="cp-ext-picker" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="cp-ext-picker-title" style="width:580px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="cp-ext-picker-title">从公共组件获取提取器</span>
+      <button class="dialog__close" data-picker-close aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="selected-hint" style="margin:0 0 var(--space-sm)">仅展示启用的提取器资产；引入为复制，得到独立副本，与源资产无关联。</p>
+      <div class="cp-list__head" style="margin-bottom:var(--space-sm)">
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="cp-picker-search" placeholder="搜索提取器名称..."></div>
+        <button class="btn btn--default btn--sm" id="cp-picker-do-search" type="button"><span data-icon="search"></span>搜索</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th style="width:34px"></th><th>名称</th><th style="width:80px">作用域</th><th>描述</th></tr></thead>
+          <tbody id="cp-picker-rows"></tbody>
+        </table>
+      </div>
+      <p class="selected-hint" id="cp-picker-empty" hidden>暂无可用提取器</p>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" data-picker-close>取消</button>
+      <button class="btn btn--primary" id="cp-picker-ok">引 入</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
@@ -467,8 +496,8 @@
   var rt = window.RTUX;
 
   var TYPE_LABELS = { preprocessor: '前置处理器', postprocessor: '后置处理器', validator: '验证器', extractor: '提取器' };
-  var SCOPE_LABELS = { project: '项目', space: '空间', global: '公共' };
-  var SCOPE_TAGS = { project: 'tag tag--info', space: 'tag tag--success', global: 'tag tag--outline' };
+  var SCOPE_LABELS = { project: '项目', workspace: '空间', global: '公共' };
+  var SCOPE_TAGS = { project: 'tag tag--info', workspace: 'tag tag--success', global: 'tag tag--outline' };
   var TODAY = '2026-09-28 10:24';
 
   /* 组件数据：cfg 为只读展示行，extractors 承载处理器子表 */
@@ -478,7 +507,7 @@
       desc: '从环境变量获取 Token 并注入请求头',
       cfg: [
         ['处理器类型', 'HTTP'],
-        ['环境 HTTP 配置', 'default（测试环境 · 默认 HTTP）'],
+        ['环境 HTTP 配置', 'default'],
         ['请求方法', 'POST'],
         ['路径', '/oauth/token'],
         ['Query 参数', [['client', 'web'], ['trace_id', '${traceId}']], 'kv'],
@@ -490,7 +519,7 @@
       extractors: [{ on: true, source: 'JSON 字段', expr: '$.data.token', name: 'token', desc: '登录令牌' }]
     },
     {
-      id: 'login', name: '登录态校验', type: 'validator', scope: 'space', enabled: true, updated: '2026-09-19 16:42',
+      id: 'login', name: '登录态校验', type: 'validator', scope: 'workspace', enabled: true, updated: '2026-09-19 16:42',
       desc: '校验登录态，失效时中断后续步骤',
       cfg: [
         ['验证目标', 'JSON 字段'],
@@ -517,7 +546,7 @@
       desc: '执行结束按订单号清理造数记录',
       cfg: [
         ['处理器类型', 'JDBC'],
-        ['数据源', 'order_db（测试环境）'],
+        ['数据源', 'order_db'],
         ['SQL 语句', 'DELETE FROM t_order_test\nWHERE biz_no = ${orderNo}', 'code'],
         ['参数', '${orderNo}']
       ],
@@ -529,7 +558,7 @@
       desc: '执行结束将结果按表单上报到报表服务',
       cfg: [
         ['处理器类型', 'HTTP'],
-        ['环境 HTTP 配置', 'api_http（测试环境）'],
+        ['环境 HTTP 配置', 'api_http'],
         ['请求方法', 'POST'],
         ['路径', '/report/result'],
         ['Query 参数', [['trace_id', '${traceId}']], 'kv'],
@@ -545,10 +574,32 @@
       desc: '响应体需包含标准错误码字段',
       cfg: [
         ['验证目标', '响应体'],
-        ['比较条件', '包含'],
         ['表达式', ''],
+        ['比较条件', '包含'],
         ['期望值', 'ERROR_'],
         ['验证器描述', '错误响应需携带标准错误码前缀']
+      ],
+      extractors: []
+    },
+    {
+      id: 'order', name: '提取订单号', type: 'extractor', scope: 'project', enabled: true, updated: '2026-09-17 14:22',
+      desc: '从响应体提取订单号供造数步骤引用',
+      cfg: [
+        ['提取来源', 'JSON 字段'],
+        ['表达式', '$.data.orderId'],
+        ['目标变量名', 'orderId'],
+        ['提取描述', '订单号']
+      ],
+      extractors: []
+    },
+    {
+      id: 'track', name: '提取物流单号', type: 'extractor', scope: 'workspace', enabled: true, updated: '2026-09-16 10:47',
+      desc: '从响应头提取物流轨迹号到变量 trackNo',
+      cfg: [
+        ['提取来源', '响应头'],
+        ['表达式', 'X-Track-No'],
+        ['目标变量名', 'trackNo'],
+        ['提取描述', '物流轨迹号']
       ],
       extractors: []
     }
@@ -621,8 +672,9 @@
     });
 
     var isProc = cp.type === 'preprocessor' || cp.type === 'postprocessor';
-    byId('cp-ext-section').hidden = !isProc;
-    renderExtView(byId('cp-ext'), cp.extractors || []);
+    var exts = cp.extractors || [];
+    byId('cp-ext-section').hidden = !isProc || !exts.length;
+    renderExtView(byId('cp-ext'), exts);
   }
 
   /* 提取器查看态：只读表格 */
@@ -652,9 +704,10 @@
 
   /* ---------------- 处理器编辑态辅助 ---------------- */
   var EXT_SOURCES = ['JSON 字段', '响应头', '正则匹配', '完整响应体'];
+  /* 下拉文案为「名称（引用名）」，详情态仅回显引用名（对齐 optionLabel / buildProcessorDetailRows） */
   var REF_OPTS = {
-    http: [['default', 'default（测试环境 · 默认 HTTP）'], ['api_http', 'api_http（测试环境）'], ['mock_http', 'mock_http（预发环境）']],
-    jdbc: [['order_db', 'order_db（测试环境）'], ['user_db', 'user_db（测试环境）'], ['mock_db', 'mock_db（预发环境）']]
+    http: [['default', '默认 HTTP（default）'], ['api_http', '业务网关（api_http）'], ['mock_http', 'Mock 服务（mock_http）']],
+    jdbc: [['order_db', '订单库（order_db）'], ['user_db', '用户库（user_db）'], ['mock_db', 'Mock 库（mock_db）']]
   };
   var RAW_CT = { text: '', json: 'application/json', xml: 'application/xml', html: 'text/html', javascript: 'text/javascript' };
 
@@ -745,8 +798,8 @@
     setBadge('bd-jdbc-ext', n);
   }
 
-  /* 引用下拉：选项随处理器类型切换；无 label 时停在占位项（新建未配置） */
-  function fillRefOptions(proc, label) {
+  /* 引用下拉：选项随处理器类型切换；按 ref 值回选（详情态只存引用名） */
+  function fillRefOptions(proc, ref) {
     var sel = byId('f-ref');
     sel.textContent = '';
     var ph = el('option');
@@ -756,9 +809,9 @@
     sel.appendChild(ph);
     REF_OPTS[proc].forEach(function (o) { var op = el('option'); op.value = o[0]; op.textContent = o[1]; sel.appendChild(op); });
     sel.selectedIndex = 0;
-    if (label) {
+    if (ref) {
       for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].textContent === label) { sel.selectedIndex = i; break; }
+        if (sel.options[i].value === ref) { sel.selectedIndex = i; break; }
       }
     }
   }
@@ -931,16 +984,14 @@
     var args = cp && proc === 'jdbc' ? String(cfgVal(cp, '参数') || '') : '';
     fillArgs(args ? args.split(',').map(function (s) { return s.trim(); }) : []);
 
-    byId('f-vtarget').value = t === 'validator' && cp ? String(cfgVal(cp, '验证目标') || 'JSON 字段') : 'JSON 字段';
+    byId('f-vtarget').value = t === 'validator' && cp ? String(cfgVal(cp, '验证目标') || '状态码') : '状态码';
     byId('f-vcond').value = t === 'validator' && cp ? String(cfgVal(cp, '比较条件') || '等于') : '等于';
     byId('f-vexpr').value = t === 'validator' && cp ? String(cfgVal(cp, '表达式') || '') : '';
     byId('f-vexpected').value = t === 'validator' && cp ? String(cfgVal(cp, '期望值') || '') : '';
-    byId('f-vdesc').value = t === 'validator' && cp ? String(cfgVal(cp, '验证器描述') || '') : '';
 
     byId('f-esource').value = t === 'extractor' && cp ? String(cfgVal(cp, '提取来源') || 'JSON 字段') : 'JSON 字段';
     byId('f-eexpr').value = t === 'extractor' && cp ? String(cfgVal(cp, '表达式') || '') : '';
     byId('f-ename').value = t === 'extractor' && cp ? String(cfgVal(cp, '目标变量名') || '') : '';
-    byId('f-edesc').value = t === 'extractor' && cp ? String(cfgVal(cp, '提取描述') || '') : '';
 
     extRows = (cp && isProc) ? JSON.parse(JSON.stringify(cp.extractors || [])) : [];
     renderExtCards();
@@ -964,19 +1015,18 @@
     updateBadges();
   }
 
+  /* mode：new / edit / copy —— 复制以源组件回填新建面板，保存时才落库为独立副本 */
   function openForm(mode, id) {
     editingId = mode === 'edit' ? id : null;
     var cp = id ? findCp(id) : null;
     byId('cp-form-title').textContent = mode === 'edit' ? '编辑组件' : '新建组件';
-    byId('cp-f-name').value = cp ? cp.name : '';
+    byId('cp-f-name').value = cp ? (mode === 'copy' ? cp.name + ' (副本)' : cp.name) : '';
     byId('cp-f-type').value = cp ? cp.type : 'preprocessor';
     byId('cp-f-scope').value = cp ? cp.scope : 'project';
     byId('cp-f-desc').value = cp ? (cp.desc || '') : '';
     byId('cp-f-scope-field').hidden = mode === 'edit';
     byId('cp-f-type').disabled = mode === 'edit';
     byId('cp-f-type-hint').hidden = mode !== 'edit';
-    byId('cp-f-name-err').hidden = true;
-    byId('cp-f-name').classList.remove('input--error');
     setCfgForm(cp);
     applyType();
     showPanel('form');
@@ -990,21 +1040,20 @@
         ['验证目标', byId('f-vtarget').value],
         ['表达式', byId('f-vexpr').value.trim()],
         ['比较条件', byId('f-vcond').value],
-        ['期望值', byId('f-vexpected').value.trim()],
-        ['验证器描述', byId('f-vdesc').value.trim()]
+        ['期望值', byId('f-vexpected').value.trim()]
       ];
     }
     if (t === 'extractor') {
       return [
         ['提取来源', byId('f-esource').value],
         ['表达式', byId('f-eexpr').value.trim()],
-        ['目标变量名', byId('f-ename').value.trim()],
-        ['提取描述', byId('f-edesc').value.trim()]
+        ['目标变量名', byId('f-ename').value.trim()]
       ];
     }
     var proc = document.querySelector('[data-procseg] button.is-active').getAttribute('data-proc');
     var refSel = byId('f-ref');
-    var refLabel = refSel.selectedIndex > 0 ? refSel.options[refSel.selectedIndex].textContent : '';
+    /* 详情态只回显引用名，落库与展示同用 value */
+    var refLabel = refSel.selectedIndex > 0 ? refSel.value : '';
     if (proc === 'jdbc') {
       return [
         ['处理器类型', 'JDBC'],
@@ -1066,22 +1115,9 @@
   });
 
   byId('cp-copy').addEventListener('click', function () {
-    var src = findCp(activeId);
-    if (!src) return;
-    var copy = JSON.parse(JSON.stringify(src));
-    copy.id = 'cp' + (++seq);
-    copy.name = src.name + ' (副本)';
-    copy.enabled = true;
-    copy.updated = TODAY;
-    CP.push(copy);
-    var li = el('li', 'cp-item');
-    li.setAttribute('data-cp', copy.id);
-    li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name"></span><span class="tag tag--outline cp-item__scope"></span><span class="tag tag--outline cp-item__state"></span></div><div class="cp-item__meta"></div>';
-    byId('cp-items').appendChild(li);
-    renderItem(copy);
-    rt.toast('已复制', { type: 'success' });
-    filterList();
-    selectItem(copy.id);
+    if (!findCp(activeId)) return;
+    /* 复制仅回填新建面板，保存后才生成独立副本 */
+    openForm('copy', activeId);
   });
 
   /* 删除：二次确认（红色警示） */
@@ -1120,6 +1156,67 @@
     if (!cp) return;
     cp.enabled = this.checked;
     renderItem(cp);
+  });
+
+  /* ---------------- 从公共组件获取提取器（对齐 ExtractorAssetPicker） ---------------- */
+  var pickerBox = byId('cp-ext-picker');
+
+  function renderPicker() {
+    var kw = byId('cp-picker-search').value.trim().toLowerCase();
+    var rows = CP.filter(function (c) {
+      return c.type === 'extractor' && c.enabled && (!kw || c.name.toLowerCase().indexOf(kw) >= 0);
+    });
+    var tb = byId('cp-picker-rows');
+    tb.textContent = '';
+    rows.forEach(function (c) {
+      var tr = el('tr');
+      var td0 = el('td');
+      var box = el('span', 'checkbox');
+      box.setAttribute('data-picker-id', c.id);
+      td0.appendChild(box);
+      var td1 = el('td', 'cell-main'); td1.textContent = c.name;
+      var td2 = el('td'); td2.textContent = SCOPE_LABELS[c.scope];
+      var td3 = el('td'); td3.textContent = c.desc || '—';
+      tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+      tb.appendChild(tr);
+    });
+    byId('cp-picker-empty').hidden = rows.length > 0;
+  }
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('[data-import-ext]')) {
+      byId('cp-picker-search').value = '';
+      renderPicker();
+      pickerBox.hidden = false;
+      return;
+    }
+    var box = e.target.closest ? e.target.closest('#cp-ext-picker .checkbox') : null;
+    if (box) box.classList.toggle('checkbox--on');
+    if (e.target.closest && e.target.closest('[data-picker-close]')) pickerBox.hidden = true;
+    if (e.target === pickerBox) pickerBox.hidden = true;
+  });
+
+  byId('cp-picker-do-search').addEventListener('click', renderPicker);
+  byId('cp-picker-search').addEventListener('input', renderPicker);
+
+  byId('cp-picker-ok').addEventListener('click', function () {
+    var checked = byId('cp-picker-rows').querySelectorAll('.checkbox--on');
+    if (!checked.length) { rt.toast('请先勾选要引入的组件', { type: 'warning' }); return; }
+    checked.forEach(function (box) {
+      var src = findCp(box.getAttribute('data-picker-id'));
+      if (!src) return;
+      extRows.push({
+        on: true,
+        source: String(cfgVal(src, '提取来源') || EXT_SOURCES[0]),
+        expr: String(cfgVal(src, '表达式') || ''),
+        name: String(cfgVal(src, '目标变量名') || ''),
+        desc: String(cfgVal(src, '提取描述') || '')
+      });
+      box.classList.remove('checkbox--on');
+    });
+    renderExtCards();
+    pickerBox.hidden = true;
+    rt.toast('已引入 ' + checked.length + ' 个提取器', { type: 'success' });
   });
 
   byId('cp-f-type').addEventListener('change', applyType);
@@ -1245,28 +1342,26 @@
 
   byId('cp-save').addEventListener('click', function () {
     var name = byId('cp-f-name').value.trim();
+    /* 必填校验仅名称一项，与 handleSave 口径一致 */
     if (!name) {
-      byId('cp-f-name-err').hidden = false;
-      byId('cp-f-name').classList.add('input--error');
       byId('cp-f-name').focus();
       rt.toast('请填写组件名称', { type: 'warning' });
       return;
     }
+    var scope = byId('cp-f-scope').value;
     var dup = CP.filter(function (c) {
-      return c.name === name && c.id !== editingId && c.type === byId('cp-f-type').value;
+      return c.name === name && c.scope === scope && c.id !== editingId;
     })[0];
     if (dup) {
-      rt.toast('同作用域同类型内组件「' + name + '」已存在', { type: 'danger' });
+      rt.toast('同作用域下已存在同名公共组件', { type: 'danger' });
       byId('cp-f-name').focus();
       return;
     }
-    byId('cp-f-name-err').hidden = true;
-    byId('cp-f-name').classList.remove('input--error');
 
     var payload = {
       name: name,
       type: byId('cp-f-type').value,
-      scope: byId('cp-f-scope').value,
+      scope: scope,
       desc: byId('cp-f-desc').value.trim(),
       /* 编辑面板不提供启停：新建默认启用，编辑保留原启用状态 */
       enabled: editingId ? !!findCp(editingId).enabled : true,
