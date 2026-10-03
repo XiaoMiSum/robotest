@@ -20,7 +20,7 @@
 --   7e57000f test_review                7e570010 test_review_module_snapshot
 --   7e570011 test_review_node_snapshot  7e570012 test_review_record
 --   7e570013 bug                        7e570014 bug_log
---   7e570015 requirement_pool_item      7e570016 ws_project_activity
+--   7e570016 ws_project_activity
 --   7e570017 api_report                 7e570018 api_execution_record
 --   7e570019 api_debug_record           7e57001a api_scheduled_task
 --   7e57001b api_scheduled_task_execution  7e57001c api_swagger_url
@@ -57,8 +57,6 @@ DELETE FROM bug_attachment                 WHERE id::text LIKE '7e57%';
 DELETE FROM bug                           WHERE id::text LIKE '7e57%';
 
 DELETE FROM ws_project_activity           WHERE id::text LIKE '7e57%';
-DELETE FROM requirement_document_rel      WHERE id::text LIKE '7e57%';
-DELETE FROM requirement_pool_item         WHERE id::text LIKE '7e57%';
 
 DELETE FROM api_report                    WHERE id::text LIKE '7e57%';
 DELETE FROM api_execution_record          WHERE id::text LIKE '7e57%';
@@ -1074,45 +1072,6 @@ VALUES
 ('7e570014-0000-4000-8000-000000000010','7e570013-0000-4000-8000-000000000005','7e57001f-0000-4000-8000-000000000001','reject','拒绝缺陷，说明：与模块树单条排序的设计冲突',false, now() - interval '11 days', now()),
 
 ('7e570014-0000-4000-8000-000000000011','7e570013-0000-4000-8000-000000000006','7e57001f-0000-4000-8000-000000000001','create','创建缺陷',false, now() - interval '2 days', now());
-
--- ============================================================
--- 14. 需求池（active / archived 两态，见 docs/01-requirements/06-ai/03-srs-intelligent-case.md）
--- ============================================================
-INSERT INTO requirement_pool_item
-(id, project_id, title, content, source_url, status, ai_generated, created_by, updated_by,
- is_deleted, created_at, updated_at)
-VALUES
-('7e570015-0000-4000-8000-000000000001','7e570001-0000-4000-8000-000000000001',
- '用例脑图支持按优先级批量筛选',
- '希望在脑图视图中可以只看 P0 用例，方便回归前快速圈定高优范围。',
- NULL,'active',false,'7e57001f-0000-4000-8000-000000000001','7e57001f-0000-4000-8000-000000000001',
- false, now() - interval '9 days', now()),
-
-('7e570015-0000-4000-8000-000000000002','7e570001-0000-4000-8000-000000000001',
- '缺陷列表按模块聚合统计',
- '缺陷页希望能按模块做一次聚合，直观看到哪个模块缺陷最集中。',
- NULL,'active',true,'7e57001f-0000-4000-8000-000000000001','7e57001f-0000-4000-8000-000000000001',
- false, now() - interval '8 days', now()),
-
-('7e570015-0000-4000-8000-000000000003','7e570001-0000-4000-8000-000000000001',
- '场景步骤支持条件分支',
- '复杂场景需要 if/else 分支，例如登录失败时走恢复流程。',
- 'https://example.com/issues/scene-branch','active',false,
- '7e57001f-0000-4000-8000-000000000001','7e57001f-0000-4000-8000-000000000001',
- false, now() - interval '6 days', now()),
-
-('7e570015-0000-4000-8000-000000000004','7e570001-0000-4000-8000-000000000001',
- '报告支持导出 PDF',
- '交付场景需要把接口报告导成 PDF 归档。',
- NULL,'archived',false,
- '7e57001f-0000-4000-8000-000000000001','7e57001f-0000-4000-8000-000000000001',
- false, now() - interval '20 days', now()),
-
-('7e570015-0000-4000-8000-000000000005','7e570001-0000-4000-8000-000000000001',
- 'Mock 支持按请求体内容路由',
- '同一个 path 希望能按 body 里的 type 字段返回不同 Mock 响应。',
- NULL,'active',true,'7e57001f-0000-4000-8000-000000000001','7e57001f-0000-4000-8000-000000000001',
- false, now() - interval '4 days', now());
 
 -- ============================================================
 -- 15. 项目动态（工作台「项目动态」数据源；resource_type / action 取值与
