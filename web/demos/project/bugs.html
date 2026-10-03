@@ -361,7 +361,7 @@
             <td>代码错误</td>
             <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
             <td><span class="tag tag--warning">高</span></td>
-            <td><span class="tag tag--neutral">激活</span></td>
+            <td><span class="tag tag--info">激活</span></td>
             <td>王芳</td>
             <td>李华</td>
             <td class="muted">-</td>
@@ -379,7 +379,7 @@
             <td><span class="tag tag--danger"><span class="dot"></span>致命</span></td>
             <td><span class="tag tag--warning">高</span></td>
             <td>
-              <span class="tag tag--neutral">激活</span>
+              <span class="tag tag--info">激活</span>
               <span class="tag tag--warning tag--sm" style="margin-left:4px">已确认</span>
             </td>
             <td>李华</td>
@@ -413,7 +413,7 @@
             <td><span class="mono text-sm muted">e5f6...e0f1</span></td>
             <td><a href="bug-detail.html" class="cell-main">订单列表分页跳转闪烁</a></td>
             <td>界面优化</td>
-            <td><span class="tag tag--neutral"><span class="dot"></span>轻微</span></td>
+            <td><span class="tag tag--success"><span class="dot"></span>轻微</span></td>
             <td><span class="tag tag--neutral">低</span></td>
             <td><span class="tag tag--neutral">已关闭</span></td>
             <td>周敏</td>
@@ -486,7 +486,7 @@
             <td>性能问题</td>
             <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
             <td><span class="tag tag--info">中</span></td>
-            <td><span class="tag tag--neutral">激活</span></td>
+            <td><span class="tag tag--info">激活</span></td>
             <td>周敏</td>
             <td class="muted">-</td>
             <td class="muted">-</td>
@@ -587,7 +587,7 @@
         <a href="bug-detail.html" class="bug-board__card" draggable="true">
           <div class="bug-board__card-title">订单列表分页跳转闪烁</div>
           <div class="bug-board__card-meta">
-            <span class="tag tag--neutral tag--sm">轻微</span>
+            <span class="tag tag--success tag--sm">轻微</span>
             <span class="bug-board__card-assignee">陈强</span>
           </div>
         </a>
@@ -717,7 +717,7 @@
   // 当前登录人与 shell 顶栏一致，快捷筛选「由我…」按其过滤
   var CURRENT_USER = '张明';
   var STATUS_LABEL = { active: '激活', resolved: '已修复', rejected: '已拒绝', closed: '已关闭' };
-  // 蓝色不表达状态（视觉设计 4.1），激活与已关闭同取信息灰，靠文案区分
+  // 激活取信息蓝（对齐实际代码 active=primary 与详情页配色），已关闭取灰，避免两态撞色
   var STATUS_TAG = { active: 'tag--neutral', resolved: 'tag--success', rejected: 'tag--warning', closed: 'tag--neutral' };
   // 与后端 BugStatusChangeServiceImpl 的合法流转保持一致，看板落点据此判定
   var TRANSITIONS = { active: ['resolved', 'rejected'], resolved: ['closed', 'active'], rejected: ['closed', 'active'], closed: ['active'] };
