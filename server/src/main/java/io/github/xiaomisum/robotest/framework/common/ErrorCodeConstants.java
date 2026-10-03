@@ -201,4 +201,29 @@ public class ErrorCodeConstants {
     public static final ErrorCode REQUIREMENT_NO_PERMISSION = ErrorCode.of(1000018012, "无需求管理权限");
     public static final ErrorCode REQUIREMENT_TASK_IN_PROGRESS = ErrorCode.of(1000018013, "已存在进行中的导入或拆分任务");
     public static final ErrorCode REQUIREMENT_TRACE_SERVICE_FAILED = ErrorCode.of(1000018014, "追溯服务调用失败");
+
+    // ========== AI 配置与任务引擎 1,000,018,101-1,000,018,123（AI 底座详设 6） ==========
+    public static final ErrorCode AI_DISABLED = ErrorCode.of(1000018101, "AI 能力未启用（总开关关闭）");
+    public static final ErrorCode AI_MODEL_NOT_FOUND = ErrorCode.of(1000018102, "模型配置不存在");
+    public static final ErrorCode AI_MODEL_INVALID = ErrorCode.of(1000018103, "模型配置参数非法");
+    public static final ErrorCode AI_DEFAULT_MODEL_CONFLICT = ErrorCode.of(1000018104, "默认模型引用冲突（不可删除或停用默认模型）");
+    public static final ErrorCode AI_MODEL_TEST_FAILED = ErrorCode.of(1000018105, "模型连通性测试失败");
+    public static final ErrorCode AI_EMBEDDING_INVALID = ErrorCode.of(1000018106, "向量 API 配置参数非法");
+    public static final ErrorCode AI_EMBEDDING_TEST_FAILED = ErrorCode.of(1000018107, "向量 API 连通性测试失败");
+    public static final ErrorCode AI_PROMPT_SCENE_NOT_FOUND = ErrorCode.of(1000018108, "提示词场景不存在");
+    public static final ErrorCode AI_PROMPT_INVALID = ErrorCode.of(1000018109, "提示词模板校验失败（变量缺失或非法）");
+    public static final ErrorCode AI_TASK_NOT_FOUND = ErrorCode.of(1000018110, "任务不存在");
+    public static final ErrorCode AI_TASK_STATE_INVALID = ErrorCode.of(1000018111, "任务状态不允许该操作");
+    public static final ErrorCode AI_ARTIFACT_NOT_FOUND = ErrorCode.of(1000018112, "任务产物不存在");
+    public static final ErrorCode AI_ARTIFACT_ALREADY_CONFIRMED = ErrorCode.of(1000018113, "产物已确认，不可重复操作");
+    public static final ErrorCode AI_TASK_TYPE_UNSUPPORTED = ErrorCode.of(1000018114, "不支持的任务类型");
+    public static final ErrorCode AI_TASK_INPUT_INVALID = ErrorCode.of(1000018115, "任务输入参数非法");
+    public static final ErrorCode AI_NO_PERMISSION = ErrorCode.of(1000018116, "无 AI 能力使用权限");
+    public static final ErrorCode AI_MODEL_CALL_FAILED = ErrorCode.of(1000018117, "模型服务调用失败（不可用、超时或限流）");
+    public static final ErrorCode AI_MODEL_NOT_CONFIGURED = ErrorCode.of(1000018118, "未配置可用模型");
+    public static final ErrorCode AI_EMBEDDING_NOT_CONFIGURED = ErrorCode.of(1000018119, "向量 API 未配置或未启用，检索能力不可用");
+    public static final ErrorCode AI_USAGE_RANGE_INVALID = ErrorCode.of(1000018120, "用量查询时间范围非法");
+    public static final ErrorCode AI_NO_ADMIN_PERMISSION = ErrorCode.of(1000018121, "无 AI 配置管理权限");
+    public static final ErrorCode AI_VECTOR_INDEX_UNAVAILABLE = ErrorCode.of(1000018122, "向量索引不可用（全量重建中）");
+    public static final ErrorCode AI_WAIT_SECONDS_INVALID = ErrorCode.of(1000018123, "同步等待参数超限（0–10 秒）");
 }
