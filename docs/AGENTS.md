@@ -9,7 +9,7 @@
 
 - **格式**：Markdown（GFM）
 - **绘图**：Mermaid（流程图/时序图/类图）
-- **目录**：按业务域分 `00-spec/`、`01-requirements/`、`02-high-level-design/`、`03-architecture/`、`04-detailed-design/`、`05-interaction-design/`
+- **目录**：按业务域分 `00-spec/`、`01-requirements/`、`02-high-level-design/`、`03-architecture/`、`04-detailed-design/`、`05-interaction-design/`、`06-implementation-plan/`
 - **版本管理**：工作目录原位迭代，历史版本经 Git 回溯
 - **校验**：`bash scripts/validate-docs.sh`，Windows 无 bash 时用 `node scripts/validate.mjs --docs`（C7 提交格式 + `scripts/check-docs.mjs`：断链、行内路径、元信息、规则编号）
 
@@ -30,6 +30,7 @@ docs/
 ├── 03-architecture/         ← 架构设计
 ├── 04-detailed-design/      ← 详细设计说明书
 ├── 05-interaction-design/   ← 交互设计
+├── 06-implementation-plan/  ← 开发方案与计划
 └── AGENTS.md                ← 本文档
 ```
 
@@ -92,6 +93,12 @@ docs/
 - **交互流程**用 Mermaid 时序图/流程图描述；**页面结构**用 ASCII 字符画示意。
 - **视觉要求**引用 `docs/05-interaction-design/03-visual-design.md` 中定义的 CSS 变量与色彩体系，不另行定义颜色值。
 - 覆盖空态、加载、错误、权限不足等**全部状态分支**，不只描述正常路径。
+
+### 开发方案与计划（`docs/06-implementation-plan/`）
+
+- **章节骨架**：引言（编写目的 / 范围 / 基线文档 / 定义与缩写）→ 开发方案 → 开发计划 → 风险与应对 → 计划维护。
+- **只写实施路径与依赖**：阶段与工作包不排期、不给人天；功能行为引用需求文档，表结构与接口引用详细设计，页面行为引用交互设计，不重复定义。
+- **交付批次**按模块依赖划分，每批给出范围、验收重点与验收门禁。
 
 ### 工程规范（`docs/00-spec/`）
 
