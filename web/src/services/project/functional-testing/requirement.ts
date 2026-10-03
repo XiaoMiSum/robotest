@@ -1,20 +1,20 @@
-import { get, post, put, del } from '@/services'
+import { get, post, put } from '@/services'
 import type {
   PageResult,
+  RequirementChangeLog,
+  RequirementCreatePayload,
   RequirementDetail,
-  RequirementPoolItem,
-  RequirementSummary,
+  RequirementListItem,
+  RequirementPageQuery,
+  RequirementSplitSubmit,
+  RequirementUpdatePayload,
 } from '@/types'
 
-// ==================== 需求池（US-AI-004） ====================
+// ==================== 需求管理（详设 3.2–3.10） ====================
 
-export function fetchRequirements(params: {
-  keyword?: string
-  // 状态筛选：缺省返回全部；除需求池管理页外，取数点必须显式传 'active'（需求规格 3.2.4）
-  status?: string
-  pageNo?: number
-  pageSize?: number
-}): Promise<PageResult<RequirementPoolItem>> {
+export function fetchRequirements(
+  params: RequirementPageQuery = {},
+): Promise<PageResult<RequirementListItem>> {
   return get('/project/requirements', { ...params })
 }
 
@@ -22,39 +22,39 @@ export function getRequirement(id: string): Promise<RequirementDetail> {
   return get(`/project/requirements/${id}`)
 }
 
-export function createRequirement(data: {
-  title: string
-  content: string
-  sourceUrl?: string
-}): Promise<string> {
+export function createRequirement(data: RequirementCreatePayload): Promise<RequirementDetail> {
   return post('/project/requirements', data)
 }
 
+/** 部分更新（C11）：载荷只包含实际变化的字段，null/缺省表示不修改 */
 export function updateRequirement(
   id: string,
-  data: {
-    title?: string
-    content?: string
-    // 三态语义：undefined 不修改、空串清空、非空更新
-    sourceUrl?: string
-  },
-): Promise<void> {
+  data: RequirementUpdatePayload,
+): Promise<RequirementDetail> {
   return put(`/project/requirements/${id}`, data)
 }
 
-export function deleteRequirement(id: string): Promise<void> {
-  return del(`/project/requirements/${id}`)
+export function confirmRequirement(id: string): Promise<RequirementDetail> {
+  return post(`/project/requirements/${id}/confirm`)
 }
 
-export function archiveRequirement(id: string, archived: boolean): Promise<void> {
-  return put(`/project/requirements/${id}/archive`, { archived })
+export function archiveRequirement(id: string): Promise<RequirementDetail> {
+  return post(`/project/requirements/${id}/archive`)
 }
 
-// 文档关联需求条目
-export function getDocumentRequirements(docId: string): Promise<RequirementSummary[]> {
-  return get(`/project/documents/${docId}/requirements`)
+/** 取消归档：服务端一律回 draft（详设 3.7），前端不承诺恢复归档前状态 */
+export function unarchiveRequirement(id: string): Promise<RequirementDetail> {
+  return post(`/project/requirements/${id}/unarchive`)
 }
 
-export function setDocumentRequirements(docId: string, requirementIds: string[]): Promise<void> {
-  return put(`/project/documents/${docId}/requirements`, { requirementIds })
+/** 提交 AI 拆分：提交即返回任务入口，进度与审核在任务详情页完成（详设 3.9） */
+export function splitRequirement(id: string): Promise<RequirementSplitSubmit> {
+  return post(`/project/requirements/${id}/split`)
+}
+
+export function fetchRequirementChangeLogs(
+  id: string,
+  params: { pageNo?: number; pageSize?: number } = {},
+): Promise<PageResult<RequirementChangeLog>> {
+  return get(`/project/requirements/${id}/change-logs`, { ...params })
 }

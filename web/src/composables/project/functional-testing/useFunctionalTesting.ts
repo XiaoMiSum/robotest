@@ -11,7 +11,6 @@ const menuItems = [
   { key: 'cases', label: '测试用例', icon: 'Document' },
   { key: 'reviews', label: '测试评审', icon: 'Checked' },
   { key: 'plans', label: '测试计划', icon: 'Calendar' },
-  { key: 'requirements', label: '需求池', icon: 'Tickets' },
 ]
 
 export function useFunctionalTesting() {
