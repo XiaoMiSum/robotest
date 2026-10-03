@@ -452,37 +452,65 @@ CREATE TABLE bug_attachment (
 CREATE INDEX idx_bug_attachment_bug_id ON bug_attachment (bug_id);
 
 -- ============================================================
--- 7. 需求池
+-- 7. 需求管理
 -- ============================================================
 
-CREATE TABLE requirement_pool_item (
-                                       id          UUID          PRIMARY KEY,
-                                       project_id  UUID          NOT NULL,
-                                       title       VARCHAR(200)  NOT NULL,
-                                       content     TEXT          NOT NULL,
-                                       source_url  VARCHAR(500)  NULL,
-                                       status      VARCHAR(20)   NOT NULL DEFAULT 'active',
-                                       ai_generated BOOLEAN      NOT NULL DEFAULT FALSE,
-                                       created_by  UUID          NOT NULL,
-                                       updated_by  UUID          NOT NULL,
-                                       is_deleted  BOOLEAN       NOT NULL DEFAULT FALSE,
-                                       created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                       updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE requirement (
+    id             uuid PRIMARY KEY,
+    project_id     uuid NOT NULL,
+    module_id      uuid NULL,
+    system_version varchar(50) NULL,
+    code           varchar(20) NOT NULL,
+    title          varchar(300) NOT NULL,
+    description    text NULL,
+    status         varchar(20) NOT NULL DEFAULT 'draft',
+    priority       varchar(10) NULL,
+    owner_id       uuid NULL,
+    tags           jsonb NULL,
+    source         varchar(20) NOT NULL DEFAULT 'manual',
+    source_file_id uuid NULL,
+    confirmed_at   timestamp NULL,
+    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted     boolean NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_rpi_project_id ON requirement_pool_item (project_id);
+CREATE UNIQUE INDEX uk_requirement_project_code ON requirement (project_id, code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_requirement_project_status ON requirement (project_id, status);
+CREATE INDEX idx_requirement_module ON requirement (module_id);
+CREATE INDEX idx_requirement_system_version ON requirement (project_id, system_version);
 
-CREATE TABLE requirement_document_rel (
-                                          id             UUID       PRIMARY KEY,
-                                          document_id    UUID       NOT NULL,
-                                          requirement_id UUID       NOT NULL,
-                                          is_deleted     BOOLEAN    NOT NULL DEFAULT FALSE,
-                                          created_at     TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                          updated_at     TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE requirement_change_log (
+    id             uuid PRIMARY KEY,
+    requirement_id uuid NOT NULL,
+    operator_id    uuid NULL,
+    change_type    varchar(30) NOT NULL,
+    before_summary jsonb NULL,
+    after_summary  jsonb NULL,
+    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted     boolean NOT NULL DEFAULT FALSE
 );
 
-CREATE UNIQUE INDEX uk_requirement_document_rel ON requirement_document_rel (document_id, requirement_id) WHERE is_deleted = false;
-CREATE INDEX idx_requirement_document_rel_requirement_id ON requirement_document_rel (requirement_id);
+CREATE INDEX idx_requirement_change_log_req ON requirement_change_log (requirement_id, created_at);
+
+CREATE TABLE requirement_split_record (
+    id                    uuid PRIMARY KEY,
+    project_id            uuid NOT NULL,
+    source_type           varchar(20) NOT NULL,
+    source_file_id        uuid NULL,
+    source_requirement_id uuid NULL,
+    ai_task_id            uuid NOT NULL,
+    status                varchar(20) NOT NULL DEFAULT 'pending',
+    adopt_result          jsonb NULL,
+    created_at            timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted            boolean NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX idx_requirement_split_project ON requirement_split_record (project_id, created_at);
+CREATE INDEX idx_requirement_split_source ON requirement_split_record (source_requirement_id);
+CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id);
 
 -- ============================================================
 -- 8. 项目模块与用例文档（V1.2 重构）
@@ -1006,12 +1034,14 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',     'bug',          '缺陷',    '缺陷管理', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 17.4 权限点（需求池）
+-- 17.4 权限点（需求管理）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('c0000000-0000-0000-0000-000000000034', 'requirement',      '需求池',   NULL,          '需求池', '功能测试', 'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000035', 'requirement:view', '查看需求池', 'requirement', '需求池', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000036', 'requirement:edit', '编辑需求池', 'requirement', '需求池', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+('c0000000-0000-0000-0000-000000000034', 'requirement',         '需求管理',     NULL,          '需求管理', '需求管理', 'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000035', 'requirement:view',    '查看需求',     'requirement', '需求管理', '需求管理', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000074', 'requirement:create',  '新建与导入需求', 'requirement', '需求管理', '需求管理', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000036', 'requirement:edit',    '编辑需求',     'requirement', '需求管理', '需求管理', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('c0000000-0000-0000-0000-000000000075', 'requirement:confirm', '确认与归档需求', 'requirement', '需求管理', '需求管理', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
 -- 17.5 权限点（接口测试模块）
@@ -1080,12 +1110,12 @@ INSERT INTO sys_role (id, name, description, type, is_system, permissions, creat
 -- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
 ('c0000000-0000-0000-0000-000000000001', '管理员',
  '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
- '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","bug","bug:view","requirement","requirement:view","requirement:create","requirement:edit","requirement:confirm","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- workspace 普通成员：默认角色
 ('c0000000-0000-0000-0000-000000000002', '成员',
  '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
- '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:edit","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
+ '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","bug:view","requirement:view","requirement:create","requirement:edit","requirement:confirm","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ============================================================
@@ -1330,19 +1360,39 @@ COMMENT ON COLUMN bug_attachment.content_type IS 'MIME 类型';
 COMMENT ON COLUMN bug_attachment.uploader_id IS '上传人 ID';
 
 -- 需求池
-COMMENT ON TABLE requirement_pool_item IS '需求池条目表（项目级轻量需求条目库）';
-COMMENT ON COLUMN requirement_pool_item.id IS '条目 ID';
-COMMENT ON COLUMN requirement_pool_item.project_id IS '归属项目 ID';
-COMMENT ON COLUMN requirement_pool_item.title IS '条目标题';
-COMMENT ON COLUMN requirement_pool_item.content IS '需求文本（Markdown）';
-COMMENT ON COLUMN requirement_pool_item.source_url IS '来源 URL';
-COMMENT ON COLUMN requirement_pool_item.ai_generated IS 'AI 拆分入库标识';
-COMMENT ON COLUMN requirement_pool_item.created_by IS '创建人';
-COMMENT ON COLUMN requirement_pool_item.updated_by IS '最后更新人';
+COMMENT ON TABLE requirement IS '需求条目表（项目内需求主表）';
+COMMENT ON COLUMN requirement.id IS '需求 ID';
+COMMENT ON COLUMN requirement.project_id IS '所属项目 ID（隔离边界）';
+COMMENT ON COLUMN requirement.module_id IS '归属模块 ID（逻辑外键）';
+COMMENT ON COLUMN requirement.system_version IS '被测业务系统版本（按属性变更处理）';
+COMMENT ON COLUMN requirement.code IS '需求编号（项目内唯一）';
+COMMENT ON COLUMN requirement.title IS '需求标题';
+COMMENT ON COLUMN requirement.description IS '需求描述正文（Markdown）';
+COMMENT ON COLUMN requirement.status IS '状态机：draft/confirmed/changed/archived';
+COMMENT ON COLUMN requirement.priority IS '优先级：high/medium/low';
+COMMENT ON COLUMN requirement.owner_id IS '负责人 ID';
+COMMENT ON COLUMN requirement.tags IS '标签集合（jsonb 数组）';
+COMMENT ON COLUMN requirement.source IS '来源：manual/import';
+COMMENT ON COLUMN requirement.source_file_id IS '导入来源附件 ID';
+COMMENT ON COLUMN requirement.confirmed_at IS '最近一次进入已确认状态的时间';
 
-COMMENT ON TABLE requirement_document_rel IS '文档-需求关联表（脑图文档 ⇄ 需求池条目）';
-COMMENT ON COLUMN requirement_document_rel.document_id IS '脑图文档 ID';
-COMMENT ON COLUMN requirement_document_rel.requirement_id IS '需求池条目 ID';
+COMMENT ON TABLE requirement_change_log IS '需求变更记录表（时间线）';
+COMMENT ON COLUMN requirement_change_log.id IS '记录 ID';
+COMMENT ON COLUMN requirement_change_log.requirement_id IS '所属需求 ID（逻辑外键）';
+COMMENT ON COLUMN requirement_change_log.operator_id IS '操作人 ID';
+COMMENT ON COLUMN requirement_change_log.change_type IS '变更类型：title/description/module/status/attribute';
+COMMENT ON COLUMN requirement_change_log.before_summary IS '变更前字段级摘要';
+COMMENT ON COLUMN requirement_change_log.after_summary IS '变更后字段级摘要';
+
+COMMENT ON TABLE requirement_split_record IS '需求拆解记录表';
+COMMENT ON COLUMN requirement_split_record.id IS '记录 ID';
+COMMENT ON COLUMN requirement_split_record.project_id IS '归属项目 ID（隔离边界）';
+COMMENT ON COLUMN requirement_split_record.source_type IS '拆解来源：document/requirement';
+COMMENT ON COLUMN requirement_split_record.source_file_id IS '导入原始文档附件 ID';
+COMMENT ON COLUMN requirement_split_record.source_requirement_id IS '原条目标识 ID';
+COMMENT ON COLUMN requirement_split_record.ai_task_id IS '关联 AI 任务 ID（逻辑外键 → ai_task）';
+COMMENT ON COLUMN requirement_split_record.status IS '状态：pending/adopted/rejected';
+COMMENT ON COLUMN requirement_split_record.adopt_result IS '采纳结果（jsonb）';
 
 -- 项目模块
 COMMENT ON TABLE project_module IS '项目模块表（纯目录树节点，跨功能测试/接口管理/测试场景共享）';
