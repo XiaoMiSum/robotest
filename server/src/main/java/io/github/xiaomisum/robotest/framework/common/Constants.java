@@ -41,6 +41,16 @@ public final class Constants {
     }
 
     /**
+     * 需求状态（详设 4.2 状态机：draft→confirm→confirmed→改题/描述/模块→changed；archived 只读，取消归档回 draft）
+     */
+    public interface RequirementStatus {
+        String DRAFT = "draft";
+        String CONFIRMED = "confirmed";
+        String CHANGED = "changed";
+        String ARCHIVED = "archived";
+    }
+
+    /**
      * 缺陷类型（对齐禅道分类，枚举值采用语义化 snake_case）
      */
     public interface BugType {

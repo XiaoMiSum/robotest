@@ -1,405 +1,564 @@
 package io.github.xiaomisum.robotest.service.domain.requirement;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementBatchCreateReqDTO;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.entity.requirement.DocumentRequirementRel;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementPoolItem;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
+import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
+import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
+import io.github.xiaomisum.robotest.model.entity.requirement.RequirementSplitRecord;
+import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.requirement.DocumentRequirementRelMapper;
-import io.github.xiaomisum.robotest.repository.requirement.RequirementPoolItemMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecordMapper;
+import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.pojo.PageParam;
+import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
+import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
+
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RequirementServiceImplTest {
 
+    /** 纯单测环境无 MyBatis 初始化：UUID 列处理器与 LambdaUpdateWrapper 列解析都依赖框架启动期注册 */
+    @BeforeAll
+    static void initTableInfo() {
+        MybatisConfiguration configuration = new MybatisConfiguration();
+        configuration.getTypeHandlerRegistry().register(UUID.class, UUIDTypeHandler.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(configuration, ""), Requirement.class);
+    }
+
     private static final UUID PROJECT_ID = UUID.randomUUID();
-    private static final UUID WORKSPACE_ID = UUID.randomUUID();
-    private static final UUID CREATOR_ID = UUID.randomUUID();
-    private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID ITEM_ID = UUID.randomUUID();
-    private static final UUID DOC_ID = UUID.randomUUID();
+    private static final UUID MODULE_ID = UUID.randomUUID();
+    private static final UUID OWNER_ID = UUID.randomUUID();
+    private static final UUID OPERATOR_ID = UUID.randomUUID();
 
     @Mock
-    private RequirementPoolItemMapper requirementMapper;
+    private RequirementMapper requirementMapper;
     @Mock
-    private DocumentRequirementRelMapper documentRequirementRelMapper;
+    private RequirementChangeLogMapper changeLogMapper;
     @Mock
-    private TestCaseDocumentMapper testCaseDocumentMapper;
+    private RequirementSplitRecordMapper splitRecordMapper;
+    @Mock
+    private ProjectModuleMapper projectModuleMapper;
     @Mock
     private SysUserMapper userMapper;
     @Mock
     private ProjectMapper projectMapper;
     @Mock
     private WorkspaceUserMapper workspaceUserMapper;
+    @Mock
+    private PlatformTransactionManager transactionManager;
+    @Mock
+    private ImpactAnalysisTaskPublisher impactAnalysisTaskPublisher;
 
     @InjectMocks
     private RequirementServiceImpl service;
 
-    private RequirementPoolItem item(UUID projectId, UUID createdBy) {
-        RequirementPoolItem item = new RequirementPoolItem();
-        item.setId(ITEM_ID);
-        item.setProjectId(projectId);
-        item.setTitle("登录改版需求");
-        item.setContent("需求正文");
-        item.setCreatedBy(createdBy);
-        item.setUpdatedBy(createdBy);
-        return item;
+    private void stubTx() {
+        lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
     }
 
-    private RequirementCreateReqDTO createReq(String content) {
-        RequirementCreateReqDTO dto = new RequirementCreateReqDTO();
-        dto.setTitle("登录改版需求");
-        dto.setContent(content);
-        return dto;
-    }
-
-    private void stubMember(UUID userId, UUID roleId) {
-        Project project = new Project();
-        project.setId(PROJECT_ID);
-        project.setWorkspaceId(WORKSPACE_ID);
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
-        WorkspaceUser wu = new WorkspaceUser();
-        wu.setWorkspaceRole(roleId);
-        when(workspaceUserMapper.findByWorkspaceIdAndUserId(WORKSPACE_ID, userId)).thenReturn(wu);
-    }
-
-    @Test
-    void create_contentOverLimit_throwsValidationFailed() {
-        assertThrows(ServiceException.class,
-                () -> service.create(PROJECT_ID, CREATOR_ID, createReq("x".repeat(20001))));
-    }
-
-    @Test
-    void create_setsCreatorAndUpdater() {
-        // insert 时回填主键（模拟 MyBatis-Plus ASSIGN_UUID）
-        when(requirementMapper.insert(any(RequirementPoolItem.class))).thenAnswer(inv -> {
-            inv.getArgument(0, RequirementPoolItem.class).setId(ITEM_ID);
-            return 1;
-        });
-        service.create(PROJECT_ID, CREATOR_ID, createReq("正文"));
-        ArgumentCaptor<RequirementPoolItem> captor = ArgumentCaptor.forClass(RequirementPoolItem.class);
-        verify(requirementMapper).insert(captor.capture());
-        RequirementPoolItem saved = captor.getValue();
-        org.junit.jupiter.api.Assertions.assertEquals(PROJECT_ID, saved.getProjectId());
-        org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, saved.getCreatedBy());
-        org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, saved.getUpdatedBy());
-    }
-
-    // ==================== 批量创建（3.1.7） ====================
-
-    private RequirementBatchCreateReqDTO batchReq(int itemCount, boolean aiGenerated) {
-        RequirementBatchCreateReqDTO dto = new RequirementBatchCreateReqDTO();
-        List<RequirementBatchCreateReqDTO.Item> items = new java.util.ArrayList<>();
-        for (int i = 0; i < itemCount; i++) {
-            RequirementBatchCreateReqDTO.Item item = new RequirementBatchCreateReqDTO.Item();
-            item.setTitle("AI 需求点 " + i);
-            item.setContent("需求内容 " + i);
-            item.setAiGenerated(aiGenerated);
-            items.add(item);
-        }
-        dto.setItems(items);
-        return dto;
-    }
-
-    @Test
-    void createBatch_contentOverLimit_throwsValidationFailed() {
-        RequirementBatchCreateReqDTO dto = batchReq(1, true);
-        dto.getItems().get(0).setContent("x".repeat(20001));
-        assertThrows(ServiceException.class, () -> service.createBatch(PROJECT_ID, CREATOR_ID, dto));
-        // 校验失败不得产生任何入库
-        verify(requirementMapper, never()).insertBatch(anyList());
-    }
-
-    @Test
-    void createBatch_insertsAllWithAiGeneratedFlag() {
-        RequirementBatchCreateReqDTO dto = batchReq(3, true);
-        int count = service.createBatch(PROJECT_ID, CREATOR_ID, dto);
-        org.junit.jupiter.api.Assertions.assertEquals(3, count);
-        ArgumentCaptor<List<RequirementPoolItem>> captor = ArgumentCaptor.forClass(List.class);
-        verify(requirementMapper).insertBatch(captor.capture());
-        List<RequirementPoolItem> saved = captor.getValue();
-        org.junit.jupiter.api.Assertions.assertEquals(3, saved.size());
-        saved.forEach(item -> {
-            org.junit.jupiter.api.Assertions.assertEquals(PROJECT_ID, item.getProjectId());
-            org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, item.getCreatedBy());
-            org.junit.jupiter.api.Assertions.assertEquals(CREATOR_ID, item.getUpdatedBy());
-            org.junit.jupiter.api.Assertions.assertTrue(item.getAiGenerated());
-        });
-    }
-
-    @Test
-    void createBatch_aiGeneratedDefaultFalse() {
-        RequirementBatchCreateReqDTO dto = batchReq(1, false);
-        service.createBatch(PROJECT_ID, CREATOR_ID, dto);
-        ArgumentCaptor<List<RequirementPoolItem>> captor = ArgumentCaptor.forClass(List.class);
-        verify(requirementMapper).insertBatch(captor.capture());
-        org.junit.jupiter.api.Assertions.assertFalse(captor.getValue().get(0).getAiGenerated());
-    }
-
-    @Test
-    void createBatch_clearSourceUrlWhenBlank() {
-        RequirementBatchCreateReqDTO dto = batchReq(1, true);
-        dto.getItems().get(0).setSourceUrl("   ");
-        service.createBatch(PROJECT_ID, CREATOR_ID, dto);
-        ArgumentCaptor<List<RequirementPoolItem>> captor = ArgumentCaptor.forClass(List.class);
-        verify(requirementMapper).insertBatch(captor.capture());
-        org.junit.jupiter.api.Assertions.assertNull(captor.getValue().get(0).getSourceUrl());
-    }
-
-    @Test
-    void getDetail_crossProject_throwsNotFound() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(UUID.randomUUID(), CREATOR_ID));
-        assertThrows(ServiceException.class, () -> service.getDetail(ITEM_ID, PROJECT_ID));
-    }
-
-    @Test
-    void update_missingItem_throwsNotFound() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(null);
-        assertThrows(ServiceException.class,
-                () -> service.update(ITEM_ID, PROJECT_ID, CREATOR_ID, new RequirementUpdateReqDTO()));
-    }
-
-    @Test
-    void update_byCreator_succeeds() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
-        req.setTitle("新标题");
-        service.update(ITEM_ID, PROJECT_ID, CREATOR_ID, req);
-        verify(requirementMapper).updateById(any(RequirementPoolItem.class));
-    }
-
-    @Test
-    void update_byWorkspaceAdmin_succeeds() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        stubMember(OTHER_ID, Constants.WorkspaceRole.ADMIN_ID);
-        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
-        req.setTitle("管理员改标题");
-        service.update(ITEM_ID, PROJECT_ID, OTHER_ID, req);
-        verify(requirementMapper).updateById(any(RequirementPoolItem.class));
-    }
-
-    @Test
-    void update_byNonCreatorNonAdmin_throwsNoPermission() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        stubMember(OTHER_ID, Constants.WorkspaceRole.MEMBER_ID);
-        assertThrows(ServiceException.class,
-                () -> service.update(ITEM_ID, PROJECT_ID, OTHER_ID, new RequirementUpdateReqDTO()));
-    }
-
-    @Test
-    void update_archivedItem_throwsNoPermission() {
-        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
-        archived.setStatus(Constants.Status.ARCHIVED);
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(archived);
-        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
-        req.setTitle("改标题");
-        assertThrows(ServiceException.class, () -> service.update(ITEM_ID, PROJECT_ID, CREATOR_ID, req));
-        // 归档条目只读：不得产生任何更新
-        verify(requirementMapper, never()).updateById(any(RequirementPoolItem.class));
-    }
-
-    @Test
-    void archive_byCreator_setsArchived() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        service.archive(ITEM_ID, PROJECT_ID, CREATOR_ID, true);
-        ArgumentCaptor<RequirementPoolItem> captor = ArgumentCaptor.forClass(RequirementPoolItem.class);
-        verify(requirementMapper).updateById(captor.capture());
-        org.junit.jupiter.api.Assertions.assertEquals(Constants.Status.ARCHIVED, captor.getValue().getStatus());
-    }
-
-    @Test
-    void archive_unarchive_restoresActive() {
-        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
-        archived.setStatus(Constants.Status.ARCHIVED);
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(archived);
-        service.archive(ITEM_ID, PROJECT_ID, CREATOR_ID, false);
-        ArgumentCaptor<RequirementPoolItem> captor = ArgumentCaptor.forClass(RequirementPoolItem.class);
-        verify(requirementMapper).updateById(captor.capture());
-        org.junit.jupiter.api.Assertions.assertEquals(Constants.Status.ACTIVE, captor.getValue().getStatus());
-    }
-
-    @Test
-    void archive_sameState_isIdempotentNoUpdate() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        service.archive(ITEM_ID, PROJECT_ID, CREATOR_ID, false);
-        verify(requirementMapper, never()).updateById(any(RequirementPoolItem.class));
-    }
-
-    @Test
-    void archive_byNonCreatorNonAdmin_throwsNoPermission() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        stubMember(OTHER_ID, Constants.WorkspaceRole.MEMBER_ID);
-        assertThrows(ServiceException.class, () -> service.archive(ITEM_ID, PROJECT_ID, OTHER_ID, true));
-    }
-
-    @Test
-    void delete_archivedItem_stillAllowed() {
-        // 归档即封存只读的是「编辑」，删除不受归档态限制（详细设计 3.1.4）
-        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
-        archived.setStatus(Constants.Status.ARCHIVED);
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(archived);
-        service.delete(ITEM_ID, PROJECT_ID, CREATOR_ID);
-        verify(requirementMapper).deleteById(ITEM_ID);
-    }
-
-    @Test
-    void delete_byCreator_logicalDeletes() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        service.delete(ITEM_ID, PROJECT_ID, CREATOR_ID);
-        verify(requirementMapper).deleteById(ITEM_ID);
-    }
-
-    @Test
-    void delete_byNonCreatorNonAdmin_throwsNoPermission() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(PROJECT_ID, CREATOR_ID));
-        stubMember(OTHER_ID, Constants.WorkspaceRole.MEMBER_ID);
-        assertThrows(ServiceException.class, () -> service.delete(ITEM_ID, PROJECT_ID, OTHER_ID));
-    }
-
-    // ==================== 文档关联（3.1.6） ====================
-
-    private TestCaseDocument document(UUID projectId) {
-        TestCaseDocument document = new TestCaseDocument();
-        document.setId(DOC_ID);
-        document.setProjectId(projectId);
-        return document;
-    }
-
-    private DocumentRequirementRel rel(UUID requirementId) {
-        DocumentRequirementRel r = new DocumentRequirementRel();
-        r.setDocumentId(DOC_ID);
-        r.setRequirementId(requirementId);
+    private Requirement item(String status) {
+        Requirement r = new Requirement();
+        r.setId(ITEM_ID);
+        r.setProjectId(PROJECT_ID);
+        r.setCode("REQ-001");
+        r.setTitle("登录验证码");
+        r.setDescription("描述正文");
+        r.setStatus(status);
+        r.setModuleId(MODULE_ID);
+        r.setOwnerId(OWNER_ID);
+        r.setPriority("high");
+        r.setSystemVersion("V2.3");
         return r;
     }
 
+    private void stubItem(String status) {
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(item(status));
+    }
+
+    private void stubModule() {
+        ProjectModule module = new ProjectModule();
+        module.setId(MODULE_ID);
+        module.setProjectId(PROJECT_ID);
+        module.setName("登录模块");
+        when(projectModuleMapper.selectById(MODULE_ID)).thenReturn(module);
+    }
+
+    private void stubOwner() {
+        SysUser user = new SysUser();
+        user.setId(OWNER_ID);
+        user.setName("张三");
+        when(userMapper.selectById(OWNER_ID)).thenReturn(user);
+    }
+
+    private void stubMember() {
+        Project project = new Project();
+        project.setId(PROJECT_ID);
+        project.setWorkspaceId(UUID.randomUUID());
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(project.getWorkspaceId(), OWNER_ID))
+                .thenReturn(new WorkspaceUser());
+    }
+
+    private RequirementCreateReqDTO createReq() {
+        RequirementCreateReqDTO dto = new RequirementCreateReqDTO();
+        dto.setTitle("登录验证码");
+        dto.setDescription("描述正文");
+        return dto;
+    }
+
+    // ---------- 创建与编号分配 ----------
+
     @Test
-    void getDocumentRequirements_crossProjectDoc_throwsDocNotFound() {
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(UUID.randomUUID()));
-        assertThrows(ServiceException.class, () -> service.getDocumentRequirements(DOC_ID, PROJECT_ID));
+    void create_allocatesCodeAndDraftStatus() {
+        stubTx();
+        stubModule();
+        stubOwner();
+        stubMember();
+        when(requirementMapper.selectMaxSeq(PROJECT_ID)).thenReturn(0);
+
+        RequirementCreateReqDTO req = createReq();
+        req.setModuleId(MODULE_ID);
+        req.setOwnerId(OWNER_ID);
+        req.setPriority("high");
+        req.setSystemVersion("V2.3");
+        RequirementDetailRespDTO detail = service.create(PROJECT_ID, OPERATOR_ID, req);
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).insert(captor.capture());
+        Requirement saved = captor.getValue();
+        assertEquals("REQ-001", saved.getCode());
+        assertEquals("draft", saved.getStatus());
+        assertEquals("manual", saved.getSource());
+        assertEquals("REQ-001", detail.getCode());
+        assertEquals("登录模块", detail.getModuleName());
+        assertEquals("张三", detail.getOwnerName());
+        assertNull(detail.getCoverageStatus());
+        assertNull(detail.getSourceFile());
     }
 
     @Test
-    void getDocumentRequirements_skipsDeletedItems() {
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
-        UUID reqA = UUID.randomUUID();
-        UUID reqB = UUID.randomUUID();
-        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(reqA), rel(reqB)));
-        // reqB 已被逻辑删除：selectBatchIds 只返回 reqA
-        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
-        a.setId(reqA);
-        a.setTitle("条目A");
-        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a));
+    void create_duplicateKeyRetriesWithNextSeq() {
+        stubTx();
+        when(requirementMapper.selectMaxSeq(PROJECT_ID)).thenReturn(0, 1, 2);
+        when(requirementMapper.insert(any(Requirement.class)))
+                .thenThrow(new DuplicateKeyException("dup"))
+                .thenThrow(new DuplicateKeyException("dup"))
+                .thenAnswer(inv -> 1);
 
-        var result = service.getDocumentRequirements(DOC_ID, PROJECT_ID);
-        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
-        org.junit.jupiter.api.Assertions.assertEquals(reqA, result.get(0).getId());
+        service.create(PROJECT_ID, OPERATOR_ID, createReq());
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper, times(3)).insert(captor.capture());
+        assertEquals("REQ-003", captor.getValue().getCode());
     }
 
     @Test
-    void getDocumentRequirements_filtersArchivedItems() {
-        // 归档条目不参与消费：关联记录保留，但摘要过滤不展示（需求规格 3.2.4）
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
-        UUID reqA = UUID.randomUUID();
-        UUID reqB = UUID.randomUUID();
-        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(reqA), rel(reqB)));
-        RequirementPoolItem a = item(PROJECT_ID, CREATOR_ID);
-        a.setId(reqA);
-        a.setTitle("条目A");
-        RequirementPoolItem b = item(PROJECT_ID, CREATOR_ID);
-        b.setId(reqB);
-        b.setTitle("已归档条目B");
-        b.setStatus(Constants.Status.ARCHIVED);
-        when(requirementMapper.selectBatchIds(anyList())).thenReturn(List.of(a, b));
+    void create_duplicateKeyRetriesExhausted_throwsCodeConflict() {
+        stubTx();
+        when(requirementMapper.selectMaxSeq(PROJECT_ID)).thenReturn(0);
+        when(requirementMapper.insert(any(Requirement.class))).thenThrow(new DuplicateKeyException("dup"));
 
-        var result = service.getDocumentRequirements(DOC_ID, PROJECT_ID);
-        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
-        org.junit.jupiter.api.Assertions.assertEquals(reqA, result.get(0).getId());
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.create(PROJECT_ID, OPERATOR_ID, createReq()));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_CODE_CONFLICT.code(), exception.getCode());
+        verify(requirementMapper, times(4)).insert(any(Requirement.class));
     }
 
     @Test
-    void setDocumentRequirements_requirementCrossProject_throwsNotFound() {
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
-        UUID reqId = UUID.randomUUID();
-        RequirementPoolItem foreign = item(UUID.randomUUID(), CREATOR_ID);
-        foreign.setId(reqId);
-        when(requirementMapper.selectById(reqId)).thenReturn(foreign);
-        assertThrows(ServiceException.class,
-                () -> service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of(reqId)));
+    void create_moduleNotInProject_throwsModuleNotFound() {
+        when(projectModuleMapper.selectById(MODULE_ID)).thenReturn(new ProjectModule());
+        RequirementCreateReqDTO req = createReq();
+        req.setModuleId(MODULE_ID);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.create(PROJECT_ID, OPERATOR_ID, req));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_MODULE_NOT_FOUND.code(), exception.getCode());
     }
 
     @Test
-    void setDocumentRequirements_archivedItem_throwsNoPermission() {
-        // 文档关联仅接受 active 条目：含 archived 拒绝设置（详细设计 3.1.6）
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
-        UUID reqId = UUID.randomUUID();
-        RequirementPoolItem archived = item(PROJECT_ID, CREATOR_ID);
-        archived.setId(reqId);
-        archived.setStatus(Constants.Status.ARCHIVED);
-        when(requirementMapper.selectById(reqId)).thenReturn(archived);
-        assertThrows(ServiceException.class,
-                () -> service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of(reqId)));
-        // 校验失败不得产生任何关联写入
-        verify(documentRequirementRelMapper, never()).insert(any(DocumentRequirementRel.class));
+    void create_invalidPriority_throwsAttributeInvalid() {
+        RequirementCreateReqDTO req = createReq();
+        req.setPriority("urgent");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.create(PROJECT_ID, OPERATOR_ID, req));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_ATTRIBUTE_INVALID.code(), exception.getCode());
     }
 
     @Test
-    void setDocumentRequirements_diffAddsAndRemovesKeepingExisting() {
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
-        UUID keep = UUID.randomUUID();
-        UUID add = UUID.randomUUID();
-        UUID remove = UUID.randomUUID();
-        // 目标 = {keep, add}，现存 = {keep, remove} → 新增 add、删除 remove、保留 keep
-        for (UUID id : List.of(keep, add)) {
-            RequirementPoolItem it = item(PROJECT_ID, CREATOR_ID);
-            it.setId(id);
-            when(requirementMapper.selectById(id)).thenReturn(it);
-        }
-        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(keep), rel(remove)));
+    void create_systemVersionTooLong_throwsAttributeInvalid() {
+        RequirementCreateReqDTO req = createReq();
+        req.setSystemVersion("V".repeat(51));
 
-        service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of(keep, add));
-
-        // 删除多余：remove
-        ArgumentCaptor<List<UUID>> removeCaptor = ArgumentCaptor.forClass(List.class);
-        verify(documentRequirementRelMapper).deleteByDocumentIdAndRequirementIds(any(), removeCaptor.capture());
-        org.junit.jupiter.api.Assertions.assertEquals(List.of(remove), removeCaptor.getValue());
-        // 仅新增缺失的 add（keep 保留不动）
-        verify(documentRequirementRelMapper, times(1)).insert(any(DocumentRequirementRel.class));
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.create(PROJECT_ID, OPERATOR_ID, req));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_ATTRIBUTE_INVALID.code(), exception.getCode());
     }
 
     @Test
-    void setDocumentRequirements_emptyTarget_removesAllNoInsert() {
-        when(testCaseDocumentMapper.selectById(DOC_ID)).thenReturn(document(PROJECT_ID));
-        UUID existing = UUID.randomUUID();
-        when(documentRequirementRelMapper.listByDocumentId(DOC_ID)).thenReturn(List.of(rel(existing)));
+    void create_ownerNotWorkspaceMember_throwsAttributeInvalid() {
+        Project project = new Project();
+        project.setId(PROJECT_ID);
+        project.setWorkspaceId(UUID.randomUUID());
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
+        when(workspaceUserMapper.findByWorkspaceIdAndUserId(project.getWorkspaceId(), OWNER_ID)).thenReturn(null);
+        RequirementCreateReqDTO req = createReq();
+        req.setOwnerId(OWNER_ID);
 
-        service.setDocumentRequirements(DOC_ID, PROJECT_ID, List.of());
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.create(PROJECT_ID, OPERATOR_ID, req));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_ATTRIBUTE_INVALID.code(), exception.getCode());
+    }
 
-        verify(documentRequirementRelMapper).deleteByDocumentIdAndRequirementIds(any(), any());
-        verify(documentRequirementRelMapper, never()).insert(any(DocumentRequirementRel.class));
+    // ---------- 列表 ----------
+
+    @Test
+    void page_returnsItemsWithResolvedNames() {
+        when(requirementMapper.findPage(any(), eq(PROJECT_ID), any(), any(), any(), any(), any()))
+                .thenReturn(new PageResult<>(List.of(item("confirmed")), 1L));
+        ProjectModule module = new ProjectModule();
+        module.setId(MODULE_ID);
+        module.setName("登录模块");
+        when(projectModuleMapper.selectBatchIds(List.of(MODULE_ID))).thenReturn(List.of(module));
+        SysUser user = new SysUser();
+        user.setId(OWNER_ID);
+        user.setName("张三");
+        when(userMapper.selectBatchIds(List.of(OWNER_ID))).thenReturn(List.of(user));
+
+        PageResult<RequirementListRespDTO> result = service.page(new RequirementPageReqDTO(), PROJECT_ID);
+
+        assertEquals(1, result.getList().size());
+        RequirementListRespDTO dto = result.getList().get(0);
+        assertEquals("REQ-001", dto.getCode());
+        assertEquals("登录模块", dto.getModuleName());
+        assertEquals("张三", dto.getOwnerName());
+        assertNull(dto.getCoverageStatus());
+    }
+
+    @Test
+    void page_empty_skipsResolution() {
+        when(requirementMapper.findPage(any(), eq(PROJECT_ID), any(), any(), any(), any(), any()))
+                .thenReturn(new PageResult<>(List.of(), 0L));
+
+        PageResult<RequirementListRespDTO> result = service.page(new RequirementPageReqDTO(), PROJECT_ID);
+
+        assertTrue(result.getList().isEmpty());
+        verifyNoInteractions(projectModuleMapper, userMapper);
+    }
+
+    @Test
+    void page_invalidModuleIdFilter_throwsValidationFailed() {
+        RequirementPageReqDTO req = new RequirementPageReqDTO();
+        req.setModuleIds("not-a-uuid");
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> service.page(req, PROJECT_ID));
+        assertEquals(ErrorCodeConstants.VALIDATION_FAILED.code(), exception.getCode());
+    }
+
+    // ---------- 详情 ----------
+
+    @Test
+    void getDetail_crossProject_throwsNotFound() {
+        Requirement foreign = item("confirmed");
+        foreign.setProjectId(UUID.randomUUID());
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(foreign);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.getDetail(ITEM_ID, PROJECT_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
+    void getDetail_resolvesModuleAndOwner() {
+        stubItem("confirmed");
+        stubModule();
+        stubOwner();
+
+        RequirementDetailRespDTO detail = service.getDetail(ITEM_ID, PROJECT_ID);
+
+        assertEquals("登录模块", detail.getModuleName());
+        assertEquals("张三", detail.getOwnerName());
+        assertEquals("REQ-001", detail.getCode());
+    }
+
+    // ---------- 部分更新 ----------
+
+    @Test
+    void update_archived_throwsReadonly() {
+        stubItem("archived");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, new RequirementUpdateReqDTO()));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_ARCHIVED_READONLY.code(), exception.getCode());
+    }
+
+    @Test
+    void update_titleOnConfirmed_flipsToChangedAndPublishes() {
+        stubItem("confirmed");
+        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
+        req.setTitle("登录验证码（短信+邮箱）");
+
+        RequirementDetailRespDTO detail = service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, req);
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).updateById(captor.capture());
+        Requirement carrier = captor.getValue();
+        assertEquals("changed", carrier.getStatus());
+        assertEquals("登录验证码（短信+邮箱）", carrier.getTitle());
+        assertNull(carrier.getPriority());
+        assertNull(carrier.getSystemVersion());
+
+        ArgumentCaptor<RequirementChangeLog> logCaptor = ArgumentCaptor.forClass(RequirementChangeLog.class);
+        verify(changeLogMapper).insert(logCaptor.capture());
+        assertEquals("title", logCaptor.getValue().getChangeType());
+        verify(impactAnalysisTaskPublisher).publish(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+        assertNotNull(detail.getId());
+    }
+
+    @Test
+    void update_publisherFailure_doesNotFailUpdate() {
+        stubItem("confirmed");
+        doThrow(new RuntimeException("submit failed")).when(impactAnalysisTaskPublisher)
+                .publish(any(), any(), any());
+        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
+        req.setTitle("新标题");
+
+        service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, req);
+
+        verify(requirementMapper).updateById(any(Requirement.class));
+    }
+
+    @Test
+    void update_attributeOnly_keepsStatusAndWritesAttributeLog() {
+        stubItem("confirmed");
+        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
+        req.setPriority("medium");
+
+        service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, req);
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).updateById(captor.capture());
+        assertNull(captor.getValue().getStatus());
+        assertEquals("medium", captor.getValue().getPriority());
+
+        ArgumentCaptor<RequirementChangeLog> logCaptor = ArgumentCaptor.forClass(RequirementChangeLog.class);
+        verify(changeLogMapper).insert(logCaptor.capture());
+        assertEquals("attribute", logCaptor.getValue().getChangeType());
+        verifyNoInteractions(impactAnalysisTaskPublisher);
+    }
+
+    @Test
+    void update_titleOnDraft_writesFieldLogWithoutFlip() {
+        stubItem("draft");
+        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
+        req.setTitle("新标题");
+
+        service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, req);
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).updateById(captor.capture());
+        assertNull(captor.getValue().getStatus());
+        verify(changeLogMapper).insert(any(RequirementChangeLog.class));
+        verifyNoInteractions(impactAnalysisTaskPublisher);
+    }
+
+    @Test
+    void update_clearsSystemVersionViaWrapper() {
+        stubItem("confirmed");
+        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
+        req.setSystemVersion("  ");
+
+        service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, req);
+
+        verify(requirementMapper).update(isNull(), any(LambdaUpdateWrapperX.class));
+        verify(changeLogMapper).insert(any(RequirementChangeLog.class));
+        verifyNoInteractions(impactAnalysisTaskPublisher);
+    }
+
+    @Test
+    void update_nothingChanged_skipsUpdateAndLog() {
+        stubItem("confirmed");
+
+        service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, new RequirementUpdateReqDTO());
+
+        verify(requirementMapper, never()).updateById(any(Requirement.class));
+        verifyNoInteractions(changeLogMapper);
+    }
+
+    // ---------- 状态机 ----------
+
+    @Test
+    void confirm_draftToConfirmed() {
+        stubItem("draft");
+
+        service.confirm(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).updateById(captor.capture());
+        assertEquals("confirmed", captor.getValue().getStatus());
+        assertNotNull(captor.getValue().getConfirmedAt());
+        verify(changeLogMapper).insert(any(RequirementChangeLog.class));
+        verifyNoInteractions(impactAnalysisTaskPublisher);
+    }
+
+    @Test
+    void confirm_fromChanged_publishesImpactRefresh() {
+        stubItem("changed");
+
+        service.confirm(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+
+        verify(impactAnalysisTaskPublisher).publish(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+    }
+
+    @Test
+    void confirm_archived_throwsStatusNotAllowed() {
+        stubItem("archived");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.confirm(ITEM_ID, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_STATUS_NOT_ALLOWED.code(), exception.getCode());
+        verify(requirementMapper, never()).updateById(any(Requirement.class));
+    }
+
+    @Test
+    void archive_fromDraft_writesStatusLog() {
+        stubItem("draft");
+
+        service.archive(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).updateById(captor.capture());
+        assertEquals("archived", captor.getValue().getStatus());
+        verify(changeLogMapper).insert(any(RequirementChangeLog.class));
+    }
+
+    @Test
+    void archive_alreadyArchived_throwsStatusNotAllowed() {
+        stubItem("archived");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.archive(ITEM_ID, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_STATUS_NOT_ALLOWED.code(), exception.getCode());
+    }
+
+    @Test
+    void unarchive_returnsToDraft() {
+        stubItem("archived");
+
+        service.unarchive(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).updateById(captor.capture());
+        assertEquals("draft", captor.getValue().getStatus());
+    }
+
+    @Test
+    void unarchive_nonArchived_throwsStatusNotAllowed() {
+        stubItem("confirmed");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.unarchive(ITEM_ID, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_STATUS_NOT_ALLOWED.code(), exception.getCode());
+    }
+
+    // ---------- 变更记录与拆解记录 ----------
+
+    @Test
+    void getChangeLogs_enrichesOperatorName() {
+        stubItem("confirmed");
+        RequirementChangeLog entry = new RequirementChangeLog();
+        entry.setId(UUID.randomUUID());
+        entry.setRequirementId(ITEM_ID);
+        entry.setOperatorId(OPERATOR_ID);
+        entry.setChangeType("title");
+        when(changeLogMapper.findPage(any(), eq(ITEM_ID))).thenReturn(new PageResult<>(List.of(entry), 1L));
+        SysUser operator = new SysUser();
+        operator.setId(OPERATOR_ID);
+        operator.setName("李四");
+        when(userMapper.selectBatchIds(List.of(OPERATOR_ID))).thenReturn(List.of(operator));
+
+        PageResult<RequirementChangeLogRespDTO> result = service.getChangeLogs(ITEM_ID, PROJECT_ID,
+                new PageParam());
+
+        assertEquals("李四", result.getList().get(0).getOperatorName());
+        assertEquals("title", result.getList().get(0).getChangeType());
+    }
+
+    @Test
+    void getSplitLogs_crossProject_throwsNotFound() {
+        Requirement foreign = item("confirmed");
+        foreign.setProjectId(UUID.randomUUID());
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(foreign);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.getSplitLogs(ITEM_ID, PROJECT_ID, new PageParam()));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
+    void getSplitRecords_resolvesSourceRequirementCode() {
+        RequirementSplitRecord record = new RequirementSplitRecord();
+        record.setId(UUID.randomUUID());
+        record.setSourceType("requirement");
+        record.setSourceRequirementId(ITEM_ID);
+        record.setStatus("adopted");
+        when(splitRecordMapper.findPage(any(), eq(PROJECT_ID), any(), any()))
+                .thenReturn(new PageResult<>(List.of(record), 1L));
+        Requirement source = item("archived");
+        when(requirementMapper.selectBatchIds(List.of(ITEM_ID))).thenReturn(List.of(source));
+
+        PageResult<RequirementSplitRecordRespDTO> result = service.getSplitRecords(PROJECT_ID, null, null,
+                new PageParam());
+
+        assertEquals("REQ-001", result.getList().get(0).getSourceRequirementCode());
+        assertEquals("adopted", result.getList().get(0).getStatus());
     }
 }

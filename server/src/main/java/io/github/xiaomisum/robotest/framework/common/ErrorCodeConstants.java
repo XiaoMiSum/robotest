@@ -59,7 +59,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode WORKSPACE_DISSOLVED = ErrorCode.of(1000010033, "工作空间已解散，不可操作");
     public static final ErrorCode WORKSPACE_NOT_DISSOLVED = ErrorCode.of(1000010034, "仅已解散的工作空间可恢复");
 
-    // ========== 功能测试模块 1,000,011,010-1,000,011,028 ==========
+    // ========== 功能测试模块 1,000,011,010-1,000,011,027 ==========
     public static final ErrorCode TEST_PLAN_NOT_FOUND = ErrorCode.of(1000011010, "测试计划不存在");
     public static final ErrorCode TEST_REVIEW_NOT_FOUND = ErrorCode.of(1000011011, "评审不存在");
     public static final ErrorCode REVIEW_NOT_INITIATOR = ErrorCode.of(1000011012, "非发起人不能执行该操作");
@@ -78,8 +78,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode PLAN_IS_BLOCKED = ErrorCode.of(1000011025, "计划已阻塞，请先恢复后再操作");
     public static final ErrorCode TEST_REVIEW_FINISHED = ErrorCode.of(1000011026, "评审已完成，无法执行该操作");
     public static final ErrorCode TEST_PLAN_FINISHED = ErrorCode.of(1000011027, "计划已结束，无法执行该操作");
-    public static final ErrorCode REQUIREMENT_NOT_FOUND = ErrorCode.of(1000011028, "需求条目不存在或不属于当前项目");
-
     // ========== 项目模块管理 1,000,017,051-1,000,017,059（文档简写 70XX） ==========
     public static final ErrorCode PROJECT_MODULE_NOT_FOUND = ErrorCode.of(1000017051, "模块不存在");
     public static final ErrorCode PROJECT_MODULE_NAME_EXISTS = ErrorCode.of(1000017052, "同级模块名称已存在");
@@ -187,4 +185,20 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_RELATION_INVALID = ErrorCode.of(1000012022, "关联用例或计划标识不合法");
     public static final ErrorCode BUG_ATTACHMENT_TYPE_NOT_ALLOWED = ErrorCode.of(1000012023, "不支持的附件类型");
     public static final ErrorCode BUG_ATTACHMENT_CONTENT_MISMATCH = ErrorCode.of(1000012024, "附件内容与文件类型不符");
+
+    // ========== 需求管理 1,000,018,001-1,000,018,014（需求管理详设 6） ==========
+    public static final ErrorCode REQUIREMENT_NOT_FOUND = ErrorCode.of(1000018001, "需求不存在或不属于当前项目");
+    public static final ErrorCode REQUIREMENT_CODE_CONFLICT = ErrorCode.of(1000018002, "需求编号分配冲突（并发重试后仍失败）");
+    public static final ErrorCode REQUIREMENT_STATUS_NOT_ALLOWED = ErrorCode.of(1000018003, "当前状态不允许该操作");
+    public static final ErrorCode REQUIREMENT_ARCHIVED_READONLY = ErrorCode.of(1000018004, "归档条目只读");
+    public static final ErrorCode REQUIREMENT_MODULE_NOT_FOUND = ErrorCode.of(1000018005, "所属模块不存在或不属于当前项目");
+    public static final ErrorCode REQUIREMENT_IMPORT_TYPE_UNSUPPORTED = ErrorCode.of(1000018006, "导入文件类型不支持");
+    public static final ErrorCode REQUIREMENT_IMPORT_SIZE_EXCEEDED = ErrorCode.of(1000018007, "导入文件超过 20MB 限制");
+    public static final ErrorCode REQUIREMENT_IMPORT_EMPTY = ErrorCode.of(1000018008, "导入文件为空或不可解析");
+    public static final ErrorCode REQUIREMENT_SPLIT_INPUT_INVALID = ErrorCode.of(1000018009, "拆分输入不满足条件（条目不可拆分）");
+    public static final ErrorCode REQUIREMENT_ATTRIBUTE_INVALID = ErrorCode.of(1000018010, "需求属性取值非法");
+    public static final ErrorCode REQUIREMENT_SOURCE_FILE_NOT_FOUND = ErrorCode.of(1000018011, "来源附件不存在");
+    public static final ErrorCode REQUIREMENT_NO_PERMISSION = ErrorCode.of(1000018012, "无需求管理权限");
+    public static final ErrorCode REQUIREMENT_TASK_IN_PROGRESS = ErrorCode.of(1000018013, "已存在进行中的导入或拆分任务");
+    public static final ErrorCode REQUIREMENT_TRACE_SERVICE_FAILED = ErrorCode.of(1000018014, "追溯服务调用失败");
 }
