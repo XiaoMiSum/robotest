@@ -436,6 +436,9 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
   - `modelReady / embeddingReady / available` 为入口可见性依据：`available = enabled && modelReady`；RAG 类能力额外要求 `embeddingReady`。
 
+- **业务端可用性**：`GET /api/ai/status`（登录即可，无需 `ai:admin`）→ `{ "enabled": true, "modelReady": true, "available": true }`
+  - 仅回这三个布尔口径（`available = enabled && modelReady`），供业务端入口显隐与覆盖状态列「—」展示；不返回任何配置明细或模型信息。
+
 - **更新**：`PUT /api/ai/settings`（部分更新）
 
 ```json
@@ -860,3 +863,4 @@ CREATE TABLE ai_config / ai_model_config / ai_embedding_config / ai_prompt_templ
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/ai/tasks |
 | V1.0 | 2026-10-03 | AI 配置中心改为页头全局项 + 左侧分组导航 + 子路由（/admin/ai/{models,embedding,prompts,usage}） |
 | V1.0 | 2026-10-03 | 任务详情抽屉与产物审核面板合并为任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage） |
+| V1.0 | 2026-10-03 | 新增业务端可用性查询 `GET /api/ai/status`（登录即可，三布尔口径），供业务端入口显隐 |
