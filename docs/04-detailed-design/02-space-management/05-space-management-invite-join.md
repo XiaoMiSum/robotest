@@ -8,12 +8,14 @@
 
 ## 1. 公开接口（无需认证）
 
+> 三个公开接口（`verify` / `check-email` / `join`）均配置频率限制（每 60 秒最多 20 次，按「类名#方法名:IP」独立计数），超出返回框架限流错误；同时不携带活动上下文头（见 1.2.1）。
+
 ### 1.1 验证邀请令牌
 
 - **路径**：`GET /api/workspace/invitations/verify`
 - **参数**：`token`（必填）
-- **响应**：`{ "valid": true, "workspaceName": "电商平台测试", "expiresAt": "..." }`
-- **校验**：token 存在且 status='active'，未过期，未达最大使用次数。
+- **响应**：`{ "valid": true, "workspaceName": "电商平台测试", "expiresAt": "2026-12-31T23:59:59Z" }`
+- **校验**：由邀请状态机统一判定，拒绝优先级为 已撤销 > 已过期 > 达到最大使用次数；`token` 不存在或目标工作空间不存在时同样返回 `valid=false`（此时 `workspaceName`、`expiresAt` 为空）。
 
 ### 1.2 通过邀请链接加入并登录
 
@@ -30,32 +32,32 @@
   }
   ```
 
+  > `token`、`email`、`password` 必填（`email` 校验格式，`password` 长度 8-64）；`name` 仅新用户创建账号时传入，已有用户忽略。
+
 - **处理流程**（两步流程）：
 
-  1. **第一步 — 检查邮箱**：前端调用 `POST /api/workspace/invitations/check-email`，传入 `email` 和 `token`。
-     - 校验 token 有效性。
-     - 查询该邮箱是否已在系统中注册。
-     - 返回结果告知前端是"已有用户"还是"新用户"。
+  1. **第一步 — 检查邮箱**：前端调用 `POST /api/workspace/invitations/check-email`，请求体 `{ "token": "...", "email": "..." }`，响应 `{ "exists": true }`。
+     - 按状态机校验 token 有效性（无效时抛出对应错误码）。
+     - 按 `email` 查询用户是否存在，返回 `exists` 告知前端进入“已有用户”或“新用户”表单。
 
   2. **第二步 — 加入并登录**：前端根据第一步结果展示对应表单，提交至 `POST /api/workspace/invitations/join`。
 
      **已有用户**：用户填写密码进行验证。
-     - 校验 token 有效性。
-     - 验证密码是否正确。
-     - 检查用户是否已在工作空间中。
-     - 将用户加入工作空间，workspaceRole 引用预置 `workspace_member` 角色 ID。
-     - 更新 use_count + 1。
-     - 生成 JWT Token，设置该工作空间为活跃工作空间。
+     - 按状态机校验 token 有效性。
+     - 比对密码哈希，不匹配时抛出 `1000010028`（密码错误）。
+     - 若该用户已在目标工作空间，复用既有成员记录，不重复插入。
+     - 未加入则插入成员记录，`workspaceRole` 引用预置 `workspace_member` 角色 ID。
+     - 原子自增 `use_count`（已达上限时抛出 `1000010030`，防止并发突破 `maxUses`）。
+     - 生成 JWT 双令牌，响应 `isNewUser=false`。
 
      **新用户**：用户填写姓名和密码创建账号。
-     - 校验 token 有效性。
-     - 使用传入的 `name`、`email`、`password` 创建新用户（`name` 必填）。
-     - 检查用户是否已在工作空间中（按 email 查重）。
-     - 将用户加入工作空间，workspaceRole 引用预置 `workspace_member` 角色 ID。
-     - 更新 use_count + 1。
-     - 生成 JWT Token，设置该工作空间为活跃工作空间。
+     - 按状态机校验 token 有效性。
+     - 使用传入的 `name`、`email`、`password` 创建用户（前端要求 `name` 必填；未传入时以后端以邮箱前缀生成用户名/显示名）。
+     - 插入成员记录，`workspaceRole` 引用预置 `workspace_member` 角色 ID。
+     - 原子自增 `use_count`。
+     - 生成 JWT 双令牌，响应 `isNewUser=true`。
 
-- **补充说明**：`check-email` 接口（`POST /api/workspace/invitations/check-email`）与 `verify`、`join` 接口一样，属于无需登录即可访问的公开接口，需加入 Spring Security 免登录白名单。
+- **补充说明**：`verify`、`check-email`、`join` 属于无需登录即可访问的公开接口，配置在框架免登录白名单 `migoo.security.permit-all-urls` 中，并同时从上下文头拦截器与工作空间角色拦截器的路径中排除。
 
 - **响应**：
   
@@ -64,15 +66,23 @@
   "accessToken": "eyJhbGciOi...",
   "refreshToken": "eyJhbGciOi...",
   "tokenType": "Bearer",
-  "accessExpiry": "2026-07-20T07:44:00Z",
-  "refreshExpiry": "2026-07-26T19:44:00Z",
-  "user": { "id": 5, "username": "newuser", "name": "张三", "email": "newuser@example.com", "avatarUrl": null },
-  "activeWorkspace": { "id": 1, "name": "电商平台测试", "workspaceRole": "member" },
+  "user": { "id": "7f1e2a3b-...", "username": "newuser", "name": "张三", "email": "newuser@example.com", "avatarUrl": null },
+  "activeWorkspace": { "id": "1a2b3c4d-...", "name": "电商平台测试", "workspaceRole": "c0000000-0000-0000-0000-000000000002" },
   "isNewUser": true
   }
   ```
   
-  > 说明：JWT Token 通过框架 `JwtTokenProvider` 直接生成，有效期由配置 `migoo.security.jwt.access-token-expires` 和 `refresh-token-expires` 控制。
+  > 说明：JWT Token 通过框架 `JwtTokenProvider` 直接生成，有效期由配置 `migoo.security.jwt.access-token-expires`（默认 PT24H）和 `refresh-token-expires`（默认 P7D）控制；`activeWorkspace.workspaceRole` 为预置成员角色 ID（UUID）。
+
+- **失败错误码**：
+
+  | 错误码 | 含义 |
+  | ---- | ---- |
+  | 1000010028 | 密码错误，请重新输入 |
+  | 1000010029 | 邀请链接已失效 |
+  | 1000010030 | 邀请链接已达到最大使用次数 |
+  | 1000010031 | 邀请链接已过期 |
+  | 1000010032 | 邀请链接已被撤销 |
 
 ---
 
@@ -83,33 +93,55 @@
 
 ### 1.3 邀请加入页面
 
-**路由**：`/join?token=xxx`，无需登录。
+**路由**：`/join?token=xxx`（`meta.public`，标题“加入空间”），无需登录；已持有令牌的登录用户访问该路由时由路由守卫重定向至首页 `/`。
 
-**页面布局**：
+**步骤状态机**：`verifying`（验证中）→ `email`（输入邮箱）→ `password`（已有用户验证密码）或 `create`（新用户创建账号）。
+
+**页面布局**（按步骤切换，同一卡片内只展示当前步骤）：
 
 ```
-┌──────────────────────────────────────────────────┐
-│                                                  │
-│            🔗 加入工作空间                        │
-│                                                  │
-│        您将被加入「电商平台测试」工作空间           │
-│                                                  │
-│       邮箱: [________________]                   │
-│       密码: [________________]                   │
-│       (8-64字符，含大小写、数字、特殊字符)         │
-│                                                  │
-│              [加入并登录]                         │
-│                                                  │
-│         已有账号？输入密码验证后直接加入            │
-│         没有账号？将自动创建并加入                  │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│ ① verifying：验证中 / 无效链接                        │
+│    ⟳ 正在验证邀请链接...                              │
+│    或 ✕「邀请链接无效」+ 具体原因        [返回登录]    │
+├──────────────────────────────────────────────────────┤
+│ ② email：加入工作空间                                 │
+│    🔗 您将被加入「电商平台测试」工作空间               │
+│    邮箱: [________________]            [下一步]        │
+├──────────────────────────────────────────────────────┤
+│ ③a password（已有账号）      ③b create（新账号）      │
+│    验证密码                        创建账号            │
+│    邮箱: xxx（禁用）               邮箱: xxx（禁用）   │
+│    密码: [____] 强度条             姓名: [____]        │
+│    [加入并登录]  ← 返回           密码: [____] 强度条  │
+│                                  [创建并加入] ← 返回   │
+└──────────────────────────────────────────────────────┘
 ```
+
+**字段与校验**：
+
+| 字段 | 出现步骤 | 校验规则 |
+| ---- | ---- | ---- |
+| 邮箱 | email 步骤 | 必填（非空）；格式由服务端 `@Email` 校验 |
+| 姓名 | create 步骤 | 必填（去除首尾空白后非空），输入框限长 50 |
+| 密码 | password / create 步骤 | 必填，长度 8-64（前后端一致） |
 
 **交互说明**：
 
-| 操作   | 触发方式      | 反馈                                                                                                            |
+| 操作 | 触发方式 | 反馈 |
 | ---- | --------- | ------------------------------------------------------------------------------------------------------------- |
-| 验证链接 | 页面加载      | 调用 `GET /api/workspace/invitations/verify?token=xxx` → 无效则展示错误提示及原因                                           |
-| 提交   | 点击[加入并登录] | 前端校验 → 调用 `POST /api/workspace/invitations/join` → 成功：存储Token，设置活跃空间，isNewUser=true时展示欢迎提示，跳转至项目列表页；失败：显示具体错误 |
-| 密码校验 | 实时        | 显示密码强度指示条（弱/中/强）                                                                                              |
-| 防重复  | 提交后       | 按钮置灰显示loading                                                                                                 |
+| 验证链接 | 页面加载 | 调用 `GET /api/workspace/invitations/verify?token=xxx` → 有效进入邮箱步骤；`valid=false` 展示“邀请链接已失效或不存在”；缺少 `token` 参数展示“邀请链接无效：缺少令牌参数”；请求异常展示错误消息，均停留在无效链接视图并提供[返回登录] |
+| 下一步 | 点击[下一步] | 邮箱非空校验 → 调用 `POST /api/workspace/invitations/check-email` → `exists=true` 进入 password 步骤，否则进入 create 步骤；失败展示服务端错误消息 |
+| 加入并登录 | password 步骤点击[加入并登录] | 密码长度校验 → 调用 `POST /api/workspace/invitations/join` → 成功：保存令牌与登录态、将响应 `activeWorkspace` 设为活动空间、加载权限，提示“已成功加入工作空间”，跳转项目列表页；失败展示服务端错误 |
+| 创建并加入 | create 步骤点击[创建并加入] | 姓名非空 + 密码长度校验 → 调用 `POST /api/workspace/invitations/join`（携带 `name`）→ 成功后同上，提示“欢迎加入！已自动创建账号并登录。”；失败展示服务端错误 |
+| 返回 | 点击[← 返回] | 清空密码与姓名，回到 email 步骤重新选择邮箱 |
+| 密码校验 | 实时 | 显示密码强度指示条（弱 / 较弱 / 中 / 强），仅作提示，不作为提交拦截条件 |
+| 防重复 | 提交后 | 按钮置灰显示 loading |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-02 | 对齐前端实现：加入页改为验证/邮箱/密码/创建四步交互并补全状态分支，修正 join 响应字段、字段校验与失败错误码 |
