@@ -51,6 +51,26 @@ public final class Constants {
     }
 
     /**
+     * AI 任务状态（详设 4.2 生命周期：pending → running → succeeded / failed；pending / running → cancelled）
+     */
+    public interface AiTaskStatus {
+        String PENDING = "pending";
+        String RUNNING = "running";
+        String SUCCEEDED = "succeeded";
+        String FAILED = "failed";
+        String CANCELLED = "cancelled";
+    }
+
+    /**
+     * 产物确认动作（详设 3.6.5，ai_artifact_confirm.action 取值）
+     */
+    public interface AiArtifactAction {
+        String ADOPTED = "adopted";
+        String ADOPTED_EDITED = "adopted_edited";
+        String REJECTED = "rejected";
+    }
+
+    /**
      * 缺陷类型（对齐禅道分类，枚举值采用语义化 snake_case）
      */
     public interface BugType {
