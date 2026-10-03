@@ -240,9 +240,20 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'workspace/projects/requirements',
-        name: 'RequirementPool',
-        component: () => import('@/pages/project/functional-testing/RequirementPoolPage.vue'),
-        meta: { title: '需求池', mode: 'project' },
+        name: 'RequirementList',
+        component: () => import('@/pages/project/requirement/RequirementListPage.vue'),
+        meta: {
+          title: '需求管理',
+          mode: 'project',
+          // 需求 → 用例 → 缺陷链路上游，置顶首位（交互设计 06 §1）
+          menu: { label: '需求管理', icon: 'Tickets', order: 5, permission: 'requirement:view' },
+        },
+      },
+      {
+        path: 'workspace/projects/requirements/:requirementId',
+        name: 'RequirementDetail',
+        component: () => import('@/pages/project/requirement/RequirementDetailPage.vue'),
+        meta: { title: '需求详情', mode: 'project' },
       },
       {
         path: 'workspace/projects/bugs',

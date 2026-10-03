@@ -3,7 +3,6 @@ import { useFunctionalTesting } from '@/composables/project/functional-testing/u
 import TestCasePage from '@/pages/project/functional-testing/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/functional-testing/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/functional-testing/PlanListPage.vue'
-import RequirementPoolPage from '@/pages/project/functional-testing/RequirementPoolPage.vue'
 
 const { activeMenu, menuRef, testCaseRef, menuItems, handleMenuSelect } = useFunctionalTesting()
 </script>
@@ -28,7 +27,6 @@ const { activeMenu, menuRef, testCaseRef, menuItems, handleMenuSelect } = useFun
       <TestCasePage v-if="activeMenu === 'cases'" ref="testCaseRef" />
       <ReviewListPage v-else-if="activeMenu === 'reviews'" />
       <PlanListPage v-else-if="activeMenu === 'plans'" />
-      <RequirementPoolPage v-else-if="activeMenu === 'requirements'" />
     </main>
   </div>
 </template>
