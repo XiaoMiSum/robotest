@@ -748,12 +748,12 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ```
 /admin
-└── /ai                        → AiSettingsPage（AI 配置与用量）
-    ├── 开关与默认模型区块（SettingsSwitch、DefaultModelSelect）
-    ├── 模型配置区块（ModelListTable + ModelEditDialog + 连通性测试）
-    ├── 向量 API 区块（EmbeddingForm + 维度变更重建引导）
-    ├── 场景提示词区块（ScenePromptTable + PromptEditor + 重置）
-    └── 用量分析区块（UsageRangePicker + UsageChart + TaskDrillTable）
+└── /ai                        → AiSettingsPage（AI 配置与用量，/admin/ai 重定向 /admin/ai/models）
+    ├── 页头全局项（SettingsSwitch、DefaultModelSelect）与重建引导条（requiresReindex 全宽横幅），跨分组常驻
+    ├── /models     模型配置区块（ModelListTable + ModelEditDialog + 连通性测试）
+    ├── /embedding  向量 API 区块（EmbeddingForm + 维度变更重建引导）
+    ├── /prompts    场景提示词区块（ScenePromptTable + PromptEditor + 重置）
+    └── /usage      用量分析区块（UsageRangePicker + UsageChart + TaskDrillTable）
 ```
 
 ### 5.2 业务端组件与状态
@@ -857,3 +857,4 @@ CREATE TABLE ai_config / ai_model_config / ai_embedding_config / ai_prompt_templ
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/ai/tasks |
+| V1.0 | 2026-10-03 | AI 配置中心改为页头全局项 + 左侧分组导航 + 子路由（/admin/ai/{models,embedding,prompts,usage}） |
