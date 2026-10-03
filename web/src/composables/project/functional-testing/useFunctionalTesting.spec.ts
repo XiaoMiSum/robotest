@@ -39,8 +39,8 @@ describe('useFunctionalTesting', () => {
 
     it('menuItems 包含预期项', () => {
       const { menuItems } = useFunctionalTesting()
-      expect(menuItems).toHaveLength(4)
-      expect(menuItems.map((m) => m.key)).toEqual(['cases', 'reviews', 'plans', 'requirements'])
+      expect(menuItems).toHaveLength(3)
+      expect(menuItems.map((m) => m.key)).toEqual(['cases', 'reviews', 'plans'])
     })
   })
 

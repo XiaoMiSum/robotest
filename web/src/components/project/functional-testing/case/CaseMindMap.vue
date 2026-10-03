@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { useMinderInstance } from '@/minder/useMinderInstance'
 import MinderContextMenu from '../minder/MinderContextMenu.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
-import RequirementSelector from '../requirement/RequirementSelector.vue'
 import { KMEditor } from '@/minder/editor'
 import { useMindmapPersistence } from '@/composables/project/functional-testing/mindmap/useMindmapPersistence'
-import { useMindmapRequirementLink } from '@/composables/project/functional-testing/mindmap/useMindmapRequirementLink'
 import { useMindmapLayout } from '@/composables/project/functional-testing/mindmap/useMindmapLayout'
 import { useMindmapNodeOps } from '@/composables/project/functional-testing/mindmap/useMindmapNodeOps'
 import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/useMindmapYjs'
 import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
 
 const props = defineProps<{ docId: string }>()
-
-const authStore = useAuthStore()
-
-const canManageRequirements = computed(() => authStore.hasPermission('requirement:view'))
 
 const kmEditorRef = { value: null as KMEditor | null }
 
@@ -43,8 +35,6 @@ const {
 const getMinderTyped = () => getMinder() as unknown as import('@/minder/types').Minder | null
 
 const persistence = useMindmapPersistence(getMinderTyped)
-
-const reqLink = useMindmapRequirementLink(() => props.docId)
 
 const layout = useMindmapLayout((cmd, ...args) => {
   getMinder()?.execCommand?.(cmd, ...args)
@@ -157,13 +147,6 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
           @click="nodeOps.markPriority(p)"
         >{{ p }}</el-button>
       </div>
-
-      <!-- 命令组经弹性右靠居行末：单枚纯图标 + 悬浮提示（交互设计 48 §1.1） -->
-      <div v-if="canManageRequirements" class="toolbar-group toolbar-group--end">
-        <el-tooltip content="关联需求" placement="bottom">
-          <el-button text @click="reqLink.openRequirementSelector"><el-icon><Link /></el-icon></el-button>
-        </el-tooltip>
-      </div>
     </div>
 
     <div
@@ -213,13 +196,6 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="nodeOps.deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
-
-    <RequirementSelector
-      v-if="reqLink.reqSelectorVisible.value"
-      v-model="reqLink.reqSelectorVisible.value"
-      :selected-ids="reqLink.associatedReqIds.value"
-      @confirm="reqLink.handleRequirementConfirm"
-    />
   </div>
 </template>
 
