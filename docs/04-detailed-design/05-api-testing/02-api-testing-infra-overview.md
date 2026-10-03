@@ -14,7 +14,7 @@
 
 ### 1.2 范围
 
-覆盖 SRS 3.8–3.12「公共需求」与概要设计第 4.1 章对应机制：
+覆盖接口测试需求「公共需求」分册与概要设计接口测试域「核心机制设计」的对应机制：
 
 - **执行引擎**：Ryze 框架集成、格式转换（平台模型 → Ryze 标准 JSON）、资源池与并发调度、多场景组合执行、执行结果收集；
 - **公共数据表**：调试记录、变更历史、执行记录、报告、公共组件、导入记录；
@@ -25,8 +25,8 @@
 
 ### 1.3 参考资料
 
-- 《接口测试需求规格说明书》（`docs/01-requirements/01-readme.md`，3.8–3.12）
-- 《概要设计说明书》（`docs/02-high-level-design/01-system-management/02-hld-system-management.md` §3.2、`docs/02-high-level-design/02-hld-overview.md` §2.4）
+- 《接口测试需求规格说明书》（`docs/01-requirements/05-api-testing/01-readme.md`，公共需求分册 `docs/01-requirements/05-api-testing/09-api-srs-common.md`）
+- 《概要设计说明书》（`docs/02-high-level-design/05-api-testing/02-hld-api-overview.md` §3.1–§3.4、`docs/02-high-level-design/05-api-testing/09-hld-api-common.md` §3.5）
 - 《工程规范 — API 设计》（`docs/00-spec/20-contracts/01-api.md`）
 - 《工程规范 — 数据库》（`docs/00-spec/20-contracts/02-database.md`）
 - Ryze 多协议测试框架文档（`https://xiaomisum.github.io/ryze/`）
@@ -52,9 +52,9 @@
 | project_id | UUID | NOT NULL | 归属项目（ws_project.id） |
 | user_id | UUID | NOT NULL | 发起人（sys_user.id） |
 | name | VARCHAR(200) | NULL | 调试请求名称（用户可选保存） |
-| protocol | VARCHAR(20) | NOT NULL | 协议：http / jdbc |
-| method | VARCHAR(10) | NULL | HTTP 方法（GET/POST/PUT/PATCH/DELETE；jdbc 时为空） |
-| url | VARCHAR(2000) | NULL | 请求 URL（含路径与 Query） |
+| protocol | VARCHAR(20) | NOT NULL DEFAULT 'http' | 协议：http / jdbc |
+| method | VARCHAR(10) | NOT NULL | HTTP 方法（GET/POST/PUT/PATCH/DELETE） |
+| url | VARCHAR(2000) | NOT NULL | 请求 URL（含路径与 Query） |
 | headers | JSONB | NOT NULL DEFAULT '[]' | 请求头列表 `[{key, value, enabled}]` |
 | body_type | VARCHAR(20) | NULL | 请求体类型：none / json / form / raw / binary |
 | body | JSONB | NULL | 请求体内容（结构随 body_type） |
@@ -63,19 +63,19 @@
 | processors | JSONB | NOT NULL DEFAULT '[]' | 前置/后置处理器列表 |
 | environment_id | UUID | NULL | 执行引用的环境 ID（相对 URL 拼接与变量来源） |
 | timeout_ms | INT | NULL | 响应超时（毫秒） |
-| executed_at | TIMESTAMP | NOT NULL | 执行时间 |
+| executed_at | TIMESTAMP | NULL | 执行时间 |
 | duration_ms | INT | NULL | 执行耗时（毫秒） |
-| status | VARCHAR(20) | NOT NULL | 执行结果：success / failed / error |
+| status | VARCHAR(20) | NULL | 执行结果：success / failed / error |
 | response_status | INT | NULL | HTTP 响应状态码 |
 | response_headers | JSONB | NULL | 响应头 |
 | response_body | TEXT | NULL | 响应体（截断存储，最大 1MB） |
 | response_size | INT | NULL | 响应体字节数 |
-| error_message | VARCHAR(2000) | NULL | 错误信息（连接失败/超时等） |
+| error_message | TEXT | NULL | 错误信息（连接失败/超时等） |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_debug_project_user` (project_id, user_id), `idx_debug_executed_at` (executed_at)
+**索引**：`idx_drec_project_user` (project_id, user_id)
 
 > 调试记录按项目清理策略自动清理（默认 90 天），与报告共用清理任务。
 
@@ -111,10 +111,10 @@
 | project_id | UUID | NOT NULL | 归属项目 |
 | scene_id | UUID | NOT NULL | 关联场景（api_scene.id） |
 | environment_id | UUID | NULL | 使用的环境（api_environment.id） |
-| execution_mode | VARCHAR(20) | NOT NULL | 执行方式：platform |
+| execution_mode | VARCHAR(20) | NOT NULL DEFAULT 'platform' | 执行方式：platform |
 | status | VARCHAR(20) | NOT NULL DEFAULT 'pending' | pending / running / success / failed / cancelled / timeout |
-| trigger_type | VARCHAR(20) | NOT NULL | 触发方式：manual / scheduled |
-| source | VARCHAR(20) | NOT NULL DEFAULT 'scene' | 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行）。场景页 [运行] 产生的报告不进报告列表（见 3.4.1） |
+| trigger_type | VARCHAR(20) | NOT NULL DEFAULT 'manual' | 触发方式：manual / scheduled |
+| source | VARCHAR(20) | NOT NULL DEFAULT 'scene' | 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行）。场景页 [运行] 产生的报告不进报告列表（见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.1） |
 | report_id | UUID | NULL | 关联报告（api_report.id）。场景执行：场景报告 1:1；套件执行（定时任务）：同一套件下每个场景的执行记录共享同一套件报告 ID |
 | error_message | VARCHAR(2000) | NULL | 失败原因 |
 | executed_at | TIMESTAMP | NOT NULL | 执行时间 |
@@ -123,7 +123,7 @@
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_exec_scene_id` (scene_id), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status)
+**索引**：`idx_exec_scene_id` (scene_id, executed_at DESC), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status)
 
 > 执行记录与报告共享清理策略（默认 90 天）；清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 
@@ -140,24 +140,24 @@
 | external_id | UUID | NULL | 外部关联 ID，语义随 `report_type`：`suite` 时为任务 ID（api_scheduled_task.id）；`scene` 时为场景 ID（api_scene.id）。场景页 [运行] 产生场景报告时填充场景 ID |
 | name | VARCHAR(200) | NOT NULL | 报告名称：场景报告 = 场景名 + 执行时间戳；套件报告 = 任务名 + 执行时间戳（执行时固化） |
 | environment_name | VARCHAR(100) | NULL | 环境名称快照 |
-| execution_mode | VARCHAR(20) | NOT NULL | 执行方式：platform |
+| execution_mode | VARCHAR(20) | NOT NULL DEFAULT 'platform' | 执行方式：platform |
 | status | VARCHAR(20) | NOT NULL | success / failed / partial（scene）；套件报告按整体判定 |
-| source | VARCHAR(20) | NOT NULL DEFAULT 'scene' | 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行）。场景页 [运行] 产生的报告不进报告列表（见 3.4.1） |
+| source | VARCHAR(20) | NOT NULL DEFAULT 'scene' | 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行）。场景页 [运行] 产生的报告不进报告列表（见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.1） |
 | summary | JSONB | NOT NULL | 结果汇总 `{total, passed, failed, skipped, duration_ms}`；套件报告额外含场景级汇总 `{totalScenes, passedScenes, failedScenes, totalSteps, passedSteps, failedSteps, skippedSteps}` |
 | result | JSONB | NOT NULL | 结果明细数据集，按 `report_type` 分别构建：`scene` 为**场景数据集**（单场景步骤明细 `{sceneId, sceneName, status, summary, steps[]}`）；`suite` 为**套件数据集**（`{taskId, taskName, status, summary, scenes[]}`，每项即一份场景数据集，形成「场景 → 步骤」两级）。字段结构分别定义于《测试报告详细设计说明书》2.3 |
 | ryze_snapshot | JSONB | NULL | 执行时序列化后的完整 Ryze 结果树（TestSuiteResult 树，getter 序列化，原始留档）。场景报告存单场景树；套件报告存聚合的套件树（若聚合为一份）。用于结果回溯与转换问题定位 |
 | share_token | VARCHAR(64) | NULL | 分享链接令牌（生成分享链接时写入，无全局开关） |
 | share_expires_at | TIMESTAMP | NULL | 分享链接过期时间（生成时由 expiresInDays 计算） |
-| share_user_id | UUID | NULL | 分享者（最后一次生成分享链接的用户），用于分享记录展示与复制文本（见《测试报告详细设计说明书》4.2.3） |
+| share_user_id | UUID | NULL | 分享者（最后一次生成分享链接的用户），用于分享记录展示与复制文本（见 `docs/04-detailed-design/05-api-testing/31-test-report-share.md` 1.3） |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_report_type_external` (report_type, external_id)、`idx_report_project_created` (project_id, created_at DESC)、`idx_report_share_token` UNIQUE (share_token) WHERE share_token IS NOT NULL、`idx_report_share_user` (share_user_id) WHERE share_user_id IS NOT NULL
+**索引**：`idx_report_type_external` (report_type, external_id)、`idx_report_project_created` (project_id, created_at DESC)、`uk_report_share_token` UNIQUE (share_token) WHERE share_token IS NOT NULL、`idx_report_share_user` (share_user_id) WHERE share_user_id IS NOT NULL
 
 > `result` 数据集的步骤/接口/协议快照取自 Ryze 结果树（`SampleResult`），`request`/`response` 按对应协议 Real 类 getter 序列化（响应体截断防撑爆 JSONB）；`assertions`/`extractors` 分别来自 `AssertionResult`/`ExtractorResult`。`ryze_snapshot` 为执行时生成的完整 Ryze 树 JSON。
 >
-> **状态口径（执行异常重构后）**：平台通过 `RyzeResultAdapter` 将 Ryze 状态映射为报告状态——`passed→success`、`failed→failed`、`skipped/disabled→skipped`、`broken→error`（引擎异常）。**验证器失败**（采样器/处理器 `broken` + 失败验证器记录或 `AssertionError`）步骤映射为 `failed`（报告 `partial`）；处理器条件不满足显式 `skipped` 时，处理器条目映射 `skipped` 且不计入步骤失败。**多提取器异常**聚合为 `ExceptionGroup`，步骤归 `error`，`errorMessage` 展开各子异常消息（`提取器执行失败：<明细1>；<明细2>`）而非引导语；`ryze_snapshot` 中对 `ExceptionGroup` 序列化 `exceptions[]`、对链包装异常序列化 `suppressed[]`，普通异常保持 `{type, message}` 不变。
+> **状态口径**：平台通过 `RyzeResultAdapter` 将 Ryze 状态映射为报告状态——`passed→success`、`failed→failed`、`skipped/disabled→skipped`、`broken→error`（引擎异常）。**验证器失败**（采样器/处理器 `broken` + 失败验证器记录或 `AssertionError`）步骤映射为 `failed`（报告 `partial`）；处理器条件不满足显式 `skipped` 时，处理器条目映射 `skipped` 且不计入步骤失败。**多提取器异常**聚合为 `ExceptionGroup`，步骤归 `error`，`errorMessage` 展开各子异常消息（`提取器执行失败：<明细1>；<明细2>`）而非引导语；`ryze_snapshot` 中对 `ExceptionGroup` 序列化 `exceptions[]`、对链包装异常序列化 `suppressed[]`，普通异常保持 `{type, message}` 不变。
 
 #### 2.1.5 公共组件表（api_component）
 
@@ -197,17 +197,17 @@
 | ---- | ---- | ---- | ---- |
 | id | UUID | PK | 主键 |
 | project_id | UUID | NOT NULL | 归属项目 |
-| import_type | VARCHAR(30) | NOT NULL | 导入方式：url_swagger / curl |
-| source_name | VARCHAR(500) | NOT NULL | 导入源名称（文件名或 URL） |
-| status | VARCHAR(20) | NOT NULL | success / partial / failed |
-| summary | JSONB | NOT NULL | 导入结果 `{created, updated, failed, skipped}` |
+| import_type | VARCHAR(20) | NOT NULL | 导入方式：url_swagger / curl |
+| source_name | VARCHAR(200) | NOT NULL | 导入源名称（文件名或 URL） |
+| status | VARCHAR(20) | NOT NULL DEFAULT 'pending' | 执行状态：pending / success / partial / failed |
+| summary | JSONB | NULL | 导入结果 `{created, updated, failed, skipped}` |
 | error_details | JSONB | NULL | 失败明细 `[{path, message}]` |
 | created_by | UUID | NOT NULL | 导入人 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_import_project_created` (project_id, created_at DESC)
+**索引**：`idx_irecord_project` (project_id, created_at DESC)
 
 ### 2.2 错误码定义
 
@@ -222,9 +222,14 @@
 | 1000017011 | API_IMPORT_PARSE_FAILED | 导入内容解析失败 |
 | 1000017012 | API_IMPORT_URL_UNREACHABLE | URL 导入目标不可达 |
 | 1000017013 | API_DEBUG_RECORD_NOT_FOUND | 调试记录不存在 |
+| 1000017021 | API_CUSTOM_FUNCTION_NOT_FOUND | 自定义函数不存在或不属于当前可见范围 |
+| 1000017022 | API_CUSTOM_FUNCTION_NAME_CONFLICT | 函数名与内置函数重名或同作用域已存在同名函数 |
+| 1000017023 | API_CUSTOM_FUNCTION_SCRIPT_INVALID | Groovy 脚本编译失败 |
+| 1000017024 | API_FUNCTION_EVAL_FAILED | 函数试算执行失败 |
 | 1000017101 | API_INTERFACE_NOT_FOUND | 接口定义不存在 |
 | 1000017102 | API_INTERFACE_NAME_EXISTS | 接口定义名称重复 |
 | 1000017103 | API_INTERFACE_REFERENCED | 接口定义被引用无法删除 |
+| 1000017104 | API_INTERFACE_STEP_REFERENCED | 公共步骤被场景链接引用无法删除 |
 | 1000017105 | API_INTERFACE_VERSION_CONFLICT | 接口版本冲突 |
 | 1000017201 | API_MOCK_NOT_FOUND | Mock 定义不存在 |
 | 1000017202 | API_MOCK_ADDR_CONFLICT | Mock 地址冲突 |
@@ -243,10 +248,21 @@
 | 1000017403 | API_DATASOURCE_CONN_FAILED | 数据源连接测试失败 |
 | 1000017404 | API_ENV_TASK_BOUND | 环境被定时任务绑定无法删除 |
 | 1000017405 | API_ENV_NOT_FOUND | 环境不存在或不属于当前项目 |
+| 1000017406 | API_ENV_HTTP_CONFIG_NOT_FOUND | 环境 HTTP 配置不存在或不属于当前环境 |
+| 1000017407 | API_ENV_DATASOURCE_NOT_FOUND | 环境数据源不存在或不属于当前环境 |
+| 1000017408 | API_ENV_PROCESSOR_NOT_FOUND | 环境处理器不存在或不属于当前环境 |
+| 1000017409 | API_ENV_VARIABLE_NOT_FOUND | 环境变量不存在或不属于当前环境 |
 | 1000017410 | API_ENV_VARIABLE_EXISTS | 环境变量已存在 |
 | 1000017501 | API_SCHEDULED_TASK_NOT_FOUND | 定时任务不存在 |
 | 1000017502 | API_SCHEDULED_TASK_CRON_INVALID | Cron 表达式无效 |
+| 1000017503 | API_SCHEDULED_TASK_ENV_REQUIRED | 定时任务必须绑定执行环境 |
 | 1000017504 | API_SCHEDULED_TASK_RUNNING | 任务上一次执行未结束 |
+| 1000017505 | API_SCHEDULED_TASK_SCENE_NOT_EXECUTABLE | 关联场景不存在或不可执行 |
+| 1000017506 | API_SCHEDULED_TASK_SCOPE_INVALID | 执行方式不合法（仅 all / modules / scenes） |
+| 1000017507 | API_SCHEDULED_TASK_MODULE_IDS_REQUIRED | 指定模块（多选）时模块列表必填 |
+| 1000017508 | API_SCHEDULED_TASK_SCENE_IDS_REQUIRED | 指定场景（多选）时场景列表必填 |
+| 1000017509 | API_SCHEDULED_TASK_MODULE_NOT_FOUND | 指定的模块不存在或不属于当前项目 |
+| 1000017510 | API_SCHEDULED_TASK_OPENAPI_URL_REQUIRED | 接口同步任务必须指定 OpenAPI/Swagger 文档 URL |
 | 1000017601 | API_SWAGGER_URL_NOT_FOUND | Swagger URL 不存在或不属于当前项目 |
 | 1000017602 | API_SWAGGER_URL_TASK_BOUND | Swagger URL 被定时任务绑定无法删除 |
 
@@ -260,9 +276,9 @@
 - 项目级：`/api/project/**`，头 `Authorization` + `X-Active-Workspace` + `X-Active-Project`。
 - 通用响应：`{ "code": 200, "msg": "success", "data": {} }`；命名 camelCase。下文各接口的响应示例**仅展示 `data` 字段内容**，省略外层 `code` / `msg` 包裹。
 - 分页请求：`?pageNo=1&pageSize=20`；分页响应 `{ list: [], total: N }`。
-- 所有接口的错误响应遵循统一格式：`{ "code": 1000017001, "msg": "执行引擎繁忙", "data": null }`。
+- 所有接口的错误响应遵循统一格式：`{ "code": 1000017001, "msg": "执行引擎繁忙，请稍后重试", "data": null }`。
 
-### 2.3.1 接口测试域上下文边界
+#### 2.3.1 接口测试域上下文边界
 
 接口测试域按资源类型执行以下边界：
 
@@ -291,7 +307,7 @@
 
 新建 DDL 迁移脚本 `server/src/main/resources/db/v1.2.sql`，包含本文档定义的全部公共表（2.1.1–2.1.6）以及其余详细设计文档定义的业务表。脚本随本文档同步修订。
 
-**app_report 结构性变更迁移（场景/套件两级报告模型）**——本迭代由单场景报告升级为场景/套件两类报告，需将既有 `api_report` 结构调整如下（无物理外键，符合 C5）：
+**api_report 结构性变更迁移（场景/套件两级报告模型）**——本迭代由单场景报告升级为场景/套件两类报告，需将既有 `api_report` 结构调整如下（无物理外键，符合 C5）：
 
 ```sql
 -- 1) 类型化：新增 report_type（默认按旧数据回填为 scene）
@@ -315,7 +331,7 @@ CREATE INDEX IF NOT EXISTS idx_report_type_external ON api_report (report_type, 
 CREATE INDEX IF NOT EXISTS idx_report_project_created ON api_report (project_id, created_at DESC);
 DROP INDEX IF EXISTS idx_report_scene_id;
 
--- 7) 分享者记录：分享复制文本需展示分享人（测试报告详细设计 4.2.3）
+-- 7) 分享者记录：分享复制文本需展示分享人（测试报告分享分册 1.3）
 ALTER TABLE api_report ADD COLUMN share_user_id UUID NULL;
 CREATE INDEX IF NOT EXISTS idx_report_share_user ON api_report (share_user_id) WHERE share_user_id IS NOT NULL;
 ```
@@ -325,12 +341,17 @@ CREATE INDEX IF NOT EXISTS idx_report_share_user ON api_report (share_user_id) W
 
 ### 2.6 Mock 服务端口
 
-Mock 服务随应用进程运行，通过平台 HTTP 端口或独立端口提供 Mock 响应。端口配置：
+Mock 服务随应用进程运行，通过平台 HTTP 端口或独立端口提供 Mock 响应。配置前缀为 `robotest.api-test.mock`：
 
 ```yaml
-api-test:
-  mock:
-    port: 8081  # 独立端口；为空时复用主端口
+robotest:
+  api-test:
+    mock:
+      access-enabled: true   # 免登录 Mock 访问总开关，关闭后仅保留管理端 CRUD
+      port: 18080            # 独立监听端口（环境变量 MOCK_PORT）；为空时复用主端口并按 excluded-prefixes 排除业务路由
+      base-url: http://localhost:18080  # 控制台展示用基础地址，留空按端口推导
+      path-qps: 50           # 单路径 QPS 上限，超限返回 429，<=0 关闭限流
+      excluded-prefixes: /api,/ws,/index.html,/assets  # 复用主端口时排除的业务与静态资源前缀
 ```
 
 ---
@@ -341,9 +362,16 @@ api-test:
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-api-testing-infra-overview.md` | 前言、1. 引言、2. 数据设计、2.3 通用约定、2.4 数据清理策略、2.5 迁移脚本、2.6 Mock 服务端口 |
-| 执行引擎 | `03-api-testing-infra-engine.md` | 3.2 执行引擎接口、4.1 执行引擎与格式转换、5.1 执行状态轮询、6.2 Ryze 依赖引入、6.3 执行引擎线程池配置 |
-| 调试记录 | `04-api-testing-infra-debug-record.md` | 3.3 调试记录接口 |
-| 测试报告 | `05-api-testing-infra-report.md` | 3.4 报告接口、5.2 报告详情渲染 |
-| 公共组件 | `06-api-testing-infra-common-component.md` | 3.5 公共组件接口、3.6 公共组件复制、5.3 公共组件新建/编辑 |
-| 导入记录 | `07-api-testing-infra-import-record.md` | 3.7 导入记录接口 |
+| 总览 | `02-api-testing-infra-overview.md` | 1. 引言、2. 数据设计（2.1 数据库表设计、2.2 错误码定义、2.3 通用约定、2.4 数据清理策略、2.5 迁移脚本、2.6 Mock 服务端口） |
+| 执行引擎 | `03-api-testing-infra-engine.md` | 1. 执行引擎概述、2. 执行模式与资源控制、3. 执行状态与结果查看、4. 执行框架适配（ryze）、5. 配置参考 |
+| 调试记录 | `04-api-testing-infra-debug-record.md` | 1. 调试记录接口 |
+| 测试报告 | `05-api-testing-infra-report.md` | 1. 报告接口、2. 报告详情渲染 |
+| 公共组件 | `06-api-testing-infra-common-component.md` | 1. 公共组件接口（三级作用域）、2. 公共组件复制、3. 公共组件新建/编辑 |
+| 导入记录 | `07-api-testing-infra-import-record.md` | 1. 导入记录接口 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-02 | 对齐实现：修正公共表 DDL 与索引、补全已登记错误码、修正参考文献与 Mock 端口配置、校准分册-章节对照表 |
+| V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |

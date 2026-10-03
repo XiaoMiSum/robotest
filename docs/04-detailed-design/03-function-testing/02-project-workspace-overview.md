@@ -14,7 +14,7 @@
 
 ### 1.2 范围
 
-功能测试模块面向**业务用户**，在已选定的项目内提供测试用例管理、测试评审、测试计划及缺陷管理功能。所有操作限定在当前活跃工作空间和项目上下文中，项目上下文通过请求头 `X-Active-Project` 传递。
+功能测试模块面向**业务用户**，在已选定的项目内提供测试用例管理、测试评审、测试计划、需求池及缺陷管理功能。所有操作限定在当前活跃工作空间和项目上下文中，活动上下文通过请求头 `X-Active-Workspace` 与 `X-Active-Project` 传递。
 
 ### 1.3 参考资料
 
@@ -32,21 +32,11 @@
 
 数据库字段使用 snake_case，接口 JSON 使用 camelCase。
 
-#### 2.1.1 测试用例模块表（test_case_module）
+#### 2.1.1 项目模块表（project_module）
 
-| 字段         | 类型                           | 约束                                    | 说明     |
-| ---------- | ---------------------------- | ------------------------------------- | ------ |
-| id         | binary(16)                  | PK                                     | 模块节点ID |
-| project_id | binary(16)                  | NOT NULL                               | 所属项目   |
-| parent_id  | binary(16)                  | NULL                                   | 父节点ID  |
-| type       | enum('directory','document') | NOT NULL                              | 节点类型   |
-| name       | varchar(100)                 | NOT NULL                              | 名称     |
-| sort_order | int                          | NOT NULL, DEFAULT 0                   | 排序号    |
-| created_at | datetime                     | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 创建时间   |
-| updated_at | datetime                     | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间   |
-| is_deleted | tinyint(1)                   | NOT NULL, DEFAULT 0                   | 是否删除   |
+项目级统一模块树：功能用例文档、接口定义、测试场景等测试资产共享同一棵树组织。目录节点存于本表，用例文档作为独立资产存于 `test_case_document`（见 2.1.3），接口与场景通过各自 `module_id` 挂载。表结构、索引与同级名称唯一约束见 `docs/04-detailed-design/02-project-module.md` 2.1，此处不重复描述。
 
-**索引**：`idx_project_id` (project_id), `idx_parent_id` (parent_id)
+各资产表通过 `module_id` 引用 `project_module.id`，`NULL` 表示未分组。
 
 #### 2.1.2 测试用例节点表（test_case_node）
 
@@ -66,16 +56,9 @@
 
 **索引**：`idx_document_id` (document_id), `idx_parent_id` (parent_id)
 
-#### 2.1.3 文档布局表（test_case_document_layout）
+#### 2.1.3 用例文档表（test_case_document）
 
-| 字段          | 类型     | 约束                           | 说明   |
-| ----------- | ------ | ---------------------------- | ---- |
-| id          | binary(16)  | PK                                  | 主键ID   |
-| document_id | binary(16)  | NOT NULL                            | 文档ID   |
-| layout_json | json        | NOT NULL                            | 布局信息 |
-| created_at  | datetime    | NOT NULL, DEFAULT CURRENT_TIMESTAMP  | 创建时间 |
-| updated_at  | datetime    | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-| is_deleted  | tinyint(1)  | NOT NULL, DEFAULT 0                 | 是否删除 |
+用例以脑图文档形式存储，`module_id` 引用 `project_module.id`（见 2.1.1），脑图布局以 `layout` 列内嵌保存（原 `test_case_document_layout` 表已废弃，布局数据合并至本表）。表结构、`layout` JSON 格式与索引见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 2.1，此处不重复描述。
 
 #### 2.1.4 测试计划表（test_plan）
 
@@ -223,7 +206,7 @@
 | status              | enum('active','resolved','rejected','closed') | NOT NULL, DEFAULT 'active'         | 状态（激活/已解决/已拒绝/已关闭）   |
 | bug_type            | varchar(30)                               | NOT NULL, DEFAULT 'code_error'         | 缺陷类型，枚举见下文           |
 | repro_steps         | text                                      | NULL                                   | 重现步骤（Markdown 原文）    |
-| module_id           | binary(16)                                | NULL                                   | 所属模块，关联 test_case_module 树 |
+| module_id           | binary(16)                                | NULL                                   | 所属模块，引用 project_module 统一模块树（见 2.1.1） |
 | keywords            | varchar(255)                              | NULL                                   | 关键词                   |
 | due_date            | date                                      | NULL                                   | 截止日期                  |
 | confirmed           | tinyint(1)                                | NOT NULL, DEFAULT 0                    | 是否确认                  |
@@ -314,7 +297,7 @@
 
 - 项目内接口基础路径：`/api/project`
 - 认证：`Authorization: Bearer <token>`
-- 业务请求头：必须带 `X-Active-Project`
+- 业务请求头：`X-Active-Workspace` + `X-Active-Project`（项目域请求两者必带，见 2.2.1）
 - 命名风格：camelCase
 - 分页：`pageNo`、`pageSize` → `{ list: [], total: number }`
 - 通用响应：`{ "code": 200, "msg": "success", "data": {} }`
@@ -341,50 +324,77 @@
 
 所有接口校验用户是否属于当前项目所属的工作空间。评审操作仅发起人可完成/同步/删除，参与者均可提交记录。计划操作负责人可编辑、同步、完成/关闭、删除，执行人可提交执行记录。
 
+前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求池接口校验 `requirement:view`（编辑、归档为 `requirement:edit`）；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
+
 ---
 
 
 ### 2.5 总体布局
 
-进入项目后，平台处于“项目模式”。顶部动态菜单显示：**功能测试**、**缺陷管理**（接口测试暂未开放）。功能测试为独立框架页（FunctionalTestingPage），进入后呈现深色侧边栏导航布局，子模块（测试用例、测试评审、测试计划）在框架内部切换，不再依赖顶部菜单。默认进入项目工作台。
+从项目列表点击「进入项目」，或切换到设有默认项目的工作空间后，平台进入**项目模式**（路由 `meta.mode` 为 `project`，导航状态由路由注册表派生），并默认落在项目工作台。顶栏自左向右为：Logo（点击回项目工作台）→ 空间名 / 项目名胶囊 → 顶部动态菜单 → 我的空间、我的项目、空间管理、系统管理、消息中心 → 用户头像下拉（修改密码、退出登录）。
+
+顶部动态菜单取 `mode: 'project'` 且带 `meta.menu` 的路由记录，按 `order` 升序排列并按权限码过滤，权限不满足的菜单项不展示：
+
+| 顺序 | 菜单项 | 路由 | 图标 | 权限码 |
+| --- | --- | --- | --- | --- |
+| 10 | 功能测试 | `/workspace/projects/functional-testing` | Monitor | `case:view` |
+| 20 | 缺陷管理 | `/workspace/projects/bugs` | Warning | `bug:view` |
+| 30 | 接口测试 | `/workspace/projects/api-testing` | Connection | 任一 `api-*:view`（api-debug / api-interface / api-mock / api-scene / api-report / api-timer / api-env / api-func / api-component） |
+
+项目工作台、评审/计划/缺陷详情、需求池等页面的路由不带 `meta.menu`，不进顶部菜单，由菜单项或页面跳转进入。功能测试与接口测试均为独立框架页，进入后子模块在框架内部切换，不再依赖顶部菜单。
 
 #### 2.5.1 功能测试工作区
 
-功能测试采用独立的框架页（FunctionalTestingPage）承载。页面内部分为左右结构：左侧为深色渐变侧边栏（包含测试用例、测试评审、测试计划三个入口），右侧为对应子模块内容区。侧边栏使用深色渐变背景，当前选中项带有蓝色高亮指示条。
+功能测试采用独立的框架页（FunctionalTestingPage）承载，路由 `/workspace/projects/functional-testing`。页面内部分为左右结构：左侧为模块侧栏白卡（el-menu，含测试用例、测试评审、测试计划、需求池四个入口），右侧为主内容卡，按选中项渲染 TestCasePage、ReviewListPage、PlanListPage、RequirementPoolPage。侧栏与内容卡等高并排，当前选中项为浅蓝底胶囊高亮；该路由下业务布局内容区 padding 归零，由页内两张白卡自行成形。
 
 ```
-┌──────────────────────────────────────────────────┐
-│ ┌──────────┐  ┌────────────────────────────────┐ │
-│ │  测试用例 │  │                                │ │
-│ │  测试评审 │  │        子模块内容区              │ │
-│ │  测试计划 │  │     (根据侧边栏切换)             │ │
-│ │          │  │                                │ │
-│ └──────────┘  └────────────────────────────────┘ │
-│  ←深色侧边栏→    ←──────── 内容区 ────────→       │
-└──────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ ┌──────────────┐  ┌───────────────────────────────┐ │
+│ │  测试用例      │  │                               │ │
+│ │  测试评审      │  │         子模块内容区            │ │
+│ │  测试计划      │  │    (按侧栏选中项渲染对应页面)     │ │
+│ │  需求池        │  │                               │ │
+│ └──────────────┘  └───────────────────────────────┘ │
+│  ←模块侧栏白卡→      ←──────── 主内容卡 ────────→      │
+└─────────────────────────────────────────────────────┘
 ```
+
+子模块切换只更新 `?tab=cases|reviews|plans|requirements` 查询参数，不新增路由；刷新或外部链接经 `?tab=` 还原，默认进入测试用例。处于用例文档编辑态时切换子模块或离开页面需二次确认，取消则停留在原页面。
 
 #### 2.5.2 接口测试
 
-暂未开放，显示占位提示。
+接口测试为独立框架页（ApiTestingPage），路由 `/workspace/projects/api-testing`，与功能测试同构：左侧模块侧栏白卡 + 右侧内容卡，子模块经 `?tab=` 还原，菜单项按权限码过滤。主菜单：快速调试、接口管理、Mock 服务、测试场景、测试报告、定时任务；「项目设置」分组：环境管理、函数管理、公共组件（依次对应 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view`）。任一 `api-*:view` 都不具备时入口菜单隐藏，直接访问路由则内容区展示「暂无可用功能模块」空态提示。测试报告分享页 `/share/api-report/:id` 为公开路由，不经本框架页。
 
 #### 2.5.3 缺陷管理
 
-独立功能面板，包含看板和列表两种视图。
+独立页面（BugListPage），包含看板和列表两种视图：视图切换按钮组、状态快捷筛选（全部、未修复的、由我创建、指派给我、由我修复、由我关闭）、关键字搜索与更多筛选（状态、类型、严重等级、优先级）弹层；看板按状态分列，列间拖拽按四态状态机流转状态，拖至「已解决」弹解决对话框，其余合法目标列弹说明输入，非法目标列置灰不可落。相关操作页为提交缺陷与缺陷详情（见 2.6）。
+
+#### 2.5.4 模块树与项目上下文状态
+
+- **模块树**：`ProjectModuleTree` 组件封装 el-tree，逻辑下沉到 `useProjectModuleTree`。`assetType=testcase` 为文档模式：目录可新建、重命名、删除与拖拽排序，用例文档为叶子节点，点击文档在右侧打开脑图，切换已打开文档需二次确认；顶部关键字过滤命中后自动展开祖先链。`assetType=interface|scene` 为筛选模式：只有目录节点，点击目录仅过滤父页列表。树数据来自 `GET /api/project/modules?assetType=`，状态（treeData、loading、currentDocId）由 composable 持有，组件通过 emit 通知页面选中项。
+- **项目上下文状态**：活动项目 ID 与名称由 auth store 持有并持久化（`robotest_active_project`），切换或退出空间时先清空项目；请求层按 URL scope 注入 `X-Active-Workspace`、`X-Active-Project` 头，活动项目 ID 不出现在 URL 与请求体中（C4）。导航模式与顶部菜单由 nav store 从当前路由 `meta.mode`、`meta.menu` 派生，`dynamicMenuItems` 即当前模式下按权限过滤后的菜单项。
 
 
 ### 2.6 路由规划
 
-| 路由                                      | 页面    | 说明              |
-| --------------------------------------- | ----- | --------------- |
-| `/workspace/projects/dashboard`         | 项目工作台 | 默认进入页面，展示项目统计概览 |
-| `/workspace/projects/cases`             | 用例管理  | 模块树 + 脑图编辑器     |
-| `/workspace/projects/plans`             | 计划列表  | 测试计划列表          |
-| `/workspace/projects/plans/:planId`     | 计划详情  | 快照树 + 执行跟踪      |
-| `/workspace/projects/reviews`           | 评审列表  | 测试评审列表          |
-| `/workspace/projects/reviews/:reviewId` | 评审详情  | 快照树 + 评审标记/评论   |
-| `/workspace/projects/api-test`          | 接口测试  | 占位提示页面          |
-| `/workspace/projects/bugs`              | 缺陷管理  | 看板/列表视图         |
+项目域路由均挂在业务布局（BusinessLayout）下，`meta.mode` 为 `project`；带 `meta.menu` 的路由同时是顶部动态菜单注册项（权限码见 2.5）。
+
+| 路由 | 页面 | 菜单/权限 | 说明 |
+| --------------------------------------------- | ------------------ | ---------------- | ------------------------------------ |
+| `/workspace/projects/dashboard` | 项目工作台（DashboardPage） | 不进菜单；数据接口 `project:view` | 进入项目默认落地页，展示统计、快捷入口与最近动态 |
+| `/workspace/projects/functional-testing` | 功能测试框架页（FunctionalTestingPage） | 菜单「功能测试」，`case:view` | `?tab=cases\|reviews\|plans\|requirements` 切换子模块，默认测试用例 |
+| `/workspace/projects/reviews` | 评审列表（ReviewListPage） | 不进菜单 | 独立直达路由，内容同功能测试「测试评审」子模块 |
+| `/workspace/projects/reviews/:reviewId` | 评审详情（ReviewDetailPage） | 不进菜单 | 快照树 + 评审标记/评论 |
+| `/workspace/projects/plans` | 计划列表（PlanListPage） | 不进菜单 | 独立直达路由，内容同功能测试「测试计划」子模块 |
+| `/workspace/projects/plans/:planId` | 计划详情（PlanDetailPage） | 不进菜单 | 快照树 + 执行跟踪 |
+| `/workspace/projects/requirements` | 需求池（RequirementPoolPage） | 不进菜单；接口 `requirement:view` | 独立直达路由，内容同功能测试「需求池」子模块 |
+| `/workspace/projects/api-testing` | 接口测试框架页（ApiTestingPage） | 菜单「接口测试」，任一 `api-*:view` | `?tab=` 还原子模块 |
+| `/workspace/projects/interfaces/:interfaceId` | 接口定义编辑（旧路由） | 不进菜单 | 重定向至 `/workspace/projects/api-testing?tab=interfaces`（`new` 转 `action=create`） |
+| `/workspace/projects/bugs` | 缺陷管理（BugListPage） | 菜单「缺陷管理」，`bug:view` | 看板/列表视图 |
+| `/workspace/projects/bugs/create` | 提交缺陷（BugCreatePage） | 不进菜单 | 禅道式表单，重现步骤 Markdown 编辑 |
+| `/workspace/projects/bugs/:bugId` | 缺陷详情（BugDetailPage） | 不进菜单 | 状态流转、日志与附件 |
+
+项目上下文入口为项目列表 `/workspace/projects`（workspace 模式，菜单权限 `project:view`）：「进入项目」时写入活动项目并跳转 `/workspace/projects/dashboard`；工作空间设有默认项目时切换空间也直接进入工作台。
 
 
 ## 3. 错误码补充
@@ -434,9 +444,20 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-project-workspace-overview.md` | 前言、1. 引言、2. 数据设计、2.2 通用约定、2.3 评审/执行记录与状态更新、2.4 权限控制、2.5 总体布局、2.6 路由规划、6. 错误码补充 |
-| 项目工作台 | `03-project-workspace-workbench.md` | 3.2 项目工作台接口、5.3.1 项目工作台 |
-| 测试用例管理 | `04-project-workspace-test-case.md` | 3.3 测试用例管理接口、4.1 文档创建与默认根节点、4.2 脑图实时协作、5.3.2 用例管理页 |
-| 测试评审管理 | `05-project-workspace-test-review.md` | 3.4 测试评审管理接口、4.3 快照生成与裁剪、5.3.3 评审列表页、5.3.4 评审详情页 |
-| 测试计划管理 | `06-project-workspace-test-plan.md` | 3.5 测试计划管理接口、4.5 同步最新用例、5.3.5 计划列表页、5.3.6 计划详情页 |
-| 缺陷管理 | `../04-bug-management/02-project-workspace-bug.md` | 3.6 缺陷管理接口、5.3.7 缺陷管理页 |
+| 总览 | `02-project-workspace-overview.md` | 1. 引言、2. 数据设计（2.1 数据库表设计、2.2 通用约定、2.2.1 项目域上下文边界、2.3 评审/执行记录与状态更新、2.4 权限控制、2.5 总体布局（2.5.1 功能测试工作区、2.5.2 接口测试、2.5.3 缺陷管理、2.5.4 模块树与项目上下文状态）、2.6 路由规划）、3. 错误码补充 |
+| 项目工作台 | `03-project-workspace-workbench.md` | 1. 项目工作台接口（1.1 获取项目工作台数据、1.2 项目动态数据、1.3 项目工作台页面）、2. 约束与实施说明 |
+| 测试用例管理 | `04-project-workspace-test-case.md` | 1. 测试用例管理接口、2. 文档创建与默认根节点、3. 脑图实时协作（3.1 用例管理页） |
+| 测试评审管理 | `05-project-workspace-test-review.md` | 1. 测试评审管理接口、2. 快照生成与裁剪（2.1 评审列表页、2.2 评审详情页） |
+| 测试计划管理 | `06-project-workspace-test-plan.md` | 1. 测试计划管理接口、2. 同步最新用例（2.1 计划列表页、2.2 计划详情页） |
+| 用例资产管理 | `07-document-management.md` | 1. 引言、2. 数据设计、3. 接口详细设计、4. 业务逻辑设计（4.3 页面集成与状态分支）、5. 实施说明 |
+| 脑图组件 | `08-mindmap-component.md` | 1. 概述、2. 技术选型、3. 组件架构、4. 数据模型与模式映射、5. 工具栏设计、6. 右键菜单设计、7. 评审状态与执行状态展示、8. 关联 Bug 标签与跳转、9. 评论功能、10. 初始化加载流程（10.4 状态分支）、11. 实时协作设计、12. 与后端交互总结、13. Vue 组件代码骨架、14. 实施要点 |
+| 缺陷管理 | `../04-bug-management/02-project-workspace-bug.md` | 1. 缺陷管理接口（1.13 缺陷管理页、1.14 提交缺陷页、1.15 缺陷详情页） |
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-10-02 | 对齐前端实现：模块划分与总体布局、项目态路由与顶部菜单权限码、模块树与项目上下文状态、数据表口径及分册-章节对照表 |
+| V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |

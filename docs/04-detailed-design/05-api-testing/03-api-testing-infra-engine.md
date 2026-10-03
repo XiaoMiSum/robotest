@@ -1,207 +1,184 @@
-# 软件测试平台——执行引擎
+# 执行引擎详细设计说明书
 
-**文档版本**：V1.0
-**日期**：2026-09-23
+**文档版本**：V1.0  
+**日期**：2026-09-23  
 **状态**：起草中
 
 ---
 
-## 1. 执行引擎接口
+## 1. 执行引擎概述
 
-### 1.1 触发场景执行
+执行引擎负责将接口场景（scene）编译为可执行的套件（suite）并交给底层执行框架运行，同时提供单步调试、草稿直跑、历史查询与报告落库能力。前后端边界如下：
 
-- **路径**：`POST /api/project/scenes/:sceneId/execute`
-- **说明**：触发单个场景或组合执行。支持单场景执行、批量执行。
-- **请求体**：
+- **前端**：仅负责触发执行与按需查询——触发后由 toast 提示 `场景已触发执行（executionId）`（快速调试为 `执行已启动`），**不轮询执行状态**；执行状态与结果通过「场景执行历史」（执行记录列表按 `updatedAt` 倒序、`total` 总数，`pending/running` 显示 `处理中` 徽标）与「测试报告」弹窗（`GET …/reports/{reportId}`）按需查看。
+- **后端**：异步执行（提交线程立即返回 executionId），执行状态通过执行记录与报告持久化。
 
-```json
-{
-  "environmentId": "018f...",
-  "executionMode": "platform",
-  "sceneIds": ["018f..."],
-  "variableOverrides": { "base_url": "https://staging.example.com" }
-}
+执行引擎核心接口（均需上下文请求头，权限见各接口；错误码见分册《接口测试基础平台详细设计说明书》§2.2）：
+
+| 接口 | 方法 | 说明 | 权限 |
+| --- | --- | --- | --- |
+| `/api/project/api-scenes/{sceneId}/executions` | POST | 触发场景执行，请求体 `environmentId`（必填）；返回 `data` 为 executionId（UUID） | `api-scene:execute` |
+| `/api/project/api-scenes/{sceneId}/executions` | GET | 场景执行历史（分页，状态为 `pending/running/success/failed/error` 的执行记录） | `api-scene:view` |
+| `/api/project/api-scenes/{sceneId}/steps/{stepId}/debug` | POST | 单步调试：跳过前置步骤，仅执行当前步骤；请求体含 `environmentId`（必填）；返回 `{ validatorResults, extractedVariables }`（当前恒为空） | `api-scene:execute` |
+| `/api/project/api-scenes/draft/execute` | POST | 草稿直跑：前端将编辑器中未保存的场景 JSON 原样提交，保存与执行原子化 | `api-scene:execute` |
+| `/api/project/api-test/reports/{reportId}` | GET | 查看报告详情（进度与结果的权威来源） | `api-scene:view` |
+| `/api/project/api-test/reports` | GET | 报告列表分页（仅 `source=schedule` 的 suite 级报告，即定时任务报告；场景执行报告经场景内报告接口查询） | `api-scene:view` |
+
+**说明**：
+
+- 执行状态**无独立 HTTP 查询接口**，也**没有取消执行的 HTTP 接口**（`ExecutionCancelRegistry` 仅由测试计划任务在取消计划时内部调用，场景执行侧无取消入口）。
+- 前端调用 `createSceneExecution` 后即结束，`createDraftExecution` 同理（toast `执行已启动`）；历史与报告均为按需查询（执行历史气泡面板打开时查询、报告弹窗打开时查询）。
+- 执行记录状态取值：`pending` / `running` / `success` / `failed` / `error`（`cancelled` 仅存在于取消注册表语义中，当前链路无法触达；无 `timeout` 状态）。
+
+---
+
+## 2. 执行模式与资源控制
+
+### 2.1 场景步骤转换（`SceneRyzeConverter`）
+
+- 场景步骤 `stepType`：`http` / `extractor` / `assertion`，转换为 ryze 步骤 `http` / `processor`。
+- **步骤级提取器与断言合并为一个 ryze `processor` 步骤**：同一场景步骤内「提取器（`extractors`）+ 断言（`assertions`）」按顺序合并为一个 ryze `processor` 步骤的步骤级处理器链，提取器输出进入 `sample.variables` 上下文供断言引用；不单独产出 `extractor` / `assertion` 类型的 ryze 步骤。
+- `variables`（全局变量）、`preProcessors` / `postProcessors`（步骤外的前置/后置处理器）分别映射为 ryze 的变量与处理器配置。
+- **执行模式与并行度在「场景设置」中配置**（`executionMode` / `maxRetries` / `timeoutSeconds` 等），转换时写入 ryze suite 配置；执行中任务列表「并行执行」复选框不参与本次转换参数。
+- 禁用步骤以 `skip` 标记参与转换，由执行框架产出 `skipped` 结果。
+- 单步调试同样经该转换器，但**仅包含被调试步骤**（前置步骤不参与）。
+
+### 2.2 资源控制（`ApiTestExecutorConfig`）
+
+| 配置项（`ApiTestProperties`） | 默认值（代码） | 说明 |
+| --- | --- | --- |
+| `pool.core-size` / `pool.max-size` / `pool.queue-capacity` | 2 / 4 / 100 | 执行线程池；队列满时拒绝并抛 `1000017001`（场景执行与草稿直跑均可能触发） |
+| `pool.keep-alive-seconds` | 60 | 空闲线程回收 |
+| `guard.timeout-ms` | 120000 | 提交前置守卫超时；超时抛 `1000017002` |
+| `quick-debug.*` | 0 / 10000 / 10000 | 快速调试资源限制；违反抛 `1000017002` |
+
+- `1000017001`：执行队列已满（场景执行与草稿直跑共用同一资源池）。
+- `1000017002`：快速调试资源限制 / 提交前置守卫超时。
+- `1000017003`：仅 HTTP 步骤支持单步调试（对非 HTTP 步骤执行「单步调试」时抛出）。
+
+### 2.3 执行状态
+
+- 前端**不轮询**执行状态；触发执行的接口仅回传 executionId，历史与报告按需查询（见 §1、§3）。
+- `stopOnFailure` 固定为 `true`：任一步骤失败（非 `skipped`）即中止后续步骤，但已产出的步骤结果全部保留。
+- **请求级响应超时**：单个 HTTP 请求超时后该步骤判为失败并计入「请求超时」指标（快速判错映射 `1000017003`），不抛独立错误码（无场景级响应超时错误码）。
+
+### 2.4 结果采集（`RyzeResultAdapter` / `RyzeResultSnapshotConverter`）
+
+- 汇总：steps 数组按步骤序累加，分别统计 `passed / failed / error / skipped / disabled` 计数；`hasError = error > 0 || disabled > 0`；`hasFailure = failed > 0 || hasError`。
+- 耗时：各步骤 `durationMs` 求和。
+- 提取变量：合并所有步骤的 `variables` 输出。
+- 断言明细：按步骤顺序平铺。
+- 失败定位：首个 `failed/error` 步骤进入 `failedStep`。
+- 步骤明细：由 `SnapshotVisitor` 遍历快照树产出（嵌套步骤树；响应体按 `max-body-bytes` 截断，超限时置 `truncated=true` 并移除响应体字节）。
+
+---
+
+## 3. 执行状态与结果查看
+
+> 执行状态与结果**通过报告按需查看**，前端不主动轮询。
+
+### 3.1 状态机与渲染口径
+
+**执行记录状态机**（`SceneExecutionLauncher` 维护，随执行推进持久化）：
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: 提交（线程池就绪后转 running）
+    pending --> running: 开始执行
+    running --> success: 套件成功（reportStatus=success）
+    running --> failed: 执行失败（reportStatus=failed，存在 error 步骤）
+    running --> error: 执行异常（引擎异常/报告落库失败）
+    success --> [*]
+    failed --> [*]
+    error --> [*]
 ```
 
-- `environmentId`：目标环境 ID（可选，缺省使用项目默认环境）。
-- `executionMode`：`platform`（平台内执行）。
-- `sceneIds`：批量执行时传入多个场景 ID；单场景执行时传入单个 ID 或通过路径参数指定。
-- `variableOverrides`：运行时变量覆盖（可选）。
-- **响应**：
+**报告状态**（落库于报告实体，前端据以渲染徽标）：
 
-```json
-{
-  "executionHistoryId": "018f...",
-  "status": "pending"
-}
+| 报告状态 | 判定 | 前端渲染（`useReportDisplay` / `useReportResultView`） |
+| --- | --- | --- |
+| `success` | 引擎无错误且断言全部通过 | 成功（绿） |
+| `partial` | 引擎无错误但存在断言失败 / 跳过步骤（执行记录非 success 也非 error） | 部分失败（橙） |
+| `failed` | 引擎存在错误步骤 / 报告状态映射为失败 | 失败（红） |
+| 草稿直跑报告 | 无执行记录关联 | 运行中（`running` 徽标） |
+
+**步骤状态渲染文案**（`useReportStepCard` / `ReportStepCard`）：`success`→`成功`、`failed`→`失败`、`error`→`执行异常`、`skipped`→`跳过`；断言明细 `ReportAssertionsTable`：`passed`→`通过`、`failed`→`失败`；提取器无独立状态，按 `message` 文案渲染成功/失败提示。
+
+### 3.2 报告与明细状态口径
+
+- **状态**：`pending` / `running` / `success` / `failed` / `error`。
+- **步骤状态**：`success` / `failed` / `error` / `skipped`（禁用步骤以 `skipped` 参与，见 `ReportEntryVisitor`、`RyzeResultSnapshotConverter`）。
+- **断言状态**：`passed` / `failed`（步骤级断言经 `report_entry_visitor` 展开至 `assertionEntries`）。
+- **提取器**：无独立状态字段，前端依据 `message` 判断展示。
+- **失败步骤**：取首个失败/异常步骤（`failedStep`）。
+
+### 3.3 查看路径
+
+- **场景执行历史**：`GET /api/project/api-scenes/{sceneId}/executions` 返回执行记录列表（`executionId` / `sceneId` / `status` / `createdAt` / `updatedAt` / `total`），`pending`、`running` 显示 `处理中` 徽标。
+- **报告详情**：`GET /api/project/api-test/reports/{reportId}` 返回报告头 + 步骤树 + 断言/提取器明细；报告实体含 `status` 字段，前端据此渲染状态徽标（草稿直跑报告状态恒为 `running`）。
+- **报告列表**：`GET /api/project/api-test/reports`（`source=schedule` 且 `report_type=suite`，即定时任务报告）。
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant FE as 前端（场景编辑器/报告列表）
+    participant BE as 后端
+    participant EX as 执行引擎
+    U->>FE: 点击「执行」
+    FE->>BE: POST /api/project/api-scenes/{sceneId}/executions
+    BE->>EX: 提交异步执行任务（守卫/线程池校验，失败抛 1000017001/1000017002）
+    BE-->>FE: executionId
+    FE-->>U: toast「场景已触发执行（executionId）」（结束，不轮询）
+    EX->>EX: 转换（SceneRyzeConverter）→ 执行 → 结果采集 → 报告落库
+    U->>FE: 打开执行历史（气泡面板，按需查询）
+    FE->>BE: GET …/executions
+    BE-->>FE: 执行记录列表（status/updatedAt/total）
+    U->>FE: 打开报告弹窗
+    FE->>BE: GET /api/project/api-test/reports/{reportId}
+    BE-->>FE: 报告（status + 步骤树 + 明细）
+    FE-->>U: 渲染状态徽标与明细
 ```
 
-### 1.2 查询执行状态
+---
 
-- **路径**：`GET /api/project/executions/:executionId`
-- **响应**：
+## 4. 执行框架适配（ryze）
 
-```json
-{
-  "id": "018f...",
-  "sceneId": "018f...",
-  "sceneName": "登录接口测试",
-  "status": "running",
-  "executionMode": "platform",
-  "triggerType": "manual",
-  "progress": 60,
-  "executedAt": "2026-08-17T10:30:00Z",
-  "durationMs": null
-}
-```
+- **版本**：ryze 6.1.1（`server/pom.xml` 属性 `ryze.version`；适配层位于 `server/.../service/apitest/execution/adapters/ryze/`）。
+- **Java 21**：使用 virtual thread 执行模型（由 ryze 框架内部调度）。
+- **步骤类型**：HTTP 请求、前置/后置处理器（含提取器与断言）。
+- **变量作用域**：全局变量 + 步骤级变量。
+- **运行模式**：单场景执行。
 
-### 1.3 取消执行
+---
 
-- **路径**：`POST /api/project/executions/:executionId/cancel`
-- **说明**：取消进行中的执行任务。已执行的步骤结果保留，标记为 cancelled。
-- **响应**：`{ "success": true }`
+## 5. 配置参考
 
-
-## 2. 执行引擎与格式转换
-
-执行引擎是接口测试的核心基础设施，基于 Ryze 框架构建。
-
-### 2.1 执行模式
-
-| 模式 | 说明 | 资源消耗 |
-| ---- | ---- | ---- |
-| 平台内执行 | 调试请求与场景执行由平台执行引擎在服务端执行，格式转换后交 Ryze 引擎运行 | 消耗平台执行引擎资源 |
-
-### 2.2 格式转换机制
-
-平台以自有字段模型存储全部接口测试数据，不持久化 Ryze 文档格式。Ryze 标准 JSON 仅在执行时由平台实时解析生成。
-
-**平台模型 → Ryze TestSuite 映射**：
-
-| 平台模型 | Ryze 标准 JSON |
-| -------- | -------------- |
-| 场景 | TestSuite（顶层集合） |
-| 场景参数 | variables |
-| 环境 HTTP 配置（多个） | configelements（testclass: http，挂载到 root testsuite） |
-| 环境数据源（多个） | configelements（testclass: jdbc，挂载到 root testsuite） |
-| 全局前置/后置处理器 | preprocessors / postprocessors |
-| 场景步骤（http 取样器） | children（testclass: http） |
-| 场景步骤（jdbc 取样器） | children（testclass: jdbc） |
-| 步骤级处理器 | 步骤级 preprocessors / postprocessors |
-| 步骤级验证器 | validators |
-| 步骤级提取器 | extractors |
-| 请求头、请求体、Query 参数 | config 对应字段 |
-
-**环境配置 → configelements 转换规则**：
-
-环境中的 HTTP 配置和数据源在执行时转为 Ryze configelements，挂载到 root testsuite 级别，由 Ryze 框架按 `ref` 自动处理继承与覆盖。
-
-| 环境配置 | Ryze configelement（testclass） | 挂载字段 |
-| -------- | ------------------------------- | -------- |
-| 环境主表 `http_configs`（HTTP 配置 JSONB 列） | `http`（元件 `HTTPDefaults`，KW 含 `http`/`http_defaults`/`https`） | configelements 数组 |
-| 环境主表 `data_sources`（数据源 JSONB 列） | `jdbc`（元件 `JDBCDatasource`，KW 含 `jdbc`/`jdbc_datasource`/`jdbc_data_source`） | configelements 数组 |
-
-> 配置元件结构与 Ryze 引擎反序列化契约一致：顶层 `testclass` + `ref_name`（引用名，缺省时引擎按默认键 `__http_configure_element_default_ref_name__`/`__jdbc_configure_element_default_ref_name__` 注册），协议键放 `config` 对象内（HTTP：`base_url`/`headers`/`cookie`/`query`/`path` 等；JDBC：`driver`/`url`/`username`/`password`/`max_active` 等）。环境模型中 `refName` 直译为 `ref_name`，`baseUrl` 直译为 `base_url`，`maxPoolSize` 映射为 `max_active`（`connectionProperties` 本版仅留存环境 JSONB，不映射执行）。
-
-**示例**：
-
-```json
-{
-  "title": "测试场景",
-  "configelements": [
-    { "testclass": "http", "ref_name": "internal-api", "config": { "base_url": "https://api.internal.com", "headers": { "Authorization": "${token}" } } },
-    { "testclass": "http", "ref_name": "pay-third", "config": { "base_url": "https://pay.third.com", "headers": {} } },
-    { "testclass": "jdbc", "ref_name": "staging-db", "config": { "driver": "com.mysql.cj.jdbc.Driver", "url": "jdbc:mysql://staging-db:3306/test" } }
-  ],
-  "children": [...]
-}
-```
-
-**步骤级 request_config 与 configelements 的关系**：
-
-步骤的 `request_config` 保存步骤自身的差异配置（http 步骤：`method`/`url`/`headers`/`params`/`body`/`base_url`）。http 取样器 `config` 通过 `ref` 引用环境默认 HTTP 配置的 `ref_name`（步骤未显式指定时使用 `isDefault = true` 的配置，环境内未设默认取第一条，见《环境管理详细设计说明书》2.1.2），由 Ryze 引擎将环境配置元件与步骤配置合并执行：
-
-- `url` 为相对路径时映射为 Ryze `config.path`，`base_url` 由环境配置元件经 `ref` 继承；
-- `url` 为绝对地址或步骤显式配置 `base_url` 时写入 `config.base_url`（步骤级覆盖环境值）；
-- 步骤无需重复配置环境中已有的值，配置了也没关系——Ryze 合并遵循最低层级优先（步骤级 > 环境级）。
-
-> http 处理器（前置/后置）同理：其 `config.ref` 引用环境 http 配置的 `refName`，取代合并写法；处理器 `config` 仅含 Ryze 配置键，平台 overlay 键保存于元素顶层或实体列。
-
-**多场景组合执行的层级映射**：
-
-Ryze TestSuite 支持多层嵌套（项目级 → 模块级 → 用例级），子级集合自动继承父级的变量、配置元件与处理器。
-
-| 平台组合执行 | Ryze TestSuite |
-| ------------ | -------------- |
-| 执行任务（批量） | 顶层 TestSuite（项目级） |
-| 共享变量 | variables（顶层） |
-| 共享配置元件 | configelements（顶层） |
-| 场景 A | TestSuite（模块级子集合） |
-| 场景 A 的步骤 | children（testclass: http/jdbc） |
-| 场景 B | TestSuite（模块级子集合） |
-
-> **定时任务（含立即执行）即按此模型实现**：测试计划任务把圈选出的全部场景组织为一个顶层 TestSuite，**环境相关内容全部挂载顶层、只取任务绑定环境**（顶层 `variables`=任务绑定环境变量、`preprocessors`/`postprocessors`=任务绑定环境前置/后置处理器、`configelements`=任务绑定环境的 HTTP 配置与数据源），各场景为子 TestSuite，其 `variables`=场景变量（不含环境）、`children`=场景启用步骤、`pre/postprocessors`=场景处理器（不含环境），场景自身关联环境**不参与构建**（定时任务以任务绑定环境为唯一执行环境）），**一次 `Ryze.start` 运行**。环境处理器顶层挂载后每次任务执行一次（而非每场景一次）。**顶层 suite 携带 `id` = 任务 ID（taskId），各场景子 suite 携带 `id` = 场景 ID（sceneId）**（suite 元素 `id` 映射到 `TestSuiteResult.id`，供结果树/快照直接定位），场景子 Suite 另携带 `metadata: {sceneId, taskId}`，执行引擎将元素 metadata 复制到对应 `TestSuiteResult` 节点，平台据此从单一大 suite 结果树按 `sceneId` 反查各场景结果并关联逐场景执行记录（执行/记录/报告详述见《定时任务详细设计说明书》4.3）。
-
-**配置继承与优先级**（遵循 Ryze 原生语义）：
-
-子级集合自动继承父级的变量、配置元件与处理器，同名配置项子级覆盖父级。执行时的合并优先级（从低到高）：
-
-```
-环境默认配置 < 顶层组合配置 < 场景级配置 < 步骤级配置
-```
-
-**格式转换失败处理**：
-
-转换失败（平台模型存在 Ryze 无法表达的配置）时，执行引擎拒绝执行并返回错误码 1000017003（`API_FORMAT_CONVERT_FAILED`），不产生部分执行结果。错误信息包含具体失败原因与定位信息（如不支持的处理器类型、缺失的必填字段等）。
-
-### 2.3 资源池与并发调度
-
-- 执行任务统一纳入资源池管理，最大并发数由系统配置项控制（默认 5）。
-- 超出并发数的任务排队等待，队列长度可配置（默认 100），超出队列长度时返回错误码 1000017001（`API_EXECUTOR_BUSY`）。
-- 定时触发的场景执行与手动执行统一排队。
-- 组合执行作为一个整体任务入队，内部各场景按 Ryze 引擎串行或并行执行（由场景设置中的执行模式配置）。
-- 执行超时按请求级「响应超时」配置控制，超时任务标记为超时失败（错误码 1000017002），记录错误信息。
-
-### 2.4 执行结果收集
-
-Ryze 引擎执行完成后，平台收集执行结果并转换为平台自有格式：
-
-1. **步骤级结果**：每个步骤的请求/响应快照、耗时、验证器结果、提取器结果。
-2. **结果汇总**：总步骤数、通过数、失败数、跳过数、总耗时。
-3. **Ryze 快照**：执行时生成的完整 Ryze 结果树 JSON，保存至 `api_report.ryze_snapshot`，用于结果回溯与转换问题定位。
-4. **报告生成**：
-   - **场景报告**：场景执行完成后将结果写入 `api_report`（`report_type='scene'`、`result`=场景数据集），同时更新 `api_execution_record` 状态与 `report_id`；
-   - **套件报告**：测试计划任务（含立即执行）以一个顶层 TestSuite 一次运行，执行后由调度器侧从该大 suite 的 `TestSuiteResult` 树按场景子 suite 的 `metadata.sceneId` 递归抽取各场景步骤结果，聚合写入 `api_report`（`report_type='suite'`、`result`=套件数据集），并将套件报告 ID 回写本套件内各场景执行记录共享的 `report_id`（执行模型见《定时任务详细设计说明书》4.3，数据集结构见《测试报告详细设计说明书》2.3）。
-
-
-## 3. 执行状态轮询
-
-场景执行触发后，前端通过轮询（2 秒间隔）查询执行状态，直到状态变为终态（success/failed/cancelled/timeout）：
-
-```
-触发执行 → 获得 executionHistoryId
-  ↓ 轮询 GET /api/project/executions/:id
-  status = pending/running → 继续轮询
-  status = success → 跳转报告详情
-  status = failed/cancelled/timeout → 展示错误信息
-```
-
-
-## 4. Ryze 依赖引入
-
-在 `server/pom.xml` 中引入 Ryze 框架 Maven 依赖，版本锁定。Ryze 依赖 Java 21+，与平台技术栈一致。
-
-
-## 5. 执行引擎线程池配置
-
-执行引擎线程池参数通过 `application.yml` 配置化：
+执行引擎相关配置通过 `ApiTestProperties`（配置前缀 `api-test`）注入，**代码默认值即可运行**，`application.yaml` 中可按需覆盖（示例）：
 
 ```yaml
-api-test:
-  executor:
-    max-concurrency: 5
-    queue-capacity: 100
-    thread-name-prefix: api-test-executor-
+robotest:
+  api-test:
+    pool:
+      core-size: 2
+      max-size: 4
+      queue-capacity: 100
+      keep-alive-seconds: 60
+    guard:
+      timeout-ms: 120000
+    quick-debug:
+      max-concurrency: 0
+      max-duration-ms: 10000
+      max-requests: 10000
+    report:
+      max-body-bytes: 65536
 ```
 
+> `robotest.api-test.*` 与配置类前缀 `api-test` 属不同命名空间；配置样例与默认值以《接口测试基础平台详细设计说明书》为准，本文仅列引擎运行必需项。
 
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-10-02 | 按前后端实现对齐：改为真实执行接口与非轮询查看口径，补充报告状态渲染对照与 ryze 6.1.1 版本信息 |

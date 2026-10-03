@@ -10,18 +10,18 @@
 
 ### 1.1 编写目的
 
-本文档对软件测试平台的**审计查询**进行详细设计，定义审计日志的分页查询、统计聚合接口与数据结构，为开发实现提供完整依据。对应 `docs/重构方案/01-系统管理重构方案.md` §3.1.2「审计 → Decorator + Observer 消费」的消费端落点。
+本文档对软件测试平台的**审计查询**进行详细设计，定义审计日志的分页查询、统计聚合接口与数据结构，为开发实现提供完整依据。对应《系统管理重构方案》§3.1.2「审计 → Decorator + Observer 消费」的消费端落点。
 
 ### 1.2 范围
 
-- **审计写入（注解路径）**：使用框架 `@AuditLog(action = "CREATE:User", recordParams = ...)` 标注既有 13 处业务方法（保持原 Service 层标注位置不变），框架 `AuditLogAspect` 发布 `AuditLogEvent`，工程 `AuditLogEventListener` 接收并组装 `sys_audit_log` 记录，经共享 `AuditLogWriter` 写入（REQUIRES_NEW 独立事务、脱敏、首个 UUID 参数推断 entityId 语义不变，见 4.3）；监听器与登录审计共用写入设施。
+- **审计写入（注解路径）**：使用框架 `@AuditLog(action = "<operation>:<entityType>")` 标注业务方法（当前实现 4 处，均位于接口测试环境 Service 层），方法或类执行成功/失败后由框架 `AuditLogAspect` 发布 `AuditLogEvent`（入参已由框架脱敏），工程 `AuditLogEventListener` 接收并组装 `sys_audit_log` 记录，经共享 `AuditLogWriter` 以 REQUIRES_NEW 独立事务写入（组装口径见 4.3）；监听器与登录审计共用写入设施。
 - **审计写入（登录路径）**：登录成功后写入 `operation='LOGIN'` 记录（含登录 IP），供数据概览活跃统计与后续审计页消费（见 4.4）。
-- **审计查询**：分页查询 `GET /api/admin/audit-logs`（新增 `operation` 过滤，用于按登录/业务操作区分）、聚合统计 `GET /api/admin/audit-logs/aggregate` 两个端点。
+- **审计查询**：分页查询 `GET /api/admin/audit-logs`（支持 `operation` 过滤，用于按登录/业务操作区分）、聚合统计 `GET /api/admin/audit-logs/aggregate` 两个端点。
 
 ### 1.3 参考资料
 
-- 《系统管理重构方案》（`docs/重构方案/01-系统管理重构方案.md`，§3.1.2）
-- 《基础设施与框架层重构方案》（`docs/重构方案/07-基础设施与框架层重构方案.md`）
+- 《系统管理重构方案》（§3.1.2「审计 → Decorator + Observer 消费」）
+- 《基础设施与框架层重构方案》
 
 ### 1.4 定义与缩写
 
@@ -34,20 +34,20 @@
 
 ## 2. 数据设计
 
-无新表、无 DDL 变更。复用 `sys_audit_log`（`server/src/main/resources/db/schema.sql:87`），既有索引 `idx_sys_audit_log_operator` / `idx_sys_audit_log_entity` / `idx_sys_audit_log_created` 已覆盖查询条件（operator/entity 过滤 + created_at 排序），满足 C9（单表索引 3 个 ≤ 5）。
+无新表、无 DDL 变更。复用 `sys_audit_log`（`server/src/main/resources/db/schema.sql:82`），既有索引 `idx_sys_audit_log_operator` / `idx_sys_audit_log_entity` / `idx_sys_audit_log_created` 覆盖 entity 过滤与 `created_at` 排序等主要查询条件，满足 C9（单表索引 3 个 ≤ 5）。
 
-**operation 取值**：`CREATE` / `UPDATE` / `DELETE`（`@AuditLog` 注解路径）+ `LOGIN`（登录路径）。`LOGIN` 记录结构：`entity_type='User'`、`entity_id=operator_id=用户 ID`、`operator_name=登录用户名`、`request_ip=登录 IP`、`changes={}`；`created_at` 落在今日/近 14 日的 `LOGIN` 记录即数据概览「今日活跃 / 近 14 日活跃用户」的统计源（口径见 `docs/04-detailed-design/01-readme.md` §3.2）。
+**operation 取值**：`CREATE` / `UPDATE` / `DELETE`（`@AuditLog` 注解路径）+ `LOGIN`（登录路径）。`LOGIN` 记录结构：`entity_type='User'`、`entity_id=operator_id=用户 ID`、`operator_name=登录用户名`、`request_ip=登录 IP`、`changes={}`；`created_at` 落在今日/近 14 日的 `LOGIN` 记录即数据概览「今日活跃 / 近 14 日活跃用户」的统计源（口径见 `docs/04-detailed-design/01-system-management/07-system-management-dashboard.md` §1 字段口径表）。
 
 登录审计与 14 日聚合均以 `created_at` 为窗口，既有 `idx_sys_audit_log_created` 覆盖，**不新增索引**。
 
-### 2.1 权限点（新增种子）
+### 2.1 权限点种子
 
-新增系统管理权限点 `audit:*`（模块=审计日志，scope=global），DDL 种子如下（随 schema.sql 补充 INSERT）：
+系统管理权限点 `audit:*`（模块=审计日志，顶层模块=系统管理，scope=global）的 DDL 种子如下（已随 `server/src/main/resources/db/schema.sql` §17.2 落地）：
 
 ```sql
-INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000021', 'audit',      '审计日志',    NULL, '审计日志', '系统管理', 'global', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 ```
 
 > 全局系统管理权限（scope=global），不依赖工作空间上下文（C4），审计记录为全平台级，不含 workspace 隔离维度。
@@ -85,13 +85,18 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 {
   "list": [
     {
-      "id": "b0000000000000000000000001",
-      "operatorId": "a0000000000000000000000001",
+      "id": "b0000000-0000-0000-0000-000000000001",
+      "operatorId": "a0000000-0000-0000-0000-000000000001",
       "operatorName": "admin",
       "operation": "UPDATE",
       "entityType": "User",
-      "entityId": "a0000000000000000000000002",
-      "changes": "{\"password\":\"***\"}",
+      "entityId": "a0000000-0000-0000-0000-000000000002",
+      "changes": {
+        "params": [
+          "a0000000-0000-0000-0000-000000000002",
+          { "username": "admin", "password": "******" }
+        ]
+      },
       "requestIp": "10.0.0.1",
       "createdAt": "2026-09-13T10:00:00Z"
     }
@@ -99,6 +104,8 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
   "total": 128
 }
 ```
+
+`changes` 为 JSON 对象而非字符串：注解路径存 `{"params": [...]}`（框架已脱敏的入参 JSON 数组，无入参时为 `{}`），登录路径存 `{}`（组装口径见 4.3、4.4）。
 
 ### 3.3 审计统计聚合
 
@@ -132,17 +139,17 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, scope, sort_ord
 ### 4.1 AuditQueryService 端口
 
 ```java
-public interface AuditQueryService {           // 新 Port：查询/聚合
+public interface AuditQueryService {           // 查询/聚合端口
     PageResult<AuditLogRespDTO> page(String operatorName, String entityType,
             String operation, LocalDate beginTime, LocalDate endTime,
-            Integer pageNo, Integer pageSize);  // operation 为新增可选过滤
+            Integer pageNo, Integer pageSize);  // operation 为可选过滤（LOGIN/CREATE/UPDATE/DELETE）
     Map<String, Long> aggregate(String entityType, LocalDate from);
 }
 ```
 
 ### 4.2 AuditRecordedEvent（Observer 消费）
 
-`AuditLogEventListener` 在写入 `sys_audit_log` 成功后发布 Spring 事件 `AuditRecordedEvent`，供后续增量订阅方（如审计报表、通知推送）消费。本切片仅发布事件、无订阅方，不改变既有写入语义。
+`AuditLogWriter` 在 `sys_audit_log` 插入成功后（REQUIRES_NEW 独立事务内）发布 Spring 事件 `AuditRecordedEvent`，供后续增量订阅方（如审计报表、通知推送）消费。当前仅发布事件、无订阅方，不改变既有写入语义。
 
 ```java
 public record AuditRecordedEvent(UUID auditLogId, String entityType,
@@ -151,7 +158,7 @@ public record AuditRecordedEvent(UUID auditLogId, String entityType,
 
 ### 4.3 AuditLogEventListener（注解路径写入）
 
-**职责**：监听框架 `AuditLogEvent`（`@AuditLog` 标注的 Controller 方法执行后由框架发布，成功与失败均发布），组装 `AuditLog` 实体并经 `AuditLogWriter` 落库，失败仅告警不外抛（与原切面语义一致）。
+**职责**：监听框架 `AuditLogEvent`（`@AuditLog` 标注的方法或类执行后由框架 `AuditLogAspect` 发布，成功与失败均发布），组装 `AuditLog` 实体并经 `AuditLogWriter` 落库，写入失败仅告警不外抛，不影响业务返回。
 
 **组装口径**：
 
@@ -165,7 +172,7 @@ public record AuditRecordedEvent(UUID auditLogId, String entityType,
 | `request_ip` | 事件 `clientIp` |
 | `created_at` | 事件发生时刻 |
 
-**护栏**：仅 `event.success() == true` 的事件落库（`sys_audit_log` 无成功/失败列，失败记录不入库）；写入在 `AuditLogWriter` 的 REQUIRES_NEW 独立事务中执行；脱敏规则沿用 `AuditLogWriter`。`sys_audit_log` 无 DDL 变更。
+**护栏**：仅 `event.success() == true` 的事件落库（`sys_audit_log` 无成功/失败列，失败记录不入库）；`operator` 不匹配 `id(username)`（如 `anonymous`）或 `action` 不含 `:` 的事件跳过不落库；写入在 `AuditLogWriter` 的 REQUIRES_NEW 独立事务中执行；入参脱敏由框架切面在发布事件前完成（`@Sensitive` 掩码 + 敏感关键词字段 `******`）。`sys_audit_log` 无 DDL 变更。
 
 ### 4.4 登录审计写入
 
@@ -194,16 +201,35 @@ public class ClientIpResolver {
 3. **登录审计失败不得影响登录**：`AuditLogWriter` 捕获异常仅 `log.warn`（与注解路径语义一致）。
 4. `POST /api/auth/refresh` 不记录；同一用户当日多次登录各记 1 条（「人次」口径）。
 
-**查询侧影响**：分页查询新增 `operation` 过滤（3.2、4.1），登录记录可通过 `operation=LOGIN&entityType=User` 检索；响应结构与 `requestIp` 字段不变。
+**查询侧影响**：分页查询支持 `operation` 过滤（3.2、4.1），登录记录可通过 `operation=LOGIN&entityType=User` 检索；响应结构与 `requestIp` 字段不变。
 
 ---
 
 ## 5. 实施说明
 
-- 新增 `service/admin/audit/`：`AuditQueryService`（接口）、`AuditQueryServiceImpl`（实现）。
-- 新增 `controller/admin/AuditLogController`（仅路由 + `@Valid`，C2）。
-- 新增 `framework/audit/AuditLogEventListener`：监听框架 `AuditLogEvent`，按 4.3 组装 `AuditLog` 并经 `AuditLogWriter` 写入，写入成功后发布 `AuditRecordedEvent`；删除工程 `@AuditOperation` 与 `AuditLogAspect`，13 处用法改为框架 `@AuditLog(action = "<operation>:<entityType>", recordParams = 原 logParams)`。
-- 保留 `framework/audit/`：`AuditLogWriter`（REQUIRES_NEW 写入 + 事件发布）、`ClientIpResolver`、`AuditRecordedEvent`。
-- 本版本新增：`framework/audit/LoginAuditService`（recordLogin 组装与容错）、`AuditLogController/AuditQueryService/AuditLogMapper` 增加 `operation` 过滤参数。
-- `schema.sql` 追加 `audit:*` 权限种子（2.1），`sys_audit_log` 无 DDL 变更。
-- 前端管理端审计页属后续增量，本切片不涉及。
+- `service/admin/audit/`：`AuditQueryService`（查询端口）、`AuditQueryServiceImpl`（实现）、`LoginAuditService` / `LoginAuditServiceImpl`（登录审计组装与容错，4.4）。
+- `controller/admin/AuditLogController`：仅路由与参数校验，两个端点均 `@PreAuthorize("hasAuthority('audit:view')")`（C2）。
+- `framework/audit/`：`AuditLogEventListener`（监听框架 `AuditLogEvent`，按 4.3 组装并经 `AuditLogWriter` 落库）、`AuditLogWriter`（REQUIRES_NEW 写入 + 成功后发布 `AuditRecordedEvent`）、`ClientIpResolver`、`AuditRecordedEvent`；业务方法统一使用框架 `@AuditLog(action = "<operation>:<entityType>")`（当前实现 4 处，`recordParams` 默认开启）。
+- `repository/admin/AuditLogMapper`：分页条件查询（含 `operation` 过滤）、按 `entityType`+起始日期的按日聚合，以及数据概览消费的登录人次 / 近 14 日去重统计。
+- `db/schema.sql`：包含 `audit:*` 权限种子（2.1），`sys_audit_log` 无 DDL 变更。
+- 前端现状见第 6 章。
+
+---
+
+## 6. 前端设计
+
+**当前平台前端无审计页面**，本分册不定义任何前端页面结构与交互：
+
+- `web/src/router/` 无审计路由、菜单项（`meta.menu`）与面包屑；
+- `web/src/pages/`、`web/src/composables/`、`web/src/stores/` 下无审计相关页面组件、组合式逻辑与状态；
+- `web/src/services/` 未封装审计接口调用；前端仅在 `web/src/types/generated/contract.d.ts` 中保留 OpenAPI 自动生成的契约类型（`/api/admin/audit-logs` 的 `getAuditLogPage` 与 `/api/admin/audit-logs/aggregate` 的 `aggregate`）。
+
+审计查询当前仅以 3.2、3.3 的后端 API 形式提供；管理端审计页属后续增量，实现前本文不描述其页面结构、功能点与权限挂载。
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-02 | 与实现对齐：修正权限种子 DDL、响应示例与事件发布归属，移除失效文档引用，补充前端现状说明。 |

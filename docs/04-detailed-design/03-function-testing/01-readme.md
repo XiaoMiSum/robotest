@@ -7,6 +7,6 @@
 | [04-project-workspace-test-case](04-project-workspace-test-case.md)（分册：测试用例管理）   | V1.0 | 2026-09-23 | 已发布 |
 | [05-project-workspace-test-review](05-project-workspace-test-review.md)（分册：测试评审管理）   | V1.0 | 2026-09-23 | 已发布 |
 | [06-project-workspace-test-plan](06-project-workspace-test-plan.md)（分册：测试计划管理）   | V1.0 | 2026-09-23 | 已发布 |
-| [07-document-management](07-document-management.md)（分册：用例资产管理）   | V1.0 | 2026-09-23 | 起草中 |
+| [07-document-management](07-document-management.md)（分册：文档管理）   | V1.0 | 2026-09-23 | 起草中 |
 | [08-mindmap-component](08-mindmap-component.md)（分册：脑图组件）   | V1.0 | 2026-09-23 | 已发布 |
 > 本目录为功能测试模块的详细设计分册；模块入口与阅读顺序见上级索引 `docs/04-detailed-design/01-readme.md`。
