@@ -180,7 +180,8 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 | /api/project/requirements/import | POST | requirement:create |
 | /api/project/requirements/{id}/split | POST | requirement:edit |
 | /api/project/requirements/{id}/change-logs | GET | requirement:view |
-| /api/project/requirements/{id}/split-records | GET | requirement:view |
+| /api/project/requirements/{id}/split-logs | GET | requirement:view |
+| /api/project/requirements/split-records | GET | requirement:view |
 | /api/project/requirements/{id}/trace | GET | requirement:view |
 
 ### 3.2 需求列表
@@ -567,3 +568,4 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | V1.0 | 2026-10-02 | 需求增加业务系统版本属性，导入支持 AI 识别版本，列表、筛选与属性栏同步 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/requirements |
 | V1.0 | 2026-10-03 | 导入/拆分进度与建议审核统一到任务详情页（/workspace/projects/ai/tasks/:taskId），删除进度弹窗与审核面板浮层口径 |
+| V1.0 | 2026-10-03 | 权限映射表拆解记录行对齐 3.11 路径（`{id}/split-logs` 与项目级 `/split-records`） |
