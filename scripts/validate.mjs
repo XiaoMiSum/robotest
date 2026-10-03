@@ -259,6 +259,9 @@ if (MODES[mode] === 'all') {
 
 const check = CHECKS[MODES[mode]];
 banner(`  ${check.title}`);
+// C7 检查先于子检查执行，需单独快照失败数，否则其失败会被 runCheck 的前后对比吞掉
+const failuresBeforeCommitCheck = state.failures;
 if (!skipCommitCheck) checkCommitFormat();
+const commitOk = state.failures === failuresBeforeCommitCheck;
 const ok = runCheck(check);
-exitWith(ok ? 0 : 1);
+exitWith(ok && commitOk ? 0 : 1);
