@@ -256,6 +256,17 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '需求详情', mode: 'project' },
       },
       {
+        path: 'workspace/projects/trace',
+        name: 'TraceMatrix',
+        component: () => import('@/pages/project/trace/TraceMatrixPage.vue'),
+        meta: {
+          title: '追溯矩阵',
+          mode: 'project',
+          // 需求 → 用例 → 缺陷链路的全局视图，置于功能测试与缺陷之间（交互 04 §1）
+          menu: { label: '追溯矩阵', icon: 'Grid', order: 15, permission: 'trace:view' },
+        },
+      },
+      {
         // 任务中心不占顶部菜单，由各能力页任务入口下钻（交互 07 §1）
         path: 'workspace/projects/ai/tasks',
         name: 'AiTaskCenter',

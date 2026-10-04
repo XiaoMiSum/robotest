@@ -13,6 +13,10 @@ import {
   requirementStatusMeta,
 } from '@/composables/project/requirement/requirementPresentation'
 import { useRequirementDetail } from '@/composables/project/requirement/useRequirementDetail'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const canViewTrace = computed(() => authStore.hasPermission('trace:view'))
 
 const {
   loading,
@@ -84,6 +88,15 @@ const router = useRouter()
 function goBack(): void {
   void router.push('/workspace/projects/requirements')
 }
+
+/** 进入追溯矩阵并打开本需求的链路抽屉（交互 04 §2.2 入口） */
+function openTrace(): void {
+  if (!detail.value) return
+  void router.push({
+    path: '/workspace/projects/trace',
+    query: { requirementId: detail.value.id, title: `${detail.value.code} ${detail.value.title}` },
+  })
+}
 </script>
 
 <template>
@@ -152,6 +165,9 @@ function goBack(): void {
               </el-tag>
             </div>
             <div class="requirement-detail__actions">
+              <el-button v-if="canViewTrace" @click="openTrace">
+                <el-icon><Grid /></el-icon>查看追溯
+              </el-button>
               <el-button
                 v-if="canConfirm"
                 type="primary"
