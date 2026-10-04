@@ -1,11 +1,13 @@
 package io.github.xiaomisum.robotest.framework.security;
 
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import org.junit.jupiter.api.Test;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,5 +60,24 @@ class AttachmentFileValidatorTest {
         assertTrue(AttachmentFileValidator.isAllowedExtension(".JPG"));
         assertFalse(AttachmentFileValidator.isAllowedExtension("svg"));
         assertFalse(AttachmentFileValidator.isAllowedExtension(null));
+    }
+
+    @Test
+    void validateWithCallerErrorCodes_throwsProvidedCodes() {
+        // 调用域自报错误码（文件管理详设 4.3 校验分工）：白名单与内容不符均抛调用方给定码
+        ServiceException typeEx = assertThrows(ServiceException.class,
+                () -> AttachmentFileValidator.validate("html", PNG_MAGIC,
+                        ErrorCodeConstants.FILE_TYPE_NOT_ALLOWED, ErrorCodeConstants.FILE_TYPE_NOT_ALLOWED));
+        assertEquals(ErrorCodeConstants.FILE_TYPE_NOT_ALLOWED.code(), typeEx.getCode());
+
+        ServiceException contentEx = assertThrows(ServiceException.class,
+                () -> AttachmentFileValidator.validate("png", "pretend text".getBytes(StandardCharsets.UTF_8),
+                        ErrorCodeConstants.FILE_TYPE_NOT_ALLOWED, ErrorCodeConstants.FILE_TYPE_NOT_ALLOWED));
+        assertEquals(ErrorCodeConstants.FILE_TYPE_NOT_ALLOWED.code(), contentEx.getCode());
+
+        // 缺陷附件默认口径保持不变（BUG_ATTACHMENT_* 契约）
+        ServiceException bugEx = assertThrows(ServiceException.class,
+                () -> AttachmentFileValidator.validate("html", PNG_MAGIC));
+        assertEquals(ErrorCodeConstants.BUG_ATTACHMENT_TYPE_NOT_ALLOWED.code(), bugEx.getCode());
     }
 }

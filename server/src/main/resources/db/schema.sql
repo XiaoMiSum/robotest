@@ -437,19 +437,24 @@ CREATE INDEX idx_bug_log_bug_id ON bug_log (bug_id);
 
 -- 缺陷附件表
 CREATE TABLE bug_attachment (
-                                id           UUID         PRIMARY KEY,
-                                bug_id       UUID         NOT NULL,
-                                file_name    VARCHAR(255) NOT NULL,
-                                storage_path VARCHAR(500) NOT NULL,
-                                file_size    BIGINT       NOT NULL,
-                                content_type VARCHAR(100) NULL,
-                                uploader_id  UUID         NOT NULL,
-                                is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
-                                created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                id                UUID         PRIMARY KEY,
+                                bug_id            UUID         NOT NULL,
+                                file_name         VARCHAR(255) NOT NULL,
+                                storage_path      VARCHAR(500) NULL,
+                                file_size         BIGINT       NOT NULL,
+                                content_type      VARCHAR(100) NULL,
+                                uploader_id       UUID         NOT NULL,
+                                file_resource_id  UUID         NULL,
+                                is_deleted        BOOLEAN      NOT NULL DEFAULT FALSE,
+                                created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_bug_attachment_bug_id ON bug_attachment (bug_id);
+CREATE INDEX idx_bug_attachment_file_resource ON bug_attachment (file_resource_id);
+
+COMMENT ON COLUMN bug_attachment.storage_path IS '历史列（本地磁盘相对路径）：回填前兼容读取用，新行不再写入（文件管理详设 2.2）';
+COMMENT ON COLUMN bug_attachment.file_resource_id IS '关联 file_resource.id（文件管理详设 2.2）；存量行由应用启动回填，NULL 期间兼容本地 storage_path';
 
 -- ============================================================
 -- 7. 需求管理
@@ -1344,13 +1349,21 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000081', 'ai:confirm', 'AI 产物确认',        'ai',  'AI 能力', 'AI 能力', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 19.8 预置角色（含全部版本权限合并）
+-- 19.8 权限点（文件管理）
+-- ------------------------------------------------------------
+INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
+('a0000000-0000-0000-0000-000000000031', 'file',        '文件管理',   NULL,   '文件管理', '系统管理', 'global', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000032', 'file:view',   '查看文件',   'file', '文件管理', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+('a0000000-0000-0000-0000-000000000033', 'file:delete', '删除文件',   'file', '文件管理', '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+
+-- ------------------------------------------------------------
+-- 19.9 预置角色（含全部版本权限合并）
 -- ------------------------------------------------------------
 INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
 -- 系统管理员：拥有系统管理所有权限
 ('b0000000-0000-0000-0000-000000000001', '系统管理员',
  '拥有系统管理所有权限', 'system', TRUE,
- '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete","ai","ai:admin"]',
+ '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete","ai","ai:admin","file","file:view","file:delete"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 空间管理系统角色：拥有工作空间管理所有权限（跨空间管理）
 ('b0000000-0000-0000-0000-000000000002', '空间管理员',
@@ -2030,3 +2043,25 @@ COMMENT ON COLUMN ai_vector_index.content IS '嵌入原文分块（命中后直�
 COMMENT ON COLUMN ai_vector_index.embedding IS '向量本体，维度取 ai_embedding_config.dimensions（初始 1536）';
 COMMENT ON COLUMN ai_vector_index.embedding_version IS '生成时的「模型 + 维度 + 算子」版本标识';
 COMMENT ON COLUMN ai_vector_index.indexed_at IS '最近重建时间';
+
+-- ============================================================
+-- 20. 文件管理（泛化附件资源，文件管理详设 2.1）
+-- ============================================================
+CREATE TABLE file_resource (
+    id            UUID         PRIMARY KEY,
+    object_key    VARCHAR(500) NOT NULL,
+    file_name     VARCHAR(255) NOT NULL,
+    content_type  VARCHAR(100) NULL,
+    file_size     BIGINT       NOT NULL,
+    uploader_id   UUID         NOT NULL,
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX idx_file_resource_uploader ON file_resource (uploader_id);
+CREATE INDEX idx_file_resource_created ON file_resource (created_at);
+
+COMMENT ON TABLE file_resource IS '泛化附件资源：不挂工作空间/项目，使用方以 ID 或访问 URL 关联（文件管理详设 2.1）';
+COMMENT ON COLUMN file_resource.object_key IS 'MinIO 对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径）';
+COMMENT ON COLUMN file_resource.uploader_id IS '上传者（sys_user.id，逻辑外键）';

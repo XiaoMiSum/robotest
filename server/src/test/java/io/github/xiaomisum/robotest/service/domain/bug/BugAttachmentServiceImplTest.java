@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.convert.BugConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.BugConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.file.FileResourceRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
 import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
@@ -15,6 +16,8 @@ import io.github.xiaomisum.robotest.repository.bug.BugAttachmentMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugLogMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.service.domain.file.FileContent;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +56,8 @@ class BugAttachmentServiceImplTest {
 
     @Mock
     private ProjectAccessGuard projectAccessGuard;
+    @Mock
+    private FileResourceService fileResourceService;
     @Spy
     private BugConvertMapper bugConvertMapper = new BugConvertMapperImpl();
 
@@ -93,6 +98,10 @@ class BugAttachmentServiceImplTest {
     @Test
     void uploadAttachment_success() throws Exception {
         when(bugMapper.selectById(bugId)).thenReturn(openBug());
+        UUID fileResourceId = UUID.fromString("00000000-0000-0000-0000-000000000041");
+        FileResourceRespDTO stored = new FileResourceRespDTO();
+        stored.setId(fileResourceId);
+        when(fileResourceService.upload(any(MultipartFile.class), eq(userId))).thenReturn(stored);
         doAnswer(inv -> {
             ((BugAttachment) inv.getArgument(0)).setId(attachmentId);
             return 1;
@@ -114,8 +123,9 @@ class BugAttachmentServiceImplTest {
         ArgumentCaptor<BugAttachment> captor = ArgumentCaptor.forClass(BugAttachment.class);
         verify(bugAttachmentMapper).insert(captor.capture());
         BugAttachment saved = captor.getValue();
-        assertTrue(saved.getStoragePath().endsWith(".png"));
-        assertTrue(Files.exists(tempDir.resolve(saved.getStoragePath())));
+        // 存储改走文件管理模块：关联 file_resource，storage_path 历史列不再写入（文件管理详设 4.3）
+        assertEquals(fileResourceId, saved.getFileResourceId());
+        assertNull(saved.getStoragePath());
 
         ArgumentCaptor<BugLog> logCaptor = ArgumentCaptor.forClass(BugLog.class);
         verify(bugLogMapper).insert(logCaptor.capture());
@@ -250,6 +260,28 @@ class BugAttachmentServiceImplTest {
 
         assertThrows(ServiceException.class,
                 () -> bugAttachmentService.downloadAttachment(projectId, attachmentId, userId));
+    }
+
+    @Test
+    void downloadAttachment_fromFileResource() {
+        // 已回填行：字节改从文件管理模块（MinIO）读取（文件管理详设 4.3）
+        UUID fileResourceId = UUID.fromString("00000000-0000-0000-0000-000000000042");
+        BugAttachment attachment = new BugAttachment();
+        attachment.setId(attachmentId);
+        attachment.setBugId(bugId);
+        attachment.setFileName("原始名.txt");
+        attachment.setContentType("text/plain");
+        attachment.setFileResourceId(fileResourceId);
+        when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(attachment);
+        when(bugMapper.selectById(bugId)).thenReturn(openBug());
+        when(fileResourceService.readBytes(fileResourceId))
+                .thenReturn(new FileContent("minio-bytes".getBytes(StandardCharsets.UTF_8), "text/plain", "原始名.txt"));
+
+        BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(projectId, attachmentId, userId);
+
+        assertEquals("原始名.txt", dto.getFileName());
+        assertEquals("text/plain", dto.getContentType());
+        assertEquals("minio-bytes", new String(dto.getContent(), StandardCharsets.UTF_8));
     }
 
     @Test
