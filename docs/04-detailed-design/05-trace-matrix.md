@@ -41,7 +41,7 @@
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | project_id | uuid | NOT NULL | 所属项目，**隔离边界**；矩阵 / 链路 / 影响查询强制按此过滤 |
-| edge_type | varchar(20) | NOT NULL | 边类型：`derivation`（派生边）/ `snapshot_ref`（快照引用边） |
+| edge_type | varchar(20) | NOT NULL | 边类型：`derivation`（派生边）/ `case_snapshot`（快照引用边） |
 | source_type | varchar(30) | NOT NULL | 源节点类型：`requirement` / `module` / `mindmap_document` / `test_case` |
 | source_id | uuid | NOT NULL | 源节点 ID（逻辑外键，与 `source_type` 组合定位） |
 | target_type | varchar(30) | NOT NULL | 目标节点类型：`module` / `mindmap_document` / `test_case` / `test_review` / `test_plan` |
@@ -147,7 +147,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 | 取值 | 含义 | 建立时机 |
 | ---- | ---- | ---- |
 | derivation | 派生边（需求 → 模块 / 脑图文档 / 测试用例） | 生成链产物采纳落库时建立 |
-| snapshot_ref | 快照引用边（测试用例 ⇢ 评审 / 计划，带版本） | 评审 / 计划创建生成快照时建立（AI 圈选确认后走既有创建流程） |
+| case_snapshot | 快照引用边（测试用例 ⇢ 评审 / 计划，带版本） | 评审 / 计划创建生成快照时建立（AI 圈选确认后走既有创建流程） |
 
 **边状态 `status`**：
 
@@ -290,7 +290,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 ```
 
 - **响应**：新建边对象（同 3.4 单条结构），`status = confirmed`、`establishedBy = manual`、`confirmedBy = 当前用户`。
-- **校验规则**：两端节点存在、同属当前项目、类型组合合法（`derivation` 仅允许需求侧起点，`snapshot_ref` 仅允许用例侧起点）；需要 `trace:edit` 权限。
+- **校验规则**：两端节点存在、同属当前项目、类型组合合法（`derivation` 仅允许需求侧起点，`case_snapshot` 仅允许用例侧起点）；需要 `trace:edit` 权限。
 
 ### 3.6 追溯边修正（确认 / 改挂 / 断开 / 恢复）
 
@@ -424,7 +424,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 
 ### 4.1 建边与状态维护
 
-- **建边时机**：生成链产物采纳落库时批量写入 `derivation` 边（`established_by = ai`、`status = ai_created`）；评审 / 计划创建生成快照时写入 `snapshot_ref` 边并记录圈选用例的 `target_version`。
+- **建边时机**：生成链产物采纳落库时批量写入 `derivation` 边（`established_by = ai`、`status = ai_created`）；评审 / 计划创建生成快照时写入 `case_snapshot` 边并记录圈选用例的 `target_version`。
 - **写入事务**：建边与业务落库在同一事务内；任一失败整体回滚，保证"落库必有边、边必指向已落库节点"。
 - **版本感知（stale）**：目标域内容版本变更事件（用例保存、快照同步）触发比对——`target_version` 与当前版本不一致的引用边置 `stale` 并回填新版本号到比对字段；人工在矩阵中「重新同步」或计划执行「同步最新用例」后回 `confirmed`。
 - **冲突（conflict）**：覆盖分析或人工复核发现边语义错误时置 `conflict`；`conflict` 与 `detached` 的边不计入覆盖统计，但保留展示与审计。
@@ -439,7 +439,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 ### 4.3 影响分析与处置闭环
 
 1. 需求模块在标题 / 描述 / 模块变更且状态转入「已变更」后，提交 `type = impact_analysis` 任务（输入 `requirementId`）；
-2. 任务从需求正向遍历 `derivation` 边，再从命中的用例正向遍历 `snapshot_ref` 边，得到受影响项集合，逐项写入处置标记（`disposition = pending`）；
+2. 任务从需求正向遍历 `derivation` 边，再从命中的用例正向遍历 `case_snapshot` 边，得到受影响项集合，逐项写入处置标记（`disposition = pending`）；
 3. 用户在受影响项列表逐项处置（3.10），处置只写标记不改内容；
 4. 需求重新确认后重新发起分析刷新标记：**未刷新前保留原标记并提示**（需求分册 1.6）；已人工处置为 `no_impact` 的项在刷新时保留处置结果（按 source+target 对匹配）。
 
@@ -520,7 +520,7 @@ TraceMatrixPage
 | `server/.../controller/project/TraceController` | 仅路由与参数绑定（C2） |
 | `server/.../service/trace/TraceMatrixService + Impl` | 矩阵 / 链路 / 边维护 / 覆盖 / 影响逻辑 |
 | `server/.../service/trace/TraceEdgeWriter` | 建边写入端口（供生成链与快照流程事务内调用） |
-| 评审 / 计划创建快照流程 | 事务内调用 `TraceEdgeWriter` 写 `snapshot_ref` 边（4.1 建边时机） |
+| 评审 / 计划创建快照流程 | 事务内调用 `TraceEdgeWriter` 写 `case_snapshot` 边（4.1 建边时机） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018151–1000018161 |
 | `server/.../service/ai/task/ImpactAnalysisTaskHandler` | `impact_analysis` 处理器：遍历建边并写处置标记（4.3） |
 | 权限点迁移脚本 | 新增 `trace:view` / `trace:edit`（scope = workspace） |
@@ -563,3 +563,4 @@ ALTER TABLE trace_edge ADD COLUMN disposed_by uuid NULL;
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/trace |
 | V1.0 | 2026-10-04 | 2.2 `trace_edge` 补影响处置字段组（`disposition` / `reason` / `disposed_by`）与迁移说明，处置语义随 3.10 / 4.3 落表 |
+| V1.0 | 2026-10-04 | 边类型取值 `snapshot_ref` 更名为 `case_snapshot`（`derivation` 不变），中文术语仍为「快照引用边」 |
