@@ -195,7 +195,7 @@ flowchart TD
 | WP-1.2 | 追溯矩阵 DDL 迁移 | P1 | 后端 | `docs/04-detailed-design/05-trace-matrix.md` | WP-0.2 | 同上 |
 | WP-1.3 | AI 底座 DDL 迁移（含向量表） | P1 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-0.2 | 同上，pgvector 向量列可用 |
 | WP-2.1 | 需求 CRUD、属性与变更记录后端 | P2 | 后端 | 需求管理详设接口章节 | WP-1.1 | OpenAPI 暴露，10 位错误码，部分更新 |
-| WP-2.0 | 文件管理模块（MinIO 与泛化附件资源） | P2 | 全 | 文件管理模块详细设计（随本包补建） | WP-0.2 | 附件上传 / 下载 / 删除与访问 URL 走通，docker-compose 含 MinIO |
+| WP-2.0 | 文件管理模块（MinIO 与泛化附件资源） | P2 | 全 | `docs/04-detailed-design/08-file-management/02-file-management.md`（随本包补建） | WP-0.2 | 附件上传 / 下载 / 删除与访问 URL 走通，docker-compose 含 MinIO |
 | WP-2.2 | 需求导入后端（三类文件） | P2 | 后端 | 需求管理详设导入章节 | WP-1.1、WP-4.2、WP-2.0 | 三类样例导入成功，>20MB 拒绝 |
 | WP-2.3 | 需求管理前端 | P2 | 前端 | `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md` | WP-2.1、WP-2.2 | 状态分支齐全，C1 无 `any` |
 | WP-3.1 | 追溯关系与覆盖率后端 | P3 | 后端 | 追溯矩阵详设接口章节 | WP-1.2 | CRUD 与统计接口通过，`trace:*` 校验生效，需求侧追溯委托（需求管理详设 3.12）与需求列表 / 详情 `coverageStatus` 填充补齐；`trace_edge` 影响处置字段组补列迁移、`impact_analysis` 处理器注册、评审 / 计划快照事务内写 `case_snapshot` 边 |
@@ -274,3 +274,4 @@ flowchart TD
 | V1.0 | 2026-10-04 | 快照引用边取值 `snapshot_ref` 更名为 `case_snapshot`，WP-3.1 判据与范围登记同步 |
 | V1.0 | 2026-10-04 | 批次二裁决落地：范围补 WP-2.0（文件管理模块，由「本期仅记录」转实施）、WP-2.2、WP-4.5（`vector_reindex` 完整实现）；`coverage_analysis` 处理器仍在批次二；新增外部依赖 echarts 登记于 2.5；用量成本口径（`input_price / output_price / cost`）随详设 02 同步 |
 | V1.0 | 2026-10-04 | AI 客户端选型裁决：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x，新增 WP-4.6（P4，排 WP-4.5 之后）；外部依赖 Spring AI 登记于 2.5，批次二范围与验收重点同步 |
+| V1.0 | 2026-10-04 | WP-2.0 详设补建：新建 `docs/04-detailed-design/08-file-management/02-file-management.md`（泛化附件资源 `file_resource`、MinIO 存储与 presigned/平台双通道、缺陷附件迁移、文件管理页、docker-compose 全家桶），WP-2.0 设计依据由「随本包补建」改指该文档 |
