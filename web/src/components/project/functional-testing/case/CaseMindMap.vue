@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useMinderInstance } from '@/minder/useMinderInstance'
 import MinderContextMenu from '../minder/MinderContextMenu.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
@@ -8,8 +9,16 @@ import { useMindmapLayout } from '@/composables/project/functional-testing/mindm
 import { useMindmapNodeOps } from '@/composables/project/functional-testing/mindmap/useMindmapNodeOps'
 import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/useMindmapYjs'
 import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
+import { useMindmapRequirementLink } from '@/composables/project/functional-testing/mindmap/useMindmapRequirementLink'
+import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{ docId: string }>()
+
+const authStore = useAuthStore()
+/** 关联需求为只读入口权限（脑图详设 4.2 权限矩阵），保存由 case:edit 接口兜底 */
+const canManageRequirements = computed(() => authStore.hasPermission('requirement:view'))
+const requirementLink = useMindmapRequirementLink(() => props.docId)
 
 const kmEditorRef = { value: null as KMEditor | null }
 
@@ -147,6 +156,14 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
           @click="nodeOps.markPriority(p)"
         >{{ p }}</el-button>
       </div>
+      <!-- 行末命令组经弹性占位右靠（交互 06 工具条），纯图标以悬浮提示替代文字 -->
+      <div v-if="canManageRequirements" class="toolbar-group toolbar-group--end">
+        <el-tooltip content="关联需求" placement="bottom">
+          <el-button text :loading="requirementLink.saving.value" @click="requirementLink.open">
+            <el-icon><Link /></el-icon>
+          </el-button>
+        </el-tooltip>
+      </div>
     </div>
 
     <div
@@ -196,6 +213,12 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="nodeOps.deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
+
+    <RequirementPickerDialog
+      v-model="requirementLink.visible.value"
+      :initial="requirementLink.picks()"
+      @confirm="(ids) => void requirementLink.confirm(ids)"
+    />
   </div>
 </template>
 
