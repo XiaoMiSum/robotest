@@ -79,10 +79,10 @@ public class AiUsageAdminService {
         LocalDateTime fromDt = startOfDay(from);
         LocalDateTime toDt = startOfDay(to.plusDays(1));
         long total = usageLogMapper.countUsageTasks(fromDt, toDt, req.getModelId(), req.getScene(),
-                req.getStatus());
+                req.getCallType(), req.getStatus());
         long offset = (long) (req.getPageNo() - 1) * req.getPageSize();
         List<AiUsageTaskRespDTO> list = usageLogMapper.pageUsageTasks(fromDt, toDt, req.getModelId(),
-                req.getScene(), req.getStatus(), req.getPageSize(), offset);
+                req.getScene(), req.getCallType(), req.getStatus(), req.getPageSize(), offset);
         return new PageResult<>(list, total);
     }
 

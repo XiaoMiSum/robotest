@@ -205,15 +205,17 @@ class AiUsageAdminServiceTest {
         req.setPageNo(2);
         req.setPageSize(10);
         req.setStatus("failed");
+        req.setCallType("chat");
         UUID modelId = UUID.randomUUID();
         req.setModelId(modelId);
 
-        when(usageLogMapper.countUsageTasks(any(), any(), eq(modelId), isNull(), eq("failed")))
+        when(usageLogMapper.countUsageTasks(any(), any(), eq(modelId), isNull(), eq("chat"), eq("failed")))
                 .thenReturn(25L);
         AiUsageTaskRespDTO row = new AiUsageTaskRespDTO();
         row.setTaskId(UUID.randomUUID());
         row.setStatus("failed");
-        when(usageLogMapper.pageUsageTasks(any(), any(), eq(modelId), isNull(), eq("failed"), eq(10), eq(10L)))
+        when(usageLogMapper.pageUsageTasks(any(), any(), eq(modelId), isNull(), eq("chat"), eq("failed"),
+                eq(10), eq(10L)))
                 .thenReturn(List.of(row));
 
         PageResult<AiUsageTaskRespDTO> result = service.tasks(req);
