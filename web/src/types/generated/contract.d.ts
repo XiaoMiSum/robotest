@@ -6422,6 +6422,7 @@ export interface components {
             /** Format: uuid */
             modelId?: string;
             scene?: string;
+            callType?: string;
             status?: string;
         };
         AiUsageTaskRespDTO: {
