@@ -13,6 +13,14 @@ import java.util.UUID;
 
 public interface TestPlanMapper extends BaseMapperX<TestPlan> {
 
+    /** 按 ID 批量读取（追溯节点解析，详设 3.4） */
+    default List<TestPlan> listByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return selectList(new LambdaQueryWrapperX<TestPlan>().in(TestPlan::getId, ids));
+    }
+
     default PageResult<TestPlan> findPage(PageParam pageParam, UUID projectId,
                                            String keyword, String status) {
         return selectPage(pageParam, new LambdaQueryWrapperX<TestPlan>()

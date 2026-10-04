@@ -29,6 +29,7 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
+import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -70,6 +71,9 @@ public class TestPlanServiceImpl implements TestPlanService {
     private TestPlanConvertMapper testPlanConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
+    /** 快照圈选对账（追溯矩阵详设 4.1）：计划创建 / 调整 / 删除时同步 case_snapshot 边 */
+    @Resource
+    private TraceEdgeWriter traceEdgeWriter;
 
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, UUID userId, String status,
@@ -141,6 +145,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         testPlanMapper.insert(plan);
 
         generateSnapshots(plan.getId(), reqDTO.getSelectedNodes());
+        traceEdgeWriter.syncCaseSnapshotEdges(projectId, Constants.TraceNodeType.TEST_PLAN, plan.getId(),
+                associatedCaseIds(plan.getId()), userId);
         projectActivityService.record(projectId, userId, "TEST_PLAN", plan.getId(),
                 plan.getName(), "PLAN_CREATED", "创建测试计划「" + plan.getName() + "」");
 
@@ -307,6 +313,9 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
 
         markSnapshotSynced(planId);
+        // 圈选集合变化后对账快照引用边（追溯矩阵详设 4.1）
+        traceEdgeWriter.syncCaseSnapshotEdges(plan.getProjectId(), Constants.TraceNodeType.TEST_PLAN,
+                planId, associatedCaseIds(planId), userId);
         projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
                 plan.getName(), "PLAN_CASES_UPDATED", "调整测试计划「" + plan.getName() + "」的用例");
     }
@@ -660,8 +669,18 @@ public class TestPlanServiceImpl implements TestPlanService {
         planNodeSnapshotMapper.deleteByPlanId(planId);
         planModuleSnapshotMapper.deleteByPlanId(planId);
         testPlanMapper.deleteById(planId);
+        // 快照已删除，其 case_snapshot 边随事务清理（追溯矩阵详设 4.1）
+        traceEdgeWriter.removeCaseSnapshotEdges(plan.getProjectId(), Constants.TraceNodeType.TEST_PLAN, planId);
         projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
                 plan.getName(), "PLAN_DELETED", "删除测试计划「" + plan.getName() + "」");
+    }
+
+    /** 当前圈选的用例节点集合（快照 isAssociated 口径，追溯矩阵详设 4.1 对账入参） */
+    private Set<UUID> associatedCaseIds(UUID planId) {
+        return planNodeSnapshotMapper.listAssociatedByPlanId(planId, Constants.NodeType.CASE).stream()
+                .map(TestPlanNodeSnapshot::getOriginalNodeId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     private void generateSnapshots(UUID planId, List<TestPlanCreateReqDTO.SelectedNode> selectedNodes) {
