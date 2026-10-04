@@ -50,6 +50,7 @@ export const useAiAdminStore = defineStore('aiAdmin', {
     settings: null as AiSettings | null,
     settingsError: '',
     models: [] as AiModel[],
+    modelsLoading: false,
     modelsError: '',
     embedding: null as AiEmbeddingConfig | null,
     embeddingError: '',
@@ -85,10 +86,13 @@ export const useAiAdminStore = defineStore('aiAdmin', {
 
     async loadModels() {
       this.modelsError = ''
+      this.modelsLoading = true
       try {
         this.models = (await fetchAiModels()).list
       } catch (error) {
         this.modelsError = errorMessage(error, '加载模型列表失败')
+      } finally {
+        this.modelsLoading = false
       }
     },
 

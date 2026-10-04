@@ -63,8 +63,8 @@ describe('路由 meta 契约', () => {
 
   it('带 meta.menu 的路由必须声明 mode 且 label/icon/order 完整、路径可解析为具名路由', () => {
     const menuRoutes = router.getRoutes().filter((record) => record.meta.menu)
-    // 4 管理端 + 3 空间 + 5 项目（需求管理/功能测试/追溯矩阵/接口测试/缺陷管理）= 12 项菜单注册
-    expect(menuRoutes.length).toBe(12)
+    // 5 管理端（含 AI 配置） + 3 空间 + 5 项目（需求管理/功能测试/追溯矩阵/接口测试/缺陷管理）= 13 项菜单注册
+    expect(menuRoutes.length).toBe(13)
     for (const record of menuRoutes) {
       const menu = record.meta.menu
       expect(record.meta.mode, record.path).toBeTruthy()

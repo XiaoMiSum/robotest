@@ -11,7 +11,18 @@ const authStore = useAuthStore()
 const navStore = useNavStore()
 
 // 侧边栏菜单与业务顶栏动态菜单共享同一注册表（路由 meta.menu，nav store 按 section 分组并做权限过滤）
-const activeSidebarPath = computed(() => route.path)
+// 嵌套子路由（如 /admin/ai/models → 「AI 配置」）取菜单项路径中最长前缀者，使子页面归属父菜单高亮
+const activeSidebarPath = computed(() => {
+  const current = route.path
+  let matched = ''
+  for (const section of navStore.adminSidebarSections) {
+    for (const item of section.items) {
+      const isPrefix = current === item.path || current.startsWith(`${item.path}/`)
+      if (isPrefix && item.path.length > matched.length) matched = item.path
+    }
+  }
+  return matched || current
+})
 
 function handleSidebarSelect(index: string) {
   router.push(index)
