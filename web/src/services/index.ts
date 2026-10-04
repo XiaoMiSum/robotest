@@ -95,6 +95,8 @@ export function getRequestContextScope(url: string | undefined): RequestContextS
     return 'none'
   }
   if (path === '/project' || path.startsWith('/project/')) return 'project'
+  // AI 任务资源挂 /api/ai/tasks 但按项目范围过滤（详设 3.6.3），需带项目头；/ai/status 仍为 none
+  if (path === '/ai/tasks' || path.startsWith('/ai/tasks/')) return 'project'
   if (path === '/workspace' || path.startsWith('/workspace/')) return 'workspace'
   return 'none'
 }

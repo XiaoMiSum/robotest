@@ -256,6 +256,19 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '需求详情', mode: 'project' },
       },
       {
+        // 任务中心不占顶部菜单，由各能力页任务入口下钻（交互 07 §1）
+        path: 'workspace/projects/ai/tasks',
+        name: 'AiTaskCenter',
+        component: () => import('@/pages/project/ai/AiTaskCenterPage.vue'),
+        meta: { title: 'AI 任务中心', mode: 'project' },
+      },
+      {
+        path: 'workspace/projects/ai/tasks/:taskId',
+        name: 'AiTaskDetail',
+        component: () => import('@/pages/project/ai/AiTaskDetailPage.vue'),
+        meta: { title: 'AI 任务详情', mode: 'project' },
+      },
+      {
         path: 'workspace/projects/bugs',
         name: 'BugList',
         component: () => import('@/pages/project/bug/BugListPage.vue'),
