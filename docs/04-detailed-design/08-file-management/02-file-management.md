@@ -363,6 +363,7 @@ docker compose up -d --build
 | 搜索框 | 文件名模糊过滤，回车/按钮触发 |
 | 表格 | 文件名、大小（可读格式）、类型、上传者、上传时间；分页 20/页 |
 | 下载 | `fetch`（带 `Authorization`）→ blob 触发浏览器保存 |
+| 复制链接 | `GET /api/files/{id}/access-url` 换取 presigned 临时地址并写入剪贴板，提示有效时长（访问 URL 走通验收入口） |
 | 删除 | 确认弹窗（提示不可恢复）→ `DELETE /api/files/{id}` → 刷新 |
 | 空态 / 加载 / 错误 | 空态引导、表格 loading、错误按 10 位码提示（C1 无 `any`） |
 
@@ -376,3 +377,4 @@ docker compose up -d --build
 | ---- | ---- | ---- | ---- |
 | V1.0 | 2026-10-04 | 随 WP-2.0 补建：泛化附件资源与 MinIO 存储、缺陷附件迁移、文件管理页、docker-compose 全家桶 | AI |
 | V1.0 | 2026-10-04 | 编码前探查修正：`storage_path` 放宽可空（历史列不再写入）、presigned 补 `public-endpoint`（签名地址须浏览器可达）、缺陷附件删除保持既有语义（对象保留供审计，孤儿由管理页治理）与校验分工（缺陷侧错误码契约不变） | AI |
+| V1.0 | 2026-10-05 | 交互补：文件管理页增加「复制临时链接」（presigned 换签写剪贴板），承接「访问 URL 走通」验收入口 | AI |
