@@ -58,14 +58,16 @@ public interface AiUsageLogMapper extends BaseMapperX<AiUsageLog> {
     List<AiUsageSeriesRowDTO> selectSeriesByCallType(@Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
-    /** 下钻总数（动态筛选：modelId / scene / status） */
+    /** 下钻总数（动态筛选：modelId / scene / callType / status） */
     @Select("<script>SELECT COUNT(*) FROM ai_usage_log u WHERE " + TASK_FILTER
             + "<if test='modelId != null'> AND u.model_id = #{modelId}</if>"
             + "<if test=\"scene != null and scene != ''\"> AND u.prompt_scene = #{scene}</if>"
+            + "<if test=\"callType != null and callType != ''\"> AND u.call_type = #{callType}</if>"
             + "<if test=\"status != null and status != ''\"> AND u.status = #{status}</if>"
             + "</script>")
     long countUsageTasks(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to,
-            @Param("modelId") UUID modelId, @Param("scene") String scene, @Param("status") String status);
+            @Param("modelId") UUID modelId, @Param("scene") String scene,
+            @Param("callType") String callType, @Param("status") String status);
 
     /** 下钻分页：join 任务类型与模型名（详设 3.7 列表项字段） */
     @Select("<script>SELECT u.task_id AS taskId, t.type AS type, u.status AS status, "
@@ -77,9 +79,11 @@ public interface AiUsageLogMapper extends BaseMapperX<AiUsageLog> {
             + "WHERE " + TASK_FILTER
             + "<if test='modelId != null'> AND u.model_id = #{modelId}</if>"
             + "<if test=\"scene != null and scene != ''\"> AND u.prompt_scene = #{scene}</if>"
+            + "<if test=\"callType != null and callType != ''\"> AND u.call_type = #{callType}</if>"
             + "<if test=\"status != null and status != ''\"> AND u.status = #{status}</if>"
             + " ORDER BY u.created_at DESC LIMIT #{limit} OFFSET #{offset}</script>")
     List<AiUsageTaskRespDTO> pageUsageTasks(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to,
-            @Param("modelId") UUID modelId, @Param("scene") String scene, @Param("status") String status,
+            @Param("modelId") UUID modelId, @Param("scene") String scene,
+            @Param("callType") String callType, @Param("status") String status,
             @Param("limit") int limit, @Param("offset") long offset);
 }
