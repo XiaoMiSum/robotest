@@ -105,3 +105,17 @@ export function truncateText(value: string | null | undefined, max: number): str
   if (value.length <= max) return value
   return `${value.slice(0, max)}…`
 }
+
+/** 文件大小人性化展示：B 起步逐级换算 KB / MB / GB（保留 1 位小数） */
+export function formatFileSize(bytes: number | null | undefined): string {
+  if (bytes == null || bytes < 0) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unitIndex = -1
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+  return `${value.toFixed(1)} ${units[unitIndex]}`
+}
