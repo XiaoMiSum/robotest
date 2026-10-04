@@ -26,6 +26,7 @@ import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
+import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +61,9 @@ public class TestReviewServiceImpl implements TestReviewService {
     private TestReviewConvertMapper testReviewConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
+    /** 快照圈选对账（追溯矩阵详设 4.1）：评审创建 / 调整 / 删除时同步 case_snapshot 边 */
+    @Resource
+    private TraceEdgeWriter traceEdgeWriter;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, UUID userId, String status,
@@ -169,10 +173,20 @@ public class TestReviewServiceImpl implements TestReviewService {
         testReviewMapper.insert(review);
 
         reviewSnapshotService.generateSnapshots(review.getId(), reqDTO.getSelectedNodes());
+        traceEdgeWriter.syncCaseSnapshotEdges(projectId, Constants.TraceNodeType.TEST_REVIEW, review.getId(),
+                associatedCaseIds(review.getId()), userId);
         projectActivityService.record(projectId, userId, "TEST_REVIEW", review.getId(),
                 review.getTitle(), "REVIEW_CREATED", "创建评审「" + review.getTitle() + "」");
 
         return convertToDetailDTO(review);
+    }
+
+    /** 当前圈选的用例节点集合（快照 isAssociated 口径，追溯矩阵详设 4.1 对账入参） */
+    private Set<UUID> associatedCaseIds(UUID reviewId) {
+        return reviewSnapshotService.listAssociatedByReviewId(reviewId, Constants.NodeType.CASE).stream()
+                .map(TestReviewNodeSnapshot::getOriginalNodeId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -223,6 +237,9 @@ public class TestReviewServiceImpl implements TestReviewService {
         reviewWorkflow.assertTransition(review, ReviewEvent.UPDATE_CASES);
 
         reviewSnapshotService.updateCases(reviewId, review.getProjectId(), reqDTO.getSelectedNodes());
+        // 圈选集合变化后对账快照引用边（追溯矩阵详设 4.1）
+        traceEdgeWriter.syncCaseSnapshotEdges(review.getProjectId(), Constants.TraceNodeType.TEST_REVIEW,
+                reviewId, associatedCaseIds(reviewId), userId);
         projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
                 review.getTitle(), "REVIEW_CASES_UPDATED", "调整评审「" + review.getTitle() + "」的用例");
     }
@@ -374,6 +391,9 @@ public class TestReviewServiceImpl implements TestReviewService {
         reviewRecordMapper.deleteByReviewId(reviewId);
         reviewSnapshotService.deleteByReviewId(reviewId);
         testReviewMapper.deleteById(reviewId);
+        // 快照已删除，其 case_snapshot 边随事务清理（追溯矩阵详设 4.1）
+        traceEdgeWriter.removeCaseSnapshotEdges(review.getProjectId(), Constants.TraceNodeType.TEST_REVIEW,
+                reviewId);
         projectActivityService.record(review.getProjectId(), userId, "TEST_REVIEW", reviewId,
                 review.getTitle(), "REVIEW_DELETED", "删除评审「" + review.getTitle() + "」");
     }

@@ -226,4 +226,17 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_NO_ADMIN_PERMISSION = ErrorCode.of(1000018121, "无 AI 配置管理权限");
     public static final ErrorCode AI_VECTOR_INDEX_UNAVAILABLE = ErrorCode.of(1000018122, "向量索引不可用（全量重建中）");
     public static final ErrorCode AI_WAIT_SECONDS_INVALID = ErrorCode.of(1000018123, "同步等待参数超限（0–10 秒）");
+
+    // ========== 追溯矩阵 1,000,018,151-1,000,018,161（追溯矩阵详设 6） ==========
+    public static final ErrorCode TRACE_EDGE_NOT_FOUND = ErrorCode.of(1000018151, "追溯边不存在");
+    public static final ErrorCode TRACE_NODE_NOT_FOUND = ErrorCode.of(1000018152, "源或目标节点不存在");
+    public static final ErrorCode TRACE_EDGE_DUPLICATE = ErrorCode.of(1000018153, "同一对节点已存在有效边");
+    public static final ErrorCode TRACE_EDGE_STATE_INVALID = ErrorCode.of(1000018154, "当前边状态不允许该操作");
+    public static final ErrorCode TRACE_COVERAGE_NOT_FOUND = ErrorCode.of(1000018155, "覆盖分析结论不存在");
+    public static final ErrorCode TRACE_COVERAGE_INPUT_INVALID = ErrorCode.of(1000018156, "覆盖分析任务参数非法");
+    public static final ErrorCode TRACE_IMPACT_INPUT_INVALID = ErrorCode.of(1000018157, "影响分析任务参数非法");
+    public static final ErrorCode TRACE_IMPACT_ITEM_NOT_FOUND = ErrorCode.of(1000018158, "受影响项不存在");
+    public static final ErrorCode TRACE_IMPACT_ITEM_DISPOSED = ErrorCode.of(1000018159, "受影响项已处置");
+    public static final ErrorCode TRACE_NODE_TYPE_UNSUPPORTED = ErrorCode.of(1000018160, "不支持的节点类型");
+    public static final ErrorCode TRACE_NO_PERMISSION = ErrorCode.of(1000018161, "无权限操作追溯数据");
 }

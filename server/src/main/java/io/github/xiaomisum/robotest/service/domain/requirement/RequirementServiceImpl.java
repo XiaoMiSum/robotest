@@ -5,12 +5,14 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.trace.TraceChainReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
@@ -27,7 +29,9 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecor
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
+import io.github.xiaomisum.robotest.service.trace.TraceMatrixService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -84,6 +89,11 @@ public class RequirementServiceImpl implements RequirementService {
     private AiTaskService aiTaskService;
     @Resource
     private AiTaskMapper aiTaskMapper;
+    /** 追溯侧（P3）：覆盖状态批量读取与 3.12 链路委托的唯一入口 */
+    @Resource
+    private TraceMatrixService traceMatrixService;
+    @Resource
+    private AiSettingsReader aiSettingsReader;
 
     /** AI 任务框架（WP-4.2）接入前为 null，需求侧静默跳过影响分析触发（详设 4.4） */
     @Autowired(required = false)
@@ -96,7 +106,7 @@ public class RequirementServiceImpl implements RequirementService {
         List<String> status = splitStrings(pageReq.getStatus());
         List<UUID> moduleIds = splitUuids(pageReq.getModuleIds());
         PageResult<Requirement> page = requirementMapper.findPage(pageReq, projectId, status, moduleIds,
-                pageReq.getOwnerId(), pageReq.getSystemVersion(), pageReq.getKeyword());
+                pageReq.getOwnerId(), pageReq.getSystemVersion(), pageReq.getKeyword(), pageReq.getCoverage());
         if (page.getList().isEmpty()) {
             return new PageResult<>(List.of(), page.getTotal());
         }
@@ -104,6 +114,8 @@ public class RequirementServiceImpl implements RequirementService {
         Map<UUID, String> moduleNameById = resolveModuleNames(page.getList());
         Map<UUID, String> ownerNameById = resolveUserNames(page.getList().stream()
                 .map(Requirement::getOwnerId).filter(Objects::nonNull).collect(Collectors.toList()));
+        Map<UUID, String> coverageStatusById = resolveCoverageStatuses(projectId,
+                page.getList().stream().map(Requirement::getId).collect(Collectors.toList()));
 
         List<RequirementListRespDTO> list = page.getList().stream().map(item -> {
             RequirementListRespDTO dto = new RequirementListRespDTO();
@@ -114,8 +126,8 @@ public class RequirementServiceImpl implements RequirementService {
             dto.setModuleName(item.getModuleId() == null ? null : moduleNameById.get(item.getModuleId()));
             dto.setSystemVersion(item.getSystemVersion());
             dto.setStatus(item.getStatus());
-            // 覆盖状态联查追溯侧（P3），接入前恒为 null，前端展示「—」（详设 3.2）
-            dto.setCoverageStatus(null);
+            // 覆盖状态联查追溯侧（详设 3.2）：AI 关闭恒为 null（展示「—」），开启后为结论 / 待分析
+            dto.setCoverageStatus(coverageStatusById.get(item.getId()));
             dto.setPriority(item.getPriority());
             dto.setOwnerId(item.getOwnerId());
             dto.setOwnerName(item.getOwnerId() == null ? null : ownerNameById.get(item.getOwnerId()));
@@ -131,6 +143,29 @@ public class RequirementServiceImpl implements RequirementService {
     @Override
     public RequirementDetailRespDTO getDetail(UUID id, UUID projectId) {
         return buildDetail(requireItem(id, projectId));
+    }
+
+    // ---------- 3.12 追溯委托 ----------
+
+    @Override
+    public TraceChainRespDTO getTrace(UUID id, UUID projectId, String direction) {
+        Requirement item = requireItem(id, projectId);
+        TraceChainReqDTO req = new TraceChainReqDTO();
+        req.setSourceType(Constants.TraceNodeType.REQUIREMENT);
+        req.setSourceId(item.getId());
+        req.setDirection(direction);
+        try {
+            return traceMatrixService.chain(req, projectId);
+        } catch (ServiceException ex) {
+            // 矩阵服务失败不降级为空链路（3.12），统一映射 1000018014 提示稍后重试
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_TRACE_SERVICE_FAILED.code(),
+                    ex.getMessage() == null ? ErrorCodeConstants.REQUIREMENT_TRACE_SERVICE_FAILED.msg()
+                            : ex.getMessage());
+        } catch (RuntimeException ex) {
+            log.error("[getTrace][projectId({})|requirementId({})|direction({})]追溯委托失败",
+                    projectId, id, direction, ex);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_TRACE_SERVICE_FAILED);
+        }
     }
 
     // ---------- 3.3 创建 ----------
@@ -546,7 +581,9 @@ public class RequirementServiceImpl implements RequirementService {
         // 来源附件回看由文件管理模块承载（计划外任务），接入前为 null
         dto.setSourceFile(null);
         dto.setConfirmedAt(item.getConfirmedAt());
-        dto.setCoverageStatus(null);
+        // 创建回显期可能尚未回填 ID：无 ID 时不查覆盖状态，避免 List.of(null)
+        dto.setCoverageStatus(item.getId() == null ? null
+                : resolveCoverageStatuses(item.getProjectId(), List.of(item.getId())).get(item.getId()));
         dto.setCreatedAt(item.getCreatedAt());
         dto.setUpdatedAt(item.getUpdatedAt());
         return dto;
@@ -579,6 +616,18 @@ public class RequirementServiceImpl implements RequirementService {
     }
 
     // ---------- 内部：工具 ----------
+
+    /**
+     * 覆盖状态填充（详设 3.2）：AI 总开关关闭时前端展示「—」（恒为 null）；
+     * 开启后读追溯侧结论，无结论记录为「待分析 pending」。
+     */
+    private Map<UUID, String> resolveCoverageStatuses(UUID projectId, Collection<UUID> requirementIds) {
+        if (projectId == null || requirementIds == null || requirementIds.isEmpty()
+                || !aiSettingsReader.settings().enabled()) {
+            return Map.of();
+        }
+        return traceMatrixService.coverageStatuses(projectId, requirementIds);
+    }
 
     private Map<UUID, String> resolveModuleNames(List<Requirement> items) {
         List<UUID> moduleIds = items.stream().map(Requirement::getModuleId).filter(Objects::nonNull)

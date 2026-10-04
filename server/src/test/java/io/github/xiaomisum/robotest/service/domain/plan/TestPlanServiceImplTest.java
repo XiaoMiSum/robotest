@@ -28,6 +28,7 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
+import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -77,6 +78,8 @@ class TestPlanServiceImplTest {
         private ProjectAccessGuard projectAccessGuard;
         @Mock
         private ProjectActivityService projectActivityService;
+        @Mock
+        private TraceEdgeWriter traceEdgeWriter;
         @Spy
         private TestPlanConvertMapper testPlanConvertMapper = new TestPlanConvertMapperImpl();
 

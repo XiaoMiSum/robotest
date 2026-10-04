@@ -12,7 +12,7 @@ import java.util.UUID;
 /**
  * 影响分析任务发布实现（需求详设 4.2 / AI 详设 4.4）：
  * 需求确认时触发 impact_analysis 任务提交；提交失败由需求侧 runSafely 捕获，只记日志不阻断确认。
- * P2 无 impact_analysis 处理器注册，提交按 1000018114 被拒绝并记日志，任务接通随 P3 补齐。
+ * 处理器已随 P3 注册（纯边遍历刷新影响标记，无产物）。
  */
 @Component
 public class ImpactAnalysisTaskPublisherImpl implements ImpactAnalysisTaskPublisher {
