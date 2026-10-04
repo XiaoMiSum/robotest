@@ -24,6 +24,9 @@ public class AiUsagePageReqDTO extends PageParam {
     /** 按提示词场景筛选 */
     private String scene;
 
+    /** 按调用类型筛选：chat / embedding（详设 3.7，按调用类型分组的图表下钻） */
+    private String callType;
+
     /** success / failed */
     private String status;
 }
