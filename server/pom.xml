@@ -14,6 +14,7 @@
 
     <properties>
         <migoo.framework.version>1.4.0</migoo.framework.version>
+        <spring.ai.version>2.0.1</spring.ai.version>
 
         <ryze.version>6.1.1</ryze.version>
         <swagger-parser.version>2.1.22</swagger-parser.version>
@@ -31,6 +32,14 @@
                 <groupId>xyz.migoo.springboot</groupId>
                 <artifactId>migoo-framework-dependencies</artifactId>
                 <version>${migoo.framework.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring AI 2.0.x 对齐 Boot 4.1.0（与 migoo BOM 锁定版本一致），登记于实施计划 2.5 -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring.ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -115,6 +124,13 @@
         <dependency>
             <groupId>xyz.migoo.springboot</groupId>
             <artifactId>migoo-spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- AI 调用层（WP-4.6）：模型 / 向量 HTTP 调用统一由 Spring AI 执行（传输、序列化、内建重试、响应解析）；
+         配置在 DB 按行动态读取，程序式构建模型客户端，不引入 starter 自动装配 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
         </dependency>
 
         <dependency>
