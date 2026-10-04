@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDe
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -56,6 +57,16 @@ public class RequirementController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
         return Result.ok(requirementService.getDetail(id, loginUser.getActiveProjectId()));
+    }
+
+    /** 追溯委托（3.12）：以需求为起点读取追溯链，权限复用需求查看 */
+    @GetMapping("/{id}/trace")
+    @PreAuthorize("hasAuthority('requirement:view')")
+    public Result<TraceChainRespDTO> getRequirementTrace(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id,
+            @RequestParam(required = false) String direction) {
+        return Result.ok(requirementService.getTrace(id, loginUser.getActiveProjectId(), direction));
     }
 
     @PostMapping

@@ -986,6 +986,9 @@ CREATE TABLE trace_edge (
     established_by varchar(20) NOT NULL DEFAULT 'ai',
     confirmed_by   uuid NULL,
     confirmed_at   timestamp NULL,
+    disposition    varchar(20) NULL,
+    reason         varchar(500) NULL,
+    disposed_by    uuid NULL,
     created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted     boolean NOT NULL DEFAULT FALSE
@@ -1901,6 +1904,9 @@ COMMENT ON COLUMN trace_edge.status IS '边状态：ai_created/confirmed/conflic
 COMMENT ON COLUMN trace_edge.established_by IS '建立方式：ai/manual';
 COMMENT ON COLUMN trace_edge.confirmed_by IS '最近一次人工确认/修正的操作人';
 COMMENT ON COLUMN trace_edge.confirmed_at IS '最近一次人工确认/修正时间';
+COMMENT ON COLUMN trace_edge.disposition IS '影响处置标记：pending/regenerate/re_review/no_impact，未纳入影响分析为空';
+COMMENT ON COLUMN trace_edge.reason IS '处置理由，no_impact 必填';
+COMMENT ON COLUMN trace_edge.disposed_by IS '处置操作人';
 
 COMMENT ON TABLE trace_coverage_result IS '覆盖结论表（需求 × 用例集合的覆盖质量结论）';
 COMMENT ON COLUMN trace_coverage_result.id IS '结论 ID';

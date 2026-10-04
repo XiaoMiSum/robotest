@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDe
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -48,4 +49,10 @@ public interface RequirementService {
     /** 项目内拆解记录列表（3.11） */
     PageResult<RequirementSplitRecordRespDTO> getSplitRecords(UUID projectId, String status, String sourceType,
             PageParam pageParam);
+
+    /**
+     * 追溯委托（3.12）：以需求为链路起点读取追溯链；矩阵服务调用失败返回 1000018014，
+     * 不降级为空链路；空链路按 nodes = [] 正常返回。
+     */
+    TraceChainRespDTO getTrace(UUID id, UUID projectId, String direction);
 }

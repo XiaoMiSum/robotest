@@ -71,6 +71,94 @@ public final class Constants {
     }
 
     /**
+     * 追溯边类型（追溯矩阵详设 2.4）：derivation 需求侧派生，case_snapshot 用例 ⇢ 评审 / 计划圈选
+     */
+    public interface TraceEdgeType {
+        String DERIVATION = "derivation";
+        String CASE_SNAPSHOT = "case_snapshot";
+    }
+
+    /**
+     * 追溯边状态（追溯矩阵详设 2.4 状态机）；detached 不参与任何遍历与统计且 AI 不得重建
+     */
+    public interface TraceEdgeStatus {
+        String AI_CREATED = "ai_created";
+        String CONFIRMED = "confirmed";
+        String CONFLICT = "conflict";
+        String STALE = "stale";
+        String DETACHED = "detached";
+    }
+
+    /**
+     * 追溯边建立方式（追溯矩阵详设 2.2）
+     */
+    public interface TraceEstablishedBy {
+        String AI = "ai";
+        String MANUAL = "manual";
+    }
+
+    /**
+     * 追溯节点类型（追溯矩阵详设 2.2 多态关联 source_type / target_type）
+     */
+    public interface TraceNodeType {
+        String REQUIREMENT = "requirement";
+        String MODULE = "module";
+        String MINDMAP_DOCUMENT = "mindmap_document";
+        String TEST_CASE = "test_case";
+        String TEST_REVIEW = "test_review";
+        String TEST_PLAN = "test_plan";
+    }
+
+    /**
+     * 覆盖状态（追溯矩阵详设 2.4）：PENDING 为「待分析」，由查询侧按无记录推导，不落库
+     */
+    public interface TraceCoverageStatus {
+        String COVERED = "covered";
+        String PARTIAL = "partial";
+        String UNCOVERED = "uncovered";
+        String PENDING = "pending";
+    }
+
+    /**
+     * 影响处置标记（追溯矩阵详设 3.10）：null 表示未纳入影响分析，不出现在受影响项列表
+     */
+    public interface TraceDisposition {
+        String PENDING = "pending";
+        String REGENERATE = "regenerate";
+        String RE_REVIEW = "re_review";
+        String NO_IMPACT = "no_impact";
+    }
+
+    /**
+     * 链路视图遍历方向（追溯矩阵详设 3.3）
+     */
+    public interface TraceDirection {
+        String DOWN = "down";
+        String UP = "up";
+        String BOTH = "both";
+    }
+
+    /**
+     * 追溯边修正动作（追溯矩阵详设 3.6）
+     */
+    public interface TraceEdgeAction {
+        String CONFIRM = "confirm";
+        String REATTACH = "reattach";
+        String DETACH = "detach";
+        String RESTORE = "restore";
+    }
+
+    /**
+     * 缺口类型与引导（追溯矩阵详设 3.9）：suggestedAction 三取值按缺口类型映射
+     */
+    public interface TraceGapType {
+        String UNCOVERED_REQUIREMENT = "uncovered_requirement";
+        String ORPHAN_CASE = "orphan_case";
+        String UNREVIEWED_CASE = "unreviewed_case";
+        String UNSCHEDULED_CASE = "unscheduled_case";
+    }
+
+    /**
      * 缺陷类型（对齐禅道分类，枚举值采用语义化 snake_case）
      */
     public interface BugType {
