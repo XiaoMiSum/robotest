@@ -75,7 +75,7 @@ COMMENT ON COLUMN bug_attachment.file_resource_id IS '关联 file_resource.id（
 ```
 
 - 新列**可空**：旧应用不感知新列（兼容窗口），存量行由 §7.2 启动回填补齐；回填完成后代码只读 `file_resource_id`。
-- `storage_path` 保留为历史列，不再写入新数据（§7.3 回滚时仍可用）。
+- `storage_path` 保留为历史列并 `ALTER COLUMN storage_path DROP NOT NULL`（新行不再写入该列；基线 `schema.sql` 同步为允许 NULL），回滚时旧代码仍可读本地路径（§7.3）。
 - `file_resource_id` 为逻辑外键，按 C9 建索引（反查文件被谁引用的治理场景）。
 
 ### 2.3 权限点与角色授权
@@ -114,7 +114,8 @@ COMMENT ON COLUMN bug_attachment.file_resource_id IS '关联 file_resource.id（
 
 | 配置 | 环境变量 | 默认值 | 说明 |
 | ---- | ---- | ---- | ---- |
-| `endpoint` | `MINIO_ENDPOINT` | `http://localhost:9000` | S3 API 地址（compose 内为 `http://minio:9000`） |
+| `endpoint` | `MINIO_ENDPOINT` | `http://localhost:9000` | S3 API 地址（服务端访问，compose 内为 `http://minio:9000`） |
+| `public-endpoint` | `MINIO_PUBLIC_ENDPOINT` | 空 = 同 `endpoint` | presigned 签名地址（浏览器可达；compose 内配 `http://localhost:9000`——内部网地址签名后浏览器无法直连） |
 | `access-key` | `MINIO_ACCESS_KEY` | `minioadmin` | dev 默认值；prod 必须显式配置 |
 | `secret-key` | `MINIO_SECRET_KEY` | `minioadmin` | 同上，禁止真实凭据入库 |
 | `bucket` | `MINIO_BUCKET` | `robotest` | 对象桶 |
@@ -220,13 +221,16 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 ### 4.3 缺陷附件的内部改造（路径不变）
 
 ```text
-上传：validateBug → 业务校验（10MB 上限、缺陷可操作）→ FileResourceService.upload（白名单+文件头+落 MinIO）
-      → 写 bug_attachment（file_resource_id + file_name/uploader 等业务列不变）→ bug_log
-下载：bug_attachment → file_resource_id → 平台流式读取；行内为 NULL（回填前）→ 兼容读本地 storage_path
-删除：删 MinIO 对象 + file_resource 逻辑删 → 删 bug_attachment 行 → bug_log；兼容期同步删本地文件
+上传：validateBug → 缺陷侧既有校验（10MB、白名单+文件头嗅探，错误码契约不变）
+      → FileResourceService.upload（模块级 20MB 与白名单再校验、落 MinIO、写 file_resource）
+      → 写 bug_attachment（补 file_resource_id；file_name/uploader 等业务列不变；storage_path 不再写入）→ bug_log
+下载：bug_attachment → file_resource_id → 模块读取对象字节；行内为 NULL（回填前）→ 兼容读本地 storage_path
+删除：保持既有语义（缺陷详设 1.12）——逻辑删 bug_attachment 行 + bug_log，对象与 file_resource 保留供审计，
+      孤儿资源由文件管理页统一治理（§5.3）
 ```
 
-- 校验收敛：扩展名白名单与文件头嗅探由模块统一执行（复用 `AttachmentFileValidator`，C10）；缺陷侧保留 10MB 与「已关闭拒绝上传」等业务规则。
+- 校验分工：缺陷侧保留既有校验与错误码（10MB 上限、白名单与文件头嗅探，`BUG_ATTACHMENT_*` 契约不变）；
+  模块入口统一再执行白名单与头嗅探（复用 `AttachmentFileValidator`，错误码 §6，覆盖直接使用模块的调用方）。
 - 响应 DTO（`BugAttachmentRespDTO` / `BugAttachmentDownloadRespDTO`）不变 → **前端上传/列表/下载/删除零改动**，仅回归。
 
 ### 4.4 使用方接入（WP-2.2 起）
@@ -371,3 +375,4 @@ docker compose up -d --build
 | 版本 | 日期 | 说明 | 作者 |
 | ---- | ---- | ---- | ---- |
 | V1.0 | 2026-10-04 | 随 WP-2.0 补建：泛化附件资源与 MinIO 存储、缺陷附件迁移、文件管理页、docker-compose 全家桶 | AI |
+| V1.0 | 2026-10-04 | 编码前探查修正：`storage_path` 放宽可空（历史列不再写入）、presigned 补 `public-endpoint`（签名地址须浏览器可达）、缺陷附件删除保持既有语义（对象保留供审计，孤儿由管理页治理）与校验分工（缺陷侧错误码契约不变） | AI |
