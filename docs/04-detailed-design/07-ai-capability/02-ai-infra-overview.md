@@ -707,7 +707,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - `groupBy = model` 时 `key` 形如 `modelId`，响应附 `keyName`（模型名）；`scene` 同理。
 
 - **下钻**：`GET /api/ai/usage/tasks`
-  - 参数：`from / to`、`modelId`、`scene`、`status`、`pageNo`、`pageSize`；
+  - 参数：`from / to`、`modelId`、`scene`、`status`、`callType`（`chat / embedding`，按调用类型下钻）、`pageNo`、`pageSize`；
   - 响应列表项：`{ taskId, type, status, modelName, scene, totalTokens, latencyMs, createdAt }`，点击跳任务详情（3.6.3）。
 
 ### 3.8 权限点（新增）
@@ -885,3 +885,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-04 | 用量成本口径落地：`ai_model_config` 补 `input_price / output_price` 单价、`ai_usage_log` 补 `cost`，模型接口与用量统计响应补对应字段 |
 | V1.0 | 2026-10-04 | 勘误 2.8：`ai_usage_log.model_id` 约束改为 NULL——向量 API 调用按 4.3 记账但无模型配置行 |
 | V1.0 | 2026-10-04 | 2.5 补 `updated_by` 列：场景提示词列表「更新人」列的数据来源 |
+| V1.0 | 2026-10-04 | 3.7 下钻补 `callType` 筛选参数（`chat / embedding`），支撑按调用类型分组的图表下钻 |
