@@ -9,6 +9,7 @@
 | [05-api-testing](05-api-testing/01-readme.md)（模块：接口测试） | V1.0 | 2026-09-23 | 起草中 |
 | [06-requirement-management](06-requirement-management/01-readme.md)（模块：需求管理） | V1.0 | 2026-10-02 | 起草中 |
 | [07-ai-capability](07-ai-capability/01-readme.md)（模块：AI 能力） | V1.0 | 2026-10-02 | 起草中 |
+| [08-file-management](08-file-management/01-readme.md)（模块：文件管理） | V1.0 | 2026-10-04 | 起草中 |
 | [02-project-module](02-project-module.md)（平台级：项目统一模块树） | V1.0 | 2026-09-23 | 起草中 |
 | [03-realtime-websocket](03-realtime-websocket.md)（平台级：WebSocket 实时通信） | V1.0 | 2026-09-24 | 起草中 |
 | [04-time-contract-comparison](04-time-contract-comparison.md)（平台级：时间契约双方案比较） | V1.0 | 2026-09-24 | 起草中 |
