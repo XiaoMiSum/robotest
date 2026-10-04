@@ -202,6 +202,16 @@ public class ErrorCodeConstants {
     public static final ErrorCode REQUIREMENT_TASK_IN_PROGRESS = ErrorCode.of(1000018013, "已存在进行中的导入或拆分任务");
     public static final ErrorCode REQUIREMENT_TRACE_SERVICE_FAILED = ErrorCode.of(1000018014, "追溯服务调用失败");
 
+    // ========== 文件管理 1,000,018,021-1,000,018,039（文件管理详设 6） ==========
+    public static final ErrorCode FILE_NOT_FOUND = ErrorCode.of(1000018021, "文件不存在或已删除");
+    public static final ErrorCode FILE_EMPTY = ErrorCode.of(1000018022, "上传文件为空");
+    public static final ErrorCode FILE_SIZE_EXCEEDED = ErrorCode.of(1000018023, "文件超过 20MB 限制");
+    public static final ErrorCode FILE_TYPE_NOT_ALLOWED = ErrorCode.of(1000018024, "文件类型不允许或内容与类型不符");
+    public static final ErrorCode FILE_UPLOAD_FAILED = ErrorCode.of(1000018025, "文件上传失败（对象存储不可用）");
+    public static final ErrorCode FILE_DOWNLOAD_FAILED = ErrorCode.of(1000018026, "文件下载失败");
+    public static final ErrorCode FILE_ACCESS_URL_FAILED = ErrorCode.of(1000018027, "文件访问地址签发失败");
+    public static final ErrorCode FILE_DELETE_FAILED = ErrorCode.of(1000018028, "文件删除失败");
+
     // ========== AI 配置与任务引擎 1,000,018,101-1,000,018,123（AI 底座详设 6） ==========
     public static final ErrorCode AI_DISABLED = ErrorCode.of(1000018101, "AI 能力未启用（总开关关闭）");
     public static final ErrorCode AI_MODEL_NOT_FOUND = ErrorCode.of(1000018102, "模型配置不存在");

@@ -21,8 +21,10 @@ spring:
       fail-on-empty-beans: false
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      # 文件管理模块级上限 20MB（SRS 导入详设 3.8）；缺陷附件 10MB 由业务层继续强制（文件管理详设 5.2）
+      max-file-size: 20MB
+      # 预留 multipart 边界开销，恰好 20MB 的文件不因请求体超限被拒
+      max-request-size: 21MB
   datasource:
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
     url: ${DATASOURCE_URL}
@@ -47,6 +49,15 @@ spring:
 robotest:
   upload:
     dir: ${UPLOAD_DIR:./uploads/bug}
+  minio:
+    # 对象存储（文件管理详设 3.1）：dev 默认直连本机 compose 发布的 MinIO；prod 必须显式配置凭据
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    # presigned 签名地址（浏览器可达）；留空同 endpoint——compose 中服务内部网地址浏览器无法直连，须配宿主发布地址
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket: ${MINIO_BUCKET:robotest}
+    presign-ttl-seconds: ${MINIO_PRESIGN_TTL:900}
   env:
     # 环境敏感变量加密密钥（Base64 编码 32 字节），生产环境必须显式配置
     secret-key: ${ENV_SECRET_KEY}
