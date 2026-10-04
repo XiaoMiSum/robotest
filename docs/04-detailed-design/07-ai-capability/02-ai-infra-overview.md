@@ -583,7 +583,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | bug_triage | 缺陷 | 无 | `triage_order`（只读建议，无确认） | 不落库 |
 | bug_trend_summary | 缺陷 | `from / to / groupBy` | `summary`（只读，无确认） | 不落库 |
 | assistant_parse | 助手 | `messageId` | `intent_preview / answer` | 助手执行接口（分册 04） |
-| vector_reindex | 底座（系统） | `scope?` | 无 | 向量索引重建 |
+| vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
 #### 3.6.2 提交任务
 
@@ -886,3 +886,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-04 | 勘误 2.8：`ai_usage_log.model_id` 约束改为 NULL——向量 API 调用按 4.3 记账但无模型配置行 |
 | V1.0 | 2026-10-04 | 2.5 补 `updated_by` 列：场景提示词列表「更新人」列的数据来源 |
 | V1.0 | 2026-10-04 | 3.7 下钻补 `callType` 筛选参数（`chat / embedding`），支撑按调用类型分组的图表下钻 |
+| V1.0 | 2026-10-04 | 3.6.1 补 `vector_reindex` 的 `scope` 语义：`entityTypes` 数组（`requirement / testcase / bug`），缺省全量重建 |
