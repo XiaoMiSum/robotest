@@ -165,7 +165,7 @@
 ```
 
 - **确认**：走总册 3.6.5；本类型 `target` 为既有创建流程的请求参数（评审名称、参与者、起止时间等，**不含项目上下文**）。
-- **承接**：沿用**既有评审 / 计划创建流程**生成快照（AI 不改变快照机制），创建成功后经矩阵服务写 `snapshot_ref` 边（`test_case → test_review / test_plan`，记录圈选时用例 `target_version`）；评审意见与计划项挂到用例级引用边。
+- **承接**：沿用**既有评审 / 计划创建流程**生成快照（AI 不改变快照机制），创建成功后经矩阵服务写 `case_snapshot` 边（`test_case → test_review / test_plan`，记录圈选时用例 `target_version`）；评审意见与计划项挂到用例级引用边。
 
 ---
 
@@ -286,3 +286,4 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-03 | 任务进度与产物审核统一为任务详情页（AiTaskDetailPage），删除抽屉/全屏页并存口径 |
+| V1.0 | 2026-10-04 | 快照引用边取值 `snapshot_ref` 更名为 `case_snapshot`（对齐追溯矩阵详设） |
