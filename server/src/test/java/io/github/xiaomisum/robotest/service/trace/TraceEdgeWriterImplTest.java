@@ -1,7 +1,9 @@
 package io.github.xiaomisum.robotest.service.trace;
 
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -36,11 +39,16 @@ class TraceEdgeWriterImplTest {
     private static final UUID REVIEW_ID = UUID.randomUUID();
     private static final UUID CASE_A = UUID.randomUUID();
     private static final UUID CASE_B = UUID.randomUUID();
+    private static final UUID DOC_ID = UUID.randomUUID();
+    private static final UUID REQ_A = UUID.randomUUID();
+    private static final UUID REQ_B = UUID.randomUUID();
 
     @Mock
     private TraceEdgeMapper traceEdgeMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
+    @Mock
+    private RequirementMapper requirementMapper;
 
     @InjectMocks
     private TraceEdgeWriterImpl writer;
@@ -112,6 +120,82 @@ class TraceEdgeWriterImplTest {
         verify(traceEdgeMapper, times(1)).deleteById(second.getId());
     }
 
+    // ---------- 文档关联需求对账（requirement → mindmap_document 反向承载） ----------
+
+    @Test
+    void syncDocument_insertsNewLinkAsManualDerivation() {
+        when(traceEdgeMapper.listDerivationsTo(PROJECT_ID, "mindmap_document", DOC_ID)).thenReturn(List.of());
+        when(requirementMapper.listByIds(Set.of(REQ_A))).thenReturn(List.of(requirement(REQ_A, "REQ-001")));
+        when(traceEdgeMapper.insert(any(TraceEdge.class))).thenReturn(1);
+
+        writer.syncDocumentRequirementEdges(PROJECT_ID, DOC_ID, Set.of(REQ_A), OPERATOR_ID);
+
+        ArgumentCaptor<TraceEdge> captor = ArgumentCaptor.forClass(TraceEdge.class);
+        verify(traceEdgeMapper).insert(captor.capture());
+        TraceEdge created = captor.getValue();
+        assertEquals("derivation", created.getEdgeType());
+        assertEquals("requirement", created.getSourceType());
+        assertEquals(REQ_A, created.getSourceId());
+        assertEquals("mindmap_document", created.getTargetType());
+        assertEquals(DOC_ID, created.getTargetId());
+        assertEquals(PROJECT_ID, created.getProjectId());
+        assertEquals("confirmed", created.getStatus());
+        assertEquals("manual", created.getEstablishedBy());
+        assertEquals(OPERATOR_ID, created.getConfirmedBy());
+        // 文档无版本概念，版本字段不参与比对
+        assertNull(created.getTargetVersion());
+    }
+
+    @Test
+    void syncDocument_removesDeselectedAndKeepsRetained() {
+        TraceEdge retained = derivationEdge(REQ_A, "confirmed");
+        TraceEdge deselected = derivationEdge(REQ_B, "confirmed");
+        when(traceEdgeMapper.listDerivationsTo(PROJECT_ID, "mindmap_document", DOC_ID))
+                .thenReturn(List.of(retained, deselected));
+        when(requirementMapper.listByIds(Set.of(REQ_A))).thenReturn(List.of(requirement(REQ_A, "REQ-001")));
+
+        writer.syncDocumentRequirementEdges(PROJECT_ID, DOC_ID, Set.of(REQ_A), OPERATOR_ID);
+
+        verify(traceEdgeMapper).deleteById(deselected.getId());
+        verify(traceEdgeMapper, never()).deleteById(retained.getId());
+        verify(traceEdgeMapper, never()).insert(any(TraceEdge.class));
+        verify(traceEdgeMapper, never()).updateById(any(TraceEdge.class));
+    }
+
+    @Test
+    void syncDocument_restoresDetachedLinkInsteadOfInserting() {
+        TraceEdge detached = derivationEdge(REQ_A, "detached");
+        when(traceEdgeMapper.listDerivationsTo(PROJECT_ID, "mindmap_document", DOC_ID))
+                .thenReturn(List.of(detached));
+        when(requirementMapper.listByIds(Set.of(REQ_A))).thenReturn(List.of(requirement(REQ_A, "REQ-001")));
+
+        writer.syncDocumentRequirementEdges(PROJECT_ID, DOC_ID, Set.of(REQ_A), OPERATOR_ID);
+
+        // detached 行占用 uk_trace_edge_pair，重勾选只能恢复既有行
+        ArgumentCaptor<TraceEdge> captor = ArgumentCaptor.forClass(TraceEdge.class);
+        verify(traceEdgeMapper).updateById(captor.capture());
+        assertEquals(detached.getId(), captor.getValue().getId());
+        assertEquals("confirmed", captor.getValue().getStatus());
+        assertEquals(OPERATOR_ID, captor.getValue().getConfirmedBy());
+        verify(traceEdgeMapper, never()).insert(any(TraceEdge.class));
+        verify(traceEdgeMapper, never()).deleteById(any());
+    }
+
+    @Test
+    void syncDocument_clearAllDeletesEveryLink() {
+        TraceEdge confirmed = derivationEdge(REQ_A, "confirmed");
+        TraceEdge detached = derivationEdge(REQ_B, "detached");
+        when(traceEdgeMapper.listDerivationsTo(PROJECT_ID, "mindmap_document", DOC_ID))
+                .thenReturn(List.of(confirmed, detached));
+
+        writer.syncDocumentRequirementEdges(PROJECT_ID, DOC_ID, List.of(), OPERATOR_ID);
+
+        verify(traceEdgeMapper).deleteById(confirmed.getId());
+        verify(traceEdgeMapper).deleteById(detached.getId());
+        verify(requirementMapper, never()).listByIds(any());
+        verify(traceEdgeMapper, never()).insert(any(TraceEdge.class));
+    }
+
     // ---------- 构造辅助 ----------
 
     private void assertCreatedEdge(TraceEdge created) {
@@ -141,5 +225,27 @@ class TraceEdgeWriterImplTest {
         node.setVersion(version);
         node.setTitle("TC-" + id);
         return node;
+    }
+
+    private TraceEdge derivationEdge(UUID sourceId, String status) {
+        TraceEdge edge = new TraceEdge();
+        edge.setId(UUID.randomUUID());
+        edge.setProjectId(PROJECT_ID);
+        edge.setEdgeType("derivation");
+        edge.setSourceType("requirement");
+        edge.setSourceId(sourceId);
+        edge.setTargetType("mindmap_document");
+        edge.setTargetId(DOC_ID);
+        edge.setStatus(status);
+        return edge;
+    }
+
+    private Requirement requirement(UUID id, String code) {
+        Requirement requirement = new Requirement();
+        requirement.setId(id);
+        requirement.setProjectId(PROJECT_ID);
+        requirement.setCode(code);
+        requirement.setTitle("标题-" + code);
+        return requirement;
     }
 }

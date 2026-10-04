@@ -1,8 +1,10 @@
 package io.github.xiaomisum.robotest.service.trace;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import jakarta.annotation.Resource;
@@ -31,6 +33,8 @@ public class TraceEdgeWriterImpl implements TraceEdgeWriter {
     private TraceEdgeMapper traceEdgeMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
+    @Resource
+    private RequirementMapper requirementMapper;
 
     @Override
     public void syncCaseSnapshotEdges(UUID projectId, String targetType, UUID targetId,
@@ -81,5 +85,60 @@ public class TraceEdgeWriterImpl implements TraceEdgeWriter {
     public void removeCaseSnapshotEdges(UUID projectId, String targetType, UUID targetId) {
         traceEdgeMapper.listCaseSnapshots(projectId, targetType, targetId)
                 .forEach(edge -> traceEdgeMapper.deleteById(edge.getId()));
+    }
+
+    @Override
+    public void syncDocumentRequirementEdges(UUID projectId, UUID docId, Collection<UUID> requirementIds,
+            UUID operatorId) {
+        Set<UUID> selected = requirementIds == null ? Set.of() : requirementIds.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<TraceEdge> existing = traceEdgeMapper.listDerivationsTo(
+                projectId, Constants.TraceNodeType.MINDMAP_DOCUMENT, docId);
+        Map<UUID, TraceEdge> existingBySource = existing.stream()
+                .collect(Collectors.toMap(TraceEdge::getSourceId, edge -> edge, (a, b) -> a));
+
+        for (TraceEdge edge : existing) {
+            if (!selected.contains(edge.getSourceId())) {
+                traceEdgeMapper.deleteById(edge.getId());
+            }
+        }
+        if (selected.isEmpty()) {
+            return;
+        }
+
+        for (Requirement requirement : requirementMapper.listByIds(selected)) {
+            TraceEdge edge = existingBySource.get(requirement.getId());
+            if (edge != null) {
+                if (Constants.TraceEdgeStatus.DETACHED.equals(edge.getStatus())) {
+                    // 重新勾选即人工恢复（2.2 断开留痕由审计承载），处置标记与既有状态保持不变
+                    TraceEdge carrier = new TraceEdge();
+                    carrier.setId(edge.getId());
+                    carrier.setStatus(Constants.TraceEdgeStatus.CONFIRMED);
+                    carrier.setEstablishedBy(Constants.TraceEstablishedBy.MANUAL);
+                    carrier.setConfirmedBy(operatorId);
+                    carrier.setConfirmedAt(LocalDateTime.now());
+                    traceEdgeMapper.updateById(carrier);
+                }
+                continue;
+            }
+            TraceEdge created = new TraceEdge();
+            created.setProjectId(projectId);
+            created.setEdgeType(Constants.TraceEdgeType.DERIVATION);
+            created.setSourceType(Constants.TraceNodeType.REQUIREMENT);
+            created.setSourceId(requirement.getId());
+            created.setTargetType(Constants.TraceNodeType.MINDMAP_DOCUMENT);
+            created.setTargetId(docId);
+            created.setStatus(Constants.TraceEdgeStatus.CONFIRMED);
+            created.setEstablishedBy(Constants.TraceEstablishedBy.MANUAL);
+            created.setConfirmedBy(operatorId);
+            created.setConfirmedAt(LocalDateTime.now());
+            try {
+                traceEdgeMapper.insert(created);
+            } catch (DuplicateKeyException concurrent) {
+                // 并发保存同一文档时对账重复建边：以唯一约束先到者为准，不中断保存事务
+            }
+        }
     }
 }
