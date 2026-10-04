@@ -57,6 +57,18 @@ public interface TraceEdgeMapper extends BaseMapperX<TraceEdge> {
                 .ne(TraceEdge::getStatus, Constants.TraceEdgeStatus.DETACHED));
     }
 
+    /**
+     * 目标节点下的派生入边（文档关联需求对账，详设 4.1）：
+     * 含 detached——唯一索引 uk_trace_edge_pair 对未删除行始终生效，对账需据此恢复而非重复插入。
+     */
+    default List<TraceEdge> listDerivationsTo(UUID projectId, String targetType, UUID targetId) {
+        return selectList(new LambdaQueryWrapperX<TraceEdge>()
+                .eq(TraceEdge::getProjectId, projectId)
+                .eq(TraceEdge::getEdgeType, Constants.TraceEdgeType.DERIVATION)
+                .eq(TraceEdge::getTargetType, targetType)
+                .eq(TraceEdge::getTargetId, targetId));
+    }
+
     /** 目标节点下的快照引用边（快照圈选对账，详设 4.1） */
     default List<TraceEdge> listCaseSnapshots(UUID projectId, String targetType, UUID targetId) {
         return selectList(new LambdaQueryWrapperX<TraceEdge>()
