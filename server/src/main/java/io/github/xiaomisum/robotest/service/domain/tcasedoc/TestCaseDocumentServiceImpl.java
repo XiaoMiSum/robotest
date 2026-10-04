@@ -13,6 +13,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,9 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
     private TestCaseDocumentConvertMapper testCaseDocumentConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
+    /** 向量索引（WP-4.5）：用例文档增改删同步重嵌/移出（详设 4.4） */
+    @Resource
+    private VectorIndexService vectorIndexService;
 
     @Override
     public List<TestCaseDocumentRespDTO> getTestCaseList(UUID projectId, UUID userId, UUID moduleId) {
@@ -94,6 +98,7 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
         testCaseNodeMapper.insert(rootNode);
         projectActivityService.record(projectId, userId, "TEST_CASE_DOCUMENT", document.getId(),
                 document.getName(), "CASE_CREATED", "创建用例「" + document.getName() + "」");
+        vectorIndexService.upsertTestCase(document.getId(), userId);
 
         return testCaseDocumentConvertMapper.toRespDTO(document);
     }
@@ -137,6 +142,10 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
             projectActivityService.record(document.getProjectId(), userId, "TEST_CASE_DOCUMENT", documentId,
                     resourceName, "CASE_UPDATED", "更新用例「" + resourceName + "」");
         }
+        if (reqDTO.getName() != null) {
+            // 详设 4.4：题名是索引正文，仅名称变更重嵌；移动与布局不动内容
+            vectorIndexService.upsertTestCase(documentId, userId);
+        }
         return testCaseDocumentConvertMapper.toRespDTO(document);
     }
 
@@ -155,6 +164,8 @@ public class TestCaseDocumentServiceImpl implements TestCaseDocumentService {
         testCaseDocumentMapper.deleteById(documentId);
         projectActivityService.record(document.getProjectId(), userId, "TEST_CASE_DOCUMENT", documentId,
                 document.getName(), "CASE_DELETED", "删除用例「" + document.getName() + "」");
+        // 详设 4.4：删除即移出索引
+        vectorIndexService.removeTestCase(documentId);
     }
 
     /**

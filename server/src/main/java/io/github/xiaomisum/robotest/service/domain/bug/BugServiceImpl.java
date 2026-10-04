@@ -19,6 +19,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -58,6 +59,9 @@ public class BugServiceImpl implements BugService {
     private BugConvertMapper bugConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
+    /** 向量索引（WP-4.5）：缺陷增改同步重嵌（详设 4.4） */
+    @Resource
+    private VectorIndexService vectorIndexService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -78,6 +82,7 @@ public class BugServiceImpl implements BugService {
         writeBugLog(bug.getId(), userId, Constants.BugOperation.CREATE, "创建缺陷");
         projectActivityService.record(projectId, userId, "BUG", bug.getId(),
                 bug.getTitle(), "BUG_CREATED", "提交缺陷「" + bug.getTitle() + "」");
+        vectorIndexService.upsertBug(bug.getId(), userId);
 
         return bug.getId().toString();
     }
@@ -143,6 +148,10 @@ public class BugServiceImpl implements BugService {
         String resourceName = StringUtils.hasText(reqDTO.getTitle()) ? reqDTO.getTitle() : bug.getTitle();
         projectActivityService.record(bug.getProjectId(), userId, "BUG", bugId,
                 resourceName, "BUG_UPDATED", "更新缺陷「" + resourceName + "」");
+        if (StringUtils.hasText(reqDTO.getTitle()) || reqDTO.getReproSteps() != null) {
+            // 详设 4.4：标题/复现步骤是索引正文，仅其变更触发重嵌
+            vectorIndexService.upsertBug(bugId, userId);
+        }
     }
 
     private UUID parseRelationId(String value) {

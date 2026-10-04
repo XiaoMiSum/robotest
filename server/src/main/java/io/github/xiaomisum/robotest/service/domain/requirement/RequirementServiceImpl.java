@@ -31,6 +31,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.trace.TraceMatrixService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -94,6 +95,9 @@ public class RequirementServiceImpl implements RequirementService {
     private TraceMatrixService traceMatrixService;
     @Resource
     private AiSettingsReader aiSettingsReader;
+    /** 向量索引（WP-4.5）：写侧同步重嵌入口，门禁未就绪时内部静默跳过（详设 4.4） */
+    @Resource
+    private VectorIndexService vectorIndexService;
 
     /** AI 任务框架（WP-4.2）接入前为 null，需求侧静默跳过影响分析触发（详设 4.4） */
     @Autowired(required = false)
@@ -190,6 +194,7 @@ public class RequirementServiceImpl implements RequirementService {
         item.setStatus(Constants.RequirementStatus.DRAFT);
         item.setSource("manual");
         codeAllocator.insertWithCodeAllocation(projectId, item);
+        vectorIndexService.upsertRequirement(item.getId(), userId);
         return buildDetail(item);
     }
 
@@ -264,6 +269,10 @@ public class RequirementServiceImpl implements RequirementService {
             writeChangeLogs(item, reqDTO, userId, titleChanged, descriptionChanged, moduleChanged,
                     versionChanged, versionCleared, priorityChanged, priorityCleared, ownerChanged, tagsChanged);
         }
+        if (titleChanged || descriptionChanged) {
+            // 详设 4.4：仅正文（题/描述）进入索引，其余字段变更不重嵌；失败上抛牵连保存回滚
+            vectorIndexService.upsertRequirement(id, userId);
+        }
         if (flipToChanged) {
             publishImpactAnalysis(id, projectId, userId);
         }
@@ -310,6 +319,8 @@ public class RequirementServiceImpl implements RequirementService {
         update.setStatus(Constants.RequirementStatus.ARCHIVED);
         requirementMapper.updateById(update);
         writeStatusChangeLog(item, Constants.RequirementStatus.ARCHIVED, userId);
+        // 详设 4.4：归档移出索引
+        vectorIndexService.removeRequirement(id);
         return buildDetail(requirementMapper.selectById(id));
     }
 
@@ -326,6 +337,8 @@ public class RequirementServiceImpl implements RequirementService {
         update.setStatus(Constants.RequirementStatus.DRAFT);
         requirementMapper.updateById(update);
         writeStatusChangeLog(item, Constants.RequirementStatus.DRAFT, userId);
+        // 详设 4.4：取消归档回草稿重新入索引
+        vectorIndexService.upsertRequirement(id, userId);
         return buildDetail(requirementMapper.selectById(id));
     }
 

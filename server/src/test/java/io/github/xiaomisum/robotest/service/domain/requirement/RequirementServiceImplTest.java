@@ -30,6 +30,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.trace.TraceMatrixService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,6 +98,8 @@ class RequirementServiceImplTest {
 
     @Mock
     private RequirementMapper requirementMapper;
+    @Mock
+    private VectorIndexService vectorIndexService;
     @Mock
     private RequirementChangeLogMapper changeLogMapper;
     @Mock

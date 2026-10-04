@@ -12,8 +12,10 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -35,6 +37,9 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private TestCaseNodeConvertMapper testCaseNodeConvertMapper;
+    /** 向量索引（WP-4.5）：节点标题变更触发整文档重嵌（详设 4.4） */
+    @Resource
+    private VectorIndexService vectorIndexService;
 
     @Override
     public TestCaseDocumentNodesRespDTO getDocumentNodes(UUID projectId, UUID documentId, UUID userId) {
@@ -132,6 +137,8 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
     }
 
     @Override
+    // 同步重嵌失败需牵连本次保存回滚（4.4），故补事务边界（此前无 @Transactional）
+    @Transactional(rollbackFor = Exception.class)
     public void updateCaseNode(UUID projectId, UUID caseId, UUID userId, TestCaseNodeUpdateReqDTO reqDTO) {
         TestCaseNode node = testCaseNodeMapper.selectById(caseId);
         if (node == null) {
@@ -159,6 +166,10 @@ public class TestCaseNodeServiceImpl implements TestCaseNodeService {
             update.setPriority(reqDTO.getPriority());
         }
         testCaseNodeMapper.updateById(update);
+        if (StringUtils.hasText(reqDTO.getTitle())) {
+            // 详设 4.4：节点标题是索引正文，标题保存同步重嵌，失败上抛整体回滚
+            vectorIndexService.upsertTestCase(node.getDocumentId(), userId);
+        }
     }
 
     private TestCaseNodeTreeRespDTO buildNodeTree(List<TestCaseNodeTreeRespDTO> nodes) {
