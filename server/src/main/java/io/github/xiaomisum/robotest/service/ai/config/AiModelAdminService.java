@@ -17,6 +17,7 @@ import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,6 +69,7 @@ public class AiModelAdminService {
 
     private final byte[] secretKey;
 
+    @Autowired
     public AiModelAdminService(@Value("${robotest.env.secret-key:}") String base64SecretKey) {
         this(SecretCryptoUtil.parseKey(base64SecretKey));
     }
