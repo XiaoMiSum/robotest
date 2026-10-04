@@ -44,8 +44,11 @@ public class AiUsageLog extends BaseUuidDO<AiUsageLog> {
     /** 调用端到端耗时 */
     private Integer latencyMs;
 
-    /** succeeded / failed */
+    /** success / failed（详设 2.8） */
     private String status;
 
     private Integer errorCode;
+
+    /** 本次调用成本（详设 4.3：按调用模型当时单价计，未配置单价恒 0） */
+    private java.math.BigDecimal cost;
 }

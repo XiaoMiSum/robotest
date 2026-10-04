@@ -33,4 +33,7 @@ public class AiPromptTemplate extends BaseUuidDO<AiPromptTemplate> {
     private String source;
 
     private Integer version;
+
+    /** 最近更新人（交互 2.5 列表「更新人」列，join 用户表回填展示名） */
+    private java.util.UUID updatedBy;
 }

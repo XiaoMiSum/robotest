@@ -1043,6 +1043,8 @@ CREATE TABLE ai_model_config (
     capabilities       jsonb NOT NULL DEFAULT '[]',
     priority           int NOT NULL DEFAULT 100,
     enabled            boolean NOT NULL DEFAULT TRUE,
+    input_price        numeric(14,6) NOT NULL DEFAULT 0,
+    output_price       numeric(14,6) NOT NULL DEFAULT 0,
     last_test_at       timestamp NULL,
     last_test_result   jsonb NULL,
     created_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1079,6 +1081,7 @@ CREATE TABLE ai_prompt_template (
     variables  jsonb NOT NULL DEFAULT '[]',
     source     varchar(20) NOT NULL DEFAULT 'custom',
     version    int NOT NULL DEFAULT 1,
+    updated_by uuid NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted boolean NOT NULL DEFAULT FALSE
@@ -1132,7 +1135,7 @@ CREATE TABLE ai_usage_log (
     project_id        uuid NULL,
     task_id           uuid NULL,
     user_id           uuid NOT NULL,
-    model_id          uuid NOT NULL,
+    model_id          uuid NULL,
     prompt_scene      varchar(50) NULL,
     call_type         varchar(20) NOT NULL,
     prompt_tokens     int NOT NULL DEFAULT 0,
@@ -1141,6 +1144,7 @@ CREATE TABLE ai_usage_log (
     latency_ms        int NOT NULL DEFAULT 0,
     status            varchar(20) NOT NULL,
     error_code        int NULL,
+    cost              numeric(14,6) NOT NULL DEFAULT 0,
     created_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted        boolean NOT NULL DEFAULT FALSE

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.config;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiUsageLog;
 import io.github.xiaomisum.robotest.repository.ai.AiUsageLogMapper;
 import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
@@ -17,6 +18,8 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -144,12 +147,22 @@ public class AiModelClient {
             usage.setCompletionTokens(completionTokens);
             usage.setTotalTokens(promptTokens + completionTokens);
             usage.setLatencyMs((int) Math.min(latencyMs, Integer.MAX_VALUE));
-            usage.setStatus(success ? "succeeded" : "failed");
+            usage.setStatus(success ? "success" : "failed");
             usage.setErrorCode(errorCode);
+            usage.setCost(calculateCost(request.model(), promptTokens, completionTokens));
             usageLogMapper.insert(usage);
         } catch (Exception e) {
             log.warn("[AI] 用量记录写入失败 taskId={} scene={}", request.taskId(), request.promptScene(), e);
         }
+    }
+
+    /** 成本 = prompt_tokens / 1e6 × input_price + completion_tokens / 1e6 × output_price（4.3；单价未配置恒 0） */
+    private static BigDecimal calculateCost(AiModelConfig model, int promptTokens, int completionTokens) {
+        BigDecimal inputPrice = model.getInputPrice() == null ? BigDecimal.ZERO : model.getInputPrice();
+        BigDecimal outputPrice = model.getOutputPrice() == null ? BigDecimal.ZERO : model.getOutputPrice();
+        BigDecimal million = new BigDecimal("1000000");
+        return inputPrice.multiply(new BigDecimal(promptTokens)).divide(million, 6, RoundingMode.HALF_UP)
+                .add(outputPrice.multiply(new BigDecimal(completionTokens)).divide(million, 6, RoundingMode.HALF_UP));
     }
 
     private static String join(String baseUrl, String path) {
