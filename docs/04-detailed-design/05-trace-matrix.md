@@ -51,6 +51,9 @@
 | established_by | varchar(20) | NOT NULL, DEFAULT 'ai' | 建立方式：`ai` / `manual` |
 | confirmed_by | uuid | NULL | 最近一次人工确认 / 修正的操作人 |
 | confirmed_at | timestamp | NULL | 最近一次人工确认 / 修正时间 |
+| disposition | varchar(20) | NULL | 影响处置标记：`pending`（待处置）/ `regenerate`（重新生成建议）/ `re_review`（需重新评审）/ `no_impact`（确认无影响）；未纳入影响分析的边为 NULL |
+| reason | varchar(500) | NULL | 处置理由；`no_impact` 必填 |
+| disposed_by | uuid | NULL | 处置操作人 |
 
 **索引**（4 个，≤ 5，C9）：
 
@@ -73,6 +76,9 @@ CREATE TABLE trace_edge (
     established_by varchar(20) NOT NULL DEFAULT 'ai',
     confirmed_by   uuid NULL,
     confirmed_at   timestamp NULL,
+    disposition    varchar(20) NULL,
+    reason         varchar(500) NULL,
+    disposed_by    uuid NULL,
     created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted     boolean NOT NULL DEFAULT FALSE
@@ -89,6 +95,7 @@ CREATE INDEX idx_trace_edge_target ON trace_edge (target_type, target_id);
 2. **派生边直连"需求 → 各层产物"**：`requirement → module`、`requirement → mindmap_document`、`requirement → test_case` 各存一条，避免"用例挂在 A 模块、源自 B 需求"时相邻层链路断裂；相邻层父子关系由既有模块树与文档表表达，本表不重复存储结构关系。
 3. **`status` 承载断开而非复用 `is_deleted`**：人工断开的边保留 `detached` 状态，唯一约束对 `is_deleted = FALSE` 的行始终生效——AI 重新生成时对同一对节点的插入将命中 `uk_trace_edge_pair` 冲突，只能走恢复 / 改挂接口，从而实现「人工断开后 AI 不得自动重建」。
 4. `target_version` 由目标域提供版本摘要（用例内容版本、快照版本等），无版本概念的节点类型允许为 NULL（不参与变更感知）。
+5. **影响处置字段组（`disposition` / `reason` / `disposed_by`）为 3.10 与 4.3 的落点**：`impact_analysis` 任务遍历产出受影响项时逐项置 `disposition = 'pending'`；`disposition IS NULL` 的边不出现在受影响项列表，已处置（`disposition <> 'pending'`）的边重复处置返回 1000018159；刷新分析时 `no_impact` 处置结果按源 + 目标对匹配保留（4.3）。
 
 ### 2.3 覆盖结论表（trace_coverage_result）
 
@@ -513,21 +520,29 @@ TraceMatrixPage
 | `server/.../controller/project/TraceController` | 仅路由与参数绑定（C2） |
 | `server/.../service/trace/TraceMatrixService + Impl` | 矩阵 / 链路 / 边维护 / 覆盖 / 影响逻辑 |
 | `server/.../service/trace/TraceEdgeWriter` | 建边写入端口（供生成链与快照流程事务内调用） |
+| 评审 / 计划创建快照流程 | 事务内调用 `TraceEdgeWriter` 写 `snapshot_ref` 边（4.1 建边时机） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018151–1000018161 |
+| `server/.../service/ai/task/ImpactAnalysisTaskHandler` | `impact_analysis` 处理器：遍历建边并写处置标记（4.3） |
 | 权限点迁移脚本 | 新增 `trace:view` / `trace:edit`（scope = workspace） |
+| `db/migration/V*__trace_impact_disposition.sql` | `trace_edge` 补影响处置字段组三列（2.2），同步 `schema.sql` |
 | `web/src/pages/project/TraceMatrixPage.vue` 及组件、`web/src/stores/traceMatrix.ts` | 前端页面与状态 |
 | `web/src/services/trace.ts`、`web/src/types/trace.ts` | API 与类型 |
 
 **数据库迁移说明（C5）**
 
 ```sql
--- 新建表（随本次交付；全量建库同步进 schema.sql）
+-- 新建表（已随 P1 交付；全量建库同步进 schema.sql）
 -- 完整 DDL 见 2.2 / 2.3
 CREATE TABLE trace_edge ( ... );
 CREATE UNIQUE INDEX uk_trace_edge_pair ON trace_edge (...) WHERE is_deleted = FALSE;
 CREATE INDEX idx_trace_edge_project / idx_trace_edge_source / idx_trace_edge_target ...;
 CREATE TABLE trace_coverage_result ( ... );
 CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (...) WHERE is_deleted = FALSE;
+
+-- 影响处置字段组（2.2，可空列追加，存量行不受影响）
+ALTER TABLE trace_edge ADD COLUMN disposition varchar(20) NULL;
+ALTER TABLE trace_edge ADD COLUMN reason varchar(500) NULL;
+ALTER TABLE trace_edge ADD COLUMN disposed_by uuid NULL;
 ```
 
 - UUID 主键使用框架默认策略，不显式赋值；无物理外键；单表索引数 4 / 1，均 ≤ 5（C9）。
@@ -547,3 +562,4 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (...)
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/trace |
+| V1.0 | 2026-10-04 | 2.2 `trace_edge` 补影响处置字段组（`disposition` / `reason` / `disposed_by`）与迁移说明，处置语义随 3.10 / 4.3 落表 |
