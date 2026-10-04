@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecor
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
@@ -71,6 +72,8 @@ class RequirementAdoptServiceImplTest {
 
     @Mock
     private RequirementMapper requirementMapper;
+    @Mock
+    private VectorIndexService vectorIndexService;
     @Mock
     private RequirementSplitRecordMapper splitRecordMapper;
     @Mock

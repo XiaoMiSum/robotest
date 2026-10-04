@@ -14,6 +14,7 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -54,6 +55,9 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
     private ProjectModuleMapper projectModuleMapper;
     @Resource
     private RequirementCodeAllocator codeAllocator;
+    /** 向量索引（WP-4.5）：采纳新增条目入索引、来源归档移出索引（详设 4.4） */
+    @Resource
+    private VectorIndexService vectorIndexService;
 
     @Override
     public String type() {
@@ -72,6 +76,7 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
         if (!Constants.AiArtifactAction.REJECTED.equals(context.action())) {
             createdId = createRequirement(context, record, source).getId();
             adoptedRef = Map.of("requirementId", createdId.toString());
+            vectorIndexService.upsertRequirement(createdId, context.operatorId());
         }
 
         Map<String, Object> merged = mergeAdoptResult(record, context, createdId);
@@ -329,6 +334,8 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
         entry.setBeforeSummary(summary("status", source.getStatus()));
         entry.setAfterSummary(summary("status", Constants.RequirementStatus.ARCHIVED));
         changeLogMapper.insert(entry);
+        // 详设 4.4：来源归档同步移出索引
+        vectorIndexService.removeRequirement(source.getId());
     }
 
     private static Map<String, Object> summary(String key, Object value) {

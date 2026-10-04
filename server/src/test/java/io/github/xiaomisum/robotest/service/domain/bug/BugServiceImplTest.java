@@ -20,6 +20,7 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,8 @@ class BugServiceImplTest {
 
     @Mock
     private BugMapper bugMapper;
+    @Mock
+    private VectorIndexService vectorIndexService;
     @Mock
     private BugLogMapper bugLogMapper;
     @Mock

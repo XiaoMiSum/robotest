@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentUpdateAttrsR
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,10 +49,17 @@ public class DocumentPersistenceHandler {
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
+    /** 向量索引（WP-4.5）：WS 内容类变更触发整文档重嵌（详设 4.4） */
+    @Resource
+    private VectorIndexService vectorIndexService;
 
     @Async
     @Transactional(rollbackFor = Exception.class)
     public void persist(UUID docId, String message, WebSocketSession session) {
+        // 内容类变更待重嵌标记（详设 4.4）：重嵌放 try 外，失败上抛令本次持久化整体回滚；
+        // 权限拒绝与解析失败走原有 catch 分支，标记未置位自然跳过
+        boolean contentChanged = false;
+        UUID operatorId = null;
         try {
             JsonNode root = JsonUtils.toJSON(message);
             String type = root.path("type").asString();
@@ -65,18 +73,25 @@ public class DocumentPersistenceHandler {
                 sendPermissionDenied(session);
                 return;
             }
+            operatorId = userId == null ? null : UUID.fromString(userId);
 
             switch (type) {
                 case Constants.WebSocket.MSG_UPDATE_LAYOUT -> {
                     Map<String, Object> layout = JsonUtils.convert(payload, Map.class);
                     persistLayout(docId, layout);
                 }
-                case Constants.WebSocket.MSG_ADD_NODE ->
-                        handleAddNode(docId, JsonUtils.toObject(payload.get("data"), DocumentAddNodeReqDTO.class));
-                case Constants.WebSocket.MSG_UPDATE_ATTRS ->
-                        handleUpdateAttrs(JsonUtils.toObject(payload.get("data"), DocumentUpdateAttrsReqDTO.class));
-                case Constants.WebSocket.MSG_DELETE_NODE ->
-                        handleDeleteNode(JsonUtils.toObject(payload.get("data"), DocumentDeleteNodeReqDTO.class));
+                case Constants.WebSocket.MSG_ADD_NODE -> {
+                    handleAddNode(docId, JsonUtils.toObject(payload.get("data"), DocumentAddNodeReqDTO.class));
+                    contentChanged = true;
+                }
+                case Constants.WebSocket.MSG_UPDATE_ATTRS -> {
+                    handleUpdateAttrs(JsonUtils.toObject(payload.get("data"), DocumentUpdateAttrsReqDTO.class));
+                    contentChanged = true;
+                }
+                case Constants.WebSocket.MSG_DELETE_NODE -> {
+                    handleDeleteNode(JsonUtils.toObject(payload.get("data"), DocumentDeleteNodeReqDTO.class));
+                    contentChanged = true;
+                }
                 case Constants.WebSocket.MSG_MOVE_NODE ->
                         handleMoveNode(JsonUtils.toObject(payload.get("data"), DocumentMoveNodeReqDTO.class));
                 default -> log.debug("Unknown type: {}", type);
@@ -84,6 +99,10 @@ public class DocumentPersistenceHandler {
         } catch (Exception e) {
             log.error("Persist error for doc {}: {}", docId, e.getMessage(), e);
             sendError(session, "PERSIST_FAILED", "持久化失败: " + e.getMessage());
+        }
+        if (contentChanged && operatorId != null) {
+            // 增/改/删标题进索引正文（4.4）；移动与布局不动内容不重嵌
+            vectorIndexService.upsertTestCase(docId, operatorId);
         }
     }
 

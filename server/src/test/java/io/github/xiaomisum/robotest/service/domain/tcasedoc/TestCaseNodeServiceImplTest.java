@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +39,8 @@ class TestCaseNodeServiceImplTest {
 
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
+    @Mock
+    private VectorIndexService vectorIndexService;
     @Mock
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
