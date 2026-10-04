@@ -127,6 +127,45 @@ const routes: RouteRecordRaw[] = [
           menu: { label: '角色管理', icon: 'Key', order: 20, section: '组织与权限', permission: 'role:view' },
         },
       },
+      // AI 配置中心：父壳层（页头全局项 + 分组导航），子路由渲染当前分组（交互 2.1）
+      {
+        path: 'ai',
+        component: () => import('@/pages/admin/ai/AiSettingsPage.vue'),
+        meta: {
+          title: 'AI 配置',
+          mode: 'admin',
+          menu: { label: 'AI 配置', icon: 'Setting', order: 40, section: 'AI 能力', permission: 'ai:admin' },
+        },
+        children: [
+          { path: '', name: 'AdminAi', redirect: 'models' },
+          {
+            path: 'models',
+            name: 'AdminAiModels',
+            component: () => import('@/pages/admin/ai/AiModelsGroup.vue'),
+            meta: { title: 'AI 配置 · 模型配置', mode: 'admin' },
+          },
+          {
+            path: 'embedding',
+            name: 'AdminAiEmbedding',
+            component: () => import('@/pages/admin/ai/AiEmbeddingGroup.vue'),
+            meta: { title: 'AI 配置 · 向量 API', mode: 'admin' },
+          },
+          {
+            path: 'prompts',
+            name: 'AdminAiPrompts',
+            component: () => import('@/pages/admin/ai/AiPromptsGroup.vue'),
+            meta: { title: 'AI 配置 · 场景提示词', mode: 'admin' },
+          },
+          {
+            path: 'usage',
+            name: 'AdminAiUsage',
+            component: () => import('@/pages/admin/ai/AiUsageGroup.vue'),
+            meta: { title: 'AI 配置 · 用量分析', mode: 'admin' },
+          },
+          // 分组直达不存在的路径 → 重定向默认分组（交互 2.6）
+          { path: ':pathMatch(.*)*', redirect: 'models' },
+        ],
+      },
     ],
   },
   // === Business routes ===
