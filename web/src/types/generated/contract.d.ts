@@ -484,6 +484,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put: operations["update_6"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/prompts/{scene}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDetail_1"];
+        put: operations["save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/models/{modelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_7"];
+        post?: never;
+        delete: operations["delete_7"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/embedding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_1"];
+        put: operations["save_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/workspaces/{id}": {
         parameters: {
             query?: never;
@@ -1668,6 +1732,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/prompts/{scene}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
+        put?: never;
+        post: operations["create_6"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/models/{modelId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/embedding/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/workspaces": {
         parameters: {
             query?: never;
@@ -2382,7 +2510,7 @@ export interface paths {
         get: operations["detail_3"];
         put?: never;
         post?: never;
-        delete: operations["delete_7"];
+        delete: operations["delete_8"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2664,6 +2792,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/usage/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/usage/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["statistics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/tasks/{taskId}": {
         parameters: {
             query?: never;
@@ -2671,7 +2831,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["getDetail_1"];
+        get: operations["getDetail_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2704,6 +2864,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3338,6 +3514,134 @@ export interface components {
             ids: string[];
             /** Format: uuid */
             moduleId?: string;
+        };
+        AiSettingsUpdateReqDTO: {
+            enabled?: boolean;
+            /** Format: uuid */
+            defaultModelId?: string;
+            /** Format: int32 */
+            taskTimeoutSeconds?: number;
+            /** Format: int32 */
+            taskMaxRetries?: number;
+        };
+        AiSettingsRespDTO: {
+            enabled?: boolean;
+            /** Format: uuid */
+            defaultModelId?: string;
+            defaultModelName?: string;
+            /** Format: int32 */
+            taskTimeoutSeconds?: number;
+            /** Format: int32 */
+            taskMaxRetries?: number;
+            modelReady?: boolean;
+            embeddingReady?: boolean;
+            available?: boolean;
+        };
+        ResultAiSettingsRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiSettingsRespDTO"];
+            msg?: string;
+        };
+        AiPromptSaveReqDTO: {
+            content: string;
+        };
+        AiPromptDetailRespDTO: {
+            scene?: string;
+            name?: string;
+            content?: string;
+            variables?: components["schemas"]["AiPromptVariableDTO"][];
+            source?: string;
+            /** Format: int32 */
+            version?: number;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        AiPromptVariableDTO: {
+            name?: string;
+            desc?: string;
+            required?: boolean;
+        };
+        ResultAiPromptDetailRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiPromptDetailRespDTO"];
+            msg?: string;
+        };
+        AiModelUpdateReqDTO: {
+            name?: string;
+            provider?: string;
+            baseUrl?: string;
+            apiKey?: string;
+            modelName?: string;
+            capabilities?: string[];
+            /** Format: int32 */
+            priority?: number;
+            enabled?: boolean;
+            inputPrice?: number;
+            outputPrice?: number;
+        };
+        AiModelRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            provider?: string;
+            baseUrl?: string;
+            modelName?: string;
+            capabilities?: string[];
+            /** Format: int32 */
+            priority?: number;
+            enabled?: boolean;
+            inputPrice?: number;
+            outputPrice?: number;
+            keyConfigured?: boolean;
+            lastTest?: components["schemas"]["LastTest"];
+        };
+        LastTest: {
+            success?: boolean;
+            /** Format: int32 */
+            latencyMs?: number;
+            msg?: string;
+            /** Format: date-time */
+            at?: string;
+        };
+        ResultAiModelRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiModelRespDTO"];
+            msg?: string;
+        };
+        AiEmbeddingSaveReqDTO: {
+            provider?: string;
+            baseUrl?: string;
+            apiKey?: string;
+            embeddingModel?: string;
+            /** Format: int32 */
+            dimensions?: number;
+            operator?: string;
+            enabled?: boolean;
+        };
+        AiEmbeddingRespDTO: {
+            provider?: string;
+            baseUrl?: string;
+            embeddingModel?: string;
+            /** Format: int32 */
+            dimensions?: number;
+            operator?: string;
+            indexType?: string;
+            enabled?: boolean;
+            keyConfigured?: boolean;
+            versions?: {
+                [key: string]: unknown;
+            }[];
+            requiresReindex?: boolean;
+            lastTest?: components["schemas"]["LastTest"];
+        };
+        ResultAiEmbeddingRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiEmbeddingRespDTO"];
+            msg?: string;
         };
         ResultWorkspaceRespDTO: {
             /** Format: int32 */
@@ -4368,6 +4672,45 @@ export interface components {
             /** Format: int32 */
             code?: number;
             data?: components["schemas"]["AiTaskConfirmRespDTO"];
+            msg?: string;
+        };
+        AiModelCreateReqDTO: {
+            name: string;
+            provider: string;
+            baseUrl: string;
+            apiKey: string;
+            modelName: string;
+            capabilities: string[];
+            /** Format: int32 */
+            priority?: number;
+            enabled?: boolean;
+            inputPrice?: number;
+            outputPrice?: number;
+        };
+        AiModelTestRespDTO: {
+            success?: boolean;
+            /** Format: int32 */
+            latencyMs?: number;
+            msg?: string;
+        };
+        ResultAiModelTestRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiModelTestRespDTO"];
+            msg?: string;
+        };
+        AiEmbeddingTestRespDTO: {
+            success?: boolean;
+            /** Format: int32 */
+            dimensions?: number;
+            /** Format: int32 */
+            latencyMs?: number;
+            msg?: string;
+        };
+        ResultAiEmbeddingTestRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiEmbeddingTestRespDTO"];
             msg?: string;
         };
         WorkspaceCreateReqDTO: {
@@ -6067,6 +6410,88 @@ export interface components {
             data?: components["schemas"]["InitStatusRespVO"];
             msg?: string;
         };
+        AiUsagePageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            /** Format: uuid */
+            modelId?: string;
+            scene?: string;
+            status?: string;
+        };
+        AiUsageTaskRespDTO: {
+            /** Format: uuid */
+            taskId?: string;
+            type?: string;
+            status?: string;
+            modelName?: string;
+            scene?: string;
+            /** Format: int32 */
+            totalTokens?: number;
+            /** Format: int32 */
+            latencyMs?: number;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        PageResultAiUsageTaskRespDTO: {
+            list?: components["schemas"]["AiUsageTaskRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultAiUsageTaskRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultAiUsageTaskRespDTO"];
+            msg?: string;
+        };
+        AiUsageStatisticsReqDTO: {
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            groupBy?: string;
+        };
+        AiUsageStatisticsRespDTO: {
+            summary?: components["schemas"]["Summary"];
+            series?: components["schemas"]["SeriesItem"][];
+        };
+        ResultAiUsageStatisticsRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiUsageStatisticsRespDTO"];
+            msg?: string;
+        };
+        SeriesItem: {
+            key?: string;
+            keyName?: string;
+            /** Format: int64 */
+            calls?: number;
+            /** Format: int64 */
+            failed?: number;
+            /** Format: int64 */
+            tokens?: number;
+            /** Format: int32 */
+            avgLatencyMs?: number;
+            cost?: number;
+        };
+        Summary: {
+            /** Format: int64 */
+            totalCalls?: number;
+            /** Format: int64 */
+            failedCalls?: number;
+            /** Format: double */
+            successRate?: number;
+            /** Format: int64 */
+            totalTokens?: number;
+            /** Format: int32 */
+            avgLatencyMs?: number;
+            totalCost?: number;
+        };
         AiTaskPageReqDTO: {
             /** Format: int32 */
             pageNo: number;
@@ -6103,6 +6528,32 @@ export interface components {
             /** Format: int32 */
             code?: number;
             data?: components["schemas"]["AiStatusRespDTO"];
+            msg?: string;
+        };
+        AiPromptListItemRespDTO: {
+            scene?: string;
+            name?: string;
+            summary?: string;
+            source?: string;
+            updatedByName?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ResultListAiPromptListItemRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiPromptListItemRespDTO"][];
+            msg?: string;
+        };
+        AiModelListRespDTO: {
+            list?: components["schemas"]["AiModelRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultAiModelListRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiModelListRespDTO"];
             msg?: string;
         };
         PageResultWorkspaceRespDTO: {
@@ -7603,6 +8054,190 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultBoolean"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiSettingsRespDTO"];
+                };
+            };
+        };
+    };
+    update_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiSettingsUpdateReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiSettingsRespDTO"];
+                };
+            };
+        };
+    };
+    getDetail_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiPromptDetailRespDTO"];
+                };
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiPromptSaveReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiPromptDetailRespDTO"];
+                };
+            };
+        };
+    };
+    update_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiModelUpdateReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiModelRespDTO"];
+                };
+            };
+        };
+    };
+    delete_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiEmbeddingRespDTO"];
+                };
+            };
+        };
+    };
+    save_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiEmbeddingSaveReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiEmbeddingRespDTO"];
                 };
             };
         };
@@ -10055,6 +10690,114 @@ export interface operations {
             };
         };
     };
+    reset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiPromptDetailRespDTO"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiModelListRespDTO"];
+                };
+            };
+        };
+    };
+    create_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiModelCreateReqDTO"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiModelRespDTO"];
+                };
+            };
+        };
+    };
+    test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiModelTestRespDTO"];
+                };
+            };
+        };
+    };
+    test_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiEmbeddingTestRespDTO"];
+                };
+            };
+        };
+    };
     getWorkspacePage: {
         parameters: {
             query?: {
@@ -11271,7 +12014,7 @@ export interface operations {
             };
         };
     };
-    delete_7: {
+    delete_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -11691,7 +12434,51 @@ export interface operations {
             };
         };
     };
-    getDetail_1: {
+    tasks: {
+        parameters: {
+            query: {
+                reqDTO: components["schemas"]["AiUsagePageReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultAiUsageTaskRespDTO"];
+                };
+            };
+        };
+    };
+    statistics: {
+        parameters: {
+            query: {
+                reqDTO: components["schemas"]["AiUsageStatisticsReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiUsageStatisticsRespDTO"];
+                };
+            };
+        };
+    };
+    getDetail_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -11752,6 +12539,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultAiStatusRespDTO"];
+                };
+            };
+        };
+    };
+    list_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultListAiPromptListItemRespDTO"];
                 };
             };
         };
