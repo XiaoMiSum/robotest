@@ -100,7 +100,7 @@ export interface AiEmbeddingConfig {
   baseUrl: string
   embeddingModel: string
   dimensions: number
-  /** 算子：cosine / l2 / ip */
+  /** 算子：cosine / l2 / inner_product（详设 2.4 默认 cosine） */
   operator: string
   /** 索引类型（只读，保存 DTO 不含此字段） */
   indexType: string
@@ -215,6 +215,8 @@ export interface AiUsageTaskQuery {
   modelId?: string
   /** 按提示词场景下钻（series.key） */
   scene?: string
+  /** 按调用类型下钻：chat / embedding（series.key） */
+  callType?: string
   /** success / failed */
   status?: string
 }
