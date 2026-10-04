@@ -21,6 +21,7 @@ import xyz.migoo.framework.common.util.JsonUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,13 +55,29 @@ public class AiEmbeddingClient {
     }
 
     /**
-     * 文本向量化。失败抛 1000018117（连通性测试场景由调用方转 1000018107）。
+     * 文本向量化（取首个向量）。失败抛 1000018117（连通性测试场景由调用方转 1000018107）。
      *
      * @param userId  记账操作人（重嵌场景为任务提交人）
      * @param taskId  任务归属（测试为 NULL）
      */
     public EmbeddingReply embed(AiEmbeddingConfig config, List<String> inputs, UUID userId, UUID taskId,
             UUID projectId) {
+        EmbeddingsReply batch = doEmbed(config, inputs, userId, taskId, projectId, false);
+        List<Double> first = batch.vectors().getFirst();
+        return new EmbeddingReply(first, first.size(), batch.tokens());
+    }
+
+    /**
+     * 批量文本向量化（详设 4.4 分块重嵌复用同一次 HTTP）：严格校验响应数量与维度，
+     * 防止错位 / 维度漂移的向量写进索引列（写入期才暴露会得到晦涩的 PG 转换错误）。
+     */
+    public EmbeddingsReply embedBatch(AiEmbeddingConfig config, List<String> inputs, UUID userId, UUID taskId,
+            UUID projectId) {
+        return doEmbed(config, inputs, userId, taskId, projectId, true);
+    }
+
+    private EmbeddingsReply doEmbed(AiEmbeddingConfig config, List<String> inputs, UUID userId, UUID taskId,
+            UUID projectId, boolean strict) {
         String apiKey = secretKey == null ? null : SecretCryptoUtil.decrypt(secretKey, config.getApiKeyEncrypted());
         if (apiKey == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
@@ -79,7 +96,7 @@ public class AiEmbeddingClient {
                     .body(JsonUtils.toJsonString(body))
                     .retrieve()
                     .body(String.class);
-            EmbeddingReply reply = extractReply(raw);
+            EmbeddingsReply reply = extractReply(raw, strict, inputs.size(), config.getDimensions());
             writeUsage(config, userId, taskId, projectId, System.currentTimeMillis() - start, true,
                     reply.tokens(), null);
             return reply;
@@ -95,15 +112,36 @@ public class AiEmbeddingClient {
     }
 
     @SuppressWarnings("unchecked")
-    private static EmbeddingReply extractReply(String raw) {
+    private static EmbeddingsReply extractReply(String raw, boolean strict, int expectedCount,
+            Integer expectedDimensions) {
         try {
             Map<String, Object> response = JsonUtils.parseObject(raw, Map.class);
             List<Object> data = (List<Object>) response.get("data");
-            List<Object> vector = (List<Object>) ((Map<String, Object>) data.get(0)).get("embedding");
+            if (data == null || data.isEmpty()) {
+                throw new IllegalArgumentException("向量响应缺少 data");
+            }
+            List<List<Double>> vectors = new ArrayList<>(data.size());
+            for (Object item : data) {
+                List<Object> vector = (List<Object>) ((Map<String, Object>) item).get("embedding");
+                vectors.add(vector.stream().map(v -> ((Number) v).doubleValue()).toList());
+            }
             Map<String, Object> usage = (Map<String, Object>) response.get("usage");
             int tokens = usage == null ? 0 : ((Number) usage.getOrDefault("prompt_tokens", 0)).intValue();
-            List<Double> embedding = vector.stream().map(v -> ((Number) v).doubleValue()).toList();
-            return new EmbeddingReply(embedding, embedding.size(), tokens);
+            if (strict) {
+                if (vectors.size() != expectedCount) {
+                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                            "向量响应数量与输入不一致");
+                }
+                for (List<Double> vector : vectors) {
+                    if (expectedDimensions != null && vector.size() != expectedDimensions) {
+                        throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                                "向量维度与配置不一致（返回 " + vector.size() + "，配置 " + expectedDimensions + "）");
+                    }
+                }
+            }
+            return new EmbeddingsReply(List.copyOf(vectors), tokens);
+        } catch (ServiceException e) {
+            throw e;
         } catch (Exception e) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "向量响应解析失败");
         }
@@ -145,5 +183,9 @@ public class AiEmbeddingClient {
 
     /** 向量化回复：dimensions 用于维度一致性校验（3.4 测试响应与 4.4 重建） */
     public record EmbeddingReply(List<Double> embedding, int dimensions, int tokens) {
+    }
+
+    /** 批量向量化回复：vectors 与输入一一对应（严格模式已校验数量与维度） */
+    public record EmbeddingsReply(List<List<Double>> vectors, int tokens) {
     }
 }
