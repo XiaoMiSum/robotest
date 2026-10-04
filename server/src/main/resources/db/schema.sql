@@ -1891,7 +1891,7 @@ COMMENT ON COLUMN api_function.updated_by IS '最后维护人';
 COMMENT ON TABLE trace_edge IS '追溯边表（节点间关联的结构事实）';
 COMMENT ON COLUMN trace_edge.id IS '边 ID';
 COMMENT ON COLUMN trace_edge.project_id IS '所属项目（隔离边界），矩阵/链路/影响查询强制过滤';
-COMMENT ON COLUMN trace_edge.edge_type IS '边类型：derivation 派生边 / snapshot_ref 快照引用边';
+COMMENT ON COLUMN trace_edge.edge_type IS '边类型：derivation 派生边 / case_snapshot 快照引用边（用例 ⇢ 评审 / 计划）';
 COMMENT ON COLUMN trace_edge.source_type IS '源节点类型：requirement/module/mindmap_document/test_case';
 COMMENT ON COLUMN trace_edge.source_id IS '源节点 ID（逻辑外键，与 source_type 组合定位）';
 COMMENT ON COLUMN trace_edge.target_type IS '目标节点类型：module/mindmap_document/test_case/test_review/test_plan';
