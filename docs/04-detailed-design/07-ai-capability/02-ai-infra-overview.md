@@ -73,6 +73,8 @@ CREATE UNIQUE INDEX uk_ai_config_singleton ON ai_config ((true)) WHERE is_delete
 | capabilities | jsonb | NOT NULL, DEFAULT '[]' | 能力标签：`chat / vision / embedding` |
 | priority | int | NOT NULL, DEFAULT 100 | 兜底顺序（默认模型失效时按 priority 升序尝试） |
 | enabled | boolean | NOT NULL, DEFAULT TRUE | 启停开关 |
+| input_price | numeric(14,6) | NOT NULL, DEFAULT 0 | 输入侧每百万 token 单价（0 = 不计价；仅作用量记账值，不设币种口径） |
+| output_price | numeric(14,6) | NOT NULL, DEFAULT 0 | 输出侧每百万 token 单价（同上） |
 | last_test_at | timestamp | NULL | 最近连通性测试时间 |
 | last_test_result | jsonb | NULL | 最近连通性测试结果 `{ success, latencyMs, msg }` |
 
@@ -92,6 +94,8 @@ CREATE TABLE ai_model_config (
     capabilities       jsonb NOT NULL DEFAULT '[]',
     priority           int NOT NULL DEFAULT 100,
     enabled            boolean NOT NULL DEFAULT TRUE,
+    input_price        numeric(14,6) NOT NULL DEFAULT 0,
+    output_price       numeric(14,6) NOT NULL DEFAULT 0,
     last_test_at       timestamp NULL,
     last_test_result   jsonb NULL,
     created_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -277,6 +281,7 @@ CREATE INDEX idx_ai_artifact_confirm_project ON ai_artifact_confirm (project_id,
 | latency_ms | int | NOT NULL, DEFAULT 0 | 单次调用耗时 |
 | status | varchar(20) | NOT NULL | `success / failed` |
 | error_code | int | NULL | 失败归因 |
+| cost | numeric(14,6) | NOT NULL, DEFAULT 0 | 本次调用成本 = `prompt_tokens / 1e6 × input_price + completion_tokens / 1e6 × output_price`（单价取调用模型的当时配置，4.3；未配置单价恒 0） |
 
 **索引**（3 个）：`idx_ai_usage_log_project` (project_id, created_at)、`idx_ai_usage_log_model` (model_id, created_at)、`idx_ai_usage_log_task` (task_id)。
 
@@ -295,6 +300,7 @@ CREATE TABLE ai_usage_log (
     latency_ms        int NOT NULL DEFAULT 0,
     status            varchar(20) NOT NULL,
     error_code        int NULL,
+    cost              numeric(14,6) NOT NULL DEFAULT 0,
     created_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted        boolean NOT NULL DEFAULT FALSE
@@ -464,6 +470,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
       "capabilities": ["chat", "vision"],
       "priority": 100,
       "enabled": true,
+      "inputPrice": 0.5,
+      "outputPrice": 1.5,
       "keyConfigured": true,
       "lastTest": { "success": true, "latencyMs": 420, "at": "2026-10-02T08:00:00Z" }
     }
@@ -483,11 +491,13 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   "modelName": "gpt-x-mini",
   "capabilities": ["chat", "vision"],
   "priority": 100,
-  "enabled": true
+  "enabled": true,
+  "inputPrice": 0.5,
+  "outputPrice": 1.5
 }
 ```
 
-  - 校验：`name` 唯一（冲突 1000018103）；`baseUrl` 合法 URL；`apiKey / modelName` 必填；`capabilities ⊆ {chat, vision, embedding}`。
+  - 校验：`name` 唯一（冲突 1000018103）；`baseUrl` 合法 URL；`apiKey / modelName` 必填；`capabilities ⊆ {chat, vision, embedding}`；`inputPrice / outputPrice ≥ 0`（否则 1000018103）。
 - **更新**：`PUT /api/ai/models/{modelId}`（部分更新；`apiKey` 传入即替换、不传保持原值）。
 - **删除**：`DELETE /api/ai/models/{modelId}`（逻辑删除）——被 `default_model_id` 引用时拒绝（1000018104），须先切换默认模型。
 - **连通性测试**：`POST /api/ai/models/{modelId}/test`
@@ -685,9 +695,9 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ```json
 {
-  "summary": { "totalCalls": 1523, "failedCalls": 31, "successRate": 0.98, "totalTokens": 4210000, "avgLatencyMs": 1830 },
+  "summary": { "totalCalls": 1523, "failedCalls": 31, "successRate": 0.98, "totalTokens": 4210000, "avgLatencyMs": 1830, "totalCost": 12.34 },
   "series": [
-    { "key": "2026-10-01", "calls": 60, "failed": 1, "tokens": 180000, "avgLatencyMs": 1700 }
+    { "key": "2026-10-01", "calls": 60, "failed": 1, "tokens": 180000, "avgLatencyMs": 1700, "cost": 0.42 }
   ]
 }
 ```
@@ -728,6 +738,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 4.3 用量记录
 
 - 每次模型 / 向量调用（成功与失败）写一条 `ai_usage_log`：延迟为调用端到端耗时，token 以响应账单为准（缺省按字符估算并标记）；任务级汇总同步累加到 `ai_task.tokens_in / tokens_out`。
+- 成本 `cost` 按调用模型的当时单价计：`prompt_tokens / 1e6 × input_price + completion_tokens / 1e6 × output_price`，连通性测试等无任务调用同样计价；单价未配置（0）时 `cost = 0`。
 - 任务的多次调用（解析、生成、后处理）各记一条明细并共享 `task_id`；助手交互调用 `task_id = NULL`、`prompt_scene` 归因到助手场景。
 - 统计查询按 UTC 日期分组；失败率 = `failed / total`；空区间补 0（前端图表不出现断点）。
 
@@ -841,6 +852,11 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 -- 全部为新建表，完整 DDL 见 2.2–2.10；全量建库同步进 schema.sql
 -- 向量列维度 n 以 ai_embedding_config 配置值生成（初始部署默认 1536）
 CREATE TABLE ai_config / ai_model_config / ai_embedding_config / ai_prompt_template / ai_task / ai_artifact_confirm / ai_usage_log / ai_assistant_conversation / ai_assistant_message / ai_vector_index ( ... );
+
+-- 存量库补列（首次建库随 schema.sql 直接含列，无需本迁移）
+ALTER TABLE ai_model_config ADD COLUMN input_price numeric(14,6) NOT NULL DEFAULT 0;
+ALTER TABLE ai_model_config ADD COLUMN output_price numeric(14,6) NOT NULL DEFAULT 0;
+ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 ```
 
 - UUID 主键使用框架默认策略；无物理外键；单表索引数均 ≤ 5（C9）；
@@ -864,3 +880,4 @@ CREATE TABLE ai_config / ai_model_config / ai_embedding_config / ai_prompt_templ
 | V1.0 | 2026-10-03 | AI 配置中心改为页头全局项 + 左侧分组导航 + 子路由（/admin/ai/{models,embedding,prompts,usage}） |
 | V1.0 | 2026-10-03 | 任务详情抽屉与产物审核面板合并为任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage） |
 | V1.0 | 2026-10-03 | 新增业务端可用性查询 `GET /api/ai/status`（登录即可，三布尔口径），供业务端入口显隐 |
+| V1.0 | 2026-10-04 | 用量成本口径落地：`ai_model_config` 补 `input_price / output_price` 单价、`ai_usage_log` 补 `cost`，模型接口与用量统计响应补对应字段 |
