@@ -14,6 +14,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiEmbeddingConfigMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +55,7 @@ public class AiEmbeddingAdminService {
 
     private final byte[] secretKey;
 
+    @Autowired
     public AiEmbeddingAdminService(@Value("${robotest.env.secret-key:}") String base64SecretKey) {
         this(SecretCryptoUtil.parseKey(base64SecretKey));
     }

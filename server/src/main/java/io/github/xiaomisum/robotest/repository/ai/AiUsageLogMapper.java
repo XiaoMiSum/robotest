@@ -16,7 +16,8 @@ public interface AiUsageLogMapper extends BaseMapperX<AiUsageLog> {
 
     String RANGE_FILTER = "is_deleted = FALSE AND created_at >= #{from} AND created_at < #{to}";
 
-    String TASK_FILTER = "u.is_deleted = FALSE AND u.created_at >= #{from} AND u.created_at < #{to}";
+    /** script 段内小于号须转义，否则 XML 解析失败（RANGE_FILTER 非 script 段保持原样） */
+    String TASK_FILTER = "u.is_deleted = FALSE AND u.created_at >= #{from} AND u.created_at &lt; #{to}";
 
     /** 区间汇总（详设 3.7 summary）：UTC 分组，失败 = status = failed */
     @Select("SELECT COUNT(*) AS total_calls, "
