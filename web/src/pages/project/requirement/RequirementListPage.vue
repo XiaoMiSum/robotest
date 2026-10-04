@@ -27,6 +27,7 @@ const {
   canCreate,
   canConfirm,
   canEdit,
+  canViewAiTasks,
   retry,
   search,
   resetFilters,
@@ -129,6 +130,10 @@ async function submitCreate(): Promise<void> {
         <p class="page-head__desc">沉淀需求条目，作为用例设计与评审的输入</p>
       </div>
       <div class="page-head__actions">
+        <!-- 任务中心为需求域任务入口（交互 07 §1），按 ai:task 显隐 -->
+        <el-button v-if="canViewAiTasks" @click="router.push('/workspace/projects/ai/tasks')">
+          <el-icon><List /></el-icon>任务中心
+        </el-button>
         <el-button v-if="canCreate" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon>新建需求
         </el-button>

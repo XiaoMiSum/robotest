@@ -28,6 +28,8 @@ const LOG_PAGE_SIZE = 20
 const VERSION_MAX_LENGTH = 50
 // 需求不存在或越权：页面切 404 分支（错误码 1000018001）
 const REQUIREMENT_NOT_FOUND = 1000018001
+/** 已有进行中拆分任务（1000018013）：提示引导去任务中心 */
+const REQUIREMENT_TASK_IN_PROGRESS = 1000018013
 
 function stripDocuments(nodes: ProjectModule[]): ProjectModule[] {
   return nodes
@@ -398,6 +400,24 @@ export function useRequirementDetail() {
       ElMessage.success('拆分任务已提交')
       void router.push(`/workspace/projects/ai/tasks/${result.taskId}`)
     } catch (err) {
+      // 已有进行中任务：引导去任务中心看该条目的进行中任务（交互 06 §2.3）
+      if (errorCode(err) === REQUIREMENT_TASK_IN_PROGRESS) {
+        try {
+          await ElMessageBox.confirm(
+            errorMessage(err, '已存在进行中的导入或拆分任务'),
+            '无法提交拆分',
+            {
+              type: 'warning',
+              confirmButtonText: '前往任务中心',
+              cancelButtonText: '留在本页',
+            },
+          )
+        } catch {
+          return
+        }
+        void router.push('/workspace/projects/ai/tasks')
+        return
+      }
       ElMessage.error(errorMessage(err, '提交拆分失败'))
     } finally {
       splitting.value = false

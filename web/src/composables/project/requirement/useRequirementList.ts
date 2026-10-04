@@ -237,6 +237,8 @@ export function useRequirementList() {
   const canCreate = computed(() => authStore.hasPermission('requirement:create'))
   const canConfirm = computed(() => authStore.hasPermission('requirement:confirm'))
   const canEdit = computed(() => authStore.hasPermission('requirement:edit'))
+  /** 任务中心入口按 ai:task 显隐（交互 07 §1 入口约定） */
+  const canViewAiTasks = computed(() => authStore.hasPermission('ai:task'))
 
   onMounted(() => {
     // 保活回填：从详情页返回时沿用上次筛选与页码
@@ -267,6 +269,7 @@ export function useRequirementList() {
     canCreate,
     canConfirm,
     canEdit,
+    canViewAiTasks,
     load,
     retry,
     search,
