@@ -174,22 +174,6 @@ export interface paths {
         get: operations["getRequirementDetail"];
         put: operations["updateRequirement"];
         post?: never;
-        delete: operations["deleteRequirement"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/requirements/{id}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["archiveRequirement"];
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -331,8 +315,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["getDocumentRequirements"];
-        put: operations["setDocumentRequirements"];
+        get: operations["getRequirements"];
+        put: operations["setRequirements"];
         post?: never;
         delete?: never;
         options?: never;
@@ -580,86 +564,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getConfig"];
-        put: operations["saveConfig"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/chat-models/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["updateChatModel"];
-        post?: never;
-        delete: operations["deleteChatModel"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/chat-models/{id}/enabled": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["setChatModelEnabled"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/chat-models/{id}/default": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["setChatModelDefault"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/agents/{functionType}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getAgentDetail"];
-        put: operations["saveAgent"];
-        post?: never;
-        delete: operations["restoreDefault"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/workspace/projects": {
         parameters: {
             query?: never;
@@ -772,64 +676,16 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/workspace/ai/conversations": {
+    "/api/project/trace/edges": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["listConversations"];
+        get: operations["getEdges"];
         put?: never;
-        post: operations["createConversation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/workspace/ai/conversations/{id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listMessages"];
-        put?: never;
-        post: operations["sendMessage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/workspace/ai/confirmations/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["cancel"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/workspace/ai/confirmations/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["approve"];
+        post: operations["createEdge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1012,7 +868,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/requirements/batch": {
+    "/api/project/requirements/{id}/unarchive": {
         parameters: {
             query?: never;
             header?: never;
@@ -1021,7 +877,55 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["createRequirementsBatch"];
+        post: operations["unarchiveRequirement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/requirements/{id}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["splitRequirement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/requirements/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmRequirement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/requirements/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveRequirement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1604,278 +1508,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/ai/tasks/{id}/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["retryTask"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/tasks/{id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["cancelTask"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/reviews/{id}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getSummary"];
-        put?: never;
-        post: operations["generateSummary"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/reviews/{id}/conclusion": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getConclusion"];
-        put?: never;
-        post: operations["generateConclusion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/reviews/{id}/check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["startCheck"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/requirements/split": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["splitRequirement"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/plans/{id}/order-recommend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["planOrderRecommendResult"];
-        put?: never;
-        post: operations["planOrderRecommend"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/plans/{id}/order-reason": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["planOrderReason"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/minder/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["importText"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/cases/priority-recommend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["priorityRecommend"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/cases/plan-recommend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["planRecommend"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/cases/missing-points": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["missingPoints"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/cases/generate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["generate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/cases/complete-steps": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["completeSteps"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/bugs/suggest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["suggest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/bugs/dedup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["dedup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/bugs/clustering": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["startClustering"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/auth/refresh": {
         parameters: {
             query?: never;
@@ -1966,6 +1598,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["page_3"];
+        put?: never;
+        post: operations["submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/tasks/{taskId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/tasks/{taskId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/tasks/{taskId}/artifacts/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2100,7 +1796,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai/rebuild-task/retry": {
+    "/api/project/trace/impact-items/{edgeId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2109,14 +1805,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["retryRebuildTask"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["patchImpactItem"];
         trace?: never;
     };
-    "/api/admin/ai/config/test": {
+    "/api/project/trace/edges/{edgeId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2125,27 +1821,27 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["testConnectivity"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["patchEdge"];
         trace?: never;
     };
-    "/api/admin/ai/chat-models": {
+    "/api/project/trace/coverage/{requirementId}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["listChatModels"];
+        get?: never;
         put?: never;
-        post: operations["createChatModel"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["patchCoverage"];
         trace?: never;
     };
     "/api/project/mocks/{id}/toggle": {
@@ -2404,22 +2100,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/workspace/ai/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getStatus"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/public/api-reports/{id}": {
         parameters: {
             query?: never;
@@ -2428,6 +2108,86 @@ export interface paths {
             cookie?: never;
         };
         get: operations["access"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/trace/matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMatrix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/trace/impact-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getImpactItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/trace/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getGaps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/trace/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCoverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/trace/chain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getChain"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2532,6 +2292,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/project/requirements/{id}/trace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getRequirementTrace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/requirements/{id}/split-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSplitLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/requirements/{id}/change-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getChangeLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/requirements/split-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSplitRecords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/project/reports": {
         parameters: {
             query?: never;
@@ -2539,7 +2363,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["page_3"];
+        get: operations["page_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2804,54 +2628,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/ai/tasks/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getTask"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/reviews/{id}/check-result": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getCheckResult"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/ai/bugs/clustering/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getLatestClustering"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -2879,7 +2655,55 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["getStatus_1"];
+        get: operations["getStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/tasks/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDetail_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/tasks/{taskId}/artifacts/{artifactKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2963,102 +2787,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/statistics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getStatistics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/settings-schema": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getSettingsSchema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/rebuild-task": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getRebuildTask"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/providers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getProviders"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/ai/agents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getAgents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/workspace/ai/conversations/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["deleteConversation"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3304,11 +3032,51 @@ export interface components {
         };
         RequirementUpdateReqDTO: {
             title?: string;
-            content?: string;
-            sourceUrl?: string;
+            description?: string;
+            /** Format: uuid */
+            moduleId?: string;
+            systemVersion?: string;
+            priority?: string;
+            /** Format: uuid */
+            ownerId?: string;
+            tags?: string[];
         };
-        RequirementArchiveReqDTO: {
-            archived: boolean;
+        RequirementDetailRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            code?: string;
+            title?: string;
+            description?: string;
+            /** Format: uuid */
+            moduleId?: string;
+            moduleName?: string;
+            systemVersion?: string;
+            status?: string;
+            priority?: string;
+            /** Format: uuid */
+            ownerId?: string;
+            ownerName?: string;
+            tags?: string[];
+            source?: string;
+            sourceFile?: components["schemas"]["SourceFile"];
+            /** Format: date-time */
+            confirmedAt?: string;
+            coverageStatus?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ResultRequirementDetailRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["RequirementDetailRespDTO"];
+            msg?: string;
+        };
+        SourceFile: {
+            /** Format: uuid */
+            fileId?: string;
+            name?: string;
         };
         TestPlanCasesUpdateReqDTO: {
             selectedNodes: components["schemas"]["SelectedNode"][];
@@ -3468,6 +3236,18 @@ export interface components {
         };
         DocumentRequirementsUpdateReqDTO: {
             requirementIds?: string[];
+        };
+        RequirementSummaryRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            code?: string;
+            title?: string;
+        };
+        ResultListRequirementSummaryRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["RequirementSummaryRespDTO"][];
+            msg?: string;
         };
         ApiDebugRenameReqDTO: {
             name: string;
@@ -3642,83 +3422,6 @@ export interface components {
         RolePermissionsUpdateReqDTO: {
             permissions?: string[];
         };
-        AiConfigSaveReqDTO: {
-            enabled: boolean;
-            embedding?: components["schemas"]["EmbeddingGroup"];
-            settings?: {
-                [key: string]: unknown;
-            };
-        };
-        EmbeddingGroup: {
-            provider?: string;
-            baseUrl?: string;
-            model?: string;
-            /** Format: int32 */
-            dimension?: number;
-            apiKey?: string;
-            extraParams?: {
-                [key: string]: unknown;
-            };
-        };
-        AiConfigRespDTO: {
-            enabled?: boolean;
-            embedding?: components["schemas"]["EmbeddingGroup"];
-            settings?: {
-                [key: string]: unknown;
-            };
-            /** Format: date-time */
-            updatedAt?: string;
-        };
-        ApiKeyInfo: {
-            configured?: boolean;
-            keySuffix?: string;
-        };
-        ResultAiConfigRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiConfigRespDTO"];
-            msg?: string;
-        };
-        AiChatModelSaveReqDTO: {
-            name: string;
-            provider: string;
-            baseUrl: string;
-            model: string;
-            apiKey?: string;
-            extraParams?: {
-                [key: string]: unknown;
-            };
-        };
-        AiChatModelRespDTO: {
-            id?: string;
-            name?: string;
-            provider?: string;
-            baseUrl?: string;
-            model?: string;
-            apiKey?: components["schemas"]["ApiKeyInfo"];
-            extraParams?: {
-                [key: string]: unknown;
-            };
-            enabled?: boolean;
-            isDefault?: boolean;
-            updatedBy?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-        };
-        ResultAiChatModelRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiChatModelRespDTO"];
-            msg?: string;
-        };
-        AiChatModelEnabledReqDTO: {
-            enabled: boolean;
-        };
-        AiAgentSaveReqDTO: {
-            roleInstruction: string;
-            formatEditable: boolean;
-            formatConstraint?: string;
-        };
         ProjectCreateReqDTO: {
             name: string;
             description?: string;
@@ -3833,32 +3536,42 @@ export interface components {
             data?: components["schemas"]["InvitationCheckEmailRespDTO"];
             msg?: string;
         };
-        AiConversationItemRespDTO: {
+        TraceEdgeCreateReqDTO: {
+            edgeType: string;
+            sourceType: string;
+            /** Format: uuid */
+            sourceId: string;
+            targetType: string;
+            /** Format: uuid */
+            targetId: string;
+            targetVersion?: string;
+        };
+        ResultTraceEdgeRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["TraceEdgeRespDTO"];
+            msg?: string;
+        };
+        TraceEdgeRespDTO: {
+            /** Format: uuid */
+            edgeId?: string;
+            edgeType?: string;
+            source?: components["schemas"]["TraceNodeRefRespDTO"];
+            target?: components["schemas"]["TraceNodeRefRespDTO"];
+            targetVersion?: string;
+            status?: string;
+            establishedBy?: string;
+            /** Format: uuid */
+            confirmedBy?: string;
+            /** Format: date-time */
+            confirmedAt?: string;
+        };
+        TraceNodeRefRespDTO: {
+            type?: string;
             /** Format: uuid */
             id?: string;
             title?: string;
-            /** Format: date-time */
-            lastActiveAt?: string;
-        };
-        ResultAiConversationItemRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiConversationItemRespDTO"];
-            msg?: string;
-        };
-        AiAssistantSendReqDTO: {
-            content: string;
-            pageContext?: {
-                [key: string]: unknown;
-            };
-            modelId?: string;
-        };
-        SseEmitter: {
-            /** Format: int64 */
-            timeout?: number;
-        };
-        AiConfirmReqDTO: {
-            confirmToken: string;
+            version?: string;
         };
         TestCaseDocumentCreateReqDTO: {
             /** Format: uuid */
@@ -3939,32 +3652,26 @@ export interface components {
         };
         RequirementCreateReqDTO: {
             title: string;
-            content: string;
-            sourceUrl?: string;
+            description?: string;
+            /** Format: uuid */
+            moduleId?: string;
+            systemVersion?: string;
+            priority?: string;
+            /** Format: uuid */
+            ownerId?: string;
+            tags?: string[];
         };
-        ResultString: {
+        RequirementSplitSubmitRespDTO: {
+            /** Format: uuid */
+            taskId?: string;
+            /** Format: uuid */
+            splitRecordId?: string;
+            status?: string;
+        };
+        ResultRequirementSplitSubmitRespDTO: {
             /** Format: int32 */
             code?: number;
-            data?: string;
-            msg?: string;
-        };
-        Item: {
-            title: string;
-            content: string;
-            sourceUrl?: string;
-            aiGenerated?: boolean;
-        };
-        RequirementBatchCreateReqDTO: {
-            items: components["schemas"]["Item"][];
-        };
-        RequirementBatchCreateRespDTO: {
-            /** Format: int32 */
-            count?: number;
-        };
-        ResultRequirementBatchCreateRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["RequirementBatchCreateRespDTO"];
+            data?: components["schemas"]["RequirementSplitSubmitRespDTO"];
             msg?: string;
         };
         ApiReportShareReqDTO: {
@@ -4356,6 +4063,12 @@ export interface components {
             /** Format: uuid */
             relatedPlanId?: string;
         };
+        ResultString: {
+            /** Format: int32 */
+            code?: number;
+            data?: string;
+            msg?: string;
+        };
         BugAttachmentRespDTO: {
             /** Format: uuid */
             id?: string;
@@ -4513,182 +4226,6 @@ export interface components {
             data?: components["schemas"]["ApiSceneDraftExecuteRespDTO"];
             msg?: string;
         };
-        AiReviewSummaryReqDTO: {
-            /** Format: uuid */
-            modelId?: string;
-        };
-        AiReviewConclusionReqDTO: {
-            /** Format: uuid */
-            modelId?: string;
-        };
-        AiReviewCheckStartRespDTO: {
-            /** Format: uuid */
-            taskId?: string;
-        };
-        ResultAiReviewCheckStartRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiReviewCheckStartRespDTO"];
-            msg?: string;
-        };
-        AiRequirementSplitReqDTO: {
-            text: string;
-            /** Format: uuid */
-            modelId?: string;
-        };
-        AiPlanOrderComputeRespDTO: {
-            /** Format: uuid */
-            taskId?: string;
-            result?: components["schemas"]["AiPlanOrderRecommendRespDTO"];
-        };
-        AiPlanOrderRecommendRespDTO: {
-            planSyncedAt?: string;
-            weights?: {
-                [key: string]: number;
-            };
-            items?: components["schemas"]["Item"][];
-        };
-        ResultAiPlanOrderComputeRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiPlanOrderComputeRespDTO"];
-            msg?: string;
-        };
-        AiPlanOrderReasonReqDTO: {
-            /** Format: uuid */
-            snapshotNodeId: string;
-        };
-        AiPlanOrderReasonRespDTO: {
-            reason?: string;
-        };
-        ResultAiPlanOrderReasonRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiPlanOrderReasonRespDTO"];
-            msg?: string;
-        };
-        AiTextImportReqDTO: {
-            /** Format: uuid */
-            documentId: string;
-            /** Format: uuid */
-            targetNodeId: string;
-            text: string;
-            /** Format: uuid */
-            modelId?: string;
-        };
-        AiPriorityRecommendReqDTO: {
-            title: string;
-            ancestorTitles?: string[];
-        };
-        AiPriorityRecommendRespDTO: {
-            priority?: string;
-            source?: string;
-        };
-        ResultAiPriorityRecommendRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiPriorityRecommendRespDTO"];
-            msg?: string;
-        };
-        AiCasePlanRecommendReqDTO: {
-            text?: string;
-            requirementIds?: string[];
-            excludeCaseNodeIds?: string[];
-        };
-        AiCasePlanRecommendRespDTO: {
-            semanticDegraded?: boolean;
-            items?: components["schemas"]["Item"][];
-        };
-        ResultAiCasePlanRecommendRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiCasePlanRecommendRespDTO"];
-            msg?: string;
-        };
-        AiMissingPointReqDTO: {
-            documentIds: string[];
-            text?: string;
-            requirementIds?: string[];
-            /** Format: uuid */
-            modelId?: string;
-        };
-        AiMissingPointRespDTO: {
-            points?: components["schemas"]["Point"][];
-        };
-        Point: {
-            title?: string;
-            description?: string;
-            suggestedModulePath?: string;
-            relatedCaseTitles?: string[];
-        };
-        ResultAiMissingPointRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiMissingPointRespDTO"];
-            msg?: string;
-        };
-        AiCaseGenerateReqDTO: {
-            /** Format: uuid */
-            documentId: string;
-            /** Format: uuid */
-            targetNodeId: string;
-            requirementText?: string;
-            requirementIds?: string[];
-            /** Format: uuid */
-            modelId?: string;
-        };
-        AiStepCompleteReqDTO: {
-            /** Format: uuid */
-            documentId: string;
-            /** Format: uuid */
-            nodeId: string;
-            extraText?: string;
-            requirementIds?: string[];
-            /** Format: uuid */
-            modelId?: string;
-        };
-        AiBugSuggestionReqDTO: {
-            title: string;
-            reproSteps?: string;
-        };
-        AiBugSuggestionRespDTO: {
-            optimizedTitle?: string;
-            severity?: string;
-            priority?: string;
-            reason?: string;
-        };
-        ResultAiBugSuggestionRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiBugSuggestionRespDTO"];
-            msg?: string;
-        };
-        AiBugDedupReqDTO: {
-            title: string;
-            reproSteps?: string;
-            /** Format: uuid */
-            excludeBugId?: string;
-        };
-        AiBugDedupRespDTO: {
-            semanticDegraded?: boolean;
-            items?: components["schemas"]["Item"][];
-        };
-        ResultAiBugDedupRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiBugDedupRespDTO"];
-            msg?: string;
-        };
-        AiBugClusteringStartRespDTO: {
-            /** Format: uuid */
-            taskId?: string;
-        };
-        ResultAiBugClusteringStartRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiBugClusteringStartRespDTO"];
-            msg?: string;
-        };
         LoginResultLoginUser: {
             accessToken?: string;
             /** Format: date-time */
@@ -4746,6 +4283,93 @@ export interface components {
             oldPassword: string;
             newPassword: string;
         };
+        AiTaskSubmitReqDTO: {
+            type: string;
+            input?: {
+                [key: string]: unknown;
+            };
+            /** Format: int32 */
+            waitSeconds?: number;
+        };
+        AiTaskRespDTO: {
+            /** Format: uuid */
+            taskId?: string;
+            type?: string;
+            status?: string;
+            /** Format: int32 */
+            progress?: number;
+            phase?: string;
+            /** Format: uuid */
+            submittedBy?: string;
+            /** Format: uuid */
+            retryOfTaskId?: string;
+            /** Format: int32 */
+            tokensIn?: number;
+            /** Format: int32 */
+            tokensOut?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            error?: components["schemas"]["TaskError"];
+            result?: {
+                [key: string]: unknown;
+            };
+            artifacts?: components["schemas"]["ArtifactSummary"][];
+        };
+        ArtifactSummary: {
+            key?: string;
+            kind?: string;
+            title?: string;
+            parentKey?: string;
+            confirmStatus?: string;
+        };
+        ResultAiTaskRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiTaskRespDTO"];
+            msg?: string;
+        };
+        TaskError: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+        };
+        AiTaskConfirmReqDTO: {
+            items: components["schemas"]["ConfirmItemReqDTO"][];
+            target?: components["schemas"]["TargetReqDTO"];
+        };
+        ConfirmItemReqDTO: {
+            key?: string;
+            action?: string;
+            content?: {
+                [key: string]: unknown;
+            };
+            note?: string;
+        };
+        TargetReqDTO: {
+            /** Format: uuid */
+            moduleId?: string;
+            position?: string;
+            systemVersion?: string;
+        };
+        AiTaskConfirmRespDTO: {
+            results?: components["schemas"]["ItemResult"][];
+        };
+        ItemResult: {
+            key?: string;
+            action?: string;
+            success?: boolean;
+            /** Format: uuid */
+            createdId?: string;
+            /** Format: int32 */
+            errorCode?: number;
+            errorMsg?: string;
+        };
+        ResultAiTaskConfirmRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiTaskConfirmRespDTO"];
+            msg?: string;
+        };
         WorkspaceCreateReqDTO: {
             name: string;
             description?: string;
@@ -4773,33 +4397,60 @@ export interface components {
         RoleUsersAddReqDTO: {
             userIds?: string[];
         };
-        AiConfigTestReqDTO: {
-            target: string;
-            /** Format: uuid */
-            modelId?: string;
-            embedding?: components["schemas"]["EmbeddingGroup"];
-            chat?: components["schemas"]["ChatGroup"];
+        TraceImpactPatchReqDTO: {
+            disposition: string;
+            reason?: string;
         };
-        ChatGroup: {
-            provider?: string;
-            baseUrl?: string;
-            model?: string;
-            apiKey?: string;
-            extraParams?: {
-                [key: string]: unknown;
-            };
-        };
-        AiConnectivityTestRespDTO: {
-            ok?: boolean;
-            /** Format: int64 */
-            latencyMs?: number;
-            detail?: string;
-        };
-        ResultAiConnectivityTestRespDTO: {
+        ResultTraceImpactItemRespDTO: {
             /** Format: int32 */
             code?: number;
-            data?: components["schemas"]["AiConnectivityTestRespDTO"];
+            data?: components["schemas"]["TraceImpactItemRespDTO"];
             msg?: string;
+        };
+        TraceImpactItemRespDTO: {
+            /** Format: uuid */
+            edgeId?: string;
+            target?: components["schemas"]["TraceNodeRefRespDTO"];
+            impactType?: string;
+            disposition?: string;
+            reason?: string;
+            /** Format: uuid */
+            disposedBy?: string;
+        };
+        TraceEdgePatchReqDTO: {
+            action: string;
+            targetType?: string;
+            /** Format: uuid */
+            targetId?: string;
+            targetVersion?: string;
+            reason?: string;
+        };
+        TraceCoveragePatchReqDTO: {
+            coverageStatus: string;
+            note?: string;
+        };
+        ResultTraceCoverageRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["TraceCoverageRespDTO"];
+            msg?: string;
+        };
+        TraceCoverageRespDTO: {
+            /** Format: uuid */
+            requirementId?: string;
+            coverageStatus?: string;
+            evidence?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            aiAnalyzedAt?: string;
+            /** Format: uuid */
+            reviewedBy?: string;
+            reviewedNote?: string;
+            /** Format: date-time */
+            reviewedAt?: string;
+            /** Format: uuid */
+            analyzedTaskId?: string;
         };
         ApiMockToggleReqDTO: {
             enabled: boolean;
@@ -4998,50 +4649,6 @@ export interface components {
             data?: components["schemas"]["InvitationVerifyRespDTO"];
             msg?: string;
         };
-        AiStatusRespDTO: {
-            enabled?: boolean;
-            semanticSearch?: string;
-            chatModels?: components["schemas"]["ChatModelView"][];
-        };
-        ChatModelView: {
-            id?: string;
-            name?: string;
-            isDefault?: boolean;
-        };
-        ResultAiStatusRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiStatusRespDTO"];
-            msg?: string;
-        };
-        AiConversationListRespDTO: {
-            items?: components["schemas"]["AiConversationItemRespDTO"][];
-            nextCursor?: string;
-        };
-        ResultAiConversationListRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiConversationListRespDTO"];
-            msg?: string;
-        };
-        AiMessageRespDTO: {
-            /** Format: uuid */
-            id?: string;
-            role?: string;
-            content?: string;
-            toolCalls?: {
-                [key: string]: unknown;
-            }[];
-            toolCallId?: string;
-            /** Format: date-time */
-            createdAt?: string;
-        };
-        ResultListAiMessageRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiMessageRespDTO"][];
-            msg?: string;
-        };
         ApiPublicReportRespDTO: {
             id?: string;
             reportType?: string;
@@ -5062,6 +4669,179 @@ export interface components {
             code?: number;
             data?: components["schemas"]["ApiPublicReportRespDTO"];
             msg?: string;
+        };
+        TraceMatrixPageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            requirementStatus?: string;
+            coverage?: string;
+            keyword?: string;
+        };
+        EdgeCounts: {
+            /** Format: int32 */
+            module?: number;
+            /** Format: int32 */
+            document?: number;
+            /** Format: int32 */
+            testCase?: number;
+            /** Format: int32 */
+            review?: number;
+            /** Format: int32 */
+            plan?: number;
+        };
+        PageResultTraceMatrixItemRespDTO: {
+            list?: components["schemas"]["TraceMatrixItemRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultTraceMatrixItemRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultTraceMatrixItemRespDTO"];
+            msg?: string;
+        };
+        TraceMatrixItemRespDTO: {
+            /** Format: uuid */
+            requirementId?: string;
+            code?: string;
+            title?: string;
+            status?: string;
+            coverageStatus?: string;
+            edgeCounts?: components["schemas"]["EdgeCounts"];
+            /** Format: int32 */
+            staleCount?: number;
+            /** Format: int32 */
+            conflictCount?: number;
+        };
+        TraceImpactItemPageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: uuid */
+            requirementId: string;
+            disposition?: string;
+        };
+        PageResultTraceImpactItemRespDTO: {
+            list?: components["schemas"]["TraceImpactItemRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultTraceImpactItemRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultTraceImpactItemRespDTO"];
+            msg?: string;
+        };
+        TraceGapPageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            type: string;
+        };
+        PageResultTraceGapRespDTO: {
+            list?: components["schemas"]["TraceGapRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultTraceGapRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultTraceGapRespDTO"];
+            msg?: string;
+        };
+        TraceGapRespDTO: {
+            targetType?: string;
+            /** Format: uuid */
+            targetId?: string;
+            title?: string;
+            coverageStatus?: string;
+            suggestedAction?: string;
+        };
+        TraceEdgePageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            edgeType?: string;
+            status?: string;
+            sourceType?: string;
+            /** Format: uuid */
+            sourceId?: string;
+            targetType?: string;
+            /** Format: uuid */
+            targetId?: string;
+        };
+        PageResultTraceEdgeRespDTO: {
+            list?: components["schemas"]["TraceEdgeRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultTraceEdgeRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultTraceEdgeRespDTO"];
+            msg?: string;
+        };
+        TraceCoveragePageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            requirementIds?: string;
+        };
+        PageResultTraceCoverageRespDTO: {
+            list?: components["schemas"]["TraceCoverageRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultTraceCoverageRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultTraceCoverageRespDTO"];
+            msg?: string;
+        };
+        TraceChainReqDTO: {
+            sourceType: string;
+            /** Format: uuid */
+            sourceId: string;
+            direction?: string;
+        };
+        ChainEdge: {
+            /** Format: uuid */
+            edgeId?: string;
+            /** Format: uuid */
+            sourceId?: string;
+            /** Format: uuid */
+            targetId?: string;
+            edgeType?: string;
+            status?: string;
+            targetVersion?: string;
+            versionMatched?: boolean;
+        };
+        ChainNode: {
+            /** Format: uuid */
+            id?: string;
+            type?: string;
+            title?: string;
+            version?: string;
+            /** Format: int32 */
+            level?: number;
+        };
+        ResultTraceChainRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["TraceChainRespDTO"];
+            msg?: string;
+        };
+        TraceChainRespDTO: {
+            root?: components["schemas"]["TraceNodeRefRespDTO"];
+            nodes?: components["schemas"]["ChainNode"][];
+            edges?: components["schemas"]["ChainEdge"][];
+            hasMore?: boolean;
         };
         ResultListTestCaseDocumentRespDTO: {
             /** Format: int32 */
@@ -5272,6 +5052,19 @@ export interface components {
             data?: components["schemas"]["PlannedCasesRespDTO"][];
             msg?: string;
         };
+        RequirementPageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            status?: string;
+            moduleIds?: string;
+            /** Format: uuid */
+            ownerId?: string;
+            systemVersion?: string;
+            coverage?: string;
+            keyword?: string;
+        };
         PageResultRequirementListRespDTO: {
             list?: components["schemas"]["RequirementListRespDTO"][];
             /** Format: int64 */
@@ -5280,13 +5073,19 @@ export interface components {
         RequirementListRespDTO: {
             /** Format: uuid */
             id?: string;
+            code?: string;
             title?: string;
-            sourceUrl?: string;
-            status?: string;
-            aiGenerated?: boolean;
             /** Format: uuid */
-            createdBy?: string;
-            creatorName?: string;
+            moduleId?: string;
+            moduleName?: string;
+            systemVersion?: string;
+            status?: string;
+            coverageStatus?: string;
+            priority?: string;
+            /** Format: uuid */
+            ownerId?: string;
+            ownerName?: string;
+            source?: string;
             /** Format: date-time */
             updatedAt?: string;
         };
@@ -5296,28 +5095,58 @@ export interface components {
             data?: components["schemas"]["PageResultRequirementListRespDTO"];
             msg?: string;
         };
-        RequirementDetailRespDTO: {
+        PageResultRequirementSplitRecordRespDTO: {
+            list?: components["schemas"]["RequirementSplitRecordRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        RequirementSplitRecordRespDTO: {
             /** Format: uuid */
             id?: string;
-            title?: string;
-            content?: string;
-            sourceUrl?: string;
+            sourceType?: string;
+            /** Format: uuid */
+            sourceRequirementId?: string;
+            sourceRequirementCode?: string;
+            /** Format: uuid */
+            aiTaskId?: string;
             status?: string;
-            aiGenerated?: boolean;
-            /** Format: uuid */
-            createdBy?: string;
-            creatorName?: string;
-            /** Format: uuid */
-            updatedBy?: string;
+            adoptResult?: {
+                [key: string]: unknown;
+            };
             /** Format: date-time */
             createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
         };
-        ResultRequirementDetailRespDTO: {
+        ResultPageResultRequirementSplitRecordRespDTO: {
             /** Format: int32 */
             code?: number;
-            data?: components["schemas"]["RequirementDetailRespDTO"];
+            data?: components["schemas"]["PageResultRequirementSplitRecordRespDTO"];
+            msg?: string;
+        };
+        PageResultRequirementChangeLogRespDTO: {
+            list?: components["schemas"]["RequirementChangeLogRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        RequirementChangeLogRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            changeType?: string;
+            /** Format: uuid */
+            operatorId?: string;
+            operatorName?: string;
+            beforeSummary?: {
+                [key: string]: unknown;
+            };
+            afterSummary?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ResultPageResultRequirementChangeLogRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultRequirementChangeLogRespDTO"];
             msg?: string;
         };
         ApiReportPageItemRespDTO: {
@@ -5725,17 +5554,6 @@ export interface components {
             /** Format: int32 */
             code?: number;
             data?: components["schemas"]["ApiEnvironmentDetailRespDTO"];
-            msg?: string;
-        };
-        RequirementSummaryRespDTO: {
-            /** Format: uuid */
-            id?: string;
-            title?: string;
-        };
-        ResultListRequirementSummaryRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["RequirementSummaryRespDTO"][];
             msg?: string;
         };
         ResultTestCaseDocumentNodesRespDTO: {
@@ -6216,72 +6034,6 @@ export interface components {
             }[];
             msg?: string;
         };
-        AiTaskRespDTO: {
-            /** Format: uuid */
-            id?: string;
-            type?: string;
-            /** Format: uuid */
-            targetId?: string;
-            status?: string;
-            /** Format: int32 */
-            progress?: number;
-            result?: {
-                [key: string]: unknown;
-            };
-            errorMessage?: string;
-            /** Format: uuid */
-            createdBy?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-        };
-        ResultAiTaskRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiTaskRespDTO"];
-            msg?: string;
-        };
-        AiReviewSummaryRespDTO: {
-            statistics?: components["schemas"]["Statistics"];
-            summaryMarkdown?: string;
-            /** Format: date-time */
-            generatedAt?: string;
-        };
-        FailByDocument: {
-            documentName?: string;
-            /** Format: int64 */
-            failCount?: number;
-        };
-        ResultAiReviewSummaryRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiReviewSummaryRespDTO"];
-            msg?: string;
-        };
-        Statistics: {
-            /** Format: int64 */
-            totalCases?: number;
-            /** Format: int64 */
-            passCount?: number;
-            /** Format: int64 */
-            failCount?: number;
-            /** Format: int64 */
-            pendingCount?: number;
-            /** Format: double */
-            passRate?: number;
-            failByDocument?: components["schemas"]["FailByDocument"][];
-        };
-        AiPlanOrderQueryRespDTO: {
-            stale?: boolean;
-            result?: components["schemas"]["AiPlanOrderRecommendRespDTO"];
-        };
-        ResultAiPlanOrderQueryRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiPlanOrderQueryRespDTO"];
-            msg?: string;
-        };
         HealthCheckRespDTO: {
             /**
              * @description 运行状态
@@ -6313,6 +6065,44 @@ export interface components {
             /** Format: int32 */
             code?: number;
             data?: components["schemas"]["InitStatusRespVO"];
+            msg?: string;
+        };
+        AiTaskPageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            type?: string;
+            status?: string;
+        };
+        PageResultAiTaskRespDTO: {
+            list?: components["schemas"]["AiTaskRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultAiTaskRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultAiTaskRespDTO"];
+            msg?: string;
+        };
+        ResultMapStringObject: {
+            /** Format: int32 */
+            code?: number;
+            data?: {
+                [key: string]: unknown;
+            };
+            msg?: string;
+        };
+        AiStatusRespDTO: {
+            enabled?: boolean;
+            modelReady?: boolean;
+            available?: boolean;
+        };
+        ResultAiStatusRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["AiStatusRespDTO"];
             msg?: string;
         };
         PageResultWorkspaceRespDTO: {
@@ -6464,95 +6254,6 @@ export interface components {
             data?: {
                 [key: string]: number;
             };
-            msg?: string;
-        };
-        AiStatisticsRespDTO: {
-            /** Format: int64 */
-            totalCalls?: number;
-            /** Format: int64 */
-            totalTokens?: number;
-            /** Format: int64 */
-            failedCalls?: number;
-            items?: components["schemas"]["Item"][];
-        };
-        ResultAiStatisticsRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiStatisticsRespDTO"];
-            msg?: string;
-        };
-        AiSettingsSchemaRespDTO: {
-            group?: string;
-            groupLabel?: string;
-            items?: components["schemas"]["Item"][];
-        };
-        ResultListAiSettingsSchemaRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiSettingsSchemaRespDTO"][];
-            msg?: string;
-        };
-        AiProviderPresetRespDTO: {
-            key?: string;
-            name?: string;
-            scopes?: string[];
-            defaultBaseUrl?: {
-                [key: string]: string;
-            };
-            modelHints?: {
-                [key: string]: string[];
-            };
-            uniqueParams?: {
-                [key: string]: components["schemas"]["UniqueParam"][];
-            };
-        };
-        ResultListAiProviderPresetRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiProviderPresetRespDTO"][];
-            msg?: string;
-        };
-        UniqueParam: {
-            key?: string;
-            type?: string;
-            defaultValue?: unknown;
-            options?: string[];
-            label?: string;
-            description?: string;
-        };
-        ResultListAiChatModelRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiChatModelRespDTO"][];
-            msg?: string;
-        };
-        AiAgentRespDTO: {
-            functionType?: string;
-            name?: string;
-            customized?: boolean;
-            formatEditable?: boolean;
-            updatedBy?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-        };
-        ResultListAiAgentRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiAgentRespDTO"][];
-            msg?: string;
-        };
-        AiAgentDetailRespDTO: {
-            functionType?: string;
-            name?: string;
-            customized?: boolean;
-            formatEditable?: boolean;
-            roleInstruction?: string;
-            formatConstraint?: string;
-        };
-        ResultAiAgentDetailRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiAgentDetailRespDTO"];
             msg?: string;
         };
         ApiInterfaceBatchDeleteReqDTO: {
@@ -6989,55 +6690,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    deleteRequirement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    archiveRequirement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RequirementArchiveReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
+                    "*/*": components["schemas"]["ResultRequirementDetailRespDTO"];
                 };
             };
         };
@@ -7468,7 +7121,7 @@ export interface operations {
             };
         };
     };
-    getDocumentRequirements: {
+    getRequirements: {
         parameters: {
             query?: never;
             header?: never;
@@ -7490,7 +7143,7 @@ export interface operations {
             };
         };
     };
-    setDocumentRequirements: {
+    setRequirements: {
         parameters: {
             query?: never;
             header?: never;
@@ -7511,7 +7164,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultVoid"];
+                    "*/*": components["schemas"]["ResultListRequirementSummaryRespDTO"];
                 };
             };
         };
@@ -8218,216 +7871,6 @@ export interface operations {
             };
         };
     };
-    getConfig: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiConfigRespDTO"];
-                };
-            };
-        };
-    };
-    saveConfig: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiConfigSaveReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiConfigRespDTO"];
-                };
-            };
-        };
-    };
-    updateChatModel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiChatModelSaveReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiChatModelRespDTO"];
-                };
-            };
-        };
-    };
-    deleteChatModel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    setChatModelEnabled: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiChatModelEnabledReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    setChatModelDefault: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    getAgentDetail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                functionType: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiAgentDetailRespDTO"];
-                };
-            };
-        };
-    };
-    saveAgent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                functionType: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiAgentSaveReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    restoreDefault: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                functionType: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
     getProjects: {
         parameters: {
             query?: {
@@ -8669,11 +8112,10 @@ export interface operations {
             };
         };
     };
-    listConversations: {
+    getEdges: {
         parameters: {
-            query?: {
-                cursor?: string;
-                size?: number;
+            query: {
+                req: components["schemas"]["TraceEdgePageReqDTO"];
             };
             header?: never;
             path?: never;
@@ -8687,19 +8129,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultAiConversationListRespDTO"];
+                    "*/*": components["schemas"]["ResultPageResultTraceEdgeRespDTO"];
                 };
             };
         };
     };
-    createConversation: {
+    createEdge: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TraceEdgeCreateReqDTO"];
+            };
+        };
         responses: {
             /** @description Created */
             201: {
@@ -8707,103 +8153,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultAiConversationItemRespDTO"];
-                };
-            };
-        };
-    };
-    listMessages: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListAiMessageRespDTO"];
-                };
-            };
-        };
-    };
-    sendMessage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiAssistantSendReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
-    };
-    cancel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiConfirmReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    approve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiConfirmReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
+                    "*/*": components["schemas"]["ResultTraceEdgeRespDTO"];
                 };
             };
         };
@@ -9112,11 +8462,8 @@ export interface operations {
     };
     getRequirementPage: {
         parameters: {
-            query?: {
-                keyword?: string;
-                status?: string;
-                pageNo?: number;
-                pageSize?: number;
+            query: {
+                pageReq: components["schemas"]["RequirementPageReqDTO"];
             };
             header?: never;
             path?: never;
@@ -9154,31 +8501,95 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultString"];
+                    "*/*": components["schemas"]["ResultRequirementDetailRespDTO"];
                 };
             };
         };
     };
-    createRequirementsBatch: {
+    unarchiveRequirement: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: string;
+            };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RequirementBatchCreateReqDTO"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Created */
-            201: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultRequirementBatchCreateRespDTO"];
+                    "*/*": components["schemas"]["ResultRequirementDetailRespDTO"];
+                };
+            };
+        };
+    };
+    splitRequirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultRequirementSplitSubmitRespDTO"];
+                };
+            };
+        };
+    };
+    confirmRequirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultRequirementDetailRespDTO"];
+                };
+            };
+        };
+    };
+    archiveRequirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultRequirementDetailRespDTO"];
                 };
             };
         };
@@ -10391,474 +9802,6 @@ export interface operations {
             };
         };
     };
-    retryTask: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    cancelTask: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    getSummary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiReviewSummaryRespDTO"];
-                };
-            };
-        };
-    };
-    generateSummary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiReviewSummaryReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
-    };
-    getConclusion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
-                };
-            };
-        };
-    };
-    generateConclusion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["AiReviewConclusionReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
-    };
-    startCheck: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiReviewCheckStartRespDTO"];
-                };
-            };
-        };
-    };
-    splitRequirement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiRequirementSplitReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
-    };
-    planOrderRecommendResult: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiPlanOrderQueryRespDTO"];
-                };
-            };
-        };
-    };
-    planOrderRecommend: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiPlanOrderComputeRespDTO"];
-                };
-            };
-        };
-    };
-    planOrderReason: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiPlanOrderReasonReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiPlanOrderReasonRespDTO"];
-                };
-            };
-        };
-    };
-    importText: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiTextImportReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
-    };
-    priorityRecommend: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiPriorityRecommendReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiPriorityRecommendRespDTO"];
-                };
-            };
-        };
-    };
-    planRecommend: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiCasePlanRecommendReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiCasePlanRecommendRespDTO"];
-                };
-            };
-        };
-    };
-    missingPoints: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiMissingPointReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiMissingPointRespDTO"];
-                };
-            };
-        };
-    };
-    generate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiCaseGenerateReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
-    };
-    completeSteps: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiStepCompleteReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
-    };
-    suggest: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiBugSuggestionReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiBugSuggestionRespDTO"];
-                };
-            };
-        };
-    };
-    dedup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiBugDedupReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiBugDedupRespDTO"];
-                };
-            };
-        };
-    };
-    startClustering: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiBugClusteringStartRespDTO"];
-                };
-            };
-        };
-    };
     refresh: {
         parameters: {
             query?: never;
@@ -10992,6 +9935,122 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
+    page_3: {
+        parameters: {
+            query: {
+                pageReq: components["schemas"]["AiTaskPageReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultAiTaskRespDTO"];
+                };
+            };
+        };
+    };
+    submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTaskSubmitReqDTO"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
+                };
+            };
+        };
+    };
+    confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiTaskConfirmReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiTaskConfirmRespDTO"];
                 };
             };
         };
@@ -11316,36 +10375,18 @@ export interface operations {
             };
         };
     };
-    retryRebuildTask: {
+    patchImpactItem: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
+            path: {
+                edgeId: string;
             };
-        };
-    };
-    testConnectivity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AiConfigTestReqDTO"];
+                "application/json": components["schemas"]["TraceImpactPatchReqDTO"];
             };
         };
         responses: {
@@ -11355,41 +10396,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultAiConnectivityTestRespDTO"];
+                    "*/*": components["schemas"]["ResultTraceImpactItemRespDTO"];
                 };
             };
         };
     };
-    listChatModels: {
+    patchEdge: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListAiChatModelRespDTO"];
-                };
+            path: {
+                edgeId: string;
             };
-        };
-    };
-    createChatModel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AiChatModelSaveReqDTO"];
+                "application/json": components["schemas"]["TraceEdgePatchReqDTO"];
             };
         };
         responses: {
@@ -11399,7 +10422,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ResultAiChatModelRespDTO"];
+                    "*/*": components["schemas"]["ResultTraceEdgeRespDTO"];
+                };
+            };
+        };
+    };
+    patchCoverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requirementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TraceCoveragePatchReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultTraceCoverageRespDTO"];
                 };
             };
         };
@@ -11780,26 +10829,6 @@ export interface operations {
             };
         };
     };
-    getStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiStatusRespDTO"];
-                };
-            };
-        };
-    };
     access: {
         parameters: {
             query: {
@@ -11820,6 +10849,116 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultApiPublicReportRespDTO"];
+                };
+            };
+        };
+    };
+    getMatrix: {
+        parameters: {
+            query: {
+                req: components["schemas"]["TraceMatrixPageReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultTraceMatrixItemRespDTO"];
+                };
+            };
+        };
+    };
+    getImpactItems: {
+        parameters: {
+            query: {
+                req: components["schemas"]["TraceImpactItemPageReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultTraceImpactItemRespDTO"];
+                };
+            };
+        };
+    };
+    getGaps: {
+        parameters: {
+            query: {
+                req: components["schemas"]["TraceGapPageReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultTraceGapRespDTO"];
+                };
+            };
+        };
+    };
+    getCoverage: {
+        parameters: {
+            query: {
+                req: components["schemas"]["TraceCoveragePageReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultTraceCoverageRespDTO"];
+                };
+            };
+        };
+    };
+    getChain: {
+        parameters: {
+            query: {
+                req: components["schemas"]["TraceChainReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultTraceChainRespDTO"];
                 };
             };
         };
@@ -11983,7 +11122,106 @@ export interface operations {
             };
         };
     };
-    page_3: {
+    getRequirementTrace: {
+        parameters: {
+            query?: {
+                direction?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultTraceChainRespDTO"];
+                };
+            };
+        };
+    };
+    getSplitLogs: {
+        parameters: {
+            query?: {
+                pageNo?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultRequirementSplitRecordRespDTO"];
+                };
+            };
+        };
+    };
+    getChangeLogs: {
+        parameters: {
+            query?: {
+                pageNo?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultRequirementChangeLogRespDTO"];
+                };
+            };
+        };
+    };
+    getSplitRecords: {
+        parameters: {
+            query?: {
+                status?: string;
+                sourceType?: string;
+                pageNo?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultRequirementSplitRecordRespDTO"];
+                };
+            };
+        };
+    };
+    page_4: {
         parameters: {
             query: {
                 pageParam: components["schemas"]["PageParam"];
@@ -12413,70 +11651,6 @@ export interface operations {
             };
         };
     };
-    getTask: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
-                };
-            };
-        };
-    };
-    getCheckResult: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
-                };
-            };
-        };
-    };
-    getLatestClustering: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
-                };
-            };
-        };
-    };
     health: {
         parameters: {
             query?: never;
@@ -12497,7 +11671,7 @@ export interface operations {
             };
         };
     };
-    getStatus_1: {
+    getStatus: {
         parameters: {
             query?: never;
             header?: never;
@@ -12513,6 +11687,71 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultInitStatusRespVO"];
+                };
+            };
+        };
+    };
+    getDetail_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
+                };
+            };
+        };
+    };
+    getArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+                artifactKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultMapStringObject"];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiStatusRespDTO"];
                 };
             };
         };
@@ -12628,132 +11867,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultMapStringLong"];
-                };
-            };
-        };
-    };
-    getStatistics: {
-        parameters: {
-            query?: {
-                startDate?: string;
-                endDate?: string;
-                groupBy?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiStatisticsRespDTO"];
-                };
-            };
-        };
-    };
-    getSettingsSchema: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListAiSettingsSchemaRespDTO"];
-                };
-            };
-        };
-    };
-    getRebuildTask: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
-                };
-            };
-        };
-    };
-    getProviders: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListAiProviderPresetRespDTO"];
-                };
-            };
-        };
-    };
-    getAgents: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListAiAgentRespDTO"];
-                };
-            };
-        };
-    };
-    deleteConversation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
                 };
             };
         };
