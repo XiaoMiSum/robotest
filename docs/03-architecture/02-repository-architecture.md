@@ -70,6 +70,7 @@ robotest/
 | 后端框架 | migoo `1.4.0` | 组件手册见 `docs/00-spec/10-engineering/03-migoo-framework.md` |
 | 数据访问 | MyBatis-Plus + migoo MyBatis Starter | 复杂查询按后端规范封装 |
 | 认证授权 | Spring Security + migoo Security Starter | 服务端执行最终授权 |
+| AI 调用 | Spring AI 2.0.x | 模型 / 向量调用统一经框架执行，平台不自实现 HTTP 调用 |
 | 数据库 | PostgreSQL 14+ | 优先正式方案，MySQL 仅保留兼容说明 |
 | 缓存/消息 | Redis；按需启用 MQ | 组件能力按实际部署需要选择 |
 | API 文档 | SpringDoc OpenAPI | 前后端契约通过 OpenAPI 同步 |

@@ -10,6 +10,7 @@
 - **数据访问**：MyBatis-Plus
 - **安全**：Spring Security（JWT 双令牌 + RBAC）
 - **协作**：WebSocket（Yjs CRDT）
+- **AI 调用**：Spring AI 2.0.x（模型 chat / 向量 embedding 的传输、序列化、重试与解析统一由框架执行，平台仅保留门面记账与 10 位错误码映射，禁止自实现模型 HTTP 调用）
 
 ## 环境命令
 
