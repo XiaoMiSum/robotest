@@ -11,10 +11,12 @@ import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
 import io.github.xiaomisum.robotest.model.entity.bug.BugLog;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.dto.response.file.FileResourceRespDTO;
 import io.github.xiaomisum.robotest.repository.bug.BugAttachmentMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugLogMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,6 +50,8 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private BugConvertMapper bugConvertMapper;
+    @Resource
+    private FileResourceService fileResourceService;
 
     @Value("${robotest.upload.dir:./uploads/bug}")
     private String uploadDir;
@@ -68,23 +71,17 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
 
         String originalName = StringUtils.hasText(file.getOriginalFilename())
                 ? file.getOriginalFilename() : "unnamed";
-        // 落盘文件名使用随机 UUID，避免原始文件名注入路径
         String ext = extractExtension(originalName);
-        // 安全规范 6.3：扩展名白名单 + 文件头内容嗅探，不接受仅按扩展名判断类型
-        AttachmentFileValidator.validate(ext, readHead(file));
-        String relativePath = bug.getId() + "/" + UUID.randomUUID() + ext;
-        Path target = Paths.get(uploadDir).resolve(relativePath);
-        try {
-            Files.createDirectories(target.getParent());
-            file.transferTo(target.toAbsolutePath());
-        } catch (IOException e) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_STORE_FAILED);
-        }
+        // 安全规范 6.3：缺陷侧保留既有校验与错误码（文件管理详设 4.3 校验分工）
+        AttachmentFileValidator.validate(ext,
+                AttachmentFileValidator.readHead(file, ErrorCodeConstants.BUG_ATTACHMENT_STORE_FAILED));
+        // 存储统一走文件管理模块（落 MinIO、写 file_resource）；storage_path 历史列不再写入
+        FileResourceRespDTO stored = fileResourceService.upload(file, userId);
 
         BugAttachment attachment = new BugAttachment();
         attachment.setBugId(bugId);
         attachment.setFileName(originalName);
-        attachment.setStoragePath(relativePath);
+        attachment.setFileResourceId(stored.getId());
         attachment.setFileSize(file.getSize());
         attachment.setContentType(file.getContentType());
         attachment.setUploaderId(userId);
@@ -116,11 +113,17 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         }
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
-        Path path = Paths.get(uploadDir).resolve(attachment.getStoragePath());
         BugAttachmentDownloadRespDTO dto = new BugAttachmentDownloadRespDTO();
         dto.setFileName(attachment.getFileName());
         dto.setContentType(StringUtils.hasText(attachment.getContentType())
                 ? attachment.getContentType() : "application/octet-stream");
+        if (attachment.getFileResourceId() != null) {
+            // 已回填：读文件管理模块（MinIO）字节（文件管理详设 4.3）
+            dto.setContent(fileResourceService.readBytes(attachment.getFileResourceId()).content());
+            return dto;
+        }
+        // 回填前兼容：仍读本地历史文件（文件管理详设 7.2）
+        Path path = Paths.get(uploadDir).resolve(attachment.getStoragePath());
         try {
             dto.setContent(Files.readAllBytes(path));
         } catch (IOException e) {
@@ -139,7 +142,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         Bug bug = validateBugOperable(projectId, attachment.getBugId());
         projectAccessGuard.requireProjectMember(bug.getProjectId(), userId);
 
-        // 逻辑删除记录，磁盘文件保留以便审计追溯
+        // 逻辑删除附件记录；存储对象保留供审计追溯，孤儿资源由文件管理页治理（文件管理详设 4.3）
         bugAttachmentMapper.deleteById(attachmentId);
 
         writeBugLog(attachment.getBugId(), userId, Constants.BugOperation.ATTACHMENT_DELETE,
@@ -164,15 +167,6 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
             return "";
         }
         return fileName.substring(dotIndex);
-    }
-
-    /** 读取文件头用于内容嗅探；transferTo 前的流式读取不影响后续落盘 */
-    private byte[] readHead(MultipartFile file) {
-        try (InputStream in = file.getInputStream()) {
-            return in.readNBytes(512);
-        } catch (IOException e) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_STORE_FAILED);
-        }
     }
 
     private BugAttachmentRespDTO toAttachmentRespDTO(BugAttachment attachment) {

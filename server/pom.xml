@@ -133,6 +133,13 @@
             <artifactId>spring-ai-openai</artifactId>
         </dependency>
 
+        <!-- 对象存储 SDK（文件管理详设 3.1，WP-2.0 经讨论引入）：MinIO 上传 / 下载 / 删除 / presigned 签名统一经官方 SDK -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.17</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-aop</artifactId>

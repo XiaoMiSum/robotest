@@ -1,8 +1,12 @@
 package io.github.xiaomisum.robotest.framework.security;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import org.springframework.web.multipart.MultipartFile;
+import xyz.migoo.framework.common.exception.ErrorCode;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.Set;
 
@@ -23,18 +27,46 @@ public final class AttachmentFileValidator {
     }
 
     /**
-     * 校验扩展名白名单与文件头内容是否一致
+     * 校验扩展名白名单与文件头内容是否一致（缺陷附件口径，错误码 BUG_ATTACHMENT_*）
      *
      * @param extension 原始扩展名（可带前导点，大小写不敏感）
      * @param head      文件头字节（读取前若干字节即可）
      */
     public static void validate(String extension, byte[] head) {
+        validate(extension, head,
+                ErrorCodeConstants.BUG_ATTACHMENT_TYPE_NOT_ALLOWED,
+                ErrorCodeConstants.BUG_ATTACHMENT_CONTENT_MISMATCH);
+    }
+
+    /**
+     * 校验扩展名白名单与文件头内容是否一致（调用域自报错误码，文件管理详设 4.3 校验分工）
+     *
+     * @param extension   原始扩展名（可带前导点，大小写不敏感）
+     * @param head        文件头字节
+     * @param typeCode    不在白名单时抛出的错误码
+     * @param contentCode 文件头与类型不一致时抛出的错误码
+     */
+    public static void validate(String extension, byte[] head, ErrorCode typeCode, ErrorCode contentCode) {
         String ext = normalize(extension);
         if (ext.isEmpty() || !ALLOWED_EXTENSIONS.contains(ext)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_TYPE_NOT_ALLOWED);
+            throw ServiceExceptionUtil.get(typeCode);
         }
         if (!matchesMagic(ext, head)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_CONTENT_MISMATCH);
+            throw ServiceExceptionUtil.get(contentCode);
+        }
+    }
+
+    /**
+     * 读取文件头字节（内容嗅探用，512 字节足够覆盖全部 magic 序列）
+     *
+     * @param file      待读取文件
+     * @param errorCode 读取失败时抛出的错误码（由调用域决定语义）
+     */
+    public static byte[] readHead(MultipartFile file, ErrorCode errorCode) {
+        try (InputStream in = file.getInputStream()) {
+            return in.readNBytes(512);
+        } catch (IOException e) {
+            throw ServiceExceptionUtil.get(errorCode);
         }
     }
 
