@@ -195,7 +195,7 @@ flowchart TD
 | WP-2.1 | 需求 CRUD、属性与变更记录后端 | P2 | 后端 | 需求管理详设接口章节 | WP-1.1 | OpenAPI 暴露，10 位错误码，部分更新 |
 | WP-2.2 | 需求导入后端（三类文件） | P2 | 后端 | 需求管理详设导入章节 | WP-1.1、WP-4.2、文件管理模块 | 三类样例导入成功，>20MB 拒绝 |
 | WP-2.3 | 需求管理前端 | P2 | 前端 | `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md` | WP-2.1、WP-2.2 | 状态分支齐全，C1 无 `any` |
-| WP-3.1 | 追溯关系与覆盖率后端 | P3 | 后端 | 追溯矩阵详设接口章节 | WP-1.2 | CRUD 与统计接口通过，`trace:*` 校验生效，需求侧追溯委托（需求管理详设 3.12）与需求列表 / 详情 `coverageStatus` 填充补齐；`trace_edge` 影响处置字段组补列迁移、`impact_analysis` 处理器注册、评审 / 计划快照事务内写 `snapshot_ref` 边 |
+| WP-3.1 | 追溯关系与覆盖率后端 | P3 | 后端 | 追溯矩阵详设接口章节 | WP-1.2 | CRUD 与统计接口通过，`trace:*` 校验生效，需求侧追溯委托（需求管理详设 3.12）与需求列表 / 详情 `coverageStatus` 填充补齐；`trace_edge` 影响处置字段组补列迁移、`impact_analysis` 处理器注册、评审 / 计划快照事务内写 `case_snapshot` 边 |
 | WP-3.2 | 追溯矩阵前端 | P3 | 前端 | `docs/05-interaction-design/04-trace-matrix-ui.md`、`docs/05-interaction-design/03-function-testing/04-workspace-ui-test-case.md` | WP-3.1 | 覆盖率、影响分析交互达标，脑图「关联需求」经追溯边接通 |
 | WP-4.1 | AI 配置与用量后端 | P4 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-1.3 | `ai:admin` 生效，密钥不回明文 |
 | WP-4.2 | AI 任务框架与 SSE 后端 | P4 | 后端 | AI 底座详设任务章节、助手详设 SSE 章节 | WP-1.3 | 状态机与轮询口径达标，OpenAPI 分组 `ai` |
@@ -265,4 +265,5 @@ flowchart TD
 | V1.0 | 2026-10-03 | 初始版本：总体实施策略、九阶段依赖、23 个工作包与三批交付建议 |
 | V1.0 | 2026-10-03 | 实施顺序调整：P1 三包（含 AI DDL）全部并入批次一；WP-4.2 任务框架段与 WP-4.4 任务详情前端随批次一提前，WP-2.2 依赖补 WP-4.2；需求侧追溯委托与 `coverageStatus`、脑图「关联需求」改造归 WP-3.1 / WP-3.2 随 P3 补齐 |
 | V1.0 | 2026-10-03 | 登记计划外独立任务「文件管理模块改造」（MinIO、泛化附件资源与访问 URL 关联、docker-compose 全家桶），统一覆盖导入源文件与需求 / 缺陷详情图片、既有缺陷附件，本期仅记录；WP-2.2 依赖与端到端验收补该任务先行 |
-| V1.0 | 2026-10-04 | WP-3.1 范围补充：`trace_edge` 影响处置字段组补列迁移（详设 2.2）、`impact_analysis` 处理器注册、评审 / 计划快照事务内写 `snapshot_ref` 边；`coverage_analysis` 处理器依赖 LLM 语义比对，随批次二补 |
+| V1.0 | 2026-10-04 | WP-3.1 范围补充：`trace_edge` 影响处置字段组补列迁移（详设 2.2）、`impact_analysis` 处理器注册、评审 / 计划快照事务内写 `case_snapshot` 边；`coverage_analysis` 处理器依赖 LLM 语义比对，随批次二补 |
+| V1.0 | 2026-10-04 | 快照引用边取值 `snapshot_ref` 更名为 `case_snapshot`，WP-3.1 判据与范围登记同步 |
