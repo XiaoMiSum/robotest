@@ -17,7 +17,7 @@
 ## 2. 技术栈
 
 - **前端**：Vue 3.5 + TypeScript（版本以 `web/package.json` 和锁文件为准）+ Vite + Element Plus + Pinia
-- **后端**：Spring Boot 4.x + Java 21 + MyBatis-Plus + Spring Security
+- **后端**：Spring Boot 4.x + Java 21 + MyBatis-Plus + Spring Security + Spring AI 2.0.x（模型 / 向量调用）
 - **数据库**：PostgreSQL 14+ 为优先正式方案，MySQL 仅保留兼容说明
 - **协作**：Yjs CRDT（WebSocket 实时协同）
 
