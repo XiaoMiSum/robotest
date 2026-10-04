@@ -166,6 +166,22 @@ const routes: RouteRecordRaw[] = [
           { path: ':pathMatch(.*)*', redirect: 'models' },
         ],
       },
+      {
+        path: 'files',
+        name: 'AdminFiles',
+        component: () => import('@/pages/admin/FileListPage.vue'),
+        meta: {
+          title: '文件管理',
+          mode: 'admin',
+          menu: {
+            label: '文件管理',
+            icon: 'FolderOpened',
+            order: 50,
+            section: '系统维护',
+            permission: 'file:view',
+          },
+        },
+      },
     ],
   },
   // === Business routes ===
