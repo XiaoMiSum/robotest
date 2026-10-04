@@ -74,6 +74,16 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
                 .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
     }
 
+    /** 总开关关闭的批量副作用（详设 4.2）：全部 pending / running 置 failed */
+    default int failActive(String errorMsg, int errorCode) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .in(AiTask::getStatus, "pending", "running")
+                .set(AiTask::getStatus, "failed")
+                .set(AiTask::getErrorCode, errorCode)
+                .set(AiTask::getErrorMsg, errorMsg)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now()));
+    }
+
     /** pending / running → cancelled（3.6.4；取消后执行线程的条件写全部失效） */
     default boolean casCancel(UUID id) {
         return update(null, new LambdaUpdateWrapperX<AiTask>()

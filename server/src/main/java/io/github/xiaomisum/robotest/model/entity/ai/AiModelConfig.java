@@ -39,6 +39,12 @@ public class AiModelConfig extends BaseUuidDO<AiModelConfig> {
 
     private Boolean enabled;
 
+    /** 输入侧每百万 token 单价（0 = 不计价；仅作用量记账，详设 2.3） */
+    private java.math.BigDecimal inputPrice;
+
+    /** 输出侧每百万 token 单价（同上） */
+    private java.math.BigDecimal outputPrice;
+
     private LocalDateTime lastTestAt;
 
     @TableField(typeHandler = Jackson3TypeHandler.class)
