@@ -156,6 +156,7 @@ CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((tr
 | variables | jsonb | NOT NULL, DEFAULT '[]' | 可用变量清单 `[{ name, desc, required }]`，保存时校验占位与清单一致 |
 | source | varchar(20) | NOT NULL, DEFAULT 'custom' | `default`（内置默认）/ `custom`（自定义覆盖） |
 | version | int | NOT NULL, DEFAULT 1 | 自定义版本号，重置后归 1 |
+| updated_by | uuid | NULL | 最近更新人（交互「更新人」列，按用户表回填展示名） |
 
 **索引**（1 个）：`uk_ai_prompt_template_scene` UNIQUE (scene) WHERE is_deleted = FALSE。
 
@@ -168,6 +169,7 @@ CREATE TABLE ai_prompt_template (
     variables  jsonb NOT NULL DEFAULT '[]',
     source     varchar(20) NOT NULL DEFAULT 'custom',
     version    int NOT NULL DEFAULT 1,
+    updated_by uuid NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted boolean NOT NULL DEFAULT FALSE
@@ -274,7 +276,7 @@ CREATE INDEX idx_ai_artifact_confirm_project ON ai_artifact_confirm (project_id,
 | project_id | uuid | NULL | 项目内调用的统计维度；管理端测试等全局调用为 NULL |
 | task_id | uuid | NULL | 关联任务（统计 → 单次调用 → 任务详情的下钻链）；助手交互调用为 NULL |
 | user_id | uuid | NOT NULL | 调用者 |
-| model_id | uuid | NOT NULL | 调用的模型，**按模型分组统计**维度 |
+| model_id | uuid | NULL | 调用的模型，**按模型分组统计**维度；向量 API 调用无模型配置行，为 NULL |
 | prompt_scene | varchar(50) | NULL | 场景归因，按场景统计维度 |
 | call_type | varchar(20) | NOT NULL | `chat / embedding`（向量重建同样计用量） |
 | prompt_tokens / completion_tokens / total_tokens | int | NOT NULL, DEFAULT 0 | token 消耗 |
@@ -291,7 +293,7 @@ CREATE TABLE ai_usage_log (
     project_id        uuid NULL,
     task_id           uuid NULL,
     user_id           uuid NOT NULL,
-    model_id          uuid NOT NULL,
+    model_id          uuid NULL,
     prompt_scene      varchar(50) NULL,
     call_type         varchar(20) NOT NULL,
     prompt_tokens     int NOT NULL DEFAULT 0,
@@ -451,7 +453,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 { "enabled": true, "defaultModelId": "…", "taskTimeoutSeconds": 900 }
 ```
 
-  - 校验：`defaultModelId` 须存在且启用（否则 1000018104）；`taskTimeoutSeconds ∈ [30, 3600]`；
+  - 校验：`defaultModelId` 须存在且启用（否则 1000018104）；`taskTimeoutSeconds ∈ [30, 3600]`、`taskMaxRetries ∈ [0, 5]`（超出由参数校验统一拒绝）；
   - **开关关闭的副作用**（4.2）：`running / pending` 任务批量置 `failed`（`error_msg = "AI 总开关关闭"`）；`available` 变为 false 后业务端入口隐藏。
 
 ### 3.3 模型配置
@@ -881,3 +883,5 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-03 | 任务详情抽屉与产物审核面板合并为任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage） |
 | V1.0 | 2026-10-03 | 新增业务端可用性查询 `GET /api/ai/status`（登录即可，三布尔口径），供业务端入口显隐 |
 | V1.0 | 2026-10-04 | 用量成本口径落地：`ai_model_config` 补 `input_price / output_price` 单价、`ai_usage_log` 补 `cost`，模型接口与用量统计响应补对应字段 |
+| V1.0 | 2026-10-04 | 勘误 2.8：`ai_usage_log.model_id` 约束改为 NULL——向量 API 调用按 4.3 记账但无模型配置行 |
+| V1.0 | 2026-10-04 | 2.5 补 `updated_by` 列：场景提示词列表「更新人」列的数据来源 |
