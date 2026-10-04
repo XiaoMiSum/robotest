@@ -14,6 +14,7 @@
 | 框架 | migoo 1.4.0 / Spring Boot 4.x | Maven BOM、`server/pom.xml` |
 | 数据访问 | MyBatis-Plus / `migoo-spring-boot-starter-mybatis` | Maven BOM、`server/pom.xml` |
 | 安全 | Spring Security / migoo security starter | Maven BOM、`server/pom.xml` |
+| AI 调用 | Spring AI 2.0.x（openai 模块） | Maven BOM、`server/pom.xml` |
 | API 文档 | SpringDoc | `server/pom.xml` |
 | 数据库 | PostgreSQL 14+ | `server/src/main/resources/db/`、运行配置 |
 | 测试 | JUnit 5、Spring Boot Test、Mockito | `server/pom.xml` |

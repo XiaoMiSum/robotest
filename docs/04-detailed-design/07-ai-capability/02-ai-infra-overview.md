@@ -730,10 +730,11 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 4.2 任务引擎
 
+- **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
 - **分发**：`type → TaskHandler`（每个 handler 注册：input 校验器、执行器、进度/阶段上报、产物抽取器、落库承接器）；执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
 - **生命周期**：`pending → running → succeeded / failed`，`pending / running → cancelled`；`progress / phase` 由 handler 上报；超时清扫器按 `task_timeout_seconds` 扫描 `status + updated_at` 索引（2.6），超时置 `failed`（`error_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待任务完成，超时返回进行中状态；等待不改变异步语义。
-- **失败与重试**：模型调用失败先按 `task_max_retries` 自动短重试（同 `model_id`），耗尽后置 `failed`；用户手动重试走 3.6.4（新任务）。
+- **失败与重试**：模型调用失败先按 `task_max_retries` 自动短重试（同 `model_id`），耗尽后置 `failed`；用户手动重试走 3.6.4（新任务）。重试由 Spring AI 内建重试策略执行，最大尝试次数按 `task_max_retries` 注入，平台不自实现 HTTP 重试循环。
 - **总开关联动**：开关关闭 → 新提交拒绝（1000018101）；存量 `pending / running` 批量置 `failed`（原因「AI 总开关关闭」）；任务与产物数据保留可查。
 - **审计**：提交、取消、重试、确认、驳回全部记审计（含任务 ID、产物键、操作人）。
 
@@ -844,6 +845,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | `server/.../service/ai/config/*`、`service/ai/task/*`、`service/ai/rag/*` | 配置、任务引擎、向量索引服务 |
 | `server/.../service/ai/task/handler/*TaskHandler` | 各 `type` 的执行器（分册实现，注册到引擎） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018101–1000018123 及各分册号段 |
+| `server/pom.xml` | 引入 Spring AI 2.0.x（BOM + openai 模块）：模型 / 向量 HTTP 调用全量由框架执行（WP-4.6），替代自实现调用 |
 | 权限点迁移脚本 | 新增 `ai:admin`（global）、`ai:task` / `ai:confirm`（workspace） |
 | `web/src/pages/admin/AiSettingsPage.vue`、`web/src/pages/project/AiTaskCenterPage.vue`、`AiTaskDetailPage.vue` 及组件 | 管理端配置中心、任务中心与任务详情页 |
 | `web/src/stores/aiAdmin.ts`、`aiTask.ts`、`web/src/services/ai.ts`、`web/src/types/ai.ts` | 状态、API 与类型 |
@@ -887,3 +889,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-04 | 2.5 补 `updated_by` 列：场景提示词列表「更新人」列的数据来源 |
 | V1.0 | 2026-10-04 | 3.7 下钻补 `callType` 筛选参数（`chat / embedding`），支撑按调用类型分组的图表下钻 |
 | V1.0 | 2026-10-04 | 3.6.1 补 `vector_reindex` 的 `scope` 语义：`entityTypes` 数组（`requirement / testcase / bug`），缺省全量重建 |
+| V1.0 | 2026-10-04 | 调用层技术口径登记：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x（4.2 调用层与重试口径、7 依赖行），平台仅保留门面记账与错误码 |
