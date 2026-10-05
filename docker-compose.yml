@@ -1,0 +1,114 @@
+# docker-compose.yml — RoboTest 全家桶发行（文件管理详设 8.1，批次二 WP-2.0）
+# 快速启动：
+#   cp .env.example .env   # 按需修改密钥与端口
+#   docker compose up -d --build
+# 首启：postgres 空卷自动执行 schema.sql；server 起动后懒确保 bucket 并回填存量附件。
+# 宿主端口刻意避开本地开发占用（本地 PG 5432 / Redis 6379）；server 沿用 58080，
+# 支持「compose 中间件 + 本地前后端」混合调试（如 docker compose up -d seaweed 单独拉起对象存储）。
+services:
+  postgres:
+    image: pgvector/pgvector:pg14
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-robotest}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-robotest}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 空卷首启自动执行基线（仅初始化，不用于已迁移环境，见部署 runbook）
+      - ./server/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # 会话与 WS 分布式为应用强依赖，密码与 server 侧 REDIS_PASSWORD 保持一致
+    command: redis-server --requirepass ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      # redis-cli 对错误密码也可能退出 0，必须以 PONG 输出为准
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+  seaweed:
+    # SeaweedFS 官方发布仓库固定版本标签（MinIO 社区版停维后的替代引擎，文件管理详设 3.1 / 8.1）
+    image: chrislusf/seaweedfs:4.01
+    restart: unless-stopped
+    # 单进程：master + volume + filer + S3 网关（-dir=/data 由镜像 entrypoint 注入）
+    command: server -s3 -s3.port=9000
+    environment:
+      # S3 凭据与应用侧 S3_* 同源（.env）；无配置文件时走 AWS_* 环境变量回退
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-robotest}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-robotest-dev-secret}
+    ports:
+      - "9000:9000"   # S3 API（宿主可达，presigned 签名地址使用）
+      - "9001:8888"   # filer 控制台（对象浏览）
+    volumes:
+      - weeddata:/data
+    healthcheck:
+      # 镜像仅含 wget；探测 master 健康端点（master 仅绑 IPv4，必须写 127.0.0.1，localhost 会解析到 ::1 被拒）
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+  server:
+    build: ./server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seaweed:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      PORT: "58080"
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-robotest}?stringtype=unspecified
+      DATASOURCE_USERNAME: ${POSTGRES_USER:-robotest}
+      DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
+      # 服务端读写走 compose 内部网；presigned 签名用宿主可达地址（详设 3.1：浏览器须能直连）
+      S3_ENDPOINT: http://seaweed:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-robotest}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-robotest-dev-secret}
+      S3_BUCKET: ${S3_BUCKET:-robotest}
+      ENV_SECRET_KEY: ${ENV_SECRET_KEY:?请在 .env 中设置 ENV_SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?请在 .env 中设置 JWT_SECRET_KEY}
+      PASSWORD_SECRET: ${PASSWORD_SECRET:?请在 .env 中设置 PASSWORD_SECRET}
+    ports:
+      - "58080:58080"
+
+  web:
+    build:
+      context: ./web
+      # conf 源在 docker/web/，超出 ./web 构建上下文，经 additional_contexts 引入
+      additional_contexts:
+        conf: ./docker/web
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8081:80"
+
+volumes:
+  pgdata:
+  redisdata:
+  weeddata:
