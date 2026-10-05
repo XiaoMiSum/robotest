@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  * 容忍 ```json 代码栅栏与扁平结构；标题缺失的建议丢弃，moduleId / priority 非法置 null；
  * key 统一定序为 item-N，保证确认引用稳定。
  */
-final class RequirementSuggestionParser {
+public final class RequirementSuggestionParser {
 
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
 
@@ -26,7 +26,7 @@ final class RequirementSuggestionParser {
     }
 
     /** 解析模型输出为 JSON 对象；不可解析按模型调用失败（1000018117）落任务失败态 */
-    static Map<String, Object> parseJsonObject(String content) {
+    public static Map<String, Object> parseJsonObject(String content) {
         String text = stripCodeFence(content);
         Map<String, Object> parsed;
         try {
