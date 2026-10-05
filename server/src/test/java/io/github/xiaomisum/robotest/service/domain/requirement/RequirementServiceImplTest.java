@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPag
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.trace.TraceChainReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.file.FileResourceRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
@@ -14,6 +15,7 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSp
 import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementSplitRecord;
@@ -22,6 +24,7 @@ import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecordMapper;
@@ -31,6 +34,7 @@ import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import io.github.xiaomisum.robotest.service.trace.TraceMatrixService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,8 +45,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -55,6 +61,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -71,6 +78,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -95,6 +103,7 @@ class RequirementServiceImplTest {
     private static final UUID OPERATOR_ID = UUID.randomUUID();
     private static final UUID TASK_ID = UUID.randomUUID();
     private static final UUID RECORD_ID = UUID.randomUUID();
+    private static final UUID FILE_ID = UUID.randomUUID();
 
     @Mock
     private RequirementMapper requirementMapper;
@@ -124,6 +133,10 @@ class RequirementServiceImplTest {
     private TraceMatrixService traceMatrixService;
     @Mock
     private AiSettingsReader aiSettingsReader;
+    @Mock
+    private FileResourceService fileResourceService;
+    @Mock
+    private FileResourceMapper fileResourceMapper;
 
     /** 真实编号分配逻辑（savepoint 重试）：@Spy+@InjectMocks 组合会把非 mock 实例带入候选集，
      *  NameBasedCandidateFilter#getMockName 对非 mock 抛 NotAMock，故手工装配 */
@@ -735,6 +748,183 @@ class RequirementServiceImplTest {
                 () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
         assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
         verify(splitRecordMapper, never()).insert(any(RequirementSplitRecord.class));
+    }
+
+    // ---------- 3.8 导入需求文档 ----------
+
+    private static MultipartFile importFile(String name, byte[] content) {
+        return new MockMultipartFile("file", name, "application/octet-stream", content);
+    }
+
+    private static MultipartFile importFile(String name) {
+        return importFile(name, "# 需求正文".getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void importDocument_validFile_submitsTaskAndCreatesDocumentRecord() {
+        stubProject();
+        stubSplitRecordInserted();
+        UUID storedId = UUID.randomUUID();
+        FileResourceRespDTO stored = new FileResourceRespDTO();
+        stored.setId(storedId);
+        when(fileResourceService.upload(any(), eq(OPERATOR_ID))).thenReturn(stored);
+        when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of());
+        AiTaskRespDTO task = new AiTaskRespDTO();
+        task.setTaskId(TASK_ID);
+        when(aiTaskService.submitInternal(eq("requirement_import"), any(), eq(OPERATOR_ID), eq(PROJECT_ID), any()))
+                .thenReturn(task);
+
+        RequirementSplitSubmitRespDTO resp = service.importDocument(importFile("PRD.md"), PROJECT_ID, OPERATOR_ID);
+
+        assertEquals(TASK_ID, resp.getTaskId());
+        assertEquals(RECORD_ID, resp.getSplitRecordId());
+        assertEquals("pending", resp.getStatus());
+        ArgumentCaptor<Map<String, Object>> inputCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(aiTaskService).submitInternal(eq("requirement_import"), inputCaptor.capture(),
+                eq(OPERATOR_ID), eq(PROJECT_ID), any());
+        assertEquals(storedId.toString(), inputCaptor.getValue().get("fileId"));
+        ArgumentCaptor<RequirementSplitRecord> recordCaptor = ArgumentCaptor.forClass(RequirementSplitRecord.class);
+        verify(splitRecordMapper).insert(recordCaptor.capture());
+        RequirementSplitRecord saved = recordCaptor.getValue();
+        assertEquals("document", saved.getSourceType());
+        assertEquals(storedId, saved.getSourceFileId());
+        assertEquals(TASK_ID, saved.getAiTaskId());
+        assertEquals("pending", saved.getStatus());
+        assertEquals(PROJECT_ID, saved.getProjectId());
+        assertNull(saved.getSourceRequirementId());
+    }
+
+    @Test
+    void importDocument_unsupportedType_throwsTypeUnsupported() {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.importDocument(importFile("a.pdf", "%PDF-1.4".getBytes(StandardCharsets.UTF_8)),
+                        PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_IMPORT_TYPE_UNSUPPORTED.code(), exception.getCode());
+        verifyNoInteractions(fileResourceService, aiTaskService, splitRecordMapper);
+    }
+
+    @Test
+    void importDocument_tooLarge_throwsSizeExceeded() {
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getOriginalFilename()).thenReturn("a.md");
+        when(file.getSize()).thenReturn(21L * 1024 * 1024);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.importDocument(file, PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_IMPORT_SIZE_EXCEEDED.code(), exception.getCode());
+        verifyNoInteractions(fileResourceService, aiTaskService, splitRecordMapper);
+    }
+
+    @Test
+    void importDocument_emptyFile_throwsEmpty() {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.importDocument(importFile("a.md", new byte[0]), PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_IMPORT_EMPTY.code(), exception.getCode());
+        verifyNoInteractions(fileResourceService, aiTaskService, splitRecordMapper);
+    }
+
+    @Test
+    void importDocument_fakeExtensionContent_throwsEmpty() {
+        // docx 后缀但内容非 zip（文件头嗅探，安全规范 6.3）
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.importDocument(importFile("a.docx", "plain text".getBytes(StandardCharsets.UTF_8)),
+                        PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_IMPORT_EMPTY.code(), exception.getCode());
+        verifyNoInteractions(fileResourceService, aiTaskService, splitRecordMapper);
+    }
+
+    @Test
+    void importDocument_inProgressImport_throwsTaskInProgress() {
+        RequirementSplitRecord record = new RequirementSplitRecord();
+        record.setId(UUID.randomUUID());
+        record.setAiTaskId(TASK_ID);
+        when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of(record));
+        AiTask running = new AiTask();
+        running.setId(TASK_ID);
+        running.setStatus("running");
+        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(running);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.importDocument(importFile("PRD.md"), PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_TASK_IN_PROGRESS.code(), exception.getCode());
+        verifyNoInteractions(fileResourceService, aiTaskService);
+    }
+
+    @Test
+    void importDocument_staleFailedTaskRecord_allowsResubmit() {
+        stubProject();
+        stubSplitRecordInserted();
+        RequirementSplitRecord stale = new RequirementSplitRecord();
+        stale.setId(UUID.randomUUID());
+        stale.setAiTaskId(TASK_ID);
+        when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of(stale));
+        AiTask failed = new AiTask();
+        failed.setId(TASK_ID);
+        failed.setStatus("failed");
+        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(failed);
+        FileResourceRespDTO stored = new FileResourceRespDTO();
+        stored.setId(FILE_ID);
+        when(fileResourceService.upload(any(), eq(OPERATOR_ID))).thenReturn(stored);
+        AiTaskRespDTO task = new AiTaskRespDTO();
+        task.setTaskId(TASK_ID);
+        when(aiTaskService.submitInternal(eq("requirement_import"), any(), any(), any(), any())).thenReturn(task);
+
+        service.importDocument(importFile("PRD.md"), PROJECT_ID, OPERATOR_ID);
+
+        verify(aiTaskService).submitInternal(eq("requirement_import"), any(), eq(OPERATOR_ID), eq(PROJECT_ID), any());
+    }
+
+    @Test
+    void importDocument_submitFails_recordNotInserted() {
+        stubProject();
+        when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of());
+        FileResourceRespDTO stored = new FileResourceRespDTO();
+        stored.setId(FILE_ID);
+        when(fileResourceService.upload(any(), eq(OPERATOR_ID))).thenReturn(stored);
+        when(aiTaskService.submitInternal(any(), any(), any(), any(), any()))
+                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.importDocument(importFile("PRD.md"), PROJECT_ID, OPERATOR_ID));
+        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
+        verify(splitRecordMapper, never()).insert(any(RequirementSplitRecord.class));
+    }
+
+    // ---------- 3.4 详情来源附件回看 ----------
+
+    private Requirement importedItem() {
+        Requirement item = item("confirmed");
+        item.setModuleId(null);
+        item.setOwnerId(null);
+        item.setSource("import");
+        item.setSourceFileId(FILE_ID);
+        return item;
+    }
+
+    @Test
+    void getDetail_withSourceFile_resolvesFileName() {
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(importedItem());
+        FileResource row = new FileResource();
+        row.setId(FILE_ID);
+        row.setFileName("PRD.md");
+        when(fileResourceMapper.selectById(FILE_ID)).thenReturn(row);
+
+        RequirementDetailRespDTO detail = service.getDetail(ITEM_ID, PROJECT_ID);
+
+        assertNotNull(detail.getSourceFile());
+        assertEquals(FILE_ID, detail.getSourceFile().getFileId());
+        assertEquals("PRD.md", detail.getSourceFile().getName());
+        assertEquals("import", detail.getSource());
+    }
+
+    @Test
+    void getDetail_sourceFileDeleted_returnsNullSourceFile() {
+        when(requirementMapper.selectById(ITEM_ID)).thenReturn(importedItem());
+        when(fileResourceMapper.selectById(FILE_ID)).thenReturn(null);
+
+        RequirementDetailRespDTO detail = service.getDetail(ITEM_ID, PROJECT_ID);
+
+        assertNull(detail.getSourceFile());
     }
 
     // ---------- 3.12 追溯委托 ----------

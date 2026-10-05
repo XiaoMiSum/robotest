@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementLi
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
+import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -40,6 +41,9 @@ public interface RequirementService {
 
     /** 条目内 AI 拆分（3.9）：任务与拆解记录同事务提交，返回任务入口 */
     RequirementSplitSubmitRespDTO split(UUID id, UUID projectId, UUID userId);
+
+    /** 导入需求文档（3.8）：类型 / 大小 / 空文件校验、落盘与任务提交同事务，返回任务入口 */
+    RequirementSplitSubmitRespDTO importDocument(MultipartFile file, UUID projectId, UUID userId);
 
     PageResult<RequirementChangeLogRespDTO> getChangeLogs(UUID id, UUID projectId, PageParam pageParam);
 

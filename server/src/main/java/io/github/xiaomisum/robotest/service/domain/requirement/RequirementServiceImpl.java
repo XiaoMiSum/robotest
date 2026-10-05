@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPag
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.trace.TraceChainReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.file.FileResourceRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
@@ -15,14 +16,17 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSp
 import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementSplitRecord;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
+import io.github.xiaomisum.robotest.framework.security.AttachmentFileValidator;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecordMapper;
@@ -32,6 +36,7 @@ import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import io.github.xiaomisum.robotest.service.trace.TraceMatrixService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -41,6 +46,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -53,6 +59,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -69,6 +76,10 @@ public class RequirementServiceImpl implements RequirementService {
 
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
     private static final int SYSTEM_VERSION_MAX_LENGTH = 50;
+    /** 导入白名单（详设 3.8：Markdown / Word / 图片多模态）；Word 仅 .docx，旧式 .doc 不支持 */
+    private static final Set<String> IMPORT_EXTENSIONS = Set.of(
+            "md", "docx", "png", "jpg", "jpeg", "gif", "webp", "bmp");
+    private static final long MAX_IMPORT_SIZE = 20L * 1024 * 1024;
 
     @Resource
     private RequirementMapper requirementMapper;
@@ -98,6 +109,11 @@ public class RequirementServiceImpl implements RequirementService {
     /** 向量索引（WP-4.5）：写侧同步重嵌入口，门禁未就绪时内部静默跳过（详设 4.4） */
     @Resource
     private VectorIndexService vectorIndexService;
+    /** 文件底座（WP-2.0）：导入源文件落盘与详情来源附件回看 */
+    @Resource
+    private FileResourceService fileResourceService;
+    @Resource
+    private FileResourceMapper fileResourceMapper;
 
     /** AI 任务框架（WP-4.2）接入前为 null，需求侧静默跳过影响分析触发（详设 4.4） */
     @Autowired(required = false)
@@ -342,6 +358,80 @@ public class RequirementServiceImpl implements RequirementService {
         return buildDetail(requirementMapper.selectById(id));
     }
 
+    // ---------- 3.8 导入需求文档 ----------
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @AuditLog(action = "IMPORT:Requirement")
+    public RequirementSplitSubmitRespDTO importDocument(MultipartFile file, UUID projectId, UUID userId) {
+        validateImportFile(file);
+        if (hasInProgressImport(projectId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_TASK_IN_PROGRESS);
+        }
+        // 源文件经文件管理模块落盘（WP-2.0），拆解记录与需求条目以 source_file_id 关联（2.4）
+        FileResourceRespDTO stored = fileResourceService.upload(file, userId);
+        Project project = projectMapper.selectById(projectId);
+        // 任务行与拆解记录同事务（3.8 / 4.5）：任一步失败整体回滚；内联起跑经「直接 + 注册兜底」双保险
+        AiTaskRespDTO task = aiTaskService.submitInternal("requirement_import",
+                Map.of("fileId", stored.getId().toString()), userId, projectId,
+                project == null ? null : project.getWorkspaceId());
+        RequirementSplitRecord record = new RequirementSplitRecord();
+        record.setProjectId(projectId);
+        record.setSourceType("document");
+        record.setSourceFileId(stored.getId());
+        record.setAiTaskId(task.getTaskId());
+        record.setStatus(Constants.AiTaskStatus.PENDING);
+        splitRecordMapper.insert(record);
+
+        RequirementSplitSubmitRespDTO resp = new RequirementSplitSubmitRespDTO();
+        resp.setTaskId(task.getTaskId());
+        resp.setSplitRecordId(record.getId());
+        resp.setStatus(Constants.AiTaskStatus.PENDING);
+        return resp;
+    }
+
+    /** 3.8 校验顺序：类型（1000018006）→ 大小（1000018007）→ 空文件与内容嗅探（1000018008） */
+    private static void validateImportFile(MultipartFile file) {
+        String ext = importExtension(file == null ? null : file.getOriginalFilename());
+        if (!IMPORT_EXTENSIONS.contains(ext)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_IMPORT_TYPE_UNSUPPORTED);
+        }
+        if (file.getSize() > MAX_IMPORT_SIZE) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_IMPORT_SIZE_EXCEEDED);
+        }
+        if (file.isEmpty()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_IMPORT_EMPTY);
+        }
+        byte[] head = AttachmentFileValidator.readHead(file, ErrorCodeConstants.REQUIREMENT_IMPORT_EMPTY);
+        // 白名单 + 文件头嗅探（安全规范 6.3）：伪造后缀按不可解析拒绝
+        AttachmentFileValidator.validate(ext, head,
+                ErrorCodeConstants.REQUIREMENT_IMPORT_TYPE_UNSUPPORTED,
+                ErrorCodeConstants.REQUIREMENT_IMPORT_EMPTY);
+    }
+
+    private static String importExtension(String fileName) {
+        if (fileName == null) {
+            return "";
+        }
+        int index = fileName.lastIndexOf('.');
+        if (index < 0 || index == fileName.length() - 1) {
+            return "";
+        }
+        return fileName.substring(index + 1).toLowerCase(Locale.ROOT);
+    }
+
+    /** 同项目已有 pending/running 的导入任务时拒绝重复提交（3.8 / 1000018013），任务状态再行核对 */
+    private boolean hasInProgressImport(UUID projectId) {
+        for (RequirementSplitRecord record : splitRecordMapper.selectPendingImportByProject(projectId)) {
+            AiTask task = aiTaskMapper.selectById(record.getAiTaskId());
+            if (task != null && (Constants.AiTaskStatus.PENDING.equals(task.getStatus())
+                    || Constants.AiTaskStatus.RUNNING.equals(task.getStatus()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---------- 3.9 条目内 AI 拆分 ----------
 
     @Override
@@ -570,6 +660,21 @@ public class RequirementServiceImpl implements RequirementService {
 
     // ---------- 内部：装配 ----------
 
+    /** 详情来源附件（3.4 sourceFile）：只读查询，不加载文件内容 */
+    private RequirementDetailRespDTO.SourceFile resolveSourceFile(UUID fileId) {
+        if (fileId == null) {
+            return null;
+        }
+        FileResource row = fileResourceMapper.selectById(fileId);
+        if (row == null) {
+            return null;
+        }
+        RequirementDetailRespDTO.SourceFile sourceFile = new RequirementDetailRespDTO.SourceFile();
+        sourceFile.setFileId(row.getId());
+        sourceFile.setName(row.getFileName());
+        return sourceFile;
+    }
+
     private RequirementDetailRespDTO buildDetail(Requirement item) {
         RequirementDetailRespDTO dto = new RequirementDetailRespDTO();
         dto.setId(item.getId());
@@ -591,8 +696,8 @@ public class RequirementServiceImpl implements RequirementService {
         }
         dto.setTags(item.getTags());
         dto.setSource(item.getSource());
-        // 来源附件回看由文件管理模块承载（计划外任务），接入前为 null
-        dto.setSourceFile(null);
+        // 来源附件回看（3.4）：文件行已随管理页删除时置 null，前端降级不展示
+        dto.setSourceFile(resolveSourceFile(item.getSourceFileId()));
         dto.setConfirmedAt(item.getConfirmedAt());
         // 创建回显期可能尚未回填 ID：无 ID 时不查覆盖状态，避免 List.of(null)
         dto.setCoverageStatus(item.getId() == null ? null

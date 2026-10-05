@@ -37,6 +37,14 @@ public interface RequirementSplitRecordMapper extends BaseMapperX<RequirementSpl
                 .eq(RequirementSplitRecord::getStatus, "pending"));
     }
 
+    /** 项目内待确认的导入记录（详设 3.8 重复提交检查，任务状态再行核对） */
+    default List<RequirementSplitRecord> selectPendingImportByProject(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<RequirementSplitRecord>()
+                .eq(RequirementSplitRecord::getProjectId, projectId)
+                .eq(RequirementSplitRecord::getSourceType, "document")
+                .eq(RequirementSplitRecord::getStatus, "pending"));
+    }
+
     /** 按关联任务反查拆解记录（采纳落库定位，任务重试后经 selectPendingSplitBySource 兜底） */
     default List<RequirementSplitRecord> selectByAiTaskId(UUID aiTaskId) {
         return selectList(new LambdaQueryWrapperX<RequirementSplitRecord>()
