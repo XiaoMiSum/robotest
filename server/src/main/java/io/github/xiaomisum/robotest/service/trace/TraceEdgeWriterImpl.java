@@ -141,4 +141,41 @@ public class TraceEdgeWriterImpl implements TraceEdgeWriter {
             }
         }
     }
+
+    @Override
+    public void writeAiDerivationEdges(UUID projectId, Collection<UUID> requirementIds, String targetType,
+            UUID targetId, String targetVersion) {
+        Set<UUID> sources = requirementIds == null ? Set.of() : requirementIds.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (sources.isEmpty()) {
+            return;
+        }
+
+        // 同对已有边（含 detached）一律不重建：detached 不得由 AI 复活（详设 2.4）
+        Set<UUID> existingSources = traceEdgeMapper.listDerivationsTo(projectId, targetType, targetId).stream()
+                .map(TraceEdge::getSourceId)
+                .collect(Collectors.toSet());
+
+        for (UUID sourceId : sources) {
+            if (existingSources.contains(sourceId)) {
+                continue;
+            }
+            TraceEdge edge = new TraceEdge();
+            edge.setProjectId(projectId);
+            edge.setEdgeType(Constants.TraceEdgeType.DERIVATION);
+            edge.setSourceType(Constants.TraceNodeType.REQUIREMENT);
+            edge.setSourceId(sourceId);
+            edge.setTargetType(targetType);
+            edge.setTargetId(targetId);
+            edge.setTargetVersion(targetVersion);
+            edge.setStatus(Constants.TraceEdgeStatus.AI_CREATED);
+            edge.setEstablishedBy(Constants.TraceEstablishedBy.AI);
+            try {
+                traceEdgeMapper.insert(edge);
+            } catch (DuplicateKeyException concurrent) {
+                // 采纳事务并发建同对边：以唯一约束先到者为准，不中断落库事务
+            }
+        }
+    }
 }

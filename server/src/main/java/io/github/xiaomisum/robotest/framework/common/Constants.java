@@ -71,6 +71,17 @@ public final class Constants {
     }
 
     /**
+     * AI 产物种类（生成链详设 3.4）：与追溯目标节点类型对齐，圈选建议以任务 type 区分
+     */
+    public interface AiArtifactKind {
+        String MODULE = "module_suggestion";
+        String MINDMAP_DOCUMENT = "mindmap_document_suggestion";
+        String TEST_CASE = "test_case_suggestion";
+        String REVIEW_SELECTION = "review_selection";
+        String PLAN_SELECTION = "plan_selection";
+    }
+
+    /**
      * 追溯边类型（追溯矩阵详设 2.4）：derivation 需求侧派生，case_snapshot 用例 ⇢ 评审 / 计划圈选
      */
     public interface TraceEdgeType {
