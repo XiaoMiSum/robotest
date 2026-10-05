@@ -180,7 +180,7 @@ class AiTaskServiceImplTest {
     @Test
     void submit_invalidInput_throws115() {
         doThrow(ServiceExceptionUtilGet(ErrorCodeConstants.AI_TASK_INPUT_INVALID))
-                .when(handler).validateInput(any());
+                .when(handler).validateInput(any(), any());
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> submit(submitReq(0)));
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());

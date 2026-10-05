@@ -25,5 +25,13 @@ public interface TaskHandler {
     /** 输入校验，失败抛 ServiceException(1000018115)（3.6.2） */
     void validateInput(Map<String, Object> input);
 
+    /**
+     * 带提交上下文的输入校验（3.6.2 校验顺序「类型 → 输入」）：需要项目范围（归属、去重、状态）
+     * 或回写快照的处理器重写本方法，默认回落无上下文实现。
+     */
+    default void validateInput(Map<String, Object> input, TaskSubmitContext context) {
+        validateInput(input);
+    }
+
     TaskResult execute(TaskExecutionContext context);
 }

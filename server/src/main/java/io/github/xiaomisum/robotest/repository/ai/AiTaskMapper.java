@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.repository.ai;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -8,10 +9,21 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public interface AiTaskMapper extends BaseMapperX<AiTask> {
+
+    /**
+     * 同项目同类型的进行中任务（生成链 3.6.2 同输入去重比对用）。
+     */
+    default List<AiTask> listInProgressByType(UUID projectId, String type) {
+        return selectList(new LambdaQueryWrapperX<AiTask>()
+                .eq(AiTask::getProjectId, projectId)
+                .eq(AiTask::getType, type)
+                .in(AiTask::getStatus, List.of(Constants.AiTaskStatus.PENDING, Constants.AiTaskStatus.RUNNING)));
+    }
 
     /**
      * 任务列表（详设 3.6.3）：带 X-Active-Project 头按项目过滤，未附带则返回本人提交的任务。

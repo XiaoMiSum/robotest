@@ -12,8 +12,10 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiArtifactConfirm;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.repository.ai.AiArtifactConfirmMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -68,6 +70,8 @@ public class AiTaskServiceImpl implements AiTaskService {
     @Resource
     private AiArtifactConfirmMapper confirmMapper;
     @Resource
+    private RequirementMapper requirementMapper;
+    @Resource
     private AiSettingsReader settingsReader;
     @Resource
     private TaskHandlerRegistry handlerRegistry;
@@ -113,7 +117,7 @@ public class AiTaskServiceImpl implements AiTaskService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
         }
         Map<String, Object> effectiveInput = input == null ? Map.of() : new LinkedHashMap<>(input);
-        handler.validateInput(effectiveInput);
+        handler.validateInput(effectiveInput, new TaskSubmitContext(projectId, workspaceId, userId, loginUser));
         if (loginUser != null) {
             handler.checkPermission(loginUser);
         }
@@ -164,7 +168,77 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (artifact == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_ARTIFACT_NOT_FOUND);
         }
+        markSourceChanged(task, artifact);
         return artifact;
+    }
+
+    /**
+     * 生成链产物回读比对来源需求当前状态（生成链详设 4.1）：sourceRefs 逐条标注 changed
+     * （需求已删除 / 离开已确认态 / 快照后更新时间变化），确认面板据此展示「来源需求已变更」。
+     */
+    @SuppressWarnings("unchecked")
+    private void markSourceChanged(AiTask task, Map<String, Object> artifact) {
+        if (task.getInput() == null
+                || !(task.getInput().get("requirementSnapshots") instanceof List<?> snapshots)
+                || !(artifact.get("content") instanceof Map<?, ?> content)
+                || !(content.get("sourceRefs") instanceof List<?> refs)) {
+            return;
+        }
+        Map<String, Map<String, Object>> snapshotById = new LinkedHashMap<>();
+        for (Object element : snapshots) {
+            if (element instanceof Map<?, ?> snapshot && snapshot.get("id") != null) {
+                snapshotById.put(String.valueOf(snapshot.get("id")), (Map<String, Object>) snapshot);
+            }
+        }
+        Map<UUID, Requirement> currentById = new LinkedHashMap<>();
+        List<UUID> requirementIds = new ArrayList<>();
+        for (Object element : refs) {
+            if (element instanceof Map<?, ?> ref && ref.get("requirementId") != null) {
+                try {
+                    requirementIds.add(UUID.fromString(String.valueOf(ref.get("requirementId"))));
+                } catch (IllegalArgumentException ignored) {
+                    // 非法引用无法比对，保持未标注
+                }
+            }
+        }
+        if (!requirementIds.isEmpty()) {
+            requirementMapper.listByIds(requirementIds)
+                    .forEach(item -> currentById.put(item.getId(), item));
+        }
+        for (Object element : refs) {
+            if (!(element instanceof Map)) {
+                continue;
+            }
+            Map<String, Object> ref = (Map<String, Object>) element;
+            UUID id = parseUuid(ref.get("requirementId"));
+            Requirement current = id == null ? null : currentById.get(id);
+            ref.put("changed", sourceChanged(snapshotById.get(String.valueOf(ref.get("requirementId"))), current));
+        }
+    }
+
+    private static boolean sourceChanged(Map<String, Object> snapshot, Requirement current) {
+        if (current == null) {
+            // 快照存在但需求已删除 → 已变更；两侧皆无从判断时不标注
+            return snapshot != null;
+        }
+        if (!Constants.RequirementStatus.CONFIRMED.equals(current.getStatus())) {
+            return true;
+        }
+        if (snapshot == null || snapshot.get("updatedAt") == null || current.getUpdatedAt() == null) {
+            return false;
+        }
+        return !String.valueOf(snapshot.get("updatedAt")).equals(String.valueOf(current.getUpdatedAt()));
+    }
+
+    private static UUID parseUuid(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(String.valueOf(raw));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @Override
@@ -231,7 +305,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         UUID operatorId = loginUser.getId();
         List<ItemResult> results = new ArrayList<>();
         for (AiTaskConfirmReqDTO.ConfirmItemReqDTO item : reqDTO.getItems()) {
-            results.add(confirmItem(task, item, reqDTO.getTarget(), projectId, operatorId));
+            results.add(confirmItem(task, item, reqDTO.getTarget(), projectId, operatorId, loginUser));
         }
         AiTaskConfirmRespDTO resp = new AiTaskConfirmRespDTO();
         resp.setResults(results);
@@ -242,7 +316,7 @@ public class AiTaskServiceImpl implements AiTaskService {
      * 逐项确认（详设 3.6.5）：每项独立事务，采纳落库与确认记录同事务，失败仅该项回滚、其余项继续。
      */
     private ItemResult confirmItem(AiTask task, AiTaskConfirmReqDTO.ConfirmItemReqDTO item,
-            AiTaskConfirmReqDTO.TargetReqDTO target, UUID projectId, UUID operatorId) {
+            AiTaskConfirmReqDTO.TargetReqDTO target, UUID projectId, UUID operatorId, LoginUser loginUser) {
         String action = item.getAction();
         try {
             TransactionTemplate template = new TransactionTemplate(transactionManager);
@@ -266,7 +340,8 @@ public class AiTaskServiceImpl implements AiTaskService {
                         target == null ? null : target.getModuleId(),
                         target == null ? null : target.getPosition(),
                         target == null ? null : target.getSystemVersion(),
-                        projectId, operatorId));
+                        target == null ? null : target.getCreateParams(),
+                        projectId, operatorId, loginUser));
                 AiArtifactConfirm record = new AiArtifactConfirm();
                 record.setProjectId(projectId);
                 record.setTaskId(task.getId());
