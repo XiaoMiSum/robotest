@@ -1572,6 +1572,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["page_3"];
+        put?: never;
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/refresh": {
         parameters: {
             query?: never;
@@ -1675,7 +1691,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["page_3"];
+        get: operations["page_4"];
         put?: never;
         post: operations["submit"];
         delete?: never;
@@ -2491,7 +2507,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["page_4"];
+        get: operations["page_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2776,6 +2792,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/files/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/{id}/access-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["accessUrl"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/init/status": {
         parameters: {
             query?: never;
@@ -3027,6 +3075,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["batchDelete_3"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_9"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4528,6 +4592,26 @@ export interface components {
             /** Format: int32 */
             code?: number;
             data?: components["schemas"]["ApiSceneDraftExecuteRespDTO"];
+            msg?: string;
+        };
+        FileResourceRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            fileName?: string;
+            /** Format: int64 */
+            fileSize?: number;
+            contentType?: string;
+            /** Format: uuid */
+            uploaderId?: string;
+            uploaderName?: string;
+            downloadUrl?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ResultFileResourceRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["FileResourceRespDTO"];
             msg?: string;
         };
         LoginResultLoginUser: {
@@ -6399,6 +6483,35 @@ export interface components {
             /** Format: int32 */
             code?: number;
             data?: components["schemas"]["HealthCheckRespDTO"];
+            msg?: string;
+        };
+        FilePageReqDTO: {
+            /** Format: int32 */
+            pageNo: number;
+            /** Format: int32 */
+            pageSize: number;
+            fileName?: string;
+        };
+        PageResultFileResourceRespDTO: {
+            list?: components["schemas"]["FileResourceRespDTO"][];
+            /** Format: int64 */
+            total?: number;
+        };
+        ResultPageResultFileResourceRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["PageResultFileResourceRespDTO"];
+            msg?: string;
+        };
+        FileAccessUrlRespDTO: {
+            url?: string;
+            /** Format: int32 */
+            expiresIn?: number;
+        };
+        ResultFileAccessUrlRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["FileAccessUrlRespDTO"];
             msg?: string;
         };
         InitStatusRespVO: {
@@ -10438,6 +10551,55 @@ export interface operations {
             };
         };
     };
+    page_3: {
+        parameters: {
+            query: {
+                query: components["schemas"]["FilePageReqDTO"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultPageResultFileResourceRespDTO"];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultFileResourceRespDTO"];
+                };
+            };
+        };
+    };
     refresh: {
         parameters: {
             query?: never;
@@ -10575,7 +10737,7 @@ export interface operations {
             };
         };
     };
-    page_3: {
+    page_4: {
         parameters: {
             query: {
                 pageReq: components["schemas"]["AiTaskPageReqDTO"];
@@ -11965,7 +12127,7 @@ export interface operations {
             };
         };
     };
-    page_4: {
+    page_5: {
         parameters: {
             query: {
                 pageParam: components["schemas"]["PageParam"];
@@ -12415,6 +12577,50 @@ export interface operations {
             };
         };
     };
+    download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    accessUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultFileAccessUrlRespDTO"];
+                };
+            };
+        };
+    };
     getStatus: {
         parameters: {
             query?: never;
@@ -12769,6 +12975,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultBoolean"];
+                };
+            };
+        };
+    };
+    delete_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
                 };
             };
         };
