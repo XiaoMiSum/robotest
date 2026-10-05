@@ -46,7 +46,7 @@ class FileResourceServiceImplTest {
     @Mock
     private FileResourceMapper fileResourceMapper;
     @Mock
-    private MinioStorageService storageService;
+    private S3StorageService storageService;
     @Mock
     private SysUserMapper userMapper;
 
@@ -197,11 +197,11 @@ class FileResourceServiceImplTest {
         UUID rowId = UUID.fromString("00000000-0000-0000-0000-000000000041");
         when(fileResourceMapper.selectById(rowId)).thenReturn(row(rowId, "a.txt"));
         when(storageService.get("objects/" + rowId + ".txt"))
-                .thenReturn(new ByteArrayInputStream("minio".getBytes(StandardCharsets.UTF_8)));
+                .thenReturn(new ByteArrayInputStream("s3".getBytes(StandardCharsets.UTF_8)));
 
         FileContent content = service.readBytes(rowId);
 
-        assertEquals("minio", new String(content.content(), StandardCharsets.UTF_8));
+        assertEquals("s3", new String(content.content(), StandardCharsets.UTF_8));
         assertEquals("text/plain", content.contentType());
         assertEquals("a.txt", content.fileName());
     }
@@ -244,12 +244,12 @@ class FileResourceServiceImplTest {
     void accessUrl_success() {
         UUID rowId = UUID.fromString("00000000-0000-0000-0000-000000000041");
         when(fileResourceMapper.selectById(rowId)).thenReturn(row(rowId, "a.txt"));
-        when(storageService.presign("objects/" + rowId + ".txt")).thenReturn("http://minio/signed");
+        when(storageService.presign("objects/" + rowId + ".txt")).thenReturn("http://s3/signed");
         when(storageService.getPresignTtlSeconds()).thenReturn(900);
 
         FileAccessUrlRespDTO dto = service.accessUrl(rowId);
 
-        assertEquals("http://minio/signed", dto.getUrl());
+        assertEquals("http://s3/signed", dto.getUrl());
         assertEquals(900, dto.getExpiresIn());
     }
 
