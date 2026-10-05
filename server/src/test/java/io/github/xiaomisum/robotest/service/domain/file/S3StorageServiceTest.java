@@ -29,23 +29,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * MinIO 存储封装单测（文件管理详设 3）：bucket 懒确保、SDK 异常到 10 位错误码的映射。
+ * S3 存储封装单测（文件管理详设 3）：bucket 懒确保、SDK 异常到 10 位错误码的映射。
  */
 @ExtendWith(MockitoExtension.class)
-class MinioStorageServiceTest {
+class S3StorageServiceTest {
 
     @Mock
     private MinioClient client;
 
-    private MinioStorageService service;
+    private S3StorageService service;
 
     @BeforeEach
     void setUp() throws Exception {
-        service = new MinioStorageService();
+        service = new S3StorageService();
         ReflectionTestUtils.setField(service, "endpoint", "http://localhost:9000");
         ReflectionTestUtils.setField(service, "publicEndpoint", "");
-        ReflectionTestUtils.setField(service, "accessKey", "minioadmin");
-        ReflectionTestUtils.setField(service, "secretKey", "minioadmin");
+        ReflectionTestUtils.setField(service, "accessKey", "robotest");
+        ReflectionTestUtils.setField(service, "secretKey", "robotest-dev-secret");
         ReflectionTestUtils.setField(service, "bucket", "robotest");
         ReflectionTestUtils.setField(service, "presignTtlSeconds", 900);
         // 注入测试缝：懒构建的两个客户端均替换为 mock，避免真实网络

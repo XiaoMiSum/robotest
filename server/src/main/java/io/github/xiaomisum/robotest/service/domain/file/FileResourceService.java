@@ -12,7 +12,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * 文件资源服务（文件管理详设 4）：模块级校验、MinIO 落盘与访问三通道（下载 / presigned / 管理删除）。
+ * 文件资源服务（文件管理详设 4）：模块级校验、对象存储落盘与访问三通道（下载 / presigned / 管理删除）。
  */
 public interface FileResourceService {
 

@@ -75,7 +75,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         // 安全规范 6.3：缺陷侧保留既有校验与错误码（文件管理详设 4.3 校验分工）
         AttachmentFileValidator.validate(ext,
                 AttachmentFileValidator.readHead(file, ErrorCodeConstants.BUG_ATTACHMENT_STORE_FAILED));
-        // 存储统一走文件管理模块（落 MinIO、写 file_resource）；storage_path 历史列不再写入
+        // 存储统一走文件管理模块（落对象存储、写 file_resource）；storage_path 历史列不再写入
         FileResourceRespDTO stored = fileResourceService.upload(file, userId);
 
         BugAttachment attachment = new BugAttachment();
@@ -118,7 +118,7 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         dto.setContentType(StringUtils.hasText(attachment.getContentType())
                 ? attachment.getContentType() : "application/octet-stream");
         if (attachment.getFileResourceId() != null) {
-            // 已回填：读文件管理模块（MinIO）字节（文件管理详设 4.3）
+            // 已回填：读文件管理模块（对象存储）字节（文件管理详设 4.3）
             dto.setContent(fileResourceService.readBytes(attachment.getFileResourceId()).content());
             return dto;
         }

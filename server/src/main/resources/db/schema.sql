@@ -2063,5 +2063,5 @@ CREATE INDEX idx_file_resource_uploader ON file_resource (uploader_id);
 CREATE INDEX idx_file_resource_created ON file_resource (created_at);
 
 COMMENT ON TABLE file_resource IS '泛化附件资源：不挂工作空间/项目，使用方以 ID 或访问 URL 关联（文件管理详设 2.1）';
-COMMENT ON COLUMN file_resource.object_key IS 'MinIO 对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径）';
+COMMENT ON COLUMN file_resource.object_key IS '对象存储对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径）';
 COMMENT ON COLUMN file_resource.uploader_id IS '上传者（sys_user.id，逻辑外键）';

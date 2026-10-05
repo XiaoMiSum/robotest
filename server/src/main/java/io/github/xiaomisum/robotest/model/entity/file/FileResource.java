@@ -17,7 +17,7 @@ import java.util.UUID;
 @TableName("file_resource")
 public class FileResource extends BaseUuidDO<FileResource> {
 
-    /** MinIO 对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径） */
+    /** 对象存储对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径） */
     private String objectKey;
 
     /** 原始文件名（仅存库，不进对象键） */

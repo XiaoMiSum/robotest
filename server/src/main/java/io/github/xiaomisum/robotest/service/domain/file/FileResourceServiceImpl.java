@@ -48,7 +48,7 @@ public class FileResourceServiceImpl implements FileResourceService {
     @Resource
     private FileResourceMapper fileResourceMapper;
     @Resource
-    private MinioStorageService storageService;
+    private S3StorageService storageService;
     @Resource
     private SysUserMapper userMapper;
 
