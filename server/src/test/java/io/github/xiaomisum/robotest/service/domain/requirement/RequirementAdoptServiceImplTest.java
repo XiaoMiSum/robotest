@@ -119,7 +119,7 @@ class RequirementAdoptServiceImplTest {
     private AdoptContext ctx(AiTask task, Map<String, Object> artifact, String action,
             Map<String, Object> content, String targetSystemVersion) {
         return new AdoptContext(task, artifact, action, content, null, null, null,
-                targetSystemVersion, PROJECT_ID, OPERATOR_ID);
+                targetSystemVersion, null, PROJECT_ID, OPERATOR_ID, null);
     }
 
     private RequirementSplitRecord record() {
