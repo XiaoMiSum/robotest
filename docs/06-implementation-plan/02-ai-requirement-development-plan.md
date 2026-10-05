@@ -196,7 +196,7 @@ flowchart TD
 | WP-1.3 | AI 底座 DDL 迁移（含向量表） | P1 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-0.2 | 同上，pgvector 向量列可用 |
 | WP-2.1 | 需求 CRUD、属性与变更记录后端 | P2 | 后端 | 需求管理详设接口章节 | WP-1.1 | OpenAPI 暴露，10 位错误码，部分更新 |
 | WP-2.0 | 文件管理模块（对象存储与泛化附件资源） | P2 | 全 | `docs/04-detailed-design/08-file-management/02-file-management.md`（随本包补建） | WP-0.2 | 附件上传 / 下载 / 删除与访问 URL 走通，docker-compose 含对象存储（SeaweedFS） |
-| WP-2.2 | 需求导入后端（三类文件） | P2 | 后端 | 需求管理详设导入章节 | WP-1.1、WP-4.2、WP-2.0 | 三类样例导入成功，>20MB 拒绝 |
+| WP-2.2 | 需求导入后端（三类文件，含文档级版本识别） | P2 | 后端 | 需求管理详设导入章节 | WP-1.1、WP-4.2、WP-2.0 | 三类样例导入成功，任务 `result.documentMeta` 识别出版本或为 `null`，>20MB 拒绝 |
 | WP-2.3 | 需求管理前端 | P2 | 前端 | `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md` | WP-2.1、WP-2.2 | 状态分支齐全，C1 无 `any` |
 | WP-3.1 | 追溯关系与覆盖率后端 | P3 | 后端 | 追溯矩阵详设接口章节 | WP-1.2 | CRUD 与统计接口通过，`trace:*` 校验生效，需求侧追溯委托（需求管理详设 3.12）与需求列表 / 详情 `coverageStatus` 填充补齐；`trace_edge` 影响处置字段组补列迁移、`impact_analysis` 处理器注册、评审 / 计划快照事务内写 `case_snapshot` 边 |
 | WP-3.2 | 追溯矩阵前端 | P3 | 前端 | `docs/05-interaction-design/04-trace-matrix-ui.md`、`docs/05-interaction-design/03-function-testing/04-workspace-ui-test-case.md` | WP-3.1 | 覆盖率、影响分析交互达标，脑图「关联需求」经追溯边接通 |
@@ -213,7 +213,7 @@ flowchart TD
 | WP-7.1 | 缺陷分析后端 | P7 | 后端 | `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md` | WP-4.2 | 四类分析任务化并可下钻 |
 | WP-7.2 | 缺陷分析前端 | P7 | 前端 | `docs/05-interaction-design/07-ai-capability/06-defect-analysis-ui.md` | WP-7.1 | 状态分支齐全 |
 | WP-7.3 | 辅助功能前后端 | P7 | 全 | `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`、`docs/05-interaction-design/07-ai-capability/07-assisted-features-ui.md` | WP-4.2、既有用例 / 计划模块 | 三面板嵌入且确认后生效 |
-| WP-8.1 | 导入 AI 识别文档级版本 | P8 | 全 | 需求 SRS 版本字段条目、需求管理详设导入章节 | WP-4.2、WP-2.2 | 导入识别出版本并可确认 |
+| WP-8.1 | 导入版本确认面板前端 | P8 | 前端 | 需求 SRS 版本字段条目、需求管理详设导入章节 | WP-4.2、WP-2.2 | 识别版本在确认面板预填，可修改 / 清空并随采纳落库 |
 | WP-9.1 | 分批联调与验收 | P9 | 全 | 各批对应文档 | 各批工作包 | 验证脚本 EXIT=0、C8 达标、人工验收通过 |
 
 > 说明：WP-2.2 的端到端执行依赖任务框架，故 WP-4.2 的任务框架段（任务提交、状态机、进度轮询、执行引擎与产物确认）与 WP-4.4（任务详情前端）随批次一提前交付，SSE 流式段与配置中心仍按 P4 批次交付；存量需求池接口（批量创建、删除、body 形态归档与文档关联）及对应前端页面随 WP-2.1 / WP-2.3 按需求管理详设目标态下线。此外，需求导入源文件的存储与回看下载由文件管理模块承载（WP-2.0，见 1.2 登记），WP-2.2 的端到端验收依赖 WP-2.0 先行。
@@ -276,3 +276,4 @@ flowchart TD
 | V1.0 | 2026-10-04 | AI 客户端选型裁决：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x，新增 WP-4.6（P4，排 WP-4.5 之后）；外部依赖 Spring AI 登记于 2.5，批次二范围与验收重点同步 |
 | V1.0 | 2026-10-04 | WP-2.0 详设补建：新建 `docs/04-detailed-design/08-file-management/02-file-management.md`（泛化附件资源 `file_resource`、MinIO 存储与 presigned/平台双通道、缺陷附件迁移、文件管理页、docker-compose 全家桶），WP-2.0 设计依据由「随本包补建」改指该文档 |
 | V1.0 | 2026-10-05 | WP-2.0 存储引擎定标 MinIO → SeaweedFS（S3 兼容，官方发布仓库固定版本镜像）：§1.2 登记与 WP-2.0 范围/验收行同步，历史记录行不改 |
+| V1.0 | 2026-10-05 | WP-2.2 范围裁决：文档级版本识别（提示词识别与 `documentMeta.detectedVersion` 输出）随 WP-2.2 顺带交付，WP-8.1 由「全」收窄为版本确认面板前端，验收口径同步 |
