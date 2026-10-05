@@ -264,7 +264,7 @@ class BugAttachmentServiceImplTest {
 
     @Test
     void downloadAttachment_fromFileResource() {
-        // 已回填行：字节改从文件管理模块（MinIO）读取（文件管理详设 4.3）
+        // 已回填行：字节改从文件管理模块（对象存储）读取（文件管理详设 4.3）
         UUID fileResourceId = UUID.fromString("00000000-0000-0000-0000-000000000042");
         BugAttachment attachment = new BugAttachment();
         attachment.setId(attachmentId);
@@ -275,13 +275,13 @@ class BugAttachmentServiceImplTest {
         when(bugAttachmentMapper.selectById(attachmentId)).thenReturn(attachment);
         when(bugMapper.selectById(bugId)).thenReturn(openBug());
         when(fileResourceService.readBytes(fileResourceId))
-                .thenReturn(new FileContent("minio-bytes".getBytes(StandardCharsets.UTF_8), "text/plain", "原始名.txt"));
+                .thenReturn(new FileContent("s3-bytes".getBytes(StandardCharsets.UTF_8), "text/plain", "原始名.txt"));
 
         BugAttachmentDownloadRespDTO dto = bugAttachmentService.downloadAttachment(projectId, attachmentId, userId);
 
         assertEquals("原始名.txt", dto.getFileName());
         assertEquals("text/plain", dto.getContentType());
-        assertEquals("minio-bytes", new String(dto.getContent(), StandardCharsets.UTF_8));
+        assertEquals("s3-bytes", new String(dto.getContent(), StandardCharsets.UTF_8));
     }
 
     @Test

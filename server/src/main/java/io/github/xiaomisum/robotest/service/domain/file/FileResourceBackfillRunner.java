@@ -22,7 +22,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 /**
- * 缺陷附件本地存量回填（文件管理详设 7.2）：逐行把本地磁盘文件迁入 MinIO 并补 file_resource_id。
+ * 缺陷附件本地存量回填（文件管理详设 7.2）：逐行把本地磁盘文件迁入对象存储并补 file_resource_id。
  * 幂等（以 file_resource_id IS NULL 驱动）、不阻塞启动；本地缺文件跳过，存储类失败本轮中止待下次启动重试。
  */
 @Component
