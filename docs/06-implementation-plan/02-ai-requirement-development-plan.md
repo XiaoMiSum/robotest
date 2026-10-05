@@ -135,7 +135,7 @@ flowchart TD
 
 #### 2.4.5 AI 生成链
 
-- 六阶段逐段任务化：解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性 → 建立追溯边；每阶段产物落 `ai_artifact`；
+- 六阶段逐段任务化：解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性 → 建立追溯边；产物明细存 `ai_task.result`，确认记录落 `ai_artifact_confirm`；
 - 预览 → 人工确认 → 生效；确认前不写入需求 / 用例 / 追溯业务数据；
 - 脑图编辑复用既有脑图组件与 Yjs 协同（`docs/04-detailed-design/03-function-testing/08-mindmap-component.md`）。
 
@@ -206,7 +206,7 @@ flowchart TD
 | WP-4.4 | 任务中心与任务详情前端 | P4 | 前端 | `docs/05-interaction-design/07-ai-capability/03-ai-task-ui.md` | WP-4.2 | 2s 轮询、终态停轮询 |
 | WP-4.5 | 向量索引维护（`vector_reindex` 完整实现） | P4 | 后端 | AI 底座详设 4.4、3.6.1 | WP-4.1 | 全量重建任务执行通过；需求 / 用例 / 缺陷变更事件触发分块重嵌；读侧按项目 / 工作空间限权过滤 |
 | WP-4.6 | AI 调用层迁移 Spring AI（替换全部自实现模型 / 向量 HTTP 调用） | P4 | 后端 | AI 底座详设 4.2、7 | WP-4.1、WP-4.5 | `service/ai` 内零自实现 HTTP 调用（传输 / 序列化 / 重试 / 解析由 Spring AI 2.0.x 执行），门面签名、逐次记账与 10 位错误码口径不变，`validate-backend` EXIT=0 |
-| WP-5.1 | 生成链六阶段编排后端 | P5 | 后端 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | WP-4.2、WP-2.1、WP-3.1 | 六阶段任务化，产物落 `ai_artifact` |
+| WP-5.1 | 生成链六阶段编排后端 | P5 | 后端 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | WP-4.2、WP-2.1、WP-3.1 | 六阶段任务化，产物明细存 `ai_task.result`、确认记录落 `ai_artifact_confirm` |
 | WP-5.2 | 生成预览与确认前端 | P5 | 前端 | `docs/05-interaction-design/07-ai-capability/04-ai-generation-ui.md` | WP-5.1 | 人工确认前不落业务数据 |
 | WP-6.1 | 助手会话与 SSE 后端 | P6 | 后端 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | WP-4.2 | 流式、断线补齐、确认执行回执通过 |
 | WP-6.2 | 助手面板与悬浮球前端 | P6 | 前端 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | WP-6.1 | 入口显隐随总开关与配置就绪态 |
@@ -274,6 +274,7 @@ flowchart TD
 | V1.0 | 2026-10-04 | 快照引用边取值 `snapshot_ref` 更名为 `case_snapshot`，WP-3.1 判据与范围登记同步 |
 | V1.0 | 2026-10-04 | 批次二裁决落地：范围补 WP-2.0（文件管理模块，由「本期仅记录」转实施）、WP-2.2、WP-4.5（`vector_reindex` 完整实现）；`coverage_analysis` 处理器仍在批次二；新增外部依赖 echarts 登记于 2.5；用量成本口径（`input_price / output_price / cost`）随详设 02 同步 |
 | V1.0 | 2026-10-04 | AI 客户端选型裁决：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x，新增 WP-4.6（P4，排 WP-4.5 之后）；外部依赖 Spring AI 登记于 2.5，批次二范围与验收重点同步 |
+| V1.0 | 2026-10-06 | WP-5.1 判据措辞对齐详设 03 第 2 节：产物明细存 `ai_task.result`、确认记录落 `ai_artifact_confirm`，不新增表 |
 | V1.0 | 2026-10-04 | WP-2.0 详设补建：新建 `docs/04-detailed-design/08-file-management/02-file-management.md`（泛化附件资源 `file_resource`、MinIO 存储与 presigned/平台双通道、缺陷附件迁移、文件管理页、docker-compose 全家桶），WP-2.0 设计依据由「随本包补建」改指该文档 |
 | V1.0 | 2026-10-05 | WP-2.0 存储引擎定标 MinIO → SeaweedFS（S3 兼容，官方发布仓库固定版本镜像）：§1.2 登记与 WP-2.0 范围/验收行同步，历史记录行不改 |
 | V1.0 | 2026-10-05 | WP-2.2 范围裁决：文档级版本识别（提示词识别与 `documentMeta.detectedVersion` 输出）随 WP-2.2 顺带交付，WP-8.1 由「全」收窄为版本确认面板前端，验收口径同步 |
