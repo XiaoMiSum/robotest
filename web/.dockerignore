@@ -1,0 +1,6 @@
+# web/.dockerignore — 构建上下文排除（文件管理详设 8.2）
+# 注意：保留 .env.production（容器内 vite build 依赖其同源相对路径）
+node_modules/
+dist/
+coverage/
+.git/

@@ -1,0 +1,5 @@
+# server/.dockerignore — 构建上下文排除（文件管理详设 8.2）
+target/
+.git/
+.idea/
+*.iml
