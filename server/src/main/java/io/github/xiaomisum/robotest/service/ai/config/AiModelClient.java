@@ -15,10 +15,12 @@ import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MimeTypeUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
@@ -94,12 +96,23 @@ public class AiModelClient {
                 .build();
     }
 
-    private static Prompt buildPrompt(AiChatRequest request) {
+    static Prompt buildPrompt(AiChatRequest request) {
         List<Message> messages = new ArrayList<>();
         if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             messages.add(new SystemMessage(request.systemPrompt()));
         }
-        messages.add(new UserMessage(request.userPrompt()));
+        AiChatMedia media = request.media();
+        if (media == null || media.data() == null || media.data().length == 0) {
+            messages.add(new UserMessage(request.userPrompt()));
+        } else {
+            messages.add(UserMessage.builder()
+                    .text(request.userPrompt())
+                    .media(Media.builder()
+                            .mimeType(MimeTypeUtils.parseMimeType(media.mimeType()))
+                            .data(media.data())
+                            .build())
+                    .build());
+        }
         return new Prompt(messages);
     }
 

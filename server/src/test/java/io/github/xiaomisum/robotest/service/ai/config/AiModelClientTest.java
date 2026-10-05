@@ -14,6 +14,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.DefaultUsage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -31,10 +32,12 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -98,6 +101,29 @@ class AiModelClientTest {
                 .thenReturn(new AiSettingsReader.AiSettings(true, model.getId(), 120, 3));
 
         assertNotNull(client.buildChatModel(request(), "sk-test"));
+    }
+
+    @Test
+    void buildPrompt_withMedia_buildsMultimodalUserMessage() {
+        AiChatRequest request = new AiChatRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "test",
+                model, "你是测试助手", "识别图片中的需求", new AiChatMedia("image/png", new byte[]{1, 2, 3}));
+
+        Prompt prompt = AiModelClient.buildPrompt(request);
+
+        assertEquals(2, prompt.getInstructions().size());
+        UserMessage user = prompt.getUserMessage();
+        assertEquals(1, user.getMedia().size());
+        assertEquals("image/png", user.getMedia().get(0).getMimeType().toString());
+        assertArrayEquals(new byte[]{1, 2, 3}, user.getMedia().get(0).getDataAsByteArray());
+    }
+
+    @Test
+    void buildPrompt_withoutMedia_plainTextUserMessage() {
+        Prompt prompt = AiModelClient.buildPrompt(request());
+
+        UserMessage user = prompt.getUserMessage();
+        assertEquals("生成用例", user.getText());
+        assertTrue(user.getMedia().isEmpty());
     }
 
     @Test
