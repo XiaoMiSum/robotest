@@ -50,5 +50,11 @@ public class AiTaskConfirmReqDTO {
          * 空白串为显式清空，采纳后留空待手工补录。
          */
         private String systemVersion;
+
+        /**
+         * 圈选确认的既有创建流程参数（生成链详设 3.6：评审 / 计划创建请求体，不含项目上下文）；
+         * 调整后采纳 = 以调整结果整体提交，生成链类型不传。
+         */
+        private Map<String, Object> createParams;
     }
 }

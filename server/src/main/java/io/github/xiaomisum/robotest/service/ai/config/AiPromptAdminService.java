@@ -194,11 +194,14 @@ public class AiPromptAdminService {
         return variables;
     }
 
-    /** 内置默认：处理器 defaultPrompt（scene 与 type 对应，2.5 注释）；无则空串 */
+    /** 内置默认：处理器 defaultPrompt（scene 与 type 对应，2.5 注释）；阶段子场景回落登记表，皆无则空串 */
     private String builtinContent(String scene) {
         TaskHandler handler = handlerRegistry.get(scene);
-        String prompt = handler == null ? null : handler.defaultPrompt();
-        return prompt == null ? "" : prompt;
+        if (handler != null && handler.defaultPrompt() != null && !handler.defaultPrompt().isBlank()) {
+            return handler.defaultPrompt();
+        }
+        String stagePrompt = AiPromptScenes.builtin(scene);
+        return stagePrompt == null ? "" : stagePrompt;
     }
 
     private AiPromptTemplate findByScene(String scene) {
