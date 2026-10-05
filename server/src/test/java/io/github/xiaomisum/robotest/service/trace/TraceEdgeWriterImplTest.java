@@ -196,6 +196,55 @@ class TraceEdgeWriterImplTest {
         verify(traceEdgeMapper, never()).insert(any(TraceEdge.class));
     }
 
+    // ---------- AI 派生批量建边（生成链采纳 3.5） ----------
+
+    @Test
+    void writeAi_insertsAiCreatedDerivationsWithVersion() {
+        when(traceEdgeMapper.listDerivationsTo(PROJECT_ID, "test_case", DOC_ID)).thenReturn(List.of());
+        when(traceEdgeMapper.insert(any(TraceEdge.class))).thenReturn(1);
+
+        writer.writeAiDerivationEdges(PROJECT_ID, List.of(REQ_A, REQ_B), "test_case", DOC_ID, "v1");
+
+        ArgumentCaptor<TraceEdge> captor = ArgumentCaptor.forClass(TraceEdge.class);
+        verify(traceEdgeMapper, times(2)).insert(captor.capture());
+        TraceEdge created = captor.getAllValues().get(0);
+        assertEquals("derivation", created.getEdgeType());
+        assertEquals("requirement", created.getSourceType());
+        assertEquals(REQ_A, created.getSourceId());
+        assertEquals("test_case", created.getTargetType());
+        assertEquals(DOC_ID, created.getTargetId());
+        assertEquals("v1", created.getTargetVersion());
+        assertEquals("ai_created", created.getStatus());
+        assertEquals("ai", created.getEstablishedBy());
+        assertNull(created.getConfirmedBy());
+        assertEquals(REQ_B, captor.getAllValues().get(1).getSourceId());
+    }
+
+    @Test
+    void writeAi_skipsExistingPairsIncludingDetached() {
+        TraceEdge existing = derivationEdge(REQ_A, "detached");
+        when(traceEdgeMapper.listDerivationsTo(PROJECT_ID, "module", DOC_ID)).thenReturn(List.of(existing));
+
+        writer.writeAiDerivationEdges(PROJECT_ID, List.of(REQ_A, REQ_B), "module", DOC_ID, null);
+
+        ArgumentCaptor<TraceEdge> captor = ArgumentCaptor.forClass(TraceEdge.class);
+        verify(traceEdgeMapper).insert(captor.capture());
+        // detached 不得由 AI 重建，只补缺对；无版本列的实体 target_version 为 null
+        assertEquals(REQ_B, captor.getValue().getSourceId());
+        assertNull(captor.getValue().getTargetVersion());
+    }
+
+    @Test
+    void writeAi_emptySourcesWriteNothing_andDuplicateSwallowed() {
+        writer.writeAiDerivationEdges(PROJECT_ID, List.of(), "module", DOC_ID, null);
+        writer.writeAiDerivationEdges(PROJECT_ID, null, "module", DOC_ID, null);
+        verify(traceEdgeMapper, never()).insert(any(TraceEdge.class));
+
+        when(traceEdgeMapper.listDerivationsTo(PROJECT_ID, "test_case", DOC_ID)).thenReturn(List.of());
+        when(traceEdgeMapper.insert(any(TraceEdge.class))).thenThrow(new DuplicateKeyException("uk_trace_edge_pair"));
+        assertDoesNotThrow(() -> writer.writeAiDerivationEdges(PROJECT_ID, List.of(REQ_A), "test_case", DOC_ID, "v1"));
+    }
+
     // ---------- 构造辅助 ----------
 
     private void assertCreatedEdge(TraceEdge created) {

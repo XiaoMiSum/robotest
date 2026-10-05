@@ -31,4 +31,17 @@ public interface TraceEdgeWriter {
      * @param operatorId     保存操作人，落 confirmed_by
      */
     void syncDocumentRequirementEdges(UUID projectId, UUID docId, Collection<UUID> requirementIds, UUID operatorId);
+
+    /**
+     * AI 派生批量建边（生成链详设 3.5 采纳事务）：一次采纳为目标写 requirement → 目标 的 derivation 边，
+     * status = ai_created、established_by = ai，等人工在矩阵转确认；target_version 锚定新实体版本
+     * （无版本列的实体为 null）。同对已有任何有效边（含 detached，AI 不得重建）时跳过，
+     * 并发重复由唯一约束先到者为准，不中断采纳事务。
+     *
+     * @param requirementIds 来源需求 ID 集合（产物 sourceRefs），空集合不写
+     * @param targetType     目标节点类型（module / mindmap_document / test_case）
+     * @param targetVersion  新实体版本（"v1" 形态；实体无版本列传 null）
+     */
+    void writeAiDerivationEdges(UUID projectId, Collection<UUID> requirementIds, String targetType,
+            UUID targetId, String targetVersion);
 }

@@ -183,8 +183,8 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        // 登记场景含 requirement_import 与 requirement_split 两个，自定义行只覆盖后者
-        assertEquals(2, list.size());
+        // 登记场景 8 个（导入、拆分、生成链 4 阶段子场景、评审 / 计划圈选），自定义行只覆盖拆分
+        assertEquals(8, list.size());
         AiPromptListItemRespDTO splitItem = list.stream()
                 .filter(item -> "requirement_split".equals(item.getScene()))
                 .findFirst().orElseThrow();
@@ -205,7 +205,7 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        assertEquals(2, list.size());
+        assertEquals(8, list.size());
         AiPromptListItemRespDTO splitItem = list.stream()
                 .filter(item -> "requirement_split".equals(item.getScene()))
                 .findFirst().orElseThrow();
