@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-引入 MinIO 对象存储与**泛化附件资源**（`file_resource`），建设文件管理模块，统一承载：
+引入对象存储（SeaweedFS）与**泛化附件资源**（`file_resource`），建设文件管理模块，统一承载：
 
 1. 需求导入源文件的存储与回看下载（需求管理详设 3.8 / SRS 来源附件）；
 2. 需求详情（含图片）等业务内容的图片引用；
@@ -20,7 +20,7 @@
 ### 1.2 背景与依据
 
 - 实施计划「计划外独立任务登记——文件管理模块改造」（`docs/06-implementation-plan/02-ai-requirement-development-plan.md` §1.2）：
-  引入 MinIO、设计**不挂工作空间 / 项目**的泛化附件资源（使用方以访问 URL 关联）、以 docker-compose 全家桶发行；随 WP-2.0 实施。
+  引入对象存储、设计**不挂工作空间 / 项目**的泛化附件资源（使用方以访问 URL 关联）、以 docker-compose 全家桶发行；随 WP-2.0 实施。
 - 需求侧已预留的引用字段：`requirement.source_file_id`、`requirement_split_record.source_file_id`（当前恒为 NULL，由本模块承载）。
 - 缺陷附件现状：本地磁盘 `robotest.upload.dir`（默认 `./uploads/bug`）+ `bug_attachment.storage_path` 相对路径，须迁移至对象存储。
 - 安全规范（`docs/00-spec/40-security/01-security.md`）：文件类型不得仅按扩展名判断，须文件头内容嗅探；附件下载必须重新校验。
@@ -31,8 +31,8 @@
 | 术语 | 含义 |
 | ---- | ---- |
 | 泛化附件资源 | `file_resource` 行，不挂工作空间 / 项目 / 任何业务实体，仅由使用方以 ID 或访问 URL 关联 |
-| objectKey | MinIO bucket 内的对象键，由服务端生成，不含任何用户可控路径成分 |
-| presigned URL | MinIO 签名的临时访问地址，时效内可直连对象存储，过期失效 |
+| objectKey | 对象存储 bucket 内的对象键，由服务端生成，不含任何用户可控路径成分 |
+| presigned URL | S3 服务端签名的临时访问地址，时效内可直连对象存储，过期失效 |
 | 平台下载接口 | `/api/files/{id}/download`，经平台登录鉴权后由后端代理读取对象流 |
 
 ---
@@ -58,7 +58,7 @@ CREATE INDEX idx_file_resource_uploader ON file_resource (uploader_id);
 CREATE INDEX idx_file_resource_created ON file_resource (created_at);
 
 COMMENT ON TABLE file_resource IS '泛化附件资源：不挂工作空间/项目，使用方以 ID 或访问 URL 关联（文件管理详设 2.1）';
-COMMENT ON COLUMN file_resource.object_key IS 'MinIO 对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径）';
+COMMENT ON COLUMN file_resource.object_key IS '对象存储对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径）';
 COMMENT ON COLUMN file_resource.uploader_id IS '上传者（sys_user.id，逻辑外键）';
 ```
 
@@ -98,35 +98,40 @@ COMMENT ON COLUMN bug_attachment.file_resource_id IS '关联 file_resource.id（
 | 载体 | 内容 |
 | ---- | ---- |
 | `server/src/main/resources/db/schema.sql` | 全量基线同步（新建库初始化，含 §2.1–2.3 全部 DDL 与种子） |
-| `server/src/main/resources/db/migration/V20261004180000__file_management.sql` | 存量库增量（同 DDL），按 runbook §9 手工执行：备份 → 执行 → 回滚方案核对 → 发应用 |
+| `server/src/main/resources/db/migration/V20261004180000__file_management.sql` | 存量库增量（同 DDL），按 runbook §10 手工执行：备份 → 执行 → 回滚方案核对 → 发应用 |
 
 部署顺序：**先执行 DDL，后发应用**（新列可空，反序会导致新代码读列失败）。
 
 ---
 
-## 3. 存储设计（MinIO）
+## 3. 存储设计（SeaweedFS 对象存储）
 
 ### 3.1 依赖与配置
 
-- 客户端：**`io.minio:minio` 官方 SDK**（经讨论引入的外部依赖，登记于实施计划 §2.5）；
-  上传 / 下载 / 删除 / presigned 签名全部经 SDK，不自实现对象存储 HTTP 调用。
-- 配置项（`application.yaml` `robotest.minio` 段，环境变量可覆盖）：
+- 引擎：**SeaweedFS**（S3 兼容对象存储，Apache-2.0，活跃维护）——MinIO 社区版已停止维护（CE 镜像停发、GitHub 仓库归档，
+  官方镜像不可再获取），且 `seaweedfs/seaweedfs` 新官方镜像命名空间在 Docker Hub 尚未就绪，发行镜像固定为其官方发布仓库
+  `chrislusf/seaweedfs` 的版本标签（§8.1）。
+- 客户端：**`io.minio:minio` SDK**（经讨论引入的外部依赖，登记于实施计划 §2.5）作为 **S3 协议客户端**使用；
+  上传 / 下载 / 删除 / presigned 签名全部经 SDK 标准 S3 操作，不自实现对象存储 HTTP 调用，引擎可在任意 S3 兼容服务间切换。
+- 配置项（`application.yaml` `robotest.s3` 段，环境变量可覆盖）：
 
 | 配置 | 环境变量 | 默认值 | 说明 |
 | ---- | ---- | ---- | ---- |
-| `endpoint` | `MINIO_ENDPOINT` | `http://localhost:9000` | S3 API 地址（服务端访问，compose 内为 `http://minio:9000`） |
-| `public-endpoint` | `MINIO_PUBLIC_ENDPOINT` | 空 = 同 `endpoint` | presigned 签名地址（浏览器可达；compose 内配 `http://localhost:9000`——内部网地址签名后浏览器无法直连） |
-| `access-key` | `MINIO_ACCESS_KEY` | `minioadmin` | dev 默认值；prod 必须显式配置 |
-| `secret-key` | `MINIO_SECRET_KEY` | `minioadmin` | 同上，禁止真实凭据入库 |
-| `bucket` | `MINIO_BUCKET` | `robotest` | 对象桶 |
-| `presign-ttl-seconds` | `MINIO_PRESIGN_TTL` | `900`（15 分钟） | presigned URL 时效 |
+| `endpoint` | `S3_ENDPOINT` | `http://localhost:9000` | S3 API 地址（服务端访问，compose 内为 `http://seaweed:9000`） |
+| `public-endpoint` | `S3_PUBLIC_ENDPOINT` | 空 = 同 `endpoint` | presigned 签名地址（浏览器可达；compose 内配 `http://localhost:9000`——内部网地址签名后浏览器无法直连） |
+| `access-key` | `S3_ACCESS_KEY` | `robotest` | dev 默认值；prod 必须显式配置 |
+| `secret-key` | `S3_SECRET_KEY` | `robotest-dev-secret` | 同上，禁止真实凭据入库 |
+| `bucket` | `S3_BUCKET` | `robotest` | 对象桶 |
+| `presign-ttl-seconds` | `S3_PRESIGN_TTL` | `900`（15 分钟） | presigned URL 时效 |
+
+- 凭据经根 `.env` 同源注入两侧：应用读 `S3_*`，SeaweedFS 进程读 `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`（compose 映射，§8.1）。
 
 ### 3.2 对象键与桶保证
 
 - 对象键：`objects/{uuid}{ext}`——`uuid` 为服务端生成，`ext` 取自原始文件名扩展名（白名单校验后小写；无扩展名则省略）。
   文件名原样存 `file_name` 列，**永不进入对象键**（防路径注入）。
 - bucket 懒确保：首次存储操作时 `bucketExists → createBucket`（单次标记），失败抛 `FILE_UPLOAD_FAILED`；
-  不在应用启动期强依赖 MinIO（本地开发未起 MinIO 时应用可正常启动，仅文件能力不可用）。
+  不在应用启动期强依赖对象存储（本地开发未起 SeaweedFS 时应用可正常启动，仅文件能力不可用）。
 
 ### 3.3 访问模型（presigned + 平台接口并存）
 
@@ -155,7 +160,7 @@ COMMENT ON COLUMN bug_attachment.file_resource_id IS '关联 file_resource.id（
 | GET | `/api/files` | 分页列表（`pageNo/pageSize/fileName` 模糊） | `file:view` |
 | GET | `/api/files/{id}/download` | 平台代理下载（对象流） | 登录 |
 | GET | `/api/files/{id}/access-url` | 换取 presigned 临时 URL | 登录 |
-| DELETE | `/api/files/{id}` | 删除（逻辑删行 + 删 MinIO 对象） | `file:delete` |
+| DELETE | `/api/files/{id}` | 删除（逻辑删行 + 删对象存储对象） | `file:delete` |
 
 缺陷附件既有 4 接口（`POST/GET /api/project/bugs/{id}/attachments`、`GET /api/project/bugs/attachments/{attachmentId}/download`、`DELETE …`）**路径与报文不变**，仅内部实现改走本模块（§4.3）。
 
@@ -206,7 +211,7 @@ COMMENT ON COLUMN bug_attachment.file_resource_id IS '关联 file_resource.id（
 **换取 presigned** `GET /api/files/{id}/access-url`：
 
 ```json
-{ "code": 0, "msg": "success", "data": { "url": "http://minio:9000/robotest/objects/…?X-Amz-…", "expiresIn": 900 } }
+{ "code": 0, "msg": "success", "data": { "url": "http://localhost:9000/robotest/objects/…?X-Amz-…", "expiresIn": 900 } }
 ```
 
 **平台下载** `GET /api/files/{id}/download` → 二进制流：
@@ -222,7 +227,7 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 
 ```text
 上传：validateBug → 缺陷侧既有校验（10MB、白名单+文件头嗅探，错误码契约不变）
-      → FileResourceService.upload（模块级 20MB 与白名单再校验、落 MinIO、写 file_resource）
+      → FileResourceService.upload（模块级 20MB 与白名单再校验、落对象存储、写 file_resource）
       → 写 bug_attachment（补 file_resource_id；file_name/uploader 等业务列不变；storage_path 不再写入）→ bug_log
 下载：bug_attachment → file_resource_id → 模块读取对象字节；行内为 NULL（回填前）→ 兼容读本地 storage_path
 删除：保持既有语义（缺陷详设 1.12）——逻辑删 bug_attachment 行 + bug_log，对象与 file_resource 保留供审计，
@@ -261,7 +266,7 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 
 - 对象键服务端生成，原始文件名只落库不进路径（防路径注入）；
 - 下载 `Content-Disposition` 对文件名做 URL 编码，`Content-Type` 取库内记录（防内容嗅探逃逸）；
-- 删除为行逻辑删 + MinIO 对象物理删（管理页治理语义：真正回收空间）；被引用文件删除属管理员治理职责（泛化资源无引用约束，§1.3 设计取舍）。
+- 删除为行逻辑删 + 对象物理删（管理页治理语义：真正回收空间）；被引用文件删除属管理员治理职责（泛化资源无引用约束，§1.3 设计取舍）。
 
 ---
 
@@ -275,7 +280,7 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 | 1000018022 | `FILE_EMPTY` | 空文件 |
 | 1000018023 | `FILE_SIZE_EXCEEDED` | 超过模块 20MB 上限 |
 | 1000018024 | `FILE_TYPE_NOT_ALLOWED` | 类型不在白名单或文件头不一致 |
-| 1000018025 | `FILE_UPLOAD_FAILED` | 上传失败（含 MinIO 不可用） |
+| 1000018025 | `FILE_UPLOAD_FAILED` | 上传失败（含对象存储不可用） |
 | 1000018026 | `FILE_DOWNLOAD_FAILED` | 下载失败 |
 | 1000018027 | `FILE_ACCESS_URL_FAILED` | presigned URL 签发失败 |
 | 1000018028 | `FILE_DELETE_FAILED` | 删除失败 |
@@ -288,7 +293,7 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 
 ### 7.1 DDL 执行
 
-按 runbook §9：备份 → 执行 `V20261004180000__file_management.sql` → 核对回滚方案 → 发应用。新列可空，DDL 可先行于应用（兼容窗口）。
+按 runbook §10：备份 → 执行 `V20261004180000__file_management.sql` → 核对回滚方案 → 发应用。新列可空，DDL 可先行于应用（兼容窗口）。
 
 ### 7.2 本地存量文件回填（应用启动，幂等）
 
@@ -296,9 +301,9 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 FileResourceBackfillRunner（ApplicationRunner，事务外逐行）：
   SELECT bug_attachment WHERE file_resource_id IS NULL AND is_deleted = FALSE AND storage_path 非空
   → 逐行：本地文件存在？
-      是 → SDK 上传 MinIO → INSERT file_resource → UPDATE bug_attachment.file_resource_id
+      是 → SDK 上传对象存储 → INSERT file_resource → UPDATE bug_attachment.file_resource_id
       否 → 记 WARN 跳过（文件已丢失，管理页可见该行仍指向 NULL，走本地兼容下载报 FILE_NOT_FOUND）
-  → MinIO 不可达 → 整体本轮跳过 + WARN，下次启动重试（回填完成前下载/删除走本地兼容路径）
+  → 对象存储不可达 → 整体本轮跳过 + WARN，下次启动重试（回填完成前下载/删除走本地兼容路径）
 ```
 
 - 幂等：以 `file_resource_id IS NULL` 为唯一驱动，重复执行无副作用；
@@ -308,7 +313,7 @@ FileResourceBackfillRunner（ApplicationRunner，事务外逐行）：
 
 | 项 | 方案 |
 | ---- | ---- |
-| 回滚 | 应用回退上一版本即可：旧代码只读 `storage_path`，本地文件在回填期间**不删除**（删除动作在回填后才可能触发 MinIO 侧删除）；`file_resource` 表与新列保留，无破坏性 |
+| 回滚 | 应用回退上一版本即可：旧代码只读 `storage_path`，本地文件在回填期间**不删除**（删除动作在回填后才可能触发对象侧删除）；`file_resource` 表与新列保留，无破坏性 |
 | 部署顺序 | DDL → 应用；回滚时应用 →（可选）不回滚 DDL（列可空无副作用） |
 | 锁影响 | `ALTER TABLE … ADD COLUMN`（空表/小表秒级，无长事务风险）、`CREATE INDEX` 非 CONCURRENTLY（开发期数据量小；存量大表上线前按 §5 评估改 CONCURRENTLY） |
 | 租户隔离 | 泛化资源本体无租户字段（设计取舍 §5.1），管理页 `global` scope；索引/逻辑删除检查见 §2 |
@@ -323,12 +328,14 @@ FileResourceBackfillRunner（ApplicationRunner，事务外逐行）：
 | ---- | ---- | ---- | ---- | ---- |
 | `postgres` | `pgvector/pgvector:pg14` | `5433 → 5432` | `pgdata` | 初始化挂 `schema.sql`（空卷首启自动建基线）；健康检查 `pg_isready` |
 | `redis` | `redis:7-alpine` | `6380 → 6379` | `redisdata` | 会话与 WS 分布式；健康检查 `redis-cli ping` |
-| `minio` | `minio/minio:<固定 RELEASE 标签>` | `9000 → 9000`（API）、`9001 → 9001`（控制台） | `miniodata` | 凭据经根 `.env`；健康检查 `/minio/health/live` |
-| `server` | `build ./server`（多阶段） | `58080 → 58080` | — | `SPRING_PROFILES_ACTIVE=prod`，数据源/Redis/MinIO/密钥全量环境变量注入；`depends_on` 健康服务 |
+| `seaweed` | `chrislusf/seaweedfs:<固定版本>` | `9000 → 9000`（S3 API）、`9001 → 8888`（filer 控制台） | `weeddata` | `server -s3` 单进程（master/volume/filer/S3 网关）；凭据经根 `.env` 的 `S3_*` 以 `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` 注入；健康检查 master `:9333/cluster/status` |
+| `server` | `build ./server`（多阶段） | `58080 → 58080` | — | `SPRING_PROFILES_ACTIVE=prod`，数据源/Redis/S3/密钥全量环境变量注入；`depends_on` 健康服务 |
 | `web` | `build ./web`（多阶段） | `8081 → 80` | — | nginx 托管 dist + 反代 `server:58080` |
 
 - 宿主端口刻意避开本地开发占用（本地 PG 5432 / Redis 6379），`server` 沿用 58080 与 `web/vite.config.ts` 代理一致，支持「compose 中间件 + 本地前端」混合调试。
 - **Redis 为必选服务**：应用强依赖（`spring.data.redis`），不含则 server 无法启动。
+- **存储引擎与镜像来源**：MinIO 社区版已停止维护、官方镜像不可获取；SeaweedFS 新官方命名空间（`seaweedfs/seaweedfs`）在 Docker Hub 尚未就绪，
+  故固定其官方发布仓库 `chrislusf/seaweedfs` 的版本标签（二者内容同源），不使用 `latest` 漂移标签。
 
 ### 8.2 构建与配置
 
@@ -338,7 +345,7 @@ FileResourceBackfillRunner（ApplicationRunner，事务外逐行）：
 | `server/Dockerfile` | 多阶段：`maven` 构建（`-DskipTests -Pprod`）→ `eclipse-temurin:21-jre` 运行 |
 | `web/Dockerfile` | 多阶段：`node` + pnpm 构建 dist → `nginx` 托管 |
 | `docker/web/nginx.conf` | 以 `scripts/nginx.conf.example` 为基线（日志脱敏 map、WS Upgrade、SPA 回退），补：`client_max_body_size 21m`、`/api/` 段 `proxy_buffering off`（SSE 流式）、upstream 指 `server:58080` |
-| `.env.example`（仓库根） | compose 环境变量模板（数据源、Redis、MinIO 凭据、`ENV_SECRET_KEY` / `JWT_SECRET_KEY` / `PASSWORD_SECRET`），复制为 `.env` 使用；真实凭据禁止入库 |
+| `.env.example`（仓库根） | compose 环境变量模板（数据源、Redis、S3 凭据、`ENV_SECRET_KEY` / `JWT_SECRET_KEY` / `PASSWORD_SECRET`），复制为 `.env` 使用；真实凭据禁止入库 |
 | `server/.dockerignore`、`web/.dockerignore` | 排除 `target/`、`node_modules/`、`.git` 等构建噪音 |
 
 ### 8.3 使用与文档同步
@@ -349,7 +356,7 @@ docker compose up -d --build
 # 首启：postgres 空卷自动执行 schema.sql；server 起动后懒确保 bucket 并回填存量附件
 ```
 
-- runbook（`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`）增补「compose 发行」小节；根 `AGENTS.md` 环境命令同步。
+- runbook（`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`）设「docker compose 全家桶」小节；根 `AGENTS.md` 环境命令同步。
 
 ---
 
@@ -377,4 +384,5 @@ docker compose up -d --build
 | ---- | ---- | ---- | ---- |
 | V1.0 | 2026-10-04 | 随 WP-2.0 补建：泛化附件资源与 MinIO 存储、缺陷附件迁移、文件管理页、docker-compose 全家桶 | AI |
 | V1.0 | 2026-10-04 | 编码前探查修正：`storage_path` 放宽可空（历史列不再写入）、presigned 补 `public-endpoint`（签名地址须浏览器可达）、缺陷附件删除保持既有语义（对象保留供审计，孤儿由管理页治理）与校验分工（缺陷侧错误码契约不变） | AI |
-| V1.0 | 2026-10-05 | 交互补：文件管理页增加「复制临时链接」（presigned 换签写剪贴板），承接「访问 URL 走通」验收入口 | AI |
+| V1.0 | 2026-10-05 | 交互补：文件管理页增加「复制临时链接」（presigned 换签写剪贴板），承接「访问 URL 走通」验收入口 |
+| V1.0 | 2026-10-05 | 存储引擎定标 MinIO → SeaweedFS：§3 引擎与配置中性化（`robotest.s3.*` / `S3_*`、默认凭据 `robotest`、实现类改名 `S3StorageService`，SDK 与调用逻辑不变）、§8.1 服务/镜像/端口定标（`chrislusf/seaweedfs:<固定版本>`，9001 映射 filer 控制台 8888）、runbook 章节顺延联动（§9 → §10） | AI |
