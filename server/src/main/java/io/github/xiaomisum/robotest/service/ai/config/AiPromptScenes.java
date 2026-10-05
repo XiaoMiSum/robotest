@@ -24,6 +24,10 @@ public final class AiPromptScenes {
 
     static {
         Map<String, PromptScene> scenes = new LinkedHashMap<>();
+        register(scenes, new PromptScene("requirement_import", "需求导入", List.of(
+                new PromptVariable("documentName", "来源文档文件名", true),
+                new PromptVariable("documentText", "文档文本正文（图片多模态导入时为空）", true),
+                new PromptVariable("moduleOptions", "候选模块清单", true))));
         register(scenes, new PromptScene("requirement_split", "需求拆分", List.of(
                 new PromptVariable("requirementCode", "需求编号", true),
                 new PromptVariable("requirementTitle", "需求标题", true),

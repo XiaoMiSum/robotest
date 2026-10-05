@@ -68,6 +68,7 @@ class RequirementAdoptServiceImplTest {
     private static final UUID SOURCE_ID = UUID.randomUUID();
     private static final UUID RECORD_ID = UUID.randomUUID();
     private static final UUID MODULE_ID = UUID.randomUUID();
+    private static final UUID FILE_ID = UUID.randomUUID();
     private static final UUID CREATED_ID = UUID.randomUUID();
 
     @Mock
@@ -326,6 +327,127 @@ class RequirementAdoptServiceImplTest {
 
         verify(requirementMapper, never()).update(isNull(), any());
         verifyNoInteractions(changeLogMapper);
+    }
+
+    // ---------- 3.8 导入采纳 ----------
+
+    private AiTask importTask(List<Map<String, Object>> artifacts, Map<String, Object> documentMeta) {
+        AiTask task = new AiTask();
+        task.setId(TASK_ID);
+        task.setType("requirement_import");
+        task.setProjectId(PROJECT_ID);
+        task.setInput(Map.of("fileId", FILE_ID.toString()));
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (documentMeta != null) {
+            result.put("documentMeta", documentMeta);
+        }
+        result.put("artifacts", artifacts);
+        task.setResult(result);
+        task.setStatus("succeeded");
+        return task;
+    }
+
+    private AiTask importTask(List<Map<String, Object>> artifacts) {
+        return importTask(artifacts,
+                Map.of("detectedVersion", "V3.0", "versionEvidence", "文档版本为 V3.0"));
+    }
+
+    private RequirementSplitRecord importRecord() {
+        RequirementSplitRecord record = new RequirementSplitRecord();
+        record.setId(RECORD_ID);
+        record.setProjectId(PROJECT_ID);
+        record.setSourceType("document");
+        record.setSourceFileId(FILE_ID);
+        record.setAiTaskId(TASK_ID);
+        record.setStatus("pending");
+        return record;
+    }
+
+    @Test
+    void adopt_importTask_writesImportSourceAndDetectsVersion() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, "high")));
+        Map<String, Object> art = artifact("item-1", "建议一", null, "high");
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        stubAllocator();
+
+        AdoptOutcome outcome = service.adopt(ctx(task, art, "adopted", null, null));
+
+        assertNotNull(outcome.createdId());
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(codeAllocator).insertWithCodeAllocation(eq(PROJECT_ID), captor.capture());
+        Requirement saved = captor.getValue();
+        assertEquals("import", saved.getSource());
+        assertEquals(FILE_ID, saved.getSourceFileId());
+        assertEquals("V3.0", saved.getSystemVersion()); // documentMeta.detectedVersion 回退（4.5）
+        assertEquals("confirmed", saved.getStatus());
+        // 导入无原条目：不归档、不写变更日志
+        verify(requirementMapper, never()).update(isNull(), any());
+        verifyNoInteractions(changeLogMapper);
+        ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
+        assertTrue(wrapperContains(wrapperCaptor.getValue(), "adopted"));
+    }
+
+    @Test
+    void adopt_importTask_targetVersionOverridesDetectedVersion() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
+        Map<String, Object> art = artifact("item-1", "建议一", null, null);
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        stubAllocator();
+
+        service.adopt(ctx(task, art, "adopted", null, "V9"));
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(codeAllocator).insertWithCodeAllocation(any(), captor.capture());
+        assertEquals("V9", captor.getValue().getSystemVersion()); // 确认面板值优先
+    }
+
+    @Test
+    void adopt_importTask_targetBlank_clearsDetectedVersion() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
+        Map<String, Object> art = artifact("item-1", "建议一", null, null);
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        stubAllocator();
+
+        service.adopt(ctx(task, art, "adopted", null, "  "));
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(codeAllocator).insertWithCodeAllocation(any(), captor.capture());
+        assertNull(captor.getValue().getSystemVersion()); // 空白为显式清空
+    }
+
+    @Test
+    void adopt_importTaskWithoutDocumentMeta_leavesVersionEmpty() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)), null);
+        Map<String, Object> art = artifact("item-1", "建议一", null, null);
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        stubAllocator();
+
+        service.adopt(ctx(task, art, "adopted", null, null));
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(codeAllocator).insertWithCodeAllocation(any(), captor.capture());
+        assertNull(captor.getValue().getSystemVersion()); // 识别不到留空待手工补录（3.8）
+    }
+
+    @Test
+    void adopt_importRecordMissing_createsDocumentRecord() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
+        Map<String, Object> art = artifact("item-1", "建议一", null, null);
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of());
+        when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of());
+        stubAllocator();
+
+        service.adopt(ctx(task, art, "adopted", null, null));
+
+        ArgumentCaptor<RequirementSplitRecord> recordCaptor = ArgumentCaptor.forClass(RequirementSplitRecord.class);
+        verify(splitRecordMapper).insert(recordCaptor.capture());
+        RequirementSplitRecord saved = recordCaptor.getValue();
+        assertEquals("document", saved.getSourceType());
+        assertEquals(FILE_ID, saved.getSourceFileId());
+        assertEquals(TASK_ID, saved.getAiTaskId());
+        assertEquals("adopted", saved.getStatus());
+        verify(splitRecordMapper, never()).update(isNull(), any());
     }
 
     // ---------- 记录定位 ----------
