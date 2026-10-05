@@ -4754,6 +4754,9 @@ export interface components {
             moduleId?: string;
             position?: string;
             systemVersion?: string;
+            createParams?: {
+                [key: string]: unknown;
+            };
         };
         AiTaskConfirmRespDTO: {
             results?: components["schemas"]["ItemResult"][];
