@@ -138,9 +138,42 @@ bash scripts/deploy-merged.sh
 - 不得将合并部署标记为生产可发布能力；
 - 不得把 `mvn package -Pmerged` 视为有效构建约束。
 
-## 7. 环境变量
+## 7. docker compose 全家桶
 
-### 7.1 本地后端环境文件
+一键启动全部中间件与前后端，用于演示、验收与一体化发行；服务拓扑与配置细节见 `docs/04-detailed-design/08-file-management/02-file-management.md` §8。
+
+### 7.1 启动与入口
+
+```bash
+cp .env.example .env    # 首次执行：生成本地环境，按需修改密钥与端口；真实凭据禁止入库
+docker compose up -d --build
+```
+
+- 管理端：`http://localhost:8081`（nginx 托管前端静态资源并反代 `/api`、`/ws` 至 `server:58080`）；
+- 后端 API 亦可直连 `http://localhost:58080`。
+
+### 7.2 服务与端口
+
+| 服务 | 宿主端口 | 说明 |
+| --- | --- | --- |
+| `postgres` | `5433` | 空卷首启自动执行 `schema.sql`；健康检查 `pg_isready` |
+| `redis` | `6380` | `requirepass`，会话与 WS 分布式 |
+| `seaweed` | `9000` / `9001` | `9000` = S3 API（应用访问与 presigned 地址）；`9001` = filer 控制台（对象浏览） |
+| `server` | `58080` | `SPRING_PROFILES_ACTIVE=prod`，数据源 / Redis / S3 / 密钥全量环境变量注入，依赖上述服务健康 |
+| `web` | `8081` | nginx：前端静态 + `/api`、`/ws` 反代 |
+
+宿主端口刻意避开本地开发占用（本机 PG `5432` / Redis `6379`），支持「compose 中间件 + 本地前后端」混合调试（本地 server 连 `localhost:5433` / `6380` / `9000`）。
+
+### 7.3 首启初始化与回填
+
+- 数据库：空卷首启由 Postgres 挂载执行 `server/src/main/resources/db/schema.sql`；存量库增量 SQL 按 §10 手工执行；
+- 对象桶：`robotest` 桶由 server 首次存储操作懒创建（S3 CreateBucket），无需手工建桶；
+- 存量附件回填：server 启动时幂等回填 `bug_attachment` 存量行（文件管理详设 7.2），无存量则无待办；
+- 对象存储镜像来源：MinIO 社区版已停止维护、官方镜像不可获取，采用 SeaweedFS 官方发布仓库 `chrislusf/seaweedfs` 固定版本标签（文件管理详设 8.1）。
+
+## 8. 环境变量
+
+### 8.1 本地后端环境文件
 
 后端本地环境文件为：
 
@@ -161,7 +194,7 @@ cd server
 SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev
 ```
 
-### 7.2 关键变量
+### 8.2 关键变量
 
 ```text
 SPRING_PROFILES_ACTIVE
@@ -189,7 +222,7 @@ JWT_SECRET_KEY
 PASSWORD_SECRET
 ```
 
-### 7.3 测试与生产环境
+### 8.3 测试与生产环境
 
 生产环境必须设置：
 
@@ -209,9 +242,9 @@ web/.env.production
 
 test/prod 的后端配置优先通过部署环境变量或密钥管理服务注入，不依赖本地 `.env` 或仓库中新增未验证的 profile 文件。
 
-## 8. Nginx 参考配置
+## 9. Nginx 参考配置
 
-### 8.1 API 和 SSE
+### 9.1 API 和 SSE
 
 ```nginx
 location /api/ {
@@ -224,7 +257,7 @@ location /api/ {
 
 SSE 接口必须关闭代理缓冲，并配置足够的读取超时。
 
-### 8.2 WebSocket
+### 9.2 WebSocket
 
 ```nginx
 location /ws/ {
@@ -245,7 +278,7 @@ location /ws/ {
 - 安全响应头；
 - 连接和业务 Token 日志脱敏。
 
-## 9. 数据库发布
+## 10. 数据库发布
 
 当前只有：
 
@@ -264,7 +297,7 @@ server/src/main/resources/db/schema.sql
 5. 发布应用；
 6. 验证核心表和权限。
 
-## 10. 发布前检查
+## 11. 发布前检查
 
 ```bash
 # 文档和契约检查
@@ -290,7 +323,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 - [ ] 合并部署 profile 状态已确认；
 - [ ] SSE 和 WebSocket 代理已验证。
 
-## 11. 发布后 smoke test
+## 12. 发布后 smoke test
 
 ```text
 1. GET /api/health
@@ -307,7 +340,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 
 接口路径、认证方式和业务断言以当前 OpenAPI 和对应业务设计为准。
 
-## 12. 故障排查
+## 13. 故障排查
 
 | 现象 | 优先检查 |
 | --- | --- |
@@ -320,7 +353,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 | 附件上传 413 | Nginx `client_max_body_size`、后端上传限制 |
 | 合并部署 404 | `static/index.html`、SPA fallback、`/api` 和 `/ws` 排除 |
 
-## 13. 已知限制
+## 14. 已知限制
 
 - `merged` Maven profile 尚未建立；
 - 版本化数据库迁移尚未建立；
@@ -328,7 +361,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 - 端口和脚本注释仍需持续与配置同步；
 - SQL 日志配置仍需单独整改。
 
-## 14. 参考
+## 15. 参考
 
 - 通用部署规范：`docs/00-spec/30-quality-delivery/03-deploy.md`
 - 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
@@ -336,6 +369,14 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 - 数据库：`docs/00-spec/20-contracts/02-database.md`
 - 通用实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
 - 项目脚本：`scripts/`
+
+---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-05 | 首次修改补建本表；新增「docker compose 全家桶」小节，原 7–14 章顺延为 8–15 |
 
 ---
 

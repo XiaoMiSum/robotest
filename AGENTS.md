@@ -36,6 +36,10 @@ cd server && SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run -Pdev
 
 # 一键启动（同时前后端）
 bash scripts/dev.sh
+
+# docker compose 全家桶（PG + Redis + SeaweedFS + server + web）
+cp .env.example .env            # 首次执行：生成本地环境，凭据禁止入库
+docker compose up -d --build    # 管理端 http://localhost:8081（端口表见 runbook §7）
 ```
 
 ### 构建
