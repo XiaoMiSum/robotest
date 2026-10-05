@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.task;
 
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
+import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatRequest;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
@@ -51,8 +52,13 @@ public class TaskExecutionContext {
 
     /** 单次模型调用（自动短重试与用量记录由客户端负责） */
     public AiChatReply chat(String systemPrompt, String userPrompt) {
+        return chat(systemPrompt, userPrompt, null);
+    }
+
+    /** 多模态调用：媒体随 user 消息直传（如导入图片），media 为 null 时等同纯文本 */
+    public AiChatReply chat(String systemPrompt, String userPrompt, AiChatMedia media) {
         return modelClient.chat(new AiChatRequest(taskId, projectId, userId, promptScene, model,
-                systemPrompt, userPrompt));
+                systemPrompt, userPrompt, media));
     }
 
     /** 场景提示词：自定义行优先，回落 handler 内置默认（详设 3.5） */
