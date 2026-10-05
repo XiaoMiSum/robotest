@@ -37,7 +37,11 @@ import java.util.UUID;
 public class RequirementAdoptServiceImpl implements RequirementAdoptService, ArtifactAdopter {
 
     private static final String TYPE = "requirement_split";
+    private static final String TASK_TYPE_IMPORT = "requirement_import";
     private static final String SOURCE_TYPE_REQUIREMENT = "requirement";
+    private static final String SOURCE_TYPE_DOCUMENT = "document";
+    /** 需求条目 source 取值（2.2：manual / import / requirement）：导入采纳写 import */
+    private static final String SOURCE_IMPORT = "import";
     /** 拆解记录状态（详设 2.4）：pending / adopted / rejected */
     private static final String SPLIT_PENDING = "pending";
     private static final String SPLIT_ADOPTED = "adopted";
@@ -67,8 +71,9 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
         AiTask task = context.task();
-        UUID requirementId = parseRequirementId(task);
-        RequirementSplitRecord record = findOrCreateRecord(task, requirementId, context.projectId());
+        boolean importTask = TASK_TYPE_IMPORT.equals(task.getType());
+        UUID requirementId = importTask ? null : parseRequirementId(task);
+        RequirementSplitRecord record = findOrCreateRecord(task, requirementId, context.projectId(), importTask);
         Requirement source = loadSource(record, context.projectId());
 
         UUID createdId = null;
@@ -92,7 +97,15 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
     // ---------- 记录与来源定位 ----------
 
     private static UUID parseRequirementId(AiTask task) {
-        Object raw = task.getInput() == null ? null : task.getInput().get("requirementId");
+        return parseTaskUuid(task, "requirementId");
+    }
+
+    private static UUID parseFileId(AiTask task) {
+        return parseTaskUuid(task, "fileId");
+    }
+
+    private static UUID parseTaskUuid(AiTask task, String key) {
+        Object raw = task.getInput() == null ? null : task.getInput().get(key);
         if (raw == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
         }
@@ -104,13 +117,30 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
     }
 
     /**
-     * 定位拆解记录：任务行直查优先；任务重试产生新任务行而记录仍指原任务时按来源条目兜底
+     * 定位拆解记录：任务行直查优先；任务重试产生新任务行而记录仍指原任务时按来源兜底
      * （adopt 时回指当前任务）；直提任务资源（无记录）在采纳时补建档，保证 split-logs 可反查。
      */
-    private RequirementSplitRecord findOrCreateRecord(AiTask task, UUID requirementId, UUID projectId) {
+    private RequirementSplitRecord findOrCreateRecord(AiTask task, UUID requirementId, UUID projectId,
+            boolean importTask) {
         List<RequirementSplitRecord> byTask = splitRecordMapper.selectByAiTaskId(task.getId());
         if (!byTask.isEmpty()) {
             return byTask.get(0);
+        }
+        if (importTask) {
+            // 导入记录提交路径必建；重试换行 / 直提时按项目内同源文件的待确认记录兜底（3.8）
+            UUID fileId = parseFileId(task);
+            for (RequirementSplitRecord candidate : splitRecordMapper.selectPendingImportByProject(projectId)) {
+                if (fileId.equals(candidate.getSourceFileId())) {
+                    return candidate;
+                }
+            }
+            RequirementSplitRecord fresh = new RequirementSplitRecord();
+            fresh.setProjectId(projectId);
+            fresh.setSourceType(SOURCE_TYPE_DOCUMENT);
+            fresh.setSourceFileId(fileId);
+            fresh.setAiTaskId(task.getId());
+            fresh.setStatus(SPLIT_PENDING);
+            return fresh;
         }
         List<RequirementSplitRecord> bySource = splitRecordMapper.selectPendingSplitBySource(requirementId);
         if (!bySource.isEmpty()) {
@@ -158,7 +188,9 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
         item.setSystemVersion(resolveSystemVersion(context, source));
         item.setStatus(Constants.RequirementStatus.CONFIRMED);
         item.setConfirmedAt(LocalDateTime.now());
-        item.setSource(record.getSourceType());
+        // 需求来源（2.2）：导入写 import，拆分沿用记录来源 requirement
+        item.setSource(TASK_TYPE_IMPORT.equals(context.task().getType())
+                ? SOURCE_IMPORT : record.getSourceType());
         item.setSourceFileId(record.getSourceFileId());
         codeAllocator.insertWithCodeAllocation(context.projectId(), item);
         return item;
@@ -209,12 +241,12 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
 
     /**
      * 系统版本（4.5）：确认面板值优先，空白为显式清空；未设置时拆分继承原条目，
-     * 导入回退 documentMeta.detectedVersion（导入承接接入时补），两者皆无留空。
+     * 导入回退任务 documentMeta.detectedVersion（缺失或超长留空待手工补录），两者皆无留空。
      */
     private static String resolveSystemVersion(AdoptContext context, Requirement source) {
         String incoming = context.targetSystemVersion();
         if (incoming == null) {
-            return source == null ? null : source.getSystemVersion();
+            return source != null ? source.getSystemVersion() : detectedVersion(context.task());
         }
         String version = incoming.trim();
         if (version.isEmpty()) {
@@ -224,6 +256,20 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService, Art
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_ATTRIBUTE_INVALID);
         }
         return version;
+    }
+
+    /** 文档级识别结果（3.8 documentMeta）：与导入侧清洗同口径，不可信值一律 null */
+    private static String detectedVersion(AiTask task) {
+        if (task == null || task.getResult() == null
+                || !(task.getResult().get("documentMeta") instanceof Map<?, ?> meta)) {
+            return null;
+        }
+        String version = asString(meta.get("detectedVersion"));
+        if (version == null) {
+            return null;
+        }
+        version = version.trim();
+        return version.isEmpty() || version.length() > SYSTEM_VERSION_MAX_LENGTH ? null : version;
     }
 
     // ---------- 拆解记录回写与归档 ----------

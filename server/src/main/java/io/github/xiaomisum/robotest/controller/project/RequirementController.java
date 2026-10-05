@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
@@ -117,6 +118,16 @@ public class RequirementController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
         return Result.ok(requirementService.split(id, loginUser.getActiveProjectId(), loginUser.getId()));
+    }
+
+    /** 导入需求文档（3.8）：multipart 提交即返回任务入口，进度与产物确认走 AI 任务资源 */
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('requirement:create')")
+    public Result<RequirementSplitSubmitRespDTO> importRequirements(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam("file") MultipartFile file) {
+        return Result.ok(requirementService.importDocument(file, loginUser.getActiveProjectId(),
+                loginUser.getId()));
     }
 
     @GetMapping("/{id}/change-logs")

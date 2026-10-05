@@ -14,17 +14,13 @@ import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.common.util.JsonUtils;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * 条目内拆分任务处理器（详设 3.9 / 4.2）：读取原需求与模块树 → 渲染提示词 → 调模型 → 产物为
@@ -34,7 +30,6 @@ import java.util.stream.Collectors;
 public class RequirementSplitHandler implements TaskHandler {
 
     private static final String TYPE = "requirement_split";
-    private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
 
     private static final String SYSTEM_PROMPT = "你是严谨的需求分析助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
 
@@ -104,20 +99,21 @@ public class RequirementSplitHandler implements TaskHandler {
         variables.put("requirementCode", nvl(item.getCode()));
         variables.put("requirementTitle", nvl(item.getTitle()));
         variables.put("requirementDescription", nvl(item.getDescription()));
-        variables.put("moduleOptions", moduleOptions(modules));
+        variables.put("moduleOptions", RequirementSuggestionParser.moduleOptions(modules));
         String userPrompt = context.prompt(DEFAULT_PROMPT, variables);
 
         context.report(50, "模型生成拆分建议");
         AiChatReply reply = context.chat(SYSTEM_PROMPT, userPrompt);
 
         context.report(85, "解析拆分建议");
-        List<Map<String, Object>> artifacts = sanitize(parse(reply.content()), modules);
+        Map<String, Object> parsed = RequirementSuggestionParser.parseJsonObject(reply.content());
+        List<Map<String, Object>> artifacts = RequirementSuggestionParser.sanitizeArtifacts(parsed, modules);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("artifacts", artifacts);
         return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
     }
 
-    // ---------- 输入解析与产物清洗 ----------
+    // ---------- 输入解析 ----------
 
     private static UUID parseRequirementId(Map<String, Object> input) {
         Object raw = input == null ? null : input.get("requirementId");
@@ -129,122 +125,6 @@ public class RequirementSplitHandler implements TaskHandler {
         } catch (IllegalArgumentException e) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
         }
-    }
-
-    /** 解析模型输出：容忍 ```json 代码栅栏；不可解析按模型调用失败（1000018117）落任务失败态 */
-    private static List<?> parse(String content) {
-        String text = stripCodeFence(content);
-        Map<String, Object> parsed;
-        try {
-            parsed = JsonUtils.parseObject(text, Map.class);
-        } catch (Exception e) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
-                    "模型输出无法解析为 JSON");
-        }
-        if (parsed == null || !(parsed.get("artifacts") instanceof List<?> list)) {
-            return List.of();
-        }
-        return list;
-    }
-
-    private static String stripCodeFence(String text) {
-        if (text == null) {
-            return null;
-        }
-        String trimmed = text.trim();
-        if (!trimmed.startsWith("```")) {
-            return trimmed;
-        }
-        int firstLineEnd = trimmed.indexOf('\n');
-        if (firstLineEnd < 0) {
-            return trimmed;
-        }
-        String body = trimmed.substring(firstLineEnd + 1);
-        int closing = body.lastIndexOf("```");
-        if (closing >= 0) {
-            body = body.substring(0, closing);
-        }
-        return body.trim();
-    }
-
-    /**
-     * 产物清洗：标题缺失（空白）的建议直接丢弃；moduleId 必须是项目内模块否则置 null；
-     * priority 非法置 null。key 统一定序为 item-N，保证确认引用稳定。
-     */
-    private static List<Map<String, Object>> sanitize(List<?> rawArtifacts, List<ProjectModule> modules) {
-        Set<UUID> moduleIds = modules.stream().map(ProjectModule::getId).collect(Collectors.toSet());
-        List<Map<String, Object>> artifacts = new ArrayList<>();
-        int seq = 0;
-        for (Object element : rawArtifacts) {
-            if (!(element instanceof Map<?, ?> raw)) {
-                continue;
-            }
-            Map<String, Object> content = new LinkedHashMap<>();
-            if (raw.get("content") instanceof Map<?, ?> rawContent) {
-                rawContent.forEach((k, v) -> content.put(String.valueOf(k), v));
-            } else {
-                // 容忍扁平结构（模型未按 content 包裹）：直接取顶层字段
-                raw.forEach((k, v) -> content.put(String.valueOf(k), v));
-            }
-            String title = asString(content.get("title"));
-            if (title == null || title.isBlank()) {
-                continue;
-            }
-            content.put("title", title.trim());
-            String description = asString(content.get("description"));
-            content.put("description", description == null || description.isBlank() ? null : description);
-            content.put("moduleId", normalizeModuleId(content.get("moduleId"), moduleIds));
-            content.put("priority", normalizePriority(content.get("priority")));
-
-            Map<String, Object> artifact = new LinkedHashMap<>();
-            seq++;
-            artifact.put("key", "item-" + seq);
-            artifact.put("kind", "requirement_suggestion");
-            artifact.put("title", content.get("title"));
-            artifact.put("content", content);
-            String sourceRef = asString(raw.get("sourceRef"));
-            if (sourceRef != null && !sourceRef.isBlank()) {
-                artifact.put("sourceRef", sourceRef.trim());
-            }
-            artifacts.add(artifact);
-        }
-        return artifacts;
-    }
-
-    private static Object normalizeModuleId(Object raw, Set<UUID> moduleIds) {
-        String value = asString(raw);
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            UUID id = UUID.fromString(value.trim());
-            return moduleIds.contains(id) ? id.toString() : null;
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private static String normalizePriority(Object raw) {
-        String value = asString(raw);
-        return value != null && PRIORITIES.contains(value.trim()) ? value.trim() : null;
-    }
-
-    private static String moduleOptions(List<ProjectModule> modules) {
-        if (modules.isEmpty()) {
-            return "（当前项目暂无模块，moduleId 一律为 null）";
-        }
-        StringBuilder builder = new StringBuilder();
-        for (ProjectModule module : modules) {
-            if (builder.length() > 0) {
-                builder.append('\n');
-            }
-            builder.append(module.getId()).append('|').append(module.getName());
-        }
-        return builder.toString();
-    }
-
-    private static String asString(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 
     private static String nvl(String value) {

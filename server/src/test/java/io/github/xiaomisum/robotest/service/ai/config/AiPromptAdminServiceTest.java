@@ -183,11 +183,20 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        assertEquals(1, list.size());
-        assertEquals("custom", list.get(0).getSource());
-        assertEquals("需求拆分", list.get(0).getName());
-        assertNull(list.get(0).getUpdatedByName());
-        assertTrue(list.get(0).getSummary().contains("基于"));
+        // 登记场景含 requirement_import 与 requirement_split 两个，自定义行只覆盖后者
+        assertEquals(2, list.size());
+        AiPromptListItemRespDTO splitItem = list.stream()
+                .filter(item -> "requirement_split".equals(item.getScene()))
+                .findFirst().orElseThrow();
+        assertEquals("custom", splitItem.getSource());
+        assertEquals("需求拆分", splitItem.getName());
+        assertNull(splitItem.getUpdatedByName());
+        assertTrue(splitItem.getSummary().contains("基于"));
+        AiPromptListItemRespDTO importItem = list.stream()
+                .filter(item -> "requirement_import".equals(item.getScene()))
+                .findFirst().orElseThrow();
+        assertEquals("default", importItem.getSource());
+        assertEquals("需求导入", importItem.getName());
     }
 
     @Test
@@ -196,8 +205,11 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        assertEquals(1, list.size());
-        assertEquals("default", list.get(0).getSource());
-        assertNull(list.get(0).getUpdatedAt());
+        assertEquals(2, list.size());
+        AiPromptListItemRespDTO splitItem = list.stream()
+                .filter(item -> "requirement_split".equals(item.getScene()))
+                .findFirst().orElseThrow();
+        assertEquals("default", splitItem.getSource());
+        assertNull(splitItem.getUpdatedAt());
     }
 }
