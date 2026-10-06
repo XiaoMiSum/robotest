@@ -81,6 +81,10 @@ export interface AiArtifactConfirmItem {
 /** 确认面板落库目标（systemVersion null=未设置回退、空白串=显式清空，详设 4.5） */
 export interface AiArtifactConfirmTarget {
   systemVersion?: string
+  moduleId?: string
+  position?: string
+  /** 既有评审 / 计划创建请求整包（圈选确认承接，生成链详设 3.6） */
+  createParams?: Record<string, unknown>
 }
 
 export interface AiArtifactConfirmPayload {
@@ -100,4 +104,32 @@ export interface AiArtifactConfirmResult {
 
 export interface AiArtifactConfirmReceipt {
   results: AiArtifactConfirmResult[]
+}
+
+// ==================== 生成链（生成链详设 3.2 / 3.6） ====================
+
+/** 目标模块落位：新建顶级目录（默认）/ 挂到既有模块节点（须带 targetModuleId） */
+export type AiGenerationPlacement = 'new_top_level' | 'attach'
+
+/** 用例粒度偏好（默认 standard） */
+export type AiGenerationGranularity = 'concise' | 'standard' | 'detailed'
+
+export interface AiGenerationConfig {
+  placement: AiGenerationPlacement
+  targetModuleId?: string
+  granularity: AiGenerationGranularity
+}
+
+/** 发起对话框的生成范围条目（列表行 / 详情条目归一） */
+export interface AiGenerationScopeItem {
+  id: string
+  code: string
+  title: string
+  status: string
+}
+
+/** 圈选发起配置：计划按轮次分组，评审为单轮（生成链详设 3.1 输入裁决） */
+export interface AiSelectionConfig {
+  requirementIds: string[]
+  roundCount?: number
 }

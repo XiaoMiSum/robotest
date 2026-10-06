@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
+import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
+import type { AiGenerationScopeItem } from '@/types'
 import {
   requirementChangeLines,
   requirementChangeTypeLabel,
@@ -56,9 +58,27 @@ const {
   aiAvailable,
   splitting,
   canSplit,
+  canLaunchGeneration,
   handleSplit,
+  load,
   retry,
 } = useRequirementDetail()
+
+// ==================== AI 生成发起 ====================
+const generationDialogVisible = ref(false)
+
+const generationScope = computed<AiGenerationScopeItem[]>(() =>
+  detail.value
+    ? [
+        {
+          id: detail.value.id,
+          code: detail.value.code,
+          title: detail.value.title,
+          status: detail.value.status,
+        },
+      ]
+    : [],
+)
 
 const statusMeta = computed(() =>
   detail.value ? requirementStatusMeta(detail.value.status) : null,
@@ -185,6 +205,18 @@ function openTrace(): void {
                   <el-button :disabled="!canSplit || splitting" :loading="splitting" @click="handleSplit">
                     AI 拆分
                   </el-button>
+                </span>
+              </el-tooltip>
+              <el-tooltip
+                v-if="canLaunchGeneration"
+                :content="detail.status === 'confirmed' ? '基于该需求生成测试设计' : '仅已确认需求可生成'"
+                placement="bottom"
+              >
+                <span>
+                  <el-button
+                    :disabled="detail.status !== 'confirmed'"
+                    @click="generationDialogVisible = true"
+                  >AI 生成测试设计</el-button>
                 </span>
               </el-tooltip>
             </div>
@@ -383,6 +415,13 @@ function openTrace(): void {
           </div>
         </template>
       </div>
+
+      <GenerationConfigDialog
+        v-model="generationDialogVisible"
+        :requirements="generationScope"
+        :module-tree="moduleTree"
+        @stale="load"
+      />
     </template>
   </div>
 </template>
