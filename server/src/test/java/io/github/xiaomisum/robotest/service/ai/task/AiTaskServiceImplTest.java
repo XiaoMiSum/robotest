@@ -320,6 +320,49 @@ class AiTaskServiceImplTest {
     }
 
     @Test
+    void detail_succeededWithDocumentMeta_attachesDetectedVersion() {
+        AiTask done = task("succeeded");
+        done.setResult(Map.of(
+                "documentMeta", Map.of("detectedVersion", "V2.3", "versionEvidence", "见第 2 章 V2.3"),
+                "artifacts", List.of()));
+        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
+
+        AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
+
+        assertNotNull(resp.getDocumentMeta());
+        assertEquals("V2.3", resp.getDocumentMeta().getDetectedVersion());
+        assertEquals("见第 2 章 V2.3", resp.getDocumentMeta().getVersionEvidence());
+    }
+
+    @Test
+    void detail_succeededWithoutDocumentMeta_returnsNullMeta() {
+        AiTask done = task("succeeded");
+        done.setResult(Map.of("artifacts", List.of()));
+        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
+
+        assertNull(service.getDetail(TASK_ID, loginUser).getDocumentMeta());
+    }
+
+    @Test
+    void detail_pending_returnsNullMeta() {
+        AiTask pending = task("pending");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(pending);
+
+        assertNull(service.getDetail(TASK_ID, loginUser).getDocumentMeta());
+    }
+
+    @Test
+    void page_listItem_neverCarriesDocumentMeta() {
+        AiTask done = task("succeeded");
+        done.setResult(Map.of("documentMeta", Map.of("detectedVersion", "V2.3")));
+        AiTaskPageReqDTO pageReq = new AiTaskPageReqDTO();
+        when(taskMapper.findPage(pageReq, PROJECT_ID, USER_ID, null, null))
+                .thenReturn(new PageResult<>(List.of(done), 1L));
+
+        assertNull(service.page(pageReq, PROJECT_ID, USER_ID).getList().get(0).getDocumentMeta());
+    }
+
+    @Test
     void artifactDetail_found_returnsFullArtifact() {
         Map<String, Object> artifact = Map.of("key", "a1", "kind", "k", "content", Map.of("title", "T"));
         AiTask done = task("succeeded");
