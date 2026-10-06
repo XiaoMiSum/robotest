@@ -1,14 +1,26 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { AiArtifactConfirmTarget, AiArtifactSummary, ProjectModule } from '@/types'
+import { computed, ref, watch } from 'vue'
+import type {
+  AiArtifactConfirmTarget,
+  AiArtifactSummary,
+  AiTaskDocumentMeta,
+  ProjectModule,
+} from '@/types'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import { useAiArtifactReview } from '@/composables/project/ai/useAiArtifactReview'
+import {
+  importVersionEvidence,
+  importVersionHint,
+  importVersionPrefill,
+} from '@/composables/project/ai/taskPresentation'
 
 const props = defineProps<{
   taskId: string
   taskType: string
   artifacts: AiArtifactSummary[]
   canConfirm: boolean
+  /** 导入任务的文档级识别版本与依据（详设 3.6.3），其余任务为 null */
+  documentMeta?: AiTaskDocumentMeta | null
 }>()
 
 const emit = defineEmits<{ confirmed: []; leave: [] }>()
@@ -64,23 +76,34 @@ init()
 /**
  * 未触碰时不提交 target.systemVersion：null → 服务端回退（拆分继承原条目 / 导入回落识别值）；
  * 触碰后提交当前值，空白串为显式清空（采纳后留空待手工补录）。
+ * 导入任务以识别版本预填但不置 touched：未触碰仍不提交，服务端回退同值（交互 06 §2.4）。
  */
-const versionValue = ref('')
+const versionValue = ref(importVersionPrefill(props.documentMeta ?? null))
 const versionTouched = ref(false)
+
+// 识别版本随后到时补预填（缓存详情先渲染的场景），用户已改过则不覆盖
+watch(
+  () => props.documentMeta,
+  (meta) => {
+    if (!versionTouched.value) versionValue.value = importVersionPrefill(meta ?? null)
+  },
+)
 
 function onVersionInput(value: string): void {
   versionValue.value = value
   versionTouched.value = true
 }
 
-const versionHint = computed(() => {
-  if (!versionTouched.value) {
-    return props.taskType === 'requirement_import'
-      ? '留空按文档识别版本回填，可修改、可清空'
-      : '留空将继承原条目版本，可修改、可清空'
-  }
-  return versionValue.value.trim() ? '采纳时使用当前版本值' : '采纳后版本留空，可手工补录'
-})
+const versionHint = computed(() =>
+  importVersionHint({
+    taskType: props.taskType,
+    documentMeta: props.documentMeta ?? null,
+    touched: versionTouched.value,
+    value: versionValue.value,
+  }),
+)
+
+const versionEvidence = computed(() => importVersionEvidence(props.documentMeta ?? null))
 
 function targetVersion(): AiArtifactConfirmTarget | undefined {
   return versionTouched.value ? { systemVersion: versionValue.value } : undefined
@@ -185,7 +208,7 @@ const allRejected = computed(
           已处理 {{ processed.processed }} / 共 {{ processed.total }}
         </span>
       </div>
-      <!-- 系统版本：预填 / 回退语义见 versionHint；识别依据暂不下发时仅给操作提示 -->
+      <!-- 系统版本：导入预填识别版本并悬浮依据引语，未识别给补录提示（交互 06 §2.4） -->
       <div v-if="isRequirementDomain && canConfirm" class="artifact-review__version">
         <span class="artifact-review__version-label">版本</span>
         <el-input
@@ -197,6 +220,9 @@ const allRejected = computed(
           style="width: 220px"
           @update:model-value="onVersionInput"
         />
+        <el-tooltip v-if="versionEvidence" :content="versionEvidence" placement="top">
+          <span class="artifact-review__evidence">{{ versionEvidence }}</span>
+        </el-tooltip>
         <el-tooltip :content="versionHint" placement="top">
           <el-icon class="artifact-review__version-info"><InfoFilled /></el-icon>
         </el-tooltip>
@@ -453,6 +479,17 @@ const allRejected = computed(
 .artifact-review__version-info {
   color: var(--color-neutral-400);
   cursor: help;
+}
+
+/* 识别依据引语过长时截断展示，全文走悬浮提示 */
+.artifact-review__evidence {
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--color-neutral-500);
+  cursor: help;
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .artifact-review__hint {

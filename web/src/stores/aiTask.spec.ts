@@ -26,6 +26,7 @@ function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
     createdAt: '2026-10-03T00:00:00Z',
     error: null,
     result: null,
+    documentMeta: null,
     artifacts: null,
     ...overrides,
   }

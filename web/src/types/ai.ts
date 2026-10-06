@@ -56,9 +56,16 @@ export interface AiTaskItem {
   error: AiTaskError | null
 }
 
-/** 任务详情（succeeded 时附产物清单摘要；不返回 input / result 明细） */
+/** 文档级识别元数据（详设 3.6.3）：导入任务识别版本与依据引语，识别不到字段为 null */
+export interface AiTaskDocumentMeta {
+  detectedVersion: string | null
+  versionEvidence: string | null
+}
+
+/** 任务详情（succeeded 时附产物清单摘要与 documentMeta；不返回 input / result 明细） */
 export interface AiTaskDetail extends AiTaskItem {
   result: Record<string, unknown> | null
+  documentMeta: AiTaskDocumentMeta | null
   artifacts: AiArtifactSummary[] | null
 }
 

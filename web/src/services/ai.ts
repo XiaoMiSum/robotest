@@ -28,7 +28,7 @@ export function fetchAiTasks(params: AiTaskPageQuery): Promise<PageResult<AiTask
   return get('/ai/tasks', { ...params })
 }
 
-/** 任务详情（详设 3.6.3）：succeeded 时附产物清单摘要，不返回 input / result 明细 */
+/** 任务详情（详设 3.6.3）：succeeded 时附产物清单摘要与 documentMeta，不返回 input / result 明细 */
 export function fetchAiTask(taskId: string): Promise<AiTaskDetail> {
   return get(`/ai/tasks/${taskId}`)
 }
