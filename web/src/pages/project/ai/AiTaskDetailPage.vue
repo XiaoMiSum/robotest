@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { nextTick, watch } from 'vue'
+import { computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
 import AiArtifactReviewPanel from '@/components/project/ai/AiArtifactReviewPanel.vue'
 import GenerationArtifactTreeReview from '@/components/project/ai/GenerationArtifactTreeReview.vue'
+import SelectionReviewPanel from '@/components/project/ai/SelectionReviewPanel.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
 
 const route = useRoute()
@@ -28,11 +29,20 @@ const {
   canManageTask,
   canConfirm,
   canConfirmGeneration,
+  canConfirmSelection,
   load,
   handleCancel,
   handleRetry,
   backToCenter,
 } = useAiTaskDetail()
+
+/** 圈选任务走专属审核面板；类型联合由 computed 收窄供子组件 props（模板不跨节点收窄） */
+const isSelectionTask = computed(
+  () => detail.value?.type === 'review_selection' || detail.value?.type === 'plan_selection',
+)
+const selectionTaskType = computed(() =>
+  detail.value?.type === 'plan_selection' ? ('plan_selection' as const) : ('review_selection' as const),
+)
 
 /** 从列表「审核」进入时定位审核区（交互 2.1.2）；审核区在 succeeded 后才渲染，待其出现再定位 */
 const focusReview = route.query.review === '1'
@@ -193,6 +203,16 @@ watch(
               :task-id="detail.taskId"
               :artifacts="artifacts"
               :can-confirm="canConfirmGeneration"
+              @confirmed="load"
+              @leave="backToCenter"
+            />
+            <!-- 圈选任务（评审 / 计划）走圈选审核面板（交互 2.4） -->
+            <SelectionReviewPanel
+              v-else-if="isSelectionTask"
+              :task-id="detail.taskId"
+              :task-type="selectionTaskType"
+              :artifacts="artifacts"
+              :can-confirm="canConfirmSelection"
               @confirmed="load"
               @leave="backToCenter"
             />
