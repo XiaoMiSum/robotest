@@ -5,6 +5,7 @@ import type {
   PlannedCases,
   PlanStatus,
   SnapshotModule,
+  TestPlanCreatePayload,
   TestPlanDetail,
   TestPlanListItem,
   TestPlanProgress,
@@ -22,15 +23,7 @@ export function fetchPlans(params: {
   return get('/project/plans', { ...params })
 }
 
-export function createPlan(data: {
-  name: string
-  description?: string
-  executorId?: string
-  startTime?: string | null
-  endTime?: string | null
-  environment?: string
-  selectedNodes: { documentId: string; caseIds: string[] }[]
-}): Promise<TestPlanDetail> {
+export function createPlan(data: TestPlanCreatePayload): Promise<TestPlanDetail> {
   return post('/project/plans', data)
 }
 

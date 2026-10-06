@@ -1,5 +1,19 @@
 import type { CaseNodeType } from '../shared'
 
+/** 用例圈选节点（创建评审 / 计划的关联用例载荷） */
+export interface SelectedCaseNode {
+  documentId: string
+  caseIds: string[]
+}
+
+/** 评审创建载荷（列表页创建与圈选确认 target.createParams 共用） */
+export interface TestReviewCreatePayload {
+  title: string
+  description?: string
+  participantIds: string[]
+  selectedNodes: SelectedCaseNode[]
+}
+
 /** 评审状态（new 待评审 / in_progress 进行中 / completed 已通过 / rejected 已驳回） */
 export type ReviewStatus = 'new' | 'in_progress' | 'completed' | 'rejected'
 
