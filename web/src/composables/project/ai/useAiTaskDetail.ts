@@ -173,6 +173,10 @@ export function useAiTaskDetail() {
   const canManageTask = computed(() => authStore.hasPermission('ai:task'))
   /** 确认产物需 ai:confirm；无权限隐藏审核动作，产物只读预览（交互 2.4） */
   const canConfirm = computed(() => authStore.hasPermission('ai:confirm'))
+  /** 生成链落库另需 case:edit（1000018208），缺权时审核区只读 */
+  const canConfirmGeneration = computed(
+    () => canConfirm.value && authStore.hasPermission('case:edit'),
+  )
 
   onMounted(() => {
     void loadAiStatus()
@@ -212,6 +216,7 @@ export function useAiTaskDetail() {
     showEmptyArtifacts,
     canManageTask,
     canConfirm,
+    canConfirmGeneration,
     load,
     handleCancel,
     handleRetry,
