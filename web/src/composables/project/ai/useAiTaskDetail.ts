@@ -177,6 +177,13 @@ export function useAiTaskDetail() {
   const canConfirmGeneration = computed(
     () => canConfirm.value && authStore.hasPermission('case:edit'),
   )
+  /** 圈选落库另需 review:create / plan:create（1000018208），缺权时审核区只读 */
+  const canConfirmSelection = computed(() => {
+    if (!canConfirm.value) return false
+    return detail.value?.type === 'plan_selection'
+      ? authStore.hasPermission('plan:create')
+      : authStore.hasPermission('review:create')
+  })
 
   onMounted(() => {
     void loadAiStatus()
@@ -217,6 +224,7 @@ export function useAiTaskDetail() {
     canManageTask,
     canConfirm,
     canConfirmGeneration,
+    canConfirmSelection,
     load,
     handleCancel,
     handleRetry,

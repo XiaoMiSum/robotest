@@ -119,6 +119,8 @@ export interface ConfirmItemResult {
   success: boolean
   errorCode: number | null
   errorMsg: string
+  /** 落库资源 id（圈选确认返回新建的评审 / 计划 id，用于成功跳转） */
+  createdId: string | null
 }
 
 export function useAiArtifactReview(
@@ -274,6 +276,7 @@ export function useAiArtifactReview(
         success: result.success,
         errorCode: result.errorCode,
         errorMsg: result.errorMsg ?? '',
+        createdId: result.createdId ?? null,
       }
     })
   }
