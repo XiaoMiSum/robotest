@@ -158,7 +158,24 @@ public class AiTaskServiceImpl implements AiTaskService {
 
     @Override
     public AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser) {
-        return buildResp(requireVisible(taskId, loginUser), true, false);
+        AiTask task = requireVisible(taskId, loginUser);
+        AiTaskRespDTO resp = buildResp(task, true, false);
+        // 文档级元数据仅详情下发（3.6.3）：供确认面板预填识别版本，列表与同步等待响应不携带
+        resp.setDocumentMeta(documentMetaOf(task));
+        return resp;
+    }
+
+    /** `result` 顶层 documentMeta（3.8 导入识别版本）：无该键 / 非成功态为 null */
+    private AiTaskRespDTO.DocumentMeta documentMetaOf(AiTask task) {
+        if (!Constants.AiTaskStatus.SUCCEEDED.equals(task.getStatus())
+                || task.getResult() == null
+                || !(task.getResult().get("documentMeta") instanceof Map<?, ?> meta)) {
+            return null;
+        }
+        AiTaskRespDTO.DocumentMeta documentMeta = new AiTaskRespDTO.DocumentMeta();
+        documentMeta.setDetectedVersion(asString(meta.get("detectedVersion")));
+        documentMeta.setVersionEvidence(asString(meta.get("versionEvidence")));
+        return documentMeta;
     }
 
     @Override
