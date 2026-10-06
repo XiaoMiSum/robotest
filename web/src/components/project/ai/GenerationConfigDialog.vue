@@ -7,7 +7,7 @@ import type {
   AiGenerationPlacement,
   AiGenerationScopeItem,
 } from '@/types'
-import { REQUIREMENT_STATUS_META } from '@/composables/project/requirement/requirementPresentation'
+import AiScopeCheckList from '@/components/project/ai/AiScopeCheckList.vue'
 import { useGenerationSubmit } from '@/composables/project/ai/useGenerationSubmit'
 
 /** 服务端输入条数上限（生成链详设 3.2，1–50） */
@@ -60,11 +60,6 @@ watch(
   },
 )
 
-function statusReason(item: AiGenerationScopeItem): string {
-  const meta = REQUIREMENT_STATUS_META[item.status as keyof typeof REQUIREMENT_STATUS_META]
-  return meta ? `${meta.label}需求不可生成` : '当前状态不可生成'
-}
-
 const overLimit = computed(() => checkedIds.value.length > SCOPE_MAX)
 
 const canSubmit = computed(
@@ -107,19 +102,12 @@ function close(): void {
       <div class="gen-dialog__label">
         生成范围（已选 {{ requirements.length }} 条需求）
       </div>
-      <el-checkbox-group v-model="checkedIds" class="gen-dialog__scope">
-        <div v-for="item in requirements" :key="item.id" class="gen-dialog__scope-item">
-          <el-checkbox :value="item.id" :disabled="item.status !== 'confirmed'">
-            <span class="gen-dialog__code">{{ item.code }}</span>{{ item.title }}
-          </el-checkbox>
-          <span v-if="item.status !== 'confirmed'" class="gen-dialog__reason">
-            {{ statusReason(item) }}
-          </span>
-        </div>
-      </el-checkbox-group>
-      <div v-if="overLimit" class="gen-dialog__reason">
-        单次最多 {{ SCOPE_MAX }} 条需求，请减少勾选
-      </div>
+      <AiScopeCheckList
+        v-model="checkedIds"
+        :requirements="requirements"
+        verb="生成"
+        :max="SCOPE_MAX"
+      />
     </div>
 
     <div class="gen-dialog__section">
@@ -166,36 +154,6 @@ function close(): void {
   color: var(--color-neutral-700);
   font-size: var(--font-size-sm);
   font-weight: 600;
-}
-
-.gen-dialog__scope {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  max-height: 240px;
-  overflow: auto;
-  padding: var(--space-xs) 0;
-}
-
-.gen-dialog__scope-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  min-width: 0;
-}
-
-.gen-dialog__code {
-  margin-right: var(--space-xs);
-  color: var(--color-neutral-500);
-  font-family: var(--font-family-mono, monospace);
-  font-size: var(--font-size-sm);
-}
-
-.gen-dialog__reason {
-  flex-shrink: 0;
-  color: var(--color-neutral-400);
-  font-size: var(--font-size-sm);
 }
 
 .gen-dialog__module {

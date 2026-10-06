@@ -8,6 +8,7 @@ import type { AiGenerationScopeItem, RequirementPriority } from '@/types'
 import type { RequirementRow } from '@/composables/project/requirement/requirementPresentation'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
+import SelectionConfigDialog from '@/components/project/ai/SelectionConfigDialog.vue'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
 const router = useRouter()
@@ -43,11 +44,12 @@ const {
   handleUnarchive,
 } = useRequirementList()
 
-// ==================== AI 生成发起 ====================
+// ==================== AI 生成 / 圈选发起 ====================
 const generationDialogVisible = ref(false)
+const selectionDialogVisible = ref(false)
 
 /** 已选行归一为发起范围条目（草稿 / 已变更 / 已归档在对话框内置灰） */
-const generationScope = computed<AiGenerationScopeItem[]>(() =>
+const aiScope = computed<AiGenerationScopeItem[]>(() =>
   selectedRows.value.map((row) => ({
     id: row.id,
     code: row.code,
@@ -59,6 +61,11 @@ const generationScope = computed<AiGenerationScopeItem[]>(() =>
 function openGeneration(): void {
   if (selectedRows.value.length === 0) return
   generationDialogVisible.value = true
+}
+
+function openSelection(): void {
+  if (selectedRows.value.length === 0) return
+  selectionDialogVisible.value = true
 }
 
 const statusOptions = [
@@ -157,6 +164,17 @@ async function submitCreate(): Promise<void> {
         <el-button v-if="canViewAiTasks" @click="router.push('/workspace/projects/ai/tasks')">
           <el-icon><List /></el-icon>任务中心
         </el-button>
+        <el-tooltip
+          v-if="canLaunchAi"
+          :content="selectedRows.length > 0 ? '对已选需求发起 AI 圈选建议' : '请先勾选需求'"
+          placement="bottom"
+        >
+          <span>
+            <el-button :disabled="selectedRows.length === 0" @click="openSelection">
+              <el-icon><Files /></el-icon>AI 圈选建议
+            </el-button>
+          </span>
+        </el-tooltip>
         <el-tooltip
           v-if="canLaunchAi"
           :content="selectedRows.length > 0 ? '对已选需求发起 AI 测试设计生成' : '请先勾选需求'"
@@ -436,9 +454,13 @@ async function submitCreate(): Promise<void> {
     </el-drawer>
     <GenerationConfigDialog
       v-model="generationDialogVisible"
-      :requirements="generationScope"
+      :requirements="aiScope"
       :module-tree="moduleTree"
       @stale="load"
+    />
+    <SelectionConfigDialog
+      v-model="selectionDialogVisible"
+      :requirements="aiScope"
     />
   </main>
 </template>
