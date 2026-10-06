@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { createReview, deleteReview, fetchReviews, reopenReview } from '@/services/project'
-import { fetchMembers } from '@/services/workspace'
-import type { ReviewStatus, TestReviewListItem, WorkspaceMember } from '@/types'
+import type { ReviewStatus, TestReviewListItem, TestReviewCreatePayload } from '@/types'
 import { formatDateTime } from '@/utils/format'
-import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
+import ReviewCreateDialog from '@/components/project/functional-testing/review/ReviewCreateDialog.vue'
 import {
   REVIEW_STATUS_META,
   reviewAvatars,
@@ -125,59 +124,17 @@ async function handleDelete(row: TestReviewListItem) {
 }
 
 const createDialogVisible = ref(false)
-const caseSelectorVisible = ref(false)
 const createSubmitting = ref(false)
-const memberOptions = ref<WorkspaceMember[]>([])
-const createForm = reactive({
-  title: '',
-  description: '',
-  participantIds: [] as string[],
-  selectedNodes: [] as { documentId: string; caseIds: string[] }[],
-})
-const createRules: FormRules = {
-  title: [{ required: true, message: '请输入评审标题', trigger: 'blur' }],
-}
-const createFormRef = ref<FormInstance>()
 
 function openCreateDialog() {
-  createForm.title = ''
-  createForm.description = ''
-  createForm.participantIds = []
-  createForm.selectedNodes = []
   createDialogVisible.value = true
-  loadMemberOptions()
 }
 
-async function loadMemberOptions() {
-  try {
-    const page = await fetchMembers({ pageNo: 1, pageSize: 100 })
-    memberOptions.value = page.list
-  } catch { /* ignore */ }
-}
-
-function handleCaseSelected(nodes: { documentId: string; caseIds: string[] }[]) {
-  createForm.selectedNodes = nodes
-}
-
-async function submitCreate() {
-  if (!createFormRef.value) return
-  try { await createFormRef.value.validate() } catch { return }
-  if (!createForm.selectedNodes.length) {
-    ElMessage.warning('请关联至少一个用例')
-    return
-  }
-  if (!createForm.participantIds.length) {
-    ElMessage.warning('请选择至少一个参与者')
-    return
-  }
+/** 创建落库仍在页面层（组件只产载荷，圈选确认复用同一载荷转 createParams） */
+async function submitCreate(payload: TestReviewCreatePayload) {
   createSubmitting.value = true
   try {
-    const result = await createReview({
-      title: createForm.title.trim(),
-      description: createForm.description.trim() || undefined,
-      participantIds: createForm.participantIds,
-      selectedNodes: createForm.selectedNodes,
-    })
+    const result = await createReview(payload)
     ElMessage.success('评审已创建')
     createDialogVisible.value = false
     router.push(`/workspace/projects/reviews/${result.id}`)
@@ -316,33 +273,11 @@ async function submitCreate() {
       </div>
     </el-card>
 
-    <el-dialog v-model="createDialogVisible" title="发起评审" width="560px">
-      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="createForm.title" placeholder="请输入评审标题" maxlength="200" show-word-limit />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="createForm.description" type="textarea" :rows="3" placeholder="评审描述（可选）" />
-        </el-form-item>
-        <el-form-item label="参与者">
-          <el-select v-model="createForm.participantIds" multiple filterable placeholder="选择参与者" style="width: 100%">
-            <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关联用例">
-          <el-button @click="caseSelectorVisible = true">选择用例</el-button>
-          <span v-if="createForm.selectedNodes.length" class="review-list__case-count">
-            已选 {{ createForm.selectedNodes.reduce((sum, n) => sum + n.caseIds.length, 0) }} 个用例
-          </span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="createSubmitting" @click="submitCreate">创建</el-button>
-      </template>
-    </el-dialog>
-
-    <CaseSelector v-model="caseSelectorVisible" @confirm="handleCaseSelected" />
+    <ReviewCreateDialog
+      v-model="createDialogVisible"
+      :submitting="createSubmitting"
+      @submit="submitCreate"
+    />
   </main>
 </template>
 
@@ -504,11 +439,5 @@ async function submitCreate() {
 .review-list__pager-total {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
-}
-
-.review-list__case-count {
-  margin-left: var(--space-sm);
-  font-size: var(--font-size-2xs);
-  color: var(--color-neutral-400);
 }
 </style>
