@@ -256,6 +256,7 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | 1000018207 | 404 | 圈选用例不存在 |
 | 1000018208 | 403 | 无产物落库资源权限 |
 | 1000018209 | 409 | 已存在进行中的同输入生成任务 |
+| 1000018210 | 409 | 父级产物尚未采纳，无法落库 |
 
 ---
 
@@ -268,9 +269,10 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | `server/.../service/ai/task/handler/TestDesignGenerationHandler` | 生成任务执行器（阶段上报、产物抽取） |
 | `server/.../service/ai/task/handler/ReviewSelectionHandler`、`PlanSelectionHandler` | 圈选建议执行器 |
 | `server/.../service/ai/task/adopt/GenerationAdoptService + Impl` | 三层产物采纳落库（调用既有模块 / 文档 / 用例服务） |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018201–1000018209 |
-| `web/src/components/ai/GenerationConfigDialog.vue`、`ArtifactTreeReview.vue` 及子组件 | 发起与审核前端 |
-| `web/src/composables/useGenerationTask.ts` + 单测 | 任务进度与阶段推进逻辑 |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018201–1000018210 |
+| `web/src/components/project/ai/GenerationConfigDialog.vue`、`SelectionConfigDialog.vue`、`GenerationArtifactTreeReview.vue`、`SelectionReviewPanel.vue` 及子组件 | 发起与审核前端 |
+| `web/src/composables/project/ai/useGenerationSubmit.ts`、`useAiArtifactReview.ts`、`useGenerationArtifactTree.ts`、`useSelectionSubmit.ts`、`useSelectionReview.ts` + 单测 | 发起提交、产物审核与圈选调整逻辑 |
+| `web/src/components/project/functional-testing/review/ReviewCreateDialog.vue`、`plan/PlanCreateDialog.vue` | 圈选确认复用的评审 / 计划创建弹窗 |
 
 - **数据库**：无新增表、无迁移（写入均为既有业务表 + `trace_edge`，见 2 节）。
 - **OpenAPI**：`POST /api/ai/tasks` 的 `input` 按 `type` 给出 oneOf 说明；产物详情返回结构随任务详情分组暴露。
@@ -290,3 +292,4 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | V1.0 | 2026-10-03 | 任务进度与产物审核统一为任务详情页（AiTaskDetailPage），删除抽屉/全屏页并存口径 |
 | V1.0 | 2026-10-04 | 快照引用边取值 `snapshot_ref` 更名为 `case_snapshot`（对齐追溯矩阵详设） |
 | V1.0 | 2026-10-06 | 前端设计补圈选建议发起入口（需求列表「AI 圈选建议」，5.1 / 5.4） |
+| V1.0 | 2026-10-06 | 错误码表补 1000018210；实施说明文件清单对齐前端实际实现（组件与组合式路径、圈选创建弹窗） |
