@@ -6,6 +6,7 @@ import type {
   ReviewRecord,
   ReviewStatus,
   SnapshotModule,
+  TestReviewCreatePayload,
   TestReviewDetail,
   TestReviewListItem,
   TestReviewProgress,
@@ -23,12 +24,7 @@ export function fetchReviews(params: {
   return get('/project/reviews', { ...params })
 }
 
-export function createReview(data: {
-  title: string
-  description?: string
-  participantIds: string[]
-  selectedNodes: { documentId: string; caseIds: string[] }[]
-}): Promise<TestReviewDetail> {
+export function createReview(data: TestReviewCreatePayload): Promise<TestReviewDetail> {
   return post('/project/reviews', data)
 }
 
