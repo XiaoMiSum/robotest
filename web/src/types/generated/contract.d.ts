@@ -4717,6 +4717,7 @@ export interface components {
             result?: {
                 [key: string]: unknown;
             };
+            documentMeta?: components["schemas"]["DocumentMeta"];
             artifacts?: components["schemas"]["ArtifactSummary"][];
         };
         ArtifactSummary: {
@@ -4725,6 +4726,10 @@ export interface components {
             title?: string;
             parentKey?: string;
             confirmStatus?: string;
+        };
+        DocumentMeta: {
+            detectedVersion?: string;
+            versionEvidence?: string;
         };
         ResultAiTaskRespDTO: {
             /** Format: int32 */
