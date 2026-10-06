@@ -159,13 +159,13 @@ export const TRACE_GAP_TYPES: TraceGapType[] = [
 
 export interface TraceGapActionMeta {
   label: string
-  /** 批次二生成配置未落地，本包置灰并以悬浮提示说明（方案裁决） */
+  /** 未知动作兜底置灰（generate 已随生成配置开放） */
   disabled: boolean
   disabledHint: string
 }
 
 const GAP_ACTION_META: Record<TraceGapAction, TraceGapActionMeta> = {
-  generate: { label: '发起生成', disabled: true, disabledHint: '生成配置随批次二开放' },
+  generate: { label: '发起生成', disabled: false, disabledHint: '' },
   review: { label: '发起评审', disabled: false, disabledHint: '' },
   schedule: { label: '加入计划', disabled: false, disabledHint: '' },
 }
@@ -174,7 +174,7 @@ export function traceGapActionMeta(action: string): TraceGapActionMeta {
   return GAP_ACTION_META[action as TraceGapAction] ?? { label: action, disabled: true, disabledHint: '' }
 }
 
-/** 缺口引导的落地页：generate 尚无生成配置入口，由调用方按 disabled 提示 */
+/** 缺口引导的落地页：generate 无独立路由，由调用方就地打开生成配置对话框 */
 export const TRACE_GAP_ROUTE: Record<'review' | 'schedule', string> = {
   review: '/workspace/projects/reviews',
   schedule: '/workspace/projects/plans',

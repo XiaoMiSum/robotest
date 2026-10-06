@@ -222,11 +222,11 @@ describe('tracePresentation', () => {
   })
 
   describe('traceGapActionMeta', () => {
-    it('generate 批次二前置灰并有悬浮提示', () => {
+    it('generate 已接入生成配置对话框，可点击', () => {
       expect(traceGapActionMeta('generate')).toEqual({
         label: '发起生成',
-        disabled: true,
-        disabledHint: '生成配置随批次二开放',
+        disabled: false,
+        disabledHint: '',
       })
     })
 
