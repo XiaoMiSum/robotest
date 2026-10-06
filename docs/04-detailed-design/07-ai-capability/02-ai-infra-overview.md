@@ -622,7 +622,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 参数：`type`、`status`、`projectId` 不传（项目上下文经 `X-Active-Project` 头过滤，未附带则返回本人提交的任务）、`pageNo`、`pageSize`。
   - 响应列表项：`{ taskId, type, status, progress, phase, submittedBy, retryOfTaskId, tokensIn, tokensOut, createdAt, error }`。
 - **详情**：`GET /api/ai/tasks/{taskId}`
-  - `status = succeeded` 时附产物清单摘要：
+  - `status = succeeded` 时附产物清单摘要；`result` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非成功态该字段为 `null`，列表项不下发：
 
 ```json
 {
@@ -635,6 +635,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   "tokensIn": 1200,
   "tokensOut": 3400,
   "error": null,
+  "documentMeta": null,
   "artifacts": [
     { "key": "module-1", "kind": "module_suggestion", "title": "登录模块", "parentKey": null, "confirmStatus": "pending" },
     { "key": "doc-1", "kind": "mindmap_document_suggestion", "title": "登录用例文档", "parentKey": "module-1", "confirmStatus": "pending" },
@@ -890,3 +891,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-04 | 3.7 下钻补 `callType` 筛选参数（`chat / embedding`），支撑按调用类型分组的图表下钻 |
 | V1.0 | 2026-10-04 | 3.6.1 补 `vector_reindex` 的 `scope` 语义：`entityTypes` 数组（`requirement / testcase / bug`），缺省全量重建 |
 | V1.0 | 2026-10-04 | 调用层技术口径登记：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x（4.2 调用层与重试口径、7 依赖行），平台仅保留门面记账与错误码 |
+| V1.0 | 2026-10-06 | 3.6.3 详情响应补 `documentMeta` 下发口径：`result` 顶层含文档级元数据的任务（导入）succeeded 时附带，供确认面板预填识别版本 |
