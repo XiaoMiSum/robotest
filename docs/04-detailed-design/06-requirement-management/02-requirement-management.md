@@ -322,7 +322,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有 `pending/running` 的导入任务时拒绝重复提交（1000018013）。任务进度、产物确认与采纳走 AI 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/artifacts/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），确认面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
+- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有 `pending/running` 的导入任务时拒绝重复提交（1000018013）。任务进度、产物确认与采纳走 AI 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/artifacts/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），经任务详情响应 `documentMeta` 字段下发（见 AI 底座详设 3.6.3），确认面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
 
 ### 3.9 条目内 AI 拆分
 
@@ -569,3 +569,4 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/requirements |
 | V1.0 | 2026-10-03 | 导入/拆分进度与建议审核统一到任务详情页（/workspace/projects/ai/tasks/:taskId），删除进度弹窗与审核面板浮层口径 |
 | V1.0 | 2026-10-03 | 权限映射表拆解记录行对齐 3.11 路径（`{id}/split-logs` 与项目级 `/split-records`） |
+| V1.0 | 2026-10-06 | 3.8 补识别版本下发通道：`documentMeta` 经任务详情响应字段回传，确认面板据此预填 |
