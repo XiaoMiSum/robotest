@@ -4,7 +4,7 @@ import type { TraceGapView } from '@/composables/project/trace/useTraceGaps'
 
 /**
  * 缺口清单（交互 04 §2.4）：按缺口类型分组切换，行内给出引导动作；
- * 引导动作的可执行性由 actionMeta 承载（生成入口随批次二开放）。
+ * 引导动作的可执行性由 actionMeta 承载（生成动作就地打开生成配置对话框）。
  */
 defineProps<{
   gaps: TraceGapView[]

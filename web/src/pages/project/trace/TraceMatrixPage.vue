@@ -13,6 +13,7 @@ import { useTraceImpact, type TraceImpactItemView } from '@/composables/project/
 import TraceLegend from '@/components/project/trace/TraceLegend.vue'
 import TraceChainDrawer from '@/components/project/trace/TraceChainDrawer.vue'
 import GapList from '@/components/project/trace/GapList.vue'
+import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,6 +84,9 @@ const {
   changePageSize: changeGapPageSize,
   openChain: openGapChain,
   runAction: runGapAction,
+  generationDialogVisible,
+  generationScope,
+  generationModuleTree,
 } = useTraceGaps()
 
 const {
@@ -431,6 +435,14 @@ onMounted(() => {
       @change-impact-page="changeImpactPage"
       @change-impact-page-size="changeImpactPageSize"
       @retry-impact="retryImpact"
+    />
+
+    <!-- 缺口「发起生成」就地打开生成配置；输入状态变化时刷新缺口清单（交互 04 §2.4） -->
+    <GenerationConfigDialog
+      v-model="generationDialogVisible"
+      :requirements="generationScope"
+      :module-tree="generationModuleTree"
+      @stale="retryGaps"
     />
   </main>
 </template>
