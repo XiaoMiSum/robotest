@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { AiArtifactSummary, ProjectModule } from '@/types'
+import type { AiArtifactConfirmTarget, AiArtifactSummary, ProjectModule } from '@/types'
+import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import { useAiArtifactReview } from '@/composables/project/ai/useAiArtifactReview'
 
 const props = defineProps<{
@@ -81,8 +82,8 @@ const versionHint = computed(() => {
   return versionValue.value.trim() ? '采纳时使用当前版本值' : '采纳后版本留空，可手工补录'
 })
 
-function targetVersion(): string | undefined {
-  return versionTouched.value ? versionValue.value : undefined
+function targetVersion(): AiArtifactConfirmTarget | undefined {
+  return versionTouched.value ? { systemVersion: versionValue.value } : undefined
 }
 
 // ==================== 模块名映射 ====================
@@ -167,7 +168,6 @@ function batchReject(): void {
 
 const selectedCount = computed(() => selectedKeys.value.length)
 const canBatch = computed(() => canConfirm.value && selectedCount.value > 0)
-const hasReceiptFailures = computed(() => receipt.value.some((item) => !item.success))
 /** 产物全驳回 → 审核区空态「已全部驳回」（交互 2.4.3） */
 const allRejected = computed(
   () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),
@@ -337,34 +337,13 @@ const allRejected = computed(
     </footer>
 
     <!-- 逐项回执：失败项可单项重试（交互 2.3 回执） -->
-    <div v-if="receipt.length > 0" class="artifact-review__receipt">
-      <div class="artifact-review__receipt-head">
-        <span :class="hasReceiptFailures ? 'artifact-review__receipt--fail' : 'artifact-review__receipt--ok'">
-          {{ hasReceiptFailures ? '部分确认失败' : '确认完成' }}
-        </span>
-        <el-button link @click="clearReceipt">收起回执</el-button>
-      </div>
-      <ul class="artifact-review__receipt-list">
-        <li
-          v-for="item in receipt"
-          :key="`${item.key}-${item.action}`"
-          class="artifact-review__receipt-item"
-          :class="item.success ? 'artifact-review__receipt-item--ok' : 'artifact-review__receipt-item--fail'"
-        >
-          <span class="artifact-review__receipt-title">{{ item.title }}</span>
-          <span class="artifact-review__receipt-msg">
-            {{ item.success ? '成功' : `${item.errorMsg || '失败'}（${item.errorCode ?? '—'}）` }}
-          </span>
-          <el-button
-            v-if="!item.success"
-            link
-            type="primary"
-            :loading="confirming"
-            @click="retryResult(item)"
-          >重试</el-button>
-        </li>
-      </ul>
-    </div>
+    <AiConfirmReceipt
+      v-if="receipt.length > 0"
+      :receipt="receipt"
+      :confirming="confirming"
+      @retry="retryResult"
+      @clear="clearReceipt"
+    />
 
     <!-- 编辑后采纳 -->
     <el-dialog v-model="editVisible" title="修改后采纳" width="640px" :close-on-click-modal="false">
@@ -640,66 +619,6 @@ const allRejected = computed(
 .artifact-review__foot-actions {
   display: flex;
   gap: var(--space-sm);
-}
-
-// 回执：成功项 success、失败项 danger-light 底（视觉 4）
-.artifact-review__receipt {
-  margin-top: var(--space-md);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--color-neutral-200);
-}
-
-.artifact-review__receipt-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-sm);
-  font-size: var(--font-size-sm);
-}
-
-.artifact-review__receipt--ok {
-  color: var(--color-success);
-}
-
-.artifact-review__receipt--fail {
-  color: var(--color-danger);
-}
-
-.artifact-review__receipt-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.artifact-review__receipt-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm, 4px);
-  font-size: var(--font-size-sm);
-}
-
-.artifact-review__receipt-item--ok {
-  background: var(--color-success-light, var(--color-neutral-50));
-  color: var(--color-success);
-}
-
-.artifact-review__receipt-item--fail {
-  background: var(--color-danger-light);
-  color: var(--color-danger);
-}
-
-.artifact-review__receipt-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.artifact-review__receipt-msg {
-  flex-shrink: 0;
 }
 
 .artifact-review__edit-row {
