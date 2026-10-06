@@ -5,12 +5,16 @@ import type { PageResult, TraceGap } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetchTraceGaps: vi.fn(),
+  getRequirement: vi.fn(),
+  fetchProjectModuleTree: vi.fn(),
   router: { push: vi.fn() },
   ElMessage: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
 }))
 
 vi.mock('@/services/project', () => ({
   fetchTraceGaps: mocks.fetchTraceGaps,
+  getRequirement: mocks.getRequirement,
+  fetchProjectModuleTree: mocks.fetchProjectModuleTree,
 }))
 
 vi.mock('vue-router', () => ({
@@ -205,16 +209,48 @@ describe('useTraceGaps', () => {
   })
 
   describe('引导动作', () => {
-    it('generate 动作置灰并提示批次二开放', async () => {
+    it('generate 动作就地打开生成配置对话框并回显缺口需求', async () => {
       mocks.fetchTraceGaps.mockResolvedValue({
         list: [makeGap({ suggestedAction: 'generate' })],
         total: 1,
       })
+      mocks.getRequirement.mockResolvedValue({
+        id: 'r1',
+        code: 'REQ-001',
+        title: '登录',
+        status: 'confirmed',
+      })
+      mocks.fetchProjectModuleTree.mockResolvedValue([
+        { id: 'm1', type: 'directory', children: [] },
+      ])
       const s = useTraceGaps()
       await s.load()
+
       s.runAction(s.gaps.value[0])
-      expect(mocks.ElMessage.info).toHaveBeenCalledWith('生成配置随批次二开放')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(s.generationDialogVisible.value).toBe(true)
+      expect(s.generationScope.value).toEqual([
+        { id: 'r1', code: 'REQ-001', title: '登录', status: 'confirmed' },
+      ])
+      expect(s.generationModuleTree.value).toHaveLength(1)
       expect(mocks.router.push).not.toHaveBeenCalled()
+    })
+
+    it('generate 读取需求失败时提示且不打开对话框', async () => {
+      mocks.fetchTraceGaps.mockResolvedValue({
+        list: [makeGap({ suggestedAction: 'generate' })],
+        total: 1,
+      })
+      mocks.getRequirement.mockRejectedValue(new Error('需求不存在'))
+      const s = useTraceGaps()
+      await s.load()
+
+      s.runAction(s.gaps.value[0])
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('需求不存在')
+      expect(s.generationDialogVisible.value).toBe(false)
     })
 
     it('review 动作跳转评审入口', async () => {
