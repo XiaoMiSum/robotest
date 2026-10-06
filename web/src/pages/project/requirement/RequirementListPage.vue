@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { createRequirement } from '@/services/project'
 import { formatDateTime } from '@/utils/format'
-import type { RequirementPriority } from '@/types'
+import type { AiGenerationScopeItem, RequirementPriority } from '@/types'
 import type { RequirementRow } from '@/composables/project/requirement/requirementPresentation'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
+import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
 const router = useRouter()
@@ -28,6 +29,10 @@ const {
   canConfirm,
   canEdit,
   canViewAiTasks,
+  canLaunchAi,
+  selectedRows,
+  handleSelectionChange,
+  load,
   retry,
   search,
   resetFilters,
@@ -37,6 +42,24 @@ const {
   handleArchive,
   handleUnarchive,
 } = useRequirementList()
+
+// ==================== AI 生成发起 ====================
+const generationDialogVisible = ref(false)
+
+/** 已选行归一为发起范围条目（草稿 / 已变更 / 已归档在对话框内置灰） */
+const generationScope = computed<AiGenerationScopeItem[]>(() =>
+  selectedRows.value.map((row) => ({
+    id: row.id,
+    code: row.code,
+    title: row.title,
+    status: row.status,
+  })),
+)
+
+function openGeneration(): void {
+  if (selectedRows.value.length === 0) return
+  generationDialogVisible.value = true
+}
 
 const statusOptions = [
   { value: 'draft', label: '草稿' },
@@ -134,6 +157,17 @@ async function submitCreate(): Promise<void> {
         <el-button v-if="canViewAiTasks" @click="router.push('/workspace/projects/ai/tasks')">
           <el-icon><List /></el-icon>任务中心
         </el-button>
+        <el-tooltip
+          v-if="canLaunchAi"
+          :content="selectedRows.length > 0 ? '对已选需求发起 AI 测试设计生成' : '请先勾选需求'"
+          placement="bottom"
+        >
+          <span>
+            <el-button :disabled="selectedRows.length === 0" @click="openGeneration">
+              <el-icon><MagicStick /></el-icon>AI 生成测试设计
+            </el-button>
+          </span>
+        </el-tooltip>
         <el-button v-if="canCreate" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon>新建需求
         </el-button>
@@ -230,7 +264,10 @@ async function submitCreate(): Promise<void> {
         v-loading="loading"
         :data="rows"
         row-key="id"
+        @selection-change="handleSelectionChange"
       >
+        <!-- 选择列服务 AI 发起（交互 2.1），入口隐藏时无消费方不渲染 -->
+        <el-table-column v-if="canLaunchAi" type="selection" width="36" />
         <el-table-column label="编号" width="110">
           <template #default="{ row }">
             <span class="requirement-list__code">{{ row.code }}</span>
@@ -397,6 +434,12 @@ async function submitCreate(): Promise<void> {
         <el-button type="primary" :loading="submitting" @click="submitCreate">创建</el-button>
       </template>
     </el-drawer>
+    <GenerationConfigDialog
+      v-model="generationDialogVisible"
+      :requirements="generationScope"
+      :module-tree="moduleTree"
+      @stale="load"
+    />
   </main>
 </template>
 
