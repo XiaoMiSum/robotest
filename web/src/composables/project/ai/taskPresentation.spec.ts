@@ -12,6 +12,9 @@ import {
   aiTaskStatusMeta,
   aiTaskTypeMeta,
   aiTaskTypeOptions,
+  importVersionEvidence,
+  importVersionHint,
+  importVersionPrefill,
 } from './taskPresentation'
 
 function makeTask(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
@@ -28,6 +31,7 @@ function makeTask(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
     createdAt: '2026-10-03T00:00:00Z',
     error: null,
     result: null,
+    documentMeta: null,
     artifacts: null,
     ...overrides,
   }
@@ -145,6 +149,47 @@ describe('taskPresentation', () => {
       expect(aiArtifactConfirmMeta('adopted_edited').label).toBe('已采纳')
       expect(aiArtifactConfirmMeta('rejected').tagType).toBe('info')
       expect(aiArtifactConfirmMeta('future').label).toBe('future')
+    })
+  })
+
+  describe('导入识别版本', () => {
+    const detected = { detectedVersion: 'V2.3', versionEvidence: '见第 2 章 V2.3' }
+    const missing = { detectedVersion: null, versionEvidence: null }
+
+    it('识别到版本返回预填值，识别不到返回空串', () => {
+      expect(importVersionPrefill(detected)).toBe('V2.3')
+      expect(importVersionPrefill(missing)).toBe('')
+      expect(importVersionPrefill(null)).toBe('')
+    })
+
+    it('识别依据引语带前缀，缺失不渲染', () => {
+      expect(importVersionEvidence(detected)).toBe('识别依据：见第 2 章 V2.3')
+      expect(importVersionEvidence(missing)).toBe('')
+      expect(importVersionEvidence(null)).toBe('')
+    })
+
+    it('导入未触碰按识别态提示预填或补录', () => {
+      expect(
+        importVersionHint({ taskType: 'requirement_import', documentMeta: detected, touched: false, value: '' }),
+      ).toBe('已预填文档识别版本，可修改、可清空')
+      expect(
+        importVersionHint({ taskType: 'requirement_import', documentMeta: missing, touched: false, value: '' }),
+      ).toBe('未识别到版本，采纳后可手工补录')
+    })
+
+    it('拆分未触碰提示继承原条目版本', () => {
+      expect(
+        importVersionHint({ taskType: 'requirement_split', documentMeta: null, touched: false, value: '' }),
+      ).toBe('留空将继承原条目版本，可修改、可清空')
+    })
+
+    it('触碰后按当前值提示，空白串为显式清空', () => {
+      expect(
+        importVersionHint({ taskType: 'requirement_import', documentMeta: detected, touched: true, value: ' V9 ' }),
+      ).toBe('采纳时使用当前版本值')
+      expect(
+        importVersionHint({ taskType: 'requirement_import', documentMeta: detected, touched: true, value: '  ' }),
+      ).toBe('采纳后版本留空，可手工补录')
     })
   })
 })

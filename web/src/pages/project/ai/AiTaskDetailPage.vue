@@ -222,6 +222,7 @@ watch(
               :task-type="detail.type"
               :artifacts="artifacts"
               :can-confirm="canConfirm"
+              :document-meta="detail.documentMeta ?? null"
               @confirmed="load"
               @leave="backToCenter"
             />

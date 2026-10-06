@@ -1,5 +1,6 @@
 import type {
   AiArtifactConfirmStatus,
+  AiTaskDocumentMeta,
   AiTaskStatus,
 } from '@/types'
 
@@ -225,4 +226,37 @@ export function aiArtifactProcessed(
     processed: artifacts.filter((item) => item.confirmStatus !== 'pending').length,
     total: artifacts.length,
   }
+}
+
+// ==================== 导入识别版本（需求详设 3.8 / 交互 06 §2.4） ====================
+
+/** 识别版本预填值：识别不到返回空串（采纳后留空待手工补录） */
+export function importVersionPrefill(documentMeta: AiTaskDocumentMeta | null): string {
+  return documentMeta?.detectedVersion ?? ''
+}
+
+/** 识别依据引语（悬浮展示）：无引语返回空串不渲染 */
+export function importVersionEvidence(documentMeta: AiTaskDocumentMeta | null): string {
+  return documentMeta?.versionEvidence ? `识别依据：${documentMeta.versionEvidence}` : ''
+}
+
+/**
+ * 版本输入提示：导入按识别态给预填 / 补录口径，拆分给继承口径；
+ * 触碰后统一按当前值提示采纳结果（交互 06 §2.4.2）。
+ */
+export function importVersionHint(options: {
+  taskType: string
+  documentMeta: AiTaskDocumentMeta | null
+  touched: boolean
+  value: string
+}): string {
+  if (!options.touched) {
+    if (options.taskType !== 'requirement_import') {
+      return '留空将继承原条目版本，可修改、可清空'
+    }
+    return importVersionPrefill(options.documentMeta)
+      ? '已预填文档识别版本，可修改、可清空'
+      : '未识别到版本，采纳后可手工补录'
+  }
+  return options.value.trim() ? '采纳时使用当前版本值' : '采纳后版本留空，可手工补录'
 }
