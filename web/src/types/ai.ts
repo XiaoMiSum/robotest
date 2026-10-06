@@ -106,6 +106,24 @@ export interface AiArtifactConfirmReceipt {
   results: AiArtifactConfirmResult[]
 }
 
+// ==================== 生成链产物内容（生成链详设 3.3–3.5） ====================
+
+/** 来源需求引用；changed 由详情回读比对（详设 4.1） */
+export interface AiArtifactSourceRef {
+  requirementId: string
+  quote: string
+  changed: boolean
+}
+
+/** 用例属性（mindmap 详设 4.5 口径，steps 与 expected 成对） */
+export interface AiCaseAttributes {
+  priority: string
+  precondition: string
+  steps: string[]
+  expected: string[]
+  tags: string[]
+}
+
 // ==================== 生成链（生成链详设 3.2 / 3.6） ====================
 
 /** 目标模块落位：新建顶级目录（默认）/ 挂到既有模块节点（须带 targetModuleId） */

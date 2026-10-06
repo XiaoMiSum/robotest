@@ -3,6 +3,7 @@ import { nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
 import AiArtifactReviewPanel from '@/components/project/ai/AiArtifactReviewPanel.vue'
+import GenerationArtifactTreeReview from '@/components/project/ai/GenerationArtifactTreeReview.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
 
 const route = useRoute()
@@ -26,6 +27,7 @@ const {
   showEmptyArtifacts,
   canManageTask,
   canConfirm,
+  canConfirmGeneration,
   load,
   handleCancel,
   handleRetry,
@@ -185,7 +187,17 @@ watch(
           :class="{ 'task-section--focus': focusReview }"
         >
           <template v-if="showReviewArea">
+            <!-- 生成链走三层树审核，其余任务沿用通用审核面板 -->
+            <GenerationArtifactTreeReview
+              v-if="detail.type === 'test_design_generation'"
+              :task-id="detail.taskId"
+              :artifacts="artifacts"
+              :can-confirm="canConfirmGeneration"
+              @confirmed="load"
+              @leave="backToCenter"
+            />
             <AiArtifactReviewPanel
+              v-else
               :task-id="detail.taskId"
               :task-type="detail.type"
               :artifacts="artifacts"

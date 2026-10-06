@@ -148,6 +148,11 @@ describe('useAiArtifactReview', () => {
         moduleId: 'm1',
         priority: 'high',
         sourceRef: 'P3 §2.1',
+        isTestCase: false,
+        parentRef: '',
+        attributes: { priority: '', precondition: '', steps: [], expected: [], tags: [] },
+        sourceRefs: [],
+        suspectedDuplicateOf: '',
       })
       expect(s.loadingContent.value).toBe(false)
 
@@ -202,7 +207,7 @@ describe('useAiArtifactReview', () => {
     it('版本触碰后作为 target 提交（含显式清空）', async () => {
       const s = setupArtifacts([summary()])
       s.init()
-      await s.handleAdopt(s.rows.value[0], '')
+      await s.handleAdopt(s.rows.value[0], { systemVersion: '' })
       expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
         items: [{ key: 'a1', action: 'adopted' }],
         target: { systemVersion: '' },
@@ -215,7 +220,7 @@ describe('useAiArtifactReview', () => {
       await s.handleAdoptEdited(
         s.rows.value[0],
         { title: '  登录验证码  ', description: ' ', moduleId: 'm1', priority: '' },
-        'V2.3',
+        { systemVersion: 'V2.3' },
       )
       expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
         items: [
@@ -288,14 +293,17 @@ describe('useAiArtifactReview', () => {
       expect(mocks.confirmAiArtifacts).not.toHaveBeenCalled()
     })
 
-    it('超过单次上限时拒绝提交', async () => {
+    it('超过单次上限时按顺序分批提交', async () => {
       const many = Array.from({ length: 201 }, (_, index) => summary({ key: `k${index}` }))
       const s = setupArtifacts(many)
       s.init()
       s.toggleAll(true)
       await s.handleBatchAdopt()
-      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('单次最多确认 200 项')
-      expect(mocks.confirmAiArtifacts).not.toHaveBeenCalled()
+      expect(mocks.confirmAiArtifacts).toHaveBeenCalledTimes(2)
+      expect(mocks.confirmAiArtifacts.mock.calls[0][1].items).toHaveLength(200)
+      expect(mocks.confirmAiArtifacts.mock.calls[1][1].items).toHaveLength(1)
+      // 分批按传入顺序，保证整树采纳父先子序（1000018210）
+      expect(mocks.confirmAiArtifacts.mock.calls[1][1].items[0].key).toBe('k200')
     })
 
     it('部分失败时不发成功提示，回执标记失败项', async () => {
