@@ -7,6 +7,7 @@ import {
   fetchRequirements,
   unarchiveRequirement,
 } from '@/services/project'
+import { fetchAiStatus } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
 import { useAuthStore } from '@/stores/auth'
 import { useRequirementStore } from '@/stores/requirement'
@@ -240,6 +241,28 @@ export function useRequirementList() {
   /** 任务中心入口按 ai:task 显隐（交互 07 §1 入口约定） */
   const canViewAiTasks = computed(() => authStore.hasPermission('ai:task'))
 
+  // ==================== 批量选择与 AI 发起 ====================
+  const selectedRows = ref<RequirementRow[]>([])
+  const aiAvailable = ref(false)
+
+  function handleSelectionChange(selection: RequirementRow[]): void {
+    selectedRows.value = selection
+  }
+
+  async function loadAiStatus(): Promise<void> {
+    try {
+      aiAvailable.value = (await fetchAiStatus()).available
+    } catch {
+      // 状态接口失败按不可用处理：入口隐藏，不阻塞列表（总册 4.5）
+      aiAvailable.value = false
+    }
+  }
+
+  /** 发起入口显隐：AI 可用且具备任务提交权限（后端 submit 口径 ai:task） */
+  const canLaunchAi = computed(
+    () => aiAvailable.value && authStore.hasPermission('ai:task'),
+  )
+
   onMounted(() => {
     // 保活回填：从详情页返回时沿用上次筛选与页码
     filters.status = [...requirementStore.filters.status]
@@ -250,6 +273,7 @@ export function useRequirementList() {
     searchedKeyword = filters.keyword.trim()
     void loadFilterOptions()
     void load()
+    void loadAiStatus()
   })
 
   return {
@@ -270,6 +294,11 @@ export function useRequirementList() {
     canConfirm,
     canEdit,
     canViewAiTasks,
+    canLaunchAi,
+    aiAvailable,
+    selectedRows,
+    handleSelectionChange,
+    loadAiStatus,
     load,
     retry,
     search,

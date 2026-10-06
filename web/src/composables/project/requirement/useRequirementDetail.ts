@@ -383,6 +383,11 @@ export function useRequirementDetail() {
       canSplitRequirement(detail.value),
   )
 
+  /** 发起 AI 生成入口（交互 04 §1）：AI 可用且具备任务提交权限，状态条件由入口置灰 */
+  const canLaunchGeneration = computed(
+    () => aiAvailable.value && authStore.hasPermission('ai:task'),
+  )
+
   async function handleSplit(): Promise<void> {
     const title = detail.value?.title ?? ''
     try {
@@ -490,6 +495,7 @@ export function useRequirementDetail() {
     aiAvailable,
     splitting,
     canSplit,
+    canLaunchGeneration,
     handleSplit,
     loadOptions,
     loadAiStatus,
