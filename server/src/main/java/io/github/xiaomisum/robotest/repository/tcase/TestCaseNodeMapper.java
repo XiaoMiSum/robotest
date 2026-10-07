@@ -61,6 +61,13 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
         return update(null, wrapper);
     }
 
+    /** AI 助手属性子节点重排：只写序号，内容与版本不动（C11 部分更新） */
+    default int updateSortOrder(UUID id, int sortOrder) {
+        return update(null, new LambdaUpdateWrapperX<TestCaseNode>()
+                .eq(TestCaseNode::getId, id)
+                .set(TestCaseNode::getSortOrder, sortOrder));
+    }
+
     default void deleteByDocumentId(UUID documentId) {
         delete(new LambdaQueryWrapperX<TestCaseNode>()
                 .eq(TestCaseNode::getDocumentId, documentId));
