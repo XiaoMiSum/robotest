@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversation
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantEntityRefReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessagePageReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessageSendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversationStatRowDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantMessageRespDTO;
@@ -14,6 +15,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantConversation;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantMessage;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
+import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
@@ -38,11 +41,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -55,6 +61,8 @@ class AssistantServiceImplTest {
     private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID ENTITY_ID = UUID.randomUUID();
+    private static final UUID USER_MESSAGE_ID = UUID.randomUUID();
+    private static final UUID ASSISTANT_MESSAGE_ID = UUID.randomUUID();
 
     @Mock
     private AiAssistantConversationMapper conversationMapper;
@@ -62,6 +70,10 @@ class AssistantServiceImplTest {
     private AiAssistantMessageMapper messageMapper;
     @Mock
     private AssistantRefChecker refChecker;
+    @Mock
+    private AssistantStreamBridge streamBridge;
+    @Mock
+    private AiTaskService aiTaskService;
 
     @InjectMocks
     private AssistantServiceImpl service;
@@ -74,6 +86,13 @@ class AssistantServiceImplTest {
             entity.setId(CONVERSATION_ID);
             return 1;
         }).when(conversationMapper).insert(any(AiAssistantConversation.class));
+        // 发送落盘两条消息补写主键，使 attach / submit 能定位 assistant 消息
+        lenient().doAnswer(invocation -> {
+            AiAssistantMessage message = invocation.getArgument(0);
+            message.setId(Constants.AiAssistantMessageRole.USER.equals(message.getRole())
+                    ? USER_MESSAGE_ID : ASSISTANT_MESSAGE_ID);
+            return 1;
+        }).when(messageMapper).insert(any(AiAssistantMessage.class));
     }
 
     @Test
@@ -366,6 +385,177 @@ class AssistantServiceImplTest {
         assertEquals(1, resp.getCitations().size());
         assertEquals(1, resp.getAttachments().size());
         assertNotNull(resp.getCreatedAt());
+    }
+
+    // ---------- 发送消息（详设 3.5） ----------
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void send_persistsBothMessagesAttachesAndSubmits() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("新会话"));
+        when(messageMapper.statByConversationIds(anyCollection())).thenReturn(List.of());
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("  分析登录模块的用例覆盖  ");
+
+        SseEmitter emitter = service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+
+        assertNotNull(emitter);
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper, times(2)).insert(captor.capture());
+        AiAssistantMessage userMessage = captor.getAllValues().get(0);
+        assertEquals(Constants.AiAssistantMessageRole.USER, userMessage.getRole());
+        assertEquals("分析登录模块的用例覆盖", userMessage.getContent());
+        assertEquals(Constants.AiAssistantMessageStatus.DONE, userMessage.getStatus());
+        AiAssistantMessage assistantMessage = captor.getAllValues().get(1);
+        assertEquals(Constants.AiAssistantMessageRole.ASSISTANT, assistantMessage.getRole());
+        assertEquals(Constants.AiAssistantMessageStatus.STREAMING, assistantMessage.getStatus());
+        // 首问回填标题（30 字内取全文，只携带 id + title，C11）
+        ArgumentCaptor<AiAssistantConversation> renameCaptor =
+                ArgumentCaptor.forClass(AiAssistantConversation.class);
+        verify(conversationMapper).updateById(renameCaptor.capture());
+        assertEquals("分析登录模块的用例覆盖", renameCaptor.getValue().getTitle());
+        assertEquals(CONVERSATION_ID, renameCaptor.getValue().getId());
+        verify(streamBridge).attach(eq(ASSISTANT_MESSAGE_ID), any(SseEmitter.class));
+        verify(refChecker).requireWorkspaceMember(WORKSPACE_ID, USER_ID);
+
+        ArgumentCaptor<Map<String, Object>> inputCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(aiTaskService).submitInternal(eq("assistant_parse"), inputCaptor.capture(),
+                eq(USER_ID), isNull(), eq(WORKSPACE_ID));
+        assertEquals(ASSISTANT_MESSAGE_ID.toString(), inputCaptor.getValue().get("messageId"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void send_skipsTitleBackfill_whenMessageCountNonZero() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("新会话"));
+        AiAssistantConversationStatRowDTO stat = new AiAssistantConversationStatRowDTO();
+        stat.setConversationId(CONVERSATION_ID);
+        stat.setMessageCount(5);
+        when(messageMapper.statByConversationIds(anyCollection())).thenReturn(List.of(stat));
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("再来一个问题");
+
+        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+
+        verify(conversationMapper, never()).updateById(any(AiAssistantConversation.class));
+        verify(messageMapper, times(2)).insert(any(AiAssistantMessage.class));
+    }
+
+    @Test
+    void send_skipsTitleBackfill_whenUserRenamedConversation() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("自定义标题"));
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("再来一个问题");
+
+        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+
+        verify(conversationMapper, never()).updateById(any(AiAssistantConversation.class));
+    }
+
+    @Test
+    void send_rejectsArchivedConversation() {
+        AiAssistantConversation archived = conversation("归档会话");
+        archived.setStatus(Constants.Status.ARCHIVED);
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(archived);
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("任意内容");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+
+        assertEquals(ErrorCodeConstants.ASSISTANT_CONVERSATION_ARCHIVED.code(), exception.getCode());
+        verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
+    }
+
+    @Test
+    void send_rejectsBlankOrOverlongContent() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
+
+        AiAssistantMessageSendReqDTO blank = new AiAssistantMessageSendReqDTO();
+        blank.setContent("   ");
+        ServiceException blankError = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, blank, USER_ID, WORKSPACE_ID));
+        assertEquals(ErrorCodeConstants.ASSISTANT_CONTENT_INVALID.code(), blankError.getCode());
+
+        AiAssistantMessageSendReqDTO overlong = new AiAssistantMessageSendReqDTO();
+        overlong.setContent("a".repeat(4001));
+        ServiceException overlongError = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, overlong, USER_ID, WORKSPACE_ID));
+        assertEquals(ErrorCodeConstants.ASSISTANT_CONTENT_INVALID.code(), overlongError.getCode());
+        verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
+    }
+
+    @Test
+    void send_requiresWorkspaceHeader() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("任意内容");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, null));
+
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), exception.getCode());
+        verifyNoInteractions(refChecker);
+    }
+
+    @Test
+    void send_rejectsNonMember() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
+        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE))
+                .when(refChecker).requireWorkspaceMember(WORKSPACE_ID, USER_ID);
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("任意内容");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+
+        assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), exception.getCode());
+        verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
+    }
+
+    @Test
+    void send_rejectsIncompleteOrForeignAttachment() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
+        AiAssistantMessageSendReqDTO incomplete = new AiAssistantMessageSendReqDTO();
+        incomplete.setContent("带附件");
+        AiAssistantEntityRefReqDTO missingId = new AiAssistantEntityRefReqDTO();
+        missingId.setEntityType(Constants.TraceNodeType.MINDMAP_DOCUMENT);
+        incomplete.setAttachments(List.of(missingId));
+
+        ServiceException incompleteError = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, incomplete, USER_ID, WORKSPACE_ID));
+        assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), incompleteError.getCode());
+
+        AiAssistantMessageSendReqDTO foreign = new AiAssistantMessageSendReqDTO();
+        foreign.setContent("带附件");
+        AiAssistantEntityRefReqDTO ref = new AiAssistantEntityRefReqDTO();
+        ref.setEntityType(Constants.TraceNodeType.MINDMAP_DOCUMENT);
+        ref.setEntityId(ENTITY_ID);
+        foreign.setAttachments(List.of(ref));
+        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID))
+                .when(refChecker).requireInActiveWorkspace(
+                        Constants.TraceNodeType.MINDMAP_DOCUMENT, ENTITY_ID, WORKSPACE_ID);
+
+        ServiceException foreignError = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, foreign, USER_ID, WORKSPACE_ID));
+        assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), foreignError.getCode());
+        verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
+    }
+
+    @Test
+    void send_detachesChannelWhenSubmitFails() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
+        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED))
+                .when(aiTaskService).submitInternal(anyString(), anyMap(), any(), any(), any());
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("任意内容");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+
+        assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), exception.getCode());
+        // 提交失败回收通道注册，事务回滚两条消息
+        verify(streamBridge).detach(ASSISTANT_MESSAGE_ID);
     }
 
     private AiAssistantConversation conversation(String title) {

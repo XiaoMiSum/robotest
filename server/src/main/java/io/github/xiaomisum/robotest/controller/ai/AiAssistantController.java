@@ -5,13 +5,19 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversation
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessagePageReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessageSendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantMessageRespDTO;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
@@ -74,5 +81,18 @@ public class AiAssistantController {
             @AuthenticationPrincipal LoginUser loginUser, @PathVariable UUID conversationId,
             @Valid AiAssistantMessagePageReqDTO pageReq) {
         return Result.ok(assistantService.pageMessages(conversationId, pageReq, loginUser.getId()));
+    }
+
+    @Operation(summary = "发送消息（SSE 流式，详设 3.5）",
+            description = "事件流：delta / clarify / preview / citations / done / error，每 15s 心跳注释行；"
+                    + "须携带 X-Active-Workspace（4000 字符上限与附件校验在服务层）")
+    @ApiResponse(responseCode = "200", description = "SSE 事件流",
+            content = @Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
+                    schema = @Schema(type = "string")))
+    @PostMapping(value = "/{conversationId}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter sendMessage(@AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID conversationId, @RequestBody @Valid AiAssistantMessageSendReqDTO reqDTO) {
+        return assistantService.send(conversationId, reqDTO, loginUser.getId(),
+                loginUser.getActiveWorkspaceId());
     }
 }

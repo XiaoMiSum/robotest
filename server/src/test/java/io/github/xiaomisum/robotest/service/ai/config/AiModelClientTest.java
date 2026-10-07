@@ -23,11 +23,13 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.test.util.ReflectionTestUtils;
+import reactor.core.publisher.Flux;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -202,5 +204,63 @@ class AiModelClientTest {
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
         verify(usageLogMapper, never()).insert(any(AiUsageLog.class));
         verifyNoInteractions(settingsReader);
+    }
+
+    // ---------- 流式（助手详设 3.5 delta 通道） ----------
+
+    @Test
+    void streamChat_success_accumulatesDeltasWritesUsageAndStreamsOnDelta() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModel(any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+                chunk("根据"), chunk("检索来源")));
+        List<String> deltas = new ArrayList<>();
+
+        AiChatReply reply = spy.streamChat(request(), deltas::add);
+
+        // 聚合正文 + 逐段回调 + 账单 token（以响应为准）
+        assertEquals("根据检索来源", reply.content());
+        assertEquals(List.of("根据", "检索来源"), deltas);
+        assertEquals(600, reply.tokensIn());
+        assertEquals(30, reply.tokensOut());
+
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("success", captor.getValue().getStatus());
+        assertEquals(600, captor.getValue().getPromptTokens().intValue());
+        assertEquals(30, captor.getValue().getCompletionTokens().intValue());
+    }
+
+    @Test
+    void streamChat_failure_mapsTo18117AndWritesFailedUsageRow() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModel(any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenThrow(new RuntimeException("stream broke"));
+
+        ServiceException e = assertThrows(ServiceException.class,
+                () -> spy.streamChat(request(), delta -> { }));
+
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("failed", captor.getValue().getStatus());
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), captor.getValue().getErrorCode());
+    }
+
+    @Test
+    void streamChat_undecryptableKey_throwsWithoutStreamOrUsageRow() {
+        model.setApiKeyEncrypted("not-a-cipher");
+
+        ServiceException e = assertThrows(ServiceException.class,
+                () -> client.streamChat(request(), delta -> { }));
+
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        verify(chatModel, never()).stream(any(Prompt.class));
+        verify(usageLogMapper, never()).insert(any(AiUsageLog.class));
+    }
+
+    private static ChatResponse chunk(String text) {
+        return new ChatResponse(List.of(new Generation(new AssistantMessage(text))),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(600, 30)).build());
     }
 }
