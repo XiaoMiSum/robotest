@@ -29,6 +29,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * OpenAI 兼容模型客户端（详设 4.2 / 4.3）：传输、序列化、重试与响应解析统一由 Spring AI 2.0.x 执行，
@@ -75,6 +76,60 @@ public class AiModelClient {
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
             writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode);
             throw toServiceException(e, errorCode);
+        }
+    }
+
+    /**
+     * 流式生成（助手详设 3.5 delta 通道）：逐段回调增量并返回聚合结果；记账与错误映射同 chat，
+     * 成功 / 失败各记一条用量明细，token 以响应账单为准（未返回记 0）。
+     */
+    public AiChatReply streamChat(AiChatRequest request, Consumer<String> onDelta) {
+        String apiKey = secretKey == null ? null
+                : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
+        if (apiKey == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+        }
+        long start = System.currentTimeMillis();
+        StringBuilder content = new StringBuilder();
+        int[] tokensIn = {0};
+        int[] tokensOut = {0};
+        try {
+            ChatModel model = buildChatModel(request, apiKey);
+            model.stream(buildPrompt(request))
+                    .doOnNext(chunk -> {
+                        String text = textOf(chunk);
+                        if (text != null && !text.isEmpty()) {
+                            content.append(text);
+                            onDelta.accept(text);
+                        }
+                        Usage usage = chunk.getMetadata() == null ? null : chunk.getMetadata().getUsage();
+                        if (usage != null) {
+                            if (usage.getPromptTokens() != null) {
+                                tokensIn[0] = usage.getPromptTokens();
+                            }
+                            if (usage.getCompletionTokens() != null) {
+                                tokensOut[0] = usage.getCompletionTokens();
+                            }
+                        }
+                    })
+                    .blockLast();
+            AiChatReply reply = new AiChatReply(content.toString(), tokensIn[0], tokensOut[0]);
+            writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
+                    null);
+            return reply;
+        } catch (Exception e) {
+            int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
+            writeUsage(request, System.currentTimeMillis() - start, false, tokensIn[0], tokensOut[0], errorCode);
+            throw toServiceException(e, errorCode);
+        }
+    }
+
+    private static String textOf(ChatResponse chunk) {
+        try {
+            String text = chunk.getResult().getOutput().getText();
+            return text == null || text.isEmpty() ? null : text;
+        } catch (Exception e) {
+            return null;
         }
     }
 
