@@ -111,6 +111,9 @@ public class AssistantParseHandler implements TaskHandler {
                - targetId：调整与进度查看类必填，取候选清单中的既有对象 ID；
                - projectId：创建类必填，取上下文项目清单中的项目 ID；
                - params：执行参数，用例引用给 "caseIds":["…"]，其余按动作给对应字段值；
+                 create_case 多条时给 "cases":[{"title":"…","priority":"P1","precondition":"…",
+                 "steps":["…"],"expected":["…"]}]，每条必带 title、至多 20 条，单条可省略 cases
+                 改用 targetTitle 与 changes；
                - changes：展示用字段级变更 [{"field":"…","op":"add|replace","value":…}]（进度查看类空数组）；
                - createCount：将创建的记录数（非创建类给 0）。
                ID 只允许填写候选清单中出现的值（原样照抄，不得虚构）；变更必须基于用户指令，不得臆造。
