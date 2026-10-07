@@ -217,8 +217,8 @@ flowchart LR
 3. 落库走**既有业务服务**，权限、必填、合法性校验与界面操作完全一致（参与者须空间成员、计划时间合法、圈选用例存在等），助手不放宽任何约束；
 4. **逐项事务**：成功项落库保留，失败项不落库，回执附原因与可单项重试；
 5. 每次执行（含部分失败）记审计；执行回执写 `execution` 后不可变更，单项重试产生新的执行子动作追加到 `results`（原条目保持不变）；
-6. **执行输入**：执行以 `intent` 固化的 `params` 为输入——`caseIds`（已校验为工作空间内标识）与 `changes`（按字段白名单 `title / description / priority / type / precondition / steps` 解析，越界字段忽略）直传既有服务；`create_case` 未携带 `documentId` 时取项目下首份功能用例文档、未携带 `parentId` 时挂根节点；`create_review` 未携带 `participantIds` 时取执行人本人（携带时校验存在且属同一空间）；
-7. **回执跳转链接**：`link` 为前端实际路由相对路径（`/workspace/projects/{projectId}/plans/{planId}`、`/workspace/projects/{projectId}/reviews/{reviewId}`、`/workspace/projects/{projectId}/functional-testing`），前端拿到即可跳转，不自行拼前缀。
+6. **执行输入**：执行以 `intent` 固化的 `params` 与 `changes` 为输入——`caseIds`（已校验为工作空间内标识）与 `changes`（按字段白名单 `title / priority / type / precondition / steps / expected` 解析，越界字段忽略）直传既有服务；`create_case` 多条时逐条数据取 `params.cases`（`[{title, priority, precondition, steps, expected}, …]`，每条一个回执项），缺省时按 `targetTitle` + `changes` 单条创建，未携带 `documentId` 时取项目下首份功能用例文档、未携带 `parentId` 时挂根节点；`create_review` 未携带 `participantIds` 时取执行人本人（携带时校验存在且属同一空间）；
+7. **回执跳转链接**：`link` 为前端实际路由相对路径（`/workspace/projects/plans/{planId}`、`/workspace/projects/reviews/{reviewId}`、`/workspace/projects/functional-testing`），前端拿到即可跳转，不自行拼前缀。
 
 ### 4.3 预览（intent）结构
 
@@ -328,3 +328,4 @@ AiAssistantPanel（浮层卡片：400×560、无遮罩、可拖动、默认收�
 | V1.0 | 2026-10-03 | 助手面板由右侧抽屉改为无遮罩浮层卡片（可拖动、默认收起） |
 | V1.0 | 2026-10-07 | `batch_tag` 与 `update_case` 口径对齐既有数据模型：批量标记为设置优先级 / 类型标记，不设标签字段 |
 | V1.0 | 2026-10-07 | 明确 execute 单项重试口径（254 分档、retryIndexes、结果追加）、执行输入缺省与回执跳转链接格式 |
+| V1.0 | 2026-10-07 | case 类 `changes` 白名单去 description 补 expected；`create_case` 多条数据取 `params.cases`；回执链接对齐前端实际路由 |
