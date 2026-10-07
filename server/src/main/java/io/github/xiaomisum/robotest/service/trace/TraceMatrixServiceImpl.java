@@ -449,6 +449,43 @@ public class TraceMatrixServiceImpl implements TraceMatrixService {
         return toCoverageResp(updated);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean applyAiCoverage(UUID projectId, UUID taskId, UUID requirementId, String coverageStatus,
+            Map<String, Object> evidence) {
+        if (!COVERABLE.contains(coverageStatus)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED.code(),
+                    "覆盖状态取值非法：" + coverageStatus);
+        }
+        TraceCoverageResult existing = traceCoverageResultMapper.findByRequirement(projectId, requirementId);
+        if (existing == null) {
+            TraceCoverageResult created = new TraceCoverageResult();
+            created.setProjectId(projectId);
+            created.setRequirementId(requirementId);
+            created.setCoverageStatus(coverageStatus);
+            created.setEvidence(evidence);
+            created.setAnalyzedTaskId(taskId);
+            created.setAiAnalyzedAt(LocalDateTime.now());
+            // reviewed_* 保持 NULL：本行结论来自 AI 分析，可被人工修正（3.8）
+            traceCoverageResultMapper.insert(created);
+            return true;
+        }
+        if (existing.getReviewedBy() != null) {
+            // 人工判定优先（3.8）：修正后 AI 分析不再覆盖该行
+            return false;
+        }
+
+        // 部分更新（C11）：只落本次 AI 分析字段组，人工复核字段不触碰
+        TraceCoverageResult carrier = new TraceCoverageResult();
+        carrier.setId(existing.getId());
+        carrier.setCoverageStatus(coverageStatus);
+        carrier.setEvidence(evidence);
+        carrier.setAnalyzedTaskId(taskId);
+        carrier.setAiAnalyzedAt(LocalDateTime.now());
+        traceCoverageResultMapper.updateById(carrier);
+        return true;
+    }
+
     // ---------------------------------------------------------------- 3.9 缺口列表
 
     @Override

@@ -51,6 +51,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -475,6 +476,73 @@ class TraceMatrixServiceImplTest {
         assertNull(captor.getValue().getAnalyzedTaskId());
         assertNull(captor.getValue().getAiAnalyzedAt());
         assertEquals("partial", resp.getCoverageStatus());
+    }
+
+    // ---------- 4.2 AI 覆盖结论写入 ----------
+
+    @Test
+    void applyAiCoverage_invalidStatus_throwsValidationFailed() {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.applyAiCoverage(PROJECT_ID, UUID.randomUUID(), REQ_ID, "pending",
+                        Map.of()));
+        assertEquals(ErrorCodeConstants.VALIDATION_FAILED.code(), exception.getCode());
+        verify(traceCoverageResultMapper, never()).insert(any(TraceCoverageResult.class));
+    }
+
+    @Test
+    void applyAiCoverage_withoutExistingRow_createsAiRow() {
+        UUID taskId = UUID.randomUUID();
+        when(traceCoverageResultMapper.findByRequirement(PROJECT_ID, REQ_ID)).thenReturn(null);
+        when(traceCoverageResultMapper.insert(any(TraceCoverageResult.class))).thenReturn(1);
+
+        boolean written = service.applyAiCoverage(PROJECT_ID, taskId, REQ_ID, "uncovered",
+                Map.of("gaps", List.of("无关联用例")));
+
+        assertTrue(written);
+        ArgumentCaptor<TraceCoverageResult> captor = ArgumentCaptor.forClass(TraceCoverageResult.class);
+        verify(traceCoverageResultMapper).insert(captor.capture());
+        assertEquals("uncovered", captor.getValue().getCoverageStatus());
+        assertEquals(taskId, captor.getValue().getAnalyzedTaskId());
+        assertNotNull(captor.getValue().getAiAnalyzedAt());
+        // reviewed_* 保持 NULL：AI 行结论可被人工修正（3.8）
+        assertNull(captor.getValue().getReviewedBy());
+    }
+
+    @Test
+    void applyAiCoverage_withExistingManualRow_skipsWrite() {
+        TraceCoverageResult existing = coverageRow("covered");
+        existing.setReviewedBy(UUID.randomUUID());
+        when(traceCoverageResultMapper.findByRequirement(PROJECT_ID, REQ_ID)).thenReturn(existing);
+
+        boolean written = service.applyAiCoverage(PROJECT_ID, UUID.randomUUID(), REQ_ID,
+                "uncovered", Map.of("gaps", List.of("缺口")));
+
+        assertFalse(written);
+        verify(traceCoverageResultMapper, never()).insert(any(TraceCoverageResult.class));
+        verify(traceCoverageResultMapper, never()).updateById(any(TraceCoverageResult.class));
+    }
+
+    @Test
+    void applyAiCoverage_withExistingAiRow_partialUpdatesAiFields() {
+        UUID taskId = UUID.randomUUID();
+        TraceCoverageResult existing = coverageRow("uncovered");
+        when(traceCoverageResultMapper.findByRequirement(PROJECT_ID, REQ_ID)).thenReturn(existing);
+        when(traceCoverageResultMapper.updateById(any(TraceCoverageResult.class))).thenReturn(1);
+
+        boolean written = service.applyAiCoverage(PROJECT_ID, taskId, REQ_ID, "partial",
+                Map.of("coveredBy", List.of("用例A")));
+
+        assertTrue(written);
+        ArgumentCaptor<TraceCoverageResult> captor = ArgumentCaptor.forClass(TraceCoverageResult.class);
+        verify(traceCoverageResultMapper).updateById(captor.capture());
+        // 部分更新（C11）：载体只携带 id + AI 分析字段组，人工复核字段不触碰
+        assertEquals(existing.getId(), captor.getValue().getId());
+        assertEquals("partial", captor.getValue().getCoverageStatus());
+        assertEquals(taskId, captor.getValue().getAnalyzedTaskId());
+        assertNotNull(captor.getValue().getAiAnalyzedAt());
+        assertNull(captor.getValue().getReviewedBy());
+        assertNull(captor.getValue().getReviewedAt());
+        assertNull(captor.getValue().getReviewedNote());
     }
 
     // ---------- 3.9 缺口 ----------

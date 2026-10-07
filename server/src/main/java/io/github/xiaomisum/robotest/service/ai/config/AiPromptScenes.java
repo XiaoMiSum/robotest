@@ -52,6 +52,9 @@ public final class AiPromptScenes {
         register(scenes, new PromptScene("plan_selection", "计划圈选建议", List.of(
                 new PromptVariable("scopeContext", "圈选范围上下文（需求 / 模块与候选用例）", true),
                 new PromptVariable("roundCount", "计划轮次数", false))));
+        register(scenes, new PromptScene("coverage_analysis", "覆盖分析", List.of(
+                new PromptVariable("requirementContext", "需求条目上下文（编号、标题与描述）", true),
+                new PromptVariable("caseContext", "关联测试用例清单（id 与标题）", true))));
         SCENES = Collections.unmodifiableMap(scenes);
     }
 
