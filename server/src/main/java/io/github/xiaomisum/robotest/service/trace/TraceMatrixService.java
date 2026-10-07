@@ -51,6 +51,13 @@ public interface TraceMatrixService {
     TraceCoverageRespDTO patchCoverage(UUID requirementId, TraceCoveragePatchReqDTO req, UUID projectId,
             UUID userId);
 
+    /**
+     * AI 覆盖结论写入（追溯矩阵详设 4.2）：无行则创建 AI 行，有行则部分更新 AI 字段组；
+     * 既有行 reviewed_by 非空（人工判定优先）时跳过写入并返回 false。
+     */
+    boolean applyAiCoverage(UUID projectId, UUID taskId, UUID requirementId, String coverageStatus,
+            Map<String, Object> evidence);
+
     /** 缺口列表（3.9）：四类缺口与引导动作 */
     PageResult<TraceGapRespDTO> gaps(TraceGapPageReqDTO req, UUID projectId);
 

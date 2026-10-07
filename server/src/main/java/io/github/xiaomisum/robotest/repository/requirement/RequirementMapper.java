@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.repository.requirement;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -51,6 +52,27 @@ public interface RequirementMapper extends BaseMapperX<Requirement> {
         }
         wrapper.orderByDesc(Requirement::getUpdatedAt);
         return selectPage(pageParam, wrapper);
+    }
+
+    /**
+     * 覆盖分析默认范围（追溯矩阵详设 4.2）：项目内非归档需求——SRS 规定归档条目
+     * 只读且不作为覆盖分析输入，故排除；调用方负责条数上限校验（详设 3.7）。
+     */
+    default List<Requirement> listAnalyzableByProject(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<Requirement>()
+                .eq(Requirement::getProjectId, projectId)
+                .ne(Requirement::getStatus, Constants.RequirementStatus.ARCHIVED));
+    }
+
+    /**
+     * 覆盖分析默认范围条数（提交时上限校验，详设 3.7）：走 project + status 联合索引，
+     * 避免为校验加载全量需求正文。
+     */
+    default long countAnalyzableByProject(UUID projectId) {
+        Long cnt = selectCount(new LambdaQueryWrapperX<Requirement>()
+                .eq(Requirement::getProjectId, projectId)
+                .ne(Requirement::getStatus, Constants.RequirementStatus.ARCHIVED));
+        return cnt == null ? 0 : cnt;
     }
 
     /** 按 ID 批量读取（追溯节点解析，详设 3.4） */
