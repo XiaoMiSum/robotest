@@ -55,11 +55,21 @@ public final class AiPromptScenes {
         register(scenes, new PromptScene("coverage_analysis", "覆盖分析", List.of(
                 new PromptVariable("requirementContext", "需求条目上下文（编号、标题与描述）", true),
                 new PromptVariable("caseContext", "关联测试用例清单（id 与标题）", true))));
+        register(scenes, new PromptScene("assistant_parse", "助手意图解析", List.of(
+                new PromptVariable("history", "会话近 20 条消息（时间正序，角色:内容）", true),
+                new PromptVariable("context", "活跃工作空间项目与页面上下文引用", true),
+                new PromptVariable("caseOptions", "候选测试用例清单（id | 标题 | 项目）", true),
+                new PromptVariable("reviewOptions", "候选测试评审清单（id | 名称 | 项目）", false),
+                new PromptVariable("planOptions", "候选测试计划清单（id | 名称 | 项目）", false))));
+        register(scenes, new PromptScene("assistant_answer", "助手只读问答", List.of(
+                new PromptVariable("question", "用户问题（或检索查询文本）", true),
+                new PromptVariable("retrievedContext", "检索命中的来源分块", true),
+                new PromptVariable("history", "会话近 20 条消息（时间正序）", true))));
         SCENES = Collections.unmodifiableMap(scenes);
     }
 
     /**
-     * 阶段子场景内置默认（生成链详设 3.3）：scene 不等于任务 type，处理器 defaultPrompt 不可达，
+     * 阶段子场景内置默认（生成链详设 3.3 / 助手详设 4.1）：scene 不等于任务 type，处理器 defaultPrompt 不可达，
      * 随场景登记一并给出，配置中心经 AiPromptAdminService 回落展示。
      */
     private static final Map<String, String> STAGE_PROMPTS = Map.ofEntries(
@@ -131,6 +141,20 @@ public final class AiPromptScenes {
                     {{documentOptions}}
                     待填充属性的用例节点（ref|标题）：
                     {{caseNodeOptions}}
+                    """),
+            Map.entry("assistant_answer", """
+                    你是测试平台智能助手的只读问答员，基于给定的检索来源回答用户问题：
+                    1. 只依据检索来源作答，不得编造来源中没有的数据；来源不足以回答时直说无法回答；
+                    2. 回答使用 Markdown，涉及数量、进度与状态时给出具体对象名称与数值；
+                    3. 只输出回答正文，不输出与问题无关的内容。
+                    检索来源：
+                    {{retrievedContext}}
+
+                    用户问题：
+                    {{question}}
+
+                    会话历史（时间正序）：
+                    {{history}}
                     """));
 
     private AiPromptScenes() {

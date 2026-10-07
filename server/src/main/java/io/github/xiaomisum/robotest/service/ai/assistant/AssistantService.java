@@ -4,15 +4,17 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversation
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessagePageReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessageSendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversationRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantMessageRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantConversation;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.pojo.PageResult;
 
 import java.util.UUID;
 
 /**
- * 助手会话（详设 3.2 ~ 3.4 / 3.6）：按登录用户唯一归属，隔离维度只有归属人，
+ * 助手会话（详设 3.2 ~ 3.6）：按登录用户唯一归属，隔离维度只有归属人，
  * 归属即权限（1000018251，管理员同样不越权）。
  */
 public interface AssistantService {
@@ -35,6 +37,14 @@ public interface AssistantService {
     /** 3.6 消息历史：倒序分页，先做归属校验（1000018251） */
     PageResult<AiAssistantMessageRespDTO> pageMessages(UUID conversationId, AiAssistantMessagePageReqDTO pageReq,
             UUID userId);
+
+    /**
+     * 3.5 发送消息（SSE 流式）：会话可发（259）、正文（260）、上下文头（2008）、活跃空间成员
+     * （261）与附件归属（262）校验后落盘用户与 assistant 消息并提交 assistant_parse 任务，
+     * 返回事件流（delta / clarify / preview / citations / done / error + 15s 心跳）。
+     * projectId 置 null（助手解析为不限项目的个人任务，总册 2.6）。
+     */
+    SseEmitter send(UUID conversationId, AiAssistantMessageSendReqDTO reqDTO, UUID userId, UUID activeWorkspaceId);
 
     /** 会话归属校验（详设 3.1 防 IDOR）：非本人或不存在一律 1000018251，供发送 / 执行 / 取消复用 */
     AiAssistantConversation getOwnedConversation(UUID conversationId, UUID userId);
