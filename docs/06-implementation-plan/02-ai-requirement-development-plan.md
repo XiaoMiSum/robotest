@@ -245,6 +245,37 @@ flowchart TD
 - 批次二：模型连通性测试、维度变更重建引导、六阶段生成预览确认、任务失败重试、三类文件导入端到端、向量全量重建与限权检索、导入识别版本确认；
 - 批次三：助手流式与断线恢复、超权限只读问答拒绝、缺陷分析下钻、辅助面板确认生效。
 
+### 3.5 批次三执行顺序与提交拆分
+
+批次三按依赖顺序逐包实施，每个提交单独过本端门禁（`bash scripts/validate-web.sh` / `bash scripts/validate-backend.sh`，文档变更走 `bash scripts/validate-docs.sh`）。WP-6.1 助手会话与 SSE 后端已完成：代码 4 个提交（`1506edb4`、`d3885280`、`7cdbb5af`、`ee83788e`）与文档 2 个提交（`41bc03fe`、`3fb120cf`）。
+
+| 顺序 | 工作包 | 端 | 依赖（现状） | 提交拆分 |
+| ---- | ---- | ---- | ---- | ---- |
+| 1 | WP-6.2 助手面板与悬浮球前端 | 前端 | WP-6.1 ✅ | ① 助手前端服务层、类型与 `aiAssistant` 状态骨架；② 悬浮球浮层卡片与会话管理；③ 消息时间线与 SSE 流式接线（含断线轮询补齐）；④ 变更预览确认执行与回执卡（倒计时与单项重试） |
+| 2 | WP-7.1 缺陷分析后端 | 后端 | WP-4.2 ✅ | ① 错误码与 DTO / 路由、统计查询（趋势、质量度量）；② 同步建议类（新建缺陷建议、分诊队列、录入重复检测）；③ 任务处理器（AI 摘要、存量批量分类、存量重复扫描）与确认承接；④ OpenAPI 基线同步 |
+| 3 | WP-7.2 缺陷分析前端 | 前端 | WP-7.1 | ① 分析页路由与图表看板；② 新建建议区与录入重复检测；③ 任务详情批量分类审核区接入 |
+| 4 | WP-7.3 辅助功能前后端 | 全 | WP-4.2 ✅、既有用例 / 计划模块 | ① 后端三接口、错误码与采纳落库；② 补全与级别推荐对照面板；③ 执行顺序建议面板 |
+| 5 | WP-9.1 批次三收口 | 全 | 各包 | `bash scripts/validate.sh --all` EXIT=0、C8 达标、springdoc 与契约同步、人工验收结果按 3.4 第 4 条回填 |
+
+**WP-6.2 范围要点**（依据 `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` 与 `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` 第 3 节接口）：
+
+1. **入口与壳层**：悬浮球与 400×560 浮层卡片挂应用壳层（`web/src/layouts/BusinessLayout.vue`），路由切换不销毁；无遮罩、不锁底层滚动、点击外部不关闭、可拖动且不持久化、默认收起、宽度小于 768px 近全宽贴底；入口显隐 = AI 总开关 + 模型配置就绪 + 权限。
+2. **状态骨架**：Pinia store `aiAssistant` 承载面板开合、会话列表、当前会话消息、流式缓冲、`previewing / executing` 与按会话暂存草稿。
+3. **SSE 客户端**：`fetch` + `ReadableStream` 解析事件流（`delta / clarify / preview / citations / done / error` 与 15s 心跳注释行）；断线置 `interrupted` 后自动轮询消息补齐至 `done`（现无 SSE 客户端需新建，轮询参照既有任务中心组合式）。
+4. **消息与卡片**：用户消息（正文 + 附件）、助手 Markdown 与 citations、澄清卡（快捷选项回填重发）、预览卡（字段级 diff、`expiresAt` 倒计时、确认执行 / 取消 / 返回修改、过期置灰并支持重新解析）、回执卡（逐项成败、对象链接跳转并收起面板、`retryIndexes` 单项重试）。
+5. **会话管理**：列表倒序与检索、重命名 / 归档 / 删除 / 新会话，归档只读；空会话示例引导。
+6. **状态分支**：流式中禁输入、RAG 未就绪 1000018258 提示、权限不足回执、执行部分失败、小屏适配（交互稿 2.4 全量）。
+
+**WP-6.2 编码前探查**：壳层全局挂载点；AI 总开关与模型就绪的取值来源；前端服务层与契约基线对齐方式；既有 Markdown 渲染能力；端约定 `web/AGENTS.md`。
+
+**WP-7.x 设计依据**：WP-7.1 —— `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md`（3.2–3.9 八个接口、任务 type 与资源权限映射 4.2、批量执行与确认 4.3、错误码第 6 节）；WP-7.2 —— `docs/05-interaction-design/07-ai-capability/06-defect-analysis-ui.md`；WP-7.3 —— `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`（3.2–3.4 三接口、4.2 采纳覆盖口径、4.3 补充节点与追溯边）与 `docs/05-interaction-design/07-ai-capability/07-assisted-features-ui.md`。
+
+**批次三收口前待验收积压**（结果按 3.4 第 4 条回填）：
+
+- WP-6.1：SSE 流式、断线补齐、超权限与跨作用域拒绝、确认执行回执与取消；
+- 批次二遗留：WP-5.1 六阶段生成、WP-2.2 三类导入、WP-5.2 生成预览前端、WP-8.1 导入版本确认面板、覆盖分析入口（`coverage_analysis`）；
+- 发布阻塞：docker 镜像构建待 migoo 1.4.0 / ryze 6.1.1 发布到 Maven Central（维持既定裁决，不阻塞代码开发）。
+
 ## 4. 风险与应对
 
 | 风险 | 影响 | 应对 |
@@ -278,3 +309,4 @@ flowchart TD
 | V1.0 | 2026-10-04 | WP-2.0 详设补建：新建 `docs/04-detailed-design/08-file-management/02-file-management.md`（泛化附件资源 `file_resource`、MinIO 存储与 presigned/平台双通道、缺陷附件迁移、文件管理页、docker-compose 全家桶），WP-2.0 设计依据由「随本包补建」改指该文档 |
 | V1.0 | 2026-10-05 | WP-2.0 存储引擎定标 MinIO → SeaweedFS（S3 兼容，官方发布仓库固定版本镜像）：§1.2 登记与 WP-2.0 范围/验收行同步，历史记录行不改 |
 | V1.0 | 2026-10-05 | WP-2.2 范围裁决：文档级版本识别（提示词识别与 `documentMeta.detectedVersion` 输出）随 WP-2.2 顺带交付，WP-8.1 由「全」收窄为版本确认面板前端，验收口径同步 |
+| V1.0 | 2026-10-07 | 新增 3.5 批次三执行顺序与提交拆分：登记 WP-6.1 四代码提交与两文档提交完成，明确 WP-6.2 → WP-7.1 → WP-7.2 → WP-7.3 → WP-9.1 执行顺序、各包提交拆分与设计依据，并登记批次三收口前待验收积压（WP-6.1、批次二遗留与镜像发布阻塞） |
