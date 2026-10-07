@@ -163,7 +163,7 @@
 
 - **路径**：`POST /api/ai/conversations/{conversationId}/messages/{messageId}/execute`
 - **请求头**：`X-Active-Workspace` + `X-Active-Project`（须与 `intent.scope` 一致）。
-- **请求**：`{ }`（无业务参数，参数已在 `intent` 中固化）。
+- **请求**：`{ "retryIndexes": [1, 3] }`；`retryIndexes` 可选，缺省表示首次执行（此时 `execution` 须为 `null`），非空表示对上次回执 `results` 中失败项按数组下标单项重试。
 - **响应**（回执，整体 200；逐项成败，部分失败成功项保留）：
 
 ```json
@@ -173,14 +173,15 @@
     "executedBy": "…",
     "executedAt": "2026-10-02T09:12:00Z",
     "results": [
-      { "action": "create_plan", "success": true, "createdId": "…", "link": "/projects/…/plans/…" },
-      { "action": "add_case", "caseId": "…", "success": false, "errorCode": 1000018257, "errorMsg": "无权限执行该操作" }
+      { "action": "create_plan", "success": true, "createdId": "…", "link": "/workspace/projects/…/plans/…" },
+      { "action": "create_case", "caseId": "…", "success": false, "errorCode": 1000018257, "errorMsg": "无权限执行该操作" }
     ]
   }
 }
 ```
 
 - **校验顺序**：会话归属（1000018251）→ 消息存在（1000018252）→ `intent` 非空（1000018255）→ 时效（`expiresAt` 超时 1000018253）→ 未执行过（1000018254）→ 作用域一致（`intent.scope` 与请求头不一致 1000018256）→ 权限（1000018257）。
+- **未执行过（1000018254）分档**：不带 `retryIndexes` 时 `execution` 非 `null` 即拒绝（含 `rejected`，取消后不可再执行）；带 `retryIndexes` 时要求 `execution.status = "executed"` 且各下标指向既有失败项，下标越界或指向成功项按参数非法（1000001001）拒绝。
 
 ### 3.8 取消预览
 
@@ -215,7 +216,9 @@ flowchart LR
 2. 执行时服务端**独立校验**：`intent.scope` 与请求头 `X-Active-Workspace / X-Active-Project` 一致，不一致拒绝（1000018256）——历史会话在新作用域下可继续问答，落库动作须回到目标作用域；
 3. 落库走**既有业务服务**，权限、必填、合法性校验与界面操作完全一致（参与者须空间成员、计划时间合法、圈选用例存在等），助手不放宽任何约束；
 4. **逐项事务**：成功项落库保留，失败项不落库，回执附原因与可单项重试；
-5. 每次执行（含部分失败）记审计；执行回执写 `execution` 后不可变更，单项重试产生新的执行子动作追加到 `results`。
+5. 每次执行（含部分失败）记审计；执行回执写 `execution` 后不可变更，单项重试产生新的执行子动作追加到 `results`（原条目保持不变）；
+6. **执行输入**：执行以 `intent` 固化的 `params` 为输入——`caseIds`（已校验为工作空间内标识）与 `changes`（按字段白名单 `title / description / priority / type / precondition / steps` 解析，越界字段忽略）直传既有服务；`create_case` 未携带 `documentId` 时取项目下首份功能用例文档、未携带 `parentId` 时挂根节点；`create_review` 未携带 `participantIds` 时取执行人本人（携带时校验存在且属同一空间）；
+7. **回执跳转链接**：`link` 为前端实际路由相对路径（`/workspace/projects/{projectId}/plans/{planId}`、`/workspace/projects/{projectId}/reviews/{reviewId}`、`/workspace/projects/{projectId}/functional-testing`），前端拿到即可跳转，不自行拼前缀。
 
 ### 4.3 预览（intent）结构
 
@@ -324,3 +327,4 @@ AiAssistantPanel（浮层卡片：400×560、无遮罩、可拖动、默认收�
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-03 | 助手面板由右侧抽屉改为无遮罩浮层卡片（可拖动、默认收起） |
 | V1.0 | 2026-10-07 | `batch_tag` 与 `update_case` 口径对齐既有数据模型：批量标记为设置优先级 / 类型标记，不设标签字段 |
+| V1.0 | 2026-10-07 | 明确 execute 单项重试口径（254 分档、retryIndexes、结果追加）、执行输入缺省与回执跳转链接格式 |
