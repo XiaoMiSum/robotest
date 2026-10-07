@@ -45,6 +45,12 @@ const props = defineProps<{
     loadError: string
     saving: boolean
     canEdit: boolean
+    aiAvailable: boolean
+    busy: boolean
+    taskRunning: boolean
+    taskProgress: number | null
+    taskFailed: boolean
+    taskError: string
   }
   impact: {
     items: TraceImpactItemView[]
@@ -71,6 +77,8 @@ const emit = defineEmits<{
   openChain: [origin: { type: TraceNodeType; id: string; title: string }]
   retryCoverage: []
   saveCoverage: [payload: { coverageStatus: Exclude<RequirementCoverageStatus, 'pending'>; note?: string }]
+  analyzeCoverage: []
+  retryAnalyzeCoverage: []
   disposeImpact: [payload: { item: TraceImpactItemView; disposition: TraceImpactDisposition; reason: string }]
   analyzeImpact: []
   retryAnalyzeImpact: []
@@ -348,8 +356,16 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
         :load-error="coverage.loadError"
         :saving="coverage.saving"
         :can-edit="coverage.canEdit"
+        :ai-available="coverage.aiAvailable"
+        :busy="coverage.busy"
+        :task-running="coverage.taskRunning"
+        :task-progress="coverage.taskProgress"
+        :task-failed="coverage.taskFailed"
+        :task-error="coverage.taskError"
         @retry="emit('retryCoverage')"
         @save="emit('saveCoverage', $event)"
+        @analyze="emit('analyzeCoverage')"
+        @retry-analyze="emit('retryAnalyzeCoverage')"
       />
 
       <template v-if="aiAvailable">

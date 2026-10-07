@@ -63,10 +63,17 @@ const {
   loadError: coverageLoadError,
   saving: coverageSaving,
   revision: coverageRevision,
+  busy: coverageBusy,
+  taskRunning: coverageTaskRunning,
+  taskProgress: coverageTaskProgress,
+  taskFailed: coverageTaskFailed,
+  taskError: coverageTaskError,
   openFor: openCoverage,
   retry: retryCoverage,
   close: closeCoverage,
   save: saveCoverage,
+  analyze: analyzeCoverage,
+  retryAnalyze: retryAnalyzeCoverage,
 } = useTraceCoverage()
 
 const {
@@ -406,6 +413,12 @@ onMounted(() => {
         loadError: coverageLoadError,
         saving: coverageSaving,
         canEdit: canEditTrace,
+        aiAvailable,
+        busy: coverageBusy,
+        taskRunning: coverageTaskRunning,
+        taskProgress: coverageTaskProgress,
+        taskFailed: coverageTaskFailed,
+        taskError: coverageTaskError,
       }"
       :impact="{
         items: impactItems,
@@ -429,6 +442,8 @@ onMounted(() => {
       @open-chain="(origin) => traceStore.openChain(origin)"
       @retry-coverage="retryCoverage"
       @save-coverage="(payload) => void saveCoverage(payload)"
+      @analyze-coverage="() => void analyzeCoverage()"
+      @retry-analyze-coverage="() => void retryAnalyzeCoverage()"
       @dispose-impact="handleDispose"
       @analyze-impact="() => void analyze()"
       @retry-analyze-impact="() => void retryAnalyze()"

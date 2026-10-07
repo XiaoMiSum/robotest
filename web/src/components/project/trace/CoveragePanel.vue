@@ -6,7 +6,7 @@ import { traceCoverageMeta } from '@/composables/project/trace/tracePresentation
 
 /**
  * 覆盖修正面板（交互 04 §2.3）：依据展示 + 人工修正；
- * 「发起覆盖分析」随处理器批次二接入后开放，本包不展示该入口。
+ * 无结论时放开「发起覆盖分析」，进行中展示任务进度、失败后可重试。
  */
 const props = defineProps<{
   record: TraceCoverage | null
@@ -14,11 +14,19 @@ const props = defineProps<{
   loadError: string
   saving: boolean
   canEdit: boolean
+  aiAvailable: boolean
+  busy: boolean
+  taskRunning: boolean
+  taskProgress: number | null
+  taskFailed: boolean
+  taskError: string
 }>()
 
 const emit = defineEmits<{
   retry: []
   save: [payload: { coverageStatus: Exclude<RequirementCoverageStatus, 'pending'>; note?: string }]
+  analyze: []
+  retryAnalyze: []
 }>()
 
 const formRef = ref<FormInstance>()
@@ -50,6 +58,11 @@ const evidenceEntries = computed(() => {
 })
 
 const isManual = computed(() => props.record?.reviewedBy != null)
+
+/** 无结论可看才放开 AI 入口：已有结论先看结论，人工结论 AI 不会覆盖，重跑无意义 */
+const canAnalyze = computed(() => evidenceEntries.value.length === 0 && !isManual.value)
+
+const showAnalyzeHint = computed(() => props.aiAvailable && canAnalyze.value)
 
 watch(
   () => props.record,
@@ -83,7 +96,40 @@ async function submit(): Promise<void> {
       </el-tag>
       <el-tag v-else size="small" effect="plain" type="info">未分析</el-tag>
       <el-tag v-if="isManual" size="small" effect="plain">人工结论</el-tag>
+      <span class="coverage-panel__actions">
+        <el-button
+          v-if="aiAvailable && taskFailed"
+          size="small"
+          :loading="busy"
+          @click="emit('retryAnalyze')"
+        >
+          重试
+        </el-button>
+        <el-button
+          v-if="aiAvailable && canAnalyze && !taskRunning && !taskFailed"
+          type="primary"
+          size="small"
+          :loading="busy"
+          @click="emit('analyze')"
+        >
+          发起覆盖分析
+        </el-button>
+      </span>
     </header>
+
+    <el-progress
+      v-if="taskRunning"
+      :percentage="taskProgress ?? 0"
+      :stroke-width="8"
+    />
+
+    <el-alert
+      v-if="taskFailed && taskError"
+      type="warning"
+      :title="taskError"
+      show-icon
+      :closable="false"
+    />
 
     <el-alert
       v-if="loadError"
@@ -110,7 +156,11 @@ async function submit(): Promise<void> {
         <p v-if="record?.aiAnalyzedAt" class="coverage-panel__time">AI 分析于 {{ record.aiAnalyzedAt }}</p>
       </template>
       <p v-else-if="!loading && !loadError" class="coverage-panel__empty">
-        该需求无覆盖分析记录，可在下方直接给出人工结论
+        {{
+          showAnalyzeHint
+            ? '该需求暂无覆盖分析记录，可发起 AI 分析或在下方给出人工结论'
+            : '该需求无覆盖分析记录，可在下方直接给出人工结论'
+        }}
       </p>
     </div>
 
@@ -195,6 +245,12 @@ async function submit(): Promise<void> {
   margin: 0;
   font-size: 12px;
   color: var(--color-neutral-500);
+}
+
+.coverage-panel__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .coverage-panel__row {
