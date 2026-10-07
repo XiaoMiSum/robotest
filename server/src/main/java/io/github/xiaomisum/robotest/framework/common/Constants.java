@@ -82,6 +82,24 @@ public final class Constants {
     }
 
     /**
+     * 助手消息状态（总册 2.9）：流式中 → 完成；断连中止与解析失败分别置 interrupted / error
+     */
+    public interface AiAssistantMessageStatus {
+        String STREAMING = "streaming";
+        String DONE = "done";
+        String INTERRUPTED = "interrupted";
+        String ERROR = "error";
+    }
+
+    /**
+     * 助手消息角色（总册 2.9）
+     */
+    public interface AiAssistantMessageRole {
+        String USER = "user";
+        String ASSISTANT = "assistant";
+    }
+
+    /**
      * 追溯边类型（追溯矩阵详设 2.4）：derivation 需求侧派生，case_snapshot 用例 ⇢ 评审 / 计划圈选
      */
     public interface TraceEdgeType {

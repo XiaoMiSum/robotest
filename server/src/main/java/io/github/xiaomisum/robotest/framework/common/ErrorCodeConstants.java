@@ -261,4 +261,18 @@ public class ErrorCodeConstants {
     public static final ErrorCode GENERATION_NO_ADOPT_PERMISSION = ErrorCode.of(1000018208, "无产物落库资源权限");
     public static final ErrorCode GENERATION_DUPLICATE_TASK = ErrorCode.of(1000018209, "已存在进行中的同输入生成任务");
     public static final ErrorCode GENERATION_PARENT_NOT_ADOPTED = ErrorCode.of(1000018210, "父级产物尚未采纳，无法落库");
+
+    // ========== 智能助手 1000018251-1000018262（助手详设 6，号段至 1000018279） ==========
+    public static final ErrorCode ASSISTANT_CONVERSATION_NOT_FOUND = ErrorCode.of(1000018251, "会话不存在或非本人会话");
+    public static final ErrorCode ASSISTANT_MESSAGE_NOT_FOUND = ErrorCode.of(1000018252, "消息不存在");
+    public static final ErrorCode ASSISTANT_PREVIEW_EXPIRED = ErrorCode.of(1000018253, "预览不存在或已过期");
+    public static final ErrorCode ASSISTANT_PREVIEW_RESOLVED = ErrorCode.of(1000018254, "预览已执行或已取消");
+    public static final ErrorCode ASSISTANT_PARSE_FAILED = ErrorCode.of(1000018255, "意图解析失败，无法生成预览");
+    public static final ErrorCode ASSISTANT_SCOPE_MISMATCH = ErrorCode.of(1000018256, "执行作用域与预览目标不一致");
+    public static final ErrorCode ASSISTANT_NO_PERMISSION = ErrorCode.of(1000018257, "无权限执行该操作");
+    public static final ErrorCode ASSISTANT_RAG_UNAVAILABLE = ErrorCode.of(1000018258, "只读问答检索不可用（向量能力未就绪）");
+    public static final ErrorCode ASSISTANT_CONVERSATION_ARCHIVED = ErrorCode.of(1000018259, "会话已归档，不可发送消息");
+    public static final ErrorCode ASSISTANT_CONTENT_INVALID = ErrorCode.of(1000018260, "消息内容为空或超过长度限制");
+    public static final ErrorCode ASSISTANT_CROSS_WORKSPACE = ErrorCode.of(1000018261, "跨工作空间指代被拒绝，请切换作用域");
+    public static final ErrorCode ASSISTANT_ATTACHMENT_INVALID = ErrorCode.of(1000018262, "附件引用非法");
 }
