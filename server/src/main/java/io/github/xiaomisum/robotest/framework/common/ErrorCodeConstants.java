@@ -275,4 +275,12 @@ public class ErrorCodeConstants {
     public static final ErrorCode ASSISTANT_CONTENT_INVALID = ErrorCode.of(1000018260, "消息内容为空或超过长度限制");
     public static final ErrorCode ASSISTANT_CROSS_WORKSPACE = ErrorCode.of(1000018261, "跨工作空间指代被拒绝，请切换作用域");
     public static final ErrorCode ASSISTANT_ATTACHMENT_INVALID = ErrorCode.of(1000018262, "附件引用非法");
+
+    // ========== 缺陷分析 1000018281-1000018286（缺陷分析详设 6） ==========
+    public static final ErrorCode BUG_ANALYSIS_RANGE_INVALID = ErrorCode.of(1000018281, "分析时间范围非法");
+    public static final ErrorCode BUG_ANALYSIS_NOT_FOUND = ErrorCode.of(1000018282, "缺陷不存在");
+    public static final ErrorCode BUG_ANALYSIS_INPUT_EMPTY = ErrorCode.of(1000018283, "分析输入为空（无可分析的缺陷）");
+    public static final ErrorCode BUG_ANALYSIS_CHECK_INPUT_INVALID = ErrorCode.of(1000018284, "检测输入非法（标题为空或超长）");
+    public static final ErrorCode BUG_ANALYSIS_GROUP_BY_INVALID = ErrorCode.of(1000018285, "分组参数非法");
+    public static final ErrorCode BUG_ANALYSIS_SCOPE_INVALID = ErrorCode.of(1000018286, "重复扫描范围参数非法");
 }

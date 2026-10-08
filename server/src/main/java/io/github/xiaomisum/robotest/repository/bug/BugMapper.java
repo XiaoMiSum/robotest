@@ -10,6 +10,7 @@ import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -61,6 +62,24 @@ public interface BugMapper extends BaseMapperX<Bug> {
 
     default List<Bug> findByProjectId(UUID projectId) {
         return selectList(new LambdaQueryWrapperX<Bug>().eq(Bug::getProjectId, projectId));
+    }
+
+    default List<Bug> listByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return selectBatchIds(ids);
+    }
+
+    /**
+     * 趋势 / 度量分析集（缺陷分析详设 3.2）：分析区间内可能产生计数的缺陷——
+     * 创建早于区间末，且尚未关闭或关闭时间不早于区间起（未关闭缺陷参与逐日存量）。
+     */
+    default List<Bug> findForAnalysis(UUID projectId, LocalDateTime fromStart, LocalDateTime toEnd) {
+        return selectList(new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .lt(Bug::getCreatedAt, toEnd)
+                .and(wrapper -> wrapper.isNull(Bug::getClosedAt).or().ge(Bug::getClosedAt, fromStart)));
     }
 
     default void resolveById(UUID id, UUID userId, String resolution, UUID duplicateOfBugId, UUID assigneeId) {
