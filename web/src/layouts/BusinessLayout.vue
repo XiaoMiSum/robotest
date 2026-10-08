@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
+import AiAssistantEntry from '@/components/ai/assistant/AiAssistantEntry.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -177,6 +178,8 @@ function handleUserCommand(cmd: string) {
     >
       <RouterView />
     </main>
+
+    <AiAssistantEntry />
   </div>
 </template>
 

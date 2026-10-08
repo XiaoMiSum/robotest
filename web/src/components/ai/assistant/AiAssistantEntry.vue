@@ -1,0 +1,316 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { MagicStick } from '@element-plus/icons-vue'
+import PanelHeader from './PanelHeader.vue'
+import SessionList from './SessionList.vue'
+import { useAssistantEntrance } from '@/composables/ai/useAssistantEntrance'
+import { useAiAssistantStore } from '@/stores/aiAssistant'
+
+/** 宽屏卡片固定尺寸；小屏由媒体查询接管且禁用拖动，夹取直接用常量避免拖动中读布局 */
+const CARD_WIDTH = 400
+const CARD_HEIGHT = 560
+const SEARCH_DEBOUNCE_MS = 300
+
+const store = useAiAssistantStore()
+const { visible, refresh } = useAssistantEntrance()
+
+const listOpen = ref(true)
+const narrow = ref(false)
+const pos = ref<{ x: number; y: number } | null>(null)
+const cardEl = ref<HTMLElement | null>(null)
+
+const panelTitle = computed(() => store.currentConversation?.title ?? '助手')
+const hasConversation = computed(() => store.currentConversation !== null)
+const archived = computed(() => store.currentConversation?.status === 'archived')
+
+void refresh()
+
+// 打开即刷新会话列表；已有数据时静默对齐，避免重复闪加载态
+watch(
+  () => store.open,
+  (open) => {
+    if (!open) {
+      stopDrag()
+      return
+    }
+    void store.loadConversations(store.keyword, store.conversations.length > 0)
+  },
+)
+
+// UI-PAGE-11：列表与消息加载失败由入口统一 toast，清空后同类失败可再次提示
+watch(
+  () => store.conversationsError,
+  (error) => {
+    if (!error) return
+    ElMessage.error(error)
+    store.clearConversationsError()
+  },
+)
+watch(
+  () => store.messagesError,
+  (error) => {
+    if (!error) return
+    ElMessage.error(error)
+    store.clearMessagesError()
+  },
+)
+
+// ---------- 检索 ----------
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+/** 防抖后按关键词重查，计时器由组件卸载时兜底清理 */
+function handleSearch(keyword: string): void {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    searchTimer = null
+    void store.loadConversations(keyword)
+  }, SEARCH_DEBOUNCE_MS)
+}
+
+// ---------- 会话操作 ----------
+
+function handleSelect(conversationId: string): void {
+  listOpen.value = false
+  void store.selectConversation(conversationId)
+}
+
+function handleNewSession(): void {
+  store.resetSession()
+}
+
+async function handleRename(): Promise<void> {
+  const conversation = store.currentConversation
+  if (!conversation) return
+  try {
+    const { value } = await ElMessageBox.prompt('请输入会话名称', '重命名会话', {
+      inputValue: conversation.title,
+      inputValidator: (input: string) => {
+        const trimmed = input.trim()
+        if (!trimmed) return '会话名称不能为空'
+        if (trimmed.length > 100) return '会话名称不能超过 100 字'
+        return true
+      },
+    })
+    await store.renameConversation(conversation.id, value.trim())
+  } catch (error) {
+    handleActionError(error, '重命名失败')
+  }
+}
+
+async function handleArchive(): Promise<void> {
+  const conversation = store.currentConversation
+  if (!conversation) return
+  try {
+    await ElMessageBox.confirm(
+      `确定归档会话「${conversation.title}」吗？归档后转为只读。`,
+      '归档会话',
+      { type: 'warning' },
+    )
+    await store.archiveConversation(conversation.id)
+  } catch (error) {
+    handleActionError(error, '归档失败')
+  }
+}
+
+async function handleDelete(): Promise<void> {
+  const conversation = store.currentConversation
+  if (!conversation) return
+  try {
+    await ElMessageBox.confirm(
+      `确定删除会话「${conversation.title}」吗？删除后不可恢复。`,
+      '删除会话',
+      { type: 'warning' },
+    )
+    await store.deleteConversation(conversation.id)
+  } catch (error) {
+    handleActionError(error, '删除失败')
+  }
+}
+
+/** 取消 / 关闭弹窗是用户主动行为不提示，仅真实失败走页面级 toast（UI-PAGE-11） */
+function handleActionError(error: unknown, fallback: string): void {
+  if (error === 'cancel' || error === 'close') return
+  ElMessage.error(error instanceof Error ? error.message : fallback)
+}
+
+// ---------- 拖动 ----------
+
+let dragOffset = { x: 0, y: 0 }
+
+function handleDragStart(event: MouseEvent): void {
+  if (narrow.value || !cardEl.value) return
+  const rect = cardEl.value.getBoundingClientRect()
+  // 首次拖动先把右下锚定换算成左上坐标，避免定位基准切换时跳位
+  if (!pos.value) pos.value = { x: rect.left, y: rect.top }
+  dragOffset = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+  window.addEventListener('mousemove', handleDragMove)
+  window.addEventListener('mouseup', stopDrag)
+}
+
+function handleDragMove(event: MouseEvent): void {
+  if (!pos.value) return
+  const maxX = window.innerWidth - CARD_WIDTH
+  const maxY = window.innerHeight - CARD_HEIGHT
+  pos.value = {
+    x: Math.min(Math.max(event.clientX - dragOffset.x, 0), Math.max(maxX, 0)),
+    y: Math.min(Math.max(event.clientY - dragOffset.y, 0), Math.max(maxY, 0)),
+  }
+}
+
+function stopDrag(): void {
+  window.removeEventListener('mousemove', handleDragMove)
+  window.removeEventListener('mouseup', stopDrag)
+}
+
+/** 小屏或未拖动过时不下发内联定位，交由媒体查询决定贴底布局 */
+const cardStyle = computed<CSSProperties | undefined>(() => {
+  if (narrow.value || !pos.value) return undefined
+  return { left: `${pos.value.x}px`, top: `${pos.value.y}px`, right: 'auto', bottom: 'auto' }
+})
+
+// ---------- 生命周期 ----------
+
+function handleResize(): void {
+  narrow.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  handleResize()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  stopDrag()
+  if (searchTimer) clearTimeout(searchTimer)
+})
+</script>
+
+<template>
+  <div v-if="visible" class="ai-entry">
+    <button
+      type="button"
+      class="ai-entry__ball"
+      :class="{ 'ai-entry__ball--active': store.open }"
+      aria-label="智能助手"
+      :aria-expanded="store.open"
+      @click="store.togglePanel()"
+    >
+      <el-icon :size="22"><MagicStick /></el-icon>
+    </button>
+
+    <section
+      v-if="store.open"
+      ref="cardEl"
+      class="ai-entry__card"
+      :style="cardStyle"
+      aria-label="智能助手面板"
+    >
+      <PanelHeader
+        :title="panelTitle"
+        :has-conversation="hasConversation"
+        :archived="archived"
+        :list-open="listOpen"
+        @toggle-list="listOpen = !listOpen"
+        @rename="handleRename"
+        @archive="handleArchive"
+        @delete="handleDelete"
+        @new-session="handleNewSession"
+        @close="store.closePanel()"
+        @drag-start="handleDragStart"
+      />
+      <SessionList
+        v-if="listOpen"
+        :conversations="store.conversations"
+        :current-id="store.currentId"
+        :loading="store.conversationsLoading"
+        :keyword="store.keyword"
+        @select="handleSelect"
+        @search="handleSearch"
+      />
+      <div class="ai-entry__body">
+        <p class="ai-entry__hint">发送一句话…</p>
+      </div>
+    </section>
+  </div>
+</template>
+
+<style scoped lang="scss">
+.ai-entry__ball {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 50%;
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  box-shadow: var(--shadow-float);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+
+  &:hover {
+    background: var(--color-neutral-50);
+    border-color: var(--color-neutral-300);
+  }
+
+  &--active {
+    background: var(--color-primary-500);
+    border-color: var(--color-primary-500);
+    color: var(--color-neutral-0);
+  }
+}
+
+.ai-entry__card {
+  position: fixed;
+  right: 24px;
+  bottom: 84px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  height: 560px;
+  overflow: hidden;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.ai-entry__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: var(--space-sm);
+}
+
+.ai-entry__hint {
+  color: var(--color-neutral-400);
+  font-size: 14px;
+}
+
+@media (max-width: 767px) {
+  .ai-entry__card {
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    height: 70vh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+}
+</style>
