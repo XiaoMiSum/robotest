@@ -65,7 +65,7 @@
 }
 ```
 
-- **校验规则**：口径与缺陷管理分册的状态定义一致（新增 = 创建时间落区间，关闭 = 关闭时间落区间，存量 = 区间末激活数）；`groupBy` 非法返回 1000018286；数据实时计算，前端点击数据点下钻复用缺陷列表既有筛选（跳转带参）。
+- **校验规则**：口径与缺陷管理分册的状态定义一致（新增 = 创建时间落区间，关闭 = 关闭时间落区间，存量 = 区间末激活数）；`groupBy` 非法返回 1000018285；数据实时计算，前端点击数据点下钻复用缺陷列表既有筛选（跳转带参）。
 
 ### 3.3 质量度量查询
 
@@ -84,7 +84,7 @@
 }
 ```
 
-- **校验规则**：修复时长 = 激活 → 已修复的首条有效流转（同缺陷多次流转取首次）；重开率 = 激活次数 ≥ 1 的缺陷占比；重复缺陷占比 = 解决方案为「重复缺陷」的占比；分母为 0 时比率返回 0（前端不显示除零）。
+- **校验规则**：修复时长 = 激活 → 已修复的首条有效流转（同缺陷多次流转取首次）；重开率 = 激活次数 ≥ 1 的缺陷占比；重复缺陷占比 = 解决方案为「重复缺陷」的占比；分母为 0 时比率返回 0（前端不显示除零）。比率与三张分布的分母统一取**区间内新增缺陷**（创建时间落区间）；修复时长样本取修复时间落区间的缺陷，激活时刻取该次修复前最近一次激活日志（无则取创建时间）；`axis` 逐日存量 = 创建 ≤ 当日且（关闭时间为空或晚于当日）的缺陷数。
 
 ### 3.4 AI 摘要（任务）
 
@@ -323,9 +323,9 @@ BugAnalysisPage
 | 文件 | 说明 |
 | ---- | ---- |
 | `server/.../controller/project/BugAnalysisController` | 趋势 / 度量 / 录入检测路由（仅路由，C2） |
-| `server/.../service/bug/analysis/BugAnalysisService + Impl` | 实时聚合与口径计算 |
-| `server/.../service/ai/task/handler/BugClassifyHandler`、`BugTriageHandler`、`BugDuplicateScanHandler`、`BugTrendSummaryHandler` | 任务执行器 |
-| `server/.../service/ai/task/adopt/BugAdoptService + Impl` | 批量分类采纳落库（调用既有缺陷服务） |
+| `server/.../service/domain/bug/BugAnalysisService + Impl` | 实时聚合与口径计算 |
+| `server/.../service/domain/bug/BugTrendSummaryHandler`、`BugClassifyHandler`、`BugTriageHandler`、`BugDuplicateScanHandler` | 任务执行器（随对应能力域就近注册） |
+| `server/.../service/domain/bug/BugClassifyAdopter + Impl`、`BugDuplicateScanAdopter` | 批量分类采纳落库（调用既有缺陷服务）与重复扫描留痕承接 |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018281–1000018286 |
 | `web/src/pages/project/BugAnalysisPage.vue` 及组件、`web/src/stores/bugAnalysis.ts` | 分析页与状态 |
 | `web/src/pages/project/BugCreatePage.vue` 扩展（建议标记、录入检测） | 新建页扩展 |
@@ -347,3 +347,4 @@ BugAnalysisPage
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/bugs/analysis |
 | V1.0 | 2026-10-03 | 批量分类发起后跳转任务详情页，审核在详情页审核区（列表模式）完成 |
+| V1.0 | 2026-10-08 | 勘误与口径补齐：3.2 `groupBy` 非法对齐错误码表改为 1000018285（1000018286 归重复扫描范围）；3.3 补比率与分布分母、修复时长样本与激活时刻、逐日存量口径；7 实施文件路径随仓库分层改为 `service/domain/bug/` |
