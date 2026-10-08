@@ -140,6 +140,18 @@ describe('stores/aiAssistant 会话管理', () => {
 
     expect(store.drafts).toEqual({ c1: '草稿一', '': '新会话草稿' })
   })
+
+  it('清除错误后同类加载失败仍可再次提示（UI-PAGE-11）', () => {
+    const store = useAiAssistantStore()
+    store.conversationsError = '会话列表加载失败'
+    store.messagesError = '消息加载失败'
+
+    store.clearConversationsError()
+    store.clearMessagesError()
+
+    expect(store.conversationsError).toBe('')
+    expect(store.messagesError).toBe('')
+  })
 })
 
 describe('stores/aiAssistant 发送与流式', () => {

@@ -118,6 +118,11 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       }
     },
 
+    /** 入口 toast 展示后清空，后续同类失败才能再次提示（UI-PAGE-11） */
+    clearConversationsError(): void {
+      this.conversationsError = ''
+    },
+
     async createConversation(): Promise<AiAssistantConversation> {
       const conversation = await createAiAssistantConversation({})
       this.conversations = [conversation, ...this.conversations]
@@ -196,6 +201,11 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       } finally {
         this.messagesLoading = false
       }
+    },
+
+    /** 同 clearConversationsError：toast 后清空以便重复提示（UI-PAGE-11） */
+    clearMessagesError(): void {
+      this.messagesError = ''
     },
 
     /** 上滑加载更早页（服务端倒序，页码递增即更早） */
