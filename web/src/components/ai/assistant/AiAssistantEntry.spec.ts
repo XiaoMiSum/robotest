@@ -7,7 +7,7 @@ import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
 import AiAssistantEntry from './AiAssistantEntry.vue'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
-import type { AiAssistantConversation, AiAssistantMessage } from '@/types'
+import type { AiAssistantConversation, AiAssistantIntent, AiAssistantMessage } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
@@ -141,6 +141,35 @@ async function mountEntry(): Promise<VueWrapper> {
 async function openPanel(wrapper: VueWrapper): Promise<void> {
   await wrapper.get('.ai-entry__ball').trigger('click')
   await flushPromises()
+}
+
+function findButton(wrapper: VueWrapper, text: string) {
+  const found = wrapper.findAll('button').find((item) => item.text().includes(text))
+  if (!found) throw new Error(`未找到按钮：${text}`)
+  return found
+}
+
+function makeIntent(overrides: Partial<AiAssistantIntent> = {}): AiAssistantIntent {
+  return {
+    kind: 'create_review',
+    targetType: 'test_review',
+    targetTitle: '登录评审',
+    createCount: 1,
+    changes: [{ field: 'title', op: 'add', value: '登录评审' }],
+    scope: { workspaceId: 'w1', projectId: 'p1' },
+    expiresAt: new Date(Date.now() + 600_000).toISOString().slice(0, 19),
+    ...overrides,
+  }
+}
+
+/** 打开面板并直挂会话与消息：预览 / 回执操作均发生在既有会话内 */
+async function mountWithMessages(messages: AiAssistantMessage[]): Promise<VueWrapper> {
+  const wrapper = await mountEntry()
+  await openPanel(wrapper)
+  store.currentId = 'c1'
+  store.messages = messages
+  await nextTick()
+  return wrapper
 }
 
 describe('components/ai/assistant/AiAssistantEntry', () => {
@@ -526,6 +555,184 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
     store.streaming = true
     await nextTick()
 
+    expect(wrapper.get('.ai-composer textarea').attributes('disabled')).toBeDefined()
+  })
+
+  // ---------- 变更预览确认执行与回执 ----------
+
+  it('预览确认执行调用执行接口并渲染回执卡', async () => {
+    const wrapper = await mountWithMessages([
+      makeMessage({ id: 'u1', role: 'user', content: '帮我建一个登录评审', citations: null }),
+      makeMessage({ id: 'p1', content: null, intent: makeIntent(), citations: null }),
+    ])
+    mocks.executeAiAssistantMessage.mockResolvedValue({
+      execution: {
+        status: 'executed',
+        results: [
+          {
+            action: 'create_review',
+            success: true,
+            createdId: 'rev1',
+            link: '/workspace/projects/reviews/rev1',
+          },
+        ],
+      },
+    })
+
+    await findButton(wrapper, '确认执行').trigger('click')
+    await flushPromises()
+
+    expect(mocks.executeAiAssistantMessage).toHaveBeenCalledWith('c1', 'p1', {})
+    expect(wrapper.find('.ai-preview').exists()).toBe(false)
+    expect(wrapper.find('.ai-receipt').exists()).toBe(true)
+    expect(wrapper.text()).toContain('创建评审')
+    expect(store.executing).toBe(false)
+  })
+
+  it('执行失败页面级提示且不产生回执（UI-PAGE-11）', async () => {
+    const wrapper = await mountWithMessages([
+      makeMessage({ id: 'p1', content: null, intent: makeIntent(), citations: null }),
+    ])
+    mocks.executeAiAssistantMessage.mockRejectedValue(new Error('无权限执行该操作'))
+
+    await findButton(wrapper, '确认执行').trigger('click')
+    await flushPromises()
+
+    expect(mocks.messageError).toHaveBeenCalledWith('无权限执行该操作')
+    expect(wrapper.find('.ai-receipt').exists()).toBe(false)
+    expect(store.executing).toBe(false)
+  })
+
+  it('取消预览调用取消接口并落回执', async () => {
+    const wrapper = await mountWithMessages([
+      makeMessage({ id: 'p1', content: null, intent: makeIntent(), citations: null }),
+    ])
+    mocks.cancelAiAssistantMessage.mockResolvedValue({
+      execution: { status: 'rejected', rejectedBy: 'u1', rejectedAt: '2026-10-08T01:00:00Z' },
+    })
+
+    await findButton(wrapper, '取消').trigger('click')
+    await flushPromises()
+
+    expect(mocks.cancelAiAssistantMessage).toHaveBeenCalledWith('c1', 'p1')
+    expect(wrapper.text()).toContain('已取消本次变更，未产生任何数据')
+  })
+
+  it('返回修改将解析摘要回填输入框', async () => {
+    const wrapper = await mountWithMessages([
+      makeMessage({
+        id: 'p1',
+        content: '将创建登录评审',
+        intent: makeIntent(),
+        citations: null,
+      }),
+    ])
+
+    await findButton(wrapper, '返回修改').trigger('click')
+
+    expect(store.draftForCurrent).toBe('将创建登录评审')
+    expect(mocks.streamAssistantMessage).not.toHaveBeenCalled()
+  })
+
+  it('预览过期重新解析重发原始指令并还原附件，草稿保留', async () => {
+    const wrapper = await mountWithMessages([
+      makeMessage({ id: 'u1', role: 'user', content: '帮我建一个登录评审', citations: null }),
+      makeMessage({
+        id: 'p1',
+        content: null,
+        intent: makeIntent({ expiresAt: '2020-01-01T00:00:00' }),
+        citations: null,
+      }),
+    ])
+    store.messages[0].attachments = [
+      { entityType: 'requirement', entityId: 'r9', entityTitle: '旧需求' },
+    ]
+    store.attachments['c1'] = [{ entityType: 'test_plan', entityId: 'p9', entityTitle: '旧计划' }]
+    store.setDraft('c1', '未发送的草稿')
+    mocks.streamAssistantMessage.mockImplementation(
+      async (_id: string, _payload: unknown, onEvent: (e: unknown) => void) => {
+        onEvent({ type: 'done', data: { messageId: 'm9' } })
+      },
+    )
+
+    await findButton(wrapper, '重新解析').trigger('click')
+    await flushPromises()
+
+    expect(mocks.streamAssistantMessage).toHaveBeenCalledWith(
+      'c1',
+      {
+        content: '帮我建一个登录评审',
+        attachments: [{ entityType: 'requirement', entityId: 'r9', entityTitle: '旧需求' }],
+      },
+      expect.any(Function),
+    )
+    expect(store.draftForCurrent).toBe('未发送的草稿')
+  })
+
+  it('回执失败项单项重试按数组下标执行', async () => {
+    const wrapper = await mountWithMessages([
+      makeMessage({
+        id: 'r1',
+        content: null,
+        intent: null,
+        citations: null,
+        execution: {
+          status: 'executed',
+          results: [
+            {
+              action: 'create_case',
+              success: false,
+              errorCode: 1000018257,
+              errorMsg: '无权限执行该操作',
+            },
+          ],
+        },
+      }),
+    ])
+    mocks.executeAiAssistantMessage.mockResolvedValue({
+      execution: {
+        status: 'executed',
+        results: [{ action: 'create_case', success: true, createdId: 'case1' }],
+      },
+    })
+
+    await findButton(wrapper, '重试').trigger('click')
+    await flushPromises()
+
+    expect(mocks.executeAiAssistantMessage).toHaveBeenCalledWith('c1', 'r1', {
+      retryIndexes: [0],
+    })
+    expect(wrapper.text()).not.toContain('无权限执行该操作')
+  })
+
+  it('回执链接跳转并收起面板', async () => {
+    const wrapper = await mountWithMessages([
+      makeMessage({
+        id: 'r1',
+        content: null,
+        intent: null,
+        citations: null,
+        execution: { status: 'executed', results: [], link: '/workspace/projects/plans/p1' },
+      }),
+    ])
+
+    await findButton(wrapper, '查看结果').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/workspace/projects/plans/p1')
+    expect(store.open).toBe(false)
+  })
+
+  it('归档会话预览卡只读禁用确认执行', async () => {
+    mocks.fetchAiAssistantConversations.mockResolvedValue({
+      list: [makeConversation({ status: 'archived' })],
+      total: 1,
+    })
+    const wrapper = await mountWithMessages([
+      makeMessage({ id: 'p1', content: null, intent: makeIntent(), citations: null }),
+    ])
+
+    expect(findButton(wrapper, '确认执行').attributes('disabled')).toBeDefined()
     expect(wrapper.get('.ai-composer textarea').attributes('disabled')).toBeDefined()
   })
 })
