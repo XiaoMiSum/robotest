@@ -107,7 +107,7 @@
   "title": "缺陷趋势摘要",
   "content": {
     "text": "本期新增 42 个缺陷，环比 +18%；登录模块缺陷集中（18 个）…重开率环比突增…",
-    "citations": [{ "type": "bug", "id": "…", "title": "BUG-017" }]
+    "citations": [{ "type": "bug", "id": "…", "title": "登录按钮无反应" }]
   },
   "confirmStatus": "not_applicable"
 }
@@ -143,7 +143,7 @@
       "keywords": { "value": ["登录", "无响应"], "reason": "…" }
     },
     "assigneeCandidates": [{ "userId": "…", "name": "李四", "reason": "同模块历史缺陷处理人", "memberValid": true }],
-    "sourceRefs": [{ "type": "bug", "id": "…", "title": "BUG-017", "quote": "…" }]
+    "sourceRefs": [{ "type": "bug", "id": "…", "title": "登录按钮无反应", "quote": "…" }]
   },
   "confirmStatus": "not_applicable"
 }
@@ -204,7 +204,7 @@
 ```json
 {
   "list": [
-    { "bugId": "…", "code": "BUG-017", "title": "登录按钮无反应", "status": "active", "similarity": 0.87, "basis": "标题与重现步骤语义相近" }
+    { "bugId": "…", "title": "登录按钮无反应", "status": "active", "similarity": 0.87, "basis": "命中原文分块：登录页点击登录按钮后无任何响应…" }
   ]
 }
 ```
@@ -348,3 +348,4 @@ BugAnalysisPage
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/bugs/analysis |
 | V1.0 | 2026-10-03 | 批量分类发起后跳转任务详情页，审核在详情页审核区（列表模式）完成 |
 | V1.0 | 2026-10-08 | 勘误与口径补齐：3.2 `groupBy` 非法对齐错误码表改为 1000018285（1000018286 归重复扫描范围）；3.3 补比率与分布分母、修复时长样本与激活时刻、逐日存量口径；7 实施文件路径随仓库分层改为 `service/domain/bug/` |
+| V1.0 | 2026-10-08 | 3.8 重复检测响应移除无数据来源的 `code` 字段、`basis` 改为命中原文分块，3.4 / 3.5 引用示例 `title` 改用缺陷标题 |
