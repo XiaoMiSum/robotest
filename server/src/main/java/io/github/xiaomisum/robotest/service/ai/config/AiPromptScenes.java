@@ -65,6 +65,16 @@ public final class AiPromptScenes {
                 new PromptVariable("question", "用户问题（或检索查询文本）", true),
                 new PromptVariable("retrievedContext", "检索命中的来源分块", true),
                 new PromptVariable("history", "会话近 20 条消息（时间正序）", true))));
+        register(scenes, new PromptScene("bug_classify", "缺陷分类建议", List.of(
+                new PromptVariable("bugContext", "缺陷上下文（草稿或批量缺陷清单）", true),
+                new PromptVariable("moduleOptions", "候选模块清单", true),
+                new PromptVariable("memberOptions", "当前工作空间成员清单（指派候选来源）", false))));
+        register(scenes, new PromptScene("bug_triage", "分诊顺序建议", List.of(
+                new PromptVariable("bugContext", "激活未指派缺陷清单", true))));
+        register(scenes, new PromptScene("bug_trend_summary", "缺陷趋势摘要", List.of(
+                new PromptVariable("statsContext", "趋势与度量统计快照", true))));
+        register(scenes, new PromptScene("bug_duplicate_scan", "存量重复扫描", List.of(
+                new PromptVariable("bugContext", "扫描范围内缺陷清单", true))));
         SCENES = Collections.unmodifiableMap(scenes);
     }
 
