@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -43,6 +44,7 @@ class BugClassifyHandlerTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID MODULE_ID = UUID.randomUUID();
     private static final UUID MEMBER_ID = UUID.randomUUID();
+    private static final UUID BUG_ID = UUID.randomUUID();
 
     @Mock
     private ProjectModuleMapper projectModuleMapper;
@@ -189,6 +191,50 @@ class BugClassifyHandlerTest {
         assertNull(suggestions.get("bugType"));
         assertEquals("serious", ((Map<?, ?>) suggestions.get("severity")).get("value"));
         assertEquals(MODULE_ID.toString(), ((Map<?, ?>) suggestions.get("moduleId")).get("value"));
+    }
+
+    @Test
+    void execute_batchMode_emitsPendingArtifactsPerBug() {
+        Bug target = new Bug();
+        target.setId(BUG_ID);
+        target.setProjectId(PROJECT_ID);
+        target.setTitle("登录按钮无反应");
+        target.setReproSteps("1. 打开登录页");
+        target.setCreatedAt(java.time.LocalDateTime.now());
+        when(context.getInput()).thenReturn(Map.of("bugIds", List.of(BUG_ID.toString())));
+        when(context.getProjectId()).thenReturn(PROJECT_ID);
+        when(context.prompt(any(), any())).thenReturn("prompt");
+        when(bugMapper.listByIds(anyCollection())).thenReturn(List.of(target));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
+        when(context.chat(any(), any())).thenReturn(new AiChatReply("""
+                {"items":[{"bugId":"%s","suggestions":{
+                  "bugType":{"value":"code_error","reason":"功能失效"},
+                  "severity":{"value":"fatal","reason":"阻断"}}}]}
+                """.formatted(BUG_ID), 10, 5));
+
+        var result = handler.execute(context);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> artifacts = (List<Map<String, Object>>) result.result().get("artifacts");
+        assertEquals(1, artifacts.size());
+        Map<String, Object> artifact = artifacts.get(0);
+        assertEquals("bug-" + BUG_ID, artifact.get("key"));
+        assertEquals("pending", artifact.get("confirmStatus"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> content = (Map<String, Object>) artifact.get("content");
+        assertEquals(BUG_ID.toString(), content.get("bugId"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> suggestions = (Map<String, Object>) content.get("suggestions");
+        assertEquals("code_error", ((Map<?, ?>) suggestions.get("bugType")).get("value"));
+    }
+
+    @Test
+    void validateInput_batchOverLimit_throwsInputInvalid() {
+        List<String> ids = java.util.stream.IntStream.range(0, 501)
+                .mapToObj(i -> UUID.randomUUID().toString()).toList();
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> handler.validateInput(Map.of("bugIds", ids)));
+        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
     }
 
     @Test
