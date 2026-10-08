@@ -8,6 +8,7 @@ import type { AiGenerationScopeItem, RequirementPriority } from '@/types'
 import type { RequirementRow } from '@/composables/project/requirement/requirementPresentation'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
+import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
 import SelectionConfigDialog from '@/components/project/ai/SelectionConfigDialog.vue'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
@@ -31,6 +32,7 @@ const {
   canEdit,
   canViewAiTasks,
   canLaunchAi,
+  aiAvailable,
   selectedRows,
   handleSelectionChange,
   load,
@@ -47,6 +49,10 @@ const {
 // ==================== AI 生成 / 圈选发起 ====================
 const generationDialogVisible = ref(false)
 const selectionDialogVisible = ref(false)
+
+/** 导入经任务框架执行，AI 总开关关闭或未配模型时入口隐藏（总册 4.5） */
+const importDialogVisible = ref(false)
+const canImport = computed(() => canCreate.value && aiAvailable.value)
 
 /** 已选行归一为发起范围条目（草稿 / 已变更 / 已归档在对话框内置灰） */
 const aiScope = computed<AiGenerationScopeItem[]>(() =>
@@ -186,6 +192,9 @@ async function submitCreate(): Promise<void> {
             </el-button>
           </span>
         </el-tooltip>
+        <el-button v-if="canImport" @click="importDialogVisible = true">
+          <el-icon><Upload /></el-icon>导入需求
+        </el-button>
         <el-button v-if="canCreate" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon>新建需求
         </el-button>
@@ -373,6 +382,7 @@ async function submitCreate(): Promise<void> {
           </el-empty>
           <el-empty v-else description="暂无需求" :image-size="80">
             <el-button v-if="canCreate" type="primary" @click="openCreate">新建需求</el-button>
+            <el-button v-if="canImport" @click="importDialogVisible = true">导入需求</el-button>
           </el-empty>
         </template>
       </el-table>
@@ -462,6 +472,7 @@ async function submitCreate(): Promise<void> {
       v-model="selectionDialogVisible"
       :requirements="aiScope"
     />
+    <RequirementImportDialog v-model="importDialogVisible" />
   </main>
 </template>
 

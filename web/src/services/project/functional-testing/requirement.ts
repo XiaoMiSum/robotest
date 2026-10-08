@@ -52,6 +52,16 @@ export function splitRequirement(id: string): Promise<RequirementSplitSubmit> {
   return post(`/project/requirements/${id}/split`)
 }
 
+/** 导入需求文档（详设 3.8）：multipart 单文件，提交即返回任务入口 */
+export function importRequirement(file: File): Promise<RequirementSplitSubmit> {
+  const formData = new FormData()
+  formData.append('file', file)
+  // 覆盖默认的 application/json，由浏览器自动生成 multipart 边界
+  return post('/project/requirements/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
 export function fetchRequirementChangeLogs(
   id: string,
   params: { pageNo?: number; pageSize?: number } = {},
