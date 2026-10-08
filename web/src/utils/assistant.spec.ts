@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { ASSISTANT_EXAMPLES, citationRoute, isClarifyMessage, parseClarifyContent } from './assistant'
+import {
+  ASSISTANT_EXAMPLES,
+  assistantActionLabel,
+  citationRoute,
+  formatIntentChangeValue,
+  intentFieldLabel,
+  isClarifyMessage,
+  parseClarifyContent,
+  splitReplaceChange,
+} from './assistant'
 import type { AiAssistantMessage } from '@/types'
 
 function makeMessage(overrides: Partial<AiAssistantMessage> = {}): AiAssistantMessage {
@@ -79,5 +88,30 @@ describe('utils/assistant 澄清解析', () => {
   it('空会话引导示例为非空指令列表', () => {
     expect(ASSISTANT_EXAMPLES.length).toBeGreaterThan(0)
     expect(ASSISTANT_EXAMPLES.every((item) => item.trim().length > 0)).toBe(true)
+  })
+
+  it('动作与字段标签已登记值翻译，未知值原样展示', () => {
+    expect(assistantActionLabel('create_case')).toBe('创建用例')
+    expect(assistantActionLabel('view_plan_progress')).toBe('查看计划进度')
+    expect(assistantActionLabel('unknown_action')).toBe('unknown_action')
+    expect(intentFieldLabel('priority')).toBe('优先级')
+    expect(intentFieldLabel('custom_field')).toBe('custom_field')
+  })
+
+  it('变更值任意 JSON 序列化为展示文本', () => {
+    expect(formatIntentChangeValue('P1')).toBe('P1')
+    expect(formatIntentChangeValue(3)).toBe('3')
+    expect(formatIntentChangeValue(true)).toBe('true')
+    expect(formatIntentChangeValue(null)).toBe('—')
+    expect(formatIntentChangeValue(undefined)).toBe('—')
+    expect(formatIntentChangeValue(['步骤一', '步骤二'])).toBe('步骤一\n步骤二')
+    expect(formatIntentChangeValue({ from: 'P0', to: 'P1' })).toBe('{"from":"P0","to":"P1"}')
+  })
+
+  it('splitReplaceChange 拆分原值与新值，无原值时返回 null', () => {
+    expect(splitReplaceChange('P0 → P1')).toEqual({ before: 'P0', after: 'P1' })
+    expect(splitReplaceChange('仅新值')).toBeNull()
+    expect(splitReplaceChange('旧值 → ')).toBeNull()
+    expect(splitReplaceChange(null)).toBeNull()
   })
 })

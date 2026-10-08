@@ -159,6 +159,18 @@ describe('stores/aiAssistant 会话管理', () => {
     expect(store.attachmentsForCurrent).toEqual([])
   })
 
+  it('setAttachments 整体替换当前会话待发附件（重新解析还原原始输入）', () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    store.attachments['c1'] = [{ entityType: 'test_plan', entityId: 'p9' }]
+    const refs = [{ entityType: 'requirement', entityId: 'r9' }]
+
+    store.setAttachments(refs)
+    refs.push({ entityType: 'module', entityId: 'm1' })
+
+    expect(store.attachmentsForCurrent).toEqual([{ entityType: 'requirement', entityId: 'r9' }])
+  })
+
   it('清除错误后同类加载失败仍可再次提示（UI-PAGE-11）', () => {
     const store = useAiAssistantStore()
     store.conversationsError = '会话列表加载失败'

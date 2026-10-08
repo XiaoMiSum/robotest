@@ -171,6 +171,58 @@ function handleCitationJump(citation: AiAssistantCitation): void {
   store.closePanel()
 }
 
+// ---------- 预览确认执行与回执 ----------
+
+/** 执行 / 取消 / 重试失败由入口统一 toast，成功态由回执卡就地渲染（UI-PAGE-11） */
+async function runExclusive(action: () => Promise<void>, fallback: string): Promise<void> {
+  try {
+    await action()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : fallback)
+  }
+}
+
+function handlePreviewExecute(messageId: string): void {
+  void runExclusive(() => store.executePreview(messageId), '执行失败')
+}
+
+function handlePreviewCancel(messageId: string): void {
+  void runExclusive(() => store.cancelPreview(messageId), '取消失败')
+}
+
+function handleReceiptRetry(messageId: string, index: number): void {
+  void runExclusive(() => store.executePreview(messageId, [index]), '重试失败')
+}
+
+/** 返回修改：解析摘要回填输入框，由用户修改后重发（交互 05 §2.3） */
+function handlePreviewEdit(text: string): void {
+  if (!text.trim()) return
+  store.setDraft(store.currentId ?? '', text)
+}
+
+/** 重新解析：重发预览前的原始指令并还原其附件，过期后重新生成预览（交互 05 §2.3） */
+function handlePreviewReparse(messageId: string): void {
+  const index = store.messages.findIndex((message) => message.id === messageId)
+  if (index < 0) return
+  const source = store.messages
+    .slice(0, index)
+    .reverse()
+    .find((message) => message.role === 'user')
+  if (!source?.content?.trim()) return
+  if (source.attachments) store.setAttachments(source.attachments)
+  // send 会同步清空当前会话草稿；重新解析不消费用户未发送的输入，调用后立即回填
+  const draft = store.draftForCurrent
+  const sending = store.send(source.content)
+  if (draft) store.setDraft(store.currentId ?? '', draft)
+  void sending
+}
+
+/** 回执链接为前端相对路由（详设 4.2⑦）：跳转并收起面板，会话保留可回看 */
+function handleReceiptJump(path: string): void {
+  void router.push(path)
+  store.closePanel()
+}
+
 // ---------- 拖动 ----------
 
 let dragOffset = { x: 0, y: 0 }
@@ -273,10 +325,18 @@ onBeforeUnmount(() => {
         :streaming="store.streaming"
         :stream-text="store.streamText"
         :recovering="store.recovering"
+        :executing="store.executing"
+        :readonly="archived"
         @load-older="handleLoadOlder"
         @pick-example="handlePickExample"
         @clarify-pick="handleClarifyPick"
         @citation-jump="handleCitationJump"
+        @preview-execute="handlePreviewExecute"
+        @preview-cancel="handlePreviewCancel"
+        @preview-edit="handlePreviewEdit"
+        @preview-reparse="handlePreviewReparse"
+        @receipt-retry="handleReceiptRetry"
+        @receipt-jump="handleReceiptJump"
       />
       <StreamIndicator
         :streaming="store.streaming"

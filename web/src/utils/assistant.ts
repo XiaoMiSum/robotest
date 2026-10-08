@@ -64,3 +64,57 @@ export function citationRoute(
       return null
   }
 }
+
+/** 动作展示标签：intent.kind 与回执 action 同枚举（详设 4.3），未登记值原样展示 */
+const ASSISTANT_ACTION_LABELS: Record<string, string> = {
+  create_case: '创建用例',
+  update_case: '修改用例',
+  complete_case: '补全用例',
+  batch_tag: '批量标记',
+  create_review: '创建评审',
+  adjust_review: '调整评审',
+  view_review_progress: '查看评审进度',
+  create_plan: '创建计划',
+  adjust_plan: '调整计划',
+  view_plan_progress: '查看计划进度',
+}
+
+export function assistantActionLabel(action: string): string {
+  return ASSISTANT_ACTION_LABELS[action] ?? action
+}
+
+/** 预览变更字段的展示标签，未登记字段原样展示 */
+const INTENT_FIELD_LABELS: Record<string, string> = {
+  title: '标题',
+  priority: '优先级',
+  type: '类型',
+  precondition: '前置条件',
+  steps: '步骤',
+  expected: '预期结果',
+}
+
+export function intentFieldLabel(field: string): string {
+  return INTENT_FIELD_LABELS[field] ?? field
+}
+
+/** 变更值可为任意 JSON（服务端只对字符串截断，详设 4.3）：统一序列化为展示文本 */
+export function formatIntentChangeValue(value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) return value.map((item) => formatIntentChangeValue(item)).join('\n')
+  const text = JSON.stringify(value)
+  return typeof text === 'string' ? text : String(value)
+}
+
+/** replace 值按「原值 → 新值」拆分（详设 4.3 展示口径）；未携带原值时返回 null 按整体变更展示 */
+export function splitReplaceChange(value: unknown): { before: string; after: string } | null {
+  const text = formatIntentChangeValue(value)
+  const separator = ' → '
+  const index = text.indexOf(separator)
+  if (index < 0) return null
+  const before = text.slice(0, index).trim()
+  const after = text.slice(index + separator.length).trim()
+  if (!before || !after) return null
+  return { before, after }
+}

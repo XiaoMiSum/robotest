@@ -179,6 +179,11 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       )
     },
 
+    /** 整体替换待发附件：重新解析还原原始输入，避免误带无关草稿附件（交互 05 §2.3） */
+    setAttachments(refs: AiAssistantEntityRef[]): void {
+      this.attachments[this.currentId ?? ''] = [...refs]
+    },
+
     /** 新会话：不立即建库，首问时再创建（避免空会话污染列表） */
     resetSession(): void {
       this.stopRecovery()
