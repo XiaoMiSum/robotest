@@ -486,8 +486,11 @@ public class AiTaskServiceImpl implements AiTaskService {
             summary.setTitle(asString(artifact.get("title")));
             summary.setParentKey(asString(artifact.get("parentKey")));
             String key = summary.getKey();
+            // 只读产物（如缺陷分析建议）自带 not_applicable，无确认记录时回读产物值，其余默认 pending
+            String ownStatus = asString(artifact.get("confirmStatus"));
             summary.setConfirmStatus(key != null && confirmedActions.containsKey(key)
-                    ? confirmedActions.get(key) : "pending");
+                    ? confirmedActions.get(key)
+                    : (ownStatus == null || ownStatus.isBlank() ? "pending" : ownStatus));
             summaries.add(summary);
         }
         return summaries;
