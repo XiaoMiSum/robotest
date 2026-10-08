@@ -79,6 +79,8 @@ public final class Constants {
         String TEST_CASE = "test_case_suggestion";
         String REVIEW_SELECTION = "review_selection";
         String PLAN_SELECTION = "plan_selection";
+        String BUG_CLASSIFY = "classify_suggestion";
+        String BUG_TRIAGE = "triage_order";
     }
 
     /**

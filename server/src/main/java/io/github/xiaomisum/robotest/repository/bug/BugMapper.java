@@ -71,6 +71,15 @@ public interface BugMapper extends BaseMapperX<Bug> {
         return selectBatchIds(ids);
     }
 
+    /** 分诊队列范围（缺陷分析详设 3.7）：激活且未指派的缺陷，创建早的在前 */
+    default List<Bug> listActiveUnassigned(UUID projectId) {
+        return selectList(new LambdaQueryWrapperX<Bug>()
+                .eq(Bug::getProjectId, projectId)
+                .eq(Bug::getStatus, Constants.BugStatus.ACTIVE)
+                .isNull(Bug::getAssigneeId)
+                .orderByAsc(Bug::getCreatedAt));
+    }
+
     /**
      * 趋势 / 度量分析集（缺陷分析详设 3.2）：分析区间内可能产生计数的缺陷——
      * 创建早于区间末，且尚未关闭或关闭时间不早于区间起（未关闭缺陷参与逐日存量）。
