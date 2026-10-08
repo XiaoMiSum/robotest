@@ -307,3 +307,58 @@ describe('services/index.ts 请求上下文头', () => {
     expect(receivedProject).toBeUndefined()
   })
 })
+
+describe('services/index.ts 助手接口上下文分层（详设 3.1）', () => {
+  function capture(): { workspace?: string; project?: string } {
+    const received: { workspace?: string; project?: string } = {}
+    withAdapter((config) => {
+      received.workspace = config.headers['X-Active-Workspace'] as string | undefined
+      received.project = config.headers['X-Active-Project'] as string | undefined
+      return okResponse(config, { code: 200, data: null })
+    })
+    return received
+  }
+
+  beforeEach(() => {
+    localStorageMock.setItem('robotest_active_project', 'project-1')
+  })
+
+  it('会话管理与消息历史仅携带 Authorization，不注入上下文头', async () => {
+    const list = capture()
+    await api.get('/ai/conversations')
+    expect(list.workspace).toBeUndefined()
+    expect(list.project).toBeUndefined()
+
+    const history = capture()
+    await api.get('/ai/conversations/c1/messages')
+    expect(history.workspace).toBeUndefined()
+    expect(history.project).toBeUndefined()
+  })
+
+  it('发送消息注入工作空间头，不注入项目头', async () => {
+    const received = capture()
+
+    await api.post('/ai/conversations/c1/messages', { content: 'hi' })
+
+    expect(received.workspace).toBe('ws-1')
+    expect(received.project).toBeUndefined()
+  })
+
+  it('确认执行注入工作空间与项目双头（与 intent.scope 比对）', async () => {
+    const received = capture()
+
+    await api.post('/ai/conversations/c1/messages/m1/execute', {})
+
+    expect(received.workspace).toBe('ws-1')
+    expect(received.project).toBe('project-1')
+  })
+
+  it('取消预览不产生数据，不注入上下文头', async () => {
+    const received = capture()
+
+    await api.post('/ai/conversations/c1/messages/m1/cancel')
+
+    expect(received.workspace).toBeUndefined()
+    expect(received.project).toBeUndefined()
+  })
+})

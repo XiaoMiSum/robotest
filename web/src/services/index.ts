@@ -84,7 +84,10 @@ function normalizeRequestPath(url: string | undefined): string {
 }
 
 /** 依据接口域划分上下文，避免把活动空间/项目泄漏到公共或管理域请求。 */
-export function getRequestContextScope(url: string | undefined): RequestContextScope {
+export function getRequestContextScope(
+  url: string | undefined,
+  method: string | undefined = 'get',
+): RequestContextScope {
   const path = normalizeRequestPath(url)
   if (path === '/auth/permissions') return 'workspace'
   if (
@@ -97,6 +100,14 @@ export function getRequestContextScope(url: string | undefined): RequestContextS
   if (path === '/project' || path.startsWith('/project/')) return 'project'
   // AI 任务资源挂 /api/ai/tasks 但按项目范围过滤（详设 3.6.3），需带项目头；/ai/status 仍为 none
   if (path === '/ai/tasks' || path.startsWith('/ai/tasks/')) return 'project'
+  // 助手接口按操作分层（详设 3.1）：会话管理与消息历史仅 Authorization，
+  // 发送消息带工作空间头，确认执行须带工作空间+项目头与 intent.scope 比对
+  if (path === '/ai/conversations' || path.startsWith('/ai/conversations/')) {
+    const verb = method.toLowerCase()
+    if (verb === 'post' && path.endsWith('/messages')) return 'workspace'
+    if (verb === 'post' && path.endsWith('/execute')) return 'project'
+    return 'none'
+  }
   if (path === '/workspace' || path.startsWith('/workspace/')) return 'workspace'
   return 'none'
 }
@@ -149,7 +160,7 @@ function readRequestHeader(headers: unknown, name: string): string | null {
 
 /** Axios 与 SSE 共用的上下文头适配器；调用方已显式提供的头永远优先。 */
 export function getContextHeaders(options: ContextHeaderOptions = {}): Record<string, string> {
-  const scope = getRequestContextScope(options.url)
+  const scope = getRequestContextScope(options.url, options.method)
   if (scope === 'none') return {}
 
   const context = getActiveContext()
