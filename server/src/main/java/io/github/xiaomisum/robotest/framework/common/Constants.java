@@ -81,6 +81,8 @@ public final class Constants {
         String PLAN_SELECTION = "plan_selection";
         String BUG_CLASSIFY = "classify_suggestion";
         String BUG_TRIAGE = "triage_order";
+        String BUG_SUMMARY = "summary";
+        String BUG_DUPLICATE_GROUP = "duplicate_group";
     }
 
     /**

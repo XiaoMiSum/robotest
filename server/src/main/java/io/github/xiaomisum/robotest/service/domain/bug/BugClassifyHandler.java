@@ -57,6 +57,9 @@ public class BugClassifyHandler implements TaskHandler {
     private static final int KEYWORD_LIMIT = 5;
     private static final int ASSIGNEE_LIMIT = 3;
     private static final int SOURCE_REF_LIMIT = 5;
+    /** 批量分类上限（详设 3.6）与单次模型调用的缺陷分片大小 */
+    private static final int BATCH_LIMIT = 500;
+    private static final int BATCH_SHARD = 20;
     private static final String PERMISSION = "bug:view";
 
     private static final Set<String> BUG_TYPES = Set.of(
@@ -68,6 +71,24 @@ public class BugClassifyHandler implements TaskHandler {
             Constants.BugSeverity.GENERAL, Constants.BugSeverity.MINOR);
     private static final Set<String> PRIORITIES = Set.of(
             Constants.BugPriority.HIGH, Constants.BugPriority.MEDIUM, Constants.BugPriority.LOW);
+
+    /** 批量模式默认提示词（详设 3.6 逐缺陷一条产物，结构与草稿模式不同，共用 bug_classify 场景） */
+    private static final String BATCH_PROMPT = """
+            你是资深缺陷管理助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。
+            对下列每条缺陷给出分类建议：
+            1. bugType 只允许 code_error / ui_improvement / design_defect / configuration / installation / security / performance / standard_spec / other；
+            2. severity 只允许 fatal / serious / general / minor；priority 只允许 high / medium / low；
+            3. moduleId 仅当缺陷内容明确属于某模块时给出模块 id，否则 value 为 null；
+            4. keywords 给 1~5 个检索关键词；
+            5. 每条缺陷恰好输出一个 item，bugId 必须取自清单原值，不得臆造或遗漏。
+            输出结构（JSON 对象，items 即结果清单）：
+            {"items":[{"bugId":"…","suggestions":{"bugType":{"value":"…","reason":"…"},"severity":{"value":"…","reason":"…"},"priority":{"value":"…","reason":"…"},"moduleId":{"value":null,"reason":"…"},"keywords":{"value":["…"],"reason":"…"}}}]}
+
+            缺陷清单：
+            {{bugContext}}
+            可用模块（id|名称）：
+            {{moduleOptions}}
+            """;
 
     @Resource
     private ProjectModuleMapper projectModuleMapper;
@@ -119,14 +140,33 @@ public class BugClassifyHandler implements TaskHandler {
     public void validateInput(Map<String, Object> input) {
         Map<String, Object> draft = asMap(input == null ? null : input.get("draft"));
         String title = trimToNull(asString(draft.get("title")));
-        if (title == null || title.length() > TITLE_MAX_LENGTH) {
+        if (title != null) {
+            if (title.length() > TITLE_MAX_LENGTH) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+            }
+            return;
+        }
+        // 批量模式（详设 3.6）：bugIds 显式圈定或 filter 按状态筛选，二者缺一即输入非法
+        List<UUID> bugIds = parseBugIds(input);
+        if (bugIds.isEmpty() && (input == null || input.get("filter") == null)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+        }
+        if (bugIds.size() > BATCH_LIMIT) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
         }
     }
 
     @Override
     public TaskResult execute(TaskExecutionContext context) {
-        Map<String, Object> draft = asMap(context.getInput().get("draft"));
+        Map<String, Object> input = context.getInput();
+        Map<String, Object> draft = asMap(input.get("draft"));
+        if (trimToNull(asString(draft.get("title"))) != null) {
+            return executeDraft(context, draft);
+        }
+        return executeBatch(context);
+    }
+
+    private TaskResult executeDraft(TaskExecutionContext context, Map<String, Object> draft) {
         String title = asString(draft.get("title"));
         String steps = asString(draft.get("steps"));
 
@@ -151,6 +191,133 @@ public class BugClassifyHandler implements TaskHandler {
         return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
     }
 
+    /**
+     * 存量批量分类（详设 3.6）：bugIds / filter 解析为缺陷集合（上限 500，空集 1000018283），
+     * 按缺陷分片多次调用模型，进度 = 已处理 / 总数（详设 4.3）；产物逐缺陷一条，confirmStatus = pending。
+     */
+    private TaskResult executeBatch(TaskExecutionContext context) {
+        context.report(5, "解析缺陷集合");
+        List<Bug> bugs = resolveBugs(context.getInput(), context.getProjectId());
+        if (bugs.isEmpty()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);
+        }
+        List<ProjectModule> modules = projectModuleMapper.listByProjectId(context.getProjectId());
+
+        List<Map<String, Object>> artifacts = new ArrayList<>();
+        int tokensIn = 0;
+        int tokensOut = 0;
+        int total = bugs.size();
+        for (int start = 0; start < total; start += BATCH_SHARD) {
+            List<Bug> shard = bugs.subList(start, Math.min(start + BATCH_SHARD, total));
+            context.report(5 + 80 * (start + shard.size()) / total, "分类进度 " + (start + shard.size()) + "/" + total);
+            Map<String, String> variables = new HashMap<>();
+            variables.put("bugContext", batchBugContext(shard));
+            variables.put("moduleOptions", moduleOptions(modules));
+            variables.put("memberOptions", "");
+            AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(BATCH_PROMPT, variables));
+            tokensIn += reply.tokensIn();
+            tokensOut += reply.tokensOut();
+            artifacts.addAll(sanitizeBatch(reply, shard, modules));
+        }
+        context.report(95, "汇总分类建议");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("artifacts", artifacts);
+        return new TaskResult(result, tokensIn, tokensOut);
+    }
+
+    /** 缺陷集合解析：bugIds 优先，其次 filter.statuses（未分类 / 分类存疑的状态条件）；一律限定当前项目 */
+    private List<Bug> resolveBugs(Map<String, Object> input, UUID projectId) {
+        List<UUID> bugIds = parseBugIds(input);
+        List<Bug> bugs;
+        if (!bugIds.isEmpty()) {
+            bugs = bugMapper.listByIds(bugIds).stream()
+                    .filter(bug -> projectId.equals(bug.getProjectId()))
+                    .toList();
+        } else {
+            List<String> statuses = stringList(asMap(input.get("filter")).get("statuses"), BATCH_LIMIT);
+            if (statuses.isEmpty()) {
+                return List.of();
+            }
+            bugs = bugMapper.listByProjectIdAndStatuses(projectId, statuses, BATCH_LIMIT);
+        }
+        // 保持提交顺序（同集合重复 id 去重）；已删除 / 越项目的 id 静默跳过
+        Map<UUID, Bug> byId = bugs.stream()
+                .collect(Collectors.toMap(Bug::getId, bug -> bug, (left, right) -> left));
+        LinkedHashSet<UUID> ordered = new LinkedHashSet<>(bugIds.isEmpty()
+                ? bugs.stream().map(Bug::getId).toList()
+                : bugIds);
+        return ordered.stream().map(byId::get).filter(Objects::nonNull).toList();
+    }
+
+    private static List<UUID> parseBugIds(Map<String, Object> input) {
+        Object raw = input == null ? null : input.get("bugIds");
+        if (raw == null) {
+            return List.of();
+        }
+        if (!(raw instanceof List<?> list)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+        }
+        List<UUID> ids = new ArrayList<>(list.size());
+        for (Object element : list) {
+            try {
+                ids.add(UUID.fromString(String.valueOf(element).trim()));
+            } catch (IllegalArgumentException e) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+            }
+        }
+        return ids;
+    }
+
+    private static String batchBugContext(List<Bug> shard) {
+        return shard.stream()
+                .map(bug -> "id=" + bug.getId()
+                        + "\n标题：" + nvl(bug.getTitle())
+                        + "\n重现步骤：\n" + nvl(bug.getReproSteps()))
+                .collect(Collectors.joining("\n---\n"));
+    }
+
+    /** 批量产物清洗：模型按 bugId 对号入座，越界或重复的条目剔除，未响应的缺陷不产产物 */
+    private List<Map<String, Object>> sanitizeBatch(AiChatReply reply, List<Bug> shard,
+            List<ProjectModule> modules) {
+        Map<String, Object> parsed = asMap(RequirementSuggestionParser.parseJsonObject(reply.content()));
+        Map<UUID, Bug> scope = shard.stream()
+                .collect(Collectors.toMap(Bug::getId, bug -> bug, (left, right) -> left));
+        Set<UUID> emitted = new LinkedHashSet<>();
+
+        List<Map<String, Object>> artifacts = new ArrayList<>();
+        if (parsed.get("items") instanceof List<?> raw) {
+            for (Object element : raw) {
+                if (!(element instanceof Map<?, ?>)) {
+                    continue;
+                }
+                Map<String, Object> item = asMap(element);
+                UUID bugId = null;
+                try {
+                    bugId = UUID.fromString(String.valueOf(item.get("bugId")).trim());
+                } catch (RuntimeException e) {
+                    continue;
+                }
+                Bug bug = scope.get(bugId);
+                if (bug == null || !emitted.add(bugId)) {
+                    continue;
+                }
+                Map<String, Object> content = new LinkedHashMap<>();
+                content.put("bugId", bugId.toString());
+                content.put("suggestions", sanitizeSuggestions(asMap(item.get("suggestions")), modules));
+
+                Map<String, Object> artifact = new LinkedHashMap<>();
+                artifact.put("key", "bug-" + bugId);
+                artifact.put("kind", Constants.AiArtifactKind.BUG_CLASSIFY);
+                artifact.put("title", nvl(bug.getTitle()));
+                artifact.put("content", content);
+                // 批量产物待人工逐项确认（详设 3.6）
+                artifact.put("confirmStatus", "pending");
+                artifacts.add(artifact);
+            }
+        }
+        return artifacts;
+    }
+
     // ---------- 产物清洗 ----------
 
     private Map<String, Object> sanitize(AiChatReply reply, List<ProjectModule> modules,
@@ -159,7 +326,8 @@ public class BugClassifyHandler implements TaskHandler {
 
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("suggestions", sanitizeSuggestions(asMap(parsed.get("suggestions")), modules));
-        content.put("assigneeCandidates", sanitizeCandidates(asMapList(parsed.get("assigneeCandidates")), members));        content.put("sourceRefs", sourceRefs(similar));
+        content.put("assigneeCandidates", sanitizeCandidates(asMapList(parsed.get("assigneeCandidates")), members));
+        content.put("sourceRefs", sourceRefs(similar));
 
         Map<String, Object> artifact = new LinkedHashMap<>();
         artifact.put("key", "draft");
