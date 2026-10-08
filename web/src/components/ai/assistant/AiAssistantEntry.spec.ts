@@ -2,11 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
 import AiAssistantEntry from './AiAssistantEntry.vue'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
-import type { AiAssistantConversation } from '@/types'
+import type { AiAssistantConversation, AiAssistantMessage } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
@@ -24,7 +25,31 @@ const mocks = vi.hoisted(() => ({
   messageWarning: vi.fn(),
   prompt: vi.fn(),
   confirm: vi.fn(),
+  loadTraceNode: vi.fn(),
 }))
+
+// Markdown 渲染由 MarkdownView 既有单测覆盖，此处只断言本组件的组装行为
+vi.mock('@/components/common/MarkdownView.vue', async () => {
+  const { h } = await import('vue')
+  return {
+    default: {
+      name: 'MarkdownView',
+      props: { content: { type: String, required: true } },
+      setup: (props: { content: string }) => () => h('div', { class: 'md-stub' }, props.content),
+    },
+  }
+})
+
+vi.mock('@/composables/project/trace/useTraceNodePicker', async () => {
+  const { ref } = await import('vue')
+  return {
+    useTraceNodePicker: () => ({
+      options: ref([{ id: 'r1', label: '登录需求' }]),
+      loading: ref(false),
+      load: mocks.loadTraceNode,
+    }),
+  }
+})
 
 vi.mock('element-plus', async (importOriginal) => {
   const actual = await importOriginal<typeof import('element-plus')>()
@@ -67,6 +92,7 @@ vi.mock('@/stores/auth', () => ({
 type Store = ReturnType<typeof useAiAssistantStore>
 
 let store: Store
+let router: Router
 let activeWrapper: VueWrapper | null = null
 
 function makeConversation(overrides: Partial<AiAssistantConversation> = {}): AiAssistantConversation {
@@ -81,12 +107,32 @@ function makeConversation(overrides: Partial<AiAssistantConversation> = {}): AiA
   }
 }
 
+function makeMessage(overrides: Partial<AiAssistantMessage> = {}): AiAssistantMessage {
+  return {
+    id: 'm1',
+    conversationId: 'c1',
+    role: 'assistant',
+    content: '答案',
+    attachments: null,
+    intent: null,
+    citations: [],
+    execution: null,
+    status: 'done',
+    createdAt: '2026-10-08T00:00:00',
+    ...overrides,
+  }
+}
+
 async function mountEntry(): Promise<VueWrapper> {
   const pinia = createPinia()
   setActivePinia(pinia)
   store = useAiAssistantStore()
+  router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+  })
   activeWrapper = mount(AiAssistantEntry, {
-    global: { plugins: [ElementPlus, pinia] },
+    global: { plugins: [ElementPlus, pinia, router] },
   })
   await flushPromises()
   return activeWrapper
@@ -114,6 +160,7 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
   afterEach(() => {
     activeWrapper?.unmount()
     activeWrapper = null
+    document.body.innerHTML = ''
     Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true })
   })
 
@@ -357,5 +404,128 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
     await nextTick()
 
     expect(wrapper.get('.ai-entry__card').attributes('style')).toBeUndefined()
+  })
+
+  it('输入并发送：建会话、乐观上屏并清空草稿', async () => {
+    mocks.createAiAssistantConversation.mockResolvedValue(makeConversation())
+    mocks.streamAssistantMessage.mockImplementation(
+      async (_id: string, _payload: unknown, onEvent: (e: unknown) => void) => {
+        onEvent({ type: 'done', data: { messageId: 'm2' } })
+      },
+    )
+    mocks.fetchAiAssistantMessages.mockResolvedValue({
+      list: [
+        makeMessage({ id: 'm2', content: '已解析意图' }),
+        makeMessage({ id: 'm1', role: 'user', content: '帮我建一个登录评审' }),
+      ],
+      total: 2,
+    })
+    const wrapper = await mountEntry()
+
+    await openPanel(wrapper)
+    await wrapper.get('.ai-composer textarea').setValue('帮我建一个登录评审')
+    expect(store.draftForCurrent).toBe('帮我建一个登录评审')
+
+    await wrapper.get('[aria-label="发送"]').trigger('click')
+    await flushPromises()
+
+    expect(mocks.createAiAssistantConversation).toHaveBeenCalledTimes(1)
+    expect(mocks.streamAssistantMessage).toHaveBeenCalledWith(
+      'c1',
+      { content: '帮我建一个登录评审' },
+      expect.any(Function),
+    )
+    expect(store.draftForCurrent).toBe('')
+    expect(wrapper.text()).toContain('👤 用户')
+    expect(wrapper.get('.md-stub').text()).toBe('已解析意图')
+  })
+
+  it('空态示例点击回填输入框且不直接发送', async () => {
+    const wrapper = await mountEntry()
+
+    await openPanel(wrapper)
+    await wrapper.get('.ai-timeline__example').trigger('click')
+
+    expect(store.draftForCurrent).toBe('帮我建一个登录评审')
+    const textarea = wrapper.get('.ai-composer textarea').element as HTMLTextAreaElement
+    expect(textarea.value).toBe('帮我建一个登录评审')
+    expect(mocks.streamAssistantMessage).not.toHaveBeenCalled()
+  })
+
+  it('澄清选项点击回填并立即发送', async () => {
+    mocks.streamAssistantMessage.mockImplementation(
+      async (_id: string, _payload: unknown, onEvent: (e: unknown) => void) => {
+        onEvent({ type: 'done', data: { messageId: 'm3' } })
+      },
+    )
+    const wrapper = await mountEntry()
+
+    await openPanel(wrapper)
+    store.messages = [
+      makeMessage({
+        id: 'c2',
+        content: '要建哪个模块的评审？\n\n- 登录模块\n- 订单模块',
+        citations: null,
+      }),
+    ]
+    await nextTick()
+
+    await wrapper.findAll('.ai-clarify__option')[0].trigger('click')
+    await flushPromises()
+
+    expect(mocks.streamAssistantMessage).toHaveBeenCalledWith(
+      'c1',
+      { content: '登录模块' },
+      expect.any(Function),
+    )
+    expect(store.draftForCurrent).toBe('')
+  })
+
+  it('引用跳转导航到详情页并收起面板', async () => {
+    const wrapper = await mountEntry()
+
+    await openPanel(wrapper)
+    store.messages = [
+      makeMessage({
+        citations: [{ type: 'requirement', id: 'r1', title: '登录需求', quote: '摘要' }],
+      }),
+    ]
+    await nextTick()
+
+    await wrapper.get('.ai-citation__jump').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/workspace/projects/requirements/r1')
+    expect(store.open).toBe(false)
+  })
+
+  it('附件选择进入待发列表并可移除', async () => {
+    const wrapper = await mountEntry()
+
+    await openPanel(wrapper)
+    await wrapper.get('[aria-label="添加上下文附件"]').trigger('click')
+    await flushPromises()
+    const option = document.body.querySelector('.ai-context-picker__option') as HTMLButtonElement
+    option.click()
+    await flushPromises()
+
+    expect(store.attachmentsForCurrent).toEqual([
+      { entityType: 'requirement', entityId: 'r1', entityTitle: '登录需求' },
+    ])
+    expect(wrapper.get('.ai-composer__attachment').text()).toContain('登录需求')
+
+    await wrapper.get('[aria-label="移除附件：登录需求"]').trigger('click')
+    expect(store.attachmentsForCurrent).toEqual([])
+    expect(wrapper.find('.ai-composer__attachment').exists()).toBe(false)
+  })
+
+  it('流式生成中输入框禁用', async () => {
+    const wrapper = await mountEntry()
+
+    await openPanel(wrapper)
+    store.streaming = true
+    await nextTick()
+
+    expect(wrapper.get('.ai-composer textarea').attributes('disabled')).toBeDefined()
   })
 })

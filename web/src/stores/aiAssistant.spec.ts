@@ -141,6 +141,24 @@ describe('stores/aiAssistant 会话管理', () => {
     expect(store.drafts).toEqual({ c1: '草稿一', '': '新会话草稿' })
   })
 
+  it('待发附件按会话暂存，类型 + ID 去重并支持移除', () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    const ref = { entityType: 'requirement', entityId: 'r1', entityTitle: '登录需求' }
+
+    store.addAttachment(ref)
+    store.addAttachment({ ...ref })
+    store.addAttachment({ entityType: 'module', entityId: 'm1' })
+
+    expect(store.attachmentsForCurrent).toHaveLength(2)
+
+    store.removeAttachment('r1')
+    expect(store.attachmentsForCurrent.map((item) => item.entityId)).toEqual(['m1'])
+
+    store.currentId = null
+    expect(store.attachmentsForCurrent).toEqual([])
+  })
+
   it('清除错误后同类加载失败仍可再次提示（UI-PAGE-11）', () => {
     const store = useAiAssistantStore()
     store.conversationsError = '会话列表加载失败'
@@ -263,6 +281,75 @@ describe('stores/aiAssistant 发送与流式', () => {
 
     expect(store.recovering).toBe(false)
     expect(store.pollTimer).toBeNull()
+  })
+
+  it('发送携带待发附件并回显，发送后清空草稿与附件', async () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    store.conversations = [makeConversation()]
+    const ref = { entityType: 'requirement', entityId: 'r1', entityTitle: '登录需求' }
+    store.drafts.c1 = '问题'
+    store.attachments.c1 = [ref]
+    mocks.fetchAiAssistantConversations.mockResolvedValue({ list: [], total: 0 })
+    mocks.fetchAiAssistantMessages.mockResolvedValue(
+      page([makeMessage({ id: 'm2' }), makeMessage({ id: 'm1', role: 'user', content: '问题' })]),
+    )
+    let optimistic: AiAssistantMessage | undefined
+    mocks.streamAssistantMessage.mockImplementation(
+      async (_id: string, _payload: unknown, onEvent: (e: unknown) => void) => {
+        optimistic = store.messages[0]
+        onEvent({ type: 'done', data: { messageId: 'm2' } })
+      },
+    )
+
+    await store.send('问题')
+
+    expect(mocks.streamAssistantMessage).toHaveBeenCalledWith(
+      'c1',
+      { content: '问题', attachments: [ref] },
+      expect.any(Function),
+    )
+    expect(optimistic?.attachments).toEqual([ref])
+    expect(store.drafts.c1).toBe('')
+    expect(store.attachments.c1).toEqual([])
+  })
+
+  it('校验阶段被拒回填草稿与附件并撤回乐观消息', async () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    store.conversations = [makeConversation()]
+    const ref = { entityType: 'module', entityId: 'm1' }
+    store.drafts.c1 = '问题'
+    store.attachments.c1 = [ref]
+    mocks.streamAssistantMessage.mockRejectedValue(
+      new mocks.AssistantStreamError(1000018260, '消息内容不合法'),
+    )
+
+    await store.send('问题')
+
+    expect(store.streamError).toEqual({ code: 1000018260, msg: '消息内容不合法' })
+    expect(store.drafts.c1).toBe('问题')
+    expect(store.attachments.c1).toEqual([ref])
+    expect(store.messages).toHaveLength(0)
+  })
+
+  it('新会话校验失败回填到新会话键，输入保持可见', async () => {
+    const store = useAiAssistantStore()
+    const ref = { entityType: 'test_plan', entityId: 'p1' }
+    store.drafts[''] = '首问'
+    store.attachments[''] = [ref]
+    mocks.createAiAssistantConversation.mockResolvedValue(makeConversation())
+    mocks.streamAssistantMessage.mockRejectedValue(
+      new mocks.AssistantStreamError(1000018260, '消息内容不合法'),
+    )
+
+    await store.send('首问')
+
+    expect(store.currentId).toBe('c1')
+    expect(store.drafts.c1).toBe('首问')
+    expect(store.drafts['']).toBe('')
+    expect(store.attachments.c1).toEqual([ref])
+    expect(store.attachments['']).toEqual([])
   })
 })
 
