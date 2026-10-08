@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ElementPlus from 'element-plus'
 import MessageTimeline from './MessageTimeline.vue'
-import type { AiAssistantMessage } from '@/types'
+import type { AiAssistantIntent, AiAssistantMessage } from '@/types'
 
 // Markdown 渲染由 MarkdownView 既有单测覆盖，此处只断言流式缓冲透传
 vi.mock('@/components/common/MarkdownView.vue', async () => {
@@ -34,6 +34,19 @@ function makeMessage(overrides: Partial<AiAssistantMessage> = {}): AiAssistantMe
   }
 }
 
+function makeIntent(overrides: Partial<AiAssistantIntent> = {}): AiAssistantIntent {
+  return {
+    kind: 'create_review',
+    targetType: 'test_review',
+    targetTitle: '登录评审',
+    createCount: 1,
+    changes: [{ field: 'title', op: 'add', value: '登录评审' }],
+    scope: { workspaceId: 'w1', projectId: 'p1' },
+    expiresAt: new Date(Date.now() + 600_000).toISOString().slice(0, 19),
+    ...overrides,
+  }
+}
+
 interface TimelineProps {
   messages?: AiAssistantMessage[]
   loading?: boolean
@@ -41,6 +54,8 @@ interface TimelineProps {
   streaming?: boolean
   streamText?: string
   recovering?: boolean
+  executing?: boolean
+  readonly?: boolean
 }
 
 function mountTimeline(props: TimelineProps = {}) {
@@ -52,10 +67,18 @@ function mountTimeline(props: TimelineProps = {}) {
       streaming: false,
       streamText: '',
       recovering: false,
+      executing: false,
+      readonly: false,
       ...props,
     },
     global: { plugins: [ElementPlus] },
   })
+}
+
+function findButton(wrapper: ReturnType<typeof mountTimeline>, text: string) {
+  const found = wrapper.findAll('button').find((item) => item.text().includes(text))
+  if (!found) throw new Error(`未找到按钮：${text}`)
+  return found
 }
 
 function fakeScroll(
@@ -192,5 +215,101 @@ describe('components/ai/assistant/MessageTimeline', () => {
     await flushPromises()
 
     expect((scroll as HTMLElement & { scrollTop: number }).scrollTop).toBe(800)
+  })
+
+  it('预览消息渲染预览卡并转发操作（含无正文）', async () => {
+    const wrapper = mountTimeline({
+      messages: [
+        makeMessage({ id: 'u1', role: 'user', content: '帮我建一个登录评审' }),
+        makeMessage({ id: 'p1', content: null, intent: makeIntent(), citations: null }),
+      ],
+    })
+
+    expect(wrapper.find('.ai-preview').exists()).toBe(true)
+    expect(wrapper.text()).toContain('登录评审')
+
+    await findButton(wrapper, '确认执行').trigger('click')
+    expect(wrapper.emitted('preview-execute')?.[0]).toEqual(['p1'])
+
+    await findButton(wrapper, '取消').trigger('click')
+    expect(wrapper.emitted('preview-cancel')?.[0]).toEqual(['p1'])
+  })
+
+  it('返回修改转发解析摘要，摘要为空时禁用', async () => {
+    const withSummary = mountTimeline({
+      messages: [
+        makeMessage({ id: 'p1', content: '将创建登录评审', intent: makeIntent(), citations: null }),
+      ],
+    })
+    await findButton(withSummary, '返回修改').trigger('click')
+    expect(withSummary.emitted('preview-edit')?.[0]).toEqual(['将创建登录评审'])
+    withSummary.unmount()
+
+    const withoutSummary = mountTimeline({
+      messages: [makeMessage({ id: 'p2', content: null, intent: makeIntent(), citations: null })],
+    })
+    const button = findButton(withoutSummary, '返回修改')
+    expect(button.attributes('disabled')).toBeDefined()
+    await button.trigger('click')
+    expect(withoutSummary.emitted('preview-edit')).toBeUndefined()
+    withoutSummary.unmount()
+  })
+
+  it('预览过期后转发重新解析事件', async () => {
+    const wrapper = mountTimeline({
+      messages: [
+        makeMessage({ id: 'u1', role: 'user', content: '帮我建一个登录评审' }),
+        makeMessage({
+          id: 'p1',
+          content: null,
+          intent: makeIntent({ expiresAt: '2020-01-01T00:00:00' }),
+          citations: null,
+        }),
+      ],
+    })
+
+    await findButton(wrapper, '重新解析').trigger('click')
+    expect(wrapper.emitted('preview-reparse')?.[0]).toEqual(['p1'])
+  })
+
+  it('回执消息渲染回执卡并转发单项重试与链接跳转', async () => {
+    const wrapper = mountTimeline({
+      messages: [
+        makeMessage({
+          id: 'r1',
+          content: null,
+          execution: {
+            status: 'executed',
+            results: [
+              { action: 'create_case', success: false, errorMsg: '无权限执行该操作' },
+              { action: 'create_plan', success: true, link: '/workspace/projects/plans/p1' },
+            ],
+          },
+          citations: null,
+        }),
+      ],
+    })
+
+    expect(wrapper.find('.ai-receipt').exists()).toBe(true)
+    expect(wrapper.text()).toContain('无权限执行该操作')
+
+    await findButton(wrapper, '重试').trigger('click')
+    expect(wrapper.emitted('receipt-retry')?.[0]).toEqual(['r1', 0])
+
+    await findButton(wrapper, '查看').trigger('click')
+    expect(wrapper.emitted('receipt-jump')?.[0]).toEqual(['/workspace/projects/plans/p1'])
+  })
+
+  it('执行中与归档只读透传给卡片禁用操作', async () => {
+    const wrapper = mountTimeline({
+      messages: [
+        makeMessage({ id: 'p1', content: null, intent: makeIntent(), citations: null }),
+      ],
+      executing: true,
+      readonly: true,
+    })
+
+    expect(findButton(wrapper, '确认执行').attributes('disabled')).toBeDefined()
+    expect(findButton(wrapper, '取消').attributes('disabled')).toBeDefined()
   })
 })
