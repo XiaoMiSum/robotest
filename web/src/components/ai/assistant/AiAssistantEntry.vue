@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick } from '@element-plus/icons-vue'
+import ComposerInput from './ComposerInput.vue'
+import MessageTimeline from './MessageTimeline.vue'
 import PanelHeader from './PanelHeader.vue'
 import SessionList from './SessionList.vue'
+import StreamIndicator from './StreamIndicator.vue'
 import { useAssistantEntrance } from '@/composables/ai/useAssistantEntrance'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
+import { citationRoute } from '@/utils/assistant'
+import type { AiAssistantCitation } from '@/types'
 
 /** 宽屏卡片固定尺寸；小屏由媒体查询接管且禁用拖动，夹取直接用常量避免拖动中读布局 */
 const CARD_WIDTH = 400
@@ -13,6 +19,7 @@ const CARD_HEIGHT = 560
 const SEARCH_DEBOUNCE_MS = 300
 
 const store = useAiAssistantStore()
+const router = useRouter()
 const { visible, refresh } = useAssistantEntrance()
 
 const listOpen = ref(true)
@@ -135,6 +142,35 @@ function handleActionError(error: unknown, fallback: string): void {
   ElMessage.error(error instanceof Error ? error.message : fallback)
 }
 
+// ---------- 消息与输入 ----------
+
+function handleSend(content: string): void {
+  void store.send(content)
+}
+
+function handleLoadOlder(): void {
+  void store.loadOlderMessages()
+}
+
+/** 空会话示例只回填输入框，由用户确认后发送（交互 05 §2.4） */
+function handlePickExample(text: string): void {
+  store.setDraft(store.currentId ?? '', text)
+}
+
+/** 澄清快捷选项回填并立即发送，等价于用户自行输入后发送（交互 05 §2.2） */
+function handleClarifyPick(option: string): void {
+  store.setDraft(store.currentId ?? '', option)
+  void store.send(option)
+}
+
+/** 引用跳转沿用回执链接口径：跳转后收起面板，会话保留可回看 */
+function handleCitationJump(citation: AiAssistantCitation): void {
+  const path = citationRoute(citation.type, citation.id)
+  if (!path) return
+  void router.push(path)
+  store.closePanel()
+}
+
 // ---------- 拖动 ----------
 
 let dragOffset = { x: 0, y: 0 }
@@ -230,9 +266,32 @@ onBeforeUnmount(() => {
         @select="handleSelect"
         @search="handleSearch"
       />
-      <div class="ai-entry__body">
-        <p class="ai-entry__hint">发送一句话…</p>
-      </div>
+      <MessageTimeline
+        :messages="store.messages"
+        :loading="store.messagesLoading"
+        :has-more="store.messages.length < store.messageTotal"
+        :streaming="store.streaming"
+        :stream-text="store.streamText"
+        :recovering="store.recovering"
+        @load-older="handleLoadOlder"
+        @pick-example="handlePickExample"
+        @clarify-pick="handleClarifyPick"
+        @citation-jump="handleCitationJump"
+      />
+      <StreamIndicator
+        :streaming="store.streaming"
+        :recovering="store.recovering"
+        :error="store.streamError"
+      />
+      <ComposerInput
+        :model-value="store.draftForCurrent"
+        :disabled="!store.canSend"
+        :attachments="store.attachmentsForCurrent"
+        @update:model-value="store.setDraft(store.currentId ?? '', $event)"
+        @send="handleSend"
+        @add-attachment="store.addAttachment($event)"
+        @remove-attachment="store.removeAttachment($event)"
+      />
     </section>
   </div>
 </template>
@@ -286,21 +345,6 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
-}
-
-.ai-entry__body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  justify-content: center;
-  overflow-y: auto;
-  padding: var(--space-sm);
-}
-
-.ai-entry__hint {
-  color: var(--color-neutral-400);
-  font-size: 14px;
 }
 
 @media (max-width: 767px) {

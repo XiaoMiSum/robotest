@@ -11,6 +11,7 @@ import {
 import { AssistantStreamError, AssistantStreamInterruptedError, streamAssistantMessage } from '@/services/assistantSse'
 import type {
   AiAssistantConversation,
+  AiAssistantEntityRef,
   AiAssistantExecution,
   AiAssistantMessage,
   AiAssistantSseError,
@@ -59,6 +60,8 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     messageTotal: 0,
     /** 按会话暂存未发送草稿（key 为空串表示尚无会话的新会话） */
     drafts: {} as Record<string, string>,
+    /** 按会话暂存待发附件，与草稿同键同生命周期 */
+    attachments: {} as Record<string, AiAssistantEntityRef[]>,
     // --- 流式过程态 ---
     streaming: false,
     /** delta 累积缓冲：done 后以服务端持久化内容对齐 */
@@ -86,6 +89,9 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     },
     draftForCurrent(state): string {
       return state.drafts[state.currentId ?? ''] ?? ''
+    },
+    attachmentsForCurrent(state): AiAssistantEntityRef[] {
+      return state.attachments[state.currentId ?? ''] ?? []
     },
   },
   actions: {
@@ -153,6 +159,24 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
 
     setDraft(conversationId: string | null, text: string): void {
       this.drafts[conversationId ?? ''] = text
+    },
+
+    /** 附件以类型 + ID 标识（详设 3.4），重复添加直接忽略 */
+    addAttachment(ref: AiAssistantEntityRef): void {
+      const key = this.currentId ?? ''
+      const list = this.attachments[key] ?? []
+      const exists = list.some(
+        (item) => item.entityType === ref.entityType && item.entityId === ref.entityId,
+      )
+      if (exists) return
+      this.attachments[key] = [...list, ref]
+    },
+
+    removeAttachment(entityId: string): void {
+      const key = this.currentId ?? ''
+      this.attachments[key] = (this.attachments[key] ?? []).filter(
+        (item) => item.entityId !== entityId,
+      )
     },
 
     /** 新会话：不立即建库，首问时再创建（避免空会话污染列表） */
@@ -246,6 +270,10 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     async send(content: string): Promise<void> {
       const text = content.trim()
       if (!text || !this.canSend) return
+      const draftKey = this.currentId ?? ''
+      const attachments = this.attachments[draftKey] ?? []
+      // 新建会话后 currentId 变化，回填需落到新的会话键才能在输入框可见
+      const createdNew = this.currentId === null
       this.stopRecovery()
       this.streamError = null
       this.streamText = ''
@@ -253,10 +281,14 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       try {
         let conversationId = this.currentId
         if (!conversationId) {
+          // 建会话失败时草稿与附件尚未消耗，可原样保留
           const conversation = await this.createConversation()
           conversationId = conversation.id
           this.currentId = conversation.id
         }
+        // 发送即消耗草稿与附件；校验阶段被拒时回填，避免用户输入丢失
+        this.drafts[draftKey] = ''
+        this.attachments[draftKey] = []
         // 乐观展示用户消息；done 后 refreshMessages 以服务端持久化状态整体对齐
         this.messages = [
           ...this.messages,
@@ -265,7 +297,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
             conversationId,
             role: 'user',
             content: text,
-            attachments: null,
+            attachments: attachments.length > 0 ? attachments : null,
             intent: null,
             citations: null,
             execution: null,
@@ -275,18 +307,22 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
         ]
 
         let sawTerminal = false
-        await streamAssistantMessage(conversationId, { content: text }, (event) => {
-          if (event.type === 'delta') {
-            this.streamText += event.data.text
-          } else if (event.type === 'done') {
-            sawTerminal = true
-          } else if (event.type === 'error') {
-            sawTerminal = true
-            this.streamError = event.data
-          }
-          // clarify / preview / citations 是已提交状态的投影（详设 3.5）：
-          // done 后统一 refreshMessages 对齐，避免事件与持久化双写不一致
-        })
+        await streamAssistantMessage(
+          conversationId,
+          attachments.length > 0 ? { content: text, attachments } : { content: text },
+          (event) => {
+            if (event.type === 'delta') {
+              this.streamText += event.data.text
+            } else if (event.type === 'done') {
+              sawTerminal = true
+            } else if (event.type === 'error') {
+              sawTerminal = true
+              this.streamError = event.data
+            }
+            // clarify / preview / citations 是已提交状态的投影（详设 3.5）：
+            // done 后统一 refreshMessages 对齐，避免事件与持久化双写不一致
+          },
+        )
 
         this.streaming = false
         if (sawTerminal) {
@@ -309,6 +345,9 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
           this.streamError = { code: error.code, msg: error.message }
           // 发送在校验阶段被拒，乐观消息未落盘，撤回避免与历史不一致
           this.messages = this.messages.filter((message) => !message.id.startsWith('local-'))
+          const restoreKey = createdNew ? (this.currentId ?? draftKey) : draftKey
+          this.drafts[restoreKey] = text
+          this.attachments[restoreKey] = attachments
           return
         }
         throw error
