@@ -15,12 +15,13 @@ export function fetchAiStatus(): Promise<AiStatus> {
   return get('/ai/status')
 }
 
-/** 提交任务（详设 3.6.2）：input 按任务类型分发校验，waitSeconds 缺省立即返回转轮询 */
+/** 提交任务（详设 3.6.2）：input 按任务类型分发校验；waitSeconds ∈ [0,10] 同步等待快路径，缺省立即返回转轮询 */
 export function submitAiTask(
   type: AiTaskType,
   input: Record<string, unknown> = {},
+  waitSeconds = 0,
 ): Promise<AiTaskItem> {
-  return post('/ai/tasks', { type, input })
+  return post('/ai/tasks', { type, input, waitSeconds })
 }
 
 /** 任务列表（详设 3.6.3）：项目范围经 X-Active-Project 头过滤，未附带则返回本人提交的任务 */
