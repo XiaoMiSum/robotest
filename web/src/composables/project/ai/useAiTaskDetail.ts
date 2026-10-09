@@ -184,6 +184,12 @@ export function useAiTaskDetail() {
       ? authStore.hasPermission('plan:create')
       : authStore.hasPermission('review:create')
   })
+  /** 缺陷分析落库另需 bug:edit（详设 4.2），缺权时审核区只读；重复组确认只留痕无需 bug:edit */
+  const canConfirmBug = computed(() => {
+    if (!canConfirm.value) return false
+    return detail.value?.type === 'bug_duplicate_scan'
+      || authStore.hasPermission('bug:edit')
+  })
 
   onMounted(() => {
     void loadAiStatus()
@@ -225,6 +231,7 @@ export function useAiTaskDetail() {
     canConfirm,
     canConfirmGeneration,
     canConfirmSelection,
+    canConfirmBug,
     load,
     handleCancel,
     handleRetry,

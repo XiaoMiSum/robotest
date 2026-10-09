@@ -5,6 +5,7 @@ import { formatDateTime } from '@/utils/format'
 import AiArtifactReviewPanel from '@/components/project/ai/AiArtifactReviewPanel.vue'
 import GenerationArtifactTreeReview from '@/components/project/ai/GenerationArtifactTreeReview.vue'
 import SelectionReviewPanel from '@/components/project/ai/SelectionReviewPanel.vue'
+import BugClassifyReviewPanel from '@/components/project/bug/BugClassifyReviewPanel.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
 
 const route = useRoute()
@@ -30,6 +31,7 @@ const {
   canConfirm,
   canConfirmGeneration,
   canConfirmSelection,
+  canConfirmBug,
   load,
   handleCancel,
   handleRetry,
@@ -42,6 +44,10 @@ const isSelectionTask = computed(
 )
 const selectionTaskType = computed(() =>
   detail.value?.type === 'plan_selection' ? ('plan_selection' as const) : ('review_selection' as const),
+)
+/** 缺陷批量分类与存量重复扫描走缺陷审核面板；摘要 / 分诊产物只读，留通用面板预览 */
+const isBugReviewTask = computed(
+  () => detail.value?.type === 'bug_classify' || detail.value?.type === 'bug_duplicate_scan',
 )
 
 /** 从列表「审核」进入时定位审核区（交互 2.1.2）；审核区在 succeeded 后才渲染，待其出现再定位 */
@@ -213,6 +219,16 @@ watch(
               :task-type="selectionTaskType"
               :artifacts="artifacts"
               :can-confirm="canConfirmSelection"
+              @confirmed="load"
+              @leave="backToCenter"
+            />
+            <!-- 缺陷批量分类与存量重复扫描走缺陷审核面板（详设 3.6 / 3.9） -->
+            <BugClassifyReviewPanel
+              v-else-if="isBugReviewTask"
+              :task-id="detail.taskId"
+              :task-type="detail.type"
+              :artifacts="artifacts"
+              :can-confirm="canConfirmBug"
               @confirmed="load"
               @leave="backToCenter"
             />
