@@ -83,6 +83,9 @@ public final class Constants {
         String BUG_TRIAGE = "triage_order";
         String BUG_SUMMARY = "summary";
         String BUG_DUPLICATE_GROUP = "duplicate_group";
+        String CASE_SUGGESTION = "case_suggestion";
+        String PRIORITY_SUGGESTION = "priority_suggestion";
+        String ORDER_SUGGESTION = "order_suggestion";
     }
 
     /**

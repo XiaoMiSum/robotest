@@ -75,6 +75,17 @@ public final class AiPromptScenes {
                 new PromptVariable("statsContext", "趋势与度量统计快照", true))));
         register(scenes, new PromptScene("bug_duplicate_scan", "存量重复扫描", List.of(
                 new PromptVariable("bugContext", "扫描范围内缺陷清单", true))));
+        register(scenes, new PromptScene("case_complete", "用例补全", List.of(
+                new PromptVariable("caseContext", "选中用例节点与现有属性清单", true),
+                new PromptVariable("documentContext", "文档层级上下文", true),
+                new PromptVariable("requirementContext", "上游需求上下文", true))));
+        register(scenes, new PromptScene("case_priority", "用例级别推荐", List.of(
+                new PromptVariable("caseContext", "选中用例节点与当前级别清单", true),
+                new PromptVariable("requirementContext", "上游需求上下文", true),
+                new PromptVariable("bugContext", "模块缺陷热点提示", false))));
+        register(scenes, new PromptScene("plan_order", "执行顺序建议", List.of(
+                new PromptVariable("planContext", "计划关联用例与最近执行结果", true),
+                new PromptVariable("roundCount", "推荐轮次（缺省空串）", false))));
         SCENES = Collections.unmodifiableMap(scenes);
     }
 

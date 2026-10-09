@@ -207,6 +207,7 @@ CREATE TABLE test_case_node (
                                 type         VARCHAR(20)  NOT NULL DEFAULT 'normal',
                                 title        VARCHAR(200) NOT NULL,
                                 priority     VARCHAR(2)   NULL,
+                                tags         jsonb        NULL,
                                 sort_order   INT          NOT NULL DEFAULT 0,
                                 version      INT          NOT NULL DEFAULT 1,
                                 ai_generated BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -1487,6 +1488,7 @@ COMMENT ON COLUMN test_case_node.parent_id IS '父级节点 ID，NULL=根节点'
 COMMENT ON COLUMN test_case_node.type IS '节点类型：case=用例, normal=普通, precondition=前置条件, step=步骤, expected=预期结果';
 COMMENT ON COLUMN test_case_node.title IS '节点标题';
 COMMENT ON COLUMN test_case_node.priority IS '用例优先级：P0/P1/P2/P3，仅 case 节点有值';
+COMMENT ON COLUMN test_case_node.tags IS '用例标签（jsonb 数组），AI 补全建议采纳落库';
 COMMENT ON COLUMN test_case_node.sort_order IS '排序序号';
 COMMENT ON COLUMN test_case_node.version IS '乐观锁版本号，用于并发冲突检测';
 COMMENT ON COLUMN test_case_node.ai_generated IS 'AI 生成标识（挂载执行器写入，可手动移除）';

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -73,6 +74,18 @@ public final class ModelOutputSupport {
 
     public static String asString(Object raw) {
         return raw == null ? null : String.valueOf(raw);
+    }
+
+    /** 解析模型输出中的 uuid 字段；缺失或畸形返回 null（按未响应处理） */
+    public static UUID parseUuid(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(String.valueOf(raw).trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public static String trimToNull(String value) {
