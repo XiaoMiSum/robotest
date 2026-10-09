@@ -351,6 +351,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '提交缺陷', mode: 'project' },
       },
       {
+        // 不入菜单：由缺陷管理工具栏「AI 分析」进入；页面内判权给 403（交互 2.4）
+        path: 'workspace/projects/bugs/analysis',
+        name: 'BugAnalysis',
+        component: () => import('@/pages/project/bug/BugAnalysisPage.vue'),
+        meta: { title: 'AI 缺陷分析', mode: 'project', permission: 'bug:view' },
+      },
+      {
         path: 'workspace/projects/bugs/:bugId',
         name: 'BugDetail',
         component: () => import('@/pages/project/bug/BugDetailPage.vue'),
