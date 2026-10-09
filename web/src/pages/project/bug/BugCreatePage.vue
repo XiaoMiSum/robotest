@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useBugCreate } from '@/composables/project/bug/useBugCreate'
+import { useBugCreateSuggest } from '@/composables/project/bug/useBugCreateSuggest'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
+import BugSuggestBadge from '@/components/project/bug/BugSuggestBadge.vue'
+import AssigneeCandidateChips from '@/components/project/bug/AssigneeCandidateChips.vue'
+import DuplicateCheckPanel from '@/components/project/bug/DuplicateCheckPanel.vue'
+import { fetchAiStatus } from '@/services/ai'
 
 const {
   formRef,
@@ -23,6 +30,73 @@ const {
   priorityLabel,
   BUG_TYPE_LABEL,
 } = useBugCreate()
+
+// ==================== AI 建议与录入检测（交互 2.2 / 3.1） ====================
+
+const aiAvailable = ref(false)
+void fetchAiStatus()
+  .then((status) => {
+    aiAvailable.value = status.available
+  })
+  .catch(() => {
+    // 状态查询失败按不可用降级，不阻塞录入
+    aiAvailable.value = false
+  })
+
+const {
+  loading: suggestLoading,
+  error: suggestError,
+  suggestions,
+  assigneeCandidates,
+  requestSuggestion,
+  dispose: disposeSuggest,
+} = useBugCreateSuggest()
+
+/** 标题与重现步骤填写后点击获取建议（草稿模式详设 3.5，不落库） */
+async function handleRequestSuggest(): Promise<void> {
+  if (!form.title.trim()) {
+    ElMessage.warning('请先填写缺陷标题')
+    return
+  }
+  await requestSuggestion({
+    title: form.title.trim(),
+    steps: form.reproSteps.trim() || undefined,
+    moduleId: form.moduleId || undefined,
+  })
+}
+
+/** 用户已填值与建议不一致时以用户值为准，徽标点击才采纳（交互 2.2） */
+function adoptSuggestion(field: 'bugType' | 'severity' | 'priority' | 'moduleId', value: string): void {
+  if (field === 'moduleId') form.moduleId = value
+  else if (field === 'bugType') form.bugType = value as typeof form.bugType
+  else if (field === 'severity') form.severity = value as typeof form.severity
+  else form.priority = value as typeof form.priority
+}
+
+function adoptKeywords(value: string[]): void {
+  form.keywords = value.join(' ')
+}
+
+function adoptAssignee(userId: string): void {
+  form.assigneeId = userId
+}
+
+/** 关键词建议为字符串数组，展示时以空格连接（采纳即写入关键词字段） */
+const keywordsSuggestion = computed(() =>
+  suggestions.value.keywords
+    ? { value: suggestions.value.keywords.value.join(' '), reason: suggestions.value.keywords.reason }
+    : null,
+)
+
+/** moduleId 建议值可为 null（未指定），徽标只在有明确建议时展示 */
+const moduleIdSuggestion = computed(() => {
+  const suggestion = suggestions.value.moduleId
+  return suggestion && suggestion.value ? { value: suggestion.value, reason: suggestion.reason } : null
+})
+
+onBeforeUnmount(() => {
+  disposeSuggest()
+})
 </script>
 
 <template>
@@ -35,7 +109,28 @@ const {
       <div class="bug-create__layout">
         <div class="bug-create__main">
           <el-card shadow="never">
-            <template #header><span class="bug-create__section">基本信息</span></template>
+            <template #header>
+              <div class="bug-create__section-row">
+                <span class="bug-create__section">基本信息</span>
+                <!-- 草稿建议入口（详设 3.5）：AI 未启用时隐藏 -->
+                <el-button
+                  v-if="aiAvailable"
+                  size="small"
+                  :loading="suggestLoading"
+                  @click="handleRequestSuggest"
+                >
+                  <el-icon><MagicStick /></el-icon>获取 AI 建议
+                </el-button>
+              </div>
+            </template>
+            <el-alert
+              v-if="suggestError"
+              type="warning"
+              :title="suggestError"
+              show-icon
+              :closable="false"
+              class="bug-create__suggest-error"
+            />
             <el-form-item label="标题" prop="title">
               <el-input
                 v-model="form.title"
@@ -48,6 +143,12 @@ const {
             <el-form-item label="重现步骤" class="bug-create__repro">
               <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
             </el-form-item>
+            <!-- 录入时重复检测（交互 3.1）：仅作建议，不自动合并、不改状态 -->
+            <DuplicateCheckPanel
+              :title="form.title"
+              :steps="form.reproSteps"
+              :ai-available="aiAvailable"
+            />
           </el-card>
 
           <el-card shadow="never">
@@ -76,6 +177,12 @@ const {
               <el-select v-model="form.bugType">
                 <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
               </el-select>
+              <BugSuggestBadge
+                :model-value="form.bugType"
+                :label="'类型'"
+                :suggestion="suggestions.bugType"
+                @adopt="adoptSuggestion('bugType', $event)"
+              />
             </el-form-item>
             <el-form-item label="所属模块">
               <el-tree-select
@@ -87,6 +194,13 @@ const {
                 clearable
                 placeholder="选择所属模块（可选）"
               />
+              <BugSuggestBadge
+                :model-value="form.moduleId"
+                :label="'模块'"
+                :suggestion="moduleIdSuggestion"
+                :adopt-value="moduleIdSuggestion?.value ?? ''"
+                @adopt="adoptSuggestion('moduleId', $event)"
+              />
             </el-form-item>
             <el-form-item label="严重等级" prop="severity">
               <el-select v-model="form.severity">
@@ -94,11 +208,23 @@ const {
                   <span class="bug-create__severity-dot" :class="`bug-create__severity-dot--${key}`" />{{ label }}
                 </el-option>
               </el-select>
+              <BugSuggestBadge
+                :model-value="form.severity"
+                :label="'等级'"
+                :suggestion="suggestions.severity"
+                @adopt="adoptSuggestion('severity', $event)"
+              />
             </el-form-item>
             <el-form-item label="优先级" prop="priority">
               <el-select v-model="form.priority">
                 <el-option v-for="(label, key) in priorityLabel" :key="key" :label="label" :value="key" />
               </el-select>
+              <BugSuggestBadge
+                :model-value="form.priority"
+                :label="'优先级'"
+                :suggestion="suggestions.priority"
+                @adopt="adoptSuggestion('priority', $event)"
+              />
             </el-form-item>
             <el-form-item label="截止日期">
               <el-date-picker
@@ -111,6 +237,12 @@ const {
             </el-form-item>
             <el-form-item label="关键词">
               <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
+              <BugSuggestBadge
+                :model-value="form.keywords"
+                :label="'关键词'"
+                :suggestion="keywordsSuggestion"
+                @adopt="adoptKeywords($event.split(' '))"
+              />
             </el-form-item>
           </el-card>
 
@@ -120,6 +252,12 @@ const {
               <el-select v-model="form.assigneeId" filterable placeholder="选择处理人">
                 <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
               </el-select>
+              <!-- 指派候选：悬浮理由，点击采纳（交互 2.2） -->
+              <AssigneeCandidateChips
+                :candidates="assigneeCandidates"
+                :selected-id="form.assigneeId"
+                @adopt="adoptAssignee"
+              />
             </el-form-item>
             <el-form-item label="关联用例">
               <el-button @click="caseSelectorVisible = true">选择用例</el-button>
@@ -177,6 +315,16 @@ const {
   font-weight: 600;
   font-size: var(--font-size-sm);
   color: var(--color-neutral-800);
+}
+
+.bug-create__section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bug-create__suggest-error {
+  margin-bottom: var(--space-md);
 }
 
 .bug-create__form :deep(.el-select),
