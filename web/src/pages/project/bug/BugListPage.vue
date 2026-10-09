@@ -1,10 +1,22 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue'
+import { onMounted, ref } from 'vue'
 import { DynamicSizeList } from 'element-plus'
 import { formatShortDateTime, formatShortId, truncateText } from '@/utils/format'
 import type { BugListItem, BugResolution, BugStatus, BugType } from '@/types'
 import BugResolveDialog from '@/components/project/bug/BugResolveDialog.vue'
 import { useBugList } from '@/composables/project/bug/useBugList'
+import { fetchAiStatus } from '@/services/ai'
+
+/** AI 未启用时隐藏分析入口（总册 4.5）；查询失败同样按不可用降级 */
+const aiAvailable = ref(false)
+onMounted(async () => {
+  try {
+    aiAvailable.value = (await fetchAiStatus()).available
+  } catch {
+    aiAvailable.value = false
+  }
+})
 
 const {
   loading,
@@ -125,6 +137,14 @@ const {
           </el-radio-group>
         </el-form-item>
         <el-form-item>
+          <!-- 拥有缺陷查看权限即可见分析入口（详设 1.1）；AI 未启用时隐藏 -->
+          <el-button
+            v-if="aiAvailable"
+            class="bug-page__analysis-btn"
+            @click="router.push('/workspace/projects/bugs/analysis')"
+          >
+            <el-icon><DataAnalysis /></el-icon>AI 分析
+          </el-button>
           <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
             <el-icon><Plus /></el-icon>提交缺陷
           </el-button>
