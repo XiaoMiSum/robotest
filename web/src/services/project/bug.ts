@@ -2,6 +2,8 @@ import api, { get, post, put, patch, del } from '@/services'
 import type {
   BugAttachment,
   BugDetail,
+  BugDuplicateCheckReq,
+  BugDuplicateCheckResp,
   BugListItem,
   BugLog,
   BugPriority,
@@ -9,6 +11,9 @@ import type {
   BugSeverity,
   BugStatus,
   BugType,
+  BugAnalysisQuery,
+  BugMetricsResp,
+  BugTrendsResp,
   PageResult,
 } from '@/types'
 
@@ -92,6 +97,23 @@ export function confirmBug(id: string): Promise<void> {
 
 export function assignBug(id: string, assigneeId: string): Promise<void> {
   return put(`/project/bugs/${id}/assign`, { assigneeId })
+}
+
+// ==================== 缺陷分析（详设 3.1–3.3、3.8） ====================
+
+/** 趋势查询：统计实时计算，日期为 UTC 日历日，缺省最近 30 天 */
+export function fetchBugTrends(query: BugAnalysisQuery = {}): Promise<BugTrendsResp> {
+  return get('/project/bugs/analysis/trends', { ...query })
+}
+
+/** 质量度量：比率与分布分母统一为区间内新增缺陷 */
+export function fetchBugMetrics(query: BugAnalysisQuery = {}): Promise<BugMetricsResp> {
+  return get('/project/bugs/analysis/metrics', { ...query })
+}
+
+/** 录入时重复检测：同步向量检索，向量未就绪回执 1000018258（入口置灰） */
+export function checkBugDuplicates(data: BugDuplicateCheckReq): Promise<BugDuplicateCheckResp> {
+  return post('/project/bugs/duplicates/check', data)
 }
 
 // ==================== 缺陷附件 ====================
