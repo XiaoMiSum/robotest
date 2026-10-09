@@ -105,10 +105,10 @@ describe('stores/bugAnalysis', () => {
 
   it('范围切换后过期响应丢弃，以最新范围结果为准（防竞态）', async () => {
     const store = useBugAnalysisStore()
-    let resolveFirst: ((value: BugTrendsResp) => void) | null = null
+    const resolvers: Array<(value: BugTrendsResp) => void> = []
     mocks.fetchBugTrends
       .mockImplementationOnce(
-        () => new Promise<BugTrendsResp>((resolve) => { resolveFirst = resolve }),
+        () => new Promise<BugTrendsResp>((resolve) => { resolvers.push(resolve) }),
       )
       .mockResolvedValueOnce({
         axis: ['2026-10-08'],
@@ -122,7 +122,7 @@ describe('stores/bugAnalysis', () => {
     await second
     expect(store.trends?.axis).toEqual(['2026-10-08'])
     // 旧范围响应迟到 → 丢弃
-    resolveFirst?.(makeTrends())
+    resolvers[0]?.(makeTrends())
     await first
     expect(store.trends?.axis).toEqual(['2026-10-08'])
   })
