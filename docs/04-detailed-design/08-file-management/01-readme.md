@@ -2,7 +2,7 @@
 
 | 文档 | 版本 | 日期 | 状态 |
 | ---- | ---- | ---- | ---- |
-| [02-file-management](02-file-management.md)（泛化附件资源、SeaweedFS 对象存储、缺陷附件迁移、文件管理页与 docker-compose 发行） | V1.0 | 2026-10-04 | 起草中 |
+| [02-file-management](02-file-management.md)（泛化附件资源、SeaweedFS 对象存储、缺陷附件迁移、缺陷正文贴图接入、文件管理页与 docker-compose 发行） | V1.0 | 2026-10-10 | 起草中 |
 
 > 本目录为文件管理模块的详细设计；模块入口见上级索引 `docs/04-detailed-design/01-readme.md`。
 > 需求来源为实施计划「计划外独立任务登记——文件管理模块改造」（`docs/06-implementation-plan/02-ai-requirement-development-plan.md` §1.2），本模块为其设计载体；
