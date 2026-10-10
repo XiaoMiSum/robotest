@@ -14,7 +14,7 @@
 
 - **路径**：`GET /api/project/scheduled-tasks?taskType=&pageNo=1&pageSize=20`
 - **权限**：`api-timer:view`
-- **参数**：`taskType` 可选（`scene_execute` / `import_swagger`），缺省查询全部；前端类型筛选变化时重置 `pageNo = 1` 重新拉取。
+- **参数**：`taskType` 可选（`scene_execute` / `import_swagger` / `gitlab_sync`），缺省查询全部；前端类型筛选变化时重置 `pageNo = 1` 重新拉取。
 - **响应**：
 
 ```json
@@ -87,12 +87,13 @@
 ```
 
 - **校验**：
-  - `taskType` 必填，仅 `scene_execute` / `import_swagger`；`name` 必填且 ≤ 200 字符；`description` ≤ 500 字符；`cronExpression` 必填且 ≤ 50 字符（解析后校验语法）；`openapiUrl` ≤ 2000 字符。
+  - `taskType` 必填，仅 `scene_execute` / `import_swagger` / `gitlab_sync`；`name` 必填且 ≤ 200 字符；`description` ≤ 500 字符；`cronExpression` 必填且 ≤ 50 字符（解析后校验语法）；`openapiUrl` ≤ 2000 字符。
   - `taskType = scene_execute` 时，`environmentId` 必填且为同项目环境；`executionScope` 必填：
     - `all`：执行项目下全部可执行场景（已发布状态）；
     - `modules`：`moduleIds` 必填（多选模块，均须为同项目模块，执行其下场景）；
     - `scenes`：`sceneIds` 必填（多选场景，均须为同项目可执行场景）；
   - `taskType = import_swagger` 时，`openapiUrl` 必填（OpenAPI/Swagger JSON 文件的 URL 地址），保存时校验可达性与合法性；此类型不落执行范围、模块/场景与环境字段。
+  - `taskType = gitlab_sync` 时，本项目须已配置 GitLab 仓库，否则返回 `1000017701`；仓库由项目唯一确定，请求体不得携带仓库标识，也不落执行范围、模块/场景、环境与 `openapiUrl` 字段。
   - `enabled` 可选，缺省为 `true`。
   - 返回下次执行时间预览。
 - **响应**：
@@ -141,7 +142,7 @@
 }
 ```
 
-  - 接口同步任务同步执行完成，`executionId` 为导入记录 ID，`status` 为导入最终状态（`success` / `failed`）。
+  - 接口同步任务同步执行完成，`executionId` 为导入记录 ID，`status` 为导入最终状态（`success` / `failed`）；GitLab 同步任务为异步执行，`executionId` 为任务执行记录 ID，`status` 恒返回 `running`，完成状态经执行记录查询获取。
 
 ### 1.7 查询执行记录
 
@@ -168,7 +169,7 @@
 }
 ```
 
-- `reportId` 为测试计划任务产生的套件报告 ID；`importRecordId` / `importSummary`（新增 / 更新 / 失败数）仅接口同步任务有值，测试计划任务为 `null`。
+- `reportId` 为测试计划任务产生的套件报告 ID；`importRecordId` / `importSummary`（新增 / 更新 / 失败数）仅接口同步任务有值，`syncSummary`（新增 / 更新 / 解析失败 / 真实错误数、提交号）仅 GitLab 同步任务有值，其余类型为 `null`。
 
 ### 1.8 校验 Cron 表达式
 
@@ -205,6 +206,7 @@
 
 - 被定时任务选中的接口测试场景（`task_type = scene_execute`）受删除保护：`execution_scope = scenes` 时直接选中的场景、`execution_scope = all` 时项目全部场景、`execution_scope = modules` 时被选中模块下的场景均禁止删除，需先删除任务或调整执行范围。
 - 被定时任务选中的模块（`task_type = scene_execute`）删除前校验引用：`all` 覆盖全部模块；`modules` 范围下模块自身或任一祖先模块被选中即视为被引用；`scenes` 范围下模块内场景被选中即视为被引用。存在引用时禁止删除。
+- GitLab 仓库配置删除前校验是否存在 `task_type = gitlab_sync` 的启用中任务，存在则禁止删除，需先删除任务或停用；仓库配置删除后其下导入场景保留但标记来源已移除。
 
 ---
 
@@ -234,13 +236,13 @@
 
 ### 3.3 任务列表
 
-- **筛选**：工具栏仅一个「类型」下拉（全部类型 / 测试计划 / 接口同步，可清空），变化即重置到第 1 页刷新。
+- **筛选**：工具栏仅一个「类型」下拉（全部类型 / 测试计划 / 接口同步 / GitLab 同步，可清空），变化即重置到第 1 页刷新。
 - **列**：
   | 列 | 展示 |
   | --- | --- |
   | 任务名称 | 超长省略 + tooltip |
-  | 类型 | `scene_execute` → 测试计划；`import_swagger` → 接口同步 |
-  | 执行范围 | 测试计划：全部场景 / 指定模块×N / 指定场景×N；接口同步：接口文档 URL |
+  | 类型 | `scene_execute` → 测试计划；`import_swagger` → 接口同步；`gitlab_sync` → GitLab 同步 |
+  | 执行范围 | 测试计划：全部场景 / 指定模块×N / 指定场景×N；接口同步：接口文档 URL；GitLab 同步：仓库展示名 |
   | 调度 | Cron 表达式原文 |
   | 状态 | 行内启用开关（el-switch），切换即调用启停接口，成功提示"已启用 / 已停用"并刷新 |
   | 上次执行 | 状态标签（成功 / 失败 / 已跳过 / 执行中）+ 上次执行时间；无记录显示 `-` |
@@ -255,13 +257,14 @@
 
 - **任务名称**：必填，≤ 200 字符。
 - **任务描述**：可选，多行文本，≤ 500 字符。
-- **任务类型**：单选必填 —— 测试计划（`scene_execute`）/ 接口同步（`import_swagger`）。
+- **任务类型**：单选必填 —— 测试计划（`scene_execute`）/ 接口同步（`import_swagger`）/ GitLab 同步（`gitlab_sync`）。
 - **测试计划分支**：
   - **执行方式**：单选必填 —— 全部 / 指定模块 / 指定场景；
   - **指定模块**（`executionScope = modules` 时展示，必填）：模块树多选（勾选父模块包含其全部子模块），选项按场景维度的项目模块树加载，加载中显示 loading；
   - **指定场景**（`executionScope = scenes` 时展示，必填）：按钮打开场景选择弹窗，已选场景以可关闭标签展示（最多展示 8 个，超出折叠为 `+N`，可展开 / 收起）；编辑回填时按场景分页回查名称，已删除场景显示「（已删除场景）」；
   - **目标环境**：必填、可搜索，提示文案"测试计划任务需指定目标环境"。
 - **接口同步分支**：**接口文档 URL** 必填，≤ 2000 字符，提示"接口同步任务必填；保存时校验 URL 可达性与合法性"；切换任务类型会清空另一分支的字段（执行范围 / 模块 / 场景 / 环境 与 URL 互斥）。
+- **GitLab 同步分支**：无附加字段，仅展示本项目仓库展示名与默认分支（只读回显，不可改）；本项目未配置 GitLab 仓库时该类型置灰并提示"请先在项目设置中配置 GitLab 仓库"；切换到该类型时清空执行范围 / 模块 / 场景 / 环境 / URL 全部分支字段。
 - **调度配置**（分隔线分区）：
   - **预设表达式**下拉：每小时、每天凌晨 2:00、每周一 2:00、每月 1 号 2:00、工作日 2:00，选中即回填并自动校验；
   - **Cron 表达式**：必填，≤ 50 字符，右侧「校验」「构建器」按钮；校验结果展示 `合法` + 自然语言描述，或 `表达式不合法`；下方展示下次执行预览（取前 3 次，浏览器时区）；
@@ -289,3 +292,4 @@
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-10-03 | 对齐实现：修正启停/立即执行接口路径与方法、补全执行记录字段与权限口径，重写管理页列表、表单、执行记录抽屉与动作交互描述 |
+| V1.0 | 2026-10-11 | 新增 `gitlab_sync`（GitLab 同步）类型的筛选、列展示、表单分支与校验口径，补仓库配置删除保护 |

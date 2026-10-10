@@ -127,7 +127,29 @@
 ---
 
 
-## 4. 调度器线程池
+## 4. GitLab 同步任务执行
+
+`task_type = gitlab_sync` 的任务触发时，将本项目绑定 GitLab 仓库的变更同步为平台测试场景。仓库由项目唯一确定（一项目一仓库），任务不携带仓库、执行范围与环境字段。
+
+**执行流程**：
+
+1. 置 `last_execution_status = running`，读取仓库配置与 `last_import_commit`；
+2. 目标分支 HEAD 与 `last_import_commit` 相同且上次 `last_import_summary.errorFailed == 0` → 写 1 条 `status = success` 的任务执行记录（`error_message` = 无变更说明），任务状态置 `success`，不进入解析；
+3. 否则调用 compare 接口取得变更文件清单，按改名迁移规则完成类 / 包改名探查与源侧标识迁移（见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md`）3.5）；
+4. 进入导入流程，复用稳定键 upsert 与幂等闸门（同 3.5）；
+5. 回写 `last_import_commit` 与 `last_import_summary`，写 `api_change_history`；
+6. 写 1 条任务执行记录（`status` = 同步最终状态，`error_message` = 异常摘要或无变更说明，`report_id` 为空，`duration_ms` 为本次耗时），任务状态置 `success` / `failed`，返回本次同步摘要。
+
+**说明**：
+
+- 该任务是源变更检测的**唯一形态**，检测频率完全由用户配置的 Cron 决定，平台不另设轮询；
+- 与手动导入共用同一解析、稳定键与幂等闸门，两者并发时不互斥，靠 upsert 幂等保证结果一致；
+- **不产生测试报告**、不写 `api_report`，执行记录只承载同步结果摘要（新增 / 更新 / 解析失败 / 真实错误数）；
+- **失败处理**：仓库配置不存在或被禁用 → 直接置 `failed`，不重试；GitLab 不可达 / 令牌失效 / 解析异常 → 写 1 条 `status = failed` 的任务执行记录（异常摘要按 2000 截断），任务状态置 `failed`；手动触发时异常继续上抛供前端提示，定时触发仅留痕。
+
+---
+
+## 5. 调度器线程池
 
 调度器线程池大小为可配置项（`server/src/main/resources/application.yaml`）：
 
@@ -157,3 +179,4 @@ robotest:
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-03 | 对齐实现：修正章节自引用与交叉引用，补全 Cron 解析与下次执行时间口径、执行与失败处理流程、状态口径及线程池配置 |
 | V1.0 | 2026-10-11 | 场景批量执行引入执行引擎分组：先分组后过滤、按引擎差异化过滤条件、双组并行与「与」逻辑完成判据 |
+| V1.0 | 2026-10-11 | 新增 GitLab 同步任务执行（§4），原调度器线程池顺延为 §5 |
