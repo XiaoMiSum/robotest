@@ -47,14 +47,15 @@
 | project_id | UUID | NOT NULL | 归属项目 |
 | parent_id | UUID | NULL | 父模块 ID（null 为根模块） |
 | name | VARCHAR(100) | NOT NULL | 模块名称 |
+| source_id | VARCHAR(500) | NULL | 源侧映射标识：导入创建的模块记录其来源工程内的稳定标识（如测试类全限定名），平台原生模块为 NULL；供导入认领与去重使用，定义见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 2.2 |
 | sort_order | INT | NOT NULL DEFAULT 0 | 排序序号 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_pmod_project` (project_id), `idx_pmod_parent` (parent_id)
+**索引**：`idx_pmod_project` (project_id), `idx_pmod_parent` (parent_id), `uk_pmod_source` UNIQUE (project_id, parent_id, source_id) WHERE is_deleted = FALSE AND source_id IS NOT NULL
 
-> 根模块 `parent_id` 为 NULL，查询某项目的根模块列表走 `idx_pmod_project`；子模块查询走 `idx_pmod_parent`。合计 2 个索引，符合 C9。
+> 根模块 `parent_id` 为 NULL，查询某项目的根模块列表走 `idx_pmod_project`；子模块查询走 `idx_pmod_parent`；导入认领走 `uk_pmod_source`。合计 3 个索引，符合 C9。
 
 **唯一约束**：模块名称在同级父模块下唯一（应用层校验，错误码 `1000017052`，`PROJECT_MODULE_NAME_EXISTS`）。
 
@@ -327,6 +328,7 @@ CREATE TABLE project_module (
     project_id UUID NOT NULL,
     parent_id UUID NULL,
     name VARCHAR(100) NOT NULL,
+    source_id VARCHAR(500) NULL,
     sort_order INT NOT NULL DEFAULT 0,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -334,7 +336,11 @@ CREATE TABLE project_module (
 );
 CREATE INDEX idx_pmod_project ON project_module(project_id);
 CREATE INDEX idx_pmod_parent ON project_module(parent_id);
+CREATE UNIQUE INDEX uk_pmod_source ON project_module(project_id, parent_id, source_id)
+    WHERE is_deleted = FALSE AND source_id IS NOT NULL;
 ```
+
+> 已部署实例的增量变更为 `ALTER TABLE project_module ADD COLUMN source_id VARCHAR(500) NULL;` 及创建 `uk_pmod_source`，存量行 `source_id` 为 NULL，不受影响。
 
 > `test_case_document` 表及其索引的 DDL 见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。
 
@@ -402,6 +408,13 @@ DROP TABLE api_scenario_module;
 | 1000018301–1000018329 | AI 辅助功能 |
 
 > 号段以 `ErrorCodeConstants` 当前登记为准；历史设计中的其他短码不再作为对外错误码。
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-23 | 初始版本：项目模块详细设计 |
+| V1.0 | 2026-10-11 | 新增 `source_id` 字段与 `uk_pmod_source` 索引，承接 GitLab 集成的模块认领与去重 |
 
 ---
 
