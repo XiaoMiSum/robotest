@@ -47,7 +47,7 @@
 | project_id | UUID | NOT NULL | 归属项目 |
 | parent_id | UUID | NULL | 父模块 ID（null 为根模块） |
 | name | VARCHAR(100) | NOT NULL | 模块名称 |
-| source_id | VARCHAR(500) | NULL | 源侧映射标识：导入创建的模块记录其来源工程内的稳定标识（如测试类全限定名），平台原生模块为 NULL；供导入认领与去重使用，定义见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 2.2 |
+| source_id | VARCHAR(500) | NULL | 源侧映射标识：导入创建的模块记录其来源工程内的稳定标识（包容器存完整包名、类模块存测试类全限定名），平台原生模块为 NULL；供导入认领与去重使用，定义见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 2.2 |
 | sort_order | INT | NOT NULL DEFAULT 0 | 排序序号 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |

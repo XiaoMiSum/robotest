@@ -17,7 +17,7 @@
 覆盖需求分册中的 GitLab 集成（`docs/01-requirements/05-api-testing/11-api-srs-gitlab-integration.md`）与概要设计对应模块（`docs/02-high-level-design/05-api-testing/11-hld-api-gitlab-integration.md`）：
 
 - **仓库集成配置**：GitLab 实例、项目路径、令牌、导入模式的项目级配置；
-- **项目导入与解析**：测试类扫描、用例解析、模块归属、环境合并、增量导入与 commit 幂等闸门；
+- **项目导入与解析**：测试类扫描、用例解析、模块归属、环境合并、增量导入、源变更定时同步与改名迁移；
 - **双引擎执行**：场景按来源与导入模式路由到平台 Ryze 引擎或 GitLab 流水线引擎，含定时任务混合执行；
 - **结果归集**：流水线状态与用例级结果回收、双引擎套件报告聚合。
 
@@ -84,7 +84,7 @@
 
 | 表 | 扩展内容 | 定义位置 |
 | ---- | ---- | ---- |
-| `project_module` | +1 列 `source_id`（源侧映射标识 = 测试类全限定名）、+1 唯一索引 `uk_pmod_source` | `docs/04-detailed-design/02-project-module.md` 2.1 |
+| `project_module` | +1 列 `source_id`（源侧映射标识：包容器存完整包名、类模块存测试类全限定名）、+1 唯一索引 `uk_pmod_source` | `docs/04-detailed-design/02-project-module.md` 2.1 |
 | `api_scene` | +7 列 `source_type` / `repo_id` / `source_id` / `source_ref` / `source_status` / `parse_status` / `parse_issues`、+1 唯一索引 `uk_scene_source` | `docs/04-detailed-design/05-api-testing/12-test-scenario-overview.md` 2.1.2 |
 | `api_execution_record` | +8 列 `repo_id` / `pipeline_iid` / `pipeline_url` / `batch_index` / `batch_total` / `commit_sha` / `scheduled_task_id` / `summary`、+1 索引 `idx_exec_pipeline` | `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md` 2.1.3 |
 | `api_environment` | +1 列 `source_id`（认领该环境的仓库路径），不加索引 | `docs/04-detailed-design/05-api-testing/17-environment-management-overview.md` 2.1.1 |
@@ -94,7 +94,7 @@
 
 ### 2.3 错误码
 
-GitLab 集成相关错误码号段 `1000017701`–`1000017711`（`API_GIT_*`）统一登记于《API 测试基础设施详细设计说明书》2.2（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`），本文不重复登记。常用码速查：
+GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）统一登记于《API 测试基础设施详细设计说明书》2.2（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`），本文不重复登记。常用码速查：
 
 | 错误码 | 常量 | 触发时机 |
 | ---- | ---- | ---- |
@@ -109,6 +109,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017711`（`API_GIT_*`）�
 | 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支 HEAD 与上次导入一致且无遗留错误，导入被幂等闸门跳过 |
 | 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，无降级路径（见 4.3） |
 | 1000017711 | API_GIT_REPO_MODE_IMMUTABLE | 仓库 `import_mode` 创建后不可修改 |
+| 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 
 ## 3. 接口详细设计
 
@@ -121,7 +122,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017711`（`API_GIT_*`）�
 | `/api/project/git-repos` | GET | 查询当前项目仓库配置（一项目一仓库，无分页） | `api-env:view` |
 | `/api/project/git-repos` | POST | 创建仓库配置，`importMode` 必填且创建后不可修改 | `api-env:edit` |
 | `/api/project/git-repos/{repoId}` | PUT | 更新配置；`importMode` 不在请求体中接受，出现即返回 `1000017711` | `api-env:edit` |
-| `/api/project/git-repos/{repoId}` | DELETE | 逻辑删除；其下已导入场景保留但 `source_status` 置为 `repo_removed` | `api-env:edit` |
+| `/api/project/git-repos/{repoId}` | DELETE | 逻辑删除；其下已导入场景保留但 `source_status` 置为 `repo_removed`。存在启用中的 `gitlab_sync` 定时任务时拒绝删除，返回 `1000017712` | `api-env:edit` |
 | `/api/project/git-repos/{repoId}/connections/test` | POST | 连通性测试（GitLab 版本 + 目标分支可达性 + 令牌 scope 校验） | `api-env:view` |
 
 **创建请求示例**
@@ -185,7 +186,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017711`（`API_GIT_*`）�
   "gate": { "blocked": false, "reason": null },
   "classes": 20,
   "effectiveCases": 193,
-  "modules": { "create": 3, "update": 17, "backfill": 0 },
+  "modules": { "containers": { "create": 2, "update": 0 }, "classes": { "create": 20, "update": 0, "backfill": 0 } },
   "scenes": { "create": 193, "update": 12, "parseFailed": 0, "errorFailed": 0 },
   "environment": { "action": "merge", "target": "默认环境", "httpConfigs": 4, "dataSources": 2 },
   "details": [
@@ -258,9 +259,45 @@ flowchart TD
     N --> O[写 api_change_history<br/>change_type = import]
 ```
 
-**模块归属规则**：`project_module.source_id` 存测试类全限定名，`name` 存类简单名，首层平铺。解析时以一次查询 `source_id = fqn OR (parent_id = 目标父 AND name = 简单名)` 命中；命中且 `source_id` 为空则回填，否则直接复用——同父同名即同一类，不存在冲突分支。
+**模块归属规则（固定深度 2：包容器 + 类模块）**：
+
+- **第一层为包容器**：每个 Java 包对应一个包容器模块，`source_id` = 完整包名，`name` = 完整包名（不取末段，避免不同分支下同名子包冲突），`parent_id` = 项目场景根模块。包层级**不逐级展开**，多级包名仍只占一层，深度恒为 2。
+- **第二层为类模块**：每个测试类对应一个类模块，`source_id` = 测试类全限定名，`name` = 类简单名，`parent_id` = 其所属包容器。
+- **命中规则**：包容器按 `source_id = 包名` 命中；类模块以一次查询 `source_id = 全限定名 OR (parent_id = 所属包容器 AND name = 类简单名)` 命中。命中且 `source_id` 为空则回填后复用，否则直接复用——同父同名即同一类，不存在冲突分支。
+
+```text
+全部场景
+├── com.example.qa.order.test                    ← 包容器（source_id = 包名）
+│   ├── CardReplaceTest                         ← 类模块（source_id = 全限定名）
+│   └── OrderQueryTest
+└── com.example.qa.order.test.supervision
+    └── SupervisionReportTest
+```
+
+**类改名与包改名迁移**：固定深度 2 后，测试类的全限定名同时决定类模块的 `source_id` 与父包容器，**改类名与改包名都会使全限定名变化**，二者均需额外探查；「同父同名」命中规则只用于无归属标识模块的首次认领与回填，不承担改名识别：
+
+1. 同步阶段调用 GitLab compare 接口取两次导入提交之间的变更文件清单，文件对象的 `renamed_file` 标志用于识别文件级改名（Java 规范要求 public 类名与文件名一致，测试类改名必然表现为文件改名；包改名表现为整批文件路径迁移）；
+2. **内容校验门槛**：`renamed_file` 是基于相似度的提示而非结论，仅当新旧文件的方法集合或步骤模板引用集合重合度达标时才采信，否则视为删旧建新——直接采信会把 A 类数据挂到 B 类上，属数据污染，比留陈旧条目严重；
+3. 采信后将 `旧全限定名 → 新全限定名` 映射应用到类模块与场景的 `source_id`，并将其 `parent_id` 改指新包容器，平台侧编辑内容与关联关系随之保留；
+4. **包容器改名**：类模块迁移完成后，若某包容器变为无子类模块的空壳，且其原属类模块全部迁移至同一新包容器，判为包改名，将旧包容器 `source_id` 迁移至新包容器（复用旧容器，不新建）；否则旧包容器标记陈旧、新包容器新建；
+5. 非 public 测试类改名、跨目录重构导致相似度识别失败等无法探查的情形，一律按删旧建新处理，旧条目 `source_status` 标记 `repo_removed`，不自动清理。
 
 **环境合并规则**（仅 `platform` 模式，单事务）：`api_environment.source_id` 为 NULL 时，按 `refName` upsert `http_configs` 与 `data_sources` 中的导入项（保留用户自行添加的其他条目），随后回填 `source_id = repo_path` 完成封印；非 NULL 时跳过写入，此后平台侧为权威源，仓库侧环境变更不再回同步。项目无默认环境时新建（`name = 仓库展示名`，`is_default = true`）。场景仅在 `environment_id` 为 NULL 时回填。
+
+### 3.6 源变更同步任务
+
+源变更检测不做成独立功能，而是复用定时任务体系：新增任务类型 `gitlab_sync`（与既有 `scene_execute`、`import_swagger` 并列），由用户自行创建并配置 Cron，到点执行一次仓库同步。任务的 CRUD、启停、Cron 校验与立即执行沿用既有任务管理设计，仅在执行环节分流。
+
+**执行流程**：
+
+1. 置 `running`，读取仓库配置与 `last_import_commit`；
+2. 目标分支 HEAD 与 `last_import_commit` 相同且 `errorFailed == 0` → 写 1 条 `success` 任务执行记录（`error_message` = 无变更说明），不进入解析；
+3. 否则调用 compare 接口取得变更文件清单，按 3.5 完成改名迁移判定；
+4. 进入 3.5 的导入流程，复用稳定键 upsert；
+5. 回写 `last_import_commit` 与 `last_import_summary`，写 `api_change_history`；
+6. 写 1 条任务执行记录（关联本次导入摘要：新增 / 更新 / 解析失败 / 真实错误数），任务状态置 `success` / `failed`。
+
+**边界**：同步任务不产生报告、不写 `api_report`；同步与手动导入共用同一稳定键与幂等闸门，互不排队（G2 决策，靠 upsert 幂等保证）；仓库配置被禁用或不可达时任务直接置 `failed` 并留痕，不重试。
 
 ## 4. 执行与结果归集
 
@@ -273,6 +310,8 @@ flowchart TD
 | 平台原生 | — | `platform` | 运行 |
 | 导入 | `platform` | `platform` | 运行 |
 | 导入 | `gitlab_ci` | `gitlab_ci` | 流水线运行 |
+
+**平台模式场景不路由到流水线**：`platform` 模式导入的场景虽持有完整步骤、可由平台引擎直接执行，但**不提供**切换到流水线引擎的入口——其步骤已结构化为平台形态，回投仓库侧执行等于要求平台把解析结果反写回工程，既无对应通道也无收益。引擎仍是派生属性，批量分组时这类场景恒归平台组。
 
 引擎选择 UI 为**单按钮**：单场景按引擎显示文案；批量执行不再提供下拉，按自动路由分组，并在执行前弹出**路由预览**（平台 N 条 / CI M 条、分几批、目标流水线）供确认。
 
@@ -321,41 +360,11 @@ flowchart LR
 
 ## 5. 前端设计
 
-### 5.1 页面结构
+页面结构、交互流程、状态分支与视觉要求以《GitLab 集成交互设计说明书》为准（`docs/05-interaction-design/05-api-testing/26-gitlab-ui-overview.md`），本文不重复定义。此处仅登记与服务端契约强绑定的三点：
 
-项目设置「GitLab 集成」子模块为左列表 + 右详情布局，详情含三个计数页签：
-
-```text
-┌─────────────────┬──────────────────────────────────────────────┐
-│ 仓库配置列表      │ [基础配置] [导入] [执行]                        │
-│                 │                                              │
-│ ● order-api     │ 名称 / GitLab 地址 / 项目路径 / 默认分支          │
-│   platform      │ 导入模式: platform  (只读, 创建后锁定)           │
-│   已连通         │ 令牌: **** (仅写不读)                          │
-│                 │ [连通性测试] [保存] [删除]                       │
-│ + 新增仓库       │                                              │
-│                 │ 导入: [扫描预览] [执行导入]                      │
-│                 │ 上次导入: 2026-10-11 · a1b2c3d                 │
-│                 │ 193 新增 / 12 更新 / 0 解析失败                   │
-└─────────────────┴──────────────────────────────────────────────┘
-```
-
-### 5.2 状态分支
-
-| 状态 | 表现 |
-| ---- | ---- |
-| 未配置 | 空态引导 + 「新增仓库」按钮，附前置要求说明（见需求分册接入前置） |
-| 连接中 | 连通性测试按钮 loading，禁用保存 |
-| 连接失败 | 行内错误条展示 `1000017702` 消息与排查建议，列表项标红 |
-| 导入进行中 | 导入页签展示阶段进度条与计数，禁用重复提交 |
-| 幂等闸门拦截 | 提示「目标分支与上次导入一致」，展示上次汇总，提供「查看差异」入口 |
-| 解析失败 | 预览与结果面板分列 `parseFailed` 明细（类、方法、原因），可导出 |
-| 仓库不可达 | 执行记录显示 `repo_unreachable` 徽标与错误码，不提供修复按钮 |
-| 权限不足 | 按 1.4 权限码隐藏对应操作，只读可见 |
-
-### 5.3 执行入口
-
-场景列表与详情页的执行按钮按 4.1 显示单按钮文案；批量执行前置弹出路由预览，展示分组数量、批次数与目标流水线链接，确认后提交。执行进度以 3.3 批次聚合视图为准，平台组与 CI 组分别显示进度，全部终态后汇总展示。
+1. 仓库配置查询接口为单条语义，前端不做分页与列表虚拟化；
+2. 导入为异步提交，前端轮询导入进度接口，不使用长连接；
+3. 批量执行提交后返回分组结构，前端据其渲染路由预览与批次进度，不自行推断分组。
 
 ## 6. 实施说明
 
@@ -427,10 +436,13 @@ ALTER TABLE api_environment ADD COLUMN source_id VARCHAR(500) NULL;
 
 ### 6.3 依赖说明
 
-Java 解析拟引入 JavaParser（`com.github.javaparser:javaparser-core`），用于结构化提取 `@Test` / `@RyzeTest` 注解与步骤模板属性，替代正则匹配；词法块注释剥离为强制要求（实测 199 个方法中 6 个位于块注释内）。新增外部依赖需按总则第 5 节经团队讨论确认。
+Java 解析引入 JavaParser（`com.github.javaparser:javaparser-core`，已确认采纳），用于结构化提取 `@Test` / `@RyzeTest` 注解与步骤模板属性，替代正则匹配；词法块注释剥离为强制前置步骤（实测 199 个方法中 6 个位于块注释内，正则无法可靠处理）。解析器收敛在内部抽象之后，若后续需替换实现不影响上游。
+
+GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项目路径与令牌的调用。
 
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-11 | 初始版本：GitLab 集成详细设计 |
+| V1.0 | 2026-10-11 | 模块层级改为固定深度 2（包容器 + 类模块），新增类/包改名迁移机制；新增 `gitlab_sync` 同步任务类型；明确平台模式场景不路由到流水线；确认引入 JavaParser；前端设计改指交互设计分册 |
