@@ -20,7 +20,9 @@ vi.mock('element-plus', () => ({
 import {
   MAX_BODY_IMAGE_SIZE,
   clearSignedUrlCache,
+  normalizeMarkdownImageUrls,
   resolveMarkdownImages,
+  rewriteToSignedUrls,
   uploadMarkdownImages,
 } from './markdownImage'
 
@@ -64,26 +66,32 @@ describe('正文贴图上传（缺陷详设 1.14 正文图片）', () => {
       .mockResolvedValueOnce({ downloadUrl: '/api/files/a/download' })
       .mockResolvedValueOnce({ downloadUrl: '/api/files/b/download' })
 
-    const urls = await uploadMarkdownImages([makeFile('a.png', 'image/png'), makeFile('b.jpg', 'image/jpeg')])
+    const images = await uploadMarkdownImages([
+      makeFile('a.png', 'image/png'),
+      makeFile('b.jpg', 'image/jpeg'),
+    ])
 
     expect(mocks.uploadFile).toHaveBeenCalledTimes(2)
-    expect(urls).toEqual(['/api/files/a/download', '/api/files/b/download'])
+    expect(images).toEqual([
+      { name: 'a.png', downloadUrl: '/api/files/a/download' },
+      { name: 'b.jpg', downloadUrl: '/api/files/b/download' },
+    ])
   })
 
   it('超过 10MB 的图片跳过并提示', async () => {
-    const urls = await uploadMarkdownImages([makeOversizedFile('big.png')])
+    const images = await uploadMarkdownImages([makeOversizedFile('big.png')])
 
     expect(mocks.uploadFile).not.toHaveBeenCalled()
     expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining('超过 10MB'))
-    expect(urls).toEqual([])
+    expect(images).toEqual([])
   })
 
   it('非图片类型跳过并提示', async () => {
-    const urls = await uploadMarkdownImages([makeFile('doc.pdf', 'application/pdf')])
+    const images = await uploadMarkdownImages([makeFile('doc.pdf', 'application/pdf')])
 
     expect(mocks.uploadFile).not.toHaveBeenCalled()
     expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining('不是图片'))
-    expect(urls).toEqual([])
+    expect(images).toEqual([])
   })
 
   it('单张失败只提示，不影响其余图片', async () => {
@@ -91,10 +99,13 @@ describe('正文贴图上传（缺陷详设 1.14 正文图片）', () => {
       downloadUrl: '/api/files/b/download',
     })
 
-    const urls = await uploadMarkdownImages([makeFile('a.png', 'image/png'), makeFile('b.png', 'image/png')])
+    const images = await uploadMarkdownImages([
+      makeFile('a.png', 'image/png'),
+      makeFile('b.png', 'image/png'),
+    ])
 
     expect(mocks.error).toHaveBeenCalledWith('上传失败')
-    expect(urls).toEqual(['/api/files/b/download'])
+    expect(images).toEqual([{ name: 'b.png', downloadUrl: '/api/files/b/download' }])
   })
 })
 
@@ -208,5 +219,50 @@ describe('正文图片渲染换签（文件管理详设 3.3）', () => {
     expect(added.getAttribute('src')).toBe(
       '/api/files/9f3a1b2c-1111-4222-8333-444455556666/download',
     )
+  })
+})
+
+describe('presigned 不回写正文（文件管理详设 3.3）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearSignedUrlCache()
+    document.body.innerHTML = ''
+    mocks.fetchFileAccessUrl.mockResolvedValue({ url: SIGNED_URL, expiresIn: 900 })
+  })
+
+  it('编辑器里已换签的地址归一化为稳定下载路径', async () => {
+    const { root } = mountRoot()
+    resolveMarkdownImages(root)
+    await vi.waitFor(() => expect(mocks.fetchFileAccessUrl).toHaveBeenCalledTimes(1))
+
+    expect(normalizeMarkdownImageUrls(`截图：![a](${SIGNED_URL})`)).toBe(
+      `截图：![a](${DOWNLOAD_SRC})`,
+    )
+  })
+
+  it('未换签过的 presigned 地址按签名形态归一化（对象键带扩展名）', () => {
+    const presigned =
+      'https://oss.example.com/bucket/objects/11111111-2222-3333-4444-555555555555.png' +
+      '?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=abc'
+
+    expect(normalizeMarkdownImageUrls(presigned)).toBe(
+      '/api/files/11111111-2222-3333-4444-555555555555/download',
+    )
+  })
+
+  it('稳定路径与外部地址原样保留', () => {
+    const markdown = `![](${DOWNLOAD_SRC}) 与 [外链](https://example.com/a.png?x=1)`
+    expect(normalizeMarkdownImageUrls(markdown)).toBe(markdown)
+  })
+
+  it('渲染前只用已换签缓存替换，未缓存的保持稳定路径', async () => {
+    const markdown = `![a](${DOWNLOAD_SRC}) ![b](/api/files/22222222-3333-4444-5555-666666666666/download)`
+    expect(rewriteToSignedUrls(markdown)).toBe(markdown)
+
+    const { root } = mountRoot()
+    resolveMarkdownImages(root)
+    await vi.waitFor(() => expect(mocks.fetchFileAccessUrl).toHaveBeenCalledTimes(1))
+
+    expect(rewriteToSignedUrls(markdown)).toBe(markdown.replace(DOWNLOAD_SRC, SIGNED_URL))
   })
 })
