@@ -15,6 +15,8 @@
     <properties>
         <migoo.framework.version>1.4.0</migoo.framework.version>
         <spring.ai.version>2.0.1</spring.ai.version>
+        <!-- 与 migoo BOM 锁定的 Spring Boot 对齐（dependencyManagement 只管依赖，不提供插件版本与执行） -->
+        <spring-boot.version>4.1.0</spring-boot.version>
 
         <ryze.version>6.1.1</ryze.version>
         <swagger-parser.version>2.1.22</swagger-parser.version>
@@ -175,6 +177,16 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- 项目无 parent pom，插件版本必须显式锁定，否则 Maven 悬空解析到里程碑版 -->
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <!-- 未绑定 repackage 时 package 只产出 thin jar，java -jar 与 Docker ENTRYPOINT 均无法启动 -->
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
                 <configuration>
                     <mainClass>io.github.xiaomisum.robotest.RobotestServer</mainClass>
                 </configuration>
