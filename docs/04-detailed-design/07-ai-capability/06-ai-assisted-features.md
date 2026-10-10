@@ -27,10 +27,11 @@
 
 ## 2. 数据设计
 
-本分册**不新增表**：
+本分册**不新增表**，仅补一列：
 
 - 辅助任务与产物：`ai_task`（`type = case_complete / case_priority / plan_order`，产物在 `result`）、确认记录 `ai_artifact_confirm`；
-- 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；补充节点的派生边经矩阵服务写 `trace_edge`（DDL 见 `05-trace-matrix.md` 2.2）。
+- 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；补充节点的派生边经矩阵服务写 `trace_edge`（DDL 见 `05-trace-matrix.md` 2.2）；
+- 用例标签随补全建议采纳写入 `test_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），补列迁移 `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` 与 `server/src/main/resources/db/schema.sql` 同步维护，满足 C5；该列不进向量索引，也不参与脑图渲染。
 
 ---
 
@@ -212,21 +213,24 @@
 
 ```
 AssistComparePanel（通用对照面板，补全与级别推荐复用）
-├── SuggestList（现有 vs AI 建议两栏对照；级别相同项折叠）
+├── Header（标题与处理状态；多节点发起时下拉切换核对节点，逐条采纳后自动推进到下一个待处理节点）
+├── SuggestList（现有 vs AI 建议两栏对照；无变化项折叠为「无变化 N 项」，可展开核对）
 ├── ExtraNodesPreview（补充节点树预览，用例/结构图标区分）
 ├── SourceRefsLinks（来源引用，点击跳需求详情）
-└── Actionbar（逐条采纳、批量采纳、驳回；逐项回执）
+└── Actionbar（逐条采纳、批量采纳、驳回；置灰原因行与逐项回执）
 
 PlanOrderPanel
 ├── OrderList（拖拽调整，序号徽标，建议理由悬浮）
-├── BeforeAfterDiff（采纳前/后顺序对照）
+├── BeforeAfterDiff（采纳前/后顺序对照，按当前顺序实时刷新）
 └── Actionbar（应用建议、放弃，应用后 toast 提示）
 ```
+
+各结构块落在对应 `.vue` 组件文件内，不拆独立组件文件（见 7 节文件清单）。
 
 ### 5.3 状态管理与状态分支
 
 - 复用总册 `aiTask` store 轮询任务进度；本域私有状态挂 `AssistComparePanel` 本地（不入全局 store）；
-- 状态分支：任务进行中（超交互等待展示进度入口）、全部建议与现状一致（折叠 + 提示「无变化」）、部分采纳回执、补全/推荐入口对只读节点置灰、权限不足隐藏入口、AI 未启用入口隐藏（总册 4.5）。
+- 状态分支：任务进行中（超交互等待展示进度入口）、全部建议与现状一致（折叠 + 提示「无变化」）、部分采纳回执、补全/推荐入口对只读节点置灰、权限不足隐藏入口、AI 未启用入口隐藏（总册 4.5）；入口放行后面板动作区仍对只读 / 无权限 / 已处理态置灰并常驻展示原因，避免入口与实际可采纳状态不一致。
 
 ---
 
@@ -252,13 +256,14 @@ PlanOrderPanel
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../service/ai/task/handler/CaseCompleteHandler`、`CasePriorityHandler`、`PlanOrderHandler` | 任务执行器 |
-| `server/.../service/ai/task/adopt/CaseAdoptService + Impl`、`PlanOrderAdoptService + Impl` | 采纳落库（调用既有用例 / 计划服务与修改记录服务） |
+| `server/.../service/ai/task/handler/CaseCompleteHandler`、`CasePriorityHandler`、`PlanOrderHandler` | 任务执行器（共用 `CaseAssistSupport` 解析输入与产物） |
+| `server/.../service/ai/task/adopt/CaseCompleteAdopter`、`CasePriorityAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用既有用例 / 计划服务与修改记录服务） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018307 |
-| `web/src/components/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 对照与排序面板 |
-| `web/src/composables/useAssistTask.ts` + 单测 | 任务提交（等待 + 超时转进度）与回执处理 |
+| `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` | `test_case_node.tags` 补列迁移（与 `server/src/main/resources/db/schema.sql` 同步） |
+| `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 对照与排序面板（含各自单测） |
+| `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与面板视图模型 |
 
-- **数据库**：无新增表、无迁移（落库均为既有业务表 + `trace_edge`，见 2 节）。
+- **数据库**：无新增表；`test_case_node.tags` 补列迁移（见 2 节），落库均为既有业务表 + `trace_edge`。
 - **OpenAPI**：三个任务 type 的 `input / 产物` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
@@ -273,3 +278,4 @@ PlanOrderPanel
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
+| V1.0 | 2026-10-10 | 随落地实现勘误：2 节补 `test_case_node.tags` 补列迁移并撤销「无迁移」口径，5.2 补多节点切换与结构块落位，5.3 补面板动作区置灰原因，7 节文件清单对齐实际类名与目录 |
