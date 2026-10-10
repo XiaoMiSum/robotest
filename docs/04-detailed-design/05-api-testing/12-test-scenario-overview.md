@@ -68,13 +68,20 @@
 | processors | JSONB | NOT NULL DEFAULT '[]' | 场景级处理器列表（元素含 `type` 为 `pre`/`post` 区分前置/后置） |
 | steps | JSONB | NOT NULL DEFAULT '[]' | 步骤聚合列表（合并自原 api_scene_step 与 api_scene_step_variable，结构见 2.1.3） |
 | change_version | INT | NOT NULL DEFAULT 1 | 变更版本号（每次保存递增，乐观锁） |
+| source_type | VARCHAR(20) | NOT NULL DEFAULT 'platform' | 场景来源：platform（平台原生）/ gitlab（GitLab 导入）；语义与取值见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 2.2 |
+| repo_id | UUID | NULL | 来源仓库（api_git_repo.id），仅 `source_type = gitlab` 时非空 |
+| source_id | VARCHAR(500) | NULL | 源侧稳定标识（`来源工程内唯一键`），导入写入；不参与任何名称认领，禁止由平台编辑覆盖 |
+| source_ref | VARCHAR(500) | NULL | 源侧引用（步骤模板或测试方法的相对路径 / 方法签名），用于展示与跳转 |
+| source_status | VARCHAR(30) | NULL | 源状态：in_sync / source_changed / parse_failed / repo_removed / repo_unreachable，仅展示用，不触发自动修复 |
+| parse_status | VARCHAR(20) | NULL | 解析状态：ok / failed；仅 `source_type = gitlab` 且导入模式为 platform 时有意义，`gitlab_ci` 模式恒为 NULL |
+| parse_issues | JSONB | NULL | 解析问题清单 `[{type, message, ref}]`，解析失败与源码退化的明细 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_scene_project` (project_id), `idx_scene_module` (module_id)
+**索引**：`idx_scene_project` (project_id), `idx_scene_module` (module_id), `uk_scene_source` UNIQUE (repo_id, source_id) WHERE is_deleted = FALSE AND repo_id IS NOT NULL AND source_id IS NOT NULL
 
-> 合计 2 个索引，符合 C9。
+> 合计 3 个索引，符合 C9。
 
 #### 2.1.3 场景步骤（api_scene.steps JSONB）
 
@@ -191,3 +198,4 @@
 | V1.0 | 2026-09-23 | 初始版本 |
 | V1.0 | 2026-10-02 | 数据隔离参考改指数据与接口设计分册 |
 | V1.0 | 2026-10-02 | 对齐前端实现：补页面入口与权限口径、修正模块树接口与错误码、分册对照表章节号改为各分册真实编号 |
+| V1.0 | 2026-10-11 | 新增场景来源与解析相关字段（source_type/repo_id/source_id/source_ref/source_status/parse_status/parse_issues）及 `uk_scene_source` 索引，承接 GitLab 集成 |

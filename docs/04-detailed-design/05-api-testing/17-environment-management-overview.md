@@ -59,6 +59,7 @@
 | variables | JSONB | NOT NULL DEFAULT '[]' | 环境变量数组 `[{name, value, description}]`，详见 2.1.3 |
 | data_sources | JSONB | NOT NULL DEFAULT '[]' | 数据源数组 `[{name, refName, driver, url, connectionProperties, maxPoolSize, isDefault}]`，详见 2.1.4 |
 | processors | JSONB | NOT NULL DEFAULT '[]' | 处理器数组 `[{processorType, name, config, sortOrder, enabled}]`，详见 2.1.5 |
+| source_id | VARCHAR(500) | NULL | 认领该环境的来源仓库路径（api_git_repo.repo_path），写入即封印；语义见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 2.2 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
@@ -145,3 +146,4 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-03 | 对齐实现：补页面入口与权限口径、错误码改为引用基础设施总览、修正分册章节号与 Redis 驱动占位等表述 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
+| V1.0 | 2026-10-11 | 新增 `source_id` 字段，承接 GitLab 集成的环境合并与写一次封印 |

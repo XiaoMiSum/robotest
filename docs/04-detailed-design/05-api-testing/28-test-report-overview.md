@@ -57,7 +57,7 @@
 | external_id | 外部关联 ID，随 `report_type`：`suite` = 任务 ID；`scene` = 场景 ID |
 | name | 报告名称（场景报告 = 场景名 + 执行时间戳；套件报告 = 任务名 + 执行时间戳，生成时固化） |
 | environment_name | 环境名称快照。场景报告写入执行环境名；套件报告该列为空，环境名存于套件数据集 `result.environmentName` |
-| execution_mode | 执行方式：platform（平台内执行） |
+| execution_mode | 执行方式：platform（平台内执行，恒为该取值）。**执行引擎不在此字段区分**：GitLab 流水线引擎的结果同样落在此报告体系，逐场景的引擎标注存于 `result` 数据集的 `execEngine`（见 2.3），故套件报告允许两种引擎的场景并存 |
 | status | success / failed / partial——三态为场景报告口径（partial = 存在跳过步骤或执行被取消但无引擎异常）；套件报告仅 success / failed，任一场景失败即 failed |
 | source | 报告来源：scene（场景页运行）/ schedule（定时任务含立即执行），报告列表仅收录 schedule |
 | summary | 结果汇总（场景报告 `{total, passed, failed, skipped, durationMs}`；套件报告为场景级汇总，见 2.3.2） |
@@ -98,6 +98,7 @@
 | status | String | success / failed / partial（执行被取消或部分步骤跳过归 partial） |
 | summary | Object | 见下文场景汇总 |
 | environmentName | String/null | 环境名称快照 |
+| execEngine | String | 执行引擎：platform（平台执行引擎）/ gitlab（GitLab 流水线引擎），恒非空；仓库不可达被跳过的场景以 `gitlab` 引擎的占位数据集计入（status = failed，steps 为空） |
 | executedAt | String | 执行时间（ISO-8601 UTC） |
 | steps | Array | 步骤明细（见步骤元素） |
 | preprocessors | Array | 场景前置处理器执行明细（元素形状同步骤元素，渲染规则复用步骤明细；无处理器时为空数组） |
@@ -164,6 +165,8 @@
 | durationMs | long | 一次触发总耗时 |
 
 > 套件数据集（report_type='suite'）通过 `external_id`（任务 ID）与共享 `report_id` 关联各场景执行记录；报告列表一行一报告（名称 = 任务名 + 执行时间戳）。
+>
+> 套件报告允许混合引擎：`scenes` 数组中每项带各自的 `execEngine`。存在 GitLab 流水线引擎场景时，报告按「首写 + 追加更新」两阶段落库——平台组结果先写入，流水线回收后追加，两次写入共用同一 `external_id`，不产生空洞报告；任务完成判据见《定时任务详细设计说明书》（`docs/04-detailed-design/05-api-testing/27-scheduled-task-scheduler.md`）2。
 
 ### 2.4 权限设计
 
@@ -205,3 +208,4 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-03 | 按实现对齐：补 1.4 页面入口与权限口径（`?tab=reports`、`api-report:view`/`api-report:delete`）、修正索引名与数据集状态枚举、错误码改为引用、重写权限设计与实施说明、校准分册-章节对照表 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
+| V1.0 | 2026-10-11 | 结果数据集新增逐场景 `execEngine` 字段，套件报告支持双引擎混合与两阶段落库 |
