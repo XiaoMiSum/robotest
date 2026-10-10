@@ -152,6 +152,16 @@ public class CaseAssistSupport {
         };
     }
 
+    /** 展示级 → 落库级（displayPriority 的逆映射）；未识别返回 null，调用方按无建议处理 */
+    public static String platformPriority(String displayPriority) {
+        return switch (displayPriority) {
+            case "high" -> "P0";
+            case "medium" -> "P1";
+            case "low" -> "P2";
+            default -> null;
+        };
+    }
+
     // ---------- 归属校验与需求回溯（需查库） ----------
 
     /**

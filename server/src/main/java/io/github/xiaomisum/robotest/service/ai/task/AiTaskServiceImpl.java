@@ -358,6 +358,10 @@ public class AiTaskServiceImpl implements AiTaskService {
                         target == null ? null : target.getPosition(),
                         target == null ? null : target.getSystemVersion(),
                         target == null ? null : target.getCreateParams(),
+                        target == null ? null : target.getDocumentId(),
+                        target == null ? null : target.getExtraNodePosition(),
+                        target == null ? null : target.getPlanId(),
+                        target == null ? null : target.getRound(),
                         projectId, operatorId, loginUser));
                 AiArtifactConfirm record = new AiArtifactConfirm();
                 record.setProjectId(projectId);

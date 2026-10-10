@@ -294,7 +294,7 @@ class GenerationAdoptServiceImplTest {
     private AdoptContext context(Map<String, Object> artifact, String action, LoginUser user,
             UUID targetModuleId, Map<String, Object> content) {
         return new AdoptContext(task, artifact, action, content, null, targetModuleId, null,
-                null, null, PROJECT_ID, OPERATOR_ID, user);
+                null, null, null, null, null, null, PROJECT_ID, OPERATOR_ID, user);
     }
 
     private static Map<String, Object> moduleArtifact() {

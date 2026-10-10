@@ -88,6 +88,20 @@ public final class ModelOutputSupport {
         }
     }
 
+    /** 解析建议名次：缺省、畸形或非正整数排尾（调用方再对整串稳定排序，避免乱序抖动） */
+    public static Integer parseRank(Object raw) {
+        if (raw instanceof Number number) {
+            int value = number.intValue();
+            return value > 0 ? value : Integer.MAX_VALUE;
+        }
+        try {
+            int value = Integer.parseInt(String.valueOf(raw).trim());
+            return value > 0 ? value : Integer.MAX_VALUE;
+        } catch (RuntimeException e) {
+            return Integer.MAX_VALUE;
+        }
+    }
+
     public static String trimToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
