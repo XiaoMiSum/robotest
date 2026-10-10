@@ -211,6 +211,7 @@ const canReject = computed(
   () =>
     props.canAdopt &&
     !props.confirming &&
+    !allUnchanged.value &&
     activeReady.value &&
     activeRow.value?.confirmStatus === 'pending',
 )
