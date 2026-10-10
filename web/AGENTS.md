@@ -10,6 +10,7 @@
 - **构建**：Vite（版本以 `package.json` 和锁文件为准）
 - **UI**：Element Plus
 - **状态管理**：Pinia
+- **Markdown 编辑器**：Vditor（所见即所得，版本以 `package.json` 和锁文件为准；运行资源构建期自托管到 `web/public/vditor`，不依赖公网 CDN）
 - **协作**：Yjs CRDT（WebSocket 实时协同）
 
 ## 环境命令
