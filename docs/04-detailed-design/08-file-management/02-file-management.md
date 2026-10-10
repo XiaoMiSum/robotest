@@ -1,7 +1,7 @@
 # 软件测试平台——文件管理模块详细设计
 
 **文档版本**：V1.0
-**日期**：2026-10-04
+**日期**：2026-10-10
 **状态**：起草中
 
 ---
@@ -13,7 +13,7 @@
 引入对象存储（SeaweedFS）与**泛化附件资源**（`file_resource`），建设文件管理模块，统一承载：
 
 1. 需求导入源文件的存储与回看下载（需求管理详设 3.8 / SRS 来源附件）；
-2. 需求详情（含图片）等业务内容的图片引用；
+2. 需求详情（含图片）、缺陷正文（重现步骤贴图）等业务内容的图片引用；
 3. 既有缺陷附件（`bug_attachment`，本地磁盘）及其下载/删除的迁移改造；
 4. 文件治理页面（系统管理 → 文件管理）与 docker-compose 全家桶发行。
 
@@ -243,6 +243,11 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 上传响应的 `downloadUrl` 即登记所指「访问 URL」；需求导入落库时将该 URL 对应的资源 ID 写入
 `requirement.source_file_id` / `requirement_split_record.source_file_id`，详情回看走 §4.4 两通道。
 
+**缺陷正文贴图**（缺陷详设 1.14 / 1.15）：编辑器在粘贴或插入图片时调用本模块上传接口，把 `downloadUrl`
+以 Markdown 图片语法写入 `bug.reproSteps` 原文；后端只存原文、不解析正文，正文图片不建立引用关系，
+其删除与孤儿治理同 §5.3。渲染由缺陷详情页对正文内的本站下载路径逐个换签（§4.4 两通道），presigned 地址不回写正文。
+单张上限与白名单由缺陷编辑器上传前置校验强制 10MB（§5.2），模块入口仍按 20MB 与白名单兜底。
+
 ---
 
 ## 5. 权限与安全
@@ -261,6 +266,7 @@ Content-Disposition: attachment; filename*=UTF-8''<URL 编码后的原始文件�
 | servlet multipart | `max-file-size: 20MB`、`max-request-size: 21MB`（由现 10/10MB 上调，容纳 SRS 20MB 导入；预留 multipart 边界开销） |
 | 模块级（FileResourceService） | 空文件拒绝（`FILE_EMPTY`）、> 20MB 拒绝（`FILE_SIZE_EXCEEDED`）、扩展名白名单 + 文件头嗅探（复用 `AttachmentFileValidator`，排除 html/svg/js/可执行体） |
 | 缺陷附件（业务层） | 保留 10MB 上限（`MAX_FILE_SIZE` 常量，随 multipart 上调后仍由业务层强制） |
+| 缺陷正文贴图（编辑器前置） | 沿用缺陷附件的 10MB 单张上限与同一白名单，在编辑器上传前置校验并给出即时提示 |
 
 ### 5.3 其他
 
@@ -386,3 +392,4 @@ docker compose up -d --build
 | V1.0 | 2026-10-04 | 编码前探查修正：`storage_path` 放宽可空（历史列不再写入）、presigned 补 `public-endpoint`（签名地址须浏览器可达）、缺陷附件删除保持既有语义（对象保留供审计，孤儿由管理页治理）与校验分工（缺陷侧错误码契约不变） | AI |
 | V1.0 | 2026-10-05 | 交互补：文件管理页增加「复制临时链接」（presigned 换签写剪贴板），承接「访问 URL 走通」验收入口 |
 | V1.0 | 2026-10-05 | 存储引擎定标 MinIO → SeaweedFS：§3 引擎与配置中性化（`robotest.s3.*` / `S3_*`、默认凭据 `robotest`、实现类改名 `S3StorageService`，SDK 与调用逻辑不变）、§8.1 服务/镜像/端口定标（`chrislusf/seaweedfs:<固定版本>`，9001 映射 filer 控制台 8888）、runbook 章节顺延联动（§9 → §10） | AI |
+| V1.0 | 2026-10-10 | 补使用方：缺陷正文（重现步骤）贴图接入 §4.4，§1.1 范围与 §5.2 校验分层同步登记 10MB 业务层上限 | AI |
