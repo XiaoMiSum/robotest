@@ -26,4 +26,6 @@
 | [23-project-settings-ui-overview](23-project-settings-ui-overview.md)（总览分册：项目设置）   | V1.0 | 2026-09-23 | 起草中 |
 | [24-project-settings-ui-framework](24-project-settings-ui-framework.md)（分册：设置框架）   | V1.0 | 2026-09-23 | 起草中 |
 | [25-project-settings-ui-function](25-project-settings-ui-function.md)（分册：函数管理页）   | V1.0 | 2026-09-23 | 起草中 |
+| [26-gitlab-ui-overview](26-gitlab-ui-overview.md)（总览分册：GitLab 集成）   | V1.0 | 2026-10-11 | 起草中 |
+| [27-gitlab-ui-page](27-gitlab-ui-page.md)（分册：GitLab 集成页面与执行入口）   | V1.0 | 2026-10-11 | 起草中 |
 > 本目录为接口测试模块的交互设计分册；模块入口与阅读顺序见上级索引 `docs/05-interaction-design/01-readme.md`。
