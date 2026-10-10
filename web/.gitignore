@@ -278,3 +278,6 @@ Temporary Items
 src/components.d.ts
 src/auto-imports.d.ts
 
+### Vditor 运行资源（由 scripts/copy-vditor.mjs 构建期从 node_modules 同步，不入库）
+public/vditor
+

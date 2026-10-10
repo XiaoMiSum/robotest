@@ -64,7 +64,15 @@ export default tseslint.config(
     },
   },
   {
-    // 这两个声明文件由 Vite 插件生成且会被重写；其余 .d.ts 继续纳入 C1 检查
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'src/auto-imports.d.ts', 'src/components.d.ts'],
+    // 这两个声明文件由 Vite 插件生成且会被重写；其余 .d.ts 继续纳入 C1 检查。
+    // public/** 为构建期从 node_modules 同步的第三方运行资源（vditor），不参与源码检查
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      'public/**',
+      'src/auto-imports.d.ts',
+      'src/components.d.ts',
+    ],
   },
 )
