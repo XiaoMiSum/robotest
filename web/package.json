@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "dev": "node scripts/copy-vditor.mjs && vite",
+    "build": "node scripts/copy-vditor.mjs && vue-tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
@@ -27,6 +27,7 @@
     "kityminder-core": "^1.4.50",
     "md-editor-v3": "^6.5.4",
     "pinia": "^2.3.0",
+    "vditor": "4.0.0",
     "vue": "^3.5.13",
     "vue-codemirror": "^6.1.1",
     "vue-router": "^4.5.0",
