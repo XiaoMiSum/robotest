@@ -32,4 +32,5 @@
 | [29-test-report-list](29-test-report-list.md)（分册：报告列表）   | V1.0 | 2026-09-23 | 起草中 |
 | [30-test-report-detail](30-test-report-detail.md)（分册：详情与生成）   | V1.0 | 2026-09-23 | 起草中 |
 | [31-test-report-share](31-test-report-share.md)（分册：分享）   | V1.0 | 2026-09-23 | 起草中 |
+| [32-gitlab-integration-overview](32-gitlab-integration-overview.md)（总览分册：GitLab 集成）   | V1.0 | 2026-10-11 | 起草中 |
 > 本目录为接口测试模块的详细设计分册；模块入口与阅读顺序见上级索引 `docs/04-detailed-design/01-readme.md`。
