@@ -64,6 +64,7 @@ robotest/
 | 前端构建 | Vite | 版本以 `web/package.json` 和锁文件为准 |
 | UI | Element Plus | 以依赖锁定版本为准 |
 | 状态管理 | Pinia | 以依赖锁定版本为准 |
+| Markdown 编辑器 | Vditor（所见即所得） | 以依赖锁定版本为准；编辑与只读渲染同一引擎，运行资源构建期自托管、不依赖公网 CDN |
 | HTTP | Axios | 统一请求拦截器和响应解包 |
 | 实时通信 | WebSocket；协作场景可采用 Yjs | 通用协议见 `docs/00-spec/20-contracts/03-realtime-protocol.md` |
 | 后端运行时 | Java 21 + Spring Boot 4.x | 版本由 Maven BOM 和 `server/pom.xml` 管理 |
@@ -176,6 +177,14 @@ docs/00-spec/20-contracts/03-realtime-protocol.md
 - 通用部署规范：`docs/00-spec/30-quality-delivery/03-deploy.md`
 - 项目部署 Runbook：`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
 - migoo 组件手册：`docs/00-spec/10-engineering/03-migoo-framework.md`
+
+---
+
+## 11. 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-10 | 技术选型补 Markdown 编辑器：前端统一采用 Vditor（所见即所得），替换 md-editor-v3 |
 
 ---
 
