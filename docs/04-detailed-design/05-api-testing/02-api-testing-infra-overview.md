@@ -284,8 +284,9 @@
 | 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支提交与上次导入一致且无遗留错误，导入被跳过 |
 | 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，按跳过留痕处理，无降级路径 |
 | 1000017711 | API_GIT_REPO_MODE_IMMUTABLE | 仓库导入模式创建后不可修改 |
+| 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 
-> `1000017701`–`1000017711` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
+> `1000017701`–`1000017712` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
 
 > 历史设计中的 `API_EXEC_TASK_NOT_FOUND`、`API_EXEC_TASK_STATE_INVALID`、`API_IMPORT_RECORD_NOT_FOUND` 和 `API_LINK_SOURCE_MISSING` 当前未在 `ErrorCodeConstants` 登记；相关流程按现有实现返回业务结果或使用已登记的资源错误码，不将这些名称作为对外错误码。
 
