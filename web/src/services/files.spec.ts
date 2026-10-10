@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
+  post: vi.fn(),
   del: vi.fn(),
   apiGet: vi.fn(),
 }))
@@ -10,10 +11,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/services', () => ({
   default: { get: mocks.apiGet },
   get: mocks.get,
+  post: mocks.post,
   del: mocks.del,
 }))
 
-import { deleteFile, downloadFile, fetchFileAccessUrl, fetchFiles } from './files'
+import { deleteFile, downloadFile, fetchFileAccessUrl, fetchFiles, uploadFile } from './files'
 
 describe('文件管理服务（详设 4.1）', () => {
   beforeEach(() => {
@@ -33,6 +35,23 @@ describe('文件管理服务（详设 4.1）', () => {
       pageNo: 1,
       pageSize: 20,
     })
+  })
+
+  it('uploadFile 以 multipart 字段 file 提交到 POST /files', async () => {
+    mocks.post.mockResolvedValue({ id: 'id-1', downloadUrl: '/api/files/id-1/download' })
+    const file = new File(['img'], '截图.png', { type: 'image/png' })
+
+    await uploadFile(file)
+
+    const [url, body, config] = mocks.post.mock.calls[0] as [
+      string,
+      FormData,
+      { headers: Record<string, string> },
+    ]
+    expect(url).toBe('/files')
+    expect(body).toBeInstanceOf(FormData)
+    expect(body.get('file')).toBe(file)
+    expect(config).toEqual({ headers: { 'Content-Type': 'multipart/form-data' } })
   })
 
   it('fetchFileAccessUrl 命中换签端点并透传时效', async () => {
