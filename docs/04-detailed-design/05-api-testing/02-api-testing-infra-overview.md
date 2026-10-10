@@ -119,11 +119,19 @@
 | error_message | VARCHAR(2000) | NULL | 失败原因 |
 | executed_at | TIMESTAMP | NOT NULL | 执行时间 |
 | duration_ms | INT | NULL | 执行耗时（毫秒） |
+| repo_id | UUID | NULL | 来源仓库（api_git_repo.id），仅 GitLab 流水线引擎执行时非空，语义见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 2.2 |
+| pipeline_iid | BIGINT | NULL | 流水线 IID（同一 repo 内唯一），与 repo_id 共同标识外部执行批次 |
+| pipeline_url | VARCHAR(500) | NULL | 流水线详情链接（GitLab 侧），供报告与记录直接跳转 |
+| batch_index | INT | NULL | 批次序号（从 1 起），场景数超上限时的分批标记 |
+| batch_total | INT | NULL | 批次总数，与 batch_index 同时写入 |
+| commit_sha | VARCHAR(64) | NULL | 执行时的分支 HEAD 提交号，用于结果溯源 |
+| scheduled_task_id | UUID | NULL | 触发该记录的定时任务（api_scheduled_task.id），场景页单跑为 NULL |
+| summary | JSONB | NULL | 用例级汇总 `{total, passed, failed, skipped, error}`，流水线回收后回写 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_exec_scene_id` (scene_id, executed_at DESC), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status)
+**索引**：`idx_exec_scene_id` (scene_id, executed_at DESC), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status), `idx_exec_pipeline` (repo_id, pipeline_iid) WHERE pipeline_iid IS NOT NULL
 
 > 执行记录与报告共享清理策略（默认 90 天）；清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 
@@ -265,6 +273,19 @@
 | 1000017510 | API_SCHEDULED_TASK_OPENAPI_URL_REQUIRED | 接口同步任务必须指定 OpenAPI/Swagger 文档 URL |
 | 1000017601 | API_SWAGGER_URL_NOT_FOUND | Swagger URL 不存在或不属于当前项目 |
 | 1000017602 | API_SWAGGER_URL_TASK_BOUND | Swagger URL 被定时任务绑定无法删除 |
+| 1000017701 | API_GIT_REPO_NOT_FOUND | 仓库配置不存在或不属于当前项目 |
+| 1000017702 | API_GIT_REPO_CONNECT_FAILED | GitLab 不可达、令牌无效或缺少所需 scope |
+| 1000017703 | API_GIT_REPO_PATH_CONFLICT | 同项目下仓库路径重复 |
+| 1000017704 | API_GIT_PIPELINE_TRIGGER_FAILED | 流水线触发失败 |
+| 1000017705 | API_GIT_PIPELINE_QUERY_FAILED | 流水线状态查询失败 |
+| 1000017706 | API_GIT_EXEC_LIMIT_EXCEEDED | 单次外部执行圈选场景数超上限 |
+| 1000017707 | API_GIT_SCENE_NOT_EXECUTABLE | 导入场景所属仓库被禁用或不可达 |
+| 1000017708 | API_GIT_IMPORT_IN_PROGRESS | 同仓库存在进行中的导入 |
+| 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支提交与上次导入一致且无遗留错误，导入被跳过 |
+| 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，按跳过留痕处理，无降级路径 |
+| 1000017711 | API_GIT_REPO_MODE_IMMUTABLE | 仓库导入模式创建后不可修改 |
+
+> `1000017701`–`1000017711` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
 
 > 历史设计中的 `API_EXEC_TASK_NOT_FOUND`、`API_EXEC_TASK_STATE_INVALID`、`API_IMPORT_RECORD_NOT_FOUND` 和 `API_LINK_SOURCE_MISSING` 当前未在 `ErrorCodeConstants` 登记；相关流程按现有实现返回业务结果或使用已登记的资源错误码，不将这些名称作为对外错误码。
 
@@ -375,3 +396,4 @@ robotest:
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐实现：修正公共表 DDL 与索引、补全已登记错误码、修正参考文献与 Mock 端口配置、校准分册-章节对照表 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
+| V1.0 | 2026-10-11 | 执行记录新增 GitLab 流水线相关字段与 `idx_exec_pipeline` 索引，登记 GitLab 集成错误码号段 1000017701–1000017711 |
