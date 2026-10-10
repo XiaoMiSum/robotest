@@ -147,6 +147,8 @@ describe('AssistComparePanel', () => {
       expect(wrapper.text()).toContain('建议与现有内容一致，无需变更')
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeDefined()
+      // 全无变化按交互 2.3 口径仅可关闭，驳回与原因文案不得与之矛盾
+      expect(actionButton(wrapper, '驳回').attributes('disabled')).toBeDefined()
     })
 
     it('内容缺失时给出占位并禁止采纳', () => {
