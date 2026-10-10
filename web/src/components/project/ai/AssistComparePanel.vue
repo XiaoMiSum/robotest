@@ -66,6 +66,8 @@ interface CompareItem {
   changed: boolean
   /** 新增 / 变更徽标（视觉 4：浅底 + 小徽标，不单靠颜色表意） */
   badge: string
+  /** 级别场景的建议级别（high / medium / low），用于按《视觉设计》优先级色标注 */
+  level?: string
 }
 
 const activeKey = ref('')
@@ -122,7 +124,7 @@ function displayValues(values: string[]): string {
 }
 
 function priorityLabel(priority: string): string {
-  return PRIORITY_LABEL[priority] ?? priority ?? '—'
+  return PRIORITY_LABEL[priority] ?? (priority || '—')
 }
 
 const compareItems = computed<CompareItem[]>(() => {
@@ -138,6 +140,8 @@ const compareItems = computed<CompareItem[]>(() => {
         suggested: priorityLabel(priority.suggested),
         changed,
         badge: '调整',
+        // 未识别的级别取值不着色，避免空色徽标与正文混同
+        level: PRIORITY_LABEL[priority.suggested] ? priority.suggested : undefined,
       },
     ]
   }
@@ -372,7 +376,14 @@ function onReceiptRetry(item: ConfirmItemResult): void {
           <span class="assist-compare__label">{{ item.label }}</span>
           <span class="assist-compare__existing">{{ item.existing }}</span>
           <span class="assist-compare__suggested">
-            {{ item.suggested }}
+            <span
+              v-if="item.level"
+              class="assist-compare__level"
+              :class="`assist-compare__level--${item.level}`"
+            >
+              {{ item.suggested }}
+            </span>
+            <template v-else>{{ item.suggested }}</template>
             <el-tag v-if="item.changed" size="small" effect="light">{{ item.badge }}</el-tag>
           </span>
         </div>
@@ -585,6 +596,27 @@ function onReceiptRetry(item: ConfirmItemResult): void {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+}
+
+// 级别按《视觉设计》用例优先级色标注（视觉 4）；同处另有「调整」徽标，不单靠颜色表意
+.assist-compare__level {
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-neutral-0);
+  font-size: var(--font-size-xs);
+  line-height: 20px;
+}
+
+.assist-compare__level--high {
+  background: var(--color-priority-p0);
+}
+
+.assist-compare__level--medium {
+  background: var(--color-priority-p1);
+}
+
+.assist-compare__level--low {
+  background: var(--color-priority-p2);
 }
 
 .assist-extra__head {
