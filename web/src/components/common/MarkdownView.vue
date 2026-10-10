@@ -1,43 +1,75 @@
 <script setup lang="ts">
-import DOMPurify from 'dompurify'
-import { MdPreview } from 'md-editor-v3'
-import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
-import 'md-editor-v3/lib/preview.css'
-import { resolveMarkdownImages } from '@/composables/common/markdownImage'
+import { onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import 'vditor/dist/index.css'
+import { resolveMarkdownImages, rewriteToSignedUrls } from '@/composables/common/markdownImage'
+import { VDITOR_CDN } from '@/composables/common/vditorEditor'
 
-// md-editor-v3 的 sanitize prop 默认是恒等函数（不消毒），
-// 缺陷描述等场景展示的是他人写入的内容，必须显式传入 DOMPurify 防 Markdown XSS
+// 流式输出会高频更新，渲染又是异步的：合并短间隔更新并串行排队，保证最终内容胜出
+const RENDER_DEBOUNCE_MS = 200
+
+// 只读渲染与编辑器同一引擎同一套正文样式（关闭态、需求详情、AI 回复共用）
 const props = defineProps<{ content: string }>()
 
-function sanitize(html: string): string {
-  return DOMPurify.sanitize(html)
+const container = useTemplateRef<HTMLDivElement>('container')
+
+let stopResolve: (() => void) | undefined
+let chain: Promise<void> = Promise.resolve()
+let timer: ReturnType<typeof setTimeout> | undefined
+let disposed = false
+
+async function renderNow(): Promise<void> {
+  const element = container.value
+  if (!element || disposed) return
+  const content = props.content
+  try {
+    // 内核按需分包，不进首屏 bundle
+    const { default: Vditor } = await import('vditor')
+    if (disposed) return
+    await Vditor.preview(element, content, {
+      mode: 'light',
+      lang: 'zh_CN',
+      cdn: VDITOR_CDN,
+      // 展示他人写入的正文，沿用内置 GFM 过滤（替代原 dompurify）
+      markdown: { sanitize: true },
+      // 渲染前优先用换签缓存替换为签名地址，未命中的交给 DOM 观察器兜底
+      transform: rewriteToSignedUrls,
+    })
+  } catch {
+    // 运行资源不可达时保留上一版内容，不打断页面（静态资源随应用一并部署）
+  }
 }
 
-// 正文图片存的是稳定下载路径，只读渲染同样要换签后才可显示（文件管理详设 3.3）
-const previewRef = useTemplateRef<InstanceType<typeof MdPreview>>('preview')
-let stopResolve: (() => void) | undefined
+function enqueueRender(): void {
+  // 链式串行：同一时刻只有一个渲染在跑，排队的读到的是最新 content
+  chain = chain.then(renderNow, renderNow)
+}
+
+function scheduleRender(immediate: boolean): void {
+  if (timer !== undefined) clearTimeout(timer)
+  if (immediate) {
+    enqueueRender()
+    return
+  }
+  timer = setTimeout(() => {
+    timer = undefined
+    enqueueRender()
+  }, RENDER_DEBOUNCE_MS)
+}
 
 onMounted(() => {
-  const root = previewRef.value?.$el
-  if (root instanceof HTMLElement) stopResolve = resolveMarkdownImages(root)
+  if (container.value) stopResolve = resolveMarkdownImages(container.value)
+  scheduleRender(true)
 })
 
-onBeforeUnmount(() => stopResolve?.())
+watch(() => props.content, () => scheduleRender(false))
+
+onBeforeUnmount(() => {
+  disposed = true
+  if (timer !== undefined) clearTimeout(timer)
+  stopResolve?.()
+})
 </script>
 
 <template>
-  <MdPreview
-    ref="preview"
-    :model-value="props.content"
-    :sanitize="sanitize"
-    language="zh-CN"
-    class="markdown-view"
-  />
+  <div ref="container" class="markdown-view" />
 </template>
-
-<style scoped>
-/* 去掉预览组件默认内边距，与表单文本对齐 */
-.markdown-view :deep(.md-editor-preview-wrapper) {
-  padding: 0;
-}
-</style>
