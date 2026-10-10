@@ -1,7 +1,17 @@
-import api, { del, get } from '@/services'
+import api, { del, get, post } from '@/services'
 import type { FileAccessUrl, FileItem, FileQueryParams, PageResult } from '@/types'
 
 // ==================== 文件管理（详设 4.1） ====================
+
+/** 上传泛化附件资源：正文贴图等使用方入口，资源不挂上下文（C4 无上下文可传） */
+export function uploadFile(file: File): Promise<FileItem> {
+  const formData = new FormData()
+  formData.append('file', file)
+  // 覆盖默认的 application/json，由浏览器自动生成 multipart 边界
+  return post('/files', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
 
 export function fetchFiles(params: FileQueryParams): Promise<PageResult<FileItem>> {
   return get('/files', { ...params })
