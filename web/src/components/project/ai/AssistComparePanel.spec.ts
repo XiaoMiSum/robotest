@@ -235,6 +235,9 @@ describe('AssistComparePanel', () => {
       expect(wrapper.text()).toContain('P1·中')
       expect(wrapper.text()).toContain('P0·高')
       expect(wrapper.text()).toContain('用例级别')
+      const chip = wrapper.find('.assist-compare__level')
+      expect(chip.exists()).toBe(true)
+      expect(chip.classes()).toContain('assist-compare__level--high')
 
       await actionButton(wrapper, '逐条采纳').trigger('click')
 
