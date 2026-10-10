@@ -7,6 +7,10 @@ export const MAX_BODY_IMAGE_SIZE = 10 * 1024 * 1024
 
 const IMAGE_TYPE = /^image\//
 
+// 与缺陷附件同一白名单的图片子集（文件管理详设 5.2，服务端 AttachmentFileValidator 同口径；
+// html/svg 等不在其列，阻断可执行内容借图片位上传）
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'])
+
 const FILE_ID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 
 // 正文只持久化稳定下载路径，presigned 地址过期即裂图，禁止回写正文（文件管理详设 3.3）
@@ -38,6 +42,11 @@ const fileIdBySignedUrl = new Map<string, string>()
 // 同一张图并发换签去重（MutationObserver 与初始扫描可能同时命中）
 const pendingImages = new WeakSet<HTMLImageElement>()
 
+function fileExtension(name: string): string {
+  const index = name.lastIndexOf('.')
+  return index < 0 ? '' : name.slice(index + 1).toLowerCase()
+}
+
 /** 上传正文图片，逐个提交；单张失败只提示并跳过，不阻断其余图片 */
 export async function uploadMarkdownImages(files: File[]): Promise<BodyImage[]> {
   const images: BodyImage[] = []
@@ -46,8 +55,8 @@ export async function uploadMarkdownImages(files: File[]): Promise<BodyImage[]> 
       ElMessage.warning(`「${file.name}」超过 10MB，无法插入正文`)
       continue
     }
-    if (!IMAGE_TYPE.test(file.type)) {
-      ElMessage.warning(`「${file.name}」不是图片，无法插入正文`)
+    if (!IMAGE_TYPE.test(file.type) || !IMAGE_EXTENSIONS.has(fileExtension(file.name))) {
+      ElMessage.warning(`「${file.name}」不是支持的图片格式（jpg/jpeg/png/gif/webp/bmp），无法插入正文`)
       continue
     }
     try {
