@@ -1473,7 +1473,7 @@ COMMENT ON COLUMN ws_project_activity.id IS '动态唯一标识';
 COMMENT ON COLUMN ws_project_activity.project_id IS '所属项目 ID，关联 ws_project.id';
 COMMENT ON COLUMN ws_project_activity.actor_id IS '操作人 ID，关联 sys_user.id';
 COMMENT ON COLUMN ws_project_activity.actor_name IS '操作人名称快照（用户删除后仍可展示历史操作人，系统任务记「系统」）';
-COMMENT ON COLUMN ws_project_activity.resource_type IS '资源类型：PROJECT/TEST_CASE_DOCUMENT/TEST_REVIEW/TEST_PLAN/BUG';
+COMMENT ON COLUMN ws_project_activity.resource_type IS '资源类型：PROJECT/TEST_CASE_DOCUMENT/TEST_CASE_NODE/TEST_REVIEW/TEST_PLAN/BUG';
 COMMENT ON COLUMN ws_project_activity.resource_id IS '资源 ID（配合 resource_type 跳转详情页）';
 COMMENT ON COLUMN ws_project_activity.resource_name IS '资源名称快照（资源删除后动态仍可展示）';
 COMMENT ON COLUMN ws_project_activity.action IS '动作编码：PROJECT_CREATED/PROJECT_UPDATED/PROJECT_ARCHIVED/PROJECT_UNARCHIVED/PROJECT_DELETED/CASE_CREATED/CASE_UPDATED/CASE_DELETED/REVIEW_* /PLAN_* /BUG_*';

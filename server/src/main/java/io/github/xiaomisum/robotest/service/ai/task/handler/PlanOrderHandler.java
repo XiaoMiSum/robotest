@@ -34,6 +34,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.modelFailed;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.nvl;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.parsedArtifacts;
+import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.parseRank;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.parseUuid;
 
 /**
@@ -265,18 +266,6 @@ public class PlanOrderHandler implements TaskHandler {
         artifact.put("content", content);
         artifact.put("confirmStatus", "pending");
         return artifact;
-    }
-
-    private static int parseRank(Object raw) {
-        if (raw == null) {
-            return Integer.MAX_VALUE;
-        }
-        try {
-            int rank = Integer.parseInt(String.valueOf(raw).trim());
-            return rank > 0 ? rank : Integer.MAX_VALUE;
-        } catch (NumberFormatException e) {
-            return Integer.MAX_VALUE;
-        }
     }
 
     private static UUID requirePlanId(Map<String, Object> input) {
