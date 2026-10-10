@@ -86,11 +86,19 @@ describe('正文贴图上传（缺陷详设 1.14 正文图片）', () => {
     expect(images).toEqual([])
   })
 
-  it('非图片类型跳过并提示', async () => {
+  it('非白名单类型跳过并提示（与附件白名单同口径）', async () => {
     const images = await uploadMarkdownImages([makeFile('doc.pdf', 'application/pdf')])
 
     expect(mocks.uploadFile).not.toHaveBeenCalled()
-    expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining('不是图片'))
+    expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining('不是支持的图片格式'))
+    expect(images).toEqual([])
+  })
+
+  it('图片 MIME 但扩展名不在白名单（如 svg）同样拒绝', async () => {
+    const images = await uploadMarkdownImages([makeFile('evil.svg', 'image/svg+xml')])
+
+    expect(mocks.uploadFile).not.toHaveBeenCalled()
+    expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining('evil.svg'))
     expect(images).toEqual([])
   })
 
