@@ -62,4 +62,12 @@ public interface TestPlanNodeSnapshotMapper extends BaseMapperX<TestPlanNodeSnap
         delete(new LambdaQueryWrapperX<TestPlanNodeSnapshot>()
                 .eq(TestPlanNodeSnapshot::getPlanId, planId));
     }
+
+    /** 顺序建议采纳只重排 sortOrder（详设 4.4）：更新载体仅带 id + 本次变更列（C11） */
+    default void updateSortOrder(UUID id, Integer sortOrder) {
+        TestPlanNodeSnapshot update = new TestPlanNodeSnapshot();
+        update.setId(id);
+        update.setSortOrder(sortOrder);
+        updateById(update);
+    }
 }

@@ -32,7 +32,7 @@ class BugDuplicateScanAdopterTest {
                 "content", Map.of("canonicalBugId", canonicalId.toString(),
                         "items", List.of(Map.of("bugId", UUID.randomUUID().toString()))));
         AdoptContext context = new AdoptContext(task, artifact, Constants.AiArtifactAction.ADOPTED,
-                null, "确认为重复", null, null, null, null,
+                null, "确认为重复", null, null, null, null, null, null, null, null,
                 UUID.randomUUID(), UUID.randomUUID(), (LoginUser) null);
 
         AdoptOutcome outcome = adopter.adopt(context);

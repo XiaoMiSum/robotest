@@ -50,7 +50,7 @@ class BugClassifyAdopterTest {
         AiTask task = new AiTask();
         task.setType(BugClassifyHandler.TYPE);
         return new AdoptContext(task, artifact, action, content, null, null, null, null, null,
-                PROJECT_ID, OPERATOR_ID, loginUser);
+                null, null, null, null, PROJECT_ID, OPERATOR_ID, loginUser);
     }
 
     private Map<String, Object> suggestionsContent() {

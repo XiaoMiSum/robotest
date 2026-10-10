@@ -828,20 +828,34 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
     }
 
+    /**
+     * 快照树同级排序：sortOrder 升序、空值排尾（稳定排序，顺序建议采纳后计划树即按该列展示，
+     * 采纳只重排 sortOrder 不改快照，见辅助功能详设 4.4）。
+     */
+    private static final Comparator<TestPlanSnapshotNodeRespDTO> BY_SNAPSHOT_ORDER = Comparator.comparingInt(
+            (TestPlanSnapshotNodeRespDTO node) -> {
+                Integer order = node.getSortOrder();
+                return order == null ? Integer.MAX_VALUE : order;
+            });
+
     private List<TestPlanSnapshotNodeRespDTO> buildSnapshotTree(
             List<TestPlanSnapshotNodeRespDTO> nodes) {
         Map<String, List<TestPlanSnapshotNodeRespDTO>> parentMap = nodes.stream()
                 .collect(Collectors.groupingBy(
                         n -> n.getParentId() != null ? n.getParentId().toString() : Constants.Tree.ROOT_KEY));
 
-        List<TestPlanSnapshotNodeRespDTO> roots = parentMap.getOrDefault(Constants.Tree.ROOT_KEY, new ArrayList<>());
+        List<TestPlanSnapshotNodeRespDTO> roots = new ArrayList<>(
+                parentMap.getOrDefault(Constants.Tree.ROOT_KEY, new ArrayList<>()));
+        roots.sort(BY_SNAPSHOT_ORDER);
         roots.forEach(root -> fillSnapshotChildren(root, parentMap));
         return roots;
     }
 
     private void fillSnapshotChildren(TestPlanSnapshotNodeRespDTO node,
             Map<String, List<TestPlanSnapshotNodeRespDTO>> parentMap) {
-        List<TestPlanSnapshotNodeRespDTO> children = parentMap.getOrDefault(node.getId().toString(), new ArrayList<>());
+        List<TestPlanSnapshotNodeRespDTO> children = new ArrayList<>(
+                parentMap.getOrDefault(node.getId().toString(), new ArrayList<>()));
+        children.sort(BY_SNAPSHOT_ORDER);
         node.setChildren(children);
         children.forEach(child -> fillSnapshotChildren(child, parentMap));
     }

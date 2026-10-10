@@ -137,7 +137,8 @@ class SelectionAdoptSupportTest {
         task.setId(UUID.randomUUID());
         task.setProjectId(PROJECT_ID);
         return new AdoptContext(task, Map.of("key", "sel-1", "kind", "review_selection"),
-                action, null, null, null, null, null, createParams, PROJECT_ID, OPERATOR_ID, user);
+                action, null, null, null, null, null, createParams,
+                null, null, null, null, PROJECT_ID, OPERATOR_ID, user);
     }
 
     private static Map<String, Object> reviewParams() {
