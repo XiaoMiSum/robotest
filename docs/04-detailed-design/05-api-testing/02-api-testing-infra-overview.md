@@ -278,7 +278,6 @@
 | 1000017703 | API_GIT_REPO_PATH_CONFLICT | 同项目下仓库路径重复 |
 | 1000017704 | API_GIT_PIPELINE_TRIGGER_FAILED | 流水线触发失败 |
 | 1000017705 | API_GIT_PIPELINE_QUERY_FAILED | 流水线状态查询失败 |
-| 1000017706 | API_GIT_EXEC_LIMIT_EXCEEDED | 单次外部执行圈选场景数超上限 |
 | 1000017707 | API_GIT_SCENE_NOT_EXECUTABLE | 导入场景所属仓库被禁用或不可达 |
 | 1000017708 | API_GIT_IMPORT_IN_PROGRESS | 同仓库存在进行中的导入 |
 | 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支提交与上次导入一致且无遗留错误，导入被跳过 |
@@ -399,3 +398,4 @@ robotest:
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
 | V1.0 | 2026-10-11 | 执行记录新增 GitLab 流水线相关字段与 `idx_exec_pipeline` 索引，登记 GitLab 集成错误码号段 1000017701–1000017712 |
 | V1.0 | 2026-10-11 | 执行记录批次字段改为 `batch_id` 与 `source_ref`，新增 `idx_exec_batch` 索引 |
+| V1.0 | 2026-10-11 | 删除错误码 `1000017706`（批量执行圈选上限），该能力已从需求与设计中移除 |
