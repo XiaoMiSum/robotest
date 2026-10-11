@@ -528,6 +528,7 @@ CREATE TABLE project_module (
                                 project_id  UUID         NOT NULL,
                                 parent_id   UUID         NULL,
                                 name        VARCHAR(100) NOT NULL,
+                                source_id   VARCHAR(500) NULL,
                                 sort_order  INT          NOT NULL DEFAULT 0,
                                 is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
                                 created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -536,6 +537,8 @@ CREATE TABLE project_module (
 
 CREATE INDEX idx_pmod_project ON project_module(project_id);
 CREATE INDEX idx_pmod_parent ON project_module(parent_id);
+CREATE UNIQUE INDEX uk_pmod_source ON project_module(project_id, parent_id, source_id)
+    WHERE is_deleted = FALSE AND source_id IS NOT NULL;
 
 -- 用例文档表（布局内嵌 JSONB）
 CREATE TABLE test_case_document (
@@ -570,6 +573,7 @@ CREATE TABLE api_environment (
                                  variables    JSONB        NOT NULL DEFAULT '[]',
                                  data_sources JSONB        NOT NULL DEFAULT '[]',
                                  processors   JSONB        NOT NULL DEFAULT '[]',
+                                 source_id    VARCHAR(500) NULL,
                                  is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE,
                                  created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                  updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -837,6 +841,13 @@ CREATE TABLE api_scene (
   processors     JSONB         NOT NULL DEFAULT '[]',
   steps          JSONB         NOT NULL DEFAULT '[]',
                              change_version INT           NOT NULL DEFAULT 1,
+                            source_type     VARCHAR(20)   NOT NULL DEFAULT 'platform',
+                            repo_id         UUID          NULL,
+                            source_id       VARCHAR(500)  NULL,
+                            source_ref      VARCHAR(500)  NULL,
+                            source_status   VARCHAR(30)   NULL,
+                            parse_status    VARCHAR(20)   NULL,
+                            parse_issues    JSONB         NULL,
                             is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
                             created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -844,6 +855,8 @@ CREATE TABLE api_scene (
 
 CREATE INDEX idx_scene_project ON api_scene(project_id);
 CREATE INDEX idx_scene_module ON api_scene(module_id);
+CREATE UNIQUE INDEX uk_scene_source ON api_scene(repo_id, source_id)
+    WHERE is_deleted = FALSE AND repo_id IS NOT NULL AND source_id IS NOT NULL;
 
 CREATE TABLE api_scene_follow (
     id            UUID      PRIMARY KEY,
@@ -871,6 +884,14 @@ CREATE TABLE api_execution_record (
                                       error_message  VARCHAR(2000) NULL,
                                        executed_at    TIMESTAMP     NOT NULL,
                                        duration_ms    INT           NULL,
+                                       repo_id        UUID          NULL,
+                                       pipeline_iid   BIGINT        NULL,
+                                       pipeline_url   VARCHAR(500)  NULL,
+                                       batch_id       VARCHAR(64)   NULL,
+                                       source_ref     VARCHAR(500)  NULL,
+                                       commit_sha     VARCHAR(64)   NULL,
+                                       scheduled_task_id UUID       NULL,
+                                       summary        JSONB         NULL,
                                        is_deleted     BOOLEAN       NOT NULL DEFAULT FALSE,
                                       created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                       updated_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -879,6 +900,9 @@ CREATE TABLE api_execution_record (
 CREATE INDEX idx_exec_scene_id ON api_execution_record(scene_id, executed_at DESC);
 CREATE INDEX idx_exec_project_executed ON api_execution_record(project_id, executed_at DESC);
 CREATE INDEX idx_exec_status ON api_execution_record(status);
+CREATE INDEX idx_exec_pipeline ON api_execution_record(repo_id, pipeline_iid)
+    WHERE pipeline_iid IS NOT NULL;
+CREATE INDEX idx_exec_batch ON api_execution_record(batch_id) WHERE batch_id IS NOT NULL;
 
 CREATE TABLE api_report (
                             id                 UUID          PRIMARY KEY,
@@ -1665,6 +1689,7 @@ COMMENT ON COLUMN project_module.id IS '模块唯一标识';
 COMMENT ON COLUMN project_module.project_id IS '所属项目 ID';
 COMMENT ON COLUMN project_module.parent_id IS '父级模块 ID，NULL=根节点';
 COMMENT ON COLUMN project_module.name IS '模块名称（同级唯一）';
+COMMENT ON COLUMN project_module.source_id IS '源侧映射标识：包容器存完整包名、类模块存测试类全限定名（GitLab 集成详设 3.5）';
 COMMENT ON COLUMN project_module.sort_order IS '同级排序序号';
 
 COMMENT ON TABLE test_case_document IS '用例文档表（布局内嵌 JSONB，替代旧 test_case_document_layout 表）';
@@ -1683,6 +1708,7 @@ COMMENT ON COLUMN api_environment.description IS '环境描述';
 COMMENT ON COLUMN api_environment.scope IS '归属范围：project/global';
 COMMENT ON COLUMN api_environment.is_default IS '是否默认环境';
 COMMENT ON COLUMN api_environment.sort_order IS '排序序号';
+COMMENT ON COLUMN api_environment.source_id IS '认领该环境的仓库路径（api_git_repo.repo_path），写入即封印';
 
 -- 接口测试 — 接口管理
 COMMENT ON TABLE api_interface IS '接口定义表';
@@ -1840,6 +1866,13 @@ COMMENT ON COLUMN api_scene.variables IS '场景变量唯一权威源 JSONB：[{
 COMMENT ON COLUMN api_scene.processors IS '场景级处理器列表（元素含 type 区分 pre/post）';
 COMMENT ON COLUMN api_scene.steps IS '步骤聚合 JSONB：结构与前端步骤对象一致，每步含 variables 数组（合并自原 api_scene_step_variable）';
 COMMENT ON COLUMN api_scene.change_version IS '变更版本号（乐观锁）';
+COMMENT ON COLUMN api_scene.source_type IS '场景来源：platform（平台原生）/ gitlab（GitLab 导入）';
+COMMENT ON COLUMN api_scene.repo_id IS '来源仓库（api_git_repo.id），仅 source_type = gitlab 时非空';
+COMMENT ON COLUMN api_scene.source_id IS '源侧稳定键（类全限定名#方法名），导入写入，禁止平台编辑覆盖';
+COMMENT ON COLUMN api_scene.source_ref IS '源侧引用（步骤模板或测试方法的相对路径 / 方法签名）';
+COMMENT ON COLUMN api_scene.source_status IS '源状态：in_sync/parse_failed/repo_removed/repo_unreachable，仅展示';
+COMMENT ON COLUMN api_scene.parse_status IS '解析状态：ok/failed，仅 platform 导入模式有意义';
+COMMENT ON COLUMN api_scene.parse_issues IS '解析问题清单 [{type,message,ref}]';
 
 COMMENT ON TABLE api_scene_follow IS '场景关注表';
 COMMENT ON COLUMN api_scene_follow.scene_id IS '关联场景 ID';
@@ -1857,6 +1890,14 @@ COMMENT ON COLUMN api_execution_record.report_id IS '关联报告 ID';
 COMMENT ON COLUMN api_execution_record.error_message IS '失败原因';
 COMMENT ON COLUMN api_execution_record.executed_at IS '触发时间';
 COMMENT ON COLUMN api_execution_record.duration_ms IS '执行耗时（毫秒）';
+COMMENT ON COLUMN api_execution_record.repo_id IS '来源仓库（api_git_repo.id），CI 引擎执行时非空';
+COMMENT ON COLUMN api_execution_record.pipeline_iid IS 'GitLab 流水线 IID（project 内唯一，artifact 下载键）';
+COMMENT ON COLUMN api_execution_record.pipeline_url IS 'GitLab 流水线页面地址（失败降级提示用）';
+COMMENT ON COLUMN api_execution_record.batch_id IS '外部执行批次票据，同批次内所有记录相同';
+COMMENT ON COLUMN api_execution_record.source_ref IS '批次快照内的源侧引用（类全限定名#方法名）';
+COMMENT ON COLUMN api_execution_record.commit_sha IS '触发时分支 HEAD 提交';
+COMMENT ON COLUMN api_execution_record.scheduled_task_id IS '触发任务（api_scheduled_task.id），定时任务执行时非空';
+COMMENT ON COLUMN api_execution_record.summary IS '批次汇总（期望/实际用例数与差值），流水线执行用';
 
 COMMENT ON TABLE api_report IS '报告表';
 COMMENT ON COLUMN api_report.project_id IS '归属项目 ID';
@@ -2067,3 +2108,55 @@ CREATE INDEX idx_file_resource_created ON file_resource (created_at);
 COMMENT ON TABLE file_resource IS '泛化附件资源：不挂工作空间/项目，使用方以 ID 或访问 URL 关联（文件管理详设 2.1）';
 COMMENT ON COLUMN file_resource.object_key IS '对象存储对象键（服务端生成 objects/{uuid}{ext}，不含用户可控路径）';
 COMMENT ON COLUMN file_resource.uploader_id IS '上传者（sys_user.id，逻辑外键）';
+
+-- ============================================================
+-- 21. 接口测试 — GitLab 代码仓库集成（GitLab 集成详设 2.1.1）
+-- ============================================================
+
+CREATE TABLE api_git_repo (
+    id                  UUID PRIMARY KEY,
+    project_id          UUID NOT NULL,
+    name                VARCHAR(200) NOT NULL,
+    gitlab_base_url     VARCHAR(500) NOT NULL,
+    repo_path           VARCHAR(500) NOT NULL,
+    default_branch      VARCHAR(200) NOT NULL DEFAULT 'master',
+    import_mode         VARCHAR(20) NOT NULL,
+    token_cipher        VARCHAR(500) NOT NULL,
+    test_source_dir     VARCHAR(500) NOT NULL DEFAULT 'src/test/java',
+    resource_dir        VARCHAR(500) NOT NULL DEFAULT 'src/test/resources',
+    env_file_path       VARCHAR(500) NOT NULL DEFAULT 'common/env/env.yaml',
+    enabled             BOOLEAN NOT NULL DEFAULT TRUE,
+    last_import_at      TIMESTAMP NULL,
+    last_import_commit  VARCHAR(64) NULL,
+    last_import_summary JSONB NULL,
+    head_commit         VARCHAR(64) NULL,
+    head_checked_at     TIMESTAMP NULL,
+    head_probe_status   VARCHAR(20) NULL,
+    created_by          UUID NOT NULL,
+    is_deleted          BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_api_git_repo_project ON api_git_repo(project_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_api_git_repo_project ON api_git_repo(project_id) WHERE is_deleted = FALSE;
+
+COMMENT ON TABLE api_git_repo IS '代码仓库配置表（一项目一仓库，GitLab 集成详设 2.1.1）';
+COMMENT ON COLUMN api_git_repo.project_id IS '归属项目（一项目一仓库）';
+COMMENT ON COLUMN api_git_repo.name IS '仓库展示名（可改，非稳定键）';
+COMMENT ON COLUMN api_git_repo.gitlab_base_url IS 'GitLab 实例地址（支持自建，不含结尾 /）';
+COMMENT ON COLUMN api_git_repo.repo_path IS '项目路径（group/subgroup/repo），源侧稳定键，创建后不可改';
+COMMENT ON COLUMN api_git_repo.default_branch IS '默认分支，创建后不可改';
+COMMENT ON COLUMN api_git_repo.import_mode IS '导入模式：platform（导入为平台场景）/ gitlab_ci（流水线调度），创建后不可改';
+COMMENT ON COLUMN api_git_repo.token_cipher IS '访问令牌密文（AES-256-GCM，只进不出，不下发前端）';
+COMMENT ON COLUMN api_git_repo.test_source_dir IS '测试源码目录';
+COMMENT ON COLUMN api_git_repo.resource_dir IS '资源目录（YAML 所在根）';
+COMMENT ON COLUMN api_git_repo.env_file_path IS '环境声明文件路径（相对 resource_dir，仅 platform 模式使用）';
+COMMENT ON COLUMN api_git_repo.enabled IS '启用状态（禁用后其下场景 CI 引擎不可用）';
+COMMENT ON COLUMN api_git_repo.last_import_at IS '上次导入时间';
+COMMENT ON COLUMN api_git_repo.last_import_commit IS '上次导入分支 HEAD，commit 幂等闸门比对基准';
+COMMENT ON COLUMN api_git_repo.last_import_summary IS '上次导入结果 {created,updated,parseFailed,errorFailed,skipped}，闸门只看 errorFailed';
+COMMENT ON COLUMN api_git_repo.head_commit IS '源探查回写的默认分支最新提交，与 last_import_commit 不一致即「源有更新」';
+COMMENT ON COLUMN api_git_repo.head_checked_at IS '上次源探查时间';
+COMMENT ON COLUMN api_git_repo.head_probe_status IS '源探查结果：ok/unreachable，unreachable 时保留上次 head_commit';
+COMMENT ON COLUMN api_git_repo.created_by IS '创建人';
