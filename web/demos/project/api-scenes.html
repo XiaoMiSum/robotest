@@ -336,7 +336,7 @@
   .src-st--warn { background: var(--st-warning-light); color: var(--st-warning-strong); }
   .src-st--danger { background: var(--st-danger-light); color: var(--st-danger-strong); }
 
-  /* gitlab_ci 场景编排只读形态（docs10 §1.9）：进入同一编排页，无编辑控件，主体为只读信息区 + 用例清单 */
+  /* gitlab_ci 场景编排只读形态（docs10 §1.9）：进入同一编排页，无编辑控件，主体为只读信息区 + 单个用例信息 */
   .ci-name { font-weight: 600; color: var(--n-900); }
   .ci-demo { display: inline-flex; align-items: center; gap: 8px; margin-left: var(--space-sm); font-size: var(--font-size-xs); color: var(--n-400); }
   .ci-run { font-size: var(--font-size-xs); font-weight: 600; }
@@ -1300,21 +1300,16 @@
               <div><div class="ci-info__k">源引用</div><div class="ci-info__v"><a href="#" onclick="return false">com.x.order.OrderApiTest#replaceOrder ↗</a></div></div>
             </div>
 
-            <!-- 步骤编排区替换为用例清单：仅展示、不可勾选执行（docs10 §1.9 主体区域） -->
+            <!-- 步骤编排区替换为单个用例信息：场景与测试方法一一对应（source_ref 即单个方法），恒为单条（docs10 §1.9 主体区域） -->
             <div class="ci-cases">
               <div class="ci-cases__head">
-                <span class="ci-cases__title">用例清单</span>
-                <span class="ci-cases__count">共 3 个用例</span>
+                <span class="ci-cases__title">用例</span>
+                <span class="ci-cases__count">场景与测试方法一一对应，恒为单个用例</span>
               </div>
-              <div class="table-wrap">
-                <table class="table">
-                  <thead><tr><th style="width:180px">方法名</th><th style="width:240px">用例名称（@Test description）</th><th>源文件</th></tr></thead>
-                  <tbody>
-                    <tr><td class="mono">replaceOrder</td><td>订单替换-PC端</td><td class="mono ci-cases__file">src/test/java/com/x/order/OrderApiTest.java ↗</td></tr>
-                    <tr><td class="mono">queryOrder</td><td>订单查询-列表</td><td class="mono ci-cases__file">src/test/java/com/x/order/OrderApiTest.java ↗</td></tr>
-                    <tr><td class="mono">cancelOrder</td><td>订单取消-超时兜底</td><td class="mono ci-cases__file">src/test/java/com/x/order/OrderApiTest.java ↗</td></tr>
-                  </tbody>
-                </table>
+              <div class="ci-info" style="padding:0 0 4px">
+                <div><div class="ci-info__k">方法名</div><div class="ci-info__v mono">replaceOrder</div></div>
+                <div><div class="ci-info__k">用例名称（@Test description）</div><div class="ci-info__v">订单替换-PC端</div></div>
+                <div><div class="ci-info__k">源文件</div><div class="ci-info__v"><a href="#" onclick="return false">src/test/java/com/x/order/OrderApiTest.java ↗</a></div></div>
               </div>
               <p class="dlg-hint ci-hint">只读形态：不提供步骤编排、场景变量与处理器编辑，隐藏 [保存] / [保存草稿] / [删除] 与环境选择；用例与步骤的维护一律在仓库侧完成。</p>
             </div>
