@@ -409,6 +409,13 @@
           </div>
         </div>
 
+        <!-- 仓库级「源有更新」信息条（docs09 §1.1）：仅一条、不逐场景标注，导入或同步成功后自动消失 -->
+        <div class="alert alert--warning" id="repo-update-bar" style="margin-top:12px">
+          <span data-icon="alert-triangle"></span>
+          <span>所属仓库 qa/order-api-tests 有更新（源探查发现默认分支新提交），导入或同步后生效</span>
+          <a href="api-gitlab.html" style="margin-left:auto;color:var(--st-warning-strong);font-weight:600">去集成页 →</a>
+        </div>
+
         <div class="body-row">
           <!-- 左：模块树 -->
           <div class="card tree-card">
@@ -515,7 +522,7 @@
                   <tr data-source="gitlab">
                     <td><span class="checkbox"></span></td>
                     <td><span class="star" data-icon="star"></span></td>
-                    <td class="cell-main"><span class="text-brand">下单全链路回归</span><span class="gl-src" title="仓库 qa/order-api-tests · 点击跳转 GitLab 集成页「导入」页签">GitLab</span><span class="src-st src-st--warn" title="源码已有更新，点击跳转 GitLab 集成页">源已变更</span></td>
+                    <td class="cell-main"><span class="text-brand">下单全链路回归</span><span class="gl-src" title="仓库 qa/order-api-tests · 点击跳转 GitLab 集成页「导入」页签">GitLab</span></td>
                     <td>下单主流程</td>
                     <td style="text-align:center"><span class="prio-badge prio-p1">P1</span></td>
                     <td class="num" style="text-align:center">6</td>
@@ -1279,7 +1286,7 @@
               <span>源状态</span>
               <span class="segment">
                 <span class="segment__item segment__item--active" data-ci-state="in_sync">已同步</span>
-                <span class="segment__item" data-ci-state="source_changed">源已变更</span>
+                <span class="segment__item" data-ci-state="parse_failed">源码已退化</span>
                 <span class="segment__item" data-ci-state="repo_unreachable">仓库不可达</span>
               </span>
             </span>
@@ -2529,18 +2536,18 @@ Content-Type: application/json
         el.classList.add('segment__item--active');
         var s = el.getAttribute('data-ci-state');
         unreachable = (s === 'repo_unreachable');
-        // 源状态徽标只在异常态出现（docs09 §1.2：取值为源已变更 / 解析失败 / 来源已移除 / 仓库不可达）
+        // 源状态徽标只在异常态出现（docs09 §1.2：源码已退化 / 来源已移除 / 仓库不可达）；仓库级「源有更新」不进编排页（docs32 §3.7 源探查）
         if (s === 'in_sync') {
           badge.hidden = true;
           alertEl.hidden = true;
         } else {
           badge.hidden = false;
-          badge.textContent = unreachable ? '仓库不可达' : '源已变更';
+          badge.textContent = unreachable ? '仓库不可达' : '源码已退化';
           badge.className = 'src-st ' + (unreachable ? 'src-st--danger' : 'src-st--warn');
           alertEl.hidden = false;
           alertText.textContent = unreachable
             ? '仓库不可达：[流水线运行] 已置灰，源引用不可跳转仓库侧文件'
-            : '源码已有更新，当前展示为上次导入的快照；不阻断查看与流水线执行';
+            : '源码解析失败，当前展示为上次成功导入的内容（BR-1.12）；不阻断查看与流水线执行';
         }
         runBtn.disabled = unreachable || running;
       });
