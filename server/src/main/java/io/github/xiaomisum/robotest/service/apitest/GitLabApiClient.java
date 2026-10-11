@@ -1,0 +1,182 @@
+package io.github.xiaomisum.robotest.service.apitest;
+
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import org.springframework.stereotype.Component;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
+
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+
+/**
+ * GitLab REST API 最小客户端（GitLab 集成详细设计 3.1 / 4.4）。
+ * <p>
+ * 不引入 SDK，复用 JDK HttpClient；探测顺序实例版本 → 令牌 scope → 项目路径 → 目标分支，
+ * 任一不满足抛 1000017702 且失败原因可区分实例不可达 / 令牌无效 / 分支不存在（需求 BR-1.5）。
+ * 真实 I/O 经 {@link HttpOpener} 函数式接缝注入，单测以假实现替代网络调用。
+ */
+@Component
+public class GitLabApiClient {
+
+    /** HTTP GET 接缝：真实 HttpClient 逻辑在客户端内提供，测试注入假实现 */
+    @FunctionalInterface
+    public interface HttpOpener {
+        HttpResponse<String> get(String url, String token) throws Exception;
+    }
+
+    /** 探测结果：实例版本 + 目标分支实际分支名 */
+    public record Probe(String version, String resolvedBranch) {
+    }
+
+    private final HttpOpener httpOpener;
+
+    public GitLabApiClient() {
+        this(GitLabApiClient::httpGet);
+    }
+
+    GitLabApiClient(HttpOpener httpOpener) {
+        this.httpOpener = httpOpener;
+    }
+
+    /**
+     * 连通性探测：依次校验实例可达、令牌有效且具 api scope、项目路径可访问、目标分支存在。
+     *
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017702，消息区分失败原因
+     */
+    public Probe probe(String baseUrl, String token, String repoPath, String branch) {
+        String base = trimTrailingSlash(baseUrl);
+        String version = probeVersion(base, token);
+        verifyTokenScope(base, token);
+        String projectId = verifyProject(base, token, repoPath);
+        String resolvedBranch = verifyBranch(base, token, projectId, branch);
+        return new Probe(version, resolvedBranch);
+    }
+
+    /** 实例可达性 + 版本：GET /api/v4/version（无需认证，401 亦视为可达） */
+    private String probeVersion(String base, String token) {
+        HttpResponse<String> response = send(base + "/api/v4/version", token);
+        if (response.statusCode() == 401 || response.statusCode() == 403) {
+            return null;
+        }
+        if (response.statusCode() != 200) {
+            throw connectFailed("实例不可达：HTTP " + response.statusCode());
+        }
+        VersionInfo info = JsonUtils.parseObject(response.body(), VersionInfo.class);
+        return info == null ? null : info.version();
+    }
+
+    /** 令牌有效性与 scope：GET /api/v4/personal_access_tokens/self */
+    private void verifyTokenScope(String base, String token) {
+        HttpResponse<String> response = send(base + "/api/v4/personal_access_tokens/self", token);
+        int status = response.statusCode();
+        if (status == 401 || status == 403) {
+            throw connectFailed("令牌无效：HTTP " + status);
+        }
+        if (status != 200) {
+            throw connectFailed("实例不可达：HTTP " + status);
+        }
+        TokenInfo info = JsonUtils.parseObject(response.body(), TokenInfo.class);
+        if (info == null || info.scopes() == null || !info.scopes().contains("api")) {
+            throw connectFailed("令牌缺少 api scope，无法访问 GitLab API");
+        }
+    }
+
+    /** 项目路径可访问性：GET /api/v4/projects/:id，返回数字项目 ID 供分支探测复用 */
+    private String verifyProject(String base, String token, String repoPath) {
+        HttpResponse<String> response = send(base + "/api/v4/projects/" + encodePath(repoPath), token);
+        int status = response.statusCode();
+        if (status == 401 || status == 403) {
+            throw connectFailed("令牌无效或无项目访问权限：HTTP " + status);
+        }
+        if (status == 404) {
+            throw connectFailed("项目路径不存在或令牌无访问权限：" + repoPath);
+        }
+        if (status != 200) {
+            throw connectFailed("实例不可达：HTTP " + status);
+        }
+        ProjectInfo info = JsonUtils.parseObject(response.body(), ProjectInfo.class);
+        if (info == null || info.id() == null) {
+            throw connectFailed("实例响应异常：项目信息解析失败");
+        }
+        return String.valueOf(info.id());
+    }
+
+    /** 目标分支存在性：GET /api/v4/projects/:id/repository/branches/:branch */
+    private String verifyBranch(String base, String token, String projectId, String branch) {
+        HttpResponse<String> response = send(base + "/api/v4/projects/" + projectId
+                + "/repository/branches/" + encodePath(branch), token);
+        int status = response.statusCode();
+        if (status == 401 || status == 403) {
+            throw connectFailed("令牌无效或无仓库访问权限：HTTP " + status);
+        }
+        if (status == 404) {
+            throw connectFailed("分支不存在：" + branch);
+        }
+        if (status != 200) {
+            throw connectFailed("实例不可达：HTTP " + status);
+        }
+        BranchInfo info = JsonUtils.parseObject(response.body(), BranchInfo.class);
+        return info != null && info.name() != null ? info.name() : branch;
+    }
+
+    private HttpResponse<String> send(String url, String token) {
+        try {
+            return httpOpener.get(url, token);
+        } catch (Exception e) {
+            throw connectFailed("实例不可达：" + (e.getMessage() == null
+                    ? e.getClass().getSimpleName() : e.getMessage()));
+        }
+    }
+
+    private static RuntimeException connectFailed(String reason) {
+        return ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_REPO_CONNECT_FAILED.code(), reason);
+    }
+
+    /** 真实 HTTP GET：连接超时 10s、响应超时 30s，跟随重定向，携带 PRIVATE-TOKEN 头 */
+    static HttpResponse<String> httpGet(String url, String token) throws Exception {
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(10000))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofMillis(30000))
+                .header("Accept", "application/json")
+                .GET();
+        if (token != null && !token.isBlank()) {
+            builder.header("PRIVATE-TOKEN", token);
+        }
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static String trimTrailingSlash(String baseUrl) {
+        String trimmed = baseUrl == null ? "" : baseUrl.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    /** 项目路径与分支名按 URL 路径段编码（/ → %2F），GitLab v4 API 要求编码后的项目路径 */
+    private static String encodePath(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private record VersionInfo(String version) {
+    }
+
+    private record TokenInfo(List<String> scopes) {
+    }
+
+    private record ProjectInfo(Long id) {
+    }
+
+    private record BranchInfo(String name) {
+    }
+
+}
