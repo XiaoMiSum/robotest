@@ -412,7 +412,7 @@ flowchart LR
 
 ### 4.6 CI 改造约定与结果文件契约
 
-本节是接入方在仓库侧必须满足的契约，属于接入前置条件，P0 阶段与接入方对齐后固化为模板文件。
+本节是接入方在仓库侧必须满足的契约，属于接入前置条件，P0 阶段与接入方对齐后固化为模板文件。平台侧模板正本为 `ci-templates/gitlab/robotest-batch.gitlab-ci.yml`，接入方以该文件为起点改造（镜像地址、执行器 tag、Maven 命令按本仓实际情况调整），四步职责与变量名不得变更。
 
 **框架依赖**：仓库 `ryze-testng` 版本须 ≥ 6.1.2。该版本起 `RyzeInvokedMethodListener` 在 `afterInvocation` 中将 TestNG 的类/方法标识与 Ryze 原生结果组装为信封落盘，并以 `类全限定名#方法名` 命名文件；此前版本导出物为裸 `Result` 树、以 YAML 的 `id`（多数未声明，退化为 `title`）命名，既无类方法标识也会因标题重复而互相覆盖，平台无法反查场景。
 
@@ -431,6 +431,53 @@ flowchart LR
 2. 按清单执行（TestNG 按方法过滤，未在清单中的方法不执行）；
 3. 将 `./__Ryze_Native_Result__` 整目录作为 GitLab artifact 上传，**该步骤须在流水线终态前完成**；
 4. 执行结束后回报平台完成状态与「期望用例数 / 实际用例数」。
+
+**变量契约**：
+
+| 变量 | 注入方 | 说明 |
+| ---- | ---- | ---- |
+| `ROBOTEST_BATCH_ID` | 平台触发流水线时注入（pipeline variable） | 批次票据，UUID，36 字符；CI 脚本据此取清单与回报，缺失时跳过平台批次逻辑 |
+| `ROBOTEST_PLATFORM_URL` | 接入方在 GitLab CI/CD 变量中配置 | 平台服务地址（如 `https://robotest.example.com`），结尾不留 `/` |
+| `ROBOTEST_CI_TOKEN` | 接入方在 GitLab CI/CD 变量中配置 | 平台签发的只读令牌，仅具取清单与回报两个端点的权限，须设为 Masked |
+
+**CI 侧接口契约**（P6 实现，权限经 `ROBOTEST-CI-TOKEN` 请求头传递，不出现在 URL）：
+
+| 路径 | 方法 | 说明 |
+| ---- | ---- | ---- |
+| `/api/ci/batches/{batchId}/manifest` | GET | 取冻结清单快照；幂等，同一 `batchId` 多次调用返回同一份；批次不存在返回 404 语义错误 |
+| `/api/ci/batches/{batchId}/completion` | POST | 回报批次终态与用例计数；批次已置终态时忽略本次写入（终态去重） |
+
+**取清单响应示例（`data`）**：
+
+```json
+{
+  "batchId": "3f6a1c9e-8a4c-4d3e-9a1b-0b2c4d5e6f70",
+  "ref": "master",
+  "scenes": [
+    {
+      "sceneId": "7b1e2f30-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+      "sourceRef": "com.example.qa.order.test.OrderQueryTest#listByStatus",
+      "expectedCaseCount": 1
+    }
+  ],
+  "expectedCases": 193
+}
+```
+
+`sourceRef` 即类全限定名 `#` 方法名，CI 侧据此生成 TestNG 方法过滤条件；`expectedCases` 为快照期期望用例数总和，供执行结束后对账。
+
+**回报请求示例（body）**：
+
+```json
+{
+  "status": "success",
+  "expectedCases": 193,
+  "actualCases": 187,
+  "pipelineUrl": "https://gitlab.example.com/qa/order-api-tests/-/pipelines/123456"
+}
+```
+
+`status` 取值 `success` / `failed`；`actualCases` 为 `./__Ryze_Native_Result__` 下信封文件数；`pipelineUrl` 供失败时报告留痕。
 
 **体积约束**：GitLab artifact 默认上限 5MB。响应体截断沿用平台既有规则（防止撑爆 JSONB），不因走 CI 通道而放宽；接入方实例若放宽 artifact 上限，须在 P0 约定中记录取值。
 
@@ -544,5 +591,6 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | `gitlab_ci` 场景详情返回契约修正：用例信息恒为单条（场景与测试方法一一对应，`source_ref` 即单个方法），废止「用例清单」表述 |
 | V1.0 | 2026-10-11 | 新增源探查服务（3.7）与 `api_git_repo` 探查列（`head_commit` / `head_checked_at` / `head_probe_status`）；「源有更新」改为仓库级派生标记，场景级 `source_changed` 取值废止 |
 | V1.0 | 2026-10-11 | 6.1 迁移 SQL 补齐 `api_git_repo` 探查三列，与 2.1.1 表定义对齐 |
+| V1.0 | 2026-10-11 | 4.6 固化 CI 侧接口契约（取清单 / 回报完成）、变量契约与报文示例，登记平台侧模板正本位置 `ci-templates/gitlab/robotest-batch.gitlab-ci.yml` |
 | V1.0 | 2026-10-11 | 连通性测试改为无 `repoId` 端点 `/connections/test`（空态可调、缺省字段回落库值），补充测试报文示例；创建 / 更新与测试一律强制实测通过，失败原因须可区分 |
 | V1.0 | 2026-10-11 | 仓库配置响应示例补齐 `testSourceDir` / `resourceDir` / `envFilePath`（编辑态需回显可改的目录字段，与需求 F1.1 修改配置口径一致） |
