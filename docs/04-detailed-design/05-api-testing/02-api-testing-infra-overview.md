@@ -122,8 +122,8 @@
 | repo_id | UUID | NULL | 来源仓库（api_git_repo.id），仅 GitLab 流水线引擎执行时非空，语义见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 2.2 |
 | pipeline_iid | BIGINT | NULL | 流水线 IID（同一 repo 内唯一），与 repo_id 共同标识外部执行批次 |
 | pipeline_url | VARCHAR(500) | NULL | 流水线详情链接（GitLab 侧），供报告与记录直接跳转 |
-| batch_index | INT | NULL | 批次序号（从 1 起），场景数超上限时的分批标记 |
-| batch_total | INT | NULL | 批次总数，与 batch_index 同时写入 |
+| batch_id | VARCHAR(64) | NULL | 外部执行批次票据（同批次内所有记录相同），CI 脚本回调取清单与回报结果时携带；仅 GitLab 流水线引擎执行时非空 |
+| source_ref | VARCHAR(500) | NULL | 源侧引用（测试类全限定名#方法名）在触发时的冻结副本，批次快照以本列为准，不受执行期间场景编辑影响 |
 | commit_sha | VARCHAR(64) | NULL | 执行时的分支 HEAD 提交号，用于结果溯源 |
 | scheduled_task_id | UUID | NULL | 触发该记录的定时任务（api_scheduled_task.id），场景页单跑为 NULL |
 | summary | JSONB | NULL | 用例级汇总 `{total, passed, failed, skipped, error}`，流水线回收后回写 |
@@ -131,7 +131,7 @@
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_exec_scene_id` (scene_id, executed_at DESC), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status), `idx_exec_pipeline` (repo_id, pipeline_iid) WHERE pipeline_iid IS NOT NULL
+**索引**：`idx_exec_scene_id` (scene_id, executed_at DESC), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status), `idx_exec_pipeline` (repo_id, pipeline_iid) WHERE pipeline_iid IS NOT NULL, `idx_exec_batch` (batch_id) WHERE batch_id IS NOT NULL
 
 > 执行记录与报告共享清理策略（默认 90 天）；清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 
@@ -397,4 +397,5 @@ robotest:
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐实现：修正公共表 DDL 与索引、补全已登记错误码、修正参考文献与 Mock 端口配置、校准分册-章节对照表 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
-| V1.0 | 2026-10-11 | 执行记录新增 GitLab 流水线相关字段与 `idx_exec_pipeline` 索引，登记 GitLab 集成错误码号段 1000017701–1000017711 |
+| V1.0 | 2026-10-11 | 执行记录新增 GitLab 流水线相关字段与 `idx_exec_pipeline` 索引，登记 GitLab 集成错误码号段 1000017701–1000017712 |
+| V1.0 | 2026-10-11 | 执行记录批次字段改为 `batch_id` 与 `source_ref`，新增 `idx_exec_batch` 索引 |
