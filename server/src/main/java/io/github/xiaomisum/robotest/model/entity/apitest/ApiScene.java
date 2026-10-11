@@ -45,5 +45,21 @@ public class ApiScene extends BaseUuidDO<ApiScene> {
     private List<Map<String, Object>> steps;
     /** 每次保存递增，乐观锁依据 */
     private Integer changeVersion;
+    /** 场景来源：platform（平台原生）/ gitlab（GitLab 导入），缺省 platform */
+    private String sourceType;
+    /** 来源仓库（api_git_repo.id），仅 sourceType = gitlab 时非空 */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID repoId;
+    /** 源侧稳定键（类全限定名#方法名），导入写入，禁止平台编辑覆盖 */
+    private String sourceId;
+    /** 源侧引用（步骤模板或测试方法的相对路径 / 方法签名） */
+    private String sourceRef;
+    /** 源状态：in_sync/parse_failed/repo_removed/repo_unreachable，仅展示 */
+    private String sourceStatus;
+    /** 解析状态：ok/failed，仅 platform 导入模式有意义 */
+    private String parseStatus;
+    /** 解析问题清单 [{type,message,ref}] */
+    @TableField(typeHandler = Jackson3TypeHandler.class)
+    private List<Map<String, Object>> parseIssues;
 
 }
