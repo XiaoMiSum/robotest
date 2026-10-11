@@ -63,7 +63,7 @@
   .gl-locked__v { font-size: var(--font-size-sm); color: var(--n-800); font-weight: 500; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
   .gl-mode-hint { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--n-200); font-size: var(--font-size-xs); color: var(--n-500); line-height: 1.6; }
 
-  /* 导入模式创建后锁定：两选项并列成卡片，差异说明就地可见，避免只凭标题盲选一个不可逆的决定 */
+  /* 接入方式创建后锁定：两选项并列成卡片，差异说明就地可见，避免只凭标题盲选一个不可逆的决定 */
   .gl-modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm); }
   .gl-mode { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; width: 100%; padding: 12px 14px; text-align: left; background: #fff; border: 1px solid var(--n-200); border-radius: var(--radius-md); cursor: pointer; transition: border-color .15s, background-color .15s; }
   .gl-mode:hover:not(:disabled) { border-color: var(--brand-300); background: var(--brand-50); }
@@ -162,7 +162,7 @@
               <li><span data-icon="check-circle"></span><span>测试工程为 Maven + TestNG + Ryze 结构</span></li>
               <li><span data-icon="check-circle"></span><span>测试方法<b>同时</b>标注 <code class="mono">@Test</code> 与 <code class="mono">@RyzeTest</code></span></li>
               <li><span data-icon="check-circle"></span><span>访问令牌具备仓库读取与 API 访问权限</span></li>
-              <li><span data-icon="check-circle"></span><span>流水线模式另需按约定改造仓库内 CI 配置（取清单、回报结果、上传结果制品）</span></li>
+              <li><span data-icon="check-circle"></span><span>流水线执行另需按约定改造仓库内 CI 配置（取清单、回报结果、上传结果制品）</span></li>
             </ul>
           </div>
         </div>
@@ -180,7 +180,7 @@
               <button class="gl-more__btn" id="gl-more-btn" title="更多操作">⋯</button>
               <div class="gl-menu" id="gl-more-menu" hidden>
                 <button class="gl-menu__item gl-menu__item--danger" id="gl-menu-delete">删除配置</button>
-                <div class="gl-menu__hint">变更绑定仓库或导入模式须先删除再重建</div>
+                <div class="gl-menu__hint">变更绑定仓库或接入方式须先删除再重建</div>
               </div>
             </div>
 
@@ -245,9 +245,9 @@
                 <div class="gl-locked__grid">
                   <div><div class="gl-locked__k">项目路径</div><div class="gl-locked__v mono">qa/order-api-tests</div></div>
                   <div><div class="gl-locked__k">默认分支</div><div class="gl-locked__v mono">master</div></div>
-                  <div><div class="gl-locked__k">导入模式</div><div class="gl-locked__v"><span id="gl-locked-mode-name">平台模式</span> <span class="tag tag--outline tag--sm mono" id="gl-locked-mode-tag">platform</span></div></div>
+                  <div><div class="gl-locked__k">接入方式</div><div class="gl-locked__v"><span id="gl-locked-mode-name">平台执行</span> <span class="tag tag--outline tag--sm mono" id="gl-locked-mode-tag">platform</span></div></div>
                 </div>
-                <div class="gl-mode-hint" id="gl-mode-hint">平台模式：完整解析步骤与 YAML，导入后由平台引擎直接执行。</div>
+                <div class="gl-mode-hint" id="gl-mode-hint">平台执行：完整解析步骤与 YAML 并合并环境，导入后场景在平台内可编辑、可直接执行；无需改造仓库 CI。</div>
               </div>
 
               <!-- 首次配置：三个锁定字段在创建时才可填 -->
@@ -267,24 +267,24 @@
 
                 <!-- 该选择创建后锁定，差异说明随选项就地呈现，不依赖隐藏在只读区的提示 -->
                 <div class="field">
-                  <label class="field__label">导入模式<span class="req">*</span></label>
+                  <label class="field__label">接入方式<span class="req">*</span></label>
                   <div class="gl-modes" id="f-mode">
                     <button type="button" class="gl-mode is-active" data-mode="platform">
                       <span class="gl-mode__head">
-                        <span class="gl-mode__name">平台模式</span>
+                        <span class="gl-mode__name">平台执行</span>
                         <span class="gl-mode__tag mono">platform</span>
                       </span>
-                      <span class="gl-mode__desc">完整解析步骤与 YAML，导入后由平台引擎直接执行</span>
+                      <span class="gl-mode__desc">完整解析步骤与 YAML 并合并环境，场景在平台内可编辑、可直接执行；无需改造仓库 CI</span>
                     </button>
                     <button type="button" class="gl-mode" data-mode="gitlab_ci">
                       <span class="gl-mode__head">
-                        <span class="gl-mode__name">流水线模式</span>
+                        <span class="gl-mode__name">流水线执行</span>
                         <span class="gl-mode__tag mono">gitlab_ci</span>
                       </span>
-                      <span class="gl-mode__desc">仅建场景圈选载体，执行由 GitLab 流水线完成，平台不读取步骤与环境</span>
+                      <span class="gl-mode__desc">仅登记用例清单，平台侧只读不可编辑；执行与用例维护一律在仓库侧，需按约定改造 CI</span>
                     </button>
                   </div>
-                  <div class="field__hint">创建后不可修改，变更绑定仓库或导入模式须先删除再重建</div>
+                  <div class="field__hint">创建后不可修改，变更绑定仓库或接入方式须先删除再重建</div>
                 </div>
               </div>
 
@@ -384,7 +384,7 @@
     </div>
     <div class="dialog__body">
       <p class="text-sm" style="margin-top:0">删除后本项目不再与该仓库绑定，是否继续？</p>
-      <p class="muted text-xs" style="margin-bottom:0">已导入场景保留并标记为「来源已移除」，可查看与编辑，但不可再由流水线引擎执行。变更绑定仓库或导入模式须先删除再重建。<br>若存在启用中的 GitLab 同步任务，删除将被拒绝，请先停用相关定时任务。</p>
+      <p class="muted text-xs" style="margin-bottom:0">已导入场景保留并标记为「来源已移除」，可查看与编辑，但不可再由流水线引擎执行。变更绑定仓库或接入方式须先删除再重建。<br>若存在启用中的 GitLab 同步任务，删除将被拒绝，请先停用相关定时任务。</p>
     </div>
     <div class="dialog__footer">
       <button class="btn btn--default btn--sm" data-del-close>取消</button>
@@ -423,11 +423,11 @@
   function toast(msg, type) { if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {}); }
   function closeMenu() { $('#gl-more-menu').hidden = true; }
 
-  var MODE_NAME = { platform: '平台模式', gitlab_ci: '流水线模式' };
+  var MODE_NAME = { platform: '平台执行', gitlab_ci: '流水线执行' };
 
   var MODE_TEXT = {
-    platform: '平台模式：完整解析步骤与 YAML，导入后由平台引擎直接执行。',
-    gitlab_ci: '流水线模式：仅建场景圈选载体，执行由 GitLab 流水线完成，平台不读取步骤与环境。'
+    platform: '平台执行：完整解析步骤与 YAML 并合并环境，导入后场景在平台内可编辑、可直接执行；无需改造仓库 CI。',
+    gitlab_ci: '流水线执行：仅登记用例清单，平台侧只读不可编辑；执行与用例维护一律在仓库侧，需按约定改造 CI。'
   };
 
   /* ---------- 视图：配置态 / 空态；只读与不可达叠加在配置态上 ---------- */
@@ -479,7 +479,7 @@
     // 环境声明仅 platform 模式使用；创建后锁定字段不再参与提交
     var disabled = state.readonly || state.mode !== 'platform';
     $('#f-envfile').disabled = disabled;
-    $('#f-envfile-hint').textContent = (state.mode === 'platform') ? '缺省 common/env/env.yaml' : '流水线模式不读取环境声明';
+    $('#f-envfile-hint').textContent = (state.mode === 'platform') ? '缺省 common/env/env.yaml' : '流水线执行不读取环境声明';
   }
 
   function switchTab(tab) {
@@ -492,7 +492,7 @@
     btn.addEventListener('click', function () { switchTab(btn.dataset.glTab); });
   });
 
-  /* ---------- 导入模式：仅首次配置可选，创建后锁定 ---------- */
+  /* ---------- 接入方式：仅首次配置可选，创建后锁定 ---------- */
   $all('#f-mode button').forEach(function (b) {
     b.addEventListener('click', function () {
       if (state.readonly) return;
