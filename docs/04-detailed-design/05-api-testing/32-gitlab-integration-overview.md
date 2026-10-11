@@ -446,6 +446,9 @@ CREATE TABLE api_git_repo (
     last_import_at      TIMESTAMP NULL,
     last_import_commit  VARCHAR(64) NULL,
     last_import_summary JSONB NULL,
+    head_commit         VARCHAR(64) NULL,
+    head_checked_at     TIMESTAMP NULL,
+    head_probe_status   VARCHAR(20) NULL,
     created_by          UUID NOT NULL,
     is_deleted          BOOLEAN NOT NULL DEFAULT FALSE,
     created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -514,3 +517,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | `gitlab_ci` 场景渲染口径修正：编排页只读形态，用例清单供同一页面渲染 |
 | V1.0 | 2026-10-11 | `gitlab_ci` 场景详情返回契约修正：用例信息恒为单条（场景与测试方法一一对应，`source_ref` 即单个方法），废止「用例清单」表述 |
 | V1.0 | 2026-10-11 | 新增源探查服务（3.7）与 `api_git_repo` 探查列（`head_commit` / `head_checked_at` / `head_probe_status`）；「源有更新」改为仓库级派生标记，场景级 `source_changed` 取值废止 |
+| V1.0 | 2026-10-11 | 6.1 迁移 SQL 补齐 `api_git_repo` 探查三列，与 2.1.1 表定义对齐 |
