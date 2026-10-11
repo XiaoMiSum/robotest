@@ -1,0 +1,69 @@
+# Robotest GitLab 执行批次 CI 模板（平台契约最小实现）
+#
+# 契约依据：docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md 4.2 / 4.6
+# 四步职责（不得增删）：取冻结清单 → 按清单方法过滤执行 → 上传 __Ryze_Native_Result__ 为 artifact → 回报完成
+#
+# 接入前置：
+#   1. 仓库 ryze-testng >= 6.1.2（原生结果导出为 testClass#testMethod 信封）
+#   2. GitLab CI/CD 变量中配置 ROBOTEST_PLATFORM_URL（平台地址，结尾不留 /）
+#      与 ROBOTEST_CI_TOKEN（平台签发的只读令牌，设为 Masked）
+#   3. 执行器镜像内预装 jq（解析冻结清单）
+#
+# 触发口径：平台触发流水线时注入 ROBOTEST_BATCH_ID（批次票据）；无该变量的流水线
+# 不执行本 job（手动 / 定时触发不受影响）。一次任务恒定 1 条流水线，不拆批。
+#
+# artifact 约束：GitLab 默认上限 5MB；接入方实例若放宽，须在 P0 约定中记录取值。
+
+stages:
+  - test
+
+variables:
+  RYZE_RESULT_DIR: "./__Ryze_Native_Result__"
+
+robotest-batch:
+  stage: test
+  # 镜像与执行器 tag 按接入方实际情况调整，jq 须可用
+  image: maven:3.9.9-eclipse-temurin-21
+  tags:
+    - qa
+  rules:
+    - if: '$ROBOTEST_BATCH_ID'
+  script:
+    - command -v jq >/dev/null 2>&1 || { echo "[robotest] 镜像缺少 jq，无法解析冻结清单"; exit 1; }
+    - |
+      # 取冻结清单：只读令牌回调平台，失败重试；仍失败则流水线显式失败而非静默通过
+      curl -sS --fail --retry 3 --retry-delay 10 \
+        -H "ROBOTEST-CI-TOKEN: ${ROBOTEST_CI_TOKEN}" \
+        "${ROBOTEST_PLATFORM_URL}/api/ci/batches/${ROBOTEST_BATCH_ID}/manifest" \
+        -o robotest-manifest.json \
+        || { echo "[robotest] 取冻结清单失败：batchId=${ROBOTEST_BATCH_ID}"; exit 1; }
+      # 清单为空立即失败——流水线跑起来却一个用例都不跑是最坏的失败形态
+      [ "$(jq '.data.scenes | length' robotest-manifest.json)" -gt 0 ] \
+        || { echo "[robotest] 冻结清单为空，拒绝执行空批次"; exit 1; }
+      jq -r '.data.expectedCases' robotest-manifest.json > robotest-expected.txt
+    - |
+      # 按清单执行：sourceRef（类全限定名#方法名）逐条生成 TestNG 方法过滤条件，
+      # 未在清单中的方法不执行；清单内方法全部缺失时显式失败（不静默通过）
+      TEST_FILTER=$(jq -r '[.data.scenes[].sourceRef] | join(",")' robotest-manifest.json)
+      echo "[robotest] 批次 ${ROBOTEST_BATCH_ID}，期望用例 $(cat robotest-expected.txt)，方法数 $(echo "${TEST_FILTER}" | tr ',' '\n' | wc -l | tr -d ' ')"
+      mvn test -Dtest="${TEST_FILTER}" -DfailIfNoTests=true
+  after_script:
+    - |
+      # 回报完成：实际用例数 = 信封文件数（文件名含 #）；执行失败也须回报，
+      # 平台侧按批次终态去重，重复回报被忽略；本步失败仅告警，平台以流水线轮询兜底
+      ACTUAL=$(ls -1 "${RYZE_RESULT_DIR}" 2>/dev/null | grep -c '#' || true)
+      STATUS=success
+      [ "${CI_JOB_STATUS}" = "success" ] || STATUS=failed
+      curl -sS --retry 3 --retry-delay 10 \
+        -H "ROBOTEST-CI-TOKEN: ${ROBOTEST_CI_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -X POST \
+        "${ROBOTEST_PLATFORM_URL}/api/ci/batches/${ROBOTEST_BATCH_ID}/completion" \
+        -d "{\"status\":\"${STATUS}\",\"expectedCases\":$(cat robotest-expected.txt 2>/dev/null || echo 0),\"actualCases\":${ACTUAL:-0},\"pipelineUrl\":\"${CI_PIPELINE_URL}\"}" \
+        || echo "[robotest] 回报失败：平台不可达，平台将以流水线轮询兜底"
+  artifacts:
+    # 须在流水线终态前完成上传（4.6 硬约束）；job 失败时同样上传，供平台回收与排障
+    when: always
+    paths:
+      - ./__Ryze_Native_Result__
+    expire_in: 7 days
