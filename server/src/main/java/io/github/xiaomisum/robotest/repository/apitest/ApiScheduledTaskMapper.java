@@ -42,6 +42,14 @@ public interface ApiScheduledTaskMapper extends BaseMapperX<ApiScheduledTask> {
                 .eq(ApiScheduledTask::getEnvironmentId, environmentId));
     }
 
+    /** 项目存在启用中的 GitLab 同步任务时禁止删除仓库配置（GitLab 集成详设 3.1） */
+    default Long selectCountEnabledGitlabSync(UUID projectId) {
+        return selectCount(new LambdaQueryWrapperX<ApiScheduledTask>()
+                .eq(ApiScheduledTask::getTaskType, "gitlab_sync")
+                .eq(ApiScheduledTask::getProjectId, projectId)
+                .eq(ApiScheduledTask::getEnabled, true));
+    }
+
     default int updateEditableFields(UUID id, String taskType, String name, String description,
             String executionScope, List<UUID> moduleIds, List<UUID> sceneIds, String openapiUrl,
             UUID environmentId, String cronExpression) {

@@ -60,4 +60,11 @@ public interface ApiSceneMapper extends BaseMapperX<ApiScene> {
                 .eq(ApiScene::getChangeVersion, currentVersion));
     }
 
+    /** 仓库配置删除后，其下已导入场景保留但源状态置为 repo_removed（GitLab 集成详设 3.1） */
+    default int markRepoScenesRepoRemoved(UUID repoId, String sourceStatus) {
+        return update(null, new LambdaUpdateWrapperX<ApiScene>()
+                .eq(ApiScene::getRepoId, repoId)
+                .set(ApiScene::getSourceStatus, sourceStatus));
+    }
+
 }
