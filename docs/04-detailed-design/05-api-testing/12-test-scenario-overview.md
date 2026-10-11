@@ -72,7 +72,7 @@
 | repo_id | UUID | NULL | 来源仓库（api_git_repo.id），仅 `source_type = gitlab` 时非空 |
 | source_id | VARCHAR(500) | NULL | 源侧稳定标识（`来源工程内唯一键`），导入写入；不参与任何名称认领，禁止由平台编辑覆盖 |
 | source_ref | VARCHAR(500) | NULL | 源侧引用（步骤模板或测试方法的相对路径 / 方法签名），用于展示与跳转 |
-| source_status | VARCHAR(30) | NULL | 源状态：in_sync / source_changed / parse_failed / repo_removed / repo_unreachable，仅展示用，不触发自动修复 |
+| source_status | VARCHAR(30) | NULL | 源状态：in_sync / parse_failed / repo_removed / repo_unreachable，仅展示用，不触发自动修复；仓库级「源有更新」由源探查服务承载，见 `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3.7 |
 | parse_status | VARCHAR(20) | NULL | 解析状态：ok / failed；仅 `source_type = gitlab` 且导入模式为 platform 时有意义，`gitlab_ci` 模式恒为 NULL |
 | parse_issues | JSONB | NULL | 解析问题清单 `[{type, message, ref}]`，解析失败与源码退化的明细 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
@@ -203,3 +203,4 @@
 | V1.0 | 2026-10-11 | 场景列表动作补录行内执行，执行入口口径统一为双入口 |
 | V1.0 | 2026-10-11 | `gitlab_ci` 场景口径修正：进入同一编辑器以只读形态呈现，不新增独立视图 |
 | V1.0 | 2026-10-11 | `gitlab_ci` 只读形态表述修正：展示单个用例信息（场景与测试方法一一对应），废止「用例清单」 |
+| V1.0 | 2026-10-11 | `source_status` 删除 `source_changed` 取值：仓库级「源有更新」改由源探查服务承载，不再逐场景标注 |
