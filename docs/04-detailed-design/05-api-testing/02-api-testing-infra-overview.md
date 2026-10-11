@@ -399,3 +399,4 @@ robotest:
 | V1.0 | 2026-10-11 | 执行记录新增 GitLab 流水线相关字段与 `idx_exec_pipeline` 索引，登记 GitLab 集成错误码号段 1000017701–1000017712 |
 | V1.0 | 2026-10-11 | 执行记录批次字段改为 `batch_id` 与 `source_ref`，新增 `idx_exec_batch` 索引 |
 | V1.0 | 2026-10-11 | 删除错误码 `1000017706`（批量执行圈选上限），该能力已从需求与设计中移除 |
+| V1.0 | 2026-10-11 | 错误码 `1000017711` 更名为 `API_GIT_REPO_IMMUTABLE_FIELD`，覆盖范围扩至 `repo_path` / `default_branch` |
