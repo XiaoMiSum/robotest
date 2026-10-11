@@ -86,7 +86,7 @@
 | ---- | ---- | ---- |
 | `project_module` | +1 列 `source_id`（源侧映射标识：包容器存完整包名、类模块存测试类全限定名）、+1 唯一索引 `uk_pmod_source` | `docs/04-detailed-design/02-project-module.md` 2.1 |
 | `api_scene` | +7 列 `source_type` / `repo_id` / `source_id` / `source_ref` / `source_status` / `parse_status` / `parse_issues`、+1 唯一索引 `uk_scene_source` | `docs/04-detailed-design/05-api-testing/12-test-scenario-overview.md` 2.1.2 |
-| `api_execution_record` | +8 列 `repo_id` / `pipeline_iid` / `pipeline_url` / `batch_index` / `batch_total` / `commit_sha` / `scheduled_task_id` / `summary`、+1 索引 `idx_exec_pipeline` | `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md` 2.1.3 |
+| `api_execution_record` | +8 列 `repo_id` / `pipeline_iid` / `pipeline_url` / `batch_id` / `source_ref` / `commit_sha` / `scheduled_task_id` / `summary`、+1 索引 `idx_exec_batch` | `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md` 2.1.3 |
 | `api_environment` | +1 列 `source_id`（认领该环境的仓库路径），不加索引 | `docs/04-detailed-design/05-api-testing/17-environment-management-overview.md` 2.1.1 |
 | `api_report` | 不改结构，仅 `result` 数据集语义扩展（见 4.4） | `docs/04-detailed-design/05-api-testing/28-test-report-overview.md` 2.3 |
 
@@ -202,7 +202,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | 路径 | 方法 | 说明 | 权限码 |
 | ---- | ---- | ---- | ---- |
 | `/api/project/api-scenes/{sceneId}/executions` | POST | 单场景执行；场景引擎为 `gitlab_ci` 时触发流水线并返回 `executionId`（语义与平台引擎一致，前端无感） | `api-scene:execute` |
-| `/api/project/api-scenes/batch-executions` | POST | 批次执行：请求体 `sceneIds`，按引擎自动分组；平台组走既有链路，CI 组返回一个 `batchId` 与分批流水线计划 | `api-scene:execute` |
+| `/api/project/api-scenes/batch-executions` | POST | 批次执行：请求体 `sceneIds`，按引擎自动分组；平台组走既有链路，CI 组返回一个 `batchId` 与单条流水线标识 | `api-scene:execute` |
 | `/api/project/api-executions/{executionId}` | GET | 执行状态查询；CI 执行由服务端轮询 GitLab 后回写，前端只读 | `api-scene:view` |
 | `/api/project/api-executions/batch/{batchId}` | GET | 批次执行聚合视图：平台组进度 + CI 组流水线进度 + 合计用例数 | `api-scene:view` |
 
@@ -213,13 +213,12 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
   "batchId": "c0ffee12-3456-7890-abcd-ef0123456789",
   "groups": [
     { "engine": "platform", "executionIds": ["e1", "e2", "e3"], "count": 3 },
-    { "engine": "gitlab_ci", "batchIndex": 1, "batchTotal": 2, "pipelineIid": 142, "count": 60 },
-    { "engine": "gitlab_ci", "batchIndex": 2, "batchTotal": 2, "pipelineIid": 143, "count": 45 }
+    { "engine": "gitlab_ci", "pipelineIid": 142, "pipelineUrl": "https://gitlab.example.com/g/p/-/pipelines/142", "count": 105 }
   ]
 }
 ```
 
-**校验规则**：CI 组场景数超单批上限（默认 100，可配）或拼接后的变量串超 4000 字符时自动拆批；单次请求总圈选数超上限返回 `1000017706`；圈选中存在所属仓库被禁用 / 不可达的导入场景返回 `1000017707`。
+**校验规则**：单次请求总圈选数超上限返回 `1000017706`；圈选中存在所属仓库被禁用 / 不可达的导入场景返回 `1000017707`。
 
 ### 3.4 commit 幂等闸门
 
@@ -317,10 +316,32 @@ flowchart TD
 
 ### 4.2 流水线执行机制
 
-1. **触发**：按 `sceneIds` 拼接 GitLab 流水线变量（`ROBOTEST_SCENE_IDS`，逗号分隔），调用 GitLab `POST /projects/:id/pipeline`（`ref = default_branch`）。单次变量串超 4000 字符时按圈选顺序拆分为多条流水线，每条记录 `batch_index` / `batch_total`。
-2. **绑定**：每条流水线对应一个「外部执行批次」，在 `api_execution_record` 上按 `batch_index` 逐场景落 pending 记录（`repo_id`、`pipeline_iid`、`commit_sha`、`scheduled_task_id`）。
-3. **轮询**：服务端定时拉取流水线状态（`created / running / success / failed / canceled`）；终态后拉取测试报告回收用例级结果。
-4. **回写**：用例结果按 `externalId` = 方法名匹配批次内场景，逐条回写执行记录与场景报告。**回写为异步**，不阻塞触发线程。
+控制面与数据面分离：控制面靠流水线变量传批次票据，数据面靠 GitLab artifact 回传结果，两侧互不承载对方的负载。
+
+```mermaid
+sequenceDiagram
+    participant T as 平台
+    participant G as GitLab
+    participant C as CI 脚本
+
+    T->>T: 落批次记录 + 冻结清单快照
+    T->>G: 触发流水线（变量只传 batchId）
+    G->>C: 执行 CI 脚本
+    C->>T: 回调取清单（batchId，只读令牌）
+    T-->>C: 返回冻结快照
+    C->>C: TestNG + Ryze 执行
+    C->>G: 上传 __Ryze_Native_Result__ 为 artifact
+    C->>T: 回报完成（batchId + 期望/实际用例数）
+    T->>G: 按 pipeline_iid 下载 artifact
+    T->>T: 组装套件树 → 写执行记录与报告
+```
+
+1. **触发**：调用 GitLab `POST /projects/:id/pipeline`（`ref = default_branch`），流水线变量只传 `ROBOTEST_BATCH_ID`。**不再传场景标识串**——场景标识是类全限定名 + 方法名，实测单个约 90 字符，批量圈选时变量串必然超长；批次票据恒定 36 字符，因此一次任务恒定触发 **1 条流水线**，既不做分批也不做按仓库分组（一项目一仓库）。
+2. **快照冻结**：触发前先将本批场景清单（场景 ID、`source_ref`、期望用例数）落库为不可变快照，**落库成功后才允许触发**。顺序是硬约束：宁可流水线起来后 CI 取不到清单（由 CI 侧重试），也不能流水线已跑起来而快照未落——后者会让 CI 拿到空清单、静默地一个用例都不跑，是最坏的失败形态。
+3. **取清单**：CI 脚本持只读令牌回调平台，按 `batchId` 返回冻结快照。取清单接口**幂等**，同一 `batchId` 多次调用返回同一份；读的是快照而非平台实时数据，因此执行期间用户在平台上的增删改不影响正在跑的批次，也不需要对执行中的批次加锁。
+4. **结果回收**：CI 将 Ryze 原生结果导出目录 `./__Ryze_Native_Result__` 作为 artifact 上传，平台按 `pipeline_iid` 下载后逐个解析信封（格式见 4.6），按 `testClass#testMethod` 匹配批次快照内的场景。信封的 `result` 是一棵 TestSuiteResult，平台将其组装为套件子树后走既有的 `RyzeResultAdapter` 渲染，**不为 CI 结果另写解析器**。
+5. **终态去重**：CI 主动回报是主路径，平台轮询流水线状态（`created / running / success / failed / canceled`）是兜底——CI 崩溃、网络中断、任务被手动取消都会导致回报丢失。两通道写同一批执行记录，**批次一旦置终态，后续任何写入（重复回报、轮询补拉）一律忽略**，既不丢结果也不会被后到的写入覆盖。
+6. **回写**：逐条回写执行记录与场景报告。**回写为异步**，不阻塞触发线程。服务重启后由扫描任务按 `api_execution_record` 的 `batch_id` / `pipeline_iid` 重建轮询。
 
 ### 4.3 不可达降级边界
 
@@ -333,10 +354,10 @@ CI 引擎场景在仓库不可达时**跳过并留痕**：执行记录状态置 
 1. 按任务范围取出场景全集；
 2. 按 4.1 路由拆为平台组与 CI 组（`steps = []` **不是**跳过 CI 组的理由，仅是平台组的不可执行原因）；
 3. 平台组沿用既有套件执行链路；
-4. CI 组生成一个外部执行批次，一次任务恒定产生 **1 条**流水线（仅当场景数超上限时按批拆分，不做按仓库分组——一项目一仓库）；
+4. CI 组生成一个外部执行批次，冻结清单后触发 **1 条**流水线（批次票据作变量，不拆批、不按仓库分组——一项目一仓库）；
 5. 任务状态转 `running` 后立即返回，平台组与流水线各自异步回写。
 
-**完成判据**：平台组全部终态 **且** 批次内所有流水线达终态，任务方可从 `running` 转 `success` / `failed`。任一侧提前结束不影响另一侧继续回写；服务重启后由扫描任务按 `api_execution_record` 的 `batch_index` / `pipeline_iid` 重建轮询，规避既有 `running` 残留状态无法自愈的问题。
+**完成判据**：平台组全部终态 **且** 批次内所有流水线达终态，任务方可从 `running` 转 `success` / `failed`。任一侧提前结束不影响另一侧继续回写；服务重启后由扫描任务按 `api_execution_record` 的 `batch_id` / `pipeline_iid` 重建轮询，规避既有 `running` 残留状态无法自愈的问题。
 
 ```mermaid
 flowchart LR
@@ -358,13 +379,43 @@ flowchart LR
 - CI 引擎单场景执行同样产出 `source = scene` 的场景级报告，报告结构与平台执行一致。
 - 用例级结果字段（`externalId` = 方法名、`caseName` 优先取 `@Test(description)`、`status` 映射）与既有 `report_case` 数据集口径一致，仅 `execEngine` 为本域新增语义。
 
+### 4.6 CI 改造约定与结果文件契约
+
+本节是接入方在仓库侧必须满足的契约，属于接入前置条件，P0 阶段与接入方对齐后固化为模板文件。
+
+**框架依赖**：仓库 `ryze-testng` 版本须 ≥ 6.1.2。该版本起 `RyzeInvokedMethodListener` 在 `afterInvocation` 中将 TestNG 的类/方法标识与 Ryze 原生结果组装为信封落盘，并以 `类全限定名#方法名` 命名文件；此前版本导出物为裸 `Result` 树、以 YAML 的 `id`（多数未声明，退化为 `title`）命名，既无类方法标识也会因标题重复而互相覆盖，平台无法反查场景。
+
+**导出文件契约**：
+
+| 项 | 约定 |
+| ---- | ---- |
+| 输出目录 | `./__Ryze_Native_Result__`（工作目录下，由 Ryze 自动产出，无需 CI 脚本额外编码） |
+| 文件命名 | `{类全限定名}#{方法名}.json` |
+| 文件结构 | 信封 `{ testClass, testMethod, result }`，`result` 为 Ryze `TestSuiteResult` 树原样序列化 |
+| 归属判定 | 平台按 `testClass + "#" + testMethod` 匹配批次快照内的 `source_ref`，不依赖文件内容中的其它字段 |
+
+**CI 脚本必须做的事**：
+
+1. 以只读令牌回调平台取本批场景清单（携带 `batchId`），失败时重试；
+2. 按清单执行（TestNG 按方法过滤，未在清单中的方法不执行）；
+3. 将 `./__Ryze_Native_Result__` 整目录作为 GitLab artifact 上传，**该步骤须在流水线终态前完成**；
+4. 执行结束后回报平台完成状态与「期望用例数 / 实际用例数」。
+
+**体积约束**：GitLab artifact 默认上限 5MB。响应体截断沿用平台既有规则（防止撑爆 JSONB），不因走 CI 通道而放宽；接入方实例若放宽 artifact 上限，须在 P0 约定中记录取值。
+
+**对账与降级**：
+
+- 平台比对批次快照的**期望用例数**与信封中的**实际用例数**，差值计入 `errorFailed`（如 YAML 缺失导致方法无法执行），**不得**计为执行失败——demo 实测 199 个方法对仅对应到约 15 个真实存在的 YAML，这类差异是常态而非故障。
+- 信封缺失或无法解析时，降级读 GitLab 的 JUnit 测试报告摘要（仅有汇总数字、无步骤明细），仍无则整批按失败处理并附流水线链接，与 BR-1.34 口径一致。
+- 版本差异（平台 Ryze 与仓库 Ryze 非同一版本）时，信封为新增结构、与 Ryze 内部 Result 字段无关，平台渲染器对 `result` 内缺失字段容错，不因缺字段整批失败。
+
 ## 5. 前端设计
 
 页面结构、交互流程、状态分支与视觉要求以《GitLab 集成交互设计说明书》为准（`docs/05-interaction-design/05-api-testing/26-gitlab-ui-overview.md`），本文不重复定义。此处仅登记与服务端契约强绑定的三点：
 
 1. 仓库配置查询接口为单条语义，前端不做分页与列表虚拟化；
 2. 导入为异步提交，前端轮询导入进度接口，不使用长连接；
-3. 批量执行提交后返回分组结构，前端据其渲染路由预览与批次进度，不自行推断分组。
+3. 批量执行提交后返回分组结构，前端据其渲染路由预览与批次进度（CI 组恒为单条流水线），不自行推断分组。
 
 ## 6. 实施说明
 
@@ -418,13 +469,14 @@ CREATE UNIQUE INDEX uk_scene_source ON api_scene(repo_id, source_id)
 ALTER TABLE api_execution_record ADD COLUMN repo_id UUID NULL;
 ALTER TABLE api_execution_record ADD COLUMN pipeline_iid BIGINT NULL;
 ALTER TABLE api_execution_record ADD COLUMN pipeline_url VARCHAR(500) NULL;
-ALTER TABLE api_execution_record ADD COLUMN batch_index INT NULL;
-ALTER TABLE api_execution_record ADD COLUMN batch_total INT NULL;
+ALTER TABLE api_execution_record ADD COLUMN batch_id VARCHAR(64) NULL;
+ALTER TABLE api_execution_record ADD COLUMN source_ref VARCHAR(500) NULL;
 ALTER TABLE api_execution_record ADD COLUMN commit_sha VARCHAR(64) NULL;
 ALTER TABLE api_execution_record ADD COLUMN scheduled_task_id UUID NULL;
 ALTER TABLE api_execution_record ADD COLUMN summary JSONB NULL;
 CREATE INDEX idx_exec_pipeline ON api_execution_record(repo_id, pipeline_iid)
     WHERE pipeline_iid IS NOT NULL;
+CREATE INDEX idx_exec_batch ON api_execution_record(batch_id) WHERE batch_id IS NOT NULL;
 
 -- 5. api_environment 扩展（详见 docs/04-detailed-design/05-api-testing/17-environment-management-overview.md 2.1.1）
 ALTER TABLE api_environment ADD COLUMN source_id VARCHAR(500) NULL;
@@ -432,11 +484,13 @@ ALTER TABLE api_environment ADD COLUMN source_id VARCHAR(500) NULL;
 
 ### 6.2 实施顺序
 
-后端先行，前端随后，顺序为：迁移脚本 → 仓库配置接口 → 扫描解析与导入 → 引擎路由与 CI 执行 → 定时任务分组改造 → 报告聚合 → 前端页面。分批、依赖与验收门禁见《GitLab 集成开发方案与计划》（`docs/06-implementation-plan/03-api-gitlab-integration-plan.md`）。
+后端先行，前端随后，顺序为：迁移脚本 → 仓库配置接口 → 扫描解析与导入 → 引擎路由与 CI 执行 → 定时任务分组改造 → 报告聚合 → 前端页面。批次票据、CI 回调、artifact 结果回收与终态去重的实现要求见 4.2 与 4.6；依赖、阶段与验收门禁见《GitLab 集成开发方案与计划》（`docs/06-implementation-plan/03-api-gitlab-integration-plan.md`）。
 
 ### 6.3 依赖说明
 
 Java 解析引入 JavaParser（`com.github.javaparser:javaparser-core`，已确认采纳），用于结构化提取 `@Test` / `@RyzeTest` 注解与步骤模板属性，替代正则匹配；词法块注释剥离为强制前置步骤（实测 199 个方法中 6 个位于块注释内，正则无法可靠处理）。解析器收敛在内部抽象之后，若后续需替换实现不影响上游。
+
+接入方仓库的 `ryze-testng` 须 ≥ 6.1.2（该版本起原生结果导出改为 `testClass#testMethod` 信封，契约见 4.6）。平台侧解析器对信封结构容错，不与平台自身依赖的 Ryze 版本绑定。
 
 GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项目路径与令牌的调用。
 
@@ -446,3 +500,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-11 | 初始版本：GitLab 集成详细设计 |
 | V1.0 | 2026-10-11 | 模块层级改为固定深度 2（包容器 + 类模块），新增类/包改名迁移机制；新增 `gitlab_sync` 同步任务类型；明确平台模式场景不路由到流水线；确认引入 JavaParser；前端设计改指交互设计分册 |
+| V1.0 | 2026-10-11 | 执行链路改为批次票据 + CI 回调 + artifact 结果回收，取消拆批（一次任务一条流水线）；新增 CI 改造约定与结果文件契约；执行记录批次字段改为 `batch_id` / `source_ref` |
