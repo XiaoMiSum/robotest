@@ -160,6 +160,19 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_SWAGGER_URL_NOT_FOUND = ErrorCode.of(1000017601, "Swagger URL 不存在或不属于当前项目");
     public static final ErrorCode API_SWAGGER_URL_TASK_BOUND = ErrorCode.of(1000017602, "Swagger URL 被定时任务绑定无法删除，请先解除绑定");
 
+    // ========== 接口测试——GitLab 集成 1,000,017,701-1,000,017,712（706 已随批量执行移除，文档简写 77XX） ==========
+    public static final ErrorCode API_GIT_REPO_NOT_FOUND = ErrorCode.of(1000017701, "仓库配置不存在或不属于当前项目");
+    public static final ErrorCode API_GIT_REPO_CONNECT_FAILED = ErrorCode.of(1000017702, "GitLab 不可达、令牌无效或缺少 api scope");
+    public static final ErrorCode API_GIT_REPO_PATH_CONFLICT = ErrorCode.of(1000017703, "同项目下仓库路径已存在");
+    public static final ErrorCode API_GIT_PIPELINE_TRIGGER_FAILED = ErrorCode.of(1000017704, "流水线触发失败");
+    public static final ErrorCode API_GIT_PIPELINE_QUERY_FAILED = ErrorCode.of(1000017705, "流水线状态查询失败");
+    public static final ErrorCode API_GIT_SCENE_NOT_EXECUTABLE = ErrorCode.of(1000017707, "场景所属仓库被禁用或不可达");
+    public static final ErrorCode API_GIT_IMPORT_IN_PROGRESS = ErrorCode.of(1000017708, "同仓库存在进行中的导入");
+    public static final ErrorCode API_GIT_IMPORT_COMMIT_UP_TO_DATE = ErrorCode.of(1000017709, "目标分支提交与上次导入一致且无遗留错误，本次导入已跳过");
+    public static final ErrorCode API_GIT_REPO_UNREACHABLE = ErrorCode.of(1000017710, "执行阶段仓库不可达，本次执行已跳过");
+    public static final ErrorCode API_GIT_REPO_IMMUTABLE_FIELD = ErrorCode.of(1000017711, "仓库路径、默认分支与导入模式创建后不可修改");
+    public static final ErrorCode API_GIT_REPO_TASK_BOUND = ErrorCode.of(1000017712, "仓库配置被启用中的 GitLab 同步任务引用，无法删除");
+
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
     public static final ErrorCode BUG_INVALID_STATUS_TRANSITION = ErrorCode.of(1000012001, "缺陷状态流转不合法");
     public static final ErrorCode BUG_ALREADY_CLOSED = ErrorCode.of(1000012002, "缺陷已关闭，不可再修改状态");
