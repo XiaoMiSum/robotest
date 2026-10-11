@@ -329,6 +329,31 @@
 
   /* 批量移动弹窗内的模块树选择 */
   .tree-pick { max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid var(--n-100); border-radius: var(--radius-md); }
+
+  /* GitLab 导入场景：[GitLab] 来源徽标 + 源状态徽标（docs09 §1.2） */
+  .gl-src { display: inline-flex; align-items: center; margin-left: 6px; padding: 0 6px; height: 18px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; background: var(--st-warning-light); color: var(--st-warning-strong); vertical-align: middle; }
+  .src-st { display: inline-flex; align-items: center; margin-left: 6px; padding: 0 6px; height: 18px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; vertical-align: middle; cursor: pointer; }
+  .src-st--warn { background: var(--st-warning-light); color: var(--st-warning-strong); }
+  .src-st--danger { background: var(--st-danger-light); color: var(--st-danger-strong); }
+
+  /* gitlab_ci 场景编排只读形态（docs10 §1.9）：进入同一编排页，无编辑控件，主体为只读信息区 + 用例清单 */
+  .ci-name { font-weight: 600; color: var(--n-900); }
+  .ci-demo { display: inline-flex; align-items: center; gap: 8px; margin-left: var(--space-sm); font-size: var(--font-size-xs); color: var(--n-400); }
+  .ci-run { font-size: var(--font-size-xs); font-weight: 600; }
+  .ci-run--idle { color: var(--n-400); }
+  .ci-run--running { color: var(--st-warning-strong); }
+  .ci-run--success { color: var(--st-success-strong); }
+  .ci-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-sm) var(--space-md); padding: 14px 16px 0; }
+  .ci-info__k { font-size: var(--font-size-xs); color: var(--n-400); }
+  .ci-info__v { margin-top: 2px; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); display: flex; align-items: center; gap: 6px; }
+  .ci-info__v a { color: var(--brand-500); text-decoration: none; }
+  .ci-info__v a:hover { text-decoration: underline; }
+  .ci-cases { padding: 10px 16px 14px; }
+  .ci-cases__head { display: flex; align-items: baseline; gap: var(--space-sm); padding-bottom: 8px; }
+  .ci-cases__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
+  .ci-cases__count { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ci-cases__file { font-size: var(--font-size-xs); }
+  .ci-hint { margin: 10px 0 0; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -355,6 +380,7 @@
         <div class="ws-tab is-active" data-pane="list"><span>全部场景</span></div>
         <div class="ws-tab" data-name="下单成功主链路"><span>下单成功主链路</span><span class="ws-tab__close" data-close>×</span></div>
         <div class="ws-tab" data-name="支付回调重放"><span>支付回调重放</span><span class="ws-tab__close" data-close>×</span></div>
+        <div class="ws-tab" data-name="订单回归-替换下单" data-ci="1"><span>订单回归-替换下单</span><span class="ws-tab__close" data-close>×</span></div>
         <div class="ws-tabs__actions">
           <button type="button" class="btn btn--primary btn--sm" id="btn-new-scene"><span data-icon="plus"></span>新建场景</button>
         </div>
@@ -373,6 +399,7 @@
               <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索场景名称"></div>
               <select class="select" style="width:130px"><option>执行状态</option><option>执行成功</option><option>执行失败</option><option>未执行</option></select>
               <select class="select" style="width:130px"><option>发布状态</option><option>草稿</option><option>已发布</option></select>
+              <select class="select" style="width:130px" id="flt-source"><option value="all">来源</option><option value="platform">平台原生</option><option value="gitlab">GitLab 导入</option></select>
               <div class="toolbar__actions">
                 <button class="btn btn--primary btn--sm" data-ux-feedback="已按当前条件查询" data-ux-feedback-type="success"><span data-icon="search"></span>查询</button>
                 <button class="btn btn--default btn--sm" data-ux-reset-filters>重置</button>
@@ -474,7 +501,7 @@
                     <td class="num">2026-09-19 15:22</td>
                     <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
                   </tr>
-                  <tr>
+                  <tr data-source="platform">
                     <td><span class="checkbox"></span></td>
                     <td><span class="star" data-icon="star"></span></td>
                     <td class="cell-main"><span class="text-brand">冒烟 · 核心接口</span></td>
@@ -485,6 +512,34 @@
                     <td><span class="tag tag--warning">执行中</span></td>
                     <td class="num">2026-09-22 15:10</td>
                     <td class="num">2026-09-20 10:03</td>
+                    <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
+                  </tr>
+                  <!-- GitLab 平台模式导入（docs09 §1.2）：复用平台原生能力，附加来源与源状态徽标 -->
+                  <tr data-source="gitlab">
+                    <td><span class="checkbox"></span></td>
+                    <td><span class="star" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">下单全链路回归</span><span class="gl-src" title="仓库 qa/order-api-tests · 点击跳转 GitLab 集成页「导入」页签">GitLab</span><span class="src-st src-st--warn" title="源码已有更新，点击跳转 GitLab 集成页">源已变更</span></td>
+                    <td>下单主流程</td>
+                    <td style="text-align:center"><span class="prio-badge prio-p1">P1</span></td>
+                    <td class="num" style="text-align:center">6</td>
+                    <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
+                    <td><span class="tag tag--success">成功</span></td>
+                    <td class="num">2026-10-11 14:36</td>
+                    <td class="num">2026-10-11 14:32</td>
+                    <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
+                  </tr>
+                  <!-- GitLab 流水线模式导入（docs10 §1.9）：[编辑] 进入同一编排页，页面只读形态 -->
+                  <tr data-source="gitlab" data-ci-row>
+                    <td><span class="checkbox"></span></td>
+                    <td><span class="star" data-icon="star"></span></td>
+                    <td class="cell-main"><span class="text-brand">订单回归-替换下单</span><span class="gl-src" title="仓库 qa/order-api-tests · 点击跳转 GitLab 集成页「导入」页签">GitLab</span></td>
+                    <td>订单回归</td>
+                    <td style="text-align:center" class="num">—</td>
+                    <td class="num" style="text-align:center">—</td>
+                    <td style="text-align:center"><span class="publish publish--on">已发布</span></td>
+                    <td><span class="tag tag--neutral">未执行</span></td>
+                    <td class="num" style="color:var(--n-400)">—</td>
+                    <td class="num">2026-10-11 14:32</td>
                     <td><span class="op-link">编辑</span><span class="more-caret" data-more="row">更多 ▾</span></td>
                   </tr>
                 </tbody>
@@ -1205,6 +1260,67 @@
 
           <div class="ed-footer">
             自动保存已开启
+          </div>
+        </div>
+      </div>
+
+      <!-- gitlab_ci 导入场景：进入同一编排页（路由 / 页签不变），页面整体只读形态（docs10 §1.9） -->
+      <div class="ws-pane" data-pane="edit-ci" hidden>
+        <div class="scene-ed">
+          <!-- 顶部导航栏只读形态：仅面包屑信息 + 徽标 + [流水线运行]，无环境选择与保存 / 删除入口 -->
+          <div class="card ed-nav">
+            <span class="ci-name">订单回归-替换下单</span>
+            <span style="font-size:var(--font-size-sm);color:var(--n-500)">订单回归</span>
+            <span class="ed-status ed-status--on">已发布</span>
+            <span class="gl-src" title="仓库 qa/order-api-tests · 点击跳转 GitLab 集成页「导入」页签">GitLab</span>
+            <span class="src-st" id="ci-src-badge" hidden></span>
+            <div class="ed-nav__spacer"></div>
+            <span class="ci-run ci-run--idle" id="ci-run-state">待执行</span>
+            <button class="btn btn--primary btn--sm" id="btn-ci-run" title="触发 GitLab 流水线执行">▶ 流水线运行</button>
+            <!-- 演示专用：切换源状态分支（docs10 §1.9 源状态规则），非产品控件 -->
+            <span class="ci-demo" id="ci-demo">
+              <span>源状态</span>
+              <span class="segment">
+                <span class="segment__item segment__item--active" data-ci-state="in_sync">已同步</span>
+                <span class="segment__item" data-ci-state="source_changed">源已变更</span>
+                <span class="segment__item" data-ci-state="repo_unreachable">仓库不可达</span>
+              </span>
+            </span>
+          </div>
+
+          <div class="alert alert--warning" id="ci-source-alert" hidden>
+            <span data-icon="alert-triangle"></span>
+            <span id="ci-source-alert-text"></span>
+          </div>
+
+          <div class="card ed-body">
+            <!-- 只读信息区：源引用 / 仓库可跳转仓库侧文件 -->
+            <div class="ci-info">
+              <div><div class="ci-info__k">所属模块</div><div class="ci-info__v">订单回归</div></div>
+              <div><div class="ci-info__k">来源类型</div><div class="ci-info__v">GitLab 流水线 <span class="tag tag--outline tag--sm mono">gitlab_ci</span></div></div>
+              <div><div class="ci-info__k">仓库</div><div class="ci-info__v"><a href="#" onclick="return false">qa/order-api-tests ↗</a></div></div>
+              <div><div class="ci-info__k">默认分支</div><div class="ci-info__v mono">master</div></div>
+              <div><div class="ci-info__k">源引用</div><div class="ci-info__v"><a href="#" onclick="return false">com.x.order.OrderApiTest#replaceOrder ↗</a></div></div>
+            </div>
+
+            <!-- 步骤编排区替换为用例清单：仅展示、不可勾选执行（docs10 §1.9 主体区域） -->
+            <div class="ci-cases">
+              <div class="ci-cases__head">
+                <span class="ci-cases__title">用例清单</span>
+                <span class="ci-cases__count">共 3 个用例</span>
+              </div>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead><tr><th style="width:180px">方法名</th><th style="width:240px">用例名称（@Test description）</th><th>源文件</th></tr></thead>
+                  <tbody>
+                    <tr><td class="mono">replaceOrder</td><td>订单替换-PC端</td><td class="mono ci-cases__file">src/test/java/com/x/order/OrderApiTest.java ↗</td></tr>
+                    <tr><td class="mono">queryOrder</td><td>订单查询-列表</td><td class="mono ci-cases__file">src/test/java/com/x/order/OrderApiTest.java ↗</td></tr>
+                    <tr><td class="mono">cancelOrder</td><td>订单取消-超时兜底</td><td class="mono ci-cases__file">src/test/java/com/x/order/OrderApiTest.java ↗</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="dlg-hint ci-hint">只读形态：不提供步骤编排、场景变量与处理器编辑，隐藏 [保存] / [保存草稿] / [删除] 与环境选择；用例与步骤的维护一律在仓库侧完成。</p>
+            </div>
           </div>
         </div>
       </div>
@@ -2319,6 +2435,7 @@ Content-Type: application/json
     var tabsBar = document.querySelector('.ws-tabs');
     var listPane = document.querySelector('.ws-pane[data-pane="list"]');
     var editorPane = document.querySelector('.ws-pane[data-pane="edit"]');
+    var ciPane = document.querySelector('.ws-pane[data-pane="edit-ci"]');
     var nameInput = editorPane.querySelector('.ed-nav input');
     var edStatus = editorPane.querySelector('.ed-status');
     var edPrio = editorPane.querySelector('.ed-prio');
@@ -2328,9 +2445,12 @@ Content-Type: application/json
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
       var isList = tab.getAttribute('data-pane') === 'list';
+      // gitlab_ci 场景复用同一编排页，仅切换为只读形态面板（docs10 §1.9），不新增独立视图
+      var isCI = tab.getAttribute('data-ci') === '1';
       listPane.hidden = !isList;
-      editorPane.hidden = isList;
-      if (isList) return;
+      editorPane.hidden = isList || isCI;
+      ciPane.hidden = isList || !isCI;
+      if (isList || isCI) return;
       var isNew = tab.getAttribute('data-new') === '1';
       nameInput.value = isNew ? '' : (tab.getAttribute('data-name') || '');
       // 新建态没有发布状态、优先级与删除入口
@@ -2340,7 +2460,7 @@ Content-Type: application/json
     }
 
     // 打开编排 Tab；同名场景复用已打开的 Tab（openEdit 的去重口径）
-    function openTab(name, isNew) {
+    function openTab(name, isNew, isCI) {
       var found = null;
       tabsBar.querySelectorAll('.ws-tab[data-name]').forEach(function (t) {
         if (t.getAttribute('data-name') === name) found = t;
@@ -2350,6 +2470,7 @@ Content-Type: application/json
         found.className = 'ws-tab';
         found.setAttribute('data-name', name);
         if (isNew) found.setAttribute('data-new', '1');
+        if (isCI) found.setAttribute('data-ci', '1');
         found.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
         found.firstElementChild.textContent = name;
         // 插到「新建场景」按钮之前，保证新建入口紧跟最后一个页签
@@ -2377,7 +2498,7 @@ Content-Type: application/json
       if (!edit) return;
       edit.addEventListener('click', function () {
         var nameEl = tr.querySelector('.cell-main .text-brand');
-        openTab(nameEl ? nameEl.textContent.trim() : '场景', false);
+        openTab(nameEl ? nameEl.textContent.trim() : '场景', false, tr.hasAttribute('data-ci-row'));
       });
     });
 
@@ -2395,6 +2516,72 @@ Content-Type: application/json
         activate(tabsBar.querySelector('.ws-tab'));
       }
     };
+  })();
+</script>
+<script>
+  /* ---------------- gitlab_ci 场景只读形态演示（docs10 §1.9）：源状态切换 + 流水线执行 ---------------- */
+  (function () {
+    var runBtn = document.getElementById('btn-ci-run');
+    var runStateEl = document.getElementById('ci-run-state');
+    var badge = document.getElementById('ci-src-badge');
+    var alertEl = document.getElementById('ci-source-alert');
+    var alertText = document.getElementById('ci-source-alert-text');
+    var unreachable = false;
+    var running = false;
+
+    function toast(msg, type) { if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {}); }
+
+    document.querySelectorAll('#ci-demo .segment__item').forEach(function (el) {
+      el.addEventListener('click', function () {
+        document.querySelectorAll('#ci-demo .segment__item').forEach(function (x) { x.classList.remove('segment__item--active'); });
+        el.classList.add('segment__item--active');
+        var s = el.getAttribute('data-ci-state');
+        unreachable = (s === 'repo_unreachable');
+        // 源状态徽标只在异常态出现（docs09 §1.2：取值为源已变更 / 解析失败 / 来源已移除 / 仓库不可达）
+        if (s === 'in_sync') {
+          badge.hidden = true;
+          alertEl.hidden = true;
+        } else {
+          badge.hidden = false;
+          badge.textContent = unreachable ? '仓库不可达' : '源已变更';
+          badge.className = 'src-st ' + (unreachable ? 'src-st--danger' : 'src-st--warn');
+          alertEl.hidden = false;
+          alertText.textContent = unreachable
+            ? '仓库不可达：[流水线运行] 已置灰，源引用不可跳转仓库侧文件'
+            : '源码已有更新，当前展示为上次导入的快照；不阻断查看与流水线执行';
+        }
+        runBtn.disabled = unreachable || running;
+      });
+    });
+
+    runBtn.addEventListener('click', function () {
+      if (runBtn.disabled) return;
+      running = true;
+      runBtn.disabled = true;
+      runStateEl.textContent = '执行中';
+      runStateEl.className = 'ci-run ci-run--running';
+      toast('场景「订单回归-替换下单」流水线执行已启动', 'success');
+      setTimeout(function () {
+        running = false;
+        runStateEl.textContent = '执行成功';
+        runStateEl.className = 'ci-run ci-run--success';
+        runBtn.disabled = unreachable;
+        toast('流水线执行完成：通过 3 · 失败 0', 'success');
+      }, 2500);
+    });
+  })();
+</script>
+<script>
+  /* ---------------- [来源] 筛选（docs09 §1.2）：无 data-source 的存量行视为平台原生 ---------------- */
+  (function () {
+    var sel = document.getElementById('flt-source');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.ws-pane[data-pane="list"] tbody tr'));
+    sel.addEventListener('change', function () {
+      var v = sel.value;
+      rows.forEach(function (tr) {
+        tr.hidden = (v !== 'all') && ((tr.getAttribute('data-source') || 'platform') !== v);
+      });
+    });
   })();
 </script>
 </body>
