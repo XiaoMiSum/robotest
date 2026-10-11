@@ -282,7 +282,7 @@
 | 1000017708 | API_GIT_IMPORT_IN_PROGRESS | 同仓库存在进行中的导入 |
 | 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支提交与上次导入一致且无遗留错误，导入被跳过 |
 | 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，按跳过留痕处理，无降级路径 |
-| 1000017711 | API_GIT_REPO_MODE_IMMUTABLE | 仓库导入模式创建后不可修改 |
+| 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 
 > `1000017701`–`1000017712` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
