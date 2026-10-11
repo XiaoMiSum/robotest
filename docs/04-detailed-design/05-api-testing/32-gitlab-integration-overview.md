@@ -155,6 +155,9 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
   "defaultBranch": "master",
   "importMode": "platform",
   "enabled": true,
+  "testSourceDir": "src/test/java",
+  "resourceDir": "src/test/resources",
+  "envFilePath": "common/env/env.yaml",
   "lastImportAt": "2026-10-11T10:20:30+08:00",
   "lastImportCommit": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
   "lastImportSummary": { "created": 193, "updated": 12, "parseFailed": 0, "errorFailed": 0, "skipped": 0 },
@@ -542,3 +545,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | 新增源探查服务（3.7）与 `api_git_repo` 探查列（`head_commit` / `head_checked_at` / `head_probe_status`）；「源有更新」改为仓库级派生标记，场景级 `source_changed` 取值废止 |
 | V1.0 | 2026-10-11 | 6.1 迁移 SQL 补齐 `api_git_repo` 探查三列，与 2.1.1 表定义对齐 |
 | V1.0 | 2026-10-11 | 连通性测试改为无 `repoId` 端点 `/connections/test`（空态可调、缺省字段回落库值），补充测试报文示例；创建 / 更新与测试一律强制实测通过，失败原因须可区分 |
+| V1.0 | 2026-10-11 | 仓库配置响应示例补齐 `testSourceDir` / `resourceDir` / `envFilePath`（编辑态需回显可改的目录字段，与需求 F1.1 修改配置口径一致） |
