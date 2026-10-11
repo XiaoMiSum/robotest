@@ -419,8 +419,8 @@
     var ro = state.readonly;
     $('#gl-readonly-note').hidden = !ro;
     $all('#gl-form input, #gl-form button').forEach(function (el) { el.disabled = ro; });
-    $('#gl-test').hidden = ro;
-    $('#gl-save').hidden = ro;
+    // 只读态整行不渲染，避免留下无按钮的分隔线
+    $('.gl-actions').hidden = ro;
     $('#gl-more').hidden = ro;
     if (ro) closeMenu();
     applyMode();
