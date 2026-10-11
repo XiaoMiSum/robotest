@@ -44,6 +44,8 @@
   .gl-form .field { margin-bottom: var(--space-md); }
   .gl-form .field > .input { max-width: 100%; }
   .gl-actions { display: flex; align-items: center; gap: var(--space-sm); padding-top: var(--space-md); margin-top: var(--space-sm); border-top: 1px solid var(--n-100); }
+  /* 保存为表单主提交动作，固定右侧末端；连通性测试与结果留在左侧 */
+  .gl-actions .btn--primary { margin-left: auto; }
   .conn-result { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); }
   .conn-result--ok { color: var(--st-success-strong); }
   .conn-result--fail { color: var(--st-danger-strong); }
