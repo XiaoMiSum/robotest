@@ -23,6 +23,7 @@
 | 层 | 文档 | 用途 |
 | ---- | ---- | ---- |
 | 需求 | `docs/01-requirements/05-api-testing/11-api-srs-gitlab-integration.md` | 功能行为、业务规则与验收口径 |
+| 需求（改） | `docs/01-requirements/05-api-testing/08-api-srs-scheduled-task.md` | 「GitLab 同步」任务类型取值与执行记录字段口径 |
 | 概要 | `docs/02-high-level-design/05-api-testing/11-hld-api-gitlab-integration.md` | 模块职责边界与核心机制 |
 | 详细 | `docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` | DDL、接口、错误码、业务逻辑 |
 | 详细（改） | `docs/04-detailed-design/05-api-testing/27-scheduled-task-scheduler.md` | 定时任务分组与完成判据 |
@@ -189,3 +190,4 @@ flowchart LR
 | V1.0 | 2026-10-11 | P0 前置改为 Ryze 版本与结果契约确认，移除分批阈值实测；P6/P7 工作包改为清单冻结、CI 回调与制品回收 |
 | V1.0 | 2026-10-11 | 删除批量执行与路由预览相关工作包：WP-5.1 收敛为引擎路由，WP-9.3 改为编辑页执行入口文案，P9 不再包含批次视图 |
 | V1.0 | 2026-10-11 | 新增 WP-9.4 场景展示适配前端（来源 / 源状态徽标、`gitlab_ci` 场景编排页只读形态与用例清单），批次四验收重点同步 |
+| V1.0 | 2026-10-11 | 基线文档登记定时任务需求分册，「GitLab 同步」任务类型在需求层与执行记录字段口径同步登记 |
