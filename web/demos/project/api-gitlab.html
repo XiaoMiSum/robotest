@@ -21,6 +21,9 @@
 
   .gl-conn { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: var(--font-size-xs); color: var(--n-400); padding: 5px 10px; border-radius: 999px; border: 1px solid var(--n-100); }
   .gl-conn--down { color: var(--st-warning-strong); border-color: var(--st-warning-border); background: var(--st-warning-light); cursor: pointer; }
+  /* 页签栏 [源有更新] / [探查失败] 徽标（docs27 §1、§4；docs32 §3.7 源探查） */
+  .gl-update { color: var(--st-warning-strong); border-color: var(--st-warning-border); background: var(--st-warning-light); }
+  .gl-update--fail { color: var(--st-danger-strong); border-color: var(--st-danger-border); background: var(--st-danger-light); }
   .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--n-300); }
   .dot--ok { background: var(--st-success); }
   .dot--down { background: var(--st-warning); }
@@ -59,6 +62,20 @@
   .gl-locked__k { font-size: var(--font-size-xs); color: var(--n-400); }
   .gl-locked__v { font-size: var(--font-size-sm); color: var(--n-800); font-weight: 500; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
   .gl-mode-hint { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--n-200); font-size: var(--font-size-xs); color: var(--n-500); line-height: 1.6; }
+
+  /* 导入模式创建后锁定：两选项并列成卡片，差异说明就地可见，避免只凭标题盲选一个不可逆的决定 */
+  .gl-modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm); }
+  .gl-mode { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; width: 100%; padding: 12px 14px; text-align: left; background: #fff; border: 1px solid var(--n-200); border-radius: var(--radius-md); cursor: pointer; transition: border-color .15s, background-color .15s; }
+  .gl-mode:hover:not(:disabled) { border-color: var(--brand-300); background: var(--brand-50); }
+  .gl-mode.is-active { border-color: var(--brand-500); background: var(--brand-50); box-shadow: inset 0 0 0 1px var(--brand-500); }
+  .gl-mode:disabled { cursor: not-allowed; opacity: .6; }
+  .gl-mode__head { display: flex; align-items: center; gap: var(--space-sm); width: 100%; }
+  .gl-mode__name { flex: 1; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .gl-mode.is-active .gl-mode__name { color: var(--brand-600); }
+  .gl-mode__tag { font-size: var(--font-size-xs); color: var(--n-400); }
+  .gl-mode.is-active .gl-mode__tag { color: var(--brand-500); }
+  .gl-mode__desc { font-size: var(--font-size-xs); color: var(--n-500); line-height: 1.6; }
+  @media (max-width: 700px) { .gl-modes { grid-template-columns: 1fr; } }
 
   /* 导入页签：上次导入信息常驻顶部（docs27 §3.2） */
   .gl-lastimport { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: 10px var(--space-md); background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: var(--space-md); }
@@ -126,6 +143,8 @@
             <span class="segment__item" data-state="empty">空态</span>
             <span class="segment__item" data-state="readonly">只读（无编辑权限）</span>
             <span class="segment__item" data-state="unreachable">仓库不可达</span>
+            <span class="segment__item" data-state="has-update">源有更新</span>
+            <span class="segment__item" data-state="probe-failed">探查失败</span>
           </span>
         </div>
       </div>
@@ -165,6 +184,8 @@
               </div>
             </div>
 
+            <!-- 源探查结果徽标（docs27 §1）：「源有更新」= 探查提交与上次导入不一致，导入或同步成功后自动消失（docs32 §3.7） -->
+            <span class="gl-conn gl-update" id="gl-src-update" hidden>源有更新</span>
             <span class="gl-conn" id="gl-conn" title="点击查看错误详情">连通性 <span class="dot dot--ok" id="gl-conn-dot"></span><span id="gl-conn-text">已连通</span></span>
           </div>
 
@@ -224,29 +245,46 @@
                 <div class="gl-locked__grid">
                   <div><div class="gl-locked__k">项目路径</div><div class="gl-locked__v mono">qa/order-api-tests</div></div>
                   <div><div class="gl-locked__k">默认分支</div><div class="gl-locked__v mono">master</div></div>
-                  <div><div class="gl-locked__k">导入模式</div><div class="gl-locked__v">平台模式 <span class="tag tag--outline tag--sm mono">platform</span></div></div>
+                  <div><div class="gl-locked__k">导入模式</div><div class="gl-locked__v"><span id="gl-locked-mode-name">平台模式</span> <span class="tag tag--outline tag--sm mono" id="gl-locked-mode-tag">platform</span></div></div>
                 </div>
                 <div class="gl-mode-hint" id="gl-mode-hint">平台模式：完整解析步骤与 YAML，导入后由平台引擎直接执行。</div>
               </div>
 
               <!-- 首次配置：三个锁定字段在创建时才可填 -->
-              <div class="form-grid form-grid--3" id="gl-create-fields" hidden>
-                <div class="field">
-                  <label class="field__label" for="f-path">项目路径<span class="req">*</span></label>
-                  <input class="input" id="f-path" value="" placeholder="group/subgroup/repo">
-                  <div class="field__hint">不含 .git 后缀与协议前缀</div>
+              <div id="gl-create-fields" hidden>
+                <div class="form-grid form-grid--3">
+                  <div class="field">
+                    <label class="field__label" for="f-path">项目路径<span class="req">*</span></label>
+                    <input class="input" id="f-path" value="" placeholder="group/subgroup/repo">
+                    <div class="field__hint">不含 .git 后缀与协议前缀</div>
+                  </div>
+                  <div class="field">
+                    <label class="field__label" for="f-branch">默认分支</label>
+                    <input class="input" id="f-branch" value="" placeholder="master">
+                    <div class="field__hint">缺省 master，连通性测试通过后回显实际分支名</div>
+                  </div>
                 </div>
-                <div class="field">
-                  <label class="field__label" for="f-branch">默认分支</label>
-                  <input class="input" id="f-branch" value="" placeholder="master">
-                  <div class="field__hint">缺省 master，连通性测试通过后回显实际分支名</div>
-                </div>
+
+                <!-- 该选择创建后锁定，差异说明随选项就地呈现，不依赖隐藏在只读区的提示 -->
                 <div class="field">
                   <label class="field__label">导入模式<span class="req">*</span></label>
-                  <span class="radio-seg" id="f-mode">
-                    <button type="button" class="is-active" data-mode="platform">平台模式</button>
-                    <button type="button" data-mode="gitlab_ci">流水线模式</button>
-                  </span>
+                  <div class="gl-modes" id="f-mode">
+                    <button type="button" class="gl-mode is-active" data-mode="platform">
+                      <span class="gl-mode__head">
+                        <span class="gl-mode__name">平台模式</span>
+                        <span class="gl-mode__tag mono">platform</span>
+                      </span>
+                      <span class="gl-mode__desc">完整解析步骤与 YAML，导入后由平台引擎直接执行</span>
+                    </button>
+                    <button type="button" class="gl-mode" data-mode="gitlab_ci">
+                      <span class="gl-mode__head">
+                        <span class="gl-mode__name">流水线模式</span>
+                        <span class="gl-mode__tag mono">gitlab_ci</span>
+                      </span>
+                      <span class="gl-mode__desc">仅建场景圈选载体，执行由 GitLab 流水线完成，平台不读取步骤与环境</span>
+                    </button>
+                  </div>
+                  <div class="field__hint">创建后不可修改，变更绑定仓库或导入模式须先删除再重建</div>
                 </div>
               </div>
 
@@ -378,12 +416,14 @@
 <script src="../assets/ux.js"></script>
 <script>
   // 一项目一仓库：无列表、无新增入口；执行不在本页发生（docs27 §1）
-  var state = { view: 'configured', tab: 'basic', mode: 'platform', creating: false, readonly: false, unreachable: false };
+  var state = { view: 'configured', tab: 'basic', mode: 'platform', creating: false, readonly: false, unreachable: false, hasUpdate: false, probeFailed: false };
 
   function $(s) { return document.querySelector(s); }
   function $all(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
   function toast(msg, type) { if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {}); }
   function closeMenu() { $('#gl-more-menu').hidden = true; }
+
+  var MODE_NAME = { platform: '平台模式', gitlab_ci: '流水线模式' };
 
   var MODE_TEXT = {
     platform: '平台模式：完整解析步骤与 YAML，导入后由平台引擎直接执行。',
@@ -402,6 +442,8 @@
     $('#f-token-req').textContent = state.creating ? '（必填）' : '';
 
     $('#gl-mode-hint').textContent = MODE_TEXT[state.mode];
+    $('#gl-locked-mode-name').textContent = MODE_NAME[state.mode];
+    $('#gl-locked-mode-tag').textContent = state.mode;
 
     var connText = state.unreachable ? '不可达' : '已连通';
     $('#gl-conn-text').textContent = connText;
@@ -409,6 +451,13 @@
     // 失败时徽标转告警色并可点击展开错误详情（docs27 §1 布局规则）
     $('#gl-conn').className = 'gl-conn' + (state.unreachable ? ' gl-conn--down' : '');
     if (!state.unreachable) $('#gl-conn-detail').hidden = true;
+
+    // 源探查结果徽标（docs27 §4）：探查失败转告警态并保留上次探查时间，不提供手动重试入口
+    var srcEl = $('#gl-src-update');
+    srcEl.hidden = !(state.hasUpdate || state.probeFailed);
+    srcEl.className = 'gl-conn gl-update' + (state.probeFailed ? ' gl-update--fail' : '');
+    srcEl.textContent = state.probeFailed ? '探查失败' : '源有更新';
+    srcEl.title = state.probeFailed ? '上次探查 10:15 失败 · 下周期自动重试' : '默认分支有新提交，导入或同步后生效并自动消失';
 
     applyMode();
     applyReadonly();
@@ -475,6 +524,8 @@
       state.view = (s === 'empty') ? 'empty' : 'configured';
       state.readonly = (s === 'readonly');
       state.unreachable = (s === 'unreachable');
+      state.hasUpdate = (s === 'has-update');
+      state.probeFailed = (s === 'probe-failed');
       if (s === 'empty') state.creating = false;
       $all('#gl-demo-state .segment__item').forEach(function (x) { x.classList.remove('segment__item--active'); });
       el.classList.add('segment__item--active');
