@@ -125,7 +125,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | `/api/project/git-repos` | POST | 创建仓库配置，`importMode` 必填 | `api-env:edit` |
 | `/api/project/git-repos/{repoId}` | PUT | 更新配置；`repoPath` / `defaultBranch` / `importMode` 不在请求体中接受，出现即返回 `1000017711`；变更绑定仓库须走 DELETE 后重建 | `api-env:edit` |
 | `/api/project/git-repos/{repoId}` | DELETE | 逻辑删除；其下已导入场景保留但 `source_status` 置为 `repo_removed`。存在启用中的 `gitlab_sync` 定时任务时拒绝删除，返回 `1000017712` | `api-env:edit` |
-| `/api/project/git-repos/{repoId}/connections/test` | POST | 连通性测试（GitLab 版本 + 目标分支可达性 + 令牌 scope 校验） | `api-env:view` |
+| `/api/project/git-repos/connections/test` | POST | 连通性测试（GitLab 版本 + 目标分支可达性 + 令牌 scope 校验）。不依赖 `repoId`，保存前的空态亦可调用；body 字段缺省时回落已存配置（一项目一仓库按 `projectId` 取），不落库 | `api-env:view` |
 
 **创建请求示例**
 
@@ -167,6 +167,29 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 
 `hasUpdates` 为服务端派生（`headCommit != lastImportCommit`，任一为 NULL 时为 `false`），前端不自行比对提交号。
 
+**连通性测试请求示例**（空态保存前测试只传表单字段；已配置态可省略字段回落库值；响应仅在全部通过时返回）
+
+```json
+{
+  "gitlabBaseUrl": "https://gitlab.example.com",
+  "repoPath": "qa/order-api-tests",
+  "defaultBranch": "master",
+  "token": "glpat-xxxxxxxx"
+}
+```
+
+**连通性测试响应示例（`data`）**
+
+```json
+{
+  "reachable": true,
+  "tokenValid": true,
+  "branchExists": true,
+  "version": "17.5.1",
+  "resolvedBranch": "master"
+}
+```
+
 **校验规则**
 
 | 规则 | 错误码 |
@@ -174,7 +197,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | `repoPath` 非空且不含 `.git` 后缀与 `http(s)://` 前缀 | 1000017701 |
 | 同项目下 `repoPath` 唯一 | 1000017703 |
 | `importMode` 取值仅 `platform` / `gitlab_ci`；`repoPath` / `defaultBranch` / `importMode` 创建后无更新入口 | 1000017711 |
-| `token` 非空且连接测试通过 | 1000017702 |
+| `token` 非空；创建 / 更新 / 连通性测试一律以实测通过为准（实例可达、令牌有效且具 `api` scope、目标分支存在），任一不满足 | 1000017702；失败原因须可区分实例不可达 / 令牌无效 / 分支不存在 |
 
 ### 3.2 导入与解析
 
@@ -518,3 +541,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | `gitlab_ci` 场景详情返回契约修正：用例信息恒为单条（场景与测试方法一一对应，`source_ref` 即单个方法），废止「用例清单」表述 |
 | V1.0 | 2026-10-11 | 新增源探查服务（3.7）与 `api_git_repo` 探查列（`head_commit` / `head_checked_at` / `head_probe_status`）；「源有更新」改为仓库级派生标记，场景级 `source_changed` 取值废止 |
 | V1.0 | 2026-10-11 | 6.1 迁移 SQL 补齐 `api_git_repo` 探查三列，与 2.1.1 表定义对齐 |
+| V1.0 | 2026-10-11 | 连通性测试改为无 `repoId` 端点 `/connections/test`（空态可调、缺省字段回落库值），补充测试报文示例；创建 / 更新与测试一律强制实测通过，失败原因须可区分 |
