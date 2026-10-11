@@ -8,36 +8,55 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 整页单面板（docs27 §1）：一项目一仓库，不设列表与新增入口 */
+  /* 整页单面板（docs27 §1）：一项目一仓库，不设列表与新增入口，执行不在本页发生 */
   .gl-page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .gl-card { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
 
-  /* 页签栏常驻连通性徽标（docs27 §1 布局规则） */
-  .gl-tabs { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: var(--space-sm); margin: 0 calc(0px - var(--space-lg)); padding: 0 var(--space-lg); background: #fff; border-bottom: 1px solid var(--n-100); }
+  /* 页签栏常驻连通性徽标，右侧 [⋯] 承载删除（docs27 §1 布局规则） */
+  .gl-tabs { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--space-sm); margin: 0 calc(0px - var(--space-lg)); padding: 0 var(--space-lg); background: #fff; border-bottom: 1px solid var(--n-100); }
   .gl-tabs__list { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; }
   .gl-tab { display: inline-flex; align-items: center; gap: 6px; padding: 14px; margin-bottom: -1px; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; border-radius: var(--radius-md) var(--radius-md) 0 0; cursor: pointer; white-space: nowrap; }
   .gl-tab:hover { color: var(--n-700); background: var(--n-50); }
   .gl-tab.is-active { color: var(--brand-500); font-weight: 600; background: none; border-bottom-color: var(--brand-500); }
+
   .gl-conn { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: var(--font-size-xs); color: var(--n-400); padding: 5px 10px; border-radius: 999px; border: 1px solid var(--n-100); }
   .gl-conn--down { color: var(--st-warning-strong); border-color: var(--st-warning-border); background: var(--st-warning-light); cursor: pointer; }
   .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--n-300); }
   .dot--ok { background: var(--st-success); }
   .dot--down { background: var(--st-warning); }
 
+  /* [⋯] 更多菜单：删除属低频高影响操作，不与保存平级 */
+  .gl-more { position: relative; flex-shrink: 0; }
+  .gl-more__btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #fff; color: var(--n-500); cursor: pointer; }
+  .gl-more__btn:hover { background: var(--n-50); color: var(--n-700); }
+  .gl-menu { position: absolute; right: 0; top: 34px; z-index: 4; width: 268px; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); box-shadow: 0 8px 24px rgba(15,23,42,.10); padding: 6px; }
+  .gl-menu__item { display: block; width: 100%; text-align: left; padding: 8px 10px; font-size: var(--font-size-sm); border: none; border-radius: var(--radius-md); background: none; cursor: pointer; }
+  .gl-menu__item--danger { color: var(--st-danger-strong); }
+  .gl-menu__item--danger:hover { background: var(--st-danger-light); }
+  .gl-menu__hint { padding: 4px 10px 6px; font-size: var(--font-size-xs); color: var(--n-400); line-height: 1.5; }
+
   .gl-panel { display: none; }
   .gl-panel.is-active { display: block; padding-top: var(--space-lg); }
 
-  /* 表单：整页宽度下用三列铺开，控件不拉满；窄窗口降为两列保证提示可读 */
-  .gl-form .form-grid--3 { grid-template-columns: repeat(2, 1fr); }
+  /* 表单：窄窗口两列，宽窗口三列 */
+  .gl-form .form-grid { grid-template-columns: repeat(2, 1fr); }
   @media (min-width: 1100px) { .gl-form .form-grid--3 { grid-template-columns: repeat(3, 1fr); } }
   .gl-form .field { margin-bottom: var(--space-md); }
   .gl-form .field > .input { max-width: 100%; }
   .gl-actions { display: flex; align-items: center; gap: var(--space-sm); padding-top: var(--space-md); margin-top: var(--space-sm); border-top: 1px solid var(--n-100); }
-  .gl-actions > :last-child { margin-left: auto; }
   .conn-result { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); }
   .conn-result--ok { color: var(--st-success-strong); }
   .conn-result--fail { color: var(--st-danger-strong); }
   .conn-result--loading { color: var(--n-500); }
+
+  /* 创建后锁定字段：只读文本呈现，不渲染为禁用输入框（docs26 视觉规范 / docs27 §3.1） */
+  .gl-locked { border: 1px solid var(--n-100); border-radius: var(--radius-md); background: var(--n-50); padding: 12px var(--space-md); margin-bottom: var(--space-md); }
+  .gl-locked__head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: 10px; }
+  .gl-locked__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); flex: 1; }
+  .gl-locked__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-sm) var(--space-md); }
+  .gl-locked__k { font-size: var(--font-size-xs); color: var(--n-400); }
+  .gl-locked__v { font-size: var(--font-size-sm); color: var(--n-800); font-weight: 500; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+  .gl-mode-hint { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--n-200); font-size: var(--font-size-xs); color: var(--n-500); line-height: 1.6; }
 
   /* 导入页签：上次导入信息常驻顶部（docs27 §3.2） */
   .gl-lastimport { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: 10px var(--space-md); background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: var(--space-md); }
@@ -63,34 +82,6 @@
   .gl-stages .progress { flex: 1; min-width: 200px; }
 
   .gl-toolbar { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
-
-  /* 执行页签：场景执行入口示意（docs27 §5.1） */
-  .gl-engine-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-md); }
-  .gl-engine { border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: var(--space-md); background: #fff; }
-  .gl-engine__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
-  .gl-engine__src { margin-top: 4px; font-size: var(--font-size-xs); color: var(--n-400); }
-  .gl-engine__btns { margin-top: var(--space-md); display: flex; gap: var(--space-sm); }
-
-  /* 批次进度视图（docs27 §5.2） */
-  .gl-group { border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: var(--space-md); margin-bottom: var(--space-md); }
-  .gl-group__head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-sm); }
-  .gl-group__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
-  .gl-group__meta { font-size: var(--font-size-xs); color: var(--n-400); }
-  .gl-group__meta a { font-weight: 600; }
-  .gl-group .progress { flex: 1; min-width: 120px; }
-  .gl-run { display: flex; align-items: center; gap: var(--space-sm); padding: 7px 0; border-top: 1px solid var(--n-100); font-size: var(--font-size-sm); }
-  .gl-run__name { flex: 1; min-width: 0; color: var(--n-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .gl-run__time { width: 52px; text-align: right; color: var(--n-400); font-size: var(--font-size-xs); }
-  .gl-summary-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md); background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); }
-  .gl-summary-bar__text { flex: 1; min-width: 240px; font-size: var(--font-size-sm); color: var(--n-600); }
-  .gl-summary-bar__text b { color: var(--n-800); }
-
-  /* 路由预览弹窗（docs27 §2.3）：确认的是分组结果而非引擎选择 */
-  .gl-route { display: flex; flex-direction: column; gap: var(--space-sm); }
-  .gl-route__row { display: flex; align-items: center; gap: var(--space-sm); padding: 12px var(--space-md); border: 1px solid var(--n-100); border-radius: var(--radius-md); }
-  .gl-route__label { width: 82px; flex-shrink: 0; font-size: var(--font-size-xs); color: var(--n-400); }
-  .gl-route__val { flex: 1; min-width: 0; font-size: var(--font-size-sm); color: var(--n-800); font-weight: 500; }
-  .gl-route__link { flex-shrink: 0; }
 
   /* 空态：整页居中引导 + 前置要求清单（docs27 §4） */
   .gl-reqs { list-style: none; margin: var(--space-md) 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; text-align: left; max-width: 420px; }
@@ -124,7 +115,7 @@
       <div class="page-head">
         <div>
           <h1 class="page-head__title">GitLab 集成</h1>
-          <p class="page-head__desc">维护代码仓库配置并将 Maven 测试工程导入为接口测试场景；导入模式为「流水线模式」的场景由 GitLab 流水线执行，结果自动归集到平台报告</p>
+          <p class="page-head__desc">维护本项目与 GitLab 仓库的绑定，并将 Maven 测试工程中的测试方法导入为接口测试场景。执行不在本页发生，由场景侧执行入口承载</p>
         </div>
         <div class="page-head__actions">
           <!-- 演示专用：切换 docs27 §4 要求的状态分支，非产品控件 -->
@@ -139,7 +130,7 @@
 
       <div class="gl-page">
 
-        <!-- 空态：整页居中引导（docs27 §1 / §4），无列表、无新增入口 -->
+        <!-- 空态：整页居中引导（docs27 §1 / §4） -->
         <div class="gl-card" id="gl-empty" hidden>
           <div class="state-block" style="padding:56px 0">
             <span class="state-block__icon"><span data-icon="connection"></span></span>
@@ -161,8 +152,17 @@
             <div class="gl-tabs__list">
               <button class="gl-tab is-active" data-gl-tab="basic">基础配置</button>
               <button class="gl-tab" data-gl-tab="import">导入</button>
-              <button class="gl-tab" data-gl-tab="exec">执行</button>
             </div>
+
+            <!-- 删除不与保存平级：移入 [⋯] 更多菜单（docs27 §1 布局规则） -->
+            <div class="gl-more" id="gl-more">
+              <button class="gl-more__btn" id="gl-more-btn" title="更多操作">⋯</button>
+              <div class="gl-menu" id="gl-more-menu" hidden>
+                <button class="gl-menu__item gl-menu__item--danger" id="gl-menu-delete">删除配置</button>
+                <div class="gl-menu__hint">变更绑定仓库或导入模式须先删除再重建</div>
+              </div>
+            </div>
+
             <span class="gl-conn" id="gl-conn" title="点击查看错误详情">连通性 <span class="dot dot--ok" id="gl-conn-dot"></span><span id="gl-conn-text">已连通</span></span>
           </div>
 
@@ -191,16 +191,11 @@
                   <div class="field__hint">仅 http/https，结尾不留 / · 支持自建实例</div>
                 </div>
                 <div class="field">
-                  <label class="field__label" for="f-path">项目路径<span class="req">*</span></label>
-                  <input class="input" id="f-path" value="qa/order-api-tests">
-                  <div class="field__hint">形如 group/subgroup/repo，不含 .git 后缀与协议前缀</div>
+                  <label class="field__label" for="f-token">访问令牌<span class="req" id="f-token-req"></span></label>
+                  <input class="input" id="f-token" type="password" value="" placeholder="仅写不读，留空表示不修改">
+                  <div class="field__hint">需 <code class="mono">api</code> scope 与仓库读取权限；仅写不读，不回显、不落本地存储</div>
                 </div>
 
-                <div class="field">
-                  <label class="field__label" for="f-branch">默认分支</label>
-                  <input class="input" id="f-branch" value="master">
-                  <div class="field__hint">缺省 master，连通性测试通过后回显实际分支名</div>
-                </div>
                 <div class="field">
                   <label class="field__label" for="f-srcdir">测试源码目录</label>
                   <input class="input" id="f-srcdir" value="src/test/java">
@@ -211,20 +206,6 @@
                   <input class="input" id="f-resdir" value="src/test/resources">
                   <div class="field__hint">缺省 src/test/resources</div>
                 </div>
-
-                <div class="field">
-                  <label class="field__label">导入模式<span class="req">*</span> <span class="tag tag--outline tag--sm">创建后不可修改</span></label>
-                  <span class="radio-seg" id="f-mode">
-                    <button type="button" class="is-active" data-mode="platform">平台模式</button>
-                    <button type="button" data-mode="gitlab_ci">流水线模式</button>
-                  </span>
-                  <div class="field__hint">平台模式：完整解析步骤与 YAML，导入后由平台引擎直接执行<br>流水线模式：仅建场景圈选载体，执行由 GitLab 流水线完成，平台不读取步骤与环境</div>
-                </div>
-                <div class="field">
-                  <label class="field__label" for="f-token">访问令牌<span class="req" id="f-token-req"></span></label>
-                  <input class="input" id="f-token" type="password" value="" placeholder="仅写不读，留空表示不修改">
-                  <div class="field__hint">需 <code class="mono">api</code> scope 与仓库读取权限；仅写不读，不回显、不落本地存储</div>
-                </div>
                 <div class="field">
                   <label class="field__label" for="f-envfile">环境声明文件路径</label>
                   <input class="input" id="f-envfile" value="common/env/env.yaml">
@@ -232,10 +213,44 @@
                 </div>
               </div>
 
+              <!-- 创建后锁定：只读文本，不渲染为禁用输入框 -->
+              <div class="gl-locked" id="gl-locked">
+                <div class="gl-locked__head">
+                  <span class="gl-locked__title">创建后锁定</span>
+                  <span class="text-xs muted">变更须删除后重建</span>
+                </div>
+                <div class="gl-locked__grid">
+                  <div><div class="gl-locked__k">项目路径</div><div class="gl-locked__v mono">qa/order-api-tests</div></div>
+                  <div><div class="gl-locked__k">默认分支</div><div class="gl-locked__v mono">master</div></div>
+                  <div><div class="gl-locked__k">导入模式</div><div class="gl-locked__v">平台模式 <span class="tag tag--outline tag--sm mono">platform</span></div></div>
+                </div>
+                <div class="gl-mode-hint" id="gl-mode-hint">平台模式：完整解析步骤与 YAML，导入后由平台引擎直接执行。</div>
+              </div>
+
+              <!-- 首次配置：三个锁定字段在创建时才可填 -->
+              <div class="form-grid form-grid--3" id="gl-create-fields" hidden>
+                <div class="field">
+                  <label class="field__label" for="f-path">项目路径<span class="req">*</span></label>
+                  <input class="input" id="f-path" value="" placeholder="group/subgroup/repo">
+                  <div class="field__hint">不含 .git 后缀与协议前缀</div>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="f-branch">默认分支</label>
+                  <input class="input" id="f-branch" value="" placeholder="master">
+                  <div class="field__hint">缺省 master，连通性测试通过后回显实际分支名</div>
+                </div>
+                <div class="field">
+                  <label class="field__label">导入模式<span class="req">*</span></label>
+                  <span class="radio-seg" id="f-mode">
+                    <button type="button" class="is-active" data-mode="platform">平台模式</button>
+                    <button type="button" data-mode="gitlab_ci">流水线模式</button>
+                  </span>
+                </div>
+              </div>
+
               <div class="gl-actions">
                 <button class="btn btn--default btn--sm" id="gl-test">连通性测试</button>
                 <span class="conn-result" id="gl-conn-result" hidden></span>
-                <button class="btn btn--danger btn--sm" id="gl-delete">删除</button>
                 <button class="btn btn--primary btn--sm" id="gl-save">保存</button>
               </div>
             </form>
@@ -314,114 +329,26 @@
             </div>
           </div>
 
-          <!-- ============ 执行 ============ -->
-          <div class="gl-panel" data-gl-panel="exec">
-            <p class="muted text-sm" style="margin-top:0">
-              本仓库场景的执行入口说明：引擎由场景来源与仓库导入模式派生，<b>不提供引擎切换入口</b>。
-              平台模式场景由平台引擎执行；流水线模式场景由 GitLab 流水线执行，结果制品回收后归集到平台报告。
-            </p>
-
-            <!-- 场景执行按钮示意（docs27 §5.1）：单按钮，文案随引擎变化，不渲染下拉 -->
-            <div class="gl-engine-cards">
-              <div class="gl-engine">
-                <div class="gl-engine__title">订单替换-PC端</div>
-                <div class="gl-engine__src">来源：GitLab 导入 · <span class="mono">platform</span></div>
-                <div class="gl-engine__btns">
-                  <button class="btn btn--primary btn--sm"><span data-icon="play"></span>运行</button>
-                  <button class="btn btn--default btn--sm">编辑</button>
-                  <button class="btn btn--default btn--sm" title="更多操作">⋯</button>
-                </div>
-              </div>
-              <div class="gl-engine">
-                <div class="gl-engine__title">监管报送-批量</div>
-                <div class="gl-engine__src">来源：GitLab 导入 · <span class="mono">gitlab_ci</span></div>
-                <div class="gl-engine__btns">
-                  <button class="btn btn--primary btn--sm"><span data-icon="play"></span>流水线运行</button>
-                  <button class="btn btn--default btn--sm">编辑</button>
-                  <button class="btn btn--default btn--sm" title="更多操作">⋯</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="gl-toolbar" style="padding-bottom:var(--space-sm); border-bottom:1px solid var(--n-100)">
-              <span class="muted text-sm">已勾选 <b class="num">50</b> 个场景（含 5 个平台模式场景）</span>
-              <button class="btn btn--primary btn--sm" id="gl-batch" style="margin-left:auto"><span data-icon="operation"></span>批量执行</button>
-            </div>
-
-            <h3 class="text-sm strong" style="margin:var(--space-md) 0 var(--space-sm)">最近执行记录</h3>
-            <div class="table-wrap">
-              <table class="table">
-                <thead>
-                  <tr><th>时间</th><th>触发方式</th><th>引擎</th><th>流水线</th><th>状态</th><th>耗时</th><th></th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="text-sm">2026-10-11 15:02</td><td class="text-sm">定时任务</td>
-                    <td><span class="tag tag--neutral tag--sm">gitlab_ci</span></td>
-                    <td class="mono text-sm">#141</td>
-                    <td><span class="status status--success">成功</span></td>
-                    <td class="text-sm num">2m 14s</td>
-                    <td><a class="op-link" href="#" onclick="return false">GitLab</a></td>
-                  </tr>
-                  <tr>
-                    <td class="text-sm">2026-10-11 11:47</td><td class="text-sm">批量执行</td>
-                    <td><span class="tag tag--neutral tag--sm">gitlab_ci</span></td>
-                    <td class="mono text-sm">#140</td>
-                    <td><span class="status status--danger">失败</span></td>
-                    <td class="text-sm num">1m 03s</td>
-                    <td><a class="op-link" href="#" onclick="return false">GitLab</a></td>
-                  </tr>
-                  <tr id="gl-exec-unreachable">
-                    <td class="text-sm">2026-10-10 09:20</td><td class="text-sm">批量执行</td>
-                    <td><span class="tag tag--neutral tag--sm">gitlab_ci</span></td>
-                    <td class="mono text-sm">—</td>
-                    <td><span class="status status--blocked">已跳过</span> <span class="tag tag--warning tag--sm mono">repo_unreachable</span></td>
-                    <td class="text-sm num">—</td>
-                    <td><span class="muted text-xs mono">1000017710</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="muted text-xs" style="margin-top:var(--space-sm)" id="gl-unreachable-note" hidden>
-              仓库不可达时场景跳过并留痕，<b>不提供</b>「修复」或「重试」按钮；平台侧编辑需等仓库产生新提交才能被覆盖。
-            </p>
-          </div>
-
         </div>
       </div>
     </div>
   </div>
 </main>
 
-<!-- 路由预览弹窗（docs27 §2.3）：确认的是分组结果，而非引擎选择 -->
-<div class="dialog-mask" id="gl-route-dialog" hidden>
-  <div class="dialog" style="width:520px">
+<!-- 删除二次确认（docs27 §3.1）：存在启用中的同步任务时禁止删除 -->
+<div class="dialog-mask" id="gl-delete-dialog" hidden>
+  <div class="dialog" style="width:440px">
     <div class="dialog__header">
-      <span class="dialog__title">批量执行 · 路由预览</span>
-      <button class="dialog__close" data-route-close>✕</button>
+      <span class="dialog__title">删除仓库配置</span>
+      <button class="dialog__close" data-del-close>✕</button>
     </div>
     <div class="dialog__body">
-      <p class="muted text-sm" style="margin-top:0">已按场景来源与所属仓库的导入模式自动分组，无需选择引擎。</p>
-      <div class="gl-route">
-        <div class="gl-route__row">
-          <span class="gl-route__label">平台引擎</span>
-          <span class="gl-route__val"><b class="num">5</b> 个场景</span>
-          <span class="gl-route__link"><span class="tag tag--neutral tag--sm">platform</span></span>
-        </div>
-        <div class="gl-route__row">
-          <span class="gl-route__label">流水线引擎</span>
-          <span class="gl-route__val"><b class="num">45</b> 个场景 · <b>1</b> 条流水线</span>
-          <span class="gl-route__link"><a class="op-link" href="#" onclick="return false">目标流水线 ↗</a></span>
-        </div>
-      </div>
-      <div class="alert alert--info" style="margin-top:var(--space-md)">
-        <span data-icon="info-filled"></span>
-        <span>一次任务恒定触发一条流水线；场景清单在触发前冻结，执行期间平台侧的增删改不影响本次批次</span>
-      </div>
+      <p class="text-sm" style="margin-top:0">删除后本项目不再与该仓库绑定，是否继续？</p>
+      <p class="muted text-xs" style="margin-bottom:0">已导入场景保留并标记为「来源已移除」，可查看与编辑，但不可再由流水线引擎执行。变更绑定仓库或导入模式须先删除再重建。<br>若存在启用中的 GitLab 同步任务，删除将被拒绝，请先停用相关定时任务。</p>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-route-close>取消</button>
-      <button class="btn btn--primary btn--sm" id="gl-route-ok">确认执行</button>
+      <button class="btn btn--default btn--sm" data-del-close>取消</button>
+      <button class="btn btn--danger btn--sm" id="gl-delete-ok">删除</button>
     </div>
   </div>
 </div>
@@ -444,89 +371,35 @@
   </div>
 </div>
 
-<!-- 删除二次确认（docs27 §3.1）：存在启用中的同步任务时禁止删除 -->
-<div class="dialog-mask" id="gl-delete-dialog" hidden>
-  <div class="dialog" style="width:440px">
-    <div class="dialog__header">
-      <span class="dialog__title">删除仓库配置</span>
-      <button class="dialog__close" data-del-close>✕</button>
-    </div>
-    <div class="dialog__body">
-      <div class="alert alert--danger">
-        <span data-icon="alert-triangle"></span>
-        <span>存在启用中的 GitLab 同步任务，禁止删除；请先停用相关定时任务</span>
-      </div>
-      <p class="muted text-xs" style="margin-bottom:0">解除绑定后，已导入场景与历史执行记录保留，但不再同步源变更。</p>
-    </div>
-    <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-del-close>取消</button>
-      <button class="btn btn--danger btn--sm" id="gl-delete-ok" disabled>仍要删除</button>
-    </div>
-  </div>
-</div>
-
-<!-- 批次执行进度视图（docs27 §5.2） -->
-<div class="dialog-mask" id="gl-batch-dialog" hidden>
-  <div class="dialog" style="width:620px">
-    <div class="dialog__header">
-      <span class="dialog__title">批次执行进度</span>
-      <button class="dialog__close" data-batch-close>✕</button>
-    </div>
-    <div class="dialog__body">
-
-      <div class="gl-group">
-        <div class="gl-group__head">
-          <span class="gl-group__title">平台组</span>
-          <span class="gl-group__meta">3 / 5 完成</span>
-          <span class="progress"><span class="progress__track"><span class="progress__fill progress__fill--brand" style="width:60%"></span></span></span>
-        </div>
-        <div class="gl-run"><span class="gl-run__name">订单查询-列表</span><span class="status status--success">成功</span><span class="gl-run__time">1.2s</span><a class="op-link" href="#" onclick="return false">报告</a></div>
-        <div class="gl-run"><span class="gl-run__name">订单详情-校验</span><span class="status status--success">成功</span><span class="gl-run__time">0.9s</span><a class="op-link" href="#" onclick="return false">报告</a></div>
-        <div class="gl-run"><span class="gl-run__name">订单取消-异常</span><span class="status status--danger">失败</span><span class="gl-run__time">1.5s</span><a class="op-link" href="#" onclick="return false">报告</a></div>
-        <div class="gl-run"><span class="gl-run__name muted">…其余 2 个场景进行中</span><span class="status status--running">运行中</span><span class="gl-run__time">—</span><span class="op-link op-link--muted">报告</span></div>
-      </div>
-
-      <!-- 流水线组恒为单条流水线（一次任务一条流水线） -->
-      <div class="gl-group">
-        <div class="gl-group__head">
-          <span class="gl-group__title">流水线组</span>
-          <span class="gl-group__meta">流水线 <a href="#" onclick="return false">#142</a></span>
-          <span class="progress"><span class="progress__track"><span class="progress__fill progress__fill--warning" style="width:100%"></span></span></span>
-          <span class="status status--running">运行中</span>
-          <a class="op-link" href="#" onclick="return false">GitLab ↗</a>
-        </div>
-        <div class="gl-run"><span class="gl-run__name">场景 45 / 45 · 用例 45 / 45</span><span class="text-xs muted">结果制品回收中</span></div>
-      </div>
-
-      <div class="gl-summary-bar">
-        <span class="gl-summary-bar__text">场景 <b>50</b> · 用例 <b>238</b> · 通过 <b>231</b> · 失败 <b class="text-danger">5</b> · 跳过 <b>2</b></span>
-        <button class="btn btn--default btn--sm" id="gl-report" disabled title="仍有流水线未结束">查看套件报告</button>
-      </div>
-      <p class="muted text-xs" style="margin:6px 0 0">两侧均终态后才可查看套件报告；批次视图不做自动跳转，用户主动点击进入。</p>
-    </div>
-    <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" id="gl-batch-refresh">刷新</button>
-      <button class="btn btn--default btn--sm" data-batch-close>关闭</button>
-    </div>
-  </div>
-</div>
-
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
-  // 一项目一仓库：无列表、无新增入口，整页即唯一配置（docs27 §1）
-  var state = { view: 'configured', tab: 'basic', mode: 'platform', readonly: false, unreachable: false };
+  // 一项目一仓库：无列表、无新增入口；执行不在本页发生（docs27 §1）
+  var state = { view: 'configured', tab: 'basic', mode: 'platform', creating: false, readonly: false, unreachable: false };
 
   function $(s) { return document.querySelector(s); }
   function $all(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
   function toast(msg, type) { if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {}); }
+  function closeMenu() { $('#gl-more-menu').hidden = true; }
+
+  var MODE_TEXT = {
+    platform: '平台模式：完整解析步骤与 YAML，导入后由平台引擎直接执行。',
+    gitlab_ci: '流水线模式：仅建场景圈选载体，执行由 GitLab 流水线完成，平台不读取步骤与环境。'
+  };
 
   /* ---------- 视图：配置态 / 空态；只读与不可达叠加在配置态上 ---------- */
   function renderView() {
     var empty = state.view === 'empty';
     $('#gl-empty').hidden = !empty;
     $('#gl-configured').hidden = empty;
+
+    // 首次配置时三个锁定字段可填，已配置后改为只读文本
+    $('#gl-locked').hidden = state.creating;
+    $('#gl-create-fields').hidden = !state.creating;
+    $('#f-token-req').textContent = state.creating ? '（必填）' : '';
+
+    $('#gl-mode-hint').textContent = MODE_TEXT[state.mode];
 
     var connText = state.unreachable ? '不可达' : '已连通';
     $('#gl-conn-text').textContent = connText;
@@ -535,11 +408,7 @@
     $('#gl-conn').className = 'gl-conn' + (state.unreachable ? ' gl-conn--down' : '');
     if (!state.unreachable) $('#gl-conn-detail').hidden = true;
 
-    // 仓库不可达：执行页签场景行带 repo_unreachable 标签与错误码，不提供修复或重试（docs27 §4）
-    $('#gl-exec-unreachable').style.display = state.unreachable ? '' : 'none';
-    $('#gl-unreachable-note').hidden = !state.unreachable;
-
-    applyMode(state.mode);
+    applyMode();
     applyReadonly();
     switchTab(state.tab);
   }
@@ -547,18 +416,19 @@
   function applyReadonly() {
     var ro = state.readonly;
     $('#gl-readonly-note').hidden = !ro;
-    $all('#gl-form input, #gl-form button').forEach(function (el) {
-      el.disabled = ro || (el.id === 'f-envfile' && state.mode === 'gitlab_ci');
-    });
+    $all('#gl-form input, #gl-form button').forEach(function (el) { el.disabled = ro; });
     $('#gl-test').hidden = ro;
     $('#gl-save').hidden = ro;
-    $('#gl-delete').hidden = ro;
+    $('#gl-more').hidden = ro;
+    if (ro) closeMenu();
+    applyMode();
   }
 
-  function applyMode(mode) {
-    var isCi = mode === 'gitlab_ci';
-    $('#f-envfile').disabled = isCi || state.readonly;
-    $('#f-envfile-hint').textContent = isCi ? '流水线模式不读取环境声明' : '缺省 common/env/env.yaml';
+  function applyMode() {
+    // 环境声明仅 platform 模式使用；创建后锁定字段不再参与提交
+    var disabled = state.readonly || state.mode !== 'platform';
+    $('#f-envfile').disabled = disabled;
+    $('#f-envfile-hint').textContent = (state.mode === 'platform') ? '缺省 common/env/env.yaml' : '流水线模式不读取环境声明';
   }
 
   function switchTab(tab) {
@@ -571,16 +441,24 @@
     btn.addEventListener('click', function () { switchTab(btn.dataset.glTab); });
   });
 
-  /* ---------- 导入模式：编辑态整块只读（docs27 §3.1），仅作展示 ---------- */
+  /* ---------- 导入模式：仅首次配置可选，创建后锁定 ---------- */
   $all('#f-mode button').forEach(function (b) {
     b.addEventListener('click', function () {
       if (state.readonly) return;
       $all('#f-mode button').forEach(function (x) { x.classList.remove('is-active'); });
       b.classList.add('is-active');
       state.mode = b.dataset.mode;
-      applyMode(state.mode);
+      renderView();
     });
   });
+
+  /* ---------- [⋯] 更多菜单 ---------- */
+  $('#gl-more-btn').addEventListener('click', function (e) {
+    e.stopPropagation();
+    $('#gl-more-menu').hidden = !$('#gl-more-menu').hidden;
+  });
+  document.addEventListener('click', function () { closeMenu(); });
+  $('#gl-more-menu').addEventListener('click', function (e) { e.stopPropagation(); });
 
   /* ---------- 页签栏连通性徽标：失败时可点击展开错误详情 ---------- */
   $('#gl-conn').addEventListener('click', function () {
@@ -595,6 +473,7 @@
       state.view = (s === 'empty') ? 'empty' : 'configured';
       state.readonly = (s === 'readonly');
       state.unreachable = (s === 'unreachable');
+      if (s === 'empty') state.creating = false;
       $all('#gl-demo-state .segment__item').forEach(function (x) { x.classList.remove('segment__item--active'); });
       el.classList.add('segment__item--active');
       renderView();
@@ -613,7 +492,7 @@
         out.innerHTML = '<span class="mono">1000017702</span> GitLab 不可达或令牌无效';
       } else {
         out.className = 'conn-result conn-result--ok';
-        out.textContent = '✓ 连接正常 · 实际分支 ' + $('#f-branch').value;
+        out.textContent = '✓ 连接正常 · 实际分支 master';
         toast('连通性测试通过', 'success');
       }
     }, 900);
@@ -622,16 +501,26 @@
   /* ---------- 保存：成功后自动落到「导入」页签（docs27 §1 布局规则） ---------- */
   $('#gl-save').addEventListener('click', function () {
     toast('已保存', 'success');
+    if (state.creating) {
+      state.creating = false;
+      $('#f-token-req').textContent = '';
+      renderView();
+    }
     switchTab('import');
   });
 
-  $('#gl-delete').addEventListener('click', function () { $('#gl-delete-dialog').hidden = false; });
+  /* ---------- 删除：经 [⋯] 菜单进入二次确认 ---------- */
+  $('#gl-menu-delete').addEventListener('click', function () {
+    closeMenu();
+    $('#gl-delete-dialog').hidden = false;
+  });
   $all('[data-del-close]').forEach(function (b) {
     b.addEventListener('click', function () { $('#gl-delete-dialog').hidden = true; });
   });
   $('#gl-delete-ok').addEventListener('click', function () {
     $('#gl-delete-dialog').hidden = true;
     state.view = 'empty';
+    state.creating = false;
     renderView();
   });
 
@@ -672,28 +561,12 @@
     toast('已按最新提交重新导入', 'success');
   });
 
-  /* ---------- 执行：批量执行 → 路由预览 → 批次进度 ---------- */
-  $('#gl-batch').addEventListener('click', function () { $('#gl-route-dialog').hidden = false; });
-  $all('[data-route-close]').forEach(function (b) {
-    b.addEventListener('click', function () { $('#gl-route-dialog').hidden = true; });
-  });
-  $('#gl-route-ok').addEventListener('click', function () {
-    $('#gl-route-dialog').hidden = true;
-    $('#gl-batch-dialog').hidden = false;
-  });
-  $all('[data-batch-close]').forEach(function (b) {
-    b.addEventListener('click', function () { $('#gl-batch-dialog').hidden = true; });
-  });
-  $('#gl-batch-refresh').addEventListener('click', function () {
-    toast('批次进度由服务端权威提供，前端仅轮询渲染', {});
-  });
-
   /* ---------- 空态：[立即配置] 落到基础配置页签的首次配置态 ---------- */
   $('#gl-setup').addEventListener('click', function () {
     state.view = 'configured';
     state.tab = 'basic';
-    $('#f-token-req').textContent = '（首次配置必填）';
-    $('#f-token').placeholder = '仅写不读';
+    state.creating = true;
+    $('#f-path').value = ''; $('#f-branch').value = '';
     renderView();
     toast('首次配置：保存成功后自动落到「导入」页签', {});
   });
