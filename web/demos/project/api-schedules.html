@@ -86,7 +86,7 @@
       <div class="page-head">
         <div>
           <h1 class="page-head__title">定时任务</h1>
-          <p class="page-head__desc">测试计划（场景批量执行）与接口同步的统一周期调度</p>
+          <p class="page-head__desc">测试计划（场景批量执行）、接口同步与 GitLab 同步的统一周期调度</p>
         </div>
         <div class="page-head__actions">
           <a class="btn btn--primary" href="api-schedule-form.html"><span data-icon="plus"></span>新建任务</a>
@@ -100,6 +100,7 @@
               <option value="">全部类型</option>
               <option value="scene_execute">测试计划</option>
               <option value="import_swagger">接口同步</option>
+              <option value="gitlab_sync">GitLab 同步</option>
             </select>
           </div>
         </div>
@@ -163,6 +164,24 @@
                 <td>
                   <span class="tag tag--danger">失败</span>
                   <div class="exec-time">09-21 02:00</div>
+                </td>
+                <td>
+                  <span class="op-group">
+                    <span class="op-link" data-run-now>立即执行</span>
+                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
+                    <span class="more-caret" data-more>更多 ▾</span>
+                  </span>
+                </td>
+              </tr>
+              <tr data-type="gitlab_sync" data-name="仓库同步">
+                <td class="cell-main">仓库同步</td>
+                <td>GitLab 同步</td>
+                <td class="num">order-api-tests</td>
+                <td><span class="mono">0 3 * * *</span></td>
+                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
+                <td>
+                  <span class="tag tag--success">成功</span>
+                  <div class="exec-time">09-22 03:00</div>
                 </td>
                 <td>
                   <span class="op-group">
@@ -237,7 +256,7 @@
           <th style="width:72px">触发方式</th>
           <th style="width:76px">状态</th>
           <th style="width:72px">耗时</th>
-          <th>失败原因</th>
+          <th id="exec-last-col">失败原因</th>
         </tr>
       </thead>
       <tbody id="exec-tbody"></tbody>
@@ -379,6 +398,13 @@
       ['2026-09-13 10:22:15', '手动', 'success', '3.1s', '']
     ],
     '用户中心场景巡检': [],
+    // GitLab 同步不产生测试报告，执行记录仅呈现同步结果计数
+    '仓库同步': [
+      ['2026-09-22 03:00:01', '定时', 'success', '6.8s', '新建 3 · 更新 1 · 解析失败 0'],
+      ['2026-09-21 03:00:02', '定时', 'skipped', '1.2s', '目标分支无新提交，无变更跳过'],
+      ['2026-09-20 03:00:01', '定时', 'success', '5.4s', '新建 1 · 更新 0 · 解析失败 2'],
+      ['2026-09-19 10:15:33', '手动', 'failed', '2.1s', '1000017702 GitLab 不可达或令牌无效']
+    ],
     '月末全量回归': [
       ['2026-09-01 02:00:01', '定时', 'skipped', '', '目标环境维护中'],
       ['2026-08-01 02:00:02', '定时', 'success', '512.8s', '']
@@ -406,6 +432,11 @@
     }
     byId('exec-total').textContent = String(list.length);
     byId('exec-title').textContent = '执行记录 — ' + name;
+    // GitLab 同步不产生报告，该列改为同步结果计数；其余类型仍为失败原因
+    var srcRow = Array.prototype.slice.call(tbody.querySelectorAll('tr')).find(function (tr) {
+      return tr.getAttribute('data-name') === name;
+    });
+    byId('exec-last-col').textContent = (srcRow && srcRow.getAttribute('data-type') === 'gitlab_sync') ? '同步结果' : '失败原因';
     byId('exec-drawer').hidden = false;
     byId('exec-mask').hidden = false;
   }
