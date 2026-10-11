@@ -65,6 +65,9 @@
 | last_import_at | TIMESTAMP | NULL | 上次导入时间 |
 | last_import_commit | VARCHAR(64) | NULL | 上次导入时的分支 HEAD commit；同时是 commit 幂等闸门的比对基准（见 3.4） |
 | last_import_summary | JSONB | NULL | 上次导入结果 `{created, updated, parseFailed, errorFailed, skipped}`；`parseFailed` 与 `errorFailed` 必须分开，闸门只看 `errorFailed` |
+| head_commit | VARCHAR(64) | NULL | 源探查服务回写的默认分支最新提交（见 3.7）；与 `last_import_commit` 不一致即仓库「源有更新」 |
+| head_checked_at | TIMESTAMP | NULL | 上次源探查时间 |
+| head_probe_status | VARCHAR(20) | NULL | 源探查结果：`ok` / `unreachable`；`unreachable` 时保留上次 `head_commit` |
 | created_by | UUID | NOT NULL | 创建人 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
@@ -154,9 +157,15 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
   "enabled": true,
   "lastImportAt": "2026-10-11T10:20:30+08:00",
   "lastImportCommit": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
-  "lastImportSummary": { "created": 193, "updated": 12, "parseFailed": 0, "errorFailed": 0, "skipped": 0 }
+  "lastImportSummary": { "created": 193, "updated": 12, "parseFailed": 0, "errorFailed": 0, "skipped": 0 },
+  "headCommit": "b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6",
+  "headCheckedAt": "2026-10-11T10:45:00+08:00",
+  "headProbeStatus": "ok",
+  "hasUpdates": true
 }
 ```
+
+`hasUpdates` 为服务端派生（`headCommit != lastImportCommit`，任一为 NULL 时为 `false`），前端不自行比对提交号。
 
 **校验规则**
 
@@ -283,6 +292,17 @@ flowchart TD
 
 **边界**：同步任务不产生报告、不写 `api_report`；同步与手动导入共用同一稳定键与幂等闸门，互不排队（G2 决策，靠 upsert 幂等保证）；仓库配置被禁用或不可达时任务直接置 `failed` 并留痕，不重试。
 
+### 3.7 源探查服务
+
+源探查与源变更同步解耦：探查只回答「仓库有没有新提交」（仓库级、只读），同步 / 导入才把变更落地到场景（SRS BR-1.35 / BR-1.45）。探查为平台内置定时作业——不新增用户入口、不落任务执行记录——在既有调度进程内以固定周期 30 分钟执行：
+
+1. 取全部 `enabled = true` 且未删除的仓库，逐个调 GitLab `GET /projects/:id/repository/commits?ref=<default_branch>&per_page=1` 取默认分支 HEAD 提交；
+2. 成功时回写 `head_commit` / `head_checked_at` / `head_probe_status = ok`；
+3. 调用失败（仓库不可达、令牌失效等）时仅回写 `head_probe_status = unreachable` 与 `head_checked_at`，保留上次 `head_commit` 供展示；
+4. 「源有更新」为派生值：`head_commit != last_import_commit`，**不落独立状态位**——同步 / 手动导入成功回写 `last_import_commit` 后标记自动消除，无需任何清理逻辑。
+
+探查失败不重试（下周期自然重试）、不触发导入、不影响场景查看与执行；一项目一仓库，单次探查即一次轻量 GitLab 请求，对实例压力可忽略。前端展示口径（集成页徽标、场景列表提示条）以交互分册为准。
+
 ## 4. 执行与结果归集
 
 ### 4.1 引擎路由
@@ -400,7 +420,7 @@ flowchart LR
 
 1. 仓库配置查询接口为单条语义，前端不做分页与列表虚拟化；
 2. 导入为异步提交，前端轮询导入进度接口，不使用长连接；
-3. 场景列表与场景详情返回 `sourceType / repoId / sourceRef / sourceStatus`，`gitlab_ci` 场景详情额外返回用例信息（方法名与 `@Test` 的 description；场景与测试方法一一对应——`source_ref` 即单个方法「类全限定名#方法名」，恒为单条），供来源徽标、源状态徽标、仓库侧跳转与编排页只读形态渲染；展示形态以交互分册为准，服务端不校验展示逻辑。
+3. 场景列表与场景详情返回 `sourceType / repoId / sourceRef / sourceStatus`，`gitlab_ci` 场景详情额外返回用例信息（方法名与 `@Test` 的 description；场景与测试方法一一对应——`source_ref` 即单个方法「类全限定名#方法名」，恒为单条），供来源徽标、源状态徽标、仓库侧跳转与编排页只读形态渲染；仓库级源探查结果（`hasUpdates` 等）由仓库详情接口承载（见 5.1），场景接口不返回仓库级更新信息；展示形态以交互分册为准，服务端不校验展示逻辑。
 
 ## 6. 实施说明
 
@@ -493,3 +513,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | 锁定字段扩至 `repo_path` / `default_branch`，错误码 `1000017711` 更名为 `API_GIT_REPO_IMMUTABLE_FIELD` |
 | V1.0 | 2026-10-11 | `gitlab_ci` 场景渲染口径修正：编排页只读形态，用例清单供同一页面渲染 |
 | V1.0 | 2026-10-11 | `gitlab_ci` 场景详情返回契约修正：用例信息恒为单条（场景与测试方法一一对应，`source_ref` 即单个方法），废止「用例清单」表述 |
+| V1.0 | 2026-10-11 | 新增源探查服务（3.7）与 `api_git_repo` 探查列（`head_commit` / `head_checked_at` / `head_probe_status`）；「源有更新」改为仓库级派生标记，场景级 `source_changed` 取值废止 |
