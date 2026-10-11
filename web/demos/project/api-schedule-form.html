@@ -21,6 +21,11 @@
   .radio-line.is-active .radio-dot { border-color: var(--brand-500); }
   .radio-line.is-active .radio-dot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--brand-500); }
 
+  /* GitLab 同步：仓库由项目唯一确定，只读回显而非选择器 */
+  .gl-echo { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-sm) var(--space-md); padding: 10px var(--space-md); background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); }
+  .gl-echo__k { font-size: var(--font-size-xs); color: var(--n-400); }
+  .gl-echo__v { font-size: var(--font-size-sm); color: var(--n-800); font-weight: 500; margin-top: 2px; }
+
   .scene-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .scene-tags { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .tag-close { cursor: pointer; color: var(--n-400); }
@@ -70,7 +75,7 @@
       <div class="page-head">
         <div>
           <h1 class="page-head__title">定时任务</h1>
-          <p class="page-head__desc">测试计划（场景批量执行）与接口同步的统一周期调度</p>
+          <p class="page-head__desc">测试计划（场景批量执行）、接口同步与 GitLab 同步的统一周期调度</p>
         </div>
         <div class="page-head__actions">
           <button class="btn btn--primary" id="btn-create"><span data-icon="plus"></span>新建任务</button>
@@ -80,7 +85,7 @@
       <div class="card">
         <div class="toolbar">
           <div class="toolbar__filters">
-            <select class="select" style="width:140px"><option>全部类型</option><option>测试计划</option><option>接口同步</option></select>
+            <select class="select" style="width:140px"><option>全部类型</option><option>测试计划</option><option>接口同步</option><option>GitLab 同步</option></select>
           </div>
           <div class="toolbar__count">共 3 个任务</div>
         </div>
@@ -98,6 +103,9 @@
               </tr>
               <tr data-name="Swagger 文档同步" data-desc="每周一同步网关最新接口定义" data-type="import_swagger" data-openapi="https://gateway.demo.cn/v3/api-docs" data-cron="0 2 * * 1">
                 <td class="cell-main cell-edit" data-edit title="点击编辑任务">Swagger 文档同步</td><td>接口同步</td><td>https://gateway.demo.cn/v3/api-docs</td><td class="num">0 2 * * 1</td><td style="text-align:center"><span class="tag tag--success">启用</span></td>
+              </tr>
+              <tr data-name="仓库同步" data-desc="每天凌晨将 GitLab 仓库变更同步为测试场景" data-type="gitlab_sync" data-cron="0 3 * * *">
+                <td class="cell-main cell-edit" data-edit title="点击编辑任务">仓库同步</td><td>GitLab 同步</td><td>order-api-tests</td><td class="num">0 3 * * *</td><td style="text-align:center"><span class="tag tag--success">启用</span></td>
               </tr>
             </tbody>
           </table>
@@ -137,6 +145,7 @@
         <div class="opt-row" id="tasktype-group">
           <span class="radio-line is-active" data-tasktype="scene_execute"><span class="radio-dot"></span>测试计划</span>
           <span class="radio-line" data-tasktype="import_swagger"><span class="radio-dot"></span>接口同步</span>
+          <span class="radio-line" data-tasktype="gitlab_sync"><span class="radio-dot"></span>GitLab 同步</span>
         </div>
       </div>
 
@@ -183,6 +192,16 @@
         <input class="input" style="width:100%" id="openapi-url" placeholder="https://example.com/v3/api-docs" maxlength="2000">
         <div class="field__hint">接口同步任务必填；保存时校验 URL 可达性与合法性</div>
         <div class="field__error" id="err-openapi" hidden>请填写接口文档 URL</div>
+      </div>
+
+      <!-- GitLab 同步任务：仓库由项目唯一确定（一项目一仓库），不提供仓库选择，无附加字段 -->
+      <div class="field" id="row-gitlab" hidden>
+        <label class="field__label">绑定仓库</label>
+        <div class="gl-echo">
+          <div class="gl-echo__cell"><div class="gl-echo__k">仓库</div><div class="gl-echo__v mono">qa/order-api-tests</div></div>
+          <div class="gl-echo__cell"><div class="gl-echo__k">默认分支</div><div class="gl-echo__v mono">master</div></div>
+        </div>
+        <div class="field__hint">按 Cron 周期将仓库变更同步为测试场景，源变更检测频率完全由本任务周期决定；执行不产生测试报告，执行记录仅展示同步结果计数</div>
       </div>
 
       <div class="fdiv">调度配置</div>
@@ -243,14 +262,16 @@
   var mask = $('dlg-mask');
   var editingRow = null;
 
-  /* ==================== 任务类型（scene_execute / import_swagger） ==================== */
+  /* ==================== 任务类型（scene_execute / import_swagger / gitlab_sync） ==================== */
   var taskType = 'scene_execute';
   function applyTaskType(clearOpposite) {
     var isPlan = taskType === 'scene_execute';
     $('row-scope').hidden = !isPlan;
     $('row-env').hidden = !isPlan;
-    $('row-openapi').hidden = isPlan;
-    // 实际 watch：切到接口同步清空环境/圈选，切回测试计划清空文档 URL
+    $('row-openapi').hidden = taskType !== 'import_swagger';
+    // GitLab 同步无附加字段：仓库取本项目已配置的唯一仓库，仅只读回显
+    $('row-gitlab').hidden = taskType !== 'gitlab_sync';
+    // 实际 watch：切走时清空对应字段，避免残留值被提交
     if (clearOpposite) {
       if (!isPlan) {
         $('env-select').value = '';
@@ -258,7 +279,8 @@
         var mods = $('mod-tree').querySelectorAll('.checkbox--on');
         mods.forEach(function (c) { c.classList.remove('checkbox--on'); });
         renderModules();
-      } else {
+      }
+      if (taskType !== 'import_swagger') {
         $('openapi-url').value = '';
         setErr('openapi', false);
       }
@@ -568,7 +590,7 @@
       if (scope === 'modules' && !pickedModules().length) { setErr('modules', true); firstBad = firstBad || $('mod-tree'); }
       if (scope === 'scenes' && !scenes.length) { setErr('scenes', true); firstBad = firstBad || $('btn-pick-scene'); }
       if (!$('env-select').value) { setErr('env', true); firstBad = firstBad || $('env-select'); }
-    } else if (!$('openapi-url').value.trim()) {
+    } else if (taskType === 'import_swagger' && !$('openapi-url').value.trim()) {
       setErr('openapi', true);
       firstBad = firstBad || $('openapi-url');
     }
