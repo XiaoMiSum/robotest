@@ -46,7 +46,7 @@
 
 #### 2.1.1 代码仓库配置表（api_git_repo）【新增表】
 
-项目级仓库集成配置。**一个项目绑定一个仓库**，`import_mode` 创建后不可修改。
+项目级仓库集成配置。**一个项目绑定一个仓库**，`import_mode`、`repo_path`、`default_branch` 创建后不可修改，变更绑定仓库须删除后重建。
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
@@ -54,9 +54,9 @@
 | project_id | UUID | NOT NULL | 归属项目（一项目一仓库） |
 | name | VARCHAR(200) | NOT NULL | 仓库展示名（可改，非稳定键） |
 | gitlab_base_url | VARCHAR(500) | NOT NULL | GitLab 实例地址（支持自建，不含结尾 `/`） |
-| repo_path | VARCHAR(500) | NOT NULL | 项目路径（`group/subgroup/repo`），源侧稳定键，不随展示名改动；同时作为 `api_environment.source_id` 的认领值 |
-| default_branch | VARCHAR(200) | NOT NULL DEFAULT 'master' | 默认分支 |
-| import_mode | VARCHAR(20) | NOT NULL | 导入模式：`platform`（导入为平台场景，完整解析 + 环境合并）/ `gitlab_ci`（流水线调度，仅建圈选载体）。创建时必填，创建后无 UPDATE 入口（违反返回 `1000017711`） |
+| repo_path | VARCHAR(500) | NOT NULL | 项目路径（`group/subgroup/repo`），源侧稳定键；创建后不可改（违反返回 `1000017711`），同时作为 `api_environment.source_id` 的认领值 |
+| default_branch | VARCHAR(200) | NOT NULL DEFAULT 'master' | 默认分支；创建后不可改（违反返回 `1000017711`） |
+| import_mode | VARCHAR(20) | NOT NULL | 导入模式：`platform`（导入为平台场景，完整解析 + 环境合并）/ `gitlab_ci`（流水线调度，仅建圈选载体）。创建时必填，创建后不可改（违反返回 `1000017711`） |
 | token_cipher | VARCHAR(500) | NOT NULL | 访问令牌密文（scope `api`，加密存储，不下发前端） |
 | test_source_dir | VARCHAR(500) | NOT NULL DEFAULT 'src/test/java' | 测试源码目录 |
 | resource_dir | VARCHAR(500) | NOT NULL DEFAULT 'src/test/resources' | 资源目录（YAML 所在根） |
@@ -107,7 +107,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | 1000017708 | API_GIT_IMPORT_IN_PROGRESS | 同仓库存在进行中的导入 |
 | 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支 HEAD 与上次导入一致且无遗留错误，导入被幂等闸门跳过 |
 | 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，无降级路径（见 4.3） |
-| 1000017711 | API_GIT_REPO_MODE_IMMUTABLE | 仓库 `import_mode` 创建后不可修改 |
+| 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 
 ## 3. 接口详细设计
@@ -119,8 +119,8 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | 路径 | 方法 | 说明 | 权限码 |
 | ---- | ---- | ---- | ---- |
 | `/api/project/git-repos` | GET | 查询当前项目仓库配置（一项目一仓库，无分页） | `api-env:view` |
-| `/api/project/git-repos` | POST | 创建仓库配置，`importMode` 必填且创建后不可修改 | `api-env:edit` |
-| `/api/project/git-repos/{repoId}` | PUT | 更新配置；`importMode` 不在请求体中接受，出现即返回 `1000017711` | `api-env:edit` |
+| `/api/project/git-repos` | POST | 创建仓库配置，`importMode` 必填 | `api-env:edit` |
+| `/api/project/git-repos/{repoId}` | PUT | 更新配置；`repoPath` / `defaultBranch` / `importMode` 不在请求体中接受，出现即返回 `1000017711`；变更绑定仓库须走 DELETE 后重建 | `api-env:edit` |
 | `/api/project/git-repos/{repoId}` | DELETE | 逻辑删除；其下已导入场景保留但 `source_status` 置为 `repo_removed`。存在启用中的 `gitlab_sync` 定时任务时拒绝删除，返回 `1000017712` | `api-env:edit` |
 | `/api/project/git-repos/{repoId}/connections/test` | POST | 连通性测试（GitLab 版本 + 目标分支可达性 + 令牌 scope 校验） | `api-env:view` |
 
@@ -164,7 +164,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | ---- | ---- |
 | `repoPath` 非空且不含 `.git` 后缀与 `http(s)://` 前缀 | 1000017701 |
 | 同项目下 `repoPath` 唯一 | 1000017703 |
-| `importMode` 取值仅 `platform` / `gitlab_ci`，创建后无更新入口 | 1000017711 |
+| `importMode` 取值仅 `platform` / `gitlab_ci`；`repoPath` / `defaultBranch` / `importMode` 创建后无更新入口 | 1000017711 |
 | `token` 非空且连接测试通过 | 1000017702 |
 
 ### 3.2 导入与解析
@@ -297,7 +297,7 @@ flowchart TD
 
 **平台模式场景不路由到流水线**：`platform` 模式导入的场景虽持有完整步骤、可由平台引擎直接执行，但**不提供**切换到流水线引擎的入口——其步骤已结构化为平台形态，回投仓库侧执行等于要求平台把解析结果反写回工程，既无对应通道也无收益。引擎仍是派生属性，定时任务触发分组时这类场景恒归平台组。
 
-引擎选择 UI 为**单按钮**：单场景执行入口为场景编辑页顶部 [运行]，按引擎显示文案（运行 / 流水线运行），不提供引擎下拉。
+引擎选择 UI 为**单按钮**：单场景执行入口为列表行内 [执行]（直接触发）与编辑页顶部 [运行]，按引擎显示文案（运行 / 流水线运行），不提供引擎下拉。
 
 ### 4.2 流水线执行机制
 
@@ -489,3 +489,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | 页面结构改为整页单面板并移除「执行」页签，页面权限口径同步收敛，执行入口统一由场景侧承载 |
 | V1.0 | 2026-10-11 | 删除批量执行接口、批次聚合视图接口与错误码 `1000017706`；单场景执行入口明确为编辑页顶部 [运行]，批次仅为服务端内部机制 |
 | V1.0 | 2026-10-11 | 前端设计登记场景来源字段与 `gitlab_ci` 场景用例清单的返回契约，支撑来源徽标与只读视图 |
+| V1.0 | 2026-10-11 | 执行入口口径统一为双入口：列表行内 [执行]（直接触发）与编辑页顶部 [运行] |
