@@ -18,7 +18,7 @@
         <!-- 与 migoo BOM 锁定的 Spring Boot 对齐（dependencyManagement 只管依赖，不提供插件版本与执行） -->
         <spring-boot.version>4.1.0</spring-boot.version>
 
-        <ryze.version>6.1.1</ryze.version>
+        <ryze.version>6.1.2</ryze.version>
         <swagger-parser.version>2.1.22</swagger-parser.version>
         <springdoc.version>3.1.1</springdoc.version>
         <!-- JavaParser：GitLab 集成源码扫描（详细设计 6.3，WP-0.1 已确认引入），解析器收敛在 TestSourceScanner 抽象之后 -->
