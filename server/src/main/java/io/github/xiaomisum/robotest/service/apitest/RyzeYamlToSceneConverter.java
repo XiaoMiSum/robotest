@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 public final class RyzeYamlToSceneConverter {
@@ -40,6 +41,8 @@ public final class RyzeYamlToSceneConverter {
                 Map<String, Object> v = new LinkedHashMap<>();
                 v.put("name", entry.getKey() == null ? "" : entry.getKey().toString());
                 v.put("value", entry.getValue() == null ? "" : entry.getValue().toString());
+                // 场景变量行结构与 SceneStepEditor.normalizeVariables 对齐
+                v.put("description", null);
                 result.add(v);
             }
         }
@@ -52,22 +55,33 @@ public final class RyzeYamlToSceneConverter {
         if (!(childrenObj instanceof List<?> list)) {
             return steps;
         }
+        int order = 1;
         for (Object item : list) {
             if (item instanceof Map<?, ?> sampler) {
-                steps.add(convertSampler(sampler));
+                Map<String, Object> step = convertSampler(sampler);
+                step.put("sortOrder", order++);
+                steps.add(step);
             }
         }
         return steps;
     }
 
+    /** 取样器 → 平台步骤，键与 SceneStepEditor.newStep 对齐（id/stepType/enabled/sourceType/requestConfig/processors/validators/extractors/variables/sortOrder） */
     @SuppressWarnings("unchecked")
     static Map<String, Object> convertSampler(Map<?, ?> sampler) {
         Map<String, Object> step = new LinkedHashMap<>();
+        step.put("id", UUID.randomUUID().toString());
         step.put("name", str(sampler.get("title")));
-        step.put("type", str(sampler.get("testclass")));
+        String testClass = str(sampler.get("testclass")).toLowerCase();
+        step.put("stepType", testClass.isBlank() ? "http" : testClass);
+        step.put("enabled", true);
+        step.put("sourceType", "custom");
+        step.put("sourceId", null);
         step.put("requestConfig", reverseConfig(sampler.get("config")));
+        step.put("processors", List.of());
         step.put("validators", reverseValidators(sampler.get("validators")));
         step.put("extractors", reverseExtractors(sampler.get("extractors")));
+        step.put("variables", List.of());
         return step;
     }
 
