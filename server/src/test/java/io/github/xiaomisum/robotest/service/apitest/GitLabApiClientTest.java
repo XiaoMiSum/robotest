@@ -146,4 +146,95 @@ class GitLabApiClientTest {
         assertEquals(1000017702, ex.getCode());
         assertTrue(ex.getMessage().contains("实例不可达"));
     }
+
+    // ========== 目录枚举与文件读取（WP-3.1 扫描输入） ==========
+
+    /** 项目探测假实现：供 listFiles / getFileContent 跳过完整 probe 序列 */
+    private static GitLabApiClient.HttpOpener projectOnly(java.util.function.Function<String, HttpResponse<String>> handler) {
+        return (url, token) -> {
+            if (url.startsWith(BASE + "/api/v4/projects/") && !url.contains("/repository/")) {
+                return response(200, "{\"id\":12345}");
+            }
+            return handler.apply(url);
+        };
+    }
+
+    @Test
+    void listFilesReturnsBlobPathsAndFiltersTrees() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> {
+            if (url.contains("/repository/tree") && url.endsWith("&page=1")) {
+                return response(200, """
+                        [{"path":"src/test/java/FooTest.java","type":"blob"},
+                         {"path":"src/test/java/sub","type":"tree"}]
+                        """);
+            }
+            return response(200, "[]");
+        }));
+
+        java.util.List<String> paths = client.listFiles(BASE, TOKEN, REPO_PATH, "master", "src/test/java");
+
+        assertEquals(java.util.List.of("src/test/java/FooTest.java"), paths);
+    }
+
+    @Test
+    void listFilesFollowsPaginationUntilShortPage() {
+        StringBuilder page1 = new StringBuilder("[");
+        for (int i = 0; i < 100; i++) {
+            page1.append(i > 0 ? "," : "").append("{\"path\":\"f").append(i).append(".java\",\"type\":\"blob\"}");
+        }
+        page1.append("]");
+        // 注意用 "&page=N" 精确匹配，"page=1" 会误匹配 per_page=100 的子串
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> {
+            if (url.endsWith("&page=1")) {
+                return response(200, page1.toString());
+            }
+            if (url.endsWith("&page=2")) {
+                return response(200, "[{\"path\":\"f100.java\",\"type\":\"blob\"}]");
+            }
+            return response(200, "[]");
+        }));
+
+        java.util.List<String> paths = client.listFiles(BASE, TOKEN, REPO_PATH, "master", "src/test/java");
+
+        assertEquals(101, paths.size());
+        assertEquals("f100.java", paths.get(100));
+    }
+
+    @Test
+    void listFilesFailsWhenTreeUnreachable() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> response(404, "{}")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.listFiles(BASE, TOKEN, REPO_PATH, "master", "src/test/java"));
+
+        assertEquals(1000017702, ex.getCode());
+        assertTrue(ex.getMessage().contains("目录不可达"));
+    }
+
+    @Test
+    void getFileContentDecodesBase64() {
+        String base64 = java.util.Base64.getEncoder()
+                .encodeToString("public class FooTest {}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> {
+            if (url.contains("/repository/files/")) {
+                return response(200, "{\"content\":\"" + base64 + "\",\"encoding\":\"base64\"}");
+            }
+            return response(404, "{}");
+        }));
+
+        String content = client.getFileContent(BASE, TOKEN, REPO_PATH, "master", "src/test/java/FooTest.java");
+
+        assertEquals("public class FooTest {}", content);
+    }
+
+    @Test
+    void getFileContentFailsWhenFileMissing() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> response(404, "{}")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.getFileContent(BASE, TOKEN, REPO_PATH, "master", "src/test/java/Missing.java"));
+
+        assertEquals(1000017702, ex.getCode());
+        assertTrue(ex.getMessage().contains("文件不存在"));
+    }
 }
