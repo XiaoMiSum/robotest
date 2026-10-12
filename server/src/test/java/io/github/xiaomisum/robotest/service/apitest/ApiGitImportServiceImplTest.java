@@ -33,6 +33,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,8 +45,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -92,6 +95,8 @@ class ApiGitImportServiceImplTest {
     @Mock
     private GitLabApiClient gitLabApiClient;
     @Mock
+    private ApiGitRenameDetector renameDetector;
+    @Mock
     private ProjectAccessGuard projectAccessGuard;
     @Mock
     private PlatformTransactionManager transactionManager;
@@ -107,7 +112,7 @@ class ApiGitImportServiceImplTest {
 
     private ApiGitImportServiceImpl newService(java.util.concurrent.Executor executor) {
         return new ApiGitImportServiceImpl(sceneMapper, moduleMapper, gitRepoMapper, changeHistoryMapper,
-                scanner, gitLabApiClient, projectAccessGuard, transactionManager, executor, BASE64_KEY);
+                scanner, gitLabApiClient, renameDetector, projectAccessGuard, transactionManager, executor, BASE64_KEY);
     }
 
     private void stubCommon() {
@@ -124,7 +129,6 @@ class ApiGitImportServiceImplTest {
         lenient().when(moduleMapper.listRootBySourceIds(any(), any())).thenReturn(List.of());
         lenient().when(moduleMapper.listByProjectAndSourceIds(any(), any())).thenReturn(List.of());
         lenient().when(moduleMapper.findByNameAndParent(any(), any(), anyString())).thenReturn(null);
-        lenient().when(sceneMapper.listByRepoAndSourceIds(any(), any())).thenReturn(List.of());
         lenient().when(sceneMapper.listByRepo(any())).thenReturn(List.of());
         lenient().when(changeHistoryMapper.selectMaxVersion(anyString(), any())).thenReturn(0);
     }
@@ -290,7 +294,7 @@ class ApiGitImportServiceImplTest {
     @Test
     void reimportWithoutOverwriteRefreshesMetadataOnly() {
         ApiScene existing = existingScene(UUID.randomUUID(), SCENE_KEY);
-        when(sceneMapper.listByRepoAndSourceIds(any(), any())).thenReturn(List.of(existing));
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existing));
         when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(false));
 
         ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
@@ -316,7 +320,7 @@ class ApiGitImportServiceImplTest {
     @Test
     void reimportWithOverwriteRefreshesContent() {
         ApiScene existing = existingScene(UUID.randomUUID(), SCENE_KEY);
-        when(sceneMapper.listByRepoAndSourceIds(any(), any())).thenReturn(List.of(existing));
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existing));
         when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(true));
 
         service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
@@ -336,7 +340,6 @@ class ApiGitImportServiceImplTest {
         UUID staleId = UUID.randomUUID();
         ApiScene stale = existingScene(staleId, "com.example.GoneTest#gone");
         ApiScene current = existingScene(UUID.randomUUID(), SCENE_KEY);
-        when(sceneMapper.listByRepoAndSourceIds(any(), any())).thenReturn(List.of(current));
         when(sceneMapper.listByRepo(any())).thenReturn(List.of(stale, current));
         when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(false));
 
@@ -356,7 +359,7 @@ class ApiGitImportServiceImplTest {
     void importDegradesExistingSceneWhenTemplateMissing() {
         ApiScene existing = existingScene(UUID.randomUUID(), SCENE_KEY);
         remoteFiles.remove(YAML_PATH);
-        when(sceneMapper.listByRepoAndSourceIds(any(), any())).thenReturn(List.of(existing));
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existing));
         when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(false));
 
         ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
@@ -537,5 +540,211 @@ class ApiGitImportServiceImplTest {
 
         assertEquals("done", status.getStage());
         assertEquals(1, status.getSummary().get("created"));
+    }
+
+    // ========== 改名迁移（WP-3.4，详设 3.5 规则 1–6） ==========
+
+    private static final String OLD_FQN = "com.example.OrderQueryTest";
+    private static final String NEW_FQN = "com.example.b.RenamedQueryTest";
+    private static final String NEW_KEY = NEW_FQN + "#queryStatus";
+    private static final String NEW_JAVA_PATH = "src/test/java/com/example/b/RenamedQueryTest.java";
+    private static final String RENAME_FROM = "oldsha456";
+
+    private ApiGitRepo repoWithRenameBasis() {
+        ApiGitRepo row = storedRepo(false);
+        row.setLastImportCommit(RENAME_FROM);
+        return row;
+    }
+
+    private static ScanOutcome renamedScanOutcome() {
+        ScannedClass cls = new ScannedClass(NEW_JAVA_PATH, "com.example.b", "RenamedQueryTest",
+                List.of(new ScannedMethod("queryStatus", "查询订单状态", "order/query_status.yaml")));
+        return new ScanOutcome(List.of(cls), List.of(), List.of());
+    }
+
+    private void stubAcceptedRename() {
+        when(renameDetector.comparePairs(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of(new ApiGitRenameDetector.RenamePair(JAVA_PATH, NEW_JAVA_PATH)));
+        when(renameDetector.validatePairs(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ApiGitRenameDetector.RenameResult(Map.of(OLD_FQN, NEW_FQN), List.of()));
+    }
+
+    @Test
+    void previewCountsMigrationAsUpdateWithoutWrites() {
+        stubAcceptedRename();
+        when(scanner.scan(any())).thenReturn(renamedScanOutcome());
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existingScene(UUID.randomUUID(), SCENE_KEY)));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repoWithRenameBasis());
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // 规则 1：比对区间 = 上次导入提交 → 本次 HEAD（fetch 阶段）
+        verify(renameDetector).comparePairs(any(), any(), any(), eq(RENAME_FROM), eq("head123"), any());
+        // 规则 3：改名后旧行按有效键命中 → 计 update 不计 create；校验通过无明细
+        assertEquals(0, dto.getScenes().getCreate());
+        assertEquals(1, dto.getScenes().getUpdate());
+        assertTrue(dto.getDetails().isEmpty());
+        // 预览干跑不落任何迁移
+        verify(sceneMapper, never()).updateById(any(ApiScene.class));
+        verify(sceneMapper, never()).insert(any(ApiScene.class));
+        verify(sceneMapper, never()).markScenesRepoRemoved(any(), anyString());
+    }
+
+    @Test
+    void importAppliesSceneAndModuleMigrationBeforeUpsert() {
+        stubAcceptedRename();
+        when(scanner.scan(any())).thenReturn(renamedScanOutcome());
+        UUID oldSceneId = UUID.randomUUID();
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existingScene(oldSceneId, SCENE_KEY)));
+        UUID oldModuleId = UUID.randomUUID();
+        ProjectModule oldModule = new ProjectModule();
+        oldModule.setId(oldModuleId);
+        oldModule.setSourceId(OLD_FQN);
+        oldModule.setParentId(UUID.randomUUID());
+        when(moduleMapper.listByProjectAndSourceIds(any(), any())).thenAnswer(invocation -> {
+            Set<String> ids = invocation.getArgument(1);
+            return ids.contains(OLD_FQN) ? List.of(oldModule) : List.of();
+        });
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repoWithRenameBasis());
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("done", status.getStage());
+        assertEquals(0, status.getSummary().get("created"));
+        assertEquals(1, status.getSummary().get("updated"));
+        // 场景先迁 source_id（规则 3）再按新键 upsert；旧行未被标陈旧
+        ArgumentCaptor<ApiScene> sceneCaptor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper, times(2)).updateById(sceneCaptor.capture());
+        ApiScene migration = sceneCaptor.getAllValues().get(0);
+        assertEquals(oldSceneId, migration.getId());
+        assertEquals(NEW_KEY, migration.getSourceId());
+        assertNull(migration.getName());
+        verify(sceneMapper).markScenesRepoRemoved(argThat(ids -> ids.isEmpty()), eq("repo_removed"));
+        // 类模块稳定键旧 → 新迁移，载体仅 id + source_id（C11）
+        ArgumentCaptor<ProjectModule> moduleCaptor = ArgumentCaptor.forClass(ProjectModule.class);
+        verify(moduleMapper, atLeastOnce()).updateById(moduleCaptor.capture());
+        assertTrue(moduleCaptor.getAllValues().stream().anyMatch(
+                module -> oldModuleId.equals(module.getId()) && NEW_FQN.equals(module.getSourceId())
+                        && module.getName() == null));
+    }
+
+    @Test
+    void importDegradesToDeleteRecreateWhenCompareFails() {
+        when(renameDetector.comparePairs(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("变更比对失败：HTTP 404"));
+        when(scanner.scan(any())).thenReturn(renamedScanOutcome());
+        UUID oldSceneId = UUID.randomUUID();
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existingScene(oldSceneId, SCENE_KEY)));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repoWithRenameBasis());
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // 规则 6：compare 失败计 1 条 errorFailed 并降级删旧建新，不中止导入
+        assertEquals("done", status.getStage());
+        assertEquals(1, status.getSummary().get("errorFailed"));
+        assertEquals(1, status.getSummary().get("created"));
+        assertEquals(0, status.getSummary().get("updated"));
+        verify(sceneMapper).markScenesRepoRemoved(
+                argThat(ids -> ids.size() == 1 && ids.contains(oldSceneId)), eq("repo_removed"));
+        verify(renameDetector, never()).validatePairs(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void importDegradesRenameWhenValidationReportsError() {
+        when(renameDetector.comparePairs(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of(new ApiGitRenameDetector.RenamePair(JAVA_PATH, NEW_JAVA_PATH)));
+        when(renameDetector.validatePairs(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ApiGitRenameDetector.RenameResult(Map.of(),
+                        List.of("旧版本文件不存在：" + JAVA_PATH)));
+        when(scanner.scan(any())).thenReturn(renamedScanOutcome());
+        UUID oldSceneId = UUID.randomUUID();
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existingScene(oldSceneId, SCENE_KEY)));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repoWithRenameBasis());
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // 规则 2/6：真实错误计 errorFailed 且不采信改名 → 降级删旧建新，导入继续
+        assertEquals("done", status.getStage());
+        assertEquals(1, status.getSummary().get("errorFailed"));
+        assertEquals(1, status.getSummary().get("created"));
+        verify(sceneMapper).markScenesRepoRemoved(
+                argThat(ids -> ids.size() == 1 && ids.contains(oldSceneId)), eq("repo_removed"));
+    }
+
+    @Test
+    void importDropsRenameWhenTargetKeyExists() {
+        stubAcceptedRename();
+        when(scanner.scan(any())).thenReturn(renamedScanOutcome());
+        UUID oldSceneId = UUID.randomUUID();
+        UUID targetSceneId = UUID.randomUUID();
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(
+                existingScene(oldSceneId, SCENE_KEY), existingScene(targetSceneId, NEW_KEY)));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repoWithRenameBasis());
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // 规则 5 撞键保护：目标键已有真实行 → 放弃迁移 → 旧行标陈旧、目标行普通更新
+        assertEquals("done", status.getStage());
+        assertEquals(0, status.getSummary().get("created"));
+        assertEquals(1, status.getSummary().get("updated"));
+        verify(sceneMapper).markScenesRepoRemoved(
+                argThat(ids -> ids.size() == 1 && ids.contains(oldSceneId)), eq("repo_removed"));
+        ArgumentCaptor<ApiScene> captor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper, times(1)).updateById(captor.capture());
+        assertEquals(targetSceneId, captor.getValue().getId());
+        assertNull(captor.getValue().getSourceId());
+    }
+
+    @Test
+    void importReusesContainerWhenPackageFullyVacated() {
+        stubAcceptedRename();
+        when(scanner.scan(any())).thenReturn(renamedScanOutcome());
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existingScene(UUID.randomUUID(), SCENE_KEY)));
+        UUID containerId = UUID.randomUUID();
+        ProjectModule container = new ProjectModule();
+        container.setId(containerId);
+        container.setSourceId("com.example");
+        UUID oldModuleId = UUID.randomUUID();
+        ProjectModule oldModule = new ProjectModule();
+        oldModule.setId(oldModuleId);
+        oldModule.setSourceId(OLD_FQN);
+        oldModule.setParentId(containerId);
+        when(moduleMapper.listRootBySourceIds(any(), any())).thenAnswer(invocation -> {
+            Set<String> ids = invocation.getArgument(1);
+            return ids.contains("com.example") ? List.of(container) : List.of();
+        });
+        when(moduleMapper.listByProjectAndSourceIds(any(), any())).thenAnswer(invocation -> {
+            Set<String> ids = invocation.getArgument(1);
+            return ids.contains(OLD_FQN) ? List.of(oldModule) : List.of();
+        });
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repoWithRenameBasis());
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("done", status.getStage());
+        ArgumentCaptor<ProjectModule> captor = ArgumentCaptor.forClass(ProjectModule.class);
+        verify(moduleMapper, atLeastOnce()).updateById(captor.capture());
+        List<ProjectModule> carriers = captor.getAllValues();
+        // 规则 4：旧包名已无留存类 → 旧容器整体复用，source_id 与显示名同改为新包名
+        assertTrue(carriers.stream().anyMatch(
+                module -> containerId.equals(module.getId())
+                        && "com.example.b".equals(module.getSourceId())
+                        && "com.example.b".equals(module.getName())));
+        // 规则 3：类模块稳定键迁移
+        assertTrue(carriers.stream().anyMatch(
+                module -> oldModuleId.equals(module.getId()) && NEW_FQN.equals(module.getSourceId())));
+        // 不新建任何模块；类模块与（桥接后的）容器同父 → 不产生 reparent 载体
+        verify(moduleMapper, never()).insert(any(ProjectModule.class));
+        assertEquals(0, status.getSummary().get("created"));
+        assertEquals(1, status.getSummary().get("updated"));
+    }
+
+    @Test
+    void firstImportSkipsRenameCompare() {
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(false));
+
+        service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        verify(renameDetector, never()).comparePairs(any(), any(), any(), any(), any(), any());
     }
 }
