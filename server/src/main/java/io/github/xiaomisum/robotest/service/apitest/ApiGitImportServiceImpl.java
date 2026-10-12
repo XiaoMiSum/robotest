@@ -6,10 +6,12 @@ import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiGitImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiGitImportStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
@@ -47,7 +49,9 @@ import java.util.concurrent.RejectedExecutionException;
  * <p>
  * 稳定键 upsert：模块按 source_id（包容器=完整包名、类模块=全限定名）、场景按 (repo_id, source_id)=类全限定名#方法名；
  * 重复导入结果一致（BR-1.8 / BR-1.11）。源侧已不存在的场景仅标记 repo_removed，不删除、不计 summary（BR-1.42）。
- * GitLab 拉取全部在事务外完成，导入写库为单事务（BR-1.15）；环境合并为 WP-4.1 占位（恒 skip）。
+ * GitLab 拉取全部在事务外完成，导入写库为单事务（BR-1.15）；环境合并仅 platform 模式执行，
+ * 按 refName 覆盖式并入默认环境后以 source_id 封印（详设 3.5，SRS 3.3），环境文件缺失或
+ * 解析失败降级 skip，不中止导入。
  */
 @Slf4j
 @Service
@@ -80,6 +84,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
     private final ApiSceneMapper sceneMapper;
     private final ProjectModuleMapper moduleMapper;
     private final ApiGitRepoMapper gitRepoMapper;
+    private final ApiEnvironmentMapper environmentMapper;
     private final ApiChangeHistoryMapper changeHistoryMapper;
     private final TestSourceScanner scanner;
     private final GitLabApiClient gitLabApiClient;
@@ -92,7 +97,8 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
     private final ConcurrentMap<UUID, ImportProgress> progressMap = new ConcurrentHashMap<>();
 
     public ApiGitImportServiceImpl(ApiSceneMapper sceneMapper, ProjectModuleMapper moduleMapper,
-            ApiGitRepoMapper gitRepoMapper, ApiChangeHistoryMapper changeHistoryMapper,
+            ApiGitRepoMapper gitRepoMapper, ApiEnvironmentMapper environmentMapper,
+            ApiChangeHistoryMapper changeHistoryMapper,
             TestSourceScanner scanner, GitLabApiClient gitLabApiClient, ApiGitRenameDetector renameDetector,
             ProjectAccessGuard projectAccessGuard,
             PlatformTransactionManager transactionManager,
@@ -101,6 +107,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         this.sceneMapper = sceneMapper;
         this.moduleMapper = moduleMapper;
         this.gitRepoMapper = gitRepoMapper;
+        this.environmentMapper = environmentMapper;
         this.changeHistoryMapper = changeHistoryMapper;
         this.scanner = scanner;
         this.gitLabApiClient = gitLabApiClient;
@@ -272,6 +279,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         stage(progress, STAGE_PARSE, 0, plan.effectiveCases());
         if (IMPORT_MODE_PLATFORM.equals(repo.getImportMode())) {
             parsePlatformScenes(repo, token, plan, progress);
+            plan.envParsed = loadEnvDeclaration(repo, token, plan);
         } else {
             parseGitlabCiScenes(plan, progress);
         }
@@ -323,6 +331,31 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
                 stage(progress, STAGE_PARSE, ++parsed, total);
             }
         }
+    }
+
+    /**
+     * 环境声明拉取与解析（详设 3.5，仅 platform）：文件缺失或解析异常一律返回 null 降级 skip，
+     * 环境不合并时导入场景由用户手工指定环境（SRS 附录：不满足前置仅降级，不中止导入）。
+     */
+    private ApiGitEnvMerger.ParsedEnv loadEnvDeclaration(ApiGitRepo repo, String token, ImportPlan plan) {
+        String path = joinResource(repo.getResourceDir(), repo.getEnvFilePath());
+        String content;
+        try {
+            content = gitLabApiClient.findFileContent(repo.getGitlabBaseUrl(), token,
+                    repo.getRepoPath(), plan.branch, path);
+        } catch (RuntimeException e) {
+            log.warn("环境声明文件读取失败，本次不合并环境：path={} 原因={}", path, e.getMessage());
+            return null;
+        }
+        if (content == null || content.isBlank()) {
+            log.info("环境声明文件不存在或为空，本次不合并环境：path={}", path);
+            return null;
+        }
+        ApiGitEnvMerger.ParsedEnv parsed = ApiGitEnvMerger.parse(content);
+        if (!parsed.skipped().isEmpty()) {
+            log.warn("环境声明部分元件跳过：path={} 明细={}", path, parsed.skipped());
+        }
+        return parsed;
     }
 
     /** 改名候选（详设 3.5 规则 1）：仅在上次导入提交与本次 HEAD 不同（幂等闸门放行）时比对 */
@@ -661,7 +694,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         dto.setScenes(scenes);
 
         ApiGitImportPreviewRespDTO.EnvironmentDTO environment = new ApiGitImportPreviewRespDTO.EnvironmentDTO();
-        environment.setAction("skip");
+        fillEnvironment(environment, projectId, repo, plan);
         dto.setEnvironment(environment);
 
         List<ApiGitImportPreviewRespDTO.DetailDTO> details = new ArrayList<>();
@@ -674,6 +707,27 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         }
         dto.setDetails(details);
         return dto;
+    }
+
+    /**
+     * 预览侧环境合并判定（详设 3.2 预览响应）：与导入同一判定口径，仅计数不落库。
+     * 已封印环境与无环境声明时 action=skip；gitlab_ci 恒 skip（BR-1.20）。
+     */
+    private void fillEnvironment(ApiGitImportPreviewRespDTO.EnvironmentDTO environment, UUID projectId,
+            ApiGitRepo repo, ImportPlan plan) {
+        if (plan.envParsed == null) {
+            environment.setAction("skip");
+            return;
+        }
+        ApiEnvironment target = environmentMapper.findDefaultByProjectId(projectId);
+        if (target != null && target.getSourceId() != null) {
+            environment.setAction("skip");
+            return;
+        }
+        environment.setAction("merge");
+        environment.setTarget(target != null ? target.getName() : repo.getName());
+        environment.setHttpConfigs(plan.envParsed.target().httpConfigs().size());
+        environment.setDataSources(plan.envParsed.target().dataSources().size());
     }
 
     // ========== 导入落库（事务内） ==========
@@ -701,13 +755,15 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         // 改名迁移先行（详设 3.5 规则 6）：随后归属解析、按稳定键 upsert 与差集标记均按有效键命中
         applyRenameMigrations(plan);
         Map<String, UUID> moduleIds = resolveModules(projectId, plan.classes, plan, true);
+        // 环境合并先于场景写入：新场景直接携带目标环境，既有 NULL 项在场景 upsert 后统一回填（BR-1.19）
+        UUID environmentId = mergeEnvironment(projectId, repo, plan);
         boolean platform = IMPORT_MODE_PLATFORM.equals(repo.getImportMode());
         boolean overwrite = Boolean.TRUE.equals(repo.getReimportOverwrite());
         for (PreparedScene prepared : plan.prepared) {
             UUID moduleId = moduleIds.get(prepared.fqn());
             ApiScene existing = plan.existingByKey.get(prepared.key());
             if (existing == null) {
-                sceneMapper.insert(newScene(projectId, repo.getId(), moduleId, prepared, platform));
+                sceneMapper.insert(newScene(projectId, repo.getId(), moduleId, prepared, platform, environmentId));
             } else {
                 sceneMapper.updateById(buildUpdateCarrier(existing, moduleId, prepared, platform, overwrite));
             }
@@ -724,6 +780,10 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         }
         // 源侧已不存在：仅标记，不删除、不计 summary（BR-1.42）
         sceneMapper.markScenesRepoRemoved(plan.staleIds, SOURCE_STATUS_REPO_REMOVED);
+        // 既有场景环境回填：仅 environment_id 为空的行（BR-1.19），repo 未合并环境时 environmentId 为 null 不回填
+        if (environmentId != null) {
+            sceneMapper.backfillEnvironmentIdIfNull(repo.getId(), environmentId);
+        }
 
         Map<String, Object> summary = summaryOf(plan);
         ApiChangeHistory history = new ApiChangeHistory();
@@ -749,7 +809,56 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         return summary;
     }
 
-    private ApiScene newScene(UUID projectId, UUID repoId, UUID moduleId, PreparedScene prepared, boolean platform) {
+    /**
+     * 环境合并与封印（详设 3.5，BR-1.16~1.20）：仅 platform 模式且环境声明解析成功时执行。
+     * 无默认环境则新建（name=仓库展示名，BR-1.17）；已封印（source_id 非空）跳过写入（BR-1.18）；
+     * 未封印按 refName 覆盖式并入两组条目后回填 source_id=repo_path 完成封印。
+     * 返回目标环境 id（供场景回填），无合并动作返回 null。
+     */
+    private UUID mergeEnvironment(UUID projectId, ApiGitRepo repo, ImportPlan plan) {
+        if (plan.envParsed == null) {
+            return null;
+        }
+        ApiEnvironment environment = environmentMapper.findDefaultByProjectId(projectId);
+        if (environment == null) {
+            environment = new ApiEnvironment();
+            environment.setProjectId(projectId);
+            environment.setName(repo.getName());
+            environment.setScope("project");
+            environment.setIsDefault(true);
+            environment.setSortOrder(0);
+            environment.setVariables(List.of());
+            environment.setProcessors(List.of());
+            ApiGitEnvMerger.MergeTarget imported = plan.envParsed.target();
+            environment.setHttpConfigs(imported.httpConfigs());
+            environment.setDataSources(imported.dataSources());
+            environment.setSourceId(repo.getRepoPath());
+            environmentMapper.insert(environment);
+            return environment.getId();
+        }
+        // 写一次封印：平台侧为权威源，仓库侧后续变更不再回同步（BR-1.18）
+        if (environment.getSourceId() != null) {
+            return environment.getId();
+        }
+        ApiGitEnvMerger.MergeTarget merged = ApiGitEnvMerger.merge(
+                new ApiGitEnvMerger.MergeTarget(nullSafeEnv(environment.getHttpConfigs()),
+                        nullSafeEnv(environment.getDataSources())),
+                plan.envParsed.target());
+        ApiEnvironment carrier = new ApiEnvironment();
+        carrier.setId(environment.getId());
+        carrier.setHttpConfigs(merged.httpConfigs());
+        carrier.setDataSources(merged.dataSources());
+        carrier.setSourceId(repo.getRepoPath());
+        environmentMapper.updateById(carrier);
+        return environment.getId();
+    }
+
+    private static List<Map<String, Object>> nullSafeEnv(List<Map<String, Object>> list) {
+        return list == null ? List.of() : list;
+    }
+
+    private ApiScene newScene(UUID projectId, UUID repoId, UUID moduleId, PreparedScene prepared,
+            boolean platform, UUID environmentId) {
         ApiScene scene = new ApiScene();
         scene.setProjectId(projectId);
         scene.setModuleId(moduleId);
@@ -769,6 +878,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         scene.setSourceStatus(SOURCE_STATUS_IN_SYNC);
         scene.setParseStatus(PARSE_STATUS_OK);
         scene.setParseIssues(List.of());
+        scene.setEnvironmentId(environmentId);
         return scene;
     }
 
@@ -977,6 +1087,8 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         int sceneUpdate;
         int parseFailed;
         int errorFailed;
+        /** 环境合并输入：platform 模式拉取解析后的产物；缺失 / 失败为 null（降级 skip，BR-1.20 附录） */
+        ApiGitEnvMerger.ParsedEnv envParsed;
 
         int effectiveCases() {
             int total = 0;

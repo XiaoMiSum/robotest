@@ -93,4 +93,12 @@ public interface ApiSceneMapper extends BaseMapperX<ApiScene> {
                 .set(ApiScene::getSourceStatus, sourceStatus));
     }
 
+    /** 导入场景环境回填（BR-1.19）：仅 environment_id 为空的行回填，不覆盖用户已选择的环境 */
+    default int backfillEnvironmentIdIfNull(UUID repoId, UUID environmentId) {
+        return update(null, new LambdaUpdateWrapperX<ApiScene>()
+                .eq(ApiScene::getRepoId, repoId)
+                .isNull(ApiScene::getEnvironmentId)
+                .set(ApiScene::getEnvironmentId, environmentId));
+    }
+
 }
