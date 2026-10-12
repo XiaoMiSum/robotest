@@ -7,12 +7,15 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneCreateReqD
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepReorderReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDetailRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
@@ -66,6 +69,8 @@ class ApiSceneServiceImplTest {
     private ApiSceneFollowMapper sceneFollowMapper;
     @Mock
     private ProjectModuleMapper moduleMapper;
+    @Mock
+    private ApiGitRepoMapper gitRepoMapper;
 
     @InjectMocks
     private ApiSceneServiceImpl service;
@@ -363,5 +368,49 @@ class ApiSceneServiceImplTest {
         reqDTO.setIds(List.of(foreignId));
         assertThrows(ServiceException.class,
                 () -> service.batchMove(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
+    }
+
+    // ========== 引擎派生（WP-5.1，详设 4.1） ==========
+
+    @Test
+    void getDetailDerivesPlatformEngineForNativeScene() {
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(existingScene());
+
+        ApiSceneDetailRespDTO dto = service.getDetail(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID);
+
+        assertEquals("platform", dto.getEngine());
+        // 平台原生场景不查仓库
+        verify(gitRepoMapper, times(0)).selectById(any());
+    }
+
+    @Test
+    void getDetailDerivesGitlabCiEngineForCiImportedScene() {
+        ApiScene scene = existingScene();
+        UUID repoId = UUID.randomUUID();
+        scene.setSourceType("gitlab");
+        scene.setRepoId(repoId);
+        ApiGitRepo repo = new ApiGitRepo();
+        repo.setId(repoId);
+        repo.setImportMode("gitlab_ci");
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(scene);
+        when(gitRepoMapper.selectById(repoId)).thenReturn(repo);
+
+        ApiSceneDetailRespDTO dto = service.getDetail(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID);
+
+        assertEquals("gitlab_ci", dto.getEngine());
+    }
+
+    @Test
+    void getDetailDerivesPlatformEngineWhenRepoDeleted() {
+        ApiScene scene = existingScene();
+        UUID repoId = UUID.randomUUID();
+        scene.setSourceType("gitlab");
+        scene.setRepoId(repoId);
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(scene);
+        when(gitRepoMapper.selectById(repoId)).thenReturn(null);
+
+        ApiSceneDetailRespDTO dto = service.getDetail(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID);
+
+        assertEquals("platform", dto.getEngine());
     }
 }

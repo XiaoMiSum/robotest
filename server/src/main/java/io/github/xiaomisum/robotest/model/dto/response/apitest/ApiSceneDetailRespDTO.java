@@ -31,6 +31,9 @@ public class ApiSceneDetailRespDTO {
     /** 当前用户是否已关注该场景 */
     private Boolean followed;
 
+    /** 执行引擎（详设 4.1 派生属性）：platform / gitlab_ci，供执行入口文案与只读形态渲染 */
+    private String engine;
+
     /** [{name, value, description}] */
     private List<Map<String, Object>> variables;
 
