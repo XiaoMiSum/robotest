@@ -348,6 +348,24 @@ flowchart TD
 
 **环境合并规则**（仅 `platform` 模式，单事务）：`api_environment.source_id` 为 NULL 时，按 `refName` upsert `http_configs` 与 `data_sources` 中的导入项（保留用户自行添加的其他条目），随后回填 `source_id = repo_path` 完成封印；非 NULL 时跳过写入，此后平台侧为权威源，仓库侧环境变更不再回同步。项目无默认环境时新建（`name = 仓库展示名`，`is_default = true`）。场景仅在 `environment_id` 为 NULL 时回填。
 
+**源侧元件到平台结构的字段映射**（源侧为 Ryze `env.yaml` 元件列表 `{testclass, ref_name, config}`）：
+
+| 源侧 | 平台 `http_configs` | 说明 |
+| ---- | ---- | ---- |
+| `config.protocol` / `host` / `port` | `baseUrl` | 拼为 `protocol://host[:port]`，端口等于协议默认端口（http 80 / https 443）时省略 |
+| `config.headers`（map） | `headers` | 转 `[{key, value, enabled: true}]`；缺失为空数组 |
+| `ref_name` | `refName` 与 `name` | 缺失取 `default` |
+| — | `isDefault` | 无 `ref_name` 的首个 http 元件为默认（Ryze 默认配置语义）；合并后归一，同一环境至多一个 |
+
+| 源侧 | 平台 `data_sources` | 说明 |
+| ---- | ---- | ---- |
+| `config.url` | `url` | 原样，用户名密码并入查询串（2.1.4 口径）：`?user=&password=`；`redis://` 密码插在 host 前 |
+| `url` 协议 | `driver` | `jdbc:mysql:` → `com.mysql.cj.jdbc.Driver`；`jdbc:postgresql:` → `org.postgresql.Driver`；`redis://` / `rediss://` → `-` 占位；其余协议该元件跳过并留痕 |
+| `ref_name` | `refName` 与 `name` | 缺失取 `default` |
+| — | `connectionProperties` / `maxPoolSize` | 平台默认值 `{}` / `5` |
+
+无法识别的元件（未知 `testclass`、缺 `config`、非映射结构）跳过并记录原因，不中止导入；环境声明文件缺失或解析失败时本次不合并（`environment.action = skip`），导入照常执行。
+
 ### 3.6 源变更同步任务
 
 源变更检测不做成独立功能，而是复用定时任务体系：新增任务类型 `gitlab_sync`（与既有 `scene_execute`、`import_swagger` 并列），由用户自行创建并配置 Cron，到点执行一次仓库同步。任务的 CRUD、启停、Cron 校验与立即执行沿用既有任务管理设计，仅在执行环节分流。
@@ -644,3 +662,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-12 | 3.2 补导入进度响应契约：`stage` 阶段枚举（fetch/scan/parse/merge/persist/done/failed）、`failed` 失败原因与 `done` 结果汇总示例 |
 | V1.0 | 2026-10-12 | 3.4 commit 幂等闸门细化：两种模式同一判定（`gitlab_ci` 同样参与提交比对）；导入跳过抛 `1000017709`，预览跳过返回 `gate.blocked=true` 且不解析；`errorFailed` 取上次汇总、`parseFailed` 不参与闸门 |
 | V1.0 | 2026-10-12 | 3.5 改名迁移入口扩大为导入与同步共用：3.5 流程图补 compare 步骤，规则 1 明确比对区间为 `last_import_commit` → 本次 HEAD，规则 2 补重合度阈值（|交集|/|并集| ≥ 0.5），新增规则 6（预览干跑、compare 失败降级与错误计列）；3.6 步骤 3/4 随之改写 |
+| V1.0 | 2026-10-12 | 3.5 补环境合并的源侧元件字段映射表：http 元件转 `baseUrl` / `headers` / `refName`，jdbc 元件转 `driver`（按 url 协议推断，未知协议跳过留痕）与并入 url 的用户名密码；文件缺失或解析失败降级 skip 不中止导入 |
