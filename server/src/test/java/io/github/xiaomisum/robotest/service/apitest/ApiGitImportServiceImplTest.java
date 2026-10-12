@@ -452,4 +452,90 @@ class ApiGitImportServiceImplTest {
 
         assertEquals(1000017702, ex.getCode());
     }
+
+    // ========== commit 幂等闸门（详设 3.4） ==========
+
+    @Test
+    void previewBlockedWhenHeadUpToDate() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setLastImportCommit("head123");
+        repo.setLastImportSummary(Map.of("created", 5, "updated", 1,
+                "parseFailed", 2, "errorFailed", 0, "skipped", 0));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repo);
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals(true, dto.getGate().getBlocked());
+        assertTrue(dto.getGate().getReason().contains("已跳过"));
+        assertEquals(REPO_ID, dto.getRepoId());
+        assertEquals("master", dto.getBranch());
+        assertEquals("head123", dto.getHeadCommit());
+        assertNull(dto.getClasses());
+        assertNull(dto.getModules());
+        assertNull(dto.getScenes());
+        // 拦截时不拉取源码树、不扫描、不产生任何写操作
+        verify(gitLabApiClient, never()).listFiles(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(scanner, never()).scan(any());
+        verify(sceneMapper, never()).insert(any(ApiScene.class));
+        verify(gitRepoMapper, never()).updateById(any(ApiGitRepo.class));
+    }
+
+    @Test
+    void previewPassesWhenResidualErrorsRemain() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setLastImportCommit("head123");
+        repo.setLastImportSummary(Map.of("created", 5, "updated", 1,
+                "parseFailed", 0, "errorFailed", 2, "skipped", 0));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repo);
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // 提交一致但上次仍有真实错误 → 放行（parseFailed 是预期结果，不参与闸门）
+        assertEquals(false, dto.getGate().getBlocked());
+        assertEquals(1, dto.getScenes().getCreate());
+    }
+
+    @Test
+    void importsSkippedWhenUpToDate() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setLastImportCommit("head123");
+        repo.setLastImportSummary(Map.of("errorFailed", 0));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repo);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID));
+
+        assertEquals(1000017709, ex.getCode());
+        verify(gitLabApiClient, never()).listFiles(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(sceneMapper, never()).insert(any(ApiScene.class));
+        // 未占用进行中闸门：状态仍为 idle，可继续查询与后续发起
+        assertEquals("idle", service.status(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID).getStage());
+    }
+
+    @Test
+    void gitlabCiUsesSameGate() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setImportMode("gitlab_ci");
+        repo.setLastImportCommit("head123");
+        repo.setLastImportSummary(Map.of("errorFailed", 0));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repo);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID));
+
+        assertEquals(1000017709, ex.getCode());
+    }
+
+    @Test
+    void importsRunWhenHeadDiffersFromLastImport() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setLastImportCommit("old456");
+        repo.setLastImportSummary(Map.of("errorFailed", 0));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repo);
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("done", status.getStage());
+        assertEquals(1, status.getSummary().get("created"));
+    }
 }
