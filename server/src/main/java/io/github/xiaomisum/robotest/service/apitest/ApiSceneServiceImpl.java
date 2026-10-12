@@ -14,11 +14,13 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDetailRes
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScenePageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneQuickCreateRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiInterface;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSceneFollow;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiInterfaceMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneFollowMapper;
@@ -64,6 +66,8 @@ public class ApiSceneServiceImpl implements ApiSceneService {
     private ApiSceneFollowMapper sceneFollowMapper;
     @Resource
     private ProjectModuleMapper moduleMapper;
+    @Resource
+    private ApiGitRepoMapper gitRepoMapper;
 
     // ========== 场景管理 ==========
 
@@ -80,7 +84,11 @@ public class ApiSceneServiceImpl implements ApiSceneService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiScene scene = requireScene(projectId, id);
         boolean followed = sceneFollowMapper.selectBySceneAndUser(id, userId) != null;
-        return SceneDetailAssembler.toDetail(scene, followed, sourceId -> interfaceMapper.selectById(sourceId) != null);
+        // 引擎为派生属性（详设 4.1）：仓库仅在 GitLab 导入场景时按 repoId 取回，判定经纯函数路由
+        ApiGitRepo repo = scene.getRepoId() == null ? null : gitRepoMapper.selectById(scene.getRepoId());
+        String engine = ApiSceneEngineRouter.resolve(scene, repo);
+        return SceneDetailAssembler.toDetail(scene, followed,
+                sourceId -> interfaceMapper.selectById(sourceId) != null, engine);
     }
 
     @Override
