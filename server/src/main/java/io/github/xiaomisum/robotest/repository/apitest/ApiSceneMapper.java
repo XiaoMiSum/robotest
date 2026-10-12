@@ -67,4 +67,30 @@ public interface ApiSceneMapper extends BaseMapperX<ApiScene> {
                 .set(ApiScene::getSourceStatus, sourceStatus));
     }
 
+    /** 仓库下全部在场场景：与本次扫描结果比对，识别源侧已不存在的场景（BR-1.42） */
+    default List<ApiScene> listByRepo(UUID repoId) {
+        return selectList(new LambdaQueryWrapperX<ApiScene>()
+                .eq(ApiScene::getRepoId, repoId));
+    }
+
+    /** 按稳定键（repo_id + source_id，类全限定名#方法名）批量取既有场景，导入 upsert 的比对基准 */
+    default List<ApiScene> listByRepoAndSourceIds(UUID repoId, Collection<String> sourceIds) {
+        if (sourceIds == null || sourceIds.isEmpty()) {
+            return List.of();
+        }
+        return selectList(new LambdaQueryWrapperX<ApiScene>()
+                .eq(ApiScene::getRepoId, repoId)
+                .in(ApiScene::getSourceId, sourceIds));
+    }
+
+    /** 源侧已不存在的场景仅标记 repo_removed：不删除、不计 summary（BR-1.42） */
+    default int markScenesRepoRemoved(Collection<UUID> sceneIds, String sourceStatus) {
+        if (sceneIds == null || sceneIds.isEmpty()) {
+            return 0;
+        }
+        return update(null, new LambdaUpdateWrapperX<ApiScene>()
+                .in(ApiScene::getId, sceneIds)
+                .set(ApiScene::getSourceStatus, sourceStatus));
+    }
+
 }
