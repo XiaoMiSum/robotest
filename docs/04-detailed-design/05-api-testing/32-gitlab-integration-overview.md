@@ -213,7 +213,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | ---- | ---- | ---- | ---- |
 | `/api/project/git-repos/{repoId}/preview` | POST | 扫描预览：拉取目标分支、扫描测试类，返回将创建 / 更新 / 解析失败的清单与汇总，不落库 | `api-scene:view` |
 | `/api/project/git-repos/{repoId}/imports` | POST | 执行导入；先过 commit 幂等闸门（3.4），再按预览清单 upsert | `api-scene:edit` |
-| `/api/project/git-repos/{repoId}/imports/status` | GET | 查询当前仓库导入进度（阶段、已处理数、总量） | `api-scene:view` |
+| `/api/project/git-repos/{repoId}/imports/status` | GET | 查询当前仓库导入进度（阶段、已处理数、总量；`failed` 时含失败原因，`done` 时含结果汇总） | `api-scene:view` |
 
 **预览响应示例（`data`，`platform` 模式）**
 
@@ -235,6 +235,30 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 ```
 
 `gitlab_ci` 模式下 `effectiveCases` 仅来自 `@Test(description)`，`environment` 恒为 `{ "action": "skip" }`，`details` 中不出现 `parseFailed`（该模式不读 YAML）。
+
+**进度响应示例（`data`）**
+
+```json
+{
+  "stage": "parse",
+  "processed": 96,
+  "total": 193,
+  "error": null,
+  "summary": null
+}
+```
+
+`stage` 取值：`idle`（未导入）→ `fetch`（拉取源码）→ `scan`（扫描测试类）→ `parse`（解析用例）→ `merge`（合并环境）→ `persist`（回写结果）→ `done`（完成）；任一阶段异常转 `failed`，`error` 为失败原因。`done` 时 `summary` 与仓库配置 `lastImportSummary` 同构：
+
+```json
+{
+  "stage": "done",
+  "processed": 193,
+  "total": 193,
+  "error": null,
+  "summary": { "created": 193, "updated": 12, "parseFailed": 0, "errorFailed": 0, "skipped": 0 }
+}
+```
 
 ### 3.3 执行接口（CI 引擎）
 
@@ -607,3 +631,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | 连通性测试改为无 `repoId` 端点 `/connections/test`（空态可调、缺省字段回落库值），补充测试报文示例；创建 / 更新与测试一律强制实测通过，失败原因须可区分 |
 | V1.0 | 2026-10-11 | 仓库配置响应示例补齐 `testSourceDir` / `resourceDir` / `envFilePath`（编辑态需回显可改的目录字段，与需求 F1.1 修改配置口径一致） |
 | V1.0 | 2026-10-12 | `api_git_repo` 新增 `reimport_overwrite`（重复导入覆盖策略，默认不覆盖）：2.1.1 / 6.1 落列，3.1 补请求响应示例与说明，3.5 导入流程与场景内容合并策略按该配置分流 |
+| V1.0 | 2026-10-12 | 3.2 补导入进度响应契约：`stage` 阶段枚举（fetch/scan/parse/merge/persist/done/failed）、`failed` 失败原因与 `done` 结果汇总示例 |
