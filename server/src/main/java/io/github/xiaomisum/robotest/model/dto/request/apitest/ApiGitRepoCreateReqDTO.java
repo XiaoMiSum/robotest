@@ -52,4 +52,7 @@ public class ApiGitRepoCreateReqDTO {
     @Size(max = 500, message = "环境声明文件路径不能超过 500 字符")
     private String envFilePath;
 
+    /** 重复导入是否以源侧内容覆盖平台侧场景内容，缺省 false（不覆盖） */
+    private Boolean reimportOverwrite;
+
 }

@@ -22,6 +22,7 @@ CREATE TABLE api_git_repo (
     test_source_dir     VARCHAR(500) NOT NULL DEFAULT 'src/test/java',
     resource_dir        VARCHAR(500) NOT NULL DEFAULT 'src/test/resources',
     env_file_path       VARCHAR(500) NOT NULL DEFAULT 'common/env/env.yaml',
+    reimport_overwrite  BOOLEAN NOT NULL DEFAULT FALSE,
     enabled             BOOLEAN NOT NULL DEFAULT TRUE,
     last_import_at      TIMESTAMP NULL,
     last_import_commit  VARCHAR(64) NULL,
@@ -42,6 +43,7 @@ COMMENT ON TABLE api_git_repo IS '代码仓库配置表（一项目一仓库，G
 COMMENT ON COLUMN api_git_repo.repo_path IS '项目路径（group/subgroup/repo），源侧稳定键，创建后不可改';
 COMMENT ON COLUMN api_git_repo.import_mode IS '导入模式：platform（导入为平台场景）/ gitlab_ci（流水线调度），创建后不可改';
 COMMENT ON COLUMN api_git_repo.token_cipher IS '访问令牌密文（AES-256-GCM，只进不出，不下发前端）';
+COMMENT ON COLUMN api_git_repo.reimport_overwrite IS '重复导入是否以源侧内容覆盖平台侧场景内容（默认不覆盖，仅 platform 模式生效）';
 COMMENT ON COLUMN api_git_repo.last_import_commit IS '上次导入分支 HEAD，commit 幂等闸门比对基准';
 COMMENT ON COLUMN api_git_repo.last_import_summary IS '上次导入结果 {created,updated,parseFailed,errorFailed,skipped}，闸门只看 errorFailed';
 COMMENT ON COLUMN api_git_repo.head_commit IS '源探查回写的默认分支最新提交，与 last_import_commit 不一致即「源有更新」';

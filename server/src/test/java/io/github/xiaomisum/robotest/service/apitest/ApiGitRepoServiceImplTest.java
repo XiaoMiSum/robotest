@@ -147,6 +147,7 @@ class ApiGitRepoServiceImplTest {
         assertEquals("src/test/java", inserted.getTestSourceDir());
         assertEquals("src/test/resources", inserted.getResourceDir());
         assertEquals("common/env/env.yaml", inserted.getEnvFilePath());
+        assertFalse(inserted.getReimportOverwrite());
         assertTrue(inserted.getEnabled());
         assertEquals(USER_ID, inserted.getCreatedBy());
         assertEquals("glpat-xxxx", SecretCryptoUtil.decrypt(SECRET_KEY, inserted.getTokenCipher()));
@@ -264,6 +265,45 @@ class ApiGitRepoServiceImplTest {
         ArgumentCaptor<ApiGitRepo> captor = ArgumentCaptor.forClass(ApiGitRepo.class);
         verify(gitRepoMapper).updateById(captor.capture());
         assertEquals("glpat-yyyy", SecretCryptoUtil.decrypt(SECRET_KEY, captor.getValue().getTokenCipher()));
+    }
+
+    @Test
+    void createHonorsReimportOverwriteWhenTrue() {
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(null);
+        ApiGitRepoCreateReqDTO req = createReq();
+        req.setReimportOverwrite(true);
+
+        service.createRepo(PROJECT_ID, WORKSPACE_ID, USER_ID, req);
+
+        ArgumentCaptor<ApiGitRepo> captor = ArgumentCaptor.forClass(ApiGitRepo.class);
+        verify(gitRepoMapper).insert(captor.capture());
+        assertTrue(captor.getValue().getReimportOverwrite());
+    }
+
+    @Test
+    void updatePersistsReimportOverwriteWhenPassed() {
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo());
+        ApiGitRepoUpdateReqDTO req = new ApiGitRepoUpdateReqDTO();
+        req.setReimportOverwrite(true);
+
+        service.updateRepo(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID, req);
+
+        ArgumentCaptor<ApiGitRepo> captor = ArgumentCaptor.forClass(ApiGitRepo.class);
+        verify(gitRepoMapper).updateById(captor.capture());
+        assertTrue(captor.getValue().getReimportOverwrite());
+    }
+
+    @Test
+    void updateSkipsPersistWhenReimportOverwriteAbsent() {
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo());
+        ApiGitRepoUpdateReqDTO req = new ApiGitRepoUpdateReqDTO();
+        req.setName("renamed");
+
+        service.updateRepo(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID, req);
+
+        ArgumentCaptor<ApiGitRepo> captor = ArgumentCaptor.forClass(ApiGitRepo.class);
+        verify(gitRepoMapper).updateById(captor.capture());
+        assertNull(captor.getValue().getReimportOverwrite());
     }
 
     @Test
