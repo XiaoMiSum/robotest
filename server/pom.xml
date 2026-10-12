@@ -21,6 +21,8 @@
         <ryze.version>6.1.1</ryze.version>
         <swagger-parser.version>2.1.22</swagger-parser.version>
         <springdoc.version>3.1.1</springdoc.version>
+        <!-- JavaParser：GitLab 集成源码扫描（详细设计 6.3，WP-0.1 已确认引入），解析器收敛在 TestSourceScanner 抽象之后 -->
+        <javaparser.version>3.27.0</javaparser.version>
 
         <java.version>21</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -82,6 +84,13 @@
                     <artifactId>swagger-annotations</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!-- JavaParser 结构化解析测试工程源码（详细设计 6.3：替代正则匹配，块注释剥离为强制前置步骤） -->
+        <dependency>
+            <groupId>com.github.javaparser</groupId>
+            <artifactId>javaparser-core</artifactId>
+            <version>${javaparser.version}</version>
         </dependency>
 
         <!-- OpenAPI JSON 自动生成（仅 spec，无 Swagger UI；springdoc v3 适配 Spring Boot 4.x） -->
