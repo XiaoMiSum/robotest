@@ -95,7 +95,7 @@ public final class SceneDetailAssembler {
     }
 
     public static ApiSceneDetailRespDTO toDetail(ApiScene scene, boolean followed,
-            Predicate<UUID> sourceExists) {
+            Predicate<UUID> sourceExists, String engine) {
         return ApiSceneDetailRespDTO.builder()
                 .id(scene.getId())
                 .name(scene.getName())
@@ -105,6 +105,7 @@ public final class SceneDetailAssembler {
                 .priority(scene.getPriority())
                 .status(scene.getStatus())
                 .followed(followed)
+                .engine(engine)
                 .variables(Objects.requireNonNullElse(scene.getVariables(), List.<Map<String, Object>>of()))
                 .processors(Objects.requireNonNullElse(scene.getProcessors(), List.of()))
                 .changeVersion(scene.getChangeVersion())
