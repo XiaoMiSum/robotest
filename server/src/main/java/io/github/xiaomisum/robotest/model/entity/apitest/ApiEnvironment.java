@@ -37,4 +37,6 @@ public class ApiEnvironment extends BaseUuidDO<ApiEnvironment> {
     /** 环境处理器聚合（JSONB）：[{processorType, name, enabled, sortOrder, config}] */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<Map<String, Object>> processors;
+    /** 认领该环境的仓库路径（api_git_repo.repo_path），写入即封印（GitLab 集成详设 3.5） */
+    private String sourceId;
 }
