@@ -271,7 +271,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 
 ### 3.4 commit 幂等闸门
 
-导入与预览共用同一判定，判定失败即拒绝进入解析阶段，不产生任何写操作：
+导入与预览共用同一判定（`platform` / `gitlab_ci` 两种模式同一口径），判定失败即拒绝进入解析阶段，不产生任何写操作：
 
 ```mermaid
 flowchart TD
@@ -280,10 +280,16 @@ flowchart TD
     C -- 否 --> F[放行, 全量 upsert]
     C -- 是 --> D{last_import_summary.errorFailed == 0?}
     D -- 否 --> F
-    D -- 是 --> E[返回 1000017709<br/>导入被跳过]
+    D -- 是 --> E[判定为跳过]
+    E --> P[导入: 抛 1000017709<br/>预览: gate.blocked=true]
 ```
 
-闸门不替代 upsert：放行后仍按稳定键（模块 `source_id`、场景 `source_id`）逐条合并，重复执行结果一致。闸门仅在 `platform` 模式生效；`gitlab_ci` 模式不解析源码，按 `errorFailed` 是否残留决定是否重跑扫描。
+- **导入（POST imports）**：跳过时同步抛 `1000017709`，不占用进行中闸门、不发起任何源码拉取。
+- **预览（POST preview）**：跳过时不拉取源码树、不扫描，返回 `gate: { blocked: true, reason: ... }`，`classes` / `modules` / `scenes` / `details` 为空；上次导入汇总由前端从仓库配置响应的 `lastImportSummary` 取用。放行时 `gate.blocked = false` 并返回完整计数。
+- `errorFailed` 取上次导入汇总（`last_import_summary`）的真实错误计数；解析失败（`parseFailed`）是预期内结果，不参与闸门。
+- 首次导入（`last_import_commit` 为空）一律放行。
+
+闸门不替代 upsert：放行后仍按稳定键（模块 `source_id`、场景 `source_id`）逐条合并，重复执行结果一致。`gitlab_ci` 模式不解析源码，但同样参与提交比对（新提交带来新用例），判定条件与 `platform` 完全一致。
 
 ### 3.5 导入流程（业务逻辑）
 
@@ -632,3 +638,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | 仓库配置响应示例补齐 `testSourceDir` / `resourceDir` / `envFilePath`（编辑态需回显可改的目录字段，与需求 F1.1 修改配置口径一致） |
 | V1.0 | 2026-10-12 | `api_git_repo` 新增 `reimport_overwrite`（重复导入覆盖策略，默认不覆盖）：2.1.1 / 6.1 落列，3.1 补请求响应示例与说明，3.5 导入流程与场景内容合并策略按该配置分流 |
 | V1.0 | 2026-10-12 | 3.2 补导入进度响应契约：`stage` 阶段枚举（fetch/scan/parse/merge/persist/done/failed）、`failed` 失败原因与 `done` 结果汇总示例 |
+| V1.0 | 2026-10-12 | 3.4 commit 幂等闸门细化：两种模式同一判定（`gitlab_ci` 同样参与提交比对）；导入跳过抛 `1000017709`，预览跳过返回 `gate.blocked=true` 且不解析；`errorFailed` 取上次汇总、`parseFailed` 不参与闸门 |
