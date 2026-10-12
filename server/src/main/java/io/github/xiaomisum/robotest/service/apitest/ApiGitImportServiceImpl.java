@@ -83,6 +83,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
     private final ApiChangeHistoryMapper changeHistoryMapper;
     private final TestSourceScanner scanner;
     private final GitLabApiClient gitLabApiClient;
+    private final ApiGitRenameDetector renameDetector;
     private final ProjectAccessGuard projectAccessGuard;
     private final TransactionTemplate transactionTemplate;
     private final Executor importExecutor;
@@ -92,7 +93,8 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
 
     public ApiGitImportServiceImpl(ApiSceneMapper sceneMapper, ProjectModuleMapper moduleMapper,
             ApiGitRepoMapper gitRepoMapper, ApiChangeHistoryMapper changeHistoryMapper,
-            TestSourceScanner scanner, GitLabApiClient gitLabApiClient, ProjectAccessGuard projectAccessGuard,
+            TestSourceScanner scanner, GitLabApiClient gitLabApiClient, ApiGitRenameDetector renameDetector,
+            ProjectAccessGuard projectAccessGuard,
             PlatformTransactionManager transactionManager,
             @Qualifier("apiGitImportExecutor") Executor importExecutor,
             @Value("${robotest.env.secret-key:}") String base64SecretKey) {
@@ -102,6 +104,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         this.changeHistoryMapper = changeHistoryMapper;
         this.scanner = scanner;
         this.gitLabApiClient = gitLabApiClient;
+        this.renameDetector = renameDetector;
         this.projectAccessGuard = projectAccessGuard;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.importExecutor = importExecutor;
@@ -238,6 +241,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         String repoPath = repo.getRepoPath();
 
         stage(progress, STAGE_FETCH, 0, 0);
+        collectRenamePairs(repo, token, headCommit, plan);
         List<String> javaFiles = gitLabApiClient
                 .listFiles(baseUrl, token, repoPath, plan.branch, repo.getTestSourceDir())
                 .stream().filter(path -> path != null && path.toLowerCase().endsWith(".java")).toList();
@@ -263,6 +267,7 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         for (ScanIssue issue : scan.errorFailed()) {
             plan.failures.add(new Failure(issue.methodKey(), DETAIL_TYPE_ERROR_FAILED, issue.reason(), issue.filePath()));
         }
+        validateRenamePairs(repo, token, plan);
 
         stage(progress, STAGE_PARSE, 0, plan.effectiveCases());
         if (IMPORT_MODE_PLATFORM.equals(repo.getImportMode())) {
@@ -320,6 +325,34 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         }
     }
 
+    /** 改名候选（详设 3.5 规则 1）：仅在上次导入提交与本次 HEAD 不同（幂等闸门放行）时比对 */
+    private void collectRenamePairs(ApiGitRepo repo, String token, String headCommit, ImportPlan plan) {
+        String from = repo.getLastImportCommit();
+        if (!hasText(from) || from.equals(headCommit)) {
+            return;
+        }
+        try {
+            plan.renamePairs = renameDetector.comparePairs(repo.getGitlabBaseUrl(), token, repo.getRepoPath(),
+                    from, headCommit, repo.getTestSourceDir());
+        } catch (RuntimeException e) {
+            // compare 失败计真实错误并降级为删旧建新（详设 3.5 规则 6），不中止导入
+            plan.failures.add(new Failure(null, DETAIL_TYPE_ERROR_FAILED, "改名比对失败：" + messageOf(e), null));
+        }
+    }
+
+    /** 改名内容校验（详设 3.5 规则 2）：需要扫描结果作为新侧输入，真实错误进 errorFailed 明细 */
+    private void validateRenamePairs(ApiGitRepo repo, String token, ImportPlan plan) {
+        if (plan.renamePairs.isEmpty()) {
+            return;
+        }
+        ApiGitRenameDetector.RenameResult result = renameDetector.validatePairs(repo.getGitlabBaseUrl(), token,
+                repo.getRepoPath(), repo.getLastImportCommit(), plan.renamePairs, plan.classes);
+        plan.classRenames = result.classRenames();
+        for (String error : result.errors()) {
+            plan.failures.add(new Failure(null, DETAIL_TYPE_ERROR_FAILED, error, null));
+        }
+    }
+
     /** 既有场景按稳定键取回；源侧已不存在（不在本次解析键集内）的以差集标记 */
     private void loadExistingByKey(ApiGitRepo repo, ImportPlan plan) {
         Set<String> keys = new LinkedHashSet<>();
@@ -330,12 +363,25 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
             }
         }
         plan.existingByKey = new HashMap<>();
-        for (ApiScene scene : sceneMapper.listByRepoAndSourceIds(repo.getId(), keys)) {
-            plan.existingByKey.putIfAbsent(scene.getSourceId(), scene);
-        }
+        List<ApiScene> allScenes = sceneMapper.listByRepo(repo.getId());
+        // 撞键保护（详设 3.5 规则 5）：目标稳定键已有真实场景行时放弃该条改名，退回删旧建新
+        plan.classRenames = filterRenames(plan.classRenames, allScenes);
+        Set<String> lookupKeys = aliasKeys(keys, plan.classRenames);
         plan.staleIds = new ArrayList<>();
-        for (ApiScene scene : sceneMapper.listByRepo(repo.getId())) {
-            if (scene.getSourceId() != null && !keys.contains(scene.getSourceId())) {
+        plan.sceneMigrations = new ArrayList<>();
+        for (ApiScene scene : allScenes) {
+            String sourceId = scene.getSourceId();
+            if (sourceId == null) {
+                continue;
+            }
+            String effectiveKey = effectiveKey(sourceId, plan.classRenames);
+            if (!sourceId.equals(effectiveKey)) {
+                plan.sceneMigrations.add(new SceneMigration(scene.getId(), effectiveKey));
+            }
+            if (lookupKeys.contains(sourceId)) {
+                plan.existingByKey.putIfAbsent(effectiveKey, scene);
+            }
+            if (!keys.contains(effectiveKey)) {
                 plan.staleIds.add(scene.getId());
             }
         }
@@ -353,6 +399,56 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
                 plan.errorFailed++;
             }
         }
+    }
+
+    /** 撞键保护（详设 3.5 规则 5）：目标全限定名下已有真实场景行时放弃该条迁移，退回删旧建新 */
+    private static Map<String, String> filterRenames(Map<String, String> classRenames, List<ApiScene> allScenes) {
+        if (classRenames.isEmpty()) {
+            return classRenames;
+        }
+        Map<String, String> filtered = new HashMap<>(classRenames);
+        for (Map.Entry<String, String> rename : classRenames.entrySet()) {
+            String newPrefix = rename.getValue() + "#";
+            for (ApiScene scene : allScenes) {
+                if (scene.getSourceId() != null && scene.getSourceId().startsWith(newPrefix)) {
+                    filtered.remove(rename.getKey());
+                    break;
+                }
+            }
+        }
+        return filtered.isEmpty() ? Map.of() : Map.copyOf(filtered);
+    }
+
+    /** 改名别名键：键集内新全限定名的键各补一条旧全限定名前缀别名，供改名前的旧键行参与命中 */
+    private static Set<String> aliasKeys(Set<String> keys, Map<String, String> classRenames) {
+        if (classRenames.isEmpty()) {
+            return keys;
+        }
+        Set<String> aliases = new LinkedHashSet<>(keys);
+        for (Map.Entry<String, String> rename : classRenames.entrySet()) {
+            String newPrefix = rename.getValue() + "#";
+            String oldPrefix = rename.getKey() + "#";
+            for (String key : keys) {
+                if (key.startsWith(newPrefix)) {
+                    aliases.add(oldPrefix + key.substring(newPrefix.length()));
+                }
+            }
+        }
+        return aliases;
+    }
+
+    /** 有效稳定键：行 source_id 前缀命中类改名映射时换算为新全限定名（预览与导入共用的命中口径） */
+    private static String effectiveKey(String sourceId, Map<String, String> classRenames) {
+        if (classRenames.isEmpty()) {
+            return sourceId;
+        }
+        int hash = sourceId.indexOf('#');
+        String fqn = hash < 0 ? sourceId : sourceId.substring(0, hash);
+        String newFqn = classRenames.get(fqn);
+        if (newFqn == null) {
+            return sourceId;
+        }
+        return hash < 0 ? newFqn : newFqn + sourceId.substring(hash);
     }
 
     /** 模块既有映射预载：包容器按根级 source_id=包名，类模块按 source_id=全限定名（BR-1.8） */
@@ -373,6 +469,85 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         for (ProjectModule module : moduleMapper.listByProjectAndSourceIds(repo.getProjectId(), fqns)) {
             plan.classModuleByFqn.putIfAbsent(module.getSourceId(), module);
         }
+        if (!plan.classRenames.isEmpty()) {
+            bridgeRenamedModules(repo, plan, packages, fqns);
+        }
+    }
+
+    /**
+     * 改名后的稳定键未命中时回查旧键桥接（详设 3.5 规则 3/4）。
+     * <p>
+     * 类模块命中即登记待迁移；包容器仅当旧包名已无留存类、其迁出全部落向同一新包名且唯一时才复用旧容器
+     * （包改名），否则不桥接——新包容器由 resolveModules 新建、旧包容器留置（规则 4 的「否则」分支）。
+     */
+    private void bridgeRenamedModules(ApiGitRepo repo, ImportPlan plan, Set<String> packages, Set<String> fqns) {
+        Map<String, String> reverse = new HashMap<>();
+        plan.classRenames.forEach((oldFqn, newFqn) -> reverse.put(newFqn, oldFqn));
+
+        Map<String, String> missedByOld = new HashMap<>();
+        for (String fqn : fqns) {
+            String oldFqn = reverse.get(fqn);
+            if (oldFqn != null && !plan.classModuleByFqn.containsKey(fqn)) {
+                missedByOld.put(oldFqn, fqn);
+            }
+        }
+        for (ProjectModule module : moduleMapper.listByProjectAndSourceIds(repo.getProjectId(),
+                missedByOld.keySet())) {
+            String newFqn = missedByOld.get(module.getSourceId());
+            if (newFqn == null) {
+                continue;
+            }
+            plan.classModuleByFqn.putIfAbsent(newFqn, module);
+            plan.moduleMigrations.add(new ModuleMigration(module.getId(), newFqn, null));
+        }
+
+        for (String pkg : packages) {
+            if (plan.containerByPkg.containsKey(pkg)) {
+                continue;
+            }
+            String oldPkg = soleVacatedOrigin(pkg, plan.classRenames, plan.classes);
+            if (oldPkg == null) {
+                continue;
+            }
+            for (ProjectModule container : moduleMapper.listRootBySourceIds(repo.getProjectId(), Set.of(oldPkg))) {
+                if (oldPkg.equals(container.getSourceId())) {
+                    plan.containerByPkg.putIfAbsent(pkg, container);
+                    // source_id 与显示名同时改为新包名：容器本体就是包名（规则 4）
+                    plan.moduleMigrations.add(new ModuleMigration(container.getId(), pkg, pkg));
+                }
+            }
+        }
+    }
+
+    /** 包改名复用判定：迁入 pkg 的旧包名唯一、该旧包名迁出全部落向 pkg、且无留存类仍在旧包名（规则 4） */
+    private static String soleVacatedOrigin(String pkg, Map<String, String> classRenames, List<ScannedClass> classes) {
+        Set<String> origins = new LinkedHashSet<>();
+        for (Map.Entry<String, String> rename : classRenames.entrySet()) {
+            if (pkg.equals(pkgOf(rename.getValue()))) {
+                origins.add(pkgOf(rename.getKey()));
+            }
+        }
+        if (origins.size() != 1) {
+            return null;
+        }
+        String oldPkg = origins.iterator().next();
+        for (Map.Entry<String, String> rename : classRenames.entrySet()) {
+            if (oldPkg.equals(pkgOf(rename.getKey())) && !pkg.equals(pkgOf(rename.getValue()))) {
+                return null;
+            }
+        }
+        for (ScannedClass cls : classes) {
+            if (oldPkg.equals(cls.packageName())) {
+                return null;
+            }
+        }
+        return oldPkg;
+    }
+
+    /** 取全限定名的包前缀；无包（默认包）返回空串 */
+    private static String pkgOf(String fqn) {
+        int dot = fqn.lastIndexOf('.');
+        return dot < 0 ? "" : fqn.substring(0, dot);
     }
 
     /**
@@ -503,7 +678,28 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
 
     // ========== 导入落库（事务内） ==========
 
+    /** 改名迁移按载体部分更新先行应用（C11：载体仅携带 id + 迁移字段，规则 3/4/6） */
+    private void applyRenameMigrations(ImportPlan plan) {
+        for (ModuleMigration migration : plan.moduleMigrations) {
+            ProjectModule carrier = new ProjectModule();
+            carrier.setId(migration.moduleId());
+            carrier.setSourceId(migration.sourceId());
+            if (migration.name() != null) {
+                carrier.setName(migration.name());
+            }
+            moduleMapper.updateById(carrier);
+        }
+        for (SceneMigration migration : plan.sceneMigrations) {
+            ApiScene carrier = new ApiScene();
+            carrier.setId(migration.sceneId());
+            carrier.setSourceId(migration.sourceId());
+            sceneMapper.updateById(carrier);
+        }
+    }
+
     private Map<String, Object> persistPlan(UUID projectId, UUID userId, ApiGitRepo repo, ImportPlan plan) {
+        // 改名迁移先行（详设 3.5 规则 6）：随后归属解析、按稳定键 upsert 与差集标记均按有效键命中
+        applyRenameMigrations(plan);
         Map<String, UUID> moduleIds = resolveModules(projectId, plan.classes, plan, true);
         boolean platform = IMPORT_MODE_PLATFORM.equals(repo.getImportMode());
         boolean overwrite = Boolean.TRUE.equals(repo.getReimportOverwrite());
@@ -739,6 +935,14 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
     record Failure(String key, String type, String reason, String ref) {
     }
 
+    /** 类模块源侧标识迁移（详设 3.5 规则 3/4）：name 仅包容器改名时携带，否则只迁 source_id */
+    record ModuleMigration(UUID moduleId, String sourceId, String name) {
+    }
+
+    /** 场景源侧标识迁移（详设 3.5 规则 3）：sourceId 为改名后的有效稳定键 */
+    record SceneMigration(UUID sceneId, String sourceId) {
+    }
+
     static final class ModuleCounters {
 
         int containersCreate;
@@ -760,6 +964,14 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         Map<String, ApiScene> existingByKey = Map.of();
         Map<String, ProjectModule> containerByPkg = Map.of();
         Map<String, ProjectModule> classModuleByFqn = Map.of();
+        /** compare 候选改名对（fetch 阶段产出，scan 后回读校验） */
+        List<ApiGitRenameDetector.RenamePair> renamePairs = List.of();
+        /** 类改名映射（旧全限定名 → 新全限定名），经内容校验与撞键过滤后生效 */
+        Map<String, String> classRenames = Map.of();
+        /** 待落库的模块迁移，导入事务内先于 upsert 应用（预览仅计算不落库） */
+        List<ModuleMigration> moduleMigrations = new ArrayList<>();
+        /** 待落库的场景迁移，同上 */
+        List<SceneMigration> sceneMigrations = new ArrayList<>();
         ModuleCounters counters = new ModuleCounters();
         int sceneCreate;
         int sceneUpdate;
