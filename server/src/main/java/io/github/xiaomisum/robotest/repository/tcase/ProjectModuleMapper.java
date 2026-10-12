@@ -47,6 +47,24 @@ public interface ProjectModuleMapper extends BaseMapperX<ProjectModule> {
                 .in(ProjectModule::getSourceId, sourceIds));
     }
 
+    /** 根级模块按源侧键批量认领（包容器恒在根级：parent_id 为空 + source_id = 完整包名，BR-1.8） */
+    default List<ProjectModule> listRootBySourceIds(UUID projectId, Collection<String> sourceIds) {
+        if (sourceIds == null || sourceIds.isEmpty()) {
+            return List.of();
+        }
+        return selectList(new LambdaQueryWrapperX<ProjectModule>()
+                .eq(ProjectModule::getProjectId, projectId)
+                .isNull(ProjectModule::getParentId)
+                .in(ProjectModule::getSourceId, sourceIds));
+    }
+
+    /** 导入归属纠偏：源侧稳定键命中但父容器已变化时改挂到当前包容器（GitLab 集成详设 3.5） */
+    default void reparent(UUID id, UUID parentId) {
+        update(null, new LambdaUpdateWrapperX<ProjectModule>()
+                .eq(ProjectModule::getId, id)
+                .set(ProjectModule::getParentId, parentId));
+    }
+
     /** 「同包容器 + 同简单名」认领后回填全限定名（BR-1.8：回填后复用，不新建重复节点） */
     default void backfillSourceId(UUID id, String sourceId) {
         update(null, new LambdaUpdateWrapperX<ProjectModule>()
