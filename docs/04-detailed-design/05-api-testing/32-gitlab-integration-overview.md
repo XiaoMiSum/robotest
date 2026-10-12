@@ -61,6 +61,7 @@
 | test_source_dir | VARCHAR(500) | NOT NULL DEFAULT 'src/test/java' | 测试源码目录 |
 | resource_dir | VARCHAR(500) | NOT NULL DEFAULT 'src/test/resources' | 资源目录（YAML 所在根） |
 | env_file_path | VARCHAR(500) | NOT NULL DEFAULT 'common/env/env.yaml' | 环境声明文件路径（相对 `resource_dir`，仅 `platform` 模式使用） |
+| reimport_overwrite | BOOLEAN | NOT NULL DEFAULT FALSE | 重复导入是否以源侧内容覆盖平台侧场景内容（默认不覆盖）；仅 `platform` 模式生效，可创建后修改 |
 | enabled | BOOLEAN | NOT NULL DEFAULT TRUE | 启用状态（禁用后其下场景 CI 引擎不可用） |
 | last_import_at | TIMESTAMP | NULL | 上次导入时间 |
 | last_import_commit | VARCHAR(64) | NULL | 上次导入时的分支 HEAD commit；同时是 commit 幂等闸门的比对基准（见 3.4） |
@@ -139,7 +140,8 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
   "token": "glpat-xxxxxxxx",
   "testSourceDir": "src/test/java",
   "resourceDir": "src/test/resources",
-  "envFilePath": "common/env/env.yaml"
+  "envFilePath": "common/env/env.yaml",
+  "reimportOverwrite": false
 }
 ```
 
@@ -158,6 +160,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
   "testSourceDir": "src/test/java",
   "resourceDir": "src/test/resources",
   "envFilePath": "common/env/env.yaml",
+  "reimportOverwrite": false,
   "lastImportAt": "2026-10-11T10:20:30+08:00",
   "lastImportCommit": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
   "lastImportSummary": { "created": 193, "updated": 12, "parseFailed": 0, "errorFailed": 0, "skipped": 0 },
@@ -201,6 +204,8 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | 同项目下 `repoPath` 唯一 | 1000017703 |
 | `importMode` 取值仅 `platform` / `gitlab_ci`；`repoPath` / `defaultBranch` / `importMode` 创建后无更新入口 | 1000017711 |
 | `token` 非空；创建 / 更新 / 连通性测试一律以实测通过为准（实例可达、令牌有效且具 `api` scope、目标分支存在），任一不满足 | 1000017702；失败原因须可区分实例不可达 / 令牌无效 / 分支不存在 |
+
+> `reimportOverwrite` 为布尔值，缺省 `false`（不覆盖），创建后可修改；`gitlab_ci` 模式下不生效（平台侧只读，无覆盖语义）。
 
 ### 3.2 导入与解析
 
@@ -273,10 +278,16 @@ flowchart TD
     I -- 是 --> K[解析为平台步骤结构]
     G --> L[upsert 模块与场景<br/>按 source_id 稳定键]
     K --> L
-    L --> M[环境合并: 写 http_configs/<br/>data_sources, 回填 source_id 封印]
+    L --> L1{reimport_overwrite?}
+    L1 -- 关闭(默认) --> L2[仅刷新来源元数据<br/>与模块归属]
+    L1 -- 开启 --> L3[platform 场景以源侧内容<br/>覆盖 name/variables/steps]
+    L2 --> M[环境合并: 写 http_configs/<br/>data_sources, 回填 source_id 封印]
+    L3 --> M
     M --> N[回写 last_import_commit/<br/>last_import_summary]
     N --> O[写 api_change_history<br/>change_type = import]
 ```
+
+**场景内容合并策略**：稳定键命中既有场景时，`reimport_overwrite` 关闭（默认）仅刷新来源元数据（`source_ref` / `source_status` / `parse_status` / `parse_issues`）与模块归属，`name` / `variables` / `steps` 保持平台侧现状；开启时以源侧内容覆盖 `name` / `variables` / `steps`，来源元数据照常刷新。`gitlab_ci` 场景平台侧只读（BR-1.43），`name` / `description` 恒按源侧刷新，不受该配置影响。
 
 **模块归属规则（固定深度 2：包容器 + 类模块）**：
 
@@ -515,6 +526,7 @@ CREATE TABLE api_git_repo (
     test_source_dir     VARCHAR(500) NOT NULL DEFAULT 'src/test/java',
     resource_dir        VARCHAR(500) NOT NULL DEFAULT 'src/test/resources',
     env_file_path       VARCHAR(500) NOT NULL DEFAULT 'common/env/env.yaml',
+    reimport_overwrite  BOOLEAN NOT NULL DEFAULT FALSE,
     enabled             BOOLEAN NOT NULL DEFAULT TRUE,
     last_import_at      TIMESTAMP NULL,
     last_import_commit  VARCHAR(64) NULL,
@@ -594,3 +606,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-11 | 4.6 固化 CI 侧接口契约（取清单 / 回报完成）、变量契约与报文示例，登记平台侧模板正本位置 `ci-templates/gitlab/robotest-batch.gitlab-ci.yml` |
 | V1.0 | 2026-10-11 | 连通性测试改为无 `repoId` 端点 `/connections/test`（空态可调、缺省字段回落库值），补充测试报文示例；创建 / 更新与测试一律强制实测通过，失败原因须可区分 |
 | V1.0 | 2026-10-11 | 仓库配置响应示例补齐 `testSourceDir` / `resourceDir` / `envFilePath`（编辑态需回显可改的目录字段，与需求 F1.1 修改配置口径一致） |
+| V1.0 | 2026-10-12 | `api_git_repo` 新增 `reimport_overwrite`（重复导入覆盖策略，默认不覆盖）：2.1.1 / 6.1 落列，3.1 补请求响应示例与说明，3.5 导入流程与场景内容合并策略按该配置分流 |
