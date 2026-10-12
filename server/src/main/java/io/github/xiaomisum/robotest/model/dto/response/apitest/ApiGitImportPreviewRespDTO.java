@@ -70,6 +70,12 @@ public class ApiGitImportPreviewRespDTO {
 
         /** merge / skip */
         private String action;
+        /** 合并目标环境名（action=merge 时非空） */
+        private String target;
+        /** 本次并入的 HTTP 配置条数 */
+        private Integer httpConfigs;
+        /** 本次并入的数据源条数 */
+        private Integer dataSources;
     }
 
     @Data

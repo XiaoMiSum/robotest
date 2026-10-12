@@ -5,10 +5,12 @@ import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiGitImportPreviewRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiGitImportStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
@@ -89,6 +91,8 @@ class ApiGitImportServiceImplTest {
     @Mock
     private ApiGitRepoMapper gitRepoMapper;
     @Mock
+    private ApiEnvironmentMapper environmentMapper;
+    @Mock
     private ApiChangeHistoryMapper changeHistoryMapper;
     @Mock
     private TestSourceScanner scanner;
@@ -111,8 +115,9 @@ class ApiGitImportServiceImplTest {
     }
 
     private ApiGitImportServiceImpl newService(java.util.concurrent.Executor executor) {
-        return new ApiGitImportServiceImpl(sceneMapper, moduleMapper, gitRepoMapper, changeHistoryMapper,
-                scanner, gitLabApiClient, renameDetector, projectAccessGuard, transactionManager, executor, BASE64_KEY);
+        return new ApiGitImportServiceImpl(sceneMapper, moduleMapper, gitRepoMapper, environmentMapper,
+                changeHistoryMapper, scanner, gitLabApiClient, renameDetector, projectAccessGuard,
+                transactionManager, executor, BASE64_KEY);
     }
 
     private void stubCommon() {
@@ -746,5 +751,184 @@ class ApiGitImportServiceImplTest {
         service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
 
         verify(renameDetector, never()).comparePairs(any(), any(), any(), any(), any(), any());
+    }
+
+    // ========== 环境合并与封印（WP-4.1） ==========
+
+    private static final String ENV_YAML = """
+            - testclass: http
+              config:
+                protocol: http
+                host: 127.0.0.1
+                port: 7612
+            - testclass: jdbc
+              ref_name: test_env
+              config:
+                url: jdbc:mysql://127.0.0.1:3306/testdb
+                username: root
+                password: 123456
+            """;
+
+    private ApiGitRepo envRepo() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setEnvFilePath("common/env/env.yaml");
+        return repo;
+    }
+
+    @Test
+    void importMergesEnvCreatesDefaultAndSeals() {
+        remoteFiles.put("src/test/resources/common/env/env.yaml", ENV_YAML);
+        UUID envId = UUID.randomUUID();
+        // 真实插入由框架生成 UUID，测试环境回填以模拟
+        org.mockito.Mockito.doAnswer(invocation -> {
+            ((ApiEnvironment) invocation.getArgument(0)).setId(envId);
+            return 1;
+        }).when(environmentMapper).insert(any(ApiEnvironment.class));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+        when(environmentMapper.findDefaultByProjectId(PROJECT_ID)).thenReturn(null);
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("done", status.getStage());
+        ArgumentCaptor<ApiEnvironment> envCaptor = ArgumentCaptor.forClass(ApiEnvironment.class);
+        verify(environmentMapper).insert(envCaptor.capture());
+        ApiEnvironment created = envCaptor.getValue();
+        assertEquals("order-api-tests", created.getName());
+        assertTrue(created.getIsDefault());
+        assertEquals("qa/order-api-tests", created.getSourceId());
+        assertEquals(1, created.getHttpConfigs().size());
+        assertEquals("http://127.0.0.1:7612", created.getHttpConfigs().get(0).get("baseUrl"));
+        assertEquals(1, created.getDataSources().size());
+
+        ArgumentCaptor<ApiScene> sceneCaptor = ArgumentCaptor.forClass(ApiScene.class);
+        verify(sceneMapper).insert(sceneCaptor.capture());
+        assertNotNull(sceneCaptor.getValue().getEnvironmentId());
+    }
+
+    @Test
+    void importSkipsWriteWhenEnvSealed() {
+        remoteFiles.put("src/test/resources/common/env/env.yaml", ENV_YAML);
+        ApiEnvironment sealed = new ApiEnvironment();
+        sealed.setId(UUID.randomUUID());
+        sealed.setSourceId("qa/another-repo");
+        sealed.setHttpConfigs(List.of(Map.of("refName", "custom", "name", "custom",
+                "baseUrl", "http://custom", "headers", List.of(), "isDefault", true)));
+        sealed.setDataSources(List.of());
+        when(environmentMapper.findDefaultByProjectId(PROJECT_ID)).thenReturn(sealed);
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+
+        service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // 封印环境跳过写入（BR-1.18），但场景仍回填到该默认环境（BR-1.19）
+        verify(environmentMapper, never()).updateById(any(ApiEnvironment.class));
+        verify(environmentMapper, never()).insert(any(ApiEnvironment.class));
+        verify(sceneMapper).backfillEnvironmentIdIfNull(REPO_ID, sealed.getId());
+    }
+
+    @Test
+    void importMergesIntoUnsealedDefaultEnv() {
+        remoteFiles.put("src/test/resources/common/env/env.yaml", ENV_YAML);
+        ApiEnvironment unsealed = new ApiEnvironment();
+        unsealed.setId(UUID.randomUUID());
+        unsealed.setHttpConfigs(new ArrayList<>(List.of(Map.of("refName", "test_env", "name", "旧名",
+                "baseUrl", "http://old", "headers", List.of(), "isDefault", false))));
+        unsealed.setDataSources(new ArrayList<>(List.of()));
+        when(environmentMapper.findDefaultByProjectId(PROJECT_ID)).thenReturn(unsealed);
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+
+        service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        ArgumentCaptor<ApiEnvironment> carrierCaptor = ArgumentCaptor.forClass(ApiEnvironment.class);
+        verify(environmentMapper).updateById(carrierCaptor.capture());
+        ApiEnvironment carrier = carrierCaptor.getValue();
+        assertEquals(unsealed.getId(), carrier.getId());
+        assertEquals("qa/order-api-tests", carrier.getSourceId());
+        // 按 refName 覆盖：test_env 为数据源 refName，http 配置 default 追加
+        assertEquals(2, carrier.getHttpConfigs().size());
+        assertEquals(1, carrier.getDataSources().size());
+    }
+
+    @Test
+    void importSkipsEnvMergeWhenFileMissing() {
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+
+        ApiGitImportStatusRespDTO status = service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("done", status.getStage());
+        verify(environmentMapper, never()).insert(any(ApiEnvironment.class));
+        verify(environmentMapper, never()).updateById(any(ApiEnvironment.class));
+        verify(sceneMapper, never()).backfillEnvironmentIdIfNull(any(), any());
+    }
+
+    @Test
+    void gitlabCiImportNeverTouchesEnvironment() {
+        remoteFiles.put("src/test/resources/common/env/env.yaml", ENV_YAML);
+        ApiGitRepo repo = envRepo();
+        repo.setImportMode("gitlab_ci");
+        ScannedClass cls = new ScannedClass(JAVA_PATH, "com.example", "OrderQueryTest",
+                List.of(new ScannedMethod("placeOrder", "下单成功", null)));
+        when(scanner.scan(any())).thenReturn(new ScanOutcome(List.of(cls), List.of(), List.of()));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(repo);
+
+        service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // BR-1.20：gitlab_ci 不读取、不合并任何环境配置
+        verify(environmentMapper, never()).findDefaultByProjectId(any());
+        verify(environmentMapper, never()).insert(any(ApiEnvironment.class));
+        verify(sceneMapper, never()).backfillEnvironmentIdIfNull(any(), any());
+    }
+
+    @Test
+    void existingNullEnvSceneBackfilledButChosenEnvKept() {
+        remoteFiles.put("src/test/resources/common/env/env.yaml", ENV_YAML);
+        ApiEnvironment unsealed = new ApiEnvironment();
+        unsealed.setId(UUID.randomUUID());
+        unsealed.setHttpConfigs(new ArrayList<>(List.of()));
+        unsealed.setDataSources(new ArrayList<>(List.of()));
+        when(environmentMapper.findDefaultByProjectId(PROJECT_ID)).thenReturn(unsealed);
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+
+        service.imports(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        // 回填以 SQL is-null 条件保证（BR-1.19）：服务层只发起一次按 repo 的回填
+        verify(sceneMapper, org.mockito.Mockito.times(1))
+                .backfillEnvironmentIdIfNull(REPO_ID, unsealed.getId());
+    }
+
+    @Test
+    void previewReportsEnvMergeCounts() {
+        remoteFiles.put("src/test/resources/common/env/env.yaml", ENV_YAML);
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+        when(environmentMapper.findDefaultByProjectId(PROJECT_ID)).thenReturn(null);
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("merge", dto.getEnvironment().getAction());
+        assertEquals("order-api-tests", dto.getEnvironment().getTarget());
+        assertEquals(1, dto.getEnvironment().getHttpConfigs());
+        assertEquals(1, dto.getEnvironment().getDataSources());
+    }
+
+    @Test
+    void previewReportsSkipWhenEnvSealed() {
+        remoteFiles.put("src/test/resources/common/env/env.yaml", ENV_YAML);
+        ApiEnvironment sealed = new ApiEnvironment();
+        sealed.setId(UUID.randomUUID());
+        sealed.setSourceId("qa/another-repo");
+        when(environmentMapper.findDefaultByProjectId(PROJECT_ID)).thenReturn(sealed);
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("skip", dto.getEnvironment().getAction());
+    }
+
+    @Test
+    void previewReportsSkipWhenEnvFileMissing() {
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(envRepo());
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals("skip", dto.getEnvironment().getAction());
     }
 }
