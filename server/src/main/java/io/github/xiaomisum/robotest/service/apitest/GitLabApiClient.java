@@ -24,6 +24,9 @@ import java.util.List;
 @Component
 public class GitLabApiClient {
 
+    /** 目录树翻页上限（per_page=100 时即 10 万条），防御异常实例无限返回满页导致死循环 */
+    private static final int MAX_TREE_PAGES = 1000;
+
     /** HTTP GET 接缝：真实 HttpClient 逻辑在客户端内提供，测试注入假实现 */
     @FunctionalInterface
     public interface HttpOpener {
@@ -32,6 +35,14 @@ public class GitLabApiClient {
 
     /** 探测结果：实例版本 + 目标分支实际分支名 */
     public record Probe(String version, String resolvedBranch) {
+    }
+
+    /** 目录树条目（GitLab repository/tree 接口，仅取路径与类型） */
+    public record TreeEntry(String path, String type) {
+    }
+
+    /** 文件内容（GitLab repository/files 接口，base64 编码） */
+    public record FileContent(String content, String encoding) {
     }
 
     private final HttpOpener httpOpener;
@@ -123,6 +134,72 @@ public class GitLabApiClient {
         }
         BranchInfo info = JsonUtils.parseObject(response.body(), BranchInfo.class);
         return info != null && info.name() != null ? info.name() : branch;
+    }
+
+    /**
+     * 递归列出目录下的文件路径（GitLab repository/tree 接口，分页取全）。
+     *
+     * @param dir 目录路径（如 src/test/java），空串表示仓库根
+     * @return 仓库相对文件路径清单（blob 类型，含分页合并）
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017702，查询失败
+     */
+    public List<String> listFiles(String baseUrl, String token, String repoPath, String branch, String dir) {
+        String base = trimTrailingSlash(baseUrl);
+        String projectId = verifyProject(base, token, repoPath);
+        List<String> paths = new java.util.ArrayList<>();
+        int page = 1;
+        while (true) {
+            String url = base + "/api/v4/projects/" + projectId + "/repository/tree"
+                    + "?ref=" + URLEncoder.encode(branch, StandardCharsets.UTF_8)
+                    + "&path=" + URLEncoder.encode(dir == null ? "" : dir, StandardCharsets.UTF_8)
+                    + "&recursive=true&per_page=100&page=" + page;
+            HttpResponse<String> response = send(url, token);
+            int status = response.statusCode();
+            if (status != 200) {
+                throw connectFailed("仓库目录不可达：HTTP " + status);
+            }
+            List<TreeEntry> entries = JsonUtils.parseObject(response.body(),
+                    new tools.jackson.core.type.TypeReference<List<TreeEntry>>() {
+                    });
+            if (entries == null || entries.isEmpty()) {
+                break;
+            }
+            entries.stream()
+                    .filter(e -> "blob".equals(e.type()))
+                    .map(TreeEntry::path)
+                    .forEach(paths::add);
+            if (entries.size() < 100 || page >= MAX_TREE_PAGES) {
+                break;
+            }
+            page++;
+        }
+        return paths;
+    }
+
+    /**
+     * 读取单个文件内容（GitLab repository/files 接口，base64 解码为 UTF-8 文本）。
+     *
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017702，文件不存在或读取失败
+     */
+    public String getFileContent(String baseUrl, String token, String repoPath, String branch, String filePath) {
+        String base = trimTrailingSlash(baseUrl);
+        String projectId = verifyProject(base, token, repoPath);
+        String url = base + "/api/v4/projects/" + projectId + "/repository/files/"
+                + encodePath(filePath) + "?ref=" + URLEncoder.encode(branch, StandardCharsets.UTF_8);
+        HttpResponse<String> response = send(url, token);
+        int status = response.statusCode();
+        if (status == 404) {
+            throw connectFailed("文件不存在：" + filePath);
+        }
+        if (status != 200) {
+            throw connectFailed("文件读取失败：HTTP " + status);
+        }
+        FileContent info = JsonUtils.parseObject(response.body(), FileContent.class);
+        if (info == null || info.content() == null) {
+            throw connectFailed("文件读取失败：响应解析异常");
+        }
+        byte[] bytes = java.util.Base64.getMimeDecoder().decode(info.content());
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     private HttpResponse<String> send(String url, String token) {
