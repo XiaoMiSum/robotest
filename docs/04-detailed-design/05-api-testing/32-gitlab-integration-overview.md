@@ -556,7 +556,7 @@ flowchart LR
 
 1. 仓库配置查询接口为单条语义，前端不做分页与列表虚拟化；
 2. 导入为异步提交，前端轮询导入进度接口，不使用长连接；
-3. 场景列表与场景详情返回 `sourceType / repoId / sourceRef / sourceStatus`，`gitlab_ci` 场景详情额外返回用例信息（方法名与 `@Test` 的 description；场景与测试方法一一对应——`source_ref` 即单个方法「类全限定名#方法名」，恒为单条），供来源徽标、源状态徽标、仓库侧跳转与编排页只读形态渲染；仓库级源探查结果（`hasUpdates` 等）由仓库详情接口承载（见 5.1），场景接口不返回仓库级更新信息；展示形态以交互分册为准，服务端不校验展示逻辑。
+3. 场景列表与场景详情返回 `sourceType / repoId / sourceRef / sourceStatus`，场景详情另返回派生字段 `engine`（`platform` / `gitlab_ci`，按 4.1 路由判定：平台原生与 `platform` 模式导入场景恒为 `platform`，`gitlab_ci` 模式导入场景恒为 `gitlab_ci`，仓库配置已删除时回退 `platform`），`gitlab_ci` 场景详情额外返回用例信息（方法名与 `@Test` 的 description；场景与测试方法一一对应——`source_ref` 即单个方法「类全限定名#方法名」，恒为单条），供来源徽标、源状态徽标、仓库侧跳转、编排页只读形态与执行入口文案渲染；仓库级源探查结果（`hasUpdates` 等）由仓库详情接口承载（见 5.1），场景接口不返回仓库级更新信息；展示形态以交互分册为准，服务端不校验展示逻辑。
 
 ## 6. 实施说明
 
@@ -663,3 +663,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-12 | 3.4 commit 幂等闸门细化：两种模式同一判定（`gitlab_ci` 同样参与提交比对）；导入跳过抛 `1000017709`，预览跳过返回 `gate.blocked=true` 且不解析；`errorFailed` 取上次汇总、`parseFailed` 不参与闸门 |
 | V1.0 | 2026-10-12 | 3.5 改名迁移入口扩大为导入与同步共用：3.5 流程图补 compare 步骤，规则 1 明确比对区间为 `last_import_commit` → 本次 HEAD，规则 2 补重合度阈值（|交集|/|并集| ≥ 0.5），新增规则 6（预览干跑、compare 失败降级与错误计列）；3.6 步骤 3/4 随之改写 |
 | V1.0 | 2026-10-12 | 3.5 补环境合并的源侧元件字段映射表：http 元件转 `baseUrl` / `headers` / `refName`，jdbc 元件转 `driver`（按 url 协议推断，未知协议跳过留痕）与并入 url 的用户名密码；文件缺失或解析失败降级 skip 不中止导入 |
+| V1.0 | 2026-10-12 | 5.3 场景详情补派生字段 `engine`（platform / gitlab_ci）：按 4.1 路由判定，供执行入口文案与只读形态渲染；仓库已删除回退 `platform`（BR-1.4） |
