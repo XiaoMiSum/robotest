@@ -120,6 +120,28 @@ public class GitLabApiClient {
 
     /** 目标分支存在性：GET /api/v4/projects/:id/repository/branches/:branch */
     private String verifyBranch(String base, String token, String projectId, String branch) {
+        BranchInfo info = fetchBranch(base, token, projectId, branch);
+        return info != null && info.name() != null ? info.name() : branch;
+    }
+
+    /**
+     * 取目标分支当前 HEAD 提交号（幂等闸门与源探查的比对基准，GitLab 集成详细设计 3.3 / 3.5）。
+     *
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017702，分支不存在、令牌无权限或实例不可达
+     */
+    public String branchHead(String baseUrl, String token, String repoPath, String branch) {
+        String base = trimTrailingSlash(baseUrl);
+        String projectId = verifyProject(base, token, repoPath);
+        BranchInfo info = fetchBranch(base, token, projectId, branch);
+        if (info == null || info.commit() == null
+                || info.commit().id() == null || info.commit().id().isBlank()) {
+            throw connectFailed("分支 HEAD 提交号缺失：" + branch);
+        }
+        return info.commit().id();
+    }
+
+    /** 分支信息：GET .../repository/branches/:branch，名称与 HEAD 提交共用一次拉取 */
+    private BranchInfo fetchBranch(String base, String token, String projectId, String branch) {
         HttpResponse<String> response = send(base + "/api/v4/projects/" + projectId
                 + "/repository/branches/" + encodePath(branch), token);
         int status = response.statusCode();
@@ -132,8 +154,7 @@ public class GitLabApiClient {
         if (status != 200) {
             throw connectFailed("实例不可达：HTTP " + status);
         }
-        BranchInfo info = JsonUtils.parseObject(response.body(), BranchInfo.class);
-        return info != null && info.name() != null ? info.name() : branch;
+        return JsonUtils.parseObject(response.body(), BranchInfo.class);
     }
 
     /**
@@ -182,6 +203,18 @@ public class GitLabApiClient {
      * @throws xyz.migoo.framework.common.exception.ServiceException 1000017702，文件不存在或读取失败
      */
     public String getFileContent(String baseUrl, String token, String repoPath, String branch, String filePath) {
+        String content = findFileContent(baseUrl, token, repoPath, branch, filePath);
+        if (content == null) {
+            throw connectFailed("文件不存在：" + filePath);
+        }
+        return content;
+    }
+
+    /**
+     * 读取单个文件内容；文件不存在返回 null（区分「缺失」与「不可达」，
+     * 供 YAML 引用解析将缺失计入解析失败而非中止导入，GitLab 集成详细设计 3.5）。
+     */
+    public String findFileContent(String baseUrl, String token, String repoPath, String branch, String filePath) {
         String base = trimTrailingSlash(baseUrl);
         String projectId = verifyProject(base, token, repoPath);
         String url = base + "/api/v4/projects/" + projectId + "/repository/files/"
@@ -189,7 +222,7 @@ public class GitLabApiClient {
         HttpResponse<String> response = send(url, token);
         int status = response.statusCode();
         if (status == 404) {
-            throw connectFailed("文件不存在：" + filePath);
+            return null;
         }
         if (status != 200) {
             throw connectFailed("文件读取失败：HTTP " + status);
@@ -253,7 +286,10 @@ public class GitLabApiClient {
     private record ProjectInfo(Long id) {
     }
 
-    private record BranchInfo(String name) {
+    private record BranchInfo(String name, CommitInfo commit) {
+
+        private record CommitInfo(String id) {
+        }
     }
 
 }
