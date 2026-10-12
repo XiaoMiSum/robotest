@@ -211,8 +211,8 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 
 | 路径 | 方法 | 说明 | 权限码 |
 | ---- | ---- | ---- | ---- |
-| `/api/project/git-repos/{repoId}/preview` | POST | 扫描预览：拉取目标分支、扫描测试类，返回将创建 / 更新 / 解析失败的清单与汇总，不落库 | `api-scene:view` |
-| `/api/project/git-repos/{repoId}/imports` | POST | 执行导入；先过 commit 幂等闸门（3.4），再按预览清单 upsert | `api-scene:edit` |
+| `/api/project/git-repos/{repoId}/preview` | POST | 扫描预览：拉取目标分支、执行改名判定（干跑）与扫描，返回将创建 / 更新 / 解析失败的清单与汇总，不落库 | `api-scene:view` |
+| `/api/project/git-repos/{repoId}/imports` | POST | 执行导入；先过 commit 幂等闸门（3.4），再做改名迁移判定（3.5），按预览清单 upsert | `api-scene:edit` |
 | `/api/project/git-repos/{repoId}/imports/status` | GET | 查询当前仓库导入进度（阶段、已处理数、总量；`failed` 时含失败原因，`done` 时含结果汇总） | `api-scene:view` |
 
 **预览响应示例（`data`，`platform` 模式）**
@@ -297,7 +297,10 @@ flowchart TD
 flowchart TD
     A[POST imports] --> B{commit 幂等闸门}
     B -- 跳过 --> Z[返回 1000017709]
-    B -- 放行 --> C[拉取默认分支树<br/>token 走 GitLab API]
+    B -- 放行 --> B2{last_import_commit 存在?}
+    B2 -- 否(首次导入) --> C[拉取默认分支树<br/>token 走 GitLab API]
+    B2 -- 是 --> B3[compare 比对变更文件清单<br/>改名探查 + 内容校验, 达标则应用迁移映射]
+    B3 --> C
     C --> D[扫描 testSourceDir 下 *.java]
     D --> E[词法剥离块注释<br/>筛 @Test + @RyzeTest 成对方法]
     E --> F{import_mode?}
@@ -336,11 +339,12 @@ flowchart TD
 
 **类改名与包改名迁移**：固定深度 2 后，测试类的全限定名同时决定类模块的 `source_id` 与父包容器，**改类名与改包名都会使全限定名变化**，二者均需额外探查；「同父同名」命中规则只用于无归属标识模块的首次认领与回填，不承担改名识别：
 
-1. 同步阶段调用 GitLab compare 接口取两次导入提交之间的变更文件清单，文件对象的 `renamed_file` 标志用于识别文件级改名（Java 规范要求 public 类名与文件名一致，测试类改名必然表现为文件改名；包改名表现为整批文件路径迁移）；
-2. **内容校验门槛**：`renamed_file` 是基于相似度的提示而非结论，仅当新旧文件的方法集合或步骤模板引用集合重合度达标时才采信，否则视为删旧建新——直接采信会把 A 类数据挂到 B 类上，属数据污染，比留陈旧条目严重；
+1. 导入与同步阶段调用 GitLab compare 接口取两次导入提交（`last_import_commit` → 本次 HEAD）之间的变更文件清单，文件对象的 `renamed_file` 标志用于识别文件级改名（Java 规范要求 public 类名与文件名一致，测试类改名必然表现为文件改名；包改名表现为整批文件路径迁移）；
+2. **内容校验门槛**：`renamed_file` 是基于相似度的提示而非结论，仅当新旧文件的方法集合或步骤模板引用集合重合度达标（重合度 = |交集| / |并集| ≥ 0.5，两个集合任一达标即采信，集合为空不参与判定）时才采信，否则视为删旧建新——直接采信会把 A 类数据挂到 B 类上，属数据污染，比留陈旧条目严重；
 3. 采信后将 `旧全限定名 → 新全限定名` 映射应用到类模块与场景的 `source_id`，并将其 `parent_id` 改指新包容器，平台侧编辑内容与关联关系随之保留；
 4. **包容器改名**：类模块迁移完成后，若某包容器变为无子类模块的空壳，且其原属类模块全部迁移至同一新包容器，判为包改名，将旧包容器 `source_id` 迁移至新包容器（复用旧容器，不新建）；否则旧包容器标记陈旧、新包容器新建；
-5. 非 public 测试类改名、跨目录重构导致相似度识别失败等无法探查的情形，一律按删旧建新处理，旧条目 `source_status` 标记 `repo_removed`，不自动清理。
+5. 非 public 测试类改名、跨目录重构导致相似度识别失败等无法探查的情形，一律按删旧建新处理，旧条目 `source_status` 标记 `repo_removed`，不自动清理；
+6. **执行入口与降级**：预览与导入执行同一判定——预览为干跑（计数反映迁移后的归属，不产生写操作），导入在单事务内先应用迁移再按稳定键 upsert；compare 调用失败计 1 条真实错误明细后继续导入（本轮降级为删旧建新），重合度不达标、类名与文件名不一致等无法探查的情形静默退回删旧建新（BR-1.42），不计错误。
 
 **环境合并规则**（仅 `platform` 模式，单事务）：`api_environment.source_id` 为 NULL 时，按 `refName` upsert `http_configs` 与 `data_sources` 中的导入项（保留用户自行添加的其他条目），随后回填 `source_id = repo_path` 完成封印；非 NULL 时跳过写入，此后平台侧为权威源，仓库侧环境变更不再回同步。项目无默认环境时新建（`name = 仓库展示名`，`is_default = true`）。场景仅在 `environment_id` 为 NULL 时回填。
 
@@ -352,8 +356,8 @@ flowchart TD
 
 1. 置 `running`，读取仓库配置与 `last_import_commit`；
 2. 目标分支 HEAD 与 `last_import_commit` 相同且 `errorFailed == 0` → 写 1 条 `success` 任务执行记录（`error_message` = 无变更说明），不进入解析；
-3. 否则调用 compare 接口取得变更文件清单，按 3.5 完成改名迁移判定；
-4. 进入 3.5 的导入流程，复用稳定键 upsert；
+3. 否则进入 3.5 的导入流程：流程内调用 compare 接口取变更文件清单，按 3.5 的改名迁移规则完成探查与内容校验；
+4. 按稳定键 upsert 落库；
 5. 回写 `last_import_commit` 与 `last_import_summary`，写 `api_change_history`；
 6. 写 1 条任务执行记录（关联本次导入摘要：新增 / 更新 / 解析失败 / 真实错误数），任务状态置 `success` / `failed`。
 
@@ -639,3 +643,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-12 | `api_git_repo` 新增 `reimport_overwrite`（重复导入覆盖策略，默认不覆盖）：2.1.1 / 6.1 落列，3.1 补请求响应示例与说明，3.5 导入流程与场景内容合并策略按该配置分流 |
 | V1.0 | 2026-10-12 | 3.2 补导入进度响应契约：`stage` 阶段枚举（fetch/scan/parse/merge/persist/done/failed）、`failed` 失败原因与 `done` 结果汇总示例 |
 | V1.0 | 2026-10-12 | 3.4 commit 幂等闸门细化：两种模式同一判定（`gitlab_ci` 同样参与提交比对）；导入跳过抛 `1000017709`，预览跳过返回 `gate.blocked=true` 且不解析；`errorFailed` 取上次汇总、`parseFailed` 不参与闸门 |
+| V1.0 | 2026-10-12 | 3.5 改名迁移入口扩大为导入与同步共用：3.5 流程图补 compare 步骤，规则 1 明确比对区间为 `last_import_commit` → 本次 HEAD，规则 2 补重合度阈值（|交集|/|并集| ≥ 0.5），新增规则 6（预览干跑、compare 失败降级与错误计列）；3.6 步骤 3/4 随之改写 |
