@@ -237,4 +237,55 @@ class GitLabApiClientTest {
         assertEquals(1000017702, ex.getCode());
         assertTrue(ex.getMessage().contains("文件不存在"));
     }
+
+    @Test
+    void findFileContentReturnsNullWhenFileMissing() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> response(404, "{}")));
+
+        String content = client.findFileContent(BASE, TOKEN, REPO_PATH, "master", "src/test/java/Missing.java");
+
+        assertEquals(null, content);
+    }
+
+    // ========== 分支 HEAD（WP-3.2 幂等闸门与源探查基准） ==========
+
+    @Test
+    void branchHeadReturnsCommitId() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> {
+            if (url.contains("/repository/branches/")) {
+                return response(200, "{\"name\":\"master\",\"commit\":{\"id\":\"a1b2c3d4e5f6\"}}");
+            }
+            return response(404, "{}");
+        }));
+
+        assertEquals("a1b2c3d4e5f6",
+                client.branchHead(BASE, TOKEN, REPO_PATH, "master"));
+    }
+
+    @Test
+    void branchHeadFailsWhenBranchMissing() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> response(404, "{}")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.branchHead(BASE, TOKEN, REPO_PATH, "release"));
+
+        assertEquals(1000017702, ex.getCode());
+        assertTrue(ex.getMessage().contains("分支不存在"));
+    }
+
+    @Test
+    void branchHeadFailsWhenCommitAbsent() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> {
+            if (url.contains("/repository/branches/")) {
+                return response(200, "{\"name\":\"master\"}");
+            }
+            return response(404, "{}");
+        }));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.branchHead(BASE, TOKEN, REPO_PATH, "master"));
+
+        assertEquals(1000017702, ex.getCode());
+        assertTrue(ex.getMessage().contains("HEAD 提交号缺失"));
+    }
 }
