@@ -37,4 +37,17 @@ public class ApiTestExecutorConfig {
         executor.setWaitForTasksToCompleteOnShutdown(false);
         return executor;
     }
+
+    /** GitLab 导入线程池：低频 IO 密集任务，与执行引擎隔离，单仓库并发由进度闸门约束（GitLab 集成详设 3.5） */
+    @Bean("apiGitImportExecutor")
+    public ThreadPoolTaskExecutor apiGitImportExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(10);
+        executor.setThreadNamePrefix("api-git-import-");
+        executor.setDaemon(true);
+        executor.setWaitForTasksToCompleteOnShutdown(false);
+        return executor;
+    }
 }
