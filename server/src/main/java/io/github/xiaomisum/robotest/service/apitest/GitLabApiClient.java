@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
@@ -43,6 +44,15 @@ public class GitLabApiClient {
 
     /** 文件内容（GitLab repository/files 接口，base64 编码） */
     public record FileContent(String content, String encoding) {
+    }
+
+    /** 变更文件条目（GitLab repository/compare 接口，改名迁移的探查输入，GitLab 集成详细设计 3.5） */
+    public record DiffEntry(
+            @JsonProperty("old_path") String oldPath,
+            @JsonProperty("new_path") String newPath,
+            @JsonProperty("new_file") boolean newFile,
+            @JsonProperty("deleted_file") boolean deletedFile,
+            @JsonProperty("renamed_file") boolean renamedFile) {
     }
 
     private final HttpOpener httpOpener;
@@ -198,6 +208,29 @@ public class GitLabApiClient {
     }
 
     /**
+     * 比对两次提交之间的变更文件清单（导入与同步阶段的改名探查输入，GitLab 集成详细设计 3.5）。
+     *
+     * @param from 起始提交号（上次导入提交）
+     * @param to   目标提交号（本次 HEAD）
+     * @return diff 清单（含新增 / 删除 / 改名标志）
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017702，比对失败（如 from 提交已被回收）
+     */
+    public List<DiffEntry> compare(String baseUrl, String token, String repoPath, String from, String to) {
+        String base = trimTrailingSlash(baseUrl);
+        String projectId = verifyProject(base, token, repoPath);
+        String url = base + "/api/v4/projects/" + projectId + "/repository/compare"
+                + "?from=" + URLEncoder.encode(from, StandardCharsets.UTF_8)
+                + "&to=" + URLEncoder.encode(to, StandardCharsets.UTF_8);
+        HttpResponse<String> response = send(url, token);
+        int status = response.statusCode();
+        if (status != 200) {
+            throw connectFailed("变更比对失败：HTTP " + status);
+        }
+        CompareInfo info = JsonUtils.parseObject(response.body(), CompareInfo.class);
+        return info == null || info.diffs() == null ? List.of() : info.diffs();
+    }
+
+    /**
      * 读取单个文件内容（GitLab repository/files 接口，base64 解码为 UTF-8 文本）。
      *
      * @throws xyz.migoo.framework.common.exception.ServiceException 1000017702，文件不存在或读取失败
@@ -290,6 +323,9 @@ public class GitLabApiClient {
 
         private record CommitInfo(String id) {
         }
+    }
+
+    private record CompareInfo(List<DiffEntry> diffs) {
     }
 
 }

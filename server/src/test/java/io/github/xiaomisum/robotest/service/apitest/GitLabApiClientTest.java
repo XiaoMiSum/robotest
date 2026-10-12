@@ -6,6 +6,7 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import java.net.http.HttpResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -287,5 +288,52 @@ class GitLabApiClientTest {
 
         assertEquals(1000017702, ex.getCode());
         assertTrue(ex.getMessage().contains("HEAD 提交号缺失"));
+    }
+
+    // ========== 提交比对（WP-3.4 改名迁移输入） ==========
+
+    @Test
+    void compareReturnsDiffEntriesWithFlags() {
+        java.util.List<String> seen = new java.util.ArrayList<>();
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> {
+            seen.add(url);
+            if (url.contains("/repository/compare")) {
+                return response(200, """
+                        {"diffs":[
+                          {"old_path":"src/test/java/a/OldTest.java","new_path":"src/test/java/b/NewTest.java",
+                           "new_file":false,"deleted_file":false,"renamed_file":true},
+                          {"old_path":"x.java","new_path":"y.java",
+                           "new_file":true,"deleted_file":false,"renamed_file":false}
+                        ]}
+                        """);
+            }
+            return response(404, "{}");
+        }));
+
+        java.util.List<GitLabApiClient.DiffEntry> diffs = client.compare(BASE, TOKEN, REPO_PATH, "oldsha", "newsha");
+
+        assertEquals(2, diffs.size());
+        GitLabApiClient.DiffEntry renamed = diffs.get(0);
+        assertEquals("src/test/java/a/OldTest.java", renamed.oldPath());
+        assertEquals("src/test/java/b/NewTest.java", renamed.newPath());
+        assertTrue(renamed.renamedFile());
+        assertFalse(renamed.newFile());
+        GitLabApiClient.DiffEntry added = diffs.get(1);
+        assertTrue(added.newFile());
+        assertFalse(added.renamedFile());
+        assertEquals(1, seen.size());
+        assertTrue(seen.get(0).contains("from=oldsha"));
+        assertTrue(seen.get(0).contains("to=newsha"));
+    }
+
+    @Test
+    void compareFailsWhenUnreachable() {
+        GitLabApiClient client = new GitLabApiClient(projectOnly(url -> response(404, "{}")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.compare(BASE, TOKEN, REPO_PATH, "oldsha", "newsha"));
+
+        assertEquals(1000017702, ex.getCode());
+        assertTrue(ex.getMessage().contains("变更比对失败"));
     }
 }
