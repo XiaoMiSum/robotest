@@ -100,6 +100,8 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
         row.setTestSourceDir(defaultIfBlank(reqDTO.getTestSourceDir(), DEFAULT_TEST_SOURCE_DIR));
         row.setResourceDir(defaultIfBlank(reqDTO.getResourceDir(), DEFAULT_RESOURCE_DIR));
         row.setEnvFilePath(defaultIfBlank(reqDTO.getEnvFilePath(), DEFAULT_ENV_FILE_PATH));
+        // 覆盖策略缺省不覆盖（BR-1.44 基线，详设 3.1）
+        row.setReimportOverwrite(Boolean.TRUE.equals(reqDTO.getReimportOverwrite()));
         row.setEnabled(true);
         row.setCreatedBy(userId);
         gitRepoMapper.insert(row);
@@ -130,6 +132,8 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
         update.setTestSourceDir(reqDTO.getTestSourceDir());
         update.setResourceDir(reqDTO.getResourceDir());
         update.setEnvFilePath(reqDTO.getEnvFilePath());
+        // null 表示本次未传该字段，不触碰列（C11 部分更新）
+        update.setReimportOverwrite(reqDTO.getReimportOverwrite());
         // 令牌未变更时不触碰 token_cipher 列（C11 部分更新）
         if (hasText(reqDTO.getToken())) {
             update.setTokenCipher(encrypt(reqDTO.getToken()));
@@ -137,7 +141,7 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
         // 全空请求体无列可更新，跳过空 UPDATE
         if (update.getName() == null && update.getGitlabBaseUrl() == null && update.getTestSourceDir() == null
                 && update.getResourceDir() == null && update.getEnvFilePath() == null
-                && update.getTokenCipher() == null) {
+                && update.getReimportOverwrite() == null && update.getTokenCipher() == null) {
             return;
         }
         gitRepoMapper.updateById(update);
@@ -243,6 +247,7 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
         dto.setTestSourceDir(row.getTestSourceDir());
         dto.setResourceDir(row.getResourceDir());
         dto.setEnvFilePath(row.getEnvFilePath());
+        dto.setReimportOverwrite(row.getReimportOverwrite());
         dto.setLastImportAt(row.getLastImportAt());
         dto.setLastImportCommit(row.getLastImportCommit());
         dto.setLastImportSummary(row.getLastImportSummary());

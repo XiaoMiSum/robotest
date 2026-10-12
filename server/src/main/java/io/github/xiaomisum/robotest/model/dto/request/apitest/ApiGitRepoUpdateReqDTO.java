@@ -41,6 +41,9 @@ public class ApiGitRepoUpdateReqDTO {
     @Size(max = 500, message = "环境声明文件路径不能超过 500 字符")
     private String envFilePath;
 
+    /** 重复导入覆盖策略，null 表示不修改（部分更新） */
+    private Boolean reimportOverwrite;
+
     /** 锁定字段出现检测（含显式 null 与未知字段），Service 按键名拒绝 */
     private Map<String, Object> rejectedFields = new LinkedHashMap<>();
 
