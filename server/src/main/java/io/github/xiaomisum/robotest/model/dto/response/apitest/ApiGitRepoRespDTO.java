@@ -26,6 +26,8 @@ public class ApiGitRepoRespDTO {
     private String testSourceDir;
     private String resourceDir;
     private String envFilePath;
+    /** 重复导入是否以源侧内容覆盖平台侧场景内容（默认不覆盖） */
+    private Boolean reimportOverwrite;
     private LocalDateTime lastImportAt;
     private String lastImportCommit;
     /** 上次导入结果 {created,updated,parseFailed,errorFailed,skipped} */

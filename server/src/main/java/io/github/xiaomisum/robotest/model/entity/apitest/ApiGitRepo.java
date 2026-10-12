@@ -38,6 +38,8 @@ public class ApiGitRepo extends BaseUuidDO<ApiGitRepo> {
     private String testSourceDir;
     private String resourceDir;
     private String envFilePath;
+    /** 重复导入是否以源侧内容覆盖平台侧场景内容（默认不覆盖，仅 platform 模式生效） */
+    private Boolean reimportOverwrite;
     private Boolean enabled;
     private LocalDateTime lastImportAt;
     /** 上次导入分支 HEAD，commit 幂等闸门比对基准 */
