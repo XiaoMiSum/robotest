@@ -114,7 +114,14 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
     public ApiGitImportPreviewRespDTO preview(UUID projectId, UUID workspaceId, UUID userId, UUID repoId) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiGitRepo repo = requireRepo(projectId, repoId);
-        ImportPlan plan = buildPlan(repo, decryptToken(repo), null);
+        String token = decryptToken(repo);
+        String branch = branchOf(repo);
+        String headCommit = gitLabApiClient.branchHead(repo.getGitlabBaseUrl(), token, repo.getRepoPath(), branch);
+        // commit 幂等闸门（详设 3.4）：跳过时不拉源码树、不扫描，经 gate 字段返回拦截结论
+        if (gateBlocked(repo, headCommit)) {
+            return blockedPreview(repo, branch, headCommit);
+        }
+        ImportPlan plan = buildPlan(repo, token, headCommit, null);
         return toPreviewDTO(projectId, repo, plan);
     }
 
@@ -123,10 +130,17 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
     @Override
     public ApiGitImportStatusRespDTO imports(UUID projectId, UUID workspaceId, UUID userId, UUID repoId) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireRepo(projectId, repoId);
+        ApiGitRepo repo = requireRepo(projectId, repoId);
+        String token = decryptToken(repo);
+        String branch = branchOf(repo);
+        String headCommit = gitLabApiClient.branchHead(repo.getGitlabBaseUrl(), token, repo.getRepoPath(), branch);
+        // commit 幂等闸门（详设 3.4）：跳过即同步拒绝，不占用进行中闸门、不发起源码拉取
+        if (gateBlocked(repo, headCommit)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_IMPORT_COMMIT_UP_TO_DATE);
+        }
         ImportProgress progress = claimProgress(repoId);
         try {
-            importExecutor.execute(() -> executeImport(projectId, userId, repoId, progress));
+            importExecutor.execute(() -> executeImport(projectId, userId, repoId, headCommit, progress));
         } catch (RejectedExecutionException e) {
             progressMap.remove(repoId, progress);
             // 并发导入超出承载上限，复用「存在进行中的导入」业务异常
@@ -157,13 +171,13 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         }
     }
 
-    private void executeImport(UUID projectId, UUID userId, UUID repoId, ImportProgress progress) {
+    private void executeImport(UUID projectId, UUID userId, UUID repoId, String headCommit, ImportProgress progress) {
         try {
             ApiGitRepo repo = gitRepoMapper.selectById(repoId);
             if (repo == null || !projectId.equals(repo.getProjectId())) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_REPO_NOT_FOUND);
             }
-            ImportPlan plan = buildPlan(repo, decryptToken(repo), progress);
+            ImportPlan plan = buildPlan(repo, decryptToken(repo), headCommit, progress);
             stage(progress, STAGE_MERGE, plan.prepared.size(), plan.prepared.size());
             // 导入写库单事务：模块归属、场景 upsert、repo_removed 标记、变更审计与回写同批提交（BR-1.15）
             Map<String, Object> summary = transactionTemplate.execute(
@@ -215,14 +229,15 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
 
     // ========== 计划构建：GitLab 拉取（扫描 + 套件解析）与库内比对 ==========
 
-    private ImportPlan buildPlan(ApiGitRepo repo, String token, ImportProgress progress) {
+    private ImportPlan buildPlan(ApiGitRepo repo, String token, String headCommit, ImportProgress progress) {
         ImportPlan plan = new ImportPlan();
-        plan.branch = hasText(repo.getDefaultBranch()) ? repo.getDefaultBranch() : "master";
+        plan.branch = branchOf(repo);
+        // HEAD 由闸门评估时取定并透传，保证闸门比对与落库的 last_import_commit 为同一提交号
+        plan.headCommit = headCommit;
         String baseUrl = repo.getGitlabBaseUrl();
         String repoPath = repo.getRepoPath();
 
         stage(progress, STAGE_FETCH, 0, 0);
-        plan.headCommit = gitLabApiClient.branchHead(baseUrl, token, repoPath, plan.branch);
         List<String> javaFiles = gitLabApiClient
                 .listFiles(baseUrl, token, repoPath, plan.branch, repo.getTestSourceDir())
                 .stream().filter(path -> path != null && path.toLowerCase().endsWith(".java")).toList();
@@ -632,6 +647,37 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
                     "已存访问令牌无法解密，请重新配置令牌");
         }
         return plain;
+    }
+
+    private static String branchOf(ApiGitRepo repo) {
+        return hasText(repo.getDefaultBranch()) ? repo.getDefaultBranch() : "master";
+    }
+
+    /**
+     * commit 幂等闸门（详设 3.4，双模式同一判定）：目标分支 HEAD 与上次导入一致
+     * 且上次无遗留真实错误时跳过；解析失败（parseFailed）是预期内结果，不参与闸门。
+     */
+    private static boolean gateBlocked(ApiGitRepo repo, String headCommit) {
+        if (!hasText(repo.getLastImportCommit()) || !headCommit.equals(repo.getLastImportCommit())) {
+            return false;
+        }
+        Map<String, Object> summary = repo.getLastImportSummary();
+        Object errorFailed = summary == null ? null : summary.get("errorFailed");
+        return !(errorFailed instanceof Number number) || number.intValue() == 0;
+    }
+
+    /** 闸门拦截的预览响应：不拉取源码树、不扫描，上次导入汇总由前端从仓库配置响应取用 */
+    private static ApiGitImportPreviewRespDTO blockedPreview(ApiGitRepo repo, String branch, String headCommit) {
+        ApiGitImportPreviewRespDTO dto = new ApiGitImportPreviewRespDTO();
+        dto.setRepoId(repo.getId());
+        dto.setBranch(branch);
+        dto.setHeadCommit(headCommit);
+        ApiGitImportPreviewRespDTO.GateDTO gate = new ApiGitImportPreviewRespDTO.GateDTO();
+        gate.setBlocked(true);
+        gate.setReason(ErrorCodeConstants.API_GIT_IMPORT_COMMIT_UP_TO_DATE.msg());
+        dto.setGate(gate);
+        dto.setDetails(List.of());
+        return dto;
     }
 
     private static String fqnOf(String key) {
