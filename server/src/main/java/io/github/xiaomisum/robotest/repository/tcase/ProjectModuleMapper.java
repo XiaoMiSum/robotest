@@ -37,6 +37,23 @@ public interface ProjectModuleMapper extends BaseMapperX<ProjectModule> {
                 .orderByAsc(ProjectModule::getSortOrder));
     }
 
+    /** 按源侧稳定键批量认领既有模块（包容器 source_id=包名、类模块 source_id=全限定名，BR-1.8） */
+    default List<ProjectModule> listByProjectAndSourceIds(UUID projectId, Collection<String> sourceIds) {
+        if (sourceIds == null || sourceIds.isEmpty()) {
+            return List.of();
+        }
+        return selectList(new LambdaQueryWrapperX<ProjectModule>()
+                .eq(ProjectModule::getProjectId, projectId)
+                .in(ProjectModule::getSourceId, sourceIds));
+    }
+
+    /** 「同包容器 + 同简单名」认领后回填全限定名（BR-1.8：回填后复用，不新建重复节点） */
+    default void backfillSourceId(UUID id, String sourceId) {
+        update(null, new LambdaUpdateWrapperX<ProjectModule>()
+                .eq(ProjectModule::getId, id)
+                .set(ProjectModule::getSourceId, sourceId));
+    }
+
     default List<ProjectModule> listByParentIdNotEqual(UUID excludeId, UUID parentId) {
         return selectList(new LambdaQueryWrapperX<ProjectModule>()
                 .ne(ProjectModule::getId, excludeId)
