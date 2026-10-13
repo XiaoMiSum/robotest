@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { MagicStick, Collection } from '@element-plus/icons-vue'
+import type { ApiGitRepoConfig } from '@/types'
+import { fetchGitRepo } from '@/services/project/api-testing/gitRepo'
+import { flattenModuleNames } from '@/composables/project/api-testing/interface/interfacesModel'
 import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 import { useEditorSplit } from '@/composables/project/api-testing/scene/useEditorSplit'
 import { useSceneHistory } from '@/composables/project/api-testing/scene/useSceneHistory'
@@ -27,6 +32,60 @@ const props = defineProps<{ sceneId?: string; createMode?: boolean; moduleId?: s
 const emit = defineEmits<{ (e: 'back'): void; (e: 'title-update', name: string): void; (e: 'dirty-change', dirty: boolean): void }>()
 
 const editor = useSceneEditor(props, emit as (e: string, ...args: unknown[]) => void)
+
+// ==================== GitLab 来源展示（交互 10 §1.9） ====================
+const router = useRouter()
+const detail = editor.detail
+
+/** platform 导入附加元素 / gitlab_ci 只读形态的判定依据（详设 5.3 派生 engine） */
+const isGitImport = computed(() => detail.value?.sourceType === 'gitlab')
+const readonlyMode = computed(() => detail.value?.engine === 'gitlab_ci')
+const sourceStatus = computed(() => detail.value?.sourceStatus ?? null)
+
+// 仓库信息仅导入场景需要（徽标 hover 与源引用跳转）；未配置或失败静默降级，不影响编辑主流程
+const repo = ref<ApiGitRepoConfig | null>(null)
+watch(
+  isGitImport,
+  (needed) => {
+    if (!needed) return
+    void fetchGitRepo()
+      .then((r) => { repo.value = r })
+      .catch(() => { repo.value = null })
+  },
+  { immediate: true },
+)
+
+const repoLabel = computed(() =>
+  repo.value ? `${repo.value.name} · ${repo.value.repoPath}` : '',
+)
+
+// 源侧稳定键/引用：gitlab_ci 为「类全限定名#方法名」+「文件路径#方法名」，platform 导入为 yaml 路径
+const sourceFile = computed(() => {
+  const ref = detail.value?.sourceRef
+  if (!ref) return null
+  return ref.includes('#') ? ref.slice(0, ref.indexOf('#')) : ref
+})
+const sourceRefUrl = computed(() => {
+  const r = repo.value
+  if (!r || !sourceFile.value) return null
+  return `${r.gitlabBaseUrl.replace(/\/+$/, '')}/${r.repoPath}/-/blob/${r.defaultBranch}/${sourceFile.value}`
+})
+const repoUrl = computed(() => {
+  const r = repo.value
+  return r ? `${r.gitlabBaseUrl.replace(/\/+$/, '')}/${r.repoPath}` : null
+})
+
+const caseInfo = computed(() => detail.value?.caseInfo ?? null)
+
+const moduleName = computed(() => {
+  const id = detail.value?.moduleId
+  if (!id) return null
+  return flattenModuleNames(editor.moduleTree.value).get(id) ?? null
+})
+
+function goGitLabPage() {
+  void router.push({ path: '/workspace/projects/api-testing', query: { tab: 'gitlab', gl: 'import' } })
+}
 
 const stepSplit = useEditorSplit(0.42)
 const preSplit = useEditorSplit(0.42)
@@ -111,6 +170,10 @@ const {
       :saving="editor.saving.value"
       :running="editor.running.value"
       :engine="editor.detail.value?.engine ?? null"
+      :source-type="editor.detail.value?.sourceType ?? null"
+      :source-status="editor.detail.value?.sourceStatus ?? null"
+      :repo-label="repoLabel"
+      :readonly-mode="readonlyMode"
       :module-options="editor.moduleOptions.value"
       :environment-options="editor.environmentOptions.value"
       :current-priority-color="editor.currentPriorityColor.value"
@@ -130,12 +193,57 @@ const {
       @save="handleSave"
       @delete="editor.handleDeleteScene"
       @run="handleRun"
+      @go-gitlab="goGitLabPage"
       @view-report="handleViewReport"
       @load-history="retryHistory"
     />
 
     <div v-if="editor.detail.value || editor.isCreateMode.value" class="scene-editor__body">
-      <div class="scene-editor__tabs-wrap">
+      <!-- platform 导入源状态提示条（交互 10 §1.9）：源码已退化 / 仓库不可达时提示，不阻断编辑 -->
+      <div
+        v-if="isGitImport && !readonlyMode && sourceStatus && sourceStatus !== 'in_sync'"
+        class="scene-editor__source-alert"
+        role="alert"
+      >
+        {{ sourceStatus === 'repo_unreachable' ? '仓库不可达：执行入口已置灰' : '源码已退化：仓库侧解析失败，展示为导入时内容' }}
+      </div>
+
+      <!-- gitlab_ci 只读主体（交互 10 §1.9）：步骤区替换为只读信息区 + 单个用例信息 -->
+      <div v-if="readonlyMode" class="scene-editor__readonly" data-test="scene-readonly">
+        <div class="scene-editor__readonly-info">
+          <div class="scene-editor__readonly-row">
+            <span class="scene-editor__readonly-label">模块</span>
+            <span>{{ moduleName ?? '未分配' }}</span>
+          </div>
+          <div class="scene-editor__readonly-row">
+            <span class="scene-editor__readonly-label">仓库</span>
+            <a v-if="repoUrl" :href="repoUrl" target="_blank" rel="noopener" class="scene-editor__readonly-link">{{ repo?.name ?? '查看仓库' }} ↗</a>
+            <span v-else>—</span>
+          </div>
+          <div class="scene-editor__readonly-row">
+            <span class="scene-editor__readonly-label">源引用</span>
+            <a v-if="sourceRefUrl" :href="sourceRefUrl" target="_blank" rel="noopener" class="scene-editor__readonly-link">{{ detail?.sourceRef }} ↗</a>
+            <span v-else>{{ detail?.sourceRef ?? '—' }}</span>
+          </div>
+        </div>
+
+        <div class="scene-editor__readonly-section">
+          <div class="scene-editor__section-head">用例（场景与测试方法一一对应，恒为单个用例）</div>
+          <el-table v-if="caseInfo" :data="[caseInfo]" size="small">
+            <el-table-column prop="methodName" label="方法名" min-width="160" />
+            <el-table-column prop="caseName" label="用例名称" min-width="200" />
+            <el-table-column label="源文件" min-width="240">
+              <template #default="{ row }">
+                <a v-if="sourceRefUrl" :href="sourceRefUrl" target="_blank" rel="noopener" class="scene-editor__readonly-link">{{ row.sourceFile ?? sourceFile }} ↗</a>
+                <span v-else>{{ row.sourceFile ?? sourceFile ?? '—' }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-else class="scene-editor__right-empty">用例信息不可用</div>
+        </div>
+      </div>
+
+      <div v-else class="scene-editor__tabs-wrap">
         <el-tabs v-model="editor.sceneSection.value" class="scene-editor__left-tabs">
           <el-tab-pane label="步骤" name="steps">
             <div
@@ -266,7 +374,7 @@ const {
     </div>
 
     <SceneEditorFooter
-      v-if="editor.detail.value || editor.isCreateMode.value"
+      v-if="(editor.detail.value || editor.isCreateMode.value) && !readonlyMode"
       :auto-save-label="editor.autoSaveLabel.value"
       :is-create-mode="editor.isCreateMode.value"
     />
@@ -427,5 +535,57 @@ const {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+}
+
+// platform 导入源状态提示条（交互 10 §1.9）
+.scene-editor__source-alert {
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(var(--el-color-warning-rgb), 0.1);
+  color: var(--el-color-warning);
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+// gitlab_ci 只读主体（交互 10 §1.9）：只读信息区 + 单个用例信息
+.scene-editor__readonly {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+.scene-editor__readonly-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  background: var(--color-neutral-50);
+  border-radius: var(--radius-md);
+}
+
+.scene-editor__readonly-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+}
+
+.scene-editor__readonly-label {
+  flex-shrink: 0;
+  width: 48px;
+  color: var(--color-neutral-500);
+}
+
+.scene-editor__readonly-link {
+  color: var(--color-primary-500);
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.scene-editor__readonly-section {
+  :deep(.el-table) { --el-table-header-bg-color: var(--color-neutral-50); }
 }
 </style>

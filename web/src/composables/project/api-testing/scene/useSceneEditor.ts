@@ -213,7 +213,11 @@ export function useSceneEditor(
             })),
           changeVersion: detail.value.changeVersion,
         })
-        ElMessage.success('已保存')
+        ElMessage.success(
+          detail.value?.sourceType === 'gitlab'
+            ? '已保存（平台侧修改在再次导入时按归属合并，默认不被覆盖）'
+            : '已保存',
+        )
         await loadDetail()
         return true
       } else {
