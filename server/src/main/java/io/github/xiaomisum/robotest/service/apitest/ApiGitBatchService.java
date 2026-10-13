@@ -1,0 +1,45 @@
+package io.github.xiaomisum.robotest.service.apitest;
+
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiGitBatchManifestRespDTO;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * 外部执行批次：清单冻结与流水线触发（GitLab 集成详细设计 4.2）。
+ * <p>
+ * 硬约束：先落批次记录 + 冻结清单快照，落库成功后才允许触发流水线；触发变量只传
+ * ROBOTEST_BATCH_ID 批次票据。单场景入口与定时任务分组共用本服务（WP-8.1 复用触发）。
+ */
+public interface ApiGitBatchService {
+
+    /**
+     * 冻结清单并触发流水线。
+     * <p>
+     * 顺序为硬约束（详设 4.2 第 2 步）：宁可流水线起来后 CI 取不到清单（CI 侧重试），
+     * 也不能流水线已跑而快照未落——后者会让 CI 拿到空清单静默不执行。
+     * 触发失败（GitLab 拒绝 1000017704 / 仓库不可达 1000017707）时整批置 error 留痕后抛出。
+     *
+     * @param repo             已校验可用（存在且启用）的仓库配置
+     * @param scenes           本批场景（gitlab_ci 引擎，sourceRef 即类全限定名#方法名）
+     * @param scheduledTaskId  关联定时任务，手动执行为 null
+     * @param triggerType      manual / scheduled（沿用执行记录既有语义）
+     * @param source           scene / schedule（沿用执行记录既有语义）
+     * @return 批次票据与首条执行记录 ID（单场景语义即 executionId）
+     */
+    Result trigger(ApiGitRepo repo, List<ApiScene> scenes, UUID scheduledTaskId,
+            String triggerType, String source);
+
+    /**
+     * CI 侧取冻结清单（详设 4.6）：按批次票据读取冻结快照，幂等，同一 batchId 多次调用返回同一份。
+     *
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017713，批次不存在
+     */
+    ApiGitBatchManifestRespDTO getManifest(String batchId);
+
+    /** 触发结果：批次票据 + 首条执行记录 ID */
+    record Result(String batchId, java.util.UUID executionId) {
+    }
+}
