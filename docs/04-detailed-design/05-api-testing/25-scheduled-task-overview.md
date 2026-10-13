@@ -86,10 +86,11 @@
 | task_id | UUID | NOT NULL | 关联定时任务（api_scheduled_task.id） |
 | project_id | UUID | NOT NULL | 归属项目 |
 | trigger_type | VARCHAR(20) | NOT NULL | 触发方式：scheduled（定时）/ manual（手动） |
-| status | VARCHAR(20) | NOT NULL | 执行结果：success / failed / skipped |
+| status | VARCHAR(20) | NOT NULL | 执行结果：success / failed / skipped / running。`running` 仅 `gitlab_sync` 手动触发的异步执行预插入记录，执行完成时更新为终态 |
 | error_message | VARCHAR(2000) | NULL | 失败原因 |
 | report_id | UUID | NULL | 关联套件报告（api_report.id，测试计划任务时报告类型为 suite） |
 | import_record_id | UUID | NULL | 关联导入记录（接口同步任务时，api_import_record.id） |
+| sync_summary | JSONB | NULL | 同步结果摘要（仅 GitLab 同步任务有值：created / updated / parseFailed / errorFailed / commit），其余类型为 NULL |
 | triggered_at | TIMESTAMP | NOT NULL | 触发时间 |
 | duration_ms | INT | NULL | 执行耗时 |
 | is_deleted | BOOLEAN | NOT NULL DEFAULT FALSE | 是否删除 |
@@ -126,3 +127,4 @@
 | V1.0 | 2026-10-03 | 对齐实现：补页面入口与权限口径、修正分册对照表章节号与参考资料路径、错误码改为引用基础设施总览、删除保护范围补目标环境 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
 | V1.0 | 2026-10-11 | 任务类型新增 `gitlab_sync`（GitLab 同步），补范围、页面结构与弹窗分支，同步任务执行见调度执行分册 4 |
+| V1.0 | 2026-10-13 | 执行记录表新增 `sync_summary` 列（同步结果摘要，支撑任务管理分册 1.7 响应字段）；`status` 枚举补 `running`（`gitlab_sync` 手动触发的异步执行预插入记录） |
