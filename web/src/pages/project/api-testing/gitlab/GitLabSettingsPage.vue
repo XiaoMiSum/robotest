@@ -88,6 +88,9 @@ const CI_MODE_HINT =
           <el-tab-pane label="导入" name="import" />
         </el-tabs>
 
+        <!-- 源有更新徽标（交互 26 §1.1）：源探查发现默认分支有新提交时提示，导入或同步后随 hasUpdates 消失 -->
+        <span v-if="repo?.hasUpdates" class="gl-updates-badge" role="status">源有更新</span>
+
         <!-- 连通性徽标：失败转告警色并可点击展开错误详情（交互稿 27 §1） -->
         <button
           v-if="!creating"
@@ -393,6 +396,20 @@ const CI_MODE_HINT =
 
 .gl-more {
   flex-shrink: 0;
+}
+
+/* [源有更新] 徽标（交互 26 §1.1）：默认分支有新提交时提示，导入或同步后消失 */
+.gl-updates-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(var(--el-color-warning-rgb), 0.1);
+  color: var(--el-color-warning);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
 }
 
 .gl-danger-item {

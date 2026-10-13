@@ -1,5 +1,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   createGitRepo,
@@ -77,7 +78,10 @@ export function useGitLabRepo() {
   const loadFailed = ref(false)
   const repo = ref<ApiGitRepoConfig | null>(null)
   const creating = ref(false)
-  const activeTab = ref<GitLabTab>('basic')
+  // 场景列表等外部跳转经 ?gl= 落到指定页签（交互 09 §1.2）：仅初始化读取，页内切换不回写 URL
+  const route = useRoute()
+  const initialGlTab = String(route.query.gl ?? '')
+  const activeTab = ref<GitLabTab>(initialGlTab === 'import' ? 'import' : 'basic')
 
   const form = reactive<GitLabRepoForm>(emptyForm())
 
