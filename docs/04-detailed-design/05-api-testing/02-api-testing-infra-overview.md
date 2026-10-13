@@ -285,8 +285,10 @@
 | 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 | 1000017713 | API_GIT_BATCH_NOT_FOUND | 执行批次不存在（CI 侧取冻结清单按 `batchId` 未命中，404 语义） |
+| 1000017714 | API_GIT_ARTIFACT_DOWNLOAD_FAILED | 流水线制品下载失败（结果回收通道降级留痕） |
+| 1000017715 | API_GIT_ENVELOPE_INVALID | 结果信封缺失或无法解析（无可用信封时整批降级留痕） |
 
-> `1000017701`–`1000017713` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
+> `1000017701`–`1000017715` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
 
 > 历史设计中的 `API_EXEC_TASK_NOT_FOUND`、`API_EXEC_TASK_STATE_INVALID`、`API_IMPORT_RECORD_NOT_FOUND` 和 `API_LINK_SOURCE_MISSING` 当前未在 `ErrorCodeConstants` 登记；相关流程按现有实现返回业务结果或使用已登记的资源错误码，不将这些名称作为对外错误码。
 
@@ -403,3 +405,4 @@ robotest:
 | V1.0 | 2026-10-11 | 删除错误码 `1000017706`（批量执行圈选上限），该能力已从需求与设计中移除 |
 | V1.0 | 2026-10-11 | 错误码 `1000017711` 更名为 `API_GIT_REPO_IMMUTABLE_FIELD`，覆盖范围扩至 `repo_path` / `default_branch` |
 | V1.0 | 2026-10-13 | 执行记录新增局部索引 `idx_exec_scheduled_task_id`（任务完成判据按批次扫描执行记录，关联字段强制索引，经评审确认单表索引数 5→6） |
+| V1.0 | 2026-10-13 | GitLab 集成号段扩至 1000017715：新增 `API_GIT_ARTIFACT_DOWNLOAD_FAILED`（制品下载失败，结果回收通道降级留痕）与 `API_GIT_ENVELOPE_INVALID`（结果信封缺失或无法解析，无可用信封时整批降级留痕） |
