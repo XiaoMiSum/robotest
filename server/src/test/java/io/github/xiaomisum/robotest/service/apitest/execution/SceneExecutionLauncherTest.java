@@ -72,6 +72,10 @@ class SceneExecutionLauncherTest {
     private SuiteRunner suiteRunner;
     @Mock
     private ThreadPoolTaskExecutor apiTestExecutor;
+    @Mock
+    private io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper gitRepoMapper;
+    @Mock
+    private io.github.xiaomisum.robotest.service.apitest.ApiGitBatchService apiGitBatchService;
 
     private SceneExecutionLauncher launcher;
 
@@ -86,6 +90,8 @@ class SceneExecutionLauncherTest {
         inject("apiTestExecutor", apiTestExecutor);
         inject("suiteRunner", suiteRunner);
         inject("suiteBuilder", suiteBuilder);
+        inject("gitRepoMapper", gitRepoMapper);
+        inject("apiGitBatchService", apiGitBatchService);
         inject("properties", new ApiTestProperties());
     }
 
@@ -129,6 +135,84 @@ class SceneExecutionLauncherTest {
 
         assertThrows(ServiceException.class,
                 () -> launcher.execute(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, new ApiSceneExecuteReqDTO()));
+    }
+
+    // ========== CI 引擎路由（WP-6.1，GitLab 集成详设 4.1/4.2） ==========
+
+    private ApiScene gitlabCiScene() {
+        // gitlab_ci 场景 steps 恒为空（BR-1.10），不参与平台分支的空步骤校验
+        ApiScene scene = new ApiScene();
+        scene.setId(SCENE_ID);
+        scene.setProjectId(PROJECT_ID);
+        scene.setSourceType("gitlab");
+        scene.setRepoId(UUID.randomUUID());
+        scene.setSourceRef("com.example.A#m1");
+        scene.setSteps(List.of());
+        return scene;
+    }
+
+    private io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo enabledCiRepo() {
+        io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo repo =
+                new io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo();
+        repo.setId(UUID.randomUUID());
+        repo.setImportMode("gitlab_ci");
+        repo.setEnabled(true);
+        return repo;
+    }
+
+    @Test
+    void gitlabCiSceneRoutesToBatchTriggerAndReturnsRunning() {
+        ApiScene scene = gitlabCiScene();
+        var repo = enabledCiRepo();
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(scene);
+        when(gitRepoMapper.selectById(scene.getRepoId())).thenReturn(repo);
+        doNothing().when(projectAccessGuard).requireProjectMember(PROJECT_ID, WORKSPACE_ID, USER_ID);
+        UUID executionId = UUID.randomUUID();
+        when(apiGitBatchService.trigger(org.mockito.ArgumentMatchers.eq(repo),
+                org.mockito.ArgumentMatchers.eq(List.of(scene)),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.eq("manual"),
+                org.mockito.ArgumentMatchers.eq("scene")))
+                .thenReturn(new io.github.xiaomisum.robotest.service.apitest.ApiGitBatchService.Result(
+                        "batch-1", executionId));
+
+        var resp = launcher.execute(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, new ApiSceneExecuteReqDTO());
+
+        assertEquals(executionId.toString(), resp.getExecutionId());
+        assertEquals("running", resp.getStatus());
+        // 平台分支不介入：CI 批次由批次服务落库，不走 Launcher 的记录插入
+        verify(executionRecordMapper, org.mockito.Mockito.never()).insert(any(ApiExecutionRecord.class));
+    }
+
+    @Test
+    void disabledRepoRejectsCiSceneExecution() {
+        ApiScene scene = gitlabCiScene();
+        var repo = enabledCiRepo();
+        repo.setEnabled(false);
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(scene);
+        when(gitRepoMapper.selectById(scene.getRepoId())).thenReturn(repo);
+        doNothing().when(projectAccessGuard).requireProjectMember(PROJECT_ID, WORKSPACE_ID, USER_ID);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> launcher.execute(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, new ApiSceneExecuteReqDTO()));
+
+        // BR-1.26：仓库禁用时其下流水线场景不可执行
+        assertEquals(1000017707, ex.getCode());
+        verify(apiGitBatchService, org.mockito.Mockito.never())
+                .trigger(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void repoRemovedCiSceneFallsBackToPlatformAndRejectsEmptySteps() {
+        // BR-1.4：仓库已删除无从判定流水线归属，路由回退平台引擎，空步骤被平台分支拦截
+        ApiScene scene = gitlabCiScene();
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(scene);
+        when(gitRepoMapper.selectById(scene.getRepoId())).thenReturn(null);
+        doNothing().when(projectAccessGuard).requireProjectMember(PROJECT_ID, WORKSPACE_ID, USER_ID);
+
+        assertThrows(ServiceException.class,
+                () -> launcher.execute(WORKSPACE_ID, PROJECT_ID, USER_ID, SCENE_ID, new ApiSceneExecuteReqDTO()));
+        verify(apiGitBatchService, org.mockito.Mockito.never())
+                .trigger(any(), any(), any(), any(), any());
     }
 
     @Test

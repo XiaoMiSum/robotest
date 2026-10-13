@@ -9,11 +9,15 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
+import io.github.xiaomisum.robotest.service.apitest.ApiGitBatchService;
+import io.github.xiaomisum.robotest.service.apitest.ApiSceneEngineRouter;
 import io.github.xiaomisum.robotest.service.apitest.CustomFunctionRuntime;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
@@ -75,6 +79,10 @@ public class SceneExecutionLauncher {
     private SuiteBuilder suiteBuilder;
     @Resource
     private ExecutionCancelRegistry cancelRegistry;
+    @Resource
+    private ApiGitRepoMapper gitRepoMapper;
+    @Resource
+    private ApiGitBatchService apiGitBatchService;
 
     // ========== 异步执行 ==========
 
@@ -84,6 +92,14 @@ public class SceneExecutionLauncher {
         ApiSceneExecuteReqDTO req = reqDTO != null ? reqDTO : new ApiSceneExecuteReqDTO();
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiScene scene = SceneExecutionSupport.requireScene(sceneMapper, projectId, sceneId);
+
+        // 引擎路由（GitLab 集成详设 4.1）：gitlab_ci 场景冻结批次后触发流水线，前端无感
+        ApiGitRepo repo = ApiSceneEngineRouter.SOURCE_TYPE_GITLAB.equals(scene.getSourceType())
+                && scene.getRepoId() != null ? gitRepoMapper.selectById(scene.getRepoId()) : null;
+        if (ApiSceneEngineRouter.ENGINE_GITLAB_CI.equals(ApiSceneEngineRouter.resolve(scene, repo))) {
+            return executeByPipeline(repo, scene, req);
+        }
+
         if (scene.getSteps() == null || scene.getSteps().isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "场景没有可执行步骤");
         }
@@ -115,6 +131,29 @@ public class SceneExecutionLauncher {
         return ApiExecutionStartRespDTO.builder()
                 .executionId(record.getId().toString())
                 .status("pending")
+                .build();
+    }
+
+    // ========== CI 引擎（GitLab 集成详设 4.2，WP-6.1） ==========
+
+    /**
+     * gitlab_ci 场景执行：仓库可用性校验（BR-1.26，1000017707）→ 冻结批次快照 → 触发流水线。
+     * <p>gitlab_ci 场景 steps 恒为空（BR-1.10），不参与平台分支的空步骤校验；
+     * 响应结构与平台引擎一致（executionId + status），前端按同一轮询口径查询执行状态。
+     */
+    private ApiExecutionStartRespDTO executeByPipeline(ApiGitRepo repo, ApiScene scene, ApiSceneExecuteReqDTO req) {
+        if (!Boolean.TRUE.equals(repo.getEnabled())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_SCENE_NOT_EXECUTABLE);
+        }
+        String triggerType = req.getTriggerType() == null || req.getTriggerType().isBlank()
+                ? "manual" : req.getTriggerType();
+        String source = req.getSource() == null || req.getSource().isBlank()
+                ? "scene" : req.getSource();
+        ApiGitBatchService.Result batch = apiGitBatchService.trigger(
+                repo, List.of(scene), null, triggerType, source);
+        return ApiExecutionStartRespDTO.builder()
+                .executionId(batch.executionId().toString())
+                .status("running")
                 .build();
     }
 
