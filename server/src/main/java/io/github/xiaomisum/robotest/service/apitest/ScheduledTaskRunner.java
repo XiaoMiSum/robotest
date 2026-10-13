@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
 
 /**
  * 定时/手动触发的统一执行入口（Facade）。
- * 实际执行委托给 {@link TestPlanTaskHandler} 和 {@link ApiSyncTaskHandler}，
+ * 实际执行委托给 {@link TestPlanTaskHandler}、{@link ApiSyncTaskHandler} 与 {@link GitLabSyncTaskHandler}，
  * 本类仅保留原有公共方法签名以保证调用方（ApiTestTaskScheduler / ApiScheduleServiceImpl）零改动。
  *
  * <p><b>单实例内存态约束（总体重构计划 R5）：</b>
@@ -33,6 +33,8 @@ public class ScheduledTaskRunner {
     private TestPlanTaskHandler testPlanHandler;
     @Resource
     private ApiSyncTaskHandler apiSyncHandler;
+    @Resource
+    private GitLabSyncTaskHandler gitLabSyncHandler;
     @Resource
     private ApiScheduledTaskMapper taskMapper;
     @Resource
@@ -57,6 +59,10 @@ public class ScheduledTaskRunner {
                 testPlanHandler.executeTask(task,
                         io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard.SYSTEM_OPERATOR_ID,
                         triggerType, triggeredAt);
+            } else if (GitLabSyncTaskHandler.TYPE.equals(task.getTaskType())) {
+                gitLabSyncHandler.executeTask(task,
+                        io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard.SYSTEM_OPERATOR_ID,
+                        triggerType, triggeredAt, null);
             } else {
                 apiSyncHandler.executeSync(task,
                         io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard.SYSTEM_OPERATOR_ID,
@@ -72,6 +78,27 @@ public class ScheduledTaskRunner {
         LocalDateTime triggeredAt = LocalDateTime.now();
         updateTaskExecution(task.getId(), "running");
         trackerPool.submit(() -> testPlanHandler.executeTask(task, executorUserId, triggerType, triggeredAt));
+    }
+
+    /**
+     * 手动触发 GitLab 同步任务：先预插入 status = running 的执行记录（详设 26 §1.6：
+     * executionId = 该记录 ID、status 恒 running），入池异步执行，完成时由 Handler 更新为终态与同步摘要。
+     */
+    public UUID launchGitLabSyncAsync(ApiScheduledTask task, UUID executorUserId, String triggerType) {
+        LocalDateTime triggeredAt = LocalDateTime.now();
+        ApiScheduledTaskExecution record = new ApiScheduledTaskExecution();
+        record.setId(UUID.randomUUID());
+        record.setTaskId(task.getId());
+        record.setProjectId(task.getProjectId());
+        record.setTriggerType(triggerType);
+        record.setStatus("running");
+        record.setTriggeredAt(triggeredAt);
+        record.setDurationMs(0);
+        executionMapper.insert(record);
+        updateTaskExecution(task.getId(), "running");
+        trackerPool.submit(() -> gitLabSyncHandler.executeTask(task, executorUserId, triggerType,
+                triggeredAt, record.getId()));
+        return record.getId();
     }
 
     /** 手动触发接口同步任务：同步执行并留痕 */
