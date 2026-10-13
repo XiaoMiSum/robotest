@@ -90,7 +90,7 @@
 | ---- | ---- | ---- |
 | `project_module` | +1 列 `source_id`（源侧映射标识：包容器存完整包名、类模块存测试类全限定名）、+1 唯一索引 `uk_pmod_source` | `docs/04-detailed-design/02-project-module.md` 2.1 |
 | `api_scene` | +7 列 `source_type` / `repo_id` / `source_id` / `source_ref` / `source_status` / `parse_status` / `parse_issues`、+1 唯一索引 `uk_scene_source` | `docs/04-detailed-design/05-api-testing/12-test-scenario-overview.md` 2.1.2 |
-| `api_execution_record` | +8 列 `repo_id` / `pipeline_iid` / `pipeline_url` / `batch_id` / `source_ref` / `commit_sha` / `scheduled_task_id` / `summary`、+1 索引 `idx_exec_batch` | `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md` 2.1.3 |
+| `api_execution_record` | +8 列 `repo_id` / `pipeline_iid` / `pipeline_url` / `batch_id` / `source_ref` / `commit_sha` / `scheduled_task_id` / `summary`、+3 索引 `idx_exec_pipeline` / `idx_exec_batch` / `idx_exec_scheduled_task_id` | `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md` 2.1.3 |
 | `api_environment` | +1 列 `source_id`（认领该环境的仓库路径），不加索引 | `docs/04-detailed-design/05-api-testing/17-environment-management-overview.md` 2.1.1 |
 | `api_report` | 不改结构，仅 `result` 数据集语义扩展（见 4.4） | `docs/04-detailed-design/05-api-testing/28-test-report-overview.md` 2.3 |
 
@@ -623,6 +623,8 @@ ALTER TABLE api_execution_record ADD COLUMN summary JSONB NULL;
 CREATE INDEX idx_exec_pipeline ON api_execution_record(repo_id, pipeline_iid)
     WHERE pipeline_iid IS NOT NULL;
 CREATE INDEX idx_exec_batch ON api_execution_record(batch_id) WHERE batch_id IS NOT NULL;
+CREATE INDEX idx_exec_scheduled_task_id ON api_execution_record(scheduled_task_id)
+    WHERE scheduled_task_id IS NOT NULL AND batch_id IS NOT NULL;
 
 -- 5. api_environment 扩展（详见 docs/04-detailed-design/05-api-testing/17-environment-management-overview.md 2.1.1）
 ALTER TABLE api_environment ADD COLUMN source_id VARCHAR(500) NULL;
@@ -668,3 +670,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-13 | 错误码号段扩至 `1000017713`（新增 `API_GIT_BATCH_NOT_FOUND`，CI 侧取清单批次未命中）；4.6 补 `ROBOTEST_CI_TOKEN` 签发方式（部署级静态令牌 + fail-closed + 常量时间比对） |
 | V1.0 | 2026-10-13 | 4.2 第 5 步补轮询作业口径：固定周期（`robotest.gitlab.pipeline-poll-interval-ms`，默认 30 秒）、查询失败下周期自然重试、检测到流水线终态只触结果回收入口不直接写批次状态 |
 | V1.0 | 2026-10-13 | 4.6 删除 JUnit 测试报告摘要降级档（该档汇总数字无法按 `testClass#testMethod` 映射场景也写不出步骤明细）：未回收到任何可用信封时直接整批按失败并附流水线链接，单条信封缺失按解析失败计数 |
+| V1.0 | 2026-10-13 | 6.1 为 `api_execution_record` 新增局部索引 `idx_exec_scheduled_task_id`（任务完成判据按批次扫描执行记录的关联字段，5→6 索引经评审确认），表变更汇总行同步登记 |
