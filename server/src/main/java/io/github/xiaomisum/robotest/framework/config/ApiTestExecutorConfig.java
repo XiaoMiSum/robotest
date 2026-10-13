@@ -50,4 +50,17 @@ public class ApiTestExecutorConfig {
         executor.setWaitForTasksToCompleteOnShutdown(false);
         return executor;
     }
+
+    /** GitLab 结果回收入线程池：制品下载 / 信封解析 / 回写为低频 IO 密集任务，与执行引擎隔离（详设 4.2 第 6 步回写异步） */
+    @Bean("apiGitCollectExecutor")
+    public ThreadPoolTaskExecutor apiGitCollectExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("api-git-collect-");
+        executor.setDaemon(true);
+        executor.setWaitForTasksToCompleteOnShutdown(false);
+        return executor;
+    }
 }
