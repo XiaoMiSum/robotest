@@ -142,7 +142,7 @@
 }
 ```
 
-  - 接口同步任务同步执行完成，`executionId` 为导入记录 ID，`status` 为导入最终状态（`success` / `failed`）；GitLab 同步任务为异步执行，`executionId` 为任务执行记录 ID，`status` 恒返回 `running`，完成状态经执行记录查询获取。
+  - 接口同步任务同步执行完成，`executionId` 为导入记录 ID，`status` 为导入最终状态（`success` / `failed`）；GitLab 同步任务为异步执行，触发时预插入 `status = running` 的任务执行记录，`executionId` 为该记录 ID、`status` 恒返回 `running`，执行完成时记录更新为终态与同步摘要，完成状态经执行记录查询获取。
 
 ### 1.7 查询执行记录
 
@@ -169,7 +169,7 @@
 }
 ```
 
-- `reportId` 为测试计划任务产生的套件报告 ID；`importRecordId` / `importSummary`（新增 / 更新 / 失败数）仅接口同步任务有值，`syncSummary`（新增 / 更新 / 解析失败 / 真实错误数、提交号）仅 GitLab 同步任务有值，其余类型为 `null`。
+- `reportId` 为测试计划任务产生的套件报告 ID；`importRecordId` / `importSummary`（新增 / 更新 / 失败数）仅接口同步任务有值，`syncSummary`（新增 / 更新 / 解析失败 / 真实错误数、提交号）仅 GitLab 同步任务有值，其余类型为 `null`；GitLab 同步任务执行中的记录 `status = running`，执行完成更新为终态。
 
 ### 1.8 校验 Cron 表达式
 
@@ -293,3 +293,4 @@
 | --- | --- | --- |
 | V1.0 | 2026-10-03 | 对齐实现：修正启停/立即执行接口路径与方法、补全执行记录字段与权限口径，重写管理页列表、表单、执行记录抽屉与动作交互描述 |
 | V1.0 | 2026-10-11 | 新增 `gitlab_sync`（GitLab 同步）类型的筛选、列展示、表单分支与校验口径，补仓库配置删除保护 |
+| V1.0 | 2026-10-13 | WP-8.2 落地口径入档：立即执行 GitLab 同步分支补预插入 `running` 执行记录说明（执行完成更新终态与 `syncSummary`）；执行记录响应补执行中 `status = running` 口径 |

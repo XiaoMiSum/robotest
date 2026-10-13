@@ -53,12 +53,12 @@
 | `trigger_type` | 入口 | 行为 |
 | ---- | ---- | ---- |
 | `scheduled` | Cron 到点（调度器触发） | 按上述调度流程执行；任务 `running` 时只记 `skipped` |
-| `manual` | 调度页 [立即执行]（接口见《任务管理》分册 `docs/04-detailed-design/05-api-testing/26-scheduled-task-management.md` 1.6） | 上一次执行未结束直接返回 `1000017504`；测试计划任务入池异步执行（响应 `status = running`，`executionId` = 任务 ID），接口同步任务在请求线程同步执行（`executionId` = 导入记录 ID） |
+| `manual` | 调度页 [立即执行]（接口见《任务管理》分册 `docs/04-detailed-design/05-api-testing/26-scheduled-task-management.md` 1.6） | 上一次执行未结束直接返回 `1000017504`；测试计划任务入池异步执行（响应 `status = running`，`executionId` = 任务 ID），接口同步任务在请求线程同步执行（`executionId` = 导入记录 ID），GitLab 同步入池异步执行（触发时预插入 `status = running` 的执行记录，响应 `executionId` = 记录 ID、`status` 恒 `running`，完成状态经执行记录查询获取） |
 
 **执行状态口径**：
 
 - 任务 `last_execution_status`：`NULL`（未执行过）→ `running` → `success` / `failed`；测试计划任务有任一场景失败、或本次未圈选到可执行场景，均判 `failed`。混合任务（含流水线组）按 2 步骤 8 的完成判据裁定，流水线侧失败（含仓库被禁用场景的 `failed` 留痕）同样计任务失败。
-- 执行记录 `status`：`success` / `failed` / `skipped`，`trigger_type` 为 `scheduled` / `manual`；失败原因 `error_message` 一律按 2000 字符截断。
+- 执行记录 `status`：`success` / `failed` / `skipped` / `running`（`running` 仅 GitLab 同步任务手动触发时的预插入记录，执行完成更新为终态），`trigger_type` 为 `scheduled` / `manual`；失败原因 `error_message` 一律按 2000 字符截断。
 - 进程在执行过程中异常退出时 `running` 会残留：此后定时触发只记 `skipped`、[立即执行] 返回 `1000017504`，当前实现无自动复位机制。
 - 多实例部署时各实例独立注册与触发，仅在触发时刻按库中 `running` 状态判断是否跳过，注册表随进程结束失效，不提供跨实例调度协调。
 
@@ -143,14 +143,14 @@
 3. 否则调用 compare 接口取得变更文件清单，按改名迁移规则完成类 / 包改名探查与源侧标识迁移（见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md`）3.5）；
 4. 进入导入流程，复用稳定键 upsert 与幂等闸门（同 3.5）；
 5. 回写 `last_import_commit` 与 `last_import_summary`，写 `api_change_history`；
-6. 写 1 条任务执行记录（`status` = 同步最终状态，`error_message` = 异常摘要或无变更说明，`report_id` 为空，`duration_ms` 为本次耗时），任务状态置 `success` / `failed`，返回本次同步摘要。
+6. 写入任务执行记录（`status` = 同步最终状态，`error_message` = 异常摘要或无变更说明，`sync_summary` = 本次同步摘要（created / updated / parseFailed / errorFailed / commit），`report_id` 为空，`duration_ms` 为本次耗时；手动触发时更新触发时预插入的 `running` 记录），任务状态置 `success` / `failed`，返回本次同步摘要。
 
 **说明**：
 
 - 该任务是源变更检测的**唯一形态**，检测频率完全由用户配置的 Cron 决定，平台不另设轮询；
 - 与手动导入共用同一解析、稳定键与幂等闸门，两者并发时不互斥，靠 upsert 幂等保证结果一致；
 - **不产生测试报告**、不写 `api_report`，执行记录只承载同步结果摘要（新增 / 更新 / 解析失败 / 真实错误数）；
-- **失败处理**：仓库配置不存在或被禁用 → 直接置 `failed`，不重试；GitLab 不可达 / 令牌失效 / 解析异常 → 写 1 条 `status = failed` 的任务执行记录（异常摘要按 2000 截断），任务状态置 `failed`；手动触发时异常继续上抛供前端提示，定时触发仅留痕。
+- **失败处理**：仓库配置不存在或被禁用 → 直接置 `failed`，不重试；GitLab 不可达 / 令牌失效 / 解析异常 → 写 1 条 `status = failed` 的任务执行记录（异常摘要按 2000 截断），任务状态置 `failed`；手动触发的异常上抛仅限触发入口前置校验（如 `1000017504`），入池后的执行期异常一律写 `failed` 执行记录留痕、不再上抛，定时触发同样仅留痕。
 
 ---
 
@@ -187,3 +187,4 @@ robotest:
 | V1.0 | 2026-10-11 | 新增 GitLab 同步任务执行（§4），原调度器线程池顺延为 §5 |
 | V1.0 | 2026-10-11 | 流水线组改为批次票据 + 冻结清单 + 制品回收，取消拆批；批次终态后忽略后续写入 |
 | V1.0 | 2026-10-13 | WP-8.1 落地：完成判据扫描式跟踪器口径入档（扫描周期与短路、批次作用域、平台组终态三类信号、两侧失败推导与「与」逻辑、流水线组任务执行记录补写）；步骤 5 补平台组无可用场景的 `success` 标记记录；状态口径与失败处理补混合任务分支（仓库被禁用场景计任务失败、有批次时失败留痕交判据裁定） |
+| V1.0 | 2026-10-13 | WP-8.2 落地口径入档：触发方式表补 GitLab 同步入池异步分支（预插入 `running` 执行记录、`executionId` = 记录 ID）；执行记录 `status` 枚举补 `running`；步骤 6 补 `sync_summary` 同步摘要；失败处理明确手动触发仅前置校验异常上抛、执行期异常一律留痕 |
