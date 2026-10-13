@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugR
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -42,6 +43,11 @@ public class SceneExecutionServiceImpl implements SceneExecutionService {
     public ApiExecutionStartRespDTO execute(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             ApiSceneExecuteReqDTO reqDTO) {
         return launcher.execute(workspaceId, projectId, userId, sceneId, reqDTO);
+    }
+
+    @Override
+    public ApiExecutionStatusRespDTO getStatus(UUID workspaceId, UUID projectId, UUID userId, UUID executionId) {
+        return executionRecordQueryService.getStatus(workspaceId, projectId, userId, executionId);
     }
 
     @Override
