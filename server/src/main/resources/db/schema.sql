@@ -762,6 +762,7 @@ CREATE TABLE api_scheduled_task_execution (
                                               error_message     VARCHAR(2000)  NULL,
                                               report_id         UUID           NULL,
                                               import_record_id  UUID           NULL,
+                                              sync_summary      JSONB          NULL,
                                               triggered_at      TIMESTAMP      NOT NULL,
                                               duration_ms       INT            NULL,
                                               is_deleted        BOOLEAN        NOT NULL DEFAULT FALSE,
@@ -1817,10 +1818,11 @@ COMMENT ON TABLE api_scheduled_task_execution IS '定时任务执行记录表';
 COMMENT ON COLUMN api_scheduled_task_execution.task_id IS '关联任务 ID';
 COMMENT ON COLUMN api_scheduled_task_execution.project_id IS '归属项目 ID';
 COMMENT ON COLUMN api_scheduled_task_execution.trigger_type IS '触发方式：scheduled/manual';
-COMMENT ON COLUMN api_scheduled_task_execution.status IS '执行结果：success/failed/skipped';
+COMMENT ON COLUMN api_scheduled_task_execution.status IS '执行结果：success/failed/skipped；running 仅 GitLab 同步手动触发的预插入记录';
 COMMENT ON COLUMN api_scheduled_task_execution.error_message IS '失败原因';
 COMMENT ON COLUMN api_scheduled_task_execution.report_id IS '关联报告 ID';
 COMMENT ON COLUMN api_scheduled_task_execution.import_record_id IS '关联导入记录 ID';
+COMMENT ON COLUMN api_scheduled_task_execution.sync_summary IS '同步结果摘要（仅 GitLab 同步任务）：created/updated/parseFailed/errorFailed/commit';
 COMMENT ON COLUMN api_scheduled_task_execution.triggered_at IS '触发时间';
 COMMENT ON COLUMN api_scheduled_task_execution.duration_ms IS '执行耗时（毫秒）';
 

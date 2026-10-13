@@ -2,12 +2,14 @@ package io.github.xiaomisum.robotest.model.entity.apitest;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.Jackson3TypeHandler;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -24,13 +26,16 @@ public class ApiScheduledTaskExecution extends BaseUuidDO<ApiScheduledTaskExecut
     private UUID projectId;
     /** scheduled / manual */
     private String triggerType;
-    /** success / failed / skipped */
+    /** success / failed / skipped；running 仅 gitlab_sync 手动触发的异步执行预插入记录，完成时更新为终态 */
     private String status;
     private String errorMessage;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID reportId;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID importRecordId;
+    /** 同步结果摘要（仅 gitlab_sync 任务）：created/updated/parseFailed/errorFailed/commit，其余类型为 null */
+    @TableField(typeHandler = Jackson3TypeHandler.class)
+    private Map<String, Object> syncSummary;
     private LocalDateTime triggeredAt;
     private Integer durationMs;
 
