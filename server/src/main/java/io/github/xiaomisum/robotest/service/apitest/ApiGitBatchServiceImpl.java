@@ -15,6 +15,7 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +27,10 @@ import java.util.UUID;
  */
 @Service
 public class ApiGitBatchServiceImpl implements ApiGitBatchService {
+
+    /** 执行记录终态集合（引擎详设 3.1 状态机 + 详设 4.2 第 5 步终态去重的写入白名单） */
+    private static final Set<String> TERMINAL_STATUSES =
+            Set.of("success", "failed", "error", "cancelled", "timeout");
 
     private final ApiExecutionRecordMapper executionRecordMapper;
     private final ApiGitRepoMapper gitRepoMapper;
@@ -120,6 +125,15 @@ public class ApiGitBatchServiceImpl implements ApiGitBatchService {
                 .toList());
         resp.setExpectedCases(records.size());
         return resp;
+    }
+
+    // ========== 终态去重 ==========
+    @Override
+    public boolean finishBatch(String batchId, String status, String errorMessage) {
+        if (!TERMINAL_STATUSES.contains(status)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "非法终态取值：" + status);
+        }
+        return executionRecordMapper.markBatchTerminal(batchId, status, errorMessage) > 0;
     }
 
     /** 沿用已存令牌：解密失败（密钥轮换 / 密文损坏）须重新配置令牌后重试 */

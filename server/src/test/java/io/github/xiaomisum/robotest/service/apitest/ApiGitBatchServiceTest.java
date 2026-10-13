@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -73,6 +74,21 @@ class ApiGitBatchServiceTest {
                 .thenAnswer(inv -> store.stream()
                         .filter(r -> inv.getArgument(0).equals(r.getBatchId())).toList());
         lenient().when(gitRepoMapper.selectById(any())).thenReturn(repo);
+        // 终态闸门：按 SQL 守卫语义在内存中模拟（仅 pending/running 可转，命中即置终态）
+        lenient().when(executionRecordMapper.markBatchTerminal(anyString(), anyString(), any()))
+                .thenAnswer(inv -> {
+                    String batchId = inv.getArgument(0);
+                    String status = inv.getArgument(1);
+                    String message = inv.getArgument(2);
+                    long updated = store.stream()
+                            .filter(r -> batchId.equals(r.getBatchId())
+                                    && ("pending".equals(r.getStatus()) || "running".equals(r.getStatus())))
+                            .peek(r -> {
+                                r.setStatus(status);
+                                r.setErrorMessage(message);
+                            }).count();
+                    return (int) updated;
+                });
     }
 
     private ApiGitBatchServiceImpl serviceWith(GitLabApiClient client) {
@@ -227,5 +243,34 @@ class ApiGitBatchServiceTest {
                 () -> svc.getManifest(UUID.randomUUID().toString()));
 
         assertEquals(1000017713, ex.getCode());
+    }
+
+    // ========== 终态去重闸门（WP-6.2，BR-1.24） ==========
+
+    @Test
+    void finishBatchWritesTerminalOnceThenIgnoresLaterWrite() {
+        ApiGitBatchServiceImpl svc = serviceWith(acceptingClient(new ArrayList<>(), null));
+        ApiGitBatchService.Result result = svc.trigger(repo,
+                List.of(scene("com.example.A#m1")), null, "manual", "scene");
+        // 触发成功后整批回写 running（mock 的 markBatchRunning 不改内存，测试手动推进状态）
+        store.get(0).setStatus("running");
+
+        // CI 回报先到：写入生效
+        assertTrue(svc.finishBatch(result.batchId(), "failed", "用例失败"));
+        // 轮询补拉后到：终态去重，忽略且不覆盖先到结果
+        assertFalse(svc.finishBatch(result.batchId(), "success", null));
+
+        assertEquals("failed", store.get(0).getStatus());
+        assertEquals("用例失败", store.get(0).getErrorMessage());
+    }
+
+    @Test
+    void finishBatchRejectsNonTerminalStatus() {
+        ApiGitBatchServiceImpl svc = serviceWith(acceptingClient(new ArrayList<>(), null));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> svc.finishBatch("any-batch", "running", null));
+
+        assertEquals(1000001001, ex.getCode());
     }
 }
