@@ -98,7 +98,7 @@
 
 ### 2.3 错误码
 
-GitLab 集成相关错误码号段 `1000017701`–`1000017713`（`API_GIT_*`）统一登记于《API 测试基础设施详细设计说明书》2.2（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`），本文不重复登记。常用码速查：
+GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）统一登记于《API 测试基础设施详细设计说明书》2.2（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`），本文不重复登记。常用码速查：
 
 | 错误码 | 常量 | 触发时机 |
 | ---- | ---- | ---- |
@@ -114,6 +114,8 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017713`（`API_GIT_*`）�
 | 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 | 1000017713 | API_GIT_BATCH_NOT_FOUND | CI 侧取冻结清单按 `batchId` 未命中批次（404 语义） |
+| 1000017714 | API_GIT_ARTIFACT_DOWNLOAD_FAILED | 流水线制品下载失败（结果回收通道降级留痕） |
+| 1000017715 | API_GIT_ENVELOPE_INVALID | 结果信封缺失或无法解析（无可用信封时整批降级留痕） |
 
 ## 3. 接口详细设计
 
@@ -469,7 +471,7 @@ flowchart LR
 
 ### 4.5 报告聚合
 
-- `api_report.execution_mode` 保持常量 `platform`，不新增取值；**引擎信息按场景记录在 `result` 数据集的 `execEngine`**，同一份套件报告内允许 `platform` 与 `gitlab_ci` 混合。
+- `api_report.execution_mode` 保持常量 `platform`，不新增取值；**引擎信息按场景记录在 `result` 数据集的 `execEngine`**，同一份套件报告内允许 `platform` 与 `gitlab` 混合（`execEngine` 取值口径见 `docs/04-detailed-design/05-api-testing/28-test-report-overview.md` 2.3）。
 - 套件报告维持「首写 + 追加更新」的二次更新形态：平台组先写入，流水线回收后追加 CI 组结果，二者共用 `external_id` = 任务 ID（或批次 ID）。
 - CI 引擎单场景执行同样产出 `source = scene` 的场景级报告，报告结构与平台执行一致。
 - 用例级结果字段（`externalId` = 方法名、`caseName` 优先取 `@Test(description)`、`status` 映射）与既有 `report_case` 数据集口径一致，仅 `execEngine` 为本域新增语义。
@@ -671,3 +673,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-13 | 4.2 第 5 步补轮询作业口径：固定周期（`robotest.gitlab.pipeline-poll-interval-ms`，默认 30 秒）、查询失败下周期自然重试、检测到流水线终态只触结果回收入口不直接写批次状态 |
 | V1.0 | 2026-10-13 | 4.6 删除 JUnit 测试报告摘要降级档（该档汇总数字无法按 `testClass#testMethod` 映射场景也写不出步骤明细）：未回收到任何可用信封时直接整批按失败并附流水线链接，单条信封缺失按解析失败计数 |
 | V1.0 | 2026-10-13 | 6.1 为 `api_execution_record` 新增局部索引 `idx_exec_scheduled_task_id`（任务完成判据按批次扫描执行记录的关联字段，5→6 索引经评审确认），表变更汇总行同步登记 |
+| V1.0 | 2026-10-13 | 错误码号段扩至 `1000017715`（新增 `API_GIT_ARTIFACT_DOWNLOAD_FAILED`、`API_GIT_ENVELOPE_INVALID`，结果回收降级留痕）；4.5 `execEngine` 混合取值表述对齐详设 28 2.3（`platform` / `gitlab`） |
