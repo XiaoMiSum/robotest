@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Memo } from '@element-plus/icons-vue'
 import type { ApiEnvironmentListItem, ApiExecutionHistoryItem } from '@/types'
 import type { CascaderOption } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 
-defineProps<{
+const props = defineProps<{
   editName: string
   editDescription: string
   editModuleId: string | null
@@ -15,6 +16,8 @@ defineProps<{
   isCreateMode: boolean
   saving: boolean
   running: boolean
+  /** 派生执行引擎（详设 5.3）：gitlab_ci 场景动作文案为「流水线运行」（交互 10 §1.9） */
+  engine?: string | null
   moduleOptions: CascaderOption[]
   environmentOptions: ApiEnvironmentListItem[]
   currentPriorityColor: string | undefined
@@ -25,6 +28,9 @@ defineProps<{
   historyLoading: boolean
   historyError: string | null
 }>()
+
+// 单按钮执行无引擎下拉：文案随引擎派生，gitlab_ci 点击即触发流水线（交互 26 §2）
+const runLabel = computed(() => (props.engine === 'gitlab_ci' ? '▶ 流水线运行' : '▶ 运行场景'))
 
 const emit = defineEmits<{
   'update:editName': [value: string]
@@ -151,12 +157,12 @@ const emit = defineEmits<{
     </el-select>
 
     <template v-if="isCreateMode">
-      <el-button size="small" :loading="running" @click="emit('run')">▶ 运行场景</el-button>
+      <el-button size="small" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
       <el-button size="small" @click="emit('save', 'draft')">保存为草稿</el-button>
       <el-button size="small" type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
     </template>
     <template v-else>
-      <el-button size="small" :loading="running" type="primary" plain @click="emit('run')">▶ 运行场景</el-button>
+      <el-button size="small" :loading="running" type="primary" plain @click="emit('run')">{{ runLabel }}</el-button>
       <el-button size="small" @click="emit('save', 'draft')">保存为草稿</el-button>
       <el-button size="small" type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
       <el-button size="small" type="danger" plain @click="emit('delete')">删除</el-button>

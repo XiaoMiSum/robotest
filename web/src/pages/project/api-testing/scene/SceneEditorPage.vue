@@ -110,6 +110,7 @@ const {
       :is-create-mode="editor.isCreateMode.value"
       :saving="editor.saving.value"
       :running="editor.running.value"
+      :engine="editor.detail.value?.engine ?? null"
       :module-options="editor.moduleOptions.value"
       :environment-options="editor.environmentOptions.value"
       :current-priority-color="editor.currentPriorityColor.value"
