@@ -903,6 +903,8 @@ CREATE INDEX idx_exec_status ON api_execution_record(status);
 CREATE INDEX idx_exec_pipeline ON api_execution_record(repo_id, pipeline_iid)
     WHERE pipeline_iid IS NOT NULL;
 CREATE INDEX idx_exec_batch ON api_execution_record(batch_id) WHERE batch_id IS NOT NULL;
+CREATE INDEX idx_exec_scheduled_task_id ON api_execution_record(scheduled_task_id)
+    WHERE scheduled_task_id IS NOT NULL AND batch_id IS NOT NULL;
 
 CREATE TABLE api_report (
                             id                 UUID          PRIMARY KEY,
