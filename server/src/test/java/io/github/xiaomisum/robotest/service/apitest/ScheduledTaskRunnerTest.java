@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentSnapshotProvider;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 
+import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -28,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,7 +45,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,6 +82,7 @@ class ScheduledTaskRunnerTest {
 
     private TestPlanTaskHandler testPlanHandler;
     private ApiSyncTaskHandler apiSyncHandler;
+    private GitLabSyncTaskHandler gitLabSyncHandler;
     private ScheduledTaskRunner runner;
 
     @BeforeEach
@@ -99,6 +105,8 @@ class ScheduledTaskRunnerTest {
         runner = new ScheduledTaskRunner();
         inject(runner, "testPlanHandler", testPlanHandler);
         inject(runner, "apiSyncHandler", apiSyncHandler);
+        gitLabSyncHandler = mock(GitLabSyncTaskHandler.class);
+        inject(runner, "gitLabSyncHandler", gitLabSyncHandler);
         inject(runner, "taskMapper", taskMapper);
         inject(runner, "executionMapper", executionMapper);
     }
@@ -155,6 +163,42 @@ class ScheduledTaskRunnerTest {
         assertEquals("running", taskCaptor.getAllValues().get(0).getLastExecutionStatus());
         assertEquals("failed", taskCaptor.getAllValues().get(1).getLastExecutionStatus());
         assertNull(taskCaptor.getAllValues().get(1).getEnabled());
+    }
+
+    @Test
+    void runTaskDispatchesGitlabSyncToHandler() {
+        ApiScheduledTask task = gitlabTask();
+
+        runner.runTask(task, "scheduled");
+
+        // 定时触发：委托 GitLab 同步 Handler、系统身份、无预插入记录
+        verify(gitLabSyncHandler).executeTask(eq(task), eq(ProjectAccessGuard.SYSTEM_OPERATOR_ID),
+                eq("scheduled"), any(LocalDateTime.class), isNull());
+        verify(executionMapper, never()).insert(any(ApiScheduledTaskExecution.class));
+    }
+
+    @Test
+    void launchGitlabSyncPreInsertsRunningRecordAndDispatchesAsync() {
+        ApiScheduledTask task = gitlabTask();
+        UUID userId = UUID.randomUUID();
+
+        UUID executionId = runner.launchGitLabSyncAsync(task, userId, "manual");
+
+        ArgumentCaptor<ApiScheduledTaskExecution> captor =
+                ArgumentCaptor.forClass(ApiScheduledTaskExecution.class);
+        verify(executionMapper).insert(captor.capture());
+        ApiScheduledTaskExecution preInserted = captor.getValue();
+        assertEquals(executionId, preInserted.getId());
+        assertEquals("running", preInserted.getStatus());
+        assertEquals("manual", preInserted.getTriggerType());
+
+        ArgumentCaptor<ApiScheduledTask> taskCaptor = ArgumentCaptor.forClass(ApiScheduledTask.class);
+        verify(taskMapper).updateById(taskCaptor.capture());
+        assertEquals("running", taskCaptor.getValue().getLastExecutionStatus());
+
+        // 异步入池执行：Handler 收到预插入记录 ID，完成态由 Handler 更新该记录（超时保护）
+        verify(gitLabSyncHandler, timeout(2000)).executeTask(eq(task), eq(userId), eq("manual"),
+                any(LocalDateTime.class), eq(executionId));
     }
 
     @Test
@@ -382,6 +426,16 @@ class ScheduledTaskRunnerTest {
         task.setProjectId(PROJECT_ID);
         task.setTaskType("import_swagger");
         task.setOpenapiUrl(OPENAPI_URL);
+        task.setEnabled(true);
+        return task;
+    }
+
+    private ApiScheduledTask gitlabTask() {
+        ApiScheduledTask task = new ApiScheduledTask();
+        task.setId(TASK_ID);
+        task.setProjectId(PROJECT_ID);
+        task.setTaskType("gitlab_sync");
+        task.setName("每日 GitLab 同步");
         task.setEnabled(true);
         return task;
     }

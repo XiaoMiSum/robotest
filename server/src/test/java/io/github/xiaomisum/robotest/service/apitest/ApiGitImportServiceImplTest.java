@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -545,6 +546,60 @@ class ApiGitImportServiceImplTest {
 
         assertEquals("done", status.getStage());
         assertEquals(1, status.getSummary().get("created"));
+    }
+
+    // ========== 同步任务（WP-8.2，定时任务详设 27 §4） ==========
+
+    @Test
+    void syncImportRejectsWhenRepoMissing() {
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(null);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.syncImport(PROJECT_ID, USER_ID));
+
+        assertEquals(1000017701, ex.getCode());
+    }
+
+    @Test
+    void syncImportRejectsWhenRepoDisabled() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setEnabled(false);
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(repo);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.syncImport(PROJECT_ID, USER_ID));
+
+        assertEquals(1000017701, ex.getCode());
+    }
+
+    @Test
+    void syncImportSkipsWithoutParsingWhenUpToDate() {
+        ApiGitRepo repo = storedRepo(false);
+        repo.setLastImportCommit("head123");
+        repo.setLastImportSummary(Map.of("errorFailed", 0));
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(repo);
+
+        ApiGitImportService.SyncOutcome outcome = service.syncImport(PROJECT_ID, USER_ID);
+
+        assertTrue(outcome.skipped());
+        assertEquals("head123", outcome.headCommit());
+        assertEquals(1, outcome.summary().get("skipped"));
+        assertEquals(0, outcome.summary().get("created"));
+        // 无变更不进解析：不拉源码树、不扫描、不落库
+        verify(gitLabApiClient, never()).listFiles(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(sceneMapper, never()).insert(any(ApiScene.class));
+    }
+
+    @Test
+    void syncImportPersistsPlanWhenHeadChanged() {
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(storedRepo(false));
+
+        ApiGitImportService.SyncOutcome outcome = service.syncImport(PROJECT_ID, USER_ID);
+
+        assertFalse(outcome.skipped());
+        assertEquals("head123", outcome.headCommit());
+        assertEquals(1, outcome.summary().get("created"));
+        verify(sceneMapper).insert(any(ApiScene.class));
     }
 
     // ========== 改名迁移（WP-3.4，详设 3.5 规则 1–6） ==========
