@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.apitest;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.stereotype.Component;
+import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
 
@@ -62,6 +63,10 @@ public class GitLabApiClient {
 
     /** 触发结果（GitLab POST /projects/:id/pipeline 响应，仅取回写执行记录所需字段） */
     public record PipelineRef(Long iid, String webUrl, String status) {
+    }
+
+    /** 流水线状态快照（GitLab GET /projects/:id/pipelines/:iid 响应，轮询兜底的判定输入） */
+    public record PipelineStatus(Long iid, String webUrl, String status) {
     }
 
     private final HttpOpener httpOpener;
@@ -316,6 +321,38 @@ public class GitLabApiClient {
         return new PipelineRef(info.iid(), info.webUrl(), info.status());
     }
 
+    /**
+     * 查询流水线状态（GitLab 集成详细设计 4.2 第 5 步，轮询兜底输入）。
+     * <p>轮询是 CI 主动回报之外的兜底通道，任何失败面（实例不可达、令牌失效、
+     * 流水线不存在、响应异常）统一归入 1000017705，由轮询端留痕后下周期自然重试。
+     *
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017705
+     */
+    public PipelineStatus getPipeline(String baseUrl, String token, String repoPath, Long pipelineIid) {
+        String base = trimTrailingSlash(baseUrl);
+        HttpResponse<String> response;
+        try {
+            String projectId = verifyProject(base, token, repoPath);
+            response = send(base + "/api/v4/projects/" + projectId + "/pipelines/" + pipelineIid, token);
+        } catch (ServiceException e) {
+            throw pipelineQueryFailed(e.getMessage());
+        }
+        int status = response.statusCode();
+        if (status != 200) {
+            throw pipelineQueryFailed("HTTP " + status);
+        }
+        PipelineInfo info;
+        try {
+            info = JsonUtils.parseObject(response.body(), PipelineInfo.class);
+        } catch (Exception e) {
+            throw pipelineQueryFailed("响应解析异常");
+        }
+        if (info == null || info.status() == null) {
+            throw pipelineQueryFailed("响应异常：流水线状态缺失");
+        }
+        return new PipelineStatus(info.iid(), info.webUrl(), info.status());
+    }
+
     private HttpResponse<String> send(String url, String token) {
         try {
             return httpOpener.get(url, token);
@@ -331,6 +368,10 @@ public class GitLabApiClient {
 
     private static RuntimeException pipelineTriggerFailed(String reason) {
         return ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_PIPELINE_TRIGGER_FAILED.code(), reason);
+    }
+
+    private static RuntimeException pipelineQueryFailed(String reason) {
+        return ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_PIPELINE_QUERY_FAILED.code(), reason);
     }
 
     /** 真实 HTTP GET：连接超时 10s、响应超时 30s，跟随重定向，携带 PRIVATE-TOKEN 头 */
