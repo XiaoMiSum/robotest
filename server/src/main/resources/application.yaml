@@ -65,6 +65,8 @@ robotest:
     # CI 侧只读令牌（GitLab 集成详设 4.6）：平台签发、部署级配置，须与 GitLab CI/CD 变量 ROBOTEST_CI_TOKEN 同值；
     # 留空时 /api/ci/** 全部拒绝（fail-closed）
     ci-token: ${ROBOTEST_CI_TOKEN:}
+    # 流水线状态轮询周期（毫秒，详设 4.2 第 5 步兜底通道），重启后首轮扫描接管延迟同此值
+    pipeline-poll-interval-ms: ${PIPELINE_POLL_INTERVAL_MS:30000}
   api-test:
     import:
       # Swagger URL 拉取安全策略（接口管理详细设计 4.3）：strict（默认，公网/云上部署，禁内网地址）或 intranet（内网测试环境，放行内网地址但仅允许 swagger 文档路径）
