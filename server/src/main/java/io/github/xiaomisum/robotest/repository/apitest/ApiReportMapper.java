@@ -40,6 +40,18 @@ public interface ApiReportMapper extends BaseMapperX<ApiReport> {
                 .orderByDesc(ApiReport::getCreatedAt));
     }
 
+    /** 混合任务平台组结果推导（定时任务详设 27 §2 步骤 8）：本触发写入的最新套件报告
+     * （创建不早于批次冻结时刻，排除历史触发的报告） */
+    default ApiReport selectLatestSuiteReportSince(UUID externalId, String source, LocalDateTime earliestCreatedAt) {
+        return selectOne(new LambdaQueryWrapperX<ApiReport>()
+                .eq(ApiReport::getReportType, "suite")
+                .eq(ApiReport::getExternalId, externalId)
+                .eq(ApiReport::getSource, source)
+                .ge(ApiReport::getCreatedAt, earliestCreatedAt)
+                .orderByDesc(ApiReport::getCreatedAt)
+                .last("LIMIT 1"));
+    }
+
     /** 分享访问按 token 唯一定位（uk_report_share_token 部分唯一索引支撑） */
     default ApiReport selectByIdAndToken(UUID id, String token) {
         return selectOne(new LambdaQueryWrapperX<ApiReport>()
