@@ -135,6 +135,18 @@ export function useGitLabRepo() {
     }
   }
 
+  /**
+   * 导入完成后的静默重拉（交互稿 27 §4：不整页遮罩）：
+   * 不动整页 loading、不回填表单——避免导入结果被骨架屏遮蔽，也保留基础页签未保存的编辑内容。
+   */
+  async function refreshQuiet(): Promise<void> {
+    try {
+      repo.value = await fetchGitRepo()
+    } catch (err) {
+      ElMessage.error(formatGitLabError(toGitLabError(err)))
+    }
+  }
+
   function startCreate(): void {
     if (!canEdit.value) {
       ElMessage.warning('无 GitLab 配置编辑权限')
@@ -304,6 +316,7 @@ export function useGitLabRepo() {
     isPlatformMode,
     connDown,
     load,
+    refreshQuiet,
     startCreate,
     setImportMode,
     toggleConnDetail,

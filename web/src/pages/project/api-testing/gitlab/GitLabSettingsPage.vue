@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useGitLabRepo } from '@/composables/project/api-testing/gitlab/useGitLabRepo'
+import GitLabImportPane from './GitLabImportPane.vue'
 
 const {
   canEdit,
@@ -17,6 +18,7 @@ const {
   isPlatformMode,
   connDown,
   load,
+  refreshQuiet,
   startCreate,
   setImportMode,
   toggleConnDetail,
@@ -286,12 +288,19 @@ const CI_MODE_HINT =
         </form>
       </div>
 
-      <!-- ============ 导入（占位，随 WP-9.2 交付） ============ -->
-      <div v-show="activeTab === 'import'" class="gl-panel">
+      <!-- ============ 导入：每次进入重查进度（交互稿 27 §5 重进重新查询） ============ -->
+      <GitLabImportPane
+        v-if="activeTab === 'import' && repo"
+        :repo="repo"
+        @refresh="refreshQuiet"
+      />
+
+      <!-- 首次配置态导入页签的引导（面板需仓库配置才可用） -->
+      <div v-if="activeTab === 'import' && !repo" class="gl-panel">
         <div class="gl-state gl-state--panel">
           <span class="gl-state__icon"><el-icon :size="40"><UploadFilled /></el-icon></span>
-          <div class="gl-state__title">导入功能待交付</div>
-          <p class="gl-state__desc">扫描预览、执行导入与失败明细将随工作包 WP-9.2 交付后开放</p>
+          <div class="gl-state__title">完成基础配置后可导入</div>
+          <p class="gl-state__desc">保存仓库配置后回到本页签，即可扫描预览并执行导入</p>
         </div>
       </div>
     </div>
