@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
 import type { ApiScenePageItem, ProjectModule } from '@/types'
+import type { ApiGitRepoConfig } from '@/types'
 import { fetchProjectModuleTree } from '@/services/project'
 import { deleteScene, fetchScenePage, executeScene, followScene, unfollowScene, batchDeleteScenes, batchMoveScenes } from '@/services/project/api-testing/scene'
+import { fetchGitRepo } from '@/services/project/api-testing/gitRepo'
 import { flattenModuleNames } from '@/composables/project/api-testing/interface/interfacesModel'
 import { formatDateTime } from '@/utils/format'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
@@ -13,6 +16,8 @@ const emit = defineEmits<{
   (e: 'create', moduleId?: string): void
   (e: 'copy', sceneId: string): void
 }>()
+
+const router = useRouter()
 
 // ==================== 模块树 ====================
 // 交互树由 ProjectModuleTree 组件管理；此处仅保留模块名映射供列表「所属模块」列展示
@@ -57,8 +62,27 @@ const VIEW_OPTIONS = [
   { value: 'followed', label: '我关注的' },
   { value: 'created', label: '我创建的' },
 ]
+/** [来源] 筛选（交互 09 §1.2）：平台原生 / GitLab 导入 */
+const SOURCE_OPTIONS = [
+  { value: '', label: '全部' },
+  { value: 'platform', label: '平台原生' },
+  { value: 'gitlab', label: 'GitLab 导入' },
+]
 const viewFilter = ref<string>('all')
+const sourceFilter = ref<string>('')
 const selectedIds = ref<string[]>([])
+
+// ==================== 仓库信息（徽标 hover 与仓库级「源有更新」信息条） ====================
+// 一项目一仓库（详设 3.1），每次进入列表取一次；未配置 / 失败静默降级，不影响列表主流程
+const repo = ref<ApiGitRepoConfig | null>(null)
+
+async function loadRepo() {
+  try {
+    repo.value = await fetchGitRepo()
+  } catch {
+    repo.value = null
+  }
+}
 
 async function loadPage() {
   loading.value = true
@@ -70,7 +94,8 @@ async function loadPage() {
     else if (lastStatusFilter.value) query.lastStatus = lastStatusFilter.value
     if (publishStatusFilter.value) query.status = publishStatusFilter.value
     if (viewFilter.value && viewFilter.value !== 'all') query.view = viewFilter.value
-    const page = await fetchScenePage(query as { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: string })
+    if (sourceFilter.value) query.sourceType = sourceFilter.value
+    const page = await fetchScenePage(query as { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: string; sourceType?: string })
     rows.value = page.list
     total.value = page.total
     // 模块名映射随每次列表加载刷新，保证重命名/删除/拖拽后「所属模块」列显示最新名称
@@ -103,6 +128,12 @@ watch(viewFilter, () => {
   void loadPage()
 })
 
+watch(sourceFilter, () => {
+  pageNo.value = 1
+  selectedIds.value = []
+  void loadPage()
+})
+
 function handleSearch() {
   pageNo.value = 1
   void loadPage()
@@ -113,8 +144,31 @@ function handleReset() {
   lastStatusFilter.value = ''
   publishStatusFilter.value = ''
   viewFilter.value = 'all'
+  sourceFilter.value = ''
   pageNo.value = 1
   void loadPage()
+}
+
+// ==================== GitLab 来源与源状态展示（交互 09 §1.2） ====================
+/** 源状态徽标：in_sync 无徽标；取值与配色对齐交互 09 §1.2 */
+const SOURCE_STATUS_LABEL: Record<string, string> = {
+  parse_failed: '源码已退化',
+  repo_removed: '来源已移除',
+  repo_unreachable: '仓库不可达',
+}
+
+function sourceStatusLabel(status: string | null | undefined): string | null {
+  return status ? SOURCE_STATUS_LABEL[status] ?? null : null
+}
+
+/** 跳转 GitLab 集成页；gl 指定落地页签（basic / import），交互 09 §1.2 */
+function goGitLabPage(tab?: 'import' | 'basic') {
+  void router.push({ path: '/workspace/projects/api-testing', query: tab ? { tab: 'gitlab', gl: tab } : { tab: 'gitlab' } })
+}
+
+/** gitlab_ci 仓库 + 导入场景行内执行走流水线通道，Toast 文案区分（交互 09 §1.2） */
+function isPipelineScene(item: ApiScenePageItem): boolean {
+  return item.sourceType === 'gitlab' && repo.value?.importMode === 'gitlab_ci'
 }
 
 // ==================== 行操作 ====================
@@ -142,7 +196,7 @@ async function handleDelete(item: ApiScenePageItem) {
 async function handleExecute(item: ApiScenePageItem) {
   try {
     await executeScene(item.id)
-    ElMessage.success(`场景「${item.name}」执行已启动`)
+    ElMessage.success(isPipelineScene(item) ? `场景「${item.name}」流水线执行已启动` : `场景「${item.name}」执行已启动`)
     void loadPage()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '执行失败')
@@ -213,6 +267,7 @@ function statusLabel(status: string | null): string {
 }
 
 onMounted(async () => {
+  void loadRepo()
   await loadPage()
 })
 </script>
@@ -238,6 +293,9 @@ onMounted(async () => {
         </el-select>
         <el-select v-model="publishStatusFilter" clearable placeholder="发布状态" style="width: 130px">
           <el-option v-for="opt in PUBLISH_STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+        </el-select>
+        <el-select v-model="sourceFilter" clearable placeholder="来源" style="width: 130px">
+          <el-option v-for="opt in SOURCE_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
         </el-select>
         <el-button type="primary" @click="handleSearch">
           <el-icon><Search /></el-icon>查询
@@ -265,6 +323,11 @@ onMounted(async () => {
       </el-card>
 
       <el-card v-loading="loading" shadow="never" class="scenarios-page__data-card">
+        <!-- 仓库级「源有更新」信息条（交互 09 §1.1）：仅一条、不逐场景标注，导入或同步后随 hasUpdates 消失 -->
+        <div v-if="repo?.hasUpdates" class="scenarios-page__source-updates" role="alert">
+          <span>所属仓库有更新，导入或同步后生效</span>
+          <el-button link size="small" type="primary" @click="goGitLabPage('import')">前往导入</el-button>
+        </div>
         <el-table :data="rows" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
             <el-table-column type="selection" width="40" />
             <el-table-column width="44">
@@ -279,6 +342,26 @@ onMounted(async () => {
             <el-table-column prop="name" label="场景名称" min-width="200" show-overflow-tooltip>
               <template #default="{ row }">
                 <el-link type="primary" :underline="false" @click="openDetail(row as ApiScenePageItem)">{{ row.name }}</el-link>
+                <!-- [GitLab] 来源徽标（交互 09 §1.2）：hover 展示仓库与项目路径，点击跳集成页导入页签 -->
+                <el-tooltip
+                  v-if="(row as ApiScenePageItem).sourceType === 'gitlab'"
+                  :content="`${repo?.name ?? 'GitLab 仓库'} · ${repo?.repoPath ?? '-'}`"
+                  placement="top"
+                >
+                  <span class="scenarios-page__source-badge" @click="goGitLabPage('import')">GitLab</span>
+                </el-tooltip>
+                <!-- 源状态徽标（交互 09 §1.2）：in_sync 不展示；点击跳集成页 -->
+                <el-tooltip
+                  v-if="sourceStatusLabel((row as ApiScenePageItem).sourceStatus)"
+                  :content="sourceStatusLabel((row as ApiScenePageItem).sourceStatus) ?? ''"
+                  placement="top"
+                >
+                  <span
+                    class="scenarios-page__source-status"
+                    :class="`is-${(row as ApiScenePageItem).sourceStatus}`"
+                    @click="goGitLabPage()"
+                  >{{ sourceStatusLabel((row as ApiScenePageItem).sourceStatus) }}</span>
+                </el-tooltip>
               </template>
             </el-table-column>
             <el-table-column label="所属模块" width="140">
@@ -442,6 +525,61 @@ onMounted(async () => {
   justify-content: flex-end;
   padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
+}
+
+// 仓库级「源有更新」信息条（交互 09 §1.1）
+.scenarios-page__source-updates {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  background: rgba(var(--el-color-warning-rgb), 0.1);
+  color: var(--el-color-warning);
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+// [GitLab] 来源徽标（交互 09 §1.2）
+.scenarios-page__source-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(var(--el-color-info-rgb), 0.1);
+  color: var(--el-color-info);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+// 源状态徽标：源码已退化（警告）/ 来源已移除（ info）/ 仓库不可达（危险）
+.scenarios-page__source-status {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  cursor: pointer;
+
+  &.is-parse_failed {
+    background: rgba(var(--el-color-warning-rgb), 0.1);
+    color: var(--el-color-warning);
+  }
+
+  &.is-repo_removed {
+    background: rgba(var(--el-color-info-rgb), 0.1);
+    color: var(--el-color-info);
+  }
+
+  &.is-repo_unreachable {
+    background: rgba(var(--el-color-danger-rgb), 0.1);
+    color: var(--el-color-danger);
+  }
 }
 
 .scenarios-page__star {

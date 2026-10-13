@@ -23,7 +23,7 @@ import type {
 // ==================== 场景管理（3.1） ====================
 
 export function fetchScenePage(
-  params: { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: string; followedOnly?: boolean },
+  params: { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: string; followedOnly?: boolean; sourceType?: string },
 ): Promise<PageResult<ApiScenePageItem>> {
   return get('/project/api-scenes', { ...params })
 }
