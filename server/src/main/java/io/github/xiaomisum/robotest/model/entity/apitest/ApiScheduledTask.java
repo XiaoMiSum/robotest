@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 定时任务（定时任务详细设计 2.1.1），测试计划（场景批量执行）与接口同步两类统一管理
+ * 定时任务（定时任务详细设计 2.1.1），测试计划（场景批量执行）、接口同步与 GitLab 同步三类统一管理
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -22,7 +22,7 @@ public class ApiScheduledTask extends BaseUuidDO<ApiScheduledTask> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID projectId;
-    /** scene_execute / import_swagger */
+    /** scene_execute / import_swagger / gitlab_sync */
     private String taskType;
     private String name;
     private String description;

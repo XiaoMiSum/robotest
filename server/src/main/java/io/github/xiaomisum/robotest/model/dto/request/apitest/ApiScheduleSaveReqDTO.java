@@ -15,7 +15,7 @@ import java.util.UUID;
 public class ApiScheduleSaveReqDTO {
 
     @NotBlank
-    @Pattern(regexp = "scene_execute|import_swagger", message = "任务类型仅支持 scene_execute / import_swagger")
+    @Pattern(regexp = "scene_execute|import_swagger|gitlab_sync", message = "任务类型仅支持 scene_execute / import_swagger / gitlab_sync")
     private String taskType;
 
     @NotBlank
