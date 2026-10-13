@@ -60,4 +60,29 @@ public interface ApiExecutionRecordMapper extends BaseMapperX<ApiExecutionRecord
         return update(null, wrapper);
     }
 
+    /**
+     * 轮询输入（GitLab 集成详设 4.2 第 6 步）：未达终态且已关联流水线的批次记录；
+     * 无内存态，进程重启后本查询即扫描恢复入口（BR-1.29），走 idx_exec_status / idx_exec_pipeline。
+     */
+    default List<ApiExecutionRecord> selectPollableRecords() {
+        return selectList(new LambdaQueryWrapperX<ApiExecutionRecord>()
+                .eq(ApiExecutionRecord::getStatus, "running")
+                .isNotNull(ApiExecutionRecord::getPipelineIid));
+    }
+
+    /**
+     * 终态写闸门（GitLab 集成详设 4.2 第 5 步终态去重）：条件更新仅 pending/running 生效——
+     * 命中 0 行即批次已置终态，CI 回报与轮询补拉两通道后到写入一律忽略，不覆盖先到结果。
+     *
+     * @return 实际更新的记录数，0 表示终态去重命中
+     */
+    default int markBatchTerminal(String batchId, String status, String errorMessage) {
+        LambdaUpdateWrapperX<ApiExecutionRecord> wrapper = new LambdaUpdateWrapperX<>();
+        wrapper.eq(ApiExecutionRecord::getBatchId, batchId)
+                .in(ApiExecutionRecord::getStatus, "pending", "running")
+                .set(ApiExecutionRecord::getStatus, status)
+                .set(ApiExecutionRecord::getErrorMessage, errorMessage);
+        return update(null, wrapper);
+    }
+
 }
