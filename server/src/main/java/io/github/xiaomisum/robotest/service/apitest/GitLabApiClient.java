@@ -32,6 +32,11 @@ public class GitLabApiClient {
     @FunctionalInterface
     public interface HttpOpener {
         HttpResponse<String> get(String url, String token) throws Exception;
+
+        /** POST 接缝：默认不支持，真实实现覆盖；既有 GET 测试假实现无需改动 */
+        default HttpResponse<String> post(String url, String token, String body) throws Exception {
+            throw new UnsupportedOperationException("POST not supported by this opener");
+        }
     }
 
     /** 探测结果：实例版本 + 目标分支实际分支名 */
@@ -55,10 +60,24 @@ public class GitLabApiClient {
             @JsonProperty("renamed_file") boolean renamedFile) {
     }
 
+    /** 触发结果（GitLab POST /projects/:id/pipeline 响应，仅取回写执行记录所需字段） */
+    public record PipelineRef(Long iid, String webUrl, String status) {
+    }
+
     private final HttpOpener httpOpener;
 
     public GitLabApiClient() {
-        this(GitLabApiClient::httpGet);
+        this(new HttpOpener() {
+            @Override
+            public HttpResponse<String> get(String url, String token) throws Exception {
+                return httpGet(url, token);
+            }
+
+            @Override
+            public HttpResponse<String> post(String url, String token, String body) throws Exception {
+                return httpPost(url, token, body);
+            }
+        });
     }
 
     GitLabApiClient(HttpOpener httpOpener) {
@@ -268,6 +287,35 @@ public class GitLabApiClient {
         return new String(bytes, StandardCharsets.UTF_8);
     }
 
+    /**
+     * 触发流水线（GitLab 集成详细设计 4.2 第 1 步）：ref 取默认分支，变量只传批次票据
+     * ROBOTEST_BATCH_ID——场景标识串批量时必然超长，票据恒定 36 字符，一次任务恒定一条流水线。
+     *
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017704，GitLab 拒绝触发或响应异常
+     */
+    public PipelineRef triggerPipeline(String baseUrl, String token, String repoPath, String ref, String batchId) {
+        String base = trimTrailingSlash(baseUrl);
+        String projectId = verifyProject(base, token, repoPath);
+        String body = "{\"ref\":" + JsonUtils.toJsonString(ref)
+                + ",\"variables\":[{\"key\":\"ROBOTEST_BATCH_ID\",\"value\":" + JsonUtils.toJsonString(batchId) + "}]}";
+        HttpResponse<String> response;
+        try {
+            response = httpOpener.post(base + "/api/v4/projects/" + projectId + "/pipeline", token, body);
+        } catch (Exception e) {
+            throw connectFailed("实例不可达：" + (e.getMessage() == null
+                    ? e.getClass().getSimpleName() : e.getMessage()));
+        }
+        int status = response.statusCode();
+        if (status != 200 && status != 201) {
+            throw pipelineTriggerFailed("GitLab 拒绝触发：HTTP " + status);
+        }
+        PipelineInfo info = JsonUtils.parseObject(response.body(), PipelineInfo.class);
+        if (info == null || info.iid() == null) {
+            throw pipelineTriggerFailed("GitLab 响应异常：流水线编号缺失");
+        }
+        return new PipelineRef(info.iid(), info.webUrl(), info.status());
+    }
+
     private HttpResponse<String> send(String url, String token) {
         try {
             return httpOpener.get(url, token);
@@ -281,6 +329,10 @@ public class GitLabApiClient {
         return ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_REPO_CONNECT_FAILED.code(), reason);
     }
 
+    private static RuntimeException pipelineTriggerFailed(String reason) {
+        return ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_PIPELINE_TRIGGER_FAILED.code(), reason);
+    }
+
     /** 真实 HTTP GET：连接超时 10s、响应超时 30s，跟随重定向，携带 PRIVATE-TOKEN 头 */
     static HttpResponse<String> httpGet(String url, String token) throws Exception {
         HttpClient client = HttpClient.newBuilder()
@@ -291,6 +343,23 @@ public class GitLabApiClient {
                 .timeout(Duration.ofMillis(30000))
                 .header("Accept", "application/json")
                 .GET();
+        if (token != null && !token.isBlank()) {
+            builder.header("PRIVATE-TOKEN", token);
+        }
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** 真实 HTTP POST：超时与头约定同 GET，body 为 JSON（流水线触发，GitLab 集成详细设计 4.2） */
+    static HttpResponse<String> httpPost(String url, String token, String body) throws Exception {
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(10000))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofMillis(30000))
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         if (token != null && !token.isBlank()) {
             builder.header("PRIVATE-TOKEN", token);
         }
@@ -326,6 +395,10 @@ public class GitLabApiClient {
     }
 
     private record CompareInfo(List<DiffEntry> diffs) {
+    }
+
+    private record PipelineInfo(Long iid,
+            @JsonProperty("web_url") String webUrl, String status) {
     }
 
 }

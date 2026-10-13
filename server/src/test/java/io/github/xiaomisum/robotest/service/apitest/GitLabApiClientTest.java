@@ -336,4 +336,75 @@ class GitLabApiClientTest {
         assertEquals(1000017702, ex.getCode());
         assertTrue(ex.getMessage().contains("变更比对失败"));
     }
+
+    // ========== 流水线触发（WP-6.1） ==========
+
+    /** 项目探测 + POST 假实现：记录请求以便断言触发报文只含批次票据 */
+    private static GitLabApiClient.HttpOpener triggerOpener(java.util.List<String> seenBodies,
+            java.util.function.Function<Integer, HttpResponse<String>> postHandler) {
+        return new GitLabApiClient.HttpOpener() {
+            @Override
+            public HttpResponse<String> get(String url, String token) {
+                return response(200, "{\"id\":12345}");
+            }
+
+            @Override
+            public HttpResponse<String> post(String url, String token, String body) {
+                seenBodies.add(url + "|" + body);
+                return postHandler.apply(url.endsWith("/pipeline") ? 201 : 404);
+            }
+        };
+    }
+
+    @Test
+    void triggerPipelineReturnsIidAndVariableOnlyCarriesBatchId() {
+        java.util.List<String> seen = new java.util.ArrayList<>();
+        GitLabApiClient client = new GitLabApiClient(triggerOpener(seen,
+                status -> response(status, "{\"iid\":123456,\"web_url\":\"https://gitlab.example.com/qa/order-api-tests/-/pipelines/123456\",\"status\":\"created\"}")));
+
+        GitLabApiClient.PipelineRef ref = client.triggerPipeline(BASE, TOKEN, REPO_PATH, "master", "3f6a1c9e-8a4c-4d3e-9a1b-0b2c4d5e6f70");
+
+        assertEquals(123456L, ref.iid());
+        assertEquals("https://gitlab.example.com/qa/order-api-tests/-/pipelines/123456", ref.webUrl());
+        assertEquals("created", ref.status());
+        assertEquals(1, seen.size());
+        // 详设 4.2 第 1 步：变量只传 ROBOTEST_BATCH_ID，不传场景标识串
+        String sent = seen.get(0);
+        assertTrue(sent.contains("\"ref\":\"master\""));
+        assertTrue(sent.contains("ROBOTEST_BATCH_ID"));
+        assertTrue(sent.contains("3f6a1c9e-8a4c-4d3e-9a1b-0b2c4d5e6f70"));
+    }
+
+    @Test
+    void triggerPipelineFailsWhenGitLabRejects() {
+        GitLabApiClient client = new GitLabApiClient(triggerOpener(new java.util.ArrayList<>(),
+                status -> response(400, "{\"message\":\"ref is invalid\"}")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.triggerPipeline(BASE, TOKEN, REPO_PATH, "master", "batch-1"));
+
+        assertEquals(1000017704, ex.getCode());
+        assertTrue(ex.getMessage().contains("HTTP 400"));
+    }
+
+    @Test
+    void triggerPipelineFailsWhenUnreachable() {
+        GitLabApiClient client = new GitLabApiClient(new GitLabApiClient.HttpOpener() {
+            @Override
+            public HttpResponse<String> get(String url, String token) {
+                return response(200, "{\"id\":12345}");
+            }
+
+            @Override
+            public HttpResponse<String> post(String url, String token, String body) throws Exception {
+                throw new java.io.IOException("connection refused");
+            }
+        });
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.triggerPipeline(BASE, TOKEN, REPO_PATH, "master", "batch-1"));
+
+        assertEquals(1000017702, ex.getCode());
+        assertTrue(ex.getMessage().contains("实例不可达"));
+    }
 }
