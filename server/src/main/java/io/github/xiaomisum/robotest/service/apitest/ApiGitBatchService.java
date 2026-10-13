@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -48,7 +49,16 @@ public interface ApiGitBatchService {
      * @param errorMessage 失败原因，终态成功时为 null
      * @return true=本次写入生效；false=批次已置终态，本次写入被忽略
      */
-    boolean finishBatch(String batchId, String status, String errorMessage);
+    default boolean finishBatch(String batchId, String status, String errorMessage) {
+        return finishBatch(batchId, status, errorMessage, null);
+    }
+
+    /**
+     * 同上；整批降级时随终态一并写入对账摘要（期望 / 实际用例数与流水线链接，详设 4.6）。
+     *
+     * @param summary 批次结果摘要，null 表示不触碰该列
+     */
+    boolean finishBatch(String batchId, String status, String errorMessage, Map<String, Object> summary);
 
     /** 触发结果：批次票据 + 首条执行记录 ID */
     record Result(String batchId, java.util.UUID executionId) {

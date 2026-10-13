@@ -75,17 +75,21 @@ class ApiGitBatchServiceTest {
                         .filter(r -> inv.getArgument(0).equals(r.getBatchId())).toList());
         lenient().when(gitRepoMapper.selectById(any())).thenReturn(repo);
         // 终态闸门：按 SQL 守卫语义在内存中模拟（仅 pending/running 可转，命中即置终态）
-        lenient().when(executionRecordMapper.markBatchTerminal(anyString(), anyString(), any()))
+        lenient().when(executionRecordMapper.markBatchTerminal(anyString(), anyString(), any(), any()))
                 .thenAnswer(inv -> {
                     String batchId = inv.getArgument(0);
                     String status = inv.getArgument(1);
                     String message = inv.getArgument(2);
+                    java.util.Map<String, Object> summary = inv.getArgument(3);
                     long updated = store.stream()
                             .filter(r -> batchId.equals(r.getBatchId())
                                     && ("pending".equals(r.getStatus()) || "running".equals(r.getStatus())))
                             .peek(r -> {
                                 r.setStatus(status);
                                 r.setErrorMessage(message);
+                                if (summary != null) {
+                                    r.setSummary(summary);
+                                }
                             }).count();
                     return (int) updated;
                 });

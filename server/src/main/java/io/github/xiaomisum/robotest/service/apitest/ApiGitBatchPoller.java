@@ -31,9 +31,10 @@ import java.util.stream.Collectors;
  * <p>一批次一条流水线（详设 4.2 第 1 步），同批多条记录只查询一次；同仓库令牌解密一次复用。
  * 查询失败（1000017705）留痕后下周期自然重试，单批失败不中断整轮（仿源探查口径）。
  *
- * <p>轮询到流水线终态时只触发 {@link #onPipelineTerminal} 钩子、不写批次状态：结果回收
- * （制品下载、BR-1.34 先判有无用例报告）归 WP-7.1，由其经终态闸门
- * {@code ApiGitBatchService.finishBatch} 写入；本作业抢写终态会让真实结果被去重挡掉。
+ * <p>轮询到流水线终态时只触发 {@link #onPipelineTerminal} 钩子、不直接写批次状态：结果回收
+ * （制品下载、BR-1.34 先判有无用例报告）归 WP-7.1 的 {@link ApiGitResultCollector}，
+ * 其经记录级条件终态与 {@code ApiGitBatchService.finishBatch} 终态闸门落库；
+ * 本作业抢写终态会让真实结果被去重挡掉。
  */
 @Slf4j
 @Component
@@ -45,14 +46,16 @@ public class ApiGitBatchPoller {
     private final ApiExecutionRecordMapper executionRecordMapper;
     private final ApiGitRepoMapper gitRepoMapper;
     private final GitLabApiClient gitLabApiClient;
+    private final ApiGitResultCollector resultCollector;
     private final byte[] secretKey;
 
     public ApiGitBatchPoller(ApiExecutionRecordMapper executionRecordMapper, ApiGitRepoMapper gitRepoMapper,
-            GitLabApiClient gitLabApiClient,
+            GitLabApiClient gitLabApiClient, ApiGitResultCollector resultCollector,
             @Value("${robotest.env.secret-key:}") String base64SecretKey) {
         this.executionRecordMapper = executionRecordMapper;
         this.gitRepoMapper = gitRepoMapper;
         this.gitLabApiClient = gitLabApiClient;
+        this.resultCollector = resultCollector;
         this.secretKey = SecretCryptoUtil.parseKey(base64SecretKey);
     }
 
@@ -109,13 +112,14 @@ public class ApiGitBatchPoller {
     }
 
     /**
-     * 流水线终态钩子：WP-6.2 只留痕，不写批次状态。
-     * <p>WP-7.1 在此接入结果回收（下载 artifact → 解析信封 → 组装报告），
-     * 收尾时经 {@code ApiGitBatchService.finishBatch} 终态闸门写入，两通道去重共用同一入口。
+     * 流水线终态钩子：只触发结果回收、不写批次状态。
+     * <p>WP-7.1 由此接入 {@link ApiGitResultCollector}（下载 artifact → 解析信封 → 回写），
+     * 收尾经 {@code ApiGitBatchService.finishBatch} 终态闸门落库，两通道去重共用同一入口。
      */
     void onPipelineTerminal(String batchId, Long pipelineIid, String status) {
-        log.info("[批次轮询] 流水线达终态，待结果回收接管 batchId={} pipelineIid={} status={}",
+        log.info("[批次轮询] 流水线达终态，触发结果回收 batchId={} pipelineIid={} status={}",
                 batchId, pipelineIid, status);
+        resultCollector.collectAsync(batchId, ApiGitResultCollector.Channel.POLL, status);
     }
 
     /** 沿用已存令牌：解密失败（密钥轮换 / 密文损坏）按不可达处理，禁止明文入日志 */

@@ -15,6 +15,7 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -129,11 +130,11 @@ public class ApiGitBatchServiceImpl implements ApiGitBatchService {
 
     // ========== 终态去重 ==========
     @Override
-    public boolean finishBatch(String batchId, String status, String errorMessage) {
+    public boolean finishBatch(String batchId, String status, String errorMessage, Map<String, Object> summary) {
         if (!TERMINAL_STATUSES.contains(status)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED, "非法终态取值：" + status);
         }
-        return executionRecordMapper.markBatchTerminal(batchId, status, errorMessage) > 0;
+        return executionRecordMapper.markBatchTerminal(batchId, status, errorMessage, summary) > 0;
     }
 
     /** 沿用已存令牌：解密失败（密钥轮换 / 密文损坏）须重新配置令牌后重试 */

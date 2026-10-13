@@ -10,6 +10,7 @@ import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Mapper
@@ -85,11 +86,40 @@ public interface ApiExecutionRecordMapper extends BaseMapperX<ApiExecutionRecord
      * @return 实际更新的记录数，0 表示终态去重命中
      */
     default int markBatchTerminal(String batchId, String status, String errorMessage) {
+        return markBatchTerminal(batchId, status, errorMessage, null);
+    }
+
+    /** 同上；整批降级时随终态一并写入对账摘要（summary 为 null 不触碰该列） */
+    default int markBatchTerminal(String batchId, String status, String errorMessage,
+            Map<String, Object> summary) {
         LambdaUpdateWrapperX<ApiExecutionRecord> wrapper = new LambdaUpdateWrapperX<>();
         wrapper.eq(ApiExecutionRecord::getBatchId, batchId)
                 .in(ApiExecutionRecord::getStatus, "pending", "running")
                 .set(ApiExecutionRecord::getStatus, status)
                 .set(ApiExecutionRecord::getErrorMessage, errorMessage);
+        if (summary != null) {
+            wrapper.set(ApiExecutionRecord::getSummary, summary);
+        }
+        return update(null, wrapper);
+    }
+
+    /**
+     * 记录级条件终态（结果回收回写，GitLab 集成详设 4.2 第 6 步）：与批次级闸门同一
+     * pending/running 谓词——命中 0 行即另一通道已抢先终态化，调用方据以放弃本次结果。
+     * 终态语义由本次写入完整承载，errorMessage / reportId / durationMs 显式置空即清空（C11）。
+     *
+     * @return 实际更新的记录数，0 表示终态去重命中
+     */
+    default int finishRecord(UUID recordId, String status, String errorMessage, UUID reportId,
+            Integer durationMs, Map<String, Object> summary) {
+        LambdaUpdateWrapperX<ApiExecutionRecord> wrapper = new LambdaUpdateWrapperX<>();
+        wrapper.eq(ApiExecutionRecord::getId, recordId)
+                .in(ApiExecutionRecord::getStatus, "pending", "running")
+                .set(ApiExecutionRecord::getStatus, status)
+                .set(ApiExecutionRecord::getErrorMessage, errorMessage)
+                .set(ApiExecutionRecord::getReportId, reportId)
+                .set(ApiExecutionRecord::getDurationMs, durationMs)
+                .set(ApiExecutionRecord::getSummary, summary);
         return update(null, wrapper);
     }
 
