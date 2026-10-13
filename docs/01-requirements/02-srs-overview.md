@@ -186,8 +186,15 @@
 |---|---|---|
 | 总览 | `02-srs-overview.md` | 前言、1. 引言、2. 总体描述、4. 非功能需求、5. 数据需求、6. 附录 |
 | 系统管理模块 | `01-system-management/02-srs-system-management.md`（总览）及页面分册 `01-system-management/03-srs-system-management-dashboard.md`、`01-system-management/04-srs-system-management-user.md`、`01-system-management/05-srs-system-management-workspace.md`、`01-system-management/06-srs-system-management-role.md`、`01-system-management/07-srs-system-management-audit.md`、`01-system-management/08-srs-system-management-init.md` | 3.1 系统管理模块 |
-| 业务功能模块 | `03-function-testing/02-srs-business-features.md` | 3.2 业务功能模块（功能测试） |
+| 业务功能模块 | `03-function-testing/02-srs-business-features.md` 及分册 `03-function-testing/03-srs-ai-ui-testing.md` | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
 | 需求管理模块 | `06-requirement-management/02-srs-requirement-management.md` | 3.2 业务功能模块（需求管理） |
 | AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/03-srs-ai-generation.md`、`07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-10-01 | 初始版本 |
+| V1.0 | 2026-10-13 | 分册-章节对照表登记功能测试 AI 执行分册 `03-function-testing/03-srs-ai-ui-testing.md` |
