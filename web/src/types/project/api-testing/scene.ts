@@ -29,6 +29,8 @@ export interface ApiSceneDetail {
   processors: Record<string, unknown>[]
   changeVersion: number
   steps: ApiSceneStepItem[]
+  /** 派生执行引擎（GitLab 集成详细设计 5.3）：平台原生与 platform 导入恒为 platform，gitlab_ci 导入为 gitlab_ci */
+  engine?: string | null
 }
 
 /** 场景步骤（3.1.2 内嵌 steps） */
