@@ -12,12 +12,14 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScheduleExecut
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSchedulePageItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScheduleValidateCronRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiImportRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
@@ -76,6 +78,8 @@ class ApiScheduleServiceImplTest {
     private ProjectModuleMapper moduleMapper;
     @Mock
     private ApiImportRecordMapper importRecordMapper;
+    @Mock
+    private ApiGitRepoMapper gitRepoMapper;
     @Mock
     private ImportSourceFetcher importSourceFetcher;
     @Mock
@@ -252,6 +256,34 @@ class ApiScheduleServiceImplTest {
         assertNull(inserted.getEnvironmentId());
     }
 
+    @Test
+    void createGitlabSyncTaskRequiresRepository() {
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(null);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, baseReq("gitlab_sync", "0 3 * * *")));
+        assertEquals(1000017701, ex.getCode().intValue());
+    }
+
+    @Test
+    void createGitlabSyncTaskPersistsWithoutScopeFields() {
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(new ApiGitRepo());
+
+        service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, baseReq("gitlab_sync", "0 3 * * *"));
+
+        // GitLab 同步任务由项目唯一绑定仓库：不落执行范围、模块/场景、环境与 OpenAPI URL（详设 25 §2.1.1）
+        ArgumentCaptor<ApiScheduledTask> captor = ArgumentCaptor.forClass(ApiScheduledTask.class);
+        verify(taskMapper).insert(captor.capture());
+        ApiScheduledTask inserted = captor.getValue();
+        assertEquals("gitlab_sync", inserted.getTaskType());
+        assertNull(inserted.getExecutionScope());
+        assertNull(inserted.getModuleIds());
+        assertNull(inserted.getSceneIds());
+        assertNull(inserted.getEnvironmentId());
+        assertNull(inserted.getOpenapiUrl());
+        verify(taskScheduler).onTaskChanged(inserted.getId());
+    }
+
     // ========== 更新/启停/删除 ==========
 
     @Test
@@ -283,6 +315,28 @@ class ApiScheduleServiceImplTest {
                 eq(reqDTO.getOpenapiUrl().trim()),
                 eq(null),
                 eq(reqDTO.getCronExpression().trim()));
+        verify(taskScheduler).onTaskChanged(TASK_ID);
+    }
+
+    @Test
+    void updateSwitchingToGitlabSyncClearsOtherTypeFields() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(existingTask());
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(new ApiGitRepo());
+
+        service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, baseReq("gitlab_sync", "0 3 * * *"));
+
+        // 类型切换到 GitLab 同步：执行范围 / 模块 / 场景 / 环境 / URL 显式置 null（部分更新经 Mapper 封装）
+        verify(taskMapper).updateEditableFields(
+                eq(TASK_ID),
+                eq("gitlab_sync"),
+                eq("夜间回归"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq("0 3 * * *"));
         verify(taskScheduler).onTaskChanged(TASK_ID);
     }
 
