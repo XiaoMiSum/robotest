@@ -33,6 +33,11 @@ vi.mock('element-plus', () => ({
   ElMessageBox: mocks.ElMessageBox,
 }))
 
+// 页签初始化读 ?gl= 落地参数（交互 09 §1.2），单测无路由实例时提供空 query
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+}))
+
 vi.mock('@/stores/auth', () => ({
   useAuthStore: mocks.useAuthStore,
 }))

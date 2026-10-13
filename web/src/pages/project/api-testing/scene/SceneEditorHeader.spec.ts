@@ -5,9 +5,9 @@ import typeSource from '../../../../types/project/api-testing/scene.ts?raw'
 
 // 执行入口文案随引擎派生（需求 F1.3 / 交互 26 §2、10 §1.9）：gitlab_ci 为「流水线运行」，其余为「运行场景」
 describe('SceneEditorHeader 执行入口文案', () => {
-  it('按钮文案按 engine 派生且两处入口共用同一派生值', () => {
+  it('按钮文案按 engine 派生且三处入口（只读/创建/编辑）共用同一派生值', () => {
     expect(headerSource).toContain("props.engine === 'gitlab_ci' ? '▶ 流水线运行' : '▶ 运行场景'")
-    expect(headerSource.match(/\{\{ runLabel \}\}/g)?.length).toBe(2)
+    expect(headerSource.match(/\{\{ runLabel \}\}/g)?.length).toBe(3)
     expect(headerSource).not.toContain('▶ 运行场景</el-button>')
   })
 
