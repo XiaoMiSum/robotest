@@ -131,7 +131,7 @@
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_exec_scene_id` (scene_id, executed_at DESC), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status), `idx_exec_pipeline` (repo_id, pipeline_iid) WHERE pipeline_iid IS NOT NULL, `idx_exec_batch` (batch_id) WHERE batch_id IS NOT NULL
+**索引**：`idx_exec_scene_id` (scene_id, executed_at DESC), `idx_exec_project_executed` (project_id, executed_at DESC), `idx_exec_status` (status), `idx_exec_pipeline` (repo_id, pipeline_iid) WHERE pipeline_iid IS NOT NULL, `idx_exec_batch` (batch_id) WHERE batch_id IS NOT NULL, `idx_exec_scheduled_task_id` (scheduled_task_id) WHERE scheduled_task_id IS NOT NULL AND batch_id IS NOT NULL
 
 > 执行记录与报告共享清理策略（默认 90 天）；清理后执行记录保留元数据，报告详情置为「执行结果被清理」。
 
@@ -402,3 +402,4 @@ robotest:
 | V1.0 | 2026-10-11 | 执行记录批次字段改为 `batch_id` 与 `source_ref`，新增 `idx_exec_batch` 索引 |
 | V1.0 | 2026-10-11 | 删除错误码 `1000017706`（批量执行圈选上限），该能力已从需求与设计中移除 |
 | V1.0 | 2026-10-11 | 错误码 `1000017711` 更名为 `API_GIT_REPO_IMMUTABLE_FIELD`，覆盖范围扩至 `repo_path` / `default_branch` |
+| V1.0 | 2026-10-13 | 执行记录新增局部索引 `idx_exec_scheduled_task_id`（任务完成判据按批次扫描执行记录，关联字段强制索引，经评审确认单表索引数 5→6） |
