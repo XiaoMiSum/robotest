@@ -407,4 +407,53 @@ class GitLabApiClientTest {
         assertEquals(1000017702, ex.getCode());
         assertTrue(ex.getMessage().contains("实例不可达"));
     }
+
+    // ========== 流水线状态查询（WP-6.2 轮询兜底） ==========
+
+    /** 项目探测 + GET 假实现：区分项目探测与流水线查询两条 URL */
+    private static GitLabApiClient.HttpOpener pipelineOpener(
+            java.util.function.Function<String, HttpResponse<String>> pipelineHandler) {
+        return (url, token) -> url.contains("/pipelines/")
+                ? pipelineHandler.apply(url)
+                : response(200, "{\"id\":12345}");
+    }
+
+    @Test
+    void getPipelineReturnsStatusSnapshot() {
+        GitLabApiClient client = new GitLabApiClient(pipelineOpener(
+                url -> response(200, "{\"iid\":9,\"web_url\":\"https://gitlab.example.com/p/9\",\"status\":\"running\"}")));
+
+        GitLabApiClient.PipelineStatus status = client.getPipeline(BASE, TOKEN, REPO_PATH, 9L);
+
+        assertEquals(9L, status.iid());
+        assertEquals("running", status.status());
+        assertEquals("https://gitlab.example.com/p/9", status.webUrl());
+    }
+
+    @Test
+    void getPipelineMapsHttpErrorToQueryFailed() {
+        GitLabApiClient client = new GitLabApiClient(pipelineOpener(url -> response(404, "{}")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.getPipeline(BASE, TOKEN, REPO_PATH, 9L));
+
+        assertEquals(1000017705, ex.getCode());
+        assertTrue(ex.getMessage().contains("HTTP 404"));
+    }
+
+    @Test
+    void getPipelineMapsNetworkErrorToQueryFailed() {
+        GitLabApiClient client = new GitLabApiClient((url, token) -> {
+            if (url.contains("/pipelines/")) {
+                throw new java.io.IOException("connection refused");
+            }
+            return response(200, "{\"id\":12345}");
+        });
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> client.getPipeline(BASE, TOKEN, REPO_PATH, 9L));
+
+        // 轮询侧统一按查询失败留痕重试，网络层 17702 归并为 17705
+        assertEquals(1000017705, ex.getCode());
+    }
 }
