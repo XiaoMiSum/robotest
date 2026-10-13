@@ -16,15 +16,16 @@ import java.util.UUID;
 @Mapper
 public interface ApiSceneMapper extends BaseMapperX<ApiScene> {
 
-    /** 场景列表分页：模块/名称/发布状态/关注过滤，更新时间倒序 */
+    /** 场景列表分页：模块/名称/发布状态/来源/关注过滤，更新时间倒序 */
     default PageResult<ApiScene> selectPage(UUID projectId, UUID moduleId, String search,
-            List<UUID> followedOnlySceneIds, String status, PageParam pageParam) {
+            List<UUID> followedOnlySceneIds, String status, String sourceType, PageParam pageParam) {
         return selectPage(pageParam, new LambdaQueryWrapperX<ApiScene>()
                 .eq(ApiScene::getProjectId, projectId)
                 .eq(moduleId != null, ApiScene::getModuleId, moduleId)
                 .likeIfPresent(ApiScene::getName, search)
                 .in(followedOnlySceneIds != null, ApiScene::getId, followedOnlySceneIds)
                 .eq(StringUtils.hasText(status), ApiScene::getStatus, status)
+                .eq(StringUtils.hasText(sourceType), ApiScene::getSourceType, sourceType)
                 .orderByDesc(ApiScene::getUpdatedAt));
     }
 

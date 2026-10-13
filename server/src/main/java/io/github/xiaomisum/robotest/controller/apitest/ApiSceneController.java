@@ -48,9 +48,10 @@ public class ApiSceneController {
             @RequestParam(value = "moduleId", required = false) UUID moduleId,
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "followedOnly", required = false) Boolean followedOnly,
-            @RequestParam(value = "status", required = false) String status) {
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "sourceType", required = false) String sourceType) {
         return Result.ok(sceneService.fetchPage(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(), loginUser.getId(),
-                moduleId, search, followedOnly, status, pageParam));
+                moduleId, search, followedOnly, status, sourceType, pageParam));
     }
 
     @GetMapping("/api/project/api-scenes/{id}")

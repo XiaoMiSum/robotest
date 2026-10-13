@@ -34,6 +34,24 @@ public class ApiSceneDetailRespDTO {
     /** 执行引擎（详设 4.1 派生属性）：platform / gitlab_ci，供执行入口文案与只读形态渲染 */
     private String engine;
 
+    /** 场景来源：platform（平台原生）/ gitlab（GitLab 导入），缺省 platform */
+    private String sourceType;
+
+    /** 来源仓库 ID（api_git_repo.id），仅 GitLab 导入场景非空 */
+    private UUID repoId;
+
+    /** 源侧稳定键（类全限定名#方法名），导入写入、只读展示 */
+    private String sourceId;
+
+    /** 源侧引用（步骤模板或测试方法的相对路径 / 方法签名） */
+    private String sourceRef;
+
+    /** 源状态：in_sync/parse_failed/repo_removed/repo_unreachable，仅展示 */
+    private String sourceStatus;
+
+    /** 用例信息（GitLab 集成详设 5.3）：仅 gitlab_ci 场景非空，恒单条（场景与测试方法一一对应） */
+    private CaseInfo caseInfo;
+
     /** [{name, value, description}] */
     private List<Map<String, Object>> variables;
 
@@ -86,6 +104,21 @@ public class ApiSceneDetailRespDTO {
 
         /** [{id, name, enabled, source, expression, variableName}] */
         private List<Map<String, Object>> extractors;
+
+    }
+
+    @Data
+    @Builder
+    public static class CaseInfo {
+
+        /** 测试方法名（sourceId `#` 后段） */
+        private String methodName;
+
+        /** 用例名称（@Test description，即场景 name） */
+        private String caseName;
+
+        /** 源文件相对路径（sourceRef `#` 前段） */
+        private String sourceFile;
 
     }
 

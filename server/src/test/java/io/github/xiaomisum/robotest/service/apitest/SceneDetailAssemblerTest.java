@@ -48,12 +48,12 @@ class SceneDetailAssemblerTest {
 
     @Test
     void fetchPage_emptyResult_returnsEmptyPage() {
-        when(sceneMapper.selectPage(any(), any(), any(), any(), any(), any(PageParam.class)))
+        when(sceneMapper.selectPage(any(), any(), any(), any(), any(), any(), any(PageParam.class)))
                 .thenReturn(new PageResult<>(List.of(), 0L));
 
         PageResult<ApiScenePageItemRespDTO> result = SceneDetailAssembler.fetchPage(
                 sceneMapper, sceneFollowMapper, executionRecordMapper,
-                projectId, null, null, null, null,
+                projectId, null, null, null, null, null,
                 new PageParam() {{ setPageNo(1); setPageSize(10); }},
                 userId);
 
@@ -73,10 +73,14 @@ class SceneDetailAssemblerTest {
         scene.setPriority("P0");
         scene.setStatus("active");
         scene.setSteps(List.of(Map.of(), Map.of()));
+        scene.setSourceType("gitlab");
+        scene.setRepoId(UUID.randomUUID());
+        scene.setSourceRef("com/x/OrderApiTest.java#replaceOrder");
+        scene.setSourceStatus("parse_failed");
         scene.setCreatedAt(LocalDateTime.now());
         scene.setUpdatedAt(LocalDateTime.now());
 
-        when(sceneMapper.selectPage(any(), any(), any(), any(), any(), any(PageParam.class)))
+        when(sceneMapper.selectPage(any(), any(), any(), any(), any(), any(), any(PageParam.class)))
                 .thenReturn(new PageResult<>(List.of(scene), 1L));
         when(sceneMapper.selectBatchIds(anyList())).thenReturn(List.of(scene));
         when(sceneFollowMapper.selectFollowedSceneIdsByUserId(userId))
@@ -90,7 +94,7 @@ class SceneDetailAssemblerTest {
 
         PageResult<ApiScenePageItemRespDTO> result = SceneDetailAssembler.fetchPage(
                 sceneMapper, sceneFollowMapper, executionRecordMapper,
-                projectId, null, null, null, null,
+                projectId, null, null, null, null, null,
                 new PageParam() {{ setPageNo(1); setPageSize(10); }},
                 userId);
 
@@ -101,6 +105,10 @@ class SceneDetailAssemblerTest {
         assertThat(dto.getStepCount()).isEqualTo(2);
         assertThat(dto.getFollowed()).isTrue();
         assertThat(dto.getLastStatus()).isEqualTo("success");
+        assertThat(dto.getSourceType()).isEqualTo("gitlab");
+        assertThat(dto.getRepoId()).isEqualTo(scene.getRepoId());
+        assertThat(dto.getSourceRef()).isEqualTo("com/x/OrderApiTest.java#replaceOrder");
+        assertThat(dto.getSourceStatus()).isEqualTo("parse_failed");
     }
 
     @Test
@@ -110,17 +118,44 @@ class SceneDetailAssemblerTest {
         scene.setSteps(null);
         scene.setUpdatedAt(LocalDateTime.now());
 
-        when(sceneMapper.selectPage(any(), any(), any(), any(), any(), any(PageParam.class)))
+        when(sceneMapper.selectPage(any(), any(), any(), any(), any(), any(), any(PageParam.class)))
                 .thenReturn(new PageResult<>(List.of(scene), 1L));
         when(sceneFollowMapper.selectFollowedSceneIdsByUserId(userId)).thenReturn(List.of());
         when(executionRecordMapper.listLatestBySceneIds(anyList())).thenReturn(List.of());
 
         PageResult<ApiScenePageItemRespDTO> result = SceneDetailAssembler.fetchPage(
                 sceneMapper, sceneFollowMapper, executionRecordMapper,
-                projectId, null, null, null, null,
+                projectId, null, null, null, null, null,
                 new PageParam() {{ setPageNo(1); setPageSize(10); }},
                 userId);
 
         assertThat(result.getList().get(0).getStepCount()).isZero();
+    }
+
+    @Test
+    void toCaseInfo_gitlabCiEngine_singleCaseDerivedFromStableKeys() {
+        ApiScene scene = new ApiScene();
+        scene.setName("订单替换-PC端");
+        scene.setSourceId("com.x.order.OrderApiTest#replaceOrder");
+        scene.setSourceRef("com/x/order/OrderApiTest.java#replaceOrder");
+
+        var info = SceneDetailAssembler.toCaseInfo(scene, "gitlab_ci");
+
+        assertThat(info).isNotNull();
+        assertThat(info.getMethodName()).isEqualTo("replaceOrder");
+        assertThat(info.getCaseName()).isEqualTo("订单替换-PC端");
+        assertThat(info.getSourceFile()).isEqualTo("com/x/order/OrderApiTest.java");
+    }
+
+    @Test
+    void toCaseInfo_platformEngineOrMissingKeys_returnsNull() {
+        ApiScene scene = new ApiScene();
+        scene.setName("native");
+        scene.setSourceId("com.x.A#m");
+
+        assertThat(SceneDetailAssembler.toCaseInfo(scene, "platform")).isNull();
+
+        scene.setSourceId(null);
+        assertThat(SceneDetailAssembler.toCaseInfo(scene, "gitlab_ci")).isNull();
     }
 }
