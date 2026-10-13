@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import EnvironmentPage from './environment/EnvironmentPage.vue'
+import GitLabSettingsPage from './gitlab/GitLabSettingsPage.vue'
 import FunctionPage from './function/FunctionPage.vue'
 import DebugPage from './debug/DebugPage.vue'
 import MocksPage from './mock/MocksPage.vue'
@@ -26,16 +27,35 @@ const menuItems = [
   { key: 'schedules', label: '定时任务', icon: 'Timer', permission: 'api-timer:view' },
 ]
 
-const settingsItems = [
+const authStore = useAuthStore()
+const has = (code: string) => authStore.hasPermission(code)
+
+// permission / permissionAny 二选一：入口按任一权限点放行（GitLab 集成要求环境或场景查询权限）
+interface SettingsItem {
+  key: string
+  label: string
+  icon: string
+  enabled: boolean
+  permission?: string
+  permissionAny?: string[]
+}
+
+function isSettingsItemVisible(item: SettingsItem): boolean {
+  if (item.permissionAny) return item.permissionAny.some((code) => has(code))
+  return item.permission ? has(item.permission) : false
+}
+
+const settingsItems: SettingsItem[] = [
   { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true, permission: 'api-env:view' },
+  { key: 'gitlab', label: 'GitLab 集成', icon: 'Connection', enabled: true, permissionAny: ['api-env:view', 'api-scene:view'] },
   { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true, permission: 'api-func:view' },
   { key: 'assets', label: '公共组件', icon: 'Box', enabled: true, permission: 'api-component:view' },
 ]
 
-const authStore = useAuthStore()
-const has = (code: string) => authStore.hasPermission(code)
 const visibleMenuItems = computed(() => menuItems.filter((item) => has(item.permission)))
-const visibleSettingsItems = computed(() => settingsItems.filter((item) => item.enabled && has(item.permission)))
+const visibleSettingsItems = computed(
+  () => settingsItems.filter((item) => item.enabled && isSettingsItemVisible(item)),
+)
 const visibleKeys = computed(() => [
   ...visibleMenuItems.value.map((item) => item.key),
   ...visibleSettingsItems.value.map((item) => item.key),
@@ -145,6 +165,7 @@ watch(
 
     <main class="api-testing__main">
       <EnvironmentPage v-if="activeMenu === 'environments'" />
+      <GitLabSettingsPage v-else-if="activeMenu === 'gitlab'" />
       <FunctionPage v-else-if="activeMenu === 'functions'" />
       <DebugPage v-else-if="activeMenu === 'debug'" @view-interface="handleViewInterface" />
       <InterfaceWorkspace
