@@ -13,6 +13,14 @@ export interface ApiScenePageItem {
   lastStatus?: string | null
   updatedAt: string
   followed?: boolean
+  /** 场景来源：platform 平台原生 / gitlab GitLab 导入（GitLab 集成详设 5.3） */
+  sourceType?: string | null
+  /** 来源仓库 ID，仅 GitLab 导入场景非空 */
+  repoId?: string | null
+  /** 源侧引用（测试方法相对路径 / 方法签名） */
+  sourceRef?: string | null
+  /** 源状态：in_sync / parse_failed 源码已退化 / repo_removed 来源已移除 / repo_unreachable 仓库不可达 */
+  sourceStatus?: string | null
 }
 
 /** 场景详情（3.1.2） */
@@ -31,6 +39,28 @@ export interface ApiSceneDetail {
   steps: ApiSceneStepItem[]
   /** 派生执行引擎（GitLab 集成详细设计 5.3）：平台原生与 platform 导入恒为 platform，gitlab_ci 导入为 gitlab_ci */
   engine?: string | null
+  /** 场景来源：platform 平台原生 / gitlab GitLab 导入 */
+  sourceType?: string | null
+  /** 来源仓库 ID，仅 GitLab 导入场景非空 */
+  repoId?: string | null
+  /** 源侧稳定键（类全限定名#方法名） */
+  sourceId?: string | null
+  /** 源侧引用（测试方法相对路径 / 方法签名） */
+  sourceRef?: string | null
+  /** 源状态：in_sync / parse_failed 源码已退化 / repo_removed 来源已移除 / repo_unreachable 仓库不可达 */
+  sourceStatus?: string | null
+  /** 用例信息：仅 gitlab_ci 场景非空，恒单条（场景与测试方法一一对应） */
+  caseInfo?: ApiSceneCaseInfo | null
+}
+
+/** gitlab_ci 场景用例信息（GitLab 集成详设 5.3）：场景与测试方法一一对应，恒为单条 */
+export interface ApiSceneCaseInfo {
+  /** 测试方法名 */
+  methodName: string
+  /** 用例名称（@Test description） */
+  caseName: string
+  /** 源文件相对路径 */
+  sourceFile?: string | null
 }
 
 /** 场景步骤（3.1.2 内嵌 steps） */
