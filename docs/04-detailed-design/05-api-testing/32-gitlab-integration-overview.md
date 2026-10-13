@@ -473,6 +473,8 @@ flowchart LR
 
 - `api_report.execution_mode` 保持常量 `platform`，不新增取值；**引擎信息按场景记录在 `result` 数据集的 `execEngine`**，同一份套件报告内允许 `platform` 与 `gitlab` 混合（`execEngine` 取值口径见 `docs/04-detailed-design/05-api-testing/28-test-report-overview.md` 2.3）。
 - 套件报告维持「首写 + 追加更新」的二次更新形态：平台组先写入，流水线回收后追加 CI 组结果，二者共用 `external_id` = 任务 ID（或批次 ID）。
+- 追加按 `sceneId` 幂等（已有场景原位替换、缺失场景追加），每次合并后全量重算 `summary` 与状态（套件层面无 partial，任一场景非 success 即 failed）；纯 CI 任务（平台组无可用场景、触发失败、平台组中途崩溃）无平台组首写报告，由结果回收端首写——每次触发恒一份套件报告，二次更新不产生空洞。
+- 无结果记录（信封缺失、整批降级、触发失败）以占位数据集计入套件（`status = failed`、`steps` 为空、汇总全 0，口径同 `docs/04-detailed-design/05-api-testing/28-test-report-overview.md` 2.3.1）；套件 `durationMs` 追加时保留平台组首写的触发总耗时，纯 CI 首写取批次记录耗时最大值（同批并行执行）。
 - CI 引擎单场景执行同样产出 `source = scene` 的场景级报告，报告结构与平台执行一致。
 - 用例级结果字段（`externalId` = 方法名、`caseName` 优先取 `@Test(description)`、`status` 映射）与既有 `report_case` 数据集口径一致，仅 `execEngine` 为本域新增语义。
 
@@ -674,3 +676,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-13 | 4.6 删除 JUnit 测试报告摘要降级档（该档汇总数字无法按 `testClass#testMethod` 映射场景也写不出步骤明细）：未回收到任何可用信封时直接整批按失败并附流水线链接，单条信封缺失按解析失败计数 |
 | V1.0 | 2026-10-13 | 6.1 为 `api_execution_record` 新增局部索引 `idx_exec_scheduled_task_id`（任务完成判据按批次扫描执行记录的关联字段，5→6 索引经评审确认），表变更汇总行同步登记 |
 | V1.0 | 2026-10-13 | 错误码号段扩至 `1000017715`（新增 `API_GIT_ARTIFACT_DOWNLOAD_FAILED`、`API_GIT_ENVELOPE_INVALID`，结果回收降级留痕）；4.5 `execEngine` 混合取值表述对齐详设 28 2.3（`platform` / `gitlab`） |
+| V1.0 | 2026-10-13 | 4.5 补套件报告聚合落地口径：追加按 `sceneId` 幂等并全量重算 `summary` 与状态；纯 CI 任务（无可用场景 / 触发失败 / 平台组崩溃）由结果回收端首写套件报告；无结果记录以 failed 占位数据集计入；`durationMs` 追加保留、首写取批次最大值 |
