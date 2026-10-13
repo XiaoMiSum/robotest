@@ -70,6 +70,14 @@ public interface ApiExecutionRecordMapper extends BaseMapperX<ApiExecutionRecord
                 .isNotNull(ApiExecutionRecord::getPipelineIid));
     }
 
+    /** 混合任务完成判据输入（GitLab 集成详设 4.4）：任务名下的流水线批次记录，按冻结先后升序 */
+    default List<ApiExecutionRecord> listBatchRecordsByTask(UUID taskId) {
+        return selectList(new LambdaQueryWrapperX<ApiExecutionRecord>()
+                .eq(ApiExecutionRecord::getScheduledTaskId, taskId)
+                .isNotNull(ApiExecutionRecord::getBatchId)
+                .orderByAsc(ApiExecutionRecord::getCreatedAt));
+    }
+
     /**
      * 终态写闸门（GitLab 集成详设 4.2 第 5 步终态去重）：条件更新仅 pending/running 生效——
      * 命中 0 行即批次已置终态，CI 回报与轮询补拉两通道后到写入一律忽略，不覆盖先到结果。

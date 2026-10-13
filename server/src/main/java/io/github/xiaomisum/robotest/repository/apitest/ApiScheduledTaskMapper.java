@@ -35,6 +35,13 @@ public interface ApiScheduledTaskMapper extends BaseMapperX<ApiScheduledTask> {
                 .eq(ApiScheduledTask::getTaskType, "scene_execute"));
     }
 
+    /** 混合任务完成判据扫描（GitLab 集成详设 4.4）：运行中的测试计划任务，由判据组件按库中状态裁定终态 */
+    default List<ApiScheduledTask> listRunningTestPlan() {
+        return selectList(new LambdaQueryWrapperX<ApiScheduledTask>()
+                .eq(ApiScheduledTask::getTaskType, "scene_execute")
+                .eq(ApiScheduledTask::getLastExecutionStatus, "running"));
+    }
+
     /** 环境被测试计划任务绑定（目标环境）时禁止删除 */
     default Long selectCountEnvBound(UUID environmentId) {
         return selectCount(new LambdaQueryWrapperX<ApiScheduledTask>()
