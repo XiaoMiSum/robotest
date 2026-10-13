@@ -37,4 +37,16 @@ public class ApiScenePageItemRespDTO {
     /** 当前用户是否已关注该场景 */
     private Boolean followed;
 
+    /** 场景来源：platform（平台原生）/ gitlab（GitLab 导入），缺省 platform */
+    private String sourceType;
+
+    /** 来源仓库 ID（api_git_repo.id），仅 GitLab 导入场景非空 */
+    private UUID repoId;
+
+    /** 源侧引用（步骤模板或测试方法的相对路径 / 方法签名） */
+    private String sourceRef;
+
+    /** 源状态：in_sync/parse_failed/repo_removed/repo_unreachable，仅展示 */
+    private String sourceStatus;
+
 }

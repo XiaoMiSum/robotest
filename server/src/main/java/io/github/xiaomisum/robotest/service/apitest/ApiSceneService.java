@@ -26,7 +26,7 @@ public interface ApiSceneService {
     // ========== 场景管理 ==========
 
     PageResult<ApiScenePageItemRespDTO> fetchPage(UUID workspaceId, UUID projectId, UUID userId,
-            UUID moduleId, String search, Boolean followedOnly, String status, PageParam pageParam);
+            UUID moduleId, String search, Boolean followedOnly, String status, String sourceType, PageParam pageParam);
 
     ApiSceneDetailRespDTO getDetail(UUID workspaceId, UUID projectId, UUID userId, UUID id);
 

@@ -34,13 +34,13 @@ public final class SceneDetailAssembler {
     public static PageResult<ApiScenePageItemRespDTO> fetchPage(ApiSceneMapper sceneMapper,
             ApiSceneFollowMapper followMapper, ApiExecutionRecordMapper executionRecordMapper,
             UUID projectId, UUID moduleId, String search, Boolean followedOnly, String status,
-            PageParam pageParam, UUID userId) {
+            String sourceType, PageParam pageParam, UUID userId) {
         List<UUID> followedIds = null;
         if (Boolean.TRUE.equals(followedOnly)) {
             followedIds = followMapper.selectFollowedSceneIdsByUserId(userId);
         }
         PageResult<ApiScene> page = sceneMapper.selectPage(projectId, moduleId, search,
-                followedIds, status, pageParam);
+                followedIds, status, sourceType, pageParam);
         List<ApiScene> scenes = page.getList();
         if (scenes.isEmpty()) {
             return new PageResult<>(List.of(), page.getTotal());
@@ -91,6 +91,10 @@ public final class SceneDetailAssembler {
                 .lastStatus(last == null ? null : last.getStatus())
                 .updatedAt(scene.getUpdatedAt())
                 .followed(followedSet.contains(scene.getId()))
+                .sourceType(scene.getSourceType())
+                .repoId(scene.getRepoId())
+                .sourceRef(scene.getSourceRef())
+                .sourceStatus(scene.getSourceStatus())
                 .build();
     }
 
@@ -106,11 +110,38 @@ public final class SceneDetailAssembler {
                 .status(scene.getStatus())
                 .followed(followed)
                 .engine(engine)
+                .sourceType(scene.getSourceType())
+                .repoId(scene.getRepoId())
+                .sourceId(scene.getSourceId())
+                .sourceRef(scene.getSourceRef())
+                .sourceStatus(scene.getSourceStatus())
+                .caseInfo(toCaseInfo(scene, engine))
                 .variables(Objects.requireNonNullElse(scene.getVariables(), List.<Map<String, Object>>of()))
                 .processors(Objects.requireNonNullElse(scene.getProcessors(), List.of()))
                 .changeVersion(scene.getChangeVersion())
                 .steps(Objects.requireNonNullElse(scene.getSteps(), List.<Map<String, Object>>of()).stream()
                         .map(step -> toStepDetail(step, sourceExists)).toList())
+                .build();
+    }
+
+    /**
+     * gitlab_ci 用例信息（GitLab 集成详设 5.3）：场景与测试方法一一对应，恒单条——
+     * 方法名取 sourceId `#` 后段，源文件取 sourceRef `#` 前段，用例名取场景 name（BR-1.10 导入时已按 description 取名）。
+     * 稳定键或引用缺失（如非导入场景误配 engine）时不返回，前端按空处理。
+     */
+    public static ApiSceneDetailRespDTO.CaseInfo toCaseInfo(ApiScene scene, String engine) {
+        if (!ApiSceneEngineRouter.ENGINE_GITLAB_CI.equals(engine)
+                || scene.getSourceId() == null || !scene.getSourceId().contains("#")) {
+            return null;
+        }
+        String sourceFile = null;
+        if (scene.getSourceRef() != null) {
+            sourceFile = scene.getSourceRef().substring(0, scene.getSourceRef().indexOf('#'));
+        }
+        return ApiSceneDetailRespDTO.CaseInfo.builder()
+                .methodName(scene.getSourceId().substring(scene.getSourceId().indexOf('#') + 1))
+                .caseName(scene.getName())
+                .sourceFile(sourceFile)
                 .build();
     }
 
