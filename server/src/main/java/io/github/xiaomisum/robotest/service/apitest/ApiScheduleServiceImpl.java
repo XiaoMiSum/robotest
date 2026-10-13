@@ -17,6 +17,7 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTaskExecuti
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiImportRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
@@ -41,6 +42,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_ENV_NOT_FOUND;
+import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_GIT_REPO_NOT_FOUND;
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_SCHEDULED_TASK_CRON_INVALID;
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_SCHEDULED_TASK_ENV_REQUIRED;
 import static io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants.API_SCHEDULED_TASK_MODULE_IDS_REQUIRED;
@@ -61,6 +63,7 @@ public class ApiScheduleServiceImpl implements ApiScheduleService {
 private static final String TYPE_TEST_PLAN = "scene_execute";
 
     private static final String TYPE_SYNC = "import_swagger";
+    private static final String TYPE_GITLAB_SYNC = "gitlab_sync";
     private static final String SCOPE_ALL = "all";
     private static final String SCOPE_MODULES = "modules";
     private static final String SCOPE_SCENES = "scenes";
@@ -80,6 +83,8 @@ private static final String TYPE_TEST_PLAN = "scene_execute";
     private ProjectModuleMapper moduleMapper;
     @Resource
     private ApiImportRecordMapper importRecordMapper;
+    @Resource
+    private ApiGitRepoMapper gitRepoMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
@@ -308,7 +313,21 @@ return ApiScheduleValidateCronRespDTO.builder()
             validateTestPlanBinding(projectId, reqDTO);
             return;
         }
+        if (TYPE_GITLAB_SYNC.equals(reqDTO.getTaskType())) {
+            validateGitlabSyncBinding(projectId);
+            return;
+        }
         validateSyncBinding(reqDTO);
+    }
+
+    /**
+     * GitLab 同步任务：本项目须已配置 GitLab 仓库，否则 1000017701（详设 26 §1.2 规则 4）。
+     * 仓库由项目唯一确定（一项目一仓库），请求体不携带仓库标识，也不经 URL 传递（C4）。
+     */
+    private void validateGitlabSyncBinding(UUID projectId) {
+        if (gitRepoMapper.selectByProject(projectId) == null) {
+            throw ServiceExceptionUtil.get(API_GIT_REPO_NOT_FOUND);
+        }
     }
 
     private void validateTestPlanBinding(UUID projectId, ApiScheduleSaveReqDTO reqDTO) {
