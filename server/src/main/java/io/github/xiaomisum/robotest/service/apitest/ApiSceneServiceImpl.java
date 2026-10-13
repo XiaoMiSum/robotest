@@ -73,10 +73,10 @@ public class ApiSceneServiceImpl implements ApiSceneService {
 
     @Override
     public PageResult<ApiScenePageItemRespDTO> fetchPage(UUID workspaceId, UUID projectId, UUID userId,
-            UUID moduleId, String search, Boolean followedOnly, String status, PageParam pageParam) {
+            UUID moduleId, String search, Boolean followedOnly, String status, String sourceType, PageParam pageParam) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         return SceneDetailAssembler.fetchPage(sceneMapper, sceneFollowMapper, executionRecordMapper,
-                projectId, moduleId, search, followedOnly, status, pageParam, userId);
+                projectId, moduleId, search, followedOnly, status, sourceType, pageParam, userId);
     }
 
     @Override
