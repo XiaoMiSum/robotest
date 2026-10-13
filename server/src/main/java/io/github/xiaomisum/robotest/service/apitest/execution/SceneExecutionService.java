@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugR
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -27,6 +28,9 @@ public interface SceneExecutionService {
     /** 异步触发：落 pending 执行记录后入队，前端轮询 getStatus 至终态 */
     ApiExecutionStartRespDTO execute(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,
             ApiSceneExecuteReqDTO reqDTO);
+
+    /** 执行状态查询（GitLab 集成详设 3.3）：前端轮询至终态，CI 执行由服务端轮询 GitLab 后回写，只读 */
+    ApiExecutionStatusRespDTO getStatus(UUID workspaceId, UUID projectId, UUID userId, UUID executionId);
 
     /** 单步调试：同步执行，不产生执行记录与报告（测试场景详细设计 3.6.3） */
     ApiSceneStepDebugRespDTO debugStep(UUID workspaceId, UUID projectId, UUID userId, UUID sceneId,

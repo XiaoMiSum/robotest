@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiSceneStepDebugR
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStartRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneDraftExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebugRespDTO;
 import io.github.xiaomisum.robotest.service.apitest.execution.SceneExecutionService;
@@ -50,6 +51,16 @@ public class ApiSceneExecutionController {
             @Valid PageParam pageParam) {
         return Result.ok(executionService.pageExecutions(loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId(),
                 loginUser.getId(), sceneId, pageParam));
+    }
+
+    /** 执行状态查询（GitLab 集成详设 3.3）：前端轮询至终态，CI 执行由服务端轮询回写，只读 */
+    @GetMapping("/api/project/api-executions/{executionId}")
+    @PreAuthorize("hasAuthority('api-scene:view')")
+    public Result<ApiExecutionStatusRespDTO> getStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID executionId) {
+        return Result.ok(executionService.getStatus(loginUser.getActiveWorkspaceId(),
+                loginUser.getActiveProjectId(), loginUser.getId(), executionId));
     }
 
     @GetMapping("/api/project/api-scenes/{sceneId}/change-history")

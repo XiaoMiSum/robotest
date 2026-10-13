@@ -3,9 +3,11 @@ package io.github.xiaomisum.robotest.service.apitest.execution;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiChangeHistoryItemRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionHistoryItemRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiExecutionStatusRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiChangeHistory;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiChangeHistoryMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
@@ -48,6 +50,29 @@ public class ExecutionRecordQueryService {
         PageResult<ApiExecutionRecord> page = executionRecordMapper.selectPageByScene(sceneId, pageParam);
         List<ApiExecutionHistoryItemRespDTO> items = page.getList().stream().map(this::toHistoryItem).toList();
         return new PageResult<>(items, page.getTotal());
+    }
+
+    /**
+     * 执行状态查询（GitLab 集成详设 3.3）：按 executionId 读单条记录投影，前端轮询至终态。
+     * CI 批次记录同样经此读取——服务端轮询 GitLab 回写后，前端只见库中状态，无感知差异。
+     */
+    public ApiExecutionStatusRespDTO getStatus(UUID workspaceId, UUID projectId, UUID userId, UUID executionId) {
+        projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
+        ApiExecutionRecord record = SceneExecutionSupport.requireRecord(executionRecordMapper, projectId, executionId);
+        // 场景可能已被删除：状态仍可读，名称降级为 null
+        ApiScene scene = sceneMapper.selectById(record.getSceneId());
+        return ApiExecutionStatusRespDTO.builder()
+                .id(record.getId().toString())
+                .sceneId(record.getSceneId() == null ? null : record.getSceneId().toString())
+                .sceneName(scene == null ? null : scene.getName())
+                .status(record.getStatus())
+                .executionMode(record.getExecutionMode())
+                .triggerType(record.getTriggerType())
+                .executedAt(record.getExecutedAt())
+                .durationMs(record.getDurationMs())
+                .errorMessage(record.getErrorMessage())
+                .reportId(record.getReportId() == null ? null : record.getReportId().toString())
+                .build();
     }
 
     private ApiExecutionHistoryItemRespDTO toHistoryItem(ApiExecutionRecord record) {
