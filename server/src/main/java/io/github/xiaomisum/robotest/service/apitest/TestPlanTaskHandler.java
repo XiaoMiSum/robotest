@@ -8,12 +8,14 @@ import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvironmentS
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.EnvSnapshot;
 import io.github.xiaomisum.robotest.framework.common.SceneStepUtil;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
+import io.github.xiaomisum.robotest.model.entity.apitest.ApiGitRepo;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiReport;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
+import io.github.xiaomisum.robotest.repository.apitest.ApiGitRepoMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiReportMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiSceneMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskExecutionMapper;
@@ -25,6 +27,7 @@ import io.github.xiaomisum.robotest.service.apitest.execution.ports.SuiteBuilder
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -38,7 +41,9 @@ import java.util.UUID;
 
 /**
  * 测试计划任务执行器（从 ScheduledTaskRunner 提取）。
- * 按执行范围圈选场景 → 组装单一大 Suite → 一次执行 → 聚合报告。
+ * 按执行范围圈选场景 → 按引擎分组（平台组 / 流水线组）→ 流水线组冻结批次触发流水线、
+ * 平台组组装单一大 Suite 一次执行 → 聚合报告；混合任务的任务终态由
+ * {@link ApiScheduledTaskCompletionTracker} 按完成判据裁定（BR-1.28）。
  */
 @Slf4j
 @Component
@@ -69,6 +74,12 @@ public class TestPlanTaskHandler implements DispatchableTask {
     private ApiReportMapper reportMapper;
     @Resource
     private SuiteBuilder suiteBuilder;
+    @Resource
+    private ApiGitRepoMapper gitRepoMapper;
+    @Resource
+    private ApiGitBatchService apiGitBatchService;
+    @Resource
+    private ApiScheduledTaskCompletionTracker completionTracker;
 
     @Override
     public String type() {
@@ -82,8 +93,8 @@ public class TestPlanTaskHandler implements DispatchableTask {
     }
 
     /**
-     * 执行测试计划：场景圈选 → Suite 组装 → Ryze 执行 → 报告聚合。
-     * 从 ScheduledTaskRunner 提取，逻辑不变。
+     * 执行测试计划：场景圈选 → 引擎分组 → 流水线组冻结触发 + 平台组 Suite 执行 → 报告聚合。
+     * 平台组链路行为与分组前一致；混合任务的任务终态交由完成判据裁定（BR-1.28）。
      */
     public void executeTask(ApiScheduledTask task, UUID executorUserId, String triggerType,
                             LocalDateTime triggeredAt) {
@@ -96,22 +107,48 @@ public class TestPlanTaskHandler implements DispatchableTask {
             updateTaskLastExecution(task.getId(), "failed");
             return;
         }
-        List<ApiScene> eligible = new ArrayList<>();
+        // 先分组、后过滤（定时任务详设 27 §2 步骤 3，BR-1.27）：按引擎拆平台组与流水线组；
+        // 仓库已删除的导入场景经路由器回退平台引擎（BR-1.4），一项目一仓库故仓库只查一次
+        ApiGitRepo repo = scenes.stream().anyMatch(scene ->
+                ApiSceneEngineRouter.SOURCE_TYPE_GITLAB.equals(scene.getSourceType()))
+                ? gitRepoMapper.selectByProject(task.getProjectId()) : null;
+        List<ApiScene> platformGroup = new ArrayList<>();
+        List<ApiScene> ciGroup = new ArrayList<>();
         for (ApiScene scene : scenes) {
-            if (!SCENE_STATUS_PUBLISHED.equals(scene.getStatus())) {
-                insertRecord(task.getId(), task.getProjectId(), triggerType, "skipped",
-                        "场景「" + scene.getName() + "」为草稿状态，已跳过", null, null, triggeredAt, 0);
-                continue;
+            if (ApiSceneEngineRouter.ENGINE_GITLAB_CI.equals(ApiSceneEngineRouter.resolve(scene, repo))) {
+                ciGroup.add(scene);
+            } else {
+                platformGroup.add(scene);
             }
-            if (!isExecutable(scene)) {
-                insertRecord(task.getId(), task.getProjectId(), triggerType, "skipped",
-                        "场景「" + scene.getName() + "」不可执行（无启用步骤），已跳过", null, null, triggeredAt, 0);
-                continue;
+        }
+        // 流水线组过滤（详设 27 §2 步骤 4）：仅过滤非 published 与仓库被禁用
+        boolean repoUsable = repo != null && Boolean.TRUE.equals(repo.getEnabled());
+        // 仓库被禁用的流水线组场景已逐条写 failed 留痕（1000017707），无批次时任务终局须一并计其失败
+        boolean ciRejected = !ciGroup.isEmpty() && !repoUsable;
+        List<ApiScene> ciEligible = filterCiGroup(task, triggerType, triggeredAt, ciGroup, repoUsable);
+        // 流水线组触发（详设 27 §2 步骤 6，BR-1.23）：冻结清单后触发一条流水线。触发失败时整批已置
+        // error 留痕（终态），不拦平台组，终局统一由完成判据裁定（BR-1.28）；批次先于触发冻结，
+        // 故批次存在与否以流水线组是否非空为准，与触发成败无关
+        boolean hasBatch = !ciEligible.isEmpty();
+        if (hasBatch) {
+            try {
+                apiGitBatchService.trigger(repo, ciEligible, task.getId(), triggerType, "schedule");
+            } catch (ServiceException e) {
+                log.warn("[测试计划] 批次触发失败，待完成判据终局 taskId={}：{}", task.getId(), e.getMessage());
             }
-            eligible.add(scene);
+        }
+        // 平台组过滤（详设 27 §2 步骤 4）：草稿与无启用步骤逐场景留痕跳过
+        List<ApiScene> eligible = filterPlatformGroup(task, triggerType, triggeredAt, platformGroup);
+        if (eligible.isEmpty() && ciEligible.isEmpty()) {
+            updateTaskLastExecution(task.getId(), "failed");
+            return;
         }
         if (eligible.isEmpty()) {
-            updateTaskLastExecution(task.getId(), "failed");
+            // 平台组无可用场景：先写终态标记记录（完成判据据此识别平台侧已结束，详设 27 §2 步骤 8），
+            // 批次已终态（触发失败）时当场终局，否则等扫描裁定
+            insertRecord(task.getId(), task.getProjectId(), triggerType, "success",
+                    "平台组无可用场景，本次触发由流水线组执行", null, null, triggeredAt, 0);
+            completionTracker.tryFinalize(task.getId());
             return;
         }
         EnvSnapshot env = environmentSnapshotFactory.resolve(task.getProjectId(), task.getEnvironmentId());
@@ -145,14 +182,15 @@ public class TestPlanTaskHandler implements DispatchableTask {
         try {
             result = sceneExecutionService.startSuite(root, task.getProjectId());
         } catch (Exception e) {
-            recordFailure(task, triggerType, triggeredAt, e);
+            insertFailedRecord(task, triggerType, triggeredAt, e);
+            finalizeOrDefer(task, hasBatch);
             return;
         }
         if (result.throwableMessage() != null) {
             String message = truncate(result.throwableMessage());
             insertRecord(task.getId(), task.getProjectId(), triggerType, "failed", message,
                     null, null, triggeredAt, (int) (System.currentTimeMillis() - startedAt));
-            updateTaskLastExecution(task.getId(), "failed");
+            finalizeOrDefer(task, hasBatch);
             return;
         }
         Map<UUID, MappedResult> byScene = new LinkedHashMap<>();
@@ -196,10 +234,76 @@ public class TestPlanTaskHandler implements DispatchableTask {
                     "场景「" + scene.getName() + "」执行完成", reportId, null, triggeredAt,
                     (int) (System.currentTimeMillis() - startedAt));
         }
-        updateTaskLastExecution(task.getId(), failedScenes > 0 ? "failed" : "success");
+        if (!hasBatch) {
+            // 无批次由触发线程直接终局；流水线组被仓库禁用已写 failed 留痕，一并计任务失败（详设 27 §1 状态口径）
+            updateTaskLastExecution(task.getId(),
+                    failedScenes > 0 || ciRejected ? "failed" : "success");
+        } else {
+            // 混合任务：平台组已全部终态，任务终态待批次终态后由完成判据裁定（BR-1.28「与」逻辑）
+            completionTracker.tryFinalize(task.getId());
+        }
     }
 
     // ==================== 以下为从 ScheduledTaskRunner 原样提取的私有方法 ====================
+
+    /**
+     * 流水线组过滤（详设 27 §2 步骤 4）：仅过滤非 published 与所属仓库被禁用的场景；
+     * 「无启用步骤」只是平台组的不可执行原因，不构成跳过流水线组的理由（BR-1.27）。
+     * 仓库被禁用时逐场景写 failed 留痕（1000017707，BR-1.26），不触发批次。
+     */
+    private List<ApiScene> filterCiGroup(ApiScheduledTask task, String triggerType,
+            LocalDateTime triggeredAt, List<ApiScene> ciGroup, boolean repoUsable) {
+        if (ciGroup.isEmpty()) {
+            return List.of();
+        }
+        if (!repoUsable) {
+            for (ApiScene scene : ciGroup) {
+                insertRecord(task.getId(), task.getProjectId(), triggerType, "failed",
+                        "场景「" + scene.getName() + "」不可执行（所属仓库被禁用，1000017707）",
+                        null, null, triggeredAt, 0);
+            }
+            return List.of();
+        }
+        List<ApiScene> eligible = new ArrayList<>();
+        for (ApiScene scene : ciGroup) {
+            if (!SCENE_STATUS_PUBLISHED.equals(scene.getStatus())) {
+                insertRecord(task.getId(), task.getProjectId(), triggerType, "skipped",
+                        "场景「" + scene.getName() + "」为草稿状态，已跳过", null, null, triggeredAt, 0);
+                continue;
+            }
+            eligible.add(scene);
+        }
+        return eligible;
+    }
+
+    /** 平台组过滤（详设 27 §2 步骤 4）：草稿与无启用步骤逐场景留痕跳过，行为与分组前一致 */
+    private List<ApiScene> filterPlatformGroup(ApiScheduledTask task, String triggerType,
+            LocalDateTime triggeredAt, List<ApiScene> platformGroup) {
+        List<ApiScene> eligible = new ArrayList<>();
+        for (ApiScene scene : platformGroup) {
+            if (!SCENE_STATUS_PUBLISHED.equals(scene.getStatus())) {
+                insertRecord(task.getId(), task.getProjectId(), triggerType, "skipped",
+                        "场景「" + scene.getName() + "」为草稿状态，已跳过", null, null, triggeredAt, 0);
+                continue;
+            }
+            if (!isExecutable(scene)) {
+                insertRecord(task.getId(), task.getProjectId(), triggerType, "skipped",
+                        "场景「" + scene.getName() + "」不可执行（无启用步骤），已跳过", null, null, triggeredAt, 0);
+                continue;
+            }
+            eligible.add(scene);
+        }
+        return eligible;
+    }
+
+    /** 完成判据（BR-1.28）：无批次时平台侧即终局；有批次时交完成判据裁定（批次已终态则当场终局） */
+    private void finalizeOrDefer(ApiScheduledTask task, boolean hasBatch) {
+        if (!hasBatch) {
+            updateTaskLastExecution(task.getId(), "failed");
+            return;
+        }
+        completionTracker.tryFinalize(task.getId());
+    }
 
     private void collectSceneResults(MappedResult node, Map<UUID, MappedResult> byScene) {
         if (node.suite()) {
@@ -408,11 +512,11 @@ public class TestPlanTaskHandler implements DispatchableTask {
         return list == null ? List.of() : list;
     }
 
-    private void recordFailure(ApiScheduledTask task, String triggerType, LocalDateTime triggeredAt, Exception e) {
+    private void insertFailedRecord(ApiScheduledTask task, String triggerType, LocalDateTime triggeredAt,
+            Exception e) {
         String message = truncate(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
         insertRecord(task.getId(), task.getProjectId(), triggerType, "failed", message,
                 null, null, triggeredAt, 0);
-        updateTaskLastExecution(task.getId(), "failed");
     }
 
     void updateTaskLastExecution(UUID taskId, String status) {
