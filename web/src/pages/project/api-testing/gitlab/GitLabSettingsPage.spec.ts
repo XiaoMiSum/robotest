@@ -7,7 +7,7 @@ describe('GitLabSettingsPage 页面责任层', () => {
     expect(pageSource).toContain('el-tab-pane label="基础配置"')
     expect(pageSource).toContain('el-tab-pane label="导入"')
     expect(pageSource).toContain("v-show=\"activeTab === 'basic'\"")
-    expect(pageSource).toContain("v-show=\"activeTab === 'import'\"")
+    expect(pageSource).toContain("v-if=\"activeTab === 'import' && repo\"")
     expect(pageSource).toContain("connDown ? '不可达' : '已连通'")
     expect(pageSource).toContain('toggleConnDetail')
     expect(pageSource).toContain('删除配置')
@@ -22,12 +22,15 @@ describe('GitLabSettingsPage 页面责任层', () => {
     expect(pageSource).toContain('当前账号缺少 api-env:edit 权限，本页只读')
   })
 
-  it('锁定字段只读呈现，测试与保存走责任层，导入页签为占位空态', () => {
+  it('锁定字段只读呈现，测试与保存走责任层，导入页签装配导入面板', () => {
     expect(pageSource).toContain('v-if="!creating && repo"')
     expect(pageSource).toContain('创建后锁定')
     expect(pageSource).toContain('@click="runConnectionTest"')
     expect(pageSource).toContain('@click="save"')
     expect(pageSource).toContain('@submit.prevent="save"')
-    expect(pageSource).toContain('WP-9.2')
+    expect(pageSource).toContain('GitLabImportPane')
+    expect(pageSource).toContain('refreshQuiet')
+    // 占位空态随 WP-9.2 交付移除
+    expect(pageSource).not.toContain('WP-9.2')
   })
 })

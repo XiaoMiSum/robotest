@@ -359,6 +359,31 @@ describe('useGitLabRepo', () => {
     })
   })
 
+  describe('静默刷新（导入完成后重拉配置）', () => {
+    it('更新仓库配置但不动整页 loading，保留基础页签未保存的编辑', async () => {
+      const s = await initAndFlush({ repo: makeRepo({ name: '旧名称' }) })
+      s.form.name = '编辑中未保存'
+      mocks.fetchGitRepo.mockResolvedValue(
+        makeRepo({ name: '新名称', lastImportAt: '2026-10-13T02:00:00' }),
+      )
+      await s.refreshQuiet()
+      expect(s.repo.value?.name).toBe('新名称')
+      expect(s.repo.value?.lastImportAt).toBe('2026-10-13T02:00:00')
+      expect(s.loading.value).toBe(false)
+      expect(s.loadFailed.value).toBe(false)
+      expect(s.form.name).toBe('编辑中未保存')
+    })
+
+    it('刷新失败按错误码提示，既有配置保留', async () => {
+      const s = await initAndFlush({ repo: makeRepo() })
+      mocks.fetchGitRepo.mockRejectedValue({ code: 1000017701, message: '仓库配置不存在' })
+      await s.refreshQuiet()
+      expect(s.repo.value).not.toBeNull()
+      expect(s.loadFailed.value).toBe(false)
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('1000017701 仓库配置不存在')
+    })
+  })
+
   describe('令牌只写不读', () => {
     it('令牌仅存于内存表单，不落 store 与任何本地存储', () => {
       expect(composableSource).not.toMatch(/localStorage\.(getItem|setItem|removeItem)|sessionStorage\.(getItem|setItem|removeItem)/)

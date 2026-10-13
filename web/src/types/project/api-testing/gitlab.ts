@@ -86,3 +86,80 @@ export interface ApiGitConnectionTestResp {
   /** 目标分支实际分支名（回显用） */
   resolvedBranch: string
 }
+
+// ==================== 导入与解析（GitLab 集成详细设计 3.2 / 3.4） ====================
+
+/** 导入进度阶段：idle 未导入 → fetch 拉取源码 → scan 扫描测试类 → parse 解析用例 → merge 合并环境 → persist 回写结果 → done；任一阶段异常转 failed */
+export type ApiGitImportStage =
+  | 'idle'
+  | 'fetch'
+  | 'scan'
+  | 'parse'
+  | 'merge'
+  | 'persist'
+  | 'done'
+  | 'failed'
+
+/** 失败明细类型：parseFailed 解析失败（预期内，不建场景）/ errorFailed 真实错误（BR-1.9） */
+export type ApiGitImportDetailType = 'parseFailed' | 'errorFailed'
+
+/** 预览失败明细：文件级失败 sceneKey 为空，出错文件路径内嵌 reason 文本（交互稿 27 §3.2） */
+export interface ApiGitImportPreviewDetail {
+  type: ApiGitImportDetailType
+  /** 类全限定名#方法名；整文件级失败为空 */
+  sceneKey: string | null
+  reason: string
+}
+
+/** commit 幂等闸门判定（详设 3.4）：blocked 时不拉源码不扫描，计数字段为空 */
+export interface ApiGitImportGate {
+  blocked: boolean
+  reason: string | null
+}
+
+export interface ApiGitImportPreviewModules {
+  containers: { create: number; update: number }
+  /** backfill：「同包容器 + 同简单名」认领并回填全限定名的类模块数（BR-1.8） */
+  classes: { create: number; update: number; backfill: number }
+}
+
+export interface ApiGitImportPreviewScenes {
+  create: number
+  update: number
+  parseFailed: number
+  errorFailed: number
+}
+
+/** 环境合并判定（仅计数不落库）：gitlab_ci 恒 skip（BR-1.20），已封印环境亦 skip（BR-1.18） */
+export interface ApiGitImportPreviewEnvironment {
+  action: 'merge' | 'skip'
+  target: string | null
+  httpConfigs: number | null
+  dataSources: number | null
+}
+
+/** 扫描预览响应（详设 3.2）：干跑不落库；闸门拦截时 classes / modules / scenes / environment 为 null */
+export interface ApiGitImportPreview {
+  repoId: string
+  branch: string
+  headCommit: string
+  gate: ApiGitImportGate
+  classes: number | null
+  effectiveCases: number | null
+  modules: ApiGitImportPreviewModules | null
+  scenes: ApiGitImportPreviewScenes | null
+  environment: ApiGitImportPreviewEnvironment | null
+  details: ApiGitImportPreviewDetail[]
+}
+
+/** 导入进度响应（详设 3.2）：服务端内存态不落库，页面离开即停止轮询（交互稿 27 §5） */
+export interface ApiGitImportStatus {
+  stage: ApiGitImportStage
+  /** 已处理数（fetch / scan 为文件数，parse 及之后为用例数） */
+  processed: number
+  total: number
+  /** failed 时的失败原因，其余阶段为空 */
+  error: string | null
+  /** done 时与仓库配置 lastImportSummary 同构 */
+  summary: Partial<ApiGitImportSummary> | null
+}

@@ -2,6 +2,8 @@ import { get, post, put, del } from '@/services'
 import type {
   ApiGitConnectionTestReq,
   ApiGitConnectionTestResp,
+  ApiGitImportPreview,
+  ApiGitImportStatus,
   ApiGitRepoConfig,
   ApiGitRepoCreateReq,
   ApiGitRepoUpdateReq,
@@ -33,4 +35,21 @@ export function deleteGitRepo(repoId: string): Promise<boolean> {
 /** 连通性测试：不依赖 repoId，字段缺省回落已存配置，测试不落库 */
 export function testGitRepoConnection(data: ApiGitConnectionTestReq): Promise<ApiGitConnectionTestResp> {
   return post('/project/git-repos/connections/test', data)
+}
+
+// ==================== 导入与解析（详设 3.2，权限 api-scene:view / edit） ====================
+
+/** 扫描预览：干跑不落库；幂等闸门拦截时 gate.blocked=true 且计数字段为空（详设 3.4） */
+export function previewGitImport(repoId: string): Promise<ApiGitImportPreview> {
+  return post(`/project/git-repos/${repoId}/preview`)
+}
+
+/** 执行导入：异步提交后轮询 status 取进度；闸门拦截抛 1000017709、并发导入抛 1000017708 */
+export function startGitImport(repoId: string): Promise<ApiGitImportStatus> {
+  return post(`/project/git-repos/${repoId}/imports`)
+}
+
+/** 导入进度：服务端内存态，未导入时返回 idle */
+export function fetchGitImportStatus(repoId: string): Promise<ApiGitImportStatus> {
+  return get(`/project/git-repos/${repoId}/imports/status`)
 }
