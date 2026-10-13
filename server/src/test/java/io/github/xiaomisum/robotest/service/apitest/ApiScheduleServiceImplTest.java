@@ -54,6 +54,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -407,6 +408,25 @@ class ApiScheduleServiceImplTest {
         assertEquals("success", resp.getStatus());
     }
 
+    @Test
+    void executeNowGitlabSyncReturnsPreInsertedExecutionId() {
+        ApiScheduledTask task = existingTask();
+        task.setTaskType("gitlab_sync");
+        task.setLastExecutionStatus(null);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        UUID executionId = UUID.randomUUID();
+        when(taskRunner.launchGitLabSyncAsync(task, USER_ID, "manual")).thenReturn(executionId);
+
+        ApiScheduleExecuteNowRespDTO resp =
+                service.executeNow(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID);
+
+        // GitLab 同步异步入池：executionId = 预插入的执行记录 ID，status 恒 running（详设 26 §1.6）
+        verify(taskRunner).launchGitLabSyncAsync(task, USER_ID, "manual");
+        verify(taskRunner, never()).runSyncRethrow(any(), any(), any());
+        assertEquals(executionId, resp.getExecutionId());
+        assertEquals("running", resp.getStatus());
+    }
+
     // ========== 执行记录 ==========
 
     @Test
@@ -452,6 +472,26 @@ class ApiScheduleServiceImplTest {
         assertEquals(1, page.getList().size());
         assertNull(page.getList().get(0).getImportSummary());
         assertNull(page.getList().get(0).getImportRecordId());
+    }
+
+    @Test
+    void executionsFillsSyncSummaryForGitlabSyncRecord() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(existingTask());
+        ApiScheduledTaskExecution record = new ApiScheduledTaskExecution();
+        record.setId(UUID.randomUUID());
+        record.setTriggerType("manual");
+        record.setStatus("success");
+        Map<String, Object> syncSummary = Map.of("created", 2, "updated", 1, "commit", "abc123");
+        record.setSyncSummary(syncSummary);
+        when(executionMapper.selectPageByTask(eq(TASK_ID), any(PageParam.class)))
+                .thenReturn(new PageResult<>(List.of(record), 1L));
+
+        PageResult<ApiScheduleExecutionItemRespDTO> page =
+                service.executions(WORKSPACE_ID, PROJECT_ID, USER_ID, TASK_ID, new PageParam());
+
+        assertEquals(1, page.getList().size());
+        assertEquals(syncSummary, page.getList().get(0).getSyncSummary());
+        assertNull(page.getList().get(0).getImportSummary());
     }
 
     // ========== Cron 校验与列表预览 ==========

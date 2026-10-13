@@ -201,6 +201,34 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         }
     }
 
+    // ========== 同步任务（GitLab 集成详设 3.6 / 定时任务详设 27 §4） ==========
+
+    @Override
+    public SyncOutcome syncImport(UUID projectId, UUID userId) {
+        ApiGitRepo repo = gitRepoMapper.selectByProject(projectId);
+        if (repo == null || !Boolean.TRUE.equals(repo.getEnabled())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_REPO_NOT_FOUND.code(),
+                    "仓库配置不存在或已被禁用，无法执行同步");
+        }
+        String token = decryptToken(repo);
+        String branch = branchOf(repo);
+        String headCommit = gitLabApiClient.branchHead(repo.getGitlabBaseUrl(), token, repo.getRepoPath(), branch);
+        // commit 幂等闸门（详设 3.4，双模式同一判定）：无变更不进解析，计数记 skipped（27 §4 步骤 2）
+        if (gateBlocked(repo, headCommit)) {
+            Map<String, Object> skipped = new LinkedHashMap<>();
+            skipped.put("created", 0);
+            skipped.put("updated", 0);
+            skipped.put("parseFailed", 0);
+            skipped.put("errorFailed", 0);
+            skipped.put("skipped", 1);
+            return new SyncOutcome(true, headCommit, skipped);
+        }
+        ImportPlan plan = buildPlan(repo, token, headCommit, null);
+        // 导入写库单事务（BR-1.15）：upsert、变更审计与 last_import_* 回写同批提交
+        Map<String, Object> summary = transactionTemplate.execute(status -> persistPlan(projectId, userId, repo, plan));
+        return new SyncOutcome(false, headCommit, summary);
+    }
+
     // ========== 状态 ==========
 
     @Override

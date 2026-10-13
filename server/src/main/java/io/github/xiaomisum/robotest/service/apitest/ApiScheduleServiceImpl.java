@@ -230,6 +230,14 @@ private static final String TYPE_TEST_PLAN = "scene_execute";
                     .status("running")
                     .build();
         }
+        if (TYPE_GITLAB_SYNC.equals(task.getTaskType())) {
+            // GitLab 同步为异步执行：executionId = 预插入的执行记录 ID，status 恒 running（详设 26 §1.6）
+            UUID executionId = taskRunner.launchGitLabSyncAsync(task, userId, "manual");
+            return ApiScheduleExecuteNowRespDTO.builder()
+                    .executionId(executionId)
+                    .status("running")
+                    .build();
+        }
         ScheduledTaskRunner.ImportOutcome outcome = taskRunner.runSyncRethrow(task, userId, "manual");
         return ApiScheduleExecuteNowRespDTO.builder()
                 .executionId(outcome.importRecordId())
@@ -264,6 +272,7 @@ private static final String TYPE_TEST_PLAN = "scene_execute";
             item.setImportSummary(record.getImportRecordId() == null
                     ? null
                     : importSummaries.get(record.getImportRecordId()));
+            item.setSyncSummary(record.getSyncSummary());
             item.setTriggeredAt(record.getTriggeredAt());
             item.setDurationMs(record.getDurationMs());
             return item;
