@@ -50,6 +50,8 @@ class ApiGitBatchPollerTest {
     private ApiGitRepoMapper gitRepoMapper;
     @Mock
     private GitLabApiClient gitLabApiClient;
+    @Mock
+    private ApiGitResultCollector resultCollector;
 
     private final List<String> terminalHits = new ArrayList<>();
 
@@ -67,7 +69,8 @@ class ApiGitBatchPollerTest {
         repo.setEnabled(true);
 
         // 终态钩子以子类捕获：断言「只触发钩子」这一唯一对外行为
-        poller = new ApiGitBatchPoller(executionRecordMapper, gitRepoMapper, gitLabApiClient, BASE64_KEY) {
+        poller = new ApiGitBatchPoller(executionRecordMapper, gitRepoMapper, gitLabApiClient,
+                resultCollector, BASE64_KEY) {
             @Override
             void onPipelineTerminal(String batchId, Long pipelineIid, String status) {
                 terminalHits.add(batchId + "|" + pipelineIid + "|" + status);
@@ -161,7 +164,7 @@ class ApiGitBatchPollerTest {
     @Test
     void undecryptableTokenSkipsBatch() {
         ApiGitBatchPoller broken = new ApiGitBatchPoller(
-                executionRecordMapper, gitRepoMapper, gitLabApiClient, "") {
+                executionRecordMapper, gitRepoMapper, gitLabApiClient, resultCollector, "") {
             @Override
             void onPipelineTerminal(String batchId, Long pipelineIid, String status) {
                 terminalHits.add(batchId);
@@ -173,6 +176,21 @@ class ApiGitBatchPollerTest {
 
         // 空密钥解密失败按不可达留痕重试，不抛出、不写库
         verify(gitLabApiClient, never()).getPipeline(anyString(), anyString(), anyString(), anyLong());
+        verify(executionRecordMapper, never()).markBatchTerminal(anyString(), anyString(), any());
+    }
+
+    @Test
+    void terminalStatusHandsOffToCollector() {
+        ApiGitBatchPoller real = new ApiGitBatchPoller(executionRecordMapper, gitRepoMapper,
+                gitLabApiClient, resultCollector, BASE64_KEY);
+        scanWith(runningRecord("batch-a", 7L));
+        when(gitLabApiClient.getPipeline(anyString(), anyString(), anyString(), anyLong()))
+                .thenReturn(new GitLabApiClient.PipelineStatus(7L, "url", "failed"));
+
+        real.pollAll();
+
+        // WP-7.1 接线：终态只触发回收入口，状态写入由回收经终态闸门落库
+        verify(resultCollector).collectAsync("batch-a", ApiGitResultCollector.Channel.POLL, "failed");
         verify(executionRecordMapper, never()).markBatchTerminal(anyString(), anyString(), any());
     }
 
