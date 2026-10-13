@@ -41,4 +41,24 @@ public class ApiExecutionRecord extends BaseUuidDO<ApiExecutionRecord> {
     private LocalDateTime executedAt;
     private Integer durationMs;
 
+    // ========== GitLab 流水线执行批次（GitLab 集成详细设计 2.2 / 4.2） ==========
+    /** 来源仓库（api_git_repo.id），仅 CI 引擎批次非空 */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID repoId;
+    /** GitLab 流水线编号（iid），批次票据与流水线的关联键 */
+    private Long pipelineIid;
+    private String pipelineUrl;
+    /** 外部执行批次票据（UUID 36 字符），同批次内所有记录相同 */
+    private String batchId;
+    /** 源侧引用（类全限定名#方法名），CI 侧生成 TestNG 方法过滤条件的依据 */
+    private String sourceRef;
+    /** 冻结时的默认分支 HEAD 提交号（批次快照的可追溯信息） */
+    private String commitSha;
+    /** 关联定时任务（api_scheduled_task.id），手动执行为空 */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID scheduledTaskId;
+    /** 批次结果摘要（期望 / 实际用例数等），终态回写 */
+    @TableField(typeHandler = Jackson3TypeHandler.class)
+    private Map<String, Object> summary;
+
 }
