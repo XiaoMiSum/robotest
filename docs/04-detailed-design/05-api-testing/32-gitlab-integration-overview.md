@@ -98,7 +98,7 @@
 
 ### 2.3 错误码
 
-GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）统一登记于《API 测试基础设施详细设计说明书》2.2（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`），本文不重复登记。常用码速查：
+GitLab 集成相关错误码号段 `1000017701`–`1000017713`（`API_GIT_*`）统一登记于《API 测试基础设施详细设计说明书》2.2（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`），本文不重复登记。常用码速查：
 
 | 错误码 | 常量 | 触发时机 |
 | ---- | ---- | ---- |
@@ -113,6 +113,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017712`（`API_GIT_*`）�
 | 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，无降级路径（见 4.3） |
 | 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
+| 1000017713 | API_GIT_BATCH_NOT_FOUND | CI 侧取冻结清单按 `batchId` 未命中批次（404 语义） |
 
 ## 3. 接口详细设计
 
@@ -501,7 +502,7 @@ flowchart LR
 | ---- | ---- | ---- |
 | `ROBOTEST_BATCH_ID` | 平台触发流水线时注入（pipeline variable） | 批次票据，UUID，36 字符；CI 脚本据此取清单与回报，缺失时跳过平台批次逻辑 |
 | `ROBOTEST_PLATFORM_URL` | 接入方在 GitLab CI/CD 变量中配置 | 平台服务地址（如 `https://robotest.example.com`），结尾不留 `/` |
-| `ROBOTEST_CI_TOKEN` | 接入方在 GitLab CI/CD 变量中配置 | 平台签发的只读令牌，仅具取清单与回报两个端点的权限，须设为 Masked |
+| `ROBOTEST_CI_TOKEN` | 接入方在 GitLab CI/CD 变量中配置 | 平台签发的只读令牌，仅具取清单与回报两个端点的权限，须设为 Masked。签发方式为部署级静态令牌：平台侧 `ROBOTEST_CI_TOKEN` 环境变量注入 `robotest.gitlab.ci-token` 配置，与 GitLab CI/CD 变量同值；平台未配置时 `/api/ci/**` 一律拒绝（fail-closed），校验采用常量时间比对 |
 
 **CI 侧接口契约**（P6 实现，权限经 `ROBOTEST-CI-TOKEN` 请求头传递，不出现在 URL）：
 
@@ -664,3 +665,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-12 | 3.5 改名迁移入口扩大为导入与同步共用：3.5 流程图补 compare 步骤，规则 1 明确比对区间为 `last_import_commit` → 本次 HEAD，规则 2 补重合度阈值（|交集|/|并集| ≥ 0.5），新增规则 6（预览干跑、compare 失败降级与错误计列）；3.6 步骤 3/4 随之改写 |
 | V1.0 | 2026-10-12 | 3.5 补环境合并的源侧元件字段映射表：http 元件转 `baseUrl` / `headers` / `refName`，jdbc 元件转 `driver`（按 url 协议推断，未知协议跳过留痕）与并入 url 的用户名密码；文件缺失或解析失败降级 skip 不中止导入 |
 | V1.0 | 2026-10-12 | 5.3 场景详情补派生字段 `engine`（platform / gitlab_ci）：按 4.1 路由判定，供执行入口文案与只读形态渲染；仓库已删除回退 `platform`（BR-1.4） |
+| V1.0 | 2026-10-13 | 错误码号段扩至 `1000017713`（新增 `API_GIT_BATCH_NOT_FOUND`，CI 侧取清单批次未命中）；4.6 补 `ROBOTEST_CI_TOKEN` 签发方式（部署级静态令牌 + fail-closed + 常量时间比对） |

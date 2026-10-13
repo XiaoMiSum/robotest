@@ -284,8 +284,9 @@
 | 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，按跳过留痕处理，无降级路径 |
 | 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
+| 1000017713 | API_GIT_BATCH_NOT_FOUND | 执行批次不存在（CI 侧取冻结清单按 `batchId` 未命中，404 语义） |
 
-> `1000017701`–`1000017712` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
+> `1000017701`–`1000017713` 为 GitLab 集成号段，接口与业务逻辑详见《GitLab 集成详细设计说明书》（`docs/04-detailed-design/05-api-testing/32-gitlab-integration-overview.md` 3、4）。
 
 > 历史设计中的 `API_EXEC_TASK_NOT_FOUND`、`API_EXEC_TASK_STATE_INVALID`、`API_IMPORT_RECORD_NOT_FOUND` 和 `API_LINK_SOURCE_MISSING` 当前未在 `ErrorCodeConstants` 登记；相关流程按现有实现返回业务结果或使用已登记的资源错误码，不将这些名称作为对外错误码。
 
@@ -397,6 +398,7 @@ robotest:
 | V1.0 | 2026-10-02 | 对齐实现：修正公共表 DDL 与索引、补全已登记错误码、修正参考文献与 Mock 端口配置、校准分册-章节对照表 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
 | V1.0 | 2026-10-11 | 执行记录新增 GitLab 流水线相关字段与 `idx_exec_pipeline` 索引，登记 GitLab 集成错误码号段 1000017701–1000017712 |
+| V1.0 | 2026-10-13 | GitLab 集成号段扩至 1000017713：新增 `API_GIT_BATCH_NOT_FOUND`（CI 侧取冻结清单批次未命中，404 语义） |
 | V1.0 | 2026-10-11 | 执行记录批次字段改为 `batch_id` 与 `source_ref`，新增 `idx_exec_batch` 索引 |
 | V1.0 | 2026-10-11 | 删除错误码 `1000017706`（批量执行圈选上限），该能力已从需求与设计中移除 |
 | V1.0 | 2026-10-11 | 错误码 `1000017711` 更名为 `API_GIT_REPO_IMMUTABLE_FIELD`，覆盖范围扩至 `repo_path` / `default_branch` |
