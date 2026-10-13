@@ -80,6 +80,8 @@ class ApiGitResultCollectorTest {
     private GitLabApiClient gitLabApiClient;
     @Mock
     private ApiGitBatchService batchService;
+    @Mock
+    private ApiSuiteReportAppender appender;
 
     private ApiGitRepo repo;
     private ApiExecutionRecord recordA;
@@ -107,7 +109,7 @@ class ApiGitResultCollectorTest {
         lenient().when(batchService.finishBatch(anyString(), anyString(), any(), any())).thenReturn(true);
 
         collector = new ApiGitResultCollector(executionRecordMapper, gitRepoMapper, sceneMapper,
-                reportMapper, gitLabApiClient, batchService, new ApiTestProperties(),
+                reportMapper, gitLabApiClient, batchService, appender, new ApiTestProperties(),
                 Runnable::run, BASE64_KEY);
     }
 
@@ -150,6 +152,8 @@ class ApiGitResultCollectorTest {
         assertEquals(2, summary.getValue().get("expectedCases"));
         assertEquals(1, summary.getValue().get("actualCases"));
         assertEquals(1, summary.getValue().get("errorFailed"));
+        // 回写完成后合并套件报告（WP-7.2）
+        verify(appender).append(argThat((List<ApiExecutionRecord> list) -> list.size() == 2));
         assertEquals(PIPELINE_URL, summary.getValue().get("pipelineUrl"));
     }
 
@@ -201,6 +205,8 @@ class ApiGitResultCollectorTest {
         assertEquals(2, summary.getValue().get("errorFailed"));
         verify(executionRecordMapper, never()).finishRecord(any(), any(), any(), any(), any(), any());
         verifyNoInteractions(reportMapper);
+        // 降级同样入套件（占位数据集），不留报告空洞（WP-7.2）
+        verify(appender).append(argThat((List<ApiExecutionRecord> list) -> list.size() == 2));
     }
 
     @Test
@@ -214,6 +220,7 @@ class ApiGitResultCollectorTest {
         verify(batchService, never()).finishBatch(anyString(), anyString(), any(), any());
         verify(executionRecordMapper, never()).finishRecord(any(), any(), any(), any(), any(), any());
         verifyNoInteractions(reportMapper);
+        verifyNoInteractions(appender);
     }
 
     @Test

@@ -83,6 +83,7 @@ public class ApiGitResultCollector {
     private final ApiReportMapper reportMapper;
     private final GitLabApiClient gitLabApiClient;
     private final ApiGitBatchService batchService;
+    private final ApiSuiteReportAppender appender;
     private final ApiTestProperties properties;
     private final Executor executor;
     private final byte[] secretKey;
@@ -93,7 +94,8 @@ public class ApiGitResultCollector {
     public ApiGitResultCollector(ApiExecutionRecordMapper executionRecordMapper,
             ApiGitRepoMapper gitRepoMapper, ApiSceneMapper sceneMapper, ApiReportMapper reportMapper,
             GitLabApiClient gitLabApiClient, ApiGitBatchService batchService,
-            ApiTestProperties properties, @Qualifier("apiGitCollectExecutor") Executor executor,
+            ApiSuiteReportAppender appender, ApiTestProperties properties,
+            @Qualifier("apiGitCollectExecutor") Executor executor,
             @Value("${robotest.env.secret-key:}") String base64SecretKey) {
         this.executionRecordMapper = executionRecordMapper;
         this.gitRepoMapper = gitRepoMapper;
@@ -101,6 +103,7 @@ public class ApiGitResultCollector {
         this.reportMapper = reportMapper;
         this.gitLabApiClient = gitLabApiClient;
         this.batchService = batchService;
+        this.appender = appender;
         this.properties = properties;
         this.executor = executor;
         this.secretKey = SecretCryptoUtil.parseKey(base64SecretKey);
@@ -200,6 +203,7 @@ public class ApiGitResultCollector {
             return;
         }
         writeBack(records, envelopes);
+        appendSuiteReport(records);
     }
 
     // ========== 信封解析 ==========
@@ -368,6 +372,21 @@ public class ApiGitResultCollector {
         Map<String, Object> summary = reconcileSummary(head, records.size(), 0);
         if (!batchService.finishBatch(head.getBatchId(), status, message, summary)) {
             log.info("[结果回收] 批次已由另一通道终态化，降级写入被忽略 batchId={}", head.getBatchId());
+        }
+        // 降级同样入套件（占位数据集）：每次触发一份报告，不留空洞（WP-7.2）
+        appendSuiteReport(records);
+    }
+
+    /**
+     * 套件报告合并（WP-7.2，详设 4.5）：批次记录若有任务归属，将 CI 组场景数据集并入
+     * 本触发的套件报告——平台组已首写则按 sceneId 幂等追加，纯 CI 任务（含触发失败、
+     * 平台组崩溃无报告）由本入口首写；单场景执行（无任务归属）只有场景级报告，不适用。
+     */
+    private void appendSuiteReport(List<ApiExecutionRecord> records) {
+        try {
+            appender.append(records);
+        } catch (RuntimeException e) {
+            log.warn("[结果回收] 套件报告合并失败 batchId={}：{}", records.get(0).getBatchId(), e.getMessage());
         }
     }
 
