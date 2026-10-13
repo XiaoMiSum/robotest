@@ -39,6 +39,17 @@ public interface ApiGitBatchService {
      */
     ApiGitBatchManifestRespDTO getManifest(String batchId);
 
+    /**
+     * 批次终态写闸门（详设 4.2 第 5 步终态去重）：仅 pending/running 可转终态。
+     * CI 回报与轮询补拉两通道都经此写入，先到者定终态、后到者返回 false 被忽略，
+     * 既不丢结果也不会被后到的写入覆盖（BR-1.24）。
+     *
+     * @param status       终态取值：success / failed / error / cancelled / timeout
+     * @param errorMessage 失败原因，终态成功时为 null
+     * @return true=本次写入生效；false=批次已置终态，本次写入被忽略
+     */
+    boolean finishBatch(String batchId, String status, String errorMessage);
+
     /** 触发结果：批次票据 + 首条执行记录 ID */
     record Result(String batchId, java.util.UUID executionId) {
     }
