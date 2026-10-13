@@ -123,4 +123,18 @@ public interface ApiExecutionRecordMapper extends BaseMapperX<ApiExecutionRecord
         return update(null, wrapper);
     }
 
+    /**
+     * CI 回报计数合入（GitLab 集成详设 4.6）：仅 pending/running 生效——批次已终态则
+     * 本次写入被忽略（BR-1.24 去重口径）。summary 为整值替换，调用方须先读再合并。
+     *
+     * @return 实际更新的记录数，0 表示终态去重命中
+     */
+    default int updateSummaryIfRunning(UUID recordId, Map<String, Object> summary) {
+        LambdaUpdateWrapperX<ApiExecutionRecord> wrapper = new LambdaUpdateWrapperX<>();
+        wrapper.eq(ApiExecutionRecord::getId, recordId)
+                .in(ApiExecutionRecord::getStatus, "pending", "running")
+                .set(ApiExecutionRecord::getSummary, summary);
+        return update(null, wrapper);
+    }
+
 }
