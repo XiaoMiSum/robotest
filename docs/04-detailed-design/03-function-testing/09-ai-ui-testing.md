@@ -163,7 +163,6 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | id | uuid | PK | 框架默认策略 |
-| workspace_id | uuid | NOT NULL | 归属工作空间（隔离过滤） |
 | runner_id | varchar(64) | NOT NULL, UNIQUE | 实例标识（`register.ack` 下发，重连保持不变） |
 | mode | varchar(20) | NOT NULL | `desktop-hosted` / `cli` |
 | owner_id | uuid | NULL | 绑定用户；`cli` 为 NULL（共享） |
@@ -177,7 +176,6 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 ```sql
 CREATE TABLE ai_runner_instance (
     id                uuid PRIMARY KEY,
-    workspace_id      uuid NOT NULL,
     runner_id         varchar(64) NOT NULL,
     mode              varchar(20) NOT NULL,
     owner_id          uuid NULL,
@@ -196,11 +194,13 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 同步更新 `server/src/main/resources/db/schema.sql` 基线（新增表至此共四张：`ft_environment`、`ft_preset_actions`、`ui_action_log`、`ai_runner_instance`），迁移以初始化脚本为基线（仓库尚无版本化迁移目录，数据库规范 5.1 口径）。
 
+**归属口径**：`ai_runner_instance` 为**部署级注册表，不归属工作空间**（无 `workspace_id`、不附加数据隔离过滤）——执行端是运维侧资源，任意工作空间的批次均可分派到同一实例，可分派范围仅由 `owner_id` 决定（专属仅本人、共享任意用户）。注册时机：`desktop-hosted` 实例**用户登录成功即注册**（桌面版登录会话签发 `ownerToken`，退出登录即下线）；`cli` 实例进程启动即注册、进程退出即下线。
+
 实例生命周期：`register` 校验通过 upsert（按 `runner_id`）并置 `online`；心跳刷新 `last_heartbeat_at`；断连或 60s 无心跳由心跳清扫置 `offline`（与批次失活落存口径同源，见 4.1）。
 
 ### 2.4 数据隔离与生命周期
 
-- 四张新表经 `project_id` / `workspace_id` 归属项目或工作空间，查询层自动附加上下文过滤（沿用数据与接口设计分册 1.3）。
+- 新增表中 `ft_environment`、`ft_preset_actions`、`ui_action_log` 经 `project_id` 归属项目 → 工作空间，查询层自动附加上下文过滤（沿用数据与接口设计分册 1.3）；`ai_runner_instance` 为部署级注册表，不做工作空间过滤（归属口径见 2.3）。
 - `ui_action_log` 为追加式，批次结束后只读；计划删除时级联删除轨迹（事务显式处理，无物理外键）；截图对象随轨迹清理任务回收。
 
 ## 3. 接口详细设计
@@ -380,7 +380,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 ### 4.1 通道服务（服务端侧）
 
 - 服务端监听 Runner 连接（协议与帧见 Runner 分册 3，此处只写服务侧动作）：
-  - `register`：校验 `ownerToken`（桌面版登录会话签发，验签后置 `owner_id`）或 `sharedKey`（CLI 注册密钥，`owner_id` 置空），按 `runner_id` upsert 执行端实例（2.3）并回 `register.ack`；失败断开；
+  - `register`：校验 `ownerToken`（桌面版登录会话签发，验签后置 `owner_id`）或 `sharedKey`（CLI 注册密钥，`owner_id` 置空），按 `runner_id` upsert 执行端实例（2.3）并回 `register.ack`；**注册为部署级行为，不校验工作空间上下文**；失败断开；
   - **执行端分派规则**（批次 `session.start` 前选择实例，按序取第一个满足项）：
     1. 任一在线 `cli` 共享实例（**共享优先**，按 `last_heartbeat_at` 最新优先，V1 单实例即固定命中）；
     2. 提交人本人的 `desktop-hosted` 在线实例（专属兜底——无在线共享实例时本机执行）；
@@ -574,3 +574,4 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 | V1.0 | 2026-10-14 | 明确客户端形态约束：AI 执行发起入口与弹窗仅桌面版（Electron 壳）渲染、批次查看双端一致（5.1、5.3、5.4）、桌面版组件登记（6.4） |
 | V1.0 | 2026-10-14 | 桌面版集成执行端：新增执行端实例表（2.3）与注册 / 分派规则（4.1，desktop-hosted 用户绑定优先、cli 共享），precheck 补执行端可用性（3.7），错误码补 1000011042，桌面版托管口径更新（6.4） |
 | V1.0 | 2026-10-14 | 分派顺序反转为共享实例优先、专属实例兜底（4.1、3.7）；发起入口改为双端一致渲染，`POST /api/ai/tasks` 后端强制校验执行端可用性（4.1、5.3）；取消按钮双端一致（5.4） |
+| V1.0 | 2026-10-14 | 执行端实例表去掉 `workspace_id`：注册表为部署级、不做工作空间隔离，可分派范围仅由 `owner_id` 决定；明确注册时机为登录即注册（desktop-hosted）/ 启动即注册（cli）（2.3、2.4、4.1） |
