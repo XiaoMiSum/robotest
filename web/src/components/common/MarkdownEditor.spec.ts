@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import MarkdownEditor from './MarkdownEditor.vue'
 
@@ -46,6 +47,7 @@ interface CapturedOptions {
   value?: string
   height?: string | number
   placeholder?: string
+  toolbar?: unknown[]
   after?: () => void
   input?: (markdown: string) => void
   upload?: { handler?: (files: File[]) => Promise<string | null> }
@@ -172,5 +174,60 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     pending.wrapper.unmount()
     pendingOptions.after?.()
     expect(fake.editor.destroy).toHaveBeenCalledTimes(2)
+  })
+
+  // ==================== 最大化预览（交互 06 §2.5.2） ====================
+
+  interface MenuLike {
+    name: string
+    click?: (event: Event) => void
+  }
+
+  /** 取自定义「预览」按钮（工具栏末项） */
+  function pickMaximizeItem(options: CapturedOptions): MenuLike {
+    return options.toolbar?.[options.toolbar.length - 1] as MenuLike
+  }
+
+  it('maximizable 缺省不追加自定义按钮，开启时末项为预览按钮', async () => {
+    const { options } = await mountEditor()
+    expect(options.toolbar?.every((item) => typeof item === 'string')).toBe(true)
+
+    const { options: maxOptions } = await mountEditor('', { maximizable: true })
+    expect(pickMaximizeItem(maxOptions).name).toBe('preview-maximize')
+  })
+
+  it('点击预览按钮最大化展示遮罩，点遮罩退出并恢复背景滚动', async () => {
+    const { options, wrapper } = await mountEditor('', { maximizable: true })
+
+    pickMaximizeItem(options).click?.(new Event('click'))
+    await nextTick()
+    expect(wrapper.find('.markdown-editor--maximized').exists()).toBe(true)
+    expect(document.body.style.overflow).toBe('hidden')
+
+    const mask = document.querySelector('.markdown-editor__mask')
+    expect(mask).not.toBeNull()
+    mask?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.find('.markdown-editor--maximized').exists()).toBe(false)
+    expect(document.querySelector('.markdown-editor__mask')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('Esc 退出最大化；最大化态卸载时恢复背景滚动', async () => {
+    const { options, wrapper } = await mountEditor('', { maximizable: true })
+    const maximize = pickMaximizeItem(options)
+
+    maximize.click?.(new Event('click'))
+    await nextTick()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+    expect(wrapper.find('.markdown-editor--maximized').exists()).toBe(false)
+    expect(document.body.style.overflow).toBe('')
+
+    maximize.click?.(new Event('click'))
+    await nextTick()
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('')
+    expect(document.querySelector('.markdown-editor__mask')).toBeNull()
   })
 })

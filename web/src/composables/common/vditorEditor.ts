@@ -6,7 +6,8 @@ export type VditorInstance = InstanceType<typeof Vditor>
 // 运行资源由 scripts/copy-vditor.mjs 构建期同步到 public/vditor：内网部署取不到 unpkg 公网 CDN
 export const VDITOR_CDN = `${import.meta.env.BASE_URL}vditor`
 
-// 所见即所得只保留写作与结构按钮；全屏层级(90)会压在 Element Plus 弹层(2000+)之下，故不提供
+// 所见即所得只保留写作与结构按钮；Vditor 自带全屏层级(90)会压在 Element Plus 弹层(2000+)之下，故不提供；
+// 需要最大化时由调用方经 extraMenuItems 追加自有浮层按钮（层级 3000+，不受此限）
 const TOOLBAR: string[] = [
   'headings',
   'bold',
@@ -42,7 +43,13 @@ export interface EditorCallbacks {
 
 /** 组装所见即所得编辑器参数，屏蔽 Vditor 的原生默认值差异 */
 export function createEditorOptions(
-  config: { height?: string; placeholder?: string; value?: string } & EditorCallbacks,
+  config: {
+    height?: string
+    placeholder?: string
+    value?: string
+    /** 追加到内置工具栏末尾（最右侧）的自定义按钮 */
+    extraMenuItems?: IMenuItem[]
+  } & EditorCallbacks,
 ): IOptions {
   return {
     mode: 'wysiwyg',
@@ -56,7 +63,7 @@ export function createEditorOptions(
     cache: { enable: false },
     // 默认 800ms 才回写 v-model，紧跟着点保存会丢末尾输入；200ms 内连续输入仍合并为一次撤销
     undoDelay: 200,
-    toolbar: TOOLBAR,
+    toolbar: [...TOOLBAR, ...(config.extraMenuItems ?? [])],
     // 展示他人写入的正文，沿用内置 GFM 过滤（替代原 dompurify）
     preview: { markdown: { sanitize: true } },
     upload: {
