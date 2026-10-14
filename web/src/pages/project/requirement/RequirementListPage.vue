@@ -218,6 +218,8 @@ async function submitCreate(): Promise<void> {
       <el-tree-select
         v-model="filters.moduleIds"
         :data="moduleTree"
+        :props="{ label: 'name', children: 'children' }"
+        node-key="id"
         multiple
         check-strictly
         show-checkbox
