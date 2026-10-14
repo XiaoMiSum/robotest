@@ -190,7 +190,7 @@ CREATE TABLE ai_runner_instance (
 );
 CREATE UNIQUE INDEX uk_ai_runner_instance_runner ON ai_runner_instance (runner_id);
 CREATE INDEX idx_ai_runner_instance_owner ON ai_runner_instance (owner_id, status);
-COMMENT ON TABLE ai_runner_instance IS 'AI 执行端实例注册表（desktop-hosted 用户绑定优先 / cli 共享）';
+COMMENT ON TABLE ai_runner_instance IS 'AI 执行端实例注册表（cli 共享优先分派 / desktop-hosted 用户绑定兜底）';
 COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；cli 为 NULL（任意用户可用）';
 ```
 
@@ -293,13 +293,13 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
   "totalAssociated": 12,
   "cases": [{ "id": "…", "title": "销售订单新建-正常流程", "priority": "P1", "documentId": "…" }],
   "params": { "stepActionLimit": 50, "stepActionLimitMax": 200 },
-  "runner": { "available": true, "preferred": "desktop-hosted", "count": 1 },
+  "runner": { "available": true, "preferred": "cli", "count": 2 },
   "progress": { "runningTaskId": null }
 }
 ```
 
 - **校验顺序**（`runnable=false` 时给 `blockReason`）：AI 总开关与模型可用性（沿总册，复用 `GET /api/ai/status` 口径）→ 计划状态（blocked/completed/closed → `plan_not_allowed`，1000011035）→ 同计划存在进行中批次（`runningTaskId` 非空 → `duplicate_running`，前端提示不拦截，沿总册重复发起提示口径）→ 权限。
-- **说明**：`boundEnvironment*` 为计划绑定环境回显（3.9 改造）；未绑定或环境已删则为 null，发起弹窗默认选项目默认环境。`runner` 为执行端可用性快照（分派规则见 4.1）：`available=false` 时 `blockReason` 增加 `no_runner`（提示「无可用执行端，启动桌面版或联系运维部署」，桌面版自查本机托管实例在线后可消除）；`preferred` 为按分派规则命中的实例模式，供前端提示「将在本机执行（桌面版）/ 共享执行端执行」。
+- **说明**：`boundEnvironment*` 为计划绑定环境回显（3.9 改造）；未绑定或环境已删则为 null，发起弹窗默认选项目默认环境。`runner` 为执行端可用性快照（与 4.1 发起前置校验同规则）：`available=false` 时 `blockReason` 增加 `no_runner`（提示「无可用执行端，启动桌面版或联系运维部署」，桌面版拉起本机托管实例或运维部署共享实例后可消除）；`preferred` 为按分派规则将命中的实例模式（`cli` 共享优先 / `desktop-hosted` 专属兜底），供前端提示「将由共享执行端执行 / 将在本机执行（桌面版）」。
 
 ### 3.8 发起批次（提交任务）
 
@@ -382,9 +382,10 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 - 服务端监听 Runner 连接（协议与帧见 Runner 分册 3，此处只写服务侧动作）：
   - `register`：校验 `ownerToken`（桌面版登录会话签发，验签后置 `owner_id`）或 `sharedKey`（CLI 注册密钥，`owner_id` 置空），按 `runner_id` upsert 执行端实例（2.3）并回 `register.ack`；失败断开；
   - **执行端分派规则**（批次 `session.start` 前选择实例，按序取第一个满足项）：
-    1. 提交人本人的 `desktop-hosted` 在线实例（**优先本机执行**——桌面版托管、用户绑定）；
-    2. 任一在线 `cli` 共享实例（按 `last_heartbeat_at` 最新优先，V1 单实例即固定命中）；
+    1. 任一在线 `cli` 共享实例（**共享优先**，按 `last_heartbeat_at` 最新优先，V1 单实例即固定命中）；
+    2. 提交人本人的 `desktop-hosted` 在线实例（专属兜底——无在线共享实例时本机执行）；
     3. 皆无 → 任务失败落存（错误码 1000011042「无可用执行端」，`error_msg` 引导「启动桌面版或联系运维部署执行端」），不进入执行循环、不烧 AI 预算；
+  - **发起前置校验（后端强制，`POST /api/ai/tasks` 提交时）**：校验「存在在线共享实例或提交人本人的在线专属实例」，皆无则直接拒绝（1000011042）；Web 版与桌面版一视同仁——发起入口双端渲染（5.3），入口显隐只是前端呈现策略，执行端可用性以本校验为准；precheck（3.7）提供同一规则的只读快照供前端提示与按钮禁用，但不替代本校验；
   - `session.start` 组装：**凭据解密**——服务端用框架加密工具解密 `accounts.password`，构造 `账号别名 → 明文` 映射明文经 WSS 下发（已裁决口径），帧不落日志、异常堆栈不携带凭据；`originWhitelist` = 所选环境 `entry_urls` 全部 origin 并集；`execParams` 取环境配置；
   - **归属校验**：分派仅向目标实例的连接发送 `session.start`；`desktop-hosted` 实例绑定 `owner_id`，服务端只分派该用户批次（Runner 侧二次校验 `OWNER_MISMATCH` 兜底）；`cli` 实例接受任意用户批次；同一实例同一时刻仅一个进行中批次（`busy` 派生态防并发）；
   - `action.execute` 分发前完成**白名单与枚举二次校验**（15 执行原语，`done` 为服务端语义原语不下发，Runner 分册 4.1）、`budgetSeq` 分配与预算计数（**计数在服务端**，Runner 不决策预算）；
@@ -448,7 +449,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 5.1 功能测试环境管理页
 
-**路由**：`/workspace/projects/functional-testing?tab=ft-environments`（挂功能测试页子菜单「测试环境」，权限 `funcenv:view`；菜单项显隐同权限码）。**双端均可用**：环境管理属配置能力而非执行入口，桌面版与 Web 版一致渲染（与 5.3 发起入口的形态收敛形成分界，见需求 3.2 业务规则）。
+**路由**：`/workspace/projects/functional-testing?tab=ft-environments`（挂功能测试页子菜单「测试环境」，权限 `funcenv:view`；菜单项显隐同权限码）。**双端均可用**：环境管理属配置能力而非执行入口，桌面版与 Web 版一致渲染。
 
 **结构**（ASCII 示意）：
 
@@ -487,11 +488,11 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 - **校验（保存前前端即拦）**：原语与参数必填、步数 ≤20、引用条目存在；服务端 3.6 同步双校验（1000011033），错误定位到具体步骤序号。
 - **数据来源**：下拉选项即当前页面已加载的入口/账号子表数据，零额外请求。
 
-### 5.3 发起确认弹窗（计划详情页，仅桌面版）
+### 5.3 发起确认弹窗（计划详情页，双端一致）
 
-**客户端形态判别**：平台为双形态——桌面版（Electron 壳包裹现有 `web/` 前端）与 Web 版，同一前端代码按运行环境判别形态（`renderer` 进程存在 Electron 全局桥即桌面版）。**[🤖 AI 执行] 按钮与本弹窗仅桌面版渲染**；Web 版计划详情同位置不渲染发起入口，批次进度条与执行详情（5.4）双端一致可见。**显隐为前端呈现策略、非安全边界**：服务端只按 `ai:exec` 权限校验，不区分客户端形态，Web 版绕过界面直接调用 `POST /api/ai/tasks` 仍可发起（该风险已知并接受，需求 3.2 业务规则）。
+**客户端形态判别**：平台为双形态——桌面版（Electron 壳包裹现有 `web/` 前端）与 Web 版，同一前端代码按运行环境判别形态（`renderer` 进程存在 Electron 全局桥即桌面版）。**[🤖 AI 执行] 按钮与本弹窗双端一致渲染**；批次进度条与执行详情（5.4）同样双端可见。发起的强制约束在服务端：**执行端可用性由 `POST /api/ai/tasks` 提交时后端校验**（4.1 发起前置校验，无在线共享或本人专属实例则拒绝 1000011042），前端显隐与禁用只是呈现策略、非安全边界；precheck（3.7）的 `runner` 快照供前端提前禁用按钮与提示，`no_runner` 分支双端行为一致。
 
-**入口**：桌面版计划详情页操作组新增 [🤖 AI 执行]（活跃态 new/in_progress 显示；入口显隐权限 `ai:exec`，前置状态由 3.7 `runnable/blockReason` 决定，总开关关闭时按钮禁用并提示沿总册）。
+**入口**：计划详情页操作组新增 [🤖 AI 执行]（活跃态 new/in_progress 显示；入口显隐权限 `ai:exec`，前置状态由 3.7 `runnable/blockReason` 决定，总开关关闭时按钮禁用并提示沿总册）。
 
 **弹窗结构**：
 
@@ -501,17 +502,19 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 │ 用例范围 [✓]全选（已选 12/12）  树形勾选   │
 │ 执行环境 [staging ▼]（回显计划绑定，可改）  │
 │ 步级动作上限 [50]（1–200）                │
+│ 执行端提示：将由共享执行端执行（灰字）      │
 │                        [取消] [开始执行]  │
 └──────────────────────────────────────────┘
 ```
 
 - 用例范围不勾选 = 全部（提交 `caseIds:[]`）；勾选态按 `precheck.cases` 树形展示（按文档分组）。
+- 执行端提示：按 `precheck.runner.preferred` 一行灰字（`cli` →「将由共享执行端执行」/ `desktop-hosted` →「将在本机执行（桌面版）」）；`available=false`（`no_runner`）时红色提示条「无可用执行端」+ [重试]，[开始执行] 禁用（双端同规则）。
 - 提交成功 → 关弹窗 → 页头出现进行中批次条（进度 SSE，见 5.4）；`blockReason=duplicate_running` 时提示「该计划已有进行中的批次」仍允许查看进行中批次；`plan_not_allowed` 时入口不出现。
 - 加载失败/提交失败消息提示；`runnable=false` 原因文案映射。
 
 ### 5.4 执行中呈现与执行详情（双端一致）
 
-- **执行中**：复用 AI 任务既有 SSE 进度（AI 底座 3.6）显示「3/12 · 当前用例 · 步骤 2/5 · 已 15 动作」，[取消] 走既有任务取消（二次确认）；批次条随任务状态流转（进行中/已完成/已失败/已取消）。取消权限与发起一致（`ai:exec`），Web 版可见批次条但**不渲染取消按钮**（发起能力收敛桌面版，取消随发起一并收敛）。
+- **执行中**：复用 AI 任务既有 SSE 进度（AI 底座 3.6）显示「3/12 · 当前用例 · 步骤 2/5 · 已 15 动作」，[取消] 走既有任务取消（二次确认）；批次条随任务状态流转（进行中/已完成/已失败/已取消）。取消权限与发起一致（`ai:exec`），批次条与取消按钮双端一致渲染。
 - **执行详情**：复用任务详情页，`ui_execution` 类型渲染：
   - **轨迹列表**（按用例 → 阶段分组的时间线）：`kind=action` 行显示「动作 + 目标 + 摘要」，`action_failed` 红色标原因码中文映射，`verdict` 行显示四值徽标与证据文字，`note` 行灰字；截图引用渲染缩略图点开大图；`evaluate` 的 `params` 源码等宽展示逐字可查；密码位置显示占位符原文。
   - **批次汇总**：pass/fail/blocked/skipped 四色计数。
@@ -557,7 +560,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 - 服务端无新增依赖（复用 Spring AI 门面、任务引擎、文件域）。
 - 新增独立组件 `runner/`（Playwright），见 `docs/04-detailed-design/09-runner/02-runner-core.md` 6.1；M1 过会项。
 - 前端无新依赖（表单化步骤编辑器用 Element Plus 组件拼装）。
-- **桌面版**：Electron 壳包裹现有 `web/` 构建产物，一套代码双形态；新增顶层目录 `desktop/`（壳工程、打包配置与 Runner 子进程托管），引入 `electron` / `electron-builder` 依赖——过会项；形态判别与渲染差异见 5.3。**桌面版托管 Runner 子进程**（`desktop-hosted` 模式，随登录注册为用户绑定实例、优先分派本人批次，见 4.1；生命周期与注册协议见 Runner 分册 5）；桌面版与 Runner 之间**只经服务端 WSS 通道交互，渲染进程不直连 Runner**，决策面仍在服务端。
+- **桌面版**：Electron 壳包裹现有 `web/` 构建产物，一套代码双形态；新增顶层目录 `desktop/`（壳工程、打包配置与 Runner 子进程托管），引入 `electron` / `electron-builder` 依赖——过会项；形态判别与渲染差异见 5.3。**桌面版托管 Runner 子进程**（`desktop-hosted` 模式，随登录注册为本人专属实例、共享实例缺失时兜底分派，见 4.1；生命周期与注册协议见 Runner 分册 5）；桌面版与 Runner 之间**只经服务端 WSS 通道交互，渲染进程不直连 Runner**，决策面仍在服务端。
 
 ### 6.5 开发批次建议
 
@@ -570,3 +573,4 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 | V1.0 | 2026-10-14 | 初始版本 |
 | V1.0 | 2026-10-14 | 明确客户端形态约束：AI 执行发起入口与弹窗仅桌面版（Electron 壳）渲染、批次查看双端一致（5.1、5.3、5.4）、桌面版组件登记（6.4） |
 | V1.0 | 2026-10-14 | 桌面版集成执行端：新增执行端实例表（2.3）与注册 / 分派规则（4.1，desktop-hosted 用户绑定优先、cli 共享），precheck 补执行端可用性（3.7），错误码补 1000011042，桌面版托管口径更新（6.4） |
+| V1.0 | 2026-10-14 | 分派顺序反转为共享实例优先、专属实例兜底（4.1、3.7）；发起入口改为双端一致渲染，`POST /api/ai/tasks` 后端强制校验执行端可用性（4.1、5.3）；取消按钮双端一致（5.4） |
