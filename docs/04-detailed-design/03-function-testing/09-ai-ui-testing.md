@@ -158,11 +158,49 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 | test_plan_node_snapshot | 最后结果扩展 | `last_result` 同为 `VARCHAR(20)`，接受 `skipped`，无 DDL；列注释同步 |
 | test_plan | 执行环境语义 | `environment varchar(200)` **无 DDL**：语义从自由文本改为存 `ft_environment.id`（UUID 字符串）；展示时关联取名称，关联不上（环境已删）时展示「已删除环境」。已确认**无存量自由文本数据需转换**，不做回填 |
 
-同步更新 `server/src/main/resources/db/schema.sql` 基线（新增三表、两处列注释），迁移以初始化脚本为基线（仓库尚无版本化迁移目录，数据库规范 5.1 口径）。
+### 2.3 执行端实例表（ai_runner_instance）
 
-### 2.3 数据隔离与生命周期
+| 字段 | 类型 | 约束 | 说明 |
+| ---- | ---- | ---- | ---- |
+| id | uuid | PK | 框架默认策略 |
+| workspace_id | uuid | NOT NULL | 归属工作空间（隔离过滤） |
+| runner_id | varchar(64) | NOT NULL, UNIQUE | 实例标识（`register.ack` 下发，重连保持不变） |
+| mode | varchar(20) | NOT NULL | `desktop-hosted` / `cli` |
+| owner_id | uuid | NULL | 绑定用户；`cli` 为 NULL（共享） |
+| status | varchar(10) | NOT NULL, DEFAULT 'offline' | `online` / `offline`；`busy` 为派生态（关联进行中任务） |
+| protocol_version | varchar(10) | NOT NULL | 注册时上报 |
+| last_heartbeat_at | timestamp | NULL | 最后心跳，失活判定依据 |
+| created_at / updated_at / is_deleted | — | 公共字段 | C5 |
 
-- 三张新表经 `project_id` 归属项目 → 工作空间，查询层自动附加上下文过滤（沿用数据与接口设计分册 1.3）。
+**索引**（2 个，C9）：`uk_ai_runner_instance_runner` UNIQUE (runner_id)；`idx_ai_runner_instance_owner (owner_id, status)`（分派查询：在线 + 归属）。
+
+```sql
+CREATE TABLE ai_runner_instance (
+    id                uuid PRIMARY KEY,
+    workspace_id      uuid NOT NULL,
+    runner_id         varchar(64) NOT NULL,
+    mode              varchar(20) NOT NULL,
+    owner_id          uuid NULL,
+    status            varchar(10) NOT NULL DEFAULT 'offline',
+    protocol_version  varchar(10) NOT NULL,
+    last_heartbeat_at timestamp NULL,
+    created_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted        boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_runner_instance_runner ON ai_runner_instance (runner_id);
+CREATE INDEX idx_ai_runner_instance_owner ON ai_runner_instance (owner_id, status);
+COMMENT ON TABLE ai_runner_instance IS 'AI 执行端实例注册表（desktop-hosted 用户绑定优先 / cli 共享）';
+COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；cli 为 NULL（任意用户可用）';
+```
+
+同步更新 `server/src/main/resources/db/schema.sql` 基线（新增表至此共四张：`ft_environment`、`ft_preset_actions`、`ui_action_log`、`ai_runner_instance`），迁移以初始化脚本为基线（仓库尚无版本化迁移目录，数据库规范 5.1 口径）。
+
+实例生命周期：`register` 校验通过 upsert（按 `runner_id`）并置 `online`；心跳刷新 `last_heartbeat_at`；断连或 60s 无心跳由心跳清扫置 `offline`（与批次失活落存口径同源，见 4.1）。
+
+### 2.4 数据隔离与生命周期
+
+- 四张新表经 `project_id` / `workspace_id` 归属项目或工作空间，查询层自动附加上下文过滤（沿用数据与接口设计分册 1.3）。
 - `ui_action_log` 为追加式，批次结束后只读；计划删除时级联删除轨迹（事务显式处理，无物理外键）；截图对象随轨迹清理任务回收。
 
 ## 3. 接口详细设计
@@ -255,12 +293,13 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
   "totalAssociated": 12,
   "cases": [{ "id": "…", "title": "销售订单新建-正常流程", "priority": "P1", "documentId": "…" }],
   "params": { "stepActionLimit": 50, "stepActionLimitMax": 200 },
+  "runner": { "available": true, "preferred": "desktop-hosted", "count": 1 },
   "progress": { "runningTaskId": null }
 }
 ```
 
 - **校验顺序**（`runnable=false` 时给 `blockReason`）：AI 总开关与模型可用性（沿总册，复用 `GET /api/ai/status` 口径）→ 计划状态（blocked/completed/closed → `plan_not_allowed`，1000011035）→ 同计划存在进行中批次（`runningTaskId` 非空 → `duplicate_running`，前端提示不拦截，沿总册重复发起提示口径）→ 权限。
-- **说明**：`boundEnvironment*` 为计划绑定环境回显（3.9 改造）；未绑定或环境已删则为 null，发起弹窗默认选项目默认环境。
+- **说明**：`boundEnvironment*` 为计划绑定环境回显（3.9 改造）；未绑定或环境已删则为 null，发起弹窗默认选项目默认环境。`runner` 为执行端可用性快照（分派规则见 4.1）：`available=false` 时 `blockReason` 增加 `no_runner`（提示「无可用执行端，启动桌面版或联系运维部署」，桌面版自查本机托管实例在线后可消除）；`preferred` 为按分派规则命中的实例模式，供前端提示「将在本机执行（桌面版）/ 共享执行端执行」。
 
 ### 3.8 发起批次（提交任务）
 
@@ -334,17 +373,23 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 | 1000011039 | 跳过仅由 AI 执行产生 | 3.9 |
 | 1000011040 | 环境不存在 | 3.2/3.4/3.5 |
 | 1000011041 | 条目被预置动作引用，不能删除 | 4.4 / 5.1 |
+| 1000011042 | 无可用执行端 | 4.1 |
 
 ## 4. 业务逻辑设计
 
 ### 4.1 通道服务（服务端侧）
 
 - 服务端监听 Runner 连接（协议与帧见 Runner 分册 3，此处只写服务侧动作）：
-  - `session.hello`：校验批次令牌（单批次、短时、与 `ai_task` 绑定），失败断开；
+  - `register`：校验 `ownerToken`（桌面版登录会话签发，验签后置 `owner_id`）或 `sharedKey`（CLI 注册密钥，`owner_id` 置空），按 `runner_id` upsert 执行端实例（2.3）并回 `register.ack`；失败断开；
+  - **执行端分派规则**（批次 `session.start` 前选择实例，按序取第一个满足项）：
+    1. 提交人本人的 `desktop-hosted` 在线实例（**优先本机执行**——桌面版托管、用户绑定）；
+    2. 任一在线 `cli` 共享实例（按 `last_heartbeat_at` 最新优先，V1 单实例即固定命中）；
+    3. 皆无 → 任务失败落存（错误码 1000011042「无可用执行端」，`error_msg` 引导「启动桌面版或联系运维部署执行端」），不进入执行循环、不烧 AI 预算；
   - `session.start` 组装：**凭据解密**——服务端用框架加密工具解密 `accounts.password`，构造 `账号别名 → 明文` 映射明文经 WSS 下发（已裁决口径），帧不落日志、异常堆栈不携带凭据；`originWhitelist` = 所选环境 `entry_urls` 全部 origin 并集；`execParams` 取环境配置；
+  - **归属校验**：分派仅向目标实例的连接发送 `session.start`；`desktop-hosted` 实例绑定 `owner_id`，服务端只分派该用户批次（Runner 侧二次校验 `OWNER_MISMATCH` 兜底）；`cli` 实例接受任意用户批次；同一实例同一时刻仅一个进行中批次（`busy` 派生态防并发）；
   - `action.execute` 分发前完成**白名单与枚举二次校验**（15 执行原语，`done` 为服务端语义原语不下发，Runner 分册 4.1）、`budgetSeq` 分配与预算计数（**计数在服务端**，Runner 不决策预算）；
   - `action.result`：成功 → 轨迹落 `action`；失败 → 轨迹落 `action_failed` + 原因码，交步进决策循环决定重试/换路/止损；
-  - 心跳 60s 缺失 → Runner 失活，按任务失败落存口径（总册 1.5）写过程补充记录。
+  - 心跳 60s 缺失 → 实例置 `offline` 摘除出分派池；会话中失活按任务失败落存口径（总册 1.5）写过程补充记录。
 
 ### 4.2 批次执行主循环（步进式）
 
@@ -495,7 +540,7 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 
 ### 6.2 数据库变更清单
 
-1. 新增 `ft_environment`、`ft_preset_actions`、`ui_action_log`（2.1，含索引）；
+1. 新增 `ft_environment`、`ft_preset_actions`、`ui_action_log`、`ai_runner_instance`（2.1、2.3，含索引）；
 2. `test_plan_execution_record` 加 `source` 列（2.2）；
 3. 更新 `schema.sql` 两处列注释（`result`、`last_result`）与新增表；
 4. **无数据回填**（已确认无存量自由文本环境与 AI 数据）；
@@ -503,7 +548,7 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 
 ### 6.3 错误码与契约
 
-- `ErrorCodeConstants` 登记 1000011031–1000011041（3.11），号段 1000011031–1000011060 已同步 `docs/04-detailed-design/02-project-module.md` 6.3 号段表。
+- `ErrorCodeConstants` 登记 1000011031–1000011042（3.11），号段 1000011031–1000011060 已同步 `docs/04-detailed-design/02-project-module.md` 6.3 号段表。
 - OpenAPI：新接口（3.1–3.8、3.10）与改造接口（3.9）均补注解与模型，`pnpm run contract:gen` 重新生成基线；前端类型由基线生成。
 - 任务类型 `ui_execution` 与两提示词场景登记 AI 底座详设（单一事实源联动）。
 
@@ -512,7 +557,7 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 - 服务端无新增依赖（复用 Spring AI 门面、任务引擎、文件域）。
 - 新增独立组件 `runner/`（Playwright），见 `docs/04-detailed-design/09-runner/02-runner-core.md` 6.1；M1 过会项。
 - 前端无新依赖（表单化步骤编辑器用 Element Plus 组件拼装）。
-- **桌面版**：Electron 壳包裹现有 `web/` 构建产物，一套代码双形态；新增顶层目录 `desktop/`（壳工程与打包配置），引入 `electron` / `electron-builder` 依赖——过会项，M 期与桌面壳排期联动；形态判别与渲染差异见 5.3。桌面版与 Runner 无直接集成（Runner 只认服务端 WSS 通道，见 Runner 分册 3.1）。
+- **桌面版**：Electron 壳包裹现有 `web/` 构建产物，一套代码双形态；新增顶层目录 `desktop/`（壳工程、打包配置与 Runner 子进程托管），引入 `electron` / `electron-builder` 依赖——过会项；形态判别与渲染差异见 5.3。**桌面版托管 Runner 子进程**（`desktop-hosted` 模式，随登录注册为用户绑定实例、优先分派本人批次，见 4.1；生命周期与注册协议见 Runner 分册 5）；桌面版与 Runner 之间**只经服务端 WSS 通道交互，渲染进程不直连 Runner**，决策面仍在服务端。
 
 ### 6.5 开发批次建议
 
@@ -524,3 +569,4 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-14 | 初始版本 |
 | V1.0 | 2026-10-14 | 明确客户端形态约束：AI 执行发起入口与弹窗仅桌面版（Electron 壳）渲染、批次查看双端一致（5.1、5.3、5.4）、桌面版组件登记（6.4） |
+| V1.0 | 2026-10-14 | 桌面版集成执行端：新增执行端实例表（2.3）与注册 / 分派规则（4.1，desktop-hosted 用户绑定优先、cli 共享），precheck 补执行端可用性（3.7），错误码补 1000011042，桌面版托管口径更新（6.4） |
