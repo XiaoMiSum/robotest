@@ -281,7 +281,6 @@
 | 1000017707 | API_GIT_SCENE_NOT_EXECUTABLE | 导入场景所属仓库被禁用或不可达 |
 | 1000017708 | API_GIT_IMPORT_IN_PROGRESS | 同仓库存在进行中的导入 |
 | 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支提交与上次导入一致且无遗留错误，导入被跳过 |
-| 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，按跳过留痕处理，无降级路径 |
 | 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 | 1000017713 | API_GIT_BATCH_NOT_FOUND | 执行批次不存在（CI 侧取冻结清单按 `batchId` 未命中，404 语义） |
@@ -406,3 +405,4 @@ robotest:
 | V1.0 | 2026-10-11 | 错误码 `1000017711` 更名为 `API_GIT_REPO_IMMUTABLE_FIELD`，覆盖范围扩至 `repo_path` / `default_branch` |
 | V1.0 | 2026-10-13 | 执行记录新增局部索引 `idx_exec_scheduled_task_id`（任务完成判据按批次扫描执行记录，关联字段强制索引，经评审确认单表索引数 5→6） |
 | V1.0 | 2026-10-13 | GitLab 集成号段扩至 1000017715：新增 `API_GIT_ARTIFACT_DOWNLOAD_FAILED`（制品下载失败，结果回收通道降级留痕）与 `API_GIT_ENVELOPE_INVALID`（结果信封缺失或无法解析，无可用信封时整批降级留痕） |
+| V1.0 | 2026-10-14 | 删除错误码 `1000017710`（执行阶段仓库不可达）：该场景与仓库被禁用统一按 `1000017707` 留痕，实现未启用本码，登记随之移除 |
