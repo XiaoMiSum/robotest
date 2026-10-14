@@ -117,10 +117,13 @@ function close(): void {
           {{ option.label }}
         </el-radio>
       </el-radio-group>
+      <!-- ProjectModule 文本字段为 name，须显式映射 label，否则选中值无法回显模块名 -->
       <el-tree-select
         v-if="placement === 'attach'"
         v-model="targetModuleId"
         :data="moduleTree"
+        :props="{ label: 'name', children: 'children' }"
+        node-key="id"
         check-strictly
         clearable
         placeholder="选择目标模块"
