@@ -110,7 +110,6 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
 | 1000017707 | API_GIT_SCENE_NOT_EXECUTABLE | 场景来源为导入且所属仓库被禁用或不可达 |
 | 1000017708 | API_GIT_IMPORT_IN_PROGRESS | 同仓库存在进行中的导入 |
 | 1000017709 | API_GIT_IMPORT_COMMIT_UP_TO_DATE | 目标分支 HEAD 与上次导入一致且无遗留错误，导入被幂等闸门跳过 |
-| 1000017710 | API_GIT_REPO_UNREACHABLE | 执行阶段仓库不可达，无降级路径（见 4.3） |
 | 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 | 1000017713 | API_GIT_BATCH_NOT_FOUND | CI 侧取冻结清单按 `batchId` 未命中批次（404 语义） |
@@ -442,7 +441,7 @@ sequenceDiagram
 
 ### 4.3 不可达降级边界
 
-CI 引擎场景在仓库不可达时**跳过并留痕**：执行记录状态置 `error`、`error_message` 记 `1000017710`，报告中该场景计为跳过。**不提供**手工补录步骤、不自动切换平台引擎、不提供强制重导入绕过——平台侧编辑需等仓库产生新 commit 才能被覆盖（G1 决策），`source_status = repo_unreachable` 仅供展示，不触发任何自动修复。
+CI 引擎场景在仓库不可达时**跳过并留痕**：执行记录状态置 `error`、`error_message` 记 `1000017707`，报告中该场景计为跳过。**不提供**手工补录步骤、不自动切换平台引擎、不提供强制重导入绕过——平台侧编辑需等仓库产生新 commit 才能被覆盖（G1 决策），`source_status = repo_unreachable` 仅供展示，不触发任何自动修复。
 
 ### 4.4 定时任务混合执行
 
@@ -677,3 +676,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-13 | 6.1 为 `api_execution_record` 新增局部索引 `idx_exec_scheduled_task_id`（任务完成判据按批次扫描执行记录的关联字段，5→6 索引经评审确认），表变更汇总行同步登记 |
 | V1.0 | 2026-10-13 | 错误码号段扩至 `1000017715`（新增 `API_GIT_ARTIFACT_DOWNLOAD_FAILED`、`API_GIT_ENVELOPE_INVALID`，结果回收降级留痕）；4.5 `execEngine` 混合取值表述对齐详设 28 2.3（`platform` / `gitlab`） |
 | V1.0 | 2026-10-13 | 4.5 补套件报告聚合落地口径：追加按 `sceneId` 幂等并全量重算 `summary` 与状态；纯 CI 任务（无可用场景 / 触发失败 / 平台组崩溃）由结果回收端首写套件报告；无结果记录以 failed 占位数据集计入；`durationMs` 追加保留、首写取批次最大值 |
+| V1.0 | 2026-10-14 | 删除错误码 `1000017710`（2.3 速查表与登记表同步移除）：执行阶段仓库不可达与被禁用统一按 `1000017707` 处理，4.3 留痕码随之改记 `1000017707`，与实现一致 |
