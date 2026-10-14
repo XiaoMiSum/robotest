@@ -49,12 +49,16 @@ robotest/
 │       │   └── db/              # 初始化基线和迁移脚本
 │       └── test/
 │
+├── runner/                      # AI 执行端（哑执行面，独立 npm 包，出站连接服务端 WSS）
+│   ├── package.json
+│   └── src/                     # 协议、会话与凭据、动作执行、观察采集、CLI 壳
+│
 ├── scripts/                     # 构建、启动和部署脚本
 ├── docs/                        # 需求、设计、规范和交互文档
 └── AGENTS.md                    # AI 开发总约定
 ```
 
-目录名称和实现细节以当前仓库为准；本树只表达职责边界，不作为完整文件清单。
+目录名称和实现细节以当前仓库为准；本树只表达职责边界，不作为完整文件清单。`runner/` 为 AI 执行（UI 自动化测试）的浏览器执行端，独立构建、不参与 `web/` / `server/` 构建链，协议与职责见 `docs/04-detailed-design/09-runner/01-readme.md`。
 
 ## 3. 技术选型
 
@@ -72,6 +76,7 @@ robotest/
 | 数据访问 | MyBatis-Plus + migoo MyBatis Starter | 复杂查询按后端规范封装 |
 | 认证授权 | Spring Security + migoo Security Starter | 服务端执行最终授权 |
 | AI 调用 | Spring AI 2.0.x | 模型 / 向量调用统一经框架执行，平台不自实现 HTTP 调用 |
+| 执行端浏览器驱动 | Playwright（Node，`runner/`） | AI 执行的浏览器控制与 CDP 观察；动作 actionability 等待与可编程观察是核心选型依据，依赖引入为 M1 过会项，详见 `docs/04-detailed-design/09-runner/02-runner-core.md` 6.1 |
 | 数据库 | PostgreSQL 14+ | 优先正式方案，MySQL 仅保留兼容说明 |
 | 缓存/消息 | Redis；按需启用 MQ | 组件能力按实际部署需要选择 |
 | API 文档 | SpringDoc OpenAPI | 前后端契约通过 OpenAPI 同步 |
@@ -185,6 +190,7 @@ docs/00-spec/20-contracts/03-realtime-protocol.md
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-10 | 技术选型补 Markdown 编辑器：前端统一采用 Vditor（所见即所得），替换 md-editor-v3 |
+| V1.0 | 2026-10-14 | 仓库树与技术选型登记顶层 `runner/` 执行端（AI 执行，Playwright） |
 
 ---
 
