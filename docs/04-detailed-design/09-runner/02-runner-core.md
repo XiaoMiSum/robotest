@@ -40,16 +40,20 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | ref 映射表 | 内存 | 每次观察重建，stale 时失效 |
 | 执行参数 | 内存 | 由 `session.start` 载荷下发（来源为所选环境 `exec_params`），Runner 不自行读库 |
 
-**配置文件**（`runner.config`，进程级、与批次无关）仅含：服务端通道地址、Runner 注册标识、日志级别、headless 开关、本地缓存目录（截图临时文件，批次结束清理）。**不含任何业务数据、不含量模型凭据。**
+**配置文件**（`runner.config`，进程级、与批次无关）仅含：服务端通道地址、Runner 注册标识、`sharedKey`（仅 `cli` 模式）、日志级别、headless 开关、本地缓存目录（截图临时文件，批次结束清理）。**不含任何业务数据、不含模型凭据。** `desktop-hosted` 模式不读本文件的凭据项，`ownerToken` 由桌面版壳在拉起时以受控通道注入（不落配置文件）。
 
 ## 3. 接口详细设计（通道协议，单一事实源）
 
 ### 3.1 连接与鉴权
 
-- **方向**：Runner 出站连接 `wss://{server}/ws/runner`（服务端不反向寻址 Runner，此为多实例可扩展的架构前提，概设 2.1）。
-- **鉴权**：连接建立后首帧必须为 `session.hello`，携带服务端签发的**批次令牌**（单批次有效、过期即拒）；鉴权失败回 `error`（`code=AUTH_FAILED`）并断开。
-- **心跳**：Runner 每 15s 发 `heartbeat`（含当前用例/步骤/动作序号，供服务端进度展示与失活判定）；服务端 60s 未收到心跳判定 Runner 失活，按任务失败落存口径处理（总册 1.5）。
-- **重连**：断线后 Runner 以指数退避（1s 起、上限 30s）重连，携原批次令牌；令牌过期则连接被拒，Runner 停止并上报本地缓存的最后状态（若有通道可用时补发）。
+- **方向**：Runner 出站连接 `wss://{server}/ws/runner`（服务端不反向寻址 Runner，此为多实例可扩展的架构前提，概设 2.1）。连接为**长连接注册态**：连接建立即注册为执行端实例，空闲时保活，被分派批次时进入会话态。
+- **注册鉴权（连接首帧）**：Runner→服务端首帧必须为 `register`，载荷 `{ mode, ownerToken?, sharedKey?, protocolVersion }`：
+  - `mode = desktop-hosted`（桌面版托管，随桌面版登录由壳注入 `ownerToken`——登录会话签发的短时执行端注册令牌）：服务端校验后将实例登记为**用户绑定实例**（`owner_id` = 令牌所属用户）；
+  - `mode = cli`（独立部署，`runner.config` 配 `sharedKey` 注册密钥）：登记为**共享实例**（`owner_id = NULL`）。
+  - 校验失败回 `error(code=AUTH_FAILED)` 并断开；`register.ack` 返回 `runnerId` 与归属摘要。
+- **批次分派**：批次开始时由**服务端**按分派规则选择在线实例（规则见服务侧分册），被选中实例收到 `session.start`（内含 `batchToken`，Runner 校验其为本批次签发即接受）；**desktop-hosted 实例只接受 `owner_id` = 本人所属用户的批次**，收到他人批次以 `error(code=OWNER_MISMATCH)` 拒收；cli 共享实例接受任意用户批次。
+- **心跳**：Runner 每 15s 发 `heartbeat`（空闲时仅 `runnerId` 与状态，会话中含当前用例/步骤/动作序号，供服务端分派判断、进度展示与失活判定）；服务端 60s 未收到心跳判定实例失活并从分派池摘除，会话中失活按任务失败落存口径处理（总册 1.5）。
+- **重连**：断线后 Runner 以指数退避（1s 起、上限 30s）重连并重新 `register`（会话中断时以任务失败落存口径处理，不跨连接续跑批次）。
 - **帧格式**：文本帧 JSON，`{ "type": string, "payload": object, "ts": ISO-8601 UTC }`；二进制数据（截图）不经本通道，走文件域上传后以 `screenshot_ref` 引用。
 
 ### 3.2 帧清单
@@ -58,8 +62,8 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 
 | 帧 | 载荷要点 | 说明 |
 | ---- | ---- | ---- |
-| `session.hello` | `batchToken` | 连接鉴权（首帧） |
-| `session.start` | `context`（冻结的用例正文 / 模块锚点 / 环境内容）、`originWhitelist`（入口 URL origin 并集）、`credentials`（账号别名 → 明文密码映射，服务端解密后下发）、`execParams`（viewport / 动作超时 / allow_evaluate）、`budgetSeq` | 批次开始；Runner 校验后回 `session.ready`。**凭据明文仅存在于本帧内存处理过程，不落日志** |
+| `register.ack` | `runnerId`、`owner`（`owner_id` 或 null 摘要）、`protocolVersion` | 注册确认（连接首帧回应） |
+| `session.start` | `batchToken`（批次签发）、`context`（冻结的用例正文 / 模块锚点 / 环境内容）、`originWhitelist`（入口 URL origin 并集）、`credentials`（账号别名 → 明文密码映射，服务端解密后下发）、`execParams`（viewport / 动作超时 / allow_evaluate）、`budgetSeq` | 批次开始；Runner 校验 `batchToken` 与归属后回 `session.ready`。**凭据明文仅存在于本帧内存处理过程，不落日志** |
 | `initial_actions.execute` | `steps`（解析后的确定性原语序列，服务端已按当前环境解析引用与白名单）、`presetSource`（`project` / `environment`） | 预置动作直跑，不经模型 |
 | `action.execute` | `action`（16 原语枚举）、`params`（ref / 文本 / 占位符原文 / JS 源码 / 键名 / 秒数…）、`budgetSeq`（服务端预算序号，回传时原样带回供对账） | 单动作下发；一个 `action.execute` 对应一次预算计数 |
 | `observe` | `reason`（`stale` / `verify` / `manual`） | 主动请求观察（stale 重观察、验证阶段取证） |
@@ -69,12 +73,13 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 
 | 帧 | 载荷要点 | 说明 |
 | ---- | ---- | ---- |
+| `register` | `mode`（`desktop-hosted` / `cli`）、`ownerToken?`（desktop-hosted，登录会话签发）、`sharedKey?`（cli）、`protocolVersion` | 连接首帧，注册为执行端实例 |
 | `session.ready` | `resolved`（解析后的入口/账号摘要，不含密码） | 会话就绪（凭据与白名单校验通过） |
 | `initial_actions.result` | `ok`、`failedStep`（序号）、`reasonCode`、`observation` | 预置动作结果；`ok=false` → 服务端将批次置 blocked（不烧 AI 预算，概设 4.9） |
 | `action.result` | `budgetSeq`、`ok`、`observation`（成功时）、`reasonCode`（失败时）、`stale`（ref 是否失效）、`screenshotRef?` | 单动作结果；失败时 `observation` 为**带原因码的失败观察**（元素表 + 语义摘要） |
 | `observe.result` | `observation`、`screenshotRef?` | 观察回传 |
 | `trajectory.hint` | `kind`（`credential_leak` 等）、`masked` | 发现疑似明文密码等需要脱敏留痕的事件（概设 4.8 脱敏兜底的 Runner 侧上报） |
-| `heartbeat` | `caseIdx/stepIdx/actionSeq` | 心跳与进度 |
+| `heartbeat` | `runnerId`、状态（`idle` / `busy`）；会话中附 `caseIdx/stepIdx/actionSeq` | 心跳与进度 |
 | `error` | `code`、`message`（已脱敏） | 进程级错误（浏览器崩溃、通道异常） |
 | `session.closed` | — | 确认清理完成（凭据已清零） |
 
@@ -181,8 +186,8 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 ## 5. 前端设计（裁剪与 CLI 壳）
 
 * **无 Web 前端**：Runner 不属于 `web/`，不产生页面；本条为裁剪说明，交互设计分册不覆盖 Runner。
-* **CLI 壳（V1 先行）**：`runner start --config <path>` 启动，注册到服务端通道；日志输出到控制台与本地滚动文件（**统一脱敏过滤器**：密码字段、Authorization、凭据帧内容一律替换为 `***`）；退出时 `session.end` 清理。
-* **桌面壳（M3 升级项）**：Electron 包裹同一 Runner 核心，仅追加登录自动注册与托盘，不改变协议与执行语义；本文不展开。
+* **CLI 壳（V1 先行）**：`runner start --config <path>` 启动，以 `mode=cli` + `sharedKey` 注册为**共享实例**（任意用户的批次都可被分派）；日志输出到控制台与本地滚动文件（**统一脱敏过滤器**：密码字段、Authorization、凭据帧内容一律替换为 `***`）；退出时 `session.end` 清理。
+* **桌面版托管（取代原 M3 独立桌面壳）**：`desktop/`（Electron 壳）随桌面版启动以子进程拉起同一 Runner 核心，以 `mode=desktop-hosted` + 登录会话签发的 `ownerToken` 注册为**用户绑定实例**——仅绑定用户的批次可被分派到本机、且分派时优先于共享实例；用户退出登录或关闭桌面版时壳负责结束子进程（Runner 侧断连即被服务端摘除）。Runner 核心与协议不因托管方式而异，本文前述语义对两种壳一致。
 
 ## 6. 实施说明
 
@@ -202,18 +207,19 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | ---- | ---- | ---- |
 | Playwright | 浏览器驱动与 CDP 观察 | 概设 M1 过会项；browser-use 同路线，动作 actionability 与 CDP 可控性是核心选型依据 |
 | ws（或等价 WSS 客户端） | 通道连接 | 原生 WebSocket 能力不足时引入，随 M1 一并评估 |
-| Electron / electron-builder | 桌面壳 | **M3 项，本轮不引入** |
+| Electron / electron-builder | 桌面版托管（`desktop/` 壳拉起 Runner 子进程） | 由 `desktop/` 工程引入，`runner/` 本身不依赖；见功能测试分册 09 6.4 |
 
 ### 6.2 构建与运行
 
 * `runner/` 独立 `pnpm build` 产出 CLI；不参与 `scripts/validate.mjs --frontend/--backend` 门禁（M2 落地时再纳入，需在质量脚本登记）。
 * 本地调试：`headless=false` + dev 服务端通道；调试日志同样过脱敏过滤器。
-* 版本对齐：`session.hello` 携带协议版本号（`v1`），服务端不兼容时回 `error(code=PROTOCOL_VERSION)`——协议演进向后兼容，新增帧不影响旧 Runner。
+* 版本对齐：`register` 携带协议版本号（`protocolVersion = "v1"`），服务端不兼容时回 `error(code=PROTOCOL_VERSION)`——协议演进向后兼容，新增帧不影响旧 Runner。
 
 ### 6.3 与服务侧分册的对接清单
 
 | 项 | 本文位置 | 服务侧消费位置 |
 | ---- | ---- | ---- |
+| 注册与归属 | 3.1、3.2.2 `register` | 服务侧分册执行端注册表与分派规则 |
 | 帧与字段 | 3.2 | 服务侧分册「通道服务」章节 |
 | 失败原因码 | 3.2.4 | 服务侧分册决策重试逻辑 |
 | 观察结构 | 3.2.3 | 服务侧组包与轨迹落库 |
@@ -225,3 +231,4 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-14 | 初始版本 |
+| V1.0 | 2026-10-14 | 执行端注册与归属：连接改长连接注册态（`register`/`register.ack`），实例分 desktop-hosted（用户绑定、仅本人批次、分派优先）与 cli（共享、任意用户）两种模式；原 M3 独立桌面壳由桌面版托管取代（3.1、3.2、5、6） |
