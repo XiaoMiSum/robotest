@@ -53,14 +53,14 @@ robotest/
 │   ├── package.json
 │   └── src/                     # 协议、会话与凭据、动作执行、观察采集、CLI 壳
 │
-├── desktop/                     # 桌面版壳（Electron 包裹 web/ 构建产物，与 web/ 一套代码双形态）
+├── desktop/                     # 桌面版壳（Electron 包裹 web/ 构建产物，一套代码双形态；随登录托管 runner/ 子进程为用户绑定实例）
 │
 ├── scripts/                     # 构建、启动和部署脚本
 ├── docs/                        # 需求、设计、规范和交互文档
 └── AGENTS.md                    # AI 开发总约定
 ```
 
-目录名称和实现细节以当前仓库为准；本树只表达职责边界，不作为完整文件清单。`runner/` 为 AI 执行（UI 自动化测试）的浏览器执行端，独立构建、不参与 `web/` / `server/` 构建链，协议与职责见 `docs/04-detailed-design/09-runner/01-readme.md`。`desktop/` 为桌面版壳（Electron 包裹 `web/` 构建产物，一套代码双形态；AI 执行发起入口仅桌面版渲染），与 `runner/` 的桌面壳（Runner 进程壳，M3）是两回事，见 `docs/02-high-level-design/03-function-testing/03-hld-ai-ui-testing.md` 6 节术语消歧。
+目录名称和实现细节以当前仓库为准；本树只表达职责边界，不作为完整文件清单。`runner/` 为 AI 执行（UI 自动化测试）的浏览器执行端，独立构建、不参与 `web/` / `server/` 构建链，协议与职责见 `docs/04-detailed-design/09-runner/01-readme.md`。`desktop/` 为桌面版壳（Electron 包裹 `web/` 构建产物，一套代码双形态；AI 执行发起入口仅桌面版渲染；随登录以子进程托管 `runner/` 并注册为用户绑定实例、分派优先），桌面版与执行端之间只经服务端 WSS 通道、无直连；`runner/` 的独立桌面壳已由桌面版托管取代，见 `docs/02-high-level-design/03-function-testing/03-hld-ai-ui-testing.md` 6 节术语消歧。
 
 ## 3. 技术选型
 
@@ -79,7 +79,7 @@ robotest/
 | 认证授权 | Spring Security + migoo Security Starter | 服务端执行最终授权 |
 | AI 调用 | Spring AI 2.0.x | 模型 / 向量调用统一经框架执行，平台不自实现 HTTP 调用 |
 | 执行端浏览器驱动 | Playwright（Node，`runner/`） | AI 执行的浏览器控制与 CDP 观察；动作 actionability 等待与可编程观察是核心选型依据，依赖引入为 M1 过会项，详见 `docs/04-detailed-design/09-runner/02-runner-core.md` 6.1 |
-| 桌面版壳 | Electron + electron-builder（`desktop/`） | 包裹 `web/` 构建产物提供双形态，仅承载桌面版独占入口（AI 执行发起）的渲染显隐，不新增业务逻辑；过会项，详见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 6.4 |
+| 桌面版壳 | Electron + electron-builder（`desktop/`） | 包裹 `web/` 构建产物提供双形态，承载桌面版独占入口（AI 执行发起）的渲染显隐，并随登录托管 `runner/` 子进程为用户绑定实例（分派优先、协议与决策面仍在服务端）；过会项，详见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 6.4 |
 | 数据库 | PostgreSQL 14+ | 优先正式方案，MySQL 仅保留兼容说明 |
 | 缓存/消息 | Redis；按需启用 MQ | 组件能力按实际部署需要选择 |
 | API 文档 | SpringDoc OpenAPI | 前后端契约通过 OpenAPI 同步 |
