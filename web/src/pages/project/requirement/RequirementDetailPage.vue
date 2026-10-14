@@ -341,9 +341,12 @@ function openTrace(): void {
               <el-form v-else label-position="top" @submit.prevent>
                 <el-form-item label="所属模块">
                   <!-- 模块仅支持改为非空值（后端 null 视为不修改），不提供清空 -->
+                  <!-- ProjectModule 文本字段为 name，须显式映射 label，否则选中值无法回显模块名 -->
                   <el-tree-select
                     v-model="form.moduleId"
                     :data="moduleTree"
+                    :props="{ label: 'name', children: 'children' }"
+                    node-key="id"
                     check-strictly
                     placeholder="未分配"
                     style="width: 100%"
