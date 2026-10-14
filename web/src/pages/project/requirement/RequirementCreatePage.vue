@@ -139,8 +139,7 @@ const {
 }
 
 .requirement-create__form :deep(.el-select),
-.requirement-create__form :deep(.el-tree-select),
-.requirement-create__form :deep(.vditor) {
+.requirement-create__form :deep(.el-tree-select) {
   width: 100%;
 }
 
