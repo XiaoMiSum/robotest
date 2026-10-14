@@ -150,7 +150,7 @@ CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((tr
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
-| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_split`、`test_design_generation`、`case_complete`），与任务 `type` 对应 |
+| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_split`、`test_design_generation`、`case_complete`、`ui_execution_decision`），与任务 `type` 对应 |
 | name | varchar(100) | NOT NULL | 场景名称（展示用） |
 | content | text | NOT NULL | 模板正文，支持 `{{variable}}` 占位 |
 | variables | jsonb | NOT NULL, DEFAULT '[]' | 可用变量清单 `[{ name, desc, required }]`，保存时校验占位与清单一致 |
@@ -584,6 +584,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | bug_trend_summary | 缺陷 | `from / to / groupBy` | `summary`（只读，无确认） | 不落库 |
 | assistant_parse | 助手 | `messageId` | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
+| ui_execution | 功能测试（AI 执行） | `planId`、`caseIds`、`environmentId`、`modelId?`、`stepActionLimit?` | 无（判定直接写 `test_plan_execution_record`，轨迹写 `ui_action_log`） | AI 执行服务（功能测试分册 09） |
 
 #### 3.6.2 提交任务
 
@@ -718,6 +719,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | ai:admin | AI 配置与用量管理 | global（系统角色） | 3.2–3.5、3.7 |
 | ai:task | 发起与管理 AI 任务 | workspace | 3.6.2–3.6.4 |
 | ai:confirm | AI 产物确认 | workspace | 3.6.5 |
+| ai:exec | 发起 AI 执行（UI 自动化测试批次） | workspace | 功能测试分册 09 的 3.7–3.8（与 `ai:task` 并行校验） |
 
 ---
 
@@ -892,3 +894,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-04 | 3.6.1 补 `vector_reindex` 的 `scope` 语义：`entityTypes` 数组（`requirement / testcase / bug`），缺省全量重建 |
 | V1.0 | 2026-10-04 | 调用层技术口径登记：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x（4.2 调用层与重试口径、7 依赖行），平台仅保留门面记账与错误码 |
 | V1.0 | 2026-10-06 | 3.6.3 详情响应补 `documentMeta` 下发口径：`result` 顶层含文档级元数据的任务（导入）succeeded 时附带，供确认面板预填识别版本 |
+| V1.0 | 2026-10-14 | 登记 AI 执行任务类型 `ui_execution`（3.6.1）、场景示例 `ui_execution_decision`（2.5）与权限点 `ai:exec`（3.8） |
