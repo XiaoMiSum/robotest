@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, reactive } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { createRequirement } from '@/services/project'
 import { formatDateTime } from '@/utils/format'
-import type { AiGenerationScopeItem, RequirementPriority } from '@/types'
+import type { AiGenerationScopeItem } from '@/types'
 import type { RequirementRow } from '@/composables/project/requirement/requirementPresentation'
-import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
 import SelectionConfigDialog from '@/components/project/ai/SelectionConfigDialog.vue'
@@ -81,12 +78,6 @@ const statusOptions = [
   { value: 'archived', label: '已归档' },
 ]
 
-const priorityOptions: { value: RequirementPriority; label: string }[] = [
-  { value: 'high', label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low', label: '低' },
-]
-
 function openDetail(id: string): void {
   void router.push(`/workspace/projects/requirements/${id}`)
 }
@@ -96,65 +87,10 @@ function asRow(row: unknown): RequirementRow {
   return row as RequirementRow
 }
 
-// ==================== 新建抽屉 ====================
-const drawerVisible = ref(false)
-const submitting = ref(false)
-const formRef = ref<FormInstance>()
-const form = reactive({
-  title: '',
-  description: '',
-  moduleId: '',
-  systemVersion: '',
-  priority: '',
-  ownerId: '',
-  tags: [] as string[],
-})
-
-const rules: FormRules = {
-  title: [
-    { required: true, message: '请输入需求标题', trigger: 'blur' },
-    { max: 300, message: '标题不能超过 300 字符', trigger: 'blur' },
-  ],
-  systemVersion: [{ max: 50, message: '版本不能超过 50 字符', trigger: 'blur' }],
-}
-
+// ==================== 新建入口 ====================
+/** 新建为独立页面（交互 06 §2.5），列表页只保留跳转入口 */
 function openCreate(): void {
-  form.title = ''
-  form.description = ''
-  form.moduleId = ''
-  form.systemVersion = ''
-  form.priority = ''
-  form.ownerId = ''
-  form.tags = []
-  drawerVisible.value = true
-}
-
-async function submitCreate(): Promise<void> {
-  if (!formRef.value) return
-  try {
-    await formRef.value.validate()
-  } catch {
-    return
-  }
-  submitting.value = true
-  try {
-    const created = await createRequirement({
-      title: form.title.trim(),
-      description: form.description,
-      moduleId: form.moduleId || undefined,
-      systemVersion: form.systemVersion.trim() || undefined,
-      priority: (form.priority || undefined) as RequirementPriority | undefined,
-      ownerId: form.ownerId || undefined,
-      tags: form.tags,
-    })
-    drawerVisible.value = false
-    ElMessage.success('需求已创建')
-    void router.push(`/workspace/projects/requirements/${created.id}`)
-  } catch (err) {
-    ElMessage.error(err instanceof Error && err.message ? err.message : '创建需求失败')
-  } finally {
-    submitting.value = false
-  }
+  void router.push('/workspace/projects/requirements/create')
 }
 </script>
 
@@ -403,67 +339,6 @@ async function submitCreate(): Promise<void> {
       </div>
     </el-card>
 
-    <el-drawer
-      v-model="drawerVisible"
-      title="新建需求"
-      size="600px"
-      :close-on-click-modal="false"
-    >
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" maxlength="300" show-word-limit placeholder="请输入需求标题" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <MarkdownEditor v-model="form.description" height="260px" placeholder="需求描述（支持 Markdown）" />
-        </el-form-item>
-        <el-form-item label="所属模块">
-          <el-tree-select
-            v-model="form.moduleId"
-            :data="moduleTree"
-            check-strictly
-            clearable
-            placeholder="可选"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <div class="create-form__row">
-          <el-form-item label="版本" prop="systemVersion">
-            <el-input v-model="form.systemVersion" maxlength="50" show-word-limit placeholder="可选" />
-          </el-form-item>
-          <el-form-item label="优先级">
-            <el-select v-model="form.priority" clearable placeholder="可选" style="width: 100%">
-              <el-option v-for="option in priorityOptions" :key="option.value" v-bind="option" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="负责人">
-            <el-select v-model="form.ownerId" clearable filterable placeholder="可选" style="width: 100%">
-              <el-option
-                v-for="member in memberOptions"
-                :key="member.userId"
-                :value="member.userId"
-                :label="member.name || member.username"
-              />
-            </el-select>
-          </el-form-item>
-        </div>
-        <el-form-item label="标签">
-          <el-select
-            v-model="form.tags"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            clearable
-            placeholder="可选，回车创建"
-            style="width: 100%"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="drawerVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitCreate">创建</el-button>
-      </template>
-    </el-drawer>
     <GenerationConfigDialog
       v-model="generationDialogVisible"
       :requirements="aiScope"
@@ -562,11 +437,5 @@ async function submitCreate(): Promise<void> {
 .requirement-list__pager-total {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
-}
-
-.create-form__row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
 }
 </style>
