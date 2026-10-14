@@ -305,6 +305,13 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        // 不入菜单：由需求列表工具栏「新建需求」进入（交互 06 §2.5）；须先于 :requirementId 注册
+        path: 'workspace/projects/requirements/create',
+        name: 'RequirementCreate',
+        component: () => import('@/pages/project/requirement/RequirementCreatePage.vue'),
+        meta: { title: '新建需求', mode: 'project' },
+      },
+      {
         path: 'workspace/projects/requirements/:requirementId',
         name: 'RequirementDetail',
         component: () => import('@/pages/project/requirement/RequirementDetailPage.vue'),
