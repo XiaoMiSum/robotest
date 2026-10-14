@@ -72,7 +72,7 @@
 | executor_id | binary(16)                                         | NULL                                   | 负责人  |
 | start_time  | datetime                                       | NULL                                  | 开始时间 |
 | end_time    | datetime                                       | NULL                                  | 结束时间 |
-| environment | varchar(200)                                   | NULL                                  | 执行环境 |
+| environment | varchar(200)                                   | NULL                                  | 执行环境（存 `ft_environment.id`，见 2.1.15） |
 | created_at  | datetime                                       | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 创建时间 |
 | updated_at  | datetime                                       | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 | is_deleted  | tinyint(1)                                     | NOT NULL, DEFAULT 0                   | 是否删除 |
@@ -106,7 +106,7 @@
 | priority             | varchar(2)                                             | NULL                                  | 优先级编码（完整拷贝） |
 | is_associated        | tinyint(1)                                             | NOT NULL, DEFAULT 0                   | 是否为关联节点     |
 | is_deleted           | tinyint(1)                                             | NOT NULL, DEFAULT 0                   | 是否已删除       |
-| last_result          | enum('pass','fail','block','untested')                 | DEFAULT 'untested'                    | 最后执行结果      |
+| last_result          | enum('pass','fail','block','untested','skipped')    | DEFAULT 'untested'                    | 最后执行结果（`skipped` 由 AI 执行产生，见 `09-ai-ui-testing.md`） |
 | last_executor_id     | binary(16)                                             | NULL                                   | 最后执行人       |
 | last_executed_at     | datetime                                               | NULL                                  | 最后执行时间      |
 | sort_order           | int                                                    | NOT NULL, DEFAULT 0                   | 排序          |
@@ -121,7 +121,8 @@
 | plan_id          | binary(16)                                             | NOT NULL                               | 计划ID   |
 | snapshot_node_id | binary(16)                                             | NOT NULL                               | 快照节点ID |
 | executor_id      | binary(16)                                             | NOT NULL                               | 执行人    |
-| result           | enum('pass','fail','block','untested')                 | NOT NULL                              | 执行结果   |
+| result           | enum('pass','fail','block','untested','skipped')     | NOT NULL                              | 执行结果（`skipped` 仅 AI 执行可写，见 `09-ai-ui-testing.md` 3.9） |
+| source           | varchar(10)                                             | NOT NULL, DEFAULT 'manual'            | 结果来源（manual/ai） |
 | note             | text                                                   | NULL                                   | 备注     |
 | executed_at      | datetime                                               | NOT NULL, DEFAULT CURRENT_TIMESTAMP    | 执行时间   |
 | created_at       | datetime                                               | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 创建时间   |
@@ -290,6 +291,10 @@
 
 附件文件存储于服务端本地磁盘（目录由 `robotest.upload.dir` 配置，默认 `./uploads/bug`），按 `{bugId}/{uuid}.{ext}` 落盘，单文件上限 10MB。
 
+#### 2.1.15 AI 执行与功能测试环境表
+
+功能测试环境、项目级默认预置动作与 AI 执行动作轨迹三张表（`ft_environment`、`ft_preset_actions`、`ui_action_log`）为 AI 执行功能新增，DDL、索引与生命周期统一定义于 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 2.1，此处不重复描述。
+
 ---
 
 
@@ -324,7 +329,7 @@
 
 所有接口校验用户是否属于当前项目所属的工作空间。评审操作仅发起人可完成/同步/删除，参与者均可提交记录。计划操作负责人可编辑、同步、完成/关闭、删除，执行人可提交执行记录。
 
-前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求池接口校验 `requirement:view`（编辑、归档为 `requirement:edit`）；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
+前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求池接口校验 `requirement:view`（编辑、归档为 `requirement:edit`）；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制；功能测试环境与项目级预置动作校验 `funcenv:view` / `funcenv:edit`（project 域），发起 AI 执行批次校验 `ai:exec`（workspace 域，与 `ai:task` 并行）。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
 
 ---
 
@@ -345,7 +350,7 @@
 
 #### 2.5.1 功能测试工作区
 
-功能测试采用独立的框架页（FunctionalTestingPage）承载，路由 `/workspace/projects/functional-testing`。页面内部分为左右结构：左侧为模块侧栏白卡（el-menu，含测试用例、测试评审、测试计划、需求池四个入口），右侧为主内容卡，按选中项渲染 TestCasePage、ReviewListPage、PlanListPage、RequirementPoolPage。侧栏与内容卡等高并排，当前选中项为浅蓝底胶囊高亮；该路由下业务布局内容区 padding 归零，由页内两张白卡自行成形。
+功能测试采用独立的框架页（FunctionalTestingPage）承载，路由 `/workspace/projects/functional-testing`。页面内部分为左右结构：左侧为模块侧栏白卡（el-menu，含测试用例、测试评审、测试计划、需求池、测试环境五个入口），右侧为主内容卡，按选中项渲染 TestCasePage、ReviewListPage、PlanListPage、RequirementPoolPage、FtEnvironmentPage。侧栏与内容卡等高并排，当前选中项为浅蓝底胶囊高亮；该路由下业务布局内容区 padding 归零，由页内两张白卡自行成形。
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -359,7 +364,7 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-子模块切换只更新 `?tab=cases|reviews|plans|requirements` 查询参数，不新增路由；刷新或外部链接经 `?tab=` 还原，默认进入测试用例。处于用例文档编辑态时切换子模块或离开页面需二次确认，取消则停留在原页面。
+子模块切换只更新 `?tab=cases|reviews|plans|requirements|ft-environments` 查询参数，不新增路由；刷新或外部链接经 `?tab=` 还原，默认进入测试用例。`ft-environments` 入口与数据接口按 `funcenv:view` 显隐（无权限不展示该入口）。处于用例文档编辑态时切换子模块或离开页面需二次确认，取消则停留在原页面。
 
 #### 2.5.2 接口测试
 
@@ -382,7 +387,7 @@
 | 路由 | 页面 | 菜单/权限 | 说明 |
 | --------------------------------------------- | ------------------ | ---------------- | ------------------------------------ |
 | `/workspace/projects/dashboard` | 项目工作台（DashboardPage） | 不进菜单；数据接口 `project:view` | 进入项目默认落地页，展示统计、快捷入口与最近动态 |
-| `/workspace/projects/functional-testing` | 功能测试框架页（FunctionalTestingPage） | 菜单「功能测试」，`case:view` | `?tab=cases\|reviews\|plans\|requirements` 切换子模块，默认测试用例 |
+| `/workspace/projects/functional-testing` | 功能测试框架页（FunctionalTestingPage） | 菜单「功能测试」，`case:view` | `?tab=cases\|reviews\|plans\|requirements\|ft-environments` 切换子模块，默认测试用例 |
 | `/workspace/projects/reviews` | 评审列表（ReviewListPage） | 不进菜单 | 独立直达路由，内容同功能测试「测试评审」子模块 |
 | `/workspace/projects/reviews/:reviewId` | 评审详情（ReviewDetailPage） | 不进菜单 | 快照树 + 评审标记/评论 |
 | `/workspace/projects/plans` | 计划列表（PlanListPage） | 不进菜单 | 独立直达路由，内容同功能测试「测试计划」子模块 |
@@ -414,6 +419,8 @@
 | 1000011025 | 计划已阻塞，请先恢复后再操作 |
 | 1000011026 | 评审已完成，无法执行该操作 |
 | 1000011027 | 计划已结束，无法执行该操作 |
+
+AI 执行与功能测试环境管理错误码（1000011031–1000011060 号段），清单见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 3.11：
 
 缺陷相关错误码（1000012xxx 系列）：
 
@@ -452,6 +459,7 @@
 | 用例资产管理 | `07-document-management.md` | 1. 引言、2. 数据设计、3. 接口详细设计、4. 业务逻辑设计（4.3 页面集成与状态分支）、5. 实施说明 |
 | 脑图组件 | `08-mindmap-component.md` | 1. 概述、2. 技术选型、3. 组件架构、4. 数据模型与模式映射、5. 工具栏设计、6. 右键菜单设计、7. 评审状态与执行状态展示、8. 关联 Bug 标签与跳转、9. 评论功能、10. 初始化加载流程（10.4 状态分支）、11. 实时协作设计、12. 与后端交互总结、13. Vue 组件代码骨架、14. 实施要点 |
 | 缺陷管理 | `../04-bug-management/02-project-workspace-bug.md` | 1. 缺陷管理接口（1.13 缺陷管理页、1.14 提交缺陷页、1.15 缺陷详情页） |
+| AI 执行与环境管理 | `09-ai-ui-testing.md` | 1. 引言、2. 数据设计、3. 接口详细设计、4. 业务逻辑设计、5. 前端设计、6. 实施说明 |
 
 ---
 
@@ -461,3 +469,4 @@
 | --- | --- | --- |
 | V1.0 | 2026-10-02 | 对齐前端实现：模块划分与总体布局、项目态路由与顶部菜单权限码、模块树与项目上下文状态、数据表口径及分册-章节对照表 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
+| V1.0 | 2026-10-14 | 登记 AI 执行改动：2.1 执行记录 source 与结果枚举、2.1.15 新表指针、2.4 权限码、2.5.1/2.6 测试环境子模块、3 错误号段、分册对照表 |
