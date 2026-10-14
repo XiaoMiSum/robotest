@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import 'vditor/dist/index.css'
 import {
   normalizeMarkdownImageUrls,
@@ -8,6 +8,8 @@ import {
 } from '@/composables/common/markdownImage'
 import {
   createEditorOptions,
+  DEFAULT_PREVIEW_MAX_WIDTH,
+  setPreviewMaxWidth,
   type VditorInstance,
 } from '@/composables/common/vditorEditor'
 
@@ -51,13 +53,6 @@ function handleKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') exitMaximize()
 }
 
-// 最大化期间锁定背景滚动，Esc 可退出；高度以内联样式下发给 .vditor（inline 覆盖 inline，无需强制优先级）
-function applyMaximizeHeight(on: boolean): void {
-  const vditorEl = container.value?.querySelector<HTMLElement>('.vditor')
-  if (!vditorEl) return
-  vditorEl.style.height = on ? '100%' : props.height
-}
-
 watch(maximized, (on) => {
   document.removeEventListener('keydown', handleKeydown)
   if (on) {
@@ -67,9 +62,22 @@ watch(maximized, (on) => {
     document.body.style.overflow = ''
   }
   applyMaximizeHeight(on)
+  // 最大化时放宽正文居中上限使内容撑满浮层；Vditor 监听 window resize 重算正文左右留白，
+  // 等浮层样式生效后再触发，退出时同理还原为默认宽度下的居中排版
+  if (instance) {
+    setPreviewMaxWidth(instance, on ? Number.MAX_SAFE_INTEGER : DEFAULT_PREVIEW_MAX_WIDTH)
+  }
+  void nextTick(() => window.dispatchEvent(new Event('resize')))
 })
 
 const container = useTemplateRef<HTMLDivElement>('container')
+
+// 挂载元素即 .vditor 本体（Vditor 在其上追加类名与内联高度）：高度切换只能落在它自己的内联样式上；
+// 不能以 :class 驱动挂载元素，Vue 重写 class 属性时会抹掉 Vditor 追加的 .vditor 类致布局失效
+function applyMaximizeHeight(on: boolean): void {
+  if (!container.value) return
+  container.value.style.height = on ? '100%' : props.height
+}
 
 let instance: VditorInstance | undefined
 let stopResolve: (() => void) | undefined
@@ -172,17 +180,25 @@ onBeforeUnmount(() => {
   <teleport to="body">
     <div v-if="maximized" class="markdown-editor__mask" @click="exitMaximize" />
   </teleport>
-  <div
-    ref="container"
-    class="markdown-editor"
-    :class="{ 'markdown-editor--maximized': maximized }"
-  />
+  <!-- 最大化态类挂在包裹层：直接以 :class 驱动挂载元素会抹掉 Vditor 追加的 .vditor 类；包裹层同时保证编辑器与表单其余控件同宽 -->
+  <div class="markdown-editor-wrap" :class="{ 'markdown-editor-wrap--maximized': maximized }">
+    <div ref="container" class="markdown-editor" />
+  </div>
 </template>
 
 <style scoped lang="scss">
-.markdown-editor--maximized {
+.markdown-editor-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.markdown-editor-wrap--maximized {
   position: fixed;
-  inset: var(--space-lg);
+  // 70% 视口宽高居中（top/left 各留 15%）
+  top: 15%;
+  left: 15%;
+  width: 70%;
+  height: 70%;
   z-index: 3000;
   padding: var(--space-md);
   background: var(--color-neutral-0);

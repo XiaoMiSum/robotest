@@ -41,6 +41,18 @@ export interface EditorCallbacks {
   onUpload(files: File[]): Promise<void>
 }
 
+/** Vditor 以 preview.maxWidth 居中正文栏（左右留白 = (编辑区宽 - maxWidth) / 2，桌面下限 35px），
+ * 沿用其默认值作为还原基线；最大化时放宽该上限，正文即可撑满浮层宽度 */
+export const DEFAULT_PREVIEW_MAX_WIDTH = 800
+
+/** Vditor 类型未公开 options，运行时实例具备（IVditor.options），经接口收窄后调整正文居中上限 */
+export function setPreviewMaxWidth(vditor: VditorInstance, maxWidth: number): void {
+  const api = vditor as unknown as IVditor
+  if (api.options?.preview) {
+    api.options.preview.maxWidth = maxWidth
+  }
+}
+
 /** 组装所见即所得编辑器参数，屏蔽 Vditor 的原生默认值差异 */
 export function createEditorOptions(
   config: {
