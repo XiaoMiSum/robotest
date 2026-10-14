@@ -19,9 +19,12 @@ const {
 
 <template>
   <div class="requirement-create">
-    <el-page-header @back="router.push('/workspace/projects/requirements')">
-      <template #content><span class="requirement-create__title">新建需求</span></template>
-    </el-page-header>
+    <!-- UI-BC-01：列表 → 新建两级面包屑，回退入口是唯一可点击项 -->
+    <div class="requirement-create__breadcrumb">
+      <router-link to="/workspace/projects/requirements">需求管理</router-link>
+      <el-icon :size="13"><ArrowRight /></el-icon>
+      <span>新建需求</span>
+    </div>
 
     <el-form
       ref="formRef"
@@ -30,70 +33,69 @@ const {
       label-position="top"
       class="requirement-create__form"
     >
-      <el-card shadow="never">
-        <el-form-item label="标题" prop="title">
-          <el-input
-            v-model="form.title"
-            maxlength="300"
-            show-word-limit
-            placeholder="请输入需求标题"
-            size="large"
-          />
-        </el-form-item>
-        <el-form-item label="描述">
-          <MarkdownEditor
-            v-model="form.description"
-            height="260px"
-            placeholder="需求描述（支持 Markdown，可选）"
-          />
-        </el-form-item>
-        <div class="requirement-create__row">
-          <el-form-item label="所属模块">
-            <el-tree-select
-              v-model="form.moduleId"
-              :data="moduleTree"
-              :props="{ label: 'name', children: 'children' }"
-              node-key="id"
-              check-strictly
-              clearable
-              placeholder="可选"
-            />
-          </el-form-item>
-          <el-form-item label="版本" prop="systemVersion">
-            <el-input v-model="form.systemVersion" maxlength="50" show-word-limit placeholder="可选" />
-          </el-form-item>
-          <el-form-item label="优先级">
-            <el-select v-model="form.priority" clearable placeholder="可选">
-              <el-option
-                v-for="option in REQUIREMENT_PRIORITY_OPTIONS"
-                :key="option.value"
-                v-bind="option"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="负责人">
-            <el-select v-model="form.ownerId" clearable filterable placeholder="可选">
-              <el-option
-                v-for="member in memberOptions"
-                :key="member.userId"
-                :value="member.userId"
-                :label="member.name || member.username"
-              />
-            </el-select>
-          </el-form-item>
-        </div>
-        <el-form-item label="标签">
-          <el-select
-            v-model="form.tags"
-            multiple
-            filterable
-            allow-create
-            default-first-option
+      <el-form-item label="标题" prop="title">
+        <el-input
+          v-model="form.title"
+          maxlength="300"
+          show-word-limit
+          placeholder="请输入需求标题"
+          size="large"
+        />
+      </el-form-item>
+      <el-form-item label="描述">
+        <MarkdownEditor
+          v-model="form.description"
+          height="260px"
+          maximizable
+          placeholder="需求描述（支持 Markdown，可选）"
+        />
+      </el-form-item>
+      <div class="requirement-create__row">
+        <el-form-item label="所属模块">
+          <el-tree-select
+            v-model="form.moduleId"
+            :data="moduleTree"
+            :props="{ label: 'name', children: 'children' }"
+            node-key="id"
+            check-strictly
             clearable
-            placeholder="可选，回车创建"
+            placeholder="可选"
           />
         </el-form-item>
-      </el-card>
+        <el-form-item label="版本" prop="systemVersion">
+          <el-input v-model="form.systemVersion" maxlength="50" show-word-limit placeholder="可选" />
+        </el-form-item>
+        <el-form-item label="优先级">
+          <el-select v-model="form.priority" clearable placeholder="可选">
+            <el-option
+              v-for="option in REQUIREMENT_PRIORITY_OPTIONS"
+              :key="option.value"
+              v-bind="option"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="负责人">
+          <el-select v-model="form.ownerId" clearable filterable placeholder="可选">
+            <el-option
+              v-for="member in memberOptions"
+              :key="member.userId"
+              :value="member.userId"
+              :label="member.name || member.username"
+            />
+          </el-select>
+        </el-form-item>
+      </div>
+      <el-form-item label="标签">
+        <el-select
+          v-model="form.tags"
+          multiple
+          filterable
+          allow-create
+          default-first-option
+          clearable
+          placeholder="可选，回车创建"
+        />
+      </el-form-item>
 
       <div class="requirement-create__footer">
         <el-button @click="router.push('/workspace/projects/requirements')">取消</el-button>
@@ -104,18 +106,41 @@ const {
 </template>
 
 <style scoped lang="scss">
-.requirement-create__title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-neutral-800);
+// UI-BC-02：面包屑容器排版基准
+.requirement-create__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+
+  a {
+    color: var(--color-primary-500);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-primary-600);
+  }
+
+  .el-icon {
+    color: var(--color-neutral-400);
+  }
+
+  > :last-child {
+    color: var(--color-neutral-900);
+  }
 }
 
 .requirement-create__form {
-  margin-top: var(--space-lg);
+  margin-top: var(--space-sm);
 }
 
 .requirement-create__form :deep(.el-select),
-.requirement-create__form :deep(.el-tree-select) {
+.requirement-create__form :deep(.el-tree-select),
+.requirement-create__form :deep(.vditor) {
   width: 100%;
 }
 
