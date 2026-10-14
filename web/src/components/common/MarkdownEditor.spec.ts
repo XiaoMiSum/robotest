@@ -201,14 +201,16 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
 
     pickMaximizeItem(options).click?.(new Event('click'))
     await nextTick()
-    expect(wrapper.find('.markdown-editor--maximized').exists()).toBe(true)
+    expect(wrapper.find('.markdown-editor-wrap--maximized').exists()).toBe(true)
+    expect(wrapper.find('.markdown-editor').attributes('style')).toContain('height: 100%')
     expect(document.body.style.overflow).toBe('hidden')
 
     const mask = document.querySelector('.markdown-editor__mask')
     expect(mask).not.toBeNull()
     mask?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await nextTick()
-    expect(wrapper.find('.markdown-editor--maximized').exists()).toBe(false)
+    expect(wrapper.find('.markdown-editor-wrap--maximized').exists()).toBe(false)
+    expect(wrapper.find('.markdown-editor').attributes('style')).toContain('height: 320px')
     expect(document.querySelector('.markdown-editor__mask')).toBeNull()
     expect(document.body.style.overflow).toBe('')
   })
@@ -221,7 +223,7 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     await nextTick()
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await nextTick()
-    expect(wrapper.find('.markdown-editor--maximized').exists()).toBe(false)
+    expect(wrapper.find('.markdown-editor-wrap--maximized').exists()).toBe(false)
     expect(document.body.style.overflow).toBe('')
 
     maximize.click?.(new Event('click'))
