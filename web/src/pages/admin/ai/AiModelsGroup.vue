@@ -8,11 +8,10 @@ import type { AiModel, AiModelCapability, AiModelCreatePayload, AiModelUpdatePay
 
 const store = useAiAdminStore()
 
-/** 能力标签（详设 3.3：capabilities ⊆ {chat, vision, embedding}） */
+/** 能力标签（详设 3.3：capabilities ⊆ {chat, vision}） */
 const CAPABILITY_OPTIONS: Array<{ value: AiModelCapability; label: string }> = [
   { value: 'chat', label: '对话' },
   { value: 'vision', label: '视觉' },
-  { value: 'embedding', label: '嵌入' },
 ]
 
 /** 数据由壳层首载拉取，此处仅处理重试与变更（shellReady 门控后挂载） */
