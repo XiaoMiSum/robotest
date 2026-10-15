@@ -1,10 +1,11 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchTraceMatrix } from '@/services/project'
 import { fetchAiStatus } from '@/services/ai'
 import { useAuthStore } from '@/stores/auth'
 import { useTraceStore } from '@/stores/trace'
-import type { TraceMatrixRow } from '@/types'
+import type { TraceMatrixRow, TraceNodeType } from '@/types'
 import {
   traceCoverageMeta,
   traceRowHighlight,
@@ -38,6 +39,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function useTraceMatrix() {
+  const router = useRouter()
   const authStore = useAuthStore()
   const traceStore = useTraceStore()
 
@@ -154,8 +156,12 @@ export function useTraceMatrix() {
   }
 
   // ==================== 链路入口 ====================
-  function openChain(row: TraceMatrixRow): void {
-    traceStore.openChain({ type: 'requirement', id: row.requirementId, title: `${row.code} ${row.title}` })
+  function openChain(row: TraceMatrixRow, focusType?: TraceNodeType): void {
+    void router.push({
+      name: 'TraceChain',
+      params: { nodeType: 'requirement', nodeId: row.requirementId },
+      query: focusType ? { focusType } : undefined,
+    })
   }
 
   const canEdit = computed(() => authStore.hasPermission('trace:edit'))

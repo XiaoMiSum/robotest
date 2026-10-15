@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTraceStore } from '@/stores/trace'
-import type { TraceEdgePatchPayload, TraceGapType, TraceImpactDisposition, TraceNodeType } from '@/types'
+import type { TraceGapType, TraceNodeType } from '@/types'
 import { TRACE_MATRIX_COLUMNS } from '@/composables/project/trace/tracePresentation'
 import { useTraceMatrix, type TraceMatrixRowView } from '@/composables/project/trace/useTraceMatrix'
-import { useTraceChain } from '@/composables/project/trace/useTraceChain'
-import { useTraceCoverage } from '@/composables/project/trace/useTraceCoverage'
 import { useTraceGaps, type TraceGapView } from '@/composables/project/trace/useTraceGaps'
-import { useTraceImpact, type TraceImpactItemView } from '@/composables/project/trace/useTraceImpact'
 import TraceLegend from '@/components/project/trace/TraceLegend.vue'
-import TraceChainDrawer from '@/components/project/trace/TraceChainDrawer.vue'
 import GapList from '@/components/project/trace/GapList.vue'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import AiTaskEntryButton from '@/components/project/ai/AiTaskEntryButton.vue'
@@ -32,7 +28,6 @@ const {
   filters,
   filterCount,
   aiAvailable,
-  load,
   retry,
   search,
   resetFilters,
@@ -40,42 +35,6 @@ const {
   changePageSize,
   openChain,
 } = useTraceMatrix()
-
-const {
-  visible: chainVisible,
-  origin: chainOrigin,
-  chain,
-  loading: chainLoading,
-  loadError: chainLoadError,
-  busy: chainBusy,
-  revision: chainRevision,
-  canEdit: canEditTrace,
-  retry: retryChain,
-  confirmEdge,
-  reattachEdge,
-  detachEdge,
-  restoreEdge,
-  addEdge,
-} = useTraceChain()
-
-const {
-  record: coverageRecord,
-  loading: coverageLoading,
-  loadError: coverageLoadError,
-  saving: coverageSaving,
-  revision: coverageRevision,
-  busy: coverageBusy,
-  taskRunning: coverageTaskRunning,
-  taskProgress: coverageTaskProgress,
-  taskFailed: coverageTaskFailed,
-  taskError: coverageTaskError,
-  openFor: openCoverage,
-  retry: retryCoverage,
-  close: closeCoverage,
-  save: saveCoverage,
-  analyze: analyzeCoverage,
-  retryAnalyze: retryAnalyzeCoverage,
-} = useTraceCoverage()
 
 const {
   gaps,
@@ -97,29 +56,6 @@ const {
   generationScope,
   generationModuleTree,
 } = useTraceGaps()
-
-const {
-  items: impactItems,
-  total: impactTotal,
-  pageNo: impactPageNo,
-  pageSize: impactPageSize,
-  loading: impactLoading,
-  loadError: impactLoadError,
-  busy: impactBusy,
-  taskRunning,
-  taskProgress,
-  taskFailed,
-  taskError,
-  refreshSignal,
-  canEdit: canEditImpact,
-  openFor: openImpact,
-  retry: retryImpact,
-  changePage: changeImpactPage,
-  changePageSize: changeImpactPageSize,
-  dispose: disposeImpact,
-  analyze,
-  retryAnalyze,
-} = useTraceImpact()
 
 const view = computed({
   get: () => traceStore.view,
@@ -147,64 +83,21 @@ const coverageOptions = [
 
 // ==================== 链路入口 ====================
 function openCell(row: TraceMatrixRowView, type: TraceNodeType): void {
-  traceStore.openChain({
-    type: 'requirement',
-    id: row.requirementId,
-    title: `${row.code} ${row.title}`,
-    focusType: type,
-  })
-}
-
-/** 起点为需求时联动加载覆盖结论与受影响项，其余起点只看链路 */
-watch(
-  () => traceStore.chainOrigin,
-  (origin) => {
-    if (origin?.type === 'requirement') {
-      void openCoverage(origin.id)
-      void openImpact(origin.id)
-      return
-    }
-    closeCoverage()
-  },
-)
-
-// ==================== 写操作后的矩阵刷新 ====================
-watch([chainRevision, coverageRevision, refreshSignal], () => {
-  void load()
-})
-
-// ==================== 抽屉动作 ====================
-function handlePatch(event: { edgeId: string; payload: TraceEdgePatchPayload; successText: string }): void {
-  const { edgeId, payload } = event
-  if (payload.action === 'detach') {
-    void detachEdge(edgeId, payload.reason ?? '')
-    return
-  }
-  if (payload.action === 'reattach' && payload.targetId) {
-    void reattachEdge(edgeId, { type: payload.targetType ?? 'mindmap_document', id: payload.targetId })
-    return
-  }
-  if (payload.action === 'confirm') void confirmEdge(edgeId)
-  if (payload.action === 'restore') void restoreEdge(edgeId)
-}
-
-function handleDispose(event: {
-  item: TraceImpactItemView
-  disposition: TraceImpactDisposition
-  reason: string
-}): void {
-  void disposeImpact(event.item, event.disposition, event.reason)
+  openChain(row, type)
 }
 
 function handleGapAction(gap: TraceGapView): void {
   runGapAction(gap)
 }
 
+// 旧深链（?tab=trace&requirementId=xxx）重定向至链路明细页（详设 05 §5.1 兼容）
 onMounted(() => {
   const requirementId = route.query.requirementId
   if (typeof requirementId === 'string' && requirementId) {
-    const title = typeof route.query.title === 'string' ? route.query.title : '追溯链路'
-    traceStore.openChain({ type: 'requirement', id: requirementId, title })
+    void router.replace({
+      name: 'TraceChain',
+      params: { nodeType: 'requirement', nodeId: requirementId },
+    })
   }
 })
 </script>
@@ -284,7 +177,7 @@ onMounted(() => {
 
         <el-skeleton v-if="showSkeleton" :rows="6" animated class="list-skeleton" />
 
-        <el-table v-else :data="rows" row-key="requirementId" @row-click="openChain">
+        <el-table v-else :data="rows" row-key="requirementId" @row-click="(row) => openChain(row as TraceMatrixRowView)">
           <el-table-column label="需求 \ 下游" min-width="220" fixed="left">
             <template #default="{ row }">
               <div class="trace-matrix__req">
@@ -412,59 +305,6 @@ onMounted(() => {
       @change-page-size="changeGapPageSize"
       @open-chain="openGapChain"
       @run-action="handleGapAction"
-    />
-
-    <TraceChainDrawer
-      :origin="chainOrigin"
-      :chain="chain"
-      :loading="chainLoading"
-      :load-error="chainLoadError"
-      :busy="chainBusy"
-      :can-edit="canEditTrace"
-      :ai-available="aiAvailable"
-      :coverage="{
-        record: coverageRecord,
-        loading: coverageLoading,
-        loadError: coverageLoadError,
-        saving: coverageSaving,
-        canEdit: canEditTrace,
-        aiAvailable,
-        busy: coverageBusy,
-        taskRunning: coverageTaskRunning,
-        taskProgress: coverageTaskProgress,
-        taskFailed: coverageTaskFailed,
-        taskError: coverageTaskError,
-      }"
-      :impact="{
-        items: impactItems,
-        total: impactTotal,
-        pageNo: impactPageNo,
-        pageSize: impactPageSize,
-        loading: impactLoading,
-        loadError: impactLoadError,
-        busy: impactBusy,
-        aiAvailable: aiAvailable,
-        canEdit: canEditImpact,
-        taskRunning,
-        taskProgress,
-        taskFailed,
-        taskError,
-      }"
-      @retry="retryChain"
-      @patch="handlePatch"
-      @create-edge="(payload) => void addEdge(payload)"
-      @close="chainVisible = false"
-      @open-chain="(origin) => traceStore.openChain(origin)"
-      @retry-coverage="retryCoverage"
-      @save-coverage="(payload) => void saveCoverage(payload)"
-      @analyze-coverage="() => void analyzeCoverage()"
-      @retry-analyze-coverage="() => void retryAnalyzeCoverage()"
-      @dispose-impact="handleDispose"
-      @analyze-impact="() => void analyze()"
-      @retry-analyze-impact="() => void retryAnalyze()"
-      @change-impact-page="changeImpactPage"
-      @change-impact-page-size="changeImpactPageSize"
-      @retry-impact="retryImpact"
     />
 
     <!-- 缺口「发起生成」就地打开生成配置；输入状态变化时刷新缺口清单（交互 04 §2.4） -->

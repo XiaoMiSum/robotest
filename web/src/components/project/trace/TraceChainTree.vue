@@ -2,18 +2,15 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import type {
-  RequirementCoverageStatus,
   TraceChain,
   TraceChainEdge,
   TraceChainNode,
   TraceEdgeAction,
   TraceEdgeCreatePayload,
   TraceEdgePatchPayload,
-  TraceImpactDisposition,
   TraceNodeType,
 } from '@/types'
-import type { TraceCoverage } from '@/types'
-import type { TraceImpactItemView } from '@/composables/project/trace/useTraceImpact'
+import type { TraceChainSource } from '@/composables/project/trace/useTraceChain'
 import type { TraceNodeOption } from '@/composables/project/trace/useTraceNodePicker'
 import {
   traceActionAvailability,
@@ -24,77 +21,26 @@ import {
 import { useTraceNodePicker } from '@/composables/project/trace/useTraceNodePicker'
 import TraceLegend from '@/components/project/trace/TraceLegend.vue'
 import TraceEdgeCreateDialog from '@/components/project/trace/TraceEdgeCreateDialog.vue'
-import CoveragePanel from '@/components/project/trace/CoveragePanel.vue'
-import ImpactDispositionPanel from '@/components/project/trace/ImpactDispositionPanel.vue'
 
 /**
- * 链路视图抽屉（交互 04 §2.2）：节点树按层展示、边状态徽标与修正动作；
- * 起点为需求时附带覆盖修正面板与影响处置面板，形成需求维度的完整下钻。
+ * 链路明细页的节点树区（交互 04 §2.2）：按层展示节点与边状态，行内提供修正动作；
+ * 起点切换与跨页下钻均由页面接管，本组件只负责呈现与向上抛事件。
  */
 const props = defineProps<{
-  origin: { type: TraceNodeType; id: string; title: string; focusType?: TraceNodeType } | null
+  origin: TraceChainSource | null
   chain: TraceChain | null
   loading: boolean
   loadError: string
   busy: boolean
   canEdit: boolean
-  aiAvailable: boolean
-  coverage: {
-    record: TraceCoverage | null
-    loading: boolean
-    loadError: string
-    saving: boolean
-    canEdit: boolean
-    aiAvailable: boolean
-    busy: boolean
-    taskRunning: boolean
-    taskProgress: number | null
-    taskFailed: boolean
-    taskError: string
-  }
-  impact: {
-    items: TraceImpactItemView[]
-    total: number
-    pageNo: number
-    pageSize: number
-    loading: boolean
-    loadError: string
-    busy: boolean
-    aiAvailable: boolean
-    canEdit: boolean
-    taskRunning: boolean
-    taskProgress: number | null
-    taskFailed: boolean
-    taskError: string
-  }
 }>()
 
 const emit = defineEmits<{
   retry: []
   patch: [payload: { edgeId: string; payload: TraceEdgePatchPayload; successText: string }]
   createEdge: [payload: TraceEdgeCreatePayload]
-  close: []
-  openChain: [origin: { type: TraceNodeType; id: string; title: string }]
-  retryCoverage: []
-  saveCoverage: [payload: { coverageStatus: Exclude<RequirementCoverageStatus, 'pending'>; note?: string }]
-  analyzeCoverage: []
-  retryAnalyzeCoverage: []
-  disposeImpact: [payload: { item: TraceImpactItemView; disposition: TraceImpactDisposition; reason: string }]
-  analyzeImpact: []
-  retryAnalyzeImpact: []
-  changeImpactPage: [pageNo: number]
-  changeImpactPageSize: [pageSize: number]
-  retryImpact: []
+  openChain: [origin: { type: TraceNodeType; id: string }]
 }>()
-
-const visible = computed({
-  get: () => props.origin !== null,
-  set: (open: boolean) => {
-    if (!open) emit('close')
-  },
-})
-
-const isRequirementOrigin = computed(() => props.origin?.type === 'requirement')
 
 /** 节点入边：树中除根节点外每条连线对应一条边，按 targetId 索引 */
 const edgeByTarget = computed(() => {
@@ -232,44 +178,36 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
 </script>
 
 <template>
-  <el-drawer v-model="visible" size="min(760px, 92vw)" :with-header="false" class="trace-chain-drawer">
-    <header class="trace-chain__head">
-      <div>
-        <h2 class="trace-chain__title">
-          链路视图：{{ origin?.title ?? '' }}
-        </h2>
-        <p class="trace-chain__subtitle">
-          {{ chain?.hasMore ? '链路超过展示上限，仅展示前段节点' : '按关系层级展开，点击下游节点查看详情' }}
-        </p>
-      </div>
-      <el-button text @click="visible = false">关闭</el-button>
-    </header>
-
+  <section class="chain-tree">
     <el-alert
       v-if="loadError"
       type="error"
       :title="loadError"
       show-icon
       :closable="false"
-      class="trace-chain__error"
+      class="chain-tree__error"
     >
       <template #default>
         <el-button size="small" type="danger" plain @click="emit('retry')">重试</el-button>
       </template>
     </el-alert>
 
-    <div v-loading="loading" class="trace-chain__tree">
+    <div v-loading="loading" class="chain-tree__body">
       <div
         v-for="row in rows"
         :key="row.node.id"
-        class="trace-chain__row"
-        :class="{ 'trace-chain__row--focus': row.focused }"
+        class="chain-tree__row"
+        :class="{ 'chain-tree__row--focus': row.focused }"
         :style="{ paddingLeft: `${row.node.level * 24}px` }"
       >
         <el-tooltip :content="row.meta.label" placement="top">
-          <el-icon class="trace-chain__icon"><component :is="row.meta.icon" /></el-icon>
+          <el-icon class="chain-tree__icon"><component :is="row.meta.icon" /></el-icon>
         </el-tooltip>
-        <button type="button" class="trace-chain__node" @click="emit('openChain', { type: row.node.type, id: row.node.id, title: row.node.title })">
+        <button
+          type="button"
+          class="chain-tree__node"
+          @click="emit('openChain', { type: row.node.type, id: row.node.id })"
+        >
           {{ row.node.title }}
         </button>
 
@@ -278,16 +216,16 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
             :type="row.statusMeta?.tagType ?? 'info'"
             size="small"
             effect="light"
-            class="trace-chain__status"
+            class="chain-tree__status"
           >
             {{ row.statusMeta?.symbol }} {{ row.statusMeta?.label }}
           </el-tag>
-          <span v-if="row.edge.versionMatched === false" class="trace-chain__stale">
+          <span v-if="row.edge.versionMatched === false" class="chain-tree__stale">
             目标版本 {{ row.edge.targetVersion }}
           </span>
         </template>
 
-        <div v-if="canEdit && row.edge && row.availability" class="trace-chain__actions">
+        <div v-if="canEdit && row.edge && row.availability" class="chain-tree__actions">
           <el-button
             v-if="row.availability.confirm"
             size="small"
@@ -331,7 +269,7 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
         </div>
       </div>
 
-      <div v-if="!loading && !loadError && rows.length === 0" class="trace-chain__empty">
+      <div v-if="!loading && !loadError && rows.length === 0" class="chain-tree__empty">
         <p>该起点暂无下游关系</p>
         <!-- 生成配置随批次二开放（WP-3.2 方案裁决 ②/④）：入口置灰并以悬浮提示说明 -->
         <el-tooltip content="生成配置随批次二开放" placement="bottom">
@@ -342,62 +280,15 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
       </div>
     </div>
 
-    <footer class="trace-chain__foot">
+    <footer class="chain-tree__foot">
       <TraceLegend />
       <el-button v-if="canEdit" size="small" @click="createVisible = true">+ 人工建边</el-button>
     </footer>
 
-    <!-- 起点为需求时的覆盖修正与影响处置（交互 04 §2.3 / §2.5） -->
-    <template v-if="isRequirementOrigin">
-      <el-divider content-position="left">覆盖判定</el-divider>
-      <CoveragePanel
-        :record="coverage.record"
-        :loading="coverage.loading"
-        :load-error="coverage.loadError"
-        :saving="coverage.saving"
-        :can-edit="coverage.canEdit"
-        :ai-available="coverage.aiAvailable"
-        :busy="coverage.busy"
-        :task-running="coverage.taskRunning"
-        :task-progress="coverage.taskProgress"
-        :task-failed="coverage.taskFailed"
-        :task-error="coverage.taskError"
-        @retry="emit('retryCoverage')"
-        @save="emit('saveCoverage', $event)"
-        @analyze="emit('analyzeCoverage')"
-        @retry-analyze="emit('retryAnalyzeCoverage')"
-      />
-
-      <template v-if="aiAvailable">
-        <el-divider content-position="left">受影响项</el-divider>
-        <ImpactDispositionPanel
-          :items="impact.items"
-          :total="impact.total"
-          :page-no="impact.pageNo"
-          :page-size="impact.pageSize"
-          :loading="impact.loading"
-          :load-error="impact.loadError"
-          :busy="impact.busy"
-          :ai-available="impact.aiAvailable"
-          :can-edit="impact.canEdit"
-          :task-running="impact.taskRunning"
-          :task-progress="impact.taskProgress"
-          :task-failed="impact.taskFailed"
-          :task-error="impact.taskError"
-          @dispose="emit('disposeImpact', $event)"
-          @analyze="emit('analyzeImpact')"
-          @retry-analyze="emit('retryAnalyzeImpact')"
-          @change-page="emit('changeImpactPage', $event)"
-          @change-page-size="emit('changeImpactPageSize', $event)"
-          @retry="emit('retryImpact')"
-        />
-      </template>
-    </template>
-
     <TraceEdgeCreateDialog v-model="createVisible" :case-options="caseOptions" @submit="submitCreate" />
 
     <el-dialog v-model="reattachVisible" title="改挂到新目标" width="520px" append-to-body>
-      <div class="trace-chain__reattach">
+      <div class="chain-tree__reattach">
         <el-select v-model="reattachTargetType" style="width: 150px">
           <el-option
             v-for="type in REATTACH_TARGETS[reattachEdgeType]"
@@ -431,41 +322,20 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
         </el-button>
       </template>
     </el-dialog>
-  </el-drawer>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.trace-chain__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+.chain-tree__error {
   margin-bottom: 12px;
 }
 
-.trace-chain__title {
-  margin: 0;
-  font-size: 16px;
-  color: var(--color-neutral-900);
-}
-
-.trace-chain__subtitle {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--color-neutral-500);
-}
-
-.trace-chain__error {
-  margin-bottom: 12px;
-}
-
-.trace-chain__tree {
+.chain-tree__body {
   min-height: 160px;
-  max-height: 44vh;
-  overflow: auto;
   padding: 4px 0;
 }
 
-.trace-chain__row {
+.chain-tree__row {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -474,15 +344,15 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
   border-radius: 4px;
 }
 
-.trace-chain__row--focus {
+.chain-tree__row--focus {
   background: var(--color-primary-50);
 }
 
-.trace-chain__icon {
+.chain-tree__icon {
   color: var(--color-neutral-500);
 }
 
-.trace-chain__node {
+.chain-tree__node {
   padding: 0;
   font: inherit;
   color: var(--color-neutral-800);
@@ -492,26 +362,26 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
   cursor: pointer;
 }
 
-.trace-chain__node:hover {
+.chain-tree__node:hover {
   color: var(--color-primary-500);
 }
 
-.trace-chain__status {
+.chain-tree__status {
   flex-shrink: 0;
 }
 
-.trace-chain__stale {
+.chain-tree__stale {
   font-size: 12px;
   color: var(--color-warning);
 }
 
-.trace-chain__actions {
+.chain-tree__actions {
   display: flex;
   gap: 4px;
   margin-left: auto;
 }
 
-.trace-chain__empty {
+.chain-tree__empty {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -521,11 +391,11 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
   text-align: center;
 }
 
-.trace-chain__empty p {
+.chain-tree__empty p {
   margin: 0;
 }
 
-.trace-chain__foot {
+.chain-tree__foot {
   display: flex;
   gap: 16px;
   align-items: center;
@@ -533,7 +403,7 @@ function submitCreate(payload: TraceEdgeCreatePayload): void {
   margin-top: 12px;
 }
 
-.trace-chain__reattach {
+.chain-tree__reattach {
   display: flex;
   gap: 8px;
 }

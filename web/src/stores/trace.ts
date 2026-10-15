@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { TraceGapType, TraceNodeType } from '@/types'
+import type { TraceGapType } from '@/types'
 
 /** 矩阵筛选条件（返回矩阵页保活），coverage / requirementStatus 为服务端单选枚举串 */
 export interface TraceMatrixFilters {
@@ -12,15 +12,7 @@ function emptyFilters(): TraceMatrixFilters {
   return { requirementStatus: '', coverage: '', keyword: '' }
 }
 
-/** 链路抽屉起点：需求详情「查看追溯」与缺口引导均以此进入 */
-export interface TraceChainOrigin {
-  type: TraceNodeType
-  id: string
-  title: string
-  /** 矩阵单元格点击时的定位类型，抽屉内对该类型节点高亮 */
-  focusType?: TraceNodeType
-}
-
+/** 矩阵筛选与视图的跨页保活状态；链路明细起点由路由参数承载，不入 store */
 export const useTraceStore = defineStore('trace', {
   state: () => ({
     /** matrix 矩阵视图 / gaps 缺口视图（交互 04 §2.1 顶部切换） */
@@ -29,8 +21,6 @@ export const useTraceStore = defineStore('trace', {
     pageNo: 1,
     pageSize: 20,
     gapType: 'uncovered_requirement' as TraceGapType,
-    /** 非 null 表示链路抽屉打开，跨页返回时保留定位 */
-    chainOrigin: null as TraceChainOrigin | null,
   }),
   getters: {
     /** 生效筛选条件数（筛选角标） */
@@ -54,12 +44,6 @@ export const useTraceStore = defineStore('trace', {
     setGapType(type: TraceGapType) {
       this.gapType = type
       this.pageNo = 1
-    },
-    openChain(origin: TraceChainOrigin) {
-      this.chainOrigin = origin
-    },
-    closeChain() {
-      this.chainOrigin = null
     },
   },
 })

@@ -83,6 +83,20 @@ const NODE_TYPE_META: Record<TraceNodeType, TraceNodeTypeMeta> = {
   test_plan: { label: '测试计划', icon: 'Calendar' },
 }
 
+/** 链路明细页路由参数校验用：URL 传入的节点类型必须命中已知枚举 */
+export const TRACE_NODE_TYPES: TraceNodeType[] = [
+  'requirement',
+  'module',
+  'mindmap_document',
+  'test_case',
+  'test_review',
+  'test_plan',
+]
+
+export function isTraceNodeType(value: unknown): value is TraceNodeType {
+  return typeof value === 'string' && (TRACE_NODE_TYPES as string[]).includes(value)
+}
+
 export function traceNodeTypeMeta(type: string): TraceNodeTypeMeta {
   return NODE_TYPE_META[type as TraceNodeType] ?? { label: type, icon: 'Tickets' }
 }

@@ -17,7 +17,6 @@ describe('trace store', () => {
       expect(store.pageNo).toBe(1)
       expect(store.pageSize).toBe(20)
       expect(store.gapType).toBe('uncovered_requirement')
-      expect(store.chainOrigin).toBeNull()
     })
   })
 
@@ -90,16 +89,6 @@ describe('trace store', () => {
       store.setGapType('orphan_case')
       expect(store.gapType).toBe('orphan_case')
       expect(store.pageNo).toBe(1)
-    })
-  })
-
-  describe('action openChain / closeChain', () => {
-    it('打开记录起点，关闭置空', () => {
-      const store = useTraceStore()
-      store.openChain({ type: 'requirement', id: 'r1', title: 'REQ-001 登录' })
-      expect(store.chainOrigin).toEqual({ type: 'requirement', id: 'r1', title: 'REQ-001 登录' })
-      store.closeChain()
-      expect(store.chainOrigin).toBeNull()
     })
   })
 })
