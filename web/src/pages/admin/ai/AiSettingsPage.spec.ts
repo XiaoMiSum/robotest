@@ -48,6 +48,15 @@ describe('AI 配置中心 · 模型配置（交互 2.2）', () => {
     expect(modelsSource).toContain('formError.value = error instanceof Error && error.message')
   })
 
+  it('添加入口在操作列表头以 link 按钮右对齐，表格上方不再设工具栏', () => {
+    expect(modelsSource).toContain('<template #header>')
+    expect(modelsSource).toContain('link type="primary" size="small" @click="openCreate"')
+    expect(modelsSource).toContain('model-group__actions-head')
+    expect(modelsSource).not.toContain('model-group__toolbar')
+    // 列表头只留新增入口，不再显示「操作」标题
+    expect(modelsSource).not.toContain('<span>操作</span>')
+  })
+
   it('编辑空密钥不入载荷，避免空串覆盖既有密钥', () => {
     expect(modelsSource).toContain('if (form.apiKey.trim()) payload.apiKey = form.apiKey.trim()')
     expect(modelsSource).toContain('已配置（输入新值以替换）')
