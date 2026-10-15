@@ -81,14 +81,11 @@ const statistics = computed(() => {
   return q ? store.usage[usageCacheKey(q)] : undefined
 })
 
-watch(
-  query,
-  (q) => {
-    drill.value = null // 范围/维度变化后下钻区间随之失效
-    if (q) void store.loadUsage(q)
-  },
-  { immediate: true },
-)
+// 下钻失效重置单独拆一个 watch：本 watch 的 immediate 回调在 drill 声明前同步执行，
+// 直接写 drill 会命中 TDZ（ReferenceError）导致 setup 中断
+watch(query, (q) => {
+  if (q) void store.loadUsage(q)
+}, { immediate: true })
 
 function resetRange() {
   preset.value = '30'
@@ -236,6 +233,11 @@ const drillTotal = ref(0)
 const drillPageNo = ref(1)
 const drillLoading = ref(false)
 const drillError = ref('')
+
+// 范围/维度变化后下钻区间随之失效（不需 immediate：初始即 null，且须声明于 drill 之后）
+watch(query, () => {
+  drill.value = null
+})
 
 async function loadDrill() {
   if (!drill.value) return
