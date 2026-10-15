@@ -83,6 +83,7 @@ const {
   pageSize: gapPageSize,
   loading: gapLoading,
   loadError: gapLoadError,
+  hasLoaded: gapHasLoaded,
   gapType,
   typeOptions,
   retry: retryGaps,
@@ -125,6 +126,9 @@ const view = computed({
 })
 
 const canCreateRequirement = computed(() => authStore.hasPermission('requirement:create'))
+
+/** 首屏骨架：仅首屏加载中显示，刷新走整卡遮罩（交互 04 §2.6） */
+const showSkeleton = computed(() => !hasLoaded.value && !loadError.value && loading.value)
 
 const statusOptions = [
   { value: 'draft', label: '草稿' },
@@ -217,43 +221,7 @@ onMounted(() => {
       </el-radio-group>
     </header>
 
-    <!-- 筛选：状态 / 覆盖 / 关键词，角标显示条件数（交互 04 §2.1） -->
-    <div class="filter-bar">
-      <el-select
-        v-model="filters.requirementStatus"
-        clearable
-        placeholder="状态"
-        style="width: 140px"
-        @change="search"
-      >
-        <el-option v-for="option in statusOptions" :key="option.value" v-bind="option" />
-      </el-select>
-      <el-select
-        v-model="filters.coverage"
-        clearable
-        placeholder="覆盖"
-        style="width: 140px"
-        @change="search"
-      >
-        <el-option v-for="option in coverageOptions" :key="option.value" v-bind="option" />
-      </el-select>
-      <el-input
-        v-model="filters.keyword"
-        clearable
-        placeholder="编号或标题"
-        style="width: 220px"
-        @keyup.enter="search"
-        @clear="search"
-      >
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
-      <el-button type="primary" @click="search">
-        <el-icon><Search /></el-icon>查询
-      </el-button>
-      <el-button @click="resetFilters">重置</el-button>
-      <el-badge v-if="filterCount > 0" :value="filterCount" class="filter-bar__badge" />
-    </div>
-
+    <!-- 错误提示条保持页面级（卡片外），重试与卡片 loading 分离（交互 04 §2.6） -->
     <el-alert
       v-if="loadError"
       type="error"
@@ -269,10 +237,49 @@ onMounted(() => {
 
     <!-- 矩阵视图 -->
     <template v-if="view === 'matrix'">
-      <el-skeleton v-if="!hasLoaded && !loadError && loading" :rows="6" animated class="list-skeleton" />
+      <!-- UI-SC-10：卡片内边距归零使表格贴边，筛选入工具栏，刷新走整卡遮罩（交互 04 §2.1） -->
+      <el-card v-loading="loading && hasLoaded" shadow="never" class="trace-matrix__card">
+        <!-- 筛选入卡片工具栏：状态 / 覆盖 / 关键词，角标显示条件数、右端常驻总数（交互 04 §2.1） -->
+        <div class="filter-bar">
+          <el-select
+            v-model="filters.requirementStatus"
+            clearable
+            placeholder="状态"
+            style="width: 140px"
+            @change="search"
+          >
+            <el-option v-for="option in statusOptions" :key="option.value" v-bind="option" />
+          </el-select>
+          <el-select
+            v-model="filters.coverage"
+            clearable
+            placeholder="覆盖"
+            style="width: 140px"
+            @change="search"
+          >
+            <el-option v-for="option in coverageOptions" :key="option.value" v-bind="option" />
+          </el-select>
+          <el-input
+            v-model="filters.keyword"
+            clearable
+            placeholder="编号或标题"
+            style="width: 220px"
+            @keyup.enter="search"
+            @clear="search"
+          >
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <el-button type="primary" @click="search">
+            <el-icon><Search /></el-icon>查询
+          </el-button>
+          <el-button @click="resetFilters">重置</el-button>
+          <el-badge v-if="filterCount > 0" :value="filterCount" class="filter-bar__badge" />
+          <span class="filter-bar__count">共 {{ total }} 条</span>
+        </div>
 
-      <el-card v-else shadow="never" class="trace-matrix__card">
-        <el-table v-loading="loading" :data="rows" row-key="requirementId" @row-click="openChain">
+        <el-skeleton v-if="showSkeleton" :rows="6" animated class="list-skeleton" />
+
+        <el-table v-else :data="rows" row-key="requirementId" @row-click="openChain">
           <el-table-column label="需求 \ 下游" min-width="220" fixed="left">
             <template #default="{ row }">
               <div class="trace-matrix__req">
@@ -364,18 +371,20 @@ onMounted(() => {
           </template>
         </el-table>
 
-        <footer class="trace-matrix__foot">
+        <footer v-if="!showSkeleton" class="trace-matrix__foot">
           <TraceLegend />
-          <el-pagination
-            v-if="total > 0"
-            :current-page="pageNo"
-            :page-size="pageSize"
-            :total="total"
-            layout="total, prev, pager, next, sizes"
-            :page-sizes="[10, 20, 50]"
-            @current-change="changePage"
-            @size-change="changePageSize"
-          />
+          <div class="trace-matrix__pager">
+            <span class="trace-matrix__pager-total">共 {{ total }} 条 · 每页 {{ pageSize }} 条</span>
+            <el-pagination
+              layout="prev, pager, next, sizes"
+              :current-page="pageNo"
+              :page-size="pageSize"
+              :total="total"
+              :page-sizes="[10, 20, 50]"
+              @current-change="changePage"
+              @size-change="changePageSize"
+            />
+          </div>
         </footer>
       </el-card>
     </template>
@@ -391,6 +400,7 @@ onMounted(() => {
       :page-size="gapPageSize"
       :loading="gapLoading"
       :load-error="gapLoadError"
+      :has-loaded="gapHasLoaded"
       @set-type="(type: TraceGapType) => setGapType(type)"
       @retry="retryGaps"
       @change-page="changeGapPage"
@@ -463,12 +473,64 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--block-gap);
+}
+
+.page-head__title {
+  margin: 0;
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-2xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.page-head__desc {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
 .trace-matrix__switch {
   align-self: center;
 }
 
+.list-error {
+  margin-bottom: var(--space-md);
+}
+
+/* UI-SC-10：卡片内边距归零，留白由工具栏/分页条承担 */
 .trace-matrix__card {
-  margin-top: 12px;
+  --el-card-padding: 0;
+}
+
+/* UI-SC-10：筛选工具栏是固定控件，独立留白并与表格以分割线分隔 */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.filter-bar__badge :deep(.el-badge__content) {
+  background-color: var(--color-primary-500);
+}
+
+.filter-bar__count {
+  margin-left: auto;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.list-skeleton {
+  padding: 14px 20px;
 }
 
 .trace-matrix__req {
@@ -545,11 +607,27 @@ onMounted(() => {
   color: var(--color-neutral-500);
 }
 
+/* UI-SC-10：分页条以分割线与表格分隔，左侧图例、右侧计数与分页控件 */
 .trace-matrix__foot {
   display: flex;
-  gap: 16px;
+  gap: var(--space-md);
   align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
+}
+
+.trace-matrix__pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.trace-matrix__pager-total {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
 }
 </style>
