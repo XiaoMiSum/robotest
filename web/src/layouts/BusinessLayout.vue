@@ -25,11 +25,13 @@ const showSystemAdmin = computed(() => authStore.hasSystemPermission)
 // 项目 tag 仅 project 模式显示：workspace 模式（项目列表页）下 activeProjectName 可能是上次进入的残留
 const showProjectTag = computed(() => navStore.isProjectMode && Boolean(authStore.activeProjectName))
 
-// 侧边栏布局页面需内容区 padding 归零，侧边栏才能贴边通高（功能测试 / 接口测试）
+// 侧边栏布局页面需内容区 padding 归零，侧边栏才能贴边通高（功能测试 / 接口测试 / 需求管理）。
+// 需求管理按全路径精确匹配：详情与新建是壳层外的过程页，用前缀会连带归零它们的内边距
 const isFullHeightPage = computed(
   () =>
     route.path.startsWith('/workspace/projects/functional-testing') ||
-    route.path.startsWith('/workspace/projects/api-testing'),
+    route.path.startsWith('/workspace/projects/api-testing') ||
+    route.path === '/workspace/projects/requirements',
 )
 
 function handleDynamicMenuClick(path: string) {
