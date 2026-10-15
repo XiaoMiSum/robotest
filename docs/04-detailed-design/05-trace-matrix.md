@@ -457,14 +457,15 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 
 ```
 项目工作区
-├── /workspace/projects/requirements          → RequirementShellPage（需求管理壳层：页内侧栏）
-│   ├── ?tab=list（缺省）                      → RequirementListPage（需求列表子页）
-│   └── ?tab=trace                            → TraceMatrixPage（追溯矩阵子页）
-└── /workspace/projects/trace                 → 重定向 /workspace/projects/requirements?tab=trace（旧深链兼容）
+├── /workspace/projects/requirements                  → RequirementShellPage（需求管理壳层：页内侧栏）
+│   ├── ?tab=list（缺省）                              → RequirementListPage（需求列表子页）
+│   └── ?tab=trace                                    → TraceMatrixPage（追溯矩阵子页）
+├── /workspace/projects/requirements/trace/:nodeType/:nodeId → TraceChainPage（链路明细页）
+└── /workspace/projects/trace                          → 重定向 /workspace/projects/requirements?tab=trace（旧深链兼容）
 ```
 
 - 追溯矩阵经需求管理壳层的页内侧栏进入，`?tab` 取值、子项权限过滤与默认子页回退见 `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md`；
-- 需求详情的「查看追溯」入口切至追溯子页并以 `requirementId` 定位起点（只读链路模式，复用链路视图组件）。
+- 链路明细页以 `:nodeType` / `:nodeId` 定位起点（`?focusType=` 可选，用于矩阵单元格点击定位），节点标题取自链路响应根节点；需求详情「查看追溯」、矩阵行 / 单元格、缺口清单行与任务「查看影响」均跳转该页，起点为需求时页内续接覆盖判定与受影响项；旧查询深链 `?tab=trace&requirementId=` 重定向至 `/workspace/projects/requirements/trace/requirement/{id}`。
 
 ### 5.2 组件结构
 
@@ -472,11 +473,13 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 TraceMatrixPage
 ├── MatrixFilterBar（状态/覆盖/关键词筛选，角标显示条件数）
 ├── TraceMatrixTable（需求 × 边计数矩阵，覆盖状态徽标，stale/conflict 高亮）
-├── TraceChainDrawer（链路视图抽屉：节点树 + 连线状态图例）
+└── GapList（缺口列表 + 「发起生成 / 发起评审 / 加入计划」引导）
+
+TraceChainPage（链路明细页）
+├── ChainTree（节点树 + 连线状态图例，节点点击同页切换起点）
 ├── Edge修正弹窗（confirm / reattach / detach / restore，detach 须填 reason）
-├── CoveragePanel（覆盖依据展示 + 人工修正表单）
-├── GapList（缺口列表 + 「发起生成 / 发起评审 / 加入计划」引导）
-└── ImpactDispositionPanel（受影响项列表 + 三类处置 + 理由录入）
+├── CoveragePanel（起点为需求：覆盖依据展示 + 人工修正表单）
+└── ImpactDispositionPanel（起点为需求且 AI 启用：受影响项列表 + 三类处置 + 理由录入）
 ```
 
 ### 5.3 状态管理与交互
@@ -556,7 +559,7 @@ ALTER TABLE trace_edge ADD COLUMN disposed_by uuid NULL;
 **测试要点（C8 ≥ 70%）**
 
 - 后端：建边事务回滚、唯一约束冲突引导、断开后 AI 重建被拒、版本比对转 `stale`、人工结论不被 AI 覆盖、影响刷新保留 `no_impact` 处置、隔离越权 404；
-- 前端：矩阵筛选与徽标渲染、链路抽屉连线状态、修正弹窗四类 action 分支、空态与权限降级。
+- 前端：矩阵筛选与徽标渲染、链路明细页连线状态与起点切换、修正弹窗四类 action 分支、空态与权限降级。
 
 ---
 
@@ -569,3 +572,4 @@ ALTER TABLE trace_edge ADD COLUMN disposed_by uuid NULL;
 | V1.0 | 2026-10-04 | 2.2 `trace_edge` 补影响处置字段组（`disposition` / `reason` / `disposed_by`）与迁移说明，处置语义随 3.10 / 4.3 落表 |
 | V1.0 | 2026-10-04 | 边类型取值 `snapshot_ref` 更名为 `case_snapshot`（`derivation` 不变），中文术语仍为「快照引用边」 |
 | V1.0 | 2026-10-15 | 5.1 路由并入需求管理壳层（`/workspace/projects/requirements?tab=trace`），旧路径改为重定向兼容，入口改为页内侧栏与页内切换 |
+| V1.0 | 2026-10-15 | 5.1 / 5.2 链路视图由抽屉改为独立链路明细页（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），旧 `requirementId` 深链重定向，组件结构拆为 TraceChainPage 及其子面板 |
