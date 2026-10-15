@@ -478,11 +478,11 @@ RequirementListPage
     └── 分页（20/50/100）
 
 RequirementDetailPage
-├── DetailHeader（编号、标题内联编辑、状态徽标、确认/归档按钮）
-├── AttributePanel（模块、版本、负责人、优先级、标签、来源；仅提交变更字段）
-├── MarkdownDescription（描述渲染与编辑）
+├── DetailHeader（面包屑与操作区同行吸顶：查看态「编辑 / 查看追溯 / 确认 / 归档 / AI 拆分 / AI 生成测试设计」，编辑态「取消 / 保存」；编号、标题、状态徽标）
+├── AttributeCard（卡片容器「属性 | 变更记录」页签；属性查看态为只读文本、编辑态与新建页同款表单，「保存」一次性提交变更字段）
+├── MarkdownDescription（描述渲染；编辑态切换为编辑器，高度取剩余可用空间 90%）
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
-├── ChangeTimeline（变更记录时间线）
+├── ChangeTimeline（变更记录时间线，页签首次激活时加载，支持「加载更多」分页）
 ├── SplitDialog（AI 拆分入口 → 提交后跳转任务详情页，进度与建议审核在该页完成）
 └── TraceEntry（查看追溯 → 页内切至追溯矩阵子页，只读链路模式）
 ```
@@ -580,3 +580,4 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | V1.0 | 2026-10-03 | 权限映射表拆解记录行对齐 3.11 路径（`{id}/split-logs` 与项目级 `/split-records`） |
 | V1.0 | 2026-10-06 | 3.8 补识别版本下发通道：`documentMeta` 经任务详情响应字段回传，确认面板据此预填 |
 | V1.0 | 2026-10-15 | 5.1 / 5.2 增需求管理壳层（页内侧栏承载需求列表与追溯矩阵子页）与旧路径重定向，TraceEntry 改为页内切至追溯子页 |
+| V1.0 | 2026-10-15 | 5.2 详情页组件对齐新建页骨架：操作区与面包屑同行、标题与描述并入统一编辑态、属性改为「属性 \| 变更记录」页签卡片，变更记录按页签激活加载 |
