@@ -43,6 +43,9 @@ const {
   handleUnarchive,
 } = useRequirementList()
 
+/** 首屏走骨架、筛选刷新走整卡遮罩，互斥避免骨架上再叠 loading 层（交互 06 §2.1.3） */
+const showSkeleton = computed(() => !hasLoaded.value && !loadError.value && loading.value)
+
 // ==================== AI 生成 / 圈选发起 ====================
 const generationDialogVisible = ref(false)
 const selectionDialogVisible = ref(false)
@@ -137,77 +140,6 @@ function openCreate(): void {
       </div>
     </header>
 
-    <!-- 筛选栏：入口角标显示已设置条件数（交互设计 06 §2.1.2） -->
-    <div class="filter-bar">
-      <el-select
-        v-model="filters.status"
-        multiple
-        collapse-tags
-        collapse-tags-tooltip
-        clearable
-        placeholder="状态"
-        style="width: 150px"
-        @change="search"
-      >
-        <el-option v-for="option in statusOptions" :key="option.value" v-bind="option" />
-      </el-select>
-      <el-tree-select
-        v-model="filters.moduleIds"
-        :data="moduleTree"
-        :props="{ label: 'name', children: 'children' }"
-        node-key="id"
-        multiple
-        check-strictly
-        show-checkbox
-        clearable
-        check-on-click-node
-        placeholder="所属模块"
-        style="width: 180px"
-        @change="search"
-      />
-      <el-select
-        v-model="filters.ownerId"
-        clearable
-        filterable
-        placeholder="负责人"
-        style="width: 150px"
-        @change="search"
-      >
-        <el-option
-          v-for="member in memberOptions"
-          :key="member.userId"
-          :value="member.userId"
-          :label="member.name || member.username"
-        />
-      </el-select>
-      <el-select
-        v-model="filters.systemVersion"
-        filterable
-        allow-create
-        clearable
-        placeholder="版本"
-        style="width: 150px"
-        @change="search"
-      >
-        <el-option v-for="version in versionOptions" :key="version" :value="version" :label="version" />
-      </el-select>
-      <el-input
-        v-model="filters.keyword"
-        clearable
-        placeholder="编号或标题"
-        style="width: 220px"
-        @keyup.enter="search"
-        @clear="search"
-      >
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
-      <el-button type="primary" @click="search">
-        <el-icon><Search /></el-icon>查询
-      </el-button>
-      <el-button @click="resetFilters">重置</el-button>
-      <el-badge v-if="filterCount > 0" :value="filterCount" class="filter-bar__badge" />
-    </div>
-
     <!-- 列表错误：提示条 + 重试，不展示空态以免误导（UI-PAGE-11） -->
     <el-alert
       v-if="loadError"
@@ -222,11 +154,84 @@ function openCreate(): void {
       </template>
     </el-alert>
 
-    <el-skeleton v-if="!hasLoaded && !loadError && loading" :rows="6" animated class="list-skeleton" />
+    <!-- UI-SC-10：卡片内边距归零使表格贴边，刷新走整卡遮罩（交互 06 §2.1.3） -->
+    <el-card v-loading="loading && hasLoaded" shadow="never" class="requirement-list__card">
+      <!-- 筛选栏：入卡片工具栏，入口角标显示已设置条件数（交互 06 §2.1.2） -->
+      <div class="requirement-list__toolbar">
+        <el-select
+          v-model="filters.status"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable
+          placeholder="状态"
+          style="width: 150px"
+          @change="search"
+        >
+          <el-option v-for="option in statusOptions" :key="option.value" v-bind="option" />
+        </el-select>
+        <el-tree-select
+          v-model="filters.moduleIds"
+          :data="moduleTree"
+          :props="{ label: 'name', children: 'children' }"
+          node-key="id"
+          multiple
+          check-strictly
+          show-checkbox
+          clearable
+          check-on-click-node
+          placeholder="所属模块"
+          style="width: 180px"
+          @change="search"
+        />
+        <el-select
+          v-model="filters.ownerId"
+          clearable
+          filterable
+          placeholder="负责人"
+          style="width: 150px"
+          @change="search"
+        >
+          <el-option
+            v-for="member in memberOptions"
+            :key="member.userId"
+            :value="member.userId"
+            :label="member.name || member.username"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.systemVersion"
+          filterable
+          allow-create
+          clearable
+          placeholder="版本"
+          style="width: 150px"
+          @change="search"
+        >
+          <el-option v-for="version in versionOptions" :key="version" :value="version" :label="version" />
+        </el-select>
+        <el-input
+          v-model="filters.keyword"
+          clearable
+          placeholder="编号或标题"
+          style="width: 220px"
+          @keyup.enter="search"
+          @clear="search"
+        >
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-button type="primary" @click="search">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button @click="resetFilters">重置</el-button>
+        <el-badge v-if="filterCount > 0" :value="filterCount" class="requirement-list__badge" />
+        <span class="requirement-list__count">共 {{ total }} 条</span>
+      </div>
 
-    <el-card v-else shadow="never" class="requirement-list__card">
+      <el-skeleton v-if="showSkeleton" :rows="6" animated class="requirement-list__skeleton" />
+
       <el-table
-        v-loading="loading"
+        v-else
         :data="rows"
         row-key="id"
         @selection-change="handleSelectionChange"
@@ -325,8 +330,8 @@ function openCreate(): void {
         </template>
       </el-table>
 
-      <div class="requirement-list__pager">
-        <span class="requirement-list__pager-total">共 {{ total }} 条</span>
+      <div v-if="!showSkeleton" class="requirement-list__pager">
+        <span class="requirement-list__pager-total">共 {{ total }} 条 · 每页 {{ pageSize }} 条</span>
         <el-pagination
           layout="prev, pager, next, sizes"
           :total="total"
@@ -382,31 +387,38 @@ function openCreate(): void {
   flex-shrink: 0;
 }
 
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
-}
-
-.filter-bar__badge :deep(.el-badge__content) {
-  background-color: var(--color-primary-500);
-}
-
 .list-error {
   margin-bottom: var(--space-md);
 }
 
-.list-skeleton {
-  padding: var(--space-md);
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-md);
+/* UI-SC-10：body 内边距归零，留白由工具栏/分页条承担 */
+.requirement-list__card {
+  --el-card-padding: 0;
 }
 
-.requirement-list__card {
-  margin-bottom: var(--space-md);
+/* UI-SC-10：筛选工具栏是固定控件，独立留白并与表格以分割线分隔 */
+.requirement-list__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.requirement-list__badge :deep(.el-badge__content) {
+  background-color: var(--color-primary-500);
+}
+
+.requirement-list__count {
+  margin-left: auto;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.requirement-list__skeleton {
+  padding: 14px 20px;
 }
 
 .requirement-list__code {
@@ -431,7 +443,8 @@ function openCreate(): void {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  margin-top: var(--space-md);
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .requirement-list__pager-total {
