@@ -317,7 +317,7 @@ function openTask(row: AiUsageTask) {
     <!-- 范围选择（交互 2.5）：预设 + 自定义起止 -->
     <div class="usage-group__toolbar">
       <div class="usage-group__toolbar-left">
-        <el-radio-group v-model="preset" size="small">
+        <el-radio-group v-model="preset">
           <el-radio-button value="7">近 7 天</el-radio-button>
           <el-radio-button value="30">近 30 天</el-radio-button>
           <el-radio-button value="custom">自定义</el-radio-button>
@@ -333,7 +333,7 @@ function openTask(row: AiUsageTask) {
           @change="preset = 'custom'"
         />
       </div>
-      <el-radio-group v-model="groupBy" size="small">
+      <el-radio-group v-model="groupBy">
         <el-radio-button
           v-for="option in GROUP_OPTIONS"
           :key="option.value"
