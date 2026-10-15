@@ -248,7 +248,7 @@ flowchart LR
 - **入口**：全局常驻右下悬浮球，任意业务页面可唤起，不随路由销毁（挂在 `AppLayout` 层）；默认收起，点击展开无遮罩浮层卡片。
 
 ```
-AiAssistantPanel（浮层卡片：400×560、无遮罩、可拖动、默认收起）
+AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收起）
 ├── PanelHeader（会话标题、重命名、归档、删除、新会话）
 ├── SessionList（历史会话，时间倒序，检索）
 ├── MessageTimeline

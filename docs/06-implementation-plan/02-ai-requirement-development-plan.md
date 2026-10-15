@@ -262,7 +262,7 @@ flowchart TD
 
 **WP-6.2 范围要点**（依据 `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` 与 `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` 第 3 节接口）：
 
-1. **入口与壳层**：悬浮球与 400×560 浮层卡片挂应用壳层（`web/src/layouts/BusinessLayout.vue`），路由切换不销毁；无遮罩、不锁底层滚动、点击外部不关闭、可拖动且不持久化、默认收起、宽度小于 768px 近全宽贴底；入口显隐 = AI 总开关 + 模型配置就绪 + 权限。
+1. **入口与壳层**：悬浮球与 800×700 浮层卡片挂应用壳层（`web/src/layouts/BusinessLayout.vue`），路由切换不销毁；无遮罩、不锁底层滚动、点击外部不关闭、可拖动且不持久化、默认收起、宽度小于 768px 近全宽贴底；入口显隐 = AI 总开关 + 模型配置就绪 + 权限。
 2. **状态骨架**：Pinia store `aiAssistant` 承载面板开合、会话列表、当前会话消息、流式缓冲、`previewing / executing` 与按会话暂存草稿。
 3. **SSE 客户端**：`fetch` + `ReadableStream` 解析事件流（`delta / clarify / preview / citations / done / error` 与 15s 心跳注释行）；断线置 `interrupted` 后自动轮询消息补齐至 `done`（现无 SSE 客户端需新建，轮询参照既有任务中心组合式）。
 4. **消息与卡片**：用户消息（正文 + 附件）、助手 Markdown 与 citations、澄清卡（快捷选项回填重发）、预览卡（字段级 diff、`expiresAt` 倒计时、确认执行 / 取消 / 返回修改、过期置灰并支持重新解析）、回执卡（逐项成败、对象链接跳转并收起面板、`retryIndexes` 单项重试）。
