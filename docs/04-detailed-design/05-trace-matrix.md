@@ -457,10 +457,14 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 
 ```
 项目工作区
-└── /workspace/projects/trace    → TraceMatrixPage（追溯矩阵）
+├── /workspace/projects/requirements          → RequirementShellPage（需求管理壳层：页内侧栏）
+│   ├── ?tab=list（缺省）                      → RequirementListPage（需求列表子页）
+│   └── ?tab=trace                            → TraceMatrixPage（追溯矩阵子页）
+└── /workspace/projects/trace                 → 重定向 /workspace/projects/requirements?tab=trace（旧深链兼容）
 ```
 
-- 需求详情的「查看追溯」入口跳转 `TraceMatrixPage` 并以 `requirementId` 定位起点（只读链路模式，复用链路视图组件）。
+- 追溯矩阵经需求管理壳层的页内侧栏进入，`?tab` 取值、子项权限过滤与默认子页回退见 `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md`；
+- 需求详情的「查看追溯」入口切至追溯子页并以 `requirementId` 定位起点（只读链路模式，复用链路视图组件）。
 
 ### 5.2 组件结构
 
@@ -564,3 +568,4 @@ ALTER TABLE trace_edge ADD COLUMN disposed_by uuid NULL;
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/trace |
 | V1.0 | 2026-10-04 | 2.2 `trace_edge` 补影响处置字段组（`disposition` / `reason` / `disposed_by`）与迁移说明，处置语义随 3.10 / 4.3 落表 |
 | V1.0 | 2026-10-04 | 边类型取值 `snapshot_ref` 更名为 `case_snapshot`（`derivation` 不变），中文术语仍为「快照引用边」 |
+| V1.0 | 2026-10-15 | 5.1 路由并入需求管理壳层（`/workspace/projects/requirements?tab=trace`），旧路径改为重定向兼容，入口改为页内侧栏与页内切换 |
