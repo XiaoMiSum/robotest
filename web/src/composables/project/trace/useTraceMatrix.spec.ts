@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   fetchTraceMatrix: vi.fn(),
   fetchAiStatus: vi.fn(),
   useAuthStore: vi.fn(),
+  router: { push: vi.fn() },
   ElMessage: { success: vi.fn(), error: vi.fn() },
 }))
 
@@ -26,6 +27,10 @@ vi.mock('@/stores/auth', () => ({
 
 vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
+}))
+
+vi.mock('vue-router', () => ({
+  useRouter: () => mocks.router,
 }))
 
 import { useTraceMatrix } from './useTraceMatrix'
@@ -296,14 +301,23 @@ describe('useTraceMatrix', () => {
   })
 
   describe('链路入口', () => {
-    it('openChain 以需求节点写入抽屉起点', () => {
+    it('openChain 以需求节点跳转链路明细页', () => {
       const s = direct()
-      const traceStore = useTraceStore()
       s.openChain(makeRow())
-      expect(traceStore.chainOrigin).toEqual({
-        type: 'requirement',
-        id: 'r1',
-        title: 'REQ-001 登录验证码',
+      expect(mocks.router.push).toHaveBeenCalledWith({
+        name: 'TraceChain',
+        params: { nodeType: 'requirement', nodeId: 'r1' },
+        query: undefined,
+      })
+    })
+
+    it('openChain 携带 focusType 时写入 query', () => {
+      const s = direct()
+      s.openChain(makeRow(), 'test_case')
+      expect(mocks.router.push).toHaveBeenCalledWith({
+        name: 'TraceChain',
+        params: { nodeType: 'requirement', nodeId: 'r1' },
+        query: { focusType: 'test_case' },
       })
     })
   })

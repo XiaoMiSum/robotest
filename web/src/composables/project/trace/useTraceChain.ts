@@ -2,38 +2,36 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createTraceEdge, fetchTraceChain, patchTraceEdge } from '@/services/project'
 import { useAuthStore } from '@/stores/auth'
-import { useTraceStore } from '@/stores/trace'
-import type { TraceChain, TraceEdgeCreatePayload, TraceEdgePatchPayload } from '@/types'
+import type { TraceChain, TraceEdgeCreatePayload, TraceEdgePatchPayload, TraceNodeType } from '@/types'
+
+/** 链路起点：由链路明细页从路由参数解析后传入，不入 store */
+export interface TraceChainSource {
+  type: TraceNodeType
+  id: string
+  /** 矩阵单元格点击进入时的定位类型，链路内对该类型节点高亮 */
+  focusType?: TraceNodeType
+}
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
 /**
- * 链路抽屉逻辑（交互 04 §2.2）：抽屉开关与起点由 trace store 承载（跨页保活），
- * 每次写操作成功后 revision 自增，页面据此重载矩阵计数。
+ * 链路明细逻辑（交互 04 §2.2）：起点由路由参数驱动，
+ * 每次写操作成功后 revision 自增，页面据此联动刷新覆盖与影响数据。
  */
-export function useTraceChain() {
+export function useTraceChain(source: () => TraceChainSource | null) {
   const authStore = useAuthStore()
-  const traceStore = useTraceStore()
 
   const chain = ref<TraceChain | null>(null)
   const loading = ref(false)
   const loadError = ref('')
   const busy = ref(false)
-  /** 数据写操作成功计数，监听方据此刷新矩阵 */
+  /** 数据写操作成功计数，监听方据此刷新覆盖与影响数据 */
   const revision = ref(0)
 
-  const visible = computed({
-    get: () => traceStore.chainOrigin !== null,
-    set: (open: boolean) => {
-      if (!open) traceStore.closeChain()
-    },
-  })
-  const origin = computed(() => traceStore.chainOrigin)
-
   async function load() {
-    const current = traceStore.chainOrigin
+    const current = source()
     if (!current) return
     loading.value = true
     loadError.value = ''
@@ -113,21 +111,22 @@ export function useTraceChain() {
 
   const canEdit = computed(() => authStore.hasPermission('trace:edit'))
 
+  // 同页切换起点（点击下游节点）只变路由参数、组件复用，须按键值重新取链
   watch(
-    () => traceStore.chainOrigin,
-    (next) => {
-      if (next) void load()
+    () => {
+      const current = source()
+      return current ? `${current.type}:${current.id}` : ''
+    },
+    (key) => {
+      if (key) void load()
     },
   )
 
   onMounted(() => {
-    // 跨页进入（需求详情「查看追溯」）时抽屉已由 store 恢复
-    if (traceStore.chainOrigin) void load()
+    if (source()) void load()
   })
 
   return {
-    visible,
-    origin,
     chain,
     loading,
     loadError,
