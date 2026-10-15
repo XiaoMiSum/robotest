@@ -14,8 +14,8 @@ import { citationRoute } from '@/utils/assistant'
 import type { AiAssistantCitation } from '@/types'
 
 /** 宽屏卡片固定尺寸；小屏由媒体查询接管且禁用拖动，夹取直接用常量避免拖动中读布局 */
-const CARD_WIDTH = 400
-const CARD_HEIGHT = 560
+const CARD_WIDTH = 800
+const CARD_HEIGHT = 700
 const SEARCH_DEBOUNCE_MS = 300
 
 const store = useAiAssistantStore()
@@ -398,8 +398,8 @@ onBeforeUnmount(() => {
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  width: 400px;
-  height: 560px;
+  width: 800px;
+  height: 700px;
   overflow: hidden;
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
