@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskConfirmReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskSubmitReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,6 +52,12 @@ public class AiTaskController {
     public Result<PageResult<AiTaskRespDTO>> page(@AuthenticationPrincipal LoginUser loginUser,
             @Valid AiTaskPageReqDTO pageReq) {
         return Result.ok(aiTaskService.page(pageReq, loginUser.getActiveProjectId(), loginUser.getId()));
+    }
+
+    /** 顶栏指示器轮询（详设 3.6.3）：进行中任务计数 */
+    @GetMapping("/running-count")
+    public Result<AiTaskCountRespDTO> runningCount(@AuthenticationPrincipal LoginUser loginUser) {
+        return Result.ok(aiTaskService.countActive(loginUser.getActiveProjectId(), loginUser.getId(), loginUser));
     }
 
     @GetMapping("/{taskId}")

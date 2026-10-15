@@ -42,6 +42,20 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
         return selectPage(pageParam, wrapper);
     }
 
+    /**
+     * 进行中任务计数（详设 3.6.3 顶栏指示器）：pending + running，过滤口径与列表一致。
+     */
+    default long countActive(UUID projectId, UUID submittedBy) {
+        LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
+                .in(AiTask::getStatus, List.of(Constants.AiTaskStatus.PENDING, Constants.AiTaskStatus.RUNNING));
+        if (projectId != null) {
+            wrapper.eq(AiTask::getProjectId, projectId);
+        } else {
+            wrapper.eq(AiTask::getSubmittedBy, submittedBy);
+        }
+        return selectCount(wrapper);
+    }
+
     /** pending → running 的 CAS 起跑（超时清扫器依赖 updated_at 走最新进度，故显式刷新） */
     default boolean casStart(UUID id) {
         return update(null, new LambdaUpdateWrapperX<AiTask>()
