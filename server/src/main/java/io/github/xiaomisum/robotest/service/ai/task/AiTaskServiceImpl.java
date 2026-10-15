@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskSubmitReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO.ItemResult;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiArtifactConfirm;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
@@ -154,6 +155,16 @@ public class AiTaskServiceImpl implements AiTaskService {
         return new PageResult<>(page.getList().stream()
                 .map(task -> buildResp(task, false, false))
                 .toList(), page.getTotal());
+    }
+
+    @Override
+    public AiTaskCountRespDTO countActive(UUID activeProjectId, UUID userId, LoginUser loginUser) {
+        if (!hasPermission(loginUser, PERMISSION_AI_TASK)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NO_PERMISSION);
+        }
+        AiTaskCountRespDTO resp = new AiTaskCountRespDTO();
+        resp.setCount(taskMapper.countActive(activeProjectId, userId));
+        return resp;
     }
 
     @Override

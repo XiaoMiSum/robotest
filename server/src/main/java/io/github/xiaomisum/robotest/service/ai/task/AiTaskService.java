@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskConfirmReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskSubmitReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
@@ -33,6 +34,9 @@ public interface AiTaskService {
 
     /** 3.6.3 列表：带 X-Active-Project 头按项目过滤，未附带则返回本人提交的任务 */
     PageResult<AiTaskRespDTO> page(AiTaskPageReqDTO pageReq, UUID activeProjectId, UUID userId);
+
+    /** 3.6.3 进行中计数（顶栏指示器）：pending + running，过滤口径与列表一致 */
+    AiTaskCountRespDTO countActive(UUID activeProjectId, UUID userId, LoginUser loginUser);
 
     /** 3.6.3 详情：succeeded 时附产物清单摘要（含确认状态） */
     AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser);

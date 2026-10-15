@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskConfirmReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskSubmitReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiArtifactConfirm;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
@@ -270,6 +271,33 @@ class AiTaskServiceImplTest {
         PageResult<AiTaskRespDTO> page = service.page(pageReq, null, USER_ID);
 
         assertEquals(0, page.getTotal());
+    }
+
+    @Test
+    void countActive_withProjectContext_countsByProject() {
+        when(taskMapper.countActive(PROJECT_ID, USER_ID)).thenReturn(2L);
+
+        AiTaskCountRespDTO resp = service.countActive(PROJECT_ID, USER_ID, loginUser);
+
+        assertEquals(2L, resp.getCount());
+    }
+
+    @Test
+    void countActive_withoutProjectContext_countsOwnTasks() {
+        when(taskMapper.countActive(null, USER_ID)).thenReturn(0L);
+
+        AiTaskCountRespDTO resp = service.countActive(null, USER_ID, loginUser);
+
+        assertEquals(0L, resp.getCount());
+    }
+
+    @Test
+    void countActive_noAiTaskPermission_throws116() {
+        loginUser.setAuthorities(List.of());
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.countActive(PROJECT_ID, USER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_NO_PERMISSION.code(), exception.getCode());
+        verifyNoInteractions(taskMapper);
     }
 
     @Test
