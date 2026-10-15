@@ -289,4 +289,44 @@ describe('useTraceGaps', () => {
       ])
     })
   })
+
+  describe('首入取数与 hasLoaded 口径', () => {
+    it('store 处于缺口视图时创建即自动取数', async () => {
+      const traceStore = useTraceStore()
+      traceStore.setView('gaps')
+      const s = useTraceGaps()
+      expect(s.hasLoaded.value).toBe(false)
+      await vi.waitFor(() => expect(mocks.fetchTraceGaps).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() => expect(s.loading.value).toBe(false))
+      expect(s.hasLoaded.value).toBe(true)
+      expect(s.gaps.value).toHaveLength(1)
+    })
+
+    it('矩阵视图创建不取数，切入缺口视图才取数且只取一次', async () => {
+      const traceStore = useTraceStore()
+      const s = useTraceGaps()
+      expect(mocks.fetchTraceGaps).not.toHaveBeenCalled()
+
+      traceStore.setView('gaps')
+      await vi.waitFor(() => expect(s.hasLoaded.value).toBe(true))
+      expect(mocks.fetchTraceGaps).toHaveBeenCalledTimes(1)
+
+      traceStore.setView('matrix')
+      traceStore.setView('gaps')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(mocks.fetchTraceGaps).toHaveBeenCalledTimes(1)
+    })
+
+    it('加载失败不置位 hasLoaded，重试成功后置位', async () => {
+      const s = useTraceGaps()
+      mocks.fetchTraceGaps.mockRejectedValueOnce(new Error('服务不可用'))
+      await s.load()
+      expect(s.hasLoaded.value).toBe(false)
+      expect(s.loadError.value).toBe('服务不可用')
+
+      s.retry()
+      await vi.waitFor(() => expect(s.hasLoaded.value).toBe(true))
+      expect(s.loadError.value).toBe('')
+    })
+  })
 })
