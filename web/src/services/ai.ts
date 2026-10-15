@@ -29,6 +29,11 @@ export function fetchAiTasks(params: AiTaskPageQuery): Promise<PageResult<AiTask
   return get('/ai/tasks', { ...params })
 }
 
+/** 进行中任务计数（详设 3.6.3）：顶栏指示器轮询专用，pending + running 合计 */
+export function fetchAiRunningCount(): Promise<{ count: number }> {
+  return get('/ai/tasks/running-count')
+}
+
 /** 任务详情（详设 3.6.3）：succeeded 时附产物清单摘要与 documentMeta，不返回 input / result 明细 */
 export function fetchAiTask(taskId: string): Promise<AiTaskDetail> {
   return get(`/ai/tasks/${taskId}`)

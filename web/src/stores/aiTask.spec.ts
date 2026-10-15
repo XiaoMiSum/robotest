@@ -4,10 +4,12 @@ import type { AiTaskDetail } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetchAiTask: vi.fn(),
+  fetchAiRunningCount: vi.fn(),
 }))
 
 vi.mock('@/services/ai', () => ({
   fetchAiTask: mocks.fetchAiTask,
+  fetchAiRunningCount: mocks.fetchAiRunningCount,
 }))
 
 import { isTerminalTaskStatus, useAiTaskStore } from './aiTask'
@@ -121,5 +123,50 @@ describe('stores/aiTask', () => {
     await vi.advanceTimersByTimeAsync(2100)
     expect(mocks.fetchAiTask).toHaveBeenCalledTimes(1)
     store.stopPolling()
+  })
+
+  it('计数刷新成功写入进行中数量', async () => {
+    const store = useAiTaskStore()
+    mocks.fetchAiRunningCount.mockResolvedValue({ count: 2 })
+    await store.refreshRunningCount()
+    expect(store.runningCount).toBe(2)
+  })
+
+  it('计数刷新失败静默保留上次值', async () => {
+    const store = useAiTaskStore()
+    store.runningCount = 3
+    mocks.fetchAiRunningCount.mockRejectedValue(new Error('网络中断'))
+    await store.refreshRunningCount()
+    expect(store.runningCount).toBe(3)
+  })
+
+  it('计数轮询装载即刷新并按 15 秒间隔续跑，重复装载幂等', async () => {
+    const store = useAiTaskStore()
+    mocks.fetchAiRunningCount.mockResolvedValue({ count: 1 })
+    store.startCountPolling()
+    store.startCountPolling()
+    expect(mocks.fetchAiRunningCount).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(15100)
+    expect(mocks.fetchAiRunningCount).toHaveBeenCalledTimes(2)
+
+    store.stopCountPolling()
+    await vi.advanceTimersByTimeAsync(15100)
+    expect(mocks.fetchAiRunningCount).toHaveBeenCalledTimes(2)
+    expect(store.countPollTimer).toBeNull()
+  })
+
+  it('计数轮询慢请求不叠加', async () => {
+    const store = useAiTaskStore()
+    // 闭包内赋值，TS 控制流会把外层变量窄化为 null；经对象属性持有保持可调用
+    const deferred: { resolve: ((value: { count: number }) => void) | null } = { resolve: null }
+    mocks.fetchAiRunningCount.mockImplementation(
+      () => new Promise((resolve) => (deferred.resolve = resolve)),
+    )
+    const first = store.refreshRunningCount()
+    await store.refreshRunningCount()
+    expect(mocks.fetchAiRunningCount).toHaveBeenCalledTimes(1)
+    deferred.resolve?.({ count: 5 })
+    await first
+    expect(store.runningCount).toBe(5)
   })
 })

@@ -14,6 +14,7 @@ import TraceLegend from '@/components/project/trace/TraceLegend.vue'
 import TraceChainDrawer from '@/components/project/trace/TraceChainDrawer.vue'
 import GapList from '@/components/project/trace/GapList.vue'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
+import AiTaskEntryButton from '@/components/project/ai/AiTaskEntryButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -215,10 +216,14 @@ onMounted(() => {
         <h1 class="page-head__title">追溯矩阵</h1>
         <p class="page-head__desc">展示需求到模块、文档、用例与计划的全链路关系</p>
       </div>
-      <el-radio-group v-model="view" class="trace-matrix__switch">
-        <el-radio-button value="matrix">矩阵</el-radio-button>
-        <el-radio-button value="gaps">缺口</el-radio-button>
-      </el-radio-group>
+      <div class="page-head__actions">
+        <!-- 能力页任务中心入口（交互 07 §1）：与生成/覆盖分析共用页头动作区 -->
+        <AiTaskEntryButton />
+        <el-radio-group v-model="view" class="trace-matrix__switch">
+          <el-radio-button value="matrix">矩阵</el-radio-button>
+          <el-radio-button value="gaps">缺口</el-radio-button>
+        </el-radio-group>
+      </div>
     </header>
 
     <!-- 错误提示条保持页面级（卡片外），重试与卡片 loading 分离（交互 04 §2.6） -->
@@ -493,6 +498,13 @@ onMounted(() => {
   margin: var(--space-xs) 0 0;
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
+}
+
+.page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .trace-matrix__switch {
