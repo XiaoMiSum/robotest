@@ -74,7 +74,7 @@
 | ApiImportRecord      | 导入结果统计与失败明细                        |
 | Requirement          | 需求条目（编号、标题、描述、状态机、归属模块），追溯链起点   |
 | RequirementChangeLog | 需求变更记录（字段级前后摘要），支撑时间线与影响分析        |
-| RequirementSplitRecord | 拆解记录（来源与采纳结果），回溯拆分链              |
+| RequirementSplitRecord | 拆解记录（来源文档与采纳结果），回溯拆分链            |
 | TraceEdge            | 追溯边（派生 / 快照引用、目标版本、状态），业务领域资源      |
 | TraceCoverageResult  | 需求覆盖分析结论（覆盖状态与判定依据）                |
 | AiConfig / AiModelConfig / AiEmbeddingConfig / AiPromptTemplate | AI 配置中心四类配置（全局，管理端） |
@@ -128,7 +128,7 @@
 * **工作空间成员管理**：邀请、移除、设置空间管理员。
 * **项目管理**：CRUD、归档。
 * **测试用例**：模块树、脑图节点、用例详情。
-* **需求管理**：需求 CRUD 与归档确认、文档导入、AI 拆分、变更与影响标记、追溯查询；概要设计见 `docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
+* **需求管理**：需求 CRUD 与归档确认、文档导入、变更与影响标记、追溯查询；概要设计见 `docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
 * **AI 能力**：统一任务提交与产物确认、助手会话与意图预览执行、追溯矩阵与覆盖分析（矩阵视图、链路视图、人工修正、影响处置）；概要设计见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
 * **测试评审**：发起、快照树、模块快照树、评审记录、同步、调整用例。
 * **测试计划**：创建、快照树、模块快照树、执行记录、同步、调整用例。
