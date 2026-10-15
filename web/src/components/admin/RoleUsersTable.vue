@@ -61,7 +61,7 @@ const {
           </el-table-column>
           <el-table-column width="130" fixed="right">
             <template #header>
-              <el-button type="primary" @click="pickerVisible = true">
+              <el-button link type="primary" @click="pickerVisible = true">
                 <el-icon><Plus /></el-icon>添加用户
               </el-button>
             </template>
@@ -100,7 +100,7 @@ const {
           </el-table-column>
           <el-table-column width="130" fixed="right">
             <template #header>
-              <el-button type="primary" @click="pickerVisible = true">
+              <el-button link type="primary" @click="pickerVisible = true">
                 <el-icon><Plus /></el-icon>添加用户
               </el-button>
             </template>
