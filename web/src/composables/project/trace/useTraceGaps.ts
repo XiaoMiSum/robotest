@@ -45,6 +45,8 @@ export function useTraceGaps() {
   const pageSize = ref(20)
   const loading = ref(false)
   const loadError = ref('')
+  /** 首屏骨架口径：仅成功置位，失败经错误提示条与重试表达（交互 04 §2.6） */
+  const hasLoaded = ref(false)
 
   const gapType = computed<TraceGapType>(() => traceStore.gapType)
   const typeOptions = computed(() =>
@@ -68,6 +70,7 @@ export function useTraceGaps() {
       if (id !== requestId) return
       gaps.value = page.list.map(gapView)
       total.value = page.total
+      hasLoaded.value = true
     } catch (err) {
       if (id !== requestId) return
       gaps.value = []
@@ -144,6 +147,16 @@ export function useTraceGaps() {
     void load()
   })
 
+  // el-tabs 挂载不回抛 update:modelValue，首次切入缺口视图需自行取数（交互 04 §2.6）
+  watch(
+    () => traceStore.view,
+    (view) => {
+      if (view !== 'gaps' || hasLoaded.value || loading.value) return
+      void load()
+    },
+    { immediate: true },
+  )
+
   return {
     gaps,
     total,
@@ -151,6 +164,7 @@ export function useTraceGaps() {
     pageSize,
     loading,
     loadError,
+    hasLoaded,
     gapType,
     typeOptions,
     load,
