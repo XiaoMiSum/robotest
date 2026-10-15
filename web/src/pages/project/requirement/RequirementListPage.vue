@@ -438,9 +438,14 @@ function openCreate(): void {
   color: var(--color-neutral-400);
 }
 
-/* EP 下拉根节点默认 vertical-align:top，与 el-button 的 middle 错位导致触发钮偏高 */
+/* 下拉根节点包了一层，既不匹配 EP 按钮的 vertical-align:middle 也不匹配 `.el-button + .el-button` 的 12px 间距，逐项补齐 */
 .requirement-list__more {
   vertical-align: middle;
+
+  & + .el-button,
+  .el-button + & {
+    margin-left: 12px;
+  }
 }
 
 // archived 徽标取中性色（视觉设计 4.1），经组件 CSS 变量覆盖（UI-DS-09）
