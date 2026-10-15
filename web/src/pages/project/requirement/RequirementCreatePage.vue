@@ -98,53 +98,58 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
       <div class="requirement-create__layout">
         <!-- 属性栏在 DOM 中置前：窄屏回流保持「标题 → 属性 → 描述」顺序；桌面端由 grid 显式定位到右栏 -->
         <div class="requirement-create__side">
-          <el-form-item label="所属模块">
-            <el-tree-select
-              v-model="form.moduleId"
-              :data="moduleTree"
-              :props="{ label: 'name', children: 'children' }"
-              node-key="id"
-              check-strictly
-              filterable
-              clearable
-              placeholder="可选"
-            />
-          </el-form-item>
-          <el-form-item label="版本">
-            <el-input v-model="form.systemVersion" maxlength="50" show-word-limit placeholder="可选" />
-          </el-form-item>
-          <el-form-item label="优先级">
-            <el-radio-group v-model="form.priority">
-              <el-radio-button
-                v-for="option in REQUIREMENT_PRIORITY_OPTIONS"
-                :key="option.value"
-                :value="option.value"
-                :style="priorityButtonStyle(option.value)"
-                @click.capture="handlePriorityClick(option.value, $event)"
-              >{{ option.label }}</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="负责人">
-            <el-select v-model="form.ownerId" clearable filterable placeholder="可选">
-              <el-option
-                v-for="member in memberOptions"
-                :key="member.userId"
-                :value="member.userId"
-                :label="member.name || member.username"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="标签" class="requirement-create__tags">
-            <el-select
-              v-model="form.tags"
-              multiple
-              filterable
-              allow-create
-              default-first-option
-              clearable
-              placeholder="可选，回车创建"
-            />
-          </el-form-item>
+          <!-- 无投影卡片容器包裹属性字段（交互 06 §2.5.2），与缺陷域新建页范式一致 -->
+          <el-card shadow="never">
+            <div class="requirement-create__fields">
+              <el-form-item label="所属模块">
+                <el-tree-select
+                  v-model="form.moduleId"
+                  :data="moduleTree"
+                  :props="{ label: 'name', children: 'children' }"
+                  node-key="id"
+                  check-strictly
+                  filterable
+                  clearable
+                  placeholder="可选"
+                />
+              </el-form-item>
+              <el-form-item label="版本">
+                <el-input v-model="form.systemVersion" maxlength="50" show-word-limit placeholder="可选" />
+              </el-form-item>
+              <el-form-item label="优先级">
+                <el-radio-group v-model="form.priority">
+                  <el-radio-button
+                    v-for="option in REQUIREMENT_PRIORITY_OPTIONS"
+                    :key="option.value"
+                    :value="option.value"
+                    :style="priorityButtonStyle(option.value)"
+                    @click.capture="handlePriorityClick(option.value, $event)"
+                  >{{ option.label }}</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="负责人">
+                <el-select v-model="form.ownerId" clearable filterable placeholder="可选">
+                  <el-option
+                    v-for="member in memberOptions"
+                    :key="member.userId"
+                    :value="member.userId"
+                    :label="member.name || member.username"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="标签" class="requirement-create__tags">
+                <el-select
+                  v-model="form.tags"
+                  multiple
+                  filterable
+                  allow-create
+                  default-first-option
+                  clearable
+                  placeholder="可选，回车创建"
+                />
+              </el-form-item>
+            </div>
+          </el-card>
         </div>
 
         <div class="requirement-create__main">
@@ -244,15 +249,19 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 }
 
 .requirement-create__side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
   min-width: 0;
   grid-column: 2;
   grid-row: 1;
   // 避让吸顶页头；页头高度由 JS 测量写入 --req-header-h
   position: sticky;
   top: calc(var(--req-header-h) + var(--space-md) - var(--page-pad));
+}
+
+// 卡片容器内距沿用 EP 默认，仅重排字段（交互 06 §2.5.2）
+.requirement-create__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
 }
 
 // 表单项自带底距已由 flex gap 承担，否则间距翻倍
@@ -277,6 +286,9 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 
   .requirement-create__side {
     position: static;
+  }
+
+  .requirement-create__fields {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-md);
@@ -289,7 +301,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 }
 
 @media (max-width: 640px) {
-  .requirement-create__side {
+  .requirement-create__fields {
     grid-template-columns: 1fr;
   }
 }
