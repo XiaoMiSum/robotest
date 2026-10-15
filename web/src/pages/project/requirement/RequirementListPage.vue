@@ -85,6 +85,14 @@ function openDetail(id: string): void {
   void router.push(`/workspace/projects/requirements/${id}`)
 }
 
+/** 「更多」下拉统一分发：编辑即进详情页，归档 / 取消归档走二次确认（SRS 1.2 行操作） */
+function handleRowCommand(command: string, row: unknown): void {
+  const target = asRow(row)
+  if (command === 'edit') openDetail(target.id)
+  if (command === 'archive') void handleArchive(target)
+  if (command === 'unarchive') void handleUnarchive(target)
+}
+
 /** el-table 插槽行是宽松类型，此处收窄为行视图模型（no-unsafe 后端未知键本就不读取） */
 function asRow(row: unknown): RequirementRow {
   return row as RequirementRow
@@ -120,12 +128,12 @@ function openCreate(): void {
         </el-tooltip>
         <el-tooltip
           v-if="canLaunchAi"
-          :content="selectedRows.length > 0 ? '对已选需求发起 AI 测试设计生成' : '请先勾选需求'"
+          :content="selectedRows.length > 0 ? '对已选需求生成模块、脑图用例文档与测试用例' : '请先勾选需求'"
           placement="bottom"
         >
           <span>
             <el-button :disabled="selectedRows.length === 0" @click="openGeneration">
-              <el-icon><MagicStick /></el-icon>AI 生成测试设计
+              <el-icon><MagicStick /></el-icon>AI 生成用例
             </el-button>
           </span>
         </el-tooltip>
@@ -281,7 +289,8 @@ function openCreate(): void {
         <el-table-column label="更新时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column v-if="canConfirm || canEdit" label="操作" width="240" fixed="right">
+        <!-- 归档入口随 requirement:confirm，故下拉显隐由 edit / confirm 任一权限决定（SRS 1.2 行操作） -->
+        <el-table-column v-if="canConfirm || canEdit" label="操作" width="200" align="right" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
             <el-button
@@ -290,22 +299,22 @@ function openCreate(): void {
               type="primary"
               @click="handleConfirm(asRow(row))"
             >确认</el-button>
-            <el-button
-              v-if="canConfirm && row.status !== 'archived'"
-              link
-              type="warning"
-              @click="handleArchive(asRow(row))"
-            >归档</el-button>
             <el-dropdown
-              v-if="canEdit"
+              v-if="canEdit || (canConfirm && row.status !== 'archived')"
               trigger="click"
-              @command="(command: string) => (command === 'edit' ? openDetail(row.id) : handleUnarchive(asRow(row)))"
+              class="requirement-list__more"
+              @command="(command: string) => handleRowCommand(command, row)"
             >
               <el-button link type="primary">更多<el-icon><ArrowDown /></el-icon></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 'archived'" command="unarchive">
+                  <el-dropdown-item v-if="canEdit" command="edit">编辑</el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canConfirm && row.status !== 'archived'"
+                    command="archive"
+                    style="color: var(--el-color-warning)"
+                  >归档</el-dropdown-item>
+                  <el-dropdown-item v-if="canEdit && row.status === 'archived'" command="unarchive">
                     取消归档
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -427,6 +436,11 @@ function openCreate(): void {
 
 .requirement-list__muted {
   color: var(--color-neutral-400);
+}
+
+/* EP 下拉根节点默认 vertical-align:top，与 el-button 的 middle 错位导致触发钮偏高 */
+.requirement-list__more {
+  vertical-align: middle;
 }
 
 // archived 徽标取中性色（视觉设计 4.1），经组件 CSS 变量覆盖（UI-DS-09）
