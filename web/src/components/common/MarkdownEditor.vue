@@ -9,6 +9,7 @@ import {
 import {
   createEditorOptions,
   DEFAULT_PREVIEW_MAX_WIDTH,
+  setEditorHeight,
   setPreviewMaxWidth,
   type VditorInstance,
 } from '@/composables/common/vditorEditor'
@@ -154,6 +155,12 @@ watch(() => props.disabled, (disabled) => {
   if (!ready || !instance) return
   if (disabled) instance.disabled()
   else instance.enable()
+})
+
+// 外部驱动的高度变化（如页面按窗口高度自适应）需同步到实例；最大化态由浮层接管，退出时按最新值还原
+watch(() => props.height, (height) => {
+  if (!ready || !instance || maximized.value) return
+  setEditorHeight(instance, height)
 })
 
 onBeforeUnmount(() => {

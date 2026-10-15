@@ -53,6 +53,12 @@ export function setPreviewMaxWidth(vditor: VditorInstance, maxWidth: number): vo
   }
 }
 
+/** Vditor 类型声明未列出 setHeight，但运行时实例具备，经收窄后同步外部驱动的高度变化（页面按窗口高度自适应场景） */
+export function setEditorHeight(vditor: VditorInstance, height: string): void {
+  const api = vditor as unknown as { setHeight(height: string | number): void }
+  api.setHeight(height)
+}
+
 /** 组装所见即所得编辑器参数，屏蔽 Vditor 的原生默认值差异 */
 export function createEditorOptions(
   config: {

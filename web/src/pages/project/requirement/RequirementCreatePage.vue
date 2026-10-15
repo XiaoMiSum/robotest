@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import {
   REQUIREMENT_PRIORITY_OPTIONS,
@@ -15,15 +16,50 @@ const {
   memberOptions,
   handleSubmit,
 } = useRequirementCreate()
+
+// ==================== 描述编辑器高度自适应 ====================
+const MIN_EDITOR_HEIGHT = 320
+const EDITOR_BOTTOM_GAP = 24
+
+const editorWrap = ref<HTMLDivElement>()
+const editorTop = ref(0)
+const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeight)
+
+/** 编辑器顶部相对视口的偏移，随布局（属性字段行数）变化需重新测量 */
+function measure(): void {
+  editorTop.value = editorWrap.value?.getBoundingClientRect().top ?? 0
+}
+
+const editorHeight = computed(() =>
+  Math.max(MIN_EDITOR_HEIGHT, viewportHeight.value - editorTop.value - EDITOR_BOTTOM_GAP),
+)
+
+function handleResize(): void {
+  viewportHeight.value = window.innerHeight
+  measure()
+}
+
+onMounted(() => {
+  void nextTick(handleResize)
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 </script>
 
 <template>
   <div class="requirement-create">
-    <!-- UI-BC-01：列表 → 新建两级面包屑，回退入口是唯一可点击项 -->
-    <div class="requirement-create__breadcrumb">
-      <router-link to="/workspace/projects/requirements">需求管理</router-link>
-      <el-icon :size="13"><ArrowRight /></el-icon>
-      <span>新建需求</span>
+    <!-- UI-BC-01：列表 → 新建两级面包屑，回退入口是唯一可点击项；操作区与面包屑同行右对齐 -->
+    <div class="requirement-create__header">
+      <div class="requirement-create__breadcrumb">
+        <router-link to="/workspace/projects/requirements">需求管理</router-link>
+        <el-icon :size="13"><ArrowRight /></el-icon>
+        <span>新建需求</span>
+      </div>
+      <div class="requirement-create__actions">
+        <el-button @click="router.push('/workspace/projects/requirements')">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+      </div>
     </div>
 
     <el-form
@@ -40,14 +76,6 @@ const {
           show-word-limit
           placeholder="请输入需求标题"
           size="large"
-        />
-      </el-form-item>
-      <el-form-item label="描述">
-        <MarkdownEditor
-          v-model="form.description"
-          height="260px"
-          maximizable
-          placeholder="需求描述（支持 Markdown，可选）"
         />
       </el-form-item>
       <div class="requirement-create__row">
@@ -97,10 +125,17 @@ const {
         />
       </el-form-item>
 
-      <div class="requirement-create__footer">
-        <el-button @click="router.push('/workspace/projects/requirements')">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
-      </div>
+      <!-- 无 label：编辑区撑满剩余视口高度，聚焦内容本身 -->
+      <el-form-item label-width="0" class="requirement-create__desc">
+        <div ref="editorWrap" class="requirement-create__editor">
+          <MarkdownEditor
+            v-model="form.description"
+            :height="`${editorHeight}px`"
+            maximizable
+            placeholder="需求描述（支持 Markdown，可选）"
+          />
+        </div>
+      </el-form-item>
     </el-form>
   </div>
 </template>
@@ -134,8 +169,22 @@ const {
   }
 }
 
+.requirement-create__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.requirement-create__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
 .requirement-create__form {
-  margin-top: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .requirement-create__form :deep(.el-select),
@@ -153,10 +202,12 @@ const {
   }
 }
 
-.requirement-create__footer {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-lg);
+// 无 label 的描述项：去掉表单项自身底距，由编辑器撑满剩余视口高度
+.requirement-create__desc {
+  margin-bottom: 0;
+}
+
+.requirement-create__editor {
+  width: 100%;
 }
 </style>
