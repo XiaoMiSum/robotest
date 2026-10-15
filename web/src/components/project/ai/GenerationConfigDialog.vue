@@ -93,11 +93,15 @@ function close(): void {
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="AI 生成测试设计"
+    title="AI 生成用例"
     width="560px"
     :close-on-click-modal="false"
     @update:model-value="(value: boolean) => emit('update:modelValue', value)"
   >
+    <!-- 入口按钮为短名「AI 生成用例」，三层产物与审核去向在此交代（交互 2.1 说明行） -->
+    <p class="gen-dialog__desc">
+      基于所选需求生成模块、脑图用例文档与测试用例，提交后进入任务详情审核采纳
+    </p>
     <div class="gen-dialog__section">
       <div class="gen-dialog__label">
         生成范围（已选 {{ requirements.length }} 条需求）
@@ -148,6 +152,12 @@ function close(): void {
 </template>
 
 <style scoped lang="scss">
+.gen-dialog__desc {
+  margin: 0 0 var(--space-md);
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+}
+
 .gen-dialog__section + .gen-dialog__section {
   margin-top: var(--space-md);
 }
