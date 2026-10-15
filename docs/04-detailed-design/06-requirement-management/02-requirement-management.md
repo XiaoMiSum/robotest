@@ -453,13 +453,22 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ```
 项目工作区
-├── /workspace/projects/requirements                → RequirementListPage（需求列表）
+├── /workspace/projects/requirements                → RequirementShellPage（需求管理壳层：页内侧栏）
+│   ├── ?tab=list（缺省）                            → RequirementListPage（需求列表子页）
+│   └── ?tab=trace                                  → TraceMatrixPage（追溯矩阵子页，见 docs/04-detailed-design/05-trace-matrix.md）
+├── /workspace/projects/requirements/create         → RequirementCreatePage（新建需求）
 └── /workspace/projects/requirements/:requirementId → RequirementDetailPage（需求详情）
 ```
+
+- 旧路径 `/workspace/projects/trace` 重定向至 `/workspace/projects/requirements?tab=trace`，既有深链保持可用（见 `docs/04-detailed-design/05-trace-matrix.md` 5.1）；子项权限过滤与默认子页回退见 `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md`。
 
 ### 5.2 组件结构
 
 ```
+RequirementShellPage（页内侧栏：需求列表 / 追溯矩阵，子项按 requirement:view / trace:view 过滤）
+├── RequirementListPage（列表子页，见下）
+└── TraceMatrixPage（追溯子页，组件结构见 docs/04-detailed-design/05-trace-matrix.md 5.2）
+
 RequirementListPage
 ├── ListToolbar（新建需求、导入需求）
 ├── RequirementFilterBar（状态/模块/负责人/版本筛选 + keyword，角标显示条件数，查询/重置）
@@ -475,7 +484,7 @@ RequirementDetailPage
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
 ├── ChangeTimeline（变更记录时间线）
 ├── SplitDialog（AI 拆分入口 → 提交后跳转任务详情页，进度与建议审核在该页完成）
-└── TraceEntry（查看追溯 → TraceMatrixPage 只读链路模式）
+└── TraceEntry（查看追溯 → 页内切至追溯矩阵子页，只读链路模式）
 ```
 
 ### 5.3 状态管理与交互
@@ -570,3 +579,4 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | V1.0 | 2026-10-03 | 导入/拆分进度与建议审核统一到任务详情页（/workspace/projects/ai/tasks/:taskId），删除进度弹窗与审核面板浮层口径 |
 | V1.0 | 2026-10-03 | 权限映射表拆解记录行对齐 3.11 路径（`{id}/split-logs` 与项目级 `/split-records`） |
 | V1.0 | 2026-10-06 | 3.8 补识别版本下发通道：`documentMeta` 经任务详情响应字段回传，确认面板据此预填 |
+| V1.0 | 2026-10-15 | 5.1 / 5.2 增需求管理壳层（页内侧栏承载需求列表与追溯矩阵子页）与旧路径重定向，TraceEntry 改为页内切至追溯子页 |
