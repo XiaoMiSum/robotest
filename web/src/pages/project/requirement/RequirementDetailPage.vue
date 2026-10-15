@@ -57,11 +57,7 @@ const {
   handleConfirm,
   handleArchive,
   handleUnarchive,
-  aiAvailable,
-  splitting,
-  canSplit,
   canLaunchGeneration,
-  handleSplit,
   load,
   retry,
 } = useRequirementDetail()
@@ -101,6 +97,23 @@ function priorityButtonStyle(value: RequirementPriority): Record<string, string>
 /** 变更记录页签首次激活时拉取时间线（交互 06 §2.2.2） */
 function onSideTabChange(name: TabPaneName): void {
   if (name === 'logs') ensureLogs()
+}
+
+// ==================== 操作区分组（按频次：编辑/追溯 │ AI 生成 │ 生命周期） ====================
+const showEditEntry = computed(() => Boolean(detail.value) && canEdit.value && !isReadonly.value)
+const hasEditGroup = computed(() => showEditEntry.value || canViewTrace.value)
+const hasLifecycleGroup = computed(
+  () => canConfirm.value || canArchive.value || canUnarchive.value,
+)
+const showDividerBeforeAi = computed(() => canLaunchGeneration.value && hasEditGroup.value)
+const showDividerBeforeLifecycle = computed(
+  () => hasLifecycleGroup.value && (hasEditGroup.value || canLaunchGeneration.value),
+)
+
+/** 「更多」下拉：归档 / 取消归档共用二次确认入口 */
+function handleLifecycleCommand(command: string | number | object): void {
+  if (command === 'archive') void handleArchive()
+  if (command === 'unarchive') void handleUnarchive()
 }
 
 // ==================== 描述编辑器高度自适应（同新建页） ====================
@@ -202,33 +215,19 @@ function openTrace(): void {
             >保存</el-button>
           </template>
           <template v-else>
+            <!-- 按操作频次分组：①编辑/追溯（link）②AI 生成 ③生命周期（确认 + 更多下拉），主色取项目 token -->
             <el-button
-              v-if="detail && canEdit && !isReadonly"
+              v-if="showEditEntry"
+              link
               type="primary"
               @click="startEdit"
             >编辑</el-button>
-            <el-button v-if="canViewTrace" @click="openTrace">
+            <el-button v-if="canViewTrace" link type="primary" @click="openTrace">
               <el-icon><Grid /></el-icon>查看追溯
             </el-button>
-            <el-button
-              v-if="canConfirm"
-              type="primary"
-              :loading="saving"
-              @click="handleConfirm"
-            >确认</el-button>
-            <el-button v-if="canArchive" type="warning" plain @click="handleArchive">归档</el-button>
-            <el-button v-if="canUnarchive" @click="handleUnarchive">取消归档</el-button>
-            <el-tooltip
-              v-if="canEdit && aiAvailable"
-              :content="canSplit ? '提交 AI 拆分任务' : '当前状态不可拆分'"
-              placement="bottom"
-            >
-              <span>
-                <el-button :disabled="!canSplit || splitting" :loading="splitting" @click="handleSplit">
-                  AI 拆分
-                </el-button>
-              </span>
-            </el-tooltip>
+
+            <el-divider v-if="showDividerBeforeAi" direction="vertical" />
+
             <el-tooltip
               v-if="canLaunchGeneration"
               :content="detail?.status === 'confirmed' ? '基于该需求生成测试设计' : '仅已确认需求可生成'"
@@ -241,6 +240,26 @@ function openTrace(): void {
                 >AI 生成测试设计</el-button>
               </span>
             </el-tooltip>
+
+            <el-divider v-if="showDividerBeforeLifecycle" direction="vertical" />
+
+            <el-button
+              v-if="canConfirm"
+              type="primary"
+              :loading="saving"
+              @click="handleConfirm"
+            >确认</el-button>
+            <el-dropdown v-if="canArchive || canUnarchive" @command="handleLifecycleCommand">
+              <el-button type="warning" plain>
+                更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canArchive" command="archive">归档</el-dropdown-item>
+                  <el-dropdown-item v-if="canUnarchive" command="unarchive">取消归档</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </div>
       </div>
