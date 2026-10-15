@@ -430,7 +430,11 @@ function openTrace(): void {
 
             <div class="requirement-detail__main">
               <!-- 高度由 --detail-panel-height（按窗口动态计算）锁定，切换查看/编辑态不产生高度跳动 -->
-              <div ref="editorWrap" class="requirement-detail__description">
+              <div
+                ref="editorWrap"
+                class="requirement-detail__description"
+                :class="{ 'requirement-detail__description--view': !editing }"
+              >
                 <template v-if="editing">
                   <MarkdownEditor
                     v-model="descriptionDraft"
@@ -648,6 +652,14 @@ function openTrace(): void {
   width: 100%;
   height: var(--detail-panel-height);
   overflow: auto;
+}
+
+// 只读态以容器描边成盒（中性色，同 REQ 编号 chip）并留出内距；编辑态由编辑器自带描边，避免双层边框
+// （border-box 下描边与内距含在高度内，两态外框尺寸一致、切换不跳动）
+.requirement-detail__description--view {
+  padding: var(--space-md);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-sm);
 }
 
 // 空态撑满固定高度容器居中展示
