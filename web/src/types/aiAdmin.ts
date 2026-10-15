@@ -23,8 +23,8 @@ export interface AiSettingsUpdatePayload {
   taskMaxRetries?: number
 }
 
-/** 模型能力（3.3：capabilities ⊆ {chat, vision, embedding}） */
-export type AiModelCapability = 'chat' | 'vision' | 'embedding'
+/** 模型能力（3.3：capabilities ⊆ {chat, vision}） */
+export type AiModelCapability = 'chat' | 'vision'
 
 /** 最近一次连通性测试；未测过时 lastTest 为 null（未测 = 未知态） */
 export interface AiConnectivityTest {
