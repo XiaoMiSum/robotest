@@ -102,7 +102,7 @@ function openCreate(): void {
     <header class="page-head">
       <div>
         <h1 class="page-head__title">需求管理</h1>
-        <p class="page-head__desc">沉淀需求条目，作为用例设计与评审的输入</p>
+        <p class="page-head__desc">沉淀项目需求，驱动用例设计与全链路追溯</p>
       </div>
       <div class="page-head__actions">
         <!-- 任务中心为需求域任务入口（交互 07 §1），按 ai:task 显隐 -->
