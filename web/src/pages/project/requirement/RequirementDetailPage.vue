@@ -230,14 +230,14 @@ function openTrace(): void {
 
             <el-tooltip
               v-if="canLaunchGeneration"
-              :content="detail?.status === 'confirmed' ? '基于该需求生成测试设计' : '仅已确认需求可生成'"
+              :content="detail?.status === 'confirmed' ? '基于该需求生成模块、脑图用例文档与测试用例' : '仅已确认需求可生成'"
               placement="bottom"
             >
               <span>
                 <el-button
                   :disabled="detail?.status !== 'confirmed'"
                   @click="generationDialogVisible = true"
-                >AI 生成测试设计</el-button>
+                >AI 生成用例</el-button>
               </span>
             </el-tooltip>
 
