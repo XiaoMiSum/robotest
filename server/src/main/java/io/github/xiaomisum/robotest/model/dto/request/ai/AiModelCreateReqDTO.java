@@ -40,7 +40,7 @@ public class AiModelCreateReqDTO {
     @Size(max = 100, message = "模型标识长度不能超过 100")
     private String modelName;
 
-    /** 能力标签 ⊆ {chat, vision, embedding} */
+    /** 能力标签 ⊆ {chat, vision} */
     @NotEmpty(message = "能力标签不能为空")
     private List<String> capabilities;
 
