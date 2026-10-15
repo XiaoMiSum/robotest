@@ -102,6 +102,8 @@ export function useTraceCoverage() {
       const task = await submitAiTask('coverage_analysis', { requirementIds: [id] })
       runningTaskId.value = task.taskId
       aiTaskStore.startPolling(task.taskId)
+      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       ElMessage.success('覆盖分析已发起，完成后自动刷新覆盖结论')
       return true
     } catch (err) {
@@ -124,6 +126,8 @@ export function useTraceCoverage() {
       taskFailed.value = false
       taskError.value = ''
       aiTaskStore.startPolling(next.taskId)
+      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       return true
     } catch (err) {
       ElMessage.error(errorMessage(err, '重试覆盖分析失败'))

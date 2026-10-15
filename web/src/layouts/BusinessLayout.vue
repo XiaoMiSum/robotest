@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
 import ChangePasswordDialog from '@/components/common/ChangePasswordDialog.vue'
 import AiAssistantEntry from '@/components/ai/assistant/AiAssistantEntry.vue'
+import AiTaskIndicator from '@/components/ai/AiTaskIndicator.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -141,6 +142,9 @@ function handleUserCommand(cmd: string) {
           <el-icon><Monitor /></el-icon>
           <span>系统管理</span>
         </div>
+
+        <!-- 顶栏 AI 任务指示器（交互 07 §1）：项目模式 + ai:task 显隐，进行中任务数角标 -->
+        <AiTaskIndicator />
 
         <div class="top-nav__icon-btn">
           <el-badge :is-dot="true">

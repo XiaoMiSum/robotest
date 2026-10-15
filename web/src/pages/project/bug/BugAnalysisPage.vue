@@ -6,6 +6,7 @@ import { useBugAnalysisStore } from '@/stores/bugAnalysis'
 import { fetchAiStatus } from '@/services/ai'
 import AnalysisRangePicker from '@/components/project/bug/analysis/AnalysisRangePicker.vue'
 import AiSummaryCard from '@/components/project/bug/analysis/AiSummaryCard.vue'
+import AiTaskEntryButton from '@/components/project/ai/AiTaskEntryButton.vue'
 import BatchActions from '@/components/project/bug/analysis/BatchActions.vue'
 import MetricCards from '@/components/project/bug/analysis/MetricCards.vue'
 import TriageQueueCard from '@/components/project/bug/analysis/TriageQueueCard.vue'
@@ -81,6 +82,8 @@ function drillToBugs(filters: { severity?: string; bugType?: string }): void {
           <p class="bug-analysis__desc">趋势与质量度量、AI 摘要、分诊建议与存量扫描，范围限于当前项目</p>
         </div>
         <div class="bug-analysis__actions">
+          <!-- 能力页任务中心入口（交互 07 §1）：批量 AI 操作提交的任务由此下钻查看 -->
+          <AiTaskEntryButton />
           <BatchActions :ai-available="aiAvailable" @submitted="void 0" />
         </div>
       </header>

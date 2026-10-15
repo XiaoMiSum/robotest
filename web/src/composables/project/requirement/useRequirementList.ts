@@ -238,8 +238,6 @@ export function useRequirementList() {
   const canCreate = computed(() => authStore.hasPermission('requirement:create'))
   const canConfirm = computed(() => authStore.hasPermission('requirement:confirm'))
   const canEdit = computed(() => authStore.hasPermission('requirement:edit'))
-  /** 任务中心入口按 ai:task 显隐（交互 07 §1 入口约定） */
-  const canViewAiTasks = computed(() => authStore.hasPermission('ai:task'))
 
   // ==================== 批量选择与 AI 发起 ====================
   const selectedRows = ref<RequirementRow[]>([])
@@ -293,7 +291,6 @@ export function useRequirementList() {
     canCreate,
     canConfirm,
     canEdit,
-    canViewAiTasks,
     canLaunchAi,
     aiAvailable,
     selectedRows,

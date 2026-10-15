@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { fetchAiTask } from '@/services/ai'
+import { fetchAiRunningCount, fetchAiTask } from '@/services/ai'
 import type { AiTaskDetail, AiTaskStatus } from '@/types'
 
 /** 列表筛选条件（返回列表页保活）；空串表示不筛选 */
@@ -18,6 +18,8 @@ export function isTerminalTaskStatus(status: AiTaskStatus): boolean {
 }
 
 const POLL_INTERVAL_MS = 2000
+/** 顶栏指示器计数轮询间隔（交互 07 §5）：无需与详情同频，静默失败不打扰全局 */
+const COUNT_POLL_INTERVAL_MS = 15000
 
 export const useAiTaskStore = defineStore('aiTask', {
   state: () => ({
@@ -33,6 +35,10 @@ export const useAiTaskStore = defineStore('aiTask', {
     pollTimer: null as ReturnType<typeof setInterval> | null,
     // 慢请求未返回时不叠加下一次轮询
     pollBusy: false,
+    /** 顶栏指示器进行中任务数 */
+    runningCount: 0,
+    countPollTimer: null as ReturnType<typeof setInterval> | null,
+    countPollBusy: false,
   }),
   actions: {
     resetFilters() {
@@ -87,6 +93,33 @@ export const useAiTaskStore = defineStore('aiTask', {
         }
       } finally {
         this.pollBusy = false
+      }
+    },
+    /** 顶栏指示器计数：静默失败（保留上次值），慢请求不叠加 */
+    async refreshRunningCount(): Promise<void> {
+      if (this.countPollBusy) return
+      this.countPollBusy = true
+      try {
+        const { count } = await fetchAiRunningCount()
+        this.runningCount = count
+      } catch {
+        // 计数失败不打扰全局：保留上次值等待下轮
+      } finally {
+        this.countPollBusy = false
+      }
+    },
+    /** 随业务布局装载启停（交互 07 §5）；重复调用幂等 */
+    startCountPolling() {
+      if (this.countPollTimer !== null) return
+      void this.refreshRunningCount()
+      this.countPollTimer = setInterval(() => {
+        void this.refreshRunningCount()
+      }, COUNT_POLL_INTERVAL_MS)
+    },
+    stopCountPolling() {
+      if (this.countPollTimer !== null) {
+        clearInterval(this.countPollTimer)
+        this.countPollTimer = null
       }
     },
   },
