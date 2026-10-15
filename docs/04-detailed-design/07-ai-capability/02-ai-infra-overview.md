@@ -150,7 +150,7 @@ CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((tr
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
-| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_split`、`test_design_generation`、`case_complete`），与任务 `type` 对应 |
+| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`test_design_generation`、`case_complete`），与任务 `type` 对应 |
 | name | varchar(100) | NOT NULL | 场景名称（展示用） |
 | content | text | NOT NULL | 模板正文，支持 `{{variable}}` 占位 |
 | variables | jsonb | NOT NULL, DEFAULT '[]' | 可用变量清单 `[{ name, desc, required }]`，保存时校验占位与清单一致 |
@@ -569,7 +569,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | type | 能力域 | input 要点 | 产物 kind | 落库承接 |
 | ---- | ---- | ---- | ---- | ---- |
 | requirement_import | 需求 | `fileId` | `requirement_suggestion` | 需求模块采纳服务 |
-| requirement_split | 需求 | `requirementId` | `requirement_suggestion` | 需求模块采纳服务 |
 | test_design_generation | 生成链 | `requirementIds`、`targetModuleId?`、`granularity` | `module_suggestion / mindmap_document_suggestion / test_case_suggestion` | 生成链采纳服务 |
 | review_selection | 生成链 | `scope` | `review_selection` | 评审创建流程 |
 | plan_selection | 生成链 | `scope`、`rounds?` | `plan_selection` | 计划创建流程 |
@@ -900,3 +899,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-04 | 调用层技术口径登记：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x（4.2 调用层与重试口径、7 依赖行），平台仅保留门面记账与错误码 |
 | V1.0 | 2026-10-06 | 3.6.3 详情响应补 `documentMeta` 下发口径：`result` 顶层含文档级元数据的任务（导入）succeeded 时附带，供确认面板预填识别版本 |
 | V1.0 | 2026-10-15 | 双层任务入口落地：3.6.3 补顶栏指示器计数接口 `GET /api/ai/tasks/running-count`，5.2 补指示器与能力页任务中心按钮组件，`aiTask` store 补 15s 计数轮询 |
+| V1.0 | 2026-10-15 | 任务类型枚举注销 `requirement_split`（条目内拆分下线，拆解统一由 `requirement_import` 承载），2.5 场景编码示例同步 |
