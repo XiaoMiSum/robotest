@@ -109,12 +109,12 @@ function goBack(): void {
   void router.push('/workspace/projects/requirements')
 }
 
-/** 进入追溯矩阵并打开本需求的链路抽屉（交互 04 §2.2 入口） */
+/** 切至需求管理页内「追溯矩阵」子页并打开本需求的链路抽屉（交互 04 §2.2 入口） */
 function openTrace(): void {
   if (!detail.value) return
   void router.push({
-    path: '/workspace/projects/trace',
-    query: { requirementId: detail.value.id, title: `${detail.value.code} ${detail.value.title}` },
+    path: '/workspace/projects/requirements',
+    query: { tab: 'trace', requirementId: detail.value.id, title: `${detail.value.code} ${detail.value.title}` },
   })
 }
 </script>
