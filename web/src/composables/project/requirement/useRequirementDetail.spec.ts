@@ -140,14 +140,28 @@ describe('useRequirementDetail', () => {
   })
 
   describe('加载', () => {
-    it('成功加载详情与变更记录并写入缓存', async () => {
+    it('成功加载详情并写入缓存，变更记录页签未激活不拉取', async () => {
       const s = await mount()
       expect(s.detail.value?.title).toBe('登录验证码')
-      expect(s.logs.value).toHaveLength(1)
-      expect(s.logsTotal.value).toBe(1)
+      expect(mocks.fetchRequirementChangeLogs).not.toHaveBeenCalled()
+      expect(s.logs.value).toHaveLength(0)
       expect(mocks.cacheDetail).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1' }))
       expect(s.loadError.value).toBe('')
       expect(s.loading.value).toBe(false)
+    })
+
+    it('变更记录页签首次激活时才加载，重复激活不重复拉取', async () => {
+      const s = await mount()
+      s.sideTab.value = 'logs'
+      s.ensureLogs()
+      // loadLogs 首个 await 挂起于已 resolve 的 Promise，排空微任务即可观察结果
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(mocks.fetchRequirementChangeLogs).toHaveBeenCalledTimes(1)
+      expect(s.logs.value).toHaveLength(1)
+      expect(s.logsTotal.value).toBe(1)
+      s.ensureLogs()
+      expect(mocks.fetchRequirementChangeLogs).toHaveBeenCalledTimes(1)
     })
 
     it('业务错误码 1000018001 切换 404 分支', async () => {
@@ -179,63 +193,139 @@ describe('useRequirementDetail', () => {
     })
   })
 
-  describe('标题内联编辑', () => {
-    it('标题未变化不发请求', async () => {
+  describe('统一编辑态', () => {
+    it('归档只读时不可进入编辑态', async () => {
+      mocks.getRequirement.mockResolvedValue(makeDetail({ status: 'archived' }))
       const s = await mount()
-      s.startEditTitle()
-      await s.saveTitle()
-      expect(mocks.updateRequirement).not.toHaveBeenCalled()
-      expect(s.titleEditing.value).toBe(false)
+      s.startEdit()
+      expect(s.editing.value).toBe(false)
     })
 
-    it('confirmed 态改标题需影响确认，放弃时不提交', async () => {
-      mocks.ElMessageBox.confirm.mockRejectedValueOnce('cancel')
+    it('无 requirement:edit 权限时不可进入编辑态', async () => {
+      mocks.useAuthStore.mockReturnValue({
+        hasPermission: vi.fn(() => false),
+      })
       const s = await mount()
-      s.startEditTitle()
-      s.titleDraft.value = '新标题'
-      await s.saveTitle()
-      expect(mocks.updateRequirement).not.toHaveBeenCalled()
-      // 放弃后恢复服务端当前值
+      s.startEdit()
+      expect(s.editing.value).toBe(false)
+    })
+
+    it('点编辑回填服务端当前值且初始无改动', async () => {
+      const s = await mount()
+      s.startEdit()
+      expect(s.editing.value).toBe(true)
       expect(s.titleDraft.value).toBe('登录验证码')
-      expect(s.titleEditing.value).toBe(true)
+      expect(s.descriptionDraft.value).toBe('支持短信与邮箱两种验证码')
+      expect(s.editDirty.value).toBe(false)
     })
 
-    it('confirmed 态确认后提交并更新详情', async () => {
+    it('取消编辑丢弃草稿并回到查看态', async () => {
       const s = await mount()
-      s.startEditTitle()
+      s.startEdit()
       s.titleDraft.value = '新标题'
-      await s.saveTitle()
+      s.form.priority = 'low'
+      s.cancelEdit()
+      expect(s.editing.value).toBe(false)
+      expect(s.titleDraft.value).toBe('登录验证码')
+      expect(s.form.priority).toBe('high')
+    })
+
+    it('标题为空时提示且不发请求', async () => {
+      const s = await mount()
+      s.startEdit()
+      s.titleDraft.value = '   '
+      await s.saveAll()
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('请输入需求标题')
+      expect(mocks.updateRequirement).not.toHaveBeenCalled()
+      expect(s.editing.value).toBe(true)
+    })
+
+    it('无任何改动时提示且不发请求', async () => {
+      const s = await mount()
+      s.startEdit()
+      await s.saveAll()
+      expect(mocks.updateRequirement).not.toHaveBeenCalled()
+      expect(mocks.ElMessage.info).toHaveBeenCalledWith('内容未发生变化')
+    })
+
+    it('合并标题、描述与属性为一次部分更新', async () => {
+      const s = await mount()
+      s.startEdit()
+      s.titleDraft.value = '新标题'
+      s.descriptionDraft.value = '新的描述正文'
+      s.form.priority = 'low'
+      await s.saveAll()
+      expect(mocks.updateRequirement).toHaveBeenCalledTimes(1)
+      expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', {
+        title: '新标题',
+        description: '新的描述正文',
+        priority: 'low',
+      })
       expect(mocks.ElMessageBox.confirm).toHaveBeenCalled()
-      expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', { title: '新标题' })
-      expect(s.titleEditing.value).toBe(false)
+      expect(s.editing.value).toBe(false)
       expect(mocks.ElMessage.success).toHaveBeenCalledWith('需求已更新')
     })
 
     it('draft 态改标题不弹影响确认', async () => {
       mocks.getRequirement.mockResolvedValue(makeDetail({ status: 'draft' }))
       const s = await mount()
-      s.startEditTitle()
+      s.startEdit()
       s.titleDraft.value = '新标题'
-      await s.saveTitle()
+      await s.saveAll()
       expect(mocks.ElMessageBox.confirm).not.toHaveBeenCalled()
       expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', { title: '新标题' })
+    })
+
+    it('confirmed 态放弃影响确认时退出编辑态且不提交', async () => {
+      mocks.ElMessageBox.confirm.mockRejectedValueOnce('cancel')
+      const s = await mount()
+      s.startEdit()
+      s.titleDraft.value = '新标题'
+      await s.saveAll()
+      expect(mocks.updateRequirement).not.toHaveBeenCalled()
+      expect(s.editing.value).toBe(false)
+      expect(s.titleDraft.value).toBe('登录验证码')
+    })
+
+    it('仅属性变化不触发影响确认', async () => {
+      const s = await mount()
+      s.startEdit()
+      s.form.systemVersion = 'V3.0'
+      await s.saveAll()
+      expect(mocks.ElMessageBox.confirm).not.toHaveBeenCalled()
+      expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', { systemVersion: 'V3.0' })
+    })
+
+    it('confirmed 态改模块触发影响确认', async () => {
+      const s = await mount()
+      s.startEdit()
+      s.form.moduleId = 'm2'
+      await s.saveAll()
+      expect(mocks.ElMessageBox.confirm).toHaveBeenCalled()
+      expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', { moduleId: 'm2' })
+    })
+
+    it('保存失败保留编辑态与草稿供重试', async () => {
+      mocks.updateRequirement.mockRejectedValueOnce(new Error('归档条目只读'))
+      const s = await mount()
+      s.startEdit()
+      s.form.systemVersion = 'V9'
+      await s.saveAll()
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('归档条目只读')
+      expect(s.saving.value).toBe(false)
+      expect(s.editing.value).toBe(true)
+      expect(s.form.systemVersion).toBe('V9')
     })
   })
 
   describe('属性部分更新', () => {
-    it('无变化时提示且不发请求', async () => {
-      const s = await mount()
-      await s.saveAttributes()
-      expect(mocks.updateRequirement).not.toHaveBeenCalled()
-      expect(mocks.ElMessage.info).toHaveBeenCalledWith('属性未发生变化')
-    })
-
     it('仅传发生变化的字段', async () => {
       const s = await mount()
+      s.startEdit()
       s.form.systemVersion = 'V3.0'
       s.form.priority = 'low'
       s.form.tags = ['登录', '安全']
-      await s.saveAttributes()
+      await s.saveAll()
       expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', {
         systemVersion: 'V3.0',
         priority: 'low',
@@ -245,9 +335,10 @@ describe('useRequirementDetail', () => {
 
     it('清空版本与优先级传空串（三态）', async () => {
       const s = await mount()
+      s.startEdit()
       s.form.systemVersion = '  '
       s.form.priority = ''
-      await s.saveAttributes()
+      await s.saveAll()
       expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', {
         systemVersion: '',
         priority: '',
@@ -256,64 +347,48 @@ describe('useRequirementDetail', () => {
 
     it('清空标签传空数组', async () => {
       const s = await mount()
+      s.startEdit()
       s.form.tags = []
-      await s.saveAttributes()
+      await s.saveAll()
       expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', { tags: [] })
     })
 
     it('模块与负责人仅在改为非空新值时入载荷', async () => {
       const s = await mount()
+      s.startEdit()
       s.form.moduleId = ''
       s.form.ownerId = ''
-      await s.saveAttributes()
-      // 清空（空值）后端视为不修改，本地保持原值并提示无变化
+      await s.saveAll()
+      // 清空（空值）后端视为不修改，本地回滚到原值并提示无变化
       expect(mocks.updateRequirement).not.toHaveBeenCalled()
       expect(mocks.ElMessage.info).toHaveBeenCalled()
       expect(s.form.moduleId).toBe('m1')
+      expect(s.editDirty.value).toBe(false)
     })
 
     it('版本超 50 字符前端拦截', async () => {
       const s = await mount()
+      s.startEdit()
       s.form.systemVersion = 'x'.repeat(51)
-      await s.saveAttributes()
+      await s.saveAll()
       expect(s.versionError.value).toContain('1000018010')
       expect(mocks.updateRequirement).not.toHaveBeenCalled()
+      expect(s.editing.value).toBe(true)
     })
 
-    it('confirmed 态改模块触发影响确认', async () => {
+    it('优先级分段控件再次点击当前项清空，非当前项不拦截', async () => {
       const s = await mount()
-      s.form.moduleId = 'm2'
-      await s.saveAttributes()
-      expect(mocks.ElMessageBox.confirm).toHaveBeenCalled()
-      expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', { moduleId: 'm2' })
-    })
-
-    it('保存失败展示服务端文案', async () => {
-      mocks.updateRequirement.mockRejectedValueOnce(new Error('归档条目只读'))
-      const s = await mount()
-      s.form.systemVersion = 'V9'
-      await s.saveAttributes()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('归档条目只读')
-      expect(s.saving.value).toBe(false)
-    })
-  })
-
-  describe('描述编辑', () => {
-    it('描述未变化不发请求', async () => {
-      const s = await mount()
-      s.startEditDescription()
-      await s.saveDescription()
-      expect(mocks.updateRequirement).not.toHaveBeenCalled()
-      expect(s.descriptionEditing.value).toBe(false)
-    })
-
-    it('confirmed 态改描述提交并进入编辑关闭态', async () => {
-      const s = await mount()
-      s.startEditDescription()
-      s.descriptionDraft.value = '新的描述正文'
-      await s.saveDescription()
-      expect(mocks.updateRequirement).toHaveBeenCalledWith('r1', { description: '新的描述正文' })
-      expect(s.descriptionEditing.value).toBe(false)
+      s.startEdit()
+      const sameClick = new Event('click', { cancelable: true })
+      s.handlePriorityClick('high', sameClick)
+      // 阻止默认激活行为，否则分段控件会把该项重新选中，清空不生效
+      expect(sameClick.defaultPrevented).toBe(true)
+      expect(s.form.priority).toBe('')
+      // 非当前选中项放行，选中由分段控件自身完成，handler 不改值
+      const otherClick = new Event('click', { cancelable: true })
+      s.handlePriorityClick('low', otherClick)
+      expect(otherClick.defaultPrevented).toBe(false)
+      expect(s.form.priority).toBe('')
     })
   })
 
@@ -356,6 +431,16 @@ describe('useRequirementDetail', () => {
       const s = await mount()
       await s.handleConfirm()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('当前状态不允许该操作')
+    })
+
+    it('保存后仅在时间线已激活时刷新变更记录', async () => {
+      const s = await mount()
+      expect(mocks.fetchRequirementChangeLogs).not.toHaveBeenCalled()
+      await s.handleConfirm()
+      expect(mocks.fetchRequirementChangeLogs).not.toHaveBeenCalled()
+      await s.loadLogs()
+      await s.handleConfirm()
+      expect(mocks.fetchRequirementChangeLogs).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -442,19 +527,13 @@ describe('useRequirementDetail', () => {
     it('变更记录多于首批时提供加载更多', async () => {
       mocks.fetchRequirementChangeLogs.mockResolvedValue({ list: [makeLog()], total: 40 })
       const s = await mount()
+      await s.loadLogs()
       expect(s.canLoadMoreLogs.value).toBe(true)
       s.logs.value = [makeLog(), makeLog({ id: 'log2' })]
       // total 未变时仍可加载；只有取满 total 才停止
       expect(s.canLoadMoreLogs.value).toBe(true)
       s.logs.value = Array.from({ length: 40 }, (_, i) => makeLog({ id: `log${i}` }))
       expect(s.canLoadMoreLogs.value).toBe(false)
-    })
-
-    it('归档只读时禁用标题编辑', async () => {
-      mocks.getRequirement.mockResolvedValue(makeDetail({ status: 'archived' }))
-      const s = await mount()
-      s.startEditTitle()
-      expect(s.titleEditing.value).toBe(false)
     })
   })
 

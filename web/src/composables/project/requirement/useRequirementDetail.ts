@@ -19,6 +19,7 @@ import type {
   ProjectModule,
   RequirementChangeLog,
   RequirementDetail,
+  RequirementPriority,
   RequirementUpdatePayload,
   WorkspaceMember,
 } from '@/types'
@@ -63,10 +64,13 @@ export function useRequirementDetail() {
   const notFound = ref(false)
   const detail = ref<RequirementDetail | null>(null)
 
-  // ==================== 变更记录 ====================
+  // ==================== 变更记录（页签激活时按需加载） ====================
   const logs = ref<RequirementChangeLog[]>([])
   const logsTotal = ref(0)
   const logsLoading = ref(false)
+  /** 属性卡片容器页签：仅「变更记录」激活时才拉取时间线 */
+  const sideTab = ref<'attributes' | 'logs'>('attributes')
+  const logsLoaded = ref(false)
 
   async function loadLogs(): Promise<void> {
     logsLoading.value = true
@@ -77,11 +81,22 @@ export function useRequirementDetail() {
       })
       logs.value = page.list
       logsTotal.value = page.total
+      logsLoaded.value = true
     } catch (err) {
       ElMessage.error(errorMessage(err, '加载变更记录失败'))
     } finally {
       logsLoading.value = false
     }
+  }
+
+  /** 「变更记录」页签首次激活时加载，重复激活不重复拉取 */
+  function ensureLogs(): void {
+    if (!logsLoaded.value) void loadLogs()
+  }
+
+  /** 仅在已加载过时间线时刷新，避免未激活页签的隐式请求 */
+  function refreshLogs(): void {
+    if (logsLoaded.value) void loadLogs()
   }
 
   // ==================== 属性面板选项 ====================
@@ -115,7 +130,7 @@ export function useRequirementDetail() {
       detail.value = data
       requirementStore.cacheDetail(data)
       syncEditable(data)
-      void loadLogs()
+      refreshLogs()
     } catch (err) {
       if (errorCode(err) === REQUIREMENT_NOT_FOUND) {
         notFound.value = true
@@ -131,19 +146,30 @@ export function useRequirementDetail() {
     void load()
   }
 
-  // ==================== 标题内联编辑 ====================
-  const titleEditing = ref(false)
+  // ==================== 统一编辑态（交互 06 §2.2.2） ====================
+  /** 整页编辑态：与新建页同构，标题 / 描述 / 属性一并编辑、一次保存 */
+  const editing = ref(false)
   const titleDraft = ref('')
+  const descriptionDraft = ref('')
 
-  function startEditTitle(): void {
-    if (isReadonly.value) return
-    titleDraft.value = detail.value?.title ?? ''
-    titleEditing.value = true
+  /** 进入编辑前回填服务端当前值，丢弃上次残留的草稿 */
+  function startEdit(): void {
+    if (isReadonly.value || !canEdit.value || !detail.value) return
+    syncEditable(detail.value)
+    editing.value = true
   }
 
-  function cancelEditTitle(): void {
-    titleEditing.value = false
-    titleDraft.value = ''
+  function cancelEdit(): void {
+    editing.value = false
+    if (detail.value) syncEditable(detail.value)
+  }
+
+  /** EP 分段控件无原生反选：再次点击当前选中项清空回未设置（与新建页口径一致） */
+  function handlePriorityClick(value: RequirementPriority, event: Event): void {
+    if (form.priority !== value) return
+    // 阻止 label 默认激活行为，否则原生点击会把该项重新选中，清空不生效
+    event.preventDefault()
+    form.priority = ''
   }
 
   // ==================== 属性面板（部分更新） ====================
@@ -164,7 +190,6 @@ export function useRequirementDetail() {
     form.tags = [...(data.tags ?? [])]
     titleDraft.value = data.title ?? ''
     descriptionDraft.value = data.description ?? ''
-    descriptionEditing.value = false
   }
 
   const versionError = computed(() =>
@@ -173,10 +198,13 @@ export function useRequirementDetail() {
       : '',
   )
 
-  const attributeDirty = computed(() => {
+  /** 标题 / 描述 / 属性任一与服务端当前值不同即视为有改动 */
+  const editDirty = computed(() => {
     const data = detail.value
     if (!data) return false
     return (
+      titleDraft.value.trim() !== (data.title ?? '') ||
+      descriptionDraft.value !== (data.description ?? '') ||
       form.moduleId !== (data.moduleId ?? '') ||
       form.systemVersion !== (data.systemVersion ?? '') ||
       form.priority !== (data.priority ?? '') ||
@@ -213,21 +241,6 @@ export function useRequirementDetail() {
     return payload
   }
 
-  // ==================== 描述编辑 ====================
-  const descriptionEditing = ref(false)
-  const descriptionDraft = ref('')
-
-  function startEditDescription(): void {
-    if (isReadonly.value) return
-    descriptionDraft.value = detail.value?.description ?? ''
-    descriptionEditing.value = true
-  }
-
-  function cancelEditDescription(): void {
-    descriptionEditing.value = false
-    descriptionDraft.value = detail.value?.description ?? ''
-  }
-
   // ==================== 影响确认 ====================
 
   /**
@@ -246,71 +259,62 @@ export function useRequirementDetail() {
         { type: 'warning', confirmButtonText: '保存并流转', cancelButtonText: '放弃修改' },
       )
     } catch {
-      // 用户放弃：恢复为服务端当前值，不提交任何字段
-      if (detail.value) syncEditable(detail.value)
+      // 用户放弃：退出编辑态并恢复为服务端当前值，不提交任何字段
+      cancelEdit()
       return
     }
     await apply()
   }
 
-  async function putDetail(payload: RequirementUpdatePayload): Promise<void> {
+  /** 提交成功返回 true，失败保留编辑态与草稿供重试 */
+  async function putDetail(payload: RequirementUpdatePayload): Promise<boolean> {
     saving.value = true
     try {
       const data = await updateRequirement(requirementId, payload)
       detail.value = data
       requirementStore.cacheDetail(data)
       syncEditable(data)
+      editing.value = false
       ElMessage.success('需求已更新')
-      void loadLogs()
+      refreshLogs()
+      return true
     } catch (err) {
       ElMessage.error(errorMessage(err, '保存需求失败'))
+      return false
     } finally {
       saving.value = false
     }
   }
 
-  function saveTitle(): Promise<void> {
-    const title = titleDraft.value.trim()
-    const original = detail.value?.title ?? ''
-    if (!title || title === original) {
-      cancelEditTitle()
-      return Promise.resolve()
-    }
-    const apply = async () => {
-      titleEditing.value = false
-      await putDetail({ title })
-    }
-    return confirmImpactIfConfirmed(true, apply)
-  }
-
-  function saveDescription(): Promise<void> {
+  /** 统一保存：标题 + 描述 + 属性合并为一次部分更新（C11），仅提交变更字段 */
+  async function saveAll(): Promise<void> {
     const data = detail.value
-    if (!data) return Promise.resolve()
-    const description = descriptionDraft.value
-    if (description === (data.description ?? '')) {
-      cancelEditDescription()
-      return Promise.resolve()
+    if (!data) return
+    const title = titleDraft.value.trim()
+    if (!title) {
+      ElMessage.error('请输入需求标题')
+      return
     }
-    const apply = async () => {
-      descriptionEditing.value = false
-      await putDetail({ description })
-    }
-    return confirmImpactIfConfirmed(true, apply)
-  }
-
-  async function saveAttributes(): Promise<void> {
     if (versionError.value) {
       ElMessage.error(versionError.value)
       return
     }
-    const payload = buildAttributePayload()
+    const payload: RequirementUpdatePayload = {}
+    if (title !== (data.title ?? '')) payload.title = title
+    if (descriptionDraft.value !== (data.description ?? '')) payload.description = descriptionDraft.value
+    Object.assign(payload, buildAttributePayload())
     if (Object.keys(payload).length === 0) {
       // 本地改动无法表达为后端字段（如清空模块），回滚到服务端当前值避免误导
       if (detail.value) syncEditable(detail.value)
-      ElMessage.info('属性未发生变化')
+      ElMessage.info('内容未发生变化')
       return
     }
-    await confirmImpactIfConfirmed('moduleId' in payload, () => putDetail(payload))
+    await confirmImpactIfConfirmed(
+      'title' in payload || 'description' in payload || 'moduleId' in payload,
+      async () => {
+        await putDetail(payload)
+      },
+    )
   }
 
   // ==================== 状态操作 ====================
@@ -324,7 +328,7 @@ export function useRequirementDetail() {
       requirementStore.cacheDetail(data)
       syncEditable(data)
       ElMessage.success(successText)
-      void loadLogs()
+      refreshLogs()
     } catch (err) {
       ElMessage.error(errorMessage(err, '操作失败'))
     }
@@ -469,21 +473,19 @@ export function useRequirementDetail() {
     loadLogs,
     moduleTree,
     memberOptions,
-    titleEditing,
+    editing,
     titleDraft,
-    startEditTitle,
-    cancelEditTitle,
-    saveTitle,
-    descriptionEditing,
     descriptionDraft,
-    startEditDescription,
-    cancelEditDescription,
-    saveDescription,
+    startEdit,
+    cancelEdit,
+    handlePriorityClick,
     form,
     saving,
     versionError,
-    attributeDirty,
-    saveAttributes,
+    editDirty,
+    saveAll,
+    sideTab,
+    ensureLogs,
     isReadonly,
     canConfirm,
     canArchive,
