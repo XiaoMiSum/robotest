@@ -17,7 +17,7 @@
 - 对应需求：`docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`（US-RM-001 ~ 005）。
 - 对应概要：`docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
 - 关联设计：
-  - AI 任务与产物确认接口：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（导入 / 拆分 / 影响分析任务的提交与采纳走该资源）；
+  - AI 任务与产物确认接口：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（导入 / 影响分析任务的提交与采纳走该资源）；
   - 追溯链路查询：`docs/04-detailed-design/05-trace-matrix.md` 3.3（本文档 3.11 为其委托入口）。
 
 ### 1.3 参考资料
@@ -122,17 +122,15 @@ CREATE INDEX idx_requirement_change_log_req ON requirement_change_log (requireme
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | project_id | uuid | NOT NULL | 项目隔离边界 |
-| source_type | varchar(20) | NOT NULL | 拆解来源：`document`（导入文档）/ `requirement`（条目内 AI 拆分） |
-| source_file_id | uuid | NULL | 导入的原始文档附件（来源为 document 时） |
-| source_requirement_id | uuid | NULL | 原条目标识（来源为 requirement 时；采纳后原条目归档，靠此保留关联） |
+| source_type | varchar(20) | NOT NULL | 拆解来源：`document`（导入文档） |
+| source_file_id | uuid | NULL | 导入的原始文档附件 |
 | ai_task_id | uuid | NOT NULL | 关联 AI 任务（逻辑外键 → ai_task）；**拆分建议明细存任务产物侧，本表不复制**（单一事实源） |
 | status | varchar(20) | NOT NULL, DEFAULT 'pending' | `pending`（建议待确认，含部分未处理）/ `adopted`（全部处理完且至少采纳一条）/ `rejected`（全部驳回） |
 | adopt_result | jsonb | NULL | 采纳结果：逐条产物动作（adopted / adopted_edited / rejected）与生成的新需求 ID 列表、操作人 |
 
-**索引**（3 个）：
+**索引**（2 个）：
 
 - `idx_requirement_split_project` (project_id, created_at) —— 拆解记录列表；
-- `idx_requirement_split_source` (source_requirement_id) —— "这个需求从哪来 / 拆出了谁"反查；
 - `idx_requirement_split_task` (ai_task_id) —— 任务下钻。
 
 ```sql
@@ -141,7 +139,6 @@ CREATE TABLE requirement_split_record (
     project_id            uuid NOT NULL,
     source_type           varchar(20) NOT NULL,
     source_file_id        uuid NULL,
-    source_requirement_id uuid NULL,
     ai_task_id            uuid NOT NULL,
     status                varchar(20) NOT NULL DEFAULT 'pending',
     adopt_result          jsonb NULL,
@@ -150,7 +147,6 @@ CREATE TABLE requirement_split_record (
     is_deleted            boolean NOT NULL DEFAULT FALSE
 );
 CREATE INDEX idx_requirement_split_project ON requirement_split_record (project_id, created_at);
-CREATE INDEX idx_requirement_split_source ON requirement_split_record (source_requirement_id);
 CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id);
 ```
 
@@ -178,9 +174,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 | /api/project/requirements/{id}/archive | POST | requirement:confirm |
 | /api/project/requirements/{id}/unarchive | POST | requirement:edit |
 | /api/project/requirements/import | POST | requirement:create |
-| /api/project/requirements/{id}/split | POST | requirement:edit |
 | /api/project/requirements/{id}/change-logs | GET | requirement:view |
-| /api/project/requirements/{id}/split-logs | GET | requirement:view |
 | /api/project/requirements/split-records | GET | requirement:view |
 | /api/project/requirements/{id}/trace | GET | requirement:view |
 
@@ -324,22 +318,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 - **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有 `pending/running` 的导入任务时拒绝重复提交（1000018013）。任务进度、产物确认与采纳走 AI 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/artifacts/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），经任务详情响应 `documentMeta` 字段下发（见 AI 底座详设 3.6.3），确认面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
 
-### 3.9 条目内 AI 拆分
-
-- **路径**：`POST /api/project/requirements/{id}/split`
-- **响应**：
-
-```json
-{
-  "taskId": "…",
-  "splitRecordId": "…",
-  "status": "pending"
-}
-```
-
-- **校验规则**：条目须属当前项目且非 `archived`（否则 1000018009）；同一条目已有进行中拆分任务时拒绝（1000018013）。采纳后：新条目按 4.1 分配编号并进入 `confirmed`（`system_version` 继承原条目，可经确认面板覆盖），原条目自动归档，`source_requirement_id` 保留关联（见 4.5）。
-
-### 3.10 变更记录
+### 3.9 变更记录
 
 - **路径**：`GET /api/project/requirements/{id}/change-logs`
 - **参数**：`pageNo`、`pageSize`。
@@ -362,17 +341,16 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-### 3.11 拆解记录
+### 3.10 拆解记录
 
-- **路径**：`GET /api/project/requirements/{id}/split-logs`（按原条目反查）与 `GET /api/project/requirements/split-records`（项目内列表，参数 `status`、`sourceType`、分页）
+- **路径**：`GET /api/project/requirements/split-records`（项目内列表，参数 `status`、分页）
 - **响应**（列表项）：
 
 ```json
 {
   "id": "…",
-  "sourceType": "requirement",
-  "sourceRequirementId": "…",
-  "sourceRequirementCode": "REQ-007",
+  "sourceType": "document",
+  "sourceFileId": "…",
   "aiTaskId": "…",
   "status": "adopted",
   "adoptResult": {
@@ -386,7 +364,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 - **校验规则**：建议明细（标题、描述、模块、原文定位）经 `aiTaskId` 下钻任务产物读取，本接口不复制内容。
 
-### 3.12 追溯视图（委托）
+### 3.11 追溯视图（委托）
 
 - **路径**：`GET /api/project/requirements/{id}/trace`
 - **参数**：`direction`（可选，同链路视图）、`depth`（可选，默认 6）。
@@ -429,13 +407,12 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 2. 影响项计算与处置展示由追溯矩阵承载（`docs/04-detailed-design/05-trace-matrix.md` 3.10）；
 3. `changed` 态需求不可作为生成输入（生成链校验见 `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`），直至重新 `confirm`。
 
-### 4.5 导入与拆解的采纳落库
+### 4.5 导入拆解的采纳落库
 
 1. 任务产物逐条确认（`POST /api/ai/tasks/{taskId}/artifacts/confirm`，`action = adopted / adopted_edited / rejected`）；
 2. `adopted / adopted_edited` 时由本模块 `RequirementAdoptService` 承接落库：
-   - 事务内分配编号、写 `requirement`（`status = confirmed`、`source = import/requirement`、`source_file_id` 继承来源文档）；`system_version` 取确认请求 `target.systemVersion`（确认面板修改值），缺省回退任务 `documentMeta.detectedVersion`（导入）或继承原条目（拆分），两者皆无则留空；
+   - 事务内分配编号、写 `requirement`（`status = confirmed`、`source = import`、`source_file_id` 继承来源文档）；`system_version` 取确认请求 `target.systemVersion`（确认面板修改值），缺省回退任务 `documentMeta.detectedVersion`，识别不到则留空待手工补录；
    - 写 `adopted_ref` 回填（任务侧记录新需求 ID），更新 `requirement_split_record.adopt_result` 与 `status`；
-   - 来源为 `requirement` 时，全部产物处理完成后将原条目归档；
 3. 全部驳回：`split_record.status = rejected`，不产生任何需求；
 4. 采纳落库失败（如编号重试耗尽）时，该产物确认动作整体回滚，任务侧保持待确认态，可重试。
 
@@ -443,7 +420,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 - 所有查询强制 `project_id = X-Active-Project` 过滤，越权返回 404；
 - `ownerId` 指派校验当前工作空间成员资格；
-- 导入 / 拆分 / 影响分析任务的提交与结果读取复用 AI 任务资源的权限校验（发起人可见自己的任务）。
+- 导入 / 影响分析任务的提交与结果读取复用 AI 任务资源的权限校验（发起人可见自己的任务）。
 
 ---
 
@@ -453,11 +430,12 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ```
 项目工作区
-├── /workspace/projects/requirements                → RequirementShellPage（需求管理壳层：页内侧栏）
-│   ├── ?tab=list（缺省）                            → RequirementListPage（需求列表子页）
-│   └── ?tab=trace                                  → TraceMatrixPage（追溯矩阵子页，见 docs/04-detailed-design/05-trace-matrix.md）
-├── /workspace/projects/requirements/create         → RequirementCreatePage（新建需求）
-└── /workspace/projects/requirements/:requirementId → RequirementDetailPage（需求详情）
+├── /workspace/projects/requirements                         → RequirementShellPage（需求管理壳层：页内侧栏）
+│   ├── ?tab=list（缺省）                                     → RequirementListPage（需求列表子页）
+│   └── ?tab=trace                                           → TraceMatrixPage（追溯矩阵子页，见 docs/04-detailed-design/05-trace-matrix.md）
+├── /workspace/projects/requirements/trace/:nodeType/:nodeId → TraceChainPage（链路明细页，见 docs/04-detailed-design/05-trace-matrix.md）
+├── /workspace/projects/requirements/create                  → RequirementCreatePage（新建需求）
+└── /workspace/projects/requirements/:requirementId          → RequirementDetailPage（需求详情）
 ```
 
 - 旧路径 `/workspace/projects/trace` 重定向至 `/workspace/projects/requirements?tab=trace`，既有深链保持可用（见 `docs/04-detailed-design/05-trace-matrix.md` 5.1）；子项权限过滤与默认子页回退见 `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md`。
@@ -483,12 +461,12 @@ RequirementDetailPage
 ├── MarkdownDescription（描述渲染，父容器高度按窗口动态取剩余可用空间 90%；编辑态切换为编辑器）
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
 ├── ChangeTimeline（变更记录时间线，页签首次激活时加载，支持「加载更多」分页）
-└── TraceEntry（查看追溯 → 页内切至追溯矩阵子页，只读链路模式）
+└── TraceEntry（查看追溯 → 跳转链路明细页并以其为起点，只读链路模式）
 ```
 
 ### 5.3 状态管理与交互
 
-- Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入/拆分任务引用；`aiTask` store 提供任务进度订阅，任务完成回调刷新列表与拆解记录。
+- Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务进度订阅，任务完成回调刷新列表与拆解记录。
 - 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 进度轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
 - 全部状态分支：列表空态（引导新建/导入）、覆盖状态 `—`（AI 关闭）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务失败重试入口。
 
@@ -508,11 +486,10 @@ RequirementDetailPage
 | 1000018006 | 400 | 导入文件类型不支持 |
 | 1000018007 | 400 | 导入文件超过 20MB 限制 |
 | 1000018008 | 400 | 导入文件为空或不可解析 |
-| 1000018009 | 400 | 拆分输入不满足条件（条目不可拆分） |
 | 1000018010 | 400 | 需求属性取值非法（优先级、版本超长等） |
 | 1000018011 | 404 | 来源附件不存在 |
 | 1000018012 | 403 | 无需求管理权限 |
-| 1000018013 | 409 | 已存在进行中的导入或拆分任务 |
+| 1000018013 | 409 | 已存在进行中的导入任务 |
 | 1000018014 | 502 | 追溯服务调用失败 |
 
 ### 6.1 权限点（新增，业务侧 scope = workspace）
@@ -521,7 +498,7 @@ RequirementDetailPage
 | ---- | ---- |
 | requirement:view | 查看需求 |
 | requirement:create | 新建与导入需求 |
-| requirement:edit | 编辑需求（含取消归档、发起拆分） |
+| requirement:edit | 编辑需求（含取消归档） |
 | requirement:confirm | 确认与归档需求 |
 
 ---
@@ -535,7 +512,7 @@ RequirementDetailPage
 | `server/.../entity/requirement/Requirement`、`RequirementChangeLog`、`RequirementSplitRecord` + Mapper | 实体与数据访问 |
 | `server/.../controller/project/RequirementController` | 仅路由与参数绑定（C2） |
 | `server/.../service/requirement/RequirementService + Impl` | 列表、详情、部分更新、状态机 |
-| `server/.../service/requirement/RequirementAdoptService + Impl` | 导入/拆解产物采纳落库 |
+| `server/.../service/requirement/RequirementAdoptService + Impl` | 导入拆解产物采纳落库 |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018001–1000018014 |
 | 权限点迁移脚本 | 新增 `requirement:*` 四个权限点（scope = workspace） |
 | `web/src/pages/project/RequirementListPage.vue`、`RequirementDetailPage.vue` 及子组件 | 前端页面 |
@@ -553,18 +530,18 @@ CREATE INDEX idx_requirement_system_version ON requirement (project_id, system_v
 CREATE TABLE requirement_change_log ( ... );
 CREATE INDEX idx_requirement_change_log_req ON requirement_change_log (requirement_id, created_at);
 CREATE TABLE requirement_split_record ( ... );
-CREATE INDEX idx_requirement_split_project / _source / _task ...;
+CREATE INDEX idx_requirement_split_project / _task ...;
 ```
 
-- UUID 主键使用框架默认策略；无物理外键；单表索引数 4 / 1 / 3，均 ≤ 5（C9）。
+- UUID 主键使用框架默认策略；无物理外键；单表索引数 4 / 1 / 2，均 ≤ 5（C9）。
 - **存量接口对齐**：若既有 `/api/project/requirements*` 接口与本文档不一致（字段、路径、错误码），以本文档为目标态迁移，差异清单在实现时随迁移说明提交。
 
-**OpenAPI**：接口随本次交付经 springdoc 暴露，分组 `requirement`；`import` 标注 multipart，`split` 标注异步任务返回。
+**OpenAPI**：接口随本次交付经 springdoc 暴露，分组 `requirement`；`import` 标注 multipart（异步任务返回）。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：编号分配并发与重试、状态机非法流转矩阵、归档只读、部分更新不覆盖未传字段、变更触发影响任务（提交失败不回滚）、拆解采纳事务与原条目归档、导入大小/类型校验、关键词三段匹配、越权 404；
-- 前端：筛选与防抖查询、状态按钮可用性矩阵、导入与拆分全流程弹窗、归档只读降级、空态与权限隐藏。
+- 后端：编号分配并发与重试、状态机非法流转矩阵、归档只读、部分更新不覆盖未传字段、变更触发影响任务（提交失败不回滚）、拆解采纳事务、导入大小/类型校验、关键词三段匹配、越权 404；
+- 前端：筛选与防抖查询、状态按钮可用性矩阵、导入全流程与任务详情页审核、归档只读降级、空态与权限隐藏。
 
 ---
 
@@ -584,3 +561,5 @@ CREATE INDEX idx_requirement_split_project / _source / _task ...;
 | V1.0 | 2026-10-15 | 5.2 详情页操作区按频次分组（编辑/追溯改 link、归档收进「更多」下拉），移除「AI 拆分」详情页入口（接口 3.9 保留） |
 | V1.0 | 2026-10-15 | 5.2 列表行操作：「归档」收进「更多」下拉，操作列右对齐 |
 | V1.0 | 2026-10-15 | 5.2 详情页 AI 入口按钮更名「AI 生成用例」 |
+| V1.0 | 2026-10-15 | 下线条目内 AI 拆分：删除原 3.9 接口与 split-logs 反查（后续章节顺次前移编号），拆解记录表移除 `source_requirement_id` 及其索引，4.5 收敛为导入采纳落库，错误码 1000018009 注销、1000018013 收敛为导入口径 |
+| V1.0 | 2026-10-15 | 5.1 / 5.2 增链路明细页路由（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），TraceEntry 改为跳转该页 |
