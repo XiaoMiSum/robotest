@@ -22,6 +22,13 @@ export const REQUIREMENT_PRIORITY_OPTIONS: { value: RequirementPriority; label: 
   { value: 'low', label: '低' },
 ]
 
+/** 分段控件底色沿用缺陷优先级色（交互 06 §4），保证与列表/详情口径一致 */
+export const REQUIREMENT_PRIORITY_COLOR: Record<RequirementPriority, string> = {
+  high: 'var(--color-priority-p1)',
+  medium: 'var(--color-priority-p2)',
+  low: 'var(--color-priority-p3)',
+}
+
 // ==================== 新建需求页（交互 06 §2.5） ====================
 
 export function useRequirementCreate() {
@@ -41,11 +48,21 @@ export function useRequirementCreate() {
   })
 
   const rules: FormRules = {
+    // 标题必填：原生 maxlength 已阻止超长输入，超长校验不可达故不设 max 规则；
+    // 必填用 validator 做 trim，纯空白视同未填（否则 trim 后空串会绕过 required）
     title: [
-      { required: true, message: '请输入需求标题', trigger: 'blur' },
-      { max: 300, message: '标题不能超过 300 字符', trigger: 'blur' },
+      {
+        validator: (_rule, value, callback) => {
+          if (!String(value ?? '').trim()) {
+            callback(new Error('请输入需求标题'))
+            return
+          }
+          callback()
+        },
+        trigger: 'blur',
+      },
     ],
-    systemVersion: [{ max: 50, message: '版本不能超过 50 字符', trigger: 'blur' }],
+    // systemVersion 可选且提交时 trim，纯空白落为不传，无需校验规则
   }
 
   // ==================== 选项数据 ====================
@@ -70,6 +87,15 @@ export function useRequirementCreate() {
   }
   void loadModuleTree()
   void loadMembers()
+
+  // ==================== 优先级分段控件 ====================
+  /** EP 分段控件无原生反选：再次点击当前选中项清空回未设置（交互 06 §2.5.2） */
+  function handlePriorityClick(value: RequirementPriority, event: Event): void {
+    if (form.priority !== value) return
+    // 阻止 label 默认激活行为，否则原生点击会把该项重新选中，清空不生效
+    event.preventDefault()
+    form.priority = ''
+  }
 
   // ==================== 提交 ====================
   async function handleSubmit(): Promise<void> {
@@ -108,6 +134,7 @@ export function useRequirementCreate() {
     rules,
     moduleTree,
     memberOptions,
+    handlePriorityClick,
     handleSubmit,
   }
 }
