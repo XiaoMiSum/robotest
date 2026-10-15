@@ -22,7 +22,8 @@ const {
 
 // ==================== 描述编辑器高度自适应 ====================
 const MIN_EDITOR_HEIGHT = 320
-const EDITOR_BOTTOM_GAP = 24
+/** 编辑器取剩余可用空间的 90%，底部保留回弹余量（交互 06 §2.5.2） */
+const EDITOR_HEIGHT_RATIO = 0.9
 
 const editorWrap = ref<HTMLDivElement>()
 const editorTop = ref(0)
@@ -34,7 +35,10 @@ function measure(): void {
 }
 
 const editorHeight = computed(() =>
-  Math.max(MIN_EDITOR_HEIGHT, viewportHeight.value - editorTop.value - EDITOR_BOTTOM_GAP),
+  Math.max(
+    MIN_EDITOR_HEIGHT,
+    Math.floor((viewportHeight.value - editorTop.value) * EDITOR_HEIGHT_RATIO),
+  ),
 )
 
 /** 分段控件选中态用优先级色（交互 06 §4），EP 无逐按钮配色 prop，按规范走组件 CSS 变量注入 */
