@@ -196,10 +196,6 @@ async function runTest(model: AiModel) {
 
 <template>
   <div class="model-group">
-    <div class="model-group__toolbar">
-      <el-button type="primary" @click="openCreate">添加模型</el-button>
-    </div>
-
     <!-- 列表错误（UI-PAGE-11：页面捕获 + 重试） -->
     <div v-if="store.modelsError" class="model-group__error">
       <span>{{ store.modelsError }}</span>
@@ -255,7 +251,13 @@ async function runTest(model: AiModel) {
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="176" fixed="right">
+      <!-- 新增入口放列表头而非每行：操作列随 fixed 右移，入口整表仅一个（交互 2.2）；列表头不设「操作」标题 -->
+      <el-table-column width="176" fixed="right">
+        <template #header>
+          <div class="model-group__actions-head">
+            <el-button link type="primary" size="small" @click="openCreate">添加模型</el-button>
+          </div>
+        </template>
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="openEdit(row as AiModel)">编辑</el-button>
           <el-button
@@ -370,10 +372,11 @@ async function runTest(model: AiModel) {
   min-height: 0;
 }
 
-.model-group__toolbar {
+.model-group__actions-head {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  flex-shrink: 0;
+  gap: var(--space-sm);
 }
 
 .model-group__error {
