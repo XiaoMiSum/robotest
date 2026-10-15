@@ -154,6 +154,8 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     try {
       const created = await submitAiTask(kind, input)
       taskId.value = created.taskId
+      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       await refresh()
     } catch (err) {
       loadError.value = errorMessage(err, '发起建议任务失败')
@@ -180,6 +182,8 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
       taskId.value = created.taskId
       receipt.value = []
       contents.value = {}
+      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       await refresh()
     } catch (err) {
       ElMessage.error(errorMessage(err, '重试任务失败'))

@@ -192,6 +192,8 @@ export function useAiTaskCenter() {
         target.phase = updated.phase
         target.errorMessage = updated.error?.msg ?? ''
       }
+      // 取消即出队：即时刷新顶栏进行中计数，不等 15s 轮询（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       ElMessage.success('任务已取消')
     } catch (err) {
       ElMessage.error(errorMessage(err, '取消任务失败'))
@@ -204,6 +206,8 @@ export function useAiTaskCenter() {
       ElMessage.success('已重新排队')
       // 重试生成新任务并回到排队，列表重取保持状态一致
       void load()
+      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
     } catch (err) {
       ElMessage.error(errorMessage(err, '重试任务失败'))
     }

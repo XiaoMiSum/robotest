@@ -128,6 +128,8 @@ export function useAiTaskDetail() {
       detail.value = updated
       aiTaskStore.cacheDetail(updated)
       aiTaskStore.stopPolling()
+      // 取消即出队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       ElMessage.success('任务已取消')
     } catch (err) {
       ElMessage.error(errorMessage(err, '取消任务失败'))

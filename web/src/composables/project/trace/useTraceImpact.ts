@@ -135,6 +135,8 @@ export function useTraceImpact() {
       const task = await submitAiTask('impact_analysis', { requirementId: requirementId.value })
       runningTaskId.value = task.taskId
       aiTaskStore.startPolling(task.taskId)
+      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       ElMessage.success('影响分析已发起，完成后自动刷新受影响项')
       return true
     } catch (err) {
@@ -157,6 +159,8 @@ export function useTraceImpact() {
       taskFailed.value = false
       taskError.value = ''
       aiTaskStore.startPolling(next.taskId)
+      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
       return true
     } catch (err) {
       ElMessage.error(errorMessage(err, '重试影响分析失败'))
