@@ -31,7 +31,7 @@ public class AiModelConfig extends BaseUuidDO<AiModelConfig> {
 
     private String modelName;
 
-    /** 能力标签（chat / embedding 等） */
+    /** 能力标签（chat / vision） */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<String> capabilities;
 

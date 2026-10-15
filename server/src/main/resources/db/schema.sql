@@ -1997,7 +1997,7 @@ COMMENT ON COLUMN ai_model_config.provider IS '供应商类别：openai/anthropi
 COMMENT ON COLUMN ai_model_config.base_url IS '模型端点，可为云端 API 或私有化部署';
 COMMENT ON COLUMN ai_model_config.api_key_encrypted IS '密钥密文（AES 加密；接口永不回显，仅支持替换）';
 COMMENT ON COLUMN ai_model_config.model_name IS '实际调用的模型标识';
-COMMENT ON COLUMN ai_model_config.capabilities IS '能力标签：chat/vision/embedding';
+COMMENT ON COLUMN ai_model_config.capabilities IS '能力标签：chat/vision';
 COMMENT ON COLUMN ai_model_config.priority IS '兜底顺序（默认模型失效时按 priority 升序尝试）';
 COMMENT ON COLUMN ai_model_config.enabled IS '启停开关';
 COMMENT ON COLUMN ai_model_config.last_test_at IS '最近连通性测试时间';

@@ -44,7 +44,7 @@ import java.util.UUID;
 @Component
 public class AiModelAdminService {
 
-    private static final Set<String> SUPPORTED_CAPABILITIES = Set.of("chat", "vision", "embedding");
+    private static final Set<String> SUPPORTED_CAPABILITIES = Set.of("chat", "vision");
     private static final int TEST_MSG_MAX_LENGTH = 300;
 
     private static final String OPERATION_CREATE = "create";
