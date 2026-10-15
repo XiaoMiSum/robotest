@@ -101,10 +101,13 @@ export function useTraceGaps() {
     void load()
   }
 
-  /** 行点击进入链路抽屉定位该条目（需求或用例为起点） */
+  /** 行点击进入链路明细页定位该条目（需求或用例为起点） */
   function openChain(gap: TraceGapView): void {
     const type = gap.targetType === 'requirement' ? 'requirement' : 'test_case'
-    traceStore.openChain({ type, id: gap.targetId, title: gap.title })
+    void router.push({
+      name: 'TraceChain',
+      params: { nodeType: type, nodeId: gap.targetId },
+    })
   }
 
   function runAction(gap: TraceGapView): void {

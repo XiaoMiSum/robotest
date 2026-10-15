@@ -320,6 +320,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '新建需求', mode: 'project' },
       },
       {
+        // 不入菜单：由矩阵、缺口、需求详情等入口下钻，以路由参数承载链路起点（交互 04 §2.2）
+        path: 'workspace/projects/requirements/trace/:nodeType/:nodeId',
+        name: 'TraceChain',
+        component: () => import('@/pages/project/trace/TraceChainPage.vue'),
+        meta: { title: '链路明细', mode: 'project' },
+      },
+      {
         path: 'workspace/projects/requirements/:requirementId',
         name: 'RequirementDetail',
         component: () => import('@/pages/project/requirement/RequirementDetailPage.vue'),

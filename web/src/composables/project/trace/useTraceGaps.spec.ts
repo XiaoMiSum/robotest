@@ -179,31 +179,27 @@ describe('useTraceGaps', () => {
   })
 
   describe('链路入口', () => {
-    it('需求缺口以需求为链路起点', async () => {
-      const traceStore = useTraceStore()
+    it('需求缺口跳转链路明细页以需求为起点', async () => {
       const s = useTraceGaps()
       await s.load()
       s.openChain(s.gaps.value[0])
-      expect(traceStore.chainOrigin).toEqual({
-        type: 'requirement',
-        id: 'r1',
-        title: 'REQ-001 登录',
+      expect(mocks.router.push).toHaveBeenCalledWith({
+        name: 'TraceChain',
+        params: { nodeType: 'requirement', nodeId: 'r1' },
       })
     })
 
-    it('用例缺口以测试用例为链路起点', async () => {
+    it('用例缺口跳转链路明细页以测试用例为起点', async () => {
       mocks.fetchTraceGaps.mockResolvedValue({
         list: [makeGap({ targetType: 'test_case', targetId: 'tc1', title: '登录成功用例' })],
         total: 1,
       })
-      const traceStore = useTraceStore()
       const s = useTraceGaps()
       await s.load()
       s.openChain(s.gaps.value[0])
-      expect(traceStore.chainOrigin).toEqual({
-        type: 'test_case',
-        id: 'tc1',
-        title: '登录成功用例',
+      expect(mocks.router.push).toHaveBeenCalledWith({
+        name: 'TraceChain',
+        params: { nodeType: 'test_case', nodeId: 'tc1' },
       })
     })
   })
