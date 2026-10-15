@@ -30,7 +30,7 @@ public class AiModelUpdateReqDTO {
     @Size(max = 100, message = "模型标识长度不能超过 100")
     private String modelName;
 
-    /** 能力标签 ⊆ {chat, vision, embedding} */
+    /** 能力标签 ⊆ {chat, vision} */
     private List<String> capabilities;
 
     @Min(value = 0, message = "优先级不得小于 0")
