@@ -24,8 +24,6 @@ const {
 const MIN_EDITOR_HEIGHT = 320
 const EDITOR_BOTTOM_GAP = 24
 
-const page = ref<HTMLDivElement>()
-const header = ref<HTMLDivElement>()
 const editorWrap = ref<HTMLDivElement>()
 const editorTop = ref(0)
 const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeight)
@@ -33,8 +31,6 @@ const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeigh
 /** 编辑器顶部相对视口的偏移，随布局（属性字段行数）变化需重新测量 */
 function measure(): void {
   editorTop.value = editorWrap.value?.getBoundingClientRect().top ?? 0
-  // 右栏 sticky 需避让吸顶页头，页头高度随窗口变化故运行时测量而非写死
-  page.value?.style.setProperty('--req-header-h', `${header.value?.offsetHeight ?? 0}px`)
 }
 
 const editorHeight = computed(() =>
@@ -64,9 +60,9 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 </script>
 
 <template>
-  <div ref="page" class="requirement-create">
+  <div class="requirement-create">
     <!-- UI-BC-01：两级面包屑，回退入口是唯一可点击项；操作区同行右对齐，页头吸顶 -->
-    <div ref="header" class="requirement-create__header">
+    <div class="requirement-create__header">
       <div class="requirement-create__breadcrumb">
         <router-link to="/workspace/projects/requirements">需求管理</router-link>
         <el-icon :size="13"><ArrowRight /></el-icon>
@@ -98,8 +94,8 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
       <div class="requirement-create__layout">
         <!-- 属性栏在 DOM 中置前：窄屏回流保持「标题 → 属性 → 描述」顺序；桌面端由 grid 显式定位到右栏 -->
         <div class="requirement-create__side">
-          <!-- 无投影卡片容器包裹属性字段（交互 06 §2.5.2），与缺陷域新建页范式一致 -->
-          <el-card shadow="never">
+          <!-- 无投影卡片容器包裹属性字段（交互 06 §2.5.2），与缺陷域新建页范式一致；等高齐平左栏编辑器 -->
+          <el-card shadow="never" class="requirement-create__side-card">
             <div class="requirement-create__fields">
               <el-form-item label="所属模块">
                 <el-tree-select
@@ -169,10 +165,6 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 </template>
 
 <style scoped lang="scss">
-.requirement-create {
-  --req-header-h: 48px; // JS 测量前的占位值，避免右栏 sticky 首帧错位
-}
-
 // UI-BC-02：面包屑容器排版基准
 .requirement-create__breadcrumb {
   display: flex;
@@ -239,7 +231,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: var(--space-xl);
-  align-items: start;
+  // 默认 stretch：右栏拉伸至与左栏编辑器等高（交互 06 §2.5.2），等高后页面无滚动量
 }
 
 .requirement-create__main {
@@ -252,9 +244,11 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
   min-width: 0;
   grid-column: 2;
   grid-row: 1;
-  // 避让吸顶页头；页头高度由 JS 测量写入 --req-header-h
-  position: sticky;
-  top: calc(var(--req-header-h) + var(--space-md) - var(--page-pad));
+}
+
+// 卡片容器内距沿用 EP 默认，仅重排字段（交互 06 §2.5.2）；高度撑满右栏与编辑器齐平
+.requirement-create__side-card {
+  height: 100%;
 }
 
 // 卡片容器内距沿用 EP 默认，仅重排字段（交互 06 §2.5.2）
@@ -284,8 +278,9 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
     grid-row: auto;
   }
 
-  .requirement-create__side {
-    position: static;
+  // 回流后右栏独立成行，卡片高度回落为内容高
+  .requirement-create__side-card {
+    height: auto;
   }
 
   .requirement-create__fields {
