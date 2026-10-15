@@ -409,14 +409,15 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
 
     const card = wrapper.get('.ai-entry__card')
     expect(card.attributes('style')).toContain('left: 160px')
-    expect(card.attributes('style')).toContain('top: 100px')
+    // 目标 top 100 超出视口夹取上限（768 - 700 = 68），断言夹取后的位置
+    expect(card.attributes('style')).toContain('top: 68px')
 
     window.dispatchEvent(new MouseEvent('mouseup'))
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 300 }))
     await nextTick()
 
     expect(card.attributes('style')).toContain('left: 160px')
-    expect(card.attributes('style')).toContain('top: 100px')
+    expect(card.attributes('style')).toContain('top: 68px')
   })
 
   it('小屏不下发内联定位且拖动不生效（交互 05 §2.4 小屏适配）', async () => {
