@@ -239,7 +239,8 @@ onMounted(() => {
         <el-switch v-model="form.enabled" />
         <span class="embedding-group__hint">未启用则 RAG 与相似检测不可用</span>
       </el-form-item>
-      <el-form-item>
+      <!-- 无 label 时不占 112px 标签列，操作行与上方控件列右缘对齐（交互 2.3） -->
+      <el-form-item class="embedding-group__actions">
         <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
       </el-form-item>
     </el-form>
@@ -270,6 +271,12 @@ onMounted(() => {
 
 .embedding-group__error-inline {
   margin-bottom: var(--space-md);
+}
+
+.embedding-group__actions {
+  :deep(.el-form-item__content) {
+    justify-content: flex-end;
+  }
 }
 
 .embedding-group__operator {
