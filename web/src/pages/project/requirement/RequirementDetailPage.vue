@@ -11,7 +11,6 @@ import {
   requirementChangeLines,
   requirementChangeTypeLabel,
   requirementCoverageMeta,
-  requirementPriorityLabel,
   requirementSourceLabel,
   requirementStatusMeta,
 } from '@/composables/project/requirement/requirementPresentation'
@@ -113,9 +112,27 @@ const editorWrap = ref<HTMLDivElement>()
 const editorTop = ref(0)
 const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeight)
 
-/** 编辑器顶部相对视口的偏移，随布局（属性字段行数、进入编辑态）变化需重新测量 */
+/** 向上找最近的滚动宿主（布局内容区），用于剔除页面滚动量 */
+function scrollHostOf(el: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = el.parentElement
+  while (node) {
+    const overflowY = getComputedStyle(node).overflowY
+    if (overflowY === 'auto' || overflowY === 'scroll') return node
+    node = node.parentElement
+  }
+  return null
+}
+
+/**
+ * 取容器「页面未滚动时」的顶部位置：叠加滚动宿主与 window 的滚动量后，
+ * 滚动位置不进入高度计算，否则滚动后再切查看/编辑态会算出另一套高度
+ */
 function measure(): void {
-  editorTop.value = editorWrap.value?.getBoundingClientRect().top ?? 0
+  const wrap = editorWrap.value
+  if (!wrap) return
+  const host = scrollHostOf(wrap)
+  editorTop.value =
+    wrap.getBoundingClientRect().top + (host?.scrollTop ?? 0) + (window.scrollY ?? 0)
 }
 
 const editorHeight = computed(() =>
@@ -130,12 +147,12 @@ function handleResize(): void {
   measure()
 }
 
-// 编辑器节点仅在编辑态渲染，进入后补测一次高度基准
-watch(editing, (on) => {
-  if (on) void nextTick(measure)
-})
+// 高度只随数据到达与窗口尺寸变化回算；查看/编辑态标题行高度不同，
+// 切换时重测会让两套高度互相覆盖，故切换不重新测量
+watch([loading, detail], () => measure(), { flush: 'post' })
 
 onMounted(() => {
+  measure()
   void nextTick(handleResize)
   window.addEventListener('resize', handleResize)
 })
@@ -265,50 +282,17 @@ function openTrace(): void {
             </el-tag>
           </div>
 
-          <!-- 属性栏在 DOM 中置前：窄屏回流保持「标题 → 属性 → 描述」顺序（同新建页）；桌面端由 grid 定位到右栏 -->
-          <div class="requirement-detail__layout">
+          <!-- 属性栏在 DOM 中置前：窄屏回流保持「标题 → 属性 → 描述」顺序（同新建页），桌面端由 grid 定位到右栏；
+               描述父容器与属性卡片共用按窗口动态计算的高度变量，两态、两栏同高 -->
+          <div
+            class="requirement-detail__layout"
+            :style="{ '--detail-panel-height': `${editorHeight}px` }"
+          >
             <el-card shadow="never" class="requirement-detail__side">
               <el-tabs v-model="sideTab" @tab-change="onSideTabChange">
                 <el-tab-pane label="属性" name="attributes">
-                  <!-- 查看态：label 在上、值在下的只读文本，字段节奏与新建页一致 -->
-                  <dl v-if="!editing" class="requirement-detail__attrs">
-                    <div class="requirement-detail__attr">
-                      <dt>所属模块</dt>
-                      <dd>{{ detail.moduleName ?? '—' }}</dd>
-                    </div>
-                    <div class="requirement-detail__attr">
-                      <dt>版本</dt>
-                      <dd>{{ detail.systemVersion ?? '—' }}</dd>
-                    </div>
-                    <div class="requirement-detail__attr">
-                      <dt>负责人</dt>
-                      <dd>{{ detail.ownerName ?? '—' }}</dd>
-                    </div>
-                    <div class="requirement-detail__attr">
-                      <dt>优先级</dt>
-                      <dd>{{ requirementPriorityLabel(detail.priority) }}</dd>
-                    </div>
-                    <div class="requirement-detail__attr">
-                      <dt>标签</dt>
-                      <dd>{{ detail.tags && detail.tags.length ? detail.tags.join('、') : '—' }}</dd>
-                    </div>
-                    <div class="requirement-detail__attr">
-                      <dt>来源</dt>
-                      <dd>{{ requirementSourceLabel(detail.source) }}</dd>
-                    </div>
-                    <div class="requirement-detail__attr">
-                      <dt>覆盖状态</dt>
-                      <dd>
-                        <el-tag v-if="coverageMeta" :type="coverageMeta.tagType" size="small" effect="light">
-                          {{ coverageMeta.label }}
-                        </el-tag>
-                        <span v-else>—</span>
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <!-- 编辑态：字段与新建页同款；模块/负责人后端仅支持改为非空值，不提供清空 -->
-                  <el-form v-else label-position="top" @submit.prevent>
+                  <!-- 同款表单控件贯穿两态：查看态整体禁用，点「编辑」启用（同新建页表单）；模块/负责人后端仅支持改为非空值，不提供清空 -->
+                  <el-form label-position="top" @submit.prevent>
                     <div class="requirement-detail__fields">
                       <el-form-item label="所属模块">
                         <!-- ProjectModule 文本字段为 name，须显式映射 label，否则选中值无法回显模块名 -->
@@ -319,14 +303,16 @@ function openTrace(): void {
                           node-key="id"
                           check-strictly
                           filterable
+                          :disabled="!editing"
                           placeholder="未分配"
                         />
                       </el-form-item>
-                      <el-form-item label="版本" :error="versionError">
+                      <el-form-item label="版本" :error="editing ? versionError : ''">
                         <el-input
                           v-model="form.systemVersion"
                           maxlength="50"
                           show-word-limit
+                          :disabled="!editing"
                           placeholder="被测业务系统版本"
                         />
                       </el-form-item>
@@ -336,6 +322,7 @@ function openTrace(): void {
                             v-for="option in REQUIREMENT_PRIORITY_OPTIONS"
                             :key="option.value"
                             :value="option.value"
+                            :disabled="!editing"
                             :style="priorityButtonStyle(option.value)"
                             @click.capture="handlePriorityClick(option.value, $event)"
                           >{{ option.label }}</el-radio-button>
@@ -345,6 +332,7 @@ function openTrace(): void {
                         <el-select
                           v-model="form.ownerId"
                           filterable
+                          :disabled="!editing"
                           placeholder="未指派"
                         >
                           <el-option
@@ -363,6 +351,7 @@ function openTrace(): void {
                           allow-create
                           default-first-option
                           clearable
+                          :disabled="!editing"
                           placeholder="回车创建"
                         />
                       </el-form-item>
@@ -421,12 +410,8 @@ function openTrace(): void {
             </el-card>
 
             <div class="requirement-detail__main">
-              <!-- 两态共用同一外部容器高度（取编辑器自适应高度），切换模式不产生高度跳动 -->
-              <div
-                ref="editorWrap"
-                class="requirement-detail__description"
-                :style="{ height: `${editorHeight}px` }"
-              >
+              <!-- 高度由 --detail-panel-height（按窗口动态计算）锁定，切换查看/编辑态不产生高度跳动 -->
+              <div ref="editorWrap" class="requirement-detail__description">
                 <template v-if="editing">
                   <MarkdownEditor
                     v-model="descriptionDraft"
@@ -594,8 +579,8 @@ function openTrace(): void {
   min-width: 0;
   grid-column: 2;
   grid-row: 1;
-  // 高度随左栏描述容器拉伸（两态高度同源，参考编辑态），卡片内部改由 flex 承接
-  height: 100%;
+  // 与描述父容器共用按窗口动态计算的高度变量，两态、两栏同高，卡片内部改由 flex 承接
+  height: var(--detail-panel-height);
 
   // 顶部留白归零：tabs 行与左栏编辑器工具栏同一起始线（工具栏 35px + 1px 下边框 → tabs 头 36px）
   :deep(.el-card__body) {
@@ -639,9 +624,10 @@ function openTrace(): void {
   gap: var(--space-md);
 }
 
-// 高度由父级行内样式锁定为编辑器自适应高度；只读态超长内容在容器内滚动
+// 高度取 --detail-panel-height（按窗口动态计算的剩余可用空间）；只读态超长内容在容器内滚动
 .requirement-detail__description {
   width: 100%;
+  height: var(--detail-panel-height);
   overflow: auto;
 }
 
@@ -660,33 +646,6 @@ function openTrace(): void {
 .requirement-detail__muted {
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
-}
-
-// 查看态属性：label 在上、值在下，字段间 --space-md 对齐新建页节奏
-.requirement-detail__attrs {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  margin: 0;
-}
-
-.requirement-detail__attr {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-
-  dt {
-    color: var(--color-neutral-600);
-    font-size: var(--font-size-base);
-    line-height: 1.4;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--color-neutral-800);
-    font-size: var(--font-size-sm);
-    word-break: break-all;
-  }
 }
 
 .requirement-detail__timeline {
@@ -733,8 +692,7 @@ function openTrace(): void {
     height: auto;
   }
 
-  // 查看态属性回流为 2 行（同新建页断点口径）
-  .requirement-detail__attrs,
+  // 属性字段回流为 2 行（同新建页断点口径）
   .requirement-detail__fields {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -748,7 +706,6 @@ function openTrace(): void {
 }
 
 @media (max-width: 640px) {
-  .requirement-detail__attrs,
   .requirement-detail__fields {
     grid-template-columns: 1fr;
   }
