@@ -621,6 +621,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 - **列表**：`GET /api/ai/tasks`
   - 参数：`type`、`status`、`projectId` 不传（项目上下文经 `X-Active-Project` 头过滤，未附带则返回本人提交的任务）、`pageNo`、`pageSize`。
   - 响应列表项：`{ taskId, type, status, progress, phase, submittedBy, retryOfTaskId, tokensIn, tokensOut, createdAt, error }`。
+- **进行中计数**：`GET /api/ai/tasks/running-count`（权限 `ai:task`）——顶栏指示器轮询专用，统计 `pending + running` 任务数；项目上下文经 `X-Active-Project` 头过滤（未附带则统计本人提交的任务），语义与列表一致。
+  - 响应：`{ "count": 2 }`。
 - **详情**：`GET /api/ai/tasks/{taskId}`
   - `status = succeeded` 时附产物清单摘要；`result` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非成功态该字段为 `null`，列表项不下发：
 
@@ -777,6 +779,9 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 5.2 业务端组件与状态
 
 ```
+顶栏 AI 任务指示器（AppLayout 层，项目模式 + ai:task 权限显隐）
+└── 进行中任务数角标（15s 轮询 running-count，0 时不显示角标），点击跳任务中心
+
 任务中心（项目工作区 /workspace/projects/ai/tasks → AiTaskCenterPage）
 ├── TaskFilter（类型/状态筛选）
 └── TaskTable（进度条、阶段、失败原因、取消/重试，「详情 / 审核」跳转详情页）
@@ -787,11 +792,13 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
     ├── ArtifactTree（产物树，kind 图标区分）
     ├── ArtifactDetail（内容预览 / 与既有数据对比）
     └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
+
+能力页任务中心按钮（AiTaskEntryButton，需求列表 / 追溯矩阵 / 缺陷 AI 分析页头，ai:task 权限显隐）
 ```
 
 - Pinia store：
   - `aiAdmin`：设置、模型、向量、提示词、用量（仅管理端装载）；
-  - `aiTask`：任务轮询（详情 `GET /api/ai/tasks/{id}` 按 2s 间隔轮询，`terminal` 态停止）、任务中心列表、产物确认状态；
+  - `aiTask`：任务轮询（详情 `GET /api/ai/tasks/{id}` 按 2s 间隔轮询，`terminal` 态停止）、任务中心列表、产物确认状态、顶栏指示器进行中计数（`GET /api/ai/tasks/running-count` 按 15s 间隔轮询，随业务布局装载/卸载启停）；
 - 密钥输入框：`keyConfigured = true` 时显示占位「已配置（输入新值以替换）」，提交为空则不修改。
 
 ### 5.3 状态分支
@@ -892,3 +899,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-04 | 3.6.1 补 `vector_reindex` 的 `scope` 语义：`entityTypes` 数组（`requirement / testcase / bug`），缺省全量重建 |
 | V1.0 | 2026-10-04 | 调用层技术口径登记：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x（4.2 调用层与重试口径、7 依赖行），平台仅保留门面记账与错误码 |
 | V1.0 | 2026-10-06 | 3.6.3 详情响应补 `documentMeta` 下发口径：`result` 顶层含文档级元数据的任务（导入）succeeded 时附带，供确认面板预填识别版本 |
+| V1.0 | 2026-10-15 | 双层任务入口落地：3.6.3 补顶栏指示器计数接口 `GET /api/ai/tasks/running-count`，5.2 补指示器与能力页任务中心按钮组件，`aiTask` store 补 15s 计数轮询 |
