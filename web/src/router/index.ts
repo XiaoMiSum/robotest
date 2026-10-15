@@ -137,7 +137,9 @@ const routes: RouteRecordRaw[] = [
           menu: { label: 'AI 配置', icon: 'Setting', order: 40, section: 'AI 能力', permission: 'ai:admin' },
         },
         children: [
-          { path: '', name: 'AdminAi', redirect: 'models' },
+          // redirect 必须用绝对路径：vue-router 的字符串 redirect 按“当前路由”解析，
+          // 相对路径会漂移出 /admin/ai 前缀并落入全局兜底重定向到首页
+          { path: '', name: 'AdminAi', redirect: '/admin/ai/models' },
           {
             path: 'models',
             name: 'AdminAiModels',
@@ -162,8 +164,8 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/pages/admin/ai/AiUsageGroup.vue'),
             meta: { title: 'AI 配置 · 用量分析', mode: 'admin' },
           },
-          // 分组直达不存在的路径 → 重定向默认分组（交互 2.6）
-          { path: ':pathMatch(.*)*', redirect: 'models' },
+          // 分组直达不存在的路径 → 重定向默认分组（交互 2.6）；同上必须用绝对路径
+          { path: ':pathMatch(.*)*', redirect: '/admin/ai/models' },
         ],
       },
       {
