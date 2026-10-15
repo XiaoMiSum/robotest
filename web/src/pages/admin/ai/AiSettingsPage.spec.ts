@@ -50,7 +50,7 @@ describe('AI 配置中心 · 模型配置（交互 2.2）', () => {
 
   it('添加入口在操作列表头以 link 按钮右对齐，表格上方不再设工具栏', () => {
     expect(modelsSource).toContain('<template #header>')
-    expect(modelsSource).toContain('link type="primary" size="small" @click="openCreate"')
+    expect(modelsSource).toContain('link type="primary" @click="openCreate"')
     expect(modelsSource).toContain('model-group__actions-head')
     expect(modelsSource).not.toContain('model-group__toolbar')
     // 列表头只留新增入口，不再显示「操作」标题

@@ -199,7 +199,7 @@ async function runTest(model: AiModel) {
     <!-- 列表错误（UI-PAGE-11：页面捕获 + 重试） -->
     <div v-if="store.modelsError" class="model-group__error">
       <span>{{ store.modelsError }}</span>
-      <el-button size="small" @click="store.loadModels()">重试</el-button>
+      <el-button @click="store.loadModels()">重试</el-button>
     </div>
 
     <!-- 空态：引导添加第一个模型（交互 2.2） -->
@@ -255,15 +255,14 @@ async function runTest(model: AiModel) {
       <el-table-column width="176" fixed="right">
         <template #header>
           <div class="model-group__actions-head">
-            <el-button link type="primary" size="small" @click="openCreate">添加模型</el-button>
+            <el-button link type="primary" @click="openCreate">添加模型</el-button>
           </div>
         </template>
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="openEdit(row as AiModel)">编辑</el-button>
+          <el-button link type="primary" @click="openEdit(row as AiModel)">编辑</el-button>
           <el-button
             link
             type="primary"
-            size="small"
             :loading="testingId === row.id"
             @click="runTest(row as AiModel)"
           >
@@ -273,7 +272,6 @@ async function runTest(model: AiModel) {
             v-if="row.enabled"
             link
             type="danger"
-            size="small"
             :disabled="isDefault(row as AiModel)"
             @click="toggleEnabled(row as AiModel, false)"
           >
@@ -283,7 +281,6 @@ async function runTest(model: AiModel) {
             v-else
             link
             type="primary"
-            size="small"
             @click="toggleEnabled(row as AiModel, true)"
           >
             启用

@@ -166,7 +166,7 @@ onMounted(() => {
     <!-- 加载失败（UI-PAGE-11：页面捕获 + 重试） -->
     <div v-if="store.embeddingError || !store.embedding" class="embedding-group__error">
       <span>{{ store.embeddingError || '向量 API 配置加载失败' }}</span>
-      <el-button size="small" @click="handleRetry">重试</el-button>
+      <el-button @click="handleRetry">重试</el-button>
     </div>
 
     <el-form
