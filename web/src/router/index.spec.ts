@@ -140,3 +140,27 @@ describe('导航守卫', () => {
     expect(document.title).toBe('我的空间 - RoboTest')
   })
 })
+
+describe('AI 配置菜单进入', () => {
+  // 相对 redirect 会按"当前路由"解析并漂出 /admin/ai 前缀、落入全局兜底重定向到首页
+  it.each([
+    ['/workspaces', '从工作空间列表点侧栏 AI 配置'],
+    ['/admin/dashboard', '从管理端其他页面点侧栏 AI 配置'],
+  ])('当前在 %s 时 push /admin/ai → %s', async (currentPath) => {
+    h.token = 'token'
+    h.permissions = ['user:view']
+    h.hasSystemPermission = true
+    await router.push(currentPath)
+    await router.push('/admin/ai')
+    expect(router.currentRoute.value.path).toBe('/admin/ai/models')
+    expect(router.currentRoute.value.name).toBe('AdminAiModels')
+  })
+
+  it('分组直达不存在的子路径 → 重定向默认分组（交互 2.6）', async () => {
+    h.token = 'token'
+    h.permissions = ['user:view']
+    h.hasSystemPermission = true
+    await router.push('/admin/ai/not-exist')
+    expect(router.currentRoute.value.path).toBe('/admin/ai/models')
+  })
+})
