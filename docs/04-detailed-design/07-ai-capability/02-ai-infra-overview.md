@@ -70,7 +70,7 @@ CREATE UNIQUE INDEX uk_ai_config_singleton ON ai_config ((true)) WHERE is_delete
 | base_url | varchar(500) | NOT NULL | 模型端点，可为云端 API 或私有化部署 |
 | api_key_encrypted | varchar(500) | NOT NULL | 密钥密文（AES 加密存储；接口永不回显，仅支持替换） |
 | model_name | varchar(100) | NOT NULL | 实际调用的模型标识 |
-| capabilities | jsonb | NOT NULL, DEFAULT '[]' | 能力标签：`chat / vision / embedding` |
+| capabilities | jsonb | NOT NULL, DEFAULT '[]' | 能力标签：`chat / vision`（向量能力由独立的 `ai_embedding_config` 承载，不在模型配置中声明） |
 | priority | int | NOT NULL, DEFAULT 100 | 兜底顺序（默认模型失效时按 priority 升序尝试） |
 | enabled | boolean | NOT NULL, DEFAULT TRUE | 启停开关 |
 | input_price | numeric(14,6) | NOT NULL, DEFAULT 0 | 输入侧每百万 token 单价（0 = 不计价；仅作用量记账值，不设币种口径） |
@@ -499,7 +499,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-  - 校验：`name` 唯一（冲突 1000018103）；`baseUrl` 合法 URL；`apiKey / modelName` 必填；`capabilities ⊆ {chat, vision, embedding}`；`inputPrice / outputPrice ≥ 0`（否则 1000018103）。
+  - 校验：`name` 唯一（冲突 1000018103）；`baseUrl` 合法 URL；`apiKey / modelName` 必填；`capabilities ⊆ {chat, vision}`；`inputPrice / outputPrice ≥ 0`（否则 1000018103）。
 - **更新**：`PUT /api/ai/models/{modelId}`（部分更新；`apiKey` 传入即替换、不传保持原值）。
 - **删除**：`DELETE /api/ai/models/{modelId}`（逻辑删除）——被 `default_model_id` 引用时拒绝（1000018104），须先切换默认模型。
 - **连通性测试**：`POST /api/ai/models/{modelId}/test`
@@ -900,3 +900,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-06 | 3.6.3 详情响应补 `documentMeta` 下发口径：`result` 顶层含文档级元数据的任务（导入）succeeded 时附带，供确认面板预填识别版本 |
 | V1.0 | 2026-10-15 | 双层任务入口落地：3.6.3 补顶栏指示器计数接口 `GET /api/ai/tasks/running-count`，5.2 补指示器与能力页任务中心按钮组件，`aiTask` store 补 15s 计数轮询 |
 | V1.0 | 2026-10-15 | 任务类型枚举注销 `requirement_split`（条目内拆分下线，拆解统一由 `requirement_import` 承载），2.5 场景编码示例同步 |
+| V1.0 | 2026-10-15 | 模型配置能力标签移除 `embedding`：向量能力由独立的 `ai_embedding_config`（2.4 / 3.4）承载，模型配置的 `capabilities` 收窄为 `{chat, vision}`；2.3 字段说明与 3.3 校验规则同步更新 |
