@@ -99,7 +99,7 @@ class AssistantExecuteServiceImplTest {
         lenient().when(messageMapper.update(any(AiAssistantMessage.class), any())).thenReturn(1);
     }
 
-    // ---------- 校验链（3.7：251 → 252 → 255 → 253 → 254 分档 → 256 → 257 → 结构） ----------
+    // ---------- 校验链（3.7：251 → 252 → 18263 → 255 → 253 → 254 分档 → 256 → 257 → 结构） ----------
 
     @Test
     void execute_notOwned_throws251() {
@@ -236,10 +236,11 @@ class AssistantExecuteServiceImplTest {
     }
 
     @Test
-    void execute_scopeMismatch_throws256() {
+    void execute_workspaceScopeMismatch_throws256() {
         Map<String, Object> intent = intent("create_case");
-        intent.put("scope", Map.of("workspaceId", WORKSPACE_ID.toString(),
-                "projectId", UUID.randomUUID().toString()));
+        // 空间维不一致 → 256（防御性自检）；项目维不参与校验
+        intent.put("scope", Map.of("workspaceId", UUID.randomUUID().toString(),
+                "projectId", PROJECT_ID.toString()));
         stubMessage(message(intent, null));
 
         ServiceException exception = assertThrows(ServiceException.class,
@@ -249,14 +250,54 @@ class AssistantExecuteServiceImplTest {
     }
 
     @Test
-    void execute_missingContextHeader_throws256() {
-        loginUser.setActiveProjectId(null);
+    void execute_missingWorkspaceHeader_throws18263() {
+        loginUser.setActiveWorkspaceId(null);
         stubMessage(message(intent("create_case"), null));
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.execute(CONVERSATION_ID, MESSAGE_ID, null, loginUser));
 
-        assertEquals(ErrorCodeConstants.ASSISTANT_SCOPE_MISMATCH.code(), exception.getCode());
+        assertEquals(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH.code(),
+                exception.getCode());
+    }
+
+    @Test
+    void execute_conversationWorkspaceMismatch_throws18263() {
+        stubMessage(message(intent("create_case"), null), UUID.randomUUID());
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.execute(CONVERSATION_ID, MESSAGE_ID, null, loginUser));
+
+        assertEquals(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH.code(),
+                exception.getCode());
+    }
+
+    @Test
+    void execute_scopeWithoutProjectId_throws255() {
+        Map<String, Object> intent = intent("create_case");
+        intent.put("scope", Map.of("workspaceId", WORKSPACE_ID.toString()));
+        stubMessage(message(intent, null));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.execute(CONVERSATION_ID, MESSAGE_ID, null, loginUser));
+
+        assertEquals(ErrorCodeConstants.ASSISTANT_PARSE_FAILED.code(), exception.getCode());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void execute_projectDimensionIgnored_scopeProjectDrivesWrites() {
+        // 活跃项目 = PROJECT_ID、预览 scope = otherProject：旧口径 256，新口径按固化 scope 落库（4.2②）
+        UUID otherProject = UUID.randomUUID();
+        Map<String, Object> intent = caseIdsIntent("update_case", List.of(CASE_A));
+        ((Map<String, Object>) intent.get("scope")).put("projectId", otherProject.toString());
+        stubMessage(message(intent, null));
+
+        AiAssistantExecuteRespDTO resp = service.execute(CONVERSATION_ID, MESSAGE_ID, null, loginUser);
+
+        assertEquals("executed", resp.getExecution().get("status"));
+        verify(testCaseNodeService)
+                .updateCaseFields(eq(otherProject), eq(USER_ID), eq(CASE_A), anyList());
     }
 
     @Test
@@ -416,18 +457,15 @@ class AssistantExecuteServiceImplTest {
     }
 
     @Test
-    void execute_viewProgress_linkOnlyWithoutBusinessWrite() {
-        Map<String, Object> intent = intent("view_review_progress");
-        intent.put("targetId", TARGET_ID.toString());
-        stubMessage(message(intent, null));
+    void execute_viewKind_rejectedAsUnknownIntent() {
+        // 进度查看归只读问答（D1）：view_* 不再是 intent kind，执行侧按未知意图拒绝（255）
+        stubMessage(message(intent("view_review_progress"), null));
 
-        AiAssistantExecuteRespDTO resp = service.execute(CONVERSATION_ID, MESSAGE_ID, null, loginUser);
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.execute(CONVERSATION_ID, MESSAGE_ID, null, loginUser));
 
-        assertTrue(results(resp).isEmpty());
-        assertEquals("/workspace/projects/reviews/" + TARGET_ID, resp.getExecution().get("link"));
-        assertEquals("executed", resp.getExecution().get("status"));
+        assertEquals(ErrorCodeConstants.ASSISTANT_PARSE_FAILED.code(), exception.getCode());
         verifyNoInteractions(testReviewService, testPlanService);
-        verify(messageMapper).updateById(any(AiAssistantMessage.class));
     }
 
     @Test
@@ -611,8 +649,15 @@ class AssistantExecuteServiceImplTest {
     // ---------- 辅助 ----------
 
     private void stubMessage(AiAssistantMessage message) {
+        stubMessage(message, WORKSPACE_ID);
+    }
+
+    /** conversationWorkspaceId 默认与活跃空间一致；归属不一致场景经重载构造（4.4 → 1000018263） */
+    private void stubMessage(AiAssistantMessage message, UUID conversationWorkspaceId) {
+        AiAssistantConversation conversation = new AiAssistantConversation();
+        conversation.setWorkspaceId(conversationWorkspaceId);
         when(assistantService.getOwnedConversation(CONVERSATION_ID, USER_ID))
-                .thenReturn(new AiAssistantConversation());
+                .thenReturn(conversation);
         when(messageMapper.selectById(MESSAGE_ID)).thenReturn(message);
     }
 

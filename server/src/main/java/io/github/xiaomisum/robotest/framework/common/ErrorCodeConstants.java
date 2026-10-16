@@ -283,6 +283,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode ASSISTANT_PREVIEW_EXPIRED = ErrorCode.of(1000018253, "预览不存在或已过期");
     public static final ErrorCode ASSISTANT_PREVIEW_RESOLVED = ErrorCode.of(1000018254, "预览已执行或已取消");
     public static final ErrorCode ASSISTANT_PARSE_FAILED = ErrorCode.of(1000018255, "意图解析失败，无法生成预览");
+    /** 256 仅空间维自检（详设 4.2②：项目维不校验，目标项目取固化 intent.scope） */
     public static final ErrorCode ASSISTANT_SCOPE_MISMATCH = ErrorCode.of(1000018256, "执行作用域与预览目标不一致");
     public static final ErrorCode ASSISTANT_NO_PERMISSION = ErrorCode.of(1000018257, "无权限执行该操作");
     public static final ErrorCode ASSISTANT_RAG_UNAVAILABLE = ErrorCode.of(1000018258, "只读问答检索不可用（向量能力未就绪）");
