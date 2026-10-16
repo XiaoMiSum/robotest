@@ -10,6 +10,7 @@ import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReq
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewDetailRespDTO;
+import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantConversation;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantMessage;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
@@ -44,8 +45,10 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * 确认执行与取消（详设 3.7 / 3.8、4.2）：校验链 251 → 252 → 255 → 253 → 254 分档 →
+ * 确认执行与取消（详设 3.7 / 3.8、4.2）：校验链 251 → 252 → 18263 → 255 → 253 → 254 分档 →
  * 256 → 257 → 结构校验，随后条件认领 execution（占位回执）并逐项独立事务落库。
+ * 目标项目与空间一律取固化 intent.scope（4.2②）：请求头仅作空间维自检，无项目维校验，
+ * 确认即按预览声明的项目落库。
  *
  * <p>回执写 execution 后不可变更：首执由载体条件更新占位（并发下 0 行即 254），
  * 逐项结果以最终写整体覆盖；重试不认领，按既有 results 的 seq 反查回执项后追加，
@@ -69,20 +72,18 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
     /** 逐项落库异常兜底（500 属框架全局码段豁免，详设 4.2④ 失败项附原因） */
     private static final ErrorCode ITEM_FAILED = ErrorCode.of(500, "执行落库失败");
 
-    /** kind 十种（详设 4.3），与解析侧 AssistantParseHandler.INTENT_KINDS 同口径 */
+    /** kind 八种（详设 4.3），与解析侧 AssistantIntentBuilder.INTENT_KINDS 同口径；进度查看归只读问答 */
     private static final Set<String> INTENT_KINDS = Set.of(
             "create_case", "update_case", "complete_case", "batch_tag",
-            "create_review", "adjust_review", "view_review_progress",
-            "create_plan", "adjust_plan", "view_plan_progress");
+            "create_review", "adjust_review", "create_plan", "adjust_plan");
 
     /** 圈选用例是这七种动作的必填输入（详设 4.2⑥），缺失按参数非法拒绝 */
     private static final Set<String> NEED_CASE_IDS = Set.of(
             "update_case", "complete_case", "batch_tag",
             "create_review", "adjust_review", "create_plan", "adjust_plan");
 
-    /** 调整与进度查看类必须指向既有对象，缺失视为意图残缺（1000018255） */
-    private static final Set<String> NEED_TARGET_ID = Set.of(
-            "adjust_review", "adjust_plan", "view_review_progress", "view_plan_progress");
+    /** 调整类必须指向既有对象，缺失视为意图残缺（1000018255） */
+    private static final Set<String> NEED_TARGET_ID = Set.of("adjust_review", "adjust_plan");
 
     @Resource
     private AssistantService assistantService;
@@ -103,8 +104,10 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
     @AuditLog(action = "EXECUTE:AiAssistantMessage")
     public AiAssistantExecuteRespDTO execute(UUID conversationId, UUID messageId,
             AiAssistantExecuteReqDTO reqDTO, LoginUser loginUser) {
-        assistantService.getOwnedConversation(conversationId, loginUser.getId());
+        AiAssistantConversation conversation =
+                assistantService.getOwnedConversation(conversationId, loginUser.getId());
         AiAssistantMessage message = requireMessage(conversationId, messageId);
+        requireConversationWorkspace(conversation, loginUser);
         Map<String, Object> intent = message.getIntent();
         if (intent == null || intent.isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_PARSE_FAILED);
@@ -119,13 +122,13 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
 
         // 结构校验与回执项装配先于认领：结构非法不消耗 execution，可修复后重来
         UUID userId = loginUser.getId();
-        ExecPlan plan = buildPlan(intent, ModelOutputSupport.asMap(intent.get("params")),
-                loginUser.getActiveProjectId(), userId);
+        List<ExecUnit> units = buildPlan(intent, ModelOutputSupport.asMap(intent.get("params")),
+                scopeProjectId(intent), userId);
 
         if (retryIndexes.isEmpty()) {
-            return firstExecute(messageId, plan, userId);
+            return firstExecute(messageId, units, userId);
         }
-        return retryExecute(messageId, plan, retryIndexes, priorResults, current);
+        return retryExecute(messageId, units, retryIndexes, priorResults, current);
     }
 
     @Override
@@ -150,7 +153,7 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
 
     // ---------- 首执与重试 ----------
 
-    private AiAssistantExecuteRespDTO firstExecute(UUID messageId, ExecPlan plan, UUID userId) {
+    private AiAssistantExecuteRespDTO firstExecute(UUID messageId, List<ExecUnit> units, UUID userId) {
         String executedBy = String.valueOf(userId);
         String executedAt = Instant.now().toString();
         Map<String, Object> placeholder = new LinkedHashMap<>();
@@ -164,21 +167,18 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
         execution.put("status", STATUS_EXECUTED);
         execution.put("executedBy", executedBy);
         execution.put("executedAt", executedAt);
-        if (plan.viewLink() != null) {
-            execution.put("link", plan.viewLink());
-        }
-        execution.put("results", runAll(plan.units()));
+        execution.put("results", runAll(units));
         writeExecution(messageId, execution);
         return resp(execution);
     }
 
-    private AiAssistantExecuteRespDTO retryExecute(UUID messageId, ExecPlan plan,
+    private AiAssistantExecuteRespDTO retryExecute(UUID messageId, List<ExecUnit> units,
             List<Integer> retryIndexes, List<Map<String, Object>> priorResults,
             Map<String, Object> current) {
         // 重试无认领环节：按上次回执条目的 seq 反查本轮回执项，单项执行后整体追加
         List<ExecUnit> runUnits = new ArrayList<>();
         for (Integer index : retryIndexes) {
-            runUnits.add(unitBySeq(plan.units(), priorResults.get(index)));
+            runUnits.add(unitBySeq(units, priorResults.get(index)));
         }
         List<Map<String, Object>> merged = new ArrayList<>(priorResults);
         merged.addAll(runAll(runUnits));
@@ -279,12 +279,29 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
         return new ArrayList<>(distinct);
     }
 
-    /** 256：执行以请求头为准，scope 任一维缺失或不一致即拒绝（头缺失同样算不一致） */
+    /** 256：空间维自检（防御性，详设 4.2②——目标项目取固化 intent.scope，不校验项目头） */
     private static void requireScope(Map<String, Object> intent, LoginUser loginUser) {
         Map<String, Object> scope = ModelOutputSupport.asMap(intent.get("scope"));
-        if (!scopeEquals(scope.get("workspaceId"), loginUser.getActiveWorkspaceId())
-                || !scopeEquals(scope.get("projectId"), loginUser.getActiveProjectId())) {
+        if (!scopeEquals(scope.get("workspaceId"), loginUser.getActiveWorkspaceId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_SCOPE_MISMATCH);
+        }
+    }
+
+    /** 18263：会话归属空间与当前活跃空间一致（4.4——发送与执行均以归属空间为前提，头缺失同样拒绝） */
+    private static void requireConversationWorkspace(AiAssistantConversation conversation, LoginUser loginUser) {
+        if (conversation == null || conversation.getWorkspaceId() == null
+                || !conversation.getWorkspaceId().equals(loginUser.getActiveWorkspaceId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH);
+        }
+    }
+
+    /** 执行目标项目以固化 scope 为准（详设 4.2②：客户端不传任何项目标识；缺失视为意图残缺） */
+    private static UUID scopeProjectId(Map<String, Object> intent) {
+        Object value = ModelOutputSupport.asMap(intent.get("scope")).get("projectId");
+        try {
+            return UUID.fromString(String.valueOf(value));
+        } catch (IllegalArgumentException e) {
+            throw parseFailed();
         }
     }
 
@@ -301,7 +318,7 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
 
     // ---------- 结构校验与回执项装配 ----------
 
-    private ExecPlan buildPlan(Map<String, Object> intent, Map<String, Object> params,
+    private List<ExecUnit> buildPlan(Map<String, Object> intent, Map<String, Object> params,
             UUID projectId, UUID userId) {
         String kind = ModelOutputSupport.trimToNull(ModelOutputSupport.asString(intent.get("kind")));
         if (kind == null || !INTENT_KINDS.contains(kind)) {
@@ -313,8 +330,7 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
         List<Map<String, Object>> changes = listOf(intent.get("changes"));
         List<UUID> caseIds = NEED_CASE_IDS.contains(kind) ? requireCaseIds(params) : List.of();
 
-        List<ExecUnit> units = List.of();
-        String viewLink = null;
+        List<ExecUnit> units;
         switch (kind) {
             case "create_case" -> {
                 if (targetTitle == null) {
@@ -334,12 +350,9 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
                     units = List.of(planCreateUnit(targetTitle, caseIds, params, projectId, userId));
             case "adjust_plan" ->
                     units = List.of(planAdjustUnit(targetId, caseIds, projectId, userId));
-            // 进度查看类不落库：results 为空数组，回执仅附跳转链接（详设 4.3）
-            case "view_review_progress" -> viewLink = LINK_REVIEWS + targetId;
-            case "view_plan_progress" -> viewLink = LINK_PLANS + targetId;
             default -> throw parseFailed();
         }
-        return new ExecPlan(units, viewLink);
+        return units;
     }
 
     /** create_case：params.cases 每条一回执项；缺省按 targetTitle + changes 单条创建 */
@@ -677,9 +690,6 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
 
     private static ServiceException invalid() {
         return ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
-    }
-
-    private record ExecPlan(List<ExecUnit> units, String viewLink) {
     }
 
     /** 单个回执项：seq 为 units 数组下标，重试按此反查；failureExtras 为失败时仍要附带的上下文 */
