@@ -25,6 +25,8 @@ const props = defineProps<{
   hasMore: boolean
   streaming: boolean
   streamText: string
+  /** tool_call 进度帧步骤文案（交互 05 §2.2 查询进行态），空串不渲染 */
+  streamStage: string
   recovering: boolean
   /** 预览确认执行 / 回执重试进行中：禁用卡片操作（交互 05 §2.3） */
   executing: boolean
@@ -195,6 +197,10 @@ onMounted(() => {
             @jump="emit('citation-jump', $event)"
           />
         </template>
+        <div v-if="streaming && streamStage && !streamText" class="ai-timeline__stream">
+          <p class="ai-timeline__role">🤖 助手</p>
+          <p class="ai-timeline__stage">{{ streamStage }}…</p>
+        </div>
         <div v-if="streaming && streamText" class="ai-timeline__stream">
           <p class="ai-timeline__role">🤖 助手</p>
           <MarkdownView :content="streamText" class="ai-timeline__stream-content" />
@@ -267,6 +273,12 @@ onMounted(() => {
     font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--color-neutral-500);
+  }
+
+  &__stage {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
   }
 
   &__clarify,

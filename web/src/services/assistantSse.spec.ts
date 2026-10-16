@@ -26,6 +26,14 @@ describe('services/assistantSse 帧解析', () => {
     expect(parseSseFrame(': ping')).toBeNull()
   })
 
+  it('解析 tool_call 进度帧为查询进行态（详设 3.5）', () => {
+    const frame = 'event: tool_call\ndata: {"toolName":"query_projects","summary":"查询项目"}'
+    expect(parseSseFrame(frame)).toEqual({
+      type: 'tool_call',
+      data: { toolName: 'query_projects', summary: '查询项目' },
+    })
+  })
+
   it('畸形 JSON 按未知事件忽略，不抛异常', () => {
     expect(parseSseFrame('event: delta\ndata: {broken')).toBeNull()
   })

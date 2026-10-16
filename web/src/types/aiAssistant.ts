@@ -183,9 +183,10 @@ export interface AiAssistantSseError {
   msg: string
 }
 
-/** SSE 事件流（delta / clarify / preview / citations / done / error，详设 3.5） */
+/** SSE 事件流（delta / tool_call / clarify / preview / citations / done / error，详设 3.5） */
 export type AiAssistantSseEvent =
   | { type: 'delta'; data: { text: string } }
+  | { type: 'tool_call'; data: { toolName: string; summary: string } }
   | { type: 'clarify'; data: AiAssistantClarify }
   | { type: 'preview'; data: AiAssistantIntent }
   | { type: 'citations'; data: AiAssistantCitation[] }

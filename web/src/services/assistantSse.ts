@@ -22,6 +22,7 @@ export class AssistantStreamInterruptedError extends Error {
 
 const EVENT_NAMES = new Set([
   'delta',
+  'tool_call',
   'clarify',
   'preview',
   'citations',

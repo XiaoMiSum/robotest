@@ -346,6 +346,7 @@ onBeforeUnmount(() => {
         :has-more="store.messages.length < store.messageTotal"
         :streaming="store.streaming"
         :stream-text="store.streamText"
+        :stream-stage="store.streamStage"
         :recovering="store.recovering"
         :executing="store.executing"
         :readonly="archived"
