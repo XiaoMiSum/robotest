@@ -210,11 +210,10 @@ public class ErrorCodeConstants {
     public static final ErrorCode REQUIREMENT_IMPORT_TYPE_UNSUPPORTED = ErrorCode.of(1000018006, "导入文件类型不支持");
     public static final ErrorCode REQUIREMENT_IMPORT_SIZE_EXCEEDED = ErrorCode.of(1000018007, "导入文件超过 20MB 限制");
     public static final ErrorCode REQUIREMENT_IMPORT_EMPTY = ErrorCode.of(1000018008, "导入文件为空或不可解析");
-    public static final ErrorCode REQUIREMENT_SPLIT_INPUT_INVALID = ErrorCode.of(1000018009, "拆分输入不满足条件（条目不可拆分）");
     public static final ErrorCode REQUIREMENT_ATTRIBUTE_INVALID = ErrorCode.of(1000018010, "需求属性取值非法");
     public static final ErrorCode REQUIREMENT_SOURCE_FILE_NOT_FOUND = ErrorCode.of(1000018011, "来源附件不存在");
     public static final ErrorCode REQUIREMENT_NO_PERMISSION = ErrorCode.of(1000018012, "无需求管理权限");
-    public static final ErrorCode REQUIREMENT_TASK_IN_PROGRESS = ErrorCode.of(1000018013, "已存在进行中的导入或拆分任务");
+    public static final ErrorCode REQUIREMENT_TASK_IN_PROGRESS = ErrorCode.of(1000018013, "已存在进行中的导入任务");
     public static final ErrorCode REQUIREMENT_TRACE_SERVICE_FAILED = ErrorCode.of(1000018014, "追溯服务调用失败");
 
     // ========== 文件管理 1,000,018,021-1,000,018,039（文件管理详设 6） ==========

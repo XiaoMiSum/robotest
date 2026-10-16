@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 导入产物承接注册（详设 3.6.1 requirement_import → 需求模块采纳服务）：
- * 与拆分共用 RequirementAdoptService 的落库事务，按任务类型区分来源语义（4.5）。
+ * 委托 RequirementAdoptService 的落库事务（4.5）。
  */
 @Component
 public class RequirementImportAdopter implements ArtifactAdopter {

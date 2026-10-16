@@ -432,53 +432,7 @@ public class RequirementServiceImpl implements RequirementService {
         return false;
     }
 
-    // ---------- 3.9 条目内 AI 拆分 ----------
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @AuditLog(action = "SPLIT:Requirement")
-    public RequirementSplitSubmitRespDTO split(UUID id, UUID projectId, UUID userId) {
-        Requirement item = requireItem(id, projectId);
-        if (Constants.RequirementStatus.ARCHIVED.equals(item.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_SPLIT_INPUT_INVALID);
-        }
-        if (hasInProgressSplit(id)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_TASK_IN_PROGRESS);
-        }
-        Project project = projectMapper.selectById(projectId);
-        // 任务行与拆解记录同事务（3.9 / 4.5）：任一步失败整体回滚，不留无记录的任务或无任务的记录；
-        // 提交内联起跑经「直接 + 注册兜底」双保险覆盖活动事务场景（AiTaskServiceImpl.startTask）
-        AiTaskRespDTO task = aiTaskService.submitInternal("requirement_split",
-                Map.of("requirementId", id.toString()), userId, projectId,
-                project == null ? null : project.getWorkspaceId());
-        RequirementSplitRecord record = new RequirementSplitRecord();
-        record.setProjectId(projectId);
-        record.setSourceType("requirement");
-        record.setSourceRequirementId(id);
-        record.setAiTaskId(task.getTaskId());
-        record.setStatus(Constants.AiTaskStatus.PENDING);
-        splitRecordMapper.insert(record);
-
-        RequirementSplitSubmitRespDTO resp = new RequirementSplitSubmitRespDTO();
-        resp.setTaskId(task.getTaskId());
-        resp.setSplitRecordId(record.getId());
-        resp.setStatus(Constants.AiTaskStatus.PENDING);
-        return resp;
-    }
-
-    /** 同一条目已有进行中拆分任务（3.9 / 1000018013）：拆解记录待确认且关联任务仍 pending / running */
-    private boolean hasInProgressSplit(UUID requirementId) {
-        for (RequirementSplitRecord record : splitRecordMapper.selectPendingSplitBySource(requirementId)) {
-            AiTask task = aiTaskMapper.selectById(record.getAiTaskId());
-            if (task != null && (Constants.AiTaskStatus.PENDING.equals(task.getStatus())
-                    || Constants.AiTaskStatus.RUNNING.equals(task.getStatus()))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // ---------- 3.10 变更记录 ----------
+    // ---------- 3.9 变更记录 ----------
 
     @Override
     public PageResult<RequirementChangeLogRespDTO> getChangeLogs(UUID id, UUID projectId, PageParam pageParam) {
@@ -505,13 +459,7 @@ public class RequirementServiceImpl implements RequirementService {
         return new PageResult<>(list, page.getTotal());
     }
 
-    // ---------- 3.11 拆解记录 ----------
-
-    @Override
-    public PageResult<RequirementSplitRecordRespDTO> getSplitLogs(UUID id, UUID projectId, PageParam pageParam) {
-        requireItem(id, projectId);
-        return buildSplitPage(splitRecordMapper.findPageBySourceRequirementId(pageParam, id));
-    }
+    // ---------- 3.10 拆解记录 ----------
 
     @Override
     public PageResult<RequirementSplitRecordRespDTO> getSplitRecords(UUID projectId, String status, String sourceType,
@@ -711,19 +659,10 @@ public class RequirementServiceImpl implements RequirementService {
         if (page.getList().isEmpty()) {
             return new PageResult<>(List.of(), page.getTotal());
         }
-        List<UUID> requirementIds = page.getList().stream().map(RequirementSplitRecord::getSourceRequirementId)
-                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
-        Map<UUID, String> codeById = requirementIds.isEmpty() ? Map.of()
-                : requirementMapper.selectBatchIds(requirementIds).stream()
-                        .collect(Collectors.toMap(Requirement::getId, Requirement::getCode, (a, b) -> a));
-
         List<RequirementSplitRecordRespDTO> list = page.getList().stream().map(record -> {
             RequirementSplitRecordRespDTO dto = new RequirementSplitRecordRespDTO();
             dto.setId(record.getId());
             dto.setSourceType(record.getSourceType());
-            dto.setSourceRequirementId(record.getSourceRequirementId());
-            dto.setSourceRequirementCode(record.getSourceRequirementId() == null ? null
-                    : codeById.get(record.getSourceRequirementId()));
             dto.setAiTaskId(record.getAiTaskId());
             dto.setStatus(record.getStatus());
             dto.setAdoptResult(record.getAdoptResult());

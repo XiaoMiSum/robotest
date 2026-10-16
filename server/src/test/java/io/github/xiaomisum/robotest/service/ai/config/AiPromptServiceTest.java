@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AiPromptServiceTest {
 
-    private static final String SCENE = "requirement_split";
+    private static final String SCENE = "requirement_import";
 
     @Mock
     private AiPromptTemplateMapper promptTemplateMapper;

@@ -39,16 +39,10 @@ public interface RequirementService {
     /** 取消归档：仅归档态可取消，一律回到 draft（3.7） */
     RequirementDetailRespDTO unarchive(UUID id, UUID projectId, UUID userId);
 
-    /** 条目内 AI 拆分（3.9）：任务与拆解记录同事务提交，返回任务入口 */
-    RequirementSplitSubmitRespDTO split(UUID id, UUID projectId, UUID userId);
-
     /** 导入需求文档（3.8）：类型 / 大小 / 空文件校验、落盘与任务提交同事务，返回任务入口 */
     RequirementSplitSubmitRespDTO importDocument(MultipartFile file, UUID projectId, UUID userId);
 
     PageResult<RequirementChangeLogRespDTO> getChangeLogs(UUID id, UUID projectId, PageParam pageParam);
-
-    /** 按原条目反查拆解记录（3.11） */
-    PageResult<RequirementSplitRecordRespDTO> getSplitLogs(UUID id, UUID projectId, PageParam pageParam);
 
     /** 项目内拆解记录列表（3.11） */
     PageResult<RequirementSplitRecordRespDTO> getSplitRecords(UUID projectId, String status, String sourceType,
