@@ -1204,6 +1204,8 @@ CREATE TABLE ai_assistant_message (
     content         text NULL,
     attachments     jsonb NULL,
     images          jsonb NULL,
+    tool_calls      jsonb NULL,
+    tool_call_id    varchar(64) NULL,
     intent          jsonb NULL,
     citations       jsonb NULL,
     execution       jsonb NULL,
@@ -2073,10 +2075,12 @@ COMMENT ON COLUMN ai_assistant_conversation.context_snapshot IS '会话创建时
 
 COMMENT ON TABLE ai_assistant_message IS '助手消息表';
 COMMENT ON COLUMN ai_assistant_message.conversation_id IS '所属会话（逻辑外键）';
-COMMENT ON COLUMN ai_assistant_message.role IS '消息角色：user/assistant/system';
+COMMENT ON COLUMN ai_assistant_message.role IS '消息角色：user/assistant/system/tool';
 COMMENT ON COLUMN ai_assistant_message.content IS '消息正文（Markdown）；流式结束后落盘，断线重连续读';
 COMMENT ON COLUMN ai_assistant_message.attachments IS '用户选中的上下文实体引用集合';
 COMMENT ON COLUMN ai_assistant_message.images IS '用户随消息上传的图片文件引用集合 [{fileId,name}]（≤3 张，仅存引用不存字节）';
+COMMENT ON COLUMN ai_assistant_message.tool_calls IS 'assistant 消息的工具调用载荷（名称与入参），工具结果消息经 tool_call_id 与之配对';
+COMMENT ON COLUMN ai_assistant_message.tool_call_id IS '工具结果消息（role=tool）回指的调用标识，保证 tool_calls 后必有回填';
 COMMENT ON COLUMN ai_assistant_message.intent IS '意图解析结构化预览：动作、目标、字段级变更、影响数量';
 COMMENT ON COLUMN ai_assistant_message.citations IS '来源引用集合（只读问答的可跳转引用）';
 COMMENT ON COLUMN ai_assistant_message.execution IS '执行回执：previewed → executed/rejected、逐项结果与执行人';
