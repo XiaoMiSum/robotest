@@ -2,25 +2,21 @@ package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantConversation;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantMessage;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantPromptSupport;
-import io.github.xiaomisum.robotest.service.ai.assistant.AssistantRefChecker;
+import io.github.xiaomisum.robotest.service.ai.assistant.AssistantService;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantStreamBridge;
-import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
-import io.github.xiaomisum.robotest.service.ai.config.AiChatRequest;
+import io.github.xiaomisum.robotest.service.ai.assistant.AssistantToolLoop;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
-import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
-import io.github.xiaomisum.robotest.service.domain.file.FileContent;
 import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,39 +25,32 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.exception.ErrorCode;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 助手解析任务单测（详设 3.5 流式链路 / 4.1 解析流程）：输入归属校验、三类分流落盘与事件、
- * 意图引用越权拒绝、检索零命中 / 不可用降级、失败先落 error 再抛出（C8）。
+ * 助手解析任务单测（详设 3.5 / 4.1）：输入归属校验、循环终态三路落盘与事件、
+ * 会话私有项目写入、悬空补偿、失败先落 error 再抛出与 vision 能力派生（C8）。
  */
 @ExtendWith(MockitoExtension.class)
 class AssistantParseHandlerTest {
@@ -70,24 +59,22 @@ class AssistantParseHandlerTest {
     private static final UUID CONVERSATION_ID = UUID.randomUUID();
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
-    private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID PROJECT_ID = UUID.randomUUID();
-    private static final UUID TARGET_ID = UUID.randomUUID();
-    private static final UUID CASE_ID = UUID.randomUUID();
     private static final UUID FILE_ID = UUID.randomUUID();
+    private static final int PARSE_FAILED = ErrorCodeConstants.ASSISTANT_PARSE_FAILED.code();
 
     @Mock
     private AiAssistantMessageMapper messageMapper;
     @Mock
     private AiAssistantConversationMapper conversationMapper;
     @Mock
-    private AssistantRefChecker refChecker;
-    @Mock
     private AssistantStreamBridge streamBridge;
     @Mock
     private AssistantPromptSupport promptSupport;
     @Mock
-    private VectorSearchService vectorSearchService;
+    private AssistantService assistantService;
+    @Mock
+    private AssistantToolLoop toolLoop;
     @Mock
     private FileResourceService fileResourceService;
     @Mock
@@ -96,86 +83,175 @@ class AssistantParseHandlerTest {
     private AiPromptService promptService;
     @Mock
     private TaskExecutionContext context;
+    @Mock
+    private AssistantStreamBridge.StreamChannel channel;
 
     @InjectMocks
     private AssistantParseHandler handler;
 
-    /** 真实通道（mock 桥只负责投递）：驱动事件写入与关闭语义 */
-    private AssistantStreamBridge realBridge;
-    private AssistantStreamBridge.StreamChannel channel;
-
     @BeforeEach
     void setUp() {
-        realBridge = new AssistantStreamBridge();
-        ReflectionTestUtils.setField(realBridge, "messageMapper", messageMapper);
-        channel = realBridge.attach(MESSAGE_ID, new SseEmitter());
-
         lenient().when(streamBridge.get(MESSAGE_ID)).thenReturn(channel);
         lenient().when(context.getInput()).thenReturn(input());
         lenient().when(context.getWorkspaceId()).thenReturn(WORKSPACE_ID);
         lenient().when(context.getUserId()).thenReturn(USER_ID);
-        lenient().when(context.getProjectId()).thenReturn(null);
         lenient().when(context.getModel()).thenReturn(new AiModelConfig());
         lenient().when(context.prompt(anyString(), any())).thenReturn("rendered");
         lenient().when(context.getModelClient()).thenReturn(modelClient);
         lenient().when(context.getPromptService()).thenReturn(promptService);
-        lenient().when(promptService.render(any(), any(), any())).thenReturn("rendered-answer");
         lenient().when(messageMapper.selectById(MESSAGE_ID)).thenReturn(assistantMessage());
         lenient().when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation());
         lenient().when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(history());
-        lenient().when(promptSupport.contextText(any(), any(), any())).thenReturn("项目上下文");
-        lenient().when(promptSupport.caseOptions(any(), any())).thenReturn("用例候选");
-        lenient().when(promptSupport.reviewOptions(any())).thenReturn("评审候选");
-        lenient().when(promptSupport.planOptions(any())).thenReturn("计划候选");
-        lenient().when(promptSupport.workspaceProjectIds(any())).thenReturn(List.of(PROJECT_ID));
-        lenient().when(promptSupport.projectName(any())).thenReturn("商城项目");
-        lenient().when(refChecker.requireActiveWorkspaceCases(any(), any())).thenReturn(Set.of());
+        lenient().when(promptSupport.contextText(any(), any())).thenReturn("会话项目状态与页面上下文");
     }
 
     // ---------- 登记与输入校验 ----------
 
     @Test
-    void type_andDefaultPrompt_declareRegisteredScene() {
+    void type_andDefaultPrompt_declareAgentScene() {
         assertEquals("assistant_parse", handler.type());
         String prompt = handler.defaultPrompt();
         assertTrue(prompt.contains("{{history}}"));
         assertTrue(prompt.contains("{{context}}"));
-        assertTrue(prompt.contains("{{caseOptions}}"));
-        assertTrue(prompt.contains("{{reviewOptions}}"));
-        assertTrue(prompt.contains("{{planOptions}}"));
+        assertTrue(prompt.contains("ask_user"));
     }
 
     @Test
     void validateInput_rejectsMissingOrMalformedMessageId() {
-        assertInputInvalid(() -> handler.validateInput(Map.of()));
+        assertInputInvalid(() -> handler.validateInput(null));
         assertInputInvalid(() -> handler.validateInput(Map.of("messageId", "not-a-uuid")));
     }
 
     @Test
-    void validateInput_context_rejectsNullUserOrForeignOrNonAssistant() {
-        assertInputInvalid(() -> handler.validateInput(input(), null));
+    void validateInput_context_rejectsForeignOwnership() {
         assertInputInvalid(() -> handler.validateInput(input(),
                 new TaskSubmitContext(null, WORKSPACE_ID, null, null)));
-
-        AiAssistantMessage foreignUserMessage = assistantMessage();
-        foreignUserMessage.setRole(Constants.AiAssistantMessageRole.USER);
-        when(messageMapper.selectById(MESSAGE_ID)).thenReturn(foreignUserMessage);
-        assertInputInvalid(() -> handler.validateInput(input(), submitContext()));
-
-        AiAssistantMessage foreignConversation = assistantMessage();
-        when(messageMapper.selectById(MESSAGE_ID)).thenReturn(foreignConversation);
-        AiAssistantConversation other = conversation();
-        other.setUserId(OTHER_ID);
-        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(other);
-        assertInputInvalid(() -> handler.validateInput(input(), submitContext()));
+        assertInputInvalid(() -> handler.validateInput(input(),
+                new TaskSubmitContext(null, WORKSPACE_ID, UUID.randomUUID(), null)));
     }
 
     @Test
     void validateInput_context_acceptsOwnAssistantMessage() {
-        assertDoesNotThrow(() -> handler.validateInput(input(), submitContext()));
+        lenient().when(messageMapper.selectById(MESSAGE_ID)).thenReturn(assistantMessage());
+        lenient().when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversationWithUser());
+
+        handler.validateInput(input(), new TaskSubmitContext(null, WORKSPACE_ID, USER_ID, null));
     }
 
-    // ---------- 执行：收尾与分流 ----------
+    // ---------- 终态三路 ----------
+
+    @Test
+    void execute_clarify_persistsQuestionWithOptionsAndEmits() {
+        when(toolLoop.run(any(), eq(modelClient))).thenReturn(
+                AssistantToolLoop.LoopOutcome.clarify("请问在哪个项目下创建？",
+                        List.of("当前项目：商城", "会话项目：门店"),
+                        List.of(Map.of("id", "tc-1", "name", "ask_user", "arguments", "{}")), 12, 3));
+
+        TaskResult result = handler.execute(context);
+
+        assertEquals("clarify", result.result().get("kind"));
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper).updateById(captor.capture());
+        AiAssistantMessage carrier = captor.getValue();
+        assertEquals(Constants.AiAssistantMessageStatus.DONE, carrier.getStatus());
+        assertTrue(carrier.getContent().contains("请问在哪个项目下创建？"));
+        assertTrue(carrier.getContent().contains("- 当前项目：商城"));
+        assertEquals(1, carrier.getToolCalls().size());
+        verify(channel).send(eq("clarify"), anyMap());
+        verify(channel).send(eq("done"), anyMap());
+        verify(channel).close();
+    }
+
+    @Test
+    void execute_intent_persistsPreviewAndRemembersProject() {
+        Map<String, Object> intent = intent();
+        when(toolLoop.run(any(), eq(modelClient))).thenReturn(
+                AssistantToolLoop.LoopOutcome.intent(intent, List.of(), 30, 9));
+
+        TaskResult result = handler.execute(context);
+
+        assertEquals("intent", result.result().get("kind"));
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper).updateById(captor.capture());
+        assertEquals(intent, captor.getValue().getIntent());
+        assertEquals("已解析为以下变更，确认后执行。", captor.getValue().getContent());
+        // 会话私有项目写入 context_snapshot（详设 4.4）
+        ArgumentCaptor<AiAssistantConversation> conversationCaptor =
+                ArgumentCaptor.forClass(AiAssistantConversation.class);
+        verify(conversationMapper).updateById(conversationCaptor.capture());
+        assertEquals(PROJECT_ID.toString(),
+                conversationCaptor.getValue().getContextSnapshot().get("projectId"));
+        verify(channel).send(eq("preview"), anyMap());
+        verify(channel).send(eq("done"), anyMap());
+    }
+
+    @Test
+    void execute_answer_replaysDeltaWithCitations() {
+        List<Map<String, Object>> citations = List.of(Map.of(
+                "type", "requirement", "id", UUID.randomUUID().toString(), "title", "REQ-1", "quote", "…"));
+        when(toolLoop.run(any(), eq(modelClient))).thenReturn(
+                AssistantToolLoop.LoopOutcome.answer("执行进度 80%。", citations, List.of(), 40, 12));
+
+        TaskResult result = handler.execute(context);
+
+        assertEquals("answer", result.result().get("kind"));
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper).updateById(captor.capture());
+        assertEquals("执行进度 80%。", captor.getValue().getContent());
+        assertEquals(1, captor.getValue().getCitations().size());
+        // citations 事件载荷为引用数组（List），非 Map
+        verify(channel).send(eq("citations"), any());
+        verify(channel).send(eq("delta"), anyMap());
+        verify(channel).send(eq("done"), anyMap());
+    }
+
+    @Test
+    void execute_answerWithoutCitations_skipsCitationsEvent() {
+        when(toolLoop.run(any(), eq(modelClient))).thenReturn(
+                AssistantToolLoop.LoopOutcome.answer("固定文案", List.of(), List.of(), 0, 0));
+
+        handler.execute(context);
+
+        verify(channel, never()).send(eq("citations"), any());
+        verify(channel).send(eq("delta"), anyMap());
+    }
+
+    // ---------- 失败路径 ----------
+
+    @Test
+    void execute_loopParseFailed_failsMessageAndEmitsError() {
+        when(toolLoop.run(any(), eq(modelClient)))
+                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_PARSE_FAILED));
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> handler.execute(context));
+
+        assertEquals(PARSE_FAILED, error.getCode());
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper).updateById(captor.capture());
+        assertEquals(Constants.AiAssistantMessageStatus.ERROR, captor.getValue().getStatus());
+        verify(channel).send(eq("error"), anyMap());
+        verify(channel).close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void execute_loopRuntimeException_mapsTo18117() {
+        when(messageMapper.selectById(MESSAGE_ID)).thenReturn(assistantMessage());
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(history());
+        when(toolLoop.run(any(), eq(modelClient))).thenThrow(new IllegalStateException("boom"));
+
+        // 原始异常上抛由任务引擎落 failed；18117 经 error 事件与消息 error 状态透出（详设 3.5）
+        assertThrows(IllegalStateException.class, () -> handler.execute(context));
+
+        ArgumentCaptor<Object> data = ArgumentCaptor.forClass(Object.class);
+        verify(channel).send(eq("error"), data.capture());
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                ((Map<?, ?>) data.getValue()).get("code"));
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper).updateById(captor.capture());
+        assertEquals(Constants.AiAssistantMessageStatus.ERROR, captor.getValue().getStatus());
+    }
 
     @Test
     void execute_missingMessage_closesChannelAndReturnsMissing() {
@@ -184,384 +260,96 @@ class AssistantParseHandlerTest {
         TaskResult result = handler.execute(context);
 
         assertEquals("missing", result.result().get("kind"));
-        assertTrue(channel.isClosed());
-        verify(messageMapper, never()).updateById(any(AiAssistantMessage.class));
-    }
-
-    @Test
-    void execute_clarify_persistsQuestionWithOptionsAndEmits() {
-        judge("{\"kind\":\"clarify\",\"question\":\"要创建哪个模块的用例？\","
-                + "\"options\":[\"登录模块\",\"订单模块\"]}");
-
-        TaskResult result = handler.execute(context);
-
-        assertEquals("clarify", result.result().get("kind"));
-        assertEquals(7, result.tokensIn());
-        assertEquals(3, result.tokensOut());
-        AiAssistantMessage carrier = capturedUpdate();
-        assertEquals(MESSAGE_ID, carrier.getId());
-        assertEquals(Constants.AiAssistantMessageStatus.DONE, carrier.getStatus());
-        assertTrue(carrier.getContent().contains("要创建哪个模块的用例？"));
-        assertTrue(carrier.getContent().contains("- 登录模块"));
-        assertNull(carrier.getIntent());
-        assertNull(carrier.getCitations());
-        assertTrue(channel.isClosed());
-        verify(promptSupport).contextText(eq(WORKSPACE_ID), any(), any());
-        assertJudgeRequest();
-    }
-
-    @Test
-    void execute_clarify_withoutChannel_persistsOnly() {
-        when(streamBridge.get(MESSAGE_ID)).thenReturn(null);
-        judge("{\"kind\":\"clarify\",\"question\":\"要查哪个计划的进度？\"}");
-
-        TaskResult result = handler.execute(context);
-
-        assertEquals("clarify", result.result().get("kind"));
-        assertEquals("要查哪个计划的进度？", capturedUpdate().getContent());
-    }
-
-    @Test
-    void execute_clarify_missingQuestion_throwsParseFailed() {
-        judge("{\"kind\":\"clarify\"}");
-
-        assertCode(ErrorCodeConstants.ASSISTANT_PARSE_FAILED, () -> handler.execute(context));
-        assertEquals(Constants.AiAssistantMessageStatus.ERROR, capturedUpdate().getStatus());
-    }
-
-    // ---------- 执行：intent ----------
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void execute_intent_freezesScopeAndPersistsPreview() {
-        judge("{\"kind\":\"intent\",\"summary\":\"将创建 3 条登录用例\",\"intent\":{"
-                + "\"kind\":\"create_case\",\"targetTitle\":\"登录用例\",\"projectId\":\"" + PROJECT_ID + "\","
-                + "\"createCount\":3,\"changes\":[{\"field\":\"title\",\"op\":\"add\","
-                + "\"value\":\"验证码正确可登录\"}],"
-                + "\"params\":{\"caseIds\":[\"" + CASE_ID + "\"],\"note\":\"按 PRD\"}}}");
-        when(refChecker.requireActiveWorkspaceCases(eq(WORKSPACE_ID), any())).thenReturn(Set.of(PROJECT_ID));
-
-        TaskResult result = handler.execute(context);
-
-        assertEquals("intent", result.result().get("kind"));
-        Map<String, Object> artifact = (Map<String, Object>) artifacts(result).get(0);
-        assertEquals("intent-preview", artifact.get("key"));
-        assertEquals("intent_preview", artifact.get("kind"));
-
-        AiAssistantMessage carrier = capturedUpdate();
-        assertEquals("将创建 3 条登录用例", carrier.getContent());
-        assertEquals(Constants.AiAssistantMessageStatus.DONE, carrier.getStatus());
-        assertNull(carrier.getCitations());
-        Map<String, Object> intent = carrier.getIntent();
-        // 动作与目标类型由服务端固化（不信赖模型 targetType）
-        assertEquals("create_case", intent.get("kind"));
-        assertEquals(Constants.TraceNodeType.TEST_CASE, intent.get("targetType"));
-        assertEquals(PROJECT_ID, intent.get("projectId"));
-        assertEquals(3, intent.get("createCount"));
-        assertNotNull(intent.get("expiresAt"));
-        Map<String, Object> scope = (Map<String, Object>) intent.get("scope");
-        assertEquals(WORKSPACE_ID, scope.get("workspaceId"));
-        assertEquals(PROJECT_ID, scope.get("projectId"));
-        assertEquals("商城项目", scope.get("projectName"));
-        List<Map<String, Object>> changes = (List<Map<String, Object>>) intent.get("changes");
-        assertEquals("add", changes.get(0).get("op"));
-        Map<String, Object> params = (Map<String, Object>) intent.get("params");
-        assertEquals(List.of(CASE_ID), params.get("caseIds"));
-        assertEquals("按 PRD", params.get("note"));
-
-        verify(refChecker).requireActiveWorkspaceProject(WORKSPACE_ID, PROJECT_ID);
-        verify(refChecker).requireActiveWorkspaceCases(eq(WORKSPACE_ID), any());
-        assertTrue(channel.isClosed());
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void execute_intent_adjustReview_resolvesScopeFromTarget() {
-        judge("{\"kind\":\"intent\",\"summary\":\"调整评审范围\",\"intent\":"
-                + "{\"kind\":\"adjust_review\",\"targetId\":\"" + TARGET_ID + "\","
-                + "\"changes\":[{\"field\":\"status\",\"op\":\"replace\",\"value\":\"rejected\"}]}}");
-        when(refChecker.projectIdOf(Constants.TraceNodeType.TEST_REVIEW, TARGET_ID)).thenReturn(PROJECT_ID);
-        when(refChecker.titleOf(Constants.TraceNodeType.TEST_REVIEW, TARGET_ID)).thenReturn("登录回归评审");
-
-        handler.execute(context);
-
-        verify(refChecker).requireActiveWorkspaceRef(WORKSPACE_ID,
-                Constants.TraceNodeType.TEST_REVIEW, TARGET_ID);
-        Map<String, Object> intent = capturedUpdate().getIntent();
-        assertEquals(Constants.TraceNodeType.TEST_REVIEW, intent.get("targetType"));
-        assertEquals("登录回归评审", intent.get("targetTitle"));
-        assertEquals(PROJECT_ID, intent.get("projectId"));
-        assertEquals(PROJECT_ID, ((Map<String, Object>) intent.get("scope")).get("projectId"));
-    }
-
-    @Test
-    void execute_intent_rejectsCrossWorkspaceRef() {
-        judge("{\"kind\":\"intent\",\"summary\":\"调整他人评审\",\"intent\":"
-                + "{\"kind\":\"adjust_review\",\"targetId\":\"" + TARGET_ID + "\","
-                + "\"targetTitle\":\"越权评审\",\"changes\":[]}}");
-        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE))
-                .when(refChecker).requireActiveWorkspaceRef(eq(WORKSPACE_ID), any(), eq(TARGET_ID));
-
-        assertCode(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE, () -> handler.execute(context));
-
-        AiAssistantMessage carrier = capturedUpdate();
-        assertEquals(Constants.AiAssistantMessageStatus.ERROR, carrier.getStatus());
-        assertTrue(channel.isClosed());
-    }
-
-    @Test
-    void execute_intent_withoutScopeTarget_throwsParseFailed() {
-        judge("{\"kind\":\"intent\",\"summary\":\"查看进度\",\"intent\":{\"kind\":\"view_plan_progress\"}}");
-
-        assertCode(ErrorCodeConstants.ASSISTANT_PARSE_FAILED, () -> handler.execute(context));
-        assertEquals(Constants.AiAssistantMessageStatus.ERROR, capturedUpdate().getStatus());
-    }
-
-    @Test
-    void execute_intent_malformedTargetId_throwsParseFailed() {
-        judge("{\"kind\":\"intent\",\"intent\":{\"kind\":\"adjust_review\","
-                + "\"targetId\":\"not-a-uuid\",\"targetTitle\":\"x\"}}");
-
-        assertCode(ErrorCodeConstants.ASSISTANT_PARSE_FAILED, () -> handler.execute(context));
-        verify(refChecker, never()).requireActiveWorkspaceRef(any(), any(), any());
-    }
-
-    // ---------- 执行：answer ----------
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void execute_answer_streamsDeltasAndPersistsCitations() {
-        judge("{\"kind\":\"answer\",\"query\":\"登录用例覆盖情况\"}");
-        AiVectorSearchHitRespDTO hit = hit(Constants.TraceNodeType.TEST_CASE, CASE_ID,
-                "验证码正确可登录：输入验证码后进入系统");
-        AiVectorSearchHitRespDTO duplicate = hit(Constants.TraceNodeType.TEST_CASE, CASE_ID, "重复分块");
-        when(vectorSearchService.search(eq("登录用例覆盖情况"), eq(List.of(PROJECT_ID)), isNull(),
-                eq(8), eq(USER_ID))).thenReturn(List.of(hit, duplicate));
-        when(refChecker.titleOf(Constants.TraceNodeType.TEST_CASE, CASE_ID)).thenReturn("验证码正确可登录");
-        when(modelClient.streamChat(any(AiChatRequest.class), any())).thenAnswer(invocation -> {
-            Consumer<String> onDelta = invocation.getArgument(1);
-            onDelta.accept("根据");
-            onDelta.accept("检索来源");
-            return new AiChatReply("根据检索来源", 12, 9);
-        });
-
-        TaskResult result = handler.execute(context);
-
-        assertEquals("answer", result.result().get("kind"));
-        assertEquals(7 + 12, result.tokensIn());
-        assertEquals(3 + 9, result.tokensOut());
-        Map<String, Object> artifact = (Map<String, Object>) artifacts(result).get(0);
-        assertEquals("answer", artifact.get("kind"));
-        assertEquals("根据检索来源", artifact.get("content"));
-
-        AiAssistantMessage carrier = capturedUpdate();
-        assertEquals("根据检索来源", carrier.getContent());
-        assertEquals(Constants.AiAssistantMessageStatus.DONE, carrier.getStatus());
-        // 同 (type,id) 去重保距序
-        assertEquals(1, carrier.getCitations().size());
-        Map<String, Object> citation = carrier.getCitations().get(0);
-        assertEquals(Constants.TraceNodeType.TEST_CASE, citation.get("type"));
-        assertEquals(CASE_ID, citation.get("id"));
-        assertEquals("验证码正确可登录", citation.get("title"));
-        assertNotNull(citation.get("quote"));
-        assertTrue(channel.isClosed());
-
-        // 两段调用均不带 taskId（总册 4.3），场景分别为解析与只读问答
-        ArgumentCaptor<AiChatRequest> judgeCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
-        verify(modelClient).chat(judgeCaptor.capture());
-        assertNull(judgeCaptor.getValue().taskId());
-        assertEquals("assistant_parse", judgeCaptor.getValue().promptScene());
-        // 无附图消息保持空媒体列表（纯文本路径）
-        assertTrue(judgeCaptor.getValue().media().isEmpty());
-        ArgumentCaptor<AiChatRequest> answerCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
-        verify(modelClient).streamChat(answerCaptor.capture(), any());
-        assertNull(answerCaptor.getValue().taskId());
-        assertEquals("assistant_answer", answerCaptor.getValue().promptScene());
-        assertTrue(answerCaptor.getValue().media().isEmpty());
-    }
-
-    @Test
-    void execute_answer_zeroHits_persistsFixedTextWithoutModel() {
-        judge("{\"kind\":\"answer\",\"query\":\"不存在的记录\"}");
-        when(vectorSearchService.search(anyString(), any(), any(), eq(8), eq(USER_ID))).thenReturn(List.of());
-
-        TaskResult result = handler.execute(context);
-
-        assertEquals("answer", result.result().get("kind"));
-        assertEquals(0, result.result().get("retrieved"));
-        AiAssistantMessage carrier = capturedUpdate();
-        assertTrue(carrier.getContent().contains("未检索到相关内容"));
-        assertEquals(Constants.AiAssistantMessageStatus.DONE, carrier.getStatus());
-        assertEquals(List.of(), carrier.getCitations());
-        // 零命中不调生成模型，不编造数据（总册 4.5）
-        verify(modelClient, never()).streamChat(any(), any());
-        assertTrue(channel.isClosed());
-    }
-
-    @Test
-    void execute_answer_searchUnavailable_degradesWith258Text() {
-        judge("{\"kind\":\"answer\",\"query\":\"登录用例覆盖情况\"}");
-        when(vectorSearchService.search(anyString(), any(), any(), eq(8), eq(USER_ID)))
-                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_NOT_CONFIGURED));
-
-        TaskResult result = handler.execute(context);
-
-        assertEquals("answer", result.result().get("kind"));
-        AiAssistantMessage carrier = capturedUpdate();
-        assertTrue(carrier.getContent().contains("1000018258"));
-        assertEquals(Constants.AiAssistantMessageStatus.DONE, carrier.getStatus());
-        assertEquals(List.of(), carrier.getCitations());
-        verify(modelClient, never()).streamChat(any(), any());
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void execute_answer_streamFailure_persistsPartialWithErrorCode() {
-        judge("{\"kind\":\"answer\",\"query\":\"登录用例覆盖情况\"}");
-        when(vectorSearchService.search(anyString(), any(), any(), eq(8), eq(USER_ID)))
-                .thenReturn(List.of(hit(Constants.TraceNodeType.TEST_CASE, CASE_ID, "分块内容")));
-        when(refChecker.titleOf(Constants.TraceNodeType.TEST_CASE, CASE_ID)).thenReturn("验证码正确可登录");
-        when(modelClient.streamChat(any(AiChatRequest.class), any())).thenAnswer(invocation -> {
-            Consumer<String> onDelta = invocation.getArgument(1);
-            onDelta.accept("部分回答");
-            throw new IllegalStateException("connection reset");
-        });
-
-        assertThrows(IllegalStateException.class, () -> handler.execute(context));
-
-        AiAssistantMessage carrier = capturedUpdate();
-        assertEquals(Constants.AiAssistantMessageStatus.ERROR, carrier.getStatus());
-        // 已流出正文与引用随错误一并保留，供重载补齐
-        assertEquals("部分回答", carrier.getContent());
-        assertEquals(1, carrier.getCitations().size());
-        assertTrue(channel.isClosed());
-    }
-
-    @Test
-    void execute_historyWithoutUserMessage_throwsInputInvalid() {
-        AiAssistantMessage placeholder = new AiAssistantMessage();
-        placeholder.setId(MESSAGE_ID);
-        placeholder.setRole(Constants.AiAssistantMessageRole.ASSISTANT);
-        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(List.of(placeholder));
-
-        assertCode(ErrorCodeConstants.AI_TASK_INPUT_INVALID, () -> handler.execute(context));
-        assertEquals(Constants.AiAssistantMessageStatus.ERROR, capturedUpdate().getStatus());
-    }
-
-    @Test
-    void execute_unknownKind_throwsParseFailed() {
-        judge("{\"kind\":\"do_everything\"}");
-
-        assertCode(ErrorCodeConstants.ASSISTANT_PARSE_FAILED, () -> handler.execute(context));
-        verify(modelClient, never()).streamChat(any(), any());
-    }
-
-    // ---------- 执行：附图与能力派生（详设 4.1） ----------
-
-    @Test
-    void requiredCapability_derivesVisionFromTriggerImageOnly() {
-        Map<String, Object> image = Map.of("fileId", FILE_ID.toString(), "name", "截图.png");
-        // 当前消息带图 ⇒ vision
-        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
-                .thenReturn(List.of(assistantMessage(), userMessage(List.of(image))));
-        assertEquals(AiSettingsReader.CAPABILITY_VISION, handler.requiredCapability(input()));
-
-        // 历史消息带图、当前消息无图 ⇒ 不回传，无必需能力
-        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
-                .thenReturn(List.of(userMessage(List.of(image)), assistantMessage(), userMessage(List.of())));
-        assertNull(handler.requiredCapability(input()));
-
-        // 消息缺失 / 畸形输入静默无能力，交由执行期校验兜底（派生不抛错中断任务）
-        when(messageMapper.selectById(MESSAGE_ID)).thenReturn(null);
-        assertNull(handler.requiredCapability(input()));
-        assertNull(handler.requiredCapability(Map.of("messageId", "not-a-uuid")));
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void execute_answer_carriesTriggerImagesAsMedia() {
-        byte[] bytes = {1, 2, 3};
-        Map<String, Object> image = Map.of("fileId", FILE_ID.toString(), "name", "截图.png");
-        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
-                .thenReturn(List.of(assistantMessage(), userMessage(List.of(image))));
-        when(fileResourceService.readBytes(FILE_ID)).thenReturn(new FileContent(bytes, "image/png", "截图.png"));
-        judge("{\"kind\":\"answer\",\"query\":\"登录用例覆盖情况\"}");
-        when(vectorSearchService.search(eq("登录用例覆盖情况"), eq(List.of(PROJECT_ID)), isNull(),
-                eq(8), eq(USER_ID))).thenReturn(List.of(hit(Constants.TraceNodeType.TEST_CASE, CASE_ID, "覆盖情况")));
-        when(refChecker.titleOf(Constants.TraceNodeType.TEST_CASE, CASE_ID)).thenReturn("验证码正确可登录");
-        when(modelClient.streamChat(any(AiChatRequest.class), any())).thenAnswer(invocation -> {
-            Consumer<String> onDelta = invocation.getArgument(1);
-            onDelta.accept("看图");
-            return new AiChatReply("看图回答", 5, 4);
-        });
-
-        handler.execute(context);
-
-        // 判别与回答两段调用均携带同一媒体列表（直传字节 + 归一化 MIME）
-        ArgumentCaptor<AiChatRequest> judgeCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
-        verify(modelClient).chat(judgeCaptor.capture());
-        assertEquals(1, judgeCaptor.getValue().media().size());
-        assertEquals("image/png", judgeCaptor.getValue().media().get(0).mimeType());
-        assertArrayEquals(bytes, judgeCaptor.getValue().media().get(0).data());
-        ArgumentCaptor<AiChatRequest> answerCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
-        verify(modelClient).streamChat(answerCaptor.capture(), any());
-        assertEquals(1, answerCaptor.getValue().media().size());
-        assertArrayEquals(bytes, answerCaptor.getValue().media().get(0).data());
+        verify(channel).close();
+        verifyNoLoop();
     }
 
     @Test
     void execute_missingImageFile_failsBeforeModelCall() {
-        Map<String, Object> image = Map.of("fileId", FILE_ID.toString(), "name", "截图.png");
+        AiAssistantMessage trigger = trigger();
+        trigger.setImages(List.of(Map.of("fileId", "not-a-uuid", "name", "a.png")));
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(historyWith(trigger));
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> handler.execute(context));
+
+        assertEquals(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID.code(), error.getCode());
+        verifyNoLoop();
+    }
+
+    @Test
+    void execute_historyWithoutUserMessage_throwsInputInvalid() {
         when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
-                .thenReturn(List.of(assistantMessage(), userMessage(List.of(image))));
-        when(fileResourceService.readBytes(FILE_ID)).thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.FILE_NOT_FOUND));
+                .thenReturn(List.of(assistantMessage()));
 
-        assertCode(ErrorCodeConstants.FILE_NOT_FOUND, () -> handler.execute(context));
+        assertInputInvalid(() -> handler.execute(context));
+        verifyNoLoop();
+    }
 
-        // 读图失败快速失败：不静默丢图，判别段不发起调用
-        verify(modelClient, never()).chat(any(AiChatRequest.class));
-        assertEquals(Constants.AiAssistantMessageStatus.ERROR, capturedUpdate().getStatus());
+    // ---------- 悬空补偿与能力派生 ----------
+
+    @Test
+    void execute_compensatesDanglingToolCallsOfUnfinishedMessages() {
+        AiAssistantMessage dangling = assistantMessage();
+        dangling.setStatus(Constants.AiAssistantMessageStatus.STREAMING);
+        dangling.setToolCalls(List.of(Map.of("id", "tc-9", "name", "query_projects")));
+        AiAssistantMessage done = assistantMessage();
+        done.setId(UUID.randomUUID());
+        done.setStatus(Constants.AiAssistantMessageStatus.DONE);
+        done.setToolCalls(List.of(Map.of("id", "tc-done", "name", "create_case")));
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(
+                historyWith(assistantMessage(), dangling, done));
+        when(toolLoop.run(any(), eq(modelClient))).thenReturn(
+                AssistantToolLoop.LoopOutcome.answer("ok", List.of(), List.of(), 1, 1));
+
+        handler.execute(context);
+
+        verify(assistantService).appendToolMessage(eq(CONVERSATION_ID), eq("tc-9"),
+                contains("操作已超时未执行"));
+        // done 终态消息按设计不补（其 tool_calls 为审计轨迹，无回填义务）
+        verify(assistantService, never()).appendToolMessage(any(), eq("tc-done"), anyString());
+    }
+
+    @Test
+    void requiredCapability_derivesVisionFromTriggerImageOnly() {
+        AiAssistantMessage trigger = trigger();
+        trigger.setImages(List.of(Map.of("fileId", FILE_ID.toString(), "name", "a.png")));
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(historyWith(trigger));
+
+        assertEquals(AiSettingsReader.CAPABILITY_VISION, handler.requiredCapability(input()));
+
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(history());
+        assertNull(handler.requiredCapability(input()));
     }
 
     // ---------- 辅助 ----------
 
-    private void judge(String json) {
-        when(modelClient.chat(any(AiChatRequest.class))).thenReturn(new AiChatReply(json, 7, 3));
+    /** 循环入参透传断言（workspace / 会话 / 附图 / 通道），在澄清用例中校验一次即可覆盖全部字段 */
+    @Test
+    void execute_loopRequestCarriesVerifiedContext() {
+        when(toolLoop.run(any(), eq(modelClient))).thenReturn(
+                AssistantToolLoop.LoopOutcome.clarify("q", List.of(), List.of(), 0, 0));
+
+        handler.execute(context);
+
+        ArgumentCaptor<AssistantToolLoop.LoopRequest> captor =
+                ArgumentCaptor.forClass(AssistantToolLoop.LoopRequest.class);
+        verify(toolLoop).run(captor.capture(), eq(modelClient));
+        AssistantToolLoop.LoopRequest request = captor.getValue();
+        assertEquals(USER_ID, request.userId());
+        assertEquals(WORKSPACE_ID, request.workspaceId());
+        assertEquals(CONVERSATION_ID, request.conversationId());
+        assertEquals(channel, request.channel());
+        assertNotNull(request.systemPrompt());
+        assertTrue(request.userPrompt().equals("rendered"));
     }
 
-    private void assertJudgeRequest() {
-        ArgumentCaptor<AiChatRequest> captor = ArgumentCaptor.forClass(AiChatRequest.class);
-        verify(modelClient).chat(captor.capture());
-        assertNull(captor.getValue().taskId());
-        assertEquals("assistant_parse", captor.getValue().promptScene());
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> artifacts(TaskResult result) {
-        return (List<Map<String, Object>>) result.result().get("artifacts");
-    }
-
-    private AiAssistantMessage capturedUpdate() {
-        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
-        verify(messageMapper).updateById(captor.capture());
-        return captor.getValue();
-    }
-
-    private void assertCode(ErrorCode expected, Runnable invocation) {
-        ServiceException exception = assertThrows(ServiceException.class, invocation::run);
-        assertEquals(expected.code(), exception.getCode());
-    }
-
-    private void assertInputInvalid(Runnable invocation) {
-        assertCode(ErrorCodeConstants.AI_TASK_INPUT_INVALID, invocation);
+    private void verifyNoLoop() {
+        verify(toolLoop, never()).run(any(), any());
     }
 
     private static Map<String, Object> input() {
         return Map.of("messageId", MESSAGE_ID.toString());
-    }
-
-    private static TaskSubmitContext submitContext() {
-        return new TaskSubmitContext(null, WORKSPACE_ID, USER_ID, null);
     }
 
     private static AiAssistantMessage assistantMessage() {
@@ -577,37 +365,55 @@ class AssistantParseHandlerTest {
         AiAssistantConversation conversation = new AiAssistantConversation();
         conversation.setId(CONVERSATION_ID);
         conversation.setUserId(USER_ID);
-        conversation.setStatus(Constants.Status.ACTIVE);
+        conversation.setWorkspaceId(WORKSPACE_ID);
         return conversation;
     }
 
-    private static AiAssistantMessage userMessage(List<Map<String, Object>> images) {
-        AiAssistantMessage user = new AiAssistantMessage();
-        user.setId(UUID.randomUUID());
-        user.setRole(Constants.AiAssistantMessageRole.USER);
-        user.setContent("看图");
-        user.setImages(images);
-        user.setCreatedAt(LocalDateTime.now().minusMinutes(1));
-        return user;
+    private static AiAssistantConversation conversationWithUser() {
+        return conversation();
+    }
+
+    private static AiAssistantMessage trigger() {
+        AiAssistantMessage message = new AiAssistantMessage();
+        message.setId(UUID.randomUUID());
+        message.setConversationId(CONVERSATION_ID);
+        message.setRole(Constants.AiAssistantMessageRole.USER);
+        message.setContent("帮我建一个登录用例");
+        return message;
     }
 
     private static List<AiAssistantMessage> history() {
-        AiAssistantMessage user = new AiAssistantMessage();
-        user.setId(UUID.randomUUID());
-        user.setRole(Constants.AiAssistantMessageRole.USER);
-        user.setContent("帮我在商城项目里新建登录用例");
-        user.setCreatedAt(LocalDateTime.now().minusMinutes(1));
-        AiAssistantMessage placeholder = assistantMessage();
-        placeholder.setCreatedAt(LocalDateTime.now());
-        return List.of(placeholder, user);
+        return historyWith(trigger());
     }
 
-    private static AiVectorSearchHitRespDTO hit(String type, UUID id, String content) {
-        AiVectorSearchHitRespDTO hit = new AiVectorSearchHitRespDTO();
-        hit.setProjectId(PROJECT_ID);
-        hit.setEntityType(type);
-        hit.setEntityId(id);
-        hit.setContent(content);
-        return hit;
+    private static List<AiAssistantMessage> historyWith(AiAssistantMessage... extras) {
+        java.util.ArrayList<AiAssistantMessage> list = new java.util.ArrayList<>();
+        list.add(trigger());
+        for (AiAssistantMessage extra : extras) {
+            list.add(extra);
+        }
+        return list;
+    }
+
+    private static Map<String, Object> intent() {
+        Map<String, Object> scope = new java.util.LinkedHashMap<>();
+        scope.put("workspaceId", WORKSPACE_ID.toString());
+        scope.put("projectId", PROJECT_ID.toString());
+        scope.put("projectName", "商城项目");
+        Map<String, Object> intent = new java.util.LinkedHashMap<>();
+        intent.put("kind", "create_case");
+        intent.put("targetTitle", "登录用例");
+        intent.put("projectId", PROJECT_ID);
+        intent.put("scope", scope);
+        return intent;
+    }
+
+    private static void assertCode(ErrorCode expected, Runnable invocation) {
+        ServiceException error = assertThrows(ServiceException.class, invocation::run);
+        assertEquals(expected.code(), error.getCode());
+    }
+
+    private static void assertInputInvalid(Runnable invocation) {
+        assertCode(ErrorCodeConstants.AI_TASK_INPUT_INVALID, invocation);
     }
 }

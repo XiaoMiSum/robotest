@@ -95,6 +95,18 @@ public class AiModelClient {
      * 记账 scene 按结果落账：有 toolCalls 归因请求场景（assistant_parse），纯文本归因 assistant_answer。
      */
     public AiChatReply chatWithTools(AiChatRequest request, List<AssistantToolDefinition> toolDefinitions) {
+        return chatWithTools(request, toolDefinitions, List.of());
+    }
+
+    /**
+     * 带工具声明的单跳调用（详设 4.1 工具调用循环）：工具仅声明不执行——复核 OpenAiChatModel
+     * 字节码只经 resolveToolDefinitions（序列化进请求），不调用 executeToolCalls，
+     * toolCalls 随响应原样返回，执行权全程在服务端循环。
+     * 记账 scene 按结果落账：有 toolCalls 归因请求场景（assistant_parse），纯文本归因 assistant_answer。
+     * priorTurns 为循环内既往轮次（assistant tool_calls 与 tool 回填，OpenAI 协议要求成对出现）。
+     */
+    public AiChatReply chatWithTools(AiChatRequest request, List<AssistantToolDefinition> toolDefinitions,
+            List<Message> priorTurns) {
         String apiKey = secretKey == null ? null
                 : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
         if (apiKey == null) {
@@ -103,7 +115,7 @@ public class AiModelClient {
         long start = System.currentTimeMillis();
         try {
             ChatModel model = buildChatModel(request, apiKey, toolDefinitions);
-            AiChatReply reply = extractReplyWithCalls(model.call(buildPrompt(request)));
+            AiChatReply reply = extractReplyWithCalls(model.call(buildPrompt(request, priorTurns)));
             writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
                     null, reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
             return reply;
@@ -238,6 +250,11 @@ public class AiModelClient {
     }
 
     static Prompt buildPrompt(AiChatRequest request) {
+        return buildPrompt(request, List.of());
+    }
+
+    /** 携带循环内既往轮次（详设 4.1：assistant tool_calls 与 tool 回填消息追加在 system / user 之后） */
+    static Prompt buildPrompt(AiChatRequest request, List<Message> priorTurns) {
         List<Message> messages = new ArrayList<>();
         if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             messages.add(new SystemMessage(request.systemPrompt()));
@@ -247,6 +264,9 @@ public class AiModelClient {
             messages.add(new UserMessage(request.userPrompt()));
         } else {
             messages.add(UserMessage.builder().text(request.userPrompt()).media(medias).build());
+        }
+        if (priorTurns != null && !priorTurns.isEmpty()) {
+            messages.addAll(priorTurns);
         }
         return new Prompt(messages);
     }
