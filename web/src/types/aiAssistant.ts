@@ -11,6 +11,8 @@ export interface AiAssistantEntityRef {
 export interface AiAssistantConversation {
   id: string
   title: string
+  /** 归属工作空间（创建时固化）：列表已按当前活跃空间过滤，不参与权限判定 */
+  workspaceId: string
   status: AiAssistantConversationStatus
   /** 最近一条消息时间（无消息为 null，后端返回无时区标识的 UTC 值） */
   lastMessageAt: string | null

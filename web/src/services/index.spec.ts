@@ -323,12 +323,19 @@ describe('services/index.ts 助手接口上下文分层（详设 3.1）', () => 
     localStorageMock.setItem('robotest_active_project', 'project-1')
   })
 
-  it('会话管理与消息历史仅携带 Authorization，不注入上下文头', async () => {
+  it('会话列表与创建工作空间注入 X-Active-Workspace，不注入项目头（详设 3.1）', async () => {
     const list = capture()
     await api.get('/ai/conversations')
-    expect(list.workspace).toBeUndefined()
+    expect(list.workspace).toBe('ws-1')
     expect(list.project).toBeUndefined()
 
+    const created = capture()
+    await api.post('/ai/conversations', { title: '新会话' })
+    expect(created.workspace).toBe('ws-1')
+    expect(created.project).toBeUndefined()
+  })
+
+  it('消息历史仅携带 Authorization，不注入上下文头', async () => {
     const history = capture()
     await api.get('/ai/conversations/c1/messages')
     expect(history.workspace).toBeUndefined()

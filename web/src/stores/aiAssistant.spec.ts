@@ -44,6 +44,7 @@ function makeConversation(overrides: Partial<AiAssistantConversation> = {}): AiA
   return {
     id: 'c1',
     title: '新会话',
+    workspaceId: 'ws-1',
     status: 'active',
     lastMessageAt: null,
     messageCount: 0,

@@ -100,10 +100,12 @@ export function getRequestContextScope(
   if (path === '/project' || path.startsWith('/project/')) return 'project'
   // AI 任务资源挂 /api/ai/tasks 但按项目范围过滤（详设 3.6.3），需带项目头；/ai/status 仍为 none
   if (path === '/ai/tasks' || path.startsWith('/ai/tasks/')) return 'project'
-  // 助手接口按操作分层（详设 3.1）：会话管理与消息历史仅 Authorization，
-  // 发送消息带工作空间头，确认执行须带工作空间+项目头与 intent.scope 比对
+  // 助手接口按操作分层（详设 3.1）：列表按归属空间过滤且创建写入归属空间（带工作空间头），
+  // 消息历史 / 重命名 / 删除仅 Authorization，发送消息带工作空间头，确认执行须带工作空间+项目头与 intent.scope 比对
   if (path === '/ai/conversations' || path.startsWith('/ai/conversations/')) {
     const verb = method.toLowerCase()
+    if (verb === 'get' && path === '/ai/conversations') return 'workspace'
+    if (verb === 'post' && path === '/ai/conversations') return 'workspace'
     if (verb === 'post' && path.endsWith('/messages')) return 'workspace'
     if (verb === 'post' && path.endsWith('/execute')) return 'project'
     return 'none'
