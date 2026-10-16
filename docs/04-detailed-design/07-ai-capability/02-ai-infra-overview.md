@@ -16,7 +16,7 @@
 
 - 对应需求：`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`（总册）及四个分册。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
-- 追溯矩阵（`trace_edge` / `trace_coverage_result`、矩阵与覆盖接口）为业务领域资源，见 `docs/04-detailed-design/05-trace-matrix.md`，不属于本文档的 10 张 AI 表。
+- 追溯矩阵（`trace_edge` / `trace_coverage_result`、矩阵与覆盖接口）为业务领域资源，见 `docs/04-detailed-design/05-trace-matrix.md`，不属于本文档的 14 张 AI 表。
 - 能力域分册：[03-ai-generation](03-ai-generation.md)、[04-ai-assistant](04-ai-assistant.md)、[05-ai-defect-analysis](05-ai-defect-analysis.md)、[06-ai-assisted-features](06-ai-assisted-features.md)。
 
 ### 1.3 参考资料
@@ -177,9 +177,9 @@ CREATE TABLE ai_prompt_template (
 CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WHERE is_deleted = FALSE;
 ```
 
-- 无行即用内置默认模板（代码常量）；自定义覆盖仅影响该场景**后续**调用，不改变已生成产物；`reset` 将行恢复为 `source = default`、`version` 归 1（或删除自定义行）。
+- 无行即用内置默认模板（代码常量）；自定义覆盖仅影响该场景**后续**调用，不改变已采纳的产出；`reset` 将行恢复为 `source = default`、`version` 归 1（或删除自定义行）。
 
-### 2.6 AI 任务框架表（ai_task_ 域，五表）
+### 2.6 AI 任务框架表（ai_task_ 域，与 2.7 共六表）
 
 > 任务框架机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`；`ai_task_` 域前缀为框架专用，其他模块不得复用。
 
@@ -705,7 +705,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
   - 校验：场景已登记（否则 1000018108）；`content` 中全部 `{{变量}}` 必须在 `variables` 清单内且必填变量齐全（否则 1000018109）；保存后 `source = custom`、`version + 1`。
 - **重置**：`POST /api/ai/prompts/{scene}/reset` → 恢复内置默认。
-- 生效规则：仅影响该场景**后续**任务调用，不改变已生成产物。
+- 生效规则：仅影响该场景**后续**任务调用，不改变已采纳的产出。
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
@@ -879,7 +879,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | ---- | ---- | ---- | ---- |
 | ai:admin | AI 配置与用量管理 | global（系统角色） | 3.2–3.5、3.7 |
 | ai:task | 发起与管理 AI 任务 | workspace | 3.6.2–3.6.4 |
-| ai:confirm | AI 产物确认 | workspace | 3.6.5 |
+| ai:confirm | AI 提案采纳 | workspace | 3.6.5 |
 
 ---
 
@@ -1077,3 +1077,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-16 | 2.9 `context_snapshot` 补会话私有项目状态（`projectId / projectName`，仅会话内生效、不改全局、不进请求头） |
 | V1.0 | 2026-10-16 | WP-V.5 口径细化：4.2 必需能力派生补 `bug_classify` 批量需结合项目范围解析缺陷集判定（仅查附件元数据，不读字节） |
 | V1.0 | 2026-10-16 | 统一任务资源切换为 AI Task 任务资源（双平面，机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2.6 改为框架五表（`ai_task` 去 `progress/phase/result`，新增 `ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_tool`），2.7 `ai_artifact_confirm` 改名 `ai_task_adoption`（`artifact_key → proposal_key`），2.8 补 `execution_id` 归因；3.6 重写为任务 · 执行 · 轨迹 · 提案资源（终止 / 再次执行 / 轨迹游标 / 提案确认，状态机 `running → proposals_ready → closed / aborted`），4.2 改为 Agent 执行核与预算护栏，5.2 / 5.3 前端组件与任务态同步，6 补 1000018125–1000018127，7 实体数与迁移清单同步 |
+| V1.0 | 2026-10-16 | 术语与状态口径残词勘误：1.2 范围改「14 张 AI 表」，2.6 标题改「与 2.7 共六表」，2.5 / 3.5 生效规则改「不改变已采纳的产出」，3.8 权限 `ai:confirm` 改「AI 提案采纳」 |

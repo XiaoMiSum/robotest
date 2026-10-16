@@ -136,7 +136,7 @@
 }
 ```
 
-| type | input | 产物 kind | 说明 |
+| type | input | 提案 kind | 说明 |
 | ---- | ---- | ---- | ---- |
 | review_selection | `requirementIds?`、`moduleIds?`（至少一项）、`roundCount?`（默认 1，仅 plan） | `review_selection` / `plan_selection` | 建议纳入圈选的用例子集，附理由；plan 可按轮次分组 |
 
@@ -167,17 +167,17 @@
 ### 4.1 输入有效性与快照执行
 
 - 仅 `status = confirmed` 的需求可作为输入；`draft / changed / archived` 不可选（入口置灰并说明原因，服务端 1000018202 兜底）。
-- **发起时对输入需求做版本快照**（`input.requirementSnapshots` 存关键字段摘要）：执行期间需求被变更，任务按发起时快照继续；产物确认时比对当前状态，`sourceRefs` 区域展示「来源需求已变更」标记，由人工决定采纳或驳回。
+- **发起时对输入需求做版本快照**（`input.requirementSnapshots` 存关键字段摘要）：执行期间需求被变更，任务按发起时快照继续；提案采纳时比对当前状态，`sourceRefs` 区域展示「来源需求已变更」标记，由人工决定采纳或驳回。
 
-### 4.2 产物确认后的状态
+### 4.2 提案采纳后的状态
 
-- 确认后 AI 不再自动覆盖；人工编辑过的产物仅在**显式重新生成并二次确认**后可被覆盖——重新生成 = 任务「再次执行」（总册 3.6.4），新执行产出新提案后需再次确认。
+- 确认后 AI 不再自动覆盖；人工编辑过的产出仅在**显式重新生成并二次确认**后可被覆盖——重新生成 = 任务「再次执行」（总册 3.6.4），新执行产出新提案后需再次确认。
 - 驳回提案保留在 `ai_task_proposal` 与轨迹审计中供回查，不落库。
 
 ### 4.3 采纳落库与建边事务
 
 1. 落库目标项目 = 确认请求 `X-Active-Project`；目标模块按 `target.moduleId`，缺省时按 `input.placement`；
-2. 疑似重复（`suspectedDuplicateOf` 非空）的产物**不阻断**采纳，但前端强提示，人工可改为编辑后采纳；
+2. 疑似重复（`suspectedDuplicateOf` 非空）的提案**不阻断**采纳，但前端强提示，人工可改为编辑后采纳；
 3. 「业务落库 + `ai_task_adoption` + `trace_edge` 写入」同一事务（详见 3.5 与 `05-trace-matrix.md` 4.1），保证落库必有边；
 4. 编辑后采纳以编辑值落库，`adopted_edited` 记录原 AI 值与编辑差异（审计）。
 
@@ -201,7 +201,7 @@
 - 需求列表 / 详情多选后「AI 生成用例」→ `GenerationConfigDialog`（目标项目与模块落位、生成范围回显、用例粒度偏好）；不可选需求置灰并提示原因（草稿 / 已变更 / 已归档）。
 - 需求列表多选后「AI 圈选建议」→ 圈选范围配置对话框（范围回显同上；计划类型可配轮次 1–10，默认 1），提交 `review_selection` / `plan_selection` 任务后跳转任务详情页。
 
-### 5.2 任务进度（任务详情页上半区）
+### 5.2 执行过程（任务详情页上半区）
 
 ```
 AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
@@ -213,7 +213,7 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 
 提交成功后由发起对话框跳转本页，页面结构与状态分支见总册 5.2。
 
-### 5.3 产物审核区（三层树，详情页下半区）
+### 5.3 提案审核区（三层树，详情页下半区）
 
 - 复用总册 5.2 任务详情页内的 `AiProposalReviewPanel`，生成链扩展：
   - 三层树渲染（模块 → 文档 → 节点，用例节点带属性徽标）；
@@ -229,7 +229,7 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 ### 5.5 状态分支
 
 - 任务执行中（步骤与预算消耗）/ 挂起（待批准）/ 待采纳 / 已终止（原因 + 再次执行）/ 已结束（灰态）；
-- 产物全驳回、部分采纳的回执列表（逐项成败）；
+- 提案全驳回、部分采纳的回执列表（逐项成败）；
 - AI 未启用 / 未配置模型时入口隐藏（总册 4.5）。
 
 ---
@@ -243,13 +243,13 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | 1000018201 | 404 | 输入需求不存在 |
 | 1000018202 | 400 | 存在非已确认需求，不可作为生成输入 |
 | 1000018203 | 400 | 落位目标模块不存在或不属当前项目 |
-| 1000018204 | 409 | 产物与既有数据疑似重复，需人工处理 |
+| 1000018204 | 409 | 提案与既有数据疑似重复，需人工处理 |
 | 1000018205 | 400 | 生成参数非法（粒度、条数、落位方式） |
 | 1000018206 | 400 | 圈选建议输入非法（范围为空或参数越界） |
 | 1000018207 | 404 | 圈选用例不存在 |
-| 1000018208 | 403 | 无产物落库资源权限 |
+| 1000018208 | 403 | 无提案落库资源权限 |
 | 1000018209 | 409 | 已存在进行中的同输入生成任务 |
-| 1000018210 | 409 | 父级产物尚未采纳，无法落库 |
+| 1000018210 | 409 | 父级提案尚未采纳，无法落库 |
 
 ---
 
@@ -264,7 +264,7 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | `server/.../service/ai/task/adopt/GenerationAdoptService + Impl` | 三层提案采纳落库（调用既有模块 / 文档 / 用例服务） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018201–1000018210 |
 | `web/src/components/project/ai/GenerationConfigDialog.vue`、`SelectionConfigDialog.vue`、`GenerationArtifactTreeReview.vue`、`SelectionReviewPanel.vue` 及子组件 | 发起与审核前端 |
-| `web/src/composables/project/ai/useGenerationSubmit.ts`、`useAiArtifactReview.ts`、`useGenerationArtifactTree.ts`、`useSelectionSubmit.ts`、`useSelectionReview.ts` + 单测 | 发起提交、产物审核与圈选调整逻辑 |
+| `web/src/composables/project/ai/useGenerationSubmit.ts`、`useAiProposalReview.ts`、`useGenerationArtifactTree.ts`、`useSelectionSubmit.ts`、`useSelectionReview.ts` + 单测 | 发起提交、提案审核与圈选调整逻辑 |
 | `web/src/components/project/functional-testing/review/ReviewCreateDialog.vue`、`plan/PlanCreateDialog.vue` | 圈选确认复用的评审 / 计划创建弹窗 |
 
 - **数据库**：无新增表、无迁移（写入均为既有业务表 + `trace_edge`，见 2 节）。
@@ -289,3 +289,4 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | V1.0 | 2026-10-15 | 发起入口按钮与配置对话框更名「AI 生成用例」，长语义由 tooltip 与对话框首行说明承载 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分（执行 / 轨迹 / 提案 / 采纳）；3.3 固定六阶段改为 AI 计划步骤 + 轨迹回看；产物全面改称提案，确认端点改为 `proposals/confirm`；重试改「再次执行」（新执行实例）；5.2 详情页组件改为 PlanTimeline / ExecutionPanel / TraceEventList；实施说明改类型适配器口径 |
 | V1.0 | 2026-10-16 | 残词勘误：1.1 引言（产物结构 / 阶段进度 / 确认落库 → 提案结构 / 执行过程 / 采纳落库）、3.2「任务进度页」与 3.4「不得进入待确认态」对齐新口径 |
+| V1.0 | 2026-10-16 | 术语与状态口径残词勘误：3.6 表头改「提案 kind」，4.1 / 4.2 改提案采纳口径与「产出」，4.3 改疑似重复提案不阻断，5.2 改「执行过程」、5.3 改「提案审核区」与提案全驳回，6 错误码 1000018204 / 1000018208 / 1000018210 文案改提案，7 组合式改 `useAiProposalReview.ts` |

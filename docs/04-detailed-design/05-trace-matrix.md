@@ -92,7 +92,7 @@ CREATE INDEX idx_trace_edge_target ON trace_edge (target_type, target_id);
 **设计说明**：
 
 1. **多态关联（type + id）**：一条边连接 5 类实体，建物理外键既违反 C5 也不可行（目标表不同）；关联完整性由矩阵服务在写入与查询时校验节点存在性与项目归属。
-2. **派生边直连"需求 → 各层产物"**：`requirement → module`、`requirement → mindmap_document`、`requirement → test_case` 各存一条，避免"用例挂在 A 模块、源自 B 需求"时相邻层链路断裂；相邻层父子关系由既有模块树与文档表表达，本表不重复存储结构关系。
+2. **派生边直连"需求 → 各层生成对象"**：`requirement → module`、`requirement → mindmap_document`、`requirement → test_case` 各存一条，避免"用例挂在 A 模块、源自 B 需求"时相邻层链路断裂；相邻层父子关系由既有模块树与文档表表达，本表不重复存储结构关系。
 3. **`status` 承载断开而非复用 `is_deleted`**：人工断开的边保留 `detached` 状态，唯一约束对 `is_deleted = FALSE` 的行始终生效——AI 重新生成时对同一对节点的插入将命中 `uk_trace_edge_pair` 冲突，只能走恢复 / 改挂接口，从而实现「人工断开后 AI 不得自动重建」。
 4. `target_version` 由目标域提供版本摘要（用例内容版本、快照版本等），无版本概念的节点类型允许为 NULL（不参与变更感知）。
 5. **影响处置字段组（`disposition` / `reason` / `disposed_by`）为 3.10 与 4.3 的落点**：`impact_analysis` 任务遍历产出受影响项时逐项置 `disposition = 'pending'`；`disposition IS NULL` 的边不出现在受影响项列表，已处置（`disposition <> 'pending'`）的边重复处置返回 1000018159；刷新分析时 `no_impact` 处置结果按源 + 目标对匹配保留（4.3）。
@@ -146,7 +146,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 
 | 取值 | 含义 | 建立时机 |
 | ---- | ---- | ---- |
-| derivation | 派生边（需求 → 模块 / 脑图文档 / 测试用例） | 生成链产物采纳落库时建立 |
+| derivation | 派生边（需求 → 模块 / 脑图文档 / 测试用例） | 生成链提案采纳落库时建立 |
 | case_snapshot | 快照引用边（测试用例 ⇢ 评审 / 计划，带版本） | 评审 / 计划创建生成快照时建立（AI 圈选确认后走既有创建流程） |
 
 **边状态 `status`**：
@@ -175,7 +175,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 
 - 基础路径：`/api/project/trace`；请求需 `Authorization` + `X-Active-Workspace` + `X-Active-Project` 上下文头（C4，上下文不出 URL），服务端校验项目与工作空间归属及追溯权限。
 - 响应使用平台通用 `Result<T>`，下文示例**仅展示 `data` 字段**；分页 `pageNo`（从 1）/ `pageSize`（默认 20，最大 100）→ `{ list, total }`；字段 camelCase。
-- 覆盖分析与影响分析的**任务发起**不走本文档接口：`POST /api/ai/tasks`（`type = coverage_analysis / impact_analysis`），发起后通过任务进度轮询获知完成，再刷新本文档的查询接口。
+- 覆盖分析与影响分析的**任务发起**不走本文档接口：`POST /api/ai/tasks`（`type = coverage_analysis / impact_analysis`），发起后通过任务状态轮询获知完成，再刷新本文档的查询接口。
 - 时间字段格式与状态取值以 `docs/00-spec/20-contracts/01-api.md` 4.3 为准。
 
 ### 3.2 矩阵视图
@@ -424,7 +424,7 @@ CREATE UNIQUE INDEX uk_trace_coverage_requirement ON trace_coverage_result (proj
 
 ### 4.1 建边与状态维护
 
-- **建边时机**：生成链产物采纳落库时批量写入 `derivation` 边（`established_by = ai`、`status = ai_created`）；评审 / 计划创建生成快照时写入 `case_snapshot` 边并记录圈选用例的 `target_version`。
+- **建边时机**：生成链提案采纳落库时批量写入 `derivation` 边（`established_by = ai`、`status = ai_created`）；评审 / 计划创建生成快照时写入 `case_snapshot` 边并记录圈选用例的 `target_version`。
 - **写入事务**：建边与业务落库在同一事务内；任一失败整体回滚，保证"落库必有边、边必指向已落库节点"。
 - **版本感知（stale）**：目标域内容版本变更事件（用例保存、快照同步）触发比对——`target_version` 与当前版本不一致的引用边置 `stale` 并回填新版本号到比对字段；人工在矩阵中「重新同步」或计划执行「同步最新用例」后回 `confirmed`。
 - **冲突（conflict）**：覆盖分析或人工复核发现边语义错误时置 `conflict`；`conflict` 与 `detached` 的边不计入覆盖统计，但保留展示与审计。
@@ -484,9 +484,9 @@ TraceChainPage（链路明细页）
 
 ### 5.3 状态管理与交互
 
-- Pinia store `traceMatrix`：矩阵分页数据、当前链路缓存、缺口与受影响项；与 `aiTask` store（任务进度）联动——覆盖 / 影响分析任务完成后触发数据刷新。
+- Pinia store `traceMatrix`：矩阵分页数据、当前链路缓存、缺口与受影响项；与 `aiTask` store（任务状态与执行）联动——覆盖 / 影响分析任务完成后触发数据刷新。
 - 任务驱动刷新：发起分析后轮询 `GET /api/ai/tasks/{id}`，`status = closed`（执行完成）时刷新矩阵与覆盖数据，已终止展示终止原因与再次执行入口。
-- 全部状态分支：矩阵空态（无需求时引导「新建需求」）、链路空态（引导「发起 AI 生成」）、`stale / conflict` 图例、权限不足只读降级、任务进行中进度条。
+- 全部状态分支：矩阵空态（无需求时引导「新建需求」）、链路空态（引导「发起 AI 生成」）、`stale / conflict` 图例、权限不足只读降级、任务执行中（步数与预算消耗）。
 
 ---
 
@@ -529,7 +529,7 @@ TraceChainPage（链路明细页）
 | `server/.../service/trace/TraceEdgeWriter` | 建边写入端口（供生成链与快照流程事务内调用） |
 | 评审 / 计划创建快照流程 | 事务内调用 `TraceEdgeWriter` 写 `case_snapshot` 边（4.1 建边时机） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018151–1000018161 |
-| `server/.../service/ai/task/ImpactAnalysisTaskHandler` | `impact_analysis` 处理器：遍历建边并写处置标记（4.3） |
+| `server/.../service/ai/task/type/ImpactAnalysisTypeAdapter` | `impact_analysis` 类型适配器：遍历建边并写处置标记（4.3） |
 | 权限点迁移脚本 | 新增 `trace:view` / `trace:edit`（scope = workspace） |
 | `db/migration/V*__trace_impact_disposition.sql` | `trace_edge` 补影响处置字段组三列（2.2），同步 `schema.sql` |
 | `web/src/pages/project/TraceMatrixPage.vue` 及组件、`web/src/stores/traceMatrix.ts` | 前端页面与状态 |
@@ -574,3 +574,4 @@ ALTER TABLE trace_edge ADD COLUMN disposed_by uuid NULL;
 | V1.0 | 2026-10-15 | 5.1 路由并入需求管理壳层（`/workspace/projects/requirements?tab=trace`），旧路径改为重定向兼容，入口改为页内侧栏与页内切换 |
 | V1.0 | 2026-10-15 | 5.1 / 5.2 链路视图由抽屉改为独立链路明细页（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），旧 `requirementId` 深链重定向，组件结构拆为 TraceChainPage 及其子面板 |
 | V1.0 | 2026-10-16 | 任务驱动刷新口径对齐 AI Task 状态机（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：完成态 `succeeded` 改 `closed`，失败重试改终止 + 再次执行 |
+| V1.0 | 2026-10-16 | 术语与状态口径残词勘误：2.2 派生边改「各层生成对象」、2.4 与 4.1 建边时机改「生成链提案采纳落库」、3.8 改任务状态轮询、5.3 改任务状态与执行联动及执行中展示、7 实施清单改 `ImpactAnalysisTypeAdapter` |

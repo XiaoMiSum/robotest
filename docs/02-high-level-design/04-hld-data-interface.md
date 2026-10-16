@@ -17,7 +17,9 @@
     Workspace ──── Project ──── TestCaseModule
                      ├── Requirement ─── RequirementChangeLog / RequirementSplitRecord
                      ├── TraceEdge / TraceCoverageResult（追溯矩阵，业务领域资源）
-                     ├── AiTask ─── AiArtifactConfirm / AiUsageLog
+                     ├── AiTask ─┬─ AiTaskExecution ─┬─ AiTaskTraceEvent
+                     │           │                   └─ AiTaskProposal ── AiTaskAdoption
+                     │           └─ AiTaskTool（白名单）/ AiUsageLog（挂执行）
                      ├── VectorIndexEntry（向量索引条目）
                      ├── TestPlan ─── PlanModuleSnapshot
                      │                PlanNodeSnapshot
@@ -78,8 +80,12 @@
 | TraceEdge            | 追溯边（派生 / 快照引用、目标版本、状态），业务领域资源      |
 | TraceCoverageResult  | 需求覆盖分析结论（覆盖状态与判定依据）                |
 | AiConfig / AiModelConfig / AiEmbeddingConfig / AiPromptTemplate | AI 配置中心四类配置（全局，管理端） |
-| AiTask               | AI 任务（类型、状态、产物），统一任务收口              |
-| AiArtifactConfirm    | AI 产物确认记录（采纳 / 驳回与落库引用）             |
+| AiTask               | AI 任务（类型、输入、生命周期状态），AI Task 框架（`ai_task_` 域六实体：AiTask / AiTaskExecution / AiTaskTraceEvent / AiTaskProposal / AiTaskAdoption / AiTaskTool） |
+| AiTaskAdoption       | AI 提案采纳记录（采纳方式、操作人与落库引用）             |
+| AiTaskExecution      | AI 任务一次执行：工具白名单与预算快照、执行状态与终止原因       |
+| AiTaskTraceEvent     | 执行轨迹事件：决策、工具调用与结果摘要的只增时序记录           |
+| AiTaskProposal       | 提案：结构化产物与证据链，待采纳态载体（不属业务库）           |
+| AiTaskTool           | 工具注册项：参数结构、权限点、作用域校验方式与副作用级别       |
 | AiUsageLog           | AI 用量明细（按次调用），支撑统计与下钻               |
 | AiAssistantConversation | 助手会话（按登录用户归属 + 上下文快照）           |
 | AiAssistantMessage   | 助手消息（意图预览与执行回执）                     |
@@ -129,7 +135,7 @@
 * **项目管理**：CRUD、归档。
 * **测试用例**：模块树、脑图节点、用例详情。
 * **需求管理**：需求 CRUD 与归档确认、文档导入、变更与影响标记、追溯查询；概要设计见 `docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
-* **AI 能力**：统一任务提交与产物确认、助手会话与意图预览执行、追溯矩阵与覆盖分析（矩阵视图、链路视图、人工修正、影响处置）；概要设计见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
+* **AI 能力**：AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）、助手会话与意图预览执行、追溯矩阵与覆盖分析（矩阵视图、链路视图、人工修正、影响处置）；概要设计见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
 * **测试评审**：发起、快照树、模块快照树、评审记录、同步、调整用例。
 * **测试计划**：创建、快照树、模块快照树、执行记录、同步、调整用例。
 * **缺陷管理**：CRUD、状态流转。
@@ -143,6 +149,7 @@
 * 认证：连接时通过查询参数传递 Token。
 * 消息基于 JSON，支持节点增删改移、布局更新。
 * 广播至同一文档的在线用户。
+* AI 任务轨迹与状态推送（复用既有 WS 通道，按执行订阅）。
 
 ## 修改记录
 
@@ -152,3 +159,4 @@
 | V1.0 | 2026-10-01 | 数据对象与业务端接口概要补入接口测试模块 |
 | V1.0 | 2026-10-02 | 吸收数据隔离通用口径，作为跨模块单一事实源 |
 | V1.0 | 2026-10-02 | 补入需求管理与 AI 能力的数据对象和接口概要 |
+| V1.0 | 2026-10-16 | 数据对象与接口概要对齐 AI Task 框架：实体关系图与数据对象表按 `ai_task_` 域六实体改写（AiArtifactConfirm 替换为 AiTaskAdoption 并补执行 / 轨迹 / 提案 / 工具），业务端 AI 能力概要改任务资源，WebSocket 概要补任务轨迹推送 |
