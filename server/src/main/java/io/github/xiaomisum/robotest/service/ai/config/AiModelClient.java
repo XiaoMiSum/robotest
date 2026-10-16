@@ -4,10 +4,12 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiUsageLog;
 import io.github.xiaomisum.robotest.repository.ai.AiUsageLogMapper;
+import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolDefinition;
 import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -18,11 +20,15 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.DefaultToolDefinition;
+import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeTypeUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -46,6 +52,9 @@ public class AiModelClient {
     /** 单次生成请求超时：兜底长挂起，整体仍受任务超时清扫（4.2）约束；连接超时沿用底层 OkHttp 默认 10s */
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
     private static final int ERROR_MSG_MAX_LENGTH = 500;
+
+    /** 末跳纯文本归因场景（详设 4.3：判别与查询跳归 assistant_parse、回答生成归 assistant_answer） */
+    private static final String SCENE_ANSWER = "assistant_answer";
 
     /** 平台业务加密密钥（SecretCryptoUtil 多域共用，4.1 沿用既有机制），未配置时解密失败降级 1000018117 */
     private final byte[] secretKey;
@@ -75,6 +84,32 @@ public class AiModelClient {
         } catch (Exception e) {
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
             writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode);
+            throw toServiceException(e, errorCode);
+        }
+    }
+
+    /**
+     * 带工具声明的单跳调用（详设 4.1 工具调用循环）：工具仅声明不执行——复核 OpenAiChatModel
+     * 字节码只经 resolveToolDefinitions（序列化进请求），不调用 executeToolCalls，
+     * toolCalls 随响应原样返回，执行权全程在服务端循环。
+     * 记账 scene 按结果落账：有 toolCalls 归因请求场景（assistant_parse），纯文本归因 assistant_answer。
+     */
+    public AiChatReply chatWithTools(AiChatRequest request, List<AssistantToolDefinition> toolDefinitions) {
+        String apiKey = secretKey == null ? null
+                : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
+        if (apiKey == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+        }
+        long start = System.currentTimeMillis();
+        try {
+            ChatModel model = buildChatModel(request, apiKey, toolDefinitions);
+            AiChatReply reply = extractReplyWithCalls(model.call(buildPrompt(request)));
+            writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
+                    null, reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
+            return reply;
+        } catch (Exception e) {
+            int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
+            writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode, request.promptScene());
             throw toServiceException(e, errorCode);
         }
     }
@@ -135,20 +170,71 @@ public class AiModelClient {
 
     /** 按行动态配置程序式构建（配置在 DB，不走 starter 自动装配）；maxRetries 随当前设置注入 */
     ChatModel buildChatModel(AiChatRequest request, String apiKey) {
+        return buildChatModel(request, apiKey, List.of());
+    }
+
+    /** 带工具声明的构建变体（工具清单来自服务端固化注册表，详设 4.1） */
+    ChatModel buildChatModel(AiChatRequest request, String apiKey,
+            List<AssistantToolDefinition> toolDefinitions) {
         return OpenAiChatModel.builder()
-                .options(buildOptions(request.model(), apiKey, settingsReader.settings().taskMaxRetries()))
+                .options(buildOptions(request.model(), apiKey,
+                        settingsReader.settings().taskMaxRetries(), toolDefinitions))
                 .build();
     }
 
     /** 程序式构建调用选项：baseUrl / 密钥 / 模型名逐行取值，重试次数承接 task_max_retries（4.2） */
     static OpenAiChatOptions buildOptions(AiModelConfig model, String apiKey, int maxRetries) {
-        return OpenAiChatOptions.builder()
+        return buildOptions(model, apiKey, maxRetries, List.of());
+    }
+
+    /** 工具定义非空时以声明型回调随请求携带（详设 4.1：服务端固化清单，执行权不交框架） */
+    static OpenAiChatOptions buildOptions(AiModelConfig model, String apiKey, int maxRetries,
+            List<AssistantToolDefinition> toolDefinitions) {
+        var builder = OpenAiChatOptions.builder()
                 .baseUrl(model.getBaseUrl())
                 .apiKey(apiKey)
                 .model(model.getModelName())
                 .maxRetries(maxRetries)
-                .timeout(REQUEST_TIMEOUT)
-                .build();
+                .timeout(REQUEST_TIMEOUT);
+        if (toolDefinitions != null && !toolDefinitions.isEmpty()) {
+            builder.toolCallbacks(declarationCallbacks(toolDefinitions));
+        }
+        return builder.build();
+    }
+
+    private static List<ToolCallback> declarationCallbacks(List<AssistantToolDefinition> toolDefinitions) {
+        List<ToolCallback> callbacks = new ArrayList<>();
+        for (AssistantToolDefinition definition : toolDefinitions) {
+            callbacks.add(new DeclarationCallback(definition));
+        }
+        return callbacks;
+    }
+
+    /**
+     * 声明型工具回调：只把 name / description / paramsSchema 序列化进请求（详设 4.1），
+     * call() 永不触达——OpenAiChatModel 不执行工具，服务端循环才是唯一执行方；触达即为缺陷。
+     */
+    private static final class DeclarationCallback implements ToolCallback {
+
+        private final ToolDefinition definition;
+
+        private DeclarationCallback(AssistantToolDefinition source) {
+            this.definition = DefaultToolDefinition.builder()
+                    .name(source.name())
+                    .description(source.description())
+                    .inputSchema(JsonUtils.toJsonString(source.paramsSchema()))
+                    .build();
+        }
+
+        @Override
+        public ToolDefinition getToolDefinition() {
+            return definition;
+        }
+
+        @Override
+        public String call(String toolInput) {
+            throw new IllegalStateException("工具执行由服务端循环接管，声明型回调不可执行: " + definition.name());
+        }
     }
 
     static Prompt buildPrompt(AiChatRequest request) {
@@ -197,6 +283,24 @@ public class AiModelClient {
         }
     }
 
+    /** 带工具调用载荷的回复抽取：工具与正文、账单同源（详设 4.1 单跳结果三要素） */
+    private static AiChatReply extractReplyWithCalls(ChatResponse response) {
+        try {
+            AssistantMessage output = response.getResult().getOutput();
+            String content = String.valueOf(output.getText());
+            List<AiToolCall> toolCalls = output.getToolCalls() == null ? List.of()
+                    : output.getToolCalls().stream()
+                            .map(call -> new AiToolCall(call.id(), call.name(), call.arguments()))
+                            .toList();
+            Usage usage = response.getMetadata().getUsage();
+            int tokensIn = usage == null || usage.getPromptTokens() == null ? 0 : usage.getPromptTokens();
+            int tokensOut = usage == null || usage.getCompletionTokens() == null ? 0 : usage.getCompletionTokens();
+            return new AiChatReply(content, tokensIn, tokensOut, toolCalls);
+        } catch (Exception e) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+        }
+    }
+
     private static ServiceException toServiceException(Exception e, int errorCode) {
         if (e instanceof ServiceException se && se.getCode() != null && se.getCode() == errorCode) {
             return se;
@@ -211,13 +315,19 @@ public class AiModelClient {
     /** 每次逻辑调用记一条用量明细；记录失败只告警，不中断模型调用（4.3） */
     private void writeUsage(AiChatRequest request, long latencyMs, boolean success, int promptTokens,
             int completionTokens, Integer errorCode) {
+        writeUsage(request, latencyMs, success, promptTokens, completionTokens, errorCode, request.promptScene());
+    }
+
+    /** scene 落账口径由调用方决定（工具跳按结果落账，详设 4.3 助手交互调用归因） */
+    private void writeUsage(AiChatRequest request, long latencyMs, boolean success, int promptTokens,
+            int completionTokens, Integer errorCode, String promptScene) {
         try {
             AiUsageLog usage = new AiUsageLog();
             usage.setProjectId(request.projectId());
             usage.setTaskId(request.taskId());
             usage.setUserId(request.userId());
             usage.setModelId(request.model().getId());
-            usage.setPromptScene(request.promptScene());
+            usage.setPromptScene(promptScene);
             // 带图调用记 vision（详设 3.7 / 裁决 D5）：用量分析按模态下钻，无 DDL
             usage.setCallType(hasMedia(request) ? "vision" : "chat");
             usage.setPromptTokens(promptTokens);

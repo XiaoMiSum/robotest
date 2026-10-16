@@ -5,6 +5,9 @@ import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiUsageLog;
 import io.github.xiaomisum.robotest.repository.ai.AiUsageLogMapper;
+import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolDefinition;
+import io.github.xiaomisum.robotest.service.ai.assistant.tool.ToolCategory;
+import io.github.xiaomisum.robotest.service.ai.assistant.tool.ToolSchemas;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +25,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Flux;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -276,6 +280,97 @@ class AiModelClientTest {
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
         verify(chatModel, never()).stream(any(Prompt.class));
         verify(usageLogMapper, never()).insert(any(AiUsageLog.class));
+    }
+
+    // ---------- 带工具声明的单跳（助手详设 4.1 工具调用循环） ----------
+
+    @Test
+    void buildOptions_withTools_declaresCallbackSchemasAndNeverExecutes() {
+        OpenAiChatOptions options = AiModelClient.buildOptions(model, "sk-test", 2,
+                List.of(queryProjectsDef()));
+
+        assertEquals(1, options.getToolCallbacks().size());
+        ToolCallback callback = options.getToolCallbacks().get(0);
+        assertEquals("query_projects", callback.getToolDefinition().name());
+        assertTrue(callback.getToolDefinition().inputSchema().contains("keyword"));
+        // 声明型回调无执行体：触达即缺陷（执行权在服务端循环）
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> callback.call("{}"));
+        assertTrue(error.getMessage().contains("query_projects"));
+    }
+
+    @Test
+    void buildOptions_withoutTools_declaresNothing() {
+        OpenAiChatOptions options = AiModelClient.buildOptions(model, "sk-test", 2);
+
+        assertTrue(options.getToolCallbacks() == null || options.getToolCallbacks().isEmpty());
+    }
+
+    @Test
+    void chatWithTools_returnsToolCallsAndScenesByOutcome() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModel(any(), any(), any());
+        AssistantMessage output = AssistantMessage.builder()
+                .content("先查一下项目")
+                .toolCalls(List.of(new AssistantMessage.ToolCall(
+                        "tc-1", "function", "query_projects", "{\"keyword\":\"商城\"}")))
+                .build();
+        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+                List.of(new Generation(output)),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(800, 40)).build()));
+
+        AiChatReply reply = spy.chatWithTools(request(), List.of(queryProjectsDef()));
+
+        assertEquals("先查一下项目", reply.content());
+        assertEquals(1, reply.toolCalls().size());
+        AiToolCall call = reply.toolCalls().get(0);
+        assertEquals("tc-1", call.id());
+        assertEquals("query_projects", call.name());
+        assertEquals("{\"keyword\":\"商城\"}", call.arguments());
+        // 有工具调用 → 归因请求场景（assistant_parse 侧）
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("test", captor.getValue().getPromptScene());
+        assertEquals(800, captor.getValue().getPromptTokens().intValue());
+    }
+
+    @Test
+    void chatWithTools_textOnlyHop_scenesAsAssistantAnswer() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModel(any(), any(), any());
+        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+                List.of(new Generation(new AssistantMessage("最终回答"))),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build()));
+
+        AiChatReply reply = spy.chatWithTools(request(), List.of(queryProjectsDef()));
+
+        assertTrue(reply.toolCalls().isEmpty());
+        assertEquals("最终回答", reply.content());
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("assistant_answer", captor.getValue().getPromptScene());
+    }
+
+    @Test
+    void chatWithTools_failure_maps18117AndWritesFailedUsageRow() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModel(any(), any(), any());
+        when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("boom"));
+
+        ServiceException e = assertThrows(ServiceException.class,
+                () -> spy.chatWithTools(request(), List.of(queryProjectsDef())));
+
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("failed", captor.getValue().getStatus());
+        assertEquals("test", captor.getValue().getPromptScene());
+    }
+
+    private static AssistantToolDefinition queryProjectsDef() {
+        return new AssistantToolDefinition("query_projects", "查询项目",
+                ToolSchemas.object(List.of(ToolSchemas.string("keyword", "关键词")), null),
+                ToolCategory.QUERY);
     }
 
     private static ChatResponse chunk(String text) {
