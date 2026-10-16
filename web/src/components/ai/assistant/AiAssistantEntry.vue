@@ -10,6 +10,7 @@ import SessionList from './SessionList.vue'
 import StreamIndicator from './StreamIndicator.vue'
 import { useAssistantEntrance } from '@/composables/ai/useAssistantEntrance'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
+import { useAuthStore } from '@/stores/auth'
 import { citationRoute } from '@/utils/assistant'
 import type { AiAssistantCitation } from '@/types'
 
@@ -19,6 +20,7 @@ const CARD_HEIGHT = 700
 const SEARCH_DEBOUNCE_MS = 300
 
 const store = useAiAssistantStore()
+const authStore = useAuthStore()
 const router = useRouter()
 const { visible, refresh } = useAssistantEntrance()
 
@@ -32,6 +34,24 @@ const hasConversation = computed(() => store.currentConversation !== null)
 const archived = computed(() => store.currentConversation?.status === 'archived')
 
 void refresh()
+
+// 切换活跃空间后列表须按新空间重载；归属不同的当前会话收起，避免误解任务落点（详设 5.2）
+watch(
+  () => authStore.activeWorkspaceId,
+  (workspaceId) => {
+    if (!workspaceId) return
+    const current = store.currentConversation
+    if (store.currentId && (!current || current.workspaceId !== workspaceId)) {
+      store.resetSession()
+    }
+    if (store.open) void store.loadConversations(store.keyword, true)
+  },
+)
+
+// 未进入工作空间时入口隐藏（交互 05 §1）：同步收起面板，返回空间后默认收起
+watch(visible, (shown) => {
+  if (!shown) store.closePanel()
+})
 
 // 打开即刷新会话列表；已有数据时静默对齐，避免重复闪加载态
 watch(
