@@ -17,6 +17,9 @@ public class AiAssistantConversationRespDTO {
 
     private String title;
 
+    /** 归属工作空间（创建时固化，列表按当前活跃空间过滤；不参与权限判定） */
+    private UUID workspaceId;
+
     /** active / archived */
     private String status;
 

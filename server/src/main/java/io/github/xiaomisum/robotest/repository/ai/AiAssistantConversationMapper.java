@@ -10,10 +10,12 @@ import java.util.UUID;
 
 public interface AiAssistantConversationMapper extends BaseMapperX<AiAssistantConversation> {
 
-    /** 本人会话列表（详设 3.2）：归属人过滤 + 标题包含检索，按创建时间倒序 */
-    default PageResult<AiAssistantConversation> findPage(PageParam pageParam, UUID userId, String keyword) {
+    /** 本人当前空间会话列表（详设 3.2）：归属人 + 归属空间过滤 + 标题包含检索，按创建时间倒序 */
+    default PageResult<AiAssistantConversation> findPage(PageParam pageParam, UUID userId, UUID workspaceId,
+            String keyword) {
         return selectPage(pageParam, new LambdaQueryWrapperX<AiAssistantConversation>()
                 .eq(AiAssistantConversation::getUserId, userId)
+                .eq(AiAssistantConversation::getWorkspaceId, workspaceId)
                 .likeIfPresent(AiAssistantConversation::getTitle, keyword)
                 .orderByDesc(AiAssistantConversation::getCreatedAt));
     }

@@ -19,11 +19,11 @@ import java.util.UUID;
  */
 public interface AssistantService {
 
-    /** 3.2 会话列表：本人归属 + 标题检索，创建时间倒序，附消息数与最近消息时间聚合 */
+    /** 3.2 会话列表：本人归属 + 当前活跃空间过滤 + 标题检索，创建时间倒序，附消息数与最近消息时间聚合 */
     PageResult<AiAssistantConversationRespDTO> pageConversations(AiAssistantConversationPageReqDTO pageReq,
-            UUID userId);
+            UUID userId, UUID activeWorkspaceId);
 
-    /** 3.3 创建会话：context 引用须属当前用户可见范围（1000018262），context_snapshot 不参与权限判定 */
+    /** 3.3 创建会话：X-Active-Workspace 必带（1000002008）写入归属空间，context 引用须属当前用户可见范围（1000018262） */
     AiAssistantConversationRespDTO createConversation(AiAssistantConversationCreateReqDTO reqDTO, UUID userId,
             UUID activeWorkspaceId);
 
@@ -40,7 +40,7 @@ public interface AssistantService {
 
     /**
      * 3.5 发送消息（SSE 流式）：会话可发（259）、正文（260）、上下文头（2008）、活跃空间成员
-     * （261）与附件归属（262）校验后落盘用户与 assistant 消息并提交 assistant_parse 任务，
+     * 与归属空间一致（263）及附件归属（262）校验后落盘用户与 assistant 消息并提交 assistant_parse 任务，
      * 返回事件流（delta / clarify / preview / citations / done / error + 15s 心跳）。
      * projectId 置 null（助手解析为不限项目的个人任务，总册 2.6）。
      */
