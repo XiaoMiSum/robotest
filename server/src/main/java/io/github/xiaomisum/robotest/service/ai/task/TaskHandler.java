@@ -34,6 +34,14 @@ public interface TaskHandler {
     }
 
     /**
+     * 带上下文的能力派生：判定依赖项目范围的任务（如 bug_classify 批量按项目解析缺陷集
+     * 判是否随附截图）重写本方法；默认回落无上下文实现（详设 4.2）。
+     */
+    default String requiredCapability(Map<String, Object> input, TaskSubmitContext context) {
+        return requiredCapability(input);
+    }
+
+    /**
      * 带提交上下文的输入校验（3.6.2 校验顺序「类型 → 输入」）：需要项目范围（归属、去重、状态）
      * 或回写快照的处理器重写本方法，默认回落无上下文实现。
      */

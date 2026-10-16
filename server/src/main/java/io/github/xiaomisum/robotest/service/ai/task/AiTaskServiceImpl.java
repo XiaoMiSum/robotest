@@ -118,12 +118,13 @@ public class AiTaskServiceImpl implements AiTaskService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
         }
         Map<String, Object> effectiveInput = input == null ? Map.of() : new LinkedHashMap<>(input);
-        handler.validateInput(effectiveInput, new TaskSubmitContext(projectId, workspaceId, userId, loginUser));
+        TaskSubmitContext submitContext = new TaskSubmitContext(projectId, workspaceId, userId, loginUser);
+        handler.validateInput(effectiveInput, submitContext);
         if (loginUser != null) {
             handler.checkPermission(loginUser);
         }
-        // 必需能力选型（详设 4.2）：handler 从输入派生，有能力诉求时走能力 + priority 选型并回写 model_id
-        String requiredCapability = handler.requiredCapability(effectiveInput);
+        // 必需能力选型（详设 4.2）：handler 从输入派生（批量随附截图需结合项目范围），选型并回写 model_id
+        String requiredCapability = handler.requiredCapability(effectiveInput, submitContext);
         AiModelConfig model = requiredCapability == null
                 ? settingsReader.usableModel()
                 : settingsReader.resolveModel(null, requiredCapability);

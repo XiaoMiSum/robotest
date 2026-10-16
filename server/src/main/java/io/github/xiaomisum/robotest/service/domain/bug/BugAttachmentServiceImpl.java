@@ -117,19 +117,23 @@ public class BugAttachmentServiceImpl implements BugAttachmentService {
         dto.setFileName(attachment.getFileName());
         dto.setContentType(StringUtils.hasText(attachment.getContentType())
                 ? attachment.getContentType() : "application/octet-stream");
+        dto.setContent(readBytes(attachment));
+        return dto;
+    }
+
+    @Override
+    public byte[] readBytes(BugAttachment attachment) {
         if (attachment.getFileResourceId() != null) {
             // 已回填：读文件管理模块（对象存储）字节（文件管理详设 4.3）
-            dto.setContent(fileResourceService.readBytes(attachment.getFileResourceId()).content());
-            return dto;
+            return fileResourceService.readBytes(attachment.getFileResourceId()).content();
         }
         // 回填前兼容：仍读本地历史文件（文件管理详设 7.2）
         Path path = Paths.get(uploadDir).resolve(attachment.getStoragePath());
         try {
-            dto.setContent(Files.readAllBytes(path));
+            return Files.readAllBytes(path);
         } catch (IOException e) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ATTACHMENT_NOT_FOUND);
         }
-        return dto;
     }
 
     @Override

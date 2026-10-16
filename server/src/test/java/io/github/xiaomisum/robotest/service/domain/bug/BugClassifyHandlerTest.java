@@ -4,28 +4,41 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
+import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.bug.BugAttachmentMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
+import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
+import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
+import io.github.xiaomisum.robotest.service.domain.file.FileContent;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,6 +47,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +70,14 @@ class BugClassifyHandlerTest {
     private WorkspaceUserMapper workspaceUserMapper;
     @Mock
     private SysUserMapper sysUserMapper;
+    @Mock
+    private BugAttachmentMapper bugAttachmentMapper;
+    @Mock
+    private BugAttachmentService bugAttachmentService;
+    @Mock
+    private FileResourceMapper fileResourceMapper;
+    @Mock
+    private FileResourceService fileResourceService;
     @Mock
     private TaskExecutionContext context;
 
@@ -254,5 +276,188 @@ class BugClassifyHandlerTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> content = (Map<String, Object>) artifacts.get(0).get("content");
         assertTrue(((List<?>) content.get("sourceRefs")).isEmpty());
+    }
+
+    // ---------- 截图入模（详设 3.5 / 3.6） ----------
+
+    @Test
+    void validateInput_draftImagesOverLimit_throwsInputInvalid() {
+        List<String> fileIds = java.util.stream.IntStream.range(0, 4)
+                .mapToObj(i -> UUID.randomUUID().toString()).toList();
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> handler.validateInput(
+                Map.of("draft", Map.of("title", "登录无响应", "fileIds", fileIds))));
+
+        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
+    }
+
+    @Test
+    void validateInput_draftNonImageFile_throwsInputInvalid() {
+        UUID fileId = UUID.randomUUID();
+        FileResource file = new FileResource();
+        file.setFileName("复现说明.txt");
+        file.setFileSize(1024L);
+        when(fileResourceMapper.selectById(fileId)).thenReturn(file);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> handler.validateInput(
+                Map.of("draft", Map.of("title", "登录无响应", "fileIds", List.of(fileId.toString())))));
+
+        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
+    }
+
+    @Test
+    void validateInput_draftOversizedImage_throwsInputInvalid() {
+        UUID fileId = UUID.randomUUID();
+        FileResource file = new FileResource();
+        file.setFileName("shot.png");
+        file.setFileSize(11L * 1024 * 1024);
+        when(fileResourceMapper.selectById(fileId)).thenReturn(file);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> handler.validateInput(
+                Map.of("draft", Map.of("title", "登录无响应", "fileIds", List.of(fileId.toString())))));
+
+        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
+    }
+
+    @Test
+    void validateInput_draftValidImage_passes() {
+        UUID fileId = UUID.randomUUID();
+        FileResource file = new FileResource();
+        file.setFileName("shot.png");
+        file.setFileSize(2L * 1024 * 1024);
+        when(fileResourceMapper.selectById(fileId)).thenReturn(file);
+
+        handler.validateInput(Map.of("draft", Map.of("title", "登录无响应",
+                "fileIds", List.of(fileId.toString()))));
+
+        verify(fileResourceMapper).selectById(fileId);
+    }
+
+    @Test
+    void requiredCapability_draftWithImages_requiresVision() {
+        String capability = handler.requiredCapability(Map.of("draft", Map.of(
+                        "title", "登录无响应", "fileIds", List.of(UUID.randomUUID().toString()))),
+                new TaskSubmitContext(PROJECT_ID, WORKSPACE_ID, USER_ID, null));
+
+        assertEquals(AiSettingsReader.CAPABILITY_VISION, capability);
+    }
+
+    @Test
+    void requiredCapability_batchWithImageAttachment_requiresVision() {
+        Bug bug = new Bug();
+        bug.setId(BUG_ID);
+        bug.setProjectId(PROJECT_ID);
+        when(bugMapper.listByIds(anyCollection())).thenReturn(List.of(bug));
+        when(bugAttachmentMapper.listByBugIds(anyList()))
+                .thenReturn(List.of(attachment(BUG_ID, "shot.png", "image/png")));
+
+        String capability = handler.requiredCapability(Map.of("bugIds", List.of(BUG_ID.toString())),
+                new TaskSubmitContext(PROJECT_ID, WORKSPACE_ID, USER_ID, null));
+
+        assertEquals(AiSettingsReader.CAPABILITY_VISION, capability);
+    }
+
+    @Test
+    void requiredCapability_textOnly_returnsNull() {
+        Bug bug = new Bug();
+        bug.setId(BUG_ID);
+        bug.setProjectId(PROJECT_ID);
+        when(bugMapper.listByIds(anyCollection())).thenReturn(List.of(bug));
+
+        // 批量附件默认空列表 → 无视觉诉求；纯文本草稿同理
+        assertNull(handler.requiredCapability(Map.of("bugIds", List.of(BUG_ID.toString())),
+                new TaskSubmitContext(PROJECT_ID, WORKSPACE_ID, USER_ID, null)));
+        assertNull(handler.requiredCapability(Map.of("draft", Map.of("title", "纯文本草稿")),
+                new TaskSubmitContext(PROJECT_ID, WORKSPACE_ID, USER_ID, null)));
+    }
+
+    @Test
+    void execute_draftWithImages_passesMediaInDeclaredOrder() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        when(fileResourceService.readBytes(second))
+                .thenReturn(new FileContent(new byte[]{2}, null, "b.jpg"));
+        when(fileResourceService.readBytes(first))
+                .thenReturn(new FileContent(new byte[]{1}, "image/png", "a.png"));
+        when(context.getInput()).thenReturn(Map.of("draft", Map.of(
+                "title", "登录页点击登录无响应",
+                "steps", "1. 打开登录页",
+                "fileIds", List.of(second.toString(), first.toString()))));
+        when(context.getProjectId()).thenReturn(PROJECT_ID);
+        when(context.getWorkspaceId()).thenReturn(WORKSPACE_ID);
+        when(context.getUserId()).thenReturn(USER_ID);
+        when(context.prompt(any(), any())).thenReturn("prompt");
+        when(context.chat(any(), any(), anyList()))
+                .thenReturn(new AiChatReply("{\"suggestions\":{},\"assigneeCandidates\":[]}", 10, 5));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
+        stubMembers();
+        when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any())).thenReturn(List.of());
+
+        handler.execute(context);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<AiChatMedia>> captor = ArgumentCaptor.forClass(List.class);
+        verify(context).chat(any(), any(), captor.capture());
+        List<AiChatMedia> images = captor.getValue();
+        assertEquals(2, images.size());
+        // 按 fileIds 声明顺序直传；contentType 非 image/* 时按扩展名回落 MIME
+        assertArrayEquals(new byte[]{2}, images.get(0).data());
+        assertEquals("image/jpeg", images.get(0).mimeType());
+        assertArrayEquals(new byte[]{1}, images.get(1).data());
+        assertEquals("image/png", images.get(1).mimeType());
+    }
+
+    @Test
+    void execute_batchAttachments_cappedPerBugAndTotal() {
+        List<Bug> bugs = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            Bug bug = new Bug();
+            bug.setId(UUID.randomUUID());
+            bug.setProjectId(PROJECT_ID);
+            bug.setTitle("缺陷 " + i);
+            bugs.add(bug);
+        }
+        when(context.getInput()).thenReturn(Map.of("bugIds",
+                bugs.stream().map(bug -> bug.getId().toString()).toList()));
+        when(context.getProjectId()).thenReturn(PROJECT_ID);
+        when(context.prompt(any(), any())).thenReturn("prompt");
+        when(bugMapper.listByIds(anyCollection())).thenReturn(bugs);
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
+        when(context.chat(any(), any(), anyList()))
+                .thenReturn(new AiChatReply("{\"items\":[]}", 10, 5));
+        // 每缺陷 3 张图像候选 + 1 张非图像：单缺陷取前 2 张、全批 8 张按缺陷序截断
+        List<BugAttachment> attachments = new ArrayList<>();
+        for (Bug bug : bugs) {
+            attachments.add(attachment(bug.getId(), "a.png", "image/png"));
+            attachments.add(attachment(bug.getId(), "b.jpg", null));
+            attachments.add(attachment(bug.getId(), "c.png", "image/png"));
+            attachments.add(attachment(bug.getId(), "d.txt", "text/plain"));
+        }
+        when(bugAttachmentMapper.listByBugIds(anyList())).thenReturn(attachments);
+        when(bugAttachmentService.readBytes(any())).thenReturn(new byte[]{1, 2, 3});
+
+        handler.execute(context);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<AiChatMedia>> captor = ArgumentCaptor.forClass(List.class);
+        verify(context).chat(any(), any(), captor.capture());
+        assertEquals(8, captor.getValue().size());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> varCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(context).prompt(any(), varCaptor.capture());
+        String bugContext = varCaptor.getValue().get("bugContext");
+        // 前 4 条缺陷各带 2 张（第 1～8 张），第 5 条超出配额仅文本
+        assertTrue(bugContext.contains("截图 2 张（随附图片第 1～2 张）"));
+        assertTrue(bugContext.contains("截图 2 张（随附图片第 7～8 张）"));
+        assertFalse(bugContext.contains("第 9～10 张"));
+    }
+
+    private static BugAttachment attachment(UUID bugId, String fileName, String contentType) {
+        BugAttachment attachment = new BugAttachment();
+        attachment.setBugId(bugId);
+        attachment.setFileName(fileName);
+        attachment.setContentType(contentType);
+        return attachment;
     }
 }
