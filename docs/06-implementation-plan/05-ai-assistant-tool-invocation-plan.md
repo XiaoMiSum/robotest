@@ -139,7 +139,7 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 
 | 方案 | 机制 | 取舍 |
 | ---- | ---- | ---- |
-| **P1（首选）** | 工具经 `OpenAiChatOptions` / `ToolCallback` 声明；以可替换的 `ToolCallingManager`（或 2.0.x 等价扩展点）**中止框架内部执行循环**，将 `toolCalls` 与响应账单（usage）一并交还调用方 | 记账、帧、上限完全自控；需探明 2.0.x 实际扩展点签名 |
+| **P1（首选，已实施）** | 工具经 `OpenAiChatOptions.toolCallbacks(...)` 以**声明型回调**随请求携带（`call()` 永不触达）。实施期字节码复核：`OpenAiChatModel` 仅调用 `resolveToolDefinitions`（序列化进请求），**不调用 `executeToolCalls`**——模型层不自动执行工具，`toolCalls` 随响应原样返回，spike 预设的中止信号机制无需启用 | 记账、帧、上限完全自控；无框架干预点，风险最低 |
 | **P2（回退）** | ToolCallback 全部委托我方 `AssistantToolRegistry`，以受控中止信号截停框架循环，中止信号携带 usage 供 `writeUsage` 记账 | 满足自控需求，但依赖异常传播语义，健壮性弱于 P1 |
 
 - **首日 spike**：以 ≤30 行验证「声明工具 + 中止内部循环 + usage 可取」；两条路均不自实现 HTTP（C10 合规），spike 结论回填本文 5.1 后再铺开实施。
@@ -166,7 +166,7 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | ---- | ---- | ---- |
 | `AssistantParseHandler` 判别段全部：`JUDGE_SYSTEM`、JSON 版 `DEFAULT_PROMPT`、`parseJudge`、`judgeVariables`（含三静态清单变量）、`handleClarify / handleIntent / handleAnswer / staticAnswer` | 整体删除——分别由 `AskUserTool`、`AssistantIntentBuilder`、循环末跳替代；handler 收敛为薄壳（校验 + 组装 + 调循环） | 提交 4 |
 | `ANSWER_SYSTEM` + `SCENE_ANSWER` 独立渲染链（`render(SCENE_ANSWER, …)` 调用点） | 删除——末跳回答在循环内基于工具结果生成，`assistant_answer` 仅保留为用量归因标签（总册 4.3），不再有模板渲染 | 提交 4 |
-| `AssistantPromptSupport` 的 `caseOptions / reviewOptions / planOptions` 及其专用查询 | 删除（查询工具按需自查） | 提交 2 |
+| `AssistantPromptSupport` 的 `caseOptions / reviewOptions / planOptions` 及其专用查询 | 删除（查询工具按需自查） | 提交 4（随判别段重写，S2 时判别段仍引用不可先行删除） |
 | 旧测试：`AssistantParseHandlerTest` 判别分流断言、`AssistantPromptSupportTest` 三清单用例 | 同步重写 / 删除，**不留新旧双份断言** | 随各提交 |
 | `RequirementSuggestionParser.parseJsonObject`、`ModelOutputSupport` 中仅判别段专用的方法 | 全仓查引用后删；被需求生成链共用的一律不动 | 提交 4 |
 
@@ -245,15 +245,15 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 
 | 步骤 | 状态 | 备注 |
 | ---- | ---- | ---- |
-| S0 Spring AI 接入 spike | ✅ | **P1 成立**：`OpenAiChatModel.Builder.toolCallingManager(...)` 注入自定义管理器，`executeToolCalls` 抛携 `toolCalls + usage` 的中止信号截停框架内部循环；工具声明经 `toolCallbacks(...)`（`DefaultToolCallingChatOptions$Builder` 继承提供），`ToolDefinition` 仅 `name / description / inputSchema` 三方法、声明回调无执行体；stream 路径双保险（中止异常 + 末块 `toolCalls` 检测）；逐跳 scene 按结果落账（有工具调用 `assistant_parse`，否则 `assistant_answer`）。P2 不启用 |
-| S1 消息表补列 | ❌ | |
-| S2 工具体系 | ❌ | |
-| S3 门面工具扩展 | ❌ | |
-| S4 循环编排与任务重写 | ❌ | |
-| S5 静态指引并入 | ❌ | |
-| S6 前端改造 | ❌ | |
-| 层 A 旧判别段与双路径清理 | ❌ | 随 S2 / S4 提交，旧测试同步重写 |
-| 层 B 提示词场景存量处置 | ❌ | 迁移随 S4 PR；核对种子回插与 `assistant_answer` 场景枚举 |
+| S0 Spring AI 接入 spike | ✅ | **P1 成立**（`toolCallbacks(...)` 声明型回调，`ToolDefinition` 仅 `name / description / inputSchema` 三方法、`call()` 永不触达）；实施期字节码复核进一步确认 `OpenAiChatModel` 只调用 `resolveToolDefinitions`、**不调用 `executeToolCalls`**——模型层不自动执行工具，spike 预设的中止信号机制无需启用；逐跳 scene 按结果落账（有工具调用 `assistant_parse`，否则 `assistant_answer`）。P2 不启用 |
+| S1 消息表补列 | ✅ | `76766773` |
+| S2 工具体系 | ✅ | `9d60a457`（6 查询 + 澄清 + 规范化器迁移 + 注册表 + 4 测试类） |
+| S3 门面工具扩展 | ✅ | `63ff292c`（声明型回调 + `toolCalls` 载荷 + 逐跳记账扩展测试） |
+| S4 循环编排与任务重写 | ✅ | 执行侧 `55959923`、消息通道 `f938ce7d`、循环与任务重写 `79ac5753` |
+| S5 静态指引并入 | ✅ | `2e1f308`（8 指引片段自 `7a5d6b23` 捞回 + `search_knowledge`，注册表满 16） |
+| S6 前端改造 | ✅ | `510c30e7`（执行删项目头 + `tool_call` 进度帧与状态） |
+| 层 A 旧判别段与双路径清理 | ✅ | 判别段 / 独立渲染链 / 静态清单 / 旧测试随 S4（`79ac5753`）删净并重写 |
+| 层 B 提示词场景存量处置 | ✅ | 无种子行（全新库零存量）；`assistant_answer` 场景已注销（用量归因标签保留）；存量环境若自定义过 `assistant_parse` 提示词需在配置中心「恢复默认」（交付说明附 SQL 清除备选） |
 
 - 每步骤收口：状态改 ✅ 并登记对应提交；整包收口同步回填主计划 `02-ai-requirement-development-plan.md` 3.6 的 WP-6.3 状态行，验收结果按主计划 3.4 第 4 条回填。
 
@@ -266,5 +266,6 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | V1.0 | 2026-10-16 | 初始版本：现状分析、总体结构、文件级实施清单（后端 19 新增 / 8 修改、前端 5 处）、Spring AI 接入双方案与 spike、数据库补列迁移、六步骤与六提交拆分、门禁与人工验收重点、风险应对 |
 | V1.0 | 2026-10-16 | 新增 2.8 旧实现清理与兼容：层 A 双路径随包删净（判别段、独立渲染链、静态清单、旧测试，归属提交 2 / 4）、层 B 配置存量处置（`assistant_parse` 自定义提示词重置、`assistant_answer` 场景核对、存量任务口径）、层 C 无须清理清单；1.2 范围与 5.1 状态表同步 |
 | V1.0 | 2026-10-16 | S0 spike 收口（5.1）：P1 成立——`toolCallingManager` 注入 + `executeToolCalls` 中止信号截停内部循环，`toolCallbacks` 声明工具，stream 双保险与逐跳 scene 落账口径确认，P2 不启用 |
+| V1.0 | 2026-10-16 | **整包收口（5.1）**：S1–S6 与层 A / 层 B 全部 ✅（后端 7 提交 `76766773` / `9d60a457` / `63ff292c` / `55959923` / `f938ce7d` / `79ac5753` / `2e1f308` + 前端 `510c30e7`），双端门禁 EXIT=0（后端 1874 测试、前端 3591 测试）；2.6 P1 行按字节码复核修订（模型层不执行工具、中止机制无需启用）；2.8.1 静态清单删除归属修正为提交 4；层 B 确认无种子行、`assistant_answer` 场景注销，存量自定义行以「恢复默认」处置 |
 | V1.0 | 2026-10-16 | 1.2 基线文档行对齐 AI Task 双平面口径：概要引用章节改「4.2 提案采纳流」，待确认态改待确认口径 |
 | V1.0 | 2026-10-16 | 对齐 AI Task 新口径：存量 `assistant_parse` 任务超时清扫由置失败改置 `aborted`（1000018117） |
