@@ -26,6 +26,14 @@ public interface TaskHandler {
     void validateInput(Map<String, Object> input);
 
     /**
+     * 本次任务输入的必需模型能力（详设 4.2 模型选型）：提交与执行两条路径据此选型；
+     * 缺省无必需能力（纯文本调用，行为不变）。
+     */
+    default String requiredCapability(Map<String, Object> input) {
+        return null;
+    }
+
+    /**
      * 带提交上下文的输入校验（3.6.2 校验顺序「类型 → 输入」）：需要项目范围（归属、去重、状态）
      * 或回写快照的处理器重写本方法，默认回落无上下文实现。
      */

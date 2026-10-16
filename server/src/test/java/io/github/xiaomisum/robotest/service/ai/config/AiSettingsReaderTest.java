@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -112,6 +114,60 @@ class AiSettingsReaderTest {
         when(configMapper.selectSingleton()).thenReturn(configRow(true, null, null, null));
 
         assertNull(reader.resolveModel(MODEL_ID));
+    }
+
+    private static AiModelConfig modelWith(String capability, int priority) {
+        AiModelConfig model = new AiModelConfig();
+        model.setId(UUID.randomUUID());
+        model.setEnabled(true);
+        model.setCapabilities(capability == null ? List.of() : List.of(capability));
+        model.setPriority(priority);
+        return model;
+    }
+
+    @Test
+    void resolveModel_capabilityRequired_preferredLackingCapability_scansCandidates() {
+        AiModelConfig preferred = new AiModelConfig();
+        preferred.setId(MODEL_ID);
+        preferred.setEnabled(true);
+        when(modelMapper.selectById(MODEL_ID)).thenReturn(preferred);
+        when(configMapper.selectSingleton()).thenReturn(configRow(true, null, null, null));
+        AiModelConfig vision = modelWith("vision", 50);
+        when(modelMapper.selectList(any())).thenReturn(List.of(vision));
+
+        assertSame(vision, reader.resolveModel(MODEL_ID, AiSettingsReader.CAPABILITY_VISION));
+    }
+
+    @Test
+    void resolveModel_capabilityRequired_defaultHasCapability_returnsDefault() {
+        AiModelConfig defaultModel = new AiModelConfig();
+        defaultModel.setId(MODEL_ID);
+        defaultModel.setEnabled(true);
+        defaultModel.setCapabilities(List.of("vision"));
+        when(configMapper.selectSingleton()).thenReturn(configRow(true, MODEL_ID, null, null));
+        when(modelMapper.selectById(MODEL_ID)).thenReturn(defaultModel);
+
+        assertSame(defaultModel, reader.resolveModel(null, AiSettingsReader.CAPABILITY_VISION));
+    }
+
+    @Test
+    void resolveModel_capabilityRequired_scanTakesFirstCapableInPriorityOrder() {
+        when(configMapper.selectSingleton()).thenReturn(configRow(true, null, null, null));
+        // SQL 侧按 priority 升序返回：无能力(10) → vision(50) → vision(200)
+        AiModelConfig noVision = modelWith(null, 10);
+        AiModelConfig lowPriority = modelWith("vision", 50);
+        AiModelConfig highPriority = modelWith("vision", 200);
+        when(modelMapper.selectList(any())).thenReturn(List.of(noVision, lowPriority, highPriority));
+
+        assertSame(lowPriority, reader.resolveModel(null, AiSettingsReader.CAPABILITY_VISION));
+    }
+
+    @Test
+    void resolveModel_capabilityRequired_noCandidate_returnsNull() {
+        when(configMapper.selectSingleton()).thenReturn(configRow(true, null, null, null));
+        when(modelMapper.selectList(any())).thenReturn(List.of(modelWith(null, 10)));
+
+        assertNull(reader.resolveModel(null, AiSettingsReader.CAPABILITY_VISION));
     }
 
     @Test

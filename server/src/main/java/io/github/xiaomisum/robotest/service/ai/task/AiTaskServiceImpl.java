@@ -122,9 +122,15 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (loginUser != null) {
             handler.checkPermission(loginUser);
         }
-        AiModelConfig model = settingsReader.usableModel();
+        // 必需能力选型（详设 4.2）：handler 从输入派生，有能力诉求时走能力 + priority 选型并回写 model_id
+        String requiredCapability = handler.requiredCapability(effectiveInput);
+        AiModelConfig model = requiredCapability == null
+                ? settingsReader.usableModel()
+                : settingsReader.resolveModel(null, requiredCapability);
         if (model == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED);
+            throw ServiceExceptionUtil.get(requiredCapability == null
+                    ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
+                    : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
         }
         AiTask task = new AiTask();
         task.setType(type);
