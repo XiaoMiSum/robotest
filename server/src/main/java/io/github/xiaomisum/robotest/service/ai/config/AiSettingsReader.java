@@ -7,7 +7,9 @@ import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
+import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -18,6 +20,9 @@ public class AiSettingsReader {
 
     private static final int DEFAULT_TASK_TIMEOUT_SECONDS = 600;
     private static final int DEFAULT_TASK_MAX_RETRIES = 2;
+
+    /** 模型能力标签：vision（详设 2.3 / 4.2 模型选型的必需能力取值） */
+    public static final String CAPABILITY_VISION = "vision";
 
     @Resource
     private AiConfigMapper configMapper;
@@ -52,13 +57,43 @@ public class AiSettingsReader {
      * （失败重试复用同模型，3.6.4；回落保证存量任务仍可执行）。
      */
     public AiModelConfig resolveModel(UUID preferredModelId) {
+        return resolveModel(preferredModelId, null);
+    }
+
+    /**
+     * 带必需能力的解析（详设 4.2 模型选型）：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）
+     * → 启用且含能力的模型按 priority 升序取首 → null（调用方映射 1000018118 / 1000018124）。
+     * 能力为 null 时与两级解析口径一致；模型行数受配置规模约束，能力过滤在内存执行、依赖 SQL 侧 priority 排序。
+     */
+    public AiModelConfig resolveModel(UUID preferredModelId, String requiredCapability) {
         if (preferredModelId != null) {
             AiModelConfig preferred = modelMapper.selectById(preferredModelId);
-            if (preferred != null && Boolean.TRUE.equals(preferred.getEnabled())) {
+            if (enabledAndCapable(preferred, requiredCapability)) {
                 return preferred;
             }
         }
-        return usableModel();
+        AiModelConfig defaultModel = usableModel();
+        if (enabledAndCapable(defaultModel, requiredCapability)) {
+            return defaultModel;
+        }
+        if (requiredCapability == null) {
+            return null;
+        }
+        return modelMapper.selectList(new LambdaQueryWrapperX<AiModelConfig>()
+                        .eq(AiModelConfig::getEnabled, Boolean.TRUE)
+                        .orderByAsc(AiModelConfig::getPriority))
+                .stream()
+                .filter(candidate -> enabledAndCapable(candidate, requiredCapability))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static boolean enabledAndCapable(AiModelConfig model, String requiredCapability) {
+        if (model == null || !Boolean.TRUE.equals(model.getEnabled())) {
+            return false;
+        }
+        return requiredCapability == null
+                || (model.getCapabilities() != null && model.getCapabilities().contains(requiredCapability));
     }
 
     /** 业务端可用性（详设 3.2：仅回三个布尔口径，不泄露配置明细） */

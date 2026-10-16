@@ -129,7 +129,35 @@ class AiTaskExecutorTest {
 
         verify(taskMapper).casFail(TASK_ID, ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED.code(),
                 ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED.msg());
-        verifyNoInteractions(handler);
+        verify(handler, never()).execute(any());
+    }
+
+    @Test
+    void execute_capabilityRequired_noVisionModel_fails124() {
+        when(taskMapper.casStart(TASK_ID)).thenReturn(true);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(pendingTask());
+        when(handler.requiredCapability(any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
+
+        executor.start(TASK_ID);
+
+        verify(taskMapper).casFail(TASK_ID, ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED.code(),
+                ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED.msg());
+        verify(handler, never()).execute(any());
+    }
+
+    @Test
+    void execute_capabilityRequired_resolvesBySelectionAndRuns() {
+        when(taskMapper.casStart(TASK_ID)).thenReturn(true);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(pendingTask());
+        when(handler.requiredCapability(any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
+        when(settingsReader.resolveModel(any(), eq(AiSettingsReader.CAPABILITY_VISION))).thenReturn(model());
+        Map<String, Object> result = Map.of("artifacts", List.of());
+        when(handler.execute(any())).thenReturn(new TaskResult(result, 0, 0));
+
+        executor.start(TASK_ID);
+
+        verify(handler).execute(any());
+        verify(taskMapper).casSucceed(TASK_ID, result, 0, 0);
     }
 
     @Test

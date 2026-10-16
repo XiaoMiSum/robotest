@@ -198,6 +198,17 @@ class AiTaskServiceImplTest {
     }
 
     @Test
+    void submit_capabilityRequired_noVisionModel_throws124() {
+        when(handler.requiredCapability(any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> submit(submitReq(0)));
+
+        assertEquals(ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED.code(), exception.getCode());
+        verify(taskExecutor, never()).start(any());
+    }
+
+    @Test
     void submit_success_insertsPendingAndStarts() {
         AiTaskRespDTO resp = submit(submitReq(0));
 
