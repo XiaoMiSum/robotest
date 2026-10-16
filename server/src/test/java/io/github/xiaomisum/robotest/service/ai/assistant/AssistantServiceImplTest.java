@@ -419,6 +419,20 @@ class AssistantServiceImplTest {
         assertNotNull(resp.getCreatedAt());
     }
 
+    @Test
+    void appendToolMessage_persistsToolCarrierForBackfill() {
+        service.appendToolMessage(CONVERSATION_ID, "tc-9", "{\"count\":1}");
+
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper).insert(captor.capture());
+        AiAssistantMessage inserted = captor.getValue();
+        assertEquals(CONVERSATION_ID, inserted.getConversationId());
+        assertEquals(Constants.AiAssistantMessageRole.TOOL, inserted.getRole());
+        assertEquals("tc-9", inserted.getToolCallId());
+        assertEquals("{\"count\":1}", inserted.getContent());
+        assertEquals(Constants.AiAssistantMessageStatus.DONE, inserted.getStatus());
+    }
+
     // ---------- 发送消息（详设 3.5） ----------
 
     @Test

@@ -174,6 +174,17 @@ public class AssistantServiceImpl implements AssistantService {
     }
 
     @Override
+    public void appendToolMessage(UUID conversationId, String toolCallId, String content) {
+        AiAssistantMessage message = new AiAssistantMessage();
+        message.setConversationId(conversationId);
+        message.setRole(Constants.AiAssistantMessageRole.TOOL);
+        message.setToolCallId(toolCallId);
+        message.setContent(content);
+        message.setStatus(Constants.AiAssistantMessageStatus.DONE);
+        messageMapper.insert(message);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public SseEmitter send(UUID conversationId, AiAssistantMessageSendReqDTO reqDTO, UUID userId,
             UUID activeWorkspaceId) {
