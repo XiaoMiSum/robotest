@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversation
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantEntityRefReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantImageRefReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessagePageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessageSendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversationRespDTO;
@@ -13,12 +14,15 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversatio
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantMessageRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantConversation;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantMessage;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -28,7 +32,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -47,6 +53,11 @@ public class AssistantServiceImpl implements AssistantService {
     private static final int MAX_CONTENT_CHARS = 4000;
     private static final int TITLE_BACKFILL_CHARS = 30;
 
+    /** 详设 3.5：附图单条 ≤3 张、单张 ≤10MB，类型限图像白名单（与正文贴图同口径） */
+    private static final int MAX_IMAGE_COUNT = 3;
+    private static final long MAX_IMAGE_BYTES = 10 * 1024 * 1024L;
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp", "bmp");
+
     /** 事件流兜底超时（详设 3.5）：到期回收通道并置 interrupted，内容不丢失、可经消息历史补齐 */
     private static final long STREAM_TIMEOUT_MILLIS = 10 * 60 * 1000L;
 
@@ -57,6 +68,9 @@ public class AssistantServiceImpl implements AssistantService {
 
     @Resource
     private AiAssistantMessageMapper messageMapper;
+
+    @Resource
+    private FileResourceMapper fileResourceMapper;
 
     @Resource
     private AssistantRefChecker refChecker;
@@ -189,6 +203,7 @@ public class AssistantServiceImpl implements AssistantService {
                 refChecker.requireInActiveWorkspace(ref.getEntityType(), ref.getEntityId(), activeWorkspaceId);
             }
         }
+        List<Map<String, Object>> images = validateImages(reqDTO.getImages());
 
         // 首问回填须在落用户消息前判定（落盘后消息数不再为 0）；用户改过标题不覆盖
         boolean firstAsk = DEFAULT_TITLE.equals(owned.getTitle()) && messageCountOf(owned.getId()) == 0;
@@ -198,6 +213,7 @@ public class AssistantServiceImpl implements AssistantService {
         userMessage.setRole(Constants.AiAssistantMessageRole.USER);
         userMessage.setContent(content);
         userMessage.setAttachments(toAttachmentMaps(attachments));
+        userMessage.setImages(images);
         userMessage.setStatus(Constants.AiAssistantMessageStatus.DONE);
         messageMapper.insert(userMessage);
 
@@ -260,6 +276,37 @@ public class AssistantServiceImpl implements AssistantService {
         return maps;
     }
 
+    /** 附图校验与落盘形态（详设 3.5）：仅存 {fileId, name} 引用；任一违规按 1000018264 拒绝 */
+    private List<Map<String, Object>> validateImages(List<AiAssistantImageRefReqDTO> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        if (images.size() > MAX_IMAGE_COUNT) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID);
+        }
+        List<Map<String, Object>> maps = new ArrayList<>();
+        for (AiAssistantImageRefReqDTO image : images) {
+            if (image == null || image.getFileId() == null) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID);
+            }
+            FileResource file = fileResourceMapper.selectById(image.getFileId());
+            if (file == null || !IMAGE_EXTENSIONS.contains(extensionOf(file.getFileName()))
+                    || file.getFileSize() == null || file.getFileSize() > MAX_IMAGE_BYTES) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID);
+            }
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("fileId", image.getFileId());
+            map.put("name", file.getFileName());
+            maps.add(map);
+        }
+        return maps;
+    }
+
+    private static String extensionOf(String fileName) {
+        String extension = fileName == null ? null : StringUtils.getFilenameExtension(fileName);
+        return extension == null ? "" : extension.toLowerCase(Locale.ROOT);
+    }
+
     /** 创建快照：工作空间标识由服务端从请求头写入（C4），快照不参与权限判定 */
     private Map<String, Object> snapshotOf(UUID workspaceId, AiAssistantEntityRefReqDTO context) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
@@ -294,6 +341,7 @@ public class AssistantServiceImpl implements AssistantService {
         resp.setRole(entity.getRole());
         resp.setContent(entity.getContent());
         resp.setAttachments(entity.getAttachments());
+        resp.setImages(entity.getImages());
         resp.setIntent(entity.getIntent());
         resp.setCitations(entity.getCitations());
         resp.setExecution(entity.getExecution());
