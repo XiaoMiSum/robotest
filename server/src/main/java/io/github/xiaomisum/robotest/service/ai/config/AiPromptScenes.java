@@ -28,11 +28,6 @@ public final class AiPromptScenes {
                 new PromptVariable("documentName", "来源文档文件名", true),
                 new PromptVariable("documentText", "文档文本正文（图片多模态导入时为空）", true),
                 new PromptVariable("moduleOptions", "候选模块清单", true))));
-        register(scenes, new PromptScene("requirement_split", "需求拆分", List.of(
-                new PromptVariable("requirementCode", "需求编号", true),
-                new PromptVariable("requirementTitle", "需求标题", true),
-                new PromptVariable("requirementDescription", "需求描述正文", true),
-                new PromptVariable("moduleOptions", "候选模块清单", true))));
         register(scenes, new PromptScene("test_design_generation_modules", "生成链·模块结构", List.of(
                 new PromptVariable("requirementContext", "需求快照与检索上下文", true))));
         register(scenes, new PromptScene("test_design_generation_documents", "生成链·脑图文档", List.of(

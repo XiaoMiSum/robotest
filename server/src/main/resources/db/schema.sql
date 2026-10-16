@@ -505,7 +505,6 @@ CREATE TABLE requirement_split_record (
     project_id            uuid NOT NULL,
     source_type           varchar(20) NOT NULL,
     source_file_id        uuid NULL,
-    source_requirement_id uuid NULL,
     ai_task_id            uuid NOT NULL,
     status                varchar(20) NOT NULL DEFAULT 'pending',
     adopt_result          jsonb NULL,
@@ -515,7 +514,6 @@ CREATE TABLE requirement_split_record (
 );
 
 CREATE INDEX idx_requirement_split_project ON requirement_split_record (project_id, created_at);
-CREATE INDEX idx_requirement_split_source ON requirement_split_record (source_requirement_id);
 CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id);
 
 -- ============================================================
@@ -1679,9 +1677,8 @@ COMMENT ON COLUMN requirement_change_log.after_summary IS '变更后字段级摘
 COMMENT ON TABLE requirement_split_record IS '需求拆解记录表';
 COMMENT ON COLUMN requirement_split_record.id IS '记录 ID';
 COMMENT ON COLUMN requirement_split_record.project_id IS '归属项目 ID（隔离边界）';
-COMMENT ON COLUMN requirement_split_record.source_type IS '拆解来源：document/requirement';
+COMMENT ON COLUMN requirement_split_record.source_type IS '拆解来源：document';
 COMMENT ON COLUMN requirement_split_record.source_file_id IS '导入原始文档附件 ID';
-COMMENT ON COLUMN requirement_split_record.source_requirement_id IS '原条目标识 ID';
 COMMENT ON COLUMN requirement_split_record.ai_task_id IS '关联 AI 任务 ID（逻辑外键 → ai_task）';
 COMMENT ON COLUMN requirement_split_record.status IS '状态：pending/adopted/rejected';
 COMMENT ON COLUMN requirement_split_record.adopt_result IS '采纳结果（jsonb）';
@@ -2017,7 +2014,7 @@ COMMENT ON COLUMN ai_embedding_config.last_test_at IS '最近连通性测试时�
 COMMENT ON COLUMN ai_embedding_config.last_test_result IS '最近连通性测试结果';
 
 COMMENT ON TABLE ai_prompt_template IS '场景提示词表';
-COMMENT ON COLUMN ai_prompt_template.scene IS '场景编码（如 requirement_split），与任务 type 对应';
+COMMENT ON COLUMN ai_prompt_template.scene IS '场景编码（如 requirement_import），与任务 type 对应';
 COMMENT ON COLUMN ai_prompt_template.name IS '场景名称（展示用）';
 COMMENT ON COLUMN ai_prompt_template.content IS '模板正文，支持 {{variable}} 占位';
 COMMENT ON COLUMN ai_prompt_template.variables IS '可用变量清单 [{ name, desc, required }]';

@@ -600,36 +600,22 @@ class RequirementServiceImplTest {
     }
 
     @Test
-    void getSplitLogs_crossProject_throwsNotFound() {
-        Requirement foreign = item("confirmed");
-        foreign.setProjectId(UUID.randomUUID());
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(foreign);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.getSplitLogs(ITEM_ID, PROJECT_ID, new PageParam()));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
-    }
-
-    @Test
-    void getSplitRecords_resolvesSourceRequirementCode() {
+    void getSplitRecords_mapsRecordFields() {
         RequirementSplitRecord record = new RequirementSplitRecord();
         record.setId(UUID.randomUUID());
-        record.setSourceType("requirement");
-        record.setSourceRequirementId(ITEM_ID);
+        record.setSourceType("document");
         record.setStatus("adopted");
         when(splitRecordMapper.findPage(any(), eq(PROJECT_ID), any(), any()))
                 .thenReturn(new PageResult<>(List.of(record), 1L));
-        Requirement source = item("archived");
-        when(requirementMapper.selectBatchIds(List.of(ITEM_ID))).thenReturn(List.of(source));
 
         PageResult<RequirementSplitRecordRespDTO> result = service.getSplitRecords(PROJECT_ID, null, null,
                 new PageParam());
 
-        assertEquals("REQ-001", result.getList().get(0).getSourceRequirementCode());
+        assertEquals("document", result.getList().get(0).getSourceType());
         assertEquals("adopted", result.getList().get(0).getStatus());
     }
 
-    // ---------- 条目内 AI 拆分（3.9） ----------
+    // ---------- 拆解记录辅助（导入路径共用） ----------
 
     private void stubProject() {
         Project project = new Project();
@@ -644,110 +630,6 @@ class RequirementServiceImplTest {
             record.setId(RECORD_ID);
             return 1;
         }).when(splitRecordMapper).insert(any(RequirementSplitRecord.class));
-    }
-
-    @Test
-    void split_submitsTaskAndCreatesRecord() {
-        stubItem("draft");
-        stubProject();
-        stubSplitRecordInserted();
-        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of());
-        AiTaskRespDTO task = new AiTaskRespDTO();
-        task.setTaskId(TASK_ID);
-        when(aiTaskService.submitInternal(eq("requirement_split"), any(), eq(OPERATOR_ID), eq(PROJECT_ID), any()))
-                .thenReturn(task);
-
-        RequirementSplitSubmitRespDTO resp = service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID);
-
-        assertEquals(TASK_ID, resp.getTaskId());
-        assertEquals(RECORD_ID, resp.getSplitRecordId());
-        assertEquals("pending", resp.getStatus());
-        ArgumentCaptor<Map<String, Object>> inputCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(aiTaskService).submitInternal(eq("requirement_split"), inputCaptor.capture(),
-                eq(OPERATOR_ID), eq(PROJECT_ID), any());
-        assertEquals(ITEM_ID.toString(), inputCaptor.getValue().get("requirementId"));
-        ArgumentCaptor<RequirementSplitRecord> recordCaptor = ArgumentCaptor.forClass(RequirementSplitRecord.class);
-        verify(splitRecordMapper).insert(recordCaptor.capture());
-        RequirementSplitRecord saved = recordCaptor.getValue();
-        assertEquals("requirement", saved.getSourceType());
-        assertEquals(ITEM_ID, saved.getSourceRequirementId());
-        assertEquals(TASK_ID, saved.getAiTaskId());
-        assertEquals("pending", saved.getStatus());
-        assertEquals(PROJECT_ID, saved.getProjectId());
-    }
-
-    @Test
-    void split_archivedItem_throwsSplitInputInvalid() {
-        stubItem("archived");
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_SPLIT_INPUT_INVALID.code(), exception.getCode());
-        verifyNoInteractions(aiTaskService, splitRecordMapper);
-    }
-
-    @Test
-    void split_inProgressTask_throwsTaskInProgress() {
-        stubItem("draft");
-        RequirementSplitRecord record = new RequirementSplitRecord();
-        record.setId(UUID.randomUUID());
-        record.setAiTaskId(TASK_ID);
-        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of(record));
-        AiTask running = new AiTask();
-        running.setId(TASK_ID);
-        running.setStatus("running");
-        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(running);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_TASK_IN_PROGRESS.code(), exception.getCode());
-        verifyNoInteractions(aiTaskService);
-    }
-
-    @Test
-    void split_failedTaskRecordAllowsResubmit() {
-        stubItem("draft");
-        stubProject();
-        stubSplitRecordInserted();
-        RequirementSplitRecord stale = new RequirementSplitRecord();
-        stale.setId(UUID.randomUUID());
-        stale.setAiTaskId(TASK_ID);
-        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of(stale));
-        AiTask failed = new AiTask();
-        failed.setId(TASK_ID);
-        failed.setStatus("failed");
-        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(failed);
-        AiTaskRespDTO task = new AiTaskRespDTO();
-        task.setTaskId(TASK_ID);
-        when(aiTaskService.submitInternal(eq("requirement_split"), any(), any(), any(), any())).thenReturn(task);
-
-        service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID);
-
-        verify(aiTaskService).submitInternal(eq("requirement_split"), any(), eq(OPERATOR_ID), eq(PROJECT_ID), any());
-    }
-
-    @Test
-    void split_notFound_throwsNotFound() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(null);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
-        verifyNoInteractions(aiTaskService, splitRecordMapper);
-    }
-
-    @Test
-    void split_submitFails_recordNotInserted() {
-        stubItem("draft");
-        stubProject();
-        when(splitRecordMapper.selectPendingSplitBySource(ITEM_ID)).thenReturn(List.of());
-        when(aiTaskService.submitInternal(any(), any(), any(), any(), any()))
-                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.split(ITEM_ID, PROJECT_ID, OPERATOR_ID));
-        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
-        verify(splitRecordMapper, never()).insert(any(RequirementSplitRecord.class));
     }
 
     // ---------- 3.8 导入需求文档 ----------
@@ -791,7 +673,6 @@ class RequirementServiceImplTest {
         assertEquals(TASK_ID, saved.getAiTaskId());
         assertEquals("pending", saved.getStatus());
         assertEquals(PROJECT_ID, saved.getProjectId());
-        assertNull(saved.getSourceRequirementId());
     }
 
     @Test
