@@ -105,7 +105,7 @@ flowchart TD
 
 ## 4. 视觉与状态要求
 
-- 新增/变更建议项以 `--color-primary-*` 浅底标记 + 「补全」/「变更」小徽标，级别推荐同位标「调整」；建议级别按《视觉设计》用例优先级色落色（产物级别 high / medium / low 对应 `--color-priority-p0` / `--color-priority-p1` / `--color-priority-p2`），并保留文字徽标，不单靠颜色表意；
+- 新增/变更建议项以 `--color-primary-*` 浅底标记 + 「补全」/「变更」小徽标，级别推荐同位标「调整」；建议级别按《视觉设计》用例优先级色落色（建议级别 high / medium / low 对应 `--color-priority-p0` / `--color-priority-p1` / `--color-priority-p2`），并保留文字徽标，不单靠颜色表意；
 - 无变化折叠项用中性色阶（`--color-neutral-400` 文本）；
 - 拖拽手柄与序号徽标：当前排序 `--color-primary-500`，调整中目标位 `--color-primary-100` 底；
 - 回执成功 `--color-success`、失败 `--color-danger-light` 底。
@@ -123,3 +123,4 @@ flowchart TD
 | V1.0 | 2026-10-03 | 初始版本 |
 | V1.0 | 2026-10-10 | 随落地实现补齐：2.1 增多节点切换与动作置灰两行、折叠口径统一为无变化项，2.3 补动作区置灰状态分支并修正错字，4 节徽标文案与级别落色对齐实际实现 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：3.x 流程状态改 `proposals_ready / aborted`（失败重试改终止 + 再次执行），轮询停轮条件改 `aborted / closed` |
+| V1.0 | 2026-10-16 | 对齐 AI Task 状态机：视觉要求级别措辞由「产物级别」改「建议级别」 |

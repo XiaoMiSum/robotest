@@ -176,7 +176,7 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 
 1. **`ai_prompt_template` 的 `assistant_parse` 自定义行（最关键）**：场景提示词按 `scene` 自定义覆盖默认（总册 3.5），DB 中若存有旧 JSON 分流提示词自定义行，升级后会**盖掉新 agent 默认词**，形成「结构进循环、提示词仍教模型吐 JSON」的混用态。处置：**A（推荐）迁移随提交 4 的 PR 重置该场景自定义行回落内置默认**；B 代码检测旧格式特征（含 `"kind": "clarify|intent|answer"`）自动回落；C 上线说明要求管理员手动恢复默认（最弱，不单独采用）。编码时核对种子机制：若种子启动回插，A 之上叠加 B 兜底。
 2. **`assistant_answer` 场景**：独立渲染链删除后成死配置——核对 `AiPromptScenes` 枚举与管理端场景列表，若已登记则注销并联动总册 2.5 场景清单；用量归因字符串不动。
-3. **存量 running 的 `assistant_parse` 任务**：发布即重启，旧 handler 中断 → 超时清扫置失败，用户重发即按新语义解析；**迁移说明一句话，无数据订正**。
+3. **存量 running 的 `assistant_parse` 任务**：发布即重启，旧 handler 中断 → 超时清扫置 `aborted`（1000018117），用户重发即按新语义解析；**迁移说明一句话，无数据订正**。
 4. **消息存量**：无工具载荷的旧消息按纯文本历史惰性兼容（4 风险表已列），无需处理。
 
 #### 2.8.3 无须清理（层 C）
@@ -267,3 +267,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | V1.0 | 2026-10-16 | 新增 2.8 旧实现清理与兼容：层 A 双路径随包删净（判别段、独立渲染链、静态清单、旧测试，归属提交 2 / 4）、层 B 配置存量处置（`assistant_parse` 自定义提示词重置、`assistant_answer` 场景核对、存量任务口径）、层 C 无须清理清单；1.2 范围与 5.1 状态表同步 |
 | V1.0 | 2026-10-16 | S0 spike 收口（5.1）：P1 成立——`toolCallingManager` 注入 + `executeToolCalls` 中止信号截停内部循环，`toolCallbacks` 声明工具，stream 双保险与逐跳 scene 落账口径确认，P2 不启用 |
 | V1.0 | 2026-10-16 | 1.2 基线文档行对齐 AI Task 双平面口径：概要引用章节改「4.2 提案采纳流」，待确认态改待确认口径 |
+| V1.0 | 2026-10-16 | 对齐 AI Task 新口径：存量 `assistant_parse` 任务超时清扫由置失败改置 `aborted`（1000018117） |

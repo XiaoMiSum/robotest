@@ -312,7 +312,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 {
   "taskId": "…",
   "splitRecordId": "…",
-  "status": "pending"
+  "status": "running"
 }
 ```
 
@@ -354,7 +354,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
   "aiTaskId": "…",
   "status": "adopted",
   "adoptResult": {
-    "adopted": [{ "artifactKey": "item-1", "requirementId": "…" }],
+    "adopted": [{ "proposalKey": "item-1", "requirementId": "…" }],
     "rejected": ["item-3"],
     "operatorId": "…"
   },
@@ -466,7 +466,7 @@ RequirementDetailPage
 
 ### 5.3 状态管理与交互
 
-- Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务进度订阅，任务完成回调刷新列表与拆解记录。
+- Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务执行与轨迹订阅，任务完成回调刷新列表与拆解记录。
 - 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 执行与轨迹轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
 - 全部状态分支：列表空态（引导新建/导入）、覆盖状态 `—`（AI 关闭）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
 
@@ -564,3 +564,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-15 | 下线条目内 AI 拆分：删除原 3.9 接口与 split-logs 反查（后续章节顺次前移编号），拆解记录表移除 `source_requirement_id` 及其索引，4.5 收敛为导入采纳落库，错误码 1000018009 注销、1000018013 收敛为导入口径 |
 | V1.0 | 2026-10-15 | 5.1 / 5.2 增链路明细页路由（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），TraceEntry 改为跳转该页 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：统一任务资源改 AI Task 任务资源，确认端点 `artifacts/confirm` → `proposals/confirm`，任务 `result` → `result_meta`、`pending/running` 去重收敛为 `running`；产物改称提案，4.5 承接与前端状态分支同步 |
+| V1.0 | 2026-10-16 | 术语与状态口径残词勘误：3.8 导入响应示例 `status` 改 `running`（任务创建即启动）、3.10 `adoptResult` 键改 `proposalKey`、5.3 `aiTask` store 改任务执行与轨迹订阅 |
