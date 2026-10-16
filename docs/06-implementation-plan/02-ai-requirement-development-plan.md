@@ -340,7 +340,8 @@ flowchart TD
 
 | 编号 | 待办 | 分析范围 | 依赖 | 状态 |
 | ---- | ---- | ---- | ---- | ---- |
-| TODO-1 | vision 能力标签落地分析 | ① 智能助手多模态功能：助手会话中用户上传图片（截图、附件）时，如何检测 `vision` 能力并将其传入 Spring AI 的多模态消息构造；② AI 任务多模态功能：需求导入图片、缺陷截图等场景在生成链 / 缺陷分析 / 辅助功能中如何使用 `vision` 能力；③ 智能路由：当默认模型不具备 `vision` 能力但当前请求需要图片理解时，如何按 `capabilities` + `priority` 自动路由到具备 `vision` 的已启用模型，以及无法路由时的降级提示 | WP-4.1 ✅（模型配置 `capabilities` 字段已落地） | 已产出方案 `docs/06-implementation-plan/04-ai-vision-capability-plan.md`，裁决中 |
+| TODO-1 | vision 能力标签落地分析 | ① 智能助手多模态功能：助手会话中用户上传图片（截图、附件）时，如何检测 `vision` 能力并将其传入 Spring AI 的多模态消息构造；② AI 任务多模态功能：需求导入图片、缺陷截图等场景在生成链 / 缺陷分析 / 辅助功能中如何使用 `vision` 能力；③ 智能路由：当默认模型不具备 `vision` 能力但当前请求需要图片理解时，如何按 `capabilities` + `priority` 自动路由到具备 `vision` 的已启用模型，以及无法路由时的降级提示 | WP-4.1 ✅（模型配置 `capabilities` 字段已落地） | 已裁决实施（结论见 `docs/06-implementation-plan/04-ai-vision-capability-plan.md` 5.1） |
+| TODO-2 | 模型通用兜底机制 | 默认模型失效（停用 / 删除）时，纯文本调用按 `priority` 升序尝试其余启用模型，兑现详设 2.3「兜底顺序」语义；与 vision 能力选型扫描的边界按 vision 方案 D2 裁决拆分（vision 调用已走能力选型 + priority 扫描，本项只覆盖纯文本路径） | 依赖 WP-V.1（解析入口复用） | 待排期 |
 
 > 该待办为分析项，产出为方案文档（含详设变更草案与交互影响评估），确认后再拆工作包实施。
 
@@ -369,3 +370,4 @@ flowchart TD
 | V1.0 | 2026-10-10 | 编辑器选型裁决：前端 Markdown 编辑与只读渲染统一替换为 Vditor 所见即所得（替换 md-editor-v3），全站公共组件一套引擎；外部依赖 vditor 登记于 2.5 |
 | V1.0 | 2026-10-15 | 模型配置能力标签移除 `embedding`（向量能力由独立 `ai_embedding_config` 承载，`capabilities` 收窄为 `{chat, vision}`）；新增 5.1 计划外待办 TODO-1：vision 能力标签落地分析（助手多模态、AI 任务多模态、不支持 vision 时的智能路由） |
 | V1.0 | 2026-10-16 | TODO-1 分析收口：方案产出至 `docs/06-implementation-plan/04-ai-vision-capability-plan.md`（现状分析、裁决点 D1–D6、工作包 WP-V.1–V.6），状态由「待分析」改为「已产出方案，裁决中」 |
+| V1.0 | 2026-10-16 | vision 方案 D1–D6 裁决完成、六工作包全部纳入本期，TODO-1 状态改为「已裁决实施」；新增 5.1 TODO-2：模型通用兜底机制（纯文本调用默认模型失效按 priority 升序尝试，vision 方案 D2 拆分项，依赖 WP-V.1） |
