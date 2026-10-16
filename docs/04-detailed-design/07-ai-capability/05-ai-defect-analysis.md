@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-对**缺陷分析**能力域进行详细设计：定义趋势与质量度量查询接口、AI 摘要与批量分析任务、新建建议、分诊队列与重复缺陷检测的接口与规则。任务提交、产物确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义缺陷域的业务入口与产物语义。
+对**缺陷分析**能力域进行详细设计：定义趋势与质量度量查询接口、AI 摘要与批量分析任务、新建建议、分诊队列与重复缺陷检测的接口与规则。任务提交、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义缺陷域的业务入口与提案语义。
 
 ### 1.2 范围与对应设计
 
@@ -29,7 +29,8 @@
 
 本分册**不新增表**：
 
-- 分析任务与产物：`ai_task`（`type = bug_classify / bug_triage / bug_duplicate_scan / bug_trend_summary`，产物在 `result`）、确认记录 `ai_artifact_confirm`；
+- 分析任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = bug_classify / bug_triage / bug_duplicate_scan / bug_trend_summary`）；
+- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`classify_suggestion / duplicate_group / triage_order / summary`）；
 - 录入时相似检测为**同步向量检索**，读 `ai_vector_index`（`entity_type = bug`，DDL 见总册 2.10），不产生任务；
 - 趋势与度量为实时聚合查询，**不落中间表、不缓存过期结论**。
 
@@ -98,7 +99,7 @@
 }
 ```
 
-- **产物**（`kind = summary`，**只读**，`confirmStatus = not_applicable`，无确认动作）：
+- **提案**（`kind = summary`，**只读**，`confirmStatus = not_applicable`，无确认动作）：
 
 ```json
 {
@@ -113,7 +114,7 @@
 }
 ```
 
-- **校验规则**：摘要为只读建议，不写入任何数据；必附数据来源引用（缺引用的产物为不合格产出，不进入结果）；生成失败走总册任务失败与重试（1000018117）。
+- **校验规则**：摘要为只读建议，不写入任何数据；必附数据来源引用（缺引用的提案为不合格产出，不进入结果）；执行失败按总册 3.6.4 终止（1000018117），可再次执行。
 
 ### 3.5 新建缺陷建议（同步快路径）
 
@@ -127,7 +128,7 @@
 }
 ```
 
-- **产物**（`kind = classify_suggestion`，单条）：
+- **提案**（`kind = classify_suggestion`，单条）：
 
 ```json
 {
@@ -149,7 +150,7 @@
 }
 ```
 
-- **校验规则**：建议值仅在表单中以标记呈现，用户一键采纳或修改后提交，**用户填写值与建议不一致时以用户值为准**；`assigneeCandidates` 服务端过滤，仅保留当前工作空间成员（否则剔除，候选为空不报错）；表单场景产物不落库，`confirmStatus = not_applicable`。**截图入模**：`draft.fileIds` 为新建表单先经泛化文件模块上传的图片（≤3 张，png / jpg / jpeg / gif / webp / bmp，单张 ≤10MB），字节随文直传 vision 模型；提交期按总册 4.2 选型（`bug_classify` 附带截图 ⇒ 必需 `vision`），无可用视觉模型返回 1000018124。
+- **校验规则**：建议值仅在表单中以标记呈现，用户一键采纳或修改后提交，**用户填写值与建议不一致时以用户值为准**；`assigneeCandidates` 服务端过滤，仅保留当前工作空间成员（否则剔除，候选为空不报错）；表单场景提案不落库，`confirmStatus = not_applicable`。**截图入模**：`draft.fileIds` 为新建表单先经泛化文件模块上传的图片（≤3 张，png / jpg / jpeg / gif / webp / bmp，单张 ≤10MB），字节随文直传 vision 模型；提交期按总册 4.2 选型（`bug_classify` 附带截图 ⇒ 必需 `vision`），无可用视觉模型返回 1000018124。
 
 ### 3.6 存量批量分类（任务）
 
@@ -161,7 +162,7 @@
 
   - 也可传筛选条件（`input.filter`：未分类 / 分类存疑的状态条件），服务端解析为缺陷集合（上限 500，空集返回 1000018283）。
   - **截图入模**：每缺陷取图像类附件（png / jpg / jpeg / gif / webp / bmp）≤2 张，批量图片总量 ≤8 张（按缺陷序截断，超出部分仅文本）；字节直接读缺陷附件存储，随对应缺陷上下文直传 vision 模型；提交期按总册 4.2 选型，无可用视觉模型返回 1000018124。
-- **产物**：逐缺陷一条 `classify_suggestion`（结构同 3.5，`content.bugId` 指向目标，`confirmStatus = pending`）。
+- **提案**：逐缺陷一条 `classify_suggestion`（结构同 3.5，`content.bugId` 指向目标，`confirmStatus = pending`）。
 - **确认**：总册 3.6.5，动作 `adopted / adopted_edited / rejected`；承接服务**更新对应缺陷字段**（类型、严重等级、优先级、模块、关键词、指派），逐项事务；采纳写 `adopted_ref`，需要既有 `bug:edit` 权限。
 
 ### 3.7 分诊队列建议（同步）
@@ -172,7 +173,7 @@
 { "type": "bug_triage", "input": {}, "waitSeconds": 10 }
 ```
 
-- **产物**（`kind = triage_order`，只读，`confirmStatus = not_applicable`）：
+- **提案**（`kind = triage_order`，只读，`confirmStatus = not_applicable`）：
 
 ```json
 {
@@ -220,7 +221,7 @@
 { "type": "bug_duplicate_scan", "input": { "scope": "active" }, "waitSeconds": 0 }
 ```
 
-- **产物**（`kind = duplicate_group`，`confirmStatus = pending`）：
+- **提案**（`kind = duplicate_group`，`confirmStatus = pending`）：
 
 ```json
 {
@@ -248,7 +249,7 @@
 
 ### 4.2 任务 type 与资源权限映射
 
-| type | 资源权限（发起） | 资源权限（采纳） | 产物确认 |
+| type | 资源权限（发起） | 资源权限（采纳） | 提案确认 |
 | ---- | ---- | ---- | ---- |
 | bug_classify（draft 单条） | 既有 `bug:view` | —（表单内采纳，不走确认端点） | `not_applicable` |
 | bug_classify（批量） | 既有 `bug:view` | 既有 `bug:edit` | 逐条 `pending → adopted/rejected` |
@@ -260,8 +261,8 @@
 
 ### 4.3 批量任务的执行与确认
 
-1. 批量分析按缺陷分片执行，进度 = 已处理 / 总数（总册 `progress / phase`）；
-2. 确认走总册 3.6.5 逐项事务：采纳即按既有缺陷服务更新字段（同一事务写 `ai_artifact_confirm` + `adopted_ref`），失败项回滚、成功项保留；
+1. 批量分析按缺陷分片执行，进度以执行步数与轨迹事件呈现（总册 3.6.3 / 3.6.4）；
+2. 确认走总册 3.6.5 逐项事务：采纳即按既有缺陷服务更新字段（同一事务写 `ai_task_adoption` + `adopted_ref`），失败项回滚、成功项保留；
 3. AI 不自动改写任何已提交缺陷；采纳与驳回全部记审计；
 4. 指派候选仅展示 `memberValid = true` 的当前空间成员。
 
@@ -283,7 +284,7 @@ BugAnalysisPage
 ├── AnalysisRangePicker（时间范围 + 分组维度，口径脚注）
 ├── TrendChart（新增/关闭/存量折线，数据点点击 → 缺陷列表下钻带参）
 ├── MetricCards（修复时长 p50/p90、重开率、重复占比、分布环图）
-├── AiSummaryCard（生成/重新生成 + 引用链接 + 失败重试）
+├── AiSummaryCard（生成 / 重新生成 + 引用链接，失败可再次执行）
 ├── TriageQueueCard（分诊顺序建议列表，可拖拽调整，只读落库）
 └── BatchClassifyEntry（批量分类发起 → 跳转任务详情页，审核区列表模式）
 
@@ -325,14 +326,14 @@ BugAnalysisPage
 | ---- | ---- |
 | `server/.../controller/project/BugAnalysisController` | 趋势 / 度量 / 录入检测路由（仅路由，C2） |
 | `server/.../service/domain/bug/BugAnalysisService + Impl` | 实时聚合与口径计算 |
-| `server/.../service/domain/bug/BugTrendSummaryHandler`、`BugClassifyHandler`、`BugTriageHandler`、`BugDuplicateScanHandler` | 任务执行器（随对应能力域就近注册） |
+| `server/.../service/domain/bug/BugTrendSummaryTypeAdapter`、`BugClassifyTypeAdapter`、`BugTriageTypeAdapter`、`BugDuplicateScanTypeAdapter` | 缺陷域任务类型适配器（工具白名单与预算默认、提案结构，随对应能力域就近注册） |
 | `server/.../service/domain/bug/BugClassifyAdopter + Impl`、`BugDuplicateScanAdopter` | 批量分类采纳落库（调用既有缺陷服务）与重复扫描留痕承接 |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018281–1000018286 |
 | `web/src/pages/project/BugAnalysisPage.vue` 及组件、`web/src/stores/bugAnalysis.ts` | 分析页与状态 |
 | `web/src/pages/project/BugCreatePage.vue` 扩展（建议标记、录入检测） | 新建页扩展 |
 
 - **数据库**：无新增表、无迁移（统计实时计算，向量读既有 `ai_vector_index`）。
-- **OpenAPI**：`duplicates/check` 标注同步检索；四个任务 type 的 `input / 产物` 结构随任务分组暴露。
+- **OpenAPI**：`duplicates/check` 标注同步检索；四个任务 type 的 `input / 提案` 结构随任务分组暴露。
 
 **测试要点（C8 ≥ 70%）**
 
@@ -351,3 +352,4 @@ BugAnalysisPage
 | V1.0 | 2026-10-08 | 勘误与口径补齐：3.2 `groupBy` 非法对齐错误码表改为 1000018285（1000018286 归重复扫描范围）；3.3 补比率与分布分母、修复时长样本与激活时刻、逐日存量口径；7 实施文件路径随仓库分层改为 `service/domain/bug/` |
 | V1.0 | 2026-10-08 | 3.8 重复检测响应移除无数据来源的 `code` 字段、`basis` 改为命中原文分块，3.4 / 3.5 引用示例 `title` 改用缺陷标题 |
 | V1.0 | 2026-10-16 | vision 能力落地：`bug_classify` 接入截图入模（3.5 draft 补 `fileIds` ≤3 张、3.6 批量每缺陷 ≤2 张 / 总量 ≤8 截断），选型与降级走总册 4.2 与 1000018124 |
+| V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分；产物改称提案；执行进度改为步数与轨迹口径；失败改「终止（1000018117）+ 再次执行」；确认事务承接表改 `ai_task_adoption`；7 节执行器改类型适配器 |

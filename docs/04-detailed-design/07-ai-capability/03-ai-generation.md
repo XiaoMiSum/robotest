@@ -30,7 +30,8 @@
 
 本分册**不新增表**：
 
-- 任务与产物：存 `ai_task`（`type = test_design_generation / review_selection / plan_selection`，产物明细在 `result`，确认记录在 `ai_artifact_confirm`）；
+- 任务、执行与轨迹：存 `ai_task / ai_task_execution / ai_task_trace_event`（`type = test_design_generation / review_selection / plan_selection`）；
+- 提案与采纳：存 `ai_task_proposal / ai_task_adoption`（本分册提案 `kind`：`module_suggestion / mindmap_document_suggestion / test_case_suggestion / review_selection / plan_selection`）；
 - 追溯边：采纳落库与圈选确认时经矩阵服务写入 `trace_edge`（DDL 见 `docs/04-detailed-design/05-trace-matrix.md` 2.2）；
 - 生成目标（模块 / 脑图文档 / 用例）落库为既有业务表数据，本分册只定义写入规则（4.3）。
 
@@ -40,7 +41,7 @@
 
 ### 3.1 通用约定
 
-- 全部执行经总册 3.6 统一任务资源；本文档只定义两类任务的 `type`、`input`、产物与承接语义。
+- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义两类任务的 `type`、`input`、提案与承接语义。
 - 发起入口在需求列表 / 需求详情（`X-Active-Project` 为目标项目），落库确认时的目标项目以确认请求的 `X-Active-Project` 头为准（C4）。
 
 ### 3.2 发起测试设计生成
@@ -71,24 +72,16 @@
 - **响应**：总册 3.6.2 任务对象；前端跳转任务进度页。
 - **校验**（错误码见 6）：需求存在（1000018201）、全部已确认（1000018202）、落位模块合法（1000018203）、参数取值合法（1000018205）、同项目同输入去重（1000018209）。
 
-### 3.3 生成进度与阶段
+### 3.3 执行过程与轨迹
 
-- **查询**：总册 3.6.3 `GET /api/ai/tasks/{taskId}`；本任务类型的 `phase` 枚举（按序推进，`progress` 按阶段加权）：
+- **查询**：总册 3.6.3 `GET /api/ai/tasks/{taskId}`；执行过程由 AI 自主编排，**不承诺固定阶段序列**：
+  - 详情页展示执行的计划步骤快照（`plan`；典型序列为解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性，仅供展示参考）、当前步数与预算消耗；
+  - 完整过程经轨迹查询（总册 3.6.4 `events`）逐事件回看（AI 决策、工具调用与结果、提案产出）。
+- 终止与再次执行按总册 3.6.4：终止态执行**不产生任何提案、落库数据与追溯边**；再次执行产生新执行实例与新提案，原提案与轨迹保留。
 
-| 序 | phase | 说明 |
-| ---- | ---- | ---- |
-| 1 | 解析需求 | 需求快照解析与 RAG 上下文装配 |
-| 2 | 生成模块结构 | 产出 `module_suggestion` |
-| 3 | 生成脑图文档 | 产出 `mindmap_document_suggestion` |
-| 4 | 标记用例节点 | 产出 `test_case_suggestion` 骨架 |
-| 5 | 填充用例属性 | 优先级 / 前置条件 / 步骤 / 预期 / 标签 |
-| 6 | 建立追溯边 | 采纳时随落库事务写入（此处为预校验） |
+### 3.4 提案结构与审核详情
 
-- 取消与重试按总册 3.6.4：取消 / 失败任务**不产生任何落库数据与追溯边**。
-
-### 3.4 产物结构与审核详情
-
-- **产物清单**：总册 3.6.3 `artifacts` 摘要；**单个产物详情** `GET /api/ai/tasks/{taskId}/artifacts/{artifactKey}`。
+- **提案清单**：总册 3.6.3 `proposals` 摘要；**单个提案详情** `GET /api/ai/tasks/{taskId}/proposals/{proposalKey}`。
 - 三层树的 `kind` 与 `parentKey` 结构：
 
 ```json
@@ -113,12 +106,12 @@
 }
 ```
 
-- `sourceRefs` 为来源引用（需求 + 原文引语），**来源缺失的产物不得进入待确认态**（概要 8 安全设计）；
+- `sourceRefs` 为来源引用（需求 + 原文引语），**来源缺失的提案不得进入待确认态**（概要 8 安全设计）；
 - `suspectedDuplicateOf` 非空表示与既有模块 / 用例疑似重复，前端在采纳时高亮提示（1000018204 由人工决定：改名采纳或驳回）。
 
-### 3.5 产物确认落库
+### 3.5 提案确认落库
 
-- **路径**：总册 3.6.5 `POST /api/ai/tasks/{taskId}/artifacts/confirm`。
+- **路径**：总册 3.6.5 `POST /api/ai/tasks/{taskId}/proposals/confirm`。
 - **本类型 `target` 结构**：
 
 ```json
@@ -147,7 +140,7 @@
 | ---- | ---- | ---- | ---- |
 | review_selection | `requirementIds?`、`moduleIds?`（至少一项）、`roundCount?`（默认 1，仅 plan） | `review_selection` / `plan_selection` | 建议纳入圈选的用例子集，附理由；plan 可按轮次分组 |
 
-- **产物详情**：
+- **提案详情**：
 
 ```json
 {
@@ -178,14 +171,14 @@
 
 ### 4.2 产物确认后的状态
 
-- 确认后 AI 不再自动覆盖；人工编辑过的产物仅在**显式重新生成并二次确认**后可被覆盖——重新生成 = 对驳回产物附 `note` 走重试（总册 3.6.4），生成的新任务完成后需再次确认。
-- 驳回产物保留在 `ai_task.result` 与审计中供回查，不落库。
+- 确认后 AI 不再自动覆盖；人工编辑过的产物仅在**显式重新生成并二次确认**后可被覆盖——重新生成 = 任务「再次执行」（总册 3.6.4），新执行产出新提案后需再次确认。
+- 驳回提案保留在 `ai_task_proposal` 与轨迹审计中供回查，不落库。
 
 ### 4.3 采纳落库与建边事务
 
 1. 落库目标项目 = 确认请求 `X-Active-Project`；目标模块按 `target.moduleId`，缺省时按 `input.placement`；
 2. 疑似重复（`suspectedDuplicateOf` 非空）的产物**不阻断**采纳，但前端强提示，人工可改为编辑后采纳；
-3. 「业务落库 + `ai_artifact_confirm` + `trace_edge` 写入」同一事务（详见 3.5 与 `05-trace-matrix.md` 4.1），保证落库必有边；
+3. 「业务落库 + `ai_task_adoption` + `trace_edge` 写入」同一事务（详见 3.5 与 `05-trace-matrix.md` 4.1），保证落库必有边；
 4. 编辑后采纳以编辑值落库，`adopted_edited` 记录原 AI 值与编辑差异（审计）。
 
 ### 4.4 圈选确认与快照语义
@@ -212,21 +205,21 @@
 
 ```
 AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
-├── StageTimeline（六阶段时间线：当前阶段高亮，失败阶段标红）
-├── ProgressHeader（进度条、产物数量、失败原因摘要）
-├── Actionbar（取消、失败后重试）
-└── ArtifactCountBadges（模块/文档/用例计数）
+├── PlanTimeline（AI 计划步骤时间线：当前步骤高亮，终止原因标红）
+├── ExecutionPanel（步数与预算消耗、提案数量、终止 / 再次执行）
+├── TraceEventList（轨迹事件流，可回看）
+└── ProposalCountBadges（模块/文档/用例计数）
 ```
 
 提交成功后由发起对话框跳转本页，页面结构与状态分支见总册 5.2。
 
 ### 5.3 产物审核区（三层树，详情页下半区）
 
-- 复用总册 5.2 任务详情页内的 `AiArtifactReviewPanel`，生成链扩展：
+- 复用总册 5.2 任务详情页内的 `AiProposalReviewPanel`，生成链扩展：
   - 三层树渲染（模块 → 文档 → 节点，用例节点带属性徽标）；
   - 内容对比视图：AI 建议 vs 既有数据（编辑后采纳时），`sourceRefs` 引用可点击回跳需求原文；
   - 「来源需求已变更」标记、`suspectedDuplicateOf` 疑似重复警示；
-  - 单条采纳 / 整树采纳 / 编辑后采纳 / 驳回附反馈（触发重试）。
+  - 单条采纳 / 整树采纳 / 编辑后采纳 / 驳回附反馈（触发再次执行）。
 
 ### 5.4 圈选建议发起与审核
 
@@ -235,7 +228,7 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 
 ### 5.5 状态分支
 
-- 任务排队 / 进行中（阶段进度）/ 失败（原因 + 重试）/ 已取消（灰态）；
+- 任务执行中（步骤与预算消耗）/ 挂起（待批准）/ 待采纳 / 已终止（原因 + 再次执行）/ 已结束（灰态）；
 - 产物全驳回、部分采纳的回执列表（逐项成败）；
 - AI 未启用 / 未配置模型时入口隐藏（总册 4.5）。
 
@@ -266,21 +259,21 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../service/ai/task/handler/TestDesignGenerationHandler` | 生成任务执行器（阶段上报、产物抽取） |
-| `server/.../service/ai/task/handler/ReviewSelectionHandler`、`PlanSelectionHandler` | 圈选建议执行器 |
-| `server/.../service/ai/task/adopt/GenerationAdoptService + Impl` | 三层产物采纳落库（调用既有模块 / 文档 / 用例服务） |
+| `server/.../service/ai/task/type/TestDesignGenerationTypeAdapter` | 生成链类型适配器（工具白名单与预算默认、提案结构定义） |
+| `server/.../service/ai/task/type/ReviewSelectionTypeAdapter`、`PlanSelectionTypeAdapter` | 圈选建议类型适配器 |
+| `server/.../service/ai/task/adopt/GenerationAdoptService + Impl` | 三层提案采纳落库（调用既有模块 / 文档 / 用例服务） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018201–1000018210 |
 | `web/src/components/project/ai/GenerationConfigDialog.vue`、`SelectionConfigDialog.vue`、`GenerationArtifactTreeReview.vue`、`SelectionReviewPanel.vue` 及子组件 | 发起与审核前端 |
 | `web/src/composables/project/ai/useGenerationSubmit.ts`、`useAiArtifactReview.ts`、`useGenerationArtifactTree.ts`、`useSelectionSubmit.ts`、`useSelectionReview.ts` + 单测 | 发起提交、产物审核与圈选调整逻辑 |
 | `web/src/components/project/functional-testing/review/ReviewCreateDialog.vue`、`plan/PlanCreateDialog.vue` | 圈选确认复用的评审 / 计划创建弹窗 |
 
 - **数据库**：无新增表、无迁移（写入均为既有业务表 + `trace_edge`，见 2 节）。
-- **OpenAPI**：`POST /api/ai/tasks` 的 `input` 按 `type` 给出 oneOf 说明；产物详情返回结构随任务详情分组暴露。
+- **OpenAPI**：`POST /api/ai/tasks` 的 `input` 按 `type` 给出 oneOf 说明；提案详情返回结构随任务详情分组暴露。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：输入状态校验矩阵、快照执行（执行中变更不中断）、落库 + 建边事务回滚、编辑后采纳差异记录、圈选用例存在性与创建参数校验、同输入去重、取消不留数据；
-- 前端：配置对话框校验与置灰、六阶段时间线、三层树审核四类动作、疑似重复与来源变更提示、圈选调整后提交。
+- 后端：输入状态校验矩阵、快照执行（执行中变更不中断）、落库 + 建边事务回滚、编辑后采纳差异记录、圈选用例存在性与创建参数校验、同输入去重、终止不留数据；
+- 前端：配置对话框校验与置灰、计划步骤时间线与轨迹回看、三层树审核四类动作、疑似重复与来源变更提示、圈选调整后提交。
 
 ---
 
@@ -294,3 +287,4 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | V1.0 | 2026-10-06 | 前端设计补圈选建议发起入口（需求列表「AI 圈选建议」，5.1 / 5.4） |
 | V1.0 | 2026-10-06 | 错误码表补 1000018210；实施说明文件清单对齐前端实际实现（组件与组合式路径、圈选创建弹窗） |
 | V1.0 | 2026-10-15 | 发起入口按钮与配置对话框更名「AI 生成用例」，长语义由 tooltip 与对话框首行说明承载 |
+| V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分（执行 / 轨迹 / 提案 / 采纳）；3.3 固定六阶段改为 AI 计划步骤 + 轨迹回看；产物全面改称提案，确认端点改为 `proposals/confirm`；重试改「再次执行」（新执行实例）；5.2 详情页组件改为 PlanTimeline / ExecutionPanel / TraceEventList；实施说明改类型适配器口径 |

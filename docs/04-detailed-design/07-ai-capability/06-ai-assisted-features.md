@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-对**辅助功能**能力域进行详细设计：定义用例补全、用例级别推荐、测试用例执行顺序推荐三项能力的任务输入、产物结构、采纳落库与追溯规则。任务资源、产物确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与产物语义。
+对**辅助功能**能力域进行详细设计：定义用例补全、用例级别推荐、测试用例执行顺序推荐三项能力的任务输入、提案结构、采纳落库与追溯规则。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
 
 ### 1.2 范围与对应设计
 
@@ -29,7 +29,8 @@
 
 本分册**不新增表**，仅补一列：
 
-- 辅助任务与产物：`ai_task`（`type = case_complete / case_priority / plan_order`，产物在 `result`）、确认记录 `ai_artifact_confirm`；
+- 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_complete / case_priority / plan_order`）；
+- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_suggestion / priority_suggestion / order_suggestion`）；
 - 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；补充节点的派生边经矩阵服务写 `trace_edge`（DDL 见 `05-trace-matrix.md` 2.2）；
 - 用例标签随补全建议采纳写入 `test_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），补列迁移 `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` 与 `server/src/main/resources/db/schema.sql` 同步维护，满足 C5；该列不进向量索引，也不参与脑图渲染。
 
@@ -39,7 +40,7 @@
 
 ### 3.1 通用约定
 
-- 全部执行经总册 3.6 统一任务资源；本文档只定义三类任务的 `type`、`input`、产物与承接语义。
+- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义三类任务的 `type`、`input`、提案与承接语义。
 - 上下文头：`X-Active-Workspace` + `X-Active-Project`（发起、确认一致）；响应 `Result<T>`，示例**仅展示 `data`**。
 - 资源权限：`case_complete` / `case_priority` 要求既有脑图编辑权限，`plan_order` 要求既有计划执行权限；确认另需总册 `ai:confirm`。
 
@@ -65,7 +66,7 @@
 | nodeIds | uuid[] | 是 | 选中的用例节点（1–50，否则 1000018302）；非用例节点拒绝（1000018307） |
 | scope.requirementIds | uuid[] | 否 | 显式上游需求范围；缺省时按节点既有派生边回溯上游需求作为上下文 |
 
-- **产物**（`kind = case_suggestion`，逐节点一条，`confirmStatus = pending`）：
+- **提案**（`kind = case_suggestion`，逐节点一条，`confirmStatus = pending`）：
 
 ```json
 {
@@ -111,7 +112,7 @@
 }
 ```
 
-- **产物**（`kind = priority_suggestion`，`confirmStatus = pending`）：
+- **提案**（`kind = priority_suggestion`，`confirmStatus = pending`）：
 
 ```json
 {
@@ -148,7 +149,7 @@
 | planId | uuid | 是 | 测试计划（须属当前项目，否则 1000018303） |
 | round | number | 否 | 轮次，默认当前激活轮次 |
 
-- **产物**（`kind = order_suggestion`，`confirmStatus = pending`）：
+- **提案**（`kind = order_suggestion`，`confirmStatus = pending`）：
 
 ```json
 {
@@ -256,7 +257,7 @@ PlanOrderPanel
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../service/ai/task/handler/CaseCompleteHandler`、`CasePriorityHandler`、`PlanOrderHandler` | 任务执行器（共用 `CaseAssistSupport` 解析输入与产物） |
+| `server/.../service/ai/task/type/CaseCompleteTypeAdapter`、`CasePriorityTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、提案结构，共用 `CaseAssistSupport` 解析输入） |
 | `server/.../service/ai/task/adopt/CaseCompleteAdopter`、`CasePriorityAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用既有用例 / 计划服务与修改记录服务） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018307 |
 | `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` | `test_case_node.tags` 补列迁移（与 `server/src/main/resources/db/schema.sql` 同步） |
@@ -264,7 +265,7 @@ PlanOrderPanel
 | `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与面板视图模型 |
 
 - **数据库**：无新增表；`test_case_node.tags` 补列迁移（见 2 节），落库均为既有业务表 + `trace_edge`。
-- **OpenAPI**：三个任务 type 的 `input / 产物` 结构随任务分组暴露；确认复用总册 3.6.5。
+- **OpenAPI**：三个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
 
@@ -279,3 +280,4 @@ PlanOrderPanel
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-10 | 随落地实现勘误：2 节补 `test_case_node.tags` 补列迁移并撤销「无迁移」口径，5.2 补多节点切换与结构块落位，5.3 补面板动作区置灰原因，7 节文件清单对齐实际类名与目录 |
+| V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分；产物改称提案；执行器改类型适配器口径 |
