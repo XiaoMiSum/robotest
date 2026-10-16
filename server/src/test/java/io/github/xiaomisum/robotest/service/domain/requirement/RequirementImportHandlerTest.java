@@ -36,6 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -170,7 +172,7 @@ class RequirementImportHandlerTest {
                 {"documentMeta":{"detectedVersion":"V2.3","versionEvidence":"本文档对应 V2.3 版本"},
                  "artifacts":[{"content":{"title":"验证码必填","description":"d","moduleId":null,"priority":"high"}}]}
                 """;
-        when(context.chat(any(), eq("rendered prompt"), eq(null)))
+        when(context.chat(any(), eq("rendered prompt"), isNull(AiChatMedia.class)))
                 .thenReturn(new AiChatReply(modelOutput, 11, 22));
 
         TaskResult result = handler.execute(context);
@@ -202,7 +204,7 @@ class RequirementImportHandlerTest {
         when(fileResourceService.readBytes(FILE_ID)).thenReturn(file("需求.docx", docx));
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of());
         when(context.prompt(any(), any())).thenReturn("p");
-        when(context.chat(any(), any(), any())).thenReturn(
+        when(context.chat(any(), any(), nullable(AiChatMedia.class))).thenReturn(
                 new AiChatReply("{\"documentMeta\":null,\"artifacts\":[]}", 1, 1));
 
         TaskResult result = handler.execute(context);
@@ -247,7 +249,7 @@ class RequirementImportHandlerTest {
         when(fileResourceService.readBytes(FILE_ID)).thenReturn(file("截图.png", png));
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of());
         when(context.prompt(any(), any())).thenReturn("p");
-        when(context.chat(any(), any(), any())).thenReturn(
+        when(context.chat(any(), any(), nullable(AiChatMedia.class))).thenReturn(
                 new AiChatReply("{\"documentMeta\":{\"detectedVersion\":null},\"artifacts\":[]}", 5, 6));
 
         handler.execute(context);
@@ -304,7 +306,7 @@ class RequirementImportHandlerTest {
                 .thenReturn(file("a.md", "正文".getBytes(StandardCharsets.UTF_8)));
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of());
         when(context.prompt(any(), any())).thenReturn("p");
-        when(context.chat(any(), any(), any())).thenReturn(new AiChatReply("这不是 JSON", 1, 1));
+        when(context.chat(any(), any(), nullable(AiChatMedia.class))).thenReturn(new AiChatReply("这不是 JSON", 1, 1));
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> handler.execute(context));
@@ -323,7 +325,7 @@ class RequirementImportHandlerTest {
         String modelOutput = """
                 {"documentMeta":{"detectedVersion":"%s","versionEvidence":"%s"},"artifacts":[]}
                 """.formatted("V" + "9".repeat(60), "引语".repeat(400));
-        when(context.chat(any(), any(), any())).thenReturn(new AiChatReply(modelOutput, 1, 1));
+        when(context.chat(any(), any(), nullable(AiChatMedia.class))).thenReturn(new AiChatReply(modelOutput, 1, 1));
 
         TaskResult result = handler.execute(context);
 

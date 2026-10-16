@@ -156,24 +156,32 @@ public class AiModelClient {
         if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             messages.add(new SystemMessage(request.systemPrompt()));
         }
-        AiChatMedia media = request.media();
-        if (hasMedia(request)) {
-            messages.add(UserMessage.builder()
-                    .text(request.userPrompt())
-                    .media(Media.builder()
-                            .mimeType(MimeTypeUtils.parseMimeType(media.mimeType()))
-                            .data(media.data())
-                            .build())
-                    .build());
-        } else {
+        List<Media> medias = toMedias(request);
+        if (medias.isEmpty()) {
             messages.add(new UserMessage(request.userPrompt()));
+        } else {
+            messages.add(UserMessage.builder().text(request.userPrompt()).media(medias).build());
         }
         return new Prompt(messages);
     }
 
-    /** 媒体非空判定：构建提示词与用量 call_type=vision（裁决 D5）共用同一口径 */
+    /** 渲染随行媒体列表（详设 4.2 多模态直传）：字节为空的条目跳过 */
+    private static List<Media> toMedias(AiChatRequest request) {
+        return request.media().stream()
+                .filter(AiModelClient::hasBytes)
+                .map(media -> Media.builder()
+                        .mimeType(MimeTypeUtils.parseMimeType(media.mimeType()))
+                        .data(media.data())
+                        .build())
+                .toList();
+    }
+
+    /** 媒体非空判定：构建提示词与用量 call_type=vision（详设 3.7 / 裁决 D5）共用同一口径 */
     private static boolean hasMedia(AiChatRequest request) {
-        AiChatMedia media = request.media();
+        return request.media().stream().anyMatch(AiModelClient::hasBytes);
+    }
+
+    private static boolean hasBytes(AiChatMedia media) {
         return media != null && media.data() != null && media.data().length > 0;
     }
 
