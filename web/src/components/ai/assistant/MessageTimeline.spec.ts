@@ -25,6 +25,7 @@ function makeMessage(overrides: Partial<AiAssistantMessage> = {}): AiAssistantMe
     role: 'assistant',
     content: '答案',
     attachments: null,
+    images: null,
     intent: null,
     citations: [],
     execution: null,

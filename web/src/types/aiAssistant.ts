@@ -8,6 +8,26 @@ export interface AiAssistantEntityRef {
   entityTitle?: string | null
 }
 
+/** 附图引用（详设 3.5）：仅存引用不存字节，展示时经文件模块换签 */
+export interface AiAssistantImageRef {
+  /** 文件资源 ID */
+  fileId: string
+  /** 原始文件名（发送时由服务端落盘补写） */
+  name?: string | null
+}
+
+/** 输入区待发附图（交互 05 §2.1）：选择即上传，完成后才可随消息发送 */
+export interface AiAssistantPendingImage {
+  /** 本地唯一键：上传前后不变，用于移除与重试定位 */
+  key: string
+  name: string
+  status: 'uploading' | 'done' | 'failed'
+  /** 上传成功后的文件资源 ID（发送携带的唯一字段） */
+  fileId?: string
+  /** 上传失败保留原文件供重试；业务渲染不使用 */
+  file: File
+}
+
 export interface AiAssistantConversation {
   id: string
   title: string
@@ -122,6 +142,8 @@ export interface AiAssistantMessage {
   /** 消息正文（Markdown），流式生成中为已落盘片段 */
   content: string | null
   attachments: AiAssistantEntityRef[] | null
+  /** 附图引用（详设 3.5）：发送携带与回显共用，缩略图经换签加载 */
+  images: AiAssistantImageRef[] | null
   intent: AiAssistantIntent | null
   citations: AiAssistantCitation[] | null
   execution: AiAssistantExecution | null
@@ -137,6 +159,8 @@ export interface AiAssistantMessagePageQuery {
 export interface AiAssistantSendMessagePayload {
   content: string
   attachments?: AiAssistantEntityRef[]
+  /** 附图引用：只传 fileId，文件名由服务端落盘时补写 */
+  images?: { fileId: string }[]
 }
 
 export interface AiAssistantExecutePayload {

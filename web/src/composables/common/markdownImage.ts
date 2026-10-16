@@ -47,16 +47,24 @@ function fileExtension(name: string): string {
   return index < 0 ? '' : name.slice(index + 1).toLowerCase()
 }
 
+/** 图片类型与单张体积校验（正文贴图 / 助手附图共用口径，文件管理详设 5.2）：非法返回原因，合法返回 null */
+export function invalidImageReason(file: File): string | null {
+  if (file.size > MAX_BODY_IMAGE_SIZE) {
+    return `「${file.name}」超过 10MB`
+  }
+  if (!IMAGE_TYPE.test(file.type) || !IMAGE_EXTENSIONS.has(fileExtension(file.name))) {
+    return `「${file.name}」不是支持的图片格式（jpg/jpeg/png/gif/webp/bmp）`
+  }
+  return null
+}
+
 /** 上传正文图片，逐个提交；单张失败只提示并跳过，不阻断其余图片 */
 export async function uploadMarkdownImages(files: File[]): Promise<BodyImage[]> {
   const images: BodyImage[] = []
   for (const file of files) {
-    if (file.size > MAX_BODY_IMAGE_SIZE) {
-      ElMessage.warning(`「${file.name}」超过 10MB，无法插入正文`)
-      continue
-    }
-    if (!IMAGE_TYPE.test(file.type) || !IMAGE_EXTENSIONS.has(fileExtension(file.name))) {
-      ElMessage.warning(`「${file.name}」不是支持的图片格式（jpg/jpeg/png/gif/webp/bmp），无法插入正文`)
+    const reason = invalidImageReason(file)
+    if (reason) {
+      ElMessage.warning(`${reason}，无法插入正文`)
       continue
     }
     try {
@@ -69,7 +77,8 @@ export async function uploadMarkdownImages(files: File[]): Promise<BodyImage[]> 
   return images
 }
 
-async function signedUrl(fileId: string): Promise<string> {
+/** 单资源换签并缓存（提前失效）：正文渲染与助手附图缩略图共用，跨组件实例共享 */
+export async function signedUrlFor(fileId: string): Promise<string> {
   const cached = signedUrlCache.get(fileId)
   if (cached && cached.expiresAt > Date.now()) return cached.url
   const { url, expiresIn } = await fetchFileAccessUrl(fileId)
@@ -114,7 +123,7 @@ async function resolveImage(img: HTMLImageElement): Promise<void> {
   if (!fileId || pendingImages.has(img)) return
   pendingImages.add(img)
   try {
-    const url = await signedUrl(fileId)
+    const url = await signedUrlFor(fileId)
     img.src = url
     // 签名地址仍不可达（对象被治理或签名端点不可达）时降级为文字占位
     img.addEventListener('error', () => markBroken(img), { once: true })

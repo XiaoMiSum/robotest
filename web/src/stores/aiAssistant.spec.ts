@@ -60,6 +60,7 @@ function makeMessage(overrides: Partial<AiAssistantMessage> = {}): AiAssistantMe
     role: 'assistant',
     content: '回答',
     attachments: null,
+    images: null,
     intent: null,
     citations: null,
     execution: null,
@@ -363,6 +364,104 @@ describe('stores/aiAssistant 发送与流式', () => {
     expect(store.drafts['']).toBe('')
     expect(store.attachments.c1).toEqual([ref])
     expect(store.attachments['']).toEqual([])
+  })
+})
+
+describe('stores/aiAssistant 待发附图', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setActivePinia(createPinia())
+  })
+
+  it('登记为上传态，完成后回写文件 ID 与失败 / 重试定位', () => {
+    const store = useAiAssistantStore()
+    const entries = store.stageImages([
+      new File(['a'], '截图.png', { type: 'image/png' }),
+      new File(['b'], 'b.png', { type: 'image/png' }),
+    ])
+
+    expect(store.imagesForCurrent).toHaveLength(2)
+    expect(store.imagesForCurrent[0]).toMatchObject({
+      key: entries[0].key,
+      name: '截图.png',
+      status: 'uploading',
+    })
+
+    store.updatePendingImage(entries[0].conversationKey, entries[0].key, {
+      status: 'done',
+      fileId: 'f1',
+    })
+    store.updatePendingImage(entries[1].conversationKey, entries[1].key, { status: 'failed' })
+    expect(store.imagesForCurrent[0]).toMatchObject({ status: 'done', fileId: 'f1' })
+
+    // 仅失败条目可重试，且复用同一原文件
+    expect(store.retrySource(entries[1].key)).toEqual({
+      conversationKey: '',
+      file: expect.any(File),
+    })
+    expect(store.retrySource(entries[0].key)).toBeNull()
+
+    store.removeImage(entries[1].key)
+    expect(store.imagesForCurrent.map((item) => item.key)).toEqual([entries[0].key])
+  })
+
+  it('附图未上传完成时不发送且不消耗输入（不静默丢图）', async () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    store.conversations = [makeConversation()]
+    store.stageImages([new File(['a'], 'a.png', { type: 'image/png' })])
+
+    await store.send('看图')
+
+    expect(mocks.streamAssistantMessage).not.toHaveBeenCalled()
+    expect(store.imagesForCurrent).toHaveLength(1)
+  })
+
+  it('发送携带已完成附图：请求体仅含 fileId，乐观消息含名称并即时清空', () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    store.conversations = [makeConversation()]
+    const entries = store.stageImages([new File(['a'], '截图.png', { type: 'image/png' })])
+    store.updatePendingImage(entries[0].conversationKey, entries[0].key, {
+      status: 'done',
+      fileId: 'f1',
+    })
+    mocks.streamAssistantMessage.mockReturnValue(new Promise(() => {}))
+
+    void store.send('看图问题')
+
+    expect(mocks.streamAssistantMessage).toHaveBeenCalledWith(
+      'c1',
+      { content: '看图问题', images: [{ fileId: 'f1' }] },
+      expect.any(Function),
+    )
+    expect(store.messages[store.messages.length - 1]).toMatchObject({
+      role: 'user',
+      images: [{ fileId: 'f1', name: '截图.png' }],
+    })
+    expect(store.imagesForCurrent).toHaveLength(0)
+  })
+
+  it('无视觉模型被拒（1000018124）回填输入与附图供重发', async () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    store.conversations = [makeConversation()]
+    const entries = store.stageImages([new File(['a'], '截图.png', { type: 'image/png' })])
+    store.updatePendingImage(entries[0].conversationKey, entries[0].key, {
+      status: 'done',
+      fileId: 'f1',
+    })
+    mocks.streamAssistantMessage.mockRejectedValue(
+      new mocks.AssistantStreamError(1000018124, '当前无可用视觉模型'),
+    )
+
+    await store.send('看图问题')
+
+    expect(store.streamError).toEqual({ code: 1000018124, msg: '当前无可用视觉模型' })
+    expect(store.drafts['c1']).toBe('看图问题')
+    expect(store.imagesForCurrent).toEqual([
+      expect.objectContaining({ key: entries[0].key, status: 'done', fileId: 'f1' }),
+    ])
   })
 })
 
