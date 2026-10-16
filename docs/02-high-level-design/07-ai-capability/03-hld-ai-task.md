@@ -23,7 +23,7 @@ AI 能力模块的公共底座（模型通道等）见 `docs/02-high-level-desig
 | 术语 | 定义 |
 | ---- | ---- |
 | AI Task（任务） | 一次面向明确目标的 AI 工作请求，任务框架的顶层对象 |
-| Task Run（执行） | 任务的一次运行实例；同一任务可多次运行，每次运行有独立轨迹与预算 |
+| Task Execution（执行） | 任务的一次运行实例；同一任务可多次执行，每次执行有独立轨迹与预算 |
 | Agent 循环 | 执行期内由 AI 逐步决策「下一步做什么」的通用循环，应用层不预设流程 |
 | 工具（Tool） | 应用层向 AI 暴露的受控能力单元，声明参数、权限与副作用级别 |
 | 预算护栏 | 单次执行的硬性资源上限（步数、token、时长、成本） |
@@ -136,25 +136,25 @@ AI Task 拆为两个平面，编排权按平面严格分离：
 
 ## 4. 数据设计
 
-实体与关系（实体级，字段、DDL 与索引留详细设计）：
+实体与关系（实体级，字段、DDL 与索引留详细设计）。命名约定：本框架全部实体收敛在 `ai_task_` 域内——类名统一以 `AiTask` 为域前缀（缩写按规范写作 `Ai`），表名统一以 `ai_task_` 为前缀；该域前缀为 AI Task 框架专用，其他模块不得复用：
 
 ```mermaid
 erDiagram
-    AITask ||--o{ TaskRun : 产生
-    TaskRun ||--o{ TaskEvent : 留痕
-    TaskRun ||--o{ Proposal : 产出
-    Proposal ||--o| Adoption : 承载采纳结果
-    ToolDefinition ||--o{ TaskRun : 受白名单约束
+    AiTask ||--o{ AiTaskExecution : 产生
+    AiTaskExecution ||--o{ AiTaskTraceEvent : 留痕
+    AiTaskExecution ||--o{ AiTaskProposal : 产出
+    AiTaskProposal ||--o| AiTaskAdoption : 承载采纳结果
+    AiTaskTool ||--o{ AiTaskExecution : 受白名单约束
 ```
 
-| 实体 | 职责 |
+| 实体（类名 / 表名） | 职责 |
 | ---- | ---- |
-| AITask | 任务本体：目标、上下文装配摘要、所属作用域、生命周期状态 |
-| TaskRun | 一次执行：工具白名单与预算快照、执行状态、终止原因 |
-| TaskEvent | 轨迹事件：决策、工具调用与结果摘要、状态变化的只增时序记录 |
-| Proposal | 提案：结构化产物与证据链，待采纳态载体（不属业务库） |
-| Adoption | 采纳记录：采纳人、编辑后载荷摘要、落库结果与目标业务实体引用 |
-| ToolDefinition | 工具注册项：参数结构、权限点、作用域校验方式、副作用级别 |
+| AiTask / `ai_task` | 任务本体：目标、上下文装配摘要、所属作用域、生命周期状态 |
+| AiTaskExecution / `ai_task_execution` | 一次执行：工具白名单与预算快照、执行状态、终止原因 |
+| AiTaskTraceEvent / `ai_task_trace_event` | 轨迹事件：决策、工具调用与结果摘要、状态变化的只增时序记录 |
+| AiTaskProposal / `ai_task_proposal` | 提案：结构化产物与证据链，待采纳态载体（不属业务库） |
+| AiTaskAdoption / `ai_task_adoption` | 采纳记录：采纳人、编辑后载荷摘要、落库结果与目标业务实体引用 |
+| AiTaskTool / `ai_task_tool` | 工具注册项：参数结构、权限点、作用域校验方式、副作用级别 |
 
 ## 5. 接口设计概要
 
@@ -193,3 +193,4 @@ erDiagram
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-16 | 初始版本：双平面模型、Agent 循环、工具注册表、预算护栏、轨迹与提案采纳机制 |
+| V1.0 | 2026-10-16 | 实体命名收敛 `ai_task_` 域：AiTask / AiTaskExecution / AiTaskTraceEvent / AiTaskProposal / AiTaskAdoption / AiTaskTool |
