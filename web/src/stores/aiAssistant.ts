@@ -77,6 +77,8 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     streaming: false,
     /** delta 累积缓冲：done 后以服务端持久化内容对齐 */
     streamText: '',
+    /** tool_call 进度帧的步骤文案（如「查询项目」），最终内容到达后由组件侧让位 */
+    streamStage: '' as string,
     /** SSE error 事件或发送前业务失败的原因，重新发送前保留展示 */
     streamError: null as AiAssistantSseError | null,
     /** 断线恢复中（StreamIndicator「恢复中…」） */
@@ -252,6 +254,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       this.messagePages = 1
       this.messageTotal = 0
       this.streamText = ''
+      this.streamStage = ''
       this.streamError = null
       this.streaming = false
     },
@@ -264,6 +267,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       this.messagePages = 1
       this.messageTotal = 0
       this.streamText = ''
+      this.streamStage = ''
       this.streamError = null
       await this.loadMessages()
       // 刷新或上次断线遗留的未完成消息：进入即自动补齐，无需用户干预（详设 2.4）
@@ -348,6 +352,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       this.stopRecovery()
       this.streamError = null
       this.streamText = ''
+      this.streamStage = ''
       this.streaming = true
       try {
         let conversationId = this.currentId
@@ -392,6 +397,9 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
           (event) => {
             if (event.type === 'delta') {
               this.streamText += event.data.text
+            } else if (event.type === 'tool_call') {
+              // 查询进行态（交互 05 §2.2）：轻量步骤文案，随最终内容替换
+              this.streamStage = event.data.summary
             } else if (event.type === 'done') {
               sawTerminal = true
             } else if (event.type === 'error') {
@@ -408,6 +416,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
           await this.refreshMessages()
           // 终态以服务端持久化内容为准，清空流式缓冲避免与消息双显
           this.streamText = ''
+          this.streamStage = ''
           // 标题首问回填与 messageCount 由服务端更新，静默对齐列表
           void this.loadConversations(this.keyword, true)
         } else {
@@ -467,6 +476,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
         if (!pending || isTerminalMessageStatus(pending.status)) {
           // 补齐完成：服务端内容已完整落盘，流式缓冲让位给持久化消息
           this.streamText = ''
+          this.streamStage = ''
           this.stopRecovery()
         }
       } catch {

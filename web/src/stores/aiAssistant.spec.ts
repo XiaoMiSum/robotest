@@ -328,6 +328,30 @@ describe('stores/aiAssistant 发送与流式', () => {
     expect(store.attachments.c1).toEqual([])
   })
 
+  it('tool_call 进度帧更新查询进行态并在终态清空', async () => {
+    const store = useAiAssistantStore()
+    store.currentId = 'c1'
+    store.conversations = [makeConversation()]
+    mocks.fetchAiAssistantConversations.mockResolvedValue({ list: [], total: 0 })
+    mocks.fetchAiAssistantMessages.mockResolvedValue(page([]))
+    let stageDuringStream = ''
+    mocks.streamAssistantMessage.mockImplementation(
+      async (_id: string, _payload: unknown, onEvent: (e: unknown) => void) => {
+        onEvent({ type: 'tool_call', data: { toolName: 'query_projects', summary: '查询项目' } })
+        stageDuringStream = store.streamStage
+        onEvent({ type: 'delta', data: { text: '答案' } })
+        onEvent({ type: 'done', data: { messageId: 'm2' } })
+      },
+    )
+
+    await store.send('问题')
+
+    expect(stageDuringStream).toBe('查询项目')
+    // 终态后流式缓冲与进行态一并让位给服务端持久化内容（交互 05 §2.2）
+    expect(store.streamStage).toBe('')
+    expect(store.streamText).toBe('')
+  })
+
   it('校验阶段被拒回填草稿与附件并撤回乐观消息', async () => {
     const store = useAiAssistantStore()
     store.currentId = 'c1'
