@@ -7,7 +7,6 @@ import {
   fetchProjectModuleTree,
   fetchRequirementChangeLogs,
   getRequirement,
-  splitRequirement,
   unarchiveRequirement,
   updateRequirement,
 } from '@/services/project'
@@ -23,14 +22,12 @@ import type {
   RequirementUpdatePayload,
   WorkspaceMember,
 } from '@/types'
-import { canSplitRequirement, isRequirementReadonly } from '@/composables/project/requirement/requirementPresentation'
+import { isRequirementReadonly } from '@/composables/project/requirement/requirementPresentation'
 
 const LOG_PAGE_SIZE = 20
 const VERSION_MAX_LENGTH = 50
 // 需求不存在或越权：页面切 404 分支（错误码 1000018001）
 const REQUIREMENT_NOT_FOUND = 1000018001
-/** 已有进行中拆分任务（1000018013）：提示引导去任务中心 */
-const REQUIREMENT_TASK_IN_PROGRESS = 1000018013
 
 function stripDocuments(nodes: ProjectModule[]): ProjectModule[] {
   return nodes
@@ -342,7 +339,7 @@ export function useRequirementDetail() {
     const title = detail.value?.title ?? ''
     try {
       await ElMessageBox.confirm(
-        `归档后「${title}」只读且不可拆分，可在本页取消归档（条目将回到草稿状态）。`,
+        `归档后「${title}」只读，可在本页取消归档（条目将回到草稿状态）。`,
         '确认归档',
         { type: 'warning', confirmButtonText: '归档', cancelButtonText: '取消' },
       )
@@ -365,9 +362,8 @@ export function useRequirementDetail() {
     await runStatusAction(() => unarchiveRequirement(requirementId), '已取消归档，条目回到草稿状态')
   }
 
-  // ==================== AI 拆分 ====================
+  // ==================== AI 生成 ====================
   const aiAvailable = ref(false)
-  const splitting = ref(false)
 
   async function loadAiStatus(): Promise<void> {
     try {
@@ -379,59 +375,10 @@ export function useRequirementDetail() {
     }
   }
 
-  const canSplit = computed(
-    () =>
-      aiAvailable.value &&
-      authStore.hasPermission('requirement:edit') &&
-      detail.value !== null &&
-      canSplitRequirement(detail.value),
-  )
-
   /** 发起 AI 生成入口（交互 04 §1）：AI 可用且具备任务提交权限，状态条件由入口置灰 */
   const canLaunchGeneration = computed(
     () => aiAvailable.value && authStore.hasPermission('ai:task'),
   )
-
-  async function handleSplit(): Promise<void> {
-    const title = detail.value?.title ?? ''
-    try {
-      await ElMessageBox.confirm(
-        `将以「${title}」为输入提交 AI 拆分任务，提交后跳转任务详情页跟踪进度并审核拆分建议。`,
-        '提交 AI 拆分',
-        { type: 'info', confirmButtonText: '提交拆分', cancelButtonText: '取消' },
-      )
-    } catch {
-      return
-    }
-    splitting.value = true
-    try {
-      const result = await splitRequirement(requirementId)
-      ElMessage.success('拆分任务已提交')
-      void router.push(`/workspace/projects/ai/tasks/${result.taskId}`)
-    } catch (err) {
-      // 已有进行中任务：引导去任务中心看该条目的进行中任务（交互 06 §2.3）
-      if (errorCode(err) === REQUIREMENT_TASK_IN_PROGRESS) {
-        try {
-          await ElMessageBox.confirm(
-            errorMessage(err, '已存在进行中的导入或拆分任务'),
-            '无法提交拆分',
-            {
-              type: 'warning',
-              confirmButtonText: '前往任务中心',
-              cancelButtonText: '留在本页',
-            },
-          )
-        } catch {
-          return
-        }
-        void router.push('/workspace/projects/ai/tasks')
-        return
-      }
-      ElMessage.error(errorMessage(err, '提交拆分失败'))
-    } finally {
-      splitting.value = false
-    }
-  }
 
   // ==================== 派生状态 ====================
   const isReadonly = computed(() => (detail.value ? isRequirementReadonly(detail.value) : false))
@@ -495,10 +442,7 @@ export function useRequirementDetail() {
     handleArchive,
     handleUnarchive,
     aiAvailable,
-    splitting,
-    canSplit,
     canLaunchGeneration,
-    handleSplit,
     loadOptions,
     loadAiStatus,
     load,

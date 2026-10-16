@@ -948,22 +948,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/requirements/{id}/split": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["splitRequirement"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/requirements/{id}/confirm": {
         parameters: {
             query?: never;
@@ -2460,22 +2444,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getRequirementTrace"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/requirements/{id}/split-logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getSplitLogs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5555,9 +5523,6 @@ export interface components {
             /** Format: uuid */
             id?: string;
             sourceType?: string;
-            /** Format: uuid */
-            sourceRequirementId?: string;
-            sourceRequirementCode?: string;
             /** Format: uuid */
             aiTaskId?: string;
             status?: string;
@@ -9301,28 +9266,6 @@ export interface operations {
             };
         };
     };
-    splitRequirement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultRequirementSplitSubmitRespDTO"];
-                };
-            };
-        };
-    };
     confirmRequirement: {
         parameters: {
             query?: never;
@@ -12099,31 +12042,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultTraceChainRespDTO"];
-                };
-            };
-        };
-    };
-    getSplitLogs: {
-        parameters: {
-            query?: {
-                pageNo?: number;
-                pageSize?: number;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultRequirementSplitRecordRespDTO"];
                 };
             };
         };

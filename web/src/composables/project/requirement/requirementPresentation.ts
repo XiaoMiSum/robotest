@@ -65,11 +65,6 @@ export function canUnarchiveRequirement(detail: Pick<RequirementDetail, 'status'
   return detail.status === 'archived'
 }
 
-/** 归档条目不可拆分（1000018009），进行中任务由服务端再校验（1000018013） */
-export function canSplitRequirement(detail: Pick<RequirementDetail, 'status'>): boolean {
-  return detail.status !== 'archived'
-}
-
 /** 归档条目只读（1000018004）：属性面板与标题编辑整体禁用 */
 export function isRequirementReadonly(detail: Pick<RequirementDetail, 'status'>): boolean {
   return detail.status === 'archived'
