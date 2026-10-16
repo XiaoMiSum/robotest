@@ -67,9 +67,15 @@ public class AiTaskExecutor {
             fail(taskId, ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
             return;
         }
-        AiModelConfig model = settingsReader.resolveModel(task.getModelId());
+        // 必需能力复验（详设 4.2）：候选被停用后仍保证能力安全，不会把图片发给无视觉能力的模型
+        String requiredCapability = handler.requiredCapability(task.getInput() == null ? Map.of() : task.getInput());
+        AiModelConfig model = requiredCapability == null
+                ? settingsReader.resolveModel(task.getModelId())
+                : settingsReader.resolveModel(task.getModelId(), requiredCapability);
         if (model == null) {
-            fail(taskId, ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED);
+            fail(taskId, requiredCapability == null
+                    ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
+                    : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
             return;
         }
         TaskExecutionContext context = new TaskExecutionContext(

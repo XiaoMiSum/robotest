@@ -226,7 +226,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode FILE_ACCESS_URL_FAILED = ErrorCode.of(1000018027, "文件访问地址签发失败");
     public static final ErrorCode FILE_DELETE_FAILED = ErrorCode.of(1000018028, "文件删除失败");
 
-    // ========== AI 配置与任务引擎 1,000,018,101-1,000,018,123（AI 底座详设 6） ==========
+    // ========== AI 配置与任务引擎 1,000,018,101-1,000,018,124（AI 底座详设 6） ==========
     public static final ErrorCode AI_DISABLED = ErrorCode.of(1000018101, "AI 能力未启用（总开关关闭）");
     public static final ErrorCode AI_MODEL_NOT_FOUND = ErrorCode.of(1000018102, "模型配置不存在");
     public static final ErrorCode AI_MODEL_INVALID = ErrorCode.of(1000018103, "模型配置参数非法");
@@ -250,6 +250,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_NO_ADMIN_PERMISSION = ErrorCode.of(1000018121, "无 AI 配置管理权限");
     public static final ErrorCode AI_VECTOR_INDEX_UNAVAILABLE = ErrorCode.of(1000018122, "向量索引不可用（全量重建中）");
     public static final ErrorCode AI_WAIT_SECONDS_INVALID = ErrorCode.of(1000018123, "同步等待参数超限（0–10 秒）");
+    public static final ErrorCode AI_VISION_MODEL_NOT_CONFIGURED = ErrorCode.of(1000018124, "未配置支持视觉能力的已启用模型");
 
     // ========== 追溯矩阵 1,000,018,151-1,000,018,161（追溯矩阵详设 6） ==========
     public static final ErrorCode TRACE_EDGE_NOT_FOUND = ErrorCode.of(1000018151, "追溯边不存在");
