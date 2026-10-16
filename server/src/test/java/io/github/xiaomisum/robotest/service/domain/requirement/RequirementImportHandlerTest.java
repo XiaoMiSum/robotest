@@ -2,9 +2,12 @@ package io.github.xiaomisum.robotest.service.domain.requirement;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
+import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.domain.file.FileContent;
@@ -45,6 +48,8 @@ class RequirementImportHandlerTest {
 
     @Mock
     private ProjectModuleMapper projectModuleMapper;
+    @Mock
+    private FileResourceMapper fileResourceMapper;
     @Mock
     private FileResourceService fileResourceService;
     @Mock
@@ -123,6 +128,33 @@ class RequirementImportHandlerTest {
         when(user.getPermissions()).thenReturn(List.of("requirement:create"));
 
         handler.checkPermission(user); // 不抛即通过
+    }
+
+    // ---------- 必需能力派生（详设 4.2 / WP-V.2） ----------
+
+    @Test
+    void requiredCapability_imageFile_returnsVision() {
+        FileResource file = new FileResource();
+        file.setFileName("截图.PNG"); // 扩展名大小写不敏感
+        when(fileResourceMapper.selectById(FILE_ID)).thenReturn(file);
+
+        assertEquals(AiSettingsReader.CAPABILITY_VISION,
+                handler.requiredCapability(Map.of("fileId", FILE_ID.toString())));
+    }
+
+    @Test
+    void requiredCapability_nonImageFile_returnsNull() {
+        FileResource file = new FileResource();
+        file.setFileName("需求.docx");
+        when(fileResourceMapper.selectById(FILE_ID)).thenReturn(file);
+
+        assertNull(handler.requiredCapability(Map.of("fileId", FILE_ID.toString())));
+    }
+
+    @Test
+    void requiredCapability_fileMissing_returnsNull() {
+        // 文件已删除：不派生能力，缺失交由执行期按 1000018011 失败
+        assertNull(handler.requiredCapability(Map.of("fileId", FILE_ID.toString())));
     }
 
     // ---------- 执行：三类文件 ----------

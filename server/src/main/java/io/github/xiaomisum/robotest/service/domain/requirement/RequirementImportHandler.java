@@ -2,10 +2,13 @@ package io.github.xiaomisum.robotest.service.domain.requirement;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
+import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
@@ -75,6 +78,8 @@ public class RequirementImportHandler implements TaskHandler {
     @Resource
     private ProjectModuleMapper projectModuleMapper;
     @Resource
+    private FileResourceMapper fileResourceMapper;
+    @Resource
     private FileResourceService fileResourceService;
 
     @Override
@@ -98,6 +103,19 @@ public class RequirementImportHandler implements TaskHandler {
     @Override
     public void validateInput(Map<String, Object> input) {
         parseFileId(input);
+    }
+
+    /**
+     * 图片文件经 vision 直传（详设 4.2 / 方案 2.5.1）：仅查 fileId 元数据（文件名，不读字节）判扩展派生
+     * 必需能力；文件缺失 / 非图片返回无——缺失由执行期按 1000018011 失败，与现行语义一致。
+     */
+    @Override
+    public String requiredCapability(Map<String, Object> input) {
+        FileResource file = fileResourceMapper.selectById(parseFileId(input));
+        if (file == null || !IMAGE_EXTENSIONS.contains(extension(file.getFileName()))) {
+            return null;
+        }
+        return AiSettingsReader.CAPABILITY_VISION;
     }
 
     @Override
