@@ -112,14 +112,6 @@ public class RequirementController {
         return Result.ok(requirementService.unarchive(id, loginUser.getActiveProjectId(), loginUser.getId()));
     }
 
-    @PostMapping("/{id}/split")
-    @PreAuthorize("hasAuthority('requirement:edit')")
-    public Result<RequirementSplitSubmitRespDTO> splitRequirement(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(requirementService.split(id, loginUser.getActiveProjectId(), loginUser.getId()));
-    }
-
     /** 导入需求文档（3.8）：multipart 提交即返回任务入口，进度与产物确认走 AI 任务资源 */
     @PostMapping("/import")
     @PreAuthorize("hasAuthority('requirement:create')")
@@ -138,17 +130,6 @@ public class RequirementController {
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(requirementService.getChangeLogs(id, loginUser.getActiveProjectId(),
-                pageParam(pageNo, pageSize)));
-    }
-
-    @GetMapping("/{id}/split-logs")
-    @PreAuthorize("hasAuthority('requirement:view')")
-    public Result<PageResult<RequirementSplitRecordRespDTO>> getSplitLogs(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "1") Integer pageNo,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(requirementService.getSplitLogs(id, loginUser.getActiveProjectId(),
                 pageParam(pageNo, pageSize)));
     }
 

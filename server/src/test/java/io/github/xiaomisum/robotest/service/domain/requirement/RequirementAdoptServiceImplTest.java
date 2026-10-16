@@ -3,11 +3,8 @@ package io.github.xiaomisum.robotest.service.domain.requirement;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
-import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementSplitRecord;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
-import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
-import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecordMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
@@ -65,20 +62,15 @@ class RequirementAdoptServiceImplTest {
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID OPERATOR_ID = UUID.randomUUID();
     private static final UUID TASK_ID = UUID.randomUUID();
-    private static final UUID SOURCE_ID = UUID.randomUUID();
     private static final UUID RECORD_ID = UUID.randomUUID();
     private static final UUID MODULE_ID = UUID.randomUUID();
     private static final UUID FILE_ID = UUID.randomUUID();
     private static final UUID CREATED_ID = UUID.randomUUID();
 
     @Mock
-    private RequirementMapper requirementMapper;
-    @Mock
     private VectorIndexService vectorIndexService;
     @Mock
     private RequirementSplitRecordMapper splitRecordMapper;
-    @Mock
-    private RequirementChangeLogMapper changeLogMapper;
     @Mock
     private ProjectModuleMapper projectModuleMapper;
     @Mock
@@ -88,19 +80,6 @@ class RequirementAdoptServiceImplTest {
     private RequirementAdoptServiceImpl service;
 
     // ---------- 测试构件 ----------
-
-    private AiTask task(List<Map<String, Object>> artifacts) {
-        AiTask task = new AiTask();
-        task.setId(TASK_ID);
-        task.setType("requirement_split");
-        task.setProjectId(PROJECT_ID);
-        task.setStatus("succeeded");
-        task.setInput(Map.of("requirementId", SOURCE_ID.toString()));
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", artifacts);
-        task.setResult(result);
-        return task;
-    }
 
     private Map<String, Object> artifact(String key, String title, Object moduleId, String priority) {
         Map<String, Object> content = new LinkedHashMap<>();
@@ -120,33 +99,6 @@ class RequirementAdoptServiceImplTest {
             Map<String, Object> content, String targetSystemVersion) {
         return new AdoptContext(task, artifact, action, content, null, null, null,
                 targetSystemVersion, null, null, null, null, null, PROJECT_ID, OPERATOR_ID, null);
-    }
-
-    private RequirementSplitRecord record() {
-        RequirementSplitRecord record = new RequirementSplitRecord();
-        record.setId(RECORD_ID);
-        record.setProjectId(PROJECT_ID);
-        record.setSourceType("requirement");
-        record.setSourceRequirementId(SOURCE_ID);
-        record.setAiTaskId(TASK_ID);
-        record.setStatus("pending");
-        return record;
-    }
-
-    private Requirement source(String status, String systemVersion) {
-        Requirement source = new Requirement();
-        source.setId(SOURCE_ID);
-        source.setProjectId(PROJECT_ID);
-        source.setStatus(status);
-        source.setSystemVersion(systemVersion);
-        source.setCode("REQ-007");
-        source.setTitle("原需求");
-        return source;
-    }
-
-    private void stubRecordAndModule(RequirementSplitRecord record, Requirement source) {
-        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
-        when(requirementMapper.selectById(SOURCE_ID)).thenReturn(source);
     }
 
     private void stubModule() {
@@ -175,10 +127,10 @@ class RequirementAdoptServiceImplTest {
 
     @Test
     void adopt_adopted_createsConfirmedRequirementAndStaysPending() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", MODULE_ID.toString(), "high"),
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", MODULE_ID.toString(), "high"),
                 artifact("item-2", "建议二", null, null)));
         Map<String, Object> art = artifact("item-1", "建议一", MODULE_ID.toString(), "high");
-        stubRecordAndModule(record(), source("confirmed", "V2.3"));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
         stubModule();
         stubAllocator();
 
@@ -191,30 +143,28 @@ class RequirementAdoptServiceImplTest {
         verify(codeAllocator).insertWithCodeAllocation(eq(PROJECT_ID), captor.capture());
         Requirement saved = captor.getValue();
         assertEquals("confirmed", saved.getStatus());
-        assertEquals("requirement", saved.getSource());
+        assertEquals("import", saved.getSource());
         assertEquals("建议一", saved.getTitle());
         assertEquals(MODULE_ID, saved.getModuleId());
         assertEquals("high", saved.getPriority());
-        assertEquals("V2.3", saved.getSystemVersion());
+        assertEquals("V3.0", saved.getSystemVersion()); // documentMeta.detectedVersion 回退（4.5）
         assertNotNull(saved.getConfirmedAt());
-        assertNull(saved.getSourceFileId());
-        // 3 项产物只处理 1 项 → pending，不归档
+        assertEquals(FILE_ID, saved.getSourceFileId());
+        // 2 项产物只处理 1 项 → pending
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "pending"));
-        verify(requirementMapper, never()).update(isNull(), any());
-        verifyNoInteractions(changeLogMapper);
     }
 
     @Test
     void adopt_adoptedEdited_usesEditedContentAndTargetVersion() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
         Map<String, Object> art = artifact("item-1", "建议一", null, null);
         Map<String, Object> edited = new LinkedHashMap<>();
         edited.put("title", "编辑后的标题");
         edited.put("priority", "medium");
         edited.put("moduleId", null);
-        stubRecordAndModule(record(), source("confirmed", "V2.3"));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
         stubAllocator();
 
         AdoptOutcome outcome = service.adopt(ctx(task, art, "adopted_edited", edited, "V9"));
@@ -229,10 +179,10 @@ class RequirementAdoptServiceImplTest {
     }
 
     @Test
-    void adopt_targetVersionBlank_clearsInheritedVersion() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
+    void adopt_targetVersionBlank_clearsDetectedVersion() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
         Map<String, Object> art = artifact("item-1", "建议一", null, null);
-        stubRecordAndModule(record(), source("confirmed", "V2.3"));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
         stubAllocator();
 
         service.adopt(ctx(task, art, "adopted", null, "  "));
@@ -244,15 +194,15 @@ class RequirementAdoptServiceImplTest {
 
     @Test
     void adopt_rejected_recordsRejectWithoutCreating() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null),
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null),
                 artifact("item-2", "建议二", null, null)));
         Map<String, Object> art = artifact("item-2", "建议二", null, null);
-        RequirementSplitRecord record = record();
+        RequirementSplitRecord record = importRecord();
         Map<String, Object> prior = new LinkedHashMap<>();
         prior.put("adopted", List.of());
         prior.put("rejected", List.of("item-1"));
         record.setAdoptResult(prior);
-        stubRecordAndModule(record, source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
 
         AdoptOutcome outcome = service.adopt(ctx(task, art, "rejected", null, null));
 
@@ -261,23 +211,21 @@ class RequirementAdoptServiceImplTest {
         verifyNoInteractions(codeAllocator);
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
-        // 两项全部驳回 → rejected（4.5.3），不产生需求也不归档
+        // 两项全部驳回 → rejected（4.5.3），不产生需求
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "rejected"));
-        verify(requirementMapper, never()).update(isNull(), any());
-        verifyNoInteractions(changeLogMapper);
     }
 
     @Test
-    void adopt_lastItemAdopted_adoptsStatusAndArchivesSource() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null),
+    void adopt_lastItemAdopted_marksAdoptedStatus() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null),
                 artifact("item-2", "建议二", null, null)));
         Map<String, Object> art = artifact("item-2", "建议二", null, null);
-        RequirementSplitRecord record = record();
+        RequirementSplitRecord record = importRecord();
         Map<String, Object> prior = new LinkedHashMap<>();
         prior.put("adopted", List.of(Map.of("artifactKey", "item-1", "requirementId", CREATED_ID.toString())));
         prior.put("rejected", List.of());
         record.setAdoptResult(prior);
-        stubRecordAndModule(record, source("confirmed", "V2.3"));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
         stubAllocator();
 
         service.adopt(ctx(task, art, "adopted", null, null));
@@ -285,48 +233,25 @@ class RequirementAdoptServiceImplTest {
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "adopted"));
-        verify(requirementMapper).update(isNull(), any());
-        ArgumentCaptor<RequirementChangeLog> logCaptor = ArgumentCaptor.forClass(RequirementChangeLog.class);
-        verify(changeLogMapper).insert(logCaptor.capture());
-        assertEquals("status", logCaptor.getValue().getChangeType());
-        assertEquals(SOURCE_ID, logCaptor.getValue().getRequirementId());
-        assertEquals(OPERATOR_ID, logCaptor.getValue().getOperatorId());
-        assertEquals(Map.of("status", "confirmed"), logCaptor.getValue().getBeforeSummary());
-        assertEquals(Map.of("status", "archived"), logCaptor.getValue().getAfterSummary());
     }
 
     @Test
-    void adopt_allRejected_marksRejectedWithoutArchive() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null),
+    void adopt_allRejected_marksRejectedStatus() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null),
                 artifact("item-2", "建议二", null, null)));
         Map<String, Object> art = artifact("item-2", "建议二", null, null);
-        RequirementSplitRecord record = record();
+        RequirementSplitRecord record = importRecord();
         Map<String, Object> prior = new LinkedHashMap<>();
         prior.put("adopted", List.of());
         prior.put("rejected", List.of("item-1"));
         record.setAdoptResult(prior);
-        stubRecordAndModule(record, source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
 
         service.adopt(ctx(task, art, "rejected", null, null));
 
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "rejected"));
-        verify(requirementMapper, never()).update(isNull(), any());
-        verifyNoInteractions(changeLogMapper);
-    }
-
-    @Test
-    void adopt_recordAlreadyArchivedSource_skipsReArchive() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
-        Map<String, Object> art = artifact("item-1", "建议一", null, null);
-        stubRecordAndModule(record(), source("archived", null));
-        stubAllocator();
-
-        service.adopt(ctx(task, art, "adopted", null, null));
-
-        verify(requirementMapper, never()).update(isNull(), any());
-        verifyNoInteractions(changeLogMapper);
     }
 
     // ---------- 3.8 导入采纳 ----------
@@ -380,9 +305,6 @@ class RequirementAdoptServiceImplTest {
         assertEquals(FILE_ID, saved.getSourceFileId());
         assertEquals("V3.0", saved.getSystemVersion()); // documentMeta.detectedVersion 回退（4.5）
         assertEquals("confirmed", saved.getStatus());
-        // 导入无原条目：不归档、不写变更日志
-        verify(requirementMapper, never()).update(isNull(), any());
-        verifyNoInteractions(changeLogMapper);
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "adopted"));
@@ -453,39 +375,15 @@ class RequirementAdoptServiceImplTest {
     // ---------- 记录定位 ----------
 
     @Test
-    void adopt_recordMissing_ensuresRecordViaInsert() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
-        Map<String, Object> art = artifact("item-1", "建议一", null, null);
-        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of());
-        when(splitRecordMapper.selectPendingSplitBySource(SOURCE_ID)).thenReturn(List.of());
-        when(requirementMapper.selectById(SOURCE_ID)).thenReturn(source("confirmed", null));
-        stubAllocator();
-        ArgumentCaptor<RequirementSplitRecord> recordCaptor = ArgumentCaptor.forClass(RequirementSplitRecord.class);
-
-        service.adopt(ctx(task, art, "adopted", null, null));
-
-        verify(splitRecordMapper).insert(recordCaptor.capture());
-        RequirementSplitRecord saved = recordCaptor.getValue();
-        assertEquals(PROJECT_ID, saved.getProjectId());
-        assertEquals("requirement", saved.getSourceType());
-        assertEquals(SOURCE_ID, saved.getSourceRequirementId());
-        assertEquals(TASK_ID, saved.getAiTaskId());
-        assertEquals("adopted", saved.getStatus());
-        assertNotNull(saved.getAdoptResult());
-        verify(splitRecordMapper, never()).update(isNull(), any());
-    }
-
-    @Test
     void adopt_retryFallback_repointsRecordToCurrentTask() {
         UUID retriedTaskId = UUID.randomUUID();
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
         task.setId(retriedTaskId);
         Map<String, Object> art = artifact("item-1", "建议一", null, null);
-        RequirementSplitRecord record = record();
+        RequirementSplitRecord record = importRecord();
         record.setAiTaskId(UUID.randomUUID()); // 仍指原（失败）任务
         when(splitRecordMapper.selectByAiTaskId(retriedTaskId)).thenReturn(List.of());
-        when(splitRecordMapper.selectPendingSplitBySource(SOURCE_ID)).thenReturn(List.of(record));
-        when(requirementMapper.selectById(SOURCE_ID)).thenReturn(source("confirmed", null));
+        when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of(record));
         stubAllocator();
 
         service.adopt(ctx(task, art, "adopted", null, null));
@@ -499,22 +397,22 @@ class RequirementAdoptServiceImplTest {
     // ---------- 校验失败 ----------
 
     @Test
-    void adopt_inputMissingRequirementId_throwsInputInvalid() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
+    void adopt_inputMissingFileId_throwsInputInvalid() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
         task.setInput(Map.of());
         Map<String, Object> art = artifact("item-1", "建议一", null, null);
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.adopt(ctx(task, art, "adopted", null, null)));
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
-        verifyNoInteractions(splitRecordMapper, requirementMapper, codeAllocator);
+        verifyNoInteractions(codeAllocator);
     }
 
     @Test
     void adopt_blankTitle_throwsAttributeInvalid() {
-        AiTask task = task(List.of(artifact("item-1", "  ", null, null)));
+        AiTask task = importTask(List.of(artifact("item-1", "  ", null, null)));
         Map<String, Object> art = artifact("item-1", "  ", null, null);
-        stubRecordAndModule(record(), source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.adopt(ctx(task, art, "adopted", null, null)));
@@ -524,10 +422,9 @@ class RequirementAdoptServiceImplTest {
 
     @Test
     void adopt_moduleNotInProject_throwsModuleNotFound() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", UUID.randomUUID().toString(), null)));
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", UUID.randomUUID().toString(), null)));
         Map<String, Object> art = artifact("item-1", "建议一", UUID.randomUUID().toString(), null);
-        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record()));
-        when(requirementMapper.selectById(SOURCE_ID)).thenReturn(source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
         when(projectModuleMapper.selectById(any(UUID.class))).thenReturn(null);
 
         ServiceException exception = assertThrows(ServiceException.class,
@@ -537,25 +434,10 @@ class RequirementAdoptServiceImplTest {
     }
 
     @Test
-    void adopt_sourceCrossProject_throwsNotFound() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
-        Map<String, Object> art = artifact("item-1", "建议一", null, null);
-        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record()));
-        Requirement foreign = source("confirmed", null);
-        foreign.setProjectId(UUID.randomUUID());
-        when(requirementMapper.selectById(SOURCE_ID)).thenReturn(foreign);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.adopt(ctx(task, art, "adopted", null, null)));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
-        verifyNoInteractions(codeAllocator, projectModuleMapper, changeLogMapper);
-    }
-
-    @Test
     void adopt_invalidPriority_throwsAttributeInvalid() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, "urgent")));
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, "urgent")));
         Map<String, Object> art = artifact("item-1", "建议一", null, "urgent");
-        stubRecordAndModule(record(), source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.adopt(ctx(task, art, "adopted", null, null)));
@@ -565,9 +447,9 @@ class RequirementAdoptServiceImplTest {
 
     @Test
     void adopt_adoptedRefTracksCreatedRequirementId() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null)));
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null)));
         Map<String, Object> art = artifact("item-1", "建议一", null, null);
-        stubRecordAndModule(record(), source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
         stubAllocator();
 
         AdoptOutcome outcome = service.adopt(ctx(task, art, "adopted", null, null));
@@ -579,33 +461,32 @@ class RequirementAdoptServiceImplTest {
 
     @Test
     void adopt_emptyArtifactsTask_staysPending() {
-        AiTask task = task(List.of());
+        AiTask task = importTask(List.of());
         Map<String, Object> art = artifact("item-1", "建议一", null, null);
-        stubRecordAndModule(record(), source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
         stubAllocator();
 
         service.adopt(ctx(task, art, "adopted", null, null));
 
-        // result.artifacts 为空（键集不可计算）→ 不判定完成，不归档
+        // result.artifacts 为空（键集不可计算）→ 不判定完成
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "pending"));
-        verify(requirementMapper, never()).update(isNull(), any());
     }
 
     @Test
     void adopt_priorAdoptedKeysPreservedInMergedResult() {
-        AiTask task = task(List.of(artifact("item-1", "建议一", null, null),
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, null),
                 artifact("item-2", "建议二", null, null)));
         Map<String, Object> art = artifact("item-2", "建议二", null, null);
-        RequirementSplitRecord record = record();
+        RequirementSplitRecord record = importRecord();
         List<Object> priorAdopted = new ArrayList<>();
         priorAdopted.add(Map.of("artifactKey", "item-1", "requirementId", CREATED_ID.toString()));
         Map<String, Object> prior = new LinkedHashMap<>();
         prior.put("adopted", priorAdopted);
         prior.put("rejected", List.of());
         record.setAdoptResult(prior);
-        stubRecordAndModule(record, source("confirmed", null));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
 
         service.adopt(ctx(task, art, "rejected", null, null));
 

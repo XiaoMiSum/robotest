@@ -40,7 +40,7 @@ class AiTaskExecutorTest {
 
     private static final UUID TASK_ID = UUID.randomUUID();
     private static final UUID MODEL_ID = UUID.randomUUID();
-    private static final String TYPE = "requirement_split";
+    private static final String TYPE = "requirement_import";
 
     @Mock
     private AiTaskMapper taskMapper;

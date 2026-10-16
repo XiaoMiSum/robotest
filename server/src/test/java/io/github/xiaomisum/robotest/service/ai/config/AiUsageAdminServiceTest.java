@@ -174,11 +174,11 @@ class AiUsageAdminServiceTest {
     void statistics_sceneSeries_resolvesRegisteredSceneNames() {
         stubSummary(summaryRow(5, 0));
         when(usageLogMapper.selectSeriesByScene(any(), any()))
-                .thenReturn(List.of(seriesRow("requirement_split", 5, 0)));
+                .thenReturn(List.of(seriesRow("requirement_import", 5, 0)));
 
         AiUsageStatisticsRespDTO dto = service.statistics(statisticsReq(FROM, TO, "scene"));
 
-        assertEquals("需求拆分", dto.getSeries().get(0).getKeyName());
+        assertEquals("需求导入", dto.getSeries().get(0).getKeyName());
     }
 
     @Test

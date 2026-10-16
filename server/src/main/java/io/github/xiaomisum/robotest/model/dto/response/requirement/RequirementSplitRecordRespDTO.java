@@ -13,10 +13,8 @@ import java.util.UUID;
 public class RequirementSplitRecordRespDTO {
 
     private UUID id;
-    /** document（导入文档）/ requirement（条目内 AI 拆分） */
+    /** document（导入文档） */
     private String sourceType;
-    private UUID sourceRequirementId;
-    private String sourceRequirementCode;
     private UUID aiTaskId;
     /** pending / adopted / rejected */
     private String status;

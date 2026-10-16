@@ -22,16 +22,12 @@ public class RequirementSplitRecord extends BaseUuidDO<RequirementSplitRecord> {
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID projectId;
 
-    /** 拆解来源：document（导入文档）/ requirement（条目内 AI 拆分） */
+    /** 拆解来源：document（导入文档） */
     private String sourceType;
 
     /** 导入的原始文档附件（来源为 document 时） */
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID sourceFileId;
-
-    /** 原条目标识（来源为 requirement 时；采纳后原条目归档，靠此保留关联） */
-    @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID sourceRequirementId;
 
     /** 关联 AI 任务（逻辑外键 → ai_task） */
     @TableField(typeHandler = UUIDTypeHandler.class)

@@ -39,9 +39,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AiPromptAdminServiceTest {
 
-    private static final String SCENE = "requirement_split";
-    private static final String BUILTIN_PROMPT = "基于 {{requirementCode}} {{requirementTitle}} "
-            + "{{requirementDescription}} {{moduleOptions}} 拆分";
+    private static final String SCENE = "requirement_import";
+    private static final String BUILTIN_PROMPT = "基于 {{documentName}} {{documentText}} "
+            + "{{moduleOptions}} 拆解导入";
 
     @Mock
     private AiPromptTemplateMapper promptMapper;
@@ -87,7 +87,7 @@ class AiPromptAdminServiceTest {
         AiPromptTemplate row = new AiPromptTemplate();
         row.setId(UUID.randomUUID());
         row.setScene(SCENE);
-        row.setName("需求拆分");
+        row.setName("需求导入");
         row.setContent(content);
         row.setSource("custom");
         row.setVersion(version);
@@ -110,7 +110,7 @@ class AiPromptAdminServiceTest {
         assertEquals("default", dto.getSource());
         assertEquals(0, dto.getVersion());
         assertEquals(BUILTIN_PROMPT, dto.getContent());
-        assertEquals(4, dto.getVariables().size());
+        assertEquals(3, dto.getVariables().size());
         assertTrue(dto.getVariables().stream().allMatch(v -> Boolean.TRUE.equals(v.getRequired())));
     }
 
@@ -125,8 +125,8 @@ class AiPromptAdminServiceTest {
     @Test
     void save_undeclaredVariable_throwsPromptInvalid() {
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.save(SCENE, saveReq("{{requirementCode}} {{requirementTitle}} "
-                        + "{{requirementDescription}} {{moduleOptions}} {{unknownVar}}"), loginUser, request));
+                () -> service.save(SCENE, saveReq("{{documentName}} {{documentText}} "
+                        + "{{moduleOptions}} {{unknownVar}}"), loginUser, request));
 
         assertEquals(ErrorCodeConstants.AI_PROMPT_INVALID.code(), ex.getCode());
     }
@@ -134,7 +134,7 @@ class AiPromptAdminServiceTest {
     @Test
     void save_missingRequiredVariable_throwsPromptInvalid() {
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.save(SCENE, saveReq("只有 {{requirementCode}}"), loginUser, request));
+                () -> service.save(SCENE, saveReq("只有 {{documentName}}"), loginUser, request));
 
         assertEquals(ErrorCodeConstants.AI_PROMPT_INVALID.code(), ex.getCode());
     }
@@ -183,21 +183,21 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        // 登记场景 18 个（导入、拆分、生成链 4 阶段子场景、评审 / 计划圈选、覆盖分析、助手解析 / 只读问答、
-        // 缺陷分类 / 分诊 / 趋势摘要 / 重复扫描、用例补全 / 级别推荐 / 执行顺序建议），自定义行只覆盖拆分
-        assertEquals(18, list.size());
-        AiPromptListItemRespDTO splitItem = list.stream()
-                .filter(item -> "requirement_split".equals(item.getScene()))
-                .findFirst().orElseThrow();
-        assertEquals("custom", splitItem.getSource());
-        assertEquals("需求拆分", splitItem.getName());
-        assertNull(splitItem.getUpdatedByName());
-        assertTrue(splitItem.getSummary().contains("基于"));
+        // 登记场景 17 个（导入、生成链 4 阶段子场景、评审 / 计划圈选、覆盖分析、助手解析 / 只读问答、
+        // 缺陷分类 / 分诊 / 趋势摘要 / 重复扫描、用例补全 / 级别推荐 / 执行顺序建议），自定义行只覆盖导入
+        assertEquals(17, list.size());
         AiPromptListItemRespDTO importItem = list.stream()
-                .filter(item -> "requirement_import".equals(item.getScene()))
+            .filter(item -> "requirement_import".equals(item.getScene()))
                 .findFirst().orElseThrow();
-        assertEquals("default", importItem.getSource());
+        assertEquals("custom", importItem.getSource());
         assertEquals("需求导入", importItem.getName());
+        assertNull(importItem.getUpdatedByName());
+        assertTrue(importItem.getSummary().contains("基于"));
+        AiPromptListItemRespDTO defaultItem = list.stream()
+                .filter(item -> "test_design_generation_modules".equals(item.getScene()))
+                .findFirst().orElseThrow();
+        assertEquals("default", defaultItem.getSource());
+        assertEquals("生成链·模块结构", defaultItem.getName());
     }
 
     @Test
@@ -206,11 +206,11 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        assertEquals(18, list.size());
-        AiPromptListItemRespDTO splitItem = list.stream()
-                .filter(item -> "requirement_split".equals(item.getScene()))
+        assertEquals(17, list.size());
+        AiPromptListItemRespDTO importItem = list.stream()
+                .filter(item -> "requirement_import".equals(item.getScene()))
                 .findFirst().orElseThrow();
-        assertEquals("default", splitItem.getSource());
-        assertNull(splitItem.getUpdatedAt());
+        assertEquals("default", importItem.getSource());
+        assertNull(importItem.getUpdatedAt());
     }
 }
