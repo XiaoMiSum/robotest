@@ -2055,7 +2055,7 @@ COMMENT ON COLUMN ai_usage_log.task_id IS '关联任务（统计 → 单次调�
 COMMENT ON COLUMN ai_usage_log.user_id IS '调用者';
 COMMENT ON COLUMN ai_usage_log.model_id IS '调用的模型，按模型分组统计维度';
 COMMENT ON COLUMN ai_usage_log.prompt_scene IS '场景归因，按场景统计维度';
-COMMENT ON COLUMN ai_usage_log.call_type IS '调用类型：chat/embedding（向量重建同样计用量）';
+COMMENT ON COLUMN ai_usage_log.call_type IS '调用类型：chat/vision/embedding（带图调用记 vision；向量重建同样计用量）';
 COMMENT ON COLUMN ai_usage_log.prompt_tokens IS '提示 token 消耗';
 COMMENT ON COLUMN ai_usage_log.completion_tokens IS '补全 token 消耗';
 COMMENT ON COLUMN ai_usage_log.total_tokens IS '总 token 消耗';
