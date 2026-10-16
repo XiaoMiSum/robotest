@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
   prompt: vi.fn(),
   confirm: vi.fn(),
   loadTraceNode: vi.fn(),
+  /** 由 @/stores/auth mock 工厂创建，测试驱动切换活跃空间 */
+  authState: null as { activeWorkspaceId: string | null } | null,
 }))
 
 // Markdown 渲染由 MarkdownView 既有单测覆盖，此处只断言本组件的组装行为
@@ -85,9 +87,20 @@ vi.mock('@/services/assistantSse', () => ({
   AssistantStreamInterruptedError: class extends Error {},
 }))
 
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({ hasPermission: mocks.hasPermission }),
-}))
+// 活跃空间须为响应式：入口组件 watch 该值驱动列表重载与会话收起
+vi.mock('@/stores/auth', async () => {
+  const { reactive } = await import('vue')
+  const state = reactive({ activeWorkspaceId: 'ws-1' as string | null })
+  mocks.authState = state
+  return {
+    useAuthStore: () => ({
+      hasPermission: mocks.hasPermission,
+      get activeWorkspaceId(): string | null {
+        return state.activeWorkspaceId
+      },
+    }),
+  }
+})
 
 type Store = ReturnType<typeof useAiAssistantStore>
 
@@ -99,6 +112,7 @@ function makeConversation(overrides: Partial<AiAssistantConversation> = {}): AiA
   return {
     id: 'c1',
     title: '登录评审',
+    workspaceId: 'ws-1',
     status: 'active',
     lastMessageAt: null,
     messageCount: 0,
@@ -177,6 +191,7 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
     vi.clearAllMocks()
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
     mocks.hasPermission.mockReturnValue(true)
+    if (mocks.authState) mocks.authState.activeWorkspaceId = 'ws-1'
     mocks.fetchAiAssistantConversations.mockResolvedValue({
       list: [makeConversation()],
       total: 1,
@@ -225,6 +240,25 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
 
     expect(store.open).toBe(false)
     expect(wrapper.find('.ai-entry__card').exists()).toBe(false)
+  })
+
+  it('切换活跃空间后归属不同的当前会话收起并按新空间重载列表', async () => {
+    const wrapper = await mountEntry()
+    await openPanel(wrapper)
+    store.conversations = [makeConversation()]
+    store.currentId = 'c1'
+    store.messages = [makeMessage()]
+    await nextTick()
+
+    mocks.authState!.activeWorkspaceId = 'ws-2'
+    await nextTick()
+    await flushPromises()
+
+    expect(store.currentId).toBeNull()
+    expect(store.messages).toHaveLength(0)
+    // 打开状态下面板保留：开面板拉取一次，切换空间再静默拉取一次
+    expect(mocks.fetchAiAssistantConversations).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.ai-entry__card').exists()).toBe(true)
   })
 
   it('会话列表加载失败页面级提示并清空错误（UI-PAGE-11）', async () => {

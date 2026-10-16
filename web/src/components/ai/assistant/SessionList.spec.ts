@@ -16,6 +16,7 @@ function makeConversation(overrides: Partial<AiAssistantConversation> = {}): AiA
   return {
     id: 'c1',
     title: '登录评审',
+    workspaceId: 'ws-1',
     status: 'active',
     lastMessageAt: null,
     messageCount: 0,
