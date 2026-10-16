@@ -42,6 +42,11 @@ function isDefault(model: AiModel): boolean {
   return store.settings?.defaultModelId === model.id
 }
 
+/** 列表能力列标签（交互 2.2）：与表单选项同源，避免两处文案漂移 */
+function capabilityLabel(capability: AiModelCapability): string {
+  return CAPABILITY_OPTIONS.find((option) => option.value === capability)?.label ?? capability
+}
+
 function resetForm() {
   form.name = ''
   form.provider = ''
@@ -214,6 +219,20 @@ async function runTest(model: AiModel) {
       <el-table-column label="供应商" prop="provider" width="100" show-overflow-tooltip />
       <el-table-column label="BaseURL" prop="baseUrl" min-width="160" show-overflow-tooltip />
       <el-table-column label="模型标识" prop="modelName" min-width="130" show-overflow-tooltip />
+      <el-table-column label="能力" min-width="110">
+        <template #default="{ row }">
+          <span class="model-group__capabilities">
+            <el-tag
+              v-for="cap in (row as AiModel).capabilities"
+              :key="cap"
+              size="small"
+              :type="cap === 'vision' ? 'success' : 'info'"
+            >
+              {{ capabilityLabel(cap) }}
+            </el-tag>
+          </span>
+        </template>
+      </el-table-column>
       <el-table-column label="默认标记" width="80" align="center">
         <template #default="{ row }">
           <el-tag v-if="isDefault(row as AiModel)" size="small" type="primary">默认</el-tag>
@@ -390,6 +409,12 @@ async function runTest(model: AiModel) {
 
 .model-group__muted {
   color: var(--color-neutral-400);
+}
+
+.model-group__capabilities {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
 }
 
 .model-group__test {

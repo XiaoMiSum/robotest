@@ -68,6 +68,12 @@ describe('AI 配置中心 · 模型配置（交互 2.2）', () => {
     expect(modelsSource).toContain('void store.loadModels()')
     expect(modelsSource).toContain('连接成功（')
   })
+
+  it('列表能力列以对话 / 视觉 tag 展示，支撑识别 vision 模型', () => {
+    expect(modelsSource).toContain('<el-table-column label="能力"')
+    expect(modelsSource).toContain('capabilityLabel(cap)')
+    expect(modelsSource).toContain('model-group__capabilities')
+  })
 })
 
 describe('AI 配置中心 · 向量 API（交互 2.3 / 2.6）', () => {
