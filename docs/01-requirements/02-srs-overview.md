@@ -22,7 +22,7 @@
 测试用例以 **模块树（目录/文档）** 组织，每个文档包含一个脑图形式的测试用例集合，支持多人实时协作编辑。  
 测试评审和测试计划基于用例的结构化快照进行，支持完整的历史回溯和多次执行/评审记录。
 
-业务需求以**需求条目**在平台内登记，需求条目是测试追溯链的起点；需求与测试资产、验证活动之间的对应关系构成追溯矩阵（见 `docs/01-requirements/08-trace-matrix/02-srs-trace-matrix.md`）。AI 能力作为平台级底座贯穿需求生成、智能助手、缺陷分析与辅助功能，详见 `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`。
+业务需求以**需求条目**在平台内登记，需求条目是测试追溯链的起点；需求与测试资产、验证活动之间的对应关系构成追溯矩阵（见 `docs/01-requirements/06-requirement-management/03-srs-trace-matrix.md`）。AI 能力作为平台级底座贯穿需求生成、智能助手、缺陷分析与辅助功能，详见 `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`。
 
 ### 1.3 定义与缩写
 
@@ -190,9 +190,8 @@
 | 业务功能模块 | `03-function-testing/02-srs-business-features.md` | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
-| 需求管理模块 | `06-requirement-management/02-srs-requirement-management.md` | 3.2 业务功能模块（需求管理） |
+| 需求管理模块 | `06-requirement-management/02-srs-requirement-management.md`（总览）及分册 `06-requirement-management/03-srs-trace-matrix.md` | 3.2 业务功能模块（需求管理） |
 | AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/03-srs-ai-generation.md`、`07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
-| 追溯矩阵模块 | `08-trace-matrix/02-srs-trace-matrix.md` | 3.2 业务功能模块（追溯矩阵） |
 
 ## 修改记录
 
@@ -200,4 +199,4 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-01 | 初始版本 |
 | V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：数据需求中 AI 任务改为记录执行与产出提案，提案为待采纳态、经人工采纳后才落库 |
-| V1.0 | 2026-10-16 | 追溯矩阵独立为平台级业务域：分册对照表新增追溯矩阵模块，范围、术语与数据需求中的追溯条目同步改写（`docs/01-requirements/08-trace-matrix/02-srs-trace-matrix.md`） |
+| V1.0 | 2026-10-16 | 追溯矩阵需求独立成册并登记于需求管理模块（`docs/01-requirements/06-requirement-management/03-srs-trace-matrix.md`）：分册对照表同步，范围、术语与数据需求中的追溯条目改写 |

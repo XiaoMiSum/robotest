@@ -12,7 +12,7 @@
 
 生成链将 AI 贯穿需求到测试评审 / 测试计划的完整链路：
 
-- `AI + 需求 = 模块 + 脑图用例文档 + 测试用例`：一次生成产出三层派生物，并建立来源对应（追溯矩阵分册 `docs/01-requirements/08-trace-matrix/02-srs-trace-matrix.md`）；
+- `AI + 需求 = 模块 + 脑图用例文档 + 测试用例`：一次生成产出三层派生物，并建立来源对应（追溯矩阵分册 `docs/01-requirements/06-requirement-management/03-srs-trace-matrix.md`）；
 - `AI + 需求 + 模块 + 脑图用例文档 + 测试用例 = 测试评审 或 测试计划`：基于全链路上下文推荐评审 / 计划的圈选范围，产出挂到用例级验证对应。
 
 输入为需求管理模块中**已确认的需求**（见 `docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`）。生成由 AI 自主编排执行，产出为提案，任务与提案采纳的通用口径见总册 1.5（`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`），本分册不重复定义。
@@ -88,4 +88,4 @@
 | V1.0 | 2026-10-15 | 发起入口按钮更名「AI 生成用例」 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：1.3 固定六阶段改「AI 规划步骤 + 轨迹回看 + 中止 / 再次执行」，产物改称提案、待确认态改待采纳态，1.4 / 1.5 措辞对齐总册 1.5 |
 | V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：1.4 标题及正文「确认」改「采纳」，终止口径改「中止、执行错误或预算耗尽」，圈选建议采纳后走既有创建流程 |
-| V1.0 | 2026-10-16 | 追溯矩阵独立为平台级业务域：1.6 矩阵视图与影响处置（US-AI-009）移出本分册，追溯术语改「来源对应 / 验证对应」并对齐追溯矩阵分册（`docs/01-requirements/08-trace-matrix/02-srs-trace-matrix.md`） |
+| V1.0 | 2026-10-16 | 追溯矩阵需求独立成册：1.6 矩阵视图与影响处置（US-AI-009）移出本分册，追溯术语改「来源对应 / 验证对应」并对齐追溯矩阵分册（`docs/01-requirements/06-requirement-management/03-srs-trace-matrix.md`） |

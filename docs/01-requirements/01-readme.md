@@ -11,4 +11,3 @@
 | [05-api-testing](05-api-testing/01-readme.md)（模块：接口测试） | V1.0 | 2026-09-23 | 起草中 |
 | [06-requirement-management](06-requirement-management/01-readme.md)（模块：需求管理） | V1.0 | 2026-10-01 | 起草中 |
 | [07-ai-capability](07-ai-capability/01-readme.md)（模块：AI 能力） | V1.0 | 2026-10-01 | 起草中 |
-| [08-trace-matrix](08-trace-matrix/01-readme.md)（模块：追溯矩阵） | V1.0 | 2026-10-16 | 起草中 |
