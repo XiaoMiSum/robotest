@@ -351,13 +351,13 @@ describe('services/index.ts 助手接口上下文分层（详设 3.1）', () => 
     expect(received.project).toBeUndefined()
   })
 
-  it('确认执行注入工作空间与项目双头（与 intent.scope 比对）', async () => {
+  it('确认执行注入工作空间头，不注入项目头（目标项目取固化 intent.scope，详设 3.1 / 4.2②）', async () => {
     const received = capture()
 
     await api.post('/ai/conversations/c1/messages/m1/execute', {})
 
     expect(received.workspace).toBe('ws-1')
-    expect(received.project).toBe('project-1')
+    expect(received.project).toBeUndefined()
   })
 
   it('取消预览不产生数据，不注入上下文头', async () => {

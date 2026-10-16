@@ -54,6 +54,7 @@ interface TimelineProps {
   hasMore?: boolean
   streaming?: boolean
   streamText?: string
+  streamStage?: string
   recovering?: boolean
   executing?: boolean
   readonly?: boolean
@@ -67,6 +68,7 @@ function mountTimeline(props: TimelineProps = {}) {
       hasMore: false,
       streaming: false,
       streamText: '',
+      streamStage: '',
       recovering: false,
       executing: false,
       readonly: false,
@@ -153,6 +155,19 @@ describe('components/ai/assistant/MessageTimeline', () => {
     })
 
     expect(wrapper.get('.ai-timeline__stream .md-stub').text()).toBe('正在回答…')
+  })
+
+  it('tool_call 进度帧渲染查询进行态且正文到达后让位', () => {
+    const stage = mountTimeline({ streaming: true, streamStage: '查询项目' })
+    expect(stage.find('.ai-timeline__stage').text()).toBe('查询项目…')
+
+    const answered = mountTimeline({
+      streaming: true,
+      streamStage: '查询项目',
+      streamText: '共 3 个项目',
+    })
+    expect(answered.find('.ai-timeline__stage').exists()).toBe(false)
+    expect(answered.get('.ai-timeline__stream .md-stub').text()).toBe('共 3 个项目')
   })
 
   it('恢复中标记透传到未终态消息', () => {
