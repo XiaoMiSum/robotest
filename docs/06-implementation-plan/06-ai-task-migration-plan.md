@@ -212,6 +212,11 @@ grep -rn --include=*.ts --include=*.vue -E "\bphase\b|\bprogress\b" web/src/stor
 grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 期望 0 命中
 ```
 
+### 2.8 在途计划联动
+
+- **vision 计划的「Agent 执行核承接注」**：`docs/06-implementation-plan/04-ai-vision-capability-plan.md` 现状分析段有两处承接注记——`:52`（「现状代码仍为任务失败态，随 AI Task 迁移对齐」）与 `:125`（「`AiTaskExecutor` 用 `resolveModel(modelId, capability)` 复验……AI Task 迁移后由 Agent 执行核承接」）。其语义为：vision 在途计划引用的**执行期模型能力复验**职责目前长在旧执行引擎 `AiTaskExecutor` 上，而旧引擎是本计划 2.7 层 A 的删除对象，故以注记声明该职责随迁移平移，防止在旧类上扩展注定被删的死路径。承接落点即 S2：`AgentExecutionRunner` 在循环调用模型前复用 `AiSettingsReader.resolveModel` 完成执行期复验，`requiredCapability` 声明同步由旧 `TaskHandler` SPI 迁至类型适配器（与 vision 计划 `:115` 的 TypeAdapter 改写同一逻辑）。**无额外动作**：vision 工作包先落地则随 S2 平移，迁移先完成则 vision 直接在执行核上实现；S2 收口后删除 vision 计划两处注记。
+- **助手计划的 SPI 耦合**：`assistant_parse` 依赖的 `TaskHandler` SPI 随 S4 删除，最小适配让位 `docs/06-implementation-plan/05-ai-assistant-tool-invocation-plan.md` 的 WP-6.3（详见 4 风险 R2）。
+
 ## 3. 开发计划
 
 ### 3.1 实施步骤
@@ -287,3 +292,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-16 | 初始版本：直接切换 + 清空重建裁决、S0–S6 实施步骤与提交拆分、旧代码五层深度清理方案与 grep 门禁 |
+| V1.0 | 2026-10-16 | 新增 2.8 在途计划联动：展开 vision 计划「Agent 执行核承接注」语义（旧 `AiTaskExecutor` 执行期模型能力复验随 S2 平移至 `AgentExecutionRunner`，收口后删除注记）与助手 SPI 耦合指向 |
