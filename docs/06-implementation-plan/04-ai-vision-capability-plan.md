@@ -24,7 +24,7 @@
 | 需求 | `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md` | 多模态输入与多模型能力声明口径 |
 | 需求 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 智能助手功能边界 |
 | 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.5 多模态解析、4.6 降级与容错 |
-| 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 模型配置（2.3）、任务提交与模型解析（4.1）、降级（4.5）、错误码（6） |
+| 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 模型配置（2.3）、任务提交与模型解析（4.2）、降级（4.5）、错误码（6） |
 | 详细 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | 助手消息接口（3.5）与 SSE 协议 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md` | 缺陷分析任务输入口径 |
 | 交互 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | 助手输入区与消息展示 |
@@ -49,7 +49,7 @@
 #### 2.1.1 模型解析与选型
 
 - 解析为两级定点：任务行 `model_id`（存在且启用）→ 全局默认模型（启用），执行期同口径复解析；无任何按 `capabilities` 的过滤。
-- `priority` 仅用于管理端模型列表升序展示；不存在「默认模型失效时按 priority 升序尝试」的兜底循环，调用失败直接映射为模型服务调用失败（1000018117）并置任务失败，重试复用同一模型（Spring AI 内建重试）。
+- `priority` 仅用于管理端模型列表升序展示；不存在「默认模型失效时按 priority 升序尝试」的兜底循环，调用失败直接映射为模型服务调用失败（1000018117）并置执行终止（现状代码仍为任务失败态，随 AI Task 迁移对齐），重试复用同一模型（Spring AI 内建重试）。
 - 任务提交时解析并回写 `model_id`（提交时解析、执行不漂移）；该回写当前不含能力语义。
 - `capabilities` 字段在保存 / 更新时校验取值受控，运行期零读取。
 
@@ -112,7 +112,7 @@ resolveModel(preferredModelId, requiredCapability):
 
 #### 2.3.2 必需能力的派生
 
-`TaskHandler` 接口新增默认方法 `requiredCapability(input)`（缺省返回无），由提交与执行两条路径共同调用；判定依赖项目范围的任务（`bug_classify` 批量）重写带上下文重载 `requiredCapability(input, context)`（缺省委托前者）：
+类型适配器（TypeAdapter）声明 `requiredCapability(input)`（缺省返回无），由提交与执行两条路径共同调用；判定依赖项目范围的任务（`bug_classify` 批量）声明带上下文重载 `requiredCapability(input, context)`（缺省委托前者）：
 
 | 任务 | 派生规则 |
 | ---- | ---- |
@@ -122,13 +122,13 @@ resolveModel(preferredModelId, requiredCapability):
 | 其余任务 | 无（行为不变） |
 
 - **提交期**：`createTask` 用 `resolveModel(null, capability)` 解析并回写 `model_id`，保持「提交时解析、执行不漂移」。
-- **执行期**：`AiTaskExecutor` 用 `resolveModel(task.modelId, capability)` 复验——默认模型被停用 / 换人后仍保证能力安全，不会把图片发给无视觉能力的模型。
+- **执行期**：`AiTaskExecutor` 用 `resolveModel(task.modelId, capability)` 复验——默认模型被停用 / 换人后仍保证能力安全，不会把图片发给无视觉能力的模型（AI Task 迁移后由 Agent 执行核承接）。
 
 #### 2.3.3 降级与错误码
 
 - 提交期无候选：直接业务异常、**快速失败**，不静默丢图（对齐概要 4.6「不降级为无引用生成」的取向——图片是用户意图的核心输入，忽略即失真）：
   - 底座新增 `1000018124`「未配置支持视觉能力的已启用模型，请在配置中心启用」（底座号段 1000018101–1000018150，现行至 1000018123，新增顺延）。
-- 执行期无候选（候选被停用等罕见情形）：任务失败并携带同一错误码。
+- 执行期无候选（候选被停用等罕见情形）：执行终止并携带同一错误码。
 - 纯文本调用缺模型仍为现行 1000018118，不改。
 
 ### 2.4 助手多模态设计（①）
@@ -177,7 +177,7 @@ resolveModel(preferredModelId, requiredCapability):
 | 文档 | 变更要点 |
 | ---- | ---- |
 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 新增「消息附图与视觉理解」功能点（三段式，含张数 / 大小 / 无视觉模型验收口径） |
-| `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 4.1 模型解析补能力选型规则与必需能力派生；2.3 priority 口径按 D2；6 错误码表登记 1000018124；4.5 降级补无视觉模型分支；2.8 / 3.7 用量 `call_type` 口径扩展 `vision`（D5） |
+| `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 4.2 模型解析补能力选型规则与必需能力派生；2.3 priority 口径按 D2；6 错误码表登记 1000018124；4.5 降级补无视觉模型分支；2.8 / 3.7 用量 `call_type` 口径扩展 `vision`（D5） |
 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | 2.9 消息表 DDL 补 `images` 列；3.5 请求体 `images` 字段与校验；6 错误码登记 1000018264；4 业务逻辑补媒体构造与 SSE 失败分支 |
 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.5 多模态解析口径按 D1 裁决改写 |
 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | 输入区图片按钮与缩略图、校验 / 上传失败 / 无视觉模型等状态分支 |
@@ -192,7 +192,7 @@ resolveModel(preferredModelId, requiredCapability):
 | 助手用户消息 | 图片缩略图展示 | 换签失败显示图片加载失败占位；历史空图片（存量消息）不渲染 |
 | 模型配置列表 | 新增「能力」列（对话 / 视觉 tag） | 无能力为空态的场景（创建必选 ≥1 项） |
 | 需求导入 | 无 UI 变化 | 无视觉模型时提交失败，错误文案透出至导入对话框 / 任务详情 |
-| 任务详情 | 失败原因展示新错误码文案 | failed 分支沿用，仅文案集合扩充 |
+| 任务详情 | 失败原因展示新错误码文案 | `aborted` 分支沿用（终止原因携 1000018117），仅文案集合扩充 |
 | 用量分析 | 调用类型分组出现「视觉调用」（D5-A） | 图表与下钻按扩展后的取值渲染 |
 | 缺陷分析 | 无页面变化：截图按 2.5.2 规则自动附带 | 超上限截断仅文本；分类任务无视觉模型时提交失败（1000018124）透出 |
 
@@ -224,7 +224,7 @@ resolveModel(preferredModelId, requiredCapability):
 
 | 风险 | 影响 | 应对 |
 | ---- | ---- | ---- |
-| 管理员能力声明与模型实际不符（标了 vision 实际不支持） | 调用期供应商报错，任务失败 | 失败映射既有 1000018117 并透出供应商摘要；后续可为连通性测试扩展「带图测试」 |
+| 管理员能力声明与模型实际不符（标了 vision 实际不支持） | 调用期供应商报错，执行终止 | 失败映射既有 1000018117 并透出供应商摘要；后续可为连通性测试扩展「带图测试」 |
 | 多图 / 大图推高上下文成本与延迟 | 用量上升、响应变慢 | 张数（≤3）与单张大小（≤10MB）上限硬控；媒体仅随必需段发送 |
 | D1 口径修订波及概要模块图与需求表述 | 文档不一致 | 裁决后全局检索「多模态解析」引用点联动更新（文档流程四 / 二） |
 | 默认模型在提交与执行之间被停用 | 执行期能力失守 | 执行期按必需能力复验（2.3.2），无候选则明确错误码失败 |
@@ -239,7 +239,7 @@ resolveModel(preferredModelId, requiredCapability):
 
 | 编号 | 裁决点 | 结论 | 登记日期 |
 | ---- | ---- | ---- | ---- |
-| D1 | 多模态解析口径 | A：概要 4.5 口径改为「按需直传具备 vision 能力的模型理解」，不建中间文本管道；产物人工确认原则不变 | 2026-10-16 |
+| D1 | 多模态解析口径 | A：概要 4.5 口径改为「按需直传具备 vision 能力的模型理解」，不建中间文本管道；提案人工采纳原则不变 | 2026-10-16 |
 | D2 | priority 兜底语义 | A：vision 路由内实现能力过滤 + priority 升序扫描；通用兜底另立待办（主计划 5.1 TODO-2） | 2026-10-16 |
 | D3 | 助手图片上传纳入本期 | 纳入实施：SRS / 交互稿先行更新；详设随会话 workspace_id 归属变更提交后合入 | 2026-10-16 |
 | D4 | 缺陷截图入模分期 | 纳入本期：仅 `bug_classify` 入模（口径见 2.5.2），其余三任务维持文本 | 2026-10-16 |
@@ -259,3 +259,4 @@ resolveModel(preferredModelId, requiredCapability):
 | V1.0 | 2026-10-16 | 范围调整（5.1 D3）：助手侧文档与 WP-V.3 暂缓、另行安排；3.1 / 3.2 同步为本期实施 WP-V.1 / V.2 / V.4 / V.5 / V.6 |
 | V1.0 | 2026-10-16 | WP-V.3 解除暂缓转纳入实施（5.1 D3）：SRS 1.6 与交互稿先行更新，详设待另一会话 workspace_id 变更提交后合入；图片附件错误码顺延 1000018264（1000018263 已由会话归属空间校验占用）；3.1 / 3.2 恢复六包并行口径 |
 | V1.0 | 2026-10-16 | WP-V.5 实施口径细化：批量能力派生经带上下文重载（2.3.2 增 `bug_classify` 行、2.5.2 补能力派生与图文对应标注）、媒体列表化归入 WP-V.5 并联动 WP-V.3 依赖（3.1 / 3.2） |
+| V1.0 | 2026-10-16 | 对齐 AI Task 新口径：基线与草案模型解析章节号 4.1 改 4.2；必需能力派生由 `TaskHandler` 默认方法改类型适配器（TypeAdapter）声明；失败口径统一为执行终止（`aborted`，1000018117）；D1 结论改提案人工采纳；`AiTaskExecutor` 补 Agent 执行核承接注 |
