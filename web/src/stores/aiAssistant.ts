@@ -14,11 +14,20 @@ import type {
   AiAssistantEntityRef,
   AiAssistantExecution,
   AiAssistantMessage,
+  AiAssistantPendingImage,
   AiAssistantSseError,
 } from '@/types'
 
 const POLL_INTERVAL_MS = 2000
 const PAGE_SIZE = 20
+
+let pendingImageSeq = 0
+
+/** 待发附图本地键：上传完成是异步回写，条目定位不能依赖列表下标或内容 */
+function nextImageKey(): string {
+  pendingImageSeq += 1
+  return `img-${Date.now()}-${pendingImageSeq}`
+}
 
 /** 终态：done / error 均不再轮询（interrupted / streaming 由断线恢复补齐） */
 function isTerminalMessageStatus(status: AiAssistantMessage['status']): boolean {
@@ -62,6 +71,8 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     drafts: {} as Record<string, string>,
     /** 按会话暂存待发附件，与草稿同键同生命周期 */
     attachments: {} as Record<string, AiAssistantEntityRef[]>,
+    /** 按会话暂存待发附图（选择即上传），与草稿同键同生命周期 */
+    images: {} as Record<string, AiAssistantPendingImage[]>,
     // --- 流式过程态 ---
     streaming: false,
     /** delta 累积缓冲：done 后以服务端持久化内容对齐 */
@@ -92,6 +103,9 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     },
     attachmentsForCurrent(state): AiAssistantEntityRef[] {
       return state.attachments[state.currentId ?? ''] ?? []
+    },
+    imagesForCurrent(state): AiAssistantPendingImage[] {
+      return state.images[state.currentId ?? ''] ?? []
     },
   },
   actions: {
@@ -182,6 +196,52 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     /** 整体替换待发附件：重新解析还原原始输入，避免误带无关草稿附件（交互 05 §2.3） */
     setAttachments(refs: AiAssistantEntityRef[]): void {
       this.attachments[this.currentId ?? ''] = [...refs]
+    },
+
+    /** 登记待发附图并返回登记项：上传编排在 useAssistantImages，回写需回带登记时会话键（期间可能已切换） */
+    stageImages(files: File[]): Array<{ conversationKey: string; key: string; file: File }> {
+      const conversationKey = this.currentId ?? ''
+      const staged = files.map((file) => ({ conversationKey, key: nextImageKey(), file }))
+      const list = this.images[conversationKey] ?? []
+      this.images[conversationKey] = [
+        ...list,
+        ...staged.map((item) => ({
+          key: item.key,
+          name: item.file.name,
+          status: 'uploading' as const,
+          file: item.file,
+        })),
+      ]
+      return staged
+    },
+
+    /** 上传结果回写：按登记项定位，条目已被移除则忽略（上传完成时列表可能已变化） */
+    updatePendingImage(
+      conversationKey: string,
+      key: string,
+      patch: Partial<Pick<AiAssistantPendingImage, 'status' | 'fileId'>>,
+    ): void {
+      const list = this.images[conversationKey]
+      if (!list) return
+      this.images[conversationKey] = list.map((item) =>
+        item.key === key ? { ...item, ...patch } : item,
+      )
+    },
+
+    removeImage(key: string): void {
+      const conversationKey = this.currentId ?? ''
+      this.images[conversationKey] = (this.images[conversationKey] ?? []).filter(
+        (item) => item.key !== key,
+      )
+    },
+
+    /** 失败条目的重试源：复用同一原文件，仅失败态可重试（交互 05 §2.1） */
+    retrySource(key: string): { conversationKey: string; file: File } | null {
+      const conversationKey = this.currentId ?? ''
+      const entry = (this.images[conversationKey] ?? []).find(
+        (item) => item.key === key && item.status === 'failed',
+      )
+      return entry ? { conversationKey, file: entry.file } : null
     },
 
     /** 新会话：不立即建库，首问时再创建（避免空会话污染列表） */
@@ -277,6 +337,12 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       if (!text || !this.canSend) return
       const draftKey = this.currentId ?? ''
       const attachments = this.attachments[draftKey] ?? []
+      const pendingImages = this.images[draftKey] ?? []
+      // 附图未完成上传（含失败）不发送：不静默丢图，由输入区重试或移除后重发（交互 05 §2.1）
+      if (pendingImages.some((item) => item.status !== 'done')) return
+      const imageRefs = pendingImages.flatMap((item) =>
+        item.fileId ? [{ fileId: item.fileId, name: item.name }] : [],
+      )
       // 新建会话后 currentId 变化，回填需落到新的会话键才能在输入框可见
       const createdNew = this.currentId === null
       this.stopRecovery()
@@ -291,9 +357,10 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
           conversationId = conversation.id
           this.currentId = conversation.id
         }
-        // 发送即消耗草稿与附件；校验阶段被拒时回填，避免用户输入丢失
+        // 发送即消耗草稿、附件与附图；校验阶段被拒时回填，避免用户输入丢失
         this.drafts[draftKey] = ''
         this.attachments[draftKey] = []
+        this.images[draftKey] = []
         // 乐观展示用户消息；done 后 refreshMessages 以服务端持久化状态整体对齐
         this.messages = [
           ...this.messages,
@@ -303,6 +370,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
             role: 'user',
             content: text,
             attachments: attachments.length > 0 ? attachments : null,
+            images: imageRefs.length > 0 ? imageRefs : null,
             intent: null,
             citations: null,
             execution: null,
@@ -314,7 +382,13 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
         let sawTerminal = false
         await streamAssistantMessage(
           conversationId,
-          attachments.length > 0 ? { content: text, attachments } : { content: text },
+          {
+            content: text,
+            ...(attachments.length > 0 ? { attachments } : {}),
+            ...(imageRefs.length > 0
+              ? { images: imageRefs.map((item) => ({ fileId: item.fileId })) }
+              : {}),
+          },
           (event) => {
             if (event.type === 'delta') {
               this.streamText += event.data.text
@@ -353,6 +427,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
           const restoreKey = createdNew ? (this.currentId ?? draftKey) : draftKey
           this.drafts[restoreKey] = text
           this.attachments[restoreKey] = attachments
+          this.images[restoreKey] = pendingImages
           return
         }
         throw error

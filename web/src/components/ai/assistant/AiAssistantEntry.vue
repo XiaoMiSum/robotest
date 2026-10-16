@@ -9,6 +9,7 @@ import PanelHeader from './PanelHeader.vue'
 import SessionList from './SessionList.vue'
 import StreamIndicator from './StreamIndicator.vue'
 import { useAssistantEntrance } from '@/composables/ai/useAssistantEntrance'
+import { useAssistantImages } from '@/composables/ai/useAssistantImages'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
 import { useAuthStore } from '@/stores/auth'
 import { citationRoute } from '@/utils/assistant'
@@ -23,6 +24,7 @@ const store = useAiAssistantStore()
 const authStore = useAuthStore()
 const router = useRouter()
 const { visible, refresh } = useAssistantEntrance()
+const { addImages, retryImage, removeImage } = useAssistantImages()
 
 const listOpen = ref(true)
 const narrow = ref(false)
@@ -367,10 +369,14 @@ onBeforeUnmount(() => {
         :model-value="store.draftForCurrent"
         :disabled="!store.canSend"
         :attachments="store.attachmentsForCurrent"
+        :images="store.imagesForCurrent"
         @update:model-value="store.setDraft(store.currentId ?? '', $event)"
         @send="handleSend"
         @add-attachment="store.addAttachment($event)"
         @remove-attachment="store.removeAttachment($event)"
+        @add-images="addImages"
+        @remove-image="removeImage"
+        @retry-image="retryImage"
       />
     </section>
   </div>
