@@ -10,17 +10,22 @@ import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantPromptSupport;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantRefChecker;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantStreamBridge;
+import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatRequest;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptScenes;
+import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
+import io.github.xiaomisum.robotest.service.domain.file.FileContent;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementSuggestionParser;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
@@ -31,6 +36,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -148,6 +154,8 @@ public class AssistantParseHandler implements TaskHandler {
     private AssistantPromptSupport promptSupport;
     @Resource
     private VectorSearchService vectorSearchService;
+    @Resource
+    private FileResourceService fileResourceService;
 
     @Override
     public String type() {
@@ -180,6 +188,21 @@ public class AssistantParseHandler implements TaskHandler {
         }
     }
 
+    /** 提交与执行两条路径的能力派生（详设 4.1）：当前消息附图非空 ⇒ `vision`；派生过程不抛错中断任务 */
+    @Override
+    public String requiredCapability(Map<String, Object> input) {
+        AiAssistantMessage message = bridgeMessage(input);
+        if (message == null) {
+            return null;
+        }
+        return promptSupport.history(message.getConversationId(), message.getId()).stream()
+                .filter(item -> Constants.AiAssistantMessageRole.USER.equals(item.getRole()))
+                .reduce((first, second) -> second)
+                .filter(item -> item.getImages() != null && !item.getImages().isEmpty())
+                .map(item -> AiSettingsReader.CAPABILITY_VISION)
+                .orElse(null);
+    }
+
     @Override
     public TaskResult execute(TaskExecutionContext context) {
         UUID messageId = requireMessageId(context.getInput());
@@ -206,13 +229,14 @@ public class AssistantParseHandler implements TaskHandler {
                     .reduce((first, second) -> second)
                     .orElseThrow(() -> ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID));
             String triggerContent = ModelOutputSupport.nvl(trigger.getContent()).trim();
+            List<AiChatMedia> medias = triggerMedias(trigger);
             Map<String, String> judgeVariables = judgeVariables(context, conversation, trigger, history);
 
             context.report(30, "意图判别");
             // 助手交互调用 task_id = NULL、usage 归因 scene（总册 4.3），故不走 context.chat
             AiChatReply judge = context.getModelClient().chat(new AiChatRequest(null, context.getProjectId(),
                     context.getUserId(), TYPE, context.getModel(), JUDGE_SYSTEM,
-                    context.prompt(DEFAULT_PROMPT, judgeVariables)));
+                    context.prompt(DEFAULT_PROMPT, judgeVariables), medias));
             tokens[0] += judge.tokensIn();
             tokens[1] += judge.tokensOut();
 
@@ -224,7 +248,7 @@ public class AssistantParseHandler implements TaskHandler {
             return switch (kind) {
                 case KIND_CLARIFY -> handleClarify(parsed, message, channel, tokens);
                 case KIND_INTENT -> handleIntent(parsed, message, channel, context, tokens);
-                case KIND_ANSWER -> handleAnswer(parsed, triggerContent,
+                case KIND_ANSWER -> handleAnswer(parsed, triggerContent, medias,
                         message, channel, context, history, streamed, citations, tokens);
                 default -> throw parseFailed();
             };
@@ -287,7 +311,7 @@ public class AssistantParseHandler implements TaskHandler {
                 tokens[0], tokens[1]);
     }
 
-    private TaskResult handleAnswer(Map<String, Object> parsed, String triggerContent,
+    private TaskResult handleAnswer(Map<String, Object> parsed, String triggerContent, List<AiChatMedia> medias,
             AiAssistantMessage message, AssistantStreamBridge.StreamChannel channel,
             TaskExecutionContext context, List<AiAssistantMessage> history, StringBuilder streamed,
             List<Map<String, Object>> citations, int[] tokens) {
@@ -344,7 +368,8 @@ public class AssistantParseHandler implements TaskHandler {
                 new AiChatRequest(null, context.getProjectId(), context.getUserId(), SCENE_ANSWER,
                         context.getModel(), ANSWER_SYSTEM,
                         context.getPromptService().render(SCENE_ANSWER, AiPromptScenes.builtin(SCENE_ANSWER),
-                                answerVariables)),
+                                answerVariables),
+                        medias),
                 delta -> {
                     // 流式段边写边发；中途失败时 streamed 已含增量，随 error 一并落盘
                     streamed.append(delta);
@@ -551,6 +576,71 @@ public class AssistantParseHandler implements TaskHandler {
         } catch (IllegalArgumentException e) {
             throw parseFailed();
         }
+    }
+
+    // ---------- 附图媒体与能力派生 ----------
+
+    /** 能力派生桥接（详设 4.1）：非法输入静默返回 null，交由提交与执行期校验兜底（派生不抛错中断任务） */
+    private AiAssistantMessage bridgeMessage(Map<String, Object> input) {
+        String value = ModelOutputSupport.trimToNull(
+                ModelOutputSupport.asString(input == null ? null : input.get("messageId")));
+        if (value == null) {
+            return null;
+        }
+        try {
+            return messageMapper.selectById(UUID.fromString(value));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** 当前消息附图直传媒体（详设 4.1）：读回字节随本轮模型调用携带；历史消息附图不回传 */
+    private List<AiChatMedia> triggerMedias(AiAssistantMessage trigger) {
+        List<Map<String, Object>> images = trigger.getImages();
+        if (images == null || images.isEmpty()) {
+            return List.of();
+        }
+        List<AiChatMedia> medias = new ArrayList<>();
+        for (Map<String, Object> image : images) {
+            FileContent content = fileResourceService.readBytes(imageFileId(image.get("fileId")));
+            medias.add(new AiChatMedia(imageMimeType(content.fileName(), content.contentType()),
+                    content.content()));
+        }
+        return medias;
+    }
+
+    /** 落盘引用中的文件标识（服务端写入，正常不可缺）：损坏数据按附件非法拒绝，不静默丢图 */
+    private static UUID imageFileId(Object raw) {
+        String value = ModelOutputSupport.trimToNull(ModelOutputSupport.asString(raw));
+        if (value == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID);
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID);
+        }
+    }
+
+    /** 扩展名（小写）判图像白名单：与正文贴图 / 缺陷附件同口径 */
+    private static String extension(String fileName) {
+        String ext = fileName == null ? null : StringUtils.getFilenameExtension(fileName);
+        return ext == null ? "" : ext.toLowerCase(Locale.ROOT);
+    }
+
+    /** 直传 MIME：优先存储归一化类型，非 image/* 时按扩展名回落（白名单内必命中） */
+    private static String imageMimeType(String fileName, String contentType) {
+        if (contentType != null && contentType.startsWith("image/")) {
+            return contentType;
+        }
+        return switch (extension(fileName)) {
+            case "png" -> "image/png";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "bmp" -> "image/bmp";
+            default -> "image/png";
+        };
     }
 
     // ---------- 落盘与事件 ----------
