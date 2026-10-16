@@ -216,7 +216,7 @@ export function useRequirementList() {
   async function handleArchive(row: RequirementRow): Promise<void> {
     try {
       await ElMessageBox.confirm(
-        `归档后「${row.title}」只读且不参与拆分，可在详情页取消归档。`,
+        `归档后「${row.title}」只读，可在详情页取消归档。`,
         '确认归档',
         { type: 'warning', confirmButtonText: '归档', cancelButtonText: '取消' },
       )
