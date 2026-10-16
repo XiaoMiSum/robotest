@@ -10,12 +10,12 @@
 
 ### 1.1 编写目的
 
-对**智能助手**能力域进行详细设计：定义按用户归属的会话与消息接口、SSE 流式协议、意图解析与变更预览结构、确认执行与回执规则。会话 / 消息表（`ai_assistant_conversation` / `ai_assistant_message`）与任务资源（`type = assistant_parse`）的 DDL 与公共协议见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档不重复定义。
+对**智能助手**能力域进行详细设计：定义按用户归属的会话与消息接口、SSE 流式协议、对话式任务执行（工具调用循环）、澄清与变更预览结构、确认执行与回执规则。会话 / 消息表（`ai_assistant_conversation` / `ai_assistant_message`）与任务资源（`type = assistant_parse`）的 DDL 与公共协议见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档不重复定义。
 
 ### 1.2 范围与对应设计
 
 - 对应需求：`docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md`（US-AI-010 ~ 013）。
-- 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` 第 4.2 节。
+- 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` 第 4.2、4.7 节。
 - 落库对象为**测试用例、测试评审、测试计划**三类业务数据：执行时复用既有业务服务与校验（快照语义沿用既有机制），助手不自建落库通道。
 
 ### 1.3 参考资料
@@ -27,10 +27,11 @@
 
 ## 2. 数据设计
 
-本分册**不新增表**：
+本分册**不新增表**，仅 `ai_assistant_message` 补列：
 
 - 会话与消息：`ai_assistant_conversation`（`user_id` 唯一归属 + `context_snapshot`）、`ai_assistant_message`（`intent` 预览 / `execution` 回执 / `citations` 来源引用），DDL 见总册 2.9；
-- 意图解析执行：`ai_task`（`type = assistant_parse`，`workspace_id` 取 `X-Active-Workspace` 头，`project_id` 取执行上下文）。
+- 消息表补列（C5 迁移说明，随 PR 提供，DDL 见总册 2.9）：`tool_calls`（assistant 消息的工具调用载荷）与 `tool_call_id`（`role = tool` 结果消息回指），`role` 枚举扩展 `tool`；加列不回填、不新增表与索引（配对查询走既有会话索引）；
+- 意图解析执行：`ai_task`（`type = assistant_parse`，`workspace_id` 取 `X-Active-Workspace` 头，`project_id` 取执行上下文）；执行语义为对话式工具调用循环（4.1），单条消息的多跳模型调用共享本任务。
 
 ---
 
@@ -44,7 +45,7 @@
 | 操作 | 请求头 | 理由 |
 | ---- | ---- | ---- |
 | 会话列表 / 创建 / 重命名 / 删除 / 消息历史 | 仅 `Authorization` | 会话按人归属，不带工作空间 / 项目条件 |
-| 发送消息 | + `X-Active-Workspace` | 只读问答与意图解析的 RAG 限权作用域 |
+| 发送消息 | + `X-Active-Workspace` | 只读问答与工具执行的限权作用域 |
 | 执行落库 | + `X-Active-Workspace` + `X-Active-Project` | 执行范围限于预览目标所属工作空间与项目，服务端强校验（4.2） |
 
 - 全部接口先校验会话 `user_id = 当前用户`，否则 1000018251（防 IDOR，管理员同样不越权）。
@@ -107,9 +108,10 @@
 
 | event | data | 说明 |
 | ---- | ---- | ---- |
-| `delta` | `{ "text": "…" }` | 助手正文增量（只读问答与澄清文本） |
-| `clarify` | `{ "question": "…", "options": ["…"] }` | 解析不明确时的反问（同时落 `content`） |
-| `preview` | `{ …intent 结构见 4.3 }` | 变更预览生成完毕（落消息 `intent` 字段） |
+| `delta` | `{ "text": "…" }` | 助手正文增量（只读问答流式生成） |
+| `tool_call` | `{ "toolName": "…", "summary": "…" }` | 查询类能力执行进度帧（循环内可选下发，前端显示进行态） |
+| `clarify` | `{ "question": "…", "options": ["…"] }` | 执行中信息不足或多理解时的反问（由澄清能力产生，同时落 `content`） |
+| `preview` | `{ …intent 结构见 4.3 }` | 变更入参经服务端规范化后的预览（落消息 `intent` 字段） |
 | `citations` | `[{ "type": "requirement", "id": "…", "title": "REQ-001", "quote": "…" }]` | 来源引用（只读问答必带；落 `citations` 字段） |
 | `done` | `{ "messageId": "…" }` | 本条助手消息完成落盘（`status = done`） |
 | `error` | `{ "code": 1000018255, "msg": "意图解析失败" }` | 流终止错误 |
@@ -118,7 +120,7 @@
 - **服务端流程**：
   1. 落用户消息（`role = user`、`attachments`）→ 创建 `assistant_parse` 任务（总册 3.6.1）；
   2. 订阅任务流式输出转发为 SSE；`status = streaming` → 完成后置 `done`；
-  3. 三种产物分流：变更意图（`intent`）/ 澄清反问（`clarify`）/ 只读问答（`delta` + `citations`）；
+  3. 执行过程事件与产物分流：查询类能力执行时可下发进度帧（`tool_call`）；终态产物分为变更预览（`preview`）/ 澄清反问（`clarify`）/ 只读问答（`delta` + `citations`）；
   4. **断线恢复**：客户端断连后通过 3.6 消息历史轮询至 `status = done`，内容不丢失；服务端不因断连中止解析任务。
 - **校验**：会话可发消息（1000018259）、`content` 非空且 ≤ 4000 字符（1000018260）、附件引用合法（1000018262）；RAG 不可用时只读问答按总册 4.5 降级（1000018258），**不编造数据**。
 
@@ -158,6 +160,7 @@
 ```
 
 - `scope` 为预览时点的目标作用域**展示与校验依据**（数据引用），执行时以请求头为准比对（4.2）。
+- `role = tool` 的中间工具结果消息**不返回**（服务层过滤；断线恢复只轮询终态助手消息，历史时间线不展示执行步骤）。
 
 ### 3.7 确认执行
 
@@ -192,52 +195,74 @@
 
 ## 4. 业务逻辑设计
 
-### 4.1 意图解析与分流
+### 4.1 对话式任务执行（工具调用循环）
 
 ```mermaid
 flowchart LR
-    A[用户消息] --> B[assistant_parse 任务]
-    B --> C{解析结果}
-    C -->|多理解/缺对象| D[clarify 反问<br/>不生成预览]
-    C -->|查询统计类| E[只读问答<br/>delta + citations]
-    C -->|明确变更意图| F[preview 结构化预览<br/>intent 落库，previewed]
-    F --> G{用户确认}
-    G -->|确认执行| H[execute 逐项落库 → 回执]
-    G -->|取消| I[rejected，不落库]
-    G -->|返回修改| A
+    A[用户消息] --> B[assistant_parse 任务<br/>组装上下文 + 固化工具清单]
+    B --> C{模型调用<br/>携带工具定义}
+    C -->|纯文本| D[流式 delta → 落库 done]
+    C -->|查询类能力| E[服务端限权执行<br/>结果落 tool 消息回填]
+    E --> C
+    C -->|澄清能力| F[clarify 反问<br/>终止本轮，不生成预览]
+    C -->|变更类能力| G[服务端拦截规范化<br/>白名单 + scope + expiresAt<br/>preview 事件，零落库]
+    G --> H{用户确认}
+    H -->|确认执行| I[4.2 执行链路 → 逐项回执]
+    H -->|取消| J[rejected，不落库]
+    H -->|返回修改| A
+    E -.轮次达上限.-> K[固定文案落库 done]
 ```
 
-- 解析失败或存在多种理解 → 不生成预览，输出 `clarify`；**无明确业务对象的模糊指令不予执行**；
-- 只读问答不进入预览流程，直接流式返回答案 + 来源引用；数据超权限范围时明确拒绝并说明（总册 4.4 限权检索）。
+- **循环与轮次**：单条消息最多 5 跳模型调用（常量固化，防死循环）；查询类能力串行执行、结果回填后继续循环；仍无法产出时以固定文案落库并 `done` 终止（正常终止，非错误码），用户可继续对话。
+- **查询类能力**（只读，即时执行）：按 `X-Active-Workspace` 限权执行，结果以 `role = tool` 消息落库并回填模型；执行失败（权限不足、业务异常等）不中断会话——错误文本回填模型，由其改述、追问或改用其他能力；进度可经 `tool_call` 帧下发（3.5）。
+- **澄清能力**（`ask_user`）：入参为 `question` 与 2~5 个 `options`；调用即生成 `clarify` 事件与 ClarifyCard、消息落 `content` 并 `done`，**终止本轮循环**；选项须来自查询所得候选或上下文，不得虚构。
+- **变更类能力**（拦截，零落库）：模型发起变更调用后**不触发任何业务 Service**，由服务端按字段白名单与 4.3 结构规范化为 `intent`（scope 与 10 分钟过期由服务端补齐），经 `AssistantRefChecker` 越权与幻觉校验后发 `preview` 事件并终止循环；无法规范化按 1000018255，越权引用按 1000018261。
+- **工具清单**（服务端固化注册，16 个；模型无权调用清单外能力，清单外调用按 1000018255 拒绝）：
+
+| 类别 | 工具 | 说明 |
+| ---- | ---- | ---- |
+| 查询 / 检索 | `query_projects` / `query_doc_tree` / `query_cases` / `query_reviews` / `query_plans` / `query_progress` | 项目、模块 + 用例文档树、用例、评审、计划清单与进度；结果按活跃工作空间限权过滤 |
+| 查询 / 检索 | `search_knowledge` | 知识检索合一：先按主题词匹配静态平台指引片段（按空间角色过滤、附站内 route），再执行 RAG 向量检索返回业务知识命中；向量不可用时指引片段仍可应答，双缺失按 1000018258 降级 |
+| 澄清 | `ask_user` | `{question, options[2~5]}`，调用即生成 clarify 反问并终止本轮 |
+| 变更（拦截） | `create_case` / `update_case` / `complete_case` / `batch_tag` / `create_review` / `adjust_review` / `create_plan` / `adjust_plan` | 入参与 kind 白名单对齐（4.3），规范化为 `intent` 预览，执行在用户确认后（4.2） |
+
+- **模型调用**：工具定义注册与 `tool_calls` 回传统一经 Spring AI 2.0.x 执行（总册 4.2 调用层口径），平台不自实现 HTTP；每跳独立记账。
+- **上下文组装**：system（角色指令 + 页面上下文附件）+ 同会话近 20 条消息（**含 `role = tool` 结果消息**）+ 工具定义；候选清单（项目 / 文档树 / 用例等）不再静态注入提示词，由模型按需查询。
+- **悬空补偿**：任务失败或中断时，为带 `tool_calls` 但缺回填的 assistant 消息补"未执行"的 `role = tool` 消息落库，保证 `tool_calls` 后必有回填的协议配对，重载与续聊不悬挂。
+- **用量归因**：助手交互调用 `task_id = NULL`；判别与查询跳归因 `assistant_parse`，末跳回答生成归因 `assistant_answer`（总册 4.3）。
+- **引用**：`citations` 取本条消息循环中检索类能力返回的命中（去重），只读问答必带（3.5）。
+- **断线恢复**：任何终态（clarify / preview / done / error）先落盘再发事件，事件是已提交状态的投影（3.5）。
+- 只读问答不进入预览流程，直接流式返回答案 + 来源引用；数据超权限范围时明确拒绝并说明（总册 4.4 限权检索）；**无明确业务对象的模糊指令不予执行**（由澄清能力承接）。
 
 ### 4.2 确认执行的校验与作用域
 
-1. **预览阶段不产生任何落库数据**；`intent` 一经生成即固化（动作、目标、字段级变更、创建数量、scope 与过期时间）；
+1. **预览阶段不产生任何落库数据**；变更类调用在预览生成前由服务端拦截，用户确认前不触发业务服务；`intent` 一经生成即固化（动作、目标、字段级变更、创建数量、scope 与过期时间）；
 2. 执行时服务端**独立校验**：`intent.scope` 与请求头 `X-Active-Workspace / X-Active-Project` 一致，不一致拒绝（1000018256）——历史会话在新作用域下可继续问答，落库动作须回到目标作用域；
 3. 落库走**既有业务服务**，权限、必填、合法性校验与界面操作完全一致（参与者须空间成员、计划时间合法、圈选用例存在等），助手不放宽任何约束；
 4. **逐项事务**：成功项落库保留，失败项不落库，回执附原因与可单项重试；
 5. 每次执行（含部分失败）记审计；执行回执写 `execution` 后不可变更，单项重试产生新的执行子动作追加到 `results`（原条目保持不变）；
-6. **执行输入**：执行以 `intent` 固化的 `params` 与 `changes` 为输入——`caseIds`（已校验为工作空间内标识）与 `changes`（按字段白名单 `title / priority / type / precondition / steps / expected` 解析，越界字段忽略）直传既有服务；`create_case` 多条时逐条数据取 `params.cases`（`[{title, priority, precondition, steps, expected}, …]`，每条一个回执项），缺省时按 `targetTitle` + `changes` 单条创建，未携带 `documentId` 时取项目下首份功能用例文档、未携带 `parentId` 时挂根节点；`create_review` 未携带 `participantIds` 时取执行人本人（携带时校验存在且属同一空间）；
+6. **执行输入**：执行以 `intent` 固化的 `params` 与 `changes` 为输入——`caseIds`（已校验为工作空间内标识）与 `changes`（按字段白名单 `title / priority / type / precondition / steps / expected` 解析，越界字段忽略）直传既有服务；`create_case` 多条时逐条数据取 `params.cases`（`[{title, priority, precondition, steps, expected}, …]`，每条一个回执项），缺省时按 `targetTitle` + `changes` 单条创建，未携带 `documentId` 时取项目下首份功能用例文档、未携带 `parentId` 时挂根节点（`documentId / parentId` 可由 `query_doc_tree` 查询所得直接指定，优先于缺省规则）；`create_review` 未携带 `participantIds` 时取执行人本人（携带时校验存在且属同一空间）；
 7. **回执跳转链接**：`link` 为前端实际路由相对路径（`/workspace/projects/plans/{planId}`、`/workspace/projects/reviews/{reviewId}`、`/workspace/projects/functional-testing`），前端拿到即可跳转，不自行拼前缀。
 
 ### 4.3 预览（intent）结构
 
 | 字段 | 说明 |
 | ---- | ---- |
-| kind | 动作类型：`create_case / update_case / complete_case / batch_tag / create_review / adjust_review / view_review_progress / create_plan / adjust_plan / view_plan_progress` |
+| kind | 动作类型：`create_case / update_case / complete_case / batch_tag / create_review / adjust_review / create_plan / adjust_plan` |
 | targetType / targetTitle | 目标对象类型与名称 |
 | createCount | 将创建的记录数量 |
 | changes[] | 字段级变更：`field`、`op`（`add / replace`）、`value`（新增展示完整字段，修改展示原值 → 新值） |
 | scope | 预览时点作用域（workspaceId / projectId 展示名） |
 | expiresAt | 时效（默认生成后 10 分钟），超时需重新解析 |
 
-- 首批支持的任务类型以需求分册 1.3 为准（用例新建 / 修改 / 补全 / 批量标记，评审创建与调整，计划创建与调整及进度查看）；`batch_tag` 为批量设置优先级 / 类型标记（脑图既有标记语义，用例无标签数据模型），`update_case` 不含标签字段；进度查看类 `kind` 无 `changes`，执行即跳转查询（不落库，`results` 为空数组并附跳转链接）。
+- 首批支持的任务类型以需求分册 1.3 为准（用例新建 / 修改 / 补全 / 批量标记，评审创建与调整，计划创建与调整）；`batch_tag` 为批量设置优先级 / 类型标记（脑图既有标记语义，用例无标签数据模型），`update_case` 不含标签字段；进度查看类问题归只读问答（需求分册 1.5，直接作答附对象跳转链接，不产生 `kind`）。
+- ID 类入参一律取自查询类能力返回的候选并经活跃工作空间校验（4.1），不得虚构；`changes` 按字段白名单规范化，越界字段忽略。
 
 ### 4.4 会话与上下文规则
 
 - `context_snapshot` 仅作默认上下文与来源展示，**不参与权限判定**；切换活跃工作空间后，新消息按新上下文解析，跨工作空间指代被拒绝（1000018261）；
 - 删除会话只删会话与消息，已落库数据与执行审计不受影响；
-- 多轮对话：`assistant_parse` 携带同会话近 N 条消息作为上下文（N = 20），澄清消息计入。
+- 多轮对话：`assistant_parse` 携带同会话近 N 条消息作为上下文（N = 20），澄清消息与工具调用结果（`role = tool`）计入。
 
 ---
 
@@ -271,7 +296,7 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 
 ### 5.3 状态分支
 
-- 空会话引导（示例指令）、流式进行中、澄清反问、预览过期、执行部分失败、只读问答无引用（RAG 未就绪提示 1000018258）、会话归档态（只读）、权限不足（回执失败项说明）。
+- 空会话引导（示例指令）、流式进行中（含多步查询进度文案）、澄清反问、轮次超限（固定文案，可继续输入）、预览过期、执行部分失败、只读问答无引用（RAG 未就绪提示 1000018258）、会话归档态（只读）、权限不足（回执失败项说明）。
 
 ---
 
@@ -285,7 +310,7 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 | 1000018252 | 404 | 消息不存在 |
 | 1000018253 | 409 | 预览不存在或已过期 |
 | 1000018254 | 409 | 预览已执行或已取消 |
-| 1000018255 | 400 | 意图解析失败，无法生成预览 |
+| 1000018255 | 400 | 意图解析失败，无法生成预览（含变更入参无法规范化、清单外能力调用） |
 | 1000018256 | 409 | 执行作用域与预览目标不一致 |
 | 1000018257 | 403 | 无权限执行该操作 |
 | 1000018258 | 400 | 只读问答检索不可用（向量能力未就绪） |
@@ -305,18 +330,20 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 | `server/.../controller/ai/AiAssistantController` | 会话 / 消息 / 执行 / 取消路由（仅路由，C2） |
 | `server/.../service/ai/assistant/AssistantService + Impl` | 会话归属校验、消息落盘、SSE 桥接 |
 | `server/.../service/ai/assistant/AssistantExecuteService + Impl` | 预览校验、作用域比对、分发既有业务服务落库 |
-| `server/.../service/ai/task/handler/AssistantParseHandler` | 解析执行器（分流：意图 / 澄清 / 问答） |
+| `server/.../service/ai/assistant/tool/*` | 工具体系：`AssistantTool` 接口与清单注册（服务端固化 16 个）、查询 / 澄清 / 变更拦截工具实现 |
+| `server/.../service/ai/assistant/AssistantToolLoop` | 工具调用循环编排（轮次上限、结果回填、事件桥接、悬空补偿），承接原 `AssistantParseHandler` 职责 |
+| `server/.../service/ai/config/AiModelClient` | 扩展工具定义注册与 `tool_calls` 回传（经 Spring AI，不自实现 HTTP） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018251–1000018262 |
 | `web/src/components/ai/assistant/*`（Panel、Timeline、PreviewCard、ReceiptCard） | 助手前端 |
 | `web/src/stores/aiAssistant.ts`、`web/src/services/aiAssistant.ts` | 状态与 API（含 SSE 客户端封装） |
 
-- **数据库**：无新增表（复用总册 2.9 两张表）。
-- **OpenAPI**：SSE 接口以 `text/event-stream` 单独标注（springdoc `@ApiResponse` content 为 `text/event-stream`）；execute / cancel 标注幂等语义。
+- **数据库**：无新增表（复用总册 2.9 两张表）；`ai_assistant_message` 补 `tool_calls / tool_call_id` 两列（2 节迁移说明，DDL 见总册 2.9）。
+- **OpenAPI**：SSE 接口以 `text/event-stream` 单独标注（springdoc `@ApiResponse` content 为 `text/event-stream`），`@Operation` 事件清单含新增 `tool_call` 进度帧；execute / cancel 标注幂等语义。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：会话归属越权全矩阵（1000018251）、SSE 事件序列与断线后消息完整、预览时效与重复执行拦截、作用域不一致拒绝、执行逐项事务与部分失败回执、只读问答引用必带、删除会话不触碰落库数据；
-- 前端：SSE 解析与断连恢复轮询、预览倒计时与过期降级、回执跳转与单项重试、归档态只读、全部状态分支。
+- 后端：会话归属越权全矩阵（1000018251）、SSE 事件序列与断线后消息完整、工具循环轮次上限与固定文案终止、查询失败回填不中断会话、**变更拦截在确认前零落库**、澄清事件与快捷选项、清单外能力拒绝、悬空工具消息补偿配对、预览时效与重复执行拦截、作用域不一致拒绝、执行逐项事务与部分失败回执、只读问答引用必带、删除会话不触碰落库数据；
+- 前端：SSE 解析（含 `tool_call` 进度帧）与断连恢复轮询、多步查询进度与轮次超限提示、预览倒计时与过期降级、回执跳转与单项重试、归档态只读、全部状态分支。
 
 ---
 
@@ -329,3 +356,4 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 | V1.0 | 2026-10-07 | `batch_tag` 与 `update_case` 口径对齐既有数据模型：批量标记为设置优先级 / 类型标记，不设标签字段 |
 | V1.0 | 2026-10-07 | 明确 execute 单项重试口径（254 分档、retryIndexes、结果追加）、执行输入缺省与回执跳转链接格式 |
 | V1.0 | 2026-10-07 | case 类 `changes` 白名单去 description 补 expected；`create_case` 多条数据取 `params.cases`；回执链接对齐前端实际路由 |
+| V1.0 | 2026-10-16 | 执行机制由提示词分流改为对话式任务执行（工具调用循环）：1 引言、2 消息表补列、3.5 新增 `tool_call` 帧与产物分流、3.6 过滤 `role = tool` 消息、4.1 重写（16 个固化工具清单、轮次上限、拦截零落库、悬空补偿）、4.2/4.3 规范化与结构化 ID 口径、4.4 上下文含工具消息、5.3/6/7 状态、错误码说明与实施清单同步 |

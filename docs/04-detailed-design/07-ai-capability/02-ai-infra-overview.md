@@ -332,10 +332,12 @@ CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id);
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | conversation_id | uuid | NOT NULL | 所属会话（逻辑外键） |
-| role | varchar(20) | NOT NULL | `user / assistant / system` |
+| role | varchar(20) | NOT NULL | `user / assistant / system / tool` |
 | content | text | NULL | 消息正文（Markdown）；流式结束后落盘，断线重连续读 |
 | attachments | jsonb | NULL | 用户选中的上下文实体引用集合（可含所属项目标识，属数据引用非 API 上下文） |
 | images | jsonb | NULL | 用户随消息上传的图片文件引用集合 `[{ fileId, name }]`（≤3 张，vision 调用的媒体来源，接口见助手分册 3.5） |
+| tool_calls | jsonb | NULL | assistant 消息的工具调用载荷（名称与入参），工具结果消息经 `tool_call_id` 与之配对 |
+| tool_call_id | varchar(64) | NULL | 工具结果消息（`role = tool`）回指的调用标识，保证 `tool_calls` 后必有回填 |
 | intent | jsonb | NULL | 意图解析结构化预览：动作、目标、字段级变更、影响数量 |
 | citations | jsonb | NULL | 来源引用集合（只读问答与预览附带的可跳转引用） |
 | execution | jsonb | NULL | 执行回执：`previewed → executed / rejected`、逐项成功失败、执行人与时间 |
@@ -363,6 +365,8 @@ CREATE TABLE ai_assistant_message (
     content         text NULL,
     attachments     jsonb NULL,
     images          jsonb NULL,
+    tool_calls      jsonb NULL,
+    tool_call_id    varchar(64) NULL,
     intent          jsonb NULL,
     citations       jsonb NULL,
     execution       jsonb NULL,
@@ -583,7 +587,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | bug_duplicate_scan | 缺陷 | `scope` | `duplicate_group` | 人工按重复缺陷机制处理 |
 | bug_triage | 缺陷 | 无 | `triage_order`（只读建议，无确认） | 不落库 |
 | bug_trend_summary | 缺陷 | `from / to / groupBy` | `summary`（只读，无确认） | 不落库 |
-| assistant_parse | 助手 | `messageId` | `intent_preview / answer` | 助手执行接口（分册 04） |
+| assistant_parse | 助手 | `messageId`（执行语义为对话式工具调用循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
 #### 3.6.2 提交任务
@@ -747,7 +751,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - 每次模型 / 向量调用（成功与失败）写一条 `ai_usage_log`：延迟为调用端到端耗时，token 以响应账单为准（缺省按字符估算并标记）；任务级汇总同步累加到 `ai_task.tokens_in / tokens_out`；带图（媒体随行）的模型调用记 `call_type = vision`（2.8）。
 - 成本 `cost` 按调用模型的当时单价计：`prompt_tokens / 1e6 × input_price + completion_tokens / 1e6 × output_price`，连通性测试等无任务调用同样计价；单价未配置（0）时 `cost = 0`。
-- 任务的多次调用（解析、生成、后处理）各记一条明细并共享 `task_id`；助手交互调用 `task_id = NULL`、`prompt_scene` 归因到助手场景。
+- 任务的多次调用（解析、生成、后处理）各记一条明细并共享 `task_id`；助手交互调用 `task_id = NULL`、`prompt_scene` 归因到助手场景——单条消息的工具调用循环每跳各记一条，判别与查询跳归因 `assistant_parse`、末跳回答生成归因 `assistant_answer`。
 - 统计查询按 UTC 日期分组；失败率 = `failed / total`；空区间补 0（前端图表不出现断点）。
 
 ### 4.4 RAG 与向量索引维护
@@ -907,3 +911,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-15 | 任务类型枚举注销 `requirement_split`（条目内拆分下线，拆解统一由 `requirement_import` 承载），2.5 场景编码示例同步 |
 | V1.0 | 2026-10-15 | 模型配置能力标签移除 `embedding`：向量能力由独立的 `ai_embedding_config`（2.4 / 3.4）承载，模型配置的 `capabilities` 收窄为 `{chat, vision}`；2.3 字段说明与 3.3 校验规则同步更新 |
 | V1.0 | 2026-10-16 | vision 能力落地（方案见 `docs/06-implementation-plan/04-ai-vision-capability-plan.md`）：2.3 `priority` 改为选型排序、2.9 消息表补 `images` 列、2.8 / 3.7 / 4.3 用量 `call_type` 扩展 `vision`；3.6.2 校验顺序补能力选型、4.2 新增模型选型规则（必需能力派生 + priority 升序扫描）、4.5 补无视觉模型降级、6 登记 1000018124 |
+| V1.0 | 2026-10-16 | 助手执行机制切换为工具调用循环（分册 04 §4.1）：2.9 消息表补 `tool_calls / tool_call_id` 两列与 `role = tool`、3.6.1 `assistant_parse` 补执行语义、4.3 补单条消息多跳用量归因 |
