@@ -68,7 +68,9 @@ public class AiTaskExecutor {
             return;
         }
         // 必需能力复验（详设 4.2）：候选被停用后仍保证能力安全，不会把图片发给无视觉能力的模型
-        String requiredCapability = handler.requiredCapability(task.getInput() == null ? Map.of() : task.getInput());
+        Map<String, Object> input = task.getInput() == null ? Map.of() : task.getInput();
+        String requiredCapability = handler.requiredCapability(input, new TaskSubmitContext(
+                task.getProjectId(), task.getWorkspaceId(), task.getSubmittedBy(), null));
         AiModelConfig model = requiredCapability == null
                 ? settingsReader.resolveModel(task.getModelId())
                 : settingsReader.resolveModel(task.getModelId(), requiredCapability);
@@ -80,7 +82,7 @@ public class AiTaskExecutor {
         }
         TaskExecutionContext context = new TaskExecutionContext(
                 task.getId(), task.getProjectId(), task.getWorkspaceId(), task.getSubmittedBy(),
-                task.getPromptScene(), model, task.getInput() == null ? Map.of() : task.getInput(),
+                task.getPromptScene(), model, input,
                 (percent, phase) -> taskMapper.reportProgress(taskId, percent, phase),
                 modelClient, promptService);
         try {

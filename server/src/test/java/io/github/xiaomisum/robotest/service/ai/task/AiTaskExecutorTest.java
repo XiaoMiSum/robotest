@@ -136,7 +136,7 @@ class AiTaskExecutorTest {
     void execute_capabilityRequired_noVisionModel_fails124() {
         when(taskMapper.casStart(TASK_ID)).thenReturn(true);
         when(taskMapper.selectById(TASK_ID)).thenReturn(pendingTask());
-        when(handler.requiredCapability(any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
+        when(handler.requiredCapability(any(), any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
 
         executor.start(TASK_ID);
 
@@ -149,7 +149,7 @@ class AiTaskExecutorTest {
     void execute_capabilityRequired_resolvesBySelectionAndRuns() {
         when(taskMapper.casStart(TASK_ID)).thenReturn(true);
         when(taskMapper.selectById(TASK_ID)).thenReturn(pendingTask());
-        when(handler.requiredCapability(any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
+        when(handler.requiredCapability(any(), any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
         when(settingsReader.resolveModel(any(), eq(AiSettingsReader.CAPABILITY_VISION))).thenReturn(model());
         Map<String, Object> result = Map.of("artifacts", List.of());
         when(handler.execute(any())).thenReturn(new TaskResult(result, 0, 0));

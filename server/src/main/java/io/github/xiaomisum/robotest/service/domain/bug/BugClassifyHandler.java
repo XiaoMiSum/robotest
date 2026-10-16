@@ -5,19 +5,28 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
+import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.bug.BugAttachmentMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
+import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
+import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
+import io.github.xiaomisum.robotest.service.domain.file.FileContent;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementSuggestionParser;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
@@ -30,6 +39,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,9 +52,10 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 缺陷分类建议处理器（缺陷分析详设 3.5 草稿模式）：新建表单草稿 → 分类建议与指派候选；
- * 建议仅作表单标记，不落库（confirmStatus = not_applicable），用户值优先（详设 3.5）。
- * 批量模式（详设 3.6）随确认承接一并实现。
+ * 缺陷分类建议处理器（缺陷分析详设 3.5 / 3.6）：草稿模式产出表单建议（不落库，用户值优先、
+ * confirmStatus = not_applicable）；批量模式逐缺陷产出待确认建议（最多 500、按分片多次调用）。
+ * 截图入模（详设 3.5 / 3.6）：草稿 fileIds ≤3 张、批量每缺陷 ≤2 张且全批 ≤8 张按缺陷序截断，
+ * 提交期派生 vision 必需能力（无视觉模型走 1000018124）。
  */
 @Component
 public class BugClassifyHandler implements TaskHandler {
@@ -60,6 +71,12 @@ public class BugClassifyHandler implements TaskHandler {
     /** 批量分类上限（详设 3.6）与单次模型调用的缺陷分片大小 */
     private static final int BATCH_LIMIT = 500;
     private static final int BATCH_SHARD = 20;
+    /** 截图入模口径（详设 3.5 / 3.6）：草稿 ≤3 张、批量每缺陷 ≤2 张且全批 ≤8 张、单张 ≤10MB */
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "gif", "webp", "bmp");
+    private static final int DRAFT_IMAGE_LIMIT = 3;
+    private static final int BUG_IMAGE_LIMIT = 2;
+    private static final int BATCH_IMAGE_LIMIT = 8;
+    private static final long IMAGE_MAX_BYTES = 10L * 1024 * 1024;
     private static final String PERMISSION = "bug:view";
 
     private static final Set<String> BUG_TYPES = Set.of(
@@ -80,7 +97,8 @@ public class BugClassifyHandler implements TaskHandler {
             2. severity 只允许 fatal / serious / general / minor；priority 只允许 high / medium / low；
             3. moduleId 仅当缺陷内容明确属于某模块时给出模块 id，否则 value 为 null；
             4. keywords 给 1~5 个检索关键词；
-            5. 每条缺陷恰好输出一个 item，bugId 必须取自清单原值，不得臆造或遗漏。
+            5. 每条缺陷恰好输出一个 item，bugId 必须取自清单原值，不得臆造或遗漏；
+            6. 缺陷条目附「截图」标注时，结合对应序号的随附图片辅助判断，无标注的仅按文本判断。
             输出结构（JSON 对象，items 即结果清单）：
             {"items":[{"bugId":"…","suggestions":{"bugType":{"value":"…","reason":"…"},"severity":{"value":"…","reason":"…"},"priority":{"value":"…","reason":"…"},"moduleId":{"value":null,"reason":"…"},"keywords":{"value":["…"],"reason":"…"}}}]}
 
@@ -100,6 +118,14 @@ public class BugClassifyHandler implements TaskHandler {
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private SysUserMapper sysUserMapper;
+    @Resource
+    private BugAttachmentMapper bugAttachmentMapper;
+    @Resource
+    private BugAttachmentService bugAttachmentService;
+    @Resource
+    private FileResourceMapper fileResourceMapper;
+    @Resource
+    private FileResourceService fileResourceService;
 
     @Override
     public String type() {
@@ -115,7 +141,8 @@ public class BugClassifyHandler implements TaskHandler {
                 2. severity 只允许 fatal / serious / general / minor；priority 只允许 high / medium / low；
                 3. moduleId 仅当草稿内容明确属于某模块时给出模块 id，否则 value 为 null；
                 4. keywords 给 1~5 个检索关键词；
-                5. assigneeCandidates 仅从成员清单中挑选 0~3 名最合适的处理人并给出理由，不得臆造清单外的人；无合适人选时返回空数组。
+                5. assigneeCandidates 仅从成员清单中挑选 0~3 名最合适的处理人并给出理由，不得臆造清单外的人；无合适人选时返回空数组；
+                6. 若随附截图，结合截图界面状态辅助判断分类、严重程度与优先级。
                 输出结构（JSON 对象）：
                 {"suggestions":{"bugType":{"value":"…","reason":"…"},"severity":{"value":"…","reason":"…"},"priority":{"value":"…","reason":"…"},"moduleId":{"value":null,"reason":"…"},"keywords":{"value":["…"],"reason":"…"}},"assigneeCandidates":[{"userId":"…","reason":"…"}]}
 
@@ -144,6 +171,7 @@ public class BugClassifyHandler implements TaskHandler {
             if (title.length() > TITLE_MAX_LENGTH) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
             }
+            validateDraftImages(draft);
             return;
         }
         // 批量模式（详设 3.6）：bugIds 显式圈定或 filter 按状态筛选，二者缺一即输入非法
@@ -154,6 +182,69 @@ public class BugClassifyHandler implements TaskHandler {
         if (bugIds.size() > BATCH_LIMIT) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
         }
+    }
+
+    /**
+     * 截图入模的能力派生（详设 4.2 / 方案 2.3.2）：草稿 fileIds 非空（提交期已校验为图片白名单）
+     * 即需 vision；批量需按项目解析缺陷集（依赖项目范围故走带上下文重载），存在图像类附件才需
+     * vision，仅查附件元数据、不读字节。
+     */
+    @Override
+    public String requiredCapability(Map<String, Object> input, TaskSubmitContext context) {
+        Map<String, Object> draft = asMap(input == null ? null : input.get("draft"));
+        if (trimToNull(asString(draft.get("title"))) != null) {
+            return parseFileIds(draft).isEmpty() ? null : AiSettingsReader.CAPABILITY_VISION;
+        }
+        if (context == null || context.projectId() == null) {
+            return null;
+        }
+        List<Bug> bugs;
+        try {
+            bugs = resolveBugs(input, context.projectId());
+        } catch (ServiceException e) {
+            // 执行期复验不阻断（非法输入已由提交期校验拦截）：解析失败按无视觉诉求处理
+            return null;
+        }
+        if (bugs.isEmpty()) {
+            return null;
+        }
+        List<UUID> bugIds = bugs.stream().map(Bug::getId).toList();
+        return imageAttachmentsByBug(bugIds).isEmpty() ? null : AiSettingsReader.CAPABILITY_VISION;
+    }
+
+    /** 草稿截图校验（详设 3.5）：≤3 张、图像白名单、单张 ≤10MB；缺失或超限同按输入非法 */
+    private void validateDraftImages(Map<String, Object> draft) {
+        List<UUID> fileIds = parseFileIds(draft);
+        if (fileIds.size() > DRAFT_IMAGE_LIMIT) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+        }
+        for (UUID fileId : fileIds) {
+            FileResource file = fileResourceMapper.selectById(fileId);
+            if (file == null || !IMAGE_EXTENSIONS.contains(extension(file.getFileName()))
+                    || file.getFileSize() == null || file.getFileSize() > IMAGE_MAX_BYTES) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+            }
+        }
+    }
+
+    /** 草稿截图引用解析：去重后保持声明顺序（校验与直传读取共用） */
+    private static List<UUID> parseFileIds(Map<String, Object> draft) {
+        Object raw = draft == null ? null : draft.get("fileIds");
+        if (raw == null) {
+            return List.of();
+        }
+        if (!(raw instanceof List<?> list)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+        }
+        LinkedHashSet<UUID> ids = new LinkedHashSet<>(list.size());
+        for (Object element : list) {
+            try {
+                ids.add(UUID.fromString(String.valueOf(element).trim()));
+            } catch (IllegalArgumentException e) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+            }
+        }
+        return new ArrayList<>(ids);
     }
 
     @Override
@@ -182,13 +273,29 @@ public class BugClassifyHandler implements TaskHandler {
         variables.put("bugContext", "标题：" + nvl(title) + "\n重现步骤：\n" + nvl(steps));
         variables.put("moduleOptions", moduleOptions(modules));
         variables.put("memberOptions", memberOptionsText(members));
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(defaultPrompt(), variables));
+        String userPrompt = context.prompt(defaultPrompt(), variables);
+        // 草稿截图直传（详设 3.5）：无截图仍走文本入口，保持既有调用形态
+        List<AiChatMedia> images = draftImages(draft);
+        AiChatReply reply = images.isEmpty()
+                ? context.chat(SYSTEM_PROMPT, userPrompt)
+                : context.chat(SYSTEM_PROMPT, userPrompt, images);
 
         context.report(85, "解析分类建议");
         Map<String, Object> artifact = sanitize(reply, modules, members, similar);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("artifacts", List.of(artifact));
         return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
+    }
+
+    /** 草稿截图直传（详设 3.5）：按 fileIds 声明顺序读取字节（提交期已校验为图像白名单） */
+    private List<AiChatMedia> draftImages(Map<String, Object> draft) {
+        List<AiChatMedia> images = new ArrayList<>();
+        for (UUID fileId : parseFileIds(draft)) {
+            FileContent content = fileResourceService.readBytes(fileId);
+            images.add(new AiChatMedia(
+                    imageMimeType(content.fileName(), content.contentType()), content.content()));
+        }
+        return images;
     }
 
     /**
@@ -203,6 +310,11 @@ public class BugClassifyHandler implements TaskHandler {
         }
         List<ProjectModule> modules = projectModuleMapper.listByProjectId(context.getProjectId());
 
+        // 截图收集（详设 3.6）：每缺陷 ≤2 张、全批 ≤8 张，跨分片共享配额按缺陷序截断
+        Map<UUID, List<BugAttachment>> imagesByBug = imageAttachmentsByBug(
+                bugs.stream().map(Bug::getId).toList());
+        int remainingImages = BATCH_IMAGE_LIMIT;
+
         List<Map<String, Object>> artifacts = new ArrayList<>();
         int tokensIn = 0;
         int tokensOut = 0;
@@ -210,11 +322,38 @@ public class BugClassifyHandler implements TaskHandler {
         for (int start = 0; start < total; start += BATCH_SHARD) {
             List<Bug> shard = bugs.subList(start, Math.min(start + BATCH_SHARD, total));
             context.report(5 + 80 * (start + shard.size()) / total, "分类进度 " + (start + shard.size()) + "/" + total);
+            List<AiChatMedia> images = new ArrayList<>();
+            Map<UUID, String> imageNotes = new LinkedHashMap<>();
+            for (Bug bug : shard) {
+                if (remainingImages <= 0) {
+                    break;
+                }
+                List<BugAttachment> candidates = imagesByBug.getOrDefault(bug.getId(), List.of());
+                int take = Math.min(BUG_IMAGE_LIMIT, Math.min(candidates.size(), remainingImages));
+                int first = images.size() + 1;
+                int added = 0;
+                for (BugAttachment attachment : candidates.subList(0, take)) {
+                    byte[] bytes = readAttachmentQuietly(attachment);
+                    if (bytes == null) {
+                        continue;
+                    }
+                    images.add(new AiChatMedia(
+                            imageMimeType(attachment.getFileName(), attachment.getContentType()), bytes));
+                    added++;
+                }
+                if (added > 0) {
+                    remainingImages -= added;
+                    imageNotes.put(bug.getId(), imageNote(first, added));
+                }
+            }
             Map<String, String> variables = new HashMap<>();
-            variables.put("bugContext", batchBugContext(shard));
+            variables.put("bugContext", batchBugContext(shard, imageNotes));
             variables.put("moduleOptions", moduleOptions(modules));
             variables.put("memberOptions", "");
-            AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(BATCH_PROMPT, variables));
+            String userPrompt = context.prompt(BATCH_PROMPT, variables);
+            AiChatReply reply = images.isEmpty()
+                    ? context.chat(SYSTEM_PROMPT, userPrompt)
+                    : context.chat(SYSTEM_PROMPT, userPrompt, images);
             tokensIn += reply.tokensIn();
             tokensOut += reply.tokensOut();
             artifacts.addAll(sanitizeBatch(reply, shard, modules));
@@ -268,12 +407,64 @@ public class BugClassifyHandler implements TaskHandler {
         return ids;
     }
 
-    private static String batchBugContext(List<Bug> shard) {
+    private static String batchBugContext(List<Bug> shard, Map<UUID, String> imageNotes) {
         return shard.stream()
                 .map(bug -> "id=" + bug.getId()
                         + "\n标题：" + nvl(bug.getTitle())
-                        + "\n重现步骤：\n" + nvl(bug.getReproSteps()))
+                        + "\n重现步骤：\n" + nvl(bug.getReproSteps())
+                        + (imageNotes.containsKey(bug.getId()) ? "\n" + imageNotes.get(bug.getId()) : ""))
                 .collect(Collectors.joining("\n---\n"));
+    }
+
+    /** 图像类附件按缺陷分组（上传时间倒序，仅元数据）：能力派生与批量截图收集共用 */
+    private Map<UUID, List<BugAttachment>> imageAttachmentsByBug(List<UUID> bugIds) {
+        if (bugIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, List<BugAttachment>> grouped = new LinkedHashMap<>();
+        for (BugAttachment attachment : bugAttachmentMapper.listByBugIds(bugIds)) {
+            if (!IMAGE_EXTENSIONS.contains(extension(attachment.getFileName()))) {
+                continue;
+            }
+            grouped.computeIfAbsent(attachment.getBugId(), key -> new ArrayList<>()).add(attachment);
+        }
+        return grouped;
+    }
+
+    /** 单张截图读取失败不阻塞批量（附件存储异常非输入错误）：该图退化为文本、其余照常 */
+    private byte[] readAttachmentQuietly(BugAttachment attachment) {
+        try {
+            return bugAttachmentService.readBytes(attachment);
+        } catch (ServiceException e) {
+            return null;
+        }
+    }
+
+    /** 随附图片序号标注：与提示词缺陷块一一对应，防图文错配（详设 3.6） */
+    private static String imageNote(int first, int count) {
+        String range = count == 1 ? "第 " + first + " 张" : "第 " + first + "～" + (first + count - 1) + " 张";
+        return "截图 " + count + " 张（随附图片" + range + "）";
+    }
+
+    /** 扩展名（小写）判图像白名单：草稿文件与缺陷附件共用 */
+    private static String extension(String fileName) {
+        String ext = fileName == null ? null : StringUtils.getFilenameExtension(fileName);
+        return ext == null ? "" : ext.toLowerCase(Locale.ROOT);
+    }
+
+    /** 直传 MIME：优先存储归一化类型，非 image/* 时按扩展名回落（白名单内必命中） */
+    private static String imageMimeType(String fileName, String contentType) {
+        if (contentType != null && contentType.startsWith("image/")) {
+            return contentType;
+        }
+        return switch (extension(fileName)) {
+            case "png" -> "image/png";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "bmp" -> "image/bmp";
+            default -> "image/png";
+        };
     }
 
     /** 批量产物清洗：模型按 bugId 对号入座，越界或重复的条目剔除，未响应的缺陷不产产物 */
