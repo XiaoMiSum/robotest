@@ -18,12 +18,12 @@ class AssistantToolRegistryTest {
     private final AssistantToolRegistry registry = new AssistantToolRegistry(List.of(
             new QueryProjectsTool(), new QueryDocTreeTool(), new QueryCasesTool(),
             new QueryReviewsTool(), new QueryPlansTool(), new QueryProgressTool(),
-            new AskUserTool()));
+            new SearchKnowledgeTool(), new AskUserTool()));
 
     @Test
     void registers_all_definitions_and_excludes_unknown() {
-        // 7 个执行体（6 查询 + 澄清）+ 8 个变更 definition = 15；search_knowledge 随 S5 增至 16
-        assertEquals(15, registry.all().size());
+        // 7 查询（含知识检索）+ 澄清 = 8 执行体 + 8 变更 definition = 16（详设 4.1 固化清单）
+        assertEquals(16, registry.all().size());
         assertNull(registry.definition("not_exist_tool"));
         assertNull(registry.definition(null));
         assertNull(registry.executable("not_exist_tool"));
@@ -32,7 +32,7 @@ class AssistantToolRegistryTest {
     @Test
     void executable_tools_carry_query_or_clarify_category() {
         for (String name : List.of("query_projects", "query_doc_tree", "query_cases",
-                "query_reviews", "query_plans", "query_progress")) {
+                "query_reviews", "query_plans", "query_progress", "search_knowledge")) {
             AssistantToolDefinition definition = registry.definition(name);
             assertNotNull(definition);
             assertEquals(ToolCategory.QUERY, definition.category());
