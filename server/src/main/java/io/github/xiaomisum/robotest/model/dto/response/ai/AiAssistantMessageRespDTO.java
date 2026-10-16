@@ -18,7 +18,7 @@ public class AiAssistantMessageRespDTO {
 
     private UUID conversationId;
 
-    /** user / assistant / system */
+    /** user / assistant / system / tool（role = tool 的中间消息不返回，详设 3.6） */
     private String role;
 
     /** 消息正文（Markdown） */
@@ -29,6 +29,9 @@ public class AiAssistantMessageRespDTO {
 
     /** 用户消息的附图引用 [{fileId, name}]（仅存引用不存字节），助手消息恒为空 */
     private List<Map<String, Object>> images;
+
+    /** assistant 消息的工具调用载荷（结构见详设 4.1；非 assistant 消息为 null） */
+    private List<Map<String, Object>> toolCalls;
 
     /** 意图解析结构化预览（结构见详设 4.3，无预览为 null） */
     private Map<String, Object> intent;

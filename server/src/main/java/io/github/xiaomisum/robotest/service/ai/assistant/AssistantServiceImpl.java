@@ -342,6 +342,7 @@ public class AssistantServiceImpl implements AssistantService {
         resp.setContent(entity.getContent());
         resp.setAttachments(entity.getAttachments());
         resp.setImages(entity.getImages());
+        resp.setToolCalls(entity.getToolCalls());
         resp.setIntent(entity.getIntent());
         resp.setCitations(entity.getCitations());
         resp.setExecution(entity.getExecution());
