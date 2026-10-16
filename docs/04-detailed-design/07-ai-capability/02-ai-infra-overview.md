@@ -741,7 +741,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 4.2 任务引擎
 
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
-- **模型选型（能力 + 优先级）**：提交期按「任务必需能力」解析模型并回写 `model_id`（维持提交时解析、执行不漂移），执行期以任务行 `model_id` 按同一规则复验；必需能力由 handler 从任务输入派生——`requirement_import` 图片文件、`assistant_parse` 消息附图、`bug_classify` 附带截图时为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。
+- **模型选型（能力 + 优先级）**：提交期按「任务必需能力」解析模型并回写 `model_id`（维持提交时解析、执行不漂移），执行期以任务行 `model_id` 按同一规则复验；必需能力由 handler 从任务输入派生（`bug_classify` 批量需结合项目范围解析缺陷集后判定）——`requirement_import` 图片文件、`assistant_parse` 消息附图、`bug_classify` 附带截图时为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。
 - **分发**：`type → TaskHandler`（每个 handler 注册：input 校验器、执行器、进度/阶段上报、产物抽取器、落库承接器）；执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
 - **生命周期**：`pending → running → succeeded / failed`，`pending / running → cancelled`；`progress / phase` 由 handler 上报；超时清扫器按 `task_timeout_seconds` 扫描 `status + updated_at` 索引（2.6），超时置 `failed`（`error_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待任务完成，超时返回进行中状态；等待不改变异步语义。
@@ -916,3 +916,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-16 | 助手执行机制切换为工具调用循环（分册 04 §4.1）：2.9 消息表补 `tool_calls / tool_call_id` 两列与 `role = tool`、3.6.1 `assistant_parse` 补执行语义、4.3 补单条消息多跳用量归因 |
 | V1.0 | 2026-10-16 | 2.9 会话表补 `workspace_id`（NOT NULL 归属空间，列表按当前活跃空间过滤），索引改为 (user_id, workspace_id, created_at) |
 | V1.0 | 2026-10-16 | 2.9 `context_snapshot` 补会话私有项目状态（`projectId / projectName`，仅会话内生效、不改全局、不进请求头） |
+| V1.0 | 2026-10-16 | WP-V.5 口径细化：4.2 必需能力派生补 `bug_classify` 批量需结合项目范围解析缺陷集判定（仅查附件元数据，不读字节） |
