@@ -277,7 +277,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode GENERATION_DUPLICATE_TASK = ErrorCode.of(1000018209, "已存在进行中的同输入生成任务");
     public static final ErrorCode GENERATION_PARENT_NOT_ADOPTED = ErrorCode.of(1000018210, "父级产物尚未采纳，无法落库");
 
-    // ========== 智能助手 1000018251-1000018262（助手详设 6，号段至 1000018279） ==========
+    // ========== 智能助手 1000018251-1000018263（助手详设 6，号段至 1000018279） ==========
     public static final ErrorCode ASSISTANT_CONVERSATION_NOT_FOUND = ErrorCode.of(1000018251, "会话不存在或非本人会话");
     public static final ErrorCode ASSISTANT_MESSAGE_NOT_FOUND = ErrorCode.of(1000018252, "消息不存在");
     public static final ErrorCode ASSISTANT_PREVIEW_EXPIRED = ErrorCode.of(1000018253, "预览不存在或已过期");
@@ -290,6 +290,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode ASSISTANT_CONTENT_INVALID = ErrorCode.of(1000018260, "消息内容为空或超过长度限制");
     public static final ErrorCode ASSISTANT_CROSS_WORKSPACE = ErrorCode.of(1000018261, "跨工作空间指代被拒绝，请切换作用域");
     public static final ErrorCode ASSISTANT_ATTACHMENT_INVALID = ErrorCode.of(1000018262, "附件引用非法");
+    public static final ErrorCode ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH = ErrorCode.of(1000018263,
+            "会话不属于当前工作空间，请切换作用域");
 
     // ========== 缺陷分析 1000018281-1000018286（缺陷分析详设 6） ==========
     public static final ErrorCode BUG_ANALYSIS_RANGE_INVALID = ErrorCode.of(1000018281, "分析时间范围非法");

@@ -1188,13 +1188,14 @@ CREATE TABLE ai_assistant_conversation (
     id               uuid PRIMARY KEY,
     title            varchar(100) NOT NULL,
     user_id          uuid NOT NULL,
+    workspace_id     uuid NOT NULL,
     status           varchar(20) NOT NULL DEFAULT 'active',
     context_snapshot jsonb NULL,
     created_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted       boolean NOT NULL DEFAULT FALSE
 );
-CREATE INDEX idx_ai_assistant_conversation_user ON ai_assistant_conversation (user_id, created_at);
+CREATE INDEX idx_ai_assistant_conversation_user_workspace ON ai_assistant_conversation (user_id, workspace_id, created_at);
 
 CREATE TABLE ai_assistant_message (
     id              uuid PRIMARY KEY,
@@ -2065,6 +2066,7 @@ COMMENT ON COLUMN ai_usage_log.error_code IS '失败归因错误码';
 COMMENT ON TABLE ai_assistant_conversation IS '助手会话表（按登录用户归属）';
 COMMENT ON COLUMN ai_assistant_conversation.title IS '会话标题（首问自动生成，可重命名）';
 COMMENT ON COLUMN ai_assistant_conversation.user_id IS '归属人 = 唯一隔离维度，仅本人可见可操作';
+COMMENT ON COLUMN ai_assistant_conversation.workspace_id IS '归属工作空间（创建时固化）：列表按当前活跃空间过滤，不参与权限判定';
 COMMENT ON COLUMN ai_assistant_conversation.status IS '会话状态：active/archived';
 COMMENT ON COLUMN ai_assistant_conversation.context_snapshot IS '会话创建时的活跃上下文实体引用（不参与权限判定）';
 
