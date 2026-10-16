@@ -27,9 +27,10 @@
 
 ## 2. 数据设计
 
-本分册**不新增表**，仅 `ai_assistant_message` 补列：
+本分册**不新增表**，仅 `ai_assistant_conversation` 与 `ai_assistant_message` 补列：
 
-- 会话与消息：`ai_assistant_conversation`（`user_id` 唯一归属 + `context_snapshot`）、`ai_assistant_message`（`intent` 预览 / `execution` 回执 / `citations` 来源引用），DDL 见总册 2.9；
+- 会话与消息：`ai_assistant_conversation`（`user_id` 唯一归属 + `workspace_id` 归属空间过滤 + `context_snapshot`）、`ai_assistant_message`（`intent` 预览 / `execution` 回执 / `citations` 来源引用），DDL 见总册 2.9；
+- 会话表补列（C5 迁移说明，随 PR 提供，DDL 见总册 2.9）：`workspace_id`（NOT NULL，创建时取 `X-Active-Workspace`），索引改为 `(user_id, workspace_id, created_at)`；存量会话创建时未携带空间上下文、无归属空间，迁移时连同其消息逻辑清理（仅个人会话过程数据，不影响已落库业务数据与执行审计）；
 - 消息表补列（C5 迁移说明，随 PR 提供，DDL 见总册 2.9）：`tool_calls`（assistant 消息的工具调用载荷）与 `tool_call_id`（`role = tool` 结果消息回指），`role` 枚举扩展 `tool`；加列不回填、不新增表与索引（配对查询走既有会话索引）；
 - 意图解析执行：`ai_task`（`type = assistant_parse`，`workspace_id` 取 `X-Active-Workspace` 头，`project_id` 取执行上下文）；执行语义为对话式工具调用循环（4.1），单条消息的多跳模型调用共享本任务。
 
@@ -44,8 +45,9 @@
 
 | 操作 | 请求头 | 理由 |
 | ---- | ---- | ---- |
-| 会话列表 / 创建 / 重命名 / 删除 / 消息历史 | 仅 `Authorization` | 会话按人归属，不带工作空间 / 项目条件 |
-| 发送消息 | + `X-Active-Workspace` | 只读问答与工具执行的限权作用域 |
+| 会话列表 / 创建 | `Authorization` + `X-Active-Workspace` | 列表按 `workspace_id` 过滤当前空间会话；创建写入归属空间（头缺失 1000002008） |
+| 重命名 / 归档 / 删除 / 消息历史 | 仅 `Authorization` | 会话按人归属，管理与回看动作不带工作空间 / 项目条件 |
+| 发送消息 | + `X-Active-Workspace` | 只读问答与工具执行的限权作用域；且须与会话 `workspace_id` 一致（1000018263） |
 | 执行落库 | + `X-Active-Workspace` + `X-Active-Project` | 执行范围限于预览目标所属工作空间与项目，服务端强校验（4.2） |
 
 - 全部接口先校验会话 `user_id = 当前用户`，否则 1000018251（防 IDOR，管理员同样不越权）。
@@ -54,6 +56,7 @@
 
 - **路径**：`GET /api/ai/conversations`
 - **参数**：`keyword`（标题包含，可选）、`pageNo`、`pageSize`（默认 20）。
+- **过滤**：仅返回 `workspace_id` = `X-Active-Workspace` 的本人会话（头缺失 1000002008）。
 - **响应**（按 `created_at` 倒序）：
 
 ```json
@@ -62,6 +65,7 @@
     {
       "id": "…",
       "title": "生成登录模块用例",
+      "workspaceId": "…",
       "status": "active",
       "lastMessageAt": "2026-10-02T09:10:00Z",
       "messageCount": 8
@@ -74,7 +78,8 @@
 ### 3.3 创建会话
 
 - **路径**：`POST /api/ai/conversations`
-- **请求**（`context` 为页面实体引用，非上下文标识；工作空间标识由服务端从请求头写入 `context_snapshot`）：
+- **请求头**：`X-Active-Workspace`（必带，缺失 1000002008），服务端写入 `workspace_id`。
+- **请求**（`context` 为页面实体引用，非上下文标识；归属空间由服务端从请求头写入 `workspace_id` 并记入 `context_snapshot`）：
 
 ```json
 {
@@ -83,7 +88,7 @@
 }
 ```
 
-- **响应**：会话对象（同 3.2 单条）；`context_snapshot = { workspaceId, context, capturedAt }`。
+- **响应**：会话对象（同 3.2 单条，含 `workspaceId`）；`context_snapshot = { workspaceId, context, capturedAt }`。
 - **校验**：`title` ≤ 100 字符（缺省「新会话」，首问后回填）；`context.entityId` 可选，须属当前用户可见范围。
 
 ### 3.4 会话重命名 / 归档 / 删除
@@ -122,7 +127,7 @@
   2. 订阅任务流式输出转发为 SSE；`status = streaming` → 完成后置 `done`；
   3. 执行过程事件与产物分流：查询类能力执行时可下发进度帧（`tool_call`）；终态产物分为变更预览（`preview`）/ 澄清反问（`clarify`）/ 只读问答（`delta` + `citations`）；
   4. **断线恢复**：客户端断连后通过 3.6 消息历史轮询至 `status = done`，内容不丢失；服务端不因断连中止解析任务。
-- **校验**：会话可发消息（1000018259）、`content` 非空且 ≤ 4000 字符（1000018260）、附件引用合法（1000018262）；RAG 不可用时只读问答按总册 4.5 降级（1000018258），**不编造数据**。
+- **校验**：会话可发消息（1000018259）、会话归属空间与当前活跃空间一致（1000018263）、`content` 非空且 ≤ 4000 字符（1000018260）、附件引用合法（1000018262）；RAG 不可用时只读问答按总册 4.5 降级（1000018258），**不编造数据**。
 
 ### 3.6 消息历史
 
@@ -260,7 +265,8 @@ flowchart LR
 
 ### 4.4 会话与上下文规则
 
-- `context_snapshot` 仅作默认上下文与来源展示，**不参与权限判定**；切换活跃工作空间后，新消息按新上下文解析，跨工作空间指代被拒绝（1000018261）；
+- `workspace_id` 为会话归属空间（创建时固化）：会话列表按当前活跃空间过滤，发送与执行均以会话归属空间为前提，不一致按 1000018263 拒绝并提示切换作用域；
+- `context_snapshot` 仅作默认上下文与来源展示，**不参与权限判定**；隔离与可见性仍只看 `user_id`；跨工作空间指代被拒绝（1000018261）；
 - 删除会话只删会话与消息，已落库数据与执行审计不受影响；
 - 多轮对话：`assistant_parse` 携带同会话近 N 条消息作为上下文（N = 20），澄清消息与工具调用结果（`role = tool`）计入。
 
@@ -270,7 +276,7 @@ flowchart LR
 
 ### 5.1 全局入口与布局
 
-- **入口**：全局常驻右下悬浮球，任意业务页面可唤起，不随路由销毁（挂在 `AppLayout` 层）；默认收起，点击展开无遮罩浮层卡片。
+- **入口**：全局常驻右下悬浮球，任意业务页面可唤起，不随路由销毁（挂在 `AppLayout` 层）；未进入工作空间上下文（「我的空间」列表页）不显示；默认收起，点击展开无遮罩浮层卡片。
 
 ```
 AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收起）
@@ -289,6 +295,7 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 ### 5.2 状态管理与交互
 
 - Pinia store `aiAssistant`：面板开合、会话列表、当前会话消息、流式缓冲、`previewing / executing` 状态；
+- 切换活跃工作空间：会话列表按新空间重载；当前会话不属新空间时收起当前会话、回到新建会话态；
 - SSE 客户端：`fetch` + `ReadableStream` 解析事件；断连 → 标记 `interrupted` → 按 3.6 轮询消息至 `done` 自动补齐；
 - 预览卡片倒计时展示 `expiresAt`；超时置灰「确认执行」并提供「重新解析」；
 - 浮层卡片无遮罩：点击卡片外部不关闭，底层页面保持可交互；`[—]` / `[✕]` 或再点悬浮球收起（会话保留）；开合与拖动位置不持久化，每次进入默认收起、默认右下定位；
@@ -318,6 +325,7 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 | 1000018260 | 400 | 消息内容为空或超过长度限制 |
 | 1000018261 | 409 | 跨工作空间指代被拒绝，请切换作用域 |
 | 1000018262 | 400 | 附件引用非法 |
+| 1000018263 | 409 | 会话不属于当前工作空间，请切换作用域 |
 
 ---
 
@@ -333,7 +341,7 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 | `server/.../service/ai/assistant/tool/*` | 工具体系：`AssistantTool` 接口与清单注册（服务端固化 16 个）、查询 / 澄清 / 变更拦截工具实现 |
 | `server/.../service/ai/assistant/AssistantToolLoop` | 工具调用循环编排（轮次上限、结果回填、事件桥接、悬空补偿），承接原 `AssistantParseHandler` 职责 |
 | `server/.../service/ai/config/AiModelClient` | 扩展工具定义注册与 `tool_calls` 回传（经 Spring AI，不自实现 HTTP） |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018251–1000018262 |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018251–1000018263 |
 | `web/src/components/ai/assistant/*`（Panel、Timeline、PreviewCard、ReceiptCard） | 助手前端 |
 | `web/src/stores/aiAssistant.ts`、`web/src/services/aiAssistant.ts` | 状态与 API（含 SSE 客户端封装） |
 
@@ -357,3 +365,4 @@ AiAssistantPanel（浮层卡片：800×700、无遮罩、可拖动、默认收�
 | V1.0 | 2026-10-07 | 明确 execute 单项重试口径（254 分档、retryIndexes、结果追加）、执行输入缺省与回执跳转链接格式 |
 | V1.0 | 2026-10-07 | case 类 `changes` 白名单去 description 补 expected；`create_case` 多条数据取 `params.cases`；回执链接对齐前端实际路由 |
 | V1.0 | 2026-10-16 | 执行机制由提示词分流改为对话式任务执行（工具调用循环）：1 引言、2 消息表补列、3.5 新增 `tool_call` 帧与产物分流、3.6 过滤 `role = tool` 消息、4.1 重写（16 个固化工具清单、轮次上限、拦截零落库、悬空补偿）、4.2/4.3 规范化与结构化 ID 口径、4.4 上下文含工具消息、5.3/6/7 状态、错误码说明与实施清单同步 |
+| V1.0 | 2026-10-16 | 会话增加 `workspace_id` 归属空间：2 数据设计补迁移说明、3.1 鉴权表分层（列表 / 创建带 `X-Active-Workspace`）、3.2 过滤与响应、3.3 创建必带头、3.5/4.4 归属一致校验（新增 1000018263）、5.1/5.2 入口显隐与切换空间行为、6/7 错误码同步 |
