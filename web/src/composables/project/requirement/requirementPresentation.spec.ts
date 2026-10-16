@@ -3,7 +3,6 @@ import type { RequirementChangeLog, RequirementListItem, RequirementStatus } fro
 import {
   canArchiveRequirement,
   canConfirmRequirement,
-  canSplitRequirement,
   canUnarchiveRequirement,
   isRequirementReadonly,
   requirementChangeLines,
@@ -101,12 +100,7 @@ describe('requirementPresentation', () => {
       expect(statuses.filter((s) => canUnarchiveRequirement({ status: s }))).toEqual(['archived'])
     })
 
-    it('拆分与可编辑性：archived 不可拆分且只读', () => {
-      expect(statuses.filter((s) => canSplitRequirement({ status: s }))).toEqual([
-        'draft',
-        'confirmed',
-        'changed',
-      ])
+    it('归档条目只读', () => {
       expect(isRequirementReadonly({ status: 'archived' })).toBe(true)
       expect(isRequirementReadonly({ status: 'draft' })).toBe(false)
     })

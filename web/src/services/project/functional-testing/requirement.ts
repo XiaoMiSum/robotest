@@ -47,11 +47,6 @@ export function unarchiveRequirement(id: string): Promise<RequirementDetail> {
   return post(`/project/requirements/${id}/unarchive`)
 }
 
-/** 提交 AI 拆分：提交即返回任务入口，进度与审核在任务详情页完成（详设 3.9） */
-export function splitRequirement(id: string): Promise<RequirementSplitSubmit> {
-  return post(`/project/requirements/${id}/split`)
-}
-
 /** 导入需求文档（详设 3.8）：multipart 单文件，提交即返回任务入口 */
 export function importRequirement(file: File): Promise<RequirementSplitSubmit> {
   const formData = new FormData()

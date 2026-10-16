@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   confirmRequirement: vi.fn(),
   archiveRequirement: vi.fn(),
   unarchiveRequirement: vi.fn(),
-  splitRequirement: vi.fn(),
   fetchRequirementChangeLogs: vi.fn(),
   fetchProjectModuleTree: vi.fn(),
   fetchAiStatus: vi.fn(),
@@ -32,7 +31,6 @@ vi.mock('@/services/project', () => ({
   confirmRequirement: mocks.confirmRequirement,
   archiveRequirement: mocks.archiveRequirement,
   unarchiveRequirement: mocks.unarchiveRequirement,
-  splitRequirement: mocks.splitRequirement,
   fetchRequirementChangeLogs: mocks.fetchRequirementChangeLogs,
   fetchProjectModuleTree: mocks.fetchProjectModuleTree,
 }))
@@ -115,7 +113,6 @@ function setup(): void {
   mocks.confirmRequirement.mockResolvedValue(makeDetail({ status: 'confirmed' }))
   mocks.archiveRequirement.mockResolvedValue(makeDetail({ status: 'archived' }))
   mocks.unarchiveRequirement.mockResolvedValue(makeDetail({ status: 'draft' }))
-  mocks.splitRequirement.mockResolvedValue({ taskId: 't1', splitRecordId: 's1', status: 'pending' })
   mocks.ElMessageBox.confirm.mockResolvedValue('confirm')
   mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn(() => true) })
 }
@@ -441,59 +438,6 @@ describe('useRequirementDetail', () => {
       await s.loadLogs()
       await s.handleConfirm()
       expect(mocks.fetchRequirementChangeLogs).toHaveBeenCalledTimes(2)
-    })
-  })
-
-  describe('AI 拆分', () => {
-    it('AI 可用且持权限时入口可用', async () => {
-      const s = await mount()
-      expect(s.aiAvailable.value).toBe(true)
-      expect(s.canSplit.value).toBe(true)
-    })
-
-    it('AI 不可用时入口隐藏', async () => {
-      mocks.fetchAiStatus.mockResolvedValue({ enabled: false, modelReady: false, available: false })
-      const s = useRequirementDetail()
-      await s.load()
-      await s.loadAiStatus()
-      expect(s.canSplit.value).toBe(false)
-    })
-
-    it('无 requirement:edit 权限时入口不可用', async () => {
-      mocks.useAuthStore.mockReturnValue({
-        hasPermission: vi.fn(() => false),
-      })
-      const s = await mount()
-      expect(s.canSplit.value).toBe(false)
-    })
-
-    it('archived 条目不可拆分', async () => {
-      mocks.getRequirement.mockResolvedValue(makeDetail({ status: 'archived' }))
-      const s = await mount()
-      expect(s.canSplit.value).toBe(false)
-    })
-
-    it('提交成功跳转任务详情页', async () => {
-      const s = await mount()
-      await s.handleSplit()
-      expect(mocks.splitRequirement).toHaveBeenCalledWith('r1')
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('拆分任务已提交')
-      expect(mocks.router.push).toHaveBeenCalledWith('/workspace/projects/ai/tasks/t1')
-    })
-
-    it('取消确认不提交', async () => {
-      mocks.ElMessageBox.confirm.mockRejectedValueOnce('cancel')
-      const s = await mount()
-      await s.handleSplit()
-      expect(mocks.splitRequirement).not.toHaveBeenCalled()
-    })
-
-    it('提交失败展示服务端文案', async () => {
-      mocks.splitRequirement.mockRejectedValueOnce(new Error('已存在进行中的导入或拆分任务'))
-      const s = await mount()
-      await s.handleSplit()
-      expect(mocks.ElMessage.error).toHaveBeenCalledWith('已存在进行中的导入或拆分任务')
-      expect(s.splitting.value).toBe(false)
     })
   })
 
