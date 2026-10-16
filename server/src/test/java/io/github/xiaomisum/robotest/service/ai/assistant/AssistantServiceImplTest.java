@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversation
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantEntityRefReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantImageRefReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessagePageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessageSendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversationRespDTO;
@@ -13,8 +14,10 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversatio
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantMessageRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantConversation;
 import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantMessage;
+import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
+import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,6 +71,8 @@ class AssistantServiceImplTest {
     private AiAssistantConversationMapper conversationMapper;
     @Mock
     private AiAssistantMessageMapper messageMapper;
+    @Mock
+    private FileResourceMapper fileResourceMapper;
     @Mock
     private AssistantRefChecker refChecker;
     @Mock
@@ -387,6 +392,7 @@ class AssistantServiceImplTest {
         message.setRole("assistant");
         message.setContent("回答正文");
         message.setAttachments(List.of(Map.of("entityType", "mindmap_document", "entityId", ENTITY_ID.toString())));
+        message.setImages(List.of(Map.of("fileId", ENTITY_ID.toString(), "name", "截图.png")));
         message.setCitations(List.of(Map.of("entityId", ENTITY_ID.toString())));
         message.setIntent(Map.of("action", "create_case"));
         message.setExecution(Map.of("status", "executed"));
@@ -409,6 +415,7 @@ class AssistantServiceImplTest {
         assertEquals("executed", resp.getExecution().get("status"));
         assertEquals(1, resp.getCitations().size());
         assertEquals(1, resp.getAttachments().size());
+        assertEquals(1, resp.getImages().size());
         assertNotNull(resp.getCreatedAt());
     }
 
@@ -583,6 +590,67 @@ class AssistantServiceImplTest {
     }
 
     @Test
+    void send_persistsValidatedImageRefs() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
+        UUID fileId = UUID.randomUUID();
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("看图定位问题");
+        reqDTO.setImages(List.of(image(fileId)));
+        when(fileResourceMapper.selectById(fileId)).thenReturn(file("问题截图.png", 1024L));
+
+        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+
+        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
+        verify(messageMapper, times(2)).insert(captor.capture());
+        // 落盘仅存引用不存字节，文件名由服务端补写；助手占位消息不携带附图
+        assertEquals(List.of(Map.of("fileId", fileId, "name", "问题截图.png")),
+                captor.getAllValues().get(0).getImages());
+        assertNull(captor.getAllValues().get(1).getImages());
+    }
+
+    @Test
+    void send_rejectsInvalidImages() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
+
+        // 超张数（≤3）：在逐项读文件前拒绝
+        AiAssistantMessageSendReqDTO tooMany = new AiAssistantMessageSendReqDTO();
+        tooMany.setContent("看图");
+        tooMany.setImages(List.of(image(UUID.randomUUID()), image(UUID.randomUUID()),
+                image(UUID.randomUUID()), image(UUID.randomUUID())));
+        assertImageInvalid(tooMany);
+
+        // 引用缺 fileId
+        AiAssistantMessageSendReqDTO missingId = new AiAssistantMessageSendReqDTO();
+        missingId.setContent("看图");
+        missingId.setImages(List.of(new AiAssistantImageRefReqDTO()));
+        assertImageInvalid(missingId);
+
+        // 文件不存在
+        AiAssistantMessageSendReqDTO notFound = new AiAssistantMessageSendReqDTO();
+        notFound.setContent("看图");
+        notFound.setImages(List.of(image(UUID.randomUUID())));
+        assertImageInvalid(notFound);
+
+        // 类型不在图像白名单
+        UUID textId = UUID.randomUUID();
+        when(fileResourceMapper.selectById(textId)).thenReturn(file("说明.txt", 1024L));
+        AiAssistantMessageSendReqDTO textFile = new AiAssistantMessageSendReqDTO();
+        textFile.setContent("看图");
+        textFile.setImages(List.of(image(textId)));
+        assertImageInvalid(textFile);
+
+        // 单张超过 10MB
+        UUID oversizeId = UUID.randomUUID();
+        when(fileResourceMapper.selectById(oversizeId)).thenReturn(file("大图.png", 10 * 1024 * 1024L + 1));
+        AiAssistantMessageSendReqDTO oversize = new AiAssistantMessageSendReqDTO();
+        oversize.setContent("看图");
+        oversize.setImages(List.of(image(oversizeId)));
+        assertImageInvalid(oversize);
+
+        verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
+    }
+
+    @Test
     void send_detachesChannelWhenSubmitFails() {
         when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
         doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED))
@@ -596,6 +664,25 @@ class AssistantServiceImplTest {
         assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), exception.getCode());
         // 提交失败回收通道注册，事务回滚两条消息
         verify(streamBridge).detach(ASSISTANT_MESSAGE_ID);
+    }
+
+    private void assertImageInvalid(AiAssistantMessageSendReqDTO reqDTO) {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+        assertEquals(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID.code(), exception.getCode());
+    }
+
+    private static AiAssistantImageRefReqDTO image(UUID fileId) {
+        AiAssistantImageRefReqDTO ref = new AiAssistantImageRefReqDTO();
+        ref.setFileId(fileId);
+        return ref;
+    }
+
+    private static FileResource file(String fileName, Long fileSize) {
+        FileResource resource = new FileResource();
+        resource.setFileName(fileName);
+        resource.setFileSize(fileSize);
+        return resource;
     }
 
     private AiAssistantConversation conversation(String title) {

@@ -34,6 +34,10 @@ public class AiAssistantMessage extends BaseUuidDO<AiAssistantMessage> {
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<Map<String, Object>> attachments;
 
+    /** 用户随消息上传的图片文件引用集合 [{fileId, name}]（仅存引用不存字节，vision 调用的媒体来源） */
+    @TableField(typeHandler = Jackson3TypeHandler.class)
+    private List<Map<String, Object>> images;
+
     /** 意图解析结构化预览（动作、目标、字段级变更、作用域与过期时间） */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> intent;
