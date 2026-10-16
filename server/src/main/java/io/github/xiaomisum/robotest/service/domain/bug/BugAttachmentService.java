@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentDownloadRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugAttachmentRespDTO;
+import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -39,6 +40,15 @@ public interface BugAttachmentService {
      * @return 文件名、类型与内容
      */
     BugAttachmentDownloadRespDTO downloadAttachment(UUID projectId, UUID attachmentId, UUID userId);
+
+    /**
+     * 读取附件字节（AI 截图入模等内部消费，与下载同源）：不做成员与缺陷状态校验，
+     * 归属由调用方保证；已回填读文件管理模块、未回填兼容本地历史文件。
+     *
+     * @param attachment 附件记录
+     * @return 文件字节
+     */
+    byte[] readBytes(BugAttachment attachment);
 
     /**
      * 删除附件（逻辑删除，缺陷已关闭时拒绝）

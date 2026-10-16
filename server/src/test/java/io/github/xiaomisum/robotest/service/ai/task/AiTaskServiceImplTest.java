@@ -199,7 +199,7 @@ class AiTaskServiceImplTest {
 
     @Test
     void submit_capabilityRequired_noVisionModel_throws124() {
-        when(handler.requiredCapability(any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
+        when(handler.requiredCapability(any(), any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> submit(submitReq(0)));
