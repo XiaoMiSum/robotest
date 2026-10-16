@@ -164,6 +164,25 @@ class AiModelClientTest {
     }
 
     @Test
+    void chat_withMedia_recordsVisionCallType() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModel(any(), any());
+        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+                List.of(new Generation(new AssistantMessage("识别完成"))),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(500, 50)).build()));
+        AiChatRequest multimodal = new AiChatRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "requirement_import", model, "你是需求分析助手", "识别图片", new AiChatMedia("image/png",
+                        new byte[]{1, 2, 3}));
+
+        spy.chat(multimodal);
+
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("vision", captor.getValue().getCallType());
+        assertEquals("success", captor.getValue().getStatus());
+    }
+
+    @Test
     void chat_callFailure_mapsTo18117AndWritesFailedUsageRow() {
         AiModelClient spy = Mockito.spy(client);
         doReturn(chatModel).when(spy).buildChatModel(any(), any());

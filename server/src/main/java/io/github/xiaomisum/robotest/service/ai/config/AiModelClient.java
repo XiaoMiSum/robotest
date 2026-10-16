@@ -157,9 +157,7 @@ public class AiModelClient {
             messages.add(new SystemMessage(request.systemPrompt()));
         }
         AiChatMedia media = request.media();
-        if (media == null || media.data() == null || media.data().length == 0) {
-            messages.add(new UserMessage(request.userPrompt()));
-        } else {
+        if (hasMedia(request)) {
             messages.add(UserMessage.builder()
                     .text(request.userPrompt())
                     .media(Media.builder()
@@ -167,8 +165,16 @@ public class AiModelClient {
                             .data(media.data())
                             .build())
                     .build());
+        } else {
+            messages.add(new UserMessage(request.userPrompt()));
         }
         return new Prompt(messages);
+    }
+
+    /** 媒体非空判定：构建提示词与用量 call_type=vision（裁决 D5）共用同一口径 */
+    private static boolean hasMedia(AiChatRequest request) {
+        AiChatMedia media = request.media();
+        return media != null && media.data() != null && media.data().length > 0;
     }
 
     private static AiChatReply extractReply(ChatResponse response) {
@@ -204,7 +210,8 @@ public class AiModelClient {
             usage.setUserId(request.userId());
             usage.setModelId(request.model().getId());
             usage.setPromptScene(request.promptScene());
-            usage.setCallType("chat");
+            // 带图调用记 vision（详设 3.7 / 裁决 D5）：用量分析按模态下钻，无 DDL
+            usage.setCallType(hasMedia(request) ? "vision" : "chat");
             usage.setPromptTokens(promptTokens);
             usage.setCompletionTokens(completionTokens);
             usage.setTotalTokens(promptTokens + completionTokens);
