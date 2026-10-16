@@ -27,6 +27,9 @@ public class AiAssistantMessageRespDTO {
     /** 用户选中的上下文实体引用集合 */
     private List<Map<String, Object>> attachments;
 
+    /** 用户消息的附图引用 [{fileId, name}]（仅存引用不存字节），助手消息恒为空 */
+    private List<Map<String, Object>> images;
+
     /** 意图解析结构化预览（结构见详设 4.3，无预览为 null） */
     private Map<String, Object> intent;
 
