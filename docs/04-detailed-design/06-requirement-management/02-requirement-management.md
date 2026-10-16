@@ -10,14 +10,14 @@
 
 ### 1.1 编写目的
 
-对**需求管理模块**进行详细设计，定义需求域数据结构、接口规范、业务逻辑与前端组件，为开发实现提供完整依据。需求条目是平台追溯链的起点，拆解、影响分析与覆盖状态由 AI 能力经统一任务资源供给，本文档只定义需求域自身的行为与接口。
+对**需求管理模块**进行详细设计，定义需求域数据结构、接口规范、业务逻辑与前端组件，为开发实现提供完整依据。需求条目是平台追溯链的起点，拆解、影响分析与覆盖状态由 AI 能力经 AI Task 任务资源供给，本文档只定义需求域自身的行为与接口。
 
 ### 1.2 范围与对应设计
 
 - 对应需求：`docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`（US-RM-001 ~ 005）。
 - 对应概要：`docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
 - 关联设计：
-  - AI 任务与产物确认接口：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（导入 / 影响分析任务的提交与采纳走该资源）；
+  - AI 任务与提案确认接口：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（导入 / 影响分析任务的提交与采纳走该资源）；
   - 追溯链路查询：`docs/04-detailed-design/05-trace-matrix.md` 3.3（本文档 3.11 为其委托入口）。
 
 ### 1.3 参考资料
@@ -124,9 +124,9 @@ CREATE INDEX idx_requirement_change_log_req ON requirement_change_log (requireme
 | project_id | uuid | NOT NULL | 项目隔离边界 |
 | source_type | varchar(20) | NOT NULL | 拆解来源：`document`（导入文档） |
 | source_file_id | uuid | NULL | 导入的原始文档附件 |
-| ai_task_id | uuid | NOT NULL | 关联 AI 任务（逻辑外键 → ai_task）；**拆分建议明细存任务产物侧，本表不复制**（单一事实源） |
-| status | varchar(20) | NOT NULL, DEFAULT 'pending' | `pending`（建议待确认，含部分未处理）/ `adopted`（全部处理完且至少采纳一条）/ `rejected`（全部驳回） |
-| adopt_result | jsonb | NULL | 采纳结果：逐条产物动作（adopted / adopted_edited / rejected）与生成的新需求 ID 列表、操作人 |
+| ai_task_id | uuid | NOT NULL | 关联 AI 任务（逻辑外键 → ai_task）；**拆分建议明细存任务提案侧，本表不复制**（单一事实源） |
+| status | varchar(20) | NOT NULL, DEFAULT 'pending' | `pending`（建议待采纳，含部分未处理）/ `adopted`（全部处理完且至少采纳一条）/ `rejected`（全部驳回） |
+| adopt_result | jsonb | NULL | 采纳结果：逐条提案动作（adopted / adopted_edited / rejected）与生成的新需求 ID 列表、操作人 |
 
 **索引**（2 个）：
 
@@ -316,7 +316,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有 `pending/running` 的导入任务时拒绝重复提交（1000018013）。任务进度、产物确认与采纳走 AI 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/artifacts/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），经任务详情响应 `documentMeta` 字段下发（见 AI 底座详设 3.6.3），确认面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
+- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有进行中（`running`）的导入任务时拒绝重复提交（1000018013）。任务执行过程与提案确认走 AI Task 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/proposals/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result_meta` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），经任务详情响应 `documentMeta` 字段下发（见 AI 底座详设 3.6.3），确认面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
 
 ### 3.9 变更记录
 
@@ -362,7 +362,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-- **校验规则**：建议明细（标题、描述、模块、原文定位）经 `aiTaskId` 下钻任务产物读取，本接口不复制内容。
+- **校验规则**：建议明细（标题、描述、模块、原文定位）经 `aiTaskId` 下钻任务提案读取，本接口不复制内容。
 
 ### 3.11 追溯视图（委托）
 
@@ -409,12 +409,12 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ### 4.5 导入拆解的采纳落库
 
-1. 任务产物逐条确认（`POST /api/ai/tasks/{taskId}/artifacts/confirm`，`action = adopted / adopted_edited / rejected`）；
+1. 任务提案逐条确认（`POST /api/ai/tasks/{taskId}/proposals/confirm`，`action = adopted / adopted_edited / rejected`）；
 2. `adopted / adopted_edited` 时由本模块 `RequirementAdoptService` 承接落库：
    - 事务内分配编号、写 `requirement`（`status = confirmed`、`source = import`、`source_file_id` 继承来源文档）；`system_version` 取确认请求 `target.systemVersion`（确认面板修改值），缺省回退任务 `documentMeta.detectedVersion`，识别不到则留空待手工补录；
    - 写 `adopted_ref` 回填（任务侧记录新需求 ID），更新 `requirement_split_record.adopt_result` 与 `status`；
 3. 全部驳回：`split_record.status = rejected`，不产生任何需求；
-4. 采纳落库失败（如编号重试耗尽）时，该产物确认动作整体回滚，任务侧保持待确认态，可重试。
+4. 采纳落库失败（如编号重试耗尽）时，该提案采纳动作整体回滚，任务侧保持待采纳态，可重试。
 
 ### 4.6 权限与隔离
 
@@ -467,8 +467,8 @@ RequirementDetailPage
 ### 5.3 状态管理与交互
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务进度订阅，任务完成回调刷新列表与拆解记录。
-- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 进度轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
-- 全部状态分支：列表空态（引导新建/导入）、覆盖状态 `—`（AI 关闭）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务失败重试入口。
+- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 执行与轨迹轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
+- 全部状态分支：列表空态（引导新建/导入）、覆盖状态 `—`（AI 关闭）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
 
 ---
 
@@ -512,7 +512,7 @@ RequirementDetailPage
 | `server/.../entity/requirement/Requirement`、`RequirementChangeLog`、`RequirementSplitRecord` + Mapper | 实体与数据访问 |
 | `server/.../controller/project/RequirementController` | 仅路由与参数绑定（C2） |
 | `server/.../service/requirement/RequirementService + Impl` | 列表、详情、部分更新、状态机 |
-| `server/.../service/requirement/RequirementAdoptService + Impl` | 导入拆解产物采纳落库 |
+| `server/.../service/requirement/RequirementAdoptService + Impl` | 导入拆解提案采纳落库 |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018001–1000018014 |
 | 权限点迁移脚本 | 新增 `requirement:*` 四个权限点（scope = workspace） |
 | `web/src/pages/project/RequirementListPage.vue`、`RequirementDetailPage.vue` 及子组件 | 前端页面 |
@@ -563,3 +563,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-15 | 5.2 详情页 AI 入口按钮更名「AI 生成用例」 |
 | V1.0 | 2026-10-15 | 下线条目内 AI 拆分：删除原 3.9 接口与 split-logs 反查（后续章节顺次前移编号），拆解记录表移除 `source_requirement_id` 及其索引，4.5 收敛为导入采纳落库，错误码 1000018009 注销、1000018013 收敛为导入口径 |
 | V1.0 | 2026-10-15 | 5.1 / 5.2 增链路明细页路由（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），TraceEntry 改为跳转该页 |
+| V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：统一任务资源改 AI Task 任务资源，确认端点 `artifacts/confirm` → `proposals/confirm`，任务 `result` → `result_meta`、`pending/running` 去重收敛为 `running`；产物改称提案，4.5 承接与前端状态分支同步 |

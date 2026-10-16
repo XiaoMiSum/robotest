@@ -485,7 +485,7 @@ TraceChainPage（链路明细页）
 ### 5.3 状态管理与交互
 
 - Pinia store `traceMatrix`：矩阵分页数据、当前链路缓存、缺口与受影响项；与 `aiTask` store（任务进度）联动——覆盖 / 影响分析任务完成后触发数据刷新。
-- 任务驱动刷新：发起分析后轮询 `GET /api/ai/tasks/{id}`，`status = succeeded` 时刷新矩阵与覆盖数据，失败展示失败原因与重试入口。
+- 任务驱动刷新：发起分析后轮询 `GET /api/ai/tasks/{id}`，`status = closed`（执行完成）时刷新矩阵与覆盖数据，已终止展示终止原因与再次执行入口。
 - 全部状态分支：矩阵空态（无需求时引导「新建需求」）、链路空态（引导「发起 AI 生成」）、`stale / conflict` 图例、权限不足只读降级、任务进行中进度条。
 
 ---
@@ -573,3 +573,4 @@ ALTER TABLE trace_edge ADD COLUMN disposed_by uuid NULL;
 | V1.0 | 2026-10-04 | 边类型取值 `snapshot_ref` 更名为 `case_snapshot`（`derivation` 不变），中文术语仍为「快照引用边」 |
 | V1.0 | 2026-10-15 | 5.1 路由并入需求管理壳层（`/workspace/projects/requirements?tab=trace`），旧路径改为重定向兼容，入口改为页内侧栏与页内切换 |
 | V1.0 | 2026-10-15 | 5.1 / 5.2 链路视图由抽屉改为独立链路明细页（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），旧 `requirementId` 深链重定向，组件结构拆为 TraceChainPage 及其子面板 |
+| V1.0 | 2026-10-16 | 任务驱动刷新口径对齐 AI Task 状态机（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：完成态 `succeeded` 改 `closed`，失败重试改终止 + 再次执行 |

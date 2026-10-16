@@ -22,7 +22,7 @@
 | 层 | 文档 | 用途 |
 | ---- | ---- | ---- |
 | 需求 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 功能边界与业务规则（追问选项、查询补全、项目选择会话私有、零切换执行） |
-| 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.2 任务确认流、4.7 对话式任务执行（三类能力与待确认态） |
+| 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.2 提案采纳流、4.7 对话式任务执行（三类能力与待确认口径） |
 | 详细 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | **主基线**：工具清单与循环（4.1）、执行校验与作用域（4.2）、intent 结构（4.3）、上下文规则（4.4）、SSE 事件（3.5）、错误码（6）、实施说明（7） |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 助手表 DDL（2.9）、任务类型 `assistant_parse`（3.6.1）、用量归因（4.3） |
 | 交互 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | 查询进行态、澄清卡来源选项、确认执行口径与状态分支（2.2–2.4） |
@@ -266,3 +266,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | V1.0 | 2026-10-16 | 初始版本：现状分析、总体结构、文件级实施清单（后端 19 新增 / 8 修改、前端 5 处）、Spring AI 接入双方案与 spike、数据库补列迁移、六步骤与六提交拆分、门禁与人工验收重点、风险应对 |
 | V1.0 | 2026-10-16 | 新增 2.8 旧实现清理与兼容：层 A 双路径随包删净（判别段、独立渲染链、静态清单、旧测试，归属提交 2 / 4）、层 B 配置存量处置（`assistant_parse` 自定义提示词重置、`assistant_answer` 场景核对、存量任务口径）、层 C 无须清理清单；1.2 范围与 5.1 状态表同步 |
 | V1.0 | 2026-10-16 | S0 spike 收口（5.1）：P1 成立——`toolCallingManager` 注入 + `executeToolCalls` 中止信号截停内部循环，`toolCallbacks` 声明工具，stream 双保险与逐跳 scene 落账口径确认，P2 不启用 |
+| V1.0 | 2026-10-16 | 1.2 基线文档行对齐 AI Task 双平面口径：概要引用章节改「4.2 提案采纳流」，待确认态改待确认口径 |
