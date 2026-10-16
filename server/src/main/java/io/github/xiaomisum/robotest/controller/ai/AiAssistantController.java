@@ -40,8 +40,8 @@ import java.util.UUID;
 /**
  * 智能助手接口（详设 04-ai-assistant）：仅路由 + 参数校验（C2），归属校验在服务层（详设 3.1）。
  *
- * <p>上下文头仅发送与执行环节要求（详设 3.1 表）；本控制器的会话与历史接口只校验 Authorization，
- * 归属即权限（1000018251），管理员同样不越权。</p>
+ * <p>上下文头按操作分层（详设 3.1）：列表与创建须带 X-Active-Workspace，发送与执行按详设要求带对应头；
+ * 会话与历史管理接口只校验 Authorization，归属即权限（1000018251），管理员同样不越权。</p>
  */
 @RestController
 @RequestMapping("/api/ai/conversations")
@@ -56,7 +56,8 @@ public class AiAssistantController {
     @GetMapping
     public Result<PageResult<AiAssistantConversationRespDTO>> pageConversations(
             @AuthenticationPrincipal LoginUser loginUser, @Valid AiAssistantConversationPageReqDTO pageReq) {
-        return Result.ok(assistantService.pageConversations(pageReq, loginUser.getId()));
+        return Result.ok(assistantService.pageConversations(pageReq, loginUser.getId(),
+                loginUser.getActiveWorkspaceId()));
     }
 
     @PostMapping

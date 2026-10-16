@@ -34,7 +34,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 助手会话实现：归属即权限（详设 3.1），更新只携带本次变更字段（C11），删除逻辑删除会话与全部消息（详设 3.4）。
+ * 助手会话实现：归属即权限（详设 3.1），列表按归属空间过滤、创建写入归属空间（详设 3.2/3.3），
+ * 更新只携带本次变更字段（C11），删除逻辑删除会话与全部消息（详设 3.4）。
  */
 @Service
 public class AssistantServiceImpl implements AssistantService {
@@ -68,8 +69,13 @@ public class AssistantServiceImpl implements AssistantService {
 
     @Override
     public PageResult<AiAssistantConversationRespDTO> pageConversations(AiAssistantConversationPageReqDTO pageReq,
-            UUID userId) {
-        PageResult<AiAssistantConversation> page = conversationMapper.findPage(pageReq, userId, pageReq.getKeyword());
+            UUID userId, UUID activeWorkspaceId) {
+        // /api/ai 不强制解析上下文头（详设 3.2 列表必带 X-Active-Workspace），服务端自查缺失
+        if (activeWorkspaceId == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
+        }
+        PageResult<AiAssistantConversation> page = conversationMapper.findPage(pageReq, userId, activeWorkspaceId,
+                pageReq.getKeyword());
         List<AiAssistantConversation> conversations = page.getList();
         if (conversations == null || conversations.isEmpty()) {
             return new PageResult<>(List.of(), page.getTotal());
@@ -87,6 +93,10 @@ public class AssistantServiceImpl implements AssistantService {
     @Override
     public AiAssistantConversationRespDTO createConversation(AiAssistantConversationCreateReqDTO reqDTO, UUID userId,
             UUID activeWorkspaceId) {
+        // 创建必带 X-Active-Workspace（详设 3.3），归属空间创建后不变
+        if (activeWorkspaceId == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
+        }
         AiAssistantEntityRefReqDTO context = reqDTO.getContext();
         if (context != null && context.getEntityId() != null) {
             refChecker.requireUserVisible(context.getEntityType(), context.getEntityId(), userId);
@@ -95,6 +105,7 @@ public class AssistantServiceImpl implements AssistantService {
         AiAssistantConversation entity = new AiAssistantConversation();
         entity.setTitle(title == null || title.isBlank() ? DEFAULT_TITLE : title.trim());
         entity.setUserId(userId);
+        entity.setWorkspaceId(activeWorkspaceId);
         entity.setStatus(Constants.Status.ACTIVE);
         entity.setContextSnapshot(snapshotOf(activeWorkspaceId, context));
         conversationMapper.insert(entity);
@@ -165,6 +176,10 @@ public class AssistantServiceImpl implements AssistantService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
         refChecker.requireWorkspaceMember(activeWorkspaceId, userId);
+        // 会话绑定归属空间（详设 4.4）：归属不一致按 1000018263 拒绝，防止误解任务落点
+        if (!activeWorkspaceId.equals(owned.getWorkspaceId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH);
+        }
         List<AiAssistantEntityRefReqDTO> attachments = reqDTO.getAttachments();
         if (attachments != null) {
             for (AiAssistantEntityRefReqDTO ref : attachments) {
@@ -264,6 +279,7 @@ public class AssistantServiceImpl implements AssistantService {
         AiAssistantConversationRespDTO resp = new AiAssistantConversationRespDTO();
         resp.setId(entity.getId());
         resp.setTitle(entity.getTitle());
+        resp.setWorkspaceId(entity.getWorkspaceId());
         resp.setStatus(entity.getStatus());
         resp.setContextSnapshot(entity.getContextSnapshot());
         resp.setMessageCount(stat == null || stat.getMessageCount() == null ? 0 : stat.getMessageCount());
