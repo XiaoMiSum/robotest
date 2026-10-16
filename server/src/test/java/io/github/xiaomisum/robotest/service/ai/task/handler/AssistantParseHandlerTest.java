@@ -15,10 +15,13 @@ import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatRequest;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
+import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
+import io.github.xiaomisum.robotest.service.domain.file.FileContent;
+import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +42,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -70,6 +74,7 @@ class AssistantParseHandlerTest {
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID TARGET_ID = UUID.randomUUID();
     private static final UUID CASE_ID = UUID.randomUUID();
+    private static final UUID FILE_ID = UUID.randomUUID();
 
     @Mock
     private AiAssistantMessageMapper messageMapper;
@@ -83,6 +88,8 @@ class AssistantParseHandlerTest {
     private AssistantPromptSupport promptSupport;
     @Mock
     private VectorSearchService vectorSearchService;
+    @Mock
+    private FileResourceService fileResourceService;
     @Mock
     private AiModelClient modelClient;
     @Mock
@@ -364,10 +371,13 @@ class AssistantParseHandlerTest {
         verify(modelClient).chat(judgeCaptor.capture());
         assertNull(judgeCaptor.getValue().taskId());
         assertEquals("assistant_parse", judgeCaptor.getValue().promptScene());
+        // 无附图消息保持空媒体列表（纯文本路径）
+        assertTrue(judgeCaptor.getValue().media().isEmpty());
         ArgumentCaptor<AiChatRequest> answerCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
         verify(modelClient).streamChat(answerCaptor.capture(), any());
         assertNull(answerCaptor.getValue().taskId());
         assertEquals("assistant_answer", answerCaptor.getValue().promptScene());
+        assertTrue(answerCaptor.getValue().media().isEmpty());
     }
 
     @Test
@@ -446,6 +456,73 @@ class AssistantParseHandlerTest {
         verify(modelClient, never()).streamChat(any(), any());
     }
 
+    // ---------- 执行：附图与能力派生（详设 4.1） ----------
+
+    @Test
+    void requiredCapability_derivesVisionFromTriggerImageOnly() {
+        Map<String, Object> image = Map.of("fileId", FILE_ID.toString(), "name", "截图.png");
+        // 当前消息带图 ⇒ vision
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
+                .thenReturn(List.of(assistantMessage(), userMessage(List.of(image))));
+        assertEquals(AiSettingsReader.CAPABILITY_VISION, handler.requiredCapability(input()));
+
+        // 历史消息带图、当前消息无图 ⇒ 不回传，无必需能力
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
+                .thenReturn(List.of(userMessage(List.of(image)), assistantMessage(), userMessage(List.of())));
+        assertNull(handler.requiredCapability(input()));
+
+        // 消息缺失 / 畸形输入静默无能力，交由执行期校验兜底（派生不抛错中断任务）
+        when(messageMapper.selectById(MESSAGE_ID)).thenReturn(null);
+        assertNull(handler.requiredCapability(input()));
+        assertNull(handler.requiredCapability(Map.of("messageId", "not-a-uuid")));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void execute_answer_carriesTriggerImagesAsMedia() {
+        byte[] bytes = {1, 2, 3};
+        Map<String, Object> image = Map.of("fileId", FILE_ID.toString(), "name", "截图.png");
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
+                .thenReturn(List.of(assistantMessage(), userMessage(List.of(image))));
+        when(fileResourceService.readBytes(FILE_ID)).thenReturn(new FileContent(bytes, "image/png", "截图.png"));
+        judge("{\"kind\":\"answer\",\"query\":\"登录用例覆盖情况\"}");
+        when(vectorSearchService.search(eq("登录用例覆盖情况"), eq(List.of(PROJECT_ID)), isNull(),
+                eq(8), eq(USER_ID))).thenReturn(List.of(hit(Constants.TraceNodeType.TEST_CASE, CASE_ID, "覆盖情况")));
+        when(refChecker.titleOf(Constants.TraceNodeType.TEST_CASE, CASE_ID)).thenReturn("验证码正确可登录");
+        when(modelClient.streamChat(any(AiChatRequest.class), any())).thenAnswer(invocation -> {
+            Consumer<String> onDelta = invocation.getArgument(1);
+            onDelta.accept("看图");
+            return new AiChatReply("看图回答", 5, 4);
+        });
+
+        handler.execute(context);
+
+        // 判别与回答两段调用均携带同一媒体列表（直传字节 + 归一化 MIME）
+        ArgumentCaptor<AiChatRequest> judgeCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
+        verify(modelClient).chat(judgeCaptor.capture());
+        assertEquals(1, judgeCaptor.getValue().media().size());
+        assertEquals("image/png", judgeCaptor.getValue().media().get(0).mimeType());
+        assertArrayEquals(bytes, judgeCaptor.getValue().media().get(0).data());
+        ArgumentCaptor<AiChatRequest> answerCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
+        verify(modelClient).streamChat(answerCaptor.capture(), any());
+        assertEquals(1, answerCaptor.getValue().media().size());
+        assertArrayEquals(bytes, answerCaptor.getValue().media().get(0).data());
+    }
+
+    @Test
+    void execute_missingImageFile_failsBeforeModelCall() {
+        Map<String, Object> image = Map.of("fileId", FILE_ID.toString(), "name", "截图.png");
+        when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID))
+                .thenReturn(List.of(assistantMessage(), userMessage(List.of(image))));
+        when(fileResourceService.readBytes(FILE_ID)).thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.FILE_NOT_FOUND));
+
+        assertCode(ErrorCodeConstants.FILE_NOT_FOUND, () -> handler.execute(context));
+
+        // 读图失败快速失败：不静默丢图，判别段不发起调用
+        verify(modelClient, never()).chat(any(AiChatRequest.class));
+        assertEquals(Constants.AiAssistantMessageStatus.ERROR, capturedUpdate().getStatus());
+    }
+
     // ---------- 辅助 ----------
 
     private void judge(String json) {
@@ -502,6 +579,16 @@ class AssistantParseHandlerTest {
         conversation.setUserId(USER_ID);
         conversation.setStatus(Constants.Status.ACTIVE);
         return conversation;
+    }
+
+    private static AiAssistantMessage userMessage(List<Map<String, Object>> images) {
+        AiAssistantMessage user = new AiAssistantMessage();
+        user.setId(UUID.randomUUID());
+        user.setRole(Constants.AiAssistantMessageRole.USER);
+        user.setContent("看图");
+        user.setImages(images);
+        user.setCreatedAt(LocalDateTime.now().minusMinutes(1));
+        return user;
     }
 
     private static List<AiAssistantMessage> history() {
