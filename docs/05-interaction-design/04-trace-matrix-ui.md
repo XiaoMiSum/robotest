@@ -160,7 +160,7 @@ flowchart LR
   A[需求变更 → 下游标记 stale] --> B[发起影响分析任务]
   B --> C{任务结果}
   C -- failed --> D[失败原因 + 重试]
-  C -- succeeded --> E[受影响项列表刷新]
+  C -- closed --> E[受影响项列表刷新]
   E --> F[逐项处置：确认无影响 / 需要跟进 / 已处理]
   F --> G[理由落库，no_impact 处置刷新后保留]
 ```
@@ -175,7 +175,7 @@ flowchart LR
 ## 5. 状态管理
 
 - Pinia store `traceMatrix`：矩阵分页数据、当前链路缓存、缺口与受影响项；
-- 与 `aiTask` store 联动：覆盖 / 影响分析任务 `succeeded` 后触发矩阵与覆盖数据刷新；
+- 与 `aiTask` store 联动：覆盖 / 影响分析任务执行完成（`closed`）后触发矩阵与覆盖数据刷新；
 - 链路明细页内修正动作成功后刷新边状态；返回矩阵子页时刷新矩阵计数并保留筛选与视图。
 
 ## 修改记录
@@ -186,3 +186,4 @@ flowchart LR
 | V1.0 | 2026-10-15 | 改为需求管理页内子模块：路由并入 `/workspace/projects/requirements?tab=trace`（旧路径重定向），入口补顶栏侧栏项，概述增页面结构示意 |
 | V1.0 | 2026-10-15 | 矩阵与缺口列表样式对齐测试计划列表：筛选收敛为矩阵卡片工具栏、骨架入卡片与整卡 loading 遮罩、分页条分割线与计数文案（`UI-SC-10`），补加载与错误状态分支，缺口视图首入即取数 |
 | V1.0 | 2026-10-15 | 链路视图由抽屉改为独立链路明细页（`/workspace/projects/requirements/trace/:nodeType/:nodeId`）：矩阵行 / 单元格、缺口清单、需求详情「查看追溯」与任务「查看影响」改为跳转该页，页内续接覆盖判定与受影响项，节点点击同页切换起点 |
+| V1.0 | 2026-10-16 | 同步 AI Task 状态机（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：覆盖 / 影响分析任务完成态由 `succeeded` 改 `closed`（只读结论产出，无待采纳提案） |
