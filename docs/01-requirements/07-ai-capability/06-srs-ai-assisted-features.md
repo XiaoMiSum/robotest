@@ -65,4 +65,4 @@
 | V1.0 | 2026-10-01 | 初始版本 |
 | V1.0 | 2026-10-16 | 补建修改记录（首次修改）；待确认态改待采纳态、执行改经任务框架，对齐总册 1.5 的 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`） |
 | V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：总册 1.5 引用改「采纳口径」，补全节点建议改「采纳后写入」、空缺字段改「采纳后生效」，超时展示改「任务详情入口」 |
-| V1.0 | 2026-10-16 | 「追溯边」改「对应关系」，对齐追溯矩阵分册口径（`docs/01-requirements/08-trace-matrix/02-srs-trace-matrix.md`） |
+| V1.0 | 2026-10-16 | 「追溯边」改「对应关系」，对齐追溯矩阵分册口径（`docs/01-requirements/06-requirement-management/03-srs-trace-matrix.md`） |
