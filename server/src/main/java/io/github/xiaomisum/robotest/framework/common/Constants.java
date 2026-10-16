@@ -104,6 +104,8 @@ public final class Constants {
     public interface AiAssistantMessageRole {
         String USER = "user";
         String ASSISTANT = "assistant";
+        /** 循环中间结果（详设 4.1 回填载体）：历史接口不返回，仅作多轮上下文 */
+        String TOOL = "tool";
     }
 
     /**
