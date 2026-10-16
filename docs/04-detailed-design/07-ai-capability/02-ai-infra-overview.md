@@ -71,7 +71,7 @@ CREATE UNIQUE INDEX uk_ai_config_singleton ON ai_config ((true)) WHERE is_delete
 | api_key_encrypted | varchar(500) | NOT NULL | 密钥密文（AES 加密存储；接口永不回显，仅支持替换） |
 | model_name | varchar(100) | NOT NULL | 实际调用的模型标识 |
 | capabilities | jsonb | NOT NULL, DEFAULT '[]' | 能力标签：`chat / vision`（向量能力由独立的 `ai_embedding_config` 承载，不在模型配置中声明） |
-| priority | int | NOT NULL, DEFAULT 100 | 兜底顺序（默认模型失效时按 priority 升序尝试） |
+| priority | int | NOT NULL, DEFAULT 100 | 选型排序（能力选型内按 priority 升序取首，见 4.2 模型选型） |
 | enabled | boolean | NOT NULL, DEFAULT TRUE | 启停开关 |
 | input_price | numeric(14,6) | NOT NULL, DEFAULT 0 | 输入侧每百万 token 单价（0 = 不计价；仅作用量记账值，不设币种口径） |
 | output_price | numeric(14,6) | NOT NULL, DEFAULT 0 | 输出侧每百万 token 单价（同上） |
@@ -278,7 +278,7 @@ CREATE INDEX idx_ai_artifact_confirm_project ON ai_artifact_confirm (project_id,
 | user_id | uuid | NOT NULL | 调用者 |
 | model_id | uuid | NULL | 调用的模型，**按模型分组统计**维度；向量 API 调用无模型配置行，为 NULL |
 | prompt_scene | varchar(50) | NULL | 场景归因，按场景统计维度 |
-| call_type | varchar(20) | NOT NULL | `chat / embedding`（向量重建同样计用量） |
+| call_type | varchar(20) | NOT NULL | `chat / vision / embedding`（`vision` 为媒体随行的带图调用；向量重建同样计用量） |
 | prompt_tokens / completion_tokens / total_tokens | int | NOT NULL, DEFAULT 0 | token 消耗 |
 | latency_ms | int | NOT NULL, DEFAULT 0 | 单次调用耗时 |
 | status | varchar(20) | NOT NULL | `success / failed` |
@@ -335,6 +335,7 @@ CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id);
 | role | varchar(20) | NOT NULL | `user / assistant / system` |
 | content | text | NULL | 消息正文（Markdown）；流式结束后落盘，断线重连续读 |
 | attachments | jsonb | NULL | 用户选中的上下文实体引用集合（可含所属项目标识，属数据引用非 API 上下文） |
+| images | jsonb | NULL | 用户随消息上传的图片文件引用集合 `[{ fileId, name }]`（≤3 张，vision 调用的媒体来源，接口见助手分册 3.5） |
 | intent | jsonb | NULL | 意图解析结构化预览：动作、目标、字段级变更、影响数量 |
 | citations | jsonb | NULL | 来源引用集合（只读问答与预览附带的可跳转引用） |
 | execution | jsonb | NULL | 执行回执：`previewed → executed / rejected`、逐项成功失败、执行人与时间 |
@@ -361,6 +362,7 @@ CREATE TABLE ai_assistant_message (
     role            varchar(20) NOT NULL,
     content         text NULL,
     attachments     jsonb NULL,
+    images          jsonb NULL,
     intent          jsonb NULL,
     citations       jsonb NULL,
     execution       jsonb NULL,
@@ -613,7 +615,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- **校验顺序**：总开关（1000018101）→ 权限（1000018116）→ 类型 → 输入 → 可用模型（1000018118）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。
+- **校验顺序**：总开关（1000018101）→ 权限（1000018116）→ 类型 → 输入 → 可用模型（1000018118；必需能力选型见 4.2，无候选 1000018124）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。
 
 #### 3.6.3 任务列表与详情
 
@@ -709,7 +711,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - `groupBy = model` 时 `key` 形如 `modelId`，响应附 `keyName`（模型名）；`scene` 同理。
 
 - **下钻**：`GET /api/ai/usage/tasks`
-  - 参数：`from / to`、`modelId`、`scene`、`status`、`callType`（`chat / embedding`，按调用类型下钻）、`pageNo`、`pageSize`；
+  - 参数：`from / to`、`modelId`、`scene`、`status`、`callType`（`chat / vision / embedding`，按调用类型下钻）、`pageNo`、`pageSize`；
   - 响应列表项：`{ taskId, type, status, modelName, scene, totalTokens, latencyMs, createdAt }`，点击跳任务详情（3.6.3）。
 
 ### 3.8 权限点（新增）
@@ -733,6 +735,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 4.2 任务引擎
 
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
+- **模型选型（能力 + 优先级）**：提交期按「任务必需能力」解析模型并回写 `model_id`（维持提交时解析、执行不漂移），执行期以任务行 `model_id` 按同一规则复验；必需能力由 handler 从任务输入派生——`requirement_import` 图片文件、`assistant_parse` 消息附图、`bug_classify` 附带截图时为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。
 - **分发**：`type → TaskHandler`（每个 handler 注册：input 校验器、执行器、进度/阶段上报、产物抽取器、落库承接器）；执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
 - **生命周期**：`pending → running → succeeded / failed`，`pending / running → cancelled`；`progress / phase` 由 handler 上报；超时清扫器按 `task_timeout_seconds` 扫描 `status + updated_at` 索引（2.6），超时置 `failed`（`error_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待任务完成，超时返回进行中状态；等待不改变异步语义。
@@ -742,7 +745,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 4.3 用量记录
 
-- 每次模型 / 向量调用（成功与失败）写一条 `ai_usage_log`：延迟为调用端到端耗时，token 以响应账单为准（缺省按字符估算并标记）；任务级汇总同步累加到 `ai_task.tokens_in / tokens_out`。
+- 每次模型 / 向量调用（成功与失败）写一条 `ai_usage_log`：延迟为调用端到端耗时，token 以响应账单为准（缺省按字符估算并标记）；任务级汇总同步累加到 `ai_task.tokens_in / tokens_out`；带图（媒体随行）的模型调用记 `call_type = vision`（2.8）。
 - 成本 `cost` 按调用模型的当时单价计：`prompt_tokens / 1e6 × input_price + completion_tokens / 1e6 × output_price`，连通性测试等无任务调用同样计价；单价未配置（0）时 `cost = 0`。
 - 任务的多次调用（解析、生成、后处理）各记一条明细并共享 `task_id`；助手交互调用 `task_id = NULL`、`prompt_scene` 归因到助手场景。
 - 统计查询按 UTC 日期分组；失败率 = `failed / total`；空区间补 0（前端图表不出现断点）。
@@ -756,6 +759,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 4.5 降级与容错
 
 - 模型不可用 / 超时 / 限流 → 任务 `failed` 并给出原因（`1000018117`），可重试；配置页连通性测试失败给出摘要与排查提示。
+- 图片（vision）调用在提交期无可用视觉模型 → 快速失败（`1000018124`），不静默丢图；执行期已回写模型失效时按选型规则复验（4.2），无候选同码失败。
 - 向量 API 未配置或未启用 → `embeddingReady = false`，RAG 问答、相似检测、覆盖分析等依赖检索的能力入口不可用并说明原因。
 - 总开关关闭 → `available = false`，业务端 AI 入口隐藏；既有数据（产物、确认记录、追溯关系）全部保留可查。
 
@@ -837,6 +841,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | 1000018121 | 403 | 无 AI 配置管理权限 |
 | 1000018122 | 409 | 向量索引不可用（全量重建中） |
 | 1000018123 | 400 | 同步等待参数超限（0–10 秒） |
+| 1000018124 | 400 | 未配置支持视觉能力的已启用模型 |
 
 ---
 
@@ -851,7 +856,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | `server/.../controller/ai/AiTaskController` | 任务资源路由 |
 | `server/.../service/ai/config/*`、`service/ai/task/*`、`service/ai/rag/*` | 配置、任务引擎、向量索引服务 |
 | `server/.../service/ai/task/handler/*TaskHandler` | 各 `type` 的执行器（分册实现，注册到引擎） |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018101–1000018123 及各分册号段 |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018101–1000018124 及各分册号段 |
 | `server/pom.xml` | 引入 Spring AI 2.0.x（BOM + openai 模块）：模型 / 向量 HTTP 调用全量由框架执行（WP-4.6），替代自实现调用 |
 | 权限点迁移脚本 | 新增 `ai:admin`（global）、`ai:task` / `ai:confirm`（workspace） |
 | `web/src/pages/admin/AiSettingsPage.vue`、`web/src/pages/project/AiTaskCenterPage.vue`、`AiTaskDetailPage.vue` 及组件 | 管理端配置中心、任务中心与任务详情页 |
@@ -901,3 +906,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-15 | 双层任务入口落地：3.6.3 补顶栏指示器计数接口 `GET /api/ai/tasks/running-count`，5.2 补指示器与能力页任务中心按钮组件，`aiTask` store 补 15s 计数轮询 |
 | V1.0 | 2026-10-15 | 任务类型枚举注销 `requirement_split`（条目内拆分下线，拆解统一由 `requirement_import` 承载），2.5 场景编码示例同步 |
 | V1.0 | 2026-10-15 | 模型配置能力标签移除 `embedding`：向量能力由独立的 `ai_embedding_config`（2.4 / 3.4）承载，模型配置的 `capabilities` 收窄为 `{chat, vision}`；2.3 字段说明与 3.3 校验规则同步更新 |
+| V1.0 | 2026-10-16 | vision 能力落地（方案见 `docs/06-implementation-plan/04-ai-vision-capability-plan.md`）：2.3 `priority` 改为选型排序、2.9 消息表补 `images` 列、2.8 / 3.7 / 4.3 用量 `call_type` 扩展 `vision`；3.6.2 校验顺序补能力选型、4.2 新增模型选型规则（必需能力派生 + priority 升序扫描）、4.5 补无视觉模型降级、6 登记 1000018124 |
