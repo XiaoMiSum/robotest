@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
 import lombok.Getter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -52,13 +53,18 @@ public class TaskExecutionContext {
 
     /** 单次模型调用（自动短重试与用量记录由客户端负责） */
     public AiChatReply chat(String systemPrompt, String userPrompt) {
-        return chat(systemPrompt, userPrompt, null);
+        return chat(systemPrompt, userPrompt, List.<AiChatMedia>of());
     }
 
-    /** 多模态调用：媒体随 user 消息直传（如导入图片），media 为 null 时等同纯文本 */
-    public AiChatReply chat(String systemPrompt, String userPrompt, AiChatMedia media) {
+    /** 多模态调用：媒体随 user 消息直传（导入图片 / 缺陷截图等），空列表等同纯文本 */
+    public AiChatReply chat(String systemPrompt, String userPrompt, List<AiChatMedia> medias) {
         return modelClient.chat(new AiChatRequest(taskId, projectId, userId, promptScene, model,
-                systemPrompt, userPrompt, media));
+                systemPrompt, userPrompt, medias));
+    }
+
+    /** 单媒体便捷入口（单图场景） */
+    public AiChatReply chat(String systemPrompt, String userPrompt, AiChatMedia media) {
+        return chat(systemPrompt, userPrompt, media == null ? List.<AiChatMedia>of() : List.of(media));
     }
 
     /** 场景提示词：自定义行优先，回落 handler 内置默认（详设 3.5） */
