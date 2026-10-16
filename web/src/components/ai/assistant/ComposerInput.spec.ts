@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import ComposerInput from './ComposerInput.vue'
-import type { AiAssistantEntityRef } from '@/types'
+import type { AiAssistantEntityRef, AiAssistantPendingImage } from '@/types'
 
 vi.mock('@/composables/project/trace/useTraceNodePicker', async () => {
   const { ref } = await import('vue')
@@ -27,6 +27,7 @@ function mountComposer(
     modelValue: string
     disabled: boolean
     attachments: AiAssistantEntityRef[]
+    images: AiAssistantPendingImage[]
   }> = {},
 ) {
   return mount(ComposerInput, {
@@ -34,6 +35,7 @@ function mountComposer(
       modelValue: '',
       disabled: false,
       attachments: [],
+      images: [],
       ...props,
     },
     global: { plugins: [ElementPlus] },
@@ -133,5 +135,52 @@ describe('components/ai/assistant/ComposerInput', () => {
       entityId: 'r1',
       entityTitle: '登录需求',
     })
+  })
+
+  it('附图 chip 区分上传中 / 失败态，移除与重试回传本地键', async () => {
+    activeWrapper = mountComposer({
+      modelValue: '问题',
+      images: [
+        { key: 'k1', name: '上传中.png', status: 'uploading', file: new File(['a'], '上传中.png') },
+        { key: 'k2', name: '失败.png', status: 'failed', file: new File(['b'], '失败.png') },
+      ],
+    })
+
+    const chips = activeWrapper.findAll('.ai-composer__image')
+    expect(chips).toHaveLength(2)
+    expect(chips[0].text()).toContain('上传中.png')
+    expect(chips[0].classes()).not.toContain('is-failed')
+    expect(chips[1].classes()).toContain('is-failed')
+
+    await activeWrapper.get('[aria-label="重试上传：失败.png"]').trigger('click')
+    expect(activeWrapper.emitted('retry-image')?.[0]).toEqual(['k2'])
+
+    await activeWrapper.get('[aria-label="移除图片：上传中.png"]').trigger('click')
+    expect(activeWrapper.emitted('remove-image')?.[0]).toEqual(['k1'])
+  })
+
+  it('附图未上传完成时禁止发送，完成后恢复', async () => {
+    activeWrapper = mountComposer({
+      modelValue: '问题',
+      images: [{ key: 'k1', name: 'a.png', status: 'uploading', file: new File(['a'], 'a.png') }],
+    })
+
+    expect(activeWrapper.get('[aria-label="发送"]').attributes('disabled')).toBeDefined()
+    await pressEnter(activeWrapper)
+    expect(activeWrapper.emitted('send')).toBeUndefined()
+
+    await activeWrapper.setProps({ images: [] })
+    expect(activeWrapper.get('[aria-label="发送"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('选择图片文件后上抛 add-images', async () => {
+    activeWrapper = mountComposer()
+    const input = activeWrapper.get('input[type="file"]')
+    const file = new File(['a'], 'a.png', { type: 'image/png' })
+    Object.defineProperty(input.element, 'files', { value: [file] })
+
+    await input.trigger('change')
+
+    expect(activeWrapper.emitted('add-images')?.[0]).toEqual([[file]])
   })
 })
