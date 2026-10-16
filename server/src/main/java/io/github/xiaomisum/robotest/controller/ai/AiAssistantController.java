@@ -90,7 +90,7 @@ public class AiAssistantController {
     }
 
     @Operation(summary = "发送消息（SSE 流式，详设 3.5）",
-            description = "事件流：delta / clarify / preview / citations / done / error，每 15s 心跳注释行；"
+            description = "事件流：delta / tool_call / clarify / preview / citations / done / error，每 15s 心跳注释行；"
                     + "须携带 X-Active-Workspace（4000 字符上限与附件校验在服务层）")
     @ApiResponse(responseCode = "200", description = "SSE 事件流",
             content = @Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
