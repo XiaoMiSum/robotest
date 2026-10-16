@@ -39,6 +39,12 @@ public interface AssistantService {
             UUID userId);
 
     /**
+     * 4.1 循环中间结果：插入 role=tool 结果消息（回填载体，历史接口不返回）。
+     * 任务循环内调用——会话归属与空间在任务提交期已校验，此处不重复（详设 4.1 查询类能力）。
+     */
+    void appendToolMessage(UUID conversationId, String toolCallId, String content);
+
+    /**
      * 3.5 发送消息（SSE 流式）：会话可发（259）、正文（260）、上下文头（2008）、活跃空间成员
      * 与归属空间一致（263）及附件归属（262）校验后落盘用户与 assistant 消息并提交 assistant_parse 任务，
      * 返回事件流（delta / clarify / preview / citations / done / error + 15s 心跳）。
