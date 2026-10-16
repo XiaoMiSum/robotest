@@ -245,7 +245,7 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 
 | 步骤 | 状态 | 备注 |
 | ---- | ---- | ---- |
-| S0 Spring AI 接入 spike | ❌ | 结论（P1 / P2）回填此处后再铺开 |
+| S0 Spring AI 接入 spike | ✅ | **P1 成立**：`OpenAiChatModel.Builder.toolCallingManager(...)` 注入自定义管理器，`executeToolCalls` 抛携 `toolCalls + usage` 的中止信号截停框架内部循环；工具声明经 `toolCallbacks(...)`（`DefaultToolCallingChatOptions$Builder` 继承提供），`ToolDefinition` 仅 `name / description / inputSchema` 三方法、声明回调无执行体；stream 路径双保险（中止异常 + 末块 `toolCalls` 检测）；逐跳 scene 按结果落账（有工具调用 `assistant_parse`，否则 `assistant_answer`）。P2 不启用 |
 | S1 消息表补列 | ❌ | |
 | S2 工具体系 | ❌ | |
 | S3 门面工具扩展 | ❌ | |
@@ -265,3 +265,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-16 | 初始版本：现状分析、总体结构、文件级实施清单（后端 19 新增 / 8 修改、前端 5 处）、Spring AI 接入双方案与 spike、数据库补列迁移、六步骤与六提交拆分、门禁与人工验收重点、风险应对 |
 | V1.0 | 2026-10-16 | 新增 2.8 旧实现清理与兼容：层 A 双路径随包删净（判别段、独立渲染链、静态清单、旧测试，归属提交 2 / 4）、层 B 配置存量处置（`assistant_parse` 自定义提示词重置、`assistant_answer` 场景核对、存量任务口径）、层 C 无须清理清单；1.2 范围与 5.1 状态表同步 |
+| V1.0 | 2026-10-16 | S0 spike 收口（5.1）：P1 成立——`toolCallingManager` 注入 + `executeToolCalls` 中止信号截停内部循环，`toolCallbacks` 声明工具，stream 双保险与逐跳 scene 落账口径确认，P2 不启用 |
