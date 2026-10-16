@@ -135,7 +135,7 @@ resolveModel(preferredModelId, requiredCapability):
 #### 2.4.1 数据与接口
 
 - 消息表 `ai_assistant_message` 补列 `images jsonb NULL`（存量行为空，逻辑删除与通用列照旧，符合 C5；迁移以「补列 + 列注释」交付，不重建表）：元素 `[{ fileId, name }]`。
-- 发送请求补字段 `images`：`[{ "fileId": "…" }]`，`@Size(max = 3)`；校验文件存在、类型属图片白名单（png / jpg / jpeg / gif / webp / bmp，与需求导入一致）、单张 ≤10MB（与正文贴图一致），违反为新增 `1000018263`「图片附件非法」（助手号段 1000018251–1000018279，现行至 1000018262）。
+- 发送请求补字段 `images`：`[{ "fileId": "…" }]`，`@Size(max = 3)`；校验文件存在、类型属图片白名单（png / jpg / jpeg / gif / webp / bmp，与需求导入一致）、单张 ≤10MB（与正文贴图一致），违反为新增 `1000018264`「图片附件非法」（助手号段 1000018251–1000018279，1000018263 为会话归属空间校验占用）。
 - 上下文头分层不变（C4）：发送带 `X-Active-Workspace`，图片为平台级文件资源 ID，随请求体传递、不入 URL。
 
 #### 2.4.2 调用链
@@ -176,7 +176,7 @@ resolveModel(preferredModelId, requiredCapability):
 | ---- | ---- |
 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 新增「消息附图与视觉理解」功能点（三段式，含张数 / 大小 / 无视觉模型验收口径） |
 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 4.1 模型解析补能力选型规则与必需能力派生；2.3 priority 口径按 D2；6 错误码表登记 1000018124；4.5 降级补无视觉模型分支；2.8 / 3.7 用量 `call_type` 口径扩展 `vision`（D5） |
-| `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | 2.9 消息表 DDL 补 `images` 列；3.5 请求体 `images` 字段与校验；6 错误码登记 1000018263；4 业务逻辑补媒体构造与 SSE 失败分支 |
+| `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | 2.9 消息表 DDL 补 `images` 列；3.5 请求体 `images` 字段与校验；6 错误码登记 1000018264；4 业务逻辑补媒体构造与 SSE 失败分支 |
 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.5 多模态解析口径按 D1 裁决改写 |
 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | 输入区图片按钮与缩略图、校验 / 上传失败 / 无视觉模型等状态分支 |
 | `docs/05-interaction-design/07-ai-capability/02-ai-admin-ui.md` | 模型列表补「能力」列（tag 展示，支撑识别视觉模型） |
@@ -204,14 +204,14 @@ resolveModel(preferredModelId, requiredCapability):
 | ---- | ---- | ---- | ---- | ---- |
 | WP-V.1 | vision 智能路由基础：解析规则、`requiredCapability` 派生、1000018124、提交 / 执行接入与单测 | 后端 | 无 | D2 |
 | WP-V.2 | 需求导入接入：图片判定派生必需能力、失败语义切换 | 后端 | WP-V.1 | — |
-| WP-V.3 | 助手多模态（暂缓，另行安排）：文档先行（需求 → 详设 → 交互稿）→ 后端（补列迁移、DTO 校验、媒体列表化、处理器接入）→ 前端（上传、缩略图、契约再生） | 全栈 | WP-V.1 | D3、D6 |
+| WP-V.3 | 助手多模态：文档先行（需求 → 详设 → 交互稿）→ 后端（补列迁移、DTO 校验、媒体列表化、处理器接入）→ 前端（上传、缩略图、契约再生） | 全栈 | WP-V.1 | D3、D6 |
 | WP-V.4 | 管理端模型列表「能力」列 | 前端 | 无 | — |
 | WP-V.5 | 缺陷截图入模（含附件存储统一迁移评估） | 全栈 | WP-V.1 | D4 |
 | WP-V.6 | 用量 `call_type` 扩展 vision 标识 | 后端 | 无 | D5 |
 
 ### 3.2 实施顺序与门禁
 
-- 顺序：WP-V.1 → WP-V.2 / WP-V.4（可并行）→ WP-V.5 / WP-V.6 → 联调验收；本期实施 WP-V.1 / V.2 / V.4 / V.5 / V.6（裁决 D4 / D5），WP-V.3 暂缓、另行安排（5.1 D3）。
+- 顺序：WP-V.1 → WP-V.2 / WP-V.3 / WP-V.4（可并行）→ WP-V.5 / WP-V.6 → 联调验收；六工作包全部纳入本期（裁决 D3 / D4 / D5），WP-V.3 详设更新待另一会话 workspace_id 变更提交后合入（5.1 D3）。
 - 每工作包遵循「文档 → 编码 → 验证」：涉及行为先更新对应文档（本文 2.6 为清单），裁决未通过前不编码。
 - 门禁：各端验证脚本至 EXIT=0（C7 提交格式、后端 `mvn test`、前端 lint / typecheck / 测试与覆盖率 C8）；助手图片链路、需求导入无视觉模型降级由用户人工验收。
 - 跨端同步：接口变更经 OpenAPI 分组同步，前端契约类型重新生成后使用；工作包挂入主计划批次时以 `docs/06-implementation-plan/02-ai-requirement-development-plan.md` 的批次框架为准。
@@ -239,7 +239,7 @@ resolveModel(preferredModelId, requiredCapability):
 | ---- | ---- | ---- | ---- |
 | D1 | 多模态解析口径 | A：概要 4.5 口径改为「按需直传具备 vision 能力的模型理解」，不建中间文本管道；产物人工确认原则不变 | 2026-10-16 |
 | D2 | priority 兜底语义 | A：vision 路由内实现能力过滤 + priority 升序扫描；通用兜底另立待办（主计划 5.1 TODO-2） | 2026-10-16 |
-| D3 | 助手图片上传纳入本期 | 暂缓：助手侧文档先不改，WP-V.3 实施另行安排 | 2026-10-16 |
+| D3 | 助手图片上传纳入本期 | 纳入实施：SRS / 交互稿先行更新；详设随会话 workspace_id 归属变更提交后合入 | 2026-10-16 |
 | D4 | 缺陷截图入模分期 | 纳入本期：仅 `bug_classify` 入模（口径见 2.5.2），其余三任务维持文本 | 2026-10-16 |
 | D5 | 用量 vision 标识 | A：带图调用记 `call_type = vision`（仅改写入值与口径注释，无 DDL） | 2026-10-16 |
 | D6 | 助手图片张数 / 能力域覆盖 | 张数 A：每条消息 ≤3 张、模型门面媒体列表化；各能力域覆盖默认模型另立待办 | 2026-10-16 |
@@ -255,3 +255,4 @@ resolveModel(preferredModelId, requiredCapability):
 | V1.0 | 2026-10-16 | 初始版本：五域现状分析、六项裁决点（D1–D6）、vision 智能路由与助手 / 任务多模态落地方案、详设变更草案与交互影响评估、六个工作包（WP-V.1–V.6） |
 | V1.0 | 2026-10-16 | D1–D6 裁决回填：D1 概要口径对齐直传、D2 路由内扫描（通用兜底拆分主计划 TODO-2）、D3 / D4 / D5 全工作包纳入本期（D4 收窄为仅 `bug_classify`，口径见 2.5.2，不依赖附件迁移）、D6 多图列表化；2.5.2 / 2.6 / 2.7 / 3.2 随裁决改写为本期实施口径 |
 | V1.0 | 2026-10-16 | 范围调整（5.1 D3）：助手侧文档与 WP-V.3 暂缓、另行安排；3.1 / 3.2 同步为本期实施 WP-V.1 / V.2 / V.4 / V.5 / V.6 |
+| V1.0 | 2026-10-16 | WP-V.3 解除暂缓转纳入实施（5.1 D3）：SRS 1.6 与交互稿先行更新，详设待另一会话 workspace_id 变更提交后合入；图片附件错误码顺延 1000018264（1000018263 已由会话归属空间校验占用）；3.1 / 3.2 恢复六包并行口径 |
