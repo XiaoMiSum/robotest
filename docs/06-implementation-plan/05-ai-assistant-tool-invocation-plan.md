@@ -14,7 +14,7 @@
 
 ### 1.2 范围
 
-- **覆盖**：① 后端工具体系与调用循环（`assistant_parse` 执行语义由提示词分流改为工具调用循环）；② 模型门面 `AiModelClient` 的工具调用扩展（Spring AI 接入，逐跳记账）；③ 消息表工具载荷补列、消息历史过滤与悬空补偿；④ 静态平台指引恢复并入知识检索；⑤ 前端执行请求头改造（删项目头）与查询进度帧。
+- **覆盖**：① 后端工具体系与调用循环（`assistant_parse` 执行语义由提示词分流改为工具调用循环）；② 模型门面 `AiModelClient` 的工具调用扩展（Spring AI 接入，逐跳记账）；③ 消息表工具载荷补列、消息历史过滤与悬空补偿；④ 静态平台指引恢复并入知识检索；⑤ 前端执行请求头改造（删项目头）与查询进度帧；⑥ 旧判别段实现清理与提示词场景存量兼容（2.8）。
 - **不含**：会话 / 消息 CRUD、SSE 断线恢复等既有链路的行为变更（仅事件表增 `tool_call` 帧）；确认执行与回执链路（`AssistantExecuteService` 仅按固化 `intent.scope` 取目标项目，其余不动）；助手附图与 vision 能力（独立方案 `docs/06-implementation-plan/04-ai-vision-capability-plan.md` WP-V.3）；新增错误码（本轮零新增）。
 
 ### 1.3 基线文档
@@ -156,6 +156,36 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | execute 测试（扩） | 按固化 `intent.scope` 落库且**无项目维拦截**、空间维自检（1000018256）与归属空间（1000018263）拒绝 |
 | 前端 spec | `tool_call` 解析与进度文案、execute 请求头断言 |
 
+### 2.8 旧实现清理与兼容
+
+> **边界**：只清理「新路径上线后成为死代码 / 死配置」的存量；被共用的能力与其他会话已评估保留的口径不动。
+
+#### 2.8.1 代码双路径（层 A：随包删除，不留运行时兜底开关）
+
+| 清理对象 | 处置 | 归属提交 |
+| ---- | ---- | ---- |
+| `AssistantParseHandler` 判别段全部：`JUDGE_SYSTEM`、JSON 版 `DEFAULT_PROMPT`、`parseJudge`、`judgeVariables`（含三静态清单变量）、`handleClarify / handleIntent / handleAnswer / staticAnswer` | 整体删除——分别由 `AskUserTool`、`AssistantIntentBuilder`、循环末跳替代；handler 收敛为薄壳（校验 + 组装 + 调循环） | 提交 4 |
+| `ANSWER_SYSTEM` + `SCENE_ANSWER` 独立渲染链（`render(SCENE_ANSWER, …)` 调用点） | 删除——末跳回答在循环内基于工具结果生成，`assistant_answer` 仅保留为用量归因标签（总册 4.3），不再有模板渲染 | 提交 4 |
+| `AssistantPromptSupport` 的 `caseOptions / reviewOptions / planOptions` 及其专用查询 | 删除（查询工具按需自查） | 提交 2 |
+| 旧测试：`AssistantParseHandlerTest` 判别分流断言、`AssistantPromptSupportTest` 三清单用例 | 同步重写 / 删除，**不留新旧双份断言** | 随各提交 |
+| `RequirementSuggestionParser.parseJsonObject`、`ModelOutputSupport` 中仅判别段专用的方法 | 全仓查引用后删；被需求生成链共用的一律不动 | 提交 4 |
+
+- **原则**：不做「旧路径运行时兜底开关」——双路径意味着分流歧义、两套提示词并存与测试面翻倍；回滚靠 `git revert`，不靠开关。
+
+#### 2.8.2 数据与配置存量（层 B：迁移说明随 PR）
+
+1. **`ai_prompt_template` 的 `assistant_parse` 自定义行（最关键）**：场景提示词按 `scene` 自定义覆盖默认（总册 3.5），DB 中若存有旧 JSON 分流提示词自定义行，升级后会**盖掉新 agent 默认词**，形成「结构进循环、提示词仍教模型吐 JSON」的混用态。处置：**A（推荐）迁移随提交 4 的 PR 重置该场景自定义行回落内置默认**；B 代码检测旧格式特征（含 `"kind": "clarify|intent|answer"`）自动回落；C 上线说明要求管理员手动恢复默认（最弱，不单独采用）。编码时核对种子机制：若种子启动回插，A 之上叠加 B 兜底。
+2. **`assistant_answer` 场景**：独立渲染链删除后成死配置——核对 `AiPromptScenes` 枚举与管理端场景列表，若已登记则注销并联动总册 2.5 场景清单；用量归因字符串不动。
+3. **存量 running 的 `assistant_parse` 任务**：发布即重启，旧 handler 中断 → 超时清扫置失败，用户重发即按新语义解析；**迁移说明一句话，无数据订正**。
+4. **消息存量**：无工具载荷的旧消息按纯文本历史惰性兼容（4 风险表已列），无需处理。
+
+#### 2.8.3 无须清理（层 C）
+
+- 旧 function calling 实现本体（`0bfd62d2` 已连代码与旧分册文档整体移除，唯一残留 `ai/guide/*.md` 为本方案有意捞回）；
+- 自实现模型 HTTP（WP-4.6 已全量迁移 Spring AI）；
+- 文档措辞：保留的 4 处「意图解析」（US 标题、1000018255 文案、`intent` 字段语义、修改记录历史行）经评估**有意保留**；
+- 前端无 FC 遗留，SSE 消费增量兼容（未知事件忽略）。
+
 ---
 
 ## 3. 开发计划
@@ -222,6 +252,8 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | S4 循环编排与任务重写 | ❌ | |
 | S5 静态指引并入 | ❌ | |
 | S6 前端改造 | ❌ | |
+| 层 A 旧判别段与双路径清理 | ❌ | 随 S2 / S4 提交，旧测试同步重写 |
+| 层 B 提示词场景存量处置 | ❌ | 迁移随 S4 PR；核对种子回插与 `assistant_answer` 场景枚举 |
 
 - 每步骤收口：状态改 ✅ 并登记对应提交；整包收口同步回填主计划 `02-ai-requirement-development-plan.md` 3.6 的 WP-6.3 状态行，验收结果按主计划 3.4 第 4 条回填。
 
@@ -232,3 +264,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-16 | 初始版本：现状分析、总体结构、文件级实施清单（后端 19 新增 / 8 修改、前端 5 处）、Spring AI 接入双方案与 spike、数据库补列迁移、六步骤与六提交拆分、门禁与人工验收重点、风险应对 |
+| V1.0 | 2026-10-16 | 新增 2.8 旧实现清理与兼容：层 A 双路径随包删净（判别段、独立渲染链、静态清单、旧测试，归属提交 2 / 4）、层 B 配置存量处置（`assistant_parse` 自定义提示词重置、`assistant_answer` 场景核对、存量任务口径）、层 C 无须清理清单；1.2 范围与 5.1 状态表同步 |
