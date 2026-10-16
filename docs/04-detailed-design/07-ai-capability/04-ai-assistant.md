@@ -30,7 +30,7 @@
 本分册**不新增表**，仅 `ai_assistant_conversation` 与 `ai_assistant_message` 补列：
 
 - 会话与消息：`ai_assistant_conversation`（`user_id` 唯一归属 + `workspace_id` 归属空间过滤 + `context_snapshot`）、`ai_assistant_message`（`intent` 预览 / `execution` 回执 / `citations` 来源引用），DDL 见总册 2.9；
-- 会话表补列（C5 迁移说明，随 PR 提供，DDL 见总册 2.9）：`workspace_id`（NOT NULL，创建时取 `X-Active-Workspace`），索引改为 `(user_id, workspace_id, created_at)`；存量会话创建时未携带空间上下文、无归属空间，迁移时连同其消息逻辑清理（仅个人会话过程数据，不影响已落库业务数据与执行审计）；
+- 会话表补列（C5 迁移说明，随 PR 提供，DDL 见总册 2.9）：`workspace_id`（NOT NULL，创建时取 `X-Active-Workspace`），索引改为 `(user_id, workspace_id, created_at)`；无存量数据，迁移仅加列与重建索引，不涉及回填与清理；
 - 消息表补列（C5 迁移说明，随 PR 提供，DDL 见总册 2.9）：`tool_calls`（assistant 消息的工具调用载荷）与 `tool_call_id`（`role = tool` 结果消息回指），`role` 枚举扩展 `tool`；加列不回填、不新增表与索引（配对查询走既有会话索引）；
 - 意图解析执行：`ai_task`（`type = assistant_parse`，`workspace_id` 取 `X-Active-Workspace` 头，`project_id` 取执行上下文）；执行语义为对话式工具调用循环（4.1），单条消息的多跳模型调用共享本任务。
 
