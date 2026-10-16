@@ -324,7 +324,7 @@ CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id);
 | user_id | uuid | NOT NULL | **归属人 = 唯一隔离维度**：列表、可见性、权限校验只看它；仅本人可见可操作 |
 | workspace_id | uuid | NOT NULL | **归属工作空间**（创建时取 `X-Active-Workspace`，创建后不变）：会话列表按当前活跃空间过滤；**不参与权限判定**（可见性与隔离仍只看 `user_id`） |
 | status | varchar(20) | NOT NULL, DEFAULT 'active' | `active / archived` |
-| context_snapshot | jsonb | NULL | 会话创建时的活跃工作空间与页面实体引用：默认上下文、预览来源展示、消息 `attachments` 兜底；**不参与权限判定** |
+| context_snapshot | jsonb | NULL | 会话创建时的活跃工作空间、页面实体引用与**会话私有项目状态**（`projectId / projectName`，解析或澄清写入，仅会话内生效、不改全局、不进请求头）：默认上下文、预览来源展示、消息 `attachments` 兜底；**不参与权限判定** |
 
 **索引**（1 个）：`idx_ai_assistant_conversation_user_workspace` (user_id, workspace_id, created_at)。
 
@@ -915,3 +915,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-16 | vision 能力落地（方案见 `docs/06-implementation-plan/04-ai-vision-capability-plan.md`）：2.3 `priority` 改为选型排序、2.9 消息表补 `images` 列、2.8 / 3.7 / 4.3 用量 `call_type` 扩展 `vision`；3.6.2 校验顺序补能力选型、4.2 新增模型选型规则（必需能力派生 + priority 升序扫描）、4.5 补无视觉模型降级、6 登记 1000018124 |
 | V1.0 | 2026-10-16 | 助手执行机制切换为工具调用循环（分册 04 §4.1）：2.9 消息表补 `tool_calls / tool_call_id` 两列与 `role = tool`、3.6.1 `assistant_parse` 补执行语义、4.3 补单条消息多跳用量归因 |
 | V1.0 | 2026-10-16 | 2.9 会话表补 `workspace_id`（NOT NULL 归属空间，列表按当前活跃空间过滤），索引改为 (user_id, workspace_id, created_at) |
+| V1.0 | 2026-10-16 | 2.9 `context_snapshot` 补会话私有项目状态（`projectId / projectName`，仅会话内生效、不改全局、不进请求头） |
