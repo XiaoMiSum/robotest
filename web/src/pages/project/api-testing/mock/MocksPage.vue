@@ -134,12 +134,20 @@ async function handleToggle(row: ApiMockItem, enabled: boolean) {
 
 async function handleBatchToggle(enabled: boolean) {
   if (!selectedIds.value.length) return
+  await ElMessageBox.confirm(
+    enabled
+      ? `批量启用 ${selectedIds.value.length} 条 Mock 规则？`
+      : `批量停用 ${selectedIds.value.length} 条 Mock 规则？停用后依赖方将无法访问这些 Mock。`,
+    enabled ? '批量启用' : '批量停用',
+    { type: enabled ? 'info' : 'warning' },
+  )
   try {
     const result = await batchToggleMocks({ ids: selectedIds.value, enabled })
     ElMessage.success(`已${enabled ? '启用' : '停用'} ${result.updatedCount} 条规则`)
     selectedIds.value = []
     loadList()
-  } catch {
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : `批量${enabled ? '启用' : '停用'}失败`)
     loadList()
   }
 }
@@ -235,8 +243,8 @@ function formatHitTime(val: string | null): string {
       </div>
       <div class="mocks-page__toolbar-right">
         <template v-if="selectedIds.length">
-          <el-button @click="handleBatchToggle(true)">批量启用 ({{ selectedIds.length }})</el-button>
-          <el-button @click="handleBatchToggle(false)">批量停用 ({{ selectedIds.length }})</el-button>
+          <el-button link type="primary" @click="handleBatchToggle(true)">批量启用</el-button>
+          <el-button link type="danger" @click="handleBatchToggle(false)">批量停用</el-button>
         </template>
         <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
           <el-icon><Plus /></el-icon>
