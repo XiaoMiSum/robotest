@@ -151,6 +151,21 @@ describe('GitLabImportPane', () => {
     expect(execute?.attributes('disabled')).toBeDefined()
   })
 
+  it('扫描预览与执行导入为右端主色 link 按钮并带图标', async () => {
+    const wrapper = mountPane()
+    await flushPromises()
+    const right = wrapper.find('.gi-actions__right')
+    expect(right.exists()).toBe(true)
+    const previewBtn = buttonByText(wrapper, '扫描预览')
+    const executeBtn = buttonByText(wrapper, '执行导入')
+    expect(previewBtn?.classes()).toEqual(expect.arrayContaining(['is-link', 'el-button--primary']))
+    expect(executeBtn?.classes()).toEqual(expect.arrayContaining(['is-link', 'el-button--primary']))
+    expect(previewBtn?.find('svg').exists()).toBe(true)
+    expect(executeBtn?.find('svg').exists()).toBe(true)
+    // 左端不放主操作
+    expect(wrapper.find('.gi-actions__left').find('button').exists()).toBe(false)
+  })
+
   it('预览后展示汇总条、环境说明与失败明细表', async () => {
     mocks.previewGitImport.mockResolvedValue(makePreview())
     const wrapper = mountPane()
