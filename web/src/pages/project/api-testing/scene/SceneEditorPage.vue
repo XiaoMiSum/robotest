@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { MagicStick, Collection, EditPen } from '@element-plus/icons-vue'
 import type { ApiGitRepoConfig } from '@/types'
 import { fetchGitRepo } from '@/services/project/api-testing/gitRepo'
-import { formatDateTime } from '@/utils/format'
+import { shortenSourcePath } from '@/composables/project/api-testing/scene/scenesModel'
 import { flattenModuleNames } from '@/composables/project/api-testing/interface/interfacesModel'
 import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 import { useEditorSplit } from '@/composables/project/api-testing/scene/useEditorSplit'
@@ -81,6 +81,16 @@ const moduleName = computed(() => {
   const id = detail.value?.moduleId
   if (!id) return null
   return flattenModuleNames(editor.moduleTree.value).get(id) ?? null
+})
+
+// 运行状态徽标：以最近一次执行为准，触发中恒为执行中（对齐 demo ci-run 四态）
+const ciRunState = computed<'idle' | 'running' | 'success' | 'failed'>(() => {
+  if (editor.running.value) return 'running'
+  const latest = executionHistory.value[0]
+  if (!latest) return 'idle'
+  if (latest.status === 'pending' || latest.status === 'running') return 'running'
+  if (latest.status === 'success') return 'success'
+  return 'failed'
 })
 
 function goGitLabPage() {
@@ -166,7 +176,7 @@ const {
 </script>
 
 <template>
-  <div v-loading="editor.loading.value" class="scene-editor">
+  <div v-loading="editor.loading.value" class="scene-editor" :class="{ 'is-ci': readonlyMode }">
     <SceneEditorHeader
       v-if="editor.detail.value || editor.isCreateMode.value"
       :edit-name="editor.editName.value"
@@ -179,11 +189,12 @@ const {
       :is-create-mode="editor.isCreateMode.value"
       :saving="editor.saving.value"
       :running="editor.running.value"
-      :engine="editor.detail.value?.engine ?? null"
       :source-type="editor.detail.value?.sourceType ?? null"
       :source-status="editor.detail.value?.sourceStatus ?? null"
       :repo-label="repoLabel"
       :readonly-mode="readonlyMode"
+      :module-name="moduleName"
+      :run-state="ciRunState"
       :module-options="editor.moduleOptions.value"
       :environment-options="editor.environmentOptions.value"
       :current-priority-color="editor.currentPriorityColor.value"
@@ -208,48 +219,76 @@ const {
       @load-history="retryHistory"
     />
 
-    <div v-if="editor.detail.value || editor.isCreateMode.value" class="scene-editor__body">
-      <!-- platform 导入源状态提示条（交互 10 §1.9）：源码已退化 / 仓库不可达时提示，不阻断编辑 -->
-      <div
-        v-if="isGitImport && !readonlyMode && sourceStatus && sourceStatus !== 'in_sync'"
-        class="scene-editor__source-alert"
-        role="alert"
-      >
-        {{ sourceStatus === 'repo_unreachable' ? '仓库不可达：执行入口已置灰' : '源码已退化：仓库侧解析失败，展示为导入时内容' }}
-      </div>
+    <!-- 源状态提示条（交互 10 §1.9，对齐 demo）：位于导航与主体之间，仅异常态出现；CI 态文案随引擎而定 -->
+    <div
+      v-if="editor.detail.value && isGitImport && sourceStatus && sourceStatus !== 'in_sync'"
+      class="scene-editor__source-alert"
+      role="alert"
+    >
+      {{ sourceStatus === 'repo_unreachable'
+        ? '仓库不可达：[运行] 已置灰，源引用不可跳转仓库侧文件'
+        : '源码解析失败，当前展示为上次成功导入的内容（BR-1.12）；不阻断查看与执行' }}
+    </div>
 
-      <!-- gitlab_ci 只读主体（交互 10 §1.9）：步骤区替换为只读信息区 + 单个用例信息 -->
+    <div
+      v-if="editor.detail.value || editor.isCreateMode.value"
+      class="scene-editor__body"
+      :class="{ 'is-card': readonlyMode }"
+    >
+      <!-- gitlab_ci 只读主体（交互 10 §1.9，对齐 demo api-scenes.html edit-ci）：信息网格 + 单个用例 kv + 只读说明 -->
       <div v-if="readonlyMode" class="scene-editor__readonly" data-test="scene-readonly">
-        <div class="scene-editor__readonly-info">
-          <div class="scene-editor__readonly-row">
-            <span class="scene-editor__readonly-label">模块</span>
-            <span>{{ moduleName ?? '未分配' }}</span>
+        <div class="ci-info">
+          <div>
+            <div class="ci-info__k">所属模块</div>
+            <div class="ci-info__v">{{ moduleName ?? '未分配' }}</div>
           </div>
-          <div class="scene-editor__readonly-row">
-            <span class="scene-editor__readonly-label">仓库</span>
-            <a v-if="repoUrl" :href="repoUrl" target="_blank" rel="noopener" class="scene-editor__readonly-link">{{ repo?.name ?? '查看仓库' }} ↗</a>
-            <span v-else>—</span>
+          <div>
+            <div class="ci-info__k">来源类型</div>
+            <div class="ci-info__v">GitLab 流水线 <span class="ci-info__engine">gitlab_ci</span></div>
           </div>
-          <div class="scene-editor__readonly-row">
-            <span class="scene-editor__readonly-label">源引用</span>
-            <a v-if="sourceRefUrl" :href="sourceRefUrl" target="_blank" rel="noopener" class="scene-editor__readonly-link">{{ detail?.sourceRef }} ↗</a>
-            <span v-else>{{ detail?.sourceRef ?? '—' }}</span>
+          <div>
+            <div class="ci-info__k">仓库</div>
+            <div class="ci-info__v">
+              <a v-if="repoUrl" :href="repoUrl" target="_blank" rel="noopener">{{ repo?.name ?? '查看仓库' }} ↗</a>
+              <span v-else>—</span>
+            </div>
+          </div>
+          <div>
+            <div class="ci-info__k">默认分支</div>
+            <div class="ci-info__v ci-info__mono">{{ repo?.defaultBranch ?? '—' }}</div>
+          </div>
+          <div>
+            <div class="ci-info__k">源引用</div>
+            <div class="ci-info__v">
+              <a v-if="sourceRefUrl" :href="sourceRefUrl" target="_blank" rel="noopener">{{ shortenSourcePath(detail?.sourceRef) }} ↗</a>
+              <span v-else>{{ shortenSourcePath(detail?.sourceRef) || '—' }}</span>
+            </div>
           </div>
         </div>
 
-        <div class="scene-editor__readonly-section">
-          <div class="scene-editor__section-head">用例（场景与测试方法一一对应，恒为单个用例）</div>
-          <el-table v-if="caseInfo" :data="[caseInfo]">
-            <el-table-column prop="methodName" label="方法名" min-width="160" />
-            <el-table-column prop="caseName" label="用例名称" min-width="200" />
-            <el-table-column label="源文件" min-width="240">
-              <template #default="{ row }">
-                <a v-if="sourceRefUrl" :href="sourceRefUrl" target="_blank" rel="noopener" class="scene-editor__readonly-link">{{ row.sourceFile ?? sourceFile }} ↗</a>
-                <span v-else>{{ row.sourceFile ?? sourceFile ?? '—' }}</span>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div v-else class="scene-editor__right-empty">用例信息不可用</div>
+        <div class="ci-cases">
+          <div class="ci-cases__head">
+            <span class="ci-cases__title">用例</span>
+          </div>
+          <div v-if="caseInfo" class="ci-info ci-info--case">
+            <div>
+              <div class="ci-info__k">方法名</div>
+              <div class="ci-info__v ci-info__mono">{{ caseInfo.methodName }}</div>
+            </div>
+            <div>
+              <div class="ci-info__k">用例名称（@Test description）</div>
+              <div class="ci-info__v">{{ caseInfo.caseName }}</div>
+            </div>
+            <div>
+              <div class="ci-info__k">源文件</div>
+              <div class="ci-info__v">
+                <a v-if="sourceRefUrl" :href="sourceRefUrl" target="_blank" rel="noopener">{{ shortenSourcePath(caseInfo.sourceFile ?? sourceFile) }} ↗</a>
+                <span v-else>{{ shortenSourcePath(caseInfo.sourceFile ?? sourceFile) || '—' }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="ci-cases__empty">用例信息不可用</div>
+          <p class="ci-hint">只读形态：不提供步骤编排、场景变量与处理器编辑；用例与步骤的维护一律在仓库侧完成。</p>
         </div>
       </div>
 
@@ -384,38 +423,6 @@ const {
           </el-button>
         </div>
       </div>
-
-      <!-- 只读执行历史（交互 10 §1.9）：填补只读页下方空白，仅展示不可编辑 -->
-      <div v-if="readonlyMode" class="scene-editor__readonly-history">
-        <div class="scene-editor__section-head">执行历史</div>
-        <div v-loading="historyLoading" class="scene-editor__history-panel">
-          <div v-if="historyError" class="scene-editor__history-error" role="alert">
-            <span>{{ historyError }}</span>
-            <el-button link type="primary" @click="retryHistory">重试</el-button>
-          </div>
-          <div v-for="h in executionHistory" :key="h.id" class="scene-editor__history-row">
-            <span class="scene-editor__history-status" :class="`is-${h.status}`">{{ h.status }}</span>
-            <span class="scene-editor__history-time">{{ formatDateTime(h.executedAt) }}</span>
-            <el-button
-              v-if="h.reportId"
-              link
-              type="primary"
-              class="scene-editor__history-report"
-              @click="handleViewReport(h.reportId)"
-            >报告</el-button>
-          </div>
-          <div v-if="!executionHistory.length && !historyError" class="scene-editor__empty-text">暂无执行记录</div>
-          <el-pagination
-            v-if="executionHistoryTotal > 0"
-            :current-page="executionHistoryPage"
-            :page-size="20"
-            :total="executionHistoryTotal"
-            layout="prev, pager, next"
-            class="scene-editor__history-pager"
-            @current-change="handleHistoryPageChange"
-          />
-        </div>
-      </div>
     </div>
 
     <ExtractorAssetPicker
@@ -451,6 +458,25 @@ const {
   height: 100%;
   gap: var(--space-xs);
   overflow: hidden;
+}
+
+// gitlab_ci 只读形态按 demo .scene-ed：导航卡 / 提示条 / 主体卡之间 12px
+.scene-editor.is-ci {
+  gap: var(--space-md);
+}
+
+// 只读主体卡片（对齐 demo .card.ed-body：白底 + 1px 描边 + 圆角 + 浅阴影）
+.scene-editor__body.is-card {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+
+  // 只读页文本一律不加粗：信息值与用例标题取常规字重
+  .ci-info__v,
+  .ci-cases__title {
+    font-weight: 400;
+  }
 }
 
 // 页面不设外层卡片容器：tabs 与内容区直接承接头部信息（交互 10 §1.1）
@@ -613,113 +639,112 @@ const {
   gap: var(--space-sm);
 }
 
-// platform 导入源状态提示条（交互 10 §1.9）
+// 源状态提示条（交互 10 §1.9，对齐 demo .alert--warning）：位于导航与主体之间，仅异常态出现
 .scene-editor__source-alert {
   flex-shrink: 0;
-  padding: var(--space-sm) var(--space-md);
-  background: rgba(var(--el-color-warning-rgb), 0.1);
-  color: var(--el-color-warning);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  background: var(--color-warning-light);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  color: var(--color-warning-strong);
   font-size: var(--font-size-sm);
-  border-bottom: 1px solid var(--color-neutral-100);
 }
 
-// gitlab_ci 只读主体（交互 10 §1.9）：只读信息区 + 单个用例信息
+// gitlab_ci 只读主体（交互 10 §1.9，对齐 demo edit-ci）：内距交由内部信息区与用例区各自承担
 .scene-editor__readonly {
   flex: 1;
   min-height: 0;
-  padding: var(--space-md);
+  padding: 0;
   overflow-y: auto;
 }
 
-.scene-editor__readonly-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  margin-bottom: var(--space-md);
-  background: var(--color-neutral-50);
-  border-radius: var(--radius-md);
+// 只读信息网格（demo .ci-info）：键小值粗、4 列自适应换行
+.ci-info {
+  display: grid;
+  /** 只读信息网格固定 3 列两行，与用例 kv 行列对齐 */
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm) var(--space-md);
+  padding: 14px var(--space-lg) 0;
 }
 
-.scene-editor__readonly-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--font-size-sm);
+// 用例区的 kv 行：贴住标题、只留底部 4px（demo 内联 padding:0 0 4px）
+.ci-info--case {
+  padding: 0 0 4px;
 }
 
-.scene-editor__readonly-label {
-  flex-shrink: 0;
-  width: 48px;
-  color: var(--color-neutral-500);
-}
-
-.scene-editor__readonly-link {
-  color: var(--color-primary-500);
-  text-decoration: none;
-
-  &:hover { text-decoration: underline; }
-}
-
-.scene-editor__readonly-section {
-  :deep(.el-table) { --el-table-header-bg-color: var(--color-neutral-50); }
-}
-
-// 只读执行历史区（交互 10 §1.9）：填补只读页下方空白
-.scene-editor__readonly-history {
-  flex-shrink: 0;
-  padding: 0 var(--space-md) var(--space-md);
-}
-
-.scene-editor__history-error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
-  color: var(--el-color-danger);
+.ci-info__k {
   font-size: var(--font-size-xs);
-}
-
-.scene-editor__history-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 6px 0;
-  font-size: var(--font-size-xs);
-  border-bottom: 1px solid var(--color-neutral-100);
-}
-
-.scene-editor__history-status {
-  flex-shrink: 0;
-  min-width: 52px;
-  font-weight: 600;
-
-  &.is-success { color: var(--el-color-success); }
-  &.is-failed,
-  &.is-error { color: var(--el-color-danger); }
-  &.is-pending,
-  &.is-running { color: var(--el-color-primary); }
-}
-
-.scene-editor__history-time {
-  flex: 1;
-  color: var(--color-neutral-500);
-}
-
-// [报告] 贴行右端：即便时间列为空也不会被挤到中间
-.scene-editor__history-report {
-  margin-left: auto;
-}
-
-.scene-editor__empty-text {
-  padding: var(--space-sm) 0;
   color: var(--color-neutral-400);
-  font-size: var(--font-size-xs);
 }
 
-.scene-editor__history-pager {
-  margin-top: var(--space-sm);
-  justify-content: flex-end;
+.ci-info__v {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-neutral-800);
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.ci-info__mono {
+  font-family: var(--font-mono);
+}
+
+// 引擎标识（demo .tag--outline.tag--sm）：等宽小号描边，不与状态色混用
+.ci-info__engine {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-neutral-600);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+// 用例区（demo .ci-cases）：标题行 + kv + 只读说明
+.ci-cases {
+  padding: 10px var(--space-lg) 14px;
+}
+
+.ci-cases__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
+.ci-cases__title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-neutral-700);
+}
+
+.ci-cases__empty {
+  padding: var(--space-xs) 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+}
+
+.ci-hint {
+  margin: 10px 0 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-neutral-500);
 }
 </style>

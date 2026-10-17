@@ -14,6 +14,7 @@ import type {
 } from '@/types'
 import pageSource from './SceneEditorPage.vue?raw'
 import headerSource from './SceneEditorHeader.vue?raw'
+import popoverSource from './SceneHistoryPopover.vue?raw'
 import historySource from '../../../../composables/project/api-testing/scene/useSceneHistory.ts?raw'
 import assetSource from '../../../../composables/project/api-testing/scene/useAssetPicker.ts?raw'
 
@@ -129,7 +130,7 @@ function makeCiDetail(overrides?: Partial<ApiSceneDetail>): ApiSceneDetail {
     sourceType: 'gitlab',
     repoId: 'repo-1',
     sourceId: 'com.example.OrderQueryTest#queryOrderStatus',
-    sourceRef: 'com.example.OrderQueryTest#queryOrderStatus',
+    sourceRef: 'src/test/java/com/example/OrderQueryTest.java#queryOrderStatus',
     sourceStatus: 'in_sync',
     caseInfo: {
       methodName: 'queryOrderStatus',
@@ -168,8 +169,10 @@ describe('SceneEditorPage 历史与资产错误边界', () => {
     expect(pageSource).toContain(':history-error="historyError"')
     expect(pageSource).toContain('@load-history="retryHistory"')
     expect(pageSource).toContain(':error="assetPickerError"')
-    expect(headerSource).toContain('v-if="historyError"')
-    expect(headerSource).toContain('@click="emit(\'load-history\')"')
+    expect(headerSource).toContain('<SceneHistoryPopover')
+    expect(popoverSource).toContain('v-if="error"')
+    expect(popoverSource).toContain("@click=\"emit('load')\"")
+    expect(headerSource).toContain('@load="emit(\'load-history\')"')
   })
 })
 
@@ -186,35 +189,37 @@ describe('SceneEditorPage gitlab_ci 只读形态（交互 10 §1.9）', () => {
     expect(wrapper.findAll('button').map((btn) => btn.text())).not.toContain('从接口添加')
     expect(wrapper.findAll('button').map((btn) => btn.text())).not.toContain('+ 添加步骤')
 
-    // 只读信息区：模块名、仓库外链与源引用外链
-    const info = wrapper.find('.scene-editor__readonly-info')
+    // 只读信息网格：模块 / 来源类型 / 仓库 / 默认分支 / 源引用（包目录折叠为 ...）
+    const info = wrapper.find('.ci-info')
     expect(info.text()).toContain('订单查询')
-    expect(info.text()).toContain('源引用')
-    const links = wrapper.findAll('.scene-editor__readonly-link')
+    expect(info.text()).toContain('GitLab 流水线')
+    expect(info.text()).toContain('master')
+    const links = wrapper.findAll('.ci-info__v a')
     expect(links[0].attributes('href')).toBe('https://gitlab.example.com/group/repo')
     expect(links[0].text()).toContain('订单接口自动化')
-    expect(links[1].text()).toContain('com.example.OrderQueryTest#queryOrderStatus')
+    expect(links[1].text()).toBe('src/test/java/.../OrderQueryTest.java#queryOrderStatus ↗')
+    expect(links[1].attributes('href')).toContain('/src/test/java/com/example/OrderQueryTest.java')
 
-    // 用例信息恒单条：方法名与源文件
-    const rows = wrapper.findAll('.el-table__row')
-    expect(rows).toHaveLength(1)
-    expect(rows[0].text()).toContain('queryOrderStatus')
-    expect(rows[0].text()).toContain('按状态查询订单')
-    expect(rows[0].text()).toContain('src/test/java/com/example/OrderQueryTest.java')
+    // 用例信息恒单条：方法名与源文件（源文件同样折叠包目录）
+    const caseKv = wrapper.find('.ci-info--case')
+    expect(caseKv.text()).toContain('queryOrderStatus')
+    expect(caseKv.text()).toContain('按状态查询订单')
+    expect(caseKv.text()).toContain('src/test/java/.../OrderQueryTest.java')
+    expect(wrapper.find('.ci-hint').exists()).toBe(true)
   })
 
   it('缺少用例信息时降级为「用例信息不可用」', async () => {
     const wrapper = await mountEditor(makeCiDetail({ caseInfo: null }))
-    expect(wrapper.findAll('.el-table__row')).toHaveLength(0)
-    expect(wrapper.find('.scene-editor__right-empty').text()).toBe('用例信息不可用')
+    expect(wrapper.find('.ci-info--case').exists()).toBe(false)
+    expect(wrapper.find('.ci-cases__empty').text()).toBe('用例信息不可用')
   })
 
-  it('顶部执行入口文案为「流水线运行」，点击即触发流水线执行', async () => {
+  it('顶部执行入口文案为「运行」，点击即触发流水线执行', async () => {
     mocks.executeScene.mockResolvedValue({ executionId: 'exec-1', status: 'running' })
     const wrapper = await mountEditor(makeCiDetail())
 
     const run = wrapper.find('.scene-editor__run-wrap button')
-    expect(run.text()).toBe('▶ 流水线运行')
+    expect(run.text()).toBe('▶ 运行')
     expect(run.attributes('disabled')).toBeUndefined()
 
     await run.trigger('click')
