@@ -308,6 +308,13 @@ const commitUrl = computed(
       </p>
     </div>
 
+    <!-- 扫描期间主区域不留白：居中加载态与空态同布局（交互稿 27 §3.2） -->
+    <div v-if="previewing && !gateBlocked" class="gi-state gi-state--loading">
+      <span class="gi-state__icon"><el-icon :size="40" class="is-loading"><Loading /></el-icon></span>
+      <div class="gi-state__title">正在扫描默认分支</div>
+      <p class="gi-state__desc">拉取源码并解析用例，完成后展示汇总与结果视图</p>
+    </div>
+
     <div v-if="showEmpty" class="gi-state">
       <span class="gi-state__icon"><el-icon :size="40"><UploadFilled /></el-icon></span>
       <div class="gi-state__title">扫描预览后执行导入</div>
