@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { MagicStick, Collection } from '@element-plus/icons-vue'
+import { MagicStick, Collection, EditPen } from '@element-plus/icons-vue'
 import type { ApiGitRepoConfig } from '@/types'
 import { fetchGitRepo } from '@/services/project/api-testing/gitRepo'
+import { formatDateTime } from '@/utils/format'
 import { flattenModuleNames } from '@/composables/project/api-testing/interface/interfacesModel'
 import ExtractorAssetPicker from '@/components/project/api-testing/ExtractorAssetPicker.vue'
 import { useEditorSplit } from '@/composables/project/api-testing/scene/useEditorSplit'
@@ -291,6 +292,7 @@ const {
                   :environment-id="editor.editEnvironmentId.value"
                 />
                 <div v-else class="scene-editor__right-empty">
+                  <el-icon :size="28"><EditPen /></el-icon>
                   <p>选中左侧步骤卡片后在右侧编辑</p>
                 </div>
               </div>
@@ -371,13 +373,41 @@ const {
           </el-button>
         </div>
       </div>
-    </div>
 
-    <SceneEditorFooter
-      v-if="(editor.detail.value || editor.isCreateMode.value) && !readonlyMode"
-      :auto-save-label="editor.autoSaveLabel.value"
-      :is-create-mode="editor.isCreateMode.value"
-    />
+      <!-- 只读执行历史（交互 10 §1.9）：填补只读页下方空白，仅展示不可编辑 -->
+      <div v-if="readonlyMode" class="scene-editor__readonly-history">
+        <div class="scene-editor__section-head">执行历史</div>
+        <div v-loading="historyLoading" class="scene-editor__history-panel">
+          <div v-if="historyError" class="scene-editor__history-error" role="alert">
+            <span>{{ historyError }}</span>
+            <el-button link size="small" type="primary" @click="retryHistory">重试</el-button>
+          </div>
+          <div v-for="h in executionHistory" :key="h.id" class="scene-editor__history-row">
+            <span class="scene-editor__history-status" :class="`is-${h.status}`">{{ h.status }}</span>
+            <span class="scene-editor__history-time">{{ formatDateTime(h.executedAt) }}</span>
+            <el-button v-if="h.reportId" link size="small" type="primary" @click="handleViewReport(h.reportId)">报告</el-button>
+          </div>
+          <div v-if="!executionHistory.length && !historyError" class="scene-editor__empty-text">暂无执行记录</div>
+          <el-pagination
+            v-if="executionHistoryTotal > 0"
+            :current-page="executionHistoryPage"
+            :page-size="20"
+            :total="executionHistoryTotal"
+            layout="prev, pager, next"
+            small
+            class="scene-editor__history-pager"
+            @current-change="handleHistoryPageChange"
+          />
+        </div>
+      </div>
+
+      <!-- 自动保存状态条随内容卡片排布，不游离在卡片之外（交互 10 §1.1） -->
+      <SceneEditorFooter
+        v-if="!readonlyMode"
+        :auto-save-label="editor.autoSaveLabel.value"
+        :is-create-mode="editor.isCreateMode.value"
+      />
+    </div>
 
     <ExtractorAssetPicker
       v-model="assetPickerVisible"
@@ -455,13 +485,26 @@ const {
   &::-webkit-scrollbar { display: none; }
 }
 
+// 右侧空态卡片（交互 10 §1.1）：居中图标 + 文案，填补分栏空白而非单行灰字
 .scene-editor__right-empty {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-sm);
+  margin: var(--space-md);
+  padding: var(--space-xl) var(--space-lg);
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
+  text-align: center;
+  background: var(--color-neutral-50);
+  border: 1px dashed var(--color-neutral-200);
+  border-radius: var(--radius-md);
+
+  p {
+    margin: 0;
+  }
 }
 
 .scene-editor__splitter {
@@ -587,5 +630,74 @@ const {
 
 .scene-editor__readonly-section {
   :deep(.el-table) { --el-table-header-bg-color: var(--color-neutral-50); }
+}
+
+// 只读执行历史区（交互 10 §1.9）：填补只读页下方空白
+.scene-editor__readonly-history {
+  flex-shrink: 0;
+  padding: 0 var(--space-md) var(--space-md);
+}
+
+.scene-editor__history-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  color: var(--el-color-danger);
+  font-size: var(--font-size-xs);
+}
+
+.scene-editor__history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  font-size: var(--font-size-xs);
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.scene-editor__history-status {
+  flex-shrink: 0;
+  min-width: 52px;
+  font-weight: 600;
+
+  &.is-success { color: var(--el-color-success); }
+  &.is-failed,
+  &.is-error { color: var(--el-color-danger); }
+  &.is-pending,
+  &.is-running { color: var(--el-color-primary); }
+}
+
+.scene-editor__history-time {
+  flex: 1;
+  color: var(--color-neutral-500);
+}
+
+.scene-editor__empty-text {
+  padding: var(--space-sm) 0;
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-xs);
+}
+
+.scene-editor__history-pager {
+  margin-top: var(--space-sm);
+  justify-content: flex-end;
+}
+
+// 自动保存状态条随内容卡片排布（交互 10 §1.1）
+.scene-editor__footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px var(--space-md);
+  border-top: 1px solid var(--color-neutral-100);
+  background: var(--color-neutral-50);
+}
+
+.scene-editor__autosave {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
 }
 </style>
