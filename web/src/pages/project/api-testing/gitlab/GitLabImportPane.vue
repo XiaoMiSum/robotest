@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, Download, Search } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { Download, Loading, Search } from '@element-plus/icons-vue'
 import {
   STAGE_LABELS,
   detailTypeLabel,
@@ -128,12 +128,12 @@ const showEmpty = computed(
 )
 
 const parsedScenes = computed(() => preview.value?.parsedScenes ?? null)
-
-/** 解析成功清单默认折叠；新预览结果到达即回落折叠态（交互稿 27 §3.2） */
-const parsedVisible = ref(false)
-watch(preview, () => {
-  parsedVisible.value = false
-})
+const parsedTotal = computed(() => preview.value?.parsedScenes?.total ?? 0)
+const parseFailedCount = computed(() => preview.value?.scenes?.parseFailed ?? 0)
+const errorFailedCount = computed(() => preview.value?.scenes?.errorFailed ?? 0)
+const visibleCount = computed(() =>
+  detailFilter.value === 'parsed' ? parsedTotal.value : filteredDetails.value.length,
+)
 
 const canRunImport = computed(
   () => canExecute.value && !!preview.value && !previewing.value && !importing.value && !submitting.value,
@@ -215,7 +215,7 @@ const commitUrl = computed(
           link
           type="primary"
           :icon="Download"
-          :loading="submitting"
+          :loading="submitting || importing"
           :disabled="!canRunImport"
           @click="runImport"
         >执行导入</el-button>
@@ -238,56 +238,60 @@ const commitUrl = computed(
       <span v-if="previewMeta" class="gi-sum__meta">{{ previewMeta }}</span>
     </div>
 
-    <!-- 解析成功清单：默认折叠，新结果到达即回落折叠（交互稿 27 §3.2） -->
-    <div v-if="preview && parsedScenes" class="gi-parsed">
-      <el-button
-        link
-        type="primary"
-        :icon="parsedVisible ? ArrowUp : ArrowDown"
-        @click="parsedVisible = !parsedVisible"
-      >解析成功 {{ parsedScenes.total }}</el-button>
-      <div v-if="parsedVisible" class="gi-parsed__body">
-        <p v-if="parsedScenes.truncated" class="gi-parsed__note">
+    <!-- 结果视图：解析成功 / 解析失败 / 真实错误 同组三段切换，恒默认解析成功（交互稿 27 §3.2） -->
+    <div v-if="preview" class="gi-view">
+      <div class="gi-view__bar">
+        <el-radio-group v-model="detailFilter" size="small">
+          <el-radio-button value="parsed">解析成功 {{ parsedTotal }}</el-radio-button>
+          <el-radio-button value="parseFailed">解析失败 {{ parseFailedCount }}</el-radio-button>
+          <el-radio-button value="errorFailed">真实错误 {{ errorFailedCount }}</el-radio-button>
+        </el-radio-group>
+        <span class="gi-view__count">共 {{ visibleCount }} 条</span>
+      </div>
+
+      <template v-if="detailFilter === 'parsed'">
+        <p v-if="parsedScenes && parsedScenes.truncated" class="gi-view__note">
           仅展示前 {{ parsedScenes.items.length }} 条，共 {{ parsedScenes.total }} 条
         </p>
-        <ul class="gi-parsed__list">
-          <li v-for="(item, index) in parsedScenes.items" :key="`${index}-${item.sceneKey}`" class="gi-parsed__item">
+        <ul v-if="parsedScenes && parsedScenes.items.length" class="gi-view__list">
+          <li
+            v-for="(item, index) in parsedScenes.items"
+            :key="`${index}-${item.sceneKey}`"
+            class="gi-view__row"
+          >
             <el-tag size="small" :type="item.action === 'create' ? 'success' : 'info'">
               {{ item.action === 'create' ? '新建' : '更新' }}
             </el-tag>
-            <span class="gi-parsed__key mono">{{ item.sceneKey }}</span>
-            <span class="gi-parsed__name">{{ item.name }}</span>
+            <span class="gi-view__key mono">{{ item.sceneKey }}</span>
+            <span class="gi-view__reason">{{ item.name }}</span>
           </li>
         </ul>
-      </div>
-    </div>
+        <p v-else class="gi-view__empty">无解析成功用例</p>
+      </template>
 
-    <!-- 失败明细：紧凑多行列表（类型 / 类或方法 / 原因），支持按类型筛选与导出（SRS F1.2 功能点 4） -->
-    <div v-if="preview" class="gi-details">
-      <div class="gi-details__bar">
-        <el-radio-group v-model="detailFilter" size="small">
-          <el-radio-button value="all">全部</el-radio-button>
-          <el-radio-button value="parseFailed">解析失败</el-radio-button>
-          <el-radio-button value="errorFailed">真实错误</el-radio-button>
-        </el-radio-group>
-        <span class="gi-details__count">共 {{ filteredDetails.length }} 条</span>
-      </div>
-      <ul v-if="filteredDetails.length" class="gi-details__list">
-        <li v-for="(row, index) in filteredDetails" :key="`${index}-${row.sceneKey ?? ''}`" class="gi-details__row">
-          <el-tag :type="row.type === 'errorFailed' ? 'danger' : 'warning'" size="small">
-            {{ detailTypeLabel(row.type) }}
-          </el-tag>
-          <span class="gi-details__key mono">{{ row.sceneKey || '文件级' }}</span>
-          <span class="gi-details__reason">{{ row.reason }}</span>
-        </li>
-      </ul>
-      <p v-else class="gi-details__empty">无失败明细，全部用例均可解析</p>
+      <template v-else>
+        <ul v-if="filteredDetails.length" class="gi-view__list">
+          <li
+            v-for="(row, index) in filteredDetails"
+            :key="`${index}-${row.sceneKey ?? ''}`"
+            class="gi-view__row"
+          >
+            <el-tag :type="row.type === 'errorFailed' ? 'danger' : 'warning'" size="small">
+              {{ detailTypeLabel(row.type) }}
+            </el-tag>
+            <span class="gi-view__key mono">{{ row.sceneKey || '文件级' }}</span>
+            <span class="gi-view__reason">{{ row.reason }}</span>
+          </li>
+        </ul>
+        <p v-else class="gi-view__empty">无失败明细，全部用例均可解析</p>
+      </template>
     </div>
 
     <!-- 进度：阶段中文 + 计数；total 未知（拉取阶段）时不确定进度（交互稿 27 §3.2 / §4） -->
     <div v-if="progressView" class="gi-progress">
       <div class="gi-progress__head">
         <span class="gi-progress__text" :class="{ 'gi-progress__text--failed': progressView.failed }">
+          <el-icon v-if="progressView.running" class="is-loading"><Loading /></el-icon>
           {{ progressView.text }}
         </span>
         <span v-if="progressView.total > 0" class="gi-progress__counts mono">
@@ -481,28 +485,36 @@ const commitUrl = computed(
   }
 }
 
-/* 解析成功清单：折叠入口 + 展开列表（内部滚动，避免长清单推挤失败明细） */
-.gi-parsed {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-sm);
+/* 结果视图：三段按钮组 + 列表（内部滚动，避免长清单推挤页面其余内容） */
+.gi-view {
   margin-bottom: var(--space-md);
 }
 
-.gi-parsed__note {
+.gi-view__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: 10px;
+}
+
+.gi-view__count {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+}
+
+.gi-view__note {
   margin: 0 0 6px;
   font-size: var(--font-size-xs);
   color: var(--color-neutral-400);
 }
 
-.gi-parsed__list {
+.gi-view__list {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin: 0;
   padding: 10px 14px;
-  max-height: 280px;
+  max-height: 320px;
   overflow-y: auto;
   list-style: none;
   background: var(--color-neutral-0);
@@ -510,64 +522,14 @@ const commitUrl = computed(
   border-radius: var(--radius-md);
 }
 
-.gi-parsed__item {
+.gi-view__row {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   font-size: var(--font-size-sm);
 }
 
-.gi-parsed__key {
-  flex: 0 1 auto;
-  min-width: 0;
-  color: var(--color-neutral-700);
-}
-
-.gi-parsed__name {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--color-neutral-500);
-  overflow-wrap: anywhere;
-}
-
-/* 明细表 */
-.gi-details {
-  margin-bottom: var(--space-md);
-}
-
-.gi-details__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: 10px;
-}
-
-.gi-details__count {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-}
-
-.gi-details__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.gi-details__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 8px 12px;
-  font-size: var(--font-size-sm);
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-100);
-  border-radius: var(--radius-md);
-}
-
-.gi-details__key {
+.gi-view__key {
   flex: 0 1 auto;
   min-width: 0;
   color: var(--color-neutral-700);
@@ -576,14 +538,14 @@ const commitUrl = computed(
   text-overflow: ellipsis;
 }
 
-.gi-details__reason {
+.gi-view__reason {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--color-neutral-500);
   overflow-wrap: anywhere;
 }
 
-.gi-details__empty {
+.gi-view__empty {
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-neutral-400);
@@ -607,6 +569,9 @@ const commitUrl = computed(
 }
 
 .gi-progress__text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-neutral-700);
