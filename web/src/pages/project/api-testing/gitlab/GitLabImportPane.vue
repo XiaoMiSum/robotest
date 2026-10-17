@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Download, Search } from '@element-plus/icons-vue'
+import { computed, ref, watch } from 'vue'
+import { ArrowDown, ArrowUp, Download, Search } from '@element-plus/icons-vue'
 import {
   STAGE_LABELS,
+  detailTypeLabel,
   isRunningStage,
   useGitLabImport,
 } from '@/composables/project/api-testing/gitlab/useGitLabImport'
@@ -121,8 +122,18 @@ const progressView = computed<ProgressView | null>(() => {
   }
 })
 
-/** 无预览、无进行中进度且未被闸门拦截时呈现引导空态 */
-const showEmpty = computed(() => !preview.value && !progressView.value && !gateBlocked.value)
+/** 无预览、无进行中进度且未被闸门拦截时呈现引导空态；重扫期间不闪现空态（交互稿 27 §3.2） */
+const showEmpty = computed(
+  () => !preview.value && !previewing.value && !progressView.value && !gateBlocked.value,
+)
+
+const parsedScenes = computed(() => preview.value?.parsedScenes ?? null)
+
+/** 解析成功清单默认折叠；新预览结果到达即回落折叠态（交互稿 27 §3.2） */
+const parsedVisible = ref(false)
+watch(preview, () => {
+  parsedVisible.value = false
+})
 
 const canRunImport = computed(
   () => canExecute.value && !!preview.value && !previewing.value && !importing.value && !submitting.value,
@@ -227,7 +238,31 @@ const commitUrl = computed(
       <span v-if="previewMeta" class="gi-sum__meta">{{ previewMeta }}</span>
     </div>
 
-    <!-- 明细表：类型 / 类或方法 / 原因三列，支持按类型筛选与导出（SRS F1.2 功能点 4） -->
+    <!-- 解析成功清单：默认折叠，新结果到达即回落折叠（交互稿 27 §3.2） -->
+    <div v-if="preview && parsedScenes" class="gi-parsed">
+      <el-button
+        link
+        type="primary"
+        :icon="parsedVisible ? ArrowUp : ArrowDown"
+        @click="parsedVisible = !parsedVisible"
+      >解析成功 {{ parsedScenes.total }}</el-button>
+      <div v-if="parsedVisible" class="gi-parsed__body">
+        <p v-if="parsedScenes.truncated" class="gi-parsed__note">
+          仅展示前 {{ parsedScenes.items.length }} 条，共 {{ parsedScenes.total }} 条
+        </p>
+        <ul class="gi-parsed__list">
+          <li v-for="(item, index) in parsedScenes.items" :key="`${index}-${item.sceneKey}`" class="gi-parsed__item">
+            <el-tag size="small" :type="item.action === 'create' ? 'success' : 'info'">
+              {{ item.action === 'create' ? '新建' : '更新' }}
+            </el-tag>
+            <span class="gi-parsed__key mono">{{ item.sceneKey }}</span>
+            <span class="gi-parsed__name">{{ item.name }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 失败明细：紧凑多行列表（类型 / 类或方法 / 原因），支持按类型筛选与导出（SRS F1.2 功能点 4） -->
     <div v-if="preview" class="gi-details">
       <div class="gi-details__bar">
         <el-radio-group v-model="detailFilter" size="small">
@@ -237,21 +272,16 @@ const commitUrl = computed(
         </el-radio-group>
         <span class="gi-details__count">共 {{ filteredDetails.length }} 条</span>
       </div>
-      <el-table :data="filteredDetails" size="small" empty-text="无失败明细，全部用例均可解析">
-        <el-table-column label="类型" width="110">
-          <template #default="{ row }">
-            <el-tag :type="row.type === 'errorFailed' ? 'danger' : 'warning'" size="small">
-              {{ row.type === 'errorFailed' ? '真实错误' : '解析失败' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="类或方法" min-width="260" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="mono">{{ row.sceneKey || '文件级' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="原因" prop="reason" min-width="360" show-overflow-tooltip />
-      </el-table>
+      <ul v-if="filteredDetails.length" class="gi-details__list">
+        <li v-for="(row, index) in filteredDetails" :key="`${index}-${row.sceneKey ?? ''}`" class="gi-details__row">
+          <el-tag :type="row.type === 'errorFailed' ? 'danger' : 'warning'" size="small">
+            {{ detailTypeLabel(row.type) }}
+          </el-tag>
+          <span class="gi-details__key mono">{{ row.sceneKey || '文件级' }}</span>
+          <span class="gi-details__reason">{{ row.reason }}</span>
+        </li>
+      </ul>
+      <p v-else class="gi-details__empty">无失败明细，全部用例均可解析</p>
     </div>
 
     <!-- 进度：阶段中文 + 计数；total 未知（拉取阶段）时不确定进度（交互稿 27 §3.2 / §4） -->
@@ -451,6 +481,55 @@ const commitUrl = computed(
   }
 }
 
+/* 解析成功清单：折叠入口 + 展开列表（内部滚动，避免长清单推挤失败明细） */
+.gi-parsed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.gi-parsed__note {
+  margin: 0 0 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+}
+
+.gi-parsed__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 14px;
+  max-height: 280px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-md);
+}
+
+.gi-parsed__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+}
+
+.gi-parsed__key {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--color-neutral-700);
+}
+
+.gi-parsed__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-neutral-500);
+  overflow-wrap: anywhere;
+}
+
 /* 明细表 */
 .gi-details {
   margin-bottom: var(--space-md);
@@ -465,6 +544,48 @@ const commitUrl = computed(
 
 .gi-details__count {
   font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+}
+
+.gi-details__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gi-details__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 12px;
+  font-size: var(--font-size-sm);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-md);
+}
+
+.gi-details__key {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--color-neutral-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gi-details__reason {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-neutral-500);
+  overflow-wrap: anywhere;
+}
+
+.gi-details__empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
   color: var(--color-neutral-400);
 }
 

@@ -130,6 +130,21 @@ export interface ApiGitImportPreviewScenes {
   errorFailed: number
 }
 
+/** 成功解析的场景条目（详设 3.2）：场景级，与 scenes 计数同口径 */
+export interface ApiGitImportPreviewParsedScene {
+  /** 类全限定名#方法名 */
+  sceneKey: string
+  name: string
+  action: 'create' | 'update'
+}
+
+/** 成功解析清单：items 超出服务端单次上限时 truncated=true，截断不影响任何计数 */
+export interface ApiGitImportPreviewParsedScenes {
+  total: number
+  truncated: boolean
+  items: ApiGitImportPreviewParsedScene[]
+}
+
 /** 环境合并判定（仅计数不落库）：gitlab_ci 恒 skip（BR-1.20），已封印环境亦 skip（BR-1.18） */
 export interface ApiGitImportPreviewEnvironment {
   action: 'merge' | 'skip'
@@ -150,6 +165,7 @@ export interface ApiGitImportPreview {
   scenes: ApiGitImportPreviewScenes | null
   environment: ApiGitImportPreviewEnvironment | null
   details: ApiGitImportPreviewDetail[]
+  parsedScenes: ApiGitImportPreviewParsedScenes | null
 }
 
 /** 导入进度响应（详设 3.2）：服务端内存态不落库，页面离开即停止轮询（交互稿 27 §5） */

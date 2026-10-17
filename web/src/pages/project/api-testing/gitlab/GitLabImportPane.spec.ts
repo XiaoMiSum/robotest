@@ -92,6 +92,14 @@ function makePreview(overrides?: Partial<ApiGitImportPreview>): ApiGitImportPrev
         reason: '文件读取失败：未找到 src/test/java/com/example/MissTest.java',
       },
     ],
+    parsedScenes: {
+      total: 205,
+      truncated: true,
+      items: [
+        { sceneKey: 'com.example.OrderQueryTest#listByStatus', name: '按状态查询订单列表', action: 'update' },
+        { sceneKey: 'com.example.OrderQueryTest#createOrder', name: '创建订单', action: 'create' },
+      ],
+    },
     ...overrides,
   }
 }
@@ -181,7 +189,7 @@ describe('GitLabImportPane', () => {
     expect(sum.text()).toContain('测试类 20 · 有效用例 193')
     expect(sum.text()).toContain('环境并入「默认环境」')
 
-    expect(wrapper.findAll('.el-table__row')).toHaveLength(2)
+    expect(wrapper.findAll('.gi-details__row')).toHaveLength(2)
     expect(wrapper.find('.gi-details').text()).toContain('com.example.OrderQueryTest#listByStatus')
     expect(wrapper.find('.gi-details').text()).toContain('文件级')
     expect(buttonByText(wrapper, '导出 CSV')).toBeTruthy()
@@ -199,7 +207,7 @@ describe('GitLabImportPane', () => {
 
     wrapper.findComponent(ElRadioGroup).vm.$emit('update:modelValue', 'parseFailed')
     await flushPromises()
-    expect(wrapper.findAll('.el-table__row')).toHaveLength(1)
+    expect(wrapper.findAll('.gi-details__row')).toHaveLength(1)
     expect(wrapper.find('.gi-details__count').text()).toContain('共 1 条')
 
     // 点击汇总条解析失败段同样切到该类型
@@ -208,8 +216,51 @@ describe('GitLabImportPane', () => {
     const seg = wrapper.find('.gi-seg--link')
     await seg.trigger('click')
     await flushPromises()
-    expect(wrapper.findAll('.el-table__row')).toHaveLength(1)
-    expect(wrapper.find('.el-table__row').text()).toContain('解析失败')
+    expect(wrapper.findAll('.gi-details__row')).toHaveLength(1)
+    expect(wrapper.find('.gi-details__row').text()).toContain('解析失败')
+  })
+
+  it('解析成功清单默认折叠，展开后展示条目与截断提示', async () => {
+    mocks.previewGitImport.mockResolvedValue(makePreview())
+    const wrapper = mountPane()
+    await flushPromises()
+    await runPreview(wrapper)
+
+    const parsed = wrapper.find('.gi-parsed')
+    expect(parsed.exists()).toBe(true)
+    expect(parsed.text()).toContain('解析成功 205')
+    expect(wrapper.find('.gi-parsed__list').exists()).toBe(false)
+
+    await buttonByText(wrapper, '解析成功 205')?.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.gi-parsed__list').exists()).toBe(true)
+    expect(wrapper.find('.gi-parsed__note').text()).toContain('仅展示前 2 条，共 205 条')
+    expect(wrapper.findAll('.gi-parsed__item')).toHaveLength(2)
+    expect(wrapper.find('.gi-parsed__item').text()).toContain('更新')
+    expect(wrapper.find('.gi-parsed__key').text()).toBe('com.example.OrderQueryTest#listByStatus')
+    expect(wrapper.find('.gi-parsed__name').text()).toBe('按状态查询订单列表')
+  })
+
+  it('重新扫描先清空上一次结果，loading 期间不展示旧结果也不闪现空态', async () => {
+    mocks.previewGitImport.mockResolvedValue(makePreview())
+    const wrapper = mountPane()
+    await flushPromises()
+    await runPreview(wrapper)
+    expect(wrapper.find('.gi-sum').exists()).toBe(true)
+
+    const deferred: { resolve: (value: ApiGitImportPreview) => void } = { resolve: () => {} }
+    mocks.previewGitImport.mockReturnValueOnce(new Promise((resolve) => { deferred.resolve = resolve }))
+    await buttonByText(wrapper, '扫描预览')?.trigger('click')
+
+    expect(wrapper.find('.gi-sum').exists()).toBe(false)
+    expect(wrapper.find('.gi-parsed').exists()).toBe(false)
+    expect(wrapper.find('.gi-details').exists()).toBe(false)
+    expect(wrapper.find('.gi-state').exists()).toBe(false)
+    expect(wrapper.find('.gi-progress').exists()).toBe(false)
+
+    deferred.resolve(makePreview())
+    await flushPromises()
+    expect(wrapper.find('.gi-sum').exists()).toBe(true)
   })
 
   it('闸门拦截转 info 提示条并可查看上次结果，不渲染明细与空态', async () => {
@@ -222,6 +273,7 @@ describe('GitLabImportPane', () => {
         scenes: null,
         environment: null,
         details: [],
+        parsedScenes: null,
       }),
     )
     const wrapper = mountPane()
