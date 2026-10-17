@@ -59,8 +59,9 @@ public class AssistantToolLoop {
     private AssistantToolRegistry registry;
     @Resource
     private AssistantIntentBuilder intentBuilder;
+    /** 回填消息写入下沉组件：依赖本组件而非会话服务，避免经注册表回到会话服务的循环依赖 */
     @Resource
-    private AssistantService assistantService;
+    private AssistantToolMessageWriter toolMessageWriter;
 
     /**
      * 循环入参：提示词由处理器按场景渲染（自定义覆盖，详设 3.5），media 为当前消息附图直传字节
@@ -141,7 +142,7 @@ public class AssistantToolLoop {
                 switch (definition.category()) {
                     case QUERY -> {
                         String result = queryResult(call, definition, toolContext, argsOrNull(call));
-                        assistantService.appendToolMessage(request.conversationId(), call.id(), result);
+                        toolMessageWriter.appendToolMessage(request.conversationId(), call.id(), result);
                         sendToolCallFrame(request.channel(), call.name());
                         turns.add(toolTurn(call, result));
                         collectCitations(call.name(), result, citations, citationKeys);

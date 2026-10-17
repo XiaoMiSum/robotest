@@ -7,9 +7,9 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiAssistantMessage;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantPromptSupport;
-import io.github.xiaomisum.robotest.service.ai.assistant.AssistantService;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantStreamBridge;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantToolLoop;
+import io.github.xiaomisum.robotest.service.ai.assistant.AssistantToolMessageWriter;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
@@ -92,8 +92,9 @@ public class AssistantParseHandler implements TaskHandler {
     private AssistantStreamBridge streamBridge;
     @Resource
     private AssistantPromptSupport promptSupport;
+    /** 悬空补偿回填依赖下沉组件而非会话服务，避免经任务注册表回到会话服务的循环依赖 */
     @Resource
-    private AssistantService assistantService;
+    private AssistantToolMessageWriter toolMessageWriter;
     @Resource
     private AssistantToolLoop toolLoop;
     @Resource
@@ -287,7 +288,7 @@ public class AssistantParseHandler implements TaskHandler {
             for (Map<String, Object> call : item.getToolCalls()) {
                 String callId = ModelOutputSupport.trimToNull(ModelOutputSupport.asString(call.get("id")));
                 if (callId != null && backfilled.add(callId)) {
-                    assistantService.appendToolMessage(item.getConversationId(), callId,
+                    toolMessageWriter.appendToolMessage(item.getConversationId(), callId,
                             "{\"error\":\"操作已超时未执行\"}");
                 }
             }
