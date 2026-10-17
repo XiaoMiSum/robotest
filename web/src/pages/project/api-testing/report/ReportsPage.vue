@@ -173,12 +173,6 @@ onMounted(async () => {
         @keyup.enter="handleFilter"
         @clear="handleFilter"
       />
-      <div class="reports-page__spacer" />
-      <template v-if="hasSelection">
-        <span class="reports-page__selected-count">已选 {{ selectedIds.length }} 项</span>
-        <el-button type="danger" @click="handleBatchDelete">批量删除</el-button>
-        <el-divider direction="vertical" />
-      </template>
     </div>
 
     <el-table
@@ -233,14 +227,17 @@ onMounted(async () => {
       </template>
     </el-table>
 
-    <el-pagination
-      v-model:current-page="pageNo"
-      :page-size="pageSize"
-      :total="total"
-      layout="total, prev, pager, next"
-      class="reports-page__pagination"
-      @current-change="loadPage"
-    />
+    <div class="reports-page__footer">
+      <el-button v-if="hasSelection" link type="danger" data-test="batch-delete-btn" @click="handleBatchDelete">删除</el-button>
+      <el-pagination
+        v-model:current-page="pageNo"
+        :page-size="pageSize"
+        :total="total"
+        layout="total, prev, pager, next"
+        class="reports-page__pagination"
+        @current-change="loadPage"
+      />
+    </div>
   </div>
 </template>
 
@@ -262,19 +259,18 @@ onMounted(async () => {
   border-bottom: 1px solid var(--color-neutral-100);
 }
 
-.reports-page__spacer {
-  flex: 1;
-}
-
-.reports-page__selected-count {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-500);
+.reports-page__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .reports-page__pagination {
   justify-content: flex-end;
-  padding: 14px 0;
-  border-top: 1px solid var(--color-neutral-100);
+  margin-left: auto;
 }
 
 .text-red-500 {
