@@ -10,6 +10,7 @@ import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +71,13 @@ class WorkspaceRoleInterceptorTest {
         lenient().when(securityContext.getAuthentication()).thenReturn(
                 new UsernamePasswordAuthenticationToken(loginUser, null, Collections.emptyList()));
         SecurityContextHolder.setContext(securityContext);
+    }
+
+    // mock 的 SecurityContext 留在线程级 SecurityContextHolder 会吞掉后续用例的
+    // setAuthentication（mock 上为 no-op），导致跨测试类串扰，用例结束必须清理
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     private MockHttpServletRequest request(String uri) {
