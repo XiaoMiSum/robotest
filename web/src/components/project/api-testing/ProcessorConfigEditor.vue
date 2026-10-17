@@ -238,10 +238,10 @@ const addExtractor = () => {
   gap: var(--space-sm);
 }
 
-// tabs 统一 http/jdbc 处理器分区结构；收窄默认间距，内容区零内边距
+// tabs 统一 http/jdbc 处理器分区结构；内容区零内边距，header 下划线与内容之间留出间距
 .processor-config__tabs {
   :deep(.el-tabs__header) {
-    margin-bottom: var(--space-sm);
+    margin-bottom: var(--space-md);
   }
 
   :deep(.el-tabs__content) {

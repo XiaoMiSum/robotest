@@ -4,8 +4,8 @@ import { parseComponentConfig } from '@/composables/project/api-testing/processo
 
 /** 步骤类型选项 */
 export const STEP_TYPE_OPTIONS = [
-  { value: 'http', label: 'HTTP 请求' },
-  { value: 'jdbc', label: 'JDBC 请求' },
+  { value: 'http', label: 'HTTP' },
+  { value: 'jdbc', label: 'JDBC' },
 ]
 
 /** 方法标签颜色 */
