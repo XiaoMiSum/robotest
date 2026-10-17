@@ -10,14 +10,14 @@
 
 ### 1.1 编写目的
 
-将「需求管理 → AI 生成 → 追溯闭环 + 智能助手 + 缺陷分析 + 辅助功能」的文档链（需求、概要、详细、交互）转化为可执行的开发方案与阶段计划：明确总体实施策略、模块依赖与实施顺序、工作包清单、交付批次与验收门禁，作为开发排期、PR 审查与人工验收的共同依据。
+将「需求管理 → AI 生成 → 智能助手 + 缺陷分析 + 辅助功能」的文档链（需求、概要、详细、交互）转化为可执行的开发方案与阶段计划：明确总体实施策略、模块依赖与实施顺序、工作包清单、交付批次与验收门禁，作为开发排期、PR 审查与人工验收的共同依据。
 
 ### 1.2 范围
 
 本计划覆盖以下交付内容：
 
 1. **需求管理**：需求 CRUD、导入（Markdown / Word / 图片 ≤20MB，AI 按模块拆分）、属性与版本变更、变更记录；
-2. **追溯矩阵**：追溯关系维护、覆盖率统计、影响分析及其页面；
+2. **追溯矩阵**：已取消——追溯矩阵需求整体下线，原范围（追溯关系维护、覆盖率统计、影响分析及其页面）不实施；
 3. **AI 底座**：AI 配置中心（模型、向量 API、场景提示词、用量、总开关）、AI 任务框架、向量与 RAG、重建引导；
 4. **AI 场景**：生成链、智能助手、缺陷分析、辅助功能、导入 AI 识别文档级版本；
 5. **横切内容**：全局导航与菜单注册、权限点接入、任务中心与任务详情、视觉规范落地。
@@ -41,14 +41,12 @@
 | 概要（AI Task） | `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md` | AI Task 双平面、执行与提案采纳机制的唯一上位依据 |
 | 概要 | `docs/02-high-level-design/04-hld-data-interface.md` | 数据与接口概要 |
 | 详细 | `docs/04-detailed-design/06-requirement-management/02-requirement-management.md` | 需求管理 DDL 与接口 |
-| 详细 | `docs/04-detailed-design/05-trace-matrix.md` | 追溯矩阵 DDL 与接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | AI 底座 DDL、任务框架与公共协议 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | 生成链编排与接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | 助手会话、SSE 与确认执行 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md` | 缺陷分析接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md` | 辅助功能接口 |
 | 交互 | `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md` | 需求管理页面行为 |
-| 交互 | `docs/05-interaction-design/04-trace-matrix-ui.md` | 追溯矩阵页面行为 |
 | 交互 | `docs/05-interaction-design/07-ai-capability/01-readme.md` | AI 能力交互分册入口 |
 | 交互 | `docs/05-interaction-design/02-global-navigation.md` | 全局导航、菜单与助手入口 |
 | 交互 | `docs/05-interaction-design/03-visual-design.md` | 视觉与 CSS 变量唯一来源 |
@@ -57,7 +55,7 @@
 
 | 术语 | 定义 |
 | ---- | ---- |
-| 生成链 | 需求到用例与追溯的 AI 生成（Agent 循环编排，提案采纳落库时建边）：典型步骤 解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性 |
+| 生成链 | 需求到用例的 AI 生成（Agent 循环编排，提案采纳落库生效）：典型步骤 解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性 |
 | AI 底座 | 模型配置、任务框架、向量与 RAG、提示词与用量等平台级 AI 基础能力 |
 | 阶段 / 工作包 | 计划的两级实施单元，编号分别为 P* 与 WP-*；本文只描述阶段与依赖，不排期、不给人天 |
 | 交付批次 | 面向验收与合入的分组，一批对应一个可独立验收的范围 |
@@ -77,7 +75,7 @@
 ### 2.2 分支与协作
 
 - **分支模型**：`master` ← `develop` ← `feature/*`（总则 `docs/00-spec/30-quality-delivery/02-workflow.md` 第 1 章）；当前工作分支 `feature/requirement-ai-workflow`，批次收口后向 `develop` 发 PR，不在本地直接合入。
-- **提交规范**：`<emoji> <type>(<scope>): <description>`，scope 按业务域（如 `requirement`、`trace`、`ai`、`task`）。
+- **提交规范**：`<emoji> <type>(<scope>): <description>`，scope 按业务域（如 `requirement`、`ai`、`task`）。
 - **门禁**：提交前运行本端验证脚本至 EXIT=0（文档端 `bash scripts/validate-docs.sh`，前端 / 后端各自脚本），覆盖率满足 C8。
 - **跨端同步**：接口经 OpenAPI 分组同步（AI 相关分组 `ai`）；实时消息遵循 `docs/00-spec/20-contracts/03-realtime-protocol.md` 与 `docs/04-detailed-design/03-realtime-websocket.md`。
 
@@ -87,22 +85,21 @@
 flowchart TD
   P0["P0 准备与环境"] --> P1["P1 数据层迁移"]
   P1 --> P2["P2 需求管理"]
-  P1 --> P3["P3 追溯矩阵"]
   P1 --> P4["P4 AI 底座"]
   P2 --> P5["P5 AI 生成链"]
-  P3 --> P5
   P4 --> P5
   P4 --> P6["P6 智能助手"]
   P4 --> P7["P7 缺陷分析与辅助功能"]
   P2 --> P8["P8 导入 AI 识别版本"]
   P4 --> P8
   P2 --> P9["P9 联调与验收"]
-  P3 --> P9
   P5 --> P9
   P6 --> P9
   P7 --> P9
   P8 --> P9
 ```
+
+> 已取消——追溯矩阵需求整体下线：原 P3 阶段及其对 P5 / P9 的依赖从依赖图中移除，阶段登记见 3.1、工作包标注见 3.2 / 3.6。
 
 ### 2.4 技术实施要点
 
@@ -110,7 +107,7 @@ flowchart TD
 
 #### 2.4.1 数据层与迁移
 
-- PostgreSQL 14+；需求表族、追溯表、AI 表族（任务、执行、轨迹、提案、采纳、工具、会话消息、提示词、用量）DDL 见 `docs/04-detailed-design/06-requirement-management/02-requirement-management.md`、`docs/04-detailed-design/05-trace-matrix.md`、`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`；
+- PostgreSQL 14+；需求表族、AI 表族（任务、执行、轨迹、提案、采纳、工具、会话消息、提示词、用量）DDL 见 `docs/04-detailed-design/06-requirement-management/02-requirement-management.md`、`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`；
 - 符合 C5（`id` / `created_at` / `updated_at` / `is_deleted`、UUID 框架默认策略、无物理外键）与 C9（索引规范）；迁移说明随首个涉及数据库的提交交付；
 - 向量依赖 pgvector 扩展，扩展可用性属环境前置（见 2.5）。
 
@@ -121,10 +118,9 @@ flowchart TD
 - 业务异常统一 `ServiceExceptionUtil.get(ErrorCode)` 10 位错误码（C3）；工作空间 / 项目上下文经请求头传递，不出现在 URL（C4）；
 - 权限点 `requirement:*`。
 
-#### 2.4.3 追溯矩阵
+#### 2.4.3 追溯闭环
 
-- 追溯边按逻辑外键建索引（C9），覆盖率与影响分析为查询侧统计；
-- 页面交互按 `docs/05-interaction-design/04-trace-matrix-ui.md`；权限点 `trace:view` / `trace/edit`。
+已取消——追溯矩阵需求整体下线；原实施要点（追溯边索引、覆盖率与影响分析统计、矩阵页面与 trace 权限点）整体不再实施。
 
 #### 2.4.4 AI 底座
 
@@ -137,7 +133,7 @@ flowchart TD
 #### 2.4.5 AI 生成链
 
 - 任务执行由 Agent 循环编排（AI 自主规划步骤，典型序列：解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性，计划与过程见轨迹）；提案存 `ai_task_proposal`，采纳记录落 `ai_task_adoption`，执行与轨迹落 `ai_task_execution / ai_task_trace_event`；
-- 预览 → 人工采纳 → 生效；采纳前不写入需求 / 用例 / 追溯业务数据；
+- 预览 → 人工采纳 → 生效；采纳前不写入需求 / 用例业务数据；
 - 脑图编辑复用既有脑图组件与 Yjs 协同（`docs/04-detailed-design/03-function-testing/08-mindmap-component.md`）。
 
 #### 2.4.6 智能助手
@@ -177,11 +173,11 @@ flowchart TD
 | 阶段 | 名称 | 内容概要 | 前置依赖 |
 | ---- | ---- | ---- | ---- |
 | P0 | 准备与环境 | 分支与基线同步、pgvector 与 LLM 端点连通 | — |
-| P1 | 数据层迁移 | 需求、追溯、AI 三族 DDL 与索引迁移 | P0 |
+| P1 | 数据层迁移 | 需求与 AI 两族 DDL 与索引迁移 | P0 |
 | P2 | 需求管理 | CRUD / 属性 / 导入后端与前端 | P1（需求表族） |
-| P3 | 追溯矩阵 | 追溯与覆盖率后端、矩阵前端 | P1（追溯表族） |
+| P3 | 链路追溯 | 已取消——追溯矩阵需求整体下线，原「追溯与覆盖率后端、矩阵前端」不再实施 | P1 |
 | P4 | AI 底座 | 配置中心、任务框架与 SSE、用量、任务中心前端 | P1（AI 表族） |
-| P5 | AI 生成链 | 生成链任务类型后端与生成预览采纳前端 | P4、P2、P3 |
+| P5 | AI 生成链 | 生成链任务类型后端与生成预览采纳前端 | P4、P2 |
 | P6 | 智能助手 | 会话 SSE、预览确认执行、悬浮球面板 | P4 |
 | P7 | 缺陷分析与辅助功能 | 分析后端与页面、三个辅助面板 | P4、既有用例 / 计划模块 |
 | P8 | 导入 AI 识别版本 | 导入文档级版本 AI 识别 | P4、P2 |
@@ -194,21 +190,21 @@ flowchart TD
 | WP-0.1 | 分支与基线同步 | P0 | 全 | `docs/00-spec/30-quality-delivery/02-workflow.md` | — | 工作区干净，feature 分支基于 develop 最新 |
 | WP-0.2 | 环境准备（pgvector + LLM 端点） | P0 | 后端 | AI 底座详细设计环境章节 | — | 迁移可执行，配置中心连通性测试通过 |
 | WP-1.1 | 需求管理 DDL 迁移 | P1 | 后端 | `docs/04-detailed-design/06-requirement-management/02-requirement-management.md` | WP-0.2 | 迁移执行成功，索引符合 C5 / C9 |
-| WP-1.2 | 追溯矩阵 DDL 迁移 | P1 | 后端 | `docs/04-detailed-design/05-trace-matrix.md` | WP-0.2 | 同上 |
-| WP-1.3 | AI 底座 DDL 迁移（含向量表） | P1 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-0.2 | 同上，pgvector 向量列可用 |
+| WP-1.2 | 追溯矩阵 DDL 迁移 | P1 | 后端 | 追溯矩阵详设（文档已随需求下线删除） | WP-0.2 | 已取消——追溯矩阵需求整体下线（原判据：迁移执行成功，索引符合 C5 / C9） |
+| WP-1.3 | AI 底座 DDL 迁移（含向量表） | P1 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-0.2 | 迁移执行成功，索引符合 C5 / C9，pgvector 向量列可用 |
 | WP-2.1 | 需求 CRUD、属性与变更记录后端 | P2 | 后端 | 需求管理详设接口章节 | WP-1.1 | OpenAPI 暴露，10 位错误码，部分更新 |
 | WP-2.0 | 文件管理模块（对象存储与泛化附件资源） | P2 | 全 | `docs/04-detailed-design/08-file-management/02-file-management.md`（随本包补建） | WP-0.2 | 附件上传 / 下载 / 删除与访问 URL 走通，docker-compose 含对象存储（SeaweedFS） |
 | WP-2.2 | 需求导入后端（三类文件，含文档级版本识别） | P2 | 后端 | 需求管理详设导入章节 | WP-1.1、WP-4.2、WP-2.0 | 三类样例导入成功，任务 `result_meta.documentMeta` 识别出版本或为 `null`，>20MB 拒绝 |
 | WP-2.3 | 需求管理前端 | P2 | 前端 | `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md` | WP-2.1、WP-2.2 | 状态分支齐全，C1 无 `any` |
-| WP-3.1 | 追溯关系与覆盖率后端 | P3 | 后端 | 追溯矩阵详设接口章节 | WP-1.2 | CRUD 与统计接口通过，`trace:*` 校验生效，需求侧追溯委托（需求管理详设 3.12）与需求列表 / 详情 `coverageStatus` 填充补齐；`trace_edge` 影响处置字段组补列迁移、`impact_analysis` 处理器注册、评审 / 计划快照事务内写 `case_snapshot` 边 |
-| WP-3.2 | 追溯矩阵前端 | P3 | 前端 | `docs/05-interaction-design/04-trace-matrix-ui.md`、`docs/05-interaction-design/03-function-testing/04-workspace-ui-test-case.md` | WP-3.1 | 覆盖率、影响分析交互达标，脑图「关联需求」经追溯边接通 |
+| WP-3.1 | 追溯关系与覆盖率后端 | P3 | 后端 | 追溯矩阵详设接口章节（文档已随需求下线删除） | WP-1.2 | 已取消——追溯矩阵需求整体下线 |
+| WP-3.2 | 追溯矩阵前端 | P3 | 前端 | 追溯矩阵交互稿与脑图用例页（前者已随需求下线删除） | WP-3.1 | 已取消——追溯矩阵需求整体下线 |
 | WP-4.1 | AI 配置与用量后端 | P4 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-1.3 | `ai:admin` 生效，密钥不回明文 |
 | WP-4.2 | AI 任务框架与 SSE 后端 | P4 | 后端 | AI 底座详设任务章节、助手详设 SSE 章节 | WP-1.3 | 状态机与轮询口径达标，OpenAPI 分组 `ai` |
 | WP-4.3 | 配置中心前端（分组子路由） | P4 | 前端 | `docs/05-interaction-design/07-ai-capability/02-ai-admin-ui.md` | WP-4.1 | 分组导航、页头全局项与状态分支齐全 |
 | WP-4.4 | 任务中心与任务详情前端 | P4 | 前端 | `docs/05-interaction-design/07-ai-capability/03-ai-task-ui.md` | WP-4.2 | 2s 轮询、终态停轮询 |
 | WP-4.5 | 向量索引维护（`vector_reindex` 完整实现） | P4 | 后端 | AI 底座详设 4.4、3.6.1 | WP-4.1 | 全量重建任务执行通过；需求 / 用例 / 缺陷变更事件触发分块重嵌；读侧按项目 / 工作空间限权过滤 |
 | WP-4.6 | AI 调用层迁移 Spring AI（替换全部自实现模型 / 向量 HTTP 调用） | P4 | 后端 | AI 底座详设 4.2、7 | WP-4.1、WP-4.5 | `service/ai` 内零自实现 HTTP 调用（传输 / 序列化 / 重试 / 解析由 Spring AI 2.0.x 执行），门面签名、逐次记账与 10 位错误码口径不变，`validate-backend` EXIT=0 |
-| WP-5.1 | 生成链任务类型与提案采纳后端 | P5 | 后端 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | WP-4.2、WP-2.1、WP-3.1 | 类型适配器（工具白名单 + 预算默认 + 提案结构）就位；提案存 `ai_task_proposal`、采纳落 `ai_task_adoption`，执行与轨迹走框架（`ai_task_execution / ai_task_trace_event`），不新增表 |
+| WP-5.1 | 生成链任务类型与提案采纳后端 | P5 | 后端 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | WP-4.2、WP-2.1 | 类型适配器（工具白名单 + 预算默认 + 提案结构）就位；提案存 `ai_task_proposal`、采纳落 `ai_task_adoption`，执行与轨迹走框架（`ai_task_execution / ai_task_trace_event`），不新增表 |
 | WP-5.2 | 生成预览与确认前端 | P5 | 前端 | `docs/05-interaction-design/07-ai-capability/04-ai-generation-ui.md` | WP-5.1 | 人工采纳前不落业务数据 |
 | WP-6.1 | 助手会话与 SSE 后端 | P6 | 后端 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | WP-4.2 | 流式、断线补齐、确认执行回执通过 |
 | WP-6.2 | 助手面板与悬浮球前端 | P6 | 前端 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | WP-6.1 | 入口显隐随总开关与配置就绪态 |
@@ -229,7 +225,7 @@ flowchart TD
 
 | 批次 | 覆盖阶段 | 范围 | 验收重点 |
 | ---- | ---- | ---- | ---- |
-| 批次一 | P0、P1、P2、P3，另随批提前 WP-4.2（任务框架段）与 WP-4.4（任务详情前端） | 需求管理与追溯矩阵（业务不依赖 AI 场景，导入执行经任务框架） | 需求导入端到端全流程（提交、执行与轨迹、采纳）、属性与版本变更、追溯矩阵人工闭环、覆盖率统计 |
+| 批次一 | P0、P1、P2，另随批提前 WP-4.2（任务框架段）与 WP-4.4（任务详情前端） | 需求管理（业务不依赖 AI 场景，导入执行经任务框架） | 需求导入端到端全流程（提交、执行与轨迹、采纳）、属性与版本变更 |
 | 批次二 | P4（其余）、P5、P8，另含 WP-2.0、WP-2.2、WP-4.5、WP-4.6 | AI 底座与生成主链路、文件底座与需求导入闭环 | 配置中心分组与连通性、生成提案人工采纳、任务终止再次执行、三类文件导入端到端、向量全量重建、调用层迁移（零自实现 HTTP 调用）、导入识别版本 |
 | 批次三 | P6、P7 | AI 场景扩展 | 助手 SSE、确认执行与工具调用重构、缺陷分析四类、辅助三面板 |
 
@@ -246,7 +242,7 @@ flowchart TD
 
 人工验收关键路径（每批至少覆盖）：
 
-- 批次一：三类文件导入、属性与版本变更、追溯边编辑与覆盖率；
+- 批次一：三类文件导入、属性与版本变更；
 - 批次二：模型连通性测试、维度变更重建引导、生成提案预览采纳、任务终止再次执行、三类文件导入端到端、向量全量重建与限权检索、导入识别版本确认；
 - 批次三：助手流式与断线恢复、多步查询与缺参追问闭环、变更拦截零落库、超权限只读问答拒绝、缺陷分析下钻、辅助面板采纳生效。
 
@@ -273,7 +269,7 @@ flowchart TD
 
 **WP-6.2 编码前探查**：壳层全局挂载点；AI 总开关与模型就绪的取值来源；前端服务层与契约基线对齐方式；既有 Markdown 渲染能力；端约定 `web/AGENTS.md`。
 
-**WP-7.x 设计依据**：WP-7.1 —— `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md`（3.2–3.9 八个接口、任务 type 与资源权限映射 4.2、批量执行与确认 4.3、错误码第 6 节）；WP-7.2 —— `docs/05-interaction-design/07-ai-capability/06-defect-analysis-ui.md`；WP-7.3 —— `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`（3.2–3.4 三接口、4.2 采纳覆盖口径、4.3 补充节点与追溯边）与 `docs/05-interaction-design/07-ai-capability/07-assisted-features-ui.md`。
+**WP-7.x 设计依据**：WP-7.1 —— `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md`（3.2–3.9 八个接口、任务 type 与资源权限映射 4.2、批量执行与确认 4.3、错误码第 6 节）；WP-7.2 —— `docs/05-interaction-design/07-ai-capability/06-defect-analysis-ui.md`；WP-7.3 —— `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`（3.2–3.4 三接口、4.2 采纳覆盖口径、4.3 补充节点）与 `docs/05-interaction-design/07-ai-capability/07-assisted-features-ui.md`。
 
 **批次三收口前待验收积压**（结果按 3.4 第 4 条回填）：
 
@@ -282,26 +278,26 @@ flowchart TD
 - WP-7.1：缺陷分析统计查询、同步建议（新建分类草稿、分诊队列、录入重复检测）、AI 摘要 / 批量分类 / 重复扫描任务与确认承接；
 - WP-7.2：分析页图表看板与范围切换、AI 摘要与分诊队列、新建建议区与录入重复检测、任务详情批量分类与重复组审核；
 - WP-7.3：三类型适配器与采纳落库（含 `tags` 补列迁移）、任务编排与视图模型、补全与级别推荐对照面板、执行顺序建议面板；
-- 批次二遗留：WP-5.1 生成链提案、WP-2.2 三类导入、WP-5.2 生成预览前端、WP-8.1 导入版本确认面板、覆盖分析入口（`coverage_analysis`）；
+- 批次二遗留：WP-5.1 生成链提案、WP-2.2 三类导入、WP-5.2 生成预览前端、WP-8.1 导入版本确认面板；
 - 发布阻塞：docker 镜像构建待 migoo 1.4.0 / ryze 6.1.1 发布到 Maven Central（维持既定裁决，不阻塞代码开发）。
 
 ### 3.6 工作包实施状态
 
-状态口径：✅ 代码落地且完成判据自检通过；🟡 部分完成，缺口见备注；❌ 未开始。标注「待验收」者代码已落地，人工验收结果尚未按 3.4 第 4 条回填。状态快照日期 2026-10-10。
+状态口径：✅ 代码落地且完成判据自检通过；🟡 部分完成，缺口见备注；❌ 未开始；「已取消」为需求整体下线、不再实施的工作包。标注「待验收」者代码已落地，人工验收结果尚未按 3.4 第 4 条回填。状态快照日期 2026-10-10。
 
 | 编号 | 工作包 | 状态 | 备注 |
 | ---- | ---- | ---- | ---- |
 | WP-0.1 | 分支与基线同步 | 🟡 | feature 分支在位；存在未提交文件与未推送提交，批次收口前需清零 |
 | WP-0.2 | 环境准备（pgvector + LLM 端点） | ✅ | pgvector 扩展迁移就位，LLM 端点经配置中心接入并有连通性测试 |
 | WP-1.1 | 需求管理 DDL 迁移 | ✅ | |
-| WP-1.2 | 追溯矩阵 DDL 迁移 | ✅ | 含影响处置字段组补列迁移 |
+| WP-1.2 | 追溯矩阵 DDL 迁移 | 已取消——追溯矩阵需求整体下线 | 原含影响处置字段组补列迁移 |
 | WP-1.3 | AI 底座 DDL 迁移（含向量表） | ✅ | 含向量列与用量成本补列 |
 | WP-2.1 | 需求 CRUD、属性与变更记录后端 | ✅ | |
 | WP-2.0 | 文件管理模块（对象存储与泛化附件资源） | ✅ | 上传 / 下载 / 删除与访问 URL、管理端文件页、docker-compose 全家桶齐备 |
 | WP-2.2 | 需求导入后端（三类文件，含文档级版本识别） | ✅（待验收） | 三类文件、超限拒绝与 `documentMeta` 版本识别已实现 |
 | WP-2.3 | 需求管理前端 | ✅（待验收） | 列表、详情、属性、版本与变更记录齐备；「导入需求」入口与导入对话框（预校验、提交跳任务详情）齐备 |
-| WP-3.1 | 追溯关系与覆盖率后端 | ✅ | |
-| WP-3.2 | 追溯矩阵前端 | ✅ | |
+| WP-3.1 | 追溯关系与覆盖率后端 | 已取消——追溯矩阵需求整体下线 | 原含覆盖率统计、影响处置与快照对账写边，随需求下线一并不做 |
+| WP-3.2 | 追溯矩阵前端 | 已取消——追溯矩阵需求整体下线 | 原含矩阵页与脑图「关联需求」改造 |
 | WP-4.1 | AI 配置与用量后端 | ✅ | |
 | WP-4.2 | 任务框架与 SSE 后端 | ✅ | |
 | WP-4.3 | 配置中心前端（分组子路由） | ✅ | |
@@ -379,3 +375,4 @@ flowchart TD
 | V1.0 | 2026-10-16 | WP-6.3 实施方案落盘 `docs/06-implementation-plan/05-ai-assistant-tool-invocation-plan.md`（文件级清单、Spring AI 接入双方案与 spike、六步骤六提交拆分、门禁与验收重点），3.6 状态行补方案指引，目录索引同步 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2.4.5 六阶段任务化改 Agent 循环编排（计划入轨迹），`ai_task.result / ai_artifact_confirm` 改 `ai_task_proposal / ai_task_adoption`；WP-5.1 范围与判据改类型适配器 + 提案采纳 |
 | V1.0 | 2026-10-16 | 对齐 AI Task 新口径：1.3 基线文档表补概要（AI Task）行；「人工确认 / 生成物」改「人工采纳 / 提案」、`result.documentMeta` 改 `result_meta.documentMeta`、「任务处理器」改「类型适配器」、失败态改执行终止（`aborted`）支持再次执行、任务执行与轨迹口径统一 |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关引用与工作包标注「已取消——追溯矩阵需求整体下线」：1.2 范围、1.3 基线文档、2.3 依赖图、2.4.1 / 2.4.3 技术要点、3.1 阶段表（P3 更名链路追溯）、3.2 / 3.6 工作包（WP-1.2、WP-3.1、WP-3.2）、3.3 / 3.4 验收范围同步收敛 |

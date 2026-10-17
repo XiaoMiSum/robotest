@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-对**辅助功能**能力域进行详细设计：定义用例补全、用例级别推荐、测试用例执行顺序推荐三项能力的任务输入、提案结构、采纳落库与追溯规则。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
+对**辅助功能**能力域进行详细设计：定义用例补全、用例级别推荐、测试用例执行顺序推荐三项能力的任务输入、提案结构与采纳落库规则。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
 
 ### 1.2 范围与对应设计
 
@@ -21,7 +21,6 @@
 ### 1.3 参考资料
 
 - 总册：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（3.6 任务资源、6 错误码分段）
-- 追溯建边：`docs/04-detailed-design/05-trace-matrix.md` 4.1（补充节点的派生边规则）
 
 ---
 
@@ -31,7 +30,7 @@
 
 - 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_complete / case_priority / plan_order`）；
 - 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_suggestion / priority_suggestion / order_suggestion`）；
-- 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；补充节点的派生边经矩阵服务写 `trace_edge`（DDL 见 `05-trace-matrix.md` 2.2）；
+- 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；
 - 用例标签随补全建议采纳写入 `test_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），补列迁移 `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` 与 `server/src/main/resources/db/schema.sql` 同步维护，满足 C5；该列不进向量索引，也不参与脑图渲染。
 
 ---
@@ -64,7 +63,7 @@
 | ---- | ---- | ---- | ---- |
 | documentId | uuid | 是 | 所属脑图用例文档（节点归属校验，否则 1000018301） |
 | nodeIds | uuid[] | 是 | 选中的用例节点（1–50，否则 1000018302）；非用例节点拒绝（1000018307） |
-| scope.requirementIds | uuid[] | 否 | 显式上游需求范围；缺省时按节点既有派生边回溯上游需求作为上下文 |
+| scope.requirementIds | uuid[] | 否 | 显式上游需求范围，作为补全建议的需求上下文 |
 
 - **提案**（`kind = case_suggestion`，逐节点一条，`confirmStatus = pending`）：
 
@@ -98,7 +97,7 @@
 { "documentId": "…", "extraNodePosition": "sibling" }
 ```
 
-- **承接**（用例采纳服务）：逐项事务更新节点字段（`adopted_edited` 以编辑值落库）、新增 `extraNodes` 节点并按 4.3 建派生边；采纳写 `adopted_ref = { nodeId / createdNodeIds }`。
+- **承接**（用例采纳服务）：逐项事务更新节点字段（`adopted_edited` 以编辑值落库）、新增 `extraNodes` 节点；采纳写 `adopted_ref = { nodeId / createdNodeIds }`。
 
 ### 3.3 用例级别推荐
 
@@ -183,14 +182,9 @@
 
 - **已有人工填写的字段默认不被覆盖**：`existing` 非空的字段仅在 `adopted_edited` 且编辑值与 `suggested` 一致时写入（即人工显式采纳）；空缺字段的补全同样须采纳确认后生效；
 - 已有人工设定的优先级不自动改变：级别推荐的批量采纳仅写 `current != suggested` 且人工点击确认的项；
-- 采纳结果作为**用例修改记录留痕**（调用既有修改记录服务），来源需求的既有追溯边不变。
+- 采纳结果作为**用例修改记录留痕**（调用既有修改记录服务）。
 
-### 4.3 补充节点与追溯边
-
-- `extraNodes` 采纳新增的节点继承**源节点的上游派生边**（按源节点 `derivation` 边的 `source` 端批量新建边，`established_by = ai`、`status = ai_created`，随落库同一事务，见 `05-trace-matrix.md` 4.1）；
-- 继承只新建补充节点的边，不修改源节点既有边（「来源需求的追溯边不变」口径）；`isTestCase = false` 的结构节点不建边、不生成用例实体。
-
-### 4.4 顺序推荐的边界
+### 4.3 顺序推荐的边界
 
 - 推荐依据限定平台内数据（上游需求优先级、历史缺陷热点、执行依赖），不引入外部信息；
 - 采纳只改排序，不改快照、不改关联集合；后续计划同步机制（用例增删）按既有规则重新排布，建议结果不持久复用。
@@ -264,12 +258,12 @@ PlanOrderPanel
 | `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 对照与排序面板（含各自单测） |
 | `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与面板视图模型 |
 
-- **数据库**：无新增表；`test_case_node.tags` 补列迁移（见 2 节），落库均为既有业务表 + `trace_edge`。
+- **数据库**：无新增表；`test_case_node.tags` 补列迁移（见 2 节），落库均为既有业务表。
 - **OpenAPI**：三个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：节点归属与类型校验矩阵、数量上限、已有字段不被覆盖（采纳动作 × existing 组合矩阵）、补充节点继承派生边事务、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
+- 后端：节点归属与类型校验矩阵、数量上限、已有字段不被覆盖（采纳动作 × existing 组合矩阵）、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
 - 前端：对照面板两栏渲染与折叠、逐条/批量/驳回回执、拖拽序号与前后对照、只读置灰与权限隐藏、任务超时转进度入口。
 
 ---
@@ -282,3 +276,4 @@ PlanOrderPanel
 | V1.0 | 2026-10-10 | 随落地实现勘误：2 节补 `test_case_node.tags` 补列迁移并撤销「无迁移」口径，5.2 补多节点切换与结构块落位，5.3 补面板动作区置灰原因，7 节文件清单对齐实际类名与目录 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分；产物改称提案；执行器改类型适配器口径 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：5.3 状态管理改「复用总册 `aiTask` store 轮询任务执行」 |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除补充节点派生边继承（原 4.3 整节，4.4 顺延为 4.3）与 `trace_edge` 写入引用，补全输入的上游需求范围改为显式传入 |

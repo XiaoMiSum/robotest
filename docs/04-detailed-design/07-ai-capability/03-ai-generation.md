@@ -10,13 +10,12 @@
 
 ### 1.1 编写目的
 
-对 **AI+需求 生成链**能力域进行详细设计：定义测试设计生成与评审 / 计划圈选建议两类任务的输入、提案结构、执行过程、采纳落库与追溯建边规则。任务资源、提案确认协议、配置与用量的公共约定见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档不重复定义。
+对 **AI+需求 生成链**能力域进行详细设计：定义测试设计生成与评审 / 计划圈选建议两类任务的输入、提案结构、执行过程与采纳落库规则。任务资源、提案确认协议、配置与用量的公共约定见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档不重复定义。
 
 ### 1.2 范围与对应设计
 
 - 对应需求：`docs/01-requirements/07-ai-capability/03-srs-ai-generation.md`（US-AI-005 ~ 009）。
-- 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` 第 4.2 / 4.3 节。
-- 追溯建边、缺口列表与影响处置接口：`docs/04-detailed-design/05-trace-matrix.md`。
+- 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` 第 4.2 节。
 
 ### 1.3 参考资料
 
@@ -32,7 +31,6 @@
 
 - 任务、执行与轨迹：存 `ai_task / ai_task_execution / ai_task_trace_event`（`type = test_design_generation / review_selection / plan_selection`）；
 - 提案与采纳：存 `ai_task_proposal / ai_task_adoption`（本分册提案 `kind`：`module_suggestion / mindmap_document_suggestion / test_case_suggestion / review_selection / plan_selection`）；
-- 追溯边：采纳落库与圈选确认时经矩阵服务写入 `trace_edge`（DDL 见 `docs/04-detailed-design/05-trace-matrix.md` 2.2）；
 - 生成目标（模块 / 脑图文档 / 用例）落库为既有业务表数据，本分册只定义写入规则（4.3）。
 
 ---
@@ -77,7 +75,7 @@
 - **查询**：总册 3.6.3 `GET /api/ai/tasks/{taskId}`；执行过程由 AI 自主编排，**不承诺固定阶段序列**：
   - 详情页展示执行的计划步骤快照（`plan`；典型序列为解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性，仅供展示参考）、当前步数与预算消耗；
   - 完整过程经轨迹查询（总册 3.6.4 `events`）逐事件回看（AI 决策、工具调用与结果、提案产出）。
-- 终止与再次执行按总册 3.6.4：终止态执行**不产生任何提案、落库数据与追溯边**；再次执行产生新执行实例与新提案，原提案与轨迹保留。
+- 终止与再次执行按总册 3.6.4：终止态执行**不产生任何提案与落库数据**；再次执行产生新执行实例与新提案，原提案与轨迹保留。
 
 ### 3.4 提案结构与审核详情
 
@@ -122,8 +120,7 @@
 - **承接**（总册 3.6.1「生成链采纳服务」）：
   1. 逐项事务：写模块 / 脑图文档 / 用例节点与用例实体（**均为新增，不覆盖既有数据**）；
   2. 每个 `isTestCase = true` 的节点生成一条测试用例实体，回写 `adopted_ref = { moduleId / documentId / nodeId / caseId }`；
-  3. 同事务内经 `TraceEdgeWriter` 写 `derivation` 边：`requirement → module / mindmap_document / test_case`，`status = ai_created`、`established_by = ai`、`target_version` 取新实体版本；
-  4. 任一步失败整项回滚，确认状态保持 `pending` 可重试。
+  3. 任一步失败整项回滚，确认状态保持 `pending` 可重试。
 
 ### 3.6 评审 / 计划圈选建议
 
@@ -158,7 +155,7 @@
 ```
 
 - **确认**：走总册 3.6.5；本类型 `target` 为既有创建流程的请求参数（评审名称、参与者、起止时间等，**不含项目上下文**）。
-- **承接**：沿用**既有评审 / 计划创建流程**生成快照（AI 不改变快照机制），创建成功后经矩阵服务写 `case_snapshot` 边（`test_case → test_review / test_plan`，记录圈选时用例 `target_version`）；评审意见与计划项挂到用例级引用边。
+- **承接**：沿用**既有评审 / 计划创建流程**生成快照（AI 不改变快照机制）。
 
 ---
 
@@ -174,23 +171,17 @@
 - 确认后 AI 不再自动覆盖；人工编辑过的产出仅在**显式重新生成并二次确认**后可被覆盖——重新生成 = 任务「再次执行」（总册 3.6.4），新执行产出新提案后需再次确认。
 - 驳回提案保留在 `ai_task_proposal` 与轨迹审计中供回查，不落库。
 
-### 4.3 采纳落库与建边事务
+### 4.3 采纳落库事务
 
 1. 落库目标项目 = 确认请求 `X-Active-Project`；目标模块按 `target.moduleId`，缺省时按 `input.placement`；
 2. 疑似重复（`suspectedDuplicateOf` 非空）的提案**不阻断**采纳，但前端强提示，人工可改为编辑后采纳；
-3. 「业务落库 + `ai_task_adoption` + `trace_edge` 写入」同一事务（详见 3.5 与 `05-trace-matrix.md` 4.1），保证落库必有边；
+3. 「业务落库 + `ai_task_adoption` 写入」同一事务（详见 3.5），保证业务数据与采纳记录一致；
 4. 编辑后采纳以编辑值落库，`adopted_edited` 记录原 AI 值与编辑差异（审计）。
 
 ### 4.4 圈选确认与快照语义
 
 - 圈选建议**不自动创建**评审 / 计划；确认时走既有创建流程，快照内容 = 圈选用例的当前版本；
-- 用例集合校验：`caseIds` 必须存在于当前项目（1000018207），圈选外增删由人工在创建流程中调整（调整后采纳 = 以调整结果提交 `target`）；
-- 上游用例后续变更 → 引用边转 `stale`（`05-trace-matrix.md` 4.1），计划 / 评审侧按既有同步机制处理。
-
-### 4.5 缺口引导与影响处置
-
-- 缺口列表（未覆盖需求 / 孤儿用例 / 未经评审 / 未纳入计划）与「发起生成 / 发起评审 / 加入计划」引导：接口见 `05-trace-matrix.md` 3.9，前端在矩阵页与生成入口联动；
-- 影响处置（重新生成建议 / 标记需重新评审 / 确认无影响）：接口见 `05-trace-matrix.md` 3.10；处置只改追溯边标记，不修改下游内容。
+- 用例集合校验：`caseIds` 必须存在于当前项目（1000018207），圈选外增删由人工在创建流程中调整（调整后采纳 = 以调整结果提交 `target`）。
 
 ---
 
@@ -267,12 +258,12 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | `web/src/composables/project/ai/useGenerationSubmit.ts`、`useAiProposalReview.ts`、`useGenerationArtifactTree.ts`、`useSelectionSubmit.ts`、`useSelectionReview.ts` + 单测 | 发起提交、提案审核与圈选调整逻辑 |
 | `web/src/components/project/functional-testing/review/ReviewCreateDialog.vue`、`plan/PlanCreateDialog.vue` | 圈选确认复用的评审 / 计划创建弹窗 |
 
-- **数据库**：无新增表、无迁移（写入均为既有业务表 + `trace_edge`，见 2 节）。
+- **数据库**：无新增表、无迁移（写入均为既有业务表，见 2 节）。
 - **OpenAPI**：`POST /api/ai/tasks` 的 `input` 按 `type` 给出 oneOf 说明；提案详情返回结构随任务详情分组暴露。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：输入状态校验矩阵、快照执行（执行中变更不中断）、落库 + 建边事务回滚、编辑后采纳差异记录、圈选用例存在性与创建参数校验、同输入去重、终止不留数据；
+- 后端：输入状态校验矩阵、快照执行（执行中变更不中断）、落库事务回滚、编辑后采纳差异记录、圈选用例存在性与创建参数校验、同输入去重、终止不留数据；
 - 前端：配置对话框校验与置灰、计划步骤时间线与轨迹回看、三层树审核四类动作、疑似重复与来源变更提示、圈选调整后提交。
 
 ---
@@ -290,3 +281,5 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分（执行 / 轨迹 / 提案 / 采纳）；3.3 固定六阶段改为 AI 计划步骤 + 轨迹回看；产物全面改称提案，确认端点改为 `proposals/confirm`；重试改「再次执行」（新执行实例）；5.2 详情页组件改为 PlanTimeline / ExecutionPanel / TraceEventList；实施说明改类型适配器口径 |
 | V1.0 | 2026-10-16 | 残词勘误：1.1 引言（产物结构 / 阶段进度 / 确认落库 → 提案结构 / 执行过程 / 采纳落库）、3.2「任务进度页」与 3.4「不得进入待确认态」对齐新口径 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：3.6 表头改「提案 kind」，4.1 / 4.2 改提案采纳口径与「产出」，4.3 改疑似重复提案不阻断，5.2 改「执行过程」、5.3 改「提案审核区」与提案全驳回，6 错误码 1000018204 / 1000018208 / 1000018210 文案改提案，7 组合式改 `useAiProposalReview.ts` |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除追溯建边引用（1.1 / 1.2 / 2 节）、`TraceEdgeWriter` 建边步骤与 `trace_edge` / `case_snapshot` 写入规则（3.5 / 3.6 / 4.3 / 4.4），4.5 缺口引导与影响处置整节删除 |
+| V1.0 | 2026-10-17 | 概要引用同步：`02-hld-ai-capability.md` 删除追溯矩阵节后章节顺延，对应概要由「第 4.2 / 4.3 节」改「第 4.2 节」 |
