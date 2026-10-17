@@ -26,7 +26,7 @@ public interface AiTaskService {
             LoginUser loginUser);
 
     /**
-     * 内部提交（系统触发：影响分析等，详设 4.4 提交失败只记日志由调用方负责）。
+     * 内部提交（系统触发：需求导入 / 助手解析等，详设 4.4 提交失败只记日志由调用方负责）。
      * 无登录态，不做权限校验，总开关与类型 / 输入 / 模型校验照常。
      */
     AiTaskRespDTO submitInternal(String type, Map<String, Object> input, UUID submittedBy, UUID projectId,

@@ -34,7 +34,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 圈选建议采纳支撑（生成链详设 3.5 圈选类型）：review:create / plan:create 资源权限
  * （1000018208）→ target.createParams 整包转换为既有创建请求（1000018206）→
  * caseIds 全量属于当前项目（1000018207）→ 委托既有 createReview / createPlan 落库，
- * 快照与 case_snapshot 边由既有创建流程内建。
+ * 圈选结果快照由既有创建流程内建。
  */
 @Service
 public class SelectionAdoptSupport {

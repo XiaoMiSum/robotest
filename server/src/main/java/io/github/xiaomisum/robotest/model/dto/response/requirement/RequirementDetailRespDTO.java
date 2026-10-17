@@ -28,8 +28,6 @@ public class RequirementDetailRespDTO {
     /** 来源附件（source = import 时）；文件管理模块落地前恒为 null */
     private SourceFile sourceFile;
     private LocalDateTime confirmedAt;
-    /** 覆盖状态：追溯侧未接入时为 null（前端展示「—」） */
-    private String coverageStatus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

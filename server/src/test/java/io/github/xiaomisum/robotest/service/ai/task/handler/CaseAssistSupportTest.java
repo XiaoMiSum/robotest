@@ -5,11 +5,9 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -56,8 +54,6 @@ class CaseAssistSupportTest {
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
     private RequirementMapper requirementMapper;
-    @Mock
-    private TraceEdgeMapper traceEdgeMapper;
 
     @InjectMocks
     private CaseAssistSupport support;
@@ -201,29 +197,22 @@ class CaseAssistSupportTest {
 
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(),
                 assertThrows(ServiceException.class, () -> support.upstreamRequirements(PROJECT_ID,
-                        List.of(CASE_ID), List.of(REQUIREMENT_ID))).getCode());
+                        List.of(REQUIREMENT_ID))).getCode());
     }
 
     @Test
-    void upstreamRequirements_derivationEdgesResolveRequirements() {
-        TraceEdge edge = new TraceEdge();
-        edge.setEdgeType("derivation");
-        edge.setSourceType("requirement");
-        edge.setSourceId(REQUIREMENT_ID);
-        when(traceEdgeMapper.listActiveByTarget(any(), any())).thenReturn(List.of(edge));
+    void upstreamRequirements_explicitScopeResolvesRequirements() {
         when(requirementMapper.listByIds(any())).thenReturn(List.of(requirement()));
 
-        List<Requirement> found = support.upstreamRequirements(PROJECT_ID, List.of(CASE_ID), List.of());
+        List<Requirement> found = support.upstreamRequirements(PROJECT_ID, List.of(REQUIREMENT_ID));
 
         assertEquals(1, found.size());
         assertEquals(REQUIREMENT_ID, found.get(0).getId());
     }
 
     @Test
-    void upstreamRequirements_noEdgesReturnsEmpty() {
-        when(traceEdgeMapper.listActiveByTarget(any(), any())).thenReturn(List.of());
-
-        assertTrue(support.upstreamRequirements(PROJECT_ID, List.of(CASE_ID), List.of()).isEmpty());
+    void upstreamRequirements_emptyScopeReturnsEmptyWithoutDbLookup() {
+        assertTrue(support.upstreamRequirements(PROJECT_ID, List.of()).isEmpty());
     }
 
     // ---------- 提示词上下文 ----------

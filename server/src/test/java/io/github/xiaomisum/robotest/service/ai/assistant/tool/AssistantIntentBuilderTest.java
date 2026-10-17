@@ -63,7 +63,7 @@ class AssistantIntentBuilderTest {
         Map<String, Object> intent = builder.normalize("create_case", raw, WS);
 
         assertEquals("create_case", intent.get("kind"));
-        assertEquals(Constants.TraceNodeType.TEST_CASE, intent.get("targetType"));
+        assertEquals(Constants.EntityType.TEST_CASE, intent.get("targetType"));
         assertEquals(PROJECT, intent.get("projectId"));
         assertEquals(2, intent.get("createCount"));
         assertEquals(0, ((List<?>) intent.get("changes")).size());
@@ -139,9 +139,9 @@ class AssistantIntentBuilderTest {
     @Test
     void adjust_review_derives_scope_and_title_from_target() {
         when(refChecker.requireActiveWorkspaceCases(eq(WS), any())).thenReturn(Set.of());
-        when(refChecker.projectIdOf(Constants.TraceNodeType.TEST_REVIEW, TARGET_ID))
+        when(refChecker.projectIdOf(Constants.EntityType.TEST_REVIEW, TARGET_ID))
                 .thenReturn(PROJECT);
-        when(refChecker.titleOf(Constants.TraceNodeType.TEST_REVIEW, TARGET_ID))
+        when(refChecker.titleOf(Constants.EntityType.TEST_REVIEW, TARGET_ID))
                 .thenReturn("登录评审");
         when(promptSupport.projectName(PROJECT)).thenReturn("P");
         Map<String, Object> raw = new LinkedHashMap<>();
@@ -149,11 +149,11 @@ class AssistantIntentBuilderTest {
 
         Map<String, Object> intent = builder.normalize("adjust_review", raw, WS);
 
-        assertEquals(Constants.TraceNodeType.TEST_REVIEW, intent.get("targetType"));
+        assertEquals(Constants.EntityType.TEST_REVIEW, intent.get("targetType"));
         assertEquals(TARGET_ID, intent.get("targetId"));
         assertEquals("登录评审", intent.get("targetTitle"));
         assertEquals(PROJECT, intent.get("projectId"));
-        verify(refChecker).requireActiveWorkspaceRef(WS, Constants.TraceNodeType.TEST_REVIEW, TARGET_ID);
+        verify(refChecker).requireActiveWorkspaceRef(WS, Constants.EntityType.TEST_REVIEW, TARGET_ID);
     }
 
     @Test

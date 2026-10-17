@@ -198,20 +198,20 @@ class AssistantServiceImplTest {
     void createConversation_validatesContextRefVisibility() {
         AiAssistantConversationCreateReqDTO reqDTO = new AiAssistantConversationCreateReqDTO();
         AiAssistantEntityRefReqDTO context = new AiAssistantEntityRefReqDTO();
-        context.setEntityType(Constants.TraceNodeType.MINDMAP_DOCUMENT);
+        context.setEntityType(Constants.EntityType.MINDMAP_DOCUMENT);
         context.setEntityId(ENTITY_ID);
         reqDTO.setContext(context);
 
         service.createConversation(reqDTO, USER_ID, WORKSPACE_ID);
 
-        verify(refChecker).requireUserVisible(Constants.TraceNodeType.MINDMAP_DOCUMENT, ENTITY_ID, USER_ID);
+        verify(refChecker).requireUserVisible(Constants.EntityType.MINDMAP_DOCUMENT, ENTITY_ID, USER_ID);
     }
 
     @Test
     void createConversation_skipsRefValidation_whenEntityIdAbsent() {
         AiAssistantConversationCreateReqDTO reqDTO = new AiAssistantConversationCreateReqDTO();
         AiAssistantEntityRefReqDTO context = new AiAssistantEntityRefReqDTO();
-        context.setEntityType(Constants.TraceNodeType.MINDMAP_DOCUMENT);
+        context.setEntityType(Constants.EntityType.MINDMAP_DOCUMENT);
         reqDTO.setContext(context);
 
         service.createConversation(reqDTO, USER_ID, WORKSPACE_ID);
@@ -223,7 +223,7 @@ class AssistantServiceImplTest {
     void createConversation_rejectsInvisibleRef_andSkipsInsert() {
         AiAssistantConversationCreateReqDTO reqDTO = new AiAssistantConversationCreateReqDTO();
         AiAssistantEntityRefReqDTO context = new AiAssistantEntityRefReqDTO();
-        context.setEntityType(Constants.TraceNodeType.TEST_PLAN);
+        context.setEntityType(Constants.EntityType.TEST_PLAN);
         context.setEntityId(ENTITY_ID);
         reqDTO.setContext(context);
         doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID))
@@ -580,7 +580,7 @@ class AssistantServiceImplTest {
         AiAssistantMessageSendReqDTO incomplete = new AiAssistantMessageSendReqDTO();
         incomplete.setContent("带附件");
         AiAssistantEntityRefReqDTO missingId = new AiAssistantEntityRefReqDTO();
-        missingId.setEntityType(Constants.TraceNodeType.MINDMAP_DOCUMENT);
+        missingId.setEntityType(Constants.EntityType.MINDMAP_DOCUMENT);
         incomplete.setAttachments(List.of(missingId));
 
         ServiceException incompleteError = assertThrows(ServiceException.class,
@@ -590,12 +590,12 @@ class AssistantServiceImplTest {
         AiAssistantMessageSendReqDTO foreign = new AiAssistantMessageSendReqDTO();
         foreign.setContent("带附件");
         AiAssistantEntityRefReqDTO ref = new AiAssistantEntityRefReqDTO();
-        ref.setEntityType(Constants.TraceNodeType.MINDMAP_DOCUMENT);
+        ref.setEntityType(Constants.EntityType.MINDMAP_DOCUMENT);
         ref.setEntityId(ENTITY_ID);
         foreign.setAttachments(List.of(ref));
         doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID))
                 .when(refChecker).requireInActiveWorkspace(
-                        Constants.TraceNodeType.MINDMAP_DOCUMENT, ENTITY_ID, WORKSPACE_ID);
+                        Constants.EntityType.MINDMAP_DOCUMENT, ENTITY_ID, WORKSPACE_ID);
 
         ServiceException foreignError = assertThrows(ServiceException.class,
                 () -> service.send(CONVERSATION_ID, foreign, USER_ID, WORKSPACE_ID));

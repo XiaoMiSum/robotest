@@ -4,7 +4,6 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.trace.TraceChainReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.file.FileResourceRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
@@ -12,7 +11,6 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDe
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.file.FileResource;
@@ -31,11 +29,9 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecor
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
-import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.AiTaskService;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
-import io.github.xiaomisum.robotest.service.trace.TraceMatrixService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,11 +68,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -124,15 +118,9 @@ class RequirementServiceImplTest {
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
-    private ImpactAnalysisTaskPublisher impactAnalysisTaskPublisher;
-    @Mock
     private AiTaskService aiTaskService;
     @Mock
     private AiTaskMapper aiTaskMapper;
-    @Mock
-    private TraceMatrixService traceMatrixService;
-    @Mock
-    private AiSettingsReader aiSettingsReader;
     @Mock
     private FileResourceService fileResourceService;
     @Mock
@@ -148,9 +136,6 @@ class RequirementServiceImplTest {
     @BeforeEach
     void wireCodeAllocator() {
         // initMocks（扩展回调）先于 @BeforeEach 执行，此时 service 已注入 @Mock
-        // AI 总开关默认关闭：覆盖状态按详设 3.2 恒为 null，开启场景由用例内重设桩
-        lenient().when(aiSettingsReader.settings())
-                .thenReturn(new AiSettingsReader.AiSettings(false, null, 600, 2));
         codeAllocator = new RequirementCodeAllocator();
         setField(codeAllocator, "requirementMapper", requirementMapper);
         setField(codeAllocator, "transactionManager", transactionManager);
@@ -247,7 +232,6 @@ class RequirementServiceImplTest {
         assertEquals("REQ-001", detail.getCode());
         assertEquals("登录模块", detail.getModuleName());
         assertEquals("张三", detail.getOwnerName());
-        assertNull(detail.getCoverageStatus());
         assertNull(detail.getSourceFile());
     }
 
@@ -329,7 +313,7 @@ class RequirementServiceImplTest {
 
     @Test
     void page_returnsItemsWithResolvedNames() {
-        when(requirementMapper.findPage(any(), eq(PROJECT_ID), any(), any(), any(), any(), any(), any()))
+        when(requirementMapper.findPage(any(), eq(PROJECT_ID), any(), any(), any(), any(), any()))
                 .thenReturn(new PageResult<>(List.of(item("confirmed")), 1L));
         ProjectModule module = new ProjectModule();
         module.setId(MODULE_ID);
@@ -347,12 +331,11 @@ class RequirementServiceImplTest {
         assertEquals("REQ-001", dto.getCode());
         assertEquals("登录模块", dto.getModuleName());
         assertEquals("张三", dto.getOwnerName());
-        assertNull(dto.getCoverageStatus());
     }
 
     @Test
     void page_empty_skipsResolution() {
-        when(requirementMapper.findPage(any(), eq(PROJECT_ID), any(), any(), any(), any(), any(), any()))
+        when(requirementMapper.findPage(any(), eq(PROJECT_ID), any(), any(), any(), any(), any()))
                 .thenReturn(new PageResult<>(List.of(), 0L));
 
         PageResult<RequirementListRespDTO> result = service.page(new RequirementPageReqDTO(), PROJECT_ID);
@@ -426,21 +409,7 @@ class RequirementServiceImplTest {
         ArgumentCaptor<RequirementChangeLog> logCaptor = ArgumentCaptor.forClass(RequirementChangeLog.class);
         verify(changeLogMapper).insert(logCaptor.capture());
         assertEquals("title", logCaptor.getValue().getChangeType());
-        verify(impactAnalysisTaskPublisher).publish(ITEM_ID, PROJECT_ID, OPERATOR_ID);
         assertNotNull(detail.getId());
-    }
-
-    @Test
-    void update_publisherFailure_doesNotFailUpdate() {
-        stubItem("confirmed");
-        doThrow(new RuntimeException("submit failed")).when(impactAnalysisTaskPublisher)
-                .publish(any(), any(), any());
-        RequirementUpdateReqDTO req = new RequirementUpdateReqDTO();
-        req.setTitle("新标题");
-
-        service.update(ITEM_ID, PROJECT_ID, OPERATOR_ID, req);
-
-        verify(requirementMapper).updateById(any(Requirement.class));
     }
 
     @Test
@@ -459,7 +428,6 @@ class RequirementServiceImplTest {
         ArgumentCaptor<RequirementChangeLog> logCaptor = ArgumentCaptor.forClass(RequirementChangeLog.class);
         verify(changeLogMapper).insert(logCaptor.capture());
         assertEquals("attribute", logCaptor.getValue().getChangeType());
-        verifyNoInteractions(impactAnalysisTaskPublisher);
     }
 
     @Test
@@ -474,7 +442,6 @@ class RequirementServiceImplTest {
         verify(requirementMapper).updateById(captor.capture());
         assertNull(captor.getValue().getStatus());
         verify(changeLogMapper).insert(any(RequirementChangeLog.class));
-        verifyNoInteractions(impactAnalysisTaskPublisher);
     }
 
     @Test
@@ -487,7 +454,6 @@ class RequirementServiceImplTest {
 
         verify(requirementMapper).update(isNull(), any(LambdaUpdateWrapperX.class));
         verify(changeLogMapper).insert(any(RequirementChangeLog.class));
-        verifyNoInteractions(impactAnalysisTaskPublisher);
     }
 
     @Test
@@ -513,16 +479,18 @@ class RequirementServiceImplTest {
         assertEquals("confirmed", captor.getValue().getStatus());
         assertNotNull(captor.getValue().getConfirmedAt());
         verify(changeLogMapper).insert(any(RequirementChangeLog.class));
-        verifyNoInteractions(impactAnalysisTaskPublisher);
     }
 
     @Test
-    void confirm_fromChanged_publishesImpactRefresh() {
+    void confirm_fromChanged_flipsStatusToConfirmed() {
         stubItem("changed");
 
         service.confirm(ITEM_ID, PROJECT_ID, OPERATOR_ID);
 
-        verify(impactAnalysisTaskPublisher).publish(ITEM_ID, PROJECT_ID, OPERATOR_ID);
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(requirementMapper).updateById(captor.capture());
+        assertEquals("confirmed", captor.getValue().getStatus());
+        assertNotNull(captor.getValue().getConfirmedAt());
     }
 
     @Test
@@ -806,81 +774,5 @@ class RequirementServiceImplTest {
         RequirementDetailRespDTO detail = service.getDetail(ITEM_ID, PROJECT_ID);
 
         assertNull(detail.getSourceFile());
-    }
-
-    // ---------- 3.12 追溯委托 ----------
-
-    @Test
-    void getTrace_delegatesToTraceMatrixService() {
-        stubItem("confirmed");
-        TraceChainRespDTO chain = new TraceChainRespDTO();
-        when(traceMatrixService.chain(any(), eq(PROJECT_ID))).thenReturn(chain);
-
-        assertEquals(chain, service.getTrace(ITEM_ID, PROJECT_ID, "up"));
-
-        ArgumentCaptor<TraceChainReqDTO> captor = ArgumentCaptor.forClass(TraceChainReqDTO.class);
-        verify(traceMatrixService).chain(captor.capture(), eq(PROJECT_ID));
-        assertEquals("requirement", captor.getValue().getSourceType());
-        assertEquals(ITEM_ID, captor.getValue().getSourceId());
-        assertEquals("up", captor.getValue().getDirection());
-    }
-
-    @Test
-    void getTrace_matrixFailure_mapsToTraceServiceFailed() {
-        stubItem("confirmed");
-        when(traceMatrixService.chain(any(), eq(PROJECT_ID)))
-                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.TRACE_EDGE_NOT_FOUND));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.getTrace(ITEM_ID, PROJECT_ID, null));
-        // 不降级为空链路（3.12）：统一 1000018014 提示稍后重试
-        assertEquals(ErrorCodeConstants.REQUIREMENT_TRACE_SERVICE_FAILED.code(), exception.getCode());
-    }
-
-    @Test
-    void getTrace_notFound_throwsRequirementNotFound() {
-        when(requirementMapper.selectById(ITEM_ID)).thenReturn(null);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.getTrace(ITEM_ID, PROJECT_ID, null));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
-        verifyNoInteractions(traceMatrixService);
-    }
-
-    // ---------- 3.2 覆盖状态联查 ----------
-
-    @Test
-    void page_aiEnabled_fillsCoverageStatusFromTraceSide() {
-        when(aiSettingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(true, null, 600, 2));
-        when(requirementMapper.findPage(any(), eq(PROJECT_ID), any(), any(), any(), any(), any(), any()))
-                .thenReturn(new PageResult<>(List.of(item("confirmed")), 1L));
-        ProjectModule module = new ProjectModule();
-        module.setId(MODULE_ID);
-        module.setName("登录模块");
-        when(projectModuleMapper.selectBatchIds(List.of(MODULE_ID))).thenReturn(List.of(module));
-        SysUser owner = new SysUser();
-        owner.setId(OWNER_ID);
-        owner.setName("张三");
-        when(userMapper.selectBatchIds(List.of(OWNER_ID))).thenReturn(List.of(owner));
-        when(traceMatrixService.coverageStatuses(eq(PROJECT_ID), anyList()))
-                .thenReturn(Map.of(ITEM_ID, "partial"));
-
-        PageResult<RequirementListRespDTO> result = service.page(new RequirementPageReqDTO(), PROJECT_ID);
-
-        assertEquals("partial", result.getList().get(0).getCoverageStatus());
-    }
-
-    @Test
-    void detail_aiEnabled_fillsCoverageStatusFromTraceSide() {
-        when(aiSettingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(true, null, 600, 2));
-        stubItem("confirmed");
-        stubModule();
-        stubOwner();
-        when(traceMatrixService.coverageStatuses(eq(PROJECT_ID), anyList()))
-                .thenReturn(Map.of(ITEM_ID, "uncovered"));
-
-        RequirementDetailRespDTO dto = service.getDetail(ITEM_ID, PROJECT_ID);
-
-        assertEquals("uncovered", dto.getCoverageStatus());
     }
 }

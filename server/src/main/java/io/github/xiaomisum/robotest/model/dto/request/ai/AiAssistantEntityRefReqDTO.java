@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /**
  * 页面实体引用（详设 3.3 context / 3.5 attachments）：数据引用而非 API 上下文（C4），
- * 类型取追溯节点类型白名单；entityId 是否必填由各使用点服务层校验（上下文可省略，附件必填）。
+ * 类型取实体类型白名单；entityId 是否必填由各使用点服务层校验（上下文可省略，附件必填）。
  */
 @Data
 public class AiAssistantEntityRefReqDTO {

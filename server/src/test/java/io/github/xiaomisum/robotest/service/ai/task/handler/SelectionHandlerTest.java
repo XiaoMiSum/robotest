@@ -6,12 +6,10 @@ import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
@@ -33,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
@@ -59,8 +56,6 @@ class SelectionHandlerTest {
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
-    @Mock
-    private TraceEdgeMapper traceEdgeMapper;
     @Mock
     private TaskExecutionContext context;
 
@@ -165,8 +160,10 @@ class SelectionHandlerTest {
     @SuppressWarnings("unchecked")
     void execute_filtersOutOfScopeAndNormalizesRound() {
         stubExecutionBase();
-        when(traceEdgeMapper.listActiveBySource(anyString(), any())).thenReturn(List.of(edge()));
-        when(testCaseNodeMapper.listByIds(any())).thenReturn(List.of(caseNode()));
+        when(requirementMapper.listByIds(any())).thenReturn(List.of(requirement()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(document()));
+        when(testCaseNodeMapper.listCasesByDocumentIds(any())).thenReturn(List.of(caseNode()));
         when(testCaseDocumentMapper.listByIds(any())).thenReturn(List.of(document()));
         when(context.chat(anyString(), anyString())).thenReturn(selectionReply());
 
@@ -195,8 +192,9 @@ class SelectionHandlerTest {
     @Test
     void execute_emptyCandidates_throws206() {
         stubExecutionBase();
-        when(traceEdgeMapper.listActiveBySource(anyString(), any())).thenReturn(List.of());
-        when(testCaseNodeMapper.listByIds(any())).thenReturn(List.of());
+        when(requirementMapper.listByIds(any())).thenReturn(List.of(requirement()));
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
+        when(testCaseDocumentMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of());
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> reviewHandler.execute(context));
@@ -240,18 +238,18 @@ class SelectionHandlerTest {
         Requirement requirement = new Requirement();
         requirement.setId(REQUIREMENT_ID);
         requirement.setProjectId(PROJECT_ID);
+        requirement.setModuleId(MODULE_ID);
         requirement.setCode("REQ-1");
         requirement.setTitle("用户登录");
         return requirement;
     }
 
-    private TraceEdge edge() {
-        TraceEdge edge = new TraceEdge();
-        edge.setSourceType("requirement");
-        edge.setSourceId(REQUIREMENT_ID);
-        edge.setTargetType("test_case");
-        edge.setTargetId(CASE_ID);
-        return edge;
+    private ProjectModule module() {
+        ProjectModule module = new ProjectModule();
+        module.setId(MODULE_ID);
+        module.setProjectId(PROJECT_ID);
+        module.setName("登录");
+        return module;
     }
 
     private TestCaseNode caseNode() {
@@ -268,6 +266,7 @@ class SelectionHandlerTest {
         TestCaseDocument document = new TestCaseDocument();
         document.setId(DOCUMENT_ID);
         document.setProjectId(PROJECT_ID);
+        document.setModuleId(MODULE_ID);
         document.setName("登录用例");
         return document;
     }

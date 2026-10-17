@@ -104,8 +104,7 @@ public class CaseCompleteHandler implements TaskHandler {
         }
         List<UUID> nodeIds = CaseAssistSupport.requireNodeIds(input);
         assistSupport.resolve(context.projectId(), CaseAssistSupport.requireDocumentId(input), nodeIds);
-        assistSupport.upstreamRequirements(context.projectId(), nodeIds,
-                CaseAssistSupport.scopeRequirementIds(input));
+        assistSupport.upstreamRequirements(context.projectId(), CaseAssistSupport.scopeRequirementIds(input));
     }
 
     @Override
@@ -116,7 +115,7 @@ public class CaseCompleteHandler implements TaskHandler {
         List<UUID> nodeIds = CaseAssistSupport.requireNodeIds(input);
         CaseAssistSupport.ResolvedCases resolved = assistSupport.resolve(context.getProjectId(),
                 CaseAssistSupport.requireDocumentId(input), nodeIds);
-        List<Requirement> requirements = assistSupport.upstreamRequirements(context.getProjectId(), nodeIds,
+        List<Requirement> requirements = assistSupport.upstreamRequirements(context.getProjectId(),
                 CaseAssistSupport.scopeRequirementIds(input));
 
         context.report(25, "装配提示词上下文");

@@ -114,7 +114,8 @@ public class CasePriorityHandler implements TaskHandler {
         List<UUID> nodeIds = CaseAssistSupport.requireNodeIds(input);
         CaseAssistSupport.ResolvedCases resolved = assistSupport.resolve(context.getProjectId(),
                 CaseAssistSupport.requireDocumentId(input), nodeIds);
-        List<Requirement> requirements = assistSupport.upstreamRequirements(context.getProjectId(), nodeIds, List.of());
+        // 级别推荐未开放需求范围入参，追溯边已取消后无上游需求回溯路径（提示词按"（无上游需求）"装配）
+        List<Requirement> requirements = assistSupport.upstreamRequirements(context.getProjectId(), List.of());
 
         context.report(25, "装配提示词上下文");
         Map<String, String> variables = new LinkedHashMap<>();

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 计划圈选建议承接（生成链详设 3.5）：委托既有 createPlan 流程落库，
- * 快照与 case_snapshot 追溯边由创建流程内建。
+ * 计划快照由创建流程内建。
  */
 @Service
 public class PlanSelectionAdopter implements ArtifactAdopter {

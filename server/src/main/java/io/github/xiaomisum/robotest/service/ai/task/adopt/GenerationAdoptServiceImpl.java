@@ -20,18 +20,15 @@ import io.github.xiaomisum.robotest.service.ai.task.handler.TestDesignGeneration
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.ProjectModuleService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseDocumentService;
-import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -41,7 +38,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 
 /**
  * 生成链产物采纳（生成链详设 3.5 采纳事务）：case:edit 资源权限（1000018208）→
- * 按 kind 落库（委托既有创建服务）→ 同事务写 AI 派生 derivation 边 → adopted_ref 回写；
+ * 按 kind 落库（委托既有创建服务）→ adopted_ref 回写；
  * 疑似重复的产物仅改名后可采纳（1000018204），父级未采纳不落库（1000018210）。
  */
 @Slf4j
@@ -52,8 +49,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
     private static final String PLACEMENT_ATTACH = "attach";
     private static final String FIELD_PLACEMENT = "placement";
     private static final String FIELD_TARGET_MODULE = "targetModuleId";
-    /** 脑图用例节点版本锚定格式（追溯矩阵 2.4 target_version，v1 起） */
-    private static final String VERSION_PREFIX = "v";
     private static final Map<String, String> PRIORITY_MAPPING = Map.of(
             "high", "P0", "medium", "P1", "low", "P2");
 
@@ -67,8 +62,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
     private ProjectModuleService projectModuleService;
     @Resource
     private TestCaseDocumentService testCaseDocumentService;
-    @Resource
-    private TraceEdgeWriter traceEdgeWriter;
     @Resource
     private VectorIndexService vectorIndexService;
 
@@ -107,8 +100,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         reqDTO.setName(requiredText(content, "name"));
         ProjectModuleTreeRespDTO created = projectModuleService.createModule(
                 context.projectId(), context.operatorId(), reqDTO);
-        traceEdgeWriter.writeAiDerivationEdges(context.projectId(), sourceRequirementIds(context, content),
-                Constants.TraceNodeType.MODULE, created.getId(), null);
         return outcome(context, created.getId(), "moduleId", String.valueOf(created.getId()));
     }
 
@@ -122,8 +113,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         reqDTO.setName(requiredText(content, "name"));
         TestCaseDocumentRespDTO created = testCaseDocumentService.createTestCase(
                 context.projectId(), context.operatorId(), reqDTO);
-        traceEdgeWriter.writeAiDerivationEdges(context.projectId(), sourceRequirementIds(context, content),
-                Constants.TraceNodeType.MINDMAP_DOCUMENT, created.getId(), null);
         return outcome(context, created.getId(), "documentId", String.valueOf(created.getId()));
     }
 
@@ -181,8 +170,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         node.setPriority(mapPriority(asString(attributes.get("priority"))));
         testCaseNodeMapper.insert(node);
         insertAttributeChildren(documentId, node.getId(), attributes);
-        traceEdgeWriter.writeAiDerivationEdges(context.projectId(), sourceRequirementIds(context, content),
-                Constants.TraceNodeType.TEST_CASE, node.getId(), VERSION_PREFIX + node.getVersion());
         vectorIndexService.upsertTestCase(documentId, context.operatorId());
         Map<String, Object> adoptedRef = nodeRef(documentId, node.getId());
         adoptedRef.put("caseId", String.valueOf(node.getId()));
@@ -349,47 +336,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         } catch (IllegalArgumentException e) {
             return null;
         }
-    }
-
-    /** 派生边来源：编辑后产物的 sourceRefs，缺省回落原产物；只保留提交范围内的需求（3.5） */
-    private List<UUID> sourceRequirementIds(AdoptContext context, Map<String, Object> content) {
-        Object raw = content.get("sourceRefs") != null ? content.get("sourceRefs")
-                : contentOf(context.artifact()).get("sourceRefs");
-        Set<UUID> scope = scopeRequirementIds(context);
-        Set<UUID> sources = new java.util.LinkedHashSet<>();
-        if (raw instanceof List<?> list) {
-            for (Object element : list) {
-                if (!(element instanceof Map<?, ?> ref)) {
-                    continue;
-                }
-                try {
-                    UUID id = UUID.fromString(String.valueOf(ref.get("requirementId")).trim());
-                    if (scope.isEmpty() || scope.contains(id)) {
-                        sources.add(id);
-                    }
-                } catch (IllegalArgumentException ignored) {
-                    // 编辑注入的非法需求 ID 不建边
-                }
-            }
-        }
-        return new ArrayList<>(sources);
-    }
-
-    private static Set<UUID> scopeRequirementIds(AdoptContext context) {
-        Object raw = context.task().getInput() == null ? null
-                : context.task().getInput().get("requirementIds");
-        if (!(raw instanceof List<?> list)) {
-            return Set.of();
-        }
-        Set<UUID> scope = new java.util.LinkedHashSet<>();
-        for (Object element : list) {
-            try {
-                scope.add(UUID.fromString(String.valueOf(element)));
-            } catch (IllegalArgumentException ignored) {
-                // 提交入参已在发起侧校验，此处容错
-            }
-        }
-        return scope;
     }
 
     /** 采纳回执：adopted_ref 存相关键，改名采纳时附 editedDiff（4.3④ 审计留痕，无 DDL） */

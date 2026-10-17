@@ -36,7 +36,7 @@ public interface AiAssistantMessageMapper extends BaseMapperX<AiAssistantMessage
      *  role=tool 中间结果不计（与历史接口 3.6 过滤口径一致，消息数即用户可见消息数） */
     @Select("<script>SELECT m.conversation_id AS conversationId, COUNT(*) AS messageCount, "
             + "MAX(m.created_at) AS lastMessageAt "
-            + "FROM ai_assistant_message m WHERE m.is_deleted = FALSE AND m.role <> 'tool' "
+            + "FROM ai_assistant_message m WHERE m.is_deleted = FALSE AND m.role != 'tool' "
             + "AND m.conversation_id IN "
             + "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> "
             + "GROUP BY m.conversation_id</script>")

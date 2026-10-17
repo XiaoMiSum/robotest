@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public interface TestPlanMapper extends BaseMapperX<TestPlan> {
 
-    /** 按 ID 批量读取（追溯节点解析，详设 3.4） */
+    /** 按 ID 批量读取（快照节点解析，详设 3.4） */
     default List<TestPlan> listByIds(Collection<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();

@@ -214,7 +214,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode REQUIREMENT_SOURCE_FILE_NOT_FOUND = ErrorCode.of(1000018011, "来源附件不存在");
     public static final ErrorCode REQUIREMENT_NO_PERMISSION = ErrorCode.of(1000018012, "无需求管理权限");
     public static final ErrorCode REQUIREMENT_TASK_IN_PROGRESS = ErrorCode.of(1000018013, "已存在进行中的导入任务");
-    public static final ErrorCode REQUIREMENT_TRACE_SERVICE_FAILED = ErrorCode.of(1000018014, "追溯服务调用失败");
 
     // ========== 文件管理 1,000,018,021-1,000,018,039（文件管理详设 6） ==========
     public static final ErrorCode FILE_NOT_FOUND = ErrorCode.of(1000018021, "文件不存在或已删除");
@@ -251,19 +250,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_VECTOR_INDEX_UNAVAILABLE = ErrorCode.of(1000018122, "向量索引不可用（全量重建中）");
     public static final ErrorCode AI_WAIT_SECONDS_INVALID = ErrorCode.of(1000018123, "同步等待参数超限（0–10 秒）");
     public static final ErrorCode AI_VISION_MODEL_NOT_CONFIGURED = ErrorCode.of(1000018124, "未配置支持视觉能力的已启用模型");
-
-    // ========== 追溯矩阵 1,000,018,151-1,000,018,161（追溯矩阵详设 6） ==========
-    public static final ErrorCode TRACE_EDGE_NOT_FOUND = ErrorCode.of(1000018151, "追溯边不存在");
-    public static final ErrorCode TRACE_NODE_NOT_FOUND = ErrorCode.of(1000018152, "源或目标节点不存在");
-    public static final ErrorCode TRACE_EDGE_DUPLICATE = ErrorCode.of(1000018153, "同一对节点已存在有效边");
-    public static final ErrorCode TRACE_EDGE_STATE_INVALID = ErrorCode.of(1000018154, "当前边状态不允许该操作");
-    public static final ErrorCode TRACE_COVERAGE_NOT_FOUND = ErrorCode.of(1000018155, "覆盖分析结论不存在");
-    public static final ErrorCode TRACE_COVERAGE_INPUT_INVALID = ErrorCode.of(1000018156, "覆盖分析任务参数非法");
-    public static final ErrorCode TRACE_IMPACT_INPUT_INVALID = ErrorCode.of(1000018157, "影响分析任务参数非法");
-    public static final ErrorCode TRACE_IMPACT_ITEM_NOT_FOUND = ErrorCode.of(1000018158, "受影响项不存在");
-    public static final ErrorCode TRACE_IMPACT_ITEM_DISPOSED = ErrorCode.of(1000018159, "受影响项已处置");
-    public static final ErrorCode TRACE_NODE_TYPE_UNSUPPORTED = ErrorCode.of(1000018160, "不支持的节点类型");
-    public static final ErrorCode TRACE_NO_PERMISSION = ErrorCode.of(1000018161, "无权限操作追溯数据");
 
     // ========== AI 生成链 1,000,018,201-1,000,018,210（生成链详设 6，号段至 1,000,018,249） ==========
     public static final ErrorCode GENERATION_REQUIREMENT_NOT_FOUND = ErrorCode.of(1000018201, "输入需求不存在");

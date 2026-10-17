@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 /**
  * 助手实体引用校验（详设 3.3 context / 3.5 attachments / 4.4 跨工作空间指代）：类型白名单取
- * 追溯节点类型，逻辑外键沿用各实体 projectId → 项目 → 工作空间的既有归属链解析；
+ * 实体类型（Constants.EntityType），逻辑外键沿用各实体 projectId → 项目 → 工作空间的既有归属链解析；
  * 不存在与越权同码，不经由错误码泄露对象存在性。
  */
 @Component
@@ -75,27 +75,27 @@ public class AssistantRefChecker {
             return null;
         }
         UUID projectId = switch (entityType) {
-            case Constants.TraceNodeType.REQUIREMENT -> {
+            case Constants.EntityType.REQUIREMENT -> {
                 Requirement item = requirementMapper.selectById(entityId);
                 yield item == null ? null : item.getProjectId();
             }
-            case Constants.TraceNodeType.MODULE -> {
+            case Constants.EntityType.MODULE -> {
                 ProjectModule item = projectModuleMapper.selectById(entityId);
                 yield item == null ? null : item.getProjectId();
             }
-            case Constants.TraceNodeType.MINDMAP_DOCUMENT -> {
+            case Constants.EntityType.MINDMAP_DOCUMENT -> {
                 TestCaseDocument item = testCaseDocumentMapper.selectById(entityId);
                 yield item == null ? null : item.getProjectId();
             }
-            case Constants.TraceNodeType.TEST_CASE -> {
+            case Constants.EntityType.TEST_CASE -> {
                 TestCaseNode item = testCaseNodeMapper.selectById(entityId);
                 yield item == null ? null : documentProjectId(item.getDocumentId());
             }
-            case Constants.TraceNodeType.TEST_REVIEW -> {
+            case Constants.EntityType.TEST_REVIEW -> {
                 TestReview item = testReviewMapper.selectById(entityId);
                 yield item == null ? null : item.getProjectId();
             }
-            case Constants.TraceNodeType.TEST_PLAN -> {
+            case Constants.EntityType.TEST_PLAN -> {
                 TestPlan item = testPlanMapper.selectById(entityId);
                 yield item == null ? null : item.getProjectId();
             }
@@ -195,28 +195,28 @@ public class AssistantRefChecker {
             return null;
         }
         return switch (entityType) {
-            case Constants.TraceNodeType.REQUIREMENT -> {
+            case Constants.EntityType.REQUIREMENT -> {
                 Requirement row = requirementMapper.selectById(entityId);
                 yield row == null ? null
                         : (row.getCode() == null || row.getCode().isBlank() ? row.getTitle() : row.getCode());
             }
-            case Constants.TraceNodeType.MODULE -> {
+            case Constants.EntityType.MODULE -> {
                 ProjectModule row = projectModuleMapper.selectById(entityId);
                 yield row == null ? null : row.getName();
             }
-            case Constants.TraceNodeType.MINDMAP_DOCUMENT -> {
+            case Constants.EntityType.MINDMAP_DOCUMENT -> {
                 TestCaseDocument row = testCaseDocumentMapper.selectById(entityId);
                 yield row == null ? null : row.getName();
             }
-            case Constants.TraceNodeType.TEST_CASE -> {
+            case Constants.EntityType.TEST_CASE -> {
                 TestCaseNode row = testCaseNodeMapper.selectById(entityId);
                 yield row == null ? null : row.getTitle();
             }
-            case Constants.TraceNodeType.TEST_REVIEW -> {
+            case Constants.EntityType.TEST_REVIEW -> {
                 TestReview row = testReviewMapper.selectById(entityId);
                 yield row == null ? null : row.getTitle();
             }
-            case Constants.TraceNodeType.TEST_PLAN -> {
+            case Constants.EntityType.TEST_PLAN -> {
                 TestPlan row = testPlanMapper.selectById(entityId);
                 yield row == null ? null : row.getName();
             }
