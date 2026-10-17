@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Rank, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, Rank, Plus } from '@element-plus/icons-vue'
 import type { ApiHttpConfig, ApiDataSource } from '@/types'
 import ProcessorConfigEditor from '@/components/project/api-testing/ProcessorConfigEditor.vue'
 import type { SceneProcessorElement } from '@/composables/project/api-testing/scene/useSceneProcessors'
@@ -71,7 +71,10 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
             <div class="scene-editor__proc-header-spacer" />
             <el-switch v-model="processors[idx].enabled" size="small" @click.stop />
             <el-dropdown trigger="click" @click.stop>
-              <el-button link size="small">操作</el-button>
+              <el-button link size="small" @click.stop>
+                操作
+                <el-icon class="scene-editor__proc-caret"><ArrowDown /></el-icon>
+              </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="emit('select', idx)">编辑</el-dropdown-item>
@@ -245,6 +248,12 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
 
 .scene-editor__proc-header-spacer {
   flex: 1;
+}
+
+// 「操作」后的下拉箭头：提示其为下拉菜单入口
+.scene-editor__proc-caret {
+  margin-left: 2px;
+  font-size: 12px;
 }
 
 .scene-editor__proc-item-name {
