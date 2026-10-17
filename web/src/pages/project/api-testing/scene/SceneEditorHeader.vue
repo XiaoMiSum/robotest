@@ -71,24 +71,36 @@ const emit = defineEmits<{
 
 <template>
   <header class="scene-editor__nav">
-    <!-- 只读形态（交互 10 §1.9）：顶部仅保留场景名与 [流水线运行]，其余编辑控件全部隐藏 -->
+    <!-- 只读形态（交互 10 §1.9）：两行头部——场景名与徽标在上，元数据行在下；动作固定最右端 -->
     <div v-if="readonlyMode" class="scene-editor__nav-readonly">
-      <span class="scene-editor__readonly-name">{{ editName }}</span>
-      <el-tooltip v-if="isGitImport" :content="repoLabel || 'GitLab 导入'" placement="bottom">
+      <div class="scene-editor__readonly-title">
+        <span class="scene-editor__readonly-name">{{ editName }}</span>
+        <el-tooltip v-if="isGitImport" :content="repoLabel || 'GitLab 导入'" placement="bottom">
+          <span
+            class="scene-editor__git-badge"
+            role="button"
+            tabindex="0"
+            @click="emit('go-gitlab')"
+            @keydown.enter="emit('go-gitlab')"
+          >GitLab</span>
+        </el-tooltip>
+      </div>
+      <div class="scene-editor__readonly-meta">
         <span
-          class="scene-editor__git-badge"
-          role="button"
-          tabindex="0"
-          @click="emit('go-gitlab')"
-          @keydown.enter="emit('go-gitlab')"
-        >GitLab</span>
-      </el-tooltip>
-      <span v-if="statusText" class="scene-editor__source-status" :class="`is-${sourceStatus}`">{{ statusText }}</span>
+          class="scene-editor__status-tag"
+          :class="editStatus === 'published' ? 'is-published' : 'is-draft'"
+        >{{ editStatus === 'published' ? '已发布' : '草稿' }}</span>
+        <span v-if="editPriority" class="scene-editor__priority-tag" :style="{ background: currentPriorityColor }">
+          {{ editPriority }}
+        </span>
+        <span v-if="statusText" class="scene-editor__source-status" :class="`is-${sourceStatus}`">{{ statusText }}</span>
+      </div>
     </div>
+    <div v-if="readonlyMode" class="scene-editor__nav-spacer" />
 
     <template v-if="!readonlyMode">
       <div class="scene-editor__nav-field">
-        <span class="scene-editor__required">*</span>
+        <span class="scene-editor__field-label">场景名称<span class="scene-editor__required">*</span></span>
         <el-input
           :model-value="editName"
           class="scene-editor__nav-name-input"
@@ -109,7 +121,7 @@ const emit = defineEmits<{
       </div>
 
       <div class="scene-editor__nav-field">
-        <span class="scene-editor__required">*</span>
+        <span class="scene-editor__field-label">所属模块<span class="scene-editor__required">*</span></span>
         <el-cascader
           :model-value="editModuleId"
           :options="moduleOptions"
@@ -122,12 +134,14 @@ const emit = defineEmits<{
         />
       </div>
 
-      <span
-        class="scene-editor__status-tag"
-        :class="editStatus === 'published' ? 'is-published' : 'is-draft'"
-      >
-        {{ editStatus === 'published' ? '已发布' : '草稿' }}
-      </span>
+      <!-- 信息组：状态 / 优先级 / 描述 / 执行历史以分隔线与字段区分开（交互 10 §1.1） -->
+      <div class="scene-editor__info-group">
+        <span
+          class="scene-editor__status-tag"
+          :class="editStatus === 'published' ? 'is-published' : 'is-draft'"
+        >
+          {{ editStatus === 'published' ? '已发布' : '草稿' }}
+        </span>
 
       <el-popover placement="bottom-start" :width="120" trigger="click">
         <template #reference>
@@ -196,8 +210,11 @@ const emit = defineEmits<{
         </el-popover>
       </div>
 
+      </div>
+
       <div class="scene-editor__nav-spacer" />
 
+      <span class="scene-editor__field-label">默认环境</span>
       <el-select :model-value="editEnvironmentId" size="small" placeholder="默认环境" clearable style="width: 180px" @update:model-value="emit('update:editEnvironmentId', $event)">
         <el-option v-for="env in environmentOptions" :key="env.id" :value="env.id" :label="env.name" />
       </el-select>
@@ -212,23 +229,27 @@ const emit = defineEmits<{
       </el-tooltip>
     </template>
     <template v-else-if="isCreateMode">
-      <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
-        <span class="scene-editor__run-wrap">
-          <el-button size="small" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
-        </span>
-      </el-tooltip>
-      <el-button size="small" @click="emit('save', 'draft')">保存为草稿</el-button>
-      <el-button size="small" type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
+      <div class="scene-editor__nav-actions">
+        <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
+          <span class="scene-editor__run-wrap">
+            <el-button size="small" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
+          </span>
+        </el-tooltip>
+        <el-button size="small" @click="emit('save', 'draft')">保存为草稿</el-button>
+        <el-button size="small" type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
+      </div>
     </template>
     <template v-else>
-      <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
-        <span class="scene-editor__run-wrap">
-          <el-button size="small" :disabled="repoUnreachable" :loading="running" type="primary" plain @click="emit('run')">{{ runLabel }}</el-button>
-        </span>
-      </el-tooltip>
-      <el-button size="small" @click="emit('save', 'draft')">保存为草稿</el-button>
-      <el-button size="small" type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
-      <el-button size="small" type="danger" plain @click="emit('delete')">删除</el-button>
+      <div class="scene-editor__nav-actions">
+        <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
+          <span class="scene-editor__run-wrap">
+            <el-button size="small" :disabled="repoUnreachable" :loading="running" type="primary" plain @click="emit('run')">{{ runLabel }}</el-button>
+          </span>
+        </el-tooltip>
+        <el-button size="small" @click="emit('save', 'draft')">保存为草稿</el-button>
+        <el-button size="small" type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
+        <el-button size="small" type="danger" plain @click="emit('delete')">删除</el-button>
+      </div>
     </template>
 
     <el-input
@@ -244,6 +265,94 @@ const emit = defineEmits<{
 </template>
 
 <style scoped lang="scss">
+// 顶部导航：字段区 → 信息组 → 弹性留白 → 环境与动作（交互 10 §1.1）
+.scene-editor__nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+}
+
+.scene-editor__nav-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// 字段小标签：必填星号随标签同行，不单独占行（交互 10 §1.1）
+.scene-editor__field-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+.scene-editor__required {
+  margin-left: 2px;
+  color: var(--el-color-danger);
+}
+
+.scene-editor__nav-name-input {
+  width: 240px;
+}
+
+.scene-editor__nav-module {
+  width: 260px;
+}
+
+// 信息组：与字段区之间以分隔线分组（交互 10 §1.1）
+.scene-editor__info-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--color-neutral-200);
+}
+
+.scene-editor__nav-spacer {
+  flex: 1 1 auto;
+}
+
+// 动作组固定右端：换行时整体贴右侧，不残留在字段下方（交互 10 §1.1）
+.scene-editor__nav-actions {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.scene-editor__status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+
+  &.is-published {
+    background: rgba(var(--el-color-primary-rgb), 0.1);
+    color: var(--el-color-primary);
+  }
+
+  &.is-draft {
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-600);
+  }
+}
+
+.scene-editor__priority-tag {
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--color-neutral-800);
+  cursor: pointer;
+}
+
 .scene-editor__history-error {
   display: flex;
   align-items: center;
@@ -254,8 +363,20 @@ const emit = defineEmits<{
   font-size: var(--font-size-xs);
 }
 
-// 只读形态顶部（交互 10 §1.9）：场景名 + 徽标 + 源状态徽标
+// 只读形态顶部（交互 10 §1.9）：上行场景名与徽标，下行元数据行，动作固定最右端
 .scene-editor__nav-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scene-editor__readonly-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.scene-editor__readonly-meta {
   display: inline-flex;
   align-items: center;
   gap: var(--space-sm);
