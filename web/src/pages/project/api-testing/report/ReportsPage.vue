@@ -152,7 +152,7 @@ onMounted(async () => {
 <template>
   <div v-loading="loading" class="reports-page">
     <div class="reports-page__toolbar">
-      <el-select v-model="statusFilter" style="width: 140px" @change="handleFilter">
+      <el-select v-model="statusFilter" style="width: 110px" @change="handleFilter">
         <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
       </el-select>
       <el-date-picker
@@ -162,14 +162,14 @@ onMounted(async () => {
         start-placeholder="开始日期"
         end-placeholder="结束日期"
         value-format="YYYY-MM-DDT00:00:00"
-        style="width: 280px"
+        style="width: 220px"
         @change="handleFilter"
       />
       <el-input
         v-model="searchText"
         placeholder="报告名称"
         clearable
-        style="width: 240px"
+        style="width: 200px"
         @keyup.enter="handleFilter"
         @clear="handleFilter"
       />
@@ -253,7 +253,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   flex-shrink: 0;
   padding: 14px 0;
   border-bottom: 1px solid var(--color-neutral-100);
