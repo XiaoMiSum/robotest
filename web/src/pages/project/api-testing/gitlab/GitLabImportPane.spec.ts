@@ -258,12 +258,15 @@ describe('GitLabImportPane', () => {
 
     expect(wrapper.find('.gi-sum').exists()).toBe(false)
     expect(wrapper.find('.gi-view').exists()).toBe(false)
-    expect(wrapper.find('.gi-state').exists()).toBe(false)
     expect(wrapper.find('.gi-progress').exists()).toBe(false)
+    // 主区域不留白：给居中加载态而非空态引导
+    expect(wrapper.find('.gi-state--loading').exists()).toBe(true)
+    expect(wrapper.find('.gi-state__title').text()).toBe('正在扫描默认分支')
 
     deferred.resolve(makePreview())
     await flushPromises()
     expect(wrapper.find('.gi-sum').exists()).toBe(true)
+    expect(wrapper.find('.gi-state--loading').exists()).toBe(false)
   })
 
   it('闸门拦截转 info 提示条并可查看上次结果，不渲染明细与空态', async () => {
