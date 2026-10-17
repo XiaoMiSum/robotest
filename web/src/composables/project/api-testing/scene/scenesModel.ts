@@ -8,6 +8,21 @@ export const STEP_TYPE_OPTIONS = [
   { value: 'jdbc', label: 'JDBC' },
 ]
 
+/**
+ * 源路径展示：隐藏包目录（中段折叠为 ...），格式 src/test/java/.../TestClass.java；
+ * `#方法` 后缀（gitlab_ci 源引用）原样保留。仅展示层缩写，跳转链接仍用完整路径（交互 10 §1.9）。
+ */
+export function shortenSourcePath(path: string | null | undefined): string {
+  if (!path) return ''
+  const hash = path.indexOf('#')
+  const filePart = hash >= 0 ? path.slice(0, hash) : path
+  const suffix = hash >= 0 ? path.slice(hash) : ''
+  const segments = filePart.split('/')
+  // 保留前三段（src/test/java 这类根路径）与文件名；无包目录时不动
+  if (segments.length <= 4) return path
+  return `${segments.slice(0, 3).join('/')}/.../${segments[segments.length - 1]}${suffix}`
+}
+
 /** 方法标签颜色 */
 type TagType = 'success' | 'primary' | 'warning' | 'info' | 'danger'
 const METHOD_COLORS: Record<string, TagType> = {

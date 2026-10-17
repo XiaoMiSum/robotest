@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   methodTagType,
+  shortenSourcePath,
   stepMethod,
   stepSqlType,
   sortedSteps,
@@ -48,6 +49,27 @@ function step(overrides: Partial<ApiSceneStepItem> = {}): ApiSceneStepItem {
 }
 
 describe('scenesModel', () => {
+  describe('shortenSourcePath', () => {
+    it('隐藏包目录，折叠为 src/test/java/.../TestClass.java', () => {
+      expect(shortenSourcePath('src/test/java/com/example/OrderQueryTest.java'))
+        .toBe('src/test/java/.../OrderQueryTest.java')
+    })
+
+    it('gitlab_ci 源引用的 #方法 后缀原样保留', () => {
+      expect(shortenSourcePath('src/test/java/com/x/order/OrderApiTest.java#replaceOrder'))
+        .toBe('src/test/java/.../OrderApiTest.java#replaceOrder')
+    })
+
+    it('无包目录的短路径原样返回', () => {
+      expect(shortenSourcePath('src/test/java/Foo.java')).toBe('src/test/java/Foo.java')
+    })
+
+    it('空值返回空串', () => {
+      expect(shortenSourcePath(null)).toBe('')
+      expect(shortenSourcePath(undefined)).toBe('')
+    })
+  })
+
   describe('methodTagType', () => {
     it('maps HTTP methods to Element Plus tag types', () => {
       expect(methodTagType('GET')).toBe('success')
