@@ -76,8 +76,8 @@ defineExpose({ reload: load, getTree: () => treeData.value })
             trigger="click"
             @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')"
           >
-            <el-button link type="primary">
-              <el-icon><Plus /></el-icon>新建
+            <el-button link type="primary" title="新建">
+              <el-icon><Plus /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -86,8 +86,8 @@ defineExpose({ reload: load, getTree: () => treeData.value })
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-button v-else link type="primary" @click="handleCreate(null, 'directory')">
-            <el-icon><Plus /></el-icon>新建
+          <el-button v-else link type="primary" title="新建" @click="handleCreate(null, 'directory')">
+            <el-icon><Plus /></el-icon>
           </el-button>
         </template>
       </el-input>
