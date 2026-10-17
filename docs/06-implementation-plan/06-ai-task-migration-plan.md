@@ -24,7 +24,7 @@
 | 概要 | `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md` | 机制唯一上位依据（双平面、状态机、不变式） |
 | 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | AI 模块划分与生命周期 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 2.6 六表 DDL、3.6 任务资源、4.2 执行核与护栏、6 错误码、7 实施说明 |
-| 详细 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`、`docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md`、`docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`、`docs/04-detailed-design/05-trace-matrix.md`、`docs/04-detailed-design/06-requirement-management/02-requirement-management.md` | 各域类型适配器、提案结构与承接规则 |
+| 详细 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`、`docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md`、`docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`、`docs/04-detailed-design/06-requirement-management/02-requirement-management.md` | 各域类型适配器、提案结构与承接规则 |
 | 交互 | `docs/05-interaction-design/07-ai-capability/03-ai-task-ui.md` | 任务中心与提案审核新交互（状态机、轨迹、终止 / 再次执行） |
 | 需求 | `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md` | 1.5 任务通用规则（验收口径来源） |
 | 计划 | `docs/06-implementation-plan/02-ai-requirement-development-plan.md` | 既有工作包状态与批次编排（收口联动回填） |
@@ -51,7 +51,7 @@
 - **不存在的能力（新架构需新建）**：Agent 循环、执行 / 轨迹 / 提案 / 采纳 / 工具注册表五表与对应服务、预算护栏、轨迹事件流。
 - 盘点确认的死代码与重复路径（迁移时一并清除）：
   1. `GenerationAdoptService` 接口零调用方（死接口）；
-  2. 6 个 type 有 Handler 无 Adopter（`coverage_analysis / impact_analysis / vector_reindex / assistant_parse / bug_triage / bug_trend_summary`），confirm 必然 1000018114（死路确认路径）；
+  2. 6 个 type 有 Handler 无 Adopter（`vector_reindex / assistant_parse / bug_triage / bug_trend_summary`，另有 `coverage_analysis / impact_analysis` 两类已取消——追溯矩阵需求整体下线，其 Handler 随需求删除），confirm 必然 1000018114（死路确认路径）；
   3. 状态字面量三套并存（`Constants.AiTaskStatus`、`AiTaskMapper` 内联、`AiTaskServiceImpl:515` 硬编码）；
   4. `startTask()` 直调 + `afterCommit` 双触发重复路径；
   5. 提示词默认值双轨（`AiPromptAdminService.builtinContent` vs `AiPromptScenes` vs `Handler.defaultPrompt()`）；
@@ -268,7 +268,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | R4 孤立链路四件（无生产引用） | 改造投入可能白费 | 随迁改造并接线；S5 收口前与产品确认保留 / 裁剪，裁剪则整链删除 |
 | R5 `AiUsageLogMapper` join 旧表 | 换表即破用量下钻 | S2 同步改 join 最新执行并补 `execution_id` 写入，用量页回归列入验收 |
 | R6 前端测试面大（24 spec） | 覆盖率门禁（C8）波动 | 测试重写随各提交同步，禁止堆积至 S6 |
-| R7 coverage / impact 等无提案任务的 `closed` 语义 | 前端刷新时机误判 | S5 明确「执行完成即 closed、以详情刷新为准」，trace 面板验收覆盖 |
+| R7 无提案任务（`vector_reindex` 等）的 `closed` 语义 | 前端刷新时机误判 | S5 明确「执行完成即 closed、以详情刷新为准」，任务详情页验收覆盖 |
 
 ## 5. 计划维护
 
@@ -293,3 +293,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-16 | 初始版本：直接切换 + 清空重建裁决、S0–S6 实施步骤与提交拆分、旧代码五层深度清理方案与 grep 门禁 |
 | V1.0 | 2026-10-16 | 新增 2.8 在途计划联动：展开 vision 计划「Agent 执行核承接注」语义（旧 `AiTaskExecutor` 执行期模型能力复验随 S2 平移至 `AgentExecutionRunner`，收口后删除注记）与助手 SPI 耦合指向 |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关任务迁移标注「已取消——追溯矩阵需求整体下线」：1.3 基线文档移除追溯详设，2.1 死路确认路径中两类 type 标注取消，风险 R7 收敛为无提案任务通用口径 |

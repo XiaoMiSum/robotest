@@ -12,7 +12,7 @@
 
 脑图组件是功能测试模块的核心组件，用于测试用例的可视化编辑、评审与执行跟踪。采用 **kityminder-core** 作为脑图渲染引擎，通过 **Yjs** 实现多人实时协作。按业务场景拆分为三个独立组件；公共能力分两处沉淀：`web/src/minder/` 承载引擎加载、编辑内核、节点适配与 Yjs 同步等与 UI 无关的核心逻辑，`web/src/components/project/functional-testing/minder/` 承载右键菜单壳、导航器与三组件共用结构样式，业务编排则下沉到 `web/src/composables/project/functional-testing/`：
 
-- **CaseMindMap（编辑）**：节点增删改、复制/剪切/粘贴、类型标记、优先级标记、布局模板与文档关联需求，节点变更经 WebSocket 文本帧持久化到 `test_case_node` 表，并经 Yjs 多人实时同步。
+- **CaseMindMap（编辑）**：节点增删改、复制/剪切/粘贴、类型标记、优先级标记、布局模板，节点变更经 WebSocket 文本帧持久化到 `test_case_node` 表，并经 Yjs 多人实时同步。
 - **ReviewMindMap（评审）**：基于快照的只读脑图，提供评审标记（通过/不通过/待评审）、评论抽屉与用例移除，数据写入 `test_review_record` 表并更新 `test_review_node_snapshot.last_mark`。
 - **PlanMindMap（计划）**：基于快照的只读脑图，提供执行结果标记（通过/失败/阻塞/待执行）与用例移除，数据写入 `test_plan_execution_record` 表并更新 `test_plan_node_snapshot.last_result`。
 
@@ -35,7 +35,7 @@
 ```
 web/src/components/project/functional-testing/
 ├── case/CaseMindMap.vue    编辑组件（props: docId）
-│     ├── 编辑工具栏（撤销重做、节点增删/编辑/删除、排版模板与整理布局、类型/优先级标记、关联需求）
+│     ├── 编辑工具栏（撤销重做、节点增删/编辑/删除、排版模板与整理布局、类型/优先级标记）
 │     ├── 编辑内核 KMEditor（原位编辑/撤销重做，见 3.1）
 │     ├── Yjs 实时协作 + WebSocket 持久化（文本帧落库）
 │     ├── 协作状态指示器（在线用户头像）与断线提示横幅
@@ -76,7 +76,6 @@ web/src/composables/project/functional-testing/
 ├── mindmap/useMindmapLayout.ts        排版模板与整理布局
 ├── mindmap/useMindmapPersistence.ts   JSON 文本帧落库（节点差分 + 布局整体 upsert）
 ├── mindmap/useMindmapYjs.ts           Yjs 连接、在线用户、远端回放接线
-├── mindmap/useMindmapRequirementLink.ts 文档关联需求
 ├── review/useReviewMindmapOps.ts      评审加载、标记、评论、移除用例
 └── plan/usePlanMindmapOps.ts          计划加载、执行标记、移除用例
 ```
@@ -240,7 +239,6 @@ web/src/composables/project/functional-testing/
 |      | 整理布局              | 清除全部手动拖拽偏移，恢复自动排版 | Ctrl+Shift+L（core 原生） | 走 core `resetlayout`，按钮悬浮提示"清除手动拖拽的节点偏移，恢复自动排版" |
 | 标记   | 用例 / 前置 / 步骤 / 预期 | 标记节点类型（色点 + 文案，选中态高亮） | —               | 标记为测试用例时无优先级则默认 P2；另有"取消标记"按钮恢复普通节点      |
 |      | P0 / P1 / P2 / P3 | 设置优先级并自动标记为测试用例   | —               | 选中态以优先级色块高亮                              |
-| 关联   | 关联需求               | 打开需求选择器，保存文档关联需求  | —               | 行末右靠，仅持 `requirement:view` 权限可见         |
 
 缩放、定位、抓手、全屏不再占用工具栏，统一由导航器提供（见 5.4）。
 
@@ -402,7 +400,7 @@ web/src/composables/project/functional-testing/
 | 空快照       | 渲染根节点文案"空快照"                                                    |
 | WS 断线重连   | 编辑组件顶部横幅"连接已断开，正在重连..."，在线用户头像隐藏；恢复 connected 后横幅消失并冲刷落库      |
 | 命令不可用     | 撤销/重做无历史时置灰；剪贴板为空时"粘贴"菜单项置灰；移除用例按钮在非 `removable` 或非已关联 case 时置灰 |
-| 提交失败      | 标记、评论、移除、需求关联等操作失败均 `ElMessage.error` 提示，成功给 `ElMessage.success` |
+| 提交失败      | 标记、评论、移除等操作失败均 `ElMessage.error` 提示，成功给 `ElMessage.success` |
 
 ---
 
@@ -441,7 +439,6 @@ web/src/composables/project/functional-testing/
 | -------------- | ------ | --------------------------------------------------------- |
 | 加载编辑数据         | edit   | `GET /api/project/documents/:docId/nodes`                  |
 | 实时协同 + 节点落库    | edit   | WebSocket `/ws/documents/{docId}`（文本帧 `add_node` / `update_attrs` / `move_node` / `delete_node` / `update_layout`） |
-| 文档关联需求查询/保存    | edit   | `GET` / `PUT` `/api/project/documents/:docId/requirements` |
 | 加载评审快照树        | review | `GET /api/project/reviews/:id/modules?documentId=`          |
 | 提交评审标记/评论      | review | `POST /api/project/reviews/:id/records`                     |
 | 查询节点评审记录       | review | `GET /api/project/reviews/:id/nodes/:nodeId/records`        |
@@ -515,11 +512,6 @@ web/src/composables/project/functional-testing/
         <el-button v-for="p in ['P0', 'P1', 'P2', 'P3']" :key="p" text
           :class="['priority-btn', { 'is-selected': selectedPriority === p }]" @click="markPriority(p)">{{ p }}</el-button>
       </div>
-      <div v-if="canManageRequirements" class="toolbar-group toolbar-group--end">
-        <el-tooltip content="关联需求" placement="bottom">
-          <el-button text @click="openRequirementSelector" />
-        </el-tooltip>
-      </div>
     </div>
 
     <!-- 评审工具栏（ReviewMindMap）：单组居中 -->
@@ -588,7 +580,7 @@ web/src/composables/project/functional-testing/
 1. **组件选用**：页面按业务直接使用对应组件并传入 ID（CaseMindMap→`docId`；ReviewMindMap→`reviewId` + `documentId` + `removable`；PlanMindMap→`planId` + `documentId` + `removable`），各组件加载各自数据源；评审/计划组件通过 `marked` / `removed` 事件通知详情页刷新进度，并 `defineExpose` 暴露 `reload`（详情页同步快照后刷新画布）与 `openBug`。
 2. **数据加载**：编辑模式调用文档节点接口获取嵌套根节点对象；评审/计划模式调用 `modules` 快照树接口（`documentId` 限定单文档，缺省时只取首个根）。前端转换为 kityminder JSON 后渲染。
 3. **数据隔离**：快照模式（review/plan）完全不建立 WebSocket/Yjs 连接；编辑模式独占 `/ws/documents/{docId}` 房间，服务端对可写帧校验 `case:edit` 权限。
-4. **权限口径**：画布组件不设 `editable` prop；"移除用例"按钮与菜单项由 `removable`（详情页按评审/计划状态传入）控制，"关联需求"按钮挂 `requirement:view` 权限；标记、评论、移除接口的操作权限校验由后端兜底。
+4. **权限口径**：画布组件不设 `editable` prop；"移除用例"按钮与菜单项由 `removable`（详情页按评审/计划状态传入）控制；标记、评论、移除接口的操作权限校验由后端兜底。
 5. **kityminder 扩展**：节点状态徽标由 `badges.ts` 以 `Module.register` 自定义渲染模块实现（写法参照 core 自身 priority 模块），左侧绘制类型/优先级、右侧绘制评审/执行标记，须在 `new Minder` 之前注册（loader 内统一完成）；画布不渲染 Bug 链接标签（见第 8 节）。
 6. **工具栏状态响应**：监听 kityminder 的 `selectionchange` 事件，更新类型/优先级与标记按钮高亮；撤销/重做按钮置灰态由 history 的 onChange 回调驱动（`KMEditor` 的 `onHistoryChange`）。
 7. **右键菜单**：`useContextMenu` 统一管理展示与关闭时机（仅选中节点时展示，编辑模式下空格键亦可唤醒），菜单项由各模式组件模板静态给出（slot），不设模式分支。
@@ -604,6 +596,7 @@ web/src/composables/project/functional-testing/
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-10-02 | 按实现对齐组件架构与目录、工具栏/右键菜单项、快照树与评审记录接口路径、徽标与状态分支、Yjs 协作感知及实施要点 |
+| V1.0 | 2026-10-17 | 「文档关联需求」功能随追溯矩阵需求整体取消下线：删除编辑工具栏关联需求按钮、`useMindmapRequirementLink.ts`、文档需求关联接口行与相关表述 |
 
 ---
 

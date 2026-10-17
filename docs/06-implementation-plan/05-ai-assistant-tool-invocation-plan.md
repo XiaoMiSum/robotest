@@ -22,7 +22,7 @@
 | 层 | 文档 | 用途 |
 | ---- | ---- | ---- |
 | 需求 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 功能边界与业务规则（追问选项、查询补全、项目选择会话私有、零切换执行） |
-| 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.2 提案采纳流、4.7 对话式任务执行（三类能力与待确认口径） |
+| 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.2 提案采纳流、4.6 对话式任务执行（三类能力与待确认口径） |
 | 详细 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | **主基线**：工具清单与循环（4.1）、执行校验与作用域（4.2）、intent 结构（4.3）、上下文规则（4.4）、SSE 事件（3.5）、错误码（6）、实施说明（7） |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 助手表 DDL（2.9）、任务类型 `assistant_parse`（3.6.1）、用量归因（4.3） |
 | 交互 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | 查询进行态、澄清卡来源选项、确认执行口径与状态分支（2.2–2.4） |
@@ -269,3 +269,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | V1.0 | 2026-10-16 | **整包收口（5.1）**：S1–S6 与层 A / 层 B 全部 ✅（后端 7 提交 `76766773` / `9d60a457` / `63ff292c` / `55959923` / `f938ce7d` / `79ac5753` / `2e1f308` + 前端 `510c30e7`），双端门禁 EXIT=0（后端 1874 测试、前端 3591 测试）；2.6 P1 行按字节码复核修订（模型层不执行工具、中止机制无需启用）；2.8.1 静态清单删除归属修正为提交 4；层 B 确认无种子行、`assistant_answer` 场景注销，存量自定义行以「恢复默认」处置 |
 | V1.0 | 2026-10-16 | 1.2 基线文档行对齐 AI Task 双平面口径：概要引用章节改「4.2 提案采纳流」，待确认态改待确认口径 |
 | V1.0 | 2026-10-16 | 对齐 AI Task 新口径：存量 `assistant_parse` 任务超时清扫由置失败改置 `aborted`（1000018117） |
+| V1.0 | 2026-10-17 | 概要引用同步：`02-hld-ai-capability.md` 删除追溯矩阵节后章节顺延，1.2 基线行「4.7 对话式任务执行」改 4.6 |

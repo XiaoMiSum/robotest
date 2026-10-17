@@ -16,7 +16,6 @@
 
 - 对应需求：`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`（总册）及四个分册。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
-- 追溯矩阵（`trace_edge` / `trace_coverage_result`、矩阵与覆盖接口）为业务领域资源，见 `docs/04-detailed-design/05-trace-matrix.md`，不属于本文档的 14 张 AI 表。
 - 能力域分册：[03-ai-generation](03-ai-generation.md)、[04-ai-assistant](04-ai-assistant.md)、[05-ai-defect-analysis](05-ai-defect-analysis.md)、[06-ai-assisted-features](06-ai-assisted-features.md)。
 
 ### 1.3 参考资料
@@ -592,7 +591,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - `modelReady / embeddingReady / available` 为入口可见性依据：`available = enabled && modelReady`；RAG 类能力额外要求 `embeddingReady`。
 
 - **业务端可用性**：`GET /api/ai/status`（登录即可，无需 `ai:admin`）→ `{ "enabled": true, "modelReady": true, "available": true }`
-  - 仅回这三个布尔口径（`available = enabled && modelReady`），供业务端入口显隐与覆盖状态列「—」展示；不返回任何配置明细或模型信息。
+  - 仅回这三个布尔口径（`available = enabled && modelReady`），供业务端入口显隐；不返回任何配置明细或模型信息。
 
 - **更新**：`PUT /api/ai/settings`（部分更新）
 
@@ -709,7 +708,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
-> 生成链、拆解、覆盖 / 影响分析、圈选推荐、用例补全、级别 / 顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
+> 生成链、拆解、圈选推荐、用例补全、级别 / 顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
 
 #### 3.6.1 任务类型枚举（全量，单一事实源）
 
@@ -719,8 +718,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | test_design_generation | 生成链 | `requirementIds`、`targetModuleId?`、`granularity` | `module_suggestion / mindmap_document_suggestion / test_case_suggestion` | 生成链采纳服务 |
 | review_selection | 生成链 | `scope` | `review_selection` | 评审创建流程 |
 | plan_selection | 生成链 | `scope`、`rounds?` | `plan_selection` | 计划创建流程 |
-| coverage_analysis | 矩阵 | `requirementIds?` | 无（直接写 `trace_coverage_result`，4.3） | 矩阵服务 |
-| impact_analysis | 矩阵 | `requirementId` | 无（写影响标记） | 矩阵服务 |
 | case_complete | 辅助 | `nodeIds` | `case_suggestion` | 用例采纳服务 |
 | case_priority | 辅助 | `nodeIds` | `priority_suggestion` | 用例采纳服务 |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
@@ -809,7 +806,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 #### 3.6.4 执行管理与轨迹
 
-- **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案、落库数据与追溯边。
+- **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
 - **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 复用原执行模型；同任务同时至多一个进行中执行；新执行产生新提案，原提案与采纳记录保留。
 - **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`（权限 `ai:task`）——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。
 
@@ -920,8 +917,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - 模型不可用 / 超时 / 限流 → 执行终止置 `aborted` 并给出原因（`1000018117`），可再次执行；配置页连通性测试失败给出摘要与排查提示。
 - 图片（vision）调用在提交期无可用视觉模型 → 快速失败（`1000018124`），不静默丢图；执行期已回写模型失效时按选型规则复验（4.2），无候选同码失败。
-- 向量 API 未配置或未启用 → `embeddingReady = false`，RAG 问答、相似检测、覆盖分析等依赖检索的能力入口不可用并说明原因。
-- 总开关关闭 → `available = false`，业务端 AI 入口隐藏；既有数据（提案、采纳记录、追溯关系）全部保留可查。
+- 向量 API 未配置或未启用 → `embeddingReady = false`，RAG 问答、相似检测等依赖检索的能力入口不可用并说明原因。
+- 总开关关闭 → `available = false`，业务端 AI 入口隐藏；既有数据（提案、采纳记录）全部保留可查。
 
 ---
 
@@ -958,7 +955,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
     ├── ProposalDetail（内容预览 / 与既有数据对比）
     └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
 
-能力页任务中心按钮（AiTaskEntryButton，需求列表 / 追溯矩阵 / 缺陷 AI 分析页头，ai:task 权限显隐）
+能力页任务中心按钮（AiTaskEntryButton，需求列表 / 缺陷 AI 分析页头，ai:task 权限显隐）
 ```
 
 - Pinia store：
@@ -1078,3 +1075,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-16 | WP-V.5 口径细化：4.2 必需能力派生补 `bug_classify` 批量需结合项目范围解析缺陷集判定（仅查附件元数据，不读字节） |
 | V1.0 | 2026-10-16 | 统一任务资源切换为 AI Task 任务资源（双平面，机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2.6 改为框架五表（`ai_task` 去 `progress/phase/result`，新增 `ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_tool`），2.7 `ai_artifact_confirm` 改名 `ai_task_adoption`（`artifact_key → proposal_key`），2.8 补 `execution_id` 归因；3.6 重写为任务 · 执行 · 轨迹 · 提案资源（终止 / 再次执行 / 轨迹游标 / 提案确认，状态机 `running → proposals_ready → closed / aborted`），4.2 改为 Agent 执行核与预算护栏，5.2 / 5.3 前端组件与任务态同步，6 补 1000018125–1000018127，7 实体数与迁移清单同步 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：1.2 范围改「14 张 AI 表」，2.6 标题改「与 2.7 共六表」，2.5 / 3.5 生效规则改「不改变已采纳的产出」，3.8 权限 `ai:confirm` 改「AI 提案采纳」 |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：1.2 删除矩阵领域资源说明，3.6.1 注销 `coverage_analysis` / `impact_analysis` 任务类型，3.2 / 3.6.4 / 4.5 / 5.2 移除覆盖状态列、追溯边与追溯子页入口相关表述 |
