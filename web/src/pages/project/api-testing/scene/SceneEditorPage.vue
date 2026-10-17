@@ -96,6 +96,17 @@ const steps = useSceneSteps({
   detail: editor.detail,
 })
 
+// 进入步骤页签默认选中第一个步骤：右侧明细不空置，无需手动点选（交互 10 §1.2）
+watch(
+  [() => editor.sceneSection.value, () => (editor.isCreateMode.value ? steps.draftSteps.value : steps.sorted.value).length],
+  () => {
+    if (editor.sceneSection.value !== 'steps' || steps.selectedStep.value) return
+    const first = (editor.isCreateMode.value ? steps.draftSteps.value : steps.sorted.value)[0]
+    if (first) steps.selectedStep.value = first
+  },
+  { immediate: true },
+)
+
 const {
   editVariables, sceneVariablePayload, sceneVariablesForHelper,
   showFunctionHelper, showVariableHelper, envVariables, envVariablesName, openVariableHelper,
@@ -270,6 +281,7 @@ const {
                   @copy="(s) => editor.isCreateMode.value ? steps.handleDraftCopyStep(s) : steps.handleCopyStep(s)"
                   @debug="(s) => editor.isCreateMode.value ? handleDraftDebugDisabled(s) : handleDebugStep(s)"
                   @insert-before="steps.handleAddStep"
+                  @add="editor.isCreateMode.value ? steps.handleDraftAddStep() : steps.handleAddStep()"
                 />
               </div>
 
@@ -291,22 +303,23 @@ const {
                 />
                 <div v-else class="scene-editor__right-empty">
                   <el-icon :size="28"><EditPen /></el-icon>
-                  <p>选中左侧步骤卡片后在右侧编辑</p>
+                  <p>暂无执行步骤，请先新增</p>
                 </div>
               </div>
             </div>
           </el-tab-pane>
 
           <el-tab-pane label="场景变量" name="variables">
-            <div class="scene-editor__section-head">
-              <span>场景变量</span>
+            <!-- 固定高度容器包裹；页签标题已承担命名，内部不重复标题、列头由列内占位符承担（交互 10 §1.3） -->
+            <div class="scene-editor__kv-pane">
+              <KeyValueTable
+                v-model:entries="editVariables"
+                placeholder-key="变量名"
+                show-description
+                :show-enabled="false"
+                :show-header="false"
+              />
             </div>
-            <KeyValueTable
-              v-model:entries="editVariables"
-              placeholder-key="变量名"
-              show-description
-              :show-enabled="false"
-            />
           </el-tab-pane>
 
           <el-tab-pane label="前置处理器" name="pre">
@@ -431,23 +444,22 @@ const {
 </template>
 
 <style scoped lang="scss">
+// 头部信息栏与页签条之间只留 4px：两者上下内边距不再叠加（交互 10 §1.1）
 .scene-editor {
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: var(--space-md);
+  gap: var(--space-xs);
   overflow: hidden;
 }
 
+// 页面不设外层卡片容器：tabs 与内容区直接承接头部信息（交互 10 §1.1）
 .scene-editor__body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
 }
 
 // 左右两栏各自为带边框卡片、等高（交互 10 §1.1），中间由透明分割条隔开
@@ -471,23 +483,23 @@ const {
   &::-webkit-scrollbar { display: none; }
 }
 
+// 明细不设父容器：由 step-inline 自身的头部带与内容分区承担层次（交互 10 §1.1）
+// 不加内边距，使明细的盒子与左侧列表卡片的外框上下对齐
 .scene-editor__steps-right {
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--space-md);
+  padding: 0;
   overflow: auto;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-md);
-  background: var(--color-neutral-0);
   scrollbar-width: none;
 
   &::-webkit-scrollbar { display: none; }
 }
 
 // 右侧空态卡片（交互 10 §1.1）：居中图标 + 文案，填补分栏空白而非单行灰字
+// 右侧空态：不设外边距使其与左侧列表卡片等高，白底实线框（交互 10 §1.1）
 .scene-editor__right-empty {
   flex: 1;
   display: flex;
@@ -495,13 +507,11 @@ const {
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
-  margin: var(--space-md);
   padding: var(--space-xl) var(--space-lg);
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
   text-align: center;
-  background: var(--color-neutral-50);
-  border: 1px dashed var(--color-neutral-200);
+  border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
 
   p {
@@ -569,6 +579,18 @@ const {
   // 助手入口是次级动作：中性色起步、主色悬停，不与页签高亮争主视觉
   --el-button-text-color: var(--color-neutral-600);
   --el-button-hover-link-text-color: var(--color-primary-500);
+}
+
+// 场景变量明细：容器高度与步骤 / 处理器页签的容器一致（撑满页签面板）、内部滚动，
+// 不重复页签标题（交互 10 §1.3）
+.scene-editor__kv-pane {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+  padding: var(--space-md);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
 }
 
 // 区块标题：字号字重 + 底部分隔线，与右侧操作行拉开层级（交互 10 §1.2 / §1.5）

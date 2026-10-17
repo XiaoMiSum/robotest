@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
 import {
   VALIDATOR_TARGETS,
   VALIDATOR_CONDITIONS,
@@ -78,7 +79,7 @@ function removeExtractor(index: number) {
     <div class="pane-list">
       <div v-for="(row, i) in editValidators" :key="i" class="pane-card">
         <div class="pane-card__row">
-          <el-switch v-model="row.enabled" @change="pushValidators" />
+          <el-checkbox v-model="row.enabled" size="small" class="pane-enabled" @change="pushValidators">启用</el-checkbox>
           <el-select v-model="row.target" class="pane-field--target" placeholder="验证目标" @change="pushValidators">
             <el-option v-for="t in VALIDATOR_TARGETS" :key="t.value" :value="t.value" :label="t.label" />
           </el-select>
@@ -87,7 +88,7 @@ function removeExtractor(index: number) {
           </el-select>
           <el-input v-model="row.expression" placeholder="表达式（如 $.code）" class="pane-field--flex" @change="pushValidators" />
           <el-input v-model="row.expected" placeholder="期望值" class="pane-field--flex" @change="pushValidators" />
-          <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
+          <el-button link type="danger" :icon="Delete" title="删除该验证器" @click="removeValidator(i)" />
         </div>
       </div>
     </div>
@@ -107,13 +108,13 @@ function removeExtractor(index: number) {
     <div class="pane-list">
       <div v-for="(row, i) in editExtractors" :key="i" class="pane-card">
         <div class="pane-card__row">
-          <el-switch v-model="row.enabled" @change="pushExtractors" />
+          <el-checkbox v-model="row.enabled" size="small" class="pane-enabled" @change="pushExtractors">启用</el-checkbox>
           <el-select v-model="row.source" class="pane-field--source" placeholder="提取来源" @change="pushExtractors">
             <el-option v-for="s in EXTRACTOR_SOURCES" :key="s.value" :value="s.value" :label="s.label" />
           </el-select>
           <el-input v-model="row.expression" placeholder="表达式" class="pane-field--flex" @change="pushExtractors" />
           <el-input v-model="row.variableName" placeholder="变量名" class="pane-field--flex" @change="pushExtractors" />
-          <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
+          <el-button link type="danger" :icon="Delete" title="删除该提取器" @click="removeExtractor(i)" />
         </div>
       </div>
     </div>
@@ -168,13 +169,20 @@ function removeExtractor(index: number) {
   text-align: center;
 }
 
+// 启用改为复选框，行内不被挤压
+.pane-enabled {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .pane-field--flex {
   flex: 1 1 0;
   min-width: 0;
 }
 
+// 来源 / 目标下拉收窄，把宽度让给表达式与期望值输入
 .pane-field--target {
-  flex: 0 0 260px;
+  flex: 0 0 200px;
 }
 
 .pane-field--condition {
@@ -182,6 +190,6 @@ function removeExtractor(index: number) {
 }
 
 .pane-field--source {
-  flex: 0 0 240px;
+  flex: 0 0 180px;
 }
 </style>
