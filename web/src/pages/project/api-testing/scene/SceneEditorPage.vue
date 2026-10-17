@@ -450,6 +450,7 @@ const {
   overflow: hidden;
 }
 
+// 左右两栏各自为带边框卡片、等高（交互 10 §1.1），中间由透明分割条隔开
 .scene-editor__steps-layout {
   height: 100%;
   display: flex;
@@ -462,6 +463,9 @@ const {
   min-height: 0;
   padding: var(--space-md);
   overflow-y: auto;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
   scrollbar-width: none;
 
   &::-webkit-scrollbar { display: none; }
@@ -474,8 +478,10 @@ const {
   display: flex;
   flex-direction: column;
   padding: var(--space-md);
-  border-left: 1px solid var(--color-neutral-100);
   overflow: auto;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
   scrollbar-width: none;
 
   &::-webkit-scrollbar { display: none; }
@@ -503,24 +509,24 @@ const {
   }
 }
 
+// 分割条只作拖拽热区：平时不显示灰条与竖线，拖拽过程中给出反馈（交互 10 §1.1）
 .scene-editor__splitter {
-  flex: 0 0 8px;
+  flex: 0 0 var(--space-md);
   cursor: col-resize;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-neutral-100);
+  background: transparent;
 
   .scene-editor__splitter-line {
+    display: none;
     width: 1px;
     height: 100%;
-    background: var(--color-neutral-300);
+    background: var(--color-primary-400);
   }
 
-  &:hover,
-  &.is-dragging {
-    background: var(--color-primary-50);
-    .scene-editor__splitter-line { background: var(--color-primary-400); }
+  &.is-dragging .scene-editor__splitter-line {
+    display: block;
   }
 }
 
