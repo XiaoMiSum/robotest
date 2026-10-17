@@ -217,6 +217,25 @@ describe('useGitLabRepo', () => {
       expect(s.form.defaultBranch).toBe('master')
     })
 
+    it('重新测试时清除上一次结果，新结果返回前不残留旧错误', async () => {
+      mocks.testGitRepoConnection.mockRejectedValueOnce({ code: 1000017702, message: '项目路径不存在' })
+      const s = await initAndFlush({ repo: makeRepo() })
+      await s.runConnectionTest()
+      expect(s.testMessage.value).toBe('1000017702 项目路径不存在')
+
+      const deferred: { resolve: (resp: ApiGitConnectionTestResp) => void } = { resolve: () => {} }
+      mocks.testGitRepoConnection.mockReturnValueOnce(new Promise((resolve) => { deferred.resolve = resolve }))
+      const pending = s.runConnectionTest()
+      expect(s.testMessage.value).toBe('')
+      expect(s.testOk.value).toBeNull()
+      expect(s.connDetailVisible.value).toBe(false)
+
+      deferred.resolve(makeConnectionResp())
+      await pending
+      expect(s.testOk.value).toBe(true)
+      expect(s.testMessage.value).toBe('连接正常 · 实际分支 master')
+    })
+
     it('失败时展示错误码与原因，徽标转为不可达并可展开详情', async () => {
       mocks.testGitRepoConnection.mockRejectedValue({
         code: 1000017702,
