@@ -54,7 +54,7 @@
 | project_id | UUID | NOT NULL | 归属项目（一项目一仓库） |
 | name | VARCHAR(200) | NOT NULL | 仓库展示名（可改，非稳定键） |
 | gitlab_base_url | VARCHAR(500) | NOT NULL | GitLab 实例地址（支持自建，不含结尾 `/`） |
-| repo_path | VARCHAR(500) | NOT NULL | 项目路径（`group/subgroup/repo`），源侧稳定键；创建后不可改（违反返回 `1000017711`），同时作为 `api_environment.source_id` 的认领值 |
+| repo_path | VARCHAR(500) | NOT NULL | 项目路径（`group/subgroup/repo`），落库与实测前去除首尾空白及首尾 `/`，源侧稳定键；创建后不可改（违反返回 `1000017711`），同时作为 `api_environment.source_id` 的认领值 |
 | default_branch | VARCHAR(200) | NOT NULL DEFAULT 'master' | 默认分支；创建后不可改（违反返回 `1000017711`） |
 | import_mode | VARCHAR(20) | NOT NULL | 导入模式：`platform`（导入为平台场景，完整解析 + 环境合并）/ `gitlab_ci`（流水线调度，仅建圈选载体）。创建时必填，创建后不可改（违反返回 `1000017711`） |
 | token_cipher | VARCHAR(500) | NOT NULL | 访问令牌密文（scope `api`，加密存储，不下发前端） |
@@ -202,7 +202,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
 
 | 规则 | 错误码 |
 | ---- | ---- |
-| `repoPath` 非空且不含 `.git` 后缀与 `http(s)://` 前缀 | 1000017701 |
+| `repoPath` 非空且不含 `.git` 后缀与 `http(s)://` 前缀；进入连通性实测与落库前去除首尾空白及首尾 `/`（带前导 `/` 的路径在 GitLab v4 API 下解析为空 group 段而 404） | 1000017701 |
 | 同项目下 `repoPath` 唯一 | 1000017703 |
 | `importMode` 取值仅 `platform` / `gitlab_ci`；`repoPath` / `defaultBranch` / `importMode` 创建后无更新入口 | 1000017711 |
 | `token` 非空；创建 / 更新 / 连通性测试一律以实测通过为准（实例可达、令牌有效且具 `api` scope、目标分支存在），任一不满足 | 1000017702；失败原因须可区分实例不可达 / 令牌无效 / 分支不存在 |
@@ -677,3 +677,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-13 | 错误码号段扩至 `1000017715`（新增 `API_GIT_ARTIFACT_DOWNLOAD_FAILED`、`API_GIT_ENVELOPE_INVALID`，结果回收降级留痕）；4.5 `execEngine` 混合取值表述对齐详设 28 2.3（`platform` / `gitlab`） |
 | V1.0 | 2026-10-13 | 4.5 补套件报告聚合落地口径：追加按 `sceneId` 幂等并全量重算 `summary` 与状态；纯 CI 任务（无可用场景 / 触发失败 / 平台组崩溃）由结果回收端首写套件报告；无结果记录以 failed 占位数据集计入；`durationMs` 追加保留、首写取批次最大值 |
 | V1.0 | 2026-10-14 | 删除错误码 `1000017710`（2.3 速查表与登记表同步移除）：执行阶段仓库不可达与被禁用统一按 `1000017707` 处理，4.3 留痕码随之改记 `1000017707`，与实现一致 |
+| V1.0 | 2026-10-17 | `repoPath` 规范化口径落定：连通性实测与落库前去除首尾空白及首尾 `/`（前导 `/` 会让 GitLab v4 API 按 404 误报「项目路径不存在或令牌无访问权限」），2.1.1 字段说明与 3.1 校验规则同步 |
