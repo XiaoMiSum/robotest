@@ -230,6 +230,14 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
   "modules": { "containers": { "create": 2, "update": 0 }, "classes": { "create": 20, "update": 0, "backfill": 0 } },
   "scenes": { "create": 193, "update": 12, "parseFailed": 0, "errorFailed": 0 },
   "environment": { "action": "merge", "target": "默认环境", "httpConfigs": 4, "dataSources": 2 },
+  "parsedScenes": {
+    "total": 205,
+    "truncated": true,
+    "items": [
+      { "sceneKey": "com.example.qa.order.test.OrderQueryTest#listByStatus", "name": "按状态查询订单列表", "action": "update" },
+      { "sceneKey": "com.example.qa.order.test.OrderQueryTest#createOrder", "name": "创建订单", "action": "create" }
+    ]
+  },
   "details": [
     { "type": "parseFailed", "sceneKey": "com.example.qa.order.test.OrderQueryTest#listByStatus", "reason": "步骤模板 src/test/resources/order/list/query_status.yaml 未找到" }
   ]
@@ -237,6 +245,8 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
 ```
 
 `gitlab_ci` 模式下 `effectiveCases` 仅来自 `@Test(description)`，`environment` 恒为 `{ "action": "skip" }`，`details` 中不出现 `parseFailed`（该模式不读 YAML）。
+
+**`parsedScenes` 约定**：成功解析的场景清单，`total` 与 `scenes.create + scenes.update` 同口径；`items` 单次最多返回 200 条，超出置 `truncated = true`（截断只影响清单，不影响任何计数）；`action` 取 `create` / `update`，判定与 `scenes` 计数同源；闸门拦截时与 `modules` / `scenes` / `environment` 一同为 null。
 
 **进度响应示例（`data`）**
 
@@ -678,3 +688,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-13 | 4.5 补套件报告聚合落地口径：追加按 `sceneId` 幂等并全量重算 `summary` 与状态；纯 CI 任务（无可用场景 / 触发失败 / 平台组崩溃）由结果回收端首写套件报告；无结果记录以 failed 占位数据集计入；`durationMs` 追加保留、首写取批次最大值 |
 | V1.0 | 2026-10-14 | 删除错误码 `1000017710`（2.3 速查表与登记表同步移除）：执行阶段仓库不可达与被禁用统一按 `1000017707` 处理，4.3 留痕码随之改记 `1000017707`，与实现一致 |
 | V1.0 | 2026-10-17 | `repoPath` 规范化口径落定：连通性实测与落库前去除首尾空白及首尾 `/`（前导 `/` 会让 GitLab v4 API 按 404 误报「项目路径不存在或令牌无访问权限」），2.1.1 字段说明与 3.1 校验规则同步 |
+| V1.0 | 2026-10-17 | 3.2 预览响应新增 `parsedScenes`（成功解析场景清单）：场景级 `sceneKey` / `name` / `action`，`items` 单次最多 200 条并以 `truncated` 标记，`total` 与 `scenes.create + scenes.update` 同口径，闸门拦截时为 null |
