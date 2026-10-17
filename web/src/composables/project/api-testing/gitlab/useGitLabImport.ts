@@ -172,10 +172,12 @@ export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported:
   async function runPreview(): Promise<void> {
     const current = repo()
     if (!current || !canPreview.value || previewing.value) return
+    // 重新扫描先清上一次结果，loading 期间既不展示旧明细也不闪现空态引导（交互稿 27 §3.2）
+    preview.value = null
+    detailFilter.value = 'all'
     previewing.value = true
     try {
       const result = await previewGitImport(current.id)
-      detailFilter.value = 'all'
       if (result.gate.blocked) {
         // 拦截是非错误提示：清预览（执行导入不可用）并转 info 态
         preview.value = null

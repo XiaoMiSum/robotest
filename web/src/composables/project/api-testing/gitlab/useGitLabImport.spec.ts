@@ -102,6 +102,14 @@ function makePreview(overrides?: Partial<ApiGitImportPreview>): ApiGitImportPrev
         reason: '文件读取失败：未找到 src/test/java/com/example/MissTest.java',
       },
     ],
+    parsedScenes: {
+      total: 205,
+      truncated: true,
+      items: [
+        { sceneKey: 'com.example.OrderQueryTest#listByStatus', name: '按状态查询订单列表', action: 'update' },
+        { sceneKey: 'com.example.OrderQueryTest#createOrder', name: '创建订单', action: 'create' },
+      ],
+    },
     ...overrides,
   }
 }
