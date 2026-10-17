@@ -5,11 +5,9 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -59,8 +57,6 @@ public class CaseAssistSupport {
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
     private RequirementMapper requirementMapper;
-    @Resource
-    private TraceEdgeMapper traceEdgeMapper;
 
     /** 解析结果：选中文档 + 选中用例节点（保序去重） + 文档全量节点索引 */
     public record ResolvedCases(TestCaseDocument document, List<TestCaseNode> nodes,
@@ -196,35 +192,23 @@ public class CaseAssistSupport {
 
     /**
      * 上游需求：显式 scope 逐条归属校验（异项目 / 不存在按输入非法 1000018115）；
-     * 缺省按选中节点的 derivation 入边回溯，detached 边不参与（listActiveByTarget 口径）。
+     * 未给出 scope 时无默认回溯路径（追溯对应已随追溯矩阵需求取消），返回空列表。
      */
-    public List<Requirement> upstreamRequirements(UUID projectId, List<UUID> nodeIds,
-                                                  List<UUID> scopeRequirementIds) {
-        if (!scopeRequirementIds.isEmpty()) {
-            Map<UUID, Requirement> found = requirementMapper.listByIds(scopeRequirementIds).stream()
-                    .collect(Collectors.toMap(Requirement::getId, item -> item, (left, right) -> left));
-            List<Requirement> scoped = new ArrayList<>(scopeRequirementIds.size());
-            for (UUID id : scopeRequirementIds) {
-                Requirement item = found.get(id);
-                if (item == null || !projectId.equals(item.getProjectId())) {
-                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
-                }
-                scoped.add(item);
-            }
-            return List.copyOf(scoped);
-        }
-        Set<UUID> requirementIds = traceEdgeMapper.listActiveByTarget(Constants.TraceNodeType.TEST_CASE, nodeIds)
-                .stream()
-                .filter(edge -> Constants.TraceEdgeType.DERIVATION.equals(edge.getEdgeType())
-                        && Constants.TraceNodeType.REQUIREMENT.equals(edge.getSourceType()))
-                .map(TraceEdge::getSourceId)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        if (requirementIds.isEmpty()) {
+    public List<Requirement> upstreamRequirements(UUID projectId, List<UUID> scopeRequirementIds) {
+        if (scopeRequirementIds.isEmpty()) {
             return List.of();
         }
-        return requirementMapper.listByIds(requirementIds).stream()
-                .filter(item -> projectId.equals(item.getProjectId()))
-                .toList();
+        Map<UUID, Requirement> found = requirementMapper.listByIds(scopeRequirementIds).stream()
+                .collect(Collectors.toMap(Requirement::getId, item -> item, (left, right) -> left));
+        List<Requirement> scoped = new ArrayList<>(scopeRequirementIds.size());
+        for (UUID id : scopeRequirementIds) {
+            Requirement item = found.get(id);
+            if (item == null || !projectId.equals(item.getProjectId())) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+            }
+            scoped.add(item);
+        }
+        return List.copyOf(scoped);
     }
 
     // ---------- 提示词上下文（纯计算，静态） ----------

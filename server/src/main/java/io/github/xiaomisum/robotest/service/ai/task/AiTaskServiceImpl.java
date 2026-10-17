@@ -107,7 +107,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!settingsReader.settings().enabled()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED);
         }
-        // 系统触发（影响分析等）无登录态：跳过权限校验，类型 / 输入 / 模型校验照常
+        // 系统触发（需求导入 / 助手解析等）无登录态：跳过权限校验，类型 / 输入 / 模型校验照常
         return createTask(type, input, 0, submittedBy, projectId, workspaceId, null);
     }
 
@@ -410,7 +410,7 @@ public class AiTaskServiceImpl implements AiTaskService {
     /**
      * 起跑装配（详设 4.2）：直接调用覆盖「无事务」与「afterCommit 回调内」（行已提交）两类场景，
      * 注册兜底覆盖「活动事务内」场景（提交后触发）；执行器 casStart 条件写保证至多一次起跑，
-     * 重复触发无副作用——嵌套 afterCommit（如影响分析链路）中注册的新同步不会被触发，故必须双保险。
+     * 重复触发无副作用——嵌套 afterCommit（如需求导入链路）中注册的新同步不会被触发，故必须双保险。
      */
     private void startTask(UUID taskId) {
         taskExecutor.start(taskId);

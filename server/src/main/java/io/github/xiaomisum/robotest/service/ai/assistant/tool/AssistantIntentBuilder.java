@@ -29,14 +29,14 @@ public class AssistantIntentBuilder {
     private static final Set<String> INTENT_KINDS = Set.copyOf(AssistantToolRegistry.CHANGE_KINDS);
 
     private static final Map<String, String> TARGET_TYPE_BY_KIND = Map.ofEntries(
-            Map.entry("create_case", Constants.TraceNodeType.TEST_CASE),
-            Map.entry("update_case", Constants.TraceNodeType.TEST_CASE),
-            Map.entry("complete_case", Constants.TraceNodeType.TEST_CASE),
-            Map.entry("batch_tag", Constants.TraceNodeType.TEST_CASE),
-            Map.entry("create_review", Constants.TraceNodeType.TEST_REVIEW),
-            Map.entry("adjust_review", Constants.TraceNodeType.TEST_REVIEW),
-            Map.entry("create_plan", Constants.TraceNodeType.TEST_PLAN),
-            Map.entry("adjust_plan", Constants.TraceNodeType.TEST_PLAN));
+            Map.entry("create_case", Constants.EntityType.TEST_CASE),
+            Map.entry("update_case", Constants.EntityType.TEST_CASE),
+            Map.entry("complete_case", Constants.EntityType.TEST_CASE),
+            Map.entry("batch_tag", Constants.EntityType.TEST_CASE),
+            Map.entry("create_review", Constants.EntityType.TEST_REVIEW),
+            Map.entry("adjust_review", Constants.EntityType.TEST_REVIEW),
+            Map.entry("create_plan", Constants.EntityType.TEST_PLAN),
+            Map.entry("adjust_plan", Constants.EntityType.TEST_PLAN));
 
     private static final int CASE_IDS_MAX = 200;
     private static final int CHANGES_MAX = 30;

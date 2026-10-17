@@ -33,7 +33,6 @@ import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
-import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotService;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotServiceImpl;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewWorkflow;
@@ -92,8 +91,6 @@ class TestReviewServiceImplTest {
         private ProjectAccessGuard projectAccessGuard;
         @Mock
         private ProjectActivityService projectActivityService;
-        @Mock
-        private TraceEdgeWriter traceEdgeWriter;
 
         @Spy
         private ReviewWorkflow reviewWorkflow = new ReviewWorkflowImpl();

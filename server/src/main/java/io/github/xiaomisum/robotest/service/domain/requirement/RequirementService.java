@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDe
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.trace.TraceChainRespDTO;
 import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -27,7 +26,7 @@ public interface RequirementService {
 
     RequirementDetailRespDTO create(UUID projectId, UUID userId, RequirementCreateReqDTO reqDTO);
 
-    /** 部分更新（C11）：仅更新传入字段；confirmed 态改题/描述/模块自动转 changed 并触发影响分析（4.4） */
+    /** 部分更新（C11）：仅更新传入字段；confirmed 态改题/描述/模块自动转 changed（4.4） */
     RequirementDetailRespDTO update(UUID id, UUID projectId, UUID userId, RequirementUpdateReqDTO reqDTO);
 
     /** 确认：仅 draft / changed 可确认（3.6） */
@@ -47,10 +46,4 @@ public interface RequirementService {
     /** 项目内拆解记录列表（3.11） */
     PageResult<RequirementSplitRecordRespDTO> getSplitRecords(UUID projectId, String status, String sourceType,
             PageParam pageParam);
-
-    /**
-     * 追溯委托（3.12）：以需求为链路起点读取追溯链；矩阵服务调用失败返回 1000018014，
-     * 不降级为空链路；空链路按 nodes = [] 正常返回。
-     */
-    TraceChainRespDTO getTrace(UUID id, UUID projectId, String direction);
 }

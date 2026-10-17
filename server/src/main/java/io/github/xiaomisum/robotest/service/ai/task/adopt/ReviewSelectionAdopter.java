@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 评审圈选建议承接（生成链详设 3.5）：委托既有 createReview 流程落库，
- * 快照与 case_snapshot 追溯边由创建流程内建。
+ * 评审快照由创建流程内建。
  */
 @Service
 public class ReviewSelectionAdopter implements ArtifactAdopter {

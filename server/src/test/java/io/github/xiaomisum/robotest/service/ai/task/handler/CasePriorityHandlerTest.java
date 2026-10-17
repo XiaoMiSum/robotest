@@ -103,7 +103,7 @@ class CasePriorityHandlerTest {
     void execute_keepsCurrentPriority_whenSuggestedMissingOrIllegal() {
         TestCaseNode node = caseNode("验证码重发", "P1");
         when(assistSupport.resolve(any(), any(), any())).thenReturn(resolved(node, (UUID) null));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of());
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of());
         stubExecution("{\"artifacts\":[{\"content\":{\"nodeId\":\"" + node.getId()
                 + "\",\"suggested\":\"critical\",\"reason\":\"越界值应回退\"}}]}");
 
@@ -128,7 +128,7 @@ class CasePriorityHandlerTest {
         TestCaseNode known = caseNode("验证码重发", "P2");
         TestCaseNode unknown = caseNode("弱网切换", "P9");
         when(assistSupport.resolve(any(), any(), any())).thenReturn(resolved(known, unknown));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of());
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of());
         stubExecution("{\"artifacts\":[{\"content\":{\"nodeId\":\"" + known.getId()
                 + "\",\"suggested\":\"high\",\"reason\":\"主流程\"}}]}");
 
@@ -149,7 +149,7 @@ class CasePriorityHandlerTest {
     void execute_bugContextCountedPerModuleWindow() {
         TestCaseNode node = caseNode("验证码重发", "P1");
         when(assistSupport.resolve(any(), any(), any())).thenReturn(resolved(node, MODULE_ID));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of());
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of());
         when(bugMapper.findForAnalysis(eq(PROJECT_ID), any(), any())).thenReturn(List.of(
                 bug("验证码偶发失效", MODULE_ID, LocalDateTime.now().minusDays(1)),
                 bug("其他模块缺陷", UUID.randomUUID(), LocalDateTime.now().minusDays(1)),
@@ -170,7 +170,7 @@ class CasePriorityHandlerTest {
     void execute_modulelessDocumentOffersEmptyBugContext() {
         TestCaseNode node = caseNode("验证码重发", "P1");
         when(assistSupport.resolve(any(), any(), any())).thenReturn(resolved(node, (UUID) null));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of());
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of());
         stubExecution("{\"artifacts\":[{\"content\":{\"nodeId\":\"" + node.getId() + "\"}}]}");
 
         handler.execute(context);
@@ -183,7 +183,7 @@ class CasePriorityHandlerTest {
     void execute_modelMissesEverySelectedNode_failsWith117() {
         when(assistSupport.resolve(any(), any(), any()))
                 .thenReturn(resolved(caseNode("登录", "P1"), (UUID) null));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of());
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of());
         stubExecution("{\"artifacts\":[{\"content\":{\"nodeId\":\"" + UUID.randomUUID() + "\"}}]}");
 
         ServiceException exception = assertThrows(ServiceException.class,

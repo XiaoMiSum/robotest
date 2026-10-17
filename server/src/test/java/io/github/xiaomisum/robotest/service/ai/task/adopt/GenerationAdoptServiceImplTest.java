@@ -18,7 +18,6 @@ import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.ProjectModuleService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseDocumentService;
-import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,10 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -49,8 +45,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 生成链产物采纳单测（C8）：权限、三类产物落库、疑似重复与父级未采纳防线、
- * 派生边与 editedDiff。
+ * 生成链产物采纳单测（C8）：权限、三类产物落库、疑似重复与父级未采纳防线与 editedDiff。
  */
 @ExtendWith(MockitoExtension.class)
 class GenerationAdoptServiceImplTest {
@@ -72,8 +67,6 @@ class GenerationAdoptServiceImplTest {
     private ProjectModuleService projectModuleService;
     @Mock
     private TestCaseDocumentService testCaseDocumentService;
-    @Mock
-    private TraceEdgeWriter traceEdgeWriter;
     @Mock
     private VectorIndexService vectorIndexService;
 
@@ -99,7 +92,6 @@ class GenerationAdoptServiceImplTest {
         AdoptOutcome outcome = adopter.adopt(context(moduleArtifact(), "rejected", null));
 
         assertNull(outcome);
-        verify(traceEdgeWriter, never()).writeAiDerivationEdges(any(), anyCollection(), anyString(), any(), anyString());
     }
 
     @Test
@@ -126,7 +118,7 @@ class GenerationAdoptServiceImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void adoptModule_createsModuleAndWritesEdges() {
+    void adoptModule_createsModule() {
         ProjectModuleTreeRespDTO created = new ProjectModuleTreeRespDTO();
         created.setId(TARGET_MODULE_ID);
         when(projectModuleService.createModule(eq(PROJECT_ID), eq(OPERATOR_ID), any()))
@@ -142,8 +134,6 @@ class GenerationAdoptServiceImplTest {
         verify(projectModuleService).createModule(eq(PROJECT_ID), eq(OPERATOR_ID), captor.capture());
         assertEquals("登录", captor.getValue().getName());
         assertNull(captor.getValue().getParentId());
-        verify(traceEdgeWriter).writeAiDerivationEdges(eq(PROJECT_ID),
-                eq(List.of(REQUIREMENT_ID)), eq("module"), eq(TARGET_MODULE_ID), isNull());
     }
 
     @Test
@@ -189,8 +179,6 @@ class GenerationAdoptServiceImplTest {
 
         assertEquals(DOCUMENT_ID, outcome.createdId());
         assertEquals(String.valueOf(DOCUMENT_ID), outcome.adoptedRef().get("documentId"));
-        verify(traceEdgeWriter).writeAiDerivationEdges(eq(PROJECT_ID),
-                eq(List.of(REQUIREMENT_ID)), eq("mindmap_document"), eq(DOCUMENT_ID), isNull());
     }
 
     @Test
@@ -206,7 +194,7 @@ class GenerationAdoptServiceImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void adoptCaseNode_insertsChildrenAndWritesCaseEdge() {
+    void adoptCaseNode_insertsChildren() {
         stubDocumentAdopted();
         TestCaseNode root = new TestCaseNode();
         root.setId(UUID.randomUUID());
@@ -234,8 +222,6 @@ class GenerationAdoptServiceImplTest {
                 .filter(key -> "caseId".equals(key)).findFirst().orElse(null));
         assertEquals(outcome.createdId(), outcome.adoptedRef().get("nodeId") == null ? null
                 : UUID.fromString(String.valueOf(outcome.adoptedRef().get("nodeId"))));
-        verify(traceEdgeWriter).writeAiDerivationEdges(eq(PROJECT_ID),
-                eq(List.of(REQUIREMENT_ID)), eq("test_case"), eq(outcome.createdId()), eq("v1"));
         verify(vectorIndexService).upsertTestCase(DOCUMENT_ID, OPERATOR_ID);
     }
 

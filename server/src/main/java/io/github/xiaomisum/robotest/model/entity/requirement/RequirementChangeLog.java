@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 需求变更记录（详设 2.3）：change_type 只有 title / description / module 触发影响标记，
+ * 需求变更记录（详设 2.3）：change_type 只有 title / description / module 触发状态流转为 changed，
  * attribute / status 供"哪类变更触发了什么"的回查。
  */
 @Data

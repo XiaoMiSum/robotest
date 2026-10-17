@@ -57,7 +57,7 @@ class AssistantRefCheckerTest {
     @Test
     void workspaceOf_returnsNull_whenTypeOrIdAbsent() {
         assertNull(checker.workspaceOf(null, NODE_ID));
-        assertNull(checker.workspaceOf(Constants.TraceNodeType.TEST_CASE, null));
+        assertNull(checker.workspaceOf(Constants.EntityType.TEST_CASE, null));
     }
 
     @Test
@@ -69,7 +69,7 @@ class AssistantRefCheckerTest {
         project.setWorkspaceId(WORKSPACE_ID);
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
 
-        assertEquals(WORKSPACE_ID, checker.workspaceOf(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID));
+        assertEquals(WORKSPACE_ID, checker.workspaceOf(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID));
 
         verifyNoInteractions(testCaseNodeMapper, testCaseDocumentMapper);
     }
@@ -86,7 +86,7 @@ class AssistantRefCheckerTest {
         project.setWorkspaceId(WORKSPACE_ID);
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(project);
 
-        assertEquals(WORKSPACE_ID, checker.workspaceOf(Constants.TraceNodeType.TEST_CASE, NODE_ID));
+        assertEquals(WORKSPACE_ID, checker.workspaceOf(Constants.EntityType.TEST_CASE, NODE_ID));
 
         verifyNoInteractions(requirementMapper);
     }
@@ -94,10 +94,10 @@ class AssistantRefCheckerTest {
     @Test
     void workspaceOf_returnsNull_whenReferenceChainBroken() {
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(null);
-        assertNull(checker.workspaceOf(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID));
+        assertNull(checker.workspaceOf(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID));
 
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(new Requirement());
-        assertNull(checker.workspaceOf(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID));
+        assertNull(checker.workspaceOf(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID));
 
         // 未覆盖的类型不臆测归属，交由调用方按“无法判定可见”处理
         assertNull(checker.workspaceOf("unknown_type", NODE_ID));
@@ -106,7 +106,7 @@ class AssistantRefCheckerTest {
     @Test
     void requireUserVisible_throwsWithoutWorkspace() {
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> checker.requireUserVisible(Constants.TraceNodeType.MINDMAP_DOCUMENT, NODE_ID, USER_ID));
+                () -> checker.requireUserVisible(Constants.EntityType.MINDMAP_DOCUMENT, NODE_ID, USER_ID));
 
         assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), exception.getCode());
         verifyNoInteractions(workspaceUserMapper);
@@ -119,7 +119,7 @@ class AssistantRefCheckerTest {
         when(workspaceUserMapper.existsByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(false);
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> checker.requireUserVisible(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID, USER_ID));
+                () -> checker.requireUserVisible(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID, USER_ID));
 
         assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), exception.getCode());
     }
@@ -130,7 +130,7 @@ class AssistantRefCheckerTest {
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(projectOfWorkspace());
         when(workspaceUserMapper.existsByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID)).thenReturn(true);
 
-        checker.requireUserVisible(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID, USER_ID);
+        checker.requireUserVisible(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID, USER_ID);
 
         verify(workspaceUserMapper).existsByWorkspaceIdAndUserId(WORKSPACE_ID, USER_ID);
     }
@@ -140,20 +140,20 @@ class AssistantRefCheckerTest {
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(requirementOfProject());
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(projectOfWorkspace());
 
-        checker.requireInActiveWorkspace(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID, WORKSPACE_ID);
+        checker.requireInActiveWorkspace(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID, WORKSPACE_ID);
     }
 
     @Test
     void requireInActiveWorkspace_rejectsMissingOrForeign() {
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(null);
         ServiceException missing = assertThrows(ServiceException.class, () -> checker
-                .requireInActiveWorkspace(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID, WORKSPACE_ID));
+                .requireInActiveWorkspace(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID, WORKSPACE_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), missing.getCode());
 
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(requirementOfProject());
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(projectOfWorkspace());
         ServiceException foreign = assertThrows(ServiceException.class, () -> checker
-                .requireInActiveWorkspace(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID,
+                .requireInActiveWorkspace(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID,
                         UUID.randomUUID()));
         assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), foreign.getCode());
     }
@@ -179,16 +179,16 @@ class AssistantRefCheckerTest {
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(requirementOfProject());
         when(projectMapper.selectById(PROJECT_ID)).thenReturn(projectOfWorkspace());
 
-        checker.requireActiveWorkspaceRef(WORKSPACE_ID, Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID);
+        checker.requireActiveWorkspaceRef(WORKSPACE_ID, Constants.EntityType.REQUIREMENT, REQUIREMENT_ID);
 
         ServiceException foreign = assertThrows(ServiceException.class, () -> checker
-                .requireActiveWorkspaceRef(UUID.randomUUID(), Constants.TraceNodeType.REQUIREMENT,
+                .requireActiveWorkspaceRef(UUID.randomUUID(), Constants.EntityType.REQUIREMENT,
                         REQUIREMENT_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), foreign.getCode());
 
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(null);
         ServiceException missing = assertThrows(ServiceException.class, () -> checker
-                .requireActiveWorkspaceRef(WORKSPACE_ID, Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID));
+                .requireActiveWorkspaceRef(WORKSPACE_ID, Constants.EntityType.REQUIREMENT, REQUIREMENT_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), missing.getCode());
     }
 
@@ -247,15 +247,15 @@ class AssistantRefCheckerTest {
         requirement.setCode("REQ-001");
         requirement.setTitle("登录");
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(requirement);
-        assertEquals("REQ-001", checker.titleOf(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID));
+        assertEquals("REQ-001", checker.titleOf(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID));
 
         Requirement noCode = requirementOfProject();
         noCode.setTitle("登录");
         when(requirementMapper.selectById(REQUIREMENT_ID)).thenReturn(noCode);
-        assertEquals("登录", checker.titleOf(Constants.TraceNodeType.REQUIREMENT, REQUIREMENT_ID));
+        assertEquals("登录", checker.titleOf(Constants.EntityType.REQUIREMENT, REQUIREMENT_ID));
 
         when(testCaseNodeMapper.selectById(NODE_ID)).thenReturn(caseNode());
-        assertEquals("验证码正确可登录", checker.titleOf(Constants.TraceNodeType.TEST_CASE, NODE_ID));
+        assertEquals("验证码正确可登录", checker.titleOf(Constants.EntityType.TEST_CASE, NODE_ID));
 
         assertNull(checker.titleOf("unknown_type", NODE_ID));
         assertNull(checker.titleOf(null, NODE_ID));

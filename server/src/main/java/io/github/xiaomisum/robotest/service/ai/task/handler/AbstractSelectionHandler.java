@@ -1,18 +1,15 @@
 package io.github.xiaomisum.robotest.service.ai.task.handler;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
@@ -63,8 +60,6 @@ abstract class AbstractSelectionHandler implements TaskHandler {
     private TestCaseDocumentMapper testCaseDocumentMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
-    @Resource
-    private TraceEdgeMapper traceEdgeMapper;
 
     /** 轮次入参规则：评审禁止传入 roundCount（1000018206），计划必传且 ∈ [1,10] */
     protected abstract Integer parseRoundCount(Map<String, Object> input);
@@ -211,12 +206,20 @@ abstract class AbstractSelectionHandler implements TaskHandler {
                 .toList();
         List<String> moduleNames = new ArrayList<>();
 
+        // 范围并集：显式模块 + 需求所属模块（追溯边已取消，需求范围改经模块归属落到文档用例）
+        Set<UUID> scopeModuleIds = new LinkedHashSet<>(moduleIds);
+        requirements.forEach(item -> {
+            if (item.getModuleId() != null) {
+                scopeModuleIds.add(item.getModuleId());
+            }
+        });
+
         // 模块范围：所选模块及其子模块下的文档用例
         List<ProjectModule> projectModules = projectModuleMapper.listByProjectId(projectId);
-        if (!moduleIds.isEmpty()) {
+        if (!scopeModuleIds.isEmpty()) {
             Map<UUID, ProjectModule> moduleById = projectModules.stream()
                     .collect(Collectors.toMap(ProjectModule::getId, item -> item, (left, right) -> left));
-            Set<UUID> moduleScope = expandWithDescendants(moduleIds, moduleById);
+            Set<UUID> moduleScope = expandWithDescendants(new ArrayList<>(scopeModuleIds), moduleById);
             moduleById.values().stream()
                     .filter(module -> moduleScope.contains(module.getId()) && module.getName() != null)
                     .forEach(module -> moduleNames.add(module.getName()));
@@ -227,22 +230,6 @@ abstract class AbstractSelectionHandler implements TaskHandler {
             for (TestCaseNode node : testCaseNodeMapper.listCasesByDocumentIds(scopedDocumentIds)) {
                 nodes.put(node.getId(), node);
                 documentIds.add(node.getDocumentId());
-            }
-        }
-
-        // 需求范围：需求 → 有效 derivation 边 → 既有用例（detached 不参与）
-        if (!requirementIds.isEmpty()) {
-            List<TraceEdge> edges = traceEdgeMapper.listActiveBySource(
-                    Constants.TraceNodeType.REQUIREMENT, requirementIds);
-            Set<UUID> linkedCaseIds = edges.stream()
-                    .filter(edge -> Constants.TraceNodeType.TEST_CASE.equals(edge.getTargetType()))
-                    .map(TraceEdge::getTargetId)
-                    .collect(Collectors.toSet());
-            for (TestCaseNode node : testCaseNodeMapper.listByIds(linkedCaseIds)) {
-                if (Constants.NodeType.CASE.equals(node.getType())) {
-                    nodes.put(node.getId(), node);
-                    documentIds.add(node.getDocumentId());
-                }
             }
         }
 
