@@ -76,7 +76,9 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
     public ApiGitRepoRespDTO createRepo(UUID projectId, UUID workspaceId, UUID userId,
             ApiGitRepoCreateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
-        requireRepoPathFormat(reqDTO.getRepoPath());
+        // 校验、实测与落库共用同一个规范化值，避免入库路径与探测路径不一致
+        String repoPath = normalizeRepoPath(reqDTO.getRepoPath());
+        requireRepoPathFormat(repoPath);
         if (!IMPORT_MODES.contains(reqDTO.getImportMode())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_REPO_IMMUTABLE_FIELD.code(),
                     "接入方式取值仅 platform / gitlab_ci");
@@ -87,13 +89,13 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
         requireToken(reqDTO.getToken());
         // 保存强制实测：先探测后落库，失败不产生半成品配置（详设 3.1）
         gitLabApiClient.probe(reqDTO.getGitlabBaseUrl(), reqDTO.getToken(),
-                reqDTO.getRepoPath(), defaultBranch(reqDTO.getDefaultBranch()));
+                repoPath, defaultBranch(reqDTO.getDefaultBranch()));
 
         ApiGitRepo row = new ApiGitRepo();
         row.setProjectId(projectId);
         row.setName(reqDTO.getName());
         row.setGitlabBaseUrl(reqDTO.getGitlabBaseUrl());
-        row.setRepoPath(reqDTO.getRepoPath());
+        row.setRepoPath(repoPath);
         row.setDefaultBranch(defaultBranch(reqDTO.getDefaultBranch()));
         row.setImportMode(reqDTO.getImportMode());
         row.setTokenCipher(encrypt(reqDTO.getToken()));
@@ -169,7 +171,8 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
         ApiGitRepo stored = gitRepoMapper.selectByProject(projectId);
         String gitlabBaseUrl = firstNonBlank(reqDTO.getGitlabBaseUrl(),
                 stored == null ? null : stored.getGitlabBaseUrl());
-        String repoPath = firstNonBlank(reqDTO.getRepoPath(), stored == null ? null : stored.getRepoPath());
+        String repoPath = normalizeRepoPath(firstNonBlank(reqDTO.getRepoPath(),
+                stored == null ? null : stored.getRepoPath()));
         String branch = firstNonBlank(reqDTO.getDefaultBranch(),
                 stored == null ? null : stored.getDefaultBranch());
         String token = firstNonBlank(reqDTO.getToken(), stored == null ? null : decrypt(stored));
@@ -207,6 +210,21 @@ public class ApiGitRepoServiceImpl implements ApiGitRepoService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_REPO_NOT_FOUND.code(),
                     "项目路径形如 group/subgroup/repo，不含 .git 后缀与 http(s):// 前缀");
         }
+    }
+
+    /**
+     * 去除首尾空白与首尾 `/`：带前导 `/` 的项目路径编码为 {@code %2F...} 后会被 GitLab 判为不存在，
+     * 用户侧看到的是「项目路径不存在或令牌无访问权限」的误导性报错（详设 3.1）。
+     */
+    private static String normalizeRepoPath(String repoPath) {
+        String normalized = repoPath == null ? "" : repoPath.trim();
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 
     private void requireToken(String token) {

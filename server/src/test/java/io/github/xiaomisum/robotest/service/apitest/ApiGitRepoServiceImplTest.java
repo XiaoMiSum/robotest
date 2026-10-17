@@ -188,6 +188,32 @@ class ApiGitRepoServiceImplTest {
     }
 
     @Test
+    void createNormalizesLeadingAndTrailingSlashes() {
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(null);
+        ApiGitRepoCreateReqDTO req = createReq();
+        req.setRepoPath(" /qa/order-api-tests/ ");
+
+        service.createRepo(PROJECT_ID, WORKSPACE_ID, USER_ID, req);
+
+        verify(gitLabApiClient).probe("https://gitlab.example.com", "glpat-xxxx", "qa/order-api-tests", "master");
+        ArgumentCaptor<ApiGitRepo> captor = ArgumentCaptor.forClass(ApiGitRepo.class);
+        verify(gitRepoMapper).insert(captor.capture());
+        assertEquals("qa/order-api-tests", captor.getValue().getRepoPath());
+    }
+
+    @Test
+    void createRejectsRepoPathMadeOfSlashesOnly() {
+        ApiGitRepoCreateReqDTO req = createReq();
+        req.setRepoPath("///");
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.createRepo(PROJECT_ID, WORKSPACE_ID, USER_ID, req));
+
+        assertEquals(ErrorCodeConstants.API_GIT_REPO_NOT_FOUND.code(), ex.getCode());
+        verify(gitLabApiClient, never()).probe(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
     void createRejectsUnknownImportMode() {
         ApiGitRepoCreateReqDTO req = createReq();
         req.setImportMode("webhook");
@@ -388,6 +414,17 @@ class ApiGitRepoServiceImplTest {
         service.testConnection(PROJECT_ID, WORKSPACE_ID, USER_ID, req);
 
         verify(gitLabApiClient).probe("https://gitlab.example.com", "glpat-xxxx", "qa/another-repo", "develop");
+    }
+
+    @Test
+    void testConnectionNormalizesRepoPathFromBody() {
+        when(gitRepoMapper.selectByProject(PROJECT_ID)).thenReturn(storedRepo());
+        ApiGitRepoConnectionTestReqDTO req = new ApiGitRepoConnectionTestReqDTO();
+        req.setRepoPath("/qa/another-repo/");
+
+        service.testConnection(PROJECT_ID, WORKSPACE_ID, USER_ID, req);
+
+        verify(gitLabApiClient).probe("https://gitlab.example.com", "glpat-xxxx", "qa/another-repo", "master");
     }
 
     @Test
