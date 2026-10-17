@@ -14,7 +14,6 @@ const emit = defineEmits<{
   (e: 'insertBefore', index: number): void
 }>()
 
-const expandedIds = ref<Set<string>>(new Set())
 const dragIndex = ref<number | null>(null)
 
 /** 步骤首行标签：HTTP 显示方法，JDBC 显示 SQL 语句类型 */
@@ -24,11 +23,6 @@ function stepTag(step: ApiSceneStepItem): { text: string; type: 'success' | 'pri
   const sql = stepSqlType(step)
   if (sql) return { text: sql, type: 'primary' }
   return null
-}
-
-function toggleExpand(id: string) {
-  if (expandedIds.value.has(id)) expandedIds.value.delete(id)
-  else expandedIds.value.add(id)
 }
 
 function onDragStart(index: number, e: DragEvent) {
@@ -80,29 +74,43 @@ function moveDown(index: number) {
 
         <div
           class="step-canvas__card"
-          :class="{ 'is-disabled': !step.enabled, 'is-missing': step.sourceMissing, 'is-expanded': expandedIds.has(step.id), 'is-selected': step.id === props.selectedId }"
+          :class="{ 'is-disabled': !step.enabled, 'is-missing': step.sourceMissing, 'is-selected': step.id === props.selectedId }"
           draggable="true"
           data-test="step-card"
+          @click="emit('edit', step)"
           @dragstart="(e: DragEvent) => onDragStart(index, e)"
           @dragover.prevent="(e: DragEvent) => onDragOver(index, e)"
           @drop="() => onDrop(index)"
         >
           <div class="step-canvas__card-header">
-            <el-icon class="step-canvas__drag-handle" title="拖拽排序"><Rank /></el-icon>
+            <!-- 拖拽手柄不触发选中：其余区域点击均展开右侧明细（交互 10 §1.2） -->
+            <el-icon class="step-canvas__drag-handle" title="拖拽排序" @click.stop><Rank /></el-icon>
             <span class="step-canvas__index">{{ index + 1 }}</span>
             <el-tag v-if="step.stepType" size="small" type="info">{{ step.stepType.toUpperCase() }}</el-tag>
             <el-tag v-if="stepTag(step)" size="small" :type="stepTag(step)!.type">{{ stepTag(step)!.text }}</el-tag>
             <el-tag v-if="step.sourceInterfaceName" size="small" type="warning" class="step-canvas__source-tag">
               {{ step.sourceInterfaceName }}
             </el-tag>
+            <el-tag v-if="step.validators?.length" size="small" type="success" class="step-canvas__count-tag">
+              验证器 {{ step.validators.length }}
+            </el-tag>
+            <el-tag v-if="step.extractors?.length" size="small" type="primary" class="step-canvas__count-tag">
+              提取器 {{ step.extractors.length }}
+            </el-tag>
             <span v-if="step.sourceMissing" class="step-canvas__missing-badge">源已删除</span>
             <div class="step-canvas__header-spacer" />
-            <el-button v-if="step.sourceType === 'link'" link size="small" class="step-canvas__expand-btn" @click.stop="toggleExpand(step.id)">
-              <el-icon><ArrowDown v-if="!expandedIds.has(step.id)" /><ArrowUp v-else /></el-icon>
-            </el-button>
-            <el-switch :model-value="step.enabled" size="small" @change="() => emit('toggle', step)" @click.stop />
+            <el-checkbox
+              :model-value="step.enabled"
+              size="small"
+              class="step-canvas__enabled"
+              @change="() => emit('toggle', step)"
+              @click.stop
+            >启用</el-checkbox>
             <el-dropdown trigger="click" @click.stop>
-              <el-button link size="small">操作</el-button>
+              <el-button link size="small" type="primary" @click.stop>
+                操作
+                <el-icon class="step-canvas__caret"><ArrowDown /></el-icon>
+              </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="emit('edit', step)">编辑</el-dropdown-item>
@@ -116,22 +124,10 @@ function moveDown(index: number) {
             </el-dropdown>
           </div>
 
-          <div class="step-canvas__card-body" @click="emit('edit', step)">
+          <div class="step-canvas__card-body">
             <div class="step-canvas__card-name">{{ step.name }}</div>
           </div>
 
-          <!-- 展开详情（链接引用的源已删除时显示快照信息） -->
-          <div v-if="expandedIds.has(step.id)" class="step-canvas__expanded-detail">
-            <div v-if="step.sourceMissing" class="step-canvas__snapshot-hint">
-              <el-icon><WarningFilled /></el-icon> 源已删除，使用创建时的快照执行
-            </div>
-            <div v-if="step.validators?.length" class="step-canvas__detail-item">
-              验证器：{{ step.validators.length }} 条
-            </div>
-            <div v-if="step.extractors?.length" class="step-canvas__detail-item">
-              提取器：{{ step.extractors.length }} 条
-            </div>
-          </div>
         </div>
       </template>
 
@@ -177,13 +173,13 @@ function moveDown(index: number) {
   display: flex;
   flex-direction: column;
   gap: 0;
-  height: 88px;
+  // 定高改最小高度：验证器 / 提取器 tag 与展开详情不再被裁掉
+  min-height: 88px;
   padding: var(--space-md);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
-  cursor: default;
-  overflow: hidden;
+  cursor: pointer;
 
   &:hover {
     border-color: var(--color-primary-300);
@@ -206,9 +202,11 @@ function moveDown(index: number) {
   }
 }
 
+// 头部 tag 较多（类型 / 方法 / 来源 / 验证器 / 提取器）时折行，配合卡片自适应高度
 .step-canvas__card-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-xs);
 }
 
@@ -239,10 +237,6 @@ function moveDown(index: number) {
   flex: 1;
 }
 
-.step-canvas__expand-btn {
-  color: var(--color-neutral-400);
-}
-
 .step-canvas__source-tag {
   max-width: 120px;
   overflow: hidden;
@@ -257,7 +251,26 @@ function moveDown(index: number) {
 
 .step-canvas__card-body {
   padding: var(--space-xs) 0 0 0;
-  cursor: pointer;
+}
+
+// 启用改为复选框（原开关文字在窄列里竖排折行）
+.step-canvas__enabled {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+// 「操作」后的下拉箭头：提示其为下拉菜单入口
+.step-canvas__caret {
+  margin-left: 2px;
+  font-size: 12px;
+}
+
+// 验证器 / 提取器计数常驻头部（交互 10 §1.2）
+.step-canvas__count-tag {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .step-canvas__card-name {
@@ -268,25 +281,5 @@ function moveDown(index: number) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.step-canvas__expanded-detail {
-  margin-top: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--el-border-color-lighter);
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
-}
-
-.step-canvas__snapshot-hint {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--color-warning-strong);
-  margin-bottom: var(--space-xs);
-}
-
-.step-canvas__detail-item {
-  margin-top: 2px;
 }
 </style>

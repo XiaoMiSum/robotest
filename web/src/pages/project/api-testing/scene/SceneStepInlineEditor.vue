@@ -277,9 +277,9 @@ watch(
   <div class="step-inline" data-test="step-inline-editor">
     <header v-loading="environmentLoading" class="step-inline__head">
       <el-input v-model="formName" placeholder="步骤名称" class="step-inline__name" data-test="step-name" />
-      <el-switch v-model="formEnabled" active-text="启用" />
+      <el-checkbox v-model="formEnabled" class="step-inline__enabled" data-test="step-enabled">启用</el-checkbox>
       <el-divider direction="vertical" />
-      <el-radio-group v-model="formStepType" size="small">
+      <el-radio-group v-model="formStepType" size="small" class="step-inline__type">
         <el-radio-button v-for="opt in STEP_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
           {{ opt.label }}
         </el-radio-button>
@@ -421,8 +421,19 @@ watch(
   }
 
   &__name {
-    flex: 1;
-    max-width: 320px;
+    flex: 1 1 240px;
+    min-width: 100px;
+    max-width: 420px;
+  }
+
+  // 启用复选框与类型选择、引用下拉同排不被挤压（明细面板宽度有限）
+  &__enabled {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  &__type {
+    flex-shrink: 0;
   }
 
   &__body {
@@ -446,10 +457,10 @@ watch(
     gap: var(--space-sm);
   }
 
-  // tabs 统一 http/jdbc 分区结构；收窄默认间距，内容区零内边距
+  // tabs 统一 http/jdbc 分区结构；内容区零内边距，header 下划线与内容之间留出间距
   &__tabs {
     :deep(.el-tabs__header) {
-      margin-bottom: var(--space-sm);
+      margin-bottom: var(--space-md);
     }
 
     :deep(.el-tabs__content) {
@@ -459,7 +470,7 @@ watch(
 
   // 环境引用选择器：置于头部类型选择右侧水平对齐，定宽不收缩（标签过长溢出省略）
   &__ref-select {
-    width: 240px;
+    width: 180px;
     flex-shrink: 0;
   }
 

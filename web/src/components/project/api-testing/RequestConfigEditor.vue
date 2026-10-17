@@ -247,8 +247,9 @@ function formatJsonBody() {
 }
 
 .req-config-editor__tabs {
+  // header 下划线与表格头部之间留白，避免两条横线贴在一起
   :deep(.el-tabs__header) {
-    margin: 0;
+    margin: 0 0 var(--space-md);
   }
 }
 
