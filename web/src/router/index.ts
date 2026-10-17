@@ -296,19 +296,18 @@ const routes: RouteRecordRaw[] = [
         }),
       },
       {
-        // 需求管理壳层：页内侧栏承载需求列表与追溯矩阵两个子页（交互 06 §1）
+        // 需求管理壳层：页内侧栏承载需求子页（交互 06 §1）
         path: 'workspace/projects/requirements',
         name: 'RequirementShell',
         component: () => import('@/pages/project/requirement/RequirementShellPage.vue'),
         meta: {
           title: '需求管理',
           mode: 'project',
-          // 链路上游置顶首位；追溯子页并入后，入口对 requirement / trace 两域 view 任一开放
           menu: {
             label: '需求管理',
             icon: 'Tickets',
             order: 5,
-            permissionAny: ['requirement:view', 'trace:view'],
+            permissionAny: ['requirement:view'],
           },
         },
       },
@@ -320,26 +319,10 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '新建需求', mode: 'project' },
       },
       {
-        // 不入菜单：由矩阵、缺口、需求详情等入口下钻，以路由参数承载链路起点（交互 04 §2.2）
-        path: 'workspace/projects/requirements/trace/:nodeType/:nodeId',
-        name: 'TraceChain',
-        component: () => import('@/pages/project/trace/TraceChainPage.vue'),
-        meta: { title: '链路明细', mode: 'project' },
-      },
-      {
         path: 'workspace/projects/requirements/:requirementId',
         name: 'RequirementDetail',
         component: () => import('@/pages/project/requirement/RequirementDetailPage.vue'),
         meta: { title: '需求详情', mode: 'project' },
-      },
-      {
-        // 追溯矩阵已并入需求管理页内侧栏，不再占顶栏；保留旧路径重定向，既有深链与查询参数不丢（详设 05 §5.1）
-        path: 'workspace/projects/trace',
-        name: 'TraceMatrix',
-        redirect: (to) => ({
-          path: '/workspace/projects/requirements',
-          query: { ...to.query, tab: 'trace' },
-        }),
       },
       {
         // 任务中心不占顶部菜单，由各能力页任务入口下钻（交互 07 §1）

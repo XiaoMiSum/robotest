@@ -47,7 +47,6 @@ function makeItem(overrides: Partial<RequirementListItem> = {}): RequirementList
     moduleName: '登录模块',
     systemVersion: 'V2.3',
     status: 'draft',
-    coverageStatus: null,
     priority: 'high',
     ownerId: 'u1',
     ownerName: '张三',
@@ -114,7 +113,6 @@ describe('useRequirementList', () => {
       await s.load()
       expect(s.rows.value).toHaveLength(1)
       expect(s.rows.value[0].statusMeta.label).toBe('草稿')
-      expect(s.rows.value[0].coverageMeta).toBeNull()
       expect(s.total.value).toBe(1)
       expect(s.hasLoaded.value).toBe(true)
       expect(s.loadError.value).toBe('')

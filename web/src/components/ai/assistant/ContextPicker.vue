@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { Check, Paperclip, Search } from '@element-plus/icons-vue'
-import { useTraceNodePicker, type TraceNodeOption } from '@/composables/project/trace/useTraceNodePicker'
-import type { AiAssistantEntityRef, TraceNodeType } from '@/types'
+import {
+  useAssistantEntityPicker,
+  type AssistantEntityOption,
+  type AssistantEntityType,
+} from '@/composables/project/ai/useAssistantEntityPicker'
+import type { AiAssistantEntityRef } from '@/types'
 
 interface PickerType {
-  type: TraceNodeType
+  type: AssistantEntityType
   label: string
 }
 
-/** 合法引用类型（详设 3.4）的可选子集：test_case 无全局列表接口，由链路树上下文提供 */
+/** 合法引用类型（详设 3.4）的可选子集：test_case 无全局列表接口，由上下文提供 */
 const PICKER_TYPES: PickerType[] = [
   { type: 'requirement', label: '需求' },
   { type: 'mindmap_document', label: '用例文档' },
@@ -31,10 +35,10 @@ const props = defineProps<{
 const emit = defineEmits<{ add: [ref: AiAssistantEntityRef] }>()
 
 const open = ref(false)
-const activeType = ref<TraceNodeType>('requirement')
+const activeType = ref<AssistantEntityType>('requirement')
 const keyword = ref('')
 const contentEl = ref<HTMLElement | null>(null)
-const { options, loading, load } = useTraceNodePicker()
+const { options, loading, load } = useAssistantEntityPicker()
 
 let keywordTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -79,13 +83,13 @@ function toggleOpen(): void {
   open.value = !open.value
 }
 
-function isSelected(option: TraceNodeOption): boolean {
+function isSelected(option: AssistantEntityOption): boolean {
   return props.selected.some(
     (item) => item.entityType === activeType.value && item.entityId === option.id,
   )
 }
 
-function pick(option: TraceNodeOption): void {
+function pick(option: AssistantEntityOption): void {
   if (!isSelected(option)) {
     emit('add', {
       entityType: activeType.value,

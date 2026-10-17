@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useRequirementShell } from '@/composables/project/requirement/useRequirementShell'
 import RequirementListPage from '@/pages/project/requirement/RequirementListPage.vue'
-import TraceMatrixPage from '@/pages/project/trace/TraceMatrixPage.vue'
 
 const { visibleItems, activeTab, handleMenuSelect } = useRequirementShell()
 </script>
@@ -23,7 +22,6 @@ const { visibleItems, activeTab, handleMenuSelect } = useRequirementShell()
 
     <main class="requirement-shell__main">
       <RequirementListPage v-if="activeTab === 'list'" />
-      <TraceMatrixPage v-else-if="activeTab === 'trace'" />
     </main>
   </div>
 </template>

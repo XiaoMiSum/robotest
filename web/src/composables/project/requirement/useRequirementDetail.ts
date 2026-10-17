@@ -238,20 +238,20 @@ export function useRequirementDetail() {
     return payload
   }
 
-  // ==================== 影响确认 ====================
+  // ==================== 状态流转确认 ====================
 
   /**
-   * confirmed 态改题/描述/模块会流转为「已变更」并触发影响分析（详设 4.4），
-   * 保存前显式确认；受影响数量待追溯侧接入，本期不展示。
+   * confirmed 态改题/描述/模块会流转为「已变更」（详设 4.4），保存前显式确认，
+   * 避免误操作打回已确认基线。
    */
-  async function confirmImpactIfConfirmed(needsImpact: boolean, apply: () => Promise<void>): Promise<void> {
-    if (!needsImpact || detail.value?.status !== 'confirmed') {
+  async function confirmStatusChange(needsStatusChange: boolean, apply: () => Promise<void>): Promise<void> {
+    if (!needsStatusChange || detail.value?.status !== 'confirmed') {
       await apply()
       return
     }
     try {
       await ElMessageBox.confirm(
-        '该需求已处于「已确认」状态，修改标题、描述或所属模块会将其流转为「已变更」，并沿追溯边标记可能受影响的用例与接口。是否继续保存？',
+        '该需求已处于「已确认」状态，修改标题、描述或所属模块会将其流转为「已变更」。是否继续保存？',
         '确认保存变更',
         { type: 'warning', confirmButtonText: '保存并流转', cancelButtonText: '放弃修改' },
       )
@@ -306,7 +306,7 @@ export function useRequirementDetail() {
       ElMessage.info('内容未发生变化')
       return
     }
-    await confirmImpactIfConfirmed(
+    await confirmStatusChange(
       'title' in payload || 'description' in payload || 'moduleId' in payload,
       async () => {
         await putDetail(payload)

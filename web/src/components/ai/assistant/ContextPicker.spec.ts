@@ -7,10 +7,10 @@ import type { AiAssistantEntityRef } from '@/types'
 
 const mocks = vi.hoisted(() => ({ load: vi.fn() }))
 
-vi.mock('@/composables/project/trace/useTraceNodePicker', async () => {
+vi.mock('@/composables/project/ai/useAssistantEntityPicker', async () => {
   const { ref } = await import('vue')
   return {
-    useTraceNodePicker: () => ({
+    useAssistantEntityPicker: () => ({
       options: ref([
         { id: 'r1', label: '登录需求' },
         { id: 'r2', label: '订单需求' },

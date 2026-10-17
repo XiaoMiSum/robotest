@@ -42,8 +42,6 @@ export const AI_TASK_TYPE_META: Record<string, AiTaskTypeMeta> = {
   test_design_generation: { label: '用例生成', domain: '生成链' },
   review_selection: { label: '评审圈选', domain: '生成链' },
   plan_selection: { label: '计划圈选', domain: '生成链' },
-  coverage_analysis: { label: '覆盖分析', domain: '矩阵' },
-  impact_analysis: { label: '影响分析', domain: '矩阵' },
   case_complete: { label: '用例补全', domain: '辅助' },
   case_priority: { label: '级别建议', domain: '辅助' },
   plan_order: { label: '计划排序', domain: '辅助' },
@@ -89,7 +87,7 @@ const GENERATION_CHAIN_PHASES = [
   '生成脑图文档',
   '标记用例节点',
   '填充用例属性',
-  '建立追溯边',
+  '来源校验',
 ]
 
 /** 需求拆分阶段（分册拆分处理器上报顺序） */

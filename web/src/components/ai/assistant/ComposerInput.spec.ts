@@ -5,10 +5,10 @@ import ElementPlus from 'element-plus'
 import ComposerInput from './ComposerInput.vue'
 import type { AiAssistantEntityRef, AiAssistantPendingImage } from '@/types'
 
-vi.mock('@/composables/project/trace/useTraceNodePicker', async () => {
+vi.mock('@/composables/project/ai/useAssistantEntityPicker', async () => {
   const { ref } = await import('vue')
   return {
-    useTraceNodePicker: () => ({
+    useAssistantEntityPicker: () => ({
       options: ref([{ id: 'r1', label: '登录需求' }]),
       loading: ref(false),
       load: vi.fn(),

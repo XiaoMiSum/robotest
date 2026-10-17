@@ -64,7 +64,6 @@ describe('路由 meta 契约', () => {
   it('带 meta.menu 的路由必须声明 mode 且 label/icon/order 完整、路径可解析为具名路由', () => {
     const menuRoutes = router.getRoutes().filter((record) => record.meta.menu)
     // 6 管理端（含 AI 配置与文件管理） + 3 空间 + 4 项目（需求管理/功能测试/接口测试/缺陷管理）= 13 项菜单注册
-    // 追溯矩阵并入需求管理页内侧栏后不再占顶栏（交互 06 §1）
     expect(menuRoutes.length).toBe(13)
     for (const record of menuRoutes) {
       const menu = record.meta.menu

@@ -110,7 +110,7 @@ function openCreate(): void {
     <header class="page-head">
       <div>
         <h1 class="page-head__title">需求管理</h1>
-        <p class="page-head__desc">沉淀项目需求，驱动用例设计与全链路追溯</p>
+        <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
       </div>
       <div class="page-head__actions">
         <!-- 任务中心就近入口（交互 07 §1）：组件内按 ai:task 显隐 -->
@@ -272,15 +272,6 @@ function openCreate(): void {
             >
               {{ row.statusMeta.label }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="覆盖状态" width="110">
-          <template #default="{ row }">
-            <!-- 追溯侧未接入时恒为「—」，不渲染徽标 -->
-            <el-tag v-if="row.coverageMeta" :type="row.coverageMeta.tagType" size="small" effect="light">
-              {{ row.coverageMeta.label }}
-            </el-tag>
-            <span v-else class="requirement-list__muted">—</span>
           </template>
         </el-table-column>
         <el-table-column label="负责人" width="100" show-overflow-tooltip>
