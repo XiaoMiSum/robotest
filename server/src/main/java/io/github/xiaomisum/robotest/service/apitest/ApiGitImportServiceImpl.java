@@ -923,7 +923,8 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
         if (!platform) {
             scene.setDescription(prepared.name());
         }
-        scene.setStatus(SceneSettingsValidator.SCENE_STATUS_DRAFT);
+        // 导入即为可执行态：测试计划与定时任务只圈选已发布场景（详设 3.5）
+        scene.setStatus(SceneSettingsValidator.SCENE_STATUS_PUBLISHED);
         scene.setProcessors(List.of());
         scene.setChangeVersion(1);
         scene.setVariables(prepared.variables());
