@@ -11,11 +11,10 @@ import { sortedSteps, emptyStepDraft } from '@/composables/project/api-testing/s
 export interface UseSceneStepsOptions {
   sceneId?: string
   detail: Ref<ApiSceneDetail | null>
-  bumpAutosave: () => void
 }
 
 export function useSceneSteps(options: UseSceneStepsOptions) {
-  const { sceneId, detail, bumpAutosave } = options
+  const { sceneId, detail } = options
 
   // ==================== 步骤操作 ====================
   const showInterfacePicker = ref(false)
@@ -64,7 +63,6 @@ export function useSceneSteps(options: UseSceneStepsOptions) {
     if (!isCreateMode && detail.value) detail.value.steps = list
     selectedStep.value = step
     showInterfacePicker.value = false
-    bumpAutosave()
   }
 
   /** 步骤关键明细是否完整：名称必填；HTTP 需路径，JDBC 需 SQL */
@@ -150,7 +148,6 @@ export function useSceneSteps(options: UseSceneStepsOptions) {
     const list = detail.value?.steps
     if (!list) return
     selectedStep.value = copyStepInto(list, step)
-    bumpAutosave()
   }
 
   // ==================== 创建态草稿步骤 ====================
@@ -170,7 +167,6 @@ export function useSceneSteps(options: UseSceneStepsOptions) {
 
   function handleDraftToggleStep(step: ApiSceneStepItem) {
     step.enabled = !step.enabled
-    bumpAutosave()
   }
 
   function handleDraftReorderSteps(newSteps: ApiSceneStepItem[]) {
@@ -180,7 +176,6 @@ export function useSceneSteps(options: UseSceneStepsOptions) {
 
   function handleDraftCopyStep(step: ApiSceneStepItem) {
     selectedStep.value = copyStepInto(draftSteps.value, step)
-    bumpAutosave()
   }
 
   // ==================== 计算属性 ====================

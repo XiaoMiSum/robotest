@@ -169,7 +169,12 @@ watch(
   }
 
   td {
-    padding: 4px 6px 4px 0;
+    padding: 6px 8px 6px 0;
+  }
+
+  // 行分隔线：多行 KV 更易横向对齐（作用于本组件自身表格标记，非组件内部结构）
+  tbody tr + tr td {
+    border-top: 1px solid var(--color-neutral-100);
   }
 
   &__col-enable {

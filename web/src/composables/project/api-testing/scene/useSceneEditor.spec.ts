@@ -172,11 +172,6 @@ describe('useSceneEditor', () => {
       expect(environmentOptions.value).toEqual([])
     })
 
-    it('autoSaveLabel 初始为空字符串', () => {
-      const { autoSaveLabel } = useSceneEditor({}, vi.fn())
-      expect(autoSaveLabel.value).toBe('')
-    })
-
     it('SCENE_PRIORITY_OPTIONS 包含 P0-P3', () => {
       const { SCENE_PRIORITY_OPTIONS } = useSceneEditor({}, vi.fn())
       expect(SCENE_PRIORITY_OPTIONS).toHaveLength(4)
@@ -290,33 +285,6 @@ describe('useSceneEditor', () => {
       editName.value = '   '
       await nextTick()
       expect(emit).toHaveBeenCalledWith('title-update', '新场景')
-    })
-  })
-
-  describe('bumpAutosave', () => {
-    it('设置 autoSaveLabel 为包含时间的字符串', () => {
-      const { bumpAutosave, autoSaveLabel } = useSceneEditor({}, vi.fn())
-      bumpAutosave()
-      expect(autoSaveLabel.value).toMatch(/^自动保存已开启 \d{2}:\d{2}:\d{2}$/)
-    })
-
-    it('5秒后自动清除 autoSaveLabel', () => {
-      const { bumpAutosave, autoSaveLabel } = useSceneEditor({}, vi.fn())
-      bumpAutosave()
-      expect(autoSaveLabel.value).not.toBe('')
-      vi.advanceTimersByTime(5000)
-      expect(autoSaveLabel.value).toBe('')
-    })
-
-    it('连续调用只保留最后一次定时器', () => {
-      const { bumpAutosave, autoSaveLabel } = useSceneEditor({}, vi.fn())
-      bumpAutosave()
-      vi.advanceTimersByTime(3000)
-      bumpAutosave()
-      vi.advanceTimersByTime(3000)
-      expect(autoSaveLabel.value).not.toBe('')
-      vi.advanceTimersByTime(2000)
-      expect(autoSaveLabel.value).toBe('')
     })
   })
 

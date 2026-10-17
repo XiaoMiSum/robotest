@@ -61,10 +61,8 @@ function makeDetail(steps: ApiSceneStepItem[] = []): ApiSceneDetail {
 
 function createOptions(overrides?: Partial<UseSceneStepsOptions>) {
   const detail = ref<ApiSceneDetail | null>(makeDetail())
-  const bumpAutosave = vi.fn()
   return {
     detail,
-    bumpAutosave,
     ...overrides,
   }
 }
@@ -239,14 +237,6 @@ describe('useSceneSteps', () => {
       showInterfacePicker.value = true
       handleInterfaceSelected(step, false)
       expect(showInterfacePicker.value).toBe(false)
-    })
-
-    it('调用 bumpAutosave', () => {
-      const opts = createOptions()
-      const step = makeStep('new-step')
-      const { handleInterfaceSelected } = useSceneSteps(opts)
-      handleInterfaceSelected(step, false)
-      expect(opts.bumpAutosave).toHaveBeenCalled()
     })
   })
 
@@ -530,7 +520,6 @@ describe('useSceneSteps', () => {
       expect(steps[1].sourceType).toBe('copy')
       expect(steps.map((s) => s.sortOrder)).toEqual([1, 2, 3])
       expect(selectedStep.value).toBe(steps[1])
-      expect(opts.bumpAutosave).toHaveBeenCalled()
     })
 
     it('副本为深拷贝，改动副本不影响源步骤', () => {
@@ -631,13 +620,6 @@ describe('useSceneSteps', () => {
       handleDraftToggleStep(step)
       expect(step.enabled).toBe(true)
     })
-
-    it('调用 bumpAutosave', () => {
-      const opts = createOptions()
-      const { handleDraftToggleStep } = useSceneSteps(opts)
-      handleDraftToggleStep(makeStep('d1'))
-      expect(opts.bumpAutosave).toHaveBeenCalled()
-    })
   })
 
   describe('handleDraftReorderSteps', () => {
@@ -695,13 +677,11 @@ describe('useSceneSteps', () => {
       expect(draftSteps.value[0].id).not.toBe(draftSteps.value[1].id)
     })
 
-    it('选中副本并联动自动保存标识', () => {
+    it('选中复制出的副本', () => {
       const step = makeStep('d1')
-      const opts = createOptions()
-      const { handleDraftCopyStep, draftSteps, selectedStep } = useSceneSteps(opts)
+      const { handleDraftCopyStep, draftSteps, selectedStep } = useSceneSteps(createOptions())
       handleDraftCopyStep(step)
       expect(selectedStep.value).toBe(draftSteps.value[0])
-      expect(opts.bumpAutosave).toHaveBeenCalled()
     })
   })
 

@@ -59,14 +59,6 @@ export function useSceneEditor(
   const dirty = ref(false)
   const sceneSection = ref<'steps' | 'variables' | 'pre' | 'post'>('steps')
 
-  const autoSaveLabel = ref('')
-  let autosaveTimer: ReturnType<typeof setTimeout> | null = null
-  function bumpAutosave() {
-    autoSaveLabel.value = `自动保存已开启 ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`
-    if (autosaveTimer) clearTimeout(autosaveTimer)
-    autosaveTimer = setTimeout(() => { autoSaveLabel.value = '' }, 5000)
-  }
-
   // ==================== 场景基础信息 ====================
   const editName = ref('')
   const showDescription = ref(false)
@@ -328,8 +320,6 @@ export function useSceneEditor(
     detail,
     dirty,
     sceneSection,
-    autoSaveLabel,
-    bumpAutosave,
     // Basic info
     editName,
     showDescription,

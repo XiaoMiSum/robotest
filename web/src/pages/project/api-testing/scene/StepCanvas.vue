@@ -155,6 +155,7 @@ function moveDown(index: number) {
 .step-canvas__list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
 .step-canvas__insert-zone {
@@ -182,7 +183,6 @@ function moveDown(index: number) {
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   cursor: default;
-  margin: 2px 0;
   overflow: hidden;
 
   &:hover {
@@ -261,7 +261,9 @@ function moveDown(index: number) {
 }
 
 .step-canvas__card-name {
+  font-size: var(--font-size-sm);
   font-weight: 500;
+  color: var(--color-neutral-800);
   margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
