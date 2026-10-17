@@ -2050,6 +2050,7 @@ CREATE TABLE api_git_repo (
     test_source_dir     VARCHAR(500) NOT NULL DEFAULT 'src/test/java',
     resource_dir        VARCHAR(500) NOT NULL DEFAULT 'src/test/resources',
     env_file_path       VARCHAR(500) NOT NULL DEFAULT 'common/env/env.yaml',
+    reimport_overwrite  BOOLEAN NOT NULL DEFAULT FALSE,
     enabled             BOOLEAN NOT NULL DEFAULT TRUE,
     last_import_at      TIMESTAMP NULL,
     last_import_commit  VARCHAR(64) NULL,
@@ -2077,6 +2078,7 @@ COMMENT ON COLUMN api_git_repo.token_cipher IS '访问令牌密文（AES-256-GCM
 COMMENT ON COLUMN api_git_repo.test_source_dir IS '测试源码目录';
 COMMENT ON COLUMN api_git_repo.resource_dir IS '资源目录（YAML 所在根）';
 COMMENT ON COLUMN api_git_repo.env_file_path IS '环境声明文件路径（相对 resource_dir，仅 platform 模式使用）';
+COMMENT ON COLUMN api_git_repo.reimport_overwrite IS '重复导入是否以源侧内容覆盖平台侧场景内容（默认不覆盖，仅 platform 模式生效）';
 COMMENT ON COLUMN api_git_repo.enabled IS '启用状态（禁用后其下场景 CI 引擎不可用）';
 COMMENT ON COLUMN api_git_repo.last_import_at IS '上次导入时间';
 COMMENT ON COLUMN api_git_repo.last_import_commit IS '上次导入分支 HEAD，commit 幂等闸门比对基准';
