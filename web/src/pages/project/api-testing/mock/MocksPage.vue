@@ -204,119 +204,114 @@ function formatHitTime(val: string | null): string {
 </script>
 
 <template>
-  <div class="mocks-page">
-    <el-card v-loading="loading" shadow="never" class="mocks-page__card">
-      <template #header>
-        <div class="mocks-page__toolbar">
-          <div class="mocks-page__toolbar-left">
-            <el-input
-              v-model="searchDraft"
-              clearable
-              placeholder="请输入名称或路径"
-              style="width: 220px"
-              @keyup.enter="handleSearch"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-            <el-select
-              v-model="enabledFilter"
-              clearable
-              placeholder="状态"
-              style="width: 120px"
-              @change="handleSearch"
-            >
-              <el-option label="已启用" :value="true" />
-              <el-option label="已停用" :value="false" />
-            </el-select>
-            <el-button type="primary" @click="handleSearch">
-              <el-icon><Search /></el-icon>查询
-            </el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-          <div class="mocks-page__toolbar-right">
-            <template v-if="selectedIds.length">
-              <el-button @click="handleBatchToggle(true)">批量启用 ({{ selectedIds.length }})</el-button>
-              <el-button @click="handleBatchToggle(false)">批量停用 ({{ selectedIds.length }})</el-button>
+  <div v-loading="loading" class="mocks-page">
+    <div class="mocks-page__toolbar">
+      <div class="mocks-page__toolbar-left">
+        <el-input
+          v-model="searchDraft"
+          clearable
+          placeholder="请输入名称或路径"
+          style="width: 220px"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-select
+          v-model="enabledFilter"
+          clearable
+          placeholder="状态"
+          style="width: 120px"
+          @change="handleSearch"
+        >
+          <el-option label="已启用" :value="true" />
+          <el-option label="已停用" :value="false" />
+        </el-select>
+        <el-button type="primary" @click="handleSearch">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button @click="handleReset">重置</el-button>
+      </div>
+      <div class="mocks-page__toolbar-right">
+        <template v-if="selectedIds.length">
+          <el-button @click="handleBatchToggle(true)">批量启用 ({{ selectedIds.length }})</el-button>
+          <el-button @click="handleBatchToggle(false)">批量停用 ({{ selectedIds.length }})</el-button>
+        </template>
+        <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
+          <el-icon><Plus /></el-icon>
+          新建 Mock
+        </el-button>
+      </div>
+    </div>
+
+    <div v-if="error" class="mocks-page__error" role="alert">
+      <span>{{ error }}</span>
+      <el-button link type="primary" @click="retry">重试</el-button>
+    </div>
+
+    <el-table
+      v-if="!error || list.length"
+      :data="list"
+      row-key="id"
+      @selection-change="(rows: ApiMockItem[]) => handleSelectionChange(rows)"
+    >
+      <el-table-column type="selection" width="40" />
+      <el-table-column label="名称" prop="name" min-width="180" show-overflow-tooltip />
+      <el-table-column label="方法" width="90" align="center">
+        <template #default="{ row }">
+          <el-tag size="small" :type="methodTagType((row as ApiMockItem).method)" disable-transitions>
+            {{ (row as ApiMockItem).method }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="路径" prop="path" min-width="200" show-overflow-tooltip />
+      <el-table-column label="状态码" prop="responseStatus" width="80" align="center" />
+      <el-table-column label="优先级" prop="priority" width="70" align="center" />
+      <el-table-column label="启停" width="80" align="center">
+        <template #default="{ row }">
+          <el-switch
+            :model-value="(row as ApiMockItem).enabled"
+            @change="(val: string | number | boolean) => handleToggle(row as ApiMockItem, val === true)"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="命中次数" prop="hitCount" width="90" align="center" />
+      <el-table-column label="最后命中" width="160" align="center">
+        <template #default="{ row }">
+          {{ formatHitTime((row as ApiMockItem).lastHitAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="280" fixed="right" align="center">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="openEditor((row as ApiMockItem).id)">编辑</el-button>
+          <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
+          <el-button link type="primary" size="small" @click="handleShowAddress(row as ApiMockItem)">地址</el-button>
+          <el-button link type="primary" size="small" @click="handleDuplicate(row as ApiMockItem)">复制</el-button>
+          <el-dropdown trigger="click" class="mocks-page__more">
+            <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleResetHit(row as ApiMockItem)">重置命中</el-dropdown-item>
+                <el-dropdown-item divided @click="handleDelete(row as ApiMockItem)">删除</el-dropdown-item>
+              </el-dropdown-menu>
             </template>
-            <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
-              <el-icon><Plus /></el-icon>
-              新建 Mock
-            </el-button>
-          </div>
-        </div>
-      </template>
+          </el-dropdown>
+        </template>
+      </el-table-column>
+    </el-table>
 
-      <div v-if="error" class="mocks-page__error" role="alert">
-        <span>{{ error }}</span>
-        <el-button link type="primary" @click="retry">重试</el-button>
-      </div>
-
-      <el-table
-        v-if="!error || list.length"
-        :data="list"
-        row-key="id"
-        class="mocks-page__table"
-        @selection-change="(rows: ApiMockItem[]) => handleSelectionChange(rows)"
-      >
-        <el-table-column type="selection" width="40" />
-        <el-table-column label="名称" prop="name" min-width="180" show-overflow-tooltip />
-        <el-table-column label="方法" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" :type="methodTagType((row as ApiMockItem).method)" disable-transitions>
-              {{ (row as ApiMockItem).method }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="路径" prop="path" min-width="200" show-overflow-tooltip />
-        <el-table-column label="状态码" prop="responseStatus" width="80" align="center" />
-        <el-table-column label="优先级" prop="priority" width="70" align="center" />
-        <el-table-column label="启停" width="80" align="center">
-          <template #default="{ row }">
-            <el-switch
-              :model-value="(row as ApiMockItem).enabled"
-              @change="(val: string | number | boolean) => handleToggle(row as ApiMockItem, val === true)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="命中次数" prop="hitCount" width="90" align="center" />
-        <el-table-column label="最后命中" width="160" align="center">
-          <template #default="{ row }">
-            {{ formatHitTime((row as ApiMockItem).lastHitAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right" align="center">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEditor((row as ApiMockItem).id)">编辑</el-button>
-            <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
-            <el-button link type="primary" size="small" @click="handleShowAddress(row as ApiMockItem)">地址</el-button>
-            <el-button link type="primary" size="small" @click="handleDuplicate(row as ApiMockItem)">复制</el-button>
-            <el-dropdown trigger="click" class="mocks-page__more">
-              <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleResetHit(row as ApiMockItem)">重置命中</el-dropdown-item>
-                  <el-dropdown-item divided @click="handleDelete(row as ApiMockItem)">删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div v-if="!error || list.length" class="mocks-page__pagination">
-        <el-pagination
-          v-model:current-page="pageNo"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="handlePageChange"
-          @size-change="handleSizeChange"
-        />
-      </div>
-    </el-card>
+    <div v-if="!error || list.length" class="mocks-page__pagination">
+      <el-pagination
+        v-model:current-page="pageNo"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
+    </div>
 
     <MockEditorDrawer
       v-model="editorVisible"
@@ -345,16 +340,15 @@ function formatHitTime(val: string | null): string {
   height: 100%;
 }
 
-/* UI-SC-10：body 内边距归零，header 仍按默认留白 */
-.mocks-page__card {
-  --el-card-padding: 0;
-}
-
+/* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
 .mocks-page__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   flex-shrink: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .mocks-page__toolbar-left {
@@ -374,13 +368,9 @@ function formatHitTime(val: string | null): string {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  padding: var(--space-md) 20px;
+  padding: var(--space-md) 0;
   color: var(--color-danger);
   font-size: var(--font-size-sm);
-}
-
-.mocks-page__table {
-  flex: 1;
 }
 
 // 与前面的 link 操作按钮保持同基线、同间距
@@ -393,7 +383,7 @@ function formatHitTime(val: string | null): string {
   display: flex;
   justify-content: flex-end;
   flex-shrink: 0;
-  padding: 14px 20px;
+  padding: 14px 0;
   border-top: 1px solid var(--color-neutral-100);
 }
 </style>
