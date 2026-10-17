@@ -53,7 +53,6 @@ public class TestPlanTaskHandler implements DispatchableTask {
     private static final String SCOPE_ALL = "all";
     private static final String SCOPE_MODULES = "modules";
     private static final String SCOPE_SCENES = "scenes";
-    private static final String SCENE_STATUS_PUBLISHED = "published";
     private static final DateTimeFormatter NAME_STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Resource
@@ -266,7 +265,7 @@ public class TestPlanTaskHandler implements DispatchableTask {
         }
         List<ApiScene> eligible = new ArrayList<>();
         for (ApiScene scene : ciGroup) {
-            if (!SCENE_STATUS_PUBLISHED.equals(scene.getStatus())) {
+            if (!SceneSettingsValidator.SCENE_STATUS_PUBLISHED.equals(scene.getStatus())) {
                 insertRecord(task.getId(), task.getProjectId(), triggerType, "skipped",
                         "场景「" + scene.getName() + "」为草稿状态，已跳过", null, null, triggeredAt, 0);
                 continue;
@@ -281,7 +280,7 @@ public class TestPlanTaskHandler implements DispatchableTask {
             LocalDateTime triggeredAt, List<ApiScene> platformGroup) {
         List<ApiScene> eligible = new ArrayList<>();
         for (ApiScene scene : platformGroup) {
-            if (!SCENE_STATUS_PUBLISHED.equals(scene.getStatus())) {
+            if (!SceneSettingsValidator.SCENE_STATUS_PUBLISHED.equals(scene.getStatus())) {
                 insertRecord(task.getId(), task.getProjectId(), triggerType, "skipped",
                         "场景「" + scene.getName() + "」为草稿状态，已跳过", null, null, triggeredAt, 0);
                 continue;

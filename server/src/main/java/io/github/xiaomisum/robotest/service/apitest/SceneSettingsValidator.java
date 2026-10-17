@@ -24,9 +24,10 @@ public final class SceneSettingsValidator {
     }
 
     public static final String SCENE_STATUS_DRAFT = "draft";
+    public static final String SCENE_STATUS_PUBLISHED = "published";
     private static final Set<String> SYNC_MODES = Set.of("copy", "link");
     private static final Set<String> SCENE_PRIORITIES = Set.of("P0", "P1", "P2", "P3");
-    private static final Set<String> SCENE_STATUSES = Set.of("draft", "published");
+    private static final Set<String> SCENE_STATUSES = Set.of(SCENE_STATUS_DRAFT, SCENE_STATUS_PUBLISHED);
 
     public static void validatePriority(String priority) {
         if (priority != null && !SCENE_PRIORITIES.contains(priority)) {
