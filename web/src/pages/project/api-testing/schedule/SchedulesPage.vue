@@ -62,92 +62,88 @@ const {
 </script>
 
 <template>
-  <div class="schedules-page">
-    <el-card v-loading="loading" shadow="never" class="schedules-page__card">
-      <template #header>
-        <div class="schedules-page__toolbar">
-          <el-select v-model="typeFilter" placeholder="全部类型" clearable style="width: 140px">
-            <el-option
-              v-for="opt in SCHEDULE_TASK_TYPES"
-              :key="opt.value"
-              :value="opt.value"
-              :label="opt.label"
-            />
-          </el-select>
-          <div class="schedules-page__spacer" />
-          <el-button type="primary" @click="openCreate">
-            <el-icon><Plus /></el-icon>新建任务
-          </el-button>
-        </div>
-      </template>
+  <div v-loading="loading" class="schedules-page">
+    <div class="schedules-page__toolbar">
+      <el-select v-model="typeFilter" placeholder="全部类型" clearable style="width: 140px">
+        <el-option
+          v-for="opt in SCHEDULE_TASK_TYPES"
+          :key="opt.value"
+          :value="opt.value"
+          :label="opt.label"
+        />
+      </el-select>
+      <div class="schedules-page__spacer" />
+      <el-button type="primary" @click="openCreate">
+        <el-icon><Plus /></el-icon>新建任务
+      </el-button>
+    </div>
 
-      <el-table :data="rows">
-        <el-table-column prop="name" label="任务名称" min-width="180" show-overflow-tooltip />
-        <el-table-column label="类型" width="100">
-          <template #default="{ row }">
-            {{ row.taskType === 'scene_execute' ? '测试计划' : row.taskType === 'import_swagger' ? '接口同步' : row.taskType }}
-          </template>
-        </el-table-column>
-        <el-table-column label="执行范围" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ taskExecutionSummary(row as ApiSchedulePageItem) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="cronExpression" label="调度" width="130" />
-        <el-table-column label="状态" width="80" align="center">
-          <template #default="{ row }">
-            <el-switch
-              :model-value="row.enabled"
-              size="small"
-              @change="() => handleToggle(row as ApiSchedulePageItem)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="上次执行" width="130">
-          <template #default="{ row }">
-            <div v-if="row.lastExecutionStatus">
-              <el-tag size="small" :type="execStatusType(row.lastExecutionStatus)">
-                {{ execStatusLabel(row.lastExecutionStatus) }}
-              </el-tag>
-              <div v-if="row.lastExecutionAt" class="schedules-page__exec-time">
-                {{ formatShortDateTime(row.lastExecutionAt) }}
-              </div>
-            </div>
-            <span v-else class="text-neutral-400">-</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
-          <template #default="{ row }">
-            <el-button link size="small" type="primary" :disabled="row.lastExecutionStatus === 'running'" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
-            <el-button link size="small" @click="openExecutions(row as ApiSchedulePageItem)">执行记录</el-button>
-            <el-dropdown
-              trigger="click" class="schedules-page__more" @command="(cmd: string) => {
-                if (cmd === 'edit') openEdit(row as ApiSchedulePageItem)
-                else if (cmd === 'delete') void handleDelete(row as ApiSchedulePageItem)
-              }">
-              <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <el-empty description="暂无定时任务，点击右上角「新建任务」创建第一个任务" />
+    <el-table :data="rows">
+      <el-table-column prop="name" label="任务名称" min-width="180" show-overflow-tooltip />
+      <el-table-column label="类型" width="100">
+        <template #default="{ row }">
+          {{ row.taskType === 'scene_execute' ? '测试计划' : row.taskType === 'import_swagger' ? '接口同步' : row.taskType }}
         </template>
-      </el-table>
-      <el-pagination
-        v-model:current-page="pageNo"
-        :page-size="20"
-        :total="total"
-        layout="total, prev, pager, next"
-        class="schedules-page__pagination"
-        @current-change="loadPage"
-      />
-    </el-card>
+      </el-table-column>
+      <el-table-column label="执行范围" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ taskExecutionSummary(row as ApiSchedulePageItem) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="cronExpression" label="调度" width="130" />
+      <el-table-column label="状态" width="80" align="center">
+        <template #default="{ row }">
+          <el-switch
+            :model-value="row.enabled"
+            size="small"
+            @change="() => handleToggle(row as ApiSchedulePageItem)"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="上次执行" width="130">
+        <template #default="{ row }">
+          <div v-if="row.lastExecutionStatus">
+            <el-tag size="small" :type="execStatusType(row.lastExecutionStatus)">
+              {{ execStatusLabel(row.lastExecutionStatus) }}
+            </el-tag>
+            <div v-if="row.lastExecutionAt" class="schedules-page__exec-time">
+              {{ formatShortDateTime(row.lastExecutionAt) }}
+            </div>
+          </div>
+          <span v-else class="text-neutral-400">-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="220" fixed="right">
+        <template #default="{ row }">
+          <el-button link size="small" type="primary" :disabled="row.lastExecutionStatus === 'running'" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
+          <el-button link size="small" @click="openExecutions(row as ApiSchedulePageItem)">执行记录</el-button>
+          <el-dropdown
+            trigger="click" class="schedules-page__more" @command="(cmd: string) => {
+              if (cmd === 'edit') openEdit(row as ApiSchedulePageItem)
+              else if (cmd === 'delete') void handleDelete(row as ApiSchedulePageItem)
+            }">
+            <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="edit">编辑</el-dropdown-item>
+                <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+      </el-table-column>
+      <template #empty>
+        <el-empty description="暂无定时任务，点击右上角「新建任务」创建第一个任务" />
+      </template>
+    </el-table>
+    <el-pagination
+      v-model:current-page="pageNo"
+      :page-size="20"
+      :total="total"
+      layout="total, prev, pager, next"
+      class="schedules-page__pagination"
+      @current-change="loadPage"
+    />
 
     <!-- ==================== 新建/编辑弹窗 ==================== -->
     <el-dialog
@@ -329,19 +325,17 @@ const {
 .schedules-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
   height: 100%;
 }
 
-/* UI-SC-10：body 内边距归零，header 仍按默认留白 */
-.schedules-page__card {
-  --el-card-padding: 0;
-}
-
+/* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
 .schedules-page__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-shrink: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .schedules-page__spacer {
@@ -350,7 +344,7 @@ const {
 
 .schedules-page__pagination {
   justify-content: flex-end;
-  padding: 14px 20px;
+  padding: 14px 0;
   border-top: 1px solid var(--color-neutral-100);
 }
 
