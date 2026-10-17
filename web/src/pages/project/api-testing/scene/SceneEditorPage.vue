@@ -27,7 +27,6 @@ import ReportDetailDialog from './ReportDetailDialog.vue'
 import FunctionHelperDialog from '@/pages/project/api-testing/function/FunctionHelperDialog.vue'
 import KeyValueTable from '@/components/project/api-testing/KeyValueTable.vue'
 import SceneEditorHeader from './SceneEditorHeader.vue'
-import SceneEditorFooter from './SceneEditorFooter.vue'
 
 const props = defineProps<{ sceneId?: string; createMode?: boolean; moduleId?: string; copyFromId?: string }>()
 const emit = defineEmits<{ (e: 'back'): void; (e: 'title-update', name: string): void; (e: 'dirty-change', dirty: boolean): void }>()
@@ -95,7 +94,6 @@ const postSplit = useEditorSplit(0.42)
 const steps = useSceneSteps({
   sceneId: props.sceneId,
   detail: editor.detail,
-  bumpAutosave: editor.bumpAutosave,
 })
 
 const {
@@ -230,7 +228,7 @@ const {
 
         <div class="scene-editor__readonly-section">
           <div class="scene-editor__section-head">用例（场景与测试方法一一对应，恒为单个用例）</div>
-          <el-table v-if="caseInfo" :data="[caseInfo]" size="small">
+          <el-table v-if="caseInfo" :data="[caseInfo]">
             <el-table-column prop="methodName" label="方法名" min-width="160" />
             <el-table-column prop="caseName" label="用例名称" min-width="200" />
             <el-table-column label="源文件" min-width="240">
@@ -256,8 +254,8 @@ const {
                 <div class="scene-editor__section-head">
                   <span>{{ (editor.isCreateMode.value ? steps.draftSteps.value : steps.sorted.value).length }} 个步骤</span>
                   <div class="scene-editor__section-actions">
-                    <el-button size="small" link type="primary" @click="steps.handleQuickAddStep">从接口添加</el-button>
-                    <el-button size="small" link type="primary" @click="editor.isCreateMode.value ? steps.handleDraftAddStep() : steps.handleAddStep()">+ 添加步骤</el-button>
+                    <el-button link type="primary" @click="steps.handleQuickAddStep">从接口添加</el-button>
+                    <el-button link type="primary" @click="editor.isCreateMode.value ? steps.handleDraftAddStep() : steps.handleAddStep()">+ 添加步骤</el-button>
                   </div>
                 </div>
                 <StepCanvas
@@ -365,10 +363,10 @@ const {
         </el-tabs>
 
         <div class="scene-editor__tabs-extra">
-          <el-button link size="small" @click="showFunctionHelper = true">
+          <el-button link @click="showFunctionHelper = true">
             <el-icon><MagicStick /></el-icon> 函数助手
           </el-button>
-          <el-button link size="small" @click="openVariableHelper">
+          <el-button link @click="openVariableHelper">
             <el-icon><Collection /></el-icon> 变量助手
           </el-button>
         </div>
@@ -380,12 +378,18 @@ const {
         <div v-loading="historyLoading" class="scene-editor__history-panel">
           <div v-if="historyError" class="scene-editor__history-error" role="alert">
             <span>{{ historyError }}</span>
-            <el-button link size="small" type="primary" @click="retryHistory">重试</el-button>
+            <el-button link type="primary" @click="retryHistory">重试</el-button>
           </div>
           <div v-for="h in executionHistory" :key="h.id" class="scene-editor__history-row">
             <span class="scene-editor__history-status" :class="`is-${h.status}`">{{ h.status }}</span>
             <span class="scene-editor__history-time">{{ formatDateTime(h.executedAt) }}</span>
-            <el-button v-if="h.reportId" link size="small" type="primary" @click="handleViewReport(h.reportId)">报告</el-button>
+            <el-button
+              v-if="h.reportId"
+              link
+              type="primary"
+              class="scene-editor__history-report"
+              @click="handleViewReport(h.reportId)"
+            >报告</el-button>
           </div>
           <div v-if="!executionHistory.length && !historyError" class="scene-editor__empty-text">暂无执行记录</div>
           <el-pagination
@@ -394,19 +398,11 @@ const {
             :page-size="20"
             :total="executionHistoryTotal"
             layout="prev, pager, next"
-            small
             class="scene-editor__history-pager"
             @current-change="handleHistoryPageChange"
           />
         </div>
       </div>
-
-      <!-- 自动保存状态条随内容卡片排布，不游离在卡片之外（交互 10 §1.1） -->
-      <SceneEditorFooter
-        v-if="!readonlyMode"
-        :auto-save-label="editor.autoSaveLabel.value"
-        :is-create-mode="editor.isCreateMode.value"
-      />
     </div>
 
     <ExtractorAssetPicker
@@ -561,23 +557,32 @@ const {
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
   padding: 7px 8px;
   background: var(--color-neutral-0);
+  // 助手入口是次级动作：中性色起步、主色悬停，不与页签高亮争主视觉
+  --el-button-text-color: var(--color-neutral-600);
+  --el-button-hover-link-text-color: var(--color-primary-500);
 }
 
+// 区块标题：字号字重 + 底部分隔线，与右侧操作行拉开层级（交互 10 §1.2 / §1.5）
 .scene-editor__section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: 8px;
   margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-neutral-100);
+  font-size: var(--font-size-sm);
   font-weight: 600;
+  color: var(--color-neutral-800);
 }
 
 .scene-editor__section-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
 }
 
 // platform 导入源状态提示条（交互 10 §1.9）
@@ -674,6 +679,11 @@ const {
   color: var(--color-neutral-500);
 }
 
+// [报告] 贴行右端：即便时间列为空也不会被挤到中间
+.scene-editor__history-report {
+  margin-left: auto;
+}
+
 .scene-editor__empty-text {
   padding: var(--space-sm) 0;
   color: var(--color-neutral-400);
@@ -683,21 +693,5 @@ const {
 .scene-editor__history-pager {
   margin-top: var(--space-sm);
   justify-content: flex-end;
-}
-
-// 自动保存状态条随内容卡片排布（交互 10 §1.1）
-.scene-editor__footer {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 8px var(--space-md);
-  border-top: 1px solid var(--color-neutral-100);
-  background: var(--color-neutral-50);
-}
-
-.scene-editor__autosave {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
 }
 </style>

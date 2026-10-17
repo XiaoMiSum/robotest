@@ -15,8 +15,8 @@
 - **路径**：`POST /api/project/api-scenes/{sceneId}/executions`
 - **权限**：`api-scene:execute`
 - **说明**：触发场景执行，公共执行引擎语义（异步提交立即返回、失败即停）见 `docs/04-detailed-design/05-api-testing/03-api-testing-infra-engine.md` §1、§2.3，此处补充场景侧约定：
-  - 执行入口有二：**列表页行 [更多] → [执行]**（直接触发，toast `场景「×」执行已启动` 后刷新列表，无执行确认弹窗）与**编辑页顶部 [▶ 运行场景]**（创建态与编辑态均提供；编辑态存在未保存的基础信息改动时先执行保存，保存失败则不执行，乐观锁版本以保存后为准）；
-  - 请求体可选，可携带 `environmentId` 与 `variableOverrides`：`environmentId` 缺省时后端回退项目默认环境（编辑页 [▶ 运行场景] 传入页面当前选择的环境，编辑态缺省为场景已保存的 `environmentId`，创建态默认取项目默认环境）；`variableOverrides`（运行时变量覆盖，优先级最高）为接口契约预留，当前执行链路未消费、前端也不传入（口径见 `docs/04-detailed-design/05-api-testing/15-test-scenario-variable.md` 3.1）；
+  - 执行入口有二：**列表页行 [更多] → [执行]**（直接触发，toast `场景「×」执行已启动` 后刷新列表，无执行确认弹窗）与**编辑页顶部 [▶ 运行]**（创建态与编辑态均提供；编辑态存在未保存的基础信息改动时先执行保存，保存失败则不执行，乐观锁版本以保存后为准）；
+  - 请求体可选，可携带 `environmentId` 与 `variableOverrides`：`environmentId` 缺省时后端回退项目默认环境（编辑页 [▶ 运行] 传入页面当前选择的环境，编辑态缺省为场景已保存的 `environmentId`，创建态默认取项目默认环境）；`variableOverrides`（运行时变量覆盖，优先级最高）为接口契约预留，当前执行链路未消费、前端也不传入（口径见 `docs/04-detailed-design/05-api-testing/15-test-scenario-variable.md` 3.1）；
   - `triggerType` / `source` 由定时任务链路内部携带（`scheduled` / `schedule`），页面手动执行不传，缺省落 `manual` / `scene`；
   - 场景不存在返回 `1000017301`，场景没有可执行步骤返回参数校验失败（`1000001001`），执行队列满返回 `1000017001`；
   - 场景执行失败语义固定为「停止运行」：任一步骤失败即终止后续步骤，后续步骤在报告中标记未执行（不提供失败规则配置与字段）；
@@ -62,7 +62,7 @@
 }
 ```
 
-### 1.4 草稿场景执行（创建态 [▶ 运行场景]）
+### 1.4 草稿场景执行（创建态 [▶ 运行]）
 
 - **路径**：`POST /api/project/api-scenes/draft/execute`
 - **权限**：`api-scene:execute`

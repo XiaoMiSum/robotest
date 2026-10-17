@@ -128,3 +128,209 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
     </div>
   </div>
 </template>
+
+<style scoped lang="scss">
+// 处理器面板与步骤编排同一分栏语言（交互 10 §1.5）：左列表卡片 + 分割条 + 右内联编辑
+// 样式必须落在本组件作用域内——类名虽与编排页同名，页面 scoped 样式覆盖不到子组件内部
+.scene-editor__proc-layout {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.scene-editor__proc-left {
+  flex: 0 1 auto;
+  min-width: 240px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+.scene-editor__proc-right {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+  border-left: 1px solid var(--color-neutral-100);
+  overflow: auto;
+}
+
+// 区块标题与操作行：与编排页 section-head 同口径（字号字重 + 底部分隔线）
+.scene-editor__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-neutral-100);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.scene-editor__section-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+// 处理器列表项：与步骤卡片同构（描边卡片 + 选中高亮 + 禁用 / 拖拽置灰）
+.scene-editor__proc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px var(--space-md);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+
+  &:hover {
+    border-color: var(--color-primary-300);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  &.is-selected {
+    border-color: var(--color-primary-400);
+    background: var(--color-primary-50);
+    box-shadow: 0 0 0 1px var(--color-primary-300);
+  }
+
+  &.is-disabled {
+    opacity: 0.5;
+  }
+
+  &.is-dragging {
+    opacity: 0.4;
+  }
+}
+
+.scene-editor__proc-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.scene-editor__proc-drag-handle {
+  flex-shrink: 0;
+  font-size: 15px;
+  color: var(--color-neutral-400);
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.scene-editor__proc-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-neutral-100);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-neutral-600);
+}
+
+.scene-editor__proc-header-spacer {
+  flex: 1;
+}
+
+.scene-editor__proc-item-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-neutral-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 拖拽落点：常态收成 4px 细线，悬停展开为浅主色提示带
+.scene-editor__proc-insert-zone {
+  height: 4px;
+  transition: height var(--transition-fast);
+
+  &:hover {
+    height: 20px;
+    background: var(--color-primary-50);
+    border-radius: var(--radius-sm);
+  }
+}
+
+.scene-editor__proc-insert-line {
+  display: none;
+}
+
+.scene-editor__proc-add {
+  align-self: center;
+  margin-top: var(--space-sm);
+}
+
+// 分割条与空态：与步骤编排同一套视觉（各自作用域内维护）
+.scene-editor__splitter {
+  flex: 0 0 8px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-neutral-100);
+
+  .scene-editor__splitter-line {
+    width: 1px;
+    height: 100%;
+    background: var(--color-neutral-300);
+  }
+
+  &:hover,
+  &.is-dragging {
+    background: var(--color-primary-50);
+
+    .scene-editor__splitter-line {
+      background: var(--color-primary-400);
+    }
+  }
+}
+
+.scene-editor__right-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin: var(--space-md);
+  padding: var(--space-xl) var(--space-lg);
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  background: var(--color-neutral-50);
+  border: 1px dashed var(--color-neutral-200);
+  border-radius: var(--radius-md);
+
+  p {
+    margin: 0;
+  }
+}
+
+// 右侧内联编辑：名称定宽与开关同行，配置体随宽度自适应
+.scene-editor__proc-inline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.scene-editor__proc-inline-name {
+  width: 240px;
+}
+</style>
