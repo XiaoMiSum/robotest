@@ -195,7 +195,10 @@ defineExpose({ reload: load, getTree: () => treeData.value })
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 8px;
+  // 总高 40px（含 1px 下边框），与 Element Plus el-table 默认表头高度对齐
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 8px;
   border-bottom: 1px solid var(--color-neutral-100);
   flex-shrink: 0;
 }
