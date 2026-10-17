@@ -8,9 +8,9 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantPromptSupport;
-import io.github.xiaomisum.robotest.service.ai.assistant.AssistantService;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantStreamBridge;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantToolLoop;
+import io.github.xiaomisum.robotest.service.ai.assistant.AssistantToolMessageWriter;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
@@ -72,7 +72,7 @@ class AssistantParseHandlerTest {
     @Mock
     private AssistantPromptSupport promptSupport;
     @Mock
-    private AssistantService assistantService;
+    private AssistantToolMessageWriter toolMessageWriter;
     @Mock
     private AssistantToolLoop toolLoop;
     @Mock
@@ -304,10 +304,10 @@ class AssistantParseHandlerTest {
 
         handler.execute(context);
 
-        verify(assistantService).appendToolMessage(eq(CONVERSATION_ID), eq("tc-9"),
+        verify(toolMessageWriter).appendToolMessage(eq(CONVERSATION_ID), eq("tc-9"),
                 contains("操作已超时未执行"));
         // done 终态消息按设计不补（其 tool_calls 为审计轨迹，无回填义务）
-        verify(assistantService, never()).appendToolMessage(any(), eq("tc-done"), anyString());
+        verify(toolMessageWriter, never()).appendToolMessage(any(), eq("tc-done"), anyString());
     }
 
     @Test

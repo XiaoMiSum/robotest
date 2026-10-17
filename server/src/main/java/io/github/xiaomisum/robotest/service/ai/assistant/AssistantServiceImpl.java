@@ -79,6 +79,9 @@ public class AssistantServiceImpl implements AssistantService {
     private AssistantStreamBridge streamBridge;
 
     @Resource
+    private AssistantToolMessageWriter toolMessageWriter;
+
+    @Resource
     private AiTaskService aiTaskService;
 
     @Override
@@ -175,13 +178,8 @@ public class AssistantServiceImpl implements AssistantService {
 
     @Override
     public void appendToolMessage(UUID conversationId, String toolCallId, String content) {
-        AiAssistantMessage message = new AiAssistantMessage();
-        message.setConversationId(conversationId);
-        message.setRole(Constants.AiAssistantMessageRole.TOOL);
-        message.setToolCallId(toolCallId);
-        message.setContent(content);
-        message.setStatus(Constants.AiAssistantMessageStatus.DONE);
-        messageMapper.insert(message);
+        // 实现已下沉 AssistantToolMessageWriter（消除任务执行层回调会话服务的循环依赖），此处仅委托
+        toolMessageWriter.appendToolMessage(conversationId, toolCallId, content);
     }
 
     @Override

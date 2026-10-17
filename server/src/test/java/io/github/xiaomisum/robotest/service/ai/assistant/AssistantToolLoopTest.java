@@ -63,7 +63,7 @@ class AssistantToolLoopTest {
     @Mock
     private AssistantIntentBuilder intentBuilder;
     @Mock
-    private AssistantService assistantService;
+    private AssistantToolMessageWriter toolMessageWriter;
     @Mock
     private AiModelClient modelClient;
     @Mock
@@ -87,7 +87,7 @@ class AssistantToolLoopTest {
         assertEquals(10, outcome.tokensIn());
         assertEquals(2, outcome.tokensOut());
         assertTrue(outcome.citations().isEmpty());
-        verify(assistantService, never()).appendToolMessage(any(), anyString(), anyString());
+        verify(toolMessageWriter, never()).appendToolMessage(any(), anyString(), anyString());
     }
 
     @Test
@@ -115,7 +115,7 @@ class AssistantToolLoopTest {
         AssistantToolLoop.LoopOutcome outcome = loop.run(request(), modelClient);
 
         assertEquals("answer", outcome.kind());
-        verify(assistantService).appendToolMessage(CONVERSATION_ID, "tc-1", "{\"count\":0,\"projects\":[]}");
+        verify(toolMessageWriter).appendToolMessage(CONVERSATION_ID, "tc-1", "{\"count\":0,\"projects\":[]}");
         // 回填轮次：assistant(tool_calls) + tool 结果成对入列（OpenAI 协议）
         ArgumentCaptor<List<Message>> turns = ArgumentCaptor.forClass(List.class);
         verify(modelClient, times(2)).chatWithTools(any(), anyList(), turns.capture());
@@ -138,7 +138,7 @@ class AssistantToolLoopTest {
         assertEquals("clarify", outcome.kind());
         assertEquals("哪个项目？", outcome.question());
         assertEquals(List.of("商城", "门店"), outcome.options());
-        verify(assistantService, never()).appendToolMessage(any(), anyString(), anyString());
+        verify(toolMessageWriter, never()).appendToolMessage(any(), anyString(), anyString());
     }
 
     @Test
@@ -162,7 +162,7 @@ class AssistantToolLoopTest {
         assertEquals(2, secondTurns.size());
         ToolResponseMessage feedback = (ToolResponseMessage) secondTurns.get(1);
         assertTrue(feedback.getResponses().get(0).responseData().contains("question is required"));
-        verify(assistantService, never()).appendToolMessage(any(), anyString(), anyString());
+        verify(toolMessageWriter, never()).appendToolMessage(any(), anyString(), anyString());
     }
 
     @Test
@@ -220,7 +220,7 @@ class AssistantToolLoopTest {
 
         assertEquals("answer", outcome.kind());
         verify(queryTool, never()).execute(any(), any());
-        verify(assistantService).appendToolMessage(eq(CONVERSATION_ID), eq("tc-6"), contains("JSON 非法"));
+        verify(toolMessageWriter).appendToolMessage(eq(CONVERSATION_ID), eq("tc-6"), contains("JSON 非法"));
     }
 
     private void stubRegistry() {
