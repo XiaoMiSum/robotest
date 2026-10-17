@@ -495,6 +495,12 @@ const commitUrl = computed(
   align-items: center;
   gap: var(--space-sm);
   margin-bottom: 10px;
+  /* 选中段取中性灰而非主色，未选中段的悬停态随之取中性色（UI-DS-09 第 3 条：
+     仅在业务根类作用域内覆盖组件暴露的 --el-* 变量，不改写组件内部结构） */
+  --el-color-primary: var(--color-neutral-600);
+  --el-radio-button-checked-bg-color: var(--color-neutral-100);
+  --el-radio-button-checked-text-color: var(--color-neutral-800);
+  --el-radio-button-checked-border-color: var(--color-neutral-300);
 }
 
 .gi-view__count {
