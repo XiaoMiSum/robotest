@@ -69,25 +69,28 @@ defineExpose({ reload: load, getTree: () => treeData.value })
         <template #prefix>
           <el-icon><Search /></el-icon>
         </template>
-      </el-input>
-      <el-dropdown
-        v-if="isDocumentMode"
-        trigger="click"
-        @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')"
-      >
-        <el-button type="primary" link>
-          <el-icon><Plus /></el-icon>新建
-        </el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="directory">新建目录</el-dropdown-item>
-            <el-dropdown-item command="document">新建文档</el-dropdown-item>
-          </el-dropdown-menu>
+        <!-- 新建合并进搜索框 append：连接处直线分隔（输入框右侧圆角清零），节省工具栏宽度 -->
+        <template #append>
+          <el-dropdown
+            v-if="isDocumentMode"
+            trigger="click"
+            @command="(cmd: string) => handleCreate(null, cmd as 'directory' | 'document')"
+          >
+            <el-button link type="primary">
+              <el-icon><Plus /></el-icon>新建
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="directory">新建目录</el-dropdown-item>
+                <el-dropdown-item command="document">新建文档</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button v-else link type="primary" @click="handleCreate(null, 'directory')">
+            <el-icon><Plus /></el-icon>新建
+          </el-button>
         </template>
-      </el-dropdown>
-      <el-button v-else type="primary" link @click="handleCreate(null, 'directory')">
-        <el-icon><Plus /></el-icon>新建
-      </el-button>
+      </el-input>
     </div>
 
     <el-tree
@@ -206,6 +209,16 @@ defineExpose({ reload: load, getTree: () => treeData.value })
 .module-tree__search {
   flex: 1;
   min-width: 0;
+
+  // 新建按钮合并进 append：本体右侧圆角清零，连接处呈直线分隔
+  :deep(.el-input__wrapper) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  :deep(.el-input__append) {
+    padding: 0 10px;
+  }
 }
 
 .module-tree__node {
