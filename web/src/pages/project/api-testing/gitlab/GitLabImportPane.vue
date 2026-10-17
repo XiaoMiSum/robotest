@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Download, Search } from '@element-plus/icons-vue'
 import {
   STAGE_LABELS,
   isRunningStage,
@@ -178,27 +179,36 @@ const commitUrl = computed(
       title="当前账号缺少 api-scene:view 权限，本页只读；扫描预览与导入进度不可用"
     />
 
+    <!-- 动作行：[导出 CSV] 与权限提示靠左，[扫描预览] / [执行导入] 以图标 link 按钮固定右端（交互稿 27 §3.2） -->
     <div v-if="canPreview || canExecute" class="gi-actions">
-      <el-button
-        v-if="canPreview"
-        type="primary"
-        :loading="previewing"
-        :disabled="importing"
-        @click="runPreview"
-      >扫描预览</el-button>
-      <el-button
-        v-if="canExecute"
-        type="primary"
-        :loading="submitting"
-        :disabled="!canRunImport"
-        @click="runImport"
-      >执行导入</el-button>
-      <el-button
-        v-if="canPreview && preview && preview.details.length > 0"
-        :disabled="filteredDetails.length === 0"
-        @click="exportDetailsCsv"
-      >导出 CSV</el-button>
-      <span v-if="canPreview && !canExecute" class="gi-actions__hint">缺少 api-scene:edit 权限，不可执行导入</span>
+      <div class="gi-actions__left">
+        <el-button
+          v-if="canPreview && preview && preview.details.length > 0"
+          :disabled="filteredDetails.length === 0"
+          @click="exportDetailsCsv"
+        >导出 CSV</el-button>
+        <span v-if="canPreview && !canExecute" class="gi-actions__hint">缺少 api-scene:edit 权限，不可执行导入</span>
+      </div>
+      <div class="gi-actions__right">
+        <el-button
+          v-if="canPreview"
+          link
+          type="primary"
+          :icon="Search"
+          :loading="previewing"
+          :disabled="importing"
+          @click="runPreview"
+        >扫描预览</el-button>
+        <el-button
+          v-if="canExecute"
+          link
+          type="primary"
+          :icon="Download"
+          :loading="submitting"
+          :disabled="!canRunImport"
+          @click="runImport"
+        >执行导入</el-button>
+      </div>
     </div>
 
     <!-- 汇总条：四段横排，解析失败段可点击展开对应明细（交互稿 27 §3.2） -->
@@ -363,12 +373,20 @@ const commitUrl = computed(
   }
 }
 
-/* 动作行：预览靠左，权限提示随其后 */
+/* 动作行：左侧次级动作与权限提示，主操作 link 按钮固定右端 */
 .gi-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
+}
+
+.gi-actions__left,
+.gi-actions__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .gi-actions__hint {
