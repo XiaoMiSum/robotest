@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { ApiReportPageItem, ApiScenePageItem } from '@/types'
+import type { ApiReportPageItem } from '@/types'
 import {
   batchDeleteReports,
   deleteReport,
   fetchReportPage,
 } from '@/services/project/api-testing/report'
-import { fetchScenePage } from '@/services/project/api-testing/scene'
 import { formatDateTime } from '@/utils/format'
 
 const emit = defineEmits<{
@@ -17,8 +16,6 @@ const emit = defineEmits<{
 // ==================== 筛选 ====================
 const searchText = ref('')
 const statusFilter = ref('')
-const executionModeFilter = ref('')
-const sceneFilter = ref<string>('')
 const dateRange = ref<[string, string] | null>(null)
 const pageNo = ref(1)
 const pageSize = 20
@@ -31,23 +28,6 @@ const statusOptions = [
   { value: 'partial', label: '部分通过' },
 ]
 
-const executionModeOptions = [
-  { value: '', label: '全部执行方式' },
-  { value: 'platform', label: '平台内执行' },
-]
-
-// ==================== 场景列表（用于筛选） ====================
-const sceneOptions = ref<ApiScenePageItem[]>([])
-
-async function loadScenes() {
-  try {
-    const page = await fetchScenePage({ pageNo: 1, pageSize: 100 })
-    sceneOptions.value = page.list
-  } catch {
-    sceneOptions.value = []
-  }
-}
-
 // ==================== 列表 ====================
 const rows = ref<ApiReportPageItem[]>([])
 const total = ref(0)
@@ -58,12 +38,10 @@ async function loadPage() {
   try {
     const params: Record<string, unknown> = { pageNo: pageNo.value, pageSize }
     if (statusFilter.value) params.status = statusFilter.value
-    if (executionModeFilter.value) params.executionMode = executionModeFilter.value
-    if (sceneFilter.value) params.sceneId = sceneFilter.value
     if (searchText.value.trim()) params.keyword = searchText.value.trim()
     if (dateRange.value && dateRange.value[0]) params.startDate = dateRange.value[0]
     if (dateRange.value && dateRange.value[1]) params.endDate = dateRange.value[1]
-    const page = await fetchReportPage(params as { pageNo: number; pageSize: number; status?: string; executionMode?: string; sceneId?: string; keyword?: string; startDate?: string; endDate?: string })
+    const page = await fetchReportPage(params as { pageNo: number; pageSize: number; status?: string; keyword?: string; startDate?: string; endDate?: string })
     rows.value = page.list
     total.value = page.total
   } catch (error) {
@@ -79,7 +57,7 @@ function handleFilter() {
   void loadPage()
 }
 
-watch([statusFilter, executionModeFilter, sceneFilter], handleFilter)
+watch(statusFilter, handleFilter)
 
 // ==================== 报告名称派生 ====================
 function reportName(row: ApiReportPageItem): string {
@@ -167,112 +145,102 @@ async function handleBatchDelete() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadScenes(), loadPage()])
+  await loadPage()
 })
 </script>
 
 <template>
-  <div class="reports-page">
-    <el-card v-loading="loading" shadow="never" class="reports-page__card">
-      <template #header>
-        <div class="reports-page__toolbar">
-          <el-select v-model="statusFilter" style="width: 140px" @change="handleFilter">
-            <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-          <el-select v-model="executionModeFilter" style="width: 160px" @change="handleFilter">
-            <el-option v-for="opt in executionModeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-          <el-select v-model="sceneFilter" placeholder="全部场景" clearable filterable style="width: 180px" @change="handleFilter">
-            <el-option v-for="scene in sceneOptions" :key="scene.id" :label="scene.name" :value="scene.id" />
-          </el-select>
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DDT00:00:00"
-            style="width: 280px"
-            @change="handleFilter"
-          />
-          <el-input
-            v-model="searchText"
-            placeholder="搜索报告名称或场景名称"
-            clearable
-            style="width: 240px"
-            @keyup.enter="handleFilter"
-            @clear="handleFilter"
-          />
-          <div class="reports-page__spacer" />
-          <template v-if="hasSelection">
-            <span class="reports-page__selected-count">已选 {{ selectedIds.length }} 项</span>
-            <el-button type="danger" @click="handleBatchDelete">批量删除</el-button>
-            <el-divider direction="vertical" />
-          </template>
-        </div>
-      </template>
-
-      <el-table
-        :data="rows"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="40" />
-        <el-table-column label="报告名称" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="handleView(row as ApiReportPageItem)">
-              {{ reportName(row as ApiReportPageItem) }}
-            </el-link>
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" :type="(row as ApiReportPageItem).reportType === 'suite' ? 'info' : 'primary'">
-              {{ (row as ApiReportPageItem).reportType === 'suite' ? '套件报告' : '场景报告' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="110" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" :type="statusType((row as ApiReportPageItem).status)">
-              {{ statusLabel((row as ApiReportPageItem).status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="通过率" width="90" align="center">
-          <template #default="{ row }">
-            <span :class="{ 'text-red-500': ((row as ApiReportPageItem).summary?.failed ?? 0) > 0 }">
-              {{ passRate((row as ApiReportPageItem).summary) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="耗时" width="90" align="center">
-          <template #default="{ row }">
-            {{ formatDuration((row as ApiReportPageItem).summary?.durationMs) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="170">
-          <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleView(row as ApiReportPageItem)">查看</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row as ApiReportPageItem)">删除</el-button>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <el-empty description="暂无测试报告，定时任务执行后生成；场景页运行报告可在场景执行历史中查看" />
-        </template>
-      </el-table>
-
-      <el-pagination
-        v-model:current-page="pageNo"
-        :page-size="pageSize"
-        :total="total"
-        layout="total, prev, pager, next"
-        class="reports-page__pagination"
-        @current-change="loadPage"
+  <div v-loading="loading" class="reports-page">
+    <div class="reports-page__toolbar">
+      <el-select v-model="statusFilter" style="width: 140px" @change="handleFilter">
+        <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+      </el-select>
+      <el-date-picker
+        v-model="dateRange"
+        type="daterange"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        value-format="YYYY-MM-DDT00:00:00"
+        style="width: 280px"
+        @change="handleFilter"
       />
-    </el-card>
+      <el-input
+        v-model="searchText"
+        placeholder="报告名称"
+        clearable
+        style="width: 240px"
+        @keyup.enter="handleFilter"
+        @clear="handleFilter"
+      />
+      <div class="reports-page__spacer" />
+      <template v-if="hasSelection">
+        <span class="reports-page__selected-count">已选 {{ selectedIds.length }} 项</span>
+        <el-button type="danger" @click="handleBatchDelete">批量删除</el-button>
+        <el-divider direction="vertical" />
+      </template>
+    </div>
+
+    <el-table
+      :data="rows"
+      @selection-change="handleSelectionChange"
+    >
+      <el-table-column type="selection" width="40" />
+      <el-table-column label="报告名称" min-width="220" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-link type="primary" :underline="false" @click="handleView(row as ApiReportPageItem)">
+            {{ reportName(row as ApiReportPageItem) }}
+          </el-link>
+        </template>
+      </el-table-column>
+      <el-table-column label="类型" width="90" align="center">
+        <template #default="{ row }">
+          <el-tag size="small" :type="(row as ApiReportPageItem).reportType === 'suite' ? 'info' : 'primary'">
+            {{ (row as ApiReportPageItem).reportType === 'suite' ? '套件报告' : '场景报告' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="110" align="center">
+        <template #default="{ row }">
+          <el-tag size="small" :type="statusType((row as ApiReportPageItem).status)">
+            {{ statusLabel((row as ApiReportPageItem).status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="通过率" width="90" align="center">
+        <template #default="{ row }">
+          <span :class="{ 'text-red-500': ((row as ApiReportPageItem).summary?.failed ?? 0) > 0 }">
+            {{ passRate((row as ApiReportPageItem).summary) }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column label="耗时" width="90" align="center">
+        <template #default="{ row }">
+          {{ formatDuration((row as ApiReportPageItem).summary?.durationMs) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="170">
+        <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="120" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="handleView(row as ApiReportPageItem)">查看</el-button>
+          <el-button link type="danger" size="small" @click="handleDelete(row as ApiReportPageItem)">删除</el-button>
+        </template>
+      </el-table-column>
+      <template #empty>
+        <el-empty description="暂无测试报告，定时任务执行后生成；场景页运行报告可在场景执行历史中查看" />
+      </template>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="pageNo"
+      :page-size="pageSize"
+      :total="total"
+      layout="total, prev, pager, next"
+      class="reports-page__pagination"
+      @current-change="loadPage"
+    />
   </div>
 </template>
 
@@ -280,20 +248,18 @@ onMounted(async () => {
 .reports-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
   height: 100%;
 }
 
-/* UI-SC-10：body 内边距归零，header 仍按默认留白 */
-.reports-page__card {
-  --el-card-padding: 0;
-}
-
+/* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
 .reports-page__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .reports-page__spacer {
@@ -307,7 +273,7 @@ onMounted(async () => {
 
 .reports-page__pagination {
   justify-content: flex-end;
-  padding: 14px 20px;
+  padding: 14px 0;
   border-top: 1px solid var(--color-neutral-100);
 }
 
