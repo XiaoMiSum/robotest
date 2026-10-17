@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   messageWarning: vi.fn(),
   prompt: vi.fn(),
   confirm: vi.fn(),
-  loadTraceNode: vi.fn(),
+  loadEntityNode: vi.fn(),
   /** 由 @/stores/auth mock 工厂创建，测试驱动切换活跃空间 */
   authState: null as { activeWorkspaceId: string | null } | null,
 }))
@@ -42,13 +42,13 @@ vi.mock('@/components/common/MarkdownView.vue', async () => {
   }
 })
 
-vi.mock('@/composables/project/trace/useTraceNodePicker', async () => {
+vi.mock('@/composables/project/ai/useAssistantEntityPicker', async () => {
   const { ref } = await import('vue')
   return {
-    useTraceNodePicker: () => ({
+    useAssistantEntityPicker: () => ({
       options: ref([{ id: 'r1', label: '登录需求' }]),
       loading: ref(false),
-      load: mocks.loadTraceNode,
+      load: mocks.loadEntityNode,
     }),
   }
 })

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProjectModule, TraceNodeType } from '@/types'
+import type { AssistantEntityType } from './useAssistantEntityPicker'
+import type { ProjectModule } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetchProjectModuleTree: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('@/services/project', () => ({
   fetchPlans: mocks.fetchPlans,
 }))
 
-import { useTraceNodePicker } from './useTraceNodePicker'
+import { useAssistantEntityPicker } from './useAssistantEntityPicker'
 
 function makeTree(): ProjectModule[] {
   return [
@@ -73,7 +74,7 @@ function setup(): void {
   })
 }
 
-describe('useTraceNodePicker', () => {
+describe('useAssistantEntityPicker', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setup()
@@ -81,7 +82,7 @@ describe('useTraceNodePicker', () => {
 
   describe('候选加载', () => {
     it('requirement 按关键字请求并映射 code + title', async () => {
-      const s = useTraceNodePicker()
+      const s = useAssistantEntityPicker()
       await s.load('requirement', '登录')
       expect(mocks.fetchRequirements).toHaveBeenCalledWith({
         keyword: '登录',
@@ -93,7 +94,7 @@ describe('useTraceNodePicker', () => {
     })
 
     it('requirement 空关键字传 undefined 由服务端省略条件', async () => {
-      const s = useTraceNodePicker()
+      const s = useAssistantEntityPicker()
       await s.load('requirement')
       expect(mocks.fetchRequirements).toHaveBeenCalledWith({
         keyword: undefined,
@@ -103,7 +104,7 @@ describe('useTraceNodePicker', () => {
     })
 
     it('module 只收目录节点并按关键字过滤', async () => {
-      const s = useTraceNodePicker()
+      const s = useAssistantEntityPicker()
       await s.load('module')
       expect(mocks.fetchProjectModuleTree).toHaveBeenCalledTimes(1)
       expect(mocks.fetchRequirements).not.toHaveBeenCalled()
@@ -118,7 +119,7 @@ describe('useTraceNodePicker', () => {
     })
 
     it('mindmap_document 只收文档节点', async () => {
-      const s = useTraceNodePicker()
+      const s = useAssistantEntityPicker()
       await s.load('mindmap_document')
       expect(s.options.value).toEqual([
         { id: 'f1', label: '登录用例文档' },
@@ -127,7 +128,7 @@ describe('useTraceNodePicker', () => {
     })
 
     it('test_review 取评审列表 title 作为标签', async () => {
-      const s = useTraceNodePicker()
+      const s = useAssistantEntityPicker()
       await s.load('test_review', '登录')
       expect(mocks.fetchReviews).toHaveBeenCalledWith({
         keyword: '登录',
@@ -139,7 +140,7 @@ describe('useTraceNodePicker', () => {
     })
 
     it('test_plan 取计划列表 name 作为标签', async () => {
-      const s = useTraceNodePicker()
+      const s = useAssistantEntityPicker()
       await s.load('test_plan', '回归')
       expect(mocks.fetchPlans).toHaveBeenCalledWith({
         keyword: '回归',
@@ -150,53 +151,25 @@ describe('useTraceNodePicker', () => {
       expect(s.loading.value).toBe(false)
     })
 
-    it('test_case 无列表接口不发请求', async () => {
-      const s = useTraceNodePicker()
-      await s.load('test_case')
-      expect(mocks.fetchProjectModuleTree).not.toHaveBeenCalled()
-      expect(mocks.fetchRequirements).not.toHaveBeenCalled()
-      expect(mocks.fetchReviews).not.toHaveBeenCalled()
-      expect(mocks.fetchPlans).not.toHaveBeenCalled()
-      expect(s.options.value).toEqual([])
-      expect(s.loading.value).toBe(false)
-    })
-
-    it('未知节点类型走 else 兜底空列表', async () => {
-      const s = useTraceNodePicker()
+    it('未知类型兜底空列表，不发请求', async () => {
+      const s = useAssistantEntityPicker()
       // TS 枚举上不可表达该取值，断言进入源码 else 分支
-      const unknownType = 'unknown_kind' as unknown as TraceNodeType
+      const unknownType = 'unknown_kind' as unknown as AssistantEntityType
       await s.load(unknownType)
       expect(s.options.value).toEqual([])
       expect(mocks.fetchRequirements).not.toHaveBeenCalled()
+      expect(mocks.fetchProjectModuleTree).not.toHaveBeenCalled()
+      expect(mocks.fetchReviews).not.toHaveBeenCalled()
+      expect(mocks.fetchPlans).not.toHaveBeenCalled()
       expect(s.loading.value).toBe(false)
     })
 
     it('接口失败时保持下拉可用', async () => {
       mocks.fetchRequirements.mockRejectedValueOnce(new Error('网络异常'))
-      const s = useTraceNodePicker()
+      const s = useAssistantEntityPicker()
       await s.load('requirement')
       expect(s.options.value).toEqual([])
       expect(s.loading.value).toBe(false)
-    })
-  })
-
-  describe('reset 与 isSearchable', () => {
-    it('reset 清空候选', async () => {
-      const s = useTraceNodePicker()
-      await s.load('requirement')
-      expect(s.options.value).toHaveLength(1)
-      s.reset()
-      expect(s.options.value).toEqual([])
-    })
-
-    it('isSearchable 仅列表接口类型支持关键字', () => {
-      const s = useTraceNodePicker()
-      expect(s.isSearchable('requirement')).toBe(true)
-      expect(s.isSearchable('test_review')).toBe(true)
-      expect(s.isSearchable('test_plan')).toBe(true)
-      expect(s.isSearchable('module')).toBe(false)
-      expect(s.isSearchable('mindmap_document')).toBe(false)
-      expect(s.isSearchable('test_case')).toBe(false)
     })
   })
 })

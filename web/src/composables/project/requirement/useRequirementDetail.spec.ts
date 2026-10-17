@@ -78,7 +78,6 @@ function makeDetail(overrides: Partial<RequirementDetail> = {}): RequirementDeta
     source: 'manual',
     sourceFile: null,
     confirmedAt: '2026-10-02T08:00:00Z',
-    coverageStatus: null,
     createdAt: '2026-10-01T08:00:00Z',
     updatedAt: '2026-10-02T08:00:00Z',
     ...overrides,
