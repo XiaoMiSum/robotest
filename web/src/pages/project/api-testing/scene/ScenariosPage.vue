@@ -303,9 +303,8 @@ onMounted(async () => {
         <el-button @click="handleReset">重置</el-button>
         <div class="scenarios-page__spacer" />
         <template v-if="selectedIds.length > 0">
-          <span class="scenarios-page__selected-count">已选 {{ selectedIds.length }} 项</span>
-          <el-button @click="showBatchMove = true">批量移动</el-button>
-          <el-button type="danger" plain @click="handleBatchDelete">批量删除</el-button>
+          <el-button link type="primary" @click="showBatchMove = true">移动</el-button>
+          <el-button link type="danger" @click="handleBatchDelete">删除</el-button>
         </template>
       </div>
     </el-card>
@@ -471,11 +470,6 @@ onMounted(async () => {
 .scenarios-page__more {
   margin-left: 12px;
   vertical-align: middle;
-}
-
-.scenarios-page__selected-count {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-500);
 }
 
 .scenarios-page__body {
