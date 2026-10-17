@@ -41,7 +41,7 @@ export function isRunningStage(stage: ApiGitImportStage): boolean {
   return RUNNING_STAGES.includes(stage)
 }
 
-export type ImportDetailFilter = 'all' | ApiGitImportPreviewDetail['type']
+export type ImportDetailFilter = 'parsed' | ApiGitImportPreviewDetail['type']
 
 /** 明细类型中文标签：未知取值原样透出，避免把服务端异常值误标成预期内类别 */
 export function detailTypeLabel(type: string): string {
@@ -107,12 +107,11 @@ export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported:
     return stage !== undefined && stage !== null && isRunningStage(stage)
   })
 
-  const detailFilter = ref<ImportDetailFilter>('all')
+  /** 恒默认解析成功段；每次新结果到达同样回落（交互稿 27 §3.2） */
+  const detailFilter = ref<ImportDetailFilter>('parsed')
   const filteredDetails = computed(() => {
     const details = preview.value?.details ?? []
-    return detailFilter.value === 'all'
-      ? details
-      : details.filter((detail) => detail.type === detailFilter.value)
+    return details.filter((detail) => detail.type === detailFilter.value)
   })
 
   let timer: ReturnType<typeof setInterval> | null = null
@@ -137,7 +136,7 @@ export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported:
         stopPolling()
         // 预览计数已过期：清空后须重新扫描才能再次导入
         preview.value = null
-        detailFilter.value = 'all'
+        detailFilter.value = 'parsed'
         ElMessage.success('导入完成')
         onImported()
       } else if (status.stage === 'failed') {
@@ -174,7 +173,7 @@ export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported:
     if (!current || !canPreview.value || previewing.value) return
     // 重新扫描先清上一次结果，loading 期间既不展示旧明细也不闪现空态引导（交互稿 27 §3.2）
     preview.value = null
-    detailFilter.value = 'all'
+    detailFilter.value = 'parsed'
     previewing.value = true
     try {
       const result = await previewGitImport(current.id)

@@ -174,7 +174,7 @@ describe('GitLabImportPane', () => {
     expect(wrapper.find('.gi-actions__left').find('button').exists()).toBe(false)
   })
 
-  it('预览后展示汇总条、环境说明与失败明细表', async () => {
+  it('预览后展示汇总条、环境说明与结果视图', async () => {
     mocks.previewGitImport.mockResolvedValue(makePreview())
     const wrapper = mountPane()
     await flushPromises()
@@ -189,9 +189,9 @@ describe('GitLabImportPane', () => {
     expect(sum.text()).toContain('测试类 20 · 有效用例 193')
     expect(sum.text()).toContain('环境并入「默认环境」')
 
-    expect(wrapper.findAll('.gi-details__row')).toHaveLength(2)
-    expect(wrapper.find('.gi-details').text()).toContain('com.example.OrderQueryTest#listByStatus')
-    expect(wrapper.find('.gi-details').text()).toContain('文件级')
+    // 恒默认解析成功段
+    expect(wrapper.find('.gi-view').text()).toContain('com.example.OrderQueryTest#listByStatus')
+    expect(wrapper.find('.gi-view').text()).toContain('按状态查询订单列表')
     expect(buttonByText(wrapper, '导出 CSV')).toBeTruthy()
 
     // 预览通过后执行导入才可用
@@ -199,46 +199,50 @@ describe('GitLabImportPane', () => {
     expect(execute?.attributes('disabled')).toBeUndefined()
   })
 
-  it('按类型筛选与汇总条解析失败段联动收窄明细', async () => {
+  it('三段按钮组带计数，切换失败段渲染对应明细', async () => {
     mocks.previewGitImport.mockResolvedValue(makePreview())
     const wrapper = mountPane()
     await flushPromises()
     await runPreview(wrapper)
 
+    const bar = wrapper.find('.gi-view__bar')
+    expect(bar.text()).toContain('解析成功 205')
+    expect(bar.text()).toContain('解析失败 1')
+    expect(bar.text()).toContain('真实错误 1')
+
     wrapper.findComponent(ElRadioGroup).vm.$emit('update:modelValue', 'parseFailed')
     await flushPromises()
-    expect(wrapper.findAll('.gi-details__row')).toHaveLength(1)
-    expect(wrapper.find('.gi-details__count').text()).toContain('共 1 条')
+    expect(wrapper.findAll('.gi-view__row')).toHaveLength(1)
+    expect(wrapper.find('.gi-view__count').text()).toContain('共 1 条')
+    expect(wrapper.find('.gi-view__row').text()).toContain('解析失败')
+
+    wrapper.findComponent(ElRadioGroup).vm.$emit('update:modelValue', 'errorFailed')
+    await flushPromises()
+    expect(wrapper.findAll('.gi-view__row')).toHaveLength(1)
+    expect(wrapper.find('.gi-view__row').text()).toContain('真实错误')
+    expect(wrapper.find('.gi-view__row').text()).toContain('文件级')
 
     // 点击汇总条解析失败段同样切到该类型
-    wrapper.findComponent(ElRadioGroup).vm.$emit('update:modelValue', 'all')
+    wrapper.findComponent(ElRadioGroup).vm.$emit('update:modelValue', 'parsed')
     await flushPromises()
     const seg = wrapper.find('.gi-seg--link')
     await seg.trigger('click')
     await flushPromises()
-    expect(wrapper.findAll('.gi-details__row')).toHaveLength(1)
-    expect(wrapper.find('.gi-details__row').text()).toContain('解析失败')
+    expect(wrapper.findAll('.gi-view__row')).toHaveLength(1)
+    expect(wrapper.find('.gi-view__row').text()).toContain('解析失败')
   })
 
-  it('解析成功清单默认折叠，展开后展示条目与截断提示', async () => {
+  it('解析成功段恒默认展示清单与截断提示', async () => {
     mocks.previewGitImport.mockResolvedValue(makePreview())
     const wrapper = mountPane()
     await flushPromises()
     await runPreview(wrapper)
 
-    const parsed = wrapper.find('.gi-parsed')
-    expect(parsed.exists()).toBe(true)
-    expect(parsed.text()).toContain('解析成功 205')
-    expect(wrapper.find('.gi-parsed__list').exists()).toBe(false)
-
-    await buttonByText(wrapper, '解析成功 205')?.trigger('click')
-    await flushPromises()
-    expect(wrapper.find('.gi-parsed__list').exists()).toBe(true)
-    expect(wrapper.find('.gi-parsed__note').text()).toContain('仅展示前 2 条，共 205 条')
-    expect(wrapper.findAll('.gi-parsed__item')).toHaveLength(2)
-    expect(wrapper.find('.gi-parsed__item').text()).toContain('更新')
-    expect(wrapper.find('.gi-parsed__key').text()).toBe('com.example.OrderQueryTest#listByStatus')
-    expect(wrapper.find('.gi-parsed__name').text()).toBe('按状态查询订单列表')
+    expect(wrapper.find('.gi-view__note').text()).toContain('仅展示前 2 条，共 205 条')
+    expect(wrapper.findAll('.gi-view__row')).toHaveLength(2)
+    expect(wrapper.find('.gi-view__row').text()).toContain('更新')
+    expect(wrapper.find('.gi-view__key').text()).toBe('com.example.OrderQueryTest#listByStatus')
+    expect(wrapper.find('.gi-view__reason').text()).toBe('按状态查询订单列表')
   })
 
   it('重新扫描先清空上一次结果，loading 期间不展示旧结果也不闪现空态', async () => {
@@ -253,8 +257,7 @@ describe('GitLabImportPane', () => {
     await buttonByText(wrapper, '扫描预览')?.trigger('click')
 
     expect(wrapper.find('.gi-sum').exists()).toBe(false)
-    expect(wrapper.find('.gi-parsed').exists()).toBe(false)
-    expect(wrapper.find('.gi-details').exists()).toBe(false)
+    expect(wrapper.find('.gi-view').exists()).toBe(false)
     expect(wrapper.find('.gi-state').exists()).toBe(false)
     expect(wrapper.find('.gi-progress').exists()).toBe(false)
 
@@ -284,7 +287,7 @@ describe('GitLabImportPane', () => {
     expect(alert.exists()).toBe(true)
     expect(alert.classes()).toContain('el-alert--info')
     expect(wrapper.text()).toContain('目标分支提交与上次导入一致')
-    expect(wrapper.find('.gi-details').exists()).toBe(false)
+    expect(wrapper.find('.gi-view').exists()).toBe(false)
     expect(wrapper.find('.gi-state').exists()).toBe(false)
     expect(buttonByText(wrapper, '执行导入')?.attributes('disabled')).toBeDefined()
 
@@ -332,6 +335,10 @@ describe('GitLabImportPane', () => {
     expect(progress.exists()).toBe(true)
     expect(progress.text()).toContain('进行中 · 解析用例')
     expect(progress.text()).toContain('96 / 193')
+    // 阶段文字前带旋转 loading 图标
+    expect(progress.find('.el-icon').classes()).toContain('is-loading')
+    // 导入进行中主操作持续转 loading
+    expect(buttonByText(wrapper, '执行导入')?.classes()).toContain('is-loading')
     // 服务端继续轮询由组合式接管，重进恢复：此处仅断言进入即重查
     expect(mocks.fetchGitImportStatus).toHaveBeenCalledTimes(1)
   })
