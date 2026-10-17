@@ -190,6 +190,22 @@ describe('useGitLabRepo', () => {
       expect(s.form.defaultBranch).toBe('dev')
     })
 
+    it('创建态提交前规范化项目路径并写回表单', async () => {
+      mocks.testGitRepoConnection.mockResolvedValue(makeConnectionResp())
+      const s = await initAndFlush()
+      s.startCreate()
+      s.form.gitlabBaseUrl = 'https://gitlab.example.com'
+      s.form.repoPath = ' /group/repo/ '
+      await s.runConnectionTest()
+      expect(mocks.testGitRepoConnection).toHaveBeenCalledWith({
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        repoPath: 'group/repo',
+        token: undefined,
+        defaultBranch: undefined,
+      })
+      expect(s.form.repoPath).toBe('group/repo')
+    })
+
     it('编辑态令牌留空时省略 token 与锁定字段，服务端回落已存配置', async () => {
       mocks.testGitRepoConnection.mockResolvedValue(makeConnectionResp())
       const s = await initAndFlush({ repo: makeRepo() })
@@ -268,6 +284,29 @@ describe('useGitLabRepo', () => {
       expect(s.form.token).toBe('')
       expect(s.activeTab.value).toBe('import')
       expect(mocks.ElMessage.success).toHaveBeenCalledWith('已保存')
+    })
+
+    it('项目路径带首尾斜杠时规范化后再提交', async () => {
+      mocks.createGitRepo.mockResolvedValue(makeRepo())
+      const s = await initAndFlush()
+      s.startCreate()
+      s.form.name = '配置一'
+      s.form.gitlabBaseUrl = 'https://gitlab.example.com'
+      s.form.repoPath = '/group/sub/repo/'
+      s.form.token = 'glpat-secret'
+      await s.save()
+      expect(mocks.createGitRepo.mock.calls[0][0].repoPath).toBe('group/sub/repo')
+    })
+
+    it('项目路径只含斜杠时前置校验拦截，不发请求', async () => {
+      const s = await initAndFlush()
+      s.startCreate()
+      s.form.name = '配置一'
+      s.form.gitlabBaseUrl = 'https://gitlab.example.com'
+      s.form.repoPath = '///'
+      await s.save()
+      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请填写项目路径')
+      expect(mocks.createGitRepo).not.toHaveBeenCalled()
     })
 
     it('保存被服务端拒（连通性实测失败）时保留表单并提示错误码', async () => {
