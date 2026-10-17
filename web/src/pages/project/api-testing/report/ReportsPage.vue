@@ -128,7 +128,7 @@ function handleSelectionChange(selection: ApiReportPageItem[]) {
 
 async function handleBatchDelete() {
   if (!selectedIds.value.length) return
-  await ElMessageBox.confirm(`批量删除 ${selectedIds.value.length} 份报告？删除后不可恢复。`, '批量删除', {
+  await ElMessageBox.confirm(`删除选中的 ${selectedIds.value.length} 份报告？删除后不可恢复。`, '删除报告', {
     type: 'warning',
     confirmButtonText: '删除',
     confirmButtonClass: 'el-button--danger',
