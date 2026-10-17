@@ -1,9 +1,6 @@
 /** 需求状态（详设 4.2 状态机：draft → confirmed → changed → archived，unarchive 一律回 draft） */
 export type RequirementStatus = 'draft' | 'confirmed' | 'changed' | 'archived'
 
-/** 覆盖状态：追溯侧未接入时恒为 null，前端展示「—」 */
-export type RequirementCoverageStatus = 'covered' | 'partial' | 'uncovered' | 'pending'
-
 /** 优先级取值仅三档，非法值由服务端返回 1000018010 */
 export type RequirementPriority = 'high' | 'medium' | 'low'
 
@@ -22,7 +19,6 @@ export interface RequirementListItem {
   moduleName: string | null
   systemVersion: string | null
   status: RequirementStatus
-  coverageStatus: RequirementCoverageStatus | null
   priority: RequirementPriority | null
   ownerId: string | null
   ownerName: string | null
@@ -53,7 +49,6 @@ export interface RequirementDetail {
   source: RequirementSource
   sourceFile: RequirementSourceFile | null
   confirmedAt: string | null
-  coverageStatus: RequirementCoverageStatus | null
   createdAt: string
   updatedAt: string
 }
@@ -89,7 +84,6 @@ export interface RequirementPageQuery {
   moduleIds?: string
   ownerId?: string
   systemVersion?: string
-  coverage?: string
   keyword?: string
   pageNo?: number
   pageSize?: number

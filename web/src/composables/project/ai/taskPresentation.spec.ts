@@ -69,7 +69,7 @@ describe('taskPresentation', () => {
 
     it('类型筛选选项带能力域后缀', () => {
       const options = aiTaskTypeOptions()
-      expect(options.length).toBeGreaterThanOrEqual(16)
+      expect(options.length).toBeGreaterThanOrEqual(14)
       expect(options.find((item) => item.value === 'requirement_split')?.label).toBe(
         '需求拆分（需求）',
       )

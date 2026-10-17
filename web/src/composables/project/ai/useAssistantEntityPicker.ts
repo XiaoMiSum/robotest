@@ -1,14 +1,19 @@
 import { ref } from 'vue'
 import { fetchProjectModuleTree, fetchPlans, fetchRequirements, fetchReviews } from '@/services/project'
-import type { ProjectModule, TraceNodeType } from '@/types'
+import type { ProjectModule } from '@/types'
 
-export interface TraceNodeOption {
+/** 可作为附件引用的实体类型（详设 3.4 合法引用类型的可选子集） */
+export type AssistantEntityType =
+  | 'requirement'
+  | 'module'
+  | 'mindmap_document'
+  | 'test_review'
+  | 'test_plan'
+
+export interface AssistantEntityOption {
   id: string
   label: string
 }
-
-/** 列表接口支持关键字检索的节点类型，其余类型一次性取回后前端过滤 */
-const SEARCHABLE_TYPES: TraceNodeType[] = ['requirement', 'test_review', 'test_plan']
 
 function matches(keyword: string, label: string): boolean {
   const needle = keyword.trim()
@@ -19,7 +24,7 @@ function flattenModules(
   nodes: ProjectModule[],
   wanted: 'module' | 'mindmap_document',
   keyword: string,
-  out: TraceNodeOption[],
+  out: AssistantEntityOption[],
 ): void {
   for (const node of nodes) {
     const hit = wanted === 'module' ? node.type === 'directory' : node.type === 'document'
@@ -29,18 +34,14 @@ function flattenModules(
 }
 
 /**
- * 人工建边的节点选取（详设 3.5）：按节点类型复用既有列表接口取候选，
- * 测试用例没有全局列表接口，由链路树节点提供候选（调用方注入）。
+ * 助手上下文附件的实体候选：按实体类型复用既有列表接口取候选，
+ * 模块树无关键字检索能力，取回后在前端过滤。
  */
-export function useTraceNodePicker() {
-  const options = ref<TraceNodeOption[]>([])
+export function useAssistantEntityPicker() {
+  const options = ref<AssistantEntityOption[]>([])
   const loading = ref(false)
 
-  async function load(type: TraceNodeType, keyword = ''): Promise<void> {
-    if (type === 'test_case') {
-      options.value = []
-      return
-    }
+  async function load(type: AssistantEntityType, keyword = ''): Promise<void> {
     loading.value = true
     try {
       if (type === 'requirement') {
@@ -48,7 +49,7 @@ export function useTraceNodePicker() {
         options.value = page.list.map((item) => ({ id: item.id, label: `${item.code} ${item.title}` }))
       } else if (type === 'module' || type === 'mindmap_document') {
         const tree = await fetchProjectModuleTree()
-        const flattened: TraceNodeOption[] = []
+        const flattened: AssistantEntityOption[] = []
         flattenModules(tree, type, keyword, flattened)
         options.value = flattened
       } else if (type === 'test_review') {
@@ -58,23 +59,16 @@ export function useTraceNodePicker() {
         const page = await fetchPlans({ keyword: keyword || undefined, pageNo: 1, pageSize: 50 })
         options.value = page.list.map((item) => ({ id: item.id, label: item.name }))
       } else {
+        // 未知类型兜底空列表，避免把上一次候选当作本次结果展示
         options.value = []
       }
     } catch {
-      // 候选加载失败由提交时的业务错误兜底，此处保持下拉可用
+      // 候选加载失败由发送时的业务错误兜底，此处保持下拉可用
       options.value = []
     } finally {
       loading.value = false
     }
   }
 
-  function reset(): void {
-    options.value = []
-  }
-
-  function isSearchable(type: TraceNodeType): boolean {
-    return SEARCHABLE_TYPES.includes(type)
-  }
-
-  return { options, loading, load, reset, isSearchable }
+  return { options, loading, load }
 }

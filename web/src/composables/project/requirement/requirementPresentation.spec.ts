@@ -7,7 +7,6 @@ import {
   isRequirementReadonly,
   requirementChangeLines,
   requirementChangeTypeLabel,
-  requirementCoverageMeta,
   requirementPagerTotal,
   requirementPriorityLabel,
   requirementRow,
@@ -24,7 +23,6 @@ function item(overrides: Partial<RequirementListItem> = {}): RequirementListItem
     moduleName: null,
     systemVersion: null,
     status: 'draft',
-    coverageStatus: null,
     priority: null,
     ownerId: null,
     ownerName: null,
@@ -62,24 +60,6 @@ describe('requirementPresentation', () => {
 
     it('未知状态回退为原文且不抛错', () => {
       expect(requirementStatusMeta('mystery')).toEqual({ label: 'mystery', tagType: 'info' })
-    })
-  })
-
-  describe('覆盖状态徽标', () => {
-    it('null 展示为 null（页面渲染「—」）', () => {
-      expect(requirementCoverageMeta(null)).toBeNull()
-      expect(requirementCoverageMeta(undefined)).toBeNull()
-    })
-
-    it('四档覆盖状态映射标签', () => {
-      expect(requirementCoverageMeta('covered')).toEqual({ label: '完整覆盖', tagType: 'success' })
-      expect(requirementCoverageMeta('partial')).toEqual({ label: '部分覆盖', tagType: 'warning' })
-      expect(requirementCoverageMeta('uncovered')).toEqual({ label: '未覆盖', tagType: 'danger' })
-      expect(requirementCoverageMeta('pending')).toEqual({ label: '待分析', tagType: 'info' })
-    })
-
-    it('未知值回退为原文', () => {
-      expect(requirementCoverageMeta('weird' as never)).toEqual({ label: 'weird', tagType: 'info' })
     })
   })
 
@@ -184,9 +164,8 @@ describe('requirementPresentation', () => {
 
   describe('列表行视图模型', () => {
     it('补全徽标与空值占位', () => {
-      const row = requirementRow(item({ status: 'archived', coverageStatus: 'covered' }))
+      const row = requirementRow(item({ status: 'archived' }))
       expect(row.statusMeta.label).toBe('已归档')
-      expect(row.coverageMeta).toEqual({ label: '完整覆盖', tagType: 'success' })
       expect(row.moduleText).toBe('—')
       expect(row.ownerText).toBe('—')
       expect(row.versionText).toBe('—')
@@ -194,12 +173,11 @@ describe('requirementPresentation', () => {
 
     it('有值时透出原始文本', () => {
       const row = requirementRow(
-        item({ moduleName: '登录', ownerName: '张三', systemVersion: 'V2', coverageStatus: null }),
+        item({ moduleName: '登录', ownerName: '张三', systemVersion: 'V2' }),
       )
       expect(row.moduleText).toBe('登录')
       expect(row.ownerText).toBe('张三')
       expect(row.versionText).toBe('V2')
-      expect(row.coverageMeta).toBeNull()
     })
 
     it('分页总数文案', () => {

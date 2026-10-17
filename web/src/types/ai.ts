@@ -8,8 +8,6 @@ export type AiTaskType =
   | 'test_design_generation'
   | 'review_selection'
   | 'plan_selection'
-  | 'coverage_analysis'
-  | 'impact_analysis'
   | 'case_complete'
   | 'case_priority'
   | 'plan_order'

@@ -10,7 +10,6 @@ import type { AiGenerationScopeItem, RequirementPriority } from '@/types'
 import {
   requirementChangeLines,
   requirementChangeTypeLabel,
-  requirementCoverageMeta,
   requirementSourceLabel,
   requirementStatusMeta,
 } from '@/composables/project/requirement/requirementPresentation'
@@ -19,10 +18,6 @@ import {
   REQUIREMENT_PRIORITY_OPTIONS,
 } from '@/composables/project/requirement/useRequirementCreate'
 import { useRequirementDetail } from '@/composables/project/requirement/useRequirementDetail'
-import { useAuthStore } from '@/stores/auth'
-
-const authStore = useAuthStore()
-const canViewTrace = computed(() => authStore.hasPermission('trace:view'))
 
 const {
   loading,
@@ -81,9 +76,6 @@ const generationScope = computed<AiGenerationScopeItem[]>(() =>
 const statusMeta = computed(() =>
   detail.value ? requirementStatusMeta(detail.value.status) : null,
 )
-const coverageMeta = computed(() =>
-  detail.value ? requirementCoverageMeta(detail.value.coverageStatus) : null,
-)
 
 /** 分段控件选中态用优先级色（同新建页），EP 无逐按钮配色 prop，走组件 CSS 变量注入 */
 function priorityButtonStyle(value: RequirementPriority): Record<string, string> {
@@ -99,9 +91,9 @@ function onSideTabChange(name: TabPaneName): void {
   if (name === 'logs') ensureLogs()
 }
 
-// ==================== 操作区分组（按频次：编辑/追溯 │ AI 生成 │ 生命周期） ====================
+// ==================== 操作区分组（按频次：编辑 │ AI 生成 │ 生命周期） ====================
 const showEditEntry = computed(() => Boolean(detail.value) && canEdit.value && !isReadonly.value)
-const hasEditGroup = computed(() => showEditEntry.value || canViewTrace.value)
+const hasEditGroup = computed(() => showEditEntry.value)
 const hasLifecycleGroup = computed(
   () => canConfirm.value || canArchive.value || canUnarchive.value,
 )
@@ -177,15 +169,6 @@ const router = useRouter()
 function goBack(): void {
   void router.push('/workspace/projects/requirements')
 }
-
-/** 跳转链路明细页定位本需求的下游链路（交互 04 §2.2 入口） */
-function openTrace(): void {
-  if (!detail.value) return
-  void router.push({
-    name: 'TraceChain',
-    params: { nodeType: 'requirement', nodeId: detail.value.id },
-  })
-}
 </script>
 
 <template>
@@ -215,16 +198,13 @@ function openTrace(): void {
             >保存</el-button>
           </template>
           <template v-else>
-            <!-- 按操作频次分组：①编辑/追溯（link）②AI 生成 ③生命周期（确认 + 更多下拉），主色取项目 token -->
+            <!-- 按操作频次分组：①编辑（link）②AI 生成 ③生命周期（确认 + 更多下拉），主色取项目 token -->
             <el-button
               v-if="showEditEntry"
               link
               type="primary"
               @click="startEdit"
             >编辑</el-button>
-            <el-button v-if="canViewTrace" link type="primary" @click="openTrace">
-              <el-icon><Grid /></el-icon>查看追溯
-            </el-button>
 
             <el-divider v-if="showDividerBeforeAi" direction="vertical" />
 
@@ -376,12 +356,6 @@ function openTrace(): void {
                       </el-form-item>
                       <el-form-item label="来源">
                         <span class="requirement-detail__muted">{{ requirementSourceLabel(detail.source) }}</span>
-                      </el-form-item>
-                      <el-form-item label="覆盖状态">
-                        <el-tag v-if="coverageMeta" :type="coverageMeta.tagType" size="small" effect="light">
-                          {{ coverageMeta.label }}
-                        </el-tag>
-                        <span v-else class="requirement-detail__muted">—</span>
                       </el-form-item>
                     </div>
                   </el-form>

@@ -1,6 +1,5 @@
 import type {
   RequirementChangeLog,
-  RequirementCoverageStatus,
   RequirementDetail,
   RequirementListItem,
   RequirementPriority,
@@ -27,28 +26,6 @@ export const REQUIREMENT_STATUS_META: Record<RequirementStatus, RequirementStatu
 
 export function requirementStatusMeta(status: string): RequirementStatusMeta {
   return REQUIREMENT_STATUS_META[status as RequirementStatus] ?? { label: status, tagType: 'info' }
-}
-
-// ==================== 覆盖状态徽标 ====================
-
-export interface RequirementCoverageMeta {
-  label: string
-  tagType: 'success' | 'warning' | 'danger' | 'info'
-}
-
-const COVERAGE_META: Record<RequirementCoverageStatus, RequirementCoverageMeta> = {
-  covered: { label: '完整覆盖', tagType: 'success' },
-  partial: { label: '部分覆盖', tagType: 'warning' },
-  uncovered: { label: '未覆盖', tagType: 'danger' },
-  pending: { label: '待分析', tagType: 'info' },
-}
-
-/** 追溯侧未接入时 coverageStatus 为 null，统一展示「—」（详设 3.2） */
-export function requirementCoverageMeta(
-  value: RequirementCoverageStatus | null | undefined,
-): RequirementCoverageMeta | null {
-  if (!value) return null
-  return COVERAGE_META[value] ?? { label: value, tagType: 'info' }
 }
 
 // ==================== 操作可用性（状态机 4.2） ====================
@@ -150,7 +127,6 @@ export function requirementChangeLines(log: RequirementChangeLog): string[] {
 
 export interface RequirementRow extends RequirementListItem {
   statusMeta: RequirementStatusMeta
-  coverageMeta: RequirementCoverageMeta | null
   moduleText: string
   ownerText: string
   versionText: string
@@ -160,7 +136,6 @@ export function requirementRow(item: RequirementListItem): RequirementRow {
   return {
     ...item,
     statusMeta: requirementStatusMeta(item.status),
-    coverageMeta: requirementCoverageMeta(item.coverageStatus),
     moduleText: item.moduleName ?? '—',
     ownerText: item.ownerName ?? '—',
     versionText: item.systemVersion ?? '—',

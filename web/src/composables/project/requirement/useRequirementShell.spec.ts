@@ -28,26 +28,17 @@ describe('useRequirementShell', () => {
     vi.clearAllMocks()
     mocks.useRoute.mockReturnValue({ query: {} } as never)
     mocks.useRouter.mockReturnValue({ replace: vi.fn() } as never)
-    mocks.useAuthStore.mockReturnValue(
-      authWith(['requirement:view', 'trace:view']) as never,
-    )
+    mocks.useAuthStore.mockReturnValue(authWith(['requirement:view']) as never)
   })
 
   describe('子项权限过滤', () => {
-    it('双权限时显示两项', () => {
+    it('有权限时显示需求列表', () => {
       const { visibleItems } = useRequirementShell()
-      expect(visibleItems.value.map((item) => item.key)).toEqual(['list', 'trace'])
-      expect(visibleItems.value.map((item) => item.label)).toEqual(['需求列表', '追溯矩阵'])
-    })
-
-    it('仅有 requirement:view 时只剩需求列表', () => {
-      mocks.useAuthStore.mockReturnValue(authWith(['requirement:view']) as never)
-      const { visibleItems, activeTab } = useRequirementShell()
       expect(visibleItems.value.map((item) => item.key)).toEqual(['list'])
-      expect(activeTab.value).toBe('list')
+      expect(visibleItems.value.map((item) => item.label)).toEqual(['需求列表'])
     })
 
-    it('两项权限全无时侧栏空且无激活子页', () => {
+    it('无权限时侧栏空且无激活子页', () => {
       mocks.useAuthStore.mockReturnValue(authWith([]) as never)
       const { visibleItems, activeTab } = useRequirementShell()
       expect(visibleItems.value).toEqual([])
@@ -59,26 +50,6 @@ describe('useRequirementShell', () => {
     it('缺省回落到需求列表', () => {
       const { activeTab } = useRequirementShell()
       expect(activeTab.value).toBe('list')
-    })
-
-    it('tab=trace 命中追溯子页', () => {
-      mocks.useRoute.mockReturnValue({ query: { tab: 'trace' } } as never)
-      const { activeTab } = useRequirementShell()
-      expect(activeTab.value).toBe('trace')
-    })
-
-    it('仅有 trace:view 时默认落在追溯子页', () => {
-      mocks.useAuthStore.mockReturnValue(authWith(['trace:view']) as never)
-      const { activeTab, visibleItems } = useRequirementShell()
-      expect(visibleItems.value.map((item) => item.key)).toEqual(['trace'])
-      expect(activeTab.value).toBe('trace')
-    })
-
-    it('仅有 trace:view 但请求 tab=list 时回退到追溯', () => {
-      mocks.useAuthStore.mockReturnValue(authWith(['trace:view']) as never)
-      mocks.useRoute.mockReturnValue({ query: { tab: 'list' } } as never)
-      const { activeTab } = useRequirementShell()
-      expect(activeTab.value).toBe('trace')
     })
 
     it('请求 tab 不在菜单中时回退首个有权限子项', () => {
@@ -93,14 +64,14 @@ describe('useRequirementShell', () => {
       mocks.useAuthStore.mockReturnValue(
         { hasPermission: (code: string) => codes.value.includes(code) } as never,
       )
-      mocks.useRoute.mockReturnValue({ query: { tab: 'trace' } } as never)
+      mocks.useRoute.mockReturnValue({ query: { tab: 'list' } } as never)
 
       const { activeTab } = useRequirementShell()
       expect(activeTab.value).toBe('')
 
-      codes.value = ['trace:view']
+      codes.value = ['requirement:view']
       await nextTick()
-      expect(activeTab.value).toBe('trace')
+      expect(activeTab.value).toBe('list')
     })
   })
 
@@ -111,15 +82,6 @@ describe('useRequirementShell', () => {
       const { handleMenuSelect } = useRequirementShell()
       handleMenuSelect('list')
       expect(replace).not.toHaveBeenCalled()
-    })
-
-    it('切换子页时写入 tab 并保留既有查询', () => {
-      const replace = vi.fn()
-      mocks.useRouter.mockReturnValue({ replace } as never)
-      mocks.useRoute.mockReturnValue({ query: { requirementId: 'r1' } } as never)
-      const { handleMenuSelect } = useRequirementShell()
-      handleMenuSelect('trace')
-      expect(replace).toHaveBeenCalledWith({ query: { requirementId: 'r1', tab: 'trace' } })
     })
   })
 })
