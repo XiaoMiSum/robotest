@@ -416,6 +416,15 @@ defineExpose({ openCreate, openImport })
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* 与数据卡片口径一致：card 内边距归零，模块树 header 才能与表头贴顶对齐 */
+  --el-card-padding: 0;
+
+  :deep(.el-card__body) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .interfaces-page__modules {
