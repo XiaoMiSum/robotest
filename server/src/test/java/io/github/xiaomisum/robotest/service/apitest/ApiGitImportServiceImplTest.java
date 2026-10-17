@@ -239,6 +239,68 @@ class ApiGitImportServiceImplTest {
         verify(moduleMapper, never()).backfillSourceId(any(), any());
     }
 
+    @Test
+    void previewReportsParsedScenesWithCreateAndUpdateAction() {
+        ScannedClass cls = new ScannedClass(JAVA_PATH, "com.example", "OrderQueryTest",
+                List.of(new ScannedMethod("queryStatus", "查询订单状态", "order/query_status.yaml"),
+                        new ScannedMethod("createOrder", "创建订单", "order/create_order.yaml")));
+        lenient().when(scanner.scan(any())).thenReturn(new ScanOutcome(List.of(cls), List.of(), List.of()));
+        remoteFiles.put("src/test/resources/order/create_order.yaml", SUITE_YAML);
+        // 命中既有稳定键的那条标 update，其余标 create
+        when(sceneMapper.listByRepo(any())).thenReturn(List.of(existingScene(UUID.randomUUID(), SCENE_KEY)));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(false));
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertNotNull(dto.getParsedScenes());
+        assertEquals(2, dto.getParsedScenes().getTotal());
+        assertEquals(false, dto.getParsedScenes().getTruncated());
+        List<ApiGitImportPreviewRespDTO.ParsedSceneDTO> items = dto.getParsedScenes().getItems();
+        assertEquals(2, items.size());
+        assertEquals(SCENE_KEY, items.get(0).getSceneKey());
+        assertEquals("查询订单状态", items.get(0).getName());
+        assertEquals("update", items.get(0).getAction());
+        assertEquals("com.example.OrderQueryTest#createOrder", items.get(1).getSceneKey());
+        assertEquals("create", items.get(1).getAction());
+        // 与 scenes 计数同口径
+        assertEquals(1, dto.getScenes().getCreate());
+        assertEquals(1, dto.getScenes().getUpdate());
+    }
+
+    @Test
+    void previewTruncatesParsedScenesBeyondLimitButKeepsCounts() {
+        List<ScannedMethod> methods = new ArrayList<>();
+        for (int i = 0; i < 201; i++) {
+            String path = "order/case_" + i + ".yaml";
+            remoteFiles.put("src/test/resources/" + path, SUITE_YAML);
+            methods.add(new ScannedMethod("case" + i, "用例" + i, path));
+        }
+        ScannedClass cls = new ScannedClass(JAVA_PATH, "com.example", "OrderQueryTest", methods);
+        lenient().when(scanner.scan(any())).thenReturn(new ScanOutcome(List.of(cls), List.of(), List.of()));
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(false));
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals(201, dto.getParsedScenes().getTotal());
+        assertEquals(true, dto.getParsedScenes().getTruncated());
+        assertEquals(200, dto.getParsedScenes().getItems().size());
+        // 截断只影响清单，不影响任何计数
+        assertEquals(201, dto.getEffectiveCases());
+        assertEquals(201, dto.getScenes().getCreate());
+    }
+
+    @Test
+    void previewParsedScenesExcludesFailures() {
+        remoteFiles.remove(YAML_PATH);
+        when(gitRepoMapper.selectById(REPO_ID)).thenReturn(storedRepo(false));
+
+        ApiGitImportPreviewRespDTO dto = service.preview(PROJECT_ID, WORKSPACE_ID, USER_ID, REPO_ID);
+
+        assertEquals(0, dto.getParsedScenes().getTotal());
+        assertTrue(dto.getParsedScenes().getItems().isEmpty());
+        assertEquals(false, dto.getParsedScenes().getTruncated());
+    }
+
     // ========== 导入 ==========
 
     @Test
@@ -482,6 +544,7 @@ class ApiGitImportServiceImplTest {
         assertNull(dto.getClasses());
         assertNull(dto.getModules());
         assertNull(dto.getScenes());
+        assertNull(dto.getParsedScenes());
         // 拦截时不拉取源码树、不扫描、不产生任何写操作
         verify(gitLabApiClient, never()).listFiles(anyString(), anyString(), anyString(), anyString(), anyString());
         verify(scanner, never()).scan(any());

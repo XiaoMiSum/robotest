@@ -25,6 +25,8 @@ public class ApiGitImportPreviewRespDTO {
     /** 环境合并结果（详设 4.1 批次补齐，当前恒 skip 占位） */
     private EnvironmentDTO environment;
     private List<DetailDTO> details;
+    /** 成功解析的场景清单：场景级，超出上限截断；闸门拦截时为 null */
+    private ParsedScenesDTO parsedScenes;
 
     @Data
     public static class GateDTO {
@@ -86,5 +88,25 @@ public class ApiGitImportPreviewRespDTO {
         /** 类全限定名#方法名；文件级失败为空 */
         private String sceneKey;
         private String reason;
+    }
+
+    @Data
+    public static class ParsedScenesDTO {
+
+        /** 成功解析场景总数（与 scenes.create + scenes.update 同口径） */
+        private Integer total;
+        /** items 超出单次上限被截断 */
+        private Boolean truncated;
+        private List<ParsedSceneDTO> items;
+    }
+
+    @Data
+    public static class ParsedSceneDTO {
+
+        /** 类全限定名#方法名 */
+        private String sceneKey;
+        private String name;
+        /** create / update */
+        private String action;
     }
 }

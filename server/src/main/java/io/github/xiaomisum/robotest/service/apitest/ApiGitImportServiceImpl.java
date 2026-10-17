@@ -69,6 +69,10 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
     private static final String TARGET_TYPE_GIT_REPO = "git_repo";
     private static final String DETAIL_TYPE_PARSE_FAILED = "parseFailed";
     private static final String DETAIL_TYPE_ERROR_FAILED = "errorFailed";
+    private static final String SCENE_ACTION_CREATE = "create";
+    private static final String SCENE_ACTION_UPDATE = "update";
+    /** 预览成功清单单次上限：截断只影响清单，不影响任何计数（详设 3.2） */
+    private static final int PREVIEW_PARSED_SCENES_LIMIT = 200;
 
     private static final String STAGE_IDLE = "idle";
     private static final String STAGE_FETCH = "fetch";
@@ -734,7 +738,32 @@ public class ApiGitImportServiceImpl implements ApiGitImportService {
             details.add(detail);
         }
         dto.setDetails(details);
+        dto.setParsedScenes(buildParsedScenes(plan));
         return dto;
+    }
+
+    /**
+     * 成功解析清单：与 {@code scenes.create / scenes.update} 计数同源（同取 prepared 与既有场景键比对），
+     * 超出上限只截断清单本身，计数与 total 不受影响（详设 3.2）。
+     */
+    private static ApiGitImportPreviewRespDTO.ParsedScenesDTO buildParsedScenes(ImportPlan plan) {
+        ApiGitImportPreviewRespDTO.ParsedScenesDTO parsed = new ApiGitImportPreviewRespDTO.ParsedScenesDTO();
+        parsed.setTotal(plan.prepared.size());
+        parsed.setTruncated(plan.prepared.size() > PREVIEW_PARSED_SCENES_LIMIT);
+        List<ApiGitImportPreviewRespDTO.ParsedSceneDTO> items = new ArrayList<>();
+        for (PreparedScene prepared : plan.prepared) {
+            if (items.size() >= PREVIEW_PARSED_SCENES_LIMIT) {
+                break;
+            }
+            ApiGitImportPreviewRespDTO.ParsedSceneDTO item = new ApiGitImportPreviewRespDTO.ParsedSceneDTO();
+            item.setSceneKey(prepared.key());
+            item.setName(prepared.name());
+            item.setAction(plan.existingByKey.containsKey(prepared.key())
+                    ? SCENE_ACTION_UPDATE : SCENE_ACTION_CREATE);
+            items.add(item);
+        }
+        parsed.setItems(items);
+        return parsed;
     }
 
     /**
