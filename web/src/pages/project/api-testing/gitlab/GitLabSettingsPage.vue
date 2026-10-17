@@ -225,7 +225,7 @@ const CI_MODE_HINT =
               <div class="gl-field">
                 <label class="gl-field__label">项目路径<span class="gl-field__req">*</span></label>
                 <el-input v-model="form.repoPath" :disabled="!canEdit" placeholder="group/subgroup/repo" />
-                <div class="gl-field__hint">不含 .git 后缀与协议前缀</div>
+                <div class="gl-field__hint">形如 group/subgroup/repo，不以 / 开头，不含 .git 后缀与协议前缀</div>
               </div>
               <div class="gl-field">
                 <label class="gl-field__label">默认分支</label>
