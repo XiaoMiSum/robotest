@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, Rank, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, Rank, Plus, EditPen } from '@element-plus/icons-vue'
 import type { ApiHttpConfig, ApiDataSource } from '@/types'
 import ProcessorConfigEditor from '@/components/project/api-testing/ProcessorConfigEditor.vue'
 import type { SceneProcessorElement } from '@/composables/project/api-testing/scene/useSceneProcessors'
@@ -126,6 +126,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
         </div>
       </template>
       <div v-else class="scene-editor__right-empty">
+        <el-icon :size="28"><EditPen /></el-icon>
         <p>暂无{{ label }}，请先新增</p>
       </div>
     </div>
@@ -312,7 +313,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
   }
 }
 
-// 右侧空态：与步骤页签同构——不设外边距使其与左侧列表等高，白底实线框、不设背景色
+// 右侧空态：与步骤页签同构——居中图标 + 文案；不设外边距使其与左侧列表等高，白底实线框、不设背景色
 .scene-editor__right-empty {
   flex: 1;
   display: flex;
