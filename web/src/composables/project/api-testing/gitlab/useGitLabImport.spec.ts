@@ -403,7 +403,7 @@ describe('useGitLabImport', () => {
       await vi.advanceTimersByTimeAsync(1000)
       await flush()
       expect(s.preview.value).toBeNull()
-      expect(s.detailFilter.value).toBe('all')
+      expect(s.detailFilter.value).toBe('parsed')
       expect(onImported).toHaveBeenCalledTimes(1)
     })
   })
@@ -414,15 +414,15 @@ describe('useGitLabImport', () => {
       const { s } = init()
       await flush()
       await s.runPreview()
-      expect(s.filteredDetails.value).toHaveLength(2)
+      // 恒默认解析成功段，失败明细在该段下为空
+      expect(s.detailFilter.value).toBe('parsed')
+      expect(s.filteredDetails.value).toHaveLength(0)
       s.detailFilter.value = 'parseFailed'
       expect(s.filteredDetails.value).toHaveLength(1)
       expect(s.filteredDetails.value[0].type).toBe('parseFailed')
       s.detailFilter.value = 'errorFailed'
       expect(s.filteredDetails.value).toHaveLength(1)
       expect(s.filteredDetails.value[0].sceneKey).toBeNull()
-      s.detailFilter.value = 'all'
-      expect(s.filteredDetails.value).toHaveLength(2)
     })
 
     it('预览放行后重置筛选', async () => {
@@ -432,7 +432,7 @@ describe('useGitLabImport', () => {
       await s.runPreview()
       s.detailFilter.value = 'parseFailed'
       await s.runPreview()
-      expect(s.detailFilter.value).toBe('all')
+      expect(s.detailFilter.value).toBe('parsed')
     })
   })
 
