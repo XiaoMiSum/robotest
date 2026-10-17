@@ -137,5 +137,15 @@ describe('KeyValueTable', () => {
       expect(heads[0].classes()).not.toContain('kv-table__col-enable')
       expect(heads[0].text()).toBe('Key')
     })
+
+    it('缺省渲染表头，showHeader=false 时仅收起表头、不移除列宽来源', () => {
+      const withHeader = mountTable([makeRow({ key: 'A' })], { showDescription: true })
+      expect(withHeader.find('.kv-table--no-header').exists()).toBe(false)
+
+      const noHeader = mountTable([makeRow({ key: 'A' })], { showDescription: true, showHeader: false })
+      expect(noHeader.find('.kv-table--no-header').exists()).toBe(true)
+      // th 仍留在 DOM 中承担固定布局的列宽，只以 class 收起高度与内容
+      expect(noHeader.findAll('thead th')).toHaveLength(5)
+    })
   })
 })

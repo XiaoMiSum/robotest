@@ -19,10 +19,13 @@ const props = withDefaults(defineProps<{
   headerAdd?: boolean
   /** 空表占位文案，缺省不渲染占位行（docs35 §1.4 空态） */
   emptyText?: string
+  /** 隐藏表头行：由列内占位符承担列名的场景（场景变量页签）使用；th 仍保留以维持固定布局列宽 */
+  showHeader?: boolean
 }>(), {
   // showEnabled 缺省展示：Vue 会把未传的布尔 prop 解析成 false，只能在此显式兜底；
   // 其余可选 prop 无默认语义，显式置 undefined 以满足 prop 必须声明默认值的规则
   showEnabled: true,
+  showHeader: true,
   placeholderKey: undefined,
   suggestions: undefined,
   emptyText: undefined,
@@ -89,7 +92,7 @@ watch(
 </script>
 
 <template>
-  <div class="kv-table">
+  <div class="kv-table" :class="{ 'kv-table--no-header': !props.showHeader }">
     <table>
       <thead>
         <tr>
@@ -166,6 +169,20 @@ watch(
     text-transform: uppercase;
     padding: 0 6px 8px 0;
     border-bottom: 1px solid var(--color-neutral-100);
+  }
+
+  // 隐藏表头行：th 仍参与固定布局的列宽计算，只把高度与内容收为零
+  &--no-header {
+    thead tr {
+      height: 0;
+    }
+
+    thead th {
+      visibility: hidden;
+      padding: 0;
+      border: none;
+      font-size: 0;
+    }
   }
 
   td {

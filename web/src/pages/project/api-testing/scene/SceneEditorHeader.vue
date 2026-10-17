@@ -278,13 +278,13 @@ const emit = defineEmits<{
 </template>
 
 <style scoped lang="scss">
-// 顶部导航：按内容排布、允许换行（交互 10 §1.1）
+// 顶部导航：按内容排布、允许换行；自身不设下内边距，与页签条的距离交给外层 gap 控制（交互 10 §1.1）
 .scene-editor__nav {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-sm);
-  padding-bottom: var(--space-md);
+  padding-bottom: 0;
 }
 
 .scene-editor__nav-field {
