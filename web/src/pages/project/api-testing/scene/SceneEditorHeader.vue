@@ -220,11 +220,11 @@ const emit = defineEmits<{
       </el-select>
     </template>
 
-    <!-- 执行入口（交互 10 §1.9）：只读形态为页面唯一动作且实心主色（对齐 demo）；仓库不可达时置灰并提示原因 -->
+    <!-- 执行入口（交互 10 §1.9）：只读形态为页面唯一动作，与平台一致用 link 主色；仓库不可达时置灰并提示原因 -->
     <template v-if="readonlyMode">
       <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
         <span class="scene-editor__run-wrap">
-          <el-button type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
+          <el-button link type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
         </span>
       </el-tooltip>
     </template>
