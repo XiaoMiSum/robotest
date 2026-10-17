@@ -255,8 +255,9 @@ export function useGitLabRepo() {
   }
 
   async function runConnectionTest(): Promise<void> {
+    // 重新测试先清上一次结果：旧错误不应在新结果返回前继续挂着
+    resetTestState()
     testing.value = true
-    connDetailVisible.value = false
     try {
       const payload: ApiGitConnectionTestReq = {
         gitlabBaseUrl: form.gitlabBaseUrl.trim() || undefined,
