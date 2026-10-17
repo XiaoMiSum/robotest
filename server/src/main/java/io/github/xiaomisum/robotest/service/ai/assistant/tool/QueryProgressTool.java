@@ -35,7 +35,7 @@ public class QueryProgressTool implements AssistantTool {
                         + "用户询问「进度如何」类问题时调用，ID 只能取 query_plans / query_reviews 返回值。",
                 ToolSchemas.object(List.of(
                         ToolSchemas.string("targetType", "目标类型", List.of(
-                                Constants.TraceNodeType.TEST_PLAN, Constants.TraceNodeType.TEST_REVIEW)),
+                                Constants.EntityType.TEST_PLAN, Constants.EntityType.TEST_REVIEW)),
                         ToolSchemas.string("targetId", "目标对象 ID")), List.of("targetType", "targetId")),
                 ToolCategory.QUERY);
     }
@@ -50,9 +50,9 @@ public class QueryProgressTool implements AssistantTool {
         refChecker.requireActiveWorkspaceRef(context.workspaceId(), targetType, targetId);
         UUID projectId = refChecker.projectIdOf(targetType, targetId);
         Object progress;
-        if (Constants.TraceNodeType.TEST_PLAN.equals(targetType)) {
+        if (Constants.EntityType.TEST_PLAN.equals(targetType)) {
             progress = testPlanService.getPlanProgress(projectId, targetId, context.userId());
-        } else if (Constants.TraceNodeType.TEST_REVIEW.equals(targetType)) {
+        } else if (Constants.EntityType.TEST_REVIEW.equals(targetType)) {
             progress = testReviewService.getReviewProgress(projectId, targetId, context.userId());
         } else {
             throw new IllegalArgumentException("unsupported targetType: " + targetType);

@@ -2,10 +2,8 @@ package io.github.xiaomisum.robotest.service.ai.task.adopt;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
@@ -13,7 +11,6 @@ import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseCompleteHandler;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
-import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -25,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asMap;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asString;
@@ -35,7 +31,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 用例补全建议承接（详设 3.2 落库 / 4.2 覆盖口径 / 4.3 补充节点与追溯边）：
+ * 用例补全建议承接（详设 3.2 落库 / 4.3 补充节点）：
  * 字段只补空缺、编辑值按 adopted_edited 局部落库，补充节点按 target.extraNodePosition 落位。
  */
 @Service
@@ -55,7 +51,6 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
     private static final String DEFAULT_PRIORITY = "P1";
     /** 标签采纳上限与产物清洗口径一致（详设 3.2 TAGS=5），避免编辑载荷绕过清洗 */
     private static final int MAX_TAGS = 5;
-    private static final String VERSION_PREFIX = "v";
 
     @Resource
     private AssistAdoptSupport support;
@@ -63,10 +58,6 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
     private TestCaseNodeService testCaseNodeService;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
-    @Resource
-    private TraceEdgeMapper traceEdgeMapper;
-    @Resource
-    private TraceEdgeWriter traceEdgeWriter;
     @Resource
     private VectorIndexService vectorIndexService;
 
@@ -149,8 +140,8 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
     }
 
     /**
-     * 补充节点（详设 4.3）：结构节点不建边不建用例实体；用例实体 direct insert（不走既有建用例入口，
-     * 免逐节点重嵌），批内统一一次 upsertTestCase，并继承源节点的上游派生边。
+     * 补充节点（详设 4.3）：结构节点不建用例实体；用例实体 direct insert（不走既有建用例入口，
+     * 免逐节点重嵌），批内统一一次 upsertTestCase。
      */
     private List<UUID> insertExtraNodes(AdoptContext context, AssistAdoptSupport.CaseTarget target,
             Map<String, Object> content) {
@@ -159,7 +150,6 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
             return List.of();
         }
         UUID documentId = target.document().getId();
-        UUID sourceId = target.node().getId();
         UUID parentId = resolveParent(context, target.node());
         int order = testCaseNodeMapper.listByParentId(parentId).size();
         List<UUID> created = new ArrayList<>(extras.size());
@@ -183,10 +173,6 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
             }
             testCaseNodeMapper.insert(node);
             created.add(node.getId());
-            if (isTestCase) {
-                traceEdgeWriter.writeAiDerivationEdges(context.projectId(), upstreamOf(sourceId),
-                        Constants.TraceNodeType.TEST_CASE, node.getId(), VERSION_PREFIX + 1);
-            }
         }
         if (!created.isEmpty()) {
             vectorIndexService.upsertTestCase(documentId, context.operatorId());
@@ -210,16 +196,6 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
         }
         // 源节点无父级（根下用例）时回退为 child，避免补充节点脱离文档树
         return source.getParentId() != null ? source.getParentId() : source.getId();
-    }
-
-    /** 源节点的上游需求（derivation 边 source 端）；补充节点据此继承边，不改动源节点既有边 */
-    private List<UUID> upstreamOf(UUID sourceNodeId) {
-        return traceEdgeMapper.listActiveByTarget(Constants.TraceNodeType.TEST_CASE, List.of(sourceNodeId)).stream()
-                .filter(edge -> Constants.TraceEdgeType.DERIVATION.equals(edge.getEdgeType())
-                        && Constants.TraceNodeType.REQUIREMENT.equals(edge.getSourceType()))
-                .map(TraceEdge::getSourceId)
-                .distinct()
-                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private static Map<String, Object> editedFields(AdoptContext context) {

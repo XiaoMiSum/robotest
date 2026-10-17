@@ -52,8 +52,8 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 
 /**
  * 生成链六阶段处理器（生成链详设 3.2 / 3.3）：解析需求 → 生成模块结构 → 生成脑图文档 →
- * 标记用例节点 → 填充用例属性 → 建立追溯边；阶段 2-5 为 4 次模型调用，阶段 1 装配需求快照
- * 与 RAG 上下文，阶段 6 做来源预校验（追溯边在确认采纳时同事务建立，见 GenerationAdoptServiceImpl）。
+ * 标记用例节点 → 填充用例属性 → 来源校验；阶段 2-5 为 4 次模型调用，阶段 1 装配需求快照
+ * 与 RAG 上下文，阶段 6 做来源预校验（无有效来源的产物不得进入待确认态）。
  * 阶段子场景提示词按 test_design_generation_{modules,documents,nodes,attributes} 独立配置。
  */
 @Slf4j
@@ -67,7 +67,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
     private static final String PHASE_DOCUMENTS = "生成脑图文档";
     private static final String PHASE_NODES = "标记用例节点";
     private static final String PHASE_ATTRIBUTES = "填充用例属性";
-    private static final String PHASE_EDGES = "建立追溯边";
+    private static final String PHASE_SOURCES = "来源校验";
 
     private static final String SCENE_MODULES = "test_design_generation_modules";
     private static final String SCENE_DOCUMENTS = "test_design_generation_documents";
@@ -117,7 +117,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
     @Override
     public String defaultPrompt() {
         // 阶段提示词按子场景独立配置（AiPromptScenes），type 场景仅作任务与用量归因
-        return "生成链按 解析需求 → 模块结构 → 脑图文档 → 用例节点 → 用例属性 → 追溯边 六阶段编排，"
+        return "生成链按 解析需求 → 模块结构 → 脑图文档 → 用例节点 → 用例属性 → 来源校验 六阶段编排，"
                 + "各阶段提示词独立配置（test_design_generation_modules / _documents / _nodes / _attributes）。";
     }
 
@@ -233,7 +233,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
             fillCaseAttributes(cases, reply);
         }
 
-        context.report(95, PHASE_EDGES);
+        context.report(95, PHASE_SOURCES);
         // 来源缺失的产物不得进入待确认态（3.4）；节点在组装期已按来源过滤，此处统一兜底
         artifacts.removeIf(item -> !retainValidSourceRefs(item, scope));
         if (artifacts.isEmpty()) {
@@ -380,7 +380,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
                 return "";
             }
             List<AiVectorSearchHitRespDTO> hits = vectorSearchService.search(query,
-                    List.of(context.getProjectId()), Constants.TraceNodeType.REQUIREMENT, RAG_TOP_K,
+                    List.of(context.getProjectId()), Constants.EntityType.REQUIREMENT, RAG_TOP_K,
                     context.getUserId());
             Set<UUID> scope = new HashSet<>(requirementIds);
             List<String> lines = hits.stream()

@@ -4,17 +4,14 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
-import io.github.xiaomisum.robotest.model.entity.trace.TraceEdge;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.trace.TraceEdgeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
-import io.github.xiaomisum.robotest.service.trace.TraceEdgeWriter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -36,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -56,7 +52,6 @@ class CaseCompleteAdopterTest {
     private static final UUID DOCUMENT_ID = UUID.randomUUID();
     private static final UUID PARENT_ID = UUID.randomUUID();
     private static final UUID NODE_ID = UUID.randomUUID();
-    private static final UUID REQUIREMENT_ID = UUID.randomUUID();
 
     @Mock
     private AssistAdoptSupport support;
@@ -65,20 +60,12 @@ class CaseCompleteAdopterTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private TraceEdgeMapper traceEdgeMapper;
-    @Mock
-    private TraceEdgeWriter traceEdgeWriter;
-    @Mock
     private VectorIndexService vectorIndexService;
 
     @Captor
     private ArgumentCaptor<List<Map<String, Object>>> changesCaptor;
     @Captor
     private ArgumentCaptor<TestCaseNode> nodeCaptor;
-    @Captor
-    private ArgumentCaptor<List<UUID>> sourcesCaptor;
-    @Captor
-    private ArgumentCaptor<UUID> targetCaptor;
 
     @InjectMocks
     private CaseCompleteAdopter adopter;
@@ -124,10 +111,8 @@ class CaseCompleteAdopterTest {
         assertEquals("replace", change.get("op"));
         assertEquals(List.of("发送成功提示"), change.get("value"));
 
-        // 标签 existing 非空 → 不写 tags 载体；无补充节点 → 不建边、不重嵌
+        // 标签 existing 非空 → 不写 tags 载体；无补充节点 → 不重嵌
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
-        verify(traceEdgeWriter, never()).writeAiDerivationEdges(any(), anyCollection(), anyString(),
-                any(), anyString());
         verify(vectorIndexService, never()).upsertTestCase(any(), any());
 
         assertEquals(NODE_ID, outcome.createdId());
@@ -179,12 +164,10 @@ class CaseCompleteAdopterTest {
     }
 
     @Test
-    void adopt_extraNodesInheritDerivationEdgesAndReindexOnce() {
+    void adopt_extraNodesInsertAndReindexOnce() {
         stubTarget(List.of());
         assignInsertedIds();
         when(testCaseNodeMapper.listByParentId(PARENT_ID)).thenReturn(List.of());
-        when(traceEdgeMapper.listActiveByTarget(Constants.TraceNodeType.TEST_CASE, List.of(NODE_ID)))
-                .thenReturn(List.of(derivationEdge()));
         Map<String, Object> edited = Map.of("extraNodes", List.of(
                 Map.of("title", "补充用例", "isTestCase", true),
                 Map.of("title", "补充结构", "isTestCase", false)));
@@ -202,10 +185,6 @@ class CaseCompleteAdopterTest {
         assertEquals(Constants.NodeType.NORMAL, structure.getType());
         assertNull(structure.getPriority());
 
-        verify(traceEdgeWriter).writeAiDerivationEdges(eq(PROJECT_ID), sourcesCaptor.capture(),
-                eq(Constants.TraceNodeType.TEST_CASE), targetCaptor.capture(), eq("v1"));
-        assertEquals(List.of(REQUIREMENT_ID), sourcesCaptor.getValue());
-        assertEquals(created.getId(), targetCaptor.getValue());
         // 用例实体批内统一重嵌一次（direct insert 不触发既有建用例入口）
         verify(vectorIndexService, times(1)).upsertTestCase(DOCUMENT_ID, OPERATOR_ID);
 
@@ -278,14 +257,6 @@ class CaseCompleteAdopterTest {
             invocation.getArgument(0, TestCaseNode.class).setId(UUID.randomUUID());
             return 1;
         }).when(testCaseNodeMapper).insert(any(TestCaseNode.class));
-    }
-
-    private static TraceEdge derivationEdge() {
-        TraceEdge edge = new TraceEdge();
-        edge.setEdgeType(Constants.TraceEdgeType.DERIVATION);
-        edge.setSourceType(Constants.TraceNodeType.REQUIREMENT);
-        edge.setSourceId(REQUIREMENT_ID);
-        return edge;
     }
 
     private TestCaseNode node(List<String> tags) {

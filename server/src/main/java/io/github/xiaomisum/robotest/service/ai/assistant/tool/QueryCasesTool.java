@@ -132,7 +132,7 @@ public class QueryCasesTool implements AssistantTool {
         }
         for (Map<String, Object> attachment : attachments) {
             if (attachment == null
-                    || !Constants.TraceNodeType.MINDMAP_DOCUMENT.equals(str(attachment.get("entityType")))) {
+                    || !Constants.EntityType.MINDMAP_DOCUMENT.equals(str(attachment.get("entityType")))) {
                 continue;
             }
             UUID id = uuid(attachment.get("entityId"));

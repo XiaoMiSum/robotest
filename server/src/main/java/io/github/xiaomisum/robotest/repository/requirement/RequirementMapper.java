@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.repository.requirement;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -17,11 +16,9 @@ public interface RequirementMapper extends BaseMapperX<Requirement> {
 
     /**
      * 需求列表（详设 3.2）：隔离 + 多维筛选 + 关键词三段匹配（4.3：编号前缀 / 编号后缀 / 标题包含）。
-     * coverage 筛选联查 trace_coverage_result：pending 即「无结论记录」，其余按结论状态匹配；
-     * 过滤恒按库内结论执行，不随 AI 总开关变化（开关只影响展示值，详设 3.2 校验规则）。
      */
     default PageResult<Requirement> findPage(PageParam pageParam, UUID projectId, List<String> status,
-            List<UUID> moduleIds, UUID ownerId, String systemVersion, String keyword, String coverage) {
+            List<UUID> moduleIds, UUID ownerId, String systemVersion, String keyword) {
         LambdaQueryWrapperX<Requirement> wrapper = new LambdaQueryWrapperX<Requirement>()
                 .eq(Requirement::getProjectId, projectId)
                 .eqIfPresent(Requirement::getOwnerId, ownerId)
@@ -38,44 +35,11 @@ public interface RequirementMapper extends BaseMapperX<Requirement> {
                     .or().like(Requirement::getCode, kw)
                     .or().apply("requirement.title ILIKE {0}", "%" + kw + "%"));
         }
-        if (coverage != null && !coverage.isBlank()) {
-            String value = coverage.trim();
-            if ("pending".equals(value)) {
-                wrapper.apply("NOT EXISTS (SELECT 1 FROM trace_coverage_result c "
-                        + "WHERE c.project_id = {0} AND c.requirement_id = requirement.id AND c.is_deleted = FALSE)",
-                        projectId);
-            } else {
-                wrapper.apply("EXISTS (SELECT 1 FROM trace_coverage_result c "
-                        + "WHERE c.project_id = {0} AND c.requirement_id = requirement.id AND c.is_deleted = FALSE "
-                        + "AND c.coverage_status = {1})", projectId, value);
-            }
-        }
         wrapper.orderByDesc(Requirement::getUpdatedAt);
         return selectPage(pageParam, wrapper);
     }
 
-    /**
-     * 覆盖分析默认范围（追溯矩阵详设 4.2）：项目内非归档需求——SRS 规定归档条目
-     * 只读且不作为覆盖分析输入，故排除；调用方负责条数上限校验（详设 3.7）。
-     */
-    default List<Requirement> listAnalyzableByProject(UUID projectId) {
-        return selectList(new LambdaQueryWrapperX<Requirement>()
-                .eq(Requirement::getProjectId, projectId)
-                .ne(Requirement::getStatus, Constants.RequirementStatus.ARCHIVED));
-    }
-
-    /**
-     * 覆盖分析默认范围条数（提交时上限校验，详设 3.7）：走 project + status 联合索引，
-     * 避免为校验加载全量需求正文。
-     */
-    default long countAnalyzableByProject(UUID projectId) {
-        Long cnt = selectCount(new LambdaQueryWrapperX<Requirement>()
-                .eq(Requirement::getProjectId, projectId)
-                .ne(Requirement::getStatus, Constants.RequirementStatus.ARCHIVED));
-        return cnt == null ? 0 : cnt;
-    }
-
-    /** 按 ID 批量读取（追溯节点解析，详设 3.4） */
+    /** 按 ID 批量读取（AI 助手 / 生成链的实体引用解析） */
     default List<Requirement> listByIds(Collection<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();

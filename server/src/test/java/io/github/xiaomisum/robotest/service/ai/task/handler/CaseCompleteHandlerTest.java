@@ -129,7 +129,7 @@ class CaseCompleteHandlerTest {
         Requirement requirement = requirement();
         when(assistSupport.resolve(any(), any(), any()))
                 .thenReturn(resolved(node, missed, attrNode(missed.getId(), Constants.NodeType.STEP, "点击登录")));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of(requirement));
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of(requirement));
         stubExecution(replyOf(node.getId(), "手机号已输入并获取过一次验证码"));
 
         TaskResult result = handler.execute(context);
@@ -174,7 +174,7 @@ class CaseCompleteHandlerTest {
     @Test
     void execute_modelMissesEverySelectedNode_failsWith117() {
         when(assistSupport.resolve(any(), any(), any())).thenReturn(resolved(caseNode("登录")));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of());
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of());
         stubExecution("{\"artifacts\":[{\"content\":{\"nodeId\":\"" + UUID.randomUUID() + "\"}}]}");
 
         ServiceException exception = assertThrows(ServiceException.class,
@@ -187,7 +187,7 @@ class CaseCompleteHandlerTest {
     void execute_offersAllVariablesToPrompt() {
         TestCaseNode node = caseNode("登录");
         when(assistSupport.resolve(any(), any(), any())).thenReturn(resolved(node));
-        when(assistSupport.upstreamRequirements(any(), any(), any())).thenReturn(List.of(requirement()));
+        when(assistSupport.upstreamRequirements(any(), any())).thenReturn(List.of(requirement()));
         stubExecution(replyOf(node.getId(), null));
 
         handler.execute(context);

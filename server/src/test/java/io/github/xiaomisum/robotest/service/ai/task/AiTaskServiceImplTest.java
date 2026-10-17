@@ -253,7 +253,7 @@ class AiTaskServiceImplTest {
     void submitInternal_switchOff_throws101() {
         when(settingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(false, MODEL_ID, 600, 2));
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.submitInternal("impact_analysis", Map.of("requirementId", "x"),
+                () -> service.submitInternal("requirement_import", Map.of("requirementId", "x"),
                         USER_ID, PROJECT_ID, WORKSPACE_ID));
         assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
     }

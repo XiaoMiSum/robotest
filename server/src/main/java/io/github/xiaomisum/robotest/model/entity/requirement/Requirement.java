@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 需求条目（域门面表，详设 2.2）：追溯链起点，不提供删除，归档为终态入口。
+ * 需求条目（域门面表，详设 2.2）：不提供删除，归档为终态入口。
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -28,7 +28,7 @@ public class Requirement extends BaseUuidDO<Requirement> {
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID moduleId;
 
-    /** 被测业务系统版本，按属性变更处理（不触发状态流转与影响分析） */
+    /** 被测业务系统版本，按属性变更处理（不触发状态流转） */
     private String systemVersion;
 
     /** 需求编号 REQ-001，项目内唯一（分配规则见详设 4.1） */
