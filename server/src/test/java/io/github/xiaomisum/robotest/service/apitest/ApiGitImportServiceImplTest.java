@@ -327,7 +327,8 @@ class ApiGitImportServiceImplTest {
         verify(sceneMapper).insert(sceneCaptor.capture());
         ApiScene scene = sceneCaptor.getValue();
         assertEquals("查询订单状态", scene.getName());
-        assertEquals("draft", scene.getStatus());
+        // 导入即为可执行态，可被测试计划与定时任务圈选（详设 3.5）
+        assertEquals("published", scene.getStatus());
         assertEquals(1, scene.getChangeVersion());
         assertEquals("gitlab", scene.getSourceType());
         assertEquals(REPO_ID, scene.getRepoId());
@@ -382,6 +383,8 @@ class ApiGitImportServiceImplTest {
         assertNull(carrier.getVariables());
         assertNull(carrier.getSteps());
         assertNull(carrier.getChangeVersion());
+        // 状态不触碰：平台侧手工降级的草稿在再次导入时保持原样（详设 3.5）
+        assertNull(carrier.getStatus());
         verify(sceneMapper, never()).insert(any(ApiScene.class));
     }
 

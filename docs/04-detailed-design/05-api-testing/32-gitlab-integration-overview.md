@@ -332,6 +332,8 @@ flowchart TD
     N --> O[写 api_change_history<br/>change_type = import]
 ```
 
+**场景发布状态**：新建场景一律以 `status = published`（已发布）落库，导入即进入可执行态，可被测试计划与定时任务圈选执行（这两者只取已发布场景）；更新路径不触碰 `status`，平台侧手工改回草稿的状态在再次导入时保持原样。
+
 **场景内容合并策略**：稳定键命中既有场景时，`reimport_overwrite` 关闭（默认）仅刷新来源元数据（`source_ref` / `source_status` / `parse_status` / `parse_issues`）与模块归属，`name` / `variables` / `steps` 保持平台侧现状；开启时以源侧内容覆盖 `name` / `variables` / `steps`，来源元数据照常刷新。`gitlab_ci` 场景平台侧只读（BR-1.43），`name` / `description` 恒按源侧刷新，不受该配置影响。
 
 **模块归属规则（固定深度 2：包容器 + 类模块）**：
@@ -689,3 +691,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-14 | 删除错误码 `1000017710`（2.3 速查表与登记表同步移除）：执行阶段仓库不可达与被禁用统一按 `1000017707` 处理，4.3 留痕码随之改记 `1000017707`，与实现一致 |
 | V1.0 | 2026-10-17 | `repoPath` 规范化口径落定：连通性实测与落库前去除首尾空白及首尾 `/`（前导 `/` 会让 GitLab v4 API 按 404 误报「项目路径不存在或令牌无访问权限」），2.1.1 字段说明与 3.1 校验规则同步 |
 | V1.0 | 2026-10-17 | 3.2 预览响应新增 `parsedScenes`（成功解析场景清单）：场景级 `sceneKey` / `name` / `action`，`items` 单次最多 200 条并以 `truncated` 标记，`total` 与 `scenes.create + scenes.update` 同口径，闸门拦截时为 null |
+| V1.0 | 2026-10-17 | 3.5 补场景发布状态口径：新建场景一律 `status = published`（导入即可被测试计划与定时任务圈选），更新路径不触碰 `status` |
