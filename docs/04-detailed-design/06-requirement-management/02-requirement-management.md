@@ -10,15 +10,14 @@
 
 ### 1.1 编写目的
 
-对**需求管理模块**进行详细设计，定义需求域数据结构、接口规范、业务逻辑与前端组件，为开发实现提供完整依据。需求条目是平台追溯链的起点，拆解、影响分析与覆盖状态由 AI 能力经 AI Task 任务资源供给，本文档只定义需求域自身的行为与接口。
+对**需求管理模块**进行详细设计，定义需求域数据结构、接口规范、业务逻辑与前端组件，为开发实现提供完整依据。导入拆解建议由 AI 能力经 AI Task 任务资源供给，本文档只定义需求域自身的行为与接口。
 
 ### 1.2 范围与对应设计
 
-- 对应需求：`docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`（US-RM-001 ~ 005）。
+- 对应需求：`docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`（US-RM-001 ~ 004）。
 - 对应概要：`docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
 - 关联设计：
-  - AI 任务与提案确认接口：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（导入 / 影响分析任务的提交与采纳走该资源）；
-  - 追溯链路查询：`docs/04-detailed-design/05-trace-matrix.md` 3.3（本文档 3.11 为其委托入口）。
+  - AI 任务与提案确认接口：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（导入任务的提交与采纳走该资源）。
 
 ### 1.3 参考资料
 
@@ -43,7 +42,7 @@
 | ---- | ---- | ---- | ---- |
 | project_id | uuid | NOT NULL | 所属项目，**隔离边界**，查询强制过滤 |
 | module_id | uuid | NULL | 归属模块（逻辑外键 → 项目统一模块树节点），拆解按模块归属、列表按模块筛选 |
-| system_version | varchar(50) | NULL | 被测业务系统版本（项目即被测业务系统，如 `V2.3`）；按属性变更处理，不触发状态流转与影响分析 |
+| system_version | varchar(50) | NULL | 被测业务系统版本（项目即被测业务系统，如 `V2.3`）；按属性变更处理，不触发状态流转 |
 | code | varchar(20) | NOT NULL | 需求编号 `REQ-001`，项目内唯一（分配规则见 4.1） |
 | title | varchar(300) | NOT NULL | 需求标题 |
 | description | text | NULL | 需求描述正文（Markdown） |
@@ -94,7 +93,7 @@ CREATE INDEX idx_requirement_system_version ON requirement (project_id, system_v
 | ---- | ---- | ---- | ---- |
 | requirement_id | uuid | NOT NULL | 所属需求（逻辑外键），时间线主查询维度 |
 | operator_id | uuid | NULL | 操作人（系统触发时为发起人） |
-| change_type | varchar(30) | NOT NULL | `title / description / module / status / attribute`——只有前三类触发影响标记，本字段支撑"哪类变更触发了什么"的回查 |
+| change_type | varchar(30) | NOT NULL | `title / description / module / status / attribute`——只有前三类触发状态转 `changed`，本字段支撑"哪类变更触发了什么"的回查 |
 | before_summary | jsonb | NULL | 变更前字段级摘要（原值） |
 | after_summary | jsonb | NULL | 变更后字段级摘要（新值） |
 
@@ -150,8 +149,6 @@ CREATE INDEX idx_requirement_split_project ON requirement_split_record (project_
 CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id);
 ```
 
-> 追溯边（`trace_edge`）与覆盖结论（`trace_coverage_result`）为平台级业务资源，DDL 见 `docs/04-detailed-design/05-trace-matrix.md` 第 2 节；本模块不持久化链路数据。
-
 ---
 
 ## 3. 接口详细设计
@@ -176,7 +173,6 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 | /api/project/requirements/import | POST | requirement:create |
 | /api/project/requirements/{id}/change-logs | GET | requirement:view |
 | /api/project/requirements/split-records | GET | requirement:view |
-| /api/project/requirements/{id}/trace | GET | requirement:view |
 
 ### 3.2 需求列表
 
@@ -189,7 +185,6 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 | moduleIds | uuid | 否 | 所属模块筛选，逗号分隔 |
 | ownerId | uuid | 否 | 负责人筛选 |
 | systemVersion | string | 否 | 版本筛选（精确匹配） |
-| coverage | string | 否 | 覆盖状态筛选：`covered / partial / uncovered / pending`（联查 `trace_coverage_result`） |
 | keyword | string | 否 | 关键词：编号前缀/后缀或标题包含匹配（编号命中规则见 4.3） |
 | pageNo / pageSize | number | 否 | 分页 |
 
@@ -206,7 +201,6 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
       "moduleName": "登录模块",
       "systemVersion": "V2.3",
       "status": "confirmed",
-      "coverageStatus": "partial",
       "priority": "high",
       "ownerId": "…",
       "ownerName": "张三",
@@ -218,7 +212,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-- **校验规则**：强制 `project_id = X-Active-Project`；`coverageStatus` 无记录返回 `pending`，AI 总开关关闭返回 `null`（前端展示「—」）。
+- **校验规则**：强制 `project_id = X-Active-Project`。
 
 ### 3.3 创建需求
 
@@ -262,7 +256,6 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
   "source": "import",
   "sourceFile": { "fileId": "…", "name": "PRD-v2.docx" },
   "confirmedAt": "2026-10-01T03:00:00Z",
-  "coverageStatus": "partial",
   "createdAt": "2026-09-30T10:00:00Z",
   "updatedAt": "2026-10-02T08:30:00Z"
 }
@@ -285,19 +278,19 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 - **响应**：更新后的需求详情对象；若触发状态流转，响应内 `status` 为流转后取值。
 - **校验规则**：
   - `archived` 条目拒绝更新（1000018004）；
-  - 传入 `title / description / moduleId` 且当前 `status = confirmed` → 状态自动转 `changed`，写变更记录并提交影响分析任务（见 4.4）；
+  - 传入 `title / description / moduleId` 且当前 `status = confirmed` → 状态自动转 `changed`，写变更记录（见 4.4）；
   - 仅传 `systemVersion / priority / ownerId / tags` 等属性 → 状态不变，只写 `change_type = attribute` 变更记录。
 
 ### 3.6 确认需求
 
 - **路径**：`POST /api/project/requirements/{id}/confirm`
 - **响应**：需求详情对象，`status = confirmed`、`confirmedAt` 回填。
-- **校验规则**：仅 `draft` 或 `changed` 可确认（其他态返回 1000018003）；确认后若存在未刷新的影响标记，触发影响分析刷新任务（异步，不阻塞响应）。
+- **校验规则**：仅 `draft` 或 `changed` 可确认（其他态返回 1000018003）。
 
 ### 3.7 归档 / 取消归档
 
 - **归档**：`POST /api/project/requirements/{id}/archive`
-  - 校验：非归档态均可归档（前端二次确认）；归档后条目只读，不再作为 AI 生成与覆盖分析输入，既有追溯关系保留可查。
+  - 校验：非归档态均可归档（前端二次确认）；归档后条目只读，不再作为 AI 生成输入。
   - 响应：需求详情对象，`status = archived`。
 - **取消归档**：`POST /api/project/requirements/{id}/unarchive`
   - 校验：仅归档态可取消（否则 1000018003）；恢复为归档前的业务状态需重新确认，**取消归档后一律回到 `draft`**，由人工重新确认，避免依赖已过期的 `changed` 态。
@@ -364,13 +357,6 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 - **校验规则**：建议明细（标题、描述、模块、原文定位）经 `aiTaskId` 下钻任务提案读取，本接口不复制内容。
 
-### 3.11 追溯视图（委托）
-
-- **路径**：`GET /api/project/requirements/{id}/trace`
-- **参数**：`direction`（可选，同链路视图）、`depth`（可选，默认 6）。
-- **响应**：与 `docs/04-detailed-design/05-trace-matrix.md` 3.3 链路视图**同构**（`root / nodes / edges / hasMore`），服务端以 `sourceType = requirement`、`sourceId = {id}` 转发矩阵服务后返回。
-- **校验规则**：本接口为只读委托，无 `trace:edit` 语义；矩阵服务调用失败返回 1000018014（前端提示稍后重试，不降级为无数据空态）；空链路返回 `nodes = []`（前端展示空态与「发起 AI 生成」引导）。
-
 ---
 
 ## 4. 业务逻辑设计
@@ -379,7 +365,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 1. 插入事务内查询 `SELECT max(seq) FROM (regexp 落在 code 上的项目内既有编号)`，序号 = max + 1，格式化为 `REQ-` + 三位起零填充（超 999 位数自然增长）；
 2. 依赖 `uk_requirement_project_code` 防并发：唯一冲突时重试最多 3 次；
-3. 归档条目占用的编号**不回收**，保证追溯链中的编号稳定可引用。
+3. 归档条目占用的编号**不回收**，保证编号稳定可引用。
 
 ### 4.2 状态机
 
@@ -390,22 +376,19 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
     unarchive ←──archive── confirmed / changed / draft ──archive──> archived（只读）
 
 - 流转仅经 3.6 / 3.7 专用接口与 3.5 的自动触发产生，`PUT` 请求体不接受 `status` 字段；
-- `archived` 为只读终态：拒绝一切更新（1000018004）；取消归档回到 `draft`；
-- 状态流转不打断既有追溯边，归档条目的链路保留可查。
+- `archived` 为只读终态：拒绝一切更新（1000018004）；取消归档回到 `draft`。
 
 ### 4.3 关键词匹配
 
 - `keyword` 命中规则：以 `REQ-` 开头且去掉分隔符后可命中编号前缀，或编号后缀匹配（便于 `001` / `REQ-001` 输入），或标题包含；
 - 实现为 `code LIKE '<kw>%' OR code LIKE '%<kw>' OR title ILIKE '%<kw>'`，前缀命中可走 `uk_requirement_project_code` 的索引前缀扫描。
 
-### 4.4 变更与影响分析触发
+### 4.4 变更与状态流转触发
 
 1. `PUT` 更新成功且变更字段 ∈ {`title`, `description`, `moduleId`} 且变更前 `status = confirmed`（`systemVersion` 等属性变更不触发，见 3.5）：
    - 状态转 `changed`；
    - 写 `requirement_change_log`（`before_summary / after_summary` 为字段级前后值）；
-   - **事务提交后**异步提交 `POST /api/ai/tasks`（`type = impact_analysis`，输入 `requirementId`），提交失败只记日志不回滚需求更新（下次确认时 3.6 兜底再触发）；
-2. 影响项计算与处置展示由追溯矩阵承载（`docs/04-detailed-design/05-trace-matrix.md` 3.10）；
-3. `changed` 态需求不可作为生成输入（生成链校验见 `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`），直至重新 `confirm`。
+2. `changed` 态需求不可作为生成输入（生成链校验见 `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`），直至重新 `confirm`。
 
 ### 4.5 导入拆解的采纳落库
 
@@ -420,7 +403,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 - 所有查询强制 `project_id = X-Active-Project` 过滤，越权返回 404；
 - `ownerId` 指派校验当前工作空间成员资格；
-- 导入 / 影响分析任务的提交与结果读取复用 AI 任务资源的权限校验（发起人可见自己的任务）。
+- 导入任务的提交与结果读取复用 AI 任务资源的权限校验（发起人可见自己的任务）。
 
 ---
 
@@ -430,45 +413,37 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ```
 项目工作区
-├── /workspace/projects/requirements                         → RequirementShellPage（需求管理壳层：页内侧栏）
-│   ├── ?tab=list（缺省）                                     → RequirementListPage（需求列表子页）
-│   └── ?tab=trace                                           → TraceMatrixPage（追溯矩阵子页，见 docs/04-detailed-design/05-trace-matrix.md）
-├── /workspace/projects/requirements/trace/:nodeType/:nodeId → TraceChainPage（链路明细页，见 docs/04-detailed-design/05-trace-matrix.md）
-├── /workspace/projects/requirements/create                  → RequirementCreatePage（新建需求）
-└── /workspace/projects/requirements/:requirementId          → RequirementDetailPage（需求详情）
+├── /workspace/projects/requirements                          → RequirementShellPage（需求管理壳层：需求列表单页）
+├── /workspace/projects/requirements/create                   → RequirementCreatePage（新建需求）
+└── /workspace/projects/requirements/:requirementId           → RequirementDetailPage（需求详情）
 ```
-
-- 旧路径 `/workspace/projects/trace` 重定向至 `/workspace/projects/requirements?tab=trace`，既有深链保持可用（见 `docs/04-detailed-design/05-trace-matrix.md` 5.1）；子项权限过滤与默认子页回退见 `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md`。
 
 ### 5.2 组件结构
 
 ```
-RequirementShellPage（页内侧栏：需求列表 / 追溯矩阵，子项按 requirement:view / trace:view 过滤）
-├── RequirementListPage（列表子页，见下）
-└── TraceMatrixPage（追溯子页，组件结构见 docs/04-detailed-design/05-trace-matrix.md 5.2）
+RequirementShellPage（需求管理壳层：需求列表单页）
+└── RequirementListPage（见下）
 
 RequirementListPage
 ├── ListToolbar（新建需求、导入需求）
 ├── RequirementFilterBar（状态/模块/负责人/版本筛选 + keyword，角标显示条件数，查询/重置）
 └── RequirementTable
-    ├── 覆盖状态徽标（covered/partial/uncovered/pending/—）
     ├── 行操作：详情 / 确认（draft|changed 可用）/ 更多（编辑、归档、取消归档；操作列右对齐）
     └── 分页（20/50/100）
 
 RequirementDetailPage
-├── DetailHeader（面包屑与操作区同行吸顶：查看态按频次分组「编辑 / 查看追溯 │ AI 生成用例 │ 确认 / 更多（归档、取消归档）」，编辑态「取消 / 保存」；编号、标题、状态徽标）
+├── DetailHeader（面包屑与操作区同行吸顶：查看态按频次分组「编辑 │ AI 生成用例 │ 确认 / 更多（归档、取消归档）」，编辑态「取消 / 保存」；编号、标题、状态徽标）
 ├── AttributeCard（卡片容器「属性 | 变更记录」页签；属性表单两态同款控件，查看态禁用、编辑态启用，「保存」一次性提交变更字段；卡片与描述区按窗口动态同高）
 ├── MarkdownDescription（描述渲染，父容器高度按窗口动态取剩余可用空间 90%；编辑态切换为编辑器）
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
-├── ChangeTimeline（变更记录时间线，页签首次激活时加载，支持「加载更多」分页）
-└── TraceEntry（查看追溯 → 跳转链路明细页并以其为起点，只读链路模式）
+└── ChangeTimeline（变更记录时间线，页签首次激活时加载，支持「加载更多」分页）
 ```
 
 ### 5.3 状态管理与交互
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务执行与轨迹订阅，任务完成回调刷新列表与拆解记录。
 - 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 执行与轨迹轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
-- 全部状态分支：列表空态（引导新建/导入）、覆盖状态 `—`（AI 关闭）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
+- 全部状态分支：列表空态（引导新建/导入）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
 
 ---
 
@@ -490,7 +465,6 @@ RequirementDetailPage
 | 1000018011 | 404 | 来源附件不存在 |
 | 1000018012 | 403 | 无需求管理权限 |
 | 1000018013 | 409 | 已存在进行中的导入任务 |
-| 1000018014 | 502 | 追溯服务调用失败 |
 
 ### 6.1 权限点（新增，业务侧 scope = workspace）
 
@@ -513,7 +487,7 @@ RequirementDetailPage
 | `server/.../controller/project/RequirementController` | 仅路由与参数绑定（C2） |
 | `server/.../service/requirement/RequirementService + Impl` | 列表、详情、部分更新、状态机 |
 | `server/.../service/requirement/RequirementAdoptService + Impl` | 导入拆解提案采纳落库 |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018001–1000018014 |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018001–1000018013 |
 | 权限点迁移脚本 | 新增 `requirement:*` 四个权限点（scope = workspace） |
 | `web/src/pages/project/RequirementListPage.vue`、`RequirementDetailPage.vue` 及子组件 | 前端页面 |
 | `web/src/stores/requirement.ts`、`web/src/services/requirement.ts`、`web/src/types/requirement.ts` | 状态、API 与类型 |
@@ -540,7 +514,7 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：编号分配并发与重试、状态机非法流转矩阵、归档只读、部分更新不覆盖未传字段、变更触发影响任务（提交失败不回滚）、拆解采纳事务、导入大小/类型校验、关键词三段匹配、越权 404；
+- 后端：编号分配并发与重试、状态机非法流转矩阵、归档只读、部分更新不覆盖未传字段、变更触发状态流转与变更记录、拆解采纳事务、导入大小/类型校验、关键词三段匹配、越权 404；
 - 前端：筛选与防抖查询、状态按钮可用性矩阵、导入全流程与任务详情页审核、归档只读降级、空态与权限隐藏。
 
 ---
@@ -565,3 +539,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-15 | 5.1 / 5.2 增链路明细页路由（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），TraceEntry 改为跳转该页 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：统一任务资源改 AI Task 任务资源，确认端点 `artifacts/confirm` → `proposals/confirm`，任务 `result` → `result_meta`、`pending/running` 去重收敛为 `running`；产物改称提案，4.5 承接与前端状态分支同步 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：3.8 导入响应示例 `status` 改 `running`（任务创建即启动）、3.10 `adoptResult` 键改 `proposalKey`、5.3 `aiTask` store 改任务执行与轨迹订阅 |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除 3.11 追溯视图委托接口（含 `{id}/trace` 权限行与错误码 1000018014，登记收敛为 1000018001–1000018013）、4.4 影响分析触发（改为纯状态流转）与确认/更新处的影响任务表述，移除覆盖率筛选与 `coverageStatus` 字段、追溯子页路由与旧路径重定向、TraceEntry 与查看追溯入口 |

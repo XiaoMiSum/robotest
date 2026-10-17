@@ -22,7 +22,7 @@
 测试用例以 **模块树（目录/文档）** 组织，每个文档包含一个脑图形式的测试用例集合，支持多人实时协作编辑。  
 测试评审和测试计划基于用例的结构化快照进行，支持完整的历史回溯和多次执行/评审记录。
 
-业务需求以**需求条目**在平台内登记，需求条目是测试追溯链的起点；需求与测试资产、验证活动之间的对应关系构成追溯矩阵（见 `docs/01-requirements/06-requirement-management/03-srs-trace-matrix.md`）。AI 能力作为平台级底座贯穿需求生成、智能助手、缺陷分析与辅助功能，详见 `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`。
+业务需求以**需求条目**在平台内登记，需求条目是测试追溯链的起点。AI 能力作为平台级底座贯穿需求生成、智能助手、缺陷分析与辅助功能，详见 `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`。
 
 ### 1.3 定义与缩写
 
@@ -38,8 +38,7 @@
 | 关联节点       | 用户在创建评审或计划时显式选择的用例节点                       |
 | 关联节点树      | 从快照中裁剪出的最小树形结构，包含所有关联节点、它们的祖先模块/文档节点以及后代节点 |
 | 同步         | 手动将评审或计划的快照更新为当前最新模块和用例内容的操作               |
-| 需求条目     | 项目内一条业务需求的登记单位，由大需求文档按模块拆分导入或手工创建，是追溯矩阵的起点 |
-| 追溯矩阵     | 登记需求与测试资产、验证活动之间的对应关系，支持双向回溯、覆盖统计与变更影响   |
+| 需求条目     | 项目内一条业务需求的登记单位，由大需求文档按模块拆分导入或手工创建，是测试追溯链的起点 |
 
 ---
 
@@ -117,7 +116,6 @@
 - **缺陷**：归属于项目，可关联原始用例和测试计划，具有状态流转和操作日志。
 - **需求条目**：归属于项目并按模块归属，是追溯链的起点，具有独立状态与变更记录。
 - **AI 任务**：记录其执行与产出提案——执行过程全程留痕、可查看与中止，同一任务可再次执行；产出为待采纳提案，不直接成为业务数据，经人工采纳后才落库。
-- **对应关系**：需求与测试资产、验证活动之间的登记关系，是对应回溯与覆盖、影响结论的唯一事实依据。
 
 ### 4.2 数据隔离与生命周期
 
@@ -190,7 +188,7 @@
 | 业务功能模块 | `03-function-testing/02-srs-business-features.md` | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
-| 需求管理模块 | `06-requirement-management/02-srs-requirement-management.md`（总览）及分册 `06-requirement-management/03-srs-trace-matrix.md` | 3.2 业务功能模块（需求管理） |
+| 需求管理模块 | `06-requirement-management/02-srs-requirement-management.md` | 3.2 业务功能模块（需求管理） |
 | AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/03-srs-ai-generation.md`、`07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
 
 ## 修改记录
@@ -199,4 +197,5 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-01 | 初始版本 |
 | V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：数据需求中 AI 任务改为记录执行与产出提案，提案为待采纳态、经人工采纳后才落库 |
-| V1.0 | 2026-10-16 | 追溯矩阵需求并入需求管理模块（`docs/01-requirements/06-requirement-management/03-srs-trace-matrix.md`）：分册对照表同步，范围、术语与数据需求中的追溯条目改写 |
+| V1.0 | 2026-10-16 | 追溯矩阵需求并入需求管理模块：分册对照表同步，范围、术语与数据需求中的追溯条目改写 |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：范围与术语表移除追溯矩阵引用，数据需求删除对应关系实体，分册对照表移除追溯矩阵分册 |
