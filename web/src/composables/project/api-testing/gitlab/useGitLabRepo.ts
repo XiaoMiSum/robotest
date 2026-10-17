@@ -37,6 +37,11 @@ export function formatGitLabError(info: GitLabErrorInfo): string {
   return info.code ? `${info.code} ${info.message}` : info.message
 }
 
+/** 项目路径规范化，与服务端落库前的口径一致（详设 3.1）：带前导 `/` 的路径会被 GitLab 判为不存在 */
+export function normalizeRepoPath(value: string): string {
+  return value.trim().replace(/^\/+|\/+$/g, '')
+}
+
 /** 表单缺省值与创建接口缺省口径一致（详设 3.1） */
 function emptyForm(): GitLabRepoForm {
   return {
@@ -178,7 +183,7 @@ export function useGitLabRepo() {
     if (!form.gitlabBaseUrl.trim()) return '请填写 GitLab 地址'
     if (!/^https?:\/\/.+/i.test(form.gitlabBaseUrl.trim())) return 'GitLab 地址仅支持 http/https 且结尾不留 /'
     if (creating.value) {
-      const repoPath = form.repoPath.trim()
+      const repoPath = normalizeRepoPath(form.repoPath)
       if (!repoPath) return '请填写项目路径'
       if (repoPath.includes('.git')) return '项目路径不含 .git 后缀'
       if (/^https?:\/\//i.test(repoPath)) return '项目路径不含协议前缀'
@@ -190,7 +195,7 @@ export function useGitLabRepo() {
     return {
       name: form.name.trim(),
       gitlabBaseUrl: form.gitlabBaseUrl.trim(),
-      repoPath: form.repoPath.trim(),
+      repoPath: normalizeRepoPath(form.repoPath),
       defaultBranch: form.defaultBranch.trim() || undefined,
       importMode: form.importMode,
       token: form.token,
@@ -259,7 +264,9 @@ export function useGitLabRepo() {
         token: form.token.trim() || undefined,
       }
       if (creating.value) {
-        payload.repoPath = form.repoPath.trim() || undefined
+        // 规范化结果写回表单，保证用户看到的路径与服务端实测、落库的一致
+        form.repoPath = normalizeRepoPath(form.repoPath)
+        payload.repoPath = form.repoPath || undefined
         payload.defaultBranch = form.defaultBranch.trim() || undefined
       }
       const result: ApiGitConnectionTestResp = await testGitRepoConnection(payload)
