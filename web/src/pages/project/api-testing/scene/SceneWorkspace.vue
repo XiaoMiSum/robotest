@@ -126,7 +126,6 @@ restoreFromQuery()
   <div class="scene-workspace">
     <el-tabs
       v-model="active"
-      type="card"
       class="scene-workspace__tabs"
       @tab-remove="closeByName"
     >

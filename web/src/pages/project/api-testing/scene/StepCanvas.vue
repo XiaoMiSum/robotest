@@ -12,6 +12,7 @@ const emit = defineEmits<{
   (e: 'reorder', steps: ApiSceneStepItem[]): void
   (e: 'debug', step: ApiSceneStepItem): void
   (e: 'insertBefore', index: number): void
+  (e: 'add'): void
 }>()
 
 const dragIndex = ref<number | null>(null)
@@ -138,6 +139,12 @@ function moveDown(index: number) {
         @drop="() => onDrop(steps.length)"
       />
     </div>
+
+    <!-- 空态：与前后置处理器列表同构（引导插图 + 新增按钮，交互 10 §1.2） -->
+    <el-empty v-if="steps.length === 0" description="暂无步骤" :image-size="60" />
+    <el-button v-if="steps.length === 0" size="small" class="step-canvas__add" @click="emit('add')">
+      <el-icon><Plus /></el-icon> 添加步骤
+    </el-button>
   </div>
 </template>
 
@@ -146,6 +153,12 @@ function moveDown(index: number) {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+// 空态新增按钮：与处理器页签同为居中弱样式入口
+.step-canvas__add {
+  align-self: center;
+  margin-top: var(--space-sm);
 }
 
 .step-canvas__list {

@@ -69,7 +69,8 @@ export function useSceneProcessors(
     selectedProcessorIdx.value = idx
   }
 
-  watch(sceneSection, (section) => {
+  // 页签切换与列表载入（如详情异步回填）都参与判定，保证列表非空时必有选中项
+  watch([sceneSection, () => editProcessors.value.length], ([section]) => {
     if (section !== 'pre' && section !== 'post') return
     const list = processorIndexes(section)
     const cur = selectedProcessorIdx.value

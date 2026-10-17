@@ -404,9 +404,9 @@ watch(
     display: flex;
     align-items: center;
     gap: var(--space-md);
-    padding: var(--space-md) var(--space-lg);
+    // 内部间距收到 4px：header 总高 41px，与左侧列表卡片的头部块（含卡片内边距）等高
+    padding: var(--space-xs) var(--space-lg);
     border-bottom: 1px solid var(--color-neutral-100);
-    background: var(--color-neutral-50);
   }
 
   &__environment-error {
@@ -468,10 +468,13 @@ watch(
     }
   }
 
-  // 环境引用选择器：置于头部类型选择右侧水平对齐，定宽不收缩（标签过长溢出省略）
+  // 环境引用选择器（HTTP 配置 / JDBC 数据源）：去边框、选中值取主色，与顶部默认环境同款
   &__ref-select {
     width: 180px;
     flex-shrink: 0;
+    --el-border-color: transparent;
+    --el-border-color-hover: transparent;
+    --el-text-color-regular: var(--el-color-primary);
   }
 
   &__args-item {

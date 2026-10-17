@@ -126,7 +126,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
         </div>
       </template>
       <div v-else class="scene-editor__right-empty">
-        <p>选中左侧处理器后在右侧编辑</p>
+        <p>暂无{{ label }}，请先新增</p>
       </div>
     </div>
   </div>
@@ -312,6 +312,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
   }
 }
 
+// 右侧空态：与步骤页签同构——不设外边距使其与左侧列表等高，白底实线框、不设背景色
 .scene-editor__right-empty {
   flex: 1;
   display: flex;
@@ -319,13 +320,11 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
-  margin: var(--space-md);
   padding: var(--space-xl) var(--space-lg);
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
   text-align: center;
-  background: var(--color-neutral-50);
-  border: 1px dashed var(--color-neutral-200);
+  border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
 
   p {
