@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.support.StaticMessageSource;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -222,5 +224,49 @@ class CiBatchControllerApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCodeConstants.API_GIT_BATCH_NOT_FOUND.code()))
                 .andExpect(jsonPath("$.msg").value(ErrorCodeConstants.API_GIT_BATCH_NOT_FOUND.msg()));
+    }
+
+    // ========== 接收结果制品 ==========
+
+    private static MockMultipartFile resultZip() {
+        return new MockMultipartFile("file", "robotest-result.zip", "application/zip",
+                new byte[]{'P', 'K', 3, 4});
+    }
+
+    @Test
+    void artifacts_correctToken_forwardsZipBytesToService() throws Exception {
+        mockMvc.perform(multipart("/api/ci/batches/" + BATCH_ID + "/artifacts")
+                        .file(resultZip())
+                        .header(CiTokenAuthFilter.TOKEN_HEADER, CI_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(GlobalErrorCodeConstants.SUCCESS.code()));
+
+        ArgumentCaptor<byte[]> zip = ArgumentCaptor.forClass(byte[].class);
+        verify(apiGitBatchService).receiveArtifacts(eq(BATCH_ID), zip.capture());
+        assertEquals(4, zip.getValue().length);
+        assertEquals('P', zip.getValue()[0]);
+    }
+
+    @Test
+    void artifacts_withoutToken_neverReachesService() throws Exception {
+        mockMvc.perform(multipart("/api/ci/batches/" + BATCH_ID + "/artifacts")
+                        .file(resultZip()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
+
+        verify(apiGitBatchService, never()).receiveArtifacts(any(), any());
+    }
+
+    @Test
+    void artifacts_invalidZip_mapsTo1000017714Envelope() throws Exception {
+        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_ARTIFACT_RECEIVE_FAILED))
+                .when(apiGitBatchService).receiveArtifacts(eq(BATCH_ID), any());
+
+        mockMvc.perform(multipart("/api/ci/batches/" + BATCH_ID + "/artifacts")
+                        .file(resultZip())
+                        .header(CiTokenAuthFilter.TOKEN_HEADER, CI_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCodeConstants.API_GIT_ARTIFACT_RECEIVE_FAILED.code()))
+                .andExpect(jsonPath("$.msg").value(ErrorCodeConstants.API_GIT_ARTIFACT_RECEIVE_FAILED.msg()));
     }
 }

@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,6 +52,7 @@ class ApiGitBatchServiceTest {
             "0123456789abcdef0123456789abcdef".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
     private ApiGitRepo repo;
+    private ApiGitArtifactStash artifactStash;
     private ApiGitBatchServiceImpl service;
 
     @BeforeEach
@@ -64,6 +66,7 @@ class ApiGitBatchServiceTest {
         repo.setTokenCipher(io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil.encrypt(
                 io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil.parseKey(base64Key), "glpat-xxxx"));
         repo.setHeadCommit("a1b2c3");
+        artifactStash = new ApiGitArtifactStash();
 
         lenient().when(executionRecordMapper.insert(any(ApiExecutionRecord.class)))
                 .thenAnswer(inv -> {
@@ -96,7 +99,7 @@ class ApiGitBatchServiceTest {
     }
 
     private ApiGitBatchServiceImpl serviceWith(GitLabApiClient client) {
-        service = new ApiGitBatchServiceImpl(executionRecordMapper, gitRepoMapper, client, base64Key);
+        service = new ApiGitBatchServiceImpl(executionRecordMapper, gitRepoMapper, client, artifactStash, base64Key);
         return service;
     }
 
@@ -283,5 +286,67 @@ class ApiGitBatchServiceTest {
                 () -> svc.finishBatch("any-batch", "running", null));
 
         assertEquals(1000001001, ex.getCode());
+    }
+
+    // ========== 接收结果制品（详设 4.6） ==========
+
+    private static final byte[] ZIP_BYTES = {'P', 'K', 3, 4, 1, 2, 3, 4};
+
+    @Test
+    void receiveArtifactsStashesValidZipForRunningBatch() {
+        ApiGitBatchServiceImpl svc = serviceWith(acceptingClient(new ArrayList<>(), null));
+        ApiGitBatchService.Result result = svc.trigger(repo,
+                List.of(scene("com.example.A#m1")), null, "manual", "scene");
+
+        svc.receiveArtifacts(result.batchId(), ZIP_BYTES);
+
+        assertNotNull(artifactStash.get(result.batchId()));
+        // 同批次后到覆盖：再次推送以最后到者为准
+        byte[] later = {'P', 'K', 5, 6};
+        svc.receiveArtifacts(result.batchId(), later);
+        assertEquals(4, artifactStash.get(result.batchId()).length);
+    }
+
+    @Test
+    void receiveArtifactsRejectsNonZipAndOversize() {
+        ApiGitBatchServiceImpl svc = serviceWith(acceptingClient(new ArrayList<>(), null));
+        ApiGitBatchService.Result result = svc.trigger(repo,
+                List.of(scene("com.example.A#m1")), null, "manual", "scene");
+
+        ServiceException notZip = assertThrows(ServiceException.class,
+                () -> svc.receiveArtifacts(result.batchId(), "<html>".getBytes()));
+        assertEquals(1000017714, notZip.getCode());
+
+        byte[] oversize = new byte[5 * 1024 * 1024 + 1];
+        oversize[0] = 'P';
+        oversize[1] = 'K';
+        ServiceException tooBig = assertThrows(ServiceException.class,
+                () -> svc.receiveArtifacts(result.batchId(), oversize));
+        assertEquals(1000017714, tooBig.getCode());
+
+        assertNull(artifactStash.get(result.batchId()));
+    }
+
+    @Test
+    void receiveArtifactsUnknownBatchReturnsBatchNotFound() {
+        ApiGitBatchServiceImpl svc = serviceWith(acceptingClient(new ArrayList<>(), null));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> svc.receiveArtifacts(UUID.randomUUID().toString(), ZIP_BYTES));
+
+        assertEquals(1000017713, ex.getCode());
+    }
+
+    @Test
+    void receiveArtifactsIgnoresTerminalBatch() {
+        ApiGitBatchServiceImpl svc = serviceWith(acceptingClient(new ArrayList<>(), null));
+        ApiGitBatchService.Result result = svc.trigger(repo,
+                List.of(scene("com.example.A#m1")), null, "manual", "scene");
+        store.get(0).setStatus("failed");
+
+        // 批次已终态：接收成功但不暂存，不覆盖先到结果（终态去重口径一致）
+        svc.receiveArtifacts(result.batchId(), ZIP_BYTES);
+
+        assertNull(artifactStash.get(result.batchId()));
     }
 }

@@ -36,14 +36,16 @@ public class ApiGitBatchServiceImpl implements ApiGitBatchService {
     private final ApiExecutionRecordMapper executionRecordMapper;
     private final ApiGitRepoMapper gitRepoMapper;
     private final GitLabApiClient gitLabApiClient;
+    private final ApiGitArtifactStash artifactStash;
     private final byte[] secretKey;
 
     public ApiGitBatchServiceImpl(ApiExecutionRecordMapper executionRecordMapper, ApiGitRepoMapper gitRepoMapper,
-            GitLabApiClient gitLabApiClient,
+            GitLabApiClient gitLabApiClient, ApiGitArtifactStash artifactStash,
             @Value("${robotest.env.secret-key:}") String base64SecretKey) {
         this.executionRecordMapper = executionRecordMapper;
         this.gitRepoMapper = gitRepoMapper;
         this.gitLabApiClient = gitLabApiClient;
+        this.artifactStash = artifactStash;
         this.secretKey = SecretCryptoUtil.parseKey(base64SecretKey);
     }
 
@@ -128,6 +130,32 @@ public class ApiGitBatchServiceImpl implements ApiGitBatchService {
                 .toList());
         resp.setExpectedCases(records.size());
         return resp;
+    }
+
+    // ========== 接收结果制品（详设 4.6） ==========
+
+    /** 接收上限：对齐原 GitLab artifact 默认 5MB，超限拒绝并回执（详设 4.6 体积约束行） */
+    private static final long MAX_ARTIFACT_BYTES = 5 * 1024 * 1024L;
+
+    @Override
+    public void receiveArtifacts(String batchId, byte[] zip) {
+        List<ApiExecutionRecord> records = executionRecordMapper.selectByBatchId(batchId);
+        if (records.isEmpty()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_BATCH_NOT_FOUND);
+        }
+        if (records.stream().allMatch(r -> TERMINAL_STATUSES.contains(r.getStatus()))) {
+            // 批次已终态：接收成功但忽略，不覆盖先到结果（终态去重口径一致）
+            return;
+        }
+        if (zip == null || zip.length < 2 || zip[0] != 'P' || zip[1] != 'K') {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_ARTIFACT_RECEIVE_FAILED.code(),
+                    "内容非合法 zip 制品");
+        }
+        if (zip.length > MAX_ARTIFACT_BYTES) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_ARTIFACT_RECEIVE_FAILED.code(),
+                    "超过接收上限 " + (MAX_ARTIFACT_BYTES / 1024 / 1024) + "MB");
+        }
+        artifactStash.put(batchId, zip);
     }
 
     // ========== 终态去重 ==========
