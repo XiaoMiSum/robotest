@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.config.ApiTestProperties;
 import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
@@ -20,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -35,9 +33,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.contains;
@@ -52,9 +50,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * CI 结果回收编排（WP-7.1，GitLab 集成详设 4.2 第 4-6 步 / 4.6）。
- * <p>核心不变量：completion 通道制品不可得只推迟、poll 通道整批失败降级附流水线链接（BR-1.34）；
+ * <p>核心不变量：completion 通道暂存缺失只推迟、poll 通道整批失败降级附流水线链接（BR-1.34）；
  * 可用信封逐条条件终态回写，缺信封记录置 skipped 留痕并由批次 summary 对账差值；
- * 报告先插入后占位、占位落空回删；单飞挡同批次并发。
+ * 报告先插入后占位、占位落空回删；单飞挡同批次并发；批次终态化后暂存被清除。
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -77,8 +75,6 @@ class ApiGitResultCollectorTest {
     @Mock
     private ApiReportMapper reportMapper;
     @Mock
-    private GitLabApiClient gitLabApiClient;
-    @Mock
     private ApiGitBatchService batchService;
     @Mock
     private ApiSuiteReportAppender appender;
@@ -86,6 +82,7 @@ class ApiGitResultCollectorTest {
     private ApiGitRepo repo;
     private ApiExecutionRecord recordA;
     private ApiExecutionRecord recordB;
+    private ApiGitArtifactStash artifactStash;
     private ApiGitResultCollector collector;
 
     @BeforeEach
@@ -99,6 +96,7 @@ class ApiGitResultCollectorTest {
 
         recordA = record(REF_A);
         recordB = record(REF_B);
+        artifactStash = new ApiGitArtifactStash();
 
         lenient().when(executionRecordMapper.selectByBatchId(BATCH)).thenReturn(List.of(recordA, recordB));
         lenient().when(gitRepoMapper.selectById(repo.getId())).thenReturn(repo);
@@ -109,7 +107,7 @@ class ApiGitResultCollectorTest {
         lenient().when(batchService.finishBatch(anyString(), anyString(), any(), any())).thenReturn(true);
 
         collector = new ApiGitResultCollector(executionRecordMapper, gitRepoMapper, sceneMapper,
-                reportMapper, gitLabApiClient, batchService, appender, new ApiTestProperties(),
+                reportMapper, artifactStash, batchService, appender, new ApiTestProperties(),
                 Runnable::run, BASE64_KEY);
     }
 
@@ -118,8 +116,7 @@ class ApiGitResultCollectorTest {
     @Test
     @SuppressWarnings("unchecked")
     void matchedEnvelopeWritesReportAndMissingOneIsSkipped() throws Exception {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "passed")));
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "passed")));
 
         collector.collect(BATCH, Channel.COMPLETION, "success");
 
@@ -159,8 +156,7 @@ class ApiGitResultCollectorTest {
 
     @Test
     void failedStepMarksRecordFailedAndReportPartial() throws Exception {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "failed")));
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "failed")));
 
         collector.collect(BATCH, Channel.COMPLETION, "success");
 
@@ -174,8 +170,7 @@ class ApiGitResultCollectorTest {
 
     @Test
     void brokenStepMarksRecordErrorAndReportFailed() throws Exception {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "broken")));
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "broken")));
 
         collector.collect(BATCH, Channel.COMPLETION, "success");
 
@@ -191,9 +186,6 @@ class ApiGitResultCollectorTest {
     @Test
     @SuppressWarnings("unchecked")
     void pollWithNoArtifactsDegradesBatchWithPipelineLink() {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(null);
-
         collector.collect(BATCH, Channel.POLL, "success");
 
         ArgumentCaptor<Map<String, Object>> summary = ArgumentCaptor.forClass(Map.class);
@@ -211,12 +203,10 @@ class ApiGitResultCollectorTest {
 
     @Test
     void completionChannelDefersWhenArtifactsNotReady() {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(null);
-
+        // 推送尚未到达（或已重试失败）：暂存为空，completion 只推迟，不消费也不终态化
         collector.collect(BATCH, Channel.COMPLETION, "success");
 
-        // after_script 后才上传制品：completion 只推迟，收尾交由轮询通道
+        // completion 只推迟，收尾交由轮询通道
         verify(batchService, never()).finishBatch(anyString(), anyString(), any(), any());
         verify(executionRecordMapper, never()).finishRecord(any(), any(), any(), any(), any(), any());
         verifyNoInteractions(reportMapper);
@@ -224,21 +214,21 @@ class ApiGitResultCollectorTest {
     }
 
     @Test
-    void pollWithDownloadFailureDegradesAndCompletionDefers() {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_ARTIFACT_DOWNLOAD_FAILED));
+    void successfulCollectEvictsStashAndDegradeAlsoEvicts() throws Exception {
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "passed")));
 
-        collector.collect(BATCH, Channel.COMPLETION, "failed");
-        verify(batchService, never()).finishBatch(anyString(), anyString(), any(), any());
+        collector.collect(BATCH, Channel.COMPLETION, "success");
+        // 批次终态化后暂存被清除，异常残留由 TTL 兜底（详设 4.2 第 4 步）
+        assertNull(artifactStash.get(BATCH));
 
-        collector.collect(BATCH, Channel.POLL, "canceled");
-        verify(batchService).finishBatch(eq(BATCH), eq("cancelled"), contains("1000017714"), any());
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", "not-a-json"));
+        collector.collect(BATCH, Channel.POLL, "success");
+        assertNull(artifactStash.get(BATCH));
     }
 
     @Test
     void unparsableEnvelopeDegradesEvenOnCompletionChannel() throws Exception {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(zipOf("__Ryze_Native_Result__/" + REF_A + ".json", "not-a-json"));
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", "not-a-json"));
 
         collector.collect(BATCH, Channel.COMPLETION, "success");
 
@@ -250,8 +240,7 @@ class ApiGitResultCollectorTest {
     @Test
     void foreignEnvelopesAreNotCountedAsUsable() throws Exception {
         String foreign = "com.example.foreign.OtherTest#smoke";
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(zipOf("__Ryze_Native_Result__/" + foreign + ".json", envelope(foreign, "passed")));
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + foreign + ".json", envelope(foreign, "passed")));
 
         collector.collect(BATCH, Channel.COMPLETION, "success");
 
@@ -269,7 +258,7 @@ class ApiGitResultCollectorTest {
 
         collector.collect(BATCH, Channel.POLL, "success");
 
-        verifyNoInteractions(gitRepoMapper, gitLabApiClient, batchService, reportMapper);
+        verifyNoInteractions(gitRepoMapper, batchService, reportMapper);
         verify(executionRecordMapper, never()).finishRecord(any(), any(), any(), any(), any(), any());
     }
 
@@ -279,13 +268,12 @@ class ApiGitResultCollectorTest {
 
         collector.collect(BATCH, Channel.POLL, "success");
 
-        verifyNoInteractions(gitLabApiClient, batchService, reportMapper);
+        verifyNoInteractions(batchService, reportMapper);
     }
 
     @Test
     void claimMissDeletesOrphanReport() throws Exception {
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenReturn(zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "passed")));
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "passed")));
         when(executionRecordMapper.finishRecord(eq(recordA.getId()), any(), any(), any(), any(), any()))
                 .thenReturn(0);
 
@@ -299,14 +287,15 @@ class ApiGitResultCollectorTest {
 
     @Test
     void concurrentCollectIsSingleFlight() throws Exception {
+        artifactStash.put(BATCH, zipOf("__Ryze_Native_Result__/" + REF_A + ".json", envelope(REF_A, "passed")));
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        when(gitLabApiClient.downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong()))
-                .thenAnswer(inv -> {
-                    entered.countDown();
-                    release.await(5, TimeUnit.SECONDS);
-                    return null;
-                });
+        // 以场景装配为阻塞点：此时已持有同批次单飞，第二次进入必须被挡
+        when(sceneMapper.selectBatchIds(any())).thenAnswer(inv -> {
+            entered.countDown();
+            release.await(5, TimeUnit.SECONDS);
+            return List.of(scene(recordA, "创建订单"));
+        });
         Thread worker = new Thread(() -> collector.collect(BATCH, Channel.POLL, "success"));
         worker.start();
         assertTrue(entered.await(5, TimeUnit.SECONDS));
@@ -315,8 +304,7 @@ class ApiGitResultCollectorTest {
         release.countDown();
         worker.join(5000);
 
-        verify(gitLabApiClient, times(1))
-                .downloadPipelineArtifacts(anyString(), anyString(), anyString(), anyLong());
+        verify(sceneMapper, times(1)).selectBatchIds(any());
     }
 
     @Test

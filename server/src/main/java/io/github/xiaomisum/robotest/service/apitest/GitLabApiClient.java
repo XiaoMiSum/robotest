@@ -38,11 +38,6 @@ public class GitLabApiClient {
         default HttpResponse<String> post(String url, String token, String body) throws Exception {
             throw new UnsupportedOperationException("POST not supported by this opener");
         }
-
-        /** 二进制 GET 接缝（artifact zip 下载）：默认不支持，真实实现覆盖；既有测试假实现无需改动 */
-        default HttpResponse<byte[]> getBytes(String url, String token) throws Exception {
-            throw new UnsupportedOperationException("binary GET not supported by this opener");
-        }
     }
 
     /** 探测结果：实例版本 + 目标分支实际分支名 */
@@ -86,11 +81,6 @@ public class GitLabApiClient {
             @Override
             public HttpResponse<String> post(String url, String token, String body) throws Exception {
                 return httpPost(url, token, body);
-            }
-
-            @Override
-            public HttpResponse<byte[]> getBytes(String url, String token) throws Exception {
-                return httpGetBytes(url, token);
             }
         });
     }
@@ -363,48 +353,6 @@ public class GitLabApiClient {
         return new PipelineStatus(info.iid(), info.webUrl(), info.status());
     }
 
-    /**
-     * 下载流水线制品 zip（GitLab 集成详细设计 4.2 第 4 步，结果回收输入）。
-     * <p>404 表示流水线未产出制品（未上传 / 已过期），返回 null 由回收端按降级口径处理；
-     * 其余失败面（令牌无权限、实例不可达、响应非 zip）统一归入 1000017714 留痕重试。
-     *
-     * @return 制品 zip 字节流；无制品返回 null
-     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017714
-     */
-    public byte[] downloadPipelineArtifacts(String baseUrl, String token, String repoPath, Long pipelineIid) {
-        String base = trimTrailingSlash(baseUrl);
-        String projectId;
-        try {
-            projectId = verifyProject(base, token, repoPath);
-        } catch (ServiceException e) {
-            throw artifactDownloadFailed(e.getMessage());
-        }
-        String url = base + "/api/v4/projects/" + projectId + "/pipelines/" + pipelineIid + "/artifacts";
-        HttpResponse<byte[]> response;
-        try {
-            response = httpOpener.getBytes(url, token);
-        } catch (Exception e) {
-            throw artifactDownloadFailed("实例不可达：" + (e.getMessage() == null
-                    ? e.getClass().getSimpleName() : e.getMessage()));
-        }
-        int status = response.statusCode();
-        if (status == 404) {
-            return null;
-        }
-        if (status == 401 || status == 403) {
-            throw artifactDownloadFailed("令牌无效或无制品下载权限：HTTP " + status);
-        }
-        if (status != 200) {
-            throw artifactDownloadFailed("HTTP " + status);
-        }
-        byte[] bytes = response.body();
-        // GitLab 无制品时可能以 200 返回非 zip 内容，按 zip 魔数（PK）兜底判定
-        if (bytes == null || bytes.length < 2 || bytes[0] != 'P' || bytes[1] != 'K') {
-            throw artifactDownloadFailed("响应非 zip 制品内容");
-        }
-        return bytes;
-    }
-
     private HttpResponse<String> send(String url, String token) {
         try {
             return httpOpener.get(url, token);
@@ -426,10 +374,6 @@ public class GitLabApiClient {
         return ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_PIPELINE_QUERY_FAILED.code(), reason);
     }
 
-    private static RuntimeException artifactDownloadFailed(String reason) {
-        return ServiceExceptionUtil.get(ErrorCodeConstants.API_GIT_ARTIFACT_DOWNLOAD_FAILED.code(), reason);
-    }
-
     /** 真实 HTTP GET：连接超时 10s、响应超时 30s，跟随重定向，携带 PRIVATE-TOKEN 头 */
     static HttpResponse<String> httpGet(String url, String token) throws Exception {
         HttpClient client = HttpClient.newBuilder()
@@ -444,21 +388,6 @@ public class GitLabApiClient {
             builder.header("PRIVATE-TOKEN", token);
         }
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-    }
-
-    /** 真实 HTTP GET（二进制）：artifact zip 下载用，头与超时同 {@link #httpGet} */
-    static HttpResponse<byte[]> httpGetBytes(String url, String token) throws Exception {
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(10000))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofMillis(30000))
-                .GET();
-        if (token != null && !token.isBlank()) {
-            builder.header("PRIVATE-TOKEN", token);
-        }
-        return client.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
     }
 
     /** 真实 HTTP POST：超时与头约定同 GET，body 为 JSON（流水线触发，GitLab 集成详细设计 4.2） */

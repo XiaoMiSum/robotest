@@ -41,6 +41,17 @@ public interface ApiGitBatchService {
     ApiGitBatchManifestRespDTO getManifest(String batchId);
 
     /**
+     * CI 侧接收结果制品（详设 4.6）：校验后暂存于内存，供完成回报与轮询任一通道回收。
+     * <p>
+     * 幂等后到覆盖；批次已置终态时接收成功但忽略（与终态去重口径一致，详设 4.6 接口表）。
+     *
+     * @param zip 结果制品 zip 字节流
+     * @throws xyz.migoo.framework.common.exception.ServiceException 1000017713 批次不存在；
+     *         1000017714 内容非合法 zip 或超过接收上限 5MB
+     */
+    void receiveArtifacts(String batchId, byte[] zip);
+
+    /**
      * 批次终态写闸门（详设 4.2 第 5 步终态去重）：仅 pending/running 可转终态。
      * CI 回报与轮询补拉两通道都经此写入，先到者定终态、后到者返回 false 被忽略，
      * 既不丢结果也不会被后到的写入覆盖（BR-1.24）。

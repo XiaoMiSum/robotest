@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,7 +30,6 @@ class GitLabApiClientHttpTest {
     private static final String REPO_PATH = "qa/order-api-tests";
     private static final String PROJECT_PROBE_PATH = "/api/v4/projects/qa%2Forder-api-tests";
     private static final String PROJECT_JSON = "{\"id\":12345}";
-    private static final byte[] ZIP_BYTES = {'P', 'K', 3, 4, 0, 1, 2, 3};
 
     /** 已记录的请求：rawPath / rawQuery 保留发送侧原始编码，用于断言请求行 */
     private record Recorded(String method, String rawPath, String rawQuery,
@@ -305,64 +303,5 @@ class GitLabApiClientHttpTest {
 
         assertEquals(1000017705, ex.getCode());
         assertTrue(ex.getMessage().contains("HTTP 500"));
-    }
-
-    // ========== 制品下载 ==========
-
-    @Test
-    void downloadPipelineArtifacts_returnsZipBytesWithTokenHeader() {
-        responder = withProjectOk(recorded ->
-                "/api/v4/projects/12345/pipelines/9/artifacts".equals(recorded.rawPath())
-                        ? new Reply(200, ZIP_BYTES) : json(404, "{}"));
-
-        byte[] bytes = client.downloadPipelineArtifacts(base, TOKEN, REPO_PATH, 9L);
-
-        assertArrayEquals(ZIP_BYTES, bytes);
-        Recorded download = lastRequest();
-        assertEquals("GET", download.method());
-        assertEquals("/api/v4/projects/12345/pipelines/9/artifacts", download.rawPath());
-        assertEquals(TOKEN, download.token());
-    }
-
-    @Test
-    void downloadPipelineArtifacts_http404_returnsNull() {
-        responder = withProjectOk(recorded -> new Reply(404, new byte[0]));
-
-        assertNull(client.downloadPipelineArtifacts(base, TOKEN, REPO_PATH, 9L));
-    }
-
-    @Test
-    void downloadPipelineArtifacts_http401_mapsTo1000017714() {
-        responder = withProjectOk(recorded -> new Reply(401, new byte[0]));
-
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> client.downloadPipelineArtifacts(base, TOKEN, REPO_PATH, 9L));
-
-        assertEquals(1000017714, ex.getCode());
-        assertTrue(ex.getMessage().contains("令牌无效"));
-    }
-
-    @Test
-    void downloadPipelineArtifacts_http500_mapsTo1000017714() {
-        responder = withProjectOk(recorded -> new Reply(500, new byte[0]));
-
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> client.downloadPipelineArtifacts(base, TOKEN, REPO_PATH, 9L));
-
-        assertEquals(1000017714, ex.getCode());
-        assertTrue(ex.getMessage().contains("HTTP 500"));
-    }
-
-    @Test
-    void downloadPipelineArtifacts_nonZipBody_mapsTo1000017714() {
-        // GitLab 无制品时可能以 200 返回非 zip 内容，客户端按 zip 魔数兜底判定
-        responder = withProjectOk(recorded ->
-                json(200, "<html>error</html>"));
-
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> client.downloadPipelineArtifacts(base, TOKEN, REPO_PATH, 9L));
-
-        assertEquals(1000017714, ex.getCode());
-        assertTrue(ex.getMessage().contains("zip"));
     }
 }
