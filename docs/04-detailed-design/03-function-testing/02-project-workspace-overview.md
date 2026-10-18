@@ -32,13 +32,15 @@
 
 数据库字段使用 snake_case，接口 JSON 使用 camelCase。
 
+本域表名域前缀统一使用 `ft_`（功能测试业务域），如 `ft_case_document` / `ft_plan` / `ft_review`；共享模块树 `project_module` 不带本域前缀（跨功能测试与接口测试共享，见 `docs/04-detailed-design/02-project-module.md` 2.1）。索引前缀 `idx_ft_*`。
+
 #### 2.1.1 项目模块表（project_module）
 
-项目级统一模块树：功能用例文档、接口定义、测试场景等测试资产共享同一棵树组织。目录节点存于本表，用例文档作为独立资产存于 `test_case_document`（见 2.1.3），接口与场景通过各自 `module_id` 挂载。表结构、索引与同级名称唯一约束见 `docs/04-detailed-design/02-project-module.md` 2.1，此处不重复描述。
+项目级统一模块树：功能用例文档、接口定义、测试场景等测试资产共享同一棵树组织。目录节点存于本表，用例文档作为独立资产存于 `ft_case_document`（见 2.1.3），接口与场景通过各自 `module_id` 挂载。表结构、索引与同级名称唯一约束见 `docs/04-detailed-design/02-project-module.md` 2.1，此处不重复描述。
 
 各资产表通过 `module_id` 引用 `project_module.id`，`NULL` 表示未分组。
 
-#### 2.1.2 测试用例节点表（test_case_node）
+#### 2.1.2 测试用例节点表（ft_case_node）
 
 | 字段          | 类型                                                     | 约束                                    | 说明             |
 | ----------- | ------------------------------------------------------ | ------------------------------------- | -------------- |
@@ -56,11 +58,11 @@
 
 **索引**：`idx_document_id` (document_id), `idx_parent_id` (parent_id)
 
-#### 2.1.3 用例文档表（test_case_document）
+#### 2.1.3 用例文档表（ft_case_document）
 
 用例以脑图文档形式存储，`module_id` 引用 `project_module.id`（见 2.1.1），脑图布局以 `layout` 列内嵌保存（原 `test_case_document_layout` 表已废弃，布局数据合并至本表）。表结构、`layout` JSON 格式与索引见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 2.1，此处不重复描述。
 
-#### 2.1.4 测试计划表（test_plan）
+#### 2.1.4 测试计划表（ft_plan）
 
 | 字段          | 类型                                             | 约束                                    | 说明   |
 | ----------- | ---------------------------------------------- | ------------------------------------- | ---- |
@@ -77,7 +79,7 @@
 | updated_at  | datetime                                       | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 | is_deleted  | tinyint(1)                                     | NOT NULL, DEFAULT 0                   | 是否删除 |
 
-#### 2.1.5 计划模块快照表（test_plan_module_snapshot）
+#### 2.1.5 计划模块快照表（ft_plan_module_snapshot）
 
 | 字段                 | 类型                           | 约束                                      | 说明      |
 | ------------------ | ---------------------------- | --------------------------------------- | ------- |
@@ -92,7 +94,7 @@
 | created_at         | datetime                     | NOT NULL, DEFAULT CURRENT_TIMESTAMP     | 创建时间    |
 | updated_at         | datetime                     | NOT NULL, ON UPDATE CURRENT_TIMESTAMP   | 更新时间    |
 
-#### 2.1.6 计划节点快照表（test_plan_node_snapshot）
+#### 2.1.6 计划节点快照表（ft_plan_node_snapshot）
 
 | 字段                   | 类型                                                     | 约束                                    | 说明          |
 | -------------------- | ------------------------------------------------------ | ------------------------------------- | ----------- |
@@ -113,7 +115,7 @@
 | created_at           | datetime                                               | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 创建时间        |
 | updated_at           | datetime                                               | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间        |
 
-#### 2.1.7 计划执行记录表（test_plan_execution_record）
+#### 2.1.7 计划执行记录表（ft_plan_execution_record）
 
 | 字段               | 类型                                     | 约束                                        | 说明     |
 | ---------------- | -------------------------------------- | ----------------------------------------- | ------ |
@@ -128,7 +130,7 @@
 | updated_at       | datetime                                               | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间   |
 | is_deleted       | tinyint(1)                                             | NOT NULL, DEFAULT 0                   | 是否删除   |
 
-#### 2.1.8 测试评审表（test_review）
+#### 2.1.8 测试评审表（ft_review）
 
 | 字段              | 类型                              | 约束                                  | 说明      |
 | --------------- | ------------------------------- | ----------------------------------- | ------- |
@@ -143,7 +145,7 @@
 | updated_at      | datetime                        | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间  |
 | is_deleted      | tinyint(1)                      | NOT NULL, DEFAULT 0                 | 是否删除    |
 
-#### 2.1.9 评审模块快照表（test_review_module_snapshot）
+#### 2.1.9 评审模块快照表（ft_review_module_snapshot）
 
 | 字段                 | 类型                           | 约束                                        | 说明      |
 | ------------------ | ---------------------------- | ----------------------------------------- | ------- |
@@ -158,7 +160,7 @@
 | created_at         | datetime                     | NOT NULL, DEFAULT CURRENT_TIMESTAMP       | 创建时间    |
 | updated_at         | datetime                     | NOT NULL, ON UPDATE CURRENT_TIMESTAMP     | 更新时间    |
 
-#### 2.1.10 评审节点快照表（test_review_node_snapshot）
+#### 2.1.10 评审节点快照表（ft_review_node_snapshot）
 
 | 字段                   | 类型                                                     | 约束                                      | 说明          |
 | -------------------- | ------------------------------------------------------ | --------------------------------------- | ----------- |
@@ -179,7 +181,7 @@
 | created_at           | datetime                                               | NOT NULL, DEFAULT CURRENT_TIMESTAMP     | 创建时间        |
 | updated_at           | datetime                                               | NOT NULL, ON UPDATE CURRENT_TIMESTAMP   | 更新时间        |
 
-#### 2.1.11 评审记录表（test_review_record）
+#### 2.1.11 评审记录表（ft_review_record）
 
 | 字段               | 类型                     | 约束                                          | 说明     |
 | ---------------- | ---------------------- | ------------------------------------------- | ------ |
@@ -460,4 +462,5 @@
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-10-02 | 对齐前端实现：模块划分与总体布局、项目态路由与顶部菜单权限码、模块树与项目上下文状态、数据表口径及分册-章节对照表 |
+| V1.0 | 2026-10-18 | 功能测试域表名登记并统一改用 `ft_` 域前缀：`test_plan*` / `test_review*` / `test_case_node` / `test_case_document` → `ft_plan*` / `ft_review*` / `ft_case_node` / `ft_case_document`，索引同步 `idx_ft_*` |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |

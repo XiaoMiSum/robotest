@@ -31,7 +31,7 @@
 - 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_complete / case_priority / plan_order`）；
 - 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_suggestion / priority_suggestion / order_suggestion`）；
 - 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；
-- 用例标签随补全建议采纳写入 `test_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），补列迁移 `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` 与 `server/src/main/resources/db/schema.sql` 同步维护，满足 C5；该列不进向量索引，也不参与脑图渲染。
+- 用例标签随补全建议采纳写入 `ft_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），补列迁移 `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` 与 `server/src/main/resources/db/schema.sql` 同步维护，满足 C5；该列不进向量索引，也不参与脑图渲染。
 
 ---
 
@@ -254,11 +254,11 @@ PlanOrderPanel
 | `server/.../service/ai/task/type/CaseCompleteTypeAdapter`、`CasePriorityTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、提案结构，共用 `CaseAssistSupport` 解析输入） |
 | `server/.../service/ai/task/adopt/CaseCompleteAdopter`、`CasePriorityAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用既有用例 / 计划服务与修改记录服务） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018307 |
-| `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` | `test_case_node.tags` 补列迁移（与 `server/src/main/resources/db/schema.sql` 同步） |
+| `server/src/main/resources/db/migration/V20261009100000__assisted_case_tags.sql` | `ft_case_node.tags` 补列迁移（与 `server/src/main/resources/db/schema.sql` 同步） |
 | `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 对照与排序面板（含各自单测） |
 | `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与面板视图模型 |
 
-- **数据库**：无新增表；`test_case_node.tags` 补列迁移（见 2 节），落库均为既有业务表。
+- **数据库**：无新增表；`ft_case_node.tags` 补列迁移（见 2 节），落库均为既有业务表。
 - **OpenAPI**：三个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
@@ -273,7 +273,8 @@ PlanOrderPanel
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 初始版本 |
-| V1.0 | 2026-10-10 | 随落地实现勘误：2 节补 `test_case_node.tags` 补列迁移并撤销「无迁移」口径，5.2 补多节点切换与结构块落位，5.3 补面板动作区置灰原因，7 节文件清单对齐实际类名与目录 |
+| V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_node.tags` → `ft_case_node.tags` |
+| V1.0 | 2026-10-10 | 随落地实现勘误：2 节补 `ft_case_node.tags` 补列迁移并撤销「无迁移」口径，5.2 补多节点切换与结构块落位，5.3 补面板动作区置灰原因，7 节文件清单对齐实际类名与目录 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分；产物改称提案；执行器改类型适配器口径 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：5.3 状态管理改「复用总册 `aiTask` store 轮询任务执行」 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除补充节点派生边继承（原 4.3 整节，4.4 顺延为 4.3）与 `trace_edge` 写入引用，补全输入的上游需求范围改为显式传入 |

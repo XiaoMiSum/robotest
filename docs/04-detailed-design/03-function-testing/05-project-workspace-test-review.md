@@ -113,7 +113,7 @@
   }
   ```
 
-- **处理**：新增 test_review_record，更新 test_review_node_snapshot 的 last_mark、last_reviewer_id、last_reviewed_at。仅 type='case' 节点可标记，所有节点均可评论；`operationType` 取 `mark` / `comment`，提交评论时只传 `comment`。
+- **处理**：新增 ft_review_record，更新 ft_review_node_snapshot 的 last_mark、last_reviewer_id、last_reviewed_at。仅 type='case' 节点可标记，所有节点均可评论；`operationType` 取 `mark` / `comment`，提交评论时只传 `comment`。
 - **mark 取值**：`pass` / `fail` / `pending`。pending 表示重置回待评审，仅为 API 交互值，落库时 last_mark 置 NULL（即初始态）；前端工具栏提供“通过/不通过/待评审”三态标记，标记结果以徽标形式回显在节点右侧。
 - **前端校验**：选中节点非 case 类型时拦截并提示“仅用例节点可标记评审结果”。
 - **状态校验**：评审进入终态（completed/rejected）时拒绝，返回语义化错误码 1000011026（“评审已完成，无法执行该操作”）；待评审（new）状态下首次标记成功后评审自动转入 in_progress。
@@ -183,7 +183,7 @@
 
 ## 2. 快照生成与裁剪
 
-评审或计划创建时，递归复制所需路径的 test_case_module 和涉及文档的全部 test_case_node。节点所有字段原样复制到快照表，is_associated 根据用户选择的 caseIds 标记。裁剪展示时根据关联节点向上追溯祖先、向下加载后代，构建最小树，返回嵌套的根节点对象。
+评审或计划创建时，递归复制所需路径的 test_case_module 和涉及文档的全部 ft_case_node。节点所有字段原样复制到快照表，is_associated 根据用户选择的 caseIds 标记。裁剪展示时根据关联节点向上追溯祖先、向下加载后代，构建最小树，返回嵌套的根节点对象。
 
 
 ### 2.1 评审列表页（功能测试 - 测试评审）
@@ -272,3 +272,4 @@
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 与前端实现对齐：补录评审进度接口与详情/进度响应字段，修正快照树与 ID 类型口径，重写列表页与详情页结构、交互及状态分支 |
+| V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_review*` / `test_case_node` → `ft_review*` / `ft_case_node` |
