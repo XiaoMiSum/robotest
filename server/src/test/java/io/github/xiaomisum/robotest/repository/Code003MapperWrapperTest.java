@@ -214,6 +214,27 @@ class Code003MapperWrapperTest {
         assertTrue(values.stream().noneMatch("{}"::equals), "null 入参不得被 JsonUtils 序列化成 {}");
     }
 
+    @Test
+    void executionRecordSummaryBindsAsJsonStringNotMap() {
+        ApiExecutionRecordMapper mapper = mock(ApiExecutionRecordMapper.class, CALLS_REAL_METHODS);
+        when(mapper.update(isNull(), any(LambdaUpdateWrapperX.class))).thenReturn(1);
+        clearInvocations(mapper);
+
+        mapper.updateSummaryIfRunning(ID, Map.of("ciActualCases", 3));
+        mapper.finishRecord(ID, "failed", null, null, null, null);
+
+        ArgumentCaptor<Wrapper<ApiExecutionRecord>> captor = wrapperCaptor();
+        verify(mapper, org.mockito.Mockito.times(2)).update(isNull(), captor.capture());
+        Collection<Object> merged = ((LambdaUpdateWrapperX<?>) captor.getAllValues().get(0))
+                .getParamNameValuePairs().values();
+        assertTrue(merged.stream().anyMatch(v -> v instanceof String json && json.contains("ciActualCases")),
+                "summary 须以 JSON 字符串绑定（Map 直绑 pgjdbc 按 hstore 解析报 No hstore extension installed）");
+        assertTrue(merged.stream().noneMatch(v -> v instanceof Map), "summary 禁止原始 Map 直绑 pgjdbc");
+        Collection<Object> cleared = ((LambdaUpdateWrapperX<?>) captor.getAllValues().get(1))
+                .getParamNameValuePairs().values();
+        assertTrue(cleared.stream().noneMatch("{}"::equals), "null 入参不得被 JsonUtils 序列化成 {}");
+    }
+
     private static void initTableInfo(MybatisConfiguration configuration, Class<?> entityClass) {
         TableInfoHelper.initTableInfo(
                 new MapperBuilderAssistant(configuration, entityClass.getName()), entityClass);
