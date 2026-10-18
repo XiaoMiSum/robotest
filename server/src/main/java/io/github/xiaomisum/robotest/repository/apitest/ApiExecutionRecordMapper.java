@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import org.apache.ibatis.annotations.Mapper;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
@@ -98,7 +99,7 @@ public interface ApiExecutionRecordMapper extends BaseMapperX<ApiExecutionRecord
                 .set(ApiExecutionRecord::getStatus, status)
                 .set(ApiExecutionRecord::getErrorMessage, errorMessage);
         if (summary != null) {
-            wrapper.set(ApiExecutionRecord::getSummary, summary);
+            wrapper.set(ApiExecutionRecord::getSummary, toJsonOrNull(summary));
         }
         return update(null, wrapper);
     }
@@ -119,7 +120,7 @@ public interface ApiExecutionRecordMapper extends BaseMapperX<ApiExecutionRecord
                 .set(ApiExecutionRecord::getErrorMessage, errorMessage)
                 .set(ApiExecutionRecord::getReportId, reportId)
                 .set(ApiExecutionRecord::getDurationMs, durationMs)
-                .set(ApiExecutionRecord::getSummary, summary);
+                .set(ApiExecutionRecord::getSummary, toJsonOrNull(summary));
         return update(null, wrapper);
     }
 
@@ -133,8 +134,18 @@ public interface ApiExecutionRecordMapper extends BaseMapperX<ApiExecutionRecord
         LambdaUpdateWrapperX<ApiExecutionRecord> wrapper = new LambdaUpdateWrapperX<>();
         wrapper.eq(ApiExecutionRecord::getId, recordId)
                 .in(ApiExecutionRecord::getStatus, "pending", "running")
-                .set(ApiExecutionRecord::getSummary, summary);
+                .set(ApiExecutionRecord::getSummary, toJsonOrNull(summary));
         return update(null, wrapper);
+    }
+
+    /**
+     * JSON 列经 wrapper.set 写入时没有 typeHandler 参与，Map 原样交给 pgjdbc 会被按 hstore
+     * 解析而抛 "No hstore extension installed"，须传序列化后的字符串（与实体路径
+     * Jackson3TypeHandler → setString 的绑定语义一致）；null 必须保持 null 以显式清空列，
+     * 不能用 JsonUtils.toJsonString（其 null 入参返回 "{}"）。
+     */
+    private static String toJsonOrNull(Map<String, Object> summary) {
+        return summary == null ? null : JsonUtils.toJsonString(summary);
     }
 
 }
