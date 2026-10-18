@@ -77,7 +77,7 @@
 - 后端版本和依赖：以 `server/pom.xml` 及 Maven BOM 为准。
 - 本地命令：以 `web/package.json` 和 `scripts/*.sh` 为准。
 - 端口和环境变量：以 `server/src/main/resources/application.yaml`、`web/vite.config.ts` 和环境文件为准。
-- 数据库结构：以 `server/src/main/resources/db/` 和版本化迁移脚本为准。
+- 数据库结构：以 `server/src/main/resources/db/schema.sql` 为唯一事实源；存量库变更 SQL 见对应详细设计（迁移口径见 `docs/00-spec/20-contracts/02-database.md` §5）。
 - API 契约：以 `docs/00-spec/20-contracts/01-api.md`、SpringDoc 生成的 OpenAPI 和前端生成类型为准。
 
 ## 5. 变更与例外
@@ -108,6 +108,13 @@
 - 文档管理约定：`docs/AGENTS.md`
 - 前端约定：`web/AGENTS.md`
 - 后端约定：`server/AGENTS.md`
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| ---- | ---- | ---- |
+| V1.0 | 2026-09-24 | 初始版本：C1–C11 规则登记册 |
+| V1.0 | 2026-10-18 | 事实基准中数据库结构口径改为「`schema.sql` 唯一事实源」，对齐 `docs/00-spec/20-contracts/02-database.md` §5 |
 
 ---
 
