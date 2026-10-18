@@ -131,7 +131,7 @@
 * **工作空间成员管理**：邀请、移除、设置空间管理员。
 * **项目管理**：CRUD、归档。
 * **测试用例**：模块树、脑图节点、用例详情。
-* **需求管理**：需求 CRUD 与归档确认、文档导入、变更状态流转与重新确认；概要设计见 `docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
+* **需求管理**：需求 CRUD 与归档确认、文档导入、变更状态流转与重新确认；概要设计见 `docs/02-high-level-design/03-function-testing/03-hld-requirement-management.md`。
 * **AI 能力**：AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）、助手会话与意图预览执行；概要设计见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
 * **测试评审**：发起、快照树、模块快照树、评审记录、同步、调整用例。
 * **测试计划**：创建、快照树、模块快照树、执行记录、同步、调整用例。

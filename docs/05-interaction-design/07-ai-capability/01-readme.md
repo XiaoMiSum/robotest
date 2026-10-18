@@ -8,4 +8,4 @@
 | [05-ai-assistant-ui](05-ai-assistant-ui.md)（分册：智能助手）   | V1.0 | 2026-10-03 | 起草中 |
 | [06-defect-analysis-ui](06-defect-analysis-ui.md)（分册：AI 缺陷分析）   | V1.0 | 2026-10-03 | 起草中 |
 | [07-assisted-features-ui](07-assisted-features-ui.md)（分册：辅助功能） | V1.0 | 2026-10-03 | 起草中 |
-> 本目录为 AI 能力模块的交互设计分册，阅读顺序：先读任务中心与提案审核（通用组件），再按能力域读各分册；模块入口见上级索引 `docs/05-interaction-design/01-readme.md`。需求侧入口（生成发起）见 `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md`。
+> 本目录为 AI 能力模块的交互设计分册，阅读顺序：先读任务中心与提案审核（通用组件），再按能力域读各分册；模块入口见上级索引 `docs/05-interaction-design/01-readme.md`。需求侧入口（生成发起）见 `docs/05-interaction-design/03-function-testing/07-requirement-ui.md`。

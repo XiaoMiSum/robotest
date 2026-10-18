@@ -9,4 +9,5 @@
 | [06-project-workspace-test-plan](06-project-workspace-test-plan.md)（分册：测试计划管理）   | V1.0 | 2026-09-23 | 已发布 |
 | [07-document-management](07-document-management.md)（分册：文档管理）   | V1.0 | 2026-09-23 | 起草中 |
 | [08-mindmap-component](08-mindmap-component.md)（分册：脑图组件）   | V1.0 | 2026-09-23 | 已发布 |
+| [09-requirement-management](09-requirement-management.md)（分册：需求管理，功能测试子模块）   | V1.0 | 2026-10-02 | 起草中 |
 > 本目录为功能测试模块的详细设计分册；模块入口与阅读顺序见上级索引 `docs/04-detailed-design/01-readme.md`。

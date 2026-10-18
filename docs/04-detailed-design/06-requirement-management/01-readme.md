@@ -1,7 +1,3 @@
-# 详细设计（需求管理模块）
+# 详细设计（原需求管理模块分册，已并入功能测试模块）
 
-| 文档 | 版本 | 日期 | 状态 |
-| ---- | ---- | ---- | ---- |
-| [02-requirement-management](02-requirement-management.md)（分册：需求管理） | V1.0 | 2026-10-02 | 起草中 |
-
-> 本目录为需求管理模块的详细设计分册；模块入口与阅读顺序见上级索引 `docs/04-detailed-design/01-readme.md`。
+> 需求管理已合并为功能测试模块的子模块，本目录分册迁移至 `docs/04-detailed-design/03-function-testing/09-requirement-management.md`。

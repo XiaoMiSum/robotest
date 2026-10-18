@@ -19,7 +19,7 @@ AI 能力是平台级基础能力，四大能力域构建其上：
 | 缺陷分析 | `docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md` | 缺陷趋势与质量度量、自动分类分诊、重复缺陷检测 |
 | 辅助功能 | `docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md` | 用例补全、用例级别推荐、测试用例执行顺序推荐 |
 
-AI 生成链以需求管理模块的需求条目为输入，需求条目的管理行为见 `docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`；测试评审与测试计划的快照机制沿用既有口径，见 `docs/01-requirements/03-function-testing/02-srs-business-features.md`。
+AI 生成链以需求管理（功能测试子模块）的需求条目为输入，需求条目的管理行为见 `docs/01-requirements/03-function-testing/03-srs-requirement-management.md`；测试评审与测试计划的快照机制沿用既有口径，见 `docs/01-requirements/03-function-testing/02-srs-business-features.md`。
 
 **两条全局原则**：
 

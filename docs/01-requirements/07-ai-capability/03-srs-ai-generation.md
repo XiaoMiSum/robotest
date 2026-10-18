@@ -15,7 +15,7 @@
 - `AI + 需求 = 模块 + 脑图用例文档 + 测试用例`：一次生成产出三层派生物；
 - `AI + 需求 + 模块 + 脑图用例文档 + 测试用例 = 测试评审 或 测试计划`：基于全链路上下文推荐评审 / 计划的圈选范围。
 
-输入为需求管理模块中**已确认的需求**（见 `docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`）。生成由 AI 自主编排执行，产出为提案，任务与提案采纳的通用口径见总册 1.5（`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`），本分册不重复定义。
+输入为功能测试模块需求子模块中**已确认的需求**（见 `docs/01-requirements/03-function-testing/03-srs-requirement-management.md`）。生成由 AI 自主编排执行，产出为提案，任务与提案采纳的通用口径见总册 1.5（`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`），本分册不重复定义。
 
 ### 1.2 发起生成（US-AI-005）
 
