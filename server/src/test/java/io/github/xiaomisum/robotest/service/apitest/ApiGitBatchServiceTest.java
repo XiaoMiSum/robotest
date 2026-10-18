@@ -127,13 +127,20 @@ class ApiGitBatchServiceTest {
         return resp;
     }
 
-    private ApiScene scene(String sourceRef) {
+    /**
+     * 按导入实况构造 gitlab 场景：sourceId 为稳定键（类全限定名#方法名），source_ref 为
+     * 源文件路径#方法名——二者取值不同，用以证明批次快照冻结的是 sourceId 而非 source_ref。
+     */
+    private ApiScene scene(String sourceId) {
         ApiScene scene = new ApiScene();
         scene.setId(UUID.randomUUID());
         scene.setProjectId(repo.getProjectId());
         scene.setSourceType("gitlab");
         scene.setRepoId(repo.getId());
-        scene.setSourceRef(sourceRef);
+        scene.setSourceId(sourceId);
+        int hash = sourceId.indexOf('#');
+        scene.setSourceRef(sourceId.substring(0, hash).replace('.', '/') + ".java"
+                + sourceId.substring(hash));
         return scene;
     }
 
@@ -156,7 +163,7 @@ class ApiGitBatchServiceTest {
         assertTrue(seenBodies.get(0).contains(result.batchId()));
         assertTrue(seenBodies.get(0).contains("ROBOTEST_BATCH_ID"));
         assertTrue(seenBodies.get(0).length() < 300);
-        // 快照内容：sourceRef 冻结、commitSha 取探查缓存、状态 pending
+        // 快照内容：sourceRef 冻结为场景标识（类全限定名#方法名，非 source_ref 的源文件路径）、commitSha 取探查缓存、状态 pending
         assertEquals(List.of("com.example.A#m1", "com.example.B#m2"),
                 store.stream().map(ApiExecutionRecord::getSourceRef).toList());
         assertEquals("a1b2c3", store.get(0).getCommitSha());
