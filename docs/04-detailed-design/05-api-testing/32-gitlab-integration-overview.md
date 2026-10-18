@@ -113,7 +113,7 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
 | 1000017711 | API_GIT_REPO_IMMUTABLE_FIELD | 仓库 `repo_path` / `default_branch` / `import_mode` 创建后不可修改 |
 | 1000017712 | API_GIT_REPO_TASK_BOUND | 仓库配置被启用中的 GitLab 同步任务引用，无法删除 |
 | 1000017713 | API_GIT_BATCH_NOT_FOUND | CI 侧取冻结清单按 `batchId` 未命中批次（404 语义） |
-| 1000017714 | API_GIT_ARTIFACT_DOWNLOAD_FAILED | 流水线制品下载失败（结果回收通道降级留痕） |
+| 1000017714 | API_GIT_ARTIFACT_RECEIVE_FAILED | 结果制品接收失败（推送内容非合法 zip 或超过接收上限，拒绝并回执 CI） |
 | 1000017715 | API_GIT_ENVELOPE_INVALID | 结果信封缺失或无法解析（无可用信封时整批降级留痕） |
 
 ## 3. 接口详细设计
@@ -424,7 +424,7 @@ flowchart TD
 
 ### 4.2 流水线执行机制
 
-控制面与数据面分离：控制面靠流水线变量传批次票据，数据面靠 GitLab artifact 回传结果，两侧互不承载对方的负载。
+控制面与数据面分离：控制面靠流水线变量传批次票据，数据面由 CI 将结果制品**主动推送至平台**回传，两侧互不承载对方的负载；CI 侧的 GitLab artifact 上传保留为人工排查副本，平台不依赖。
 
 ```mermaid
 sequenceDiagram
@@ -438,16 +438,17 @@ sequenceDiagram
     C->>T: 回调取清单（batchId，只读令牌）
     T-->>C: 返回冻结快照
     C->>C: TestNG + Ryze 执行
-    C->>G: 上传 __Ryze_Native_Result__ 为 artifact
+    C->>T: 推送结果制品 zip（batchId，先于回报，重试 3 次）
+    T->>T: 校验 zip / 接收上限 → 暂存（内存）
+    C->>G: （runner 自动）上传 artifact，仅供人工排查
     C->>T: 回报完成（batchId + 期望/实际用例数）
-    T->>G: 按 pipeline_iid 下载 artifact
     T->>T: 组装套件树 → 写执行记录与报告
 ```
 
 1. **触发**：调用 GitLab `POST /projects/:id/pipeline`（`ref = default_branch`），流水线变量只传 `ROBOTEST_BATCH_ID`。**不再传场景标识串**——场景标识是类全限定名 + 方法名，实测单个约 90 字符，批量圈选时变量串必然超长；批次票据恒定 36 字符，因此一次任务恒定触发 **1 条流水线**，既不做分批也不做按仓库分组（一项目一仓库）。
 2. **快照冻结**：触发前先将本批场景清单（场景 ID、`source_ref`、期望用例数）落库为不可变快照，**落库成功后才允许触发**。顺序是硬约束：宁可流水线起来后 CI 取不到清单（由 CI 侧重试），也不能流水线已跑起来而快照未落——后者会让 CI 拿到空清单、静默地一个用例都不跑，是最坏的失败形态。
 3. **取清单**：CI 脚本持只读令牌回调平台，按 `batchId` 返回冻结快照。取清单接口**幂等**，同一 `batchId` 多次调用返回同一份；读的是快照而非平台实时数据，因此执行期间用户在平台上的增删改不影响正在跑的批次，也不需要对执行中的批次加锁。
-4. **结果回收**：CI 将 Ryze 原生结果导出目录 `./__Ryze_Native_Result__` 作为 artifact 上传，平台按 `pipeline_iid` 下载后逐个解析信封（格式见 4.6），按 `testClass#testMethod` 匹配批次快照内的场景。信封的 `result` 是一棵 TestSuiteResult，平台将其组装为套件子树后走既有的 `RyzeResultAdapter` 渲染，**不为 CI 结果另写解析器**。
+4. **结果回收**：CI 将 Ryze 原生结果导出目录 `./__Ryze_Native_Result__` 打包为 zip，经 CI 侧接口**推送至平台**（先于 completion 回报，失败重试 3 次、仍失败按 BR-1.27 显式失败并尽力回报）；平台校验后暂存于内存，完成回报或轮询任一通道触发回收时读取暂存、逐个解析信封（格式见 4.6），按 `testClass#testMethod` 匹配批次快照内的场景。信封的 `result` 是一棵 TestSuiteResult，平台将其组装为套件子树后走既有的 `RyzeResultAdapter` 渲染，**不为 CI 结果另写解析器**。暂存为进程内存态，进程重启即丢失，缺失按 4.6 降级口径整批失败（推送至回收仅数秒窗口，不做持久化）；GitLab artifact 仅供人工排查，平台任何通道都不读取它。
 5. **终态去重**：CI 主动回报是主路径，平台轮询流水线状态（`created / running / success / failed / canceled`）是兜底——CI 崩溃、网络中断、任务被手动取消都会导致回报丢失。两通道写同一批执行记录，**批次一旦置终态，后续任何写入（重复回报、轮询补拉）一律忽略**，既不丢结果也不会被后到的写入覆盖。轮询由平台内置作业按固定周期执行（配置项 `robotest.gitlab.pipeline-poll-interval-ms`，默认 30 秒，可配置），查询失败（`1000017705`）仅留痕、下周期自然重试，单批失败不中断整轮；作业检测到流水线达终态时只触发结果回收入口，状态写入由结果回收经终态闸门落库，轮询作业本身不直接写批次状态。
 6. **回写**：逐条回写执行记录与场景报告。**回写为异步**，不阻塞触发线程。服务重启后由扫描任务按 `api_execution_record` 的 `batch_id` / `pipeline_iid` 重建轮询。
 
@@ -508,7 +509,7 @@ flowchart LR
 
 1. 以只读令牌回调平台取本批场景清单（携带 `batchId`），失败时重试；
 2. 按清单执行（TestNG 按方法过滤，未在清单中的方法不执行）；
-3. 将 `./__Ryze_Native_Result__` 整目录作为 GitLab artifact 上传，**该步骤须在流水线终态前完成**；
+3. 将 `./__Ryze_Native_Result__` 打包为 zip **推送至平台**（`POST /api/ci/batches/{batchId}/artifacts`），**推送须先于回报完成**，失败重试 3 次、仍失败则作业显式失败并尽力回报（BR-1.27）；GitLab artifact 由 runner 在作业结束时自动上传，仅作人工排查副本；
 4. 执行结束后回报平台完成状态与「期望用例数 / 实际用例数」。
 
 **变量契约**：
@@ -517,13 +518,14 @@ flowchart LR
 | ---- | ---- | ---- |
 | `ROBOTEST_BATCH_ID` | 平台触发流水线时注入（pipeline variable） | 批次票据，UUID，36 字符；CI 脚本据此取清单与回报，缺失时跳过平台批次逻辑 |
 | `ROBOTEST_PLATFORM_URL` | 接入方在 GitLab CI/CD 变量中配置 | 平台服务地址（如 `https://robotest.example.com`），结尾不留 `/` |
-| `ROBOTEST_CI_TOKEN` | 接入方在 GitLab CI/CD 变量中配置 | 平台签发的只读令牌，仅具取清单与回报两个端点的权限，须设为 Masked。签发方式为部署级静态令牌：平台侧 `ROBOTEST_CI_TOKEN` 环境变量注入 `robotest.gitlab.ci-token` 配置，与 GitLab CI/CD 变量同值；平台未配置时 `/api/ci/**` 一律拒绝（fail-closed），校验采用常量时间比对 |
+| `ROBOTEST_CI_TOKEN` | 接入方在 GitLab CI/CD 变量中配置 | 平台签发的只读令牌，仅具取清单、推送制品与回报三个端点的权限，须设为 Masked。签发方式为部署级静态令牌：平台侧 `ROBOTEST_CI_TOKEN` 环境变量注入 `robotest.gitlab.ci-token` 配置，与 GitLab CI/CD 变量同值；平台未配置时 `/api/ci/**` 一律拒绝（fail-closed），校验采用常量时间比对 |
 
 **CI 侧接口契约**（P6 实现，权限经 `ROBOTEST-CI-TOKEN` 请求头传递，不出现在 URL）：
 
 | 路径 | 方法 | 说明 |
 | ---- | ---- | ---- |
 | `/api/ci/batches/{batchId}/manifest` | GET | 取冻结清单快照；幂等，同一 `batchId` 多次调用返回同一份；批次不存在返回 404 语义错误 |
+| `/api/ci/batches/{batchId}/artifacts` | POST | 接收结果制品 zip（multipart，字段 `file`）；同批次重复推送后到覆盖，批次已置终态时接收成功但忽略；非 zip 或超上限拒绝并回执 `1000017714`；批次不存在返回 404 语义错误 |
 | `/api/ci/batches/{batchId}/completion` | POST | 回报批次终态与用例计数；批次已置终态时忽略本次写入（终态去重） |
 
 **取清单响应示例（`data`）**：
@@ -558,12 +560,12 @@ flowchart LR
 
 `status` 取值 `success` / `failed`；`actualCases` 为 `./__Ryze_Native_Result__` 下信封文件数；`pipelineUrl` 供失败时报告留痕。
 
-**体积约束**：GitLab artifact 默认上限 5MB。响应体截断沿用平台既有规则（防止撑爆 JSONB），不因走 CI 通道而放宽；接入方实例若放宽 artifact 上限，须在 P0 约定中记录取值。
+**体积约束**：平台接收结果制品 zip 的上限为 5MB（对齐原 GitLab artifact 默认上限，部署可经 multipart 配置放宽，服务端全局上限 20MB）；超限拒绝并回执 `1000017714`。GitLab artifact 侧仍受其默认 5MB 约束，但仅影响人工排查副本。响应体截断沿用平台既有规则（防止撑爆 JSONB），不因走 CI 通道而放宽；接入方实例若放宽 artifact 上限，须在 P0 约定中记录取值。
 
 **对账与降级**：
 
 - 平台比对批次快照的**期望用例数**与信封中的**实际用例数**，差值计入 `errorFailed`（如 YAML 缺失导致方法无法执行），**不得**计为执行失败——demo 实测 199 个方法对仅对应到约 15 个真实存在的 YAML，这类差异是常态而非故障。
-- 未回收到任何可用信封（制品缺失、目录为空或全部解析失败）时，整批按失败处理并附流水线链接，与 BR-1.34 口径一致；不设中间降级档——汇总数字既无法按 `testClass#testMethod` 映射场景也写不出步骤明细，改善不了任何记录的结局。单条信封缺失的场景按解析失败计数（见上条），不影响其余用例回写。
+- 未回收到任何可用信封（未收到推送、暂存因进程重启丢失、目录为空或全部解析失败）时，整批按失败处理并附流水线链接，与 BR-1.34 口径一致；不设中间降级档——汇总数字既无法按 `testClass#testMethod` 映射场景也写不出步骤明细，改善不了任何记录的结局。单条信封缺失的场景按解析失败计数（见上条），不影响其余用例回写。
 - 版本差异（平台 Ryze 与仓库 Ryze 非同一版本）时，信封为新增结构、与 Ryze 内部 Result 字段无关，平台渲染器对 `result` 内缺失字段容错，不因缺字段整批失败。
 
 ## 5. 前端设计
@@ -693,3 +695,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-17 | 3.2 预览响应新增 `parsedScenes`（成功解析场景清单）：场景级 `sceneKey` / `name` / `action`，`items` 单次最多 200 条并以 `truncated` 标记，`total` 与 `scenes.create + scenes.update` 同口径，闸门拦截时为 null |
 | V1.0 | 2026-10-17 | 3.5 补场景发布状态口径：新建场景一律 `status = published`（导入即可被测试计划与定时任务圈选），更新路径不触碰 `status` |
 | V1.0 | 2026-10-17 | 4.1 引擎表「按钮文案」列统一为「运行」：执行入口文案不随引擎变化，按钮仍按引擎路由触发链路 |
+| V1.0 | 2026-10-18 | 结果回传改为 CI 主动推送（4.2 时序与结果回收、4.6 CI 职责与接口契约）：新增 `POST /api/ci/batches/{batchId}/artifacts`（multipart、内存暂存、后到覆盖、非 zip/超限拒绝），错误码 `1000017714` 改义为 `API_GIT_ARTIFACT_RECEIVE_FAILED`，体积约束改平台接收上限 5MB，GitLab artifact 保留仅作人工排查 |
