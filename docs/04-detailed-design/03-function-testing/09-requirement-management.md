@@ -10,12 +10,12 @@
 
 ### 1.1 编写目的
 
-对**需求管理模块**进行详细设计，定义需求域数据结构、接口规范、业务逻辑与前端组件，为开发实现提供完整依据。导入拆解建议由 AI 能力经 AI Task 任务资源供给，本文档只定义需求域自身的行为与接口。
+对**需求管理（功能测试子模块）**进行详细设计，定义需求域数据结构、接口规范、业务逻辑与前端组件，为开发实现提供完整依据。导入拆解建议由 AI 能力经 AI Task 任务资源供给，本文档只定义需求域自身的行为与接口。
 
 ### 1.2 范围与对应设计
 
-- 对应需求：`docs/01-requirements/06-requirement-management/02-srs-requirement-management.md`（US-RM-001 ~ 004）。
-- 对应概要：`docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md`。
+- 对应需求：`docs/01-requirements/03-function-testing/03-srs-requirement-management.md`（US-RM-001 ~ 004）。
+- 对应概要：`docs/02-high-level-design/03-function-testing/03-hld-requirement-management.md`。
 - 关联设计：
   - AI 任务与提案确认接口：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（导入任务的提交与采纳走该资源）。
 
@@ -413,15 +413,18 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ```
 项目工作区
-├── /workspace/projects/requirements                          → RequirementShellPage（需求管理壳层：需求列表单页）
-├── /workspace/projects/requirements/create                   → RequirementCreatePage（新建需求）
-└── /workspace/projects/requirements/:requirementId           → RequirementDetailPage（需求详情）
+├── /workspace/projects/functional-testing?tab=requirements  → FunctionalTestingPage（功能测试壳层，侧栏首位「需求列表」子项）
+│   └── RequirementListPage（需求列表，按 requirement:view 显隐）
+├── /workspace/projects/requirements/create                  → RequirementCreatePage（新建需求，过程页不入菜单）
+└── /workspace/projects/requirements/:requirementId          → RequirementDetailPage（需求详情，过程页不入菜单）
+
+旧路径 /workspace/projects/requirements 重定向至 /workspace/projects/functional-testing?tab=requirements
 ```
 
 ### 5.2 组件结构
 
 ```
-RequirementShellPage（需求管理壳层：需求列表单页）
+FunctionalTestingPage（功能测试壳层：侧栏子项 = 需求列表 / 测试用例 / 测试评审 / 测试计划）
 └── RequirementListPage（见下）
 
 RequirementListPage
@@ -540,3 +543,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：统一任务资源改 AI Task 任务资源，确认端点 `artifacts/confirm` → `proposals/confirm`，任务 `result` → `result_meta`、`pending/running` 去重收敛为 `running`；产物改称提案，4.5 承接与前端状态分支同步 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：3.8 导入响应示例 `status` 改 `running`（任务创建即启动）、3.10 `adoptResult` 键改 `proposalKey`、5.3 `aiTask` store 改任务执行与轨迹订阅 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除 3.11 追溯视图委托接口（含 `{id}/trace` 权限行与错误码 1000018014，登记收敛为 1000018001–1000018013）、4.4 影响分析触发（改为纯状态流转）与确认/更新处的影响任务表述，移除覆盖率筛选与 `coverageStatus` 字段、追溯子页路由与旧路径重定向、TraceEntry 与查看追溯入口 |
+| V1.0 | 2026-10-18 | 需求管理并入功能测试模块：5.1 / 5.2 删除需求管理壳层，需求列表改为功能测试侧栏首位子项（`?tab=requirements`），旧路径重定向至功能测试壳层；1.2 引用随分册迁移同步；后端设计（数据、接口、错误码）不变 |

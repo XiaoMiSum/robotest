@@ -20,7 +20,7 @@
 ### 1.3 参考资料
 
 - 总册：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（任务资源 3.6、错误码分段 6）
-- 需求模块：`docs/04-detailed-design/06-requirement-management/02-requirement-management.md`（生成输入的来源实体）
+- 需求模块：`docs/04-detailed-design/03-function-testing/09-requirement-management.md`（生成输入的来源实体）
 - 评审 / 计划快照机制：`docs/02-high-level-design/03-function-testing/02-hld-function-testing.md` 第 3.3 节
 
 ---

@@ -24,7 +24,7 @@
 | 概要 | `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md` | 机制唯一上位依据（双平面、状态机、不变式） |
 | 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | AI 模块划分与生命周期 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 2.6 六表 DDL、3.6 任务资源、4.2 执行核与护栏、6 错误码、7 实施说明 |
-| 详细 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`、`docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md`、`docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`、`docs/04-detailed-design/06-requirement-management/02-requirement-management.md` | 各域类型适配器、提案结构与承接规则 |
+| 详细 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`、`docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md`、`docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md`、`docs/04-detailed-design/03-function-testing/09-requirement-management.md` | 各域类型适配器、提案结构与承接规则 |
 | 交互 | `docs/05-interaction-design/07-ai-capability/03-ai-task-ui.md` | 任务中心与提案审核新交互（状态机、轨迹、终止 / 再次执行） |
 | 需求 | `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md` | 1.5 任务通用规则（验收口径来源） |
 | 计划 | `docs/06-implementation-plan/02-ai-requirement-development-plan.md` | 既有工作包状态与批次编排（收口联动回填） |
