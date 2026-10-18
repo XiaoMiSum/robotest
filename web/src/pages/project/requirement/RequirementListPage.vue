@@ -109,7 +109,7 @@ function openCreate(): void {
   <main class="requirement-list">
     <header class="page-head">
       <div>
-        <h1 class="page-head__title">需求管理</h1>
+        <h1 class="page-head__title">需求列表</h1>
         <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
       </div>
       <div class="page-head__actions">

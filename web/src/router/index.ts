@@ -296,20 +296,9 @@ const routes: RouteRecordRaw[] = [
         }),
       },
       {
-        // 需求管理壳层：页内侧栏承载需求子页（交互 06 §1）
+        // 旧需求管理壳层路径重定向：需求列表已并入功能测试侧栏首位（交互 06 §1）
         path: 'workspace/projects/requirements',
-        name: 'RequirementShell',
-        component: () => import('@/pages/project/requirement/RequirementShellPage.vue'),
-        meta: {
-          title: '需求管理',
-          mode: 'project',
-          menu: {
-            label: '需求管理',
-            icon: 'Tickets',
-            order: 5,
-            permissionAny: ['requirement:view'],
-          },
-        },
+        redirect: { path: '/workspace/projects/functional-testing', query: { tab: 'requirements' } },
       },
       {
         // 不入菜单：由需求列表工具栏「新建需求」进入（交互 06 §2.5）；须先于 :requirementId 注册

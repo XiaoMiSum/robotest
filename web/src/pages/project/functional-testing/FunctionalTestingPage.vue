@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useFunctionalTesting } from '@/composables/project/functional-testing/useFunctionalTesting'
+import RequirementListPage from '@/pages/project/requirement/RequirementListPage.vue'
 import TestCasePage from '@/pages/project/functional-testing/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/functional-testing/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/functional-testing/PlanListPage.vue'
 
-const { activeMenu, menuRef, testCaseRef, menuItems, handleMenuSelect } = useFunctionalTesting()
+const { activeMenu, menuRef, testCaseRef, visibleItems, handleMenuSelect } = useFunctionalTesting()
 </script>
 
 <template>
@@ -16,7 +17,7 @@ const { activeMenu, menuRef, testCaseRef, menuItems, handleMenuSelect } = useFun
         class="func-testing__sidebar-menu"
         @select="handleMenuSelect"
       >
-        <el-menu-item v-for="item in menuItems" :key="item.key" :index="item.key">
+        <el-menu-item v-for="item in visibleItems" :key="item.key" :index="item.key">
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
         </el-menu-item>
@@ -24,7 +25,8 @@ const { activeMenu, menuRef, testCaseRef, menuItems, handleMenuSelect } = useFun
     </aside>
 
     <main class="func-testing__main">
-      <TestCasePage v-if="activeMenu === 'cases'" ref="testCaseRef" />
+      <RequirementListPage v-if="activeMenu === 'requirements'" />
+      <TestCasePage v-else-if="activeMenu === 'cases'" ref="testCaseRef" />
       <ReviewListPage v-else-if="activeMenu === 'reviews'" />
       <PlanListPage v-else-if="activeMenu === 'plans'" />
     </main>

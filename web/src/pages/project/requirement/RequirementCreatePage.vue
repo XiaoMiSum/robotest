@@ -65,15 +65,15 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 
 <template>
   <div class="requirement-create">
-    <!-- UI-BC-01：两级面包屑，回退入口是唯一可点击项；操作区同行右对齐，页头吸顶 -->
+    <!-- UI-BC-01：三级面包屑，回退入口是唯一可点击项；操作区同行右对齐，页头吸顶 -->
     <div class="requirement-create__header">
       <div class="requirement-create__breadcrumb">
-        <router-link to="/workspace/projects/requirements">需求管理</router-link>
+        <router-link to="/workspace/projects/functional-testing?tab=requirements">功能测试 › 需求列表</router-link>
         <el-icon :size="13"><ArrowRight /></el-icon>
         <span>新建需求</span>
       </div>
       <div class="requirement-create__actions">
-        <el-button @click="router.push('/workspace/projects/requirements')">取消</el-button>
+        <el-button @click="router.push('/workspace/projects/functional-testing?tab=requirements')">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
       </div>
     </div>
