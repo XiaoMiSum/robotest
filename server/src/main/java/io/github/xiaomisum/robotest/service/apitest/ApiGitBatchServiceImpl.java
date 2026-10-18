@@ -92,7 +92,9 @@ public class ApiGitBatchServiceImpl implements ApiGitBatchService {
             record.setExecutedAt(LocalDateTime.now());
             record.setRepoId(repo.getId());
             record.setBatchId(batchId);
-            record.setSourceRef(scene.getSourceRef());
+            // 快照取场景标识（类全限定名#方法名）而非 source_ref（源文件路径）：
+            // CI 据此生成 TestNG 过滤条件，结果回收按信封 testClass#testMethod 归属判定（详设 4.6）
+            record.setSourceRef(scene.getSourceId());
             record.setCommitSha(repo.getHeadCommit());
             record.setScheduledTaskId(scheduledTaskId);
             executionRecordMapper.insert(record);
