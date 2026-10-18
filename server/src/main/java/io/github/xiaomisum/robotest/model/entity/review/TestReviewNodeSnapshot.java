@@ -12,7 +12,7 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("test_review_node_snapshot")
+@TableName("ft_review_node_snapshot")
 public class TestReviewNodeSnapshot extends BaseUuidDO<TestReviewNodeSnapshot> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)

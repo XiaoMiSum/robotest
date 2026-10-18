@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName(value = "test_case_document", autoResultMap = true)
+@TableName(value = "ft_case_document", autoResultMap = true)
 public class TestCaseDocument extends BaseUuidDO<TestCaseDocument> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)
