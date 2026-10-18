@@ -11,8 +11,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import xyz.migoo.framework.common.pojo.Result;
+
+import java.io.IOException;
 
 /**
  * CI 侧接口（GitLab 集成详细设计 4.6）：CI 脚本凭只读令牌回调，无用户上下文（C4 不适用）。
@@ -32,6 +36,17 @@ public class CiBatchController {
     @GetMapping("/manifest")
     public Result<ApiGitBatchManifestRespDTO> manifest(@PathVariable String batchId) {
         return Result.ok(apiGitBatchService.getManifest(batchId));
+    }
+
+    /**
+     * 接收结果制品 zip（详设 4.6）：multipart 字段 {@code file}；
+     * 同批次后到覆盖，批次已终态时接收成功但忽略
+     */
+    @PostMapping("/artifacts")
+    public Result<Void> artifacts(@PathVariable String batchId,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        apiGitBatchService.receiveArtifacts(batchId, file.getBytes());
+        return Result.ok();
     }
 
     /** 回报批次终态与用例计数；批次已置终态时忽略本次写入（终态去重，详设 4.6） */

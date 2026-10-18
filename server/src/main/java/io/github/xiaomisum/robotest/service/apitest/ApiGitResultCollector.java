@@ -45,13 +45,13 @@ import java.util.zip.ZipInputStream;
 
 /**
  * CI 结果回收编排（GitLab 集成详细设计 4.2 第 4-6 步 / 4.6，WP-7.1）：
- * 下载流水线制品 → 解析 {@code __Ryze_Native_Result__} 结果信封 → 按
+ * 读取 CI 推送后暂存的结果制品 → 解析 {@code __Ryze_Native_Result__} 结果信封 → 按
  * {@code testClass#testMethod} 逐条回写执行记录与场景报告。
  *
  * <p>两通道共用本入口：CI 主动回报（completion）与流水线轮询（poll）。制品在
- * {@code after_script} 结束后才由 GitLab 上传，completion 通道遇制品缺失或下载失败
- * 一律推迟给轮询；poll 通道在流水线已终态仍取不到任何可用信封时按 BR-1.34 整批
- * 失败降级（附流水线链接），状态按详设 4.6 映射（success/failed → failed，canceled → cancelled）。
+ * {@code after_script} 内先于回报推送，completion 通道遇暂存缺失一律推迟给轮询；
+ * poll 通道在流水线已终态仍无任何可用信封（含未收到推送、暂存因重启丢失）时按
+ * BR-1.34 整批失败降级（附流水线链接），状态按详设 4.6 映射（success/failed → failed，canceled → cancelled）。
  *
  * <p>回写为逐条条件终态（仅 pending/running 生效）：进程内以单飞集合挡住同批次并发，
  * 跨通道先到者逐条定终态、后到者命中 0 行即弃；报告先插入后占位，占位落空即回删，
@@ -81,7 +81,7 @@ public class ApiGitResultCollector {
     private final ApiGitRepoMapper gitRepoMapper;
     private final ApiSceneMapper sceneMapper;
     private final ApiReportMapper reportMapper;
-    private final GitLabApiClient gitLabApiClient;
+    private final ApiGitArtifactStash artifactStash;
     private final ApiGitBatchService batchService;
     private final ApiSuiteReportAppender appender;
     private final ApiTestProperties properties;
@@ -93,7 +93,7 @@ public class ApiGitResultCollector {
 
     public ApiGitResultCollector(ApiExecutionRecordMapper executionRecordMapper,
             ApiGitRepoMapper gitRepoMapper, ApiSceneMapper sceneMapper, ApiReportMapper reportMapper,
-            GitLabApiClient gitLabApiClient, ApiGitBatchService batchService,
+            ApiGitArtifactStash artifactStash, ApiGitBatchService batchService,
             ApiSuiteReportAppender appender, ApiTestProperties properties,
             @Qualifier("apiGitCollectExecutor") Executor executor,
             @Value("${robotest.env.secret-key:}") String base64SecretKey) {
@@ -101,7 +101,7 @@ public class ApiGitResultCollector {
         this.gitRepoMapper = gitRepoMapper;
         this.sceneMapper = sceneMapper;
         this.reportMapper = reportMapper;
-        this.gitLabApiClient = gitLabApiClient;
+        this.artifactStash = artifactStash;
         this.batchService = batchService;
         this.appender = appender;
         this.properties = properties;
@@ -161,34 +161,22 @@ public class ApiGitResultCollector {
             log.warn("[结果回收] 批次未关联流水线，推迟回收 batchId={}", batchId);
             return;
         }
-        String token;
+        // 仓库 / 令牌仍按原口径做可用性闸门：配置异常只留痕不终态化，由轮询通道自愈
         try {
-            token = decryptToken(repo);
+            decryptToken(repo);
         } catch (ServiceException e) {
             log.warn("[结果回收] 令牌不可解密，推迟回收 batchId={}：{}", batchId, e.getMessage());
             return;
         }
 
-        byte[] artifacts;
-        try {
-            artifacts = gitLabApiClient.downloadPipelineArtifacts(
-                    repo.getGitlabBaseUrl(), token, repo.getRepoPath(), head.getPipelineIid());
-        } catch (ServiceException e) {
-            if (channel == Channel.POLL) {
-                // 流水线已终态仍取不到制品：整批失败降级并留痕（详设 4.6 对账与降级行）
-                degrade(records, sourceStatus,
-                        ErrorCodeConstants.API_GIT_ARTIFACT_DOWNLOAD_FAILED.code() + " " + e.getMessage());
-            } else {
-                log.info("[结果回收] 制品下载失败，推迟至轮询通道回收 batchId={}：{}", batchId, e.getMessage());
-            }
-            return;
-        }
+        byte[] artifacts = artifactStash.get(batchId);
         if (artifacts == null) {
             if (channel == Channel.POLL) {
+                // 流水线已终态仍无暂存（未收到推送 / 暂存因进程重启丢失）：整批失败降级并留痕（详设 4.6 对账与降级行）
                 degrade(records, sourceStatus, ErrorCodeConstants.API_GIT_ENVELOPE_INVALID.code()
-                        + " 流水线无结果制品");
+                        + " 未收到结果制品推送");
             } else {
-                log.info("[结果回收] 制品尚未产出，推迟至轮询通道回收 batchId={}", batchId);
+                log.info("[结果回收] 结果制品暂存缺失，推迟至轮询通道回收 batchId={}", batchId);
             }
             return;
         }
@@ -203,6 +191,8 @@ public class ApiGitResultCollector {
             return;
         }
         writeBack(records, envelopes);
+        // 批次已终态化，清除暂存（防异常残留由 TTL 兜底）
+        artifactStash.evict(batchId);
         appendSuiteReport(records);
     }
 
@@ -373,6 +363,8 @@ public class ApiGitResultCollector {
         if (!batchService.finishBatch(head.getBatchId(), status, message, summary)) {
             log.info("[结果回收] 批次已由另一通道终态化，降级写入被忽略 batchId={}", head.getBatchId());
         }
+        // 降级同样终态化批次，清除暂存（与成功回收对称，防异常残留由 TTL 兜底）
+        artifactStash.evict(head.getBatchId());
         // 降级同样入套件（占位数据集）：每次触发一份报告，不留空洞（WP-7.2）
         appendSuiteReport(records);
     }

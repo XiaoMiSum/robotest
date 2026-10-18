@@ -172,7 +172,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode API_GIT_REPO_IMMUTABLE_FIELD = ErrorCode.of(1000017711, "仓库路径、默认分支与导入模式创建后不可修改");
     public static final ErrorCode API_GIT_REPO_TASK_BOUND = ErrorCode.of(1000017712, "仓库配置被启用中的 GitLab 同步任务引用，无法删除");
     public static final ErrorCode API_GIT_BATCH_NOT_FOUND = ErrorCode.of(1000017713, "执行批次不存在");
-    public static final ErrorCode API_GIT_ARTIFACT_DOWNLOAD_FAILED = ErrorCode.of(1000017714, "流水线制品下载失败");
+    public static final ErrorCode API_GIT_ARTIFACT_RECEIVE_FAILED = ErrorCode.of(1000017714, "结果制品接收失败");
     public static final ErrorCode API_GIT_ENVELOPE_INVALID = ErrorCode.of(1000017715, "结果信封缺失或无法解析");
 
     // ========== 缺陷管理模块 1,000,012,001-1,000,012,010 ==========
