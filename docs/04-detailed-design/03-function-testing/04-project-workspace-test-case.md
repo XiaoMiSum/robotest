@@ -24,7 +24,7 @@
 - **创建文档**：`POST /api/project/testcases`
   - **请求体**：`{ "moduleId": "…", "name": "登录用例集" }`（`moduleId` 为 null 表示挂根层级）。
   - **校验**：`moduleId` 存在且属于同项目；同模块下文档名称唯一。
-  - **处理**：事务中插入 `test_case_document` 记录（`sort_order=0`，默认 `layout = { "template": "right", "offsets": {} }`），并自动创建默认根节点（见第 2 节）。
+  - **处理**：事务中插入 `ft_case_document` 记录（`sort_order=0`，默认 `layout = { "template": "right", "offsets": {} }`），并自动创建默认根节点（见第 2 节）。
   - **响应**：创建后的文档信息，状态码 201。
 - **权限**：`case:edit`。
 
@@ -125,7 +125,7 @@
 
 ## 2. 文档创建与默认根节点
 
-创建用例文档（`POST /api/project/testcases`）时，事务中插入 `test_case_document` 记录，并在 `test_case_node` 表中创建默认根节点（title 与文档名称相同，type='normal'，sort_order=0，parent_id 为 NULL，version=1）。此根节点作为文档脑图的唯一顶层节点，用户可在其下添加子节点并标记为不同用例类型。获取文档节点树时，该根节点作为顶层节点返回，其 children 包含所有用户创建的节点；同模块下文档名称唯一，重复创建被拒绝。
+创建用例文档（`POST /api/project/testcases`）时，事务中插入 `ft_case_document` 记录，并在 `ft_case_node` 表中创建默认根节点（title 与文档名称相同，type='normal'，sort_order=0，parent_id 为 NULL，version=1）。此根节点作为文档脑图的唯一顶层节点，用户可在其下添加子节点并标记为不同用例类型。获取文档节点树时，该根节点作为顶层节点返回，其 children 包含所有用户创建的节点；同模块下文档名称唯一，重复创建被拒绝。
 
 
 ## 3. 脑图实时协作
@@ -135,7 +135,7 @@
 - **二进制帧（Yjs sync/awareness 协议）**：负责多人实时同步与在线状态，不落库；可写帧（sync step2 / update）广播前校验 `case:edit`，只读帧（sync step1、awareness）直接转发；服务端回发空 awareness 帧保活。
 - **文本帧（JSON 操作协议）**：`{ "type": "...", "payload": {...} }`，`type` 取值 `add_node`、`move_node`、`update_attrs`、`delete_node`（payload 为 `{ "data": { ... } }`）与 `update_layout`（payload 即布局对象）。可写类型先广播给房间内其他用户，再由持久化处理器写库；每次写操作前重查 `case:edit`，被拒时向发送者回 `{ "type": "error", "code": "...", "message": "..." }` 错误帧，不广播不落库。
 
-节点更新与移动使用 `version` 字段乐观锁（`update_attrs` / `move_node` 携带期望版本，版本不符则丢弃并记日志），布局 upsert 到 `test_case_document.layout` JSON 列。前端脑图数据以嵌套树形结构渲染，内容变更经 400ms 防抖后比对快照差量，递归遍历节点树生成上述操作帧，经同一连接提交；远端协同回放期间不重复提交，切换文档或离开页面时立即冲刷未提交的变更。
+节点更新与移动使用 `version` 字段乐观锁（`update_attrs` / `move_node` 携带期望版本，版本不符则丢弃并记日志），布局 upsert 到 `ft_case_document.layout` JSON 列。前端脑图数据以嵌套树形结构渲染，内容变更经 400ms 防抖后比对快照差量，递归遍历节点树生成上述操作帧，经同一连接提交；远端协同回放期间不重复提交，切换文档或离开页面时立即冲刷未提交的变更。
 
 ### 3.1 用例管理页（功能测试 - 测试用例）
 
@@ -209,3 +209,4 @@
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐前端实现：修正路由与权限口径、模块/文档接口拆分、模块树与脑图交互表、协同保存与状态分支 |
+| V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_document` / `test_case_node` → `ft_case_document` / `ft_case_node` |

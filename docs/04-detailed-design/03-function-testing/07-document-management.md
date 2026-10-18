@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-本文档定义用例管理（`test_case_document`）的详细设计。用例为脑图型用例文档，作为独立资产挂载在项目模块树（`project_module`）节点下，不存储在模块表中。本文档涵盖用例表结构、布局与节点存储、用例管理接口（创建、查询、更新、删除）、业务规则，以及用例页面的集成方式与状态分支。
+本文档定义用例管理（`ft_case_document`）的详细设计。用例为脑图型用例文档，作为独立资产挂载在项目模块树（`project_module`）节点下，不存储在模块表中。本文档涵盖用例表结构、布局与节点存储、用例管理接口（创建、查询、更新、删除）、业务规则，以及用例页面的集成方式与状态分支。
 
 > 项目模块树（`project_module`）本身的详细设计见 `docs/04-detailed-design/02-project-module.md`；用例管理页与脑图编辑器的交互明细见 `docs/04-detailed-design/03-function-testing/04-project-workspace-test-case.md`。
 
@@ -20,13 +20,13 @@
 
 | 原设计 | 位置 | 替代方式 |
 | --- | --- | --- |
-| `test_case_module`（功能测试模块中的文档节点） | `docs/04-detailed-design/02-project-module.md` 4.3（与现有功能测试模块的兼容） | type=document 的行迁移至 `test_case_document` 表；type=directory 的行迁移至 `project_module`，见 `docs/04-detailed-design/02-project-module.md` |
+| `test_case_module`（功能测试模块中的文档节点） | `docs/04-detailed-design/02-project-module.md` 4.3（与现有功能测试模块的兼容） | type=document 的行迁移至 `ft_case_document` 表；type=directory 的行迁移至 `project_module`，见 `docs/04-detailed-design/02-project-module.md` |
 
 ### 1.3 定义与缩写
 
 | 术语 | 定义 |
 | --- | --- |
-| 用例（Test Case） | 挂载在模块下的脑图型用例文档，节点存储在 `test_case_node`，布局存储在 `test_case_document.layout` |
+| 用例（Test Case） | 挂载在模块下的脑图型用例文档，节点存储在 `ft_case_node`，布局存储在 `ft_case_document.layout` |
 | 未分组 | 模块 ID 为 NULL 时的默认归类，适用于不属于任何模块的资产 |
 
 > 模块（Module）定义见 `docs/04-detailed-design/02-project-module.md` 1.3；未分组文档在模块树中的展示口径见 4.2。
@@ -37,7 +37,7 @@
 
 数据库字段使用 snake_case，接口 JSON 使用 camelCase。所有表遵循 C5（UUID 主键、`created_at`/`updated_at`/`is_deleted`，禁止物理外键）。
 
-### 2.1 用例表（test_case_document）
+### 2.1 用例表（ft_case_document）
 
 用例为脑图型用例文档，挂载在模块树节点下。用例**不存储**在模块表中，而是独立建表通过 `module_id` 关联（`module_id` 引用 `project_module.id`，见 `docs/04-detailed-design/02-project-module.md` 2.1）。
 
@@ -53,7 +53,7 @@
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | 更新时间 |
 
-**索引**：`idx_tcd_project` (project_id), `idx_tcd_module` (module_id)
+**索引**：`idx_ft_case_document_project` (project_id), `idx_ft_case_document_module` (module_id)
 
 > 合计 2 个索引，符合 C9。
 
@@ -77,9 +77,9 @@
 
 | 表 | 说明 |
 | --- | --- |
-| `test_case_node` | 脑图节点树，`document_id` → `test_case_document.id`，`parent_id`（NULL 为根节点）、`type`、`title`、`priority`、`sort_order`、`version`（乐观锁） |
+| `ft_case_node` | 脑图节点树，`document_id` → `ft_case_document.id`，`parent_id`（NULL 为根节点）、`type`、`title`、`priority`、`sort_order`、`version`（乐观锁） |
 
-> 节点表索引：`idx_test_case_node_document_id` (document_id)、`idx_test_case_node_parent_id` (parent_id)、`idx_test_case_node_document_type` (document_id, type) 部分索引。
+> 节点表索引：`idx_ft_case_node_document_id` (document_id)、`idx_ft_case_node_parent_id` (parent_id)、`idx_ft_case_node_document_type` (document_id, type) 部分索引。
 > 创建用例时自动创建根节点（title = name，type = normal，sort_order = 0，version = 1），删除用例级联删除其节点。`test_case_document_layout` 表已废弃，布局数据合并至本表 `layout` 列。
 
 ---
@@ -127,8 +127,8 @@ POST /api/project/testcases
 **事务行为**：
 1. 校验 `moduleId` 指向同项目的已有模块，否则抛 `1000017051`（`PROJECT_MODULE_NOT_FOUND`）
 2. 同模块下用例名称唯一（错误码 `1000017061`，`TEST_CASE_DOCUMENT_NAME_EXISTS`）
-3. 创建 `test_case_document` 记录（`sort_order` = 0）
-4. 自动创建根 `test_case_node`（title = name，type = normal，sort_order = 0，version = 1）
+3. 创建 `ft_case_document` 记录（`sort_order` = 0）
+4. 自动创建根 `ft_case_node`（title = name，type = normal，sort_order = 0，version = 1）
 5. `layout` 初始值为 `{ "template": "right", "offsets": {} }`
 6. 记录项目动态（`CASE_CREATED`）
 
@@ -199,8 +199,8 @@ DELETE /api/project/testcases/{id}
 
 **事务行为**：
 1. 校验文档存在且属于当前项目，否则抛 `1000011021`
-2. 级联删除 `test_case_node`（WHERE document_id = ?）
-3. 删除 `test_case_document` 记录（layout 数据随之删除）
+2. 级联删除 `ft_case_node`（WHERE document_id = ?）
+3. 删除 `ft_case_document` 记录（layout 数据随之删除）
 4. 记录项目动态（`CASE_DELETED`）
 
 > 删除用例为级联删除；被删除的是当前打开的文档时，前端清空编辑区。
@@ -226,7 +226,7 @@ DELETE /api/project/testcases/{id}
 | BR-M04 | 创建用例自动创建根节点 | 根节点 title = 用例名、type = normal、sort_order = 0、version = 1，是脑图唯一顶层节点 |
 | BR-TD01 | 未分组文档挂根层级 | `module_id` 为 NULL 的文档在模块树中 `parentId` 为 NULL，直接显示在根层级，无独立「未分组」节点 |
 | BR-TD02 | 移动按目标下标重排 | 仅 `targetIndex` 非空触发移动，移动后目标层级 `sort_order` 自 0 连续重写（与模块树同口径） |
-| BR-TD03 | 删除文档级联节点 | 删除文档时级联删除其全部 `test_case_node`，布局数据随行删除 |
+| BR-TD03 | 删除文档级联节点 | 删除文档时级联删除其全部 `ft_case_node`，布局数据随行删除 |
 | BR-TD04 | 布局整体覆盖 | `layout` 经 PUT 请求或 WebSocket `update_layout` 帧整体 upsert，不与既有值合并 |
 
 > 模块相关业务规则（BR-M01~M03、M05、M06）见 `docs/04-detailed-design/02-project-module.md` 4.2。
@@ -257,13 +257,13 @@ DELETE /api/project/testcases/{id}
 
 ### 5.1 数据迁移
 
-`test_case_document` 的迁移为整体迁移（Phase 1–4）的一部分，迁移计划、执行顺序与事务要求见 `docs/04-detailed-design/02-project-module.md` 6.1。本文档仅列出用例相关的 DDL 与迁移步骤。
+`ft_case_document` 的迁移为整体迁移（Phase 1–4）的一部分，迁移计划、执行顺序与事务要求见 `docs/04-detailed-design/02-project-module.md` 6.1。本文档仅列出用例相关的 DDL 与迁移步骤。
 
 **Phase 1：创建新表**
 
 ```sql
--- 创建 test_case_document 表
-CREATE TABLE test_case_document (
+-- 创建 ft_case_document 表
+CREATE TABLE ft_case_document (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL,
     module_id UUID NULL,
@@ -274,26 +274,26 @@ CREATE TABLE test_case_document (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_tcd_project ON test_case_document(project_id);
-CREATE INDEX idx_tcd_module ON test_case_document(module_id);
+CREATE INDEX idx_ft_case_document_project ON ft_case_document(project_id);
+CREATE INDEX idx_ft_case_document_module ON ft_case_document(module_id);
 ```
 
 **Phase 2：数据迁移**
 
 ```sql
--- 2. test_case_module (type=document) → test_case_document
-INSERT INTO test_case_document (id, project_id, module_id, name, sort_order, is_deleted, created_at, updated_at)
+-- 2. test_case_module (type=document) → ft_case_document
+INSERT INTO ft_case_document (id, project_id, module_id, name, sort_order, is_deleted, created_at, updated_at)
 SELECT id, project_id, parent_id, name, sort_order, is_deleted, created_at, updated_at
 FROM test_case_module WHERE type = 'document' AND is_deleted = 0;
 
 -- 2.1 回填 layout（从旧布局表迁移，如存在）
-UPDATE test_case_document d
+UPDATE ft_case_document d
 SET layout = l.layout
 FROM test_case_document_layout l
 WHERE l.document_id = d.id;
 ```
 
-> **Phase 2 迁移说明**：步骤 2 必须在 `project_module` 迁移（`docs/04-detailed-design/02-project-module.md` 6.1 Phase 2 步骤 1）之后执行，因为 `test_case_document.module_id` 需指向迁移后的 `project_module.id`（目录节点迁移时保留原 ID，故此处可直接使用原 `parent_id`）。`test_case_node` 表沿用现有数据，迁移后需将 `document_id` 更新为新的 `test_case_document.id`。
+> **Phase 2 迁移说明**：步骤 2 必须在 `project_module` 迁移（`docs/04-detailed-design/02-project-module.md` 6.1 Phase 2 步骤 1）之后执行，因为 `ft_case_document.module_id` 需指向迁移后的 `project_module.id`（目录节点迁移时保留原 ID，故此处可直接使用原 `parent_id`）。`ft_case_node` 表沿用现有数据，迁移后需将 `document_id` 更新为新的 `ft_case_document.id`。
 
 **Phase 4（对应）：废弃旧表**
 
@@ -302,7 +302,7 @@ WHERE l.document_id = d.id;
 DROP TABLE test_case_document_layout;
 ```
 
-> 废弃 `test_case_document_layout` 前需确认布局数据已回填至 `test_case_document.layout`（见 2.1）。`test_case_module` 的废弃策略见 `docs/04-detailed-design/02-project-module.md` 6.1。
+> 废弃 `test_case_document_layout` 前需确认布局数据已回填至 `ft_case_document.layout`（见 2.1）。`test_case_module` 的废弃策略见 `docs/04-detailed-design/02-project-module.md` 6.1。
 
 ### 5.2 迁移注意事项
 
@@ -320,3 +320,4 @@ DROP TABLE test_case_document_layout;
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐前后端实现：修正 layout（JSONB 与 offsets 结构）、用例接口路径/字段/分页口径与错误码，补挂载与未分组口径、页面集成与状态分支，修复失效交叉引用 |
+| V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_document` / `test_case_node` → `ft_case_document` / `ft_case_node`，索引 `idx_tcd_*` → `idx_ft_case_document_*` |

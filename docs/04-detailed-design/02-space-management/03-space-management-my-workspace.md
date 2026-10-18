@@ -26,12 +26,12 @@ CREATE INDEX idx_ws_user_user_last_accessed
 工作空间用例数按“项目 → 用例文档 → `type='case'` 节点”聚合。为覆盖文档范围与用例类型组合查询，新增联合索引：
 
 ```sql
-CREATE INDEX idx_test_case_node_document_type
-    ON test_case_node (document_id, type)
+CREATE INDEX idx_ft_case_node_document_type
+    ON ft_case_node (document_id, type)
     WHERE is_deleted = FALSE;
 ```
 
-统计口径：项目、文档、节点均排除逻辑删除记录；项目统计包含活跃与已归档项目；用例仅统计 `test_case_node.type = 'case'` 的节点。
+统计口径：项目、文档、节点均排除逻辑删除记录；项目统计包含活跃与已归档项目；用例仅统计 `ft_case_node.type = 'case'` 的节点。
 
 ### 1.3 全量建库同步
 
@@ -260,3 +260,4 @@ CREATE INDEX idx_test_case_node_document_type
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐前端实现：分页默认 12 与 12/24/48 选项、路由与菜单口径、卡片与状态分支细化、新建空间对话框字段与校验、切换防重入。 |
+| V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：工作台统计口径中 `test_case_node` → `ft_case_node`，索引 `idx_test_case_node_document_type` → `idx_ft_case_node_document_type` |

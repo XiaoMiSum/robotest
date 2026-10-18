@@ -12,9 +12,9 @@
 
 脑图组件是功能测试模块的核心组件，用于测试用例的可视化编辑、评审与执行跟踪。采用 **kityminder-core** 作为脑图渲染引擎，通过 **Yjs** 实现多人实时协作。按业务场景拆分为三个独立组件；公共能力分两处沉淀：`web/src/minder/` 承载引擎加载、编辑内核、节点适配与 Yjs 同步等与 UI 无关的核心逻辑，`web/src/components/project/functional-testing/minder/` 承载右键菜单壳、导航器与三组件共用结构样式，业务编排则下沉到 `web/src/composables/project/functional-testing/`：
 
-- **CaseMindMap（编辑）**：节点增删改、复制/剪切/粘贴、类型标记、优先级标记、布局模板，节点变更经 WebSocket 文本帧持久化到 `test_case_node` 表，并经 Yjs 多人实时同步。
-- **ReviewMindMap（评审）**：基于快照的只读脑图，提供评审标记（通过/不通过/待评审）、评论抽屉与用例移除，数据写入 `test_review_record` 表并更新 `test_review_node_snapshot.last_mark`。
-- **PlanMindMap（计划）**：基于快照的只读脑图，提供执行结果标记（通过/失败/阻塞/待执行）与用例移除，数据写入 `test_plan_execution_record` 表并更新 `test_plan_node_snapshot.last_result`。
+- **CaseMindMap（编辑）**：节点增删改、复制/剪切/粘贴、类型标记、优先级标记、布局模板，节点变更经 WebSocket 文本帧持久化到 `ft_case_node` 表，并经 Yjs 多人实时同步。
+- **ReviewMindMap（评审）**：基于快照的只读脑图，提供评审标记（通过/不通过/待评审）、评论抽屉与用例移除，数据写入 `ft_review_record` 表并更新 `ft_review_node_snapshot.last_mark`。
+- **PlanMindMap（计划）**：基于快照的只读脑图，提供执行结果标记（通过/失败/阻塞/待执行）与用例移除，数据写入 `ft_plan_execution_record` 表并更新 `ft_plan_node_snapshot.last_result`。
 
 ---
 
@@ -86,7 +86,7 @@ web/src/composables/project/functional-testing/
 
 - **原位编辑**：contenteditable 接收器平时隐藏且只接收键盘；进入 input 态时隐藏节点自身 SVG 文本，接收器按 `getRenderBox('TextRenderer', 'screen')` 换算到容器坐标（含半行距补偿）叠合到节点文本上，支持 IME、跟随视图缩放/平移重定位。Enter/blur 提交（走 `execCommand('text')` → `contentchange` → Yjs 同步 + 落库），Esc 取消；空文本或与原文一致视为无操作，不产生撤销步骤与落库；符合既定交互规范：原位编辑、禁止弹窗。
 - **双击编辑**：双击节点或 F2/工具栏进入原位编辑，光标定位到文本末端（不全选）；普通打字不触发编辑（键盘接收器吞掉输入字符）。
-- **自由拖拽摆放与布局持久化**：拖拽命中 drop/排序目标时换父/调序；未命中时 core 保留 `layout_*_offset` 偏移，节点停留在拖放位置（自由摆放）。模板名与全部节点偏移经 `update_layout` 帧整体 upsert 到 `test_case_document.layout` JSON 列，加载时回填偏移并应用模板；工具栏"整理布局"（core `resetlayout`，亦有 core 原生快捷键 Ctrl+Shift+L）可一键清除全部偏移恢复自动排版。
+- **自由拖拽摆放与布局持久化**：拖拽命中 drop/排序目标时换父/调序；未命中时 core 保留 `layout_*_offset` 偏移，节点停留在拖放位置（自由摆放）。模板名与全部节点偏移经 `update_layout` 帧整体 upsert 到 `ft_case_document.layout` JSON 列，加载时回填偏移并应用模板；工具栏"整理布局"（core `resetlayout`，亦有 core 原生快捷键 Ctrl+Shift+L）可一键清除全部偏移恢复自动排版。
 - **撤销重做**：core 无 Undo/Redo 命令，由 history.ts 实现：`contentchange` 时与上一快照 diff 生成反向 JSON-Patch 入栈（上限 100），undo/redo 调 core 原生 `minder.applyPatches()` 增量回放、仅局部重渲染；回放自动触发 `contentchange`，现有同步/落库管道零改动生效（patchLock 门闩防止回放再入栈）。
 - **协同隔离**：远端 Yjs 变更回放期间（applyingRemote）不入本地撤销栈，避免撤销掉他人的编辑；review/plan 只读模式不启用编辑内核。
 - **WS 心跳保活**：y-websocket 硬编码 30 秒假死检测（30 秒无入站消息即断开重连），而服务端二进制帧仅转发给房间内其他成员，单人编辑时客户端永远收不到消息，会陷入每 ~30 秒一轮的断连重连循环。修复分两端：服务端收到二进制帧后向发送者回 3 字节空 awareness 帧 `{0x01, 0x01, 0x00}`（客户端解码零副作用），借客户端每 ≤15 秒的 awareness 心跳实现回帧保活；前端截流的文本帧（业务确认帧）不经过 y-websocket 原生 onmessage，需手动刷新 `wsLastMessageReceived`（lib0 的 getUnixTime 即 Date.now，毫秒）。
@@ -214,9 +214,9 @@ web/src/composables/project/functional-testing/
 
 | 模式         | 数据来源                                                            | 可编辑字段                            | 操作目标表                                                                |
 | ---------- | --------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------- |
-| **edit**   | `GET /api/project/documents/:docId/nodes` 返回的嵌套根节点与布局 JSON    | 全部字段（type, priority, text 等）     | `test_case_node`（通过 WebSocket 文本帧异步持久化）                             |
-| **review** | `GET /api/project/reviews/:id/modules?documentId=` 返回的快照节点树     | `lastMark`（标记）                   | `test_review_node_snapshot`（更新 last_mark），`test_review_record`（新增标记/评论记录） |
-| **plan**   | `GET /api/project/plans/:id/modules?documentId=` 返回的快照节点树       | `lastResult`（执行结果）               | `test_plan_node_snapshot`（更新 last_result），`test_plan_execution_record`（新增记录） |
+| **edit**   | `GET /api/project/documents/:docId/nodes` 返回的嵌套根节点与布局 JSON    | 全部字段（type, priority, text 等）     | `ft_case_node`（通过 WebSocket 文本帧异步持久化）                             |
+| **review** | `GET /api/project/reviews/:id/modules?documentId=` 返回的快照节点树     | `lastMark`（标记）                   | `ft_review_node_snapshot`（更新 last_mark），`ft_review_record`（新增标记/评论记录） |
+| **plan**   | `GET /api/project/plans/:id/modules?documentId=` 返回的快照节点树       | `lastResult`（执行结果）               | `ft_plan_node_snapshot`（更新 last_result），`ft_plan_execution_record`（新增记录） |
 
 在评审/计划模式下，`type`、`priority`、`text` 等原始用例字段为只读，来自快照表，不可通过脑图修改。评审/计划模式下的状态字段由后端在加载快照树时填充，前端提交标记后即时更新本地节点并刷新高亮。三个组件均另支持"移除用例"（评审/计划），由详情页传入 `removable` 控制，改写规划用例列表后重刷快照：`PUT /api/project/reviews/:id/cases`、`PUT /api/project/plans/:id/cases`。
 
@@ -429,7 +429,7 @@ web/src/composables/project/functional-testing/
 
 ### 11.4 编辑模式保存
 
-编辑模式下不通过 HTTP 接口手动保存。Yjs 二进制帧仅做实时协同转发、不落库；节点增删改经同一 WebSocket 连接的 JSON 文本帧（`add_node`/`update_attrs`/`move_node`/`delete_node`/`update_layout`）提交，落库请求以 400ms 防抖合并，卸载、切换文档与重连时立即冲刷；后端 `DocumentPersistenceHandler` 与数据库现有节点差异化比对后更新 `test_case_node` 表，并整体 upsert `test_case_document.layout` JSON 列。远端变更由发起方负责落库，接收端仅对齐本地 diff 基线，不重复提交；服务端回推的错误帧（`{ type: 'error', message }`）经 `ElMessage.error` 展示。
+编辑模式下不通过 HTTP 接口手动保存。Yjs 二进制帧仅做实时协同转发、不落库；节点增删改经同一 WebSocket 连接的 JSON 文本帧（`add_node`/`update_attrs`/`move_node`/`delete_node`/`update_layout`）提交，落库请求以 400ms 防抖合并，卸载、切换文档与重连时立即冲刷；后端 `DocumentPersistenceHandler` 与数据库现有节点差异化比对后更新 `ft_case_node` 表，并整体 upsert `ft_case_document.layout` JSON 列。远端变更由发起方负责落库，接收端仅对齐本地 diff 基线，不重复提交；服务端回推的错误帧（`{ type: 'error', message }`）经 `ElMessage.error` 展示。
 
 ---
 
@@ -586,7 +586,7 @@ web/src/composables/project/functional-testing/
 7. **右键菜单**：`useContextMenu` 统一管理展示与关闭时机（仅选中节点时展示，编辑模式下空格键亦可唤醒），菜单项由各模式组件模板静态给出（slot），不设模式分支。
 8. **抓手模式**：接 core 原生 `hand` 命令（enableReadOnly，只读态可用），由导航器切换并监听 `statuschange` 同步激活态。
 9. **原位编辑接入**：编辑内核创建 minder 时传 `enableKeyReceiver: false` 禁用 core 内置接收器，由 receiver.ts 的 contenteditable 元素统一接管键盘；命令执行后 `fire('receiverfocus')` 保证快捷键持续可用。
-10. **WebSocket 持久化**：同一连接上的 JSON 文本帧（`add_node` / `update_attrs` / `move_node` / `delete_node` / `update_layout`）为持久化通路，后端 `DocumentPersistenceHandler` 与数据库现有节点差异化比对后更新 `test_case_node` 表，并整体 upsert `test_case_document.layout` JSON 列；Yjs 二进制帧只做实时转发、不落库。布局帧结构为 `{ type: 'update_layout', payload: { template, offsets } }`，节点帧为 `{ type, payload: { data } }`。
+10. **WebSocket 持久化**：同一连接上的 JSON 文本帧（`add_node` / `update_attrs` / `move_node` / `delete_node` / `update_layout`）为持久化通路，后端 `DocumentPersistenceHandler` 与数据库现有节点差异化比对后更新 `ft_case_node` 表，并整体 upsert `ft_case_document.layout` JSON 列；Yjs 二进制帧只做实时转发、不落库。布局帧结构为 `{ type: 'update_layout', payload: { template, offsets } }`，节点帧为 `{ type, payload: { data } }`。
 11. **Bug 链接跳转**：组件暴露的 `openBug(bugId)` 以新窗口打开缺陷详情页（路径 `/workspace/projects/bugs/:bugId`）；画布当前不渲染链接标签。
 
 ---
@@ -596,6 +596,7 @@ web/src/composables/project/functional-testing/
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-10-02 | 按实现对齐组件架构与目录、工具栏/右键菜单项、快照树与评审记录接口路径、徽标与状态分支、Yjs 协作感知及实施要点 |
+| V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_node` / `test_case_document` / `test_plan*` / `test_review*` → `ft_*` |
 | V1.0 | 2026-10-17 | 「文档关联需求」功能随追溯矩阵需求整体取消下线：删除编辑工具栏关联需求按钮、`useMindmapRequirementLink.ts`、文档需求关联接口行与相关表述 |
 
 ---
