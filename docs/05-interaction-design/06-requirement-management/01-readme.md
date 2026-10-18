@@ -1,6 +1,3 @@
-# 交互设计（需求管理模块）
+# 交互设计（原需求管理模块分册，已并入功能测试模块）
 
-| 文档 | 版本 | 日期 | 状态 |
-| ---- | ---- | ---- | ---- |
-| [02-requirement-ui](02-requirement-ui.md)（分册：需求管理）   | V1.0 | 2026-10-03 | 起草中 |
-> 本目录为需求管理模块的交互设计分册；模块入口与阅读顺序见上级索引 `docs/05-interaction-design/01-readme.md`。
+> 需求管理已合并为功能测试模块的子模块，本目录分册迁移至 `docs/05-interaction-design/03-function-testing/07-requirement-ui.md`。

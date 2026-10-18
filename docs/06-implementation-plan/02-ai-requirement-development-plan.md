@@ -30,23 +30,23 @@
 
 | 层 | 文档 | 用途 |
 | ---- | ---- | ---- |
-| 需求 | `docs/01-requirements/06-requirement-management/02-srs-requirement-management.md` | 需求管理功能行为与验收口径 |
+| 需求 | `docs/01-requirements/03-function-testing/03-srs-requirement-management.md` | 需求管理功能行为与验收口径 |
 | 需求 | `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md` | AI 能力总册（底座与公共口径） |
 | 需求 | `docs/01-requirements/07-ai-capability/03-srs-ai-generation.md` | 生成链需求 |
 | 需求 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 智能助手需求 |
 | 需求 | `docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md` | 缺陷分析需求 |
 | 需求 | `docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md` | 辅助功能需求 |
-| 概要 | `docs/02-high-level-design/06-requirement-management/02-hld-requirement-management.md` | 需求管理模块划分与数据概要 |
+| 概要 | `docs/02-high-level-design/03-function-testing/03-hld-requirement-management.md` | 需求管理模块划分与数据概要 |
 | 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | AI 能力模块划分与机制概要 |
 | 概要（AI Task） | `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md` | AI Task 双平面、执行与提案采纳机制的唯一上位依据 |
 | 概要 | `docs/02-high-level-design/04-hld-data-interface.md` | 数据与接口概要 |
-| 详细 | `docs/04-detailed-design/06-requirement-management/02-requirement-management.md` | 需求管理 DDL 与接口 |
+| 详细 | `docs/04-detailed-design/03-function-testing/09-requirement-management.md` | 需求管理 DDL 与接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | AI 底座 DDL、任务框架与公共协议 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | 生成链编排与接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | 助手会话、SSE 与确认执行 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md` | 缺陷分析接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md` | 辅助功能接口 |
-| 交互 | `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md` | 需求管理页面行为 |
+| 交互 | `docs/05-interaction-design/03-function-testing/07-requirement-ui.md` | 需求管理页面行为 |
 | 交互 | `docs/05-interaction-design/07-ai-capability/01-readme.md` | AI 能力交互分册入口 |
 | 交互 | `docs/05-interaction-design/02-global-navigation.md` | 全局导航、菜单与助手入口 |
 | 交互 | `docs/05-interaction-design/03-visual-design.md` | 视觉与 CSS 变量唯一来源 |
@@ -107,7 +107,7 @@ flowchart TD
 
 #### 2.4.1 数据层与迁移
 
-- PostgreSQL 14+；需求表族、AI 表族（任务、执行、轨迹、提案、采纳、工具、会话消息、提示词、用量）DDL 见 `docs/04-detailed-design/06-requirement-management/02-requirement-management.md`、`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`；
+- PostgreSQL 14+；需求表族、AI 表族（任务、执行、轨迹、提案、采纳、工具、会话消息、提示词、用量）DDL 见 `docs/04-detailed-design/03-function-testing/09-requirement-management.md`、`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`；
 - 符合 C5（`id` / `created_at` / `updated_at` / `is_deleted`、UUID 框架默认策略、无物理外键）与 C9（索引规范）；迁移说明随首个涉及数据库的提交交付；
 - 向量依赖 pgvector 扩展，扩展可用性属环境前置（见 2.5）。
 
@@ -149,7 +149,7 @@ flowchart TD
 
 #### 2.4.8 前端与导航
 
-- 菜单经路由注册表声明式注册（名称、图标、排序、分组、权限码），管理端设「AI 能力」分组，项目菜单「需求管理」居首，AI 助手悬浮球为平台级入口（`docs/05-interaction-design/02-global-navigation.md`）；
+- 菜单经路由注册表声明式注册（名称、图标、排序、分组、权限码），管理端设「AI 能力」分组，需求列表为功能测试侧栏首位子项（需求管理已并入功能测试模块），AI 助手悬浮球为平台级入口（`docs/05-interaction-design/02-global-navigation.md`）；
 - Pinia store 分域装载：`aiAdmin` 仅管理端装载、离开管理模式即卸载；分组路由激活态由路由派生；
 - 视觉只引用 `docs/05-interaction-design/03-visual-design.md` 的 CSS 变量，不自造颜色值；类型安全满足 C1（无 `any`）。
 
@@ -189,13 +189,13 @@ flowchart TD
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 | WP-0.1 | 分支与基线同步 | P0 | 全 | `docs/00-spec/30-quality-delivery/02-workflow.md` | — | 工作区干净，feature 分支基于 develop 最新 |
 | WP-0.2 | 环境准备（pgvector + LLM 端点） | P0 | 后端 | AI 底座详细设计环境章节 | — | 迁移可执行，配置中心连通性测试通过 |
-| WP-1.1 | 需求管理 DDL 迁移 | P1 | 后端 | `docs/04-detailed-design/06-requirement-management/02-requirement-management.md` | WP-0.2 | 迁移执行成功，索引符合 C5 / C9 |
+| WP-1.1 | 需求管理 DDL 迁移 | P1 | 后端 | `docs/04-detailed-design/03-function-testing/09-requirement-management.md` | WP-0.2 | 迁移执行成功，索引符合 C5 / C9 |
 | WP-1.2 | 追溯矩阵 DDL 迁移 | P1 | 后端 | 追溯矩阵详设（文档已随需求下线删除） | WP-0.2 | 已取消——追溯矩阵需求整体下线（原判据：迁移执行成功，索引符合 C5 / C9） |
 | WP-1.3 | AI 底座 DDL 迁移（含向量表） | P1 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-0.2 | 迁移执行成功，索引符合 C5 / C9，pgvector 向量列可用 |
 | WP-2.1 | 需求 CRUD、属性与变更记录后端 | P2 | 后端 | 需求管理详设接口章节 | WP-1.1 | OpenAPI 暴露，10 位错误码，部分更新 |
 | WP-2.0 | 文件管理模块（对象存储与泛化附件资源） | P2 | 全 | `docs/04-detailed-design/08-file-management/02-file-management.md`（随本包补建） | WP-0.2 | 附件上传 / 下载 / 删除与访问 URL 走通，docker-compose 含对象存储（SeaweedFS） |
 | WP-2.2 | 需求导入后端（三类文件，含文档级版本识别） | P2 | 后端 | 需求管理详设导入章节 | WP-1.1、WP-4.2、WP-2.0 | 三类样例导入成功，任务 `result_meta.documentMeta` 识别出版本或为 `null`，>20MB 拒绝 |
-| WP-2.3 | 需求管理前端 | P2 | 前端 | `docs/05-interaction-design/06-requirement-management/02-requirement-ui.md` | WP-2.1、WP-2.2 | 状态分支齐全，C1 无 `any` |
+| WP-2.3 | 需求管理前端 | P2 | 前端 | `docs/05-interaction-design/03-function-testing/07-requirement-ui.md` | WP-2.1、WP-2.2 | 状态分支齐全，C1 无 `any` |
 | WP-3.1 | 追溯关系与覆盖率后端 | P3 | 后端 | 追溯矩阵详设接口章节（文档已随需求下线删除） | WP-1.2 | 已取消——追溯矩阵需求整体下线 |
 | WP-3.2 | 追溯矩阵前端 | P3 | 前端 | 追溯矩阵交互稿与脑图用例页（前者已随需求下线删除） | WP-3.1 | 已取消——追溯矩阵需求整体下线 |
 | WP-4.1 | AI 配置与用量后端 | P4 | 后端 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | WP-1.3 | `ai:admin` 生效，密钥不回明文 |
