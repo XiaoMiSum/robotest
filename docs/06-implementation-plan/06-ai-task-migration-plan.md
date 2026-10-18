@@ -114,9 +114,9 @@ flowchart LR
 
 #### 2.3.3 数据库变更（C5，清空破坏性重建）
 
-- **迁移版本**：`server/src/main/resources/db/migration/V20261017000000__ai_task_cutover.sql`（与 `schema.sql` 同步维护）。
+- **迁移方式**：不建增量迁移脚本，六表重建 DDL 直接并入 `server/src/main/resources/db/schema.sql`（唯一事实源）；存量库人工执行，流程见 `docs/00-spec/30-quality-delivery/04-deployment-runbook.md` §10。
 - **DDL**（引总册 2.6–2.7，此处仅列动作）：`DROP TABLE ai_artifact_confirm`；`DROP TABLE ai_task`；按总册新建 `ai_task / ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_adoption / ai_task_tool` 六表及索引。
-- **种子**：`ai_task_tool` 按总册 3.6.1 十五个 type 登记工具白名单与预算默认值（代码注册 + 迁移种子）；`seed-ai.sql` 的 `task_timeout_seconds / task_max_retries` 保留（语义改为心跳超时与模型调用自动短重试）。
+- **种子**：`ai_task_tool` 按总册 3.6.1 十五个 type 登记工具白名单与预算默认值（代码注册 + `schema.sql` 种子）；`ai_config` 的 `task_timeout_seconds / task_max_retries` 保留（语义改为心跳超时与模型调用自动短重试）。
 - **数据回填**：无（清空重建，裁决记录于本计划）；`requirement_split_record.ai_task_id`、`trace_coverage_result.analyzed_task_id` 逻辑外键指向重建后的 `ai_task`，旧环境数据随清空失效。
 - **锁表与发布窗口**：开发环境无窗口要求；生产化发布前须重新评估（见 4 风险 R1）。
 
@@ -182,7 +182,7 @@ flowchart LR
 **层 C：数据与配置（归属 S1）**
 
 1. 旧表：`DROP ai_artifact_confirm`、`DROP ai_task`，新六表重建（2.3.3）；`schema.sql` 与列 COMMENT 全量同步，删除 `progress / phase / result / retry_of_task_id / error_code / error_msg` 旧列注释。
-2. `ai_config.task_timeout_seconds / task_max_retries` 保留，注释改心跳超时与模型自动重试口径；`seed-ai.sql` 补 `ai_task_tool` 种子并核对 type 覆盖 15/15。
+2. `ai_config.task_timeout_seconds / task_max_retries` 保留，注释改心跳超时与模型自动重试口径；`schema.sql` 补 `ai_task_tool` 种子并核对 type 覆盖 15/15。
 3. 错误码空号启用：1000018125 / 126 / 127 登记（总册 6 已定义）。
 
 **层 D：测试（归属 S2–S5 同步提交）**
@@ -294,3 +294,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-10-16 | 初始版本：直接切换 + 清空重建裁决、S0–S6 实施步骤与提交拆分、旧代码五层深度清理方案与 grep 门禁 |
 | V1.0 | 2026-10-16 | 新增 2.8 在途计划联动：展开 vision 计划「Agent 执行核承接注」语义（旧 `AiTaskExecutor` 执行期模型能力复验随 S2 平移至 `AgentExecutionRunner`，收口后删除注记）与助手 SPI 耦合指向 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关任务迁移标注「已取消——追溯矩阵需求整体下线」：1.3 基线文档移除追溯详设，2.1 死路确认路径中两类 type 标注取消，风险 R7 收敛为无提案任务通用口径 |
+| V1.0 | 2026-10-18 | 2.3.3 数据库变更改为 `schema.sql` 唯一事实源口径：不建增量迁移脚本，`ai_task_tool` 种子并入 schema.sql，移除 `seed-ai.sql` 引用 |
