@@ -233,8 +233,11 @@ function asRow(row: unknown): AiTaskRow {
                 <el-button @click="resetFilters">重置筛选</el-button>
               </el-empty>
               <el-empty v-else description="暂无 AI 任务" :image-size="80">
-                <el-button type="primary" @click="router.push('/workspace/projects/requirements')">
-                  去需求管理发起 AI 任务
+                <el-button
+                  type="primary"
+                  @click="router.push('/workspace/projects/functional-testing?tab=requirements')"
+                >
+                  去需求列表发起 AI 任务
                 </el-button>
               </el-empty>
             </template>
