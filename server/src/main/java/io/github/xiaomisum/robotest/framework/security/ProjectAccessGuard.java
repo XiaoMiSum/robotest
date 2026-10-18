@@ -87,7 +87,7 @@ public class ProjectAccessGuard {
 
     /**
      * WS 场景校验（返回布尔而非抛异常，供握手/加入房间前静默拒绝）：
-     * docId → test_case_document → ws_project → ws_user 成员。
+     * docId → ft_case_document → ws_project → ws_user 成员。
      * userId 为字符串（WS 会话属性 USER_ID），非法格式视为无权限。
      */
     public boolean isDocumentMember(UUID docId, String userId) {
