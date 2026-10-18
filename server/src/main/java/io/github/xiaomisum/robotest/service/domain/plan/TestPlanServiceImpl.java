@@ -485,7 +485,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 validModuleSnapshotIds.add(moduleSnap.getId());
                 continue;
             }
-            // 根据快照类型查不同表：document→test_case_document, directory→project_module
+            // 根据快照类型查不同表：document→ft_case_document, directory→project_module
             String name = null;
             Integer sortOrder = null;
             Boolean isDeleted = null;
@@ -686,7 +686,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 }
                 copiedModuleIds.add(moduleId);
 
-                // 根据路径节点类型查不同表：document→test_case_document, directory→project_module
+                // 根据路径节点类型查不同表：document→ft_case_document, directory→project_module
                 String name = null;
                 UUID parentId = null;
                 Integer sortOrder = null;
@@ -745,7 +745,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 currentId = module.getParentId();
                 continue;
             }
-            // 尝试 test_case_document（文档节点，叶子节点）
+            // 尝试 ft_case_document（文档节点，叶子节点）
             TestCaseDocument doc = testCaseDocumentMapper.selectById(currentId);
             currentId = doc != null ? doc.getModuleId() : null;
         }

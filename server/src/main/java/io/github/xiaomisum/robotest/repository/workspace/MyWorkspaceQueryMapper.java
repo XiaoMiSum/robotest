@@ -87,10 +87,10 @@ public interface MyWorkspaceQueryMapper {
             ), case_stats AS (
                 SELECT p.workspace_id, COUNT(n.id) AS case_count
                 FROM ws_project p
-                JOIN test_case_document d
+                JOIN ft_case_document d
                     ON d.project_id = p.id
                    AND d.is_deleted = FALSE
-                JOIN test_case_node n
+                JOIN ft_case_node n
                     ON n.document_id = d.id
                    AND n.is_deleted = FALSE
                    AND n.type = 'case'

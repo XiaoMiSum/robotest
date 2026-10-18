@@ -203,7 +203,7 @@ CREATE INDEX idx_project_activity_project_occurred
 -- ============================================================
 
 -- 测试用例节点表（脑图节点）
-CREATE TABLE test_case_node (
+CREATE TABLE ft_case_node (
                                 id           UUID         PRIMARY KEY,
                                 document_id  UUID         NOT NULL,
                                 parent_id    UUID         NULL,
@@ -219,16 +219,16 @@ CREATE TABLE test_case_node (
                                 updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_case_node_document_id ON test_case_node (document_id);
-CREATE INDEX idx_test_case_node_parent_id ON test_case_node (parent_id);
-CREATE INDEX idx_test_case_node_document_type ON test_case_node (document_id, type) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ft_case_node_document_id ON ft_case_node (document_id);
+CREATE INDEX idx_ft_case_node_parent_id ON ft_case_node (parent_id);
+CREATE INDEX idx_ft_case_node_document_type ON ft_case_node (document_id, type) WHERE is_deleted = FALSE;
 
 -- ============================================================
 -- 4. 功能测试 — 测试计划
 -- ============================================================
 
 -- 测试计划表
-CREATE TABLE test_plan (
+CREATE TABLE ft_plan (
                            id                UUID         PRIMARY KEY,
                            project_id        UUID         NOT NULL,
                            name              VARCHAR(100) NOT NULL,
@@ -244,11 +244,11 @@ CREATE TABLE test_plan (
                            updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_plan_project_created ON test_plan (project_id, created_at DESC);
-CREATE INDEX idx_test_plan_status ON test_plan (status);
+CREATE INDEX idx_ft_plan_project_created ON ft_plan (project_id, created_at DESC);
+CREATE INDEX idx_ft_plan_status ON ft_plan (status);
 
 -- 计划模块快照表
-CREATE TABLE test_plan_module_snapshot (
+CREATE TABLE ft_plan_module_snapshot (
                                            id                  UUID         PRIMARY KEY,
                                            plan_id             UUID         NOT NULL,
                                            original_module_id  UUID         NULL,
@@ -261,10 +261,10 @@ CREATE TABLE test_plan_module_snapshot (
                                            updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_plan_module_snapshot_plan_id ON test_plan_module_snapshot (plan_id);
+CREATE INDEX idx_ft_plan_module_snapshot_plan_id ON ft_plan_module_snapshot (plan_id);
 
 -- 计划节点快照表
-CREATE TABLE test_plan_node_snapshot (
+CREATE TABLE ft_plan_node_snapshot (
                                          id                     UUID         PRIMARY KEY,
                                          plan_id                UUID         NOT NULL,
                                          original_node_id       UUID         NULL,
@@ -284,11 +284,11 @@ CREATE TABLE test_plan_node_snapshot (
                                          updated_at             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_plan_node_snapshot_plan_id ON test_plan_node_snapshot (plan_id);
-CREATE INDEX idx_test_plan_node_snapshot_document_snapshot_id ON test_plan_node_snapshot (document_snapshot_id);
+CREATE INDEX idx_ft_plan_node_snapshot_plan_id ON ft_plan_node_snapshot (plan_id);
+CREATE INDEX idx_ft_plan_node_snapshot_document_snapshot_id ON ft_plan_node_snapshot (document_snapshot_id);
 
 -- 计划执行记录表
-CREATE TABLE test_plan_execution_record (
+CREATE TABLE ft_plan_execution_record (
                                             id                UUID      PRIMARY KEY,
                                             plan_id           UUID      NOT NULL,
                                             snapshot_node_id  UUID      NOT NULL,
@@ -301,15 +301,15 @@ CREATE TABLE test_plan_execution_record (
                                             updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_plan_execution_record_plan_id ON test_plan_execution_record (plan_id);
-CREATE INDEX idx_test_plan_execution_record_snapshot_node_id ON test_plan_execution_record (snapshot_node_id);
+CREATE INDEX idx_ft_plan_execution_record_plan_id ON ft_plan_execution_record (plan_id);
+CREATE INDEX idx_ft_plan_execution_record_snapshot_node_id ON ft_plan_execution_record (snapshot_node_id);
 
 -- ============================================================
 -- 5. 功能测试 — 测试评审
 -- ============================================================
 
 -- 测试评审表
-CREATE TABLE test_review (
+CREATE TABLE ft_review (
                              id              UUID         PRIMARY KEY,
                              project_id      UUID         NOT NULL,
                              title           VARCHAR(200) NOT NULL,
@@ -322,11 +322,11 @@ CREATE TABLE test_review (
                              updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_review_project_created ON test_review (project_id, created_at DESC);
-CREATE INDEX idx_test_review_status ON test_review (status);
+CREATE INDEX idx_ft_review_project_created ON ft_review (project_id, created_at DESC);
+CREATE INDEX idx_ft_review_status ON ft_review (status);
 
 -- 评审模块快照表
-CREATE TABLE test_review_module_snapshot (
+CREATE TABLE ft_review_module_snapshot (
                                              id                  UUID         PRIMARY KEY,
                                              review_id           UUID         NOT NULL,
                                              original_module_id  UUID         NULL,
@@ -339,10 +339,10 @@ CREATE TABLE test_review_module_snapshot (
                                              updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_review_module_snapshot_review_id ON test_review_module_snapshot (review_id);
+CREATE INDEX idx_ft_review_module_snapshot_review_id ON ft_review_module_snapshot (review_id);
 
 -- 评审节点快照表
-CREATE TABLE test_review_node_snapshot (
+CREATE TABLE ft_review_node_snapshot (
                                            id                     UUID         PRIMARY KEY,
                                            review_id              UUID         NOT NULL,
                                            original_node_id       UUID         NULL,
@@ -362,11 +362,11 @@ CREATE TABLE test_review_node_snapshot (
                                            updated_at             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_review_node_snapshot_review_id ON test_review_node_snapshot (review_id);
-CREATE INDEX idx_test_review_node_snapshot_document_snapshot_id ON test_review_node_snapshot (document_snapshot_id);
+CREATE INDEX idx_ft_review_node_snapshot_review_id ON ft_review_node_snapshot (review_id);
+CREATE INDEX idx_ft_review_node_snapshot_document_snapshot_id ON ft_review_node_snapshot (document_snapshot_id);
 
 -- 评审记录表
-CREATE TABLE test_review_record (
+CREATE TABLE ft_review_record (
                                     id                UUID         PRIMARY KEY,
                                     review_id         UUID         NOT NULL,
                                     snapshot_node_id  UUID         NOT NULL,
@@ -379,8 +379,8 @@ CREATE TABLE test_review_record (
                                     updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_test_review_record_review_id ON test_review_record (review_id);
-CREATE INDEX idx_test_review_record_snapshot_node_id ON test_review_record (snapshot_node_id);
+CREATE INDEX idx_ft_review_record_review_id ON ft_review_record (review_id);
+CREATE INDEX idx_ft_review_record_snapshot_node_id ON ft_review_record (snapshot_node_id);
 
 -- ============================================================
 -- 6. 缺陷管理
@@ -542,7 +542,7 @@ CREATE UNIQUE INDEX uk_pmod_source ON project_module(project_id, parent_id, sour
     WHERE is_deleted = FALSE AND source_id IS NOT NULL;
 
 -- 用例文档表（布局内嵌 JSONB）
-CREATE TABLE test_case_document (
+CREATE TABLE ft_case_document (
                                     id          UUID         PRIMARY KEY,
                                     project_id  UUID         NOT NULL,
                                     module_id   UUID         NULL,
@@ -554,8 +554,8 @@ CREATE TABLE test_case_document (
                                     updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_tcd_project ON test_case_document(project_id);
-CREATE INDEX idx_tcd_module ON test_case_document(module_id);
+CREATE INDEX idx_ft_case_document_project ON ft_case_document(project_id);
+CREATE INDEX idx_ft_case_document_module ON ft_case_document(module_id);
 
 -- ============================================================
 -- 9. 接口测试 — 环境管理
@@ -1456,104 +1456,104 @@ COMMENT ON COLUMN ws_project_activity.summary IS '动态摘要（后端业务服
 COMMENT ON COLUMN ws_project_activity.occurred_at IS '业务发生时间（工作台按 occurred_at DESC, id DESC 取最近动态）';
 
 -- 功能测试
-COMMENT ON TABLE test_case_node IS '测试用例节点表（脑图节点，支持树形嵌套）';
-COMMENT ON COLUMN test_case_node.id IS '节点唯一标识';
-COMMENT ON COLUMN test_case_node.document_id IS '所属文档 ID，关联 test_case_module.id（type=document 的模块）';
-COMMENT ON COLUMN test_case_node.parent_id IS '父级节点 ID，NULL=根节点';
-COMMENT ON COLUMN test_case_node.type IS '节点类型：case=用例, normal=普通, precondition=前置条件, step=步骤, expected=预期结果';
-COMMENT ON COLUMN test_case_node.title IS '节点标题';
-COMMENT ON COLUMN test_case_node.priority IS '用例优先级：P0/P1/P2/P3，仅 case 节点有值';
-COMMENT ON COLUMN test_case_node.tags IS '用例标签（jsonb 数组），AI 补全建议采纳落库';
-COMMENT ON COLUMN test_case_node.sort_order IS '排序序号';
-COMMENT ON COLUMN test_case_node.version IS '乐观锁版本号，用于并发冲突检测';
-COMMENT ON COLUMN test_case_node.ai_generated IS 'AI 生成标识（挂载执行器写入，可手动移除）';
+COMMENT ON TABLE ft_case_node IS '测试用例节点表（脑图节点，支持树形嵌套）';
+COMMENT ON COLUMN ft_case_node.id IS '节点唯一标识';
+COMMENT ON COLUMN ft_case_node.document_id IS '所属文档 ID，关联 test_case_module.id（type=document 的模块）';
+COMMENT ON COLUMN ft_case_node.parent_id IS '父级节点 ID，NULL=根节点';
+COMMENT ON COLUMN ft_case_node.type IS '节点类型：case=用例, normal=普通, precondition=前置条件, step=步骤, expected=预期结果';
+COMMENT ON COLUMN ft_case_node.title IS '节点标题';
+COMMENT ON COLUMN ft_case_node.priority IS '用例优先级：P0/P1/P2/P3，仅 case 节点有值';
+COMMENT ON COLUMN ft_case_node.tags IS '用例标签（jsonb 数组），AI 补全建议采纳落库';
+COMMENT ON COLUMN ft_case_node.sort_order IS '排序序号';
+COMMENT ON COLUMN ft_case_node.version IS '乐观锁版本号，用于并发冲突检测';
+COMMENT ON COLUMN ft_case_node.ai_generated IS 'AI 生成标识（挂载执行器写入，可手动移除）';
 
-COMMENT ON TABLE test_plan IS '测试计划表（用例执行计划）';
-COMMENT ON COLUMN test_plan.id IS '计划唯一标识';
-COMMENT ON COLUMN test_plan.project_id IS '所属项目 ID，关联 ws_project.id';
-COMMENT ON COLUMN test_plan.name IS '计划名称';
-COMMENT ON COLUMN test_plan.description IS '计划描述';
-COMMENT ON COLUMN test_plan.status IS '计划状态：new=新建, in_progress=进行中, completed=已完成, blocked=已阻塞, closed=已关闭';
-COMMENT ON COLUMN test_plan.executor_id IS '执行人 ID，关联 sys_user.id';
-COMMENT ON COLUMN test_plan.start_time IS '计划开始时间';
-COMMENT ON COLUMN test_plan.end_time IS '计划结束时间';
-COMMENT ON COLUMN test_plan.environment IS '测试环境描述';
-COMMENT ON COLUMN test_plan.snapshot_synced_at IS '计划快照最近同步时间（快照新建/调整/同步后写入，执行顺序推荐据此提示快照过期）';
+COMMENT ON TABLE ft_plan IS '测试计划表（用例执行计划）';
+COMMENT ON COLUMN ft_plan.id IS '计划唯一标识';
+COMMENT ON COLUMN ft_plan.project_id IS '所属项目 ID，关联 ws_project.id';
+COMMENT ON COLUMN ft_plan.name IS '计划名称';
+COMMENT ON COLUMN ft_plan.description IS '计划描述';
+COMMENT ON COLUMN ft_plan.status IS '计划状态：new=新建, in_progress=进行中, completed=已完成, blocked=已阻塞, closed=已关闭';
+COMMENT ON COLUMN ft_plan.executor_id IS '执行人 ID，关联 sys_user.id';
+COMMENT ON COLUMN ft_plan.start_time IS '计划开始时间';
+COMMENT ON COLUMN ft_plan.end_time IS '计划结束时间';
+COMMENT ON COLUMN ft_plan.environment IS '测试环境描述';
+COMMENT ON COLUMN ft_plan.snapshot_synced_at IS '计划快照最近同步时间（快照新建/调整/同步后写入，执行顺序推荐据此提示快照过期）';
 
-COMMENT ON TABLE test_plan_module_snapshot IS '计划模块快照表（创建计划时固化模块结构）';
-COMMENT ON COLUMN test_plan_module_snapshot.id IS '快照唯一标识';
-COMMENT ON COLUMN test_plan_module_snapshot.plan_id IS '所属计划 ID，关联 test_plan.id';
-COMMENT ON COLUMN test_plan_module_snapshot.original_module_id IS '原始模块 ID（用于差量同步定位变更）';
-COMMENT ON COLUMN test_plan_module_snapshot.parent_id IS '快照父级模块 ID';
-COMMENT ON COLUMN test_plan_module_snapshot.name IS '模块名称（固化原值，不随源数据变化）';
-COMMENT ON COLUMN test_plan_module_snapshot.type IS '模块类型：directory=目录, document=文档';
-COMMENT ON COLUMN test_plan_module_snapshot.sort_order IS '排序序号';
+COMMENT ON TABLE ft_plan_module_snapshot IS '计划模块快照表（创建计划时固化模块结构）';
+COMMENT ON COLUMN ft_plan_module_snapshot.id IS '快照唯一标识';
+COMMENT ON COLUMN ft_plan_module_snapshot.plan_id IS '所属计划 ID，关联 ft_plan.id';
+COMMENT ON COLUMN ft_plan_module_snapshot.original_module_id IS '原始模块 ID（用于差量同步定位变更）';
+COMMENT ON COLUMN ft_plan_module_snapshot.parent_id IS '快照父级模块 ID';
+COMMENT ON COLUMN ft_plan_module_snapshot.name IS '模块名称（固化原值，不随源数据变化）';
+COMMENT ON COLUMN ft_plan_module_snapshot.type IS '模块类型：directory=目录, document=文档';
+COMMENT ON COLUMN ft_plan_module_snapshot.sort_order IS '排序序号';
 
-COMMENT ON TABLE test_plan_node_snapshot IS '计划节点快照表（创建计划时固化节点内容）';
-COMMENT ON COLUMN test_plan_node_snapshot.id IS '快照节点唯一标识';
-COMMENT ON COLUMN test_plan_node_snapshot.plan_id IS '所属计划 ID，关联 test_plan.id';
-COMMENT ON COLUMN test_plan_node_snapshot.original_node_id IS '原始节点 ID（用于差量同步定位变更）';
-COMMENT ON COLUMN test_plan_node_snapshot.document_snapshot_id IS '所属文档快照 ID，关联 test_plan_module_snapshot.id';
-COMMENT ON COLUMN test_plan_node_snapshot.parent_id IS '快照父级节点 ID';
-COMMENT ON COLUMN test_plan_node_snapshot.title IS '节点标题（固化原值）';
-COMMENT ON COLUMN test_plan_node_snapshot.type IS '节点类型：case/normal/precondition/step/expected';
-COMMENT ON COLUMN test_plan_node_snapshot.priority IS '用例优先级（固化原值）';
-COMMENT ON COLUMN test_plan_node_snapshot.is_associated IS '是否被选入计划';
-COMMENT ON COLUMN test_plan_node_snapshot.last_result IS '最新执行结果：pass/fail/block/untested';
-COMMENT ON COLUMN test_plan_node_snapshot.last_executor_id IS '最近一次执行人 ID';
-COMMENT ON COLUMN test_plan_node_snapshot.last_executed_at IS '最近一次执行时间';
-COMMENT ON COLUMN test_plan_node_snapshot.ai_generated IS 'AI 生成标识（随计划快照继承）';
+COMMENT ON TABLE ft_plan_node_snapshot IS '计划节点快照表（创建计划时固化节点内容）';
+COMMENT ON COLUMN ft_plan_node_snapshot.id IS '快照节点唯一标识';
+COMMENT ON COLUMN ft_plan_node_snapshot.plan_id IS '所属计划 ID，关联 ft_plan.id';
+COMMENT ON COLUMN ft_plan_node_snapshot.original_node_id IS '原始节点 ID（用于差量同步定位变更）';
+COMMENT ON COLUMN ft_plan_node_snapshot.document_snapshot_id IS '所属文档快照 ID，关联 ft_plan_module_snapshot.id';
+COMMENT ON COLUMN ft_plan_node_snapshot.parent_id IS '快照父级节点 ID';
+COMMENT ON COLUMN ft_plan_node_snapshot.title IS '节点标题（固化原值）';
+COMMENT ON COLUMN ft_plan_node_snapshot.type IS '节点类型：case/normal/precondition/step/expected';
+COMMENT ON COLUMN ft_plan_node_snapshot.priority IS '用例优先级（固化原值）';
+COMMENT ON COLUMN ft_plan_node_snapshot.is_associated IS '是否被选入计划';
+COMMENT ON COLUMN ft_plan_node_snapshot.last_result IS '最新执行结果：pass/fail/block/untested';
+COMMENT ON COLUMN ft_plan_node_snapshot.last_executor_id IS '最近一次执行人 ID';
+COMMENT ON COLUMN ft_plan_node_snapshot.last_executed_at IS '最近一次执行时间';
+COMMENT ON COLUMN ft_plan_node_snapshot.ai_generated IS 'AI 生成标识（随计划快照继承）';
 
-COMMENT ON TABLE test_plan_execution_record IS '计划执行记录表（每次执行的完整历史）';
-COMMENT ON COLUMN test_plan_execution_record.id IS '执行记录唯一标识';
-COMMENT ON COLUMN test_plan_execution_record.plan_id IS '所属计划 ID，关联 test_plan.id';
-COMMENT ON COLUMN test_plan_execution_record.snapshot_node_id IS '快照节点 ID，关联 test_plan_node_snapshot.id';
-COMMENT ON COLUMN test_plan_execution_record.executor_id IS '执行人 ID，关联 sys_user.id';
-COMMENT ON COLUMN test_plan_execution_record.result IS '执行结果：pass/fail/block/untested';
-COMMENT ON COLUMN test_plan_execution_record.note IS '执行备注';
-COMMENT ON COLUMN test_plan_execution_record.executed_at IS '执行时间';
+COMMENT ON TABLE ft_plan_execution_record IS '计划执行记录表（每次执行的完整历史）';
+COMMENT ON COLUMN ft_plan_execution_record.id IS '执行记录唯一标识';
+COMMENT ON COLUMN ft_plan_execution_record.plan_id IS '所属计划 ID，关联 ft_plan.id';
+COMMENT ON COLUMN ft_plan_execution_record.snapshot_node_id IS '快照节点 ID，关联 ft_plan_node_snapshot.id';
+COMMENT ON COLUMN ft_plan_execution_record.executor_id IS '执行人 ID，关联 sys_user.id';
+COMMENT ON COLUMN ft_plan_execution_record.result IS '执行结果：pass/fail/block/untested';
+COMMENT ON COLUMN ft_plan_execution_record.note IS '执行备注';
+COMMENT ON COLUMN ft_plan_execution_record.executed_at IS '执行时间';
 
-COMMENT ON TABLE test_review IS '测试评审表（用例评审流程）';
-COMMENT ON COLUMN test_review.id IS '评审唯一标识';
-COMMENT ON COLUMN test_review.project_id IS '所属项目 ID，关联 ws_project.id';
-COMMENT ON COLUMN test_review.title IS '评审标题';
-COMMENT ON COLUMN test_review.description IS '评审描述';
-COMMENT ON COLUMN test_review.initiator_id IS '发起人 ID，关联 sys_user.id';
-COMMENT ON COLUMN test_review.participant_ids IS '参与者 ID 列表（JSON 数组）';
-COMMENT ON COLUMN test_review.status IS '评审状态：new=待评审, in_progress=进行中, completed=已通过, rejected=已驳回';
+COMMENT ON TABLE ft_review IS '测试评审表（用例评审流程）';
+COMMENT ON COLUMN ft_review.id IS '评审唯一标识';
+COMMENT ON COLUMN ft_review.project_id IS '所属项目 ID，关联 ws_project.id';
+COMMENT ON COLUMN ft_review.title IS '评审标题';
+COMMENT ON COLUMN ft_review.description IS '评审描述';
+COMMENT ON COLUMN ft_review.initiator_id IS '发起人 ID，关联 sys_user.id';
+COMMENT ON COLUMN ft_review.participant_ids IS '参与者 ID 列表（JSON 数组）';
+COMMENT ON COLUMN ft_review.status IS '评审状态：new=待评审, in_progress=进行中, completed=已通过, rejected=已驳回';
 
-COMMENT ON TABLE test_review_module_snapshot IS '评审模块快照表（创建评审时固化模块结构）';
-COMMENT ON COLUMN test_review_module_snapshot.id IS '快照唯一标识';
-COMMENT ON COLUMN test_review_module_snapshot.review_id IS '所属评审 ID，关联 test_review.id';
-COMMENT ON COLUMN test_review_module_snapshot.original_module_id IS '原始模块 ID';
-COMMENT ON COLUMN test_review_module_snapshot.parent_id IS '快照父级模块 ID';
-COMMENT ON COLUMN test_review_module_snapshot.name IS '模块名称（固化原值）';
-COMMENT ON COLUMN test_review_module_snapshot.type IS '模块类型：directory/document';
-COMMENT ON COLUMN test_review_module_snapshot.sort_order IS '排序序号';
+COMMENT ON TABLE ft_review_module_snapshot IS '评审模块快照表（创建评审时固化模块结构）';
+COMMENT ON COLUMN ft_review_module_snapshot.id IS '快照唯一标识';
+COMMENT ON COLUMN ft_review_module_snapshot.review_id IS '所属评审 ID，关联 ft_review.id';
+COMMENT ON COLUMN ft_review_module_snapshot.original_module_id IS '原始模块 ID';
+COMMENT ON COLUMN ft_review_module_snapshot.parent_id IS '快照父级模块 ID';
+COMMENT ON COLUMN ft_review_module_snapshot.name IS '模块名称（固化原值）';
+COMMENT ON COLUMN ft_review_module_snapshot.type IS '模块类型：directory/document';
+COMMENT ON COLUMN ft_review_module_snapshot.sort_order IS '排序序号';
 
-COMMENT ON TABLE test_review_node_snapshot IS '评审节点快照表（创建评审时固化节点内容）';
-COMMENT ON COLUMN test_review_node_snapshot.id IS '快照节点唯一标识';
-COMMENT ON COLUMN test_review_node_snapshot.review_id IS '所属评审 ID，关联 test_review.id';
-COMMENT ON COLUMN test_review_node_snapshot.original_node_id IS '原始节点 ID';
-COMMENT ON COLUMN test_review_node_snapshot.document_snapshot_id IS '所属文档快照 ID，关联 test_review_module_snapshot.id';
-COMMENT ON COLUMN test_review_node_snapshot.parent_id IS '快照父级节点 ID';
-COMMENT ON COLUMN test_review_node_snapshot.title IS '节点标题（固化原值）';
-COMMENT ON COLUMN test_review_node_snapshot.type IS '节点类型：case/normal/precondition/step/expected';
-COMMENT ON COLUMN test_review_node_snapshot.priority IS '用例优先级（固化原值）';
-COMMENT ON COLUMN test_review_node_snapshot.is_associated IS '是否被选入评审';
-COMMENT ON COLUMN test_review_node_snapshot.last_mark IS '最新评审标记：pass/fail，NULL=待评审';
-COMMENT ON COLUMN test_review_node_snapshot.last_reviewer_id IS '最近一次评审人 ID';
-COMMENT ON COLUMN test_review_node_snapshot.last_reviewed_at IS '最近一次评审时间';
-COMMENT ON COLUMN test_review_node_snapshot.ai_generated IS 'AI 生成标识（随评审快照继承）';
+COMMENT ON TABLE ft_review_node_snapshot IS '评审节点快照表（创建评审时固化节点内容）';
+COMMENT ON COLUMN ft_review_node_snapshot.id IS '快照节点唯一标识';
+COMMENT ON COLUMN ft_review_node_snapshot.review_id IS '所属评审 ID，关联 ft_review.id';
+COMMENT ON COLUMN ft_review_node_snapshot.original_node_id IS '原始节点 ID';
+COMMENT ON COLUMN ft_review_node_snapshot.document_snapshot_id IS '所属文档快照 ID，关联 ft_review_module_snapshot.id';
+COMMENT ON COLUMN ft_review_node_snapshot.parent_id IS '快照父级节点 ID';
+COMMENT ON COLUMN ft_review_node_snapshot.title IS '节点标题（固化原值）';
+COMMENT ON COLUMN ft_review_node_snapshot.type IS '节点类型：case/normal/precondition/step/expected';
+COMMENT ON COLUMN ft_review_node_snapshot.priority IS '用例优先级（固化原值）';
+COMMENT ON COLUMN ft_review_node_snapshot.is_associated IS '是否被选入评审';
+COMMENT ON COLUMN ft_review_node_snapshot.last_mark IS '最新评审标记：pass/fail，NULL=待评审';
+COMMENT ON COLUMN ft_review_node_snapshot.last_reviewer_id IS '最近一次评审人 ID';
+COMMENT ON COLUMN ft_review_node_snapshot.last_reviewed_at IS '最近一次评审时间';
+COMMENT ON COLUMN ft_review_node_snapshot.ai_generated IS 'AI 生成标识（随评审快照继承）';
 
-COMMENT ON TABLE test_review_record IS '评审记录表（每次评审操作的完整历史）';
-COMMENT ON COLUMN test_review_record.id IS '评审记录唯一标识';
-COMMENT ON COLUMN test_review_record.review_id IS '所属评审 ID，关联 test_review.id';
-COMMENT ON COLUMN test_review_record.snapshot_node_id IS '快照节点 ID，关联 test_review_node_snapshot.id';
-COMMENT ON COLUMN test_review_record.reviewer_id IS '评审人 ID，关联 sys_user.id';
-COMMENT ON COLUMN test_review_record.operation_type IS '操作类型：mark=标记, comment=评论';
-COMMENT ON COLUMN test_review_record.mark IS '评审标记：pass/fail，NULL=仅评论无标记';
-COMMENT ON COLUMN test_review_record.comment IS '评论内容';
+COMMENT ON TABLE ft_review_record IS '评审记录表（每次评审操作的完整历史）';
+COMMENT ON COLUMN ft_review_record.id IS '评审记录唯一标识';
+COMMENT ON COLUMN ft_review_record.review_id IS '所属评审 ID，关联 ft_review.id';
+COMMENT ON COLUMN ft_review_record.snapshot_node_id IS '快照节点 ID，关联 ft_review_node_snapshot.id';
+COMMENT ON COLUMN ft_review_record.reviewer_id IS '评审人 ID，关联 sys_user.id';
+COMMENT ON COLUMN ft_review_record.operation_type IS '操作类型：mark=标记, comment=评论';
+COMMENT ON COLUMN ft_review_record.mark IS '评审标记：pass/fail，NULL=仅评论无标记';
+COMMENT ON COLUMN ft_review_record.comment IS '评论内容';
 
 -- 缺陷管理
 COMMENT ON TABLE bug IS '缺陷表（三态模型：active ↔ resolved/closed，可重开）';
@@ -1642,13 +1642,13 @@ COMMENT ON COLUMN project_module.name IS '模块名称（同级唯一）';
 COMMENT ON COLUMN project_module.source_id IS '源侧映射标识：包容器存完整包名、类模块存测试类全限定名（GitLab 集成详设 3.5）';
 COMMENT ON COLUMN project_module.sort_order IS '同级排序序号';
 
-COMMENT ON TABLE test_case_document IS '用例文档表（布局内嵌 JSONB，替代旧 test_case_document_layout 表）';
-COMMENT ON COLUMN test_case_document.id IS '文档唯一标识';
-COMMENT ON COLUMN test_case_document.project_id IS '所属项目 ID';
-COMMENT ON COLUMN test_case_document.module_id IS '所属模块 ID，关联 project_module.id';
-COMMENT ON COLUMN test_case_document.name IS '文档名称';
-COMMENT ON COLUMN test_case_document.layout IS '布局数据 JSONB（template/offsets）';
-COMMENT ON COLUMN test_case_document.sort_order IS '同层级排序序号';
+COMMENT ON TABLE ft_case_document IS '用例文档表（布局内嵌 JSONB，替代旧 test_case_document_layout 表）';
+COMMENT ON COLUMN ft_case_document.id IS '文档唯一标识';
+COMMENT ON COLUMN ft_case_document.project_id IS '所属项目 ID';
+COMMENT ON COLUMN ft_case_document.module_id IS '所属模块 ID，关联 project_module.id';
+COMMENT ON COLUMN ft_case_document.name IS '文档名称';
+COMMENT ON COLUMN ft_case_document.layout IS '布局数据 JSONB（template/offsets）';
+COMMENT ON COLUMN ft_case_document.sort_order IS '同层级排序序号';
 
 -- 接口测试 — 环境管理
 COMMENT ON TABLE api_environment IS '接口测试环境表';

@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("test_review_record")
+@TableName("ft_review_record")
 public class TestReviewRecord extends BaseUuidDO<TestReviewRecord> {
 
     @TableField(typeHandler = UUIDTypeHandler.class)

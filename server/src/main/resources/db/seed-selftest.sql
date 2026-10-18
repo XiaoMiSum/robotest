@@ -11,14 +11,14 @@
 --           因此清理段统一用 `id::text LIKE '7e57%'` 即可精确圈定本脚本写入的行。
 --
 --   7e570001 ws_project                 7e570002 project_module
---   7e570003 test_case_document         7e570004 test_case_node
+--   7e570003 ft_case_document         7e570004 ft_case_node
 --   7e570005 api_environment            7e570006 api_interface
 --   7e570007 api_scene                  7e570008 api_component
 --   7e570009 api_function               7e57000a api_mock_definition
---   7e57000b test_plan                  7e57000c test_plan_module_snapshot
---   7e57000d test_plan_node_snapshot    7e57000e test_plan_execution_record
---   7e57000f test_review                7e570010 test_review_module_snapshot
---   7e570011 test_review_node_snapshot  7e570012 test_review_record
+--   7e57000b ft_plan                  7e57000c ft_plan_module_snapshot
+--   7e57000d ft_plan_node_snapshot    7e57000e ft_plan_execution_record
+--   7e57000f ft_review                7e570010 ft_review_module_snapshot
+--   7e570011 ft_review_node_snapshot  7e570012 ft_review_record
 --   7e570013 bug                        7e570014 bug_log
 --   7e570016 ws_project_activity
 --   7e570017 api_report                 7e570018 api_execution_record
@@ -42,15 +42,15 @@ BEGIN;
 -- ============================================================
 -- 0. 清理旧种子（子表在前）
 -- ============================================================
-DELETE FROM test_review_record            WHERE id::text LIKE '7e57%';
-DELETE FROM test_review_node_snapshot     WHERE id::text LIKE '7e57%';
-DELETE FROM test_review_module_snapshot   WHERE id::text LIKE '7e57%';
-DELETE FROM test_review                   WHERE id::text LIKE '7e57%';
+DELETE FROM ft_review_record            WHERE id::text LIKE '7e57%';
+DELETE FROM ft_review_node_snapshot     WHERE id::text LIKE '7e57%';
+DELETE FROM ft_review_module_snapshot   WHERE id::text LIKE '7e57%';
+DELETE FROM ft_review                   WHERE id::text LIKE '7e57%';
 
-DELETE FROM test_plan_execution_record    WHERE id::text LIKE '7e57%';
-DELETE FROM test_plan_node_snapshot       WHERE id::text LIKE '7e57%';
-DELETE FROM test_plan_module_snapshot     WHERE id::text LIKE '7e57%';
-DELETE FROM test_plan                     WHERE id::text LIKE '7e57%';
+DELETE FROM ft_plan_execution_record    WHERE id::text LIKE '7e57%';
+DELETE FROM ft_plan_node_snapshot       WHERE id::text LIKE '7e57%';
+DELETE FROM ft_plan_module_snapshot     WHERE id::text LIKE '7e57%';
+DELETE FROM ft_plan                     WHERE id::text LIKE '7e57%';
 
 DELETE FROM bug_log                       WHERE id::text LIKE '7e57%';
 DELETE FROM bug_attachment                 WHERE id::text LIKE '7e57%';
@@ -77,8 +77,8 @@ DELETE FROM api_swagger_url               WHERE id::text LIKE '7e57%';
 DELETE FROM api_function                  WHERE id::text LIKE '7e57%';
 DELETE FROM api_component                 WHERE id::text LIKE '7e57%';
 
-DELETE FROM test_case_node                WHERE id::text LIKE '7e57%';
-DELETE FROM test_case_document            WHERE id::text LIKE '7e57%';
+DELETE FROM ft_case_node                WHERE id::text LIKE '7e57%';
+DELETE FROM ft_case_document            WHERE id::text LIKE '7e57%';
 DELETE FROM project_module                WHERE id::text LIKE '7e57%';
 
 DELETE FROM ws_project                    WHERE id::text LIKE '7e57%';
@@ -208,7 +208,7 @@ FROM (VALUES
 -- ============================================================
 -- 3. 用例文档（layout 与服务创建口径一致：{"template":"right","offsets":{}}）
 -- ============================================================
-INSERT INTO test_case_document (id, project_id, module_id, name, layout, sort_order, is_deleted, created_at, updated_at)
+INSERT INTO ft_case_document (id, project_id, module_id, name, layout, sort_order, is_deleted, created_at, updated_at)
 SELECT v.id::uuid, v.project_id::uuid, v.module_id::uuid, v.name::text,
        '{"template":"right","offsets":{}}'::jsonb, 0, false,
        now() - interval '28 days', now()
@@ -225,7 +225,7 @@ FROM (VALUES
 --    结构：每份文档 = 1 个根节点(normal, parent_id NULL) + 若干 case 节点
 --          case 的直接子节点只能是 precondition / step / expected
 -- ============================================================
-INSERT INTO test_case_node (id, document_id, parent_id, type, title, priority, sort_order,
+INSERT INTO ft_case_node (id, document_id, parent_id, type, title, priority, sort_order,
                             version, ai_generated, is_deleted, created_at, updated_at)
 SELECT v.id::uuid, v.document_id::uuid, NULLIF(v.parent_id, '')::uuid, v.type, v.title,
        NULLIF(v.priority, ''), v.sort_order::int, 1, false, false,
@@ -767,7 +767,7 @@ VALUES
 -- 11. 功能测试 — 测试计划
 --     计划1 圈选「用户登录与鉴权」文档（19 节点），计划2 圈选「缺陷生命周期」（12 节点）
 -- ============================================================
-INSERT INTO test_plan
+INSERT INTO ft_plan
 (id, project_id, name, description, status, executor_id, start_time, end_time,
  environment, snapshot_synced_at, is_deleted, created_at, updated_at)
 VALUES
@@ -784,7 +784,7 @@ VALUES
  '本地开发环境', now() - interval '12 hours', false, now() - interval '3 days', now());
 
 -- 计划模块快照（parent_id 指向同计划的快照行，不是原表）
-INSERT INTO test_plan_module_snapshot
+INSERT INTO ft_plan_module_snapshot
 (id, plan_id, original_module_id, parent_id, name, type, sort_order, is_deleted, created_at, updated_at)
 VALUES
 ('7e57000c-0000-4000-8000-000000000001','7e57000b-0000-4000-8000-000000000001','7e570002-0000-4000-8000-000000000001',NULL,'系统管理','directory',0,false, now() - interval '7 days', now()),
@@ -795,7 +795,7 @@ VALUES
 ('7e57000c-0000-4000-8000-000000000006','7e57000b-0000-4000-8000-000000000002','7e570003-0000-4000-8000-000000000004','7e57000c-0000-4000-8000-000000000005','缺陷生命周期','document',0,false, now() - interval '3 days', now());
 
 -- 计划节点快照：快照 id = '7e57000d-' + 原节点 id 的末 12 位；parent 指向同前缀快照行
-INSERT INTO test_plan_node_snapshot
+INSERT INTO ft_plan_node_snapshot
 (id, plan_id, original_node_id, document_snapshot_id, parent_id, title, type, priority,
  is_associated, last_result, last_executor_id, last_executed_at, sort_order,
  ai_generated, is_deleted, created_at, updated_at)
@@ -876,7 +876,7 @@ FROM (VALUES
        associated, last_result, executor, executed_at, sort_order);
 
 -- 计划执行记录（snapshot_node_id 指向快照行）
-INSERT INTO test_plan_execution_record
+INSERT INTO ft_plan_execution_record
 (id, plan_id, snapshot_node_id, executor_id, result, note, executed_at, is_deleted, created_at, updated_at)
 VALUES
 ('7e57000e-0000-4000-8000-000000000001','7e57000b-0000-4000-8000-000000000001',
@@ -901,7 +901,7 @@ VALUES
 -- ============================================================
 -- 12. 功能测试 — 测试评审（圈选「用例管理核心流程」20 节点）
 -- ============================================================
-INSERT INTO test_review
+INSERT INTO ft_review
 (id, project_id, title, description, initiator_id, participant_ids, status, is_deleted, created_at, updated_at)
 VALUES
 ('7e57000f-0000-4000-8000-000000000001','7e570001-0000-4000-8000-000000000001',
@@ -910,14 +910,14 @@ VALUES
  '["7e57001f-0000-4000-8000-000000000001","7e57001f-0000-4000-8000-000000000001"]',
  'in_progress', false, now() - interval '7 days', now());
 
-INSERT INTO test_review_module_snapshot
+INSERT INTO ft_review_module_snapshot
 (id, review_id, original_module_id, parent_id, name, type, sort_order, is_deleted, created_at, updated_at)
 VALUES
 ('7e570010-0000-4000-8000-000000000001','7e57000f-0000-4000-8000-000000000001','7e570002-0000-4000-8000-000000000002',NULL,'功能测试','directory',1,false, now() - interval '7 days', now()),
 ('7e570010-0000-4000-8000-000000000002','7e57000f-0000-4000-8000-000000000001','7e570002-0000-4000-8000-000000000006','7e570010-0000-4000-8000-000000000001','用例管理','directory',0,false, now() - interval '7 days', now()),
 ('7e570010-0000-4000-8000-000000000003','7e57000f-0000-4000-8000-000000000001','7e570003-0000-4000-8000-000000000002','7e570010-0000-4000-8000-000000000002','用例管理核心流程','document',0,false, now() - interval '7 days', now());
 
-INSERT INTO test_review_node_snapshot
+INSERT INTO ft_review_node_snapshot
 (id, review_id, original_node_id, document_snapshot_id, parent_id, title, type, priority,
  is_associated, last_mark, last_reviewer_id, last_reviewed_at, sort_order,
  ai_generated, is_deleted, created_at, updated_at)
@@ -952,7 +952,7 @@ FROM (VALUES
 ) AS v(review_id, orig_id, parent_id, title, type, priority, associated, last_mark, reviewer, reviewed_at, sort_order);
 
 -- 评审记录：mark 可为 pass / fail / pending，pending 落到快照时 last_mark 必须置 NULL
-INSERT INTO test_review_record
+INSERT INTO ft_review_record
 (id, review_id, snapshot_node_id, reviewer_id, operation_type, mark, comment, is_deleted, created_at, updated_at)
 VALUES
 ('7e570012-0000-4000-8000-000000000001','7e57000f-0000-4000-8000-000000000001',
