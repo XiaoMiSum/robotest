@@ -24,7 +24,7 @@
 - 需求侧已预留的引用字段：`requirement.source_file_id`、`requirement_split_record.source_file_id`（当前恒为 NULL，由本模块承载）。
 - 缺陷附件现状：本地磁盘 `robotest.upload.dir`（默认 `./uploads/bug`）+ `bug_attachment.storage_path` 相对路径，须迁移至对象存储。
 - 安全规范（`docs/00-spec/40-security/01-security.md`）：文件类型不得仅按扩展名判断，须文件头内容嗅探；附件下载必须重新校验。
-- 数据规范（`docs/00-spec/20-contracts/02-database.md`）：C5（全字段、逻辑删除、UUID 默认策略、无物理外键）、C9（索引）、§5 迁移规范（版本化迁移 + 全量 schema.sql 双轨）。
+- 数据规范（`docs/00-spec/20-contracts/02-database.md`）：C5（全字段、逻辑删除、UUID 默认策略、无物理外键）、C9（索引）、§5 迁移规范（`schema.sql` 唯一事实源 + 存量库人工增量 SQL）。
 
 ### 1.3 术语
 
@@ -93,12 +93,12 @@ COMMENT ON COLUMN bug_attachment.file_resource_id IS '关联 file_resource.id（
 - 管理页与列表/删除接口以 `@PreAuthorize("hasAnyAuthority('file:view' …)")` 收口（同 `AdminUserController` 模式）。
 - 上传 / 下载 / 换签为**登录即可**的通用能力，不设权限点（任何业务成员都会用到，归属与宿主权限由使用方把关）。
 
-### 2.4 迁移与基线（双轨）
+### 2.4 迁移与基线
 
 | 载体 | 内容 |
 | ---- | ---- |
-| `server/src/main/resources/db/schema.sql` | 全量基线同步（新建库初始化，含 §2.1–2.3 全部 DDL 与种子） |
-| `server/src/main/resources/db/migration/V20261004180000__file_management.sql` | 存量库增量（同 DDL），按 runbook §10 手工执行：备份 → 执行 → 回滚方案核对 → 发应用 |
+| `server/src/main/resources/db/schema.sql` | 全量基线同步（新建库初始化，含 §2.1–2.3 全部 DDL 与种子，唯一事实源） |
+| 存量库增量 SQL | 取本文 §2.1–2.3 的 DDL，按 runbook §10 手工执行：备份 → 执行 → 回滚方案核对 → 发应用（仓库不保留迁移脚本文件） |
 
 部署顺序：**先执行 DDL，后发应用**（新列可空，反序会导致新代码读列失败）。
 
@@ -396,3 +396,4 @@ docker compose up -d --build
 | V1.0 | 2026-10-05 | 存储引擎定标 MinIO → SeaweedFS：§3 引擎与配置中性化（`robotest.s3.*` / `S3_*`、默认凭据 `robotest`、实现类改名 `S3StorageService`，SDK 与调用逻辑不变）、§8.1 服务/镜像/端口定标（`chrislusf/seaweedfs:<固定版本>`，9001 映射 filer 控制台 8888）、runbook 章节顺延联动（§9 → §10） | AI |
 | V1.0 | 2026-10-10 | 补使用方：缺陷正文（重现步骤）贴图接入 §4.4，§1.1 范围与 §5.2 校验分层同步登记 10MB 业务层上限 | AI |
 | V1.0 | 2026-10-10 | 正文贴图接入口径更新：编辑器定标 Vditor 所见即所得，上传经其 `upload` 配置接入，渲染换签外补读取归一化（presigned 地址不入库） | AI |
+| V1.0 | 2026-10-18 | 迁移基线口径收敛：§2.4 移除 `db/migration/V20261004180000__file_management.sql` 引用，改为 schema.sql 唯一事实源 + 存量库人工增量 SQL | AI |
