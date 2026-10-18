@@ -18,11 +18,11 @@
 
 | 原设计 | 位置 | 替代方式 |
 | --- | --- | --- |
-| `test_case_module`（功能测试模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 目录节点（type=directory）迁移至 `project_module`；文档节点（type=document）迁移至 `test_case_document`，见 `docs/04-detailed-design/03-function-testing/07-document-management.md` |
+| `test_case_module`（功能测试模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 目录节点（type=directory）迁移至 `project_module`；文档节点（type=document）迁移至 `ft_case_document`，见 `docs/04-detailed-design/03-function-testing/07-document-management.md` |
 | `api_interface_module`（接口模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 废弃，引用 `project_module` |
 | `api_scenario_module`（场景模块） | `docs/04-detailed-design/01-readme.md` 2.1.1 | 废弃，引用 `project_module` |
 
-> 用例资产（`test_case_document`）的详细设计独立成文，见 `docs/04-detailed-design/03-function-testing/07-document-management.md`。
+> 用例资产（`ft_case_document`）的详细设计独立成文，见 `docs/04-detailed-design/03-function-testing/07-document-management.md`。
 
 ### 1.3 定义与缩写
 
@@ -69,7 +69,7 @@
 | `api_scene` | `module_id` → `project_module.id` | 测试场景归属模块 |
 | `bug` | `module_id` → `project_module.id` | 缺陷归属模块（沿用现有） |
 
-> 用例资产 `test_case_document.module_id` 同样引用 `project_module.id`，其表结构与接口设计见 `docs/04-detailed-design/03-function-testing/07-document-management.md`。
+> 用例资产 `ft_case_document.module_id` 同样引用 `project_module.id`，其表结构与接口设计见 `docs/04-detailed-design/03-function-testing/07-document-management.md`。
 
 ### 2.3 资产计数（按需统计）
 
@@ -256,8 +256,8 @@ DELETE /api/project/modules/{id}
 
 现有 `test_case_module` 表包含 `type` 字段（directory/document），统一后：
 - `type=directory` 的行 → 迁移到 `project_module`（结构完全一致）
-- `type=document` 的行 → 迁移到 `test_case_document` 表（新增 `module_id` 字段指向原 `parent_id` 对应的 `project_module` 节点），详见 `docs/04-detailed-design/03-function-testing/07-document-management.md`
-- `test_case_node.document_id` → 更新为新 `test_case_document.id`
+- `type=document` 的行 → 迁移到 `ft_case_document` 表（新增 `module_id` 字段指向原 `parent_id` 对应的 `project_module` 节点），详见 `docs/04-detailed-design/03-function-testing/07-document-management.md`
+- `ft_case_node.document_id` → 更新为新 `ft_case_document.id`
 
 ---
 
@@ -342,7 +342,7 @@ CREATE UNIQUE INDEX uk_pmod_source ON project_module(project_id, parent_id, sour
 
 > 已部署实例的增量变更为 `ALTER TABLE project_module ADD COLUMN source_id VARCHAR(500) NULL;` 及创建 `uk_pmod_source`，存量行 `source_id` 为 NULL，不受影响。
 
-> `test_case_document` 表及其索引的 DDL 见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。
+> `ft_case_document` 表及其索引的 DDL 见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。
 
 **Phase 2：数据迁移**
 
@@ -356,7 +356,7 @@ FROM test_case_module WHERE type = 'directory' AND is_deleted = 0;
 -- 4. api_scenario_module → project_module（同上）
 ```
 
-> 步骤 2（test_case_module type=document → test_case_document）及布局回填（步骤 2.1）见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。Phase 2 中步骤 3-4 需要 ID 映射表，因为 `api_interface.module_id` 和 `api_scene.module_id` 需要更新为新 ID。实际迁移脚本需在应用层执行，确保事务一致性。步骤 1 必须先于步骤 2 执行（`test_case_document.module_id` 引用迁移后的 `project_module.id`）。
+> 步骤 2（test_case_module type=document → ft_case_document）及布局回填（步骤 2.1）见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。Phase 2 中步骤 3-4 需要 ID 映射表，因为 `api_interface.module_id` 和 `api_scene.module_id` 需要更新为新 ID。实际迁移脚本需在应用层执行，确保事务一致性。步骤 1 必须先于步骤 2 执行（`ft_case_document.module_id` 引用迁移后的 `project_module.id`）。
 
 **Phase 3：更新引用**
 
@@ -380,7 +380,7 @@ DROP TABLE api_scenario_module;
 -- test_case_module 保留只读或直接删除
 ```
 
-> `test_case_document_layout` 的废弃（布局数据回填至 `test_case_document.layout` 之后）见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。
+> `test_case_document_layout` 的废弃（布局数据回填至 `ft_case_document.layout` 之后）见 `docs/04-detailed-design/03-function-testing/07-document-management.md` 6.1。
 
 ### 6.2 迁移注意事项
 
@@ -413,6 +413,7 @@ DROP TABLE api_scenario_module;
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-09-23 | 初始版本：项目模块详细设计 |
+| V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：迁移叙述中现行表名 `test_case_document` / `test_case_node` → `ft_case_document` / `ft_case_node`（废弃表名不变） |
 | V1.0 | 2026-10-11 | 新增 `source_id` 字段与 `uk_pmod_source` 索引，承接 GitLab 集成的模块认领与去重 |
 | V1.0 | 2026-10-16 | 6.3 错误码号段 1000018101–1000018150 名称由「AI 配置与任务引擎」改为「AI 配置与任务框架」，对齐 AI Task 双平面口径 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：6.3 注销追溯矩阵错误码号段 1000018151–1000018199 |
