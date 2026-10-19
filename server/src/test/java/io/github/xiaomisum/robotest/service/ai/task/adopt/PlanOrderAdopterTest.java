@@ -16,7 +16,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,7 +29,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -65,21 +63,7 @@ class PlanOrderAdopterTest {
         assertNull(adopter.adopt(context(Constants.AiArtifactAction.REJECTED, null, PLAN_ID, 1,
                 List.of(item(nodeId(3), 1)), List.of(), List.of())));
 
-        verify(support, never()).requirePermission(any(), anyString());
         verify(testPlanNodeSnapshotMapper, never()).updateSortOrder(any(), any());
-    }
-
-    @Test
-    void adopt_withoutPlanExecutePermission_failsBeforeAnyQuery() {
-        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_NO_PERMISSION))
-                .when(support).requirePermission(any(), eq("plan:execute"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 1,
-                        List.of(), List.of(), List.of())));
-
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(), exception.getCode());
-        verify(testPlanMapper, never()).selectById(any());
     }
 
     @Test

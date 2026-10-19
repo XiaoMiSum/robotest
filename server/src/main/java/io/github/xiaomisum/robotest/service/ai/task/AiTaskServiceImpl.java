@@ -44,8 +44,8 @@ import java.util.UUID;
 /**
  * 统一任务资源实现（详设 3.6）。
  *
- * <p>校验顺序遵循 3.6.2：总开关 → 权限（1000018116）→ 类型（114）→ 输入（115）→ 可用模型（118）；
- * 因总开关须先于权限判定，任务端点不使用 @PreAuthorize（框架 403 会短路设计顺序），权限在服务层校验。
+ * <p>校验顺序遵循 3.6.2：总开关 → 类型（114）→ 输入（115）→ 可用模型（118）；任务端点不做权限校验
+ * （ai:task / ai:confirm 与任务类型资源权限均不校验，仅保留任务归属可见性），故不使用 @PreAuthorize。
  * 上下文（projectId / workspaceId）仅取自请求头解析后的 LoginUser（C4），不进 URL 与请求体。</p>
  */
 @Service
@@ -53,8 +53,6 @@ public class AiTaskServiceImpl implements AiTaskService {
 
     private static final Logger log = LoggerFactory.getLogger(AiTaskServiceImpl.class);
 
-    private static final String PERMISSION_AI_TASK = "ai:task";
-    private static final String PERMISSION_AI_CONFIRM = "ai:confirm";
     private static final int WAIT_SECONDS_MAX = 10;
     private static final long POLL_INTERVAL_MILLIS = 200;
 
@@ -94,9 +92,6 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!settingsReader.settings().enabled()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED);
         }
-        if (!hasPermission(loginUser, PERMISSION_AI_TASK)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NO_PERMISSION);
-        }
         return createTask(reqDTO.getType(), reqDTO.getInput(), waitSeconds,
                 userId, activeProjectId, activeWorkspaceId, loginUser);
     }
@@ -107,7 +102,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!settingsReader.settings().enabled()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED);
         }
-        // 系统触发（需求导入 / 助手解析等）无登录态：跳过权限校验，类型 / 输入 / 模型校验照常
+        // 系统触发（需求导入 / 助手解析等）无登录态：类型 / 输入 / 模型校验照常
         return createTask(type, input, 0, submittedBy, projectId, workspaceId, null);
     }
 
@@ -120,9 +115,6 @@ public class AiTaskServiceImpl implements AiTaskService {
         Map<String, Object> effectiveInput = input == null ? Map.of() : new LinkedHashMap<>(input);
         TaskSubmitContext submitContext = new TaskSubmitContext(projectId, workspaceId, userId, loginUser);
         handler.validateInput(effectiveInput, submitContext);
-        if (loginUser != null) {
-            handler.checkPermission(loginUser);
-        }
         // 必需能力选型（详设 4.2）：handler 从输入派生（批量随附截图需结合项目范围），选型并回写 model_id
         String requiredCapability = handler.requiredCapability(effectiveInput, submitContext);
         AiModelConfig model = requiredCapability == null
@@ -166,9 +158,6 @@ public class AiTaskServiceImpl implements AiTaskService {
 
     @Override
     public AiTaskCountRespDTO countActive(UUID activeProjectId, UUID userId, LoginUser loginUser) {
-        if (!hasPermission(loginUser, PERMISSION_AI_TASK)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NO_PERMISSION);
-        }
         AiTaskCountRespDTO resp = new AiTaskCountRespDTO();
         resp.setCount(taskMapper.countActive(activeProjectId, userId));
         return resp;
@@ -280,9 +269,6 @@ public class AiTaskServiceImpl implements AiTaskService {
     @AuditLog(action = "CANCEL:AiTask")
     public AiTaskRespDTO cancel(UUID taskId, LoginUser loginUser) {
         AiTask task = requireVisible(taskId, loginUser);
-        if (!hasPermission(loginUser, PERMISSION_AI_TASK)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NO_PERMISSION);
-        }
         if (!taskMapper.casCancel(taskId)) {
             // 仅 pending / running 可取消；条件写与执行线程竞争，失败即状态不允许
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
@@ -294,9 +280,6 @@ public class AiTaskServiceImpl implements AiTaskService {
     @AuditLog(action = "RETRY:AiTask")
     public AiTaskRespDTO retry(UUID taskId, LoginUser loginUser) {
         AiTask original = requireVisible(taskId, loginUser);
-        if (!hasPermission(loginUser, PERMISSION_AI_TASK)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NO_PERMISSION);
-        }
         if (!Constants.AiTaskStatus.FAILED.equals(original.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
         }
@@ -329,9 +312,6 @@ public class AiTaskServiceImpl implements AiTaskService {
     @AuditLog(action = "CONFIRM:AiArtifact")
     public AiTaskConfirmRespDTO confirm(UUID taskId, AiTaskConfirmReqDTO reqDTO, LoginUser loginUser) {
         AiTask task = requireVisible(taskId, loginUser);
-        if (!hasPermission(loginUser, PERMISSION_AI_CONFIRM)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_NO_PERMISSION);
-        }
         if (!Constants.AiTaskStatus.SUCCEEDED.equals(task.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
         }
@@ -548,9 +528,5 @@ public class AiTaskServiceImpl implements AiTaskService {
         return Constants.AiTaskStatus.SUCCEEDED.equals(status)
                 || Constants.AiTaskStatus.FAILED.equals(status)
                 || Constants.AiTaskStatus.CANCELLED.equals(status);
-    }
-
-    private static boolean hasPermission(LoginUser loginUser, String permission) {
-        return loginUser != null && loginUser.getPermissions().contains(permission);
     }
 }

@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.adopt;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import xyz.migoo.framework.common.util.JsonUtils;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
@@ -31,9 +30,8 @@ import java.util.stream.Collectors;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 圈选建议采纳支撑（生成链详设 3.5 圈选类型）：review:create / plan:create 资源权限
- * （1000018208）→ target.createParams 整包转换为既有创建请求（1000018206）→
- * caseIds 全量属于当前项目（1000018207）→ 委托既有 createReview / createPlan 落库，
+ * 圈选建议采纳支撑（生成链详设 3.5 圈选类型）：target.createParams 整包转换为既有创建请求
+ * （1000018206）→ caseIds 全量属于当前项目（1000018207）→ 委托既有 createReview / createPlan 落库，
  * 圈选结果快照由既有创建流程内建。
  */
 @Service
@@ -49,16 +47,11 @@ public class SelectionAdoptSupport {
     private TestPlanService testPlanService;
 
     /**
-     * @param createPermission 落库资源权限（review:create / plan:create）
-     * @param planSide         true = 计划（name 入参），false = 评审（title 入参）
+     * @param planSide true = 计划（name 入参），false = 评审（title 入参）
      */
-    public AdoptOutcome create(AdoptContext context, String createPermission, boolean planSide) {
+    public AdoptOutcome create(AdoptContext context, boolean planSide) {
         if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
             return null;
-        }
-        LoginUser loginUser = context.loginUser();
-        if (loginUser == null || !loginUser.getPermissions().contains(createPermission)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.GENERATION_NO_ADOPT_PERMISSION);
         }
         Map<String, Object> params = context.createParams();
         if (params == null || params.isEmpty()) {

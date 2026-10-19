@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
@@ -38,7 +37,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 
 /**
  * 圈选建议处理器基类（生成链详设 3.1 类型 B / 3.2 输入）：评审与计划共用
- * 范围校验（需求 / 模块口径与按范围的资源权限）、候选用例装配与单次模型调用产出
+ * 范围校验（需求 / 模块口径）、候选用例装配与单次模型调用产出
  * sel-1 单产物；轮次规则由子类给出（评审禁传，计划必传 ∈ [1,10]）。
  */
 abstract class AbstractSelectionHandler implements TaskHandler {
@@ -49,8 +48,6 @@ abstract class AbstractSelectionHandler implements TaskHandler {
 
     /** 上下文容量护栏：超大范围只装配前 N 条候选用例进提示词 */
     private static final int MAX_SCOPE_CASES = 500;
-    private static final String PERMISSION_REQUIREMENT = "requirement:view";
-    private static final String PERMISSION_CASE = "case:view";
 
     @Resource
     private RequirementMapper requirementMapper;
@@ -88,17 +85,6 @@ abstract class AbstractSelectionHandler implements TaskHandler {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.SELECTION_INPUT_INVALID);
         }
         UUID projectId = context.projectId();
-        // 按范围取资源权限（checkPermission 拿不到输入；系统触发无登录态时同口径跳过）
-        LoginUser loginUser = context.loginUser();
-        if (loginUser != null) {
-            List<UUID> requirementIds = scopeRequirementIds(input);
-            if (!requirementIds.isEmpty() && !loginUser.getPermissions().contains(PERMISSION_REQUIREMENT)) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NO_PERMISSION);
-            }
-            if (!scopeModuleIds(input).isEmpty() && !loginUser.getPermissions().contains(PERMISSION_CASE)) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-            }
-        }
         Map<UUID, Requirement> requirements = indexRequirements(scopeRequirementIds(input));
         for (UUID id : scopeRequirementIds(input)) {
             Requirement item = requirements.get(id);

@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
@@ -47,7 +46,6 @@ public class PlanOrderHandler implements TaskHandler {
     public static final String TYPE = "plan_order";
 
     private static final String SYSTEM_PROMPT = "你是资深测试计划执行专家。严格按用户给出的 JSON 输出结构作答。";
-    private static final String PERMISSION = "plan:execute";
 
     @Resource
     private TestPlanMapper testPlanMapper;
@@ -76,13 +74,6 @@ public class PlanOrderHandler implements TaskHandler {
                 推荐轮次：
                 {{roundCount}}
                 """;
-    }
-
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_NO_PERMISSION);
-        }
     }
 
     @Override

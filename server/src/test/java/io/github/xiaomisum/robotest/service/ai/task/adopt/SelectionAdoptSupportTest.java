@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -61,25 +62,16 @@ class SelectionAdoptSupportTest {
     @Test
     void create_rejected_returnsNull() {
         AdoptOutcome outcome = support.create(context(Map.of("title", "评审"), "rejected",
-                mock(LoginUser.class)), "review:create", false);
+                mock(LoginUser.class)), false);
 
         assertNull(outcome);
         verify(testReviewService, never()).createReview(any(), any(), any());
     }
 
     @Test
-    void create_withoutPermission_throws208() {
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> support.create(context(Map.of("title", "评审"), "adopted", user("case:view")),
-                        "review:create", false));
-        assertEquals(ErrorCodeConstants.GENERATION_NO_ADOPT_PERMISSION.code(), exception.getCode());
-    }
-
-    @Test
     void create_missingCreateParams_throws206() {
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> support.create(context(null, "adopted", user("review:create")),
-                        "review:create", false));
+                () -> support.create(context(null, "adopted", user("review:create")), false));
         assertEquals(ErrorCodeConstants.SELECTION_INPUT_INVALID.code(), exception.getCode());
     }
 
@@ -88,8 +80,7 @@ class SelectionAdoptSupportTest {
         when(testCaseNodeMapper.listByIds(any())).thenReturn(List.of());
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> support.create(context(reviewParams(), "adopted", user("review:create")),
-                        "review:create", false));
+                () -> support.create(context(reviewParams(), "adopted", user("review:create")), false));
         assertEquals(ErrorCodeConstants.SELECTION_CASE_NOT_FOUND.code(), exception.getCode());
         verify(testReviewService, never()).createReview(any(), any(), any());
     }
@@ -102,8 +93,7 @@ class SelectionAdoptSupportTest {
         created.setId(UUID.randomUUID());
         when(testReviewService.createReview(eq(PROJECT_ID), eq(OPERATOR_ID), any())).thenReturn(created);
 
-        AdoptOutcome outcome = support.create(context(reviewParams(), "adopted", user("review:create")),
-                "review:create", false);
+        AdoptOutcome outcome = support.create(context(reviewParams(), "adopted", user("review:create")), false);
 
         assertNotNull(outcome);
         assertEquals(created.getId(), outcome.createdId());
@@ -120,7 +110,7 @@ class SelectionAdoptSupportTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> support.create(context(Map.of("selectedNodes", List.of(
                                 Map.of("documentId", DOCUMENT_ID, "caseIds", List.of(CASE_ID)))),
-                        "adopted", user("plan:create")), "plan:create", true));
+                        "adopted", user("plan:create")), true));
         assertEquals(ErrorCodeConstants.SELECTION_INPUT_INVALID.code(), exception.getCode());
     }
 
@@ -128,7 +118,8 @@ class SelectionAdoptSupportTest {
 
     private static LoginUser user(String permission) {
         LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of(permission));
+        // 权限不再由采纳侧校验，登录态仅作操作人归因（桩不再被消费，置 lenient）
+        lenient().when(user.getPermissions()).thenReturn(List.of(permission));
         return user;
     }
 

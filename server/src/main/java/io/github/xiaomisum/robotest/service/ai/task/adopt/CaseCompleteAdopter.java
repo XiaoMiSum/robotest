@@ -37,9 +37,6 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 @Service
 public class CaseCompleteAdopter implements ArtifactAdopter {
 
-    /** 补全与级别推荐均要求脑图编辑权（详设 3.6.1「落库承接」列） */
-    private static final String PERMISSION = "case:edit";
-
     /** 补充节点落位（详设 3.2 target.extraNodePosition，缺省 sibling）：child 落源节点之下 */
     private static final String POSITION_CHILD = "child";
 
@@ -71,7 +68,6 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
         if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
             return null;
         }
-        support.requirePermission(context.loginUser(), PERMISSION);
         AssistAdoptSupport.CaseTarget target = support.resolveCaseTarget(context);
         Map<String, Object> content = contentOf(context.artifact());
 

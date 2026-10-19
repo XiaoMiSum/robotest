@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.domain.requirement;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
@@ -90,14 +89,6 @@ public class RequirementImportHandler implements TaskHandler {
     @Override
     public String defaultPrompt() {
         return DEFAULT_PROMPT;
-    }
-
-    /** 导入入口在需求侧已校验 requirement:create（详设 6.1）；直提任务资源时在此补齐（3.6.2） */
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains("requirement:create")) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NO_PERMISSION);
-        }
     }
 
     @Override

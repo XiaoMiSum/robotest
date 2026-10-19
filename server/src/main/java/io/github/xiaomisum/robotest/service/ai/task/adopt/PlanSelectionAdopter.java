@@ -14,8 +14,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class PlanSelectionAdopter implements ArtifactAdopter {
 
-    private static final String PERMISSION_CREATE = "plan:create";
-
     @Resource
     private SelectionAdoptSupport support;
 
@@ -26,6 +24,6 @@ public class PlanSelectionAdopter implements ArtifactAdopter {
 
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
-        return support.create(context, PERMISSION_CREATE, true);
+        return support.create(context, true);
     }
 }

@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.adopt;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.ProjectModuleCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseDocumentCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.ProjectModuleTreeRespDTO;
@@ -37,15 +36,13 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 生成链产物采纳（生成链详设 3.5 采纳事务）：case:edit 资源权限（1000018208）→
- * 按 kind 落库（委托既有创建服务）→ adopted_ref 回写；
+ * 生成链产物采纳（生成链详设 3.5 采纳事务）：按 kind 落库（委托既有创建服务）→ adopted_ref 回写；
  * 疑似重复的产物仅改名后可采纳（1000018204），父级未采纳不落库（1000018210）。
  */
 @Slf4j
 @Service
 public class GenerationAdoptServiceImpl implements GenerationAdoptService, ArtifactAdopter {
 
-    private static final String PERMISSION_ADOPT = "case:edit";
     private static final String PLACEMENT_ATTACH = "attach";
     private static final String FIELD_PLACEMENT = "placement";
     private static final String FIELD_TARGET_MODULE = "targetModuleId";
@@ -75,7 +72,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
             return null;
         }
-        requirePermission(context.loginUser());
         String kind = asString(context.artifact().get("kind"));
         if (Constants.AiArtifactKind.MODULE.equals(kind)) {
             return adoptModule(context);
@@ -240,12 +236,6 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
     }
 
     // ---------- 共用 ----------
-
-    private static void requirePermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION_ADOPT)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.GENERATION_NO_ADOPT_PERMISSION);
-        }
-    }
 
     /** 疑似重复的产物只有改名后（adopted_edited）可采纳，避免重复数据落库 */
     private static void guardSuspectedDuplicate(AdoptContext context, Map<String, Object> content) {

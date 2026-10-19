@@ -1,7 +1,5 @@
 package io.github.xiaomisum.robotest.service.ai.task;
 
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
-
 import java.util.Map;
 
 /**
@@ -16,10 +14,6 @@ public interface TaskHandler {
     /** 内置默认提示词：无自定义场景行时的回落内容（详设 3.5 source = default 口径） */
     default String defaultPrompt() {
         return null;
-    }
-
-    /** 附加资源权限（3.6.2「ai:task + 对应资源权限」）；仅 HTTP 提交携带登录态时调用 */
-    default void checkPermission(LoginUser loginUser) {
     }
 
     /** 输入校验，失败抛 ServiceException(1000018115)（3.6.2） */

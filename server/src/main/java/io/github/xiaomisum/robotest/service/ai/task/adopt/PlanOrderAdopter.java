@@ -38,9 +38,6 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 @Service
 public class PlanOrderAdopter implements ArtifactAdopter {
 
-    /** 执行顺序建议要求计划执行权（详设 3.6.1「落库承接」列） */
-    private static final String PERMISSION = "plan:execute";
-
     /** 根节点分组键，与计划树读取口径（Constants.Tree.ROOT_KEY）一致 */
     private static final String ROOT_KEY = Constants.Tree.ROOT_KEY;
 
@@ -61,7 +58,6 @@ public class PlanOrderAdopter implements ArtifactAdopter {
         if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
             return null;
         }
-        support.requirePermission(context.loginUser(), PERMISSION);
         UUID planId = requirePlanId(context);
         TestPlan plan = testPlanMapper.selectById(planId);
         if (plan == null || !context.projectId().equals(plan.getProjectId())) {

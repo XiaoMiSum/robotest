@@ -144,7 +144,7 @@ class AiTaskServiceImplTest {
         return service.submit(req, PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
     }
 
-    // ---------- 提交（3.6.2 校验顺序：等待参数 → 总开关 → 权限 → 类型 → 输入 → 模型） ----------
+    // ---------- 提交（3.6.2 校验顺序：等待参数 → 总开关 → 类型 → 输入 → 模型） ----------
 
     @Test
     void submit_waitSecondsInvalid_throws123() {
@@ -160,14 +160,6 @@ class AiTaskServiceImplTest {
                 () -> submit(submitReq(0)));
         assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
         verifyNoInteractions(taskMapper);
-    }
-
-    @Test
-    void submit_noAiTaskPermission_throws116() {
-        loginUser.setAuthorities(List.of());
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> submit(submitReq(0)));
-        assertEquals(ErrorCodeConstants.AI_NO_PERMISSION.code(), exception.getCode());
     }
 
     @Test
@@ -300,15 +292,6 @@ class AiTaskServiceImplTest {
         AiTaskCountRespDTO resp = service.countActive(null, USER_ID, loginUser);
 
         assertEquals(0L, resp.getCount());
-    }
-
-    @Test
-    void countActive_noAiTaskPermission_throws116() {
-        loginUser.setAuthorities(List.of());
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.countActive(PROJECT_ID, USER_ID, loginUser));
-        assertEquals(ErrorCodeConstants.AI_NO_PERMISSION.code(), exception.getCode());
-        verifyNoInteractions(taskMapper);
     }
 
     @Test
@@ -449,17 +432,6 @@ class AiTaskServiceImplTest {
     }
 
     @Test
-    void cancel_withoutAiTaskPermission_throws116() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task("pending"));
-        loginUser.setAuthorities(List.of());
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.cancel(TASK_ID, loginUser));
-        assertEquals(ErrorCodeConstants.AI_NO_PERMISSION.code(), exception.getCode());
-        verify(taskMapper, never()).casCancel(any());
-    }
-
-    @Test
     void retry_failed_copiesInputAndModelWithRetryLink() {
         AiTask failed = task("failed");
         failed.setInput(Map.of("requirementId", "r-1"));
@@ -514,16 +486,6 @@ class AiTaskServiceImplTest {
         AiTask done = task("succeeded");
         done.setResult(Map.of("artifacts", List.of(Map.of("key", "a1", "kind", "k", "title", "T"))));
         return done;
-    }
-
-    @Test
-    void confirm_withoutConfirmPermission_throws116() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-        loginUser.setAuthorities(List.of(new SimpleGrantedAuthority("ai:task")));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.confirm(TASK_ID, confirmReq("a1", "adopted"), loginUser));
-        assertEquals(ErrorCodeConstants.AI_NO_PERMISSION.code(), exception.getCode());
     }
 
     @Test
