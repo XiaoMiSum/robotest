@@ -566,7 +566,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - 基础路径：`/api/ai`（`docs/02-high-level-design/04-hld-data-interface.md` 2.1 已登记）：
   - **管理配置与用量**（3.2–3.5、3.7）：需系统角色 + `ai:admin` 权限，**不携带**工作空间 / 项目上下文头；
-  - **任务与助手**（3.6、各分册）：需 `ai:task` / `ai:confirm` 权限；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`（C4，上下文不出 URL）。
+  - **任务**（3.6）：后端不做权限校验（`ai:task` / `ai:confirm` 仅用于前端入口显隐），仅保留任务归属可见性（3.6.3）；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`（C4，上下文不出 URL）。
+  - **助手**（各分册）：需 `ai:confirm` 权限（助手执行接口独立于任务端点）；上下文头要求同上。
 - 响应使用平台通用 `Result<T>`，下文示例**仅展示 `data` 字段**；分页 `pageNo` / `pageSize` → `{ list, total }`；字段 camelCase。
 - 密钥字段（`apiKey`）**写入可用、读取永不返回**，列表与详情仅返回 `keyConfigured` 布尔。
 - 任务是全部 AI 执行的唯一收口：能力域分册的业务动作统一映射到 3.6 的任务资源，不另设平行的 AI 执行端点。
@@ -732,7 +733,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 #### 3.6.2 提交任务（创建即启动执行）
 
-- **路径**：`POST /api/ai/tasks`（权限：`ai:task` + 对应资源权限）
+- **路径**：`POST /api/ai/tasks`（后端不做权限校验，登录即可提交）
 - **请求**：
 
 ```json
@@ -762,14 +763,14 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- **校验顺序**：总开关（1000018101）→ 权限（1000018116）→ 类型 → 输入 → 预算 → 可用模型（1000018118；必需能力选型见 4.2，无候选 1000018124）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。
+- **校验顺序**：总开关（1000018101）→ 类型 → 输入 → 预算 → 可用模型（1000018118；必需能力选型见 4.2，无候选 1000018124）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。任务端点不做权限校验（`ai:task` / `ai:confirm` 及任务类型资源权限均不校验），仅详情 / 操作的归属可见性按 3.6.3 判定。
 
 #### 3.6.3 任务列表与详情
 
 - **列表**：`GET /api/ai/tasks`
   - 参数：`type`、`status`、`projectId` 不传（项目上下文经 `X-Active-Project` 头过滤，未附带则返回本人提交的任务）、`pageNo`、`pageSize`。
   - 响应列表项：`{ taskId, type, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`。
-- **进行中计数**：`GET /api/ai/tasks/running-count`（权限 `ai:task`）——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数；项目上下文经 `X-Active-Project` 头过滤（未附带则统计本人提交的任务），语义与列表一致。
+- **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数；项目上下文经 `X-Active-Project` 头过滤（未附带则统计本人提交的任务），语义与列表一致。
   - 响应：`{ "count": 2 }`。
 - **详情**：`GET /api/ai/tasks/{taskId}`
   - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`status = proposals_ready / closed` 时附提案清单摘要；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
@@ -808,11 +809,11 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
 - **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 复用原执行模型；同任务同时至多一个进行中执行；新执行产生新提案，原提案与采纳记录保留。
-- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`（权限 `ai:task`）——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。
+- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
 
-- **路径**：`POST /api/ai/tasks/{taskId}/proposals/confirm`（权限：`ai:confirm`）
+- **路径**：`POST /api/ai/tasks/{taskId}/proposals/confirm`（后端不做权限校验，登录且任务可见即可）
 - **请求**（批量，部分采纳支持逐条动作与编辑内容；落库目标项目经 `X-Active-Project` 头传递，不出请求体）：
 
 ```json
@@ -875,8 +876,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | code | 名称 | scope | 用于 |
 | ---- | ---- | ---- | ---- |
 | ai:admin | AI 配置与用量管理 | global（系统角色） | 3.2–3.5、3.7 |
-| ai:task | 发起与管理 AI 任务 | workspace | 3.6.2–3.6.4 |
-| ai:confirm | AI 提案采纳 | workspace | 3.6.5 |
+| ai:task | AI 任务入口可见性 | workspace | 前端入口显隐（顶栏指示器、能力页任务中心按钮），后端接口不校验 |
+| ai:confirm | AI 提案确认入口可见性 | workspace | 前端确认操作入口显隐，后端接口不校验（助手执行接口的确认权限除外，见分册 04） |
 
 ---
 
@@ -992,7 +993,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | 1000018113 | 409 | 提案已确认，不可重复操作 |
 | 1000018114 | 400 | 不支持的任务类型 |
 | 1000018115 | 400 | 任务输入参数非法 |
-| 1000018116 | 403 | 无 AI 能力使用权限 |
 | 1000018117 | 500 | 模型服务调用失败（不可用、超时或限流） |
 | 1000018118 | 400 | 未配置可用模型 |
 | 1000018119 | 400 | 向量 API 未配置或未启用，检索能力不可用 |
@@ -1076,3 +1076,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-16 | 统一任务资源切换为 AI Task 任务资源（双平面，机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2.6 改为框架五表（`ai_task` 去 `progress/phase/result`，新增 `ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_tool`），2.7 `ai_artifact_confirm` 改名 `ai_task_adoption`（`artifact_key → proposal_key`），2.8 补 `execution_id` 归因；3.6 重写为任务 · 执行 · 轨迹 · 提案资源（终止 / 再次执行 / 轨迹游标 / 提案确认，状态机 `running → proposals_ready → closed / aborted`），4.2 改为 Agent 执行核与预算护栏，5.2 / 5.3 前端组件与任务态同步，6 补 1000018125–1000018127，7 实体数与迁移清单同步 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：1.2 范围改「14 张 AI 表」，2.6 标题改「与 2.7 共六表」，2.5 / 3.5 生效规则改「不改变已采纳的产出」，3.8 权限 `ai:confirm` 改「AI 提案采纳」 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：1.2 删除矩阵领域资源说明，3.6.1 注销 `coverage_analysis` / `impact_analysis` 任务类型，3.2 / 3.6.4 / 4.5 / 5.2 移除覆盖状态列、追溯边与追溯子页入口相关表述 |
+| V1.0 | 2026-10-19 | AI 任务端点移除后端权限校验：3.1 / 3.6.2–3.6.5 删除 `ai:task` · `ai:confirm` 与任务类型资源权限校验（归属可见性保留），3.8 权限点用途改为前端入口显隐，错误码表注销 1000018116 |
