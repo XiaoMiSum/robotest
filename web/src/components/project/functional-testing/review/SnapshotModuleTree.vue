@@ -59,6 +59,10 @@ function handleNodeClick(data: SnapshotModule, node: TreeNodeToggle) {
       :current-node-key="currentDocId"
       @node-click="handleNodeClick"
     >
+      <!-- 空态统一走 el-tree 自带 empty 插槽，避免与组件内置“暂无数据”文案重复展示 -->
+      <template #empty>
+        <el-empty description="暂无快照文档" :image-size="40" />
+      </template>
       <template #default="{ data: node }">
         <span class="snapshot-tree__label">
           <el-icon v-if="node.type === 'directory'" class="snapshot-tree__icon snapshot-tree__icon--folder"><Folder /></el-icon>
@@ -67,8 +71,6 @@ function handleNodeClick(data: SnapshotModule, node: TreeNodeToggle) {
         </span>
       </template>
     </el-tree>
-
-    <el-empty v-if="!data.length" description="暂无快照文档" :image-size="40" />
   </div>
 </template>
 
