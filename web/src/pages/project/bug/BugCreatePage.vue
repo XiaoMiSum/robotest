@@ -9,6 +9,7 @@ import BugSuggestBadge from '@/components/project/bug/BugSuggestBadge.vue'
 import AssigneeCandidateChips from '@/components/project/bug/AssigneeCandidateChips.vue'
 import DuplicateCheckPanel from '@/components/project/bug/DuplicateCheckPanel.vue'
 import { fetchAiStatus } from '@/services/ai'
+import type { BugPriority, BugSeverity } from '@/types'
 
 const {
   formRef,
@@ -65,6 +66,37 @@ async function handleRequestSuggest(): Promise<void> {
     steps: normalizedReproSteps.value || undefined,
     moduleId: form.moduleId || undefined,
   })
+}
+
+/** 选中态色系令牌：严重等级取缺陷等级色（视觉规范 4.3），与列表/详情标签同源 */
+const SEVERITY_COLOR: Record<BugSeverity, string> = {
+  fatal: 'var(--color-bug-fatal)',
+  serious: 'var(--color-bug-serious)',
+  general: 'var(--color-bug-general)',
+  minor: 'var(--color-bug-minor)',
+}
+
+/** 优先级取优先级色 P1~P3（视觉规范 4.2），与列表/详情标签色一致 */
+const PRIORITY_COLOR: Record<BugPriority, string> = {
+  high: 'var(--color-priority-p1)',
+  medium: 'var(--color-priority-p2)',
+  low: 'var(--color-priority-p3)',
+}
+
+/** 分段按钮选中态颜色按色系令牌注入（EP 无逐按钮配置 prop，走组件级 CSS 变量，同需求新建页范式） */
+function severityButtonStyle(value: BugSeverity): Record<string, string> {
+  return {
+    '--el-radio-button-checked-bg-color': SEVERITY_COLOR[value],
+    '--el-radio-button-checked-border-color': SEVERITY_COLOR[value],
+  }
+}
+
+/** 同上：优先级分段按钮选中态 */
+function priorityButtonStyle(value: BugPriority): Record<string, string> {
+  return {
+    '--el-radio-button-checked-bg-color': PRIORITY_COLOR[value],
+    '--el-radio-button-checked-border-color': PRIORITY_COLOR[value],
+  }
 }
 
 /** 用户已填值与建议不一致时以用户值为准，徽标点击才采纳（交互 2.2） */
@@ -174,97 +206,110 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="bug-create__side">
-          <el-form-item label="缺陷类型" prop="bugType">
-            <el-select v-model="form.bugType">
-              <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
-            </el-select>
-            <BugSuggestBadge
-              :model-value="form.bugType"
-              :label="'类型'"
-              :suggestion="suggestions.bugType"
-              @adopt="adoptSuggestion('bugType', $event)"
-            />
-          </el-form-item>
-          <el-form-item label="所属模块">
-            <el-tree-select
-              v-model="form.moduleId"
-              :data="moduleTree"
-              :props="{ label: 'name', children: 'children' }"
-              node-key="id"
-              check-strictly
-              clearable
-              placeholder="选择所属模块（可选）"
-            />
-            <BugSuggestBadge
-              :model-value="form.moduleId"
-              :label="'模块'"
-              :suggestion="moduleIdSuggestion"
-              :adopt-value="moduleIdSuggestion?.value ?? ''"
-              @adopt="adoptSuggestion('moduleId', $event)"
-            />
-          </el-form-item>
-          <el-form-item label="严重等级" prop="severity">
-            <el-radio-group v-model="form.severity">
-              <el-radio v-for="(label, key) in severityLabel" :key="key" :value="key">
-                <span class="bug-create__severity-dot" :class="`bug-create__severity-dot--${key}`" />{{ label }}
-              </el-radio>
-            </el-radio-group>
-            <BugSuggestBadge
-              :model-value="form.severity"
-              :label="'等级'"
-              :suggestion="suggestions.severity"
-              @adopt="adoptSuggestion('severity', $event)"
-            />
-          </el-form-item>
-          <el-form-item label="优先级" prop="priority">
-            <el-radio-group v-model="form.priority">
-              <el-radio v-for="(label, key) in priorityLabel" :key="key" :value="key">{{ label }}</el-radio>
-            </el-radio-group>
-            <BugSuggestBadge
-              :model-value="form.priority"
-              :label="'优先级'"
-              :suggestion="suggestions.priority"
-              @adopt="adoptSuggestion('priority', $event)"
-            />
-          </el-form-item>
-          <el-form-item label="截止日期">
-            <el-date-picker
-              v-model="form.dueDate"
-              type="date"
-              value-format="YYYY-MM-DD"
-              placeholder="选择截止日期（可选）"
-              class="bug-create__date"
-            />
-          </el-form-item>
-          <el-form-item label="关键词">
-            <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
-            <BugSuggestBadge
-              :model-value="form.keywords"
-              :label="'关键词'"
-              :suggestion="keywordsSuggestion"
-              @adopt="adoptKeywords($event.split(' '))"
-            />
-          </el-form-item>
-          <el-form-item label="指派给" prop="assigneeId">
-            <el-select v-model="form.assigneeId" filterable placeholder="选择处理人">
-              <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
-            </el-select>
-            <!-- 指派候选：悬浮理由，点击采纳（交互 2.2） -->
-            <AssigneeCandidateChips
-              :candidates="assigneeCandidates"
-              :selected-id="form.assigneeId"
-              @adopt="adoptAssignee"
-            />
-          </el-form-item>
-          <el-form-item label="关联用例">
-            <el-button @click="caseSelectorVisible = true">选择用例</el-button>
-            <span v-if="selectedCaseTitle" class="bug-create__hint">{{ selectedCaseTitle }}</span>
-          </el-form-item>
-          <el-form-item label="关联计划">
-            <el-select v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）">
-              <el-option v-for="p in planOptions" :key="p.id" :label="p.name" :value="p.id" />
-            </el-select>
-          </el-form-item>
+          <!-- 侧栏分区保留卡片容器、只去卡片 header（不渲染分区标题，详设 1.14） -->
+          <el-card shadow="never">
+            <el-form-item label="缺陷类型" prop="bugType">
+              <el-select v-model="form.bugType">
+                <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
+              </el-select>
+              <BugSuggestBadge
+                :model-value="form.bugType"
+                :label="'类型'"
+                :suggestion="suggestions.bugType"
+                @adopt="adoptSuggestion('bugType', $event)"
+              />
+            </el-form-item>
+            <el-form-item label="所属模块">
+              <el-tree-select
+                v-model="form.moduleId"
+                :data="moduleTree"
+                :props="{ label: 'name', children: 'children' }"
+                node-key="id"
+                check-strictly
+                clearable
+                placeholder="选择所属模块（可选）"
+              />
+              <BugSuggestBadge
+                :model-value="form.moduleId"
+                :label="'模块'"
+                :suggestion="moduleIdSuggestion"
+                :adopt-value="moduleIdSuggestion?.value ?? ''"
+                @adopt="adoptSuggestion('moduleId', $event)"
+              />
+            </el-form-item>
+            <el-form-item label="严重等级" prop="severity">
+              <el-radio-group v-model="form.severity">
+                <el-radio-button
+                  v-for="(label, key) in severityLabel"
+                  :key="key"
+                  :value="key"
+                  :style="severityButtonStyle(key as BugSeverity)"
+                >{{ label }}</el-radio-button>
+              </el-radio-group>
+              <BugSuggestBadge
+                :model-value="form.severity"
+                :label="'等级'"
+                :suggestion="suggestions.severity"
+                @adopt="adoptSuggestion('severity', $event)"
+              />
+            </el-form-item>
+            <el-form-item label="优先级" prop="priority">
+              <el-radio-group v-model="form.priority">
+                <el-radio-button
+                  v-for="(label, key) in priorityLabel"
+                  :key="key"
+                  :value="key"
+                  :style="priorityButtonStyle(key as BugPriority)"
+                >{{ label }}</el-radio-button>
+              </el-radio-group>
+              <BugSuggestBadge
+                :model-value="form.priority"
+                :label="'优先级'"
+                :suggestion="suggestions.priority"
+                @adopt="adoptSuggestion('priority', $event)"
+              />
+            </el-form-item>
+            <el-form-item label="截止日期">
+              <el-date-picker
+                v-model="form.dueDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="选择截止日期（可选）"
+                class="bug-create__date"
+              />
+            </el-form-item>
+            <el-form-item label="关键词">
+              <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
+              <BugSuggestBadge
+                :model-value="form.keywords"
+                :label="'关键词'"
+                :suggestion="keywordsSuggestion"
+                @adopt="adoptKeywords($event.split(' '))"
+              />
+            </el-form-item>
+          </el-card>
+          <el-card shadow="never">
+            <el-form-item label="指派给" prop="assigneeId">
+              <el-select v-model="form.assigneeId" filterable placeholder="选择处理人">
+                <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
+              </el-select>
+              <!-- 指派候选：悬浮理由，点击采纳（交互 2.2） -->
+              <AssigneeCandidateChips
+                :candidates="assigneeCandidates"
+                :selected-id="form.assigneeId"
+                @adopt="adoptAssignee"
+              />
+            </el-form-item>
+            <el-form-item label="关联用例">
+              <el-button @click="caseSelectorVisible = true">选择用例</el-button>
+              <span v-if="selectedCaseTitle" class="bug-create__hint">{{ selectedCaseTitle }}</span>
+            </el-form-item>
+            <el-form-item label="关联计划">
+              <el-select v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）">
+                <el-option v-for="p in planOptions" :key="p.id" :label="p.name" :value="p.id" />
+              </el-select>
+            </el-form-item>
+          </el-card>
         </div>
       </div>
     </el-form>
@@ -473,19 +518,5 @@ onBeforeUnmount(() => {
   margin-left: var(--space-sm);
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
-}
-
-.bug-create__severity-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: var(--space-sm);
-  vertical-align: middle;
-
-  &--fatal { background: var(--color-bug-fatal); }
-  &--serious { background: var(--color-bug-serious); }
-  &--general { background: var(--color-bug-general); }
-  &--minor { background: var(--color-bug-minor); }
 }
 </style>
