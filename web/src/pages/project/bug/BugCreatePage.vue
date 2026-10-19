@@ -115,18 +115,11 @@ onBeforeUnmount(() => {
         <el-button type="primary" :loading="submitting" @click="handleSubmit">提交缺陷</el-button>
       </div>
     </div>
-    <h1 class="bug-create__title">提交缺陷</h1>
 
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="bug-create__form">
       <div class="bug-create__layout">
         <!-- 分区只作逻辑分组：不渲染分区标题、不套卡片（详设 1.14），靠间距区分 -->
         <div class="bug-create__main">
-          <!-- 草稿建议入口（详设 3.5）：AI 未启用时隐藏 -->
-          <div v-if="aiAvailable" class="bug-create__section-row">
-            <el-button size="small" :loading="suggestLoading" @click="handleRequestSuggest">
-              <el-icon><MagicStick /></el-icon>获取 AI 建议
-            </el-button>
-          </div>
           <el-alert
             v-if="suggestError"
             type="warning"
@@ -142,7 +135,21 @@ onBeforeUnmount(() => {
               maxlength="300"
               show-word-limit
               size="large"
-            />
+              :class="{ 'bug-create__title-input--noai': !aiAvailable }"
+            >
+              <!-- 草稿建议入口（详设 3.5）：AI 未启用时挂载点隐藏，输入组按无 append 形态收口 -->
+              <template #append>
+                <el-button
+                  v-if="aiAvailable"
+                  class="bug-create__ai-append"
+                  :loading="suggestLoading"
+                  :disabled="!form.title.trim()"
+                  @click="handleRequestSuggest"
+                >
+                  <el-icon><MagicStick /></el-icon>AI 建议
+                </el-button>
+              </template>
+            </el-input>
           </el-form-item>
           <el-form-item label="重现步骤" class="bug-create__repro">
             <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
@@ -312,13 +319,6 @@ onBeforeUnmount(() => {
   }
 }
 
-.bug-create__title {
-  margin: var(--space-md) 0 0;
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-neutral-800);
-}
-
 .bug-create__form {
   margin-top: var(--space-md);
 }
@@ -339,13 +339,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-}
-
-// AI 建议入口独占行右对齐，保持原视觉位置（原卡片 header 行）
-.bug-create__section-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
 }
 
 .bug-create__suggest-error {
@@ -380,6 +373,88 @@ onBeforeUnmount(() => {
 .bug-create__repro :deep(.md-editor) {
   width: 100%;
   border-radius: var(--radius-md);
+}
+
+// 标题输入组与 AI 按钮衔接：wrapper 右端去圆角交给 append 收口，append 去底色仅留 1px 分隔
+.bug-create__form :deep(.el-input-group--append .el-input__wrapper) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.bug-create__form :deep(.el-input-group__append) {
+  padding: 0;
+  background: transparent;
+  border-left: 1px solid var(--color-neutral-200);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  overflow: hidden;
+}
+
+// AI 未启用：append 无按钮可渲染，隐藏空挂载点并把右端圆角交还输入框（等价无 append 形态）
+.bug-create__form :deep(.bug-create__title-input--noai .el-input-group__append) {
+  display: none;
+}
+
+.bug-create__form :deep(.bug-create__title-input--noai .el-input__wrapper) {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+// 按钮与输入栏一体化：透明底、成功绿表达「可采纳的建议」，禁用态灰显
+.bug-create__form :deep(.bug-create__ai-append) {
+  height: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-success);
+  font-weight: 600;
+
+  &.is-disabled,
+  &:disabled {
+    background: transparent;
+    color: var(--color-neutral-400);
+  }
+
+  // 悬停维持与输入栏一体，不做 EP 默认底色
+  &:hover:not(:disabled):not(.is-disabled) {
+    background: transparent;
+    color: var(--color-success);
+  }
+
+  // 填入标题后（可操作态）：呼吸光晕 + 魔棒微晃引导点击；禁用与 loading 态停用
+  &:not(:disabled):not(.is-disabled):not(.is-loading) {
+    animation: bug-create-ai-glow 2s ease-in-out infinite;
+
+    .el-icon {
+      animation: bug-create-ai-wiggle 2s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes bug-create-ai-glow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 color-mix(in srgb, var(--color-success) 0%, transparent);
+  }
+
+  50% {
+    box-shadow: inset 0 0 10px 2px color-mix(in srgb, var(--color-success) 35%, transparent);
+  }
+}
+
+@keyframes bug-create-ai-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-10deg);
+  }
+
+  75% {
+    transform: rotate(10deg);
+  }
 }
 
 // UI-DS-09 例外（已确认）：拖拽区默认纵向内边距 40px + 40px 图标，压到约一半高度
