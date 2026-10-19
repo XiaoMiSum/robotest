@@ -323,7 +323,9 @@ async function submitForm(): Promise<void> {
           @click="openCreateDialog"
         >
           <span class="project-list-page__create-icon" aria-hidden="true">
-            <el-icon><Plus /></el-icon>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+            </svg>
           </span>
           <strong>新建项目</strong>
           <span>从项目开始组织测试资产与团队协作</span>
@@ -574,54 +576,54 @@ async function submitForm(): Promise<void> {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 270px;
-  padding: 20px;
-  border: 1px dashed var(--color-primary-300);
+  min-height: 200px;
+  padding: var(--space-xl) var(--card-pad);
+  border: 1px dashed var(--color-neutral-300);
   border-radius: var(--radius-lg);
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
-  cursor: pointer;
+  background: transparent;
+  color: var(--color-neutral-700);
   font: inherit;
-  text-align: center;
+  cursor: pointer;
   transition:
-    background var(--transition-fast),
     border-color var(--transition-fast),
+    background var(--transition-fast),
     transform var(--transition-fast);
 
   &:hover,
   &:focus-visible {
-    border-color: var(--color-primary-500);
-    background: var(--color-primary-100);
-    outline: none;
+    border-color: var(--color-primary-400);
+    background: var(--color-primary-50);
     transform: translateY(-2px);
   }
 
   strong {
-    margin-top: var(--space-sm);
-    font-size: var(--font-size-base);
-    font-weight: 600;
+    color: var(--color-neutral-900);
+    font-size: var(--font-size-sm);
   }
 
   > span:last-child {
-    max-width: 220px;
-    margin-top: var(--space-xs);
-    color: var(--color-primary-600);
+    margin-top: 4px;
+    color: var(--color-neutral-500);
     font-size: var(--font-size-xs);
-    line-height: 1.5;
   }
 }
 
 .project-list-page__create-icon {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid var(--color-primary-200);
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-neutral-200);
   border-radius: 50%;
-  background: var(--color-neutral-0);
-  color: var(--color-primary-500);
-  font-size: 20px;
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-400);
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 .project-list-page__load-more {
@@ -725,6 +727,12 @@ async function submitForm(): Promise<void> {
     flex: 1 1 100%;
     width: 100%;
     min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-list-page__create-card {
+    transition: none;
   }
 }
 </style>
