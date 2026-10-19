@@ -263,6 +263,20 @@ describe('useBugDetail', () => {
       await vi.dynamicImportSettled()
       expect(s.isRejected.value).toBe(true)
     })
+
+    it('isEditable 仅 active / rejected 为 true，resolved / closed 为 false', async () => {
+      setupMocks()
+      const active = init()
+      await vi.dynamicImportSettled()
+      expect(active.isEditable.value).toBe(true)
+
+      for (const status of ['rejected', 'resolved', 'closed'] as const) {
+        setupMocks({ bug: makeBug({ status }) })
+        const s = init()
+        await vi.dynamicImportSettled()
+        expect(s.isEditable.value).toBe(status === 'rejected')
+      }
+    })
   })
 
   describe('load', () => {

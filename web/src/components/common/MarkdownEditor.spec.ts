@@ -14,6 +14,7 @@ const fake = vi.hoisted(() => {
     disabled: vi.fn(),
     enable: vi.fn(),
     destroy: vi.fn(),
+    setHeight: vi.fn(),
   }
   return {
     editor,
@@ -39,6 +40,8 @@ vi.mock('@/services/files', () => ({
 
 vi.mock('element-plus', () => ({
   ElMessage: { warning: fake.warning, error: vi.fn() },
+  // 编辑器底部「完整显示」按钮：桩成原生 button，属性透传天然落到底层 DOM
+  ElButton: { name: 'ElButton', template: '<button><slot /></button>' },
 }))
 
 interface CapturedOptions {
@@ -231,5 +234,77 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     wrapper.unmount()
     expect(document.body.style.overflow).toBe('')
     expect(document.querySelector('.markdown-editor__mask')).toBeNull()
+  })
+
+  // ==================== 完整显示（内容高度自适应） ====================
+
+  /** jsdom 量不到布局，向挂载元素补一块带固定 scrollHeight/clientHeight 的正文区 */
+  function attachArea(wrapper: VueWrapper, scrollHeight: number, clientHeight: number): HTMLElement {
+    const container = wrapper.find('.markdown-editor').element as HTMLElement
+    const area = document.createElement('div')
+    area.className = 'vditor-wysiwyg'
+    Object.defineProperty(area, 'scrollHeight', { value: scrollHeight, configurable: true })
+    Object.defineProperty(area, 'clientHeight', { value: clientHeight, configurable: true })
+    container.appendChild(area)
+    return area
+  }
+
+  async function measureByResize(): Promise<void> {
+    window.dispatchEvent(new Event('resize'))
+    await nextTick()
+  }
+
+  function findExpandButton(wrapper: VueWrapper) {
+    return wrapper.find('.markdown-editor-expand button')
+  }
+
+  it('内容未超出编辑区高度时不渲染完整显示按钮', async () => {
+    const { options, wrapper } = await mountEditor()
+    markReady(options)
+    attachArea(wrapper, 300, 300)
+    await measureByResize()
+    expect(wrapper.find('.markdown-editor-expand').exists()).toBe(false)
+  })
+
+  it('内容显示不全时出现完整显示，点击撑高至内容高度，再点收起恢复默认高度', async () => {
+    const { options, wrapper } = await mountEditor()
+    markReady(options)
+    attachArea(wrapper, 1000, 300)
+    await measureByResize()
+
+    const button = findExpandButton(wrapper)
+    expect(button.exists()).toBe(true)
+    expect(button.text()).toBe('完整显示')
+
+    await button.trigger('click')
+    // 展开高度 = 正文滚动高度(1000) + 工具栏高度(无 DOM 为 0) + 缓冲(2)
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('1002px')
+    expect(findExpandButton(wrapper).text()).toBe('收起')
+
+    await findExpandButton(wrapper).trigger('click')
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('320px')
+    expect(findExpandButton(wrapper).text()).toBe('完整显示')
+  })
+
+  it('展开态下正文继续增长时按最新内容高度重新撑高', async () => {
+    const { options, wrapper } = await mountEditor()
+    markReady(options)
+    const area = attachArea(wrapper, 1000, 300)
+    await measureByResize()
+
+    await findExpandButton(wrapper).trigger('click')
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('1002px')
+
+    Object.defineProperty(area, 'scrollHeight', { value: 1600 })
+    await measureByResize()
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('1602px')
+  })
+
+  it('禁用（只读）态不渲染完整显示按钮', async () => {
+    const { options, wrapper } = await mountEditor('', { disabled: true })
+    markReady(options)
+    attachArea(wrapper, 1000, 300)
+    await measureByResize()
+    expect(wrapper.find('.markdown-editor-expand').exists()).toBe(false)
   })
 })
