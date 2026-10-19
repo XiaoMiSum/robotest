@@ -176,6 +176,15 @@ defineExpose({ reload: load, getTree: () => treeData.value })
     background: transparent;
   }
 
+  // 空态在树区域内垂直居中（默认空块仅水平居中、贴顶展示）
+  :deep(.el-tree__empty-block) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0;
+  }
+
   :deep(.el-tree-node__content) {
     border-radius: var(--radius-md);
     margin-bottom: 2px;

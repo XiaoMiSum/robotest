@@ -77,6 +77,25 @@ function handleNodeClick(data: SnapshotModule, node: TreeNodeToggle) {
 <style scoped lang="scss">
 .snapshot-tree {
   padding: var(--space-sm);
+  // 占满卡片 body 高度，供空态在树区域内垂直居中
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+
+  :deep(.el-tree) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  // 空态在树区域内垂直居中（默认空块仅水平居中、贴顶展示）
+  :deep(.el-tree__empty-block) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0;
+  }
 }
 
 .snapshot-tree__label {
