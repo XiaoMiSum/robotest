@@ -10,6 +10,7 @@ import io.github.xiaomisum.robotest.service.project.ProjectService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -45,6 +46,7 @@ public class ProjectController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('project:create')")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<ProjectRespDTO> createProject(
             @AuthenticationPrincipal LoginUser loginUser,
