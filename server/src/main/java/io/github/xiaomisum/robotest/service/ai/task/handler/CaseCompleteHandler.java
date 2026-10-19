@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
@@ -42,7 +41,6 @@ public class CaseCompleteHandler implements TaskHandler {
     public static final String TYPE = "case_complete";
 
     private static final String SYSTEM_PROMPT = "你是资深测试用例设计专家。严格按用户给出的 JSON 输出结构作答。";
-    private static final String PERMISSION = "case:edit";
 
     private static final int MAX_STEPS = 10;
     private static final int MAX_TAGS = 5;
@@ -79,13 +77,6 @@ public class CaseCompleteHandler implements TaskHandler {
                 上游需求：
                 {{requirementContext}}
                 """;
-    }
-
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_NO_PERMISSION);
-        }
     }
 
     @Override

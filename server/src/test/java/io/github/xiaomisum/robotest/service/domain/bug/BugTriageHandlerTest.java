@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
@@ -65,16 +64,6 @@ class BugTriageHandlerTest {
     void type_isBugTriage() {
         assertEquals("bug_triage", handler.type());
         assertTrue(handler.defaultPrompt().contains("{{bugContext}}"));
-    }
-
-    @Test
-    void checkPermission_withoutBugView_throwsNoPermission() {
-        LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("ai:task"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> handler.checkPermission(user));
-        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
     }
 
     // ---------- 执行 ----------

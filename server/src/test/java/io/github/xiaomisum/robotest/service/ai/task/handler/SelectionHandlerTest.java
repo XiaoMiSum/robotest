@@ -122,30 +122,6 @@ class SelectionHandlerTest {
     }
 
     @Test
-    void validateInput_requirementScopeWithoutAuthority_throwsNoPermission() {
-        LoginUser user = user(List.of("case:view"));
-        Map<String, Object> input = input();
-        TaskSubmitContext ctx = new TaskSubmitContext(PROJECT_ID, UUID.randomUUID(), OPERATOR_ID, user);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> reviewHandler.validateInput(input, ctx));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NO_PERMISSION.code(), exception.getCode());
-    }
-
-    @Test
-    void validateInput_moduleScopeWithoutCaseAuthority_throwsNoPermission() {
-        LoginUser user = user(List.of("requirement:view"));
-        Map<String, Object> input = new LinkedHashMap<>();
-        input.put("moduleIds", List.of(MODULE_ID.toString()));
-        input.put("roundCount", 2);
-        TaskSubmitContext ctx = new TaskSubmitContext(PROJECT_ID, UUID.randomUUID(), OPERATOR_ID, user);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> planHandler.validateInput(input, ctx));
-        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
-    }
-
-    @Test
     void validateInput_requirementScopeWithAuthority_passes() {
         when(requirementMapper.listByIds(any())).thenReturn(List.of(requirement()));
         LoginUser user = user(List.of("requirement:view"));
@@ -230,7 +206,8 @@ class SelectionHandlerTest {
 
     private static LoginUser user(List<String> permissions) {
         LoginUser user = org.mockito.Mockito.mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(permissions);
+        // 权限不再由输入校验消费，登录态仅作上下文传递（桩不再被消费，置 lenient）
+        lenient().when(user.getPermissions()).thenReturn(permissions);
         return user;
     }
 

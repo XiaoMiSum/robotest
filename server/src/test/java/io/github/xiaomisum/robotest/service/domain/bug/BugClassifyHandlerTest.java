@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
@@ -131,16 +130,6 @@ class BugClassifyHandlerTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> handler.validateInput(Map.of("draft", Map.of("title", "标".repeat(301)))));
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
-    }
-
-    @Test
-    void checkPermission_withoutBugView_throwsNoPermission() {
-        LoginUser user = org.mockito.Mockito.mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("ai:task"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> handler.checkPermission(user));
-        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
     }
 
     // ---------- 执行 ----------

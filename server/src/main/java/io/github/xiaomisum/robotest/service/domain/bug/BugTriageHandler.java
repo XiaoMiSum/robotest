@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
@@ -39,7 +38,6 @@ public class BugTriageHandler implements TaskHandler {
 
     private static final String SYSTEM_PROMPT = "你是资深缺陷管理助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
     private static final String SCOPE = "active_unassigned";
-    private static final String PERMISSION = "bug:view";
     /** 上下文容量护栏：超量缺陷只装配前 N 条进提示词（分诊建议只对可见缺陷排序） */
     private static final int MAX_CONTEXT_BUGS = 200;
 
@@ -65,13 +63,6 @@ public class BugTriageHandler implements TaskHandler {
                 缺陷清单（id|标题|严重等级|优先级|模块|滞留天数）：
                 {{bugContext}}
                 """;
-    }
-
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
     }
 
     /** 输入范围固定，无入参可校验（详设 3.7） */

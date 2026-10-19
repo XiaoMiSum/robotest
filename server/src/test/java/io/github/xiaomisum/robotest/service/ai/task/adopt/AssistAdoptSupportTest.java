@@ -51,33 +51,6 @@ class AssistAdoptSupportTest {
     private AssistAdoptSupport support;
 
     @Test
-    void requirePermission_absentLoginUser_throwsNoPermission() {
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> support.requirePermission(null, "case:edit"));
-
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(), exception.getCode());
-    }
-
-    @Test
-    void requirePermission_missingPermission_throwsNoPermission() {
-        LoginUser loginUser = mock(LoginUser.class);
-        lenient().when(loginUser.getPermissions()).thenReturn(List.of("plan:execute"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> support.requirePermission(loginUser, "case:edit"));
-
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(), exception.getCode());
-    }
-
-    @Test
-    void requirePermission_holdingPermission_passes() {
-        LoginUser loginUser = mock(LoginUser.class);
-        lenient().when(loginUser.getPermissions()).thenReturn(List.of("case:edit"));
-
-        support.requirePermission(loginUser, "case:edit");
-    }
-
-    @Test
     void taskInput_absentInput_returnsEmptyMap() {
         Map<String, Object> nodeContent = Map.of("nodeId", NODE_ID.toString());
 

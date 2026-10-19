@@ -241,7 +241,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_ARTIFACT_ALREADY_CONFIRMED = ErrorCode.of(1000018113, "产物已确认，不可重复操作");
     public static final ErrorCode AI_TASK_TYPE_UNSUPPORTED = ErrorCode.of(1000018114, "不支持的任务类型");
     public static final ErrorCode AI_TASK_INPUT_INVALID = ErrorCode.of(1000018115, "任务输入参数非法");
-    public static final ErrorCode AI_NO_PERMISSION = ErrorCode.of(1000018116, "无 AI 能力使用权限");
     public static final ErrorCode AI_MODEL_CALL_FAILED = ErrorCode.of(1000018117, "模型服务调用失败（不可用、超时或限流）");
     public static final ErrorCode AI_MODEL_NOT_CONFIGURED = ErrorCode.of(1000018118, "未配置可用模型");
     public static final ErrorCode AI_EMBEDDING_NOT_CONFIGURED = ErrorCode.of(1000018119, "向量 API 未配置或未启用，检索能力不可用");
@@ -259,7 +258,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode GENERATION_INPUT_INVALID = ErrorCode.of(1000018205, "生成参数非法（粒度、条数、落位方式）");
     public static final ErrorCode SELECTION_INPUT_INVALID = ErrorCode.of(1000018206, "圈选建议输入非法（范围为空或参数越界）");
     public static final ErrorCode SELECTION_CASE_NOT_FOUND = ErrorCode.of(1000018207, "圈选用例不存在");
-    public static final ErrorCode GENERATION_NO_ADOPT_PERMISSION = ErrorCode.of(1000018208, "无产物落库资源权限");
     public static final ErrorCode GENERATION_DUPLICATE_TASK = ErrorCode.of(1000018209, "已存在进行中的同输入生成任务");
     public static final ErrorCode GENERATION_PARENT_NOT_ADOPTED = ErrorCode.of(1000018210, "父级产物尚未采纳，无法落库");
 
@@ -295,6 +293,5 @@ public class ErrorCodeConstants {
     public static final ErrorCode ASSISTED_PLAN_NOT_FOUND = ErrorCode.of(1000018303, "测试计划不存在");
     public static final ErrorCode ASSISTED_PLAN_CASES_EMPTY = ErrorCode.of(1000018304, "计划关联用例为空，无法推荐顺序");
     public static final ErrorCode ASSISTED_ADOPT_STALE = ErrorCode.of(1000018305, "建议已采纳或已失效");
-    public static final ErrorCode ASSISTED_NO_PERMISSION = ErrorCode.of(1000018306, "无脑图编辑或计划执行权限");
     public static final ErrorCode ASSISTED_NODE_TYPE_UNSUPPORTED = ErrorCode.of(1000018307, "节点类型不支持（仅用例节点可补全或推荐）");
 }

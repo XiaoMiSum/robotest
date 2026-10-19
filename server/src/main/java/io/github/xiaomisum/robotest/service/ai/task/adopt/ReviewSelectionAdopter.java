@@ -14,8 +14,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class ReviewSelectionAdopter implements ArtifactAdopter {
 
-    private static final String PERMISSION_CREATE = "review:create";
-
     @Resource
     private SelectionAdoptSupport support;
 
@@ -26,6 +24,6 @@ public class ReviewSelectionAdopter implements ArtifactAdopter {
 
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
-        return support.create(context, PERMISSION_CREATE, false);
+        return support.create(context, false);
     }
 }

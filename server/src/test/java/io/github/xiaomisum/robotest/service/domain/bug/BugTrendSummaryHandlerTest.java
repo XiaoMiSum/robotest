@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugAnalysisQueryReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugMetricsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugTrendsRespDTO;
@@ -115,16 +114,6 @@ class BugTrendSummaryHandlerTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> handler.validateInput(Map.of("from", TO, "to", FROM)));
         assertEquals(ErrorCodeConstants.BUG_ANALYSIS_RANGE_INVALID.code(), exception.getCode());
-    }
-
-    @Test
-    void checkPermission_withoutBugView_throwsNoPermission() {
-        LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("ai:task"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> handler.checkPermission(user));
-        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
     }
 
     // ---------- 执行 ----------

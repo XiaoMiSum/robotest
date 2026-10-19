@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
@@ -42,7 +41,6 @@ public class BugDuplicateScanHandler implements TaskHandler {
     public static final String TYPE = "bug_duplicate_scan";
 
     private static final String SYSTEM_PROMPT = "你是资深缺陷管理助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
-    private static final String PERMISSION = "bug:view";
     private static final String SCOPE_ACTIVE = "active";
     /** 扫描范围上限：超量只扫描创建最早的前 N 条（护栏，避免全量缺陷进提示词） */
     private static final int SCAN_LIMIT = 200;
@@ -72,13 +70,6 @@ public class BugDuplicateScanHandler implements TaskHandler {
                 缺陷清单（id|创建时间|标题）：
                 {{bugContext}}
                 """;
-    }
-
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
     }
 
     /** 仅支持 scope = active（详设 3.9）；其余取值 1000018286 */

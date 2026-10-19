@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugAnalysisQueryReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugMetricsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugTrendsRespDTO;
@@ -40,7 +39,6 @@ public class BugTrendSummaryHandler implements TaskHandler {
     public static final String TYPE = "bug_trend_summary";
 
     private static final String SYSTEM_PROMPT = "你是资深质量分析师，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
-    private static final String PERMISSION = "bug:view";
     private static final Set<String> GROUP_BY_VALUES = Set.of("none", "module", "severity", "type");
 
     @Resource
@@ -67,13 +65,6 @@ public class BugTrendSummaryHandler implements TaskHandler {
                 统计快照：
                 {{statsContext}}
                 """;
-    }
-
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
     }
 
     /** 任务入口的范围校验与查询接口同口径（详设 3.2/3.3）：非法范围 1000018281，groupBy 越界 1000018285 */

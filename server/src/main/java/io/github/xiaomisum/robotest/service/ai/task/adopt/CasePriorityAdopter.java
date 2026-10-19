@@ -29,9 +29,6 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 @Service
 public class CasePriorityAdopter implements ArtifactAdopter {
 
-    /** 补全与级别推荐均要求脑图编辑权（详设 3.6.1「落库承接」列） */
-    private static final String PERMISSION = "case:edit";
-
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
 
     @Resource
@@ -49,7 +46,6 @@ public class CasePriorityAdopter implements ArtifactAdopter {
         if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
             return null;
         }
-        support.requirePermission(context.loginUser(), PERMISSION);
         AssistAdoptSupport.CaseTarget target = support.resolveCaseTarget(context);
         Map<String, Object> content = contentOf(context.artifact());
 

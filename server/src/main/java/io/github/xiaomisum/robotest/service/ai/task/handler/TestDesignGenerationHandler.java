@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
@@ -74,7 +73,6 @@ public class TestDesignGenerationHandler implements TaskHandler {
     private static final String SCENE_NODES = "test_design_generation_nodes";
     private static final String SCENE_ATTRIBUTES = "test_design_generation_attributes";
 
-    private static final String PERMISSION_ENTRY = "requirement:view";
     private static final Set<String> GRANULARITIES = Set.of("concise", "standard", "detailed");
     private static final String GRANULARITY_DEFAULT = "standard";
     private static final Set<String> PLACEMENTS = Set.of("new_top_level", "attach");
@@ -119,13 +117,6 @@ public class TestDesignGenerationHandler implements TaskHandler {
         // 阶段提示词按子场景独立配置（AiPromptScenes），type 场景仅作任务与用量归因
         return "生成链按 解析需求 → 模块结构 → 脑图文档 → 用例节点 → 用例属性 → 来源校验 六阶段编排，"
                 + "各阶段提示词独立配置（test_design_generation_modules / _documents / _nodes / _attributes）。";
-    }
-
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION_ENTRY)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NO_PERMISSION);
-        }
     }
 
     @Override
