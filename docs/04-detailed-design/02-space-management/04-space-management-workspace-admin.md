@@ -484,53 +484,9 @@
 - 滚动加载：接近底部（IntersectionObserver，rootMargin 240px）自动追加下一页，展示“继续向下滚动加载更多项目 / 正在加载更多项目… / 没有更多项目”。
 
 
-## 4. 实施说明
-
-### 4.1 权限点与角色授权
-
-`sys_permission` 新增（`project` 模块，编号 `c0000000-0000-0000-0000-000000000012`）：
-
-| code | 名称 | parent | scope |
-| ---- | ---- | ---- | ---- |
-| `project:create` | 创建项目 | `project` | workspace |
-
-预置空间角色 `permissions` JSONB 追加 `"project:create"`（`is_system=TRUE`，仅随种子与存量库增量 SQL 变更，管理端不可修改）：
-
-| 角色 | id |
-| ---- | ---- |
-| 管理员 | `c0000000-0000-0000-0000-000000000001` |
-| 成员 | `c0000000-0000-0000-0000-000000000002` |
-
-- 创建项目接口以 `@PreAuthorize("hasAuthority('project:create')")` 收口（同 `WorkspaceMemberController` 模式），`POST` 无该权限码时返回框架 403。
-- 前端[新建项目]、[创建第一个项目]与网格末尾新建卡片按同一权限码显隐（`docs/05-interaction-design/02-space-management/06-space-ui-project.md`）。
-
-### 4.2 迁移与基线
-
-| 载体 | 内容 |
-| ---- | ---- |
-| `server/src/main/resources/db/schema.sql` | 全量基线同步（新建库初始化，含 §4.1 权限点与角色授权，唯一事实源） |
-| 存量库增量 SQL | 取本文 §4.1 的数据变更，按 runbook §10 手工执行：备份 → 执行 → 回滚方案核对 → 发应用（仓库不保留迁移脚本文件） |
-
-```sql
-INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted)
-VALUES ('c0000000-0000-0000-0000-000000000012', 'project:create', '创建项目', 'project', '项目', '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
-ON CONFLICT (id) DO NOTHING;
-
-UPDATE sys_role
-SET permissions = permissions || '["project:create"]'::jsonb,
-    updated_at  = CURRENT_TIMESTAMP
-WHERE id IN ('c0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002')
-  AND is_deleted = FALSE
-  AND NOT (permissions @> '["project:create"]'::jsonb);
-```
-
-部署顺序：**先执行增量 SQL，后发应用**（反序会导致持码接口对存量角色返回 403）。
-
----
-
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 按前端实现对齐空间信息、成员管理、项目列表三页的字段、权限码、状态分支与接口请求响应（含 UUID 口径与成员/邀请接口修正） |
-| V1.0 | 2026-10-19 | 创建项目补服务端 `project:create` 校验口径，新增实施说明（权限点与角色授权、迁移与基线及存量库增量 SQL） |
+| V1.0 | 2026-10-19 | 创建项目补服务端 `project:create` 校验口径 |
