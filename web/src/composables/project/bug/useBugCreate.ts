@@ -1,4 +1,4 @@
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadUserFile } from 'element-plus'
 import { createBug, fetchPlans, fetchProjectModuleTree, getBugDetail, uploadBugAttachment } from '@/services/project'
@@ -19,6 +19,9 @@ const severityLabel: Record<BugSeverity, string> = { fatal: '致命', serious: '
 const priorityLabel: Record<BugPriority, string> = { high: '高', medium: '中', low: '低' }
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
+/** 重现步骤默认模板：降低空表单起手成本；未改动等同未填，不落库也不参与查重与建议 */
+export const DEFAULT_REPRO_STEPS = ['##### 执行步骤', '', '##### 实际结果', '', '##### 期望结果'].join('\n')
+
 // ==================== Composable ====================
 
 export function useBugCreate() {
@@ -36,7 +39,7 @@ export function useBugCreate() {
     priority: 'medium' as BugPriority,
     dueDate: '' as string,
     keywords: '',
-    reproSteps: '',
+    reproSteps: DEFAULT_REPRO_STEPS,
     assigneeId: '' as string,
     relatedCaseId: '' as string,
     relatedPlanId: '' as string,
@@ -79,7 +82,8 @@ export function useBugCreate() {
       form.priority = src.priority
       form.dueDate = src.dueDate ?? ''
       form.keywords = src.keywords ?? ''
-      form.reproSteps = src.reproSteps ?? ''
+      // 源缺陷未填重现步骤时保留默认模板，避免复制链路把模板清成空串
+      form.reproSteps = src.reproSteps?.trim() ? src.reproSteps : DEFAULT_REPRO_STEPS
       form.relatedCaseId = src.relatedCaseId ?? ''
       if (form.relatedCaseId) selectedCaseTitle.value = '已选 1 个用例'
       const planId = src.relatedPlanId ?? ''
@@ -89,6 +93,12 @@ export function useBugCreate() {
     }
   }
   loadPlanOptions().then(applyCopySource)
+
+  /** 未改动的默认模板按未填处理：提交、AI 建议与录入查重统一取该归一化值 */
+  const normalizedReproSteps = computed(() => {
+    const value = form.reproSteps.trim()
+    return value === DEFAULT_REPRO_STEPS ? '' : value
+  })
 
   const rules: FormRules = {
     title: [{ required: true, message: '请输入缺陷标题', trigger: 'blur' }],
@@ -131,7 +141,7 @@ export function useBugCreate() {
         severity: form.severity,
         priority: form.priority,
         bugType: form.bugType,
-        reproSteps: form.reproSteps.trim() || undefined,
+        reproSteps: normalizedReproSteps.value || undefined,
         moduleId: form.moduleId || undefined,
         keywords: form.keywords.trim() || undefined,
         dueDate: form.dueDate || undefined,
@@ -167,6 +177,7 @@ export function useBugCreate() {
     formRef,
     submitting,
     form,
+    normalizedReproSteps,
     moduleTree,
     caseSelectorVisible,
     selectedCaseTitle,
