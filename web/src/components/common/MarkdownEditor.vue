@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import 'vditor/dist/index.css'
 import {
   normalizeMarkdownImageUrls,
@@ -86,7 +86,51 @@ let stopResolve: (() => void) | undefined
 let ready = false
 let disposed = false
 
+// ==================== 完整显示（内容高度自适应） ====================
+
+const expanded = ref(false)
+const overflowing = ref(false)
+
+// 完整显示入口默认开放：仅内容实际显示不全时出现；展开后按钮常驻为「收起」直至手动还原
+const showExpandControl = computed(
+  () => !props.disabled && !maximized.value && (expanded.value || overflowing.value),
+)
+
+/** 展开高度 = 正文滚动高度 + 工具栏高度 + 2px 缓冲；内容增长时按最新滚动高度重算 */
+function expandedHeightPx(): number | null {
+  const area = container.value?.querySelector('.vditor-wysiwyg')
+  if (!(area instanceof HTMLElement)) return null
+  const toolbar = container.value?.querySelector('.vditor-toolbar')
+  return area.scrollHeight + (toolbar instanceof HTMLElement ? toolbar.offsetHeight : 0) + 2
+}
+
+function applyExpandHeight(): void {
+  if (!instance) return
+  const height = expandedHeightPx()
+  if (height !== null) setEditorHeight(instance, `${Math.ceil(height)}px`)
+}
+
+// 就绪后才量得到真实布局；禁用与最大化态不参与，按钮此时也不渲染
+function measureOverflow(): void {
+  if (!ready || maximized.value || props.disabled) {
+    overflowing.value = false
+    return
+  }
+  const area = container.value?.querySelector('.vditor-wysiwyg')
+  overflowing.value = area instanceof HTMLElement && area.scrollHeight > area.clientHeight + 1
+  if (expanded.value) applyExpandHeight()
+}
+
+function toggleExpand(): void {
+  expanded.value = !expanded.value
+  if (!ready || !instance) return
+  if (expanded.value) applyExpandHeight()
+  else setEditorHeight(instance, props.height)
+}
+
 onMounted(() => {
+  // 编辑区宽度随窗口变化，行数重排后溢出情况需要重新测量
+  window.addEventListener('resize', measureOverflow)
   void (async () => {
     // 内核按需分包，不进首屏 bundle
     const { default: Vditor } = await import('vditor')
@@ -133,6 +177,7 @@ function handleReady(): void {
     instance.setValue(value.value)
   }
   if (container.value) stopResolve = resolveMarkdownImages(container.value)
+  measureOverflow()
 }
 
 // Vditor 自定义 handler 不做校验也不回插：前置校验、上传、按原顺序插入图片引用都在此完成
@@ -149,24 +194,28 @@ watch(value, (next) => {
   if (!ready || !instance) return
   // 编辑器 DOM 内是换签后的地址，归一化后再比较，避免回填打断正在输入的内容
   if (normalizeMarkdownImageUrls(instance.getValue()) !== next) instance.setValue(next)
+  measureOverflow()
 })
 
 watch(() => props.disabled, (disabled) => {
   if (!ready || !instance) return
   if (disabled) instance.disabled()
   else instance.enable()
+  measureOverflow()
 })
 
-// 外部驱动的高度变化（如页面按窗口高度自适应）需同步到实例；最大化态由浮层接管，退出时按最新值还原
+// 外部驱动的高度变化（如页面按窗口高度自适应）需同步到实例；最大化与展开态由各自逻辑接管，退出时按最新值还原
 watch(() => props.height, (height) => {
-  if (!ready || !instance || maximized.value) return
+  if (!ready || !instance || maximized.value || expanded.value) return
   setEditorHeight(instance, height)
+  measureOverflow()
 })
 
 onBeforeUnmount(() => {
   disposed = true
   stopResolve?.()
   stopResolve = undefined
+  window.removeEventListener('resize', measureOverflow)
   // 最大化状态卸载时恢复背景滚动，避免样式残留
   document.removeEventListener('keydown', handleKeydown)
   if (maximized.value) {
@@ -191,6 +240,12 @@ onBeforeUnmount(() => {
   <div class="markdown-editor-wrap" :class="{ 'markdown-editor-wrap--maximized': maximized }">
     <div ref="container" class="markdown-editor" />
   </div>
+  <!-- 按钮在包裹层之外：最大化时包裹层变浮层，显隐由 showExpandControl 单独控制 -->
+  <div v-if="showExpandControl" class="markdown-editor-expand">
+    <el-button link type="primary" size="small" @click="toggleExpand">
+      {{ expanded ? '收起' : '完整显示' }}
+    </el-button>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -211,6 +266,12 @@ onBeforeUnmount(() => {
   background: var(--color-neutral-0);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
+}
+
+.markdown-editor-expand {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-xs);
 }
 
 .markdown-editor__mask {

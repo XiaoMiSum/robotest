@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useBugDetail } from '@/composables/project/bug/useBugDetail'
 import type { BugAttachment } from '@/types'
 import { formatDateTime, formatShortId } from '@/utils/format'
@@ -21,6 +22,7 @@ const {
   resolveDialogVisible,
   form,
   isClosed,
+  isEditable,
   isActive,
   isResolved,
   isRejected,
@@ -66,19 +68,68 @@ function handleClearCase() {
 function handleOpenCaseSelector() {
   caseSelectorVisible.value = true
 }
+
+/** 侧栏取剩余可用空间的 90%，底部保留回弹余量（同需求详情页口径） */
+const SIDE_HEIGHT_RATIO = 0.9
+const MIN_SIDE_HEIGHT = 320
+
+const layoutWrap = ref<HTMLDivElement>()
+const sideTop = ref(0)
+const viewportHeight = ref(typeof window === 'undefined' ? 0 : window.innerHeight)
+
+function measure(): void {
+  sideTop.value = layoutWrap.value?.getBoundingClientRect().top ?? 0
+}
+
+function handleResize(): void {
+  viewportHeight.value = window.innerHeight
+  measure()
+}
+
+// 侧栏页签高度只随窗口变化、不随内容变化，超出部分在页签内滚动
+const sideHeight = computed(() =>
+  Math.max(MIN_SIDE_HEIGHT, Math.floor((viewportHeight.value - sideTop.value) * SIDE_HEIGHT_RATIO)),
+)
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  void nextTick(measure)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
+
+// 侧栏在详情加载完成后才渲染，出现后补测一次顶距
+watch(detail, async () => {
+  await nextTick()
+  measure()
+})
 </script>
 
 <template>
   <div v-loading="loading" class="bug-detail">
-    <div class="bug-detail__topbar">
-      <el-link class="bug-detail__back" underline="never" @click="router.push('/workspace/projects/bugs')">
-        <el-icon><Back /></el-icon><span>返回</span>
-      </el-link>
-      <el-divider direction="vertical" />
-      <template v-if="detail">
+    <!-- UI-BC-01：两级面包屑（缺陷管理 › 缺陷详情），回退入口是唯一可点击项；状态与操作区同行右对齐 -->
+    <div class="bug-detail__header">
+      <div class="bug-detail__breadcrumb">
+        <router-link to="/workspace/projects/bugs">缺陷管理</router-link>
+        <el-icon :size="13"><ArrowRight /></el-icon>
+        <span>缺陷详情</span>
+      </div>
+      <div v-if="detail" class="bug-detail__actions">
+        <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
+        <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" size="small" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
+        <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
+          <el-icon><Plus /></el-icon>提交缺陷
+        </el-button>
+      </div>
+    </div>
+
+    <template v-if="detail">
+      <div class="bug-detail__title-row">
         <el-tag type="info" effect="light" round class="bug-detail__id-tag">{{ formatShortId(detail.id) }}</el-tag>
         <el-input
-          v-if="!isClosed"
+          v-if="isEditable"
           v-model="form.title"
           class="bug-detail__title-input"
           placeholder="缺陷标题"
@@ -87,42 +138,24 @@ function handleOpenCaseSelector() {
         <el-tooltip v-else :content="detail.title" :disabled="detail.title.length <= 60" placement="bottom-start">
           <span class="bug-detail__title-text">{{ detail.title }}</span>
         </el-tooltip>
-        <div class="bug-detail__topbar-right">
-          <el-tag :type="BUG_STATUS_TAG_TYPE[detail.status]" size="small" effect="light" round>{{ statusLabel[detail.status] }}</el-tag>
-          <el-tag :type="detail.reopenCount > 0 ? 'danger' : 'info'" size="small" effect="plain" round>激活 {{ detail.reopenCount }} 次</el-tag>
-          <el-button type="primary" @click="router.push('/workspace/projects/bugs/create')">
-            <el-icon><Plus /></el-icon>提交缺陷
-          </el-button>
-        </div>
-      </template>
-      <span v-else class="bug-detail__page-title">缺陷详情</span>
-    </div>
+      </div>
 
-    <template v-if="detail">
-      <div class="bug-detail__layout">
+      <div ref="layoutWrap" class="bug-detail__layout">
         <div class="bug-detail__main">
-          <el-card shadow="never">
-            <template #header><span class="bug-detail__section">重现步骤</span></template>
-            <MarkdownEditor v-if="!isClosed" v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown）" />
-            <MarkdownView v-else-if="detail.reproSteps" :content="detail.reproSteps" />
-            <el-empty v-else description="暂无重现步骤" :image-size="48" />
-          </el-card>
+          <!-- 重现步骤直接放置（无卡片包裹）；resolved / closed 只读渲染 -->
+          <MarkdownEditor v-if="isEditable" v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown）" />
+          <MarkdownView v-else-if="detail.reproSteps" :content="detail.reproSteps" />
+          <el-empty v-else description="暂无重现步骤" :image-size="48" />
 
-          <el-card shadow="never" class="bug-detail__attach-card">
-            <template #header>
-              <div class="bug-detail__card-header">
-                <span class="bug-detail__section">附件</span>
-                <el-upload
-                  v-if="!isClosed"
-                  :show-file-list="false"
-                  :http-request="handleAttachmentUpload"
-                >
-                  <el-button size="small" :loading="uploading">
-                    <el-icon><Upload /></el-icon>上传附件
-                  </el-button>
-                </el-upload>
-              </div>
-            </template>
+          <!-- 附件独立无 header 边框卡片，紧凑内边距；上传入口右对齐 link 按钮 -->
+          <el-card shadow="never" class="bug-detail__attachments">
+            <div v-if="isEditable" class="bug-detail__upload">
+              <el-upload :show-file-list="false" :http-request="handleAttachmentUpload">
+                <el-button size="small" link type="primary" :loading="uploading">
+                  <el-icon><Upload /></el-icon>上传附件
+                </el-button>
+              </el-upload>
+            </div>
             <el-empty v-if="!attachments.length" description="暂无附件" :image-size="48" />
             <el-table v-else :data="attachments" size="small">
               <el-table-column label="文件名" prop="fileName" min-width="200" show-overflow-tooltip />
@@ -136,32 +169,20 @@ function handleOpenCaseSelector() {
               <el-table-column label="操作" width="120">
                 <template #default="{ row }">
                   <el-button link type="primary" @click="handleAttachmentDownload(row as BugAttachment)">下载</el-button>
-                  <el-button v-if="!isClosed" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
+                  <el-button v-if="isEditable" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
                 </template>
               </el-table-column>
             </el-table>
-          </el-card>
-
-          <el-card v-if="logs.length" shadow="never">
-            <template #header><span class="bug-detail__section">操作记录</span></template>
-            <el-timeline class="bug-detail__timeline">
-              <el-timeline-item
-                v-for="log in logs"
-                :key="log.id"
-                :timestamp="formatDateTime(log.createdAt)"
-                placement="top"
-              >
-                <strong>{{ log.operatorName }}</strong> {{ log.operationType }}
-                <span v-if="log.content" class="bug-detail__log-content">{{ log.content }}</span>
-              </el-timeline-item>
-            </el-timeline>
           </el-card>
         </div>
 
         <BugSidebar
           v-if="detail"
           :detail="detail"
+          :logs="logs"
           :form="form"
+          :height="sideHeight"
+          :is-editable="isEditable"
           :is-closed="isClosed"
           :is-resolved="isResolved"
           :is-rejected="isRejected"
@@ -193,7 +214,7 @@ function handleOpenCaseSelector() {
         <el-button v-if="isActive" type="warning" @click="handleReject">拒绝</el-button>
         <el-button v-if="isResolved || isRejected" type="info" @click="handleClose">关闭</el-button>
         <el-button v-if="isResolved || isRejected || isClosed" type="danger" @click="handleReopen">激活</el-button>
-        <el-button v-if="!isClosed" type="primary" :loading="saving" @click="handleSave">保存</el-button>
+        <el-button v-if="isEditable" type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </div>
     </template>
 
@@ -208,34 +229,57 @@ function handleOpenCaseSelector() {
 </template>
 
 <style scoped lang="scss">
-.bug-detail__page-title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-neutral-800);
-}
-
-.bug-detail__topbar {
+.bug-detail__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
 }
 
-.bug-detail__back {
-  flex-shrink: 0;
+// UI-BC-02～04：面包屑排版与文字层级基准；底距与操作区对齐，避免行内错位
+.bug-detail__breadcrumb,
+.bug-detail__actions {
+  margin-bottom: var(--space-sm);
+}
+
+.bug-detail__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--font-size-sm);
   color: var(--color-neutral-600);
 
+  a {
+    color: var(--color-primary-500);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-primary-600);
+  }
+
   .el-icon {
-    margin-right: var(--space-xs);
+    color: var(--color-neutral-400);
+  }
+
+  > :last-child {
+    color: var(--color-neutral-900);
   }
 }
 
-.bug-detail__topbar-right {
+.bug-detail__actions {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   flex-shrink: 0;
-  margin-left: auto;
+}
+
+.bug-detail__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .bug-detail__id-tag {
@@ -287,7 +331,7 @@ function handleOpenCaseSelector() {
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: var(--space-lg);
   align-items: start;
-  margin-top: var(--space-lg);
+  margin-top: var(--space-md);
 
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -297,34 +341,19 @@ function handleOpenCaseSelector() {
 .bug-detail__main {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  // 编辑器与附件卡片之间留较大间距，区分两个展示块
+  gap: var(--space-xl);
 }
 
-.bug-detail__section {
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-800);
+/* UI-SC-10：附件卡紧凑内边距，缩小上传入口与卡片顶部的距离 */
+.bug-detail__attachments {
+  --el-card-padding: var(--space-sm);
 }
 
-.bug-detail__card-header {
+.bug-detail__upload {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* UI-SC-10：附件表贴合卡片边缘，header 仍按默认留白 */
-.bug-detail__attach-card {
-  --el-card-padding: 0;
-}
-
-.bug-detail__timeline {
-  padding-left: var(--space-xs);
-}
-
-.bug-detail__log-content {
-  color: var(--color-neutral-500);
-  margin-left: var(--space-sm);
-  font-size: var(--font-size-xs);
+  justify-content: flex-end;
+  margin-bottom: var(--space-sm);
 }
 
 .bug-detail__footer {
