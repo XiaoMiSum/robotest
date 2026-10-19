@@ -45,6 +45,18 @@ export function formatLocalDateTime(value?: string | null): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+/**
+ * 回填 date-picker 的本地墙钟值 `YYYY-MM-DDTHH:mm:ss`，空值返回空串。
+ * 服务端返回 UTC 瞬时值，而 picker 以无时区墙钟提交（00-spec 01-api.md §4.3，服务端持久化适配层只换算一次）；
+ * 直接回填 UTC 串会被按本地钟面显示成前一天。
+ */
+export function formatPickerDateTime(value?: string | null): string {
+  const date = parseDateTime(value)
+  if (!date) return ''
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 /** 仅格式化日期部分 `YYYY-MM-DD`，同样按本地时区输出 */
 export function formatDate(value?: string | null): string {
   if (!value) return '-'

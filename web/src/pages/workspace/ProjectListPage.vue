@@ -12,6 +12,7 @@ import {
 } from '@/services/workspace'
 import type { Project, ProjectStatus } from '@/types'
 import { isWorkspaceAdmin } from '@/utils/workspaceRole'
+import { formatPickerDateTime } from '@/utils/format'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Loading, Plus, Promotion, Search } from '@element-plus/icons-vue'
 
@@ -90,8 +91,8 @@ const formSubmitting = ref(false)
 const form = reactive({
   name: '',
   description: '',
-  startTime: '' as string,
-  endTime: '' as string,
+  startTime: null as string | null,
+  endTime: null as string | null,
 })
 const formRules: FormRules = {
   name: [
@@ -161,8 +162,8 @@ function openCreateDialog(): void {
   formDialogTitle.value = '新建项目'
   form.name = ''
   form.description = ''
-  form.startTime = ''
-  form.endTime = ''
+  form.startTime = null
+  form.endTime = null
   formDialogVisible.value = true
 }
 
@@ -171,8 +172,9 @@ function openEditDialog(project: Project): void {
   formDialogTitle.value = '编辑项目'
   form.name = project.name
   form.description = project.description ?? ''
-  form.startTime = project.startTime ?? ''
-  form.endTime = project.endTime ?? ''
+  // 服务端时间是 UTC 瞬时值，须转成本地墙钟回填，否则与 picker 的墙钟提交口径错位
+  form.startTime = formatPickerDateTime(project.startTime)
+  form.endTime = formatPickerDateTime(project.endTime)
   formDialogVisible.value = true
 }
 
@@ -350,10 +352,22 @@ async function submitForm(): Promise<void> {
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="项目描述（可选）" />
         </el-form-item>
         <el-form-item label="开始时间">
-          <el-date-picker v-model="form.startTime" type="date" placeholder="选择开始日期" style="width: 100%" />
+          <el-date-picker
+            v-model="form.startTime"
+            type="date"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            placeholder="选择开始日期"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="结束时间">
-          <el-date-picker v-model="form.endTime" type="date" placeholder="选择结束日期" style="width: 100%" />
+          <el-date-picker
+            v-model="form.endTime"
+            type="date"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            placeholder="选择结束日期"
+            style="width: 100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

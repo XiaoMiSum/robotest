@@ -30,4 +30,12 @@ describe('ProjectListPage card structure', () => {
     expect(pageSource).toContain('设为默认')
     expect(pageSource).toContain('enterProject')
   })
+
+  it('起止时间按无时区墙钟提交并在编辑回填时转本地', () => {
+    // 00-spec 01-api.md §4.3：客户端提交墙钟值，服务端持久化适配层只换算一次；
+    // 缺 value-format 会让 Date 被 JSON 序列化为 Z 串，形成时区双换算
+    expect(pageSource.match(/value-format="YYYY-MM-DDTHH:mm:ss"/g)).toHaveLength(2)
+    expect(pageSource).toContain('formatPickerDateTime(project.startTime)')
+    expect(pageSource).toContain('formatPickerDateTime(project.endTime)')
+  })
 })

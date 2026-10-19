@@ -26,8 +26,8 @@ const form = reactive({
   name: '',
   description: '',
   executorId: '',
-  startTime: '' as string,
-  endTime: '' as string,
+  startTime: null as string | null,
+  endTime: null as string | null,
   environment: '',
   selectedNodes: [] as SelectedCaseNode[],
 })
@@ -43,8 +43,8 @@ watch(
     form.name = ''
     form.description = ''
     form.executorId = ''
-    form.startTime = ''
-    form.endTime = ''
+    form.startTime = null
+    form.endTime = null
     form.environment = ''
     form.selectedNodes = (props.initialSelectedNodes ?? []).map((node) => ({
       documentId: node.documentId,
@@ -101,10 +101,22 @@ async function submit(): Promise<void> {
         </el-select>
       </el-form-item>
       <el-form-item label="开始时间">
-        <el-date-picker v-model="form.startTime" type="date" placeholder="选择日期" style="width: 100%" />
+        <el-date-picker
+          v-model="form.startTime"
+          type="date"
+          value-format="YYYY-MM-DDTHH:mm:ss"
+          placeholder="选择日期"
+          style="width: 100%"
+        />
       </el-form-item>
       <el-form-item label="结束时间">
-        <el-date-picker v-model="form.endTime" type="date" placeholder="选择日期" style="width: 100%" />
+        <el-date-picker
+          v-model="form.endTime"
+          type="date"
+          value-format="YYYY-MM-DDTHH:mm:ss"
+          placeholder="选择日期"
+          style="width: 100%"
+        />
       </el-form-item>
       <el-form-item label="执行环境">
         <el-input v-model="form.environment" placeholder="如：staging / production" />
