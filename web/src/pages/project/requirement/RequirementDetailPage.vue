@@ -183,7 +183,7 @@ function goBack(): void {
       <!-- UI-BC-01：列表 → 详情两级面包屑，回退入口是唯一可点击项；操作区与面包屑同行（同新建页 2.5.2） -->
       <div class="requirement-detail__header">
         <div class="requirement-detail__breadcrumb">
-          <router-link to="/workspace/projects/functional-testing?tab=requirements">功能测试 › 需求列表</router-link>
+          <router-link to="/workspace/projects/functional-testing?tab=requirements">需求管理</router-link>
           <el-icon :size="13"><ArrowRight /></el-icon>
           <span>{{ detail?.title ?? '需求详情' }}</span>
         </div>
