@@ -94,6 +94,8 @@ export function useBugDetail(options: UseBugDetailOptions) {
   const isActive = computed(() => detail.value?.status === 'active')
   const isResolved = computed(() => detail.value?.status === 'resolved')
   const isRejected = computed(() => detail.value?.status === 'rejected')
+  // 可编辑口径：仅 active / rejected 允许改动正文、附件与属性，resolved / closed 一律只读
+  const isEditable = computed(() => isActive.value || isRejected.value)
 
   const form = reactive({
     title: '',
@@ -401,6 +403,7 @@ export function useBugDetail(options: UseBugDetailOptions) {
     isActive,
     isResolved,
     isRejected,
+    isEditable,
     dirTree,
     planOptions,
     relatedPlanName,
