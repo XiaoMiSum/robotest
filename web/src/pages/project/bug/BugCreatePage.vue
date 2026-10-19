@@ -7,7 +7,7 @@ import CaseSelector from '@/components/project/functional-testing/case/CaseSelec
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugSuggestBadge from '@/components/project/bug/BugSuggestBadge.vue'
 import AssigneeCandidateChips from '@/components/project/bug/AssigneeCandidateChips.vue'
-import DuplicateCheckPanel from '@/components/project/bug/DuplicateCheckPanel.vue'
+import BugDuplicateDialog from '@/components/project/bug/BugDuplicateDialog.vue'
 import { fetchAiStatus } from '@/services/ai'
 import type { BugPriority, BugSeverity } from '@/types'
 
@@ -128,6 +128,16 @@ const moduleIdSuggestion = computed(() => {
   return suggestion && suggestion.value ? { value: suggestion.value, reason: suggestion.reason } : null
 })
 
+// ==================== 相似缺陷检测（交互 3.1） ====================
+
+const duplicateVisible = ref(false)
+const duplicateCheckRef = ref<InstanceType<typeof BugDuplicateDialog> | null>(null)
+
+/** 标题失焦触发（交互 3.1）：无命中或功能不可用由组件静默处理，不弹窗不提示 */
+function handleTitleBlur(): void {
+  void duplicateCheckRef.value?.check()
+}
+
 onBeforeUnmount(() => {
   disposeSuggest()
 })
@@ -150,7 +160,7 @@ onBeforeUnmount(() => {
 
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="bug-create__form">
       <div class="bug-create__layout">
-        <!-- 分区只作逻辑分组：不渲染分区标题、不套卡片（详设 1.14），靠间距区分 -->
+        <!-- 主列分区不渲染标题、不套卡片（详设 1.14），靠间距区分 -->
         <div class="bug-create__main">
           <el-alert
             v-if="suggestError"
@@ -160,7 +170,7 @@ onBeforeUnmount(() => {
             :closable="false"
             class="bug-create__suggest-error"
           />
-          <el-form-item label="标题" prop="title">
+          <el-form-item prop="title">
             <el-input
               v-model="form.title"
               placeholder="用一句话描述缺陷现象"
@@ -168,6 +178,7 @@ onBeforeUnmount(() => {
               show-word-limit
               size="large"
               :class="{ 'bug-create__title-input--noai': !aiAvailable }"
+              @blur="handleTitleBlur"
             >
               <!-- 草稿建议入口（详设 3.5）：AI 未启用时挂载点隐藏，输入组按无 append 形态收口 -->
               <template #append>
@@ -183,11 +194,9 @@ onBeforeUnmount(() => {
               </template>
             </el-input>
           </el-form-item>
-          <el-form-item label="重现步骤" class="bug-create__repro">
+          <el-form-item class="bug-create__repro">
             <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
           </el-form-item>
-          <!-- 录入时重复检测（交互 3.1）：仅作建议，不自动合并、不改状态 -->
-          <DuplicateCheckPanel :title="form.title" :steps="normalizedReproSteps" :ai-available="aiAvailable" />
           <!-- UI-DS-09 例外（已确认）：拖拽区默认 40px 纵向内边距 + 大图标撑高，按需求压到约一半 -->
           <el-upload
             drag
@@ -313,6 +322,15 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </el-form>
+
+    <!-- 相似缺陷检测（交互 3.1）：标题失焦触发，命中弹窗展示，无命中或功能不可用静默 -->
+    <BugDuplicateDialog
+      ref="duplicateCheckRef"
+      v-model="duplicateVisible"
+      :title="form.title"
+      :steps="normalizedReproSteps"
+      :ai-available="aiAvailable"
+    />
 
     <CaseSelector v-model="caseSelectorVisible" single @confirm="handleCaseSelected" />
   </div>
@@ -452,7 +470,6 @@ onBeforeUnmount(() => {
   border-radius: 0;
   background: transparent;
   color: var(--color-success);
-  font-weight: 600;
 
   &.is-disabled,
   &:disabled {
