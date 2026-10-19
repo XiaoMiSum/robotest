@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useProjectModuleTree } from '@/composables/project/useProjectModuleTree'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElTree } from 'element-plus'
 
 const props = defineProps<{
@@ -42,6 +42,11 @@ const {
 const treeProps = { label: 'name', children: 'children' }
 const treeRef = ref<InstanceType<typeof ElTree>>()
 const filterKeyword = ref('')
+
+// el-tree 的空态在“无数据”和“过滤后全部隐藏”时都会触发，需区分文案引导
+const emptyDescription = computed(() =>
+  treeData.value.length ? '无匹配的目录 / 文档' : '暂无模块，点击[新建]创建'
+)
 
 // el-tree 自带过滤：命中节点自动展开其祖先链，清空关键字即还原
 watch(filterKeyword, (val) => treeRef.value?.filter(val))
@@ -109,6 +114,10 @@ defineExpose({ reload: load, getTree: () => treeData.value })
       @node-drop="handleNodeDrop"
       @node-click="handleNodeClick"
     >
+      <!-- 空态统一走 el-tree 自带 empty 插槽，避免与组件内置“暂无数据”文案重复展示 -->
+      <template #empty>
+        <el-empty :description="emptyDescription" :image-size="40" />
+      </template>
       <template #default="{ data }">
         <div class="module-tree__node">
           <span class="module-tree__label">
@@ -147,12 +156,6 @@ defineExpose({ reload: load, getTree: () => treeData.value })
         </div>
       </template>
     </el-tree>
-
-    <el-empty
-      v-if="!loading && !treeData.length"
-      description="暂无模块，点击[新建]创建"
-      :image-size="40"
-    />
   </div>
 </template>
 
