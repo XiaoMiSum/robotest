@@ -16,7 +16,7 @@
 
 - 对应需求：`docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md`（US-AI-014 ~ 016）。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`；缺陷实体与状态流转沿用 `docs/01-requirements/04-bug-management/02-srs-bug-management.md`。
-- 权限：拥有既有**缺陷查看权限**的用户可见分析入口与可发起分析任务；采纳更新字段需既有**缺陷编辑权限**；范围限于当前项目。
+- 权限：分析入口与可发起任务由前端按既有**缺陷查看权限**与 `ai:task` 显隐；后端任务发起与采纳不做权限校验（仅保留任务归属可见性）；范围限于当前项目。
 
 ### 1.3 参考资料
 
@@ -41,7 +41,7 @@
 ### 3.1 通用约定
 
 - 查询类入口走缺陷业务路径 `/api/project/bugs/analysis/*`（`X-Active-Workspace` + `X-Active-Project` 头，权限：既有 `bug:view`）；
-- AI 摘要与批量分析为任务，统一 `POST /api/ai/tasks` 提交（本域 `type` 与资源权限映射见 4.2），结果经总册 3.6.3 查询；
+- AI 摘要与批量分析为任务，统一 `POST /api/ai/tasks` 提交（本域 `type` 与提案确认映射见 4.2），结果经总册 3.6.3 查询；
 - 响应 `Result<T>`，示例**仅展示 `data`**；分页同总册。
 
 ### 3.2 趋势查询
@@ -163,7 +163,7 @@
   - 也可传筛选条件（`input.filter`：未分类 / 分类存疑的状态条件），服务端解析为缺陷集合（上限 500，空集返回 1000018283）。
   - **截图入模**：每缺陷取图像类附件（png / jpg / jpeg / gif / webp / bmp）≤2 张，批量图片总量 ≤8 张（按缺陷序截断，超出部分仅文本）；字节直接读缺陷附件存储，随对应缺陷上下文直传 vision 模型；提交期按总册 4.2 选型，无可用视觉模型返回 1000018124。
 - **提案**：逐缺陷一条 `classify_suggestion`（结构同 3.5，`content.bugId` 指向目标，`confirmStatus = pending`）。
-- **确认**：总册 3.6.5，动作 `adopted / adopted_edited / rejected`；承接服务**更新对应缺陷字段**（类型、严重等级、优先级、模块、关键词、指派），逐项事务；采纳写 `adopted_ref`，需要既有 `bug:edit` 权限。
+- **确认**：总册 3.6.5，动作 `adopted / adopted_edited / rejected`；承接服务**更新对应缺陷字段**（类型、严重等级、优先级、模块、关键词、指派），逐项事务；采纳写 `adopted_ref`（后端不做权限校验）。
 
 ### 3.7 分诊队列建议（同步）
 
@@ -248,17 +248,17 @@
 - 全部统计按当前项目实时计算，时间字段取 UTC 日期；口径（状态定义、修复时长、重开、重复）与缺陷管理分册完全一致，每张图表标注口径与时间范围；
 - AI 摘要基于同一次查询的数据快照生成，附来源引用；**摘要与建议均不写入业务数据**。
 
-### 4.2 任务 type 与资源权限映射
+### 4.2 任务 type 与提案确认映射
 
-| type | 资源权限（发起） | 资源权限（采纳） | 提案确认 |
-| ---- | ---- | ---- | ---- |
-| bug_classify（draft 单条） | 既有 `bug:view` | —（表单内采纳，不走确认端点） | `not_applicable` |
-| bug_classify（批量） | 既有 `bug:view` | 既有 `bug:edit` | 逐条 `pending → adopted/rejected` |
-| bug_triage | 既有 `bug:view` | — | `not_applicable` |
-| bug_trend_summary | 既有 `bug:view` | — | `not_applicable` |
-| bug_duplicate_scan | 既有 `bug:view` | —（人工走既有缺陷流程处理） | 分组 `adopted/rejected` 留痕 |
+| type | 提案确认 |
+| ---- | ---- |
+| bug_classify（draft 单条） | —（表单内采纳，不走确认端点） |
+| bug_classify（批量） | 逐条 `pending → adopted/rejected` |
+| bug_triage | `not_applicable` |
+| bug_trend_summary | `not_applicable` |
+| bug_duplicate_scan | 分组 `adopted/rejected` 留痕 |
 
-- 发起同时要求总册 `ai:task`、确认要求 `ai:confirm`；作用域一律取请求头 `X-Active-Project`。
+- 任务发起与采纳均不做后端权限校验（仅保留任务归属可见性）；作用域一律取请求头 `X-Active-Project`。
 
 ### 4.3 批量任务的执行与确认
 
@@ -338,7 +338,7 @@ BugAnalysisPage
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：趋势口径（新增/关闭/存量边界）、修复时长首次流转取值、除零补零、分组参数校验、draft 建议的成员过滤、批量采纳逐项事务与权限、录入检测项目内过滤、空集错误码、`bug_classify` 截图附带与总量截断、无视觉模型快速失败（1000018124）；
+- 后端：趋势口径（新增/关闭/存量边界）、修复时长首次流转取值、除零补零、分组参数校验、draft 建议的成员过滤、批量采纳逐项事务与幂等冲突、录入检测项目内过滤、空集错误码、`bug_classify` 截图附带与总量截断、无视觉模型快速失败（1000018124）；
 - 前端：图表下钻带参、建议标记与用户值优先、摘要引用跳转、分诊拖拽不落库、批量审核回执、向量未就绪降级。
 
 ---
@@ -355,3 +355,5 @@ BugAnalysisPage
 | V1.0 | 2026-10-16 | vision 能力落地：`bug_classify` 接入截图入模（3.5 draft 补 `fileIds` ≤3 张、3.6 批量每缺陷 ≤2 张 / 总量 ≤8 截断），选型与降级走总册 4.2 与 1000018124 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2 节数据设计改按 `ai_task_` 域六表拆分；产物改称提案；执行进度改为步数与轨迹口径；失败改「终止（1000018117）+ 再次执行」；确认事务承接表改 `ai_task_adoption`；7 节执行器改类型适配器 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：5.3 状态分支改「批量任务执行与部分采纳回执」 |
+| V1.0 | 2026-10-19 | 移除任务权限校验：1 概述与 3.1 入口改前端显隐口径，3.5 确认、4.2 改「任务 type 与提案确认映射」（删资源权限两列与 `ai:task` / `ai:confirm` 要求），7 测试要点同步 |
+| V1.0 | 2026-10-19 | 3.8 录入重复检测改标题失焦触发 + 弹窗展示（组件 BugDuplicateDialog），不可用/无命中静默；5.2 组件树与 5.3 状态分支同步 |
