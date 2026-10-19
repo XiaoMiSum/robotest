@@ -38,7 +38,7 @@ vi.mock('@/composables/project/bug/bugStatus', () => ({
   BUG_TYPE_LABEL: { code_error: '代码缺陷', function_error: '功能缺陷', performance: '性能问题', security: '安全问题' },
 }))
 
-import { useBugCreate } from './useBugCreate'
+import { useBugCreate, DEFAULT_REPRO_STEPS } from './useBugCreate'
 
 function setupDefaultMocks() {
   const push = vi.fn()
@@ -69,10 +69,19 @@ describe('useBugCreate', () => {
       expect(form.priority).toBe('medium')
       expect(form.dueDate).toBe('')
       expect(form.keywords).toBe('')
-      expect(form.reproSteps).toBe('')
+      expect(form.reproSteps).toBe(DEFAULT_REPRO_STEPS)
       expect(form.assigneeId).toBe('')
       expect(form.relatedCaseId).toBe('')
       expect(form.relatedPlanId).toBe('')
+    })
+
+    it('normalizedReproSteps treats untouched or blanked template as empty', () => {
+      const { form, normalizedReproSteps } = useBugCreate()
+      expect(normalizedReproSteps.value).toBe('')
+      form.reproSteps = '##### 执行步骤\n1. 打开登录页'
+      expect(normalizedReproSteps.value).toBe('##### 执行步骤\n1. 打开登录页')
+      form.reproSteps = '   '
+      expect(normalizedReproSteps.value).toBe('')
     })
 
     it('submitting is false', () => {
@@ -318,6 +327,24 @@ describe('useBugCreate', () => {
       expect(form.relatedPlanId).toBe('')
     })
 
+    it('keeps default repro template when source repro steps are blank', async () => {
+      mocks.fetchPlans.mockResolvedValue({ list: [] })
+      mocks.getBugDetail.mockResolvedValue({
+        title: 'X',
+        bugType: 'code_error',
+        severity: 'general',
+        priority: 'medium',
+        reproSteps: '',
+      })
+      mocks.useRoute.mockReturnValue({ query: { copyFrom: 'src-id' } })
+
+      const { form } = useBugCreate()
+      await vi.waitFor(() => {
+        expect(form.title).toBe('X')
+      })
+      expect(form.reproSteps).toBe(DEFAULT_REPRO_STEPS)
+    })
+
     it('shows error message on failure', async () => {
       mocks.fetchPlans.mockResolvedValue({ list: [] })
       mocks.getBugDetail.mockRejectedValue(new Error('Not found'))
@@ -425,6 +452,17 @@ describe('useBugCreate', () => {
       expect(callArg.dueDate).toBeUndefined()
       expect(callArg.relatedCaseId).toBeUndefined()
       expect(callArg.relatedPlanId).toBeUndefined()
+    })
+
+    it('sends edited repro steps while untouched default template stays out of payload', async () => {
+      const { form, formRef, handleSubmit } = useBugCreate()
+      formRef.value = { validate: vi.fn().mockResolvedValue(true) } as never
+      await handleSubmit()
+      expect(mocks.createBug.mock.calls[0][0].reproSteps).toBeUndefined()
+
+      form.reproSteps = `${DEFAULT_REPRO_STEPS}\n1. 点击登录按钮`
+      await handleSubmit()
+      expect(mocks.createBug.mock.calls[1][0].reproSteps).toBe(`${DEFAULT_REPRO_STEPS}\n1. 点击登录按钮`)
     })
 
     it('uploads attachments that have raw file', async () => {
