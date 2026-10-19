@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.domain.requirement;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
@@ -112,24 +111,6 @@ class RequirementImportHandlerTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> handler.validateInput(Map.of("fileId", "not-a-uuid")));
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
-    }
-
-    @Test
-    void checkPermission_withoutCreateAuthority_throwsNoPermission() {
-        LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("requirement:view"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> handler.checkPermission(user));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NO_PERMISSION.code(), exception.getCode());
-    }
-
-    @Test
-    void checkPermission_withCreateAuthority_passes() {
-        LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("requirement:create"));
-
-        handler.checkPermission(user); // 不抛即通过
     }
 
     // ---------- 必需能力派生（详设 4.2 / WP-V.2） ----------

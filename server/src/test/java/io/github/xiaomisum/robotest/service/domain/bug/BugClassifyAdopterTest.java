@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
@@ -13,7 +12,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.List;
 import java.util.Map;
@@ -21,7 +19,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -79,14 +76,6 @@ class BugClassifyAdopterTest {
         verify(bugService, never()).updateBug(org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any());
-    }
-
-    @Test
-    void adopt_withoutEditPermission_throwsNoPermission() {
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, suggestionsContent(),
-                        List.of("bug:view"))));
-        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
     }
 
     @Test

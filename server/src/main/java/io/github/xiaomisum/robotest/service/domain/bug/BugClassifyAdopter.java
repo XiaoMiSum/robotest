@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
@@ -24,12 +23,11 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 /**
  * 批量分类采纳承接（缺陷分析详设 3.6）：adopted / adopted_edited 按建议字段（或编辑后内容）
  * 调用既有 updateBug 部分更新缺陷（C11，日志与审计由既有服务内建），逐项事务由总册确认入口负责；
- * 驳回不落库。落库资源权限取既有 bug:edit（详设 4.2）。
+ * 驳回不落库。
  */
 @Service
 public class BugClassifyAdopter implements ArtifactAdopter {
 
-    private static final String PERMISSION_EDIT = "bug:edit";
     private static final int KEYWORD_JOIN_LIMIT = 5;
 
     @Resource
@@ -44,10 +42,6 @@ public class BugClassifyAdopter implements ArtifactAdopter {
     public AdoptOutcome adopt(AdoptContext context) {
         if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
             return null;
-        }
-        LoginUser loginUser = context.loginUser();
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION_EDIT)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
         }
         // 调整后采纳（总册 3.6）以编辑内容为准，直接采纳取产物原内容
         Map<String, Object> content = context.content() != null ? context.content()

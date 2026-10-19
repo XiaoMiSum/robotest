@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
@@ -84,16 +83,6 @@ class TestDesignGenerationHandlerTest {
     void type_isTestDesignGeneration() {
         assertEquals("test_design_generation", handler.type());
         assertTrue(handler.defaultPrompt().contains("六阶段"));
-    }
-
-    @Test
-    void checkPermission_withoutViewAuthority_throwsNoPermission() {
-        LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("case:view"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> handler.checkPermission(user));
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NO_PERMISSION.code(), exception.getCode());
     }
 
     // ---------- 输入校验（类型 / 参数） ----------

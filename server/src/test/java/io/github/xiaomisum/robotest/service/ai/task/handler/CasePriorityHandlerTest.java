@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
@@ -17,7 +16,6 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.time.LocalDateTime;
@@ -67,21 +65,6 @@ class CasePriorityHandlerTest {
         assertTrue(handler.defaultPrompt().contains("{{caseContext}}"));
         assertTrue(handler.defaultPrompt().contains("{{requirementContext}}"));
         assertTrue(handler.defaultPrompt().contains("{{bugContext}}"));
-    }
-
-    @Test
-    void checkPermission_withoutCaseEdit_throws306() {
-        LoginUser user = new LoginUser();
-        user.setAuthorities(List.of(new SimpleGrantedAuthority("case:edit")));
-
-        handler.checkPermission(user);
-
-        LoginUser viewer = new LoginUser();
-        viewer.setAuthorities(List.of(new SimpleGrantedAuthority("case:view")));
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(),
-                assertThrows(ServiceException.class, () -> handler.checkPermission(viewer)).getCode());
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(),
-                assertThrows(ServiceException.class, () -> handler.checkPermission(null)).getCode());
     }
 
     @Test

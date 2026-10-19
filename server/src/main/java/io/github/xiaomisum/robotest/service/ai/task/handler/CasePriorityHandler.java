@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
@@ -43,7 +42,6 @@ public class CasePriorityHandler implements TaskHandler {
     public static final String TYPE = "case_priority";
 
     private static final String SYSTEM_PROMPT = "你是资深测试用例设计专家。严格按用户给出的 JSON 输出结构作答。";
-    private static final String PERMISSION = "case:edit";
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
     /** 缺陷热点回看窗口（详设 3.3 reason 口径：该模块近 30 天缺陷） */
     private static final int HOTSPOT_DAYS = 30;
@@ -80,13 +78,6 @@ public class CasePriorityHandler implements TaskHandler {
                 模块缺陷热点（近 30 天）：
                 {{bugContext}}
                 """;
-    }
-
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_NO_PERMISSION);
-        }
     }
 
     @Override

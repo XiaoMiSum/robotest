@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.task.handler;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
@@ -16,7 +15,6 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.util.ArrayList;
@@ -68,21 +66,6 @@ class PlanOrderHandlerTest {
         assertEquals("plan_order", handler.type());
         assertTrue(handler.defaultPrompt().contains("{{planContext}}"));
         assertTrue(handler.defaultPrompt().contains("{{roundCount}}"));
-    }
-
-    @Test
-    void checkPermission_withoutPlanExecute_throws306() {
-        LoginUser user = new LoginUser();
-        user.setAuthorities(List.of(new SimpleGrantedAuthority("plan:execute")));
-
-        handler.checkPermission(user);
-
-        LoginUser viewer = new LoginUser();
-        viewer.setAuthorities(List.of(new SimpleGrantedAuthority("plan:view")));
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(),
-                assertThrows(ServiceException.class, () -> handler.checkPermission(viewer)).getCode());
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(),
-                assertThrows(ServiceException.class, () -> handler.checkPermission(null)).getCode());
     }
 
     // ---------- 输入校验 ----------

@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
@@ -77,7 +76,6 @@ public class BugClassifyHandler implements TaskHandler {
     private static final int BUG_IMAGE_LIMIT = 2;
     private static final int BATCH_IMAGE_LIMIT = 8;
     private static final long IMAGE_MAX_BYTES = 10L * 1024 * 1024;
-    private static final String PERMISSION = "bug:view";
 
     private static final Set<String> BUG_TYPES = Set.of(
             Constants.BugType.CODE_ERROR, Constants.BugType.UI_IMPROVEMENT, Constants.BugType.DESIGN_DEFECT,
@@ -153,14 +151,6 @@ public class BugClassifyHandler implements TaskHandler {
                 候选成员（id|姓名）：
                 {{memberOptions}}
                 """;
-    }
-
-    /** 表单入口在缺陷侧已校验 bug:view；直提任务资源时在此补齐（详设 4.2） */
-    @Override
-    public void checkPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
     }
 
     @Override

@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -85,23 +86,13 @@ class GenerationAdoptServiceImplTest {
                 "placement", "new_top_level")));
     }
 
-    // ---------- 分派与权限 ----------
+    // ---------- 分派 ----------
 
     @Test
     void adopt_rejected_returnsNull() {
         AdoptOutcome outcome = adopter.adopt(context(moduleArtifact(), "rejected", null));
 
         assertNull(outcome);
-    }
-
-    @Test
-    void adopt_withoutCaseEditPermission_throws208() {
-        LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("case:view"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(moduleArtifact(), "adopted", user)));
-        assertEquals(ErrorCodeConstants.GENERATION_NO_ADOPT_PERMISSION.code(), exception.getCode());
     }
 
     @Test
@@ -264,7 +255,8 @@ class GenerationAdoptServiceImplTest {
 
     private static LoginUser editor() {
         LoginUser user = mock(LoginUser.class);
-        when(user.getPermissions()).thenReturn(List.of("case:edit"));
+        // 权限不再由采纳侧校验，登录态仅作操作人归因（桩不再被消费，置 lenient）
+        lenient().when(user.getPermissions()).thenReturn(List.of("case:edit"));
         return user;
     }
 

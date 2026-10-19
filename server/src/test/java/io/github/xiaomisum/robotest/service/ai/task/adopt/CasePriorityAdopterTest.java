@@ -18,7 +18,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -66,20 +64,7 @@ class CasePriorityAdopterTest {
     void adopt_rejected_returnsNullAndSkipsWrite() {
         assertNull(adopter.adopt(context(Constants.AiArtifactAction.REJECTED, null, "P1", null)));
 
-        verify(support, never()).requirePermission(any(), anyString());
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
-    }
-
-    @Test
-    void adopt_withoutCaseEditPermission_failsBeforeAnyWrite() {
-        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_NO_PERMISSION))
-                .when(support).requirePermission(any(), eq("case:edit"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, "P1", "high")));
-
-        assertEquals(ErrorCodeConstants.ASSISTED_NO_PERMISSION.code(), exception.getCode());
-        verify(support, never()).resolveCaseTarget(any());
     }
 
     @Test

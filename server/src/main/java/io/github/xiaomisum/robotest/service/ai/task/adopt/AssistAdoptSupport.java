@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.task.adopt;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
@@ -20,7 +19,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.parseUuid;
 
 /**
- * 辅助功能两承接共用支撑：落库资源权限（1000018306）、承接目标解析（target 缺省回退任务入参，
+ * 辅助功能两承接共用支撑：承接目标解析（target 缺省回退任务入参，
  * 任务详情页发起不带 target）与采纳后的项目动态留痕。
  */
 @Component
@@ -36,13 +35,6 @@ public class AssistAdoptSupport {
     /** 承接目标：文档 + 归属与类型校验后的源用例节点；resolved 保留文档全量节点索引供属性子节点读取 */
     public record CaseTarget(TestCaseDocument document, TestCaseNode node,
                              CaseAssistSupport.ResolvedCases resolved) {
-    }
-
-    /** 资源权限：确认请求必带 loginUser，缺失或未持有该权限按 1000018306 */
-    public void requirePermission(LoginUser loginUser, String permission) {
-        if (loginUser == null || !loginUser.getPermissions().contains(permission)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_NO_PERMISSION);
-        }
     }
 
     /**
