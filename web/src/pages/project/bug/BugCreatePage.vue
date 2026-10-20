@@ -8,7 +8,7 @@ import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugSuggestBadge from '@/components/project/bug/BugSuggestBadge.vue'
 import BugDuplicateDialog from '@/components/project/bug/BugDuplicateDialog.vue'
 import { fetchAiStatus } from '@/services/ai'
-import type { BugPriority, BugSeverity, BugRelatedCaseSuggestion } from '@/types'
+import type { BugPriority, BugSeverity, BugRelatedCaseSuggestion, BugType, ProjectModule } from '@/types'
 
 const {
   formRef,
@@ -54,7 +54,7 @@ const {
   requestSuggestion,
 } = useBugCreateSuggest()
 
-/** 标题填写后点击获取实时建议（详设 3.5，同步一次返回全部建议，不落库） */
+/** 标题填写后点击获取实时建议（详设 3.5，SSE 流式一次返回全部建议，不落库） */
 async function handleRequestSuggest(): Promise<void> {
   if (!form.title.trim()) {
     ElMessage.warning('请先填写缺陷标题')
@@ -136,6 +136,38 @@ const keywordsSuggestion = computed(() =>
 const moduleIdSuggestion = computed(() => {
   const suggestion = suggestions.value.moduleId
   return suggestion && suggestion.value ? { value: suggestion.value, reason: suggestion.reason } : null
+})
+
+/** 枚举建议徽标展示名称而非 key（与下拉 / 分段按钮文案同源）；后端新增取值时回退原文 */
+const bugTypeBadgeText = computed(() => {
+  const value = suggestions.value.bugType?.value
+  return value ? (BUG_TYPE_LABEL[value as BugType] ?? value) : undefined
+})
+
+const severityBadgeText = computed(() => {
+  const value = suggestions.value.severity?.value
+  return value ? (severityLabel[value as BugSeverity] ?? value) : undefined
+})
+
+const priorityBadgeText = computed(() => {
+  const value = suggestions.value.priority?.value
+  return value ? (priorityLabel[value as BugPriority] ?? value) : undefined
+})
+
+function findModuleName(nodes: ProjectModule[], id: string): string | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node.name
+    const found = findModuleName(node.children ?? [], id)
+    if (found) return found
+  }
+  return undefined
+}
+
+/** 模块建议写入值为 id，徽标展示需回显模块名（树深度优先查找，未命中回退 id） */
+const moduleBadgeText = computed(() => {
+  const id = moduleIdSuggestion.value?.value
+  if (!id) return undefined
+  return findModuleName(moduleTree.value, id) ?? id
 })
 
 /** 关联用例建议展示文本取用例标题（写入值为用例 id） */
@@ -255,6 +287,7 @@ function handleTitleBlur(): void {
                 :model-value="form.bugType"
                 :label="'类型'"
                 :suggestion="suggestions.bugType"
+                :display-text="bugTypeBadgeText"
                 @adopt="adoptSuggestion('bugType', $event)"
               />
             </el-form-item>
@@ -273,6 +306,7 @@ function handleTitleBlur(): void {
                 :label="'模块'"
                 :suggestion="moduleIdSuggestion"
                 :adopt-value="moduleIdSuggestion?.value ?? ''"
+                :display-text="moduleBadgeText"
                 @adopt="adoptSuggestion('moduleId', $event)"
               />
             </el-form-item>
@@ -289,6 +323,7 @@ function handleTitleBlur(): void {
                 :model-value="form.severity"
                 :label="'等级'"
                 :suggestion="suggestions.severity"
+                :display-text="severityBadgeText"
                 @adopt="adoptSuggestion('severity', $event)"
               />
             </el-form-item>
@@ -305,6 +340,7 @@ function handleTitleBlur(): void {
                 :model-value="form.priority"
                 :label="'优先级'"
                 :suggestion="suggestions.priority"
+                :display-text="priorityBadgeText"
                 @adopt="adoptSuggestion('priority', $event)"
               />
             </el-form-item>
