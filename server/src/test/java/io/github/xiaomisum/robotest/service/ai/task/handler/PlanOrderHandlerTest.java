@@ -86,8 +86,8 @@ class PlanOrderHandlerTest {
     }
 
     @Test
-    void validateInput_withoutProjectContext_throws115() {
-        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(),
+    void validateInput_withoutProjectContext_throws2008() {
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(),
                 assertThrows(ServiceException.class, () -> handler.validateInput(baseInput(),
                         new TaskSubmitContext(null, null, OPERATOR_ID, null))).getCode());
     }
