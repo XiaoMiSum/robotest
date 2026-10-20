@@ -113,10 +113,10 @@ class TestDesignGenerationHandlerTest {
     // ---------- 输入校验（项目范围 / 快照回写） ----------
 
     @Test
-    void validateInput_withoutProjectContext_throws205() {
+    void validateInput_withoutProjectContext_throws2008() {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> handler.validateInput(baseInput(), new TaskSubmitContext(null, null, OPERATOR_ID, null)));
-        assertEquals(ErrorCodeConstants.GENERATION_INPUT_INVALID.code(), exception.getCode());
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), exception.getCode());
     }
 
     @Test
