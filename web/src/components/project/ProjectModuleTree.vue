@@ -173,7 +173,16 @@ defineExpose({ reload: load, getTree: () => treeData.value })
     min-height: 0;
     padding: 4px 8px 10px;
     overflow: auto;
+    // 只隐藏视觉滚动条：overflow 滚动与键盘滚动必须保留（UI-SC-03）
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     background: transparent;
+  }
+
+  :deep(.el-tree)::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   // 空态在树区域内垂直居中（默认空块仅水平居中、贴顶展示）

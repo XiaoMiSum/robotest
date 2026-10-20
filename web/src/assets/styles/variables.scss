@@ -176,6 +176,12 @@ body[data-robotest-theme] {
     padding: var(--el-card-padding, 20px);
   }
 
+  /* 树选择下拉（UI-SC-03）：只隐藏组件自绘条，滚动仍由 .el-scrollbar__wrap 承担；
+     弹层经 Teleport 挂 body，以树选择标记类限定作用域（UI-SC-04） */
+  .el-tree-select__popper .el-scrollbar__bar {
+    display: none;
+  }
+
   /* 表格（视觉设计 §8.3：表头 #F5F7FA · 行悬停 #FAFAFA · 斑马 #F0F2F5 · 边框 #E4E7ED） */
   .el-table {
     --el-table-border-color: var(--color-neutral-200);
