@@ -2,6 +2,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_PREVIEW_MAX_WIDTH } from '@/composables/common/vditorEditor'
 import MarkdownEditor from './MarkdownEditor.vue'
 
 // Vditor 内核依赖浏览器完整 DOM，jsdom 跑不起来；此处只桩接组件依赖的构造参数与实例方法
@@ -14,7 +15,6 @@ const fake = vi.hoisted(() => {
     disabled: vi.fn(),
     enable: vi.fn(),
     destroy: vi.fn(),
-    setHeight: vi.fn(),
   }
   return {
     editor,
@@ -26,9 +26,10 @@ const fake = vi.hoisted(() => {
 
 vi.mock('vditor', () => ({
   default: class {
-    constructor(_element: HTMLElement, options: Record<string, unknown>) {
+    constructor(element: HTMLElement, options: Record<string, unknown>) {
       fake.options = options
-      Object.assign(this, fake.editor)
+      // 内核对象经 vditor 属性暴露：高度与预览参数都落在这里（与生产实现一致，Vditor 4 无 setHeight 方法）
+      Object.assign(this, fake.editor, { vditor: { element, options } })
     }
   },
 }))
@@ -206,6 +207,8 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     await nextTick()
     expect(wrapper.find('.markdown-editor-wrap--maximized').exists()).toBe(true)
     expect(wrapper.find('.markdown-editor').attributes('style')).toContain('height: 100%')
+    // 最大化放宽正文居中上限（经实例 vditor.options 生效，Vditor 4 实例自身无 options）
+    expect((fake.options?.preview as { maxWidth?: number })?.maxWidth).toBe(Number.MAX_SAFE_INTEGER)
     expect(document.body.style.overflow).toBe('hidden')
 
     const mask = document.querySelector('.markdown-editor__mask')
@@ -214,6 +217,7 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     await nextTick()
     expect(wrapper.find('.markdown-editor-wrap--maximized').exists()).toBe(false)
     expect(wrapper.find('.markdown-editor').attributes('style')).toContain('height: 320px')
+    expect((fake.options?.preview as { maxWidth?: number })?.maxWidth).toBe(DEFAULT_PREVIEW_MAX_WIDTH)
     expect(document.querySelector('.markdown-editor__mask')).toBeNull()
     expect(document.body.style.overflow).toBe('')
   })
@@ -278,11 +282,11 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
 
     await button.trigger('click')
     // 展开高度 = 正文滚动高度(1000) + 工具栏高度(无 DOM 为 0) + 缓冲(2)
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('1002px')
+    expect(editorHeight(wrapper)).toBe('1002px')
     expect(findExpandButton(wrapper).text()).toBe('收起')
 
     await findExpandButton(wrapper).trigger('click')
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('320px')
+    expect(editorHeight(wrapper)).toBe('320px')
     expect(findExpandButton(wrapper).text()).toBe('完整显示')
   })
 
@@ -293,11 +297,11 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     await measureByResize()
 
     await findExpandButton(wrapper).trigger('click')
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('1002px')
+    expect(editorHeight(wrapper)).toBe('1002px')
 
     Object.defineProperty(area, 'scrollHeight', { value: 1600 })
     await measureByResize()
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('1602px')
+    expect(editorHeight(wrapper)).toBe('1602px')
   })
 
   it('禁用（只读）态不渲染完整显示按钮', async () => {
@@ -312,6 +316,11 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
 
   function findResizeHandle(wrapper: VueWrapper) {
     return wrapper.find('.markdown-editor-resize')
+  }
+
+  /** 高度唯一落点是根元素内联样式（Vditor 4 无 setHeight 方法），断言以它为准 */
+  function editorHeight(wrapper: VueWrapper): string {
+    return (wrapper.find('.markdown-editor').element as HTMLElement).style.height
   }
 
   /** 模拟在手柄上按下并拖动指定像素（jsdom 量不到布局，起始高度走内部记录值） */
@@ -352,32 +361,31 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
   it('上下拖动调整高度，向下钳制最小 200px、向上钳制视口高度', async () => {
     const { options, wrapper } = await mountEditor()
     markReady(options)
-    fake.editor.setHeight.mockClear()
 
     await dragHandle(wrapper, -50)
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('270px')
+    expect(editorHeight(wrapper)).toBe('270px')
 
     await dragHandle(wrapper, -100000)
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('200px')
+    expect(editorHeight(wrapper)).toBe('200px')
 
     await dragHandle(wrapper, 100000)
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith(`${window.innerHeight}px`)
+    expect(editorHeight(wrapper)).toBe(`${window.innerHeight}px`)
   })
 
   it('拖动后外部高度变化不再覆盖，收起完整显示恢复拖动后的值', async () => {
     const { options, wrapper } = await mountEditor()
     markReady(options)
     await dragHandle(wrapper, 80)
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('400px')
+    expect(editorHeight(wrapper)).toBe('400px')
 
     await wrapper.setProps({ height: '640px' })
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('400px')
+    expect(editorHeight(wrapper)).toBe('400px')
 
     attachArea(wrapper, 1000, 300)
     await measureByResize()
     await findExpandButton(wrapper).trigger('click')
     await findExpandButton(wrapper).trigger('click')
-    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('400px')
+    expect(editorHeight(wrapper)).toBe('400px')
   })
 
   it('拖拽结束移除全局监听并还原光标与选中，卸载时中断拖拽同样清理', async () => {
@@ -390,9 +398,10 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     expect(document.body.style.cursor).toBe('')
     expect(document.body.style.userSelect).toBe('')
 
-    fake.editor.setHeight.mockClear()
+    // 监听已随 mouseup 移除：后续 mousemove 不再改高度
+    const heightBefore = editorHeight(wrapper)
     document.dispatchEvent(new MouseEvent('mousemove', { clientY: 500 }))
-    expect(fake.editor.setHeight).not.toHaveBeenCalled()
+    expect(editorHeight(wrapper)).toBe(heightBefore)
 
     await findResizeHandle(wrapper).trigger('mousedown', { clientY: 100 })
     wrapper.unmount()
