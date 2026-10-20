@@ -27,6 +27,11 @@ class SchemaSeedConsistencyTest {
 
     private static final String PROJECT_CREATE_CODE = "\"project:create\"";
 
+    /** 阻塞/恢复计划权限点（18.3 业务权限点段，TestPlanController 按此收口 block/resume） */
+    private static final String PLAN_BLOCK_ROW = "'c0000000-0000-0000-0000-000000000032', 'plan:block'";
+
+    private static final String PLAN_BLOCK_CODE = "\"plan:block\"";
+
     @Test
     void schemaRegistersProjectCreateAndGrantsPresetWorkspaceRoles() throws IOException {
         String sql = loadSchema();
@@ -43,6 +48,24 @@ class SchemaSeedConsistencyTest {
                 "预置「管理员」角色未授予 project:create，空间管理员将看不到新建项目入口");
         assertTrue(roleSeed.substring(member).contains(PROJECT_CREATE_CODE),
                 "预置「成员」角色未授予 project:create，普通成员将看不到新建项目入口");
+    }
+
+    @Test
+    void schemaRegistersPlanBlockAndGrantsPresetWorkspaceRoles() throws IOException {
+        String sql = loadSchema();
+
+        assertTrue(sql.contains(PLAN_BLOCK_ROW),
+                "schema.sql 缺少 plan:block 权限点，阻塞/恢复接口与入口显隐将无码可用");
+
+        String roleSeed = presetRoleSeed(sql);
+        int admin = roleSeed.indexOf(ADMIN_ROLE_ID);
+        int member = roleSeed.indexOf(MEMBER_ROLE_ID);
+        assertTrue(admin >= 0 && member > admin, "schema.sql 预置空间角色（管理员/成员）顺序或编号已变更，守卫需同步");
+
+        assertTrue(roleSeed.substring(admin, member).contains(PLAN_BLOCK_CODE),
+                "预置「管理员」角色未授予 plan:block，空间管理员将无法阻塞/恢复计划");
+        assertTrue(roleSeed.substring(member).contains(PLAN_BLOCK_CODE),
+                "预置「成员」角色未授予 plan:block，普通成员将无法阻塞/恢复计划");
     }
 
     private String loadSchema() throws IOException {

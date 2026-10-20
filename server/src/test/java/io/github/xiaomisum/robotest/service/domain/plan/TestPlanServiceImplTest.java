@@ -529,7 +529,8 @@ class TestPlanServiceImplTest {
         }
 
         @Test
-        void syncPlan_notExecutor_throws() {
+        void syncPlan_nonExecutor_success() {
+                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:execute')")，服务层只校验归属与状态
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);
@@ -538,8 +539,9 @@ class TestPlanServiceImplTest {
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
-                assertThrows(ServiceException.class,
-                                () -> planService.syncPlan(projectId, planId, userId));
+                planService.syncPlan(projectId, planId, userId);
+
+                verify(testPlanMapper).updateById(any(TestPlan.class));
         }
 
         @Test
@@ -611,7 +613,8 @@ class TestPlanServiceImplTest {
         }
 
         @Test
-        void completePlan_notExecutor_throws() {
+        void completePlan_nonExecutor_success() {
+                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:execute')")
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);
@@ -620,8 +623,11 @@ class TestPlanServiceImplTest {
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
-                assertThrows(ServiceException.class,
-                                () -> planService.completePlan(projectId, planId, userId));
+                planService.completePlan(projectId, planId, userId);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.Status.COMPLETED, captor.getValue().getStatus());
         }
 
         @Test
@@ -704,7 +710,8 @@ class TestPlanServiceImplTest {
         }
 
         @Test
-        void blockPlan_notExecutor_throws() {
+        void blockPlan_nonExecutor_success() {
+                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:block')")
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);
@@ -713,9 +720,11 @@ class TestPlanServiceImplTest {
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
-                assertThrows(ServiceException.class,
-                                () -> planService.blockPlan(projectId, planId, userId));
-                verify(testPlanMapper, never()).updateById(any(TestPlan.class));
+                planService.blockPlan(projectId, planId, userId);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.Status.BLOCKED, captor.getValue().getStatus());
         }
 
         @Test
@@ -771,7 +780,8 @@ class TestPlanServiceImplTest {
         }
 
         @Test
-        void resumePlan_notExecutor_throws() {
+        void resumePlan_nonExecutor_success() {
+                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:block')")
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);
@@ -780,8 +790,11 @@ class TestPlanServiceImplTest {
 
                 when(testPlanMapper.selectById(planId)).thenReturn(plan);
 
-                assertThrows(ServiceException.class,
-                                () -> planService.resumePlan(projectId, planId, userId));
+                planService.resumePlan(projectId, planId, userId);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.Status.IN_PROGRESS, captor.getValue().getStatus());
         }
 
         @Test

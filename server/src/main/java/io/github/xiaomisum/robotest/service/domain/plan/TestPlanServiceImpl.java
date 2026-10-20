@@ -167,13 +167,6 @@ public class TestPlanServiceImpl implements TestPlanService {
         }
     }
 
-    // 阻塞/恢复与完成、删除同口径，仅计划负责人可操作
-    private void requireExecutor(TestPlan plan, UUID userId) {
-        if (!userId.equals(plan.getExecutorId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
-    }
-
     @Override
     public TestPlanDetailRespDTO getPlanDetail(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
@@ -466,7 +459,6 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void syncPlan(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
-        requireExecutor(plan, userId);
         requireNotBlocked(plan);
         // 已结束的计划快照已定格，不再允许同步；待开始/进行中均允许
         if (!Constants.Status.NEW.equals(plan.getStatus())
@@ -603,7 +595,6 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void completePlan(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
-        requireExecutor(plan, userId);
         requireNotBlocked(plan);
         TestPlan update = new TestPlan();
         update.setId(planId);
@@ -617,7 +608,6 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void blockPlan(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
-        requireExecutor(plan, userId);
         if (!Constants.Status.NEW.equals(plan.getStatus())
                 && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PLAN_ONLY_ACTIVE_CAN_BLOCK);
@@ -635,7 +625,6 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void resumePlan(UUID projectId, UUID planId, UUID userId) {
         TestPlan plan = requirePlan(projectId, planId, userId);
-        requireExecutor(plan, userId);
         if (!Constants.Status.BLOCKED.equals(plan.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.PLAN_ONLY_BLOCKED_CAN_RESUME);
         }
