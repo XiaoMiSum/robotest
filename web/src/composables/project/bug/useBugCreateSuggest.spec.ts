@@ -1,101 +1,85 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  submitAiTask: vi.fn(),
-  fetchAiTask: vi.fn(),
-  fetchAiArtifact: vi.fn(),
+  suggestBugDraft: vi.fn(),
 }))
 
-vi.mock('@/services/ai', () => ({
-  submitAiTask: mocks.submitAiTask,
-  fetchAiTask: mocks.fetchAiTask,
-  fetchAiArtifact: mocks.fetchAiArtifact,
+vi.mock('@/services/project', () => ({
+  suggestBugDraft: mocks.suggestBugDraft,
 }))
 
 import { useBugCreateSuggest } from './useBugCreateSuggest'
-
-function draftArtifact(content: Record<string, unknown>): Record<string, unknown> {
-  return { key: 'draft', kind: 'classify_suggestion', title: '新建缺陷建议', content }
-}
 
 describe('composables/project/bug/useBugCreateSuggest', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('同步快路径成功：解析建议值、候选与引用', async () => {
-    mocks.submitAiTask.mockResolvedValue({ taskId: 't1', status: 'succeeded' })
-    mocks.fetchAiArtifact.mockResolvedValue(
-      draftArtifact({
-        suggestions: {
-          bugType: { value: 'code_error', reason: '功能失效' },
-          severity: { value: 'fatal', reason: '阻断主流程' },
-          priority: { value: 'high', reason: '紧急' },
-          moduleId: { value: 'm1', reason: '登录模块' },
-          keywords: { value: ['登录', '无响应'], reason: '检索词' },
-        },
-        assigneeCandidates: [
-          { userId: 'u1', name: '李四', reason: '同模块历史处理人', memberValid: true },
-          // 服务端已过滤，前端防御剔除 memberValid=false
-          { userId: 'u2', name: '外部', reason: '', memberValid: false },
-        ],
-        sourceRefs: [{ type: 'bug', id: 'b1', title: '登录按钮无反应' }],
-      }),
-    )
+  it('同步一次返回全部建议：标题 / 重现步骤 / 分类 / 关联用例 / 引用', async () => {
+    mocks.suggestBugDraft.mockResolvedValue({
+      title: { value: '登录页点击登录按钮后无任何响应', reason: '现象明确' },
+      reproSteps: { value: '##### 执行步骤\n1. 打开登录页', reason: '三段结构' },
+      suggestions: {
+        bugType: { value: 'code_error', reason: '功能失效' },
+        severity: { value: 'fatal', reason: '阻断主流程' },
+        priority: { value: 'high', reason: '紧急' },
+        moduleId: { value: 'm1', reason: '登录模块' },
+        keywords: { value: ['登录', '无响应'], reason: '检索词' },
+        relatedCase: { value: 'c1', caseTitle: '登录-正常登录', reason: '正向用例' },
+      },
+      sourceRefs: [{ type: 'bug', id: 'b1', title: '登录按钮无反应' }],
+    })
 
     const suggest = useBugCreateSuggest()
-    await suggest.requestSuggestion({ title: '登录页点击登录无响应' })
+    await suggest.requestSuggestion({ title: '登录页点击登录无响应', steps: '1. 打开登录页' })
 
-    expect(mocks.submitAiTask).toHaveBeenCalledWith(
-      'bug_classify',
-      { draft: { title: '登录页点击登录无响应' } },
-      10,
-    )
+    expect(mocks.suggestBugDraft).toHaveBeenCalledWith({
+      title: '登录页点击登录无响应',
+      steps: '1. 打开登录页',
+    })
+    expect(suggest.titleSuggestion.value?.value).toBe('登录页点击登录按钮后无任何响应')
+    expect(suggest.reproStepsSuggestion.value?.value).toContain('##### 执行步骤')
     expect(suggest.suggestions.value.bugType?.value).toBe('code_error')
     expect(suggest.suggestions.value.keywords?.value).toEqual(['登录', '无响应'])
-    expect(suggest.assigneeCandidates.value).toHaveLength(1)
-    expect(suggest.assigneeCandidates.value[0]?.userId).toBe('u1')
+    expect(suggest.relatedCase.value?.value).toBe('c1')
+    expect(suggest.relatedCase.value?.caseTitle).toBe('登录-正常登录')
     expect(suggest.sourceRefs.value[0]?.id).toBe('b1')
     expect(suggest.loading.value).toBe(false)
   })
 
-  it('超时转轮询：轮到终态后取产物', async () => {
-    vi.useFakeTimers()
-    mocks.submitAiTask.mockResolvedValue({ taskId: 't2', status: 'running' })
-    mocks.fetchAiTask.mockResolvedValue({ taskId: 't2', status: 'succeeded' })
-    mocks.fetchAiArtifact.mockResolvedValue(
-      draftArtifact({ suggestions: { severity: { value: 'serious', reason: 'r' } } }),
-    )
+  it('建议字段缺省时按空处理', async () => {
+    mocks.suggestBugDraft.mockResolvedValue({ suggestions: {} })
 
     const suggest = useBugCreateSuggest()
     await suggest.requestSuggestion({ title: 't' })
-    expect(suggest.loading.value).toBe(true)
 
-    await vi.advanceTimersByTimeAsync(2100)
-    expect(suggest.suggestions.value.severity?.value).toBe('serious')
-    expect(suggest.loading.value).toBe(false)
+    expect(suggest.titleSuggestion.value).toBeNull()
+    expect(suggest.reproStepsSuggestion.value).toBeNull()
+    expect(suggest.relatedCase.value).toBeNull()
+    expect(suggest.sourceRefs.value).toEqual([])
   })
 
-  it('失败不阻塞录入：落错误提示', async () => {
-    mocks.submitAiTask.mockRejectedValue(new Error('模型不可用'))
+  it('失败不阻塞录入：落错误提示并清空建议', async () => {
+    mocks.suggestBugDraft.mockRejectedValue(new Error('模型不可用'))
     const suggest = useBugCreateSuggest()
     await suggest.requestSuggestion({ title: 't' })
+
     expect(suggest.error.value).toContain('模型不可用')
     expect(suggest.loading.value).toBe(false)
+    expect(suggest.suggestions.value).toEqual({})
   })
 
-  it('dispose 停掉轮询计时器', async () => {
-    vi.useFakeTimers()
-    mocks.submitAiTask.mockResolvedValue({ taskId: 't3', status: 'running' })
+  it('重复请求先清空上一次建议，避免过期值残留', async () => {
+    mocks.suggestBugDraft.mockResolvedValueOnce({
+      suggestions: { severity: { value: 'serious', reason: 'r' } },
+    })
     const suggest = useBugCreateSuggest()
-    await suggest.requestSuggestion({ title: 't' })
-    suggest.dispose()
-    // dispose 后推进定时器不应再触发请求
-    await vi.advanceTimersByTimeAsync(5000)
-    expect(mocks.fetchAiTask).not.toHaveBeenCalled()
+    await suggest.requestSuggestion({ title: 't1' })
+    expect(suggest.suggestions.value.severity?.value).toBe('serious')
+
+    mocks.suggestBugDraft.mockResolvedValueOnce({ suggestions: {} })
+    const pending = suggest.requestSuggestion({ title: 't2' })
+    expect(suggest.suggestions.value.severity).toBeUndefined()
+    await pending
   })
 })

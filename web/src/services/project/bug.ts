@@ -4,6 +4,8 @@ import type {
   BugDetail,
   BugDuplicateCheckReq,
   BugDuplicateCheckResp,
+  BugDraftSuggestReq,
+  BugDraftSuggestResp,
   BugListItem,
   BugLog,
   BugPriority,
@@ -114,6 +116,11 @@ export function fetchBugMetrics(query: BugAnalysisQuery = {}): Promise<BugMetric
 /** 录入时重复检测：同步向量检索，向量未就绪回执 1000018258（入口置灰） */
 export function checkBugDuplicates(data: BugDuplicateCheckReq): Promise<BugDuplicateCheckResp> {
   return post('/project/bugs/duplicates/check', data)
+}
+
+/** 新建缺陷实时建议：同步单跳模型调用一次返回全部建议，不产生任务（详设 3.5） */
+export function suggestBugDraft(data: BugDraftSuggestReq): Promise<BugDraftSuggestResp> {
+  return post('/project/bugs/analysis/suggest', data)
 }
 
 // ==================== 缺陷附件 ====================

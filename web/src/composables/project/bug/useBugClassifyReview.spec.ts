@@ -48,7 +48,6 @@ function classifyContent(): Record<string, unknown> {
       moduleId: { value: 'm-1', reason: '登录模块' },
       keywords: { value: ['登录', '无响应'], reason: '检索词' },
     },
-    assigneeCandidates: [{ userId: 'u1', name: '李四', reason: '', memberValid: true }],
     sourceRefs: [{ type: 'bug', id: 'b9', title: '来源缺陷' }],
   }
 }
@@ -85,23 +84,15 @@ describe('composables/project/bug/useBugClassifyReview', () => {
     expect(review.rows.value[0]?.current?.severity).toBe('minor')
   })
 
-  it('内容解析：keywords 为数组，memberValid=false 的候选被剔除', async () => {
-    mocks.fetchAiArtifact.mockResolvedValue({
-      content: {
-        ...classifyContent(),
-        assigneeCandidates: [
-          { userId: 'u1', name: '李四', reason: '', memberValid: true },
-          { userId: 'u2', name: '外部', reason: '', memberValid: false },
-        ],
-      },
-    })
+  it('内容解析：keywords 为数组', async () => {
+    mocks.fetchAiArtifact.mockResolvedValue({ content: classifyContent() })
     mocks.getBugDetail.mockResolvedValue(null)
     const review = setup([makeArtifact()])
     review.init()
     await vi.waitFor(() => expect(review.rows.value[0]?.loaded).toBe(true))
 
     expect(review.rows.value[0]?.content?.suggestions.keywords?.value).toEqual(['登录', '无响应'])
-    expect(review.rows.value[0]?.content?.assigneeCandidates).toHaveLength(1)
+    expect(review.rows.value[0]?.content?.sourceRefs).toHaveLength(1)
     // 缺陷详情加载失败降级：current 保持 null，不阻塞审核
     expect(review.rows.value[0]?.current).toBeNull()
   })

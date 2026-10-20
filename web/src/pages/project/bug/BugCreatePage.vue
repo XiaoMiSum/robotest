@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useBugCreate } from '@/composables/project/bug/useBugCreate'
 import { useBugCreateSuggest } from '@/composables/project/bug/useBugCreateSuggest'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugSuggestBadge from '@/components/project/bug/BugSuggestBadge.vue'
-import AssigneeCandidateChips from '@/components/project/bug/AssigneeCandidateChips.vue'
 import BugDuplicateDialog from '@/components/project/bug/BugDuplicateDialog.vue'
 import { fetchAiStatus } from '@/services/ai'
-import type { BugPriority, BugSeverity } from '@/types'
+import type { BugPriority, BugSeverity, BugRelatedCaseSuggestion } from '@/types'
 
 const {
   formRef,
@@ -48,13 +47,14 @@ void fetchAiStatus()
 const {
   loading: suggestLoading,
   error: suggestError,
+  titleSuggestion,
+  reproStepsSuggestion,
   suggestions,
-  assigneeCandidates,
+  relatedCase,
   requestSuggestion,
-  dispose: disposeSuggest,
 } = useBugCreateSuggest()
 
-/** 标题与重现步骤填写后点击获取建议（草稿模式详设 3.5，不落库） */
+/** 标题填写后点击获取实时建议（详设 3.5，同步一次返回全部建议，不落库） */
 async function handleRequestSuggest(): Promise<void> {
   if (!form.title.trim()) {
     ElMessage.warning('请先填写缺陷标题')
@@ -111,8 +111,18 @@ function adoptKeywords(value: string[]): void {
   form.keywords = value.join(' ')
 }
 
-function adoptAssignee(userId: string): void {
-  form.assigneeId = userId
+/** 标题 / 重现步骤 / 关联用例经点击采纳后写入，属用户主动动作（交互 2.2） */
+function adoptTitle(value: string): void {
+  form.title = value
+}
+
+function adoptReproSteps(value: string): void {
+  form.reproSteps = value
+}
+
+function adoptRelatedCase(suggestion: BugRelatedCaseSuggestion): void {
+  form.relatedCaseId = suggestion.value
+  selectedCaseTitle.value = suggestion.caseTitle
 }
 
 /** 关键词建议为字符串数组，展示时以空格连接（采纳即写入关键词字段） */
@@ -128,6 +138,13 @@ const moduleIdSuggestion = computed(() => {
   return suggestion && suggestion.value ? { value: suggestion.value, reason: suggestion.reason } : null
 })
 
+/** 关联用例建议展示文本取用例标题（写入值为用例 id） */
+const relatedCaseSuggestion = computed(() =>
+  relatedCase.value
+    ? { value: relatedCase.value.value, reason: relatedCase.value.reason }
+    : null,
+)
+
 // ==================== 相似缺陷检测（交互 3.1） ====================
 
 const duplicateVisible = ref(false)
@@ -137,10 +154,6 @@ const duplicateCheckRef = ref<InstanceType<typeof BugDuplicateDialog> | null>(nu
 function handleTitleBlur(): void {
   void duplicateCheckRef.value?.check()
 }
-
-onBeforeUnmount(() => {
-  disposeSuggest()
-})
 </script>
 
 <template>
@@ -193,9 +206,26 @@ onBeforeUnmount(() => {
                 </el-button>
               </template>
             </el-input>
+            <!-- 标题优化建议：点击采纳覆盖标题（用户主动动作，交互 2.2） -->
+            <BugSuggestBadge
+              class="bug-create__suggest-badge"
+              :model-value="form.title"
+              label="标题"
+              :suggestion="titleSuggestion"
+              @adopt="adoptTitle"
+            />
           </el-form-item>
           <el-form-item class="bug-create__repro">
             <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
+            <!-- 重现步骤建议（含实际结果与期望结果）：点击采纳写入编辑器 -->
+            <BugSuggestBadge
+              class="bug-create__suggest-badge"
+              :model-value="normalizedReproSteps"
+              label="重现步骤"
+              :suggestion="reproStepsSuggestion"
+              display-text="执行步骤 / 实际结果 / 期望结果"
+              @adopt="adoptReproSteps"
+            />
           </el-form-item>
           <!-- UI-DS-09 例外（已确认）：拖拽区默认 40px 纵向内边距 + 大图标撑高，按需求压到约一半 -->
           <el-upload
@@ -302,18 +332,21 @@ onBeforeUnmount(() => {
               <el-select v-model="form.assigneeId" filterable placeholder="选择处理人">
                 <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
               </el-select>
-              <!-- 指派候选：悬浮理由，点击采纳（交互 2.2） -->
-              <AssigneeCandidateChips
-                :candidates="assigneeCandidates"
-                :selected-id="form.assigneeId"
-                @adopt="adoptAssignee"
-              />
             </el-form-item>
             <el-form-item label="关联用例">
               <!-- 左状态右操作，与详情侧栏同构：空态占位避免行内控件随文案宽度漂移 -->
               <div class="bug-create__case">
                 <span class="bug-create__case-state">{{ selectedCaseTitle || '未关联' }}</span>
                 <el-button link type="primary" @click="caseSelectorVisible = true">选择用例</el-button>
+                <!-- 关联用例建议：点击采纳写入关联用例（交互 2.2） -->
+                <BugSuggestBadge
+                  :model-value="form.relatedCaseId"
+                  label="关联用例"
+                  :suggestion="relatedCaseSuggestion"
+                  :adopt-value="relatedCase?.value ?? ''"
+                  :display-text="relatedCase?.caseTitle"
+                  @adopt="relatedCase && adoptRelatedCase(relatedCase)"
+                />
               </div>
             </el-form-item>
             <el-form-item label="关联计划">
@@ -409,6 +442,12 @@ onBeforeUnmount(() => {
 
 .bug-create__suggest-error {
   margin-bottom: var(--space-md);
+}
+
+// 实时建议徽标换行挂在输入控件下方：去左缩进、补上间距
+.bug-create__suggest-badge {
+  margin-left: 0;
+  margin-top: var(--space-xs);
 }
 
 .bug-create__form :deep(.el-select),

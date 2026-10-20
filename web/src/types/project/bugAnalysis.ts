@@ -53,7 +53,6 @@ export interface BugMetricsResp {
 }
 
 // ==================== 录入时重复检测（详设 3.8） ====================
-
 export interface BugDuplicateCheckReq {
   title: string
   steps?: string
@@ -81,7 +80,7 @@ export interface BugSuggestionField<T> {
   reason: string
 }
 
-/** 分类建议字段集（草稿与批量共用 kind = classify_suggestion） */
+/** 分类建议字段集（批量产物 content 与实时建议共用） */
 export interface BugClassifySuggestions {
   bugType?: BugSuggestionField<BugType>
   severity?: BugSuggestionField<BugSeverity>
@@ -92,14 +91,6 @@ export interface BugClassifySuggestions {
   assigneeId?: BugSuggestionField<string | null>
 }
 
-/** 指派候选：memberValid 恒为 true（服务端已过滤），保留字段供前端防御 */
-export interface BugAssigneeCandidate {
-  userId: string
-  name: string
-  reason: string
-  memberValid: boolean
-}
-
 /** 来源引用（草稿建议与摘要均附带） */
 export interface BugSourceRef {
   type: string
@@ -108,11 +99,10 @@ export interface BugSourceRef {
   quote?: string
 }
 
-/** 分类建议产物 content（草稿无 bugId；批量逐缺陷一条） */
+/** 分类建议产物 content（批量逐缺陷一条） */
 export interface BugClassifyContent {
   bugId?: string
   suggestions: BugClassifySuggestions
-  assigneeCandidates?: BugAssigneeCandidate[]
   sourceRefs?: BugSourceRef[]
 }
 
@@ -140,4 +130,33 @@ export interface BugDuplicateGroupContent {
 export interface BugClassifyInput {
   bugIds?: string[]
   filter?: { statuses: BugStatus[] }
+}
+
+// ==================== 新建缺陷实时建议（详设 3.5） ====================
+
+/** 实时建议请求：title 必填（≤300），steps / moduleId 为已填内容上下文 */
+export interface BugDraftSuggestReq {
+  title: string
+  steps?: string
+  moduleId?: string
+}
+
+/** 关联用例建议：value 为候选用例节点 id，caseTitle 取候选用例清单原值 */
+export interface BugRelatedCaseSuggestion {
+  value: string
+  caseTitle: string
+  reason: string
+}
+
+/** 实时建议的分类字段集：在批量建议字段基础上补关联用例 */
+export interface BugDraftSuggestFields extends BugClassifySuggestions {
+  relatedCase?: BugRelatedCaseSuggestion
+}
+
+/** 实时建议响应：同步单跳调用一次返回，不产生任务、不落库 */
+export interface BugDraftSuggestResp {
+  title?: BugSuggestionField<string>
+  reproSteps?: BugSuggestionField<string>
+  suggestions: BugDraftSuggestFields
+  sourceRefs?: BugSourceRef[]
 }
