@@ -185,6 +185,12 @@ body[data-robotest-theme] {
     --el-table-text-color: var(--color-neutral-700);
     border-radius: var(--radius-md);
     font-size: var(--font-size-base);
+
+    /* UI-SC-05：纵、横向视觉滚动条按组件级策略隐藏，只隐藏组件自绘条，
+       表体 overflow 滚动能力与固定表头不受影响；选择器限定表格组件，不动其他 el-scrollbar */
+    .el-scrollbar__bar {
+      display: none;
+    }
   }
 
   .el-table th.el-table__cell {
