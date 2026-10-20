@@ -21,8 +21,11 @@ import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementSuggestionParser;
 import jakarta.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
@@ -41,16 +44,26 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 新建缺陷实时建议实现（详设 3.5）：同步单跳模型调用，不产生任务、不落库。
+ * 新建缺陷实时建议实现（详设 3.5）：SSE 流式单跳模型调用（progress / done / error + 15s 心跳），
+ * 不产生任务、不落库；前置校验同步失败，上下文装配与模型调用在 @Async 线程执行。
  * 上下文装配：项目模块清单 + 固定选项枚举 + 用例候选（向量检索用例文档 top 8 展开用例节点 ≤30，
  * 未就绪静默降级为无用例候选）；不检索相似存量缺陷（相似性判断由录入时重复检测详设 3.8 承担）。
- * 清洗：枚举值非法剔除，模块 / 用例归属校验，relatedCase 至多一条；模型调用失败按总册 4.2 映射。
+ * 清洗：枚举值非法剔除，模块 / 用例归属校验，relatedCase 至多一条；失败映射为 error 事件（总册 4.2）。
  */
 @Service
 public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
 
+    private static final Logger log = LoggerFactory.getLogger(BugDraftSuggestServiceImpl.class);
+
     private static final String SCENE = "bug_draft_suggest";
     private static final String SYSTEM_PROMPT = "你是资深缺陷管理助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
+
+    private static final long STREAM_TIMEOUT_MILLIS = 10 * 60 * 1000L;
+    private static final String EVENT_PROGRESS = "progress";
+    private static final String EVENT_DONE = "done";
+    private static final String EVENT_ERROR = "error";
+    private static final String STAGE_CONTEXT = "context";
+    private static final String STAGE_GENERATING = "generating";
 
     private static final int TITLE_MAX_LENGTH = 300;
     /** 用例候选：相似用例文档 top 8 展开为用例节点，总量截断防上下文膨胀（详设 3.5） */
@@ -82,32 +95,79 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
     private AiModelClient modelClient;
     @Resource
     private AiPromptService promptService;
+    @Resource
+    private BugSuggestStreamBridge streamBridge;
+    @Resource
+    private BugSuggestStreamRunner streamRunner;
 
     @Override
-    public BugDraftSuggestRespDTO suggest(BugDraftSuggestReqDTO reqDTO, UUID projectId, UUID userId) {
+    public SseEmitter suggest(BugDraftSuggestReqDTO reqDTO, UUID projectId, UUID userId) {
         projectAccessGuard.requireProjectMember(projectId, userId);
         String title = reqDTO.getTitle() == null ? "" : reqDTO.getTitle().trim();
         if (title.isEmpty() || title.length() > TITLE_MAX_LENGTH) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_SUGGEST_INPUT_INVALID);
         }
-        String steps = trimToNull(reqDTO.getSteps());
-
-        List<ProjectModule> modules = projectModuleMapper.listByProjectId(projectId);
-        Map<UUID, String> caseOptions = caseOptions(title, projectId, userId);
-
         AiModelConfig model = settingsReader.resolveModel(null);
         if (model == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED);
         }
+        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SuggestStreamSink sink = sinkOf(streamBridge.attach(emitter));
+        streamRunner.run(() -> stream(reqDTO, projectId, userId, model, sink));
+        return emitter;
+    }
 
-        Map<String, String> variables = new HashMap<>();
-        variables.put("bugContext", bugContext(reqDTO, title, steps, modules));
-        variables.put("moduleOptions", moduleOptions(modules));
-        variables.put("caseOptions", caseOptionsText(caseOptions));
-        String userPrompt = promptService.render(SCENE, AiPromptScenes.builtin(SCENE), variables);
-        AiChatReply reply = modelClient.chat(
-                new AiChatRequest(null, projectId, userId, SCENE, model, SYSTEM_PROMPT, userPrompt));
-        return sanitize(reply, modules, caseOptions);
+    @Override
+    public void stream(BugDraftSuggestReqDTO reqDTO, UUID projectId, UUID userId, AiModelConfig model,
+            SuggestStreamSink sink) {
+        try {
+            sink.progress(STAGE_CONTEXT);
+            String title = reqDTO.getTitle() == null ? "" : reqDTO.getTitle().trim();
+            String steps = trimToNull(reqDTO.getSteps());
+
+            List<ProjectModule> modules = projectModuleMapper.listByProjectId(projectId);
+            Map<UUID, String> caseOptions = caseOptions(title, projectId, userId);
+
+            sink.progress(STAGE_GENERATING);
+            Map<String, String> variables = new HashMap<>();
+            variables.put("bugContext", bugContext(reqDTO, title, steps, modules));
+            variables.put("moduleOptions", moduleOptions(modules));
+            variables.put("caseOptions", caseOptionsText(caseOptions));
+            String userPrompt = promptService.render(SCENE, AiPromptScenes.builtin(SCENE), variables);
+            // delta 不逐字转发（徽标整包呈现），done 一次给出完整建议 JSON（详设 3.5）
+            AiChatReply reply = modelClient.streamChat(
+                    new AiChatRequest(null, projectId, userId, SCENE, model, SYSTEM_PROMPT, userPrompt),
+                    delta -> { });
+            sink.done(sanitize(reply, modules, caseOptions));
+        } catch (ServiceException e) {
+            sink.error(e.getCode(), e.getMessage());
+        } catch (Exception e) {
+            log.warn("[AI] 建议流执行异常 projectId={}", projectId, e);
+            sink.error(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                    ErrorCodeConstants.AI_MODEL_CALL_FAILED.msg());
+        }
+    }
+
+    /** sink 适配到流桥通道：done / error 均为终态，写出后关闭流（断连清理经流桥回调） */
+    private static SuggestStreamSink sinkOf(BugSuggestStreamBridge.StreamChannel channel) {
+        return new SuggestStreamSink() {
+            @Override
+            public void progress(String stage) {
+                channel.send(EVENT_PROGRESS, Map.of("stage", stage));
+            }
+
+            @Override
+            public void done(BugDraftSuggestRespDTO resp) {
+                channel.send(EVENT_DONE, resp);
+                channel.close();
+            }
+
+            @Override
+            public void error(int code, String message) {
+                channel.send(EVENT_ERROR, Map.of("code", code, "msg", nvl(message)));
+                channel.close();
+            }
+        };
     }
 
     /** 草稿上下文：标题 + 已填重现步骤 + 已选模块名称（仅本项目模块参与） */
