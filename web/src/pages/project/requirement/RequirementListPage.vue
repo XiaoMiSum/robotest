@@ -46,7 +46,7 @@ const {
 /** 首屏走骨架、筛选刷新走整卡遮罩，互斥避免骨架上再叠 loading 层（交互 06 §2.1.3） */
 const showSkeleton = computed(() => !hasLoaded.value && !loadError.value && loading.value)
 
-/** 卡片 body 转 flex 列，表体区才能 flex:1 承接剩余高度（UI-SC-06）；走组件属性而非 :deep，避免扩大 EX-DS-001 基线 */
+/** 卡片 body 转 flex 列，表格根节点才能 flex:1 承接剩余高度（UI-SC-06）；走组件属性而非 :deep，避免扩大 EX-DS-001 基线 */
 const cardBodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -247,100 +247,99 @@ function openCreate(): void {
 
       <el-skeleton v-if="showSkeleton" :rows="6" animated class="requirement-list__skeleton" />
 
-      <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
-      <div v-else class="requirement-list__body">
-        <el-table
-          :data="rows"
-          row-key="id"
-          height="100%"
-          @selection-change="handleSelectionChange"
-        >
-          <!-- 选择列服务 AI 发起（交互 2.1），入口隐藏时无消费方不渲染 -->
-          <el-table-column v-if="canLaunchAi" type="selection" width="36" />
-          <el-table-column label="编号" width="110">
-            <template #default="{ row }">
-              <span class="requirement-list__code">{{ row.code }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="标题" min-width="260" show-overflow-tooltip>
-            <template #default="{ row }">
-              <el-link type="primary" :underline="false" @click.stop="openDetail(row.id)">
-                {{ row.title }}
-              </el-link>
-            </template>
-          </el-table-column>
-          <el-table-column label="所属模块" width="130" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.moduleText }}</template>
-          </el-table-column>
-          <el-table-column label="版本" width="110" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.versionText }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <el-tag
-                :type="row.statusMeta.tagType"
-                size="small"
-                effect="light"
-                :class="{ 'status-tag--archived': row.statusMeta.archived }"
-              >
-                {{ row.statusMeta.label }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="负责人" width="100" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.ownerText }}</template>
-          </el-table-column>
-          <el-table-column label="更新时间" width="170">
-            <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
-          </el-table-column>
-          <!-- 归档入口随 requirement:confirm，故下拉显隐由 edit / confirm 任一权限决定（SRS 1.2 行操作） -->
-          <el-table-column v-if="canConfirm || canEdit" label="操作" width="200" align="right" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
-              <el-button
-                v-if="canConfirm && row.status !== 'archived'"
-                link
-                type="primary"
-                @click="handleConfirm(asRow(row))"
-              >确认</el-button>
-              <el-dropdown
-                v-if="canEdit || (canConfirm && row.status !== 'archived')"
-                trigger="click"
-                class="requirement-list__more"
-                @command="(command: string) => handleRowCommand(command, row)"
-              >
-                <el-button link type="primary">更多<el-icon><ArrowDown /></el-icon></el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item v-if="canEdit" command="edit">编辑</el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="canConfirm && row.status !== 'archived'"
-                      command="archive"
-                      style="color: var(--el-color-warning)"
-                    >归档</el-dropdown-item>
-                    <el-dropdown-item v-if="canEdit && row.status === 'archived'" command="unarchive">
-                      取消归档
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </template>
-          </el-table-column>
-          <template #empty>
-            <el-empty
-              v-if="filterCount > 0"
-              description="无匹配结果"
-              :image-size="80"
-            >
-              <el-button @click="resetFilters">重置筛选</el-button>
-            </el-empty>
-            <el-empty v-else description="暂无需求" :image-size="80">
-              <el-button v-if="canCreate" type="primary" @click="openCreate">新建需求</el-button>
-              <el-button v-if="canImport" @click="importDialogVisible = true">导入需求</el-button>
-            </el-empty>
+      <!-- 表格是卡片内唯一滚动拥有者：根节点作 flex 伸缩子项承接剩余高度，表头固定、数据超出时表体内滚动（UI-SC-02 / UI-SC-05 / UI-SC-06） -->
+      <el-table
+        v-else
+        class="requirement-list__table"
+        :data="rows"
+        row-key="id"
+        @selection-change="handleSelectionChange"
+      >
+        <!-- 选择列服务 AI 发起（交互 2.1），入口隐藏时无消费方不渲染 -->
+        <el-table-column v-if="canLaunchAi" type="selection" width="36" />
+        <el-table-column label="编号" width="110">
+          <template #default="{ row }">
+            <span class="requirement-list__code">{{ row.code }}</span>
           </template>
-        </el-table>
-      </div>
+        </el-table-column>
+        <el-table-column label="标题" min-width="260" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-link type="primary" :underline="false" @click.stop="openDetail(row.id)">
+              {{ row.title }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column label="所属模块" width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.moduleText }}</template>
+        </el-table-column>
+        <el-table-column label="版本" width="110" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.versionText }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag
+              :type="row.statusMeta.tagType"
+              size="small"
+              effect="light"
+              :class="{ 'status-tag--archived': row.statusMeta.archived }"
+            >
+              {{ row.statusMeta.label }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="负责人" width="100" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.ownerText }}</template>
+        </el-table-column>
+        <el-table-column label="更新时间" width="170">
+          <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+        </el-table-column>
+        <!-- 归档入口随 requirement:confirm，故下拉显隐由 edit / confirm 任一权限决定（SRS 1.2 行操作） -->
+        <el-table-column v-if="canConfirm || canEdit" label="操作" width="200" align="right" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
+            <el-button
+              v-if="canConfirm && row.status !== 'archived'"
+              link
+              type="primary"
+              @click="handleConfirm(asRow(row))"
+            >确认</el-button>
+            <el-dropdown
+              v-if="canEdit || (canConfirm && row.status !== 'archived')"
+              trigger="click"
+              class="requirement-list__more"
+              @command="(command: string) => handleRowCommand(command, row)"
+            >
+              <el-button link type="primary">更多<el-icon><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canEdit" command="edit">编辑</el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canConfirm && row.status !== 'archived'"
+                    command="archive"
+                    style="color: var(--el-color-warning)"
+                  >归档</el-dropdown-item>
+                  <el-dropdown-item v-if="canEdit && row.status === 'archived'" command="unarchive">
+                    取消归档
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <el-empty
+            v-if="filterCount > 0"
+            description="无匹配结果"
+            :image-size="80"
+          >
+            <el-button @click="resetFilters">重置筛选</el-button>
+          </el-empty>
+          <el-empty v-else description="暂无需求" :image-size="80">
+            <el-button v-if="canCreate" type="primary" @click="openCreate">新建需求</el-button>
+            <el-button v-if="canImport" @click="importDialogVisible = true">导入需求</el-button>
+          </el-empty>
+        </template>
+      </el-table>
 
       <div v-if="!showSkeleton" class="requirement-list__pager">
         <span class="requirement-list__pager-total">共 {{ total }} 条 · 每页 {{ pageSize }} 条</span>
@@ -371,7 +370,7 @@ function openCreate(): void {
 </template>
 
 <style scoped lang="scss">
-/* 高度链路：壳层主区 → 页面 → 卡片 → 表体，滚动只发生在表体（UI-SC-01 / UI-SC-02） */
+/* 高度链路：壳层主区 → 页面 → 卡片 → 表格，滚动只发生在表体（UI-SC-01 / UI-SC-02） */
 .requirement-list {
   display: flex;
   flex-direction: column;
@@ -449,11 +448,10 @@ function openCreate(): void {
   padding: 14px 20px;
 }
 
-/* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
-.requirement-list__body {
-  flex: 1;
+/* 表格根节点作 flex 伸缩子项：flex:1 承接卡片剩余高度并允许收缩（min-height:0），滚动仍由组件内表体承担（UI-SC-02 / UI-SC-05 / UI-SC-06） */
+.requirement-list__table {
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
 }
 
 .requirement-list__code {
