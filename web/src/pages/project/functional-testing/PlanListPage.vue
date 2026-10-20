@@ -150,6 +150,14 @@ async function handleDelete(row: TestPlanListItem) {
 const createDialogVisible = ref(false)
 const createSubmitting = ref(false)
 
+/** 卡片 body 转 flex 列，表体区才能 flex:1 承接剩余高度（UI-SC-06）；走组件属性而非 :deep，避免扩大 EX-DS-001 基线 */
+const cardBodyStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  flex: '1 1 auto',
+  minHeight: '0',
+}
+
 function openCreateDialog() {
   createDialogVisible.value = true
 }
@@ -184,7 +192,7 @@ async function submitCreate(payload: TestPlanCreatePayload) {
       </div>
     </header>
 
-    <el-card v-loading="loading" shadow="never" class="plan-list__card">
+    <el-card v-loading="loading" shadow="never" class="plan-list__card" :body-style="cardBodyStyle">
       <div class="plan-list__toolbar">
         <el-input
           v-model="query.keyword"
@@ -204,83 +212,86 @@ async function submitCreate(payload: TestPlanCreatePayload) {
         <span class="plan-list__count">{{ planCountText(total) }}</span>
       </div>
 
-      <el-table :data="rows" :row-key="rowKeyId" empty-text="暂无计划">
-        <el-table-column label="名称" min-width="220">
-          <template #default="{ row }">
-            <div class="plan-list__cell">
-              <el-link type="primary" underline="never" @click="router.push(`/workspace/projects/plans/${row.plan.id}`)">
-                {{ row.plan.name }}
-              </el-link>
-              <span class="plan-list__cell-sub">{{ row.nameSub }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="负责人" width="100">
-          <template #default="{ row }">{{ row.plan.executor?.name ?? '—' }}</template>
-        </el-table-column>
-        <el-table-column label="起止时间" width="176">
-          <template #default="{ row }">{{ row.timeText }}</template>
-        </el-table-column>
-        <el-table-column label="环境" width="116">
-          <template #default="{ row }">
-            <span v-if="row.environment === '—'" class="plan-list__muted">—</span>
-            <span v-else class="plan-list__chip">{{ row.environment }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="96">
-          <template #default="{ row }">
-            <span class="plan-list__status" :class="`plan-list__status--${row.meta.modifier}`">
-              <span class="plan-list__status-dot" />
-              {{ row.meta.label }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="进度" min-width="170">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="row.plan.progressPercent"
-              :stroke-width="6"
-              :status="row.progressStatus"
-            >
-              {{ planProgressText(row.plan.progressPercent) }}
-            </el-progress>
-          </template>
-        </el-table-column>
-        <el-table-column label="通过率" width="92" align="right">
-          <template #default="{ row }">
-            <span class="plan-list__rate" :class="`plan-list__rate--${row.passRate.tone}`">
-              {{ row.passRate.text }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDateTime(row.plan.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="router.push(`/workspace/projects/plans/${row.plan.id}`)">
-              {{ row.action === 'enter' ? '进入执行' : '查看详情' }}
-            </el-button>
-            <el-button
-              v-if="isActivePlan(row.plan.status) && canCompletePlans"
-              link
-              type="success"
-              @click="handleComplete(row.plan)"
-            >
-              完成
-            </el-button>
-            <el-button
-              v-if="canResumePlan(row.plan.status) && canResumePlans"
-              link
-              type="primary"
-              @click="handleResume(row.plan)"
-            >
-              恢复
-            </el-button>
-            <el-button link type="danger" @click="handleDelete(row.plan)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+      <div class="plan-list__body">
+        <el-table :data="rows" :row-key="rowKeyId" empty-text="暂无计划" height="100%">
+          <el-table-column label="名称" min-width="220">
+            <template #default="{ row }">
+              <div class="plan-list__cell">
+                <el-link type="primary" underline="never" @click="router.push(`/workspace/projects/plans/${row.plan.id}`)">
+                  {{ row.plan.name }}
+                </el-link>
+                <span class="plan-list__cell-sub">{{ row.nameSub }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="负责人" width="100">
+            <template #default="{ row }">{{ row.plan.executor?.name ?? '—' }}</template>
+          </el-table-column>
+          <el-table-column label="起止时间" width="176">
+            <template #default="{ row }">{{ row.timeText }}</template>
+          </el-table-column>
+          <el-table-column label="环境" width="116">
+            <template #default="{ row }">
+              <span v-if="row.environment === '—'" class="plan-list__muted">—</span>
+              <span v-else class="plan-list__chip">{{ row.environment }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="96">
+            <template #default="{ row }">
+              <span class="plan-list__status" :class="`plan-list__status--${row.meta.modifier}`">
+                <span class="plan-list__status-dot" />
+                {{ row.meta.label }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="进度" min-width="170">
+            <template #default="{ row }">
+              <el-progress
+                :percentage="row.plan.progressPercent"
+                :stroke-width="6"
+                :status="row.progressStatus"
+              >
+                {{ planProgressText(row.plan.progressPercent) }}
+              </el-progress>
+            </template>
+          </el-table-column>
+          <el-table-column label="通过率" width="92" align="right">
+            <template #default="{ row }">
+              <span class="plan-list__rate" :class="`plan-list__rate--${row.passRate.tone}`">
+                {{ row.passRate.text }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="160">
+            <template #default="{ row }">{{ formatDateTime(row.plan.createdAt) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="200" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="router.push(`/workspace/projects/plans/${row.plan.id}`)">
+                {{ row.action === 'enter' ? '进入执行' : '查看详情' }}
+              </el-button>
+              <el-button
+                v-if="isActivePlan(row.plan.status) && canCompletePlans"
+                link
+                type="success"
+                @click="handleComplete(row.plan)"
+              >
+                完成
+              </el-button>
+              <el-button
+                v-if="canResumePlan(row.plan.status) && canResumePlans"
+                link
+                type="primary"
+                @click="handleResume(row.plan)"
+              >
+                恢复
+              </el-button>
+              <el-button link type="danger" @click="handleDelete(row.plan)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <div class="plan-list__pager">
         <span class="plan-list__pager-total">{{ planPagerTotalText(total, query.pageSize) }}</span>
@@ -303,8 +314,18 @@ async function submitCreate(payload: TestPlanCreatePayload) {
 </template>
 
 <style scoped lang="scss">
+/* 高度链路：内容白卡 → 页面 → 卡片 → 表体，滚动只发生在表体（UI-SC-01 / UI-SC-02） */
+.plan-list-page {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  height: 100%;
+}
+
 .page-head {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-lg);
@@ -325,13 +346,18 @@ async function submitCreate(payload: TestPlanCreatePayload) {
   font-size: var(--font-size-sm);
 }
 
+/* UI-SC-10：body 内边距归零，留白由工具栏/分页条承担；卡片本体转 flex 列承接表体区（UI-SC-06） */
 .plan-list__card {
-  /* UI-SC-10：body 内边距归零，留白由工具栏/分页条承担 */
   --el-card-padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .plan-list__toolbar {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: var(--space-md);
   padding: 14px 20px;
@@ -343,6 +369,13 @@ async function submitCreate(payload: TestPlanCreatePayload) {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
   white-space: nowrap;
+}
+
+/* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
+.plan-list__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .plan-list__cell {
@@ -431,6 +464,7 @@ async function submitCreate(payload: TestPlanCreatePayload) {
 
 .plan-list__pager {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
