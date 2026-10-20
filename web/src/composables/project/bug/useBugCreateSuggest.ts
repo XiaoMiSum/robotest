@@ -3,7 +3,6 @@ import { suggestBugDraft } from '@/services/project'
 import type {
   BugDraftSuggestFields,
   BugRelatedCaseSuggestion,
-  BugSourceRef,
   BugSuggestionField,
 } from '@/types'
 
@@ -22,14 +21,12 @@ export function useBugCreateSuggest() {
   const reproStepsSuggestion = ref<BugSuggestionField<string> | null>(null)
   const suggestions = ref<BugDraftSuggestFields>({})
   const relatedCase = ref<BugRelatedCaseSuggestion | null>(null)
-  const sourceRefs = ref<BugSourceRef[]>([])
 
   function reset(): void {
     titleSuggestion.value = null
     reproStepsSuggestion.value = null
     suggestions.value = {}
     relatedCase.value = null
-    sourceRefs.value = []
   }
 
   async function requestSuggestion(input: {
@@ -46,7 +43,6 @@ export function useBugCreateSuggest() {
       reproStepsSuggestion.value = resp.reproSteps ?? null
       suggestions.value = resp.suggestions ?? {}
       relatedCase.value = resp.suggestions?.relatedCase ?? null
-      sourceRefs.value = resp.sourceRefs ?? []
     } catch (err) {
       // 建议失败不阻塞录入，仅提示原因（交互 2.4 状态分支）
       error.value = errorMessage(err, '获取缺陷建议失败')
@@ -62,7 +58,6 @@ export function useBugCreateSuggest() {
     reproStepsSuggestion,
     suggestions,
     relatedCase,
-    sourceRefs,
     requestSuggestion,
   }
 }

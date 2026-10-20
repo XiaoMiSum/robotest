@@ -158,5 +158,4 @@ export interface BugDraftSuggestResp {
   title?: BugSuggestionField<string>
   reproSteps?: BugSuggestionField<string>
   suggestions: BugDraftSuggestFields
-  sourceRefs?: BugSourceRef[]
 }
