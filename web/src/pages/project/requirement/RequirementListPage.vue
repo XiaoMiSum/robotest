@@ -8,7 +8,6 @@ import type { RequirementRow } from '@/composables/project/requirement/requireme
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
 import SelectionConfigDialog from '@/components/project/ai/SelectionConfigDialog.vue'
-import AiTaskEntryButton from '@/components/project/ai/AiTaskEntryButton.vue'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
 const router = useRouter()
@@ -122,8 +121,6 @@ function openCreate(): void {
         <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
       </div>
       <div class="page-head__actions">
-        <!-- 任务中心就近入口（交互 07 §1）：组件内按 ai:task 显隐 -->
-        <AiTaskEntryButton />
         <el-tooltip
           v-if="canLaunchAi"
           :content="selectedRows.length > 0 ? '对已选需求发起 AI 圈选建议' : '请先勾选需求'"
