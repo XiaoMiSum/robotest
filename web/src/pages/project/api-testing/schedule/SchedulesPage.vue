@@ -78,64 +78,67 @@ const {
       </el-button>
     </div>
 
-    <el-table :data="rows">
-      <el-table-column prop="name" label="任务名称" min-width="180" show-overflow-tooltip />
-      <el-table-column label="类型" width="100">
-        <template #default="{ row }">
-          {{ row.taskType === 'scene_execute' ? '测试计划' : row.taskType === 'import_swagger' ? '接口同步' : row.taskType }}
-        </template>
-      </el-table-column>
-      <el-table-column label="执行范围" min-width="160" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ taskExecutionSummary(row as ApiSchedulePageItem) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="cronExpression" label="调度" width="130" />
-      <el-table-column label="状态" width="80" align="center">
-        <template #default="{ row }">
-          <el-switch
-            :model-value="row.enabled"
-            size="small"
-            @change="() => handleToggle(row as ApiSchedulePageItem)"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="上次执行" width="130">
-        <template #default="{ row }">
-          <div v-if="row.lastExecutionStatus">
-            <el-tag size="small" :type="execStatusType(row.lastExecutionStatus)">
-              {{ execStatusLabel(row.lastExecutionStatus) }}
-            </el-tag>
-            <div v-if="row.lastExecutionAt" class="schedules-page__exec-time">
-              {{ formatShortDateTime(row.lastExecutionAt) }}
+    <!-- 表体区是页面内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+    <div class="schedules-page__table">
+      <el-table :data="rows" height="100%">
+        <el-table-column prop="name" label="任务名称" min-width="180" show-overflow-tooltip />
+        <el-table-column label="类型" width="100">
+          <template #default="{ row }">
+            {{ row.taskType === 'scene_execute' ? '测试计划' : row.taskType === 'import_swagger' ? '接口同步' : row.taskType }}
+          </template>
+        </el-table-column>
+        <el-table-column label="执行范围" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ taskExecutionSummary(row as ApiSchedulePageItem) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="cronExpression" label="调度" width="130" />
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="{ row }">
+            <el-switch
+              :model-value="row.enabled"
+              size="small"
+              @change="() => handleToggle(row as ApiSchedulePageItem)"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="上次执行" width="130">
+          <template #default="{ row }">
+            <div v-if="row.lastExecutionStatus">
+              <el-tag size="small" :type="execStatusType(row.lastExecutionStatus)">
+                {{ execStatusLabel(row.lastExecutionStatus) }}
+              </el-tag>
+              <div v-if="row.lastExecutionAt" class="schedules-page__exec-time">
+                {{ formatShortDateTime(row.lastExecutionAt) }}
+              </div>
             </div>
-          </div>
-          <span v-else class="text-neutral-400">-</span>
+            <span v-else class="text-neutral-400">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="220" fixed="right">
+          <template #default="{ row }">
+            <el-button link size="small" type="primary" :disabled="row.lastExecutionStatus === 'running'" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
+            <el-button link size="small" @click="openExecutions(row as ApiSchedulePageItem)">执行记录</el-button>
+            <el-dropdown
+              trigger="click" class="schedules-page__more" @command="(cmd: string) => {
+                if (cmd === 'edit') openEdit(row as ApiSchedulePageItem)
+                else if (cmd === 'delete') void handleDelete(row as ApiSchedulePageItem)
+              }">
+              <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <el-empty description="暂无定时任务，点击右上角「新建任务」创建第一个任务" />
         </template>
-      </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
-        <template #default="{ row }">
-          <el-button link size="small" type="primary" :disabled="row.lastExecutionStatus === 'running'" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
-          <el-button link size="small" @click="openExecutions(row as ApiSchedulePageItem)">执行记录</el-button>
-          <el-dropdown
-            trigger="click" class="schedules-page__more" @command="(cmd: string) => {
-              if (cmd === 'edit') openEdit(row as ApiSchedulePageItem)
-              else if (cmd === 'delete') void handleDelete(row as ApiSchedulePageItem)
-            }">
-            <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </template>
-      </el-table-column>
-      <template #empty>
-        <el-empty description="暂无定时任务，点击右上角「新建任务」创建第一个任务" />
-      </template>
-    </el-table>
+      </el-table>
+    </div>
     <el-pagination
       v-model:current-page="pageNo"
       :page-size="20"
@@ -322,10 +325,19 @@ const {
 </template>
 
 <style scoped lang="scss">
+/* 高度链路：接口测试主区 → 页面 → 表体容器，滚动只发生在表体（UI-SC-01 / UI-SC-02） */
 .schedules-page {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+}
+
+/* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
+.schedules-page__table {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
@@ -343,6 +355,7 @@ const {
 }
 
 .schedules-page__pagination {
+  flex-shrink: 0;
   justify-content: flex-end;
   padding: 14px 0;
   border-top: 1px solid var(--color-neutral-100);
