@@ -9,6 +9,8 @@ const props = defineProps<{
   suggestion: BugSuggestionField<string> | null | undefined
   /** 采纳时写入表单的值（与展示文本不同源时显式给出，如 moduleId） */
   adoptValue?: string
+  /** 徽标展示文本（建议值过长或多行时截取摘要展示，不改采纳值） */
+  displayText?: string
 }>()
 
 const emit = defineEmits<{ adopt: [value: string] }>()
@@ -30,7 +32,7 @@ function adopt(): void {
   <el-tooltip v-if="hasSuggestion && !adopted" :content="`AI 建议：${suggestion?.reason || '无理由'}`" placement="top">
     <el-tag type="primary" effect="plain" size="small" class="suggest-badge" @click.stop="adopt">
       <el-icon class="suggest-badge__icon"><MagicStick /></el-icon>
-      {{ label }}：{{ suggestion?.value }}（采纳）
+      {{ label }}：{{ displayText ?? suggestion?.value }}（采纳）
     </el-tag>
   </el-tooltip>
 </template>

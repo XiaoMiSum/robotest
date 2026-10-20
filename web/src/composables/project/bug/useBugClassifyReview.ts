@@ -66,22 +66,6 @@ function parseClassifyContent(raw: Record<string, unknown>): BugClassifyContent 
     }
   }
 
-  const candidates = Array.isArray(raw['assigneeCandidates']) ? raw['assigneeCandidates'] : []
-  const assigneeCandidates = candidates.flatMap((item) => {
-    if (typeof item !== 'object' || item === null) return []
-    const source = item as Record<string, unknown>
-    const userId = readString(source['userId'])
-    if (!userId) return []
-    // 服务端已过滤为当前空间成员，memberValid=false 仅作前端防御剔除
-    if (source['memberValid'] === false) return []
-    return [{
-      userId,
-      name: typeof source['name'] === 'string' ? source['name'] : userId,
-      reason: typeof source['reason'] === 'string' ? source['reason'] : '',
-      memberValid: true,
-    }]
-  })
-
   const refs = Array.isArray(raw['sourceRefs']) ? raw['sourceRefs'] : []
   const sourceRefs = refs.flatMap((item) => {
     if (typeof item !== 'object' || item === null) return []
@@ -99,7 +83,6 @@ function parseClassifyContent(raw: Record<string, unknown>): BugClassifyContent 
   return {
     bugId: readString(raw['bugId']) ?? undefined,
     suggestions,
-    assigneeCandidates,
     sourceRefs,
   }
 }
