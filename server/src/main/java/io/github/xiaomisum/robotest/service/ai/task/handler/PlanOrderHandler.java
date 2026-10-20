@@ -86,8 +86,8 @@ public class PlanOrderHandler implements TaskHandler {
     public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
         validateInput(input);
         if (context == null || context.projectId() == null) {
-            // 辅助功能发起必经 X-Active-Project（C4）；缺失按输入非法处理
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+            // 辅助功能发起必经 X-Active-Project（C4）：头缺失属上下文问题，不冒充输入非法
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
         UUID planId = requirePlanId(input);
         TestPlan plan = testPlanMapper.selectById(planId);

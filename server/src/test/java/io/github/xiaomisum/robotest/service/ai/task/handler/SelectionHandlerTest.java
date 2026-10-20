@@ -112,6 +112,14 @@ class SelectionHandlerTest {
     }
 
     @Test
+    void validateInput_withoutProjectContext_throws2008() {
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> reviewHandler.validateInput(input(),
+                        new TaskSubmitContext(null, null, OPERATOR_ID, null)));
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), exception.getCode());
+    }
+
+    @Test
     void validateInput_requirementNotInProject_throws206() {
         when(requirementMapper.listByIds(any())).thenReturn(List.of());
         Map<String, Object> input = input();

@@ -81,8 +81,8 @@ abstract class AbstractSelectionHandler implements TaskHandler {
     public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
         validateInput(input);
         if (context == null || context.projectId() == null) {
-            // 圈选发起必经 X-Active-Project（C4）；缺失按输入非法处理
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.SELECTION_INPUT_INVALID);
+            // 圈选发起必经 X-Active-Project（C4）：头缺失属上下文问题，不冒充输入非法
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
         UUID projectId = context.projectId();
         Map<UUID, Requirement> requirements = indexRequirements(scopeRequirementIds(input));
