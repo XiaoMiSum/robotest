@@ -32,6 +32,7 @@
 - 分析任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = bug_classify / bug_triage / bug_duplicate_scan / bug_trend_summary`）；
 - 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`classify_suggestion / duplicate_group / triage_order / summary`）；
 - 录入时相似检测为**同步向量检索**，读 `ai_vector_index`（`entity_type = bug`，DDL 见总册 2.10），不产生任务；
+- 新建缺陷建议为**实时同步接口**（单跳模型调用 + 向量检索取上下文），不产生任务、不落库；
 - 趋势与度量为实时聚合查询，**不落中间表、不缓存过期结论**。
 
 ---
@@ -116,41 +117,40 @@
 
 - **校验规则**：摘要为只读建议，不写入任何数据；必附数据来源引用（缺引用的提案为不合格产出，不进入结果）；执行失败按总册 3.6.4 终止（1000018117），可再次执行。
 
-### 3.5 新建缺陷建议（同步快路径）
+### 3.5 新建缺陷建议（实时同步）
 
-- **提交**：`POST /api/ai/tasks`
+- **路径**：`POST /api/project/bugs/analysis/suggest`（权限：`bug:view`，项目上下文经 `X-Active-Project` 头）
+- **请求**：
 
 ```json
-{
-  "type": "bug_classify",
-  "input": { "draft": { "title": "登录页点击登录无响应", "steps": "1. 打开登录页…", "moduleId": "…", "fileIds": ["…"] } },
-  "waitSeconds": 10
-}
+{ "title": "登录页点击登录无响应", "steps": "1. 打开登录页…", "moduleId": "…" }
 ```
 
-- **提案**（`kind = classify_suggestion`，单条）：
+| 参数 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| title | string | 是 | 当前输入的缺陷标题（≤300，为空或超长 1000018287） |
+| steps | string | 否 | 已填写的重现步骤（未改动默认模板时前端不传） |
+| moduleId | string | 否 | 已选择的所属模块 |
+
+- **响应**：
 
 ```json
 {
-  "key": "draft",
-  "kind": "classify_suggestion",
-  "title": "新建缺陷建议",
-  "content": {
-    "suggestions": {
-      "bugType": { "value": "functional", "reason": "重现步骤描述功能失效" },
-      "severity": { "value": "high", "reason": "阻断主流程" },
-      "priority": { "value": "high", "reason": "…" },
-      "moduleId": { "value": "…", "reason": "…" },
-      "keywords": { "value": ["登录", "无响应"], "reason": "…" }
-    },
-    "assigneeCandidates": [{ "userId": "…", "name": "李四", "reason": "同模块历史缺陷处理人", "memberValid": true }],
-    "sourceRefs": [{ "type": "bug", "id": "…", "title": "登录按钮无反应", "quote": "…" }]
+  "title": { "value": "登录页点击登录按钮后无任何响应", "reason": "…" },
+  "reproSteps": { "value": "##### 执行步骤\n1. 打开登录页…\n##### 实际结果\n点击登录按钮后页面无任何响应\n##### 期望结果\n跳转首页并提示登录成功", "reason": "…" },
+  "suggestions": {
+    "bugType": { "value": "code_error", "reason": "重现步骤描述功能失效" },
+    "severity": { "value": "serious", "reason": "阻断登录主流程" },
+    "priority": { "value": "high", "reason": "…" },
+    "moduleId": { "value": "…", "reason": "…" },
+    "keywords": { "value": ["登录", "无响应"], "reason": "…" },
+    "relatedCase": { "value": "…", "caseTitle": "登录-正常登录", "reason": "…" }
   },
-  "confirmStatus": "not_applicable"
+  "sourceRefs": [{ "type": "bug", "id": "…", "title": "登录按钮无反应", "quote": "" }]
 }
 ```
 
-- **校验规则**：建议值仅在表单中以标记呈现，用户一键采纳或修改后提交，**用户填写值与建议不一致时以用户值为准**；`assigneeCandidates` 服务端过滤，仅保留当前工作空间成员（否则剔除，候选为空不报错）；表单场景提案不落库，`confirmStatus = not_applicable`。**截图入模**：`draft.fileIds` 为新建表单先经泛化文件模块上传的图片（≤3 张，png / jpg / jpeg / gif / webp / bmp，单张 ≤10MB），字节随文直传 vision 模型；提交期按总册 4.2 选型（`bug_classify` 附带截图 ⇒ 必需 `vision`），无可用视觉模型返回 1000018124。
+- **校验规则**：`title` 必填且 ≤300（否则 1000018287）；同步单跳模型调用，**不产生任务、不落库**，模型调用失败 / 无可用模型按总册 4.2 映射（1000018117 / 1000018118），前端轻提示可重试。**上下文装配**：可用模块取当前项目模块清单（`id|名称`）；固定选项取缺陷类型 / 严重等级 / 优先级取值域（常量枚举）；候选用例先按标题向量检索项目内用例文档（top 8）再展开为用例节点清单（`id|标题`，≤30，按文档序截断），向量能力未就绪时无用例候选（不报错、不产出 `relatedCase`）；来源引用取同项目相似存量缺陷（向量检索 top 5，未就绪降级为空）。**清洗**：枚举值非法剔除，模块 id 不属当前项目、用例 id 非本项目用例节点剔除，`relatedCase` 至多一条。建议值仅在表单中以徽标呈现，用户一键采纳或修改后提交，**用户填写值与建议不一致时以用户值为准**；实时通道为纯文本调用，不随附截图。
 
 ### 3.6 存量批量分类（任务）
 
@@ -162,7 +162,7 @@
 
   - 也可传筛选条件（`input.filter`：未分类 / 分类存疑的状态条件），服务端解析为缺陷集合（上限 500，空集返回 1000018283）。
   - **截图入模**：每缺陷取图像类附件（png / jpg / jpeg / gif / webp / bmp）≤2 张，批量图片总量 ≤8 张（按缺陷序截断，超出部分仅文本）；字节直接读缺陷附件存储，随对应缺陷上下文直传 vision 模型；提交期按总册 4.2 选型，无可用视觉模型返回 1000018124。
-- **提案**：逐缺陷一条 `classify_suggestion`（结构同 3.5，`content.bugId` 指向目标，`confirmStatus = pending`）。
+- **提案**：逐缺陷一条 `classify_suggestion`（`content.suggestions` 仅含 `bugType / severity / priority / moduleId / keywords`，`content.bugId` 指向目标，`confirmStatus = pending`）。
 - **确认**：总册 3.6.5，动作 `adopted / adopted_edited / rejected`；承接服务**更新对应缺陷字段**（类型、严重等级、优先级、模块、关键词、指派），逐项事务；采纳写 `adopted_ref`（后端不做权限校验）。
 
 ### 3.7 分诊队列建议（同步）
@@ -252,11 +252,12 @@
 
 | type | 提案确认 |
 | ---- | ---- |
-| bug_classify（draft 单条） | —（表单内采纳，不走确认端点） |
 | bug_classify（批量） | 逐条 `pending → adopted/rejected` |
 | bug_triage | `not_applicable` |
 | bug_trend_summary | `not_applicable` |
 | bug_duplicate_scan | 分组 `adopted/rejected` 留痕 |
+
+- 新建缺陷建议不走任务（实时同步接口，见 3.5），`bug_classify` 仅存量批量一种输入形态；
 
 - 任务发起与采纳均不做后端权限校验（仅保留任务归属可见性）；作用域一律取请求头 `X-Active-Project`。
 
@@ -290,8 +291,10 @@ BugAnalysisPage
 └── BatchClassifyEntry（批量分类发起 → 跳转任务详情页，审核区列表模式）
 
 新建缺陷表单（既有 BugCreatePage 扩展）
-├── SuggestBadge（建议值标记：类型/等级/优先级/模块/关键词，一键采纳）
-├── AssigneeCandidateChips（指派候选，附理由）
+├── TitleSuggestBadge（优化后标题建议：标题输入框下方行内徽标，点击采纳覆盖标题）
+├── ReproStepsSuggestBadge（重现步骤建议：编辑器下方行内徽标，点击采纳写入执行步骤 / 实际结果 / 期望结果）
+├── SuggestBadge（分类建议值标记：类型 / 等级 / 优先级 / 模块 / 关键词，一键采纳）
+├── RelatedCaseSuggestBadge（关联用例建议：「选择用例」按钮旁徽标，点击采纳写入关联用例）
 └── BugDuplicateDialog（标题失焦触发的相似检测弹窗：相似度排序列表 + 跳转）
 
 存量扫描入口 → DuplicateScanPanel（分组审核，确认留痕后引导既有重复缺陷流程）
@@ -316,6 +319,7 @@ BugAnalysisPage
 | 1000018284 | 400 | 检测输入非法（标题为空或超长） |
 | 1000018285 | 400 | 分组参数非法（groupBy 取值越界） |
 | 1000018286 | 400 | 重复扫描范围参数非法 |
+| 1000018287 | 400 | 建议输入非法（标题为空或超长） |
 
 ---
 
@@ -325,21 +329,24 @@ BugAnalysisPage
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../controller/project/BugAnalysisController` | 趋势 / 度量 / 录入检测路由（仅路由，C2） |
+| `server/.../controller/project/BugAnalysisController` | 趋势 / 度量 / 录入检测 / 新建建议路由（仅路由，C2） |
 | `server/.../service/domain/bug/BugAnalysisService + Impl` | 实时聚合与口径计算 |
-| `server/.../service/domain/bug/BugTrendSummaryTypeAdapter`、`BugClassifyTypeAdapter`、`BugTriageTypeAdapter`、`BugDuplicateScanTypeAdapter` | 缺陷域任务类型适配器（工具白名单与预算默认、提案结构，随对应能力域就近注册） |
+| `server/.../service/domain/bug/BugDraftSuggestService + Impl` | 新建建议实时同步：上下文装配（模块 / 用例候选 / 枚举）、单跳模型调用与清洗 |
+| `server/.../service/ai/config/AiPromptScenes` | 登记实时建议提示词场景（`bug_draft_suggest`，变量：bugContext / moduleOptions / caseOptions） |
+| `server/.../service/domain/bug/BugTrendSummaryTypeAdapter`、`BugClassifyTypeAdapter`（仅批量）、`BugTriageTypeAdapter`、`BugDuplicateScanTypeAdapter` | 缺陷域任务类型适配器（工具白名单与预算默认、提案结构，随对应能力域就近注册） |
 | `server/.../service/domain/bug/BugClassifyAdopter + Impl`、`BugDuplicateScanAdopter` | 批量分类采纳落库（调用既有缺陷服务）与重复扫描留痕承接 |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018281–1000018286 |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018281–1000018287 |
 | `web/src/pages/project/BugAnalysisPage.vue` 及组件、`web/src/stores/bugAnalysis.ts` | 分析页与状态 |
-| `web/src/pages/project/BugCreatePage.vue` 扩展（建议标记、录入检测） | 新建页扩展 |
+| `web/src/composables/project/bug/useBugCreateSuggest.ts` | 改同步接口调用（移除任务提交与轮询） |
+| `web/src/pages/project/BugCreatePage.vue` 扩展（标题 / 重现步骤 / 关联用例建议徽标，移除指派候选） | 新建页扩展 |
 
 - **数据库**：无新增表、无迁移（统计实时计算，向量读既有 `ai_vector_index`）。
-- **OpenAPI**：`duplicates/check` 标注同步检索；四个任务 type 的 `input / 提案` 结构随任务分组暴露。
+- **OpenAPI**：`analysis/suggest` 标注实时同步；`duplicates/check` 标注同步检索；批量任务 type 的 `input / 提案` 结构随任务分组暴露。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：趋势口径（新增/关闭/存量边界）、修复时长首次流转取值、除零补零、分组参数校验、draft 建议的成员过滤、批量采纳逐项事务与幂等冲突、录入检测项目内过滤、空集错误码、`bug_classify` 截图附带与总量截断、无视觉模型快速失败（1000018124）；
-- 前端：图表下钻带参、建议标记与用户值优先、摘要引用跳转、分诊拖拽不落库、批量审核回执、向量未就绪降级。
+- 后端：趋势口径（新增/关闭/存量边界）、修复时长首次流转取值、除零补零、分组参数校验、实时建议的输入校验（1000018287）、用例候选展开与向量未就绪降级、清洗（枚举 / 项目归属剔除）、批量采纳逐项事务与幂等冲突、录入检测项目内过滤、空集错误码、`bug_classify` 截图附带与总量截断、无视觉模型快速失败（1000018124）；
+- 前端：图表下钻带参、建议徽标与用户值优先（标题 / 重现步骤 / 关联用例采纳写入）、实时建议失败重试、摘要引用跳转、分诊拖拽不落库、批量审核回执、向量未就绪降级。
 
 ---
 
@@ -357,3 +364,4 @@ BugAnalysisPage
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：5.3 状态分支改「批量任务执行与部分采纳回执」 |
 | V1.0 | 2026-10-19 | 移除任务权限校验：1 概述与 3.1 入口改前端显隐口径，3.5 确认、4.2 改「任务 type 与提案确认映射」（删资源权限两列与 `ai:task` / `ai:confirm` 要求），7 测试要点同步 |
 | V1.0 | 2026-10-19 | 3.8 录入重复检测改标题失焦触发 + 弹窗展示（组件 BugDuplicateDialog），不可用/无命中静默；5.2 组件树与 5.3 状态分支同步 |
+| V1.0 | 2026-10-20 | 新建缺陷建议实时化：3.5 改实时同步接口 `POST /api/project/bugs/analysis/suggest`（新增标题 / 重现步骤 / 关联用例建议，移除指派候选与草稿截图入模，登记错误码 1000018287）；2 数据设计、3.6 提案结构去引用、4.2 映射、5.2 组件树、7 实施说明与测试要点同步 |
