@@ -26,6 +26,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/workspaces/active",
                         "/api/workspace/**",
                         "/api/project/**",
+                        "/api/ai/**",
                         "/api/auth/permissions")
                 .excludePathPatterns(
                         "/api/admin/**",

@@ -133,8 +133,8 @@ public class TestDesignGenerationHandler implements TaskHandler {
     public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
         validateInput(input);
         if (context == null || context.projectId() == null) {
-            // 生成链发起必经 X-Active-Project（C4）；缺失视为参数非法
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.GENERATION_INPUT_INVALID);
+            // 生成链发起必经 X-Active-Project（C4）：头缺失属上下文问题，不冒充参数非法
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
         UUID projectId = context.projectId();
         List<UUID> requirementIds = parseRequirementIds(input);
