@@ -12,10 +12,7 @@ AI 任务中心是项目内全部 AI 任务的统一入口，任务统一经 `PO
 
 **路由**：任务中心 `/workspace/projects/ai/tasks`；任务详情 `/workspace/projects/ai/tasks/:taskId`（任务中心的子路由）
 
-**入口**：不占顶部动态菜单，采用「就近按钮 + 顶栏指示器」双层入口：
-
-- **能力页按钮**：可发起 AI 任务的能力页（需求列表、缺陷 AI 分析）页头提供「任务中心」按钮，按 `ai:task` 权限显隐，供用户主动回看历史任务；
-- **顶栏指示器**：项目模式下顶部导航栏常驻 AI 任务指示器（按 `ai:task` 权限显隐，不占动态菜单位），角标展示进行中（`running`）任务数，点击进入本页，供用户被动感知任务进度（导航布局见 `docs/05-interaction-design/02-global-navigation.md` §2）。
+**入口**：不占顶部动态菜单，由顶部导航栏常驻的 AI 任务指示器承载——项目模式下按 `ai:task` 权限显隐（不占动态菜单位），角标展示进行中（`running`）任务数，点击进入本页，供用户感知并回看任务进度（导航布局见 `docs/05-interaction-design/02-global-navigation.md` §2）。
 
 AI 未启用或未配置模型时，任务入口与本页内容按总册 4.5 隐藏或降级提示。
 
@@ -184,3 +181,4 @@ sequenceDiagram
 | V1.0 | 2026-10-15 | 入口改为「就近按钮 + 顶栏指示器」双层模型：能力页按钮按 `ai:task` 显隐，顶栏新增进行中任务数指示器（15s 轮询 `running-count`）；状态管理补指示器计数 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：状态机改 `running（含挂起）→ proposals_ready → closed / aborted`，取消 / 重试改「终止 / 再次执行」；进度条与阶段时间线改为预算消耗 + AI 计划步骤 + 轨迹回看；`AiArtifactReviewPanel` 更名 `AiProposalReviewPanel`，确认端点改 `proposals/confirm`；状态管理补轨迹增量拉取 |
 | V1.0 | 2026-10-17 | 追溯需求整体取消：能力页按钮示例仅保留「需求列表」「缺陷 AI 分析」两页 |
+| V1.0 | 2026-10-20 | 移除能力页「任务中心」按钮，任务中心入口收敛为顶栏指示器单层入口（1 概述） |

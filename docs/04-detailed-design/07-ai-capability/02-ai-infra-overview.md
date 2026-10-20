@@ -876,7 +876,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | code | 名称 | scope | 用于 |
 | ---- | ---- | ---- | ---- |
 | ai:admin | AI 配置与用量管理 | global（系统角色） | 3.2–3.5、3.7 |
-| ai:task | AI 任务入口可见性 | workspace | 前端入口显隐（顶栏指示器、能力页任务中心按钮），后端接口不校验 |
+| ai:task | AI 任务入口可见性 | workspace | 前端顶栏任务指示器显隐，后端接口不校验 |
 | ai:confirm | AI 提案确认入口可见性 | workspace | 前端确认操作入口显隐，后端接口不校验（助手执行接口的确认权限除外，见分册 04） |
 
 ---
@@ -955,8 +955,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
     ├── ProposalTree（提案树，kind 图标区分）
     ├── ProposalDetail（内容预览 / 与既有数据对比）
     └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
-
-能力页任务中心按钮（AiTaskEntryButton，需求列表 / 缺陷 AI 分析页头，ai:task 权限显隐）
 ```
 
 - Pinia store：
@@ -1078,3 +1076,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：1.2 删除矩阵领域资源说明，3.6.1 注销 `coverage_analysis` / `impact_analysis` 任务类型，3.2 / 3.6.4 / 4.5 / 5.2 移除覆盖状态列、追溯边与追溯子页入口相关表述 |
 | V1.0 | 2026-10-19 | AI 任务端点移除后端权限校验：3.1 / 3.6.2–3.6.5 删除 `ai:task` · `ai:confirm` 与任务类型资源权限校验（归属可见性保留），3.8 权限点用途改为前端入口显隐，错误码表注销 1000018116 |
 | V1.0 | 2026-10-20 | 新建缺陷建议改实时同步接口（缺陷分析分册 3.5）：3.6.2 `waitSeconds` 同步等待示例移除该场景；3.6.1 `bug_classify` 收窄为存量批量（`bugIds` / 筛选），草稿建议不再走任务 |
+| V1.0 | 2026-10-20 | 移除能力页「任务中心」按钮（`AiTaskEntryButton` 组件下线）：3.8 `ai:task` 用途收敛为顶栏指示器，5.2 组件树删除该按钮 |
