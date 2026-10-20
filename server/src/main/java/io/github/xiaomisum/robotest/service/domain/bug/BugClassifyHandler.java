@@ -2,19 +2,12 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.bug.BugAttachment;
-import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
-import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
-import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugAttachmentMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
-import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
-import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
@@ -22,10 +15,6 @@ import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
 import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
 import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
-import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
-import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
-import io.github.xiaomisum.robotest.service.domain.file.FileContent;
-import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementSuggestionParser;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
@@ -51,10 +40,10 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 缺陷分类建议处理器（缺陷分析详设 3.5 / 3.6）：草稿模式产出表单建议（不落库，用户值优先、
- * confirmStatus = not_applicable）；批量模式逐缺陷产出待确认建议（最多 500、按分片多次调用）。
- * 截图入模（详设 3.5 / 3.6）：草稿 fileIds ≤3 张、批量每缺陷 ≤2 张且全批 ≤8 张按缺陷序截断，
- * 提交期派生 vision 必需能力（无视觉模型走 1000018124）。
+ * 缺陷分类建议处理器（缺陷分析详设 3.6）：存量批量模式逐缺陷产出待确认建议（最多 500、
+ * 按分片多次调用）。截图入模（详设 3.6）：每缺陷 ≤2 张且全批 ≤8 张按缺陷序截断，
+ * 批量缺陷集存在图像类附件时提交期派生 vision 必需能力（无视觉模型走 1000018124）。
+ * 新建草稿建议已改实时同步接口（详设 3.5，BugDraftSuggestService），不走任务。
  */
 @Component
 public class BugClassifyHandler implements TaskHandler {
@@ -63,19 +52,14 @@ public class BugClassifyHandler implements TaskHandler {
 
     private static final String SYSTEM_PROMPT = "你是资深缺陷管理助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
 
-    private static final int TITLE_MAX_LENGTH = 300;
     private static final int KEYWORD_LIMIT = 5;
-    private static final int ASSIGNEE_LIMIT = 3;
-    private static final int SOURCE_REF_LIMIT = 5;
     /** 批量分类上限（详设 3.6）与单次模型调用的缺陷分片大小 */
     private static final int BATCH_LIMIT = 500;
     private static final int BATCH_SHARD = 20;
-    /** 截图入模口径（详设 3.5 / 3.6）：草稿 ≤3 张、批量每缺陷 ≤2 张且全批 ≤8 张、单张 ≤10MB */
+    /** 截图入模口径（详设 3.6）：每缺陷 ≤2 张且全批 ≤8 张 */
     private static final Set<String> IMAGE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "gif", "webp", "bmp");
-    private static final int DRAFT_IMAGE_LIMIT = 3;
     private static final int BUG_IMAGE_LIMIT = 2;
     private static final int BATCH_IMAGE_LIMIT = 8;
-    private static final long IMAGE_MAX_BYTES = 10L * 1024 * 1024;
 
     private static final Set<String> BUG_TYPES = Set.of(
             Constants.BugType.CODE_ERROR, Constants.BugType.UI_IMPROVEMENT, Constants.BugType.DESIGN_DEFECT,
@@ -87,7 +71,7 @@ public class BugClassifyHandler implements TaskHandler {
     private static final Set<String> PRIORITIES = Set.of(
             Constants.BugPriority.HIGH, Constants.BugPriority.MEDIUM, Constants.BugPriority.LOW);
 
-    /** 批量模式默认提示词（详设 3.6 逐缺陷一条产物，结构与草稿模式不同，共用 bug_classify 场景） */
+    /** 批量分类默认提示词（详设 3.6 逐缺陷一条产物） */
     private static final String BATCH_PROMPT = """
             你是资深缺陷管理助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。
             对下列每条缺陷给出分类建议：
@@ -111,19 +95,9 @@ public class BugClassifyHandler implements TaskHandler {
     @Resource
     private BugMapper bugMapper;
     @Resource
-    private VectorSearchService vectorSearchService;
-    @Resource
-    private WorkspaceUserMapper workspaceUserMapper;
-    @Resource
-    private SysUserMapper sysUserMapper;
-    @Resource
     private BugAttachmentMapper bugAttachmentMapper;
     @Resource
     private BugAttachmentService bugAttachmentService;
-    @Resource
-    private FileResourceMapper fileResourceMapper;
-    @Resource
-    private FileResourceService fileResourceService;
 
     @Override
     public String type() {
@@ -132,38 +106,11 @@ public class BugClassifyHandler implements TaskHandler {
 
     @Override
     public String defaultPrompt() {
-        return """
-                你是资深缺陷管理助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。
-                根据缺陷草稿给出分类建议：
-                1. bugType 只允许 code_error / ui_improvement / design_defect / configuration / installation / security / performance / standard_spec / other；
-                2. severity 只允许 fatal / serious / general / minor；priority 只允许 high / medium / low；
-                3. moduleId 仅当草稿内容明确属于某模块时给出模块 id，否则 value 为 null；
-                4. keywords 给 1~5 个检索关键词；
-                5. assigneeCandidates 仅从成员清单中挑选 0~3 名最合适的处理人并给出理由，不得臆造清单外的人；无合适人选时返回空数组；
-                6. 若随附截图，结合截图界面状态辅助判断分类、严重程度与优先级。
-                输出结构（JSON 对象）：
-                {"suggestions":{"bugType":{"value":"…","reason":"…"},"severity":{"value":"…","reason":"…"},"priority":{"value":"…","reason":"…"},"moduleId":{"value":null,"reason":"…"},"keywords":{"value":["…"],"reason":"…"}},"assigneeCandidates":[{"userId":"…","reason":"…"}]}
-
-                缺陷草稿：
-                {{bugContext}}
-                可用模块（id|名称）：
-                {{moduleOptions}}
-                候选成员（id|姓名）：
-                {{memberOptions}}
-                """;
+        return BATCH_PROMPT;
     }
 
     @Override
     public void validateInput(Map<String, Object> input) {
-        Map<String, Object> draft = asMap(input == null ? null : input.get("draft"));
-        String title = trimToNull(asString(draft.get("title")));
-        if (title != null) {
-            if (title.length() > TITLE_MAX_LENGTH) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
-            }
-            validateDraftImages(draft);
-            return;
-        }
         // 批量模式（详设 3.6）：bugIds 显式圈定或 filter 按状态筛选，二者缺一即输入非法
         List<UUID> bugIds = parseBugIds(input);
         if (bugIds.isEmpty() && (input == null || input.get("filter") == null)) {
@@ -175,16 +122,11 @@ public class BugClassifyHandler implements TaskHandler {
     }
 
     /**
-     * 截图入模的能力派生（详设 4.2 / 方案 2.3.2）：草稿 fileIds 非空（提交期已校验为图片白名单）
-     * 即需 vision；批量需按项目解析缺陷集（依赖项目范围故走带上下文重载），存在图像类附件才需
-     * vision，仅查附件元数据、不读字节。
+     * 截图入模的能力派生（详设 4.2 / 方案 2.3.2）：按项目解析缺陷集（依赖项目范围故走带上下文
+     * 重载），存在图像类附件才需 vision，仅查附件元数据、不读字节。
      */
     @Override
     public String requiredCapability(Map<String, Object> input, TaskSubmitContext context) {
-        Map<String, Object> draft = asMap(input == null ? null : input.get("draft"));
-        if (trimToNull(asString(draft.get("title"))) != null) {
-            return parseFileIds(draft).isEmpty() ? null : AiSettingsReader.CAPABILITY_VISION;
-        }
         if (context == null || context.projectId() == null) {
             return null;
         }
@@ -202,90 +144,9 @@ public class BugClassifyHandler implements TaskHandler {
         return imageAttachmentsByBug(bugIds).isEmpty() ? null : AiSettingsReader.CAPABILITY_VISION;
     }
 
-    /** 草稿截图校验（详设 3.5）：≤3 张、图像白名单、单张 ≤10MB；缺失或超限同按输入非法 */
-    private void validateDraftImages(Map<String, Object> draft) {
-        List<UUID> fileIds = parseFileIds(draft);
-        if (fileIds.size() > DRAFT_IMAGE_LIMIT) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
-        }
-        for (UUID fileId : fileIds) {
-            FileResource file = fileResourceMapper.selectById(fileId);
-            if (file == null || !IMAGE_EXTENSIONS.contains(extension(file.getFileName()))
-                    || file.getFileSize() == null || file.getFileSize() > IMAGE_MAX_BYTES) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
-            }
-        }
-    }
-
-    /** 草稿截图引用解析：去重后保持声明顺序（校验与直传读取共用） */
-    private static List<UUID> parseFileIds(Map<String, Object> draft) {
-        Object raw = draft == null ? null : draft.get("fileIds");
-        if (raw == null) {
-            return List.of();
-        }
-        if (!(raw instanceof List<?> list)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
-        }
-        LinkedHashSet<UUID> ids = new LinkedHashSet<>(list.size());
-        for (Object element : list) {
-            try {
-                ids.add(UUID.fromString(String.valueOf(element).trim()));
-            } catch (IllegalArgumentException e) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
-            }
-        }
-        return new ArrayList<>(ids);
-    }
-
     @Override
     public TaskResult execute(TaskExecutionContext context) {
-        Map<String, Object> input = context.getInput();
-        Map<String, Object> draft = asMap(input.get("draft"));
-        if (trimToNull(asString(draft.get("title"))) != null) {
-            return executeDraft(context, draft);
-        }
         return executeBatch(context);
-    }
-
-    private TaskResult executeDraft(TaskExecutionContext context, Map<String, Object> draft) {
-        String title = asString(draft.get("title"));
-        String steps = asString(draft.get("steps"));
-
-        context.report(10, "读取模块与成员");
-        List<ProjectModule> modules = projectModuleMapper.listByProjectId(context.getProjectId());
-        Map<UUID, String> members = memberOptions(context.getWorkspaceId());
-
-        context.report(30, "检索相似缺陷");
-        List<Bug> similar = similarBugs(title, steps, context.getProjectId(), context.getUserId());
-
-        context.report(50, "模型生成分类建议");
-        Map<String, String> variables = new HashMap<>();
-        variables.put("bugContext", "标题：" + nvl(title) + "\n重现步骤：\n" + nvl(steps));
-        variables.put("moduleOptions", moduleOptions(modules));
-        variables.put("memberOptions", memberOptionsText(members));
-        String userPrompt = context.prompt(defaultPrompt(), variables);
-        // 草稿截图直传（详设 3.5）：无截图仍走文本入口，保持既有调用形态
-        List<AiChatMedia> images = draftImages(draft);
-        AiChatReply reply = images.isEmpty()
-                ? context.chat(SYSTEM_PROMPT, userPrompt)
-                : context.chat(SYSTEM_PROMPT, userPrompt, images);
-
-        context.report(85, "解析分类建议");
-        Map<String, Object> artifact = sanitize(reply, modules, members, similar);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", List.of(artifact));
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
-    }
-
-    /** 草稿截图直传（详设 3.5）：按 fileIds 声明顺序读取字节（提交期已校验为图像白名单） */
-    private List<AiChatMedia> draftImages(Map<String, Object> draft) {
-        List<AiChatMedia> images = new ArrayList<>();
-        for (UUID fileId : parseFileIds(draft)) {
-            FileContent content = fileResourceService.readBytes(fileId);
-            images.add(new AiChatMedia(
-                    imageMimeType(content.fileName(), content.contentType()), content.content()));
-        }
-        return images;
     }
 
     /**
@@ -339,7 +200,6 @@ public class BugClassifyHandler implements TaskHandler {
             Map<String, String> variables = new HashMap<>();
             variables.put("bugContext", batchBugContext(shard, imageNotes));
             variables.put("moduleOptions", moduleOptions(modules));
-            variables.put("memberOptions", "");
             String userPrompt = context.prompt(BATCH_PROMPT, variables);
             AiChatReply reply = images.isEmpty()
                     ? context.chat(SYSTEM_PROMPT, userPrompt)
@@ -436,7 +296,7 @@ public class BugClassifyHandler implements TaskHandler {
         return "截图 " + count + " 张（随附图片" + range + "）";
     }
 
-    /** 扩展名（小写）判图像白名单：草稿文件与缺陷附件共用 */
+    /** 扩展名（小写）判图像白名单（缺陷附件） */
     private static String extension(String fileName) {
         String ext = fileName == null ? null : StringUtils.getFilenameExtension(fileName);
         return ext == null ? "" : ext.toLowerCase(Locale.ROOT);
@@ -501,35 +361,6 @@ public class BugClassifyHandler implements TaskHandler {
 
     // ---------- 产物清洗 ----------
 
-    private Map<String, Object> sanitize(AiChatReply reply, List<ProjectModule> modules,
-            Map<UUID, String> members, List<Bug> similar) {
-        Map<String, Object> parsed = asMap(RequirementSuggestionParser.parseJsonObject(reply.content()));
-
-        Map<String, Object> content = new LinkedHashMap<>();
-        content.put("suggestions", sanitizeSuggestions(asMap(parsed.get("suggestions")), modules));
-        content.put("assigneeCandidates", sanitizeCandidates(asMapList(parsed.get("assigneeCandidates")), members));
-        content.put("sourceRefs", sourceRefs(similar));
-
-        Map<String, Object> artifact = new LinkedHashMap<>();
-        artifact.put("key", "draft");
-        artifact.put("kind", Constants.AiArtifactKind.BUG_CLASSIFY);
-        artifact.put("title", "新建缺陷建议");
-        artifact.put("content", content);
-        // 表单场景产物不落库、无确认动作（详设 3.5）
-        artifact.put("confirmStatus", "not_applicable");
-        return artifact;
-    }
-
-    private static List<Map<String, Object>> asMapList(Object raw) {
-        if (!(raw instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .filter(element -> element instanceof Map<?, ?>)
-                .map(element -> asMap(element))
-                .toList();
-    }
-
     /** 建议值仅保留合法枚举与本项目模块，非法项直接剔除（清洗优先于报错，模型可纠错） */
     private Map<String, Object> sanitizeSuggestions(Map<String, Object> raw, List<ProjectModule> modules) {
         Map<String, Object> suggestions = new LinkedHashMap<>();
@@ -576,98 +407,11 @@ public class BugClassifyHandler implements TaskHandler {
         suggestions.put(field, normalized);
     }
 
-    /** 指派候选服务端过滤：仅保留当前工作空间成员，候选为空不报错（详设 3.5） */
-    private List<Map<String, Object>> sanitizeCandidates(List<Map<String, Object>> raw, Map<UUID, String> members) {
-        List<Map<String, Object>> candidates = new ArrayList<>();
-        Set<UUID> seen = new LinkedHashSet<>();
-        for (Map<String, Object> item : raw) {
-            if (candidates.size() >= ASSIGNEE_LIMIT) {
-                break;
-            }
-            UUID userId = null;
-            try {
-                userId = UUID.fromString(String.valueOf(item.get("userId")).trim());
-            } catch (RuntimeException e) {
-                continue;
-            }
-            String name = members.get(userId);
-            if (name == null || !seen.add(userId)) {
-                continue;
-            }
-            Map<String, Object> normalized = new LinkedHashMap<>();
-            normalized.put("userId", userId.toString());
-            normalized.put("name", name);
-            normalized.put("reason", nvl(asString(item.get("reason"))));
-            normalized.put("memberValid", true);
-            candidates.add(normalized);
-        }
-        return candidates;
-    }
-
-    private List<Map<String, Object>> sourceRefs(List<Bug> similar) {
-        List<Map<String, Object>> refs = new ArrayList<>();
-        for (Bug bug : similar) {
-            Map<String, Object> ref = new LinkedHashMap<>();
-            ref.put("type", "bug");
-            ref.put("id", bug.getId().toString());
-            ref.put("title", nvl(bug.getTitle()));
-            ref.put("quote", "");
-            refs.add(ref);
-        }
-        return refs;
-    }
-
     // ---------- 上下文装配 ----------
-
-    /**
-     * 相似缺陷检索：向量能力未就绪时静默降级为空引用（建议场景尽力而为，不阻塞新建表单）；
-     * 与录入检测入口（详设 3.8 硬失败置灰）口径不同。
-     */
-    private List<Bug> similarBugs(String title, String steps, UUID projectId, UUID userId) {
-        String query = StringUtils.hasText(steps) ? title + "\n" + steps : title;
-        List<AiVectorSearchHitRespDTO> hits;
-        try {
-            hits = vectorSearchService.search(query, List.of(projectId), VectorIndexService.TYPE_BUG,
-                    SOURCE_REF_LIMIT, userId);
-        } catch (ServiceException e) {
-            return List.of();
-        }
-        List<UUID> ids = hits.stream().map(AiVectorSearchHitRespDTO::getEntityId)
-                .filter(Objects::nonNull).distinct().toList();
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-        return bugMapper.listByIds(ids).stream()
-                .filter(bug -> projectId.equals(bug.getProjectId()))
-                .limit(SOURCE_REF_LIMIT)
-                .toList();
-    }
-
-    private Map<UUID, String> memberOptions(UUID workspaceId) {
-        // 指派候选来源 = 当前工作空间成员；姓名以用户表为准
-        Map<UUID, String> names = new LinkedHashMap<>();
-        for (WorkspaceUser row : workspaceUserMapper.listByWorkspaceId(workspaceId)) {
-            names.put(row.getUserId(), null);
-        }
-        if (names.isEmpty()) {
-            return names;
-        }
-        for (SysUser user : sysUserMapper.listByIds(names.keySet())) {
-            names.put(user.getId(), user.getName() == null ? user.getUsername() : user.getName());
-        }
-        names.values().removeIf(Objects::isNull);
-        return names;
-    }
 
     private static String moduleOptions(List<ProjectModule> modules) {
         return modules.stream()
                 .map(module -> module.getId() + "|" + nvl(module.getName()))
-                .collect(Collectors.joining("\n"));
-    }
-
-    private static String memberOptionsText(Map<UUID, String> members) {
-        return members.entrySet().stream()
-                .map(entry -> entry.getKey() + "|" + entry.getValue())
                 .collect(Collectors.joining("\n"));
     }
 
