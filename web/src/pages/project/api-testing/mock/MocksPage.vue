@@ -258,12 +258,14 @@ function formatHitTime(val: string | null): string {
       <el-button link type="primary" @click="retry">重试</el-button>
     </div>
 
-    <el-table
-      v-if="!error || list.length"
-      :data="list"
-      row-key="id"
-      @selection-change="(rows: ApiMockItem[]) => handleSelectionChange(rows)"
-    >
+    <!-- 表体区是页面内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+    <div v-if="!error || list.length" class="mocks-page__table">
+      <el-table
+        :data="list"
+        row-key="id"
+        height="100%"
+        @selection-change="(rows: ApiMockItem[]) => handleSelectionChange(rows)"
+      >
       <el-table-column type="selection" width="40" />
       <el-table-column label="名称" prop="name" min-width="180" show-overflow-tooltip />
       <el-table-column label="方法" width="90" align="center">
@@ -307,7 +309,8 @@ function formatHitTime(val: string | null): string {
           </el-dropdown>
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
+    </div>
 
     <div v-if="!error || list.length" class="mocks-page__pagination">
       <el-pagination
@@ -342,10 +345,12 @@ function formatHitTime(val: string | null): string {
 </template>
 
 <style scoped lang="scss">
+/* 高度链路：接口测试主区 → 页面 → 表体容器，滚动只发生在表体（UI-SC-01 / UI-SC-02） */
 .mocks-page {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
 }
 
 /* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
@@ -379,6 +384,13 @@ function formatHitTime(val: string | null): string {
   padding: var(--space-md) 0;
   color: var(--color-danger);
   font-size: var(--font-size-sm);
+}
+
+/* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
+.mocks-page__table {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 // 与前面的 link 操作按钮保持同基线、同间距
