@@ -1,4 +1,5 @@
 import { getContextHeaders, getAccessToken } from '@/services'
+import { createSseFrameParser as createFrameParser, parseSseFrame as parseFrame } from '@/utils/sse'
 import type { AiAssistantSseEvent, AiAssistantSendMessagePayload } from '@/types'
 
 /** SSE 非 2xx / 非流响应（如 1000018259 归档会话、1000018260 正文校验失败） */
@@ -31,62 +32,25 @@ const EVENT_NAMES = new Set([
 ])
 
 /**
- * 解析单个 SSE 帧（event/data 行，冒号开头为心跳注释行）。
+ * 解析单个 SSE 帧为助手事件（事件名白名单过滤 + 载荷本体补 type）。
  * 未知事件名返回 null——后端新增事件时前端不崩溃，仅忽略。
  */
 export function parseSseFrame(frame: string): AiAssistantSseEvent | null {
-  let name = ''
-  const dataLines: string[] = []
-  for (const line of frame.split(/\r?\n/)) {
-    if (!line || line.startsWith(':')) continue
-    const sep = line.indexOf(':')
-    const field = sep === -1 ? line : line.slice(0, sep)
-    let value = sep === -1 ? '' : line.slice(sep + 1)
-    if (value.startsWith(' ')) value = value.slice(1)
-    if (field === 'event') name = value
-    else if (field === 'data') dataLines.push(value)
-  }
-  if (!EVENT_NAMES.has(name) || dataLines.length === 0) return null
-  try {
-    // 后端仅序列化载荷本体，事件名需补进 type 才是前端事件联合类型
-    const data = JSON.parse(dataLines.join('\n')) as unknown
-    return { type: name, data } as AiAssistantSseEvent
-  } catch {
-    // 畸形数据按未知事件忽略，避免单帧失败中断整条流
-    return null
-  }
+  const parsed = parseFrame(frame)
+  if (!parsed || !EVENT_NAMES.has(parsed.name)) return null
+  // 后端仅序列化载荷本体，事件名需补进 type 才是前端事件联合类型
+  return { type: parsed.name, data: parsed.data } as AiAssistantSseEvent
 }
 
-/** 增量帧解析器：跨 chunk 缓冲，按空行分帧（SSE 规范，兼容 \r\n） */
+/** 增量帧解析器（缓冲与分帧逻辑共用 utils/sse，助手侧只做事件名过滤与类型化） */
 export function createSseFrameParser(onEvent: (event: AiAssistantSseEvent) => void): {
   push: (chunk: string) => void
   flush: () => void
 } {
-  let buffer = ''
-  const emitBlocks = () => {
-    let index: number
-    for (;;) {
-      const match = /\r?\n\r?\n/.exec(buffer)
-      index = match ? match.index : -1
-      if (index < 0) return
-      const frame = buffer.slice(0, index)
-      buffer = buffer.slice(index + (match?.[0].length ?? 0))
-      const event = parseSseFrame(frame)
-      if (event) onEvent(event)
-    }
-  }
-  return {
-    push: (chunk: string) => {
-      buffer += chunk
-      emitBlocks()
-    },
-    flush: () => {
-      if (!buffer.trim()) return
-      const event = parseSseFrame(buffer)
-      buffer = ''
-      if (event) onEvent(event)
-    },
-  }
+  return createFrameParser((frame) => {
+    if (!EVENT_NAMES.has(frame.name)) return
+    onEvent({ type: frame.name, data: frame.data } as AiAssistantSseEvent)
+  })
 }
 
 function readResultError(body: string): AssistantStreamError | null {
