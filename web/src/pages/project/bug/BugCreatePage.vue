@@ -313,7 +313,7 @@ onBeforeUnmount(() => {
               <!-- 左状态右操作，与详情侧栏同构：空态占位避免行内控件随文案宽度漂移 -->
               <div class="bug-create__case">
                 <span class="bug-create__case-state">{{ selectedCaseTitle || '未关联' }}</span>
-                <el-button link @click="caseSelectorVisible = true">选择用例</el-button>
+                <el-button link type="primary" @click="caseSelectorVisible = true">选择用例</el-button>
               </div>
             </el-form-item>
             <el-form-item label="关联计划">
