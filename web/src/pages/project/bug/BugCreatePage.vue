@@ -310,8 +310,11 @@ onBeforeUnmount(() => {
               />
             </el-form-item>
             <el-form-item label="关联用例">
-              <el-button @click="caseSelectorVisible = true">选择用例</el-button>
-              <span v-if="selectedCaseTitle" class="bug-create__hint">{{ selectedCaseTitle }}</span>
+              <!-- 左状态右操作，与详情侧栏同构：空态占位避免行内控件随文案宽度漂移 -->
+              <div class="bug-create__case">
+                <span class="bug-create__case-state">{{ selectedCaseTitle || '未关联' }}</span>
+                <el-button link @click="caseSelectorVisible = true">选择用例</el-button>
+              </div>
             </el-form-item>
             <el-form-item label="关联计划">
               <el-select v-model="form.relatedPlanId" filterable clearable placeholder="选择计划（可选）">
@@ -535,5 +538,21 @@ onBeforeUnmount(() => {
   margin-left: var(--space-sm);
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
+}
+
+.bug-create__case {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.bug-create__case-state {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-700);
+  line-height: 1.6;
 }
 </style>
