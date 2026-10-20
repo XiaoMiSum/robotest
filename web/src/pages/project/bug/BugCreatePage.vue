@@ -216,7 +216,7 @@ function handleTitleBlur(): void {
             />
           </el-form-item>
           <el-form-item class="bug-create__repro">
-            <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" />
+            <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" maximizable />
             <!-- 重现步骤建议（含实际结果与期望结果）：点击采纳写入编辑器 -->
             <BugSuggestBadge
               class="bug-create__suggest-badge"

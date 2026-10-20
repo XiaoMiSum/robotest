@@ -143,7 +143,7 @@ watch(detail, async () => {
       <div ref="layoutWrap" class="bug-detail__layout">
         <div class="bug-detail__main">
           <!-- 重现步骤直接放置（无卡片包裹）；resolved / closed 只读渲染 -->
-          <MarkdownEditor v-if="isEditable" v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown）" />
+          <MarkdownEditor v-if="isEditable" v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown）" maximizable />
           <MarkdownView v-else-if="detail.reproSteps" :content="detail.reproSteps" />
           <el-empty v-else description="暂无重现步骤" :image-size="48" />
 
