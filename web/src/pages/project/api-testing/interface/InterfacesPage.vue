@@ -278,8 +278,11 @@ defineExpose({ openCreate, openImport })
       </el-card>
 
       <el-card v-loading="loading" shadow="never" class="interfaces-page__data-card">
-        <el-table
+        <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+        <div class="interfaces-page__table">
+          <el-table
             :data="rows"
+            height="100%"
             data-test="interface-table"
             @selection-change="(selection: ApiInterfaceItem[]) => (selectedRows = selection)"
           >
@@ -340,15 +343,16 @@ defineExpose({ openCreate, openImport })
               <el-empty description="暂无接口，点击右上角「新建接口」或导入现有定义" />
             </template>
           </el-table>
-          <el-pagination
-            v-model:current-page="pageNo"
-            :page-size="pageSize"
-            :total="total"
-            layout="total, prev, pager, next"
-            class="interfaces-page__pagination"
-            @current-change="loadPage"
-          />
-        </el-card>
+        </div>
+        <el-pagination
+          v-model:current-page="pageNo"
+          :page-size="pageSize"
+          :total="total"
+          layout="total, prev, pager, next"
+          class="interfaces-page__pagination"
+          @current-change="loadPage"
+        />
+      </el-card>
       </div>
 
     <ImportDialog v-model="showImport" @imported="handleImported" />
@@ -453,6 +457,13 @@ defineExpose({ openCreate, openImport })
     display: flex;
     flex-direction: column;
   }
+}
+
+/* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
+.interfaces-page__table {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .interfaces-page__star {
