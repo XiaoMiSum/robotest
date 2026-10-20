@@ -11,4 +11,10 @@ describe('MocksPage 列表错误边界', () => {
     expect(pageSource).toContain('@change="handleSearch"')
     expect(pageSource).toContain('void loadList()')
   })
+
+  it('表格区固定高度沿页面高度链路取窗口剩余可用空间，数据超出时表体内滚动', () => {
+    expect(pageSource).toContain('class="mocks-page__table"')
+    expect(pageSource).toContain('height="100%"')
+    expect(pageSource).toContain('min-height: 0')
+  })
 })
