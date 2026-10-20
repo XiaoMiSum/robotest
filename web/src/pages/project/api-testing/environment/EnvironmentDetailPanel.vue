@@ -384,11 +384,18 @@ const tabs = computed(() => [
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  /* UI-SC-03：隐藏视觉滚动条但保留滚动能力；作用域绑定页面类名，不写全局（UI-SC-04） */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-100);
   border-radius: var(--radius-lg);
   padding: 0 var(--space-lg) var(--space-lg);
   min-height: 320px;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .env-detail__top {
