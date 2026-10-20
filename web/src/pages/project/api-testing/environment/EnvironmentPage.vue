@@ -303,9 +303,16 @@ async function submitEditDialog() {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* UI-SC-03：隐藏视觉滚动条但保留滚动能力；作用域绑定页面类名，不写全局（UI-SC-04） */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .env-items {
