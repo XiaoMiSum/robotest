@@ -279,13 +279,14 @@ public class ErrorCodeConstants {
             "会话不属于当前工作空间，请切换作用域");
     public static final ErrorCode ASSISTANT_IMAGE_INVALID = ErrorCode.of(1000018264, "图片附件非法");
 
-    // ========== 缺陷分析 1000018281-1000018286（缺陷分析详设 6） ==========
+    // ========== 缺陷分析 1000018281-1000018287（缺陷分析详设 6） ==========
     public static final ErrorCode BUG_ANALYSIS_RANGE_INVALID = ErrorCode.of(1000018281, "分析时间范围非法");
     public static final ErrorCode BUG_ANALYSIS_NOT_FOUND = ErrorCode.of(1000018282, "缺陷不存在");
     public static final ErrorCode BUG_ANALYSIS_INPUT_EMPTY = ErrorCode.of(1000018283, "分析输入为空（无可分析的缺陷）");
     public static final ErrorCode BUG_ANALYSIS_CHECK_INPUT_INVALID = ErrorCode.of(1000018284, "检测输入非法（标题为空或超长）");
     public static final ErrorCode BUG_ANALYSIS_GROUP_BY_INVALID = ErrorCode.of(1000018285, "分组参数非法");
     public static final ErrorCode BUG_ANALYSIS_SCOPE_INVALID = ErrorCode.of(1000018286, "重复扫描范围参数非法");
+    public static final ErrorCode BUG_ANALYSIS_SUGGEST_INPUT_INVALID = ErrorCode.of(1000018287, "建议输入非法（标题为空或超长）");
 
     // ========== AI 辅助功能 1000018301-1000018307（辅助功能详设 6，号段至 1000018329） ==========
     public static final ErrorCode ASSISTED_NODE_NOT_FOUND = ErrorCode.of(1000018301, "用例节点不存在或不属目标文档");
