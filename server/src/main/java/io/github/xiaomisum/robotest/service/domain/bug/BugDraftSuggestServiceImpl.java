@@ -7,10 +7,8 @@ import io.github.xiaomisum.robotest.model.dto.request.bug.BugDraftSuggestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDraftSuggestRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
-import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
@@ -28,7 +26,6 @@ import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,7 +43,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 /**
  * 新建缺陷实时建议实现（详设 3.5）：同步单跳模型调用，不产生任务、不落库。
  * 上下文装配：项目模块清单 + 固定选项枚举 + 用例候选（向量检索用例文档 top 8 展开用例节点 ≤30，
- * 未就绪静默降级为无用例候选）+ 相似缺陷引用（top 5，未就绪降级为空）。
+ * 未就绪静默降级为无用例候选）；不检索相似存量缺陷（相似性判断由录入时重复检测详设 3.8 承担）。
  * 清洗：枚举值非法剔除，模块 / 用例归属校验，relatedCase 至多一条；模型调用失败按总册 4.2 映射。
  */
 @Service
@@ -59,7 +56,6 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
     /** 用例候选：相似用例文档 top 8 展开为用例节点，总量截断防上下文膨胀（详设 3.5） */
     private static final int CASE_DOC_TOPK = 8;
     private static final int CASE_OPTION_LIMIT = 30;
-    private static final int SOURCE_REF_LIMIT = 5;
     private static final int KEYWORD_LIMIT = 5;
 
     private static final Set<String> BUG_TYPES = Set.of(
@@ -76,8 +72,6 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
     private ProjectModuleMapper projectModuleMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
-    @Resource
-    private BugMapper bugMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
@@ -100,7 +94,6 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
 
         List<ProjectModule> modules = projectModuleMapper.listByProjectId(projectId);
         Map<UUID, String> caseOptions = caseOptions(title, projectId, userId);
-        List<Bug> similar = similarBugs(title, steps, projectId, userId);
 
         AiModelConfig model = settingsReader.resolveModel(null);
         if (model == null) {
@@ -114,7 +107,7 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
         String userPrompt = promptService.render(SCENE, AiPromptScenes.builtin(SCENE), variables);
         AiChatReply reply = modelClient.chat(
                 new AiChatRequest(null, projectId, userId, SCENE, model, SYSTEM_PROMPT, userPrompt));
-        return sanitize(reply, modules, caseOptions, similar);
+        return sanitize(reply, modules, caseOptions);
     }
 
     /** 草稿上下文：标题 + 已填重现步骤 + 已选模块名称（仅本项目模块参与） */
@@ -167,40 +160,16 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
         return options;
     }
 
-    /** 相似存量缺陷引用：向量能力未就绪时降级为空（建议场景尽力而为，不阻塞表单） */
-    private List<Bug> similarBugs(String title, String steps, UUID projectId, UUID userId) {
-        String query = StringUtils.hasText(steps) ? title + "\n" + steps : title;
-        List<UUID> ids;
-        try {
-            ids = vectorSearchService.search(query, List.of(projectId), VectorIndexService.TYPE_BUG,
-                            SOURCE_REF_LIMIT, userId).stream()
-                    .map(AiVectorSearchHitRespDTO::getEntityId)
-                    .filter(Objects::nonNull)
-                    .distinct()
-                    .toList();
-        } catch (ServiceException e) {
-            return List.of();
-        }
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-        return bugMapper.listByIds(ids).stream()
-                .filter(bug -> projectId.equals(bug.getProjectId()))
-                .limit(SOURCE_REF_LIMIT)
-                .toList();
-    }
-
     // ---------- 产物清洗 ----------
 
     private BugDraftSuggestRespDTO sanitize(AiChatReply reply, List<ProjectModule> modules,
-            Map<UUID, String> caseOptions, List<Bug> similar) {
+            Map<UUID, String> caseOptions) {
         Map<String, Object> parsed = asMap(RequirementSuggestionParser.parseJsonObject(reply.content()));
 
         BugDraftSuggestRespDTO resp = new BugDraftSuggestRespDTO();
         resp.setTitle(fieldSuggestion(parsed.get("title")));
         resp.setReproSteps(fieldSuggestion(parsed.get("reproSteps")));
         resp.setSuggestions(sanitizeSuggestions(asMap(parsed.get("suggestions")), modules, caseOptions));
-        resp.setSourceRefs(sourceRefs(similar));
         return resp;
     }
 
@@ -268,19 +237,6 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
         result.setValue(value);
         result.setReason(nvl(asString(suggestion.get("reason"))));
         return result;
-    }
-
-    private static List<BugDraftSuggestRespDTO.SourceRef> sourceRefs(List<Bug> similar) {
-        List<BugDraftSuggestRespDTO.SourceRef> refs = new ArrayList<>();
-        for (Bug bug : similar) {
-            BugDraftSuggestRespDTO.SourceRef ref = new BugDraftSuggestRespDTO.SourceRef();
-            ref.setType("bug");
-            ref.setId(bug.getId());
-            ref.setTitle(nvl(bug.getTitle()));
-            ref.setQuote("");
-            refs.add(ref);
-        }
-        return refs;
     }
 
     // ---------- 上下文装配 ----------
