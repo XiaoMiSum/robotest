@@ -175,57 +175,61 @@ onMounted(async () => {
       />
     </div>
 
-    <el-table
-      :data="rows"
-      @selection-change="handleSelectionChange"
-    >
-      <el-table-column type="selection" width="40" />
-      <el-table-column label="报告名称" min-width="220" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-link type="primary" :underline="false" @click="handleView(row as ApiReportPageItem)">
-            {{ reportName(row as ApiReportPageItem) }}
-          </el-link>
+    <!-- 表体区是页面内唯一滚动拥有者：表格固定高度、表头固定，超出时表体内滚动（UI-SC-02 / UI-SC-05 / UI-SC-06） -->
+    <div class="reports-page__body">
+      <el-table
+        :data="rows"
+        height="100%"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="40" />
+        <el-table-column label="报告名称" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-link type="primary" :underline="false" @click="handleView(row as ApiReportPageItem)">
+              {{ reportName(row as ApiReportPageItem) }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column label="类型" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="(row as ApiReportPageItem).reportType === 'suite' ? 'info' : 'primary'">
+              {{ (row as ApiReportPageItem).reportType === 'suite' ? '套件报告' : '场景报告' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusType((row as ApiReportPageItem).status)">
+              {{ statusLabel((row as ApiReportPageItem).status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="通过率" width="90" align="center">
+          <template #default="{ row }">
+            <span :class="{ 'text-red-500': ((row as ApiReportPageItem).summary?.failed ?? 0) > 0 }">
+              {{ passRate((row as ApiReportPageItem).summary) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="耗时" width="90" align="center">
+          <template #default="{ row }">
+            {{ formatDuration((row as ApiReportPageItem).summary?.durationMs) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="170">
+          <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="120" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="handleView(row as ApiReportPageItem)">查看</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as ApiReportPageItem)">删除</el-button>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <el-empty description="暂无测试报告，定时任务执行后生成；场景页运行报告可在场景执行历史中查看" />
         </template>
-      </el-table-column>
-      <el-table-column label="类型" width="90" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="(row as ApiReportPageItem).reportType === 'suite' ? 'info' : 'primary'">
-            {{ (row as ApiReportPageItem).reportType === 'suite' ? '套件报告' : '场景报告' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="110" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="statusType((row as ApiReportPageItem).status)">
-            {{ statusLabel((row as ApiReportPageItem).status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="通过率" width="90" align="center">
-        <template #default="{ row }">
-          <span :class="{ 'text-red-500': ((row as ApiReportPageItem).summary?.failed ?? 0) > 0 }">
-            {{ passRate((row as ApiReportPageItem).summary) }}
-          </span>
-        </template>
-      </el-table-column>
-      <el-table-column label="耗时" width="90" align="center">
-        <template #default="{ row }">
-          {{ formatDuration((row as ApiReportPageItem).summary?.durationMs) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="创建时间" width="170">
-        <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleView(row as ApiReportPageItem)">查看</el-button>
-          <el-button link type="danger" size="small" @click="handleDelete(row as ApiReportPageItem)">删除</el-button>
-        </template>
-      </el-table-column>
-      <template #empty>
-        <el-empty description="暂无测试报告，定时任务执行后生成；场景页运行报告可在场景执行历史中查看" />
-      </template>
-    </el-table>
+      </el-table>
+    </div>
 
     <div class="reports-page__footer">
       <el-button v-if="hasSelection" link type="danger" data-test="batch-delete-btn" @click="handleBatchDelete">删除</el-button>
@@ -246,6 +250,14 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+}
+
+/* UI-SC-01/06：表体区承接剩余高度并裁剪，el-table 100% 高度内滚动 */
+.reports-page__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
