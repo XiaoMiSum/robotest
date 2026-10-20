@@ -14,6 +14,7 @@ import io.github.xiaomisum.robotest.service.domain.plan.TestPlanService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -96,6 +97,7 @@ public class TestPlanController {
     }
 
     @PostMapping("/{id}/sync")
+    @PreAuthorize("hasAuthority('plan:execute')")
     public Result<Void> syncPlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -111,6 +113,7 @@ public class TestPlanController {
     }
 
     @PostMapping("/{id}/complete")
+    @PreAuthorize("hasAuthority('plan:execute')")
     public Result<Void> completePlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -119,6 +122,7 @@ public class TestPlanController {
     }
 
     @PostMapping("/{id}/block")
+    @PreAuthorize("hasAuthority('plan:block')")
     public Result<Void> blockPlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -127,6 +131,7 @@ public class TestPlanController {
     }
 
     @PostMapping("/{id}/resume")
+    @PreAuthorize("hasAuthority('plan:block')")
     public Result<Void> resumePlan(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
