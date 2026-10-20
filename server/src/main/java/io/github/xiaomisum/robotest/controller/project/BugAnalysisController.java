@@ -2,11 +2,14 @@ package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugAnalysisQueryReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.bug.BugDraftSuggestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugDuplicateCheckReqDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugDraftSuggestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDuplicateCheckRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugMetricsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugTrendsRespDTO;
 import io.github.xiaomisum.robotest.service.domain.bug.BugAnalysisService;
+import io.github.xiaomisum.robotest.service.domain.bug.BugDraftSuggestService;
 import jakarta.annotation.Resource;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,6 +29,8 @@ public class BugAnalysisController {
 
     @Resource
     private BugAnalysisService bugAnalysisService;
+    @Resource
+    private BugDraftSuggestService bugDraftSuggestService;
 
     @GetMapping("/analysis/trends")
     @PreAuthorize("hasAuthority('bug:view')")
@@ -46,6 +51,14 @@ public class BugAnalysisController {
     public Result<BugDuplicateCheckRespDTO> checkDuplicates(@AuthenticationPrincipal LoginUser loginUser,
             @RequestBody BugDuplicateCheckReqDTO reqDTO) {
         return Result.ok(bugAnalysisService.checkDuplicates(reqDTO,
+                loginUser.getActiveProjectId(), loginUser.getId()));
+    }
+
+    @PostMapping("/analysis/suggest")
+    @PreAuthorize("hasAuthority('bug:view')")
+    public Result<BugDraftSuggestRespDTO> suggestDraft(@AuthenticationPrincipal LoginUser loginUser,
+            @RequestBody BugDraftSuggestReqDTO reqDTO) {
+        return Result.ok(bugDraftSuggestService.suggest(reqDTO,
                 loginUser.getActiveProjectId(), loginUser.getId()));
     }
 }
