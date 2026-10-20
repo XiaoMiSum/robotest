@@ -42,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -133,14 +134,14 @@ class ApiDebugServiceImplTest {
         assertThat(resp.getResponseBody()).isEqualTo(Map.of("ok", true));
         assertThat(resp.getSize()).isGreaterThan(0);
 
+        // 落库在 persistExecutor 异步执行，必须带超时等待，否则高负载下 verify 早于任务执行而误报
         ArgumentCaptor<ApiDebugRecord> captor = ArgumentCaptor.forClass(ApiDebugRecord.class);
-        verify(debugRecordMapper).insert(captor.capture());
+        verify(debugRecordMapper, timeout(2000)).insert(captor.capture());
         ApiDebugRecord record = captor.getValue();
         assertEquals("success", record.getStatus());
         assertEquals("POST /auth/login", record.getName());
         assertThat(record.getUserId()).isEqualTo(USER_ID);
         assertThat(record.getProjectId()).isEqualTo(PROJECT_ID);
-        assertTrue(persistDrained());
     }
 
     @Test
@@ -307,14 +308,6 @@ class ApiDebugServiceImplTest {
 
     private interface EchoResponder {
         Object[] respond();
-    }
-
-    private boolean persistDrained() throws InterruptedException {
-        for (int i = 0; i < 50 && persistExecutor.getQueueSize() > 0; i++) {
-            Thread.sleep(20);
-        }
-        Thread.sleep(100);
-        return true;
     }
 
     static final class ReflectionSet {
