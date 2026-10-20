@@ -6,10 +6,8 @@ import io.github.xiaomisum.robotest.model.dto.request.bug.BugDraftSuggestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.bug.BugDraftSuggestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
-import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
@@ -51,14 +49,11 @@ class BugDraftSuggestServiceImplTest {
     private static final UUID MODULE_ID = UUID.randomUUID();
     private static final UUID DOCUMENT_ID = UUID.randomUUID();
     private static final UUID CASE_ID = UUID.randomUUID();
-    private static final UUID BUG_ID = UUID.randomUUID();
 
     @Mock
     private ProjectModuleMapper projectModuleMapper;
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
-    @Mock
-    private BugMapper bugMapper;
     @Mock
     private ProjectAccessGuard projectAccessGuard;
     @Mock
@@ -97,10 +92,10 @@ class BugDraftSuggestServiceImplTest {
         return node;
     }
 
-    private AiVectorSearchHitRespDTO hit(UUID entityId, String type) {
+    private AiVectorSearchHitRespDTO hit(UUID entityId) {
         AiVectorSearchHitRespDTO hit = new AiVectorSearchHitRespDTO();
         hit.setEntityId(entityId);
-        hit.setEntityType(type);
+        hit.setEntityType(VectorIndexService.TYPE_TESTCASE);
         hit.setProjectId(PROJECT_ID);
         return hit;
     }
@@ -144,15 +139,8 @@ class BugDraftSuggestServiceImplTest {
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
         when(vectorSearchService.search(eq("登录页点击登录无响应"), anyList(),
                 eq(VectorIndexService.TYPE_TESTCASE), anyInt(), eq(USER_ID)))
-                .thenReturn(List.of(hit(DOCUMENT_ID, VectorIndexService.TYPE_TESTCASE)));
+                .thenReturn(List.of(hit(DOCUMENT_ID)));
         when(testCaseNodeMapper.listCasesByDocumentIds(anyCollection())).thenReturn(List.of(caseNode()));
-        when(vectorSearchService.search(any(), anyList(), eq(VectorIndexService.TYPE_BUG), anyInt(), eq(USER_ID)))
-                .thenReturn(List.of(hit(BUG_ID, VectorIndexService.TYPE_BUG)));
-        Bug bug = new Bug();
-        bug.setId(BUG_ID);
-        bug.setTitle("登录按钮无反应");
-        bug.setProjectId(PROJECT_ID);
-        when(bugMapper.listByIds(anyCollection())).thenReturn(List.of(bug));
         stubModel(new AiChatReply("""
                 {"title":{"value":"登录页点击登录按钮后无任何响应","reason":"现象明确"},
                  "reproSteps":{"value":"##### 执行步骤\\n1. 打开登录页\\n##### 实际结果\\n无响应\\n##### 期望结果\\n登录成功","reason":"三段结构"},
@@ -162,8 +150,7 @@ class BugDraftSuggestServiceImplTest {
                    "priority":{"value":"high","reason":"主流程"},
                    "moduleId":{"value":"%s","reason":"登录相关"},
                    "keywords":{"value":["登录","无响应","按钮"],"reason":"检索词"},
-                   "relatedCase":{"value":"%s","caseTitle":"登录-正常登录","reason":"正向用例"}},
-                 "sourceRefs":[]}
+                   "relatedCase":{"value":"%s","caseTitle":"登录-正常登录","reason":"正向用例"}}}
                 """.formatted(MODULE_ID, CASE_ID), 10, 5));
 
         BugDraftSuggestRespDTO resp = service.suggest(
@@ -178,8 +165,6 @@ class BugDraftSuggestServiceImplTest {
         assertEquals(List.of("登录", "无响应", "按钮"), resp.getSuggestions().getKeywords().getValue());
         assertEquals(CASE_ID.toString(), resp.getSuggestions().getRelatedCase().getValue());
         assertEquals("登录-正常登录", resp.getSuggestions().getRelatedCase().getCaseTitle());
-        assertEquals(1, resp.getSourceRefs().size());
-        assertEquals(BUG_ID, resp.getSourceRefs().get(0).getId());
 
         // 上下文变量：已选模块名称与候选用例清单均进入提示词
         @SuppressWarnings("unchecked")
@@ -201,13 +186,12 @@ class BugDraftSuggestServiceImplTest {
 
         // 向量未就绪 → 无用例候选 → relatedCase 一律剔除
         assertNull(resp.getSuggestions().getRelatedCase());
-        assertTrue(resp.getSourceRefs().isEmpty());
     }
 
     // ---------- 向量未就绪降级 ----------
 
     @Test
-    void suggest_vectorUnavailable_degradesToNoCaseAndNoRefs() {
+    void suggest_vectorUnavailable_degradesToNoCase() {
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
         when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any()))
                 .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_VECTOR_INDEX_UNAVAILABLE));
@@ -218,6 +202,5 @@ class BugDraftSuggestServiceImplTest {
 
         assertEquals("优化后标题", resp.getTitle().getValue());
         assertNull(resp.getSuggestions().getRelatedCase());
-        assertTrue(resp.getSourceRefs().isEmpty());
     }
 }
