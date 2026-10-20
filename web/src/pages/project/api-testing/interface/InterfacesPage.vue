@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiInterfaceItem, ApiInterfaceStatus, ApiInterfaceView, ProjectModule } from '@/types'
@@ -221,7 +221,9 @@ function handleImported() {
   void loadPage()
 }
 
-onMounted(async () => {
+// 列表页常驻 KeepAlive，切回列表 Tab（新建/编辑/导入返回）不重新挂载，
+// 只靠 onMounted 不会再触发，须经 onActivated 重新加载才能看到最新数据
+onActivated(async () => {
   await loadPage()
 })
 
@@ -359,6 +361,7 @@ defineExpose({ openCreate, openImport })
 
     <el-dialog v-model="showBatchMove" title="批量移动到模块" width="420px">
       <el-tree
+        class="batch-move__tree"
         :data="moduleTree"
         node-key="id"
         :props="{ label: 'name', children: 'children' }"
@@ -479,6 +482,21 @@ defineExpose({ openCreate, openImport })
   justify-content: flex-end;
   padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
+}
+
+// 批量移动弹窗模块树：树体自带高度约束与滚动，滚动不外溢到弹窗 wrapper（UI-SC-02），
+// 视觉滚动条按 UI-SC-03 隐藏，overflow 与键盘滚动能力保留
+.batch-move__tree {
+  max-height: 60vh;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
 }
 
 </style>
