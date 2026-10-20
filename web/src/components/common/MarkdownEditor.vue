@@ -42,6 +42,10 @@ const MAXIMIZE_ICON =
 
 const maximized = ref(false)
 
+// 拖拽调高后的值优先于页面传入的自适应高度：本次停留期间不再跟随窗口变化（不持久化，卸载即还原）
+const internalHeight = ref(props.height)
+const userAdjusted = ref(false)
+
 function enterMaximize(): void {
   maximized.value = true
 }
@@ -77,7 +81,7 @@ const container = useTemplateRef<HTMLDivElement>('container')
 // 不能以 :class 驱动挂载元素，Vue 重写 class 属性时会抹掉 Vditor 追加的 .vditor 类致布局失效
 function applyMaximizeHeight(on: boolean): void {
   if (!container.value) return
-  container.value.style.height = on ? '100%' : props.height
+  container.value.style.height = on ? '100%' : internalHeight.value
 }
 
 let instance: VditorInstance | undefined
@@ -125,7 +129,69 @@ function toggleExpand(): void {
   expanded.value = !expanded.value
   if (!ready || !instance) return
   if (expanded.value) applyExpandHeight()
-  else setEditorHeight(instance, props.height)
+  else setEditorHeight(instance, internalHeight.value)
+}
+
+// ==================== 拖拽调高（底部手柄） ====================
+
+const MIN_RESIZE_HEIGHT = 200
+// 无布局环境（如 jsdom）量不到真实高度时的兜底值
+const RESIZE_HEIGHT_FALLBACK = 320
+
+const resizing = ref(false)
+let resizeStartY = 0
+let resizeStartHeight = 0
+
+/** 手柄仅编辑态可用：只读、最大化浮层与完整显示展开态（高度由内容决定）均不渲染 */
+const showResizeHandle = computed(
+  () => !props.disabled && !maximized.value && !expanded.value,
+)
+
+function parseHeightPx(height: string): number {
+  const parsed = Number.parseInt(height, 10)
+  return Number.isNaN(parsed) ? RESIZE_HEIGHT_FALLBACK : parsed
+}
+
+function handleResizeMouseDown(event: MouseEvent): void {
+  if (!ready || !instance) return
+  event.preventDefault()
+  resizing.value = true
+  resizeStartY = event.clientY
+  resizeStartHeight = container.value?.offsetHeight || parseHeightPx(internalHeight.value)
+  document.addEventListener('mousemove', handleResizeMouseMove)
+  document.addEventListener('mouseup', handleResizeMouseUp)
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function handleResizeMouseMove(event: MouseEvent): void {
+  if (!resizing.value || !instance) return
+  const next = Math.min(
+    Math.max(resizeStartHeight + (event.clientY - resizeStartY), MIN_RESIZE_HEIGHT),
+    window.innerHeight,
+  )
+  internalHeight.value = `${next}px`
+  setEditorHeight(instance, `${next}px`)
+}
+
+function handleResizeMouseUp(): void {
+  resizing.value = false
+  document.removeEventListener('mousemove', handleResizeMouseMove)
+  document.removeEventListener('mouseup', handleResizeMouseUp)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  userAdjusted.value = true
+  // 拖完重测溢出，让「完整显示」按钮状态跟随新高度
+  measureOverflow()
+}
+
+function stopResizeListening(): void {
+  if (!resizing.value) return
+  resizing.value = false
+  document.removeEventListener('mousemove', handleResizeMouseMove)
+  document.removeEventListener('mouseup', handleResizeMouseUp)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
 }
 
 onMounted(() => {
@@ -204,9 +270,11 @@ watch(() => props.disabled, (disabled) => {
   measureOverflow()
 })
 
-// 外部驱动的高度变化（如页面按窗口高度自适应）需同步到实例；最大化与展开态由各自逻辑接管，退出时按最新值还原
+// 外部驱动的高度变化（如页面按窗口高度自适应）需同步到实例；最大化、展开与拖拽后的值由各自逻辑接管，退出时按最新值还原
 watch(() => props.height, (height) => {
   if (!ready || !instance || maximized.value || expanded.value) return
+  if (userAdjusted.value) return
+  internalHeight.value = height
   setEditorHeight(instance, height)
   measureOverflow()
 })
@@ -216,6 +284,7 @@ onBeforeUnmount(() => {
   stopResolve?.()
   stopResolve = undefined
   window.removeEventListener('resize', measureOverflow)
+  stopResizeListening()
   // 最大化状态卸载时恢复背景滚动，避免样式残留
   document.removeEventListener('keydown', handleKeydown)
   if (maximized.value) {
@@ -239,6 +308,13 @@ onBeforeUnmount(() => {
   <!-- 最大化态类挂在包裹层：直接以 :class 驱动挂载元素会抹掉 Vditor 追加的 .vditor 类；包裹层同时保证编辑器与表单其余控件同宽 -->
   <div class="markdown-editor-wrap" :class="{ 'markdown-editor-wrap--maximized': maximized }">
     <div ref="container" class="markdown-editor" />
+    <!-- 高度拖拽热区：悬浮显示指示线，拖拽行为见上方「拖拽调高」逻辑 -->
+    <div
+      v-if="showResizeHandle"
+      class="markdown-editor-resize"
+      :class="{ 'markdown-editor-resize--active': resizing }"
+      @mousedown.prevent="handleResizeMouseDown"
+    />
   </div>
   <!-- 按钮在包裹层之外：最大化时包裹层变浮层，显隐由 showExpandControl 单独控制 -->
   <div v-if="showExpandControl" class="markdown-editor-expand">
@@ -266,6 +342,26 @@ onBeforeUnmount(() => {
   background: var(--color-neutral-0);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
+}
+
+.markdown-editor-resize {
+  height: 6px;
+  cursor: row-resize;
+
+  &::after {
+    content: '';
+    display: block;
+    height: 2px;
+    margin-top: 2px;
+    background: transparent;
+    transition: background var(--el-transition-duration);
+  }
+
+  // 悬浮与拖拽中显示指示线；拖拽时鼠标即使短暂划出手柄也保持可见
+  &:hover::after,
+  &--active::after {
+    background: var(--el-border-color);
+  }
 }
 
 .markdown-editor-expand {

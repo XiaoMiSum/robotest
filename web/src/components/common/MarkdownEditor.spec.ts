@@ -307,4 +307,96 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     await measureByResize()
     expect(wrapper.find('.markdown-editor-expand').exists()).toBe(false)
   })
+
+  // ==================== 拖拽调高（底部手柄） ====================
+
+  function findResizeHandle(wrapper: VueWrapper) {
+    return wrapper.find('.markdown-editor-resize')
+  }
+
+  /** 模拟在手柄上按下并拖动指定像素（jsdom 量不到布局，起始高度走内部记录值） */
+  async function dragHandle(wrapper: VueWrapper, deltaY: number, startClientY = 0): Promise<void> {
+    await findResizeHandle(wrapper).trigger('mousedown', { clientY: startClientY })
+    document.dispatchEvent(new MouseEvent('mousemove', { clientY: startClientY + deltaY }))
+    document.dispatchEvent(new MouseEvent('mouseup'))
+  }
+
+  it('编辑态渲染拖拽手柄；只读、展开与最大化态不渲染', async () => {
+    const { options, wrapper } = await mountEditor()
+    markReady(options)
+    expect(findResizeHandle(wrapper).exists()).toBe(true)
+
+    attachArea(wrapper, 1000, 300)
+    await measureByResize()
+    await findExpandButton(wrapper).trigger('click')
+    expect(findResizeHandle(wrapper).exists()).toBe(false)
+    await findExpandButton(wrapper).trigger('click')
+    expect(findResizeHandle(wrapper).exists()).toBe(true)
+
+    const { options: disabledOptions, wrapper: disabledWrapper } = await mountEditor('', {
+      disabled: true,
+    })
+    markReady(disabledOptions)
+    expect(findResizeHandle(disabledWrapper).exists()).toBe(false)
+
+    const { options: maxOptions, wrapper: maxWrapper } = await mountEditor('', {
+      maximizable: true,
+    })
+    markReady(maxOptions)
+    pickMaximizeItem(maxOptions).click?.(new Event('click'))
+    await nextTick()
+    expect(findResizeHandle(maxWrapper).exists()).toBe(false)
+    maxWrapper.unmount()
+  })
+
+  it('上下拖动调整高度，向下钳制最小 200px、向上钳制视口高度', async () => {
+    const { options, wrapper } = await mountEditor()
+    markReady(options)
+    fake.editor.setHeight.mockClear()
+
+    await dragHandle(wrapper, -50)
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('270px')
+
+    await dragHandle(wrapper, -100000)
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('200px')
+
+    await dragHandle(wrapper, 100000)
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith(`${window.innerHeight}px`)
+  })
+
+  it('拖动后外部高度变化不再覆盖，收起完整显示恢复拖动后的值', async () => {
+    const { options, wrapper } = await mountEditor()
+    markReady(options)
+    await dragHandle(wrapper, 80)
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('400px')
+
+    await wrapper.setProps({ height: '640px' })
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('400px')
+
+    attachArea(wrapper, 1000, 300)
+    await measureByResize()
+    await findExpandButton(wrapper).trigger('click')
+    await findExpandButton(wrapper).trigger('click')
+    expect(fake.editor.setHeight).toHaveBeenLastCalledWith('400px')
+  })
+
+  it('拖拽结束移除全局监听并还原光标与选中，卸载时中断拖拽同样清理', async () => {
+    const { options, wrapper } = await mountEditor()
+    markReady(options)
+
+    await findResizeHandle(wrapper).trigger('mousedown', { clientY: 100 })
+    expect(document.body.style.cursor).toBe('row-resize')
+    document.dispatchEvent(new MouseEvent('mouseup'))
+    expect(document.body.style.cursor).toBe('')
+    expect(document.body.style.userSelect).toBe('')
+
+    fake.editor.setHeight.mockClear()
+    document.dispatchEvent(new MouseEvent('mousemove', { clientY: 500 }))
+    expect(fake.editor.setHeight).not.toHaveBeenCalled()
+
+    await findResizeHandle(wrapper).trigger('mousedown', { clientY: 100 })
+    wrapper.unmount()
+    expect(document.body.style.cursor).toBe('')
+    expect(document.body.style.userSelect).toBe('')
+  })
 })
