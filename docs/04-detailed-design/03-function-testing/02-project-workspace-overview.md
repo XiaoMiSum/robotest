@@ -324,9 +324,9 @@
 
 ### 2.4 权限控制
 
-所有接口校验用户是否属于当前项目所属的工作空间。评审操作仅发起人可完成/同步/删除，参与者均可提交记录。计划操作负责人可编辑、同步、完成/关闭、删除，执行人可提交执行记录。
+所有接口校验用户是否属于当前项目所属的工作空间。评审操作仅发起人可完成/同步/删除，参与者均可提交记录。计划操作按权限码收口：同步与完成校验 `plan:execute`，阻塞与恢复校验 `plan:block`，调整用例不限身份；删除计划仅计划负责人可操作，执行人可提交执行记录。
 
-前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求池接口校验 `requirement:view`（编辑、归档为 `requirement:edit`）；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
+前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求池接口校验 `requirement:view`（编辑、归档为 `requirement:edit`）；测试计划的同步与完成校验 `plan:execute`、阻塞与恢复校验 `plan:block`；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
 
 ---
 
@@ -464,3 +464,4 @@
 | V1.0 | 2026-10-02 | 对齐前端实现：模块划分与总体布局、项目态路由与顶部菜单权限码、模块树与项目上下文状态、数据表口径及分册-章节对照表 |
 | V1.0 | 2026-10-18 | 功能测试域表名登记并统一改用 `ft_` 域前缀：`test_plan*` / `test_review*` / `test_case_node` / `test_case_document` → `ft_plan*` / `ft_review*` / `ft_case_node` / `ft_case_document`，索引同步 `idx_ft_*` |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
+| V1.0 | 2026-10-20 | 2.4 权限控制口径更新：计划同步/完成改按 `plan:execute`、阻塞/恢复改按 `plan:block` 收口，删除计划仍限负责人，权限码清单同步 |
