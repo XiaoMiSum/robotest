@@ -370,6 +370,13 @@ onBeforeUnmount(() => {
   margin-top: var(--space-xs);
 }
 
+// 预览按钮独立贴工具栏最右侧边缘：内核工具栏项为 float:left，右浮才能与左侧按钮断开；className 落在 Vditor 动态生成的 <li> 上，须经 :deep 命中
+.markdown-editor :deep(.markdown-editor__maximize-btn) {
+  float: right;
+  // 拥挤时与左侧按钮保持最小断开间隙
+  margin-left: var(--space-xs);
+}
+
 .markdown-editor__mask {
   position: fixed;
   inset: 0;
