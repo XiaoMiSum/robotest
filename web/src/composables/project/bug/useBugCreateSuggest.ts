@@ -11,8 +11,9 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * 新建缺陷实时建议（详设 3.5）：点击「AI 建议」发起同步请求，一次返回全部建议
- * （不产生任务、不落库）；状态存组件本地，提交后释放。
+ * 新建缺陷实时建议（详设 3.5）：点击「AI 建议」发起 SSE 流式请求，done 终态一次返回全部建议
+ * （不产生任务、不落库）；失败三形态（前置校验 / 流内 error / 连接中断）均落 error 轻提示。
+ * 状态存组件本地，提交后释放。
  */
 export function useBugCreateSuggest() {
   const loading = ref(false)
