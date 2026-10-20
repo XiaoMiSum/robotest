@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.model.dto.response.bug;
 import lombok.Data;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 新建缺陷实时建议响应（POST /api/project/bugs/analysis/suggest，详设 3.5）。
@@ -20,9 +19,6 @@ public class BugDraftSuggestRespDTO {
 
     /** 分类与关键词建议（逐字段独立，可缺省） */
     private Suggestions suggestions;
-
-    /** 相似存量缺陷来源引用（向量未就绪时为空列表） */
-    private List<SourceRef> sourceRefs;
 
     @Data
     public static class FieldSuggestion {
@@ -65,17 +61,5 @@ public class BugDraftSuggestRespDTO {
         private KeywordsSuggestion keywords;
 
         private RelatedCaseSuggestion relatedCase;
-    }
-
-    @Data
-    public static class SourceRef {
-
-        private String type;
-
-        private UUID id;
-
-        private String title;
-
-        private String quote;
     }
 }
