@@ -184,6 +184,8 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
 
   interface MenuLike {
     name: string
+    icon?: string
+    className?: string
     click?: (event: Event) => void
   }
 
@@ -197,7 +199,12 @@ describe('MarkdownEditor（缺陷详设 1.15 重现步骤编辑）', () => {
     expect(options.toolbar?.every((item) => typeof item === 'string')).toBe(true)
 
     const { options: maxOptions } = await mountEditor('', { maximizable: true })
-    expect(pickMaximizeItem(maxOptions).name).toBe('preview-maximize')
+    const maximize = pickMaximizeItem(maxOptions)
+    expect(maximize.name).toBe('preview-maximize')
+    // 样式挂点：按钮独立贴工具栏最右侧边缘的 float:right 样式经该 className 命中 Vditor 动态 <li>
+    expect(maximize.className).toBe('markdown-editor__maximize-btn')
+    // 图标为 Element Plus 最大化（FullScreen）图标
+    expect(maximize.icon).toContain('viewBox="0 0 1024 1024"')
   })
 
   it('点击预览按钮最大化展示遮罩，点遮罩退出并恢复背景滚动', async () => {
