@@ -45,18 +45,20 @@ export interface EditorCallbacks {
  * 沿用其默认值作为还原基线；最大化时放宽该上限，正文即可撑满浮层宽度 */
 export const DEFAULT_PREVIEW_MAX_WIDTH = 800
 
-/** Vditor 类型未公开 options，运行时实例具备（IVditor.options），经接口收窄后调整正文居中上限 */
+/** 预览居中上限挂在实例的 vditor.options 上（不在实例自身）；内核在窗口 resize 时按该值重算正文左右留白，
+ * 最大化时放宽即撑满浮层宽度，退出还原为默认上限 */
 export function setPreviewMaxWidth(vditor: VditorInstance, maxWidth: number): void {
-  const api = vditor as unknown as IVditor
-  if (api.options?.preview) {
-    api.options.preview.maxWidth = maxWidth
+  const options = vditor.vditor.options
+  if (options.preview) {
+    options.preview.maxWidth = maxWidth
   }
 }
 
-/** Vditor 类型声明未列出 setHeight，但运行时实例具备，经收窄后同步外部驱动的高度变化（页面按窗口高度自适应场景） */
+/** Vditor 4 未提供运行时改高度的方法：高度只能落在构造时传入的根元素内联样式上（内核 resize 拖拽同款），
+ * 根元素为 flex 列布局、内容区 flex:1 自动跟随；options.height 供 hint 面板与滚动定位读取，需同步旧值 */
 export function setEditorHeight(vditor: VditorInstance, height: string): void {
-  const api = vditor as unknown as { setHeight(height: string | number): void }
-  api.setHeight(height)
+  vditor.vditor.options.height = height
+  vditor.vditor.element.style.height = height
 }
 
 /** 组装所见即所得编辑器参数，屏蔽 Vditor 的原生默认值差异 */
