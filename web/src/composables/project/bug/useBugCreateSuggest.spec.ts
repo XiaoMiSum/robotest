@@ -15,7 +15,7 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     vi.clearAllMocks()
   })
 
-  it('同步一次返回全部建议：标题 / 重现步骤 / 分类 / 关联用例 / 引用', async () => {
+  it('同步一次返回全部建议：标题 / 重现步骤 / 分类 / 关联用例', async () => {
     mocks.suggestBugDraft.mockResolvedValue({
       title: { value: '登录页点击登录按钮后无任何响应', reason: '现象明确' },
       reproSteps: { value: '##### 执行步骤\n1. 打开登录页', reason: '三段结构' },
@@ -27,7 +27,6 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
         keywords: { value: ['登录', '无响应'], reason: '检索词' },
         relatedCase: { value: 'c1', caseTitle: '登录-正常登录', reason: '正向用例' },
       },
-      sourceRefs: [{ type: 'bug', id: 'b1', title: '登录按钮无反应' }],
     })
 
     const suggest = useBugCreateSuggest()
@@ -43,7 +42,6 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     expect(suggest.suggestions.value.keywords?.value).toEqual(['登录', '无响应'])
     expect(suggest.relatedCase.value?.value).toBe('c1')
     expect(suggest.relatedCase.value?.caseTitle).toBe('登录-正常登录')
-    expect(suggest.sourceRefs.value[0]?.id).toBe('b1')
     expect(suggest.loading.value).toBe(false)
   })
 
@@ -56,7 +54,6 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     expect(suggest.titleSuggestion.value).toBeNull()
     expect(suggest.reproStepsSuggestion.value).toBeNull()
     expect(suggest.relatedCase.value).toBeNull()
-    expect(suggest.sourceRefs.value).toEqual([])
   })
 
   it('失败不阻塞录入：落错误提示并清空建议', async () => {
