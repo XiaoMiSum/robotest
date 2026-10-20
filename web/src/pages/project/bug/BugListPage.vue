@@ -132,96 +132,108 @@ const {
       </el-form>
     </el-card>
 
-    <el-card v-if="viewMode === 'list'" v-loading="loading" shadow="never" class="bug-page__list-card">
-      <el-table :data="bugs" row-key="id">
-        <el-table-column label="ID" width="110">
-          <template #default="{ row }">{{ formatShortId(row.id) }}</template>
-        </el-table-column>
-        <el-table-column label="标题" min-width="200">
-          <template #default="{ row }">
-            <el-link
-              type="primary"
-              underline="never"
-              :title="row.title.length > 18 ? row.title : undefined"
-              @click="router.push(`/workspace/projects/bugs/${row.id}`)"
-              >{{ truncateText(row.title, 18) }}</el-link
-            >
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" width="100">
-          <template #default="{ row }">{{ BUG_TYPE_LABEL[row.bugType as BugType] ?? '-' }}</template>
-        </el-table-column>
-        <el-table-column label="严重等级" width="100">
-          <template #default="{ row }">
-            <el-tag :type="severityType[row.severity]" size="small" effect="light" round>{{ severityLabel[row.severity] }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="优先级" width="80">
-          <template #default="{ row }">
-            <el-tag :type="priorityType[row.priority]" size="small" effect="light" round>{{ priorityLabel[row.priority] }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="130">
-          <template #default="{ row }">
-            <el-tag :type="BUG_STATUS_TAG_TYPE[row.status as BugStatus]" size="small" effect="light" round>{{ statusLabel[row.status as BugStatus] }}</el-tag>
-            <el-tag v-if="row.confirmed" size="small" type="warning" effect="plain" class="bug-page__confirmed-tag">已确认</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="创建人" width="100">
-          <template #default="{ row }">{{ row.reporter?.name ?? '-' }}</template>
-        </el-table-column>
-        <el-table-column label="处理人" width="100">
-          <template #default="{ row }">{{ row.assignee?.name ?? '-' }}</template>
-        </el-table-column>
-        <el-table-column label="解决人" width="100">
-          <template #default="{ row }">{{ row.resolvedBy?.name ?? '-' }}</template>
-        </el-table-column>
-        <el-table-column label="解决时间" width="110">
-          <template #default="{ row }">{{ formatShortDateTime(row.resolvedAt) }}</template>
-        </el-table-column>
-        <el-table-column label="解决方案" width="100">
-          <template #default="{ row }">{{ row.resolution ? BUG_RESOLUTION_LABEL[row.resolution as BugResolution] : '-' }}</template>
-        </el-table-column>
-        <el-table-column label="关闭时间" width="110">
-          <template #default="{ row }">{{ formatShortDateTime(row.closedAt) }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="110">
-          <template #default="{ row }">{{ formatShortDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="210" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="router.push(`/workspace/projects/bugs/${row.id}`)">详情</el-button>
-            <el-button v-if="row.status === 'active'" link type="success" @click="openResolveDialog(row as BugListItem)">解决</el-button>
-            <el-button v-if="row.status === 'active'" link type="warning" @click="handleStatusAction(row as BugListItem, 'rejected', '缺陷已拒绝')">拒绝</el-button>
-            <el-button v-if="row.status === 'resolved' || row.status === 'rejected'" link type="info" @click="handleStatusAction(row as BugListItem, 'closed', '缺陷已关闭')">关闭</el-button>
-            <el-button v-if="row.status === 'closed'" link type="danger" @click="handleStatusAction(row as BugListItem, 'active', '缺陷已激活')">激活</el-button>
-            <el-dropdown
-              class="bug-page__more"
-              @command="(cmd: string) => handleMoreAction(cmd, row as BugListItem)"
-            >
-              <el-button link type="primary">更多<el-icon><ArrowDown /></el-icon></el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="row.status === 'active' && !row.confirmed" command="confirm">确认</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 'resolved' || row.status === 'rejected'" command="reopen">激活</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status !== 'closed'" command="assign">指派</el-dropdown-item>
-                  <el-dropdown-item command="copy">复制</el-dropdown-item>
-                </el-dropdown-menu>
+    <!-- UI-SC-10：body 内边距归零，留白由分页条承担 -->
+    <el-card
+      v-if="viewMode === 'list'"
+      v-loading="loading"
+      shadow="never"
+      class="bug-page__list-card"
+    >
+      <!-- 卡片内容区为自有 flex 列容器：不改 el-card 内部结构（UI-DS-09），表体区承接窗口剩余高度（UI-SC-06） -->
+      <div class="bug-page__card-body">
+        <!-- 表体区是卡片内唯一滚动拥有者：表头与分页固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+        <div class="bug-page__table">
+          <el-table :data="bugs" row-key="id" height="100%">
+            <el-table-column label="ID" width="110">
+              <template #default="{ row }">{{ formatShortId(row.id) }}</template>
+            </el-table-column>
+            <el-table-column label="标题" min-width="200">
+              <template #default="{ row }">
+                <el-link
+                  type="primary"
+                  underline="never"
+                  :title="row.title.length > 18 ? row.title : undefined"
+                  @click="router.push(`/workspace/projects/bugs/${row.id}`)"
+                  >{{ truncateText(row.title, 18) }}</el-link
+                >
               </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div class="bug-page__pager">
-        <el-pagination
-          v-model:current-page="query.pageNo"
-          v-model:page-size="query.pageSize"
-          :total="total"
-          :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="loadBugs"
-          @size-change="handleSearch"
-        />
+            </el-table-column>
+            <el-table-column label="类型" width="100">
+              <template #default="{ row }">{{ BUG_TYPE_LABEL[row.bugType as BugType] ?? '-' }}</template>
+            </el-table-column>
+            <el-table-column label="严重等级" width="100">
+              <template #default="{ row }">
+                <el-tag :type="severityType[row.severity]" size="small" effect="light" round>{{ severityLabel[row.severity] }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="优先级" width="80">
+              <template #default="{ row }">
+                <el-tag :type="priorityType[row.priority]" size="small" effect="light" round>{{ priorityLabel[row.priority] }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="130">
+              <template #default="{ row }">
+                <el-tag :type="BUG_STATUS_TAG_TYPE[row.status as BugStatus]" size="small" effect="light" round>{{ statusLabel[row.status as BugStatus] }}</el-tag>
+                <el-tag v-if="row.confirmed" size="small" type="warning" effect="plain" class="bug-page__confirmed-tag">已确认</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="创建人" width="100">
+              <template #default="{ row }">{{ row.reporter?.name ?? '-' }}</template>
+            </el-table-column>
+            <el-table-column label="处理人" width="100">
+              <template #default="{ row }">{{ row.assignee?.name ?? '-' }}</template>
+            </el-table-column>
+            <el-table-column label="解决人" width="100">
+              <template #default="{ row }">{{ row.resolvedBy?.name ?? '-' }}</template>
+            </el-table-column>
+            <el-table-column label="解决时间" width="110">
+              <template #default="{ row }">{{ formatShortDateTime(row.resolvedAt) }}</template>
+            </el-table-column>
+            <el-table-column label="解决方案" width="100">
+              <template #default="{ row }">{{ row.resolution ? BUG_RESOLUTION_LABEL[row.resolution as BugResolution] : '-' }}</template>
+            </el-table-column>
+            <el-table-column label="关闭时间" width="110">
+              <template #default="{ row }">{{ formatShortDateTime(row.closedAt) }}</template>
+            </el-table-column>
+            <el-table-column label="创建时间" width="110">
+              <template #default="{ row }">{{ formatShortDateTime(row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="210" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="router.push(`/workspace/projects/bugs/${row.id}`)">详情</el-button>
+                <el-button v-if="row.status === 'active'" link type="success" @click="openResolveDialog(row as BugListItem)">解决</el-button>
+                <el-button v-if="row.status === 'active'" link type="warning" @click="handleStatusAction(row as BugListItem, 'rejected', '缺陷已拒绝')">拒绝</el-button>
+                <el-button v-if="row.status === 'resolved' || row.status === 'rejected'" link type="info" @click="handleStatusAction(row as BugListItem, 'closed', '缺陷已关闭')">关闭</el-button>
+                <el-button v-if="row.status === 'closed'" link type="danger" @click="handleStatusAction(row as BugListItem, 'active', '缺陷已激活')">激活</el-button>
+                <el-dropdown
+                  class="bug-page__more"
+                  @command="(cmd: string) => handleMoreAction(cmd, row as BugListItem)"
+                >
+                  <el-button link type="primary">更多<el-icon><ArrowDown /></el-icon></el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item v-if="row.status === 'active' && !row.confirmed" command="confirm">确认</el-dropdown-item>
+                      <el-dropdown-item v-if="row.status === 'resolved' || row.status === 'rejected'" command="reopen">激活</el-dropdown-item>
+                      <el-dropdown-item v-if="row.status !== 'closed'" command="assign">指派</el-dropdown-item>
+                      <el-dropdown-item command="copy">复制</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <div class="bug-page__pager">
+          <el-pagination
+            v-model:current-page="query.pageNo"
+            v-model:page-size="query.pageSize"
+            :total="total"
+            :page-sizes="[20, 50, 100]"
+            layout="total, sizes, prev, pager, next"
+            @current-change="loadBugs"
+            @size-change="handleSearch"
+          />
+        </div>
       </div>
     </el-card>
 
@@ -304,8 +316,18 @@ const {
 </template>
 
 <style scoped lang="scss">
+/* 高度链路：内容区 → 页面 → 列表卡片 → 表体，窗口缩放实时跟随（UI-SC-01） */
+.bug-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* 窗口过矮或筛选栏换行占满时给页面兜底，超出部分交回内容区滚动，避免表体与分页被压没 */
+  min-height: 400px;
+}
+
 .bug-page__filters {
   margin-bottom: var(--space-lg);
+  flex-shrink: 0;
 }
 
 .bug-page__filters--sticky {
@@ -341,6 +363,23 @@ const {
 .bug-page__list-card {
   /* UI-SC-10：body 内边距归零，留白由分页条承担 */
   --el-card-padding: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 卡片内容区走自有 class 承接高度，不 :deep 改写 el-card 内部结构（UI-DS-09） */
+.bug-page__card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 表体区是卡片内唯一滚动拥有者，外层只裁剪不再叠一层滚动（UI-SC-02 / UI-SC-06） */
+.bug-page__table {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .bug-page__confirmed-tag {
@@ -358,6 +397,7 @@ const {
 
 .bug-page__pager {
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
   padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
@@ -367,7 +407,8 @@ const {
   display: flex;
   gap: var(--space-md);
   overflow-x: auto;
-  height: calc(100vh - var(--header-height) - 138px);
+  /* 看板与列表共用同一条高度链，窗口缩放经 ResizeObserver 回写 boardBodyHeight */
+  flex: 1;
   min-height: 400px;
 }
 
