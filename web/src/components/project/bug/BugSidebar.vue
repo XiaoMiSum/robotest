@@ -173,10 +173,11 @@ const sideTab = ref<'attributes' | 'resolution' | 'logs'>('attributes')
               </el-popover>
               <span v-else class="bug-detail__text">{{ isEditable ? '未关联' : '-' }}</span>
               <template v-if="isEditable">
-                <el-button size="small" @click="emit('open-case-selector')">
+                <!-- link + 默认大小，左状态右操作与新建页保持同一版式 -->
+                <el-button link @click="emit('open-case-selector')">
                   {{ form.relatedCaseId ? '更换' : '选择用例' }}
                 </el-button>
-                <el-button v-if="form.relatedCaseId" size="small" link type="danger" @click="emit('clear-case')">
+                <el-button v-if="form.relatedCaseId" link type="danger" @click="emit('clear-case')">
                   清除
                 </el-button>
               </template>
