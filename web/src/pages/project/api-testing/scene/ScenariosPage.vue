@@ -327,7 +327,9 @@ onMounted(async () => {
           <span>所属仓库有更新，导入或同步后生效</span>
           <el-button link size="small" type="primary" @click="goGitLabPage('import')">前往导入</el-button>
         </div>
-        <el-table :data="rows" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
+        <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+        <div class="scenarios-page__table">
+          <el-table :data="rows" height="100%" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
             <el-table-column type="selection" width="40" />
             <el-table-column width="44">
               <template #default="{ row }">
@@ -416,14 +418,15 @@ onMounted(async () => {
               <el-empty description="暂无测试场景，点击右上角「新建场景」开始创建" />
             </template>
           </el-table>
-          <el-pagination
-            v-model:current-page="pageNo"
-            :page-size="pageSize"
-            :total="total"
-            layout="total, prev, pager, next"
-            class="scenarios-page__pagination"
-            @current-change="loadPage"
-          />
+        </div>
+        <el-pagination
+          v-model:current-page="pageNo"
+          :page-size="pageSize"
+          :total="total"
+          layout="total, prev, pager, next"
+          class="scenarios-page__pagination"
+          @current-change="loadPage"
+        />
         </el-card>
       </div>
 
@@ -524,7 +527,15 @@ onMounted(async () => {
   }
 }
 
+.scenarios-page__table {
+  /* 表体容器承接剩余可用高度并允许收缩，表格内滚动即为卡片唯一滚动拥有者（UI-SC-02 / UI-SC-06） */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .scenarios-page__pagination {
+  flex-shrink: 0;
   justify-content: flex-end;
   padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
@@ -533,6 +544,7 @@ onMounted(async () => {
 // 仓库级「源有更新」信息条（交互 09 §1.1）
 .scenarios-page__source-updates {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   padding: 8px 20px;
