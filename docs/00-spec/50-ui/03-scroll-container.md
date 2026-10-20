@@ -1,6 +1,6 @@
 # 前端滚动容器与滚动条规范
 
-**文档版本**：V1.1  
+**文档版本**：V1.2  
 **日期**：2026-10-20  
 **状态**：已发布
 
@@ -145,8 +145,22 @@
 
 使用 `el-table` 时，应保留表格的固定表头、固定列和内部表体滚动能力。`el-table` 的滚动容器是 `.el-table__body-wrapper` 内的 `.el-scrollbar__wrap`；`.el-table__body-wrapper` 自身为 `overflow: hidden` 裁剪层，原生滚动条由组件默认抑制，页面上可见的是组件自绘的 `.el-scrollbar__bar`。隐藏只针对自绘条，不替换表格组件，也不改写滚动容器。
 
+表格的高度约束有两种等效形式，按页面结构选用。两种形式下固定表头与表体内部滚动均由组件原生结构承担：`.el-table__inner-wrapper` 为 flex 列（表头 `flex-shrink: 0`、表体 `flex: 1`），`.el-scrollbar__wrap` 基础样式自带 `height: 100%; overflow: auto`。
+
 ```vue
+<!-- 形式一：height / max-height prop -->
 <el-table height="100%" class="data-table" :data="rows" />
+
+<!-- 形式二：CSS flex，表格根节点作为父级 flex 列的伸缩子项 -->
+<el-table class="data-table data-table--flex" :data="rows" />
+```
+
+```scss
+/* 形式二配套：父级为 flex 列（见 UI-SC-06），表格伸缩承接剩余高度 */
+.data-table--flex {
+  flex: 1 1 auto;
+  min-height: 0;
+}
 ```
 
 ```scss
@@ -158,7 +172,7 @@
 
 **要求**：
 
-- 保留 `height="100%"` 或等效的固定高度配置。
+- 表格必须处于可确定的高度约束下：`height` / `max-height` prop，或 CSS flex 伸缩子项（`flex: 1` + `min-height: 0`）；无论哪种形式，固定表头与表体内部滚动都不得丢失。
 - 纵向与横向视觉滚动条一律隐藏；规则按组件级策略绑定 `.el-table` 组件类名（满足 UI-SC-04 的作用域要求），禁止使用通配选择器。
 - 隐藏仅作用于视觉层：滚轮、触摸与 Shift + 滚轮的横向滚动能力必须保留，被固定列遮挡的内容仍可横向滚动访问（UI-SC-03）。
 - 隐藏后的内容剩余提示由固定表头、分页条与区域边界承担（UI-SC-07）。
@@ -299,6 +313,7 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-09-24 | 初版发布：滚动容器与滚动条规则 UI-SC-01～UI-SC-10 |
 | V1.1 | 2026-10-20 | UI-SC-05 表格视觉滚动条统一隐藏（纵向、横向），隐藏目标明确为组件自绘条 `.el-scrollbar__bar`，补充滚动能力保留与可发现性口径 |
+| V1.2 | 2026-10-20 | UI-SC-05 高度约束明确两种等效形式：`height` / `max-height` prop 与 CSS flex 伸缩子项（`flex: 1` + `min-height: 0`），二者均须保留组件原生固定表头与内部滚动 |
 
 ---
 
