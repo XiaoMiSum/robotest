@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CSSProperties } from 'vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -21,6 +22,14 @@ const loading = ref(false)
 const reviews = ref<TestReviewListItem[]>([])
 const total = ref(0)
 const query = reactive({ status: '' as ReviewStatus | '', keyword: '', pageNo: 1, pageSize: 20 })
+
+/** 卡片 body 转 flex 列承接表体区（UI-SC-06）；走组件属性而非 :deep，避免扩大 EX-DS-001 基线 */
+const cardBodyStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  flex: '1 1 auto',
+  minHeight: '0',
+}
 
 // 发起人在头像堆中置顶并高亮，通过组件 CSS 变量定制，避免重写 el-avatar 内部结构
 const brandAvatarStyle: Record<string, string> = {
@@ -160,7 +169,7 @@ async function submitCreate(payload: TestReviewCreatePayload) {
       </div>
     </header>
 
-    <el-card v-loading="loading" shadow="never" class="review-list__card">
+    <el-card v-loading="loading" shadow="never" class="review-list__card" :body-style="cardBodyStyle">
       <div class="review-list__toolbar">
         <el-input
           v-model="query.keyword"
@@ -180,86 +189,89 @@ async function submitCreate(payload: TestReviewCreatePayload) {
         <span class="review-list__count">共 {{ total }} 场评审</span>
       </div>
 
-      <el-table :data="rows" :row-key="rowKeyId" empty-text="暂无评审">
-        <el-table-column label="标题" min-width="220">
-          <template #default="{ row }">
-            <div class="review-list__cell">
-              <el-link type="primary" underline="never" @click="openReview(row.review.id)">
-                {{ row.review.title }}
-              </el-link>
-              <span class="review-list__cell-sub">关联用例 {{ row.review.totalAssociated }} 条</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="发起人" width="100">
-          <template #default="{ row }">{{ row.review.initiator.name }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="96">
-          <template #default="{ row }">
-            <span class="review-list__status" :class="`review-list__status--${row.meta.modifier}`">
-              <span class="review-list__status-dot" />
-              {{ row.meta.label }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="进度" min-width="170">
-          <template #default="{ row }">
-            <div class="review-list__progress">
-              <el-progress
-                class="review-list__progress-bar"
-                :percentage="row.review.progressPercent"
-                :stroke-width="6"
-                :status="row.progressStatus"
-              >
-                {{ row.progressText }}
-              </el-progress>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="通过率" width="92" align="right">
-          <template #default="{ row }">
-            <span class="review-list__rate" :class="`review-list__rate--${row.passRate.tone}`">
-              {{ row.passRate.text }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="参与者" width="124">
-          <template #default="{ row }">
-            <span v-if="!row.avatars.visible.length" class="review-list__muted">—</span>
-            <span v-else class="review-list__avatars">
-              <el-avatar
-                v-for="avatar in row.avatars.visible"
-                :key="avatar.key"
-                :size="24"
-                :src="avatar.avatarUrl ?? undefined"
-                :style="avatar.brand ? brandAvatarStyle : undefined"
-              >{{ avatar.label }}</el-avatar>
-              <span v-if="row.avatars.overflow" class="review-list__avatar-more">
-                +{{ row.avatars.overflow }}
+      <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+      <div class="review-list__body">
+        <el-table :data="rows" :row-key="rowKeyId" height="100%" empty-text="暂无评审">
+          <el-table-column label="标题" min-width="220">
+            <template #default="{ row }">
+              <div class="review-list__cell">
+                <el-link type="primary" underline="never" @click="openReview(row.review.id)">
+                  {{ row.review.title }}
+                </el-link>
+                <span class="review-list__cell-sub">关联用例 {{ row.review.totalAssociated }} 条</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="发起人" width="100">
+            <template #default="{ row }">{{ row.review.initiator.name }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="96">
+            <template #default="{ row }">
+              <span class="review-list__status" :class="`review-list__status--${row.meta.modifier}`">
+                <span class="review-list__status-dot" />
+                {{ row.meta.label }}
               </span>
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDateTime(row.review.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="176" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openReview(row.review.id)">
-              {{ row.action === 'enter' ? '进入' : '查看' }}
-            </el-button>
-            <el-button
-              v-if="row.review.status === 'rejected'"
-              link
-              type="primary"
-              @click="handleReopen(row.review)"
-            >
-              重新发起
-            </el-button>
-            <el-button link type="danger" @click="handleDelete(row.review)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            </template>
+          </el-table-column>
+          <el-table-column label="进度" min-width="170">
+            <template #default="{ row }">
+              <div class="review-list__progress">
+                <el-progress
+                  class="review-list__progress-bar"
+                  :percentage="row.review.progressPercent"
+                  :stroke-width="6"
+                  :status="row.progressStatus"
+                >
+                  {{ row.progressText }}
+                </el-progress>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="通过率" width="92" align="right">
+            <template #default="{ row }">
+              <span class="review-list__rate" :class="`review-list__rate--${row.passRate.tone}`">
+                {{ row.passRate.text }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="参与者" width="124">
+            <template #default="{ row }">
+              <span v-if="!row.avatars.visible.length" class="review-list__muted">—</span>
+              <span v-else class="review-list__avatars">
+                <el-avatar
+                  v-for="avatar in row.avatars.visible"
+                  :key="avatar.key"
+                  :size="24"
+                  :src="avatar.avatarUrl ?? undefined"
+                  :style="avatar.brand ? brandAvatarStyle : undefined"
+                >{{ avatar.label }}</el-avatar>
+                <span v-if="row.avatars.overflow" class="review-list__avatar-more">
+                  +{{ row.avatars.overflow }}
+                </span>
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="160">
+            <template #default="{ row }">{{ formatDateTime(row.review.createdAt) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="176" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openReview(row.review.id)">
+                {{ row.action === 'enter' ? '进入' : '查看' }}
+              </el-button>
+              <el-button
+                v-if="row.review.status === 'rejected'"
+                link
+                type="primary"
+                @click="handleReopen(row.review)"
+              >
+                重新发起
+              </el-button>
+              <el-button link type="danger" @click="handleDelete(row.review)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <div class="review-list__pager">
         <span class="review-list__pager-total">共 {{ total }} 场 · 每页 {{ query.pageSize }} 条</span>
@@ -282,8 +294,17 @@ async function submitCreate(payload: TestReviewCreatePayload) {
 </template>
 
 <style scoped lang="scss">
+/* 高度链路：壳层主区 → 页面 → 卡片 → 表体，滚动只发生在表体（UI-SC-01 / UI-SC-02） */
+.review-list-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .page-head {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-lg);
@@ -304,13 +325,18 @@ async function submitCreate(payload: TestReviewCreatePayload) {
   font-size: var(--font-size-sm);
 }
 
+/* UI-SC-10：body 内边距归零，留白由工具栏/分页条承担；卡片转 flex 列承接表体区（UI-SC-06） */
 .review-list__card {
-  /* UI-SC-10：body 内边距归零，留白由工具栏/分页条承担 */
   --el-card-padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .review-list__toolbar {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: var(--space-md);
   padding: 14px 20px;
@@ -322,6 +348,13 @@ async function submitCreate(payload: TestReviewCreatePayload) {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
   white-space: nowrap;
+}
+
+/* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
+.review-list__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .review-list__cell {
@@ -429,6 +462,7 @@ async function submitCreate(payload: TestReviewCreatePayload) {
 
 .review-list__pager {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
