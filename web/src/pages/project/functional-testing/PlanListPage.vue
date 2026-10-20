@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import type { CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import {
   completePlan,
   createPlan,
@@ -29,10 +31,15 @@ import {
 } from '@/components/project/functional-testing/plan/planListPresentation'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const loading = ref(false)
 const plans = ref<TestPlanListItem[]>([])
 const total = ref(0)
 const query = reactive({ status: '' as PlanStatus | '', keyword: '', pageNo: 1, pageSize: 20 })
+
+// 行内 [完成][恢复] 与后端 @PreAuthorize 同源：缺权限码不展示入口；[删除] 由后端按计划负责人校验
+const canCompletePlans = computed(() => authStore.hasPermission('plan:execute'))
+const canResumePlans = computed(() => authStore.hasPermission('plan:block'))
 
 const statusOptions = (Object.keys(PLAN_STATUS_META) as PlanStatus[]).map((value) => ({
   value,
@@ -255,7 +262,7 @@ async function submitCreate(payload: TestPlanCreatePayload) {
               {{ row.action === 'enter' ? '进入执行' : '查看详情' }}
             </el-button>
             <el-button
-              v-if="isActivePlan(row.plan.status)"
+              v-if="isActivePlan(row.plan.status) && canCompletePlans"
               link
               type="success"
               @click="handleComplete(row.plan)"
@@ -263,7 +270,7 @@ async function submitCreate(payload: TestPlanCreatePayload) {
               完成
             </el-button>
             <el-button
-              v-if="canResumePlan(row.plan.status)"
+              v-if="canResumePlan(row.plan.status) && canResumePlans"
               link
               type="primary"
               @click="handleResume(row.plan)"

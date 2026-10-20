@@ -2,12 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePlanDetail } from '@/composables/project/functional-testing/plan/usePlanDetail'
-import {
-  canBlockPlan,
-  canResumePlan,
-  planStatusMeta,
-  planStatusLabel,
-} from '@/components/project/functional-testing/plan/planListPresentation'
+import { planStatusMeta, planStatusLabel } from '@/components/project/functional-testing/plan/planListPresentation'
 
 const route = useRoute()
 const planId = route.params.planId as string
@@ -22,6 +17,9 @@ const {
   selectorVisible,
   plannedCases,
   canAdjustCases,
+  canOperateActive,
+  canBlock,
+  canResume,
   handleComplete,
   handleBlock,
   handleResume,
@@ -32,10 +30,8 @@ const {
   refreshProgress,
 } = usePlanDetail({ planId })
 
-// 状态文案与阻塞/恢复入口显隐均取自展示口径模块；按钮是否真可用由后端校验负责人权限
+// 状态文案取自展示口径模块；操作按钮按「状态 + 权限码」双条件显隐，服务端 @PreAuthorize 二次收口
 const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
-const canBlock = computed(() => canBlockPlan(detail.value?.status ?? ''))
-const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
 </script>
 
 <template>
@@ -83,7 +79,7 @@ const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
           <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
             <el-icon><EditPen /></el-icon>调整用例
           </el-button>
-          <el-button v-if="canAdjustCases" size="small" plain @click="handleSync">
+          <el-button v-if="canOperateActive" size="small" plain @click="handleSync">
             <el-icon><Refresh /></el-icon>同步用例
           </el-button>
           <el-button
@@ -103,7 +99,7 @@ const canResume = computed(() => canResumePlan(detail.value?.status ?? ''))
             <el-icon><VideoPlay /></el-icon>恢复
           </el-button>
           <el-button
-            v-if="detail.status === 'new' || detail.status === 'in_progress'"
+            v-if="canOperateActive"
             size="small"
             type="primary"
             @click="handleComplete"
