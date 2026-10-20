@@ -285,6 +285,15 @@ const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
     padding: 0;
     overflow: auto;
     height: 100%;
+    // 只隐藏视觉滚动条：卡片 body 仍是滚动拥有者（UI-SC-03）
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  :deep(.el-card__body)::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
 

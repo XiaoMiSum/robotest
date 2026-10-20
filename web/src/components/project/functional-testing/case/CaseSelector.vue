@@ -292,6 +292,15 @@ onMounted(() => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
   padding: 8px;
+  // 只隐藏视觉滚动条：overflow 滚动与键盘滚动必须保留（UI-SC-03）
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
 }
 
 .case-selector__content {

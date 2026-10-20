@@ -304,6 +304,15 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
     min-height: 0;
     padding: 0;
     overflow: auto;
+    // 只隐藏视觉滚动条：卡片 body 仍是滚动拥有者（UI-SC-03）
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  :deep(.el-card__body)::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
 
