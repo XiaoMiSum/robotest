@@ -118,9 +118,12 @@ export function checkBugDuplicates(data: BugDuplicateCheckReq): Promise<BugDupli
   return post('/project/bugs/duplicates/check', data)
 }
 
+/** 实时建议为同步单跳模型调用，模型耗时可达数十秒，单独放宽超时（axios 默认 15s 不足） */
+const SUGGEST_TIMEOUT_MS = 90_000
+
 /** 新建缺陷实时建议：同步单跳模型调用一次返回全部建议，不产生任务（详设 3.5） */
 export function suggestBugDraft(data: BugDraftSuggestReq): Promise<BugDraftSuggestResp> {
-  return post('/project/bugs/analysis/suggest', data)
+  return post('/project/bugs/analysis/suggest', data, { timeout: SUGGEST_TIMEOUT_MS })
 }
 
 // ==================== 缺陷附件 ====================
