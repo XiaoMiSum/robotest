@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick, createCommentVNode, defineComponent, h, KeepAlive, ref } from 'vue'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus, { ElSelect } from 'element-plus'
 import * as ElementPlusIcons from '@element-plus/icons-vue'
@@ -128,6 +129,23 @@ function makeRepo(overrides?: Partial<ApiGitRepoConfig>): ApiGitRepoConfig {
 
 const INTEGRATION_PAGE = '/workspace/projects/api-testing'
 
+// 生产形态：列表页常驻 KeepAlive（切回列表 Tab 经 onActivated 重新加载），测试挂载对齐该形态
+function mountInKeepAlive(show: () => boolean): VueWrapper {
+  return mount(
+    defineComponent({
+      render: () => h(KeepAlive, null, [show() ? h(ScenariosPage) : createCommentVNode('v-if')]),
+    }),
+    {
+      global: {
+        plugins: [ElementPlus],
+        components: { ...ElementPlusIcons },
+        // 模块树自带轮询与独立服务调用，与来源徽标断言无关，隔离为桩
+        stubs: { ProjectModuleTree: true },
+      },
+    },
+  )
+}
+
 async function mountPage(
   rows: ApiScenePageItem[],
   repo: ApiGitRepoConfig | null = makeRepo(),
@@ -135,14 +153,7 @@ async function mountPage(
   mocks.fetchScenePage.mockResolvedValue({ list: rows, total: rows.length })
   mocks.fetchGitRepo.mockResolvedValue(repo)
   mocks.fetchProjectModuleTree.mockResolvedValue([])
-  const wrapper = mount(ScenariosPage, {
-    global: {
-      plugins: [ElementPlus],
-      components: { ...ElementPlusIcons },
-      // 模块树自带轮询与独立服务调用，与来源徽标断言无关，隔离为桩
-      stubs: { ProjectModuleTree: true },
-    },
-  })
+  const wrapper = mountInKeepAlive(() => true)
   await flushPromises()
   return wrapper
 }
@@ -269,5 +280,32 @@ describe('ScenariosPage 仓库级「源有更新」提示条', () => {
     expect(wrapper.find('.scenarios-page__source-updates').exists()).toBe(false)
     expect(wrapper.findAll('.el-table__row')).toHaveLength(1)
     expect(mocks.ElMessage.error).not.toHaveBeenCalled()
+  })
+})
+
+describe('ScenariosPage KeepAlive 恢复时列表刷新', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(true) })
+    mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
+    mocks.fetchScenePage.mockResolvedValue({ list: [makeScene()], total: 1 })
+    mocks.fetchGitRepo.mockResolvedValue(makeRepo())
+    mocks.fetchProjectModuleTree.mockResolvedValue([])
+  })
+
+  it('切走再切回列表 Tab 时经 onActivated 重新加载列表与仓库信息（新建/编辑返回后数据最新）', async () => {
+    const show = ref(true)
+    const wrapper = mountInKeepAlive(() => show.value)
+    await flushPromises()
+    expect(mocks.fetchScenePage).toHaveBeenCalledTimes(1)
+
+    show.value = false
+    await nextTick()
+    show.value = true
+    await flushPromises()
+
+    expect(mocks.fetchScenePage).toHaveBeenCalledTimes(2)
+    expect(mocks.fetchGitRepo).toHaveBeenCalledTimes(2)
+    expect(wrapper.findAll('.el-table__row')).toHaveLength(1)
   })
 })
