@@ -119,10 +119,6 @@ const spanMethod = ({ row, columnIndex }: { row: PermissionTableRow; columnIndex
 .perm-table {
   font-size: 13px;
 
-  :deep(.el-scrollbar__bar.is-vertical) {
-    display: none;
-  }
-
   :deep(td.el-table__cell) {
     vertical-align: middle;
   }
