@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
-import { createEditorOptions, VDITOR_CDN } from './vditorEditor'
+import { createEditorOptions, DEFAULT_PREVIEW_MAX_WIDTH, setEditorHeight, setPreviewMaxWidth, VDITOR_CDN, type VditorInstance } from './vditorEditor'
 
 const CALLBACKS = { onReady: vi.fn(), onInput: vi.fn(), onUpload: vi.fn() }
+
+/** 依真实实例形状组装桩：内核对象在实例的 vditor 属性上（Vditor 4 实例自身无 options/setHeight） */
+function fakeInstance(): { instance: VditorInstance; element: HTMLElement; options: Record<string, unknown> } {
+  const element = document.createElement('div')
+  const options: Record<string, unknown> = { preview: { maxWidth: 800 } }
+  const instance = { vditor: { element, options } } as unknown as VditorInstance
+  return { instance, element, options }
+}
 
 describe('Vditor 所见即所得参数（缺陷详设 1.15）', () => {
   it('固定用所见即所得模式与本地运行资源，并关闭缓存、保留内置过滤', () => {
@@ -76,5 +84,25 @@ describe('Vditor 所见即所得参数（缺陷详设 1.15）', () => {
     expect(options.upload?.accept).toBe('image/*')
     // 不配置 url，Vditor 只会走 handler 分支（自带校验与默认上传都被绕过）
     expect(options.upload?.url).toBeUndefined()
+  })
+
+  it('改高度写根元素内联样式并同步 options.height（实例无 setHeight 方法）', () => {
+    const { instance, element, options } = fakeInstance()
+
+    setEditorHeight(instance, '480px')
+
+    expect(element.style.height).toBe('480px')
+    expect(options.height).toBe('480px')
+  })
+
+  it('调整预览居中上限经实例 vditor.options 生效，无 preview 时静默跳过', () => {
+    const { instance, options } = fakeInstance()
+
+    setPreviewMaxWidth(instance, 1600)
+    expect((options.preview as { maxWidth?: number }).maxWidth).toBe(1600)
+    expect(DEFAULT_PREVIEW_MAX_WIDTH).toBe(800)
+
+    delete options.preview
+    expect(() => setPreviewMaxWidth(instance, 999)).not.toThrow()
   })
 })
