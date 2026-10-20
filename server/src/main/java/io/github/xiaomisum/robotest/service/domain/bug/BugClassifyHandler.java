@@ -43,7 +43,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 缺陷分类建议处理器（缺陷分析详设 3.6）：存量批量模式逐缺陷产出待确认建议（最多 500、
  * 按分片多次调用）。截图入模（详设 3.6）：每缺陷 ≤2 张且全批 ≤8 张按缺陷序截断，
  * 批量缺陷集存在图像类附件时提交期派生 vision 必需能力（无视觉模型走 1000018124）。
- * 新建草稿建议已改实时同步接口（详设 3.5，BugDraftSuggestService），不走任务。
+ * 新建草稿建议已改实时 SSE 流式接口（详设 3.5，BugDraftSuggestService），不走任务。
  */
 @Component
 public class BugClassifyHandler implements TaskHandler {

@@ -22,14 +22,17 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -64,6 +67,12 @@ class BugDraftSuggestServiceImplTest {
     private AiModelClient modelClient;
     @Mock
     private AiPromptService promptService;
+    @Mock
+    private BugSuggestStreamBridge streamBridge;
+    @Mock
+    private BugSuggestStreamRunner streamRunner;
+    @Mock
+    private BugSuggestStreamBridge.StreamChannel channel;
 
     @InjectMocks
     private BugDraftSuggestServiceImpl service;
@@ -100,13 +109,41 @@ class BugDraftSuggestServiceImplTest {
         return hit;
     }
 
-    private void stubModel(AiChatReply reply) {
-        when(settingsReader.resolveModel(null)).thenReturn(new AiModelConfig());
+    private void stubStream(AiChatReply reply) {
         when(promptService.render(any(), any(), any())).thenReturn("prompt");
-        when(modelClient.chat(any())).thenReturn(reply);
+        when(modelClient.streamChat(any(), any())).thenReturn(reply);
     }
 
-    // ---------- 输入校验 ----------
+    /** 记录事件序的 sink：stream() 只经 sink 回写，可直接断言 progress / done / error 契约 */
+    private static final class RecordingSink implements BugDraftSuggestService.SuggestStreamSink {
+
+        private final List<String> events = new ArrayList<>();
+        private final List<String> stages = new ArrayList<>();
+        private BugDraftSuggestRespDTO resp;
+        private int errorCode;
+        private String errorMessage;
+
+        @Override
+        public void progress(String stage) {
+            events.add("progress");
+            stages.add(stage);
+        }
+
+        @Override
+        public void done(BugDraftSuggestRespDTO resp) {
+            events.add("done");
+            this.resp = resp;
+        }
+
+        @Override
+        public void error(int code, String message) {
+            events.add("error");
+            this.errorCode = code;
+            this.errorMessage = message;
+        }
+    }
+
+    // ---------- 前置校验（同步 HTTP 错误，非流） ----------
 
     @Test
     void suggest_emptyTitle_throwsInputInvalid() {
@@ -132,16 +169,28 @@ class BugDraftSuggestServiceImplTest {
         assertEquals(ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED.code(), exception.getCode());
     }
 
-    // ---------- 建议装配与清洗 ----------
+    @Test
+    void suggest_validInput_attachesChannelAndStartsStreamAsync() {
+        when(settingsReader.resolveModel(null)).thenReturn(new AiModelConfig());
+        when(streamBridge.attach(any(SseEmitter.class))).thenReturn(channel);
+
+        SseEmitter emitter = service.suggest(request("登录无响应", null, null), PROJECT_ID, USER_ID);
+
+        assertNotNull(emitter);
+        verify(streamBridge).attach(any(SseEmitter.class));
+        verify(streamRunner).run(any(Runnable.class));
+    }
+
+    // ---------- 流式装配与清洗 ----------
 
     @Test
-    void suggest_sanitizesSuggestionsAndExpandsCaseCandidates() {
+    void stream_sanitizesSuggestionsAndExpandsCaseCandidates() {
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
         when(vectorSearchService.search(eq("登录页点击登录无响应"), anyList(),
                 eq(VectorIndexService.TYPE_TESTCASE), anyInt(), eq(USER_ID)))
                 .thenReturn(List.of(hit(DOCUMENT_ID)));
         when(testCaseNodeMapper.listCasesByDocumentIds(anyCollection())).thenReturn(List.of(caseNode()));
-        stubModel(new AiChatReply("""
+        stubStream(new AiChatReply("""
                 {"title":{"value":"登录页点击登录按钮后无任何响应","reason":"现象明确"},
                  "reproSteps":{"value":"##### 执行步骤\\n1. 打开登录页\\n##### 实际结果\\n无响应\\n##### 期望结果\\n登录成功","reason":"三段结构"},
                  "suggestions":{
@@ -152,10 +201,16 @@ class BugDraftSuggestServiceImplTest {
                    "keywords":{"value":["登录","无响应","按钮"],"reason":"检索词"},
                    "relatedCase":{"value":"%s","caseTitle":"登录-正常登录","reason":"正向用例"}}}
                 """.formatted(MODULE_ID, CASE_ID), 10, 5));
+        RecordingSink sink = new RecordingSink();
 
-        BugDraftSuggestRespDTO resp = service.suggest(
-                request("登录页点击登录无响应", "1. 打开登录页", MODULE_ID.toString()), PROJECT_ID, USER_ID);
+        service.stream(request("登录页点击登录无响应", "1. 打开登录页", MODULE_ID.toString()),
+                PROJECT_ID, USER_ID, new AiModelConfig(), sink);
 
+        // 事件序：装配与生成各一个 progress，终态 done，无 error
+        assertEquals(List.of("progress", "progress", "done"), sink.events);
+        assertEquals(List.of("context", "generating"), sink.stages);
+
+        BugDraftSuggestRespDTO resp = sink.resp;
         assertEquals("登录页点击登录按钮后无任何响应", resp.getTitle().getValue());
         assertTrue(resp.getReproSteps().getValue().contains("##### 期望结果"));
         assertEquals("code_error", resp.getSuggestions().getBugType().getValue());
@@ -175,32 +230,64 @@ class BugDraftSuggestServiceImplTest {
     }
 
     @Test
-    void suggest_relatedCaseOutsideCandidates_isDropped() {
+    void stream_relatedCaseOutsideCandidates_isDropped() {
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
         when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any())).thenReturn(List.of());
-        stubModel(new AiChatReply("""
+        stubStream(new AiChatReply("""
                 {"suggestions":{"relatedCase":{"value":"%s","caseTitle":"臆造用例","reason":"不在候选"}}}
                 """.formatted(UUID.randomUUID()), 10, 5));
+        RecordingSink sink = new RecordingSink();
 
-        BugDraftSuggestRespDTO resp = service.suggest(request("登录无响应", null, null), PROJECT_ID, USER_ID);
+        service.stream(request("登录无响应", null, null), PROJECT_ID, USER_ID, new AiModelConfig(), sink);
 
         // 向量未就绪 → 无用例候选 → relatedCase 一律剔除
-        assertNull(resp.getSuggestions().getRelatedCase());
+        assertNull(sink.resp.getSuggestions().getRelatedCase());
+        assertEquals("done", sink.events.get(sink.events.size() - 1));
     }
 
     // ---------- 向量未就绪降级 ----------
 
     @Test
-    void suggest_vectorUnavailable_degradesToNoCase() {
+    void stream_vectorUnavailable_degradesToNoCase() {
         when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of(module()));
         when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any()))
                 .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_VECTOR_INDEX_UNAVAILABLE));
-        stubModel(new AiChatReply(
+        stubStream(new AiChatReply(
                 "{\"title\":{\"value\":\"优化后标题\",\"reason\":\"\"},\"suggestions\":{}}", 10, 5));
+        RecordingSink sink = new RecordingSink();
 
-        BugDraftSuggestRespDTO resp = service.suggest(request("登录无响应", null, null), PROJECT_ID, USER_ID);
+        service.stream(request("登录无响应", null, null), PROJECT_ID, USER_ID, new AiModelConfig(), sink);
 
-        assertEquals("优化后标题", resp.getTitle().getValue());
-        assertNull(resp.getSuggestions().getRelatedCase());
+        assertEquals("优化后标题", sink.resp.getTitle().getValue());
+        assertNull(sink.resp.getSuggestions().getRelatedCase());
+    }
+
+    // ---------- 流内失败（error 事件） ----------
+
+    @Test
+    void stream_modelCallFailed_emitsErrorEvent() {
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenReturn(List.of());
+        when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any())).thenReturn(List.of());
+        when(promptService.render(any(), any(), any())).thenReturn("prompt");
+        when(modelClient.streamChat(any(), any()))
+                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED));
+        RecordingSink sink = new RecordingSink();
+
+        service.stream(request("登录无响应", null, null), PROJECT_ID, USER_ID, new AiModelConfig(), sink);
+
+        assertEquals(List.of("progress", "progress", "error"), sink.events);
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), sink.errorCode);
+        assertNull(sink.resp);
+    }
+
+    @Test
+    void stream_assemblyFailure_mapsToModelErrorEvent() {
+        when(projectModuleMapper.listByProjectId(PROJECT_ID)).thenThrow(new RuntimeException("db down"));
+        RecordingSink sink = new RecordingSink();
+
+        service.stream(request("登录无响应", null, null), PROJECT_ID, USER_ID, new AiModelConfig(), sink);
+
+        assertEquals(List.of("progress", "error"), sink.events);
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), sink.errorCode);
     }
 }
