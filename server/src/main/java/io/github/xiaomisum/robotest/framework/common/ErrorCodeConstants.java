@@ -249,6 +249,9 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_VECTOR_INDEX_UNAVAILABLE = ErrorCode.of(1000018122, "向量索引不可用（全量重建中）");
     public static final ErrorCode AI_WAIT_SECONDS_INVALID = ErrorCode.of(1000018123, "同步等待参数超限（0–10 秒）");
     public static final ErrorCode AI_VISION_MODEL_NOT_CONFIGURED = ErrorCode.of(1000018124, "未配置支持视觉能力的已启用模型");
+    public static final ErrorCode AI_EXECUTION_NOT_FOUND = ErrorCode.of(1000018125, "执行不存在");
+    public static final ErrorCode AI_EXECUTION_BUDGET_INVALID = ErrorCode.of(1000018126, "执行预算参数非法");
+    public static final ErrorCode AI_EXECUTION_FINISHED = ErrorCode.of(1000018127, "执行已结束，不可终止");
 
     // ========== AI 生成链 1,000,018,201-1,000,018,210（生成链详设 6，号段至 1,000,018,249） ==========
     public static final ErrorCode GENERATION_REQUIREMENT_NOT_FOUND = ErrorCode.of(1000018201, "输入需求不存在");

@@ -1116,10 +1116,97 @@ CREATE TABLE ai_artifact_confirm (
 CREATE UNIQUE INDEX uk_ai_artifact_confirm ON ai_artifact_confirm (task_id, artifact_key) WHERE is_deleted = FALSE;
 CREATE INDEX idx_ai_artifact_confirm_project ON ai_artifact_confirm (project_id, created_at);
 
+CREATE TABLE ai_task_execution (
+    id                    uuid PRIMARY KEY,
+    task_id               uuid NOT NULL,
+    seq                   int NOT NULL,
+    status                varchar(20) NOT NULL DEFAULT 'running',
+    started_by            uuid NOT NULL,
+    prompt_scene          varchar(50) NULL,
+    model_id              uuid NULL,
+    plan                  jsonb NULL,
+    budget                jsonb NOT NULL,
+    steps                 int NOT NULL DEFAULT 0,
+    tokens_in             int NOT NULL DEFAULT 0,
+    tokens_out            int NOT NULL DEFAULT 0,
+    cost                  numeric(14,6) NOT NULL DEFAULT 0,
+    duration_ms           int NOT NULL DEFAULT 0,
+    terminate_code        int NULL,
+    terminate_msg         varchar(500) NULL,
+    retry_of_execution_id uuid NULL,
+    heartbeat_at          timestamp NOT NULL,
+    created_at            timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted            boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_task_execution ON ai_task_execution (task_id, seq) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ai_task_execution_status ON ai_task_execution (status, heartbeat_at);
+
+CREATE TABLE ai_task_trace_event (
+    id           uuid PRIMARY KEY,
+    execution_id uuid NOT NULL,
+    seq          int NOT NULL,
+    event_type   varchar(30) NOT NULL,
+    summary      varchar(500) NOT NULL,
+    detail       jsonb NULL,
+    created_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted   boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id, seq) WHERE is_deleted = FALSE;
+
+CREATE TABLE ai_task_proposal (
+    id             uuid PRIMARY KEY,
+    task_id        uuid NOT NULL,
+    proposal_key   varchar(100) NOT NULL,
+    kind           varchar(50) NOT NULL,
+    parent_key     varchar(100) NULL,
+    title          varchar(200) NOT NULL,
+    content        jsonb NOT NULL,
+    confirm_status varchar(20) NOT NULL DEFAULT 'pending',
+    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted     boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_task_proposal ON ai_task_proposal (task_id, proposal_key) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ai_task_proposal_task ON ai_task_proposal (task_id, confirm_status);
+
+CREATE TABLE ai_task_tool (
+    id              uuid PRIMARY KEY,
+    tool_code       varchar(50) NOT NULL,
+    name            varchar(100) NOT NULL,
+    task_types      jsonb NOT NULL,
+    param_schema    jsonb NOT NULL,
+    permission_code varchar(50) NULL,
+    side_effect     varchar(20) NOT NULL DEFAULT 'readonly',
+    enabled         boolean NOT NULL DEFAULT TRUE,
+    created_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted      boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_task_tool ON ai_task_tool (tool_code) WHERE is_deleted = FALSE;
+
+CREATE TABLE ai_task_adoption (
+    id           uuid PRIMARY KEY,
+    project_id   uuid NULL,
+    task_id      uuid NOT NULL,
+    proposal_key varchar(100) NOT NULL,
+    action       varchar(20) NOT NULL,
+    operator_id  uuid NOT NULL,
+    adopted_ref  jsonb NULL,
+    note         varchar(500) NULL,
+    created_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted   boolean NOT NULL DEFAULT FALSE
+);
+CREATE UNIQUE INDEX uk_ai_task_adoption ON ai_task_adoption (task_id, proposal_key) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ai_task_adoption_project ON ai_task_adoption (project_id, created_at);
+
 CREATE TABLE ai_usage_log (
     id                uuid PRIMARY KEY,
     project_id        uuid NULL,
     task_id           uuid NULL,
+    execution_id      uuid NULL,
     user_id           uuid NOT NULL,
     model_id          uuid NULL,
     prompt_scene      varchar(50) NULL,
@@ -1137,7 +1224,7 @@ CREATE TABLE ai_usage_log (
 );
 CREATE INDEX idx_ai_usage_log_project ON ai_usage_log (project_id, created_at);
 CREATE INDEX idx_ai_usage_log_model ON ai_usage_log (model_id, created_at);
-CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id);
+CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id, execution_id);
 
 CREATE TABLE ai_assistant_conversation (
     id               uuid PRIMARY KEY,
@@ -1907,8 +1994,8 @@ COMMENT ON COLUMN api_function.updated_by IS '最后维护人';
 COMMENT ON TABLE ai_config IS 'AI 全局配置表（单例行）';
 COMMENT ON COLUMN ai_config.enabled IS 'AI 总开关';
 COMMENT ON COLUMN ai_config.default_model_id IS '默认模型（逻辑外键 → ai_model_config），各能力域可覆盖';
-COMMENT ON COLUMN ai_config.task_timeout_seconds IS '任务超时秒数，超时由清扫器置失败';
-COMMENT ON COLUMN ai_config.task_max_retries IS '自动重试上限（调用失败短重试，与用户手动重试独立）';
+COMMENT ON COLUMN ai_config.task_timeout_seconds IS '执行心跳超时秒数，超时由清扫器中止执行（aborted，1000018117）';
+COMMENT ON COLUMN ai_config.task_max_retries IS '模型调用失败自动短重试上限（与用户再次执行独立）';
 
 COMMENT ON TABLE ai_model_config IS '模型配置表';
 COMMENT ON COLUMN ai_model_config.name IS '配置名称（展示用），唯一';
@@ -1970,9 +2057,63 @@ COMMENT ON COLUMN ai_artifact_confirm.operator_id IS '确认操作人（审计�
 COMMENT ON COLUMN ai_artifact_confirm.adopted_ref IS '采纳落库后的目标实体引用，反查产物来源';
 COMMENT ON COLUMN ai_artifact_confirm.note IS '驳回 / 编辑原因';
 
+COMMENT ON TABLE ai_task_execution IS '任务执行表（一次执行一条，再次执行新建行，原执行与轨迹保留）';
+COMMENT ON COLUMN ai_task_execution.task_id IS '所属任务';
+COMMENT ON COLUMN ai_task_execution.seq IS '同任务内第几次执行（首次 1，再次执行自增）';
+COMMENT ON COLUMN ai_task_execution.status IS '执行状态：running/waiting_confirmation/succeeded/aborted';
+COMMENT ON COLUMN ai_task_execution.started_by IS '执行发起人';
+COMMENT ON COLUMN ai_task_execution.prompt_scene IS '实际使用的提示词场景，用量按场景归因';
+COMMENT ON COLUMN ai_task_execution.model_id IS '执行期解析的模型，再次执行复用同模型';
+COMMENT ON COLUMN ai_task_execution.plan IS 'AI 执行开始产出的计划步骤快照（可见思考产物，不作为执行依据）';
+COMMENT ON COLUMN ai_task_execution.budget IS '预算快照 {maxSteps,maxDurationSeconds,maxTokens,maxCost}，按类型默认签发，只可下调';
+COMMENT ON COLUMN ai_task_execution.steps IS '已执行步数（每次工具调用或决策计一步）';
+COMMENT ON COLUMN ai_task_execution.tokens_in IS '执行级入向 token 汇总';
+COMMENT ON COLUMN ai_task_execution.tokens_out IS '执行级出向 token 汇总';
+COMMENT ON COLUMN ai_task_execution.cost IS '执行级成本汇总';
+COMMENT ON COLUMN ai_task_execution.duration_ms IS '执行时长（毫秒）';
+COMMENT ON COLUMN ai_task_execution.terminate_code IS '终止原因错误码（10 位；预算耗尽 1000018127、执行错误 1000018117）';
+COMMENT ON COLUMN ai_task_execution.terminate_msg IS '终止原因摘要';
+COMMENT ON COLUMN ai_task_execution.retry_of_execution_id IS '再次执行时指向原执行（原执行与轨迹保留）';
+COMMENT ON COLUMN ai_task_execution.heartbeat_at IS '执行心跳，超时清扫器扫描依据';
+
+COMMENT ON TABLE ai_task_trace_event IS '执行轨迹事件表（只增不改，游标增量拉取）';
+COMMENT ON COLUMN ai_task_trace_event.execution_id IS '所属执行';
+COMMENT ON COLUMN ai_task_trace_event.seq IS '执行内单调递增序号';
+COMMENT ON COLUMN ai_task_trace_event.event_type IS '事件类型：plan/ai_decision/tool_call/tool_result/proposal_emitted/status_change';
+COMMENT ON COLUMN ai_task_trace_event.summary IS '事件摘要（面向用户展示）';
+COMMENT ON COLUMN ai_task_trace_event.detail IS '事件明细（工具参数与结果摘要、决策上下文摘要等）';
+
+COMMENT ON TABLE ai_task_proposal IS '任务提案表（AI 产出，人工采纳的唯一入口）';
+COMMENT ON COLUMN ai_task_proposal.task_id IS '所属任务';
+COMMENT ON COLUMN ai_task_proposal.proposal_key IS '提案在任务产出中的定位键';
+COMMENT ON COLUMN ai_task_proposal.kind IS '提案类型（枚举由各分册定义）';
+COMMENT ON COLUMN ai_task_proposal.parent_key IS '树形提案的父提案键';
+COMMENT ON COLUMN ai_task_proposal.title IS '提案标题';
+COMMENT ON COLUMN ai_task_proposal.content IS '结构化产物 + 证据链（结构由各分册定义）';
+COMMENT ON COLUMN ai_task_proposal.confirm_status IS '确认状态：pending（待采纳）/ not_applicable（只读建议，无确认动作）';
+
+COMMENT ON TABLE ai_task_tool IS '工具注册表（执行期 AI 可调用工具白名单与参数结构）';
+COMMENT ON COLUMN ai_task_tool.tool_code IS '工具标识（代码注册，随迁移种子数据落库）';
+COMMENT ON COLUMN ai_task_tool.name IS '工具名称（轨迹与确认闸门展示用）';
+COMMENT ON COLUMN ai_task_tool.task_types IS '适用任务类型数组（白名单签发依据；["*"] 表示全部类型）';
+COMMENT ON COLUMN ai_task_tool.param_schema IS '参数结构声明（执行前按此校验）';
+COMMENT ON COLUMN ai_task_tool.permission_code IS '调用所需权限点（NULL = 继承发起人权限），执行期服务端鉴权';
+COMMENT ON COLUMN ai_task_tool.side_effect IS '副作用级别：readonly/confirmation；写库与出网副作用禁止注册';
+COMMENT ON COLUMN ai_task_tool.enabled IS '停用后不出现在任何白名单';
+
+COMMENT ON TABLE ai_task_adoption IS '提案采纳记录表（审计：AI 产出必经人工采纳）';
+COMMENT ON COLUMN ai_task_adoption.project_id IS '落库目标项目（确认列表过滤），经请求头上报';
+COMMENT ON COLUMN ai_task_adoption.task_id IS '所属任务';
+COMMENT ON COLUMN ai_task_adoption.proposal_key IS '所采纳提案在 ai_task_proposal 中的定位键';
+COMMENT ON COLUMN ai_task_adoption.action IS '采纳动作：adopted/adopted_edited/rejected';
+COMMENT ON COLUMN ai_task_adoption.operator_id IS '确认操作人';
+COMMENT ON COLUMN ai_task_adoption.adopted_ref IS '采纳落库后的目标实体引用，反查这条数据来自哪个提案';
+COMMENT ON COLUMN ai_task_adoption.note IS '驳回 / 编辑原因';
+
 COMMENT ON TABLE ai_usage_log IS '用量明细表';
 COMMENT ON COLUMN ai_usage_log.project_id IS '项目内调用的统计维度；管理端测试等全局调用为 NULL';
 COMMENT ON COLUMN ai_usage_log.task_id IS '关联任务（统计 → 单次调用 → 任务详情的下钻链）；助手交互调用为 NULL';
+COMMENT ON COLUMN ai_usage_log.execution_id IS '关联执行（归因到具体一次执行）；助手交互调用为 NULL';
 COMMENT ON COLUMN ai_usage_log.user_id IS '调用者';
 COMMENT ON COLUMN ai_usage_log.model_id IS '调用的模型，按模型分组统计维度';
 COMMENT ON COLUMN ai_usage_log.prompt_scene IS '场景归因，按场景统计维度';
