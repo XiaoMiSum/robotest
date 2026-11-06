@@ -278,8 +278,8 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 
 | 步骤 | 状态 | 备注 |
 | ---- | ---- | ---- |
-| S0 | ❌ | — |
-| S1 | ❌ | — |
+| S0 | ❌ | 基线登记已完成（计划入索引、裁决落档），缺清理门禁脚本草稿 |
+| S1 | ✅ | `f1191f09`（增量口径见 2.3.3；`AiTask` 重建与旧常量删除归 S3） |
 | S2 | ❌ | — |
 | S3 | ❌ | — |
 | S4 | ❌ | — |
@@ -299,3 +299,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-10-18 | 2.3.3 数据库变更改为 `schema.sql` 唯一事实源口径：不建增量迁移脚本，`ai_task_tool` 种子并入 schema.sql，移除 `seed-ai.sql` 引用 |
 | V1.0 | 2026-10-27 | 对齐详设 / 交互稿 2026-10-19～20 两轮口径：任务端点移除后端权限校验仅留归属可见性（2.2 承接服务、2.3.2 Controller 补 C4 上下文头）、`bug_classify` 收窄为存量批量与新建缺陷建议改实时接口 `analysis/suggest`（2.3.2 Handler、2.4 跨域消费方）、`AiTaskEntryButton` 下线入口收敛顶栏指示器（2.4） |
 | V1.0 | 2026-10-27 | 实施边界勘误：S1 改纯增量（五表 DDL / 实体 / 常量并存 / 错误码，`AiTask` 重建与旧常量删除挪 S3）、S2 改不接线不删旧（删 `AiTaskExecutor` 归 S3）、type 数 15 → 13（追溯下线注销 coverage / impact）、`ai_task_tool` 种子改随 S4 TypeAdapter 落地（预算默认由 TypeAdapter 声明）、迁移说明交付于 runbook §10（2.3.3、3.1、3.2、层 A/C 同步） |
+| V1.0 | 2026-10-27 | 5.1 实施状态回填：S1 ✅（`f1191f09`）；S0 备注缺清理门禁脚本草稿 |
