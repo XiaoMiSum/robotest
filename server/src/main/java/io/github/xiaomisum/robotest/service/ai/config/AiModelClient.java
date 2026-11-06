@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiUsageLog;
 import io.github.xiaomisum.robotest.repository.ai.AiUsageLogMapper;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolDefinition;
+import io.github.xiaomisum.robotest.service.ai.assistant.tool.ToolCategory;
 import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -107,6 +108,26 @@ public class AiModelClient {
      */
     public AiChatReply chatWithTools(AiChatRequest request, List<AssistantToolDefinition> toolDefinitions,
             List<Message> priorTurns) {
+        List<ToolDeclaration> declarations = toolDefinitions == null ? List.of()
+                : toolDefinitions.stream()
+                        .map(d -> new ToolDeclaration(d.name(), d.description(), d.paramsSchema()))
+                        .toList();
+        return chatWithToolDeclarations(request, declarations, priorTurns);
+    }
+
+    /**
+     * 中性工具声明的单跳调用（任务域执行核，详设 4.2）：与助手循环共用同一声明通道——
+     * 声明只序列化 name / description / paramsSchema（category 仅助手循环语义，声明通道不消费，
+     * 以 QUERY 占位），执行权全程在 AgentExecutionRunner 服务端循环。
+     * 记账与错误映射同 {@link #chatWithTools}；priorTurns 为循环内既往轮次（协议要求成对出现）。
+     */
+    public AiChatReply chatWithToolDeclarations(AiChatRequest request, List<ToolDeclaration> declarations,
+            List<Message> priorTurns) {
+        List<AssistantToolDefinition> toolDefinitions = declarations == null ? List.of()
+                : declarations.stream()
+                        .map(d -> new AssistantToolDefinition(d.name(), d.description(), d.paramsSchema(),
+                                ToolCategory.QUERY))
+                        .toList();
         String apiKey = secretKey == null ? null
                 : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
         if (apiKey == null) {
