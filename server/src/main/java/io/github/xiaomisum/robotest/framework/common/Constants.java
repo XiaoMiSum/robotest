@@ -62,6 +62,56 @@ public final class Constants {
     }
 
     /**
+     * 任务流状态（总册 3.6 新状态机，任务维度：running → proposals_ready → closed；
+     * 用户中止 / 预算耗尽 / 执行错误 / 总开关关闭 → aborted）。与旧 {@link AiTaskStatus} 并存至 S3 切换后删除旧常量。
+     */
+    public interface AiTaskFlowStatus {
+        String RUNNING = "running";
+        String PROPOSALS_READY = "proposals_ready";
+        String CLOSED = "closed";
+        String ABORTED = "aborted";
+    }
+
+    /**
+     * 执行状态（总册 2.6.2：running →（waiting_confirmation）→ succeeded / aborted）
+     */
+    public interface AiTaskExecutionStatus {
+        String RUNNING = "running";
+        String WAITING_CONFIRMATION = "waiting_confirmation";
+        String SUCCEEDED = "succeeded";
+        String ABORTED = "aborted";
+    }
+
+    /**
+     * 轨迹事件类型（总册 2.6.3，只增不改）
+     */
+    public interface AiTraceEventType {
+        String PLAN = "plan";
+        String AI_DECISION = "ai_decision";
+        String TOOL_CALL = "tool_call";
+        String TOOL_RESULT = "tool_result";
+        String PROPOSAL_EMITTED = "proposal_emitted";
+        String STATUS_CHANGE = "status_change";
+    }
+
+    /**
+     * 提案确认状态（总册 2.6.4）
+     */
+    public interface AiProposalConfirmStatus {
+        String PENDING = "pending";
+        String NOT_APPLICABLE = "not_applicable";
+    }
+
+    /**
+     * 提案采纳动作（总册 2.7，取值同旧 {@link AiArtifactAction}，S3 起替代旧命名）
+     */
+    public interface AiProposalAction {
+        String ADOPTED = "adopted";
+        String ADOPTED_EDITED = "adopted_edited";
+        String REJECTED = "rejected";
+    }
+
+    /**
      * 产物确认动作（详设 3.6.5，ai_artifact_confirm.action 取值）
      */
     public interface AiArtifactAction {
