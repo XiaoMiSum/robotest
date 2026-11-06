@@ -729,7 +729,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
-每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）与**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）。
+每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
 #### 3.6.2 提交任务（创建即启动执行）
 
@@ -1077,3 +1077,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-19 | AI 任务端点移除后端权限校验：3.1 / 3.6.2–3.6.5 删除 `ai:task` · `ai:confirm` 与任务类型资源权限校验（归属可见性保留），3.8 权限点用途改为前端入口显隐，错误码表注销 1000018116 |
 | V1.0 | 2026-10-20 | 新建缺陷建议改实时同步接口（缺陷分析分册 3.5）：3.6.2 `waitSeconds` 同步等待示例移除该场景；3.6.1 `bug_classify` 收窄为存量批量（`bugIds` / 筛选），草稿建议不再走任务 |
 | V1.0 | 2026-10-20 | 移除能力页「任务中心」按钮（`AiTaskEntryButton` 组件下线）：3.8 `ai:task` 用途收敛为顶栏指示器，5.2 组件树删除该按钮 |
+| V1.0 | 2026-10-27 | 3.6.1 预算默认值落点勘正：工具白名单登记于 2.6.5，预算默认由类型适配器声明（2.6.5 表无预算列），提交仅可下调 |

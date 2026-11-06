@@ -44,7 +44,7 @@
 
 **server（涉及约 110 文件：主源码 ~78、测试 ~31、SQL 4）**
 
-- 执行核心：`service/ai/task/` 根 15 文件——`TaskHandler` SPI（15 个具体 Handler，含 8 个分散各域）、`TaskHandlerRegistry`、`AiTaskExecutor`（@Async + CAS 状态流转 + 内嵌进度上报）、`AiTaskServiceImpl`（556 行统一资源：submit / 分页 / 详情 / cancel / retry / confirm、waitSeconds 同步等待、startTask 双触发）、`AiTaskSweeper`（超时置 `failed`）、`ArtifactAdopter` SPI（14 个承接实现）。
+- 执行核心：`service/ai/task/` 根 15 文件——`TaskHandler` SPI（13 个具体 Handler，含 6 个分散各域）、`TaskHandlerRegistry`、`AiTaskExecutor`（@Async + CAS 状态流转 + 内嵌进度上报）、`AiTaskServiceImpl`（556 行统一资源：submit / 分页 / 详情 / cancel / retry / confirm、waitSeconds 同步等待、startTask 双触发）、`AiTaskSweeper`（超时置 `failed`）、`ArtifactAdopter` SPI（14 个承接实现）。
 - 资源与端点：`AiTaskController` 8 端点（含 `/{taskId}/cancel`、`/{taskId}/retry`、`/{taskId}/artifacts/confirm`、`/{taskId}/artifacts/{artifactKey}`），DTO 全族携带 `progress / phase / retryOfTaskId / result / artifacts`。
 - 数据层：`AiTask` / `AiArtifactConfirm` 实体与 Mapper（内联状态字面量）、`schema.sql` L1122–1162 与 `V20261003150200__ai_capability.sql` L121–161。
 - 已存在的可复用能力：模型能力选型 `requiredCapability`（落在旧 SPI 上）、`AiSettingsReader.resolveModel`、用量记账 `AiUsageLog` 族、助手域独立工具注册表（`AssistantToolRegistry`，不属任务引擎）。
@@ -93,7 +93,7 @@ flowchart LR
 | `service/ai/task/core/TraceRecorder` | 轨迹事件写入（`plan / ai_decision / tool_call / tool_result / proposal_emitted / status_change`），只增不改 |
 | `service/ai/task/core/BudgetGuard` | 预算签发（类型默认 + 请求下调）与四维（步数 / 时长 / token / 成本）超限判定 |
 | `service/ai/task/type/TaskTypeAdapter` + `TaskTypeAdapterRegistry` | 新 SPI：input 校验、工具白名单与预算默认、提案结构、承接器注册（替代 `TaskHandler`） |
-| `service/ai/task/type/*TypeAdapter`（15 个） | 各 type 改造落地（详见 2.3.2） |
+| `service/ai/task/type/*TypeAdapter`（13 个） | 各 type 改造落地（详见 2.3.2） |
 | `model/entity/ai/AiTaskExecution` `AiTaskTraceEvent` `AiTaskProposal` `AiTaskAdoption` `AiTaskTool` + 各 Mapper | 新五表数据访问 |
 | `controller/ai` 新 DTO 族 | `AiTaskExecutionRespDTO`（含 `plan / budget / consumed`）、`AiTaskTraceEventRespDTO`、`AiTaskProposal*`、`AiTaskAbortReqDTO` 等 |
 
@@ -106,18 +106,20 @@ flowchart LR
 | `AiTaskExecutor` → `AgentExecutionRunner` | CAS 状态机改新状态机（执行 `running / waiting_confirmation / succeeded / aborted`，任务 `running / proposals_ready / closed / aborted`）；进度上报改轨迹事件；模型选型（`requiredCapability`）迁至类型适配器声明并复用 `AiSettingsReader` |
 | `AiTaskSweeper` | 扫描 `status + heartbeat_at`（执行表），超时置 `aborted`（1000018117）；总开关关闭 `failActive` → `abortActive` |
 | `ArtifactAdopter` → `ProposalAdopter`（SPI 更名） | `AdoptContext` 产物字段改提案（`proposalKey`）、回写 `ai_task_adoption.adopted_ref`；14 个承接实现逐一对齐（`GenerationAdoptServiceImpl` 双角色拆解为纯承接服务） |
-| 15 个旧 Handler → TypeAdapter | `TestDesignGeneration / ReviewSelection / PlanSelection / PlanOrder / CaseComplete / CasePriority / RequirementImport / BugClassify / BugTriage / BugTrendSummary / BugDuplicateScan / CoverageAnalysis / ImpactAnalysis / VectorReindex` 逐个改造：去 `context.report` 进度上报、产出改提案行、只读结论类（coverage / impact / trend / triage）执行完成即任务 `closed`；`AssistantParse` 最小适配为 TypeAdapter（执行语义仍为对话式解析，不进 Agent 循环，助手链路重构归 05 计划）；`BugClassify` 收窄为存量批量（`bugIds` / 筛选）——新建缺陷建议已改实时同步接口 `analysis/suggest`，不走任务引擎（见缺陷分析详设 3.5） |
+| 13 个旧 Handler → TypeAdapter | `TestDesignGeneration / ReviewSelection / PlanSelection / PlanOrder / CaseComplete / CasePriority / RequirementImport / BugClassify / BugTriage / BugTrendSummary / BugDuplicateScan / VectorReindex` 逐个改造（`CoverageAnalysis / ImpactAnalysis` 已随追溯矩阵下线删除，不占位）：去 `context.report` 进度上报、产出改提案行、只读结论类（trend / triage）执行完成即任务 `closed`；`AssistantParse` 最小适配为 TypeAdapter（执行语义仍为对话式解析，不进 Agent 循环，助手链路重构归 05 计划）；`BugClassify` 收窄为存量批量（`bugIds` / 筛选）——新建缺陷建议已改实时同步接口 `analysis/suggest`，不走任务引擎（见缺陷分析详设 3.5） |
 | `Constants` | `AiTaskStatus` 五态 → 新任务 / 执行双状态机；`AiArtifactKind` → `AiProposalKind`（**kind 取值保持不变**，避免提示词与提案结构连锁变更）；`AiArtifactAction` → `AiProposalAction`（取值不变） |
 | `ErrorCodeConstants` | 112 / 113 文案改提案；登记空号 1000018125（执行不存在）/ 126（预算非法）/ 127（执行已终止 / 预算耗尽）；111 语义扩展至执行态 |
 | `RequirementServiceImpl` 等跨层点 | 删除对 `AiTaskMapper` 的直读，导入进行中判定改经任务服务新状态口径；`ImpactAnalysisTaskPublisher` 依赖新提交入口 |
 | `AiUsageLogMapper` / `AiUsageAdminService` | 用量下钻 `LEFT JOIN` 改挂最新执行（modelName / scene 归因），明细写入补 `execution_id` |
 
-#### 2.3.3 数据库变更（C5，清空破坏性重建）
+#### 2.3.3 数据库变更（C5，S1 增量建表 + S3 破坏性重建）
 
-- **迁移方式**：不建增量迁移脚本，六表重建 DDL 直接并入 `server/src/main/resources/db/schema.sql`（唯一事实源）；存量库人工执行，流程见 `docs/00-spec/30-quality-delivery/04-deployment-runbook.md` §10。
-- **DDL**（引总册 2.6–2.7，此处仅列动作）：`DROP TABLE ai_artifact_confirm`；`DROP TABLE ai_task`；按总册新建 `ai_task / ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_adoption / ai_task_tool` 六表及索引。
-- **种子**：`ai_task_tool` 按总册 3.6.1 十五个 type 登记工具白名单与预算默认值（代码注册 + `schema.sql` 种子）；`ai_config` 的 `task_timeout_seconds / task_max_retries` 保留（语义改为心跳超时与模型调用自动短重试）。
-- **数据回填**：无（清空重建，裁决记录于本计划）；`requirement_split_record.ai_task_id`、`trace_coverage_result.analyzed_task_id` 逻辑外键指向重建后的 `ai_task`，旧环境数据随清空失效。
+- **迁移方式**：不建增量迁移脚本，DDL 直接并入 `server/src/main/resources/db/schema.sql`（唯一事实源）；存量库人工执行，流程见 `docs/00-spec/30-quality-delivery/04-deployment-runbook.md` §10（破坏性重建 SQL 交付于该节「AI 任务六表重建」小节，S3 收口时执行）。
+- **DDL**（引总册 2.6–2.7，此处仅列动作）：
+  - **S1（纯增量，非破坏）**：新建 `ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_adoption / ai_task_tool` 五表及索引；`ai_usage_log` 补 `execution_id` 列并改 `idx_ai_usage_log_task (task_id, execution_id)`；`ai_config.task_timeout_seconds / task_max_retries` 注释改口径。
+  - **S3（破坏性，与旧引擎删除同提交）**：`DROP TABLE ai_artifact_confirm`；`DROP TABLE ai_task` 并按总册重建新结构（去 `progress / phase / result / retry_of_task_id / error_code / error_msg`，增 `result_meta / terminate_code / terminate_msg`，`status` 默认 `running`）。
+- **种子**：`ai_task_tool` 按总册 3.6.1 **十三个 type** 登记工具白名单（代码注册 + `schema.sql` 种子），**随 S4 TypeAdapter 落地一并补入**（S1 只建表——全量文档尚无 `tool_code` 清单，工具由 TypeAdapter 定义）；预算默认值由 TypeAdapter 代码声明（总册 2.6.5 无预算列）；`ai_config` 的 `task_timeout_seconds / task_max_retries` 保留（语义改为心跳超时与模型调用自动短重试）。
+- **数据回填**：无（清空重建，裁决记录于本计划）；`requirement_split_record.ai_task_id` 逻辑外键指向重建后的 `ai_task`，旧环境数据随清空失效。
 - **锁表与发布窗口**：开发环境无窗口要求；生产化发布前须重新评估（见 4 风险 R1）。
 
 ### 2.4 前端迁移
@@ -145,20 +147,20 @@ flowchart LR
 
 ### 2.6 测试策略（C8 ≥ 70%）
 
-- 后端：新增 `AgentExecutionRunner / BudgetGuard / TraceRecorder / TaskTypeAdapterRegistry` 单测；`AiTaskServiceImplTest` 按新状态机与端点重写；15 个 TypeAdapter 测试逐个改造（提案结构断言替换 artifacts 断言）；清扫器改心跳口径测试；采纳事务改 `ai_task_adoption` 幂等测试；`AiPromptAdminServiceTest / AiSettingsReaderTest` 随 SPI 与提示词单轨化调整。
+- 后端：新增 `AgentExecutionRunner / BudgetGuard / TraceRecorder / TaskTypeAdapterRegistry` 单测；`AiTaskServiceImplTest` 按新状态机与端点重写；13 个 TypeAdapter 测试逐个改造（提案结构断言替换 artifacts 断言）；清扫器改心跳口径测试；采纳事务改 `ai_task_adoption` 幂等测试；`AiPromptAdminServiceTest / AiSettingsReaderTest` 随 SPI 与提示词单轨化调整。
 - 前端：24 个既有 spec 按新状态机 / 新端点 / 新组件名重写；新增 `AiProposalReviewPanel` 与页面级 spec（现为测试缺口）。
 
 ### 2.7 旧代码深度清理方案
 
 > **边界**：只清理「新路径上线后成为死代码、死配置、死契约」的存量；助手域工具注册表、接口测试域同名 `TaskHandler`、用量记账等共用能力不在清理范围。清理随各步骤提交完成，**不留运行时兜底开关**。
 
-**层 A：后端代码（随包删除 / 改写，归属 S2–S4）**
+**层 A：后端代码（随包删除 / 改写，归属 S3–S4；S1 / S2 为纯增量，不删旧码）**
 
 | 清理对象 | 处置 | 归属 |
 | ---- | ---- | ---- |
-| `TaskHandler` SPI、`TaskHandlerRegistry`、15 个旧 Handler | 删除 SPI 与 Registry；Handler 改造为 TypeAdapter 后更名（`*Handler` → `*TypeAdapter`），不留双接口 | S4 |
-| `AiTaskExecutor`（CAS + 进度上报） | 删除，由 `AgentExecutionRunner` 替代 | S2 |
-| `AiTaskMapper` 内联状态字面量与 `casStart / casSucceed / casFail / casCancel / reportProgress / failActive / failStale` | 删除重写：新状态机更新路径 + 执行表心跳扫描；状态常量单点收口至 `Constants` | S1–S2 |
+| `TaskHandler` SPI、`TaskHandlerRegistry`、13 个旧 Handler | 删除 SPI 与 Registry；Handler 改造为 TypeAdapter 后更名（`*Handler` → `*TypeAdapter`），不留双接口 | S4 |
+| `AiTaskExecutor`（CAS + 进度上报） | 删除，由 `AgentExecutionRunner` 替代（现 `AiTaskServiceImpl` 直调 executor，须与 Service 重写同提交） | S3 |
+| `AiTaskMapper` 内联状态字面量与 `casStart / casSucceed / casFail / casCancel / reportProgress / failActive / failStale` | 删除重写：新状态机更新路径 + 执行表心跳扫描；状态常量单点收口至 `Constants` | S3 |
 | `AiArtifactConfirm` 实体 / Mapper / 全部引用（`artifactKey` 链） | 删除，由 `AiTaskAdoption`（`proposalKey`）替代 | S3 |
 | `/{taskId}/cancel`、`/{taskId}/retry`、`/{taskId}/artifacts/**` 端点与 `retryOfTaskId` 字段 | 删除；对应 DTO 字段（`progress / phase / result / artifacts / retryOfTaskId`）随 DTO 重写清除 | S3 |
 | `GenerationAdoptService` 死接口 | 直接删除（零调用方） | S4 |
@@ -166,7 +168,7 @@ flowchart LR
 | `startTask()` 双触发（直调 + afterCommit） | 收敛为单入口：创建即启动，事务提交后触发一次，删除双保险分支 | S3 |
 | 提示词双轨（`AiPromptAdminService.builtinContent` 回落链 / `AiPromptScenes` / `Handler.defaultPrompt()`） | 单轨化：默认提示词唯一登记点收敛至 TypeAdapter 声明，删除重复登记 | S4 |
 | `RequirementServiceImpl` 直读 `AiTaskMapper`（跨层） | 删除直读，改经任务服务查询新状态 | S3 |
-| `Constants` 旧五态、`AiArtifactKind / AiArtifactAction` 命名 | 更名并删除旧常量；kind / action **取值不变** | S1 |
+| `Constants` 旧五态、`AiArtifactKind / AiArtifactAction` 命名 | 更名并删除旧常量；kind / action **取值不变**（旧五态常量仅被 S3 范围的 Mapper / Service / `RequirementServiceImpl` 引用，S3 删除） | S3 |
 
 **层 B：前端代码（归属 S5）**
 
@@ -179,11 +181,11 @@ flowchart LR
 | `AiConfirmReceipt` 单项「重试」 | 保留语义（采纳回执单项重试，非任务重试），仅类型随基座更新 |
 | 合同生成物 | `contract.d.ts` 重生成，旧契约段消失即视为清除 |
 
-**层 C：数据与配置（归属 S1）**
+**层 C：数据与配置（S1 增量 / S3 重建 / S4 种子）**
 
-1. 旧表：`DROP ai_artifact_confirm`、`DROP ai_task`，新六表重建（2.3.3）；`schema.sql` 与列 COMMENT 全量同步，删除 `progress / phase / result / retry_of_task_id / error_code / error_msg` 旧列注释。
-2. `ai_config.task_timeout_seconds / task_max_retries` 保留，注释改心跳超时与模型自动重试口径；`schema.sql` 补 `ai_task_tool` 种子并核对 type 覆盖 15/15。
-3. 错误码空号启用：1000018125 / 126 / 127 登记（总册 6 已定义）。
+1. **S3**：旧表 `DROP ai_artifact_confirm`、`DROP ai_task` 并重建新结构（2.3.3）；`schema.sql` 与列 COMMENT 全量同步，删除 `progress / phase / result / retry_of_task_id / error_code / error_msg` 旧列注释。
+2. **S1**：`ai_config.task_timeout_seconds / task_max_retries` 保留，注释改心跳超时与模型自动重试口径；**S4**：`schema.sql` 补 `ai_task_tool` 种子并核对 type 覆盖 13/13。
+3. **S1**：错误码空号启用：1000018125 / 126 / 127 登记（总册 6 已定义）。
 
 **层 D：测试（归属 S2–S5 同步提交）**
 
@@ -224,10 +226,10 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | 步骤 | 内容 | 端 | 依赖 |
 | ---- | ---- | ---- | ---- |
 | S0 | 基线登记：本计划入索引、裁决（直接切换 + 清空重建）落档、清理门禁脚本草稿 | 文档 | — |
-| S1 | 数据层重建：迁移脚本 + schema.sql、新五实体与 Mapper、`AiTask` 实体重写、`Constants` 新状态机、`ai_task_tool` 种子、错误码 125–127 | 后端 | S0 |
-| S2 | Agent 执行核：`AgentExecutionRunner / BudgetGuard / TraceRecorder`、心跳清扫、总开关 abortActive、用量 execution_id 归因 | 后端 | S1 |
-| S3 | 任务资源切换：Controller / DTO / Service 重写（新端点集）、提案确认事务、`ProposalAdopter` SPI 与 14 承接实现换表、旧端点删除、`RequirementServiceImpl` 解耦 | 后端 | S2 |
-| S4 | 类型适配器改造：15 个 TypeAdapter 落地（提案结构、轨迹事件、预算默认、提示词单轨）、死接口与死路确认分支删除 | 后端 | S3 |
+| S1 | 数据层增量（纯增量，不破坏编译）：`schema.sql` 五新表 DDL 与 `ai_usage_log.execution_id`、新五实体与 Mapper、`Constants` 新状态机常量（与旧五态并存）、`ai_config` 注释改口径、错误码 125–127、runbook §10 迁移说明 | 后端 | S0 |
+| S2 | Agent 执行核（纯增量，不接线、不删旧）：`AgentExecutionRunner / BudgetGuard / TraceRecorder` 与单测、`TaskTypeAdapterRegistry` 骨架 | 后端 | S1 |
+| S3 | 任务资源切换：Controller / DTO / Service 重写（新端点集）、提案确认事务、`ProposalAdopter` SPI 与 14 承接实现换表、执行核接线（心跳清扫、总开关 abortActive、用量 `execution_id` 归因）、`AiTask` 实体重写与六表重建、旧端点与 `AiTaskExecutor` / 旧常量删除、`RequirementServiceImpl` 解耦 | 后端 | S2 |
+| S4 | 类型适配器改造：13 个 TypeAdapter 落地（提案结构、轨迹事件、预算默认声明、提示词单轨）、`ai_task_tool` 种子（13 type）、死接口与死路确认分支删除 | 后端 | S3 |
 | S5 | 前端切换：types / services / store / 两页面 / 面板更名 / 基座 composable / 孤立链路四件 / 指示器 / trace、bug、admin 跨域消费方 | 前端 | S3（契约） |
 | S6 | 契约与收口：OpenAPI 重生成、contract.d.ts 重导出、清理门禁 2.7-Grep 全绿、双端测试与覆盖率门禁、主计划 02 状态联动回填 | 全 | S4、S5 |
 
@@ -236,10 +238,10 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | 序 | 提交信息 | 覆盖步骤 |
 | ---- | ---- | ---- |
 | 1 | `📝 docs(ai): 新增 AI Task 迁移计划并登记索引` | S0 |
-| 2 | `✨ feat(ai): AI Task 数据层清空重建——六表 DDL、新实体与工具种子、错误码 125–127` | S1 |
-| 3 | `✨ feat(ai): Agent 执行核落地——循环驱动、预算护栏、轨迹记录与心跳清扫` | S2 |
-| 4 | `✨ feat(ai): 任务资源切换——任务/执行/轨迹/提案端点与采纳事务，删除 cancel/retry/确认旧路径` | S3 |
-| 5 | `✨ feat(ai): 十五个任务类型适配器改造——提案结构与轨迹上报，删除 TaskHandler SPI 与死代码` | S4 |
+| 2 | `✨ feat(ai): AI Task 数据层增量——执行/轨迹/提案/采纳/工具五表 DDL、新实体与 Mapper、错误码 125–127` | S1 |
+| 3 | `✨ feat(ai): Agent 执行核落地——循环驱动、预算护栏与轨迹记录（纯增量，接线归 S3）` | S2 |
+| 4 | `✨ feat(ai): 任务资源切换——任务/执行/轨迹/提案端点与采纳事务、ai_task 六表重建，删除 cancel/retry/确认旧路径与执行旧引擎` | S3 |
+| 5 | `✨ feat(ai): 十三个任务类型适配器改造——提案结构、轨迹上报与工具种子，删除 TaskHandler SPI 与死代码` | S4 |
 | 6 | `✨ feat(ai): 前端任务框架切换——新状态机、执行区与轨迹回看、提案审核面板` | S5（类型与核心） |
 | 7 | `✨ feat(ai): 前端跨域消费方切换——trace/bug/admin 任务态与再次执行` | S5（跨域） |
 | 8 | `🔧 chore(ai): OpenAPI 与前端契约重生成` | S6 |
@@ -296,3 +298,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关任务迁移标注「已取消——追溯矩阵需求整体下线」：1.3 基线文档移除追溯详设，2.1 死路确认路径中两类 type 标注取消，风险 R7 收敛为无提案任务通用口径 |
 | V1.0 | 2026-10-18 | 2.3.3 数据库变更改为 `schema.sql` 唯一事实源口径：不建增量迁移脚本，`ai_task_tool` 种子并入 schema.sql，移除 `seed-ai.sql` 引用 |
 | V1.0 | 2026-10-27 | 对齐详设 / 交互稿 2026-10-19～20 两轮口径：任务端点移除后端权限校验仅留归属可见性（2.2 承接服务、2.3.2 Controller 补 C4 上下文头）、`bug_classify` 收窄为存量批量与新建缺陷建议改实时接口 `analysis/suggest`（2.3.2 Handler、2.4 跨域消费方）、`AiTaskEntryButton` 下线入口收敛顶栏指示器（2.4） |
+| V1.0 | 2026-10-27 | 实施边界勘误：S1 改纯增量（五表 DDL / 实体 / 常量并存 / 错误码，`AiTask` 重建与旧常量删除挪 S3）、S2 改不接线不删旧（删 `AiTaskExecutor` 归 S3）、type 数 15 → 13（追溯下线注销 coverage / impact）、`ai_task_tool` 种子改随 S4 TypeAdapter 落地（预算默认由 TypeAdapter 声明）、迁移说明交付于 runbook §10（2.3.3、3.1、3.2、层 A/C 同步） |
