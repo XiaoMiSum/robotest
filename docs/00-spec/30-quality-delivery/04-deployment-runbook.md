@@ -297,6 +297,52 @@ server/src/main/resources/db/schema.sql
 5. 发布应用；
 6. 验证核心表和权限。
 
+### 10.1 AI 任务六表重建（破坏性，AI Task 迁移 S3 执行时点）
+
+> 裁决记录：AI Task 迁移采用「清空重建」——旧 `ai_task` / `ai_artifact_confirm` 数据不迁移、不回填（开发环境无保留数据）；生产化发布前须重新评估并补数据迁移方案。依据：`docs/06-implementation-plan/06-ai-task-migration-plan.md` 2.3.3。
+
+**前置**（S1 已随 `schema.sql` §17 落库，存量库先行执行）：
+
+```sql
+-- 五新表（ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_adoption / ai_task_tool）
+-- 与 ai_usage_log.execution_id 列：语句见 schema.sql §17，此处不重复
+```
+
+**S3 收口时执行**（先按 §10 第 1 条备份）：
+
+```sql
+DROP TABLE IF EXISTS ai_artifact_confirm;
+DROP TABLE IF EXISTS ai_task;
+
+CREATE TABLE ai_task (
+    id             uuid PRIMARY KEY,
+    type           varchar(30) NOT NULL,
+    status         varchar(20) NOT NULL DEFAULT 'running',
+    project_id     uuid NULL,
+    workspace_id   uuid NULL,
+    submitted_by   uuid NOT NULL,
+    input          jsonb NOT NULL,
+    result_meta    jsonb NULL,
+    tokens_in      int NOT NULL DEFAULT 0,
+    tokens_out     int NOT NULL DEFAULT 0,
+    terminate_code int NULL,
+    terminate_msg  varchar(500) NULL,
+    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted     boolean NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_ai_task_project ON ai_task (project_id, created_at);
+CREATE INDEX idx_ai_task_submitter ON ai_task (submitted_by, created_at);
+CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
+```
+
+**执行后验证**：
+
+- [ ] `ai_artifact_confirm` 不存在，`ai_task` 为新结构（无 `progress / phase / result / retry_of_task_id` 列）；
+- [ ] 六表齐备且索引与 `schema.sql` §17 一致；
+- [ ] 旧任务历史已清空（符合清空重建裁决）；
+- [ ] 应用启动后任务中心可提交新任务并正常产生执行与轨迹。
+
 ## 11. 发布前检查
 
 ```bash
@@ -377,6 +423,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-05 | 首次修改补建本表；新增「docker compose 全家桶」小节，原 7–14 章顺延为 8–15 |
+| V1.0 | 2026-10-27 | §10 增补 10.1「AI 任务六表重建（破坏性，S3 执行时点）」：前置五表与 `execution_id` 说明、`DROP ai_artifact_confirm / ai_task` 与新结构 DDL、执行后验证清单（C5 迁移说明，裁决见 AI Task 迁移计划 2.3.3） |
 
 ---
 
