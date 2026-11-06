@@ -129,4 +129,18 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
                 .set(AiTask::getErrorMsg, errorMsg)
                 .set(AiTask::getUpdatedAt, LocalDateTime.now()));
     }
+
+    /**
+     * 新状态机流转（总册 3.6：running → proposals_ready → closed / aborted）：
+     * 条件写——仅 running / proposals_ready 可流转，与终止竞争以先到者为准。
+     * 旧 cas* 方法与新状态机并存至 S3 切换后删除（迁移计划 2.7 层 A）。
+     */
+    default boolean markFlowStatus(UUID id, String status) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .eq(AiTask::getId, id)
+                .in(AiTask::getStatus,
+                        Constants.AiTaskFlowStatus.RUNNING, Constants.AiTaskFlowStatus.PROPOSALS_READY)
+                .set(AiTask::getStatus, status)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
+    }
 }
