@@ -229,7 +229,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | S1 | 数据层增量（纯增量，不破坏编译）：`schema.sql` 五新表 DDL 与 `ai_usage_log.execution_id`、新五实体与 Mapper、`Constants` 新状态机常量（与旧五态并存）、`ai_config` 注释改口径、错误码 125–127、runbook §10 迁移说明 | 后端 | S0 |
 | S2 | Agent 执行核（纯增量，不接线、不删旧）：`AgentExecutionRunner / BudgetGuard / TraceRecorder` 与单测、`TaskTypeAdapterRegistry` 骨架 | 后端 | S1 |
 | S3 | 任务资源切换：Controller / DTO / Service 重写（新端点集）、提案确认事务、`ProposalAdopter` SPI 与 14 承接实现换表、执行核接线（心跳清扫、总开关 abortActive、用量 `execution_id` 归因）、`AiTask` 实体重写与六表重建、旧端点与 `AiTaskExecutor` / 旧常量删除、`RequirementServiceImpl` 解耦 | 后端 | S2 |
-| S4 | 类型适配器改造：13 个 TypeAdapter 落地（提案结构、轨迹事件、预算默认声明、提示词单轨）、`ai_task_tool` 种子（13 type）、死接口与死路确认分支删除 | 后端 | S3 |
+| S4 | 类型适配器改造：13 个 TypeAdapter 落地（提案结构、轨迹事件、预算默认声明、提示词单轨）；按总册 4.2 接入注册策略分派与共享生命周期，助手复用对话循环、向量重建使用确定性执行器；`ai_task_tool` 种子核对、死接口与死路确认分支删除 | 后端 | S3 |
 | S5 | 前端切换：types / services / store / 两页面 / 面板更名 / 基座 composable / 孤立链路四件 / 指示器 / trace、bug、admin 跨域消费方 | 前端 | S3（契约） |
 | S6 | 契约与收口：OpenAPI 重生成、contract.d.ts 重导出、清理门禁 2.7-Grep 全绿、双端测试与覆盖率门禁、主计划 02 状态联动回填 | 全 | S4、S5 |
 
@@ -293,6 +293,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
+| V1.0 | 2026-11-07 | S4 纳入总册 4.2 的注册策略分派与共享生命周期；保留十三类型注册，助手与向量重建不强制进入 Agent 循环，实施前完成文件级方案确认 |
 | V1.0 | 2026-10-16 | 初始版本：直接切换 + 清空重建裁决、S0–S6 实施步骤与提交拆分、旧代码五层深度清理方案与 grep 门禁 |
 | V1.0 | 2026-10-16 | 新增 2.8 在途计划联动：展开 vision 计划「Agent 执行核承接注」语义（旧 `AiTaskExecutor` 执行期模型能力复验随 S2 平移至 `AgentExecutionRunner`，收口后删除注记）与助手 SPI 耦合指向 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关任务迁移标注「已取消——追溯矩阵需求整体下线」：1.3 基线文档移除追溯详设，2.1 死路确认路径中两类 type 标注取消，风险 R7 收敛为无提案任务通用口径 |
