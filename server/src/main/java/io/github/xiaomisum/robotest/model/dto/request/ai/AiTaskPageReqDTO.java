@@ -15,6 +15,6 @@ public class AiTaskPageReqDTO extends PageParam {
     /** 任务类型筛选（详设 3.6.1 枚举值） */
     private String type;
 
-    /** 状态筛选：pending / running / succeeded / failed / cancelled */
+    /** 状态筛选：running / proposals_ready / closed / aborted（总册 2.6.1） */
     private String status;
 }

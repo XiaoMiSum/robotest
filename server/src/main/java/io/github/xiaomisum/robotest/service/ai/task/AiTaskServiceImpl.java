@@ -4,20 +4,38 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskConfirmReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskExecutionCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskSubmitReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO.ItemResult;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskEventsRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskExecutionRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskProposalRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskProposalSummaryRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
-import io.github.xiaomisum.robotest.model.entity.ai.AiArtifactConfirm;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskTraceEventRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTerminateReasonRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskProposal;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskTraceEvent;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
-import io.github.xiaomisum.robotest.repository.ai.AiArtifactConfirmMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskAdoptionMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskProposalMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskTraceEventMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
+import io.github.xiaomisum.robotest.service.ai.task.core.AgentExecutionRunner;
+import io.github.xiaomisum.robotest.service.ai.task.core.BudgetGuard;
+import io.github.xiaomisum.robotest.service.ai.task.core.TraceRecorder;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +45,14 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.exception.ErrorCode;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.security.core.annotation.AuditLog;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,13 +60,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * 统一任务资源实现（详设 3.6）。
+ * 统一任务资源实现（总册 3.6，任务 · 执行 · 提案三资源）。
  *
- * <p>校验顺序遵循 3.6.2：总开关 → 类型（114）→ 输入（115）→ 可用模型（118）；任务端点不做权限校验
- * （ai:task / ai:confirm 与任务类型资源权限均不校验，仅保留任务归属可见性），故不使用 @PreAuthorize。
- * 上下文（projectId / workspaceId）仅取自请求头解析后的 LoginUser（C4），不进 URL 与请求体。</p>
+ * <p>校验顺序遵循 3.6.2：总开关 → 类型（114）→ 输入（115）→ 预算（126）→ 可用模型（118 / 124）；
+ * 任务端点不做权限校验（ai:task / ai:confirm 与任务类型资源权限均不校验，仅保留任务归属可见性），
+ * 故不使用 @PreAuthorize。上下文（projectId / workspaceId）仅取自请求头解析后的 LoginUser（C4），
+ * 不进 URL 与请求体。</p>
  */
 @Service
 public class AiTaskServiceImpl implements AiTaskService {
@@ -55,31 +77,46 @@ public class AiTaskServiceImpl implements AiTaskService {
 
     private static final int WAIT_SECONDS_MAX = 10;
     private static final long POLL_INTERVAL_MILLIS = 200;
+    private static final int EVENTS_PAGE_DEFAULT = 200;
+    private static final int EVENTS_PAGE_MAX = 500;
+    private static final String ABORT_MSG = "用户中止";
 
     /** 逐项回执兜底：采纳落库的意外异常按请求级「失败仅该项回滚」语义回执，框架全局码 0–999 豁免（C3） */
     private static final ErrorCode ITEM_FAILED = ErrorCode.of(500, "采纳落库失败");
 
     private static final Set<String> CONFIRM_ACTIONS = Set.of(
-            Constants.AiArtifactAction.ADOPTED,
-            Constants.AiArtifactAction.ADOPTED_EDITED,
-            Constants.AiArtifactAction.REJECTED);
+            Constants.AiProposalAction.ADOPTED,
+            Constants.AiProposalAction.ADOPTED_EDITED,
+            Constants.AiProposalAction.REJECTED);
 
     @Resource
     private AiTaskMapper taskMapper;
     @Resource
-    private AiArtifactConfirmMapper confirmMapper;
+    private AiTaskExecutionMapper executionMapper;
     @Resource
-    private RequirementMapper requirementMapper;
+    private AiTaskProposalMapper proposalMapper;
+    @Resource
+    private AiTaskAdoptionMapper adoptionMapper;
+    @Resource
+    private AiTaskTraceEventMapper traceEventMapper;
     @Resource
     private AiSettingsReader settingsReader;
     @Resource
-    private TaskHandlerRegistry handlerRegistry;
+    private TaskTypeAdapterRegistry adapterRegistry;
     @Resource
-    private ArtifactAdopterRegistry adopterRegistry;
+    private BudgetGuard budgetGuard;
     @Resource
-    private AiTaskExecutor taskExecutor;
+    private ProposalAdopterRegistry adopterRegistry;
+    @Resource
+    private AgentExecutionRunner executionRunner;
+    @Resource
+    private TraceRecorder traceRecorder;
     @Resource
     private PlatformTransactionManager transactionManager;
+    @Resource
+    private RequirementMapper requirementMapper;
+
+    // ---------- 3.6.2 提交（创建即启动） ----------
 
     @Override
     @AuditLog(action = "SUBMIT:AiTask")
@@ -92,7 +129,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!settingsReader.settings().enabled()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED);
         }
-        return createTask(reqDTO.getType(), reqDTO.getInput(), waitSeconds,
+        return createTask(reqDTO.getType(), reqDTO.getInput(), reqDTO.getBudget(), waitSeconds,
                 userId, activeProjectId, activeWorkspaceId, loginUser);
     }
 
@@ -102,21 +139,23 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (!settingsReader.settings().enabled()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED);
         }
-        // 系统触发（需求导入 / 助手解析等）无登录态：类型 / 输入 / 模型校验照常
-        return createTask(type, input, 0, submittedBy, projectId, workspaceId, null);
+        // 系统触发（需求导入 / 助手解析等）无登录态：类型 / 输入 / 预算 / 模型校验照常
+        return createTask(type, input, null, 0, submittedBy, projectId, workspaceId, null);
     }
 
-    private AiTaskRespDTO createTask(String type, Map<String, Object> input, int waitSeconds,
-            UUID userId, UUID projectId, UUID workspaceId, LoginUser loginUser) {
-        TaskHandler handler = handlerRegistry.get(type);
-        if (handler == null) {
+    private AiTaskRespDTO createTask(String type, Map<String, Object> input, Map<String, Object> budgetOverride,
+            int waitSeconds, UUID userId, UUID projectId, UUID workspaceId, LoginUser loginUser) {
+        TaskTypeAdapter adapter = adapterRegistry.get(type);
+        if (adapter == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
         }
         Map<String, Object> effectiveInput = input == null ? Map.of() : new LinkedHashMap<>(input);
         TaskSubmitContext submitContext = new TaskSubmitContext(projectId, workspaceId, userId, loginUser);
-        handler.validateInput(effectiveInput, submitContext);
-        // 必需能力选型（详设 4.2）：handler 从输入派生（批量随附截图需结合项目范围），选型并回写 model_id
-        String requiredCapability = handler.requiredCapability(effectiveInput, submitContext);
+        adapter.validateInput(effectiveInput, submitContext);
+        // 预算签发（3.6.2）：类型默认为上限，请求仅可下调，越界 1000018126
+        Map<String, Object> budget = budgetGuard.sign(adapter.defaultBudget(), budgetOverride);
+        // 必需能力选型（总册 4.2）：适配器从输入派生（批量随附截图需结合项目范围）
+        String requiredCapability = adapter.requiredCapability(effectiveInput, submitContext);
         AiModelConfig model = requiredCapability == null
                 ? settingsReader.usableModel()
                 : settingsReader.resolveModel(null, requiredCapability);
@@ -127,32 +166,97 @@ public class AiTaskServiceImpl implements AiTaskService {
         }
         AiTask task = new AiTask();
         task.setType(type);
-        task.setStatus(Constants.AiTaskStatus.PENDING);
-        task.setProgress(0);
+        task.setStatus(Constants.AiTaskFlowStatus.RUNNING);
         task.setProjectId(projectId);
         task.setWorkspaceId(workspaceId);
         task.setSubmittedBy(userId);
-        // prompt_scene / model_id 提交时回写（4.1），用量可归因、执行不随默认模型漂移
-        task.setPromptScene(type);
-        task.setModelId(model.getId());
         task.setInput(effectiveInput);
         task.setTokensIn(0);
         task.setTokensOut(0);
         taskMapper.insert(task);
-        startTask(task.getId());
-        AiTask fresh = waitSeconds > 0 ? await(task.getId(), waitSeconds) : task;
-        if (fresh == null) {
-            fresh = task;
+        AiTaskExecution execution = createExecution(task.getId(), userId, type, model.getId(), budget, null);
+        triggerStart(task, execution, model, workspaceId, projectId, null);
+        if (waitSeconds > 0) {
+            AiTask finished = await(task.getId(), waitSeconds);
+            if (finished != null) {
+                return buildDetailResp(finished, loginUser);
+            }
         }
-        return buildResp(fresh, true, waitSeconds > 0);
+        return buildSubmitResp(task, execution);
     }
+
+    /** 执行行创建（总册 2.6.2）：seq 同任务自增，预算快照固化，心跳置当前时间 */
+    private AiTaskExecution createExecution(UUID taskId, UUID startedBy, String promptScene, UUID modelId,
+            Map<String, Object> budget, UUID retryOfExecutionId) {
+        AiTaskExecution execution = new AiTaskExecution();
+        execution.setTaskId(taskId);
+        execution.setSeq(executionMapper.selectMaxSeqByTaskId(taskId) + 1);
+        execution.setStatus(Constants.AiTaskExecutionStatus.RUNNING);
+        execution.setStartedBy(startedBy);
+        execution.setPromptScene(promptScene);
+        execution.setModelId(modelId);
+        execution.setBudget(budget);
+        execution.setSteps(0);
+        execution.setTokensIn(0);
+        execution.setTokensOut(0);
+        execution.setCost(BigDecimal.ZERO);
+        execution.setRetryOfExecutionId(retryOfExecutionId);
+        execution.setHeartbeatAt(LocalDateTime.now());
+        executionMapper.insert(execution);
+        return execution;
+    }
+
+    /**
+     * 启动单入口（迁移计划层 A：收敛旧「直接 + 注册兜底」双触发）：
+     * 活动事务内注册 afterCommit，提交后触发一次；无事务直接触发（执行核 @Async）。
+     */
+    private void triggerStart(AiTask task, AiTaskExecution execution, AiModelConfig model,
+            UUID workspaceId, UUID projectId, String feedback) {
+        AgentExecutionRunner.RunContext ctx = new AgentExecutionRunner.RunContext(
+                task, execution, model, workspaceId, projectId, feedback);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    executionRunner.run(ctx);
+                }
+            });
+        } else {
+            executionRunner.run(ctx);
+        }
+    }
+
+    /**
+     * 同步等待（3.6.2）：轮询任务态至终态（proposals_ready / closed / aborted），
+     * 等待期内完成返回任务行，超时返回 null 由调用方回落执行中状态转轮询。
+     */
+    private AiTask await(UUID taskId, int waitSeconds) {
+        long deadline = System.currentTimeMillis() + waitSeconds * 1000L;
+        while (true) {
+            AiTask latest = taskMapper.selectById(taskId);
+            if (latest != null && isTaskTerminal(latest.getStatus())) {
+                return latest;
+            }
+            if (System.currentTimeMillis() >= deadline) {
+                return null;
+            }
+            try {
+                Thread.sleep(POLL_INTERVAL_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+    }
+
+    // ---------- 3.6.3 列表与详情 ----------
 
     @Override
     public PageResult<AiTaskRespDTO> page(AiTaskPageReqDTO pageReq, UUID activeProjectId, UUID userId) {
         PageResult<AiTask> page = taskMapper.findPage(pageReq, activeProjectId, userId,
                 pageReq.getType(), pageReq.getStatus());
         return new PageResult<>(page.getList().stream()
-                .map(task -> buildResp(task, false, false))
+                .map(this::buildListItem)
                 .toList(), page.getTotal());
     }
 
@@ -165,18 +269,334 @@ public class AiTaskServiceImpl implements AiTaskService {
 
     @Override
     public AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser) {
+        return buildDetailResp(requireVisible(taskId, loginUser), loginUser);
+    }
+
+    @Override
+    public AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, LoginUser loginUser) {
         AiTask task = requireVisible(taskId, loginUser);
-        AiTaskRespDTO resp = buildResp(task, true, false);
-        // 文档级元数据仅详情下发（3.6.3）：供确认面板预填识别版本，列表与同步等待响应不携带
-        resp.setDocumentMeta(documentMetaOf(task));
+        AiTaskProposal proposal = locateProposal(task, proposalKey);
+        AiTaskProposalRespDTO resp = new AiTaskProposalRespDTO();
+        resp.setKey(proposal.getProposalKey());
+        resp.setKind(proposal.getKind());
+        resp.setTitle(proposal.getTitle());
+        resp.setParentKey(proposal.getParentKey());
+        resp.setConfirmStatus(resolveConfirmStatus(proposal));
+        resp.setContent(proposal.getContent());
+        // 生成链产物回读比对来源需求当前状态（生成链详设 4.1）：sourceRefs 逐条标注 changed
+        markSourceChanged(task, proposal.getContent());
         return resp;
     }
 
-    /** `result` 顶层 documentMeta（3.8 导入识别版本）：无该键 / 非成功态为 null */
+    @Override
+    public AiTaskEventsRespDTO getEvents(UUID taskId, UUID executionId, Integer afterSeq, Integer pageSize,
+            LoginUser loginUser) {
+        requireVisible(taskId, loginUser);
+        requireExecution(taskId, executionId);
+        int cursor = afterSeq == null || afterSeq < 0 ? 0 : afterSeq;
+        int size = pageSize == null ? EVENTS_PAGE_DEFAULT
+                : Math.min(Math.max(pageSize, 1), EVENTS_PAGE_MAX);
+        List<AiTaskTraceEventRespDTO> items = traceEventMapper.selectAfterSeq(executionId, cursor, size)
+                .stream()
+                .map(this::toEventResp)
+                .collect(Collectors.toList());
+        AiTaskEventsRespDTO resp = new AiTaskEventsRespDTO();
+        resp.setItems(items);
+        resp.setNextSeq(items.isEmpty() ? cursor : items.get(items.size() - 1).getSeq());
+        return resp;
+    }
+
+    // ---------- 3.6.4 终止与再次执行 ----------
+
+    @Override
+    @AuditLog(action = "ABORT:AiTask")
+    public AiTaskRespDTO abort(UUID taskId, UUID executionId, LoginUser loginUser) {
+        AiTask task = requireVisible(taskId, loginUser);
+        AiTaskExecution execution = requireExecution(taskId, executionId);
+        int tokensIn = execution.getTokensIn() == null ? 0 : execution.getTokensIn();
+        int tokensOut = execution.getTokensOut() == null ? 0 : execution.getTokensOut();
+        BigDecimal cost = execution.getCost() == null ? BigDecimal.ZERO : execution.getCost();
+        // 条件写与执行核竞争：已终态的执行返回 1000018127（总册 3.6.4）
+        boolean aborted = executionMapper.abort(executionId,
+                ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), ABORT_MSG,
+                execution.getSteps() == null ? 0 : execution.getSteps(),
+                tokensIn, tokensOut, cost, elapsedSince(execution));
+        if (!aborted) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EXECUTION_FINISHED);
+        }
+        traceRecorder.record(executionId, Constants.AiTraceEventType.STATUS_CHANGE,
+                "执行终止: " + ABORT_MSG,
+                Map.of("terminateCode", ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code()));
+        taskMapper.markAborted(taskId, ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), ABORT_MSG);
+        taskMapper.accumulateTokens(taskId, tokensIn, tokensOut);
+        traceRecorder.record(executionId, Constants.AiTraceEventType.STATUS_CHANGE,
+                "任务终止", Map.of("task", Constants.AiTaskFlowStatus.ABORTED,
+                        "terminateCode", ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code()));
+        return buildDetailResp(taskMapper.selectById(taskId), loginUser);
+    }
+
+    @Override
+    @AuditLog(action = "REEXECUTE:AiTask")
+    public AiTaskRespDTO reExecute(UUID taskId, AiTaskExecutionCreateReqDTO reqDTO, LoginUser loginUser) {
+        AiTask task = requireVisible(taskId, loginUser);
+        // 门禁（3.6.4）：aborted（终止后重跑）或 proposals_ready（附反馈重新生成）
+        if (!Constants.AiTaskFlowStatus.ABORTED.equals(task.getStatus())
+                && !Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(task.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
+        }
+        if (!settingsReader.settings().enabled()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED);
+        }
+        TaskTypeAdapter adapter = adapterRegistry.get(task.getType());
+        if (adapter == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
+        }
+        // 同任务同时至多一个进行中执行（3.6.4）
+        if (executionMapper.countActiveByTaskId(taskId) > 0) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
+        }
+        AiTaskExecution previous = executionMapper.selectLatestByTaskId(taskId);
+        String feedback = reqDTO == null || reqDTO.getFeedback() == null
+                || reqDTO.getFeedback().isBlank() ? null : reqDTO.getFeedback().trim();
+        TaskSubmitContext submitContext = new TaskSubmitContext(task.getProjectId(), task.getWorkspaceId(),
+                loginUser.getId(), loginUser);
+        String requiredCapability = adapter.requiredCapability(task.getInput(), submitContext);
+        // model_id 复用原执行模型（3.6.4），其被停用时按能力回落当前可用模型
+        AiModelConfig model = settingsReader.resolveModel(
+                previous == null ? null : previous.getModelId(), requiredCapability);
+        if (model == null) {
+            throw ServiceExceptionUtil.get(requiredCapability == null
+                    ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
+                    : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
+        }
+        Map<String, Object> budget = budgetGuard.sign(adapter.defaultBudget(), null);
+        if (!taskMapper.markRerun(taskId)) {
+            // 条件写与并发操作竞争，失败即状态不允许
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
+        }
+        AiTask fresh = taskMapper.selectById(taskId);
+        AiTaskExecution execution = createExecution(taskId, loginUser.getId(), task.getType(),
+                model.getId(), budget, previous == null ? null : previous.getId());
+        triggerStart(fresh, execution, model, task.getWorkspaceId(), task.getProjectId(), feedback);
+        return buildSubmitResp(fresh, execution);
+    }
+
+    // ---------- 3.6.5 提案确认（逐项事务） ----------
+
+    @Override
+    @AuditLog(action = "CONFIRM:AiProposal")
+    public AiTaskConfirmRespDTO confirm(UUID taskId, AiTaskConfirmReqDTO reqDTO, LoginUser loginUser) {
+        AiTask task = requireVisible(taskId, loginUser);
+        // 确认门禁（3.6.5）：任务须 proposals_ready
+        if (!Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(task.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
+        }
+        AiTaskExecution latest = executionMapper.selectLatestByTaskId(taskId);
+        if (latest == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND);
+        }
+        List<AiTaskProposal> proposals = proposalMapper.selectByExecution(latest.getId());
+        Set<String> allKeys = proposals.stream()
+                .map(AiTaskProposal::getProposalKey)
+                .collect(Collectors.toSet());
+        // 落库目标项目取自 X-Active-Project 头（C4），请求体只携带位置提示
+        UUID projectId = loginUser.getActiveProjectId();
+        UUID operatorId = loginUser.getId();
+        List<ItemResult> results = new ArrayList<>();
+        for (AiTaskConfirmReqDTO.ConfirmItemReqDTO item : reqDTO.getItems()) {
+            results.add(confirmItem(task, latest.getId(), proposals, allKeys, item,
+                    reqDTO.getTarget(), projectId, operatorId, loginUser));
+        }
+        markClosedIfAllDisposed(taskId, latest.getId(), proposals);
+        AiTaskConfirmRespDTO resp = new AiTaskConfirmRespDTO();
+        resp.setResults(results);
+        return resp;
+    }
+
+    /**
+     * 逐项确认（总册 3.6.5）：每项独立事务，采纳记录（ai_task_adoption）与业务落库同事务，
+     * 失败仅该项回滚、其余项继续（部分失败，成功项保留）。
+     */
+    private ItemResult confirmItem(AiTask task, UUID executionId, List<AiTaskProposal> proposals,
+            Set<String> allKeys, AiTaskConfirmReqDTO.ConfirmItemReqDTO item,
+            AiTaskConfirmReqDTO.TargetReqDTO target, UUID projectId, UUID operatorId, LoginUser loginUser) {
+        String action = item.getAction();
+        try {
+            TransactionTemplate template = new TransactionTemplate(transactionManager);
+            return template.execute(status -> {
+                AiTaskProposal proposal = proposals.stream()
+                        .filter(candidate -> candidate.getProposalKey().equals(item.getKey()))
+                        .findFirst()
+                        .orElse(null);
+                if (proposal == null) {
+                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND);
+                }
+                if (action == null || !CONFIRM_ACTIONS.contains(action)) {
+                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+                }
+                if (adoptionMapper.selectByExecutionAndKey(executionId, item.getKey()) != null) {
+                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROPOSAL_ALREADY_CONFIRMED);
+                }
+                ProposalAdopter adopter = adopterRegistry.get(task.getType());
+                if (adopter == null) {
+                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
+                }
+                AdoptOutcome outcome = adopter.adopt(new AdoptContext(task, proposal, action,
+                        item.getContent(), item.getNote(),
+                        target == null ? null : target.getModuleId(),
+                        target == null ? null : target.getPosition(),
+                        target == null ? null : target.getSystemVersion(),
+                        target == null ? null : target.getCreateParams(),
+                        target == null ? null : target.getDocumentId(),
+                        target == null ? null : target.getExtraNodePosition(),
+                        target == null ? null : target.getPlanId(),
+                        target == null ? null : target.getRound(),
+                        projectId, operatorId, allKeys, loginUser));
+                AiTaskAdoption record = new AiTaskAdoption();
+                record.setProjectId(projectId);
+                record.setTaskId(task.getId());
+                record.setExecutionId(executionId);
+                record.setProposalKey(item.getKey());
+                record.setAction(action);
+                record.setOperatorId(operatorId);
+                if (outcome != null) {
+                    record.setAdoptedRef(outcome.adoptedRef());
+                }
+                record.setNote(item.getNote());
+                // uk_ai_task_adoption 并发兜底：唯一冲突在本事务内转换为 1000018113
+                adoptionMapper.insert(record);
+                return ItemResult.ok(item.getKey(), action, outcome == null ? null : outcome.createdId());
+            });
+        } catch (ServiceException e) {
+            return ItemResult.fail(item.getKey(), action, e.getCode(), e.getMessage());
+        } catch (DuplicateKeyException e) {
+            return ItemResult.fail(item.getKey(), action,
+                    ErrorCodeConstants.AI_PROPOSAL_ALREADY_CONFIRMED.code(),
+                    ErrorCodeConstants.AI_PROPOSAL_ALREADY_CONFIRMED.msg());
+        } catch (Exception e) {
+            log.warn("[AI] 提案确认逐项失败 taskId={} key={}", task.getId(), item.getKey(), e);
+            return ItemResult.fail(item.getKey(), action, ITEM_FAILED.code(), ITEM_FAILED.msg());
+        }
+    }
+
+    /** 全部待采纳提案处置完毕 → 任务转 closed（总册 3.6.5），条件写与并发确认竞争以先到者为准 */
+    private void markClosedIfAllDisposed(UUID taskId, UUID executionId, List<AiTaskProposal> proposals) {
+        long pending = proposals.stream()
+                .filter(proposal -> Constants.AiProposalConfirmStatus.PENDING
+                        .equals(proposal.getConfirmStatus()))
+                .count();
+        if (pending > 0 && adoptionMapper.countByExecution(executionId) >= pending
+                && taskMapper.markFlowStatus(taskId, Constants.AiTaskFlowStatus.CLOSED)) {
+            traceRecorder.record(executionId, Constants.AiTraceEventType.STATUS_CHANGE,
+                    "任务关闭", Map.of("task", Constants.AiTaskFlowStatus.CLOSED));
+        }
+    }
+
+    // ---------- 跨层查询入口（迁移计划层 A：禁止直读 ai_task） ----------
+
+    @Override
+    public boolean isTaskRunning(UUID taskId) {
+        AiTask task = taskId == null ? null : taskMapper.selectById(taskId);
+        return task != null && Constants.AiTaskFlowStatus.RUNNING.equals(task.getStatus());
+    }
+
+    // ---------- 组装 ----------
+
+    /** 提交 / 再次执行响应（3.6.2）：executionId + 本次签发预算，其余场景字段为 null */
+    private AiTaskRespDTO buildSubmitResp(AiTask task, AiTaskExecution execution) {
+        AiTaskRespDTO resp = new AiTaskRespDTO();
+        fillTaskBase(resp, task);
+        resp.setExecutionId(execution.getId());
+        resp.setBudget(execution.getBudget());
+        resp.setResultMeta(task.getResultMeta());
+        return resp;
+    }
+
+    /** 列表项（3.6.3）：latestExecution 摘要，不下发 resultMeta / proposals / documentMeta */
+    private AiTaskRespDTO buildListItem(AiTask task) {
+        AiTaskRespDTO resp = new AiTaskRespDTO();
+        fillTaskBase(resp, task);
+        resp.setLatestExecution(toExecutionResp(executionMapper.selectLatestByTaskId(task.getId())));
+        return resp;
+    }
+
+    /** 详情（3.6.3）：最新一次执行 + 提案清单摘要（最新一次执行）+ documentMeta */
+    private AiTaskRespDTO buildDetailResp(AiTask task, LoginUser loginUser) {
+        AiTaskRespDTO resp = new AiTaskRespDTO();
+        fillTaskBase(resp, task);
+        AiTaskExecution latest = executionMapper.selectLatestByTaskId(task.getId());
+        resp.setLatestExecution(toExecutionResp(latest));
+        resp.setResultMeta(task.getResultMeta());
+        resp.setDocumentMeta(documentMetaOf(task));
+        if (latest != null && (Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(task.getStatus())
+                || Constants.AiTaskFlowStatus.CLOSED.equals(task.getStatus()))) {
+            resp.setProposals(proposalSummaries(task.getId(), latest.getId()));
+        }
+        return resp;
+    }
+
+    private void fillTaskBase(AiTaskRespDTO resp, AiTask task) {
+        resp.setTaskId(task.getId());
+        resp.setType(task.getType());
+        resp.setStatus(task.getStatus());
+        resp.setSubmittedBy(task.getSubmittedBy());
+        resp.setTokensIn(task.getTokensIn());
+        resp.setTokensOut(task.getTokensOut());
+        resp.setCreatedAt(task.getCreatedAt());
+        resp.setTerminateReason(terminateReason(task.getTerminateCode(), task.getTerminateMsg()));
+    }
+
+    private AiTaskExecutionRespDTO toExecutionResp(AiTaskExecution execution) {
+        if (execution == null) {
+            return null;
+        }
+        AiTaskExecutionRespDTO resp = new AiTaskExecutionRespDTO();
+        resp.setExecutionId(execution.getId());
+        resp.setSeq(execution.getSeq());
+        resp.setStatus(execution.getStatus());
+        resp.setSteps(execution.getSteps());
+        resp.setBudget(execution.getBudget());
+        resp.setPlan(execution.getPlan());
+        resp.setTerminateReason(terminateReason(execution.getTerminateCode(), execution.getTerminateMsg()));
+        AiTaskExecutionRespDTO.Consumed consumed = new AiTaskExecutionRespDTO.Consumed();
+        consumed.setDurationMs(execution.getDurationMs());
+        consumed.setTokensIn(execution.getTokensIn());
+        consumed.setTokensOut(execution.getTokensOut());
+        consumed.setCost(execution.getCost());
+        resp.setConsumed(consumed);
+        return resp;
+    }
+
+    /** 提案清单摘要（3.6.3）：confirmStatus 由采纳记录回填动作，无记录取提案自身状态 */
+    private List<AiTaskProposalSummaryRespDTO> proposalSummaries(UUID taskId, UUID executionId) {
+        Map<String, String> adoptedActions = new LinkedHashMap<>();
+        for (AiTaskAdoption record : adoptionMapper.selectByExecution(executionId)) {
+            adoptedActions.putIfAbsent(record.getProposalKey(), record.getAction());
+        }
+        List<AiTaskProposalSummaryRespDTO> summaries = new ArrayList<>();
+        for (AiTaskProposal proposal : proposalMapper.selectByExecution(executionId)) {
+            AiTaskProposalSummaryRespDTO summary = new AiTaskProposalSummaryRespDTO();
+            summary.setKey(proposal.getProposalKey());
+            summary.setKind(proposal.getKind());
+            summary.setTitle(proposal.getTitle());
+            summary.setParentKey(proposal.getParentKey());
+            summary.setConfirmStatus(adoptedActions.getOrDefault(proposal.getProposalKey(),
+                    proposal.getConfirmStatus()));
+            summaries.add(summary);
+        }
+        return summaries;
+    }
+
+    private String resolveConfirmStatus(AiTaskProposal proposal) {
+        AiTaskAdoption adoption = adoptionMapper.selectByExecutionAndKey(
+                proposal.getExecutionId(), proposal.getProposalKey());
+        return adoption != null ? adoption.getAction() : proposal.getConfirmStatus();
+    }
+
+    /** result_meta 顶层文档级元数据（3.6.3 documentMeta，导入识别版本），无为 null */
     private AiTaskRespDTO.DocumentMeta documentMetaOf(AiTask task) {
-        if (!Constants.AiTaskStatus.SUCCEEDED.equals(task.getStatus())
-                || task.getResult() == null
-                || !(task.getResult().get("documentMeta") instanceof Map<?, ?> meta)) {
+        Map<String, Object> meta = task.getResultMeta();
+        if (meta == null) {
             return null;
         }
         AiTaskRespDTO.DocumentMeta documentMeta = new AiTaskRespDTO.DocumentMeta();
@@ -185,15 +605,18 @@ public class AiTaskServiceImpl implements AiTaskService {
         return documentMeta;
     }
 
-    @Override
-    public Map<String, Object> getArtifact(UUID taskId, String artifactKey, LoginUser loginUser) {
-        AiTask task = requireVisible(taskId, loginUser);
-        Map<String, Object> artifact = findArtifact(task, artifactKey);
-        if (artifact == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_ARTIFACT_NOT_FOUND);
-        }
-        markSourceChanged(task, artifact);
-        return artifact;
+    private AiTaskTraceEventRespDTO toEventResp(AiTaskTraceEvent event) {
+        AiTaskTraceEventRespDTO resp = new AiTaskTraceEventRespDTO();
+        resp.setSeq(event.getSeq());
+        resp.setEventType(event.getEventType());
+        resp.setSummary(event.getSummary());
+        resp.setDetail(event.getDetail());
+        resp.setCreatedAt(event.getCreatedAt());
+        return resp;
+    }
+
+    private static AiTerminateReasonRespDTO terminateReason(Integer code, String msg) {
+        return code == null ? null : new AiTerminateReasonRespDTO(code, msg);
     }
 
     /**
@@ -201,10 +624,10 @@ public class AiTaskServiceImpl implements AiTaskService {
      * （需求已删除 / 离开已确认态 / 快照后更新时间变化），确认面板据此展示「来源需求已变更」。
      */
     @SuppressWarnings("unchecked")
-    private void markSourceChanged(AiTask task, Map<String, Object> artifact) {
+    private void markSourceChanged(AiTask task, Map<String, Object> content) {
         if (task.getInput() == null
                 || !(task.getInput().get("requirementSnapshots") instanceof List<?> snapshots)
-                || !(artifact.get("content") instanceof Map<?, ?> content)
+                || content == null
                 || !(content.get("sourceRefs") instanceof List<?> refs)) {
             return;
         }
@@ -254,182 +677,10 @@ public class AiTaskServiceImpl implements AiTaskService {
         return !String.valueOf(snapshot.get("updatedAt")).equals(String.valueOf(current.getUpdatedAt()));
     }
 
-    private static UUID parseUuid(Object raw) {
-        if (raw == null) {
-            return null;
-        }
-        try {
-            return UUID.fromString(String.valueOf(raw));
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    @Override
-    @AuditLog(action = "CANCEL:AiTask")
-    public AiTaskRespDTO cancel(UUID taskId, LoginUser loginUser) {
-        AiTask task = requireVisible(taskId, loginUser);
-        if (!taskMapper.casCancel(taskId)) {
-            // 仅 pending / running 可取消；条件写与执行线程竞争，失败即状态不允许
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
-        }
-        return buildResp(taskMapper.selectById(taskId), true, false);
-    }
-
-    @Override
-    @AuditLog(action = "RETRY:AiTask")
-    public AiTaskRespDTO retry(UUID taskId, LoginUser loginUser) {
-        AiTask original = requireVisible(taskId, loginUser);
-        if (!Constants.AiTaskStatus.FAILED.equals(original.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
-        }
-        if (!settingsReader.settings().enabled()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_DISABLED);
-        }
-        if (handlerRegistry.get(original.getType()) == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
-        }
-        AiTask task = new AiTask();
-        task.setType(original.getType());
-        task.setStatus(Constants.AiTaskStatus.PENDING);
-        task.setProgress(0);
-        task.setProjectId(original.getProjectId());
-        task.setWorkspaceId(original.getWorkspaceId());
-        task.setSubmittedBy(loginUser.getId());
-        task.setPromptScene(original.getPromptScene());
-        // 复用原 model_id（3.6.4），用量仍可归因到原模型
-        task.setModelId(original.getModelId());
-        task.setInput(original.getInput() == null ? Map.of() : original.getInput());
-        task.setTokensIn(0);
-        task.setTokensOut(0);
-        task.setRetryOfTaskId(original.getId());
-        taskMapper.insert(task);
-        startTask(task.getId());
-        return buildResp(task, true, false);
-    }
-
-    @Override
-    @AuditLog(action = "CONFIRM:AiArtifact")
-    public AiTaskConfirmRespDTO confirm(UUID taskId, AiTaskConfirmReqDTO reqDTO, LoginUser loginUser) {
-        AiTask task = requireVisible(taskId, loginUser);
-        if (!Constants.AiTaskStatus.SUCCEEDED.equals(task.getStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
-        }
-        // 落库目标项目取自 X-Active-Project 头（C4），请求体只携带位置提示
-        UUID projectId = loginUser.getActiveProjectId();
-        UUID operatorId = loginUser.getId();
-        List<ItemResult> results = new ArrayList<>();
-        for (AiTaskConfirmReqDTO.ConfirmItemReqDTO item : reqDTO.getItems()) {
-            results.add(confirmItem(task, item, reqDTO.getTarget(), projectId, operatorId, loginUser));
-        }
-        AiTaskConfirmRespDTO resp = new AiTaskConfirmRespDTO();
-        resp.setResults(results);
-        return resp;
-    }
+    // ---------- 定位与校验 ----------
 
     /**
-     * 逐项确认（详设 3.6.5）：每项独立事务，采纳落库与确认记录同事务，失败仅该项回滚、其余项继续。
-     */
-    private ItemResult confirmItem(AiTask task, AiTaskConfirmReqDTO.ConfirmItemReqDTO item,
-            AiTaskConfirmReqDTO.TargetReqDTO target, UUID projectId, UUID operatorId, LoginUser loginUser) {
-        String action = item.getAction();
-        try {
-            TransactionTemplate template = new TransactionTemplate(transactionManager);
-            return template.execute(status -> {
-                Map<String, Object> artifact = findArtifact(task, item.getKey());
-                if (artifact == null) {
-                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_ARTIFACT_NOT_FOUND);
-                }
-                if (action == null || !CONFIRM_ACTIONS.contains(action)) {
-                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
-                }
-                if (confirmMapper.selectByTaskAndKey(task.getId(), item.getKey()) != null) {
-                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_ARTIFACT_ALREADY_CONFIRMED);
-                }
-                ArtifactAdopter adopter = adopterRegistry.get(task.getType());
-                if (adopter == null) {
-                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
-                }
-                AdoptOutcome outcome = adopter.adopt(new AdoptContext(task, artifact, action,
-                        item.getContent(), item.getNote(),
-                        target == null ? null : target.getModuleId(),
-                        target == null ? null : target.getPosition(),
-                        target == null ? null : target.getSystemVersion(),
-                        target == null ? null : target.getCreateParams(),
-                        target == null ? null : target.getDocumentId(),
-                        target == null ? null : target.getExtraNodePosition(),
-                        target == null ? null : target.getPlanId(),
-                        target == null ? null : target.getRound(),
-                        projectId, operatorId, loginUser));
-                AiArtifactConfirm record = new AiArtifactConfirm();
-                record.setProjectId(projectId);
-                record.setTaskId(task.getId());
-                record.setArtifactKey(item.getKey());
-                record.setAction(action);
-                record.setOperatorId(operatorId);
-                if (outcome != null) {
-                    record.setAdoptedRef(outcome.adoptedRef());
-                }
-                record.setNote(item.getNote());
-                // uk_ai_artifact_confirm 并发兜底：唯一冲突在本事务内转换为 1000018113
-                confirmMapper.insert(record);
-                return ItemResult.ok(item.getKey(), action, outcome == null ? null : outcome.createdId());
-            });
-        } catch (ServiceException e) {
-            return ItemResult.fail(item.getKey(), action, e.getCode(), e.getMessage());
-        } catch (DuplicateKeyException e) {
-            return ItemResult.fail(item.getKey(), action,
-                    ErrorCodeConstants.AI_ARTIFACT_ALREADY_CONFIRMED.code(),
-                    ErrorCodeConstants.AI_ARTIFACT_ALREADY_CONFIRMED.msg());
-        } catch (Exception e) {
-            log.warn("[AI] 产物确认逐项失败 taskId={} key={}", task.getId(), item.getKey(), e);
-            return ItemResult.fail(item.getKey(), action, ITEM_FAILED.code(), ITEM_FAILED.msg());
-        }
-    }
-
-    /**
-     * 起跑装配（详设 4.2）：直接调用覆盖「无事务」与「afterCommit 回调内」（行已提交）两类场景，
-     * 注册兜底覆盖「活动事务内」场景（提交后触发）；执行器 casStart 条件写保证至多一次起跑，
-     * 重复触发无副作用——嵌套 afterCommit（如需求导入链路）中注册的新同步不会被触发，故必须双保险。
-     */
-    private void startTask(UUID taskId) {
-        taskExecutor.start(taskId);
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    taskExecutor.start(taskId);
-                }
-            });
-        }
-    }
-
-    /**
-     * 同步等待（3.6.2）：不改变异步语义，超时返回进行中状态转轮询。
-     * 活动事务内插入行尚不可见，按进行中持续轮询；超时返回 null 由调用方回落插入时快照。
-     */
-    private AiTask await(UUID taskId, int waitSeconds) {
-        long deadline = System.currentTimeMillis() + waitSeconds * 1000L;
-        AiTask latest = null;
-        while (true) {
-            latest = taskMapper.selectById(taskId);
-            if (latest != null && isTerminal(latest.getStatus())) {
-                return latest;
-            }
-            if (System.currentTimeMillis() >= deadline) {
-                return latest;
-            }
-            try {
-                Thread.sleep(POLL_INTERVAL_MILLIS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return latest;
-            }
-        }
-    }
-
-    /**
-     * 可见性（详设 3.6.3）：带项目上下文看本项目任务，否则只看本人提交的任务；越权按不存在处理。
+     * 可见性（总册 3.6.3）：带项目上下文看本项目任务，否则只看本人提交的任务；越权按不存在处理。
      */
     private AiTask requireVisible(UUID taskId, LoginUser loginUser) {
         AiTask task = taskMapper.selectById(taskId);
@@ -445,88 +696,52 @@ public class AiTaskServiceImpl implements AiTaskService {
         return task;
     }
 
-    private AiTaskRespDTO buildResp(AiTask task, boolean withArtifacts, boolean withResult) {
-        AiTaskRespDTO resp = new AiTaskRespDTO();
-        resp.setTaskId(task.getId());
-        resp.setType(task.getType());
-        resp.setStatus(task.getStatus());
-        resp.setProgress(task.getProgress());
-        resp.setPhase(task.getPhase());
-        resp.setSubmittedBy(task.getSubmittedBy());
-        resp.setRetryOfTaskId(task.getRetryOfTaskId());
-        resp.setTokensIn(task.getTokensIn());
-        resp.setTokensOut(task.getTokensOut());
-        resp.setCreatedAt(task.getCreatedAt());
-        if (Constants.AiTaskStatus.FAILED.equals(task.getStatus())) {
-            resp.setError(new AiTaskRespDTO.TaskError(task.getErrorCode(), task.getErrorMsg()));
+    /** 执行定位（3.6.4 / 3.6.5）：不存在或不属该任务均按 1000018125 */
+    private AiTaskExecution requireExecution(UUID taskId, UUID executionId) {
+        AiTaskExecution execution = executionId == null ? null : executionMapper.selectById(executionId);
+        if (execution == null || !taskId.equals(execution.getTaskId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EXECUTION_NOT_FOUND);
         }
-        boolean succeeded = Constants.AiTaskStatus.SUCCEEDED.equals(task.getStatus());
-        if (withResult && succeeded) {
-            resp.setResult(task.getResult());
-        }
-        if (withArtifacts && succeeded) {
-            resp.setArtifacts(artifactSummaries(task));
-        }
-        return resp;
+        return execution;
     }
 
-    /** 产物清单摘要（3.6.3）：confirmStatus 由 ai_artifact_confirm 回填，未确认为 pending */
-    private List<AiTaskRespDTO.ArtifactSummary> artifactSummaries(AiTask task) {
-        List<Map<String, Object>> artifacts = artifactsOf(task);
-        if (artifacts.isEmpty()) {
-            return List.of();
+    /** 提案定位（3.6.3 / 3.6.5）：最新一次执行内按键查找，缺失按 1000018112 */
+    private AiTaskProposal locateProposal(AiTask task, String proposalKey) {
+        AiTaskExecution latest = executionMapper.selectLatestByTaskId(task.getId());
+        AiTaskProposal proposal = latest == null || proposalKey == null ? null
+                : proposalMapper.selectByExecutionAndKey(latest.getId(), proposalKey);
+        if (proposal == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND);
         }
-        Map<String, String> confirmedActions = new LinkedHashMap<>();
-        for (AiArtifactConfirm record : confirmMapper.selectByTask(task.getId())) {
-            confirmedActions.putIfAbsent(record.getArtifactKey(), record.getAction());
-        }
-        List<AiTaskRespDTO.ArtifactSummary> summaries = new ArrayList<>();
-        for (Map<String, Object> artifact : artifacts) {
-            AiTaskRespDTO.ArtifactSummary summary = new AiTaskRespDTO.ArtifactSummary();
-            summary.setKey(asString(artifact.get("key")));
-            summary.setKind(asString(artifact.get("kind")));
-            summary.setTitle(asString(artifact.get("title")));
-            summary.setParentKey(asString(artifact.get("parentKey")));
-            String key = summary.getKey();
-            // 只读产物（如缺陷分析建议）自带 not_applicable，无确认记录时回读产物值，其余默认 pending
-            String ownStatus = asString(artifact.get("confirmStatus"));
-            summary.setConfirmStatus(key != null && confirmedActions.containsKey(key)
-                    ? confirmedActions.get(key)
-                    : (ownStatus == null || ownStatus.isBlank() ? "pending" : ownStatus));
-            summaries.add(summary);
-        }
-        return summaries;
+        return proposal;
     }
 
-    private Map<String, Object> findArtifact(AiTask task, String artifactKey) {
-        if (artifactKey == null) {
+    private static boolean isTaskTerminal(String status) {
+        return Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(status)
+                || Constants.AiTaskFlowStatus.CLOSED.equals(status)
+                || Constants.AiTaskFlowStatus.ABORTED.equals(status);
+    }
+
+    private static int elapsedSince(AiTaskExecution execution) {
+        if (execution.getCreatedAt() == null) {
+            return 0;
+        }
+        long millis = java.time.Duration.between(execution.getCreatedAt(), LocalDateTime.now()).toMillis();
+        return (int) Math.min(Math.max(millis, 0), Integer.MAX_VALUE);
+    }
+
+    private static UUID parseUuid(Object raw) {
+        if (raw == null) {
             return null;
         }
-        return artifactsOf(task).stream()
-                .filter(artifact -> artifactKey.equals(asString(artifact.get("key"))))
-                .findFirst()
-                .orElse(null);
-    }
-
-    /** result 为产物明细单一事实源（详设 2.6）；结构不符时按无产物处理 */
-    @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> artifactsOf(AiTask task) {
-        if (task.getResult() == null || !(task.getResult().get("artifacts") instanceof List<?> list)) {
-            return List.of();
+        try {
+            return UUID.fromString(String.valueOf(raw));
+        } catch (IllegalArgumentException e) {
+            return null;
         }
-        return list.stream()
-                .filter(element -> element instanceof Map)
-                .map(element -> (Map<String, Object>) element)
-                .toList();
     }
 
     private static String asString(Object value) {
         return value == null ? null : String.valueOf(value);
-    }
-
-    private static boolean isTerminal(String status) {
-        return Constants.AiTaskStatus.SUCCEEDED.equals(status)
-                || Constants.AiTaskStatus.FAILED.equals(status)
-                || Constants.AiTaskStatus.CANCELLED.equals(status);
     }
 }

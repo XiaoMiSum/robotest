@@ -13,16 +13,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * 任务主表数据访问（总册 2.6.1 新状态机：running → proposals_ready → closed / aborted）；
+ * 执行态与心跳在 {@link AiTaskExecutionMapper}，本表只做任务态流转与汇总回写。
+ */
 public interface AiTaskMapper extends BaseMapperX<AiTask> {
 
     /**
-     * 同项目同类型的进行中任务（生成链 3.6.2 同输入去重比对用）。
+     * 同项目同类型的进行中任务（生成链 3.6.2 同输入去重比对用）：
+     * 未终态 = running / proposals_ready（已 aborted / closed 不占位）。
      */
     default List<AiTask> listInProgressByType(UUID projectId, String type) {
         return selectList(new LambdaQueryWrapperX<AiTask>()
                 .eq(AiTask::getProjectId, projectId)
                 .eq(AiTask::getType, type)
-                .in(AiTask::getStatus, List.of(Constants.AiTaskStatus.PENDING, Constants.AiTaskStatus.RUNNING)));
+                .in(AiTask::getStatus, List.of(Constants.AiTaskFlowStatus.RUNNING,
+                        Constants.AiTaskFlowStatus.PROPOSALS_READY)));
     }
 
     /**
@@ -43,11 +49,11 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     }
 
     /**
-     * 进行中任务计数（详设 3.6.3 顶栏指示器）：pending + running，过滤口径与列表一致。
+     * 进行中任务计数（详设 3.6.3 顶栏指示器）：status = running（含执行挂起），过滤口径与列表一致。
      */
     default long countActive(UUID projectId, UUID submittedBy) {
         LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
-                .in(AiTask::getStatus, List.of(Constants.AiTaskStatus.PENDING, Constants.AiTaskStatus.RUNNING));
+                .eq(AiTask::getStatus, Constants.AiTaskFlowStatus.RUNNING);
         if (projectId != null) {
             wrapper.eq(AiTask::getProjectId, projectId);
         } else {
@@ -56,84 +62,9 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
         return selectCount(wrapper);
     }
 
-    /** pending → running 的 CAS 起跑（超时清扫器依赖 updated_at 走最新进度，故显式刷新） */
-    default boolean casStart(UUID id) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .eq(AiTask::getId, id)
-                .eq(AiTask::getStatus, "pending")
-                .set(AiTask::getStatus, "running")
-                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
-    }
-
-    /** 进度上报仅对 running 生效：已取消的任务不再回写 */
-    default boolean reportProgress(UUID id, int progress, String phase) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .eq(AiTask::getId, id)
-                .eq(AiTask::getStatus, "running")
-                .set(AiTask::getProgress, progress)
-                .set(AiTask::getPhase, phase)
-                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
-    }
-
-    /** running → succeeded（条件写：与取消竞争时以先到者为准） */
-    default boolean casSucceed(UUID id, Map<String, Object> result, int tokensIn, int tokensOut) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .eq(AiTask::getId, id)
-                .eq(AiTask::getStatus, "running")
-                .set(AiTask::getStatus, "succeeded")
-                .set(AiTask::getProgress, 100)
-                .set(AiTask::getPhase, null)
-                .set(AiTask::getResult, result)
-                .set(AiTask::getTokensIn, tokensIn)
-                .set(AiTask::getTokensOut, tokensOut)
-                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
-    }
-
-    /** running → failed（handler 业务失败 / 模型调用失败耗尽重试） */
-    default boolean casFail(UUID id, int errorCode, String errorMsg) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .eq(AiTask::getId, id)
-                .eq(AiTask::getStatus, "running")
-                .set(AiTask::getStatus, "failed")
-                .set(AiTask::getErrorCode, errorCode)
-                .set(AiTask::getErrorMsg, errorMsg)
-                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
-    }
-
-    /** 总开关关闭的批量副作用（详设 4.2）：全部 pending / running 置 failed */
-    default int failActive(String errorMsg, int errorCode) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .in(AiTask::getStatus, "pending", "running")
-                .set(AiTask::getStatus, "failed")
-                .set(AiTask::getErrorCode, errorCode)
-                .set(AiTask::getErrorMsg, errorMsg)
-                .set(AiTask::getUpdatedAt, LocalDateTime.now()));
-    }
-
-    /** pending / running → cancelled（3.6.4；取消后执行线程的条件写全部失效） */
-    default boolean casCancel(UUID id) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .eq(AiTask::getId, id)
-                .in(AiTask::getStatus, "pending", "running")
-                .set(AiTask::getStatus, "cancelled")
-                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
-    }
-
-    /** 超时清扫（详设 4.2）：按 status + updated_at 索引扫描，超时置 failed（1000018117） */
-    default int failStale(LocalDateTime cutoff, int errorCode, String errorMsg) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .in(AiTask::getStatus, "pending", "running")
-                .lt(AiTask::getUpdatedAt, cutoff)
-                .set(AiTask::getStatus, "failed")
-                .set(AiTask::getErrorCode, errorCode)
-                .set(AiTask::getErrorMsg, errorMsg)
-                .set(AiTask::getUpdatedAt, LocalDateTime.now()));
-    }
-
     /**
-     * 新状态机流转（总册 3.6：running → proposals_ready → closed / aborted）：
+     * 任务态流转（总册 3.6：running → proposals_ready → closed / aborted）：
      * 条件写——仅 running / proposals_ready 可流转，与终止竞争以先到者为准。
-     * 旧 cas* 方法与新状态机并存至 S3 切换后删除（迁移计划 2.7 层 A）。
      */
     default boolean markFlowStatus(UUID id, String status) {
         return update(null, new LambdaUpdateWrapperX<AiTask>()
@@ -141,6 +72,60 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
                 .in(AiTask::getStatus,
                         Constants.AiTaskFlowStatus.RUNNING, Constants.AiTaskFlowStatus.PROPOSALS_READY)
                 .set(AiTask::getStatus, status)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
+    }
+
+    /** 任务终止（用户中止 / 预算耗尽 / 执行错误 / 总开关关闭 / 心跳超时）：带终止原因，条件写同 markFlowStatus */
+    default boolean markAborted(UUID id, int terminateCode, String terminateMsg) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .eq(AiTask::getId, id)
+                .in(AiTask::getStatus,
+                        Constants.AiTaskFlowStatus.RUNNING, Constants.AiTaskFlowStatus.PROPOSALS_READY)
+                .set(AiTask::getStatus, Constants.AiTaskFlowStatus.ABORTED)
+                .set(AiTask::getTerminateCode, terminateCode)
+                .set(AiTask::getTerminateMsg, terminateMsg)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
+    }
+
+    /**
+     * 再次执行（总册 3.6.4）：aborted / proposals_ready → running，并清空上一轮终止原因；
+     * 同任务至多一个进行中执行由执行表唯一性在服务层保证。
+     */
+    default boolean markRerun(UUID id) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .eq(AiTask::getId, id)
+                .in(AiTask::getStatus,
+                        Constants.AiTaskFlowStatus.ABORTED, Constants.AiTaskFlowStatus.PROPOSALS_READY)
+                .set(AiTask::getStatus, Constants.AiTaskFlowStatus.RUNNING)
+                .set(AiTask::getTerminateCode, null)
+                .set(AiTask::getTerminateMsg, null)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
+    }
+
+    /** 总开关关闭的批量副作用（详设 4.2）：全部 running 任务置 aborted 并带终止原因，返回受影响行数 */
+    default int abortActive(int terminateCode, String terminateMsg) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .eq(AiTask::getStatus, Constants.AiTaskFlowStatus.RUNNING)
+                .set(AiTask::getStatus, Constants.AiTaskFlowStatus.ABORTED)
+                .set(AiTask::getTerminateCode, terminateCode)
+                .set(AiTask::getTerminateMsg, terminateMsg)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now()));
+    }
+
+    /** 文档级元数据落库（总册 2.6.1 result_meta，执行成功时由执行核写入一次） */
+    default boolean markResultMeta(UUID id, Map<String, Object> resultMeta) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .eq(AiTask::getId, id)
+                .set(AiTask::getResultMeta, resultMeta)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
+    }
+
+    /** 任务级 token 汇总（总册 2.6.1：跨全部执行累加，执行终态时回写） */
+    default boolean accumulateTokens(UUID id, int tokensIn, int tokensOut) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .eq(AiTask::getId, id)
+                .setSql("tokens_in = tokens_in + " + tokensIn)
+                .setSql("tokens_out = tokens_out + " + tokensOut)
                 .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
     }
 }

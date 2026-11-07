@@ -27,6 +27,10 @@ public class AiTaskAdoption extends BaseUuidDO<AiTaskAdoption> {
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID taskId;
 
+    /** 所采纳提案所属执行（与 ai_task_proposal.execution_id 对齐） */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID executionId;
+
     /** 所采纳提案在 ai_task_proposal 中的定位键 */
     private String proposalKey;
 

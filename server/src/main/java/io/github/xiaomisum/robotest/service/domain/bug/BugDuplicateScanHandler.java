@@ -210,7 +210,7 @@ public class BugDuplicateScanHandler implements TaskHandler {
 
                 Map<String, Object> artifact = new LinkedHashMap<>();
                 artifact.put("key", "group-" + (artifacts.size() + 1));
-                artifact.put("kind", Constants.AiArtifactKind.BUG_DUPLICATE_GROUP);
+                artifact.put("kind", Constants.AiProposalKind.BUG_DUPLICATE_GROUP);
                 artifact.put("title", "疑似重复分组（" + (items.size() + 1) + " 条）");
                 artifact.put("content", content);
                 // 人工确认分组结论，检测结果不自动合并、不改状态（详设 3.9）

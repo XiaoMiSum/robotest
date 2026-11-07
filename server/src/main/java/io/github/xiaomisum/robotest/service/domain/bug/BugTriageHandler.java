@@ -147,7 +147,7 @@ public class BugTriageHandler implements TaskHandler {
 
         Map<String, Object> artifact = new LinkedHashMap<>();
         artifact.put("key", "triage");
-        artifact.put("kind", Constants.AiArtifactKind.BUG_TRIAGE);
+        artifact.put("kind", Constants.AiProposalKind.BUG_TRIAGE);
         artifact.put("title", "分诊顺序建议");
         artifact.put("content", content);
         // 只读建议，不写入任何数据（详设 3.7）

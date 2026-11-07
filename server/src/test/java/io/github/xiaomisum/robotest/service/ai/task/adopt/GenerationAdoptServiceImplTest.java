@@ -6,14 +6,15 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.ProjectModuleCreateR
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseDocumentCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.ProjectModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentRespDTO;
-import io.github.xiaomisum.robotest.model.entity.ai.AiArtifactConfirm;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.ai.AiArtifactConfirmMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskAdoptionMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.ProjectModuleService;
@@ -30,6 +31,7 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,7 +65,7 @@ class GenerationAdoptServiceImplTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private AiArtifactConfirmMapper confirmMapper;
+    private AiTaskAdoptionMapper adoptionMapper;
     @Mock
     private ProjectModuleService projectModuleService;
     @Mock
@@ -153,10 +155,10 @@ class GenerationAdoptServiceImplTest {
 
     @Test
     void adoptDocument_resolvesModuleFromParentKeyAdoptedRef() {
-        AiArtifactConfirm parentRecord = new AiArtifactConfirm();
+        AiTaskAdoption parentRecord = new AiTaskAdoption();
         parentRecord.setAction("adopted");
         parentRecord.setAdoptedRef(Map.of("moduleId", String.valueOf(TARGET_MODULE_ID)));
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "module-1")).thenReturn(parentRecord);
+        when(adoptionMapper.selectByExecutionAndKey(AdoptFixtures.EXECUTION_ID, "module-1")).thenReturn(parentRecord);
         ProjectModule module = new ProjectModule();
         module.setId(TARGET_MODULE_ID);
         module.setProjectId(PROJECT_ID);
@@ -174,7 +176,7 @@ class GenerationAdoptServiceImplTest {
 
     @Test
     void adoptDocument_parentModuleNotAdopted_throws20210() {
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "module-1")).thenReturn(null);
+        when(adoptionMapper.selectByExecutionAndKey(AdoptFixtures.EXECUTION_ID, "module-1")).thenReturn(null);
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> adopter.adopt(context(documentArtifact(), "adopted", editor())));
@@ -218,7 +220,7 @@ class GenerationAdoptServiceImplTest {
 
     @Test
     void adoptCaseNode_documentNotAdopted_throws20210() {
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "doc-1")).thenReturn(null);
+        when(adoptionMapper.selectByExecutionAndKey(AdoptFixtures.EXECUTION_ID, "doc-1")).thenReturn(null);
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> adopter.adopt(context(caseArtifact(), "adopted", editor())));
@@ -247,10 +249,10 @@ class GenerationAdoptServiceImplTest {
     // ---------- 辅助 ----------
 
     private void stubDocumentAdopted() {
-        AiArtifactConfirm record = new AiArtifactConfirm();
+        AiTaskAdoption record = new AiTaskAdoption();
         record.setAction("adopted");
         record.setAdoptedRef(Map.of("documentId", String.valueOf(DOCUMENT_ID)));
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "doc-1")).thenReturn(record);
+        when(adoptionMapper.selectByExecutionAndKey(AdoptFixtures.EXECUTION_ID, "doc-1")).thenReturn(record);
     }
 
     private static LoginUser editor() {
@@ -271,8 +273,8 @@ class GenerationAdoptServiceImplTest {
 
     private AdoptContext context(Map<String, Object> artifact, String action, LoginUser user,
             UUID targetModuleId, Map<String, Object> content) {
-        return new AdoptContext(task, artifact, action, content, null, targetModuleId, null,
-                null, null, null, null, null, null, PROJECT_ID, OPERATOR_ID, user);
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, content, null, targetModuleId, null,
+                null, null, null, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), user);
     }
 
     private static Map<String, Object> moduleArtifact() {

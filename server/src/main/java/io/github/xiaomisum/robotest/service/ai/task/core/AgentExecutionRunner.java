@@ -25,6 +25,7 @@ import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -49,9 +50,10 @@ import java.util.stream.Collectors;
  * Agent 执行核（总册 4.2）：通用循环驱动——计划快照入轨迹、白名单内工具调用
  * （清单拒绝 → 参数校验 → 权限与作用域鉴权 → 执行 → 结果回喂）、预算闸门与心跳；
  * 终态统一落提案 / 执行 / 任务三处并写轨迹。核内没有任何任务形态分支，
- * 形态差异全部收敛在 {@link TaskTypeAdapter}（S3 接线，本类当前无调用方）。
+ * 形态差异全部收敛在 {@link TaskTypeAdapter}。
  *
- * <p>成本维度：执行级 cost 汇总待用量 execution_id 归因接入（S3）后生效，S2 恒为 0。</p>
+ * <p>成本维度：逐跳按模型单价累计（详设 4.3 公式），随心跳与终态落执行级 cost，
+ * 预算 cost 维度据此判定；用量明细的 execution_id 归因由 AiChatRequest 承载。</p>
  */
 @Component
 public class AgentExecutionRunner {
@@ -86,17 +88,18 @@ public class AgentExecutionRunner {
     private UserDetailsBridgeImpl userDetailsBridge;
 
     /**
-     * 执行入参：任务与执行行由任务资源服务创建（S3），模型由调用方按能力选型解析后传入；
-     * 作用域标识经请求头固化（C4）。
+     * 执行入参：任务与执行行由任务资源服务创建，模型由调用方按能力选型解析后传入；
+     * 作用域标识经请求头固化（C4）；feedback 为再次执行的重新生成反馈（可空）。
      */
     public record RunContext(AiTask task, AiTaskExecution execution, AiModelConfig model,
-            UUID workspaceId, UUID projectId) {
+            UUID workspaceId, UUID projectId, String feedback) {
     }
 
     /**
-     * 驱动一次执行至终态（同步；异步触发与等待语义归任务资源服务）。
+     * 驱动一次执行至终态（异步；经 Spring 代理调用时异步执行，服务层负责触发时机与等待语义）。
      * 任何异常都不外抛——失败路径统一置执行与任务 aborted 并留轨迹。
      */
+    @Async
     public void run(RunContext ctx) {
         AiTask task = ctx.task();
         AiTaskExecution execution = ctx.execution();
@@ -104,7 +107,7 @@ public class AgentExecutionRunner {
         TaskTypeAdapter adapter = adapterRegistry.get(task.getType());
         if (adapter == null) {
             terminate(execution, task, ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(),
-                    "不支持的任务类型", 0, 0, 0, startMs);
+                    "不支持的任务类型", 0, 0, 0, BigDecimal.ZERO, startMs);
             return;
         }
         Map<String, Object> budget = execution.getBudget() == null ? Map.of() : execution.getBudget();
@@ -121,21 +124,22 @@ public class AgentExecutionRunner {
         int steps = 0;
         long tokensIn = 0;
         long tokensOut = 0;
+        BigDecimal cost = BigDecimal.ZERO;
         try {
             AiChatRequest request = chatRequest(adapter, task, ctx);
             String finalOutput = null;
             for (int hop = 0; hop < maxSteps; hop++) {
                 if (budgetGuard.exceeded(budget,
-                        BudgetGuard.Consumed.of(steps, elapsedSeconds(startMs), tokensIn, tokensOut,
-                                BigDecimal.ZERO))) {
+                        BudgetGuard.Consumed.of(steps, elapsedSeconds(startMs), tokensIn, tokensOut, cost))) {
                     terminate(execution, task, ErrorCodeConstants.AI_EXECUTION_FINISHED.code(),
-                            "预算耗尽", steps, tokensIn, tokensOut, startMs);
+                            "预算耗尽", steps, tokensIn, tokensOut, cost, startMs);
                     return;
                 }
                 AiChatReply reply = modelClient.chatWithToolDeclarations(request, declarations, turns);
                 steps++;
                 tokensIn += reply.tokensIn();
                 tokensOut += reply.tokensOut();
+                cost = cost.add(AiModelClient.calculateCost(ctx.model(), reply.tokensIn(), reply.tokensOut()));
                 if (hop == 0 && !reply.toolCalls().isEmpty()
                         && ModelOutputSupport.trimToNull(reply.content()) != null) {
                     // 计划快照：首跳带工具的正文视为计划（可见思考产物，不作为执行依据）
@@ -144,7 +148,10 @@ public class AgentExecutionRunner {
                             "执行计划", plan);
                     executionMapper.markPlan(execution.getId(), plan);
                 }
-                executionMapper.heartbeat(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut));
+                if (!executionMapper.heartbeat(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut), cost)) {
+                    // 执行已被外部终止（用户中止 / 清扫）：停跑，终止路径已留轨迹
+                    return;
+                }
                 if (reply.toolCalls().isEmpty()) {
                     finalOutput = reply.content();
                     break;
@@ -159,50 +166,61 @@ public class AgentExecutionRunner {
                             "工具结果 " + call.name(), Map.of("result",
                                     ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(result), RESULT_ABBREV)));
                     turns.add(toolTurn(call, result));
-                    executionMapper.heartbeat(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut));
+                    if (!executionMapper.heartbeat(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut),
+                            cost)) {
+                        return;
+                    }
                     if (budgetGuard.exceeded(budget,
-                            BudgetGuard.Consumed.of(steps, elapsedSeconds(startMs), tokensIn, tokensOut,
-                                    BigDecimal.ZERO))) {
+                            BudgetGuard.Consumed.of(steps, elapsedSeconds(startMs), tokensIn, tokensOut, cost))) {
                         terminate(execution, task, ErrorCodeConstants.AI_EXECUTION_FINISHED.code(),
-                                "预算耗尽", steps, tokensIn, tokensOut, startMs);
+                                "预算耗尽", steps, tokensIn, tokensOut, cost, startMs);
                         return;
                     }
                 }
             }
             if (finalOutput == null) {
                 terminate(execution, task, ErrorCodeConstants.AI_EXECUTION_FINISHED.code(),
-                        "步数预算耗尽", steps, tokensIn, tokensOut, startMs);
+                        "步数预算耗尽", steps, tokensIn, tokensOut, cost, startMs);
                 return;
             }
-            finish(adapter, task, execution, finalOutput, steps, tokensIn, tokensOut, startMs);
+            finish(adapter, task, execution, finalOutput, steps, tokensIn, tokensOut, cost, startMs);
         } catch (ServiceException e) {
-            terminate(execution, task, e.getCode(), e.getMessage(), steps, tokensIn, tokensOut, startMs);
+            terminate(execution, task, e.getCode(), e.getMessage(), steps, tokensIn, tokensOut, cost, startMs);
         } catch (DuplicateKeyException e) {
-            // 提案键任务内重复：适配器生成缺陷，按幂等冲突终止（总册 2.6.4 uk 兜底）
-            terminate(execution, task, ErrorCodeConstants.AI_ARTIFACT_ALREADY_CONFIRMED.code(),
-                    "提案键重复", steps, tokensIn, tokensOut, startMs);
+            // 提案键执行内重复：适配器生成缺陷，按幂等冲突终止（总册 2.6.4 uk 兜底）
+            terminate(execution, task, ErrorCodeConstants.AI_PROPOSAL_ALREADY_CONFIRMED.code(),
+                    "提案键重复", steps, tokensIn, tokensOut, cost, startMs);
         } catch (RuntimeException e) {
             log.warn("[AI] 执行核运行失败 taskId={} type={}", task.getId(), task.getType(), e);
             terminate(execution, task, ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
-                    "执行核运行异常: " + e.getMessage(), steps, tokensIn, tokensOut, startMs);
+                    "执行核运行异常: " + e.getMessage(), steps, tokensIn, tokensOut, cost, startMs);
         }
     }
 
     // ---------- 终态 ----------
 
-    /** 末跳产出 → 提案落库 / 执行 succeeded / 任务 proposals_ready 或 closed */
+    /** 末跳产出 → 执行 succeeded（条件写）→ 提案落库 / 任务 proposals_ready 或 closed / result_meta 回写 */
     private void finish(TaskTypeAdapter adapter, AiTask task, AiTaskExecution execution,
-            String finalOutput, int steps, long tokensIn, long tokensOut, long startMs) {
+            String finalOutput, int steps, long tokensIn, long tokensOut, BigDecimal cost, long startMs) {
         if (ModelOutputSupport.trimToNull(finalOutput) == null) {
             terminate(execution, task, ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
-                    "模型无有效输出", steps, tokensIn, tokensOut, startMs);
+                    "模型无有效输出", steps, tokensIn, tokensOut, cost, startMs);
             return;
         }
         List<ProposalDraft> drafts = adapter.buildProposals(finalOutput, task.getInput());
         int durationMs = durationMs(startMs);
+        // succeeded 条件写先行：与用户终止竞争，失败即执行已被终止，不产生任何提案（3.6.4）
+        if (!executionMapper.succeed(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut),
+                cost, durationMs)) {
+            return;
+        }
+        Map<String, Object> resultMeta = adapter.buildResultMeta(finalOutput, task.getInput());
+        if (resultMeta != null) {
+            taskMapper.markResultMeta(task.getId(), resultMeta);
+        }
+        taskMapper.accumulateTokens(task.getId(), clamp(tokensIn), clamp(tokensOut));
         if (drafts == null || drafts.isEmpty()) {
             // 只读结论类（摘要、排序建议）：执行完成即任务 closed（迁移计划 R7）
-            executionMapper.succeed(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut), durationMs);
             traceRecorder.record(execution.getId(), Constants.AiTraceEventType.STATUS_CHANGE,
                     "执行完成，无待采纳提案", Map.of("execution", "succeeded"));
             taskMapper.markFlowStatus(task.getId(), Constants.AiTaskFlowStatus.CLOSED);
@@ -213,6 +231,7 @@ public class AgentExecutionRunner {
         for (ProposalDraft draft : drafts) {
             AiTaskProposal proposal = new AiTaskProposal();
             proposal.setTaskId(task.getId());
+            proposal.setExecutionId(execution.getId());
             proposal.setProposalKey(draft.proposalKey());
             proposal.setKind(draft.kind());
             proposal.setParentKey(draft.parentKey());
@@ -225,7 +244,6 @@ public class AgentExecutionRunner {
                     Map.of("proposalKey", ModelOutputSupport.nvl(draft.proposalKey()),
                             "kind", ModelOutputSupport.nvl(draft.kind())));
         }
-        executionMapper.succeed(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut), durationMs);
         traceRecorder.record(execution.getId(), Constants.AiTraceEventType.STATUS_CHANGE,
                 "执行完成，产出 " + drafts.size() + " 项提案", Map.of("execution", "succeeded"));
         taskMapper.markFlowStatus(task.getId(), Constants.AiTaskFlowStatus.PROPOSALS_READY);
@@ -233,17 +251,18 @@ public class AgentExecutionRunner {
                 "任务待采纳", Map.of("task", Constants.AiTaskFlowStatus.PROPOSALS_READY));
     }
 
-    /** 失败 / 中止路径：执行 aborted（terminate_code）+ 任务 aborted，轨迹保留可查（人工验收 5） */
+    /** 失败 / 中止路径：执行 aborted（terminate_code）+ 任务 aborted（带终止原因），轨迹保留可查（人工验收 5） */
     private void terminate(AiTaskExecution execution, AiTask task, int code, String message,
-            int steps, long tokensIn, long tokensOut, long startMs) {
+            int steps, long tokensIn, long tokensOut, BigDecimal cost, long startMs) {
         String msg = fit(ModelOutputSupport.nvl(message), MSG_MAX);
         executionMapper.abort(execution.getId(), code, msg,
-                steps, clamp(tokensIn), clamp(tokensOut), durationMs(startMs));
+                steps, clamp(tokensIn), clamp(tokensOut), cost, durationMs(startMs));
         traceRecorder.record(execution.getId(), Constants.AiTraceEventType.STATUS_CHANGE,
                 "执行终止: " + msg, Map.of("terminateCode", code));
-        taskMapper.markFlowStatus(task.getId(), Constants.AiTaskFlowStatus.ABORTED);
+        taskMapper.markAborted(task.getId(), code, msg);
         traceRecorder.record(execution.getId(), Constants.AiTraceEventType.STATUS_CHANGE,
                 "任务终止", Map.of("task", Constants.AiTaskFlowStatus.ABORTED, "terminateCode", code));
+        taskMapper.accumulateTokens(task.getId(), clamp(tokensIn), clamp(tokensOut));
     }
 
     // ---------- 工具分发（不信赖模型：清单外 / 参数非法 / 权限不足一律回喂，不中断循环） ----------
@@ -313,9 +332,11 @@ public class AgentExecutionRunner {
 
     private AiChatRequest chatRequest(TaskTypeAdapter adapter, AiTask task, RunContext ctx) {
         String userPrompt = "任务类型: " + task.getType()
-                + "\n任务输入:\n" + JsonUtils.toJsonString(task.getInput());
-        return new AiChatRequest(task.getId(), ctx.projectId(), task.getSubmittedBy(), task.getType(),
-                ctx.model(), adapter.systemPrompt(), userPrompt);
+                + "\n任务输入:\n" + JsonUtils.toJsonString(task.getInput())
+                + (ModelOutputSupport.trimToNull(ctx.feedback()) == null
+                        ? "" : "\n用户反馈:\n" + ctx.feedback());
+        return new AiChatRequest(task.getId(), ctx.execution().getId(), ctx.projectId(), task.getSubmittedBy(),
+                task.getType(), ctx.model(), adapter.systemPrompt(), userPrompt);
     }
 
     private static Message assistantTurn(AiChatReply reply) {

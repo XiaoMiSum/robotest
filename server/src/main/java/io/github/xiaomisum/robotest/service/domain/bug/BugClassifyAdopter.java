@@ -5,7 +5,7 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -26,7 +26,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 驳回不落库。
  */
 @Service
-public class BugClassifyAdopter implements ArtifactAdopter {
+public class BugClassifyAdopter implements ProposalAdopter {
 
     private static final int KEYWORD_JOIN_LIMIT = 5;
 
@@ -40,12 +40,12 @@ public class BugClassifyAdopter implements ArtifactAdopter {
 
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
-        if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
             return null;
         }
         // 调整后采纳（总册 3.6）以编辑内容为准，直接采纳取产物原内容
         Map<String, Object> content = context.content() != null ? context.content()
-                : asMap(asMap(context.artifact()).get("content"));
+                : context.proposalContent();
         UUID bugId = parseBugId(content, context);
         Map<String, Object> suggestions = asMap(content.get("suggestions"));
 

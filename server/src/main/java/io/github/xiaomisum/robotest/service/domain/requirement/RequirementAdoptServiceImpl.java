@@ -60,14 +60,14 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
 
         UUID createdId = null;
         Map<String, Object> adoptedRef = null;
-        if (!Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        if (!Constants.AiProposalAction.REJECTED.equals(context.action())) {
             createdId = createRequirement(context, record).getId();
             adoptedRef = Map.of("requirementId", createdId.toString());
             vectorIndexService.upsertRequirement(createdId, context.operatorId());
         }
 
         Map<String, Object> merged = mergeAdoptResult(record, context, createdId);
-        boolean allProcessed = isAllProcessed(task, merged);
+        boolean allProcessed = isAllProcessed(context, merged);
         String status = !allProcessed ? SPLIT_PENDING
                 : adoptedCount(merged) > 0 ? SPLIT_ADOPTED : SPLIT_REJECTED;
 
@@ -143,17 +143,13 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
         return item;
     }
 
-    /** 编辑后采纳取确认请求内容，普通采纳取产物原内容（3.6.5） */
+    /** 编辑后采纳取确认请求内容，普通采纳取提案原内容（3.6.5） */
     private static Map<String, Object> effectiveContent(AdoptContext context) {
         Map<String, Object> edited = context.content();
         if (edited != null && !edited.isEmpty()) {
             return edited;
         }
-        Map<String, Object> content = new LinkedHashMap<>();
-        if (context.artifact().get("content") instanceof Map<?, ?> raw) {
-            raw.forEach((k, v) -> content.put(String.valueOf(k), v));
-        }
-        return content;
+        return new LinkedHashMap<>(context.proposalContent());
     }
 
     private UUID resolveModuleId(Object raw, UUID projectId) {
@@ -205,10 +201,10 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
         return version;
     }
 
-    /** 文档级识别结果（3.8 documentMeta）：与导入侧清洗同口径，不可信值一律 null */
+    /** 文档级识别结果（3.8 documentMeta，落任务 result_meta）：与导入侧清洗同口径，不可信值一律 null */
     private static String detectedVersion(AiTask task) {
-        if (task == null || task.getResult() == null
-                || !(task.getResult().get("documentMeta") instanceof Map<?, ?> meta)) {
+        Map<String, Object> meta = task == null ? null : task.getResultMeta();
+        if (meta == null) {
             return null;
         }
         String version = asString(meta.get("detectedVersion"));
@@ -235,8 +231,8 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
                 rejected.addAll(list);
             }
         }
-        String artifactKey = asString(context.artifact().get("key"));
-        if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        String artifactKey = context.proposal().getProposalKey();
+        if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
             rejected.add(artifactKey);
         } else {
             adopted.add(Map.of("artifactKey", artifactKey, "requirementId", createdId.toString()));
@@ -248,16 +244,9 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
         return merged;
     }
 
-    /** 全部产物处理完（3.11 status 口径）：已处理键集覆盖任务 result.artifacts 全量键 */
-    private static boolean isAllProcessed(AiTask task, Map<String, Object> merged) {
-        Set<String> allKeys = new HashSet<>();
-        if (task.getResult() != null && task.getResult().get("artifacts") instanceof List<?> list) {
-            for (Object element : list) {
-                if (element instanceof Map<?, ?> artifact && artifact.get("key") != null) {
-                    allKeys.add(String.valueOf(artifact.get("key")));
-                }
-            }
-        }
+    /** 全部提案处理完（3.11 status 口径）：已处理键集覆盖最新一次执行的提案键全集（上下文传入） */
+    private static boolean isAllProcessed(AdoptContext context, Map<String, Object> merged) {
+        Set<String> allKeys = context.allProposalKeys() == null ? Set.of() : context.allProposalKeys();
         if (allKeys.isEmpty()) {
             return false;
         }

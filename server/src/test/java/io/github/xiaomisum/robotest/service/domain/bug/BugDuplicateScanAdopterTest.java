@@ -4,11 +4,13 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,9 +33,10 @@ class BugDuplicateScanAdopterTest {
         Map<String, Object> artifact = Map.of("key", "group-1",
                 "content", Map.of("canonicalBugId", canonicalId.toString(),
                         "items", List.of(Map.of("bugId", UUID.randomUUID().toString()))));
-        AdoptContext context = new AdoptContext(task, artifact, Constants.AiArtifactAction.ADOPTED,
+        AdoptContext context = new AdoptContext(task, AdoptFixtures.proposal(artifact),
+                Constants.AiProposalAction.ADOPTED,
                 null, "确认为重复", null, null, null, null, null, null, null, null,
-                UUID.randomUUID(), UUID.randomUUID(), (LoginUser) null);
+                UUID.randomUUID(), UUID.randomUUID(), Set.of(), (LoginUser) null);
 
         AdoptOutcome outcome = adopter.adopt(context);
 

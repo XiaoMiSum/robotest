@@ -59,7 +59,7 @@ public class PlanSelectionHandler extends AbstractSelectionHandler {
 
     @Override
     protected String selectionKind() {
-        return Constants.AiArtifactKind.PLAN_SELECTION;
+        return Constants.AiProposalKind.PLAN_SELECTION;
     }
 
     @Override

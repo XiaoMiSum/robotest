@@ -1,19 +1,35 @@
 package io.github.xiaomisum.robotest.service.ai.task;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskConfirmReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskExecutionCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiTaskSubmitReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskConfirmRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskEventsRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskProposalRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
-import io.github.xiaomisum.robotest.model.entity.ai.AiArtifactConfirm;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
-import io.github.xiaomisum.robotest.repository.ai.AiArtifactConfirmMapper;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskProposal;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskTraceEvent;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskAdoptionMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskProposalMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskTraceEventMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
+import io.github.xiaomisum.robotest.service.ai.task.core.AgentExecutionRunner;
+import io.github.xiaomisum.robotest.service.ai.task.core.BudgetGuard;
+import io.github.xiaomisum.robotest.service.ai.task.core.TraceRecorder;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,8 +42,11 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,43 +58,64 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * 统一任务资源（总册 3.6）单测：提交（创建即启动）、列表 / 详情、轨迹、终止 / 再次执行、
+ * 提案确认逐项事务与跨层查询入口。
+ */
 @ExtendWith(MockitoExtension.class)
 class AiTaskServiceImplTest {
 
     private static final UUID TASK_ID = UUID.randomUUID();
+    private static final UUID EXEC_ID = UUID.randomUUID();
+    private static final UUID PREV_EXEC_ID = UUID.randomUUID();
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID MODEL_ID = UUID.randomUUID();
     private static final String TYPE = "requirement_import";
+    private static final Map<String, Object> BUDGET = Map.of(
+            "maxSteps", 40, "maxDurationSeconds", 600, "maxTokens", 200000, "maxCost", 5);
 
     @Mock
     private AiTaskMapper taskMapper;
     @Mock
-    private AiArtifactConfirmMapper confirmMapper;
+    private AiTaskExecutionMapper executionMapper;
+    @Mock
+    private AiTaskProposalMapper proposalMapper;
+    @Mock
+    private AiTaskAdoptionMapper adoptionMapper;
+    @Mock
+    private AiTaskTraceEventMapper traceEventMapper;
     @Mock
     private AiSettingsReader settingsReader;
     @Mock
-    private TaskHandlerRegistry handlerRegistry;
+    private TaskTypeAdapterRegistry adapterRegistry;
     @Mock
-    private ArtifactAdopterRegistry adopterRegistry;
+    private BudgetGuard budgetGuard;
     @Mock
-    private AiTaskExecutor taskExecutor;
+    private ProposalAdopterRegistry adopterRegistry;
+    @Mock
+    private AgentExecutionRunner executionRunner;
+    @Mock
+    private TraceRecorder traceRecorder;
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
-    private TaskHandler handler;
+    private RequirementMapper requirementMapper;
+    @Mock
+    private TaskTypeAdapter adapter;
 
     @InjectMocks
     private AiTaskServiceImpl service;
@@ -95,17 +135,472 @@ class AiTaskServiceImplTest {
         lenient().when(settingsReader.settings())
                 .thenReturn(new AiSettingsReader.AiSettings(true, MODEL_ID, 600, 2));
         lenient().when(settingsReader.usableModel()).thenReturn(model());
-        lenient().when(handlerRegistry.get(TYPE)).thenReturn(handler);
+        lenient().when(adapterRegistry.get(TYPE)).thenReturn(adapter);
+        lenient().when(budgetGuard.sign(any(), any())).thenReturn(BUDGET);
         // 纯单测无 MP 主键填充：插入桩补写 id，保证后续按 id 流转
         lenient().doAnswer(invocation -> {
             AiTask entity = invocation.getArgument(0);
             if (entity.getId() == null) {
-                entity.setId(UUID.randomUUID());
+                entity.setId(TASK_ID);
             }
             return 1;
         }).when(taskMapper).insert(any(AiTask.class));
+        lenient().doAnswer(invocation -> {
+            AiTaskExecution entity = invocation.getArgument(0);
+            if (entity.getId() == null) {
+                entity.setId(EXEC_ID);
+            }
+            return 1;
+        }).when(executionMapper).insert(any(AiTaskExecution.class));
         lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
     }
+
+    // ---------- 3.6.2 提交（创建即启动） ----------
+
+    @Test
+    void submit_waitSecondsInvalid_throws123() {
+        AiTaskSubmitReqDTO req = submitReq(11);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.submit(req, PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_WAIT_SECONDS_INVALID.code(), exception.getCode());
+        verifyNoInteractions(taskMapper, executionRunner);
+    }
+
+    @Test
+    void submit_switchOff_throws101() {
+        when(settingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(false, MODEL_ID, 600, 2));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
+    }
+
+    @Test
+    void submit_unknownType_throws114() {
+        when(adapterRegistry.get(TYPE)).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), exception.getCode());
+    }
+
+    @Test
+    void submit_inputInvalid_throws115() {
+        org.mockito.Mockito.doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID))
+                .when(adapter).validateInput(any(), any());
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
+        verify(taskMapper, never()).insert(any(AiTask.class));
+    }
+
+    @Test
+    void submit_budgetOverUpperBound_throws126() {
+        when(budgetGuard.sign(any(), any()))
+                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_EXECUTION_BUDGET_INVALID));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_EXECUTION_BUDGET_INVALID.code(), exception.getCode());
+    }
+
+    @Test
+    void submit_success_createsTaskAndExecution_triggersRunner() {
+        when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(0);
+
+        AiTaskRespDTO resp = service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
+
+        ArgumentCaptor<AiTask> taskCaptor = ArgumentCaptor.forClass(AiTask.class);
+        verify(taskMapper).insert(taskCaptor.capture());
+        AiTask created = taskCaptor.getValue();
+        assertEquals(Constants.AiTaskFlowStatus.RUNNING, created.getStatus());
+        assertEquals(TYPE, created.getType());
+        assertEquals(PROJECT_ID, created.getProjectId());
+        assertEquals(WORKSPACE_ID, created.getWorkspaceId());
+        assertEquals(USER_ID, created.getSubmittedBy());
+
+        ArgumentCaptor<AiTaskExecution> execCaptor = ArgumentCaptor.forClass(AiTaskExecution.class);
+        verify(executionMapper).insert(execCaptor.capture());
+        AiTaskExecution execution = execCaptor.getValue();
+        assertEquals(TASK_ID, execution.getTaskId());
+        assertEquals(1, execution.getSeq());
+        assertEquals(Constants.AiTaskExecutionStatus.RUNNING, execution.getStatus());
+        assertEquals(MODEL_ID, execution.getModelId());
+        assertEquals(BUDGET, execution.getBudget());
+        assertNotNull(execution.getHeartbeatAt());
+
+        assertNotNull(resp.getExecutionId());
+        assertEquals(BUDGET, resp.getBudget());
+        assertEquals(Constants.AiTaskFlowStatus.RUNNING, resp.getStatus());
+        // 创建即启动：无活动事务时直接触发执行核（@Async）
+        verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+    }
+
+    @Test
+    void submit_capabilityVision_resolvesVisionModel() {
+        when(adapter.requiredCapability(any(), any())).thenReturn("vision");
+        when(settingsReader.resolveModel(null, "vision")).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED.code(), exception.getCode());
+    }
+
+    @Test
+    void submit_waitSeconds_terminalTask_returnsDetail() {
+        when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(0);
+        AiTask running = task(Constants.AiTaskFlowStatus.RUNNING);
+        AiTask done = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(running, done);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+
+        AiTaskRespDTO resp = service.submit(submitReq(1), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
+
+        assertEquals(Constants.AiTaskFlowStatus.PROPOSALS_READY, resp.getStatus());
+        assertEquals(EXEC_ID, resp.getLatestExecution().getExecutionId());
+    }
+
+    @Test
+    void submitInternal_sameValidationPath_disabled_throws101() {
+        when(settingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(false, MODEL_ID, 600, 2));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.submitInternal(TYPE, Map.of("fileId", "f-1"), USER_ID, PROJECT_ID, WORKSPACE_ID));
+        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
+    }
+
+    // ---------- 3.6.3 列表、计数与详情 ----------
+
+    @Test
+    void page_mapsListItems() {
+        AiTaskPageReqDTO pageReq = new AiTaskPageReqDTO();
+        when(taskMapper.findPage(pageReq, PROJECT_ID, USER_ID, null, null))
+                .thenReturn(new PageResult<>(List.of(task(Constants.AiTaskFlowStatus.RUNNING)), 1L));
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("running"));
+
+        PageResult<AiTaskRespDTO> page = service.page(pageReq, PROJECT_ID, USER_ID);
+
+        assertEquals(1, page.getTotal());
+        assertEquals(TASK_ID, page.getList().get(0).getTaskId());
+        assertEquals(EXEC_ID, page.getList().get(0).getLatestExecution().getExecutionId());
+        // 列表项不下发 resultMeta / proposals / documentMeta（3.6.3）
+        assertNull(page.getList().get(0).getProposals());
+        assertNull(page.getList().get(0).getDocumentMeta());
+    }
+
+    @Test
+    void countActive_returnsRunningCount() {
+        when(taskMapper.countActive(PROJECT_ID, USER_ID)).thenReturn(3L);
+
+        AiTaskCountRespDTO resp = service.countActive(PROJECT_ID, USER_ID, loginUser);
+        assertEquals(Long.valueOf(3L), resp.getCount());
+    }
+
+    @Test
+    void detail_notVisible_throws110() {
+        AiTask others = task(Constants.AiTaskFlowStatus.RUNNING);
+        others.setSubmittedBy(OTHER_ID);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(others);
+        loginUser.setActiveProjectId(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.getDetail(TASK_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
+    void detail_proposalsReady_returnsLatestExecutionProposals() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
+        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(adoption("p1", "adopted")));
+
+        AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
+
+        assertEquals(1, resp.getProposals().size());
+        assertEquals("p1", resp.getProposals().get(0).getKey());
+        // 有采纳记录时按动作回填（3.6.3）
+        assertEquals("adopted", resp.getProposals().get(0).getConfirmStatus());
+        assertNotNull(resp.getLatestExecution());
+    }
+
+    @Test
+    void detail_missingTask_throws110() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.getDetail(TASK_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
+    void getProposal_returnsContentWithAdoptedStatus() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        AiTaskProposal proposal = proposal("p1", "pending");
+        when(proposalMapper.selectByExecutionAndKey(EXEC_ID, "p1")).thenReturn(proposal);
+        when(adoptionMapper.selectByExecutionAndKey(EXEC_ID, "p1")).thenReturn(adoption("p1", "adopted_edited"));
+
+        AiTaskProposalRespDTO resp = service.getProposal(TASK_ID, "p1", loginUser);
+
+        assertEquals("adopted_edited", resp.getConfirmStatus());
+        assertEquals("T", resp.getTitle());
+        assertNotNull(resp.getContent());
+    }
+
+    @Test
+    void getProposal_missing_throws112() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecutionAndKey(EXEC_ID, "nope")).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.getProposal(TASK_ID, "nope", loginUser));
+        assertEquals(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND.code(), exception.getCode());
+    }
+
+    // ---------- 3.6.4 轨迹、终止与再次执行 ----------
+
+    @Test
+    void events_cursorPaging_returnsNextSeq() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.RUNNING));
+        when(executionMapper.selectById(EXEC_ID)).thenReturn(execution("running"));
+        AiTaskTraceEvent first = traceEvent(1);
+        AiTaskTraceEvent second = traceEvent(2);
+        when(traceEventMapper.selectAfterSeq(EXEC_ID, 0, 200)).thenReturn(List.of(first, second));
+
+        AiTaskEventsRespDTO resp = service.getEvents(TASK_ID, EXEC_ID, 0, null, loginUser);
+
+        assertEquals(2, resp.getItems().size());
+        assertEquals(2, resp.getNextSeq());
+    }
+
+    @Test
+    void events_executionOfAnotherTask_throws125() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.RUNNING));
+        when(executionMapper.selectById(EXEC_ID)).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.getEvents(TASK_ID, EXEC_ID, null, null, loginUser));
+        assertEquals(ErrorCodeConstants.AI_EXECUTION_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
+    void abort_runningExecution_abortsExecutionAndTask() {
+        when(taskMapper.selectById(TASK_ID))
+                .thenReturn(task(Constants.AiTaskFlowStatus.RUNNING),
+                        task(Constants.AiTaskFlowStatus.ABORTED));
+        AiTaskExecution running = execution("running");
+        when(executionMapper.selectById(EXEC_ID)).thenReturn(running);
+        when(executionMapper.abort(eq(EXEC_ID), eq(ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code()),
+                eq("用户中止"), anyInt(), anyInt(), anyInt(), any(), anyInt())).thenReturn(true);
+
+        AiTaskRespDTO resp = service.abort(TASK_ID, EXEC_ID, loginUser);
+
+        verify(taskMapper).markAborted(TASK_ID, ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), "用户中止");
+        verify(taskMapper).accumulateTokens(TASK_ID, running.getTokensIn(), running.getTokensOut());
+        verify(traceRecorder, times(2)).record(eq(EXEC_ID), eq(Constants.AiTraceEventType.STATUS_CHANGE),
+                anyString(), any());
+        assertEquals(Constants.AiTaskFlowStatus.ABORTED, resp.getStatus());
+    }
+
+    @Test
+    void abort_alreadyFinished_throws127() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.RUNNING));
+        when(executionMapper.selectById(EXEC_ID)).thenReturn(execution("succeeded"));
+        when(executionMapper.abort(eq(EXEC_ID), anyInt(), anyString(), anyInt(), anyInt(), anyInt(),
+                any(), anyInt())).thenReturn(false);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.abort(TASK_ID, EXEC_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_EXECUTION_FINISHED.code(), exception.getCode());
+        verify(taskMapper, never()).markAborted(any(), anyInt(), anyString());
+    }
+
+    @Test
+    void reExecute_wrongStatus_throws111() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.RUNNING));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.reExecute(TASK_ID, new AiTaskExecutionCreateReqDTO(), loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
+        verify(executionMapper, never()).insert(any(AiTaskExecution.class));
+    }
+
+    @Test
+    void reExecute_proposalsReady_createsNextExecution() {
+        AiTask ready = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        AiTask running = task(Constants.AiTaskFlowStatus.RUNNING);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(ready, running);
+        when(executionMapper.countActiveByTaskId(TASK_ID)).thenReturn(0L);
+        AiTaskExecution previous = execution("succeeded");
+        previous.setId(PREV_EXEC_ID);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
+        when(settingsReader.resolveModel(MODEL_ID, null)).thenReturn(model());
+        when(taskMapper.markRerun(TASK_ID)).thenReturn(true);
+        when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(1);
+
+        AiTaskExecutionCreateReqDTO req = new AiTaskExecutionCreateReqDTO();
+        req.setFeedback("粒度细化到场景级");
+        AiTaskRespDTO resp = service.reExecute(TASK_ID, req, loginUser);
+
+        ArgumentCaptor<AiTaskExecution> captor = ArgumentCaptor.forClass(AiTaskExecution.class);
+        verify(executionMapper).insert(captor.capture());
+        AiTaskExecution created = captor.getValue();
+        assertEquals(2, created.getSeq());
+        assertEquals(PREV_EXEC_ID, created.getRetryOfExecutionId());
+        assertEquals(MODEL_ID, created.getModelId());
+        assertEquals(BUDGET, created.getBudget());
+        assertNotNull(resp.getExecutionId());
+        verify(taskMapper).markRerun(TASK_ID);
+        verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+    }
+
+    @Test
+    void reExecute_activeExecutionExists_throws111() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.ABORTED));
+        when(executionMapper.countActiveByTaskId(TASK_ID)).thenReturn(1L);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.reExecute(TASK_ID, null, loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
+    }
+
+    // ---------- 3.6.5 提案确认（逐项事务） ----------
+
+    private AiTaskConfirmReqDTO confirmReq(String key, String action) {
+        AiTaskConfirmReqDTO req = new AiTaskConfirmReqDTO();
+        AiTaskConfirmReqDTO.ConfirmItemReqDTO item = new AiTaskConfirmReqDTO.ConfirmItemReqDTO();
+        item.setKey(key);
+        item.setAction(action);
+        req.setItems(List.of(item));
+        return req;
+    }
+
+    private void stubProposalsReadyWith(AiTaskProposal proposal) {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecution(EXEC_ID))
+                .thenReturn(proposal == null ? List.of() : List.of(proposal));
+    }
+
+    @Test
+    void confirm_taskNotProposalsReady_throws111() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.RUNNING));
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.confirm(TASK_ID, confirmReq("p1", "adopted"), loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
+    }
+
+    @Test
+    void confirm_adopted_insertsAdoptionRecord() {
+        stubProposalsReadyWith(proposal("p1", "pending"));
+        when(adoptionMapper.selectByExecutionAndKey(EXEC_ID, "p1")).thenReturn(null);
+        ProposalAdopter adopter = mock(ProposalAdopter.class);
+        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
+        UUID createdId = UUID.randomUUID();
+        when(adopter.adopt(any())).thenReturn(new AdoptOutcome(createdId, Map.of("id", createdId)));
+
+        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("p1", "adopted"), loginUser);
+
+        assertTrue(resp.getResults().get(0).getSuccess());
+        assertEquals(createdId, resp.getResults().get(0).getCreatedId());
+        ArgumentCaptor<AiTaskAdoption> captor = ArgumentCaptor.forClass(AiTaskAdoption.class);
+        verify(adoptionMapper).insert(captor.capture());
+        AiTaskAdoption record = captor.getValue();
+        assertEquals(TASK_ID, record.getTaskId());
+        assertEquals(EXEC_ID, record.getExecutionId());
+        assertEquals("p1", record.getProposalKey());
+        assertEquals("adopted", record.getAction());
+        assertEquals(PROJECT_ID, record.getProjectId());
+        assertEquals(USER_ID, record.getOperatorId());
+    }
+
+    @Test
+    void confirm_proposalMissing_failsItemWith112() {
+        stubProposalsReadyWith(null);
+
+        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("ghost", "adopted"), loginUser);
+
+        assertTrue(!resp.getResults().get(0).getSuccess());
+        assertEquals(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND.code(), resp.getResults().get(0).getErrorCode());
+        verify(adoptionMapper, never()).insert(any(AiTaskAdoption.class));
+    }
+
+    @Test
+    void confirm_duplicateAdoption_failsItemWith113() {
+        stubProposalsReadyWith(proposal("p1", "pending"));
+        when(adoptionMapper.selectByExecutionAndKey(EXEC_ID, "p1")).thenReturn(null);
+        ProposalAdopter adopter = mock(ProposalAdopter.class);
+        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
+        org.mockito.Mockito.doThrow(new DuplicateKeyException("uk")).when(adoptionMapper)
+                .insert(any(AiTaskAdoption.class));
+
+        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("p1", "adopted"), loginUser);
+
+        assertTrue(!resp.getResults().get(0).getSuccess());
+        assertEquals(ErrorCodeConstants.AI_PROPOSAL_ALREADY_CONFIRMED.code(),
+                resp.getResults().get(0).getErrorCode());
+    }
+
+    @Test
+    void confirm_adopterThrows_failsItemWithItsCode() {
+        stubProposalsReadyWith(proposal("p1", "adopted"));
+        when(adoptionMapper.selectByExecutionAndKey(EXEC_ID, "p1")).thenReturn(null);
+        ProposalAdopter adopter = mock(ProposalAdopter.class);
+        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
+        when(adopter.adopt(any()))
+                .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED));
+
+        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("p1", "adopted"), loginUser);
+
+        assertTrue(!resp.getResults().get(0).getSuccess());
+        assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), resp.getResults().get(0).getErrorCode());
+    }
+
+    @Test
+    void confirm_allDisposed_marksTaskClosed() {
+        stubProposalsReadyWith(proposal("p1", "pending"));
+        when(adoptionMapper.selectByExecutionAndKey(EXEC_ID, "p1")).thenReturn(null);
+        ProposalAdopter adopter = mock(ProposalAdopter.class);
+        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
+        when(adopter.adopt(any())).thenReturn(null);
+        when(adoptionMapper.countByExecution(EXEC_ID)).thenReturn(1L);
+        when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED)).thenReturn(true);
+
+        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("p1", "rejected"), loginUser);
+
+        assertTrue(resp.getResults().get(0).getSuccess());
+        verify(taskMapper).markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED);
+    }
+
+    @Test
+    void confirm_invalidAction_failsItemWith115() {
+        stubProposalsReadyWith(proposal("p1", "pending"));
+
+        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("p1", "destroy"), loginUser);
+
+        assertTrue(!resp.getResults().get(0).getSuccess());
+        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), resp.getResults().get(0).getErrorCode());
+    }
+
+    // ---------- 跨层查询入口 ----------
+
+    @Test
+    void isTaskRunning_runningTrue_othersFalse() {
+        when(taskMapper.selectById(TASK_ID))
+                .thenReturn(task(Constants.AiTaskFlowStatus.RUNNING))
+                .thenReturn(task(Constants.AiTaskFlowStatus.CLOSED));
+
+        assertTrue(service.isTaskRunning(TASK_ID));
+        assertTrue(!service.isTaskRunning(TASK_ID));
+        assertTrue(!service.isTaskRunning(null));
+    }
+
+    // ---------- 夹具 ----------
 
     private static AiModelConfig model() {
         AiModelConfig model = new AiModelConfig();
@@ -119,7 +614,7 @@ class AiTaskServiceImplTest {
     private static AiTaskSubmitReqDTO submitReq(Integer waitSeconds) {
         AiTaskSubmitReqDTO req = new AiTaskSubmitReqDTO();
         req.setType(TYPE);
-        req.setInput(Map.of("requirementId", UUID.randomUUID().toString()));
+        req.setInput(Map.of("fileId", "f-1"));
         req.setWaitSeconds(waitSeconds);
         return req;
     }
@@ -129,517 +624,60 @@ class AiTaskServiceImplTest {
         task.setId(TASK_ID);
         task.setType(TYPE);
         task.setStatus(status);
-        task.setProgress(0);
         task.setProjectId(PROJECT_ID);
         task.setWorkspaceId(WORKSPACE_ID);
         task.setSubmittedBy(USER_ID);
-        task.setPromptScene(TYPE);
-        task.setModelId(MODEL_ID);
-        task.setInput(Map.of());
+        task.setInput(Map.of("fileId", "f-1"));
+        task.setTokensIn(10);
+        task.setTokensOut(20);
+        task.setCreatedAt(LocalDateTime.now());
         return task;
     }
 
-    /** HTTP 提交的上下文参数取自请求头解析后的 LoginUser（C4），与控制器装配口径一致 */
-    private AiTaskRespDTO submit(AiTaskSubmitReqDTO req) {
-        return service.submit(req, PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
+    private static AiTaskExecution execution(String status) {
+        AiTaskExecution execution = new AiTaskExecution();
+        execution.setId(EXEC_ID);
+        execution.setTaskId(TASK_ID);
+        execution.setSeq(1);
+        execution.setStatus(status);
+        execution.setModelId(MODEL_ID);
+        execution.setBudget(BUDGET);
+        execution.setSteps(3);
+        execution.setTokensIn(10);
+        execution.setTokensOut(20);
+        execution.setCost(new BigDecimal("0.21"));
+        execution.setCreatedAt(LocalDateTime.now().minusMinutes(2));
+        return execution;
     }
 
-    // ---------- 提交（3.6.2 校验顺序：等待参数 → 总开关 → 类型 → 输入 → 模型） ----------
-
-    @Test
-    void submit_waitSecondsInvalid_throws123() {
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> submit(submitReq(11)));
-        assertEquals(ErrorCodeConstants.AI_WAIT_SECONDS_INVALID.code(), exception.getCode());
+    private static AiTaskProposal proposal(String key, String confirmStatus) {
+        AiTaskProposal proposal = new AiTaskProposal();
+        proposal.setTaskId(TASK_ID);
+        proposal.setExecutionId(EXEC_ID);
+        proposal.setProposalKey(key);
+        proposal.setKind("test_case_suggestion");
+        proposal.setTitle("T");
+        proposal.setContent(Map.of("cells", List.of()));
+        proposal.setConfirmStatus(confirmStatus);
+        return proposal;
     }
 
-    @Test
-    void submit_switchOff_throws101() {
-        when(settingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(false, MODEL_ID, 600, 2));
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> submit(submitReq(0)));
-        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
-        verifyNoInteractions(taskMapper);
+    private static AiTaskAdoption adoption(String key, String action) {
+        AiTaskAdoption adoption = new AiTaskAdoption();
+        adoption.setTaskId(TASK_ID);
+        adoption.setExecutionId(EXEC_ID);
+        adoption.setProposalKey(key);
+        adoption.setAction(action);
+        return adoption;
     }
 
-    @Test
-    void submit_unregisteredType_throws114() {
-        when(handlerRegistry.get(TYPE)).thenReturn(null);
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> submit(submitReq(0)));
-        assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), exception.getCode());
-    }
-
-    @Test
-    void submit_invalidInput_throws115() {
-        doThrow(ServiceExceptionUtilGet(ErrorCodeConstants.AI_TASK_INPUT_INVALID))
-                .when(handler).validateInput(any(), any());
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> submit(submitReq(0)));
-        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
-        verify(taskExecutor, never()).start(any());
-    }
-
-    @Test
-    void submit_noUsableModel_throws118() {
-        when(settingsReader.usableModel()).thenReturn(null);
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> submit(submitReq(0)));
-        assertEquals(ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED.code(), exception.getCode());
-        verify(taskExecutor, never()).start(any());
-    }
-
-    @Test
-    void submit_capabilityRequired_noVisionModel_throws124() {
-        when(handler.requiredCapability(any(), any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> submit(submitReq(0)));
-
-        assertEquals(ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED.code(), exception.getCode());
-        verify(taskExecutor, never()).start(any());
-    }
-
-    @Test
-    void submit_success_insertsPendingAndStarts() {
-        AiTaskRespDTO resp = submit(submitReq(0));
-
-        ArgumentCaptor<AiTask> captor = ArgumentCaptor.forClass(AiTask.class);
-        verify(taskMapper).insert(captor.capture());
-        AiTask inserted = captor.getValue();
-        assertEquals(TYPE, inserted.getType());
-        assertEquals("pending", inserted.getStatus());
-        assertEquals(TYPE, inserted.getPromptScene());
-        assertEquals(MODEL_ID, inserted.getModelId());
-        assertEquals(PROJECT_ID, inserted.getProjectId());
-        assertEquals(WORKSPACE_ID, inserted.getWorkspaceId());
-        assertEquals(USER_ID, inserted.getSubmittedBy());
-        assertEquals("pending", resp.getStatus());
-        assertNull(resp.getResult());
-        verify(taskExecutor).start(inserted.getId());
-    }
-
-    @Test
-    void submit_withWaitCompleted_returnsResultAndArtifacts() {
-        // 本用例需插入 id 与轮询桩一致
-        lenient().doAnswer(invocation -> {
-            invocation.getArgument(0, AiTask.class).setId(TASK_ID);
-            return 1;
-        }).when(taskMapper).insert(any(AiTask.class));
-        AiTask done = task("succeeded");
-        done.setResult(Map.of("artifacts", List.of(
-                Map.of("key", "a1", "kind", "requirement_suggestion", "title", "需求A"))));
-        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
-        when(confirmMapper.selectByTask(TASK_ID)).thenReturn(List.of());
-
-        AiTaskRespDTO resp = submit(submitReq(5));
-
-        assertEquals("succeeded", resp.getStatus());
-        assertNotNull(resp.getResult());
-        assertNotNull(resp.getArtifacts());
-        assertEquals("a1", resp.getArtifacts().get(0).getKey());
-        assertEquals("pending", resp.getArtifacts().get(0).getConfirmStatus());
-    }
-
-    @Test
-    void submitInternal_switchOff_throws101() {
-        when(settingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(false, MODEL_ID, 600, 2));
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.submitInternal("requirement_import", Map.of("requirementId", "x"),
-                        USER_ID, PROJECT_ID, WORKSPACE_ID));
-        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
-    }
-
-    // ---------- 列表与详情（3.6.3） ----------
-
-    @Test
-    void page_withProjectContext_filtersByProject() {
-        AiTaskPageReqDTO pageReq = new AiTaskPageReqDTO();
-        pageReq.setType(TYPE);
-        when(taskMapper.findPage(pageReq, PROJECT_ID, USER_ID, TYPE, null))
-                .thenReturn(new PageResult<>(List.of(task("pending")), 1L));
-
-        PageResult<AiTaskRespDTO> page = service.page(pageReq, PROJECT_ID, USER_ID);
-
-        assertEquals(1, page.getTotal());
-        assertEquals("pending", page.getList().get(0).getStatus());
-    }
-
-    @Test
-    void page_withoutProjectContext_returnsOwnTasks() {
-        AiTaskPageReqDTO pageReq = new AiTaskPageReqDTO();
-        when(taskMapper.findPage(pageReq, null, USER_ID, null, null))
-                .thenReturn(new PageResult<>(List.of(), 0L));
-
-        PageResult<AiTaskRespDTO> page = service.page(pageReq, null, USER_ID);
-
-        assertEquals(0, page.getTotal());
-    }
-
-    @Test
-    void countActive_withProjectContext_countsByProject() {
-        when(taskMapper.countActive(PROJECT_ID, USER_ID)).thenReturn(2L);
-
-        AiTaskCountRespDTO resp = service.countActive(PROJECT_ID, USER_ID, loginUser);
-
-        assertEquals(2L, resp.getCount());
-    }
-
-    @Test
-    void countActive_withoutProjectContext_countsOwnTasks() {
-        when(taskMapper.countActive(null, USER_ID)).thenReturn(0L);
-
-        AiTaskCountRespDTO resp = service.countActive(null, USER_ID, loginUser);
-
-        assertEquals(0L, resp.getCount());
-    }
-
-    @Test
-    void detail_foreignProjectAndNotOwner_throws110() {
-        AiTask foreign = task("pending");
-        foreign.setProjectId(UUID.randomUUID());
-        foreign.setSubmittedBy(OTHER_ID);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(foreign);
-        loginUser.setActiveProjectId(null);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.getDetail(TASK_ID, loginUser));
-        assertEquals(ErrorCodeConstants.AI_TASK_NOT_FOUND.code(), exception.getCode());
-    }
-
-    @Test
-    void detail_succeeded_attachesArtifactSummariesWithConfirmStatus() {
-        AiTask done = task("succeeded");
-        done.setResult(Map.of("artifacts", List.of(
-                Map.of("key", "a1", "kind", "requirement_suggestion", "title", "需求A", "parentKey", "root"),
-                Map.of("key", "a2", "kind", "requirement_suggestion", "title", "需求B"))));
-        AiArtifactConfirm confirmed = new AiArtifactConfirm();
-        confirmed.setArtifactKey("a1");
-        confirmed.setAction("adopted");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
-        when(confirmMapper.selectByTask(TASK_ID)).thenReturn(List.of(confirmed));
-
-        AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
-
-        assertNull(resp.getResult());
-        assertEquals(2, resp.getArtifacts().size());
-        assertEquals("adopted", resp.getArtifacts().get(0).getConfirmStatus());
-        assertEquals("pending", resp.getArtifacts().get(1).getConfirmStatus());
-        assertEquals("root", resp.getArtifacts().get(0).getParentKey());
-    }
-
-    @Test
-    void detail_failed_carriesError() {
-        AiTask failed = task("failed");
-        failed.setErrorCode(1000018117);
-        failed.setErrorMsg("模型服务调用失败");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(failed);
-
-        AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
-
-        assertEquals(1000018117, resp.getError().getCode());
-        assertEquals("模型服务调用失败", resp.getError().getMsg());
-    }
-
-    @Test
-    void detail_succeededWithDocumentMeta_attachesDetectedVersion() {
-        AiTask done = task("succeeded");
-        done.setResult(Map.of(
-                "documentMeta", Map.of("detectedVersion", "V2.3", "versionEvidence", "见第 2 章 V2.3"),
-                "artifacts", List.of()));
-        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
-
-        AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
-
-        assertNotNull(resp.getDocumentMeta());
-        assertEquals("V2.3", resp.getDocumentMeta().getDetectedVersion());
-        assertEquals("见第 2 章 V2.3", resp.getDocumentMeta().getVersionEvidence());
-    }
-
-    @Test
-    void detail_succeededWithoutDocumentMeta_returnsNullMeta() {
-        AiTask done = task("succeeded");
-        done.setResult(Map.of("artifacts", List.of()));
-        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
-
-        assertNull(service.getDetail(TASK_ID, loginUser).getDocumentMeta());
-    }
-
-    @Test
-    void detail_pending_returnsNullMeta() {
-        AiTask pending = task("pending");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(pending);
-
-        assertNull(service.getDetail(TASK_ID, loginUser).getDocumentMeta());
-    }
-
-    @Test
-    void page_listItem_neverCarriesDocumentMeta() {
-        AiTask done = task("succeeded");
-        done.setResult(Map.of("documentMeta", Map.of("detectedVersion", "V2.3")));
-        AiTaskPageReqDTO pageReq = new AiTaskPageReqDTO();
-        when(taskMapper.findPage(pageReq, PROJECT_ID, USER_ID, null, null))
-                .thenReturn(new PageResult<>(List.of(done), 1L));
-
-        assertNull(service.page(pageReq, PROJECT_ID, USER_ID).getList().get(0).getDocumentMeta());
-    }
-
-    @Test
-    void artifactDetail_found_returnsFullArtifact() {
-        Map<String, Object> artifact = Map.of("key", "a1", "kind", "k", "content", Map.of("title", "T"));
-        AiTask done = task("succeeded");
-        done.setResult(Map.of("artifacts", List.of(artifact)));
-        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
-
-        Map<String, Object> result = service.getArtifact(TASK_ID, "a1", loginUser);
-
-        assertEquals(Map.of("title", "T"), result.get("content"));
-    }
-
-    @Test
-    void artifactDetail_missing_throws112() {
-        AiTask done = task("succeeded");
-        done.setResult(Map.of("artifacts", List.of(Map.of("key", "a1"))));
-        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.getArtifact(TASK_ID, "nope", loginUser));
-        assertEquals(ErrorCodeConstants.AI_ARTIFACT_NOT_FOUND.code(), exception.getCode());
-    }
-
-    // ---------- 取消 / 重试（3.6.4） ----------
-
-    @Test
-    void cancel_pending_succeedsAndAudits() {
-        AiTask cancelled = task("cancelled");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task("pending"), cancelled);
-        when(taskMapper.casCancel(TASK_ID)).thenReturn(true);
-
-        AiTaskRespDTO resp = service.cancel(TASK_ID, loginUser);
-
-        assertEquals("cancelled", resp.getStatus());
-        verify(taskMapper).casCancel(TASK_ID);
-    }
-
-    @Test
-    void cancel_terminalState_throws111() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task("succeeded"));
-        when(taskMapper.casCancel(TASK_ID)).thenReturn(false);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.cancel(TASK_ID, loginUser));
-        assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
-    }
-
-    @Test
-    void retry_failed_copiesInputAndModelWithRetryLink() {
-        AiTask failed = task("failed");
-        failed.setInput(Map.of("requirementId", "r-1"));
-        when(taskMapper.selectById(TASK_ID)).thenReturn(failed);
-
-        AiTaskRespDTO resp = service.retry(TASK_ID, loginUser);
-
-        ArgumentCaptor<AiTask> captor = ArgumentCaptor.forClass(AiTask.class);
-        verify(taskMapper).insert(captor.capture());
-        AiTask created = captor.getValue();
-        assertEquals("pending", created.getStatus());
-        assertEquals(TASK_ID, created.getRetryOfTaskId());
-        assertEquals(MODEL_ID, created.getModelId());
-        assertEquals(Map.of("requirementId", "r-1"), created.getInput());
-        assertEquals(USER_ID, created.getSubmittedBy());
-        assertEquals("pending", resp.getStatus());
-        verify(taskExecutor).start(created.getId());
-    }
-
-    @Test
-    void retry_nonFailed_throws111() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task("succeeded"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.retry(TASK_ID, loginUser));
-        assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
-        verify(taskMapper, never()).insert(any(AiTask.class));
-    }
-
-    @Test
-    void retry_switchOff_throws101() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task("failed"));
-        when(settingsReader.settings()).thenReturn(new AiSettingsReader.AiSettings(false, MODEL_ID, 600, 2));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.retry(TASK_ID, loginUser));
-        assertEquals(ErrorCodeConstants.AI_DISABLED.code(), exception.getCode());
-    }
-
-    // ---------- 产物确认（3.6.5：整体 200、逐项成败） ----------
-
-    private AiTaskConfirmReqDTO confirmReq(String key, String action) {
-        AiTaskConfirmReqDTO req = new AiTaskConfirmReqDTO();
-        AiTaskConfirmReqDTO.ConfirmItemReqDTO item = new AiTaskConfirmReqDTO.ConfirmItemReqDTO();
-        item.setKey(key);
-        item.setAction(action);
-        req.setItems(List.of(item));
-        return req;
-    }
-
-    private AiTask succeededWithArtifacts() {
-        AiTask done = task("succeeded");
-        done.setResult(Map.of("artifacts", List.of(Map.of("key", "a1", "kind", "k", "title", "T"))));
-        return done;
-    }
-
-    @Test
-    void confirm_taskNotSucceeded_throws111() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task("running"));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.confirm(TASK_ID, confirmReq("a1", "adopted"), loginUser));
-        assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
-    }
-
-    @Test
-    void confirm_adopted_insertsConfirmRecordAndReturnsCreatedId() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "a1")).thenReturn(null);
-        ArtifactAdopter adopter = org.mockito.Mockito.mock(ArtifactAdopter.class);
-        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
-        UUID createdId = UUID.randomUUID();
-        when(adopter.adopt(any())).thenReturn(new AdoptOutcome(createdId, Map.of("id", createdId)));
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("a1", "adopted"), loginUser);
-
-        assertTrue(resp.getResults().get(0).getSuccess());
-        assertEquals(createdId, resp.getResults().get(0).getCreatedId());
-        ArgumentCaptor<AiArtifactConfirm> captor = ArgumentCaptor.forClass(AiArtifactConfirm.class);
-        verify(confirmMapper).insert(captor.capture());
-        assertEquals(TASK_ID, captor.getValue().getTaskId());
-        assertEquals("a1", captor.getValue().getArtifactKey());
-        assertEquals("adopted", captor.getValue().getAction());
-        assertEquals(PROJECT_ID, captor.getValue().getProjectId());
-        assertEquals(USER_ID, captor.getValue().getOperatorId());
-    }
-
-    @Test
-    void confirm_artifactMissing_itemFails112() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("nope", "adopted"), loginUser);
-
-        AiTaskConfirmRespDTO.ItemResult item = resp.getResults().get(0);
-        assertEquals(false, item.getSuccess());
-        assertEquals(ErrorCodeConstants.AI_ARTIFACT_NOT_FOUND.code(), item.getErrorCode());
-        verify(confirmMapper, never()).insert(any(AiArtifactConfirm.class));
-    }
-
-    @Test
-    void confirm_invalidAction_itemFails115() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("a1", "boom"), loginUser);
-
-        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), resp.getResults().get(0).getErrorCode());
-    }
-
-    @Test
-    void confirm_alreadyConfirmed_itemFails113() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "a1")).thenReturn(new AiArtifactConfirm());
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("a1", "rejected"), loginUser);
-
-        assertEquals(ErrorCodeConstants.AI_ARTIFACT_ALREADY_CONFIRMED.code(),
-                resp.getResults().get(0).getErrorCode());
-        verify(confirmMapper, never()).insert(any(AiArtifactConfirm.class));
-    }
-
-    @Test
-    void confirm_adopterNotRegistered_itemFails114() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "a1")).thenReturn(null);
-        when(adopterRegistry.get(TYPE)).thenReturn(null);
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("a1", "adopted"), loginUser);
-
-        assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), resp.getResults().get(0).getErrorCode());
-    }
-
-    @Test
-    void confirm_adopterThrows_itemFailsWithoutInsert() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "a1")).thenReturn(null);
-        ArtifactAdopter adopter = org.mockito.Mockito.mock(ArtifactAdopter.class);
-        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
-        doThrow(ServiceExceptionUtilGet(ErrorCodeConstants.AI_TASK_INPUT_INVALID))
-                .when(adopter).adopt(any());
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("a1", "adopted"), loginUser);
-
-        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), resp.getResults().get(0).getErrorCode());
-        verify(confirmMapper, never()).insert(any(AiArtifactConfirm.class));
-    }
-
-    @Test
-    void confirm_uniqueRace_itemFails113() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(succeededWithArtifacts());
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "a1")).thenReturn(null);
-        ArtifactAdopter adopter = org.mockito.Mockito.mock(ArtifactAdopter.class);
-        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
-        when(adopter.adopt(any())).thenReturn(new AdoptOutcome(null, null));
-        doThrow(new DuplicateKeyException("uk")).when(confirmMapper).insert(any(AiArtifactConfirm.class));
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, confirmReq("a1", "adopted"), loginUser);
-
-        assertEquals(ErrorCodeConstants.AI_ARTIFACT_ALREADY_CONFIRMED.code(),
-                resp.getResults().get(0).getErrorCode());
-    }
-
-    @Test
-    void confirm_mixedItems_eachSucceedsOrFailsIndependently() {
-        AiTask done = succeededWithArtifacts();
-        when(taskMapper.selectById(TASK_ID)).thenReturn(done);
-        when(confirmMapper.selectByTaskAndKey(TASK_ID, "a1")).thenReturn(null);
-        ArtifactAdopter adopter = org.mockito.Mockito.mock(ArtifactAdopter.class);
-        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
-        when(adopter.adopt(any())).thenReturn(new AdoptOutcome(UUID.randomUUID(), Map.of()));
-
-        AiTaskConfirmReqDTO req = new AiTaskConfirmReqDTO();
-        AiTaskConfirmReqDTO.ConfirmItemReqDTO ok = new AiTaskConfirmReqDTO.ConfirmItemReqDTO();
-        ok.setKey("a1");
-        ok.setAction("adopted_edited");
-        ok.setContent(Map.of("title", "编辑后"));
-        AiTaskConfirmReqDTO.ConfirmItemReqDTO bad = new AiTaskConfirmReqDTO.ConfirmItemReqDTO();
-        bad.setKey("missing");
-        bad.setAction("adopted");
-        req.setItems(List.of(ok, bad));
-
-        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, req, loginUser);
-
-        assertEquals(2, resp.getResults().size());
-        assertTrue(resp.getResults().get(0).getSuccess());
-        assertEquals(false, resp.getResults().get(1).getSuccess());
-        assertEquals(ErrorCodeConstants.AI_ARTIFACT_NOT_FOUND.code(), resp.getResults().get(1).getErrorCode());
-    }
-
-    @Test
-    void visibility_ownTask_visibleEvenWithoutProjectContext() {
-        AiTask own = task("pending");
-        own.setProjectId(null);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(own);
-        loginUser.setActiveProjectId(null);
-
-        assertNotNull(service.getDetail(TASK_ID, loginUser));
-    }
-
-    @Test
-    void requireVisible_missingTask_throws110() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(null);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.getDetail(TASK_ID, loginUser));
-        assertEquals(ErrorCodeConstants.AI_TASK_NOT_FOUND.code(), exception.getCode());
-    }
-
-    private static ServiceException ServiceExceptionUtilGet(xyz.migoo.framework.common.exception.ErrorCode code) {
-        return xyz.migoo.framework.common.exception.ServiceExceptionUtil.get(code);
+    private static AiTaskTraceEvent traceEvent(int seq) {
+        AiTaskTraceEvent event = new AiTaskTraceEvent();
+        event.setExecutionId(EXEC_ID);
+        event.setSeq(seq);
+        event.setEventType(Constants.AiTraceEventType.TOOL_CALL);
+        event.setSummary("调用工具");
+        event.setCreatedAt(LocalDateTime.now());
+        return event;
     }
 }

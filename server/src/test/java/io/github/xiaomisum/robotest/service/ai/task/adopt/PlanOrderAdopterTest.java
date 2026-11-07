@@ -9,6 +9,7 @@ import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,7 +62,7 @@ class PlanOrderAdopterTest {
 
     @Test
     void adopt_rejected_returnsNullAndSkipsEverything() {
-        assertNull(adopter.adopt(context(Constants.AiArtifactAction.REJECTED, null, PLAN_ID, 1,
+        assertNull(adopter.adopt(context(Constants.AiProposalAction.REJECTED, null, PLAN_ID, 1,
                 List.of(item(nodeId(3), 1)), List.of(), List.of())));
 
         verify(testPlanNodeSnapshotMapper, never()).updateSortOrder(any(), any());
@@ -74,7 +76,7 @@ class PlanOrderAdopterTest {
         when(testPlanMapper.selectById(PLAN_ID)).thenReturn(other);
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 1,
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, PLAN_ID, 1,
                         List.of(), List.of(), List.of())));
 
         assertEquals(ErrorCodeConstants.ASSISTED_PLAN_NOT_FOUND.code(), exception.getCode());
@@ -85,7 +87,7 @@ class PlanOrderAdopterTest {
         stubPlan();
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 1,
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, PLAN_ID, 1,
                         List.of(), List.of(), List.of())));
 
         assertEquals(ErrorCodeConstants.ASSISTED_PLAN_CASES_EMPTY.code(), exception.getCode());
@@ -95,7 +97,7 @@ class PlanOrderAdopterTest {
     @Test
     void adopt_missingPlanIdInTargetAndInput_throwsInputInvalid() {
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, null, 1,
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, null, 1,
                         List.of(), List.of(), List.of())));
 
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
@@ -106,7 +108,7 @@ class PlanOrderAdopterTest {
         stubPlan();
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 0,
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, PLAN_ID, 0,
                         List.of(), List.of(), List.of())));
 
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
@@ -118,7 +120,7 @@ class PlanOrderAdopterTest {
         List<TestPlanNodeSnapshot> associated = List.of(snapshot(nodeId(1), null, 0, true));
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 1,
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, PLAN_ID, 1,
                         List.of(item(UUID.randomUUID(), 1)), associated, associated)));
 
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
@@ -135,7 +137,7 @@ class PlanOrderAdopterTest {
         // 建议顺序：第二个用例排到首位，原首位次之
         List<Map<String, Object>> items = List.of(item(second.getId(), 1), item(first.getId(), 2));
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 1, items, all,
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, PLAN_ID, 1, items, all,
                 List.of(first, second)));
 
         // 根节点不参与重排；关联用例在原槽位上按建议名次对调
@@ -158,7 +160,7 @@ class PlanOrderAdopterTest {
         List<Map<String, Object>> items = List.of(item(second.getId(), 1), item(first.getId(), 2),
                 item(nested.getId(), 3));
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 1, items, all,
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, PLAN_ID, 1, items, all,
                 List.of(first, second, nested)));
 
         // 结构容器原位不动，其下用例不受同级重排影响；两个关联用例重排到容器之后的槽位
@@ -177,7 +179,7 @@ class PlanOrderAdopterTest {
         List<TestPlanNodeSnapshot> all = List.of(root, first, second);
         Map<String, Object> dragged = Map.of("items", List.of(item(first.getId(), 1), item(second.getId(), 2)));
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, dragged, PLAN_ID, 1,
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, dragged, PLAN_ID, 1,
                 List.of(item(second.getId(), 1), item(first.getId(), 2)), all, List.of(first, second)));
 
         // 人工拖拽后的顺序优先于产物建议：首个用例回到首位
@@ -193,7 +195,7 @@ class PlanOrderAdopterTest {
         TestPlanNodeSnapshot second = snapshot(nodeId(2), root.getId(), 1, true);
         List<TestPlanNodeSnapshot> all = List.of(root, first, second);
 
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, PLAN_ID, 2,
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, PLAN_ID, 2,
                 List.of(item(first.getId(), 1), item(second.getId(), 2)), all, List.of(first, second)));
 
         verify(testPlanNodeSnapshotMapper, never()).updateSortOrder(any(), any());
@@ -253,8 +255,8 @@ class PlanOrderAdopterTest {
         content.put("planId", PLAN_ID.toString());
         content.put("items", items);
         Map<String, Object> artifact = Map.of("key", "order-1",
-                "kind", Constants.AiArtifactKind.ORDER_SUGGESTION, "content", content);
-        return new AdoptContext(task, artifact, action, edited, null, null, null, null, null,
-                null, null, targetPlanId, round, PROJECT_ID, OPERATOR_ID, loginUser);
+                "kind", Constants.AiProposalKind.ORDER_SUGGESTION, "content", content);
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, edited, null, null, null, null, null,
+                null, null, targetPlanId, round, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 }

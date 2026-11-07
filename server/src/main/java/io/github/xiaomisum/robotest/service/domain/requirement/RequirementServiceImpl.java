@@ -13,7 +13,6 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementLi
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
-import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
@@ -23,7 +22,6 @@ import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.framework.security.AttachmentFileValidator;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
@@ -64,6 +62,8 @@ public class RequirementServiceImpl implements RequirementService {
 
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
     private static final int SYSTEM_VERSION_MAX_LENGTH = 50;
+    /** 拆解记录状态（3.11）：pending → adopted / rejected，独立于任务双状态机 */
+    private static final String SPLIT_PENDING = "pending";
     /** 导入白名单（详设 3.8：Markdown / Word / 图片多模态）；Word 仅 .docx，旧式 .doc 不支持 */
     private static final Set<String> IMPORT_EXTENSIONS = Set.of(
             "md", "docx", "png", "jpg", "jpeg", "gif", "webp", "bmp");
@@ -87,8 +87,6 @@ public class RequirementServiceImpl implements RequirementService {
     private RequirementCodeAllocator codeAllocator;
     @Resource
     private AiTaskService aiTaskService;
-    @Resource
-    private AiTaskMapper aiTaskMapper;
     /** 向量索引（WP-4.5）：写侧同步重嵌入口，门禁未就绪时内部静默跳过（详设 4.4） */
     @Resource
     private VectorIndexService vectorIndexService;
@@ -316,7 +314,7 @@ public class RequirementServiceImpl implements RequirementService {
         // 源文件经文件管理模块落盘（WP-2.0），拆解记录与需求条目以 source_file_id 关联（2.4）
         FileResourceRespDTO stored = fileResourceService.upload(file, userId);
         Project project = projectMapper.selectById(projectId);
-        // 任务行与拆解记录同事务（3.8 / 4.5）：任一步失败整体回滚；内联起跑经「直接 + 注册兜底」双保险
+        // 任务行与拆解记录同事务（3.8 / 4.5）：任一步失败整体回滚；创建即启动，事务提交后单次触发
         AiTaskRespDTO task = aiTaskService.submitInternal("requirement_import",
                 Map.of("fileId", stored.getId().toString()), userId, projectId,
                 project == null ? null : project.getWorkspaceId());
@@ -325,13 +323,14 @@ public class RequirementServiceImpl implements RequirementService {
         record.setSourceType("document");
         record.setSourceFileId(stored.getId());
         record.setAiTaskId(task.getTaskId());
-        record.setStatus(Constants.AiTaskStatus.PENDING);
+        // 拆解记录自有状态（pending → adopted / rejected），与任务双状态机解耦
+        record.setStatus(SPLIT_PENDING);
         splitRecordMapper.insert(record);
 
         RequirementSplitSubmitRespDTO resp = new RequirementSplitSubmitRespDTO();
         resp.setTaskId(task.getTaskId());
         resp.setSplitRecordId(record.getId());
-        resp.setStatus(Constants.AiTaskStatus.PENDING);
+        resp.setStatus(SPLIT_PENDING);
         return resp;
     }
 
@@ -365,12 +364,10 @@ public class RequirementServiceImpl implements RequirementService {
         return fileName.substring(index + 1).toLowerCase(Locale.ROOT);
     }
 
-    /** 同项目已有 pending/running 的导入任务时拒绝重复提交（3.8 / 1000018013），任务状态再行核对 */
+    /** 同项目已有进行中（status = running）的导入任务时拒绝重复提交（3.8 / 1000018013），状态经任务服务判定 */
     private boolean hasInProgressImport(UUID projectId) {
         for (RequirementSplitRecord record : splitRecordMapper.selectPendingImportByProject(projectId)) {
-            AiTask task = aiTaskMapper.selectById(record.getAiTaskId());
-            if (task != null && (Constants.AiTaskStatus.PENDING.equals(task.getStatus())
-                    || Constants.AiTaskStatus.RUNNING.equals(task.getStatus()))) {
+            if (aiTaskService.isTaskRunning(record.getAiTaskId())) {
                 return true;
             }
         }

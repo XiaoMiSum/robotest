@@ -118,7 +118,7 @@ class CaseCompleteHandlerTest {
 
         Map<String, Object> hit = artifacts.get(0);
         assertEquals("node-1", hit.get("key"));
-        assertEquals(Constants.AiArtifactKind.CASE_SUGGESTION, hit.get("kind"));
+        assertEquals(Constants.AiProposalKind.CASE_SUGGESTION, hit.get("kind"));
         assertEquals("pending", hit.get("confirmStatus"));
         assertEquals(node.getTitle(), hit.get("title"));
 

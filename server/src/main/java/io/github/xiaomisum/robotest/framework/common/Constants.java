@@ -51,19 +51,8 @@ public final class Constants {
     }
 
     /**
-     * AI 任务状态（详设 4.2 生命周期：pending → running → succeeded / failed；pending / running → cancelled）
-     */
-    public interface AiTaskStatus {
-        String PENDING = "pending";
-        String RUNNING = "running";
-        String SUCCEEDED = "succeeded";
-        String FAILED = "failed";
-        String CANCELLED = "cancelled";
-    }
-
-    /**
      * 任务流状态（总册 3.6 新状态机，任务维度：running → proposals_ready → closed；
-     * 用户中止 / 预算耗尽 / 执行错误 / 总开关关闭 → aborted）。与旧 {@link AiTaskStatus} 并存至 S3 切换后删除旧常量。
+     * 用户中止 / 预算耗尽 / 执行错误 / 总开关关闭 → aborted）。
      */
     public interface AiTaskFlowStatus {
         String RUNNING = "running";
@@ -103,7 +92,7 @@ public final class Constants {
     }
 
     /**
-     * 提案采纳动作（总册 2.7，取值同旧 {@link AiArtifactAction}，S3 起替代旧命名）
+     * 提案采纳动作（总册 2.7，取值与旧 AiArtifactAction 一致，S3 起替代旧命名）
      */
     public interface AiProposalAction {
         String ADOPTED = "adopted";
@@ -112,18 +101,9 @@ public final class Constants {
     }
 
     /**
-     * 产物确认动作（详设 3.6.5，ai_artifact_confirm.action 取值）
+     * AI 提案种类（生成链详设 3.4）：与目标实体类型对齐，圈选建议以任务 type 区分
      */
-    public interface AiArtifactAction {
-        String ADOPTED = "adopted";
-        String ADOPTED_EDITED = "adopted_edited";
-        String REJECTED = "rejected";
-    }
-
-    /**
-     * AI 产物种类（生成链详设 3.4）：与目标实体类型对齐，圈选建议以任务 type 区分
-     */
-    public interface AiArtifactKind {
+    public interface AiProposalKind {
         String MODULE = "module_suggestion";
         String MINDMAP_DOCUMENT = "mindmap_document_suggestion";
         String TEST_CASE = "test_case_suggestion";

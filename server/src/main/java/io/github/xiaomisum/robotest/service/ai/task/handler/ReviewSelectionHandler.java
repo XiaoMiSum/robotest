@@ -48,7 +48,7 @@ public class ReviewSelectionHandler extends AbstractSelectionHandler {
 
     @Override
     protected String selectionKind() {
-        return Constants.AiArtifactKind.REVIEW_SELECTION;
+        return Constants.AiProposalKind.REVIEW_SELECTION;
     }
 
     @Override

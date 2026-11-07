@@ -13,6 +13,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiEmbeddingConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeAll;
@@ -32,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -52,6 +54,8 @@ class AiSettingsAdminServiceTest {
     private AiEmbeddingConfigMapper embeddingMapper;
     @Mock
     private AiTaskMapper taskMapper;
+    @Mock
+    private AiTaskExecutionMapper executionMapper;
     @Mock
     private AiSettingsReader settingsReader;
     @Mock
@@ -143,14 +147,16 @@ class AiSettingsAdminServiceTest {
         AiConfig row = new AiConfig();
         row.setEnabled(true);
         when(configMapper.selectSingleton()).thenReturn(row);
-        when(taskMapper.failActive(anyString(), eq(ErrorCodeConstants.AI_DISABLED.code()))).thenReturn(3);
+        when(taskMapper.abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), anyString())).thenReturn(3);
+        when(executionMapper.abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), anyString())).thenReturn(2);
         when(clientIpResolver.resolve(request)).thenReturn("127.0.0.1");
 
         AiSettingsUpdateReqDTO req = new AiSettingsUpdateReqDTO();
         req.setEnabled(false);
         service.update(req, loginUser, request);
 
-        verify(taskMapper).failActive(eq("AI 总开关关闭"), eq(ErrorCodeConstants.AI_DISABLED.code()));
+        verify(taskMapper).abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), eq("AI 总开关关闭"));
+        verify(executionMapper).abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), eq("AI 总开关关闭"));
         ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogWriter).write(captor.capture());
         assertEquals(3, captor.getValue().getChanges().get("failedTasks"));
@@ -170,7 +176,7 @@ class AiSettingsAdminServiceTest {
         verify(configMapper).insert(captor.capture());
         assertEquals(900, captor.getValue().getTaskTimeoutSeconds());
         assertEquals(2, captor.getValue().getTaskMaxRetries());
-        verify(taskMapper, never()).failActive(anyString(), any(Integer.class));
+        verify(taskMapper, never()).abortActive(anyInt(), anyString());
     }
 
     @Test
@@ -183,6 +189,6 @@ class AiSettingsAdminServiceTest {
         service.update(req, loginUser, request);
 
         verify(configMapper).update(eq(null), any());
-        verify(taskMapper, never()).failActive(anyString(), any(Integer.class));
+        verify(taskMapper, never()).abortActive(anyInt(), anyString());
     }
 }

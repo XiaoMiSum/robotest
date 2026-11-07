@@ -251,7 +251,7 @@ public class PlanOrderHandler implements TaskHandler {
 
         Map<String, Object> artifact = new LinkedHashMap<>();
         artifact.put("key", "order-1");
-        artifact.put("kind", Constants.AiArtifactKind.ORDER_SUGGESTION);
+        artifact.put("kind", Constants.AiProposalKind.ORDER_SUGGESTION);
         artifact.put("parentKey", null);
         artifact.put("title", "执行顺序建议（" + items.size() + " 项）");
         artifact.put("content", content);

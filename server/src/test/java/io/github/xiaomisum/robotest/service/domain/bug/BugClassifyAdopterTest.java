@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.bug.BugUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,8 +48,8 @@ class BugClassifyAdopterTest {
         Map<String, Object> artifact = Map.of("key", "bug-" + BUG_ID, "content", suggestionsContent());
         AiTask task = new AiTask();
         task.setType(BugClassifyHandler.TYPE);
-        return new AdoptContext(task, artifact, action, content, null, null, null, null, null,
-                null, null, null, null, PROJECT_ID, OPERATOR_ID, loginUser);
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, content, null, null, null, null, null,
+                null, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 
     private Map<String, Object> suggestionsContent() {
@@ -69,7 +71,7 @@ class BugClassifyAdopterTest {
 
     @Test
     void adopt_rejected_returnsNullAndSkipsUpdate() {
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.REJECTED, null,
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.REJECTED, null,
                 List.of("bug:edit")));
 
         assertNull(outcome);
@@ -80,7 +82,7 @@ class BugClassifyAdopterTest {
 
     @Test
     void adopt_appliesSuggestionsViaPartialUpdate() {
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null,
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null,
                 List.of("bug:edit")));
 
         ArgumentCaptor<BugUpdateReqDTO> captor = ArgumentCaptor.forClass(BugUpdateReqDTO.class);
@@ -106,7 +108,7 @@ class BugClassifyAdopterTest {
         Map<String, Object> edited = Map.of(
                 "bugId", BUG_ID.toString(),
                 "suggestions", Map.of("severity", Map.of("value", "minor")));
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, List.of("bug:edit")));
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, List.of("bug:edit")));
 
         ArgumentCaptor<BugUpdateReqDTO> captor = ArgumentCaptor.forClass(BugUpdateReqDTO.class);
         verify(bugService).updateBug(org.mockito.ArgumentMatchers.any(),

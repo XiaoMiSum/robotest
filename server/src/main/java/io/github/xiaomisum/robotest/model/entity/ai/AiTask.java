@@ -12,23 +12,20 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * AI 任务（统一任务收口，详设 2.6）：全部 AI 执行的单一入口，result 为产物明细单一事实源。
+ * AI 任务（统一任务收口，总册 2.6.1）：全部 AI 执行的单一入口。
+ * 任务态 running → proposals_ready → closed / aborted；执行细节与提案在各自表，
+ * 任务行只保留输入、汇总与终止原因（S3 重建后无 progress / phase / result 列）。
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName(value = "ai_task", autoResultMap = true)
 public class AiTask extends BaseUuidDO<AiTask> {
 
-    /** 任务类型（详设 3.6.1 枚举） */
+    /** 任务类型（总册 3.6.1 枚举） */
     private String type;
 
-    /** pending / running / succeeded / failed / cancelled */
+    /** running / proposals_ready / closed / aborted（running 期间执行可挂起 waiting_confirmation） */
     private String status;
-
-    private Integer progress;
-
-    /** 当前阶段（如「生成脑图文档」），进度页展示用 */
-    private String phase;
 
     /** 项目内任务的隔离归属（null = 不限项目的个人任务） */
     @TableField(typeHandler = UUIDTypeHandler.class)
@@ -38,35 +35,27 @@ public class AiTask extends BaseUuidDO<AiTask> {
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID workspaceId;
 
-    /** 发起人：「我的任务」、完成通知与重试的归属 */
+    /** 发起人：「我的任务」、完成通知与再次执行的归属 */
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID submittedBy;
-
-    /** 实际使用的提示词场景（等于 type），用量按场景归因 */
-    private String promptScene;
-
-    /** 实际调用的模型，失败重试复用同模型 */
-    @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID modelId;
 
     /** 任务输入：源引用 + 参数（存引用不复制全文） */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> input;
 
-    /** 产物明细（单一事实源），确认/驳回只指回这里 */
+    /** 文档级元数据（如 requirement_import 的 documentMeta），供确认面板预填 */
     @TableField(typeHandler = Jackson3TypeHandler.class)
-    private Map<String, Object> result;
+    private Map<String, Object> resultMeta;
 
+    /** 任务级入向 token 汇总（跨全部执行累加） */
     private Integer tokensIn;
 
+    /** 任务级出向 token 汇总（跨全部执行累加） */
     private Integer tokensOut;
 
-    /** 失败业务错误码（10 位） */
-    private Integer errorCode;
+    /** 终止原因错误码（10 位；用户中止 / 预算耗尽 / 执行错误 / 总开关关闭） */
+    private Integer terminateCode;
 
-    private String errorMsg;
-
-    /** 重试来源任务（3.6.4，原任务保留） */
-    @TableField(typeHandler = UUIDTypeHandler.class)
-    private UUID retryOfTaskId;
+    /** 终止原因摘要 */
+    private String terminateMsg;
 }

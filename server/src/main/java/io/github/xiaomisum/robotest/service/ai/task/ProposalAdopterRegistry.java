@@ -8,19 +8,19 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 产物承接器注册表：type → ArtifactAdopter（详设 3.6.5，落库由 3.6.1 承接服务执行）。
+ * 提案承接器注册表：type → ProposalAdopter（总册 3.6.5，落库由 3.6.1 承接服务执行）。
  */
 @Component
-public class ArtifactAdopterRegistry {
+public class ProposalAdopterRegistry {
 
-    private final Map<String, ArtifactAdopter> adopters;
+    private final Map<String, ProposalAdopter> adopters;
 
-    public ArtifactAdopterRegistry(List<ArtifactAdopter> beans) {
+    public ProposalAdopterRegistry(List<ProposalAdopter> beans) {
         this.adopters = beans.stream()
-                .collect(Collectors.toMap(ArtifactAdopter::type, Function.identity(), (a, b) -> a));
+                .collect(Collectors.toMap(ProposalAdopter::type, Function.identity(), (a, b) -> a));
     }
 
-    public ArtifactAdopter get(String type) {
+    public ProposalAdopter get(String type) {
         return adopters.get(type);
     }
 }

@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 产物确认（POST /api/ai/tasks/{taskId}/artifacts/confirm，详设 3.6.5）：批量、逐项动作。
+ * 提案确认（POST /api/ai/tasks/{taskId}/proposals/confirm，详设 3.6.5）：批量、逐项动作。
  */
 @Data
 public class AiTaskConfirmReqDTO {

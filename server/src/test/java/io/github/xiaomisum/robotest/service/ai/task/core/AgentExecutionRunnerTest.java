@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.service.ai.task.core;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.UserDetailsBridgeImpl;
+import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskProposal;
@@ -28,6 +29,7 @@ import org.mockito.Captor;
 import org.springframework.dao.DuplicateKeyException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -114,10 +116,18 @@ class AgentExecutionRunnerTest {
                         Map.of("title", "登录")),
                 new ProposalDraft("case:0", "test_case_suggestion", null, "登录用例建议",
                         Map.of("title", "登录用例"))));
-        ctx = new AgentExecutionRunner.RunContext(task, execution, null,
-                UUID.randomUUID(), UUID.randomUUID());
+        // 成本逐跳按模型单价累计（4.3）：单价未配置恒 0，但模型行必须存在
+        AiModelConfig priced = new AiModelConfig();
+        priced.setId(UUID.randomUUID());
+        ctx = new AgentExecutionRunner.RunContext(task, execution, priced,
+                UUID.randomUUID(), UUID.randomUUID(), null);
 
         lenient().when(adapterRegistry.get(TYPE)).thenReturn(adapter);
+        // 执行核条件写：succeed / heartbeat 返回 false 表示执行已被外部终止，单测默认未终止
+        lenient().when(executionMapper.heartbeat(any(), anyInt(), anyInt(), anyInt(), any()))
+                .thenReturn(true);
+        lenient().when(executionMapper.succeed(any(), anyInt(), anyInt(), anyInt(), any(), anyInt()))
+                .thenReturn(true);
         lenient().doReturn(new LoginUser()).when(userDetailsBridge).loadByUserId(anyString());
     }
 
@@ -133,14 +143,14 @@ class AgentExecutionRunnerTest {
         AiTaskProposal proposal = proposalCaptor.getValue();
         assertEquals(task.getId(), proposal.getTaskId());
         assertEquals("pending", proposal.getConfirmStatus());
-        verify(executionMapper).succeed(eq(execution.getId()), eq(1), anyInt(), anyInt(), anyInt());
+        verify(executionMapper).succeed(eq(execution.getId()), eq(1), anyInt(), anyInt(), any(BigDecimal.class), anyInt());
         verify(taskMapper).markFlowStatus(task.getId(), "proposals_ready");
         verify(traceRecorder, times(2)).record(eq(execution.getId()), eq("proposal_emitted"),
                 anyString(), any());
         verify(traceRecorder, times(2)).record(eq(execution.getId()), eq("status_change"),
                 anyString(), any());
         verify(executionMapper, never()).abort(any(), anyInt(), anyString(), anyInt(), anyInt(),
-                anyInt(), anyInt());
+                anyInt(), any(BigDecimal.class), anyInt());
     }
 
     @Test
@@ -152,7 +162,7 @@ class AgentExecutionRunnerTest {
         runner.run(ctx);
 
         verify(proposalMapper, never()).insert(any(AiTaskProposal.class));
-        verify(executionMapper).succeed(eq(execution.getId()), eq(1), anyInt(), anyInt(), anyInt());
+        verify(executionMapper).succeed(eq(execution.getId()), eq(1), anyInt(), anyInt(), any(BigDecimal.class), anyInt());
         verify(taskMapper).markFlowStatus(task.getId(), "closed");
     }
 
@@ -173,8 +183,8 @@ class AgentExecutionRunnerTest {
         verify(executionMapper).markPlan(eq(execution.getId()), any());
         verify(traceRecorder).record(eq(execution.getId()), eq("tool_result"),
                 contains("hack_tool"), detailContaining("不在白名单"));
-        verify(executionMapper, atLeastOnce()).heartbeat(eq(execution.getId()), anyInt(), anyInt(),
-                anyInt());
+        verify(executionMapper, atLeastOnce()).heartbeat(eq(execution.getId()), anyInt(), anyInt(), anyInt(),
+                any(BigDecimal.class));
         verify(taskMapper).markFlowStatus(task.getId(), "closed");
         verify(modelClient, times(2)).chatWithToolDeclarations(any(), anyList(), anyList());
     }
@@ -192,7 +202,7 @@ class AgentExecutionRunnerTest {
         verify(traceRecorder).record(eq(execution.getId()), eq("tool_result"),
                 contains("query_x"), detailContaining("1000018115"));
         verify(executionMapper, never()).abort(any(), anyInt(), anyString(), anyInt(), anyInt(),
-                anyInt(), anyInt());
+                anyInt(), any(BigDecimal.class), anyInt());
         verify(taskMapper).markFlowStatus(task.getId(), "closed");
     }
 
@@ -251,8 +261,9 @@ class AgentExecutionRunnerTest {
 
         verify(modelClient, never()).chatWithToolDeclarations(any(), anyList(), anyList());
         verify(executionMapper).abort(eq(execution.getId()), eq(CODE_BUDGET_EXHAUSTED),
-                contains("预算耗尽"), anyInt(), anyInt(), anyInt(), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "aborted");
+                contains("预算耗尽"), anyInt(), anyInt(), anyInt(),
+                any(BigDecimal.class), anyInt());
+        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_BUDGET_EXHAUSTED), anyString());
     }
 
     @Test
@@ -263,8 +274,9 @@ class AgentExecutionRunnerTest {
         runner.run(ctx);
 
         verify(executionMapper).abort(eq(execution.getId()), eq(CODE_MODEL_FAILED),
-                anyString(), anyInt(), anyInt(), anyInt(), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "aborted");
+                anyString(), anyInt(), anyInt(), anyInt(),
+                any(BigDecimal.class), anyInt());
+        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_MODEL_FAILED), anyString());
         verify(proposalMapper, never()).insert(any(AiTaskProposal.class));
     }
 
@@ -276,8 +288,9 @@ class AgentExecutionRunnerTest {
 
         verify(modelClient, never()).chatWithToolDeclarations(any(), anyList(), anyList());
         verify(executionMapper).abort(eq(execution.getId()), eq(CODE_TYPE_UNSUPPORTED),
-                anyString(), anyInt(), anyInt(), anyInt(), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "aborted");
+                anyString(), anyInt(), anyInt(), anyInt(),
+                any(BigDecimal.class), anyInt());
+        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_TYPE_UNSUPPORTED), anyString());
     }
 
     @Test
@@ -288,8 +301,9 @@ class AgentExecutionRunnerTest {
         runner.run(ctx);
 
         verify(executionMapper).abort(eq(execution.getId()), eq(CODE_MODEL_FAILED),
-                contains("模型无有效输出"), anyInt(), anyInt(), anyInt(), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "aborted");
+                contains("模型无有效输出"), anyInt(), anyInt(), anyInt(),
+                any(BigDecimal.class), anyInt());
+        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_MODEL_FAILED), anyString());
     }
 
     @Test
@@ -302,8 +316,9 @@ class AgentExecutionRunnerTest {
         runner.run(ctx);
 
         verify(executionMapper).abort(eq(execution.getId()), eq(CODE_DUPLICATE),
-                anyString(), anyInt(), anyInt(), anyInt(), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "aborted");
+                anyString(), anyInt(), anyInt(), anyInt(),
+                any(BigDecimal.class), anyInt());
+        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_DUPLICATE), anyString());
     }
 
     // ---------- 装配辅助 ----------

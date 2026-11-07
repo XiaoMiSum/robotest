@@ -161,7 +161,7 @@ public class CasePriorityHandler implements TaskHandler {
 
             Map<String, Object> artifact = new LinkedHashMap<>();
             artifact.put("key", "node-" + index);
-            artifact.put("kind", Constants.AiArtifactKind.PRIORITY_SUGGESTION);
+            artifact.put("kind", Constants.AiProposalKind.PRIORITY_SUGGESTION);
             artifact.put("parentKey", null);
             artifact.put("title", "级别推荐：" + nvl(node.getTitle()));
             artifact.put("content", content);

@@ -348,7 +348,7 @@ public class BugClassifyHandler implements TaskHandler {
 
                 Map<String, Object> artifact = new LinkedHashMap<>();
                 artifact.put("key", "bug-" + bugId);
-                artifact.put("kind", Constants.AiArtifactKind.BUG_CLASSIFY);
+                artifact.put("kind", Constants.AiProposalKind.BUG_CLASSIFY);
                 artifact.put("title", nvl(bug.getTitle()));
                 artifact.put("content", content);
                 // 批量产物待人工逐项确认（详设 3.6）

@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -75,7 +77,7 @@ class CaseCompleteAdopterTest {
 
     @Test
     void adopt_rejected_returnsNullAndSkipsEverything() {
-        assertNull(adopter.adopt(context(Constants.AiArtifactAction.REJECTED, null, null)));
+        assertNull(adopter.adopt(context(Constants.AiProposalAction.REJECTED, null, null)));
 
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
     }
@@ -86,7 +88,7 @@ class CaseCompleteAdopterTest {
         stubTarget(List.of(child(Constants.NodeType.PRECONDITION, "手机号已输入", 0),
                 child(Constants.NodeType.STEP, "点击获取验证码", 1)), node(List.of("登录")));
 
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, null));
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, null));
 
         verify(testCaseNodeService).updateCaseFields(eq(PROJECT_ID), eq(OPERATOR_ID), eq(NODE_ID),
                 changesCaptor.capture());
@@ -115,7 +117,7 @@ class CaseCompleteAdopterTest {
                 "precondition", "手机号已输入并获取过一次验证码",
                 "tags", List.of("登录", "验证码")));
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, null));
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, null));
 
         verify(testCaseNodeService).updateCaseFields(eq(PROJECT_ID), eq(OPERATOR_ID), eq(NODE_ID),
                 changesCaptor.capture());
@@ -139,7 +141,7 @@ class CaseCompleteAdopterTest {
                 child(Constants.NodeType.EXPECTED, "发送成功提示", 2)),
                 node(List.of("登录")));
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, null));
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, null));
 
         verify(testCaseNodeService).updateCaseFields(eq(PROJECT_ID), eq(OPERATOR_ID), eq(NODE_ID),
                 changesCaptor.capture());
@@ -157,7 +159,7 @@ class CaseCompleteAdopterTest {
                 Map.of("title", "补充用例", "isTestCase", true),
                 Map.of("title", "补充结构", "isTestCase", false)));
 
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, null));
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, null));
 
         verify(testCaseNodeMapper, times(2)).insert(nodeCaptor.capture());
         TestCaseNode created = nodeCaptor.getAllValues().get(0);
@@ -184,7 +186,7 @@ class CaseCompleteAdopterTest {
         when(testCaseNodeMapper.listByParentId(NODE_ID)).thenReturn(List.of());
         Map<String, Object> edited = Map.of("extraNodes", List.of(Map.of("title", "补充用例")));
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, "child"));
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, "child"));
 
         verify(testCaseNodeMapper).insert(nodeCaptor.capture());
         assertEquals(NODE_ID, nodeCaptor.getValue().getParentId());
@@ -199,7 +201,7 @@ class CaseCompleteAdopterTest {
         when(testCaseNodeMapper.listByParentId(NODE_ID)).thenReturn(List.of());
         Map<String, Object> edited = Map.of("extraNodes", List.of(Map.of("title", "补充用例")));
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, null));
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, null));
 
         verify(testCaseNodeMapper).insert(nodeCaptor.capture());
         // 根下用例无父级可挂，补充节点回退为其子节点，避免脱离文档树
@@ -212,7 +214,7 @@ class CaseCompleteAdopterTest {
         Map<String, Object> edited = Map.of("fields", Map.of("steps", "不是列表"));
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, null)));
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, null)));
 
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
         verify(testCaseNodeService, never()).updateCaseFields(any(), any(), any(), any());
@@ -271,8 +273,8 @@ class CaseCompleteAdopterTest {
         lenient().when(loginUser.getPermissions()).thenReturn(List.of("case:edit"));
         AiTask task = new AiTask();
         task.setType("case_complete");
-        return new AdoptContext(task, artifact(), action, edited, null, null, null, null, null,
-                DOCUMENT_ID, extraNodePosition, null, null, PROJECT_ID, OPERATOR_ID, loginUser);
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact()), action, edited, null, null, null, null, null,
+                DOCUMENT_ID, extraNodePosition, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 
     private Map<String, Object> artifact() {
@@ -287,6 +289,6 @@ class CaseCompleteAdopterTest {
         content.put("nodeId", NODE_ID.toString());
         content.put("fields", fields);
         content.put("extraNodes", new ArrayList<>());
-        return Map.of("key", "node-" + NODE_ID, "kind", Constants.AiArtifactKind.CASE_SUGGESTION, "content", content);
+        return Map.of("key", "node-" + NODE_ID, "kind", Constants.AiProposalKind.CASE_SUGGESTION, "content", content);
     }
 }

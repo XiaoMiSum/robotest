@@ -10,6 +10,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.domain.review.TestReviewService;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -127,9 +129,10 @@ class SelectionAdoptSupportTest {
         AiTask task = new AiTask();
         task.setId(UUID.randomUUID());
         task.setProjectId(PROJECT_ID);
-        return new AdoptContext(task, Map.of("key", "sel-1", "kind", "review_selection"),
+        return new AdoptContext(task, AdoptFixtures.proposal(
+                Map.of("key", "sel-1", "kind", "review_selection")),
                 action, null, null, null, null, null, createParams,
-                null, null, null, null, PROJECT_ID, OPERATOR_ID, user);
+                null, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of("sel-1"), user);
     }
 
     private static Map<String, Object> reviewParams() {

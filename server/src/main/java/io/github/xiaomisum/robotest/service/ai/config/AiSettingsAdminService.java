@@ -13,6 +13,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiEmbeddingConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,6 +49,8 @@ public class AiSettingsAdminService {
     private AiEmbeddingConfigMapper embeddingMapper;
     @Resource
     private AiTaskMapper taskMapper;
+    @Resource
+    private AiTaskExecutionMapper executionMapper;
     @Resource
     private AiSettingsReader settingsReader;
     @Resource
@@ -102,9 +105,10 @@ public class AiSettingsAdminService {
                     .set(req.getTaskMaxRetries() != null, AiConfig::getTaskMaxRetries, req.getTaskMaxRetries()));
         }
 
-        // 关闭开关 → 存量 pending / running 批量置 failed（4.2）
+        // 关闭开关 → 存量进行中执行与 running 任务批量置 aborted（4.2）
         if (Boolean.FALSE.equals(req.getEnabled())) {
-            failedTasks = taskMapper.failActive(CLOSE_ERROR_MSG, ErrorCodeConstants.AI_DISABLED.code());
+            executionMapper.abortActive(ErrorCodeConstants.AI_DISABLED.code(), CLOSE_ERROR_MSG);
+            failedTasks = taskMapper.abortActive(ErrorCodeConstants.AI_DISABLED.code(), CLOSE_ERROR_MSG);
         }
 
         writeAudit(loginUser, request, buildChanges(req), failedTasks);
