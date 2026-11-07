@@ -47,6 +47,14 @@ public class ExecutionLifecycle {
         }
     }
 
+    /** 外部调用前的短事务门禁：仅最新且仍活动的执行可以继续。 */
+    @Transactional(readOnly = true)
+    public boolean isCurrentActive(UUID taskId, UUID executionId) {
+        AiTaskExecution latest = executionMapper.selectLatestByTaskId(taskId);
+        return latest != null && Objects.equals(latest.getId(), executionId)
+                && isActive(latest.getStatus());
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public boolean succeed(UUID taskId, UUID executionId, List<ProposalDraft> drafts,
             Map<String, Object> resultMeta, Usage usage) {

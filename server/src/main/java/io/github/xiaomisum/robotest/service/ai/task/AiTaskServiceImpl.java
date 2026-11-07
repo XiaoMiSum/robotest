@@ -31,9 +31,9 @@ import io.github.xiaomisum.robotest.repository.ai.AiTaskProposalMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskTraceEventMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
-import io.github.xiaomisum.robotest.service.ai.task.core.AgentExecutionRunner;
 import io.github.xiaomisum.robotest.service.ai.task.core.BudgetGuard;
 import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionLifecycle;
+import io.github.xiaomisum.robotest.service.ai.task.core.TaskExecutionDispatcher;
 import io.github.xiaomisum.robotest.service.ai.task.core.TraceRecorder;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
@@ -109,7 +109,7 @@ public class AiTaskServiceImpl implements AiTaskService {
     @Resource
     private ProposalAdopterRegistry adopterRegistry;
     @Resource
-    private AgentExecutionRunner executionRunner;
+    private TaskExecutionDispatcher executionDispatcher;
     @Resource
     private TraceRecorder traceRecorder;
     @Resource
@@ -224,17 +224,17 @@ public class AiTaskServiceImpl implements AiTaskService {
      */
     private void triggerStart(AiTask task, AiTaskExecution execution, AiModelConfig model,
             UUID workspaceId, UUID projectId, String feedback) {
-        AgentExecutionRunner.RunContext ctx = new AgentExecutionRunner.RunContext(
+        TaskExecutionDispatcher.DispatchContext ctx = new TaskExecutionDispatcher.DispatchContext(
                 task, execution, model, workspaceId, projectId, feedback);
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    executionRunner.run(ctx);
+                    executionDispatcher.dispatch(ctx);
                 }
             });
         } else {
-            executionRunner.run(ctx);
+            executionDispatcher.dispatch(ctx);
         }
     }
 
