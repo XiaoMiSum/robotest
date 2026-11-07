@@ -311,6 +311,16 @@ server/src/main/resources/db/schema.sql
 **S3 收口时执行**（先按 §10 第 1 条备份）：
 
 ```sql
+-- 提案 / 采纳表补 execution_id（S1 建表后口径更新：uk 改挂执行，见总册 2.6.4 / 2.7；
+-- 按清空重建裁决两表无存量数据，直接改结构；新装库以 schema.sql 为准无需执行）
+ALTER TABLE ai_task_proposal ADD COLUMN execution_id uuid;
+DROP INDEX IF EXISTS uk_ai_task_proposal;
+CREATE UNIQUE INDEX uk_ai_task_proposal ON ai_task_proposal (execution_id, proposal_key) WHERE is_deleted = FALSE;
+
+ALTER TABLE ai_task_adoption ADD COLUMN execution_id uuid;
+DROP INDEX IF EXISTS uk_ai_task_adoption;
+CREATE UNIQUE INDEX uk_ai_task_adoption ON ai_task_adoption (execution_id, proposal_key) WHERE is_deleted = FALSE;
+
 DROP TABLE IF EXISTS ai_artifact_confirm;
 DROP TABLE IF EXISTS ai_task;
 
@@ -339,6 +349,7 @@ CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
 **执行后验证**：
 
 - [ ] `ai_artifact_confirm` 不存在，`ai_task` 为新结构（无 `progress / phase / result / retry_of_task_id` 列）；
+- [ ] `ai_task_proposal` / `ai_task_adoption` 均含 `execution_id` 列，唯一索引为 `(execution_id, proposal_key)`；
 - [ ] 六表齐备且索引与 `schema.sql` §17 一致；
 - [ ] 旧任务历史已清空（符合清空重建裁决）；
 - [ ] 应用启动后任务中心可提交新任务并正常产生执行与轨迹。
@@ -424,6 +435,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-05 | 首次修改补建本表；新增「docker compose 全家桶」小节，原 7–14 章顺延为 8–15 |
 | V1.0 | 2026-10-27 | §10 增补 10.1「AI 任务六表重建（破坏性，S3 执行时点）」：前置五表与 `execution_id` 说明、`DROP ai_artifact_confirm / ai_task` 与新结构 DDL、执行后验证清单（C5 迁移说明，裁决见 AI Task 迁移计划 2.3.3） |
+| V1.0 | 2026-11-07 | §10.1 补提案 / 采纳表 `execution_id` 增列与 uk 改挂执行（再次执行唯一键冲突裁决，见总册 2.6.4 / 2.7），验证清单联动 |
 
 ---
 
