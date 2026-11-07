@@ -19,6 +19,13 @@ import java.util.UUID;
  */
 public interface AiTaskMapper extends BaseMapperX<AiTask> {
 
+    /** 生命周期统一锁序的第一把锁：task → execution。 */
+    default AiTask selectByIdForUpdate(UUID id) {
+        return selectOne(new LambdaQueryWrapperX<AiTask>()
+                .eq(AiTask::getId, id)
+                .last("FOR UPDATE"));
+    }
+
     /**
      * 同项目同类型的进行中任务（生成链 3.6.2 同输入去重比对用）：
      * 未终态 = running / proposals_ready（已 aborted / closed 不占位）。
@@ -100,16 +107,6 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
                 .set(AiTask::getTerminateCode, null)
                 .set(AiTask::getTerminateMsg, null)
                 .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
-    }
-
-    /** 总开关关闭的批量副作用（详设 4.2）：全部 running 任务置 aborted 并带终止原因，返回受影响行数 */
-    default int abortActive(int terminateCode, String terminateMsg) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .eq(AiTask::getStatus, Constants.AiTaskFlowStatus.RUNNING)
-                .set(AiTask::getStatus, Constants.AiTaskFlowStatus.ABORTED)
-                .set(AiTask::getTerminateCode, terminateCode)
-                .set(AiTask::getTerminateMsg, terminateMsg)
-                .set(AiTask::getUpdatedAt, LocalDateTime.now()));
     }
 
     /** 文档级元数据落库（总册 2.6.1 result_meta，执行成功时由执行核写入一次） */

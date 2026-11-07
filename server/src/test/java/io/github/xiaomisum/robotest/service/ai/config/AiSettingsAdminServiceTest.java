@@ -13,8 +13,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiEmbeddingConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
-import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
-import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
+import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionLifecycle;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,9 +52,7 @@ class AiSettingsAdminServiceTest {
     @Mock
     private AiEmbeddingConfigMapper embeddingMapper;
     @Mock
-    private AiTaskMapper taskMapper;
-    @Mock
-    private AiTaskExecutionMapper executionMapper;
+    private ExecutionLifecycle executionLifecycle;
     @Mock
     private AiSettingsReader settingsReader;
     @Mock
@@ -147,16 +144,16 @@ class AiSettingsAdminServiceTest {
         AiConfig row = new AiConfig();
         row.setEnabled(true);
         when(configMapper.selectSingleton()).thenReturn(row);
-        when(taskMapper.abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), anyString())).thenReturn(3);
-        when(executionMapper.abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), anyString())).thenReturn(2);
+        when(executionLifecycle.terminateAllActive(
+                eq(ErrorCodeConstants.AI_DISABLED.code()), anyString())).thenReturn(3);
         when(clientIpResolver.resolve(request)).thenReturn("127.0.0.1");
 
         AiSettingsUpdateReqDTO req = new AiSettingsUpdateReqDTO();
         req.setEnabled(false);
         service.update(req, loginUser, request);
 
-        verify(taskMapper).abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), eq("AI 总开关关闭"));
-        verify(executionMapper).abortActive(eq(ErrorCodeConstants.AI_DISABLED.code()), eq("AI 总开关关闭"));
+        verify(executionLifecycle).terminateAllActive(
+                eq(ErrorCodeConstants.AI_DISABLED.code()), eq("AI 总开关关闭"));
         ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogWriter).write(captor.capture());
         assertEquals(3, captor.getValue().getChanges().get("failedTasks"));
@@ -176,7 +173,7 @@ class AiSettingsAdminServiceTest {
         verify(configMapper).insert(captor.capture());
         assertEquals(900, captor.getValue().getTaskTimeoutSeconds());
         assertEquals(2, captor.getValue().getTaskMaxRetries());
-        verify(taskMapper, never()).abortActive(anyInt(), anyString());
+        verify(executionLifecycle, never()).terminateAllActive(anyInt(), anyString());
     }
 
     @Test
@@ -189,6 +186,6 @@ class AiSettingsAdminServiceTest {
         service.update(req, loginUser, request);
 
         verify(configMapper).update(eq(null), any());
-        verify(taskMapper, never()).abortActive(anyInt(), anyString());
+        verify(executionLifecycle, never()).terminateAllActive(anyInt(), anyString());
     }
 }

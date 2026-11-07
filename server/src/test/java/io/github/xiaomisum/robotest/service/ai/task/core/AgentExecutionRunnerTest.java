@@ -75,6 +75,8 @@ class AgentExecutionRunnerTest {
     @Mock
     private AiTaskExecutionMapper executionMapper;
     @Mock
+    private ExecutionLifecycle executionLifecycle;
+    @Mock
     private AiTaskProposalMapper proposalMapper;
     @Mock
     private AiTaskMapper taskMapper;
@@ -126,7 +128,12 @@ class AgentExecutionRunnerTest {
         // 执行核条件写：succeed / heartbeat 返回 false 表示执行已被外部终止，单测默认未终止
         lenient().when(executionMapper.heartbeat(any(), anyInt(), anyInt(), anyInt(), any()))
                 .thenReturn(true);
-        lenient().when(executionMapper.succeed(any(), anyInt(), anyInt(), anyInt(), any(), anyInt()))
+        lenient().when(executionMapper.markPlan(any(), any())).thenReturn(true);
+        lenient().when(traceRecorder.recordIfActive(any(), anyString(), anyString(), any()))
+                .thenReturn(true);
+        lenient().when(executionLifecycle.succeed(any(), any(), anyList(), any(), any()))
+                .thenReturn(true);
+        lenient().when(executionLifecycle.terminate(any(), any(), anyInt(), anyString(), any()))
                 .thenReturn(true);
         lenient().doReturn(new LoginUser()).when(userDetailsBridge).loadByUserId(anyString());
     }
@@ -138,19 +145,9 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        ArgumentCaptor<AiTaskProposal> proposalCaptor = ArgumentCaptor.forClass(AiTaskProposal.class);
-        verify(proposalMapper, times(2)).insert(proposalCaptor.capture());
-        AiTaskProposal proposal = proposalCaptor.getValue();
-        assertEquals(task.getId(), proposal.getTaskId());
-        assertEquals("pending", proposal.getConfirmStatus());
-        verify(executionMapper).succeed(eq(execution.getId()), eq(1), anyInt(), anyInt(), any(BigDecimal.class), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "proposals_ready");
-        verify(traceRecorder, times(2)).record(eq(execution.getId()), eq("proposal_emitted"),
-                anyString(), any());
-        verify(traceRecorder, times(2)).record(eq(execution.getId()), eq("status_change"),
-                anyString(), any());
-        verify(executionMapper, never()).abort(any(), anyInt(), anyString(), anyInt(), anyInt(),
-                anyInt(), any(BigDecimal.class), anyInt());
+        verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()),
+                argThat(drafts -> drafts.size() == 2), any(), any());
+        verify(executionLifecycle, never()).terminate(any(), any(), anyInt(), anyString(), any());
     }
 
     @Test
@@ -161,9 +158,8 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        verify(proposalMapper, never()).insert(any(AiTaskProposal.class));
-        verify(executionMapper).succeed(eq(execution.getId()), eq(1), anyInt(), anyInt(), any(BigDecimal.class), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "closed");
+        verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()),
+                argThat(List::isEmpty), any(), any());
     }
 
     @Test
@@ -177,15 +173,15 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        verify(traceRecorder).record(eq(execution.getId()), eq("plan"), eq("执行计划"),
+        verify(traceRecorder).recordIfActive(eq(execution.getId()), eq("plan"), eq("执行计划"),
                 planCaptor.capture());
         assertTrue(planCaptor.getValue().containsKey("steps"));
         verify(executionMapper).markPlan(eq(execution.getId()), any());
-        verify(traceRecorder).record(eq(execution.getId()), eq("tool_result"),
+        verify(traceRecorder).recordIfActive(eq(execution.getId()), eq("tool_result"),
                 contains("hack_tool"), detailContaining("不在白名单"));
         verify(executionMapper, atLeastOnce()).heartbeat(eq(execution.getId()), anyInt(), anyInt(), anyInt(),
                 any(BigDecimal.class));
-        verify(taskMapper).markFlowStatus(task.getId(), "closed");
+        verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()), anyList(), any(), any());
         verify(modelClient, times(2)).chatWithToolDeclarations(any(), anyList(), anyList());
     }
 
@@ -199,11 +195,10 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        verify(traceRecorder).record(eq(execution.getId()), eq("tool_result"),
+        verify(traceRecorder).recordIfActive(eq(execution.getId()), eq("tool_result"),
                 contains("query_x"), detailContaining("1000018115"));
-        verify(executionMapper, never()).abort(any(), anyInt(), anyString(), anyInt(), anyInt(),
-                anyInt(), any(BigDecimal.class), anyInt());
-        verify(taskMapper).markFlowStatus(task.getId(), "closed");
+        verify(executionLifecycle, never()).terminate(any(), any(), anyInt(), anyString(), any());
+        verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()), anyList(), any(), any());
     }
 
     @Test
@@ -216,10 +211,10 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        verify(traceRecorder).record(eq(execution.getId()), eq("tool_result"),
+        verify(traceRecorder).recordIfActive(eq(execution.getId()), eq("tool_result"),
                 contains("query_x"), detailContaining("权限不足"));
         verify(toolRegistry, never()).get(anyString());
-        verify(taskMapper).markFlowStatus(task.getId(), "closed");
+        verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()), anyList(), any(), any());
     }
 
     @Test
@@ -248,9 +243,9 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        verify(traceRecorder).record(eq(execution.getId()), eq("tool_result"),
+        verify(traceRecorder).recordIfActive(eq(execution.getId()), eq("tool_result"),
                 contains("query_x"), detailContaining("\"ok\":true"));
-        verify(taskMapper).markFlowStatus(task.getId(), "closed");
+        verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()), anyList(), any(), any());
     }
 
     @Test
@@ -260,10 +255,8 @@ class AgentExecutionRunnerTest {
         runner.run(ctx);
 
         verify(modelClient, never()).chatWithToolDeclarations(any(), anyList(), anyList());
-        verify(executionMapper).abort(eq(execution.getId()), eq(CODE_BUDGET_EXHAUSTED),
-                contains("预算耗尽"), anyInt(), anyInt(), anyInt(),
-                any(BigDecimal.class), anyInt());
-        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_BUDGET_EXHAUSTED), anyString());
+        verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
+                eq(CODE_BUDGET_EXHAUSTED), contains("预算耗尽"), any());
     }
 
     @Test
@@ -273,11 +266,8 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        verify(executionMapper).abort(eq(execution.getId()), eq(CODE_MODEL_FAILED),
-                anyString(), anyInt(), anyInt(), anyInt(),
-                any(BigDecimal.class), anyInt());
-        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_MODEL_FAILED), anyString());
-        verify(proposalMapper, never()).insert(any(AiTaskProposal.class));
+        verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
+                eq(CODE_MODEL_FAILED), anyString(), any());
     }
 
     @Test
@@ -287,10 +277,8 @@ class AgentExecutionRunnerTest {
         runner.run(ctx);
 
         verify(modelClient, never()).chatWithToolDeclarations(any(), anyList(), anyList());
-        verify(executionMapper).abort(eq(execution.getId()), eq(CODE_TYPE_UNSUPPORTED),
-                anyString(), anyInt(), anyInt(), anyInt(),
-                any(BigDecimal.class), anyInt());
-        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_TYPE_UNSUPPORTED), anyString());
+        verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
+                eq(CODE_TYPE_UNSUPPORTED), anyString(), any());
     }
 
     @Test
@@ -300,25 +288,21 @@ class AgentExecutionRunnerTest {
 
         runner.run(ctx);
 
-        verify(executionMapper).abort(eq(execution.getId()), eq(CODE_MODEL_FAILED),
-                contains("模型无有效输出"), anyInt(), anyInt(), anyInt(),
-                any(BigDecimal.class), anyInt());
-        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_MODEL_FAILED), anyString());
+        verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
+                eq(CODE_MODEL_FAILED), contains("模型无有效输出"), any());
     }
 
     @Test
     void run_duplicateProposalKey_abortsWith113() {
-        when(proposalMapper.insert(any(AiTaskProposal.class)))
+        when(executionLifecycle.succeed(any(), any(), anyList(), any(), any()))
                 .thenThrow(new DuplicateKeyException("uk_ai_task_proposal"));
         when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList()))
                 .thenReturn(reply("{\"ok\":true}", List.of()));
 
         runner.run(ctx);
 
-        verify(executionMapper).abort(eq(execution.getId()), eq(CODE_DUPLICATE),
-                anyString(), anyInt(), anyInt(), anyInt(),
-                any(BigDecimal.class), anyInt());
-        verify(taskMapper).markAborted(eq(task.getId()), eq(CODE_DUPLICATE), anyString());
+        verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
+                eq(CODE_DUPLICATE), anyString(), any());
     }
 
     // ---------- 装配辅助 ----------

@@ -27,6 +27,7 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.core.AgentExecutionRunner;
 import io.github.xiaomisum.robotest.service.ai.task.core.BudgetGuard;
+import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionLifecycle;
 import io.github.xiaomisum.robotest.service.ai.task.core.TraceRecorder;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
@@ -41,6 +42,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -110,6 +112,8 @@ class AiTaskServiceImplTest {
     private AgentExecutionRunner executionRunner;
     @Mock
     private TraceRecorder traceRecorder;
+    @Mock
+    private ExecutionLifecycle executionLifecycle;
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
@@ -236,6 +240,33 @@ class AiTaskServiceImplTest {
         assertEquals(Constants.AiTaskFlowStatus.RUNNING, resp.getStatus());
         // 创建即启动：无活动事务时直接触发执行核（@Async）
         verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+    }
+
+    @Test
+    void submit_activeTransaction_startsOnceAfterCommit() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
+
+            verify(executionRunner, never()).run(any());
+            assertEquals(1, TransactionSynchronizationManager.getSynchronizations().size());
+            TransactionSynchronizationManager.getSynchronizations().get(0).afterCommit();
+            verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void submit_executionInsertFails_rollsBackAndDoesNotStart() {
+        when(executionMapper.insert(any(AiTaskExecution.class)))
+                .thenThrow(new IllegalStateException("insert failed"));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
+
+        verify(transactionManager).rollback(any());
+        verify(executionRunner, never()).run(any());
     }
 
     @Test
@@ -394,15 +425,13 @@ class AiTaskServiceImplTest {
                         task(Constants.AiTaskFlowStatus.ABORTED));
         AiTaskExecution running = execution("running");
         when(executionMapper.selectById(EXEC_ID)).thenReturn(running);
-        when(executionMapper.abort(eq(EXEC_ID), eq(ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code()),
-                eq("用户中止"), anyInt(), anyInt(), anyInt(), any(), anyInt())).thenReturn(true);
+        when(executionLifecycle.terminate(TASK_ID, EXEC_ID,
+                ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), "用户中止")).thenReturn(true);
 
         AiTaskRespDTO resp = service.abort(TASK_ID, EXEC_ID, loginUser);
 
-        verify(taskMapper).markAborted(TASK_ID, ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), "用户中止");
-        verify(taskMapper).accumulateTokens(TASK_ID, running.getTokensIn(), running.getTokensOut());
-        verify(traceRecorder, times(2)).record(eq(EXEC_ID), eq(Constants.AiTraceEventType.STATUS_CHANGE),
-                anyString(), any());
+        verify(executionLifecycle).terminate(TASK_ID, EXEC_ID,
+                ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), "用户中止");
         assertEquals(Constants.AiTaskFlowStatus.ABORTED, resp.getStatus());
     }
 
@@ -410,13 +439,14 @@ class AiTaskServiceImplTest {
     void abort_alreadyFinished_throws127() {
         when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.RUNNING));
         when(executionMapper.selectById(EXEC_ID)).thenReturn(execution("succeeded"));
-        when(executionMapper.abort(eq(EXEC_ID), anyInt(), anyString(), anyInt(), anyInt(), anyInt(),
-                any(), anyInt())).thenReturn(false);
+        when(executionLifecycle.terminate(TASK_ID, EXEC_ID,
+                ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), "用户中止")).thenReturn(false);
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.abort(TASK_ID, EXEC_ID, loginUser));
         assertEquals(ErrorCodeConstants.AI_EXECUTION_FINISHED.code(), exception.getCode());
-        verify(taskMapper, never()).markAborted(any(), anyInt(), anyString());
+        verify(executionLifecycle).terminate(TASK_ID, EXEC_ID,
+                ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), "用户中止");
     }
 
     @Test
@@ -438,6 +468,8 @@ class AiTaskServiceImplTest {
         AiTaskExecution previous = execution("succeeded");
         previous.setId(PREV_EXEC_ID);
         when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(ready);
+        when(executionMapper.selectLatestByTaskIdForUpdate(TASK_ID)).thenReturn(previous);
         when(settingsReader.resolveModel(MODEL_ID, null)).thenReturn(model());
         when(taskMapper.markRerun(TASK_ID)).thenReturn(true);
         when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(1);
@@ -456,6 +488,28 @@ class AiTaskServiceImplTest {
         assertNotNull(resp.getExecutionId());
         verify(taskMapper).markRerun(TASK_ID);
         verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+    }
+
+    @Test
+    void reExecute_executionInsertFails_rollsBackRerunAndDoesNotStart() {
+        AiTask ready = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        AiTaskExecution previous = execution("succeeded");
+        previous.setId(PREV_EXEC_ID);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(ready);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
+        when(settingsReader.resolveModel(MODEL_ID, null)).thenReturn(model());
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(ready);
+        when(executionMapper.selectLatestByTaskIdForUpdate(TASK_ID)).thenReturn(previous);
+        when(executionMapper.countActiveByTaskId(TASK_ID)).thenReturn(0L);
+        when(taskMapper.markRerun(TASK_ID)).thenReturn(true);
+        when(executionMapper.insert(any(AiTaskExecution.class)))
+                .thenThrow(new IllegalStateException("insert failed"));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.reExecute(TASK_ID, null, loginUser));
+
+        verify(transactionManager).rollback(any());
+        verify(executionRunner, never()).run(any());
     }
 
     @Test

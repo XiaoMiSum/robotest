@@ -33,6 +33,7 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.core.AgentExecutionRunner;
 import io.github.xiaomisum.robotest.service.ai.task.core.BudgetGuard;
+import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionLifecycle;
 import io.github.xiaomisum.robotest.service.ai.task.core.TraceRecorder;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
@@ -112,6 +113,8 @@ public class AiTaskServiceImpl implements AiTaskService {
     @Resource
     private TraceRecorder traceRecorder;
     @Resource
+    private ExecutionLifecycle executionLifecycle;
+    @Resource
     private PlatformTransactionManager transactionManager;
     @Resource
     private RequirementMapper requirementMapper;
@@ -164,18 +167,27 @@ public class AiTaskServiceImpl implements AiTaskService {
                     ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
                     : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
         }
-        AiTask task = new AiTask();
-        task.setType(type);
-        task.setStatus(Constants.AiTaskFlowStatus.RUNNING);
-        task.setProjectId(projectId);
-        task.setWorkspaceId(workspaceId);
-        task.setSubmittedBy(userId);
-        task.setInput(effectiveInput);
-        task.setTokensIn(0);
-        task.setTokensOut(0);
-        taskMapper.insert(task);
-        AiTaskExecution execution = createExecution(task.getId(), userId, type, model.getId(), budget, null);
-        triggerStart(task, execution, model, workspaceId, projectId, null);
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        CreatedRun created = template.execute(status -> {
+            AiTask task = new AiTask();
+            task.setType(type);
+            task.setStatus(Constants.AiTaskFlowStatus.RUNNING);
+            task.setProjectId(projectId);
+            task.setWorkspaceId(workspaceId);
+            task.setSubmittedBy(userId);
+            task.setInput(effectiveInput);
+            task.setTokensIn(0);
+            task.setTokensOut(0);
+            taskMapper.insert(task);
+            AiTaskExecution execution = createExecution(task.getId(), userId, type, model.getId(), budget, null);
+            triggerStart(task, execution, model, workspaceId, projectId, null);
+            return new CreatedRun(task, execution);
+        });
+        if (created == null) {
+            throw new IllegalStateException("任务创建事务未返回结果");
+        }
+        AiTask task = created.task();
+        AiTaskExecution execution = created.execution();
         if (waitSeconds > 0) {
             AiTask finished = await(task.getId(), waitSeconds);
             if (finished != null) {
@@ -311,27 +323,12 @@ public class AiTaskServiceImpl implements AiTaskService {
     @Override
     @AuditLog(action = "ABORT:AiTask")
     public AiTaskRespDTO abort(UUID taskId, UUID executionId, LoginUser loginUser) {
-        AiTask task = requireVisible(taskId, loginUser);
-        AiTaskExecution execution = requireExecution(taskId, executionId);
-        int tokensIn = execution.getTokensIn() == null ? 0 : execution.getTokensIn();
-        int tokensOut = execution.getTokensOut() == null ? 0 : execution.getTokensOut();
-        BigDecimal cost = execution.getCost() == null ? BigDecimal.ZERO : execution.getCost();
-        // 条件写与执行核竞争：已终态的执行返回 1000018127（总册 3.6.4）
-        boolean aborted = executionMapper.abort(executionId,
-                ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), ABORT_MSG,
-                execution.getSteps() == null ? 0 : execution.getSteps(),
-                tokensIn, tokensOut, cost, elapsedSince(execution));
-        if (!aborted) {
+        requireVisible(taskId, loginUser);
+        requireExecution(taskId, executionId);
+        if (!executionLifecycle.terminate(taskId, executionId,
+                ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), ABORT_MSG)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EXECUTION_FINISHED);
         }
-        traceRecorder.record(executionId, Constants.AiTraceEventType.STATUS_CHANGE,
-                "执行终止: " + ABORT_MSG,
-                Map.of("terminateCode", ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code()));
-        taskMapper.markAborted(taskId, ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), ABORT_MSG);
-        taskMapper.accumulateTokens(taskId, tokensIn, tokensOut);
-        traceRecorder.record(executionId, Constants.AiTraceEventType.STATUS_CHANGE,
-                "任务终止", Map.of("task", Constants.AiTaskFlowStatus.ABORTED,
-                        "terminateCode", ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code()));
         return buildDetailResp(taskMapper.selectById(taskId), loginUser);
     }
 
@@ -370,15 +367,33 @@ public class AiTaskServiceImpl implements AiTaskService {
                     : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
         }
         Map<String, Object> budget = budgetGuard.sign(adapter.defaultBudget(), null);
-        if (!taskMapper.markRerun(taskId)) {
-            // 条件写与并发操作竞争，失败即状态不允许
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
+        UUID expectedPreviousId = previous == null ? null : previous.getId();
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        CreatedRun created = template.execute(status -> {
+            AiTask lockedTask = taskMapper.selectByIdForUpdate(taskId);
+            if (lockedTask == null || (!Constants.AiTaskFlowStatus.ABORTED.equals(lockedTask.getStatus())
+                    && !Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(lockedTask.getStatus()))) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
+            }
+            AiTaskExecution lockedPrevious = executionMapper.selectLatestByTaskIdForUpdate(taskId);
+            UUID lockedPreviousId = lockedPrevious == null ? null : lockedPrevious.getId();
+            if (!Objects.equals(expectedPreviousId, lockedPreviousId)
+                    || executionMapper.countActiveByTaskId(taskId) > 0
+                    || !taskMapper.markRerun(taskId)) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
+            }
+            lockedTask.setStatus(Constants.AiTaskFlowStatus.RUNNING);
+            lockedTask.setTerminateCode(null);
+            lockedTask.setTerminateMsg(null);
+            AiTaskExecution execution = createExecution(taskId, loginUser.getId(), task.getType(),
+                    model.getId(), budget, lockedPreviousId);
+            triggerStart(lockedTask, execution, model, task.getWorkspaceId(), task.getProjectId(), feedback);
+            return new CreatedRun(lockedTask, execution);
+        });
+        if (created == null) {
+            throw new IllegalStateException("再次执行事务未返回结果");
         }
-        AiTask fresh = taskMapper.selectById(taskId);
-        AiTaskExecution execution = createExecution(taskId, loginUser.getId(), task.getType(),
-                model.getId(), budget, previous == null ? null : previous.getId());
-        triggerStart(fresh, execution, model, task.getWorkspaceId(), task.getProjectId(), feedback);
-        return buildSubmitResp(fresh, execution);
+        return buildSubmitResp(created.task(), created.execution());
     }
 
     // ---------- 3.6.5 提案确认（逐项事务） ----------
@@ -722,14 +737,6 @@ public class AiTaskServiceImpl implements AiTaskService {
                 || Constants.AiTaskFlowStatus.ABORTED.equals(status);
     }
 
-    private static int elapsedSince(AiTaskExecution execution) {
-        if (execution.getCreatedAt() == null) {
-            return 0;
-        }
-        long millis = java.time.Duration.between(execution.getCreatedAt(), LocalDateTime.now()).toMillis();
-        return (int) Math.min(Math.max(millis, 0), Integer.MAX_VALUE);
-    }
-
     private static UUID parseUuid(Object raw) {
         if (raw == null) {
             return null;
@@ -743,5 +750,8 @@ public class AiTaskServiceImpl implements AiTaskService {
 
     private static String asString(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private record CreatedRun(AiTask task, AiTaskExecution execution) {
     }
 }
