@@ -281,7 +281,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | S0 | ❌ | 基线登记已完成（计划入索引、裁决落档），缺清理门禁脚本草稿 |
 | S1 | ✅ | `f1191f09`（增量口径见 2.3.3；`AiTask` 重建与旧常量删除归 S3） |
 | S2 | ✅ | `a2eb0d30`（执行核三件 + `TaskTypeAdapter` SPI/注册表 + `AgentTool` 注册表与 `AiModelClient` 中性声明重载，均纯增量；心跳清扫、abortActive 与用量归因接线归 S3） |
-| S3 | ❌ | — |
+| S3 | ✅ | `34a4f322`（九端点 + Service 三资源重写、`ai_task` 六表重建与旧引擎删除单提交收口；配套 `1000018128` 登记勘误 `63b458be`）——已知中间态：S4 前 `TaskTypeAdapterRegistry` 为空、S5 前端接入前新端点不可用，整包 S6 收口 |
 | S4 | ❌ | — |
 | S5 | ❌ | — |
 | S6 | ❌ | — |
@@ -300,4 +300,5 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-10-27 | 对齐详设 / 交互稿 2026-10-19～20 两轮口径：任务端点移除后端权限校验仅留归属可见性（2.2 承接服务、2.3.2 Controller 补 C4 上下文头）、`bug_classify` 收窄为存量批量与新建缺陷建议改实时接口 `analysis/suggest`（2.3.2 Handler、2.4 跨域消费方）、`AiTaskEntryButton` 下线入口收敛顶栏指示器（2.4） |
 | V1.0 | 2026-10-27 | 实施边界勘误：S1 改纯增量（五表 DDL / 实体 / 常量并存 / 错误码，`AiTask` 重建与旧常量删除挪 S3）、S2 改不接线不删旧（删 `AiTaskExecutor` 归 S3）、type 数 15 → 13（追溯下线注销 coverage / impact）、`ai_task_tool` 种子改随 S4 TypeAdapter 落地（预算默认由 TypeAdapter 声明）、迁移说明交付于 runbook §10（2.3.3、3.1、3.2、层 A/C 同步） |
 | V1.0 | 2026-10-27 | 5.1 实施状态回填：S1 ✅（`f1191f09`）；S0 备注缺清理门禁脚本草稿 |
-| V1.0 | 2026-10-27 | 5.1 实施状态回填：S2 ✅（`a2eb0d30`）——执行核、预算护栏、轨迹记录与类型适配器 SPI 纯增量落地，接线与删旧按勘误口径归 S3 |
+| V1.0 | 2026-10-27 | 5.1 实施状态回填：S2 ✅（`a55419a6` 回填 `a2eb0d30`）——执行核、预算护栏、轨迹记录与类型适配器 SPI 纯增量落地，接线与删旧按勘误口径归 S3 |
+| V1.0 | 2026-11-07 | 5.1 实施状态回填：S3 ✅（`34a4f322`）——九端点与 Service 三资源重写、`ai_task` 六表重建、旧引擎（`AiTaskExecutor` / cancel / retry / artifacts 确认路径）删除单提交收口；`1000018128` 用户中止码登记勘误 `63b458be`；已知中间态（S4 空注册表 / S5 前端未接入）整包 S6 收口 |
