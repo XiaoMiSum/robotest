@@ -25,9 +25,9 @@ import io.github.xiaomisum.robotest.repository.ai.AiTaskProposalMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskTraceEventMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
-import io.github.xiaomisum.robotest.service.ai.task.core.AgentExecutionRunner;
 import io.github.xiaomisum.robotest.service.ai.task.core.BudgetGuard;
 import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionLifecycle;
+import io.github.xiaomisum.robotest.service.ai.task.core.TaskExecutionDispatcher;
 import io.github.xiaomisum.robotest.service.ai.task.core.TraceRecorder;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
@@ -109,7 +109,7 @@ class AiTaskServiceImplTest {
     @Mock
     private ProposalAdopterRegistry adopterRegistry;
     @Mock
-    private AgentExecutionRunner executionRunner;
+    private TaskExecutionDispatcher executionDispatcher;
     @Mock
     private TraceRecorder traceRecorder;
     @Mock
@@ -168,7 +168,7 @@ class AiTaskServiceImplTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.submit(req, PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
         assertEquals(ErrorCodeConstants.AI_WAIT_SECONDS_INVALID.code(), exception.getCode());
-        verifyNoInteractions(taskMapper, executionRunner);
+        verifyNoInteractions(taskMapper, executionDispatcher);
     }
 
     @Test
@@ -239,7 +239,7 @@ class AiTaskServiceImplTest {
         assertEquals(BUDGET, resp.getBudget());
         assertEquals(Constants.AiTaskFlowStatus.RUNNING, resp.getStatus());
         // 创建即启动：无活动事务时直接触发执行核（@Async）
-        verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+        verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
     }
 
     @Test
@@ -248,10 +248,10 @@ class AiTaskServiceImplTest {
         try {
             service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
 
-            verify(executionRunner, never()).run(any());
+            verify(executionDispatcher, never()).dispatch(any());
             assertEquals(1, TransactionSynchronizationManager.getSynchronizations().size());
             TransactionSynchronizationManager.getSynchronizations().get(0).afterCommit();
-            verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+            verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
         } finally {
             TransactionSynchronizationManager.clearSynchronization();
         }
@@ -266,7 +266,7 @@ class AiTaskServiceImplTest {
                 () -> service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser));
 
         verify(transactionManager).rollback(any());
-        verify(executionRunner, never()).run(any());
+        verify(executionDispatcher, never()).dispatch(any());
     }
 
     @Test
@@ -487,7 +487,7 @@ class AiTaskServiceImplTest {
         assertEquals(BUDGET, created.getBudget());
         assertNotNull(resp.getExecutionId());
         verify(taskMapper).markRerun(TASK_ID);
-        verify(executionRunner).run(any(AgentExecutionRunner.RunContext.class));
+        verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
     }
 
     @Test
@@ -509,7 +509,7 @@ class AiTaskServiceImplTest {
                 () -> service.reExecute(TASK_ID, null, loginUser));
 
         verify(transactionManager).rollback(any());
-        verify(executionRunner, never()).run(any());
+        verify(executionDispatcher, never()).dispatch(any());
     }
 
     @Test

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
+import io.github.xiaomisum.robotest.service.ai.task.core.TaskExecutionStrategy;
 
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,13 @@ import java.util.Map;
  * 实现随 S4 落地（13 个 type），本接口在 S2 先行定型。
  */
 public interface TaskTypeAdapter {
+
+    /**
+     * 执行策略登记；目标型任务默认使用 Agent，确定性或对话型任务可直接返回自己的策略 Bean。
+     */
+    default TaskExecutionStrategy executionStrategy(TaskExecutionStrategy defaultAgentStrategy) {
+        return defaultAgentStrategy;
+    }
 
     /** 任务类型（总册 3.6.1 全量枚举，注册表内唯一） */
     String type();
