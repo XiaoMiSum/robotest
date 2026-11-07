@@ -1158,6 +1158,7 @@ CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id,
 CREATE TABLE ai_task_proposal (
     id             uuid PRIMARY KEY,
     task_id        uuid NOT NULL,
+    execution_id   uuid NOT NULL,
     proposal_key   varchar(100) NOT NULL,
     kind           varchar(50) NOT NULL,
     parent_key     varchar(100) NULL,
@@ -1168,7 +1169,7 @@ CREATE TABLE ai_task_proposal (
     updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted     boolean NOT NULL DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_ai_task_proposal ON ai_task_proposal (task_id, proposal_key) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX uk_ai_task_proposal ON ai_task_proposal (execution_id, proposal_key) WHERE is_deleted = FALSE;
 CREATE INDEX idx_ai_task_proposal_task ON ai_task_proposal (task_id, confirm_status);
 
 CREATE TABLE ai_task_tool (
@@ -1190,6 +1191,7 @@ CREATE TABLE ai_task_adoption (
     id           uuid PRIMARY KEY,
     project_id   uuid NULL,
     task_id      uuid NOT NULL,
+    execution_id uuid NOT NULL,
     proposal_key varchar(100) NOT NULL,
     action       varchar(20) NOT NULL,
     operator_id  uuid NOT NULL,
@@ -1199,7 +1201,7 @@ CREATE TABLE ai_task_adoption (
     updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted   boolean NOT NULL DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_ai_task_adoption ON ai_task_adoption (task_id, proposal_key) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX uk_ai_task_adoption ON ai_task_adoption (execution_id, proposal_key) WHERE is_deleted = FALSE;
 CREATE INDEX idx_ai_task_adoption_project ON ai_task_adoption (project_id, created_at);
 
 CREATE TABLE ai_usage_log (
@@ -2085,7 +2087,8 @@ COMMENT ON COLUMN ai_task_trace_event.detail IS '事件明细（工具参数与�
 
 COMMENT ON TABLE ai_task_proposal IS '任务提案表（AI 产出，人工采纳的唯一入口）';
 COMMENT ON COLUMN ai_task_proposal.task_id IS '所属任务';
-COMMENT ON COLUMN ai_task_proposal.proposal_key IS '提案在任务产出中的定位键';
+COMMENT ON COLUMN ai_task_proposal.execution_id IS '所属执行：提案键按执行命名空间，再次执行的同名键并存（uk 挂 execution_id）';
+COMMENT ON COLUMN ai_task_proposal.proposal_key IS '提案在本次执行产出中的定位键';
 COMMENT ON COLUMN ai_task_proposal.kind IS '提案类型（枚举由各分册定义）';
 COMMENT ON COLUMN ai_task_proposal.parent_key IS '树形提案的父提案键';
 COMMENT ON COLUMN ai_task_proposal.title IS '提案标题';
@@ -2104,6 +2107,7 @@ COMMENT ON COLUMN ai_task_tool.enabled IS '停用后不出现在任何白名单'
 COMMENT ON TABLE ai_task_adoption IS '提案采纳记录表（审计：AI 产出必经人工采纳）';
 COMMENT ON COLUMN ai_task_adoption.project_id IS '落库目标项目（确认列表过滤），经请求头上报';
 COMMENT ON COLUMN ai_task_adoption.task_id IS '所属任务';
+COMMENT ON COLUMN ai_task_adoption.execution_id IS '所采纳提案所属执行（与 ai_task_proposal.execution_id 对齐）';
 COMMENT ON COLUMN ai_task_adoption.proposal_key IS '所采纳提案在 ai_task_proposal 中的定位键';
 COMMENT ON COLUMN ai_task_adoption.action IS '采纳动作：adopted/adopted_edited/rejected';
 COMMENT ON COLUMN ai_task_adoption.operator_id IS '确认操作人';

@@ -311,7 +311,8 @@ CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id,
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | task_id | uuid | NOT NULL | 所属任务 |
-| proposal_key | varchar(100) | NOT NULL | 提案在任务产出中的定位键 |
+| execution_id | uuid | NOT NULL | 所属执行：提案键按执行命名空间——再次执行产生新提案，键与原提案并存不冲突（3.6.4） |
+| proposal_key | varchar(100) | NOT NULL | 提案在本次执行产出中的定位键 |
 | kind | varchar(50) | NOT NULL | 提案类型（枚举由各分册定义，如 `module_suggestion`） |
 | parent_key | varchar(100) | NULL | 树形提案的父提案键 |
 | title | varchar(200) | NOT NULL | 提案标题 |
@@ -320,13 +321,14 @@ CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id,
 
 **索引**（2 个）：
 
-- `uk_ai_task_proposal` UNIQUE (task_id, proposal_key) WHERE is_deleted = FALSE；
+- `uk_ai_task_proposal` UNIQUE (execution_id, proposal_key) WHERE is_deleted = FALSE —— 同一次执行内提案键唯一；键在任务内不唯一（再次执行的同名键属不同执行）；
 - `idx_ai_task_proposal_task` (task_id, confirm_status) —— 待采纳提案清单。
 
 ```sql
 CREATE TABLE ai_task_proposal (
     id             uuid PRIMARY KEY,
     task_id        uuid NOT NULL,
+    execution_id   uuid NOT NULL,
     proposal_key   varchar(100) NOT NULL,
     kind           varchar(50) NOT NULL,
     parent_key     varchar(100) NULL,
@@ -337,7 +339,7 @@ CREATE TABLE ai_task_proposal (
     updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted     boolean NOT NULL DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_ai_task_proposal ON ai_task_proposal (task_id, proposal_key) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX uk_ai_task_proposal ON ai_task_proposal (execution_id, proposal_key) WHERE is_deleted = FALSE;
 CREATE INDEX idx_ai_task_proposal_task ON ai_task_proposal (task_id, confirm_status);
 ```
 
@@ -376,6 +378,7 @@ CREATE UNIQUE INDEX uk_ai_task_tool ON ai_task_tool (tool_code) WHERE is_deleted
 | ---- | ---- | ---- | ---- |
 | project_id | uuid | NULL | 落库目标项目（确认列表过滤），经请求头上报 |
 | task_id | uuid | NOT NULL | 所属任务 |
+| execution_id | uuid | NOT NULL | 所采纳提案所属执行（与 `ai_task_proposal.execution_id` 对齐，再次执行的同名提案各自独立采纳） |
 | proposal_key | varchar(100) | NOT NULL | 所采纳提案在 `ai_task_proposal` 中的定位键 |
 | action | varchar(20) | NOT NULL | `adopted / adopted_edited / rejected` |
 | operator_id | uuid | NOT NULL | 确认操作人（审计：AI 产出必经人工采纳） |
@@ -384,7 +387,7 @@ CREATE UNIQUE INDEX uk_ai_task_tool ON ai_task_tool (tool_code) WHERE is_deleted
 
 **索引**（2 个）：
 
-- `uk_ai_task_adoption` UNIQUE (task_id, proposal_key) WHERE is_deleted = FALSE —— 同一提案仅一条采纳记录，重复提交幂等拦截（1000018113）；
+- `uk_ai_task_adoption` UNIQUE (execution_id, proposal_key) WHERE is_deleted = FALSE —— 同一执行内同一提案仅一条采纳记录，重复提交幂等拦截（1000018113）；
 - `idx_ai_task_adoption_project` (project_id, created_at) —— 跨任务审核列表。
 
 ```sql
@@ -392,6 +395,7 @@ CREATE TABLE ai_task_adoption (
     id           uuid PRIMARY KEY,
     project_id   uuid NULL,
     task_id      uuid NOT NULL,
+    execution_id uuid NOT NULL,
     proposal_key varchar(100) NOT NULL,
     action       varchar(20) NOT NULL,
     operator_id  uuid NOT NULL,
@@ -401,7 +405,7 @@ CREATE TABLE ai_task_adoption (
     updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted   boolean NOT NULL DEFAULT FALSE
 );
-CREATE UNIQUE INDEX uk_ai_task_adoption ON ai_task_adoption (task_id, proposal_key) WHERE is_deleted = FALSE;
+CREATE UNIQUE INDEX uk_ai_task_adoption ON ai_task_adoption (execution_id, proposal_key) WHERE is_deleted = FALSE;
 CREATE INDEX idx_ai_task_adoption_project ON ai_task_adoption (project_id, created_at);
 ```
 
@@ -773,7 +777,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 - **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数；项目上下文经 `X-Active-Project` 头过滤（未附带则统计本人提交的任务），语义与列表一致。
   - 响应：`{ "count": 2 }`。
 - **详情**：`GET /api/ai/tasks/{taskId}`
-  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`status = proposals_ready / closed` 时附提案清单摘要；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
+  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看）；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
 
 ```json
 {
@@ -803,12 +807,12 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（审核预览用，内容结构由各分册定义）。
+- **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（审核预览用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。
 
 #### 3.6.4 执行管理与轨迹
 
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
-- **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 复用原执行模型；同任务同时至多一个进行中执行；新执行产生新提案，原提案与采纳记录保留。
+- **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 复用原执行模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
 - **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
@@ -840,7 +844,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 
 - **校验与事务**：
-  - 任务须 `proposals_ready`（否则 1000018111）、提案存在（1000018112）、未确认过（1000018113，`uk_ai_task_adoption` 兜底）；
+  - 任务须 `proposals_ready`（否则 1000018111）、提案存在（1000018112，按**最新一次执行**的提案定位）、未确认过（1000018113，`uk_ai_task_adoption (execution_id, proposal_key)` 兜底）；
   - **逐项事务**：每项「`ai_task_adoption` 采纳记录 + 业务落库」在同一事务，失败仅该项回滚，其余项继续（部分失败，成功项保留）；
   - 落库由 3.6.1 的承接服务执行；采纳写 `adopted_ref`，驳回写 `note`；全部提案处置完毕后任务转 `closed`；每次动作记审计。
 
@@ -1078,3 +1082,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-20 | 新建缺陷建议改实时同步接口（缺陷分析分册 3.5）：3.6.2 `waitSeconds` 同步等待示例移除该场景；3.6.1 `bug_classify` 收窄为存量批量（`bugIds` / 筛选），草稿建议不再走任务 |
 | V1.0 | 2026-10-20 | 移除能力页「任务中心」按钮（`AiTaskEntryButton` 组件下线）：3.8 `ai:task` 用途收敛为顶栏指示器，5.2 组件树删除该按钮 |
 | V1.0 | 2026-10-27 | 3.6.1 预算默认值落点勘正：工具白名单登记于 2.6.5，预算默认由类型适配器声明（2.6.5 表无预算列），提交仅可下调 |
+| V1.0 | 2026-11-07 | 提案与采纳表挂 `execution_id`（再次执行唯一键冲突裁决）：2.6.4 / 2.7 增 `execution_id` 列、uk 改 `(execution_id, proposal_key)`；3.6.3 详情提案清单改「最新一次执行」口径，3.6.4 / 3.6.5 联动（同名键跨执行并存、确认按最新执行定位） |
