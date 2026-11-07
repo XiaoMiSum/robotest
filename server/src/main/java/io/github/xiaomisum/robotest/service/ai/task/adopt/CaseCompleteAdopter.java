@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseCompleteHandler;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
@@ -35,7 +35,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 字段只补空缺、编辑值按 adopted_edited 局部落库，补充节点按 target.extraNodePosition 落位。
  */
 @Service
-public class CaseCompleteAdopter implements ArtifactAdopter {
+public class CaseCompleteAdopter implements ProposalAdopter {
 
     /** 补充节点落位（详设 3.2 target.extraNodePosition，缺省 sibling）：child 落源节点之下 */
     private static final String POSITION_CHILD = "child";
@@ -65,11 +65,11 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
 
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
-        if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
             return null;
         }
         AssistAdoptSupport.CaseTarget target = support.resolveCaseTarget(context);
-        Map<String, Object> content = contentOf(context.artifact());
+        Map<String, Object> content = context.proposalContent();
 
         boolean touched = applyFields(context, target, content);
         List<UUID> created = insertExtraNodes(context, target, content);
@@ -178,7 +178,7 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
 
     /** 补充节点清单：默认随产物采纳，adopted_edited 显式携带时以编辑载荷为准（可剔除） */
     private static Object effectiveExtras(AdoptContext context, Map<String, Object> content) {
-        if (Constants.AiArtifactAction.ADOPTED_EDITED.equals(context.action())
+        if (Constants.AiProposalAction.ADOPTED_EDITED.equals(context.action())
                 && context.content() != null && context.content().containsKey("extraNodes")) {
             return context.content().get("extraNodes");
         }
@@ -195,7 +195,7 @@ public class CaseCompleteAdopter implements ArtifactAdopter {
     }
 
     private static Map<String, Object> editedFields(AdoptContext context) {
-        if (!Constants.AiArtifactAction.ADOPTED_EDITED.equals(context.action())
+        if (!Constants.AiProposalAction.ADOPTED_EDITED.equals(context.action())
                 || context.content() == null) {
             return Map.of();
         }

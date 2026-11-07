@@ -8,7 +8,7 @@ import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.PlanOrderHandler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -36,7 +36,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 采纳只重排快照 sortOrder，不改快照内容、不改关联集合、不持久复用建议结果。
  */
 @Service
-public class PlanOrderAdopter implements ArtifactAdopter {
+public class PlanOrderAdopter implements ProposalAdopter {
 
     /** 根节点分组键，与计划树读取口径（Constants.Tree.ROOT_KEY）一致 */
     private static final String ROOT_KEY = Constants.Tree.ROOT_KEY;
@@ -55,7 +55,7 @@ public class PlanOrderAdopter implements ArtifactAdopter {
 
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
-        if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
             return null;
         }
         UUID planId = requirePlanId(context);
@@ -97,11 +97,11 @@ public class PlanOrderAdopter implements ArtifactAdopter {
     private static Map<UUID, Integer> suggestedRanks(AdoptContext context,
             Map<UUID, TestPlanNodeSnapshot> associated) {
         List<Map<String, Object>> items;
-        if (Constants.AiArtifactAction.ADOPTED_EDITED.equals(context.action())
+        if (Constants.AiProposalAction.ADOPTED_EDITED.equals(context.action())
                 && context.content() != null && context.content().get("items") instanceof List<?>) {
             items = maps(context.content().get("items"));
         } else {
-            items = maps(contentOf(context.artifact()).get("items"));
+            items = maps(context.proposalContent().get("items"));
         }
         if (items.isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);

@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -136,7 +138,7 @@ class AssistAdoptSupportTest {
         task.setType("case_complete");
         task.setInput(input);
         Map<String, Object> artifact = Map.of("key", "node-1", "content", nodeContent);
-        return new AdoptContext(task, artifact, "adopted", null, null, null, null, null, null,
-                targetDocumentId, null, null, null, PROJECT_ID, OPERATOR_ID, loginUser);
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), "adopted", null, null, null, null, null, null,
+                targetDocumentId, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 }

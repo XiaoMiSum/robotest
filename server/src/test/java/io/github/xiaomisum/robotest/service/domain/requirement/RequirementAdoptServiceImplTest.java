@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecordMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -97,8 +99,16 @@ class RequirementAdoptServiceImplTest {
 
     private AdoptContext ctx(AiTask task, Map<String, Object> artifact, String action,
             Map<String, Object> content, String targetSystemVersion) {
-        return new AdoptContext(task, artifact, action, content, null, null, null,
-                targetSystemVersion, null, null, null, null, null, PROJECT_ID, OPERATOR_ID, null);
+        // 单提案默认键全集为自身键（多提案用例显式传入全集）
+        return ctx(task, artifact, action, content, targetSystemVersion,
+                Set.of(String.valueOf(artifact.get("key"))));
+    }
+
+    private AdoptContext ctx(AiTask task, Map<String, Object> artifact, String action,
+            Map<String, Object> content, String targetSystemVersion, Set<String> allProposalKeys) {
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, content, null, null, null,
+                targetSystemVersion, null, null, null, null, null, PROJECT_ID, OPERATOR_ID,
+                allProposalKeys, null);
     }
 
     private void stubModule() {
@@ -134,7 +144,8 @@ class RequirementAdoptServiceImplTest {
         stubModule();
         stubAllocator();
 
-        AdoptOutcome outcome = service.adopt(ctx(task, art, "adopted", null, null));
+        AdoptOutcome outcome = service.adopt(ctx(task, art, "adopted", null, null,
+                Set.of("item-1", "item-2")));
 
         assertNotNull(outcome.createdId());
         assertEquals(CREATED_ID, outcome.createdId());
@@ -204,7 +215,8 @@ class RequirementAdoptServiceImplTest {
         record.setAdoptResult(prior);
         when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
 
-        AdoptOutcome outcome = service.adopt(ctx(task, art, "rejected", null, null));
+        AdoptOutcome outcome = service.adopt(ctx(task, art, "rejected", null, null,
+                Set.of("item-1", "item-2")));
 
         assertNull(outcome.createdId());
         assertNull(outcome.adoptedRef());
@@ -228,7 +240,7 @@ class RequirementAdoptServiceImplTest {
         when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
         stubAllocator();
 
-        service.adopt(ctx(task, art, "adopted", null, null));
+        service.adopt(ctx(task, art, "adopted", null, null, Set.of("item-1", "item-2")));
 
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
@@ -247,7 +259,7 @@ class RequirementAdoptServiceImplTest {
         record.setAdoptResult(prior);
         when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
 
-        service.adopt(ctx(task, art, "rejected", null, null));
+        service.adopt(ctx(task, art, "rejected", null, null, Set.of("item-1", "item-2")));
 
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
@@ -256,18 +268,19 @@ class RequirementAdoptServiceImplTest {
 
     // ---------- 3.8 导入采纳 ----------
 
+    /**
+     * 导入任务行：文档级元数据落 result_meta（总册 2.6.1）；提案键全集不再挂任务行，
+     * 改经 {@link AdoptContext#allProposalKeys()} 传入（artifacts 参数仅保留调用面，不参与判定）。
+     */
     private AiTask importTask(List<Map<String, Object>> artifacts, Map<String, Object> documentMeta) {
         AiTask task = new AiTask();
         task.setId(TASK_ID);
         task.setType("requirement_import");
         task.setProjectId(PROJECT_ID);
         task.setInput(Map.of("fileId", FILE_ID.toString()));
-        Map<String, Object> result = new LinkedHashMap<>();
         if (documentMeta != null) {
-            result.put("documentMeta", documentMeta);
+            task.setResultMeta(documentMeta);
         }
-        result.put("artifacts", artifacts);
-        task.setResult(result);
         task.setStatus("succeeded");
         return task;
     }
@@ -466,9 +479,9 @@ class RequirementAdoptServiceImplTest {
         when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
         stubAllocator();
 
-        service.adopt(ctx(task, art, "adopted", null, null));
+        service.adopt(ctx(task, art, "adopted", null, null, Set.of()));
 
-        // result.artifacts 为空（键集不可计算）→ 不判定完成
+        // 提案键全集为空（键集不可计算）→ 不判定完成
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "pending"));
@@ -488,7 +501,7 @@ class RequirementAdoptServiceImplTest {
         record.setAdoptResult(prior);
         when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
 
-        service.adopt(ctx(task, art, "rejected", null, null));
+        service.adopt(ctx(task, art, "rejected", null, null, Set.of("item-1", "item-2")));
 
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());

@@ -45,7 +45,7 @@ public class AssistAdoptSupport {
         UUID documentId = context.targetDocumentId() != null
                 ? context.targetDocumentId()
                 : CaseAssistSupport.requireDocumentId(taskInput(context));
-        UUID nodeId = parseUuid(contentOf(context.artifact()).get("nodeId"));
+        UUID nodeId = parseUuid(context.proposalContent().get("nodeId"));
         if (nodeId == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
         }

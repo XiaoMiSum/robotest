@@ -12,7 +12,6 @@ import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementLi
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementSplitSubmitRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
-import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.file.FileResource;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.requirement.RequirementChangeLog;
@@ -21,7 +20,6 @@ import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
-import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementChangeLogMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
@@ -119,8 +117,6 @@ class RequirementServiceImplTest {
     private PlatformTransactionManager transactionManager;
     @Mock
     private AiTaskService aiTaskService;
-    @Mock
-    private AiTaskMapper aiTaskMapper;
     @Mock
     private FileResourceService fileResourceService;
     @Mock
@@ -688,15 +684,13 @@ class RequirementServiceImplTest {
         record.setId(UUID.randomUUID());
         record.setAiTaskId(TASK_ID);
         when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of(record));
-        AiTask running = new AiTask();
-        running.setId(TASK_ID);
-        running.setStatus("running");
-        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(running);
+        when(aiTaskService.isTaskRunning(TASK_ID)).thenReturn(true);
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.importDocument(importFile("PRD.md"), PROJECT_ID, OPERATOR_ID));
         assertEquals(ErrorCodeConstants.REQUIREMENT_TASK_IN_PROGRESS.code(), exception.getCode());
-        verifyNoInteractions(fileResourceService, aiTaskService);
+        verifyNoInteractions(fileResourceService);
+        verify(aiTaskService, never()).submitInternal(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -707,10 +701,7 @@ class RequirementServiceImplTest {
         stale.setId(UUID.randomUUID());
         stale.setAiTaskId(TASK_ID);
         when(splitRecordMapper.selectPendingImportByProject(PROJECT_ID)).thenReturn(List.of(stale));
-        AiTask failed = new AiTask();
-        failed.setId(TASK_ID);
-        failed.setStatus("failed");
-        when(aiTaskMapper.selectById(TASK_ID)).thenReturn(failed);
+        when(aiTaskService.isTaskRunning(TASK_ID)).thenReturn(false);
         FileResourceRespDTO stored = new FileResourceRespDTO();
         stored.setId(FILE_ID);
         when(fileResourceService.upload(any(), eq(OPERATOR_ID))).thenReturn(stored);

@@ -94,7 +94,7 @@ class CasePriorityHandlerTest {
 
         Map<String, Object> artifact = artifacts(result).get(0);
         assertEquals("node-1", artifact.get("key"));
-        assertEquals(Constants.AiArtifactKind.PRIORITY_SUGGESTION, artifact.get("kind"));
+        assertEquals(Constants.AiProposalKind.PRIORITY_SUGGESTION, artifact.get("kind"));
         assertEquals("pending", artifact.get("confirmStatus"));
         assertEquals("级别推荐：验证码重发", artifact.get("title"));
 

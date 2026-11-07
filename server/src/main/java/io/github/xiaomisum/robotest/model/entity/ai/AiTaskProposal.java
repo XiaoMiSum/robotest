@@ -23,7 +23,11 @@ public class AiTaskProposal extends BaseUuidDO<AiTaskProposal> {
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID taskId;
 
-    /** 提案在任务产出中的定位键 */
+    /** 所属执行：提案键按执行命名空间，再次执行的同名键并存（uk 挂 execution_id） */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID executionId;
+
+    /** 提案在本次执行产出中的定位键 */
     private String proposalKey;
 
     /** 提案类型（kind 取值由各分册定义，如 module_suggestion） */

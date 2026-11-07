@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.bug;
 
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -17,7 +17,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 确认后由人工在缺陷中按既有「重复缺陷」解决方案逐条处理。
  */
 @Service
-public class BugDuplicateScanAdopter implements ArtifactAdopter {
+public class BugDuplicateScanAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
@@ -27,7 +27,7 @@ public class BugDuplicateScanAdopter implements ArtifactAdopter {
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
         Map<String, Object> content = context.content() != null ? context.content()
-                : asMap(asMap(context.artifact()).get("content"));
+                : context.proposalContent();
         Map<String, Object> adoptedRef = new LinkedHashMap<>();
         adoptedRef.put("canonicalBugId", content.get("canonicalBugId"));
         adoptedRef.put("itemCount", content.get("items") instanceof List<?> items ? items.size() : 0);

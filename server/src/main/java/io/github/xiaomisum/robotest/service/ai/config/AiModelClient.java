@@ -366,6 +366,7 @@ public class AiModelClient {
             AiUsageLog usage = new AiUsageLog();
             usage.setProjectId(request.projectId());
             usage.setTaskId(request.taskId());
+            usage.setExecutionId(request.executionId());
             usage.setUserId(request.userId());
             usage.setModelId(request.model().getId());
             usage.setPromptScene(promptScene);
@@ -385,7 +386,7 @@ public class AiModelClient {
     }
 
     /** 成本 = prompt_tokens / 1e6 × input_price + completion_tokens / 1e6 × output_price（4.3；单价未配置恒 0） */
-    private static BigDecimal calculateCost(AiModelConfig model, int promptTokens, int completionTokens) {
+    public static BigDecimal calculateCost(AiModelConfig model, int promptTokens, int completionTokens) {
         BigDecimal inputPrice = model.getInputPrice() == null ? BigDecimal.ZERO : model.getInputPrice();
         BigDecimal outputPrice = model.getOutputPrice() == null ? BigDecimal.ZERO : model.getOutputPrice();
         BigDecimal million = new BigDecimal("1000000");

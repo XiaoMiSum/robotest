@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.ai.task.adopt;
 
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.PlanSelectionHandler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  * 计划快照由创建流程内建。
  */
 @Service
-public class PlanSelectionAdopter implements ArtifactAdopter {
+public class PlanSelectionAdopter implements ProposalAdopter {
 
     @Resource
     private SelectionAdoptSupport support;

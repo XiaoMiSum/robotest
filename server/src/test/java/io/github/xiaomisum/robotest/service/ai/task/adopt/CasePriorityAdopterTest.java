@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
+import io.github.xiaomisum.robotest.service.ai.task.AdoptFixtures;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -62,14 +64,14 @@ class CasePriorityAdopterTest {
 
     @Test
     void adopt_rejected_returnsNullAndSkipsWrite() {
-        assertNull(adopter.adopt(context(Constants.AiArtifactAction.REJECTED, null, "P1", null)));
+        assertNull(adopter.adopt(context(Constants.AiProposalAction.REJECTED, null, "P1", null)));
 
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
     }
 
     @Test
     void adopt_writesPriorityOnlyWhenSuggestedDiffers() {
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, "P1", "high"));
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, "P1", "high"));
 
         verify(testCaseNodeMapper).updateById(nodeCaptor.capture());
         assertEquals(NODE_ID, nodeCaptor.getValue().getId());
@@ -86,7 +88,7 @@ class CasePriorityAdopterTest {
 
     @Test
     void adopt_samePrioritySkipsWriteAndActivity() {
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, "P1", "medium"));
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, "P1", "medium"));
 
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
         verify(support, never()).record(any(), anyString(), any(), anyString(), anyString(), anyString());
@@ -97,7 +99,7 @@ class CasePriorityAdopterTest {
     void adopt_editedContentOverridesSuggested() {
         Map<String, Object> edited = Map.of("suggested", "low");
 
-        adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, "P1", "high"));
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, "P1", "high"));
 
         verify(testCaseNodeMapper).updateById(nodeCaptor.capture());
         assertEquals("P2", nodeCaptor.getValue().getPriority());
@@ -106,7 +108,7 @@ class CasePriorityAdopterTest {
     @Test
     void adopt_missingSuggestedSkipsWrite() {
         // 模型未响应且无人工级别 → 无可推荐值，无变化即无写入
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiArtifactAction.ADOPTED, null, null, null));
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, null, null));
 
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
         assertNull(outcome.adoptedRef().get("to"));
@@ -117,7 +119,7 @@ class CasePriorityAdopterTest {
         Map<String, Object> edited = Map.of("suggested", "urgent");
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiArtifactAction.ADOPTED_EDITED, edited, "P1", "high")));
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, "P1", "high")));
 
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
@@ -145,8 +147,9 @@ class CasePriorityAdopterTest {
         lenient().when(support.resolveCaseTarget(any()))
                 .thenReturn(new AssistAdoptSupport.CaseTarget(document, node, resolved));
 
-        return new AdoptContext(task, artifact(suggested), action, edited, null, null, null, null, null,
-                DOCUMENT_ID, null, null, null, PROJECT_ID, OPERATOR_ID, loginUser);
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact(suggested)), action, edited, null, null, null,
+                null, null,
+                DOCUMENT_ID, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 
     private static Map<String, Object> artifact(String suggested) {
@@ -157,7 +160,7 @@ class CasePriorityAdopterTest {
             content.put("suggested", suggested);
             content.put("reason", "缺陷多集中在该链路");
         }
-        return Map.of("key", "node-" + NODE_ID, "kind", Constants.AiArtifactKind.PRIORITY_SUGGESTION,
+        return Map.of("key", "node-" + NODE_ID, "kind", Constants.AiProposalKind.PRIORITY_SUGGESTION,
                 "content", content);
     }
 }

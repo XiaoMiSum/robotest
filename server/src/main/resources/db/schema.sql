@@ -1075,46 +1075,25 @@ CREATE TABLE ai_prompt_template (
 CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WHERE is_deleted = FALSE;
 
 CREATE TABLE ai_task (
-    id               uuid PRIMARY KEY,
-    type             varchar(30) NOT NULL,
-    status           varchar(20) NOT NULL DEFAULT 'pending',
-    progress         int NOT NULL DEFAULT 0,
-    phase            varchar(50) NULL,
-    project_id       uuid NULL,
-    workspace_id     uuid NULL,
-    submitted_by     uuid NOT NULL,
-    prompt_scene     varchar(50) NULL,
-    model_id         uuid NULL,
-    input            jsonb NOT NULL,
-    result           jsonb NULL,
-    tokens_in        int NOT NULL DEFAULT 0,
-    tokens_out       int NOT NULL DEFAULT 0,
-    error_code       int NULL,
-    error_msg        varchar(500) NULL,
-    retry_of_task_id uuid NULL,
-    created_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted       boolean NOT NULL DEFAULT FALSE
+    id             uuid PRIMARY KEY,
+    type           varchar(30) NOT NULL,
+    status         varchar(20) NOT NULL DEFAULT 'running',
+    project_id     uuid NULL,
+    workspace_id   uuid NULL,
+    submitted_by   uuid NOT NULL,
+    input          jsonb NOT NULL,
+    result_meta    jsonb NULL,
+    tokens_in      int NOT NULL DEFAULT 0,
+    tokens_out     int NOT NULL DEFAULT 0,
+    terminate_code int NULL,
+    terminate_msg  varchar(500) NULL,
+    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted     boolean NOT NULL DEFAULT FALSE
 );
 CREATE INDEX idx_ai_task_project ON ai_task (project_id, created_at);
 CREATE INDEX idx_ai_task_submitter ON ai_task (submitted_by, created_at);
 CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
-
-CREATE TABLE ai_artifact_confirm (
-    id           uuid PRIMARY KEY,
-    project_id   uuid NULL,
-    task_id      uuid NOT NULL,
-    artifact_key varchar(100) NOT NULL,
-    action       varchar(20) NOT NULL,
-    operator_id  uuid NOT NULL,
-    adopted_ref  jsonb NULL,
-    note         varchar(500) NULL,
-    created_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted   boolean NOT NULL DEFAULT FALSE
-);
-CREATE UNIQUE INDEX uk_ai_artifact_confirm ON ai_artifact_confirm (task_id, artifact_key) WHERE is_deleted = FALSE;
-CREATE INDEX idx_ai_artifact_confirm_project ON ai_artifact_confirm (project_id, created_at);
 
 CREATE TABLE ai_task_execution (
     id                    uuid PRIMARY KEY,
@@ -2032,32 +2011,18 @@ COMMENT ON COLUMN ai_prompt_template.variables IS '可用变量清单 [{ name, d
 COMMENT ON COLUMN ai_prompt_template.source IS '来源：default 内置默认 / custom 自定义覆盖';
 COMMENT ON COLUMN ai_prompt_template.version IS '自定义版本号，重置后归 1';
 
-COMMENT ON TABLE ai_task IS 'AI 任务表（统一任务收口）';
+COMMENT ON TABLE ai_task IS 'AI 任务表（统一任务收口，总册 2.6.1）';
 COMMENT ON COLUMN ai_task.type IS '任务类型（全量枚举见 AI 助手与任务中心详设 3.6.1）';
-COMMENT ON COLUMN ai_task.status IS '任务状态：pending/running/succeeded/failed/cancelled';
-COMMENT ON COLUMN ai_task.progress IS '进度 0–100';
-COMMENT ON COLUMN ai_task.phase IS '当前阶段（进度页阶段展示用）';
+COMMENT ON COLUMN ai_task.status IS '任务状态：running/proposals_ready/closed/aborted（running 期间执行可挂起 waiting_confirmation）';
 COMMENT ON COLUMN ai_task.project_id IS '项目内任务的隔离归属（NULL = 不限项目的个人任务）';
 COMMENT ON COLUMN ai_task.workspace_id IS '执行作用域（助手类任务经 X-Active-Workspace 头写入），RAG 限权过滤依据';
-COMMENT ON COLUMN ai_task.submitted_by IS '发起人：我的任务、完成通知与重试的归属';
-COMMENT ON COLUMN ai_task.prompt_scene IS '实际使用的提示词场景，用量按场景归因';
-COMMENT ON COLUMN ai_task.model_id IS '实际调用的模型，失败重试复用同模型';
+COMMENT ON COLUMN ai_task.submitted_by IS '发起人：我的任务、完成通知与再次执行的归属';
 COMMENT ON COLUMN ai_task.input IS '任务输入：源引用 + 参数（存引用不复制全文）';
-COMMENT ON COLUMN ai_task.result IS '产物明细（单一事实源），确认/驳回只指回这里';
-COMMENT ON COLUMN ai_task.tokens_in IS '任务级入向 token 汇总';
-COMMENT ON COLUMN ai_task.tokens_out IS '任务级出向 token 汇总';
-COMMENT ON COLUMN ai_task.error_code IS '失败业务错误码（10 位）';
-COMMENT ON COLUMN ai_task.error_msg IS '失败原因摘要';
-COMMENT ON COLUMN ai_task.retry_of_task_id IS '手动重试时指向原任务（重试保留原任务记录）';
-
-COMMENT ON TABLE ai_artifact_confirm IS '产物确认记录表';
-COMMENT ON COLUMN ai_artifact_confirm.project_id IS '落库目标项目（确认列表过滤），经请求头上报';
-COMMENT ON COLUMN ai_artifact_confirm.task_id IS '所属任务';
-COMMENT ON COLUMN ai_artifact_confirm.artifact_key IS '产物在 result 中的定位键';
-COMMENT ON COLUMN ai_artifact_confirm.action IS '确认动作：adopted/adopted_edited/rejected';
-COMMENT ON COLUMN ai_artifact_confirm.operator_id IS '确认操作人（审计：AI 产物必经人工）';
-COMMENT ON COLUMN ai_artifact_confirm.adopted_ref IS '采纳落库后的目标实体引用，反查产物来源';
-COMMENT ON COLUMN ai_artifact_confirm.note IS '驳回 / 编辑原因';
+COMMENT ON COLUMN ai_task.result_meta IS '文档级元数据（如 requirement_import 的 documentMeta），供确认面板预填';
+COMMENT ON COLUMN ai_task.tokens_in IS '任务级入向 token 汇总（跨全部执行累加）';
+COMMENT ON COLUMN ai_task.tokens_out IS '任务级出向 token 汇总（跨全部执行累加）';
+COMMENT ON COLUMN ai_task.terminate_code IS '终止原因错误码（10 位；用户中止 / 预算耗尽 1000018127 / 执行错误 1000018117 / 总开关关闭）';
+COMMENT ON COLUMN ai_task.terminate_msg IS '终止原因摘要';
 
 COMMENT ON TABLE ai_task_execution IS '任务执行表（一次执行一条，再次执行新建行，原执行与轨迹保留）';
 COMMENT ON COLUMN ai_task_execution.task_id IS '所属任务';
@@ -2104,7 +2069,7 @@ COMMENT ON COLUMN ai_task_tool.permission_code IS '调用所需权限点（NULL 
 COMMENT ON COLUMN ai_task_tool.side_effect IS '副作用级别：readonly/confirmation；写库与出网副作用禁止注册';
 COMMENT ON COLUMN ai_task_tool.enabled IS '停用后不出现在任何白名单';
 
-COMMENT ON TABLE ai_task_adoption IS '提案采纳记录表（审计：AI 产出必经人工采纳）';
+COMMENT ON TABLE ai_task_adoption IS '提案采纳记录表（总册 2.7，审计：AI 产出必经人工采纳）';
 COMMENT ON COLUMN ai_task_adoption.project_id IS '落库目标项目（确认列表过滤），经请求头上报';
 COMMENT ON COLUMN ai_task_adoption.task_id IS '所属任务';
 COMMENT ON COLUMN ai_task_adoption.execution_id IS '所采纳提案所属执行（与 ai_task_proposal.execution_id 对齐）';

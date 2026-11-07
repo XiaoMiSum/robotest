@@ -13,6 +13,9 @@ public class AiUsageTaskRespDTO {
 
     private UUID taskId;
 
+    /** 所属执行（详设 2.8 归因）：任务级下钻与执行级用量汇总依据，无任务调用为 null */
+    private UUID executionId;
+
     /** 任务类型（usage 行无任务时为 null，如下钻中含向量调用） */
     private String type;
 

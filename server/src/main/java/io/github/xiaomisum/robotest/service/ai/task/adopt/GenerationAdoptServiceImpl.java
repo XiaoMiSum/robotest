@@ -6,15 +6,15 @@ import io.github.xiaomisum.robotest.model.dto.request.tcase.ProjectModuleCreateR
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseDocumentCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.ProjectModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentRespDTO;
-import io.github.xiaomisum.robotest.model.entity.ai.AiArtifactConfirm;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.ai.AiArtifactConfirmMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskAdoptionMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.TestDesignGenerationHandler;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.ProjectModuleService;
@@ -41,7 +41,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  */
 @Slf4j
 @Service
-public class GenerationAdoptServiceImpl implements GenerationAdoptService, ArtifactAdopter {
+public class GenerationAdoptServiceImpl implements ProposalAdopter {
 
     private static final String PLACEMENT_ATTACH = "attach";
     private static final String FIELD_PLACEMENT = "placement";
@@ -54,7 +54,7 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private AiArtifactConfirmMapper confirmMapper;
+    private AiTaskAdoptionMapper adoptionMapper;
     @Resource
     private ProjectModuleService projectModuleService;
     @Resource
@@ -69,17 +69,17 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
 
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
-        if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
             return null;
         }
-        String kind = asString(context.artifact().get("kind"));
-        if (Constants.AiArtifactKind.MODULE.equals(kind)) {
+        String kind = asString(context.proposal().getKind());
+        if (Constants.AiProposalKind.MODULE.equals(kind)) {
             return adoptModule(context);
         }
-        if (Constants.AiArtifactKind.MINDMAP_DOCUMENT.equals(kind)) {
+        if (Constants.AiProposalKind.MINDMAP_DOCUMENT.equals(kind)) {
             return adoptDocument(context);
         }
-        if (Constants.AiArtifactKind.TEST_CASE.equals(kind)) {
+        if (Constants.AiProposalKind.TEST_CASE.equals(kind)) {
             return adoptNode(context);
         }
         // 生成链仅三类产物，未知 kind 视为确认入参非法（3.6.5 逐项校验）
@@ -120,7 +120,7 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         if (context.targetModuleId() != null) {
             return validateModule(context.projectId(), context.targetModuleId());
         }
-        String parentKey = asString(context.artifact().get("parentKey"));
+        String parentKey = asString(context.proposal().getParentKey());
         if (parentKey != null) {
             UUID moduleId = adoptedRefId(context, parentKey, "moduleId");
             if (moduleId == null) {
@@ -139,7 +139,7 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         guardSuspectedDuplicate(context, content);
         String title = requiredText(content, "title");
 
-        UUID documentId = adoptedRefId(context, asString(context.artifact().get("parentKey")), "documentId");
+        UUID documentId = adoptedRefId(context, asString(context.proposal().getParentKey()), "documentId");
         if (documentId == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.GENERATION_PARENT_NOT_ADOPTED);
         }
@@ -174,7 +174,7 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
 
     /** 文档内父节点：parentRef 为空挂根（自动创建的根节点），否则取父节点产物的 nodeId（4.3③） */
     private UUID resolveNodeParent(AdoptContext context, UUID documentId) {
-        String parentRef = trimToNull(asString(contentOf(context.artifact()).get("parentRef")));
+        String parentRef = trimToNull(asString(context.proposalContent().get("parentRef")));
         if (parentRef == null) {
             return testCaseNodeMapper.listByDocumentId(documentId).stream()
                     .filter(item -> item.getParentId() == null)
@@ -241,15 +241,15 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
     private static void guardSuspectedDuplicate(AdoptContext context, Map<String, Object> content) {
         Object duplicate = content.get("suspectedDuplicateOf");
         if (duplicate != null && !asString(duplicate).isBlank()
-                && Constants.AiArtifactAction.ADOPTED.equals(context.action())) {
+                && Constants.AiProposalAction.ADOPTED.equals(context.action())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.GENERATION_ARTIFACT_DUPLICATE);
         }
     }
 
     /** adopted 直用产物内容；adopted_edited 以编辑值覆盖原产物（整包或局部编辑均可） */
     private static Map<String, Object> resolveContent(AdoptContext context) {
-        Map<String, Object> original = contentOf(context.artifact());
-        if (Constants.AiArtifactAction.ADOPTED_EDITED.equals(context.action())
+        Map<String, Object> original = context.proposalContent();
+        if (Constants.AiProposalAction.ADOPTED_EDITED.equals(context.action())
                 && context.content() != null) {
             Map<String, Object> merged = new LinkedHashMap<>(original);
             merged.putAll(context.content());
@@ -304,17 +304,18 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
         return raw == null ? "new_top_level" : String.valueOf(raw);
     }
 
-    /** 父级产物已采纳的引用值；无记录或未采纳返回 null（4.3③ 依赖顺序） */
+    /** 父级产物已采纳的引用值；无记录或未采纳返回 null（4.3③ 依赖顺序，键按执行命名空间） */
     private UUID adoptedRefId(AdoptContext context, String artifactKey, String field) {
         if (artifactKey == null) {
             return null;
         }
-        AiArtifactConfirm record = confirmMapper.selectByTaskAndKey(context.task().getId(), artifactKey);
+        AiTaskAdoption record = adoptionMapper.selectByExecutionAndKey(
+                context.proposal().getExecutionId(), artifactKey);
         if (record == null || record.getAdoptedRef() == null) {
             return null;
         }
-        if (!Constants.AiArtifactAction.ADOPTED.equals(record.getAction())
-                && !Constants.AiArtifactAction.ADOPTED_EDITED.equals(record.getAction())) {
+        if (!Constants.AiProposalAction.ADOPTED.equals(record.getAction())
+                && !Constants.AiProposalAction.ADOPTED_EDITED.equals(record.getAction())) {
             return null;
         }
         Object value = record.getAdoptedRef().get(field);
@@ -340,8 +341,8 @@ public class GenerationAdoptServiceImpl implements GenerationAdoptService, Artif
     }
 
     private static AdoptOutcome finish(AdoptContext context, UUID createdId, Map<String, Object> adoptedRef) {
-        if (Constants.AiArtifactAction.ADOPTED_EDITED.equals(context.action())) {
-            Map<String, Object> diff = editedDiff(contentOf(context.artifact()), resolveContent(context));
+        if (Constants.AiProposalAction.ADOPTED_EDITED.equals(context.action())) {
+            Map<String, Object> diff = editedDiff(context.proposalContent(), resolveContent(context));
             if (!diff.isEmpty()) {
                 adoptedRef.put("editedDiff", diff);
             }

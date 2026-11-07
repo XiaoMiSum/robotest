@@ -50,7 +50,7 @@ public class SelectionAdoptSupport {
      * @param planSide true = 计划（name 入参），false = 评审（title 入参）
      */
     public AdoptOutcome create(AdoptContext context, boolean planSide) {
-        if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
             return null;
         }
         Map<String, Object> params = context.createParams();

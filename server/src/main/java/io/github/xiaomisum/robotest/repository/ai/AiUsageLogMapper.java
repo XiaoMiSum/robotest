@@ -69,8 +69,9 @@ public interface AiUsageLogMapper extends BaseMapperX<AiUsageLog> {
             @Param("modelId") UUID modelId, @Param("scene") String scene,
             @Param("callType") String callType, @Param("status") String status);
 
-    /** 下钻分页：join 任务类型与模型名（详设 3.7 列表项字段） */
-    @Select("<script>SELECT u.task_id AS taskId, t.type AS type, u.status AS status, "
+    /** 下钻分页：join 任务类型与模型名，execution 归因取用量行自身（详设 3.7 列表项字段） */
+    @Select("<script>SELECT u.task_id AS taskId, u.execution_id AS executionId, t.type AS type, "
+            + "u.status AS status, "
             + "m.name AS modelName, u.prompt_scene AS scene, u.total_tokens AS totalTokens, "
             + "u.latency_ms AS latencyMs, u.created_at AS createdAt "
             + "FROM ai_usage_log u "

@@ -237,8 +237,8 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_PROMPT_INVALID = ErrorCode.of(1000018109, "提示词模板校验失败（变量缺失或非法）");
     public static final ErrorCode AI_TASK_NOT_FOUND = ErrorCode.of(1000018110, "任务不存在");
     public static final ErrorCode AI_TASK_STATE_INVALID = ErrorCode.of(1000018111, "任务状态不允许该操作");
-    public static final ErrorCode AI_ARTIFACT_NOT_FOUND = ErrorCode.of(1000018112, "任务产物不存在");
-    public static final ErrorCode AI_ARTIFACT_ALREADY_CONFIRMED = ErrorCode.of(1000018113, "产物已确认，不可重复操作");
+    public static final ErrorCode AI_PROPOSAL_NOT_FOUND = ErrorCode.of(1000018112, "任务提案不存在");
+    public static final ErrorCode AI_PROPOSAL_ALREADY_CONFIRMED = ErrorCode.of(1000018113, "提案已确认，不可重复操作");
     public static final ErrorCode AI_TASK_TYPE_UNSUPPORTED = ErrorCode.of(1000018114, "不支持的任务类型");
     public static final ErrorCode AI_TASK_INPUT_INVALID = ErrorCode.of(1000018115, "任务输入参数非法");
     public static final ErrorCode AI_MODEL_CALL_FAILED = ErrorCode.of(1000018117, "模型服务调用失败（不可用、超时或限流）");
@@ -252,6 +252,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_EXECUTION_NOT_FOUND = ErrorCode.of(1000018125, "执行不存在");
     public static final ErrorCode AI_EXECUTION_BUDGET_INVALID = ErrorCode.of(1000018126, "执行预算参数非法");
     public static final ErrorCode AI_EXECUTION_FINISHED = ErrorCode.of(1000018127, "执行已结束，不可终止");
+    public static final ErrorCode AI_TASK_ABORTED_BY_USER = ErrorCode.of(1000018128, "用户中止");
 
     // ========== AI 生成链 1,000,018,201-1,000,018,210（生成链详设 6，号段至 1,000,018,249） ==========
     public static final ErrorCode GENERATION_REQUIREMENT_NOT_FOUND = ErrorCode.of(1000018201, "输入需求不存在");

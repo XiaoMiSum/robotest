@@ -24,6 +24,10 @@ public class AiUsageLog extends BaseUuidDO<AiUsageLog> {
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID taskId;
 
+    /** 所属执行（详设 2.8 归因）：任务级下钻与执行级用量汇总依据，无任务调用为 null */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID executionId;
+
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID userId;
 

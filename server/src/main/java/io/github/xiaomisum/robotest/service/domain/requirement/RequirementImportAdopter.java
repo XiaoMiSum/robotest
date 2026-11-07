@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.service.domain.requirement;
 
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * 委托 RequirementAdoptService 的落库事务（4.5）。
  */
 @Component
-public class RequirementImportAdopter implements ArtifactAdopter {
+public class RequirementImportAdopter implements ProposalAdopter {
 
     @Resource
     private RequirementAdoptService requirementAdoptService;

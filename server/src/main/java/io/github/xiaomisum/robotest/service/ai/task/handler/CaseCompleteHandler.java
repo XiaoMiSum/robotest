@@ -171,7 +171,7 @@ public class CaseCompleteHandler implements TaskHandler {
 
         Map<String, Object> artifact = new LinkedHashMap<>();
         artifact.put("key", "node-" + index);
-        artifact.put("kind", Constants.AiArtifactKind.CASE_SUGGESTION);
+        artifact.put("kind", Constants.AiProposalKind.CASE_SUGGESTION);
         artifact.put("parentKey", null);
         artifact.put("title", nvl(node.getTitle()));
         artifact.put("content", content);

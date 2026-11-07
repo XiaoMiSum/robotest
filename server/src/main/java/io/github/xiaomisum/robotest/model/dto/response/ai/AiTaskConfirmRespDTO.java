@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 产物确认回执（详设 3.6.5）：整体 200、逐项成败，请求级错误才返回错误码。
+ * 提案确认回执（详设 3.6.5）：整体 200、逐项成败，请求级错误才返回错误码。
  */
 @Data
 public class AiTaskConfirmRespDTO {

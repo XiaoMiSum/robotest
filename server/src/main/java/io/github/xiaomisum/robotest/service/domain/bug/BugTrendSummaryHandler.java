@@ -209,7 +209,7 @@ public class BugTrendSummaryHandler implements TaskHandler {
 
         Map<String, Object> artifact = new LinkedHashMap<>();
         artifact.put("key", "summary-1");
-        artifact.put("kind", Constants.AiArtifactKind.BUG_SUMMARY);
+        artifact.put("kind", Constants.AiProposalKind.BUG_SUMMARY);
         artifact.put("title", "缺陷趋势摘要");
         artifact.put("content", content);
         // 只读摘要，无确认动作（详设 3.4）

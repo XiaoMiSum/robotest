@@ -408,7 +408,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
             content.put("name", name);
             Map<String, Object> artifact = new LinkedHashMap<>();
             artifact.put("key", "module-" + index);
-            artifact.put("kind", Constants.AiArtifactKind.MODULE);
+            artifact.put("kind", Constants.AiProposalKind.MODULE);
             artifact.put("title", name);
             artifact.put("content", content);
             accepted.add(artifact);
@@ -440,7 +440,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
             content.put("name", name);
             Map<String, Object> artifact = new LinkedHashMap<>();
             artifact.put("key", "doc-" + index);
-            artifact.put("kind", Constants.AiArtifactKind.MINDMAP_DOCUMENT);
+            artifact.put("kind", Constants.AiProposalKind.MINDMAP_DOCUMENT);
             artifact.put("parentKey", parentKey);
             artifact.put("title", name);
             artifact.put("content", content);
@@ -514,7 +514,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
             }
             Map<String, Object> artifact = new LinkedHashMap<>();
             artifact.put("key", draft.finalKey());
-            artifact.put("kind", Constants.AiArtifactKind.TEST_CASE);
+            artifact.put("kind", Constants.AiProposalKind.TEST_CASE);
             artifact.put("parentKey", draft.documentKey());
             artifact.put("title", draft.title());
             artifact.put("content", content);
@@ -655,7 +655,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
 
     private void markCaseDuplicates(List<Map<String, Object>> artifacts, UUID projectId) {
         List<Map<String, Object>> cases = artifacts.stream()
-                .filter(item -> Constants.AiArtifactKind.TEST_CASE.equals(item.get("kind"))
+                .filter(item -> Constants.AiProposalKind.TEST_CASE.equals(item.get("kind"))
                         && Boolean.TRUE.equals(contentOf(item).get("isTestCase")))
                 .toList();
         if (cases.isEmpty()) {

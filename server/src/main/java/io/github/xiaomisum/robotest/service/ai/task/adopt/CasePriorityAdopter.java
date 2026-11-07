@@ -6,7 +6,7 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
-import io.github.xiaomisum.robotest.service.ai.task.ArtifactAdopter;
+import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CasePriorityHandler;
 import jakarta.annotation.Resource;
@@ -27,7 +27,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 仅在建议级别与现状不同时写库（无变化即无写入），已有人工设定的级别不被批量采纳改写。
  */
 @Service
-public class CasePriorityAdopter implements ArtifactAdopter {
+public class CasePriorityAdopter implements ProposalAdopter {
 
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
 
@@ -43,11 +43,11 @@ public class CasePriorityAdopter implements ArtifactAdopter {
 
     @Override
     public AdoptOutcome adopt(AdoptContext context) {
-        if (Constants.AiArtifactAction.REJECTED.equals(context.action())) {
+        if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
             return null;
         }
         AssistAdoptSupport.CaseTarget target = support.resolveCaseTarget(context);
-        Map<String, Object> content = contentOf(context.artifact());
+        Map<String, Object> content = context.proposalContent();
 
         String current = CaseAssistSupport.displayPriority(target.node().getPriority());
         String suggested = suggested(context, content);
@@ -83,7 +83,7 @@ public class CasePriorityAdopter implements ArtifactAdopter {
     /** 建议级别：adopted_edited 以编辑载荷为准（人工显式采纳），否则取产物；空白视为无建议 */
     private static String suggested(AdoptContext context, Map<String, Object> content) {
         Object raw = content.get("suggested");
-        if (Constants.AiArtifactAction.ADOPTED_EDITED.equals(context.action())
+        if (Constants.AiProposalAction.ADOPTED_EDITED.equals(context.action())
                 && context.content() != null && context.content().containsKey("suggested")) {
             raw = context.content().get("suggested");
         }
