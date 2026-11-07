@@ -16,6 +16,7 @@ public interface AiTaskExecutionMapper extends BaseMapperX<AiTaskExecution> {
     default boolean markPlan(UUID id, Map<String, Object> plan) {
         return update(null, new LambdaUpdateWrapperX<AiTaskExecution>()
                 .eq(AiTaskExecution::getId, id)
+                .in(AiTaskExecution::getStatus, "running", "waiting_confirmation")
                 .set(AiTaskExecution::getPlan, plan)
                 .set(AiTaskExecution::getUpdatedAt, LocalDateTime.now())) == 1;
     }
@@ -46,6 +47,21 @@ public interface AiTaskExecutionMapper extends BaseMapperX<AiTaskExecution> {
                 .last("LIMIT 1"));
     }
 
+    /** task 行加锁后调用，锁定最新执行并校验本轮执行身份。 */
+    default AiTaskExecution selectLatestByTaskIdForUpdate(UUID taskId) {
+        return selectOne(new LambdaQueryWrapperX<AiTaskExecution>()
+                .eq(AiTaskExecution::getTaskId, taskId)
+                .orderByDesc(AiTaskExecution::getSeq)
+                .last("LIMIT 1 FOR UPDATE"));
+    }
+
+    /** 普通轨迹写入的执行级互斥锁；不会反向获取 task 锁。 */
+    default AiTaskExecution selectByIdForUpdate(UUID id) {
+        return selectOne(new LambdaQueryWrapperX<AiTaskExecution>()
+                .eq(AiTaskExecution::getId, id)
+                .last("FOR UPDATE"));
+    }
+
     /** 同任务进行中执行数（再次执行「至多一个进行中执行」门禁，总册 3.6.4） */
     default long countActiveByTaskId(UUID taskId) {
         return selectCount(new LambdaQueryWrapperX<AiTaskExecution>()
@@ -72,22 +88,12 @@ public interface AiTaskExecutionMapper extends BaseMapperX<AiTaskExecution> {
                 .lt(AiTaskExecution::getHeartbeatAt, cutoff));
     }
 
-    /** 总开关关闭的批量副作用（详设 4.2）：全部进行中执行置 aborted，返回受影响行数 */
-    default int abortActive(int terminateCode, String terminateMsg) {
-        return update(null, new LambdaUpdateWrapperX<AiTaskExecution>()
-                .in(AiTaskExecution::getStatus, "running", "waiting_confirmation")
-                .set(AiTaskExecution::getStatus, "aborted")
-                .set(AiTaskExecution::getTerminateCode, terminateCode)
-                .set(AiTaskExecution::getTerminateMsg, terminateMsg)
-                .set(AiTaskExecution::getUpdatedAt, LocalDateTime.now()));
-    }
-
-    /** running → succeeded（条件写：与终止竞争时以先到者为准） */
+    /** running / waiting_confirmation → succeeded（条件写：与终止竞争时以先到者为准） */
     default boolean succeed(UUID id, int steps, int tokensIn, int tokensOut,
             java.math.BigDecimal cost, int durationMs) {
         return update(null, new LambdaUpdateWrapperX<AiTaskExecution>()
                 .eq(AiTaskExecution::getId, id)
-                .eq(AiTaskExecution::getStatus, "running")
+                .in(AiTaskExecution::getStatus, "running", "waiting_confirmation")
                 .set(AiTaskExecution::getStatus, "succeeded")
                 .set(AiTaskExecution::getSteps, steps)
                 .set(AiTaskExecution::getTokensIn, tokensIn)

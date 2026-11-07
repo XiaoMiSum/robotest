@@ -1,12 +1,10 @@
 package io.github.xiaomisum.robotest.service.ai.task;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
-import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
-import io.github.xiaomisum.robotest.service.ai.task.core.TraceRecorder;
+import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionLifecycle;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -14,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -38,11 +35,9 @@ class AiTaskSweeperTest {
     @Mock
     private AiTaskExecutionMapper executionMapper;
     @Mock
-    private AiTaskMapper taskMapper;
-    @Mock
     private AiSettingsReader settingsReader;
     @Mock
-    private TraceRecorder traceRecorder;
+    private ExecutionLifecycle executionLifecycle;
 
     @InjectMocks
     private AiTaskSweeper sweeper;
@@ -58,8 +53,8 @@ class AiTaskSweeperTest {
         stale.setTokensOut(20);
         stale.setCreatedAt(LocalDateTime.now().minusMinutes(11));
         when(executionMapper.selectStale(any())).thenReturn(List.of(stale));
-        when(executionMapper.abort(eq(stale.getId()), eq(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code()),
-                eq("任务执行超时"), anyInt(), anyInt(), anyInt(), any(), anyInt())).thenReturn(true);
+        when(executionLifecycle.terminateIfHeartbeatStale(eq(stale.getTaskId()), eq(stale.getId()), any(),
+                eq(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code()), eq("任务执行超时"))).thenReturn(true);
         LocalDateTime beforeSweep = LocalDateTime.now();
 
         sweeper.sweepTimeoutExecutions();
@@ -71,14 +66,8 @@ class AiTaskSweeperTest {
         assertTrue(cutoff.isBefore(beforeSweep.minusSeconds(599)));
         assertTrue(cutoff.isAfter(beforeSweep.minusSeconds(601)));
 
-        verify(executionMapper).abort(eq(stale.getId()),
-                eq(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code()), eq("任务执行超时"),
-                eq(3), eq(10), eq(20), eq(BigDecimal.ZERO), anyInt());
-        verify(traceRecorder).record(eq(stale.getId()), eq(Constants.AiTraceEventType.STATUS_CHANGE),
-                anyString(), any());
-        verify(taskMapper).markAborted(stale.getTaskId(),
-                ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "任务执行超时");
-        verify(taskMapper).accumulateTokens(stale.getTaskId(), 10, 20);
+        verify(executionLifecycle).terminateIfHeartbeatStale(eq(stale.getTaskId()), eq(stale.getId()),
+                eq(cutoff), eq(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code()), eq("任务执行超时"));
     }
 
     @Test
@@ -90,11 +79,12 @@ class AiTaskSweeperTest {
         stale.setCreatedAt(LocalDateTime.now().minusMinutes(11));
         when(executionMapper.selectStale(any())).thenReturn(List.of(stale));
         // 条件写失败 = 执行刚被用户终止 / 已到终态：不再同步任务态
-        when(executionMapper.abort(eq(stale.getId()), anyInt(), anyString(),
-                anyInt(), anyInt(), anyInt(), any(), anyInt())).thenReturn(false);
+        when(executionLifecycle.terminateIfHeartbeatStale(eq(stale.getTaskId()), eq(stale.getId()), any(),
+                anyInt(), anyString())).thenReturn(false);
 
         sweeper.sweepTimeoutExecutions();
 
-        verify(taskMapper, never()).markAborted(any(), anyInt(), anyString());
+        verify(executionLifecycle).terminateIfHeartbeatStale(eq(stale.getTaskId()), eq(stale.getId()), any(),
+                eq(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code()), eq("任务执行超时"));
     }
 }

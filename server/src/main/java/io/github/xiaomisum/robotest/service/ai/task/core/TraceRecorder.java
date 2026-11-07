@@ -2,10 +2,13 @@ package io.github.xiaomisum.robotest.service.ai.task.core;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskTraceEvent;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskTraceEventMapper;
 import io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 
 import java.util.List;
@@ -32,14 +35,35 @@ public class TraceRecorder {
 
     @Resource
     private AiTaskTraceEventMapper traceEventMapper;
+    @Resource
+    private AiTaskExecutionMapper executionMapper;
 
     /**
      * 追加一条轨迹事件，返回分配的 seq。
      */
+    @Transactional(rollbackFor = Exception.class)
     public int record(UUID executionId, String eventType, String summary, Map<String, Object> detail) {
-        if (!EVENT_TYPES.contains(eventType)) {
-            throw new IllegalArgumentException("非法轨迹事件类型: " + eventType);
+        validateEventType(eventType);
+        if (executionMapper.selectByIdForUpdate(executionId) == null) {
+            throw new IllegalStateException("执行不存在: " + executionId);
         }
+        return insert(executionId, eventType, summary, detail);
+    }
+
+    /** Runner 普通事件只允许活动执行追加；终态竞争失败后立即停跑。 */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean recordIfActive(UUID executionId, String eventType, String summary, Map<String, Object> detail) {
+        validateEventType(eventType);
+        AiTaskExecution execution = executionMapper.selectByIdForUpdate(executionId);
+        if (execution == null || (!Constants.AiTaskExecutionStatus.RUNNING.equals(execution.getStatus())
+                && !Constants.AiTaskExecutionStatus.WAITING_CONFIRMATION.equals(execution.getStatus()))) {
+            return false;
+        }
+        insert(executionId, eventType, summary, detail);
+        return true;
+    }
+
+    private int insert(UUID executionId, String eventType, String summary, Map<String, Object> detail) {
         int seq = nextSeq(executionId);
         AiTaskTraceEvent event = new AiTaskTraceEvent();
         event.setExecutionId(executionId);
@@ -49,6 +73,12 @@ public class TraceRecorder {
         event.setDetail(detail);
         traceEventMapper.insert(event);
         return seq;
+    }
+
+    private static void validateEventType(String eventType) {
+        if (!EVENT_TYPES.contains(eventType)) {
+            throw new IllegalArgumentException("非法轨迹事件类型: " + eventType);
+        }
     }
 
     /** 截断到列宽：超长时保留 499 字符 + 省略号，保证 ≤ 500（abbreviate 会在 limit 外再加省略号） */
