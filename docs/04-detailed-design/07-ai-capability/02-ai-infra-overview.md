@@ -710,6 +710,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 校验：场景已登记（否则 1000018108）；`content` 中全部 `{{变量}}` 必须在 `variables` 清单内且必填变量齐全（否则 1000018109）；保存后 `source = custom`、`version + 1`。
 - **重置**：`POST /api/ai/prompts/{scene}/reset` → 恢复内置默认。
 - 生效规则：仅影响该场景**后续**任务调用，不改变已采纳的产出。
+- 任务场景的默认提示词由类型适配器唯一声明，管理端展示、重置与执行期回落使用同一来源；执行期优先使用已保存的自定义模板。
+- 测试设计生成统一使用 `test_design_generation` 场景。旧 `test_design_generation_modules / test_design_generation_documents / test_design_generation_nodes / test_design_generation_attributes` 四个固定阶段场景不再登记或执行；存量自定义行保留但不自动拼接，发布前由管理员将需要保留的指令人工迁入统一场景，并核对其变量清单。
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
@@ -734,6 +736,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
+
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的十一类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
 #### 3.6.2 提交任务（创建即启动执行）
 
@@ -1058,6 +1062,7 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
+| V1.0 | 2026-11-07 | 明确十一类普通任务首版默认预算；测试设计生成统一为单提示词场景，旧四阶段自定义行保留、发布前人工迁移，不自动拼接 |
 | V1.0 | 2026-11-07 | 4.2 明确注册策略分派：目标型任务走 Agent 循环、助手复用对话循环、向量重建走确定性执行；统一启动、心跳、预算、中止、轨迹与终态事务，不恢复旧任务引擎 |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/ai/tasks |
