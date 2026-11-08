@@ -198,7 +198,7 @@ flowchart LR
 - 用量记账 `AiUsageLog` 族与 `AiSettingsReader.resolveModel` 能力选型（新执行核复用）；
 - `RequirementSplitRecord.status = 'pending'` 等需求域自有状态机（与任务状态同名不同义）。
 
-**清理门禁（2.7-Grep，S6 收口全绿，命令为示意，排除集以实际目录为准）**
+**清理门禁（2.7-Grep，S6 收口全绿，可执行落地为 `scripts/check-legacy-ai.sh`，下列命令为示意，排除集以实际目录为准）**
 
 ```bash
 # server（排除 apitest 域同名类与测试资源）
@@ -278,7 +278,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 
 | 步骤 | 状态 | 备注 |
 | ---- | ---- | ---- |
-| S0 | ❌ | 基线登记已完成（计划入索引、裁决落档），缺清理门禁脚本草稿 |
+| S0 | ✅ | 计划入索引与裁决落档 + 清理门禁脚本 `scripts/check-legacy-ai.sh`（`d17e716f`；S6 收口前 A/E1/E2 预期未绿，B2 已排除新架构合法命中） |
 | S1 | ✅ | `f1191f09`（增量口径见 2.3.3；`AiTask` 重建与旧常量删除归 S3） |
 | S2 | ✅ | `a2eb0d30`（执行核三件 + `TaskTypeAdapter` SPI/注册表 + `AgentTool` 注册表与 `AiModelClient` 中性声明重载，均纯增量；心跳清扫、abortActive 与用量归因接线归 S3） |
 | S3 | ✅ | `34a4f322`（九端点 + Service 三资源重写、`ai_task` 六表重建与旧引擎删除单提交收口；配套 `1000018128` 登记勘误 `63b458be`）——已知中间态：S4 前 `TaskTypeAdapterRegistry` 为空、S5 前端接入前新端点不可用，整包 S6 收口 |
@@ -303,3 +303,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-10-27 | 5.1 实施状态回填：S1 ✅（`f1191f09`）；S0 备注缺清理门禁脚本草稿 |
 | V1.0 | 2026-10-27 | 5.1 实施状态回填：S2 ✅（`a55419a6` 回填 `a2eb0d30`）——执行核、预算护栏、轨迹记录与类型适配器 SPI 纯增量落地，接线与删旧按勘误口径归 S3 |
 | V1.0 | 2026-11-07 | 5.1 实施状态回填：S3 ✅（`34a4f322`）——九端点与 Service 三资源重写、`ai_task` 六表重建、旧引擎（`AiTaskExecutor` / cancel / retry / artifacts 确认路径）删除单提交收口；`1000018128` 用户中止码登记勘误 `63b458be`；已知中间态（S4 空注册表 / S5 前端未接入）整包 S6 收口 |
+| V1.0 | 2026-11-08 | 5.1 实施状态回填：S0 ✅（清理门禁脚本 `scripts/check-legacy-ai.sh` 落地 `d17e716f`，B2 排除 `confirmStatus` 等新架构合法命中） |
