@@ -9,7 +9,6 @@ import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
-import io.github.xiaomisum.robotest.service.ai.task.handler.PlanOrderHandler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -50,7 +49,7 @@ public class PlanOrderAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
-        return PlanOrderHandler.TYPE;
+        return Constants.AiTaskType.PLAN_ORDER;
     }
 
     @Override

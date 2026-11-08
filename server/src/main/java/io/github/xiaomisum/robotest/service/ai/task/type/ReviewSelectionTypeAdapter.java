@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai.task.handler;
+package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -12,13 +12,13 @@ import java.util.Map;
  * 确认采纳委托既有 createReview 流程（SelectionAdoptServiceImpl）。
  */
 @Component
-public class ReviewSelectionHandler extends AbstractSelectionHandler {
+public class ReviewSelectionTypeAdapter extends AbstractSelectionTypeAdapterSupport {
 
     public static final String TYPE = "review_selection";
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.REVIEW_SELECTION;
     }
 
     @Override
@@ -48,6 +48,11 @@ public class ReviewSelectionHandler extends AbstractSelectionHandler {
 
     @Override
     protected String selectionKind() {
+        return Constants.AiProposalKind.REVIEW_SELECTION;
+    }
+
+    @Override
+    protected String defaultProposalKind() {
         return Constants.AiProposalKind.REVIEW_SELECTION;
     }
 

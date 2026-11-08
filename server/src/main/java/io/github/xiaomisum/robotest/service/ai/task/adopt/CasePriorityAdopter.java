@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
-import io.github.xiaomisum.robotest.service.ai.task.handler.CasePriorityHandler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -38,7 +37,7 @@ public class CasePriorityAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
-        return CasePriorityHandler.TYPE;
+        return Constants.AiTaskType.CASE_PRIORITY;
     }
 
     @Override

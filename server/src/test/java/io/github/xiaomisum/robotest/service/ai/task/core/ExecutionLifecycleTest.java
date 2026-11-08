@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class ExecutionLifecycleTest {
@@ -101,6 +102,42 @@ class ExecutionLifecycleTest {
         verify(taskMapper, never()).accumulateTokens(any(), anyInt(), anyInt());
         verify(proposalMapper, never()).insert(any(AiTaskProposal.class));
         verify(traceRecorder, never()).record(any(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void succeed_onlyNotApplicableProposal_persistsProposalAndClosesTask() {
+        lockCurrent(execution);
+        when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
+                .thenReturn(true);
+        when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
+        when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED)).thenReturn(true);
+
+        assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID,
+                List.of(new ProposalDraft("summary", "summary", null, "title", Map.of(),
+                        Constants.AiProposalConfirmStatus.NOT_APPLICABLE)), null,
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+
+        ArgumentCaptor<AiTaskProposal> captor = ArgumentCaptor.forClass(AiTaskProposal.class);
+        verify(proposalMapper).insert(captor.capture());
+        assertTrue(Constants.AiProposalConfirmStatus.NOT_APPLICABLE.equals(captor.getValue().getConfirmStatus()));
+        verify(taskMapper).markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED);
+    }
+
+    @Test
+    void succeed_mixedProposalStatuses_entersProposalsReady() {
+        lockCurrent(execution);
+        when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
+                .thenReturn(true);
+        when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
+        when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY)).thenReturn(true);
+
+        assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID, List.of(
+                        new ProposalDraft("readonly", "summary", null, "readonly", Map.of(),
+                                Constants.AiProposalConfirmStatus.NOT_APPLICABLE),
+                        new ProposalDraft("pending", "kind", null, "pending", Map.of())), null,
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+
+        verify(taskMapper).markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY);
     }
 
     @Test

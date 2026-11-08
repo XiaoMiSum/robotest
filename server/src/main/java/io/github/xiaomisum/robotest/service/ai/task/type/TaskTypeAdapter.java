@@ -5,6 +5,8 @@ import io.github.xiaomisum.robotest.service.ai.task.core.TaskExecutionStrategy;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import xyz.migoo.framework.common.util.JsonUtils;
 
 /**
  * 任务类型适配器 SPI（总册 3.6.1，替代旧 TaskHandler）：每个 type 注册 input 校验、
@@ -12,6 +14,16 @@ import java.util.Map;
  * 实现随 S4 落地（13 个 type），本接口在 S2 先行定型。
  */
 public interface TaskTypeAdapter {
+
+    Map<String, Object> STANDARD_BUDGET = Map.of(
+            "maxSteps", 40,
+            "maxDurationSeconds", 600,
+            "maxTokens", 200000,
+            "maxCost", 5);
+
+    record PreparationContext(UUID taskId, UUID userId, UUID workspaceId, UUID projectId,
+            Map<String, Object> input, String feedback) {
+    }
 
     /**
      * 执行策略登记；目标型任务默认使用 Agent，确定性或对话型任务可直接返回自己的策略 Bean。
@@ -65,6 +77,15 @@ public interface TaskTypeAdapter {
 
     /** 系统提示词（唯一登记点，提示词单轨化，S4 落地后删除 Handler.defaultPrompt 回落链） */
     String systemPrompt();
+
+    /**
+     * 构造执行快照；实现可读取业务数据并绑定上下文感知解析器，但禁止调用模型或写业务数据。
+     */
+    default AgentExecutionPreparation prepare(PreparationContext context) {
+        Map<String, Object> input = context.input() == null ? Map.of() : context.input();
+        return new AgentExecutionPreparation(Map.of(), JsonUtils.toJsonString(input), List.of(),
+                output -> buildProposals(output, input), output -> buildResultMeta(output, input));
+    }
 
     /**
      * 执行终态产出：将模型最终结构化输出解析为提案草稿（空 = 只读结论类，任务直接 closed）。

@@ -1,9 +1,10 @@
 package io.github.xiaomisum.robotest.service.ai.task.adopt;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
+
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
-import io.github.xiaomisum.robotest.service.ai.task.handler.PlanSelectionHandler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +20,7 @@ public class PlanSelectionAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
-        return PlanSelectionHandler.TYPE;
+        return Constants.AiTaskType.PLAN_SELECTION;
     }
 
     @Override

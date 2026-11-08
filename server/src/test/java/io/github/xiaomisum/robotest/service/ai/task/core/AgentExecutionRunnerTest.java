@@ -8,7 +8,10 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskTool;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskToolMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
+import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
+import io.github.xiaomisum.robotest.service.ai.config.AiChatRequest;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
+import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
 import io.github.xiaomisum.robotest.service.ai.config.AiToolCall;
 import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDraft;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
@@ -16,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,9 +28,11 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -50,6 +56,10 @@ class AgentExecutionRunnerTest {
     private AiTaskToolMapper taskToolMapper;
     @Mock
     private AiModelClient modelClient;
+    @Mock
+    private AiPromptService promptService;
+    @Mock
+    private AgentToolArgumentValidator argumentValidator;
     @Mock
     private UserDetailsBridgeImpl userDetailsBridge;
     @Mock
@@ -82,34 +92,35 @@ class AgentExecutionRunnerTest {
 
         lenient().when(control.maxSteps(40)).thenReturn(10);
         lenient().doReturn(new LoginUser()).when(userDetailsBridge).loadByUserId(anyString());
+        lenient().when(promptService.render(anyString(), anyString(), any())).thenAnswer(invocation -> invocation.getArgument(1));
     }
 
     @Test
     void execute_finalOutput_returnsAdapterResult() {
         adapter.drafts = List.of(new ProposalDraft("p1", "kind", null, "title", Map.of()));
         adapter.resultMeta = Map.of("source", "agent");
-        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList()))
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false)))
                 .thenReturn(reply("{\"ok\":true}", List.of()));
 
         TaskExecutionStrategy.ExecutionResult result = runner.execute(context, control);
 
         assertEquals(adapter.drafts, result.proposals());
         assertEquals(adapter.resultMeta, result.resultMeta());
-        verify(control).beforeCall();
+        verify(control, times(2)).beforeCall();
         verify(control).afterModelCall(7, 3, new BigDecimal("0.000000"));
     }
 
     @Test
     void execute_toolLoop_checksAndRecordsAroundEveryCall() {
         givenWhitelistedTool("query_x", null);
-        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList())).thenReturn(
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
                 reply("计划", List.of(new AiToolCall("call-1", "query_x", "{}"))),
                 reply("最终产出", List.of()));
 
         runner.execute(context, control);
 
-        verify(modelClient, times(2)).chatWithToolDeclarations(any(), anyList(), anyList());
-        verify(control, times(2)).beforeCall();
+        verify(modelClient, times(2)).chatWithToolDeclarations(any(), anyList(), anyList(), eq(false));
+        verify(control, times(3)).beforeCall();
         verify(control, times(2)).afterModelCall(7, 3, new BigDecimal("0.000000"));
         verify(control).beforeToolCall();
         verify(control).afterToolCall();
@@ -121,7 +132,7 @@ class AgentExecutionRunnerTest {
     @Test
     void execute_invalidToolArguments_feedsBackAndContinues() {
         givenWhitelistedTool("query_x", null);
-        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList())).thenReturn(
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
                 reply("计划", List.of(new AiToolCall("call-1", "query_x", "not-json"))),
                 reply("最终产出", List.of()));
 
@@ -133,6 +144,38 @@ class AgentExecutionRunnerTest {
     }
 
     @Test
+    void execute_schemaInvalidToolArguments_doesNotExecuteTool() {
+        givenWhitelistedTool("query_x", null);
+        AgentTool tool = org.mockito.Mockito.mock(AgentTool.class);
+        when(argumentValidator.validate(any(), any())).thenReturn("缺少必填参数: id");
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
+                reply("计划", List.of(new AiToolCall("call-1", "query_x", "{}"))),
+                reply("最终产出", List.of()));
+
+        runner.execute(context, control);
+
+        verify(tool, never()).execute(any(), any());
+    }
+
+    @Test
+    void execute_customPromptAndPreparedMedia_reachActualRequest() {
+        AiChatMedia media = new AiChatMedia("image/png", new byte[]{1, 2});
+        adapter.preparation = new AgentExecutionPreparation(Map.of("name", "demo"), "trusted", List.of(media),
+                output -> adapter.drafts, output -> adapter.resultMeta);
+        when(promptService.render(TYPE, "系统提示词", Map.of("name", "demo"))).thenReturn("自定义提示词");
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false)))
+                .thenReturn(reply("最终产出", List.of()));
+
+        runner.execute(context, control);
+
+        ArgumentCaptor<AiChatRequest> captor = ArgumentCaptor.forClass(AiChatRequest.class);
+        verify(modelClient).chatWithToolDeclarations(captor.capture(), anyList(), anyList(), eq(false));
+        assertEquals("自定义提示词", captor.getValue().systemPrompt());
+        assertEquals(1, captor.getValue().media().size());
+        assertTrue(captor.getValue().userPrompt().contains("trusted"));
+    }
+
+    @Test
     void execute_grantedPermission_executesTool() throws Exception {
         givenWhitelistedTool("query_x", "case:edit");
         AgentTool tool = org.mockito.Mockito.mock(AgentTool.class);
@@ -141,7 +184,7 @@ class AgentExecutionRunnerTest {
         LoginUser granted = new LoginUser();
         granted.setAuthorities(List.of(new SimpleGrantedAuthority("case:edit")));
         doReturn(granted).when(userDetailsBridge).loadByUserId(anyString());
-        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList())).thenReturn(
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
                 reply("计划", List.of(new AiToolCall("call-1", "query_x", "{}"))),
                 reply("最终产出", List.of()));
 
@@ -152,7 +195,7 @@ class AgentExecutionRunnerTest {
 
     @Test
     void execute_blankFinalOutput_throwsModelFailure() {
-        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList()))
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false)))
                 .thenReturn(reply("   ", List.of()));
 
         var exception = assertThrows(xyz.migoo.framework.common.exception.ServiceException.class,
@@ -169,7 +212,7 @@ class AgentExecutionRunnerTest {
         assertThrows(ExecutionControl.InactiveExecutionException.class,
                 () -> runner.execute(context, control));
 
-        verify(modelClient, never()).chatWithToolDeclarations(any(), anyList(), anyList());
+        verify(modelClient, never()).chatWithToolDeclarations(any(), anyList(), anyList(), eq(false));
     }
 
     private void givenWhitelistedTool(String toolCode, String permissionCode) {
@@ -191,6 +234,7 @@ class AgentExecutionRunnerTest {
         private List<String> toolCodes = List.of();
         private List<ProposalDraft> drafts = List.of();
         private Map<String, Object> resultMeta;
+        private AgentExecutionPreparation preparation;
 
         @Override
         public String type() {
@@ -214,6 +258,11 @@ class AgentExecutionRunnerTest {
         @Override
         public String systemPrompt() {
             return "系统提示词";
+        }
+
+        @Override
+        public AgentExecutionPreparation prepare(PreparationContext context) {
+            return preparation == null ? TaskTypeAdapter.super.prepare(context) : preparation;
         }
 
         @Override

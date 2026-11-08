@@ -8,9 +8,11 @@ import io.github.xiaomisum.robotest.model.dto.response.bug.BugTrendsRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
+import io.github.xiaomisum.robotest.service.ai.task.type.AbstractOrdinaryTaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
+import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDrafts;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -34,7 +36,7 @@ import static io.github.xiaomisum.robotest.service.domain.requirement.Requiremen
  * 必附数据来源引用（缺引用为不合格产出，走 1000018117 任务失败重试），不写入任何数据。
  */
 @Component
-public class BugTrendSummaryHandler implements TaskHandler {
+public class BugTrendSummaryTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "bug_trend_summary";
 
@@ -48,7 +50,7 @@ public class BugTrendSummaryHandler implements TaskHandler {
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.BUG_TREND_SUMMARY;
     }
 
     @Override
@@ -84,31 +86,30 @@ public class BugTrendSummaryHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        Map<String, Object> input = context.getInput();
-
-        context.report(10, "统计趋势与度量");
-        BugAnalysisQueryReqDTO query = new BugAnalysisQueryReqDTO();
-        query.setFrom(asString(input.get("from")));
-        query.setTo(asString(input.get("to")));
-        query.setGroupBy(asString(input.get("groupBy")));
-        BugTrendsRespDTO trends = bugAnalysisService.trends(query, context.getProjectId(), context.getUserId());
-        BugMetricsRespDTO metrics = bugAnalysisService.metrics(query, context.getProjectId(), context.getUserId());
-        List<Bug> citedPool = citedBugs(query, context.getProjectId());
-
-        context.report(40, "构建统计快照");
-        Map<String, String> variables = new LinkedHashMap<>();
-        variables.put("statsContext", statsContext(trends, metrics, citedPool));
-
-        context.report(50, "模型生成趋势摘要");
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(defaultPrompt(), variables));
-
-        context.report(85, "解析趋势摘要");
-        Map<String, Object> artifact = sanitize(reply, citedPool);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", List.of(artifact));
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
+    public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
+        validateInput(input);
+        if (context == null || context.projectId() == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
+        }
     }
+
+    @Override
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        BugAnalysisQueryReqDTO query = new BugAnalysisQueryReqDTO();
+        query.setFrom(asString(context.input().get("from")));
+        query.setTo(asString(context.input().get("to")));
+        query.setGroupBy(asString(context.input().get("groupBy")));
+        BugTrendsRespDTO trends = bugAnalysisService.trends(query, context.projectId(), context.userId());
+        BugMetricsRespDTO metrics = bugAnalysisService.metrics(query, context.projectId(), context.userId());
+        List<Bug> citedPool = citedBugs(query, context.projectId());
+        String snapshot = statsContext(trends, metrics, citedPool);
+        return new AgentExecutionPreparation(Map.of("statsContext", snapshot), snapshot, List.of(),
+                output -> ProposalDrafts.fromArtifact(sanitize(new AiChatReply(output, 0, 0), citedPool)), output -> null);
+    }
+
+    @Override public List<String> toolCodes() { return List.of("query_bug_analysis_snapshot"); }
+
+    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.BUG_SUMMARY; }
 
     /** 引用候选池：区间内新增缺陷（引用只允许指向本次统计涉及的缺陷，标题也以此为准） */
     private List<Bug> citedBugs(BugAnalysisQueryReqDTO query, UUID projectId) {

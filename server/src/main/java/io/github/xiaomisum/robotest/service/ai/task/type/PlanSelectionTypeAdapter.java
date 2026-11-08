@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai.task.handler;
+package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -12,14 +12,14 @@ import java.util.Map;
  * 确认采纳委托既有 createPlan 流程（SelectionAdoptServiceImpl）。
  */
 @Component
-public class PlanSelectionHandler extends AbstractSelectionHandler {
+public class PlanSelectionTypeAdapter extends AbstractSelectionTypeAdapterSupport {
 
     public static final String TYPE = "plan_selection";
     private static final int MAX_ROUNDS = 10;
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.PLAN_SELECTION;
     }
 
     @Override
@@ -59,6 +59,11 @@ public class PlanSelectionHandler extends AbstractSelectionHandler {
 
     @Override
     protected String selectionKind() {
+        return Constants.AiProposalKind.PLAN_SELECTION;
+    }
+
+    @Override
+    protected String defaultProposalKind() {
         return Constants.AiProposalKind.PLAN_SELECTION;
     }
 

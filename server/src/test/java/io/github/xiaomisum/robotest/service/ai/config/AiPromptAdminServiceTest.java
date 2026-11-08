@@ -10,8 +10,8 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiPromptListItemRespDT
 import io.github.xiaomisum.robotest.model.entity.ai.AiPromptTemplate;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiPromptTemplateMapper;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandlerRegistry;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +46,7 @@ class AiPromptAdminServiceTest {
     @Mock
     private AiPromptTemplateMapper promptMapper;
     @Mock
-    private TaskHandlerRegistry handlerRegistry;
+    private TaskTypeAdapterRegistry adapterRegistry;
     @Mock
     private SysUserMapper userMapper;
     @Mock
@@ -71,9 +71,9 @@ class AiPromptAdminServiceTest {
         loginUser = new LoginUser();
         loginUser.setId(UUID.randomUUID());
         loginUser.setUsername("admin");
-        TaskHandler handler = org.mockito.Mockito.mock(TaskHandler.class);
-        lenient().when(handler.defaultPrompt()).thenReturn(BUILTIN_PROMPT);
-        lenient().when(handlerRegistry.get(SCENE)).thenReturn(handler);
+        TaskTypeAdapter adapter = org.mockito.Mockito.mock(TaskTypeAdapter.class);
+        lenient().when(adapter.systemPrompt()).thenReturn(BUILTIN_PROMPT);
+        lenient().when(adapterRegistry.get(SCENE)).thenReturn(adapter);
         lenient().when(clientIpResolver.resolve(request)).thenReturn("127.0.0.1");
     }
 
@@ -183,10 +183,9 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        // 登记场景 16 个（导入、生成链 4 阶段子场景、评审 / 计划圈选、助手任务执行、
-        // 新建缺陷实时建议、缺陷分类 / 分诊 / 趋势摘要 / 重复扫描、用例补全 / 级别推荐 / 执行顺序建议），
+        // 登记场景 13 个（生成链统一为 test_design_generation，不再登记四阶段旧场景），
         // 自定义行只覆盖导入
-        assertEquals(16, list.size());
+        assertEquals(13, list.size());
         AiPromptListItemRespDTO importItem = list.stream()
             .filter(item -> "requirement_import".equals(item.getScene()))
                 .findFirst().orElseThrow();
@@ -195,10 +194,10 @@ class AiPromptAdminServiceTest {
         assertNull(importItem.getUpdatedByName());
         assertTrue(importItem.getSummary().contains("基于"));
         AiPromptListItemRespDTO defaultItem = list.stream()
-                .filter(item -> "test_design_generation_modules".equals(item.getScene()))
+                .filter(item -> "test_design_generation".equals(item.getScene()))
                 .findFirst().orElseThrow();
         assertEquals("default", defaultItem.getSource());
-        assertEquals("生成链·模块结构", defaultItem.getName());
+        assertEquals("测试设计生成", defaultItem.getName());
     }
 
     @Test
@@ -207,7 +206,7 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        assertEquals(16, list.size());
+        assertEquals(13, list.size());
         AiPromptListItemRespDTO importItem = list.stream()
                 .filter(item -> "requirement_import".equals(item.getScene()))
                 .findFirst().orElseThrow();

@@ -15,7 +15,6 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
-import io.github.xiaomisum.robotest.service.ai.task.handler.TestDesignGenerationHandler;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.ProjectModuleService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseDocumentService;
@@ -64,7 +63,7 @@ public class GenerationAdoptServiceImpl implements ProposalAdopter {
 
     @Override
     public String type() {
-        return TestDesignGenerationHandler.TYPE;
+        return Constants.AiTaskType.TEST_DESIGN_GENERATION;
     }
 
     @Override

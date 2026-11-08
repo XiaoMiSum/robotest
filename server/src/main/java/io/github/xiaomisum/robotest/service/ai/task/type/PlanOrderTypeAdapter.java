@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai.task.handler;
+package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -7,9 +7,6 @@ import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
@@ -41,7 +38,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * items 全覆盖计划内关联用例；采纳只改排序，不改关联集合与快照内容（详设 4.4）。
  */
 @Component
-public class PlanOrderHandler implements TaskHandler {
+public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "plan_order";
 
@@ -54,7 +51,7 @@ public class PlanOrderHandler implements TaskHandler {
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.PLAN_ORDER;
     }
 
     @Override
@@ -98,33 +95,24 @@ public class PlanOrderHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        Map<String, Object> input = context.getInput();
-
-        context.report(5, "解析计划范围");
-        UUID planId = requirePlanId(input);
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        UUID planId = requirePlanId(context.input());
         TestPlan plan = testPlanMapper.selectById(planId);
-        if (plan == null || !context.getProjectId().equals(plan.getProjectId())) {
+        if (plan == null || !context.projectId().equals(plan.getProjectId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_PLAN_NOT_FOUND);
         }
-        List<TestPlanNodeSnapshot> associated = requireAssociatedCases(planId);
-        List<TestPlanNodeSnapshot> currentOrder = currentOrder(planId, associated);
-
-        context.report(25, "装配提示词上下文");
+        List<TestPlanNodeSnapshot> currentOrder = currentOrder(planId, requireAssociatedCases(planId));
         Map<String, String> variables = new LinkedHashMap<>();
         variables.put("planContext", planContext(currentOrder));
-        // round 仅透传提示词，缺省空串（渲染只替换已提供变量）
-        variables.put("roundCount", nvl(parseRound(input)));
-
-        context.report(45, "生成顺序建议");
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(defaultPrompt(), variables));
-
-        context.report(85, "解析顺序建议");
-        Map<String, Object> artifact = sanitize(reply, plan, currentOrder);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", List.of(artifact));
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
+        variables.put("roundCount", nvl(parseRound(context.input())));
+        return new AgentExecutionPreparation(variables, variables.get("planContext"), List.of(),
+                output -> ProposalDrafts.fromArtifact(sanitize(new AiChatReply(output, 0, 0), plan, currentOrder)),
+                output -> null);
     }
+
+    @Override public List<String> toolCodes() { return List.of("query_plan_order_context"); }
+
+    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.ORDER_SUGGESTION; }
 
     /** 计划用例按快照树现序（DFS 平铺，兄弟与根均按 sortOrder nullsLast 稳定排序） */
     private List<TestPlanNodeSnapshot> currentOrder(UUID planId, List<TestPlanNodeSnapshot> associated) {

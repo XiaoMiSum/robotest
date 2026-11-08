@@ -1166,6 +1166,22 @@ CREATE TABLE ai_task_tool (
 );
 CREATE UNIQUE INDEX uk_ai_task_tool ON ai_task_tool (tool_code) WHERE is_deleted = FALSE;
 
+-- S4 普通任务只读工具种子：代码注册、种子与 TypeAdapter 白名单同源（11/11 类型覆盖）。
+INSERT INTO ai_task_tool (id, tool_code, name, task_types, param_schema, permission_code, side_effect) VALUES
+('a1000000-0000-0000-0000-000000000001', 'read_import_source', '读取导入来源', '["requirement_import"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000002', 'query_project_modules', '查询项目模块', '["requirement_import","test_design_generation","bug_classify"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000003', 'query_requirements', '查询需求', '["test_design_generation","case_complete"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000004', 'search_project_knowledge', '检索项目知识', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000005', 'query_test_assets', '查询测试资产', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000006', 'query_selection_candidates', '查询圈选候选', '["review_selection","plan_selection"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000007', 'query_case_context', '查询用例上下文', '["case_complete","case_priority"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000008', 'query_bug_hotspots', '查询缺陷热点', '["case_priority"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000009', 'query_plan_order_context', '查询计划顺序上下文', '["plan_order"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000010', 'query_bugs', '查询缺陷', '["bug_classify","bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000011', 'search_similar_bugs', '检索相似缺陷', '["bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000012', 'query_triage_bugs', '查询分诊缺陷', '["bug_triage"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
+('a1000000-0000-0000-0000-000000000013', 'query_bug_analysis_snapshot', '查询缺陷分析快照', '["bug_trend_summary"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly');
+
 CREATE TABLE ai_task_adoption (
     id           uuid PRIMARY KEY,
     project_id   uuid NULL,

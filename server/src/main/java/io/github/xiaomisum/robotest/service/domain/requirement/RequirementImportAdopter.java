@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.service.domain.requirement;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
+
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
@@ -18,7 +20,7 @@ public class RequirementImportAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
-        return "requirement_import";
+        return Constants.AiTaskType.REQUIREMENT_IMPORT;
     }
 
     @Override

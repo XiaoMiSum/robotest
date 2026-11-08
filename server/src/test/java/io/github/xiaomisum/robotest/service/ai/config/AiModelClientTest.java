@@ -352,6 +352,21 @@ class AiModelClientTest {
     }
 
     @Test
+    void chatWithToolDeclarations_taskTextOnlyHop_keepsTaskScene() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModelWithDeclarations(any(), any(), any());
+        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+                List.of(new Generation(new AssistantMessage("任务结果"))),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build()));
+
+        spy.chatWithToolDeclarations(request(), List.of(), List.of(), false);
+
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("test", captor.getValue().getPromptScene());
+    }
+
+    @Test
     void chatWithTools_failure_maps18117AndWritesFailedUsageRow() {
         AiModelClient spy = Mockito.spy(client);
         doReturn(chatModel).when(spy).buildChatModel(any(), any(), any());

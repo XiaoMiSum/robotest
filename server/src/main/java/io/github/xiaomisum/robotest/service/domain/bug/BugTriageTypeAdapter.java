@@ -5,9 +5,11 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
+import io.github.xiaomisum.robotest.service.ai.task.type.AbstractOrdinaryTaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
+import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDrafts;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -32,7 +34,7 @@ import static io.github.xiaomisum.robotest.service.domain.requirement.Requiremen
  * 建议仅作排序展示，不写入任何数据（confirmStatus = not_applicable）。
  */
 @Component
-public class BugTriageHandler implements TaskHandler {
+public class BugTriageTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "bug_triage";
 
@@ -46,7 +48,7 @@ public class BugTriageHandler implements TaskHandler {
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.BUG_TRIAGE;
     }
 
     @Override
@@ -71,29 +73,25 @@ public class BugTriageHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        context.report(10, "读取激活未指派缺陷");
-        List<Bug> bugs = bugMapper.listActiveUnassigned(context.getProjectId());
-        if (bugs.isEmpty()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);
+    public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
+        if (context == null || context.projectId() == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
-        // 超量只装配前 N 条（创建早的在前），产物排序也仅覆盖这 N 条
-        List<Bug> scoped = bugs.size() > MAX_CONTEXT_BUGS ? bugs.subList(0, MAX_CONTEXT_BUGS) : bugs;
-
-        context.report(30, "构建提示词");
-        Map<String, String> variables = new LinkedHashMap<>();
-        variables.put("bugContext", bugContext(scoped));
-        String userPrompt = context.prompt(defaultPrompt(), variables);
-
-        context.report(50, "模型生成分诊建议");
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, userPrompt);
-
-        context.report(85, "解析分诊建议");
-        Map<String, Object> artifact = sanitize(reply, scoped);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", List.of(artifact));
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
     }
+
+    @Override
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        List<Bug> bugs = bugMapper.listActiveUnassigned(context.projectId());
+        if (bugs.isEmpty()) throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);
+        List<Bug> scoped = bugs.size() > MAX_CONTEXT_BUGS ? bugs.subList(0, MAX_CONTEXT_BUGS) : bugs;
+        String snapshot = bugContext(scoped);
+        return new AgentExecutionPreparation(Map.of("bugContext", snapshot), snapshot, List.of(),
+                output -> ProposalDrafts.fromArtifact(sanitize(new AiChatReply(output, 0, 0), scoped)), output -> null);
+    }
+
+    @Override public List<String> toolCodes() { return List.of("query_triage_bugs"); }
+
+    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.BUG_TRIAGE; }
 
     private static String bugContext(List<Bug> bugs) {
         LocalDateTime now = LocalDateTime.now();
@@ -137,6 +135,15 @@ public class BugTriageHandler implements TaskHandler {
                 item.put("bugId", bugId.toString());
                 item.put("rank", items.size() + 1);
                 item.put("reason", String.valueOf(asMap(element).getOrDefault("reason", "")));
+                items.add(item);
+            }
+        }
+        for (Bug bug : bugs) {
+            if (seen.add(bug.getId())) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("bugId", bug.getId().toString());
+                item.put("rank", items.size() + 1);
+                item.put("reason", "");
                 items.add(item);
             }
         }

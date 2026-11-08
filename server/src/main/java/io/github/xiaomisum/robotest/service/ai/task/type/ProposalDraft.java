@@ -12,5 +12,14 @@ import java.util.Map;
  * @param content     结构化产物 + 证据链（结构由各分册定义）
  */
 public record ProposalDraft(String proposalKey, String kind, String parentKey, String title,
-        Map<String, Object> content) {
+        Map<String, Object> content, String confirmStatus) {
+
+    public ProposalDraft {
+        confirmStatus = "not_applicable".equals(confirmStatus) ? confirmStatus : "pending";
+    }
+
+    public ProposalDraft(String proposalKey, String kind, String parentKey, String title,
+            Map<String, Object> content) {
+        this(proposalKey, kind, parentKey, title, content, "pending");
+    }
 }
