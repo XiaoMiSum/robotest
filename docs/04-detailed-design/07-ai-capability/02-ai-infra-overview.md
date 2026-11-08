@@ -739,6 +739,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的十一类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
+`assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxDurationSeconds: 3600, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
+
 #### 3.6.2 提交任务（创建即启动执行）
 
 - **路径**：`POST /api/ai/tasks`（后端不做权限校验，登录即可提交）
@@ -901,6 +903,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - **执行入口与策略分派**：十三个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
 - **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清、回答与变更预览仍按分册 04 处理，不转为通用提案确认；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
+- **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
 - **模型选型（能力 + 优先级）**：执行启动期按「任务必需能力」解析模型并回写执行行 `model_id`（维持启动时解析、执行不漂移），执行期以执行行 `model_id` 按同一规则复验；必需能力由类型适配器从任务输入派生（`bug_classify` 批量需结合项目范围解析缺陷集后判定）——`requirement_import` 图片文件、`assistant_parse` 消息附图、`bug_classify` 附带截图时为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。
 - **类型适配**：`type → 类型适配器`（每个适配器注册：input 校验器、工具白名单与预算默认值、提案结构定义、落库承接器）；执行核是通用 Agent 循环——AI 自主规划步骤（`plan` 事件入轨迹）、在白名单内选择并调用工具（参数校验 → 权限与作用域鉴权 → [确认型工具触发人工闸门] → 执行 → 结果回喂）、失败自行决定重试 / 改道 / 终止；应用层不在循环内预设业务流程。执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
@@ -1093,3 +1096,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-10-27 | 3.6.1 预算默认值落点勘正：工具白名单登记于 2.6.5，预算默认由类型适配器声明（2.6.5 表无预算列），提交仅可下调 |
 | V1.0 | 2026-11-07 | 提案与采纳表挂 `execution_id`（再次执行唯一键冲突裁决）：2.6.4 / 2.7 增 `execution_id` 列、uk 改 `(execution_id, proposal_key)`；3.6.3 详情提案清单改「最新一次执行」口径，3.6.4 / 3.6.5 联动（同名键跨执行并存、确认按最新执行定位） |
 | V1.0 | 2026-11-07 | 6 补登 1000018128「用户中止」：abort 端点执行与任务的 `terminate_code` 此前无登记码（预算耗尽 127 / 执行错误 117 / 总开关 101 沿用） |
+| V1.0 | 2026-11-07 | 助手与向量执行策略裁决落册：3.6.1 补两类首版默认预算与 steps 计法，4.2 补 vector chat 模型豁免、助手 5 跳与预算先到者终止、迟到用量只记明细不改汇总 |
