@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.task;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -8,7 +9,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 任务处理器注册表：type → TaskHandler 的分发依据（详设 4.2），空集时全部类型报 1000018114。
+ * 迁移期旧处理器注册表：仅保留尚未迁移的助手解析与向量重建，普通任务不得回落双轨。
  */
 @Component
 public class TaskHandlerRegistry {
@@ -17,6 +18,8 @@ public class TaskHandlerRegistry {
 
     public TaskHandlerRegistry(List<TaskHandler> beans) {
         this.handlers = beans.stream()
+                .filter(handler -> Constants.AiTaskType.ASSISTANT_PARSE.equals(handler.type())
+                        || Constants.AiTaskType.VECTOR_REINDEX.equals(handler.type()))
                 .collect(Collectors.toMap(TaskHandler::type, Function.identity(), (a, b) -> a));
     }
 

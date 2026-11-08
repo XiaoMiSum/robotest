@@ -10,10 +10,12 @@ import io.github.xiaomisum.robotest.repository.ai.AiTaskToolMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatRequest;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
+import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
 import io.github.xiaomisum.robotest.service.ai.config.AiToolCall;
 import io.github.xiaomisum.robotest.service.ai.config.ToolDeclaration;
 import io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport;
 import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDraft;
+import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -61,6 +63,10 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
     @Resource
     private AiModelClient modelClient;
     @Resource
+    private AiPromptService promptService;
+    @Resource
+    private AgentToolArgumentValidator argumentValidator;
+    @Resource
     private UserDetailsBridgeImpl userDetailsBridge;
 
     /** 驱动 Agent 循环并返回提案与结果元数据；异步和终态统一由分派器负责。 */
@@ -68,6 +74,10 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
     public ExecutionResult execute(ExecutionContext ctx, ExecutionControl control) {
         AiTask task = ctx.task();
         TaskTypeAdapter adapter = ctx.adapter();
+        control.beforeCall();
+        AgentExecutionPreparation preparation = adapter.prepare(new TaskTypeAdapter.PreparationContext(
+                task.getId(), task.getSubmittedBy(), ctx.workspaceId(), ctx.projectId(), task.getInput(),
+                ctx.feedback()));
         int maxSteps = control.maxSteps(DEFAULT_MAX_STEPS);
         List<String> permissions = loadPermissionCodes(task.getSubmittedBy());
         List<AgentToolDefinition> whitelist = signWhitelist(adapter);
@@ -75,15 +85,19 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                 .map(d -> new ToolDeclaration(d.code(), d.description(), d.paramsSchema()))
                 .toList();
         AgentToolContext toolContext = new AgentToolContext(
-                task.getSubmittedBy(), ctx.workspaceId(), ctx.projectId());
+                task.getSubmittedBy(), ctx.workspaceId(), ctx.projectId(), task.getId(), task.getType(),
+                task.getInput());
         List<Message> turns = new ArrayList<>();
-        AiChatRequest request = chatRequest(adapter, task, ctx);
+        AiChatRequest request = chatRequest(adapter, preparation, task, ctx);
         String finalOutput = null;
         for (int hop = 0; hop < maxSteps; hop++) {
             control.beforeCall();
-            AiChatReply reply = modelClient.chatWithToolDeclarations(request, declarations, turns);
+            AiChatReply reply = modelClient.chatWithToolDeclarations(request, declarations, turns, false);
             control.afterModelCall(reply.tokensIn(), reply.tokensOut(),
                     AiModelClient.calculateCost(ctx.model(), reply.tokensIn(), reply.tokensOut()));
+            control.recordTrace(Constants.AiTraceEventType.AI_DECISION,
+                    reply.toolCalls().isEmpty() ? "模型完成任务" : "模型选择调用工具",
+                    Map.of("toolCalls", reply.toolCalls().stream().map(AiToolCall::name).toList()));
             if (hop == 0 && !reply.toolCalls().isEmpty()
                     && ModelOutputSupport.trimToNull(reply.content()) != null) {
                 // 计划快照：首跳带工具的正文视为计划（可见思考产物，不作为执行依据）
@@ -113,8 +127,8 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         if (ModelOutputSupport.trimToNull(finalOutput) == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "模型无有效输出");
         }
-        List<ProposalDraft> drafts = adapter.buildProposals(finalOutput, task.getInput());
-        Map<String, Object> resultMeta = adapter.buildResultMeta(finalOutput, task.getInput());
+        List<ProposalDraft> drafts = preparation.proposalParser().apply(finalOutput);
+        Map<String, Object> resultMeta = preparation.resultMetaParser().apply(finalOutput);
         return new ExecutionResult(drafts, resultMeta);
     }
 
@@ -134,6 +148,10 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
             args = parseArgs(call);
         } catch (ServiceException e) {
             return errorJson(e.getCode() + ": 工具参数 JSON 非法");
+        }
+        String invalid = argumentValidator.validate(definition.paramsSchema(), args);
+        if (invalid != null) {
+            return errorJson("工具参数非法: " + invalid);
         }
         if (definition.permissionCode() != null && !permissions.contains(definition.permissionCode())) {
             return errorJson("权限不足: " + definition.permissionCode());
@@ -183,13 +201,16 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
 
     // ---------- 请求与轮次构造 ----------
 
-    private AiChatRequest chatRequest(TaskTypeAdapter adapter, AiTask task, ExecutionContext ctx) {
+    private AiChatRequest chatRequest(TaskTypeAdapter adapter, AgentExecutionPreparation preparation,
+            AiTask task, ExecutionContext ctx) {
+        String resolvedPrompt = promptService.render(adapter.type(), adapter.systemPrompt(),
+                preparation.promptVariables());
         String userPrompt = "任务类型: " + task.getType()
-                + "\n任务输入:\n" + JsonUtils.toJsonString(task.getInput())
+                + "\n可信输入快照:\n" + preparation.inputSnapshot()
                 + (ModelOutputSupport.trimToNull(ctx.feedback()) == null
                         ? "" : "\n用户反馈:\n" + ctx.feedback());
         return new AiChatRequest(task.getId(), ctx.execution().getId(), ctx.projectId(), task.getSubmittedBy(),
-                task.getType(), ctx.model(), adapter.systemPrompt(), userPrompt);
+                task.getType(), ctx.model(), resolvedPrompt, userPrompt, preparation.media());
     }
 
     private static Message assistantTurn(AiChatReply reply) {

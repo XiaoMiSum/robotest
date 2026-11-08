@@ -40,7 +40,7 @@ public final class RequirementSuggestionParser {
 
     /** 取出 artifacts 并清洗；缺失或非数组按空产物返回（与拆分详情回读同口径） */
     @SuppressWarnings("unchecked")
-    static List<Map<String, Object>> sanitizeArtifacts(Map<String, Object> parsed, List<ProjectModule> modules) {
+    public static List<Map<String, Object>> sanitizeArtifacts(Map<String, Object> parsed, List<ProjectModule> modules) {
         if (!(parsed.get("artifacts") instanceof List<?> rawArtifacts)) {
             return List.of();
         }
@@ -84,7 +84,7 @@ public final class RequirementSuggestionParser {
     }
 
     /** 候选模块清单（id|名称），空列表渲染提示语（拆分 / 导入提示词共用变量） */
-    static String moduleOptions(List<ProjectModule> modules) {
+    public static String moduleOptions(List<ProjectModule> modules) {
         if (modules.isEmpty()) {
             return "（当前项目暂无模块，moduleId 一律为 null）";
         }
@@ -98,7 +98,7 @@ public final class RequirementSuggestionParser {
         return builder.toString();
     }
 
-    static String asString(Object value) {
+    public static String asString(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 

@@ -13,8 +13,8 @@ import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.ai.AiPromptTemplate;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiPromptTemplateMapper;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandlerRegistry;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapterRegistry;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
@@ -54,7 +54,7 @@ public class AiPromptAdminService {
     @Resource
     private AiPromptTemplateMapper promptMapper;
     @Resource
-    private TaskHandlerRegistry handlerRegistry;
+    private TaskTypeAdapterRegistry adapterRegistry;
     @Resource
     private SysUserMapper userMapper;
     @Resource
@@ -194,11 +194,11 @@ public class AiPromptAdminService {
         return variables;
     }
 
-    /** 内置默认：处理器 defaultPrompt（scene 与 type 对应，2.5 注释）；阶段子场景回落登记表，皆无则空串 */
+    /** 内置默认：任务场景唯一回落类型适配器；非任务场景回落 AiPromptScenes。 */
     private String builtinContent(String scene) {
-        TaskHandler handler = handlerRegistry.get(scene);
-        if (handler != null && handler.defaultPrompt() != null && !handler.defaultPrompt().isBlank()) {
-            return handler.defaultPrompt();
+        TaskTypeAdapter adapter = adapterRegistry.get(scene);
+        if (adapter != null && adapter.systemPrompt() != null && !adapter.systemPrompt().isBlank()) {
+            return adapter.systemPrompt();
         }
         String stagePrompt = AiPromptScenes.builtin(scene);
         return stagePrompt == null ? "" : stagePrompt;

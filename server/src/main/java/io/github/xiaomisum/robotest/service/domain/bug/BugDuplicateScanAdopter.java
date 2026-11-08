@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
+
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
@@ -21,7 +23,7 @@ public class BugDuplicateScanAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
-        return BugDuplicateScanHandler.TYPE;
+        return Constants.AiTaskType.BUG_DUPLICATE_SCAN;
     }
 
     @Override

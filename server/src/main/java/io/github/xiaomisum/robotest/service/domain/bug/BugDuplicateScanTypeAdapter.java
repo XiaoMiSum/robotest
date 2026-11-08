@@ -6,11 +6,14 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespD
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
+import io.github.xiaomisum.robotest.service.ai.task.type.AbstractOrdinaryTaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
+import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDrafts;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
+import io.github.xiaomisum.robotest.service.ai.vector.AiEmbeddingGate;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -36,7 +39,7 @@ import static io.github.xiaomisum.robotest.service.domain.requirement.Requiremen
  * 产物为疑似重复分组（confirmStatus = pending），确认仅留痕、不修改缺陷（详设 3.9 / 4.2）。
  */
 @Component
-public class BugDuplicateScanHandler implements TaskHandler {
+public class BugDuplicateScanTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "bug_duplicate_scan";
 
@@ -50,10 +53,12 @@ public class BugDuplicateScanHandler implements TaskHandler {
     private BugMapper bugMapper;
     @Resource
     private VectorSearchService vectorSearchService;
+    @Resource
+    private AiEmbeddingGate embeddingGate;
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.BUG_DUPLICATE_SCAN;
     }
 
     @Override
@@ -83,27 +88,27 @@ public class BugDuplicateScanHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        context.report(10, "读取扫描范围");
-        List<Bug> bugs = bugMapper.listByStatus(context.getProjectId(), Constants.BugStatus.ACTIVE, SCAN_LIMIT);
-        if (bugs.isEmpty()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);
+    public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
+        validateInput(input);
+        if (context == null || context.projectId() == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
-
-        context.report(30, "检索相似候选");
-        Map<UUID, List<Hit>> candidates = candidatePairs(bugs, context.getProjectId(), context.getUserId());
-
-        context.report(50, "模型归并分组");
-        Map<String, String> variables = new HashMap<>();
-        variables.put("bugContext", bugContext(bugs, candidates));
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(defaultPrompt(), variables));
-
-        context.report(85, "解析重复分组");
-        List<Map<String, Object>> artifacts = sanitize(reply, bugs);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", artifacts);
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
+        embeddingGate.requireReady();
     }
+
+    @Override
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        List<Bug> bugs = bugMapper.listByStatus(context.projectId(), Constants.BugStatus.ACTIVE, SCAN_LIMIT);
+        if (bugs.isEmpty()) throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);
+        Map<UUID, List<Hit>> candidates = candidatePairs(bugs, context.projectId(), context.userId());
+        String snapshot = bugContext(bugs, candidates);
+        return new AgentExecutionPreparation(Map.of("bugContext", snapshot), snapshot, List.of(),
+                output -> ProposalDrafts.fromArtifacts(sanitize(new AiChatReply(output, 0, 0), bugs)), output -> null);
+    }
+
+    @Override public List<String> toolCodes() { return List.of("query_bugs", "search_similar_bugs"); }
+
+    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.BUG_DUPLICATE_GROUP; }
 
     private record Hit(UUID bugId, double similarity) {
     }
@@ -121,7 +126,7 @@ public class BugDuplicateScanHandler implements TaskHandler {
                 hits = vectorSearchService.search(query, List.of(projectId), VectorIndexService.TYPE_BUG,
                         CANDIDATE_LIMIT + 1, userId);
             } catch (ServiceException e) {
-                return Map.of();
+                throw e;
             }
             List<Hit> filtered = hits.stream()
                     .filter(hit -> hit.getEntityId() != null && !hit.getEntityId().equals(bug.getId()))

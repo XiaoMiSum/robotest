@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai.task.handler;
+package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -15,10 +15,8 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptScenes;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
+import io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport;
 import io.github.xiaomisum.robotest.service.ai.vector.AiEmbeddingGate;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
 import jakarta.annotation.Resource;
@@ -57,7 +55,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  */
 @Slf4j
 @Component
-public class TestDesignGenerationHandler implements TaskHandler {
+public class TestDesignGenerationTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "test_design_generation";
 
@@ -67,11 +65,6 @@ public class TestDesignGenerationHandler implements TaskHandler {
     private static final String PHASE_NODES = "标记用例节点";
     private static final String PHASE_ATTRIBUTES = "填充用例属性";
     private static final String PHASE_SOURCES = "来源校验";
-
-    private static final String SCENE_MODULES = "test_design_generation_modules";
-    private static final String SCENE_DOCUMENTS = "test_design_generation_documents";
-    private static final String SCENE_NODES = "test_design_generation_nodes";
-    private static final String SCENE_ATTRIBUTES = "test_design_generation_attributes";
 
     private static final Set<String> GRANULARITIES = Set.of("concise", "standard", "detailed");
     private static final String GRANULARITY_DEFAULT = "standard";
@@ -109,14 +102,22 @@ public class TestDesignGenerationHandler implements TaskHandler {
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.TEST_DESIGN_GENERATION;
     }
 
     @Override
     public String defaultPrompt() {
-        // 阶段提示词按子场景独立配置（AiPromptScenes），type 场景仅作任务与用量归因
-        return "生成链按 解析需求 → 模块结构 → 脑图文档 → 用例节点 → 用例属性 → 来源校验 六阶段编排，"
-                + "各阶段提示词独立配置（test_design_generation_modules / _documents / _nodes / _attributes）。";
+        return """
+                你是资深测试设计专家。围绕目标需求自主规划并按需调用只读工具，最终一次性输出 JSON，
+                不得使用固定阶段编排。生成模块、脑图文档和用例节点三层提案；每项必须带来自输入需求的
+                sourceRefs，疑似与现有资产重复时写 suspectedDuplicateOf。用例属性含 priority、precondition、
+                steps、expected、tags，steps 与 expected 一一对应。最终结构：
+                {"proposals":[{"key":"module-1","kind":"module_suggestion","parentKey":null,
+                "title":"…","content":{"sourceRefs":[{"requirementId":"…","quote":"…"}]}},
+                {"key":"doc-1","kind":"mindmap_document_suggestion","parentKey":"module-1","title":"…","content":{"sourceRefs":[]}},
+                {"key":"case-1","kind":"test_case_suggestion","parentKey":"doc-1","title":"…",
+                "content":{"isTestCase":true,"attributes":{},"sourceRefs":[]}}]}
+                """;
     }
 
     @Override
@@ -167,74 +168,76 @@ public class TestDesignGenerationHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        Map<String, Object> input = context.getInput();
-        List<UUID> requirementIds = parseRequirementIds(input);
-        String granularity = parseGranularity(input);
-
-        context.report(5, PHASE_PARSE);
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        List<UUID> requirementIds = parseRequirementIds(context.input());
         List<Requirement> requirements = loadRequirements(requirementIds);
-        String requirementContext = buildRequirementContext(requirements)
-                + ragContext(context, requirements, requirementIds);
-        Set<String> scope = requirementIds.stream()
-                .map(item -> item.toString().toLowerCase()).collect(Collectors.toSet());
+        String snapshot = buildRequirementContext(requirements)
+                + ragContext(context.projectId(), context.userId(), requirements, requirementIds)
+                + "\n生成粒度：" + parseGranularity(context.input());
+        return new AgentExecutionPreparation(Map.of(), snapshot, List.of(),
+                output -> parseUnified(output, requirementIds, context.projectId()), output -> null);
+    }
 
-        int tokensIn = 0;
-        int tokensOut = 0;
+    @Override
+    public List<String> toolCodes() {
+        return List.of("query_requirements", "query_project_modules", "search_project_knowledge",
+                "query_test_assets");
+    }
 
-        context.report(15, PHASE_MODULES);
-        AiChatReply reply = context.chat(SYSTEM_PROMPT,
-                renderStage(context, SCENE_MODULES, Map.of("requirementContext", requirementContext)));
-        tokensIn += reply.tokensIn();
-        tokensOut += reply.tokensOut();
-        List<Map<String, Object>> artifacts = sanitizeModules(reply);
-        markModuleDuplicates(artifacts, context.getProjectId());
+    @Override
+    protected String defaultProposalKind() {
+        return Constants.AiProposalKind.TEST_CASE;
+    }
 
-        context.report(30, PHASE_DOCUMENTS);
-        reply = context.chat(SYSTEM_PROMPT, renderStage(context, SCENE_DOCUMENTS, Map.of(
-                "requirementContext", requirementContext,
-                "moduleOptions", optionsOf(artifacts))));
-        tokensIn += reply.tokensIn();
-        tokensOut += reply.tokensOut();
-        List<Map<String, Object>> documents = sanitizeDocuments(reply, keySetOf(artifacts));
-        artifacts.addAll(documents);
+    private List<ProposalDraft> parseUnified(String output, List<UUID> requirementIds, UUID projectId) {
+        Set<String> scope = requirementIds.stream().map(id -> id.toString().toLowerCase()).collect(Collectors.toSet());
+        List<ProposalDraft> parsed = ProposalDrafts.parse(output, Constants.AiProposalKind.TEST_CASE);
+        List<ProposalDraft> accepted = parsed.stream()
+                .filter(draft -> Set.of(Constants.AiProposalKind.MODULE, Constants.AiProposalKind.MINDMAP_DOCUMENT,
+                        Constants.AiProposalKind.TEST_CASE).contains(draft.kind()))
+                .filter(draft -> validSourceRefs(draft.content(), scope))
+                .collect(Collectors.toCollection(ArrayList::new));
+        Set<String> modules = accepted.stream().filter(draft -> Constants.AiProposalKind.MODULE.equals(draft.kind()))
+                .map(ProposalDraft::proposalKey).collect(Collectors.toSet());
+        Set<String> documents = accepted.stream()
+                .filter(draft -> Constants.AiProposalKind.MINDMAP_DOCUMENT.equals(draft.kind())
+                        && modules.contains(draft.parentKey()))
+                .map(ProposalDraft::proposalKey).collect(Collectors.toSet());
+        accepted.removeIf(draft -> Constants.AiProposalKind.MINDMAP_DOCUMENT.equals(draft.kind())
+                && !modules.contains(draft.parentKey()));
+        accepted.removeIf(draft -> Constants.AiProposalKind.TEST_CASE.equals(draft.kind())
+                && !documents.contains(draft.parentKey()));
+        markDraftDuplicates(accepted, projectId);
+        return accepted;
+    }
 
-        context.report(50, PHASE_NODES);
-        reply = context.chat(SYSTEM_PROMPT, renderStage(context, SCENE_NODES, Map.of(
-                "requirementContext", requirementContext,
-                "documentOptions", optionsOf(documents),
-                "granularity", granularity)));
-        tokensIn += reply.tokensIn();
-        tokensOut += reply.tokensOut();
-        List<Map<String, Object>> nodes = sanitizeNodes(reply, keySetOf(documents), scope);
-        artifacts.addAll(nodes);
+    private static boolean validSourceRefs(Map<String, Object> content, Set<String> scope) {
+        Object raw = content.get("sourceRefs");
+        if (!(raw instanceof List<?> refs)) return false;
+        List<Map<String, Object>> valid = refs.stream().filter(Map.class::isInstance)
+                .map(ModelOutputSupport::asMap)
+                .filter(ref -> {
+                    String id = trimToNull(asString(ref.get("requirementId")));
+                    return id != null && scope.contains(id.toLowerCase());
+                }).toList();
+        content.put("sourceRefs", valid);
+        return !valid.isEmpty();
+    }
 
-        context.report(75, PHASE_ATTRIBUTES);
-        List<Map<String, Object>> cases = nodes.stream()
-                .filter(item -> Boolean.TRUE.equals(contentOf(item).get("isTestCase")))
-                .toList();
-        if (!cases.isEmpty()) {
-            reply = context.chat(SYSTEM_PROMPT, renderStage(context, SCENE_ATTRIBUTES, Map.of(
-                    "requirementContext", requirementContext,
-                    "documentOptions", optionsOf(documents),
-                    "caseNodeOptions", caseOptionsOf(cases),
-                    "granularity", granularity)));
-            tokensIn += reply.tokensIn();
-            tokensOut += reply.tokensOut();
-            fillCaseAttributes(cases, reply);
+    private void markDraftDuplicates(List<ProposalDraft> drafts, UUID projectId) {
+        Map<String, String> moduleNames = projectModuleMapper.listByProjectId(projectId).stream()
+                .filter(module -> trimToNull(module.getName()) != null)
+                .collect(Collectors.toMap(ProjectModule::getName, module -> module.getId().toString(), (a, b) -> a));
+        Set<UUID> documentIds = testCaseDocumentMapper.listByProjectId(projectId).stream()
+                .map(TestCaseDocument::getId).collect(Collectors.toSet());
+        Map<String, String> caseTitles = testCaseNodeMapper.listCasesByDocumentIds(documentIds).stream()
+                .filter(node -> trimToNull(node.getTitle()) != null)
+                .collect(Collectors.toMap(TestCaseNode::getTitle, node -> node.getId().toString(), (a, b) -> a));
+        for (ProposalDraft draft : drafts) {
+            String duplicate = Constants.AiProposalKind.MODULE.equals(draft.kind())
+                    ? moduleNames.get(draft.title()) : caseTitles.get(draft.title());
+            if (duplicate != null) draft.content().put("suspectedDuplicateOf", duplicate);
         }
-
-        context.report(95, PHASE_SOURCES);
-        // 来源缺失的产物不得进入待确认态（3.4）；节点在组装期已按来源过滤，此处统一兜底
-        artifacts.removeIf(item -> !retainValidSourceRefs(item, scope));
-        if (artifacts.isEmpty()) {
-            throw modelFailed("全部产物缺少有效来源引用");
-        }
-        markCaseDuplicates(artifacts, context.getProjectId());
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", artifacts);
-        return new TaskResult(result, tokensIn, tokensOut);
     }
 
     // ---------- 输入解析与校验 ----------
@@ -361,7 +364,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
     }
 
     /** RAG 装配：检索输入需求的向量分块作上下文增强；向量未就绪 / 重建中降级为无检索执行 */
-    private String ragContext(TaskExecutionContext context, List<Requirement> requirements,
+    private String ragContext(UUID projectId, UUID userId, List<Requirement> requirements,
             List<UUID> requirementIds) {
         try {
             String query = requirements.stream().map(Requirement::getTitle)
@@ -371,8 +374,7 @@ public class TestDesignGenerationHandler implements TaskHandler {
                 return "";
             }
             List<AiVectorSearchHitRespDTO> hits = vectorSearchService.search(query,
-                    List.of(context.getProjectId()), Constants.EntityType.REQUIREMENT, RAG_TOP_K,
-                    context.getUserId());
+                    List.of(projectId), Constants.EntityType.REQUIREMENT, RAG_TOP_K, userId);
             Set<UUID> scope = new HashSet<>(requirementIds);
             List<String> lines = hits.stream()
                     .filter(hit -> hit.getEntityId() != null && scope.contains(hit.getEntityId()))
@@ -384,10 +386,6 @@ public class TestDesignGenerationHandler implements TaskHandler {
             }
             return "\n相关需求片段（向量检索命中）：\n" + String.join("\n", lines);
         } catch (ServiceException e) {
-            if (e.getCode() == ErrorCodeConstants.AI_EMBEDDING_NOT_CONFIGURED.code()
-                    || e.getCode() == ErrorCodeConstants.AI_VECTOR_INDEX_UNAVAILABLE.code()) {
-                return "";
-            }
             throw e;
         }
     }
@@ -679,10 +677,6 @@ public class TestDesignGenerationHandler implements TaskHandler {
     }
 
     // ---------- 通用辅助 ----------
-
-    private String renderStage(TaskExecutionContext context, String scene, Map<String, String> variables) {
-        return context.getPromptService().render(scene, AiPromptScenes.builtin(scene), variables);
-    }
 
     private static String optionsOf(List<Map<String, Object>> artifacts) {
         return artifacts.stream()

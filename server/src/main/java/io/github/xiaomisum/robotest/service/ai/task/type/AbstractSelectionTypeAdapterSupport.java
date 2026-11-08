@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai.task.handler;
+package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
@@ -10,9 +10,6 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import jakarta.annotation.Resource;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -40,7 +37,12 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 范围校验（需求 / 模块口径）、候选用例装配与单次模型调用产出
  * sel-1 单产物；轮次规则由子类给出（评审禁传，计划必传 ∈ [1,10]）。
  */
-abstract class AbstractSelectionHandler implements TaskHandler {
+abstract class AbstractSelectionTypeAdapterSupport extends AbstractOrdinaryTaskTypeAdapter {
+
+    @Override
+    public List<String> toolCodes() {
+        return List.of("query_selection_candidates");
+    }
 
     protected static final String PHASE_PARSE = "解析输入";
     protected static final String PHASE_SELECT = "生成圈选建议";
@@ -96,34 +98,19 @@ abstract class AbstractSelectionHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        Map<String, Object> input = context.getInput();
-        List<UUID> requirementIds = scopeRequirementIds(input);
-        List<UUID> moduleIds = scopeModuleIds(input);
-        Integer roundCount = parseRoundCount(input);
-
-        context.report(10, PHASE_PARSE);
-        Candidates candidates = loadCandidates(context.getProjectId(), requirementIds, moduleIds);
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        Integer roundCount = parseRoundCount(context.input());
+        Candidates candidates = loadCandidates(context.projectId(), scopeRequirementIds(context.input()),
+                scopeModuleIds(context.input()));
         if (candidates.cases().isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.SELECTION_INPUT_INVALID);
         }
-        String scopeContext = buildScopeContext(candidates);
-
-        context.report(30, PHASE_SELECT);
-        Map<String, String> variables = new HashMap<>();
-        variables.put("scopeContext", scopeContext);
-        if (roundCount != null) {
-            variables.put("roundCount", String.valueOf(roundCount));
-        }
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(defaultPrompt(), variables));
-
-        context.report(95, PHASE_SELECT);
-        Map<String, Object> artifact = sanitizeSelection(reply, candidates, roundCount);
-        List<Map<String, Object>> artifacts = new ArrayList<>();
-        artifacts.add(artifact);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", artifacts);
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
+        Map<String, String> variables = new LinkedHashMap<>();
+        variables.put("scopeContext", buildScopeContext(candidates));
+        if (roundCount != null) variables.put("roundCount", String.valueOf(roundCount));
+        return new AgentExecutionPreparation(variables, buildScopeContext(candidates), List.of(),
+                output -> ProposalDrafts.fromArtifact(sanitizeSelection(
+                        new AiChatReply(output, 0, 0), candidates, roundCount)), output -> null);
     }
 
     // ---------- 输入解析 ----------

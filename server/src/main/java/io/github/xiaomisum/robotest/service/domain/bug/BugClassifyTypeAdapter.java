@@ -11,10 +11,11 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
+import io.github.xiaomisum.robotest.service.ai.task.type.AbstractOrdinaryTaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
+import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDrafts;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementSuggestionParser;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
@@ -46,7 +47,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * 新建草稿建议已改实时 SSE 流式接口（详设 3.5，BugDraftSuggestService），不走任务。
  */
 @Component
-public class BugClassifyHandler implements TaskHandler {
+public class BugClassifyTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "bug_classify";
 
@@ -101,7 +102,7 @@ public class BugClassifyHandler implements TaskHandler {
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.BUG_CLASSIFY;
     }
 
     @Override
@@ -118,6 +119,17 @@ public class BugClassifyHandler implements TaskHandler {
         }
         if (bugIds.size() > BATCH_LIMIT) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+        }
+    }
+
+    @Override
+    public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
+        validateInput(input);
+        if (context == null || context.projectId() == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
+        }
+        if (resolveBugs(input, context.projectId()).isEmpty()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);
         }
     }
 
@@ -145,74 +157,39 @@ public class BugClassifyHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        return executeBatch(context);
-    }
-
-    /**
-     * 存量批量分类（详设 3.6）：bugIds / filter 解析为缺陷集合（上限 500，空集 1000018283），
-     * 按缺陷分片多次调用模型，进度 = 已处理 / 总数（详设 4.3）；产物逐缺陷一条，confirmStatus = pending。
-     */
-    private TaskResult executeBatch(TaskExecutionContext context) {
-        context.report(5, "解析缺陷集合");
-        List<Bug> bugs = resolveBugs(context.getInput(), context.getProjectId());
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        List<Bug> bugs = resolveBugs(context.input(), context.projectId());
         if (bugs.isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);
         }
-        List<ProjectModule> modules = projectModuleMapper.listByProjectId(context.getProjectId());
-
-        // 截图收集（详设 3.6）：每缺陷 ≤2 张、全批 ≤8 张，跨分片共享配额按缺陷序截断
-        Map<UUID, List<BugAttachment>> imagesByBug = imageAttachmentsByBug(
-                bugs.stream().map(Bug::getId).toList());
-        int remainingImages = BATCH_IMAGE_LIMIT;
-
-        List<Map<String, Object>> artifacts = new ArrayList<>();
-        int tokensIn = 0;
-        int tokensOut = 0;
-        int total = bugs.size();
-        for (int start = 0; start < total; start += BATCH_SHARD) {
-            List<Bug> shard = bugs.subList(start, Math.min(start + BATCH_SHARD, total));
-            context.report(5 + 80 * (start + shard.size()) / total, "分类进度 " + (start + shard.size()) + "/" + total);
-            List<AiChatMedia> images = new ArrayList<>();
-            Map<UUID, String> imageNotes = new LinkedHashMap<>();
-            for (Bug bug : shard) {
-                if (remainingImages <= 0) {
-                    break;
-                }
-                List<BugAttachment> candidates = imagesByBug.getOrDefault(bug.getId(), List.of());
-                int take = Math.min(BUG_IMAGE_LIMIT, Math.min(candidates.size(), remainingImages));
-                int first = images.size() + 1;
-                int added = 0;
-                for (BugAttachment attachment : candidates.subList(0, take)) {
-                    byte[] bytes = readAttachmentQuietly(attachment);
-                    if (bytes == null) {
-                        continue;
-                    }
-                    images.add(new AiChatMedia(
-                            imageMimeType(attachment.getFileName(), attachment.getContentType()), bytes));
-                    added++;
-                }
-                if (added > 0) {
-                    remainingImages -= added;
-                    imageNotes.put(bug.getId(), imageNote(first, added));
-                }
+        List<ProjectModule> modules = projectModuleMapper.listByProjectId(context.projectId());
+        Map<UUID, List<BugAttachment>> imagesByBug = imageAttachmentsByBug(bugs.stream().map(Bug::getId).toList());
+        List<AiChatMedia> media = new ArrayList<>();
+        Map<UUID, String> imageNotes = new LinkedHashMap<>();
+        for (Bug bug : bugs) {
+            if (media.size() >= BATCH_IMAGE_LIMIT) break;
+            List<BugAttachment> candidates = imagesByBug.getOrDefault(bug.getId(), List.of());
+            int take = Math.min(BUG_IMAGE_LIMIT, Math.min(candidates.size(), BATCH_IMAGE_LIMIT - media.size()));
+            int first = media.size() + 1;
+            for (BugAttachment attachment : candidates.subList(0, take)) {
+                byte[] bytes = readAttachmentQuietly(attachment);
+                if (bytes != null) media.add(new AiChatMedia(
+                        imageMimeType(attachment.getFileName(), attachment.getContentType()), bytes));
             }
-            Map<String, String> variables = new HashMap<>();
-            variables.put("bugContext", batchBugContext(shard, imageNotes));
-            variables.put("moduleOptions", moduleOptions(modules));
-            String userPrompt = context.prompt(BATCH_PROMPT, variables);
-            AiChatReply reply = images.isEmpty()
-                    ? context.chat(SYSTEM_PROMPT, userPrompt)
-                    : context.chat(SYSTEM_PROMPT, userPrompt, images);
-            tokensIn += reply.tokensIn();
-            tokensOut += reply.tokensOut();
-            artifacts.addAll(sanitizeBatch(reply, shard, modules));
+            int added = media.size() - first + 1;
+            if (added > 0) imageNotes.put(bug.getId(), imageNote(first, added));
         }
-        context.report(95, "汇总分类建议");
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", artifacts);
-        return new TaskResult(result, tokensIn, tokensOut);
+        Map<String, String> variables = Map.of(
+                "bugContext", batchBugContext(bugs, imageNotes),
+                "moduleOptions", moduleOptions(modules));
+        return new AgentExecutionPreparation(variables, variables.get("bugContext"), media,
+                output -> ProposalDrafts.fromArtifacts(sanitizeBatch(new AiChatReply(output, 0, 0), bugs, modules)),
+                output -> null);
     }
+
+    @Override public List<String> toolCodes() { return List.of("query_bugs", "query_project_modules"); }
+
+    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.BUG_CLASSIFY; }
 
     /** 缺陷集合解析：bugIds 优先，其次 filter.statuses（未分类 / 分类存疑的状态条件）；一律限定当前项目 */
     private List<Bug> resolveBugs(Map<String, Object> input, UUID projectId) {
@@ -355,6 +332,19 @@ public class BugClassifyHandler implements TaskHandler {
                 artifact.put("confirmStatus", "pending");
                 artifacts.add(artifact);
             }
+        }
+        for (Bug bug : shard) {
+            if (!emitted.add(bug.getId())) continue;
+            Map<String, Object> content = new LinkedHashMap<>();
+            content.put("bugId", bug.getId().toString());
+            content.put("suggestions", Map.of());
+            Map<String, Object> artifact = new LinkedHashMap<>();
+            artifact.put("key", "bug-" + bug.getId());
+            artifact.put("kind", Constants.AiProposalKind.BUG_CLASSIFY);
+            artifact.put("title", nvl(bug.getTitle()));
+            artifact.put("content", content);
+            artifact.put("confirmStatus", "pending");
+            artifacts.add(artifact);
         }
         return artifacts;
     }

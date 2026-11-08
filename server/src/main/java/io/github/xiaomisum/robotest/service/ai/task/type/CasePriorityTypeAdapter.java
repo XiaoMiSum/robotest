@@ -1,4 +1,4 @@
-package io.github.xiaomisum.robotest.service.ai.task.handler;
+package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -7,10 +7,8 @@ import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
+import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -37,7 +35,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
  * current 与 suggested 均入产物，级别一致项由前端折叠、批量采纳默认跳过（详设 4.2）。
  */
 @Component
-public class CasePriorityHandler implements TaskHandler {
+public class CasePriorityTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "case_priority";
 
@@ -54,7 +52,7 @@ public class CasePriorityHandler implements TaskHandler {
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.CASE_PRIORITY;
     }
 
     @Override
@@ -98,31 +96,22 @@ public class CasePriorityHandler implements TaskHandler {
     }
 
     @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        Map<String, Object> input = context.getInput();
-
-        context.report(5, "解析选中范围");
-        List<UUID> nodeIds = CaseAssistSupport.requireNodeIds(input);
-        CaseAssistSupport.ResolvedCases resolved = assistSupport.resolve(context.getProjectId(),
-                CaseAssistSupport.requireDocumentId(input), nodeIds);
-        // 级别推荐未开放需求范围入参，追溯边已取消后无上游需求回溯路径（提示词按"（无上游需求）"装配）
-        List<Requirement> requirements = assistSupport.upstreamRequirements(context.getProjectId(), List.of());
-
-        context.report(25, "装配提示词上下文");
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        CaseAssistSupport.ResolvedCases resolved = assistSupport.resolve(context.projectId(),
+                CaseAssistSupport.requireDocumentId(context.input()), CaseAssistSupport.requireNodeIds(context.input()));
+        List<Requirement> requirements = assistSupport.upstreamRequirements(context.projectId(), List.of());
         Map<String, String> variables = new LinkedHashMap<>();
         variables.put("caseContext", CaseAssistSupport.priorityCaseContext(resolved));
         variables.put("requirementContext", CaseAssistSupport.requirementContext(requirements));
-        variables.put("bugContext", bugContext(context.getProjectId(), resolved));
-
-        context.report(45, "生成级别推荐");
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, context.prompt(defaultPrompt(), variables));
-
-        context.report(85, "解析级别推荐");
-        List<Map<String, Object>> artifacts = sanitize(reply, resolved, requirements);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("artifacts", artifacts);
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
+        variables.put("bugContext", bugContext(context.projectId(), resolved));
+        return new AgentExecutionPreparation(variables, String.join("\n", variables.values()), List.of(),
+                output -> ProposalDrafts.fromArtifacts(sanitize(new AiChatReply(output, 0, 0), resolved, requirements)),
+                output -> null);
     }
+
+    @Override public List<String> toolCodes() { return List.of("query_case_context", "query_bug_hotspots"); }
+
+    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.PRIORITY_SUGGESTION; }
 
     /** 逐选中节点产出一条产物：current 取用例现状，suggested 非法或缺失时回退 current（无变化即无写入） */
     private List<Map<String, Object>> sanitize(AiChatReply reply, CaseAssistSupport.ResolvedCases resolved,

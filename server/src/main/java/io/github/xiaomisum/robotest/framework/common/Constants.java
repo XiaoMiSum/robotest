@@ -91,6 +91,23 @@ public final class Constants {
         String NOT_APPLICABLE = "not_applicable";
     }
 
+    /** AI Task 类型单一常量源（总册 3.6.1）。 */
+    public interface AiTaskType {
+        String REQUIREMENT_IMPORT = "requirement_import";
+        String TEST_DESIGN_GENERATION = "test_design_generation";
+        String REVIEW_SELECTION = "review_selection";
+        String PLAN_SELECTION = "plan_selection";
+        String CASE_COMPLETE = "case_complete";
+        String CASE_PRIORITY = "case_priority";
+        String PLAN_ORDER = "plan_order";
+        String BUG_CLASSIFY = "bug_classify";
+        String BUG_DUPLICATE_SCAN = "bug_duplicate_scan";
+        String BUG_TRIAGE = "bug_triage";
+        String BUG_TREND_SUMMARY = "bug_trend_summary";
+        String ASSISTANT_PARSE = "assistant_parse";
+        String VECTOR_REINDEX = "vector_reindex";
+    }
+
     /**
      * 提案采纳动作（总册 2.7，取值与旧 AiArtifactAction 一致，S3 起替代旧命名）
      */

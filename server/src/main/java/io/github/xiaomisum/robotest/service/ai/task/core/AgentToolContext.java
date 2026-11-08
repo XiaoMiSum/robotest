@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.task.core;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -10,5 +11,9 @@ import java.util.UUID;
  * @param workspaceId 活跃工作空间（RAG 限权过滤依据）
  * @param projectId   活跃项目（null = 不限项目的个人任务）
  */
-public record AgentToolContext(UUID userId, UUID workspaceId, UUID projectId) {
+public record AgentToolContext(UUID userId, UUID workspaceId, UUID projectId, UUID taskId,
+        String taskType, Map<String, Object> inputSnapshot) {
+    public AgentToolContext {
+        inputSnapshot = inputSnapshot == null ? Map.of() : Map.copyOf(inputSnapshot);
+    }
 }

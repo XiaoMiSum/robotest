@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
-import io.github.xiaomisum.robotest.service.ai.task.handler.CaseCompleteHandler;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
 import jakarta.annotation.Resource;
@@ -60,7 +59,7 @@ public class CaseCompleteAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
-        return CaseCompleteHandler.TYPE;
+        return Constants.AiTaskType.CASE_COMPLETE;
     }
 
     @Override

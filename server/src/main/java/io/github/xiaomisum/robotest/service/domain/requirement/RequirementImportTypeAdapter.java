@@ -8,9 +8,12 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
+import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
+import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDraft;
+import io.github.xiaomisum.robotest.service.ai.task.type.AbstractOrdinaryTaskTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.domain.file.FileContent;
 import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import jakarta.annotation.Resource;
@@ -41,7 +44,7 @@ import java.util.zip.ZipInputStream;
  * 文档级版本识别（detectedVersion + 识别依据引语）随本处理器交付，识别不到为 null（3.8）。
  */
 @Component
-public class RequirementImportHandler implements TaskHandler {
+public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     private static final String TYPE = "requirement_import";
     private static final Set<String> IMAGE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "gif", "webp", "bmp");
@@ -83,7 +86,7 @@ public class RequirementImportHandler implements TaskHandler {
 
     @Override
     public String type() {
-        return TYPE;
+        return Constants.AiTaskType.REQUIREMENT_IMPORT;
     }
 
     @Override
@@ -94,6 +97,16 @@ public class RequirementImportHandler implements TaskHandler {
     @Override
     public void validateInput(Map<String, Object> input) {
         parseFileId(input);
+    }
+
+    @Override
+    public void validateInput(Map<String, Object> input, TaskSubmitContext context) {
+        UUID fileId = parseFileId(input);
+        FileResource file = fileResourceMapper.selectById(fileId);
+        if (context == null || context.projectId() == null || file == null
+                || context.userId() == null || !context.userId().equals(file.getUploaderId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_SOURCE_FILE_NOT_FOUND);
+        }
     }
 
     /**
@@ -109,46 +122,61 @@ public class RequirementImportHandler implements TaskHandler {
         return AiSettingsReader.CAPABILITY_VISION;
     }
 
-    @Override
-    public TaskResult execute(TaskExecutionContext context) {
-        UUID fileId = parseFileId(context.getInput());
-        context.report(10, "读取导入文件");
+    /** 新 Agent 适配器使用的纯准备阶段：保留来源读取、图片随行、模块限域与上下文感知清洗。 */
+    public AgentExecutionPreparation prepare(Map<String, Object> input, UUID projectId) {
+        UUID fileId = parseFileId(input);
         FileContent file = readFile(fileId);
         String ext = extension(file.fileName());
-
         String documentText = "";
-        AiChatMedia media = null;
+        List<AiChatMedia> media = List.of();
         if (IMAGE_EXTENSIONS.contains(ext)) {
-            media = new AiChatMedia(imageMimeType(ext), file.content());
+            media = List.of(new AiChatMedia(imageMimeType(ext), file.content()));
         } else if (TEXT_EXTENSIONS.contains(ext)) {
             documentText = new String(file.content(), StandardCharsets.UTF_8);
         } else if ("docx".equals(ext)) {
             documentText = extractDocxText(file.content());
         } else {
-            // 直提任务资源绕过 3.8 提交校验的类型，执行期兜底拒绝
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_IMPORT_TYPE_UNSUPPORTED);
         }
-        if (media == null && documentText.isBlank()) {
+        if (media.isEmpty() && documentText.isBlank()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_IMPORT_EMPTY);
         }
+        List<ProjectModule> modules = projectModuleMapper.listByProjectId(projectId);
+        Map<String, String> variables = Map.of(
+                "documentName", nvl(file.fileName()),
+                "documentText", documentText,
+                "moduleOptions", RequirementSuggestionParser.moduleOptions(modules));
+        String snapshot = "fileId=" + fileId + "\nfileName=" + nvl(file.fileName())
+                + "\ndocumentText=" + documentText;
+        return new AgentExecutionPreparation(variables, snapshot, media,
+                output -> RequirementSuggestionParser.sanitizeArtifacts(
+                                RequirementSuggestionParser.parseJsonObject(output), modules).stream()
+                        .map(item -> new ProposalDraft(String.valueOf(item.get("key")),
+                                String.valueOf(item.get("kind")), null, String.valueOf(item.get("title")),
+                                castMap(item.get("content"))))
+                        .toList(),
+                output -> Map.of("documentMeta", sanitizeDocumentMeta(
+                        RequirementSuggestionParser.parseJsonObject(output).get("documentMeta"))));
+    }
 
-        context.report(30, "构建提示词");
-        List<ProjectModule> modules = projectModuleMapper.listByProjectId(context.getProjectId());
-        Map<String, String> variables = new HashMap<>();
-        variables.put("documentName", nvl(file.fileName()));
-        variables.put("documentText", documentText);
-        variables.put("moduleOptions", RequirementSuggestionParser.moduleOptions(modules));
-        String userPrompt = context.prompt(DEFAULT_PROMPT, variables);
+    @Override
+    public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
+        return prepare(context.input(), context.projectId());
+    }
 
-        context.report(50, "模型解析文档");
-        AiChatReply reply = context.chat(SYSTEM_PROMPT, userPrompt, media);
+    @Override
+    public List<String> toolCodes() {
+        return List.of("read_import_source", "query_project_modules");
+    }
 
-        context.report(85, "解析导入产物");
-        Map<String, Object> parsed = RequirementSuggestionParser.parseJsonObject(reply.content());
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("documentMeta", sanitizeDocumentMeta(parsed.get("documentMeta")));
-        result.put("artifacts", RequirementSuggestionParser.sanitizeArtifacts(parsed, modules));
-        return new TaskResult(result, reply.tokensIn(), reply.tokensOut());
+    @Override
+    protected String defaultProposalKind() {
+        return "requirement_suggestion";
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> castMap(Object value) {
+        return value instanceof Map<?, ?> ? (Map<String, Object>) value : Map.of();
     }
 
     // ---------- 文件读取与正文抽取 ----------

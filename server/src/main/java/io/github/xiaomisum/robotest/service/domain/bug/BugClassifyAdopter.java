@@ -35,7 +35,7 @@ public class BugClassifyAdopter implements ProposalAdopter {
 
     @Override
     public String type() {
-        return BugClassifyHandler.TYPE;
+        return Constants.AiTaskType.BUG_CLASSIFY;
     }
 
     @Override

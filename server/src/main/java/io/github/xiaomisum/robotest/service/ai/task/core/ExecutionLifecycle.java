@@ -82,23 +82,25 @@ public class ExecutionLifecycle {
             proposal.setParentKey(draft.parentKey());
             proposal.setTitle(fit(ModelOutputSupport.nvl(draft.title()), TITLE_MAX));
             proposal.setContent(draft.content());
-            proposal.setConfirmStatus(Constants.AiProposalConfirmStatus.PENDING);
+            proposal.setConfirmStatus(draft.confirmStatus());
             proposalMapper.insert(proposal);
             traceRecorder.record(executionId, Constants.AiTraceEventType.PROPOSAL_EMITTED,
                     "提案产出: " + draft.title(),
                     Map.of("proposalKey", ModelOutputSupport.nvl(draft.proposalKey()),
                             "kind", ModelOutputSupport.nvl(draft.kind())));
         }
-        String taskStatus = safeDrafts.isEmpty()
-                ? Constants.AiTaskFlowStatus.CLOSED : Constants.AiTaskFlowStatus.PROPOSALS_READY;
+        boolean hasPending = safeDrafts.stream().anyMatch(draft ->
+                Constants.AiProposalConfirmStatus.PENDING.equals(draft.confirmStatus()));
+        String taskStatus = hasPending
+                ? Constants.AiTaskFlowStatus.PROPOSALS_READY : Constants.AiTaskFlowStatus.CLOSED;
         traceRecorder.record(executionId, Constants.AiTraceEventType.STATUS_CHANGE,
-                safeDrafts.isEmpty() ? "执行完成，无待采纳提案" : "执行完成，产出 " + safeDrafts.size() + " 项提案",
+                hasPending ? "执行完成，产出 " + safeDrafts.size() + " 项提案" : "执行完成，无待采纳提案",
                 Map.of("execution", Constants.AiTaskExecutionStatus.SUCCEEDED));
         if (!taskMapper.markFlowStatus(taskId, taskStatus)) {
             throw new IllegalStateException("任务终态写入失败: " + taskId);
         }
         traceRecorder.record(executionId, Constants.AiTraceEventType.STATUS_CHANGE,
-                safeDrafts.isEmpty() ? "任务关闭" : "任务待采纳", Map.of("task", taskStatus));
+                hasPending ? "任务待采纳" : "任务关闭", Map.of("task", taskStatus));
         return true;
     }
 

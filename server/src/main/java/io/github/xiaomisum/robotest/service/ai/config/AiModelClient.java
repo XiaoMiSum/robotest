@@ -5,7 +5,6 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiUsageLog;
 import io.github.xiaomisum.robotest.repository.ai.AiUsageLogMapper;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolDefinition;
-import io.github.xiaomisum.robotest.service.ai.assistant.tool.ToolCategory;
 import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -108,11 +107,24 @@ public class AiModelClient {
      */
     public AiChatReply chatWithTools(AiChatRequest request, List<AssistantToolDefinition> toolDefinitions,
             List<Message> priorTurns) {
-        List<ToolDeclaration> declarations = toolDefinitions == null ? List.of()
-                : toolDefinitions.stream()
-                        .map(d -> new ToolDeclaration(d.name(), d.description(), d.paramsSchema()))
-                        .toList();
-        return chatWithToolDeclarations(request, declarations, priorTurns);
+        String apiKey = secretKey == null ? null
+                : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
+        if (apiKey == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+        }
+        long start = System.currentTimeMillis();
+        try {
+            ChatModel model = buildChatModel(request, apiKey,
+                    toolDefinitions == null ? List.of() : toolDefinitions);
+            AiChatReply reply = extractReplyWithCalls(model.call(buildPrompt(request, priorTurns)));
+            writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
+                    null, reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
+            return reply;
+        } catch (Exception e) {
+            int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
+            writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode, request.promptScene());
+            throw toServiceException(e, errorCode);
+        }
     }
 
     /**
@@ -123,11 +135,12 @@ public class AiModelClient {
      */
     public AiChatReply chatWithToolDeclarations(AiChatRequest request, List<ToolDeclaration> declarations,
             List<Message> priorTurns) {
-        List<AssistantToolDefinition> toolDefinitions = declarations == null ? List.of()
-                : declarations.stream()
-                        .map(d -> new AssistantToolDefinition(d.name(), d.description(), d.paramsSchema(),
-                                ToolCategory.QUERY))
-                        .toList();
+        return chatWithToolDeclarations(request, declarations, priorTurns, true);
+    }
+
+    /** 中性任务工具通道；仅 assistant=true 时将纯文本末跳归因 assistant_answer。 */
+    public AiChatReply chatWithToolDeclarations(AiChatRequest request, List<ToolDeclaration> declarations,
+            List<Message> priorTurns, boolean assistant) {
         String apiKey = secretKey == null ? null
                 : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
         if (apiKey == null) {
@@ -135,10 +148,10 @@ public class AiModelClient {
         }
         long start = System.currentTimeMillis();
         try {
-            ChatModel model = buildChatModel(request, apiKey, toolDefinitions);
+            ChatModel model = buildChatModelWithDeclarations(request, apiKey, declarations);
             AiChatReply reply = extractReplyWithCalls(model.call(buildPrompt(request, priorTurns)));
             writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
-                    null, reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
+                    null, assistant && reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
             return reply;
         } catch (Exception e) {
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
@@ -209,9 +222,18 @@ public class AiModelClient {
     /** 带工具声明的构建变体（工具清单来自服务端固化注册表，详设 4.1） */
     ChatModel buildChatModel(AiChatRequest request, String apiKey,
             List<AssistantToolDefinition> toolDefinitions) {
+        List<ToolDeclaration> declarations = toolDefinitions == null ? List.of()
+                : toolDefinitions.stream()
+                        .map(item -> new ToolDeclaration(item.name(), item.description(), item.paramsSchema()))
+                        .toList();
+        return buildChatModelWithDeclarations(request, apiKey, declarations);
+    }
+
+    ChatModel buildChatModelWithDeclarations(AiChatRequest request, String apiKey,
+            List<ToolDeclaration> declarations) {
         return OpenAiChatModel.builder()
-                .options(buildOptions(request.model(), apiKey,
-                        settingsReader.settings().taskMaxRetries(), toolDefinitions))
+                .options(buildOptionsWithDeclarations(request.model(), apiKey,
+                        settingsReader.settings().taskMaxRetries(), declarations))
                 .build();
     }
 
@@ -223,21 +245,30 @@ public class AiModelClient {
     /** 工具定义非空时以声明型回调随请求携带（详设 4.1：服务端固化清单，执行权不交框架） */
     static OpenAiChatOptions buildOptions(AiModelConfig model, String apiKey, int maxRetries,
             List<AssistantToolDefinition> toolDefinitions) {
+        List<ToolDeclaration> declarations = toolDefinitions == null ? List.of()
+                : toolDefinitions.stream()
+                        .map(item -> new ToolDeclaration(item.name(), item.description(), item.paramsSchema()))
+                        .toList();
+        return buildOptionsWithDeclarations(model, apiKey, maxRetries, declarations);
+    }
+
+    private static OpenAiChatOptions buildOptionsWithDeclarations(AiModelConfig model, String apiKey, int maxRetries,
+            List<ToolDeclaration> declarations) {
         var builder = OpenAiChatOptions.builder()
                 .baseUrl(model.getBaseUrl())
                 .apiKey(apiKey)
                 .model(model.getModelName())
                 .maxRetries(maxRetries)
                 .timeout(REQUEST_TIMEOUT);
-        if (toolDefinitions != null && !toolDefinitions.isEmpty()) {
-            builder.toolCallbacks(declarationCallbacks(toolDefinitions));
+        if (declarations != null && !declarations.isEmpty()) {
+            builder.toolCallbacks(declarationCallbacks(declarations));
         }
         return builder.build();
     }
 
-    private static List<ToolCallback> declarationCallbacks(List<AssistantToolDefinition> toolDefinitions) {
+    private static List<ToolCallback> declarationCallbacks(List<ToolDeclaration> toolDefinitions) {
         List<ToolCallback> callbacks = new ArrayList<>();
-        for (AssistantToolDefinition definition : toolDefinitions) {
+        for (ToolDeclaration definition : toolDefinitions) {
             callbacks.add(new DeclarationCallback(definition));
         }
         return callbacks;
@@ -251,7 +282,7 @@ public class AiModelClient {
 
         private final ToolDefinition definition;
 
-        private DeclarationCallback(AssistantToolDefinition source) {
+        private DeclarationCallback(ToolDeclaration source) {
             this.definition = DefaultToolDefinition.builder()
                     .name(source.name())
                     .description(source.description())
