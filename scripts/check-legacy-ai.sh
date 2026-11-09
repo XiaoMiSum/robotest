@@ -7,7 +7,7 @@
 #   - 排除「新架构合法字面量」（用量 success/failed、执行态 succeeded、提案确认 pending）
 #
 # 使用：bash scripts/check-legacy-ai.sh   （退出码 0 = 全绿；1 = 有残留，输出明细）
-# 状态基线：B/C/D 绿；A 待 S4 收尾（旧 SPI 删除）与 S6 实清（artifactKey 命名残留）；web 两查（E1/E2）待 S5。
+# 状态基线：B/C/D 绿；A 仅剩 `artifactKey` 命名残留（S6 实清）；web 两查（E1/E2）待 S5。
 
 set -u
 cd "$(dirname "$0")/.."
