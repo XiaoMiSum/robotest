@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { fetchAiArtifact, fetchAiTask, submitAiTask } from '@/services/ai'
+import { fetchAiProposal, fetchAiTask, submitAiTask } from '@/services/ai'
 import { fetchBugMetrics, fetchBugTrends } from '@/services/project'
 import type {
   AiTaskDetail,
@@ -19,7 +19,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 function isTerminal(status: string): boolean {
-  return status === 'succeeded' || status === 'failed' || status === 'cancelled'
+  return status === 'closed' || status === 'aborted'
 }
 
 /** 范围指纹：摘要生成时记录，范围变化后据以判定快照过期 */
@@ -90,7 +90,7 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
       return query
     },
     summaryRunning(state): boolean {
-      return state.summaryStatus === 'pending' || state.summaryStatus === 'running'
+      return state.summaryStatus === 'running'
     },
     /** 摘要基于上一次范围计算：范围变化后标记过期，提示重新生成（交互 2.1.2） */
     summaryStale(state): boolean {
@@ -164,7 +164,7 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
         }
       } catch (error) {
         this.summaryError = errorMessage(error, '生成缺陷摘要失败')
-        this.summaryStatus = 'failed'
+        this.summaryStatus = 'aborted'
       } finally {
         this.summaryLoading = false
       }
@@ -199,12 +199,12 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
 
     /** 终态分流：成功取产物内容，失败落原因供卡片重试（交互 2.4） */
     async resolveSummary(taskId: string, status: AiTaskDetail['status']) {
-      if (status !== 'succeeded') {
-        this.summaryError = status === 'failed' ? '摘要生成失败，可重试' : ''
+      if (status !== 'closed') {
+        this.summaryError = status === 'aborted' ? '摘要生成失败，可重试' : ''
         return
       }
       try {
-        const artifact = await fetchAiArtifact(taskId, 'summary-1')
+        const artifact = await fetchAiProposal(taskId, 'summary-1')
         const content = (artifact['content'] ?? {}) as Record<string, unknown>
         this.summaryText = typeof content['text'] === 'string' ? content['text'] : ''
         this.summaryCitations = readStringList(content['citations'])
@@ -266,12 +266,12 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
     },
 
     async resolveTriage(taskId: string, status: AiTaskDetail['status']) {
-      if (status !== 'succeeded') {
-        this.triageError = status === 'failed' ? '分诊建议生成失败，可重新加载' : ''
+      if (status !== 'closed') {
+        this.triageError = status === 'aborted' ? '分诊建议生成失败，可重新加载' : ''
         return
       }
       try {
-        const artifact = await fetchAiArtifact(taskId, 'triage')
+        const artifact = await fetchAiProposal(taskId, 'triage')
         const content = (artifact['content'] ?? {}) as Record<string, unknown>
         const rawItems = Array.isArray(content['items']) ? content['items'] : []
         this.triageItems = rawItems.flatMap((item) => {

@@ -8,8 +8,7 @@ import { useAiTaskStore } from '@/stores/aiTask'
 
 /**
  * 顶栏 AI 任务指示器（交互 07 §1）：项目模式 + ai:task 权限显隐，
- * 角标为进行中（pending + running）任务数，0 时不显示角标；点击进任务中心。
- * AI 未启用时后端已将进行中任务批量置 failed，计数自然归零，无需额外判断。
+ * 角标为进行中（status = running，含执行挂起）任务数，0 时不显示角标；点击进任务中心。
  */
 const route = useRoute()
 const router = useRouter()
@@ -31,7 +30,7 @@ watch(
 
 onBeforeUnmount(() => aiTaskStore.stopCountPolling())
 
-// 提交/重试后均跳任务详情页：进入任务中心域即刷新角标，不等下一轮 15s 轮询
+// 提交/再次执行后均跳任务详情页：进入任务中心域即刷新角标，不等下一轮 15s 轮询
 watch(
   () => route.path,
   (path) => {

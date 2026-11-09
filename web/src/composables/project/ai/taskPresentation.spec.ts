@@ -1,51 +1,74 @@
 import { describe, expect, it } from 'vitest'
-import type { AiTaskDetail, AiTaskStatus } from '@/types'
+import type { AiTaskDetail, AiTaskExecutionItem } from '@/types'
 import {
   AI_TASK_STATUS_META,
-  aiArtifactConfirmMeta,
-  aiArtifactKindCounts,
-  aiArtifactKindLabel,
-  aiArtifactProcessed,
+  aiExecutionStatusMeta,
+  aiExecutionSummary,
+  aiPlanSteps,
+  aiProposalConfirmMeta,
+  aiProposalKindCounts,
+  aiProposalKindLabel,
+  aiProposalProcessed,
   aiTaskName,
-  aiTaskPhaseSteps,
-  aiTaskPhases,
   aiTaskStatusMeta,
   aiTaskTypeMeta,
   aiTaskTypeOptions,
+  aiTraceEventLabel,
   importVersionEvidence,
   importVersionHint,
   importVersionPrefill,
 } from './taskPresentation'
 
+function makeExecution(overrides: Partial<AiTaskExecutionItem> = {}): AiTaskExecutionItem {
+  return {
+    executionId: 'e1',
+    seq: 1,
+    status: 'running',
+    steps: 0,
+    budget: { maxSteps: 4 },
+    consumed: { durationMs: 0, tokensIn: 0, tokensOut: 0, cost: 0 },
+    plan: null,
+    terminateReason: null,
+    ...overrides,
+  }
+}
+
 function makeTask(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
   return {
     taskId: 't1',
-    type: 'requirement_split',
-    status: 'running' as AiTaskStatus,
-    progress: 50,
-    phase: '模型生成拆分建议',
+    executionId: 'e1',
+    type: 'requirement_import',
+    status: 'running',
+    budget: { maxSteps: 4 },
+    latestExecution: makeExecution(),
     submittedBy: null,
-    retryOfTaskId: null,
     tokensIn: 0,
     tokensOut: 0,
     createdAt: '2026-10-03T00:00:00Z',
-    error: null,
-    result: null,
+    terminateReason: null,
+    resultMeta: null,
     documentMeta: null,
-    artifacts: null,
+    proposals: null,
     ...overrides,
   }
 }
 
 describe('taskPresentation', () => {
-  describe('状态徽标', () => {
-    it('终态与进行态映射到中文标签与标签类型', () => {
-      expect(aiTaskStatusMeta('pending').label).toBe('排队')
-      expect(aiTaskStatusMeta('running').tagType).toBe('primary')
-      expect(aiTaskStatusMeta('succeeded').tagType).toBe('success')
-      expect(aiTaskStatusMeta('failed').tagType).toBe('danger')
-      expect(aiTaskStatusMeta('cancelled').label).toBe('已取消')
-      expect(AI_TASK_STATUS_META.pending.failed).toBeUndefined()
+  describe('任务状态徽标', () => {
+    it('四态映射到中文标签与标签类型', () => {
+      expect(aiTaskStatusMeta('running')).toEqual({ label: '执行中', tagType: 'primary' })
+      expect(aiTaskStatusMeta('proposals_ready')).toEqual({ label: '待采纳', tagType: 'warning' })
+      expect(aiTaskStatusMeta('closed')).toEqual({ label: '已结束', tagType: 'info' })
+      expect(aiTaskStatusMeta('aborted')).toEqual({ label: '已终止', tagType: 'danger' })
+      expect(AI_TASK_STATUS_META.closed.tagType).toBe('info')
+    })
+
+    it('执行挂起时任务徽标降级为「挂起」', () => {
+      expect(aiTaskStatusMeta('running', 'waiting_confirmation')).toEqual({
+        label: '挂起',
+        tagType: 'info',
+      })
+      expect(aiTaskStatusMeta('running', 'running').label).toBe('执行中')
     })
 
     it('未知状态降级为原文展示', () => {
@@ -54,12 +77,20 @@ describe('taskPresentation', () => {
     })
   })
 
+  describe('执行状态徽标', () => {
+    it('执行四态映射中文标签，未知降级原文', () => {
+      expect(aiExecutionStatusMeta('running').label).toBe('执行中')
+      expect(aiExecutionStatusMeta('waiting_confirmation').label).toBe('挂起')
+      expect(aiExecutionStatusMeta('succeeded').tagType).toBe('success')
+      expect(aiExecutionStatusMeta('aborted').tagType).toBe('danger')
+      expect(aiExecutionStatusMeta('future').label).toBe('future')
+    })
+  })
+
   describe('任务名与类型', () => {
-    it('任务名按类型派生，重试任务追加后缀', () => {
-      expect(aiTaskName({ type: 'requirement_split' })).toBe('需求拆分')
-      expect(
-        aiTaskName({ type: 'requirement_split', retryOfTaskId: 't0' }),
-      ).toBe('需求拆分 ·重试')
+    it('任务名按类型派生', () => {
+      expect(aiTaskName({ type: 'requirement_import' })).toBe('需求导入')
+      expect(aiTaskName({ type: 'vector_reindex' })).toBe('向量索引重建')
     })
 
     it('未知类型降级为原文与「其他」域', () => {
@@ -69,52 +100,98 @@ describe('taskPresentation', () => {
 
     it('类型筛选选项带能力域后缀', () => {
       const options = aiTaskTypeOptions()
-      expect(options.length).toBeGreaterThanOrEqual(14)
-      expect(options.find((item) => item.value === 'requirement_split')?.label).toBe(
-        '需求拆分（需求）',
+      expect(options.length).toBeGreaterThanOrEqual(13)
+      expect(options.find((item) => item.value === 'requirement_import')?.label).toBe(
+        '需求导入（需求）',
       )
     })
   })
 
-  describe('阶段时间线', () => {
-    it('生成链与拆分各自持有阶段序列，未知类型返回空', () => {
-      expect(aiTaskPhases('test_design_generation')).toHaveLength(6)
-      expect(aiTaskPhases('requirement_split')).toHaveLength(4)
-      expect(aiTaskPhases('vector_reindex')).toEqual([])
+  describe('执行摘要（列表行）', () => {
+    it('执行中给步数与最近动作并附步数进度', () => {
+      const summary = aiExecutionSummary(
+        makeTask({
+          latestExecution: makeExecution({
+            steps: 2,
+            plan: { steps: ['读取需求', '生成提示词', '模型生成', '落库校验'] },
+          }),
+        }),
+      )
+      expect(summary.stepPercent).toBe(50)
+      expect(summary.text).toBe('2/4 步 · 模型生成')
     })
 
+    it('执行中无预算不渲染进度条', () => {
+      const summary = aiExecutionSummary(
+        makeTask({ latestExecution: makeExecution({ steps: 3, budget: null }) }),
+      )
+      expect(summary.stepPercent).toBeNull()
+      expect(summary.text).toBe('3 步')
+    })
+
+    it('挂起给待人工批准，成功给完成步数', () => {
+      expect(
+        aiExecutionSummary(makeTask({ latestExecution: makeExecution({ status: 'waiting_confirmation' }) })).text,
+      ).toBe('0/4 步 · 待人工批准')
+      expect(
+        aiExecutionSummary(makeTask({ latestExecution: makeExecution({ status: 'succeeded', steps: 4 }) })).text,
+      ).toBe('完成 · 4/4 步')
+    })
+
+    it('任务已终止优先展示终止原因，无执行给占位', () => {
+      const summary = aiExecutionSummary(
+        makeTask({
+          status: 'aborted',
+          terminateReason: { code: 1000018127, msg: '用户终止' },
+          latestExecution: null,
+        }),
+      )
+      expect(summary.text).toBe('用户终止')
+      expect(summary.stepPercent).toBeNull()
+      expect(aiExecutionSummary(makeTask({ latestExecution: null })).text).toBe('—')
+    })
+  })
+
+  describe('计划步骤时间线', () => {
+    const plan = { steps: ['读取需求', '生成提示词', '模型生成', '落库校验'] }
+
     it('成功态全部完成', () => {
-      const steps = aiTaskPhaseSteps(makeTask({ status: 'succeeded', phase: null }))
+      const steps = aiPlanSteps(
+        makeExecution({ status: 'succeeded', steps: 4, plan }),
+      )
       expect(steps).toHaveLength(4)
       expect(steps.every((step) => step.state === 'done')).toBe(true)
     })
 
-    it('进行中停在当前阶段，其后待执行', () => {
-      const steps = aiTaskPhaseSteps(makeTask({ phase: '模型生成拆分建议' }))
+    it('执行中已完成打勾、当前高亮、其后待执行', () => {
+      const steps = aiPlanSteps(makeExecution({ steps: 2, plan }))
       expect(steps.map((step) => step.state)).toEqual(['done', 'done', 'current', 'pending'])
     })
 
-    it('失败态当前阶段标红', () => {
-      const steps = aiTaskPhaseSteps(makeTask({ status: 'failed', phase: '构建提示词' }))
-      expect(steps.map((step) => step.state)).toEqual(['done', 'failed', 'pending', 'pending'])
+    it('终止时当前步标红', () => {
+      const steps = aiPlanSteps(makeExecution({ status: 'aborted', steps: 1, plan }))
+      expect(steps.map((step) => step.state)).toEqual(['done', 'aborted', 'pending', 'pending'])
     })
 
-    it('阶段未命中已知序列时降级为空', () => {
-      expect(aiTaskPhaseSteps(makeTask({ phase: '处理器升级后的未知阶段' }))).toEqual([])
-      expect(
-        aiTaskPhaseSteps(makeTask({ type: 'vector_reindex', phase: '重嵌' })),
-      ).toEqual([])
-    })
-
-    it('已取消不猜测进度', () => {
-      const steps = aiTaskPhaseSteps(makeTask({ status: 'cancelled', phase: '构建提示词' }))
-      expect(steps.every((step) => step.state === 'pending')).toBe(true)
+    it('无计划快照返回空降级不渲染', () => {
+      expect(aiPlanSteps(makeExecution({ plan: null }))).toEqual([])
+      expect(aiPlanSteps(null)).toEqual([])
+      expect(aiPlanSteps(makeExecution({ plan: { steps: [] } }))).toEqual([])
     })
   })
 
-  describe('产物', () => {
+  describe('轨迹事件', () => {
+    it('事件类型映射中文标签，未知降级原文', () => {
+      expect(aiTraceEventLabel('plan')).toBe('计划')
+      expect(aiTraceEventLabel('ai_decision')).toBe('AI 决策')
+      expect(aiTraceEventLabel('proposal_emitted')).toBe('产出提案')
+      expect(aiTraceEventLabel('future')).toBe('future')
+    })
+  })
+
+  describe('提案', () => {
     it('按 kind 分组计数并映射中文标签', () => {
-      const counts = aiArtifactKindCounts([
+      const counts = aiProposalKindCounts([
         { kind: 'module_suggestion' },
         { kind: 'module_suggestion' },
         { kind: 'mindmap_document_suggestion' },
@@ -125,30 +202,30 @@ describe('taskPresentation', () => {
         { kind: 'mindmap_document_suggestion', label: '文档', count: 1 },
         { kind: 'custom_kind', label: 'custom_kind', count: 1 },
       ])
-      expect(aiArtifactKindLabel('test_case_suggestion')).toBe('用例')
+      expect(aiProposalKindLabel('test_case_suggestion')).toBe('用例')
     })
 
     it('空清单返回空计数', () => {
-      expect(aiArtifactKindCounts(null)).toEqual([])
-      expect(aiArtifactKindCounts([])).toEqual([])
+      expect(aiProposalKindCounts(null)).toEqual([])
+      expect(aiProposalKindCounts([])).toEqual([])
     })
 
     it('已处理数排除待确认', () => {
       expect(
-        aiArtifactProcessed([
+        aiProposalProcessed([
           { confirmStatus: 'pending' },
           { confirmStatus: 'adopted' },
           { confirmStatus: 'rejected' },
         ]),
       ).toEqual({ processed: 2, total: 3 })
-      expect(aiArtifactProcessed(null)).toEqual({ processed: 0, total: 0 })
+      expect(aiProposalProcessed(null)).toEqual({ processed: 0, total: 0 })
     })
 
     it('确认状态映射中文标签，未知降级原文', () => {
-      expect(aiArtifactConfirmMeta('pending').label).toBe('待确认')
-      expect(aiArtifactConfirmMeta('adopted_edited').label).toBe('已采纳')
-      expect(aiArtifactConfirmMeta('rejected').tagType).toBe('info')
-      expect(aiArtifactConfirmMeta('future').label).toBe('future')
+      expect(aiProposalConfirmMeta('pending').label).toBe('待确认')
+      expect(aiProposalConfirmMeta('adopted_edited').label).toBe('已采纳')
+      expect(aiProposalConfirmMeta('rejected').tagType).toBe('info')
+      expect(aiProposalConfirmMeta('future').label).toBe('future')
     })
   })
 

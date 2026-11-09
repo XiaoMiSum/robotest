@@ -2,19 +2,21 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  cancelAiTask,
+  abortAiExecution,
   fetchAiStatus,
   fetchAiTask,
-  retryAiTask,
+  reExecuteAiTask,
 } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
 import { useAuthStore } from '@/stores/auth'
 import { useAiTaskStore, isTerminalTaskStatus } from '@/stores/aiTask'
 import type { AiTaskDetail } from '@/types'
 import {
-  aiArtifactKindCounts,
+  aiExecutionStatusMeta,
+  aiPlanSteps,
+  aiProposalKindCounts,
+  aiProposalProcessed,
   aiTaskName,
-  aiTaskPhaseSteps,
   aiTaskStatusMeta,
   aiTaskTypeMeta,
 } from '@/composables/project/ai/taskPresentation'
@@ -50,7 +52,7 @@ export function useAiTaskDetail() {
   const submitterText = ref('—')
   const aiAvailable = ref(true)
 
-  /** 终态或加载失败均不轮询；轮询在 store 内按 terminal 停止 */
+  /** 终态或加载失败均不轮询；轮询在 store 内按 aborted / closed 停止 */
   const shouldPoll = computed(
     () => detail.value !== null && !isTerminalTaskStatus(detail.value.status),
   )
@@ -113,37 +115,42 @@ export function useAiTaskDetail() {
     },
   )
 
-  async function handleCancel(): Promise<void> {
+  /** 终止执行（详设 3.6.4）：仅 running / waiting_confirmation 可终止，成功后停止轮询 */
+  async function handleAbort(): Promise<void> {
+    const executionId = detail.value?.latestExecution?.executionId
+    if (!executionId) return
     try {
-      await ElMessageBox.confirm('取消后本任务不产生任何落库数据，可重新发起。', '确认取消任务', {
+      await ElMessageBox.confirm('终止后本任务停止执行，不产生任何落库数据，可再次执行。', '确认终止执行', {
         type: 'warning',
-        confirmButtonText: '取消任务',
-        cancelButtonText: '不取消',
+        confirmButtonText: '终止执行',
+        cancelButtonText: '不终止',
       })
     } catch {
       return
     }
     try {
-      const updated = await cancelAiTask(taskId)
+      const updated = await abortAiExecution(taskId, executionId)
       detail.value = updated
       aiTaskStore.cacheDetail(updated)
       aiTaskStore.stopPolling()
-      // 取消即出队：即时刷新顶栏进行中计数（交互 07 §5）
+      // 终止即出队：即时刷新顶栏进行中计数（交互 07 §5）
       void aiTaskStore.refreshRunningCount()
-      ElMessage.success('任务已取消')
+      ElMessage.success('执行已终止')
     } catch (err) {
-      ElMessage.error(errorMessage(err, '取消任务失败'))
+      ElMessage.error(errorMessage(err, '终止执行失败'))
     }
   }
 
-  async function handleRetry(): Promise<void> {
+  /** 再次执行（详设 3.6.4）：沿用同一任务新建执行实例，刷新详情继续跟踪 */
+  async function handleReExecute(): Promise<void> {
     try {
-      const created = await retryAiTask(taskId)
-      ElMessage.success('已重新排队')
-      // 重试生成新任务，跳到新任务详情继续跟踪
-      void router.replace(`/workspace/projects/ai/tasks/${created.taskId}`)
+      await reExecuteAiTask(taskId)
+      ElMessage.success('已发起再次执行')
+      await load()
+      // 新执行入队：即时刷新顶栏进行中计数（交互 07 §5）
+      void aiTaskStore.refreshRunningCount()
     } catch (err) {
-      ElMessage.error(errorMessage(err, '重试任务失败'))
+      ElMessage.error(errorMessage(err, '再次执行失败'))
     }
   }
 
@@ -153,27 +160,51 @@ export function useAiTaskDetail() {
 
   // ==================== 派生状态 ====================
   const statusMeta = computed(() =>
-    aiTaskStatusMeta(detail.value?.status ?? 'pending'),
+    aiTaskStatusMeta(detail.value?.status ?? 'running', detail.value?.latestExecution?.status),
   )
   const typeMeta = computed(() => aiTaskTypeMeta(detail.value?.type ?? ''))
   const name = computed(() => (detail.value ? aiTaskName(detail.value) : ''))
-  const phaseSteps = computed(() =>
-    detail.value ? aiTaskPhaseSteps(detail.value) : [],
+  const execution = computed(() => detail.value?.latestExecution ?? null)
+  const executionStatusMeta = computed(() =>
+    execution.value ? aiExecutionStatusMeta(execution.value.status) : null,
   )
-  const artifactCounts = computed(() => aiArtifactKindCounts(detail.value?.artifacts))
-  const artifacts = computed(() => detail.value?.artifacts ?? [])
-  const isPendingOrRunning = computed(
-    () => detail.value !== null && (detail.value.status === 'pending' || detail.value.status === 'running'),
+  /** 计划步骤时间线（plan 快照驱动，交互 2.2） */
+  const planSteps = computed(() => aiPlanSteps(execution.value))
+  const proposalCounts = computed(() => aiProposalKindCounts(detail.value?.proposals))
+  const proposals = computed(() => detail.value?.proposals ?? [])
+  const processed = computed(() => aiProposalProcessed(proposals.value))
+  const terminateText = computed(() => {
+    const detailReason = detail.value?.terminateReason
+    if (detailReason?.msg) {
+      return detailReason.code ? `${detailReason.msg}（错误码 ${detailReason.code}）` : detailReason.msg
+    }
+    const execReason = execution.value?.terminateReason
+    if (execReason?.msg) {
+      return execReason.code ? `${execReason.msg}（错误码 ${execReason.code}）` : execReason.msg
+    }
+    return ''
+  })
+  /** 最新执行可终止（详设 3.6.4） */
+  const canAbort = computed(
+    () =>
+      execution.value?.status === 'running' || execution.value?.status === 'waiting_confirmation',
   )
-  const isFailed = computed(() => detail.value?.status === 'failed')
-  const isSucceeded = computed(() => detail.value?.status === 'succeeded')
-  /** succeeded 且有产物时页内直出审核区，无二次跳转（交互 2.2） */
-  const showReviewArea = computed(() => isSucceeded.value && artifacts.value.length > 0)
-  const showEmptyArtifacts = computed(() => isSucceeded.value && artifacts.value.length === 0)
+  /** 任务已终止时可再次执行（交互 2.2 操作） */
+  const canReExecute = computed(() => detail.value?.status === 'aborted')
+  const isRunning = computed(() => detail.value?.status === 'running')
+  /** 审核区门禁：proposals_ready 且有提案（交互 2.2，R7 无提案任务执行完成即 closed 不进审核区） */
+  const showReviewArea = computed(
+    () => detail.value?.status === 'proposals_ready' && proposals.value.length > 0,
+  )
+  const showRunningPlaceholder = computed(() => isRunning.value)
+  /** proposals_ready 但无提案（异常兜底）：空态而非静默隐藏 */
+  const showEmptyProposals = computed(
+    () => detail.value?.status === 'proposals_ready' && proposals.value.length === 0,
+  )
 
   // ==================== 权限 ====================
   const canManageTask = computed(() => authStore.hasPermission('ai:task'))
-  /** 确认产物需 ai:confirm；无权限隐藏审核动作，产物只读预览（交互 2.4） */
+  /** 确认提案需 ai:confirm；无权限隐藏审核动作，提案只读预览（交互 2.4） */
   const canConfirm = computed(() => authStore.hasPermission('ai:confirm'))
   /** 生成链落库另需 case:edit（1000018208），缺权时审核区只读 */
   const canConfirmGeneration = computed(
@@ -221,22 +252,27 @@ export function useAiTaskDetail() {
     statusMeta,
     typeMeta,
     name,
-    phaseSteps,
-    artifactCounts,
-    artifacts,
-    isPendingOrRunning,
-    isFailed,
-    isSucceeded,
+    execution,
+    executionStatusMeta,
+    planSteps,
+    proposalCounts,
+    proposals,
+    processed,
+    terminateText,
+    canAbort,
+    canReExecute,
+    isRunning,
     showReviewArea,
-    showEmptyArtifacts,
+    showRunningPlaceholder,
+    showEmptyProposals,
     canManageTask,
     canConfirm,
     canConfirmGeneration,
     canConfirmSelection,
     canConfirmBug,
     load,
-    handleCancel,
-    handleRetry,
+    handleAbort,
+    handleReExecute,
     backToCenter,
   }
 }

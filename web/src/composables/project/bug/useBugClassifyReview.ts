@@ -1,15 +1,15 @@
 import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { confirmAiArtifacts, fetchAiArtifact } from '@/services/ai'
+import { confirmAiProposals, fetchAiProposal } from '@/services/ai'
 import { fetchProjectModuleTree, getBugDetail } from '@/services/project'
-import { aiArtifactProcessed } from '@/composables/project/ai/taskPresentation'
-import type { ConfirmItemResult } from '@/composables/project/ai/useAiArtifactReview'
+import { aiProposalProcessed } from '@/composables/project/ai/taskPresentation'
+import type { ConfirmItemResult } from '@/composables/project/ai/useAiProposalReview'
 import type {
-  AiArtifactAction,
-  AiArtifactConfirmItem,
-  AiArtifactConfirmResult,
-  AiArtifactConfirmStatus,
-  AiArtifactSummary,
+  AiProposalAction,
+  AiProposalConfirmItem,
+  AiProposalConfirmResult,
+  AiProposalConfirmStatus,
+  AiTaskProposalSummary,
   BugClassifyContent,
   BugClassifySuggestions,
   BugDuplicateGroupContent,
@@ -120,7 +120,7 @@ export interface BugClassifyRow {
   key: string
   kind: string
   title: string
-  confirmStatus: AiArtifactConfirmStatus
+  confirmStatus: AiProposalConfirmStatus
   content: BugClassifyContent | null
   group: BugDuplicateGroupContent | null
   current: BugCurrentClassification | null
@@ -144,7 +144,7 @@ export interface BugClassifyEdit {
  */
 export function useBugClassifyReview(
   taskId: string,
-  artifacts: () => AiArtifactSummary[],
+  proposals: () => AiTaskProposalSummary[],
   canConfirm: () => boolean,
   onConfirmed: () => void,
 ) {
@@ -155,7 +155,7 @@ export function useBugClassifyReview(
   /** 模块树：对照列映射名称 + 修改后采纳对话框的树选择数据源 */
   const moduleTree = ref<ProjectModule[]>([])
 
-  const processed = computed(() => aiArtifactProcessed(rows.value))
+  const processed = computed(() => aiProposalProcessed(rows.value))
   const canConfirmState = computed(() => canConfirm())
 
   const classifyRows = computed(() => rows.value.filter((row) => row.kind === 'classify_suggestion'))
@@ -171,13 +171,13 @@ export function useBugClassifyReview(
   )
 
   function syncRows(): void {
-    rows.value = artifacts().map((artifact) => {
-      const existing = rows.value.find((row) => row.key === artifact.key)
+    rows.value = proposals().map((proposal) => {
+      const existing = rows.value.find((row) => row.key === proposal.key)
       return {
-        key: artifact.key,
-        kind: artifact.kind,
-        title: artifact.title ?? artifact.key,
-        confirmStatus: artifact.confirmStatus,
+        key: proposal.key,
+        kind: proposal.kind,
+        title: proposal.title ?? proposal.key,
+        confirmStatus: proposal.confirmStatus,
         content: existing?.content ?? null,
         group: existing?.group ?? null,
         current: existing?.current ?? null,
@@ -212,7 +212,7 @@ export function useBugClassifyReview(
   async function loadRow(row: BugClassifyRow): Promise<void> {
     if (row.loaded) return
     try {
-      const artifact = await fetchAiArtifact(taskId, row.key)
+      const artifact = await fetchAiProposal(taskId, row.key)
       const raw = (artifact['content'] ?? {}) as Record<string, unknown>
       if (row.kind === 'duplicate_group') {
         row.group = parseDuplicateGroupContent(raw)
@@ -261,8 +261,8 @@ export function useBugClassifyReview(
   // ==================== 确认 ====================
 
   function renderReceipt(
-    results: AiArtifactConfirmResult[],
-    items: AiArtifactConfirmItem[],
+    results: AiProposalConfirmResult[],
+    items: AiProposalConfirmItem[],
   ): ConfirmItemResult[] {
     return results.map((result) => {
       const request = items.find((item) => item.key === result.key)
@@ -279,17 +279,17 @@ export function useBugClassifyReview(
     })
   }
 
-  async function submitItems(items: AiArtifactConfirmItem[]): Promise<void> {
+  async function submitItems(items: AiProposalConfirmItem[]): Promise<void> {
     if (items.length === 0) {
       ElMessage.warning('请先选择要处理的产物')
       return
     }
     confirming.value = true
     try {
-      const results: AiArtifactConfirmResult[] = []
+      const results: AiProposalConfirmResult[] = []
       for (let start = 0; start < items.length; start += CONFIRM_MAX_ITEMS) {
         const chunk = items.slice(start, start + CONFIRM_MAX_ITEMS)
-        const resp = await confirmAiArtifacts(taskId, { items: chunk })
+        const resp = await confirmAiProposals(taskId, { items: chunk })
         results.push(...resp.results)
       }
       receipt.value = renderReceipt(results, items)
@@ -316,7 +316,7 @@ export function useBugClassifyReview(
   /** 所选 pending 项批量采纳（交互 2.3） */
   async function handleBatchAdopt(): Promise<void> {
     await submitItems(
-      selectedKeys.value.map((key) => ({ key, action: 'adopted' as AiArtifactAction })),
+      selectedKeys.value.map((key) => ({ key, action: 'adopted' as AiProposalAction })),
     )
   }
 
@@ -349,7 +349,7 @@ export function useBugClassifyReview(
 
   /** 单条驳回附反馈：note 记录结论（详设 3.6.5），不更新任何缺陷 */
   function handleReject(row: BugClassifyRow, note: string): Promise<void> {
-    const item: AiArtifactConfirmItem = { key: row.key, action: 'rejected' }
+    const item: AiProposalConfirmItem = { key: row.key, action: 'rejected' }
     if (note.trim()) item.note = note.trim()
     return submitItems([item])
   }
@@ -370,23 +370,23 @@ export function useBugClassifyReview(
       return
     }
     await submitItems(
-      selectedKeys.value.map((key) => ({ key, action: 'rejected' as AiArtifactAction })),
+      selectedKeys.value.map((key) => ({ key, action: 'rejected' as AiProposalAction })),
     )
   }
 
   /** 重复组确认：adopted=确认疑似重复（留痕），rejected=排除误报；均不修改缺陷 */
   function handleGroupConfirm(
     row: BugClassifyRow,
-    action: Extract<AiArtifactAction, 'adopted' | 'rejected'>,
+    action: Extract<AiProposalAction, 'adopted' | 'rejected'>,
     note: string,
   ): Promise<void> {
-    const item: AiArtifactConfirmItem = { key: row.key, action }
+    const item: AiProposalConfirmItem = { key: row.key, action }
     if (note.trim()) item.note = note.trim()
     return submitItems([item])
   }
 
   function retryResult(result: ConfirmItemResult): Promise<void> {
-    return submitItems([{ key: result.key, action: result.action as AiArtifactAction }])
+    return submitItems([{ key: result.key, action: result.action as AiProposalAction }])
   }
 
   function clearReceipt(): void {

@@ -10,12 +10,12 @@ import {
   isCasePrioritySuggestion,
 } from '@/composables/project/ai/assistPresentation'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
-import type { ConfirmItemResult } from '@/composables/project/ai/useAiArtifactReview'
+import type { ConfirmItemResult } from '@/composables/project/ai/useAiProposalReview'
 import type {
   AiAssistFieldName,
   AiAssistSourceRef,
   AiAssistTaskType,
-  AiArtifactConfirmResult,
+  AiProposalConfirmResult,
   AiCaseCompleteSuggestion,
   AiCasePrioritySuggestion,
 } from '@/types'
@@ -29,7 +29,7 @@ const props = withDefaults(
     canAdopt: boolean
     confirming: boolean
     loading?: boolean
-    receipt?: AiArtifactConfirmResult[]
+    receipt?: AiProposalConfirmResult[]
     /** 来源需求已变更：顶部提示，建议仅供参考但仍可采纳（交互 2.3） */
     sourceStale?: boolean
   }>(),

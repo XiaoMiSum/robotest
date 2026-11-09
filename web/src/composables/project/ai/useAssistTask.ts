@@ -1,25 +1,25 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  confirmAiArtifacts,
-  fetchAiArtifact,
+  confirmAiProposals,
+  fetchAiProposal,
   fetchAiTask,
-  retryAiTask,
+  reExecuteAiTask,
   submitAiTask,
 } from '@/services/ai'
 import { isTerminalTaskStatus, useAiTaskStore } from '@/stores/aiTask'
 import type {
-  AiArtifactConfirmItem,
-  AiArtifactConfirmResult,
-  AiArtifactConfirmStatus,
-  AiArtifactConfirmTarget,
+  AiProposalConfirmItem,
+  AiProposalConfirmResult,
+  AiProposalConfirmStatus,
+  AiProposalConfirmTarget,
   AiAssistSuggestion,
   AiAssistTaskType,
   AiTaskDetail,
 } from '@/types'
 import {
-  aiArtifactConfirmMeta,
-  aiArtifactProcessed,
+  aiProposalConfirmMeta,
+  aiProposalProcessed,
   aiTaskStatusMeta,
 } from '@/composables/project/ai/taskPresentation'
 import { readAssistSuggestion } from '@/composables/project/ai/assistPresentation'
@@ -28,7 +28,7 @@ import { readAssistSuggestion } from '@/composables/project/ai/assistPresentatio
 export interface AssistRow {
   key: string
   title: string
-  confirmStatus: AiArtifactConfirmStatus
+  confirmStatus: AiProposalConfirmStatus
   confirmLabel: string
   confirmTagType: 'success' | 'info' | 'warning'
   suggestion: AiAssistSuggestion | null
@@ -36,7 +36,7 @@ export interface AssistRow {
 
 export interface AssistTaskOptions {
   /** 落库目标：补全 / 级别推荐带 documentId，顺序建议带 planId 与 round；取值用 getter 以拿到最新上下文 */
-  target?: () => AiArtifactConfirmTarget | undefined
+  target?: () => AiProposalConfirmTarget | undefined
   /** 采纳成功后的联动（刷新脑图 / 计划详情），与回执展示解耦 */
   onConfirmed?: () => void
 }
@@ -62,7 +62,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   const loading = ref(false)
   const loadError = ref('')
   const confirming = ref(false)
-  const receipt = ref<AiArtifactConfirmResult[]>([])
+  const receipt = ref<AiProposalConfirmResult[]>([])
   /** 产物内容按 key 缓存；确认后清空重取，避免残留旧建议 */
   const contents = ref<Record<string, Record<string, unknown>>>({})
 
@@ -70,18 +70,18 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     task.value = detail
     if (!isTerminalTaskStatus(detail.status)) return
     aiTaskStore.stopPolling()
-    if (detail.status === 'succeeded') void loadContents()
+    if (detail.status === 'closed') void loadContents()
   }
 
   async function loadContents(): Promise<void> {
-    const summaries = task.value?.artifacts ?? []
+    const summaries = task.value?.proposals ?? []
     if (summaries.length === 0) return
     loading.value = true
     try {
       const next: Record<string, Record<string, unknown>> = {}
       // 建议产物数量受选中范围约束，串行拉取避免与面板其余请求抢占连接
       for (const summary of summaries) {
-        const data = await fetchAiArtifact(taskId.value, summary.key)
+        const data = await fetchAiProposal(taskId.value, summary.key)
         next[summary.key] = asRecord(data['content'])
       }
       contents.value = next
@@ -101,8 +101,8 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   )
 
   const rows = computed<AssistRow[]>(() =>
-    (task.value?.artifacts ?? []).map((summary) => {
-      const meta = aiArtifactConfirmMeta(summary.confirmStatus)
+    (task.value?.proposals ?? []).map((summary) => {
+      const meta = aiProposalConfirmMeta(summary.confirmStatus)
       return {
         key: summary.key,
         title: summary.title ?? '',
@@ -114,15 +114,16 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     }),
   )
 
-  const processed = computed(() => aiArtifactProcessed(rows.value))
-  const statusMeta = computed(() => aiTaskStatusMeta(task.value?.status ?? 'pending'))
+  const processed = computed(() => aiProposalProcessed(rows.value))
+  // 无任务时按未进入终态的进行中口径占位（新模型已无 pending 态）
+  const statusMeta = computed(() => aiTaskStatusMeta(task.value?.status ?? 'running'))
   const isRunning = computed(
     () =>
-      task.value !== null && (task.value.status === 'pending' || task.value.status === 'running'),
+      task.value !== null && (task.value.status === 'running'),
   )
-  const isSucceeded = computed(() => task.value?.status === 'succeeded')
-  const isFailed = computed(() => task.value?.status === 'failed')
-  const failedReason = computed(() => task.value?.error?.msg ?? '')
+  const isSucceeded = computed(() => task.value?.status === 'closed')
+  const isFailed = computed(() => task.value?.status === 'aborted')
+  const failedReason = computed(() => task.value?.terminateReason?.msg ?? '')
   const receiptSummary = computed(() => ({
     succeeded: receipt.value.filter((item) => item.success).length,
     failed: receipt.value.filter((item) => !item.success).length,
@@ -173,11 +174,11 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     await refresh()
   }
 
-  /** failed 重试生成新任务并回到排队，本面板跟随新任务继续 */
+  /** 已终止任务再次执行：沿用同一任务新建执行实例，面板跟随新执行继续 */
   async function retry(): Promise<void> {
     if (!taskId.value) return
     try {
-      const created = await retryAiTask(taskId.value)
+      const created = await reExecuteAiTask(taskId.value)
       ElMessage.success('已重新排队')
       taskId.value = created.taskId
       receipt.value = []
@@ -200,8 +201,8 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   }
 
   async function submitItems(
-    items: AiArtifactConfirmItem[],
-    target?: AiArtifactConfirmTarget,
+    items: AiProposalConfirmItem[],
+    target?: AiProposalConfirmTarget,
   ): Promise<void> {
     if (!taskId.value) {
       ElMessage.warning('建议任务尚未就绪')
@@ -213,7 +214,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     }
     confirming.value = true
     try {
-      const resp = await confirmAiArtifacts(taskId.value, {
+      const resp = await confirmAiProposals(taskId.value, {
         items,
         target: target ?? options.target?.(),
       })
@@ -241,7 +242,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     }
   }
 
-  function adopt(key: string, target?: AiArtifactConfirmTarget): Promise<void> {
+  function adopt(key: string, target?: AiProposalConfirmTarget): Promise<void> {
     return submitItems([{ key, action: 'adopted' }], target)
   }
 
@@ -249,7 +250,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   function adoptEdited(
     key: string,
     content: Record<string, unknown>,
-    target?: AiArtifactConfirmTarget,
+    target?: AiProposalConfirmTarget,
   ): Promise<void> {
     return submitItems([{ key, action: 'adopted_edited', content }], target)
   }
@@ -257,15 +258,15 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   function reject(
     key: string,
     note?: string,
-    target?: AiArtifactConfirmTarget,
+    target?: AiProposalConfirmTarget,
   ): Promise<void> {
-    const item: AiArtifactConfirmItem = { key, action: 'rejected' }
+    const item: AiProposalConfirmItem = { key, action: 'rejected' }
     const trimmed = note?.trim()
     if (trimmed) item.note = trimmed
     return submitItems([item], target)
   }
 
-  function batchAdopt(keys: string[], target?: AiArtifactConfirmTarget): Promise<void> {
+  function batchAdopt(keys: string[], target?: AiProposalConfirmTarget): Promise<void> {
     return submitItems(
       keys.map((key) => ({ key, action: 'adopted' as const })),
       target,

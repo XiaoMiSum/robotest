@@ -3,8 +3,8 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type {
-  AiArtifactConfirmItem,
-  AiArtifactSummary,
+  AiProposalConfirmItem,
+  AiTaskProposalSummary,
   SelectedCaseNode,
   TestPlanCreatePayload,
   TestReviewCreatePayload,
@@ -13,7 +13,7 @@ import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import ReviewCreateDialog from '@/components/project/functional-testing/review/ReviewCreateDialog.vue'
 import PlanCreateDialog from '@/components/project/functional-testing/plan/PlanCreateDialog.vue'
-import { useAiArtifactReview } from '@/composables/project/ai/useAiArtifactReview'
+import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
 import {
   useSelectionReview,
   type SelectionReviewItem,
@@ -22,7 +22,7 @@ import {
 const props = defineProps<{
   taskId: string
   taskType: 'review_selection' | 'plan_selection'
-  artifacts: AiArtifactSummary[]
+  proposals: AiTaskProposalSummary[]
   canConfirm: boolean
 }>()
 
@@ -31,9 +31,9 @@ const emit = defineEmits<{ confirmed: []; leave: [] }>()
 const router = useRouter()
 const isPlan = computed(() => props.taskType === 'plan_selection')
 
-const base = useAiArtifactReview(
+const base = useAiProposalReview(
   props.taskId,
-  () => props.artifacts,
+  () => props.proposals,
   () => props.canConfirm,
   () => {
     base.syncRows()
@@ -142,7 +142,7 @@ function openReject(): void {
 }
 
 async function submitReject(): Promise<void> {
-  const item: AiArtifactConfirmItem = { key: 'sel-1', action: 'rejected' }
+  const item: AiProposalConfirmItem = { key: 'sel-1', action: 'rejected' }
   const note = rejectNote.value.trim()
   if (note) item.note = note
   await base.submitItems([item])

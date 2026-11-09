@@ -2,13 +2,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  fetchAiArtifact: vi.fn(),
+  fetchAiProposal: vi.fn(),
   getCaseDetail: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }))
 
 vi.mock('@/services/ai', () => ({
-  fetchAiArtifact: mocks.fetchAiArtifact,
+  fetchAiProposal: mocks.fetchAiProposal,
 }))
 
 vi.mock('@/services/project', () => ({
@@ -35,7 +35,7 @@ beforeEach(() => {
 describe('useSelectionReview', () => {
   describe('产物读取', () => {
     it('解析推荐卡片并跳过缺 caseId 的脏数据', async () => {
-      mocks.fetchAiArtifact.mockResolvedValue(
+      mocks.fetchAiProposal.mockResolvedValue(
         artifactWith([
           { caseId: 'c1', title: '登录成功', reason: '核心链路', round: 1 },
           { caseId: '', title: '脏数据', reason: '' },
@@ -61,7 +61,7 @@ describe('useSelectionReview', () => {
     })
 
     it('读取失败置 loadFailed 并统一提示', async () => {
-      mocks.fetchAiArtifact.mockRejectedValue(new Error('产物不存在'))
+      mocks.fetchAiProposal.mockRejectedValue(new Error('产物不存在'))
       const sel = useSelectionReview('t1')
 
       await sel.load()
@@ -74,7 +74,7 @@ describe('useSelectionReview', () => {
 
   describe('卡片调整', () => {
     it('移除卡片按 caseId 过滤', async () => {
-      mocks.fetchAiArtifact.mockResolvedValue(
+      mocks.fetchAiProposal.mockResolvedValue(
         artifactWith([
           { caseId: 'c1', title: 'A', reason: 'r' },
           { caseId: 'c2', title: 'B', reason: 'r' },
@@ -89,7 +89,7 @@ describe('useSelectionReview', () => {
     })
 
     it('手动添加去重合并并回填标题与文档', async () => {
-      mocks.fetchAiArtifact.mockResolvedValue(
+      mocks.fetchAiProposal.mockResolvedValue(
         artifactWith([{ caseId: 'c1', title: 'A', reason: 'r' }]),
       )
       const sel = useSelectionReview('t1')
@@ -123,7 +123,7 @@ describe('useSelectionReview', () => {
 
   describe('documentId 补齐与载荷组装', () => {
     it('推荐项解析后按文档分组，失败项计入 missing', async () => {
-      mocks.fetchAiArtifact.mockResolvedValue(
+      mocks.fetchAiProposal.mockResolvedValue(
         artifactWith([
           { caseId: 'c1', title: 'A', reason: 'r' },
           { caseId: 'c2', title: 'B', reason: 'r' },
@@ -148,7 +148,7 @@ describe('useSelectionReview', () => {
     })
 
     it('全部解析失败时 nodes 为空且 missing 等于卡片数', async () => {
-      mocks.fetchAiArtifact.mockResolvedValue(
+      mocks.fetchAiProposal.mockResolvedValue(
         artifactWith([{ caseId: 'c1', title: 'A', reason: 'r' }]),
       )
       mocks.getCaseDetail.mockRejectedValue(new Error('x'))

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AiArtifactSummary } from '@/types'
+import type { AiTaskProposalSummary } from '@/types'
 
 const mocks = vi.hoisted(() => ({
-  confirmAiArtifacts: vi.fn(),
-  fetchAiArtifact: vi.fn(),
+  confirmAiProposals: vi.fn(),
+  fetchAiProposal: vi.fn(),
   getBugDetail: vi.fn(),
   fetchProjectModuleTree: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/ai', () => ({
-  confirmAiArtifacts: mocks.confirmAiArtifacts,
-  fetchAiArtifact: mocks.fetchAiArtifact,
+  confirmAiProposals: mocks.confirmAiProposals,
+  fetchAiProposal: mocks.fetchAiProposal,
 }))
 
 vi.mock('@/services/project', () => ({
@@ -27,7 +27,7 @@ vi.mock('element-plus', () => ({
 
 import { useBugClassifyReview } from './useBugClassifyReview'
 
-function makeArtifact(overrides: Partial<AiArtifactSummary> = {}): AiArtifactSummary {
+function makeArtifact(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposalSummary {
   return {
     key: 'cs-1',
     kind: 'classify_suggestion',
@@ -52,7 +52,7 @@ function classifyContent(): Record<string, unknown> {
   }
 }
 
-function setup(artifacts: AiArtifactSummary[], canConfirm = true, onConfirmed = vi.fn()) {
+function setup(artifacts: AiTaskProposalSummary[], canConfirm = true, onConfirmed = vi.fn()) {
   return useBugClassifyReview('t1', () => artifacts, () => canConfirm, onConfirmed)
 }
 
@@ -65,7 +65,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
   })
 
   it('syncRows 按产物清单重建行并保留已加载内容', async () => {
-    mocks.fetchAiArtifact.mockResolvedValue({ content: classifyContent() })
+    mocks.fetchAiProposal.mockResolvedValue({ content: classifyContent() })
     mocks.getBugDetail.mockResolvedValue({
       bugType: 'other',
       severity: 'minor',
@@ -85,7 +85,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
   })
 
   it('内容解析：keywords 为数组', async () => {
-    mocks.fetchAiArtifact.mockResolvedValue({ content: classifyContent() })
+    mocks.fetchAiProposal.mockResolvedValue({ content: classifyContent() })
     mocks.getBugDetail.mockResolvedValue(null)
     const review = setup([makeArtifact()])
     review.init()
@@ -98,7 +98,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
   })
 
   it('duplicate_group 行解析分组内容且不取缺陷详情', async () => {
-    mocks.fetchAiArtifact.mockResolvedValue({
+    mocks.fetchAiProposal.mockResolvedValue({
       content: {
         canonicalBugId: '22222222-2222-2222-2222-222222222222',
         items: [{ bugId: '33333333-3333-3333-3333-333333333333', similarity: 0.92, reason: '标题相近' }],
@@ -163,19 +163,19 @@ describe('composables/project/bug/useBugClassifyReview', () => {
     review.syncRows()
     for (let index = 0; index < 250; index += 1) review.toggle(`cs-${index}`, true)
 
-    mocks.confirmAiArtifacts.mockResolvedValueOnce({ results: [] })
-    mocks.confirmAiArtifacts.mockResolvedValueOnce({ results: [] })
+    mocks.confirmAiProposals.mockResolvedValueOnce({ results: [] })
+    mocks.confirmAiProposals.mockResolvedValueOnce({ results: [] })
     await review.handleBatchAdopt()
 
-    expect(mocks.confirmAiArtifacts).toHaveBeenCalledTimes(2)
-    expect(mocks.confirmAiArtifacts.mock.calls[0]?.[1]).toMatchObject({
+    expect(mocks.confirmAiProposals).toHaveBeenCalledTimes(2)
+    expect(mocks.confirmAiProposals.mock.calls[0]?.[1]).toMatchObject({
       items: expect.arrayContaining([{ key: 'cs-0', action: 'adopted' }]),
     })
     expect(
-      (mocks.confirmAiArtifacts.mock.calls[0]?.[1] as { items: unknown[] }).items,
+      (mocks.confirmAiProposals.mock.calls[0]?.[1] as { items: unknown[] }).items,
     ).toHaveLength(200)
     expect(
-      (mocks.confirmAiArtifacts.mock.calls[1]?.[1] as { items: unknown[] }).items,
+      (mocks.confirmAiProposals.mock.calls[1]?.[1] as { items: unknown[] }).items,
     ).toHaveLength(50)
     expect(onConfirmed).toHaveBeenCalledOnce()
   })
@@ -185,17 +185,17 @@ describe('composables/project/bug/useBugClassifyReview', () => {
     review.syncRows()
     await review.handleBatchAdopt()
     expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请先选择要处理的产物')
-    expect(mocks.confirmAiArtifacts).not.toHaveBeenCalled()
+    expect(mocks.confirmAiProposals).not.toHaveBeenCalled()
   })
 
   it('修改后采纳交 bugId + 编辑后 suggestions，keywords 为数组且截断 5 个', async () => {
-    mocks.fetchAiArtifact.mockResolvedValue({ content: classifyContent() })
+    mocks.fetchAiProposal.mockResolvedValue({ content: classifyContent() })
     mocks.getBugDetail.mockResolvedValue(null)
     const review = setup([makeArtifact()])
     review.init()
     await vi.waitFor(() => expect(review.rows.value[0]?.loaded).toBe(true))
 
-    mocks.confirmAiArtifacts.mockResolvedValue({
+    mocks.confirmAiProposals.mockResolvedValue({
       results: [{ key: 'cs-1', action: 'adopted_edited', success: true, createdId: null, errorCode: null, errorMsg: null }],
     })
     await review.handleAdoptEdited(review.rows.value[0]!, {
@@ -207,7 +207,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
       assigneeId: '',
     })
 
-    const payload = mocks.confirmAiArtifacts.mock.calls[0]?.[1] as {
+    const payload = mocks.confirmAiProposals.mock.calls[0]?.[1] as {
       items: Array<{ action: string; content: { bugId: string; suggestions: Record<string, { value: unknown }> } }>
     }
     expect(payload.items[0]?.action).toBe('adopted_edited')
@@ -220,7 +220,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
   it('驳回附反馈携带 note，回执失败项映射错误信息', async () => {
     const review = setup([makeArtifact()])
     review.syncRows()
-    mocks.confirmAiArtifacts.mockResolvedValue({
+    mocks.confirmAiProposals.mockResolvedValue({
       results: [{
         key: 'cs-1',
         action: 'rejected',
@@ -232,7 +232,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
     })
     await review.handleReject(review.rows.value[0]!, '  建议不合理  ')
 
-    expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+    expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
       items: [{ key: 'cs-1', action: 'rejected', note: '建议不合理' }],
     })
     // 部分失败不弹成功提示，回执供单项重试
@@ -249,27 +249,27 @@ describe('composables/project/bug/useBugClassifyReview', () => {
 
     mocks.ElMessageBox.confirm.mockRejectedValueOnce(new Error('cancel'))
     await review.handleBatchReject()
-    expect(mocks.confirmAiArtifacts).not.toHaveBeenCalled()
+    expect(mocks.confirmAiProposals).not.toHaveBeenCalled()
 
     mocks.ElMessageBox.confirm.mockResolvedValueOnce('confirm')
-    mocks.confirmAiArtifacts.mockResolvedValue({ results: [] })
+    mocks.confirmAiProposals.mockResolvedValue({ results: [] })
     await review.handleBatchReject()
-    const payload = mocks.confirmAiArtifacts.mock.calls[0]?.[1] as { items: unknown[] }
+    const payload = mocks.confirmAiProposals.mock.calls[0]?.[1] as { items: unknown[] }
     expect(payload.items).toHaveLength(2)
   })
 
   it('重复组确认：adopted 无 note 不带 note 字段，rejected 带 note 留痕', async () => {
     const review = setup([makeArtifact({ key: 'dg-1', kind: 'duplicate_group' })])
     review.syncRows()
-    mocks.confirmAiArtifacts.mockResolvedValue({ results: [] })
+    mocks.confirmAiProposals.mockResolvedValue({ results: [] })
 
     await review.handleGroupConfirm(review.rows.value[0]!, 'adopted', '')
-    expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+    expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
       items: [{ key: 'dg-1', action: 'adopted' }],
     })
 
     await review.handleGroupConfirm(review.rows.value[0]!, 'rejected', '误报')
-    expect(mocks.confirmAiArtifacts).toHaveBeenLastCalledWith('t1', {
+    expect(mocks.confirmAiProposals).toHaveBeenLastCalledWith('t1', {
       items: [{ key: 'dg-1', action: 'rejected', note: '误报' }],
     })
   })
@@ -277,7 +277,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
   it('请求级失败落错误提示，确认态复位', async () => {
     const review = setup([makeArtifact()])
     review.syncRows()
-    mocks.confirmAiArtifacts.mockRejectedValue(new Error('boom'))
+    mocks.confirmAiProposals.mockRejectedValue(new Error('boom'))
     await review.handleAdopt(review.rows.value[0]!)
     expect(mocks.ElMessage.error).toHaveBeenCalledWith('boom')
     expect(review.confirming.value).toBe(false)
@@ -295,7 +295,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
   it('retryResult 以回执 action 重新提交', async () => {
     const review = setup([makeArtifact()])
     review.syncRows()
-    mocks.confirmAiArtifacts.mockResolvedValue({ results: [] })
+    mocks.confirmAiProposals.mockResolvedValue({ results: [] })
     await review.retryResult({
       key: 'cs-1',
       title: 'BUG-0001',
@@ -305,7 +305,7 @@ describe('composables/project/bug/useBugClassifyReview', () => {
       errorMsg: '',
       createdId: null,
     })
-    expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+    expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
       items: [{ key: 'cs-1', action: 'adopted' }],
     })
     review.clearReceipt()

@@ -8,8 +8,9 @@ import type { AiTaskItem, PageResult } from '@/types'
 const mocks = vi.hoisted(() => ({
   fetchAiTasks: vi.fn(),
   fetchAiStatus: vi.fn(),
-  cancelAiTask: vi.fn(),
-  retryAiTask: vi.fn(),
+  fetchAiRunningCount: vi.fn(),
+  abortAiExecution: vi.fn(),
+  reExecuteAiTask: vi.fn(),
   fetchMembers: vi.fn(),
   useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -19,8 +20,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/services/ai', () => ({
   fetchAiTasks: mocks.fetchAiTasks,
   fetchAiStatus: mocks.fetchAiStatus,
-  cancelAiTask: mocks.cancelAiTask,
-  retryAiTask: mocks.retryAiTask,
+  fetchAiRunningCount: mocks.fetchAiRunningCount,
+  abortAiExecution: mocks.abortAiExecution,
+  reExecuteAiTask: mocks.reExecuteAiTask,
 }))
 
 vi.mock('@/services/workspace', () => ({
@@ -43,16 +45,25 @@ type CenterState = ReturnType<typeof useAiTaskCenter>
 function makeItem(overrides: Partial<AiTaskItem> = {}): AiTaskItem {
   return {
     taskId: 't1',
-    type: 'requirement_split',
+    executionId: 'e1',
+    type: 'requirement_import',
     status: 'running',
-    progress: 30,
-    phase: '构建提示词',
+    budget: { maxSteps: 4 },
+    latestExecution: {
+      executionId: 'e1',
+      seq: 1,
+      status: 'running',
+      steps: 1,
+      budget: { maxSteps: 4 },
+      consumed: { durationMs: 0, tokensIn: 0, tokensOut: 0, cost: 0 },
+      plan: null,
+      terminateReason: null,
+    },
     submittedBy: 'u1',
-    retryOfTaskId: null,
     tokensIn: null,
     tokensOut: null,
     createdAt: '2026-10-03T01:00:00Z',
-    error: null,
+    terminateReason: null,
     ...overrides,
   }
 }
@@ -77,12 +88,28 @@ function setup(): void {
   setActivePinia(createPinia())
   mocks.fetchAiTasks.mockResolvedValue({ list: [makeItem()], total: 1 } as PageResult<AiTaskItem>)
   mocks.fetchAiStatus.mockResolvedValue({ available: true, reason: null })
+  mocks.fetchAiRunningCount.mockResolvedValue({ count: 0 })
   mocks.fetchMembers.mockResolvedValue({
     list: [{ userId: 'u1', username: 'zhangsan', name: '张三', workspaceRole: 'member' }],
     total: 1,
   })
-  mocks.cancelAiTask.mockResolvedValue(makeItem({ status: 'cancelled' }))
-  mocks.retryAiTask.mockResolvedValue(makeItem({ taskId: 't2', status: 'pending' }))
+  mocks.abortAiExecution.mockResolvedValue(
+    makeItem({
+      status: 'aborted',
+      terminateReason: { code: 1000018127, msg: '用户终止' },
+      latestExecution: {
+        executionId: 'e1',
+        seq: 1,
+        status: 'aborted',
+        steps: 1,
+        budget: { maxSteps: 4 },
+        consumed: { durationMs: 0, tokensIn: 0, tokensOut: 0, cost: 0 },
+        plan: null,
+        terminateReason: { code: 1000018127, msg: '用户终止' },
+      },
+    }),
+  )
+  mocks.reExecuteAiTask.mockResolvedValue(makeItem({ taskId: 't2', status: 'running' }))
   mocks.ElMessageBox.confirm.mockResolvedValue('confirm')
   mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn(() => true) })
 }
@@ -118,9 +145,10 @@ describe('useAiTaskCenter', () => {
       const { state: s } = mountCenter()
       await vi.waitFor(() => expect(s.hasLoaded.value).toBe(true))
       expect(s.rows.value).toHaveLength(1)
-      expect(s.rows.value[0].name).toBe('需求拆分')
+      expect(s.rows.value[0].name).toBe('需求导入')
       expect(s.rows.value[0].typeMeta.domain).toBe('需求')
-      expect(s.rows.value[0].statusMeta.label).toBe('进行中')
+      expect(s.rows.value[0].statusMeta.label).toBe('执行中')
+      expect(s.rows.value[0].summary.text).toBe('1/4 步')
       await vi.waitFor(() => expect(s.rows.value[0].submitterText).toBe('张三'))
       expect(s.total.value).toBe(1)
       expect(s.hasLoaded.value).toBe(true)
@@ -147,7 +175,7 @@ describe('useAiTaskCenter', () => {
       const loading = s.load()
 
       mocks.fetchAiTasks.mockResolvedValueOnce({
-        list: [makeItem({ taskId: 't2', status: 'succeeded' })],
+        list: [makeItem({ taskId: 't2', status: 'closed' })],
         total: 1,
       } as PageResult<AiTaskItem>)
       await s.load()
@@ -185,11 +213,11 @@ describe('useAiTaskCenter', () => {
     it('查询按当前条件回第一页', async () => {
       const s = center()
       await s.load()
-      s.filters.type = 'requirement_split'
+      s.filters.type = 'requirement_import'
       s.search()
       await vi.waitFor(() =>
         expect(mocks.fetchAiTasks).toHaveBeenLastCalledWith(
-          expect.objectContaining({ type: 'requirement_split', pageNo: 1 }),
+          expect.objectContaining({ type: 'requirement_import', pageNo: 1 }),
         ),
       )
       expect(s.pageNo.value).toBe(1)
@@ -198,7 +226,7 @@ describe('useAiTaskCenter', () => {
     it('重置清空条件并恢复第一页', async () => {
       const s = center()
       await s.changePage(3)
-      s.filters.status = 'failed'
+      s.filters.status = 'aborted'
       s.resetFilters()
       await vi.waitFor(() => expect(s.pageNo.value).toBe(1))
       expect(s.filters).toEqual({ type: '', status: '' })
@@ -222,19 +250,19 @@ describe('useAiTaskCenter', () => {
     it('刷新沿用当前条件重取', async () => {
       const s = center()
       await s.load()
-      s.filters.status = 'failed'
+      s.filters.status = 'aborted'
       s.refresh()
       await vi.waitFor(() =>
         expect(mocks.fetchAiTasks).toHaveBeenLastCalledWith(
-          expect.objectContaining({ status: 'failed' }),
+          expect.objectContaining({ status: 'aborted' }),
         ),
       )
     })
 
     it('保活：从详情返回时沿用上次筛选与页码', async () => {
       const s = center()
-      s.filters.type = 'requirement_split'
-      s.filters.status = 'succeeded'
+      s.filters.type = 'requirement_import'
+      s.filters.status = 'closed'
       s.search()
       await vi.waitFor(() => expect(s.pageNo.value).toBe(1))
       s.filters.type = ''
@@ -242,9 +270,9 @@ describe('useAiTaskCenter', () => {
 
       const { state } = mountCenter()
       await vi.waitFor(() => expect(state.hasLoaded.value).toBe(true))
-      expect(state.filters).toEqual({ type: 'requirement_split', status: 'succeeded' })
+      expect(state.filters).toEqual({ type: 'requirement_import', status: 'closed' })
       expect(mocks.fetchAiTasks).toHaveBeenLastCalledWith(
-        expect.objectContaining({ type: 'requirement_split', status: 'succeeded' }),
+        expect.objectContaining({ type: 'requirement_import', status: 'closed' }),
       )
     })
   })
@@ -288,59 +316,88 @@ describe('useAiTaskCenter', () => {
   })
 
   describe('行操作', () => {
-    it('取消需二次确认，成功后更新行状态', async () => {
+    it('执行中的任务可终止，终止需二次确认并更新行', async () => {
       const s = center()
       await s.load()
-      expect(s.isPending(s.rows.value[0])).toBe(true)
+      expect(s.rows.value[0].canAbort).toBe(true)
+      expect(s.rows.value[0].canReExecute).toBe(false)
 
-      await s.handleCancel(s.rows.value[0])
+      await s.handleAbort(s.rows.value[0])
       expect(mocks.ElMessageBox.confirm).toHaveBeenCalled()
-      expect(mocks.cancelAiTask).toHaveBeenCalledWith('t1')
-      expect(s.rows.value[0].status).toBe('cancelled')
-      expect(s.rows.value[0].statusMeta.label).toBe('已取消')
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('任务已取消')
+      expect(mocks.abortAiExecution).toHaveBeenCalledWith('t1', 'e1')
+      expect(s.rows.value[0].status).toBe('aborted')
+      expect(s.rows.value[0].statusMeta.label).toBe('已终止')
+      expect(s.rows.value[0].canAbort).toBe(false)
+      expect(s.rows.value[0].canReExecute).toBe(true)
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith('执行已终止')
     })
 
-    it('取消被用户放弃时不发请求', async () => {
+    it('终止被用户放弃时不发请求', async () => {
       const s = center()
       await s.load()
       mocks.ElMessageBox.confirm.mockRejectedValueOnce(new Error('cancel'))
-      await s.handleCancel(s.rows.value[0])
-      expect(mocks.cancelAiTask).not.toHaveBeenCalled()
+      await s.handleAbort(s.rows.value[0])
+      expect(mocks.abortAiExecution).not.toHaveBeenCalled()
     })
 
-    it('取消失败提示错误', async () => {
+    it('终止失败提示错误', async () => {
       const s = center()
       await s.load()
-      mocks.cancelAiTask.mockRejectedValueOnce(new Error('状态不允许'))
-      await s.handleCancel(s.rows.value[0])
+      mocks.abortAiExecution.mockRejectedValueOnce(new Error('状态不允许'))
+      await s.handleAbort(s.rows.value[0])
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('状态不允许')
     })
 
-    it('重试成功后重取列表', async () => {
+    it('已终止的任务可再次执行，成功后重取列表', async () => {
       const s = center()
       mocks.fetchAiTasks.mockResolvedValue({
-        list: [makeItem({ status: 'failed', error: { code: 1000018117, msg: '模型调用失败' } })],
+        list: [
+          makeItem({
+            status: 'aborted',
+            terminateReason: { code: 1000018127, msg: '用户终止' },
+            latestExecution: {
+              executionId: 'e1',
+              seq: 1,
+              status: 'aborted',
+              steps: 2,
+              budget: { maxSteps: 4 },
+              consumed: { durationMs: 0, tokensIn: 0, tokensOut: 0, cost: 0 },
+              plan: null,
+              terminateReason: { code: 1000018127, msg: '用户终止' },
+            },
+          }),
+        ],
         total: 1,
       } as PageResult<AiTaskItem>)
       await s.load()
-      expect(s.rows.value[0].statusMeta.label).toBe('失败')
-      expect(s.rows.value[0].errorMessage).toBe('模型调用失败')
-      expect(s.isPending(s.rows.value[0])).toBe(false)
+      expect(s.rows.value[0].statusMeta.label).toBe('已终止')
+      expect(s.rows.value[0].terminateText).toBe('用户终止')
+      expect(s.rows.value[0].canReExecute).toBe(true)
 
       mocks.fetchAiTasks.mockClear()
-      await s.handleRetry(s.rows.value[0])
-      expect(mocks.retryAiTask).toHaveBeenCalledWith('t1')
+      await s.handleReExecute(s.rows.value[0])
+      expect(mocks.reExecuteAiTask).toHaveBeenCalledWith('t1')
       expect(mocks.fetchAiTasks).toHaveBeenCalled()
-      expect(mocks.ElMessage.success).toHaveBeenCalledWith('已重新排队')
+      expect(mocks.ElMessage.success).toHaveBeenCalledWith('已发起再次执行')
     })
 
-    it('重试失败提示错误', async () => {
+    it('再次执行失败提示错误', async () => {
       const s = center()
       await s.load()
-      mocks.retryAiTask.mockRejectedValueOnce(new Error('任务不存在'))
-      await s.handleRetry(s.rows.value[0])
+      mocks.reExecuteAiTask.mockRejectedValueOnce(new Error('任务不存在'))
+      await s.handleReExecute(s.rows.value[0])
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('任务不存在')
+    })
+
+    it('待采纳任务给出审核入口标记', async () => {
+      const s = center()
+      mocks.fetchAiTasks.mockResolvedValue({
+        list: [makeItem({ status: 'proposals_ready' })],
+        total: 1,
+      } as PageResult<AiTaskItem>)
+      await s.load()
+      expect(s.rows.value[0].canReview).toBe(true)
+      expect(s.rows.value[0].statusMeta.label).toBe('待采纳')
     })
   })
 })

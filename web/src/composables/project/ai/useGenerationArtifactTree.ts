@@ -1,8 +1,8 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { AiArtifactConfirmItem, AiArtifactConfirmTarget } from '@/types'
-import type { ArtifactRow } from '@/composables/project/ai/useAiArtifactReview'
-import { aiArtifactKindLabel } from '@/composables/project/ai/taskPresentation'
+import type { AiProposalConfirmItem, AiProposalConfirmTarget } from '@/types'
+import type { ProposalRow } from '@/composables/project/ai/useAiProposalReview'
+import { aiProposalKindLabel } from '@/composables/project/ai/taskPresentation'
 
 /** 展示缩进封顶层级，防止深链节点把行挤出可视区 */
 const MAX_INDENT_LEVEL = 4
@@ -11,7 +11,7 @@ const DOCUMENT_KIND = 'mindmap_document_suggestion'
 
 export interface GenerationTreeNode {
   key: string
-  row: ArtifactRow
+  row: ProposalRow
   kindLabel: string
   title: string
   /** 树层级：0 模块 / 1 文档 / 2+ 节点（文档内按 parentRef 嵌套） */
@@ -19,22 +19,22 @@ export interface GenerationTreeNode {
   children: GenerationTreeNode[]
 }
 
-/** 审核基座提供的行数据与确认能力（由 useAiArtifactReview 实例注入） */
+/** 审核基座提供的行数据与确认能力（由 useAiProposalReview 实例注入） */
 export interface GenerationReviewBase {
-  rows: Ref<ArtifactRow[]>
+  rows: Ref<ProposalRow[]>
   selectedKeys: Ref<string[]>
   confirming: Ref<boolean>
   canConfirm: ComputedRef<boolean>
   activeKey: Ref<string>
   select: (key: string) => void
   submitItems: (
-    items: AiArtifactConfirmItem[],
-    target?: AiArtifactConfirmTarget,
+    items: AiProposalConfirmItem[],
+    target?: AiProposalConfirmTarget,
   ) => Promise<void>
 }
 
 export interface AdoptPlan {
-  items: AiArtifactConfirmItem[]
+  items: AiProposalConfirmItem[]
   /** 前置提示（自动补入父级 / 排除疑似重复等），空数组不提示 */
   notes: string[]
 }
@@ -94,7 +94,7 @@ export function useGenerationArtifactTree(base: GenerationReviewBase) {
       const node: GenerationTreeNode = {
         key: row.key,
         row,
-        kindLabel: aiArtifactKindLabel(row.kind),
+        kindLabel: aiProposalKindLabel(row.kind),
         title: row.title || row.content.title,
         level: 0,
         children: [],
@@ -193,8 +193,8 @@ export function useGenerationArtifactTree(base: GenerationReviewBase) {
   }
 
   /** 按树预序输出确认项，保证父先子序（分批顺序也依此，1000018210） */
-  function orderedItems(keys: Set<string>, action: 'adopted' | 'rejected'): AiArtifactConfirmItem[] {
-    const items: AiArtifactConfirmItem[] = []
+  function orderedItems(keys: Set<string>, action: 'adopted' | 'rejected'): AiProposalConfirmItem[] {
+    const items: AiProposalConfirmItem[] = []
     const walk = (node: GenerationTreeNode): void => {
       if (keys.has(node.key)) items.push({ key: node.key, action })
       node.children.forEach(walk)
@@ -292,7 +292,7 @@ export function useGenerationArtifactTree(base: GenerationReviewBase) {
   }
 
   async function rejectOne(node: GenerationTreeNode, note: string): Promise<void> {
-    const item: AiArtifactConfirmItem = { key: node.key, action: 'rejected' }
+    const item: AiProposalConfirmItem = { key: node.key, action: 'rejected' }
     if (note.trim()) item.note = note.trim()
     await base.submitItems([item])
   }

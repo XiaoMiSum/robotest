@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import type { AiArtifactSummary } from '@/types'
+import type { AiTaskProposalSummary } from '@/types'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
-import { useAiArtifactReview } from '@/composables/project/ai/useAiArtifactReview'
+import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
 import {
   useGenerationArtifactTree,
   type GenerationTreeNode,
@@ -11,7 +11,7 @@ import {
 
 const props = defineProps<{
   taskId: string
-  artifacts: AiArtifactSummary[]
+  proposals: AiTaskProposalSummary[]
   canConfirm: boolean
 }>()
 
@@ -19,9 +19,9 @@ const emit = defineEmits<{ confirmed: []; leave: [] }>()
 
 const router = useRouter()
 
-const base = useAiArtifactReview(
+const base = useAiProposalReview(
   props.taskId,
-  () => props.artifacts,
+  () => props.proposals,
   () => props.canConfirm,
   () => {
     base.syncRows()

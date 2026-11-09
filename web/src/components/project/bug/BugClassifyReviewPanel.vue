@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type {
-  AiArtifactSummary,
+  AiTaskProposalSummary,
   BugPriority,
   BugSeverity,
 } from '@/types'
@@ -18,7 +18,7 @@ import {
 const props = defineProps<{
   taskId: string
   taskType: string
-  artifacts: AiArtifactSummary[]
+  proposals: AiTaskProposalSummary[]
   canConfirm: boolean
 }>()
 
@@ -28,7 +28,7 @@ const router = useRouter()
 
 const review = useBugClassifyReview(
   props.taskId,
-  () => props.artifacts,
+  () => props.proposals,
   () => props.canConfirm,
   () => {
     review.syncRows()
