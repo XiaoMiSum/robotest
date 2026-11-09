@@ -11,8 +11,8 @@ import java.util.UUID;
 /**
  * tool 消息回填写入（详设 4.1 查询类能力）：插入 role=tool 结果消息，供后续消息的多轮上下文配对。
  *
- * <p>从 AssistantService 下沉为独立组件：任务执行层（{@code AssistantParseHandler} /
- * {@code AssistantToolLoop}）依赖本组件而非会话服务，消除「会话服务 → 任务引擎 → handler →
+ * <p>从 AssistantService 下沉为独立组件：任务执行层（{@code AssistantExecutionStrategy} /
+ * {@code AssistantToolLoop}）依赖本组件而非会话服务，消除「会话服务 → 任务执行 → 策略 →
  * 会话服务」的循环依赖。</p>
  */
 @Component

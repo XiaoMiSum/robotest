@@ -63,7 +63,8 @@ public class TaskExecutionDispatcher {
                     new TaskExecutionStrategy.ExecutionContext(task, execution, context.model(),
                             context.workspaceId(), context.projectId(), context.feedback(), adapter),
                     control);
-            control.beforeCall();
+            // 收尾检查：终态竞争必查；步数按已走口径（恰满上限的正常完成不得被误杀为预算耗尽）
+            control.ensureFinishing();
             executionLifecycle.succeed(task.getId(), execution.getId(), result.proposals(),
                     result.resultMeta(), control.usage());
         } catch (ExecutionControl.InactiveExecutionException ignored) {

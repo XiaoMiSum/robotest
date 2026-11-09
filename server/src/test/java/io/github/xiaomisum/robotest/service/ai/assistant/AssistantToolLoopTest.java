@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -206,6 +207,45 @@ class AssistantToolLoopTest {
         assertEquals("answer", outcome.kind());
         assertEquals(AssistantToolLoop.LIMIT_TEXT, outcome.answer());
         verify(modelClient, times(AssistantToolLoop.MAX_LOOPS)).chatWithTools(any(), anyList(), anyList());
+    }
+
+    /**
+     * 共享执行控制逐跳介入（总册 4.2 助手策略口径）：观察者只包模型跳——
+     * 查询工具执行不额外触发闸门 / 计步；5 跳上限用尽时每跳各计一次。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void hopObserver_countsModelHopsOnly_andToolHopsDoNotAddSteps() {
+        stubRegistry();
+        when(queryTool.execute(any(AssistantToolContext.class), anyMap())).thenReturn("{}");
+        when(modelClient.chatWithTools(any(), anyList(), anyList()))
+                .thenReturn(new AiChatReply("先查一下", 5, 3, List.of(new AiToolCall("tc-1", "query_projects", "{}"))))
+                .thenReturn(new AiChatReply("共 0 个项目。", 7, 4));
+        AssistantToolLoop.HopObserver observer = org.mockito.Mockito.mock(AssistantToolLoop.HopObserver.class);
+
+        loop.run(request(), modelClient, observer);
+
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(observer);
+        inOrder.verify(observer).beforeHop();
+        inOrder.verify(observer).afterHop(5, 3);
+        inOrder.verify(observer).beforeHop();
+        inOrder.verify(observer).afterHop(7, 4);
+        verify(observer, times(2)).beforeHop();
+        verify(observer, times(2)).afterHop(anyInt(), anyInt());
+    }
+
+    @Test
+    void hopObserver_atLoopCap_observesEveryHop() {
+        stubRegistry();
+        when(queryTool.execute(any(AssistantToolContext.class), anyMap())).thenReturn("{}");
+        when(modelClient.chatWithTools(any(), anyList(), anyList())).thenReturn(new AiChatReply("", 1, 1,
+                List.of(new AiToolCall("tc-loop", "query_projects", "{}"))));
+        AssistantToolLoop.HopObserver observer = org.mockito.Mockito.mock(AssistantToolLoop.HopObserver.class);
+
+        loop.run(request(), modelClient, observer);
+
+        verify(observer, times(AssistantToolLoop.MAX_LOOPS)).beforeHop();
+        verify(observer, times(AssistantToolLoop.MAX_LOOPS)).afterHop(1, 1);
     }
 
     @Test

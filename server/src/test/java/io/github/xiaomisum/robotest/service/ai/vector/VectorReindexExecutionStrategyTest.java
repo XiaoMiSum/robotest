@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.vector;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiVectorIndex;
@@ -11,12 +13,13 @@ import io.github.xiaomisum.robotest.repository.ai.AiVectorIndexMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
+import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionControl;
+import io.github.xiaomisum.robotest.service.ai.task.core.TaskExecutionStrategy;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,11 +32,13 @@ import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -41,15 +46,21 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * 向量重建执行策略单测（总册 4.2 助手与向量策略口径 / 详设 4.4）：无 chat 模型仍可执行、
+ * scope 子集与 versions 消费、重嵌失败先于索引写、steps 按 embedding 批次与替换动作计、
+ * 共享闸门（预算 / 中止）在批次前拦截（C8）。
+ */
 @ExtendWith(MockitoExtension.class)
-class VectorReindexTaskHandlerTest {
+class VectorReindexExecutionStrategyTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
 
@@ -77,10 +88,12 @@ class VectorReindexTaskHandlerTest {
     @Mock
     private TransactionStatus transactionStatus;
     @Mock
-    private TaskExecutionContext context;
+    private ExecutionControl control;
 
     @InjectMocks
-    private VectorReindexTaskHandler handler;
+    private VectorReindexExecutionStrategy strategy;
+
+    private TaskExecutionStrategy.ExecutionContext context;
 
     /** 纯单测环境无 MyBatis 初始化：wrapper 的 lambda 列解析依赖框架启动期注册的 TableInfo 缓存 */
     @BeforeAll
@@ -88,11 +101,27 @@ class VectorReindexTaskHandlerTest {
         MybatisConfiguration configuration = new MybatisConfiguration();
         configuration.getTypeHandlerRegistry().register(UUID.class, UUIDTypeHandler.class);
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "");
-        for (Class<?> entity : new Class<?>[]{AiEmbeddingConfig.class, AiVectorIndex.class, Requirement.class}) {
+        for (Class<?> entity : new Class<?>[]{AiEmbeddingConfig.class, AiVectorIndex.class,
+                Requirement.class, Bug.class}) {
             if (TableInfoHelper.getTableInfo(entity) == null) {
                 TableInfoHelper.initTableInfo(assistant, entity);
             }
         }
+    }
+
+    @BeforeEach
+    void setUp() {
+        AiTask task = new AiTask();
+        task.setId(UUID.randomUUID());
+        task.setType("vector_reindex");
+        task.setSubmittedBy(USER_ID);
+        task.setInput(Map.of());
+        AiTaskExecution execution = new AiTaskExecution();
+        execution.setId(UUID.randomUUID());
+        execution.setTaskId(task.getId());
+        // 聊天模型豁免（总册 4.2）：执行上下文不携带模型，策略不得依赖 chat 选型
+        context = new TaskExecutionStrategy.ExecutionContext(task, execution, null,
+                UUID.randomUUID(), UUID.randomUUID(), null, null);
     }
 
     private static AiEmbeddingConfig configWithVersions() {
@@ -130,7 +159,6 @@ class VectorReindexTaskHandlerTest {
     private void stubFullExecution(AiEmbeddingConfig config, Integer typmod, List<Requirement> requirements,
             List<TestCaseDocument> documents, List<Bug> bugs) {
         when(gate.requireEnabled()).thenReturn(config);
-        when(context.getInput()).thenReturn(Map.of());
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).thenReturn(typmod);
         when(requirementMapper.selectList(any())).thenReturn(requirements);
         when(testCaseDocumentMapper.selectList(any())).thenReturn(documents);
@@ -139,62 +167,57 @@ class VectorReindexTaskHandlerTest {
     }
 
     @Test
-    void typeAndScopeValidation() {
-        assertEquals("vector_reindex", handler.type());
-        // 缺省 / 未带 entityTypes = 全量
-        handler.validateInput(null);
-        handler.validateInput(Map.of());
-        handler.validateInput(Map.of("scope", Map.of()));
-        handler.validateInput(Map.of("scope", Map.of("entityTypes", List.of("bug"))));
-
-        ServiceException scopeType = assertThrows(ServiceException.class,
-                () -> handler.validateInput(Map.of("scope", "requirement")));
-        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), scopeType.getCode());
-
-        ServiceException empty = assertThrows(ServiceException.class,
-                () -> handler.validateInput(Map.of("scope", Map.of("entityTypes", List.of()))));
-        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), empty.getCode());
-
-        ServiceException illegal = assertThrows(ServiceException.class,
-                () -> handler.validateInput(Map.of("scope", Map.of("entityTypes", List.of("foo")))));
-        assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), illegal.getCode());
-    }
-
-    @Test
-    void executeFullReindexReplacesAllTypesAndConsumesVersions() {
+    void executeWithoutChatModel_replacesAllTypesAndCountsBatchSteps() {
         AiEmbeddingConfig config = configWithVersions();
         stubFullExecution(config, ALIGNED_TYPMOD, List.of(requirement()), List.of(document()), List.of(bug()));
         when(embeddingMapper.selectSingleton()).thenReturn(config);
         when(vectorIndexService.contentFor(any(), any())).thenReturn("正文");
         when(vectorIndexService.embedRows(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new VectorIndexService.EmbedRows(List.of(new AiVectorIndex()), 5));
-        when(context.getUserId()).thenReturn(USER_ID);
 
-        TaskResult result = handler.execute(context);
+        TaskExecutionStrategy.ExecutionResult result = strategy.execute(context, control);
 
-        assertEquals(Integer.valueOf(3), result.result().get("entityCount"));
-        assertEquals(Integer.valueOf(3), result.result().get("chunkCount"));
-        assertEquals(15, result.tokensIn());
-        verify(vectorIndexService, times(3)).contentFor(any(), any());
+        assertEquals(3, result.resultMeta().get("entityCount"));
+        assertEquals(3, result.resultMeta().get("chunkCount"));
+        assertTrueEmptyProposals(result);
+        assertNull(context.model(), "chat 模型豁免：策略全程不依赖执行模型");
         verify(vectorIndexService, times(3)).embedRows(any(), any(), any(), any(), any(), any());
-        // 短事务内按类型先逻辑删后批量插，单实体各一批
+        // steps 按 embedding 批次（3 次 embedBatch 调用）+ 索引替换动作（1）计，不按实体 / 分块行计
+        verify(control, times(3)).afterModelCall(eq(5L), eq(0L), any(BigDecimal.class));
+        verify(control, times(1)).afterModelCall(eq(0L), eq(0L), any(BigDecimal.class));
+        verify(control, times(5)).beforeCall();
         verify(indexMapper, times(3)).delete(any());
         verify(indexMapper, times(3)).insertBatch(any());
         verify(embeddingMapper).update(isNull(), any());
         verify(jdbcTemplate, never()).execute(anyString());
-        verify(context, atLeastOnce()).report(anyInt(), anyString());
+    }
+
+    @Test
+    void executeEmptyContentEntity_producesNoBatchStep() {
+        AiEmbeddingConfig config = configWithVersions();
+        stubFullExecution(config, ALIGNED_TYPMOD, List.of(requirement()), List.of(), List.of());
+        when(vectorIndexService.contentFor(any(), any())).thenReturn(null);
+        when(vectorIndexService.embedRows(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new VectorIndexService.EmbedRows(List.of(), 0));
+
+        TaskExecutionStrategy.ExecutionResult result = strategy.execute(context, control);
+
+        assertEquals(1, result.resultMeta().get("entityCount"));
+        assertEquals(0, result.resultMeta().get("chunkCount"));
+        // 空内容不产生 embedding 批次 → 不计步，仅替换动作一步
+        verify(control, times(1)).afterModelCall(eq(0L), eq(0L), any(BigDecimal.class));
     }
 
     @Test
     void executeSubsetScopeKeepsVersionsForFullReindex() {
         AiEmbeddingConfig config = configWithVersions();
         when(gate.requireEnabled()).thenReturn(config);
-        when(context.getInput()).thenReturn(Map.of("scope", Map.of("entityTypes", List.of("bug"))));
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).thenReturn(ALIGNED_TYPMOD);
         when(bugMapper.selectList(any())).thenReturn(List.of());
         when(transactionManager.getTransaction(any())).thenReturn(transactionStatus);
+        context.task().setInput(Map.of("scope", Map.of("entityTypes", List.of("bug"))));
 
-        handler.execute(context);
+        strategy.execute(context, control);
 
         verify(requirementMapper, never()).selectList(any());
         verify(testCaseDocumentMapper, never()).selectList(any());
@@ -211,7 +234,7 @@ class VectorReindexTaskHandlerTest {
         stubFullExecution(config, 1536 + 4, List.of(), List.of(), List.of());
         when(embeddingMapper.selectSingleton()).thenReturn(config);
 
-        handler.execute(context);
+        strategy.execute(context, control);
 
         verify(jdbcTemplate).execute(contains("vector(768)"));
     }
@@ -220,7 +243,6 @@ class VectorReindexTaskHandlerTest {
     void executeEmbedFailurePropagatesBeforeTouchingIndex() {
         AiEmbeddingConfig config = configWithVersions();
         when(gate.requireEnabled()).thenReturn(config);
-        when(context.getInput()).thenReturn(Map.of());
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).thenReturn(ALIGNED_TYPMOD);
         when(requirementMapper.selectList(any())).thenReturn(List.of(requirement()));
         when(testCaseDocumentMapper.selectList(any())).thenReturn(List.of());
@@ -228,7 +250,7 @@ class VectorReindexTaskHandlerTest {
         when(vectorIndexService.contentFor(any(), any()))
                 .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED));
 
-        assertThrows(ServiceException.class, () -> handler.execute(context));
+        assertThrows(ServiceException.class, () -> strategy.execute(context, control));
 
         // 重嵌失败在事务之前上抛：索引与 versions 均未动
         verify(indexMapper, never()).delete(any());
@@ -245,7 +267,7 @@ class VectorReindexTaskHandlerTest {
         changed.setVersions(List.of(Map.of("version", 2)));
         when(embeddingMapper.selectSingleton()).thenReturn(changed);
 
-        handler.execute(context);
+        strategy.execute(context, control);
 
         // 重建期间配置再次变更，新待重建标记不可被误消费
         verify(embeddingMapper, never()).update(any(), any());
@@ -256,10 +278,50 @@ class VectorReindexTaskHandlerTest {
         when(gate.requireEnabled())
                 .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_NOT_CONFIGURED));
 
-        ServiceException ex = assertThrows(ServiceException.class, () -> handler.execute(context));
+        ServiceException ex = assertThrows(ServiceException.class, () -> strategy.execute(context, control));
 
         assertEquals(ErrorCodeConstants.AI_EMBEDDING_NOT_CONFIGURED.code(), ex.getCode());
-        verifyNoInteractions(indexMapper, embeddingMapper, requirementMapper,
+        verifyNoInteractions(control, indexMapper, embeddingMapper, requirementMapper,
                 testCaseDocumentMapper, bugMapper, jdbcTemplate);
+    }
+
+    /** 共享护栏：预算闸门在下一批 embedding 前拦截（BudgetExceededException 上抛交分派器落 aborted） */
+    @Test
+    void execute_budgetExhaustedBeforeBatch_propagatesWithoutTouchingIndex() {
+        AiEmbeddingConfig config = configWithVersions();
+        when(gate.requireEnabled()).thenReturn(config);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).thenReturn(ALIGNED_TYPMOD);
+        when(requirementMapper.selectList(any())).thenReturn(List.of(requirement()));
+        when(testCaseDocumentMapper.selectList(any())).thenReturn(List.of());
+        when(bugMapper.selectList(any())).thenReturn(List.of());
+        doNothing().doThrow(new ExecutionControl.BudgetExceededException())
+                .when(control).beforeCall();
+
+        assertThrows(ExecutionControl.BudgetExceededException.class,
+                () -> strategy.execute(context, control));
+
+        verify(vectorIndexService, never()).embedRows(any(), any(), any(), any(), any(), any());
+        verify(indexMapper, never()).delete(any());
+        verify(transactionManager, never()).getTransaction(any());
+    }
+
+    /** 共享护栏：用户中止（终态竞争）后不上招建索引动作，异常原样交分派器忽略收尾 */
+    @Test
+    void execute_inactiveBeforeReplacing_propagatesWithoutTouchingIndex() {
+        AiEmbeddingConfig config = configWithVersions();
+        when(gate.requireEnabled()).thenReturn(config);
+        // 第一次闸门（进入执行）即发现执行已被中止
+        doThrow(new ExecutionControl.InactiveExecutionException()).when(control).beforeCall();
+
+        assertThrows(ExecutionControl.InactiveExecutionException.class,
+                () -> strategy.execute(context, control));
+
+        verify(jdbcTemplate, never()).queryForObject(anyString(), eq(Integer.class));
+        verify(indexMapper, never()).delete(any());
+        verify(transactionManager, never()).getTransaction(any());
+    }
+
+    private static void assertTrueEmptyProposals(TaskExecutionStrategy.ExecutionResult result) {
+        assertEquals(List.of(), result.proposals());
     }
 }

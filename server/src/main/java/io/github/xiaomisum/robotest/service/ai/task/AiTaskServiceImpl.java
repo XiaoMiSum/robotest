@@ -157,16 +157,21 @@ public class AiTaskServiceImpl implements AiTaskService {
         adapter.validateInput(effectiveInput, submitContext);
         // 预算签发（3.6.2）：类型默认为上限，请求仅可下调，越界 1000018126
         Map<String, Object> budget = budgetGuard.sign(adapter.defaultBudget(), budgetOverride);
-        // 必需能力选型（总册 4.2）：适配器从输入派生（批量随附截图需结合项目范围）
-        String requiredCapability = adapter.requiredCapability(effectiveInput, submitContext);
-        AiModelConfig model = requiredCapability == null
-                ? settingsReader.usableModel()
-                : settingsReader.resolveModel(null, requiredCapability);
-        if (model == null) {
-            throw ServiceExceptionUtil.get(requiredCapability == null
-                    ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
-                    : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
+        // 必需能力选型（总册 4.2）：适配器从输入派生（批量随附截图需结合项目范围）；
+        // vector_reindex 豁免 chat 模型选型（4.2）：不解析模型、不报 1000018118/124，执行行 model_id 留空
+        AiModelConfig model = null;
+        if (!Constants.AiTaskType.VECTOR_REINDEX.equals(type)) {
+            String requiredCapability = adapter.requiredCapability(effectiveInput, submitContext);
+            model = requiredCapability == null
+                    ? settingsReader.usableModel()
+                    : settingsReader.resolveModel(null, requiredCapability);
+            if (model == null) {
+                throw ServiceExceptionUtil.get(requiredCapability == null
+                        ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
+                        : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
+            }
         }
+        AiModelConfig chatModel = model;
         TransactionTemplate template = new TransactionTemplate(transactionManager);
         CreatedRun created = template.execute(status -> {
             AiTask task = new AiTask();
@@ -179,8 +184,9 @@ public class AiTaskServiceImpl implements AiTaskService {
             task.setTokensIn(0);
             task.setTokensOut(0);
             taskMapper.insert(task);
-            AiTaskExecution execution = createExecution(task.getId(), userId, type, model.getId(), budget, null);
-            triggerStart(task, execution, model, workspaceId, projectId, null);
+            AiTaskExecution execution = createExecution(task.getId(), userId, type,
+                    chatModel == null ? null : chatModel.getId(), budget, null);
+            triggerStart(task, execution, chatModel, workspaceId, projectId, null);
             return new CreatedRun(task, execution);
         });
         if (created == null) {
@@ -348,6 +354,10 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (adapter == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
         }
+        // 助手消息禁止经通用「再次执行」重跑（分册 04 §4.1）：重新发送生成新消息与新任务
+        if (Constants.AiTaskType.ASSISTANT_PARSE.equals(task.getType())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED);
+        }
         // 同任务同时至多一个进行中执行（3.6.4）
         if (executionMapper.countActiveByTaskId(taskId) > 0) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
@@ -357,17 +367,22 @@ public class AiTaskServiceImpl implements AiTaskService {
                 || reqDTO.getFeedback().isBlank() ? null : reqDTO.getFeedback().trim();
         TaskSubmitContext submitContext = new TaskSubmitContext(task.getProjectId(), task.getWorkspaceId(),
                 loginUser.getId(), loginUser);
-        String requiredCapability = adapter.requiredCapability(task.getInput(), submitContext);
-        // model_id 复用原执行模型（3.6.4），其被停用时按能力回落当前可用模型
-        AiModelConfig model = settingsReader.resolveModel(
-                previous == null ? null : previous.getModelId(), requiredCapability);
-        if (model == null) {
-            throw ServiceExceptionUtil.get(requiredCapability == null
-                    ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
-                    : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
+        // model_id 复用原执行模型（3.6.4），其被停用时按能力回落当前可用模型；
+        // vector_reindex 豁免 chat 模型选型（总册 4.2），再次执行同样不解析模型
+        AiModelConfig model = null;
+        if (!Constants.AiTaskType.VECTOR_REINDEX.equals(task.getType())) {
+            String requiredCapability = adapter.requiredCapability(task.getInput(), submitContext);
+            model = settingsReader.resolveModel(
+                    previous == null ? null : previous.getModelId(), requiredCapability);
+            if (model == null) {
+                throw ServiceExceptionUtil.get(requiredCapability == null
+                        ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
+                        : ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED);
+            }
         }
         Map<String, Object> budget = budgetGuard.sign(adapter.defaultBudget(), null);
         UUID expectedPreviousId = previous == null ? null : previous.getId();
+        AiModelConfig chatModel = model;
         TransactionTemplate template = new TransactionTemplate(transactionManager);
         CreatedRun created = template.execute(status -> {
             AiTask lockedTask = taskMapper.selectByIdForUpdate(taskId);
@@ -386,8 +401,8 @@ public class AiTaskServiceImpl implements AiTaskService {
             lockedTask.setTerminateCode(null);
             lockedTask.setTerminateMsg(null);
             AiTaskExecution execution = createExecution(taskId, loginUser.getId(), task.getType(),
-                    model.getId(), budget, lockedPreviousId);
-            triggerStart(lockedTask, execution, model, task.getWorkspaceId(), task.getProjectId(), feedback);
+                    chatModel == null ? null : chatModel.getId(), budget, lockedPreviousId);
+            triggerStart(lockedTask, execution, chatModel, task.getWorkspaceId(), task.getProjectId(), feedback);
             return new CreatedRun(lockedTask, execution);
         });
         if (created == null) {

@@ -5,6 +5,8 @@ import io.github.xiaomisum.robotest.service.domain.bug.BugDuplicateScanTypeAdapt
 import io.github.xiaomisum.robotest.service.domain.bug.BugTriageTypeAdapter;
 import io.github.xiaomisum.robotest.service.domain.bug.BugTrendSummaryTypeAdapter;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementImportTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.assistant.AssistantParseTypeAdapter;
+import io.github.xiaomisum.robotest.service.ai.vector.VectorReindexTypeAdapter;
 import org.junit.jupiter.api.Test;
 
 import io.github.xiaomisum.robotest.service.ai.task.core.AgentToolRegistry;
@@ -62,6 +64,49 @@ class StandardTaskTypeAdaptersTest {
         } catch (java.io.IOException e) {
             throw new AssertionError(e);
         }
+    }
+
+    /**
+     * 13/13 类型适配器注册齐全（总册 3.6.1）：注册表覆盖全量枚举、类型唯一，
+     * 助手与向量两类自带预算与策略（不落入普通类型统一预算）。
+     */
+    @Test
+    void thirteenTypeAdaptersRegisterAcrossFullEnum() {
+        Set<String> expectedTypes = Set.of(
+                "requirement_import", "test_design_generation", "review_selection", "plan_selection",
+                "case_complete", "case_priority", "plan_order", "bug_classify", "bug_duplicate_scan",
+                "bug_triage", "bug_trend_summary", "assistant_parse", "vector_reindex");
+        List<TaskTypeAdapter> adapters = List.of(
+                new RequirementImportTypeAdapter(), new TestDesignGenerationTypeAdapter(),
+                new ReviewSelectionTypeAdapter(), new PlanSelectionTypeAdapter(),
+                new CaseCompleteTypeAdapter(), new CasePriorityTypeAdapter(), new PlanOrderTypeAdapter(),
+                new BugClassifyTypeAdapter(), new BugDuplicateScanTypeAdapter(),
+                new BugTriageTypeAdapter(), new BugTrendSummaryTypeAdapter(),
+                new AssistantParseTypeAdapter(), new VectorReindexTypeAdapter());
+
+        assertEquals(13, adapters.size());
+        assertEquals(expectedTypes, adapters.stream().map(TaskTypeAdapter::type)
+                .collect(Collectors.toSet()));
+
+        // Spring 同样按该集合装配：同 type 重复注册为装配错误，13 类全部可解析
+        TaskTypeAdapterRegistry registry = new TaskTypeAdapterRegistry(adapters);
+        for (String type : expectedTypes) {
+            assertTrue(registry.get(type) != null, "注册表缺类型: " + type);
+        }
+
+        TaskTypeAdapter assistant = registry.get("assistant_parse");
+        assertEquals(5, assistant.defaultBudget().get("maxSteps"));
+        assertEquals(600, assistant.defaultBudget().get("maxDurationSeconds"));
+        assertEquals(200000, assistant.defaultBudget().get("maxTokens"));
+        assertEquals(5, assistant.defaultBudget().get("maxCost"));
+        assertTrue(assistant.toolCodes().isEmpty());
+
+        TaskTypeAdapter vector = registry.get("vector_reindex");
+        assertEquals(500, vector.defaultBudget().get("maxSteps"));
+        assertEquals(3600, vector.defaultBudget().get("maxDurationSeconds"));
+        assertEquals(10000000, vector.defaultBudget().get("maxTokens"));
+        assertEquals(20, vector.defaultBudget().get("maxCost"));
+        assertTrue(vector.toolCodes().isEmpty());
     }
 
     private static Map<String, Set<String>> parseSeedTaskTypes(String schema) {

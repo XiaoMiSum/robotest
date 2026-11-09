@@ -29,7 +29,7 @@ public class AiEmbeddingGate {
     }
 
     /**
-     * handler 门禁：只校验配置可用；重建中本身就是本任务的起因，不再以 1000018122 拦截。
+     * 重建任务门禁：只校验配置可用；重建中本身就是本任务的起因，不再以 1000018122 拦截。
      */
     public AiEmbeddingConfig requireEnabled() {
         AiEmbeddingConfig row = embeddingMapper.selectSingleton();

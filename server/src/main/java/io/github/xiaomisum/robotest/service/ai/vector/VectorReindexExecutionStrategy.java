@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.vector;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiVectorIndex;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
@@ -12,21 +11,19 @@ import io.github.xiaomisum.robotest.repository.ai.AiVectorIndexMapper;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
-import io.github.xiaomisum.robotest.service.ai.task.TaskExecutionContext;
-import io.github.xiaomisum.robotest.service.ai.task.TaskHandler;
-import io.github.xiaomisum.robotest.service.ai.task.TaskResult;
+import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionControl;
+import io.github.xiaomisum.robotest.service.ai.task.core.TaskExecutionStrategy;
 import jakarta.annotation.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,15 +31,17 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 向量索引全量重建处理器（详设 3.6.1 vector_reindex / 4.4）：
- * 先按当前配置完成全部分块重嵌（外部调用失败即任务失败、索引未动），再在单一短事务内
- * 按类型整体替换索引并消费 versions —— 读者在 MVCC 快照下看不到清空窗口；
- * 仅全量（scope 缺省或覆盖全部类型）完成才清 versions 恢复检索门禁。
+ * vector_reindex 执行策略（总册 4.2 / 详设 4.4）：确定性重嵌与索引替换——先按当前配置
+ * 完成全部分块重嵌（外部调用失败即任务失败、索引未动），再在单一短事务内按类型整体替换
+ * 索引并消费 versions；仅全量完成才清 versions 恢复检索门禁。
+ *
+ * <p>豁免 chat 模型选型（不使用 {@code ctx.model()}，执行行 model_id 为空）；
+ * 仅要求向量能力可用（{@code gate.requireEnabled}，重建中本身即任务起因不再拦截）。
+ * 共享护栏：steps 按 embedding 批次与索引替换动作计（空内容实体不产生批次不计步、
+ * 分块行不计步），每批前走闸门（中止 / 预算 / 心跳），时长与 token 维度随心跳判定。</p>
  */
 @Component
-public class VectorReindexTaskHandler implements TaskHandler {
-
-    static final String TYPE = "vector_reindex";
+public class VectorReindexExecutionStrategy implements TaskExecutionStrategy {
 
     /** 单条 INSERT 的行上限：每行十余参数，留足 PG 驱动参数上限的余量 */
     private static final int INSERT_BATCH_SIZE = 500;
@@ -70,82 +69,46 @@ public class VectorReindexTaskHandler implements TaskHandler {
     private PlatformTransactionManager transactionManager;
 
     @Override
-    public String type() {
-        return TYPE;
-    }
-
-    @Override
-    public void validateInput(Map<String, Object> input) {
-        resolveTypes(input);
-    }
-
-    @Override
-    public TaskResult execute(TaskExecutionContext context) {
+    public ExecutionResult execute(ExecutionContext ctx, ExecutionControl control) {
         AiEmbeddingConfig config = gate.requireEnabled();
-        Set<String> types = resolveTypes(context.getInput());
+        Set<String> types = VectorReindexTypeAdapter.resolveTypes(ctx.task().getInput());
+        control.beforeCall();
 
         // HNSW 索引要求定长维度：维度变更后的重建先切列（schema 注释「n = dimensions」口径）
         alignColumnDimensions(config.getDimensions());
 
-        context.report(0, "读取实体");
         List<Draft> drafts = loadDrafts(types);
         Map<String, List<AiVectorIndex>> rowsByType = new LinkedHashMap<>();
         long tokens = 0;
         int chunkCount = 0;
-        int processed = 0;
-        int total = Math.max(drafts.size(), 1);
         for (Draft draft : drafts) {
+            // 每批 embedding 前走闸门：中止或预算耗尽时不进入下一批，索引保持未动
+            control.beforeCall();
             String content = vectorIndexService.contentFor(draft.type(), draft.entityId());
             VectorIndexService.EmbedRows embedRows = vectorIndexService.embedRows(
-                    config, draft.type(), draft.entityId(), draft.projectId(), context.getUserId(), content);
+                    config, draft.type(), draft.entityId(), draft.projectId(),
+                    ctx.task().getSubmittedBy(), content);
+            if (embedRows.rows().isEmpty()) {
+                continue;
+            }
             rowsByType.computeIfAbsent(draft.type(), key -> new ArrayList<>()).addAll(embedRows.rows());
             tokens += embedRows.tokens();
             chunkCount += embedRows.rows().size();
-            processed++;
-            context.report(Math.min(99, processed * 100 / total), "重嵌");
+            // 一次 embedRows = 一个 embedding 批次 = 一步（空内容不产生批次不计步，分块行不计步）
+            control.afterModelCall(embedRows.tokens(), 0, BigDecimal.ZERO);
         }
 
-        context.report(99, "写入索引");
+        // 替换前最后闸门：中止后不得写索引（外部中止 / 预算耗尽 → aborted，索引不动）
+        control.beforeCall();
         List<Map<String, Object>> versionsSnapshot = config.getVersions();
         boolean full = types.containsAll(VectorIndexService.ALL_TYPES);
         TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
         txTemplate.executeWithoutResult(status -> replaceIndex(types, rowsByType, full, versionsSnapshot));
+        // 单一短事务整体替换 = 一次索引替换动作，计一步
+        control.afterModelCall(0, 0, BigDecimal.ZERO);
 
-        context.report(100, "完成");
-        return new TaskResult(Map.of("entityCount", drafts.size(), "chunkCount", chunkCount),
-                clamp(tokens), 0);
-    }
-
-    /**
-     * 解析详设 3.6.1 的 scope：缺省 / 未带 entityTypes = 全量；
-     * entityTypes 为白名单数组，非法取值报 1000018115。
-     */
-    private static Set<String> resolveTypes(Map<String, Object> input) {
-        Object scope = input == null ? null : input.get("scope");
-        if (scope == null) {
-            return new LinkedHashSet<>(VectorIndexService.ALL_TYPES);
-        }
-        if (!(scope instanceof Map<?, ?> scopeMap)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(),
-                    "scope 须为对象 { entityTypes: [...] }");
-        }
-        Object raw = scopeMap.get("entityTypes");
-        if (raw == null) {
-            return new LinkedHashSet<>(VectorIndexService.ALL_TYPES);
-        }
-        if (!(raw instanceof List<?> list) || list.isEmpty()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(),
-                    "scope.entityTypes 缺省全量重建，显式传值须为非空数组");
-        }
-        Set<String> types = new LinkedHashSet<>();
-        for (Object item : list) {
-            if (!(item instanceof String entity) || !VectorIndexService.ALL_TYPES.contains(entity)) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(),
-                        "scope.entityTypes 仅支持 requirement / testcase / bug");
-            }
-            types.add(entity);
-        }
-        return types;
+        return new ExecutionResult(List.of(),
+                Map.of("entityCount", drafts.size(), "chunkCount", chunkCount));
     }
 
     /** 列维度与配置对齐：不同才 ALTER（同维度走 PG 的 typmod 相等快路径，不重写表） */
@@ -212,10 +175,6 @@ public class VectorReindexTaskHandler implements TaskHandler {
         embeddingMapper.update(null, new LambdaUpdateWrapperX<AiEmbeddingConfig>()
                 .eq(AiEmbeddingConfig::getId, current.getId())
                 .set(AiEmbeddingConfig::getVersions, List.of()));
-    }
-
-    private static int clamp(long tokens) {
-        return tokens > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) tokens;
     }
 
     private record Draft(String type, UUID entityId, UUID projectId) {

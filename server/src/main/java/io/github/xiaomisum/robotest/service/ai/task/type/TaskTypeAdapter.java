@@ -9,7 +9,7 @@ import java.util.UUID;
 import xyz.migoo.framework.common.util.JsonUtils;
 
 /**
- * 任务类型适配器 SPI（总册 3.6.1，替代旧 TaskHandler）：每个 type 注册 input 校验、
+ * 任务类型适配器 SPI（总册 3.6.1，替代旧处理器双轨）：每个 type 注册 input 校验、
  * 工具白名单与预算默认、提示词与提案结构——执行核是通用循环，不含任何任务形态分支；
  * 实现随 S4 落地（13 个 type），本接口在 S2 先行定型。
  */
