@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type {
-  AiArtifactConfirmTarget,
-  AiArtifactSummary,
+  AiProposalConfirmTarget,
   AiTaskDocumentMeta,
+  AiTaskProposalSummary,
   ProjectModule,
 } from '@/types'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
-import { useAiArtifactReview } from '@/composables/project/ai/useAiArtifactReview'
+import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
 import {
   importVersionEvidence,
   importVersionHint,
@@ -17,7 +17,7 @@ import {
 const props = defineProps<{
   taskId: string
   taskType: string
-  artifacts: AiArtifactSummary[]
+  proposals: AiTaskProposalSummary[]
   canConfirm: boolean
   /** 导入任务的文档级识别版本与依据（详设 3.6.3），其余任务为 null */
   documentMeta?: AiTaskDocumentMeta | null
@@ -25,7 +25,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ confirmed: []; leave: [] }>()
 
-/** 需求域（拆分 / 导入）展示系统版本输入与需求字段，其余域只读预览产物 */
+/** 需求域（拆分 / 导入）展示系统版本输入与需求字段，其余域只读预览提案 */
 const isRequirementDomain = computed(
   () => props.taskType === 'requirement_split' || props.taskType === 'requirement_import',
 )
@@ -59,9 +59,9 @@ const {
   handleBatchReject,
   retryResult,
   clearReceipt,
-} = useAiArtifactReview(
+} = useAiProposalReview(
   props.taskId,
-  () => props.artifacts,
+  () => props.proposals,
   () => props.canConfirm,
   () => {
     syncRows()
@@ -69,7 +69,7 @@ const {
   },
 )
 
-// init 首次同步产物行（artifacts 由详情页轮询/确认后刷新传入）
+// init 首次同步提案行（proposals 由详情页轮询/确认后刷新传入）
 init()
 
 // ==================== 系统版本（详设 4.5）====================
@@ -105,7 +105,7 @@ const versionHint = computed(() =>
 
 const versionEvidence = computed(() => importVersionEvidence(props.documentMeta ?? null))
 
-function targetVersion(): AiArtifactConfirmTarget | undefined {
+function targetVersion(): AiProposalConfirmTarget | undefined {
   return versionTouched.value ? { systemVersion: versionValue.value } : undefined
 }
 
@@ -191,26 +191,26 @@ function batchReject(): void {
 
 const selectedCount = computed(() => selectedKeys.value.length)
 const canBatch = computed(() => canConfirm.value && selectedCount.value > 0)
-/** 产物全驳回 → 审核区空态「已全部驳回」（交互 2.4.3） */
+/** 提案全驳回 → 审核区空态「已全部驳回」（交互 2.4.3） */
 const allRejected = computed(
   () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),
 )
 </script>
 
 <template>
-  <section class="artifact-review">
-    <header class="artifact-review__head">
-      <div class="artifact-review__head-main">
-        <h2 class="artifact-review__title">
-          {{ isRequirementDomain ? reviewTitle : '产物审核' }}
+  <section class="proposal-review">
+    <header class="proposal-review__head">
+      <div class="proposal-review__head-main">
+        <h2 class="proposal-review__title">
+          {{ isRequirementDomain ? reviewTitle : '提案审核' }}
         </h2>
-        <span class="artifact-review__processed">
+        <span class="proposal-review__processed">
           已处理 {{ processed.processed }} / 共 {{ processed.total }}
         </span>
       </div>
       <!-- 系统版本：导入预填识别版本并悬浮依据引语，未识别给补录提示（交互 06 §2.4） -->
-      <div v-if="isRequirementDomain && canConfirm" class="artifact-review__version">
-        <span class="artifact-review__version-label">版本</span>
+      <div v-if="isRequirementDomain && canConfirm" class="proposal-review__version">
+        <span class="proposal-review__version-label">版本</span>
         <el-input
           :model-value="versionValue"
           maxlength="50"
@@ -221,10 +221,10 @@ const allRejected = computed(
           @update:model-value="onVersionInput"
         />
         <el-tooltip v-if="versionEvidence" :content="versionEvidence" placement="top">
-          <span class="artifact-review__evidence">{{ versionEvidence }}</span>
+          <span class="proposal-review__evidence">{{ versionEvidence }}</span>
         </el-tooltip>
         <el-tooltip :content="versionHint" placement="top">
-          <el-icon class="artifact-review__version-info"><InfoFilled /></el-icon>
+          <el-icon class="proposal-review__version-info"><InfoFilled /></el-icon>
         </el-tooltip>
       </div>
     </header>
@@ -236,19 +236,19 @@ const allRejected = computed(
       :title="`新条目将继承原条目版本${versionTouched && versionValue.trim() ? `（当前值：${versionValue.trim()}）` : ''}、原条目将归档`"
       show-icon
       :closable="false"
-      class="artifact-review__hint"
+      class="proposal-review__hint"
     />
 
-    <div v-if="allRejected" class="artifact-review__body">
+    <div v-if="allRejected" class="proposal-review__body">
       <el-empty description="已全部驳回，未创建任何数据" :image-size="80">
         <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
       </el-empty>
     </div>
 
-    <div v-else class="artifact-review__body">
-      <!-- 产物清单：选择态与编辑态存组件本地，来源页往返不丢失（状态管理 5） -->
-      <div class="artifact-review__list">
-        <div class="artifact-review__list-head">
+    <div v-else class="proposal-review__body">
+      <!-- 提案清单：选择态与编辑态存组件本地，来源页往返不丢失（状态管理 5） -->
+      <div class="proposal-review__list">
+        <div class="proposal-review__list-head">
           <el-checkbox
             :model-value="allSelected"
             :indeterminate="selectedCount > 0 && !allSelected"
@@ -257,17 +257,17 @@ const allRejected = computed(
           >
             全选
           </el-checkbox>
-          <span class="artifact-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
+          <span class="proposal-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
         </div>
 
         <el-checkbox-group v-model="selectedKeys" :disabled="!canConfirm">
           <div
             v-for="row in rows"
             :key="row.key"
-            class="artifact-review__row"
+            class="proposal-review__row"
             :class="{
-              'artifact-review__row--active': activeKey === row.key,
-              'artifact-review__row--handled': row.confirmStatus !== 'pending',
+              'proposal-review__row--active': activeKey === row.key,
+              'proposal-review__row--handled': row.confirmStatus !== 'pending',
             }"
             @click="select(row.key)"
           >
@@ -277,22 +277,22 @@ const allRejected = computed(
               @click.stop
               @change="toggle(row.key, $event as boolean)"
             />
-            <div class="artifact-review__row-main">
-              <div class="artifact-review__row-title">
-                <span class="artifact-review__kind">{{ row.kindLabel }}</span>
-                <span class="artifact-review__name">{{ row.title || row.key }}</span>
+            <div class="proposal-review__row-main">
+              <div class="proposal-review__row-title">
+                <span class="proposal-review__kind">{{ row.kindLabel }}</span>
+                <span class="proposal-review__name">{{ row.title || row.key }}</span>
                 <el-tag :type="row.confirmMeta.tagType" size="small" effect="light">
                   {{ row.confirmMeta.label }}
                 </el-tag>
               </div>
-              <div class="artifact-review__row-meta">
+              <div class="proposal-review__row-meta">
                 <span v-if="moduleNameOf(row.content.moduleId)">
                   模块：{{ moduleNameOf(row.content.moduleId) }}
                 </span>
                 <span v-if="row.content.sourceRef">来源：{{ row.content.sourceRef }}</span>
               </div>
             </div>
-            <div v-if="canConfirm && row.confirmStatus === 'pending'" class="artifact-review__row-actions" @click.stop>
+            <div v-if="canConfirm && row.confirmStatus === 'pending'" class="proposal-review__row-actions" @click.stop>
               <el-button link type="primary" @click="select(row.key); adoptActive()">采纳</el-button>
               <el-button link type="primary" @click="select(row.key); openEdit()">修改后采纳</el-button>
               <el-button link type="danger" @click="openReject(row.key)">驳回</el-button>
@@ -302,56 +302,56 @@ const allRejected = computed(
 
         <el-empty
           v-if="rows.length === 0"
-          description="产物为空（解析未产出建议）"
+          description="提案为空（执行未产出建议）"
           :image-size="80"
         >
           <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
         </el-empty>
       </div>
 
-      <!-- 内容预览：只读渲染当前选中产物 -->
-      <aside class="artifact-review__preview">
+      <!-- 内容预览：只读渲染当前选中提案 -->
+      <aside class="proposal-review__preview">
         <template v-if="activeRow">
-          <div v-loading="loadingContent" class="artifact-review__preview-body">
-            <h3 class="artifact-review__preview-title">{{ activeRow.title || activeRow.key }}</h3>
-            <dl class="artifact-review__fields">
-              <div v-if="moduleNameOf(activeRow.content.moduleId)" class="artifact-review__field">
+          <div v-loading="loadingContent" class="proposal-review__preview-body">
+            <h3 class="proposal-review__preview-title">{{ activeRow.title || activeRow.key }}</h3>
+            <dl class="proposal-review__fields">
+              <div v-if="moduleNameOf(activeRow.content.moduleId)" class="proposal-review__field">
                 <dt>所属模块</dt>
                 <dd>{{ moduleNameOf(activeRow.content.moduleId) }}</dd>
               </div>
-              <div v-if="activeRow.content.priority" class="artifact-review__field">
+              <div v-if="activeRow.content.priority" class="proposal-review__field">
                 <dt>优先级</dt>
                 <dd>{{ activeRow.content.priority }}</dd>
               </div>
-              <div v-if="activeRow.content.sourceRef" class="artifact-review__field">
+              <div v-if="activeRow.content.sourceRef" class="proposal-review__field">
                 <dt>来源引用</dt>
                 <dd>{{ activeRow.content.sourceRef }}</dd>
               </div>
             </dl>
-            <div class="artifact-review__desc">
+            <div class="proposal-review__desc">
               <p
                 v-if="activeRow.content.description"
-                class="artifact-review__desc-text"
+                class="proposal-review__desc-text"
               >{{ activeRow.content.description }}</p>
-              <p v-else class="artifact-review__desc-empty">该产物未提供描述</p>
+              <p v-else class="proposal-review__desc-empty">该提案未提供描述</p>
             </div>
           </div>
-          <div v-if="canConfirm && activeRow.confirmStatus === 'pending'" class="artifact-review__preview-actions">
+          <div v-if="canConfirm && activeRow.confirmStatus === 'pending'" class="proposal-review__preview-actions">
             <el-button type="primary" :loading="confirming" @click="adoptActive">采纳</el-button>
             <el-button :loading="confirming" @click="openEdit">修改后采纳</el-button>
             <el-button type="danger" plain :loading="confirming" @click="openReject(activeRow.key)">
               驳回（可附反馈）
             </el-button>
           </div>
-          <p v-else-if="!canConfirm" class="artifact-review__readonly">当前账号无产物确认权限，仅可预览</p>
+          <p v-else-if="!canConfirm" class="proposal-review__readonly">当前账号无提案确认权限，仅可预览</p>
         </template>
-        <el-empty v-else description="选择左侧产物查看详情" :image-size="80" />
+        <el-empty v-else description="选择左侧提案查看详情" :image-size="80" />
       </aside>
     </div>
 
     <!-- 底部批量操作 -->
-    <footer v-if="canConfirm && rows.length > 0" class="artifact-review__foot">
-      <div class="artifact-review__foot-actions">
+    <footer v-if="canConfirm && rows.length > 0" class="proposal-review__foot">
+      <div class="proposal-review__foot-actions">
         <el-button type="primary" :disabled="!canBatch" :loading="confirming" @click="batchAdopt">
           批量采纳
         </el-button>
@@ -359,7 +359,7 @@ const allRejected = computed(
           全部驳回
         </el-button>
       </div>
-      <span class="artifact-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
+      <span class="proposal-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
     </footer>
 
     <!-- 逐项回执：失败项可单项重试（交互 2.3 回执） -->
@@ -385,7 +385,7 @@ const allRejected = computed(
             placeholder="可选，支持纯文本描述"
           />
         </el-form-item>
-        <div class="artifact-review__edit-row">
+        <div class="proposal-review__edit-row">
           <el-form-item label="所属模块">
             <el-tree-select
               v-model="editForm.moduleId"
@@ -412,7 +412,7 @@ const allRejected = computed(
     </el-dialog>
 
     <!-- 驳回反馈 -->
-    <el-dialog v-model="rejectVisible" title="驳回产物" width="480px" :close-on-click-modal="false">
+    <el-dialog v-model="rejectVisible" title="驳回提案" width="480px" :close-on-click-modal="false">
       <el-input
         v-model="rejectNote"
         type="textarea"
@@ -430,14 +430,14 @@ const allRejected = computed(
 </template>
 
 <style scoped lang="scss">
-.artifact-review {
+.proposal-review {
   padding: var(--space-md);
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
 }
 
-.artifact-review__head {
+.proposal-review__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -446,43 +446,43 @@ const allRejected = computed(
   margin-bottom: var(--space-md);
 }
 
-.artifact-review__head-main {
+.proposal-review__head-main {
   display: flex;
   align-items: baseline;
   gap: var(--space-sm);
 }
 
-.artifact-review__title {
+.proposal-review__title {
   margin: 0;
   color: var(--color-neutral-900);
   font-size: var(--font-size-lg);
   font-weight: 650;
 }
 
-.artifact-review__processed,
-.artifact-review__count {
+.proposal-review__processed,
+.proposal-review__count {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
 }
 
-.artifact-review__version {
+.proposal-review__version {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
 }
 
-.artifact-review__version-label {
+.proposal-review__version-label {
   color: var(--color-neutral-700);
   font-size: var(--font-size-sm);
 }
 
-.artifact-review__version-info {
+.proposal-review__version-info {
   color: var(--color-neutral-400);
   cursor: help;
 }
 
 /* 识别依据引语过长时截断展示，全文走悬浮提示 */
-.artifact-review__evidence {
+.proposal-review__evidence {
   max-width: 240px;
   overflow: hidden;
   color: var(--color-neutral-500);
@@ -492,21 +492,21 @@ const allRejected = computed(
   white-space: nowrap;
 }
 
-.artifact-review__hint {
+.proposal-review__hint {
   margin-bottom: var(--space-md);
 }
 
-.artifact-review__body {
+.proposal-review__body {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: var(--space-md);
 }
 
-.artifact-review__list {
+.proposal-review__list {
   min-width: 0;
 }
 
-.artifact-review__list-head {
+.proposal-review__list-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -515,7 +515,7 @@ const allRejected = computed(
   border-bottom: 1px solid var(--color-neutral-200);
 }
 
-.artifact-review__row {
+.proposal-review__row {
   display: flex;
   align-items: flex-start;
   gap: var(--space-sm);
@@ -524,38 +524,38 @@ const allRejected = computed(
   cursor: pointer;
 }
 
-.artifact-review__row--active {
+.proposal-review__row--active {
   background: var(--color-primary-50, var(--color-neutral-50));
 }
 
-.artifact-review__row--handled {
+.proposal-review__row--handled {
   opacity: 0.75;
 }
 
-.artifact-review__row-main {
+.proposal-review__row-main {
   flex: 1;
   min-width: 0;
 }
 
-.artifact-review__row-title {
+.proposal-review__row-title {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-xs);
 }
 
-.artifact-review__kind {
+.proposal-review__kind {
   color: var(--color-neutral-500);
   font-size: var(--font-size-xs);
 }
 
-.artifact-review__name {
+.proposal-review__name {
   color: var(--color-neutral-900);
   font-size: var(--font-size-sm);
   font-weight: 550;
 }
 
-.artifact-review__row-meta {
+.proposal-review__row-meta {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
@@ -564,13 +564,13 @@ const allRejected = computed(
   font-size: var(--font-size-xs);
 }
 
-.artifact-review__row-actions {
+.proposal-review__row-actions {
   display: flex;
   flex-shrink: 0;
   gap: var(--space-xxs, 2px);
 }
 
-.artifact-review__preview {
+.proposal-review__preview {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -580,40 +580,40 @@ const allRejected = computed(
   border-radius: var(--radius-md);
 }
 
-.artifact-review__preview-body {
+.proposal-review__preview-body {
   flex: 1;
   min-height: 160px;
 }
 
-.artifact-review__preview-title {
+.proposal-review__preview-title {
   margin: 0 0 var(--space-sm);
   color: var(--color-neutral-900);
   font-size: var(--font-size-md);
   font-weight: 600;
 }
 
-.artifact-review__fields {
+.proposal-review__fields {
   margin: 0 0 var(--space-sm);
 }
 
-.artifact-review__field {
+.proposal-review__field {
   display: flex;
   gap: var(--space-sm);
   margin-bottom: var(--space-xxs, 2px);
   font-size: var(--font-size-sm);
 }
 
-.artifact-review__field dt {
+.proposal-review__field dt {
   flex-shrink: 0;
   color: var(--color-neutral-500);
 }
 
-.artifact-review__field dd {
+.proposal-review__field dd {
   margin: 0;
   color: var(--color-neutral-700);
 }
 
-.artifact-review__desc-text {
+.proposal-review__desc-text {
   margin: 0;
   color: var(--color-neutral-700);
   font-size: var(--font-size-sm);
@@ -621,13 +621,13 @@ const allRejected = computed(
   white-space: pre-wrap;
 }
 
-.artifact-review__desc-empty {
+.proposal-review__desc-empty {
   margin: 0;
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
 }
 
-.artifact-review__preview-actions {
+.proposal-review__preview-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
@@ -636,13 +636,13 @@ const allRejected = computed(
   border-top: 1px solid var(--color-neutral-200);
 }
 
-.artifact-review__readonly {
+.proposal-review__readonly {
   margin: var(--space-sm) 0 0;
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
 }
 
-.artifact-review__foot {
+.proposal-review__foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -653,12 +653,12 @@ const allRejected = computed(
   border-top: 1px solid var(--color-neutral-200);
 }
 
-.artifact-review__foot-actions {
+.proposal-review__foot-actions {
   display: flex;
   gap: var(--space-sm);
 }
 
-.artifact-review__edit-row {
+.proposal-review__edit-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-sm);

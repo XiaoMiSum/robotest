@@ -1,27 +1,27 @@
 import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { confirmAiArtifacts, fetchAiArtifact } from '@/services/ai'
+import { confirmAiProposals, fetchAiProposal } from '@/services/ai'
 import { fetchProjectModuleTree } from '@/services/project'
 import type {
-  AiArtifactAction,
-  AiArtifactConfirmItem,
-  AiArtifactConfirmResult,
-  AiArtifactConfirmTarget,
-  AiArtifactSourceRef,
-  AiArtifactSummary,
   AiCaseAttributes,
+  AiProposalAction,
+  AiProposalConfirmItem,
+  AiProposalConfirmResult,
+  AiProposalConfirmTarget,
+  AiProposalSourceRef,
+  AiTaskProposalSummary,
   ProjectModule,
 } from '@/types'
 import {
-  aiArtifactConfirmMeta,
-  aiArtifactKindLabel,
-  aiArtifactProcessed,
+  aiProposalConfirmMeta,
+  aiProposalKindLabel,
+  aiProposalProcessed,
 } from '@/composables/project/ai/taskPresentation'
 
 /** 单次确认上限（详设 3.6.5 items @Size(max=200)），超限按父先子序分批顺序提交 */
 const CONFIRM_MAX_ITEMS = 200
 const NOTE_MAX_LENGTH = 500
-/** 预取产物内容的并发上限，避免长产物树打爆同域连接 */
+/** 预取提案内容的并发上限，避免长提案树打爆同域连接 */
 const PRELOAD_CONCURRENCY = 6
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -57,9 +57,9 @@ function readAttributes(raw: unknown): AiCaseAttributes {
   }
 }
 
-function readSourceRefs(raw: unknown): AiArtifactSourceRef[] {
+function readSourceRefs(raw: unknown): AiProposalSourceRef[] {
   if (!Array.isArray(raw)) return []
-  const refs: AiArtifactSourceRef[] = []
+  const refs: AiProposalSourceRef[] = []
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) continue
     const source = item as Record<string, unknown>
@@ -72,8 +72,8 @@ function readSourceRefs(raw: unknown): AiArtifactSourceRef[] {
   return refs
 }
 
-/** 产物内容（getArtifact 返回结构不定型，按需取字段，缺省回退 summary） */
-export interface AiArtifactContent {
+/** 提案内容（提案详情 content 结构不定型，按需取字段，缺省回退摘要标题） */
+export interface AiProposalContent {
   title: string
   description: string
   moduleId: string
@@ -86,12 +86,12 @@ export interface AiArtifactContent {
   /** 生成链：用例属性（非用例节点为默认空值） */
   attributes: AiCaseAttributes
   /** 生成链：来源需求引用（含回读比对的 changed 标注） */
-  sourceRefs: AiArtifactSourceRef[]
+  sourceRefs: AiProposalSourceRef[]
   /** 生成链：疑似重复指向的既有资源 ID，非空时仅改名后可采纳 */
   suspectedDuplicateOf: string
 }
 
-const EMPTY_CONTENT: AiArtifactContent = {
+const EMPTY_CONTENT: AiProposalContent = {
   title: '',
   description: '',
   moduleId: '',
@@ -104,14 +104,16 @@ const EMPTY_CONTENT: AiArtifactContent = {
   suspectedDuplicateOf: '',
 }
 
-export interface ArtifactRow extends AiArtifactSummary {
+/** 审核行：提案摘要 + 派生展示字段与已加载内容 */
+export interface ProposalRow extends AiTaskProposalSummary {
   /** 派生展示字段 */
   kindLabel: string
-  confirmMeta: ReturnType<typeof aiArtifactConfirmMeta>
-  content: AiArtifactContent
+  confirmMeta: ReturnType<typeof aiProposalConfirmMeta>
+  content: AiProposalContent
   contentLoaded: boolean
 }
 
+/** 逐项回执行（AiConfirmReceipt 展示与单项重试载荷，非任务重试） */
 export interface ConfirmItemResult {
   key: string
   title: string
@@ -123,13 +125,13 @@ export interface ConfirmItemResult {
   createdId: string | null
 }
 
-export function useAiArtifactReview(
+export function useAiProposalReview(
   taskId: string,
-  artifacts: () => AiArtifactSummary[],
+  proposals: () => AiTaskProposalSummary[],
   canConfirm: () => boolean,
   onConfirmed: () => void,
 ) {
-  const rows = ref<ArtifactRow[]>([])
+  const rows = ref<ProposalRow[]>([])
   const selectedKeys = ref<string[]>([])
   const activeKey = ref('')
   const loadingContent = ref(false)
@@ -138,7 +140,7 @@ export function useAiArtifactReview(
   const receipt = ref<ConfirmItemResult[]>([])
 
   /** 已处理 N / 共 M（交互 2.3 头部） */
-  const processed = computed(() => aiArtifactProcessed(rows.value))
+  const processed = computed(() => aiProposalProcessed(rows.value))
 
   const activeRow = computed(
     () => rows.value.find((row) => row.key === activeKey.value) ?? null,
@@ -155,13 +157,13 @@ export function useAiArtifactReview(
   )
 
   function syncRows(): void {
-    const incoming = artifacts()
-    rows.value = incoming.map((artifact) => {
-      const existing = rows.value.find((row) => row.key === artifact.key)
+    const incoming = proposals()
+    rows.value = incoming.map((proposal) => {
+      const existing = rows.value.find((row) => row.key === proposal.key)
       return {
-        ...artifact,
-        kindLabel: aiArtifactKindLabel(artifact.kind),
-        confirmMeta: aiArtifactConfirmMeta(artifact.confirmStatus),
+        ...proposal,
+        kindLabel: aiProposalKindLabel(proposal.kind),
+        confirmMeta: aiProposalConfirmMeta(proposal.confirmStatus),
         content: existing?.content ?? { ...EMPTY_CONTENT },
         contentLoaded: existing?.contentLoaded ?? false,
       }
@@ -176,20 +178,20 @@ export function useAiArtifactReview(
   }
 
   // ==================== 内容加载 ====================
-  async function loadContent(row: ArtifactRow): Promise<void> {
+  async function loadContent(row: ProposalRow): Promise<void> {
     if (row.contentLoaded) return
     loadingContent.value = true
     try {
-      const data = await fetchAiArtifact(taskId, row.key)
-      const raw = (data['content'] ?? {}) as Record<string, unknown>
+      const payload = await fetchAiProposal(taskId, row.key)
+      const raw = payload.content ?? {}
       const attributes = readAttributes(raw['attributes'])
       row.content = {
-        // 模块 / 文档用 name、用例用 title（生成链 3.3），缺省回退 summary 标题
+        // 模块 / 文档用 name、用例用 title（生成链 3.3），缺省回退摘要标题
         title: readString(raw, 'title') || readString(raw, 'name') || row.title || '',
         description: readString(raw, 'description'),
         moduleId: readString(raw, 'moduleId'),
         priority: readString(raw, 'priority') || attributes.priority,
-        sourceRef: typeof data['sourceRef'] === 'string' ? data['sourceRef'] : '',
+        sourceRef: readString(raw, 'sourceRef'),
         isTestCase: raw['isTestCase'] === true,
         parentRef: readString(raw, 'parentRef'),
         attributes,
@@ -199,7 +201,7 @@ export function useAiArtifactReview(
       row.contentLoaded = true
     } catch (err) {
       // 内容加载失败保留只读占位，不阻塞其余动作
-      ElMessage.error(errorMessage(err, '加载产物内容失败'))
+      ElMessage.error(errorMessage(err, '加载提案内容失败'))
     } finally {
       loadingContent.value = false
     }
@@ -229,19 +231,19 @@ export function useAiArtifactReview(
    * 依赖父先子序，前序批次落库后后续批次才能通过父级校验，1000018210）。
    */
   async function submitItems(
-    items: AiArtifactConfirmItem[],
-    target?: AiArtifactConfirmTarget,
+    items: AiProposalConfirmItem[],
+    target?: AiProposalConfirmTarget,
   ): Promise<void> {
     if (items.length === 0) {
-      ElMessage.warning('请先选择要处理的产物')
+      ElMessage.warning('请先选择要处理的提案')
       return
     }
     confirming.value = true
     try {
-      const results: AiArtifactConfirmResult[] = []
+      const results: AiProposalConfirmResult[] = []
       for (let start = 0; start < items.length; start += CONFIRM_MAX_ITEMS) {
         const chunk = items.slice(start, start + CONFIRM_MAX_ITEMS)
-        const resp = await confirmAiArtifacts(taskId, { items: chunk, target })
+        const resp = await confirmAiProposals(taskId, { items: chunk, target })
         results.push(...resp.results)
       }
       receipt.value = renderReceipt(results, items)
@@ -253,18 +255,18 @@ export function useAiArtifactReview(
             : '确认完成',
         )
       }
-      // 服务端确认状态覆盖本地缓存，刷新产物清单（状态管理 4）
+      // 服务端确认状态覆盖本地缓存，刷新提案清单（状态管理 4）
       onConfirmed()
     } catch (err) {
-      ElMessage.error(errorMessage(err, '确认产物失败'))
+      ElMessage.error(errorMessage(err, '确认提案失败'))
     } finally {
       confirming.value = false
     }
   }
 
   function renderReceipt(
-    results: AiArtifactConfirmResult[],
-    items: AiArtifactConfirmItem[],
+    results: AiProposalConfirmResult[],
+    items: AiProposalConfirmItem[],
   ): ConfirmItemResult[] {
     return results.map((result) => {
       const request = items.find((item) => item.key === result.key)
@@ -281,33 +283,33 @@ export function useAiArtifactReview(
     })
   }
 
-  function itemsFor(keys: string[], action: AiArtifactAction): AiArtifactConfirmItem[] {
+  function itemsFor(keys: string[], action: AiProposalAction): AiProposalConfirmItem[] {
     return keys.map((key) => ({ key, action }))
   }
 
-  function handleAdopt(row: ArtifactRow, target?: AiArtifactConfirmTarget): Promise<void> {
+  function handleAdopt(row: ProposalRow, target?: AiProposalConfirmTarget): Promise<void> {
     return submitItems(itemsFor([row.key], 'adopted'), target)
   }
 
   function handleReject(
-    row: ArtifactRow,
+    row: ProposalRow,
     note: string | undefined,
-    target?: AiArtifactConfirmTarget,
+    target?: AiProposalConfirmTarget,
   ): Promise<void> {
-    const item: AiArtifactConfirmItem = { key: row.key, action: 'rejected' }
+    const item: AiProposalConfirmItem = { key: row.key, action: 'rejected' }
     if (note && note.trim()) item.note = note.trim()
     return submitItems([item], target)
   }
 
-  function handleBatchAdopt(target?: AiArtifactConfirmTarget): Promise<void> {
+  function handleBatchAdopt(target?: AiProposalConfirmTarget): Promise<void> {
     return submitItems(itemsFor(selectedKeys.value, 'adopted'), target)
   }
 
-  /** 编辑后采纳：content 覆盖产物原内容（详设 3.6.5 adopted_edited） */
+  /** 编辑后采纳：content 覆盖提案原内容（详设 3.6.5 adopted_edited） */
   function handleAdoptEdited(
-    row: ArtifactRow,
+    row: ProposalRow,
     content: { title: string; description: string; moduleId: string; priority: string },
-    target?: AiArtifactConfirmTarget,
+    target?: AiProposalConfirmTarget,
   ): Promise<void> {
     const payload: Record<string, unknown> = {}
     if (content.title.trim()) payload['title'] = content.title.trim()
@@ -317,10 +319,10 @@ export function useAiArtifactReview(
     return submitItems([{ key: row.key, action: 'adopted_edited', content: payload }], target)
   }
 
-  async function handleBatchReject(target?: AiArtifactConfirmTarget): Promise<void> {
+  async function handleBatchReject(target?: AiProposalConfirmTarget): Promise<void> {
     try {
       await ElMessageBox.confirm(
-        `将驳回所选 ${selectedKeys.value.length} 条产物，不创建任何数据。`,
+        `将驳回所选 ${selectedKeys.value.length} 条提案，不创建任何数据。`,
         '批量驳回',
         { type: 'warning', confirmButtonText: '全部驳回', cancelButtonText: '取消' },
       )
@@ -330,9 +332,9 @@ export function useAiArtifactReview(
     await submitItems(itemsFor(selectedKeys.value, 'rejected'), target)
   }
 
-  /** 回执失败项单项重试（交互 2.3 回执） */
+  /** 回执失败项单项重试（交互 2.3 回执，重试的是采纳动作而非任务） */
   function retryResult(result: ConfirmItemResult): Promise<void> {
-    const item = result.action as AiArtifactAction
+    const item = result.action as AiProposalAction
     return submitItems([{ key: result.key, action: item }])
   }
 
@@ -349,7 +351,7 @@ export function useAiArtifactReview(
     }
   }
 
-  /** 并发预取未确认产物内容：生成链树需要行内展示属性徽标与来源警示 */
+  /** 并发预取未确认提案内容：生成链树需要行内展示属性徽标与来源警示 */
   async function preloadContents(): Promise<void> {
     const targets = rows.value.filter(
       (row) => row.confirmStatus === 'pending' && !row.contentLoaded,

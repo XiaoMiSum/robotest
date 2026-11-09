@@ -21,32 +21,31 @@ const {
   aiStatusLoaded,
   canViewTasks,
   canManageTasks,
-  isPending,
   retry,
   search,
   resetFilters,
   refresh,
   changePage,
   changePageSize,
-  handleCancel,
-  handleRetry,
+  handleAbort,
+  handleReExecute,
 } = useAiTaskCenter()
 
 const typeOptions = aiTaskTypeOptions()
 
+/** 状态筛选四态（交互 2.1.2，取值与总册 2.6.1 一致） */
 const statusOptions = [
-  { value: 'pending', label: '排队' },
-  { value: 'running', label: '进行中' },
-  { value: 'succeeded', label: '成功' },
-  { value: 'failed', label: '失败' },
-  { value: 'cancelled', label: '已取消' },
+  { value: 'running', label: '执行中' },
+  { value: 'proposals_ready', label: '待采纳' },
+  { value: 'closed', label: '已结束' },
+  { value: 'aborted', label: '已终止' },
 ]
 
 function openDetail(taskId: string): void {
   void router.push(`/workspace/projects/ai/tasks/${taskId}`)
 }
 
-/** succeeded 且有产物：跳详情并定位审核区（交互 2.1.2） */
+/** proposals_ready：跳详情并定位审核区（交互 2.1.2） */
 function openReview(taskId: string): void {
   void router.push({ path: `/workspace/projects/ai/tasks/${taskId}`, query: { review: '1' } })
 }
@@ -62,7 +61,7 @@ function asRow(row: unknown): AiTaskRow {
     <header class="page-head">
       <div>
         <h1 class="page-head__title">AI 任务中心</h1>
-        <p class="page-head__desc">项目内全部 AI 任务的统一入口，跟踪进度并审核产物</p>
+        <p class="page-head__desc">项目内全部 AI 任务的统一入口，跟踪执行过程并审核提案</p>
       </div>
       <div class="page-head__actions">
         <el-button @click="refresh">
@@ -156,9 +155,10 @@ function asRow(row: unknown): AiTaskRow {
             </el-table-column>
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
+                <!-- 已终止悬浮终止原因（交互 2.1.2），标签同时带文字不单靠颜色表意 -->
                 <el-tooltip
-                  v-if="row.status === 'failed' && row.errorMessage"
-                  :content="row.errorMessage"
+                  v-if="row.status === 'aborted' && row.terminateText"
+                  :content="row.terminateText"
                   placement="top"
                 >
                   <el-tag :type="row.statusMeta.tagType" size="small" effect="light">
@@ -170,28 +170,19 @@ function asRow(row: unknown): AiTaskRow {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="进度 / 阶段" min-width="200">
+            <el-table-column label="执行摘要" min-width="200">
               <template #default="{ row }">
-                <div v-if="row.status === 'pending'" class="task-progress__pending">
-                  <el-icon class="is-loading"><Loading /></el-icon>
-                  <span>排队中</span>
-                </div>
-                <div v-else-if="row.status === 'running'" class="task-progress__running">
+                <!-- 执行中：步数进度条 + 步数与最近动作；其余态给摘要文案（交互 2.1.2） -->
+                <div v-if="row.summary.stepPercent !== null" class="task-summary">
                   <el-progress
-                    :percentage="row.progress ?? 0"
+                    :percentage="row.summary.stepPercent"
                     :stroke-width="8"
                     :show-text="false"
-                    class="task-progress__bar"
+                    class="task-summary__bar"
                   />
-                  <span class="task-progress__phase">{{ row.phase || '执行中' }}</span>
+                  <span class="task-summary__text">{{ row.summary.text }}</span>
                 </div>
-                <span v-else-if="row.status === 'failed'" class="task-progress__failed">
-                  {{ row.errorMessage || '任务失败' }}
-                </span>
-                <span v-else-if="row.status === 'succeeded'" class="task-progress__muted">
-                  已完成
-                </span>
-                <span v-else class="task-progress__muted">—</span>
+                <span v-else class="task-summary__muted">{{ row.summary.text }}</span>
               </template>
             </el-table-column>
             <el-table-column label="发起人" width="110" show-overflow-tooltip>
@@ -204,20 +195,20 @@ function asRow(row: unknown): AiTaskRow {
               <template #default="{ row }">
                 <el-button link type="primary" @click="openDetail(asRow(row).taskId)">详情</el-button>
                 <el-button
-                  v-if="canManageTasks && isPending(asRow(row))"
+                  v-if="canManageTasks && asRow(row).canAbort"
                   link
                   type="warning"
-                  @click="handleCancel(asRow(row))"
-                >取消</el-button>
+                  @click="handleAbort(asRow(row))"
+                >终止</el-button>
                 <el-button
-                  v-if="canManageTasks && row.status === 'failed'"
+                  v-if="canManageTasks && asRow(row).canReExecute"
                   link
                   type="primary"
-                  @click="handleRetry(asRow(row))"
-                >重试</el-button>
-                <!-- 列表项不含产物清单（详设 3.6.3），成功态给出审核入口，详情页按真实产物渲染 -->
+                  @click="handleReExecute(asRow(row))"
+                >再次执行</el-button>
+                <!-- 列表项不含提案清单（详设 3.6.3），待采纳态给出审核入口，详情页按真实提案渲染 -->
                 <el-button
-                  v-if="row.status === 'succeeded'"
+                  v-if="asRow(row).canReview"
                   link
                   type="success"
                   @click="openReview(row.taskId)"
@@ -313,38 +304,24 @@ function asRow(row: unknown): AiTaskRow {
   margin-bottom: var(--space-md);
 }
 
-.task-progress__pending {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--color-info, var(--color-neutral-500));
-  font-size: var(--font-size-sm);
-}
-
-.task-progress__running {
+.task-summary {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
 }
 
-.task-progress__bar {
+.task-summary__bar {
   flex: 1;
   min-width: 90px;
 }
 
-.task-progress__phase {
+.task-summary__text {
   flex-shrink: 0;
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
 }
 
-// 失败原因给警示色，且徽标同时带文字（视觉 4.1，不单靠颜色表意）
-.task-progress__failed {
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
-}
-
-.task-progress__muted {
+.task-summary__muted {
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
 }

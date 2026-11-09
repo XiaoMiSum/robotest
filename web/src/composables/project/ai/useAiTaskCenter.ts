@@ -1,14 +1,16 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { cancelAiTask, fetchAiStatus, fetchAiTasks, retryAiTask } from '@/services/ai'
+import { abortAiExecution, fetchAiStatus, fetchAiTasks, reExecuteAiTask } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
 import { useAuthStore } from '@/stores/auth'
 import { useAiTaskStore } from '@/stores/aiTask'
 import type { AiTaskItem, AiTaskStatus } from '@/types'
 import {
+  aiExecutionSummary,
   aiTaskName,
   aiTaskStatusMeta,
   aiTaskTypeMeta,
+  type AiExecutionSummary,
   type AiTaskStatusMeta,
   type AiTaskTypeMeta,
 } from '@/composables/project/ai/taskPresentation'
@@ -20,12 +22,20 @@ export interface AiTaskRow {
   typeMeta: AiTaskTypeMeta
   statusMeta: AiTaskStatusMeta
   status: AiTaskStatus
-  progress: number | null
-  phase: string | null
+  /** 执行摘要：步数与最近动作 / 终止原因摘要（交互 2.1.2） */
+  summary: AiExecutionSummary
   submitterText: string
   createdAt: string
-  errorMessage: string
-  retryOfTaskId: string | null
+  /** 最新执行 ID（终止端点路径参数），无执行为 null */
+  executionId: string | null
+  /** 可终止：最新执行处于 running / waiting_confirmation（详设 3.6.4） */
+  canAbort: boolean
+  /** 可再次执行：任务已终止（交互 2.1.2 行操作） */
+  canReExecute: boolean
+  /** 可进入审核：proposals_ready（跳详情定位审核区） */
+  canReview: boolean
+  /** 悬浮终止原因文案（aborted 展示） */
+  terminateText: string
 }
 
 const PAGE_SIZES = [20, 50, 100]
@@ -88,20 +98,28 @@ export function useAiTaskCenter() {
 
   function toRow(item: AiTaskItem): AiTaskRow {
     const memberName = item.submittedBy ? memberMap.value.get(item.submittedBy) : undefined
+    const execution = item.latestExecution
+    const abortable =
+      execution?.status === 'running' || execution?.status === 'waiting_confirmation'
     return {
       taskId: item.taskId,
       name: aiTaskName(item),
       typeMeta: aiTaskTypeMeta(item.type),
-      statusMeta: aiTaskStatusMeta(item.status),
+      statusMeta: aiTaskStatusMeta(item.status, execution?.status),
       status: item.status,
-      progress: item.progress,
-      phase: item.phase,
+      summary: aiExecutionSummary(item),
       submitterText: item.submittedBy
         ? (memberName ?? shortId(item.submittedBy))
         : '系统',
       createdAt: item.createdAt,
-      errorMessage: item.error?.msg ?? '',
-      retryOfTaskId: item.retryOfTaskId,
+      executionId: execution?.executionId ?? null,
+      canAbort: abortable,
+      canReExecute: item.status === 'aborted',
+      canReview: item.status === 'proposals_ready',
+      terminateText:
+        item.terminateReason?.msg
+        || execution?.terminateReason?.msg
+        || (item.status === 'aborted' ? '已终止' : ''),
     }
   }
 
@@ -168,55 +186,57 @@ export function useAiTaskCenter() {
   const pageSize = computed(() => aiTaskStore.pageSize)
 
   // ==================== 行操作 ====================
-  function isPending(row: AiTaskRow): boolean {
-    return row.status === 'pending' || row.status === 'running'
-  }
-
-  async function handleCancel(row: AiTaskRow): Promise<void> {
+  /** 终止执行（详设 3.6.4）：二次确认后中止最新执行，任务与执行置 aborted */
+  async function handleAbort(row: AiTaskRow): Promise<void> {
+    if (!row.executionId) return
     try {
       await ElMessageBox.confirm(
-        `取消后「${row.name}」不产生任何落库数据，可重新发起。`,
-        '确认取消任务',
-        { type: 'warning', confirmButtonText: '取消任务', cancelButtonText: '不取消' },
+        `终止后「${row.name}」停止执行，不产生任何落库数据，可再次执行。`,
+        '确认终止执行',
+        { type: 'warning', confirmButtonText: '终止执行', cancelButtonText: '不终止' },
       )
     } catch {
       return
     }
     try {
-      const updated = await cancelAiTask(row.taskId)
-      const target = rows.value.find((item) => item.taskId === row.taskId)
-      if (target) {
-        target.status = updated.status
-        target.statusMeta = aiTaskStatusMeta(updated.status)
-        target.progress = updated.progress
-        target.phase = updated.phase
-        target.errorMessage = updated.error?.msg ?? ''
+      const updated = await abortAiExecution(row.taskId, row.executionId)
+      const current = rows.value.find((item) => item.taskId === row.taskId)
+      if (current) {
+        const nextRow = toRow(updated)
+        current.status = nextRow.status
+        current.statusMeta = nextRow.statusMeta
+        current.summary = nextRow.summary
+        current.executionId = nextRow.executionId
+        current.canAbort = nextRow.canAbort
+        current.canReExecute = nextRow.canReExecute
+        current.canReview = nextRow.canReview
+        current.terminateText = nextRow.terminateText
       }
-      // 取消即出队：即时刷新顶栏进行中计数，不等 15s 轮询（交互 07 §5）
+      // 终止即出队：即时刷新顶栏进行中计数，不等 15s 轮询（交互 07 §5）
       void aiTaskStore.refreshRunningCount()
-      ElMessage.success('任务已取消')
+      ElMessage.success('执行已终止')
     } catch (err) {
-      ElMessage.error(errorMessage(err, '取消任务失败'))
+      ElMessage.error(errorMessage(err, '终止执行失败'))
     }
   }
 
-  async function handleRetry(row: AiTaskRow): Promise<void> {
+  /** 再次执行（详设 3.6.4）：沿用同一任务新建执行实例，列表重取保持状态一致 */
+  async function handleReExecute(row: AiTaskRow): Promise<void> {
     try {
-      await retryAiTask(row.taskId)
-      ElMessage.success('已重新排队')
-      // 重试生成新任务并回到排队，列表重取保持状态一致
+      await reExecuteAiTask(row.taskId)
+      ElMessage.success('已发起再次执行')
       void load()
-      // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
+      // 新执行入队：即时刷新顶栏进行中计数（交互 07 §5）
       void aiTaskStore.refreshRunningCount()
     } catch (err) {
-      ElMessage.error(errorMessage(err, '重试任务失败'))
+      ElMessage.error(errorMessage(err, '再次执行失败'))
     }
   }
 
   // ==================== 权限与空态 ====================
   /** 任务中心入口按 ai:task 显隐，直达路由 403（交互 2.1.3） */
   const canViewTasks = computed(() => authStore.hasPermission('ai:task'))
-  /** 取消 / 重试需 ai:task（详设 3.6.6） */
+  /** 终止 / 再次执行需 ai:task（后端不校验，仅入口显隐） */
   const canManageTasks = canViewTasks
 
   onMounted(() => {
@@ -243,7 +263,6 @@ export function useAiTaskCenter() {
     aiStatusLoaded,
     canViewTasks,
     canManageTasks,
-    isPending,
     load,
     retry,
     search,
@@ -251,7 +270,7 @@ export function useAiTaskCenter() {
     refresh,
     changePage,
     changePageSize,
-    handleCancel,
-    handleRetry,
+    handleAbort,
+    handleReExecute,
   }
 }

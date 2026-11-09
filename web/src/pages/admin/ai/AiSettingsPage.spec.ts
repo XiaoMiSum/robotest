@@ -24,7 +24,7 @@ describe('AI 配置中心 · 壳层（交互 2.1）', () => {
     expect(shellSource).toContain('发起重建')
     expect(shellSource).toContain('aiTaskStore.startPolling(store.reindexTaskId)')
     expect(shellSource).toContain('isTerminalTaskStatus(cached.status)')
-    expect(shellSource).toContain("store.settleReindex(cached.error?.msg ?? '向量重建失败')")
+    expect(shellSource).toContain("store.settleReindex(cached.terminateReason?.msg ?? '向量重建失败')")
   })
 
   it('设置加载失败由页面捕获并可重试，首载完成前不渲染分组（防表单闪空值）', () => {

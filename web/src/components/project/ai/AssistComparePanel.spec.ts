@@ -5,7 +5,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import AssistComparePanel from './AssistComparePanel.vue'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
-import type { AiArtifactConfirmResult } from '@/types'
+import type { AiProposalConfirmResult } from '@/types'
 
 type PanelKind = 'case_complete' | 'case_priority'
 
@@ -312,7 +312,7 @@ describe('AssistComparePanel', () => {
     })
 
     it('逐项回执渲染成败并可清空', async () => {
-      const receipt: AiArtifactConfirmResult[] = [
+      const receipt: AiProposalConfirmResult[] = [
         {
           key: 'node-1',
           action: 'adopted',

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   fetchBugMetrics: vi.fn(),
   submitAiTask: vi.fn(),
   fetchAiTask: vi.fn(),
-  fetchAiArtifact: vi.fn(),
+  fetchAiProposal: vi.fn(),
 }))
 
 vi.mock('@/services/project', () => ({
@@ -18,7 +18,7 @@ vi.mock('@/services/project', () => ({
 vi.mock('@/services/ai', () => ({
   submitAiTask: mocks.submitAiTask,
   fetchAiTask: mocks.fetchAiTask,
-  fetchAiArtifact: mocks.fetchAiArtifact,
+  fetchAiProposal: mocks.fetchAiProposal,
 }))
 
 import { resetBugAnalysisSeq, useBugAnalysisStore } from './bugAnalysis'
@@ -45,16 +45,25 @@ function makeMetrics(): BugMetricsResp {
 function makeTask(overrides: Partial<AiTaskItem> = {}): AiTaskItem {
   return {
     taskId: 't1',
+    executionId: 'e1',
     type: 'bug_trend_summary',
-    status: 'succeeded',
-    progress: 100,
-    phase: null,
+    status: 'closed',
+    budget: { maxSteps: 10 },
+    latestExecution: {
+      executionId: 'e1',
+      seq: 1,
+      status: 'succeeded',
+      steps: 3,
+      budget: { maxSteps: 10 },
+      consumed: { durationMs: 0, tokensIn: 0, tokensOut: 0, cost: 0 },
+      plan: null,
+      terminateReason: null,
+    },
     submittedBy: null,
-    retryOfTaskId: null,
     tokensIn: null,
     tokensOut: null,
     createdAt: '2026-10-09T00:00:00Z',
-    error: null,
+    terminateReason: null,
     ...overrides,
   }
 }
@@ -62,9 +71,9 @@ function makeTask(overrides: Partial<AiTaskItem> = {}): AiTaskItem {
 function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
   return {
     ...makeTask(),
-    result: null,
+    resultMeta: null,
     documentMeta: null,
-    artifacts: null,
+    proposals: null,
     ...overrides,
   }
 }
@@ -130,7 +139,7 @@ describe('stores/bugAnalysis', () => {
   it('摘要同步快路径成功：取产物内容与引用', async () => {
     const store = useBugAnalysisStore()
     mocks.submitAiTask.mockResolvedValue(makeTask())
-    mocks.fetchAiArtifact.mockResolvedValue({
+    mocks.fetchAiProposal.mockResolvedValue({
       content: {
         text: '区间内新增 3 个缺陷，存量 5 个',
         citations: [{ type: 'bug', id: 'b1', title: '登录按钮无反应' }],
@@ -150,7 +159,7 @@ describe('stores/bugAnalysis', () => {
 
   it('摘要生成失败：落错误供卡片重试，标记范围指纹', async () => {
     const store = useBugAnalysisStore()
-    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'failed' }))
+    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'aborted' }))
 
     await store.generateSummary()
     expect(store.summaryError).toContain('失败')
@@ -160,7 +169,7 @@ describe('stores/bugAnalysis', () => {
   it('范围变化后摘要标记过期（stale）', async () => {
     const store = useBugAnalysisStore()
     mocks.submitAiTask.mockResolvedValue(makeTask())
-    mocks.fetchAiArtifact.mockResolvedValue({ content: { text: '摘要', citations: [] } })
+    mocks.fetchAiProposal.mockResolvedValue({ content: { text: '摘要', citations: [] } })
     await store.generateSummary()
     expect(store.summaryStale).toBe(false)
 
@@ -172,8 +181,8 @@ describe('stores/bugAnalysis', () => {
   it('摘要超时转轮询：轮到终态后停止计时器并取产物', async () => {
     const store = useBugAnalysisStore()
     mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
-    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'succeeded' }))
-    mocks.fetchAiArtifact.mockResolvedValue({ content: { text: 'ok', citations: [] } })
+    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'closed' }))
+    mocks.fetchAiProposal.mockResolvedValue({ content: { text: 'ok', citations: [] } })
 
     await store.generateSummary()
     expect(store.summaryRunning).toBe(true)
@@ -185,7 +194,7 @@ describe('stores/bugAnalysis', () => {
   it('分诊成功解析 items；空结果给降级提示', async () => {
     const store = useBugAnalysisStore()
     mocks.submitAiTask.mockResolvedValue(makeTask({ type: 'bug_triage' }))
-    mocks.fetchAiArtifact.mockResolvedValue({
+    mocks.fetchAiProposal.mockResolvedValue({
       content: {
         items: [{ bugId: 'b1', rank: 1, reason: '致命 + 存放 3 天' }],
         scope: 'active_unassigned',
@@ -197,7 +206,7 @@ describe('stores/bugAnalysis', () => {
     expect(store.triageError).toBe('')
 
     mocks.submitAiTask.mockResolvedValue(makeTask({ type: 'bug_triage' }))
-    mocks.fetchAiArtifact.mockResolvedValue({ content: { items: [], scope: 'active_unassigned' } })
+    mocks.fetchAiProposal.mockResolvedValue({ content: { items: [], scope: 'active_unassigned' } })
     await store.loadTriage()
     expect(store.triageError).toContain('没有需要分诊')
   })

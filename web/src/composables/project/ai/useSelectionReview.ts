@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchAiArtifact } from '@/services/ai'
+import { fetchAiProposal } from '@/services/ai'
 import { getCaseDetail } from '@/services/project'
 import type { SelectedCaseNode } from '@/types'
 
@@ -61,8 +61,8 @@ export function useSelectionReview(taskId: string) {
     loading.value = true
     loadFailed.value = false
     try {
-      const data = await fetchAiArtifact(taskId, 'sel-1')
-      const content = (data['content'] ?? {}) as Record<string, unknown>
+      const payload = await fetchAiProposal(taskId, 'sel-1')
+      const content = payload.content ?? {}
       const raw = content['items']
       const parsed: SelectionReviewItem[] = []
       if (Array.isArray(raw)) {

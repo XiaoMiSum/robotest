@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
-import type { AiArtifactSummary } from '@/types'
-import type { ArtifactRow } from '@/composables/project/ai/useAiArtifactReview'
+import type { AiTaskProposalSummary } from '@/types'
+import type { ProposalRow } from '@/composables/project/ai/useAiProposalReview'
 
 const mocks = vi.hoisted(() => ({
   ElMessage: { info: vi.fn(), warning: vi.fn(), success: vi.fn(), error: vi.fn() },
@@ -19,15 +19,15 @@ import {
   type GenerationReviewBase,
 } from './useGenerationArtifactTree'
 
-interface RowSeed extends Partial<ArtifactRow> {
+interface RowSeed extends Partial<ProposalRow> {
   key: string
   kind?: string
   title?: string
   parentKey?: string | null
 }
 
-function makeRow(seed: RowSeed): ArtifactRow {
-  const summary: AiArtifactSummary = {
+function makeRow(seed: RowSeed): ProposalRow {
+  const summary: AiTaskProposalSummary = {
     key: seed.key,
     kind: seed.kind ?? 'test_case_suggestion',
     title: seed.title ?? seed.key,

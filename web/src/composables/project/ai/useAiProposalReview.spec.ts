@@ -1,19 +1,19 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import type { AiArtifactSummary } from '@/types'
+import type { AiTaskProposalSummary } from '@/types'
 
 const mocks = vi.hoisted(() => ({
-  confirmAiArtifacts: vi.fn(),
-  fetchAiArtifact: vi.fn(),
+  confirmAiProposals: vi.fn(),
+  fetchAiProposal: vi.fn(),
   fetchProjectModuleTree: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn() },
 }))
 
 vi.mock('@/services/ai', () => ({
-  confirmAiArtifacts: mocks.confirmAiArtifacts,
-  fetchAiArtifact: mocks.fetchAiArtifact,
+  confirmAiProposals: mocks.confirmAiProposals,
+  fetchAiProposal: mocks.fetchAiProposal,
 }))
 
 vi.mock('@/services/project', () => ({
@@ -25,9 +25,9 @@ vi.mock('element-plus', () => ({
   ElMessageBox: mocks.ElMessageBox,
 }))
 
-import { useAiArtifactReview } from './useAiArtifactReview'
+import { useAiProposalReview } from './useAiProposalReview'
 
-function summary(overrides: Partial<AiArtifactSummary> = {}): AiArtifactSummary {
+function summary(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposalSummary {
   return {
     key: 'a1',
     kind: 'requirement_suggestion',
@@ -38,16 +38,16 @@ function summary(overrides: Partial<AiArtifactSummary> = {}): AiArtifactSummary 
   }
 }
 
-function setupArtifacts(
-  artifacts: AiArtifactSummary[],
+function setupProposals(
+  artifacts: AiTaskProposalSummary[],
   canConfirm = true,
   onConfirmed = vi.fn(),
-): ReturnType<typeof useAiArtifactReview> {
+): ReturnType<typeof useAiProposalReview> {
   setActivePinia(createPinia())
-  return useAiArtifactReview('t1', () => artifacts, () => canConfirm, onConfirmed)
+  return useAiProposalReview('t1', () => artifacts, () => canConfirm, onConfirmed)
 }
 
-describe('useAiArtifactReview', () => {
+describe('useAiProposalReview', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setActivePinia(createPinia())
@@ -61,7 +61,7 @@ describe('useAiArtifactReview', () => {
         children: [],
       },
     ])
-    mocks.confirmAiArtifacts.mockResolvedValue({
+    mocks.confirmAiProposals.mockResolvedValue({
       results: [
         { key: 'a1', action: 'adopted', success: true, createdId: 'r9', errorCode: null, errorMsg: null },
       ],
@@ -69,10 +69,10 @@ describe('useAiArtifactReview', () => {
     mocks.ElMessageBox.confirm.mockResolvedValue('confirm')
   })
 
-  describe('产物行同步', () => {
-    it('init 同步产物行并映射中文标签与确认状态', () => {
+  describe('提案行同步', () => {
+    it('init 同步提案行并映射中文标签与确认状态', () => {
       const artifacts = [summary(), summary({ key: 'a2', title: '订单超时' })]
-      const s = setupArtifacts(artifacts)
+      const s = setupProposals(artifacts)
       s.init()
       expect(s.rows.value).toHaveLength(2)
       expect(s.rows.value[0].kindLabel).toBe('需求建议')
@@ -85,7 +85,7 @@ describe('useAiArtifactReview', () => {
 
     it('已确认行不可再选，服务端状态覆盖本地', async () => {
       let artifacts = [summary()]
-      const review = useAiArtifactReview('t1', () => artifacts, () => true, vi.fn())
+      const review = useAiProposalReview('t1', () => artifacts, () => true, vi.fn())
       review.init()
       review.toggle('a1', true)
       expect(review.selectedKeys.value).toEqual(['a1'])
@@ -99,9 +99,9 @@ describe('useAiArtifactReview', () => {
       await expect(Promise.resolve()).resolves.toBeUndefined()
     })
 
-    it('产物消失时清空选中与激活态', () => {
+    it('提案消失时清空选中与激活态', () => {
       let artifacts = [summary()]
-      const review = useAiArtifactReview('t1', () => artifacts, () => true, vi.fn())
+      const review = useAiProposalReview('t1', () => artifacts, () => true, vi.fn())
       review.init()
       review.select('a1')
       expect(review.activeKey.value).toBe('a1')
@@ -114,7 +114,7 @@ describe('useAiArtifactReview', () => {
     })
 
     it('全选与取消全选', () => {
-      const s = setupArtifacts([summary(), summary({ key: 'a2' })])
+      const s = setupProposals([summary(), summary({ key: 'a2' })])
       s.init()
       s.toggleAll(true)
       expect(s.selectedKeys.value).toEqual(['a1', 'a2'])
@@ -128,17 +128,17 @@ describe('useAiArtifactReview', () => {
   })
 
   describe('内容懒加载', () => {
-    it('选中产物按需拉取内容并回退 summary 标题', async () => {
-      mocks.fetchAiArtifact.mockResolvedValue({
+    it('选中提案按需拉取内容并回退 summary 标题', async () => {
+      mocks.fetchAiProposal.mockResolvedValue({
         content: {
           title: '登录验证码',
           description: '校验短信验证码',
           moduleId: 'm1',
           priority: 'high',
+          sourceRef: 'P3 §2.1',
         },
-        sourceRef: 'P3 §2.1',
       })
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       s.select('a1')
       await vi.waitFor(() => expect(s.rows.value[0].contentLoaded).toBe(true))
@@ -158,12 +158,12 @@ describe('useAiArtifactReview', () => {
 
       // 已加载不再重复请求
       s.select('a1')
-      expect(mocks.fetchAiArtifact).toHaveBeenCalledTimes(1)
+      expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(1)
     })
 
     it('内容缺失时回退标题并保持只读占位', async () => {
-      mocks.fetchAiArtifact.mockResolvedValue({})
-      const s = setupArtifacts([summary({ title: '订单超时' })])
+      mocks.fetchAiProposal.mockResolvedValue({})
+      const s = setupProposals([summary({ title: '订单超时' })])
       s.init()
       s.select('a1')
       await vi.waitFor(() => expect(s.rows.value[0].contentLoaded).toBe(true))
@@ -172,19 +172,19 @@ describe('useAiArtifactReview', () => {
     })
 
     it('内容加载失败提示错误但不阻塞', async () => {
-      mocks.fetchAiArtifact.mockRejectedValue(new Error('产物不存在'))
-      const s = setupArtifacts([summary()])
+      mocks.fetchAiProposal.mockRejectedValue(new Error('提案不存在'))
+      const s = setupProposals([summary()])
       s.init()
       s.select('a1')
       await vi.waitFor(() =>
-        expect(mocks.ElMessage.error).toHaveBeenCalledWith('产物不存在'),
+        expect(mocks.ElMessage.error).toHaveBeenCalledWith('提案不存在'),
       )
       expect(s.rows.value[0].contentLoaded).toBe(false)
     })
 
     it('模块树失败降级为空树', async () => {
       mocks.fetchProjectModuleTree.mockRejectedValue(new Error('down'))
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       await vi.waitFor(() => expect(s.moduleTree.value).toEqual([]))
     })
@@ -192,10 +192,10 @@ describe('useAiArtifactReview', () => {
 
   describe('确认动作', () => {
     it('单条采纳不带 target（版本未触碰不提交）', async () => {
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       await s.handleAdopt(s.rows.value[0])
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
         items: [{ key: 'a1', action: 'adopted' }],
         target: undefined,
       })
@@ -205,24 +205,24 @@ describe('useAiArtifactReview', () => {
     })
 
     it('版本触碰后作为 target 提交（含显式清空）', async () => {
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       await s.handleAdopt(s.rows.value[0], { systemVersion: '' })
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
         items: [{ key: 'a1', action: 'adopted' }],
         target: { systemVersion: '' },
       })
     })
 
     it('修改后采纳只发送非空字段', async () => {
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       await s.handleAdoptEdited(
         s.rows.value[0],
         { title: '  登录验证码  ', description: ' ', moduleId: 'm1', priority: '' },
         { systemVersion: 'V2.3' },
       )
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
         items: [
           {
             key: 'a1',
@@ -235,28 +235,28 @@ describe('useAiArtifactReview', () => {
     })
 
     it('驳回附反馈并 trim，空反馈不携带 note', async () => {
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       await s.handleReject(s.rows.value[0], '  与实际流程不符  ')
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
         items: [{ key: 'a1', action: 'rejected', note: '与实际流程不符' }],
         target: undefined,
       })
       expect(mocks.ElMessage.success).toHaveBeenCalledWith('已全部驳回，未创建任何数据')
 
       await s.handleReject(s.rows.value[0], '   ')
-      expect(mocks.confirmAiArtifacts).toHaveBeenLastCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenLastCalledWith('t1', {
         items: [{ key: 'a1', action: 'rejected' }],
         target: undefined,
       })
     })
 
     it('批量采纳按选择集提交', async () => {
-      const s = setupArtifacts([summary(), summary({ key: 'a2' })])
+      const s = setupProposals([summary(), summary({ key: 'a2' })])
       s.init()
       s.toggleAll(true)
       await s.handleBatchAdopt()
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
         items: [
           { key: 'a1', action: 'adopted' },
           { key: 'a2', action: 'adopted' },
@@ -266,54 +266,54 @@ describe('useAiArtifactReview', () => {
     })
 
     it('批量驳回需二次确认，放弃时不提交', async () => {
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       s.toggle('a1', true)
       mocks.ElMessageBox.confirm.mockRejectedValueOnce(new Error('cancel'))
       await s.handleBatchReject()
-      expect(mocks.confirmAiArtifacts).not.toHaveBeenCalled()
+      expect(mocks.confirmAiProposals).not.toHaveBeenCalled()
 
       await s.handleBatchReject()
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
         items: [{ key: 'a1', action: 'rejected' }],
         target: undefined,
       })
       expect(mocks.ElMessageBox.confirm).toHaveBeenCalledWith(
-        '将驳回所选 1 条产物，不创建任何数据。',
+        '将驳回所选 1 条提案，不创建任何数据。',
         expect.anything(),
         expect.anything(),
       )
     })
 
-    it('未选择产物时提示且不发请求', async () => {
-      const s = setupArtifacts([summary()])
+    it('未选择提案时提示且不发请求', async () => {
+      const s = setupProposals([summary()])
       s.init()
       await s.handleBatchAdopt()
-      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请先选择要处理的产物')
-      expect(mocks.confirmAiArtifacts).not.toHaveBeenCalled()
+      expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请先选择要处理的提案')
+      expect(mocks.confirmAiProposals).not.toHaveBeenCalled()
     })
 
     it('超过单次上限时按顺序分批提交', async () => {
       const many = Array.from({ length: 201 }, (_, index) => summary({ key: `k${index}` }))
-      const s = setupArtifacts(many)
+      const s = setupProposals(many)
       s.init()
       s.toggleAll(true)
       await s.handleBatchAdopt()
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledTimes(2)
-      expect(mocks.confirmAiArtifacts.mock.calls[0][1].items).toHaveLength(200)
-      expect(mocks.confirmAiArtifacts.mock.calls[1][1].items).toHaveLength(1)
+      expect(mocks.confirmAiProposals).toHaveBeenCalledTimes(2)
+      expect(mocks.confirmAiProposals.mock.calls[0][1].items).toHaveLength(200)
+      expect(mocks.confirmAiProposals.mock.calls[1][1].items).toHaveLength(1)
       // 分批按传入顺序，保证整树采纳父先子序（1000018210）
-      expect(mocks.confirmAiArtifacts.mock.calls[1][1].items[0].key).toBe('k200')
+      expect(mocks.confirmAiProposals.mock.calls[1][1].items[0].key).toBe('k200')
     })
 
     it('部分失败时不发成功提示，回执标记失败项', async () => {
-      mocks.confirmAiArtifacts.mockResolvedValue({
+      mocks.confirmAiProposals.mockResolvedValue({
         results: [
           { key: 'a1', action: 'adopted', success: false, createdId: null, errorCode: 1000018113, errorMsg: '已确认' },
         ],
       })
       const onConfirmed = vi.fn()
-      const s = setupArtifacts([summary()], true, onConfirmed)
+      const s = setupProposals([summary()], true, onConfirmed)
       s.init()
       await s.handleAdopt(s.rows.value[0])
       expect(mocks.ElMessage.success).not.toHaveBeenCalled()
@@ -321,13 +321,13 @@ describe('useAiArtifactReview', () => {
       expect(onConfirmed).toHaveBeenCalled()
     })
 
-    it('回执标题回退产物 key，动作取请求值', async () => {
-      mocks.confirmAiArtifacts.mockResolvedValue({
+    it('回执标题回退提案 key，动作取请求值', async () => {
+      mocks.confirmAiProposals.mockResolvedValue({
         results: [
           { key: 'unknown', action: 'rejected', success: true, createdId: null, errorCode: null, errorMsg: null },
         ],
       })
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       await s.handleAdopt(s.rows.value[0])
       expect(s.receipt.value[0].title).toBe('unknown')
@@ -336,8 +336,8 @@ describe('useAiArtifactReview', () => {
     })
 
     it('确认请求整体失败提示错误', async () => {
-      mocks.confirmAiArtifacts.mockRejectedValue(new Error('服务不可用'))
-      const s = setupArtifacts([summary()])
+      mocks.confirmAiProposals.mockRejectedValue(new Error('服务不可用'))
+      const s = setupProposals([summary()])
       s.init()
       await s.handleAdopt(s.rows.value[0])
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('服务不可用')
@@ -346,12 +346,12 @@ describe('useAiArtifactReview', () => {
     })
 
     it('回执失败项按原动作单项重试', async () => {
-      const s = setupArtifacts([summary()])
+      const s = setupProposals([summary()])
       s.init()
       await s.handleAdopt(s.rows.value[0])
-      mocks.confirmAiArtifacts.mockClear()
+      mocks.confirmAiProposals.mockClear()
       await s.retryResult(s.receipt.value[0])
-      expect(mocks.confirmAiArtifacts).toHaveBeenCalledWith('t1', {
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
         items: [{ key: 'a1', action: 'adopted' }],
         target: undefined,
       })

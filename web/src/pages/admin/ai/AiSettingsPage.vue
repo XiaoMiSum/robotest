@@ -85,22 +85,47 @@ const showReindexBanner = computed(
     store.reindexError !== '',
 )
 
+/**
+ * 重建进度按执行快照推导（层 B：admin reindex 分支替代口径 plan/steps/consumed）：
+ * 任务态不再携带 progress/phase，进度取 steps/maxSteps，阶段取 plan 最近一步文案。
+ */
+function reindexExecutionView(cached: NonNullable<typeof aiTaskStore.detail>) {
+  const execution = cached.latestExecution
+  const maxSteps = execution?.budget?.maxSteps ?? null
+  const steps = execution?.steps ?? null
+  const percent =
+    execution !== null && execution !== undefined &&
+    maxSteps !== null && maxSteps !== undefined && maxSteps > 0 &&
+    steps !== null && steps !== undefined
+      ? Math.min(100, Math.max(0, Math.round((steps / maxSteps) * 100)))
+      : 0
+  const labels = execution?.plan?.steps
+  let phase = ''
+  if (labels && labels.length > 0) {
+    // steps 为已执行步数，落点即当前/最近一步；越界（全部执行完）取末步
+    const index = Math.min(steps ?? 0, labels.length - 1)
+    phase = labels[index] ?? ''
+  }
+  return { percent, phase }
+}
+
 /** 重建进度复用 aiTask store 轮询（交互 5），到达终态时收口横幅状态 */
 watch(
   () => aiTaskStore.detail,
   (cached) => {
     if (!cached || store.reindexTaskId === null || cached.taskId !== store.reindexTaskId) return
     if (!isTerminalTaskStatus(cached.status)) {
-      reindexProgress.value = cached.progress ?? 0
-      reindexPhase.value = cached.phase ?? ''
+      const view = reindexExecutionView(cached)
+      reindexProgress.value = view.percent
+      reindexPhase.value = view.phase
       return
     }
-    if (cached.status === 'succeeded') {
+    if (cached.status === 'closed') {
       store.settleReindex(null)
       void store.loadEmbedding()
       ElMessage.success('向量重建完成')
-    } else if (cached.status === 'failed') {
-      store.settleReindex(cached.error?.msg ?? '向量重建失败')
+    } else if (cached.status === 'aborted') {
+      store.settleReindex(cached.terminateReason?.msg ?? '向量重建失败')
     } else {
       store.settleReindex(null) // 取消：回待发起态，requiresReindex 仍为 true
     }
