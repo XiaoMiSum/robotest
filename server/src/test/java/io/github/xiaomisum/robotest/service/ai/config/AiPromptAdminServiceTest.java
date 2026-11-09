@@ -114,6 +114,17 @@ class AiPromptAdminServiceTest {
         assertTrue(dto.getVariables().stream().allMatch(v -> Boolean.TRUE.equals(v.getRequired())));
     }
 
+    /** 回落链单轨（S4 收口）：任务场景正文取自 TypeAdapter，非任务场景取自 AiPromptScenes，无旧处理器注册表参与 */
+    @Test
+    void get_nonTaskScene_fallsBackToScenesBuiltinWithoutAdapter() {
+        when(promptMapper.selectOne(any())).thenReturn(null);
+
+        AiPromptDetailRespDTO dto = service.get("bug_draft_suggest");
+
+        assertEquals("default", dto.getSource());
+        assertEquals(AiPromptScenes.builtin("bug_draft_suggest"), dto.getContent());
+    }
+
     @Test
     void save_unregisteredScene_throwsSceneNotFound() {
         ServiceException ex = assertThrows(ServiceException.class,

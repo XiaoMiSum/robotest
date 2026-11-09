@@ -40,10 +40,10 @@ public final class ExecutionControl {
         this.cost = execution.getCost() == null ? BigDecimal.ZERO : execution.getCost();
     }
 
-    /** 外部调用前检查；旧轮次或已终止轮次会立即停止，不触发网络或工具调用。 */
+    /** 外部调用前检查（步数闸门）；旧轮次或已终止轮次会立即停止，不触发网络或工具调用。 */
     public void beforeCall() {
         ensureActive();
-        ensureWithinBudget();
+        ensureWithinBudget(steps);
     }
 
     /** 模型调用只在响应返回后计量一次，并在继续处理输出前完成心跳及预算复验。 */
@@ -65,6 +65,16 @@ public final class ExecutionControl {
     /** 工具返回后再次检查活动状态、时长及其他预算维度。 */
     public void afterToolCall() {
         heartbeatAndCheck();
+    }
+
+    /**
+     * 策略返回后的收尾检查：活动状态必查（终态竞争的最后闸门），预算按「已走步数落在上限内」判定——
+     * 刚完成的最后一步允许正好占满步数预算（助手 5 跳用尽正常 done 的先到者口径），时长 / token /
+     * 成本维度仍按耗尽即超限。
+     */
+    public void ensureFinishing() {
+        ensureActive();
+        ensureWithinBudget(Math.max(steps - 1, 0));
     }
 
     public void recordTrace(String eventType, String summary, Map<String, Object> detail) {
@@ -95,7 +105,9 @@ public final class ExecutionControl {
             throw new InactiveExecutionException();
         }
         ensureActive();
-        ensureWithinBudget();
+        // 步数按「本步已走完、可占满上限」判定：步数闸门只在 beforeCall 拦截下一步，
+        // 否则恰好走满上限的收尾（如助手 5 跳）会被本步心跳误杀为预算耗尽
+        ensureWithinBudget(Math.max(steps - 1, 0));
     }
 
     private void ensureActive() {
@@ -104,9 +116,9 @@ public final class ExecutionControl {
         }
     }
 
-    private void ensureWithinBudget() {
+    private void ensureWithinBudget(int budgetedSteps) {
         if (budgetGuard.exceeded(budget(), BudgetGuard.Consumed.of(
-                steps, elapsedSeconds(), tokensIn, tokensOut, cost))) {
+                budgetedSteps, elapsedSeconds(), tokensIn, tokensOut, cost))) {
             throw new BudgetExceededException();
         }
     }
@@ -127,9 +139,11 @@ public final class ExecutionControl {
         return (int) Math.min(Math.max(number, 0), Integer.MAX_VALUE);
     }
 
-    static final class InactiveExecutionException extends RuntimeException {
+    /** 终态竞争 / 执行已被中止：赢家收尾，迟到调用方不得再写汇总与终态（策略层可识别并按需收口）。 */
+    public static final class InactiveExecutionException extends RuntimeException {
     }
 
-    static final class BudgetExceededException extends RuntimeException {
+    /** 预算任一维度耗尽（总册 4.2，终止码 1000018127 口径）。 */
+    public static final class BudgetExceededException extends RuntimeException {
     }
 }

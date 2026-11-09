@@ -61,8 +61,6 @@ public class AssistantServiceImpl implements AssistantService {
     /** 事件流兜底超时（详设 3.5）：到期回收通道并置 interrupted，内容不丢失、可经消息历史补齐 */
     private static final long STREAM_TIMEOUT_MILLIS = 10 * 60 * 1000L;
 
-    private static final String TASK_TYPE_ASSISTANT_PARSE = "assistant_parse";
-
     @Resource
     private AiAssistantConversationMapper conversationMapper;
 
@@ -244,7 +242,7 @@ public class AssistantServiceImpl implements AssistantService {
         streamBridge.attach(assistantMessage.getId(), emitter);
         try {
             // projectId 置 null：助手解析为不限项目的个人任务，执行作用域取活跃工作空间（总册 2.6）
-            aiTaskService.submitInternal(TASK_TYPE_ASSISTANT_PARSE,
+            aiTaskService.submitInternal(Constants.AiTaskType.ASSISTANT_PARSE,
                     Map.of("messageId", assistantMessage.getId().toString()), userId, null, activeWorkspaceId);
         } catch (RuntimeException e) {
             // 提交失败随事务回滚两条消息，通道注册表不残留

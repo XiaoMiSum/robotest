@@ -315,7 +315,7 @@ public class RequirementServiceImpl implements RequirementService {
         FileResourceRespDTO stored = fileResourceService.upload(file, userId);
         Project project = projectMapper.selectById(projectId);
         // 任务行与拆解记录同事务（3.8 / 4.5）：任一步失败整体回滚；创建即启动，事务提交后单次触发
-        AiTaskRespDTO task = aiTaskService.submitInternal("requirement_import",
+        AiTaskRespDTO task = aiTaskService.submitInternal(Constants.AiTaskType.REQUIREMENT_IMPORT,
                 Map.of("fileId", stored.getId().toString()), userId, projectId,
                 project == null ? null : project.getWorkspaceId());
         RequirementSplitRecord record = new RequirementSplitRecord();

@@ -105,6 +105,26 @@ public class AssistantToolLoop {
     }
 
     public LoopOutcome run(LoopRequest request, AiModelClient modelClient) {
+        return run(request, modelClient, HopObserver.NOOP);
+    }
+
+    /**
+     * 逐跳观察者（总册 4.2 助手策略口径）：共享执行控制在每跳模型调用前后介入——
+     * 调用前闸门（中止 / 预算 / 心跳），返回后按跳计量（查询工具执行不额外计步）。
+     * 无观察者时走既有语义，旧调用方行为不变。
+     */
+    public interface HopObserver {
+        HopObserver NOOP = new HopObserver() {
+        };
+
+        default void beforeHop() {
+        }
+
+        default void afterHop(int tokensIn, int tokensOut) {
+        }
+    }
+
+    public LoopOutcome run(LoopRequest request, AiModelClient modelClient, HopObserver observer) {
         List<AssistantToolDefinition> definitions = List.copyOf(registry.all());
         AssistantToolContext toolContext = new AssistantToolContext(
                 request.userId(), request.workspaceId(), request.attachments());
@@ -117,9 +137,11 @@ public class AssistantToolLoop {
 
         hops:
         for (int hop = 0; hop < MAX_LOOPS; hop++) {
+            observer.beforeHop();
             AiChatRequest chatRequest = new AiChatRequest(null, null, request.userId(), "assistant_parse",
                     request.model(), request.systemPrompt(), request.userPrompt(), request.media());
             AiChatReply reply = modelClient.chatWithTools(chatRequest, definitions, turns);
+            observer.afterHop(reply.tokensIn(), reply.tokensOut());
             tokensIn += reply.tokensIn();
             tokensOut += reply.tokensOut();
 

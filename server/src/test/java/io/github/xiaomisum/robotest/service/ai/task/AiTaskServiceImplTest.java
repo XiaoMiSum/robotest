@@ -279,6 +279,27 @@ class AiTaskServiceImplTest {
         assertEquals(ErrorCodeConstants.AI_VISION_MODEL_NOT_CONFIGURED.code(), exception.getCode());
     }
 
+    /** vector_reindex 豁免 chat 模型选型（总册 4.2）：不解析模型、不报错，执行行 model_id 为空 */
+    @Test
+    void submit_vectorReindex_exemptsChatModelResolution() {
+        TaskTypeAdapter vectorAdapter = org.mockito.Mockito.mock(TaskTypeAdapter.class);
+        when(adapterRegistry.get(Constants.AiTaskType.VECTOR_REINDEX)).thenReturn(vectorAdapter);
+        AiTaskSubmitReqDTO req = new AiTaskSubmitReqDTO();
+        req.setType(Constants.AiTaskType.VECTOR_REINDEX);
+        req.setInput(Map.of());
+        req.setWaitSeconds(0);
+
+        AiTaskRespDTO resp = service.submit(req, PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
+
+        verify(settingsReader, never()).usableModel();
+        verify(settingsReader, never()).resolveModel(any(), any());
+        ArgumentCaptor<AiTaskExecution> captor = ArgumentCaptor.forClass(AiTaskExecution.class);
+        verify(executionMapper).insert(captor.capture());
+        assertNull(captor.getValue().getModelId());
+        verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
+        assertEquals(Constants.AiTaskFlowStatus.RUNNING, resp.getStatus());
+    }
+
     @Test
     void submit_waitSeconds_terminalTask_returnsDetail() {
         when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(0);
@@ -520,6 +541,49 @@ class AiTaskServiceImplTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.reExecute(TASK_ID, null, loginUser));
         assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
+    }
+
+    /** 禁止助手消息走通用「再次执行」重跑（分册 04 §4.1）：重新发送生成新消息与新任务 */
+    @Test
+    void reExecute_assistantMessage_rejectsWithUnsupportedType() {
+        AiTask aborted = task(Constants.AiTaskFlowStatus.ABORTED);
+        aborted.setType(Constants.AiTaskType.ASSISTANT_PARSE);
+        aborted.setInput(Map.of("messageId", UUID.randomUUID().toString()));
+        when(taskMapper.selectById(TASK_ID)).thenReturn(aborted);
+        when(adapterRegistry.get(Constants.AiTaskType.ASSISTANT_PARSE)).thenReturn(adapter);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.reExecute(TASK_ID, null, loginUser));
+
+        assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), exception.getCode());
+        verify(executionMapper, never()).insert(any(AiTaskExecution.class));
+        verify(executionDispatcher, never()).dispatch(any());
+    }
+
+    /** vector_reindex 再次执行同样豁免 chat 模型选型（总册 4.2） */
+    @Test
+    void reExecute_vectorReindex_skipsModelResolution() {
+        AiTask ready = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        ready.setType(Constants.AiTaskType.VECTOR_REINDEX);
+        AiTaskExecution previous = execution("succeeded");
+        previous.setId(PREV_EXEC_ID);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(ready);
+        when(adapterRegistry.get(Constants.AiTaskType.VECTOR_REINDEX)).thenReturn(adapter);
+        when(executionMapper.countActiveByTaskId(TASK_ID)).thenReturn(0L);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(ready);
+        when(executionMapper.selectLatestByTaskIdForUpdate(TASK_ID)).thenReturn(previous);
+        when(taskMapper.markRerun(TASK_ID)).thenReturn(true);
+        when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(1);
+
+        AiTaskRespDTO resp = service.reExecute(TASK_ID, null, loginUser);
+
+        verify(settingsReader, never()).resolveModel(any(), any());
+        ArgumentCaptor<AiTaskExecution> captor = ArgumentCaptor.forClass(AiTaskExecution.class);
+        verify(executionMapper).insert(captor.capture());
+        assertNull(captor.getValue().getModelId());
+        assertNotNull(resp.getExecutionId());
+        verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
     }
 
     // ---------- 3.6.5 提案确认（逐项事务） ----------
