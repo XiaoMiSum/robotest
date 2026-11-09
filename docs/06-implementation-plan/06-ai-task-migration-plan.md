@@ -282,7 +282,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | S1 | ✅ | `f1191f09`（增量口径见 2.3.3；`AiTask` 重建与旧常量删除归 S3） |
 | S2 | ✅ | `a2eb0d30`（执行核三件 + `TaskTypeAdapter` SPI/注册表 + `AgentTool` 注册表与 `AiModelClient` 中性声明重载，均纯增量；心跳清扫、abortActive 与用量归因接线归 S3） |
 | S3 | ✅ | `34a4f322`（九端点 + Service 三资源重写、`ai_task` 六表重建与旧引擎删除单提交收口；配套 `1000018128` 登记勘误 `63b458be`）——已知中间态：S4 前 `TaskTypeAdapterRegistry` 为空、S5 前端接入前新端点不可用，整包 S6 收口 |
-| S4 | ❌ | — |
+| S4 | ✅ | `53b9eea9`（统一执行分派入口与执行控制）+ `437b46d7`（十一类普通 TypeAdapter、13 只读工具与 `ai_task_tool` 种子、提示词单轨、`not_applicable` 提案）+ `db8f3e1e`（助手/向量策略接入、删旧 `TaskHandler` SPI 四件套与旧 Handler，13/13 可分派；裁决口径见 `65e9ec2e`）——旧引擎 grep 零命中，整包 S6 收口 |
 | S5 | ❌ | — |
 | S6 | ❌ | — |
 
@@ -304,3 +304,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-10-27 | 5.1 实施状态回填：S2 ✅（`a55419a6` 回填 `a2eb0d30`）——执行核、预算护栏、轨迹记录与类型适配器 SPI 纯增量落地，接线与删旧按勘误口径归 S3 |
 | V1.0 | 2026-11-07 | 5.1 实施状态回填：S3 ✅（`34a4f322`）——九端点与 Service 三资源重写、`ai_task` 六表重建、旧引擎（`AiTaskExecutor` / cancel / retry / artifacts 确认路径）删除单提交收口；`1000018128` 用户中止码登记勘误 `63b458be`；已知中间态（S4 空注册表 / S5 前端未接入）整包 S6 收口 |
 | V1.0 | 2026-11-08 | 5.1 实施状态回填：S0 ✅（清理门禁脚本 `scripts/check-legacy-ai.sh` 落地 `d17e716f`，B2 排除 `confirmStatus` 等新架构合法命中） |
+| V1.0 | 2026-11-09 | 5.1 实施状态回填：S4 ✅（`53b9eea9` 策略分派入口 → `437b46d7` 十一类普通适配器与工具种子 → `db8f3e1e` 助手/向量策略与旧 SPI 删除）；助手/向量行为裁决与预算落册见总册 3.6.1 / 4.2、分册 04 §4.1（`65e9ec2e`） |
