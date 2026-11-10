@@ -234,7 +234,7 @@ class RequirementAdoptServiceImplTest {
         Map<String, Object> art = artifact("item-2", "建议二", null, null);
         RequirementSplitRecord record = importRecord();
         Map<String, Object> prior = new LinkedHashMap<>();
-        prior.put("adopted", List.of(Map.of("artifactKey", "item-1", "requirementId", CREATED_ID.toString())));
+        prior.put("adopted", List.of(Map.of("proposalKey", "item-1", "requirementId", CREATED_ID.toString())));
         prior.put("rejected", List.of());
         record.setAdoptResult(prior);
         when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(record));
@@ -494,7 +494,7 @@ class RequirementAdoptServiceImplTest {
         Map<String, Object> art = artifact("item-2", "建议二", null, null);
         RequirementSplitRecord record = importRecord();
         List<Object> priorAdopted = new ArrayList<>();
-        priorAdopted.add(Map.of("artifactKey", "item-1", "requirementId", CREATED_ID.toString()));
+        priorAdopted.add(Map.of("proposalKey", "item-1", "requirementId", CREATED_ID.toString()));
         Map<String, Object> prior = new LinkedHashMap<>();
         prior.put("adopted", priorAdopted);
         prior.put("rejected", List.of());
