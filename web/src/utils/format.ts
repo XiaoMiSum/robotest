@@ -36,6 +36,15 @@ export function formatDateTime(value?: string | null): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+/** 同 formatDateTime，但精确到秒（`YYYY-MM-DD HH:mm:ss`），用于需要区分同分钟先后的场景 */
+export function formatDateTimeSeconds(value?: string | null): string {
+  if (!value) return '-'
+  const date = parseUtc(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 /** 展示用户选择的业务本地时间；无时区字符串按本地钟面解释。 */
 export function formatLocalDateTime(value?: string | null): string {
   if (!value) return '-'

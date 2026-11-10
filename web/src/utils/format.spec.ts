@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   formatDate,
   formatDateTime,
+  formatDateTimeSeconds,
   parseDateTime,
   formatLocalDateTime,
   formatRelativeTime,
@@ -16,6 +17,12 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 function expectedLocal(y: number, mo: number, d: number, h: number, mi: number): string {
   const date = new Date(Date.UTC(y, mo - 1, d, h, mi))
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** 同 expectedLocal，但拼接结果带秒，供 formatDateTimeSeconds 使用 */
+function expectedLocalSeconds(y: number, mo: number, d: number, h: number, mi: number, s: number): string {
+  const date = new Date(Date.UTC(y, mo - 1, d, h, mi, s))
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
 describe('formatDateTime UTC 转本地时区', () => {
@@ -40,6 +47,21 @@ describe('formatDateTime UTC 转本地时区', () => {
     expect(formatDateTime(undefined)).toBe('-')
     expect(formatDateTime('')).toBe('-')
     expect(formatDateTime('not-a-date')).toBe('-')
+  })
+})
+
+describe('formatDateTimeSeconds UTC 转本地时区（精确到秒）', () => {
+  it('无时区标识的后端字符串按 UTC 解析并保留秒', () => {
+    expect(formatDateTimeSeconds('2026-01-15T08:30:07')).toBe(expectedLocalSeconds(2026, 1, 15, 8, 30, 7))
+  })
+
+  it('带显式偏移的字符串不重复补 Z', () => {
+    expect(formatDateTimeSeconds('2026-07-29T10:00:00+08:00')).toBe(expectedLocalSeconds(2026, 7, 29, 2, 0, 0))
+  })
+
+  it('空值与非法值返回占位符', () => {
+    expect(formatDateTimeSeconds(null)).toBe('-')
+    expect(formatDateTimeSeconds('not-a-date')).toBe('-')
   })
 })
 
