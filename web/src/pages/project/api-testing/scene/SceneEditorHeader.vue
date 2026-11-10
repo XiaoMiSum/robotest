@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ArrowDown, Memo } from '@element-plus/icons-vue'
+import { formatDateTimeSeconds } from '@/utils/format'
 import type { ApiEnvironmentListItem, ApiExecutionHistoryItem } from '@/types'
 import type { CascaderOption } from 'element-plus'
 import SceneHistoryPopover from './SceneHistoryPopover.vue'
@@ -62,6 +63,16 @@ const RUN_STATE_TEXT: Record<string, string> = {
   failed: '执行失败',
 }
 
+// 已有执行记录时带最近一次执行时刻（精确到秒），无记录 / 执行中沿用短文案（交互 10 §1.9）
+const runStateText = computed(() => {
+  const state = props.runState ?? 'idle'
+  const latest = props.executionHistory[0]
+  if ((state === 'success' || state === 'failed') && latest) {
+    return `最后一次运行：${formatDateTimeSeconds(latest.executedAt)} ${RUN_STATE_TEXT[state]}`
+  }
+  return RUN_STATE_TEXT[state]
+})
+
 const emit = defineEmits<{
   'update:editName': [value: string]
   'update:editDescription': [value: string]
@@ -110,7 +121,7 @@ const emit = defineEmits<{
         @update:page="(p: number) => { emit('update:executionHistoryPage', p); emit('load-history') }"
       />
       <div class="scene-editor__nav-spacer" />
-      <span class="scene-editor__ci-run" :class="`is-${runState ?? 'idle'}`">{{ RUN_STATE_TEXT[runState ?? 'idle'] }}</span>
+      <span class="scene-editor__ci-run" :class="`is-${runState ?? 'idle'}`">{{ runStateText }}</span>
     </template>
 
     <template v-if="!readonlyMode">
@@ -274,13 +285,9 @@ const emit = defineEmits<{
   padding-bottom: 0;
 }
 
-// 只读形态整体卡片化（对齐 demo .card.ed-nav：白底 + 1px 描边 + 圆角 + 浅阴影，内距 10/16）
+// 只读形态：外观（白底 / 描边 / 圆角 / 阴影）由外层单卡承担，此处只保留内距 10/16
 .scene-editor__nav.is-card {
   padding: 10px var(--space-lg);
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 
   // 只读页文本一律不加粗：场景名、状态与来源徽标、运行状态统一常规字重
   .scene-editor__readonly-name,

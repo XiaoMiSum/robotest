@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   fetchSceneDetail: vi.fn<(sceneId: string) => Promise<ApiSceneDetail>>(),
   updateScene: vi.fn<() => Promise<boolean>>(),
   executeScene: vi.fn<(sceneId: string, req?: unknown) => Promise<ApiExecutionStartResp>>(),
+  fetchExecutionHistory: vi.fn<(sceneId: string, pageNo: number, pageSize: number) => Promise<unknown>>(),
+  fetchChangeHistory: vi.fn<(sceneId: string, pageNo: number, pageSize: number) => Promise<unknown>>(),
   fetchEnvironments: vi.fn<() => Promise<ApiEnvironmentListItem[]>>(),
   fetchEnvironmentDetail: vi.fn<() => Promise<unknown>>(),
   fetchProjectModuleTree: vi.fn<(assetType: string) => Promise<ProjectModule[]>>(),
@@ -46,7 +48,7 @@ vi.mock('@/services/project/api-testing/scene', async () => {
   const actual = await vi.importActual<typeof import('@/services/project/api-testing/scene')>(
     '@/services/project/api-testing/scene',
   )
-  return { ...actual, fetchSceneDetail: mocks.fetchSceneDetail, updateScene: mocks.updateScene, executeScene: mocks.executeScene }
+  return { ...actual, fetchSceneDetail: mocks.fetchSceneDetail, updateScene: mocks.updateScene, executeScene: mocks.executeScene, fetchExecutionHistory: mocks.fetchExecutionHistory, fetchChangeHistory: mocks.fetchChangeHistory }
 })
 
 vi.mock('@/services/project/api-testing/environment', async () => {
@@ -179,6 +181,9 @@ describe('SceneEditorPage 历史与资产错误边界', () => {
 describe('SceneEditorPage gitlab_ci 只读形态（交互 10 §1.9）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // 历史接口默认空结果，个别用例按需覆盖
+    mocks.fetchExecutionHistory.mockResolvedValue({ list: [], total: 0 })
+    mocks.fetchChangeHistory.mockResolvedValue({ list: [], total: 0 })
   })
 
   it('步骤编辑区整体替换为只读信息区与单个用例信息表，编辑入口全部缺席', async () => {
@@ -254,5 +259,43 @@ describe('SceneEditorPage gitlab_ci 只读形态（交互 10 §1.9）', () => {
       path: '/workspace/projects/api-testing',
       query: { tab: 'gitlab', gl: 'import' },
     })
+  })
+
+  // 执行历史弹层的触发按钮：点击后加载历史并驱动运行状态文案
+  function historyTrigger(wrapper: VueWrapper) {
+    const btn = wrapper.findAll('.scene-editor__nav button').find((b) => b.text().includes('执行历史'))
+    if (!btn) throw new Error('未找到执行历史触发按钮')
+    return btn
+  }
+
+  it('运行状态文案在有执行记录时带上最后一次运行时刻（交互 10 §1.9）', async () => {
+    mocks.fetchExecutionHistory.mockResolvedValue({
+      list: [{
+        id: 'exec-1',
+        status: 'success',
+        executionMode: 'pipeline',
+        triggerType: 'manual',
+        executedAt: '2026-01-15T08:30:07',
+        durationMs: 1200,
+        reportId: 'report-1',
+      }],
+      total: 1,
+    })
+    const wrapper = await mountEditor(makeCiDetail())
+
+    // 无记录时先为待执行；执行历史按需加载后才带时刻
+    await historyTrigger(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.scene-editor__ci-run').text()).toMatch(
+      /^最后一次运行：\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} 执行成功$/,
+    )
+  })
+
+  it('无执行记录时运行状态仍为「待执行」', async () => {
+    const wrapper = await mountEditor(makeCiDetail())
+    await historyTrigger(wrapper).trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.scene-editor__ci-run').text()).toBe('待执行')
   })
 })

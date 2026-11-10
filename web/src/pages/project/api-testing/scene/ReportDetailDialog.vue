@@ -43,12 +43,15 @@ const focusSceneId = computed(() => (viewingFullSuite.value ? null : props.scene
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="报告详情"
     width="1100px"
     top="4vh"
     destroy-on-close
     @update:model-value="(v: boolean) => emit('update:modelValue', v)"
   >
+    <!-- 标题由内容区 hero 的报告名承担，此处置空仅保留右上角关闭按钮 -->
+    <template #header>
+      <span />
+    </template>
     <div v-loading="loading">
       <template v-if="report">
         <!-- 套件且当前在完整套件视图：返回当前场景明细 -->

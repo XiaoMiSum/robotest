@@ -234,9 +234,10 @@ const {
       v-if="editor.detail.value || editor.isCreateMode.value"
       class="scene-editor__body"
       :class="{ 'is-card': readonlyMode }"
+      :data-test="readonlyMode ? 'scene-readonly' : undefined"
     >
       <!-- gitlab_ci 只读主体（交互 10 §1.9，对齐 demo api-scenes.html edit-ci）：信息网格 + 单个用例 kv + 只读说明 -->
-      <div v-if="readonlyMode" class="scene-editor__readonly" data-test="scene-readonly">
+      <template v-if="readonlyMode">
         <div class="ci-info">
           <div>
             <div class="ci-info__k">所属模块</div>
@@ -290,7 +291,7 @@ const {
           <div v-else class="ci-cases__empty">用例信息不可用</div>
           <p class="ci-hint">只读形态：不提供步骤编排、场景变量与处理器编辑；用例与步骤的维护一律在仓库侧完成。</p>
         </div>
-      </div>
+      </template>
 
       <div v-else class="scene-editor__tabs-wrap">
         <el-tabs v-model="editor.sceneSection.value" class="scene-editor__left-tabs">
@@ -460,23 +461,32 @@ const {
   overflow: hidden;
 }
 
-// gitlab_ci 只读形态按 demo .scene-ed：导航卡 / 提示条 / 主体卡之间 12px
+// gitlab_ci 只读形态按 demo .scene-ed：导航 / 提示条 / 主体信息区同处一卡，三者之间 12px
+// 卡片外观（白底 + 1px 描边 + 圆角 + 浅阴影）由页面容器承担，原「导航卡 + 主体卡」合并为单卡
 .scene-editor.is-ci {
   gap: var(--space-md);
-}
-
-// 只读主体卡片（对齐 demo .card.ed-body：白底 + 1px 描边 + 圆角 + 浅阴影）
-.scene-editor__body.is-card {
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
 
-  // 只读页文本一律不加粗：信息值与用例标题取常规字重
+  // 只读页文本一律不加粗：场景名、状态与来源徽标、运行状态、信息值与用例标题统一常规字重
+  .scene-editor__readonly-name,
+  .scene-editor__status-tag,
+  .scene-editor__git-badge,
+  .scene-editor__source-status,
+  .scene-editor__ci-run,
   .ci-info__v,
   .ci-cases__title {
     font-weight: 400;
   }
+}
+
+// 只读主体区：滚动仍由其承担，外观交由外层单卡，内距由内部信息区与用例区各自承担
+.scene-editor__body.is-card {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 // 页面不设外层卡片容器：tabs 与内容区直接承接头部信息（交互 10 §1.1）
@@ -653,14 +663,7 @@ const {
   font-size: var(--font-size-sm);
 }
 
-// gitlab_ci 只读主体（交互 10 §1.9，对齐 demo edit-ci）：内距交由内部信息区与用例区各自承担
-.scene-editor__readonly {
-  flex: 1;
-  min-height: 0;
-  padding: 0;
-  overflow-y: auto;
-}
-
+// gitlab_ci 只读主体（交互 10 §1.9，对齐 demo edit-ci）：滚动由卡片（.is-card）承担
 // 只读信息网格（demo .ci-info）：键小值粗、4 列自适应换行
 .ci-info {
   display: grid;
