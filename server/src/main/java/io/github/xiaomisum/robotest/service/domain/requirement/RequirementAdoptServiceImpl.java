@@ -231,11 +231,11 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
                 rejected.addAll(list);
             }
         }
-        String artifactKey = context.proposal().getProposalKey();
+        String proposalKey = context.proposal().getProposalKey();
         if (Constants.AiProposalAction.REJECTED.equals(context.action())) {
-            rejected.add(artifactKey);
+            rejected.add(proposalKey);
         } else {
-            adopted.add(Map.of("artifactKey", artifactKey, "requirementId", createdId.toString()));
+            adopted.add(Map.of("proposalKey", proposalKey, "requirementId", createdId.toString()));
         }
         Map<String, Object> merged = new LinkedHashMap<>();
         merged.put("adopted", adopted);
@@ -267,8 +267,8 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
             return;
         }
         for (Object element : list) {
-            if (element instanceof Map<?, ?> entry && entry.get("artifactKey") != null) {
-                out.add(String.valueOf(entry.get("artifactKey")));
+            if (element instanceof Map<?, ?> entry && entry.get("proposalKey") != null) {
+                out.add(String.valueOf(entry.get("proposalKey")));
             }
         }
     }

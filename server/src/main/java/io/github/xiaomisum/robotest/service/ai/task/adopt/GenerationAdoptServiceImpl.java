@@ -304,12 +304,12 @@ public class GenerationAdoptServiceImpl implements ProposalAdopter {
     }
 
     /** 父级产物已采纳的引用值；无记录或未采纳返回 null（4.3③ 依赖顺序，键按执行命名空间） */
-    private UUID adoptedRefId(AdoptContext context, String artifactKey, String field) {
-        if (artifactKey == null) {
+    private UUID adoptedRefId(AdoptContext context, String proposalKey, String field) {
+        if (proposalKey == null) {
             return null;
         }
         AiTaskAdoption record = adoptionMapper.selectByExecutionAndKey(
-                context.proposal().getExecutionId(), artifactKey);
+                context.proposal().getExecutionId(), proposalKey);
         if (record == null || record.getAdoptedRef() == null) {
             return null;
         }
