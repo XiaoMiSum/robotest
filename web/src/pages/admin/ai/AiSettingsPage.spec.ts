@@ -25,6 +25,19 @@ describe('AI 配置中心 · 壳层（交互 2.1）', () => {
     expect(shellSource).toContain('aiTaskStore.startPolling(store.reindexTaskId)')
     expect(shellSource).toContain('isTerminalTaskStatus(cached.status)')
     expect(shellSource).toContain("store.settleReindex(cached.terminateReason?.msg ?? '向量重建失败')")
+    // 新状态机终态：closed 成功、aborted 失败；旧 succeeded / failed / cancelled 不再出现
+    expect(shellSource).toContain("cached.status === 'closed'")
+    expect(shellSource).not.toContain("cached.status === 'succeeded'")
+    expect(shellSource).not.toContain("cached.status === 'failed'")
+    expect(shellSource).not.toContain("cached.status === 'cancelled'")
+    expect(shellSource).not.toContain('cached.error?.msg')
+  })
+
+  it('重建进度取执行快照 steps/maxSteps 与 plan 文案，不再依赖任务 progress/phase', () => {
+    expect(shellSource).toContain('(steps / maxSteps) * 100')
+    expect(shellSource).toContain('execution?.plan?.steps')
+    expect(shellSource).not.toContain('cached.progress')
+    expect(shellSource).not.toContain('cached.phase')
   })
 
   it('设置加载失败由页面捕获并可重试，首载完成前不渲染分组（防表单闪空值）', () => {
@@ -134,6 +147,12 @@ describe('AI 配置中心 · 用量分析（交互 2.5 / 2.6）', () => {
     expect(usageSource).toContain('filters.callType = item.key')
     // 无任务调用（taskId 为 null）不可跳转详情
     expect(usageSource).toContain('if (!row.taskId) return')
+  })
+
+  it('下钻状态徽标取用量记录结果 success/failed，不套用任务状态机', () => {
+    expect(usageSource).toContain("if (status === 'success') return { label: '成功'")
+    expect(usageSource).toContain("if (status === 'failed') return { label: '失败'")
+    expect(usageSource).not.toContain('aiTaskStatusMeta')
   })
 
   it('空区间给范围调整引导，echarts 按需注册', () => {

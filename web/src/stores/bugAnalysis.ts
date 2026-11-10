@@ -204,8 +204,9 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
         return
       }
       try {
-        const artifact = await fetchAiProposal(taskId, 'summary-1')
-        const content = (artifact['content'] ?? {}) as Record<string, unknown>
+        const proposal = await fetchAiProposal(taskId, 'summary-1')
+        // 提案详情响应为 { ...摘要, content }（详设 3.6.3），内容取 content 根节点
+        const content = (proposal.content ?? {}) as Record<string, unknown>
         this.summaryText = typeof content['text'] === 'string' ? content['text'] : ''
         this.summaryCitations = readStringList(content['citations'])
         if (!this.summaryText) {
@@ -271,8 +272,8 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
         return
       }
       try {
-        const artifact = await fetchAiProposal(taskId, 'triage')
-        const content = (artifact['content'] ?? {}) as Record<string, unknown>
+        const proposal = await fetchAiProposal(taskId, 'triage')
+        const content = (proposal.content ?? {}) as Record<string, unknown>
         const rawItems = Array.isArray(content['items']) ? content['items'] : []
         this.triageItems = rawItems.flatMap((item) => {
           if (typeof item !== 'object' || item === null) return []

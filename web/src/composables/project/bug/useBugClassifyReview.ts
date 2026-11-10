@@ -212,8 +212,9 @@ export function useBugClassifyReview(
   async function loadRow(row: BugClassifyRow): Promise<void> {
     if (row.loaded) return
     try {
-      const artifact = await fetchAiProposal(taskId, row.key)
-      const raw = (artifact['content'] ?? {}) as Record<string, unknown>
+      const proposal = await fetchAiProposal(taskId, row.key)
+      // 提案详情响应为 { ...摘要, content }（详设 3.6.3），内容取 content 根节点
+      const raw = (proposal.content ?? {}) as Record<string, unknown>
       if (row.kind === 'duplicate_group') {
         row.group = parseDuplicateGroupContent(raw)
       } else {

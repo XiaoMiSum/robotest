@@ -82,6 +82,8 @@ describe('composables/project/bug/useBugClassifyReview', () => {
     expect(review.rows.value).toHaveLength(1)
     expect(review.rows.value[0]?.content?.bugId).toBe('11111111-1111-1111-1111-111111111111')
     expect(review.rows.value[0]?.current?.severity).toBe('minor')
+    // 提案详情按 taskId + 提案键拉取，内容读自响应 content 根节点
+    expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'cs-1')
   })
 
   it('内容解析：keywords 为数组', async () => {
