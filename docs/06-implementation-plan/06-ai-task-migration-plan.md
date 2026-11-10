@@ -284,7 +284,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | S3 | ✅ | `34a4f322`（九端点 + Service 三资源重写、`ai_task` 六表重建与旧引擎删除单提交收口；配套 `1000018128` 登记勘误 `63b458be`）——已知中间态：S4 前 `TaskTypeAdapterRegistry` 为空、S5 前端接入前新端点不可用，整包 S6 收口 |
 | S4 | ✅ | `53b9eea9`（统一执行分派入口与执行控制）+ `437b46d7`（十一类普通 TypeAdapter、13 只读工具与 `ai_task_tool` 种子、提示词单轨、`not_applicable` 提案）+ `db8f3e1e`（助手/向量策略接入、删旧 `TaskHandler` SPI 四件套与旧 Handler，13/13 可分派；裁决口径见 `65e9ec2e`）——旧引擎 grep 零命中，整包 S6 收口 |
 | S5 | ✅ | `f271bca6`（批次 1：双状态机类型/九端点服务/store/两页面/执行区三组件/提案审核基座更名）+ `1c0b6815`（批次 2：bug/admin 跨域语义切换与机械适配复查）+ `28f4a8db`（批次 3：四件改造接回脑图与计划详情入口，用户裁决保留接线）——前端门禁三批均 EXIT=0（3535 测试），清理门禁 E1/E2 转绿；`contract.d.ts` 重生成归 S6 |
-| S6 | ❌ | — |
+| S6 | ❌ | 进行中：清理门禁 2.7 七项全绿（`a62c1681` 清除 `artifactKey` 残留）、双端与文档门禁逐批 EXIT=0、主计划 3.6 联动回填已做；**剩余**：OpenAPI/`contract.d.ts` 重生成按用户裁决暂缓（需运行后端执行 `pnpm contract:gen`） |
 
 - 每步骤收口：状态改 ✅ 并登记提交 hash；整包收口同步回填主计划 `docs/06-implementation-plan/02-ai-requirement-development-plan.md` 3.6 中 WP-4.2 / WP-4.4 / WP-5.1 等状态行（其含义变更为「新架构对齐后复验」），验收结果按主计划 3.4 第 4 条回填。
 - 只维护步骤与依赖，不登记人天与日历排期。
