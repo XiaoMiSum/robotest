@@ -141,7 +141,7 @@ describe('useAssistTask', () => {
       const s = mountAssist()
       await s.launch({ planId: 'p1' })
 
-      expect(mocks.submitAiTask).toHaveBeenCalledWith('plan_order', { planId: 'p1' })
+      expect(mocks.submitAiTask).toHaveBeenCalledWith('plan_order', { planId: 'p1' }, 10)
       await vi.waitFor(() => expect(s.rows.value).toHaveLength(1))
       expect(s.taskId.value).toBe('t1')
       expect(s.isSucceeded.value).toBe(true)
@@ -165,6 +165,17 @@ describe('useAssistTask', () => {
       await vi.waitFor(() => expect(s.isSucceeded.value).toBe(true))
       await vi.waitFor(() => expect(s.rows.value[0].suggestion).not.toBeNull())
       expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'order-1')
+    })
+
+    it('proposals_ready 即加载提案内容并给出执行摘要（无需等 closed）', async () => {
+      mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'proposals_ready' }))
+      const s = mountAssist()
+      await s.launch({})
+
+      await vi.waitFor(() => expect(s.rows.value[0]?.suggestion).not.toBeNull())
+      expect(s.task.value?.status).toBe('proposals_ready')
+      expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'order-1')
+      expect(s.executionSummary.value?.text).toContain('3/10')
     })
 
     it('已终止展示终止原因且不加载提案内容', async () => {

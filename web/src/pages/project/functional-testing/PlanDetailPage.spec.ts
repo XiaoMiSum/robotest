@@ -21,4 +21,30 @@ describe('PlanDetailPage 操作按钮权限显隐', () => {
     // 组合式不得依赖组件层（01-frontend.md §3），状态口径内联在组合式内
     expect(composableSource).not.toContain('@/components/')
   })
+
+  it('执行顺序建议入口按活跃态 + AI 可用性显隐，空计划置灰并说明原因', () => {
+    expect(pageSource).toContain('执行顺序建议')
+    expect(pageSource).toContain('v-if="orderEntryVisible && canOperateActive"')
+    expect(pageSource).toContain(':disabled="!!orderEmptyReason"')
+    expect(pageSource).toContain('计划关联用例为空')
+    expect(pageSource).toContain('usePlanOrderAssist')
+    expect(pageSource).toContain('planId')
+  })
+
+  it('发起后在对话框内覆盖进行中 / 终止 / 加载失败 / 排序面板四态', () => {
+    expect(pageSource).toContain('v-if="orderRunning"')
+    expect(pageSource).toContain('AI 正在生成执行顺序建议')
+    expect(pageSource).toContain('v-else-if="orderFailed"')
+    expect(pageSource).toContain('再次执行')
+    expect(pageSource).toContain('v-else-if="orderLoadError"')
+    expect(pageSource).toContain('<PlanOrderPanel')
+    expect(pageSource).toContain(':can-adopt="canOperateActive"')
+    expect(pageSource).toContain('@close="onOrderPanelClose"')
+    expect(pageSource).toContain('@closed="closeOrderAssistPanel"')
+  })
+
+  it('应用建议后刷新计划详情与脑图', () => {
+    expect(pageSource).toContain('mindMapRef.value?.reload()')
+    expect(pageSource).toContain('void load()')
+  })
 })

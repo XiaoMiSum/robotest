@@ -145,5 +145,5 @@ export function useMindmapInit(options: {
     teardownMinder()
   })
 
-  return { menuVisible, menuPos, onContextMenu, closeContextMenu }
+  return { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder }
 }

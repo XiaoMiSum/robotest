@@ -189,7 +189,7 @@ const allUnchanged = computed(
 
 const adoptDisabledReason = computed(() => {
   if (props.rows.length === 0) return '暂无可处理的建议'
-  if (!props.canAdopt) return '当前节点只读或没有脑图编辑权限'
+  if (!props.canAdopt) return '当前节点只读或没有建议采纳权限'
   if (allUnchanged.value) return '全部建议与现有内容一致，仅可关闭'
   if (props.confirming) return '正在提交采纳结果'
   if (!activeReady.value) return '建议内容暂不可用'
@@ -200,7 +200,7 @@ const adoptDisabledReason = computed(() => {
 
 const batchDisabledReason = computed(() => {
   if (props.rows.length === 0) return '暂无可处理的建议'
-  if (!props.canAdopt) return '当前节点只读或没有脑图编辑权限'
+  if (!props.canAdopt) return '当前节点只读或没有建议采纳权限'
   if (allUnchanged.value) return '全部建议与现有内容一致，仅可关闭'
   if (props.confirming) return '正在提交采纳结果'
   if (pendingKeys.value.length === 0) return '全部建议已处理'

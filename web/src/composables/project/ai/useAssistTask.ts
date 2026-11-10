@@ -18,11 +18,15 @@ import type {
   AiTaskDetail,
 } from '@/types'
 import {
+  aiExecutionSummary,
   aiProposalConfirmMeta,
   aiProposalProcessed,
   aiTaskStatusMeta,
 } from '@/composables/project/ai/taskPresentation'
 import { readAssistSuggestion } from '@/composables/project/ai/assistPresentation'
+
+/** 同步等待上限（总册 3.6.2 waitSeconds ∈ [0,10]）：等待期内完成直接拿提案，超时转轮询 */
+const SYNC_WAIT_SECONDS = 10
 
 /** 建议面板行：产物摘要 + 规范化内容（内容未加载或结构不可解析时 suggestion 为 null） */
 export interface AssistRow {
@@ -65,17 +69,26 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   const receipt = ref<AiProposalConfirmResult[]>([])
   /** 产物内容按 key 缓存；确认后清空重取，避免残留旧建议 */
   const contents = ref<Record<string, Record<string, unknown>>>({})
+  let contentsInFlight = false
 
   function sync(detail: AiTaskDetail): void {
     task.value = detail
-    if (!isTerminalTaskStatus(detail.status)) return
-    aiTaskStore.stopPolling()
-    if (detail.status === 'closed') void loadContents()
+    if (isTerminalTaskStatus(detail.status)) aiTaskStore.stopPolling()
+    // 提案随详情在 proposals_ready / closed 下发；内容仅在本地缓存为空时拉取，
+    // 避免 2s 轮询重复请求；确认后缓存被清空会按需重取已处理项内容
+    if (
+      (detail.proposals?.length ?? 0) > 0 &&
+      Object.keys(contents.value).length === 0 &&
+      !contentsInFlight
+    ) {
+      void loadContents()
+    }
   }
 
   async function loadContents(): Promise<void> {
     const summaries = task.value?.proposals ?? []
     if (summaries.length === 0) return
+    contentsInFlight = true
     loading.value = true
     try {
       const next: Record<string, Record<string, unknown>> = {}
@@ -88,6 +101,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     } catch (err) {
       loadError.value = errorMessage(err, '加载建议内容失败')
     } finally {
+      contentsInFlight = false
       loading.value = false
     }
   }
@@ -124,6 +138,10 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   const isSucceeded = computed(() => task.value?.status === 'closed')
   const isFailed = computed(() => task.value?.status === 'aborted')
   const failedReason = computed(() => task.value?.terminateReason?.msg ?? '')
+  /** 执行摘要（步数与最近动作）：交互 2.3 超交互等待时入口展示进度 */
+  const executionSummary = computed(() =>
+    task.value === null ? null : aiExecutionSummary(task.value),
+  )
   const receiptSummary = computed(() => ({
     succeeded: receipt.value.filter((item) => item.success).length,
     failed: receipt.value.filter((item) => !item.success).length,
@@ -153,7 +171,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     receipt.value = []
     contents.value = {}
     try {
-      const created = await submitAiTask(kind, input)
+      const created = await submitAiTask(kind, input, SYNC_WAIT_SECONDS)
       taskId.value = created.taskId
       // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
       void aiTaskStore.refreshRunningCount()
@@ -294,6 +312,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     isSucceeded,
     isFailed,
     failedReason,
+    executionSummary,
     receiptSummary,
     refresh,
     launch,
