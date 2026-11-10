@@ -7,7 +7,7 @@
 #   - 排除「新架构合法字面量」（用量 success/failed、执行态 succeeded、提案确认 pending）
 #
 # 使用：bash scripts/check-legacy-ai.sh   （退出码 0 = 全绿；1 = 有残留，输出明细）
-# 状态基线：B/C/D 绿；A 仅剩 `artifactKey` 命名残留（S6 实清）；web 两查（E1/E2）待 S5。
+# 状态基线：B/C/D/E1/E2 绿；A 仅剩 `artifactKey` 命名残留（S6 实清）。
 
 set -u
 cd "$(dirname "$0")/.."
@@ -73,10 +73,10 @@ grep -rn -E "AiArtifact|cancelAiTask|retryAiTask|fetchAiArtifact|isTerminalTaskS
 report "$( [ -s "$TMP/e1.txt" ] && echo 1 || echo 0 )" \
   "E1. 前端 AiArtifact 族与 cancel/retry 端点函数 = 0" "$TMP/e1.txt"
 
-# --- E2. 前端任务域 progress / phase 残留（S5 后全绿） ---
+# --- E2. 前端任务域 progress / phase 残留（S5 后全绿；el-progress 为组件标签非任务字段，豁免） ---
 grep -rn -E "\bphase\b|\bprogress\b" \
   web/src/stores/aiTask.ts web/src/pages/project/ai web/src/composables/project/ai \
-  --include='*.ts' --include='*.vue' > "$TMP/e2.txt" 2>/dev/null || true
+  --include='*.ts' --include='*.vue' | grep -v "el-progress" > "$TMP/e2.txt" 2>/dev/null || true
 report "$( [ -s "$TMP/e2.txt" ] && echo 1 || echo 0 )" \
   "E2. 前端任务域 progress / phase = 0" "$TMP/e2.txt"
 
@@ -85,5 +85,5 @@ if [ "$FAIL" -eq 0 ]; then
   echo "清理门禁：全部通过"
   exit 0
 fi
-echo "清理门禁：存在残留（S6 收口前 A/E1/E2 预期未绿）"
+echo "清理门禁：存在残留（S6 收口前 A 预期未绿）"
 exit 1
