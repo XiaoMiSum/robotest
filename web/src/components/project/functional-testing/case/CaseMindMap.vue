@@ -8,6 +8,8 @@ import { useMindmapLayout } from '@/composables/project/functional-testing/mindm
 import { useMindmapNodeOps } from '@/composables/project/functional-testing/mindmap/useMindmapNodeOps'
 import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/useMindmapYjs'
 import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
+import { useCaseAssistEntry } from '@/composables/project/ai/useCaseAssistEntry'
+import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
 
 const props = defineProps<{ docId: string }>()
 
@@ -51,7 +53,7 @@ const yjs = useMindmapYjs(
   persistence.schedulePersist,
 )
 
-const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit({
+const { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder } = useMindmapInit({
   docId: () => props.docId,
   containerRef,
   loading,
@@ -68,6 +70,42 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
   yjs,
   layout,
   nodeOps,
+})
+
+// AI 补全 / 级别推荐入口（详设 5.1）：选中用例节点发起，采纳后重载脑图同步落库结果
+const {
+  entryVisible: assistEntryVisible,
+  gateReason: assistGateReason,
+  canLaunch: canLaunchAssist,
+  canAdopt: canAdoptAssist,
+  panelVisible: assistPanelVisible,
+  activeKind: assistKind,
+  rows: assistRows,
+  loading: assistLoading,
+  confirming: assistConfirming,
+  receipt: assistReceipt,
+  running: assistRunning,
+  failed: assistFailed,
+  failedReason: assistFailedReason,
+  progressText: assistProgressText,
+  loadError: assistLoadError,
+  launchComplete,
+  launchPriority,
+  retry: retryAssist,
+  refresh: refreshAssist,
+  adopt: adoptAssist,
+  adoptEdited: adoptAssistEdited,
+  batchAdopt: batchAdoptAssist,
+  reject: rejectAssist,
+  clearReceipt: clearAssistReceipt,
+  openSource: openAssistSource,
+  closePanel: closeAssistPanel,
+} = useCaseAssistEntry({
+  documentId: () => props.docId,
+  selectedNodeId: () => selectedNodeId.value,
+  selectedType: () => selectedType.value,
+  isReadonly: () => getMinder()?.getStatus?.() === 'readonly',
+  onConfirmed: () => void initMinder(),
 })
 </script>
 
@@ -147,6 +185,23 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
           @click="nodeOps.markPriority(p)"
         >{{ p }}</el-button>
       </div>
+      <el-divider v-if="assistEntryVisible" direction="vertical" />
+      <div v-if="assistEntryVisible" class="toolbar-group">
+        <el-tooltip :content="assistGateReason || '对选中用例发起 AI 补全'" placement="bottom">
+          <span>
+            <el-button text :disabled="!canLaunchAssist" @click="launchComplete">
+              <el-icon><MagicStick /></el-icon><span>AI 补全</span>
+            </el-button>
+          </span>
+        </el-tooltip>
+        <el-tooltip :content="assistGateReason || '对选中用例发起级别推荐'" placement="bottom">
+          <span>
+            <el-button text :disabled="!canLaunchAssist" @click="launchPriority">
+              <el-icon><Sort /></el-icon><span>级别推荐</span>
+            </el-button>
+          </span>
+        </el-tooltip>
+      </div>
     </div>
 
     <div
@@ -196,6 +251,61 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu } = useMindmapInit
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="nodeOps.deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
+
+    <!-- AI 建议面板：进行中展示进度入口，完成后切换为对照面板（交互 2.3） -->
+    <el-dialog
+      v-model="assistPanelVisible"
+      title="AI 建议"
+      width="720px"
+      :close-on-click-modal="false"
+      @closed="closeAssistPanel"
+    >
+      <div v-if="assistRunning" class="ai-assist-progress">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <div class="ai-assist-progress__text">
+          <span>AI 正在生成建议…</span>
+          <span v-if="assistProgressText" class="ai-assist-progress__detail">
+            {{ assistProgressText }}
+          </span>
+        </div>
+        <el-button link @click="closeAssistPanel">后台运行，关闭</el-button>
+      </div>
+      <el-alert
+        v-else-if="assistFailed"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="assistFailedReason || '建议生成失败'"
+      >
+        <el-button size="small" type="danger" plain @click="retryAssist">再次执行</el-button>
+      </el-alert>
+      <el-alert
+        v-else-if="assistLoadError"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="assistLoadError"
+      >
+        <el-button size="small" plain @click="refreshAssist">重试</el-button>
+        <el-button size="small" plain @click="closeAssistPanel">关闭</el-button>
+      </el-alert>
+      <AssistComparePanel
+        v-else
+        :kind="assistKind"
+        :rows="assistRows"
+        :can-adopt="canAdoptAssist"
+        :confirming="assistConfirming"
+        :loading="assistLoading"
+        :receipt="assistReceipt"
+        @adopt="adoptAssist"
+        @adopt-edited="adoptAssistEdited"
+        @batch-adopt="batchAdoptAssist"
+        @reject="rejectAssist"
+        @open-source="openAssistSource"
+        @clear-receipt="clearAssistReceipt"
+        @close="closeAssistPanel"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -344,5 +454,24 @@ $priorities: p0, p1, p2, p3;
     pointer-events: auto;
     caret-color: var(--el-color-primary);
   }
+}
+
+.ai-assist-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+}
+
+.ai-assist-progress__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.ai-assist-progress__detail {
+  color: var(--color-neutral-400);
 }
 </style>

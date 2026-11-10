@@ -308,7 +308,7 @@ describe('AssistComparePanel', () => {
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '驳回').attributes('disabled')).toBeDefined()
-      expect(wrapper.text()).toContain('当前节点只读或没有脑图编辑权限')
+      expect(wrapper.text()).toContain('当前节点只读或没有建议采纳权限')
     })
 
     it('逐项回执渲染成败并可清空', async () => {

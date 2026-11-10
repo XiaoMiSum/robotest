@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePlanDetail } from '@/composables/project/functional-testing/plan/usePlanDetail'
+import { usePlanOrderAssist } from '@/composables/project/ai/usePlanOrderAssist'
+import PlanOrderPanel from '@/components/project/ai/PlanOrderPanel.vue'
 import { planStatusMeta, planStatusLabel } from '@/components/project/functional-testing/plan/planListPresentation'
 
 const route = useRoute()
@@ -28,10 +30,42 @@ const {
   handleCasesConfirm,
   handleCasesRemoved,
   refreshProgress,
+  load,
 } = usePlanDetail({ planId })
 
 // 状态文案取自展示口径模块；操作按钮按「状态 + 权限码」双条件显隐，服务端 @PreAuthorize 二次收口
 const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
+
+// ---------- 执行顺序建议（详设 5.1 / 交互 2.2） ----------
+const {
+  entryVisible: orderEntryVisible,
+  panelVisible: orderPanelVisible,
+  rows: orderRows,
+  loading: orderLoading,
+  confirming: orderConfirming,
+  running: orderRunning,
+  failed: orderFailed,
+  failedReason: orderFailedReason,
+  progressText: orderProgressText,
+  loadError: orderLoadError,
+  launch: launchOrderAssist,
+  retry: retryOrderAssist,
+  refresh: refreshOrderAssist,
+  apply: applyOrderAssist,
+  closePanel: closeOrderAssistPanel,
+  onPanelClose: onOrderPanelClose,
+} = usePlanOrderAssist({
+  planId,
+  onConfirmed: () => {
+    void load()
+    mindMapRef.value?.reload()
+  },
+})
+
+/** 计划关联用例为空时后端 1000018304，入口置灰并说明原因（详设 4.1） */
+const orderEmptyReason = computed(() =>
+  (progress.value?.totalAssociated ?? 0) === 0 ? '计划关联用例为空，无法推荐执行顺序' : '',
+)
 </script>
 
 <template>
@@ -79,6 +113,17 @@ const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
           <el-button v-if="canAdjustCases" size="small" plain @click="openCaseSelector">
             <el-icon><EditPen /></el-icon>调整用例
           </el-button>
+          <el-tooltip
+            v-if="orderEntryVisible && canOperateActive"
+            :content="orderEmptyReason || '按 AI 建议调整计划执行顺序'"
+            placement="top"
+          >
+            <span>
+              <el-button size="small" plain :disabled="!!orderEmptyReason" @click="launchOrderAssist">
+                <el-icon><Sort /></el-icon>执行顺序建议
+              </el-button>
+            </span>
+          </el-tooltip>
           <el-button v-if="canOperateActive" size="small" plain @click="handleSync">
             <el-icon><Refresh /></el-icon>同步用例
           </el-button>
@@ -140,6 +185,54 @@ const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
       :initial-selected="plannedCases"
       @confirm="handleCasesConfirm"
     />
+
+    <!-- 执行顺序建议：进行中展示进度入口，完成后切换为排序面板（交互 2.2 / 2.3） -->
+    <el-dialog
+      v-model="orderPanelVisible"
+      title="执行顺序建议"
+      width="720px"
+      :close-on-click-modal="false"
+      @closed="closeOrderAssistPanel"
+    >
+      <div v-if="orderRunning" class="plan-detail__ai-progress">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <div class="plan-detail__ai-progress-text">
+          <span>AI 正在生成执行顺序建议…</span>
+          <span v-if="orderProgressText" class="plan-detail__ai-progress-detail">
+            {{ orderProgressText }}
+          </span>
+        </div>
+        <el-button link @click="closeOrderAssistPanel">后台运行，关闭</el-button>
+      </div>
+      <el-alert
+        v-else-if="orderFailed"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="orderFailedReason || '执行顺序建议生成失败'"
+      >
+        <el-button size="small" type="danger" plain @click="retryOrderAssist">再次执行</el-button>
+      </el-alert>
+      <el-alert
+        v-else-if="orderLoadError"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="orderLoadError"
+      >
+        <el-button size="small" plain @click="refreshOrderAssist">重试</el-button>
+        <el-button size="small" plain @click="closeOrderAssistPanel">关闭</el-button>
+      </el-alert>
+      <PlanOrderPanel
+        v-else
+        :rows="orderRows"
+        :can-adopt="canOperateActive"
+        :confirming="orderConfirming"
+        :loading="orderLoading"
+        @adopt-edited="applyOrderAssist"
+        @close="onOrderPanelClose"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -315,5 +408,24 @@ const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
     flex-direction: column;
     overflow: hidden;
   }
+}
+
+.plan-detail__ai-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+}
+
+.plan-detail__ai-progress-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.plan-detail__ai-progress-detail {
+  color: var(--color-neutral-400);
 }
 </style>
