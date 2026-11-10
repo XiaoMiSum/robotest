@@ -296,6 +296,10 @@ function handleDrillPageChange(page: number) {
   void loadDrill()
 }
 
+/**
+ * 用量下钻行状态取用量记录结果（`ai_usage_log.status`，详设 3.7：success / failed），
+ * 与任务状态机（running / proposals_ready / closed / aborted）正交，不复用任务徽标。
+ */
 function usageStatusMeta(status: string): { label: string; tagType: 'success' | 'danger' | 'info' } {
   if (status === 'success') return { label: '成功', tagType: 'success' }
   if (status === 'failed') return { label: '失败', tagType: 'danger' }

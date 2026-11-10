@@ -163,6 +163,8 @@ describe('stores/bugAnalysis', () => {
 
     await store.generateSummary()
     expect(store.summaryError).toContain('失败')
+    // 同步快路径失败即落新状态机失败占位，卡片按 error 提供重试入口
+    expect(store.summaryStatus).toBe('aborted')
     expect(store.summaryRangeKey).toBe('||none')
   })
 
@@ -189,6 +191,25 @@ describe('stores/bugAnalysis', () => {
     await vi.advanceTimersByTimeAsync(2100)
     expect(store.summaryText).toBe('ok')
     expect(store.summaryPollTimer).toBeNull()
+  })
+
+  it('轮询到 aborted 终态：停止计时器、落失败占位且不取产物', async () => {
+    const store = useBugAnalysisStore()
+    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
+    mocks.fetchAiTask.mockResolvedValue(
+      makeDetail({
+        status: 'aborted',
+        terminateReason: { code: 1000018117, msg: '模型不可用' },
+      }),
+    )
+
+    await store.generateSummary()
+    expect(store.summaryRunning).toBe(true)
+    await vi.advanceTimersByTimeAsync(2100)
+    expect(store.summaryStatus).toBe('aborted')
+    expect(store.summaryError).toContain('失败')
+    expect(store.summaryPollTimer).toBeNull()
+    expect(mocks.fetchAiProposal).not.toHaveBeenCalled()
   })
 
   it('分诊成功解析 items；空结果给降级提示', async () => {

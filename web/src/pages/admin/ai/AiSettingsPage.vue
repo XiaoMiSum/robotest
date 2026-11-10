@@ -120,14 +120,13 @@ watch(
       reindexPhase.value = view.phase
       return
     }
+    // 向量重建无待采纳提案，终态只有 closed（成功）与 aborted（失败 / 中止），见总册 4.2
     if (cached.status === 'closed') {
       store.settleReindex(null)
       void store.loadEmbedding()
       ElMessage.success('向量重建完成')
-    } else if (cached.status === 'aborted') {
-      store.settleReindex(cached.terminateReason?.msg ?? '向量重建失败')
     } else {
-      store.settleReindex(null) // 取消：回待发起态，requiresReindex 仍为 true
+      store.settleReindex(cached.terminateReason?.msg ?? '向量重建失败')
     }
   },
 )

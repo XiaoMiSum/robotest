@@ -86,6 +86,17 @@ describe('composables/project/bug/useBugBatchActions', () => {
     expect(actions.scanBusy.value).toBe(false)
   })
 
+  it('提交即启动：返回 running 也直接跳转详情审核区（不依赖旧终态）', async () => {
+    mocks.submitAiTask.mockResolvedValue({ taskId: 't-run', status: 'running' })
+    const actions = useBugBatchActions()
+
+    await actions.submitScan()
+    expect(push).toHaveBeenCalledWith({
+      path: '/workspace/projects/ai/tasks/t-run',
+      query: { review: '1' },
+    })
+  })
+
   it('状态选项覆盖四态', () => {
     const actions = useBugBatchActions()
     expect(actions.STATUS_OPTIONS).toEqual(['active', 'resolved', 'rejected', 'closed'])
