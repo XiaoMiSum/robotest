@@ -279,7 +279,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 AdminLayout（上下两段：顶栏 + 主体；主体 = 侧栏 + 悬浮白卡内容区）
 ├── Topbar
 │   ├── Logo「RoboTest」+ 模式标签「系统管理」
-│   ├── 模式入口：我的空间（仅有活跃空间时显示）/ 系统管理（当前，激活态）/ 消息中心
+│   ├── 模式入口：我的空间（仅有活跃空间时显示）/ 系统管理（当前，激活态，需 hasSystemPermission）/ 消息中心
 │   └── UserDropdown（头像 + 显示名）
 │       ├── 修改密码 → ChangePasswordDialog（web/src/components/common/）
 │       └── 退出登录 → authStore.logout() 后跳 /login
@@ -467,3 +467,4 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 | V1.0 | 2026-10-02 | 与前端实际页面功能对齐：重写公开/管理端路由与侧边栏菜单注册表（AdminLayout + meta.menu 权限过滤）、状态管理改为 auth/nav 两个 Store 与组件本地组合式函数，补全 2.6 权限映射明细，修正过期章节交叉引用并重建分册-章节对照表 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
 | V1.0 | 2026-11-11 | 预置角色权限改为可编辑（默认锁定、前端勾选解锁），移除错误码 1000002004 |
+| V1.0 | 2026-11-11 | AdminLayout 顶栏「系统管理」激活按钮按 `hasSystemPermission` 显隐 |
