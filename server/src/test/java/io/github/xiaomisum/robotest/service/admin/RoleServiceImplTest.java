@@ -239,16 +239,24 @@ class RoleServiceImplTest {
     }
 
     @Test
-    void updateRolePermissions_systemRole_throws() {
+    void updateRolePermissions_systemRole_success() {
         SysRole role = new SysRole();
         role.setId(roleId);
         role.setIsSystem(true);
         when(roleMapper.selectById(roleId)).thenReturn(role);
+        when(userRoleMapper.selectCount(any(SFunction.class), any())).thenReturn(2L);
 
         RolePermissionsUpdateReqDTO dto = new RolePermissionsUpdateReqDTO();
         dto.setPermissions(List.of("user:view"));
 
-        assertThrows(ServiceException.class, () -> roleService.updateRolePermissions(roleId, dto));
+        var resultDto = roleService.updateRolePermissions(roleId, dto);
+
+        ArgumentCaptor<SysRole> captor = ArgumentCaptor.forClass(SysRole.class);
+        verify(roleMapper).updateById(captor.capture());
+        assertEquals(roleId, captor.getValue().getId());
+        assertEquals(List.of("user:view"), captor.getValue().getPermissions());
+        assertNull(captor.getValue().getName());
+        assertEquals(2, resultDto.getUserCount());
     }
 
     @Test
