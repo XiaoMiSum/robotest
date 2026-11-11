@@ -65,7 +65,7 @@ function goMyWorkspaces() {
           <span>我的空间</span>
         </div>
 
-        <div class="admin-layout__icon-btn admin-layout__icon-btn--active">
+        <div v-if="authStore.hasSystemPermission" class="admin-layout__icon-btn admin-layout__icon-btn--active">
           <el-icon><Monitor /></el-icon>
           <span>系统管理</span>
         </div>

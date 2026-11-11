@@ -19,7 +19,7 @@ const activeDynamicMenu = computed(() => {
   return match?.path ?? ''
 })
 
-const showMyProject = computed(() => navStore.isProjectMode)
+const showMyProject = computed(() => navStore.isProjectMode && authStore.hasPermission('project:view'))
 const showWorkspaceManage = computed(() => (navStore.isWorkspaceMode || navStore.isProjectMode) && authStore.hasWorkspaceAccess)
 const showSystemAdmin = computed(() => authStore.hasSystemPermission)
 
