@@ -15,7 +15,9 @@ const {
   topModules,
   checkedCodes,
   dirty,
+  unlocked,
   isLocked,
+  setUnlocked,
   handleRevert,
   handleSave,
   allChecked,
@@ -26,6 +28,11 @@ const {
   () => props.roleType,
   () => props.isSystem,
 )
+
+// el-checkbox 的 change 载荷是宽类型，仅布尔勾选有意义
+function onToggleUnlock(value: string | number | boolean) {
+  setUnlocked(value === true)
+}
 
 interface PermissionTableRow {
   topModule: string
@@ -66,17 +73,22 @@ const spanMethod = ({ row, columnIndex }: { row: PermissionTableRow; columnIndex
                 <el-checkbox
                   :model-value="allChecked"
                   :indeterminate="indeterminate"
-                  :disabled="isSystem"
+                  :disabled="isSystem && !unlocked"
                   aria-label="全选"
                   @change="toggleAll"
                 />
                 <span>权限点</span>
               </div>
-              <div v-if="!isSystem" class="perm-table__header-actions">
-                <el-button :disabled="!dirty" @click="handleRevert">撤销修改</el-button>
-                <el-button type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
-                  保存权限
-                </el-button>
+              <div class="perm-table__header-actions">
+                <el-checkbox v-if="isSystem" :model-value="unlocked" @change="onToggleUnlock">
+                  允许编辑
+                </el-checkbox>
+                <template v-if="!isSystem || unlocked">
+                  <el-button :disabled="!dirty" @click="handleRevert">撤销修改</el-button>
+                  <el-button type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
+                    保存权限
+                  </el-button>
+                </template>
               </div>
             </div>
           </template>
@@ -146,6 +158,11 @@ const spanMethod = ({ row, columnIndex }: { row: PermissionTableRow; columnIndex
   /* 间距由 gap 统一控制，抵消按钮相邻默认外边距 */
   .el-button + .el-button {
     margin-left: 0;
+  }
+
+  /* 同上：抵消勾选框默认右外边距，避免右侧对齐被撑开 */
+  .el-checkbox {
+    margin-right: 0;
   }
 }
 

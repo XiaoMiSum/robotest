@@ -9,6 +9,8 @@ export function usePermissionTable(getRoleId: () => string, getRoleType: () => s
   const topModules = ref<PermissionTopModule[]>([])
   const checkedCodes = ref<string[]>([])
   const savedCodes = ref<string[]>([])
+  // 预置角色默认锁定，仅当用户显式勾选「允许编辑」才放开修改
+  const unlocked = ref(false)
 
   const dirty = computed(() => {
     if (checkedCodes.value.length !== savedCodes.value.length) return true
@@ -17,6 +19,8 @@ export function usePermissionTable(getRoleId: () => string, getRoleType: () => s
   })
 
   async function load() {
+    // 切换/重新加载角色时重置解锁态，避免沿用上一角色的编辑授权
+    unlocked.value = false
     if (!getRoleId()) return
     loading.value = true
     try {
@@ -32,8 +36,13 @@ export function usePermissionTable(getRoleId: () => string, getRoleType: () => s
   }
 
   function isLocked(_code: string): boolean {
-    if (getIsSystem()) return true
-    return false
+    return getIsSystem() && !unlocked.value
+  }
+
+  // 取消勾选即放弃未保存修改：先回到上次保存的快照，再重新锁定
+  function setUnlocked(value: boolean) {
+    if (unlocked.value && !value) handleRevert()
+    unlocked.value = value
   }
 
   function handleRevert() {
@@ -84,7 +93,9 @@ export function usePermissionTable(getRoleId: () => string, getRoleType: () => s
     checkedCodes,
     savedCodes,
     dirty,
+    unlocked,
     isLocked,
+    setUnlocked,
     handleRevert,
     handleSave,
     allVisibleCodes,
