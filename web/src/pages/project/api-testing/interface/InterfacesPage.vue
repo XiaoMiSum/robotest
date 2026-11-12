@@ -23,6 +23,7 @@ import {
 import type { PendingDebugRequest } from '@/stores/apiTestingUi'
 import ImportDialog from './ImportDialog.vue'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
+import BatchActionBar from '@/components/common/BatchActionBar.vue'
 
 const router = useRouter()
 const uiStore = useApiTestingUiStore()
@@ -62,6 +63,8 @@ const searchText = ref('')
 const statusFilter = ref<'' | ApiInterfaceStatus>('')
 const viewFilter = ref<ApiInterfaceView>('all')
 const selectedRows = ref<ApiInterfaceItem[]>([])
+// 批量条清空需直接驱动表格勾选态，避免只清行数据导致复选框残留
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 
 async function loadPage() {
   loading.value = true
@@ -177,8 +180,6 @@ async function handleDelete(item: ApiInterfaceItem) {
 const showBatchMove = ref(false)
 const batchMoveTarget = ref<string | null>(null)
 
-const hasSelection = computed(() => selectedRows.value.length > 0)
-
 async function confirmBatchMove() {
   if (!batchMoveTarget.value) {
     ElMessage.warning('请选择目标模块')
@@ -200,7 +201,7 @@ async function confirmBatchDelete() {
   try {
     await batchDeleteInterfaces(ids)
     ElMessage.success('已删除')
-    selectedRows.value = []
+    tableRef.value?.clearSelection()
     if (!rows.value.length && pageNo.value > 1) pageNo.value -= 1
     else void loadPage()
   } catch (error) {
@@ -258,12 +259,6 @@ defineExpose({ openCreate, openImport })
         </el-button>
         <el-button data-test="interface-reset-btn" @click="handleReset">重置</el-button>
         <div class="interfaces-page__spacer" />
-        <template v-if="hasSelection">
-          <span class="interfaces-page__selected-count">已选 {{ selectedRows.length }} 项</span>
-          <el-button size="small" data-test="batch-move-btn" @click="showBatchMove = true">批量移动</el-button>
-          <el-button size="small" type="danger" plain data-test="batch-delete-btn" @click="confirmBatchDelete">批量删除</el-button>
-          <el-divider direction="vertical" />
-        </template>
       </div>
     </el-card>
 
@@ -283,6 +278,7 @@ defineExpose({ openCreate, openImport })
         <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
         <div class="interfaces-page__table">
           <el-table
+            ref="tableRef"
             :data="rows"
             height="100%"
             data-test="interface-table"
@@ -357,6 +353,11 @@ defineExpose({ openCreate, openImport })
       </el-card>
       </div>
 
+    <BatchActionBar :count="selectedRows.length" @clear="tableRef?.clearSelection()">
+      <el-button size="small" data-test="batch-move-btn" @click="showBatchMove = true">批量移动</el-button>
+      <el-button size="small" type="danger" plain data-test="batch-delete-btn" @click="confirmBatchDelete">批量删除</el-button>
+    </BatchActionBar>
+
     <ImportDialog v-model="showImport" @imported="handleImported" />
 
     <el-dialog v-model="showBatchMove" title="批量移动到模块" width="420px">
@@ -403,11 +404,6 @@ defineExpose({ openCreate, openImport })
 .interfaces-page__more {
   margin-left: 12px;
   vertical-align: middle;
-}
-
-.interfaces-page__selected-count {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-500);
 }
 
 .interfaces-page__body {

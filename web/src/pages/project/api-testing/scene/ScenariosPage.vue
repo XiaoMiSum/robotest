@@ -10,6 +10,7 @@ import { fetchGitRepo } from '@/services/project/api-testing/gitRepo'
 import { flattenModuleNames } from '@/composables/project/api-testing/interface/interfacesModel'
 import { formatDateTime } from '@/utils/format'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
+import BatchActionBar from '@/components/common/BatchActionBar.vue'
 
 const emit = defineEmits<{
   (e: 'edit', sceneId: string): void
@@ -71,6 +72,8 @@ const SOURCE_OPTIONS = [
 const viewFilter = ref<string>('all')
 const sourceFilter = ref<string>('')
 const selectedIds = ref<string[]>([])
+// 批量条清空需直接驱动表格勾选态，避免只清 ids 导致复选框残留
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 
 // ==================== 仓库信息（徽标 hover 与仓库级「源有更新」信息条） ====================
 // 一项目一仓库（详设 3.1），每次进入列表取一次；未配置 / 失败静默降级，不影响列表主流程
@@ -124,13 +127,13 @@ watch(publishStatusFilter, () => {
 
 watch(viewFilter, () => {
   pageNo.value = 1
-  selectedIds.value = []
+  tableRef.value?.clearSelection()
   void loadPage()
 })
 
 watch(sourceFilter, () => {
   pageNo.value = 1
-  selectedIds.value = []
+  tableRef.value?.clearSelection()
   void loadPage()
 })
 
@@ -225,7 +228,7 @@ async function handleBatchDelete() {
   try {
     await batchDeleteScenes(selectedIds.value)
     ElMessage.success('已删除')
-    selectedIds.value = []
+    tableRef.value?.clearSelection()
     if (!rows.value.length && pageNo.value > 1) pageNo.value -= 1
     else void loadPage()
   } catch (error) {
@@ -246,7 +249,7 @@ async function confirmBatchMove() {
     await batchMoveScenes(selectedIds.value, batchMoveTarget.value)
     ElMessage.success(`已移动 ${selectedIds.value.length} 个场景`)
     showBatchMove.value = false
-    selectedIds.value = []
+    tableRef.value?.clearSelection()
     void loadPage()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '批量移动失败')
@@ -304,10 +307,6 @@ onActivated(async () => {
         </el-button>
         <el-button @click="handleReset">重置</el-button>
         <div class="scenarios-page__spacer" />
-        <template v-if="selectedIds.length > 0">
-          <el-button link type="primary" @click="showBatchMove = true">移动</el-button>
-          <el-button link type="danger" @click="handleBatchDelete">删除</el-button>
-        </template>
       </div>
     </el-card>
 
@@ -331,7 +330,7 @@ onActivated(async () => {
         </div>
         <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
         <div class="scenarios-page__table">
-          <el-table :data="rows" height="100%" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
+          <el-table ref="tableRef" :data="rows" height="100%" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
             <el-table-column type="selection" width="40" />
             <el-table-column width="44">
               <template #default="{ row }">
@@ -431,6 +430,11 @@ onActivated(async () => {
         />
         </el-card>
       </div>
+
+    <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
+      <el-button size="small" type="primary" @click="showBatchMove = true">批量移动</el-button>
+      <el-button size="small" type="danger" @click="handleBatchDelete">批量删除</el-button>
+    </BatchActionBar>
 
     <el-dialog v-model="showBatchMove" title="批量移动到模块" width="420px">
       <el-tree

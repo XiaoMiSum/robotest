@@ -11,6 +11,7 @@ import {
 } from '@/services/admin'
 import type { AdminUser, RoleSimple, UserStatus } from '@/types'
 import { formatDateTime } from '@/utils/format'
+import BatchActionBar from '@/components/common/BatchActionBar.vue'
 
 const router = useRouter()
 
@@ -25,6 +26,8 @@ const loading = ref(false)
 const users = ref<AdminUser[]>([])
 const total = ref(0)
 const selectedIds = ref<string[]>([])
+// 批量条清空需直接驱动表格勾选态，避免只清 ids 导致复选框残留
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 
 const query = reactive({
   keyword: '',
@@ -119,6 +122,7 @@ async function handleBatchStatus(status: UserStatus) {
   try {
     await batchUpdateUserStatus(selectedIds.value, status)
     ElMessage.success(`已批量${actionText}`)
+    tableRef.value?.clearSelection()
     loadUsers()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '批量操作失败')
@@ -222,6 +226,7 @@ onMounted(() => {
       </div>
 
       <el-table
+        ref="tableRef"
         v-loading="loading"
         :data="users"
         row-key="id"
@@ -309,13 +314,6 @@ onMounted(() => {
       </el-table>
 
       <footer class="user-list__footer">
-        <div class="user-list__batch">
-          <template v-if="selectedIds.length">
-            <span class="user-list__muted">已选 {{ selectedIds.length }} 项</span>
-            <el-button size="small" @click="handleBatchStatus('disabled')">批量禁用</el-button>
-            <el-button size="small" @click="handleBatchStatus('active')">批量启用</el-button>
-          </template>
-        </div>
         <el-pagination
           v-model:current-page="query.pageNo"
           v-model:page-size="query.pageSize"
@@ -327,6 +325,11 @@ onMounted(() => {
         />
       </footer>
     </section>
+
+    <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
+      <el-button size="small" @click="handleBatchStatus('disabled')">批量禁用</el-button>
+      <el-button size="small" @click="handleBatchStatus('active')">批量启用</el-button>
+    </BatchActionBar>
 
     <el-dialog v-model="resetDialogVisible" title="重置密码" width="420px">
       <p class="user-list__reset-tip">
@@ -490,22 +493,15 @@ onMounted(() => {
   font-size: var(--font-size-xs);
 }
 
+/* 批量条已移出页脚，单子元素下改为右对齐保持分页原观感 */
 .user-list__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-md);
   padding: 14px 20px;
   border-top: 1px solid var(--color-neutral-100);
   flex-wrap: wrap;
-}
-
-/* 空态占位保持高度稳定，避免批量操作区出现/消失时分页条跳动 */
-.user-list__batch {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-height: 32px;
 }
 
 .user-list__reset-tip {
