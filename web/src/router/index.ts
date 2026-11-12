@@ -6,6 +6,8 @@ import type { NavMode } from '@/types'
 declare module 'vue-router' {
   interface RouteMeta {
     public?: boolean
+    /** 公开页无论是否持有会话令牌都展示：邀请加入页须在有效/过期会话下均可访问，不被弹去首页或登录页 */
+    alwaysPublic?: boolean
     requiresAuth?: boolean
     requiresAdmin?: boolean
     title?: string
@@ -57,7 +59,7 @@ const routes: RouteRecordRaw[] = [
     path: '/join',
     name: 'Join',
     component: () => import('@/pages/workspace/JoinPage.vue'),
-    meta: { public: true, title: '加入空间' },
+    meta: { public: true, alwaysPublic: true, title: '加入空间' },
   },
   // === Public report share page ===
   {
@@ -372,8 +374,9 @@ router.beforeEach(async (to, _from, next) => {
 
   // Public routes (login, invitation join page, etc.)
   if (to.meta.public) {
-    if (token) {
-      // Already logged in: redirect to home
+    // 持令牌访问公开页默认跳首页；alwaysPublic 页例外——过期会话若被弹去受保护页，
+    // 会因接口 401 → 刷新失败最终落到登录页，导致邀请加入页实质上需要登录
+    if (token && !to.meta.alwaysPublic) {
       next({ path: '/' })
     } else {
       next()

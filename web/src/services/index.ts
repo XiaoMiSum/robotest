@@ -83,6 +83,19 @@ function normalizeRequestPath(url: string | undefined): string {
   return normalizedPath.length > 1 ? normalizedPath.replace(/\/+$/, '') : normalizedPath
 }
 
+// 邀请加入三步为匿名公开接口（详设 1.2 补充说明）：携带过期 Authorization 会触发 JWT 过滤链 401，
+// 进而走刷新→失败→硬跳登录，使加入页实质上依赖登录态
+const ANONYMOUS_PUBLIC_PATHS = new Set([
+  '/workspace/invitations/verify',
+  '/workspace/invitations/check-email',
+  '/workspace/invitations/join',
+])
+
+/** 匿名公开接口：不注入 Authorization，401 不走会话刷新/跳登录流程，交由页面展示错误 */
+export function isAnonymousPublicApi(url: string | undefined): boolean {
+  return ANONYMOUS_PUBLIC_PATHS.has(normalizeRequestPath(url))
+}
+
 /** 依据接口域划分上下文，避免把活动空间/项目泄漏到公共或管理域请求。 */
 export function getRequestContextScope(
   url: string | undefined,
@@ -206,7 +219,7 @@ export function clearTokens(): void {
 // --- Request interceptor: inject Authorization and scoped context headers ---
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
-  if (token && !hasRequestHeader(config.headers, 'Authorization')) {
+  if (token && !isAnonymousPublicApi(config.url) && !hasRequestHeader(config.headers, 'Authorization')) {
     config.headers.Authorization = `Bearer ${token}`
   }
 
@@ -311,6 +324,12 @@ api.interceptors.response.use(
     // 401（后端返回 HTTP 200 + code 401）：未重试过则走刷新流程
     const config = response.config as AxiosRequestConfig & { _retry?: boolean }
     if (result.code === 401 && !config._retry) {
+      // 匿名公开接口的 401 与会话无关：按业务错误 reject，不触发刷新/硬跳登录
+      if (isAnonymousPublicApi(config.url)) {
+        const publicError = new Error(result.msg || '请求失败') as Error & { code?: number }
+        publicError.code = result.code
+        return Promise.reject(publicError)
+      }
       return handleUnauthorized(config) as unknown as never
     }
     // Non-200 business error: reject with the message; 附加 code 供调用方识别具体业务错误（如 429 限流）
@@ -324,6 +343,10 @@ api.interceptors.response.use(
     // HTTP 状态 401（兼容后端以真实 401 状态码表达认证失败的情况），同样走刷新
     // ；_retry 已置位（刷新后重放）仍 401 则不再刷新，防止重放递归触发刷新
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // 匿名公开接口不参与会话刷新，直接失败交页面提示
+      if (isAnonymousPublicApi(originalRequest.url)) {
+        return Promise.reject(new Error(error.response?.data?.msg || '请求失败'))
+      }
       try {
         await handleUnauthorized(originalRequest)
       } catch (refreshError) {
