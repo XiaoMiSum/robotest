@@ -1,6 +1,14 @@
 import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import api, { clearTokens, getAccessToken, getRefreshToken, setTokens } from './index'
+import api, {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  handleStorageEvent,
+  setTokens,
+} from './index'
+
+const TOKEN_KEY = 'robotest_access_token'
 
 // 运行环境为 node，无浏览器全局对象；以下仅内存实现，驱动拦截器所需的 sessionStorage/localStorage/window
 class MemoryStorage {
@@ -25,7 +33,8 @@ class MemoryStorage {
 
 const sessionStorageMock = new MemoryStorage()
 const localStorageMock = new MemoryStorage()
-const windowLocation = { pathname: '/app', href: '' }
+const windowReload = vi.fn()
+const windowLocation = { pathname: '/app', href: '', reload: windowReload }
 
 ;(globalThis as unknown as { sessionStorage: MemoryStorage }).sessionStorage = sessionStorageMock
 ;(globalThis as unknown as { localStorage: MemoryStorage }).localStorage = localStorageMock
@@ -50,6 +59,7 @@ beforeEach(async () => {
   localStorageMock.setItem('robotest_active_workspace', 'ws-1')
   windowLocation.pathname = '/app'
   windowLocation.href = ''
+  windowReload.mockClear()
   vi.restoreAllMocks()
   // 通过一次成功响应把会话失效标记复位，保证用例相互隔离
   withAdapter((config) => okResponse(config, { code: 200, data: null }))
@@ -409,5 +419,124 @@ describe('services/index.ts 助手接口上下文分层（详设 3.1）', () => 
 
     expect(received.workspace).toBeUndefined()
     expect(received.project).toBeUndefined()
+  })
+})
+
+describe('services/index.ts 令牌存储与跨标签页同步', () => {
+  it('令牌落 localStorage 供多标签页共享，不写 sessionStorage', () => {
+    setTokens('shared-access', 'shared-refresh')
+
+    expect(localStorageMock.getItem(TOKEN_KEY)).toBe('shared-access')
+    expect(localStorageMock.getItem('robotest_refresh_token')).toBe('shared-refresh')
+    expect(sessionStorageMock.getItem(TOKEN_KEY)).toBeNull()
+
+    clearTokens()
+
+    expect(localStorageMock.getItem(TOKEN_KEY)).toBeNull()
+    expect(localStorageMock.getItem('robotest_refresh_token')).toBeNull()
+  })
+
+  it('其他标签页清空令牌时本页标记失效并回落登录页', () => {
+    setTokens('access', 'refresh')
+    clearTokens()
+
+    handleStorageEvent({ key: TOKEN_KEY, oldValue: 'access', newValue: null })
+
+    expect(windowLocation.href).toBe('/login')
+  })
+
+  it('已在登录页时其他标签页清空令牌不再跳转', () => {
+    windowLocation.pathname = '/login'
+    clearTokens()
+
+    handleStorageEvent({ key: TOKEN_KEY, oldValue: 'access', newValue: null })
+
+    expect(windowLocation.href).toBe('')
+    expect(windowReload).not.toHaveBeenCalled()
+  })
+
+  it('非令牌键的 storage 事件被忽略', () => {
+    setTokens('access', 'refresh')
+
+    handleStorageEvent({ key: 'robotest_active_workspace', oldValue: null, newValue: 'ws-9' })
+
+    expect(windowLocation.href).toBe('')
+    expect(windowReload).not.toHaveBeenCalled()
+  })
+
+  it('其他标签页新登录且本页停留在登录页时刷新进入已登录态', () => {
+    windowLocation.pathname = '/login'
+    setTokens('access', 'refresh')
+
+    handleStorageEvent({ key: TOKEN_KEY, oldValue: null, newValue: 'access' })
+
+    expect(windowReload).toHaveBeenCalledTimes(1)
+  })
+
+  it('令牌轮换（新旧值均存在）不触发登录页刷新', () => {
+    windowLocation.pathname = '/login'
+    setTokens('access-2', 'refresh-2')
+
+    handleStorageEvent({ key: TOKEN_KEY, oldValue: 'access', newValue: 'access-2' })
+
+    expect(windowReload).not.toHaveBeenCalled()
+  })
+
+  it('等锁期间其他标签页已完成轮换时跳过刷新直接重放', async () => {
+    setTokens('old-access', 'old-refresh')
+    const refreshSpy = vi.spyOn(axios, 'post').mockResolvedValue({
+      data: { code: 200, data: { accessToken: 'wrong', refreshToken: 'wrong' } },
+    } as AxiosResponse)
+
+    // 注入可控 Web Locks：拿到锁前挂起，模拟其他标签页在此期间完成刷新轮换
+    const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+    let lockRequested = false
+    let releaseLock: (() => void) | undefined
+    const lockGate = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        locks: {
+          request: async (_name: string, callback: (lock: unknown) => Promise<void>) => {
+            lockRequested = true
+            await lockGate
+            return callback(null)
+          },
+        },
+      },
+    })
+
+    try {
+      const calls: string[] = []
+      withAdapter((config) => {
+        calls.push(`${config.url}:${config._retry ?? false}`)
+        if (config._retry) return okResponse(config, { code: 200, data: { ok: true } })
+        return okResponse(config, { code: 401, data: null, msg: '鉴权失败' })
+      })
+
+      const pending = api.get('/foo')
+      await vi.waitFor(() => {
+        expect(lockRequested).toBe(true)
+      })
+
+      // 其他标签页在本页等锁期间完成轮换
+      setTokens('new-access', 'rotated-refresh')
+      releaseLock?.()
+
+      await pending
+
+      expect(refreshSpy).not.toHaveBeenCalled()
+      expect(calls).toEqual(['/foo:false', '/foo:true'])
+      expect(getAccessToken()).toBe('new-access')
+    } finally {
+      releaseLock?.()
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis, 'navigator', originalDescriptor)
+      } else {
+        delete (globalThis as { navigator?: unknown }).navigator
+      }
+    }
   })
 })

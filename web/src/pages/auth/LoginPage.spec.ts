@@ -134,7 +134,7 @@ describe('LoginPage 登录流程', () => {
     expect(mocks.fetchPermissions).toHaveBeenCalled()
     expect(mocks.messageSuccess).toHaveBeenCalledWith('登录成功')
     expect(router.currentRoute.value.name).toBe('Workspaces')
-    expect(sessionStorage.getItem('robotest_access_token')).toBe('access-token')
+    expect(localStorage.getItem('robotest_access_token')).toBe('access-token')
     const authStore = useAuthStore(pinia)
     expect(authStore.user?.username).toBe('admin')
   })
