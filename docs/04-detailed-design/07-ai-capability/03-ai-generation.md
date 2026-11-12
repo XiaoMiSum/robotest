@@ -10,11 +10,11 @@
 
 ### 1.1 编写目的
 
-对 **AI+需求 生成链**能力域进行详细设计：定义测试设计生成与评审 / 计划圈选建议两类任务的输入、提案结构、执行过程与采纳落库规则。任务资源、提案确认协议、配置与用量的公共约定见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档不重复定义。
+对 **AI+需求 生成链**能力域进行详细设计：定义测试设计生成任务的输入、提案结构、执行过程与采纳落库规则。任务资源、提案确认协议、配置与用量的公共约定见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档不重复定义。
 
 ### 1.2 范围与对应设计
 
-- 对应需求：`docs/01-requirements/07-ai-capability/03-srs-ai-generation.md`（US-AI-005 ~ 009）。
+- 对应需求：`docs/01-requirements/07-ai-capability/03-srs-ai-generation.md`（US-AI-005 ~ 007）。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` 第 4.2 节。
 
 ### 1.3 参考资料
@@ -29,8 +29,8 @@
 
 本分册**不新增表**：
 
-- 任务、执行与轨迹：存 `ai_task / ai_task_execution / ai_task_trace_event`（`type = test_design_generation / review_selection / plan_selection`）；
-- 提案与采纳：存 `ai_task_proposal / ai_task_adoption`（本分册提案 `kind`：`module_suggestion / mindmap_document_suggestion / test_case_suggestion / review_selection / plan_selection`）；
+- 任务、执行与轨迹：存 `ai_task / ai_task_execution / ai_task_trace_event`（`type = test_design_generation`）；
+- 提案与采纳：存 `ai_task_proposal / ai_task_adoption`（本分册提案 `kind`：`module_suggestion / mindmap_document_suggestion / test_case_suggestion`）；
 - 生成目标（模块 / 脑图文档 / 用例）落库为既有业务表数据，本分册只定义写入规则（4.3）。
 
 ---
@@ -39,7 +39,7 @@
 
 ### 3.1 通用约定
 
-- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义两类任务的 `type`、`input`、提案与承接语义。
+- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义该任务类型的 `type`、`input`、提案与承接语义。
 - 发起入口在需求列表 / 需求详情（`X-Active-Project` 为目标项目），落库确认时的目标项目以确认请求的 `X-Active-Project` 头为准（C4）；发起或确认请求缺该头时回 1000002008（缺少上下文请求头），不计入生成链号段。
 
 ### 3.2 发起测试设计生成
@@ -122,43 +122,6 @@
   2. 每个 `isTestCase = true` 的节点生成一条测试用例实体，回写 `adopted_ref = { moduleId / documentId / nodeId / caseId }`；
   3. 任一步失败整项回滚，确认状态保持 `pending` 可重试。
 
-### 3.6 评审 / 计划圈选建议
-
-- **发起**：`POST /api/ai/tasks`
-
-```json
-{
-  "type": "review_selection",
-  "input": { "requirementIds": ["…"], "moduleIds": ["…"], "roundCount": 1 }
-}
-```
-
-| type | input | 提案 kind | 说明 |
-| ---- | ---- | ---- | ---- |
-| review_selection | `requirementIds?`、`moduleIds?`（至少一项）、`roundCount?`（默认 1，仅 plan） | `review_selection` / `plan_selection` | 建议纳入圈选的用例子集，附理由；plan 可按轮次分组 |
-
-- **校验**（错误码见 6）：上下文头 `X-Active-Project` 存在（1000002008）、圈选范围非空且需求 / 模块属当前项目（1000018206）。
-
-- **提案详情**：
-
-```json
-{
-  "key": "sel-1",
-  "kind": "review_selection",
-  "title": "评审圈选建议（8 条）",
-  "content": {
-    "items": [
-      { "caseId": "…", "title": "TC-001 获取验证码", "reason": "新增需求 REQ-001 覆盖" }
-    ],
-    "round": null
-  },
-  "confirmStatus": "pending"
-}
-```
-
-- **确认**：走总册 3.6.5；本类型 `target` 为既有创建流程的请求参数（评审名称、参与者、起止时间等，**不含项目上下文**）。
-- **承接**：沿用**既有评审 / 计划创建流程**生成快照（AI 不改变快照机制）。
-
 ---
 
 ## 4. 业务逻辑设计
@@ -180,11 +143,6 @@
 3. 「业务落库 + `ai_task_adoption` 写入」同一事务（详见 3.5），保证业务数据与采纳记录一致；
 4. 编辑后采纳以编辑值落库，`adopted_edited` 记录原 AI 值与编辑差异（审计）。
 
-### 4.4 圈选确认与快照语义
-
-- 圈选建议**不自动创建**评审 / 计划；确认时走既有创建流程，快照内容 = 圈选用例的当前版本；
-- 用例集合校验：`caseIds` 必须存在于当前项目（1000018207），圈选外增删由人工在创建流程中调整（调整后采纳 = 以调整结果提交 `target`）。
-
 ---
 
 ## 5. 前端设计
@@ -192,7 +150,6 @@
 ### 5.1 入口与发起配置
 
 - 需求列表 / 详情多选后「AI 生成用例」→ `GenerationConfigDialog`（目标项目与模块落位、生成范围回显、用例粒度偏好）；不可选需求置灰并提示原因（草稿 / 已变更 / 已归档）。
-- 需求列表多选后「AI 圈选建议」→ 圈选范围配置对话框（范围回显同上；计划类型可配轮次 1–10，默认 1），提交 `review_selection` / `plan_selection` 任务后跳转任务详情页。
 
 ### 5.2 执行过程（任务详情页上半区）
 
@@ -214,12 +171,7 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
   - 「来源需求已变更」标记、`suspectedDuplicateOf` 疑似重复警示；
   - 单条采纳 / 整树采纳 / 编辑后采纳 / 驳回附反馈（触发再次执行）。
 
-### 5.4 圈选建议发起与审核
-
-- 需求列表「AI 圈选建议」发起（输入 `requirementIds`，计划另附 `roundCount`）；
-- 圈选建议卡片列表（用例条目 + 理由），支持增删调整后提交既有评审 / 计划创建弹窗；确认前展示将创建的记录数量。
-
-### 5.5 状态分支
+### 5.4 状态分支
 
 - 任务执行中（步骤与预算消耗）/ 挂起（待批准）/ 待采纳 / 已终止（原因 + 再次执行）/ 已结束（灰态）；
 - 提案全驳回、部分采纳的回执列表（逐项成败）；
@@ -238,12 +190,10 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | 1000018203 | 400 | 落位目标模块不存在或不属当前项目 |
 | 1000018204 | 409 | 提案与既有数据疑似重复，需人工处理 |
 | 1000018205 | 400 | 生成参数非法（粒度、条数、落位方式） |
-| 1000018206 | 400 | 圈选建议输入非法（范围为空或参数越界） |
-| 1000018207 | 404 | 圈选用例不存在 |
 | 1000018209 | 409 | 已存在进行中的同输入生成任务 |
 | 1000018210 | 409 | 父级提案尚未采纳，无法落库 |
 
-> 上下文头缺失（`X-Active-Project` 未携带或未解析）回公共错误码 **1000002008**（缺少上下文请求头），不占用本号段；1000018205 / 1000018206 仅指入参取值与圈选范围非法。
+> 上下文头缺失（`X-Active-Project` 未携带或未解析）回公共错误码 **1000002008**（缺少上下文请求头），不占用本号段；1000018205 仅指入参取值非法。
 
 ---
 
@@ -254,20 +204,19 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | 文件 | 说明 |
 | ---- | ---- |
 | `server/.../service/ai/task/type/TestDesignGenerationTypeAdapter` | 生成链类型适配器（工具白名单与预算默认、提案结构定义） |
-| `server/.../service/ai/task/type/ReviewSelectionTypeAdapter`、`PlanSelectionTypeAdapter` | 圈选建议类型适配器 |
 | `server/.../service/ai/task/adopt/GenerationAdoptService + Impl` | 三层提案采纳落库（调用既有模块 / 文档 / 用例服务） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018201–1000018210 |
-| `web/src/components/project/ai/GenerationConfigDialog.vue`、`SelectionConfigDialog.vue`、`GenerationArtifactTreeReview.vue`、`SelectionReviewPanel.vue` 及子组件 | 发起与审核前端 |
-| `web/src/composables/project/ai/useGenerationSubmit.ts`、`useAiProposalReview.ts`、`useGenerationArtifactTree.ts`、`useSelectionSubmit.ts`、`useSelectionReview.ts` + 单测 | 发起提交、提案审核与圈选调整逻辑 |
-| `web/src/components/project/functional-testing/review/ReviewCreateDialog.vue`、`plan/PlanCreateDialog.vue` | 圈选确认复用的评审 / 计划创建弹窗 |
+| `web/src/components/project/ai/GenerationConfigDialog.vue`、`GenerationArtifactTreeReview.vue` 及子组件 | 发起与审核前端 |
+| `web/src/composables/project/ai/useGenerationSubmit.ts`、`useAiProposalReview.ts`、`useGenerationArtifactTree.ts` + 单测 | 发起提交与提案审核逻辑 |
+| `web/src/components/project/functional-testing/review/ReviewCreateDialog.vue`、`plan/PlanCreateDialog.vue` | 人工创建评审 / 计划弹窗 |
 
 - **数据库**：无新增表、无迁移（写入均为既有业务表，见 2 节）。
 - **OpenAPI**：`POST /api/ai/tasks` 的 `input` 按 `type` 给出 oneOf 说明；提案详情返回结构随任务详情分组暴露。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：输入状态校验矩阵、快照执行（执行中变更不中断）、落库事务回滚、编辑后采纳差异记录、圈选用例存在性与创建参数校验、同输入去重、终止不留数据；
-- 前端：配置对话框校验与置灰、计划步骤时间线与轨迹回看、三层树审核四类动作、疑似重复与来源变更提示、圈选调整后提交。
+- 后端：输入状态校验矩阵、快照执行（执行中变更不中断）、落库事务回滚、编辑后采纳差异记录、同输入去重、终止不留数据；
+- 前端：配置对话框校验与置灰、计划步骤时间线与轨迹回看、三层树审核四类动作、疑似重复与来源变更提示。
 
 ---
 
@@ -289,3 +238,4 @@ AiTaskDetailPage（/workspace/projects/ai/tasks/:taskId）
 | V1.0 | 2026-10-19 | 移除任务权限校验：任务发起与提案采纳后端不做权限校验（入口显隐由前端按权限点控制），6 错误码表注销 1000018208 |
 | V1.0 | 2026-10-20 | 发起校验补上下文头口径：缺 `X-Active-Project` 回公共码 1000002008（3.1 / 3.2 / 6），1000018205 收窄为纯入参取值非法 |
 | V1.0 | 2026-10-20 | 圈选建议发起补同口径：3.6 增校验条目（缺 `X-Active-Project` 回 1000002008），6 表说明同步覆盖 1000018206 |
+| V1.0 | 2026-11-12 | 整体移除评审/计划圈选建议（任务类型、提案 kind、3.6/4.4/5.4、错误码 1000018206/1000018207 与相关文件条目） |
