@@ -7,7 +7,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// --- Token management (sessionStorage: 标签页关闭即失效，XSS 无法跨会话持久窃取) ---
+// --- Token management (localStorage: 同一浏览器多标签页共享登录态，XSS 约束见安全规范 2.1) ---
 const TOKEN_KEY = 'robotest_access_token'
 const REFRESH_KEY = 'robotest_refresh_token'
 
@@ -199,21 +199,21 @@ export function getContextHeaders(options: ContextHeaderOptions = {}): Record<st
 }
 
 export function getAccessToken(): string | null {
-  return sessionStorage.getItem(TOKEN_KEY)
+  return localStorage.getItem(TOKEN_KEY)
 }
 
 export function getRefreshToken(): string | null {
-  return sessionStorage.getItem(REFRESH_KEY)
+  return localStorage.getItem(REFRESH_KEY)
 }
 
 export function setTokens(access: string, refresh: string): void {
-  sessionStorage.setItem(TOKEN_KEY, access)
-  sessionStorage.setItem(REFRESH_KEY, refresh)
+  localStorage.setItem(TOKEN_KEY, access)
+  localStorage.setItem(REFRESH_KEY, refresh)
 }
 
 export function clearTokens(): void {
-  sessionStorage.removeItem(TOKEN_KEY)
-  sessionStorage.removeItem(REFRESH_KEY)
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_KEY)
 }
 
 // --- Request interceptor: inject Authorization and scoped context headers ---
@@ -244,10 +244,49 @@ interface PendingRequest {
 }
 let pendingRequests: PendingRequest[] = []
 
+/** 跨标签页串行化：Web Locks 缺失（旧环境 / node 测试）时退回页内单飞 */
+async function runExclusive(name: string, task: () => Promise<void>): Promise<void> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+  if (locks && typeof locks.request === 'function') {
+    await locks.request(name, task)
+    return
+  }
+  await task()
+}
+
+/**
+ * 跨标签页会话同步（storage 事件仅由其他文档的写入触发）：
+ * 令牌被清空（登出 / 刷新失败）→ 本页标记会话失效并回落登录页；
+ * 其他标签页新登录而本页停留在登录页 → 刷新进入已登录态（令牌轮换不触发，避免误跳）。
+ */
+export function handleStorageEvent(event: {
+  key: string | null
+  oldValue: string | null
+  newValue: string | null
+}): void {
+  if (event.key !== null && event.key !== TOKEN_KEY) return
+  if (!getAccessToken()) {
+    sessionInvalidated = true
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login'
+    }
+    return
+  }
+  if (event.oldValue === null && event.newValue !== null && window.location.pathname === '/login') {
+    window.location.reload()
+  }
+}
+
+// 模块加载即注册；node 测试环境无 window 时跳过，测试直接调用 handleStorageEvent
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (event) => handleStorageEvent(event))
+}
+
 /**
  * 认证过期统一出口：使用 refresh token（仅经 X-Refresh-Token 头传递）换取新 token 后重放原请求。
  * 后端以 HTTP 200 + 业务码 401 表达认证失败（JWT 过滤链），故 HTTP 状态与业务码两路都汇聚到此。
- * 单飞：并发 401 仅发起一次刷新，其余排队等待后重放。
+ * 单飞：并发 401 仅发起一次刷新，其余排队等待后重放；跨标签页经 Web Locks 排队，
+ * 持锁后重读令牌，其他标签页已完成轮换则直接复用其结果。
  */
 async function handleUnauthorized(
   originalRequest: AxiosRequestConfig & { _retry?: boolean },
@@ -273,18 +312,27 @@ async function handleUnauthorized(
       throw new Error('No refresh token')
     }
 
-    // 刷新接口匿名可达（仅信任请求头中的 refresh token），直接调用且绕过拦截器，避免循环 401
-    const response = await axios.post<Result<unknown>>('/api/auth/refresh', null, {
-      headers: { 'X-Refresh-Token': refreshToken },
+    await runExclusive('robotest_token_refresh', async () => {
+      // 持锁后重读：等锁期间其他标签页已完成轮换则跳过刷新，防止同一刷新令牌被并发挤兑
+      const current = getRefreshToken()
+      if (!current) {
+        throw new Error('No refresh token')
+      }
+      if (current !== refreshToken) return
+
+      // 刷新接口匿名可达（仅信任请求头中的 refresh token），直接调用且绕过拦截器，避免循环 401
+      const response = await axios.post<Result<unknown>>('/api/auth/refresh', null, {
+        headers: { 'X-Refresh-Token': current },
+      })
+
+      const result = response.data
+      if (result.code !== 200 || !result.data) {
+        throw new Error('Refresh failed')
+      }
+
+      const data = result.data as { accessToken: string; refreshToken: string }
+      setTokens(data.accessToken, data.refreshToken)
     })
-
-    const result = response.data
-    if (result.code !== 200 || !result.data) {
-      throw new Error('Refresh failed')
-    }
-
-    const data = result.data as { accessToken: string; refreshToken: string }
-    setTokens(data.accessToken, data.refreshToken)
 
     // 重放排队请求（请求拦截器会依据已更新的会话 token 自动注入新 Authorization）
     const queued = pendingRequests

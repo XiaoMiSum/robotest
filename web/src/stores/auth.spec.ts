@@ -102,7 +102,7 @@ describe('auth store 活动上下文', () => {
     expect(auth.activeProject).toBeNull()
     expect(localStorage.getItem('robotest_active_workspace')).toBeNull()
     expect(localStorage.getItem('robotest_active_project')).toBeNull()
-    expect(sessionStorage.getItem('robotest_access_token')).toBeNull()
+    expect(localStorage.getItem('robotest_access_token')).toBeNull()
   })
 
   it('服务端撤销失败时仍清理本地会话', async () => {
@@ -126,7 +126,7 @@ describe('auth store 活动上下文', () => {
     await auth.logout()
 
     expect(auth.user).toBeNull()
-    expect(sessionStorage.getItem('robotest_access_token')).toBeNull()
+    expect(localStorage.getItem('robotest_access_token')).toBeNull()
   })
 })
 
