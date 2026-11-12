@@ -38,7 +38,7 @@
 }
 ```
 
-> **注意**：用户信息由框架 `LoginResult` 直接以 `user` 字段承载（`LoginUser`）。前端通过 `user.hasWorkspace` 决定登录后跳转目标（分支见 6.3），登录响应的 `accessToken` / `refreshToken` 由前端存入 sessionStorage；登录成功同时写入登录审计（见 4）。
+> **注意**：用户信息由框架 `LoginResult` 直接以 `user` 字段承载（`LoginUser`）。前端通过 `user.hasWorkspace` 决定登录后跳转目标（分支见 6.3），登录响应的 `accessToken` / `refreshToken` 由前端存入 `localStorage`（同一浏览器多标签页共享登录态）；登录成功同时写入登录审计（见 4）。
 
 ### 1.2 获取当前用户权限
 
@@ -113,10 +113,12 @@
 
 - **路径**：`POST /api/auth/refresh`
 - **请求头**：`X-Refresh-Token: <refreshToken>`（无请求体，匿名可达，仅信任请求头中的 refresh token）
-- **响应**：同 1.1 的 `LoginResult`，前端仅取 `accessToken` / `refreshToken` 覆盖 sessionStorage 中的旧令牌。
+- **响应**：同 1.1 的 `LoginResult`，前端仅取 `accessToken` / `refreshToken` 覆盖 `localStorage` 中的旧令牌。
 - **前端触发时机（`web/src/services/index.ts` 响应拦截器）**：
   - HTTP 状态 401 与「HTTP 200 + 业务码 401」两路统一汇聚到刷新逻辑；
   - 单飞：并发 401 只发起一次刷新，其余请求排队，刷新成功后按原配置重放；
+  - 跨标签页单飞：刷新经浏览器锁（Web Locks）串行化，持锁前后重读 `localStorage`，其他标签页已完成刷新则直接用新令牌重放，防止并发刷新挤兑同一刷新令牌；
+  - 登出同步：任一标签页登出或会话失效清空令牌时，其余标签页经 `storage` 事件同步清理本地会话并跳转 `/login`；
   - 刷新失败：判定会话失效（后续 401 直接失败，不再重复刷新），清理令牌与活动上下文，并一次性跳转 `/login`；
   - 任意成功响应会解除会话失效标记（覆盖重新登录后的场景）。
 
@@ -264,3 +266,4 @@ POST /api/auth/init/setup({ password })
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-10-02 | 对齐前端实现：登录请求字段与响应结构、权限接口响应形态、初始化与改密表单校验及反馈、新增刷新令牌与前端登录/权限加载时序章节 |
+| V1.0 | 2026-11-12 | 令牌存储由 `sessionStorage` 调整为 `localStorage`，新增跨标签页共享登录态、刷新单飞与登出同步说明 |

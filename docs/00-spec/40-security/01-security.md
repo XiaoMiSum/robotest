@@ -24,7 +24,11 @@
 - Token 不得出现在 URL、请求体、普通日志或错误响应中。
 - 账号禁用、密码重置和明确的角色撤销操作必须有 Token 失效策略。
 
-当前前端使用 `sessionStorage` 保存 Access/Refresh Token。存储方式变更必须经过 XSS 风险评估和用户确认。
+前端将 Access/Refresh Token 保存在 `localStorage`，以支持同一浏览器多标签页共享登录态；该存储位置已通过 XSS 风险评估并由用户确认（2026-11-12）。配套要求：
+
+- 任一标签页登出或会话失效清空令牌时，其余标签页必须经存储变化事件同步退出登录；
+- 令牌刷新必须跨标签页单飞，持锁前后重读存储，防止并发刷新挤兑同一刷新令牌；
+- XSS 防护（输出转义、CSP、依赖治理）不因存储位置放宽；令牌本体仍不得出现在 URL、日志或错误响应中。
 
 ### 2.2 WebSocket 认证
 
@@ -225,6 +229,12 @@ changes
 - migoo 安全能力：`docs/00-spec/10-engineering/03-migoo-framework.md`
 - 质量门禁：`docs/00-spec/30-quality-delivery/01-quality.md`
 - 部署密钥：`docs/00-spec/30-quality-delivery/03-deploy.md`、`docs/00-spec/30-quality-delivery/04-deployment-runbook.md`
+
+## 11. 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-11-12 | 补建修改记录；Access/Refresh Token 存储位置调整为 `localStorage`，明确多标签页共享登录态、跨标签刷新单飞与登出同步约束 |
 
 ---
 
