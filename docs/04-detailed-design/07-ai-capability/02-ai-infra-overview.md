@@ -715,7 +715,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
-> 生成链、拆解、圈选推荐、用例补全、级别 / 顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
+> 生成链、拆解、用例补全、级别 / 顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
 
 #### 3.6.1 任务类型枚举（全量，单一事实源）
 
@@ -723,8 +723,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | ---- | ---- | ---- | ---- | ---- |
 | requirement_import | 需求 | `fileId` | `requirement_suggestion` | 需求模块采纳服务 |
 | test_design_generation | 生成链 | `requirementIds`、`targetModuleId?`、`granularity` | `module_suggestion / mindmap_document_suggestion / test_case_suggestion` | 生成链采纳服务 |
-| review_selection | 生成链 | `scope` | `review_selection` | 评审创建流程 |
-| plan_selection | 生成链 | `scope`、`rounds?` | `plan_selection` | 计划创建流程 |
 | case_complete | 辅助 | `nodeIds` | `case_suggestion` | 用例采纳服务 |
 | case_priority | 辅助 | `nodeIds` | `priority_suggestion` | 用例采纳服务 |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
@@ -737,7 +735,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的十一类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的九类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
 `assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxDurationSeconds: 3600, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 
@@ -901,7 +899,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 4.2 Agent 执行核与护栏
 
-- **执行入口与策略分派**：十三个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
+- **执行入口与策略分派**：十一个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
 - **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清、回答与变更预览仍按分册 04 处理，不转为通用提案确认；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
@@ -1097,3 +1095,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-07 | 提案与采纳表挂 `execution_id`（再次执行唯一键冲突裁决）：2.6.4 / 2.7 增 `execution_id` 列、uk 改 `(execution_id, proposal_key)`；3.6.3 详情提案清单改「最新一次执行」口径，3.6.4 / 3.6.5 联动（同名键跨执行并存、确认按最新执行定位） |
 | V1.0 | 2026-11-07 | 6 补登 1000018128「用户中止」：abort 端点执行与任务的 `terminate_code` 此前无登记码（预算耗尽 127 / 执行错误 117 / 总开关 101 沿用） |
 | V1.0 | 2026-11-07 | 助手与向量执行策略裁决落册：3.6.1 补两类首版默认预算与 steps 计法，4.2 补 vector chat 模型豁免、助手 5 跳与预算先到者终止、迟到用量只记明细不改汇总 |
+| V1.0 | 2026-11-12 | 整体移除评审/计划圈选建议（US-AI-008）：3.6.1 注销 `review_selection` / `plan_selection` 任务类型，3.6 目标型执行清单与 type 数量统计同步为九类 / 十一类 |
