@@ -116,6 +116,17 @@ describe('导航守卫', () => {
     expect(router.currentRoute.value.path).toBe('/workspaces')
   })
 
+  it('持有会话令牌访问邀请加入页 → 停留在加入页（alwaysPublic 不受登录态影响）', async () => {
+    h.token = 'token'
+    await router.push('/join')
+    expect(router.currentRoute.value.path).toBe('/join')
+  })
+
+  it('无令牌访问邀请加入页 → 正常进入', async () => {
+    await router.push('/join')
+    expect(router.currentRoute.value.path).toBe('/join')
+  })
+
   it('无管理权限访问 /admin → 先等待权限加载再重定向首页', async () => {
     h.token = 'token'
     await router.push('/admin/dashboard')

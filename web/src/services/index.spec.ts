@@ -177,6 +177,48 @@ describe('services/index.ts 401 刷新流程', () => {
   })
 })
 
+describe('services/index.ts 匿名公开邀请接口', () => {
+  it('持有令牌时邀请公开接口也不携带 Authorization', async () => {
+    setTokens('stale-access', 'stale-refresh')
+    let auth: string | undefined
+    withAdapter((config) => {
+      auth = config.headers['Authorization'] as string | undefined
+      return okResponse(config, { code: 200, data: { valid: true } })
+    })
+
+    await api.get('/workspace/invitations/verify', { params: { token: 't' } })
+
+    expect(auth).toBeUndefined()
+  })
+
+  it('邀请公开接口业务码 401 直接失败，不刷新、不跳登录', async () => {
+    setTokens('stale-access', 'stale-refresh')
+    const refreshSpy = vi.spyOn(axios, 'post').mockRejectedValue(new Error('should not refresh'))
+    withAdapter((config) => okResponse(config, { code: 401, data: null, msg: '鉴权失败' }))
+
+    await expect(api.post('/workspace/invitations/join', { token: 't' })).rejects.toThrow('鉴权失败')
+    expect(refreshSpy).not.toHaveBeenCalled()
+    expect(windowLocation.href).toBe('')
+    expect(getAccessToken()).toBe('stale-access')
+  })
+
+  it('邀请公开接口 HTTP 401 直接失败，不刷新、不跳登录', async () => {
+    setTokens('stale-access', 'stale-refresh')
+    const refreshSpy = vi.spyOn(axios, 'post').mockRejectedValue(new Error('should not refresh'))
+    withAdapter((config) => {
+      throw Object.assign(new Error('Unauthorized'), {
+        response: { status: 401, data: {} },
+        config,
+      })
+    })
+
+    await expect(api.get('/workspace/invitations/verify')).rejects.toThrow()
+    expect(refreshSpy).not.toHaveBeenCalled()
+    expect(windowLocation.href).toBe('')
+    expect(getAccessToken()).toBe('stale-access')
+  })
+})
+
 describe('services/index.ts 请求上下文头', () => {
   it('空间选择列表不携带当前空间或项目上下文', async () => {
     localStorageMock.setItem('robotest_active_project', 'project-old')
