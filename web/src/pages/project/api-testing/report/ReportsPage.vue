@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiReportPageItem } from '@/types'
 import {
@@ -8,6 +8,7 @@ import {
   fetchReportPage,
 } from '@/services/project/api-testing/report'
 import { formatDateTime } from '@/utils/format'
+import BatchActionBar from '@/components/common/BatchActionBar.vue'
 
 const emit = defineEmits<{
   (e: 'view', reportId: string): void
@@ -32,6 +33,8 @@ const statusOptions = [
 const rows = ref<ApiReportPageItem[]>([])
 const total = ref(0)
 const selectedIds = ref<string[]>([])
+// 批量条清空需直接驱动表格勾选态，避免只清 ids 导致复选框残留
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 
 async function loadPage() {
   loading.value = true
@@ -53,7 +56,7 @@ async function loadPage() {
 
 function handleFilter() {
   pageNo.value = 1
-  selectedIds.value = []
+  tableRef.value?.clearSelection()
   void loadPage()
 }
 
@@ -120,8 +123,6 @@ async function handleDelete(row: ApiReportPageItem) {
 }
 
 // ==================== 批量操作 ====================
-const hasSelection = computed(() => selectedIds.value.length > 0)
-
 function handleSelectionChange(selection: ApiReportPageItem[]) {
   selectedIds.value = selection.map((r) => r.id)
 }
@@ -136,7 +137,7 @@ async function handleBatchDelete() {
   try {
     await batchDeleteReports(selectedIds.value)
     ElMessage.success('已删除')
-    selectedIds.value = []
+    tableRef.value?.clearSelection()
     if (!rows.value.length && pageNo.value > 1) pageNo.value -= 1
     else void loadPage()
   } catch (error) {
@@ -178,6 +179,7 @@ onMounted(async () => {
     <!-- 表体区是页面内唯一滚动拥有者：表格固定高度、表头固定，超出时表体内滚动（UI-SC-02 / UI-SC-05 / UI-SC-06） -->
     <div class="reports-page__body">
       <el-table
+        ref="tableRef"
         :data="rows"
         height="100%"
         @selection-change="handleSelectionChange"
@@ -232,7 +234,6 @@ onMounted(async () => {
     </div>
 
     <div class="reports-page__footer">
-      <el-button v-if="hasSelection" link type="danger" data-test="batch-delete-btn" @click="handleBatchDelete">删除</el-button>
       <el-pagination
         v-model:current-page="pageNo"
         :page-size="pageSize"
@@ -242,6 +243,10 @@ onMounted(async () => {
         @current-change="loadPage"
       />
     </div>
+
+    <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
+      <el-button size="small" type="danger" data-test="batch-delete-btn" @click="handleBatchDelete">批量删除</el-button>
+    </BatchActionBar>
   </div>
 </template>
 

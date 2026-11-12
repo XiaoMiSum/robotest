@@ -15,6 +15,7 @@ import { formatDateTime } from '@/utils/format'
 import MockEditorDrawer from './MockEditorDrawer.vue'
 import MockDebugPanel from './MockDebugPanel.vue'
 import MockAddressDialog from './MockAddressDialog.vue'
+import BatchActionBar from '@/components/common/BatchActionBar.vue'
 
 const props = defineProps<{
   interfaceId?: string
@@ -30,6 +31,8 @@ const search = ref('')
 const searchDraft = ref('')
 const enabledFilter = ref<boolean | undefined>(undefined)
 const selectedIds = ref<string[]>([])
+// 批量条清空需直接驱动表格勾选态，避免只清 ids 导致复选框残留
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 
 // 编辑器
 const editorVisible = ref(false)
@@ -144,7 +147,7 @@ async function handleBatchToggle(enabled: boolean) {
   try {
     const result = await batchToggleMocks({ ids: selectedIds.value, enabled })
     ElMessage.success(`已${enabled ? '启用' : '停用'} ${result.updatedCount} 条规则`)
-    selectedIds.value = []
+    tableRef.value?.clearSelection()
     loadList()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : `${enabled ? '启用' : '停用'}失败`)
@@ -242,10 +245,6 @@ function formatHitTime(val: string | null): string {
         <el-button @click="handleReset">重置</el-button>
       </div>
       <div class="mocks-page__toolbar-right">
-        <template v-if="selectedIds.length">
-          <el-button link type="primary" @click="handleBatchToggle(true)">启用</el-button>
-          <el-button link type="danger" @click="handleBatchToggle(false)">停用</el-button>
-        </template>
         <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
           <el-icon><Plus /></el-icon>
           新建 Mock
@@ -261,6 +260,7 @@ function formatHitTime(val: string | null): string {
     <!-- 表体区是页面内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
     <div v-if="!error || list.length" class="mocks-page__table">
       <el-table
+        ref="tableRef"
         :data="list"
         row-key="id"
         height="100%"
@@ -323,6 +323,11 @@ function formatHitTime(val: string | null): string {
         @size-change="handleSizeChange"
       />
     </div>
+
+    <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
+      <el-button size="small" @click="handleBatchToggle(true)">批量启用</el-button>
+      <el-button size="small" type="danger" plain @click="handleBatchToggle(false)">批量停用</el-button>
+    </BatchActionBar>
 
     <MockEditorDrawer
       v-model="editorVisible"
