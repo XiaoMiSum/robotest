@@ -138,7 +138,7 @@ class AssistAdoptSupportTest {
         task.setType("case_complete");
         task.setInput(input);
         Map<String, Object> artifact = Map.of("key", "node-1", "content", nodeContent);
-        return new AdoptContext(task, AdoptFixtures.proposal(artifact), "adopted", null, null, null, null, null, null,
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), "adopted", null, null, null, null, null,
                 targetDocumentId, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 }

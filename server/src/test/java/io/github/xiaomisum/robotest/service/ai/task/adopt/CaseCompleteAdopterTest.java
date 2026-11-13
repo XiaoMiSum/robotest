@@ -273,7 +273,7 @@ class CaseCompleteAdopterTest {
         lenient().when(loginUser.getPermissions()).thenReturn(List.of("case:edit"));
         AiTask task = new AiTask();
         task.setType("case_complete");
-        return new AdoptContext(task, AdoptFixtures.proposal(artifact()), action, edited, null, null, null, null, null,
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact()), action, edited, null, null, null, null,
                 DOCUMENT_ID, extraNodePosition, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 

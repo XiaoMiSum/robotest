@@ -79,7 +79,7 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
                 .eq(TestCaseNode::getType, Constants.NodeType.CASE));
     }
 
-    /** 按文档批量取用例节点（圈选范围装配）；空集合不发起查询 */
+    /** 按文档批量取用例节点；空集合不发起查询 */
     default List<TestCaseNode> listCasesByDocumentIds(Collection<UUID> documentIds) {
         if (documentIds == null || documentIds.isEmpty()) {
             return List.of();

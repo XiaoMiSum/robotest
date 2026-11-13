@@ -148,7 +148,7 @@ class CasePriorityAdopterTest {
                 .thenReturn(new AssistAdoptSupport.CaseTarget(document, node, resolved));
 
         return new AdoptContext(task, AdoptFixtures.proposal(artifact(suggested)), action, edited, null, null, null,
-                null, null,
+                null,
                 DOCUMENT_ID, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 
