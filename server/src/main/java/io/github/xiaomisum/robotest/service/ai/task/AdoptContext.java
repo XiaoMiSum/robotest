@@ -13,13 +13,12 @@ import java.util.UUID;
  * proposal 为本次确认的提案行（结构化内容取 {@code proposal.getContent()}，键取 proposalKey）；
  * allProposalKeys 为最新一次执行的提案键全集（拆解记录「全部处置完毕」判定用）；
  * loginUser 随请求带入，供承接服务做落库资源权限判定（1000018208）；
- * createParams 为圈选确认的既有创建流程参数（生成链详设 3.6「调整后采纳」）；
  * targetDocumentId / extraNodePosition / targetPlanId / round 为辅助功能三类型的落位提示，
  * 缺省时由承接服务回退任务入参（任务详情页发起不带 target）。
  */
 public record AdoptContext(AiTask task, AiTaskProposal proposal, String action,
                            Map<String, Object> content, String note, UUID targetModuleId, String position,
-                           String targetSystemVersion, Map<String, Object> createParams,
+                           String targetSystemVersion,
                            UUID targetDocumentId, String extraNodePosition, UUID targetPlanId, Integer round,
                            UUID projectId, UUID operatorId, Set<String> allProposalKeys, LoginUser loginUser) {
 

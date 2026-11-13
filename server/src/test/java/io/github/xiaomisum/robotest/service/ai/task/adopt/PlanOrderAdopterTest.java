@@ -256,7 +256,7 @@ class PlanOrderAdopterTest {
         content.put("items", items);
         Map<String, Object> artifact = Map.of("key", "order-1",
                 "kind", Constants.AiProposalKind.ORDER_SUGGESTION, "content", content);
-        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, edited, null, null, null, null, null,
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, edited, null, null, null, null,
                 null, null, targetPlanId, round, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 }

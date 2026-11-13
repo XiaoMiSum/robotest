@@ -48,7 +48,7 @@ class BugClassifyAdopterTest {
         Map<String, Object> artifact = Map.of("key", "bug-" + BUG_ID, "content", suggestionsContent());
         AiTask task = new AiTask();
         task.setType(Constants.AiTaskType.BUG_CLASSIFY);
-        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, content, null, null, null, null, null,
+        return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, content, null, null, null, null,
                 null, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 

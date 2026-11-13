@@ -95,8 +95,6 @@ public final class Constants {
     public interface AiTaskType {
         String REQUIREMENT_IMPORT = "requirement_import";
         String TEST_DESIGN_GENERATION = "test_design_generation";
-        String REVIEW_SELECTION = "review_selection";
-        String PLAN_SELECTION = "plan_selection";
         String CASE_COMPLETE = "case_complete";
         String CASE_PRIORITY = "case_priority";
         String PLAN_ORDER = "plan_order";
@@ -118,14 +116,12 @@ public final class Constants {
     }
 
     /**
-     * AI 提案种类（生成链详设 3.4）：与目标实体类型对齐，圈选建议以任务 type 区分
+     * AI 提案种类（生成链详设 3.4）：与目标实体类型对齐
      */
     public interface AiProposalKind {
         String MODULE = "module_suggestion";
         String MINDMAP_DOCUMENT = "mindmap_document_suggestion";
         String TEST_CASE = "test_case_suggestion";
-        String REVIEW_SELECTION = "review_selection";
-        String PLAN_SELECTION = "plan_selection";
         String BUG_CLASSIFY = "classify_suggestion";
         String BUG_TRIAGE = "triage_order";
         String BUG_SUMMARY = "summary";

@@ -29,11 +29,6 @@ public final class AiPromptScenes {
                 new PromptVariable("documentText", "文档文本正文（图片多模态导入时为空）", true),
                 new PromptVariable("moduleOptions", "候选模块清单", true))));
         register(scenes, new PromptScene("test_design_generation", "测试设计生成", List.of()));
-        register(scenes, new PromptScene("review_selection", "评审圈选建议", List.of(
-                new PromptVariable("scopeContext", "圈选范围上下文（需求 / 模块与候选用例）", true))));
-        register(scenes, new PromptScene("plan_selection", "计划圈选建议", List.of(
-                new PromptVariable("scopeContext", "圈选范围上下文（需求 / 模块与候选用例）", true),
-                new PromptVariable("roundCount", "计划轮次数", false))));
         register(scenes, new PromptScene("assistant_parse", "助手任务执行", List.of(
                 new PromptVariable("history", "会话近 20 条消息（时间正序，角色:内容，含工具结果）", true),
                 new PromptVariable("context", "会话私有项目状态与页面上下文引用", true))));

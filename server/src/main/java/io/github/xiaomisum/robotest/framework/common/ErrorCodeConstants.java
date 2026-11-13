@@ -259,8 +259,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode GENERATION_TARGET_MODULE_INVALID = ErrorCode.of(1000018203, "落位目标模块不存在或不属当前项目");
     public static final ErrorCode GENERATION_ARTIFACT_DUPLICATE = ErrorCode.of(1000018204, "产物与既有数据疑似重复，需人工处理");
     public static final ErrorCode GENERATION_INPUT_INVALID = ErrorCode.of(1000018205, "生成参数非法（粒度、条数、落位方式）");
-    public static final ErrorCode SELECTION_INPUT_INVALID = ErrorCode.of(1000018206, "圈选建议输入非法（范围为空或参数越界）");
-    public static final ErrorCode SELECTION_CASE_NOT_FOUND = ErrorCode.of(1000018207, "圈选用例不存在");
     public static final ErrorCode GENERATION_DUPLICATE_TASK = ErrorCode.of(1000018209, "已存在进行中的同输入生成任务");
     public static final ErrorCode GENERATION_PARENT_NOT_ADOPTED = ErrorCode.of(1000018210, "父级产物尚未采纳，无法落库");
 
