@@ -204,11 +204,12 @@
 
   /* ---------- project 页左侧导航（页面只留 data-side 占位；only 标记仅特定页展示的入口） ---------- */
   const SIDES = {
+    // 顺序与标签同实际 useFunctionalTesting.menuItems：需求列表为侧栏首位子项（链路上游 需求→用例→缺陷，交互 07 §1）
     ft: [
+      { key: 'ft-requirements', label: '需求列表', icon: 'tickets' },
       { key: 'ft-cases', label: '测试用例', icon: 'document' },
       { key: 'ft-reviews', label: '测试评审', icon: 'check-circle' },
       { key: 'ft-plans', label: '测试计划', icon: 'calendar' },
-      { key: 'ft-requirements', label: '需求池', icon: 'tickets' },
     ],
     api: [
       { key: 'api-debug', label: '快速调试', icon: 'terminal' },

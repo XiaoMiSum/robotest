@@ -179,7 +179,7 @@
 
   <!-- 项目 -->
   <section class="group">
-    <div class="group__head"><h2>项目空间</h2><span class="n">10</span><span class="line"></span></div>
+    <div class="group__head"><h2>项目空间</h2><span class="n">12</span><span class="line"></span></div>
     <div class="demo-grid">
       <a class="demo-card" href="project/dashboard.html">
         <div class="demo-card__top"><span class="demo-card__title">项目工作台</span><span class="ic" data-icon="gauge"></span></div>
@@ -212,9 +212,19 @@
         <div class="demo-card__path">/workspace/projects/plans/:planId</div>
       </a>
       <a class="demo-card" href="project/requirements.html">
-        <div class="demo-card__top"><span class="demo-card__title">需求池</span><span class="ic" data-icon="tickets"></span></div>
-        <div class="demo-card__desc">启用 / 已归档 + 需求表格</div>
-        <div class="demo-card__path">/workspace/projects/requirements</div>
+        <div class="demo-card__top"><span class="demo-card__title">需求列表</span><span class="ic" data-icon="tickets"></span></div>
+        <div class="demo-card__desc">功能测试侧栏首位子项：四态筛选 + 编号/模块/版本列 + 确认/归档行操作</div>
+        <div class="demo-card__path">/workspace/projects/functional-testing?tab=requirements</div>
+      </a>
+      <a class="demo-card" href="project/requirement-create.html">
+        <div class="demo-card__top"><span class="demo-card__title">新建需求</span><span class="ic" data-icon="plus"></span></div>
+        <div class="demo-card__desc">页头吸顶 + 描述编辑器 + 来源/模块/负责人/版本属性栏</div>
+        <div class="demo-card__path">/workspace/projects/requirements/create</div>
+      </a>
+      <a class="demo-card" href="project/requirement-detail.html">
+        <div class="demo-card__top"><span class="demo-card__title">需求详情与编辑</span><span class="ic" data-icon="edit"></span></div>
+        <div class="demo-card__desc">查看/编辑双态 + 属性 | 变更记录页签 + 确认/归档操作</div>
+        <div class="demo-card__path">/workspace/projects/requirements/:requirementId</div>
       </a>
       <a class="demo-card" href="project/bugs.html">
         <div class="demo-card__top"><span class="demo-card__title">缺陷管理</span><span class="ic" data-icon="bug"></span></div>

@@ -3,24 +3,93 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>需求池 · 功能测试 · RoboTest</title>
+<title>需求列表 · 功能测试 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 弹层靠 hidden 开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
-  .dialog-mask[hidden] { display: none; }
+  /* 弹层与空态行靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
+  [hidden] { display: none !important; }
 
-  /* 实际页「启用」整行文字为绿色，共享样式只上了圆点色 */
+  /* 状态徽标四态对齐 requirementPresentation：draft/info、confirmed/success、changed/warning、archived/中性；
+     共享 .status 只给圆点上色，这里补齐整行文字色 */
+  .status--info { color: var(--brand-600); }
+  .status--info .dot { background: var(--brand-500); }
   .status--success { color: var(--st-success); }
+  .status--warning { color: var(--st-warning-strong); }
+  .status--neutral { color: var(--n-400); }
 
-  /* 实际页归档/取消归档是 warning 链接按钮，共享样式未提供该变体 */
-  .op-link--warning { color: var(--st-warning); }
-  .op-link--warning:hover { color: var(--st-warning-strong); }
+  /* 操作列整体右对齐（交互 06 §2.1.2），操作文案不换行 */
+  .ops-cell { text-align: right; white-space: nowrap; }
 
-  /* 副行来源短链需继承副行字号，.table .mono 会把它抬到正文字号 */
-  .table .cell-sub a.mono { font-size: inherit; }
+  /* 「更多」下拉：演示稿无 el-dropdown，沿用 api-testing 的浮层菜单范式 */
+  .more-wrap { position: relative; display: inline-block; }
+  .more-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 96px;
+    padding: 4px; display: flex; flex-direction: column;
+    background: var(--n-0); border: 1px solid var(--n-100); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .more-menu__item {
+    padding: 6px 10px; border-radius: 4px; font-size: var(--font-size-sm); color: var(--n-700);
+    cursor: pointer; white-space: nowrap;
+  }
+  .more-menu__item:hover { background: var(--n-50); }
+  /* 归档是收敛操作，下拉项保持 warning 色（交互 06 §2.1.2） */
+  .more-menu__item--warning { color: var(--st-warning-strong); }
+  .more-caret { display: inline-flex; vertical-align: -2px; }
+  .more-caret svg { width: 12px; height: 12px; }
 
-  .rp-empty td { text-align: center; color: var(--n-500); padding: 36px 0; }
+  /* 确认置灰：confirmed 行仍展示入口但不可点（仅 draft / changed 可确认） */
+  .op-link--off { color: var(--n-300); cursor: not-allowed; }
+
+  /* 入口角标：对应筛选栏 el-badge 已设条件数（交互 06 §2.1.2），共享样式无该组件 */
+  .filter-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px;
+    background: var(--brand-500); color: #fff;
+    font-size: 10px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums;
+  }
+
+  /* 每页条数切换：对应 el-pagination sizes（20 / 50 / 100），共享分页样式无该控件 */
+  .page-size {
+    width: auto; height: 26px; padding: 0 24px 0 8px;
+    font-size: var(--font-size-sm);
+    background-position: right 6px center;
+  }
+
+  /* 空态两分支（交互 06 §2.1.3）：占满表格宽度居中，动作区一排 */
+  .empty-cell .state-block { padding: 44px 24px; }
+  .empty-cell .state-block__action { display: flex; justify-content: center; gap: 10px; }
+
+  /* 导入拖拽区：对应 el-upload drag（交互 06 §2.3.1），共享样式无上传组件 */
+  .upload {
+    border: 1.5px dashed var(--n-300); border-radius: var(--radius-lg);
+    padding: 26px; text-align: center; color: var(--n-500); font-size: 13px;
+    background: var(--n-25); cursor: pointer; transition: border-color var(--transition-fast);
+  }
+  .upload:hover, .upload--over { border-color: var(--brand-400); color: var(--brand-600); }
+  .upload svg { width: 34px; height: 34px; display: block; margin: 0 auto 8px; color: var(--n-400); }
+  .upload:hover svg, .upload--over svg { color: var(--brand-500); }
+  .upload em { font-style: normal; color: var(--brand-500); }
+  .upload-hint { margin-top: 10px; font-size: var(--font-size-xs); color: var(--n-500); line-height: 1.5; }
+
+  .upload-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .upload-item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+    background: var(--n-50); font-size: var(--font-size-xs); color: var(--n-700);
+  }
+  .upload-item__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .upload-item__size { color: var(--n-400); font-variant-numeric: tabular-nums; }
+  .upload-item__remove { display: flex; padding: 2px; border: 0; background: none; color: var(--n-400); cursor: pointer; }
+  .upload-item__remove:hover { color: var(--st-danger); }
+  .upload-item__remove svg { width: 14px; height: 14px; }
+
+  .import-error { margin-top: var(--space-md); }
+  .import-error [data-icon] { display: inline-flex; }
+
+  /* AI 入口的悬浮说明由包裹层承载：禁用按钮不派发鼠标事件，title 要挂在父级 */
+  .tip-wrap { display: inline-flex; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -32,340 +101,475 @@
     <div class="split__main">
       <div class="page-head">
         <div>
-          <h1 class="page-head__title">需求池</h1>
-          <p class="page-head__desc">沉淀需求条目，作为用例设计与评审的输入</p>
+          <h1 class="page-head__title">需求列表</h1>
+          <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--primary" type="button" data-open="rp-form-dialog"><span data-icon="plus"></span>新建需求</button>
+          <span class="tip-wrap" id="ai-select-tip" title="请先勾选需求">
+            <button class="btn btn--default" type="button" id="ai-select" disabled><span data-icon="tickets"></span>AI 圈选建议</button>
+          </span>
+          <span class="tip-wrap" id="ai-gen-tip" title="请先勾选需求">
+            <button class="btn btn--default" type="button" id="ai-gen" disabled><span data-icon="sparkle"></span>AI 生成用例</button>
+          </span>
+          <button class="btn btn--default" type="button" data-open="import-dialog"><span data-icon="upload"></span>导入需求</button>
+          <a class="btn btn--primary" href="requirement-create.html"><span data-icon="plus"></span>新建需求</a>
         </div>
       </div>
 
       <div class="card">
         <div class="toolbar">
           <div class="toolbar__filters">
-            <div class="segment" id="rp-segment">
-              <span class="segment__item segment__item--active" data-seg="active">启用</span>
-              <span class="segment__item" data-seg="archived">已归档</span>
-            </div>
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" id="rp-keyword" placeholder="需求标题"></div>
-            <button class="btn btn--primary" type="button" id="rp-search"><span data-icon="search"></span>查询</button>
-            <button class="btn btn--default" type="button" id="rp-reset">重置</button>
+            <select class="select" id="f-status" style="width:150px">
+              <option value="">状态</option>
+              <option value="draft">草稿</option>
+              <option value="confirmed">已确认</option>
+              <option value="changed">已变更</option>
+              <option value="archived">已归档</option>
+            </select>
+            <select class="select" id="f-module" style="width:180px">
+              <option value="">所属模块</option>
+              <option value="登录模块">登录模块</option>
+              <option value="订单模块">订单模块</option>
+              <option value="支付模块">支付模块</option>
+              <option value="营销模块">营销模块</option>
+              <option value="用户中心">用户中心</option>
+            </select>
+            <select class="select" id="f-owner" style="width:150px">
+              <option value="">负责人</option>
+              <option value="张明">张明</option>
+              <option value="李华">李华</option>
+              <option value="王芳">王芳</option>
+              <option value="周敏">周敏</option>
+              <option value="赵磊">赵磊</option>
+            </select>
+            <select class="select" id="f-version" style="width:150px">
+              <option value="">版本</option>
+              <option value="V2.1">V2.1</option>
+              <option value="V2.2">V2.2</option>
+              <option value="V2.3">V2.3</option>
+              <option value="V2.4">V2.4</option>
+            </select>
+            <div class="input-wrap"><span data-icon="search"></span><input class="input" id="f-keyword" placeholder="编号或标题"></div>
+            <button class="btn btn--primary" type="button" id="btn-search"><span data-icon="search"></span>查询</button>
+            <button class="btn btn--default" type="button" id="btn-reset">重置</button>
+            <span class="filter-badge" id="filter-badge" hidden>0</span>
           </div>
-          <div class="toolbar__count">按更新时间排序</div>
+          <div class="toolbar__count" id="rp-count">共 8 条</div>
         </div>
 
         <div class="table-wrap">
           <table class="table" id="rp-table">
+            <colgroup>
+              <col style="width:36px">
+              <col style="width:110px">
+              <col>
+              <col style="width:130px">
+              <col style="width:110px">
+              <col style="width:100px">
+              <col style="width:100px">
+              <col style="width:170px">
+              <col style="width:200px">
+            </colgroup>
             <thead>
-              <tr><th>标题</th><th>状态</th><th>更新人</th><th>更新时间</th><th>操作</th></tr>
+              <tr>
+                <th><span class="checkbox" id="check-all" role="checkbox" aria-checked="false"></span></th>
+                <th>编号</th>
+                <th>标题</th>
+                <th>所属模块</th>
+                <th>版本</th>
+                <th>状态</th>
+                <th>负责人</th>
+                <th>更新时间</th>
+                <th style="text-align:right">操作</th>
+              </tr>
             </thead>
             <tbody>
-              <tr data-seg="active" data-title="多收货地址智能推荐" data-source="prd.internal/1523" data-content="多收货地址场景下，按默认地址、历史偏好与配送时效给出推荐排序。">
-                <td class="cell-main">多收货地址智能推荐<span class="cell-sub"><a class="mono" href="#">prd.internal/1523</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></span></td>
-                <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+              <tr data-status="confirmed" data-module="登录模块" data-owner="张明" data-version="V2.3" data-code="REQ-0101" data-title="登录验证码失败时的重试提示">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0101</span></td>
+                <td><a href="requirement-detail.html">登录验证码失败时的重试提示</a></td>
+                <td>登录模块</td>
+                <td>V2.3</td>
+                <td class="status-cell"><span class="status status--success"><span class="dot"></span>已确认</span></td>
                 <td>张明</td>
-                <td class="num">2026-09-21 17:02</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link op-link--danger" data-op="delete">删除</span><span class="op-link op-link--warning" data-op="archive">归档</span></td>
+                <td class="num">2026-11-10 14:32:05</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link op-link--off" title="仅草稿或已变更状态可确认">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
-              <tr data-seg="active" data-title="优惠券与积分叠加规则调整" data-source="" data-content="同一订单中优惠券与积分的抵扣顺序、上限与互斥规则需重新约定。">
-                <td class="cell-main">优惠券与积分叠加规则调整<span class="cell-sub mono">内部提出</span></td>
-                <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+              <tr data-status="draft" data-module="营销模块" data-owner="王芳" data-version="V2.3" data-code="REQ-0102" data-title="优惠券与积分叠加规则调整">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0102</span></td>
+                <td><a href="requirement-detail.html">优惠券与积分叠加规则调整</a></td>
+                <td>营销模块</td>
+                <td>V2.3</td>
+                <td class="status-cell"><span class="status status--info"><span class="dot"></span>草稿</span></td>
                 <td>王芳</td>
-                <td class="num">2026-09-20 11:26</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link op-link--danger" data-op="delete">删除</span><span class="op-link op-link--warning" data-op="archive">归档</span></td>
+                <td class="num">2026-11-10 11:08:47</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
-              <tr data-seg="active" data-title="订单导出支持按维度筛选" data-source="wiki.corp/REQ-1482" data-content="订单导出增加时间、状态、渠道维度筛选，导出文件保留筛选条件说明。">
-                <td class="cell-main">订单导出支持按维度筛选<span class="cell-sub"><a class="mono" href="#">wiki.corp/REQ-1482</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></span></td>
-                <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+              <tr data-status="changed" data-module="订单模块" data-owner="李华" data-version="V2.4" data-code="REQ-0103" data-title="订单超时未支付自动关闭">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0103</span></td>
+                <td><a href="requirement-detail.html">订单超时未支付自动关闭</a></td>
+                <td>订单模块</td>
+                <td>V2.4</td>
+                <td class="status-cell"><span class="status status--warning"><span class="dot"></span>已变更</span></td>
                 <td>李华</td>
-                <td class="num">2026-09-18 09:41</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link op-link--danger" data-op="delete">删除</span><span class="op-link op-link--warning" data-op="archive">归档</span></td>
+                <td class="num">2026-11-09 18:45:21</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
-              <tr data-seg="active" data-title="支付失败自动重试上限" data-source="issues.corp/BUG-198" data-content="线上问题衍生：支付网关超时后自动重试最多 3 次，超过上限转人工。">
-                <td class="cell-main">支付失败自动重试上限<span class="cell-sub"><a class="mono" href="#">issues.corp/BUG-198</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></span></td>
-                <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+              <tr data-status="confirmed" data-module="支付模块" data-owner="周敏" data-version="V2.3" data-code="REQ-0104" data-title="支付失败自动重试上限">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0104</span></td>
+                <td><a href="requirement-detail.html">支付失败自动重试上限</a></td>
+                <td>支付模块</td>
+                <td>V2.3</td>
+                <td class="status-cell"><span class="status status--success"><span class="dot"></span>已确认</span></td>
                 <td>周敏</td>
-                <td class="num">2026-09-17 15:33</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link op-link--danger" data-op="delete">删除</span><span class="op-link op-link--warning" data-op="archive">归档</span></td>
+                <td class="num">2026-11-09 10:12:33</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link op-link--off" title="仅草稿或已变更状态可确认">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
-              <tr data-seg="active" data-title="预售尾款提醒推送" data-source="prd.internal/1495" data-content="尾款支付开启前 24 小时与截止前 2 小时各推送一次提醒。">
-                <td class="cell-main">预售尾款提醒推送<span class="cell-sub"><a class="mono" href="#">prd.internal/1495</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></span></td>
-                <td><span class="status status--success"><span class="dot"></span>启用</span></td>
+              <tr data-status="draft" data-module="营销模块" data-owner="张明" data-version="" data-code="REQ-0105" data-title="预售尾款提醒推送">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0105</span></td>
+                <td><a href="requirement-detail.html">预售尾款提醒推送</a></td>
+                <td>营销模块</td>
+                <td><span class="muted">—</span></td>
+                <td class="status-cell"><span class="status status--info"><span class="dot"></span>草稿</span></td>
                 <td>张明</td>
-                <td class="num">2026-09-12 10:08</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link op-link--danger" data-op="delete">删除</span><span class="op-link op-link--warning" data-op="archive">归档</span></td>
+                <td class="num">2026-11-08 16:27:09</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
-              <tr data-seg="archived" data-title="老版购物车结算页改造" data-source="prd.internal/1402" data-content="旧版结算页已下线，条目归档保留作为回归用例的追溯依据。">
-                <td class="cell-main">老版购物车结算页改造<span class="cell-sub"><a class="mono" href="#">prd.internal/1402</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></span></td>
-                <td><span class="status status--neutral"><span class="dot"></span>已归档</span></td>
-                <td>周敏</td>
-                <td class="num">2026-08-28 16:40</td>
-                <td><span class="op-link op-link--danger" data-op="delete">删除</span><span class="op-link op-link--warning" data-op="unarchive">取消归档</span></td>
+              <tr data-status="changed" data-module="订单模块" data-owner="李华" data-version="V2.4" data-code="REQ-0106" data-title="多收货地址智能推荐排序">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0106</span></td>
+                <td><a href="requirement-detail.html">多收货地址智能推荐排序</a></td>
+                <td>订单模块</td>
+                <td>V2.4</td>
+                <td class="status-cell"><span class="status status--warning"><span class="dot"></span>已变更</span></td>
+                <td>李华</td>
+                <td class="num">2026-11-07 13:40:12</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
-              <tr data-seg="archived" data-title="商家后台数据看板一期" data-source="" data-content="一期范围调整至二期方案，条目归档不再参与测试文档关联。">
-                <td class="cell-main">商家后台数据看板一期<span class="cell-sub mono">内部提出</span></td>
-                <td><span class="status status--neutral"><span class="dot"></span>已归档</span></td>
+              <tr data-status="archived" data-module="订单模块" data-owner="赵磊" data-version="V2.2" data-code="REQ-0107" data-title="老版购物车结算页改造">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0107</span></td>
+                <td><a href="requirement-detail.html">老版购物车结算页改造</a></td>
+                <td>订单模块</td>
+                <td>V2.2</td>
+                <td class="status-cell"><span class="status status--neutral"><span class="dot"></span>已归档</span></td>
+                <td>赵磊</td>
+                <td class="num">2026-11-05 09:53:14</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item" data-row-act="unarchive">取消归档</span></span></span></td>
+              </tr>
+              <tr data-status="archived" data-module="" data-owner="王芳" data-version="V2.1" data-code="REQ-0108" data-title="商家后台数据看板一期">
+                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
+                <td><span class="mono muted">REQ-0108</span></td>
+                <td><a href="requirement-detail.html">商家后台数据看板一期</a></td>
+                <td><span class="muted">—</span></td>
+                <td>V2.1</td>
+                <td class="status-cell"><span class="status status--neutral"><span class="dot"></span>已归档</span></td>
                 <td>王芳</td>
-                <td class="num">2026-08-15 10:22</td>
-                <td><span class="op-link op-link--danger" data-op="delete">删除</span><span class="op-link op-link--warning" data-op="unarchive">取消归档</span></td>
+                <td class="num">2026-10-30 15:20:41</td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item" data-row-act="unarchive">取消归档</span></span></span></td>
               </tr>
-              <tr class="rp-empty" id="rp-empty" hidden><td colspan="5">暂无需求条目</td></tr>
+
+              <!-- 空态两分支（交互 06 §2.1.3）：带筛选 → 无匹配结果；无数据 → 暂无需求引导 -->
+              <tr id="empty-filtered" class="empty-cell" hidden>
+                <td colspan="9">
+                  <div class="state-block">
+                    <div class="state-block__icon"><span data-icon="search"></span></div>
+                    <div class="state-block__title">无匹配结果</div>
+                    <div class="state-block__action"><button class="btn btn--default" type="button" id="empty-reset">重置筛选</button></div>
+                  </div>
+                </td>
+              </tr>
+              <tr id="empty-none" class="empty-cell" hidden>
+                <td colspan="9">
+                  <div class="state-block">
+                    <div class="state-block__icon"><span data-icon="tickets"></span></div>
+                    <div class="state-block__title">暂无需求</div>
+                    <div class="state-block__action">
+                      <a class="btn btn--primary" href="requirement-create.html">新建需求</a>
+                      <button class="btn btn--default" type="button" data-open="import-dialog">导入需求</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
 
-        <div class="pagination" id="rp-pager">
-          <span class="pagination__total">共 63 条 · 每页 20 条</span>
-          <button class="page-btn" disabled>‹</button>
-          <button class="page-btn page-btn--active">1</button>
-          <button class="page-btn">2</button>
-          <button class="page-btn">3</button>
-          <button class="page-btn">4</button>
-          <button class="page-btn">›</button>
+        <div class="pagination">
+          <span class="pagination__total" id="pager-total">共 8 条 · 每页 20 条</span>
+          <button class="page-btn" type="button" id="pager-prev" disabled>‹</button>
+          <span id="pager-pages"><button class="page-btn page-btn--active" type="button">1</button></span>
+          <button class="page-btn" type="button" id="pager-next" disabled>›</button>
+          <select class="select page-size" id="page-size">
+            <option value="20">20 条/页</option>
+            <option value="50">50 条/页</option>
+            <option value="100">100 条/页</option>
+          </select>
         </div>
       </div>
     </div>
   </div>
 </main>
 
-<!-- 新建 / 编辑条目：字段与校验口径同实际页的抽屉表单 -->
-<div class="dialog-mask" id="rp-form-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:560px">
+<!-- 导入需求：字段与预校验口径同 RequirementImportDialog（交互 06 §2.3.1） -->
+<div class="dialog-mask" id="import-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:480px" role="dialog" aria-modal="true" aria-labelledby="import-title">
     <div class="dialog__header">
-      <span class="dialog__title" id="rp-form-title">新建需求条目</span>
-      <button class="dialog__close" data-close="rp-form-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+      <span class="dialog__title" id="import-title">导入需求</span>
+      <button class="dialog__close" data-close="import-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="dialog__body">
-      <div class="field">
-        <label class="field__label" for="rp-form-name">标题<span class="req">*</span></label>
-        <input class="input" id="rp-form-name" maxlength="200" placeholder="请输入条目标题">
-        <div class="field__hint"><span id="rp-form-count">0</span>/200</div>
-        <div class="field__error" id="rp-title-error" hidden></div>
+      <input type="file" id="imp-file" accept=".md,.docx,.png,.jpg,.jpeg,.gif,.webp,.bmp" hidden>
+      <div class="upload" id="imp-drop" role="button" tabindex="0">
+        <span data-icon="upload"></span>
+        将文件拖到此处，或<em>点击选择</em>
       </div>
-      <div class="field">
-        <label class="field__label" for="rp-form-content">需求内容<span class="req">*</span></label>
-        <!-- 实际页为 MarkdownEditor，静态稿以等高 textarea 呈现 -->
-        <textarea class="textarea" id="rp-form-content" style="min-height:280px" placeholder="粘贴或输入需求文本（支持 Markdown）"></textarea>
-        <div class="field__error" id="rp-content-error" hidden></div>
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <label class="field__label" for="rp-form-source">来源 URL</label>
-        <input class="input" id="rp-form-source" placeholder="可选，仅记录出处，平台不抓取">
+      <div class="upload-hint">支持 Markdown（.md）、Word（.docx）与图片，单文件不超过 20MB；提交后在任务详情页跟踪进度并审核导入结果</div>
+      <div class="upload-list" id="imp-list" hidden></div>
+      <div class="alert alert--danger import-error" id="imp-error" hidden>
+        <span data-icon="alert-circle"></span><span id="imp-error-text"></span>
       </div>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default" type="button" data-close="rp-form-dialog">取消</button>
-      <button class="btn btn--primary" type="button" id="rp-form-ok">保存</button>
+      <button class="btn btn--default" type="button" data-close="import-dialog">取消</button>
+      <button class="btn btn--primary" type="button" id="imp-submit" disabled>开始导入</button>
     </div>
   </div>
 </div>
 
-<!-- 删除 / 归档 / 取消归档共用的二次确认，文案同实际页 ElMessageBox -->
-<div class="dialog-mask" id="rp-confirm-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:420px">
+<!-- 归档 / 取消归档二次确认：文案同 useRequirementList / useRequirementDetail 的 ElMessageBox -->
+<div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:420px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="dialog__header">
-      <span class="dialog__title" id="rp-confirm-title">删除需求条目</span>
-      <button class="dialog__close" data-close="rp-confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+      <span class="dialog__title" id="confirm-title">确认归档</span>
+      <button class="dialog__close" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
-    <div class="dialog__body"><p id="rp-confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
     <div class="dialog__footer">
-      <button class="btn btn--default" type="button" data-close="rp-confirm-dialog">取消</button>
-      <button class="btn btn--primary" type="button" id="rp-confirm-ok">确认</button>
+      <button class="btn btn--default" type="button" data-close="confirm-dialog" id="confirm-cancel">取消</button>
+      <button class="btn btn--primary" type="button" id="confirm-ok">归档</button>
     </div>
   </div>
 </div>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 <script>
 (function () {
   function byId(id) { return document.getElementById(id); }
-  function setError(id, msg) {
-    var el = byId(id);
-    el.textContent = msg || '';
-    el.hidden = !msg;
-  }
-  function esc(text) {
-    return String(text).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
+  function toast(msg, type) {
+    if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {});
   }
 
-  /* 未筛选时展示服务端总数，筛选关键字后按命中样例行计数 */
-  var TOTALS = { active: 63, archived: 17 };
-  var table = byId('rp-table');
-  var tbody = table.querySelector('tbody');
-  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-seg]'));
-  var emptyRow = byId('rp-empty');
-  var pager = byId('rp-pager');
-  var keywordInput = byId('rp-keyword');
-  var segmentItems = Array.prototype.slice.call(document.querySelectorAll('#rp-segment .segment__item'));
-  var state = { seg: 'active', keyword: '' };
+  /* 状态徽标口径同 requirementPresentation：draft/info、confirmed/success、changed/warning、archived/中性 */
+  var STATUS = {
+    draft: { label: '草稿', cls: 'status--info' },
+    confirmed: { label: '已确认', cls: 'status--success' },
+    changed: { label: '已变更', cls: 'status--warning' },
+    archived: { label: '已归档', cls: 'status--neutral' }
+  };
 
-  function statusHtml(seg) {
-    return seg === 'active'
-      ? '<span class="status status--success"><span class="dot"></span>启用</span>'
-      : '<span class="status status--neutral"><span class="dot"></span>已归档</span>';
+  var tbody = document.querySelector('#rp-table tbody');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-status]'));
+  var emptyFiltered = byId('empty-filtered');
+  var emptyNone = byId('empty-none');
+
+  /* 演示辅助：?empty=1 清空样本数据，用于查看「暂无需求」引导态（正常样本下该分支不可达） */
+  if (/[?&]empty=1/.test(location.search)) {
+    rows.forEach(function (row) { row.parentNode.removeChild(row); });
+    rows = [];
   }
 
-  function opsHtml(seg) {
-    var html = '';
-    if (seg === 'active') html += '<span class="op-link" data-op="edit">编辑</span>';
-    html += '<span class="op-link op-link--danger" data-op="delete">删除</span>';
-    html += seg === 'active'
-      ? '<span class="op-link op-link--warning" data-op="archive">归档</span>'
-      : '<span class="op-link op-link--warning" data-op="unarchive">取消归档</span>';
-    return html;
+  var pageSize = 20;
+  var applied = { status: '', module: '', owner: '', version: '', keyword: '' };
+  var searchedKeyword = '';
+  var keywordTimer = null;
+
+  function filterCount() {
+    return (applied.status ? 1 : 0) + (applied.module ? 1 : 0) +
+      (applied.owner ? 1 : 0) + (applied.version ? 1 : 0) +
+      (applied.keyword ? 1 : 0);
   }
 
-  function titleCellHtml(title, source) {
-    var sub = source
-      ? '<span class="cell-sub"><a class="mono" href="#">' + esc(source) + '</a> <span data-icon="external" style="width:11px;height:11px;display:inline-block;vertical-align:-1px"></span></span>'
-      : '<span class="cell-sub mono">内部提出</span>';
-    return esc(title) + sub;
+  function matches(row) {
+    if (applied.status && row.getAttribute('data-status') !== applied.status) return false;
+    if (applied.module && row.getAttribute('data-module') !== applied.module) return false;
+    if (applied.owner && row.getAttribute('data-owner') !== applied.owner) return false;
+    if (applied.version && row.getAttribute('data-version') !== applied.version) return false;
+    if (applied.keyword) {
+      var hay = (row.getAttribute('data-code') + ' ' + row.getAttribute('data-title')).toLowerCase();
+      if (hay.indexOf(applied.keyword.toLowerCase()) === -1) return false;
+    }
+    return true;
   }
 
   function renderPager(total) {
-    var pages = Math.max(1, Math.ceil(total / 20));
-    var html = '<span class="pagination__total">共 ' + total + ' 条 · 每页 20 条</span>';
-    html += '<button class="page-btn" type="button" disabled>‹</button>';
+    var pages = Math.max(1, Math.ceil(total / pageSize));
+    var html = '';
     for (var i = 1; i <= pages; i++) {
       html += '<button class="page-btn' + (i === 1 ? ' page-btn--active' : '') + '" type="button">' + i + '</button>';
     }
-    html += '<button class="page-btn" type="button"' + (pages === 1 ? ' disabled' : '') + '>›</button>';
-    pager.innerHTML = html;
+    byId('pager-pages').innerHTML = html;
+    byId('pager-prev').disabled = true;
+    byId('pager-next').disabled = pages <= 1;
+    byId('pager-total').textContent = '共 ' + total + ' 条 · 每页 ' + pageSize + ' 条';
   }
 
   function render() {
     var shown = 0;
     rows.forEach(function (row) {
-      var matched =
-        row.getAttribute('data-seg') === state.seg &&
-        (!state.keyword || row.getAttribute('data-title').indexOf(state.keyword) !== -1);
-      row.hidden = !matched;
-      if (matched) shown += 1;
+      var ok = matches(row);
+      row.hidden = !ok;
+      if (ok) shown += 1;
     });
-    emptyRow.hidden = shown !== 0;
-    renderPager(state.keyword ? shown : TOTALS[state.seg]);
+    var count = filterCount();
+    emptyFiltered.hidden = !(count > 0 && shown === 0);
+    emptyNone.hidden = !(count === 0 && shown === 0);
+    byId('rp-count').textContent = '共 ' + shown + ' 条';
+    var badge = byId('filter-badge');
+    badge.hidden = count === 0;
+    badge.textContent = String(count);
+    renderPager(shown);
   }
 
   function search() {
-    state.keyword = keywordInput.value.trim();
+    if (keywordTimer) { clearTimeout(keywordTimer); keywordTimer = null; }
+    applied.status = byId('f-status').value;
+    applied.module = byId('f-module').value;
+    applied.owner = byId('f-owner').value;
+    applied.version = byId('f-version').value;
+    applied.keyword = byId('f-keyword').value.trim();
+    searchedKeyword = applied.keyword;
     render();
   }
 
   function reset() {
-    keywordInput.value = '';
-    state.keyword = '';
-    state.seg = 'active';
-    segmentItems.forEach(function (item) {
-      item.classList.toggle('segment__item--active', item.getAttribute('data-seg') === 'active');
-    });
-    render();
+    byId('f-status').value = '';
+    byId('f-module').value = '';
+    byId('f-owner').value = '';
+    byId('f-version').value = '';
+    byId('f-keyword').value = '';
+    search();
   }
 
-  segmentItems.forEach(function (item) {
-    item.addEventListener('click', function () {
-      state.seg = item.getAttribute('data-seg');
-      segmentItems.forEach(function (other) {
-        other.classList.toggle('segment__item--active', other === item);
-      });
-      render();
-    });
+  byId('btn-search').addEventListener('click', search);
+  byId('btn-reset').addEventListener('click', reset);
+  byId('empty-reset').addEventListener('click', reset);
+  /* 下拉变更即查询，关键词 1 秒防抖自动查询、回车立即查询（交互 06 §2.1.2） */
+  ['f-status', 'f-module', 'f-owner', 'f-version'].forEach(function (id) {
+    byId(id).addEventListener('change', search);
   });
-  byId('rp-search').addEventListener('click', search);
-  keywordInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') search(); });
-  byId('rp-reset').addEventListener('click', reset);
-
-  // ==================== 新建 / 编辑 ====================
-  var formDialog = byId('rp-form-dialog');
-  var confirmDialog = byId('rp-confirm-dialog');
-  var confirmAction = null;
-  var editingRow = null;
-
-  function openForm(row) {
-    editingRow = row || null;
-    byId('rp-form-title').textContent = row ? '编辑需求条目' : '新建需求条目';
-    byId('rp-form-name').value = row ? row.getAttribute('data-title') : '';
-    byId('rp-form-content').value = row ? row.getAttribute('data-content') : '';
-    byId('rp-form-source').value = row ? (row.getAttribute('data-source') || '') : '';
-    byId('rp-form-count').textContent = String(byId('rp-form-name').value.length);
-    setError('rp-title-error', '');
-    setError('rp-content-error', '');
-    formDialog.hidden = false;
-  }
-
-  function applyForm(title, source, content) {
-    if (editingRow) {
-      editingRow.setAttribute('data-title', title);
-      editingRow.setAttribute('data-source', source);
-      editingRow.setAttribute('data-content', content);
-      var cell = editingRow.firstElementChild;
-      cell.innerHTML = titleCellHtml(title, source);
-      if (window.RTIcons) window.RTIcons.hydrate(cell);
-      return;
-    }
-    var tr = document.createElement('tr');
-    tr.setAttribute('data-seg', 'active');
-    tr.setAttribute('data-title', title);
-    tr.setAttribute('data-source', source);
-    tr.setAttribute('data-content', content);
-    tr.innerHTML =
-      '<td class="cell-main">' + titleCellHtml(title, source) + '</td>' +
-      '<td>' + statusHtml('active') + '</td>' +
-      '<td>陈晓</td>' +
-      '<td class="num">2026-10-02 09:30</td>' +
-      '<td>' + opsHtml('active') + '</td>';
-    tbody.insertBefore(tr, tbody.firstElementChild);
-    rows.unshift(tr);
-    TOTALS.active += 1;
-    if (window.RTIcons) window.RTIcons.hydrate(tr);
-  }
-
-  byId('rp-form-ok').addEventListener('click', function () {
-    var title = byId('rp-form-name').value.trim();
-    var content = byId('rp-form-content').value.trim();
-    if (!title) {
-      setError('rp-title-error', '请输入条目标题');
-      return;
-    }
-    if (!content) {
-      setError('rp-content-error', '请输入需求内容');
-      return;
-    }
-    applyForm(title, byId('rp-form-source').value.trim(), content);
-    formDialog.hidden = true;
+  byId('f-keyword').addEventListener('input', function () {
+    if (keywordTimer) clearTimeout(keywordTimer);
+    keywordTimer = setTimeout(function () {
+      if (byId('f-keyword').value.trim() !== searchedKeyword) search();
+    }, 1000);
+  });
+  byId('f-keyword').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') search();
+  });
+  byId('page-size').addEventListener('change', function () {
+    pageSize = parseInt(byId('page-size').value, 10);
     render();
   });
 
-  byId('rp-form-name').addEventListener('input', function () {
-    byId('rp-form-count').textContent = String(this.value.length);
-    setError('rp-title-error', '');
-  });
-  byId('rp-form-content').addEventListener('input', function () { setError('rp-content-error', ''); });
+  // ==================== 选择列（服务 AI 发起） ====================
+  var checkAll = byId('check-all');
 
-  // ==================== 删除 / 归档 / 取消归档 ====================
-  function askConfirm(title, body, okLabel, onOk) {
-    byId('rp-confirm-title').textContent = title;
-    byId('rp-confirm-body').textContent = body;
-    byId('rp-confirm-ok').textContent = okLabel;
-    confirmAction = onOk;
-    confirmDialog.hidden = false;
+  function visibleRows() {
+    return rows.filter(function (row) { return !row.hidden; });
   }
 
-  function moveRow(row, seg) {
-    var from = row.getAttribute('data-seg');
-    TOTALS[from] -= 1;
-    TOTALS[seg] += 1;
-    row.setAttribute('data-seg', seg);
-    row.children[1].innerHTML = statusHtml(seg);
-    row.children[4].innerHTML = opsHtml(seg);
+  function updateAi() {
+    var n = 0;
+    visibleRows().forEach(function (row) {
+      if (row.querySelector('.checkbox--on')) n += 1;
+    });
+    byId('ai-select').disabled = n === 0;
+    byId('ai-gen').disabled = n === 0;
+    byId('ai-select-tip').title = n > 0 ? '对已选需求发起 AI 圈选建议' : '请先勾选需求';
+    byId('ai-gen-tip').title = n > 0 ? '对已选需求生成模块、脑图用例文档与测试用例' : '请先勾选需求';
+  }
+
+  function syncCheckAll() {
+    var list = visibleRows();
+    var on = list.length > 0 && list.every(function (row) {
+      return row.querySelector('.checkbox--on');
+    });
+    checkAll.classList.toggle('checkbox--on', on);
+    checkAll.setAttribute('aria-checked', String(on));
+  }
+
+  checkAll.addEventListener('click', function () {
+    var on = !checkAll.classList.contains('checkbox--on');
+    visibleRows().forEach(function (row) {
+      var box = row.querySelector('.checkbox');
+      box.classList.toggle('checkbox--on', on);
+      box.setAttribute('aria-checked', String(on));
+    });
+    checkAll.setAttribute('aria-checked', String(on));
+    updateAi();
+  });
+
+  // ==================== 行渲染（状态流转后重建徽标与操作列） ====================
+  function opsHtml(status) {
+    var html = '<a class="op-link" href="requirement-detail.html">详情</a>';
+    if (status !== 'archived') {
+      html += status === 'confirmed'
+        ? '<span class="op-link op-link--off" title="仅草稿或已变更状态可确认">确认</span>'
+        : '<span class="op-link" data-op="confirm">确认</span>';
+    }
+    html += '<span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span>' +
+      '<span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span>' +
+      (status === 'archived'
+        ? '<span class="more-menu__item" data-row-act="unarchive">取消归档</span>'
+        : '<span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span>') +
+      '</span></span>';
+    return html;
+  }
+
+  function setStatus(row, status) {
+    row.setAttribute('data-status', status);
+    row.querySelector('.status-cell').innerHTML =
+      '<span class="status ' + STATUS[status].cls + '"><span class="dot"></span>' + STATUS[status].label + '</span>';
+    var ops = row.querySelector('.ops-cell');
+    ops.innerHTML = opsHtml(status);
+    if (window.RTIcons) window.RTIcons.hydrate(ops);
+  }
+
+  // ==================== 归档 / 取消归档二次确认 ====================
+  var pendingConfirm = null;
+  function askConfirm(title, body, okLabel, cancelLabel, onOk) {
+    byId('confirm-title').textContent = title;
+    byId('confirm-body').textContent = body;
+    byId('confirm-ok').textContent = okLabel;
+    byId('confirm-cancel').textContent = cancelLabel;
+    pendingConfirm = onOk;
+    byId('confirm-dialog').hidden = false;
+  }
+
+  byId('confirm-ok').addEventListener('click', function () {
+    byId('confirm-dialog').hidden = true;
+    var fn = pendingConfirm;
+    pendingConfirm = null;
+    if (fn) fn();
+  });
+
+  // ==================== 事件分发 ====================
+  function closeMenus() {
+    document.querySelectorAll('.more-menu').forEach(function (menu) { menu.hidden = true; });
   }
 
   document.addEventListener('click', function (e) {
     var opener = e.target.closest('[data-open]');
     if (opener) {
-      openForm(null);
+      resetImport();
+      byId(opener.getAttribute('data-open')).hidden = false;
       return;
     }
     var closer = e.target.closest('[data-close]');
@@ -373,41 +577,70 @@
       byId(closer.getAttribute('data-close')).hidden = true;
       return;
     }
-    var op = e.target.closest('[data-op]');
-    if (!op) return;
-    var row = op.closest('tr');
-    if (!row) return;
-    var kind = op.getAttribute('data-op');
-    if (kind === 'edit') {
-      openForm(row);
-    } else if (kind === 'delete') {
-      // 删除不影响已生成用例，确认文案与实际页一致
-      askConfirm('删除需求条目', '删除不影响已生成的用例，文档关联将解除。确定删除该条目？', '删除', function () {
-        confirmDialog.hidden = true;
-        TOTALS[row.getAttribute('data-seg')] -= 1;
-        rows = rows.filter(function (r) { return r !== row; });
-        row.remove();
-        render();
-      });
-    } else if (kind === 'archive') {
-      askConfirm('归档需求条目', '归档后条目不可编辑，且不再被测试文档关联。确定归档？', '归档', function () {
-        confirmDialog.hidden = true;
-        moveRow(row, 'archived');
-        render();
-      });
-    } else if (kind === 'unarchive') {
-      askConfirm('取消归档', '恢复为启用状态，重新参与测试文档关联。确定取消归档？', '取消归档', function () {
-        confirmDialog.hidden = true;
-        moveRow(row, 'active');
-        render();
-      });
-    }
-  });
 
-  byId('rp-confirm-ok').addEventListener('click', function () {
-    var action = confirmAction;
-    confirmAction = null;
-    if (action) action();
+    var more = e.target.closest('[data-more]');
+    if (more) {
+      var menu = more.parentElement.querySelector('.more-menu');
+      var willOpen = menu.hidden;
+      closeMenus();
+      menu.hidden = !willOpen;
+      return;
+    }
+
+    var box = e.target.closest('[data-check]');
+    if (box) {
+      box.classList.toggle('checkbox--on');
+      box.setAttribute('aria-checked', String(box.classList.contains('checkbox--on')));
+      syncCheckAll();
+      updateAi();
+      return;
+    }
+
+    var op = e.target.closest('[data-op]');
+    if (op) {
+      var row = op.closest('tr');
+      if (!row) return;
+      if (op.getAttribute('data-op') === 'confirm') {
+        setStatus(row, 'confirmed');
+        toast('需求已确认', 'success');
+      }
+      return;
+    }
+
+    var item = e.target.closest('[data-row-act]');
+    if (item) {
+      closeMenus();
+      var target = item.closest('tr');
+      if (!target) return;
+      var act = item.getAttribute('data-row-act');
+      if (act === 'edit') {
+        // 实际实现「编辑」即进入详情页（列表页不再提供独立编辑弹窗）
+        window.location.href = 'requirement-detail.html';
+      } else if (act === 'archive') {
+        askConfirm(
+          '确认归档',
+          '归档后「' + target.getAttribute('data-title') + '」只读，可在详情页取消归档。',
+          '归档', '取消',
+          function () {
+            setStatus(target, 'archived');
+            toast('需求已归档', 'success');
+          }
+        );
+      } else if (act === 'unarchive') {
+        askConfirm(
+          '确认取消归档',
+          '取消归档后条目将回到「草稿」状态，需重新确认才会恢复为已确认。',
+          '取消归档', '返回',
+          function () {
+            setStatus(target, 'draft');
+            toast('已取消归档，条目回到草稿状态', 'success');
+          }
+        );
+      }
+      return;
+    }
+
+    if (!e.target.closest('.more-wrap')) closeMenus();
   });
 
   document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
@@ -418,11 +651,116 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    formDialog.hidden = true;
-    confirmDialog.hidden = true;
+    closeMenus();
+    byId('import-dialog').hidden = true;
+    byId('confirm-dialog').hidden = true;
+  });
+
+  // ==================== 导入需求对话框 ====================
+  /* 白名单与 20MB 上限同 RequirementImportDialog，预校验顺序：类型 → 大小 → 空文件 */
+  var IMPORT_EXTENSIONS = ['md', 'docx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+  var MAX_IMPORT_SIZE = 20 * 1024 * 1024;
+  var impFile = null;
+
+  function extensionOf(name) {
+    var index = name.lastIndexOf('.');
+    if (index < 0 || index === name.length - 1) return '';
+    return name.slice(index + 1).toLowerCase();
+  }
+
+  function setImportError(msg) {
+    byId('imp-error-text').textContent = msg || '';
+    byId('imp-error').hidden = !msg;
+  }
+
+  function formatSize(size) {
+    if (size >= 1024 * 1024) return (size / 1024 / 1024).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(size / 1024)) + ' KB';
+  }
+
+  function renderImportFile() {
+    var list = byId('imp-list');
+    list.hidden = !impFile;
+    if (!impFile) { list.innerHTML = ''; return; }
+    list.innerHTML =
+      '<div class="upload-item">' +
+      '<span class="upload-item__name">' + impFile.name.replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      }) + '</span>' +
+      '<span class="upload-item__size">' + formatSize(impFile.size) + '</span>' +
+      '<button class="upload-item__remove" type="button" id="imp-remove" aria-label="移除文件"><span data-icon="x"></span></button>' +
+      '</div>';
+    if (window.RTIcons) window.RTIcons.hydrate(list);
+    byId('imp-remove').addEventListener('click', function () { resetImport(); });
+  }
+
+  function resetImport() {
+    impFile = null;
+    byId('imp-file').value = '';
+    setImportError('');
+    renderImportFile();
+    byId('imp-submit').disabled = true;
+  }
+
+  function pickImportFile(file) {
+    if (IMPORT_EXTENSIONS.indexOf(extensionOf(file.name)) === -1) {
+      impFile = null;
+      setImportError('不支持的文件类型，仅支持 Markdown（.md）、Word（.docx）与图片');
+    } else if (file.size > MAX_IMPORT_SIZE) {
+      impFile = null;
+      setImportError('导入文件超过 20MB 限制');
+    } else if (file.size === 0) {
+      impFile = null;
+      setImportError('导入文件为空或不可解析');
+    } else {
+      impFile = file;
+      setImportError('');
+    }
+    renderImportFile();
+    byId('imp-submit').disabled = impFile === null;
+  }
+
+  var impDrop = byId('imp-drop');
+  var impInput = byId('imp-file');
+  impDrop.addEventListener('click', function () { impInput.click(); });
+  impDrop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); impInput.click(); }
+  });
+  impDrop.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    impDrop.classList.add('upload--over');
+  });
+  impDrop.addEventListener('dragleave', function () { impDrop.classList.remove('upload--over'); });
+  impDrop.addEventListener('drop', function (e) {
+    e.preventDefault();
+    impDrop.classList.remove('upload--over');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      pickImportFile(e.dataTransfer.files[0]);
+    }
+  });
+  impInput.addEventListener('change', function () {
+    if (impInput.files && impInput.files[0]) pickImportFile(impInput.files[0]);
+    impInput.value = '';
+  });
+
+  byId('imp-submit').addEventListener('click', function () {
+    if (!impFile) { setImportError('请先选择要导入的文件'); return; }
+    byId('import-dialog').hidden = true;
+    /* 实际实现提交成功后跳转 AI 任务详情页跟踪进度；演示稿无该页，仅给回执 */
+    toast('导入任务已提交', 'success');
+    resetImport();
+  });
+
+  // ==================== AI 入口（对话框由对应配置页承载，此处给出演示反馈） ====================
+  byId('ai-select').addEventListener('click', function () {
+    toast('AI 圈选建议：按已选需求打开圈选配置', 'success');
+  });
+  byId('ai-gen').addEventListener('click', function () {
+    toast('AI 生成用例：按已选需求打开生成配置', 'success');
   });
 
   render();
+  updateAi();
 })();
 </script>
 </body>
