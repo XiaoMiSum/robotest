@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>需求详情 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
+<style>
+  /* 弹层与两态显隐靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
+  [hidden] { display: none !important; }
+
+  /* 页头吸顶：负偏移贴住滚动容器内容盒上缘，以分割线压底（同新建页 2.5.2） */
+  .req-head {
+    position: sticky; top: calc(-1 * var(--page-pad)); z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+    padding-bottom: var(--space-md);
+    background: var(--n-0); border-bottom: 1px solid var(--n-200);
+  }
+  .req-head .breadcrumb { margin-bottom: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .req-head .breadcrumb > :last-child { overflow: hidden; text-overflow: ellipsis; }
+  .req-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+
+  /* 操作区按频次分组，组间竖线分隔（交互 06 §2.2.2） */
+  .head-sep { width: 1px; height: 16px; background: var(--n-200); }
+
+  /* 「更多」触发钮为 warning plain（归档收敛入口） */
+  .btn--warning-plain {
+    background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong);
+  }
+  .btn--warning-plain:hover {
+    background: var(--st-warning); border-color: var(--st-warning); color: #fff;
+  }
+
+  /* AI 入口的悬浮说明挂在包裹层：禁用按钮不派发鼠标事件 */
+  .tip-wrap { display: inline-flex; }
+
+  /* 「更多」下拉：演示稿无 el-dropdown，沿用 api-testing 的浮层菜单范式 */
+  .more-wrap { position: relative; display: inline-block; }
+  .more-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 96px;
+    padding: 4px; display: flex; flex-direction: column;
+    background: var(--n-0); border: 1px solid var(--n-100); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .more-menu__item {
+    padding: 6px 10px; border-radius: 4px; font-size: var(--font-size-sm); color: var(--n-700);
+    cursor: pointer; white-space: nowrap;
+  }
+  .more-menu__item:hover { background: var(--n-50); }
+  /* 归档是收敛操作，下拉项保持 warning 色（交互 06 §2.1.2） */
+  .more-menu__item--warning { color: var(--st-warning-strong); }
+  .more-caret { display: inline-flex; vertical-align: -2px; }
+  .more-caret svg { width: 12px; height: 12px; }
+
+  /* 标题行：查看态 编号 + 标题 + 状态徽标；编辑态标题换全宽输入框（交互 06 §2.2.2） */
+  .title-row {
+    display: flex; align-items: center; gap: var(--space-sm);
+    margin: var(--space-xl) 0 0; min-width: 0;
+  }
+  .req-title {
+    flex: 1; min-width: 0; margin: 0;
+    font-size: var(--font-size-xl); font-weight: 650; color: var(--n-900);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .title-field { position: relative; flex: 1; min-width: 0; }
+  .title-field .input { padding-right: 62px; }
+  .title-field__count {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: var(--font-size-xs); color: var(--n-400);
+    font-variant-numeric: tabular-nums; pointer-events: none;
+  }
+  /* 校验错误文案固定占位，出现/消失不推挤布局（同新建页） */
+  .title-error { min-height: 18px; margin-top: 6px; }
+
+  /* 双栏：左栏描述、右栏 360px 属性卡片，两栏共用按窗口计算的高度（交互 06 §2.2.1） */
+  .detail-layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+    gap: var(--space-xl); margin-top: var(--space-md);
+  }
+  .detail-main { min-width: 0; grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: var(--space-lg); }
+  .detail-side { min-width: 0; grid-column: 2; grid-row: 1; height: var(--panel-height, 320px); display: flex; flex-direction: column; }
+
+  /* 查看态描述以中性描边成盒（同编号 chip 口径），编辑态由编辑器自带描边，外框尺寸一致 */
+  .desc-box {
+    height: var(--panel-height, 320px); overflow: auto;
+    padding: var(--space-md);
+    border: 1px solid var(--n-300); border-radius: var(--radius-md);
+    color: var(--n-700); font-size: var(--font-size-base); line-height: 1.7;
+  }
+  .desc-box h2 { margin: 0 0 8px; font-size: var(--font-size-lg); font-weight: 650; color: var(--n-900); }
+  .desc-box h3 { margin: 16px 0 8px; font-size: var(--font-size-base); font-weight: 650; color: var(--n-900); }
+  .desc-box p { margin: 0 0 10px; }
+  .desc-box ul, .desc-box ol { margin: 0 0 10px; padding-left: 22px; }
+  .desc-box li { margin-bottom: 4px; }
+  .desc-box code {
+    padding: 1px 5px; border-radius: 4px;
+    background: var(--n-100); font-family: var(--font-mono); font-size: 0.92em;
+  }
+
+  /* 描述编辑器：MarkdownEditor 的工具栏 + 编辑区连体结构（同新建页） */
+  .md-toolbar {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 6px 8px; border: 1px solid var(--n-300); border-bottom: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--n-50);
+  }
+  .md-toolbar__btn {
+    height: 24px; min-width: 26px; padding: 0 7px; border: 0; background: none;
+    border-radius: var(--radius-sm); color: var(--n-600);
+    font-size: var(--font-size-xs); font-family: inherit; cursor: pointer;
+  }
+  .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
+  .md-toolbar__sep { width: 1px; height: 14px; margin: 0 5px; background: var(--n-200); }
+  .md-editor { border-radius: 0 0 var(--radius-md) var(--radius-md); resize: none; }
+
+  /* 属性卡片：页签行贴顶，面板内容超出在卡片内滚动（交互 06 §2.2.1） */
+  .detail-side .card__body { flex: 1; min-height: 0; overflow: auto; }
+  .detail-side .field:last-child { margin-bottom: 0; }
+  .side-count { margin-left: auto; }
+
+  /* 优先级分段控件：选中态沿用缺陷优先级色、查看态整体禁用（交互 06 §4） */
+  .prio-seg .segment__item[data-prio="high"] { --prio-color: var(--priority-p1); }
+  .prio-seg .segment__item[data-prio="medium"] { --prio-color: var(--priority-p2); }
+  .prio-seg .segment__item[data-prio="low"] { --prio-color: var(--priority-p3); }
+  .prio-seg .segment__item.is-on { background: var(--prio-color); color: #fff; box-shadow: none; }
+  .prio-seg.is-disabled .segment__item { color: var(--n-300); cursor: not-allowed; }
+  .prio-seg.is-disabled .segment__item.is-on { color: var(--prio-color); opacity: .55; }
+
+  /* 标签多选可回车创建：对应 el-select multiple + allow-create（同新建页） */
+  .tag-input {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    min-height: 32px; padding: 4px 8px;
+    border: 1px solid var(--n-300); border-radius: var(--radius-md); background: var(--n-0);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .tag-input:focus-within { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(51, 112, 255, 0.14); }
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 20px; padding: 0 4px 0 7px; border-radius: var(--radius-sm);
+    background: var(--n-100); color: var(--n-700);
+    font-size: var(--font-size-xs); white-space: nowrap;
+  }
+  .tag-chip__x { display: inline-flex; padding: 1px; border: 0; background: none; color: var(--n-400); cursor: pointer; }
+  .tag-chip__x:hover { color: var(--n-700); }
+  .tag-chip__x svg { width: 11px; height: 11px; }
+  .tag-input > input {
+    flex: 1; min-width: 80px; height: 20px;
+    border: 0; outline: none; background: transparent;
+    font-family: inherit; font-size: var(--font-size-sm); color: var(--n-900);
+  }
+  .tag-input > input::placeholder { color: var(--n-400); }
+  .tag-input.is-disabled { background: var(--n-50); }
+  .tag-input.is-disabled .tag-chip__x { display: none; }
+  .tag-input.is-disabled > input { color: var(--n-400); cursor: not-allowed; }
+
+  /* 来源恒为只读行（交互 06 §2.2.2） */
+  .source-value { font-size: var(--font-size-base); color: var(--n-900); }
+
+  @media (max-width: 1024px) {
+    .detail-layout { grid-template-columns: 1fr; }
+    .detail-main, .detail-side { grid-column: 1; grid-row: auto; }
+    .detail-side { height: auto; }
+    .desc-box { height: auto; min-height: 240px; }
+  }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content">
+
+  <!-- UI-BC-01：列表 → 详情两级面包屑，回退入口是唯一可点击项；操作区与面包屑同行（交互 06 §2.2.2） -->
+  <div class="req-head">
+    <div class="breadcrumb">
+      <a href="requirements.html">需求管理</a>
+      <span data-icon="chevron-right"></span>
+      <span id="bc-title">订单超时未支付自动关闭</span>
+    </div>
+    <div class="req-actions" id="head-actions"></div>
+  </div>
+
+  <div class="title-row">
+    <span class="chip" id="req-code">REQ-0103</span>
+    <h1 class="req-title" id="req-title">订单超时未支付自动关闭</h1>
+    <div class="title-field" id="title-edit" hidden>
+      <input class="input" id="f-title" maxlength="300" placeholder="请输入需求标题">
+      <span class="title-field__count" id="f-title-count">0/300</span>
+    </div>
+    <span class="status status--warning" id="req-status"><span class="dot"></span>已变更</span>
+  </div>
+  <div class="field__error title-error" id="f-title-error" hidden></div>
+
+  <div class="detail-layout" id="detail-layout">
+    <div class="detail-main">
+      <!-- 描述：查看态 Markdown 渲染、编辑态 Markdown 编辑器，两态外框尺寸一致（交互 06 §2.2.1） -->
+      <div class="desc-box" id="desc-view"></div>
+      <div id="desc-edit" hidden>
+        <div class="md-toolbar">
+          <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
+          <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
+          <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
+          <span class="md-toolbar__sep"></span>
+          <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
+          <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
+          <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
+          <span class="md-toolbar__sep"></span>
+          <button class="md-toolbar__btn" type="button" data-md="insert" data-token="[链接文字](https://)">链接</button>
+        </div>
+        <textarea class="textarea md-editor" id="f-desc" placeholder="需求描述（支持 Markdown）"></textarea>
+      </div>
+    </div>
+
+    <div class="detail-side card">
+      <div class="tabs">
+        <span class="tab tab--active" data-tab="attributes" role="button" tabindex="0">属性</span>
+        <span class="tab" data-tab="logs" role="button" tabindex="0">变更记录</span>
+      </div>
+
+      <!-- 同一组表单控件贯穿两态：查看态整体禁用、点「编辑」启用（交互 06 §2.2.2） -->
+      <div class="card__body" data-pane="attributes">
+        <div class="field">
+          <label class="field__label" for="f-module">所属模块</label>
+          <select class="select" id="f-module" disabled>
+            <option value="">未分配</option>
+            <option value="m-login">登录模块</option>
+            <option value="m-order" selected>订单模块</option>
+            <option value="m-pay">支付模块</option>
+            <option value="m-mkt">营销模块</option>
+            <option value="m-user">用户中心</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="f-version">版本</label>
+          <input class="input" id="f-version" maxlength="50" value="V2.4" placeholder="被测业务系统版本" disabled>
+        </div>
+
+        <div class="field">
+          <span class="field__label">优先级</span>
+          <div class="segment prio-seg is-disabled" id="f-priority">
+            <span class="segment__item is-on" data-prio="high">高</span>
+            <span class="segment__item" data-prio="medium">中</span>
+            <span class="segment__item" data-prio="low">低</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="f-owner">负责人</label>
+          <select class="select" id="f-owner" disabled>
+            <option value="">未指派</option>
+            <option value="u-zhangming">张明</option>
+            <option value="u-lihua" selected>李华</option>
+            <option value="u-wangfang">王芳</option>
+            <option value="u-zhoumin">周敏</option>
+            <option value="u-zhaolei">赵磊</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <span class="field__label">标签</span>
+          <div class="tag-input is-disabled" id="f-tags">
+            <input id="f-tag-input" placeholder="回车创建" disabled>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:0">
+          <span class="field__label">来源</span>
+          <span class="source-value muted">手工创建</span>
+        </div>
+      </div>
+
+      <!-- 变更记录：页签首次激活时才加载（交互 06 §2.2.2），面板初始不渲染 -->
+      <div class="card__body" data-pane="logs" hidden>
+        <div class="flex-between mb-md">
+          <span class="text-xs muted" id="logs-count">共 4 条</span>
+        </div>
+        <ul class="timeline" id="logs-list">
+          <li class="timeline__item">
+            <span class="timeline__dot timeline__dot--warning"></span>
+            <div class="timeline__head">李华 <span class="tag tag--warning tag--sm">状态</span><span class="timeline__time">2026-11-09 18:45:21</span></div>
+            <div class="timeline__body">状态更新为「已变更」</div>
+          </li>
+          <li class="timeline__item">
+            <span class="timeline__dot"></span>
+            <div class="timeline__head">李华 <span class="tag tag--outline tag--sm">标题</span><span class="timeline__time">2026-11-09 18:44:02</span></div>
+            <div class="timeline__body">标题：订单超时自动关闭 → 订单超时未支付自动关闭</div>
+          </li>
+          <li class="timeline__item">
+            <span class="timeline__dot"></span>
+            <div class="timeline__head">李华 <span class="tag tag--outline tag--sm">属性</span><span class="timeline__time">2026-11-08 10:15:47</span></div>
+            <div class="timeline__body">版本：V2.3 → V2.4</div>
+          </li>
+          <li class="timeline__item">
+            <span class="timeline__dot timeline__dot--success"></span>
+            <div class="timeline__head">张明 <span class="tag tag--success tag--sm">状态</span><span class="timeline__time">2026-11-05 16:20:13</span></div>
+            <div class="timeline__body">状态更新为「已确认」</div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 归档 / 取消归档 / 确认保存变更 二次确认：文案同 useRequirementDetail 的 ElMessageBox -->
+<div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:440px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="confirm-title">确认归档</span>
+      <button class="dialog__close" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="confirm-dialog" id="confirm-cancel">取消</button>
+      <button class="btn btn--primary" type="button" id="confirm-ok">归档</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+  function toast(msg, type) {
+    if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {});
+  }
+
+  /* 状态徽标口径同 requirementPresentation：draft/info、confirmed/success、changed/warning、archived/中性 */
+  var STATUS = {
+    draft: { label: '草稿', cls: 'status--info' },
+    confirmed: { label: '已确认', cls: 'status--success' },
+    changed: { label: '已变更', cls: 'status--warning' },
+    archived: { label: '已归档', cls: 'status--neutral' }
+  };
+
+  var status = 'changed';
+  var editing = false;
+
+  // ==================== 描述：Markdown 源码 ⇄ 查看态渲染 ====================
+  var DESC_SRC = [
+    '## 背景',
+    '',
+    '订单提交后进入支付页，用户长时间未完成支付会一直占用库存，导致后续下单提示缺货。',
+    '',
+    '## 期望行为',
+    '',
+    '- 未支付订单在创建后 **30 分钟** 自动关闭',
+    '- 关闭时立即释放占用库存并回滚营销资源',
+    '- 关闭前 5 分钟向用户推送待支付提醒',
+    '',
+    '## 验收口径',
+    '',
+    '1. 超时订单状态流转为「已关闭」，库存可用数恢复',
+    '2. 用户仍可在 `订单详情` 中查看关闭记录'
+  ].join('\n');
+
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function inlineMd(text) {
+    return text
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+  }
+
+  /** 查看态渲染只覆盖演示样本用到的子集（标题/列表/粗体/行内代码），足够还原来回切换 */
+  function renderMd(src) {
+    var lines = escapeHtml(src).split('\n');
+    var html = '';
+    var listTag = '';
+    function closeList() {
+      if (listTag) { html += '</' + listTag + '>'; listTag = ''; }
+    }
+    lines.forEach(function (line) {
+      var m;
+      if ((m = line.match(/^(#{1,2})\s+(.*)$/))) {
+        closeList();
+        html += m[1].length === 1 ? '<h2>' + inlineMd(m[2]) + '</h2>' : '<h3>' + inlineMd(m[2]) + '</h3>';
+      } else if ((m = line.match(/^-\s+(.*)$/))) {
+        if (listTag !== 'ul') { closeList(); html += '<ul>'; listTag = 'ul'; }
+        html += '<li>' + inlineMd(m[1]) + '</li>';
+      } else if ((m = line.match(/^\d+\.\s+(.*)$/))) {
+        if (listTag !== 'ol') { closeList(); html += '<ol>'; listTag = 'ol'; }
+        html += '<li>' + inlineMd(m[1]) + '</li>';
+      } else if (line.trim() === '') {
+        closeList();
+      } else {
+        closeList();
+        html += '<p>' + inlineMd(line) + '</p>';
+      }
+    });
+    closeList();
+    return html;
+  }
+
+  var descView = byId('desc-view');
+  var descEdit = byId('desc-edit');
+  var descInput = byId('f-desc');
+  descInput.value = DESC_SRC;
+  descView.innerHTML = renderMd(DESC_SRC);
+
+  // ==================== 属性表单状态 ====================
+  var tags = ['超时', '订单'];
+  var tagBox = byId('f-tags');
+  var tagInput = byId('f-tag-input');
+  var priority = 'high';
+
+  function renderTags() {
+    tagBox.querySelectorAll('.tag-chip').forEach(function (chip) { chip.remove(); });
+    tags.forEach(function (tag, index) {
+      var chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.innerHTML = '<span>' + escapeHtml(tag) + '</span>' +
+        '<button class="tag-chip__x" type="button" aria-label="移除标签"><span data-icon="x"></span></button>';
+      chip.querySelector('button').addEventListener('click', function () {
+        if (editing) {
+          tags.splice(index, 1);
+          renderTags();
+          touch();
+        }
+      });
+      tagBox.insertBefore(chip, tagInput);
+    });
+    if (window.RTIcons) window.RTIcons.hydrate(tagBox);
+  }
+  renderTags();
+
+  tagInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || !editing) return;
+    e.preventDefault();
+    var value = tagInput.value.trim();
+    if (!value) return;
+    if (tags.indexOf(value) === -1) tags.push(value);
+    tagInput.value = '';
+    renderTags();
+    touch();
+  });
+
+  function readForm() {
+    return {
+      title: byId('f-title').value.trim(),
+      desc: descInput.value,
+      module: byId('f-module').value,
+      version: byId('f-version').value.trim(),
+      priority: priority,
+      owner: byId('f-owner').value,
+      tags: tags.join(',')
+    };
+  }
+
+  function fillForm(data) {
+    byId('f-title').value = data.title;
+    descInput.value = data.desc;
+    byId('f-module').value = data.module;
+    byId('f-version').value = data.version;
+    priority = data.priority;
+    byId('f-owner').value = data.owner;
+    tags = data.tags ? data.tags.split(',') : [];
+    syncPriority();
+    syncTitleCount();
+    renderTags();
+  }
+
+  var snapshot = readForm();
+
+  function dirty() {
+    var now = readForm();
+    return ['title', 'desc', 'module', 'version', 'priority', 'owner', 'tags'].some(function (key) {
+      return now[key] !== snapshot[key];
+    });
+  }
+
+  /** confirmed 态改标题/描述/所属模块才触发流转（交互 06 §2.2.2 状态流转） */
+  function impactChanged() {
+    var now = readForm();
+    return status === 'confirmed' &&
+      (now.title !== snapshot.title || now.desc !== snapshot.desc || now.module !== snapshot.module);
+  }
+
+  // ==================== 优先级分段控件：再次点击当前项清空回未设置 ====================
+  function syncPriority() {
+    byId('f-priority').querySelectorAll('.segment__item').forEach(function (item) {
+      item.classList.toggle('is-on', item.getAttribute('data-prio') === priority);
+    });
+  }
+
+  byId('f-priority').querySelectorAll('.segment__item').forEach(function (item) {
+    item.addEventListener('click', function () {
+      if (!editing) return;
+      var value = item.getAttribute('data-prio');
+      priority = priority === value ? '' : value;
+      syncPriority();
+      touch();
+    });
+  });
+
+  // ==================== 标题字数与校验（规则同 useRequirementCreate） ====================
+  var titleInput = byId('f-title');
+  var titleError = byId('f-title-error');
+
+  function syncTitleCount() {
+    byId('f-title-count').textContent = titleInput.value.length + '/300';
+  }
+
+  function validateTitle() {
+    var msg = titleInput.value.trim() ? '' : '请输入需求标题';
+    titleError.textContent = msg;
+    titleInput.classList.toggle('input--error', Boolean(msg));
+    return !msg;
+  }
+
+  titleInput.addEventListener('input', function () {
+    syncTitleCount();
+    if (editing && titleError.textContent) validateTitle();
+    touch();
+  });
+  titleInput.addEventListener('blur', function () { if (editing) validateTitle(); });
+  /* 描述与属性字段变化同样要反映到「保存」可用性 */
+  descInput.addEventListener('input', touch);
+  ['f-module', 'f-version', 'f-owner'].forEach(function (id) {
+    byId(id).addEventListener('change', touch);
+  });
+
+  /* 标题输入框以查看态标题回填初值并重取快照，进编辑态才不会是空输入 */
+  titleInput.value = byId('req-title').textContent.trim();
+  syncTitleCount();
+  snapshot = readForm();
+
+  // ==================== 页头操作区（查看态三组 / 编辑态取消保存） ====================
+  /** 编辑态任一字段变化后立即重算「保存」可用性（对应实现的 editDirty 响应式口径） */
+  function touch() {
+    if (editing) renderActions();
+  }
+
+  function renderActions() {
+    var html = '';
+    if (editing) {
+      html += '<button class="btn btn--default" type="button" data-act="cancel">取消</button>';
+      html += '<button class="btn btn--primary" type="button" data-act="save"' + (dirty() ? '' : ' disabled') + '>保存</button>';
+      byId('head-actions').innerHTML = html;
+      return;
+    }
+
+    var parts = [];
+    if (status !== 'archived') {
+      parts.push('<button class="btn btn--link" type="button" data-act="edit">编辑</button>');
+    }
+    var aiDisabled = status !== 'confirmed';
+    parts.push('<span class="tip-wrap" title="' +
+      (aiDisabled ? '仅已确认需求可生成' : '基于该需求生成模块、脑图用例文档与测试用例') + '">' +
+      '<button class="btn btn--default" type="button" data-act="ai"' + (aiDisabled ? ' disabled' : '') + '>AI 生成用例</button></span>');
+
+    var life = '';
+    if (status === 'draft' || status === 'changed') {
+      life += '<button class="btn btn--primary" type="button" data-act="confirm">确认</button>';
+    }
+    life += '<span class="more-wrap"><button class="btn btn--warning-plain" type="button" data-more>更多 ' +
+      '<span class="more-caret" data-icon="chevron-down"></span></button>' +
+      '<span class="more-menu" hidden>' +
+      (status === 'archived'
+        ? '<span class="more-menu__item" data-act="unarchive">取消归档</span>'
+        : '<span class="more-menu__item more-menu__item--warning" data-act="archive">归档</span>') +
+      '</span></span>';
+    parts.push(life);
+
+    byId('head-actions').innerHTML = parts.join('<span class="head-sep"></span>');
+    if (window.RTIcons) window.RTIcons.hydrate(byId('head-actions'));
+  }
+
+  function renderStatus() {
+    var meta = STATUS[status];
+    var badge = byId('req-status');
+    badge.className = 'status ' + meta.cls;
+    badge.innerHTML = '<span class="dot"></span>' + meta.label;
+  }
+
+  /** 同款控件两态切换：查看态整体禁用、编辑态解锁（归档只读恒禁用） */
+  function renderFields() {
+    var enable = editing;
+    ['f-module', 'f-version', 'f-owner'].forEach(function (id) {
+      byId(id).disabled = !enable;
+    });
+    tagInput.disabled = !enable;
+    tagBox.classList.toggle('is-disabled', !enable);
+    byId('f-priority').classList.toggle('is-disabled', !enable);
+  }
+
+  function renderTitleMode() {
+    byId('req-title').hidden = editing;
+    byId('title-edit').hidden = !editing;
+    titleError.hidden = !editing;
+    if (!editing) {
+      titleError.textContent = '';
+      titleInput.classList.remove('input--error');
+    }
+  }
+
+  function renderDescMode() {
+    descView.hidden = editing;
+    descEdit.hidden = !editing;
+    if (editing) fitPanels();
+  }
+
+  function renderAll() {
+    renderActions();
+    renderStatus();
+    renderFields();
+    renderTitleMode();
+    renderDescMode();
+  }
+
+  // ==================== 编辑态进出与保存 ====================
+  function startEdit() {
+    if (status === 'archived') return;
+    snapshot = readForm();
+    editing = true;
+    syncTitleCount();
+    renderAll();
+  }
+
+  function cancelEdit() {
+    fillForm(snapshot);
+    editing = false;
+    renderAll();
+  }
+
+  function saveAll() {
+    if (!validateTitle()) { titleInput.focus(); return; }
+    if (impactChanged()) {
+      askConfirm(
+        '确认保存变更',
+        '该需求已处于「已确认」状态，修改标题、描述或所属模块会将其流转为「已变更」。是否继续保存？',
+        '继续保存', '取消',
+        commitSave
+      );
+      return;
+    }
+    commitSave();
+  }
+
+  function commitSave() {
+    var wasConfirmedImpact = impactChanged();
+    var data = readForm();
+    byId('req-title').textContent = data.title;
+    byId('bc-title').textContent = data.title;
+    descView.innerHTML = renderMd(data.desc);
+    if (wasConfirmedImpact) status = 'changed';
+    snapshot = data;
+    editing = false;
+    renderAll();
+    toast('需求已更新', 'success');
+  }
+
+  // ==================== 状态流转 ====================
+  function setStatus(next, message) {
+    status = next;
+    renderAll();
+    toast(message, 'success');
+  }
+
+  // ==================== 二次确认（文案同 useRequirementDetail） ====================
+  var pendingConfirm = null;
+  function askConfirm(title, body, okLabel, cancelLabel, onOk) {
+    byId('confirm-title').textContent = title;
+    byId('confirm-body').textContent = body;
+    byId('confirm-ok').textContent = okLabel;
+    byId('confirm-cancel').textContent = cancelLabel;
+    pendingConfirm = onOk;
+    byId('confirm-dialog').hidden = false;
+  }
+
+  byId('confirm-ok').addEventListener('click', function () {
+    byId('confirm-dialog').hidden = true;
+    var fn = pendingConfirm;
+    pendingConfirm = null;
+    if (fn) fn();
+  });
+
+  function handleAct(act) {
+    if (act === 'edit') startEdit();
+    else if (act === 'cancel') cancelEdit();
+    else if (act === 'save') saveAll();
+    else if (act === 'ai') toast('AI 生成用例：打开生成配置对话框', 'success');
+    else if (act === 'confirm') setStatus('confirmed', '需求已确认');
+    else if (act === 'archive') {
+      askConfirm(
+        '确认归档',
+        '归档后「' + byId('req-title').textContent + '」只读，可在本页取消归档（条目将回到草稿状态）。',
+        '归档', '取消',
+        function () {
+          if (editing) cancelEdit();
+          setStatus('archived', '需求已归档');
+        }
+      );
+    } else if (act === 'unarchive') {
+      askConfirm(
+        '确认取消归档',
+        '取消归档后条目将回到「草稿」状态，需重新确认才会恢复为已确认。',
+        '取消归档', '返回',
+        function () { setStatus('draft', '已取消归档，条目回到草稿状态'); }
+      );
+    }
+  }
+
+  function closeMenus() {
+    document.querySelectorAll('.more-menu').forEach(function (menu) { menu.hidden = true; });
+  }
+
+  byId('head-actions').addEventListener('click', function (e) {
+    var more = e.target.closest('[data-more]');
+    if (more) {
+      var menu = more.parentElement.querySelector('.more-menu');
+      var willOpen = menu.hidden;
+      closeMenus();
+      menu.hidden = !willOpen;
+      return;
+    }
+    var act = e.target.closest('[data-act]');
+    if (!act) return;
+    closeMenus();
+    handleAct(act.getAttribute('data-act'));
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.more-wrap')) closeMenus();
+    var closer = e.target.closest('[data-close]');
+    if (closer) byId(closer.getAttribute('data-close')).hidden = true;
+  });
+
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    closeMenus();
+    byId('confirm-dialog').hidden = true;
+  });
+
+  // ==================== 属性 / 变更记录 页签（记录首次激活才加载） ====================
+  var logsLoaded = false;
+  document.querySelectorAll('.tabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var name = tab.getAttribute('data-tab');
+      document.querySelectorAll('.tabs .tab').forEach(function (other) {
+        other.classList.toggle('tab--active', other === tab);
+      });
+      document.querySelectorAll('[data-pane]').forEach(function (pane) {
+        var on = pane.getAttribute('data-pane') === name;
+        pane.hidden = !on;
+        if (on && name === 'logs') logsLoaded = true;
+      });
+      void logsLoaded;
+    });
+  });
+
+  // ==================== 描述编辑器工具栏插入（同新建页） ====================
+  document.querySelectorAll('[data-md]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var mode = btn.getAttribute('data-md');
+      var token = btn.getAttribute('data-token');
+      var start = descInput.selectionStart;
+      var end = descInput.selectionEnd;
+      var selected = descInput.value.slice(start, end);
+      var next = descInput.value;
+      var cursor = end;
+      if (mode === 'wrap') {
+        next = descInput.value.slice(0, start) + token + selected + token + descInput.value.slice(end);
+        cursor = selected ? end + token.length * 2 : start + token.length;
+      } else if (mode === 'prefix') {
+        var lineStart = descInput.value.lastIndexOf('\n', start - 1) + 1;
+        next = descInput.value.slice(0, lineStart) + token + descInput.value.slice(lineStart);
+        cursor = start + token.length;
+      } else {
+        next = descInput.value.slice(0, start) + token + descInput.value.slice(end);
+        cursor = start + token.length;
+      }
+      descInput.value = next;
+      descInput.focus();
+      descInput.setSelectionRange(cursor, cursor);
+    });
+  });
+
+  // ==================== 两栏高度：剩余可用空间的 90%（交互 06 §2.2.1 / 2.5.2） ====================
+  var layout = byId('detail-layout');
+
+  function fitPanels() {
+    var top = layout.getBoundingClientRect().top + (window.scrollY || 0);
+    var height = Math.max(320, Math.floor((window.innerHeight - top) * 0.9));
+    layout.style.setProperty('--panel-height', height + 'px');
+    if (editing) descInput.style.height = height + 'px';
+  }
+  window.addEventListener('resize', fitPanels);
+
+  renderAll();
+  fitPanels();
+  window.addEventListener('load', fitPanels);
+})();
+</script>
+</body>
+</html>

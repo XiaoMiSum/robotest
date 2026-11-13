@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新建需求 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
+<style>
+  /* 弹层与错误文案靠 visible/hidden 切换，作者样式的 display 会盖过 UA [hidden] */
+  [hidden] { display: none !important; }
+
+  /* 页头吸顶：负偏移贴住滚动容器内容盒上缘，分割线压底（同实现页 sticky 口径） */
+  .req-head {
+    position: sticky; top: calc(-1 * var(--page-pad)); z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+    padding-bottom: var(--space-md);
+    background: var(--n-0); border-bottom: 1px solid var(--n-200);
+  }
+  .req-head .breadcrumb { margin-bottom: 0; }
+  .req-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+
+  /* 标题项无 label：字数计数悬浮在输入框右缘（对应 show-word-limit） */
+  .title-field { position: relative; }
+  .title-field .input { padding-right: 62px; }
+  .title-field__count {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: var(--font-size-xs); color: var(--n-400);
+    font-variant-numeric: tabular-nums; pointer-events: none;
+  }
+  /* 校验错误文案固定占位，出现/消失不推挤布局（交互 06 §2.5.2） */
+  .field--title .field__error { min-height: 18px; margin-top: 6px; }
+
+  /* 双栏：右栏 360px 属性卡片、左栏描述编辑器；DOM 中属性置前，窄屏回流保持「标题 → 属性 → 描述」 */
+  .create-layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+    gap: var(--space-xl);
+  }
+  .create-main { min-width: 0; grid-column: 1; grid-row: 1; }
+  .create-side { min-width: 0; grid-column: 2; grid-row: 1; }
+  .create-side .card { height: 100%; }
+
+  /* 描述编辑器：MarkdownEditor 的工具栏 + 编辑区连体结构（参照缺陷新建页范式） */
+  .md-toolbar {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 6px 8px; border: 1px solid var(--n-300); border-bottom: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--n-50);
+  }
+  .md-toolbar__btn {
+    height: 24px; min-width: 26px; padding: 0 7px; border: 0; background: none;
+    border-radius: var(--radius-sm); color: var(--n-600);
+    font-size: var(--font-size-xs); font-family: inherit; cursor: pointer;
+  }
+  .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
+  .md-toolbar__sep { width: 1px; height: 14px; margin: 0 5px; background: var(--n-200); }
+  .md-editor { border-radius: 0 0 var(--radius-md) var(--radius-md); min-height: 320px; resize: none; }
+
+  /* 优先级分段控件：选中态沿用缺陷优先级色（交互 06 §4） */
+  .prio-seg .segment__item[data-prio="high"] { --prio-color: var(--priority-p1); }
+  .prio-seg .segment__item[data-prio="medium"] { --prio-color: var(--priority-p2); }
+  .prio-seg .segment__item[data-prio="low"] { --prio-color: var(--priority-p3); }
+  .prio-seg .segment__item.is-on { background: var(--prio-color); color: #fff; box-shadow: none; }
+
+  /* 标签多选可回车创建：对应 el-select multiple + allow-create，共享样式无该控件 */
+  .tag-input {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    min-height: 32px; padding: 4px 8px;
+    border: 1px solid var(--n-300); border-radius: var(--radius-md); background: var(--n-0);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .tag-input:focus-within { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(51, 112, 255, 0.14); }
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 20px; padding: 0 4px 0 7px; border-radius: var(--radius-sm);
+    background: var(--n-100); color: var(--n-700);
+    font-size: var(--font-size-xs); white-space: nowrap;
+  }
+  .tag-chip__x { display: inline-flex; padding: 1px; border: 0; background: none; color: var(--n-400); cursor: pointer; }
+  .tag-chip__x:hover { color: var(--n-700); }
+  .tag-chip__x svg { width: 11px; height: 11px; }
+  .tag-input > input {
+    flex: 1; min-width: 90px; height: 20px;
+    border: 0; outline: none; background: transparent;
+    font-family: inherit; font-size: var(--font-size-sm); color: var(--n-900);
+  }
+  .tag-input > input::placeholder { color: var(--n-400); }
+
+  @media (max-width: 1024px) {
+    .create-layout { grid-template-columns: 1fr; }
+    .create-main, .create-side { grid-column: 1; grid-row: auto; }
+    .create-side .card { height: auto; }
+  }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content">
+
+  <!-- UI-BC-01：两级面包屑，回退入口是唯一可点击项；操作区同行右对齐、页头吸顶 -->
+  <div class="req-head">
+    <div class="breadcrumb">
+      <a href="requirements.html">需求管理</a>
+      <span data-icon="chevron-right"></span>
+      <span>新建需求</span>
+    </div>
+    <div class="req-actions">
+      <a class="btn btn--default" href="requirements.html">取消</a>
+      <button class="btn btn--primary" type="button" id="btn-create">创建</button>
+    </div>
+  </div>
+
+  <!-- 标题无 label、跨双栏全宽：必填由失焦/提交校验提示表达（交互 06 §2.5.2） -->
+  <div class="field field--title">
+    <div class="title-field">
+      <input class="input" id="f-title" maxlength="300" placeholder="请输入需求标题">
+      <span class="title-field__count" id="f-title-count">0/300</span>
+    </div>
+    <div class="field__error" id="f-title-error"></div>
+  </div>
+
+  <div class="create-layout">
+    <div class="create-side">
+      <div class="card">
+        <div class="card__body">
+          <div class="field">
+            <label class="field__label" for="f-module">所属模块</label>
+            <select class="select" id="f-module">
+              <option value="" selected>可选</option>
+              <option value="m-login">登录模块</option>
+              <option value="m-order">订单模块</option>
+              <option value="m-pay">支付模块</option>
+              <option value="m-mkt">营销模块</option>
+              <option value="m-user">用户中心</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="f-version">版本</label>
+            <input class="input" id="f-version" maxlength="50" placeholder="可选">
+          </div>
+
+          <div class="field">
+            <span class="field__label">优先级</span>
+            <div class="segment prio-seg" id="f-priority">
+              <span class="segment__item" data-prio="high">高</span>
+              <span class="segment__item" data-prio="medium">中</span>
+              <span class="segment__item" data-prio="low">低</span>
+            </div>
+            <div class="field__hint">再次点击当前项可清空回未设置</div>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="f-owner">负责人</label>
+            <select class="select" id="f-owner">
+              <option value="" selected>可选</option>
+              <option value="u-zhangming">张明</option>
+              <option value="u-lihua">李华</option>
+              <option value="u-wangfang">王芳</option>
+              <option value="u-zhoumin">周敏</option>
+              <option value="u-zhaolei">赵磊</option>
+            </select>
+          </div>
+
+          <div class="field" style="margin-bottom:0">
+            <span class="field__label">标签</span>
+            <div class="tag-input" id="f-tags">
+              <input id="f-tag-input" placeholder="可选，回车创建">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="create-main">
+      <!-- 描述无 label、左栏主视觉区：Markdown 编辑器，高度取剩余可用空间的 90%（最小 320px） -->
+      <div class="md-toolbar">
+        <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
+        <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
+        <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
+        <span class="md-toolbar__sep"></span>
+        <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
+        <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
+        <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
+        <span class="md-toolbar__sep"></span>
+        <button class="md-toolbar__btn" type="button" data-md="insert" data-token="[链接文字](https://)">链接</button>
+      </div>
+      <textarea class="textarea md-editor" id="f-desc" placeholder="需求描述（支持 Markdown，可选）"></textarea>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+  function toast(msg, type) {
+    if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {});
+  }
+
+  /* ---------------- 标题字数与必填校验（规则同 useRequirementCreate rules） ---------------- */
+  var titleInput = byId('f-title');
+  var titleCount = byId('f-title-count');
+  var titleError = byId('f-title-error');
+
+  function syncTitleCount() { titleCount.textContent = titleInput.value.length + '/300'; }
+
+  function validateTitle() {
+    var msg = titleInput.value.trim() ? '' : '请输入需求标题';
+    titleError.textContent = msg;
+    titleInput.classList.toggle('input--error', Boolean(msg));
+    return !msg;
+  }
+
+  titleInput.addEventListener('input', function () {
+    syncTitleCount();
+    if (!titleError.textContent) return;
+    validateTitle();
+  });
+  titleInput.addEventListener('blur', validateTitle);
+  syncTitleCount();
+
+  /* ---------------- 优先级分段控件：再次点击当前项清空回未设置 ---------------- */
+  var priority = '';
+  byId('f-priority').querySelectorAll('.segment__item').forEach(function (item) {
+    item.addEventListener('click', function () {
+      var value = item.getAttribute('data-prio');
+      priority = priority === value ? '' : value;
+      byId('f-priority').querySelectorAll('.segment__item').forEach(function (other) {
+        other.classList.toggle('is-on', other.getAttribute('data-prio') === priority);
+      });
+    });
+  });
+
+  /* ---------------- 标签：回车创建、点 x 移除（对应 el-select allow-create） ---------------- */
+  var tags = [];
+  var tagBox = byId('f-tags');
+  var tagInput = byId('f-tag-input');
+
+  function renderTags() {
+    tagBox.querySelectorAll('.tag-chip').forEach(function (chip) { chip.remove(); });
+    tags.forEach(function (tag, index) {
+      var chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.innerHTML = '<span>' + tag.replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      }) + '</span><button class="tag-chip__x" type="button" aria-label="移除标签"><span data-icon="x"></span></button>';
+      chip.querySelector('button').addEventListener('click', function () {
+        tags.splice(index, 1);
+        renderTags();
+      });
+      tagBox.insertBefore(chip, tagInput);
+    });
+    if (window.RTIcons) window.RTIcons.hydrate(tagBox);
+  }
+
+  tagInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var value = tagInput.value.trim();
+    if (!value) return;
+    if (tags.indexOf(value) === -1) tags.push(value);
+    tagInput.value = '';
+    renderTags();
+  });
+
+  /* ---------------- 描述编辑器高度：剩余可用空间的 90%，下限 320px（交互 06 §2.5.2） ---------------- */
+  var editor = byId('f-desc');
+  var editorTop = 0;
+
+  function fitEditor() {
+    if (editorTop === 0) editorTop = editor.getBoundingClientRect().top + window.scrollY;
+    var height = Math.max(320, Math.floor((window.innerHeight - editorTop) * 0.9));
+    editor.style.height = height + 'px';
+  }
+  window.addEventListener('resize', fitEditor);
+  window.addEventListener('load', function () { editorTop = 0; fitEditor(); });
+  fitEditor();
+
+  /* ---------------- Markdown 工具栏插入（静态演示，同缺陷新建页范式） ---------------- */
+  document.querySelectorAll('[data-md]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var mode = btn.getAttribute('data-md');
+      var token = btn.getAttribute('data-token');
+      var start = editor.selectionStart;
+      var end = editor.selectionEnd;
+      var selected = editor.value.slice(start, end);
+      var next = editor.value;
+      var cursor = end;
+      if (mode === 'wrap') {
+        next = editor.value.slice(0, start) + token + selected + token + editor.value.slice(end);
+        cursor = selected ? end + token.length * 2 : start + token.length;
+      } else if (mode === 'prefix') {
+        var lineStart = editor.value.lastIndexOf('\n', start - 1) + 1;
+        next = editor.value.slice(0, lineStart) + token + editor.value.slice(lineStart);
+        cursor = start + token.length;
+      } else {
+        next = editor.value.slice(0, start) + token + editor.value.slice(end);
+        cursor = start + token.length;
+      }
+      editor.value = next;
+      editor.focus();
+      editor.setSelectionRange(cursor, cursor);
+    });
+  });
+
+  /* ---------------- 创建：校验通过后 toast 并进入详情页（实际行为） ---------------- */
+  byId('btn-create').addEventListener('click', function () {
+    if (!validateTitle()) {
+      titleInput.focus();
+      return;
+    }
+    toast('需求已创建', 'success');
+    window.setTimeout(function () { window.location.href = 'requirement-detail.html'; }, 400);
+  });
+})();
+</script>
+</body>
+</html>

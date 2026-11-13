@@ -618,7 +618,7 @@
     var $ = function (id) { return document.getElementById(id) }
     var toast = function (msg, type) { if (window.RTUX) window.RTUX.toast(msg, { type: type || '' }) }
 
-    // 需求池示例数据：content 为 Markdown 正文，明细气泡按 52 §1.2 仅渲染正文（\n 写法避免反引号转义）
+    // 需求条目示例数据：content 为 Markdown 正文，明细气泡按 52 §1.2 仅渲染正文（\n 写法避免反引号转义）
     var REQ_POOL = [
       {
         id: 'r1', title: '满减券叠加规则', date: '2026-09-28',
