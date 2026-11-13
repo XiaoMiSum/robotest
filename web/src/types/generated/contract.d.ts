@@ -5093,9 +5093,6 @@ export interface components {
             /** Format: int32 */
             round?: number;
             systemVersion?: string;
-            createParams?: {
-                [key: string]: unknown;
-            };
         };
         AiTaskConfirmRespDTO: {
             results?: components["schemas"]["ItemResult"][];

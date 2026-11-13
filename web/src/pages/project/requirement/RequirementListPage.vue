@@ -7,7 +7,6 @@ import type { AiGenerationScopeItem } from '@/types'
 import type { RequirementRow } from '@/composables/project/requirement/requirementPresentation'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
-import SelectionConfigDialog from '@/components/project/ai/SelectionConfigDialog.vue'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
 const router = useRouter()
@@ -54,9 +53,8 @@ const cardBodyStyle: CSSProperties = {
   minHeight: '0',
 }
 
-// ==================== AI 生成 / 圈选发起 ====================
+// ==================== AI 生成发起 ====================
 const generationDialogVisible = ref(false)
-const selectionDialogVisible = ref(false)
 
 /** 导入经任务框架执行，AI 总开关关闭或未配模型时入口隐藏（总册 4.5） */
 const importDialogVisible = ref(false)
@@ -75,11 +73,6 @@ const aiScope = computed<AiGenerationScopeItem[]>(() =>
 function openGeneration(): void {
   if (selectedRows.value.length === 0) return
   generationDialogVisible.value = true
-}
-
-function openSelection(): void {
-  if (selectedRows.value.length === 0) return
-  selectionDialogVisible.value = true
 }
 
 const statusOptions = [
@@ -121,17 +114,6 @@ function openCreate(): void {
         <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
       </div>
       <div class="page-head__actions">
-        <el-tooltip
-          v-if="canLaunchAi"
-          :content="selectedRows.length > 0 ? '对已选需求发起 AI 圈选建议' : '请先勾选需求'"
-          placement="bottom"
-        >
-          <span>
-            <el-button :disabled="selectedRows.length === 0" @click="openSelection">
-              <el-icon><Files /></el-icon>AI 圈选建议
-            </el-button>
-          </span>
-        </el-tooltip>
         <el-tooltip
           v-if="canLaunchAi"
           :content="selectedRows.length > 0 ? '对已选需求生成模块、脑图用例文档与测试用例' : '请先勾选需求'"
@@ -360,10 +342,6 @@ function openCreate(): void {
       :requirements="aiScope"
       :module-tree="moduleTree"
       @stale="load"
-    />
-    <SelectionConfigDialog
-      v-model="selectionDialogVisible"
-      :requirements="aiScope"
     />
     <RequirementImportDialog v-model="importDialogVisible" />
   </main>

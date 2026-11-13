@@ -6,7 +6,7 @@ import { REQUIREMENT_STATUS_META } from '@/composables/project/requirement/requi
 const props = defineProps<{
   requirements: AiGenerationScopeItem[]
   modelValue: string[]
-  /** 状态不可选时的动词文案：生成 / 圈选（交互 2.1 同口径置灰） */
+  /** 状态不可选时的动词文案（交互 2.1 同口径置灰） */
   verb?: string
   /** 单次提交条数上限（缺省不限制） */
   max?: number

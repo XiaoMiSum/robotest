@@ -1,7 +1,7 @@
 import type { CaseNodeType } from '../shared'
 import type { SelectedCaseNode } from './case'
 
-/** 计划创建载荷（列表页创建与圈选确认 target.createParams 共用） */
+/** 计划创建载荷（列表页创建共用） */
 export interface TestPlanCreatePayload {
   name: string
   description?: string

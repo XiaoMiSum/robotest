@@ -204,19 +204,12 @@ export function useAiTaskDetail() {
 
   // ==================== 权限 ====================
   const canManageTask = computed(() => authStore.hasPermission('ai:task'))
-  /** 确认提案需 ai:confirm；无权限隐藏审核动作，提案只读预览（交互 2.4） */
+  /** 确认提案需 ai:confirm；无权限隐藏审核动作，提案只读预览 */
   const canConfirm = computed(() => authStore.hasPermission('ai:confirm'))
   /** 生成链落库另需 case:edit（1000018208），缺权时审核区只读 */
   const canConfirmGeneration = computed(
     () => canConfirm.value && authStore.hasPermission('case:edit'),
   )
-  /** 圈选落库另需 review:create / plan:create（1000018208），缺权时审核区只读 */
-  const canConfirmSelection = computed(() => {
-    if (!canConfirm.value) return false
-    return detail.value?.type === 'plan_selection'
-      ? authStore.hasPermission('plan:create')
-      : authStore.hasPermission('review:create')
-  })
   /** 缺陷分析落库另需 bug:edit（详设 4.2），缺权时审核区只读；重复组确认只留痕无需 bug:edit */
   const canConfirmBug = computed(() => {
     if (!canConfirm.value) return false
@@ -268,7 +261,6 @@ export function useAiTaskDetail() {
     canManageTask,
     canConfirm,
     canConfirmGeneration,
-    canConfirmSelection,
     canConfirmBug,
     load,
     handleAbort,

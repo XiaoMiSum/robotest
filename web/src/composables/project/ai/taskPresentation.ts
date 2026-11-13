@@ -77,8 +77,6 @@ export interface AiTaskTypeMeta {
 export const AI_TASK_TYPE_META: Record<string, AiTaskTypeMeta> = {
   requirement_import: { label: '需求导入', domain: '需求' },
   test_design_generation: { label: '用例生成', domain: '生成链' },
-  review_selection: { label: '评审圈选', domain: '生成链' },
-  plan_selection: { label: '计划圈选', domain: '生成链' },
   case_complete: { label: '用例补全', domain: '辅助' },
   case_priority: { label: '级别建议', domain: '辅助' },
   plan_order: { label: '计划排序', domain: '辅助' },
@@ -216,8 +214,6 @@ const PROPOSAL_KIND_LABEL: Record<string, string> = {
   module_suggestion: '模块',
   mindmap_document_suggestion: '文档',
   test_case_suggestion: '用例',
-  review_selection: '评审圈选',
-  plan_selection: '计划圈选',
   case_suggestion: '用例',
   priority_suggestion: '级别建议',
   order_suggestion: '排序建议',

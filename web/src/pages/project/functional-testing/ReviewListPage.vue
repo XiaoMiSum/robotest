@@ -139,7 +139,7 @@ function openCreateDialog() {
   createDialogVisible.value = true
 }
 
-/** 创建落库仍在页面层（组件只产载荷，圈选确认复用同一载荷转 createParams） */
+/** 创建落库仍在页面层（组件只产载荷） */
 async function submitCreate(payload: TestReviewCreatePayload) {
   createSubmitting.value = true
   try {

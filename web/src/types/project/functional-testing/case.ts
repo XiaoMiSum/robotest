@@ -6,7 +6,7 @@ export interface SelectedCaseNode {
   caseIds: string[]
 }
 
-/** 评审创建载荷（列表页创建与圈选确认 target.createParams 共用） */
+/** 评审创建载荷（列表页创建共用） */
 export interface TestReviewCreatePayload {
   title: string
   description?: string

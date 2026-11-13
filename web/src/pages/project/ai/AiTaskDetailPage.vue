@@ -6,7 +6,6 @@ import AiProposalReviewPanel from '@/components/project/ai/AiProposalReviewPanel
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
 import GenerationArtifactTreeReview from '@/components/project/ai/GenerationArtifactTreeReview.vue'
 import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
-import SelectionReviewPanel from '@/components/project/ai/SelectionReviewPanel.vue'
 import TraceEventList from '@/components/project/ai/TraceEventList.vue'
 import BugClassifyReviewPanel from '@/components/project/bug/BugClassifyReviewPanel.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
@@ -36,7 +35,6 @@ const {
   canManageTask,
   canConfirm,
   canConfirmGeneration,
-  canConfirmSelection,
   canConfirmBug,
   taskId,
   load,
@@ -45,13 +43,6 @@ const {
   backToCenter,
 } = useAiTaskDetail()
 
-/** 圈选任务走专属审核面板；类型联合由 computed 收窄供子组件 props（模板不跨节点收窄） */
-const isSelectionTask = computed(
-  () => detail.value?.type === 'review_selection' || detail.value?.type === 'plan_selection',
-)
-const selectionTaskType = computed(() =>
-  detail.value?.type === 'plan_selection' ? ('plan_selection' as const) : ('review_selection' as const),
-)
 /** 缺陷批量分类与存量重复扫描走缺陷审核面板；摘要 / 分诊提案只读，留通用面板预览 */
 const isBugReviewTask = computed(
   () => detail.value?.type === 'bug_classify' || detail.value?.type === 'bug_duplicate_scan',
@@ -199,7 +190,7 @@ function focusReviewArea(): void {
           <TraceEventList :task-id="taskId" :execution-id="execution.executionId" />
         </section>
 
-        <!-- 审核区状态分支（交互 2.2 / 2.4）：仅 proposals_ready 渲染，aborted / closed 不渲染 -->
+        <!-- 审核区状态分支（交互 2.2）：仅 proposals_ready 渲染，aborted / closed 不渲染 -->
         <section
           v-if="showReviewArea || showRunningPlaceholder || showEmptyProposals"
           id="task-review"
@@ -213,16 +204,6 @@ function focusReviewArea(): void {
               :task-id="detail.taskId"
               :proposals="proposals"
               :can-confirm="canConfirmGeneration"
-              @confirmed="load"
-              @leave="backToCenter"
-            />
-            <!-- 圈选任务（评审 / 计划）走圈选审核面板（交互 2.4） -->
-            <SelectionReviewPanel
-              v-else-if="isSelectionTask"
-              :task-id="detail.taskId"
-              :task-type="selectionTaskType"
-              :proposals="proposals"
-              :can-confirm="canConfirmSelection"
               @confirmed="load"
               @leave="backToCenter"
             />
