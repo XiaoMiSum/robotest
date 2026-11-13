@@ -32,12 +32,10 @@ export type AiProposalConfirmStatus =
 /** 提案采纳动作（Constants.AiProposalAction） */
 export type AiProposalAction = 'adopted' | 'adopted_edited' | 'rejected'
 
-/** 任务类型（Constants.AiTaskType，13 类单一事实源） */
+/** 任务类型（Constants.AiTaskType，11 类单一事实源） */
 export type AiTaskType =
   | 'requirement_import'
   | 'test_design_generation'
-  | 'review_selection'
-  | 'plan_selection'
   | 'case_complete'
   | 'case_priority'
   | 'plan_order'
@@ -182,8 +180,6 @@ export interface AiProposalConfirmTarget {
   systemVersion?: string
   moduleId?: string
   position?: string
-  /** 既有评审 / 计划创建请求整包（圈选确认承接，生成链详设 3.6） */
-  createParams?: Record<string, unknown>
   /** 承接的用例文档（补全 / 级别推荐），缺省回退任务入参 documentId */
   documentId?: string
   /** 补充节点落位 sibling / child，缺省 sibling */
@@ -251,12 +247,6 @@ export interface AiGenerationScopeItem {
   code: string
   title: string
   status: string
-}
-
-/** 圈选发起配置：计划按轮次分组，评审为单轮（生成链详设 3.1 输入裁决） */
-export interface AiSelectionConfig {
-  requirementIds: string[]
-  roundCount?: number
 }
 
 // ==================== 辅助建议（辅助功能详设 3.2–3.4） ====================

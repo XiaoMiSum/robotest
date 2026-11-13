@@ -121,7 +121,7 @@ export interface ConfirmItemResult {
   success: boolean
   errorCode: number | null
   errorMsg: string
-  /** 落库资源 id（圈选确认返回新建的评审 / 计划 id，用于成功跳转） */
+  /** 落库资源 id（承接服务返回新建资源时用于成功跳转等后续动作） */
   createdId: string | null
 }
 

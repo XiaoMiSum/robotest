@@ -7,14 +7,14 @@ import { useMemberOptions } from '@/composables/project/functional-testing/useMe
 
 const props = defineProps<{
   modelValue: boolean
-  /** 预选用例（圈选确认回填），打开时写入表单，仍可经用例选择器调整 */
+  /** 预选用例，打开时写入表单，仍可经用例选择器调整 */
   initialSelectedNodes?: SelectedCaseNode[]
   submitting?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  /** 校验通过后交由调用方落库（列表页直接创建 / 圈选确认转 createParams） */
+  /** 校验通过后交由调用方落库（列表页直接创建） */
   submit: [payload: TestPlanCreatePayload]
 }>()
 
