@@ -14,7 +14,7 @@
 
 ### 1.2 范围
 
-功能测试模块面向**业务用户**，在已选定的项目内提供测试用例管理、测试评审、测试计划、需求池及缺陷管理功能。所有操作限定在当前活跃工作空间和项目上下文中，活动上下文通过请求头 `X-Active-Workspace` 与 `X-Active-Project` 传递。
+功能测试模块面向**业务用户**，在已选定的项目内提供需求列表、测试用例管理、测试评审、测试计划及缺陷管理功能。所有操作限定在当前活跃工作空间和项目上下文中，活动上下文通过请求头 `X-Active-Workspace` 与 `X-Active-Project` 传递。
 
 ### 1.3 参考资料
 
@@ -326,7 +326,7 @@
 
 所有接口校验用户是否属于当前项目所属的工作空间。评审操作仅发起人可完成/同步/删除，参与者均可提交记录。计划操作按权限码收口：同步与完成校验 `plan:execute`，阻塞与恢复校验 `plan:block`，调整用例不限身份；删除计划仅计划负责人可操作，执行人可提交执行记录。
 
-前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求池接口校验 `requirement:view`（编辑、归档为 `requirement:edit`）；测试计划的同步与完成校验 `plan:execute`、阻塞与恢复校验 `plan:block`；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
+前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求管理接口校验 `requirement:view`（新建与导入 `requirement:create`、编辑 `requirement:edit`、确认与归档 `requirement:confirm`）；测试计划的同步与完成校验 `plan:execute`、阻塞与恢复校验 `plan:block`；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
 
 ---
 
@@ -343,19 +343,19 @@
 | 20 | 缺陷管理 | `/workspace/projects/bugs` | Warning | `bug:view` |
 | 30 | 接口测试 | `/workspace/projects/api-testing` | Connection | 任一 `api-*:view`（api-debug / api-interface / api-mock / api-scene / api-report / api-timer / api-env / api-func / api-component） |
 
-项目工作台、评审/计划/缺陷详情、需求池等页面的路由不带 `meta.menu`，不进顶部菜单，由菜单项或页面跳转进入。功能测试与接口测试均为独立框架页，进入后子模块在框架内部切换，不再依赖顶部菜单。
+项目工作台、评审/计划/缺陷详情、新建需求/需求详情等页面的路由不带 `meta.menu`，不进顶部菜单，由菜单项或页面跳转进入。功能测试与接口测试均为独立框架页，进入后子模块在框架内部切换，不再依赖顶部菜单。
 
 #### 2.5.1 功能测试工作区
 
-功能测试采用独立的框架页（FunctionalTestingPage）承载，路由 `/workspace/projects/functional-testing`。页面内部分为左右结构：左侧为模块侧栏白卡（el-menu，含测试用例、测试评审、测试计划、需求池四个入口），右侧为主内容卡，按选中项渲染 TestCasePage、ReviewListPage、PlanListPage、RequirementPoolPage。侧栏与内容卡等高并排，当前选中项为浅蓝底胶囊高亮；该路由下业务布局内容区 padding 归零，由页内两张白卡自行成形。
+功能测试采用独立的框架页（FunctionalTestingPage）承载，路由 `/workspace/projects/functional-testing`。页面内部分为左右结构：左侧为模块侧栏白卡（el-menu，含需求列表、测试用例、测试评审、测试计划四个入口，需求列表为首位子项并按 `requirement:view` 显隐），右侧为主内容卡，按选中项渲染 RequirementListPage、TestCasePage、ReviewListPage、PlanListPage。侧栏与内容卡等高并排，当前选中项为浅蓝底胶囊高亮；该路由下业务布局内容区 padding 归零，由页内两张白卡自行成形。
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │ ┌──────────────┐  ┌───────────────────────────────┐ │
-│ │  测试用例      │  │                               │ │
-│ │  测试评审      │  │         子模块内容区            │ │
-│ │  测试计划      │  │    (按侧栏选中项渲染对应页面)     │ │
-│ │  需求池        │  │                               │ │
+│ │  需求列表      │  │                               │ │
+│ │  测试用例      │  │         子模块内容区            │ │
+│ │  测试评审      │  │    (按侧栏选中项渲染对应页面)     │ │
+│ │  测试计划      │  │                               │ │
 │ └──────────────┘  └───────────────────────────────┘ │
 │  ←模块侧栏白卡→      ←──────── 主内容卡 ────────→      │
 └─────────────────────────────────────────────────────┘
@@ -389,7 +389,9 @@
 | `/workspace/projects/reviews/:reviewId` | 评审详情（ReviewDetailPage） | 不进菜单 | 快照树 + 评审标记/评论 |
 | `/workspace/projects/plans` | 计划列表（PlanListPage） | 不进菜单 | 独立直达路由，内容同功能测试「测试计划」子模块 |
 | `/workspace/projects/plans/:planId` | 计划详情（PlanDetailPage） | 不进菜单 | 快照树 + 执行跟踪 |
-| `/workspace/projects/requirements` | 需求池（RequirementPoolPage） | 不进菜单；接口 `requirement:view` | 独立直达路由，内容同功能测试「需求池」子模块 |
+| `/workspace/projects/requirements` | 需求列表（RequirementListPage） | 不进菜单；接口 `requirement:view` | 旧路径重定向至 `/workspace/projects/functional-testing?tab=requirements` |
+| `/workspace/projects/requirements/create` | 新建需求（RequirementCreatePage） | 不进菜单；接口 `requirement:create` | 页头吸顶，创建成功进入需求详情 |
+| `/workspace/projects/requirements/:requirementId` | 需求详情与编辑（RequirementDetailPage） | 不进菜单；接口 `requirement:view` | 查看/编辑双态，属性与变更记录页签 |
 | `/workspace/projects/api-testing` | 接口测试框架页（ApiTestingPage） | 菜单「接口测试」，任一 `api-*:view` | `?tab=` 还原子模块 |
 | `/workspace/projects/interfaces/:interfaceId` | 接口定义编辑（旧路由） | 不进菜单 | 重定向至 `/workspace/projects/api-testing?tab=interfaces`（`new` 转 `action=create`） |
 | `/workspace/projects/bugs` | 缺陷管理（BugListPage） | 菜单「缺陷管理」，`bug:view` | 看板/列表视图 |
@@ -465,3 +467,4 @@
 | V1.0 | 2026-10-18 | 功能测试域表名登记并统一改用 `ft_` 域前缀：`test_plan*` / `test_review*` / `test_case_node` / `test_case_document` → `ft_plan*` / `ft_review*` / `ft_case_node` / `ft_case_document`，索引同步 `idx_ft_*` |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
 | V1.0 | 2026-10-20 | 2.4 权限控制口径更新：计划同步/完成改按 `plan:execute`、阻塞/恢复改按 `plan:block` 收口，删除计划仍限负责人，权限码清单同步 |
+| V1.0 | 2026-11-13 | 功能测试侧栏子项对齐实际实现：「需求池」更名为「需求列表」并居首位，组件名更正为 RequirementListPage，权限口径补 `requirement:create`/`requirement:confirm`，路由表补新建/详情两行与 `/requirements` 重定向说明 |
