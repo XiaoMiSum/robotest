@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ApiInterfaceChangeLogItem } from '@/types'
 import { fetchInterfaceChangeLogs } from '@/services/project/api-testing/interface'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { formatDateTime } from '@/utils/format'
 
 const props = defineProps<{ interfaceId: string; modelValue: boolean }>()
@@ -62,20 +63,15 @@ watch(
       </el-table-column>
       <template #empty>暂无变更记录</template>
     </el-table>
-    <el-pagination
-      v-model:current-page="pageNo"
+    <!-- 弹窗内保持固定条数（用户裁决）；翻页经 v-model 驱动上方 watcher 重载 -->
+    <ListPagination
+      v-model:page-no="pageNo"
       :page-size="pageSize"
       :total="total"
-      layout="prev, pager, next, total"
+      :page-sizes="[]"
+      :show-total-text="false"
       small
-      class="change-logs-panel__pagination"
+      bare
     />
   </el-dialog>
 </template>
-
-<style scoped lang="scss">
-.change-logs-panel__pagination {
-  margin-top: var(--space-md);
-  justify-content: flex-end;
-}
-</style>

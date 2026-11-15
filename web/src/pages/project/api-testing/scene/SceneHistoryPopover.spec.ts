@@ -81,6 +81,6 @@ describe('SceneHistoryPopover', () => {
 
   it('有历史总数时渲染分页', async () => {
     const { panel } = await mountAndOpen({ history: [makeItem()], total: 40 })
-    expect(panel.querySelector('.shp-pager')).not.toBeNull()
+    expect(panel.querySelector('.list-pager')).not.toBeNull()
   })
 })

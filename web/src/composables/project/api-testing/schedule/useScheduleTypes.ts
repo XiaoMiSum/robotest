@@ -23,6 +23,7 @@ export interface UseSchedulesReturn {
   rows: Ref<ApiSchedulePageItem[]>
   total: Ref<number>
   pageNo: Ref<number>
+  pageSize: Ref<number>
   loading: Ref<boolean>
   typeFilter: Ref<string>
   loadPage: () => Promise<void>

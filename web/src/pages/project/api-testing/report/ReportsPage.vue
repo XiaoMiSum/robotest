@@ -9,6 +9,7 @@ import {
 } from '@/services/project/api-testing/report'
 import { formatDateTime } from '@/utils/format'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const emit = defineEmits<{
   (e: 'view', reportId: string): void
@@ -19,7 +20,7 @@ const searchText = ref('')
 const statusFilter = ref('')
 const dateRange = ref<[string, string] | null>(null)
 const pageNo = ref(1)
-const pageSize = 20
+const pageSize = ref(20)
 const loading = ref(false)
 
 const statusOptions = [
@@ -39,7 +40,7 @@ const tableRef = ref<{ clearSelection: () => void } | null>(null)
 async function loadPage() {
   loading.value = true
   try {
-    const params: Record<string, unknown> = { pageNo: pageNo.value, pageSize }
+    const params: Record<string, unknown> = { pageNo: pageNo.value, pageSize: pageSize.value }
     if (statusFilter.value) params.status = statusFilter.value
     if (searchText.value.trim()) params.keyword = searchText.value.trim()
     if (dateRange.value && dateRange.value[0]) params.startDate = dateRange.value[0]
@@ -233,14 +234,14 @@ onMounted(async () => {
       </el-table>
     </div>
 
+    <!-- 页面壳已提供左右内边距，分页用 bare 模式与工具栏对齐同一左基线 -->
     <div class="reports-page__footer">
-      <el-pagination
-        v-model:current-page="pageNo"
-        :page-size="pageSize"
+      <ListPagination
+        v-model:page-no="pageNo"
+        v-model:page-size="pageSize"
         :total="total"
-        layout="total, prev, pager, next"
-        class="reports-page__pagination"
-        @current-change="loadPage"
+        bare
+        @change="loadPage"
       />
     </div>
 
@@ -277,17 +278,8 @@ onMounted(async () => {
 }
 
 .reports-page__footer {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
   flex-shrink: 0;
-  padding: 14px 0;
   border-top: 1px solid var(--color-neutral-100);
-}
-
-.reports-page__pagination {
-  justify-content: flex-end;
-  margin-left: auto;
 }
 
 .text-red-500 {

@@ -16,6 +16,7 @@ import MockEditorDrawer from './MockEditorDrawer.vue'
 import MockDebugPanel from './MockDebugPanel.vue'
 import MockAddressDialog from './MockAddressDialog.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const props = defineProps<{
   interfaceId?: string
@@ -312,15 +313,15 @@ function formatHitTime(val: string | null): string {
       </el-table>
     </div>
 
+    <!-- 页面壳已提供左右内边距，分页用 bare 模式与工具栏对齐同一左基线 -->
     <div v-if="!error || list.length" class="mocks-page__pagination">
-      <el-pagination
-        v-model:current-page="pageNo"
+      <ListPagination
+        v-model:page-no="pageNo"
         v-model:page-size="pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
+        bare
+        @page-change="({ pageNo: page }) => handlePageChange(page)"
+        @size-change="({ pageSize: size }) => handleSizeChange(size)"
       />
     </div>
 
@@ -405,10 +406,7 @@ function formatHitTime(val: string | null): string {
 }
 
 .mocks-page__pagination {
-  display: flex;
-  justify-content: flex-end;
   flex-shrink: 0;
-  padding: 14px 0;
   border-top: 1px solid var(--color-neutral-100);
 }
 </style>

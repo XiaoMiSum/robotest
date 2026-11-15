@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ScenePickerDialog from '@/components/project/api-testing/scene/ScenePickerDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { useSchedules } from '@/composables/project/api-testing/schedule/useSchedules'
 import type { ApiSchedulePageItem } from '@/types'
 
@@ -7,6 +8,7 @@ const {
   rows,
   total,
   pageNo,
+  pageSize,
   loading,
   typeFilter,
   loadPage,
@@ -139,14 +141,16 @@ const {
         </template>
       </el-table>
     </div>
-    <el-pagination
-      v-model:current-page="pageNo"
-      :page-size="20"
-      :total="total"
-      layout="total, prev, pager, next"
-      class="schedules-page__pagination"
-      @current-change="loadPage"
-    />
+    <!-- 页面壳已提供左右内边距，分页用 bare 模式与表格对齐同一左基线 -->
+    <div class="schedules-page__pagination">
+      <ListPagination
+        v-model:page-no="pageNo"
+        v-model:page-size="pageSize"
+        :total="total"
+        bare
+        @change="loadPage"
+      />
+    </div>
 
     <!-- ==================== 新建/编辑弹窗 ==================== -->
     <el-dialog
@@ -311,14 +315,19 @@ const {
             </template>
           </el-table-column>
         </el-table>
-        <el-pagination
-          v-model:current-page="executionPageNo"
-          :page-size="10"
-          :total="executionTotal"
-          layout="total, prev, pager, next"
-          class="schedules-page__pagination"
-          @current-change="loadExecutions"
-        />
+        <!-- 弹层内保持固定条数（用户裁决），small 紧凑样式 -->
+        <div class="schedules-page__pagination">
+          <ListPagination
+            v-model:page-no="executionPageNo"
+            :page-size="10"
+            :total="executionTotal"
+            :page-sizes="[]"
+            :show-total-text="false"
+            small
+            bare
+            @change="loadExecutions"
+          />
+        </div>
       </div>
     </el-drawer>
   </div>
@@ -356,8 +365,6 @@ const {
 
 .schedules-page__pagination {
   flex-shrink: 0;
-  justify-content: flex-end;
-  padding: 14px 0;
   border-top: 1px solid var(--color-neutral-100);
 }
 
