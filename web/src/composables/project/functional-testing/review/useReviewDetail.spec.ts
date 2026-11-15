@@ -60,6 +60,7 @@ function makeReview(overrides?: Partial<TestReviewDetail>): TestReviewDetail {
     status: 'in_progress',
     initiator: { id: 'user-1', name: '发起人' },
     participantIds: [],
+    requirements: [],
     createdAt: '2025-01-01T00:00:00',
     ...overrides,
   }

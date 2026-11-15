@@ -61,6 +61,12 @@ export function reviewPassRate(status: string, passRate: number): ReviewPassRate
   return { text: `${trimPercent(passRate)}`, tone: 'default' }
 }
 
+/** 名称副行：有关联需求时前置需求数量，保持与计划列表同一口径 */
+export function reviewNameSub(totalAssociated: number, requirementCount = 0): string {
+  const cases = `关联用例 ${totalAssociated} 条`
+  return requirementCount > 0 ? `关联需求 ${requirementCount} 项 · ${cases}` : cases
+}
+
 /** 进度文案：已评审/关联总数（18/30） */
 export function reviewProgressText(reviewed: number, totalAssociated: number): string {
   return `${Math.max(0, Math.min(reviewed, totalAssociated))}/${totalAssociated}`

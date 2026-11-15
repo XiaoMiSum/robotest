@@ -50,10 +50,23 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
 
     <div class="review-detail__head">
       <div class="review-detail__head-left">
-        <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
-        <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
-          {{ statusText }}
-        </el-tag>
+        <div class="review-detail__title-row">
+          <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
+          <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
+            {{ statusText }}
+          </el-tag>
+        </div>
+        <div v-if="detail?.requirements?.length" class="review-detail__requirements">
+          <span class="review-detail__requirements-label">关联需求</span>
+          <el-tooltip
+            v-for="item in detail.requirements"
+            :key="item.id"
+            :content="item.title"
+            placement="top"
+          >
+            <el-tag size="small" effect="plain">{{ item.code }}</el-tag>
+          </el-tooltip>
+        </div>
       </div>
       <div class="review-detail__extra">
         <div v-if="progress" class="review-detail__progress-row">
@@ -207,11 +220,33 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
 // 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
 .review-detail__head-left {
   display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
   flex: 1;
   overflow: hidden;
+}
+
+.review-detail__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.review-detail__requirements {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  max-width: 100%;
+}
+
+.review-detail__requirements-label {
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
 }
 
 .review-detail__title {

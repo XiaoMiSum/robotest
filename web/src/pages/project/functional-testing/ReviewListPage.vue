@@ -12,6 +12,7 @@ import {
   REVIEW_STATUS_META,
   reviewAvatars,
   reviewListAction,
+  reviewNameSub,
   reviewPassRate,
   reviewProgressStatus,
   reviewProgressText,
@@ -52,6 +53,7 @@ interface ReviewRowView {
   progressText: string
   progressStatus: ReturnType<typeof reviewProgressStatus>
   avatars: ReturnType<typeof reviewAvatars>
+  nameSub: string
 }
 
 const rows = computed<ReviewRowView[]>(() =>
@@ -63,6 +65,7 @@ const rows = computed<ReviewRowView[]>(() =>
     progressText: reviewProgressText(review.reviewed, review.totalAssociated),
     progressStatus: reviewProgressStatus(review.status),
     avatars: reviewAvatars(review),
+    nameSub: reviewNameSub(review.totalAssociated, review.requirementCount),
   })),
 )
 
@@ -199,7 +202,7 @@ async function submitCreate(payload: TestReviewCreatePayload) {
                 <el-link type="primary" underline="never" @click="openReview(row.review.id)">
                   {{ row.review.title }}
                 </el-link>
-                <span class="review-list__cell-sub">关联用例 {{ row.review.totalAssociated }} 条</span>
+                <span class="review-list__cell-sub">{{ row.nameSub }}</span>
               </div>
             </template>
           </el-table-column>

@@ -3288,6 +3288,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/project/cases/{caseId}/requirements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCaseRequirements"];
+        put: operations["setCaseRequirements"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4106,7 +4122,8 @@ export interface components {
             title: string;
             description?: string;
             participantIds: string[];
-            selectedNodes: components["schemas"]["SelectedNode"][];
+            selectedNodes?: components["schemas"]["SelectedNode"][];
+            requirementIds?: string[];
         };
         InitiatorInfo: {
             /** Format: uuid */
@@ -4129,6 +4146,7 @@ export interface components {
             participantIds?: string[];
             /** Format: date-time */
             createdAt?: string;
+            requirements?: components["schemas"]["RequirementRefRespDTO"][];
         };
         TestReviewRecordReqDTO: {
             /** Format: uuid */
@@ -4190,7 +4208,8 @@ export interface components {
             /** Format: date-time */
             endTime?: string;
             environment?: string;
-            selectedNodes: components["schemas"]["SelectedNode"][];
+            selectedNodes?: components["schemas"]["SelectedNode"][];
+            requirementIds?: string[];
         };
         ExecutorInfo: {
             /** Format: uuid */
@@ -4217,6 +4236,7 @@ export interface components {
             executor?: components["schemas"]["ExecutorInfo"];
             /** Format: date-time */
             createdAt?: string;
+            requirements?: components["schemas"]["RequirementRefRespDTO"][];
         };
         TestPlanRecordReqDTO: {
             /** Format: uuid */
@@ -5576,6 +5596,8 @@ export interface components {
             progressPercent?: number;
             /** Format: double */
             passRate?: number;
+            /** Format: int64 */
+            requirementCount?: number;
         };
         ResultTestReviewProgressRespDTO: {
             /** Format: int32 */
@@ -5844,6 +5866,8 @@ export interface components {
             progressPercent?: number;
             /** Format: double */
             passRate?: number;
+            /** Format: int64 */
+            requirementCount?: number;
         };
         ResultTestPlanProgressRespDTO: {
             /** Format: int32 */
@@ -7229,6 +7253,21 @@ export interface components {
         };
         ApiSceneBatchDeleteReqDTO: {
             ids: string[];
+        };
+        RequirementRefRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            code?: string;
+            title?: string;
+        };
+        TestCaseRequirementsUpdateReqDTO: {
+            requirementIds: string[];
+        };
+        ResultListRequirementRefRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+            data?: components["schemas"]["RequirementRefRespDTO"][];
         };
     };
     responses: never;
@@ -13740,6 +13779,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
+    getCaseRequirements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultListRequirementRefRespDTO"];
+                };
+            };
+        };
+    };
+    setCaseRequirements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestCaseRequirementsUpdateReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultListRequirementRefRespDTO"];
                 };
             };
         };

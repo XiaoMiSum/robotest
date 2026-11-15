@@ -87,8 +87,10 @@ export function planEnvironment(environment: string | null): string {
   return environment?.trim() || '—'
 }
 
-export function planNameSub(totalAssociated: number): string {
-  return `关联用例 ${totalAssociated} 条`
+/** 名称副行：有关联需求时前置需求数量；空计划只展示用例数（可能为 0） */
+export function planNameSub(totalAssociated: number, requirementCount = 0): string {
+  const cases = `关联用例 ${totalAssociated} 条`
+  return requirementCount > 0 ? `关联需求 ${requirementCount} 项 · ${cases}` : cases
 }
 
 export function planCountText(total: number): string {

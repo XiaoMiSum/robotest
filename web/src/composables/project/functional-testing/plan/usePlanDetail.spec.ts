@@ -64,6 +64,7 @@ function makePlan(overrides?: Partial<TestPlanDetail>): TestPlanDetail {
     startTime: null,
     endTime: null,
     executor: { id: 'user-1', name: '执行者' },
+    requirements: [],
     createdAt: '2025-01-01T00:00:00',
     ...overrides,
   }
