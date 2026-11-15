@@ -14,6 +14,7 @@ import {
 import type { PlanStatus, TestPlanCreatePayload, TestPlanListItem } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import PlanCreateDialog from '@/components/project/functional-testing/plan/PlanCreateDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import {
   PLAN_STATUS_META,
   isActivePlan,
@@ -21,7 +22,6 @@ import {
   planEnvironment,
   planListAction,
   planNameSub,
-  planPagerTotalText,
   planPassRate,
   planProgressStatus,
   planProgressText,
@@ -293,16 +293,13 @@ async function submitCreate(payload: TestPlanCreatePayload) {
         </el-table>
       </div>
 
-      <div class="plan-list__pager">
-        <span class="plan-list__pager-total">{{ planPagerTotalText(total, query.pageSize) }}</span>
-        <el-pagination
-          v-model:current-page="query.pageNo"
-          :total="total"
-          :page-size="query.pageSize"
-          layout="prev, pager, next"
-          @current-change="loadPlans"
-        />
-      </div>
+      <ListPagination
+        v-model:page-no="query.pageNo"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        unit="个计划"
+        @change="loadPlans"
+      />
     </el-card>
 
     <PlanCreateDialog
@@ -462,18 +459,4 @@ async function submitCreate(payload: TestPlanCreatePayload) {
   color: var(--color-neutral-400);
 }
 
-.plan-list__pager {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
-}
-
-.plan-list__pager-total {
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
-}
 </style>

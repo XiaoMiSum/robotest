@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { formatDateTime } from '@/utils/format'
 import { aiTaskTypeOptions } from '@/composables/project/ai/taskPresentation'
 import type { AiTaskRow } from '@/composables/project/ai/useAiTaskCenter'
@@ -234,18 +235,16 @@ function asRow(row: unknown): AiTaskRow {
             </template>
           </el-table>
 
-          <div class="ai-task-center__pager">
-            <span class="ai-task-center__pager-total">共 {{ total }} 条</span>
-            <el-pagination
-              layout="prev, pager, next, sizes"
-              :total="total"
-              :current-page="pageNo"
-              :page-size="pageSize"
-              :page-sizes="pageSizes"
-              @current-change="changePage"
-              @size-change="changePageSize"
-            />
-          </div>
+          <!-- store 分页状态为只读 computed，细分事件直连原 handler（切条数已由组件先置页码为 1） -->
+          <ListPagination
+            bare
+            :page-no="pageNo"
+            :page-size="pageSize"
+            :total="total"
+            :page-sizes="pageSizes"
+            @page-change="({ pageNo: page }) => changePage(page)"
+            @size-change="({ pageSize: size }) => changePageSize(size)"
+          />
         </el-card>
       </template>
     </template>
@@ -323,19 +322,6 @@ function asRow(row: unknown): AiTaskRow {
 
 .task-summary__muted {
   color: var(--color-neutral-400);
-  font-size: var(--font-size-sm);
-}
-
-.ai-task-center__pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  margin-top: var(--space-md);
-}
-
-.ai-task-center__pager-total {
-  color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
 }
 </style>

@@ -7,6 +7,7 @@ import type { AiGenerationScopeItem } from '@/types'
 import type { RequirementRow } from '@/composables/project/requirement/requirementPresentation'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
 const router = useRouter()
@@ -323,18 +324,15 @@ function openCreate(): void {
         </template>
       </el-table>
 
-      <div v-if="!showSkeleton" class="requirement-list__pager">
-        <span class="requirement-list__pager-total">共 {{ total }} 条 · 每页 {{ pageSize }} 条</span>
-        <el-pagination
-          layout="prev, pager, next, sizes"
-          :total="total"
-          :current-page="pageNo"
-          :page-size="pageSize"
-          :page-sizes="[20, 50, 100]"
-          @current-change="changePage"
-          @size-change="changePageSize"
-        />
-      </div>
+      <!-- 状态域分页状态在 store 中（pageNo/pageSize 为只读 computed），故用细分事件直连原 handler -->
+      <ListPagination
+        v-if="!showSkeleton"
+        :page-no="pageNo"
+        :page-size="pageSize"
+        :total="total"
+        @page-change="({ pageNo: page }) => changePage(page)"
+        @size-change="({ pageSize: size }) => changePageSize(size)"
+      />
     </el-card>
 
     <GenerationConfigDialog
@@ -457,20 +455,5 @@ function openCreate(): void {
   --el-tag-text-color: var(--color-neutral-400);
   --el-tag-bg-color: var(--color-neutral-50);
   --el-tag-border-color: var(--color-neutral-300);
-}
-
-.requirement-list__pager {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
-}
-
-.requirement-list__pager-total {
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
 }
 </style>
