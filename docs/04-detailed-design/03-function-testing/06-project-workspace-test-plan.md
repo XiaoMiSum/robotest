@@ -29,14 +29,15 @@
     "totalAssociated": 50,
     "passed": 28,
     "progressPercent": 58.0,
-    "passRate": 56.0
+    "passRate": 56.0,
+    "requirementCount": 3
     }
   ],
   "total": 18
   }
   ```
 
-- **进度字段口径**：`totalAssociated` 为关联 case 快照数，`passed` 为通过数；`progressPercent` =（总数 − 未执行数）/ 总数 × 100，`passRate` = 通过数 / 总数 × 100，均为 0–100 的百分数，后端四舍五入保留两位。后端按本页计划 ID 批量查询关联用例快照聚合计算，避免逐行 N+1。前端进度列取整显示百分比，通过率列保留一位小数，未开始（new）行通过率固定显示 `—`。
+- **进度字段口径**：`totalAssociated` 为关联 case 快照数，`passed` 为通过数；`progressPercent` =（总数 − 未执行数）/ 总数 × 100，`passRate` = 通过数 / 总数 × 100，均为 0–100 的百分数，后端四舍五入保留两位。后端按本页计划 ID 批量查询关联用例快照聚合计算，避免逐行 N+1。前端进度列取整显示百分比，通过率列保留一位小数，未开始（new）行通过率固定显示 `—`。`requirementCount` 为本页计划批量回填的关联需求数量，需求已删除时不计数。
 - **状态取值**：`new`（未开始）/ `in_progress`（执行中）/ `completed`（已完成）/ `blocked`（已阻塞）/ `closed`（已关闭），展示文案映射见 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.1。
 - **前端调用**：计划列表页的查询、筛选与分页均走本接口（`status`、`keyword`、`pageNo`、`pageSize` 由页面维护）。
 
@@ -54,21 +55,22 @@
   "startTime": "2026-08-01T00:00:00Z",
   "endTime": "2026-08-10T00:00:00Z",
   "environment": "staging",
+  "requirementIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e30"],
   "selectedNodes": [
     { "documentId": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e20", "caseIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e21", "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e22"] }
   ]
   }
   ```
 
-- **校验**：`name` 非空、`selectedNodes` 非空且每个 `caseIds` 非空；前端创建表单另做校验：名称必填（输入框限 100 字）、至少关联一个用例，未满足时拦截并提示。
-- **处理**：生成模块和节点快照（完整拷贝用例属性），按 `caseIds` 标记 `is_associated`，初始化 `last_result='untested'`，状态置 new；记录项目活动 `PLAN_CREATED`。
+- **校验**：`name` 非空；`requirementIds` 与 `selectedNodes` 均可为空（`selectedNodes` 保留供 AI 助手创建链路使用）；每个 `caseIds` 非空。前端创建表单另做校验：名称必填（输入框限 100 字）、至少关联一个需求，未满足时拦截并提示；所选需求无用例时允许创建空计划。
+- **处理**：校验 `requirementIds` 均属于当前项目，否则返回 1000018001；按 `ft_case_requirement` 解析所选需求的关联用例（仅 `type='case'` 节点），按 `documentId → caseIds` 分组后与显式 `selectedNodes` 合并去重；生成模块和节点快照（完整拷贝用例属性），按最终 `caseIds` 标记 `is_associated`，初始化 `last_result='untested'`，状态置 new；持久化 `requirement_ids`；记录项目活动 `PLAN_CREATED`。
 - **响应**：201，返回计划详情（结构同 1.3）。
 - **前端**：创建成功后关闭弹窗并跳转至该计划详情页 `/workspace/projects/plans/:id`。
 
 ### 1.3 获取计划详情
 
 - **路径**：`GET /api/project/plans/:id`
-- **响应**：`{ "id", "name", "description", "status", "environment", "startTime", "endTime", "executor": { "id", "name" }, "createdAt" }`。
+- **响应**：`{ "id", "name", "description", "status", "environment", "startTime", "endTime", "executor": { "id", "name" }, "requirements": [{ "id", "code", "title" }], "createdAt" }`；`requirements` 按创建时所选顺序返回，需求已删除时跳过。
 - **前端**：详情页首屏与进度、快照模块树并行加载（见 1.4、1.8）；标记执行结果后仅重拉详情与进度，避免整页重载导致脑图丢失选中态。
 
 ### 1.4 获取计划进度
@@ -189,9 +191,9 @@
 ├──────────────────────────────────────────────────────────────────┤
 │  [🔍 计划名称…] [状态: 全部 ▼] [查询] [重置]      共 18 个计划     │
 ├──────────────────────────────────────────────────────────────────┤
-│  名称（关联用例副行）│负责人│起止时间│环境│状态│进度│通过率│创建时间│操作│
+│  名称（含关联需求/用例副行）│负责人│起止时间│环境│状态│进度│通过率│创建时间│操作│
 │  V1.4.2 回归测试    │张明 │09-20 ~ 09-24│staging│●执行中│[58%]│94.6%│…│
-│    └ 关联用例 47 条                                               │
+│    └ 关联需求 3 项 · 关联用例 47 条                                    │
 │  支付网关专项       │李华 │09-19 ~ 09-23│staging│●已阻塞│[31%]│87.2%│…│
 │  营销活动冒烟       │王芳 │09-22 09:00  │production│●未开始│[0%]│  — │…│
 ├──────────────────────────────────────────────────────────────────┤
@@ -205,7 +207,7 @@
 | ---- | -------- | ---------------------------- |
 | 筛选   | 关键字回车/清空即查询；状态下拉选择后点[查询]；[重置] | 重置清空条件并回到首页，其余查询在触发时刷新列表 |
 | 分页   | 点击页码     | 按当前筛选条件加载对应页（每页 20 条，仅切换页码，不提供每页条数切换） |
-| 新建计划 | 点击页头[+ 新建计划] | 弹出创建表单：名称（必填）、描述、负责人（成员下拉）、开始/结束时间、执行环境、关联用例（CaseSelector，至少一个用例），提交成功后跳转详情页 |
+| 新建计划 | 点击页头[+ 新建计划] | 弹出创建表单：名称（必填）、描述、负责人（成员下拉）、开始/结束时间、执行环境、关联需求（需求选取器，多选，至少一个需求），提交成功后跳转详情页 |
 | 进入执行 | 点击[进入执行]（执行中）或计划名称链接 | 跳转至计划详情页                     |
 | 查看详情 | 点击[查看详情]（其余状态）   | 跳转至计划详情页                     |
 | 完成 | 点击[完成]（未开始/执行中且具备 `plan:execute`） | 二次确认 → 调用 1.11，状态置 completed，列表刷新 |
@@ -328,3 +330,4 @@ WHERE is_deleted = FALSE AND type = 'workspace' AND NOT (permissions ? 'plan:blo
 | V1.0 | 2026-10-02 | 与前端实现对齐：补录计划详情与进度接口，删除未实现的节点执行记录与关闭计划接口，修正快照树字段与 UUID 口径，重写列表页与详情页结构、交互及状态分支 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_plan*` → `ft_plan*` |
 | V1.0 | 2026-10-20 | 计划授权改为权限码：阻塞/恢复挂 `plan:block`、同步/完成挂 `plan:execute`，删除仍限负责人；新增第 3 章权限点、方法映射与迁移说明，列表页与详情页入口改「状态 + 权限码」双条件显隐 |
+| V1.0 | 2026-11-15 | 创建计划改为关联需求：新增 `requirementIds`（`selectedNodes` 改为可选）、按 `ft_case_requirement` 反查用例，详情返回 `requirements`、列表返回 `requirementCount` |
