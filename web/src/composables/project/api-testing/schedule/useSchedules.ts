@@ -23,13 +23,14 @@ export function useSchedules(): UseSchedulesReturn {
   const rows = ref<ApiSchedulePageItem[]>([])
   const total = ref(0)
   const pageNo = ref(1)
+  const pageSize = ref(PAGE_SIZE)
   const loading = ref(false)
   const typeFilter = ref<string>('')
 
   async function loadPage() {
     loading.value = true
     try {
-      const params: { pageNo: number; pageSize: number; taskType?: string } = { pageNo: pageNo.value, pageSize: PAGE_SIZE }
+      const params: { pageNo: number; pageSize: number; taskType?: string } = { pageNo: pageNo.value, pageSize: pageSize.value }
       if (typeFilter.value) params.taskType = typeFilter.value
       const page = await fetchSchedulePage(params)
       rows.value = page.list
@@ -121,6 +122,7 @@ export function useSchedules(): UseSchedulesReturn {
     rows,
     total,
     pageNo,
+    pageSize,
     loading,
     typeFilter,
     loadPage,

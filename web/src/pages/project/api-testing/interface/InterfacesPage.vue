@@ -57,7 +57,7 @@ function handleSelectModule(moduleId: string) {
 const rows = ref<ApiInterfaceItem[]>([])
 const total = ref(0)
 const pageNo = ref(1)
-const pageSize = 20
+const pageSize = ref(20)
 const loading = ref(false)
 const searchText = ref('')
 const statusFilter = ref<'' | ApiInterfaceStatus>('')
@@ -72,7 +72,7 @@ async function loadPage() {
     const page = await fetchInterfacePage(
       buildInterfaceListQuery({
         pageNo: pageNo.value,
-        pageSize,
+        pageSize: pageSize.value,
         moduleId: selectedModuleId.value,
         search: searchText.value.trim() || undefined,
         status: statusFilter.value || undefined,
@@ -342,13 +342,11 @@ defineExpose({ openCreate, openImport })
             </template>
           </el-table>
         </div>
-        <el-pagination
-          v-model:current-page="pageNo"
-          :page-size="pageSize"
+        <ListPagination
+          v-model:page-no="pageNo"
+          v-model:page-size="pageSize"
           :total="total"
-          layout="total, prev, pager, next"
-          class="interfaces-page__pagination"
-          @current-change="loadPage"
+          @change="loadPage"
         />
       </el-card>
       </div>
@@ -472,12 +470,6 @@ defineExpose({ openCreate, openImport })
   &.is-active {
     color: var(--color-warning);
   }
-}
-
-.interfaces-page__pagination {
-  justify-content: flex-end;
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
 }
 
 // 批量移动弹窗模块树：树体自带高度约束与滚动，滚动不外溢到弹窗 wrapper（UI-SC-02），

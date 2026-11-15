@@ -11,6 +11,7 @@ import { flattenModuleNames } from '@/composables/project/api-testing/interface/
 import { formatDateTime } from '@/utils/format'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const emit = defineEmits<{
   (e: 'edit', sceneId: string): void
@@ -43,7 +44,7 @@ function handleSelectModule(moduleId: string) {
 const rows = ref<ApiScenePageItem[]>([])
 const total = ref(0)
 const pageNo = ref(1)
-const pageSize = 20
+const pageSize = ref(20)
 const loading = ref(false)
 const searchText = ref('')
 const lastStatusFilter = ref<string>('')
@@ -90,7 +91,7 @@ async function loadRepo() {
 async function loadPage() {
   loading.value = true
   try {
-    const query: Record<string, unknown> = { pageNo: pageNo.value, pageSize }
+    const query: Record<string, unknown> = { pageNo: pageNo.value, pageSize: pageSize.value }
     if (selectedModuleId.value) query.moduleId = selectedModuleId.value
     if (searchText.value.trim()) query.search = searchText.value.trim()
     if (lastStatusFilter.value === 'not_executed') query.lastStatus = null
@@ -420,13 +421,11 @@ onActivated(async () => {
             </template>
           </el-table>
         </div>
-        <el-pagination
-          v-model:current-page="pageNo"
-          :page-size="pageSize"
+        <ListPagination
+          v-model:page-no="pageNo"
+          v-model:page-size="pageSize"
           :total="total"
-          layout="total, prev, pager, next"
-          class="scenarios-page__pagination"
-          @current-change="loadPage"
+          @change="loadPage"
         />
         </el-card>
       </div>
@@ -539,13 +538,6 @@ onActivated(async () => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-.scenarios-page__pagination {
-  flex-shrink: 0;
-  justify-content: flex-end;
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
 }
 
 // 批量移动弹窗模块树：树体自带高度约束与滚动，滚动不外溢到弹窗 wrapper（UI-SC-02），

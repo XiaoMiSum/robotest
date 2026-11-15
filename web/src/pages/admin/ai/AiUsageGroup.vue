@@ -8,6 +8,7 @@ import { init, use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { aiTaskTypeMeta } from '@/composables/project/ai/taskPresentation'
 import { fetchAiUsageTasks } from '@/services/aiAdmin'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { usageCacheKey, useAiAdminStore } from '@/stores/aiAdmin'
 import type {
   AiUsageGroupBy,
@@ -231,6 +232,7 @@ const drill = ref<{ title: string; filters: DrillFilters } | null>(null)
 const drillRows = ref<AiUsageTask[]>([])
 const drillTotal = ref(0)
 const drillPageNo = ref(1)
+const drillPageSize = ref(DRILL_PAGE_SIZE)
 const drillLoading = ref(false)
 const drillError = ref('')
 
@@ -246,7 +248,7 @@ async function loadDrill() {
   try {
     const page = await fetchAiUsageTasks({
       pageNo: drillPageNo.value,
-      pageSize: DRILL_PAGE_SIZE,
+      pageSize: drillPageSize.value,
       ...drill.value.filters,
     })
     drillRows.value = page.list
@@ -419,14 +421,14 @@ function openTask(row: AiUsageTask) {
         <el-table-column label="Tokens" prop="totalTokens" width="110" align="right" />
       </el-table>
 
-      <el-pagination
-        v-if="drillTotal > DRILL_PAGE_SIZE"
-        v-model:current-page="drillPageNo"
-        :page-size="DRILL_PAGE_SIZE"
+      <ListPagination
+        v-if="drillTotal > drillPageSize"
+        v-model:page-no="drillPageNo"
+        v-model:page-size="drillPageSize"
         :total="drillTotal"
-        layout="total, prev, pager, next"
-        class="usage-group__drill-pager"
-        @current-change="handleDrillPageChange"
+        bare
+        @page-change="({ pageNo }) => handleDrillPageChange(pageNo)"
+        @size-change="() => loadDrill()"
       />
     </div>
   </div>
@@ -542,9 +544,5 @@ function openTask(row: AiUsageTask) {
 .usage-group__task-link {
   color: var(--color-primary-500);
   cursor: pointer;
-}
-
-.usage-group__drill-pager {
-  align-self: flex-end;
 }
 </style>

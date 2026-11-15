@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useScenePicker } from '@/composables/project/api-testing/scene/useScenePicker'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { ref, watch } from 'vue'
 import type { ApiScenePageItem } from '@/types'
 import { formatDateTime } from '@/utils/format'
@@ -146,13 +147,16 @@ function statusLabel(status: string | null): string {
         </template>
       </el-table>
 
-      <el-pagination
-        v-model:current-page="pageNo"
+      <!-- 弹窗内保持固定条数（用户裁决）；v-model 先写 pageNo 再由 page-change 重载 -->
+      <ListPagination
+        v-model:page-no="pageNo"
         :page-size="pageSize"
         :total="total"
-        layout="total, prev, pager, next"
-        class="scene-picker__pagination"
-        @current-change="handlePageChange"
+        :page-sizes="[]"
+        :show-total-text="false"
+        small
+        bare
+        @page-change="({ pageNo: page }) => handlePageChange(page)"
       />
     </div>
 
@@ -184,10 +188,6 @@ function statusLabel(status: string | null): string {
 
 .scene-picker__module {
   width: 220px;
-}
-
-.scene-picker__pagination {
-  justify-content: flex-end;
 }
 
 .scene-picker__footer {

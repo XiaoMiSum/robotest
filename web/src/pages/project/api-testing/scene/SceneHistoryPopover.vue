@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowDown } from '@element-plus/icons-vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { formatDateTime } from '@/utils/format'
 import type { ApiExecutionHistoryItem } from '@/types'
 
@@ -45,14 +46,14 @@ const emit = defineEmits<{
         >报告</el-button>
       </div>
       <div v-if="!history.length && !error" class="shp-empty">暂无执行记录</div>
-      <el-pagination
+      <ListPagination
         v-if="total > 0"
-        :current-page="page"
+        :page-no="page"
         :page-size="20"
         :total="total"
-        layout="prev, pager, next"
-        class="shp-pager"
-        @current-change="(p: number) => { emit('update:page', p); emit('load') }"
+        :page-sizes="[]"
+        bare
+        @page-change="({ pageNo }) => { emit('update:page', pageNo); emit('load') }"
       />
     </div>
   </el-popover>
@@ -121,10 +122,5 @@ const emit = defineEmits<{
   padding: var(--space-sm) 0;
   color: var(--color-neutral-400);
   font-size: var(--font-size-xs);
-}
-
-.shp-pager {
-  margin-top: var(--space-sm);
-  justify-content: flex-end;
 }
 </style>
