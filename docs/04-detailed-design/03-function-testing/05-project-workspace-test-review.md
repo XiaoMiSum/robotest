@@ -33,14 +33,15 @@
       "reviewed": 8,
       "passed": 6,
       "progressPercent": 80.0,
-      "passRate": 60.0
+      "passRate": 60.0,
+      "requirementCount": 2
     }
   ],
   "total": 10
   }
   ```
 
-- **进度字段**：`totalAssociated` 为关联用例总数，`passed` 为通过数，`reviewed` 为已评审数（总数 − 待评审数，供列表进度列展示 `已评审/关联总数`）；`progressPercent` =（总数 − 待评审数）/ 总数，`passRate` = 通过数 / 总数，两者均为 0–100 的百分数，后端四舍五入保留两位，前端通过率列再取一位小数展示。后端按本页评审 ID 批量查询关联用例快照聚合计算，避免逐行 N+1。
+- **进度字段**：`totalAssociated` 为关联用例总数，`passed` 为通过数，`reviewed` 为已评审数（总数 − 待评审数，供列表进度列展示 `已评审/关联总数`）；`progressPercent` =（总数 − 待评审数）/ 总数，`passRate` = 通过数 / 总数，两者均为 0–100 的百分数，后端四舍五入保留两位，前端通过率列再取一位小数展示。后端按本页评审 ID 批量查询关联用例快照聚合计算，避免逐行 N+1。`requirementCount` 为本页评审批量回填的关联需求数量，需求已删除时不计数。
 - **参与者名单**：`participants` 按 `participant_ids` 去重后批量查询用户（保序，缺失用户跳过），返回头像堆展示所需的 `id`/`name`/`avatarUrl`；`participantCount` 仍为参与者数量（未去重）。
 - **状态取值**：`new`（待评审）/ `in_progress`（进行中）/ `completed`（已通过）/ `rejected`（已驳回），展示文案映射见 `docs/05-interaction-design/03-function-testing/05-workspace-ui-test-review.md` 1.1。
 - **前端调用**：评审列表页的查询、筛选与分页均走本接口（`status`、`keyword`、`pageNo`、`pageSize` 由页面维护）。
@@ -56,21 +57,22 @@
   "title": "登录模块评审",
   "description": "...",
   "participantIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e11", "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e12"],
+  "requirementIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e30"],
   "selectedNodes": [
     { "documentId": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e20", "caseIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e21", "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e22"] }
   ]
   }
   ```
 
-- **校验**：`title` 非空、`participantIds` 非空、`selectedNodes` 非空且每个 `caseIds` 非空；参与者必须是当前工作空间成员。前端创建表单另做校验：标题必填（上限 200 字）、至少选择一个参与者、至少关联一个用例，未满足时拦截并提示。
-- **处理**：生成模块快照和节点快照（完整拷贝节点属性），按 `caseIds` 标记 `is_associated`，初始化评审状态为 new（待评审），发起人默认为当前用户；首次标记成功后自动转入 in_progress（见 1.6）。
+- **校验**：`title` 非空、`participantIds` 非空、每个 `caseIds` 非空；`requirementIds` 与 `selectedNodes` 均可为空（`selectedNodes` 保留供 AI 助手创建链路使用）；参与者必须是当前工作空间成员。前端创建表单另做校验：标题必填（上限 200 字）、至少选择一个参与者、至少关联一个需求，未满足时拦截并提示；所选需求无用例时允许创建空评审。
+- **处理**：校验 `requirementIds` 均属于当前项目，否则返回 1000018001；按 `ft_case_requirement` 解析所选需求的关联用例（仅 `type='case'` 节点），按 `documentId → caseIds` 分组后与显式 `selectedNodes` 合并去重；生成模块快照和节点快照（完整拷贝节点属性），按最终 `caseIds` 标记 `is_associated`，初始化评审状态为 new（待评审），发起人默认为当前用户，持久化 `requirement_ids`；首次标记成功后自动转入 in_progress（见 1.6）。
 - **响应**：201，返回评审基本信息（结构同 1.3）。
 - **前端**：创建成功后关闭弹窗并跳转至该评审详情页 `/workspace/projects/reviews/:id`。
 
 ### 1.3 获取评审详情
 
 - **路径**：`GET /api/project/reviews/:id`
-- **响应**：`{ "id", "title", "description", "status", "initiator": { "id", "name" }, "participantIds", "createdAt" }`。
+- **响应**：`{ "id", "title", "description", "status", "initiator": { "id", "name" }, "participantIds", "requirements": [{ "id", "code", "title" }], "createdAt" }`；`requirements` 按创建时所选顺序返回，需求已删除时跳过。
 - **前端**：详情页首屏与进度、快照模块树并行加载（见 1.4、1.10）；标记成功后仅重拉详情与进度，避免整页重载导致脑图丢失选中态。
 
 ### 1.4 获取评审进度
@@ -200,7 +202,7 @@
 │  用例评审与评审结论跟踪                                             │
 ├───────────────────────────────────────────────────────────────────┤
 │ [搜索标题][状态: 全部 ▼][查询][重置]                共 N 场评审      │
-│ 标题(副行:关联用例 N 条)│发起人│  状态  │   进度   │通过率│参与者│创建时间│  操作   │
+│ 标题(副行:关联需求 N 项 · 关联用例 N 条)│发起人│  状态  │   进度   │通过率│参与者│创建时间│  操作   │
 │ 登录模块用例评审        │ 张三 │●进行中 │[━] 8/10 │ 40% │头像堆│06-15 10:00│[进入][删除]│
 │ 支付模块用例评审        │ 李四 │●已通过 │[━]10/10 │100% │头像堆│06-10 09:30│[查看][删除]│
 │ 履约模块用例评审        │ 周敏 │●已驳回 │[━]10/10 │ 70% │头像堆│06-08 14:00│[查看][重新发起][删除]│
@@ -215,7 +217,7 @@
 | ---- | -------- | --------------------------------------------- |
 | 筛选   | 标题关键字回车/清空即查询；状态下拉选择后点[查询]；[重置] | 重置清空条件并回到首页，其余查询在触发时刷新列表            |
 | 分页   | 点击页码     | 按当前筛选条件加载对应页（每页 20 条，仅切换页码，不提供每页条数切换） |
-| 发起评审 | 点击[发起评审] | 弹出创建表单：标题（必填，≤200 字）、描述、参与者（多选成员）、关联用例（打开CaseSelector弹窗）；校验至少一个参与者与一个用例，创建成功跳转详情页 |
+| 发起评审 | 点击[发起评审] | 弹出创建表单：标题（必填，≤200 字）、描述、参与者（多选成员）、关联需求（需求选取器，多选）；校验至少一个参与者与一个需求，创建成功跳转详情页 |
 | 进入评审 | 点击[进入]   | 跳转至评审详情页（new/in_progress）              |
 | 查看详情 | 点击[查看]   | 跳转至评审详情页（completed/rejected）           |
 | 重新发起 | 点击[重新发起] | 二次确认 → rejected 回到 in_progress，列表刷新   |
@@ -273,3 +275,4 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 与前端实现对齐：补录评审进度接口与详情/进度响应字段，修正快照树与 ID 类型口径，重写列表页与详情页结构、交互及状态分支 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_review*` / `test_case_node` → `ft_review*` / `ft_case_node` |
+| V1.0 | 2026-11-15 | 创建评审改为关联需求：新增 `requirementIds`（`selectedNodes` 改为可选）、按 `ft_case_requirement` 反查用例，详情返回 `requirements`、列表返回 `requirementCount` |

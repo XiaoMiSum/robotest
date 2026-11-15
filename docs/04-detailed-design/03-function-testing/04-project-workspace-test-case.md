@@ -123,6 +123,20 @@
 - **路径**：`GET /api/project/cases/:caseId`
 - **响应**：以该节点为根的子树，字段同 1.4（id、type、title、priority、children 等完整属性），供缺陷关联用例等场景读取。
 
+### 1.6 维护用例关联需求
+
+用例节点与需求条目为多对多关联，供测试计划 / 测试评审按需求反查关联用例。
+
+- **查询**：`GET /api/project/cases/:caseId/requirements`
+  - **响应**：`[{ "id": "…", "code": "REQ-12", "title": "登录验证码" }]`，按需求编号升序；无用例关联时返回空数组。
+  - **权限**：`case:view`。
+- **保存**：`PUT /api/project/cases/:caseId/requirements`
+  - **请求体**：`{ "requirementIds": ["…", "…"] }`，全量覆盖该用例节点的需求关联；空数组表示清空关联。
+  - **校验**：用例节点属于当前项目且存在，否则返回 1000011022；节点类型必须为 `case`，否则返回 1000011022；`requirementIds` 去重后必须全部属于当前项目，否则返回 1000018001。
+  - **处理**：事务内按 `case_node_id` 与目标集合差量对账 `ft_case_requirement`（取消的逻辑删除、新增的批量插入）；重复提交结果幂等。
+  - **响应**：保存后的需求摘要列表（结构同查询）。
+  - **权限**：`case:edit`。
+
 ## 2. 文档创建与默认根节点
 
 创建用例文档（`POST /api/project/testcases`）时，事务中插入 `ft_case_document` 记录，并在 `ft_case_node` 表中创建默认根节点（title 与文档名称相同，type='normal'，sort_order=0，parent_id 为 NULL，version=1）。此根节点作为文档脑图的唯一顶层节点，用户可在其下添加子节点并标记为不同用例类型。获取文档节点树时，该根节点作为顶层节点返回，其 children 包含所有用户创建的节点；同模块下文档名称唯一，重复创建被拒绝。
@@ -194,7 +208,7 @@
 
 **右键菜单**：仅在选中节点时弹出（空白处右键不弹），亦可按空格键在选中节点下方唤醒；包含 新建下级/同级、复制/剪切/粘贴、类型组、等级组、删除节点；点击菜单外、按 Esc 或滚轮滚动即关闭。
 
-**工具栏与导航器**：工具栏为单行常驻（超出宽度横向滚动），功能组依次为 撤销/重做 ｜ 节点操作 ｜ 排版模板与整理布局 ｜ 类型标记 ｜ 优先级，行末为[🔗 关联需求]（仅 `requirement:view` 权限可见，经需求选取器维护文档关联，查询接口 `case:view`、保存接口 `case:edit`）。导航器悬浮于画布左下角，含缩放条、抓手、定位根节点、缩略图、全屏。
+**工具栏与导航器**：工具栏为单行常驻（超出宽度横向滚动），功能组依次为 撤销/重做 ｜ 节点操作 ｜ 排版模板与整理布局 ｜ 类型标记 ｜ 优先级，行末为[🔗 关联需求]（仅 `requirement:view` 权限可见，维护**当前选中用例节点**与需求条目的关联，查询接口 `case:view`、保存接口 `case:edit`）。导航器悬浮于画布左下角，含缩放条、抓手、定位根节点、缩略图、全屏。
 
 **协同状态与保存**：右上角在线用户头像来自 Yjs awareness；连接断开时顶部显示「连接已断开，正在重连...」横幅，重连成功后自动补发未提交变更。节点与布局变更自动保存（无手动保存按钮），服务端错误帧经消息提示展示（缺省文案「文档保存失败」，权限拒绝为「无文档编辑权限」）。
 
@@ -204,6 +218,40 @@
 
 **脑图组件模式**：按业务场景拆分为三个独立组件——CaseMindMap（编辑模式，本页使用，节点增删改实时写库）、ReviewMindMap（评审模式，基于快照只读）、PlanMindMap（计划模式，基于快照只读），三者共用 `minder/` 基座与导航器、右键菜单壳。详细交互参见 `docs/04-detailed-design/03-function-testing/08-mindmap-component.md`。
 
+## 4. 数据设计（用例关联需求）
+
+```sql
+CREATE TABLE ft_case_requirement (
+    id             uuid PRIMARY KEY,
+    project_id     uuid NOT NULL,
+    requirement_id uuid NOT NULL,
+    case_node_id   uuid NOT NULL,
+    document_id    uuid NOT NULL,
+    is_deleted     boolean NOT NULL DEFAULT FALSE,
+    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_ft_case_requirement ON ft_case_requirement (requirement_id, case_node_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ft_case_requirement_req ON ft_case_requirement (requirement_id);
+CREATE INDEX idx_ft_case_requirement_case ON ft_case_requirement (case_node_id);
+CREATE INDEX idx_ft_case_requirement_project ON ft_case_requirement (project_id);
+CREATE INDEX idx_ft_case_requirement_document ON ft_case_requirement (document_id);
+```
+
+`document_id` 冗余用例节点所属文档，供计划 / 评审创建时按 `documentId → caseIds` 分组，避免反查节点表；无物理外键。
+
+存量数据库升级时，先执行本节建表及索引语句，再执行以下增列语句；全新环境使用 `server/src/main/resources/db/schema.sql`。历史计划、评审的需求关联为空，不反推或修改已有用例快照。
+
+```sql
+ALTER TABLE ft_plan ADD COLUMN IF NOT EXISTS requirement_ids jsonb;
+ALTER TABLE ft_review ADD COLUMN IF NOT EXISTS requirement_ids jsonb;
+COMMENT ON COLUMN ft_plan.requirement_ids IS '关联需求 ID 集合（jsonb 数组，创建时写入）';
+COMMENT ON COLUMN ft_review.requirement_ids IS '关联需求 ID 集合（jsonb 数组，创建时写入）';
+```
+
+回滚应用版本时可保留新增表和列；若确认无需保留关联数据，再删除两列与 `ft_case_requirement` 表。
+
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
@@ -211,3 +259,4 @@
 | V1.0 | 2026-10-02 | 对齐前端实现：修正路由与权限口径、模块/文档接口拆分、模块树与脑图交互表、协同保存与状态分支 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_document` / `test_case_node` → `ft_case_document` / `ft_case_node` |
 | V1.0 | 2026-11-13 | 功能测试子菜单对齐实际实现：子项顺序改为 需求列表 / 测试用例 / 测试评审 / 测试计划，「需求池」更名为「需求列表」并注明首位与 `requirement:view` 显隐 |
+| V1.0 | 2026-11-15 | 脑图「关联需求」改为用例节点级关联：新增 1.6 关联需求接口与 `ft_case_requirement` 数据设计，计划 / 评审创建按需求反查关联用例 |
