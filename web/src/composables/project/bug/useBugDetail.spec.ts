@@ -60,7 +60,8 @@ vi.mock('@/services/workspace', () => ({
   fetchMembers: mocks.fetchMembers,
 }))
 
-vi.mock('@/composables/project/bug/bugStatus', () => ({
+vi.mock('@/composables/project/bug/bugStatus', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./bugStatus')>(),
   BUG_RESOLUTION_LABEL: {},
   BUG_STATUS_LABEL: {},
   BUG_STATUS_TAG_TYPE: {},

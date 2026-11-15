@@ -1,5 +1,19 @@
 import { ElMessageBox } from 'element-plus'
-import type { BugResolution, BugStatus, BugType } from '@/types'
+import type { TagProps } from 'element-plus'
+import type { BugPriority, BugResolution, BugSeverity, BugStatus, BugType } from '@/types'
+
+export const BUG_SEVERITY_LABEL: Record<BugSeverity, string> = {
+  fatal: '致命', serious: '严重', general: '一般', minor: '轻微',
+}
+export const BUG_PRIORITY_LABEL: Record<BugPriority, string> = {
+  high: '高', medium: '中', low: '低',
+}
+export const BUG_SEVERITY_TAG_TYPE: Record<BugSeverity, TagProps['type']> = {
+  fatal: 'danger', serious: 'warning', general: 'info', minor: 'success',
+}
+export const BUG_PRIORITY_TAG_TYPE: Record<BugPriority, 'primary' | 'warning' | 'info'> = {
+  high: 'warning', medium: 'primary', low: 'info',
+}
 
 /** 缺陷状态标签 */
 export const BUG_STATUS_LABEL: Record<BugStatus, string> = {
@@ -9,9 +23,9 @@ export const BUG_STATUS_LABEL: Record<BugStatus, string> = {
   closed: '已关闭',
 }
 
-/** 缺陷状态标签颜色（el-tag type），与状态语义对应：激活普通蓝、已修复绿、已拒绝橙、已关闭灰 */
+// 蓝色保留给交互，未修复的激活状态使用警告色。
 export const BUG_STATUS_TAG_TYPE: Record<BugStatus, 'primary' | 'danger' | 'success' | 'warning' | 'info'> = {
-  active: 'primary',
+  active: 'warning',
   resolved: 'success',
   rejected: 'warning',
   closed: 'info',

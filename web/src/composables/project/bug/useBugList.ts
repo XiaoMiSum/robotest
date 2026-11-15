@@ -10,11 +10,15 @@ import {
   BUG_STATUS_LABEL,
   BUG_STATUS_TAG_TYPE,
   BUG_TYPE_LABEL,
+  BUG_SEVERITY_LABEL,
+  BUG_PRIORITY_LABEL,
+  BUG_SEVERITY_TAG_TYPE,
+  BUG_PRIORITY_TAG_TYPE,
   getValidTargetStatuses,
   promptStatusChangeComment,
 } from '@/composables/project/bug/bugStatus'
 
-type QuickFilter = '' | 'unresolved' | 'reported' | 'assigned' | 'resolved' | 'closed'
+export type QuickFilter = '' | 'unresolved' | 'reported' | 'assigned' | 'resolved' | 'closed'
 type BoardStatus = Extract<BugStatus, 'active' | 'resolved' | 'closed'>
 
 interface BoardColumn {
@@ -38,6 +42,9 @@ export function useBugList() {
   const authStore = useAuthStore()
 
   const loading = ref(false)
+  const loadError = ref('')
+  const hasLoaded = ref(false)
+  let listRequestId = 0
   const bugs = ref<BugListItem[]>([])
   const total = ref(0)
   const viewMode = ref<'list' | 'board'>('list')
@@ -83,15 +90,17 @@ export function useBugList() {
   }
 
   // ==================== Labels ====================
-  const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
-  const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
+  const severityLabel = BUG_SEVERITY_LABEL
+  const priorityLabel = BUG_PRIORITY_LABEL
   const statusLabel = BUG_STATUS_LABEL
-  const severityType: Record<string, 'primary' | 'danger' | 'warning' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'primary', minor: 'info' }
-  const priorityType: Record<string, 'primary' | 'warning' | 'info'> = { high: 'warning', medium: 'primary', low: 'info' }
+  const severityType = BUG_SEVERITY_TAG_TYPE
+  const priorityType = BUG_PRIORITY_TAG_TYPE
 
   // ==================== Load bugs ====================
   async function loadBugs() {
+    const requestId = ++listRequestId
     loading.value = true
+    loadError.value = ''
     try {
       const page = await fetchBugs({
         status: query.status || undefined,
@@ -103,12 +112,16 @@ export function useBugList() {
         pageNo: query.pageNo,
         pageSize: query.pageSize,
       })
+      if (requestId !== listRequestId) return
       bugs.value = page.list
       total.value = page.total
+      hasLoaded.value = true
     } catch (err) {
-      ElMessage.error(err instanceof Error ? err.message : '加载缺陷列表失败')
+      if (requestId !== listRequestId) return
+      loadError.value = err instanceof Error ? err.message : '加载缺陷列表失败'
+      ElMessage.error(loadError.value)
     } finally {
-      loading.value = false
+      if (requestId === listRequestId) loading.value = false
     }
   }
 
@@ -161,6 +174,9 @@ export function useBugList() {
   const filtersExpanded = ref(false)
   const advancedFilterCount = computed(
     () => [query.status, query.bugType, query.severity, query.priority].filter(Boolean).length,
+  )
+  const hasFilters = computed(
+    () => Boolean(quickFilter.value || query.keyword || advancedFilterCount.value),
   )
 
   function handleAdvancedSearch() {
@@ -427,9 +443,13 @@ export function useBugList() {
   })
 
   onMounted(loadBugs)
+  onUnmounted(() => { listRequestId += 1 })
 
   return {
     loading,
+    loadError,
+    hasLoaded,
+    hasFilters,
     bugs,
     total,
     viewMode,
