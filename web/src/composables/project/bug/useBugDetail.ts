@@ -33,6 +33,10 @@ import {
   BUG_STATUS_LABEL,
   BUG_STATUS_TAG_TYPE,
   BUG_TYPE_LABEL,
+  BUG_SEVERITY_LABEL,
+  BUG_PRIORITY_LABEL,
+  BUG_SEVERITY_TAG_TYPE,
+  BUG_PRIORITY_TAG_TYPE,
   promptStatusChangeComment,
 } from '@/composables/project/bug/bugStatus'
 import { typeBadge, type Badge } from '@/minder/badges'
@@ -41,10 +45,10 @@ import { typeBadge, type Badge } from '@/minder/badges'
 
 const MARKED_TYPES = new Set<CaseNodeType>(['precondition', 'step', 'expected'])
 
-const severityLabel: Record<string, string> = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' }
-const priorityLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
-const severityType: Record<string, 'primary' | 'danger' | 'warning' | 'info'> = { fatal: 'danger', serious: 'warning', general: 'primary', minor: 'info' }
-const priorityType: Record<string, 'primary' | 'warning' | 'info'> = { high: 'warning', medium: 'primary', low: 'info' }
+const severityLabel = BUG_SEVERITY_LABEL
+const priorityLabel = BUG_PRIORITY_LABEL
+const severityType = BUG_SEVERITY_TAG_TYPE
+const priorityType = BUG_PRIORITY_TAG_TYPE
 const statusLabel = BUG_STATUS_LABEL
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 

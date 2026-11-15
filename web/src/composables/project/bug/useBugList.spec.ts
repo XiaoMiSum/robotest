@@ -39,9 +39,10 @@ vi.mock('element-plus', () => ({
   ElMessageBox: mocks.ElMessageBox,
 }))
 
-vi.mock('@/composables/project/bug/bugStatus', () => ({
+vi.mock('@/composables/project/bug/bugStatus', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./bugStatus')>(),
   BUG_STATUS_LABEL: { active: '激活', resolved: '已修复', rejected: '已拒绝', closed: '已关闭' },
-  BUG_STATUS_TAG_TYPE: { active: 'primary', resolved: 'success', rejected: 'warning', closed: 'info' },
+  BUG_STATUS_TAG_TYPE: { active: 'warning', resolved: 'success', rejected: 'warning', closed: 'info' },
   BUG_TYPE_LABEL: { code_error: '代码错误' },
   BUG_RESOLUTION_LABEL: { fixed: '已解决' },
   getValidTargetStatuses: mocks.getValidTargetStatuses,
@@ -137,6 +138,60 @@ describe('useBugList', () => {
   })
 
   describe('loadBugs', () => {
+    it('retains previous data on refresh failure and clears the error after retry', async () => {
+      const s = useBugList()
+      await s.loadBugs()
+      mocks.fetchBugs.mockRejectedValueOnce(new Error('刷新失败'))
+      await s.loadBugs()
+      expect(s.hasLoaded.value).toBe(true)
+      expect(s.loadError.value).toBe('刷新失败')
+      expect(s.bugs.value[0].id).toBe('b1')
+      expect(s.total.value).toBe(1)
+      mocks.fetchBugs.mockResolvedValueOnce({ list: [], total: 0 })
+      await s.loadBugs()
+      expect(s.loadError.value).toBe('')
+      expect(s.bugs.value).toEqual([])
+    })
+
+    it('does not treat the first failed request as a successful empty result', async () => {
+      mocks.fetchBugs.mockRejectedValueOnce(new Error('无法连接'))
+      const s = useBugList()
+      await s.loadBugs()
+      expect(s.hasLoaded.value).toBe(false)
+      expect(s.loadError.value).toBe('无法连接')
+    })
+
+    it('ignores an older response after a newer filter request succeeds', async () => {
+      let resolveOld!: (value: { list: BugListItem[]; total: number }) => void
+      mocks.fetchBugs.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve }))
+      const s = useBugList()
+      const older = s.loadBugs()
+      mocks.fetchBugs.mockResolvedValueOnce({ list: [makeBug({ id: 'new' })], total: 1 })
+      await s.loadBugs()
+      resolveOld({ list: [makeBug({ id: 'old' })], total: 5 })
+      await older
+      expect(s.bugs.value[0].id).toBe('new')
+      expect(s.total.value).toBe(1)
+    })
+
+    it('an obsolete failure cannot clear the loading state or show an error for the latest request', async () => {
+      let rejectOld!: (reason: Error) => void
+      let resolveNew!: (value: { list: BugListItem[]; total: number }) => void
+      mocks.fetchBugs.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOld = reject }))
+      mocks.fetchBugs.mockImplementationOnce(() => new Promise((resolve) => { resolveNew = resolve }))
+      const s = useBugList()
+      const older = s.loadBugs()
+      const newer = s.loadBugs()
+      rejectOld(new Error('过期请求'))
+      await older
+      expect(s.loading.value).toBe(true)
+      expect(s.loadError.value).toBe('')
+      expect(mocks.ElMessage.error).not.toHaveBeenCalled()
+      resolveNew({ list: [], total: 0 })
+      await newer
+      expect(s.loading.value).toBe(false)
+    })
+
     it('updates bugs and total on success', async () => {
       const s = useBugList()
       await s.loadBugs()

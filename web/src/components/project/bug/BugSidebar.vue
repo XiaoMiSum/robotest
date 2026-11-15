@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import type { TagProps } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import type { BugDetail, BugLog, ProjectModule, TestCaseNode, TestPlanListItem, WorkspaceMember } from '@/types'
 import type { Badge } from '@/minder/badges'
@@ -33,7 +34,7 @@ defineProps<{
   memberOptions: WorkspaceMember[]
   severityLabel: Record<string, string>
   priorityLabel: Record<string, string>
-  severityType: Record<string, 'primary' | 'danger' | 'warning' | 'info'>
+  severityType: Record<string, TagProps['type']>
   priorityType: Record<string, 'primary' | 'warning' | 'info'>
   bugResolutionLabel: Record<string, string>
   bugTypeLabel: Record<string, string>
