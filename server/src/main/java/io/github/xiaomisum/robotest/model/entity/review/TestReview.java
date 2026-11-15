@@ -26,5 +26,8 @@ public class TestReview extends BaseUuidDO<TestReview> {
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<UUID> participantIds;
 
+    @TableField(typeHandler = Jackson3TypeHandler.class)
+    private List<UUID> requirementIds;
+
     private String status;
 }

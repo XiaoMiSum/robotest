@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDT
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementRefRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
@@ -21,6 +22,7 @@ import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
@@ -28,6 +30,8 @@ import io.github.xiaomisum.robotest.repository.plan.TestPlanExecutionRecordMappe
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import jakarta.annotation.Resource;
@@ -65,11 +69,15 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Resource
     private SysUserMapper userMapper;
     @Resource
+    private RequirementMapper requirementMapper;
+    @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private TestPlanConvertMapper testPlanConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
+    @Resource
+    private TestCaseRequirementService testCaseRequirementService;
 
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, UUID userId, String status,
@@ -87,6 +95,16 @@ public class TestPlanServiceImpl implements TestPlanService {
                 ? Map.of()
                 : planNodeSnapshotMapper.listAssociatedByPlanIds(planIds, Constants.NodeType.CASE)
                         .stream().collect(Collectors.groupingBy(TestPlanNodeSnapshot::getPlanId));
+
+        // 关联需求数量同样批量回填，需求已删除时不计数
+        Set<UUID> allRequirementIds = page.getList().stream()
+                .flatMap(plan -> plan.getRequirementIds() == null
+                        ? java.util.stream.Stream.<UUID>empty() : plan.getRequirementIds().stream())
+                .collect(Collectors.toSet());
+        Set<UUID> existingRequirementIds = allRequirementIds.isEmpty() ? Set.of()
+                : requirementMapper.listByIds(allRequirementIds).stream()
+                        .map(Requirement::getId)
+                        .collect(Collectors.toSet());
 
         List<TestPlanListRespDTO> dtos = page.getList().stream().map(plan -> {
             TestPlanListRespDTO dto = new TestPlanListRespDTO();
@@ -123,6 +141,8 @@ public class TestPlanServiceImpl implements TestPlanService {
             dto.setPassRate(total > 0
                     ? Math.round(passed * 10000.0 / total) / 100.0
                     : 0.0);
+            dto.setRequirementCount(plan.getRequirementIds() == null ? 0
+                    : plan.getRequirementIds().stream().filter(existingRequirementIds::contains).count());
             return dto;
         }).collect(Collectors.toList());
 
@@ -134,17 +154,51 @@ public class TestPlanServiceImpl implements TestPlanService {
     public TestPlanDetailRespDTO createPlan(UUID projectId, UUID userId,
             TestPlanCreateReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, userId);
+        List<UUID> requirementIds = normalizeRequirementIds(reqDTO.getRequirementIds());
+        List<TestPlanCreateReqDTO.SelectedNode> selectedNodes = mergeSelectedNodes(
+                reqDTO.getSelectedNodes(),
+                testCaseRequirementService.resolvePlannedCases(projectId, requirementIds));
+
         TestPlan plan = testPlanConvertMapper.toEntity(reqDTO);
         plan.setProjectId(projectId);
+        plan.setRequirementIds(requirementIds);
         plan.setStatus(Constants.Status.NEW);
         plan.setSnapshotSyncedAt(LocalDateTime.now());
         testPlanMapper.insert(plan);
 
-        generateSnapshots(plan.getId(), reqDTO.getSelectedNodes());
+        generateSnapshots(plan.getId(), selectedNodes);
         projectActivityService.record(projectId, userId, "TEST_PLAN", plan.getId(),
                 plan.getName(), "PLAN_CREATED", "创建测试计划「" + plan.getName() + "」");
 
         return convertToDetailDTO(plan);
+    }
+
+    private List<UUID> normalizeRequirementIds(List<UUID> requirementIds) {
+        return requirementIds == null ? List.of()
+                : requirementIds.stream().filter(Objects::nonNull).distinct().toList();
+    }
+
+    /** 需求关联用例先入，显式选中的用例补充，按文档合并去重 */
+    private List<TestPlanCreateReqDTO.SelectedNode> mergeSelectedNodes(
+            List<TestPlanCreateReqDTO.SelectedNode> explicit, Map<UUID, Set<UUID>> resolved) {
+        Map<UUID, Set<UUID>> merged = new LinkedHashMap<>();
+        resolved.forEach((documentId, caseIds) ->
+                merged.computeIfAbsent(documentId, key -> new LinkedHashSet<>()).addAll(caseIds));
+        if (explicit != null) {
+            for (TestPlanCreateReqDTO.SelectedNode node : explicit) {
+                if (node == null || node.getDocumentId() == null || node.getCaseIds() == null) {
+                    continue;
+                }
+                merged.computeIfAbsent(node.getDocumentId(), key -> new LinkedHashSet<>())
+                        .addAll(node.getCaseIds().stream().filter(Objects::nonNull).toList());
+            }
+        }
+        return merged.entrySet().stream().filter(entry -> !entry.getValue().isEmpty()).map(entry -> {
+            TestPlanCreateReqDTO.SelectedNode node = new TestPlanCreateReqDTO.SelectedNode();
+            node.setDocumentId(entry.getKey());
+            node.setCaseIds(new ArrayList<>(entry.getValue()));
+            return node;
+        }).toList();
     }
 
     /**
@@ -842,6 +896,8 @@ public class TestPlanServiceImpl implements TestPlanService {
                 dto.setExecutor(info);
             }
         }
+        dto.setRequirements(testCaseRequirementService.listRequirementRefs(
+                plan.getProjectId(), plan.getRequirementIds()));
         return dto;
     }
 

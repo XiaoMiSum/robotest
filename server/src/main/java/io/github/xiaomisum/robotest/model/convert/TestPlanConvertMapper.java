@@ -12,6 +12,7 @@ import org.mapstruct.Mapping;
 public interface TestPlanConvertMapper {
 
     @Mapping(target = "executor", ignore = true)
+    @Mapping(target = "requirements", ignore = true)
     TestPlanDetailRespDTO toDetailDTO(TestPlan plan);
 
     @Mapping(target = "children", ignore = true)

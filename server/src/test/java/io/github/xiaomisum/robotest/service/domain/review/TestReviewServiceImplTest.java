@@ -26,6 +26,7 @@ import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewRecordMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
@@ -33,6 +34,7 @@ import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotService;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotServiceImpl;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewWorkflow;
@@ -58,6 +60,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -83,6 +87,10 @@ class TestReviewServiceImplTest {
         private TestCaseNodeMapper testCaseNodeMapper;
         @Mock
         private SysUserMapper userMapper;
+        @Mock
+        private RequirementMapper requirementMapper;
+        @Mock
+        private TestCaseRequirementService testCaseRequirementService;
         @Mock
         private ProjectMapper projectMapper;
         @Mock
@@ -121,6 +129,8 @@ class TestReviewServiceImplTest {
                         testCaseDocumentMapper, projectModuleMapper, testCaseNodeMapper,
                         testReviewConvertMapper));
                 ReflectionTestUtils.setField(reviewService, "reviewSnapshotService", reviewSnapshotService);
+                lenient().when(testCaseRequirementService.resolvePlannedCases(any(), any())).thenReturn(Map.of());
+                lenient().when(testCaseRequirementService.listRequirementRefs(any(), any())).thenReturn(List.of());
         }
 
         @Test
@@ -217,6 +227,42 @@ class TestReviewServiceImplTest {
                 ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
                 verify(testReviewMapper).insert(captor.capture());
                 assertEquals(Constants.Status.NEW, captor.getValue().getStatus());
+        }
+
+        @Test
+        void createReview_fromRequirements_persistsRequirementIds() {
+                Project project = new Project();
+                project.setId(projectId);
+                project.setWorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
+                when(projectMapper.selectById(projectId)).thenReturn(project);
+                WorkspaceUser wu = new WorkspaceUser();
+                wu.setUserId(otherUserId);
+                when(workspaceUserMapper.findByWorkspaceIdAndUserId(
+                                UUID.fromString("00000000-0000-0000-0000-000000000010"), otherUserId)).thenReturn(wu);
+
+                doAnswer(inv -> {
+                        ((TestReview) inv.getArgument(0)).setId(UUID.randomUUID());
+                        return 1;
+                }).when(testReviewMapper).insert(any(TestReview.class));
+
+                UUID requirementId = UUID.randomUUID();
+                UUID documentId = UUID.randomUUID();
+                UUID caseId = UUID.randomUUID();
+                when(testCaseRequirementService.resolvePlannedCases(projectId, List.of(requirementId)))
+                        .thenReturn(Map.of(documentId, Set.of(caseId)));
+
+                TestReviewCreateReqDTO reqDTO = new TestReviewCreateReqDTO();
+                reqDTO.setTitle("Requirement Review");
+                reqDTO.setParticipantIds(List.of(otherUserId));
+                reqDTO.setRequirementIds(List.of(requirementId));
+
+                TestReviewDetailRespDTO result = reviewService.createReview(projectId, userId, reqDTO);
+
+                assertNotNull(result);
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).insert(captor.capture());
+                assertEquals(List.of(requirementId), captor.getValue().getRequirementIds());
+                verify(testCaseRequirementService).resolvePlannedCases(projectId, List.of(requirementId));
         }
 
         @Test

@@ -18,7 +18,9 @@ public class TestReviewCreateReqDTO {
     @NotEmpty(message = "参与者不能为空")
     private List<UUID> participantIds;
 
-    @NotEmpty(message = "请选择用例节点")
+    /** 关联需求；与 selectedNodes 均可为空，均由服务端合并为最终用例集合 */
+    private List<UUID> requirementIds;
+
     private List<SelectedNode> selectedNodes;
 
     @Data
