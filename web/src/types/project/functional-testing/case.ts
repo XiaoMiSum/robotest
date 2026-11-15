@@ -1,4 +1,5 @@
 import type { CaseNodeType } from '../shared'
+import type { RequirementRef } from '../../requirement'
 
 /** 用例圈选节点（创建评审 / 计划的关联用例载荷） */
 export interface SelectedCaseNode {
@@ -11,7 +12,10 @@ export interface TestReviewCreatePayload {
   title: string
   description?: string
   participantIds: string[]
-  selectedNodes: SelectedCaseNode[]
+  /** 关联需求；服务端按需求反查关联用例，未关联用例时允许创建空评审 */
+  requirementIds: string[]
+  /** 显式选中的用例（AI 助手链路使用，创建面板不再提交） */
+  selectedNodes?: SelectedCaseNode[]
 }
 
 /** 评审状态（new 待评审 / in_progress 进行中 / completed 已通过 / rejected 已驳回） */
@@ -42,6 +46,8 @@ export interface TestReviewListItem {
   passed: number
   progressPercent: number
   passRate: number
+  /** 关联需求数量（需求已删除时不计数） */
+  requirementCount: number
 }
 
 /** 测试评审详情 */
@@ -52,6 +58,8 @@ export interface TestReviewDetail {
   status: ReviewStatus
   initiator: { id: string; name: string }
   participantIds: string[]
+  /** 关联需求（按创建时所选顺序，需求已删除时跳过） */
+  requirements: RequirementRef[]
   createdAt: string
 }
 

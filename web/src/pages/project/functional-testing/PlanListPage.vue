@@ -67,7 +67,7 @@ const rows = computed<PlanRowView[]>(() =>
     progressStatus: planProgressStatus(plan.status),
     timeText: planTimeRange(plan.startTime, plan.endTime),
     environment: planEnvironment(plan.environment),
-    nameSub: planNameSub(plan.totalAssociated),
+    nameSub: planNameSub(plan.totalAssociated, plan.requirementCount),
   })),
 )
 

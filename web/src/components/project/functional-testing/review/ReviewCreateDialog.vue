@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import type { SelectedCaseNode, TestReviewCreatePayload } from '@/types'
-import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
+import type { RequirementPick } from '@/composables/project/requirement/useRequirementPicker'
+import type { TestReviewCreatePayload } from '@/types'
+import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
 import { useMemberOptions } from '@/composables/project/functional-testing/useMemberOptions'
 
 const props = defineProps<{
   modelValue: boolean
-  /** 预选用例，打开时写入表单，仍可经用例选择器调整 */
-  initialSelectedNodes?: SelectedCaseNode[]
   submitting?: boolean
 }>()
 
@@ -20,19 +19,20 @@ const emit = defineEmits<{
 
 const { memberOptions, loadMemberOptions } = useMemberOptions()
 
-const caseSelectorVisible = ref(false)
+const requirementPickerVisible = ref(false)
 const formRef = ref<FormInstance>()
 const form = reactive({
   title: '',
   description: '',
   participantIds: [] as string[],
-  selectedNodes: [] as SelectedCaseNode[],
+  requirementIds: [] as string[],
+  requirements: [] as RequirementPick[],
 })
 const rules: FormRules = {
   title: [{ required: true, message: '请输入评审标题', trigger: 'blur' }],
 }
 
-/** 每次打开重置表单；预选节点浅拷贝隔离，弹窗内调整不回写调用方列表 */
+/** 每次打开重置表单 */
 watch(
   () => props.modelValue,
   (visible) => {
@@ -40,16 +40,15 @@ watch(
     form.title = ''
     form.description = ''
     form.participantIds = []
-    form.selectedNodes = (props.initialSelectedNodes ?? []).map((node) => ({
-      documentId: node.documentId,
-      caseIds: [...node.caseIds],
-    }))
+    form.requirementIds = []
+    form.requirements = []
     void loadMemberOptions()
   },
 )
 
-function handleCaseSelected(nodes: SelectedCaseNode[]): void {
-  form.selectedNodes = nodes
+function handleRequirementConfirmed(ids: string[], picks: RequirementPick[]): void {
+  form.requirementIds = ids
+  form.requirements = picks
 }
 
 async function submit(): Promise<void> {
@@ -59,8 +58,8 @@ async function submit(): Promise<void> {
   } catch {
     return
   }
-  if (!form.selectedNodes.length) {
-    ElMessage.warning('请关联至少一个用例')
+  if (!form.requirementIds.length) {
+    ElMessage.warning('请关联至少一个需求')
     return
   }
   if (!form.participantIds.length) {
@@ -71,7 +70,7 @@ async function submit(): Promise<void> {
     title: form.title.trim(),
     description: form.description.trim() || undefined,
     participantIds: form.participantIds,
-    selectedNodes: form.selectedNodes,
+    requirementIds: form.requirementIds,
   })
 }
 </script>
@@ -95,10 +94,10 @@ async function submit(): Promise<void> {
           <el-option v-for="m in memberOptions" :key="m.userId" :label="m.name || m.username" :value="m.userId" />
         </el-select>
       </el-form-item>
-      <el-form-item label="关联用例">
-        <el-button @click="caseSelectorVisible = true">选择用例</el-button>
-        <span v-if="form.selectedNodes.length" class="review-create__case-count">
-          已选 {{ form.selectedNodes.reduce((sum, n) => sum + n.caseIds.length, 0) }} 个用例
+      <el-form-item label="关联需求">
+        <el-button @click="requirementPickerVisible = true">选择需求</el-button>
+        <span v-if="form.requirementIds.length" class="review-create__requirement-count">
+          已选 {{ form.requirementIds.length }} 个需求
         </span>
       </el-form-item>
     </el-form>
@@ -107,16 +106,16 @@ async function submit(): Promise<void> {
       <el-button type="primary" :loading="submitting" @click="submit">创建</el-button>
     </template>
 
-    <CaseSelector
-      v-model="caseSelectorVisible"
-      :initial-selected="form.selectedNodes"
-      @confirm="handleCaseSelected"
+    <RequirementPickerDialog
+      v-model="requirementPickerVisible"
+      :initial="form.requirements"
+      @confirm="handleRequirementConfirmed"
     />
   </el-dialog>
 </template>
 
 <style scoped lang="scss">
-.review-create__case-count {
+.review-create__requirement-count {
   margin-left: var(--space-sm);
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);

@@ -8,10 +8,19 @@ import { useMindmapLayout } from '@/composables/project/functional-testing/mindm
 import { useMindmapNodeOps } from '@/composables/project/functional-testing/mindmap/useMindmapNodeOps'
 import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/useMindmapYjs'
 import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
+import { useCaseRequirementLink } from '@/composables/project/functional-testing/mindmap/useCaseRequirementLink'
 import { useCaseAssistEntry } from '@/composables/project/ai/useCaseAssistEntry'
 import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
+import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
+import { useAuthStore } from '@/stores/auth'
+import { computed } from 'vue'
 
 const props = defineProps<{ docId: string }>()
+
+const authStore = useAuthStore()
+
+/** 关联需求为需求查看权限入口；保存由后端 case:edit 兜底 */
+const canManageRequirements = computed(() => authStore.hasPermission('requirement:view'))
 
 const kmEditorRef = { value: null as KMEditor | null }
 
@@ -107,6 +116,17 @@ const {
   isReadonly: () => getMinder()?.getStatus?.() === 'readonly',
   onConfirmed: () => void initMinder(),
 })
+
+/** 用例节点级关联需求：仅选中 case 节点可维护 */
+const canLinkRequirement = computed(
+  () => Boolean(selectedNodeId.value) && selectedType.value === 'case',
+)
+const requirementGateReason = computed(() => {
+  if (!selectedNodeId.value) return '请先选择用例节点'
+  if (selectedType.value !== 'case') return '仅用例节点可关联需求'
+  return '维护当前用例关联的需求'
+})
+const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
 </script>
 
 <template>
@@ -198,6 +218,20 @@ const {
           <span>
             <el-button text :disabled="!canLaunchAssist" @click="launchPriority">
               <el-icon><Sort /></el-icon><span>级别推荐</span>
+            </el-button>
+          </span>
+        </el-tooltip>
+      </div>
+      <div v-if="canManageRequirements" class="toolbar-group toolbar-group--end">
+        <el-tooltip :content="requirementGateReason" placement="bottom">
+          <span>
+            <el-button
+              text
+              :disabled="!canLinkRequirement"
+              :loading="requirementLink.saving.value"
+              @click="requirementLink.open"
+            >
+              <el-icon><Link /></el-icon><span>关联需求</span>
             </el-button>
           </span>
         </el-tooltip>
@@ -306,6 +340,13 @@ const {
         @close="closeAssistPanel"
       />
     </el-dialog>
+
+    <RequirementPickerDialog
+      v-model="requirementLink.visible.value"
+      :initial="requirementLink.picks()"
+      allow-empty
+      @confirm="(ids) => void requirementLink.confirm(ids)"
+    />
   </div>
 </template>
 

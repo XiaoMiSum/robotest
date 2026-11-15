@@ -10,6 +10,13 @@ export type RequirementSource = 'manual' | 'import'
 /** 变更记录类型（详设 3.10） */
 export type RequirementChangeType = 'title' | 'description' | 'module' | 'status' | 'attribute'
 
+/** 需求摘要（用例关联、计划/评审关联展示） */
+export interface RequirementRef {
+  id: string
+  code: string
+  title: string
+}
+
 /** 需求列表项（详设 3.2，不含 description 全文） */
 export interface RequirementListItem {
   id: string

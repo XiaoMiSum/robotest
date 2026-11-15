@@ -78,14 +78,27 @@ const orderEmptyReason = computed(() =>
 
     <div class="plan-detail__head">
       <div class="plan-detail__head-left">
-        <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
-        <el-tag
-          v-if="detail"
-          :type="planStatusMeta(detail.status).tagType"
-          size="small"
-          effect="light"
-          round
-        >{{ statusText }}</el-tag>
+        <div class="plan-detail__title-row">
+          <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
+          <el-tag
+            v-if="detail"
+            :type="planStatusMeta(detail.status).tagType"
+            size="small"
+            effect="light"
+            round
+          >{{ statusText }}</el-tag>
+        </div>
+        <div v-if="detail?.requirements?.length" class="plan-detail__requirements">
+          <span class="plan-detail__requirements-label">关联需求</span>
+          <el-tooltip
+            v-for="item in detail.requirements"
+            :key="item.id"
+            :content="item.title"
+            placement="top"
+          >
+            <el-tag size="small" effect="plain">{{ item.code }}</el-tag>
+          </el-tooltip>
+        </div>
       </div>
       <div class="plan-detail__extra">
         <div v-if="progress" class="plan-detail__progress-row">
@@ -290,11 +303,33 @@ const orderEmptyReason = computed(() =>
 // 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
 .plan-detail__head-left {
   display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
   flex: 1;
   overflow: hidden;
+}
+
+.plan-detail__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.plan-detail__requirements {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  max-width: 100%;
+}
+
+.plan-detail__requirements-label {
+  font-size: var(--font-size-2xs);
+  color: var(--color-neutral-400);
 }
 
 .plan-detail__title {

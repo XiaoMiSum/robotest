@@ -1,4 +1,5 @@
 import type { CaseNodeType } from '../shared'
+import type { RequirementRef } from '../../requirement'
 import type { SelectedCaseNode } from './case'
 
 /** 计划创建载荷（列表页创建共用） */
@@ -9,7 +10,10 @@ export interface TestPlanCreatePayload {
   startTime?: string | null
   endTime?: string | null
   environment?: string
-  selectedNodes: SelectedCaseNode[]
+  /** 关联需求；服务端按需求反查关联用例，未关联用例时允许创建空计划 */
+  requirementIds: string[]
+  /** 显式选中的用例（AI 助手链路使用，创建面板不再提交） */
+  selectedNodes?: SelectedCaseNode[]
 }
 
 /** 计划状态（blocked 为阻塞态，仅负责人可恢复为 in_progress） */
@@ -29,6 +33,8 @@ export interface TestPlanListItem {
   passed: number
   progressPercent: number
   passRate: number
+  /** 关联需求数量（需求已删除时不计数） */
+  requirementCount: number
 }
 
 /** 测试计划详情 */
@@ -42,6 +48,8 @@ export interface TestPlanDetail {
   endTime: string | null
   executor: { id: string; name: string } | null
   createdAt: string
+  /** 关联需求（按创建时所选顺序，需求已删除时跳过） */
+  requirements: RequirementRef[]
 }
 
 /** 执行结果 */
