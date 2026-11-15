@@ -7,6 +7,7 @@ import { createReview, deleteReview, fetchReviews, reopenReview } from '@/servic
 import type { ReviewStatus, TestReviewListItem, TestReviewCreatePayload } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import ReviewCreateDialog from '@/components/project/functional-testing/review/ReviewCreateDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import {
   REVIEW_STATUS_META,
   reviewAvatars,
@@ -273,16 +274,13 @@ async function submitCreate(payload: TestReviewCreatePayload) {
         </el-table>
       </div>
 
-      <div class="review-list__pager">
-        <span class="review-list__pager-total">共 {{ total }} 场 · 每页 {{ query.pageSize }} 条</span>
-        <el-pagination
-          v-model:current-page="query.pageNo"
-          :total="total"
-          :page-size="query.pageSize"
-          layout="prev, pager, next"
-          @current-change="loadReviews"
-        />
-      </div>
+      <ListPagination
+        v-model:page-no="query.pageNo"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        unit="场"
+        @change="loadReviews"
+      />
     </el-card>
 
     <ReviewCreateDialog
@@ -460,18 +458,4 @@ async function submitCreate(payload: TestReviewCreatePayload) {
   font-size: var(--font-size-2xs);
 }
 
-.review-list__pager {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
-}
-
-.review-list__pager-total {
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
-}
 </style>

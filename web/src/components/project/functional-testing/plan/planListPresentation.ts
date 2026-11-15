@@ -95,10 +95,6 @@ export function planCountText(total: number): string {
   return `共 ${total} 个计划`
 }
 
-export function planPagerTotalText(total: number, pageSize: number): string {
-  return `${planCountText(total)} · 每页 ${pageSize} 条`
-}
-
 /** 返回 `MM-DD`；空值或非法时间返回空串，交由调用方按缺失处理 */
 function shortDate(value?: string | null): string {
   const formatted = value ? formatDate(value) : '-'

@@ -4,6 +4,7 @@ import { DynamicSizeList } from 'element-plus'
 import { formatShortDateTime, formatShortId, truncateText } from '@/utils/format'
 import type { BugListItem, BugResolution, BugStatus, BugType } from '@/types'
 import BugResolveDialog from '@/components/project/bug/BugResolveDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { useBugList } from '@/composables/project/bug/useBugList'
 
 const {
@@ -223,17 +224,14 @@ const {
             </el-table-column>
           </el-table>
         </div>
-        <div class="bug-page__pager">
-          <el-pagination
-            v-model:current-page="query.pageNo"
-            v-model:page-size="query.pageSize"
-            :total="total"
-            :page-sizes="[20, 50, 100]"
-            layout="total, sizes, prev, pager, next"
-            @current-change="loadBugs"
-            @size-change="handleSearch"
-          />
-        </div>
+        <!-- size 变化的原 handler 含关键词定时器同步（handleSearch），故用细分事件分别直连 -->
+        <ListPagination
+          v-model:page-no="query.pageNo"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          @page-change="loadBugs"
+          @size-change="handleSearch"
+        />
       </div>
     </el-card>
 
@@ -393,14 +391,6 @@ const {
 
 .bug-page__assign-select {
   width: 100%;
-}
-
-.bug-page__pager {
-  display: flex;
-  flex-shrink: 0;
-  justify-content: flex-end;
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
 }
 
 .bug-board {

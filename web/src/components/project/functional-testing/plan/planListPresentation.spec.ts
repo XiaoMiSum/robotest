@@ -7,7 +7,6 @@ import {
   planEnvironment,
   planListAction,
   planNameSub,
-  planPagerTotalText,
   planPassRate,
   planProgressStatus,
   planProgressText,
@@ -84,6 +83,5 @@ describe('planListPresentation', () => {
   it('名称副行与计数文案', () => {
     expect(planNameSub(47)).toBe('关联用例 47 条')
     expect(planCountText(18)).toBe('共 18 个计划')
-    expect(planPagerTotalText(18, 20)).toBe('共 18 个计划 · 每页 20 条')
   })
 })
