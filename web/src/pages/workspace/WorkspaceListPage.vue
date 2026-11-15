@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useWorkspaceListPage } from '@/composables/workspace/useWorkspaceListPage'
 import WorkspaceCard from '@/components/workspace/WorkspaceCard.vue'
 import WorkspaceCreateDialog from '@/components/workspace/WorkspaceCreateDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import type { WorkspaceItem, WorkspaceScope } from '@/types'
 
 const {
@@ -214,14 +215,14 @@ function handleEnter(workspace: WorkspaceItem): void {
     </template>
 
     <div v-if="!isInitialLoading && !error && total > pageSize" class="workspace-list-page__pager">
-      <el-pagination
-        v-model:current-page="pageNo"
+      <!-- store 分页状态为 ref，细分事件直连原 handler（保留其防抖取消语义） -->
+      <ListPagination
+        v-model:page-no="pageNo"
         v-model:page-size="pageSize"
         :total="total"
         :page-sizes="[12, 24, 48]"
-        layout="total, sizes, prev, pager, next"
-        @current-change="changePage"
-        @size-change="changePageSize"
+        @page-change="({ pageNo: page }) => changePage(page)"
+        @size-change="({ pageSize: size }) => changePageSize(size)"
       />
     </div>
 
@@ -654,8 +655,6 @@ function handleEnter(workspace: WorkspaceItem): void {
 }
 
 .workspace-list-page__pager {
-  display: flex;
-  justify-content: center;
   margin-top: var(--space-xl);
 }
 

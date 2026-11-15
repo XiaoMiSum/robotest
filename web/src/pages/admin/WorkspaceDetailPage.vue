@@ -4,6 +4,7 @@ import { useWorkspaceDetail } from '@/composables/admin/useWorkspaceDetail'
 import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/utils/workspaceRole'
 import type { WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const {
   roleOptions,
@@ -217,17 +218,12 @@ function handleRoleVisibleChange(visible: boolean) {
           </template>
         </el-table-column>
       </el-table>
-      <div class="ws-detail__pager">
-        <el-pagination
-          v-model:current-page="memberQuery.pageNo"
-          v-model:page-size="memberQuery.pageSize"
-          :total="memberTotal"
-          :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="loadMembers"
-          @size-change="loadMembers"
-        />
-      </div>
+      <ListPagination
+        v-model:page-no="memberQuery.pageNo"
+        v-model:page-size="memberQuery.pageSize"
+        :total="memberTotal"
+        @change="loadMembers"
+      />
     </section>
 
     <el-dialog v-model="addDialogVisible" title="添加用户" width="520px">
@@ -480,13 +476,6 @@ function handleRoleVisibleChange(visible: boolean) {
 
 .ws-detail__num {
   font-variant-numeric: tabular-nums;
-}
-
-.ws-detail__pager {
-  display: flex;
-  justify-content: flex-end;
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
 }
 
 .ws-detail__pending {

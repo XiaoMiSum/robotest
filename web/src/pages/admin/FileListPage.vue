@@ -5,6 +5,7 @@ import { deleteFile, downloadFile, fetchFileAccessUrl, fetchFiles } from '@/serv
 import { useAuthStore } from '@/stores/auth'
 import type { FileItem } from '@/types'
 import { formatDateTime, formatFileSize } from '@/utils/format'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const authStore = useAuthStore()
 // 删除即回收空间且不可恢复（详设 5.3），仅 file:delete 可见
@@ -159,17 +160,12 @@ onMounted(() => {
         </el-table-column>
       </el-table>
 
-      <footer class="file-list__footer">
-        <el-pagination
-          v-model:current-page="query.pageNo"
-          v-model:page-size="query.pageSize"
-          :total="total"
-          :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="loadFiles"
-          @size-change="handleSearch"
-        />
-      </footer>
+      <ListPagination
+        v-model:page-no="query.pageNo"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        @change="loadFiles"
+      />
     </section>
   </div>
 </template>
@@ -237,10 +233,5 @@ onMounted(() => {
   font-variant-numeric: tabular-nums;
   color: var(--el-text-color-regular);
   font-size: 13px;
-}
-
-.file-list__footer {
-  display: flex;
-  justify-content: flex-end;
 }
 </style>

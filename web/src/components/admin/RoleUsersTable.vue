@@ -3,6 +3,7 @@ import { useRoleUsers } from '@/composables/admin/useRoleUsers'
 import type { AdminUser, RoleWorkspaceUser } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import UserPickerDialog from '@/components/admin/UserPickerDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const props = defineProps<{
   roleId: string
@@ -113,16 +114,16 @@ const {
         </el-table>
       </div>
 
-      <!-- 分页钉在 pane 底，滚动只作用于表体，避免长列表把分页顶出可视区 -->
+      <!-- 分页钉在 pane 底，滚动只作用于表体，避免长列表把分页顶出可视区；
+           pane 自带左右内边距，分页用 bare 模式与表格对齐同一左基线 -->
       <div class="role-users__pager">
-        <el-pagination
-          v-model:current-page="query.pageNo"
+        <ListPagination
+          v-model:page-no="query.pageNo"
           v-model:page-size="query.pageSize"
           :total="total"
-          :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="handlePageChange"
-          @size-change="handlePageSizeChange"
+          bare
+          @page-change="({ pageNo }) => handlePageChange(pageNo)"
+          @size-change="({ pageSize }) => handlePageSizeChange(pageSize)"
         />
       </div>
     </div>
@@ -185,9 +186,6 @@ const {
 
 .role-users__pager {
   flex-shrink: 0;
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 0 0;
   border-top: 1px solid var(--color-neutral-100);
 }
 
