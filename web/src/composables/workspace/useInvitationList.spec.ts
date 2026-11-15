@@ -92,6 +92,14 @@ describe('useInvitationList', () => {
     )
   })
 
+  it('切换条数回到首页且只请求一次', async () => {
+    const sut = useInvitationList()
+    sut.invQuery.pageNo = 3
+    sut.handleInvitationSizeChange(50)
+    await vi.waitFor(() => expect(mocks.fetchInvitations).toHaveBeenCalledTimes(1))
+    expect(mocks.fetchInvitations).toHaveBeenCalledWith({ pageNo: 1, pageSize: 50 })
+  })
+
   it('加载失败时提示并保持未加载状态', async () => {
     mocks.fetchInvitations.mockRejectedValue(new Error('邀请接口失败'))
     const sut = useInvitationList()

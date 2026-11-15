@@ -6,6 +6,7 @@ import {
   canExpireInvitation,
   invitationStatusMeta,
 } from '@/utils/workspaceInvitation'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 defineProps<{
   invitations: InvitationListItem[]
@@ -20,6 +21,7 @@ defineProps<{
 
 const emit = defineEmits<{
   'page-change': [pageNo: number]
+  'size-change': [pageSize: number]
   copy: [invitation: InvitationListItem]
   expire: [invitation: InvitationListItem]
   retry: []
@@ -31,6 +33,10 @@ function invitationUses(invitation: InvitationListItem): string {
 
 function handlePageChange(pageNo: number): void {
   emit('page-change', pageNo)
+}
+
+function handleSizeChange(pageSize: number): void {
+  emit('size-change', pageSize)
 }
 </script>
 
@@ -119,18 +125,13 @@ function handlePageChange(pageNo: number): void {
       </el-table>
     </div>
 
-    <footer class="invitation-list-card__pager">
-      <span>共 {{ total }} 条 · 每页 {{ pageSize }} 条</span>
-      <el-pagination
-        :current-page="pageNo"
-        background
-        layout="prev, pager, next"
-        :page-size="pageSize"
-        :pager-count="5"
-        :total="total"
-        @current-change="handlePageChange"
-      />
-    </footer>
+    <ListPagination
+      :page-no="pageNo"
+      :page-size="pageSize"
+      :total="total"
+      @page-change="({ pageNo }) => handlePageChange(pageNo)"
+      @size-change="({ pageSize }) => handleSizeChange(pageSize)"
+    />
   </section>
 </template>
 
@@ -204,20 +205,6 @@ function handlePageChange(pageNo: number): void {
   gap: var(--space-sm);
 }
 
-.invitation-list-card__pager {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  box-sizing: border-box;
-  min-height: 60px;
-  padding: var(--space-md) var(--card-pad);
-  border-top: 1px solid var(--color-neutral-100);
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
-}
-
 .invitation-list-card__token {
   color: var(--color-neutral-700);
   font-family: var(--font-mono);
@@ -262,10 +249,4 @@ function handlePageChange(pageNo: number): void {
   }
 }
 
-@media (max-width: 640px) {
-  .invitation-list-card__pager {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
 </style>

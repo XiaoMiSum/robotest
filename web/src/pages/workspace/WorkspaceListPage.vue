@@ -221,6 +221,7 @@ function handleEnter(workspace: WorkspaceItem): void {
         v-model:page-size="pageSize"
         :total="total"
         :page-sizes="[12, 24, 48]"
+        bare
         @page-change="({ pageNo: page }) => changePage(page)"
         @size-change="({ pageSize: size }) => changePageSize(size)"
       />

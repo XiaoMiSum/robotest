@@ -52,6 +52,8 @@ const emit = defineEmits<{
         :page-size="20"
         :total="total"
         :page-sizes="[]"
+        :show-total-text="false"
+        small
         bare
         @page-change="({ pageNo }) => { emit('update:page', pageNo); emit('load') }"
       />

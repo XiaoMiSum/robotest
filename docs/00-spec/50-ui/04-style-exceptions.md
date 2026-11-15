@@ -32,7 +32,7 @@
 
 > 该批量条目覆盖的具体选择器以源码为准，不在本文件逐一罗列，避免双份事实源。收敛进度以第 4 节扫描命令复测。
 >
-> 成员管理页（`web/src/pages/workspace/MemberListPage.vue`）的表格与分页 Element Plus 覆盖统一由分栏容器 `.member-page__split` 下发（共 4 处），该页两张卡片组件不各自登记 `:deep(.el-*)`。此后超出 161 处 / 53 文件的新增一律拒绝，除非再次经中断确认（UI-DS-09）。
+> 成员管理页（`web/src/pages/workspace/MemberListPage.vue`）的表格 Element Plus 覆盖统一由分栏容器 `.member-page__split` 下发（共 2 处），分页使用公共组件与默认配置，该页两张卡片组件不各自登记 `:deep(.el-*)`。此后超出 161 处 / 53 文件的新增一律拒绝，除非再次经中断确认（UI-DS-09）。
 
 ### 3.2 单项例外
 
@@ -72,5 +72,11 @@ cd web && pnpm exec vitest run src/assets/styles/stylePolicy.spec.ts
 3. 本文件基线数下调时同步更新第 4 节的日期与结果。
 
 ---
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-11-15 | 成员页接入统一分页，移除两处分页内部样式覆盖，保留两处表格覆盖。 |
 
 **文档结束**

@@ -62,6 +62,11 @@ export function useInvitationList() {
     void loadInvitations()
   }
 
+  function handleInvitationSizeChange(pageSize: number): void {
+    invQuery.pageSize = pageSize
+    handleInvitationPageChange(1)
+  }
+
   function buildCopyText(url: string, invitation?: InvitationListItem): string {
     return buildInvitationShareText(url, {
       workspaceName: authStore.activeWorkspace?.name,
@@ -143,6 +148,7 @@ export function useInvitationList() {
     invQuery,
     loadInvitations,
     handleInvitationPageChange,
+    handleInvitationSizeChange,
     copyingInvitationId,
     copyInvitation,
     copyingLatestInvitation,

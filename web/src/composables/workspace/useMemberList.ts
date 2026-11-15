@@ -101,6 +101,11 @@ export function useMemberList() {
     void loadMembers()
   }
 
+  function handleMemberSizeChange(pageSize: number): void {
+    memberQuery.pageSize = pageSize
+    handleMemberPageChange(1)
+  }
+
   function startEditRole(userId: string): void {
     editingUserId.value = userId
   }
@@ -170,6 +175,7 @@ export function useMemberList() {
     handleMemberSearchClear,
     handleRoleFilterChange,
     handleMemberPageChange,
+    handleMemberSizeChange,
     startEditRole,
     handleRoleVisibleChange,
     submitRoleChange,

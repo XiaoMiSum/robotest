@@ -18,7 +18,6 @@ const {
   workspaceList,
   workspaceTotal,
   workspacePage,
-  workspacePages,
   refresh,
   gotoWorkspacePage,
   retry,
@@ -198,7 +197,7 @@ const {
         </el-table-column>
       </el-table>
       <ListPagination
-        v-if="(!workspaceError || workspaceList.length) && workspacePages > 1"
+        v-if="!workspaceError || workspaceList.length"
         class="dashboard__table-foot"
         :page-no="workspacePage"
         :page-size="DASHBOARD_WORKSPACE_PAGE_SIZE"
