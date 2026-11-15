@@ -24,6 +24,7 @@ import type { PendingDebugRequest } from '@/stores/apiTestingUi'
 import ImportDialog from './ImportDialog.vue'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const router = useRouter()
 const uiStore = useApiTestingUiStore()

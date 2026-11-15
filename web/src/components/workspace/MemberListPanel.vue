@@ -4,6 +4,7 @@ import { Search } from '@element-plus/icons-vue'
 import type { WorkspaceMember } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import { WORKSPACE_ROLE, workspaceRoleLabel } from '@/utils/workspaceRole'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const props = defineProps<{
   members: WorkspaceMember[]
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   'search-clear': []
   'role-filter-change': [value: string]
   'page-change': [pageNo: number]
+  'size-change': [pageSize: number]
   'start-edit-role': [userId: string]
   'role-change': [member: WorkspaceMember, roleId: string]
   'role-visible-change': [visible: boolean]
@@ -65,6 +67,10 @@ function handleRoleFilterChange(value: unknown): void {
 
 function handlePageChange(pageNo: number): void {
   emit('page-change', pageNo)
+}
+
+function handleSizeChange(pageSize: number): void {
+  emit('size-change', pageSize)
 }
 
 // 空态要区分「筛选没命中」与「本来就没人」，否则用户会以为数据丢了
@@ -198,18 +204,14 @@ const emptyDescription = computed(() =>
       </el-table>
     </div>
 
-    <footer class="member-list-card__pager">
-      <span>共 {{ total }} 人 · 每页 {{ pageSize }} 条</span>
-      <el-pagination
-        :current-page="pageNo"
-        background
-        layout="prev, pager, next"
-        :page-size="pageSize"
-        :pager-count="5"
-        :total="total"
-        @current-change="handlePageChange"
-      />
-    </footer>
+    <ListPagination
+      :page-no="pageNo"
+      :page-size="pageSize"
+      :total="total"
+      unit="人"
+      @page-change="({ pageNo }) => handlePageChange(pageNo)"
+      @size-change="({ pageSize }) => handleSizeChange(pageSize)"
+    />
   </section>
 </template>
 
@@ -343,20 +345,6 @@ const emptyDescription = computed(() =>
   gap: var(--space-sm);
 }
 
-.member-list-card__pager {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  box-sizing: border-box;
-  min-height: 60px;
-  padding: var(--space-md) var(--card-pad);
-  border-top: 1px solid var(--color-neutral-100);
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
-}
-
 @media (max-width: 900px) {
   .member-list-card__head {
     align-items: stretch;
@@ -377,13 +365,6 @@ const emptyDescription = computed(() =>
   .member-list-card__role-filter {
     width: auto;
     flex: 1 1 180px;
-  }
-}
-
-@media (max-width: 640px) {
-  .member-list-card__pager {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 </style>

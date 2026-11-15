@@ -422,7 +422,7 @@ function openTask(row: AiUsageTask) {
       </el-table>
 
       <ListPagination
-        v-if="drillTotal > drillPageSize"
+        v-if="drillTotal > 0"
         v-model:page-no="drillPageNo"
         v-model:page-size="drillPageSize"
         :total="drillTotal"

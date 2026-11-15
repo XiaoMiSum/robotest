@@ -211,6 +211,20 @@ describe('useMemberList', () => {
     })
   })
 
+  it('切换条数保留筛选并从首页请求一次', () => {
+    const sut = useMemberList()
+    sut.memberQuery.pageNo = 3
+    sut.memberQuery.workspaceRole = 'role-member'
+    sut.handleMemberSizeChange(50)
+    expect(mocks.fetchMembers).toHaveBeenCalledTimes(1)
+    expect(mocks.fetchMembers).toHaveBeenCalledWith({
+      keyword: undefined,
+      workspaceRole: 'role-member',
+      pageNo: 1,
+      pageSize: 50,
+    })
+  })
+
   it('角色编辑成功就地更新，失败回滚并重新加载', async () => {
     const member = makeMember()
     const sut = useMemberList()

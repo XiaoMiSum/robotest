@@ -92,6 +92,7 @@ function handleSizeChange(size: number) {
 <style scoped>
 .list-pager {
   display: flex;
+  flex-wrap: wrap;
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;

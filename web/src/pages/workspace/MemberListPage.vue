@@ -30,6 +30,7 @@ const {
   handleMemberSearchClear,
   handleRoleFilterChange,
   handleMemberPageChange,
+  handleMemberSizeChange,
   startEditRole,
   handleRoleVisibleChange,
   submitRoleChange,
@@ -46,6 +47,7 @@ const {
   invQuery,
   loadInvitations,
   handleInvitationPageChange,
+  handleInvitationSizeChange,
   copyingInvitationId,
   copyInvitation,
   copyingLatestInvitation,
@@ -142,6 +144,7 @@ onBeforeUnmount(() => {
         @search-clear="handleMemberSearchClear"
         @role-filter-change="handleRoleFilterChange"
         @page-change="handleMemberPageChange"
+        @size-change="handleMemberSizeChange"
         @start-edit-role="startEditRole"
         @role-change="submitRoleChange"
         @role-visible-change="handleRoleVisibleChange"
@@ -160,6 +163,7 @@ onBeforeUnmount(() => {
         :copying-id="copyingInvitationId"
         :revoking-id="revokingInvitationId"
         @page-change="handleInvitationPageChange"
+        @size-change="handleInvitationSizeChange"
         @copy="copyInvitation"
         @expire="handleExpireInvitation"
         @retry="loadInvitations"
@@ -283,18 +287,6 @@ onBeforeUnmount(() => {
 /* 表格与卡片容器贴合后，首列文字的 24px 左基线改由单元格留白承担（与卡片头、分页一致） */
 .member-page__split :deep(.el-table__cell) {
   padding: 11px var(--space-md);
-}
-
-.member-page__split :deep(.el-pagination) {
-  --el-pagination-button-bg-color: var(--color-neutral-0);
-  --el-pagination-hover-color: var(--color-primary-600);
-  flex-shrink: 0;
-}
-
-@media (max-width: 640px) {
-  .member-page__split :deep(.el-pagination) {
-    align-self: flex-end;
-  }
 }
 
 @media (max-width: 900px) {
