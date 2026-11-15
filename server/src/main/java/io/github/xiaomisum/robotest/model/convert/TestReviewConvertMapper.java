@@ -16,6 +16,7 @@ import java.util.UUID;
 public interface TestReviewConvertMapper {
 
     @Mapping(target = "initiator", ignore = true)
+    @Mapping(target = "requirements", ignore = true)
     TestReviewDetailRespDTO toDetailDTO(TestReview review);
 
     @Mapping(target = "children", ignore = true)

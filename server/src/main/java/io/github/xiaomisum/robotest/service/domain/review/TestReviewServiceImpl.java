@@ -15,6 +15,7 @@ import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgress
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.review.TestReview;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewRecord;
@@ -23,8 +24,10 @@ import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewRecordMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -47,6 +50,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Resource
     private SysUserMapper userMapper;
     @Resource
+    private RequirementMapper requirementMapper;
+    @Resource
     private ProjectMapper projectMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
@@ -60,6 +65,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     private TestReviewConvertMapper testReviewConvertMapper;
     @Resource
     private ProjectActivityService projectActivityService;
+    @Resource
+    private TestCaseRequirementService testCaseRequirementService;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, UUID userId, String status,
@@ -89,6 +96,16 @@ public class TestReviewServiceImpl implements TestReviewService {
                 ? Map.of()
                 : userMapper.selectBatchIds(participantIds).stream()
                         .collect(Collectors.toMap(SysUser::getId, user -> user, (a, b) -> a));
+
+        // 关联需求数量批量回填，需求已删除时不计数
+        Set<UUID> allRequirementIds = page.getList().stream()
+                .flatMap(review -> review.getRequirementIds() == null
+                        ? java.util.stream.Stream.<UUID>empty() : review.getRequirementIds().stream())
+                .collect(Collectors.toSet());
+        Set<UUID> existingRequirementIds = allRequirementIds.isEmpty() ? Set.of()
+                : requirementMapper.listByIds(allRequirementIds).stream()
+                        .map(Requirement::getId)
+                        .collect(Collectors.toSet());
 
         List<TestReviewListRespDTO> dtos = page.getList().stream().map(review -> {
             TestReviewListRespDTO dto = new TestReviewListRespDTO();
@@ -138,6 +155,8 @@ public class TestReviewServiceImpl implements TestReviewService {
             dto.setPassRate(total > 0
                     ? Math.round(passed * 10000.0 / total) / 100.0
                     : 0.0);
+            dto.setRequirementCount(review.getRequirementIds() == null ? 0
+                    : review.getRequirementIds().stream().filter(existingRequirementIds::contains).count());
             return dto;
         }).collect(Collectors.toList());
 
@@ -166,13 +185,45 @@ public class TestReviewServiceImpl implements TestReviewService {
         review.setProjectId(projectId);
         review.setInitiatorId(userId);
         review.setStatus(ReviewStatus.NEW.getCode());
+        List<UUID> requirementIds = normalizeRequirementIds(reqDTO.getRequirementIds());
+        review.setRequirementIds(requirementIds);
         testReviewMapper.insert(review);
 
-        reviewSnapshotService.generateSnapshots(review.getId(), reqDTO.getSelectedNodes());
+        reviewSnapshotService.generateSnapshots(review.getId(), mergeSelectedNodes(
+                reqDTO.getSelectedNodes(),
+                testCaseRequirementService.resolvePlannedCases(projectId, requirementIds)));
         projectActivityService.record(projectId, userId, "TEST_REVIEW", review.getId(),
                 review.getTitle(), "REVIEW_CREATED", "创建评审「" + review.getTitle() + "」");
 
         return convertToDetailDTO(review);
+    }
+
+    private List<UUID> normalizeRequirementIds(List<UUID> requirementIds) {
+        return requirementIds == null ? List.of()
+                : requirementIds.stream().filter(Objects::nonNull).distinct().toList();
+    }
+
+    /** 需求关联用例先入，显式选中的用例补充，按文档合并去重 */
+    private List<TestReviewCreateReqDTO.SelectedNode> mergeSelectedNodes(
+            List<TestReviewCreateReqDTO.SelectedNode> explicit, Map<UUID, Set<UUID>> resolved) {
+        Map<UUID, Set<UUID>> merged = new LinkedHashMap<>();
+        resolved.forEach((documentId, caseIds) ->
+                merged.computeIfAbsent(documentId, key -> new LinkedHashSet<>()).addAll(caseIds));
+        if (explicit != null) {
+            for (TestReviewCreateReqDTO.SelectedNode node : explicit) {
+                if (node == null || node.getDocumentId() == null || node.getCaseIds() == null) {
+                    continue;
+                }
+                merged.computeIfAbsent(node.getDocumentId(), key -> new LinkedHashSet<>())
+                        .addAll(node.getCaseIds().stream().filter(Objects::nonNull).toList());
+            }
+        }
+        return merged.entrySet().stream().filter(entry -> !entry.getValue().isEmpty()).map(entry -> {
+            TestReviewCreateReqDTO.SelectedNode node = new TestReviewCreateReqDTO.SelectedNode();
+            node.setDocumentId(entry.getKey());
+            node.setCaseIds(new ArrayList<>(entry.getValue()));
+            return node;
+        }).toList();
     }
 
     /**
@@ -433,6 +484,8 @@ public class TestReviewServiceImpl implements TestReviewService {
             info.setName(initiator.getName());
             dto.setInitiator(info);
         }
+        dto.setRequirements(testCaseRequirementService.listRequirementRefs(
+                review.getProjectId(), review.getRequirementIds()));
         return dto;
     }
 }

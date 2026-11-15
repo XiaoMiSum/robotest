@@ -23,6 +23,8 @@ public class TestReviewListRespDTO {
     private long passed;
     private double progressPercent;
     private double passRate;
+    /** 关联需求数量（需求已删除时不计数） */
+    private long requirementCount;
 
     @Data
     public static class InitiatorInfo {

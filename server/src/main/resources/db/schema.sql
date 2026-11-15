@@ -223,6 +223,24 @@ CREATE INDEX idx_ft_case_node_document_id ON ft_case_node (document_id);
 CREATE INDEX idx_ft_case_node_parent_id ON ft_case_node (parent_id);
 CREATE INDEX idx_ft_case_node_document_type ON ft_case_node (document_id, type) WHERE is_deleted = FALSE;
 
+-- 用例节点关联需求表（多对多，计划/评审创建时按需求反查用例）
+CREATE TABLE ft_case_requirement (
+                                id             UUID      PRIMARY KEY,
+                                project_id     UUID      NOT NULL,
+                                requirement_id UUID      NOT NULL,
+                                case_node_id   UUID      NOT NULL,
+                                document_id    UUID      NOT NULL,
+                                is_deleted     BOOLEAN   NOT NULL DEFAULT FALSE,
+                                created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_ft_case_requirement ON ft_case_requirement (requirement_id, case_node_id) WHERE is_deleted = FALSE;
+CREATE INDEX idx_ft_case_requirement_req ON ft_case_requirement (requirement_id);
+CREATE INDEX idx_ft_case_requirement_case ON ft_case_requirement (case_node_id);
+CREATE INDEX idx_ft_case_requirement_project ON ft_case_requirement (project_id);
+CREATE INDEX idx_ft_case_requirement_document ON ft_case_requirement (document_id);
+
 -- ============================================================
 -- 4. 功能测试 — 测试计划
 -- ============================================================
@@ -238,6 +256,7 @@ CREATE TABLE ft_plan (
                            start_time        TIMESTAMP    NULL,
                            end_time          TIMESTAMP    NULL,
                            environment       VARCHAR(200) NULL,
+                           requirement_ids   JSONB        NULL,
                            snapshot_synced_at TIMESTAMP  NULL,
                            is_deleted        BOOLEAN      NOT NULL DEFAULT FALSE,
                            created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -316,6 +335,7 @@ CREATE TABLE ft_review (
                              description     TEXT         NULL,
                              initiator_id    UUID         NOT NULL,
                              participant_ids JSONB        NOT NULL DEFAULT '[]',
+                             requirement_ids JSONB        NULL,
                              status          VARCHAR(20)  NOT NULL DEFAULT 'new',
                              is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
                              created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1553,6 +1573,13 @@ COMMENT ON COLUMN ft_case_node.sort_order IS '排序序号';
 COMMENT ON COLUMN ft_case_node.version IS '乐观锁版本号，用于并发冲突检测';
 COMMENT ON COLUMN ft_case_node.ai_generated IS 'AI 生成标识（挂载执行器写入，可手动移除）';
 
+COMMENT ON TABLE ft_case_requirement IS '用例节点关联需求表（多对多）';
+COMMENT ON COLUMN ft_case_requirement.id IS '关联唯一标识';
+COMMENT ON COLUMN ft_case_requirement.project_id IS '所属项目 ID（隔离边界）';
+COMMENT ON COLUMN ft_case_requirement.requirement_id IS '需求 ID（逻辑外键 → requirement.id）';
+COMMENT ON COLUMN ft_case_requirement.case_node_id IS '用例节点 ID（逻辑外键 → ft_case_node.id，仅 type=case）';
+COMMENT ON COLUMN ft_case_requirement.document_id IS '用例节点所属文档 ID（冗余，供按文档分组带入计划/评审）';
+
 COMMENT ON TABLE ft_plan IS '测试计划表（用例执行计划）';
 COMMENT ON COLUMN ft_plan.id IS '计划唯一标识';
 COMMENT ON COLUMN ft_plan.project_id IS '所属项目 ID，关联 ws_project.id';
@@ -1563,6 +1590,7 @@ COMMENT ON COLUMN ft_plan.executor_id IS '执行人 ID，关联 sys_user.id';
 COMMENT ON COLUMN ft_plan.start_time IS '计划开始时间';
 COMMENT ON COLUMN ft_plan.end_time IS '计划结束时间';
 COMMENT ON COLUMN ft_plan.environment IS '测试环境描述';
+COMMENT ON COLUMN ft_plan.requirement_ids IS '关联需求 ID 集合（jsonb 数组，创建时写入）';
 COMMENT ON COLUMN ft_plan.snapshot_synced_at IS '计划快照最近同步时间（快照新建/调整/同步后写入，执行顺序推荐据此提示快照过期）';
 
 COMMENT ON TABLE ft_plan_module_snapshot IS '计划模块快照表（创建计划时固化模块结构）';
@@ -1605,6 +1633,7 @@ COMMENT ON COLUMN ft_review.title IS '评审标题';
 COMMENT ON COLUMN ft_review.description IS '评审描述';
 COMMENT ON COLUMN ft_review.initiator_id IS '发起人 ID，关联 sys_user.id';
 COMMENT ON COLUMN ft_review.participant_ids IS '参与者 ID 列表（JSON 数组）';
+COMMENT ON COLUMN ft_review.requirement_ids IS '关联需求 ID 集合（jsonb 数组，创建时写入）';
 COMMENT ON COLUMN ft_review.status IS '评审状态：new=待评审, in_progress=进行中, completed=已通过, rejected=已驳回';
 
 COMMENT ON TABLE ft_review_module_snapshot IS '评审模块快照表（创建评审时固化模块结构）';

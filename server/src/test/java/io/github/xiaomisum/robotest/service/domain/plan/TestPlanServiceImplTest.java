@@ -23,11 +23,13 @@ import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanModuleSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanExecutionRecordMapper;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
+import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,6 +50,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -74,6 +78,10 @@ class TestPlanServiceImplTest {
         @Mock
         private SysUserMapper userMapper;
         @Mock
+        private RequirementMapper requirementMapper;
+        @Mock
+        private TestCaseRequirementService testCaseRequirementService;
+        @Mock
         private ProjectAccessGuard projectAccessGuard;
         @Mock
         private ProjectActivityService projectActivityService;
@@ -94,6 +102,8 @@ class TestPlanServiceImplTest {
                 userId = UUID.fromString("00000000-0000-0000-0000-000000000002");
                 planId = UUID.fromString("00000000-0000-0000-0000-000000000003");
                 otherUserId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+                lenient().when(testCaseRequirementService.resolvePlannedCases(any(), any())).thenReturn(Map.of());
+                lenient().when(testCaseRequirementService.listRequirementRefs(any(), any())).thenReturn(List.of());
         }
 
         @Test
@@ -155,6 +165,32 @@ class TestPlanServiceImplTest {
                 ArgumentCaptor<TestPlan> planCaptor = ArgumentCaptor.forClass(TestPlan.class);
                 verify(testPlanMapper).insert(planCaptor.capture());
                 assertNotNull(planCaptor.getValue().getSnapshotSyncedAt());
+        }
+
+        @Test
+        void createPlan_fromRequirements_persistsRequirementIds() {
+                doAnswer(inv -> {
+                        ((TestPlan) inv.getArgument(0)).setId(UUID.randomUUID());
+                        return 1;
+                }).when(testPlanMapper).insert(any(TestPlan.class));
+
+                UUID requirementId = UUID.randomUUID();
+                UUID documentId = UUID.randomUUID();
+                UUID caseId = UUID.randomUUID();
+                when(testCaseRequirementService.resolvePlannedCases(projectId, List.of(requirementId)))
+                        .thenReturn(Map.of(documentId, Set.of(caseId)));
+
+                TestPlanCreateReqDTO reqDTO = new TestPlanCreateReqDTO();
+                reqDTO.setName("Requirement Plan");
+                reqDTO.setRequirementIds(List.of(requirementId));
+
+                TestPlanDetailRespDTO result = planService.createPlan(projectId, userId, reqDTO);
+
+                assertNotNull(result);
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).insert(captor.capture());
+                assertEquals(List.of(requirementId), captor.getValue().getRequirementIds());
+                verify(testCaseRequirementService).resolvePlannedCases(projectId, List.of(requirementId));
         }
 
         @Test
