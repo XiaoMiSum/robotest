@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useDashboard } from '@/composables/admin/useDashboard'
+import { useDashboard, DASHBOARD_WORKSPACE_PAGE_SIZE } from '@/composables/admin/useDashboard'
+import ListPagination from '@/components/common/ListPagination.vue'
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
@@ -196,17 +197,16 @@ const {
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
       </el-table>
-      <footer v-if="!workspaceError || workspaceList.length" class="dashboard__table-foot">
-        <span class="dashboard__total">共 {{ workspaceTotal }} 个空间</span>
-        <el-pagination
-          v-if="workspacePages > 1"
-          layout="prev, pager, next"
-          :page-size="8"
-          :total="workspaceTotal"
-          :current-page="workspacePage"
-          @current-change="gotoWorkspacePage"
-        />
-      </footer>
+      <ListPagination
+        v-if="(!workspaceError || workspaceList.length) && workspacePages > 1"
+        class="dashboard__table-foot"
+        :page-no="workspacePage"
+        :page-size="DASHBOARD_WORKSPACE_PAGE_SIZE"
+        :total="workspaceTotal"
+        :page-sizes="[]"
+        unit="个空间"
+        @page-change="({ pageNo }) => gotoWorkspacePage(pageNo)"
+      />
     </section>
   </div>
 </template>
@@ -468,19 +468,9 @@ const {
   border-radius: 2px;
 }
 
+/* 仪表盘表格无卡片内边距，分页条仅需与表格拉开间距（边距与留白由分页组件统一提供） */
 .dashboard__table-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
   margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--color-neutral-100);
-}
-
-.dashboard__total {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-500);
 }
 
 .dot {

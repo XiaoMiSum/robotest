@@ -12,6 +12,7 @@ import {
 import type { AdminUser, RoleSimple, UserStatus } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 
 const router = useRouter()
 
@@ -313,17 +314,12 @@ onMounted(() => {
         </el-table-column>
       </el-table>
 
-      <footer class="user-list__footer">
-        <el-pagination
-          v-model:current-page="query.pageNo"
-          v-model:page-size="query.pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="loadUsers"
-          @size-change="handleSearch"
-        />
-      </footer>
+      <ListPagination
+        v-model:page-no="query.pageNo"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        @change="loadUsers"
+      />
     </section>
 
     <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
@@ -491,17 +487,6 @@ onMounted(() => {
 .user-list__muted {
   color: var(--color-neutral-500);
   font-size: var(--font-size-xs);
-}
-
-/* 批量条已移出页脚，单子元素下改为右对齐保持分页原观感 */
-.user-list__footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-md);
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
-  flex-wrap: wrap;
 }
 
 .user-list__reset-tip {

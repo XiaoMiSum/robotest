@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { fetchWorkspaces } from '@/services/admin'
 import { useAuthStore } from '@/stores/auth'
 import WorkspaceCreateDialog from '@/components/workspace/WorkspaceCreateDialog.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
 import type { AdminWorkspace } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
@@ -188,17 +189,12 @@ onMounted(loadWorkspaces)
         </el-table-column>
       </el-table>
 
-      <div class="workspace-list__pager">
-        <el-pagination
-          v-model:current-page="query.pageNo"
-          v-model:page-size="query.pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @current-change="loadWorkspaces"
-          @size-change="handleSearch"
-        />
-      </div>
+      <ListPagination
+        v-model:page-no="query.pageNo"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        @change="loadWorkspaces"
+      />
     </section>
 
     <WorkspaceCreateDialog
@@ -323,12 +319,5 @@ onMounted(loadWorkspaces)
 
 .workspace-list__num {
   font-variant-numeric: tabular-nums;
-}
-
-.workspace-list__pager {
-  display: flex;
-  justify-content: flex-end;
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-neutral-100);
 }
 </style>
