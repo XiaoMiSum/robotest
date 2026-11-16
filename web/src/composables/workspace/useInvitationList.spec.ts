@@ -112,6 +112,26 @@ describe('useInvitationList', () => {
     expect(sut.invitationsLoadError.value).toBe(true)
   })
 
+  it('已有数据时刷新失败保留列表与分页信息并可重试', async () => {
+    const sut = useInvitationList()
+    await sut.loadInvitations()
+
+    mocks.fetchInvitations.mockRejectedValueOnce(new Error('刷新失败'))
+    sut.invQuery.pageNo = 2
+    await expect(sut.loadInvitations()).resolves.toBe(false)
+
+    expect(sut.invitations.value).toHaveLength(1)
+    expect(sut.invitationTotal.value).toBe(3)
+    expect(sut.invQuery.pageNo).toBe(2)
+    expect(sut.invitationsLoadError.value).toBe(true)
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('刷新失败')
+
+    mocks.fetchInvitations.mockResolvedValueOnce({ list: [makeInvitation({ id: 'inv-2' })], total: 3 })
+    await expect(sut.loadInvitations()).resolves.toBe(true)
+    expect(sut.invitations.value[0]?.id).toBe('inv-2')
+    expect(sut.invitationsLoadError.value).toBe(false)
+  })
+
   it('权限晚到时先等待就绪再拉列表，避免刷新进入只拉到成员', async () => {
     let releasePermissions!: () => void
     mocks.authStore.permissionsLoaded = false
