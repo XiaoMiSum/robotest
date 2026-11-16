@@ -257,7 +257,7 @@ function handlePageSizeChange() {
         <el-form-item label="调度策略" required>
           <div class="cron-field">
             <el-select placeholder="预设" style="width: 160px" clearable @change="handlePresetSelect">
-              <el-option v-for="preset in CRON_PRESETS" :key="preset.value" :label="preset.label" :value="preset.value" />
+              <el-option v-for="preset in CRON_PRESETS" :key="preset.expression" :label="preset.label" :value="preset.expression" />
             </el-select>
             <el-input v-model="form.cronExpression" placeholder="Cron 表达式" style="flex: 1" />
             <el-button :loading="cronValidating" @click="handleValidateCron">校验</el-button>
