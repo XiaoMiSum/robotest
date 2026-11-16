@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiReportPageItem } from '@/types'
 import {
@@ -10,6 +10,8 @@ import {
 import { formatDateTime } from '@/utils/format'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 
 const emit = defineEmits<{
   (e: 'view', reportId: string): void
@@ -22,6 +24,9 @@ const dateRange = ref<[string, string] | null>(null)
 const pageNo = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
+const hasLoaded = ref(false)
+const loadError = ref('')
+let requestId = 0
 
 const statusOptions = [
   { value: '', label: '全部状态' },
@@ -29,6 +34,19 @@ const statusOptions = [
   { value: 'failed', label: '失败' },
   { value: 'partial', label: '部分通过' },
 ]
+
+const hasFilters = computed(() =>
+  Boolean(searchText.value.trim() || statusFilter.value || dateRange.value),
+)
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载报告…'
+  if (loadError.value) return '测试报告列表加载失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无测试报告'
+})
 
 // ==================== 列表 ====================
 const rows = ref<ApiReportPageItem[]>([])
@@ -38,20 +56,28 @@ const selectedIds = ref<string[]>([])
 const tableRef = ref<{ clearSelection: () => void } | null>(null)
 
 async function loadPage() {
+  const current = ++requestId
   loading.value = true
+  loadError.value = ''
   try {
     const params: Record<string, unknown> = { pageNo: pageNo.value, pageSize: pageSize.value }
     if (statusFilter.value) params.status = statusFilter.value
-    if (searchText.value.trim()) params.keyword = searchText.value.trim()
-    if (dateRange.value && dateRange.value[0]) params.startDate = dateRange.value[0]
-    if (dateRange.value && dateRange.value[1]) params.endDate = dateRange.value[1]
-    const page = await fetchReportPage(params as { pageNo: number; pageSize: number; status?: string; keyword?: string; startDate?: string; endDate?: string })
+    if (searchText.value) params.sceneName = searchText.value
+    if (dateRange.value) {
+      params.startDate = dateRange.value[0]
+      params.endDate = dateRange.value[1]
+    }
+    const page = await fetchReportPage(params as Parameters<typeof fetchReportPage>[0])
+    if (current !== requestId) return
     rows.value = page.list
     total.value = page.total
+    hasLoaded.value = true
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '报告列表加载失败')
+    if (current !== requestId) return
+    loadError.value = error instanceof Error ? error.message : '测试报告列表加载失败'
+    ElMessage.error(loadError.value)
   } finally {
-    loading.value = false
+    if (current === requestId) loading.value = false
   }
 }
 
@@ -62,6 +88,10 @@ function handleFilter() {
 }
 
 watch(statusFilter, handleFilter)
+
+onBeforeUnmount(() => {
+  requestId += 1
+})
 
 // ==================== 报告名称派生 ====================
 function reportName(row: ApiReportPageItem): string {
@@ -116,8 +146,8 @@ async function handleDelete(row: ApiReportPageItem) {
   try {
     await deleteReport(row.id)
     ElMessage.success('已删除')
-    if (!rows.value.length && pageNo.value > 1) pageNo.value -= 1
-    else void loadPage()
+    if (rows.value.length <= 1 && pageNo.value > 1) pageNo.value -= 1
+    void loadPage()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '删除失败')
   }
@@ -139,11 +169,18 @@ async function handleBatchDelete() {
     await batchDeleteReports(selectedIds.value)
     ElMessage.success('已删除')
     tableRef.value?.clearSelection()
-    if (!rows.value.length && pageNo.value > 1) pageNo.value -= 1
-    else void loadPage()
+    if (rows.value.length <= selectedIds.value.length && pageNo.value > 1) pageNo.value -= 1
+    void loadPage()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '删除失败')
   }
+}
+
+function clearFilters() {
+  searchText.value = ''
+  statusFilter.value = ''
+  dateRange.value = null
+  handleFilter()
 }
 
 onMounted(async () => {
@@ -177,8 +214,18 @@ onMounted(async () => {
       />
     </div>
 
+    <div v-if="hasLoaded && loadError" class="reports-page__feedback">
+      <ListLoadFeedback
+        mode="refresh-error"
+        title="刷新失败，当前显示上次加载的数据"
+        :description="loadError"
+        :retrying="loading"
+        @retry="loadPage"
+      />
+    </div>
+
     <!-- 表体区是页面内唯一滚动拥有者：表格固定高度、表头固定，超出时表体内滚动（UI-SC-02 / UI-SC-05 / UI-SC-06） -->
-    <div class="reports-page__body">
+    <div v-if="hasLoaded || !loadError" class="reports-page__body">
       <el-table
         ref="tableRef"
         :data="rows"
@@ -186,11 +233,12 @@ onMounted(async () => {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="40" />
-        <el-table-column label="报告名称" min-width="220" show-overflow-tooltip>
+        <el-table-column label="报告名称" min-width="220">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="handleView(row as ApiReportPageItem)">
-              {{ reportName(row as ApiReportPageItem) }}
-            </el-link>
+            <ListTitleLink
+              :title="reportName(row as ApiReportPageItem)"
+              @open="handleView(row as ApiReportPageItem)"
+            />
           </template>
         </el-table-column>
         <el-table-column label="类型" width="90" align="center">
@@ -229,13 +277,24 @@ onMounted(async () => {
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="暂无测试报告，定时任务执行后生成；场景页运行报告可在场景执行历史中查看" />
+          <ListLoadFeedback
+            v-if="loading || !hasLoaded || !loadError"
+            :mode="emptyMode"
+            :title="emptyTitle"
+            :description="loadError"
+            @retry="loadPage"
+            @reset="clearFilters"
+          />
         </template>
       </el-table>
     </div>
 
+    <div v-else class="reports-page__first-error">
+      <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="loadPage" />
+    </div>
+
     <!-- 页面壳已提供左右内边距，分页用 bare 模式与工具栏对齐同一左基线 -->
-    <div class="reports-page__footer">
+    <div v-if="hasLoaded || !loadError" class="reports-page__footer">
       <ListPagination
         v-model:page-no="pageNo"
         v-model:page-size="pageSize"
@@ -264,6 +323,19 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.reports-page__feedback {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.reports-page__first-error {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 0;
 }
 
 /* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
