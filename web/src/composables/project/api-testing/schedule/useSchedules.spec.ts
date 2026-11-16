@@ -109,6 +109,8 @@ describe('useSchedules', () => {
       expect(s.total.value).toBe(0)
       expect(s.pageNo.value).toBe(1)
       expect(s.loading.value).toBe(false)
+      expect(s.hasLoaded.value).toBe(false)
+      expect(s.loadError.value).toBe('')
       expect(s.typeFilter.value).toBe('')
     })
 
@@ -183,14 +185,19 @@ describe('useSchedules', () => {
       expect(s.rows.value).toEqual(items)
       expect(s.total.value).toBe(2)
       expect(s.loading.value).toBe(false)
+      expect(s.hasLoaded.value).toBe(true)
+      expect(s.loadError.value).toBe('')
     })
 
-    it('加载失败显示错误消息', async () => {
+    it('首屏加载失败显示错误消息并保留未加载状态', async () => {
       const s = makeSut()
       mocks.fetchSchedulePage.mockRejectedValue(new Error('网络错误'))
       await s.loadPage()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('网络错误')
       expect(s.loading.value).toBe(false)
+      expect(s.hasLoaded.value).toBe(false)
+      expect(s.loadError.value).toBe('网络错误')
+      expect(s.rows.value).toEqual([])
     })
 
     it('加载失败非 Error 显示通用消息', async () => {
@@ -198,6 +205,7 @@ describe('useSchedules', () => {
       mocks.fetchSchedulePage.mockRejectedValue('string err')
       await s.loadPage()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('定时任务列表加载失败')
+      expect(s.loadError.value).toBe('定时任务列表加载失败')
     })
 
     it('带 taskType 筛选时传递参数', async () => {
