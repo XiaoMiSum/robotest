@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onActivated, ref, watch } from 'vue'
+import { computed, onActivated, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import type { ApiScenePageItem, ProjectModule } from '@/types'
@@ -12,6 +12,8 @@ import { formatDateTime } from '@/utils/format'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 
 const emit = defineEmits<{
   (e: 'edit', sceneId: string): void
@@ -46,9 +48,12 @@ const total = ref(0)
 const pageNo = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
+const hasLoaded = ref(false)
+const loadError = ref('')
 const searchText = ref('')
 const lastStatusFilter = ref<string>('')
 const publishStatusFilter = ref<string>('')
+let requestId = 0
 
 const LAST_STATUS_OPTIONS = [
   { value: 'success', label: '执行成功' },
@@ -88,8 +93,30 @@ async function loadRepo() {
   }
 }
 
+const hasFilters = computed(() =>
+  Boolean(
+    searchText.value.trim() ||
+      lastStatusFilter.value ||
+      publishStatusFilter.value ||
+      viewFilter.value !== 'all' ||
+      sourceFilter.value ||
+      selectedModuleId.value,
+  ),
+)
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载场景…'
+  if (loadError.value) return '场景列表加载失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无测试场景'
+})
+
 async function loadPage() {
+  const current = ++requestId
   loading.value = true
+  loadError.value = ''
   try {
     const query: Record<string, unknown> = { pageNo: pageNo.value, pageSize: pageSize.value }
     if (selectedModuleId.value) query.moduleId = selectedModuleId.value
@@ -100,16 +127,24 @@ async function loadPage() {
     if (viewFilter.value && viewFilter.value !== 'all') query.view = viewFilter.value
     if (sourceFilter.value) query.sourceType = sourceFilter.value
     const page = await fetchScenePage(query as { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: string; sourceType?: string })
+    if (current !== requestId) return
     rows.value = page.list
     total.value = page.total
+    hasLoaded.value = true
     // 模块名映射随每次列表加载刷新，保证重命名/删除/拖拽后「所属模块」列显示最新名称
     void loadModules()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '场景列表加载失败')
+    if (current !== requestId) return
+    loadError.value = error instanceof Error ? error.message : '场景列表加载失败'
+    ElMessage.error(loadError.value)
   } finally {
-    loading.value = false
+    if (current === requestId) loading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  requestId += 1
+})
 
 watch(selectedModuleId, () => {
   pageNo.value = 1
@@ -324,109 +359,141 @@ onActivated(async () => {
       </el-card>
 
       <el-card v-loading="loading" shadow="never" class="scenarios-page__data-card">
-        <!-- 仓库级「源有更新」信息条（交互 09 §1.1）：仅一条、不逐场景标注，导入或同步后随 hasUpdates 消失 -->
-        <div v-if="repo?.hasUpdates" class="scenarios-page__source-updates" role="alert">
-          <span>所属仓库有更新，导入或同步后生效</span>
-          <el-button link size="small" type="primary" @click="goGitLabPage('import')">前往导入</el-button>
+        <div v-if="hasLoaded && loadError" class="scenarios-page__feedback">
+          <ListLoadFeedback
+            mode="refresh-error"
+            title="刷新失败，当前显示上次加载的数据"
+            :description="loadError"
+            :retrying="loading"
+            @retry="loadPage"
+          />
         </div>
-        <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
-        <div class="scenarios-page__table">
-          <el-table ref="tableRef" :data="rows" height="100%" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
-            <el-table-column type="selection" width="40" />
-            <el-table-column width="44">
-              <template #default="{ row }">
-                <el-icon
-                  class="scenarios-page__star"
-                  :class="{ 'is-active': row.followed }"
-                  @click="toggleFollow(row as ApiScenePageItem)"
-                ><StarFilled v-if="row.followed" /><Star v-else /></el-icon>
-              </template>
-            </el-table-column>
-            <el-table-column prop="name" label="场景名称" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">
-                <el-link type="primary" :underline="false" @click="openDetail(row as ApiScenePageItem)">{{ row.name }}</el-link>
-                <!-- [GitLab] 来源徽标（交互 09 §1.2）：hover 展示仓库与项目路径，点击跳集成页导入页签 -->
-                <el-tooltip
-                  v-if="(row as ApiScenePageItem).sourceType === 'gitlab'"
-                  :content="`${repo?.name ?? 'GitLab 仓库'} · ${repo?.repoPath ?? '-'}`"
-                  placement="top"
-                >
-                  <span class="scenarios-page__source-badge" @click="goGitLabPage('import')">GitLab</span>
-                </el-tooltip>
-                <!-- 源状态徽标（交互 09 §1.2）：in_sync 不展示；点击跳集成页 -->
-                <el-tooltip
-                  v-if="sourceStatusLabel((row as ApiScenePageItem).sourceStatus)"
-                  :content="sourceStatusLabel((row as ApiScenePageItem).sourceStatus) ?? ''"
-                  placement="top"
-                >
+        <template v-if="hasLoaded || !loadError">
+          <!-- 仓库级「源有更新」信息条（交互 09 §1.1）：仅一条、不逐场景标注，导入或同步后随 hasUpdates 消失 -->
+          <div v-if="repo?.hasUpdates" class="scenarios-page__source-updates" role="alert">
+            <span>所属仓库有更新，导入或同步后生效</span>
+            <el-button link size="small" type="primary" @click="goGitLabPage('import')">前往导入</el-button>
+          </div>
+          <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
+          <div class="scenarios-page__table">
+            <el-table ref="tableRef" :data="rows" height="100%" @selection-change="(val: ApiScenePageItem[]) => selectedIds = val.map(r => r.id)">
+              <el-table-column type="selection" width="40" />
+              <el-table-column width="44">
+                <template #default="{ row }">
+                  <el-icon
+                    class="scenarios-page__star"
+                    :class="{ 'is-active': row.followed }"
+                    @click="toggleFollow(row as ApiScenePageItem)"
+                  ><StarFilled v-if="row.followed" /><Star v-else /></el-icon>
+                </template>
+              </el-table-column>
+              <el-table-column prop="name" label="场景名称" min-width="200">
+                <template #default="{ row }">
+                  <div class="scenarios-page__name-cell">
+                    <ListTitleLink
+                      :title="row.name"
+                      @open="openDetail(row as ApiScenePageItem)"
+                    />
+                    <!-- [GitLab] 来源徽标（交互 09 §1.2）：hover 展示仓库与项目路径，点击跳集成页导入页签 -->
+                    <el-tooltip
+                      v-if="(row as ApiScenePageItem).sourceType === 'gitlab'"
+                      :content="`${repo?.name ?? 'GitLab 仓库'} · ${repo?.repoPath ?? '-'}`"
+                      placement="top"
+                    >
+                      <span class="scenarios-page__source-badge" @click="goGitLabPage('import')">GitLab</span>
+                    </el-tooltip>
+                    <!-- 源状态徽标（交互 09 §1.2）：in_sync 不展示；点击跳集成页 -->
+                    <el-tooltip
+                      v-if="sourceStatusLabel((row as ApiScenePageItem).sourceStatus)"
+                      :content="sourceStatusLabel((row as ApiScenePageItem).sourceStatus) ?? ''"
+                      placement="top"
+                    >
+                      <span
+                        class="scenarios-page__source-status"
+                        :class="`is-${(row as ApiScenePageItem).sourceStatus}`"
+                        @click="goGitLabPage()"
+                      >{{ sourceStatusLabel((row as ApiScenePageItem).sourceStatus) }}</span>
+                    </el-tooltip>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="所属模块" width="140">
+                <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '未分组' }}</template>
+              </el-table-column>
+              <el-table-column label="优先级" width="80" align="center">
+                <template #default="{ row }">
+                  <span v-if="row.priority" class="scenarios-page__priority" :class="`scenarios-page__priority--${row.priority.toLowerCase()}`">{{ row.priority }}</span>
+                  <span v-else class="text-neutral-400">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="stepCount" label="步骤数" width="80" align="center" />
+              <el-table-column label="状态" width="90" align="center">
+                <template #default="{ row }">
+                  <!-- 发布状态徽标，视觉对齐场景编辑器顶部的状态标签 -->
                   <span
-                    class="scenarios-page__source-status"
-                    :class="`is-${(row as ApiScenePageItem).sourceStatus}`"
-                    @click="goGitLabPage()"
-                  >{{ sourceStatusLabel((row as ApiScenePageItem).sourceStatus) }}</span>
-                </el-tooltip>
+                    class="scenarios-page__publish-status"
+                    :class="(row as ApiScenePageItem).status === 'published' ? 'is-published' : 'is-draft'"
+                  >{{ (row as ApiScenePageItem).status === 'published' ? '已发布' : (row as ApiScenePageItem).status === 'draft' ? '草稿' : '—' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="最近执行" width="100">
+                <template #default="{ row }">
+                  <el-tag v-if="row.lastStatus" size="small" :type="statusType(row.lastStatus)">{{ statusLabel(row.lastStatus) }}</el-tag>
+                  <span v-else class="text-neutral-400">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="lastExecutedAt" label="最近执行时间" width="170">
+                <template #default="{ row }">
+                  <span v-if="row.lastExecutedAt">{{ formatDateTime(row.lastExecutedAt) }}</span>
+                  <span v-else class="text-neutral-400">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="updatedAt" label="更新时间" width="170">
+                <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="180" fixed="right">
+                <template #default="{ row }">
+                  <el-button link size="small" type="primary" @click="openDetail(row as ApiScenePageItem)">编辑</el-button>
+                  <el-dropdown trigger="click" class="scenarios-page__more" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
+                    <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="execute">执行</el-dropdown-item>
+                        <el-dropdown-item command="copy">复制</el-dropdown-item>
+                        <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </template>
+              </el-table-column>
+              <template #empty>
+                <ListLoadFeedback
+                  v-if="loading || !hasLoaded || !loadError"
+                  :mode="emptyMode"
+                  :title="emptyTitle"
+                  :description="loadError"
+                  @retry="loadPage"
+                  @reset="handleReset"
+                />
               </template>
-            </el-table-column>
-            <el-table-column label="所属模块" width="140">
-              <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '未分组' }}</template>
-            </el-table-column>
-            <el-table-column label="优先级" width="80" align="center">
-              <template #default="{ row }">
-                <span v-if="row.priority" class="scenarios-page__priority" :class="`scenarios-page__priority--${row.priority.toLowerCase()}`">{{ row.priority }}</span>
-                <span v-else class="text-neutral-400">—</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="stepCount" label="步骤数" width="80" align="center" />
-            <el-table-column label="状态" width="90" align="center">
-              <template #default="{ row }">
-                <!-- 发布状态徽标，视觉对齐场景编辑器顶部的状态标签 -->
-                <span
-                  class="scenarios-page__publish-status"
-                  :class="(row as ApiScenePageItem).status === 'published' ? 'is-published' : 'is-draft'"
-                >{{ (row as ApiScenePageItem).status === 'published' ? '已发布' : (row as ApiScenePageItem).status === 'draft' ? '草稿' : '—' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="最近执行" width="100">
-              <template #default="{ row }">
-                <el-tag v-if="row.lastStatus" size="small" :type="statusType(row.lastStatus)">{{ statusLabel(row.lastStatus) }}</el-tag>
-                <span v-else class="text-neutral-400">—</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="lastExecutedAt" label="最近执行时间" width="170">
-              <template #default="{ row }">
-                <span v-if="row.lastExecutedAt">{{ formatDateTime(row.lastExecutedAt) }}</span>
-                <span v-else class="text-neutral-400">—</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="updatedAt" label="更新时间" width="170">
-              <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
-              <template #default="{ row }">
-                <el-button link size="small" type="primary" @click="openDetail(row as ApiScenePageItem)">编辑</el-button>
-                <el-dropdown trigger="click" class="scenarios-page__more" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
-                  <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="execute">执行</el-dropdown-item>
-                      <el-dropdown-item command="copy">复制</el-dropdown-item>
-                      <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </template>
-            </el-table-column>
-            <template #empty>
-              <el-empty description="暂无测试场景，点击右上角「新建场景」开始创建" />
-            </template>
-          </el-table>
+            </el-table>
+          </div>
+          <ListPagination
+            v-model:page-no="pageNo"
+            v-model:page-size="pageSize"
+            :total="total"
+            @change="loadPage"
+          />
+        </template>
+        <div v-else class="scenarios-page__first-error">
+          <ListLoadFeedback
+            mode="error"
+            :title="emptyTitle"
+            :description="loadError"
+            :retrying="loading"
+            @retry="loadPage"
+          />
         </div>
-        <ListPagination
-          v-model:page-no="pageNo"
-          v-model:page-size="pageSize"
-          :total="total"
-          @change="loadPage"
-        />
         </el-card>
       </div>
 
@@ -533,11 +600,35 @@ onActivated(async () => {
   }
 }
 
+.scenarios-page__feedback {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.scenarios-page__first-error {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 0;
+}
+
 .scenarios-page__table {
   /* 表体容器承接剩余可用高度并允许收缩，表格内滚动即为卡片唯一滚动拥有者（UI-SC-02 / UI-SC-06） */
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.scenarios-page__name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+
+  :deep(.list-title-link) {
+    flex: 1;
+  }
 }
 
 // 批量移动弹窗模块树：树体自带高度约束与滚动，滚动不外溢到弹窗 wrapper（UI-SC-02），

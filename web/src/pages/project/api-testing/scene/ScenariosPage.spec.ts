@@ -309,3 +309,17 @@ describe('ScenariosPage KeepAlive 恢复时列表刷新', () => {
     expect(wrapper.findAll('.el-table__row')).toHaveLength(1)
   })
 })
+
+describe('ScenariosPage 列表样板对齐', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(true) })
+    mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
+  })
+
+  it('场景名称使用可聚焦标题入口并保留来源徽标', async () => {
+    const wrapper = await mountPage([makeScene({ id: 'scene-gl', name: '流水线查询订单', sourceType: 'gitlab' })])
+    expect(wrapper.find('.list-title-link').exists()).toBe(true)
+    expect(wrapper.find('.scenarios-page__source-badge').exists()).toBe(true)
+  })
+})
