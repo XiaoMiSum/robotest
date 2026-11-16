@@ -119,20 +119,22 @@ describe('useRequirementList', () => {
       expect(s.loading.value).toBe(false)
     })
 
-    it('失败时记录页面级错误且不进入已加载态', async () => {
+    it('失败时记录页面级错误、提示消息且不进入已加载态', async () => {
       mocks.fetchRequirements.mockRejectedValue(new Error('服务不可用'))
       const s = useRequirementList()
       await s.load()
       expect(s.loadError.value).toBe('服务不可用')
       expect(s.hasLoaded.value).toBe(false)
       expect(s.loading.value).toBe(false)
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('服务不可用')
     })
 
-    it('非 Error 异常回退到默认文案', async () => {
+    it('非 Error 异常回退到默认文案并提示', async () => {
       mocks.fetchRequirements.mockRejectedValue('boom')
       const s = useRequirementList()
       await s.load()
       expect(s.loadError.value).toBe('加载需求列表失败')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载需求列表失败')
     })
 
     it('retry 重新拉取并清空错误', async () => {
@@ -164,6 +166,28 @@ describe('useRequirementList', () => {
 
       expect(s.rows.value[0].id).toBe('r2')
       expect(s.total.value).toBe(1)
+    })
+
+    it('过期错误不覆盖新请求状态', async () => {
+      const older = deferred<{ list: RequirementListItem[]; total: number }>()
+      const latest = deferred<{ list: RequirementListItem[]; total: number }>()
+      mocks.fetchRequirements
+        .mockReturnValueOnce(older.promise)
+        .mockReturnValueOnce(latest.promise)
+
+      const s = useRequirementList()
+      const first = s.load()
+      const second = s.load()
+      older.reject(new Error('过期错误'))
+      await first
+      expect(s.loadError.value).toBe('')
+      expect(mocks.ElMessage.error).not.toHaveBeenCalled()
+      expect(s.loading.value).toBe(true)
+
+      latest.resolve({ list: [makeItem()], total: 1 })
+      await second
+      expect(s.loadError.value).toBe('')
+      expect(s.hasLoaded.value).toBe(true)
     })
 
     it('版本选项按当前页数据去重累计', async () => {
@@ -272,7 +296,37 @@ describe('useRequirementList', () => {
       await vi.advanceTimersByTimeAsync(1200)
       // trim 后与上次搜索值一致 → 不重复发请求
       expect(mocks.fetchRequirements.mock.calls.length).toBe(calls)
-    })  })
+    })
+
+    it('关键词失焦立即查询并取消防抖', async () => {
+      const s = useRequirementList()
+      await s.load()
+      const calls = mocks.fetchRequirements.mock.calls.length
+      s.filters.keyword = '登录'
+      await nextTick()
+      s.handleKeywordBlur()
+      await flush()
+      expect(mocks.fetchRequirements.mock.calls.length).toBe(calls + 1)
+      expect(mocks.fetchRequirements).toHaveBeenLastCalledWith(
+        expect.objectContaining({ keyword: '登录' }),
+      )
+      await vi.advanceTimersByTimeAsync(1200)
+      expect(mocks.fetchRequirements.mock.calls.length).toBe(calls + 1)
+    })
+
+    it('关键词失焦时与已搜索值一致则不重复查询', async () => {
+      const s = useRequirementList()
+      s.filters.keyword = '登录'
+      s.search()
+      await flush()
+      const calls = mocks.fetchRequirements.mock.calls.length
+      s.filters.keyword = '登录 '
+      await nextTick()
+      s.handleKeywordBlur()
+      await flush()
+      expect(mocks.fetchRequirements.mock.calls.length).toBe(calls)
+    })
+  })
 
   describe('分页', () => {
     it('翻页与改 pageSize 的取数参数', async () => {

@@ -8,6 +8,8 @@ import type { RequirementRow } from '@/composables/project/requirement/requireme
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
 const router = useRouter()
@@ -38,6 +40,7 @@ const {
   resetFilters,
   changePage,
   changePageSize,
+  handleKeywordBlur,
   handleConfirm,
   handleArchive,
   handleUnarchive,
@@ -137,7 +140,7 @@ function openCreate(): void {
 
     <!-- 列表错误：提示条 + 重试，不展示空态以免误导（UI-PAGE-11） -->
     <el-alert
-      v-if="loadError"
+      v-if="loadError && !hasLoaded"
       type="error"
       :title="loadError"
       show-icon
@@ -217,6 +220,7 @@ function openCreate(): void {
           style="width: 220px"
           @keyup.enter="search"
           @clear="search"
+          @blur="handleKeywordBlur"
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
@@ -226,6 +230,16 @@ function openCreate(): void {
         <el-button @click="resetFilters">重置</el-button>
         <el-badge v-if="filterCount > 0" :value="filterCount" class="requirement-list__badge" />
         <span class="requirement-list__count">共 {{ total }} 条</span>
+      </div>
+
+      <div v-if="hasLoaded && loadError" class="requirement-list__refresh-error">
+        <ListLoadFeedback
+          mode="refresh-error"
+          title="刷新失败，当前显示上次加载的数据"
+          :description="loadError"
+          :retrying="loading"
+          @retry="retry"
+        />
       </div>
 
       <el-skeleton v-if="showSkeleton" :rows="6" animated class="requirement-list__skeleton" />
@@ -245,11 +259,9 @@ function openCreate(): void {
             <span class="requirement-list__code">{{ row.code }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="标题" min-width="260" show-overflow-tooltip>
+        <el-table-column label="标题" min-width="260">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click.stop="openDetail(row.id)">
-              {{ row.title }}
-            </el-link>
+            <ListTitleLink :title="row.title" @open="openDetail(row.id)" />
           </template>
         </el-table-column>
         <el-table-column label="所属模块" width="130" show-overflow-tooltip>
@@ -417,6 +429,10 @@ function openCreate(): void {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
   white-space: nowrap;
+}
+
+.requirement-list__refresh-error {
+  flex-shrink: 0;
 }
 
 .requirement-list__skeleton {

@@ -120,6 +120,7 @@ export function useRequirementList() {
       if (id !== requestId) return
       // 页面级错误提示 + 重试入口（UI-PUE-11）
       loadError.value = errorMessage(err, '加载需求列表失败')
+      ElMessage.error(loadError.value)
     } finally {
       if (id === requestId) loading.value = false
     }
@@ -164,7 +165,15 @@ export function useRequirementList() {
     },
   )
 
-  onBeforeUnmount(clearKeywordTimer)
+  function handleKeywordBlur(): void {
+    if (filters.keyword.trim() === searchedKeyword) return
+    search()
+  }
+
+  onBeforeUnmount(() => {
+    clearKeywordTimer()
+    requestId += 1
+  })
 
   function changePage(pageNo: number): void {
     requirementStore.pageNo = pageNo
@@ -302,6 +311,7 @@ export function useRequirementList() {
     resetFilters,
     changePage,
     changePageSize,
+    handleKeywordBlur,
     handleConfirm,
     handleArchive,
     handleUnarchive,
