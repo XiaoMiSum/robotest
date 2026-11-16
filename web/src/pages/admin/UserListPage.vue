@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -13,6 +13,8 @@ import type { AdminUser, RoleSimple, UserStatus } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 
 const router = useRouter()
 
@@ -24,11 +26,14 @@ const STATUS_META: Record<UserStatus, { label: string; dot: string }> = {
 }
 
 const loading = ref(false)
+const hasLoaded = ref(false)
+const loadError = ref('')
 const users = ref<AdminUser[]>([])
 const total = ref(0)
 const selectedIds = ref<string[]>([])
 // 批量条清空需直接驱动表格勾选态，避免只清 ids 导致复选框残留
 const tableRef = ref<{ clearSelection: () => void } | null>(null)
+let requestId = 0
 
 const query = reactive({
   keyword: '',
@@ -39,9 +44,21 @@ const query = reactive({
 })
 
 const roleOptions = ref<RoleSimple[]>([])
+const hasFilters = computed(() => Boolean(query.keyword || query.status || query.roleId))
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载用户…'
+  if (loadError.value) return '加载用户列表失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无用户'
+})
 
 async function loadUsers() {
+  const current = ++requestId
   loading.value = true
+  loadError.value = ''
   try {
     const page = await fetchUsers({
       keyword: query.keyword || undefined,
@@ -50,12 +67,16 @@ async function loadUsers() {
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
+    if (current !== requestId) return
     users.value = page.list
     total.value = page.total
+    hasLoaded.value = true
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载用户列表失败')
+    if (current !== requestId) return
+    loadError.value = err instanceof Error ? err.message : '加载用户列表失败'
+    ElMessage.error(loadError.value)
   } finally {
-    loading.value = false
+    if (current === requestId) loading.value = false
   }
 }
 
@@ -74,7 +95,7 @@ async function loadFilterOptions() {
 
 function handleSearch() {
   query.pageNo = 1
-  loadUsers()
+  void loadUsers()
 }
 
 function handleReset() {
@@ -82,7 +103,7 @@ function handleReset() {
   query.status = ''
   query.roleId = ''
   query.pageNo = 1
-  loadUsers()
+  void loadUsers()
 }
 
 function handleSelectionChange(rows: AdminUser[]) {
@@ -102,7 +123,7 @@ async function handleChangeStatus(user: AdminUser, next: UserStatus) {
   try {
     await updateUserStatus(user.id, next)
     ElMessage.success(`已${actionText}`)
-    loadUsers()
+    void loadUsers()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : `${actionText}失败`)
   }
@@ -124,7 +145,7 @@ async function handleBatchStatus(status: UserStatus) {
     await batchUpdateUserStatus(selectedIds.value, status)
     ElMessage.success(`已批量${actionText}`)
     tableRef.value?.clearSelection()
-    loadUsers()
+    void loadUsers()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '批量操作失败')
   }
@@ -163,9 +184,17 @@ async function submitResetPassword() {
   }
 }
 
+function goUserDetail(id: string) {
+  router.push(`/admin/users/${id}`)
+}
+
+onBeforeUnmount(() => {
+  requestId += 1
+})
+
 onMounted(() => {
-  loadFilterOptions()
-  loadUsers()
+  void loadFilterOptions()
+  void loadUsers()
 })
 </script>
 
@@ -226,100 +255,120 @@ onMounted(() => {
         <span class="user-list__count">共 {{ total }} 个账号</span>
       </div>
 
-      <el-table
-        ref="tableRef"
-        v-loading="loading"
-        :data="users"
-        row-key="id"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="36" />
-        <el-table-column label="用户" min-width="210">
-          <template #default="{ row }">
-            <div class="user-list__user">
-              <span class="user-list__avatar">{{ row.name.charAt(0) || row.username.charAt(0) }}</span>
-              <div class="user-list__lines">
-                <el-link
-                  type="primary"
-                  underline="never"
-                  @click="router.push(`/admin/users/${row.id}`)"
-                >
-                  {{ row.username }}
-                </el-link>
-                <span class="user-list__sub">{{ row.name }}</span>
+      <div v-if="hasLoaded && loadError" class="user-list__feedback">
+        <ListLoadFeedback
+          mode="refresh-error"
+          title="刷新失败，当前显示上次加载的数据"
+          :description="loadError"
+          :retrying="loading"
+          @retry="loadUsers"
+        />
+      </div>
+
+      <template v-if="hasLoaded || !loadError">
+        <el-table
+          ref="tableRef"
+          v-loading="loading"
+          :data="users"
+          row-key="id"
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="36" />
+          <el-table-column label="用户" min-width="210">
+            <template #default="{ row }">
+              <div class="user-list__user">
+                <span class="user-list__avatar">{{ row.name.charAt(0) || row.username.charAt(0) }}</span>
+                <div class="user-list__lines">
+                  <ListTitleLink :title="row.username" @open="goUserDetail(row.id)" />
+                  <span class="user-list__sub">{{ row.name }}</span>
+                </div>
               </div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="邮箱" min-width="210">
-          <template #default="{ row }">
-            <span class="user-list__email">{{ row.email }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <span class="user-list__status" :class="STATUS_META[row.status as UserStatus].dot">
-              <span class="user-list__dot" />{{ STATUS_META[row.status as UserStatus].label }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="系统角色" min-width="170">
-          <template #default="{ row }">
-            <template v-if="row.roles.length">
-              <span v-for="role in row.roles" :key="role.id" class="user-list__role">
-                {{ role.name }}
+            </template>
+          </el-table-column>
+          <el-table-column label="邮箱" min-width="210">
+            <template #default="{ row }">
+              <span class="user-list__email">{{ row.email }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <span class="user-list__status" :class="STATUS_META[row.status as UserStatus].dot">
+                <span class="user-list__dot" />{{ STATUS_META[row.status as UserStatus].label }}
               </span>
             </template>
-            <span v-else class="user-list__muted">-</span>
+          </el-table-column>
+          <el-table-column label="系统角色" min-width="170">
+            <template #default="{ row }">
+              <template v-if="row.roles.length">
+                <span v-for="role in row.roles" :key="role.id" class="user-list__role">
+                  {{ role.name }}
+                </span>
+              </template>
+              <span v-else class="user-list__muted">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="170">
+            <template #default="{ row }">
+              <span class="user-list__num">{{ formatDateTime(row.createdAt) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="240" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="goUserDetail(row.id)">
+                编辑
+              </el-button>
+              <el-button
+                v-if="row.status !== 'active'"
+                link
+                type="primary"
+                @click="handleChangeStatus(row as AdminUser, 'active')"
+              >
+                启用
+              </el-button>
+              <el-button
+                v-if="row.status !== 'disabled'"
+                link
+                type="danger"
+                @click="handleChangeStatus(row as AdminUser, 'disabled')"
+              >
+                禁用
+              </el-button>
+              <el-button
+                v-if="row.status !== 'locked'"
+                link
+                type="danger"
+                @click="handleChangeStatus(row as AdminUser, 'locked')"
+              >
+                锁定
+              </el-button>
+              <el-button link type="primary" @click="openResetDialog(row as AdminUser)">
+                重置密码
+              </el-button>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <ListLoadFeedback
+              v-if="loading || !hasLoaded || !loadError"
+              :mode="emptyMode"
+              :title="emptyTitle"
+              :description="loadError"
+              @retry="loadUsers"
+              @reset="handleReset"
+            />
           </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="170">
-          <template #default="{ row }">
-            <span class="user-list__num">{{ formatDateTime(row.createdAt) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="router.push(`/admin/users/${row.id}`)">
-              编辑
-            </el-button>
-            <el-button
-              v-if="row.status !== 'active'"
-              link
-              type="primary"
-              @click="handleChangeStatus(row as AdminUser, 'active')"
-            >
-              启用
-            </el-button>
-            <el-button
-              v-if="row.status !== 'disabled'"
-              link
-              type="danger"
-              @click="handleChangeStatus(row as AdminUser, 'disabled')"
-            >
-              禁用
-            </el-button>
-            <el-button
-              v-if="row.status !== 'locked'"
-              link
-              type="danger"
-              @click="handleChangeStatus(row as AdminUser, 'locked')"
-            >
-              锁定
-            </el-button>
-            <el-button link type="primary" @click="openResetDialog(row as AdminUser)">
-              重置密码
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        </el-table>
 
-      <ListPagination
-        v-model:page-no="query.pageNo"
-        v-model:page-size="query.pageSize"
-        :total="total"
-        @change="loadUsers"
-      />
+        <ListPagination
+          v-model:page-no="query.pageNo"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          @change="loadUsers"
+        />
+      </template>
+
+      <div v-else class="user-list__first-error">
+        <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="loadUsers" />
+      </div>
     </section>
 
     <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
@@ -395,6 +444,14 @@ onMounted(() => {
   color: var(--color-neutral-500);
 }
 
+.user-list__feedback {
+  padding: 12px 20px 0;
+}
+
+.user-list__first-error {
+  padding: 20px;
+}
+
 .user-list__user {
   display: flex;
   align-items: center;
@@ -422,7 +479,8 @@ onMounted(() => {
   line-height: 1.35;
 }
 
-.user-list__lines .el-link {
+.user-list__lines .el-link,
+.user-list__lines :deep(.list-title-link) {
   align-self: flex-start;
   height: auto;
   font-size: var(--font-size-base);
