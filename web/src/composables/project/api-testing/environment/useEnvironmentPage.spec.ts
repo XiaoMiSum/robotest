@@ -292,13 +292,36 @@ describe('useEnvironmentPage', () => {
       expect(mocks.fetchEnvironments).toHaveBeenCalledWith(undefined)
     })
 
-    it('加载失败时设置 loadError 并显示错误消息', async () => {
-      const s = await initAndFlush()
+    it('无已加载数据时加载失败设置 loadError 并提示', async () => {
+      const s = await initAndFlush({ items: [] })
       mocks.fetchEnvironments.mockRejectedValue(new Error('网络错误'))
       await s.loadList()
       expect(s.loadError.value).toBe(true)
+      expect(s.environments.value).toEqual([])
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('网络错误')
       expect(s.listLoading.value).toBe(false)
+    })
+
+    it('已有数据时刷新失败保留列表、选中与搜索关键字并可重试', async () => {
+      const items = [makeItem({ id: 'env-1' }), makeItem({ id: 'env-2' })]
+      const s = await initAndFlush({ items })
+      s.selectedId.value = 'env-2'
+      s.keyword.value = 'prod'
+
+      mocks.fetchEnvironments.mockRejectedValueOnce(new Error('刷新失败'))
+      await s.loadList()
+
+      expect(s.loadError.value).toBe(true)
+      expect(s.environments.value).toHaveLength(2)
+      expect(s.selectedId.value).toBe('env-2')
+      expect(s.keyword.value).toBe('prod')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('刷新失败')
+
+      mocks.fetchEnvironments.mockResolvedValueOnce([makeItem({ id: 'env-2', name: '新名称' })])
+      await s.loadList()
+      expect(s.loadError.value).toBe(false)
+      expect(s.environments.value).toHaveLength(1)
+      expect(s.selectedId.value).toBe('env-2')
     })
 
     it('列表为空时 selectedId 为空字符串', async () => {

@@ -99,39 +99,53 @@ async function submitEditDialog() {
         </div>
 
         <div class="env-list__body">
-          <div v-if="loadError" class="env-empty">
+          <div v-if="loadError && sortedList.length === 0" class="env-empty">
             <p>环境列表加载失败</p>
             <el-button size="small" @click="loadList()">重试</el-button>
           </div>
 
-          <el-skeleton v-else-if="listLoading" :rows="5" animated />
+          <el-skeleton v-else-if="listLoading && sortedList.length === 0" :rows="5" animated />
 
-          <div v-else-if="sortedList.length === 0" class="env-empty">
+          <div v-else-if="!listLoading && !loadError && sortedList.length === 0" class="env-empty">
             <p>{{ keyword ? '无匹配环境' : '暂无环境，点击新建' }}</p>
             <el-button v-if="keyword" size="small" @click="keyword = ''; loadList()">清除搜索</el-button>
           </div>
 
-          <ul v-else class="env-items">
-            <li
-              v-for="item in sortedList"
-              :key="item.id"
-              class="env-item"
-              :class="{ 'is-active': item.id === selectedId }"
-              @click="handleSelect(item.id)"
-            >
-              <div class="env-item__main">
-                <span class="env-item__name">{{ item.name }}</span>
-                <el-tag v-if="item.isDefault" size="small" type="warning" effect="light">默认</el-tag>
-                <el-button
-                  v-else-if="canEdit"
-                  link
-                  size="small"
-                  class="env-item__set-default"
-                  @click.stop="handleSetDefault(item)"
-                >
-                  设为默认
-                </el-button>
-              </div>
+          <template v-else>
+            <div v-if="loadError" class="env-list__load-error" role="alert">
+              <span>环境列表加载失败，请重试</span>
+              <el-button link type="primary" size="small" @click="loadList()">重新加载</el-button>
+            </div>
+
+            <ul class="env-items">
+              <li
+                v-for="item in sortedList"
+                :key="item.id"
+                class="env-item"
+                :class="{ 'is-active': item.id === selectedId }"
+                @click="handleSelect(item.id)"
+              >
+                <div class="env-item__main">
+                  <el-tooltip
+                    :content="item.name"
+                    placement="top-start"
+                    :show-after="300"
+                    :trigger="['hover', 'focus']"
+                    :trigger-keys="[]"
+                  >
+                    <span class="env-item__name" tabindex="0">{{ item.name }}</span>
+                  </el-tooltip>
+                  <el-tag v-if="item.isDefault" size="small" type="warning" effect="light">默认</el-tag>
+                  <el-button
+                    v-else-if="canEdit"
+                    link
+                    size="small"
+                    class="env-item__set-default"
+                    @click.stop="handleSetDefault(item)"
+                  >
+                    设为默认
+                  </el-button>
+                </div>
               <div class="env-item__meta">
                 {{ item.httpConfigCount }} HTTP · {{ item.variableCount }} 变量 · {{ item.dataSourceCount }} 数据源 ·
                 {{ item.processorCount }} 处理器
@@ -147,8 +161,9 @@ async function submitEditDialog() {
                 <el-button link size="small" @click.stop="startCopy(item)">复制</el-button>
                 <el-button link size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
               </div>
-            </li>
-          </ul>
+              </li>
+            </ul>
+          </template>
         </div>
       </aside>
 
@@ -348,13 +363,20 @@ async function submitEditDialog() {
 }
 
 .env-item__name {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
+  display: block;
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
 }
 
 .env-item__set-default {
@@ -397,6 +419,20 @@ async function submitEditDialog() {
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+.env-list__load-error {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 8px var(--space-sm);
+  border: 1px solid var(--color-danger-100, var(--color-neutral-200));
+  border-radius: var(--radius-md);
+  background: var(--color-danger-50, var(--color-neutral-50));
+  color: var(--color-danger-700, var(--color-neutral-700));
+  font-size: var(--font-size-xs);
 }
 
 .env-empty {
