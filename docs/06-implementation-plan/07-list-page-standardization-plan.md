@@ -118,7 +118,7 @@
 | F2 接口测试与管理端（模块树分栏） | 用户确认方案（F1 人工验收仍待完成） | 接口管理、场景管理右侧列表区 | 不改模块树与页签主交互，右侧列表局部对齐样板 | 已验收通过 |
 | F3-0 专用布局立项 | F2 验收通过、用户确认目标 B 及默认范围 | F3 子批次范围、非目标、文档先行与验收口径落地 | `07-list-page-standardization-plan.md` 明确拆分与节奏；后续子批次按需先更交互文档 | 已完成（计划文档已立项） |
 | F3-1 项目卡片网格 | F3-0 立项完成、F3-1 方案已确认 | `ProjectListPage.vue`、`ProjectCard.vue`、`useProjectListPage.ts`、对应 spec 与 `06-space-ui-project.md` | 保持卡片网格+滚动追加主交互；名称悬停/键盘聚焦可见全文，首屏/刷新/追加失败 `ElMessage.error` 且保留已加载数据与分页信息可重试（追加失败重试追加） | 已验收通过 |
-| F3-2 成员管理（双表） | F3-1 验收通过、F3-2 方案已确认 | `MemberListPage.vue`、`MemberListPanel.vue`、`InvitationListPanel.vue`、`useMemberList.ts`、`useInvitationList.ts`、对应 spec 与 `05-space-ui-member.md` | 保持双卡片/双分页/权限与邀请业务行为；姓名/邮箱与邀请预览可达性，失败 `ElMessage.error` 且无数据空态重试、有数据保留列表与分页并提供可见重试反馈 | 实现与前端门禁完成，待用户人工验收 |
+| F3-2 成员管理（双表） | F3-1 验收通过、F3-2 方案已确认 | `MemberListPage.vue`、`MemberListPanel.vue`、`InvitationListPanel.vue`、`useMemberList.ts`、`useInvitationList.ts`、对应 spec 与 `05-space-ui-member.md` | 保持双卡片/双分页/权限与邀请业务行为；姓名/邮箱与邀请预览可达性，失败 `ElMessage.error` 且无数据空态重试、有数据保留列表与分页并提供可见重试反馈 | 已验收通过 |
 | F3-3 接口测试专用主从 | F3-2 验收通过、逐页方案确认 | 依次：`api-testing/environment/EnvironmentPage.vue` → `api-testing/function/FunctionPage.vue` → `api-testing/component/ComponentPage.vue`（各含必要子组件/spec/交互文档） | 每页独立子批次；仅列表/名称可达性与加载失败反馈最小对齐，不改详情编辑器核心行为 | 待启动 |
 
 每批文档变更执行 `bash scripts/validate-docs.sh`；前端变更执行 `bash scripts/validate-web.sh`，检查 lint、类型、单元测试、覆盖率及契约。测试聚焦筛选、分页、请求失败恢复、状态流转等关键行为，视觉细节通过实屏验收。
@@ -141,7 +141,7 @@
 
 - 每批完成后更新状态、验证结果、提交记录与人工验收结果。
 - 文件级编码方案在实施前确认；新增业务能力独立评估。
-- 当前记录：缺陷样板、评审与计划列表已验收通过；需求列表实现及门禁完成待用户验收，用例页本批仅评估。F1（报告、Mock、定时任务、系统用户/空间/文件 6 个标准分页表格页）已按确认方案实施并通过前端门禁，待用户人工验收；文件列表无独立交互文档，按样板行为实施。F2（接口管理、场景管理右侧列表区）已验收通过。F3 已按用户确认进入 **目标 B**（立项后按子批次编码）：范围与顺序为 `F3-0 → F3-1 项目卡片网格 → F3-2 成员管理 → F3-3 环境/函数/公共组件`，`DebugPage` 调试工作台排除本轮实现（仅评估结论），纳入页交互变更采取**文档先行**，E/F1 与 F3 可并行推进并各自独立验收；F3-0 文档立项已完成，F3-1 已人工验收通过，F3-2 文件级方案已确认并完成实现与前端门禁，当前待用户人工验收 F3-2；验收通过后推进 F3-3（环境→函数→公共组件）。
+- 当前记录：缺陷样板、评审与计划列表已验收通过；需求列表实现及门禁完成待用户验收，用例页本批仅评估。F1（报告、Mock、定时任务、系统用户/空间/文件 6 个标准分页表格页）已按确认方案实施并通过前端门禁，待用户人工验收；文件列表无独立交互文档，按样板行为实施。F2（接口管理、场景管理右侧列表区）已验收通过。F3 已按用户确认进入 **目标 B**（立项后按子批次编码）：范围与顺序为 `F3-0 → F3-1 项目卡片网格 → F3-2 成员管理 → F3-3 环境/函数/公共组件`，`DebugPage` 调试工作台排除本轮实现（仅评估结论），纳入页交互变更采取**文档先行**，E/F1 与 F3 可并行推进并各自独立验收；F3-0 文档立项已完成，F3-1、F3-2 已人工验收通过，当前待输出并确认 F3-3a（环境管理）文件级方案后启动。
 
 ### 5.1 样板验证记录
 
@@ -271,7 +271,7 @@
 | 前端实现 | `MemberListPanel.vue`、`InvitationListPanel.vue` 为可截断标识补充 `el-tooltip`（hover/focus）与可聚焦入口；在 `loadError` 且已有列表数据时展示卡片内错误反馈与“重新加载”并保留表格数据/分页；`useMemberList.ts`、`useInvitationList.ts` 逻辑保持（失败提示、请求失效保护、成功/失败状态流转与业务行为不变） |
 | 定向验证 | `cd web && pnpm vitest run src/pages/workspace/MemberListPage.spec.ts src/composables/workspace/useMemberList.spec.ts src/composables/workspace/useInvitationList.spec.ts` 通过（3 个文件，40 条测试） |
 | 前端门禁 | `bash scripts/validate-web.sh` 全部通过（lint、typecheck、单元测试与覆盖率、无 any、契约一致性）；`git diff --check` 通过 |
-| 人工验收 | 待用户验收：成员姓名/邮箱与邀请预览可悬停/键盘聚焦查看全文；首屏无数据失败显示错误空态可重试；筛选/搜索/翻页失败有数据时保留列表与分页、提示错误并可重试；成员/邀请业务操作、权限显隐与双卡片布局/表体滚动无回归 |
+| 人工验收 | 用户明确回复「验收通过」（F3-2 成员管理） |
 
 - `b464f386`：📝 docs(frontend): 明确成员管理F3-2交互口径。
 - `d06e5826`：✨ feat(frontend): 对齐成员管理名称可达性与加载反馈。
@@ -296,3 +296,4 @@
 | V1.0 | 2026-11-16 | 回填 F3-1 项目列表文档先行、实现、验证、提交与待人工验收记录 |
 | V1.0 | 2026-11-16 | 记录 F3-1 项目卡片网格人工验收通过 |
 | V1.0 | 2026-11-16 | 回填 F3-2 成员管理文档先行、实现、验证、提交与待人工验收记录 |
+| V1.0 | 2026-11-16 | 记录 F3-2 成员管理人工验收通过 |
