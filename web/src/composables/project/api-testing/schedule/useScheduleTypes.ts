@@ -25,6 +25,8 @@ export interface UseSchedulesReturn {
   pageNo: Ref<number>
   pageSize: Ref<number>
   loading: Ref<boolean>
+  hasLoaded: Ref<boolean>
+  loadError: Ref<string>
   typeFilter: Ref<string>
   loadPage: () => Promise<void>
 

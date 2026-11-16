@@ -1,4 +1,4 @@
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type {
   ApiSchedulePageItem,
@@ -25,20 +25,29 @@ export function useSchedules(): UseSchedulesReturn {
   const pageNo = ref(1)
   const pageSize = ref(PAGE_SIZE)
   const loading = ref(false)
+  const hasLoaded = ref(false)
+  const loadError = ref('')
   const typeFilter = ref<string>('')
+  let requestId = 0
 
   async function loadPage() {
+    const current = ++requestId
     loading.value = true
+    loadError.value = ''
     try {
       const params: { pageNo: number; pageSize: number; taskType?: string } = { pageNo: pageNo.value, pageSize: pageSize.value }
       if (typeFilter.value) params.taskType = typeFilter.value
       const page = await fetchSchedulePage(params)
+      if (current !== requestId) return
       rows.value = page.list
       total.value = page.total
+      hasLoaded.value = true
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '定时任务列表加载失败')
+      if (current !== requestId) return
+      loadError.value = error instanceof Error ? error.message : '定时任务列表加载失败'
+      ElMessage.error(loadError.value)
     } finally {
-      loading.value = false
+      if (current === requestId) loading.value = false
     }
   }
 
@@ -77,8 +86,12 @@ export function useSchedules(): UseSchedulesReturn {
     try {
       await deleteSchedule(item.id)
       ElMessage.success('已删除')
-      if (!rows.value.length && pageNo.value > 1) pageNo.value -= 1
-      else await loadPage()
+      if (rows.value.length <= 1 && pageNo.value > 1) {
+        pageNo.value -= 1
+        await loadPage()
+      } else {
+        await loadPage()
+      }
     } catch (error) {
       ElMessage.error(error instanceof Error ? error.message : '删除失败')
     }
@@ -117,16 +130,20 @@ export function useSchedules(): UseSchedulesReturn {
     void loadPage()
   })
 
+  onBeforeUnmount(() => {
+    requestId += 1
+  })
+
   return {
-    // List
     rows,
     total,
     pageNo,
     pageSize,
     loading,
+    hasLoaded,
+    loadError,
     typeFilter,
     loadPage,
-    // Form dialog
     showFormDialog: form.showFormDialog,
     editingId: form.editingId,
     formRef: form.formRef,
@@ -136,33 +153,26 @@ export function useSchedules(): UseSchedulesReturn {
     openCreate: form.openCreate,
     openEdit: form.openEdit,
     handleSave: form.handleSave,
-    // Scope options
     moduleOptions: form.moduleOptions,
     scopeOptionLoading: form.scopeOptionLoading,
-    // Scene picker
     scenePickerVisible: form.scenePickerVisible,
     selectedScenes: form.selectedScenes,
     visibleSceneTags: form.visibleSceneTags,
     sceneTagsExpanded: form.sceneTagsExpanded,
     handleSceneConfirm: form.handleSceneConfirm,
     removeScene: form.removeScene,
-    // Environment
     environmentOptions: form.environmentOptions,
     environmentLoading: form.environmentLoading,
-    // Cron validation
     cronValidation: form.cronValidation,
     cronValidating: form.cronValidating,
     handleValidateCron: form.handleValidateCron,
     handlePresetSelect: form.handlePresetSelect,
-    // Cron builder
     cronBuilder: form.cronBuilder,
     showCronBuilder: form.showCronBuilder,
     applyCronBuilder: form.applyCronBuilder,
-    // Toggle / Delete / Execute
     handleToggle,
     handleDelete,
     handleExecuteNow,
-    // Execution drawer
     showExecutionDrawer: executions.showExecutionDrawer,
     executionTask: executions.executionTask,
     executionRows: executions.executionRows,
@@ -171,10 +181,8 @@ export function useSchedules(): UseSchedulesReturn {
     executionLoading: executions.executionLoading,
     openExecutions: executions.openExecutions,
     loadExecutions: executions.loadExecutions,
-    // Helpers
     triggerTypeLabel,
     formatDuration,
-    // Constants
     SCHEDULE_TASK_TYPES,
     EXECUTION_SCOPES,
     CRON_PRESETS,

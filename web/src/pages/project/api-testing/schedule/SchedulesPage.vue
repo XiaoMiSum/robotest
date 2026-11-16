@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import ScenePickerDialog from '@/components/project/api-testing/scene/ScenePickerDialog.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import { useSchedules } from '@/composables/project/api-testing/schedule/useSchedules'
 import type { ApiSchedulePageItem } from '@/types'
 
@@ -10,6 +13,8 @@ const {
   pageNo,
   pageSize,
   loading,
+  hasLoaded,
+  loadError,
   typeFilter,
   loadPage,
   showFormDialog,
@@ -61,280 +66,278 @@ const {
   formatShortDateTime,
   MAX_VISIBLE_SCENE_TAGS,
 } = useSchedules()
+
+const hasFilters = computed(() => Boolean(typeFilter.value))
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载定时任务…'
+  if (loadError.value) return '定时任务列表加载失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无定时任务'
+})
+
+function clearFilters() {
+  typeFilter.value = ''
+}
+
+function handlePageSizeChange() {
+  pageNo.value = 1
+  void loadPage()
+}
 </script>
 
 <template>
   <div v-loading="loading" class="schedules-page">
-    <div class="schedules-page__toolbar">
-      <el-select v-model="typeFilter" placeholder="全部类型" clearable style="width: 140px">
-        <el-option
-          v-for="opt in SCHEDULE_TASK_TYPES"
-          :key="opt.value"
-          :value="opt.value"
-          :label="opt.label"
-        />
-      </el-select>
-      <div class="schedules-page__spacer" />
-      <el-button type="primary" @click="openCreate">
-        <el-icon><Plus /></el-icon>新建任务
-      </el-button>
+    <div class="schedules-page__header">
+      <h3 class="schedules-page__title">定时任务</h3>
+      <div class="schedules-page__header-actions">
+        <el-select v-model="typeFilter" placeholder="任务类型" clearable style="width: 140px">
+          <el-option v-for="opt in SCHEDULE_TASK_TYPES" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <el-button type="primary" @click="openCreate">新建任务</el-button>
+      </div>
     </div>
 
-    <!-- 表体区是页面内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
-    <div class="schedules-page__table">
-      <el-table :data="rows" height="100%">
-        <el-table-column prop="name" label="任务名称" min-width="180" show-overflow-tooltip />
-        <el-table-column label="类型" width="100">
+    <div v-if="hasLoaded && loadError" class="schedules-page__feedback">
+      <ListLoadFeedback
+        mode="refresh-error"
+        title="刷新失败，当前显示上次加载的数据"
+        :description="loadError"
+        :retrying="loading"
+        @retry="loadPage"
+      />
+    </div>
+
+    <div v-if="hasLoaded || !loadError" class="schedules-page__table">
+      <el-table :data="rows" height="100%" stripe>
+        <el-table-column label="任务名称" min-width="180">
           <template #default="{ row }">
-            {{ row.taskType === 'scene_execute' ? '测试计划' : row.taskType === 'import_swagger' ? '接口同步' : row.taskType }}
+            <ListTitleLink :title="(row as ApiSchedulePageItem).name" @open="openEdit(row as ApiSchedulePageItem)" />
           </template>
         </el-table-column>
-        <el-table-column label="执行范围" min-width="160" show-overflow-tooltip>
+        <el-table-column label="任务类型" width="120">
+          <template #default="{ row }">
+            {{ SCHEDULE_TASK_TYPES.find((o) => o.value === (row as ApiSchedulePageItem).taskType)?.label ?? (row as ApiSchedulePageItem).taskType }}
+          </template>
+        </el-table-column>
+        <el-table-column label="执行目标" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             {{ taskExecutionSummary(row as ApiSchedulePageItem) }}
           </template>
         </el-table-column>
-        <el-table-column prop="cronExpression" label="调度" width="130" />
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column label="调度表达式" prop="cronExpression" width="140" />
+        <el-table-column label="启用状态" width="90" align="center">
           <template #default="{ row }">
-            <el-switch
-              :model-value="row.enabled"
-              size="small"
-              @change="() => handleToggle(row as ApiSchedulePageItem)"
-            />
+            <el-switch :model-value="(row as ApiSchedulePageItem).enabled" @change="handleToggle(row as ApiSchedulePageItem)" />
           </template>
         </el-table-column>
-        <el-table-column label="上次执行" width="130">
+        <el-table-column label="上次执行" min-width="160">
           <template #default="{ row }">
-            <div v-if="row.lastExecutionStatus">
-              <el-tag size="small" :type="execStatusType(row.lastExecutionStatus)">
-                {{ execStatusLabel(row.lastExecutionStatus) }}
+            <template v-if="(row as ApiSchedulePageItem).lastExecutionStatus">
+              <el-tag size="small" :type="execStatusType((row as ApiSchedulePageItem).lastExecutionStatus!)">
+                {{ execStatusLabel((row as ApiSchedulePageItem).lastExecutionStatus!) }}
               </el-tag>
-              <div v-if="row.lastExecutionAt" class="schedules-page__exec-time">
-                {{ formatShortDateTime(row.lastExecutionAt) }}
-              </div>
-            </div>
-            <span v-else class="text-neutral-400">-</span>
+              <span class="text-muted text-xs ml-4">{{ formatShortDateTime((row as ApiSchedulePageItem).lastExecutionAt) }}</span>
+            </template>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button link size="small" type="primary" :disabled="row.lastExecutionStatus === 'running'" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
-            <el-button link size="small" @click="openExecutions(row as ApiSchedulePageItem)">执行记录</el-button>
-            <el-dropdown
-              trigger="click" class="schedules-page__more" @command="(cmd: string) => {
-                if (cmd === 'edit') openEdit(row as ApiSchedulePageItem)
-                else if (cmd === 'delete') void handleDelete(row as ApiSchedulePageItem)
-              }">
-              <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button link type="primary" size="small" @click="openEdit(row as ApiSchedulePageItem)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
+            <el-button link type="primary" size="small" @click="openExecutions(row as ApiSchedulePageItem)">执行记录</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as ApiSchedulePageItem)">删除</el-button>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="暂无定时任务，点击右上角「新建任务」创建第一个任务" />
+          <ListLoadFeedback
+            v-if="loading || !hasLoaded || !loadError"
+            :mode="emptyMode"
+            :title="emptyTitle"
+            :description="loadError"
+            :create-label="!hasFilters && !loadError ? '新建任务' : undefined"
+            @retry="loadPage"
+            @reset="clearFilters"
+            @create="openCreate"
+          />
         </template>
       </el-table>
     </div>
-    <!-- 页面壳已提供左右内边距，分页用 bare 模式与表格对齐同一左基线 -->
-    <div class="schedules-page__pagination">
+
+    <div v-else class="schedules-page__first-error">
+      <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="loadPage" />
+    </div>
+
+    <div v-if="hasLoaded || !loadError" class="schedules-page__pagination">
       <ListPagination
         v-model:page-no="pageNo"
         v-model:page-size="pageSize"
         :total="total"
         bare
         @change="loadPage"
+        @size-change="handlePageSizeChange"
       />
     </div>
 
-    <!-- ==================== 新建/编辑弹窗 ==================== -->
+    <!-- 新建/编辑弹窗 -->
     <el-dialog
       v-model="showFormDialog"
       :title="editingId ? '编辑定时任务' : '新建定时任务'"
-      width="720px"
-      :close-on-click-modal="false"
+      width="640px"
       destroy-on-close
     >
-      <el-form ref="formRef" :model="form" label-width="100px" label-position="right">
-        <el-form-item label="任务名称" prop="name" :rules="[{ required: true, message: '请输入任务名称', trigger: 'blur' }]">
-          <el-input v-model="form.name" placeholder="请输入任务名称" maxlength="200" />
+      <el-form ref="formRef" :model="form" label-width="100px">
+        <el-form-item label="任务名称" required>
+          <el-input v-model="form.name" maxlength="100" placeholder="请输入任务名称" />
         </el-form-item>
         <el-form-item label="任务描述">
-          <el-input v-model="form.description" type="textarea" :rows="2" placeholder="可选，任务描述" maxlength="500" />
+          <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" placeholder="可选" />
         </el-form-item>
-        <el-form-item label="任务类型" prop="taskType" :rules="[{ required: true, message: '请选择任务类型', trigger: 'change' }]">
-          <el-radio-group v-model="form.taskType">
+        <el-form-item label="任务类型" required>
+          <el-radio-group v-model="form.taskType" :disabled="!!editingId">
             <el-radio v-for="opt in SCHEDULE_TASK_TYPES" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
           </el-radio-group>
         </el-form-item>
 
+        <!-- 测试计划任务 -->
         <template v-if="isTestPlanTask">
-          <el-form-item label="执行方式" prop="executionScope" :rules="[{ required: true, message: '请选择执行方式', trigger: 'change' }]">
+          <el-form-item label="执行方式" required>
             <el-radio-group v-model="form.executionScope">
               <el-radio v-for="opt in EXECUTION_SCOPES" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
             </el-radio-group>
           </el-form-item>
-          <el-form-item v-if="form.executionScope === 'modules'" label="指定模块" prop="moduleIds" :rules="[{ required: true, message: '请选择执行模块', trigger: 'change' }]">
+          <el-form-item v-if="form.executionScope === 'modules'" label="选择模块" required>
             <el-tree-select
               v-model="form.moduleIds"
               :data="moduleOptions"
-              :props="{ label: 'name', children: 'children' }"
-              node-key="id"
+              :loading="scopeOptionLoading"
               multiple
               show-checkbox
               check-strictly
-              default-expand-all
-              :loading="scopeOptionLoading"
-              placeholder="选择执行模块（勾选父模块将包含其全部子模块）"
+              node-key="id"
+              :props="{ label: 'name', children: 'children' }"
+              placeholder="请选择模块"
               style="width: 100%"
             />
           </el-form-item>
-          <el-form-item v-else-if="form.executionScope === 'scenes'" label="指定场景" prop="sceneIds" :rules="[{ required: true, message: '请选择执行场景', trigger: 'change' }]">
-            <div class="schedules-page__scene-picker">
-              <el-button link type="primary" @click="scenePickerVisible = true">
-                {{ form.sceneIds.length ? `已选 ${form.sceneIds.length} 个场景` : '选择场景' }}
-              </el-button>
+          <el-form-item v-if="form.executionScope === 'scenes'" label="选择场景" required>
+            <div class="scene-tags">
               <el-tag
-                v-for="s in visibleSceneTags"
-                :key="s.id"
-                size="small"
+                v-for="scene in visibleSceneTags"
+                :key="scene.id"
                 closable
-                :disable-transitions="true"
-                :title="s.name"
-                @close="removeScene(s.id)"
+                class="scene-tag"
+                @close="removeScene(scene.id)"
               >
-                <span class="schedules-page__scene-tag-text">{{ s.name }}</span>
+                {{ scene.name }}
               </el-tag>
-              <el-button v-if="selectedScenes.length > MAX_VISIBLE_SCENE_TAGS" link @click="sceneTagsExpanded = !sceneTagsExpanded">
+              <el-button v-if="selectedScenes.length > MAX_VISIBLE_SCENE_TAGS" link type="primary" @click="sceneTagsExpanded = !sceneTagsExpanded">
                 {{ sceneTagsExpanded ? '收起' : `+${selectedScenes.length - MAX_VISIBLE_SCENE_TAGS}` }}
               </el-button>
+              <el-button size="small" @click="scenePickerVisible = true">选择场景</el-button>
             </div>
           </el-form-item>
-          <el-form-item label="目标环境" prop="environmentId" :rules="[{ required: true, message: '请选择目标环境', trigger: 'change' }]">
-            <el-select
-              v-model="form.environmentId"
-              placeholder="请选择目标环境"
-              :loading="environmentLoading"
-              style="width: 100%"
-              filterable
-            >
-              <el-option
-                v-for="env in environmentOptions"
-                :key="env.id"
-                :value="env.id"
-                :label="env.name"
-              />
+          <el-form-item label="目标环境" required>
+            <el-select v-model="form.environmentId" :loading="environmentLoading" placeholder="请选择执行环境" style="width: 100%">
+              <el-option v-for="env in environmentOptions" :key="env.id" :label="env.name" :value="env.id" />
             </el-select>
-            <div class="schedules-page__form-hint">测试计划任务需指定目标环境</div>
           </el-form-item>
         </template>
-        <el-form-item v-else label="接口文档 URL" prop="openapiUrl" :rules="[{ required: true, message: '请填写接口文档 URL', trigger: 'blur' }]">
-          <el-input v-model="form.openapiUrl" placeholder="https://example.com/v3/api-docs" maxlength="2000" />
-          <div class="schedules-page__form-hint">接口同步任务必填；保存时校验 URL 可达性与合法性</div>
-        </el-form-item>
 
-        <el-divider content-position="left">调度配置</el-divider>
+        <!-- Swagger 同步任务 -->
+        <template v-else>
+          <el-form-item label="文档地址" required>
+            <el-input v-model="form.openapiUrl" placeholder="请输入 Swagger/OpenAPI 文档 URL" />
+          </el-form-item>
+        </template>
 
-        <el-form-item label="预设表达式">
-          <el-select placeholder="选择预设" style="width: 200px" @update:model-value="(v: string) => handlePresetSelect(v)">
-            <el-option v-for="p in CRON_PRESETS" :key="p.expression" :value="p.expression" :label="`${p.label} (${p.expression})`" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Cron 表达式" prop="cronExpression" :rules="[{ required: true, message: '请输入 Cron 表达式', trigger: 'blur' }]">
-          <div class="schedules-page__cron-row">
-            <el-input v-model="form.cronExpression" placeholder="0 2 * * *" style="flex: 1" maxlength="50" />
+        <el-form-item label="调度策略" required>
+          <div class="cron-field">
+            <el-select placeholder="预设" style="width: 160px" clearable @change="handlePresetSelect">
+              <el-option v-for="preset in CRON_PRESETS" :key="preset.value" :label="preset.label" :value="preset.value" />
+            </el-select>
+            <el-input v-model="form.cronExpression" placeholder="Cron 表达式" style="flex: 1" />
             <el-button :loading="cronValidating" @click="handleValidateCron">校验</el-button>
-            <el-button @click="showCronBuilder = !showCronBuilder">构建器</el-button>
+            <el-button @click="showCronBuilder = !showCronBuilder">{{ showCronBuilder ? '收起' : '构建' }}</el-button>
           </div>
-          <div v-if="cronValidation" class="schedules-page__cron-result">
+          <div v-if="cronValidation" class="cron-validation" :class="{ 'is-invalid': !cronValidation.valid }">
             <template v-if="cronValidation.valid">
-              <el-tag type="success" size="small">合法</el-tag>
-              <span class="schedules-page__cron-desc">{{ cronValidation.description }}</span>
+              <span>{{ cronValidation.description }}</span>
+              <ul v-if="cronValidation.nextExecutions?.length" class="cron-next">
+                <li v-for="(t, i) in cronValidation.nextExecutions" :key="i">{{ t }}</li>
+              </ul>
             </template>
-            <el-tag v-else type="danger" size="small">表达式不合法</el-tag>
+            <span v-else class="text-danger">Cron 表达式无效</span>
           </div>
-          <div v-if="cronValidation?.nextExecutions?.length" class="schedules-page__cron-preview">
-            下次执行：{{ cronValidation.nextExecutions.slice(0, 3).map((t) => formatShortDateTime(t)).join(' · ') }}
-          </div>
-        </el-form-item>
-
-        <!-- Cron 构建器 -->
-        <el-form-item v-if="showCronBuilder" label="Cron 构建">
-          <div class="schedules-page__cron-builder">
-            <el-input v-model="cronBuilder.minute" placeholder="分钟" style="width: 80px" />
-            <el-input v-model="cronBuilder.hour" placeholder="小时" style="width: 80px" />
+          <div v-if="showCronBuilder" class="cron-builder">
+            <el-input v-model="cronBuilder.minute" placeholder="分" style="width: 80px" />
+            <el-input v-model="cronBuilder.hour" placeholder="时" style="width: 80px" />
             <el-input v-model="cronBuilder.day" placeholder="日" style="width: 80px" />
             <el-input v-model="cronBuilder.month" placeholder="月" style="width: 80px" />
-            <el-input v-model="cronBuilder.weekday" placeholder="星期" style="width: 80px" />
-            <el-button type="primary" @click="applyCronBuilder">应用</el-button>
+            <el-input v-model="cronBuilder.weekday" placeholder="周" style="width: 80px" />
+            <el-button @click="applyCronBuilder">应用</el-button>
           </div>
-          <div class="schedules-page__form-hint">五段：分钟(0-59) 小时(0-23) 日(1-31) 月(1-12) 星期(0-7)</div>
+        </el-form-item>
+
+        <el-form-item label="启用状态">
+          <el-switch v-model="form.enabled" />
         </el-form-item>
       </el-form>
-
       <template #footer>
         <el-button @click="showFormDialog = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
 
-    <ScenePickerDialog v-model="scenePickerVisible" :selected-ids="form.sceneIds" @confirm="handleSceneConfirm" />
+    <ScenePickerDialog
+      v-model="scenePickerVisible"
+      :initial-selected-ids="form.sceneIds"
+      @confirm="handleSceneConfirm"
+    />
 
-    <!-- ==================== 执行记录抽屉 ==================== -->
-    <el-drawer
-      v-model="showExecutionDrawer"
-      :title="`执行记录 — ${executionTask?.name ?? ''}`"
-      size="600px"
-      direction="rtl"
-    >
+    <!-- 执行记录抽屉 -->
+    <el-drawer v-model="showExecutionDrawer" :title="`执行记录 - ${executionTask?.name ?? ''}`" size="720px">
       <div v-loading="executionLoading">
-        <el-table :data="executionRows" size="small">
-          <el-table-column label="触发时间" width="150">
-            <template #default="{ row }">{{ formatDateTime(row.triggeredAt) }}</template>
-          </el-table-column>
-          <el-table-column label="触发方式" width="80">
+        <el-table :data="executionRows" stripe>
+          <el-table-column label="触发方式" width="90">
             <template #default="{ row }">{{ triggerTypeLabel(row.triggerType) }}</template>
           </el-table-column>
-          <el-table-column label="状态" width="80">
+          <el-table-column label="状态" width="90">
             <template #default="{ row }">
               <el-tag size="small" :type="execStatusType(row.status)">{{ execStatusLabel(row.status) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="耗时" width="80">
+          <el-table-column label="开始时间" width="170">
+            <template #default="{ row }">{{ formatDateTime(row.startedAt) }}</template>
+          </el-table-column>
+          <el-table-column label="耗时" width="90">
             <template #default="{ row }">{{ formatDuration(row.durationMs) }}</template>
           </el-table-column>
-          <el-table-column label="失败原因" min-width="160" show-overflow-tooltip>
+          <el-table-column label="结果" min-width="140" show-overflow-tooltip>
             <template #default="{ row }">
               <span v-if="row.errorMessage" class="text-danger">{{ row.errorMessage }}</span>
-              <span v-else class="text-neutral-400">-</span>
+              <span v-else-if="row.reportId">报告: {{ row.reportId }}</span>
+              <span v-else class="text-muted">-</span>
             </template>
           </el-table-column>
         </el-table>
-        <!-- 弹层内保持固定条数（用户裁决），small 紧凑样式 -->
-        <div class="schedules-page__pagination">
-          <ListPagination
-            v-model:page-no="executionPageNo"
-            :page-size="10"
-            :total="executionTotal"
-            :page-sizes="[]"
-            :show-total-text="false"
-            small
-            bare
-            @change="loadExecutions"
-          />
-        </div>
+        <ListPagination
+          v-model:page-no="executionPageNo"
+          :page-size="10"
+          :total="executionTotal"
+          bare
+          hide-sizes
+          @change="loadExecutions"
+        />
       </div>
     </el-drawer>
   </div>
 </template>
 
 <style scoped lang="scss">
-/* 高度链路：接口测试主区 → 页面 → 表体容器，滚动只发生在表体（UI-SC-01 / UI-SC-02） */
 .schedules-page {
   display: flex;
   flex-direction: column;
@@ -342,25 +345,44 @@ const {
   min-height: 0;
 }
 
-/* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
+.schedules-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.schedules-page__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.schedules-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.schedules-page__feedback {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
 .schedules-page__table {
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-/* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
-.schedules-page__toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-shrink: 0;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-neutral-100);
-}
-
-.schedules-page__spacer {
+.schedules-page__first-error {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 0;
 }
 
 .schedules-page__pagination {
@@ -368,73 +390,60 @@ const {
   border-top: 1px solid var(--color-neutral-100);
 }
 
-.schedules-page__exec-time {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-  margin-top: 2px;
+.text-muted {
+  color: var(--el-text-color-secondary);
 }
 
-// 与前面的 link 操作按钮保持同基线、同间距
-.schedules-page__more {
-  margin-left: 12px;
-  vertical-align: middle;
+.text-xs {
+  font-size: 12px;
 }
 
-.schedules-page__cron-row {
-  display: flex;
-  gap: var(--space-xs);
-  align-items: center;
-  width: 100%;
-}
-
-.schedules-page__scene-picker {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  width: 100%;
-
-  // .el-button.is-link 高度 auto（约 20px），显式撑到组件行高，与 label 垂直居中
-  .el-button {
-    height: var(--el-component-size);
-  }
-}
-
-.schedules-page__cron-result {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  margin-top: var(--space-xs);
-}
-
-.schedules-page__cron-desc {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-600);
-}
-
-.schedules-page__cron-preview {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
-  margin-top: var(--space-xs);
-}
-
-.schedules-page__cron-builder {
-  display: flex;
-  gap: var(--space-xs);
-  align-items: center;
-}
-
-.schedules-page__form-hint {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-  margin-top: var(--space-xs);
-}
-
-.text-neutral-400 {
-  color: var(--color-neutral-400);
+.ml-4 {
+  margin-left: 4px;
 }
 
 .text-danger {
-  color: var(--color-danger);
+  color: var(--el-color-danger);
+}
+
+.scene-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.scene-tag {
+  max-width: 200px;
+}
+
+.cron-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.cron-validation {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+
+  &.is-invalid {
+    color: var(--el-color-danger);
+  }
+}
+
+.cron-next {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.cron-builder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
 }
 </style>
