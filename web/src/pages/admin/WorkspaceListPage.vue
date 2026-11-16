@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchWorkspaces } from '@/services/admin'
 import { useAuthStore } from '@/stores/auth'
 import WorkspaceCreateDialog from '@/components/workspace/WorkspaceCreateDialog.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import type { AdminWorkspace } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
@@ -29,8 +31,11 @@ function statusMeta(status: string) {
 }
 
 const loading = ref(false)
+const hasLoaded = ref(false)
+const loadError = ref('')
 const workspaces = ref<AdminWorkspace[]>([])
 const total = ref(0)
+let requestId = 0
 
 const query = reactive({
   keyword: '',
@@ -39,8 +44,21 @@ const query = reactive({
   pageSize: 20,
 })
 
+const hasFilters = computed(() => Boolean(query.keyword || query.status !== 'active'))
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载工作空间…'
+  if (loadError.value) return '加载工作空间列表失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无工作空间'
+})
+
 async function loadWorkspaces() {
+  const current = ++requestId
   loading.value = true
+  loadError.value = ''
   try {
     const page = await fetchWorkspaces({
       keyword: query.keyword || undefined,
@@ -48,25 +66,29 @@ async function loadWorkspaces() {
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
+    if (current !== requestId) return
     workspaces.value = page.list
     total.value = page.total
+    hasLoaded.value = true
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载工作空间列表失败')
+    if (current !== requestId) return
+    loadError.value = err instanceof Error ? err.message : '加载工作空间列表失败'
+    ElMessage.error(loadError.value)
   } finally {
-    loading.value = false
+    if (current === requestId) loading.value = false
   }
 }
 
 function handleSearch() {
   query.pageNo = 1
-  loadWorkspaces()
+  void loadWorkspaces()
 }
 
 function handleReset() {
   query.keyword = ''
   query.status = 'active'
   query.pageNo = 1
-  loadWorkspaces()
+  void loadWorkspaces()
 }
 
 function handleStatusChange(value: string) {
@@ -95,7 +117,13 @@ function handleCreated(id: string): void {
   goDetail(id)
 }
 
-onMounted(loadWorkspaces)
+onBeforeUnmount(() => {
+  requestId += 1
+})
+
+onMounted(() => {
+  void loadWorkspaces()
+})
 </script>
 
 <template>
@@ -141,60 +169,86 @@ onMounted(loadWorkspaces)
         <span class="workspace-list__sort-note">按创建时间倒序</span>
       </div>
 
-      <el-table
-        v-loading="loading"
-        :data="workspaces"
-        row-key="id"
-        class="workspace-list__table"
-        @row-click="handleRowClick"
-      >
-        <el-table-column label="空间名称" min-width="160">
-          <template #default="{ row }">
-            <el-link type="primary" underline="never" @click.stop="goDetail(row.id)">
-              {{ row.name }}
-            </el-link>
-          </template>
-        </el-table-column>
-        <el-table-column label="描述" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="workspace-list__desc-cell">{{ row.description || '—' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <span class="workspace-list__status" :class="statusMeta(row.status).dot">
-              <span class="workspace-list__dot" />{{ statusMeta(row.status).label }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="成员" width="80">
-          <template #default="{ row }">
-            <span class="workspace-list__num">{{ row.memberCount }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="项目" width="80">
-          <template #default="{ row }">
-            <span class="workspace-list__num">{{ row.projectCount }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="170">
-          <template #default="{ row }">
-            <span class="workspace-list__num">{{ formatDateTime(row.createdAt) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="110" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click.stop="goDetail(row.id)">查看详情</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-if="hasLoaded && loadError" class="workspace-list__feedback">
+        <ListLoadFeedback
+          mode="refresh-error"
+          title="刷新失败，当前显示上次加载的数据"
+          :description="loadError"
+          :retrying="loading"
+          @retry="loadWorkspaces"
+        />
+      </div>
 
-      <ListPagination
-        v-model:page-no="query.pageNo"
-        v-model:page-size="query.pageSize"
-        :total="total"
-        @change="loadWorkspaces"
-      />
+      <template v-if="hasLoaded || !loadError">
+        <el-table
+          v-loading="loading"
+          :data="workspaces"
+          row-key="id"
+          class="workspace-list__table"
+          @row-click="handleRowClick"
+        >
+          <el-table-column label="空间名称" min-width="160">
+            <template #default="{ row }">
+              <div @click.stop>
+                <ListTitleLink :title="row.name" @open="goDetail(row.id)" />
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="描述" min-width="200" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="workspace-list__desc-cell">{{ row.description || '—' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <span class="workspace-list__status" :class="statusMeta(row.status).dot">
+                <span class="workspace-list__dot" />{{ statusMeta(row.status).label }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="成员" width="80">
+            <template #default="{ row }">
+              <span class="workspace-list__num">{{ row.memberCount }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="项目" width="80">
+            <template #default="{ row }">
+              <span class="workspace-list__num">{{ row.projectCount }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="170">
+            <template #default="{ row }">
+              <span class="workspace-list__num">{{ formatDateTime(row.createdAt) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="110" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click.stop="goDetail(row.id)">查看详情</el-button>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <ListLoadFeedback
+              v-if="loading || !hasLoaded || !loadError"
+              :mode="emptyMode"
+              :title="emptyTitle"
+              :description="loadError"
+              @retry="loadWorkspaces"
+              @reset="handleReset"
+            />
+          </template>
+        </el-table>
+
+        <ListPagination
+          v-model:page-no="query.pageNo"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          @change="loadWorkspaces"
+        />
+      </template>
+
+      <div v-else class="workspace-list__first-error">
+        <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="loadWorkspaces" />
+      </div>
     </section>
 
     <WorkspaceCreateDialog
@@ -228,7 +282,6 @@ onMounted(loadWorkspaces)
   color: var(--color-neutral-500);
 }
 
-/* 单卡片承载 toolbar/表格/分页，对齐演示稿 workspaces.html 结构 */
 .workspace-list__card {
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
@@ -253,32 +306,36 @@ onMounted(loadWorkspaces)
   flex-wrap: wrap;
 }
 
-/* 分段控件对齐演示稿 segment，替代原状态下拉 */
 .workspace-list__segment {
   display: inline-flex;
-  background: var(--color-neutral-100);
-  border-radius: var(--radius-md);
+  align-items: center;
   padding: 3px;
   gap: 2px;
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
 }
 
 .workspace-list__seg-item {
-  padding: 4px 14px;
+  padding: 5px 12px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-neutral-600);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-neutral-600);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  line-height: 1.4;
   cursor: pointer;
-}
+  transition: all 0.15s ease;
 
-.workspace-list__seg-item.is-active {
-  background: var(--color-neutral-0);
-  color: var(--color-neutral-900);
-  box-shadow: var(--shadow-sm);
+  &:hover {
+    color: var(--color-neutral-800);
+  }
+
+  &.is-active {
+    background: var(--color-neutral-0);
+    color: var(--color-neutral-900);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
 }
 
 .workspace-list__sort-note {
@@ -287,7 +344,23 @@ onMounted(loadWorkspaces)
   white-space: nowrap;
 }
 
-/* 状态点标对齐演示稿 status（圆点 + 文案），色义：活跃绿 / 归档灰 */
+.workspace-list__feedback {
+  padding: 12px 20px 0;
+}
+
+.workspace-list__first-error {
+  padding: 20px;
+}
+
+.workspace-list__table :deep(.el-table__row) {
+  cursor: pointer;
+}
+
+.workspace-list__desc-cell {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
 .workspace-list__status {
   display: inline-flex;
   align-items: center;
@@ -309,12 +382,8 @@ onMounted(loadWorkspaces)
   background: var(--color-success);
 }
 
-.workspace-list__table :deep(.el-table__row) {
-  cursor: pointer;
-}
-
-.workspace-list__desc-cell {
-  color: var(--color-neutral-500);
+.workspace-list__status--neutral .workspace-list__dot {
+  background: var(--color-neutral-400);
 }
 
 .workspace-list__num {
