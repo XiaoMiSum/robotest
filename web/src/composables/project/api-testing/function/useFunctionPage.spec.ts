@@ -321,6 +321,57 @@ describe('useFunctionPage', () => {
       expect(selectedName.value).toBe('c1')
       expect(selectedCustomId.value).toBe('id-1')
     })
+
+    it('无已加载数据时加载失败保留空列表并设置 loadError', async () => {
+      mocks.fetchBuiltinCatalog.mockRejectedValue(new Error('fail'))
+      mocks.resolveFunctionError.mockReturnValue('加载失败')
+      const { loadAll, loadError, builtinGroups, customList } = useFunctionPage()
+      await loadAll()
+      expect(loadError.value).toBe(true)
+      expect(builtinGroups.value).toEqual([])
+      expect(customList.value).toEqual([])
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载失败')
+    })
+
+    it('已有数据时重载失败保留列表与选中并可重试恢复', async () => {
+      const groups = [builtinGroup('G', [{ name: 'f1', description: 'd1' }])]
+      mocks.fetchBuiltinCatalog.mockResolvedValue(groups)
+      mocks.fetchCustomFunctions.mockResolvedValue([makeItem('id-1', 'c1')])
+      const {
+        loadAll,
+        loadError,
+        builtinGroups,
+        customList,
+        selectedType,
+        selectedName,
+        keyword,
+        activeTab,
+      } = useFunctionPage()
+      await loadAll()
+      keyword.value = 'c'
+      activeTab.value = 'all'
+
+      mocks.fetchBuiltinCatalog.mockRejectedValueOnce(new Error('refresh fail'))
+      mocks.fetchCustomFunctions.mockRejectedValueOnce(new Error('refresh fail'))
+      mocks.resolveFunctionError.mockReturnValue('刷新失败')
+      await loadAll()
+
+      expect(loadError.value).toBe(true)
+      expect(builtinGroups.value).toEqual(groups)
+      expect(customList.value).toEqual([makeItem('id-1', 'c1')])
+      expect(selectedType.value).toBe('builtin')
+      expect(selectedName.value).toBe('f1')
+      expect(keyword.value).toBe('c')
+      expect(activeTab.value).toBe('all')
+      expect(mocks.ElMessage.error).toHaveBeenCalled()
+
+      const nextGroups = [builtinGroup('G', [{ name: 'f2', description: 'd2' }])]
+      mocks.fetchBuiltinCatalog.mockResolvedValueOnce(nextGroups)
+      mocks.fetchCustomFunctions.mockResolvedValueOnce([])
+      await loadAll()
+      expect(loadError.value).toBe(false)
+      expect(builtinGroups.value).toEqual(nextGroups)
+    })
   })
 
   describe('filtered', () => {

@@ -10,6 +10,8 @@ const {
   canEdit,
   listLoading,
   loadError,
+  builtinGroups,
+  customList,
   keyword,
   activeTab,
   handleSearchInput,
@@ -83,50 +85,70 @@ function clearParamErrors(): void {
             class="fn-list__tabs"
           />
 
-          <div v-if="loadError" class="fn-empty">
+          <div v-if="loadError && !builtinGroups.length && !customList.length" class="fn-empty">
             <p>函数列表加载失败</p>
             <el-button size="small" @click="loadAll()">重试</el-button>
           </div>
 
-          <el-skeleton v-else-if="listLoading" :rows="8" animated class="fn-skeleton" />
+          <el-skeleton
+            v-else-if="listLoading && !builtinGroups.length && !customList.length"
+            :rows="8"
+            animated
+            class="fn-skeleton"
+          />
 
-          <div v-else-if="displayItems.length === 0" class="fn-empty">
-            <p>{{ keyword ? '无匹配函数' : '暂无自定义函数，点击新增' }}</p>
-            <el-button v-if="keyword" size="small" @click="keyword = ''; loadAll()">清除搜索</el-button>
-          </div>
+          <template v-else>
+            <div v-if="loadError" class="fn-list__load-error" role="alert">
+              <span>函数列表加载失败，请重试</span>
+              <el-button link type="primary" size="small" @click="loadAll()">重新加载</el-button>
+            </div>
 
-          <ul v-else class="fn-items">
-            <li
-              v-for="item in displayItems"
-              :key="`${item.type}-${item.name}`"
-              class="fn-item"
-              :class="{
-                'is-active': item.type === selectedType && item.name === selectedName,
-                'is-disabled': item.type === 'custom' && item.enabled === false,
-              }"
-              @click="selectItem(item.type, item.name, item.id)"
-            >
-              <div class="fn-item__main">
-                <span class="fn-item__name">{{ item.name }}</span>
-                <el-tag v-if="item.type === 'builtin'" size="small" effect="plain">内置</el-tag>
-                <template v-else>
-                  <el-tag size="small" type="success" effect="light">自定义</el-tag>
-                  <el-tag v-if="item.scope" size="small" effect="plain">{{ formatScopeLabel(item.scope) }}</el-tag>
-                  <el-tag
-                    size="small"
-                    :type="item.enabled ? 'success' : 'info'"
-                    :effect="item.enabled ? 'light' : 'plain'"
+            <div v-if="displayItems.length === 0" class="fn-empty">
+              <p>{{ keyword ? '无匹配函数' : '暂无自定义函数，点击新增' }}</p>
+              <el-button v-if="keyword" size="small" @click="keyword = ''; loadAll()">清除搜索</el-button>
+            </div>
+
+            <ul v-else class="fn-items">
+              <li
+                v-for="item in displayItems"
+                :key="`${item.type}-${item.name}`"
+                class="fn-item"
+                :class="{
+                  'is-active': item.type === selectedType && item.name === selectedName,
+                  'is-disabled': item.type === 'custom' && item.enabled === false,
+                }"
+                @click="selectItem(item.type, item.name, item.id)"
+              >
+                <div class="fn-item__main">
+                  <el-tooltip
+                    :content="item.name"
+                    placement="top-start"
+                    :show-after="300"
+                    :trigger="['hover', 'focus']"
+                    :trigger-keys="[]"
                   >
-                    {{ item.enabled ? '已启用' : '已停用' }}
-                  </el-tag>
-                </template>
-              </div>
-              <div class="fn-item__meta">{{ item.description }}</div>
-              <div v-if="item.type === 'custom' && canEdit" class="fn-item__acts" @click.stop>
-                <el-button link size="small" type="danger" @click="handleDeleteItem(item)">删除</el-button>
-              </div>
-            </li>
-          </ul>
+                    <span class="fn-item__name" tabindex="0">{{ item.name }}</span>
+                  </el-tooltip>
+                  <el-tag v-if="item.type === 'builtin'" size="small" effect="plain">内置</el-tag>
+                  <template v-else>
+                    <el-tag size="small" type="success" effect="light">自定义</el-tag>
+                    <el-tag v-if="item.scope" size="small" effect="plain">{{ formatScopeLabel(item.scope) }}</el-tag>
+                    <el-tag
+                      size="small"
+                      :type="item.enabled ? 'success' : 'info'"
+                      :effect="item.enabled ? 'light' : 'plain'"
+                    >
+                      {{ item.enabled ? '已启用' : '已停用' }}
+                    </el-tag>
+                  </template>
+                </div>
+                <div class="fn-item__meta">{{ item.description }}</div>
+                <div v-if="item.type === 'custom' && canEdit" class="fn-item__acts" @click.stop>
+                  <el-button link size="small" type="danger" @click="handleDeleteItem(item)">删除</el-button>
+                </div>
+              </li>
+            </ul>
+          </template>
         </div>
       </aside>
 
@@ -498,14 +520,21 @@ function clearParamErrors(): void {
 }
 
 .fn-item__name {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  font-family: var(--font-mono);
+  display: block;
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: var(--font-mono);
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
 }
 
 .fn-item__meta {
@@ -519,6 +548,20 @@ function clearParamErrors(): void {
 
 .fn-item__acts {
   margin-top: 4px;
+}
+
+.fn-list__load-error {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 8px var(--space-sm);
+  border: 1px solid var(--color-danger-100, var(--color-neutral-200));
+  border-radius: var(--radius-md);
+  background: var(--color-danger-50, var(--color-neutral-50));
+  color: var(--color-danger-700, var(--color-neutral-700));
+  font-size: var(--font-size-xs);
 }
 
 .fn-empty {
