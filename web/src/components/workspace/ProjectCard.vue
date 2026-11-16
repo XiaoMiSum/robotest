@@ -31,11 +31,8 @@ function handleCardClick(): void {
   if (!archived.value) emit('enter')
 }
 
-function handleCardKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    handleCardClick()
-  }
+function handleNameActivate(): void {
+  if (!archived.value) emit('enter')
 }
 </script>
 
@@ -43,11 +40,9 @@ function handleCardKeydown(event: KeyboardEvent): void {
   <article
     class="project-card"
     :class="{ 'project-card--archived': archived }"
-    :tabindex="archived ? undefined : 0"
-    :aria-label="archived ? `已归档项目：${project.name}，只读` : `进入项目：${project.name}`"
+    :aria-label="archived ? `已归档项目：${project.name}，只读` : `项目：${project.name}`"
     :aria-disabled="archived"
     @click="handleCardClick"
-    @keydown="handleCardKeydown"
   >
     <div class="project-card__head">
       <span class="project-card__icon" aria-hidden="true">
@@ -62,11 +57,26 @@ function handleCardKeydown(event: KeyboardEvent): void {
     </div>
 
     <div class="project-card__title-row">
-      <h3 class="project-card__name" :title="project.name">
+      <h3 class="project-card__name">
         <el-icon v-if="project.isDefault" class="project-card__star" aria-label="默认项目">
           <StarFilled />
         </el-icon>
-        {{ project.name }}
+        <el-tooltip
+          :content="project.name"
+          placement="top-start"
+          :show-after="300"
+          :trigger="['hover', 'focus']"
+          :trigger-keys="[]"
+        >
+          <button
+            type="button"
+            class="project-card__name-button"
+            :aria-label="archived ? `查看项目名称：${project.name}` : `进入项目：${project.name}`"
+            @click.stop="handleNameActivate"
+          >
+            {{ project.name }}
+          </button>
+        </el-tooltip>
       </h3>
     </div>
 
@@ -201,12 +211,36 @@ function handleCardKeydown(event: KeyboardEvent): void {
   align-items: center;
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--color-neutral-900);
   font-size: 16px;
   font-weight: 650;
+}
+
+.project-card__name-button {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.project-card__name-button:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.project-card--archived .project-card__name-button {
+  cursor: default;
 }
 
 .project-card__star {

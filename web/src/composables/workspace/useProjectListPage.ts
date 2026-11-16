@@ -1,5 +1,6 @@
 import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { fetchProjectStatusCounts, fetchProjects } from '@/services/workspace'
 import type { Project, ProjectStatus, ProjectStatusCounts } from '@/types'
@@ -39,6 +40,7 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
   const hasMore = ref(false)
   const error = ref<string | null>(null)
   const hasLoadedOnce = ref(false)
+  const lastFailedOperation = ref<'load' | 'loadMore' | null>(null)
 
   let requestSequence = 0
   let activeRequestKey: string | null = null
@@ -89,6 +91,7 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
     loadingMore.value = false
     loading.value = true
     error.value = null
+    lastFailedOperation.value = null
 
     try {
       const requestKeyword = keyword.value.trim() || undefined
@@ -110,7 +113,10 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
       hasLoadedOnce.value = true
     } catch (loadError) {
       if (disposed || sequence !== requestSequence) return
-      error.value = errorMessage(loadError, '加载项目列表失败')
+      const message = errorMessage(loadError, '加载项目列表失败')
+      error.value = message
+      lastFailedOperation.value = 'load'
+      ElMessage.error(message)
     } finally {
       if (!disposed && sequence === requestSequence) {
         loading.value = false
@@ -127,6 +133,7 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
     activeRequestKey = null
     loadingMore.value = true
     error.value = null
+    lastFailedOperation.value = null
 
     try {
       const requestKeyword = keyword.value.trim() || undefined
@@ -147,7 +154,10 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
       hasLoadedOnce.value = true
     } catch (loadError) {
       if (disposed || sequence !== requestSequence) return
-      error.value = errorMessage(loadError, '加载更多项目失败')
+      const message = errorMessage(loadError, '加载更多项目失败')
+      error.value = message
+      lastFailedOperation.value = 'loadMore'
+      ElMessage.error(message)
     } finally {
       if (!disposed && sequence === requestSequence) {
         loadingMore.value = false
@@ -205,6 +215,9 @@ export function useProjectListPage(options: ProjectListPageOptions = {}) {
   }
 
   function retry(): Promise<void> {
+    if (lastFailedOperation.value === 'loadMore' && projects.value.length > 0 && hasMore.value) {
+      return loadMoreProjects()
+    }
     return loadProjects({ force: true })
   }
 
