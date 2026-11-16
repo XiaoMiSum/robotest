@@ -9,6 +9,13 @@ const mocks = vi.hoisted(() => ({
     activeWorkspace: { id: 'workspace-1', name: '质量中台', workspaceRole: 'c0000000-0000-0000-0000-000000000002' },
   },
   router: { push: vi.fn() },
+  messageError: vi.fn(),
+}))
+
+vi.mock('element-plus', () => ({
+  ElMessage: {
+    error: mocks.messageError,
+  },
 }))
 
 vi.mock('@/services/workspace', () => ({
@@ -151,5 +158,66 @@ describe('useProjectListPage', () => {
     sut.enterProject(project())
     expect(mocks.authStore.setActiveProject).toHaveBeenCalledWith('project-1', '核心功能测试')
     expect(mocks.router.push).toHaveBeenCalledWith('/workspace/projects/dashboard')
+  })
+
+  it('首屏加载失败时提示错误且可重试', async () => {
+    mocks.fetchProjects.mockRejectedValueOnce(new Error('网络异常'))
+    const sut = useProjectListPage({ autoLoad: false })
+
+    await sut.loadProjects()
+
+    expect(sut.error.value).toBe('网络异常')
+    expect(sut.projects.value).toEqual([])
+    expect(mocks.messageError).toHaveBeenCalledWith('网络异常')
+
+    mocks.fetchProjects.mockResolvedValueOnce(page())
+    await sut.retry()
+    expect(sut.projects.value).toHaveLength(1)
+    expect(sut.error.value).toBeNull()
+  })
+
+  it('刷新失败保留已加载数据与分页信息', async () => {
+    const sut = useProjectListPage({ autoLoad: false })
+    await sut.loadProjects()
+    mocks.fetchProjects.mockRejectedValueOnce(new Error('刷新失败'))
+
+    await sut.loadProjects({ force: true })
+
+    expect(sut.projects.value).toHaveLength(1)
+    expect(sut.total.value).toBe(1)
+    expect(sut.error.value).toBe('刷新失败')
+    expect(mocks.messageError).toHaveBeenCalledWith('刷新失败')
+  })
+
+  it('追加失败保留已加载数据与分页信息并可重试追加', async () => {
+    const firstPage = Array.from({ length: 20 }, (_, index) =>
+      project({ id: `project-${index + 1}`, name: `项目${index + 1}` }),
+    )
+    mocks.fetchProjects.mockResolvedValueOnce(page({ list: firstPage, total: 21 }))
+    const sut = useProjectListPage({ autoLoad: false })
+    await sut.loadProjects()
+
+    mocks.fetchProjects.mockRejectedValueOnce(new Error('加载更多失败'))
+    await sut.loadMoreProjects()
+
+    expect(sut.projects.value).toHaveLength(20)
+    expect(sut.pageNo.value).toBe(1)
+    expect(sut.hasMore.value).toBe(true)
+    expect(sut.error.value).toBe('加载更多失败')
+    expect(mocks.messageError).toHaveBeenCalledWith('加载更多失败')
+
+    mocks.fetchProjects.mockResolvedValueOnce(
+      page({ list: [project({ id: 'project-21', name: '项目21' })], total: 21 }),
+    )
+    await sut.retry()
+
+    expect(mocks.fetchProjects).toHaveBeenLastCalledWith({
+      keyword: undefined,
+      status: 'active',
+      pageNo: 2,
+      pageSize: 20,
+    })
+    expect(sut.projects.value).toHaveLength(21)
+    expect(sut.error.value).toBeNull()
   })
 })
