@@ -1,19 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { deleteFile, downloadFile, fetchFileAccessUrl, fetchFiles } from '@/services/files'
 import { useAuthStore } from '@/stores/auth'
 import type { FileItem } from '@/types'
 import { formatDateTime, formatFileSize } from '@/utils/format'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 
 const authStore = useAuthStore()
 // 删除即回收空间且不可恢复（详设 5.3），仅 file:delete 可见
 const canDelete = computed(() => authStore.hasPermission('file:delete'))
 
 const loading = ref(false)
+const hasLoaded = ref(false)
+const loadError = ref('')
 const files = ref<FileItem[]>([])
 const total = ref(0)
+let requestId = 0
 
 const query = reactive({
   fileName: '',
@@ -21,26 +26,43 @@ const query = reactive({
   pageSize: 20,
 })
 
+const hasFilters = computed(() => Boolean(query.fileName))
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载文件…'
+  if (loadError.value) return '加载文件列表失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无文件'
+})
+
 async function loadFiles() {
+  const current = ++requestId
   loading.value = true
+  loadError.value = ''
   try {
     const page = await fetchFiles({
       fileName: query.fileName || undefined,
       pageNo: query.pageNo,
       pageSize: query.pageSize,
     })
+    if (current !== requestId) return
     files.value = page.list
     total.value = page.total
+    hasLoaded.value = true
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '加载文件列表失败')
+    if (current !== requestId) return
+    loadError.value = err instanceof Error ? err.message : '加载文件列表失败'
+    ElMessage.error(loadError.value)
   } finally {
-    loading.value = false
+    if (current === requestId) loading.value = false
   }
 }
 
 function handleSearch() {
   query.pageNo = 1
-  loadFiles()
+  void loadFiles()
 }
 
 function handleReset() {
@@ -92,8 +114,12 @@ async function handleDelete(row: FileItem) {
   }
 }
 
+onBeforeUnmount(() => {
+  requestId += 1
+})
+
 onMounted(() => {
-  loadFiles()
+  void loadFiles()
 })
 </script>
 
@@ -125,47 +151,73 @@ onMounted(() => {
         <span class="file-list__count">共 {{ total }} 个文件</span>
       </div>
 
-      <el-table v-loading="loading" :data="files" row-key="id">
-        <el-table-column label="文件名" min-width="240" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="file-list__name">{{ row.fileName }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="大小" width="110">
-          <template #default="{ row }">
-            <span class="file-list__num">{{ formatFileSize(row.fileSize) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" min-width="160">
-          <template #default="{ row }">
-            <span class="file-list__muted">{{ row.contentType || 'application/octet-stream' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="上传者" width="140">
-          <template #default="{ row }">
-            <span>{{ row.uploaderName || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="上传时间" width="170">
-          <template #default="{ row }">
-            <span class="file-list__num">{{ formatDateTime(row.createdAt) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleDownload(row as FileItem)">下载</el-button>
-            <el-button link type="primary" @click="handleCopyLink(row as FileItem)">复制链接</el-button>
-            <el-button v-if="canDelete" link type="danger" @click="handleDelete(row as FileItem)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-if="hasLoaded && loadError" class="file-list__feedback">
+        <ListLoadFeedback
+          mode="refresh-error"
+          title="刷新失败，当前显示上次加载的数据"
+          :description="loadError"
+          :retrying="loading"
+          @retry="loadFiles"
+        />
+      </div>
 
-      <ListPagination
-        v-model:page-no="query.pageNo"
-        v-model:page-size="query.pageSize"
-        :total="total"
-        @change="loadFiles"
-      />
+      <template v-if="hasLoaded || !loadError">
+        <el-table v-loading="loading" :data="files" row-key="id">
+          <el-table-column label="文件名" min-width="240">
+            <template #default="{ row }">
+              <ListTitleLink :title="(row as FileItem).fileName" @open="() => {}" />
+            </template>
+          </el-table-column>
+          <el-table-column label="大小" width="110">
+            <template #default="{ row }">
+              <span class="file-list__num">{{ formatFileSize((row as FileItem).fileSize) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" min-width="160">
+            <template #default="{ row }">
+              <span class="file-list__muted">{{ (row as FileItem).contentType || 'application/octet-stream' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="上传者" width="140">
+            <template #default="{ row }">
+              <span>{{ (row as FileItem).uploaderName || '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="上传时间" width="170">
+            <template #default="{ row }">
+              <span class="file-list__num">{{ formatDateTime((row as FileItem).createdAt) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="230" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="handleDownload(row as FileItem)">下载</el-button>
+              <el-button link type="primary" @click="handleCopyLink(row as FileItem)">复制链接</el-button>
+              <el-button v-if="canDelete" link type="danger" @click="handleDelete(row as FileItem)">删除</el-button>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <ListLoadFeedback
+              v-if="loading || !hasLoaded || !loadError"
+              :mode="emptyMode"
+              :title="emptyTitle"
+              :description="loadError"
+              @retry="loadFiles"
+              @reset="handleReset"
+            />
+          </template>
+        </el-table>
+
+        <ListPagination
+          v-model:page-no="query.pageNo"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          @change="loadFiles"
+        />
+      </template>
+
+      <div v-else class="file-list__first-error">
+        <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="loadFiles" />
+      </div>
     </section>
   </div>
 </template>
@@ -219,19 +271,21 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.file-list__feedback {
+  margin-top: 4px;
+}
+
+.file-list__first-error {
+  padding: 8px 0;
+}
+
 .file-list__count,
 .file-list__muted {
   color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
-.file-list__name {
-  font-weight: 500;
-}
-
 .file-list__num {
   font-variant-numeric: tabular-nums;
-  color: var(--el-text-color-regular);
-  font-size: 13px;
 }
 </style>

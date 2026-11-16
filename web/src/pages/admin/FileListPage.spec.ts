@@ -17,6 +17,16 @@ describe('FileListPage 交互边界（详设 9）', () => {
     expect(pageSource).toContain('ElMessage.error')
   })
 
+  it('文件名可键盘聚焦查看全文并保留加载/刷新失败恢复', () => {
+    expect(pageSource).toContain('ListTitleLink')
+    expect(pageSource).toContain('ListLoadFeedback')
+    expect(pageSource).toContain('hasLoaded')
+    expect(pageSource).toContain('loadError')
+    expect(pageSource).toContain('requestId')
+    expect(pageSource).toContain('onBeforeUnmount')
+    expect(pageSource).toContain('refresh-error')
+  })
+
   it('路由以 file:view 注册系统维护菜单（详设 9）', () => {
     expect(routerSource).toContain("path: 'files'")
     expect(routerSource).toContain("name: 'AdminFiles'")
