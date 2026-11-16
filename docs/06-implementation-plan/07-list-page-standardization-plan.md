@@ -116,7 +116,10 @@
 | E 用例及需求 | D 通过 | 用例列表区域、需求列表 | 树形及脑图等专用布局保留职责边界 | 需求列表实现及门禁完成，待用户验收；用例页本批仅评估 |
 | F1 接口测试与管理端（标准分页表格） | E 通过 | 报告、Mock、定时任务、系统用户/空间/文件列表页 | 保留各页业务筛选、批量与行操作；统一标题可达性、加载与刷新失败恢复 | 实现与前端门禁完成，待用户人工验收 |
 | F2 接口测试与管理端（模块树分栏） | 用户确认方案（F1 人工验收仍待完成） | 接口管理、场景管理右侧列表区 | 不改模块树与页签主交互，右侧列表局部对齐样板 | 已验收通过 |
-| F3 接口测试与管理端（专用布局） | F2 后评估立项 | 卡片网格、成员/环境主从、函数与调试等页面 | 专用工作区单独方案，不机械套用分页列表样板 | 本轮仅评估 |
+| F3-0 专用布局立项 | F2 验收通过、用户确认目标 B 及默认范围 | F3 子批次范围、非目标、文档先行与验收口径落地 | `07-list-page-standardization-plan.md` 明确拆分与节奏；后续子批次按需先更交互文档 | 已完成（计划文档已立项） |
+| F3-1 项目卡片网格 | F3-0 立项完成、F3-1 方案确认 | `workspace/ProjectListPage.vue`（及相关 composable/spec/交互文档） | 保持卡片网格+滚动追加主交互；对齐名称可达性、首屏/刷新/追加失败与空态反馈、请求失效与保留已加载数据可重试 | 待启动 |
+| F3-2 成员管理（双表） | F3-1 验收通过、F3-2 方案确认 | `workspace/MemberListPage.vue`、成员/邀请面板与 composables、对应 spec 与交互文档 | 保持双卡片/双分页/权限与邀请业务行为；局部对齐标题可达性与加载/失败重试反馈 | 待启动 |
+| F3-3 接口测试专用主从 | F3-2 验收通过、逐页方案确认 | 依次：`api-testing/environment/EnvironmentPage.vue` → `api-testing/function/FunctionPage.vue` → `api-testing/component/ComponentPage.vue`（各含必要子组件/spec/交互文档） | 每页独立子批次；仅列表/名称可达性与加载失败反馈最小对齐，不改详情编辑器核心行为 | 待启动 |
 
 每批文档变更执行 `bash scripts/validate-docs.sh`；前端变更执行 `bash scripts/validate-web.sh`，检查 lint、类型、单元测试、覆盖率及契约。测试聚焦筛选、分页、请求失败恢复、状态流转等关键行为，视觉细节通过实屏验收。
 
@@ -138,7 +141,7 @@
 
 - 每批完成后更新状态、验证结果、提交记录与人工验收结果。
 - 文件级编码方案在实施前确认；新增业务能力独立评估。
-- 当前记录：缺陷样板、评审与计划列表已验收通过；需求列表实现及门禁完成待用户验收，用例页本批仅评估。F1（报告、Mock、定时任务、系统用户/空间/文件 6 个标准分页表格页）已按确认方案实施并通过前端门禁，待用户人工验收；文件列表无独立交互文档，按样板行为实施。F2（接口管理、场景管理右侧列表区）已验收通过；F3 本轮仅评估、后续立项（需在相关前置验收/确认后推进）。
+- 当前记录：缺陷样板、评审与计划列表已验收通过；需求列表实现及门禁完成待用户验收，用例页本批仅评估。F1（报告、Mock、定时任务、系统用户/空间/文件 6 个标准分页表格页）已按确认方案实施并通过前端门禁，待用户人工验收；文件列表无独立交互文档，按样板行为实施。F2（接口管理、场景管理右侧列表区）已验收通过。F3 已按用户确认进入 **目标 B**（立项后按子批次编码）：范围与顺序为 `F3-0 → F3-1 项目卡片网格 → F3-2 成员管理 → F3-3 环境/函数/公共组件`，`DebugPage` 调试工作台排除本轮实现（仅评估结论），纳入页交互变更采取**文档先行**，E/F1 与 F3 可并行推进并各自独立验收；F3-0 文档立项已完成，待输出并确认 F3-1 文件级方案后启动实现。
 
 ### 5.1 样板验证记录
 
@@ -230,6 +233,23 @@
 - `730cdeec`：✨ feat(frontend): 优化接口列表标题与刷新反馈。
 - `25f108d5`：✨ feat(frontend): 优化场景列表标题与刷新反馈。
 
+### 5.8 F3 立项与子批次方案
+
+**用户确认（2026-11-16）**：目标 B；范围与顺序 `F3-0 → F3-1 → F3-2 → F3-3`；F3-3 顺序 `环境(EnvironmentPage) → 函数(FunctionPage) → 公共组件(ComponentPage)`，逐个子批次单独验收；`DebugPage` 调试工作台排除本轮 F3 实现（仅保留评估结论）；纳入页涉及名称可达性/首屏与刷新失败保留数据可重试等样板行为时**先更新对应交互设计文档再实现**；E/F1 与 F3 可并行推进并各自独立验收。
+
+| 子批次 | 范围（相对 `web/src/`） | 交互文档（先行核对/同步） | 对齐目标 | 非目标/约束 |
+| ---- | ---- | ---- | ---- | ---- |
+| F3-0 | `docs/06-implementation-plan/07-list-page-standardization-plan.md`（必要时补充评估记录） | 本计划文档 | 落地子批次、非目标、节奏与验收口径 | 不改业务页面代码 |
+| F3-1 | `pages/workspace/ProjectListPage.vue`，必要时 `composables/workspace/useProjectListPage.ts` 及相关 spec | `docs/05-interaction-design/02-space-management/06-space-ui-project.md` | 卡片名称可达性（等价可聚焦全文）、首屏/刷新/追加失败反馈与空态区分、请求失效与保留已加载数据可重试 | 不改变卡片网格+滚动追加主交互、权限与 CRUD 语义；不引入分页表格 |
+| F3-2 | `pages/workspace/MemberListPage.vue`、`components/workspace/MemberListPanel.vue`、`InvitationListPanel.vue`、相关 composables/spec | `docs/05-interaction-design/02-space-management/05-space-ui-member.md` | 成员/邀请表内名称等可达性与加载/失败重试反馈局部对齐 | 保持双卡片布局、各自分页/筛选、邀请与成员管理业务行为及既有文案规则 |
+| F3-3a | `pages/project/api-testing/environment/EnvironmentPage.vue`、`EnvironmentDetailPanel.vue` 等必要文件/spec | `docs/05-interaction-design/05-api-testing/12-environment-ui-page.md`（及 11/13 视影响） | 左侧列表/名称可达性与列表加载失败反馈最小对齐 | 不改详情编辑器核心行为（新建态、未保存、连接测试、导入导出等） |
+| F3-3b | `pages/project/api-testing/function/FunctionPage.vue`、必要子组件/spec | `docs/05-interaction-design/05-api-testing/25-project-settings-ui-function.md`（及 24 视影响） | 左侧列表/名称可达性与加载失败反馈最小对齐 | 不改函数编辑/启停/助手等核心行为 |
+| F3-3c | `pages/project/api-testing/component/ComponentPage.vue`、必要子组件/spec | `docs/05-interaction-design/05-api-testing/22-global-asset-ui.md` | 左侧列表/名称可达性与滚动加载失败反馈最小对齐 | 保持窗口滚动加载与详情编辑行为 |
+
+**非目标（本轮 F3）**：`api-testing/debug/DebugPage.vue` 及调试工作台主流程；场景/接口/报告等编辑器与详情/分享页；新增依赖、API 或数据库变更；机械套用 `ListWorkspace`/分页表格到专用布局。
+
+**子批次节奏**：每批先确认方案 →（需时）先改交互文档并 `validate-docs` 提交 → 输出文件级方案并确认 → 实现与定向验证 → `bash scripts/validate-web.sh` 与 `git diff --check` → 提交 → 回填计划并 `validate-docs` 提交 → 请求人工验收。验收通过后进入下一子批次。
+
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
@@ -246,3 +266,4 @@
 | V1.0 | 2026-11-16 | 登记 F2 实施启动与接口/场景交互文档同步进展 |
 | V1.0 | 2026-11-16 | 回填 F2 接口/场景右侧列表实现、验证、提交与待人工验收记录 |
 | V1.0 | 2026-11-16 | 记录 F2 人工验收通过 |
+| V1.0 | 2026-11-16 | F3 立项：确认目标 B 与子批次范围/非目标/节奏，启动 F3-0 文档落地 |
