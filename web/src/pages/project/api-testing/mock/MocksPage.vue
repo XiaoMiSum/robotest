@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiMockItem } from '@/types'
 import {
@@ -17,13 +17,16 @@ import MockDebugPanel from './MockDebugPanel.vue'
 import MockAddressDialog from './MockAddressDialog.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 
 const props = defineProps<{
   interfaceId?: string
 }>()
 
 const loading = ref(false)
-const error = ref<string | null>(null)
+const loadError = ref('')
+const hasLoaded = ref(false)
 const list = ref<ApiMockItem[]>([])
 const total = ref(0)
 const pageNo = ref(1)
@@ -52,6 +55,17 @@ const addressData = ref<{ mockUrl: string; method: string; name: string; headers
 
 let listRequestId = 0
 
+const hasFilters = computed(() => Boolean(search.value || enabledFilter.value !== undefined))
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载 Mock 规则…'
+  if (loadError.value) return '加载 Mock 列表失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无 Mock 规则'
+})
+
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback
 }
@@ -59,7 +73,7 @@ function errorMessage(err: unknown, fallback: string): string {
 async function loadList(): Promise<void> {
   const requestId = ++listRequestId
   loading.value = true
-  error.value = null
+  loadError.value = ''
   try {
     const result = await fetchMockPage({
       pageNo: pageNo.value,
@@ -71,10 +85,11 @@ async function loadList(): Promise<void> {
     if (requestId !== listRequestId) return
     list.value = result.list
     total.value = result.total
+    hasLoaded.value = true
   } catch (err) {
     if (requestId !== listRequestId) return
     const message = errorMessage(err, '加载 Mock 列表失败')
-    error.value = message
+    loadError.value = message
     ElMessage.error(message)
   } finally {
     if (requestId === listRequestId) {
@@ -93,7 +108,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   listRequestId += 1
-  loading.value = false
 })
 
 watch(() => props.interfaceId, () => {
@@ -132,7 +146,7 @@ async function handleToggle(row: ApiMockItem, enabled: boolean) {
     row.enabled = enabled
     ElMessage.success(enabled ? '已启用' : '已停用')
   } catch {
-    loadList()
+    void loadList()
   }
 }
 
@@ -149,10 +163,10 @@ async function handleBatchToggle(enabled: boolean) {
     const result = await batchToggleMocks({ ids: selectedIds.value, enabled })
     ElMessage.success(`已${enabled ? '启用' : '停用'} ${result.updatedCount} 条规则`)
     tableRef.value?.clearSelection()
-    loadList()
+    void loadList()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : `${enabled ? '启用' : '停用'}失败`)
-    loadList()
+    void loadList()
   }
 }
 
@@ -160,7 +174,7 @@ async function handleDelete(row: ApiMockItem) {
   await ElMessageBox.confirm(`确定删除 Mock「${row.name}」？`, '删除确认', { type: 'warning' })
   await deleteMock(row.id)
   ElMessage.success('已删除')
-  loadList()
+  void loadList()
 }
 
 function handleDuplicate(row: ApiMockItem) {
@@ -202,7 +216,7 @@ function openDebug(mockId: string) {
 
 function handleEditorSaved() {
   editorVisible.value = false
-  loadList()
+  void loadList()
 }
 
 function handleSelectionChange(rows: ApiMockItem[]) {
@@ -253,13 +267,18 @@ function formatHitTime(val: string | null): string {
       </div>
     </div>
 
-    <div v-if="error" class="mocks-page__error" role="alert">
-      <span>{{ error }}</span>
-      <el-button link type="primary" @click="retry">重试</el-button>
+    <div v-if="hasLoaded && loadError" class="mocks-page__feedback">
+      <ListLoadFeedback
+        mode="refresh-error"
+        title="刷新失败，当前显示上次加载的数据"
+        :description="loadError"
+        :retrying="loading"
+        @retry="retry"
+      />
     </div>
 
     <!-- 表体区是页面内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
-    <div v-if="!error || list.length" class="mocks-page__table">
+    <div v-if="hasLoaded || !loadError" class="mocks-page__table">
       <el-table
         ref="tableRef"
         :data="list"
@@ -267,54 +286,72 @@ function formatHitTime(val: string | null): string {
         height="100%"
         @selection-change="(rows: ApiMockItem[]) => handleSelectionChange(rows)"
       >
-      <el-table-column type="selection" width="40" />
-      <el-table-column label="名称" prop="name" min-width="180" show-overflow-tooltip />
-      <el-table-column label="方法" width="90" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="methodTagType((row as ApiMockItem).method)" disable-transitions>
-            {{ (row as ApiMockItem).method }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="路径" prop="path" min-width="200" show-overflow-tooltip />
-      <el-table-column label="状态码" prop="responseStatus" width="80" align="center" />
-      <el-table-column label="优先级" prop="priority" width="70" align="center" />
-      <el-table-column label="启停" width="80" align="center">
-        <template #default="{ row }">
-          <el-switch
-            :model-value="(row as ApiMockItem).enabled"
-            @change="(val: string | number | boolean) => handleToggle(row as ApiMockItem, val === true)"
+        <el-table-column type="selection" width="40" />
+        <el-table-column label="名称" min-width="180">
+          <template #default="{ row }">
+            <ListTitleLink :title="(row as ApiMockItem).name" @open="openEditor((row as ApiMockItem).id)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="方法" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="methodTagType((row as ApiMockItem).method)" disable-transitions>
+              {{ (row as ApiMockItem).method }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="路径" prop="path" min-width="200" show-overflow-tooltip />
+        <el-table-column label="状态码" prop="responseStatus" width="80" align="center" />
+        <el-table-column label="优先级" prop="priority" width="70" align="center" />
+        <el-table-column label="启停" width="80" align="center">
+          <template #default="{ row }">
+            <el-switch
+              :model-value="(row as ApiMockItem).enabled"
+              @change="(val: string | number | boolean) => handleToggle(row as ApiMockItem, val === true)"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="命中次数" prop="hitCount" width="90" align="center" />
+        <el-table-column label="最后命中" width="160" align="center">
+          <template #default="{ row }">
+            {{ formatHitTime((row as ApiMockItem).lastHitAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="280" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="openEditor((row as ApiMockItem).id)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
+            <el-button link type="primary" size="small" @click="handleShowAddress(row as ApiMockItem)">地址</el-button>
+            <el-button link type="primary" size="small" @click="handleDuplicate(row as ApiMockItem)">复制</el-button>
+            <el-dropdown trigger="click" class="mocks-page__more">
+              <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="handleResetHit(row as ApiMockItem)">重置命中</el-dropdown-item>
+                  <el-dropdown-item divided @click="handleDelete(row as ApiMockItem)">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <ListLoadFeedback
+            v-if="loading || !hasLoaded || !loadError"
+            :mode="emptyMode"
+            :title="emptyTitle"
+            :description="loadError"
+            @retry="retry"
+            @reset="handleReset"
           />
         </template>
-      </el-table-column>
-      <el-table-column label="命中次数" prop="hitCount" width="90" align="center" />
-      <el-table-column label="最后命中" width="160" align="center">
-        <template #default="{ row }">
-          {{ formatHitTime((row as ApiMockItem).lastHitAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right" align="center">
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="openEditor((row as ApiMockItem).id)">编辑</el-button>
-          <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
-          <el-button link type="primary" size="small" @click="handleShowAddress(row as ApiMockItem)">地址</el-button>
-          <el-button link type="primary" size="small" @click="handleDuplicate(row as ApiMockItem)">复制</el-button>
-          <el-dropdown trigger="click" class="mocks-page__more">
-            <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="handleResetHit(row as ApiMockItem)">重置命中</el-dropdown-item>
-                <el-dropdown-item divided @click="handleDelete(row as ApiMockItem)">删除</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </template>
-      </el-table-column>
       </el-table>
     </div>
 
+    <div v-else class="mocks-page__first-error">
+      <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="retry" />
+    </div>
+
     <!-- 页面壳已提供左右内边距，分页用 bare 模式与工具栏对齐同一左基线 -->
-    <div v-if="!error || list.length" class="mocks-page__pagination">
+    <div v-if="hasLoaded || !loadError" class="mocks-page__pagination">
       <ListPagination
         v-model:page-no="pageNo"
         v-model:page-size="pageSize"
@@ -382,14 +419,17 @@ function formatHitTime(val: string | null): string {
   gap: var(--space-sm);
 }
 
-.mocks-page__error {
+.mocks-page__feedback {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.mocks-page__first-error {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: var(--space-md) 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
+  align-items: flex-start;
+  padding: 14px 0;
 }
 
 /* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
