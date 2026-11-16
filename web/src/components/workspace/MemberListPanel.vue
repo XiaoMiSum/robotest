@@ -114,6 +114,10 @@ const emptyDescription = computed(() =>
       </div>
     </header>
 
+    <div v-if="loadError && members.length" class="member-list-card__load-error" role="alert">
+      <span>成员列表加载失败，请重试</span>
+      <el-button link type="primary" @click="emit('retry')">重新加载</el-button>
+    </div>
     <div class="member-list-card__body">
       <el-table
         v-loading="loading"
@@ -129,8 +133,26 @@ const emptyDescription = computed(() =>
                 {{ (row.name || row.username).charAt(0).toUpperCase() }}
               </el-avatar>
               <div class="member-list-card__user-copy">
-                <div class="member-list-card__user-name">{{ row.name || row.username }}</div>
-                <div class="member-list-card__user-email">{{ row.email }}</div>
+                <el-tooltip
+                  :content="row.name || row.username"
+                  placement="top-start"
+                  :show-after="300"
+                  :trigger="['hover', 'focus']"
+                  :trigger-keys="[]"
+                >
+                  <div class="member-list-card__user-name" tabindex="0">
+                    {{ row.name || row.username }}
+                  </div>
+                </el-tooltip>
+                <el-tooltip
+                  :content="row.email"
+                  placement="top-start"
+                  :show-after="300"
+                  :trigger="['hover', 'focus']"
+                  :trigger-keys="[]"
+                >
+                  <div class="member-list-card__user-email" tabindex="0">{{ row.email }}</div>
+                </el-tooltip>
               </div>
             </div>
           </template>
@@ -274,6 +296,19 @@ const emptyDescription = computed(() =>
   width: 160px;
 }
 
+.member-list-card__load-error {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 8px var(--card-pad);
+  border-bottom: 1px solid var(--color-danger-100, var(--color-neutral-100));
+  background: var(--color-danger-50, var(--color-neutral-50));
+  color: var(--color-danger-700, var(--color-neutral-700));
+  font-size: var(--font-size-xs);
+}
+
 .member-list-card__body {
   min-width: 0;
   min-height: 0;
@@ -296,22 +331,30 @@ const emptyDescription = computed(() =>
   min-width: 0;
 }
 
-.member-list-card__user-name {
+.member-list-card__user-name,
+.member-list-card__user-email {
   overflow: hidden;
-  color: var(--color-neutral-900);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.member-list-card__user-name {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
 .member-list-card__user-email {
-  overflow: hidden;
   margin-top: 2px;
   color: var(--color-neutral-500);
   font-size: var(--font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.member-list-card__user-name:focus-visible,
+.member-list-card__user-email:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 1px;
+  border-radius: 2px;
 }
 
 .member-list-card__role-tag {

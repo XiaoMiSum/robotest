@@ -49,6 +49,14 @@ function handleSizeChange(pageSize: number): void {
       </div>
     </header>
 
+    <div
+      v-if="loadError && invitations.length"
+      class="invitation-list-card__load-error"
+      role="alert"
+    >
+      <span>邀请链接加载失败，请重试</span>
+      <el-button link type="primary" @click="emit('retry')">重新加载</el-button>
+    </div>
     <div class="invitation-list-card__body">
       <el-table
         v-loading="loading"
@@ -59,7 +67,17 @@ function handleSizeChange(pageSize: number): void {
       >
         <el-table-column label="邀请链接" min-width="190">
           <template #default="{ row }">
-            <span class="invitation-list-card__token">join/{{ row.tokenPreview || '—' }}</span>
+            <el-tooltip
+              :content="`join/${row.tokenPreview || '—'}`"
+              placement="top-start"
+              :show-after="300"
+              :trigger="['hover', 'focus']"
+              :trigger-keys="[]"
+            >
+              <span class="invitation-list-card__token" tabindex="0">
+                join/{{ row.tokenPreview || '—' }}
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column label="使用次数" min-width="100">
@@ -181,6 +199,19 @@ function handleSizeChange(pageSize: number): void {
   font-size: var(--font-size-xs);
 }
 
+.invitation-list-card__load-error {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 8px var(--card-pad);
+  border-bottom: 1px solid var(--color-danger-100, var(--color-neutral-100));
+  background: var(--color-danger-50, var(--color-neutral-50));
+  color: var(--color-danger-700, var(--color-neutral-700));
+  font-size: var(--font-size-xs);
+}
+
 .invitation-list-card__body {
   min-width: 0;
   min-height: 0;
@@ -206,9 +237,21 @@ function handleSizeChange(pageSize: number): void {
 }
 
 .invitation-list-card__token {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--color-neutral-700);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.invitation-list-card__token:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 1px;
+  border-radius: 2px;
 }
 
 .invitation-list-card__status {

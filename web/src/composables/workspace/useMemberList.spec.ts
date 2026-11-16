@@ -132,6 +132,27 @@ describe('useMemberList', () => {
     expect(sut.membersLoadError.value).toBe(false)
   })
 
+  it('已有数据时刷新失败保留列表与分页信息并可重试', async () => {
+    mocks.fetchMembers.mockResolvedValue({ list: [makeMember()], total: 24 })
+    const sut = useMemberList()
+    await sut.loadMembers()
+
+    mocks.fetchMembers.mockRejectedValueOnce(new Error('刷新失败'))
+    sut.memberQuery.pageNo = 2
+    await sut.loadMembers()
+
+    expect(sut.members.value).toHaveLength(1)
+    expect(sut.memberTotal.value).toBe(24)
+    expect(sut.memberQuery.pageNo).toBe(2)
+    expect(sut.membersLoadError.value).toBe(true)
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('刷新失败')
+
+    mocks.fetchMembers.mockResolvedValueOnce({ list: [makeMember({ userId: 'user-2' })], total: 24 })
+    await sut.loadMembers()
+    expect(sut.members.value[0]?.userId).toBe('user-2')
+    expect(sut.membersLoadError.value).toBe(false)
+  })
+
   it('忽略晚到的旧成员响应', async () => {
     const first = deferred<{ list: WorkspaceMember[]; total: number }>()
     const second = deferred<{ list: WorkspaceMember[]; total: number }>()

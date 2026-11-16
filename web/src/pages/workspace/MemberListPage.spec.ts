@@ -91,4 +91,17 @@ describe('MemberListPage demo structure', () => {
     // 状态列定宽，不再随剩余空间被拉伸
     expect(invitationPanelSource).toContain('label="状态" width="80"')
   })
+
+  it('成员与邀请标识支持可达性查看全文，且有数据失败时提供卡片内重试', () => {
+    expect(memberPanelSource).toContain('el-tooltip')
+    expect(memberPanelSource).toContain('member-list-card__user-name')
+    expect(memberPanelSource).toContain('member-list-card__user-email')
+    expect(memberPanelSource).toContain('loadError && members.length')
+    expect(memberPanelSource).toContain('member-list-card__load-error')
+
+    expect(invitationPanelSource).toContain('el-tooltip')
+    expect(invitationPanelSource).toContain('invitation-list-card__token')
+    expect(invitationPanelSource).toContain('loadError && invitations.length')
+    expect(invitationPanelSource).toContain('invitation-list-card__load-error')
+  })
 })
