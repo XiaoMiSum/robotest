@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onActivated, ref, watch } from 'vue'
+import { computed, onActivated, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ApiInterfaceItem, ApiInterfaceStatus, ApiInterfaceView, ProjectModule } from '@/types'
@@ -25,6 +25,8 @@ import ImportDialog from './ImportDialog.vue'
 import ProjectModuleTree from '@/components/project/ProjectModuleTree.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 
 const router = useRouter()
 const uiStore = useApiTestingUiStore()
@@ -60,15 +62,33 @@ const total = ref(0)
 const pageNo = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
+const hasLoaded = ref(false)
+const loadError = ref('')
 const searchText = ref('')
 const statusFilter = ref<'' | ApiInterfaceStatus>('')
 const viewFilter = ref<ApiInterfaceView>('all')
 const selectedRows = ref<ApiInterfaceItem[]>([])
 // 批量条清空需直接驱动表格勾选态，避免只清行数据导致复选框残留
 const tableRef = ref<{ clearSelection: () => void } | null>(null)
+let requestId = 0
+
+const hasFilters = computed(() =>
+  Boolean(searchText.value.trim() || statusFilter.value || viewFilter.value !== 'all' || selectedModuleId.value),
+)
+const emptyMode = computed(() =>
+  loading.value ? 'loading' : loadError.value ? 'error' : hasFilters.value ? 'filtered' : 'empty',
+)
+const emptyTitle = computed(() => {
+  if (loading.value) return '正在加载接口…'
+  if (loadError.value) return '接口列表加载失败'
+  if (hasFilters.value) return '无匹配结果'
+  return '暂无接口'
+})
 
 async function loadPage() {
+  const current = ++requestId
   loading.value = true
+  loadError.value = ''
   try {
     const page = await fetchInterfacePage(
       buildInterfaceListQuery({
@@ -80,16 +100,24 @@ async function loadPage() {
         view: viewFilter.value,
       }) as { pageNo: number; pageSize: number; moduleId?: string; search?: string; status?: string; view?: ApiInterfaceView },
     )
+    if (current !== requestId) return
     rows.value = page.list
     total.value = page.total
+    hasLoaded.value = true
     // 模块名映射随每次列表加载刷新，保证重命名/删除/拖拽后「模块」列显示最新名称
     void loadModules()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '接口列表加载失败')
+    if (current !== requestId) return
+    loadError.value = error instanceof Error ? error.message : '接口列表加载失败'
+    ElMessage.error(loadError.value)
   } finally {
-    loading.value = false
+    if (current === requestId) loading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  requestId += 1
+})
 
 watch([selectedModuleId, statusFilter, viewFilter], () => {
   pageNo.value = 1
@@ -276,8 +304,17 @@ defineExpose({ openCreate, openImport })
       </el-card>
 
       <el-card v-loading="loading" shadow="never" class="interfaces-page__data-card">
+        <div v-if="hasLoaded && loadError" class="interfaces-page__feedback">
+          <ListLoadFeedback
+            mode="refresh-error"
+            title="刷新失败，当前显示上次加载的数据"
+            :description="loadError"
+            :retrying="loading"
+            @retry="loadPage"
+          />
+        </div>
         <!-- 表体区是卡片内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
-        <div class="interfaces-page__table">
+        <div v-if="hasLoaded || !loadError" class="interfaces-page__table">
           <el-table
             ref="tableRef"
             :data="rows"
@@ -296,9 +333,12 @@ defineExpose({ openCreate, openImport })
                 ><StarFilled v-if="row.followed" /><Star v-else /></el-icon>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
+            <el-table-column prop="name" label="名称" min-width="180">
               <template #default="{ row }">
-                <el-link type="primary" :underline="false" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">{{ row.name }}</el-link>
+                <ListTitleLink
+                  :title="row.name"
+                  @open="openEditor(row as Pick<ApiInterfaceItem, 'id'>)"
+                />
               </template>
             </el-table-column>
             <el-table-column label="方法" width="90">
@@ -339,11 +379,28 @@ defineExpose({ openCreate, openImport })
               </template>
             </el-table-column>
             <template #empty>
-              <el-empty description="暂无接口，点击右上角「新建接口」或导入现有定义" />
+              <ListLoadFeedback
+                v-if="loading || !hasLoaded || !loadError"
+                :mode="emptyMode"
+                :title="emptyTitle"
+                :description="loadError"
+                @retry="loadPage"
+                @reset="handleReset"
+              />
             </template>
           </el-table>
         </div>
+        <div v-else class="interfaces-page__first-error">
+          <ListLoadFeedback
+            mode="error"
+            :title="emptyTitle"
+            :description="loadError"
+            :retrying="loading"
+            @retry="loadPage"
+          />
+        </div>
         <ListPagination
+          v-if="hasLoaded || !loadError"
           v-model:page-no="pageNo"
           v-model:page-size="pageSize"
           :total="total"
@@ -455,6 +512,19 @@ defineExpose({ openCreate, openImport })
     display: flex;
     flex-direction: column;
   }
+}
+
+.interfaces-page__feedback {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.interfaces-page__first-error {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 0;
 }
 
 /* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
