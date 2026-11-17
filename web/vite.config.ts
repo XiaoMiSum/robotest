@@ -23,6 +23,25 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 按第三方包边界拆分共享依赖，使入口 chunk 变小并提升跨页缓存命中；
+        // 不调整 chunkSizeWarningLimit，避免以抬高阈值掩盖体积问题
+        manualChunks(id) {
+          if (!id.includes('/node_modules/')) return
+          if (/node_modules\/@?element-plus(?:-icons)?\//.test(id)) return 'element-plus'
+          if (/node_modules\/(?:vue|@vue|vue-router|pinia)\//.test(id)) return 'vue-core'
+          if (/node_modules\/zrender\//.test(id)) return 'zrender'
+          if (/node_modules\/echarts\//.test(id)) return 'charts'
+          if (/node_modules\/(?:vditor|@codemirror|codemirror|vue-codemirror|@lezer|lezer)\//.test(id)) return 'editor'
+          if (/node_modules\/(?:kity|kityminder-core)\//.test(id)) return 'mindmap'
+          if (/node_modules\/(?:yjs|y-websocket|y-protocols|lib0)\//.test(id)) return 'collab'
+          return 'vendor'
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {
