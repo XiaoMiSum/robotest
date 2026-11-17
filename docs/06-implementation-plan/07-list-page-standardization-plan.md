@@ -477,11 +477,24 @@
 
 **方案**：仅在 `web/vite.config.ts` 增加保守的 `build.rollupOptions.output.manualChunks`，按第三方包边界把入口共享依赖拆分为独立可缓存 chunk（Vue 生态、Element Plus、编辑器、脑图、协同、图表、其余 vendor），不改业务代码、不新增依赖、不调整 `chunkSizeWarningLimit`（避免以抬高阈值掩盖问题）。风险点为 chunk 加载顺序、循环依赖与 Teleport 组件样式，通过构建产物依赖图分析与运行时冒烟验证覆盖。
 
+**实施记录**：`web/vite.config.ts` 新增 `build.rollupOptions.output.manualChunks`，按第三方包边界拆为 `vue-core` / `element-plus` / `charts` / `zrender` / `editor` / `mindmap` / `collab` / `vendor` 八组（其中 `kity`、`kityminder.core` 由 vite 自动派生为独立 chunk），未调整 `chunkSizeWarningLimit`、未改业务代码、未新增依赖。
+
+| chunk | 拆包后 | 变化 |
+| ---- | ---- | ---- |
+| 入口 `index` | 26.90 kB（gzip 8.94） | 原 1,301.94 kB 入口被拆散，首屏只加载入口 + `element-plus` + `vue-core` + `vendor` |
+| `ApiTestingPage` | 403.56 kB（gzip 120.11） | 863.51 → 403.56 kB，脱离 500 kB 警告 |
+| `installCanvasRenderer` | 拆解为 `kity` 308.94 kB + `kityminder.core` 378.62 kB | 500.90 kB 单一 chunk 消失，两者均低于阈值 |
+| `charts` / `zrender` | 379.64 kB / 175.78 kB | 原 charts 553.82 kB 拆为 echarts + zrender，均低于阈值 |
+
+**保留项**：`element-plus`（974.28 kB / gzip 300.49）与 `editor`（vditor，752.66 kB / gzip 225.70）仍超 500 kB。二者均为单一第三方包——Element Plus 是每页必载的 UI 框架，vditor 是按需懒加载的整包编辑器；其内部模块共享引用密集，按组件强行切分会引入 chunk 间循环依赖与运行时顺序风险，收益不足以抵消风险，故保留为内聚 chunk。构建警告因此仍存在 1 条，属已知且可接受。
+
+**运行时冒烟**：`vite preview` 起本地服务，浏览器加载登录页无 console error/warning，页面正常渲染；网络面板确认首屏仅请求 `index` / `element-plus` / `vue-core` / `vendor` + 登录页 chunk，`editor` / `charts` / `collab` / 脑图等重 chunk 未进入首屏。构建产物 vendor 类 chunk 依赖图经脚本校验无循环。
+
 | 项目 | 状态 |
 | ---- | ---- |
 | 基线 chunk 数据采集 | 已完成（见上表） |
-| 拆包配置实现 | 待执行（`vite.config.ts` manualChunks） |
-| 定向验证 / 前端门禁 | 待执行（`build` 对比大 chunk、`validate-web.sh`、`diff --check`、运行时冒烟） |
+| 拆包配置实现 | 已完成（`vite.config.ts` manualChunks，八组按包边界） |
+| 定向验证 / 前端门禁 | 已完成（build 大 chunk 对比、依赖图无环校验、运行时冒烟无报错、`validate-web.sh` 全绿、`diff --check` 通过） |
 | 验收 | 用户授权免逐项验收，按推荐执行 |
 
 ## 修改记录
@@ -527,3 +540,4 @@
 | V1.0 | 2026-11-17 | 减少动效偏好全局兜底立项（建议 7），登记规范依据与实现方案 |
 | V1.0 | 2026-11-17 | 回填建议 7 全局兜底实现、CODE-008 精确例外登记与前端门禁/构建验证 |
 | V1.0 | 2026-11-17 | 构建大 chunk 拆包立项（建议 8），登记基线数据与按包边界拆分的保守方案 |
+| V1.0 | 2026-11-17 | 回填建议 8 拆包实现、chunk 对比、保留项说明、运行时冒烟与前端门禁记录 |
