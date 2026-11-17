@@ -444,6 +444,21 @@
 - `68b01c66`：📝 docs(frontend): 收窄 DebugPage 标签名为悬停可达并同步方案口径。
 - `31c18680`：✨ feat(frontend): DebugPage 标签名与历史记录名补截断可达性。
 
+### 5.19 减少动效偏好全局兜底（建议 7）
+
+**用户确认**：从 UI 设计优化建议 7（减少动效偏好）启动，用户授权后续任务免逐项验收、按推荐执行。
+
+**一致性评估**：`docs/00-spec/50-ui/01-frontend-design.md` UI-DS-08 与 §5.3 已规定"遵循用户的减少动效偏好"，属已有原则的实现落地，非新增行为，不需新建交互文档。探查发现 4 个页面有局部 `prefers-reduced-motion` 规则，但 54 个文件使用动画/transition 且无全局兜底，未适配页面在用户开启减少动效时仍会播放过渡。
+
+**方案**：在全局桥接层 `web/src/assets/styles/variables.scss` 末尾新增顶层 `@media (prefers-reduced-motion: reduce)`，于 `body[data-robotest-theme]` 作用域内统一将 `transition-duration` / `animation-duration` 收紧到近似 instantaneous（`0.01ms`），并把 `animation-iteration-count` 归 1、`scroll-behavior` 改为 auto。该作用域覆盖 Teleport 到 body 的 Dialog/Drawer 节点；4 处已有的更精细局部规则保持优先，不受影响。不新增依赖、不改组件逻辑。
+
+| 项目 | 状态 |
+| ---- | ---- |
+| 规范依据 | 已有（UI-DS-08 / §5.3），无需新建交互文档 |
+| 全局兜底实现 | 待执行（`variables.scss` 顶层媒体查询） |
+| 定向验证 / 前端门禁 | 待执行（`stylePolicy.spec.ts`、`validate-web.sh`、`build`） |
+| 验收 | 用户授权免逐项验收，按推荐执行 |
+
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
@@ -484,3 +499,4 @@
 | V1.0 | 2026-11-17 | 收窄标签名可达性为悬停查看全文（不引入 tabindex 与键盘切换），历史记录名保持 hover/focus |
 | V1.0 | 2026-11-17 | 回填 DebugPage 名称可达性实现、定向断言、前端门禁与提交记录，待人工验收 |
 | V1.0 | 2026-11-17 | 用户授权后续任务免逐项验收并按推荐执行，建议 4 据此收尾 |
+| V1.0 | 2026-11-17 | 减少动效偏好全局兜底立项（建议 7），登记规范依据与实现方案 |
