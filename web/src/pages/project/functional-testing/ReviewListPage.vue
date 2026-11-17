@@ -10,6 +10,23 @@ import { REVIEW_STATUS_META } from '@/components/project/functional-testing/revi
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListWorkspace from '@/components/common/ListWorkspace.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+
+const REVIEW_COLUMNS: TableColumnMeta[] = [
+  { key: 'title', label: '标题' },
+  { key: 'initiator', label: '发起人' },
+  { key: 'status', label: '状态' },
+  { key: 'progress', label: '进度' },
+  { key: 'passRate', label: '通过率' },
+  { key: 'participants', label: '参与者' },
+  { key: 'createdAt', label: '创建时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'review-list',
+  columns: REVIEW_COLUMNS,
+})
 
 const router = useRouter()
 const loading = ref(false)
@@ -172,6 +189,13 @@ async function submitCreate(payload: TestReviewCreatePayload) {
             ><el-icon><Search /></el-icon>查询</el-button
           ><el-button @click="handleReset">重置</el-button></el-space
         >
+        <TableColumnSetting
+          :columns="REVIEW_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
         <span class="review-list__count">共 {{ total }} 场评审</span>
       </template>
       <template v-if="hasLoaded && loadError" #feedback>
@@ -185,6 +209,7 @@ async function submitCreate(payload: TestReviewCreatePayload) {
       </template>
       <ReviewListTable
         :reviews="reviews"
+        :visible-keys="visibleKeys"
         @open="openReview"
         @reopen="handleReopen"
         @delete="handleDelete"

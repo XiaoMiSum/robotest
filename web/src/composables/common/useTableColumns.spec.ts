@@ -64,4 +64,12 @@ describe('useTableColumns', () => {
     localStorage.setItem('robotest_list_columns:bug-list:user-1', 'not-json')
     expect(make().visibleKeys.value).toEqual(['actions', 'title', 'status', 'createdAt'])
   })
+
+  it('未注入 getUserId 时按 localStorage 中的当前用户隔离', () => {
+    localStorage.setItem('robotest_user', JSON.stringify({ id: 'user-9' }))
+    const c = useTableColumns({ pageKey: 'bug-list', columns: COLUMNS })
+    c.setVisible('status', false)
+    expect(localStorage.getItem('robotest_list_columns:bug-list:user-9')).toContain('title')
+    expect(localStorage.getItem('robotest_list_columns:bug-list:anonymous')).toBeNull()
+  })
 })
