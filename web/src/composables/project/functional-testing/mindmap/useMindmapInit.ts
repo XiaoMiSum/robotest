@@ -1,4 +1,4 @@
-import { watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchDocumentNodes } from '@/services/project'
 import { caseNodeToKm } from '@/minder/adapter'
@@ -57,6 +57,8 @@ export function useMindmapInit(options: {
     destroyMinder, kmEditorRef, persistence, yjs, layout, nodeOps,
   } = options
 
+  const loadError = ref(false)
+
   const {
     visible: menuVisible,
     pos: menuPos,
@@ -78,6 +80,7 @@ export function useMindmapInit(options: {
     if (!containerRef.value || !docId()) return
     const token = beginInit()
     loading.value = true
+    loadError.value = false
     persistence.flushPersistenceNow()
     yjs.destroyYjs()
     teardownMinder()
@@ -124,6 +127,7 @@ export function useMindmapInit(options: {
       if (isStale(token)) return
       yjs.setupYjs(docId())
     } catch (err) {
+      loadError.value = true
       ElMessage.error(err instanceof Error ? err.message : '加载脑图失败')
     } finally {
       loading.value = false
@@ -145,5 +149,5 @@ export function useMindmapInit(options: {
     teardownMinder()
   })
 
-  return { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder }
+  return { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder, loadError }
 }

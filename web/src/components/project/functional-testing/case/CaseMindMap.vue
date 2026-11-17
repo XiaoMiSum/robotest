@@ -62,7 +62,7 @@ const yjs = useMindmapYjs(
   persistence.schedulePersist,
 )
 
-const { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder } = useMindmapInit({
+const { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder, loadError } = useMindmapInit({
   docId: () => props.docId,
   containerRef,
   loading,
@@ -131,6 +131,13 @@ const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
 
 <template>
   <div v-loading="loading" class="mindmap-container">
+    <div v-if="loadError" class="mindmap-load-error" role="alert">
+      <el-empty description="脑图加载失败">
+        <el-button type="primary" @click="initMinder()">重试</el-button>
+      </el-empty>
+    </div>
+
+    <template v-else>
     <div v-if="!yjs.isConnected.value" class="mindmap-disconnect-banner">
       连接已断开，正在重连...
     </div>
@@ -347,11 +354,20 @@ const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
       allow-empty
       @confirm="(ids) => void requirementLink.confirm(ids)"
     />
+    </template>
   </div>
 </template>
 
 <style scoped lang="scss">
 @use '../minder/minder-base';
+
+.mindmap-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+}
 
 .mindmap-disconnect-banner {
   background: var(--el-color-warning-light-9);

@@ -31,13 +31,16 @@ export function useProjectModuleTree({
 
   const treeData = ref<ProjectModule[]>([])
   const loading = ref(false)
+  const loadError = ref(false)
   const currentDocId = ref('')
 
   async function load() {
     loading.value = true
     try {
       treeData.value = await fetchProjectModuleTree(getAssetType())
+      loadError.value = false
     } catch (err) {
+      loadError.value = true
       ElMessage.error(err instanceof Error ? err.message : '加载模块树失败')
     } finally {
       loading.value = false
@@ -162,6 +165,8 @@ export function useProjectModuleTree({
   async function silentRefresh() {
     try {
       treeData.value = await fetchProjectModuleTree(getAssetType())
+      // 轮询成功即视为自愈，清除此前可见加载失败遗留的错误态
+      loadError.value = false
     } catch {
       // 静默忽略，等待下一轮
     }
@@ -221,6 +226,7 @@ export function useProjectModuleTree({
     isDocumentMode,
     treeData,
     loading,
+    loadError,
     currentDocId,
     load,
     handleNodeClick,
