@@ -13,4 +13,10 @@ describe('WorkspaceListPage 列表交互与反馈', () => {
     expect(pageSource).toContain('refresh-error')
     expect(pageSource).toContain('ElMessage.error')
   })
+
+  it('状态筛选分段按钮具备读屏可感知的选中态与分组语义', () => {
+    expect(pageSource).toContain('role="group"')
+    expect(pageSource).toContain('aria-label="空间状态"')
+    expect(pageSource).toContain(':aria-pressed="query.status === opt.value"')
+  })
 })
