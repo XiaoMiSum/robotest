@@ -8,6 +8,21 @@ import { formatDateTime, formatFileSize } from '@/utils/format'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+
+const FILE_COLUMNS: TableColumnMeta[] = [
+  { key: 'name', label: '文件名' },
+  { key: 'size', label: '大小' },
+  { key: 'type', label: '类型' },
+  { key: 'uploader', label: '上传者' },
+  { key: 'uploadedAt', label: '上传时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'file-list',
+  columns: FILE_COLUMNS,
+})
 
 const authStore = useAuthStore()
 // 删除即回收空间且不可恢复（详设 5.3），仅 file:delete 可见
@@ -147,6 +162,13 @@ onMounted(() => {
             <el-icon><Search /></el-icon>查询
           </el-button>
           <el-button @click="handleReset">重置</el-button>
+          <TableColumnSetting
+            :columns="FILE_COLUMNS"
+            :visible-keys="visibleKeys"
+            @change="(key, visible) => setVisible(key, visible)"
+            @select-all="selectAll"
+            @reset="reset"
+          />
         </div>
         <span class="file-list__count">共 {{ total }} 个文件</span>
       </div>
@@ -163,27 +185,27 @@ onMounted(() => {
 
       <template v-if="hasLoaded || !loadError">
         <el-table v-loading="loading" :data="files" row-key="id">
-          <el-table-column label="文件名" min-width="240">
+          <el-table-column v-if="visibleKeys.includes('name')" label="文件名" min-width="240">
             <template #default="{ row }">
               <ListTitleLink :title="(row as FileItem).fileName" @open="() => {}" />
             </template>
           </el-table-column>
-          <el-table-column label="大小" width="110">
+          <el-table-column v-if="visibleKeys.includes('size')" label="大小" width="110">
             <template #default="{ row }">
               <span class="file-list__num">{{ formatFileSize((row as FileItem).fileSize) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="类型" min-width="160">
+          <el-table-column v-if="visibleKeys.includes('type')" label="类型" min-width="160">
             <template #default="{ row }">
               <span class="file-list__muted">{{ (row as FileItem).contentType || 'application/octet-stream' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="上传者" width="140">
+          <el-table-column v-if="visibleKeys.includes('uploader')" label="上传者" width="140">
             <template #default="{ row }">
               <span>{{ (row as FileItem).uploaderName || '-' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="上传时间" width="170">
+          <el-table-column v-if="visibleKeys.includes('uploadedAt')" label="上传时间" width="170">
             <template #default="{ row }">
               <span class="file-list__num">{{ formatDateTime((row as FileItem).createdAt) }}</span>
             </template>
