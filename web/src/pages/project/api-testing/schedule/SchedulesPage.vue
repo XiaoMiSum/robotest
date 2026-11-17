@@ -4,7 +4,23 @@ import ScenePickerDialog from '@/components/project/api-testing/scene/ScenePicke
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
 import { useSchedules } from '@/composables/project/api-testing/schedule/useSchedules'
+
+const SCHEDULE_COLUMNS: TableColumnMeta[] = [
+  { key: 'name', label: '任务名称' },
+  { key: 'type', label: '任务类型' },
+  { key: 'target', label: '执行目标' },
+  { key: 'cron', label: '调度表达式' },
+  { key: 'enabled', label: '启用状态' },
+  { key: 'lastExecution', label: '上次执行' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'schedule-list',
+  columns: SCHEDULE_COLUMNS,
+})
 import type { ApiSchedulePageItem } from '@/types'
 
 const {
@@ -96,6 +112,13 @@ function handlePageSizeChange() {
         <el-select v-model="typeFilter" placeholder="任务类型" clearable style="width: 140px">
           <el-option v-for="opt in SCHEDULE_TASK_TYPES" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
+        <TableColumnSetting
+          :columns="SCHEDULE_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
         <el-button type="primary" @click="openCreate">新建任务</el-button>
       </div>
     </div>
@@ -112,28 +135,28 @@ function handlePageSizeChange() {
 
     <div v-if="hasLoaded || !loadError" class="schedules-page__table">
       <el-table :data="rows" height="100%" stripe>
-        <el-table-column label="任务名称" min-width="180">
+        <el-table-column v-if="visibleKeys.includes('name')" label="任务名称" min-width="180">
           <template #default="{ row }">
             <ListTitleLink :title="(row as ApiSchedulePageItem).name" @open="openEdit(row as ApiSchedulePageItem)" />
           </template>
         </el-table-column>
-        <el-table-column label="任务类型" width="120">
+        <el-table-column v-if="visibleKeys.includes('type')" label="任务类型" width="120">
           <template #default="{ row }">
             {{ SCHEDULE_TASK_TYPES.find((o) => o.value === (row as ApiSchedulePageItem).taskType)?.label ?? (row as ApiSchedulePageItem).taskType }}
           </template>
         </el-table-column>
-        <el-table-column label="执行目标" min-width="150" show-overflow-tooltip>
+        <el-table-column v-if="visibleKeys.includes('target')" label="执行目标" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             {{ taskExecutionSummary(row as ApiSchedulePageItem) }}
           </template>
         </el-table-column>
-        <el-table-column label="调度表达式" prop="cronExpression" width="140" />
-        <el-table-column label="启用状态" width="90" align="center">
+        <el-table-column v-if="visibleKeys.includes('cron')" label="调度表达式" prop="cronExpression" width="140" />
+        <el-table-column v-if="visibleKeys.includes('enabled')" label="启用状态" width="90" align="center">
           <template #default="{ row }">
             <el-switch :model-value="(row as ApiSchedulePageItem).enabled" @change="handleToggle(row as ApiSchedulePageItem)" />
           </template>
         </el-table-column>
-        <el-table-column label="上次执行" min-width="160">
+        <el-table-column v-if="visibleKeys.includes('lastExecution')" label="上次执行" min-width="160">
           <template #default="{ row }">
             <template v-if="(row as ApiSchedulePageItem).lastExecutionStatus">
               <el-tag size="small" :type="execStatusType((row as ApiSchedulePageItem).lastExecutionStatus!)">

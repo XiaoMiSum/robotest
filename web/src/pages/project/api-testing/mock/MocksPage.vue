@@ -19,6 +19,25 @@ import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+
+const MOCK_COLUMNS: TableColumnMeta[] = [
+  { key: 'selection', label: '选择', pinned: true },
+  { key: 'name', label: '名称' },
+  { key: 'method', label: '方法' },
+  { key: 'path', label: '路径' },
+  { key: 'statusCode', label: '状态码' },
+  { key: 'priority', label: '优先级' },
+  { key: 'enabled', label: '启停' },
+  { key: 'hitCount', label: '命中次数' },
+  { key: 'lastHit', label: '最后命中' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'mock-list',
+  columns: MOCK_COLUMNS,
+})
 
 const props = defineProps<{
   interfaceId?: string
@@ -258,6 +277,13 @@ function formatHitTime(val: string | null): string {
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button @click="handleReset">重置</el-button>
+        <TableColumnSetting
+          :columns="MOCK_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
       </div>
       <div class="mocks-page__toolbar-right">
         <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
@@ -287,22 +313,22 @@ function formatHitTime(val: string | null): string {
         @selection-change="(rows: ApiMockItem[]) => handleSelectionChange(rows)"
       >
         <el-table-column type="selection" width="40" />
-        <el-table-column label="名称" min-width="180">
+        <el-table-column v-if="visibleKeys.includes('name')" label="名称" min-width="180">
           <template #default="{ row }">
             <ListTitleLink :title="(row as ApiMockItem).name" @open="openEditor((row as ApiMockItem).id)" />
           </template>
         </el-table-column>
-        <el-table-column label="方法" width="90" align="center">
+        <el-table-column v-if="visibleKeys.includes('method')" label="方法" width="90" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="methodTagType((row as ApiMockItem).method)" disable-transitions>
               {{ (row as ApiMockItem).method }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="路径" prop="path" min-width="200" show-overflow-tooltip />
-        <el-table-column label="状态码" prop="responseStatus" width="80" align="center" />
-        <el-table-column label="优先级" prop="priority" width="70" align="center" />
-        <el-table-column label="启停" width="80" align="center">
+        <el-table-column v-if="visibleKeys.includes('path')" label="路径" prop="path" min-width="200" show-overflow-tooltip />
+        <el-table-column v-if="visibleKeys.includes('statusCode')" label="状态码" prop="responseStatus" width="80" align="center" />
+        <el-table-column v-if="visibleKeys.includes('priority')" label="优先级" prop="priority" width="70" align="center" />
+        <el-table-column v-if="visibleKeys.includes('enabled')" label="启停" width="80" align="center">
           <template #default="{ row }">
             <el-switch
               :model-value="(row as ApiMockItem).enabled"
@@ -310,8 +336,8 @@ function formatHitTime(val: string | null): string {
             />
           </template>
         </el-table-column>
-        <el-table-column label="命中次数" prop="hitCount" width="90" align="center" />
-        <el-table-column label="最后命中" width="160" align="center">
+        <el-table-column v-if="visibleKeys.includes('hitCount')" label="命中次数" prop="hitCount" width="90" align="center" />
+        <el-table-column v-if="visibleKeys.includes('lastHit')" label="最后命中" width="160" align="center">
           <template #default="{ row }">
             {{ formatHitTime((row as ApiMockItem).lastHitAt) }}
           </template>

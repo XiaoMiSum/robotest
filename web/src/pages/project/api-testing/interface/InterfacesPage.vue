@@ -27,6 +27,25 @@ import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+
+const INTERFACE_COLUMNS: TableColumnMeta[] = [
+  { key: 'selection', label: '选择', pinned: true },
+  { key: 'star', label: '收藏', pinned: true },
+  { key: 'name', label: '名称' },
+  { key: 'method', label: '方法' },
+  { key: 'path', label: '路径' },
+  { key: 'module', label: '模块' },
+  { key: 'status', label: '状态' },
+  { key: 'referenceCount', label: '引用' },
+  { key: 'updatedAt', label: '更新时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'interface-list',
+  columns: INTERFACE_COLUMNS,
+})
 
 const router = useRouter()
 const uiStore = useApiTestingUiStore()
@@ -287,6 +306,13 @@ defineExpose({ openCreate, openImport })
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button data-test="interface-reset-btn" @click="handleReset">重置</el-button>
+        <TableColumnSetting
+          :columns="INTERFACE_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
         <div class="interfaces-page__spacer" />
       </div>
     </el-card>
@@ -333,7 +359,7 @@ defineExpose({ openCreate, openImport })
                 ><StarFilled v-if="row.followed" /><Star v-else /></el-icon>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="名称" min-width="180">
+            <el-table-column v-if="visibleKeys.includes('name')" prop="name" label="名称" min-width="180">
               <template #default="{ row }">
                 <ListTitleLink
                   :title="row.name"
@@ -341,16 +367,16 @@ defineExpose({ openCreate, openImport })
                 />
               </template>
             </el-table-column>
-            <el-table-column label="方法" width="90">
+            <el-table-column v-if="visibleKeys.includes('method')" label="方法" width="90">
               <template #default="{ row }">
                 <el-tag size="small" :type="methodTagType(row.method)">{{ row.method }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="path" label="路径" min-width="220" show-overflow-tooltip />
-            <el-table-column label="模块" width="140">
+            <el-table-column v-if="visibleKeys.includes('path')" prop="path" label="路径" min-width="220" show-overflow-tooltip />
+            <el-table-column v-if="visibleKeys.includes('module')" label="模块" width="140">
               <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '—' }}</template>
             </el-table-column>
-            <el-table-column label="状态" width="90">
+            <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="90">
               <template #default="{ row }">
                 <el-switch
                   :model-value="row.status === 'enabled'"
@@ -359,8 +385,8 @@ defineExpose({ openCreate, openImport })
                 />
               </template>
             </el-table-column>
-            <el-table-column prop="referenceCount" label="引用" width="70" align="center" />
-            <el-table-column prop="updatedAt" label="更新时间" width="170">
+            <el-table-column v-if="visibleKeys.includes('referenceCount')" prop="referenceCount" label="引用" width="70" align="center" />
+            <el-table-column v-if="visibleKeys.includes('updatedAt')" prop="updatedAt" label="更新时间" width="170">
               <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
             </el-table-column>
             <el-table-column label="操作" width="190" fixed="right">

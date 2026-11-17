@@ -14,6 +14,26 @@ import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+
+const SCENARIO_COLUMNS: TableColumnMeta[] = [
+  { key: 'selection', label: '选择', pinned: true },
+  { key: 'star', label: '收藏', pinned: true },
+  { key: 'name', label: '场景名称' },
+  { key: 'module', label: '所属模块' },
+  { key: 'priority', label: '优先级' },
+  { key: 'stepCount', label: '步骤数' },
+  { key: 'status', label: '状态' },
+  { key: 'lastStatus', label: '最近执行' },
+  { key: 'lastExecutedAt', label: '最近执行时间' },
+  { key: 'updatedAt', label: '更新时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'scenario-list',
+  columns: SCENARIO_COLUMNS,
+})
 
 const emit = defineEmits<{
   (e: 'edit', sceneId: string): void
@@ -342,6 +362,13 @@ onActivated(async () => {
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button @click="handleReset">重置</el-button>
+        <TableColumnSetting
+          :columns="SCENARIO_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
         <div class="scenarios-page__spacer" />
       </div>
     </el-card>
@@ -387,7 +414,7 @@ onActivated(async () => {
                   ><StarFilled v-if="row.followed" /><Star v-else /></el-icon>
                 </template>
               </el-table-column>
-              <el-table-column prop="name" label="场景名称" min-width="200">
+              <el-table-column v-if="visibleKeys.includes('name')" prop="name" label="场景名称" min-width="200">
                 <template #default="{ row }">
                   <div class="scenarios-page__name-cell">
                     <ListTitleLink
@@ -417,17 +444,17 @@ onActivated(async () => {
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column label="所属模块" width="140">
+              <el-table-column v-if="visibleKeys.includes('module')" label="所属模块" width="140">
                 <template #default="{ row }">{{ row.moduleId ? moduleNames.get(row.moduleId) ?? '—' : '未分组' }}</template>
               </el-table-column>
-              <el-table-column label="优先级" width="80" align="center">
+              <el-table-column v-if="visibleKeys.includes('priority')" label="优先级" width="80" align="center">
                 <template #default="{ row }">
                   <span v-if="row.priority" class="scenarios-page__priority" :class="`scenarios-page__priority--${row.priority.toLowerCase()}`">{{ row.priority }}</span>
                   <span v-else class="text-neutral-400">—</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="stepCount" label="步骤数" width="80" align="center" />
-              <el-table-column label="状态" width="90" align="center">
+              <el-table-column v-if="visibleKeys.includes('stepCount')" prop="stepCount" label="步骤数" width="80" align="center" />
+              <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="90" align="center">
                 <template #default="{ row }">
                   <!-- 发布状态徽标，视觉对齐场景编辑器顶部的状态标签 -->
                   <span
@@ -436,19 +463,19 @@ onActivated(async () => {
                   >{{ (row as ApiScenePageItem).status === 'published' ? '已发布' : (row as ApiScenePageItem).status === 'draft' ? '草稿' : '—' }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="最近执行" width="100">
+              <el-table-column v-if="visibleKeys.includes('lastStatus')" label="最近执行" width="100">
                 <template #default="{ row }">
                   <el-tag v-if="row.lastStatus" size="small" :type="statusType(row.lastStatus)">{{ statusLabel(row.lastStatus) }}</el-tag>
                   <span v-else class="text-neutral-400">—</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="lastExecutedAt" label="最近执行时间" width="170">
+              <el-table-column v-if="visibleKeys.includes('lastExecutedAt')" prop="lastExecutedAt" label="最近执行时间" width="170">
                 <template #default="{ row }">
                   <span v-if="row.lastExecutedAt">{{ formatDateTime(row.lastExecutedAt) }}</span>
                   <span v-else class="text-neutral-400">—</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="updatedAt" label="更新时间" width="170">
+              <el-table-column v-if="visibleKeys.includes('updatedAt')" prop="updatedAt" label="更新时间" width="170">
                 <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
               </el-table-column>
               <el-table-column label="操作" width="180" fixed="right">
