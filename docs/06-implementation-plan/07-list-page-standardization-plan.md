@@ -461,6 +461,29 @@
 | 定向验证 / 前端门禁 | 已完成（`stylePolicy.spec.ts` 7 项通过；`validate-web.sh` 全绿；`pnpm run build` 成功且产物 CSS 含兜底规则） |
 | 验收 | 用户授权免逐项验收，按推荐执行 |
 
+### 5.20 构建大 chunk 拆包（建议 8）
+
+**用户确认**：从 UI 设计优化建议 8（构建包体积优化）启动，用户授权后续任务免逐项验收、按推荐执行。
+
+**一致性评估**：属工程构建优化，不涉及业务行为或交互，无需求/交互文档冲突。基线 `pnpm run build` 成功但报告 3 个 chunk 超过 500 kB（见下表），与计划文档 5.1/5.2 已记录的"构建提示部分 chunk 超过 500 kB"一致，本建议即针对该提示落地优化。
+
+**基线数据**（`pnpm run build`，未压缩 / gzip）：
+
+| chunk | 未压缩 | gzip | 加载时机 | 主要来源 |
+| ---- | ---- | ---- | ---- | ---- |
+| `index-CXW5YdfH.js` | 1,301.94 kB | 422.03 kB | 入口，每页必载 | Element Plus 组件、Vue 生态、Yjs、Vditor 字符串等共享依赖 |
+| `ApiTestingPage-BjV8y7FE.js` | 863.51 kB | 273.97 kB | 路由懒加载 | 接口测试域静态聚合的 12 个子页面及其重依赖 |
+| `installCanvasRenderer-XldW36MG.js` | 500.90 kB | 171.74 kB | 路由懒加载 | 脑图 kity/kityminder canvas 渲染器 |
+
+**方案**：仅在 `web/vite.config.ts` 增加保守的 `build.rollupOptions.output.manualChunks`，按第三方包边界把入口共享依赖拆分为独立可缓存 chunk（Vue 生态、Element Plus、编辑器、脑图、协同、图表、其余 vendor），不改业务代码、不新增依赖、不调整 `chunkSizeWarningLimit`（避免以抬高阈值掩盖问题）。风险点为 chunk 加载顺序、循环依赖与 Teleport 组件样式，通过构建产物依赖图分析与运行时冒烟验证覆盖。
+
+| 项目 | 状态 |
+| ---- | ---- |
+| 基线 chunk 数据采集 | 已完成（见上表） |
+| 拆包配置实现 | 待执行（`vite.config.ts` manualChunks） |
+| 定向验证 / 前端门禁 | 待执行（`build` 对比大 chunk、`validate-web.sh`、`diff --check`、运行时冒烟） |
+| 验收 | 用户授权免逐项验收，按推荐执行 |
+
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
@@ -503,3 +526,4 @@
 | V1.0 | 2026-11-17 | 用户授权后续任务免逐项验收并按推荐执行，建议 4 据此收尾 |
 | V1.0 | 2026-11-17 | 减少动效偏好全局兜底立项（建议 7），登记规范依据与实现方案 |
 | V1.0 | 2026-11-17 | 回填建议 7 全局兜底实现、CODE-008 精确例外登记与前端门禁/构建验证 |
+| V1.0 | 2026-11-17 | 构建大 chunk 拆包立项（建议 8），登记基线数据与按包边界拆分的保守方案 |
