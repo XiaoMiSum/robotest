@@ -10,7 +10,23 @@ import RequirementImportDialog from '@/components/project/requirement/Requiremen
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
+
+const REQUIREMENT_COLUMNS: TableColumnMeta[] = [
+  { key: 'code', label: '编号' },
+  { key: 'title', label: '标题' },
+  { key: 'module', label: '所属模块' },
+  { key: 'version', label: '版本' },
+  { key: 'status', label: '状态' },
+  { key: 'owner', label: '负责人' },
+  { key: 'updatedAt', label: '更新时间' },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'requirement-list',
+  columns: REQUIREMENT_COLUMNS,
+})
 
 const router = useRouter()
 
@@ -229,6 +245,13 @@ function openCreate(): void {
         </el-button>
         <el-button @click="resetFilters">重置</el-button>
         <el-badge v-if="filterCount > 0" :value="filterCount" class="requirement-list__badge" />
+        <TableColumnSetting
+          :columns="REQUIREMENT_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
         <span class="requirement-list__count">共 {{ total }} 条</span>
       </div>
 
@@ -254,23 +277,23 @@ function openCreate(): void {
       >
         <!-- 选择列服务 AI 发起（交互 2.1），入口隐藏时无消费方不渲染 -->
         <el-table-column v-if="canLaunchAi" type="selection" width="36" />
-        <el-table-column label="编号" width="110">
+        <el-table-column v-if="visibleKeys.includes('code')" label="编号" width="110">
           <template #default="{ row }">
             <span class="requirement-list__code">{{ row.code }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="标题" min-width="260">
+        <el-table-column v-if="visibleKeys.includes('title')" label="标题" min-width="260">
           <template #default="{ row }">
             <ListTitleLink :title="row.title" @open="openDetail(row.id)" />
           </template>
         </el-table-column>
-        <el-table-column label="所属模块" width="130" show-overflow-tooltip>
+        <el-table-column v-if="visibleKeys.includes('module')" label="所属模块" width="130" show-overflow-tooltip>
           <template #default="{ row }">{{ row.moduleText }}</template>
         </el-table-column>
-        <el-table-column label="版本" width="110" show-overflow-tooltip>
+        <el-table-column v-if="visibleKeys.includes('version')" label="版本" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.versionText }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="100">
           <template #default="{ row }">
             <el-tag
               :type="row.statusMeta.tagType"
@@ -282,10 +305,10 @@ function openCreate(): void {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="负责人" width="100" show-overflow-tooltip>
+        <el-table-column v-if="visibleKeys.includes('owner')" label="负责人" width="100" show-overflow-tooltip>
           <template #default="{ row }">{{ row.ownerText }}</template>
         </el-table-column>
-        <el-table-column label="更新时间" width="170">
+        <el-table-column v-if="visibleKeys.includes('updatedAt')" label="更新时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
         <!-- 归档入口随 requirement:confirm，故下拉显隐由 edit / confirm 任一权限决定（SRS 1.2 行操作） -->

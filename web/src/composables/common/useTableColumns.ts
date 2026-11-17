@@ -8,19 +8,32 @@ export interface TableColumnMeta {
 }
 
 const KEY_PREFIX = 'robotest_list_columns'
+// 与 auth store 的 USER_KEY 同源；composable 不依赖 Pinia 实例，便于独立测试与复用
+const USER_KEY = 'robotest_user'
 
 function storageKey(pageKey: string, userId: string): string {
   return `${KEY_PREFIX}:${pageKey}:${userId || 'anonymous'}`
 }
 
+function defaultUserId(): string {
+  try {
+    const raw = localStorage.getItem(USER_KEY)
+    if (!raw) return ''
+    const user = JSON.parse(raw) as { id?: unknown }
+    return typeof user.id === 'string' ? user.id : ''
+  } catch {
+    return ''
+  }
+}
+
 export function useTableColumns({
   pageKey,
   columns,
-  getUserId,
+  getUserId = defaultUserId,
 }: {
   pageKey: string
   columns: TableColumnMeta[]
-  getUserId: () => string
+  getUserId?: () => string
 }) {
   const pinnedKeys = columns.filter((c) => c.pinned).map((c) => c.key)
   const optionalKeys = columns.filter((c) => !c.pinned).map((c) => c.key)

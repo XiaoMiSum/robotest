@@ -14,6 +14,24 @@ import {
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListWorkspace from '@/components/common/ListWorkspace.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+
+const PLAN_COLUMNS: TableColumnMeta[] = [
+  { key: 'name', label: '名称' },
+  { key: 'owner', label: '负责人' },
+  { key: 'timeRange', label: '起止时间' },
+  { key: 'environment', label: '环境' },
+  { key: 'status', label: '状态' },
+  { key: 'progress', label: '进度' },
+  { key: 'passRate', label: '通过率' },
+  { key: 'createdAt', label: '创建时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'plan-list',
+  columns: PLAN_COLUMNS,
+})
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -192,6 +210,13 @@ async function submitCreate(payload: TestPlanCreatePayload) {
             ><el-icon><Search /></el-icon>查询</el-button
           ><el-button @click="handleReset">重置</el-button></el-space
         >
+        <TableColumnSetting
+          :columns="PLAN_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
         <span class="plan-list__count">{{ planCountText(total) }}</span>
       </template>
       <template v-if="hasLoaded && loadError" #feedback>
@@ -207,6 +232,7 @@ async function submitCreate(payload: TestPlanCreatePayload) {
         :plans="plans"
         :can-complete="canCompletePlans"
         :can-resume="canResumePlans"
+        :visible-keys="visibleKeys"
         @open="openPlan"
         @complete="handleComplete"
         @resume="handleResume"

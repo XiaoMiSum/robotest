@@ -13,7 +13,7 @@ import {
   reviewStatusMeta,
 } from './reviewListPresentation'
 
-const props = defineProps<{ reviews: TestReviewListItem[] }>()
+const props = defineProps<{ reviews: TestReviewListItem[]; visibleKeys: string[] }>()
 const emit = defineEmits<{
   open: [id: string]
   reopen: [review: TestReviewListItem]
@@ -41,7 +41,7 @@ const brandAvatarStyle = {
 <template>
   <el-table class="review-table" :data="rows" row-key="id" height="100%">
     <template #empty><slot name="empty" /></template>
-    <el-table-column label="标题" min-width="300">
+    <el-table-column v-if="visibleKeys.includes('title')" label="标题" min-width="300">
       <template #default="{ row }">
         <div class="review-table__cell">
           <ListTitleLink :title="row.review.title" @open="emit('open', row.review.id)" />
@@ -49,17 +49,17 @@ const brandAvatarStyle = {
         </div>
       </template>
     </el-table-column>
-    <el-table-column label="发起人" width="100" show-overflow-tooltip>
+    <el-table-column v-if="visibleKeys.includes('initiator')" label="发起人" width="100" show-overflow-tooltip>
       <template #default="{ row }">{{ row.review.initiator.name }}</template>
     </el-table-column>
-    <el-table-column label="状态" width="96">
+    <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="96">
       <template #default="{ row }">
         <span class="review-table__status" :class="`review-table__status--${row.meta.modifier}`">
           <span class="review-table__dot" aria-hidden="true" />{{ row.meta.label }}
         </span>
       </template>
     </el-table-column>
-    <el-table-column label="进度" min-width="170">
+    <el-table-column v-if="visibleKeys.includes('progress')" label="进度" min-width="170">
       <template #default="{ row }">
         <el-progress
           :percentage="row.review.progressPercent"
@@ -69,14 +69,14 @@ const brandAvatarStyle = {
         >
       </template>
     </el-table-column>
-    <el-table-column label="通过率" width="92" align="right">
+    <el-table-column v-if="visibleKeys.includes('passRate')" label="通过率" width="92" align="right">
       <template #default="{ row }"
         ><span :class="`review-table__rate--${row.passRate.tone}`">{{
           row.passRate.text
         }}</span></template
       >
     </el-table-column>
-    <el-table-column label="参与者" width="124">
+    <el-table-column v-if="visibleKeys.includes('participants')" label="参与者" width="124">
       <template #default="{ row }">
         <span v-if="!row.avatars.visible.length" class="review-table__secondary">—</span>
         <span v-else class="review-table__avatars">
@@ -98,7 +98,7 @@ const brandAvatarStyle = {
         </span>
       </template>
     </el-table-column>
-    <el-table-column label="创建时间" width="160">
+    <el-table-column v-if="visibleKeys.includes('createdAt')" label="创建时间" width="160">
       <template #default="{ row }"
         ><span class="review-table__time">{{
           formatDateTime(row.review.createdAt)

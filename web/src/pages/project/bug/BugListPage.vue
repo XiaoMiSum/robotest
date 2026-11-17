@@ -9,7 +9,6 @@ import ListPagination from '@/components/common/ListPagination.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
 import { useBugList } from '@/composables/project/bug/useBugList'
 import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
-import { useAuthStore } from '@/stores/auth'
 
 const BUG_COLUMNS: TableColumnMeta[] = [
   { key: 'id', label: 'ID' },
@@ -28,11 +27,9 @@ const BUG_COLUMNS: TableColumnMeta[] = [
   { key: 'actions', label: '操作', pinned: true },
 ]
 
-const authStore = useAuthStore()
 const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
   pageKey: 'bug-list',
   columns: BUG_COLUMNS,
-  getUserId: () => authStore.user?.id ?? '',
 })
 
 const {

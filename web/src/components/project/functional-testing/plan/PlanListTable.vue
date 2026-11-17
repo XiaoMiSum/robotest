@@ -16,7 +16,7 @@ import {
   planTimeRange,
 } from './planListPresentation'
 
-const props = defineProps<{ plans: TestPlanListItem[]; canComplete: boolean; canResume: boolean }>()
+const props = defineProps<{ plans: TestPlanListItem[]; canComplete: boolean; canResume: boolean; visibleKeys: string[] }>()
 const emit = defineEmits<{
   open: [id: string]
   complete: [plan: TestPlanListItem]
@@ -41,7 +41,7 @@ const rows = computed(() =>
 <template>
   <el-table class="plan-table" :data="rows" row-key="id" height="100%">
     <template #empty><slot name="empty" /></template>
-    <el-table-column label="名称" min-width="300">
+    <el-table-column v-if="visibleKeys.includes('name')" label="名称" min-width="300">
       <template #default="{ row }">
         <div class="plan-table__cell">
           <ListTitleLink :title="row.plan.name" @open="emit('open', row.plan.id)" />
@@ -49,28 +49,28 @@ const rows = computed(() =>
         </div>
       </template>
     </el-table-column>
-    <el-table-column label="负责人" width="100" show-overflow-tooltip>
+    <el-table-column v-if="visibleKeys.includes('owner')" label="负责人" width="100" show-overflow-tooltip>
       <template #default="{ row }">{{ row.plan.executor?.name ?? '—' }}</template>
     </el-table-column>
-    <el-table-column label="起止时间" width="176">
+    <el-table-column v-if="visibleKeys.includes('timeRange')" label="起止时间" width="176">
       <template #default="{ row }"
         ><span class="plan-table__time">{{ row.timeText }}</span></template
       >
     </el-table-column>
-    <el-table-column label="环境" width="116" show-overflow-tooltip>
+    <el-table-column v-if="visibleKeys.includes('environment')" label="环境" width="116" show-overflow-tooltip>
       <template #default="{ row }">
         <span v-if="row.environment === '—'" class="plan-table__secondary">—</span>
         <el-tag v-else type="info" size="small" round>{{ row.environment }}</el-tag>
       </template>
     </el-table-column>
-    <el-table-column label="状态" width="96">
+    <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="96">
       <template #default="{ row }">
         <span class="plan-table__status" :class="`plan-table__status--${row.meta.modifier}`">
           <span class="plan-table__dot" aria-hidden="true" />{{ row.meta.label }}
         </span>
       </template>
     </el-table-column>
-    <el-table-column label="进度" min-width="170">
+    <el-table-column v-if="visibleKeys.includes('progress')" label="进度" min-width="170">
       <template #default="{ row }">
         <el-progress
           :percentage="row.plan.progressPercent"
@@ -80,14 +80,14 @@ const rows = computed(() =>
         >
       </template>
     </el-table-column>
-    <el-table-column label="通过率" width="92" align="right">
+    <el-table-column v-if="visibleKeys.includes('passRate')" label="通过率" width="92" align="right">
       <template #default="{ row }"
         ><span :class="`plan-table__rate--${row.passRate.tone}`">{{
           row.passRate.text
         }}</span></template
       >
     </el-table-column>
-    <el-table-column label="创建时间" width="160">
+    <el-table-column v-if="visibleKeys.includes('createdAt')" label="创建时间" width="160">
       <template #default="{ row }"
         ><span class="plan-table__time">{{ formatDateTime(row.plan.createdAt) }}</span></template
       >
