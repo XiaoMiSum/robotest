@@ -27,6 +27,14 @@ describe('DebugHistoryView 列表与行操作错误边界', () => {
     expect(pageSource).toContain('>删除</el-button>')
   })
 
+  it('历史记录名截断时悬停与键盘聚焦可查看全文，点击恢复与双击重命名不变', () => {
+    expect(pageSource).toContain(':content="record.name || record.url || \'(未命名)\'"')
+    expect(pageSource).toContain(':trigger="[\'hover\', \'focus\']"')
+    expect(pageSource).toContain(':trigger-keys="[]"')
+    expect(pageSource).toContain('&:focus-visible')
+    expect(pageSource).toContain('<button class="history__item-main" @click="handleRestore(record)" @dblclick="startRename(record)">')
+  })
+
   it('方法、状态码、时间与耗时列固定列宽，缺值行保留占位保证对齐', () => {
     expect(pageSource).toContain('responseCodeClass')
     expect(pageSource).toContain('width: 56px')
