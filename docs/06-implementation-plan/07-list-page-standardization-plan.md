@@ -452,11 +452,13 @@
 
 **方案**：在全局桥接层 `web/src/assets/styles/variables.scss` 末尾新增顶层 `@media (prefers-reduced-motion: reduce)`，于 `body[data-robotest-theme]` 作用域内统一将 `transition-duration` / `animation-duration` 收紧到近似 instantaneous（`0.01ms`），并把 `animation-iteration-count` 归 1、`scroll-behavior` 改为 auto。该作用域覆盖 Teleport 到 body 的 Dialog/Drawer 节点；4 处已有的更精细局部规则保持优先，不受影响。不新增依赖、不改组件逻辑。
 
+**实施记录**：`variables.scss` 末尾新增顶层 `@media (prefers-reduced-motion: reduce)`，`body[data-robotest-theme]` 作用域内统一收紧 `animation-duration`/`transition-duration` 至 `0.01ms`、`animation-iteration-count` 归 1、`scroll-behavior` 改 auto。因组件 scoped 过渡特异性高于普通全局规则，该块内使用 `!important` 属无障碍强制要求，已按 CODE-008 变更约束在 `style/README.md` 登记，并在 `stylePolicy.spec.ts` 精确放行（仅此块、其余位置仍禁止）且新增块存在性断言。4 处已有的更精细局部 `prefers-reduced-motion` 规则保持优先。
+
 | 项目 | 状态 |
 | ---- | ---- |
 | 规范依据 | 已有（UI-DS-08 / §5.3），无需新建交互文档 |
-| 全局兜底实现 | 待执行（`variables.scss` 顶层媒体查询） |
-| 定向验证 / 前端门禁 | 待执行（`stylePolicy.spec.ts`、`validate-web.sh`、`build`） |
+| 全局兜底实现 | 已完成（`variables.scss` 顶层媒体查询 + CODE-008 登记 + stylePolicy 精确例外） |
+| 定向验证 / 前端门禁 | 已完成（`stylePolicy.spec.ts` 7 项通过；`validate-web.sh` 全绿；`pnpm run build` 成功且产物 CSS 含兜底规则） |
 | 验收 | 用户授权免逐项验收，按推荐执行 |
 
 ## 修改记录
@@ -500,3 +502,4 @@
 | V1.0 | 2026-11-17 | 回填 DebugPage 名称可达性实现、定向断言、前端门禁与提交记录，待人工验收 |
 | V1.0 | 2026-11-17 | 用户授权后续任务免逐项验收并按推荐执行，建议 4 据此收尾 |
 | V1.0 | 2026-11-17 | 减少动效偏好全局兜底立项（建议 7），登记规范依据与实现方案 |
+| V1.0 | 2026-11-17 | 回填建议 7 全局兜底实现、CODE-008 精确例外登记与前端门禁/构建验证 |
