@@ -11,6 +11,19 @@ function statusType(status: string): 'success' | 'danger' | 'info' | 'warning' {
   return 'info'
 }
 
+// 复用 ScenariosPage 的状态文案口径，避免向用户暴露后端原始英文枚举
+const stepStatusLabel: Record<string, string> = {
+  success: '成功',
+  failed: '失败',
+  error: '异常',
+  running: '执行中',
+  pending: '等待中',
+}
+
+function statusLabel(status: string): string {
+  return stepStatusLabel[status] ?? status
+}
+
 function formatJson(obj: unknown): string {
   if (!obj) return ''
   try { return JSON.stringify(obj, null, 2) } catch { return String(obj) }
@@ -27,7 +40,9 @@ function formatJson(obj: unknown): string {
     <template v-if="result?.stepResult">
       <div class="debug-result">
         <div class="debug-result__summary">
-          <el-tag :type="statusType(result.stepResult.status)">{{ result.stepResult.status }}</el-tag>
+          <el-tag :type="statusType(result.stepResult.status)">
+            <span class="debug-result__dot" aria-hidden="true" />{{ statusLabel(result.stepResult.status) }}
+          </el-tag>
           <span v-if="result.stepResult.durationMs != null" class="debug-result__duration">{{ result.stepResult.durationMs }}ms</span>
         </div>
 
@@ -50,7 +65,9 @@ function formatJson(obj: unknown): string {
             <el-table-column prop="name" label="验证器" min-width="160" />
             <el-table-column label="结果" width="100">
               <template #default="{ row }">
-                <el-tag size="small" :type="row.passed ? 'success' : 'danger'">{{ row.passed ? '通过' : '失败' }}</el-tag>
+                <el-tag size="small" :type="row.passed ? 'success' : 'danger'">
+                  <span class="debug-result__dot" aria-hidden="true" />{{ row.passed ? '通过' : '失败' }}
+                </el-tag>
               </template>
             </el-table-column>
           </el-table>
@@ -88,6 +105,16 @@ function formatJson(obj: unknown): string {
 .debug-result__duration {
   font-size: var(--font-size-sm);
   color: var(--color-neutral-500);
+}
+
+.debug-result__dot {
+  display: inline-block;
+  width: var(--space-xs);
+  height: var(--space-xs);
+  margin-right: var(--space-xs);
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
 }
 
 .debug-result__section {
