@@ -31,3 +31,14 @@ describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
     expect(source).toContain('onConfirmed: () => void initMinder()')
   })
 })
+
+describe('CaseMindMap · 脑图加载失败反馈（用例页 F4）', () => {
+  it('加载失败时编辑区展示错误占位与重试，不展示误导空白画布', () => {
+    expect(source).toContain('loadError')
+    expect(source).toContain('mindmap-load-error')
+    expect(source).toContain('v-if="loadError"')
+    expect(source).toContain('<template v-else>')
+    expect(source).toContain('description="脑图加载失败"')
+    expect(source).toContain('@click="initMinder()"')
+  })
+})

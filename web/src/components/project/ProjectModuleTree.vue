@@ -23,6 +23,7 @@ const {
   isDocumentMode,
   treeData,
   loading,
+  loadError,
   currentDocId,
   handleNodeClick,
   handleCreate,
@@ -98,37 +99,56 @@ defineExpose({ reload: load, getTree: () => treeData.value })
       </el-input>
     </div>
 
-    <el-tree
-      ref="treeRef"
-      :data="treeData"
-      :props="treeProps"
-      node-key="id"
-      :indent="12"
-      default-expand-all
-      :expand-on-click-node="false"
-      :filter-node-method="filterNode"
-      highlight-current
-      :current-node-key="isDocumentMode ? (currentDocId || undefined) : (props.currentModuleId || undefined)"
-      draggable
-      :allow-drop="allowDrop"
-      @node-drop="handleNodeDrop"
-      @node-click="handleNodeClick"
-    >
-      <!-- 空态统一走 el-tree 自带 empty 插槽，避免与组件内置“暂无数据”文案重复展示 -->
-      <template #empty>
-        <el-empty :description="emptyDescription" :image-size="40" />
-      </template>
-      <template #default="{ data }">
-        <div class="module-tree__node">
-          <span class="module-tree__label">
-            <el-icon
-              v-if="data.type === 'directory'"
-              class="module-tree__icon module-tree__icon--folder"
-              ><Folder
-            /></el-icon>
-            <el-icon v-else class="module-tree__icon module-tree__icon--doc"><Document /></el-icon>
-            <span class="module-tree__name">{{ data.name }}</span>
-          </span>
+    <div v-if="loadError && treeData.length === 0" class="module-tree__load-error" role="alert">
+      <span>模块树加载失败</span>
+      <el-button link type="primary" size="small" @click="load()">重试</el-button>
+    </div>
+
+    <template v-else>
+      <div v-if="loadError" class="module-tree__load-bar" role="alert">
+        <span>模块树加载失败，请重试</span>
+        <el-button link type="primary" size="small" @click="load()">重新加载</el-button>
+      </div>
+
+      <el-tree
+        ref="treeRef"
+        :data="treeData"
+        :props="treeProps"
+        node-key="id"
+        :indent="12"
+        default-expand-all
+        :expand-on-click-node="false"
+        :filter-node-method="filterNode"
+        highlight-current
+        :current-node-key="isDocumentMode ? (currentDocId || undefined) : (props.currentModuleId || undefined)"
+        draggable
+        :allow-drop="allowDrop"
+        @node-drop="handleNodeDrop"
+        @node-click="handleNodeClick"
+      >
+        <!-- 空态统一走 el-tree 自带 empty 插槽，避免与组件内置“暂无数据”文案重复展示 -->
+        <template #empty>
+          <el-empty :description="emptyDescription" :image-size="40" />
+        </template>
+        <template #default="{ data }">
+          <div class="module-tree__node">
+            <span class="module-tree__label">
+              <el-icon
+                v-if="data.type === 'directory'"
+                class="module-tree__icon module-tree__icon--folder"
+                ><Folder
+              /></el-icon>
+              <el-icon v-else class="module-tree__icon module-tree__icon--doc"><Document /></el-icon>
+              <el-tooltip
+                :content="String(data.name)"
+                placement="top-start"
+                :show-after="300"
+                :trigger="['hover', 'focus']"
+                :trigger-keys="[]"
+              >
+                <span class="module-tree__name" tabindex="0">{{ data.name }}</span>
+              </el-tooltip>
+            </span>
           <span class="module-tree__actions">
             <el-dropdown
               v-if="data.type === 'directory'"
@@ -153,9 +173,10 @@ defineExpose({ reload: load, getTree: () => treeData.value })
               ><el-icon><Delete /></el-icon
             ></el-button>
           </span>
-        </div>
-      </template>
-    </el-tree>
+          </div>
+        </template>
+      </el-tree>
+    </template>
   </div>
 </template>
 
@@ -242,6 +263,31 @@ defineExpose({ reload: load, getTree: () => treeData.value })
   }
 }
 
+.module-tree__load-error,
+.module-tree__load-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 4px 8px;
+  padding: 8px var(--space-sm);
+  border: 1px solid var(--color-danger-100, var(--color-neutral-200));
+  border-radius: var(--radius-md);
+  background: var(--color-danger-50, var(--color-neutral-50));
+  color: var(--color-danger-700, var(--color-neutral-700));
+  font-size: var(--font-size-xs);
+}
+
+.module-tree__load-error {
+  flex: 1;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.module-tree__load-bar {
+  flex-shrink: 0;
+  justify-content: space-between;
+}
+
 .module-tree__node {
   display: flex;
   align-items: center;
@@ -260,9 +306,16 @@ defineExpose({ reload: load, getTree: () => treeData.value })
 }
 
 .module-tree__name {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
 }
 
 .module-tree__icon {

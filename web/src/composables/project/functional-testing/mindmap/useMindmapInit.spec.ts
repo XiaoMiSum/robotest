@@ -164,6 +164,11 @@ describe('useMindmapInit', () => {
       expect(typeof result.onContextMenu).toBe('function')
       expect(typeof result.closeContextMenu).toBe('function')
     })
+
+    it('返回 loadError 初始为 false', () => {
+      const result = useMindmapInit(makeOptions())
+      expect(result.loadError.value).toBe(false)
+    })
   })
 
   describe('watch 注册', () => {
@@ -340,6 +345,26 @@ describe('useMindmapInit', () => {
       await vi.waitFor(() => {
         expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载脑图失败')
       })
+    })
+
+    it('fetch 失败时置 loadError=true', async () => {
+      mocks.fetchDocumentNodes.mockRejectedValueOnce(new Error('网络错误'))
+      const result = useMindmapInit(makeOptions())
+      mocks._onMountedCb!()
+      await vi.waitFor(() => {
+        expect(result.loadError.value).toBe(true)
+      })
+    })
+
+    it('失败后重试初始化成功清除 loadError', async () => {
+      mocks.fetchDocumentNodes.mockRejectedValueOnce(new Error('网络错误'))
+      const result = useMindmapInit(makeOptions())
+      mocks._onMountedCb!()
+      await vi.waitFor(() => {
+        expect(result.loadError.value).toBe(true)
+      })
+      await result.initMinder()
+      expect(result.loadError.value).toBe(false)
     })
   })
 
