@@ -340,12 +340,14 @@
 | ---- | ---- |
 | 评估结论 | 用例页 `TestCasePage.vue` 为纯编排页：左侧共享模块树（文档模式）+ 右侧 Yjs 脑图编辑器，非列表型页面；可对标点为模块树节点名称可达性、模块树加载失败反馈、脑图加载失败反馈；发现接口文档已要求“模块树拉取失败错误占位”但共享组件未实现，本次闭合该偏差 |
 | 交互文档先行 | `04-workspace-ui-test-case.md` 补模块树名称可达性、加载失败（无数据错误占位重试/有数据保留树+可见重试/静默轮询不提示）与脑图加载失败错误占位+重试口径；`03-interface-ui-list.md`、`09-scenario-ui-list.md` 补共享模块树名称可达性与加载失败口径（接口原已有失败口径） |
-| 前端实现 | 待实施：`useProjectModuleTree` 增 `loadError`（不清空已加载树、静默轮询不动）；`ProjectModuleTree.vue` 树节点名可达性 + 失败分态渲染（三页统一）；`useMindmapInit` 增 `loadError`、`CaseMindMap.vue` 编辑区失败占位+重试；补 spec 并回归接口/场景页 |
-| 定向验证 | 待实施 |
-| 前端门禁 | 待实施 |
-| 人工验收 | 待实施后请求：模块树名称悬停/键盘聚焦可见全文且展开/选中/拖拽/重命名/删除正常；模块树加载失败分态正确、静默轮询不打扰；脑图加载失败错误占位+重试、编辑/协同/AI/关联需求无回归；接口/场景页模块树无回归 |
+| 前端实现 | `useProjectModuleTree` 增 `loadError`（失败置位不清空已加载树、成功清除、静默轮询成功自愈且失败静默）；`ProjectModuleTree.vue` 树节点名 `el-tooltip`+`tabindex` 可达性 + 无数据错误占位/有数据反馈条两种失败分态渲染（三页统一生效）；`useMindmapInit` 增 `loadError`（失败置位、成功清除、保留统一消息提示）、`CaseMindMap.vue` 编辑区失败占位 + [重试] 调用 `initMinder()` 且不展示误导空白画布；新增 `useProjectModuleTree.spec.ts`，补 `useMindmapInit.spec.ts`、`CaseMindMap.spec.ts` 用例，并回归接口/场景页 |
+| 定向验证 | `pnpm vitest run` 覆盖 `useProjectModuleTree.spec.ts`（4）、`useMindmapInit.spec.ts`（34）、`CaseMindMap.spec.ts`（4）、`InterfacesPage.spec.ts`（3）、`ScenariosPage.spec.ts`（9），共 5 文件 54 测试通过 |
+| 前端门禁 | `bash scripts/validate-web.sh` 全部通过（185 文件测试与覆盖率、lint、typecheck、无 any、契约一致性）；`git diff --check` 通过 |
+| 人工验收 | 待请求：模块树名称悬停/键盘聚焦可见全文且展开/选中/拖拽/重命名/删除正常；模块树加载失败分态正确、静默轮询不打扰；脑图加载失败错误占位+重试、编辑/协同/AI/关联需求无回归；接口/场景页模块树无回归 |
 
-- `待回填`：📝 docs(frontend): 明确用例页及模块树F4交互口径（本提交）。
+- `c1a1047d`：📝 docs(frontend): 明确用例页及模块树F4交互口径。
+- `41041f3a`：✨ feat(frontend): 对齐用例页模块树与脑图名称可达性及加载反馈。
+- `待回填`：📝 docs(frontend): 回填用例页F4实施与验证记录（本提交）。
 
 ## 修改记录
 
@@ -375,3 +377,4 @@
 | V1.0 | 2026-11-16 | 回填 F3-3c 公共组件文档先行、实现、验证、提交与待人工验收记录 |
 | V1.0 | 2026-11-16 | 记录 F3-3c 公共组件人工验收通过，新增 F3 专用布局子批次汇总 |
 | V1.0 | 2026-11-16 | 用户确认用例页独立实施，新增评估与方案章节并先行同步三份交互文档口径 |
+| V1.0 | 2026-11-16 | 回填用例页 F4 共享模块树与脑图加载反馈实现、定向验证、前端门禁与提交记录 |
