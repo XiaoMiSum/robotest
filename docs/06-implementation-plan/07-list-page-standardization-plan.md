@@ -452,7 +452,7 @@
 
 **方案**：在全局桥接层 `web/src/assets/styles/variables.scss` 末尾新增顶层 `@media (prefers-reduced-motion: reduce)`，于 `body[data-robotest-theme]` 作用域内统一将 `transition-duration` / `animation-duration` 收紧到近似 instantaneous（`0.01ms`），并把 `animation-iteration-count` 归 1、`scroll-behavior` 改为 auto。该作用域覆盖 Teleport 到 body 的 Dialog/Drawer 节点；4 处已有的更精细局部规则保持优先，不受影响。不新增依赖、不改组件逻辑。
 
-**实施记录**：`variables.scss` 末尾新增顶层 `@media (prefers-reduced-motion: reduce)`，`body[data-robotest-theme]` 作用域内统一收紧 `animation-duration`/`transition-duration` 至 `0.01ms`、`animation-iteration-count` 归 1、`scroll-behavior` 改 auto。因组件 scoped 过渡特异性高于普通全局规则，该块内使用 `!important` 属无障碍强制要求，已按 CODE-008 变更约束在 `style/README.md` 登记，并在 `stylePolicy.spec.ts` 精确放行（仅此块、其余位置仍禁止）且新增块存在性断言。4 处已有的更精细局部 `prefers-reduced-motion` 规则保持优先。
+**实施记录**：`variables.scss` 末尾新增顶层 `@media (prefers-reduced-motion: reduce)`，`body[data-robotest-theme]` 作用域内统一收紧 `animation-duration`/`transition-duration` 至 `0.01ms`、`animation-iteration-count` 归 1、`scroll-behavior` 改 auto。因组件 scoped 过渡特异性高于普通全局规则，该块内使用 `!important` 属无障碍强制要求，已按 CODE-008 变更约束在 `web/src/assets/styles/README.md` 登记，并在 `stylePolicy.spec.ts` 精确放行（仅此块、其余位置仍禁止）且新增块存在性断言。4 处已有的更精细局部 `prefers-reduced-motion` 规则保持优先。
 
 | 项目 | 状态 |
 | ---- | ---- |
