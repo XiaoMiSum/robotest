@@ -6,7 +6,34 @@ import BugResolveDialog from '@/components/project/bug/BugResolveDialog.vue'
 import BugListToolbar from '@/components/project/bug/BugListToolbar.vue'
 import BugListTable from '@/components/project/bug/BugListTable.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
 import { useBugList } from '@/composables/project/bug/useBugList'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+import { useAuthStore } from '@/stores/auth'
+
+const BUG_COLUMNS: TableColumnMeta[] = [
+  { key: 'id', label: 'ID' },
+  { key: 'title', label: '标题' },
+  { key: 'type', label: '类型' },
+  { key: 'severity', label: '严重等级' },
+  { key: 'priority', label: '优先级' },
+  { key: 'status', label: '状态' },
+  { key: 'reporter', label: '创建人' },
+  { key: 'assignee', label: '处理人' },
+  { key: 'resolver', label: '解决人' },
+  { key: 'resolvedAt', label: '解决时间' },
+  { key: 'resolution', label: '解决方案' },
+  { key: 'closedAt', label: '关闭时间' },
+  { key: 'createdAt', label: '创建时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+
+const authStore = useAuthStore()
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'bug-list',
+  columns: BUG_COLUMNS,
+  getUserId: () => authStore.user?.id ?? '',
+})
 
 const {
   loading,
@@ -81,7 +108,17 @@ function createBug() {
       @advanced-search="handleAdvancedSearch"
       @reset="handleReset"
       @create="createBug"
-    />
+    >
+      <template #column-setting>
+        <TableColumnSetting
+          :columns="BUG_COLUMNS"
+          :visible-keys="visibleKeys"
+          @change="(key, visible) => setVisible(key, visible)"
+          @select-all="selectAll"
+          @reset="reset"
+        />
+      </template>
+    </BugListToolbar>
 
     <section
       v-if="viewMode === 'list'"
@@ -102,6 +139,7 @@ function createBug() {
       <div v-loading="loading" class="bug-page__content">
         <BugListTable
           :bugs="bugs"
+          :visible-keys="visibleKeys"
           @detail="openDetail"
           @resolve="openResolveDialog"
           @status="handleStatusAction"
