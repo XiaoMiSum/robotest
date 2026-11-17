@@ -49,9 +49,17 @@ function hasUnscopedVueStyle(content: string): boolean {
   return /<style(?![^>]*\bscoped\b)[^>]*>/i.test(content)
 }
 
-function hasImportantDeclaration(content: string): boolean {
+// 减少动效兜底是无障碍强制要求（UI-DS-08 / §5.3），组件 scoped 过渡特异性高于普通全局规则，
+// 必须以强制优先级覆盖；仅放行 variables.scss 中已登记的 prefers-reduced-motion 块，其余一律禁止。
+const motionReduceBlock = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\n\}/g
+
+function hasUnsanctionedImportant(path: string, content: string): boolean {
   const withoutComments = content.replace(/\/\*[\s\S]*?\*\//g, '')
-  return /!\s*important\b/i.test(withoutComments)
+  const scoped =
+    path === 'src/assets/styles/variables.scss'
+      ? withoutComments.replace(motionReduceBlock, '')
+      : withoutComments
+  return /!\s*important\b/i.test(scoped)
 }
 
 describe('CODE-008 web style policy', () => {
@@ -61,15 +69,22 @@ describe('CODE-008 web style policy', () => {
 
   it('Element Plus 桥接层限定作用域且不使用强制优先级', () => {
     expect(variablesSource).toContain('body[data-robotest-theme] {')
-    expect(variablesSource).not.toMatch(/!\s*important\b/i)
+    const withoutReduceBlock = variablesSource.replace(motionReduceBlock, '')
+    expect(withoutReduceBlock).not.toMatch(/!\s*important\b/i)
   })
 
-  it('一方样式源码不重新引入强制优先级声明', () => {
+  it('一方样式源码不重新引入强制优先级声明（减少动效兜底块除外）', () => {
     const violations = styleSources
-      .filter(({ content }) => hasImportantDeclaration(content))
+      .filter(({ path, content }) => hasUnsanctionedImportant(path, content))
       .map(({ path }) => path)
 
     expect(violations).toEqual([])
+  })
+
+  it('减少动效兜底仅出现在已登记的全局媒体查询块内', () => {
+    const reduceBlocks = variablesSource.match(motionReduceBlock) ?? []
+    expect(reduceBlocks.length).toBeGreaterThan(0)
+    expect(reduceBlocks.join('\n')).toContain('prefers-reduced-motion: reduce')
   })
 
   it('无 scoped 样式只允许出现在已登记的入口或 Teleport 例外中', () => {
