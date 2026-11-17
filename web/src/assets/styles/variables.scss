@@ -400,3 +400,20 @@ body[data-robotest-theme] {
     background: var(--color-neutral-400);
   }
 }
+
+/* 减少动效偏好兜底（UI-DS-08 / 01-frontend-design §5.3）：用户开启后统一收紧过渡与动画时长，
+   作用域与桥接层一致以覆盖 Teleport 到 body 的 Dialog/Drawer；页面内更精细的局部规则优先。 */
+@media (prefers-reduced-motion: reduce) {
+  body[data-robotest-theme] {
+    scroll-behavior: auto;
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

@@ -14,7 +14,8 @@
 | 位置 | 作用域 | 保留原因 | 约束 |
 | --- | --- | --- | --- |
 | `src/App.vue` | 文档级 reset、选区/焦点基线、Vue 过渡类 | 这些规则必须覆盖 Teleport 到 `body` 的节点，且属于应用入口基线 | 只能在此处维护入口级规则；新增规则须先更新本表和测试白名单 |
-| `src/assets/styles/variables.scss` | `body[data-robotest-theme]` 下的 Element Plus 设计令牌桥接 | Dialog、Dropdown、Tooltip 等组件库节点不在 `#app` 内；该层是统一设计令牌而非页面覆盖 | 只能使用普通层叠或 CSS 变量；禁止加入新的强制优先级声明 |
+| `src/assets/styles/variables.scss` | `body[data-robotest-theme]` 下的 Element Plus 设计令牌桥接 | Dialog、Dropdown、Tooltip 等组件库节点不在 `#app` 内；该层是统一设计令牌而非页面覆盖 | 只能使用普通层叠或 CSS 变量；禁止加入新的强制优先级声明（减少动效兜底块见下行） |
+| `src/assets/styles/variables.scss` | 顶层 `@media (prefers-reduced-motion: reduce)` 内的 `body[data-robotest-theme]` 作用域 | 用户开启减少动效时必须覆盖组件 scoped 过渡（其特异性高于普通全局规则），是无障碍强制要求（UI-DS-08 / `docs/00-spec/50-ui/01-frontend-design.md` §5.3） | `!important` 仅限该媒体查询块内，`stylePolicy.spec.ts` 精确放行并断言块存在；页面内已有的更精细局部规则优先 |
 | `src/components/project/functional-testing/case/CaseSelector.vue` | `.case-selector-dialog` | Element Plus Dialog 根节点 Teleport 到 `body`，不会带组件 scopeId | 选择器必须带该业务根类，不得改成裸 `.el-dialog` 覆盖 |
 | `src/components/project/functional-testing/review/ReviewMindMap.vue` | `.comment-drawer .el-drawer__body` | Drawer Teleport 到 `body`，`scoped` 无法命中其子树 | 保留 `:global()` 仅限该抽屉类名和原因说明 |
 
