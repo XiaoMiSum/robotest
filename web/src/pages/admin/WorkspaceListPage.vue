@@ -157,13 +157,14 @@ onMounted(() => {
     <section class="workspace-list__card">
       <div class="workspace-list__toolbar">
         <div class="workspace-list__filters">
-          <div class="workspace-list__segment">
+          <div class="workspace-list__segment" role="group" aria-label="空间状态">
             <button
               v-for="opt in STATUS_OPTIONS"
               :key="opt.value"
               type="button"
               class="workspace-list__seg-item"
               :class="{ 'is-active': query.status === opt.value }"
+              :aria-pressed="query.status === opt.value"
               @click="handleStatusChange(opt.value)"
             >
               {{ opt.label }}
