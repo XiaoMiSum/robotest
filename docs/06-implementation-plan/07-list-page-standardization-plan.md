@@ -497,6 +497,44 @@
 | 定向验证 / 前端门禁 | 已完成（build 大 chunk 对比、依赖图无环校验、运行时冒烟无报错、`validate-web.sh` 全绿、`diff --check` 通过） |
 | 验收 | 用户授权免逐项验收，按推荐执行 |
 
+### 5.21 键盘可达性一致性审计（建议 5）
+
+**用户确认**：从 UI 设计优化建议 5（键盘可达性）启动，用户授权后续任务免逐项验收、按推荐执行。
+
+**一致性评估**：`docs/00-spec/50-ui/01-frontend-design.md` UI-DS-07 与 §5.2 已规定可操作控件须具备可识别名称、可见焦点与键盘行为，属已有原则的落地对齐，无需求/交互文档冲突。
+
+**审计范围**：10 个 `*ListPage.vue`、公共列表组件（`*ListTable.vue`、`ListPagination`、`ListLoadFeedback`、`ListTitleLink`、`TableColumnSetting`、`BatchActionBar`）及卡片/成员/邀请面板。以只读方式逐项核验。
+
+**审计结论**：整体可达性实现较完善——公共列表组件均用原生/Element Plus 控件、具可访问名称、焦点指示（`:focus-visible` / `:focus-within`）与状态通知（`ListLoadFeedback` 的 `role=status`、成员/邀请面板的 `role=alert`、`aria-busy`）。确认 1 处缺陷：`web/src/pages/admin/WorkspaceListPage.vue` 的状态筛选分段按钮仅有 `is-active` 视觉态，缺 `:aria-pressed`，容器缺 `role=group`/`aria-label`，读屏用户无法感知当前筛选态；而同类页面 `web/src/pages/workspace/WorkspaceListPage.vue` 与 `web/src/pages/workspace/ProjectListPage.vue` 已用 `role=group`+`aria-pressed` 正确处理。按"修复限定为具体问题、避免跨页大改"原则，仅对齐这一处，不铺开改动其余已合规页面。
+
+**疑似项处置**：`ProjectCard.vue` 的 `<article @click>` 卡片面仅鼠标可点，但卡内名称与"进入"按钮均可达核心任务，不构成阻断，保留；`admin/WorkspaceListPage.vue` 的 `<div @click.stop>` 仅阻止冒泡，子元素为可聚焦按钮，保留。
+
+| 项目 | 状态 |
+| ---- | ---- |
+| 只读审计 | 已完成（10 页 + 公共列表组件） |
+| 缺陷修复 | 待执行（`admin/WorkspaceListPage.vue` 补 `role=group`/`aria-label`/`aria-pressed`） |
+| 定向验证 / 前端门禁 | 待执行（定向 spec、`validate-web.sh`、`diff --check`） |
+| 验收 | 用户授权免逐项验收，按推荐执行 |
+
+### 5.22 状态三重编码一致性审计（建议 6）
+
+**用户确认**：从 UI 设计优化建议 6（状态三重编码一致性）启动，用户授权后续任务免逐项验收、按推荐执行。
+
+**一致性评估**：`docs/05-interaction-design/03-visual-design.md` §4.1 与 §8.2 已规定状态一律「颜色 + 形状 + 文案」三重编码，属已有原则的落地对齐，无需求/交互文档冲突。
+
+**审计范围**：标准化列表页及其 `*ListTable.vue`、公共展示组件、接口测试步骤调试结果弹窗。以只读方式比对同枚举跨页表达。
+
+**审计结论**：主样板已正确三重编码（`BugListTable.vue:71-79` 圆点+文案、`:96-105` 图标+文案、`PlanListTable.vue:66-71` 圆点+文案），可作为修复参照。确认 1 处实质缺陷：`web/src/pages/project/api-testing/scene/StepDebugResultDialog.vue:30` 步骤执行状态 tag 直接显示后端原始英文枚举（`success` / `failed`），既无中文文案也无形状，违反三重编码且不符合中文界面。同目录 `ScenariosPage.vue:322-326` 已有 `statusLabel` 映射（`success:成功` / `failed:失败` / `running:执行中` / `error:异常`），可直接复用口径。其余审计发现（需求状态、缺陷看板/侧栏严重等级与优先级、工作台最近评审/计划等 tag 仅有颜色+文案、缺圆点）虽有形状通道缺失，但均已有中文文案区分语义，不属于"仅靠颜色区分"，且铺开改动涉及多页，按"避免跨页大改"原则本批不改，登记为后续一致性优化候选。
+
+**修复方案**：`StepDebugResultDialog.vue` 新增 `statusLabel`（复用 `ScenariosPage.vue` 映射口径），状态 tag 改为「圆点形状（currentColor）+ 中文文案」，颜色仍由既有 `statusType` 提供；验证器结果行已为「通过/失败」文案，补同款圆点形状以保持一致。不新增依赖，不改数据结构。
+
+| 项目 | 状态 |
+| ---- | ---- |
+| 只读审计 | 已完成（列表页 + 表格 + 展示组件 + 调试弹窗） |
+| 缺陷修复 | 待执行（`StepDebugResultDialog.vue` 中文标签 + 圆点形状） |
+| 定向验证 / 前端门禁 | 待执行（定向 spec、`validate-web.sh`、`diff --check`） |
+| 验收 | 用户授权免逐项验收，按推荐执行 |
+
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
@@ -541,3 +579,5 @@
 | V1.0 | 2026-11-17 | 回填建议 7 全局兜底实现、CODE-008 精确例外登记与前端门禁/构建验证 |
 | V1.0 | 2026-11-17 | 构建大 chunk 拆包立项（建议 8），登记基线数据与按包边界拆分的保守方案 |
 | V1.0 | 2026-11-17 | 回填建议 8 拆包实现、chunk 对比、保留项说明、运行时冒烟与前端门禁记录 |
+| V1.0 | 2026-11-18 | 键盘可达性一致性审计立项（建议 5），登记审计范围、结论与单处对齐方案 |
+| V1.0 | 2026-11-18 | 状态三重编码一致性审计立项（建议 6），登记审计范围、结论与调试弹窗修复方案 |
