@@ -15,6 +15,22 @@ import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
+
+const USER_COLUMNS: TableColumnMeta[] = [
+  { key: 'selection', label: '选择', pinned: true },
+  { key: 'user', label: '用户' },
+  { key: 'email', label: '邮箱' },
+  { key: 'status', label: '状态' },
+  { key: 'role', label: '系统角色' },
+  { key: 'createdAt', label: '创建时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'user-list',
+  columns: USER_COLUMNS,
+})
 
 const router = useRouter()
 
@@ -251,6 +267,13 @@ onMounted(() => {
             <el-icon><Search /></el-icon>查询
           </el-button>
           <el-button @click="handleReset">重置</el-button>
+          <TableColumnSetting
+            :columns="USER_COLUMNS"
+            :visible-keys="visibleKeys"
+            @change="(key, visible) => setVisible(key, visible)"
+            @select-all="selectAll"
+            @reset="reset"
+          />
         </div>
         <span class="user-list__count">共 {{ total }} 个账号</span>
       </div>
@@ -274,7 +297,7 @@ onMounted(() => {
           @selection-change="handleSelectionChange"
         >
           <el-table-column type="selection" width="36" />
-          <el-table-column label="用户" min-width="210">
+          <el-table-column v-if="visibleKeys.includes('user')" label="用户" min-width="210">
             <template #default="{ row }">
               <div class="user-list__user">
                 <span class="user-list__avatar">{{ row.name.charAt(0) || row.username.charAt(0) }}</span>
@@ -285,19 +308,19 @@ onMounted(() => {
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="邮箱" min-width="210">
+          <el-table-column v-if="visibleKeys.includes('email')" label="邮箱" min-width="210">
             <template #default="{ row }">
               <span class="user-list__email">{{ row.email }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="100">
+          <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="100">
             <template #default="{ row }">
               <span class="user-list__status" :class="STATUS_META[row.status as UserStatus].dot">
                 <span class="user-list__dot" />{{ STATUS_META[row.status as UserStatus].label }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="系统角色" min-width="170">
+          <el-table-column v-if="visibleKeys.includes('role')" label="系统角色" min-width="170">
             <template #default="{ row }">
               <template v-if="row.roles.length">
                 <span v-for="role in row.roles" :key="role.id" class="user-list__role">
@@ -307,7 +330,7 @@ onMounted(() => {
               <span v-else class="user-list__muted">-</span>
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" width="170">
+          <el-table-column v-if="visibleKeys.includes('createdAt')" label="创建时间" width="170">
             <template #default="{ row }">
               <span class="user-list__num">{{ formatDateTime(row.createdAt) }}</span>
             </template>

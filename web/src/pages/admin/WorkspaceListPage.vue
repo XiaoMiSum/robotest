@@ -8,7 +8,23 @@ import WorkspaceCreateDialog from '@/components/workspace/WorkspaceCreateDialog.
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
+import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
 import type { AdminWorkspace } from '@/types'
+
+const WORKSPACE_COLUMNS: TableColumnMeta[] = [
+  { key: 'name', label: '空间名称' },
+  { key: 'description', label: '描述' },
+  { key: 'status', label: '状态' },
+  { key: 'members', label: '成员' },
+  { key: 'projects', label: '项目' },
+  { key: 'createdAt', label: '创建时间' },
+  { key: 'actions', label: '操作', pinned: true },
+]
+const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
+  pageKey: 'workspace-list',
+  columns: WORKSPACE_COLUMNS,
+})
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
@@ -165,6 +181,13 @@ onMounted(() => {
             <el-icon><Search /></el-icon>查询
           </el-button>
           <el-button @click="handleReset">重置</el-button>
+          <TableColumnSetting
+            :columns="WORKSPACE_COLUMNS"
+            :visible-keys="visibleKeys"
+            @change="(key, visible) => setVisible(key, visible)"
+            @select-all="selectAll"
+            @reset="reset"
+          />
         </div>
         <span class="workspace-list__sort-note">按创建时间倒序</span>
       </div>
@@ -187,36 +210,36 @@ onMounted(() => {
           class="workspace-list__table"
           @row-click="handleRowClick"
         >
-          <el-table-column label="空间名称" min-width="160">
+          <el-table-column v-if="visibleKeys.includes('name')" label="空间名称" min-width="160">
             <template #default="{ row }">
               <div @click.stop>
                 <ListTitleLink :title="row.name" @open="goDetail(row.id)" />
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="描述" min-width="200" show-overflow-tooltip>
+          <el-table-column v-if="visibleKeys.includes('description')" label="描述" min-width="200" show-overflow-tooltip>
             <template #default="{ row }">
               <span class="workspace-list__desc-cell">{{ row.description || '—' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="100">
+          <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="100">
             <template #default="{ row }">
               <span class="workspace-list__status" :class="statusMeta(row.status).dot">
                 <span class="workspace-list__dot" />{{ statusMeta(row.status).label }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="成员" width="80">
+          <el-table-column v-if="visibleKeys.includes('members')" label="成员" width="80">
             <template #default="{ row }">
               <span class="workspace-list__num">{{ row.memberCount }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="项目" width="80">
+          <el-table-column v-if="visibleKeys.includes('projects')" label="项目" width="80">
             <template #default="{ row }">
               <span class="workspace-list__num">{{ row.projectCount }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" width="170">
+          <el-table-column v-if="visibleKeys.includes('createdAt')" label="创建时间" width="170">
             <template #default="{ row }">
               <span class="workspace-list__num">{{ formatDateTime(row.createdAt) }}</span>
             </template>
