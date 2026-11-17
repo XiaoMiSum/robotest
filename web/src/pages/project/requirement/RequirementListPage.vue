@@ -62,7 +62,7 @@ const {
   handleUnarchive,
 } = useRequirementList()
 
-/** 首屏走骨架、筛选刷新走整卡遮罩，互斥避免骨架上再叠 loading 层（交互 06 §2.1.3） */
+/** 首屏走骨架、筛选刷新走表体遮罩，互斥避免骨架上再叠 loading 层（加载反馈口径文档 §3.1 / §3.2） */
 const showSkeleton = computed(() => !hasLoaded.value && !loadError.value && loading.value)
 
 /** 卡片 body 转 flex 列，表格根节点才能 flex:1 承接剩余高度（UI-SC-06）；走组件属性而非 :deep，避免扩大 EX-DS-001 基线 */
@@ -168,12 +168,12 @@ function openCreate(): void {
       </template>
     </el-alert>
 
-    <!-- UI-SC-10：卡片内边距归零使表格贴边，刷新走整卡遮罩（交互 06 §2.1.3） -->
+    <!-- UI-SC-10：卡片内边距归零使表格贴边，刷新走表体遮罩、工具栏与分页保持可见（加载反馈口径文档 §4） -->
     <el-card
-      v-loading="loading && hasLoaded"
       shadow="never"
       class="requirement-list__card"
       :body-style="cardBodyStyle"
+      :aria-busy="loading"
     >
       <!-- 筛选栏：入卡片工具栏，入口角标显示已设置条件数（交互 06 §2.1.2） -->
       <div class="requirement-list__toolbar">
@@ -267,9 +267,10 @@ function openCreate(): void {
 
       <el-skeleton v-if="showSkeleton" :rows="6" animated class="requirement-list__skeleton" />
 
-      <!-- 表格是卡片内唯一滚动拥有者：根节点作 flex 伸缩子项承接剩余高度，表头固定、数据超出时表体内滚动（UI-SC-02 / UI-SC-05 / UI-SC-06） -->
+      <!-- 表格是卡片内唯一滚动拥有者：根节点作 flex 伸缩子项承接剩余高度，表头固定、数据超出时表体内滚动（UI-SC-02 / UI-SC-05 / UI-SC-06）；刷新遮罩仅覆盖表格数据区，工具栏与分页条保持可见可交互（加载反馈口径文档 §4） -->
       <el-table
         v-else
+        v-loading="loading && hasLoaded"
         class="requirement-list__table"
         :data="rows"
         row-key="id"
