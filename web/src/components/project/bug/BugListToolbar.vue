@@ -49,6 +49,7 @@ const emit = defineEmits<{
           <el-radio-button value="list">列表</el-radio-button>
           <el-radio-button value="board">看板</el-radio-button>
         </el-radio-group>
+        <slot name="column-setting" />
         <el-button type="primary" @click="emit('create')">
           <el-icon><Plus /></el-icon>提交缺陷
         </el-button>

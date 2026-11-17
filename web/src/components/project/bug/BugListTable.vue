@@ -19,7 +19,7 @@ import {
   BUG_TYPE_LABEL,
 } from '@/composables/project/bug/bugStatus'
 
-defineProps<{ bugs: BugListItem[] }>()
+defineProps<{ bugs: BugListItem[]; visibleKeys: string[] }>()
 const emit = defineEmits<{
   detail: [bug: BugListItem]
   resolve: [bug: BugListItem]
@@ -39,12 +39,12 @@ const statusIcons: Record<BugStatus, string> = {
   <div class="bug-table">
     <el-table :data="bugs" row-key="id" height="100%">
       <template #empty><slot name="empty" /></template>
-      <el-table-column label="ID" width="110">
+      <el-table-column v-if="visibleKeys.includes('id')" label="ID" width="110">
         <template #default="{ row }"
           ><span class="bug-table__id">{{ formatShortId(row.id) }}</span></template
         >
       </el-table-column>
-      <el-table-column label="标题" min-width="300">
+      <el-table-column v-if="visibleKeys.includes('title')" label="标题" min-width="300">
         <template #default="{ row }">
           <el-tooltip
             :content="row.title"
@@ -63,10 +63,10 @@ const statusIcons: Record<BugStatus, string> = {
           </el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column label="类型" width="110" show-overflow-tooltip>
+      <el-table-column v-if="visibleKeys.includes('type')" label="类型" width="110" show-overflow-tooltip>
         <template #default="{ row }">{{ BUG_TYPE_LABEL[row.bugType as BugType] ?? '-' }}</template>
       </el-table-column>
-      <el-table-column label="严重等级" width="100">
+      <el-table-column v-if="visibleKeys.includes('severity')" label="严重等级" width="100">
         <template #default="{ row }">
           <el-tag
             :type="BUG_SEVERITY_TAG_TYPE[row.severity as BugSeverity]"
@@ -79,7 +79,7 @@ const statusIcons: Record<BugStatus, string> = {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="优先级" width="80">
+      <el-table-column v-if="visibleKeys.includes('priority')" label="优先级" width="80">
         <template #default="{ row }">
           <el-tag
             :type="BUG_PRIORITY_TAG_TYPE[row.priority as BugPriority]"
@@ -90,7 +90,7 @@ const statusIcons: Record<BugStatus, string> = {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="180">
+      <el-table-column v-if="visibleKeys.includes('status')" label="状态" width="180">
         <template #default="{ row }">
           <div class="bug-table__status">
             <el-tag
@@ -107,35 +107,35 @@ const statusIcons: Record<BugStatus, string> = {
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="创建人" width="100" show-overflow-tooltip>
+      <el-table-column v-if="visibleKeys.includes('reporter')" label="创建人" width="100" show-overflow-tooltip>
         <template #default="{ row }"
           ><span class="bug-table__secondary">{{ row.reporter?.name ?? '-' }}</span></template
         >
       </el-table-column>
-      <el-table-column label="处理人" width="100" show-overflow-tooltip>
+      <el-table-column v-if="visibleKeys.includes('assignee')" label="处理人" width="100" show-overflow-tooltip>
         <template #default="{ row }">{{ row.assignee?.name ?? '-' }}</template>
       </el-table-column>
-      <el-table-column label="解决人" width="100" show-overflow-tooltip>
+      <el-table-column v-if="visibleKeys.includes('resolver')" label="解决人" width="100" show-overflow-tooltip>
         <template #default="{ row }"
           ><span class="bug-table__secondary">{{ row.resolvedBy?.name ?? '-' }}</span></template
         >
       </el-table-column>
-      <el-table-column label="解决时间" width="120">
+      <el-table-column v-if="visibleKeys.includes('resolvedAt')" label="解决时间" width="120">
         <template #default="{ row }"
           ><span class="bug-table__time">{{ formatShortDateTime(row.resolvedAt) }}</span></template
         >
       </el-table-column>
-      <el-table-column label="解决方案" width="100">
+      <el-table-column v-if="visibleKeys.includes('resolution')" label="解决方案" width="100">
         <template #default="{ row }">{{
           row.resolution ? BUG_RESOLUTION_LABEL[row.resolution as BugResolution] : '-'
         }}</template>
       </el-table-column>
-      <el-table-column label="关闭时间" width="120">
+      <el-table-column v-if="visibleKeys.includes('closedAt')" label="关闭时间" width="120">
         <template #default="{ row }"
           ><span class="bug-table__time">{{ formatShortDateTime(row.closedAt) }}</span></template
         >
       </el-table-column>
-      <el-table-column label="创建时间" width="120">
+      <el-table-column v-if="visibleKeys.includes('createdAt')" label="创建时间" width="120">
         <template #default="{ row }"
           ><span class="bug-table__time">{{ formatShortDateTime(row.createdAt) }}</span></template
         >
