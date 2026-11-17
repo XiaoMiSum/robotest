@@ -430,12 +430,19 @@
 
 **方案**：交互设计 06 补两处名称可达性口径（先行）；`DebugHistoryView.vue` 历史记录名包 `el-tooltip`（位于可聚焦 button 内，hover/focus 触发、焦点清晰、点击恢复/双击重命名行为不变）；`DebugPage.vue` 标签名位于不可聚焦的标签 div 内，仅包 hover `el-tooltip` 查看全文、不引入 tabindex 或键盘切换机制，点击/双击重命名行为不变；复用现有名称可达性样板写法，不改加载反馈、Tab 结构、请求/响应主流程，不新增依赖。
 
+**实施记录（批次 2）**：`DebugHistoryView.vue` 历史记录名包 `el-tooltip`（hover + focus、`trigger-keys=[]`、focus-visible 轮廓），点击恢复/双击重命名事件仍绑在 button；`DebugPage.vue` 标签名包 hover-only `el-tooltip`（无 tabindex/键盘切换），切换与双击重命名事件仍在父级 div。两者复用 `ListTitleLink` 样板写法，element-plus tooltip 以 `OnlyChild` 透传属性、无额外 DOM wrapper，布局与事件链不变。新增 `DebugPage.spec.ts` 并扩充 `DebugHistoryView.spec.ts` 源码断言。
+
 | 项目 | 状态 |
 | ---- | ---- |
 | 评估结论 | 已完成（补齐 5.18） |
 | 交互文档先行 | 已完成（更新 `06-quick-debug-ui-page.md` 两处名称可达性口径并补建修改记录，`validate-docs` 通过） |
-| 代码实现 | 待执行（两处名称 tooltip） |
-| 定向验证 / 门禁 / 提交 / 验收 | 待执行 |
+| 代码实现 | 已完成（历史记录名 hover+focus、标签名 hover-only，两项 tooltip） |
+| 定向验证 / 前端门禁 | 已完成（两处 spec 7 项断言通过；`bash scripts/validate-web.sh` 全绿；typecheck、lint、无 any、覆盖率、契约检查通过；`git -c core.whitespace=cr-at-eol diff --check` 通过——`DebugHistoryView.vue` 为仓库唯一 CRLF 文件，历史沿用） |
+| 人工验收 | 待请求（重点：标签名悬停查看全文、历史记录名悬停与键盘聚焦查看全文且焦点清晰、点击恢复/双击重命名/切换标签行为不变、tab 布局无跳动） |
+
+- `3c5bb18c`：📝 docs(frontend): 补齐 DebugPage 评估结论并先行同步名称可达性口径。
+- `68b01c66`：📝 docs(frontend): 收窄 DebugPage 标签名为悬停可达并同步方案口径。
+- `31c18680`：✨ feat(frontend): DebugPage 标签名与历史记录名补截断可达性。
 
 ## 修改记录
 
@@ -475,3 +482,4 @@
 | V1.0 | 2026-11-17 | 记录需求页加载反馈迁移人工验收通过，建议 3 收尾 |
 | V1.0 | 2026-11-17 | DebugPage 标准化立项：补齐 F3 遗留的评估结论正文，确认最小对齐范围与文档先行口径 |
 | V1.0 | 2026-11-17 | 收窄标签名可达性为悬停查看全文（不引入 tabindex 与键盘切换），历史记录名保持 hover/focus |
+| V1.0 | 2026-11-17 | 回填 DebugPage 名称可达性实现、定向断言、前端门禁与提交记录，待人工验收 |
