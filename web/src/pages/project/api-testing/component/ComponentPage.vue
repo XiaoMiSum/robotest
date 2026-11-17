@@ -117,53 +117,68 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
           @update:model-value="handleTabChange($event as ComponentTab)"
         />
 
-        <div v-if="loadError" class="cp-empty">
+        <div v-if="loadError && list.length === 0" class="cp-empty">
           <p>组件列表加载失败</p>
           <el-button size="small" @click="loadList()">重试</el-button>
         </div>
 
-        <el-skeleton v-else-if="listLoading" :rows="6" animated class="cp-list__skeleton" />
-
-        <div v-else-if="list.length === 0" class="cp-empty">
-          <p>{{ hasFilter ? '无匹配结果' : '暂无公共组件' }}</p>
-          <el-button v-if="hasFilter" size="small" @click="clearFilters">清除筛选</el-button>
-        </div>
+        <el-skeleton v-else-if="listLoading && list.length === 0" :rows="6" animated class="cp-list__skeleton" />
 
         <template v-else>
-          <div class="cp-list__state">
-            <template v-if="loadingPrev">加载中…</template>
-            <template v-else-if="prevError">
-              <span>加载上一页失败</span>
-              <el-button size="small" @click="loadPrev">重试</el-button>
-            </template>
+          <div v-if="loadError" class="cp-list__load-error" role="alert">
+            <span>组件列表加载失败，请重试</span>
+            <el-button link type="primary" size="small" @click="loadList()">重新加载</el-button>
           </div>
 
-          <ul ref="itemsEl" class="cp-items" @scroll.passive="handleListScroll">
-            <li
-              v-for="item in list"
-              :key="item.id"
-              class="cp-item"
-              :class="{ 'is-active': item.id === selectedId, 'is-disabled': !item.enabled }"
-              @click="selectComponent(item.id)"
-            >
-              <div class="cp-item__main">
-                <span class="cp-item__name">{{ item.name }}</span>
-                <el-tag size="small" :type="SCOPE_TAG_TYPE[item.scope]">{{ componentScopeLabel(item.scope) }}</el-tag>
-                <el-tag size="small" :type="item.enabled ? 'success' : 'info'" :effect="item.enabled ? 'light' : 'plain'">
-                  {{ item.enabled ? '已启用' : '已停用' }}
-                </el-tag>
-              </div>
-              <div class="cp-item__meta">{{ componentTypeLabel(item.type) }} · {{ item.description || '—' }}</div>
-            </li>
-          </ul>
-
-          <div class="cp-list__state">
-            <template v-if="loadingMore">加载中…</template>
-            <template v-else-if="moreError">
-              <span>加载下一页失败</span>
-              <el-button size="small" @click="loadMore">重试</el-button>
-            </template>
+          <div v-if="list.length === 0" class="cp-empty">
+            <p>{{ hasFilter ? '无匹配结果' : '暂无公共组件' }}</p>
+            <el-button v-if="hasFilter" size="small" @click="clearFilters">清除筛选</el-button>
           </div>
+
+          <template v-else>
+            <div class="cp-list__state">
+              <template v-if="loadingPrev">加载中…</template>
+              <template v-else-if="prevError">
+                <span>加载上一页失败</span>
+                <el-button size="small" @click="loadPrev">重试</el-button>
+              </template>
+            </div>
+
+            <ul ref="itemsEl" class="cp-items" @scroll.passive="handleListScroll">
+              <li
+                v-for="item in list"
+                :key="item.id"
+                class="cp-item"
+                :class="{ 'is-active': item.id === selectedId, 'is-disabled': !item.enabled }"
+                @click="selectComponent(item.id)"
+              >
+                <div class="cp-item__main">
+                  <el-tooltip
+                    :content="item.name"
+                    placement="top-start"
+                    :show-after="300"
+                    :trigger="['hover', 'focus']"
+                    :trigger-keys="[]"
+                  >
+                    <span class="cp-item__name" tabindex="0">{{ item.name }}</span>
+                  </el-tooltip>
+                  <el-tag size="small" :type="SCOPE_TAG_TYPE[item.scope]">{{ componentScopeLabel(item.scope) }}</el-tag>
+                  <el-tag size="small" :type="item.enabled ? 'success' : 'info'" :effect="item.enabled ? 'light' : 'plain'">
+                    {{ item.enabled ? '已启用' : '已停用' }}
+                  </el-tag>
+                </div>
+                <div class="cp-item__meta">{{ componentTypeLabel(item.type) }} · {{ item.description || '—' }}</div>
+              </li>
+            </ul>
+
+            <div class="cp-list__state">
+              <template v-if="loadingMore">加载中…</template>
+              <template v-else-if="moreError">
+                <span>加载下一页失败</span>
+                <el-button size="small" @click="loadMore">重试</el-button>
+              </template>
+            </div>
+          </template>
         </template>
       </aside>
 
@@ -264,6 +279,20 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
   padding: var(--space-sm);
 }
 
+.cp-list__load-error {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 8px var(--space-sm);
+  border: 1px solid var(--color-danger-100, var(--color-neutral-200));
+  border-radius: var(--radius-md);
+  background: var(--color-danger-50, var(--color-neutral-50));
+  color: var(--color-danger-700, var(--color-neutral-700));
+  font-size: var(--font-size-xs);
+}
+
 /* 首尾加载提示固定占位，出现与消失不改变列表可视区高度（避免滚动跳动） */
 .cp-list__state {
   flex-shrink: 0;
@@ -324,6 +353,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
 
 /* 名称过长时让位给作用域与状态标签 */
 .cp-item__name {
+  display: block;
   flex: 1;
   min-width: 0;
   font-size: var(--font-size-sm);
@@ -332,6 +362,12 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
 }
 
 .cp-item__main .el-tag {

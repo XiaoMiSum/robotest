@@ -225,6 +225,43 @@ describe('useComponentPage', () => {
       expect(s.listLoading.value).toBe(false)
     })
 
+    it('无已加载数据时加载失败保留空列表并设置 loadError', async () => {
+      mocks.fetchComponents.mockRejectedValue(new Error('boom'))
+      const s = useComponentPage()
+
+      await s.loadList()
+
+      expect(s.loadError.value).toBe(true)
+      expect(s.list.value).toEqual([])
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('操作失败')
+    })
+
+    it('已有数据时重载失败保留列表与搜索/页签/选中并可重试恢复', async () => {
+      mocks.fetchComponents.mockResolvedValue(okList([item('a'), item('b')]))
+      const s = useComponentPage()
+      await s.loadList()
+      s.keyword.value = 'code'
+      s.filterType.value = 'validator'
+      s.selectComponent('b')
+      expect(s.selectedId.value).toBe('b')
+
+      mocks.fetchComponents.mockRejectedValueOnce(new Error('refresh fail'))
+      await s.loadList()
+
+      expect(s.loadError.value).toBe(true)
+      expect(s.list.value.map((entry) => entry.id)).toEqual(['a', 'b'])
+      expect(s.keyword.value).toBe('code')
+      expect(s.filterType.value).toBe('validator')
+      expect(s.selectedId.value).toBe('b')
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('操作失败')
+
+      mocks.fetchComponents.mockResolvedValueOnce(okList([item('c')]))
+      await s.loadList()
+
+      expect(s.loadError.value).toBe(false)
+      expect(s.list.value.map((entry) => entry.id)).toEqual(['c'])
+    })
+
     it('已选项仍在列表时保持选中，否则由缓存维持右栏详情', async () => {
       mocks.fetchComponents.mockResolvedValue(okList([item('a'), item('b')]))
       const s = useComponentPage()
