@@ -216,10 +216,20 @@ function formatMetaTime(value: string): string {
               @blur="commitRename(record)"
             />
           </template>
-          <button v-else class="history__item-main" @click="handleRestore(record)" @dblclick="startRename(record)">
-            <span class="history__item-name">{{ record.name || record.url || '(未命名)' }}</span>
-            <span class="history__item-url">{{ record.url }}</span>
-          </button>
+          <!-- 名称可达性：截断时悬停/键盘聚焦查看全文，事件仍在 button 上，点击恢复与双击重命名不变（交互设计 1.7） -->
+          <el-tooltip
+            v-else
+            :content="record.name || record.url || '(未命名)'"
+            placement="top-start"
+            :show-after="300"
+            :trigger="['hover', 'focus']"
+            :trigger-keys="[]"
+          >
+            <button class="history__item-main" @click="handleRestore(record)" @dblclick="startRename(record)">
+              <span class="history__item-name">{{ record.name || record.url || '(未命名)' }}</span>
+              <span class="history__item-url">{{ record.url }}</span>
+            </button>
+          </el-tooltip>
 
           <!-- 时间与耗时分列展示；耗时缺值时保留空列占位，保证操作列对齐 -->
           <span class="history__item-time">{{ formatMetaTime(record.executedAt) }}</span>
@@ -349,6 +359,11 @@ function formatMetaTime(value: string): string {
     background: transparent;
     cursor: pointer;
     text-align: left;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary-500);
+      outline-offset: -2px;
+    }
   }
 
   &__item-name {

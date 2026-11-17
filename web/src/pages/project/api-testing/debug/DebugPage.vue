@@ -58,9 +58,18 @@ const {
           <span v-if="renamingId !== tab.id" class="debug-tab__method" :style="{ background: methodColor(tab.method) }">
             {{ tab.method }}
           </span>
-          <span v-if="renamingId !== tab.id" class="debug-tab__label">
-            {{ tabTitle(tab) }}
-          </span>
+          <!-- 名称可达性：截断时悬停查看全文，不引入 tabindex 与键盘切换；事件在父级 div，点击切换与双击重命名不变（交互设计 1.2） -->
+          <el-tooltip
+            v-if="renamingId !== tab.id"
+            :content="tabTitle(tab)"
+            placement="top"
+            :show-after="300"
+            :trigger="['hover']"
+          >
+            <span class="debug-tab__label">
+              {{ tabTitle(tab) }}
+            </span>
+          </el-tooltip>
           <el-input
             v-else
             v-model="renamingValue"
