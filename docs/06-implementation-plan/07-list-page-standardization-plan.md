@@ -509,12 +509,16 @@
 
 **疑似项处置**：`ProjectCard.vue` 的 `<article @click>` 卡片面仅鼠标可点，但卡内名称与"进入"按钮均可达核心任务，不构成阻断，保留；`admin/WorkspaceListPage.vue` 的 `<div @click.stop>` 仅阻止冒泡，子元素为可聚焦按钮，保留。
 
+**实施记录**：`admin/WorkspaceListPage.vue` 分段容器补 `role="group" aria-label="空间状态"`，按钮补 `:aria-pressed="query.status === opt.value"`，与两个同类页面口径一致；`WorkspaceListPage.spec.ts` 新增 1 项定向断言。
+
 | 项目 | 状态 |
 | ---- | ---- |
 | 只读审计 | 已完成（10 页 + 公共列表组件） |
-| 缺陷修复 | 待执行（`admin/WorkspaceListPage.vue` 补 `role=group`/`aria-label`/`aria-pressed`） |
-| 定向验证 / 前端门禁 | 待执行（定向 spec、`validate-web.sh`、`diff --check`） |
+| 缺陷修复 | 已完成（`admin/WorkspaceListPage.vue` 补 `role=group`/`aria-label`/`aria-pressed`） |
+| 定向验证 / 前端门禁 | 已完成（定向 spec 2 项通过；`validate-web.sh` 全绿；`diff --check` 通过） |
 | 验收 | 用户授权免逐项验收，按推荐执行 |
+
+- `c8feb98e`：🐛 fix(frontend): 管理端空间状态筛选按钮补读屏选中态与分组语义。
 
 ### 5.22 状态三重编码一致性审计（建议 6）
 
@@ -528,12 +532,16 @@
 
 **修复方案**：`StepDebugResultDialog.vue` 新增 `statusLabel`（复用 `ScenariosPage.vue` 映射口径），状态 tag 改为「圆点形状（currentColor）+ 中文文案」，颜色仍由既有 `statusType` 提供；验证器结果行已为「通过/失败」文案，补同款圆点形状以保持一致。不新增依赖，不改数据结构。
 
+**实施记录**：`StepDebugResultDialog.vue` 新增 `stepStatusLabel` 映射（`success:成功` / `failed:失败` / `error:异常` / `running:执行中` / `pending:等待中`）与 `statusLabel` 兜底；步骤状态与验证器结果 tag 均补 `.debug-result__dot`（currentColor 圆点），步骤状态文案由原始英文枚举改为中文。新建 `StepDebugResultDialog.spec.ts` 2 项定向断言。
+
 | 项目 | 状态 |
 | ---- | ---- |
 | 只读审计 | 已完成（列表页 + 表格 + 展示组件 + 调试弹窗） |
-| 缺陷修复 | 待执行（`StepDebugResultDialog.vue` 中文标签 + 圆点形状） |
-| 定向验证 / 前端门禁 | 待执行（定向 spec、`validate-web.sh`、`diff --check`） |
+| 缺陷修复 | 已完成（`StepDebugResultDialog.vue` 中文标签 + 圆点形状） |
+| 定向验证 / 前端门禁 | 已完成（定向 spec 2 项通过；`validate-web.sh` 全绿；`diff --check` 通过） |
 | 验收 | 用户授权免逐项验收，按推荐执行 |
+
+- `e114d395`：🐛 fix(frontend): 步骤调试结果状态补中文文案与圆点形状。
 
 ## 修改记录
 
@@ -581,3 +589,4 @@
 | V1.0 | 2026-11-17 | 回填建议 8 拆包实现、chunk 对比、保留项说明、运行时冒烟与前端门禁记录 |
 | V1.0 | 2026-11-18 | 键盘可达性一致性审计立项（建议 5），登记审计范围、结论与单处对齐方案 |
 | V1.0 | 2026-11-18 | 状态三重编码一致性审计立项（建议 6），登记审计范围、结论与调试弹窗修复方案 |
+| V1.0 | 2026-11-18 | 回填建议 5/6 定向修复实现、验证与提交记录，8 项 UI 优化建议全部完成 |
