@@ -57,9 +57,13 @@ export interface ProposalParsed {
   editValues: Record<string, unknown>
 }
 
+/** 审核面板形态：生成链三层树、缺陷批量分类专用面板、其余通用面板 */
+export type ProposalReviewPanelKind = 'generic' | 'tree' | 'bug'
+
 export interface ProposalReviewProfile {
   taskType: string
   title: string
+  panel: ProposalReviewPanelKind
   tree: boolean
   allowAdopt: boolean
   allowEdit: boolean
@@ -122,6 +126,7 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
   return {
     taskType,
     title,
+    panel: 'generic',
     tree: false,
     allowAdopt: true,
     allowEdit: true,
@@ -174,6 +179,7 @@ const CASE_PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'].map((value) => ({ value, 
 const caseOptimizeProfile: ProposalReviewProfile = {
   taskType: 'case_optimize',
   title: '用例优化审核',
+  panel: 'generic',
   tree: false,
   allowAdopt: true,
   allowEdit: true,
@@ -246,6 +252,7 @@ const caseOptimizeProfile: ProposalReviewProfile = {
 const planOrderProfile: ProposalReviewProfile = {
   taskType: 'plan_order',
   title: '执行顺序审核',
+  panel: 'generic',
   tree: false,
   allowAdopt: true,
   allowEdit: true,
@@ -294,6 +301,7 @@ function readonlyProfile(taskType: string, title: string): ProposalReviewProfile
   return {
     taskType,
     title,
+    panel: 'generic',
     tree: false,
     allowAdopt: false,
     allowEdit: false,
@@ -321,9 +329,15 @@ function readonlyProfile(taskType: string, title: string): ProposalReviewProfile
 }
 
 /** 生成链与缺陷批量分类走专用面板，注册表仅登记其分发与树形态 */
-function specializedProfile(taskType: string, title: string, tree: boolean): ProposalReviewProfile {
+function specializedProfile(
+  taskType: string,
+  title: string,
+  panel: ProposalReviewPanelKind,
+  tree: boolean,
+): ProposalReviewProfile {
   return {
     ...readonlyProfile(taskType, title),
+    panel,
     tree,
     allowAdopt: true,
     allowEdit: true,
@@ -337,9 +351,9 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   requirement_split: requirementProfile('requirement_split', '拆分结果审核'),
   case_optimize: caseOptimizeProfile,
   plan_order: planOrderProfile,
-  test_design_generation: specializedProfile('test_design_generation', '用例生成', true),
-  bug_classify: specializedProfile('bug_classify', '缺陷批量分类', false),
-  bug_duplicate_scan: specializedProfile('bug_duplicate_scan', '重复缺陷扫描', false),
+  test_design_generation: specializedProfile('test_design_generation', '用例生成', 'tree', true),
+  bug_classify: specializedProfile('bug_classify', '缺陷批量分类', 'bug', false),
+  bug_duplicate_scan: specializedProfile('bug_duplicate_scan', '重复缺陷扫描', 'bug', false),
   bug_triage: readonlyProfile('bug_triage', '缺陷分诊结果'),
   bug_trend_summary: readonlyProfile('bug_trend_summary', '缺陷趋势总结'),
   assistant_parse: readonlyProfile('assistant_parse', '助手解析结果'),
