@@ -113,7 +113,7 @@ function createFakeMinder() {
       listeners.get(event)!.push(fn)
     }),
     getRoot: vi.fn(() => ({ data: { id: 'root' } })),
-    getSelectedNode: vi.fn(() => null),
+    getSelectedNode: vi.fn((): unknown => null),
     queryCommandValue: vi.fn(() => 'default'),
     fire: vi.fn(),
     _listeners: listeners,
@@ -267,6 +267,25 @@ describe('useMindmapInit', () => {
       await vi.waitFor(() => {
         expect(opts.persistence.initBaseline).toHaveBeenCalled()
       })
+    })
+
+    it('选中节点点击时透传给 onNodeClick', async () => {
+      const onNodeClick = vi.fn()
+      const node = { data: { id: 'case-1', type: 'case' }, getRenderBox: vi.fn() }
+      const minder = createFakeMinder()
+      minder.getSelectedNode.mockReturnValue(node)
+      mocks.KMEditor.mockImplementation(() => createFakeEditor(minder))
+      const opts = makeOptions({ onNodeClick, getMinder: vi.fn(() => minder) })
+      useMindmapInit(opts)
+      mocks._onMountedCb!()
+      await vi.waitFor(() => {
+        expect(opts.minder.value).not.toBeNull()
+      })
+
+      const handlers = (minder._listeners.get('click') ?? []) as Array<() => void>
+      expect(handlers).toHaveLength(1)
+      handlers[0]()
+      expect(onNodeClick).toHaveBeenCalledWith(node)
     })
 
     it('fetchDocumentNodes 成功后 minder.value 被赋值', async () => {

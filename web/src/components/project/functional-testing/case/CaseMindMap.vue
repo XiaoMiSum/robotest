@@ -10,9 +10,12 @@ import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/
 import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
 import { useCaseRequirementLink } from '@/composables/project/functional-testing/mindmap/useCaseRequirementLink'
 import { useCaseAssistEntry } from '@/composables/project/ai/useCaseAssistEntry'
+import { useCaseNodePopover } from '@/composables/project/functional-testing/mindmap/useCaseNodePopover'
+import type { ClickedMinderNode } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
+import CaseNodeActionPopover from './CaseNodeActionPopover.vue'
 import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
 import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps<{ docId: string }>()
 
@@ -56,6 +59,9 @@ const yjs = useMindmapYjs(
   persistence.schedulePersist,
 )
 
+// 左键单击用例节点展开悬浮窗：位置取节点渲染框，关联状态单独查询（交互 04 §1.2）
+const caseNodePopover = useCaseNodePopover()
+
 const { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder, loadError } = useMindmapInit({
   docId: () => props.docId,
   containerRef,
@@ -73,6 +79,27 @@ const { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder, loadE
   yjs,
   layout,
   nodeOps,
+  onNodeClick: handleNodeClick,
+})
+
+function handleNodeClick(node: ClickedMinderNode): void {
+  closeContextMenu()
+  const nodeId = node.data.id
+  if (node.data.type !== 'case' || typeof nodeId !== 'string' || !nodeId) {
+    caseNodePopover.close()
+    return
+  }
+  const box = node.getRenderBox?.(undefined, 'screen')
+  if (!box) {
+    caseNodePopover.close()
+    return
+  }
+  void caseNodePopover.open(nodeId, { x: Math.round(box.x), y: Math.round(box.y + box.height + 4) })
+}
+
+// 右键菜单与节点悬浮窗互斥，避免两层浮叠在同一节点上
+watch(menuVisible, (visible) => {
+  if (visible) caseNodePopover.close()
 })
 
 // AI 补全 / 级别推荐入口（详设 5.1）：选中用例节点发起，采纳后重载脑图同步落库结果
@@ -121,6 +148,28 @@ const requirementGateReason = computed(() => {
   return '维护当前用例关联的需求'
 })
 const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
+
+const popoverRequirementDisabled = computed(
+  () => caseNodePopover.requirementLoading.value || caseNodePopover.requirementLinked.value,
+)
+const popoverRequirementTitle = computed(() => {
+  if (caseNodePopover.requirementLoading.value) return '正在查询关联需求…'
+  if (caseNodePopover.requirementLinked.value) {
+    return '该用例已关联需求，如需修改请在顶部工具条操作'
+  }
+  return '为当前用例关联需求'
+})
+
+function openAssistFromPopover(launch: () => Promise<void>): void {
+  caseNodePopover.close()
+  void launch()
+}
+
+function openRequirementFromPopover(): void {
+  caseNodePopover.close()
+  void requirementLink.open()
+}
+
 
 // 工具条形态跟随 MinderNavigator 的原生全屏，避免窄编辑区按钮溢出
 const isFullscreen = ref(false)
@@ -373,6 +422,21 @@ const handleLayoutCommand = (command: unknown) => {
       <div class="mindmap-context-menu__divider" />
       <div class="mindmap-context-menu__item mindmap-context-menu__item--danger menu-action" @click="nodeOps.deleteNode"><span>删除节点</span><span class="menu-shortcut">Delete</span></div>
     </MinderContextMenu>
+
+    <CaseNodeActionPopover
+      :visible="caseNodePopover.visible.value"
+      :x="caseNodePopover.anchor.value.x"
+      :y="caseNodePopover.anchor.value.y"
+      :ai-entry-visible="assistEntryVisible"
+      :ai-gate-reason="assistGateReason"
+      :can-launch-ai="canLaunchAssist"
+      :requirement-disabled="popoverRequirementDisabled"
+      :requirement-loading="caseNodePopover.requirementLoading.value"
+      :requirement-title="popoverRequirementTitle"
+      @ai-complete="openAssistFromPopover(launchComplete)"
+      @ai-priority="openAssistFromPopover(launchPriority)"
+      @link-requirement="openRequirementFromPopover"
+    />
 
     <!-- AI 建议面板：进行中展示进度入口，完成后切换为对照面板（交互 2.3） -->
     <el-dialog
