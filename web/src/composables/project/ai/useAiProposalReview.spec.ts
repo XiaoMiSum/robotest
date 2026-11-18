@@ -358,4 +358,99 @@ describe('useAiProposalReview', () => {
       })
     })
   })
+
+  describe('任务类型策略接入', () => {
+    it('用例优化按策略解析 content，编辑载荷为 fields + priority', async () => {
+      mocks.fetchAiProposal.mockResolvedValue({
+        content: {
+          nodeId: 'n1',
+          fields: { steps: { suggested: ['点击登录', '点击验证码'] } },
+          priority: { current: 'P1', suggested: 'P0' },
+        },
+      })
+      const s = useAiProposalReview(
+        't1',
+        () => [summary({ kind: 'case_optimize_suggestion' })],
+        () => true,
+        vi.fn(),
+        'case_optimize',
+      )
+      s.init()
+      s.select('a1')
+      await vi.waitFor(() => expect(s.rows.value[0].contentLoaded).toBe(true))
+      expect(s.reviewTitle.value).toBe('用例优化审核')
+      expect(s.editFields.value.map((field) => field.key)).toEqual([
+        'precondition',
+        'steps',
+        'expected',
+        'tags',
+        'priority',
+      ])
+      const values = s.editValuesOf(s.rows.value[0])
+      expect(values.priority).toBe('P0')
+      expect((values.steps as string).split('\n')).toEqual(['点击登录', '点击验证码'])
+      expect(s.rows.value[0].parsed.compare.find((row) => row.label === '操作步骤')?.changed).toBe(
+        true,
+      )
+
+      await s.handleAdoptEdited(s.rows.value[0], values)
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
+        items: [
+          {
+            key: 'a1',
+            action: 'adopted_edited',
+            content: { fields: { steps: ['点击登录', '点击验证码'] }, priority: 'P0' },
+          },
+        ],
+        target: undefined,
+      })
+    })
+
+    it('只读任务不提供可选项与编辑字段', () => {
+      const s = useAiProposalReview(
+        't1',
+        () => [summary()],
+        () => true,
+        vi.fn(),
+        'bug_triage',
+      )
+      s.init()
+      expect(s.selectableRows.value).toEqual([])
+      expect(s.editFields.value).toEqual([])
+      expect(s.canEdit.value).toBe(false)
+      expect(s.canReject.value).toBe(false)
+    })
+
+    it('计划排序按当前顺序重排名次后提交', async () => {
+      const s = useAiProposalReview(
+        't1',
+        () => [summary({ kind: 'order_suggestion' })],
+        () => true,
+        vi.fn(),
+        'plan_order',
+      )
+      s.init()
+      await s.handleAdoptEdited(s.rows.value[0], {
+        items: [
+          { nodeId: 'n2', title: 'TC-002' },
+          { nodeId: 'n1', title: 'TC-001' },
+        ],
+      })
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
+        items: [
+          {
+            key: 'a1',
+            action: 'adopted_edited',
+            content: {
+              items: [
+                { nodeId: 'n2', suggestedRank: 1 },
+                { nodeId: 'n1', suggestedRank: 2 },
+              ],
+            },
+          },
+        ],
+        target: undefined,
+      })
+    })
+  })
 })

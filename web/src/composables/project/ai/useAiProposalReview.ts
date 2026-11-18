@@ -17,6 +17,10 @@ import {
   aiProposalKindLabel,
   aiProposalProcessed,
 } from '@/composables/project/ai/taskPresentation'
+import {
+  reviewProfile,
+  type ProposalParsed,
+} from '@/composables/project/ai/reviewProfiles'
 
 /** 单次确认上限（详设 3.6.5 items @Size(max=200)），超限按父先子序分批顺序提交 */
 const CONFIRM_MAX_ITEMS = 200
@@ -26,6 +30,18 @@ const PRELOAD_CONCURRENCY = 6
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
+}
+
+function emptyParsed(title: string): ProposalParsed {
+  return {
+    description: '',
+    fields: [],
+    compare: [],
+    rankItems: [],
+    sourceRefs: [],
+    warnings: [],
+    editValues: { title },
+  }
 }
 
 /** 需求挂在模块目录上，选择树只留目录（文档不承载需求） */
@@ -111,6 +127,9 @@ export interface ProposalRow extends AiTaskProposalSummary {
   confirmMeta: ReturnType<typeof aiProposalConfirmMeta>
   content: AiProposalContent
   contentLoaded: boolean
+  /** 原始 content 与按任务类型策略解析的结构化视图（方案驱动预览与编辑） */
+  rawContent: Record<string, unknown>
+  parsed: ProposalParsed
 }
 
 /** 逐项回执行（AiConfirmReceipt 展示与单项重试载荷，非任务重试） */
@@ -130,7 +149,12 @@ export function useAiProposalReview(
   proposals: () => AiTaskProposalSummary[],
   canConfirm: () => boolean,
   onConfirmed: () => void,
+  taskType?: string | (() => string),
 ) {
+  const profile = computed(() =>
+    reviewProfile(typeof taskType === 'function' ? taskType() : (taskType ?? '')),
+  )
+
   const rows = ref<ProposalRow[]>([])
   const selectedKeys = ref<string[]>([])
   const activeKey = ref('')
@@ -146,9 +170,25 @@ export function useAiProposalReview(
     () => rows.value.find((row) => row.key === activeKey.value) ?? null,
   )
 
-  const selectableRows = computed(
-    () => rows.value.filter((row) => row.confirmStatus === 'pending'),
+  const selectableRows = computed(() =>
+    profile.value.allowAdopt
+      ? rows.value.filter((row) => row.confirmStatus === 'pending')
+      : [],
   )
+
+  /** 审核文案、编辑字段与动作门禁由任务类型策略决定 */
+  const reviewTitle = computed(() => profile.value.title)
+  const editFields = computed(() => profile.value.editFields)
+  const canEdit = computed(() => profile.value.allowEdit)
+  const canReject = computed(() => profile.value.allowReject)
+  const canBatch = computed(() => profile.value.allowBatch)
+  const needModuleTree = computed(() => profile.value.needModuleTree)
+  const needSystemVersion = computed(() => profile.value.needSystemVersion)
+
+  /** 编辑弹窗初值统一取策略解析结果，避免组件重复解析原始 content */
+  function editValuesOf(row: ProposalRow): Record<string, unknown> {
+    return { ...row.parsed.editValues }
+  }
 
   const allSelected = computed(
     () =>
@@ -166,6 +206,8 @@ export function useAiProposalReview(
         confirmMeta: aiProposalConfirmMeta(proposal.confirmStatus),
         content: existing?.content ?? { ...EMPTY_CONTENT },
         contentLoaded: existing?.contentLoaded ?? false,
+        rawContent: existing?.rawContent ?? {},
+        parsed: existing?.parsed ?? emptyParsed(proposal.title ?? ''),
       }
     })
     // 已确认项移出选择集，避免残留选择态
@@ -184,6 +226,8 @@ export function useAiProposalReview(
     try {
       const payload = await fetchAiProposal(taskId, row.key)
       const raw = payload.content ?? {}
+      row.rawContent = raw
+      row.parsed = profile.value.parse(raw, row.title || '')
       const attributes = readAttributes(raw['attributes'])
       row.content = {
         // 模块 / 文档用 name、用例用 title（生成链 3.3），缺省回退摘要标题
@@ -305,18 +349,14 @@ export function useAiProposalReview(
     return submitItems(itemsFor(selectedKeys.value, 'adopted'), target)
   }
 
-  /** 编辑后采纳：content 覆盖提案原内容（详设 3.6.5 adopted_edited） */
+  /** 编辑后采纳：载荷由任务类型策略组装，避免不同承接器收到错位字段 */
   function handleAdoptEdited(
     row: ProposalRow,
-    content: { title: string; description: string; moduleId: string; priority: string },
+    values: Record<string, unknown>,
     target?: AiProposalConfirmTarget,
   ): Promise<void> {
-    const payload: Record<string, unknown> = {}
-    if (content.title.trim()) payload['title'] = content.title.trim()
-    if (content.description.trim()) payload['description'] = content.description.trim()
-    if (content.moduleId) payload['moduleId'] = content.moduleId
-    if (content.priority) payload['priority'] = content.priority
-    return submitItems([{ key: row.key, action: 'adopted_edited', content: payload }], target)
+    const content = profile.value.buildEditedContent(values, row.rawContent)
+    return submitItems([{ key: row.key, action: 'adopted_edited', content }], target)
   }
 
   async function handleBatchReject(target?: AiProposalConfirmTarget): Promise<void> {
@@ -371,7 +411,7 @@ export function useAiProposalReview(
 
   function init(): void {
     syncRows()
-    void loadModuleTree()
+    if (needModuleTree.value) void loadModuleTree()
   }
 
   return {
@@ -387,6 +427,15 @@ export function useAiProposalReview(
     selectableRows,
     allSelected,
     canConfirm: computed(() => canConfirm()),
+    profile,
+    reviewTitle,
+    editFields,
+    editValuesOf,
+    canEdit,
+    canReject,
+    canBatch,
+    needModuleTree,
+    needSystemVersion,
     CONFIRM_MAX_ITEMS,
     NOTE_MAX_LENGTH,
     syncRows,

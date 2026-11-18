@@ -53,6 +53,16 @@ function makeRow(seed: RowSeed): ProposalRow {
       ...seed.content,
     },
     contentLoaded: true,
+    rawContent: {},
+    parsed: {
+      description: '',
+      fields: [],
+      compare: [],
+      rankItems: [],
+      sourceRefs: [],
+      warnings: [],
+      editValues: {},
+    },
   }
 }
 
