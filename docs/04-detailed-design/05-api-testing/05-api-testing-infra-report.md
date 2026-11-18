@@ -13,7 +13,7 @@
 ### 1.1 查询报告列表
 
 - **路径**：`GET /api/project/reports?pageNo=1&pageSize=20&status=success`
-- **权限**：`api-report:view`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **筛选参数**：
 
 | 参数 | 说明 |
@@ -54,7 +54,7 @@
 ### 1.2 查询报告详情
 
 - **路径**：`GET /api/project/reports/:id`
-- **权限**：`api-report:view`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **响应**：字段为 `id` / `reportType` / `externalId` / `name` / `executionMode` / `status` / `summary` / `environmentName` / `result` / `share` / `createdAt`。`data.result` 为按 `reportType` 构建的结果数据集（`scene` 为场景数据集、`suite` 为套件数据集，字段结构见 `docs/04-detailed-design/05-api-testing/28-test-report-overview.md` 2.3），前端据此按「场景 → 步骤」两级或单场景渲染（见 2）；响应不含 `ryze_snapshot`（内部字段，仅后端保留），也不含旧的 `stepResults` 数组字段。当报告存在**未过期分享**时 `data.share` 为 `{shareUrl, expiresAt, shareBy}`，供分享弹窗直接复用展示；无分享 / 已过期为 `null`：
 
 ```json
@@ -80,8 +80,8 @@
 ### 1.3 生成分享链接
 
 - **路径**：`POST /api/project/reports/:id/share`
-- **权限**：`api-report:view`
-- **说明**：无全局分享开关，具备报告查看权限即可生成；`expiresInDays` 缺省 7 天（前端提供 1 / 7 / 30 / 90 天选项），有效期写入 `share_expires_at`，并写入分享者 `share_user_id`。接口**每次重新生成** token 并覆盖旧分享；前端在存在未过期分享时复用详情接口的 `share` 记录展示，仅 [重新生成] 才调用本接口（见 `docs/04-detailed-design/05-api-testing/31-test-report-share.md` 1.3）。
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
+- **说明**：无全局分享开关，项目成员即可生成；`expiresInDays` 缺省 7 天（前端提供 1 / 7 / 30 / 90 天选项），有效期写入 `share_expires_at`，并写入分享者 `share_user_id`。接口**每次重新生成** token 并覆盖旧分享；前端在存在未过期分享时复用详情接口的 `share` 记录展示，仅 [重新生成] 才调用本接口（见 `docs/04-detailed-design/05-api-testing/31-test-report-share.md` 1.3）。
 - **请求体**：
 
 ```json
@@ -110,9 +110,9 @@
 ### 1.5 删除报告
 
 - **路径**：`DELETE /api/project/reports/:id`
-- **权限**：`api-report:delete`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **响应**：`data` 为 `true`。
-- 批量删除 `POST /api/project/reports/batch-delete`（请求体 `{ "ids": [...] }`，权限 `api-report:delete`）由 `docs/04-detailed-design/05-api-testing/29-test-report-list.md` 2 定义。
+- 批量删除 `POST /api/project/reports/batch-delete`（请求体 `{ "ids": [...] }`，免 RBAC 权限码校验，保留项目成员校验）由 `docs/04-detailed-design/05-api-testing/29-test-report-list.md` 2 定义。
 
 ### 1.6 状态取值与权限口径
 
@@ -126,16 +126,7 @@
 
 > 报告列表当前只含套件报告（见 1.1），其状态只有 `success` / `failed`，`status=partial` 筛选查不到数据；`partial` 出现在场景报告与套件数据集的场景级状态中。
 
-**权限码**：
-
-| 操作 | 权限码 |
-| ---- | ---- |
-| 接口测试侧边栏「测试报告」菜单入口 | `api-report:view` |
-| 报告列表、详情、生成分享链接 | `api-report:view` |
-| 删除报告、批量删除报告 | `api-report:delete` |
-| 免登录分享访问 | 无权限码（token 校验 + 限流） |
-
-> 前端不按权限码隐藏「分享」「删除」等操作按钮，越权调用由后端 `@PreAuthorize` 鉴权拒绝（HTTP 403）。
+**权限口径**：接口测试模块免 RBAC 权限码校验，保留项目成员归属校验；前端不按权限码隐藏「分享」「删除」等操作按钮，非项目成员由业务校验拦截。免登录分享访问不挂权限码，依赖 token 校验与限流。
 
 
 ## 2. 报告详情渲染
@@ -195,3 +186,4 @@
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐实现：修正列表范围与筛选参数、补充状态判定与权限口径、按共享渲染组件重写详情渲染章节 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

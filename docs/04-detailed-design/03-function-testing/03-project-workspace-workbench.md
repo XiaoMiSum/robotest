@@ -49,7 +49,7 @@
 
 - **字段说明**：
   - `projectName`：项目名称；`projectStatus`：`active` 或 `archived`；起止时间为空时返回 `null`。
-  - `recentActivities`：按 `occurredAt DESC, id DESC` 取最近 8 条项目语义动态，再按当前用户对应模块的查看权限过滤后返回，数量可能少于 8 条。
+  - `recentActivities`：按 `occurredAt DESC, id DESC` 取最近 8 条项目语义动态。
   - `recentReviews` / `recentPlans` / `recentBugs`：分别返回最近 5 条评审、计划、缺陷（`recentBugs` 的 `assignee` 已解析为姓名）。
 
 ### 1.2 项目动态数据
@@ -173,7 +173,7 @@ CREATE INDEX idx_project_activity_project_occurred
 ## 2. 约束与实施说明
 
 - 动态接口和项目工作台接口均使用项目上下文请求头，不新增项目 ID URL 参数。
-- 动态查询只返回当前项目且未删除的记录，按 `occurred_at DESC, id DESC` 稳定排序；资源动态按当前用户对应模块的查看权限过滤。
+- 动态查询只返回当前项目且未删除的记录，按 `occurred_at DESC, id DESC` 稳定排序。
 - 动态记录属于业务时间线，不替代系统审计日志；系统审计仍按现有 `sys_audit_log` 机制保留。
 - 首期动态写入失败不得阻断核心业务操作，写入异常记录日志并由后续补偿机制处理。
 - 数据库变更同步写入 `server/src/main/resources/db/schema.sql`，存量环境按上述 DDL 执行。
@@ -185,3 +185,4 @@ CREATE INDEX idx_project_activity_project_occurred
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐 DashboardPage 实现：补全四区块布局与最近评审/计划面板，细化快捷入口、统计卡片跳转目标、动态「查看」映射及加载/错误/空态 |
 | V1.0 | 2026-10-02 | 补充窄屏单列与最近动态空态，按实现校准错误提示口径及动态排序字段 |
+| V1.0 | 2026-11-18 | 移除工作台动态按业务模块权限过滤的口径，仅保留 `project:view` 与项目成员身份校验 |

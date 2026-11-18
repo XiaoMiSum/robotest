@@ -34,8 +34,8 @@
 
 ### 1.4 页面入口与权限口径
 
-- **壳路由与子模块**：`/workspace/projects/api-testing`（路由名 `ApiTesting`），GitLab 集成是壳页左侧侧边栏「项目设置」分组下的子模块（与环境管理同组），由侧边栏切换并以 `?tab=gitlab` 同步记录；刷新或外部改写 query 时按当前可见权限还原，tab 不可见时回落到首个可见子模块。
-- **权限码**：仓库配置的查询与连通性测试按 `api-env:view`，配置创建 / 更新 / 删除按 `api-env:edit`；项目扫描与解析预览按 `api-scene:view`，执行导入按 `api-scene:edit`。
+- **壳路由与子模块**：`/workspace/projects/api-testing`（路由名 `ApiTesting`），GitLab 集成是壳页左侧侧边栏「项目设置」分组下的子模块（与环境管理同组），由侧边栏切换并以 `?tab=gitlab` 同步记录；页面入口对项目成员开放，不做权限码过滤。
+- **权限码**：无（免 RBAC 权限码校验，保留项目成员校验）；仓库配置、连通性测试、项目扫描、解析预览与执行导入均不做权限码校验。
 - **页面结构**：整页单面板（一项目一仓库，不设列表），含「基础配置」「导入」两个页签；页签栏常驻连通性状态徽标，导入页签顶部常驻上次导入信息。执行不在本页发生，由场景侧执行入口承载。
 
 ## 2. 数据设计
@@ -124,11 +124,11 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
 
 | 路径 | 方法 | 说明 | 权限码 |
 | ---- | ---- | ---- | ---- |
-| `/api/project/git-repos` | GET | 查询当前项目仓库配置（一项目一仓库，无分页） | `api-env:view` |
-| `/api/project/git-repos` | POST | 创建仓库配置，`importMode` 必填 | `api-env:edit` |
-| `/api/project/git-repos/{repoId}` | PUT | 更新配置；`repoPath` / `defaultBranch` / `importMode` 不在请求体中接受，出现即返回 `1000017711`；变更绑定仓库须走 DELETE 后重建 | `api-env:edit` |
-| `/api/project/git-repos/{repoId}` | DELETE | 逻辑删除；其下已导入场景保留但 `source_status` 置为 `repo_removed`。存在启用中的 `gitlab_sync` 定时任务时拒绝删除，返回 `1000017712` | `api-env:edit` |
-| `/api/project/git-repos/connections/test` | POST | 连通性测试（GitLab 版本 + 目标分支可达性 + 令牌 scope 校验）。不依赖 `repoId`，保存前的空态亦可调用；body 字段缺省时回落已存配置（一项目一仓库按 `projectId` 取），不落库 | `api-env:view` |
+| `/api/project/git-repos` | GET | 查询当前项目仓库配置（一项目一仓库，无分页） | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/git-repos` | POST | 创建仓库配置，`importMode` 必填 | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/git-repos/{repoId}` | PUT | 更新配置；`repoPath` / `defaultBranch` / `importMode` 不在请求体中接受，出现即返回 `1000017711`；变更绑定仓库须走 DELETE 后重建 | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/git-repos/{repoId}` | DELETE | 逻辑删除；其下已导入场景保留但 `source_status` 置为 `repo_removed`。存在启用中的 `gitlab_sync` 定时任务时拒绝删除，返回 `1000017712` | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/git-repos/connections/test` | POST | 连通性测试（GitLab 版本 + 目标分支可达性 + 令牌 scope 校验）。不依赖 `repoId`，保存前的空态亦可调用；body 字段缺省时回落已存配置（一项目一仓库按 `projectId` 取），不落库 | 无（免 RBAC 权限码校验，保留项目成员校验） |
 
 **创建请求示例**
 
@@ -213,9 +213,9 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
 
 | 路径 | 方法 | 说明 | 权限码 |
 | ---- | ---- | ---- | ---- |
-| `/api/project/git-repos/{repoId}/preview` | POST | 扫描预览：拉取目标分支、执行改名判定（干跑）与扫描，返回将创建 / 更新 / 解析失败的清单与汇总，不落库 | `api-scene:view` |
-| `/api/project/git-repos/{repoId}/imports` | POST | 执行导入；先过 commit 幂等闸门（3.4），再做改名迁移判定（3.5），按预览清单 upsert | `api-scene:edit` |
-| `/api/project/git-repos/{repoId}/imports/status` | GET | 查询当前仓库导入进度（阶段、已处理数、总量；`failed` 时含失败原因，`done` 时含结果汇总） | `api-scene:view` |
+| `/api/project/git-repos/{repoId}/preview` | POST | 扫描预览：拉取目标分支、执行改名判定（干跑）与扫描，返回将创建 / 更新 / 解析失败的清单与汇总，不落库 | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/git-repos/{repoId}/imports` | POST | 执行导入；先过 commit 幂等闸门（3.4），再做改名迁移判定（3.5），按预览清单 upsert | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/git-repos/{repoId}/imports/status` | GET | 查询当前仓库导入进度（阶段、已处理数、总量；`failed` 时含失败原因，`done` 时含结果汇总） | 无（免 RBAC 权限码校验，保留项目成员校验） |
 
 **预览响应示例（`data`，`platform` 模式）**
 
@@ -276,8 +276,8 @@ GitLab 集成相关错误码号段 `1000017701`–`1000017715`（`API_GIT_*`）�
 
 | 路径 | 方法 | 说明 | 权限码 |
 | ---- | ---- | ---- | ---- |
-| `/api/project/api-scenes/{sceneId}/executions` | POST | 单场景执行；场景引擎为 `gitlab_ci` 时触发流水线并返回 `executionId`（语义与平台引擎一致，前端无感） | `api-scene:execute` |
-| `/api/project/api-executions/{executionId}` | GET | 执行状态查询；CI 执行由服务端轮询 GitLab 后回写，前端只读 | `api-scene:view` |
+| `/api/project/api-scenes/{sceneId}/executions` | POST | 单场景执行；场景引擎为 `gitlab_ci` 时触发流水线并返回 `executionId`（语义与平台引擎一致，前端无感） | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/api-executions/{executionId}` | GET | 执行状态查询；CI 执行由服务端轮询 GitLab 后回写，前端只读 | 无（免 RBAC 权限码校验，保留项目成员校验） |
 
 **校验规则**：所属仓库被禁用 / 不可达的导入场景执行时返回 `1000017707`。
 
@@ -696,3 +696,4 @@ GitLab 侧不引入专用 SDK，复用既有 HTTP 组件封装实例地址、项
 | V1.0 | 2026-10-17 | 3.5 补场景发布状态口径：新建场景一律 `status = published`（导入即可被测试计划与定时任务圈选），更新路径不触碰 `status` |
 | V1.0 | 2026-10-17 | 4.1 引擎表「按钮文案」列统一为「运行」：执行入口文案不随引擎变化，按钮仍按引擎路由触发链路 |
 | V1.0 | 2026-10-18 | 结果回传改为 CI 主动推送（4.2 时序与结果回收、4.6 CI 职责与接口契约）：新增 `POST /api/ci/batches/{batchId}/artifacts`（multipart、内存暂存、后到覆盖、非 zip/超限拒绝），错误码 `1000017714` 改义为 `API_GIT_ARTIFACT_RECEIVE_FAILED`，体积约束改平台接收上限 5MB，GitLab artifact 保留仅作人工排查 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

@@ -8,12 +8,12 @@
 
 ## 1. 场景执行与单步骤调试
 
-> 权限口径：触发场景执行、单步调试、草稿执行需 `api-scene:execute`，执行历史与变更历史需 `api-scene:view`，均由服务端 `@PreAuthorize` 强制；前端不做按钮级权限隐藏（见 `docs/04-detailed-design/05-api-testing/12-test-scenario-overview.md`）。上下文（工作空间 / 项目）经请求头传递，不出现在 URL 与请求体中。
+> 权限口径：无（免 RBAC 权限码校验，保留项目成员校验）；服务端不做权限码校验，前端不做按钮级权限隐藏（见 `docs/04-detailed-design/05-api-testing/12-test-scenario-overview.md`）。上下文（工作空间 / 项目）经请求头传递，不出现在 URL 与请求体中。
 
 ### 1.1 触发场景执行
 
 - **路径**：`POST /api/project/api-scenes/{sceneId}/executions`
-- **权限**：`api-scene:execute`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **说明**：触发场景执行，公共执行引擎语义（异步提交立即返回、失败即停）见 `docs/04-detailed-design/05-api-testing/03-api-testing-infra-engine.md` §1、§2.3，此处补充场景侧约定：
   - 执行入口有二：**列表页行 [更多] → [执行]**（直接触发，toast `场景「×」执行已启动` 后刷新列表，无执行确认弹窗）与**编辑页顶部 [▶ 运行]**（创建态与编辑态均提供；编辑态存在未保存的基础信息改动时先执行保存，保存失败则不执行，乐观锁版本以保存后为准）；
   - 请求体可选，可携带 `environmentId` 与 `variableOverrides`：`environmentId` 缺省时后端回退项目默认环境（编辑页 [▶ 运行] 传入页面当前选择的环境，编辑态缺省为场景已保存的 `environmentId`，创建态默认取项目默认环境）；`variableOverrides`（运行时变量覆盖，优先级最高）为接口契约预留，当前执行链路未消费、前端也不传入（口径见 `docs/04-detailed-design/05-api-testing/15-test-scenario-variable.md` 3.1）；
@@ -30,13 +30,13 @@
 - **报告状态**：`success` / `partial` / `failed`（判定与前端渲染口径见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.6）；步骤状态 `success` / `failed` / `error` / `skipped` 渲染为「成功 / 失败 / 执行异常 / 跳过」。
 - **查看路径**：
   - 编辑页顶部 [执行历史] 气泡（见 2.1）：`pending` / `running` 记录无 `reportId`，不显示 [报告] 按钮，执行结束后出现；
-  - [报告] 打开「报告详情」弹窗（`ReportDetailDialog`），调用 `GET /api/project/reports/:reportId`（权限 `api-report:view`，接口见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.2）；共享的套件报告默认定位当前场景明细，并提供 [查看完整套件] 切换；
+  - [报告] 打开「报告详情」弹窗（`ReportDetailDialog`），调用 `GET /api/project/reports/:reportId`（免 RBAC 权限码校验，保留项目成员校验，接口见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.2）；共享的套件报告默认定位当前场景明细，并提供 [查看完整套件] 切换；
   - 列表页「最近执行」列渲染执行记录 `status` 原值（`success` 成功 / `failed` 失败 / `running` 执行中 / `pending` 等待中 / `error` 异常，无记录显示「—」，筛选项含「未执行」），仅在进入列表、筛选变更或触发执行后刷新，**不轮询**。
 
 ### 1.3 单步骤调试
 
 - **路径**：`POST /api/project/api-scenes/{sceneId}/steps/{stepId}/debug`
-- **权限**：`api-scene:execute`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **请求体**：
 
 ```json
@@ -65,7 +65,7 @@
 ### 1.4 草稿场景执行（创建态 [▶ 运行]）
 
 - **路径**：`POST /api/project/api-scenes/draft/execute`
-- **权限**：`api-scene:execute`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **请求体**：
 
 ```json
@@ -112,7 +112,7 @@
 ### 2.1 查询执行历史
 
 - **路径**：`GET /api/project/api-scenes/{sceneId}/executions?pageNo=1&pageSize=20`
-- **权限**：`api-scene:view`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **数据来源**：`api_execution_record`（见《API 测试基础设施详细设计说明书》2.1.3），按 `executedAt` 倒序。
 - **前端行为**：编辑页顶部 [执行历史] 气泡按需加载（打开气泡触发，20 条 / 页，切换页码重新拉取），逐行展示 `status` 原值、`executedAt` 时间（本地时区格式化）与 [报告] 按钮（仅 `reportId` 非空时显示）；加载失败在气泡内展示错误并提供 [重试]；创建态不显示 [执行历史]。
 - **响应**：
@@ -137,7 +137,7 @@
 ### 2.2 查询变更历史
 
 - **路径**：`GET /api/project/api-scenes/{sceneId}/change-history?pageNo=1&pageSize=20`
-- **权限**：`api-scene:view`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **数据来源**：`api_change_history`（见《API 测试基础设施详细设计说明书》2.1.2，只读追溯，不提供编辑 / 删除），按 `version` 倒序。
 - **说明**：前端在打开 [执行历史] 时与执行历史一并请求（`useSceneHistory` 并发拉取、失败各自提示并可重试）；变更数据当前仅保留在页面状态中，编辑页未提供变更历史展示入口。
 - **响应**：
@@ -163,3 +163,4 @@
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-03 | 对齐执行与历史实现：修正执行 / 单步调试 / 历史接口路径与权限码，移除状态轮询与草稿单步调试，统一不轮询查看口径与草稿执行状态语义 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

@@ -15,9 +15,9 @@
 ### 1.1 记录写入
 
 - **写入时机**：导入执行接口在事务内完成 upsert 后写入一条记录，同时写入若干条 `api_import_mapping` 映射（映射规则见 `docs/04-detailed-design/05-api-testing/10-interface-management-import.md` 第 6 节）。
-  - `POST /api/project/interfaces/import/url` — Swagger URL 导入，权限 `api-interface:edit`
-  - `POST /api/project/interfaces/import/parsed` — cURL 解析结果导入，权限 `api-interface:edit`
-  - `POST /api/project/interfaces/import/preview` — 仅解析预览，权限 `api-interface:view`，**不写入记录**
+  - `POST /api/project/interfaces/import/url` — Swagger URL 导入（免 RBAC 权限码校验，保留项目成员校验）
+  - `POST /api/project/interfaces/import/parsed` — cURL 解析结果导入（免 RBAC 权限码校验，保留项目成员校验）
+  - `POST /api/project/interfaces/import/preview` — 仅解析预览，**不写入记录**
 - **前置失败不产生记录**：URL 拉取失败、格式无法识别、内容解析失败在写入前即整体中断，分别返回 10 位错误码 `1000017012`（URL 不可达）、`1000017010`（格式不支持）、`1000017011`（解析失败），此时不落记录。
 - **字段取值**：
 
@@ -34,7 +34,7 @@
 
 ### 1.2 结果反馈（前端）
 
-导入入口为接口工作区顶部右侧「导入」按钮（`web/src/pages/project/api-testing/interface/InterfaceWorkspace.vue`），前端未给该按钮挂权限码，接口管理页签按 `api-interface:view` 显隐，实际编辑权限由后端 `api-interface:edit` 校验。
+导入入口为接口工作区顶部右侧「导入」按钮（`web/src/pages/project/api-testing/interface/InterfaceWorkspace.vue`），前端导入按钮与接口管理页签均不做权限码过滤，项目成员可用，保留项目成员归属校验。
 
 弹窗 `web/src/pages/project/api-testing/interface/ImportDialog.vue` 的行为：
 
@@ -81,3 +81,4 @@ CREATE INDEX idx_irecord_project ON api_import_record(project_id, created_at DES
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 按实现对齐：删除未实现的 `GET /api/project/import-records` 查询接口，补全记录写入时机与字段取值、导入结果反馈流程、间接查询途径及与 schema.sql 一致的表结构 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

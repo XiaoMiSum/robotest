@@ -119,7 +119,7 @@
 ### 1.7 同步最新用例
 
 - **路径**：`POST /api/project/plans/:id/sync`
-- **权限**：`plan:execute`（`@PreAuthorize` 校验，缺码返回 HTTP 403）；计划须未结束（new/in_progress），已结束返回错误码 1000011027；已阻塞返回错误码 1000011025（“计划已阻塞，请先恢复后再操作”）。
+- **校验**：免 RBAC 权限码校验，服务端校验项目成员身份；计划须未结束（new/in_progress），已结束返回错误码 1000011027；已阻塞返回错误码 1000011025（“计划已阻塞，请先恢复后再操作”）。
 - **处理**：与评审同步逻辑一致，更新快照节点属性，保留执行记录。
 - **前端**：二次确认（“同步将更新快照节点属性，已有执行记录不受影响”）→ 成功后重新拉取详情、进度与快照模块树并重载脑图。
 
@@ -145,20 +145,20 @@
 ### 1.11 完成计划
 
 - **路径**：`POST /api/project/plans/:id/complete`
-- **权限**：`plan:execute`（`@PreAuthorize` 校验，缺码返回 HTTP 403），不校验计划负责人。
+- **校验**：免 RBAC 权限码校验，服务端校验项目成员身份；不校验计划负责人。
 - **校验**：计划状态为 blocked 时返回错误码 1000011025（“计划已阻塞，请先恢复后再操作”）。
 - **处理**：状态变更为 completed；不做未执行用例门槛校验，前端二次确认（提示“完成后将不可再标记执行结果”）后提交，记录项目活动 `PLAN_COMPLETED`；完成后详情页活跃态操作组（调整用例/同步用例/阻塞/完成执行）收起。
 
 ### 1.12 删除计划
 
 - **路径**：`DELETE /api/project/plans/:id`
-- **权限**：仅计划负责人（业务层校验，非负责人返回错误码 1000002001），任意状态可删（含已阻塞）。
+- **校验**：免 RBAC 权限码校验；服务端校验项目成员身份与计划负责人（非负责人返回错误码 1000002001），任意状态可删（含已阻塞）。
 - **处理**：无物理外键，事务中显式级联删除执行记录、节点快照、模块快照后删除计划本体，记录项目活动 `PLAN_DELETED`。
 
 ### 1.13 阻塞计划
 
 - **路径**：`POST /api/project/plans/:id/block`
-- **权限**：`plan:block`（`@PreAuthorize` 校验，缺码返回 HTTP 403），不校验计划负责人。
+- **校验**：免 RBAC 权限码校验，服务端校验项目成员身份；不校验计划负责人。
 - **校验**：计划状态须为 new 或 in_progress，否则返回错误码 1000011020（“仅未开始或进行中的计划可阻塞”）。
 - **处理**：状态置为 blocked（部分更新载体，仅回写 `id` + `status`）；记录项目活动 `PLAN_BLOCKED`（“阻塞测试计划「名称」”）。
 - **说明**：阻塞期间提交执行记录、调整规划用例、同步、完成均返回错误码 1000011025；删除不受影响。
@@ -166,7 +166,7 @@
 ### 1.14 恢复计划
 
 - **路径**：`POST /api/project/plans/:id/resume`
-- **权限**：`plan:block`（`@PreAuthorize` 校验，缺码返回 HTTP 403），不校验计划负责人。
+- **校验**：免 RBAC 权限码校验，服务端校验项目成员身份；不校验计划负责人。
 - **校验**：计划状态须为 blocked，否则返回错误码 1000011024（“仅已阻塞的计划可恢复”）。
 - **处理**：状态置为 in_progress（部分更新载体）；记录项目活动 `PLAN_RESUMED`（“恢复测试计划「名称」”）。
 
@@ -174,7 +174,7 @@
 ### 1.15 编辑计划
 
 - **路径**：`PUT /api/project/plans/{id}`
-- **权限**：`plan:execute`（`@PreAuthorize` 校验，缺码返回 HTTP 403）；不校验计划负责人。
+- **校验**：免 RBAC 权限码校验，服务端校验项目成员身份；不校验计划负责人。
 - **状态校验**：计划须为 new/in_progress；已阻塞返回错误码 1000011025（“计划已阻塞，请先恢复后再操作”），已结束返回错误码 1000011027（“计划已结束，无法执行该操作”）。
 - **请求体**（字段均可选，仅提交发生变化的字段）：
 
@@ -195,7 +195,7 @@
 - **校验**：`name` 非空且不超过 100 字；`executorId` 为当前工作空间成员；`requirementIds` 均属于当前项目，否则返回 1000018001。
 - **处理**：部分更新（C11），只回写实际传入的字段。`replan=true` 时事务内先将 `replan_status` 置 `running`、`replan_requested_at` 置当前时间，提交后触发后台异步任务：按最新 `requirement_ids` 调用 `resolvePlannedCases` 重新解析用例，复用 1.10 的快照差量逻辑更新快照并回写 `snapshot_synced_at`（保留既有执行记录），最终回写 `succeeded` / `failed`、`replan_message`、`replan_finished_at`。`replan_status=running` 期间再次提交编辑返回错误码 1000011028。
 - **响应**：200，结构同 1.3（含 `replanStatus`）。
-- **前端**：列表页 [编辑]（需 `plan:execute`）回显详情 → 提交时对比新旧 `requirementIds`，变化则提示「检测到关联需求发生变化，是否重新规划测试用例？」→ 确认后带 `replan=true` 提交并提示「已保存，正在后台重新规划测试用例」；选择否仅提示「已保存」。随后轮询 1.16 直至终态，刷新列表并提示结果。
+- **前端**：列表页 [编辑] 回显详情 → 提交时对比新旧 `requirementIds`，变化则提示「检测到关联需求发生变化，是否重新规划测试用例？」→ 确认后带 `replan=true` 提交并提示「已保存，正在后台重新规划测试用例」；选择否仅提示「已保存」。随后轮询 1.16 直至终态，刷新列表并提示结果。
 
 ### 1.16 查询重规划状态
 
@@ -212,7 +212,7 @@
 
 **路由**：`/workspace/projects/plans`（`meta.title` 测试计划、`mode` project，无独立菜单项）
 
-列表同时作为功能测试页的子模块渲染：功能测试页左侧菜单选中“测试计划”时展示，地址为 `/workspace/projects/functional-testing?tab=plans`（菜单挂载于功能测试页，权限 `case:view`）。详情页面包屑返回该地址。
+列表同时作为功能测试页的子模块渲染：功能测试页左侧菜单选中“测试计划”时展示，地址为 `/workspace/projects/functional-testing?tab=plans`（菜单挂载于功能测试页，不按权限码过滤）。详情页面包屑返回该地址。
 
 **页面布局**（验收基准 `web/demos/project/plans.html`，裁剪口径见交互设计 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.1）：
 
@@ -240,16 +240,16 @@
 | 筛选   | 关键字回车/清空即查询；状态下拉选择后点[查询]；[重置] | 重置清空条件并回到首页，其余查询在触发时刷新列表 |
 | 分页   | 点击页码     | 按当前筛选条件加载对应页（每页 20 条，仅切换页码，不提供每页条数切换） |
 | 新建计划 | 点击页头[+ 新建计划] | 弹出创建表单：名称（必填）、描述、负责人（成员下拉）、开始/结束时间、执行环境、关联需求（需求选取器，多选，至少一个需求），提交成功后跳转详情页 |
-| 编辑 | 点击[编辑]（new/in_progress 且具备 `plan:execute`） | 弹出回显当前名称 / 描述 / 负责人 / 起止时间 / 环境 / 关联需求的编辑表单；提交时若关联需求变化则提示是否重新规划 → 保存后轮询状态并刷新列表 |
+| 编辑 | 点击[编辑]（new/in_progress） | 弹出回显当前名称 / 描述 / 负责人 / 起止时间 / 环境 / 关联需求的编辑表单；提交时若关联需求变化则提示是否重新规划 → 保存后轮询状态并刷新列表 |
 | 进入执行 | 点击[进入执行]（执行中）或计划名称链接 | 跳转至计划详情页                     |
 | 查看详情 | 点击[查看详情]（其余状态）   | 跳转至计划详情页                     |
-| 完成 | 点击[完成]（未开始/执行中且具备 `plan:execute`） | 二次确认 → 调用 1.11，状态置 completed，列表刷新 |
-| 恢复 | 点击[恢复]（已阻塞且具备 `plan:block`） | 二次确认 → 调用 1.14，状态置 in_progress，列表刷新 |
+| 完成 | 点击[完成]（未开始/执行中） | 二次确认 → 调用 1.11，状态置 completed，列表刷新 |
+| 恢复 | 点击[恢复]（已阻塞） | 二次确认 → 调用 1.14，状态置 in_progress，列表刷新 |
 | 删除 | 点击[删除] | 二次确认 → 级联删除快照与执行记录，列表刷新        |
 
 状态显示文案：未开始（new）/ 执行中（in_progress）/ 已完成（completed）/ 已阻塞（blocked）/ 已关闭（closed）；进度按状态配色（执行中橙、已阻塞红），通过率未开始显示 `—`、已完成绿色加粗。
 
-**状态分支**：列表卡片加载中显示 loading；空数据展示“暂无计划”；查询、完成、恢复、删除失败均以错误消息提示；缺 `plan:execute` / `plan:block` 时对应按钮不展示，会话期间权限被撤销则由服务端以 HTTP 403 拒绝并提示。
+**状态分支**：列表卡片加载中显示 loading；空数据展示“暂无计划”；查询、完成、恢复、删除失败均以错误消息提示；按钮仅按计划状态显隐，不按权限码过滤。
 
 
 ### 2.2 计划详情页
@@ -274,7 +274,7 @@
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-页头为面包屑 + 单行标题区：面包屑「测试计划 › 计划名」，点击「测试计划」返回功能测试页并激活测试计划子模块（`?tab=plans`）；标题区含标题与状态标签，右侧为进度条与分色统计（通过绿 / 失败红 / 阻塞深红 / 待执行默认 / 共 N）、操作按钮组，统计与按钮组以竖线分隔。活跃态（new/in_progress）展示 [调整用例][同步用例][阻塞][完成执行]，已阻塞仅展示 [恢复]，已完成/已关闭无操作按钮；按钮按「计划状态 + 权限码」双条件显隐——[同步用例][完成执行] 需 `plan:execute`，[阻塞][恢复] 需 `plan:block`，[调整用例] 仅按状态，缺码不展示入口。删除计划仍由后端校验计划负责人（非负责人返回错误码 1000002001）。
+页头为面包屑 + 单行标题区：面包屑「测试计划 › 计划名」，点击「测试计划」返回功能测试页并激活测试计划子模块（`?tab=plans`）；标题区含标题与状态标签，右侧为进度条与分色统计（通过绿 / 失败红 / 阻塞深红 / 待执行默认 / 共 N）、操作按钮组，统计与按钮组以竖线分隔。活跃态（new/in_progress）展示 [调整用例][同步用例][阻塞][完成执行]，已阻塞仅展示 [恢复]，已完成/已关闭无操作按钮；按钮仅按计划状态显隐，不按权限码过滤。删除计划仍由后端校验计划负责人（非负责人返回错误码 1000002001）。
 
 详情页使用独立的计划脑图组件（`PlanMindMap`，只读画布），快照树数据以嵌套根节点对象形式返回，节点右侧显示执行结果徽标；左侧为只读快照文档树（目录点击仅展开/收起），未选中文档时右侧展示“请在左侧选择一个文档”，快照树为空时展示“暂无快照文档”。
 
@@ -285,40 +285,38 @@
 | 标记执行结果 | 选中关联用例节点 → 工具栏四态按钮或右键「标记执行结果」 | 提交执行记录，节点徽标与页头进度实时刷新（无备注输入） |
 | 移除用例   | 工具栏[🗑移除用例]或右键「从计划中移除」（活跃态 + 已关联 case 节点） | 二次确认 → 复用 1.10 从规划剔除该用例并重载快照树/脑图/进度，执行记录保留作审计 |
 | 调整用例   | 点击[调整用例]（活跃态）        | CaseSelector 回显当前规划 → 确认后全量覆盖更新并刷新 |
-| 同步用例   | 点击[同步用例]（活跃态 + `plan:execute`） | 确认 → 更新快照属性，重载详情、进度、快照模块树与脑图，保留执行记录 |
-| 阻塞     | 点击[阻塞]（活跃态 + `plan:block`）    | 二次确认 → 状态变更为已阻塞，操作组收敛为 [恢复] |
-| 恢复     | 点击[恢复]（已阻塞 + `plan:block`）    | 二次确认 → 已阻塞回到执行中（in_progress） |
-| 完成执行   | 点击[完成执行]（活跃态 + `plan:execute`） | 二次确认 → 状态置 completed，活跃态操作组收起 |
+| 同步用例   | 点击[同步用例]（活跃态） | 确认 → 更新快照属性，重载详情、进度、快照模块树与脑图，保留执行记录 |
+| 阻塞     | 点击[阻塞]（活跃态）    | 二次确认 → 状态变更为已阻塞，操作组收敛为 [恢复] |
+| 恢复     | 点击[恢复]（已阻塞）    | 二次确认 → 已阻塞回到执行中（in_progress） |
+| 完成执行   | 点击[完成执行]（活跃态） | 二次确认 → 状态置 completed，活跃态操作组收起 |
 | 切换文档   | 点击左侧文档树文档节点          | 右侧脑图切换为该文档的快照（目录点击仅展开/收起，未选中文档时不切换） |
 
-**状态分支**：页面加载中整体 loading；详情、进度、快照模块树任一加载失败以错误消息提示；标记/调整/同步/完成在已阻塞计划上由后端拦截并返回错误码 1000011025，已结束计划的调整与同步返回错误码 1000011027；缺 `plan:execute` / `plan:block` 时入口不展示，会话期间权限被撤销时由 `@PreAuthorize` 以 HTTP 403 拒绝并以错误消息提示；删除计划非负责人由后端返回错误码 1000002001；标记执行成功后进度刷新失败不打断操作。
+**状态分支**：页面加载中整体 loading；详情、进度、快照模块树任一加载失败以错误消息提示；标记/调整/同步/完成在已阻塞计划上由后端拦截并返回错误码 1000011025，已结束计划的调整与同步返回错误码 1000011027；按钮仅按计划状态显隐，不按权限码过滤；删除计划非负责人由后端返回错误码 1000002001；标记执行成功后进度刷新失败不打断操作。
 
-## 3. 权限点与实施说明
+## 3. 校验规则与实施说明
 
-### 3.1 权限点
+### 3.1 权限与归属口径
 
-计划模块权限点挂 `plan` 节点，`scope = workspace`：
+计划模块接口不挂 RBAC 权限码，服务端不读取角色权限集合；各接口统一校验调用方为当前项目成员，资源不属于当前项目时按不存在处理。除项目成员校验外，仅保留以下业务归属与状态条件：
 
-| code | 名称 | 状态 |
-| ---- | ---- | ---- |
-| `plan:view` | 查看计划 | 既有 |
-| `plan:create` | 创建计划 | 既有 |
-| `plan:execute` | 执行计划（同步、完成执行） | 既有，本次起由服务端收口 |
-| `plan:close` | 关闭计划 | 既有（暂无接口消费） |
-| `plan:block` | 阻塞与恢复计划 | **新增** |
+- 删除计划：仅计划负责人可操作，非负责人返回错误码 1000002001；任意状态可删（含已阻塞）。
+- 同步、完成、调整规划用例：计划须为 new/in_progress，已阻塞返回 1000011025、已结束返回 1000011027。
+- 阻塞：计划须为 new/in_progress，否则返回 1000011020。
+- 恢复：计划须为 blocked，否则返回 1000011024。
+- 提交执行记录：仅关联且 `type='case'` 的快照节点可标记，blocked 计划返回 1000011025。
 
-### 3.2 权限码与方法映射
+前端入口仅按计划状态显隐，不按权限码隐藏或禁用（见 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.2）；越权请求由服务端拒绝并通过统一错误消息反馈。
+
+### 3.2 服务端校验映射
 
 | 接口 | 动作 | 服务端校验 |
 | ---- | ---- | ---- |
-| `POST /api/project/plans/:id/sync` | 同步用例 | `plan:execute`（`@PreAuthorize`）→ 项目成员 → 状态校验 |
-| `POST /api/project/plans/:id/complete` | 完成执行 | `plan:execute`（`@PreAuthorize`）→ 项目成员 → 状态校验 |
-| `POST /api/project/plans/:id/block` | 阻塞计划 | `plan:block`（`@PreAuthorize`）→ 项目成员 → 状态校验 |
-| `POST /api/project/plans/:id/resume` | 恢复计划 | `plan:block`（`@PreAuthorize`）→ 项目成员 → 状态校验 |
-| `DELETE /api/project/plans/:id` | 删除计划 | 项目成员 → 计划负责人（1000002001），不挂权限码 |
-| 其余计划接口（列表、详情、快照、进度、规划用例、提交执行记录） | 读与执行标记 | 项目成员校验（1000002001），不挂权限码 |
-
-`@PreAuthorize` 缺码时由安全链返回 HTTP 403（框架全局错误码），不占用计划号段；`WorkspaceRoleInterceptor` 注入的即 `sys_role.permissions` 中登记的码，故种子必须同时登记权限点与角色授予。前端入口与服务端共用同一权限码，显隐口径见 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.2。
+| `POST /api/project/plans/:id/sync` | 同步用例 | 项目成员 → 状态校验（1000011025 / 1000011027） |
+| `POST /api/project/plans/:id/complete` | 完成执行 | 项目成员 → 状态校验（1000011025） |
+| `POST /api/project/plans/:id/block` | 阻塞计划 | 项目成员 → 状态校验（1000011020） |
+| `POST /api/project/plans/:id/resume` | 恢复计划 | 项目成员 → 状态校验（1000011024） |
+| `DELETE /api/project/plans/:id` | 删除计划 | 项目成员 → 计划负责人（1000002001） |
+| 其余计划接口（列表、详情、快照、进度、规划用例、提交执行记录） | 读与执行标记 | 项目成员校验，按资源归属与状态校验 |
 
 ### 3.3 实施说明
 
@@ -326,35 +324,19 @@
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/src/main/java/io/github/xiaomisum/robotest/controller/project/TestPlanController.java` | sync / complete 挂 `hasAuthority('plan:execute')`，block / resume 挂 `hasAuthority('plan:block')`，仅注解不含业务逻辑（C2） |
-| `server/src/main/java/io/github/xiaomisum/robotest/service/domain/plan/TestPlanServiceImpl.java` | 移除同步、完成、阻塞、恢复的计划负责人校验，删除计划仍校验负责人 |
-| `server/src/main/resources/db/schema.sql` | 18.3 新增 `plan:block` 权限点，18.8 预置「管理员」「成员」角色 `permissions` 追加同码 |
-| `web/src/composables/project/functional-testing/plan/usePlanDetail.ts`、`web/src/pages/project/functional-testing/PlanDetailPage.vue` | 详情页操作按钮按「状态 + 权限码」显隐 |
-| `web/src/pages/project/functional-testing/PlanListPage.vue` | 列表 [完成] / [恢复] 按权限码显隐 |
+| `server/src/main/java/io/github/xiaomisum/robotest/controller/project/TestPlanController.java` | 仅路由与参数绑定，不挂业务权限注解（C2） |
+| `server/src/main/java/io/github/xiaomisum/robotest/service/domain/plan/TestPlanServiceImpl.java` | 项目成员校验、计划状态校验与删除计划的负责人校验 |
+| `web/src/composables/project/functional-testing/plan/usePlanDetail.ts`、`web/src/pages/project/functional-testing/PlanDetailPage.vue` | 详情页操作按钮按计划状态显隐 |
+| `web/src/pages/project/functional-testing/PlanListPage.vue` | 列表 [完成] / [恢复] 按计划状态显隐 |
 
-**数据库迁移说明（C5）**
+**数据库迁移说明（C5 / C9）**
 
-```sql
--- 新增权限点（全量建库同步进 schema.sql 18.3）
-INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted)
-VALUES ('c0000000-0000-0000-0000-000000000032', 'plan:block', '阻塞与恢复计划',
-        'plan', '测试计划', '功能测试', 'workspace', 5,
-        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
-ON CONFLICT DO NOTHING;
-
--- 存量库：预置空间角色授予（幂等，可重复执行）
-UPDATE sys_role
-SET permissions = permissions || '["plan:block"]'::jsonb, updated_at = CURRENT_TIMESTAMP
-WHERE is_deleted = FALSE AND type = 'workspace' AND NOT (permissions ? 'plan:block');
-```
-
-- UUID 主键使用框架默认策略，无物理外键，不新增表与索引（C5 / C9）。
+本节不涉及表结构、索引或权限点变更；计划状态与负责人校验均在既有 `ft_plan` 字段上完成，无新增列与索引。
 
 **测试要点（C8 ≥ 70%）**
 
-- `TestPlanServiceImplTest`：同步、完成、阻塞、恢复的「非负责人拒绝」用例改为权限码口径（服务层不再校验负责人，授权由 `@PreAuthorize` 承担），删除计划保留负责人用例。
-- `SchemaSeedConsistencyTest`：增补 `plan:block` 权限点已登记、且预置「管理员」「成员」两角色均已授予的断言。
-- 前端 `usePlanDetail.spec.ts` 与计划列表页 spec：增补缺权限码时 [阻塞][恢复][同步用例][完成执行] 不展示的用例。
+- `TestPlanServiceImplTest`：项目成员校验、同步 / 完成 / 阻塞 / 恢复的状态校验与拒绝分支，删除计划保留负责人用例。
+- 前端 `usePlanDetail.spec.ts` 与计划列表页 spec：操作按钮仅按计划状态显隐，不含权限码分支。
 
 ## 4. 编辑与异步重规划实施说明
 
@@ -379,9 +361,9 @@ ALTER TABLE ft_plan
 
 ### 4.3 测试要点（C8 ≥ 70%）
 
-- `TestPlanServiceImplTest`：编辑部分更新、 blocked / 终态 / 缺权限拒绝、`replan` 并发拒绝。
+- `TestPlanServiceImplTest`：编辑部分更新、blocked / 终态拒绝、`replan` 并发拒绝。
 - 异步执行器单测：成功回写 `succeeded`、解析失败回写 `failed`、快照差量更新保留执行记录并回写 `snapshot_synced_at`。
-- 前端计划列表页测试：关联需求变化时提示、确认 / 取消分支、轮询终态后刷新列表，缺 `plan:execute` 时 [编辑] 不展示。
+- 前端计划列表页测试：关联需求变化时提示、确认 / 取消分支、轮询终态后刷新列表，按钮仅按计划状态显隐。
 
 ## 修改记录
 
@@ -389,6 +371,7 @@ ALTER TABLE ft_plan
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 与前端实现对齐：补录计划详情与进度接口，删除未实现的节点执行记录与关闭计划接口，修正快照树字段与 UUID 口径，重写列表页与详情页结构、交互及状态分支 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_plan*` → `ft_plan*` |
-| V1.0 | 2026-10-20 | 计划授权改为权限码：阻塞/恢复挂 `plan:block`、同步/完成挂 `plan:execute`，删除仍限负责人；新增第 3 章权限点、方法映射与迁移说明，列表页与详情页入口改「状态 + 权限码」双条件显隐 |
+| V1.0 | 2026-10-20 | 调整计划阻塞/恢复、同步/完成及删除的校验规则，列表页与详情页入口改「状态 + 归属」双条件显隐 |
 | V1.0 | 2026-11-15 | 创建计划改为关联需求：新增 `requirementIds`（`selectedNodes` 改为可选）、按 `ft_case_requirement` 反查用例，详情返回 `requirements`、列表返回 `requirementCount` |
 | V1.0 | 2026-11-18 | 新增计划编辑：1.3 详情补 `requirementIds` / 重规划状态字段，1.15 编辑与 1.16 状态查询接口，2.1 列表 [编辑] 入口，第 4 章数据变更与异步执行边界，错误码 1000011028 |
+| V1.0 | 2026-11-18 | 移除计划模块 RBAC 权限码口径：接口与前端仅按登录、项目成员身份、计划负责人及计划状态校验 |

@@ -13,16 +13,16 @@
 - **前端**：仅负责触发执行与按需查询——触发后由 toast 提示 `场景已触发执行（executionId）`（快速调试为 `执行已启动`），**不轮询执行状态**；执行状态与结果通过「场景执行历史」（执行记录列表按 `updatedAt` 倒序、`total` 总数，`pending/running` 显示 `处理中` 徽标）与「测试报告」弹窗（`GET …/reports/{reportId}`）按需查看。
 - **后端**：异步执行（提交线程立即返回 executionId），执行状态通过执行记录与报告持久化。
 
-执行引擎核心接口（均需上下文请求头，权限见各接口；错误码见分册《接口测试基础平台详细设计说明书》§2.2）：
+执行引擎核心接口（均需上下文请求头，免 RBAC 权限码校验、保留项目成员校验；错误码见分册《接口测试基础平台详细设计说明书》§2.2）：
 
 | 接口 | 方法 | 说明 | 权限 |
 | --- | --- | --- | --- |
-| `/api/project/api-scenes/{sceneId}/executions` | POST | 触发场景执行，请求体 `environmentId`（必填）；返回 `data` 为 executionId（UUID） | `api-scene:execute` |
-| `/api/project/api-scenes/{sceneId}/executions` | GET | 场景执行历史（分页，状态为 `pending/running/success/failed/error` 的执行记录） | `api-scene:view` |
-| `/api/project/api-scenes/{sceneId}/steps/{stepId}/debug` | POST | 单步调试：跳过前置步骤，仅执行当前步骤；请求体含 `environmentId`（必填）；返回 `{ validatorResults, extractedVariables }`（当前恒为空） | `api-scene:execute` |
-| `/api/project/api-scenes/draft/execute` | POST | 草稿直跑：前端将编辑器中未保存的场景 JSON 原样提交，保存与执行原子化 | `api-scene:execute` |
-| `/api/project/api-test/reports/{reportId}` | GET | 查看报告详情（进度与结果的权威来源） | `api-scene:view` |
-| `/api/project/api-test/reports` | GET | 报告列表分页（仅 `source=schedule` 的 suite 级报告，即定时任务报告；场景执行报告经场景内报告接口查询） | `api-scene:view` |
+| `/api/project/api-scenes/{sceneId}/executions` | POST | 触发场景执行，请求体 `environmentId`（必填）；返回 `data` 为 executionId（UUID） | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/api-scenes/{sceneId}/executions` | GET | 场景执行历史（分页，状态为 `pending/running/success/failed/error` 的执行记录） | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/api-scenes/{sceneId}/steps/{stepId}/debug` | POST | 单步调试：跳过前置步骤，仅执行当前步骤；请求体含 `environmentId`（必填）；返回 `{ validatorResults, extractedVariables }`（当前恒为空） | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/api-scenes/draft/execute` | POST | 草稿直跑：前端将编辑器中未保存的场景 JSON 原样提交，保存与执行原子化 | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/api-test/reports/{reportId}` | GET | 查看报告详情（进度与结果的权威来源） | 无（免 RBAC 权限码校验，保留项目成员校验） |
+| `/api/project/api-test/reports` | GET | 报告列表分页（仅 `source=schedule` 的 suite 级报告，即定时任务报告；场景执行报告经场景内报告接口查询） | 无（免 RBAC 权限码校验，保留项目成员校验） |
 
 **说明**：
 
@@ -182,3 +182,4 @@ robotest:
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-10-02 | 按前后端实现对齐：改为真实执行接口与非轮询查看口径，补充报告状态渲染对照与 ryze 6.1.1 版本信息 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

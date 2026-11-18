@@ -86,7 +86,7 @@
 
 ## 3. 接口详细设计
 
-所有接口通过 `X-Active-Project` 请求头传递项目上下文（C4），不出现在 URL 或请求体中；成功响应统一为 `{ "code": 200, "msg": "success", "data": ... }` 结构，下文示例仅展示 `data` 内容。写接口（创建、更新、删除）均校验 `case:edit` 权限，读接口校验 `case:view` 权限。
+所有接口通过 `X-Active-Project` 请求头传递项目上下文（C4），不出现在 URL 或请求体中；成功响应统一为 `{ "code": 200, "msg": "success", "data": ... }` 结构，下文示例仅展示 `data` 内容。读写接口均免 RBAC 权限码校验，服务层统一校验登录状态、活动上下文与当前项目成员身份。
 
 ### 3.1 用例管理
 
@@ -233,7 +233,7 @@ DELETE /api/project/testcases/{id}
 
 ### 4.3 页面集成与状态分支
 
-用例页（`TestCasePage`）挂载在功能测试框架页（路由 `/workspace/projects/functional-testing`，菜单权限 `case:view`）下，子模块经 `?tab=cases` 切换，页面为「左模块树卡 + 右脑图编辑卡」结构。
+用例页（`TestCasePage`）挂载在功能测试框架页（路由 `/workspace/projects/functional-testing`，菜单不按权限码过滤）下，子模块经 `?tab=cases` 切换，页面为「左模块树卡 + 右脑图编辑卡」结构。
 
 | 项 | 实现口径 |
 | --- | --- |
@@ -246,10 +246,10 @@ DELETE /api/project/testcases/{id}
 | 外部直达 | `?documentId=` 定位文档并随即清除参数，文档不存在或加载失败停留在空态 |
 | 脑图加载 | 加载中 `v-loading`，失败提示「加载脑图失败」 |
 | 协同断线 | 断线时顶部横幅「连接已断开，正在重连...」，重连成功后触发一次未提交变更的持久化冲刷 |
-| 保存失败 | 服务端错误帧提示「文档保存失败」，权限被拒提示「无文档编辑权限」 |
-| 权限分支 | 读操作 `case:view`；节点与布局写入 `case:edit`（WebSocket 每帧复查）；工具栏[关联需求]仅 `requirement:view` 可见；树上的新建/重命名/删除/拖拽入口不按 `case:edit` 前端隐藏，越权由服务端拒绝 |
+| 保存失败 | 服务端错误帧提示「文档保存失败」，成员校验失败提示「非文档成员，无法编辑」 |
+| 成员与入口分支 | 读写接口与 WebSocket 写帧均免 RBAC 权限码校验，服务端统一校验项目成员身份（写帧另校验文档成员关系）；工具栏[关联需求]常驻展示；树上的新建/重命名/删除/拖拽入口均展示，非成员请求由服务端拒绝 |
 
-> 模块树操作、脑图工具栏与右键菜单的完整交互表见 `docs/04-detailed-design/03-function-testing/04-project-workspace-test-case.md` 3.1；脑图组件拆分与协作设计见 `docs/04-detailed-design/03-function-testing/08-mindmap-component.md`；权限码口径见 `docs/04-detailed-design/03-function-testing/02-project-workspace-overview.md` 2.4。
+> 模块树操作、脑图工具栏与右键菜单的完整交互表见 `docs/04-detailed-design/03-function-testing/04-project-workspace-test-case.md` 3.1；脑图组件拆分与协作设计见 `docs/04-detailed-design/03-function-testing/08-mindmap-component.md`；访问控制口径见 `docs/04-detailed-design/03-function-testing/02-project-workspace-overview.md` 2.4。
 
 ---
 
@@ -321,3 +321,4 @@ DROP TABLE test_case_document_layout;
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐前后端实现：修正 layout（JSONB 与 offsets 结构）、用例接口路径/字段/分页口径与错误码，补挂载与未分组口径、页面集成与状态分支，修复失效交叉引用 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_document` / `test_case_node` → `ft_case_document` / `ft_case_node`，索引 `idx_tcd_*` → `idx_ft_case_document_*` |
+| V1.0 | 2026-11-18 | 移除用例文档 RBAC 权限码口径：接口与页面入口按项目成员身份校验，WebSocket 写帧按文档成员关系校验 |
