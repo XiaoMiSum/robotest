@@ -7,7 +7,6 @@ import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
-import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -23,12 +22,13 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 
 /**
  * 用例级别推荐承接（详设 3.3 落库 / 4.2 覆盖口径）：
- * 仅在建议级别与现状不同时写库（无变化即无写入），已有人工设定的级别不被批量采纳改写。
+ * 仅在建议级别与现状不同时写级别列，但每次采纳均写用例修改记录（含同级 from = to），
+ * 已有人工设定的级别不被批量采纳改写。
  */
 @Service
 public class CasePriorityAdopter implements ProposalAdopter {
 
-    private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
+    private static final Set<String> PRIORITIES = Set.of("P0", "P1", "P2", "P3");
 
     @Resource
     private AssistAdoptSupport support;
@@ -48,12 +48,14 @@ public class CasePriorityAdopter implements ProposalAdopter {
         AssistAdoptSupport.CaseTarget target = support.resolveCaseTarget(context);
         Map<String, Object> content = context.proposalContent();
 
-        String current = CaseAssistSupport.displayPriority(target.node().getPriority());
+        String current = nvl(target.node().getPriority());
         String suggested = suggested(context, content);
-        if (suggested != null && apply(target, current, suggested)) {
+        if (suggested != null) {
+            boolean changed = apply(target, current, suggested);
+            String detail = changed ? current + " → " + suggested : current + "（from = to，级别未变化）";
             support.record(context, "TEST_CASE_NODE", target.node().getId(),
                     nvl(target.node().getTitle()), "CASE_UPDATED",
-                    "采纳 AI 级别推荐「" + nvl(target.node().getTitle()) + "」：" + current + " → " + suggested);
+                    "采纳 AI 级别推荐「" + nvl(target.node().getTitle()) + "」：" + detail);
         }
 
         Map<String, Object> adoptedRef = new LinkedHashMap<>();
@@ -63,7 +65,7 @@ public class CasePriorityAdopter implements ProposalAdopter {
         return new AdoptOutcome(target.node().getId(), adoptedRef);
     }
 
-    /** 建议级别与现状一致时不写库（详设 4.2 无变化即无写入）；返回是否实际落库 */
+    /** 建议级别与现状一致时不写级别列，留痕由调用方负责（详设 3.3）；返回是否实际落库 */
     private boolean apply(AssistAdoptSupport.CaseTarget target, String current, String suggested) {
         if (!PRIORITIES.contains(suggested)) {
             // 产物侧已按 PRIORITIES 清洗，走到这里只能是编辑载荷畸形（1000018115）
@@ -74,7 +76,7 @@ public class CasePriorityAdopter implements ProposalAdopter {
         }
         TestCaseNode carrier = new TestCaseNode();
         carrier.setId(target.node().getId());
-        carrier.setPriority(CaseAssistSupport.platformPriority(suggested));
+        carrier.setPriority(suggested);
         testCaseNodeMapper.updateById(carrier);
         return true;
     }

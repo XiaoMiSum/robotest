@@ -135,29 +135,6 @@ public class CaseAssistSupport {
         return List.copyOf(parsed);
     }
 
-    /** 用例优先级落库为 P0–P3，提示词与产物统一展示为 high / medium / low */
-    public static String displayPriority(String priority) {
-        if (priority == null) {
-            return null;
-        }
-        return switch (priority) {
-            case "P0" -> "high";
-            case "P1" -> "medium";
-            case "P2", "P3" -> "low";
-            default -> null;
-        };
-    }
-
-    /** 展示级 → 落库级（displayPriority 的逆映射）；未识别返回 null，调用方按无建议处理 */
-    public static String platformPriority(String displayPriority) {
-        return switch (displayPriority) {
-            case "high" -> "P0";
-            case "medium" -> "P1";
-            case "low" -> "P2";
-            default -> null;
-        };
-    }
-
     // ---------- 归属校验与需求回溯（需查库） ----------
 
     /**
@@ -248,7 +225,7 @@ public class CaseAssistSupport {
         for (TestCaseNode node : resolved.nodes()) {
             ExistingFields fields = existingFields(node, resolved);
             builder.append("- [").append(node.getId()).append("] ").append(nvl(node.getTitle()))
-                    .append(" | 优先级 ").append(nvl(displayPriority(node.getPriority()))).append('\n');
+                    .append(" | 优先级 ").append(nvl(node.getPriority())).append('\n');
             builder.append("    前置条件：").append(nvl(fields.precondition())).append('\n');
             builder.append("    步骤：").append(joinOrEmpty(fields.steps())).append('\n');
             builder.append("    预期：").append(joinOrEmpty(fields.expected())).append('\n');
@@ -263,7 +240,7 @@ public class CaseAssistSupport {
                 .append(resolved.nodes().size()).append(" 条）：\n");
         for (TestCaseNode node : resolved.nodes()) {
             builder.append("- [").append(node.getId()).append("] ").append(nvl(node.getTitle()))
-                    .append(" | 当前级别 ").append(nvl(displayPriority(node.getPriority())))
+                    .append(" | 当前级别 ").append(nvl(node.getPriority()))
                     .append(" | 路径 ").append(ancestorPath(node, resolved.nodesById())).append('\n');
         }
         return builder.toString();

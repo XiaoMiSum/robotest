@@ -71,7 +71,7 @@ class CasePriorityAdopterTest {
 
     @Test
     void adopt_writesPriorityOnlyWhenSuggestedDiffers() {
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, "P1", "high"));
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, "P1", "P0"));
 
         verify(testCaseNodeMapper).updateById(nodeCaptor.capture());
         assertEquals(NODE_ID, nodeCaptor.getValue().getId());
@@ -80,29 +80,31 @@ class CasePriorityAdopterTest {
         assertNull(nodeCaptor.getValue().getTitle());
 
         assertEquals(NODE_ID, outcome.createdId());
-        assertEquals("medium", outcome.adoptedRef().get("from"));
-        assertEquals("high", outcome.adoptedRef().get("to"));
+        assertEquals("P1", outcome.adoptedRef().get("from"));
+        assertEquals("P0", outcome.adoptedRef().get("to"));
         verify(support).record(any(), eq("TEST_CASE_NODE"), eq(NODE_ID), anyString(),
                 eq("CASE_UPDATED"), anyString());
     }
 
     @Test
-    void adopt_samePrioritySkipsWriteAndActivity() {
-        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, "P1", "medium"));
+    void adopt_samePrioritySkipsWriteButRecordsAdoption() {
+        AdoptOutcome outcome = adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, "P1", "P1"));
 
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
-        verify(support, never()).record(any(), anyString(), any(), anyString(), anyString(), anyString());
-        assertEquals("medium", outcome.adoptedRef().get("to"));
+        verify(support).record(any(), eq("TEST_CASE_NODE"), eq(NODE_ID), anyString(),
+                eq("CASE_UPDATED"), anyString());
+        assertEquals("P1", outcome.adoptedRef().get("from"));
+        assertEquals("P1", outcome.adoptedRef().get("to"));
     }
 
     @Test
     void adopt_editedContentOverridesSuggested() {
-        Map<String, Object> edited = Map.of("suggested", "low");
+        Map<String, Object> edited = Map.of("suggested", "P3");
 
-        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, "P1", "high"));
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, "P1", "P0"));
 
         verify(testCaseNodeMapper).updateById(nodeCaptor.capture());
-        assertEquals("P2", nodeCaptor.getValue().getPriority());
+        assertEquals("P3", nodeCaptor.getValue().getPriority());
     }
 
     @Test
@@ -119,7 +121,7 @@ class CasePriorityAdopterTest {
         Map<String, Object> edited = Map.of("suggested", "urgent");
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, "P1", "high")));
+                () -> adopter.adopt(context(Constants.AiProposalAction.ADOPTED_EDITED, edited, "P1", "P0")));
 
         assertEquals(ErrorCodeConstants.AI_TASK_INPUT_INVALID.code(), exception.getCode());
         verify(testCaseNodeMapper, never()).updateById(any(TestCaseNode.class));
@@ -154,10 +156,10 @@ class CasePriorityAdopterTest {
     private static Map<String, Object> artifact(String suggested) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("nodeId", NODE_ID.toString());
-        content.put("current", "medium");
+        content.put("current", "P1");
         if (suggested != null) {
             content.put("suggested", suggested);
-            content.put("reason", "缺陷多集中在该链路");
+            content.put("reason", "上游需求优先级为高");
         }
         return Map.of("key", "node-" + NODE_ID, "kind", Constants.AiProposalKind.PRIORITY_SUGGESTION,
                 "content", content);

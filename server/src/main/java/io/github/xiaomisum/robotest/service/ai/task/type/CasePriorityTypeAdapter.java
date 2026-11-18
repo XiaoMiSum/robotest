@@ -2,10 +2,8 @@ package io.github.xiaomisum.robotest.service.ai.task.type;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
 import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
@@ -13,7 +11,6 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,24 +28,20 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 用例级别推荐处理器（辅助功能详设 3.3）：逐选中用例产出 high / medium / low 建议，
- * current 与 suggested 均入产物，级别一致项由前端折叠、批量采纳默认跳过（详设 4.2）。
+ * 用例级别推荐处理器（辅助功能详设 3.3）：逐选中用例产出 P0 / P1 / P2 / P3 建议，
+ * current 与 suggested 均入产物；级别一致项同样产出结果并正常展示，不折叠隐藏。
  */
 @Component
 public class CasePriorityTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     public static final String TYPE = "case_priority";
 
-    private static final String SYSTEM_PROMPT = "你是资深测试用例设计专家。严格按用户给出的 JSON 输出结构作答。";
-    private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
-    /** 缺陷热点回看窗口（详设 3.3 reason 口径：该模块近 30 天缺陷） */
-    private static final int HOTSPOT_DAYS = 30;
-    private static final int MAX_HOTSPOT_BUGS = 5;
+    private static final Set<String> PRIORITIES = Set.of("P0", "P1", "P2", "P3");
+    /** 模型未给出有效建议时的兜底理由：保证每条产物都有结果（详设 3.3） */
+    private static final String FALLBACK_REASON = "模型未给出调整建议，保留当前级别";
 
     @Resource
     private CaseAssistSupport assistSupport;
-    @Resource
-    private BugMapper bugMapper;
 
     @Override
     public String type() {
@@ -59,12 +52,13 @@ public class CasePriorityTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
     public String defaultPrompt() {
         return """
                 你是资深测试用例设计专家，只输出 JSON，不输出解释或代码块标记以外的任何文字。
-                为下列选中用例推荐执行优先级（只取 high / medium / low）：
+                为下列选中用例推荐执行优先级（只取 P0 / P1 / P2 / P3）：
                 1. 每条产物只针对一个 nodeId（必须取自选中用例清单，不得编造），并给出简短 reason；
-                2. 推荐依据只用给出的上游需求与缺陷热点，不得臆造需求之外的信息；
-                3. 上游需求引用只用需求清单中的需求 ID（sourceRefs），可为空。
+                2. 推荐依据只用给出的上游需求，不得臆造需求之外的信息；
+                3. 每个选中用例都必须输出一条结果（含 suggested 与 reason），即使建议级别与当前级别相同也要输出，不得省略；
+                4. 上游需求引用只用需求清单中的需求 ID（sourceRefs），可为空。
                 输出结构（JSON 对象，artifacts 即产物数组，每个选中节点一条 content）：
-                {"artifacts":[{"content":{"nodeId":"…","suggested":"high","reason":"…",
+                {"artifacts":[{"content":{"nodeId":"…","suggested":"P0","reason":"…",
                 "sourceRefs":[{"requirementId":"…"}]}}]}
 
                 选中用例与当前级别：
@@ -72,9 +66,6 @@ public class CasePriorityTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
                 上游需求：
                 {{requirementContext}}
-
-                模块缺陷热点（近 30 天）：
-                {{bugContext}}
                 """;
     }
 
@@ -103,17 +94,16 @@ public class CasePriorityTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         Map<String, String> variables = new LinkedHashMap<>();
         variables.put("caseContext", CaseAssistSupport.priorityCaseContext(resolved));
         variables.put("requirementContext", CaseAssistSupport.requirementContext(requirements));
-        variables.put("bugContext", bugContext(context.projectId(), resolved));
         return new AgentExecutionPreparation(variables, String.join("\n", variables.values()), List.of(),
                 output -> ProposalDrafts.fromArtifacts(sanitize(new AiChatReply(output, 0, 0), resolved, requirements)),
                 output -> null);
     }
 
-    @Override public List<String> toolCodes() { return List.of("query_case_context", "query_bug_hotspots"); }
+    @Override public List<String> toolCodes() { return List.of("query_case_context"); }
 
     @Override protected String defaultProposalKind() { return Constants.AiProposalKind.PRIORITY_SUGGESTION; }
 
-    /** 逐选中节点产出一条产物：current 取用例现状，suggested 非法或缺失时回退 current（无变化即无写入） */
+    /** 逐选中节点产出一条产物：current 取用例现状；模型未给有效建议时回退 current 并补兜底理由，保证每条都有结果 */
     private List<Map<String, Object>> sanitize(AiChatReply reply, CaseAssistSupport.ResolvedCases resolved,
             List<Requirement> requirements) {
         Map<UUID, Map<String, Object>> suggestions = new LinkedHashMap<>();
@@ -135,17 +125,21 @@ public class CasePriorityTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         for (TestCaseNode node : resolved.nodes()) {
             index++;
             Map<String, Object> suggestion = suggestions.get(node.getId());
-            String current = CaseAssistSupport.displayPriority(node.getPriority());
+            String current = nvl(node.getPriority());
             String suggested = trimToNull(asString(suggestion == null ? null : suggestion.get("suggested")));
             if (suggested == null || !PRIORITIES.contains(suggested)) {
                 suggested = current;
+            }
+            String reason = trimToNull(asString(suggestion == null ? null : suggestion.get("reason")));
+            if (reason == null) {
+                reason = FALLBACK_REASON;
             }
 
             Map<String, Object> content = new LinkedHashMap<>();
             content.put("nodeId", String.valueOf(node.getId()));
             content.put("current", current);
             content.put("suggested", suggested);
-            content.put("reason", nvl(asString(suggestion == null ? null : suggestion.get("reason"))));
+            content.put("reason", reason);
             content.put("sourceRefs", CaseAssistSupport.sourceRefsOf(suggestion, requirementById, false));
 
             Map<String, Object> artifact = new LinkedHashMap<>();
@@ -158,26 +152,5 @@ public class CasePriorityTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
             artifacts.add(artifact);
         }
         return artifacts;
-    }
-
-    /** 文档无归属模块或窗口内无缺陷时给空串（渲染只替换已提供变量，故始终提供） */
-    private String bugContext(UUID projectId, CaseAssistSupport.ResolvedCases resolved) {
-        if (resolved.document().getModuleId() == null) {
-            return "";
-        }
-        LocalDateTime now = LocalDateTime.now();
-        List<Bug> bugs = bugMapper.findForAnalysis(projectId, now.minusDays(HOTSPOT_DAYS), now.plusDays(1));
-        List<Bug> hotspot = bugs.stream()
-                .filter(bug -> resolved.document().getModuleId().equals(bug.getModuleId()))
-                .filter(bug -> bug.getCreatedAt() != null
-                        && bug.getCreatedAt().isAfter(now.minusDays(HOTSPOT_DAYS)))
-                .toList();
-        if (hotspot.isEmpty()) {
-            return "";
-        }
-        String titles = hotspot.stream().limit(MAX_HOTSPOT_BUGS)
-                .map(bug -> nvl(bug.getTitle()))
-                .collect(Collectors.joining("；"));
-        return "所属模块近 " + HOTSPOT_DAYS + " 天共 " + hotspot.size() + " 个缺陷：" + titles;
     }
 }
