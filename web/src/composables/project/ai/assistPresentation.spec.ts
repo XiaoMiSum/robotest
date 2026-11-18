@@ -73,17 +73,17 @@ describe('assistPresentation', () => {
     it('归一提示字段与来源引用', () => {
       const view = readCasePriority({
         nodeId: 'n1',
-        current: 'medium',
-        suggested: 'high',
-        reason: '缺陷多集中在该链路',
+        current: 'P1',
+        suggested: 'P0',
+        reason: '上游需求优先级为高',
         sourceRefs: [{ id: 'r1', title: 'REQ-002' }],
       })
 
       expect(view).toEqual({
         nodeId: 'n1',
-        current: 'medium',
-        suggested: 'high',
-        reason: '缺陷多集中在该链路',
+        current: 'P1',
+        suggested: 'P0',
+        reason: '上游需求优先级为高',
         sourceRefs: [{ id: 'r1', title: 'REQ-002', quote: '' }],
       })
     })
@@ -125,7 +125,7 @@ describe('assistPresentation', () => {
       expect(readAssistSuggestion('case_complete', null)).toBeNull()
       expect(isCaseCompleteSuggestion(readAssistSuggestion('case_complete', { fields: {} }))).toBe(true)
       expect(isCasePrioritySuggestion(
-        readAssistSuggestion('case_priority', { current: 'medium', suggested: 'high' }),
+        readAssistSuggestion('case_priority', { current: 'P1', suggested: 'P0' }),
       )).toBe(true)
       expect(isPlanOrderSuggestion(
         readAssistSuggestion('plan_order', { beforeOrder: [], afterOrder: [] }),
@@ -184,9 +184,9 @@ describe('assistPresentation', () => {
         sourceRefs: [],
       })
 
-      expect(casePriorityChanged(priorityOf('high', 'medium'))).toBe(true)
-      expect(casePriorityChanged(priorityOf('medium', 'medium'))).toBe(false)
-      expect(casePriorityChanged(priorityOf('', 'medium'))).toBe(false)
+      expect(casePriorityChanged(priorityOf('P0', 'P1'))).toBe(true)
+      expect(casePriorityChanged(priorityOf('P1', 'P1'))).toBe(false)
+      expect(casePriorityChanged(priorityOf('', 'P1'))).toBe(false)
     })
 
     it('顺序变化按位置统计', () => {

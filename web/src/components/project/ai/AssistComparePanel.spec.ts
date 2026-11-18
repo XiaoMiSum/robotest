@@ -46,9 +46,9 @@ function priorityRow(overrides: Partial<AssistRow> = {}): AssistRow {
     confirmTagType: 'info',
     suggestion: {
       nodeId: 'n1',
-      current: 'medium',
-      suggested: 'high',
-      reason: '该链路缺陷集中',
+      current: 'P1',
+      suggested: 'P0',
+      reason: '上游需求优先级为高',
       sourceRefs: [],
     },
     ...overrides,
@@ -232,12 +232,12 @@ describe('AssistComparePanel', () => {
     it('级别推荐按整条采纳，不带编辑载荷', async () => {
       const wrapper = mountPanel('case_priority', { rows: [priorityRow()] })
 
-      expect(wrapper.text()).toContain('P1·中')
-      expect(wrapper.text()).toContain('P0·高')
+      expect(wrapper.text()).toContain('P1')
+      expect(wrapper.text()).toContain('P0')
       expect(wrapper.text()).toContain('用例级别')
       const chip = wrapper.find('.assist-compare__level')
       expect(chip.exists()).toBe(true)
-      expect(chip.classes()).toContain('assist-compare__level--high')
+      expect(chip.classes()).toContain('assist-compare__level--p0')
 
       await actionButton(wrapper, '逐条采纳').trigger('click')
 
@@ -246,22 +246,28 @@ describe('AssistComparePanel', () => {
       expect(wrapper.emitted('adoptEdited')).toBeUndefined()
     })
 
-    it('级别相同项默认折叠为无变化计数', () => {
-      const unchanged = priorityRow({
+    it('级别相同项照常展示且可采纳留痕', async () => {
+      const sameLevel = priorityRow({
         suggestion: {
           nodeId: 'n1',
-          current: 'medium',
-          suggested: 'medium',
-          reason: '',
+          current: 'P2',
+          suggested: 'P2',
+          reason: '上游需求优先级为低',
           sourceRefs: [],
         },
       })
-      const wrapper = mountPanel('case_priority', { rows: [unchanged] })
+      const wrapper = mountPanel('case_priority', { rows: [sameLevel] })
 
-      expect(wrapper.findAll('.assist-compare__row')).toHaveLength(0)
-      expect(wrapper.text()).toContain('展开共有 1 项与现有内容相同')
-      expect(wrapper.text()).toContain('建议与现有内容一致，无需变更')
-      expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
+      expect(wrapper.findAll('.assist-compare__row')).toHaveLength(1)
+      expect(wrapper.text()).toContain('P2')
+      expect(wrapper.text()).toContain('同级')
+      expect(wrapper.text()).not.toContain('展开共有')
+      expect(wrapper.text()).not.toContain('建议与现有内容一致，无需变更')
+      expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeUndefined()
+      expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeUndefined()
+
+      await actionButton(wrapper, '逐条采纳').trigger('click')
+      expect(wrapper.emitted('adopt')?.[0]).toEqual(['node-p1'])
     })
 
     it('批量采纳提交全部待处理项', async () => {

@@ -53,9 +53,10 @@ const emit = defineEmits<{
 }>()
 
 const PRIORITY_LABEL: Record<string, string> = {
-  high: 'P0·高',
-  medium: 'P1·中',
-  low: 'P2·低',
+  P0: 'P0',
+  P1: 'P1',
+  P2: 'P2',
+  P3: 'P3',
 }
 
 interface CompareItem {
@@ -66,7 +67,7 @@ interface CompareItem {
   changed: boolean
   /** 新增 / 变更徽标（视觉 4：浅底 + 小徽标，不单靠颜色表意） */
   badge: string
-  /** 级别场景的建议级别（high / medium / low），用于按《视觉设计》优先级色标注 */
+  /** 级别场景的建议级别（P0–P3），用于按《视觉设计》优先级色标注 */
   level?: string
 }
 
@@ -139,9 +140,9 @@ const compareItems = computed<CompareItem[]>(() => {
         existing: priorityLabel(priority.current),
         suggested: priorityLabel(priority.suggested),
         changed,
-        badge: '调整',
+        badge: changed ? '调整' : '同级',
         // 未识别的级别取值不着色，避免空色徽标与正文混同
-        level: PRIORITY_LABEL[priority.suggested] ? priority.suggested : undefined,
+        level: PRIORITY_LABEL[priority.suggested] ? priority.suggested.toLowerCase() : undefined,
       },
     ]
   }
@@ -153,14 +154,21 @@ const compareItems = computed<CompareItem[]>(() => {
     existing: displayValues(row.existing),
     suggested: displayValues(row.suggested),
     changed: row.changed,
-    badge: row.existing.length === 0 ? '补全' : '变更',
+    badge: row.changed ? (row.existing.length === 0 ? '补全' : '变更') : '',
   }))
 })
 
 const changedItems = computed(() => compareItems.value.filter((item) => item.changed))
-const unchangedCount = computed(() => compareItems.value.length - changedItems.value.length)
-const visibleItems = computed(() => (showUnchanged.value ? compareItems.value : changedItems.value))
-const activeUnchanged = computed(() => changedItems.value.length === 0 && extraNodes.value.length === 0)
+const unchangedCount = computed(() =>
+  props.kind === 'case_priority' ? 0 : compareItems.value.length - changedItems.value.length,
+)
+/** 级别推荐同级项也是有效结果，始终展示，不折叠（交互 2.1.2） */
+const visibleItems = computed(() =>
+  props.kind === 'case_priority' || showUnchanged.value ? compareItems.value : changedItems.value,
+)
+const activeUnchanged = computed(
+  () => props.kind !== 'case_priority' && changedItems.value.length === 0 && extraNodes.value.length === 0,
+)
 
 const pendingKeys = computed(() =>
   props.rows.filter((row) => row.confirmStatus === 'pending').map((row) => row.key),
@@ -173,13 +181,13 @@ const adoptedCount = computed(
 )
 const totalCount = computed(() => props.rows.length)
 
-/** 无变化判定只用于置灰：内容缺失时不判「无变化」，避免误伤可采纳项 */
+/** 无变化判定只用于置灰补全项；级别推荐同级项可采纳并留痕，不算无变化 */
 function rowUnchanged(row: AssistRow): boolean {
   const view = row.suggestion
+  if (isCasePrioritySuggestion(view)) return false
   if (isCaseCompleteSuggestion(view)) {
     return caseCompleteChangedFields(view.fields).length === 0 && view.extraNodes.length === 0
   }
-  if (isCasePrioritySuggestion(view)) return !casePriorityChanged(view)
   return false
 }
 
@@ -384,7 +392,9 @@ function onReceiptRetry(item: ConfirmItemResult): void {
               {{ item.suggested }}
             </span>
             <template v-else>{{ item.suggested }}</template>
-            <el-tag v-if="item.changed" size="small" effect="light">{{ item.badge }}</el-tag>
+            <el-tag v-if="item.badge" size="small" :effect="item.changed ? 'light' : 'plain'">
+              {{ item.badge }}
+            </el-tag>
           </span>
         </div>
       </div>
@@ -607,16 +617,20 @@ function onReceiptRetry(item: ConfirmItemResult): void {
   line-height: 20px;
 }
 
-.assist-compare__level--high {
+.assist-compare__level--p0 {
   background: var(--color-priority-p0);
 }
 
-.assist-compare__level--medium {
+.assist-compare__level--p1 {
   background: var(--color-priority-p1);
 }
 
-.assist-compare__level--low {
+.assist-compare__level--p2 {
   background: var(--color-priority-p2);
+}
+
+.assist-compare__level--p3 {
+  background: var(--color-priority-p3);
 }
 
 .assist-extra__head {
