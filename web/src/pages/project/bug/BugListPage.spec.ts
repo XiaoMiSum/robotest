@@ -45,6 +45,36 @@ function render() {
   return wrapper
 }
 
+function renderLayout() {
+  const wrapper = mount(BugListPage, {
+    global: {
+      stubs: {
+        BugListToolbar: {
+          template: '<div class="toolbar-stub"><slot name="column-setting" /></div>',
+        },
+        BugListTable: {
+          props: ['bugs'],
+          template:
+            '<div class="table-stub"><div class="action-header-stub"><slot name="column-setting" /></div><span v-for="bug in bugs" :key="bug.id">{{ bug.title }}</span></div>',
+        },
+        TableColumnSetting: { template: '<button aria-label="列设置" />' },
+        BugResolveDialog: true,
+        ListPagination: true,
+        ElDialog: true,
+        ElAlert: {
+          props: ['title', 'description'],
+          template: '<div>{{ title }} {{ description }}</div>',
+        },
+        ElEmpty: { props: ['description'], template: '<div>{{ description }}<slot /></div>' },
+        ElButton: { template: '<button><slot /></button>' },
+      },
+      directives: { loading: () => {} },
+    },
+  })
+  wrappers.push(wrapper)
+  return wrapper
+}
+
 describe('缺陷列表样板交互', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -66,6 +96,13 @@ describe('缺陷列表样板交互', () => {
     expect(wrapper.text()).toContain('暂无缺陷')
     await wrapper.get('button').trigger('click')
     expect(mocks.push).toHaveBeenCalledWith('/workspace/projects/bugs/create')
+  })
+
+  it('列设置入口由工具栏移入表格操作列表头', async () => {
+    const wrapper = renderLayout()
+    await flushPromises()
+    expect(wrapper.find('.toolbar-stub button[aria-label="列设置"]').exists()).toBe(false)
+    expect(wrapper.find('.action-header-stub button[aria-label="列设置"]').exists()).toBe(true)
   })
 
   it('快捷过滤无结果可重置，并恢复默认查询与页码', async () => {
