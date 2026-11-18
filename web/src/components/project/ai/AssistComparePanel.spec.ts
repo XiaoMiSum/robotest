@@ -7,9 +7,7 @@ import AssistComparePanel from './AssistComparePanel.vue'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type { AiProposalConfirmResult } from '@/types'
 
-type PanelKind = 'case_complete' | 'case_priority'
-
-function completeRow(overrides: Partial<AssistRow> = {}): AssistRow {
+function optimizeRow(overrides: Partial<AssistRow> = {}): AssistRow {
   return {
     key: 'node-1',
     title: '验证码 60 秒重发限制',
@@ -27,37 +25,16 @@ function completeRow(overrides: Partial<AssistRow> = {}): AssistRow {
         expected: { existing: [], suggested: ['发送成功提示'] },
         tags: { existing: ['登录'], suggested: ['登录'] },
       },
-      extraNodes: [
-        { title: '验证码 10 分钟后过期校验', isTestCase: true },
-        { title: '网络中断时重发', isTestCase: false },
-      ],
+      priority: { current: 'P1', suggested: 'P0', reason: '上游需求优先级为高' },
       sourceRefs: [{ id: 'r1', title: 'REQ-001', quote: '验证码 60 秒内不可重发' }],
     },
     ...overrides,
   }
 }
 
-function priorityRow(overrides: Partial<AssistRow> = {}): AssistRow {
-  return {
-    key: 'node-p1',
-    title: '登录-连续错误锁定',
-    confirmStatus: 'pending',
-    confirmLabel: '待确认',
-    confirmTagType: 'info',
-    suggestion: {
-      nodeId: 'n1',
-      current: 'P1',
-      suggested: 'P0',
-      reason: '上游需求优先级为高',
-      sourceRefs: [],
-    },
-    ...overrides,
-  }
-}
-
-function mountPanel(kind: PanelKind, props: Record<string, unknown> = {}): VueWrapper {
+function mountPanel(props: Record<string, unknown> = {}): VueWrapper {
   return mount(AssistComparePanel, {
-    props: { kind, rows: [], canAdopt: true, confirming: false, ...props },
+    props: { rows: [], canAdopt: true, confirming: false, ...props },
     global: { plugins: [ElementPlus] },
   })
 }
@@ -87,37 +64,37 @@ describe('AssistComparePanel', () => {
   })
 
   describe('两栏对照与折叠', () => {
-    it('默认只展示变更项，无变化项折叠为计数并可展开', async () => {
-      const wrapper = mountPanel('case_complete', { rows: [completeRow()] })
+    it('默认只展示变更字段与级别行，无变化项折叠为计数并可展开', async () => {
+      const wrapper = mountPanel({ rows: [optimizeRow()] })
 
       const visible = wrapper.findAll('.assist-compare__row')
-      expect(visible).toHaveLength(2)
+      expect(visible).toHaveLength(3)
       expect(visible.every((row) => row.classes('assist-compare__row--changed'))).toBe(true)
       expect(wrapper.text()).toContain('展开共有 2 项与现有内容相同')
       expect(wrapper.text()).not.toContain('前置条件')
 
       await actionButton(wrapper, '展开共有').trigger('click')
 
-      expect(wrapper.findAll('.assist-compare__row')).toHaveLength(4)
+      expect(wrapper.findAll('.assist-compare__row')).toHaveLength(5)
       expect(wrapper.text()).toContain('前置条件')
       expect(wrapper.text()).toContain('收起无变化项')
     })
 
-    it('补全与变更分别打徽标并渲染补充节点树预览', () => {
-      const wrapper = mountPanel('case_complete', { rows: [completeRow()] })
+    it('字段与级别分别打徽标，级别行展示理由', () => {
+      const wrapper = mountPanel({ rows: [optimizeRow()] })
 
       expect(wrapper.text()).toContain('补全')
       expect(wrapper.text()).toContain('变更')
-      const nodes = wrapper.findAll('.assist-extra__list li')
-      expect(nodes).toHaveLength(2)
-      expect(nodes[0].text()).toContain('验证码 10 分钟后过期校验')
-      expect(nodes[0].text()).toContain('用例')
-      expect(nodes[1].text()).toContain('网络中断时重发')
-      expect(nodes[1].text()).toContain('结构')
+      expect(wrapper.text()).toContain('调整')
+      expect(wrapper.text()).toContain('用例级别')
+      expect(wrapper.text()).toContain('上游需求优先级为高')
+      const chip = wrapper.find('.assist-compare__level')
+      expect(chip.exists()).toBe(true)
+      expect(chip.classes()).toContain('assist-compare__level--p0')
     })
 
     it('来源引用点击透传给宿主跳需求详情', async () => {
-      const wrapper = mountPanel('case_complete', { rows: [completeRow()] })
+      const wrapper = mountPanel({ rows: [optimizeRow()] })
 
       await wrapper.find('.assist-panel__sources .el-link').trigger('click')
 
@@ -129,7 +106,7 @@ describe('AssistComparePanel', () => {
     })
 
     it('全部与现状一致时提示无变化并置灰采纳', () => {
-      const row = completeRow({
+      const row = optimizeRow({
         suggestion: {
           nodeId: 'n1',
           fields: {
@@ -138,13 +115,14 @@ describe('AssistComparePanel', () => {
             expected: { existing: ['发送成功'], suggested: ['发送成功'] },
             tags: { existing: ['登录'], suggested: ['登录'] },
           },
-          extraNodes: [],
+          priority: { current: 'P1', suggested: 'P1', reason: '上游需求优先级为中' },
           sourceRefs: [],
         },
       })
-      const wrapper = mountPanel('case_complete', { rows: [row] })
+      const wrapper = mountPanel({ rows: [row] })
 
       expect(wrapper.text()).toContain('建议与现有内容一致，无需变更')
+      expect(wrapper.text()).toContain('同级')
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeDefined()
       // 全无变化按交互 2.3 口径仅可关闭，驳回与原因文案不得与之矛盾
@@ -152,27 +130,22 @@ describe('AssistComparePanel', () => {
     })
 
     it('内容缺失时给出占位并禁止采纳', () => {
-      const wrapper = mountPanel('case_complete', {
-        rows: [completeRow({ suggestion: null })],
-      })
+      const wrapper = mountPanel({ rows: [optimizeRow({ suggestion: null })] })
 
       expect(wrapper.text()).toContain('建议内容暂不可用')
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
     })
 
     it('加载中渲染骨架而非空态', () => {
-      const wrapper = mountPanel('case_complete', {
-        rows: [completeRow({ suggestion: null })],
-        loading: true,
-      })
+      const wrapper = mountPanel({ rows: [optimizeRow({ suggestion: null })], loading: true })
 
       expect(wrapper.find('.el-skeleton').exists()).toBe(true)
     })
   })
 
   describe('采纳与驳回', () => {
-    it('逐条采纳只回写变更字段，单值字段按字符串提交', async () => {
-      const row = completeRow({
+    it('逐条采纳只回写变更字段并携带建议级别', async () => {
+      const row = optimizeRow({
         suggestion: {
           nodeId: 'n1',
           fields: {
@@ -181,11 +154,11 @@ describe('AssistComparePanel', () => {
             expected: { existing: [], suggested: ['发送成功提示'] },
             tags: { existing: ['登录'], suggested: ['登录'] },
           },
-          extraNodes: [],
+          priority: { current: 'P1', suggested: 'P0', reason: '上游需求优先级为高' },
           sourceRefs: [],
         },
       })
-      const wrapper = mountPanel('case_complete', { rows: [row] })
+      const wrapper = mountPanel({ rows: [row] })
 
       await actionButton(wrapper, '逐条采纳').trigger('click')
 
@@ -197,12 +170,37 @@ describe('AssistComparePanel', () => {
             precondition: '手机号已输入并获取过码',
             expected: ['发送成功提示'],
           },
+          priority: 'P0',
         },
       ])
     })
 
+    it('仅级别变化时按空字段载荷提交建议级别', async () => {
+      const row = optimizeRow({
+        suggestion: {
+          nodeId: 'n1',
+          fields: {
+            precondition: { existing: ['手机号已输入'], suggested: ['手机号已输入'] },
+            steps: { existing: ['点击获取验证码'], suggested: ['点击获取验证码'] },
+            expected: { existing: ['发送成功'], suggested: ['发送成功'] },
+            tags: { existing: ['登录'], suggested: ['登录'] },
+          },
+          priority: { current: 'P1', suggested: 'P0', reason: '上游需求优先级为高' },
+          sourceRefs: [],
+        },
+      })
+      const wrapper = mountPanel({ rows: [row] })
+
+      await actionButton(wrapper, '逐条采纳').trigger('click')
+
+      expect(wrapper.emitted('adoptEdited')?.[0]).toEqual([
+        'node-1',
+        { fields: {}, priority: 'P0' },
+      ])
+    })
+
     it('多节点时逐条采纳后推进到下一个待处理建议', async () => {
-      const second = completeRow({
+      const second = optimizeRow({
         key: 'node-2',
         title: '登录-图形验证码',
         suggestion: {
@@ -213,11 +211,11 @@ describe('AssistComparePanel', () => {
             expected: { existing: [], suggested: [] },
             tags: { existing: [], suggested: [] },
           },
-          extraNodes: [],
+          priority: { current: 'P2', suggested: 'P2', reason: '保持当前级别' },
           sourceRefs: [{ id: 'r2', title: 'REQ-002', quote: '' }],
         },
       })
-      const wrapper = mountPanel('case_complete', { rows: [completeRow(), second] })
+      const wrapper = mountPanel({ rows: [optimizeRow(), second] })
 
       expect(wrapper.find('.assist-panel__switch').exists()).toBe(true)
       expect(nodeTitle(wrapper)).toBe('REQ-001')
@@ -229,50 +227,37 @@ describe('AssistComparePanel', () => {
       expect(nodeTitle(wrapper)).toBe('REQ-002')
     })
 
-    it('级别推荐按整条采纳，不带编辑载荷', async () => {
-      const wrapper = mountPanel('case_priority', { rows: [priorityRow()] })
-
-      expect(wrapper.text()).toContain('P1')
-      expect(wrapper.text()).toContain('P0')
-      expect(wrapper.text()).toContain('用例级别')
-      const chip = wrapper.find('.assist-compare__level')
-      expect(chip.exists()).toBe(true)
-      expect(chip.classes()).toContain('assist-compare__level--p0')
-
-      await actionButton(wrapper, '逐条采纳').trigger('click')
-
-      expect(wrapper.emitted('adopt')).toHaveLength(1)
-      expect(wrapper.emitted('adopt')?.[0]).toEqual(['node-p1'])
-      expect(wrapper.emitted('adoptEdited')).toBeUndefined()
-    })
-
-    it('级别相同项照常展示且可采纳留痕', async () => {
-      const sameLevel = priorityRow({
+    it('级别同级项照常展示并可采纳留痕', async () => {
+      const sameLevel = optimizeRow({
         suggestion: {
           nodeId: 'n1',
-          current: 'P2',
-          suggested: 'P2',
-          reason: '上游需求优先级为低',
+          fields: {
+            precondition: { existing: [], suggested: ['页面已打开'] },
+            steps: { existing: [], suggested: [] },
+            expected: { existing: [], suggested: [] },
+            tags: { existing: [], suggested: [] },
+          },
+          priority: { current: 'P2', suggested: 'P2', reason: '上游需求优先级为低' },
           sourceRefs: [],
         },
       })
-      const wrapper = mountPanel('case_priority', { rows: [sameLevel] })
+      const wrapper = mountPanel({ rows: [sameLevel] })
 
-      expect(wrapper.findAll('.assist-compare__row')).toHaveLength(1)
       expect(wrapper.text()).toContain('P2')
       expect(wrapper.text()).toContain('同级')
-      expect(wrapper.text()).not.toContain('展开共有')
-      expect(wrapper.text()).not.toContain('建议与现有内容一致，无需变更')
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeUndefined()
       expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeUndefined()
 
       await actionButton(wrapper, '逐条采纳').trigger('click')
-      expect(wrapper.emitted('adopt')?.[0]).toEqual(['node-p1'])
+      expect(wrapper.emitted('adoptEdited')?.[0]).toEqual([
+        'node-1',
+        { fields: { precondition: '页面已打开' }, priority: 'P2' },
+      ])
     })
 
     it('批量采纳提交全部待处理项', async () => {
-      const wrapper = mountPanel('case_complete', {
-        rows: [completeRow(), completeRow({ key: 'node-2', title: '登录-图形验证码' })],
+      const wrapper = mountPanel({
+        rows: [optimizeRow(), optimizeRow({ key: 'node-2', title: '登录-图形验证码' })],
       })
 
       await actionButton(wrapper, '批量采纳').trigger('click')
@@ -281,7 +266,7 @@ describe('AssistComparePanel', () => {
     })
 
     it('驳回带说明提交，空白说明省略', async () => {
-      const wrapper = mountPanel('case_complete', { rows: [completeRow()] })
+      const wrapper = mountPanel({ rows: [optimizeRow()] })
 
       await actionButton(wrapper, '驳回').trigger('click')
       await nextTick()
@@ -306,10 +291,7 @@ describe('AssistComparePanel', () => {
 
   describe('状态分支与回执', () => {
     it('只读节点置灰并提示原因', () => {
-      const wrapper = mountPanel('case_complete', {
-        rows: [completeRow()],
-        canAdopt: false,
-      })
+      const wrapper = mountPanel({ rows: [optimizeRow()], canAdopt: false })
 
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeDefined()
@@ -336,8 +318,8 @@ describe('AssistComparePanel', () => {
           errorMsg: '无权限',
         },
       ]
-      const wrapper = mountPanel('case_complete', {
-        rows: [completeRow(), completeRow({ key: 'node-2', title: '登录-图形验证码' })],
+      const wrapper = mountPanel({
+        rows: [optimizeRow(), optimizeRow({ key: 'node-2', title: '登录-图形验证码' })],
         receipt,
       })
 
@@ -350,12 +332,12 @@ describe('AssistComparePanel', () => {
     })
 
     it('回执重试回放当时的提交动作', async () => {
-      const wrapper = mountPanel('case_priority', {
-        rows: [priorityRow()],
+      const wrapper = mountPanel({
+        rows: [optimizeRow()],
         receipt: [
           {
-            key: 'node-p1',
-            action: 'adopted',
+            key: 'node-1',
+            action: 'adopted_edited',
             success: false,
             createdId: null,
             errorCode: 1000018117,
@@ -368,15 +350,12 @@ describe('AssistComparePanel', () => {
       await nextTick()
       await actionButton(wrapper, '重试').trigger('click')
 
-      expect(wrapper.emitted('adopt')).toHaveLength(2)
-      expect(wrapper.emitted('adopt')?.[1]).toEqual(['node-p1'])
+      expect(wrapper.emitted('adoptEdited')).toHaveLength(2)
+      expect(wrapper.emitted('adoptEdited')?.[1]?.[0]).toBe('node-1')
     })
 
     it('来源需求已变更时顶部提示但仍可采纳', async () => {
-      const wrapper = mountPanel('case_complete', {
-        rows: [completeRow()],
-        sourceStale: true,
-      })
+      const wrapper = mountPanel({ rows: [optimizeRow()], sourceStale: true })
 
       expect(wrapper.text()).toContain('来源需求已变更')
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeUndefined()
@@ -386,11 +365,11 @@ describe('AssistComparePanel', () => {
     })
 
     it('已采纳计数按处理状态统计', () => {
-      const wrapper = mountPanel('case_complete', {
+      const wrapper = mountPanel({
         rows: [
-          completeRow({ confirmStatus: 'adopted', confirmLabel: '已采纳', confirmTagType: 'success' }),
-          completeRow({ key: 'node-2', confirmStatus: 'rejected', confirmLabel: '已驳回' }),
-          completeRow({ key: 'node-3' }),
+          optimizeRow({ confirmStatus: 'adopted', confirmLabel: '已采纳', confirmTagType: 'success' }),
+          optimizeRow({ key: 'node-2', confirmStatus: 'rejected', confirmLabel: '已驳回' }),
+          optimizeRow({ key: 'node-3' }),
         ],
       })
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Link, MagicStick, Sort } from '@element-plus/icons-vue'
+import { Link, MagicStick } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   visible: boolean
@@ -13,8 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  'ai-complete': []
-  'ai-priority': []
+  'ai-optimize': []
   'link-requirement': []
 }>()
 
@@ -23,14 +22,9 @@ const style = computed(() => ({
   top: `${props.y}px`,
 }))
 
-function onAiComplete(): void {
+function onAiOptimize(): void {
   if (!props.canLaunchAi) return
-  emit('ai-complete')
-}
-
-function onAiPriority(): void {
-  if (!props.canLaunchAi) return
-  emit('ai-priority')
+  emit('ai-optimize')
 }
 
 function onLinkRequirement(): void {
@@ -48,28 +42,16 @@ function onLinkRequirement(): void {
       @contextmenu.prevent
     >
       <template v-if="aiEntryVisible">
-        <el-tooltip :content="aiGateReason || '对选中用例发起 AI 补全'" placement="right">
+        <el-tooltip :content="aiGateReason || '对选中用例发起 AI 优化'" placement="right">
           <button
             type="button"
             class="case-node-popover__item"
             :class="{ 'is-disabled': !canLaunchAi }"
             :disabled="!canLaunchAi"
-            @click="onAiComplete"
+            @click="onAiOptimize"
           >
             <el-icon><MagicStick /></el-icon>
-            <span>AI 补全</span>
-          </button>
-        </el-tooltip>
-        <el-tooltip :content="aiGateReason || '对选中用例发起级别推荐'" placement="right">
-          <button
-            type="button"
-            class="case-node-popover__item"
-            :class="{ 'is-disabled': !canLaunchAi }"
-            :disabled="!canLaunchAi"
-            @click="onAiPriority"
-          >
-            <el-icon><Sort /></el-icon>
-            <span>级别推荐</span>
+            <span>AI 优化</span>
           </button>
         </el-tooltip>
         <div class="case-node-popover__divider" />

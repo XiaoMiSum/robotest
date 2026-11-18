@@ -1,23 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
   assistFieldLabel,
-  caseCompleteChangedFields,
-  caseCompleteCompareRows,
+  caseOptimizeChangedFields,
+  caseOptimizeCompareRows,
   casePriorityChanged,
-  isCaseCompleteSuggestion,
-  isCasePrioritySuggestion,
+  isCaseOptimizeSuggestion,
   isPlanOrderSuggestion,
   planOrderMovedCount,
   readAssistSuggestion,
-  readCaseComplete,
-  readCasePriority,
+  readCaseOptimize,
   readPlanOrder,
 } from './assistPresentation'
 
 describe('assistPresentation', () => {
-  describe('readCaseComplete', () => {
-    it('归一字符串与列表字段并带出补充节点与来源引用', () => {
-      const view = readCaseComplete({
+  describe('readCaseOptimize', () => {
+    it('归一字段、级别建议与来源引用', () => {
+      const view = readCaseOptimize({
         nodeId: 'n1',
         fields: {
           precondition: { existing: '手机号已输入', suggested: '手机号已输入并获取过一次验证码' },
@@ -25,7 +23,7 @@ describe('assistPresentation', () => {
           expected: { existing: [], suggested: ['发送成功提示'] },
           tags: { existing: ['登录'], suggested: ['登录', '验证码'] },
         },
-        extraNodes: [{ title: '补充用例', isTestCase: true }, { title: '补充结构' }],
+        priority: { current: 'P1', suggested: 'P0', reason: '上游需求优先级为高' },
         sourceRefs: [{ id: 'r1', title: 'REQ-001', quote: '验证码 60 秒重发' }],
       })
 
@@ -35,17 +33,18 @@ describe('assistPresentation', () => {
         suggested: ['手机号已输入并获取过一次验证码'],
       })
       expect(view.fields.steps.suggested).toEqual(['点击获取验证码', '60 秒内再次点击'])
-      expect(view.extraNodes).toEqual([
-        { title: '补充用例', isTestCase: true },
-        { title: '补充结构', isTestCase: false },
-      ])
+      expect(view.priority).toEqual({
+        current: 'P1',
+        suggested: 'P0',
+        reason: '上游需求优先级为高',
+      })
       expect(view.sourceRefs).toEqual([
         { id: 'r1', title: 'REQ-001', quote: '验证码 60 秒重发' },
       ])
     })
 
     it('结构缺字段时给空值而非猜测', () => {
-      const view = readCaseComplete({ nodeId: 'n1' })
+      const view = readCaseOptimize({ nodeId: 'n1' })
 
       expect(view.fields).toEqual({
         precondition: { existing: [], suggested: [] },
@@ -53,43 +52,17 @@ describe('assistPresentation', () => {
         expected: { existing: [], suggested: [] },
         tags: { existing: [], suggested: [] },
       })
-      expect(view.extraNodes).toEqual([])
+      expect(view.priority).toEqual({ current: '', suggested: '', reason: '' })
       expect(view.sourceRefs).toEqual([])
     })
 
-    it('丢弃无标题的补充节点与无 id 的来源引用', () => {
-      const view = readCaseComplete({
+    it('丢弃无 id 的来源引用', () => {
+      const view = readCaseOptimize({
         nodeId: 'n1',
-        extraNodes: [{ title: '   ' }, '畸形项'],
-        sourceRefs: [{ title: '缺 id' }],
+        sourceRefs: [{ title: '缺 id' }, '畸形项'],
       })
 
-      expect(view.extraNodes).toEqual([])
       expect(view.sourceRefs).toEqual([])
-    })
-  })
-
-  describe('readCasePriority', () => {
-    it('归一提示字段与来源引用', () => {
-      const view = readCasePriority({
-        nodeId: 'n1',
-        current: 'P1',
-        suggested: 'P0',
-        reason: '上游需求优先级为高',
-        sourceRefs: [{ id: 'r1', title: 'REQ-002' }],
-      })
-
-      expect(view).toEqual({
-        nodeId: 'n1',
-        current: 'P1',
-        suggested: 'P0',
-        reason: '上游需求优先级为高',
-        sourceRefs: [{ id: 'r1', title: 'REQ-002', quote: '' }],
-      })
-    })
-
-    it('模型未响应时 suggested 为空串（按无建议处理）', () => {
-      expect(readCasePriority({ nodeId: 'n1', current: 'P0' }).suggested).toBe('')
     })
   })
 
@@ -122,10 +95,9 @@ describe('assistPresentation', () => {
 
   describe('readAssistSuggestion 与类型守卫', () => {
     it('按任务类型分发，content 为空返回 null', () => {
-      expect(readAssistSuggestion('case_complete', null)).toBeNull()
-      expect(isCaseCompleteSuggestion(readAssistSuggestion('case_complete', { fields: {} }))).toBe(true)
-      expect(isCasePrioritySuggestion(
-        readAssistSuggestion('case_priority', { current: 'P1', suggested: 'P0' }),
+      expect(readAssistSuggestion('case_optimize', null)).toBeNull()
+      expect(isCaseOptimizeSuggestion(
+        readAssistSuggestion('case_optimize', { fields: {}, priority: {} }),
       )).toBe(true)
       expect(isPlanOrderSuggestion(
         readAssistSuggestion('plan_order', { beforeOrder: [], afterOrder: [] }),
@@ -133,9 +105,9 @@ describe('assistPresentation', () => {
     })
 
     it('守卫对 null 与异类视图返回 false', () => {
-      const priority = readCasePriority({ nodeId: 'n1' })
-      expect(isCaseCompleteSuggestion(priority)).toBe(false)
-      expect(isCasePrioritySuggestion(null)).toBe(false)
+      const order = readPlanOrder({ planId: 'p1' })
+      expect(isCaseOptimizeSuggestion(order)).toBe(false)
+      expect(isCaseOptimizeSuggestion(null)).toBe(false)
       expect(isPlanOrderSuggestion(null)).toBe(false)
     })
   })
@@ -147,7 +119,7 @@ describe('assistPresentation', () => {
     })
 
     it('只返回与现有内容不同的字段', () => {
-      const view = readCaseComplete({
+      const view = readCaseOptimize({
         fields: {
           precondition: { existing: '手机号已输入', suggested: '手机号已输入' },
           steps: { existing: ['点击获取验证码'], suggested: ['点击获取验证码', '60 秒内再次点击'] },
@@ -156,17 +128,17 @@ describe('assistPresentation', () => {
         },
       })
 
-      expect(caseCompleteChangedFields(view.fields)).toEqual(['steps', 'tags'])
+      expect(caseOptimizeChangedFields(view.fields)).toEqual(['steps', 'tags'])
     })
 
     it('对照行保持字段顺序并标注变化', () => {
-      const view = readCaseComplete({
+      const view = readCaseOptimize({
         fields: {
           precondition: { existing: [], suggested: [] },
           steps: { existing: [], suggested: ['点击获取验证码'] },
         },
       })
-      const rows = caseCompleteCompareRows(view.fields)
+      const rows = caseOptimizeCompareRows(view.fields)
 
       expect(rows.map((row) => row.name)).toEqual([
         'precondition', 'steps', 'expected', 'tags',
@@ -177,11 +149,9 @@ describe('assistPresentation', () => {
 
     it('级别建议按同级判定变化，无建议视为无变化', () => {
       const priorityOf = (suggested: string, current: string) => ({
-        nodeId: 'n1',
         current,
         suggested,
         reason: '',
-        sourceRefs: [],
       })
 
       expect(casePriorityChanged(priorityOf('P0', 'P1'))).toBe(true)

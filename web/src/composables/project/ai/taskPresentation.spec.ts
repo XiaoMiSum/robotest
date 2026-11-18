@@ -109,9 +109,12 @@ describe('taskPresentation', () => {
 
     it('类型筛选选项带能力域后缀', () => {
       const options = aiTaskTypeOptions()
-      expect(options.length).toBeGreaterThanOrEqual(11)
+      expect(options.length).toBeGreaterThanOrEqual(10)
       expect(options.find((item) => item.value === 'requirement_import')?.label).toBe(
         '需求导入（需求）',
+      )
+      expect(options.find((item) => item.value === 'case_optimize')?.label).toBe(
+        '用例优化（辅助）',
       )
     })
   })
@@ -212,6 +215,7 @@ describe('taskPresentation', () => {
         { kind: 'custom_kind', label: 'custom_kind', count: 1 },
       ])
       expect(aiProposalKindLabel('test_case_suggestion')).toBe('用例')
+      expect(aiProposalKindLabel('case_optimize_suggestion')).toBe('用例优化')
     })
 
     it('空清单返回空计数', () => {

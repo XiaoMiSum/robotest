@@ -5109,7 +5109,6 @@ export interface components {
             position?: string;
             /** Format: uuid */
             documentId?: string;
-            extraNodePosition?: string;
             /** Format: uuid */
             planId?: string;
             /** Format: int32 */
