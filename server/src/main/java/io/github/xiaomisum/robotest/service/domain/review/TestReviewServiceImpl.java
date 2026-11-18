@@ -32,6 +32,10 @@ import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -47,6 +51,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class TestReviewServiceImpl implements TestReviewService {
+
+    private static final Logger log = LoggerFactory.getLogger(TestReviewServiceImpl.class);
 
     @Resource
     private TestReviewMapper testReviewMapper;
@@ -72,8 +78,10 @@ public class TestReviewServiceImpl implements TestReviewService {
     private ProjectActivityService projectActivityService;
     @Resource
     private TestCaseRequirementService testCaseRequirementService;
+    // 自身代理：使 @Async 与 @Transactional 在内部调用时仍然生效，@Lazy 打破自注入循环
+    @Lazy
     @Resource
-    private TestReviewReplanRunner testReviewReplanRunner;
+    private TestReviewService self;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, UUID userId, String status,
@@ -310,15 +318,32 @@ public class TestReviewServiceImpl implements TestReviewService {
 
     private void triggerReplan(UUID projectId, UUID reviewId) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            testReviewReplanRunner.run(projectId, reviewId);
+            self.runReplanAsync(projectId, reviewId);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                testReviewReplanRunner.run(projectId, reviewId);
+                self.runReplanAsync(projectId, reviewId);
             }
         });
+    }
+
+    @Override
+    @Async
+    public void runReplanAsync(UUID projectId, UUID reviewId) {
+        try {
+            String message = self.executeReplan(projectId, reviewId);
+            self.markReplanSucceeded(projectId, reviewId, message);
+        } catch (Exception e) {
+            // 事务内的快照更新由 executeReplan 回滚，失败状态单独回写，避免轮询一直停在 running
+            log.warn("评审用例重规划失败：reviewId={}", reviewId, e);
+            try {
+                self.markReplanFailed(projectId, reviewId, e.getMessage());
+            } catch (Exception markException) {
+                log.error("评审重规划失败状态回写失败：reviewId={}", reviewId, markException);
+            }
+        }
     }
 
     private List<UUID> normalizeRequirementIds(List<UUID> requirementIds) {
