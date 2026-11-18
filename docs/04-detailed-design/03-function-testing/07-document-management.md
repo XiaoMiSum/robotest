@@ -247,7 +247,7 @@ DELETE /api/project/testcases/{id}
 | 脑图加载 | 加载中 `v-loading`，失败提示「加载脑图失败」 |
 | 协同断线 | 断线时顶部横幅「连接已断开，正在重连...」，重连成功后触发一次未提交变更的持久化冲刷 |
 | 保存失败 | 服务端错误帧提示「文档保存失败」，成员校验失败提示「非文档成员，无法编辑」 |
-| 成员与入口分支 | 读写接口与 WebSocket 写帧均免 RBAC 权限码校验，服务端统一校验项目成员身份（写帧另校验文档成员关系）；工具栏[关联需求]常驻展示；树上的新建/重命名/删除/拖拽入口均展示，非成员请求由服务端拒绝 |
+| 成员与入口分支 | 读写接口与 WebSocket 写帧均免 RBAC 权限码校验，服务端统一校验项目成员身份（写帧另校验文档成员关系）；用例节点悬浮窗[关联需求]入口常驻展示，工具栏不再提供该入口；树上的新建/重命名/删除/拖拽入口均展示，非成员请求由服务端拒绝 |
 
 > 模块树操作、脑图工具栏与右键菜单的完整交互表见 `docs/04-detailed-design/03-function-testing/04-project-workspace-test-case.md` 3.1；脑图组件拆分与协作设计见 `docs/04-detailed-design/03-function-testing/08-mindmap-component.md`；访问控制口径见 `docs/04-detailed-design/03-function-testing/02-project-workspace-overview.md` 2.4。
 
@@ -322,3 +322,4 @@ DROP TABLE test_case_document_layout;
 | V1.0 | 2026-10-02 | 对齐前后端实现：修正 layout（JSONB 与 offsets 结构）、用例接口路径/字段/分页口径与错误码，补挂载与未分组口径、页面集成与状态分支，修复失效交叉引用 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_document` / `test_case_node` → `ft_case_document` / `ft_case_node`，索引 `idx_tcd_*` → `idx_ft_case_document_*` |
 | V1.0 | 2026-11-18 | 移除用例文档 RBAC 权限码口径：接口与页面入口按项目成员身份校验，WebSocket 写帧按文档成员关系校验 |
+| V1.0 | 2026-11-18 | 用例关联需求入口移至脑图用例节点悬浮窗，工具栏不再提供该入口 |
