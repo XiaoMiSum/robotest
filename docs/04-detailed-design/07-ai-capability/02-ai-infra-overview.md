@@ -785,6 +785,10 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串时前端按类型名兜底展示。
 - **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计当前登录用户提交且 `status = running`（含执行挂起）的任务数，过滤口径与列表一致。
   - 响应：`{ "count": 2 }`。
+- **按节点查询最近任务**：`GET /api/ai/tasks/{type}/latest`
+  - 参数：`documentId`、`nodeId`（均必填）；按任务输入中的 `documentId` 与 `nodeIds` 匹配，返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
+  - 可见范围：当前项目内任意成员提交的任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
+  - 用途：用例节点「AI 优化」入口按节点复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
 - **详情**：`GET /api/ai/tasks/{taskId}`
   - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 执行产出提案后回填（见 2.6.4）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
 
@@ -1105,3 +1109,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-18 | 任务标题与采纳结果回看、可见范围收窄：2.6.1 `ai_task` 加 `title`（执行后由主提案回填），2.6.4 记回填规则，3.6.2 / 3.6.3 响应补 `title` 与提案 `note`（驳回原因）、列表与计数统一按当前用户过滤，5.2 增 `AiTaskAdoptionResultPanel`、5.3 补 `closed` 只读态，7 补存量库增列迁移 |
 | V1.0 | 2026-11-18 | 助手改为项目级能力：2.9 会话表增 `project_id`（NOT NULL，取 `X-Active-Project`）、索引改 `(user_id, workspace_id, project_id, created_at)`、去 `context_snapshot` 会话私有项目，3.1 助手上下文头统一含项目头、4.4 RAG 读侧助手按 `X-Active-Project` 限权，2.6.1 助手解析任务 `project_id` 取头 |
 | V1.0 | 2026-11-18 | 辅助功能类型合并：3.6.1 注销 `case_complete` / `case_priority` 与 `case_suggestion` / `priority_suggestion`，改单一 `case_optimize` / `case_optimize_suggestion`；任务类型总数十一类→十类、普通目标型任务九类→八类，场景示例与执行入口统计同步 |
+| V1.0 | 2026-11-18 | 3.6.3 新增按节点查询最近任务端点 `GET /api/ai/tasks/{type}/latest`（`documentId` / `nodeId`，项目内成员任务可见），供用例节点 AI 优化复用最近一次任务 |
