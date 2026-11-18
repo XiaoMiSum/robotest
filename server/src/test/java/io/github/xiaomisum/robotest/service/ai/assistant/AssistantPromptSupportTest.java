@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 /**
- * 提示词上下文装配单测（详设 4.1 上下文组装 / 4.4 会话私有项目）：历史正序与占位剔除、
- * 会话项目状态与页面引用回落、限权项目集（C8）。
+ * 提示词上下文装配单测（详设 4.1 上下文组装 / 4.4 项目作用域）：历史正序与占位剔除、
+ * 当前项目作用域与页面引用回落、限权项目集（C8）。
  */
 @ExtendWith(MockitoExtension.class)
 class AssistantPromptSupportTest {
@@ -82,15 +82,16 @@ class AssistantPromptSupportTest {
     // ---------- 上下文 ----------
 
     @Test
-    void contextText_rendersProjectStateAndAttachmentPage() {
+    void contextText_rendersProjectScopeAndAttachmentPage() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project(PROJECT_ID, "商城项目"));
         AiAssistantConversation conversation = conversation(Map.of(
-                "projectId", PROJECT_ID.toString(), "projectName", "商城项目",
                 "context", Map.of("entityType", "mindmap_document", "entityId", DOCUMENT_ID.toString())));
         Map<String, Object> attachment = Map.of(
                 "entityType", "test_plan", "entityId", UUID.randomUUID().toString(), "entityTitle", "回归计划");
 
         String text = support.contextText(List.of(attachment), conversation);
 
+        assertTrue(text.contains("当前项目作用域"));
         assertTrue(text.contains(PROJECT_ID.toString()));
         assertTrue(text.contains("商城项目"));
         // 页面上下文附件优先于会话快照（4.1 上下文组装）
@@ -99,8 +100,8 @@ class AssistantPromptSupportTest {
 
     @Test
     void contextText_fallsBackToSnapshotContext_whenAttachmentsAbsent() {
+        when(projectMapper.selectById(PROJECT_ID)).thenReturn(project(PROJECT_ID, "商城项目"));
         AiAssistantConversation conversation = conversation(Map.of(
-                "projectId", PROJECT_ID.toString(),
                 "context", Map.of("entityType", "test_plan", "entityId", UUID.randomUUID().toString(),
                         "entityTitle", "快照计划")));
 
@@ -152,6 +153,7 @@ class AssistantPromptSupportTest {
         AiAssistantConversation conversation = new AiAssistantConversation();
         conversation.setId(CONVERSATION_ID);
         conversation.setWorkspaceId(WORKSPACE_ID);
+        conversation.setProjectId(PROJECT_ID);
         conversation.setContextSnapshot(snapshot);
         return conversation;
     }

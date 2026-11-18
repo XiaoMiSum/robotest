@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.assistant.tool;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
-import io.github.xiaomisum.robotest.service.ai.assistant.AssistantPromptSupport;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantRefChecker;
 import io.github.xiaomisum.robotest.service.ai.assistant.GuideKnowledgeBase;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
@@ -11,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.util.JsonUtils;
 
@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,20 +47,17 @@ class SearchKnowledgeToolTest {
     private VectorSearchService vectorSearchService;
     @Mock
     private AssistantRefChecker refChecker;
-    @Mock
-    private AssistantPromptSupport promptSupport;
 
     @InjectMocks
     private SearchKnowledgeTool tool;
 
-    private final AssistantToolContext context = new AssistantToolContext(USER_ID, WS_ID, List.of());
+    private final AssistantToolContext context = new AssistantToolContext(USER_ID, WS_ID, PROJECT_ID, List.of());
 
     @Test
     void mergesGuideFragmentsAndRagHits() {
         when(guideKnowledgeBase.search(USER_ID, WS_ID, "如何发起评审")).thenReturn(List.of(
                 new GuideKnowledgeBase.GuideFragment(List.of("发起评审"), "/workspace/projects/reviews",
                         List.of(), "评审创建步骤…")));
-        when(promptSupport.workspaceProjectIds(WS_ID)).thenReturn(List.of(PROJECT_ID));
         when(vectorSearchService.search(eq("如何发起评审"), eq(List.of(PROJECT_ID)), isNull(),
                 anyInt(), eq(USER_ID))).thenReturn(List.of(hit("requirement", "REQ-001 登录需求")));
         when(refChecker.titleOf("requirement", ENTITY_ID)).thenReturn("REQ-001 登录需求");
@@ -77,7 +75,6 @@ class SearchKnowledgeToolTest {
     @Test
     void vectorUnavailable_keepsGuideAndReportsRagError() {
         when(guideKnowledgeBase.search(USER_ID, WS_ID, "如何创建计划")).thenReturn(List.of());
-        when(promptSupport.workspaceProjectIds(WS_ID)).thenReturn(List.of(PROJECT_ID));
         when(vectorSearchService.search(anyString(), anyList(), isNull(), anyInt(), any()))
                 .thenThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_RAG_UNAVAILABLE));
 
@@ -92,15 +89,26 @@ class SearchKnowledgeToolTest {
     }
 
     @Test
-    void projectIdScopesSearchAndValidatesRef() {
+    void defaultSearchScopesToHeaderProject() {
         when(vectorSearchService.search(anyString(), eq(List.of(PROJECT_ID)), isNull(), anyInt(), any()))
                 .thenReturn(List.of());
         when(guideKnowledgeBase.search(any(), any(), anyString())).thenReturn(List.of());
 
-        tool.execute(context, Map.of("query", "q", "projectId", PROJECT_ID.toString()));
+        tool.execute(context, Map.of("query", "q"));
 
-        verify(refChecker).requireActiveWorkspaceProject(WS_ID, PROJECT_ID);
-        verify(promptSupport, never()).workspaceProjectIds(any());
+        verify(vectorSearchService).search(anyString(), eq(List.of(PROJECT_ID)), isNull(), anyInt(), any());
+        verify(refChecker, never()).requireActiveProject(any(), any());
+    }
+
+    @Test
+    void explicitCrossProjectRefRejected() {
+        UUID otherProject = UUID.randomUUID();
+        doThrow(ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE))
+                .when(refChecker).requireActiveProject(PROJECT_ID, otherProject);
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> tool.execute(context, Map.of("query", "q", "projectId", otherProject.toString())));
+        assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), error.getCode());
     }
 
     @Test

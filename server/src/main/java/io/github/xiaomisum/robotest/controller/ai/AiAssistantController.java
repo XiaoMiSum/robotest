@@ -40,8 +40,8 @@ import java.util.UUID;
 /**
  * 智能助手接口（详设 04-ai-assistant）：仅路由 + 参数校验（C2），归属校验在服务层（详设 3.1）。
  *
- * <p>上下文头按操作分层（详设 3.1）：列表与创建须带 X-Active-Workspace，发送与执行按详设要求带对应头；
- * 会话与历史管理接口只校验 Authorization，归属即权限（1000018251），管理员同样不越权。</p>
+ * <p>助手为项目级能力：全部接口统一携带 Authorization + X-Active-Workspace + X-Active-Project（详设 3.1），
+ * 归属即权限（1000018251），管理员同样不越权。</p>
  */
 @RestController
 @RequestMapping("/api/ai/conversations")
@@ -57,7 +57,7 @@ public class AiAssistantController {
     public Result<PageResult<AiAssistantConversationRespDTO>> pageConversations(
             @AuthenticationPrincipal LoginUser loginUser, @Valid AiAssistantConversationPageReqDTO pageReq) {
         return Result.ok(assistantService.pageConversations(pageReq, loginUser.getId(),
-                loginUser.getActiveWorkspaceId()));
+                loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId()));
     }
 
     @PostMapping
@@ -66,7 +66,7 @@ public class AiAssistantController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid AiAssistantConversationCreateReqDTO reqDTO) {
         return Result.ok(assistantService.createConversation(reqDTO, loginUser.getId(),
-                loginUser.getActiveWorkspaceId()));
+                loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId()));
     }
 
     @PatchMapping("/{conversationId}")
@@ -91,7 +91,7 @@ public class AiAssistantController {
 
     @Operation(summary = "发送消息（SSE 流式，详设 3.5）",
             description = "事件流：delta / tool_call / clarify / preview / citations / done / error，每 15s 心跳注释行；"
-                    + "须携带 X-Active-Workspace（4000 字符上限与附件校验在服务层）")
+                    + "须携带 X-Active-Workspace 与 X-Active-Project（4000 字符上限与附件校验在服务层）")
     @ApiResponse(responseCode = "200", description = "SSE 事件流",
             content = @Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
                     schema = @Schema(type = "string")))
@@ -99,12 +99,12 @@ public class AiAssistantController {
     public SseEmitter sendMessage(@AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID conversationId, @RequestBody @Valid AiAssistantMessageSendReqDTO reqDTO) {
         return assistantService.send(conversationId, reqDTO, loginUser.getId(),
-                loginUser.getActiveWorkspaceId());
+                loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId());
     }
 
     @Operation(summary = "确认执行（详设 3.7）",
-            description = "按 intent 固化输入逐项落库并返回回执；须携带 X-Active-Workspace 与 X-Active-Project"
-                    + "（与 intent.scope 一致），retryIndexes 可选表示对上次失败项单项重试")
+            description = "按 intent 固化输入逐项落库并返回回执；须携带 X-Active-Workspace 与 X-Active-Project，"
+                    + "目标项目取 X-Active-Project 头（与会话归属及 intent.scope 一致），retryIndexes 可选表示对上次失败项单项重试")
     @PostMapping("/{conversationId}/messages/{messageId}/execute")
     public Result<AiAssistantExecuteRespDTO> executeMessage(@AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID conversationId, @PathVariable UUID messageId,

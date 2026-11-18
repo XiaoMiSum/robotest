@@ -67,7 +67,7 @@ public class AssistantToolLoop {
      * 循环入参：提示词由处理器按场景渲染（自定义覆盖，详设 3.5），media 为当前消息附图直传字节
      * （详设 4.1 随行媒体口径），channel 可空（任务中心直提无通道）。
      */
-    public record LoopRequest(UUID userId, UUID workspaceId, UUID conversationId,
+    public record LoopRequest(UUID userId, UUID workspaceId, UUID projectId, UUID conversationId,
             String systemPrompt, String userPrompt, List<AiChatMedia> media, AiModelConfig model,
             List<Map<String, Object>> attachments, AssistantStreamBridge.StreamChannel channel) {
 
@@ -127,7 +127,7 @@ public class AssistantToolLoop {
     public LoopOutcome run(LoopRequest request, AiModelClient modelClient, HopObserver observer) {
         List<AssistantToolDefinition> definitions = List.copyOf(registry.all());
         AssistantToolContext toolContext = new AssistantToolContext(
-                request.userId(), request.workspaceId(), request.attachments());
+                request.userId(), request.workspaceId(), request.projectId(), request.attachments());
         List<Message> turns = new ArrayList<>();
         List<Map<String, Object>> citations = new ArrayList<>();
         Set<String> citationKeys = new HashSet<>();
@@ -191,7 +191,7 @@ public class AssistantToolLoop {
                     case CHANGE -> {
                         // 变更类：入参规范化为固化 intent，确认前零业务写入（详设 4.1 / 4.2①）
                         Map<String, Object> intent = intentBuilder.normalize(
-                                call.name(), parseArgs(call), request.workspaceId());
+                                call.name(), parseArgs(call), request.workspaceId(), request.projectId());
                         return LoopOutcome.intent(intent, callTrail, tokensIn, tokensOut);
                     }
                     default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_PARSE_FAILED);

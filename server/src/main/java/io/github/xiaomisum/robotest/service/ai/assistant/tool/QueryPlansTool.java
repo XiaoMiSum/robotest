@@ -34,10 +34,10 @@ public class QueryPlansTool implements AssistantTool {
     public AssistantToolDefinition definition() {
         return new AssistantToolDefinition(
                 "query_plans",
-                "查询测试计划清单（planId / 名称 / 状态 / 所属项目，可按项目或名称关键词过滤）。"
+                "查询当前项目的测试计划清单（planId / 名称 / 状态，可按名称关键词过滤）。"
                         + "调整计划、查看执行进度需要 planId 时调用，ID 只能取本工具返回值。",
                 ToolSchemas.object(List.of(
-                        ToolSchemas.string("projectId", "限定项目，可空"),
+                        ToolSchemas.string("projectId", "目标项目 ID，可空表示当前项目；跨项目指代将被拒绝"),
                         ToolSchemas.string("keyword", "计划名称关键词，可空")), null),
                 ToolCategory.QUERY);
     }
@@ -47,11 +47,11 @@ public class QueryPlansTool implements AssistantTool {
         String keyword = str(args.get("keyword")).trim().toLowerCase(Locale.ROOT);
         UUID projectId = uuid(args.get("projectId"));
         if (projectId != null) {
-            refChecker.requireActiveWorkspaceProject(context.workspaceId(), projectId);
+            refChecker.requireActiveProject(context.projectId(), projectId);
         }
         List<Map<String, Object>> plans = new ArrayList<>();
         for (Project project : projectMapper.listByWorkspaceId(context.workspaceId())) {
-            if (projectId != null && !project.getId().equals(projectId)) {
+            if (!context.projectId().equals(project.getId())) {
                 continue;
             }
             for (TestPlan plan : testPlanMapper.findRecentPlans(project.getId(), PER_PROJECT)) {

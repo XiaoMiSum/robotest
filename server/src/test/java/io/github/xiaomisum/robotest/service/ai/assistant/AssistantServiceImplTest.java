@@ -63,6 +63,7 @@ class AssistantServiceImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
+    private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID ENTITY_ID = UUID.randomUUID();
     private static final UUID USER_MESSAGE_ID = UUID.randomUUID();
     private static final UUID ASSISTANT_MESSAGE_ID = UUID.randomUUID();
@@ -105,10 +106,11 @@ class AssistantServiceImplTest {
     @Test
     void pageConversations_returnsEmpty_whenNoConversations() {
         AiAssistantConversationPageReqDTO pageReq = new AiAssistantConversationPageReqDTO();
-        when(conversationMapper.findPage(eq(pageReq), eq(USER_ID), eq(WORKSPACE_ID), isNull()))
+        when(conversationMapper.findPage(eq(pageReq), eq(USER_ID), eq(WORKSPACE_ID), eq(PROJECT_ID), isNull()))
                 .thenReturn(new PageResult<>(List.of(), 0L));
 
-        PageResult<AiAssistantConversationRespDTO> result = service.pageConversations(pageReq, USER_ID, WORKSPACE_ID);
+        PageResult<AiAssistantConversationRespDTO> result = service.pageConversations(pageReq, USER_ID, WORKSPACE_ID,
+                PROJECT_ID);
 
         assertTrue(result.getList().isEmpty());
         assertEquals(0L, result.getTotal());
@@ -116,14 +118,17 @@ class AssistantServiceImplTest {
     }
 
     @Test
-    void pageConversations_requiresWorkspaceHeader() {
+    void pageConversations_requiresContextHeaders() {
         AiAssistantConversationPageReqDTO pageReq = new AiAssistantConversationPageReqDTO();
 
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.pageConversations(pageReq, USER_ID, null));
+        ServiceException missingWorkspace = assertThrows(ServiceException.class,
+                () -> service.pageConversations(pageReq, USER_ID, null, PROJECT_ID));
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), missingWorkspace.getCode());
 
-        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), exception.getCode());
-        verify(conversationMapper, never()).findPage(any(), any(), any(), anyString());
+        ServiceException missingProject = assertThrows(ServiceException.class,
+                () -> service.pageConversations(pageReq, USER_ID, WORKSPACE_ID, null));
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), missingProject.getCode());
+        verify(conversationMapper, never()).findPage(any(), any(), any(), any(), anyString());
     }
 
     @Test
@@ -132,7 +137,7 @@ class AssistantServiceImplTest {
         AiAssistantConversation second = conversation("第二个会话");
         second.setId(UUID.randomUUID());
         AiAssistantConversationPageReqDTO pageReq = new AiAssistantConversationPageReqDTO();
-        when(conversationMapper.findPage(eq(pageReq), eq(USER_ID), eq(WORKSPACE_ID), isNull()))
+        when(conversationMapper.findPage(eq(pageReq), eq(USER_ID), eq(WORKSPACE_ID), eq(PROJECT_ID), isNull()))
                 .thenReturn(new PageResult<>(List.of(first, second), 2L));
         AiAssistantConversationStatRowDTO stat = new AiAssistantConversationStatRowDTO();
         stat.setConversationId(first.getId());
@@ -140,12 +145,14 @@ class AssistantServiceImplTest {
         stat.setLastMessageAt(LocalDateTime.now());
         when(messageMapper.statByConversationIds(anyCollection())).thenReturn(List.of(stat));
 
-        PageResult<AiAssistantConversationRespDTO> result = service.pageConversations(pageReq, USER_ID, WORKSPACE_ID);
+        PageResult<AiAssistantConversationRespDTO> result = service.pageConversations(pageReq, USER_ID, WORKSPACE_ID,
+                PROJECT_ID);
 
         assertEquals(2, result.getList().size());
         AiAssistantConversationRespDTO merged = result.getList().get(0);
         assertEquals(CONVERSATION_ID, merged.getId());
         assertEquals(WORKSPACE_ID, merged.getWorkspaceId());
+        assertEquals(PROJECT_ID, merged.getProjectId());
         assertEquals(3, merged.getMessageCount());
         assertNotNull(merged.getLastMessageAt());
         // 无消息行的会话回落到 0，不按 null 输出
@@ -157,7 +164,7 @@ class AssistantServiceImplTest {
     void createConversation_defaultsTitleAndBuildsSnapshot() {
         AiAssistantConversationCreateReqDTO reqDTO = new AiAssistantConversationCreateReqDTO();
 
-        AiAssistantConversationRespDTO resp = service.createConversation(reqDTO, USER_ID, WORKSPACE_ID);
+        AiAssistantConversationRespDTO resp = service.createConversation(reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         ArgumentCaptor<AiAssistantConversation> captor = ArgumentCaptor.forClass(AiAssistantConversation.class);
         verify(conversationMapper).insert(captor.capture());
@@ -165,7 +172,9 @@ class AssistantServiceImplTest {
         assertEquals("新会话", saved.getTitle());
         assertEquals(USER_ID, saved.getUserId());
         assertEquals(WORKSPACE_ID, saved.getWorkspaceId());
+        assertEquals(PROJECT_ID, saved.getProjectId());
         assertEquals(WORKSPACE_ID, resp.getWorkspaceId());
+        assertEquals(PROJECT_ID, resp.getProjectId());
         assertEquals(Constants.Status.ACTIVE, saved.getStatus());
         assertEquals(CONVERSATION_ID, resp.getId());
         assertEquals(WORKSPACE_ID, saved.getContextSnapshot().get("workspaceId"));
@@ -174,13 +183,16 @@ class AssistantServiceImplTest {
     }
 
     @Test
-    void createConversation_requiresWorkspaceHeader() {
+    void createConversation_requiresContextHeaders() {
         AiAssistantConversationCreateReqDTO reqDTO = new AiAssistantConversationCreateReqDTO();
 
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.createConversation(reqDTO, USER_ID, null));
+        ServiceException missingWorkspace = assertThrows(ServiceException.class,
+                () -> service.createConversation(reqDTO, USER_ID, null, PROJECT_ID));
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), missingWorkspace.getCode());
 
-        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), exception.getCode());
+        ServiceException missingProject = assertThrows(ServiceException.class,
+                () -> service.createConversation(reqDTO, USER_ID, WORKSPACE_ID, null));
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), missingProject.getCode());
         verify(conversationMapper, never()).insert(any(AiAssistantConversation.class));
     }
 
@@ -189,7 +201,7 @@ class AssistantServiceImplTest {
         AiAssistantConversationCreateReqDTO reqDTO = new AiAssistantConversationCreateReqDTO();
         reqDTO.setTitle("  登录模块用例  ");
 
-        service.createConversation(reqDTO, USER_ID, WORKSPACE_ID);
+        service.createConversation(reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         ArgumentCaptor<AiAssistantConversation> captor = ArgumentCaptor.forClass(AiAssistantConversation.class);
         verify(conversationMapper).insert(captor.capture());
@@ -204,7 +216,7 @@ class AssistantServiceImplTest {
         context.setEntityId(ENTITY_ID);
         reqDTO.setContext(context);
 
-        service.createConversation(reqDTO, USER_ID, WORKSPACE_ID);
+        service.createConversation(reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         verify(refChecker).requireUserVisible(Constants.EntityType.MINDMAP_DOCUMENT, ENTITY_ID, USER_ID);
     }
@@ -216,7 +228,7 @@ class AssistantServiceImplTest {
         context.setEntityType(Constants.EntityType.MINDMAP_DOCUMENT);
         reqDTO.setContext(context);
 
-        service.createConversation(reqDTO, USER_ID, WORKSPACE_ID);
+        service.createConversation(reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         verifyNoInteractions(refChecker);
     }
@@ -232,7 +244,7 @@ class AssistantServiceImplTest {
                 .when(refChecker).requireUserVisible(any(), any(), any());
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.createConversation(reqDTO, USER_ID, WORKSPACE_ID));
+                () -> service.createConversation(reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID));
 
         assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), exception.getCode());
         verify(conversationMapper, never()).insert(any(AiAssistantConversation.class));
@@ -440,7 +452,7 @@ class AssistantServiceImplTest {
         AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
         reqDTO.setContent("  分析登录模块的用例覆盖  ");
 
-        SseEmitter emitter = service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+        SseEmitter emitter = service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         assertNotNull(emitter);
         ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
@@ -463,7 +475,7 @@ class AssistantServiceImplTest {
 
         ArgumentCaptor<Map<String, Object>> inputCaptor = ArgumentCaptor.forClass(Map.class);
         verify(aiTaskService).submitInternal(eq("assistant_parse"), inputCaptor.capture(),
-                eq(USER_ID), isNull(), eq(WORKSPACE_ID));
+                eq(USER_ID), eq(PROJECT_ID), eq(WORKSPACE_ID));
         assertEquals(ASSISTANT_MESSAGE_ID.toString(), inputCaptor.getValue().get("messageId"));
     }
 
@@ -478,7 +490,7 @@ class AssistantServiceImplTest {
         AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
         reqDTO.setContent("再来一个问题");
 
-        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         verify(conversationMapper, never()).updateById(any(AiAssistantConversation.class));
         verify(messageMapper, times(2)).insert(any(AiAssistantMessage.class));
@@ -490,7 +502,7 @@ class AssistantServiceImplTest {
         AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
         reqDTO.setContent("再来一个问题");
 
-        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         verify(conversationMapper, never()).updateById(any(AiAssistantConversation.class));
     }
@@ -504,7 +516,7 @@ class AssistantServiceImplTest {
         reqDTO.setContent("任意内容");
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID));
 
         assertEquals(ErrorCodeConstants.ASSISTANT_CONVERSATION_ARCHIVED.code(), exception.getCode());
         verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
@@ -517,27 +529,30 @@ class AssistantServiceImplTest {
         AiAssistantMessageSendReqDTO blank = new AiAssistantMessageSendReqDTO();
         blank.setContent("   ");
         ServiceException blankError = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, blank, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, blank, USER_ID, WORKSPACE_ID, PROJECT_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_CONTENT_INVALID.code(), blankError.getCode());
 
         AiAssistantMessageSendReqDTO overlong = new AiAssistantMessageSendReqDTO();
         overlong.setContent("a".repeat(4001));
         ServiceException overlongError = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, overlong, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, overlong, USER_ID, WORKSPACE_ID, PROJECT_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_CONTENT_INVALID.code(), overlongError.getCode());
         verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
     }
 
     @Test
-    void send_requiresWorkspaceHeader() {
+    void send_requiresContextHeaders() {
         when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation("会话"));
         AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
         reqDTO.setContent("任意内容");
 
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, null));
+        ServiceException missingWorkspace = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, null, PROJECT_ID));
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), missingWorkspace.getCode());
 
-        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), exception.getCode());
+        ServiceException missingProject = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, null));
+        assertEquals(ErrorCodeConstants.CONTEXT_HEADER_MISSING.code(), missingProject.getCode());
         verifyNoInteractions(refChecker);
     }
 
@@ -550,7 +565,7 @@ class AssistantServiceImplTest {
         reqDTO.setContent("任意内容");
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID));
 
         assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), exception.getCode());
         verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
@@ -565,7 +580,22 @@ class AssistantServiceImplTest {
         reqDTO.setContent("任意内容");
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID));
+
+        assertEquals(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH.code(), exception.getCode());
+        verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
+    }
+
+    @Test
+    void send_rejectsConversationFromAnotherProject() {
+        AiAssistantConversation foreignProject = conversation("他项目会话");
+        foreignProject.setProjectId(OTHER_ID);
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(foreignProject);
+        AiAssistantMessageSendReqDTO reqDTO = new AiAssistantMessageSendReqDTO();
+        reqDTO.setContent("任意内容");
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID));
 
         assertEquals(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH.code(), exception.getCode());
         verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
@@ -581,7 +611,7 @@ class AssistantServiceImplTest {
         incomplete.setAttachments(List.of(missingId));
 
         ServiceException incompleteError = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, incomplete, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, incomplete, USER_ID, WORKSPACE_ID, PROJECT_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), incompleteError.getCode());
 
         AiAssistantMessageSendReqDTO foreign = new AiAssistantMessageSendReqDTO();
@@ -595,7 +625,7 @@ class AssistantServiceImplTest {
                         Constants.EntityType.MINDMAP_DOCUMENT, ENTITY_ID, WORKSPACE_ID);
 
         ServiceException foreignError = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, foreign, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, foreign, USER_ID, WORKSPACE_ID, PROJECT_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_ATTACHMENT_INVALID.code(), foreignError.getCode());
         verify(messageMapper, never()).insert(any(AiAssistantMessage.class));
     }
@@ -609,7 +639,7 @@ class AssistantServiceImplTest {
         reqDTO.setImages(List.of(image(fileId)));
         when(fileResourceMapper.selectById(fileId)).thenReturn(file("问题截图.png", 1024L));
 
-        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID);
+        service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID);
 
         ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
         verify(messageMapper, times(2)).insert(captor.capture());
@@ -670,7 +700,7 @@ class AssistantServiceImplTest {
         reqDTO.setContent("任意内容");
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID));
 
         assertEquals(ErrorCodeConstants.AI_TASK_TYPE_UNSUPPORTED.code(), exception.getCode());
         // 提交失败回收通道注册，事务回滚两条消息
@@ -679,7 +709,7 @@ class AssistantServiceImplTest {
 
     private void assertImageInvalid(AiAssistantMessageSendReqDTO reqDTO) {
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID));
+                () -> service.send(CONVERSATION_ID, reqDTO, USER_ID, WORKSPACE_ID, PROJECT_ID));
         assertEquals(ErrorCodeConstants.ASSISTANT_IMAGE_INVALID.code(), exception.getCode());
     }
 
@@ -702,6 +732,7 @@ class AssistantServiceImplTest {
         entity.setTitle(title);
         entity.setUserId(USER_ID);
         entity.setWorkspaceId(WORKSPACE_ID);
+        entity.setProjectId(PROJECT_ID);
         entity.setStatus(Constants.Status.ACTIVE);
         return entity;
     }

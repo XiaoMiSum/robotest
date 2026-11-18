@@ -1,7 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.assistant.tool;
 
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
-import io.github.xiaomisum.robotest.service.ai.assistant.AssistantPromptSupport;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantRefChecker;
 import io.github.xiaomisum.robotest.service.ai.assistant.GuideKnowledgeBase;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
@@ -34,8 +33,6 @@ public class SearchKnowledgeTool implements AssistantTool {
     private VectorSearchService vectorSearchService;
     @Resource
     private AssistantRefChecker refChecker;
-    @Resource
-    private AssistantPromptSupport promptSupport;
 
     @Override
     public AssistantToolDefinition definition() {
@@ -45,7 +42,7 @@ public class SearchKnowledgeTool implements AssistantTool {
                         + "回答平台怎么用、业务规则说明或依赖既有文档的问题前调用。",
                 ToolSchemas.object(List.of(
                         ToolSchemas.string("query", "检索文本（基于用户问题提炼）"),
-                        ToolSchemas.string("projectId", "限定项目，可空表示活跃空间全部项目")),
+                        ToolSchemas.string("projectId", "目标项目 ID，可空表示当前项目；跨项目指代将被拒绝")),
                         List.of("query")),
                 ToolCategory.QUERY);
     }
@@ -57,13 +54,10 @@ public class SearchKnowledgeTool implements AssistantTool {
             throw new IllegalArgumentException("query is required");
         }
         UUID projectId = uuid(args.get("projectId"));
-        List<UUID> projectIds;
         if (projectId != null) {
-            refChecker.requireActiveWorkspaceProject(context.workspaceId(), projectId);
-            projectIds = List.of(projectId);
-        } else {
-            projectIds = promptSupport.workspaceProjectIds(context.workspaceId());
+            refChecker.requireActiveProject(context.projectId(), projectId);
         }
+        List<UUID> projectIds = List.of(context.projectId());
 
         List<Map<String, Object>> fragments = new ArrayList<>();
         for (GuideKnowledgeBase.GuideFragment fragment

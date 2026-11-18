@@ -148,6 +148,16 @@ public class AssistantRefChecker {
     }
 
     /**
+     * 工具 / 意图显式给出的项目须与头中活跃项目一致（详设 4.1 / 4.4）：助手为项目级能力，
+     * 跨项目指代一律按 1000018261 拒绝并提示切换作用域。
+     */
+    public void requireActiveProject(UUID activeProjectId, UUID projectId) {
+        if (activeProjectId == null || projectId == null || !activeProjectId.equals(projectId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
+        }
+    }
+
+    /**
      * 批量用例引用校验（详设 4.4）：一次取回用例 → 文档 → 项目链，任一缺失或越权按 1000018261 拒绝。
      * 入参须为去重集合，行数不足即判定为幻觉或已删除引用；校验通过返回用例链解析出的项目集。
      */
