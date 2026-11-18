@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -204,7 +205,8 @@ public class AiEmbeddingAdminService {
         versions.add(retired);
         embeddingMapper.update(null, new LambdaUpdateWrapperX<AiEmbeddingConfig>()
                 .eq(AiEmbeddingConfig::getId, row.getId())
-                .set(AiEmbeddingConfig::getVersions, versions));
+                // wrapper.set 不套用 typeHandler，List 直传 pgjdbc 无法推断 SQL 类型
+                .set(AiEmbeddingConfig::getVersions, JsonUtils.toJsonString(versions)));
         return true;
     }
 
@@ -221,7 +223,8 @@ public class AiEmbeddingAdminService {
         embeddingMapper.update(null, new LambdaUpdateWrapperX<AiEmbeddingConfig>()
                 .eq(AiEmbeddingConfig::getId, row.getId())
                 .set(AiEmbeddingConfig::getLastTestAt, LocalDateTime.now())
-                .set(AiEmbeddingConfig::getLastTestResult, result));
+                // wrapper.set 不套用 typeHandler，Map 直传会被 pgjdbc 当 hstore 解析
+                .set(AiEmbeddingConfig::getLastTestResult, JsonUtils.toJsonString(result)));
     }
 
     private void validateBaseUrl(String baseUrl) {

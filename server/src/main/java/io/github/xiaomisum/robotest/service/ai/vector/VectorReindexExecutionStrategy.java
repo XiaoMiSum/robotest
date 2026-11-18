@@ -18,6 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
@@ -174,7 +175,8 @@ public class VectorReindexExecutionStrategy implements TaskExecutionStrategy {
         }
         embeddingMapper.update(null, new LambdaUpdateWrapperX<AiEmbeddingConfig>()
                 .eq(AiEmbeddingConfig::getId, current.getId())
-                .set(AiEmbeddingConfig::getVersions, List.of()));
+                // wrapper.set 不套用 typeHandler，List 直传 pgjdbc 无法推断 SQL 类型
+                .set(AiEmbeddingConfig::getVersions, JsonUtils.toJsonString(List.of())));
     }
 
     private record Draft(String type, UUID entityId, UUID projectId) {
