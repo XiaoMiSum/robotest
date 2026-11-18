@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import source from './CaseMindMap.vue?raw'
 
+describe('CaseMindMap · 工具条单行排版（交互 04 §1.2）', () => {
+  it('非全屏收纳脑图编辑功能，全屏恢复全平铺', () => {
+    expect(source).toContain('fullscreenchange')
+    expect(source).toContain('const isFullscreen = ref(false)')
+    expect(source).toContain('<template v-if="!isFullscreen">')
+    expect(source).toContain('<el-dropdown @command="handleEditCommand">')
+    expect(source).toContain('<el-dropdown @command="handleLayoutCommand">')
+    expect(source).toContain('const handleEditCommand = (command: unknown)')
+  })
+
+  it('工具条沿用共享单行样式，组件层不引入横向滚动', () => {
+    expect(source).toContain("@use '../minder/minder-base'")
+    expect(source).not.toContain('overflow-x')
+  })
+})
+
 describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
   it('工具栏提供 AI 补全与级别推荐，按 AI 可用性隐藏、按选中态置灰', () => {
     expect(source).toContain('AI 补全')

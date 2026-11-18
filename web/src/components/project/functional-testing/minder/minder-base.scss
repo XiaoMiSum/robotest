@@ -7,9 +7,8 @@
 }
 
 /* 顶部常驻工具条：单行左对齐、以分隔线与画布相接、不随画布滚动；
-   绝对悬浮的胶囊形态在按钮增多时会换行挤压画布，改为卡片顶栏流式占位；
-   按钮总量超出容器宽度时不换行（否则行末命令组被挤到第二行），
-   由工具条自身横向滚动承载 */
+   脑图编辑类功能在非全屏下收纳为下拉、全屏下平铺，
+   按钮总量始终可单行容纳，不设自身横向滚动 */
 .mindmap-toolbar {
   flex-shrink: 0;
   display: flex;
@@ -19,22 +18,7 @@
   padding: 7px 12px;
   border-bottom: 1px solid var(--color-neutral-200);
   flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: thin;
   z-index: 10;
-
-  &::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-neutral-300);
-    border-radius: 2px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
 }
 
 /* 评审/计划详情工具条：按钮组水平居中（demo review-detail / plan-detail .mm-bar 基准）；

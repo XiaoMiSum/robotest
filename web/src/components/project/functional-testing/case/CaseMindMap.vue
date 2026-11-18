@@ -13,7 +13,7 @@ import { useCaseAssistEntry } from '@/composables/project/ai/useCaseAssistEntry'
 import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
 import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps<{ docId: string }>()
 
@@ -127,6 +127,34 @@ const requirementGateReason = computed(() => {
   return '维护当前用例关联的需求'
 })
 const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
+
+// 工具条形态跟随 MinderNavigator 的原生全屏，避免窄编辑区按钮溢出
+const isFullscreen = ref(false)
+const syncFullscreen = () => {
+  isFullscreen.value = Boolean(document.fullscreenElement)
+}
+onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen))
+onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen))
+
+type EditCommand = 'undo' | 'redo' | 'addChild' | 'addSibling' | 'edit' | 'delete'
+const editActions: Record<EditCommand, () => void> = {
+  undo: () => nodeOps.undo(),
+  redo: () => nodeOps.redo(),
+  addChild: () => nodeOps.addChild(),
+  addSibling: () => nodeOps.addSibling(),
+  edit: () => nodeOps.editSelectedText(),
+  delete: () => nodeOps.deleteNode(),
+}
+const handleEditCommand = (command: unknown) => {
+  if (typeof command !== 'string') return
+  editActions[command as EditCommand]?.()
+}
+const templateNames = new Set(layout.templates.map((t) => t.name))
+const handleLayoutCommand = (command: unknown) => {
+  if (typeof command !== 'string') return
+  if (command === 'tidy') layout.tidyLayout()
+  else if (templateNames.has(command)) layout.switchTemplate(command)
+}
 </script>
 
 <template>
@@ -143,36 +171,41 @@ const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
     </div>
 
     <div class="mindmap-toolbar">
-      <div class="toolbar-group">
-        <el-tooltip content="撤销 (Ctrl+Z)" placement="bottom">
-          <el-button text :disabled="!nodeOps.canUndo.value" @click="nodeOps.undo"><el-icon><RefreshLeft /></el-icon></el-button>
-        </el-tooltip>
-        <el-tooltip content="重做 (Ctrl+Y)" placement="bottom">
-          <el-button text :disabled="!nodeOps.canRedo.value" @click="nodeOps.redo"><el-icon><RefreshRight /></el-icon></el-button>
-        </el-tooltip>
-      </div>
-      <el-divider direction="vertical" />
-      <div class="toolbar-group">
-        <el-tooltip content="添加子节点 (Tab)" placement="bottom">
-          <el-button text @click="nodeOps.addChild"><el-icon><Plus /></el-icon><span>下级</span></el-button>
-        </el-tooltip>
-        <el-tooltip content="添加兄弟节点 (Enter)" placement="bottom">
-          <el-button text @click="nodeOps.addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
-        </el-tooltip>
-        <el-tooltip content="编辑内容 (双击节点/F2)" placement="bottom">
-          <el-button text @click="nodeOps.editSelectedText"><el-icon><EditPen /></el-icon></el-button>
-        </el-tooltip>
-        <el-tooltip content="删除 (Delete)" placement="bottom">
-          <el-button text class="toolbar-btn--danger" @click="nodeOps.deleteNode"><el-icon><Delete /></el-icon></el-button>
-        </el-tooltip>
-      </div>
-      <el-divider direction="vertical" />
-      <div class="toolbar-group">
-        <!-- 模板名不回显占宽，仅经悬浮提示给出（交互设计 06 §1.2） -->
-        <el-tooltip :content="`排版模板：${layout.currentTemplateLabel.value}`" placement="bottom">
-          <el-dropdown size="small" @command="layout.switchTemplate">
+      <template v-if="!isFullscreen">
+        <el-tooltip content="撤销、重做、节点操作与删除" placement="bottom">
+          <el-dropdown @command="handleEditCommand">
             <el-button text>
-              <el-icon><Grid /></el-icon><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
+              <el-icon><EditPen /></el-icon><span>编辑</span><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="undo" :disabled="!nodeOps.canUndo.value" class="toolbar-menu-item">
+                  <span>撤销</span><span class="menu-shortcut">Ctrl+Z</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="redo" :disabled="!nodeOps.canRedo.value" class="toolbar-menu-item">
+                  <span>重做</span><span class="menu-shortcut">Ctrl+Y</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="addChild" divided class="toolbar-menu-item">
+                  <span>添加子节点</span><span class="menu-shortcut">Tab</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="addSibling" class="toolbar-menu-item">
+                  <span>添加兄弟节点</span><span class="menu-shortcut">Enter</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="edit" class="toolbar-menu-item">
+                  <span>编辑内容</span><span class="menu-shortcut">F2</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="delete" divided class="toolbar-menu-item toolbar-menu-item--danger">
+                  <span>删除</span><span class="menu-shortcut">Delete</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </el-tooltip>
+        <!-- 模板名不回显占宽，仅经悬浮提示给出（交互设计 04 §1.2） -->
+        <el-tooltip :content="`排版模板：${layout.currentTemplateLabel.value}`" placement="bottom">
+          <el-dropdown @command="handleLayoutCommand">
+            <el-button text>
+              <el-icon><Grid /></el-icon><span>排版</span><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -181,17 +214,71 @@ const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
                   :key="t.name"
                   :command="t.name"
                   :disabled="t.name === layout.currentTemplate.value"
+                  class="toolbar-menu-item"
                 >
-                  {{ t.label }}
+                  <el-icon v-if="t.name === layout.currentTemplate.value"><Check /></el-icon>
+                  <span>{{ t.label }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="tidy" divided class="toolbar-menu-item">
+                  <el-icon><MagicStick /></el-icon><span>恢复自动排版</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </el-tooltip>
-        <el-tooltip content="清除手动拖拽的节点偏移，恢复自动排版" placement="bottom">
-          <el-button text @click="layout.tidyLayout"><el-icon><MagicStick /></el-icon></el-button>
-        </el-tooltip>
-      </div>
+      </template>
+
+      <template v-else>
+        <div class="toolbar-group">
+          <el-tooltip content="撤销 (Ctrl+Z)" placement="bottom">
+            <el-button text :disabled="!nodeOps.canUndo.value" @click="nodeOps.undo"><el-icon><RefreshLeft /></el-icon></el-button>
+          </el-tooltip>
+          <el-tooltip content="重做 (Ctrl+Y)" placement="bottom">
+            <el-button text :disabled="!nodeOps.canRedo.value" @click="nodeOps.redo"><el-icon><RefreshRight /></el-icon></el-button>
+          </el-tooltip>
+        </div>
+        <el-divider direction="vertical" />
+        <div class="toolbar-group">
+          <el-tooltip content="添加子节点 (Tab)" placement="bottom">
+            <el-button text @click="nodeOps.addChild"><el-icon><Plus /></el-icon><span>下级</span></el-button>
+          </el-tooltip>
+          <el-tooltip content="添加兄弟节点 (Enter)" placement="bottom">
+            <el-button text @click="nodeOps.addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
+          </el-tooltip>
+          <el-tooltip content="编辑内容 (双击节点/F2)" placement="bottom">
+            <el-button text @click="nodeOps.editSelectedText"><el-icon><EditPen /></el-icon></el-button>
+          </el-tooltip>
+          <el-tooltip content="删除 (Delete)" placement="bottom">
+            <el-button text class="toolbar-btn--danger" @click="nodeOps.deleteNode"><el-icon><Delete /></el-icon></el-button>
+          </el-tooltip>
+        </div>
+        <el-divider direction="vertical" />
+        <div class="toolbar-group">
+          <el-tooltip :content="`排版模板：${layout.currentTemplateLabel.value}`" placement="bottom">
+            <el-dropdown size="small" @command="handleLayoutCommand">
+              <el-button text>
+                <el-icon><Grid /></el-icon><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item
+                    v-for="t in layout.templates"
+                    :key="t.name"
+                    :command="t.name"
+                    :disabled="t.name === layout.currentTemplate.value"
+                  >
+                    {{ t.label }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </el-tooltip>
+          <el-tooltip content="清除手动拖拽的节点偏移，恢复自动排版" placement="bottom">
+            <el-button text @click="layout.tidyLayout"><el-icon><MagicStick /></el-icon></el-button>
+          </el-tooltip>
+        </div>
+      </template>
+
       <el-divider direction="vertical" />
       <div class="toolbar-group">
         <el-button text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" @click="nodeOps.markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
@@ -439,6 +526,19 @@ $priorities: p0, p1, p2, p3;
 .toolbar-btn--danger { --el-button-hover-text-color: var(--color-danger); }
 
 .toolbar-caret { margin-left: 2px; font-size: 10px; }
+
+.toolbar-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.toolbar-menu-item--danger {
+  --el-dropdown-menuItem-hover-fill: var(--el-color-danger-light-9);
+  --el-dropdown-menuItem-hover-color: var(--color-danger);
+  color: var(--color-danger);
+}
 
 .menu-action {
   display: flex;
