@@ -187,10 +187,11 @@ CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WH
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | type | varchar(30) | NOT NULL | 任务类型，全量枚举见 3.6.1 |
+| title | varchar(200) | NOT NULL, DEFAULT '' | 任务标题：执行产出提案后回填首个 `parent_key IS NULL` 的提案标题（超长截断至 200）；空串表示尚未回填，列表按类型名兜底 |
 | status | varchar(20) | NOT NULL, DEFAULT 'running' | `running / proposals_ready / closed / aborted`（`running` 期间执行可挂起 `waiting_confirmation`） |
 | project_id | uuid | NULL | 项目内任务的隔离归属（NULL = 不限项目的个人任务，如助手解析） |
 | workspace_id | uuid | NULL | 执行作用域（助手类任务经 `X-Active-Workspace` 头写入），RAG 限权过滤依据 |
-| submitted_by | uuid | NOT NULL | 发起人：任务中心「我的任务」、完成通知与再次执行的归属 |
+| submitted_by | uuid | NOT NULL | 发起人（创建人）：任务列表与进行中计数统一按当前登录用户过滤，完成通知与再次执行的归属 |
 | input | jsonb | NOT NULL | 任务输入：源引用 + 参数（存引用不复制全文） |
 | result_meta | jsonb | NULL | 文档级元数据（如 `requirement_import` 的 `documentMeta`），供确认面板预填 |
 | tokens_in / tokens_out | int | NOT NULL, DEFAULT 0 | 任务级 token 汇总（跨全部执行累加） |
@@ -207,6 +208,7 @@ CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WH
 CREATE TABLE ai_task (
     id             uuid PRIMARY KEY,
     type           varchar(30) NOT NULL,
+    title          varchar(200) NOT NULL DEFAULT '',
     status         varchar(20) NOT NULL DEFAULT 'running',
     project_id     uuid NULL,
     workspace_id   uuid NULL,
@@ -318,6 +320,8 @@ CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id,
 | title | varchar(200) | NOT NULL | 提案标题 |
 | content | jsonb | NOT NULL | 结构化产物 + 证据链（结构由各分册定义） |
 | confirm_status | varchar(20) | NOT NULL, DEFAULT 'pending' | `pending`（待采纳）/ `not_applicable`（只读建议，无确认动作） |
+
+> 任务标题回填：执行产出提案时取首个 `parent_key IS NULL` 的提案标题写入 `ai_task.title`（超长截断至 200 字符）；无根提案时留空，列表按类型名兜底。
 
 **索引**（2 个）：
 
@@ -759,6 +763,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   "taskId": "…",
   "executionId": "…",
   "type": "test_design_generation",
+  "title": "",
   "status": "running",
   "budget": { "maxSteps": 40, "maxDurationSeconds": 600, "maxTokens": 200000, "maxCost": 5 },
   "tokensIn": 0,
@@ -770,21 +775,23 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 
 - **校验顺序**：总开关（1000018101）→ 类型 → 输入 → 预算 → 可用模型（1000018118；必需能力选型见 4.2，无候选 1000018124）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。任务端点免 RBAC 权限码校验（登录即可），仅详情 / 操作的归属可见性按 3.6.3 判定。
+- **任务标题**：提交时 `title` 为空串，执行产出提案后由首个根提案标题回填（见 2.6.4），列表与详情均下发。
 
 #### 3.6.3 任务列表与详情
 
 - **列表**：`GET /api/ai/tasks`
-  - 参数：`type`、`status`、`projectId` 不传（项目上下文经 `X-Active-Project` 头过滤，未附带则返回本人提交的任务）、`pageNo`、`pageSize`。
-  - 响应列表项：`{ taskId, type, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`。
-- **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数；项目上下文经 `X-Active-Project` 头过滤（未附带则统计本人提交的任务），语义与列表一致。
+  - 参数：`type`、`status`、`pageNo`、`pageSize`；项目上下文经 `X-Active-Project` 头仅用于执行作用域与归属校验，**列表始终只返回当前登录用户提交的任务**（`ai_task.submitted_by`）。
+  - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串时前端按类型名兜底展示。
+- **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计当前登录用户提交且 `status = running`（含执行挂起）的任务数，过滤口径与列表一致。
   - 响应：`{ "count": 2 }`。
 - **详情**：`GET /api/ai/tasks/{taskId}`
-  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看）；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
+  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 执行产出提案后回填（见 2.6.4）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
 
 ```json
 {
   "taskId": "…",
   "type": "test_design_generation",
+  "title": "登录用例生成",
   "status": "proposals_ready",
   "submittedBy": "…",
   "latestExecution": {
@@ -802,13 +809,15 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   "terminateReason": null,
   "documentMeta": null,
   "proposals": [
-    { "key": "module-1", "kind": "module_suggestion", "title": "登录模块", "parentKey": null, "confirmStatus": "pending" },
-    { "key": "doc-1", "kind": "mindmap_document_suggestion", "title": "登录用例文档", "parentKey": "module-1", "confirmStatus": "pending" },
-    { "key": "case-3", "kind": "test_case_suggestion", "title": "获取验证码", "parentKey": "doc-1", "confirmStatus": "adopted" }
+    { "key": "module-1", "kind": "module_suggestion", "title": "登录模块", "parentKey": null, "confirmStatus": "pending", "note": null },
+    { "key": "doc-1", "kind": "mindmap_document_suggestion", "title": "登录用例文档", "parentKey": "module-1", "confirmStatus": "pending", "note": null },
+    { "key": "case-3", "kind": "test_case_suggestion", "title": "获取验证码", "parentKey": "doc-1", "confirmStatus": "adopted", "note": null },
+    { "key": "case-4", "kind": "test_case_suggestion", "title": "短信登录", "parentKey": "doc-1", "confirmStatus": "rejected", "note": "本期不支持短信登录" }
   ]
 }
 ```
 
+- 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生（全部 `adopted / adopted_edited` → 已采纳，全部 `rejected` → 已驳回，混合 → 部分采纳），不新增后端字段；`closed` 态据此展示只读回看区，`aborted` 不展示。
 - **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（审核预览用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。
 
 #### 3.6.4 执行管理与轨迹
@@ -949,14 +958,15 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 └── 进行中任务数角标（15s 轮询 running-count，0 时不显示角标），点击跳任务中心
 
 任务中心（项目工作区 /workspace/projects/ai/tasks → AiTaskCenterPage）
-├── TaskFilter（类型/状态筛选）
-└── TaskTable（执行摘要、终止原因、终止 / 再次执行，「详情 / 审核」跳转详情页）
+├── TaskFilter（类型/状态筛选，列表仅当前用户任务）
+└── TaskTable（任务标题（空则类型名兜底）、执行摘要、终止原因、终止 / 再次执行，「详情 / 审核」跳转详情页）
 
 任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage）
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
 ├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底）
-└── AiProposalReviewPanel（通用提案审核区，proposals_ready 且有提案时渲染，各能力域复用）
+├── AiProposalReviewPanel（通用提案审核区，proposals_ready 且有提案时渲染，各能力域复用）
+└── AiTaskAdoptionResultPanel（closed 态只读回看：逐条已采纳 / 已驳回标签、提案标题与驳回原因）
     ├── ProposalTree（提案树，kind 图标区分）
     ├── ProposalDetail（内容预览 / 与既有数据对比）
     └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
@@ -970,7 +980,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ### 5.3 状态分支
 
 - 配置未就绪（`available = false`）：业务端 AI 入口隐藏或置灰并提示"AI 能力未启用/未配置模型"；
-- 任务态：执行中（步数与预算消耗、当前步骤）、挂起（待人工批准副作用）、待采纳（审核区）、已结束（灰态）、已终止（原因 + 再次执行）；
+- 任务态：执行中（步数与预算消耗、当前步骤）、挂起（待人工批准副作用）、待采纳（审核区）、已结束（任务级结果标识 + 只读展示已采纳 / 已驳回提案）、已终止（原因 + 再次执行，不展示审核区）；
 - 用量空区间补 0、图表加载与无数据态；向量重建中的 `requiresReindex` 引导条。
 
 ---
@@ -1034,11 +1044,13 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 CREATE TABLE ai_config / ai_model_config / ai_embedding_config / ai_prompt_template / ai_task / ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_adoption / ai_task_tool / ai_usage_log / ai_assistant_conversation / ai_assistant_message / ai_vector_index ( ... );
 
 -- 存量库补列（首次建库随 schema.sql 直接含列，无需本迁移）
+ALTER TABLE ai_task ADD COLUMN title varchar(200) NOT NULL DEFAULT '';
 ALTER TABLE ai_model_config ADD COLUMN input_price numeric(14,6) NOT NULL DEFAULT 0;
 ALTER TABLE ai_model_config ADD COLUMN output_price numeric(14,6) NOT NULL DEFAULT 0;
 ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 ```
 
+- `ai_task.title` 存量行默认空串，不回填；列表按类型名兜底，执行产出提案后由首个根提案标题回填；
 - UUID 主键使用框架默认策略；无物理外键；单表索引数均 ≤ 5（C9）；
 - 依赖：PostgreSQL + pgvector 扩展启用（`docs/00-spec/20-contracts/02-database.md` 既定决策）；未启用 pgvector 时仅向量索引表不可建，AI 配置、任务与用量功能不受影响（RAG 类能力按 4.5 降级）。
 
@@ -1089,3 +1101,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-07 | 助手与向量执行策略裁决落册：3.6.1 补两类首版默认预算与 steps 计法，4.2 补 vector chat 模型豁免、助手 5 跳与预算先到者终止、迟到用量只记明细不改汇总 |
 | V1.0 | 2026-11-12 | 整体移除评审/计划圈选建议（US-AI-008）：3.6.1 注销 `review_selection` / `plan_selection` 任务类型，3.6 目标型执行清单与 type 数量统计同步为九类 / 十一类 |
 | V1.0 | 2026-11-18 | AI 能力域整体免 RBAC 权限码校验：3.1 / 3.2 / 3.6 / 3.7 / 5.2 移除 `ai:admin` · `ai:task` · `ai:confirm` 与前端权限显隐口径（保留任务归属可见性与项目 / 空间成员校验），2.6.5 工具注册表去 `permission_code` 列，3.8 权限点表改为权限口径说明，6 注销 1000018121，7 删除权限点迁移脚本行 |
+| V1.0 | 2026-11-18 | 任务标题与采纳结果回看、可见范围收窄：2.6.1 `ai_task` 加 `title`（执行后由主提案回填），2.6.4 记回填规则，3.6.2 / 3.6.3 响应补 `title` 与提案 `note`（驳回原因）、列表与计数统一按当前用户过滤，5.2 增 `AiTaskAdoptionResultPanel`、5.3 补 `closed` 只读态，7 补存量库增列迁移 |
