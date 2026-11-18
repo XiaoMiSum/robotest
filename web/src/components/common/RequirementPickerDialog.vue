@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Close } from '@element-plus/icons-vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import {
   useRequirementPicker,
@@ -140,19 +141,32 @@ function confirm(): void {
                 明细
               </el-button>
             </template>
-            <div v-loading="picker.detailLoading.value" class="picker__detail">
-              <el-alert
-                v-if="picker.detailError.value"
-                type="error"
-                :title="picker.detailError.value"
-                show-icon
-                :closable="false"
-              />
-              <MarkdownView
-                v-else-if="picker.detail.value?.description"
-                :content="picker.detail.value.description"
-              />
-              <p v-else class="picker__detail-empty">该需求无描述正文</p>
+            <div class="picker__detail">
+              <div class="picker__detail-head">
+                <span class="picker__detail-title">需求明细</span>
+                <el-button
+                  text
+                  circle
+                  size="small"
+                  :icon="Close"
+                  aria-label="关闭需求明细"
+                  @click="closeDetailPopover"
+                />
+              </div>
+              <div v-loading="picker.detailLoading.value" class="picker__detail-body">
+                <el-alert
+                  v-if="picker.detailError.value"
+                  type="error"
+                  :title="picker.detailError.value"
+                  show-icon
+                  :closable="false"
+                />
+                <MarkdownView
+                  v-else-if="picker.detail.value?.description"
+                  :content="picker.detail.value.description"
+                />
+                <p v-else class="picker__detail-empty">该需求无描述正文</p>
+              </div>
               <div class="picker__detail-foot">
                 <el-button size="small" text @click="closeDetailPopover">关闭</el-button>
               </div>
@@ -223,6 +237,23 @@ function confirm(): void {
   color: var(--color-neutral-500);
 }
 
+.picker__detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.picker__detail-title {
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.picker__detail-body {
+  max-height: min(420px, 55vh);
+  overflow-y: auto;
+}
+
 .picker__detail-empty {
   margin: 0;
   color: var(--color-neutral-500);
@@ -233,5 +264,7 @@ function confirm(): void {
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-neutral-200);
 }
 </style>
