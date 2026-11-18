@@ -30,8 +30,4 @@ public class TestPlan extends BaseUuidDO<TestPlan> {
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<UUID> requirementIds;
     private LocalDateTime snapshotSyncedAt;
-    private String replanStatus;
-    private String replanMessage;
-    private LocalDateTime replanRequestedAt;
-    private LocalDateTime replanFinishedAt;
 }

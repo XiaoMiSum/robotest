@@ -8,7 +8,6 @@ import lombok.EqualsAndHashCode;
 import xyz.migoo.framework.mybatis.core.dataobject.BaseUuidDO;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,8 +30,4 @@ public class TestReview extends BaseUuidDO<TestReview> {
     private List<UUID> requirementIds;
 
     private String status;
-    private String replanStatus;
-    private String replanMessage;
-    private LocalDateTime replanRequestedAt;
-    private LocalDateTime replanFinishedAt;
 }

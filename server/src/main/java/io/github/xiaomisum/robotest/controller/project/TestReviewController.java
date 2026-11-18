@@ -10,7 +10,6 @@ import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewDetailRe
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgressRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.service.domain.review.TestReviewService;
@@ -64,13 +63,6 @@ public class TestReviewController {
             @PathVariable UUID id,
             @RequestBody @Valid TestReviewUpdateReqDTO reqDTO) {
         return Result.ok(testReviewService.updateReview(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO));
-    }
-
-    @GetMapping("/{id}/replan-status")
-    public Result<TestReviewReplanStatusRespDTO> getReplanStatus(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(testReviewService.getReplanStatus(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/modules")

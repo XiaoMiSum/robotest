@@ -29,16 +29,6 @@ public final class Constants {
     }
 
     /**
-     * 关联需求变化后的用例重规划状态（null 对外映射为 idle）
-     */
-    public interface ReplanStatus {
-        String IDLE = "idle";
-        String RUNNING = "running";
-        String SUCCEEDED = "succeeded";
-        String FAILED = "failed";
-    }
-
-    /**
      * 缺陷状态常量（禅道式三态模型）
      * <p>
      * 状态机：ACTIVE → RESOLVED → CLOSED，重开：RESOLVED/CLOSED → ACTIVE（需填写说明）
