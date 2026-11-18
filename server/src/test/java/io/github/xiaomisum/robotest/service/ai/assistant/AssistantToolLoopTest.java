@@ -50,6 +50,7 @@ class AssistantToolLoopTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID WS_ID = UUID.randomUUID();
+    private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID CONVERSATION_ID = UUID.randomUUID();
 
     private static final AssistantToolDefinition QUERY_DEF = new AssistantToolDefinition(
@@ -173,13 +174,13 @@ class AssistantToolLoopTest {
         when(modelClient.chatWithTools(any(), anyList(), anyList())).thenReturn(new AiChatReply("", 4, 6,
                 List.of(new AiToolCall("tc-4", "create_case", "{\"targetTitle\":\"登录用例\"}"))));
         Map<String, Object> intent = Map.of("kind", "create_case");
-        when(intentBuilder.normalize(eq("create_case"), any(), eq(WS_ID))).thenReturn(intent);
+        when(intentBuilder.normalize(eq("create_case"), any(), eq(WS_ID), eq(PROJECT_ID))).thenReturn(intent);
 
         AssistantToolLoop.LoopOutcome outcome = loop.run(request(), modelClient);
 
         assertEquals("intent", outcome.kind());
         assertEquals(intent, outcome.intent());
-        verify(intentBuilder).normalize(eq("create_case"), any(), eq(WS_ID));
+        verify(intentBuilder).normalize(eq("create_case"), any(), eq(WS_ID), eq(PROJECT_ID));
     }
 
     @Test
@@ -282,7 +283,7 @@ class AssistantToolLoopTest {
     }
 
     private AssistantToolLoop.LoopRequest request() {
-        return new AssistantToolLoop.LoopRequest(USER_ID, WS_ID, CONVERSATION_ID,
+        return new AssistantToolLoop.LoopRequest(USER_ID, WS_ID, PROJECT_ID, CONVERSATION_ID,
                 "system", "user", List.of(), new AiModelConfig(), List.of(), null);
     }
 }

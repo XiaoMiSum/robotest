@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** 查询项目（详设 4.1）：活跃工作空间内可见项目，按名称关键词过滤；供模型补全 / 校验 projectId。 */
+/** 查询项目（详设 4.1）：仅返回头中活跃项目，供模型确认作用域内 projectId；跨项目指代不由此工具提供。 */
 @Component
 public class QueryProjectsTool implements AssistantTool {
 
@@ -25,10 +25,10 @@ public class QueryProjectsTool implements AssistantTool {
     public AssistantToolDefinition definition() {
         return new AssistantToolDefinition(
                 "query_projects",
-                "查询当前工作空间内可见的项目清单（可按名称关键词过滤）。当需要项目 ID（projectId）"
-                        + "而无法从上下文确定、或需要用户在多个项目间选择时先调用本工具，不得虚构 ID。",
+                "查询当前项目（可按名称关键词过滤）以确认作用域内的 projectId，不得虚构 ID；"
+                        + "助手只在当前项目内工作，无法切换到其他项目。",
                 ToolSchemas.object(List.of(
-                        ToolSchemas.string("keyword", "项目名称关键词，可空表示取全部")), null),
+                        ToolSchemas.string("keyword", "项目名称关键词，可空表示取当前项目")), null),
                 ToolCategory.QUERY);
     }
 
@@ -37,6 +37,9 @@ public class QueryProjectsTool implements AssistantTool {
         String keyword = str(args.get("keyword")).trim().toLowerCase(Locale.ROOT);
         List<Map<String, Object>> projects = new ArrayList<>();
         for (Project project : projectMapper.listByWorkspaceId(context.workspaceId())) {
+            if (!context.projectId().equals(project.getId())) {
+                continue;
+            }
             if (!keyword.isEmpty()
                     && (project.getName() == null
                     || !project.getName().toLowerCase(Locale.ROOT).contains(keyword))) {

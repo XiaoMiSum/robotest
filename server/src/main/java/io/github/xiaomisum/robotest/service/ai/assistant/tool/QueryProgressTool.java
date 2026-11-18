@@ -49,6 +49,7 @@ public class QueryProgressTool implements AssistantTool {
         }
         refChecker.requireActiveWorkspaceRef(context.workspaceId(), targetType, targetId);
         UUID projectId = refChecker.projectIdOf(targetType, targetId);
+        refChecker.requireActiveProject(context.projectId(), projectId);
         Object progress;
         if (Constants.EntityType.TEST_PLAN.equals(targetType)) {
             progress = testPlanService.getPlanProgress(projectId, targetId, context.userId());

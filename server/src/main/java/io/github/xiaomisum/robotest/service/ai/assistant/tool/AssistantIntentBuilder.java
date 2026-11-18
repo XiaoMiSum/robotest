@@ -51,15 +51,18 @@ public class AssistantIntentBuilder {
 
     /**
      * 规范化（详设 4.2/4.3）：动作与目标类型服务端判定，引用经活跃工作空间校验
-     * （越权或幻觉按 1000018261 拒绝），scope 与过期时间由服务端补齐。
+     * （越权或幻觉按 1000018261 拒绝），目标项目一律取 X-Active-Project 头，scope 与过期时间由服务端补齐。
      *
-     * @param toolName         变更类工具名（= intent kind，注册表已校验）
-     * @param raw              模型入参（结构同 intent：targetTitle / targetId / projectId / params / changes）
+     * @param toolName          变更类工具名（= intent kind，注册表已校验）
+     * @param raw               模型入参（结构同 intent：targetTitle / targetId / projectId / params / changes）
      * @param activeWorkspaceId 活跃工作空间（解析时点，X-Active-Workspace）
+     * @param activeProjectId   活跃项目（解析时点，X-Active-Project，唯一作用域来源）
      */
-    public Map<String, Object> normalize(String toolName, Map<String, Object> raw, UUID activeWorkspaceId) {
+    public Map<String, Object> normalize(String toolName, Map<String, Object> raw, UUID activeWorkspaceId,
+            UUID activeProjectId) {
         String kind = ModelOutputSupport.trimToNull(toolName);
-        if (kind == null || !INTENT_KINDS.contains(kind) || activeWorkspaceId == null || raw == null) {
+        if (kind == null || !INTENT_KINDS.contains(kind) || activeWorkspaceId == null || activeProjectId == null
+                || raw == null) {
             throw parseFailed();
         }
         String targetType = TARGET_TYPE_BY_KIND.get(kind);
@@ -69,37 +72,23 @@ public class AssistantIntentBuilder {
 
         if (targetId != null) {
             refChecker.requireActiveWorkspaceRef(activeWorkspaceId, targetType, targetId);
+            UUID targetProjectId = refChecker.projectIdOf(targetType, targetId);
+            if (targetProjectId != null) {
+                refChecker.requireActiveProject(activeProjectId, targetProjectId);
+            }
         }
-        Set<UUID> caseProjects = refChecker.requireActiveWorkspaceCases(activeWorkspaceId, caseIds);
+        for (UUID caseProjectId : refChecker.requireActiveWorkspaceCases(activeWorkspaceId, caseIds)) {
+            refChecker.requireActiveProject(activeProjectId, caseProjectId);
+        }
         if (projectId != null) {
-            refChecker.requireActiveWorkspaceProject(activeWorkspaceId, projectId);
+            refChecker.requireActiveProject(activeProjectId, projectId);
         }
-        return assemble(raw, kind, targetType, targetId, projectId, caseIds, caseProjects, activeWorkspaceId);
+        return assemble(raw, kind, targetType, targetId, caseIds, activeWorkspaceId, activeProjectId);
     }
 
-    /** 作用域项目：用例集（须同项目）> 目标对象所属项目 > 指定项目，皆无则解析失败 */
+    /** 作用域项目即头中活跃项目；引用侧跨项目指代已由 requireActiveProject 拒绝 */
     private Map<String, Object> assemble(Map<String, Object> raw, String kind, String targetType, UUID targetId,
-            UUID projectId, Set<UUID> caseIds, Set<UUID> caseProjects, UUID activeWorkspaceId) {
-        UUID scopeProjectId = null;
-        if (!caseProjects.isEmpty()) {
-            if (caseProjects.size() != 1) {
-                throw parseFailed();
-            }
-            scopeProjectId = caseProjects.iterator().next();
-        }
-        if (scopeProjectId == null && targetId != null) {
-            scopeProjectId = refChecker.projectIdOf(targetType, targetId);
-        }
-        if (scopeProjectId == null) {
-            scopeProjectId = projectId;
-        }
-        if (scopeProjectId == null) {
-            throw parseFailed();
-        }
-        // 模型同时给出的目标项目与用例 / 目标对象所属项目冲突：视为解析产物不自洽
-        if (projectId != null && !projectId.equals(scopeProjectId)) {
-            throw parseFailed();
-        }
+            Set<UUID> caseIds, UUID activeWorkspaceId, UUID activeProjectId) {
         String targetTitle = ModelOutputSupport.trimToNull(ModelOutputSupport.asString(raw.get("targetTitle")));
         if (targetTitle == null && targetId != null) {
             targetTitle = refChecker.titleOf(targetType, targetId);
@@ -115,14 +104,14 @@ public class AssistantIntentBuilder {
         if (targetId != null) {
             intent.put("targetId", targetId);
         }
-        intent.put("projectId", scopeProjectId);
+        intent.put("projectId", activeProjectId);
         intent.put("createCount", sanitizedCount(raw.get("createCount"), kind, raw));
         intent.put("changes", sanitizedChanges(raw.get("changes")));
         intent.put("params", sanitizedParams(raw.get("params"), caseIds));
         Map<String, Object> scope = new LinkedHashMap<>();
         scope.put("workspaceId", activeWorkspaceId);
-        scope.put("projectId", scopeProjectId);
-        scope.put("projectName", promptSupport.projectName(scopeProjectId));
+        scope.put("projectId", activeProjectId);
+        scope.put("projectName", promptSupport.projectName(activeProjectId));
         intent.put("scope", scope);
         // 与 jsonb 内时间同口径：ISO-8601 字符串（详设 4.3 expiresAt 默认 10 分钟）
         intent.put("expiresAt", LocalDateTime.now().plusMinutes(EXPIRE_MINUTES).toString());

@@ -45,7 +45,7 @@ public class QueryCasesTool implements AssistantTool {
                 ToolSchemas.object(List.of(
                         ToolSchemas.string("keyword", "用例标题关键词，可空"),
                         ToolSchemas.string("documentId", "限定测试用例文档，可空"),
-                        ToolSchemas.string("projectId", "限定项目，可空")), null),
+                        ToolSchemas.string("projectId", "目标项目 ID，可空表示当前项目；跨项目指代将被拒绝")), null),
                 ToolCategory.QUERY);
     }
 
@@ -73,26 +73,29 @@ public class QueryCasesTool implements AssistantTool {
         return JsonUtils.toJsonString(Map.of("count", items.size(), "cases", items));
     }
 
-    /** 文档限定 > 项目限定 > 页面附件聚焦 > 活跃空间全部文档（分页封顶），每级都过引用校验 */
+    /** 文档限定 > 项目限定 > 页面附件聚焦 > 当前项目全部文档（分页封顶），每级都过引用校验 */
     private List<UUID> resolveDocumentIds(AssistantToolContext context, Map<String, Object> args) {
         UUID documentId = uuid(args.get("documentId"));
         if (documentId != null) {
-            requireDocumentInWorkspace(context.workspaceId(), documentId);
+            requireDocumentInProject(context, documentId);
             return List.of(documentId);
         }
         UUID projectId = uuid(args.get("projectId"));
         if (projectId != null) {
-            refChecker.requireActiveWorkspaceProject(context.workspaceId(), projectId);
+            refChecker.requireActiveProject(context.projectId(), projectId);
             return docIds(testCaseDocumentMapper.listByProjectId(projectId));
         }
         UUID focusDocumentId = focusDocumentId(context.attachments());
         if (focusDocumentId != null) {
-            requireDocumentInWorkspace(context.workspaceId(), focusDocumentId);
+            requireDocumentInProject(context, focusDocumentId);
             return List.of(focusDocumentId);
         }
         List<UUID> ids = new ArrayList<>();
         outer:
         for (Project project : projectMapper.listByWorkspaceId(context.workspaceId())) {
+            if (!context.projectId().equals(project.getId())) {
+                continue;
+            }
             for (TestCaseDocument document : testCaseDocumentMapper.listByProjectId(project.getId())) {
                 if (ids.size() >= DOCS_MAX) {
                     break outer;
@@ -103,12 +106,12 @@ public class QueryCasesTool implements AssistantTool {
         return ids;
     }
 
-    private void requireDocumentInWorkspace(UUID workspaceId, UUID documentId) {
+    private void requireDocumentInProject(AssistantToolContext context, UUID documentId) {
         TestCaseDocument document = testCaseDocumentMapper.selectById(documentId);
         if (document == null) {
             throw new IllegalArgumentException("document not found: " + documentId);
         }
-        refChecker.requireActiveWorkspaceProject(workspaceId, document.getProjectId());
+        refChecker.requireActiveProject(context.projectId(), document.getProjectId());
     }
 
     private String projectOf(UUID documentId, Map<UUID, String> cache) {

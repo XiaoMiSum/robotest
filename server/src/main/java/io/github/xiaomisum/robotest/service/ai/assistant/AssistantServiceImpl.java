@@ -84,13 +84,13 @@ public class AssistantServiceImpl implements AssistantService {
 
     @Override
     public PageResult<AiAssistantConversationRespDTO> pageConversations(AiAssistantConversationPageReqDTO pageReq,
-            UUID userId, UUID activeWorkspaceId) {
-        // /api/ai 不强制解析上下文头（详设 3.2 列表必带 X-Active-Workspace），服务端自查缺失
-        if (activeWorkspaceId == null) {
+            UUID userId, UUID activeWorkspaceId, UUID activeProjectId) {
+        // /api/ai 不强制解析上下文头（详设 3.2 列表必带双头），服务端自查缺失
+        if (activeWorkspaceId == null || activeProjectId == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
         PageResult<AiAssistantConversation> page = conversationMapper.findPage(pageReq, userId, activeWorkspaceId,
-                pageReq.getKeyword());
+                activeProjectId, pageReq.getKeyword());
         List<AiAssistantConversation> conversations = page.getList();
         if (conversations == null || conversations.isEmpty()) {
             return new PageResult<>(List.of(), page.getTotal());
@@ -107,9 +107,9 @@ public class AssistantServiceImpl implements AssistantService {
 
     @Override
     public AiAssistantConversationRespDTO createConversation(AiAssistantConversationCreateReqDTO reqDTO, UUID userId,
-            UUID activeWorkspaceId) {
-        // 创建必带 X-Active-Workspace（详设 3.3），归属空间创建后不变
-        if (activeWorkspaceId == null) {
+            UUID activeWorkspaceId, UUID activeProjectId) {
+        // 创建必带 X-Active-Workspace / X-Active-Project（详设 3.3），归属空间与项目创建后不变
+        if (activeWorkspaceId == null || activeProjectId == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
         AiAssistantEntityRefReqDTO context = reqDTO.getContext();
@@ -121,6 +121,7 @@ public class AssistantServiceImpl implements AssistantService {
         entity.setTitle(title == null || title.isBlank() ? DEFAULT_TITLE : title.trim());
         entity.setUserId(userId);
         entity.setWorkspaceId(activeWorkspaceId);
+        entity.setProjectId(activeProjectId);
         entity.setStatus(Constants.Status.ACTIVE);
         entity.setContextSnapshot(snapshotOf(activeWorkspaceId, context));
         conversationMapper.insert(entity);
@@ -183,7 +184,7 @@ public class AssistantServiceImpl implements AssistantService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SseEmitter send(UUID conversationId, AiAssistantMessageSendReqDTO reqDTO, UUID userId,
-            UUID activeWorkspaceId) {
+            UUID activeWorkspaceId, UUID activeProjectId) {
         AiAssistantConversation owned = getOwnedConversation(conversationId, userId);
         if (!Constants.Status.ACTIVE.equals(owned.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CONVERSATION_ARCHIVED);
@@ -192,13 +193,14 @@ public class AssistantServiceImpl implements AssistantService {
         if (content == null || content.isEmpty() || content.length() > MAX_CONTENT_CHARS) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CONTENT_INVALID);
         }
-        // /api/ai 不强制解析上下文头（详设 3.1 发送必带 X-Active-Workspace），服务端自查缺失
-        if (activeWorkspaceId == null) {
+        // /api/ai 不强制解析上下文头（详设 3.5 发送必带双头），服务端自查缺失
+        if (activeWorkspaceId == null || activeProjectId == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.CONTEXT_HEADER_MISSING);
         }
         refChecker.requireWorkspaceMember(activeWorkspaceId, userId);
-        // 会话绑定归属空间（详设 4.4）：归属不一致按 1000018263 拒绝，防止误解任务落点
-        if (!activeWorkspaceId.equals(owned.getWorkspaceId())) {
+        // 会话绑定归属空间与项目（详设 4.4）：归属不一致按 1000018263 拒绝，防止误解任务落点
+        if (!activeWorkspaceId.equals(owned.getWorkspaceId())
+                || !activeProjectId.equals(owned.getProjectId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH);
         }
         List<AiAssistantEntityRefReqDTO> attachments = reqDTO.getAttachments();
@@ -241,9 +243,9 @@ public class AssistantServiceImpl implements AssistantService {
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
         streamBridge.attach(assistantMessage.getId(), emitter);
         try {
-            // projectId 置 null：助手解析为不限项目的个人任务，执行作用域取活跃工作空间（总册 2.6）
+            // 解析任务目标项目取 X-Active-Project 头（助手为项目级能力，详设 3.5）
             aiTaskService.submitInternal(Constants.AiTaskType.ASSISTANT_PARSE,
-                    Map.of("messageId", assistantMessage.getId().toString()), userId, null, activeWorkspaceId);
+                    Map.of("messageId", assistantMessage.getId().toString()), userId, activeProjectId, activeWorkspaceId);
         } catch (RuntimeException e) {
             // 提交失败随事务回滚两条消息，通道注册表不残留
             streamBridge.detach(assistantMessage.getId());
@@ -334,6 +336,7 @@ public class AssistantServiceImpl implements AssistantService {
         resp.setId(entity.getId());
         resp.setTitle(entity.getTitle());
         resp.setWorkspaceId(entity.getWorkspaceId());
+        resp.setProjectId(entity.getProjectId());
         resp.setStatus(entity.getStatus());
         resp.setContextSnapshot(entity.getContextSnapshot());
         resp.setMessageCount(stat == null || stat.getMessageCount() == null ? 0 : stat.getMessageCount());

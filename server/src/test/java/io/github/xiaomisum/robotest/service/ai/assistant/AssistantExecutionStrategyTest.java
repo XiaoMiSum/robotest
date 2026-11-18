@@ -122,7 +122,7 @@ class AssistantExecutionStrategyTest {
         lenient().when(messageMapper.selectById(MESSAGE_ID)).thenReturn(assistantMessage());
         lenient().when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation());
         lenient().when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(history());
-        lenient().when(promptSupport.contextText(any(), any())).thenReturn("会话项目状态与页面上下文");
+        lenient().when(promptSupport.contextText(any(), any())).thenReturn("当前项目作用域与页面上下文");
         lenient().when(adapter.systemPrompt()).thenReturn("内置默认 {{history}} {{context}}");
         lenient().when(promptService.render(anyString(), anyString(), anyMap())).thenReturn("rendered");
     }
@@ -152,7 +152,7 @@ class AssistantExecutionStrategyTest {
     }
 
     @Test
-    void execute_intent_persistsPreviewAndRemembersProject() {
+    void execute_intent_persistsPreviewWithoutMutatingConversation() {
         Map<String, Object> intent = intent();
         when(toolLoop.run(any(), eq(modelClient), any())).thenReturn(
                 AssistantToolLoop.LoopOutcome.intent(intent, List.of(), 30, 9));
@@ -166,11 +166,8 @@ class AssistantExecutionStrategyTest {
         ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
         verify(messageMapper).updateById(captor.capture());
         assertEquals(intent, captor.getValue().getIntent());
-        ArgumentCaptor<AiAssistantConversation> conversationCaptor =
-                ArgumentCaptor.forClass(AiAssistantConversation.class);
-        verify(conversationMapper).updateById(conversationCaptor.capture());
-        assertEquals(PROJECT_ID.toString(),
-                conversationCaptor.getValue().getContextSnapshot().get("projectId"));
+        // 项目作用域由会话归属固化，预览阶段不再回写会话私有项目（详设 4.4）
+        verify(conversationMapper, never()).updateById(any(AiAssistantConversation.class));
         verify(channel).send(eq("preview"), anyMap());
         verify(channel).send(eq("done"), anyMap());
     }
@@ -390,6 +387,7 @@ class AssistantExecutionStrategyTest {
         AssistantToolLoop.LoopRequest request = captor.getValue();
         assertEquals(USER_ID, request.userId());
         assertEquals(WORKSPACE_ID, request.workspaceId());
+        assertEquals(PROJECT_ID, request.projectId());
         assertEquals(CONVERSATION_ID, request.conversationId());
         assertEquals(channel, request.channel());
         assertTrue(request.systemPrompt().contains("智能助手"));
@@ -414,6 +412,7 @@ class AssistantExecutionStrategyTest {
         conversation.setId(CONVERSATION_ID);
         conversation.setUserId(USER_ID);
         conversation.setWorkspaceId(WORKSPACE_ID);
+        conversation.setProjectId(PROJECT_ID);
         return conversation;
     }
 

@@ -26,9 +26,13 @@ public class AiAssistantConversation extends BaseUuidDO<AiAssistantConversation>
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID userId;
 
-    /** 归属工作空间（创建时固化，详设 3.3）：列表按当前活跃空间过滤，不参与权限判定 */
+    /** 归属工作空间（创建时取 X-Active-Workspace，详设 3.3）：列表按当前活跃空间过滤，不参与权限判定 */
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID workspaceId;
+
+    /** 归属项目（创建时取 X-Active-Project，详设 3.3）：列表按当前活跃项目过滤，不参与权限判定 */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID projectId;
 
     /** active / archived（归档后不可发消息） */
     private String status;

@@ -5,6 +5,7 @@ import xyz.migoo.framework.common.util.JsonUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -57,6 +58,6 @@ class AskUserToolTest {
     }
 
     private static AssistantToolContext context() {
-        return new AssistantToolContext(java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), List.of());
+        return new AssistantToolContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), List.of());
     }
 }

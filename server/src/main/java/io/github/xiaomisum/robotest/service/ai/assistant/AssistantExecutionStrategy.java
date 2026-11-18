@@ -118,7 +118,7 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
 
             // 助手交互调用 task_id = NULL、usage 逐跳归因 scene（总册 4.3），故不走通用 Agent 请求
             AssistantToolLoop.LoopOutcome outcome = toolLoop.run(new AssistantToolLoop.LoopRequest(
-                    task.getSubmittedBy(), ctx.workspaceId(), conversation.getId(),
+                    task.getSubmittedBy(), ctx.workspaceId(), ctx.projectId(), conversation.getId(),
                     AGENT_SYSTEM,
                     promptService.render(task.getType(), ctx.adapter().systemPrompt(), variables),
                     medias, ctx.model(), trigger.getAttachments(), channel),
@@ -127,7 +127,7 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
             control.ensureFinishing();
             return switch (outcome.kind()) {
                 case KIND_CLARIFY -> handleClarify(outcome, message, channel);
-                case KIND_INTENT -> handleIntent(outcome, conversation, message, channel);
+                case KIND_INTENT -> handleIntent(outcome, message, channel);
                 case KIND_ANSWER -> handleAnswer(outcome, triggerContent, message, channel);
                 default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_PARSE_FAILED);
             };
@@ -182,12 +182,10 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
         return new ExecutionResult(List.of(), Map.of("kind", KIND_CLARIFY));
     }
 
-    private ExecutionResult handleIntent(AssistantToolLoop.LoopOutcome outcome,
-            AiAssistantConversation conversation, AiAssistantMessage message,
+    private ExecutionResult handleIntent(AssistantToolLoop.LoopOutcome outcome, AiAssistantMessage message,
             AssistantStreamBridge.StreamChannel channel) {
         Map<String, Object> intent = outcome.intent();
         persistDone(message.getId(), DEFAULT_SUMMARY, intent, null, outcome.toolCalls());
-        rememberProject(conversation, intent);
         if (channel != null) {
             channel.send(EVENT_PREVIEW, intent);
             channel.send(EVENT_DONE, Map.of("messageId", message.getId()));
@@ -253,24 +251,6 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
                 }
             }
         }
-    }
-
-    /** 会话私有项目状态写入（详设 4.4）：intent 固化即记录到 context_snapshot，后续消息解析优先采用 */
-    private void rememberProject(AiAssistantConversation conversation, Map<String, Object> intent) {
-        Map<String, Object> scope = ModelOutputSupport.asMap(intent.get("scope"));
-        Object projectId = scope.get("projectId");
-        if (projectId == null) {
-            return;
-        }
-        Map<String, Object> snapshot = conversation.getContextSnapshot() == null
-                ? new LinkedHashMap<>()
-                : new LinkedHashMap<>(conversation.getContextSnapshot());
-        snapshot.put("projectId", String.valueOf(projectId));
-        snapshot.put("projectName", ModelOutputSupport.nvl(String.valueOf(scope.get("projectName"))));
-        AiAssistantConversation carrier = new AiAssistantConversation();
-        carrier.setId(conversation.getId());
-        carrier.setContextSnapshot(snapshot);
-        conversationMapper.updateById(carrier);
     }
 
     // ---------- 附图媒体 ----------

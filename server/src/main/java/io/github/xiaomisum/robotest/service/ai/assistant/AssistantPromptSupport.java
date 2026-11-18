@@ -16,9 +16,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 助手解析提示词的上下文装配（详设 4.1 上下文组装 / 4.4 会话私有项目）：历史取近 20 条按时间
- * 正序还原（含 role=tool 结果）；页面引用附件优先回落会话快照；项目 / 候选清单不再静态注入，
- * 一律由模型经查询工具按需获取。
+ * 助手解析提示词的上下文装配（详设 4.1 上下文组装 / 4.4 项目作用域）：历史取近 20 条按时间
+ * 正序还原（含 role=tool 结果）；页面引用附件优先回落会话快照；当前项目作用域由会话归属项目
+ * （创建时取请求头）给出，候选清单不再静态注入，一律由模型经查询工具按需获取。
  */
 @Component
 public class AssistantPromptSupport {
@@ -55,19 +55,18 @@ public class AssistantPromptSupport {
     }
 
     /**
-     * 上下文变量（详设 4.1 / 4.4）：会话私有项目状态 + 页面引用（附件缺失回落会话创建时的
-     * context_snapshot，总册 2.9）；活跃空间项目清单不再静态注入，由 query_projects 按需查询。
+     * 上下文变量（详设 4.1 / 4.4）：当前项目作用域（会话归属项目，创建时取 X-Active-Project）
+     * + 页面引用（附件缺失回落会话创建时的 context_snapshot，总册 2.9）；无项目二选一，
+     * 活跃空间项目清单不再静态注入，由 query_projects 按需查询。
      */
     public String contextText(List<Map<String, Object>> attachments, AiAssistantConversation conversation) {
-        Map<String, Object> snapshot = conversation == null ? null : conversation.getContextSnapshot();
         StringBuilder text = new StringBuilder();
-        text.append("会话项目状态（projectId | 名称）：\n");
-        Object projectId = snapshot == null ? null : snapshot.get("projectId");
+        text.append("当前项目作用域（projectId | 名称）：\n");
+        UUID projectId = conversation == null ? null : conversation.getProjectId();
         if (projectId == null) {
             text.append("- （未定）\n");
         } else {
-            text.append("- ").append(projectId).append(" | ")
-                    .append(snapshot.getOrDefault("projectName", "")).append('\n');
+            text.append("- ").append(projectId).append(" | ").append(projectName(projectId)).append('\n');
         }
         Map<String, Object> page = pageContext(attachments, conversation);
         text.append("页面上下文（类型 | 名称 | 标识）：\n");

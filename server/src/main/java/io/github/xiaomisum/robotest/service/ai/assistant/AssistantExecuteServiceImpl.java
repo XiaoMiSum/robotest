@@ -47,8 +47,8 @@ import java.util.function.Supplier;
 /**
  * 确认执行与取消（详设 3.7 / 3.8、4.2）：校验链 251 → 252 → 18263 → 255 → 253 → 254 分档 →
  * 256 → 257 → 结构校验，随后条件认领 execution（占位回执）并逐项独立事务落库。
- * 目标项目与空间一律取固化 intent.scope（4.2②）：请求头仅作空间维自检，无项目维校验，
- * 确认即按预览声明的项目落库。
+ * 目标项目与空间一律取请求头 X-Active-Project / X-Active-Workspace（4.2②）：
+ * 会话归属空间 / 项目不一致按 18263 拒绝，intent.scope 仅作作用域自检（18256）。
  *
  * <p>回执写 execution 后不可变更：首执由载体条件更新占位（并发下 0 行即 254），
  * 逐项结果以最终写整体覆盖；重试不认领，按既有 results 的 seq 反查回执项后追加，
@@ -104,7 +104,7 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
         AiAssistantConversation conversation =
                 assistantService.getOwnedConversation(conversationId, loginUser.getId());
         AiAssistantMessage message = requireMessage(conversationId, messageId);
-        requireConversationWorkspace(conversation, loginUser);
+        requireConversationScope(conversation, loginUser);
         Map<String, Object> intent = message.getIntent();
         if (intent == null || intent.isEmpty()) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_PARSE_FAILED);
@@ -119,7 +119,7 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
         // 结构校验与回执项装配先于认领：结构非法不消耗 execution，可修复后重来
         UUID userId = loginUser.getId();
         List<ExecUnit> units = buildPlan(intent, ModelOutputSupport.asMap(intent.get("params")),
-                scopeProjectId(intent), userId);
+                loginUser.getActiveProjectId(), userId);
 
         if (retryIndexes.isEmpty()) {
             return firstExecute(messageId, units, userId);
@@ -275,29 +275,21 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
         return new ArrayList<>(distinct);
     }
 
-    /** 256：空间维自检（防御性，详设 4.2②——目标项目取固化 intent.scope，不校验项目头） */
+    /** 256：作用域自检（防御性，详设 4.2②——scope 的空间 / 项目须与请求头一致，正常不可达） */
     private static void requireScope(Map<String, Object> intent, LoginUser loginUser) {
         Map<String, Object> scope = ModelOutputSupport.asMap(intent.get("scope"));
-        if (!scopeEquals(scope.get("workspaceId"), loginUser.getActiveWorkspaceId())) {
+        if (!scopeEquals(scope.get("workspaceId"), loginUser.getActiveWorkspaceId())
+                || !scopeEquals(scope.get("projectId"), loginUser.getActiveProjectId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_SCOPE_MISMATCH);
         }
     }
 
-    /** 18263：会话归属空间与当前活跃空间一致（4.4——发送与执行均以归属空间为前提，头缺失同样拒绝） */
-    private static void requireConversationWorkspace(AiAssistantConversation conversation, LoginUser loginUser) {
-        if (conversation == null || conversation.getWorkspaceId() == null
-                || !conversation.getWorkspaceId().equals(loginUser.getActiveWorkspaceId())) {
+    /** 18263：会话归属空间 / 项目与当前活跃头一致（4.4——发送与执行均以此为前提，头缺失同样拒绝） */
+    private static void requireConversationScope(AiAssistantConversation conversation, LoginUser loginUser) {
+        if (conversation == null || conversation.getWorkspaceId() == null || conversation.getProjectId() == null
+                || !conversation.getWorkspaceId().equals(loginUser.getActiveWorkspaceId())
+                || !conversation.getProjectId().equals(loginUser.getActiveProjectId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CONVERSATION_WORKSPACE_MISMATCH);
-        }
-    }
-
-    /** 执行目标项目以固化 scope 为准（详设 4.2②：客户端不传任何项目标识；缺失视为意图残缺） */
-    private static UUID scopeProjectId(Map<String, Object> intent) {
-        Object value = ModelOutputSupport.asMap(intent.get("scope")).get("projectId");
-        try {
-            return UUID.fromString(String.valueOf(value));
-        } catch (IllegalArgumentException e) {
-            throw parseFailed();
         }
     }
 

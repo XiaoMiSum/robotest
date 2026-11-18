@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 class QueryProjectsToolTest {
 
     private static final UUID WORKSPACE_ID = UUID.randomUUID();
+    private static final UUID PROJECT_ID = UUID.randomUUID();
 
     @Mock
     private ProjectMapper projectMapper;
@@ -31,7 +32,7 @@ class QueryProjectsToolTest {
     private QueryProjectsTool tool;
 
     private final AssistantToolContext context =
-            new AssistantToolContext(UUID.randomUUID(), WORKSPACE_ID, List.of());
+            new AssistantToolContext(UUID.randomUUID(), WORKSPACE_ID, PROJECT_ID, List.of());
 
     @Test
     void keyword_filters_case_insensitively() {
@@ -57,9 +58,24 @@ class QueryProjectsToolTest {
         assertTrue(parsed.toString().contains("项目0"));
     }
 
+    @Test
+    void only_active_project_returned() {
+        when(projectMapper.listByWorkspaceId(WORKSPACE_ID)).thenReturn(List.of(
+                project("当前项目"), project("其他项目", UUID.randomUUID())));
+        String result = tool.execute(context, Map.of());
+        Map<String, Object> parsed = JsonUtils.parseObject(result, Map.class);
+        assertEquals(1, parsed.get("count"));
+        Map<?, ?> first = (Map<?, ?>) ((List<?>) parsed.get("projects")).get(0);
+        assertEquals("当前项目", first.get("name"));
+    }
+
     private static Project project(String name) {
+        return project(name, PROJECT_ID);
+    }
+
+    private static Project project(String name, UUID id) {
         Project project = new Project();
-        project.setId(UUID.randomUUID());
+        project.setId(id);
         project.setName(name);
         return project;
     }

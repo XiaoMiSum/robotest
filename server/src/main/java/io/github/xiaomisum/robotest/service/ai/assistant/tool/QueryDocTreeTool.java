@@ -38,10 +38,10 @@ public class QueryDocTreeTool implements AssistantTool {
     public AssistantToolDefinition definition() {
         return new AssistantToolDefinition(
                 "query_doc_tree",
-                "查询项目的「模块 → 测试用例文档」两级树（可按项目或名称关键词过滤）。"
+                "查询当前项目的「模块 → 测试用例文档」两级树（可按名称关键词过滤）。"
                         + "创建 / 定位用例需要 documentId、parentId 时调用，ID 只能取本工具返回值。",
                 ToolSchemas.object(List.of(
-                        ToolSchemas.string("projectId", "目标项目 ID，可空表示活跃空间全部项目"),
+                        ToolSchemas.string("projectId", "目标项目 ID，可空表示当前项目；跨项目指代将被拒绝"),
                         ToolSchemas.string("keyword", "模块名或文档名关键词，可空")), null),
                 ToolCategory.QUERY);
     }
@@ -51,12 +51,12 @@ public class QueryDocTreeTool implements AssistantTool {
         String keyword = str(args.get("keyword")).trim().toLowerCase(Locale.ROOT);
         UUID projectId = uuid(args.get("projectId"));
         if (projectId != null) {
-            refChecker.requireActiveWorkspaceProject(context.workspaceId(), projectId);
+            refChecker.requireActiveProject(context.projectId(), projectId);
         }
         List<Map<String, Object>> result = new ArrayList<>();
         int docs = 0;
         for (Project project : projectMapper.listByWorkspaceId(context.workspaceId())) {
-            if (projectId != null && !project.getId().equals(projectId)) {
+            if (!context.projectId().equals(project.getId())) {
                 continue;
             }
             Map<String, Object> tree = projectTree(project, keyword, docs);
