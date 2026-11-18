@@ -39,11 +39,6 @@
   flex-shrink: 0;
 }
 
-/* 行末命令组：有余量时贴行末右侧，超宽时紧随核心组同排滚动 */
-.toolbar-group--end {
-  margin-left: auto;
-}
-
 .minder-canvas {
   flex: 1;
   min-height: 400px;

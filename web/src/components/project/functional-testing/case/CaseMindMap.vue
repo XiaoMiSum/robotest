@@ -15,7 +15,7 @@ import type { ClickedMinderNode } from '@/composables/project/functional-testing
 import CaseNodeActionPopover from './CaseNodeActionPopover.vue'
 import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
 import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps<{ docId: string }>()
 
@@ -59,7 +59,7 @@ const yjs = useMindmapYjs(
   persistence.schedulePersist,
 )
 
-// 左键单击用例节点展开悬浮窗：位置取节点渲染框，关联状态单独查询（交互 04 §1.2）
+// 左键单击用例节点展开悬浮窗：按节点渲染框定位，避免浮层遮挡被点击节点（交互 04 §1.2）
 const caseNodePopover = useCaseNodePopover()
 
 const { menuVisible, menuPos, onContextMenu, closeContextMenu, initMinder, loadError } = useMindmapInit({
@@ -94,7 +94,7 @@ function handleNodeClick(node: ClickedMinderNode): void {
     caseNodePopover.close()
     return
   }
-  void caseNodePopover.open(nodeId, { x: Math.round(box.x), y: Math.round(box.y + box.height + 4) })
+  caseNodePopover.open(nodeId, { x: Math.round(box.x), y: Math.round(box.y + box.height + 4) })
 }
 
 // 右键菜单与节点悬浮窗互斥，避免两层浮叠在同一节点上
@@ -138,27 +138,8 @@ const {
   onConfirmed: () => void initMinder(),
 })
 
-/** 用例节点级关联需求：仅选中 case 节点可维护 */
-const canLinkRequirement = computed(
-  () => Boolean(selectedNodeId.value) && selectedType.value === 'case',
-)
-const requirementGateReason = computed(() => {
-  if (!selectedNodeId.value) return '请先选择用例节点'
-  if (selectedType.value !== 'case') return '仅用例节点可关联需求'
-  return '维护当前用例关联的需求'
-})
+// 悬浮窗与选取器复用同一实例，保证回显与全量覆盖语义一致
 const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
-
-const popoverRequirementDisabled = computed(
-  () => caseNodePopover.requirementLoading.value || caseNodePopover.requirementLinked.value,
-)
-const popoverRequirementTitle = computed(() => {
-  if (caseNodePopover.requirementLoading.value) return '正在查询关联需求…'
-  if (caseNodePopover.requirementLinked.value) {
-    return '该用例已关联需求，如需修改请在顶部工具条操作'
-  }
-  return '为当前用例关联需求'
-})
 
 function openAssistFromPopover(launch: () => Promise<void>): void {
   caseNodePopover.close()
@@ -342,37 +323,6 @@ const handleLayoutCommand = (command: unknown) => {
           @click="nodeOps.markPriority(p)"
         >{{ p }}</el-button>
       </div>
-      <el-divider v-if="assistEntryVisible" direction="vertical" />
-      <div v-if="assistEntryVisible" class="toolbar-group">
-        <el-tooltip :content="assistGateReason || '对选中用例发起 AI 补全'" placement="bottom">
-          <span>
-            <el-button text :disabled="!canLaunchAssist" @click="launchComplete">
-              <el-icon><MagicStick /></el-icon><span>AI 补全</span>
-            </el-button>
-          </span>
-        </el-tooltip>
-        <el-tooltip :content="assistGateReason || '对选中用例发起级别推荐'" placement="bottom">
-          <span>
-            <el-button text :disabled="!canLaunchAssist" @click="launchPriority">
-              <el-icon><Sort /></el-icon><span>级别推荐</span>
-            </el-button>
-          </span>
-        </el-tooltip>
-      </div>
-      <div class="toolbar-group toolbar-group--end">
-        <el-tooltip :content="requirementGateReason" placement="bottom">
-          <span>
-            <el-button
-              text
-              :disabled="!canLinkRequirement"
-              :loading="requirementLink.saving.value"
-              @click="requirementLink.open"
-            >
-              <el-icon><Link /></el-icon><span>关联需求</span>
-            </el-button>
-          </span>
-        </el-tooltip>
-      </div>
     </div>
 
     <div
@@ -430,9 +380,6 @@ const handleLayoutCommand = (command: unknown) => {
       :ai-entry-visible="assistEntryVisible"
       :ai-gate-reason="assistGateReason"
       :can-launch-ai="canLaunchAssist"
-      :requirement-disabled="popoverRequirementDisabled"
-      :requirement-loading="caseNodePopover.requirementLoading.value"
-      :requirement-title="popoverRequirementTitle"
       @ai-complete="openAssistFromPopover(launchComplete)"
       @ai-priority="openAssistFromPopover(launchPriority)"
       @link-requirement="openRequirementFromPopover"

@@ -24,27 +24,27 @@ describe('CaseMindMap · 工具条单行排版（交互 04 §1.2）', () => {
   })
 })
 
-describe('CaseMindMap · 关联需求入口', () => {
-  it('关联需求工具条常驻，仅按选中节点类型置灰', () => {
-    expect(source).toContain('<el-icon><Link /></el-icon><span>关联需求</span>')
-    expect(source).toContain(':disabled="!canLinkRequirement"')
+describe('CaseMindMap · 业务入口收拢', () => {
+  it('工具条不再放置 AI 补全、级别推荐与关联需求按钮', () => {
+    expect(source).not.toContain('<span>AI 补全</span>')
+    expect(source).not.toContain('<span>级别推荐</span>')
+    expect(source).not.toContain('<span>关联需求</span>')
+    expect(source).not.toContain('canLinkRequirement')
+    expect(source).not.toContain('requirementGateReason')
     expect(source).not.toContain('canManageRequirements')
     expect(source).not.toContain('requirement:view')
   })
 })
 
 describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
-  it('工具栏提供 AI 补全与级别推荐，按 AI 可用性隐藏、按选中态置灰', () => {
-    expect(source).toContain('AI 补全')
-    expect(source).toContain('级别推荐')
-    expect(source).toContain('v-if="assistEntryVisible"')
-    expect(source).toContain(':disabled="!canLaunchAssist"')
+  it('悬浮窗透传 AI 可用性与置灰原因，沿用同一任务入口', () => {
     expect(source).toContain('useCaseAssistEntry')
     expect(source).toContain('documentId: () => props.docId')
     expect(source).toContain('selectedNodeId: () => selectedNodeId.value')
     expect(source).toContain('selectedType: () => selectedType.value')
-    // 置灰原因常驻悬浮提示，不靠猜测（交互 2.1.2 动作置灰）
-    expect(source).toContain(':content="assistGateReason')
+    expect(source).toContain(':ai-entry-visible="assistEntryVisible"')
+    expect(source).toContain(':ai-gate-reason="assistGateReason"')
+    expect(source).toContain(':can-launch-ai="canLaunchAssist"')
   })
 
   it('发起后在对话框内覆盖进行中 / 终止 / 加载失败 / 对照面板四态', () => {
@@ -84,12 +84,13 @@ describe('CaseMindMap · 用例节点悬浮窗（交互 04 §1.2）', () => {
     expect(source).toContain('<CaseNodeActionPopover')
   })
 
-  it('悬浮窗复用工具条入口与关联选取器，已关联时仅悬浮窗禁用', () => {
+  it('悬浮窗复用同一任务入口与关联选取器，已关联仍可重新打开', () => {
     expect(source).toContain('@ai-complete="openAssistFromPopover(launchComplete)"')
     expect(source).toContain('@ai-priority="openAssistFromPopover(launchPriority)"')
     expect(source).toContain('@link-requirement="openRequirementFromPopover"')
-    expect(source).toContain('caseNodePopover.requirementLinked.value')
-    expect(source).toContain('如需修改请在顶部工具条操作')
-    expect(source).toContain(':disabled="!canLinkRequirement"')
+    expect(source).toContain('void requirementLink.open()')
+    expect(source).not.toContain('requirementLinked')
+    expect(source).not.toContain('requirementDisabled')
+    expect(source).not.toContain('如需修改请在顶部工具条操作')
   })
 })
