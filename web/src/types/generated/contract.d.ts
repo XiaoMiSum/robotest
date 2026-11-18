@@ -1955,7 +1955,7 @@ export interface paths {
         put?: never;
         /**
          * 发送消息（SSE 流式，详设 3.5）
-         * @description 事件流：delta / tool_call / clarify / preview / citations / done / error，每 15s 心跳注释行；须携带 X-Active-Workspace（4000 字符上限与附件校验在服务层）
+         * @description 事件流：delta / tool_call / clarify / preview / citations / done / error，每 15s 心跳注释行；须携带 X-Active-Workspace 与 X-Active-Project（4000 字符上限与附件校验在服务层）
          */
         post: operations["sendMessage"];
         delete?: never;
@@ -1975,7 +1975,7 @@ export interface paths {
         put?: never;
         /**
          * 确认执行（详设 3.7）
-         * @description 按 intent 固化输入逐项落库并返回回执；须携带 X-Active-Workspace 与 X-Active-Project（与 intent.scope 一致），retryIndexes 可选表示对上次失败项单项重试
+         * @description 按 intent 固化输入逐项落库并返回回执；须携带 X-Active-Workspace 与 X-Active-Project，目标项目取 X-Active-Project 头（与会话归属及 intent.scope 一致），retryIndexes 可选表示对上次失败项单项重试
          */
         post: operations["executeMessage"];
         delete?: never;
@@ -5193,6 +5193,8 @@ export interface components {
             title?: string;
             /** Format: uuid */
             workspaceId?: string;
+            /** Format: uuid */
+            projectId?: string;
             status?: string;
             /** Format: date-time */
             lastMessageAt?: string;

@@ -3,8 +3,9 @@ import { useRoute } from 'vue-router'
 import { fetchAiStatus } from '@/services/ai'
 
 /**
- * 智能助手入口显隐：AI 总开关可用且处于工作空间上下文
- * （总册 4.5 / 交互 05 §1，「我的空间」页 mode=none 不提供上下文故隐藏）。
+ * 智能助手入口显隐：AI 总开关可用且处于项目上下文
+ * （总册 4.5 / 交互 05 §1）：助手为项目级能力，目标项目取 X-Active-Project，
+ * 故仅在 route.meta.mode=project 时提供上下文，空间级页面一律隐藏。
  * 不在内部挂载生命周期，由入口组件挂载时调用 refresh()，便于测试与调用时机控制。
  */
 export function useAssistantEntrance(): {
@@ -23,7 +24,7 @@ export function useAssistantEntrance(): {
     }
   }
 
-  const visible = computed(() => aiAvailable.value && route.meta.mode !== 'none')
+  const visible = computed(() => aiAvailable.value && route.meta.mode === 'project')
 
   return { visible, refresh }
 }

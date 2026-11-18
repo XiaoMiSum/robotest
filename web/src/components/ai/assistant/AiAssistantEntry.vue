@@ -37,13 +37,16 @@ const archived = computed(() => store.currentConversation?.status === 'archived'
 
 void refresh()
 
-// 切换活跃空间后列表须按新空间重载；归属不同的当前会话收起，避免误解任务落点（详设 5.2）
+// 切换活跃空间 / 项目后列表须按新作用域重载；归属不同的当前会话收起，避免误解任务落点（详设 5.2）
 watch(
-  () => authStore.activeWorkspaceId,
-  (workspaceId) => {
-    if (!workspaceId) return
+  () => [authStore.activeWorkspaceId, authStore.activeProjectId],
+  ([workspaceId, projectId]) => {
+    if (!workspaceId || !projectId) return
     const current = store.currentConversation
-    if (store.currentId && (!current || current.workspaceId !== workspaceId)) {
+    if (
+      store.currentId &&
+      (!current || current.workspaceId !== workspaceId || current.projectId !== projectId)
+    ) {
       store.resetSession()
     }
     if (store.open) void store.loadConversations(store.keyword, true)

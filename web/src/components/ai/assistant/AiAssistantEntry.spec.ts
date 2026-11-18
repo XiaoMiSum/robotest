@@ -25,8 +25,8 @@ const mocks = vi.hoisted(() => ({
   prompt: vi.fn(),
   confirm: vi.fn(),
   loadEntityNode: vi.fn(),
-  /** 由 @/stores/auth mock 工厂创建，测试驱动切换活跃空间 */
-  authState: null as { activeWorkspaceId: string | null } | null,
+  /** 由 @/stores/auth mock 工厂创建，测试驱动切换活跃空间 / 项目 */
+  authState: null as { activeWorkspaceId: string | null; activeProjectId: string | null } | null,
 }))
 
 // Markdown 渲染由 MarkdownView 既有单测覆盖，此处只断言本组件的组装行为
@@ -86,15 +86,21 @@ vi.mock('@/services/assistantSse', () => ({
   AssistantStreamInterruptedError: class extends Error {},
 }))
 
-// 活跃空间须为响应式：入口组件 watch 该值驱动列表重载与会话收起
+// 活跃空间 / 项目须为响应式：入口组件 watch 二者驱动列表重载与会话收起
 vi.mock('@/stores/auth', async () => {
   const { reactive } = await import('vue')
-  const state = reactive({ activeWorkspaceId: 'ws-1' as string | null })
+  const state = reactive({
+    activeWorkspaceId: 'ws-1' as string | null,
+    activeProjectId: 'p1' as string | null,
+  })
   mocks.authState = state
   return {
     useAuthStore: () => ({
       get activeWorkspaceId(): string | null {
         return state.activeWorkspaceId
+      },
+      get activeProjectId(): string | null {
+        return state.activeProjectId
       },
     }),
   }
@@ -111,6 +117,7 @@ function makeConversation(overrides: Partial<AiAssistantConversation> = {}): AiA
     id: 'c1',
     title: '登录评审',
     workspaceId: 'ws-1',
+    projectId: 'p1',
     status: 'active',
     lastMessageAt: null,
     messageCount: 0,
@@ -142,7 +149,9 @@ async function mountEntry(): Promise<VueWrapper> {
   store = useAiAssistantStore()
   router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+    routes: [
+      { path: '/:pathMatch(.*)*', component: { render: () => null }, meta: { mode: 'project' } },
+    ],
   })
   activeWrapper = mount(AiAssistantEntry, {
     global: { plugins: [ElementPlus, pinia, router] },
@@ -189,7 +198,10 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
-    if (mocks.authState) mocks.authState.activeWorkspaceId = 'ws-1'
+    if (mocks.authState) {
+      mocks.authState.activeWorkspaceId = 'ws-1'
+      mocks.authState.activeProjectId = 'p1'
+    }
     mocks.fetchAiAssistantConversations.mockResolvedValue({
       list: [makeConversation()],
       total: 1,
@@ -248,6 +260,24 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
     expect(store.currentId).toBeNull()
     expect(store.messages).toHaveLength(0)
     // 打开状态下面板保留：开面板拉取一次，切换空间再静默拉取一次
+    expect(mocks.fetchAiAssistantConversations).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.ai-entry__card').exists()).toBe(true)
+  })
+
+  it('切换活跃项目后归属不同的当前会话收起并按新项目重载列表（详设 5.2）', async () => {
+    const wrapper = await mountEntry()
+    await openPanel(wrapper)
+    store.conversations = [makeConversation()]
+    store.currentId = 'c1'
+    store.messages = [makeMessage()]
+    await nextTick()
+
+    mocks.authState!.activeProjectId = 'p2'
+    await nextTick()
+    await flushPromises()
+
+    expect(store.currentId).toBeNull()
+    expect(store.messages).toHaveLength(0)
     expect(mocks.fetchAiAssistantConversations).toHaveBeenCalledTimes(2)
     expect(wrapper.find('.ai-entry__card').exists()).toBe(true)
   })

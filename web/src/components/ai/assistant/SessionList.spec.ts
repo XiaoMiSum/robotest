@@ -17,6 +17,7 @@ function makeConversation(overrides: Partial<AiAssistantConversation> = {}): AiA
     id: 'c1',
     title: '登录评审',
     workspaceId: 'ws-1',
+    projectId: 'p1',
     status: 'active',
     lastMessageAt: null,
     messageCount: 0,
