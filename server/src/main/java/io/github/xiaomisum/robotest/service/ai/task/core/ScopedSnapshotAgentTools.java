@@ -41,7 +41,7 @@ public final class ScopedSnapshotAgentTools {
         BaseTool(String code, String name) {
             definition = new AgentToolDefinition(code, name,
                     "读取任务提交时固化的可信资源范围；resourceIds 可选且只能是输入资源集合的子集",
-                    SCHEMA, null, "readonly");
+                    SCHEMA, "readonly");
         }
 
         @Override

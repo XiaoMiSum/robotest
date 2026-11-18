@@ -39,7 +39,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -130,8 +129,6 @@ class AiTaskServiceImplTest {
     void setUp() {
         loginUser = new LoginUser();
         loginUser.setId(USER_ID);
-        loginUser.setAuthorities(List.of(new SimpleGrantedAuthority("ai:task"),
-                new SimpleGrantedAuthority("ai:confirm")));
         loginUser.setWorkspaceAuthorities(new ArrayList<>());
         loginUser.setActiveWorkspaceId(WORKSPACE_ID);
         loginUser.setActiveProjectId(PROJECT_ID);

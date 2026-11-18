@@ -12,9 +12,6 @@ import java.util.UUID;
 
 /**
  * 函数助手服务（基础设施详设 3.8）：内置函数目录、表达式试算、自定义函数 CRUD。
- *
- * <p>维护权限分级：project → api-func:edit、workspace → api-func:edit-space、
- * global → api-func:edit-global；浏览与试算需 api-func:view。</p>
  */
 public interface ApiFunctionService {
 

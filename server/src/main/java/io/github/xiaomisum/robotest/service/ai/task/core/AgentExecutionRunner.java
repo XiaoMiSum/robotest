@@ -2,8 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.task.core;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.framework.security.UserDetailsBridgeImpl;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskTool;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskToolMapper;
@@ -40,7 +38,7 @@ import java.util.stream.Collectors;
 
 /**
  * Agent 执行核（总册 4.2）：通用循环驱动——计划快照入轨迹、白名单内工具调用
- * （清单拒绝 → 参数校验 → 权限与作用域鉴权 → 执行 → 结果回喂）、预算闸门与心跳；
+ * （清单拒绝 → 参数校验 → 作用域鉴权 → 执行 → 结果回喂）、预算闸门与心跳；
  * 终态统一落提案 / 执行 / 任务三处并写轨迹。核内没有任何任务形态分支，
  * 形态差异全部收敛在 {@link TaskTypeAdapter}。
  *
@@ -66,8 +64,6 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
     private AiPromptService promptService;
     @Resource
     private AgentToolArgumentValidator argumentValidator;
-    @Resource
-    private UserDetailsBridgeImpl userDetailsBridge;
 
     /** 驱动 Agent 循环并返回提案与结果元数据；异步和终态统一由分派器负责。 */
     @Override
@@ -79,7 +75,6 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                 task.getId(), task.getSubmittedBy(), ctx.workspaceId(), ctx.projectId(), task.getInput(),
                 ctx.feedback()));
         int maxSteps = control.maxSteps(DEFAULT_MAX_STEPS);
-        List<String> permissions = loadPermissionCodes(task.getSubmittedBy());
         List<AgentToolDefinition> whitelist = signWhitelist(adapter);
         List<ToolDeclaration> declarations = whitelist.stream()
                 .map(d -> new ToolDeclaration(d.code(), d.description(), d.paramsSchema()))
@@ -113,7 +108,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                 control.beforeToolCall();
                 control.recordTrace(Constants.AiTraceEventType.TOOL_CALL,
                         "调用工具 " + call.name(), callTrail(call));
-                String result = dispatch(call, whitelist, toolContext, permissions);
+                String result = dispatch(call, whitelist, toolContext);
                 control.recordTrace(Constants.AiTraceEventType.TOOL_RESULT,
                         "工具结果 " + call.name(), Map.of("result",
                                 ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(result), RESULT_ABBREV)));
@@ -132,10 +127,10 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         return new ExecutionResult(drafts, resultMeta);
     }
 
-    // ---------- 工具分发（不信赖模型：清单外 / 参数非法 / 权限不足一律回喂，不中断循环） ----------
+    // ---------- 工具分发（不信赖模型：清单外 / 参数非法一律回喂，不中断循环） ----------
 
     private String dispatch(AiToolCall call, List<AgentToolDefinition> whitelist,
-            AgentToolContext toolContext, List<String> permissions) {
+            AgentToolContext toolContext) {
         AgentToolDefinition definition = whitelist.stream()
                 .filter(d -> d.code().equals(call.name()))
                 .findFirst()
@@ -152,9 +147,6 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         String invalid = argumentValidator.validate(definition.paramsSchema(), args);
         if (invalid != null) {
             return errorJson("工具参数非法: " + invalid);
-        }
-        if (definition.permissionCode() != null && !permissions.contains(definition.permissionCode())) {
-            return errorJson("权限不足: " + definition.permissionCode());
         }
         AgentTool tool = toolRegistry.get(definition.code());
         if (tool == null) {
@@ -191,12 +183,6 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                 .map(toolRegistry::definition)
                 .filter(Objects::nonNull)
                 .toList();
-    }
-
-    /** 执行期权限鉴权（总册 2.6.5 permission_code）：按发起人身份加载权限点，NULL 继承即免检 */
-    private List<String> loadPermissionCodes(UUID userId) {
-        var details = userDetailsBridge.loadByUserId(userId.toString());
-        return details instanceof LoginUser loginUser ? loginUser.getPermissionCodes() : List.of();
     }
 
     // ---------- 请求与轮次构造 ----------

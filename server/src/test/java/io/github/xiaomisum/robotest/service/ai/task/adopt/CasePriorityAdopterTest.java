@@ -129,7 +129,6 @@ class CasePriorityAdopterTest {
 
     private AdoptContext context(String action, Map<String, Object> edited, String priority, String suggested) {
         LoginUser loginUser = mock(LoginUser.class);
-        lenient().when(loginUser.getPermissions()).thenReturn(List.of("case:edit"));
         AiTask task = new AiTask();
         task.setType("case_priority");
 

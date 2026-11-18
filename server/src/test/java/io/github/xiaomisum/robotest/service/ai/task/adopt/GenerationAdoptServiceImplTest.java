@@ -41,7 +41,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -256,10 +255,7 @@ class GenerationAdoptServiceImplTest {
     }
 
     private static LoginUser editor() {
-        LoginUser user = mock(LoginUser.class);
-        // 权限不再由采纳侧校验，登录态仅作操作人归因（桩不再被消费，置 lenient）
-        lenient().when(user.getPermissions()).thenReturn(List.of("case:edit"));
-        return user;
+        return mock(LoginUser.class);
     }
 
     private AdoptContext context(Map<String, Object> artifact, String action, LoginUser user) {

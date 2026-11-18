@@ -11,7 +11,6 @@ import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
@@ -63,7 +62,6 @@ public class TestCaseNodeController {
     }
 
     @GetMapping("/cases/{caseId}/requirements")
-    @PreAuthorize("hasAuthority('case:view')")
     public Result<List<RequirementRefRespDTO>> getCaseRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID caseId) {
@@ -72,7 +70,6 @@ public class TestCaseNodeController {
     }
 
     @PutMapping("/cases/{caseId}/requirements")
-    @PreAuthorize("hasAuthority('case:edit')")
     public Result<List<RequirementRefRespDTO>> setCaseRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID caseId,

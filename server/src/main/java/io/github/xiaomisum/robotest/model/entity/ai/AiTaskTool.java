@@ -33,9 +33,6 @@ public class AiTaskTool extends BaseUuidDO<AiTaskTool> {
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> paramSchema;
 
-    /** 调用所需权限点（null = 继承发起人权限），执行期服务端鉴权 */
-    private String permissionCode;
-
     /** readonly / confirmation（详设 2.6.5） */
     private String sideEffect;
 

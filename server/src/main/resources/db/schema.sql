@@ -1185,7 +1185,6 @@ CREATE TABLE ai_task_tool (
     name            varchar(100) NOT NULL,
     task_types      jsonb NOT NULL,
     param_schema    jsonb NOT NULL,
-    permission_code varchar(50) NULL,
     side_effect     varchar(20) NOT NULL DEFAULT 'readonly',
     enabled         boolean NOT NULL DEFAULT TRUE,
     created_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1195,19 +1194,19 @@ CREATE TABLE ai_task_tool (
 CREATE UNIQUE INDEX uk_ai_task_tool ON ai_task_tool (tool_code) WHERE is_deleted = FALSE;
 
 -- S4 普通任务只读工具种子：代码注册、种子与 TypeAdapter 白名单同源（9/9 类型覆盖）。
-INSERT INTO ai_task_tool (id, tool_code, name, task_types, param_schema, permission_code, side_effect) VALUES
-('a1000000-0000-0000-0000-000000000001', 'read_import_source', '读取导入来源', '["requirement_import"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000002', 'query_project_modules', '查询项目模块', '["requirement_import","test_design_generation","bug_classify"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000003', 'query_requirements', '查询需求', '["test_design_generation","case_complete"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000004', 'search_project_knowledge', '检索项目知识', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000005', 'query_test_assets', '查询测试资产', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000007', 'query_case_context', '查询用例上下文', '["case_complete","case_priority"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000008', 'query_bug_hotspots', '查询缺陷热点', '["case_priority"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000009', 'query_plan_order_context', '查询计划顺序上下文', '["plan_order"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000010', 'query_bugs', '查询缺陷', '["bug_classify","bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000011', 'search_similar_bugs', '检索相似缺陷', '["bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000012', 'query_triage_bugs', '查询分诊缺陷', '["bug_triage"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly'),
-('a1000000-0000-0000-0000-000000000013', 'query_bug_analysis_snapshot', '查询缺陷分析快照', '["bug_trend_summary"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', NULL, 'readonly');
+INSERT INTO ai_task_tool (id, tool_code, name, task_types, param_schema, side_effect) VALUES
+('a1000000-0000-0000-0000-000000000001', 'read_import_source', '读取导入来源', '["requirement_import"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000002', 'query_project_modules', '查询项目模块', '["requirement_import","test_design_generation","bug_classify"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000003', 'query_requirements', '查询需求', '["test_design_generation","case_complete"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000004', 'search_project_knowledge', '检索项目知识', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000005', 'query_test_assets', '查询测试资产', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000007', 'query_case_context', '查询用例上下文', '["case_complete","case_priority"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000008', 'query_bug_hotspots', '查询缺陷热点', '["case_priority"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000009', 'query_plan_order_context', '查询计划顺序上下文', '["plan_order"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000010', 'query_bugs', '查询缺陷', '["bug_classify","bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000011', 'search_similar_bugs', '检索相似缺陷', '["bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000012', 'query_triage_bugs', '查询分诊缺陷', '["bug_triage"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000013', 'query_bug_analysis_snapshot', '查询缺陷分析快照', '["bug_trend_summary"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly');
 
 CREATE TABLE ai_task_adoption (
     id           uuid PRIMARY KEY,
@@ -1335,7 +1334,7 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('a0000000-0000-0000-0000-000000000022', 'audit:view', '查看审计日志', 'audit', '审计日志', '系统管理', 'global', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.3 权限点（业务模块 — 工作空间/项目/测试用例/评审/计划/缺陷）
+-- 18.3 权限点（业务模块 — 工作空间/项目）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('c0000000-0000-0000-0000-000000000001', 'ws-info',            '空间信息',     NULL,           '我的空间', '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1349,96 +1348,10 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('c0000000-0000-0000-0000-000000000009', 'ws-invitation:manage','管理邀请链接', 'ws-invitation','我的空间', '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000010', 'project',            '项目列表',     NULL,           '项目',    '我的空间', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 ('c0000000-0000-0000-0000-000000000011', 'project:view',       '查看项目',     'project',      '项目',    '我的空间', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000012', 'project:create',     '创建项目',     'project',      '项目',    '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000017', 'case',               '测试用例',     NULL,           '测试用例', '功能测试', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000018', 'case:view',          '查看用例',     'case',         '测试用例', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000019', 'case:edit',          '编辑用例',     'case',         '测试用例', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000020', 'review',             '测试评审',     NULL,           '测试评审', '功能测试', 'workspace', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000021', 'review:view',        '查看评审',     'review',       '测试评审', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000022', 'review:create',      '发起评审',     'review',       '测试评审', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000023', 'review:edit',        '评审操作',     'review',       '测试评审', '功能测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000024', 'review:complete',    '完成评审',     'review',       '测试评审', '功能测试', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000025', 'plan',               '测试计划',     NULL,           '测试计划', '功能测试', 'workspace', 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000026', 'plan:view',          '查看计划',     'plan',         '测试计划', '功能测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000027', 'plan:create',        '创建计划',     'plan',         '测试计划', '功能测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000028', 'plan:execute',       '执行计划',     'plan',         '测试计划', '功能测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000029', 'plan:close',         '关闭计划',     'plan',         '测试计划', '功能测试', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000032', 'plan:block',         '阻塞与恢复计划', 'plan',        '测试计划', '功能测试', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000030', 'bug',                '缺陷',        NULL,           '缺陷',    '缺陷管理', 'workspace', 18, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000031', 'bug:view',           '查看缺陷',     'bug',          '缺陷',    '缺陷管理', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
+('c0000000-0000-0000-0000-000000000012', 'project:create',     '创建项目',     'project',      '项目',    '我的空间', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.4 权限点（需求管理）
--- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('c0000000-0000-0000-0000-000000000034', 'requirement',         '需求管理',     NULL,          '需求管理', '需求管理', 'workspace', 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000035', 'requirement:view',    '查看需求',     'requirement', '需求管理', '需求管理', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000074', 'requirement:create',  '新建与导入需求', 'requirement', '需求管理', '需求管理', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000036', 'requirement:edit',    '编辑需求',     'requirement', '需求管理', '需求管理', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000075', 'requirement:confirm', '确认与归档需求', 'requirement', '需求管理', '需求管理', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
-
--- ------------------------------------------------------------
--- 18.5 权限点（接口测试模块）
--- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
--- 测试场景
-('c0000000-0000-0000-0000-000000000040', 'api-scene',          '测试场景',        NULL,            '接口测试·测试场景',  '接口测试', 'workspace', 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000041', 'api-scene:view',     '查看场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000042', 'api-scene:edit',     '编辑场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000043', 'api-scene:import',   '导入场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000045', 'api-scene:execute',  '执行场景',        'api-scene',     '接口测试·测试场景',  '接口测试', 'workspace', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- 接口管理
-('c0000000-0000-0000-0000-000000000046', 'api-interface',         '接口管理',    NULL,            '接口测试·接口管理',  '接口测试', 'workspace', 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000047', 'api-interface:view',    '查看接口',    'api-interface',  '接口测试·接口管理',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000048', 'api-interface:edit',    '编辑接口',    'api-interface',  '接口测试·接口管理',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000049', 'api-interface:delete', '删除接口',    'api-interface',  '接口测试·接口管理',  '接口测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- 公共组件
-('c0000000-0000-0000-0000-000000000050', 'api-component',         '公共组件',    NULL,            '接口测试·公共组件',  '接口测试', 'workspace', 17, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000051', 'api-component:view',    '查看组件',    'api-component',  '接口测试·公共组件',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000052', 'api-component:edit',    '编辑组件',    'api-component',  '接口测试·公共组件',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000070', 'api-component:edit-space', '编辑空间级组件', 'api-component', '接口测试·公共组件', '接口测试', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000071', 'api-component:edit-global', '编辑全局组件', 'api-component', '接口测试·公共组件', '接口测试', 'workspace', 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- 快速调试
-('c0000000-0000-0000-0000-000000000053', 'api-debug',         '快速调试',    NULL,            '接口测试·快速调试',  '接口测试', 'workspace', 9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000054', 'api-debug:view',    '查看调试记录', 'api-debug',     '接口测试·快速调试',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- 定时任务
-('c0000000-0000-0000-0000-000000000055', 'api-timer',         '定时任务',    NULL,            '接口测试·定时任务',  '接口测试', 'workspace', 14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000056', 'api-timer:view',    '查看定时任务', 'api-timer',     '接口测试·定时任务',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000057', 'api-timer:edit',    '编辑定时任务', 'api-timer',     '接口测试·定时任务',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- Mock 服务
-('c0000000-0000-0000-0000-000000000058', 'api-mock',          'Mock 服务',    NULL,            '接口测试·Mock服务',  '接口测试', 'workspace', 11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000059', 'api-mock:view',     '查看 Mock',    'api-mock',      '接口测试·Mock服务',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000060', 'api-mock:edit',     '编辑 Mock',    'api-mock',      '接口测试·Mock服务',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- 测试报告
-('c0000000-0000-0000-0000-000000000061', 'api-report',        '测试报告',    NULL,            '接口测试·测试报告',  '接口测试', 'workspace', 13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000062', 'api-report:view',   '查看报告',    'api-report',    '接口测试·测试报告',  '接口测试', 'workspace', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000063', 'api-report:delete', '删除报告',    'api-report',    '接口测试·测试报告',  '接口测试', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
-
--- ------------------------------------------------------------
--- 18.5.1 权限点（接口测试·环境管理 / 函数管理，项目设置分组）
--- ------------------------------------------------------------
-INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('c0000000-0000-0000-0000-000000000064', 'api-env',            '环境管理',       NULL,          '接口测试·环境管理', '接口测试', 'workspace', 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000065', 'api-env:view',       '查看环境',       'api-env',     '接口测试·环境管理', '接口测试', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000066', 'api-env:edit',       '编辑环境',       'api-env',     '接口测试·环境管理', '接口测试', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000067', 'api-func',           '函数管理',       NULL,          '接口测试·函数管理', '接口测试', 'workspace', 16, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000068', 'api-func:view',      '查看函数',       'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 1,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000069', 'api-func:edit',      '编辑函数',       'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 2,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000072', 'api-func:edit-space', '编辑空间级函数', 'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 3,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000073', 'api-func:edit-global', '编辑全局函数', 'api-func',    '接口测试·函数管理', '接口测试', 'workspace', 4,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
-
--- ------------------------------------------------------------
--- 18.6 权限点（AI 能力）
--- ------------------------------------------------------------
-
-INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
-('a0000000-0000-0000-0000-000000000023', 'ai:admin',   'AI 配置与用量管理',  'ai', 'AI 能力', 'AI 能力', 'global',    1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000079', 'ai',         'AI 能力',           NULL, 'AI 能力', 'AI 能力', 'workspace', 20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000080', 'ai:task',    '发起与管理 AI 任务', 'ai',  'AI 能力', 'AI 能力', 'workspace', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-('c0000000-0000-0000-0000-000000000081', 'ai:confirm', 'AI 产物确认',        'ai',  'AI 能力', 'AI 能力', 'workspace', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
-
--- ------------------------------------------------------------
--- 18.7 权限点（文件管理）
+-- 18.4 权限点（文件管理）
 -- ------------------------------------------------------------
 INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, scope, sort_order, created_at, updated_at, is_deleted) VALUES
 ('a0000000-0000-0000-0000-000000000031', 'file',        '文件管理',   NULL,   '文件管理', '系统管理', 'global', 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
@@ -1446,28 +1359,28 @@ INSERT INTO sys_permission (id, code, name, parent_code, module, top_module, sco
 ('a0000000-0000-0000-0000-000000000033', 'file:delete', '删除文件',   'file', '文件管理', '系统管理', 'global', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ------------------------------------------------------------
--- 18.8 预置角色（含全部版本权限合并）
+-- 18.5 预置角色（含全部版本权限合并）
 -- ------------------------------------------------------------
 INSERT INTO sys_role (id, name, description, type, is_system, permissions, created_at, updated_at, is_deleted) VALUES
 -- 系统管理员：拥有系统管理所有权限
 ('b0000000-0000-0000-0000-000000000001', '系统管理员',
  '拥有系统管理所有权限', 'system', TRUE,
- '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete","ai","ai:admin","file","file:view","file:delete"]',
+ '["user","user:view","user:create","user:edit","user:disable","user:reset-password","workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","role","role:view","role:create","role:edit","role:delete","file","file:view","file:delete"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- 空间管理系统角色：拥有工作空间管理所有权限（跨空间管理）
 ('b0000000-0000-0000-0000-000000000002', '空间管理员',
  '拥有工作空间管理所有权限，可创建/删除/管理所有工作空间', 'system', TRUE,
  '["workspace","workspace:view","workspace:create","workspace:edit","workspace:delete","workspace:manage-members","ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
--- workspace 管理员：空间内全部业务权限（显式授权全部空间权限码）
+-- workspace 管理员：空间内全部管理权限（显式授权空间与项目权限码）
 ('c0000000-0000-0000-0000-000000000001', '管理员',
- '空间管理员 — 拥有工作空间内全部业务权限', 'workspace', TRUE,
- '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","project:create","case","case:view","case:edit","review","review:view","review:create","review:edit","review:complete","plan","plan:view","plan:create","plan:execute","plan:close","plan:block","bug","bug:view","requirement","requirement:view","requirement:create","requirement:edit","requirement:confirm","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-interface:delete","api-component","api-component:view","api-component:edit","api-component:edit-space","api-component:edit-global","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-func:edit-space","api-func:edit-global","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","api-report:delete","ai","ai:task","ai:confirm"]',
+ '空间管理员 — 拥有工作空间与项目管理权限', 'workspace', TRUE,
+ '["ws-info","ws-info:view","ws-info:edit","ws-member","ws-member:view","ws-member:manage","ws-invitation","ws-invitation:view","ws-invitation:manage","project","project:view","project:create"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
 -- workspace 普通成员：默认角色
 ('c0000000-0000-0000-0000-000000000002', '成员',
- '空间成员 — 除删除/归档项目、管理成员、编辑空间信息外的其他权限', 'workspace', TRUE,
- '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","project:create","case:view","case:edit","review:view","review:create","review:edit","review:complete","plan:view","plan:create","plan:execute","plan:close","plan:block","bug:view","requirement:view","requirement:create","requirement:edit","requirement:confirm","api-scene","api-scene:view","api-scene:edit","api-scene:import","api-scene:execute","api-interface","api-interface:view","api-interface:edit","api-component","api-component:view","api-component:edit","api-env","api-env:view","api-env:edit","api-func","api-func:view","api-func:edit","api-debug","api-debug:view","api-timer","api-timer:view","api-timer:edit","api-mock","api-mock:view","api-mock:edit","api-report","api-report:view","ai","ai:task","ai:confirm"]',
+ '空间成员 — 拥有空间信息查看、邀请管理与项目查看/创建权限', 'workspace', TRUE,
+ '["ws-info:view","ws-member:view","ws-invitation:view","ws-invitation:manage","project:view","project:create"]',
  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE);
 
 -- ============================================================
@@ -1505,7 +1418,7 @@ COMMENT ON COLUMN sys_permission.code IS '权限点代码，如 user:view';
 COMMENT ON COLUMN sys_permission.name IS '权限点显示名称';
 COMMENT ON COLUMN sys_permission.parent_code IS '父级权限点代码，NULL=根节点';
 COMMENT ON COLUMN sys_permission.module IS '所属模块';
-COMMENT ON COLUMN sys_permission.top_module IS '所属一级模块：系统管理/我的空间/功能测试/接口测试/缺陷管理';
+COMMENT ON COLUMN sys_permission.top_module IS '所属一级模块：系统管理/我的空间';
 COMMENT ON COLUMN sys_permission.scope IS '作用域：global=全局, workspace=空间级';
 COMMENT ON COLUMN sys_permission.sort_order IS '同级排序序号';
 
@@ -2125,7 +2038,6 @@ COMMENT ON COLUMN ai_task_tool.tool_code IS '工具标识（代码注册，随�
 COMMENT ON COLUMN ai_task_tool.name IS '工具名称（轨迹与确认闸门展示用）';
 COMMENT ON COLUMN ai_task_tool.task_types IS '适用任务类型数组（白名单签发依据；["*"] 表示全部类型）';
 COMMENT ON COLUMN ai_task_tool.param_schema IS '参数结构声明（执行前按此校验）';
-COMMENT ON COLUMN ai_task_tool.permission_code IS '调用所需权限点（NULL = 继承发起人权限），执行期服务端鉴权';
 COMMENT ON COLUMN ai_task_tool.side_effect IS '副作用级别：readonly/confirmation；写库与出网副作用禁止注册';
 COMMENT ON COLUMN ai_task_tool.enabled IS '停用后不出现在任何白名单';
 

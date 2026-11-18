@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseDocumentServ
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,7 +24,6 @@ public class TestCaseDocumentController {
     private TestCaseDocumentService testCaseDocumentService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('case:view')")
     public Result<List<TestCaseDocumentRespDTO>> getTestCaseList(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(required = false) UUID moduleId) {
@@ -33,7 +31,6 @@ public class TestCaseDocumentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('case:edit')")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<TestCaseDocumentRespDTO> createTestCase(
             @AuthenticationPrincipal LoginUser loginUser,
@@ -42,7 +39,6 @@ public class TestCaseDocumentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('case:edit')")
     public Result<TestCaseDocumentRespDTO> updateTestCase(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -51,7 +47,6 @@ public class TestCaseDocumentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('case:edit')")
     public Result<Void> deleteTestCase(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {

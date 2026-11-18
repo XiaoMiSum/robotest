@@ -15,7 +15,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneQuickCrea
 import io.github.xiaomisum.robotest.service.apitest.ApiSceneService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,7 +40,6 @@ public class ApiSceneController {
     private ApiSceneService sceneService;
 
     @GetMapping("/api/project/api-scenes")
-    @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<PageResult<ApiScenePageItemRespDTO>> fetchPage(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid PageParam pageParam,
@@ -55,7 +53,6 @@ public class ApiSceneController {
     }
 
     @GetMapping("/api/project/api-scenes/{id}")
-    @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<ApiSceneDetailRespDTO> getDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -63,7 +60,6 @@ public class ApiSceneController {
     }
 
     @PostMapping("/api/project/api-scenes")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Map<String, String>> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiSceneCreateReqDTO reqDTO) {
@@ -72,7 +68,6 @@ public class ApiSceneController {
     }
 
     @PutMapping("/api/project/api-scenes/{id}")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -82,7 +77,6 @@ public class ApiSceneController {
     }
 
     @DeleteMapping("/api/project/api-scenes/{id}")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -93,7 +87,6 @@ public class ApiSceneController {
     // ========== 步骤 ==========
 
     @PostMapping("/api/project/api-scenes/{id}/steps")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Map<String, String>> createStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -103,7 +96,6 @@ public class ApiSceneController {
     }
 
     @PostMapping("/api/project/api-scenes/{id}/steps/quick-create")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<ApiSceneQuickCreateRespDTO> quickCreateSteps(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -113,7 +105,6 @@ public class ApiSceneController {
     }
 
     @PutMapping("/api/project/api-scenes/{id}/steps/reorder")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> reorderSteps(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -123,7 +114,6 @@ public class ApiSceneController {
     }
 
     @PutMapping("/api/project/api-scenes/{id}/steps/{stepId}")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> updateStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -134,7 +124,6 @@ public class ApiSceneController {
     }
 
     @DeleteMapping("/api/project/api-scenes/{id}/steps/{stepId}")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> deleteStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -146,7 +135,6 @@ public class ApiSceneController {
     // ========== 步骤级变量 ==========
 
     @GetMapping("/api/project/api-scenes/{id}/steps/{stepId}/variables")
-    @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<List<Map<String, Object>>> listStepVariables(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -156,7 +144,6 @@ public class ApiSceneController {
     }
 
     @PutMapping("/api/project/api-scenes/{id}/steps/{stepId}/variables")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> updateStepVariables(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -169,7 +156,6 @@ public class ApiSceneController {
     // ========== 关注 ==========
 
     @PostMapping("/api/project/api-scenes/{id}/follow")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> follow(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -178,7 +164,6 @@ public class ApiSceneController {
     }
 
     @DeleteMapping("/api/project/api-scenes/{id}/follow")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> unfollow(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -189,7 +174,6 @@ public class ApiSceneController {
     // ========== 批量操作 ==========
 
     @DeleteMapping("/api/project/api-scenes/batch")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiSceneBatchDeleteReqDTO reqDTO) {
@@ -198,7 +182,6 @@ public class ApiSceneController {
     }
 
     @PutMapping("/api/project/api-scenes/batch/move")
-    @PreAuthorize("hasAuthority('api-scene:edit')")
     public Result<Boolean> batchMove(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiSceneBatchMoveReqDTO reqDTO) {

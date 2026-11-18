@@ -60,8 +60,8 @@ class DocumentHandlerTest {
         attributes.put("docId", DOC_ID);
         when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
         when(session.isOpen()).thenReturn(true);
-        // 载荷为 sync step2（可写帧），编辑者持有 case:edit 才允许转发
-        when(projectAccessGuard.hasDocumentEditPermission(UUID.fromString(DOC_ID), USER_ID)).thenReturn(true);
+        // 载荷为 sync step2（可写帧），文档成员才允许转发
+        when(projectAccessGuard.isDocumentMember(UUID.fromString(DOC_ID), USER_ID)).thenReturn(true);
 
         byte[] payload = {0x00, 0x01, 0x02};
         handler.handleBinaryMessage(session, new BinaryMessage(payload));
@@ -109,9 +109,9 @@ class DocumentHandlerTest {
         attributes.put("docId", DOC_ID);
         when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
         when(session.isOpen()).thenReturn(true);
-        when(projectAccessGuard.hasDocumentEditPermission(UUID.fromString(DOC_ID), USER_ID)).thenReturn(false);
+        when(projectAccessGuard.isDocumentMember(UUID.fromString(DOC_ID), USER_ID)).thenReturn(false);
 
-        // sync step2（携带文档增量）无 case:edit：不广播，仅向发送者回错误帧
+        // sync step2（携带文档增量）非文档成员：不广播，仅向发送者回错误帧
         byte[] payload = {0x00, 0x01, 0x00};
         handler.handleBinaryMessage(session, new BinaryMessage(payload));
 
@@ -129,7 +129,7 @@ class DocumentHandlerTest {
         attributes.put("docId", DOC_ID);
         when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
         when(session.isOpen()).thenReturn(true);
-        when(projectAccessGuard.hasDocumentEditPermission(UUID.fromString(DOC_ID), USER_ID)).thenReturn(false);
+        when(projectAccessGuard.isDocumentMember(UUID.fromString(DOC_ID), USER_ID)).thenReturn(false);
 
         // 未知消息类型无法证明无副作用，只读成员一律拒绝（fail-closed）
         handler.handleBinaryMessage(session, new BinaryMessage(new byte[]{0x07, 0x00}));
@@ -205,7 +205,7 @@ class DocumentHandlerTest {
     void handleTextMessage_writeTypeWithPermission_broadcastAndPersist() throws Exception {
         attributes.put("docId", DOC_ID);
         when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
-        when(projectAccessGuard.hasDocumentEditPermission(UUID.fromString(DOC_ID), USER_ID)).thenReturn(true);
+        when(projectAccessGuard.isDocumentMember(UUID.fromString(DOC_ID), USER_ID)).thenReturn(true);
 
         String payload = "{\"type\":\"add_node\",\"payload\":{\"data\":{}}}";
         handler.handleTextMessage(session, new TextMessage(payload));
@@ -218,9 +218,9 @@ class DocumentHandlerTest {
     void handleTextMessage_writeTypeWithoutPermission_skipsBroadcastAndPersist() throws Exception {
         attributes.put("docId", DOC_ID);
         when(sessionManager.getUserId(SESSION_ID)).thenReturn(USER_ID);
-        when(projectAccessGuard.hasDocumentEditPermission(UUID.fromString(DOC_ID), USER_ID)).thenReturn(false);
+        when(projectAccessGuard.isDocumentMember(UUID.fromString(DOC_ID), USER_ID)).thenReturn(false);
 
-        // 可写文本帧无 case:edit：不广播、不持久化，仅向发送者回错误帧（78 号 6.1）
+        // 可写文本帧非文档成员：不广播、不持久化，仅向发送者回错误帧（78 号 6.1）
         String payload = "{\"type\":\"add_node\",\"payload\":{\"data\":{}}}";
         handler.handleTextMessage(session, new TextMessage(payload));
 

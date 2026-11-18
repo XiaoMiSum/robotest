@@ -26,8 +26,8 @@ import java.util.UUID;
  * <ul>
  *   <li>从连接 URI 路径中提取文档 ID，加入对应房间</li>
  *   <li>二进制帧（y-websocket 的 Yjs sync/awareness 协议）：按帧头区分只读/可写，
- *       可写帧（sync step2/update）广播前校验 case:edit，只读帧（step1 拉取、awareness）直接转发</li>
- *   <li>文本帧（JSON 操作协议）：可写类型广播与持久化前校验 case:edit，
+ *       可写帧（sync step2/update）广播前校验文档成员身份，只读帧（step1 拉取、awareness）直接转发</li>
+ *   <li>文本帧（JSON 操作协议）：可写类型广播与持久化前校验文档成员身份，
  *       其余广播给同房间其他用户并委托 {@link DocumentPersistenceHandler} 持久化</li>
  * </ul>
  */
@@ -99,7 +99,7 @@ public class DocumentHandler extends MiGooWebSocketHandler {
 
     /**
      * y-websocket 客户端全部走二进制帧，服务端不解码 Yjs 内容体，仅按帧头区分只读/可写：
-     * 可写帧（sync step2/update 携带文档增量、未知类型）广播前校验 case:edit，
+     * 可写帧（sync step2/update 携带文档增量、未知类型）广播前校验文档成员身份，
      * 只读帧（sync step1 拉取请求、awareness 在线状态）不修改文档、直接转发（78 号 4.2/6.1）。
      */
     @Override
@@ -112,7 +112,7 @@ public class DocumentHandler extends MiGooWebSocketHandler {
 
         String userId = getUserId(session);
         byte[] payload = message.getPayload().array();
-        if (!isReadOnlyFrame(payload) && !hasEditPermission(docId, userId)) {
+        if (!isReadOnlyFrame(payload) && !isDocumentMember(docId, userId)) {
             log.warn("[handleBinaryMessage][用户({}) 对文档({}) 无可写帧权限，丢弃]", userId, docId);
             persistenceHandler.sendPermissionDenied(session);
         } else if (userId != null) {
@@ -136,7 +136,7 @@ public class DocumentHandler extends MiGooWebSocketHandler {
 
         String userId = getUserId(session);
         String payload = message.getPayload();
-        if (isWriteTextFrame(payload) && !hasEditPermission(docId, userId)) {
+        if (isWriteTextFrame(payload) && !isDocumentMember(docId, userId)) {
             log.warn("[handleTextMessage][用户({}) 对文档({}) 无可写帧权限，拒绝广播与持久化]", userId, docId);
             persistenceHandler.sendPermissionDenied(session);
             return;
@@ -183,9 +183,9 @@ public class DocumentHandler extends MiGooWebSocketHandler {
         }
     }
 
-    private boolean hasEditPermission(String docId, String userId) {
+    private boolean isDocumentMember(String docId, String userId) {
         try {
-            return projectAccessGuard.hasDocumentEditPermission(UUID.fromString(docId), userId);
+            return projectAccessGuard.isDocumentMember(UUID.fromString(docId), userId);
         } catch (IllegalArgumentException e) {
             return false;
         }

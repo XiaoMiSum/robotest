@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,19 +33,16 @@ public class AiPromptController {
     private AiPromptAdminService promptAdminService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<List<AiPromptListItemRespDTO>> list() {
         return Result.ok(promptAdminService.list());
     }
 
     @GetMapping("/{scene}")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiPromptDetailRespDTO> getDetail(@PathVariable String scene) {
         return Result.ok(promptAdminService.get(scene));
     }
 
     @PutMapping("/{scene}")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiPromptDetailRespDTO> save(@AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String scene, @RequestBody @Valid AiPromptSaveReqDTO reqDTO,
             HttpServletRequest request) {
@@ -54,7 +50,6 @@ public class AiPromptController {
     }
 
     @PostMapping("/{scene}/reset")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiPromptDetailRespDTO> reset(@AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String scene, HttpServletRequest request) {
         return Result.ok(promptAdminService.reset(scene, loginUser, request));

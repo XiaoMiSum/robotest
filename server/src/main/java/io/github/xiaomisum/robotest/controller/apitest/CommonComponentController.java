@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentLi
 import io.github.xiaomisum.robotest.service.apitest.CommonComponentService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,21 +27,15 @@ import java.util.UUID;
 
 /**
  * 公共组件（基础设施详设 3.5）：全局/空间/项目三级作用域组件管理。
- *
- * <p>写端点放行三种维护码任一，记录实际作用域的精确校验在 Service 内完成。</p>
  */
 @RestController
 @RequestMapping("/api/project/components")
 public class CommonComponentController {
 
-    private static final String WRITE_AUTHORITY =
-            "hasAnyAuthority('api-component:edit', 'api-component:edit-space', 'api-component:edit-global')";
-
     @Resource
     private CommonComponentService commonComponentService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('api-component:view')")
     public Result<PageResult<CommonComponentListItemRespDTO>> list(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid PageParam pageParam,
@@ -55,7 +48,6 @@ public class CommonComponentController {
     }
 
     @PostMapping
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<CommonComponentIdRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid CommonComponentSaveReqDTO reqDTO) {
@@ -63,7 +55,6 @@ public class CommonComponentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -73,7 +64,6 @@ public class CommonComponentController {
     }
 
     @PatchMapping("/{id}/toggle")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> toggle(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -83,7 +73,6 @@ public class CommonComponentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -92,7 +81,6 @@ public class CommonComponentController {
     }
 
     @PatchMapping("/batch/toggle")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> batchToggle(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid CommonComponentBatchReqDTO reqDTO,
@@ -102,7 +90,6 @@ public class CommonComponentController {
     }
 
     @DeleteMapping("/batch")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid CommonComponentBatchReqDTO reqDTO) {

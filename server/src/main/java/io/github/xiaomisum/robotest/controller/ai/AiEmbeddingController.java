@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,20 +30,17 @@ public class AiEmbeddingController {
     private AiEmbeddingAdminService embeddingAdminService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiEmbeddingRespDTO> get() {
         return Result.ok(embeddingAdminService.get());
     }
 
     @PutMapping
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiEmbeddingRespDTO> save(@AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid AiEmbeddingSaveReqDTO reqDTO, HttpServletRequest request) {
         return Result.ok(embeddingAdminService.save(reqDTO, loginUser, request));
     }
 
     @PostMapping("/test")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiEmbeddingTestRespDTO> test(@AuthenticationPrincipal LoginUser loginUser,
             HttpServletRequest request) {
         return Result.ok(embeddingAdminService.test(loginUser, request));

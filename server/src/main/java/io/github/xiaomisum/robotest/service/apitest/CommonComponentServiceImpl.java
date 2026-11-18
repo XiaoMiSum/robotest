@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 
 import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.CommonComponentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentIdRespDTO;
@@ -10,8 +9,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentLi
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
 import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -38,7 +35,6 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         validateType(reqDTO.getType());
         String scope = normalizeScope(reqDTO.getScope());
-        requireScopeEditPermission(scope);
         assertNameFree(scope, workspaceId, projectId, reqDTO.getType(), reqDTO.getName(), null);
 
         CommonComponent entity = new CommonComponent();
@@ -68,12 +64,6 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         // scope 为 null 表示不变更，使用现有 scope
         String newScope = reqDTO.getScope() != null ? reqDTO.getScope() : existing.getScope();
         boolean scopeChanged = !existing.getScope().equals(newScope);
-        if (scopeChanged) {
-            requireScopeEditPermission(newScope);
-        } else {
-            requireScopeEditPermission(existing.getScope());
-        }
-
         assertNameFree(newScope, workspaceId, projectId, existing.getType(), reqDTO.getName(), id);
 
         CommonComponent update = new CommonComponent();
@@ -100,7 +90,6 @@ public class CommonComponentServiceImpl implements CommonComponentService {
     public void toggle(UUID workspaceId, UUID projectId, UUID userId, UUID id, boolean enabled) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         CommonComponent existing = requireVisible(workspaceId, projectId, id);
-        requireScopeEditPermission(existing.getScope());
 
         CommonComponent update = new CommonComponent();
         update.setId(id);
@@ -115,7 +104,6 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         for (UUID id : ids) {
             CommonComponent existing = requireVisible(workspaceId, projectId, id);
-            requireScopeEditPermission(existing.getScope());
             CommonComponent update = new CommonComponent();
             update.setId(id);
             update.setEnabled(enabled);
@@ -129,7 +117,6 @@ public class CommonComponentServiceImpl implements CommonComponentService {
     public void delete(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         CommonComponent existing = requireVisible(workspaceId, projectId, id);
-        requireScopeEditPermission(existing.getScope());
         componentMapper.deleteById(id);
     }
 
@@ -139,7 +126,6 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         for (UUID id : ids) {
             CommonComponent existing = requireVisible(workspaceId, projectId, id);
-            requireScopeEditPermission(existing.getScope());
             componentMapper.deleteById(id);
         }
     }
@@ -171,27 +157,10 @@ public class CommonComponentServiceImpl implements CommonComponentService {
         return scope == null || scope.isBlank() ? "project" : scope;
     }
 
-    private static void requireScopeEditPermission(String scope) {
-        String required = switch (scope) {
-            case "workspace" -> "api-component:edit-space";
-            case "global" -> "api-component:edit-global";
-            default -> "api-component:edit";
-        };
-        LoginUser loginUser = currentUser();
-        if (loginUser == null || !loginUser.getPermissions().contains(required)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
-    }
-
     private void assertNameFree(String scope, UUID workspaceId, UUID projectId, String type, String name, UUID excludeId) {
         if (componentMapper.existsByScopeAndTypeAndName(scope, workspaceId, projectId, type, name, excludeId)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_COMMON_COMPONENT_NAME_EXISTS, name);
         }
-    }
-
-    static LoginUser currentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null && auth.getPrincipal() instanceof LoginUser loginUser ? loginUser : null;
     }
 
     private CommonComponentListItemRespDTO toListItem(CommonComponent entity) {

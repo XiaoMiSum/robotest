@@ -16,7 +16,6 @@ import io.github.xiaomisum.robotest.service.apitest.ApiInterfaceImportService;
 import io.github.xiaomisum.robotest.service.apitest.ApiInterfaceService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,7 +47,6 @@ public class ApiInterfaceController {
     // ==================== 3.1 接口定义 ====================
 
     @GetMapping("/api/project/interfaces")
-    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<PageResult<ApiInterfaceItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid PageParam pageParam,
@@ -61,7 +59,6 @@ public class ApiInterfaceController {
     }
 
     @GetMapping("/api/project/interfaces/{id}")
-    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<ApiInterfaceDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -69,7 +66,6 @@ public class ApiInterfaceController {
     }
 
     @PostMapping("/api/project/interfaces")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Map<String, UUID>> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiInterfaceCreateReqDTO reqDTO) {
@@ -78,7 +74,6 @@ public class ApiInterfaceController {
     }
 
     @PutMapping("/api/project/interfaces/{id}")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -88,7 +83,6 @@ public class ApiInterfaceController {
     }
 
     @DeleteMapping("/api/project/interfaces/{id}")
-    @PreAuthorize("hasAuthority('api-interface:delete')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -97,7 +91,6 @@ public class ApiInterfaceController {
     }
 
     @PutMapping("/api/project/interfaces/batch/move")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> batchMove(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiInterfaceBatchMoveReqDTO reqDTO) {
@@ -106,7 +99,6 @@ public class ApiInterfaceController {
     }
 
     @DeleteMapping("/api/project/interfaces/batch")
-    @PreAuthorize("hasAuthority('api-interface:delete')")
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiInterfaceBatchDeleteReqDTO reqDTO) {
@@ -115,7 +107,6 @@ public class ApiInterfaceController {
     }
 
     @PutMapping("/api/project/interfaces/{id}/status")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> updateStatus(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -125,7 +116,6 @@ public class ApiInterfaceController {
     }
 
     @PostMapping("/api/project/interfaces/{id}/follow")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> follow(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -134,7 +124,6 @@ public class ApiInterfaceController {
     }
 
     @DeleteMapping("/api/project/interfaces/{id}/follow")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<Boolean> unfollow(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -143,7 +132,6 @@ public class ApiInterfaceController {
     }
 
     @GetMapping("/api/project/interfaces/{id}/change-logs")
-    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<PageResult<ApiInterfaceChangeLogRespDTO>> changeLogs(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -154,7 +142,6 @@ public class ApiInterfaceController {
     // ==================== 3.4 导入 ====================
 
     @PostMapping("/api/project/interfaces/import/parsed")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<ApiImportResultRespDTO> importParsed(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiParsedImportReqDTO reqDTO) {
@@ -162,7 +149,6 @@ public class ApiInterfaceController {
     }
 
     @PostMapping("/api/project/interfaces/import/url")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<ApiImportResultRespDTO> importUrl(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody Map<String, String> body) {
@@ -171,7 +157,6 @@ public class ApiInterfaceController {
     }
 
     @PostMapping("/api/project/interfaces/import/preview")
-    @PreAuthorize("hasAuthority('api-interface:view')")
     public Result<ApiImportPreviewRespDTO> preview(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody Map<String, String> body) {

@@ -1,13 +1,11 @@
 package io.github.xiaomisum.robotest.service.apitest;
 
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.CommonComponentSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentIdRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.apitest.CommonComponentListItemRespDTO;
 import io.github.xiaomisum.robotest.model.entity.apitest.CommonComponent;
 import io.github.xiaomisum.robotest.repository.apitest.CommonComponentMapper;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import org.junit.jupiter.api.Test;
@@ -16,16 +14,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,18 +52,12 @@ class CommonComponentServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        setPermissions("api-component:edit");
         // 单测环境无 MyBatis ID 自动填充，模拟插入回填主键
         lenient().when(componentMapper.insert(any(CommonComponent.class))).thenAnswer(inv -> {
             CommonComponent entity = inv.getArgument(0);
             entity.setId(UUID.randomUUID());
             return 1;
         });
-    }
-
-    @AfterEach
-    void tearDown() {
-        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -118,18 +103,7 @@ class CommonComponentServiceImplTest {
     }
 
     @Test
-    void create_workspaceScope_withoutEditSpace_throwsNoPermission() {
-        CommonComponentSaveReqDTO reqDTO = reqDTO();
-        reqDTO.setScope("workspace");
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.create(WORKSPACE_ID, PROJECT_ID, USER_ID, reqDTO));
-        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
-    }
-
-    @Test
-    void create_workspaceScope_withEditSpace_allowedAndStampsWorkspace() {
-        setPermissions("api-component:edit-space");
+    void create_workspaceScope_allowedAndStampsWorkspace() {
         CommonComponentSaveReqDTO reqDTO = reqDTO();
         reqDTO.setScope("workspace");
         lenient().when(componentMapper.existsByScopeAndTypeAndName(any(), any(), any(),
@@ -164,16 +138,23 @@ class CommonComponentServiceImplTest {
     }
 
     @Test
-    void update_scopeChange_rejected() {
+    void update_scopeChange_allowedAndStampsScope() {
         CommonComponent existing = entity("project", "preprocessor", "旧名");
         when(componentMapper.findVisibleById(PROJECT_ID, WORKSPACE_ID, existing.getId()))
                 .thenReturn(existing);
+        when(componentMapper.existsByScopeAndTypeAndName(any(), any(), any(), any(), any(), any()))
+                .thenReturn(false);
 
         CommonComponentSaveReqDTO reqDTO = reqDTO();
         reqDTO.setScope("global");
 
-        assertThrows(ServiceException.class,
-                () -> service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, existing.getId(), reqDTO));
+        service.update(WORKSPACE_ID, PROJECT_ID, USER_ID, existing.getId(), reqDTO);
+
+        ArgumentCaptor<CommonComponent> captor = ArgumentCaptor.forClass(CommonComponent.class);
+        verify(componentMapper).updateById(captor.capture());
+        assertEquals("global", captor.getValue().getScope());
+        assertNull(captor.getValue().getProjectId());
+        assertNull(captor.getValue().getWorkspaceId());
     }
 
     @Test
@@ -190,15 +171,16 @@ class CommonComponentServiceImplTest {
     }
 
     @Test
-    void toggle_recordWithoutPermission_throwsNoPermission() {
+    void toggle_globalScope_togglesEnabled() {
         CommonComponent existing = entity("global", "validator", "断言器");
         when(componentMapper.findVisibleById(PROJECT_ID, WORKSPACE_ID, existing.getId()))
                 .thenReturn(existing);
 
-        // 当前用户仅持项目级 edit，无权停用全局记录
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.toggle(WORKSPACE_ID, PROJECT_ID, USER_ID, existing.getId(), false));
-        assertEquals(ErrorCodeConstants.NO_PERMISSION.code(), exception.getCode());
+        service.toggle(WORKSPACE_ID, PROJECT_ID, USER_ID, existing.getId(), false);
+
+        ArgumentCaptor<CommonComponent> captor = ArgumentCaptor.forClass(CommonComponent.class);
+        verify(componentMapper).updateById(captor.capture());
+        assertEquals(Boolean.FALSE, captor.getValue().getEnabled());
     }
 
     @Test
@@ -278,22 +260,6 @@ class CommonComponentServiceImplTest {
         assertEquals(1, result.getList().size());
         assertEquals("测试组件", result.getList().get(0).getName());
         assertEquals(3, result.getList().get(0).getSortOrder());
-    }
-
-    private static void setPermissions(String... codes) {
-        List<GrantedAuthority> authorities = java.util.Arrays.stream(codes)
-                .<GrantedAuthority>map(SimpleGrantedAuthority::new)
-                .toList();
-        LoginUser loginUser = new LoginUser();
-        loginUser.setId(USER_ID);
-        loginUser.setUsername("tester");
-        loginUser.setName("tester");
-        loginUser.setAuthorities(authorities);
-        loginUser.setWorkspaceAuthorities(new java.util.ArrayList<>());
-        SecurityContext context = mock(SecurityContext.class);
-        lenient().when(context.getAuthentication()).thenReturn(
-                new UsernamePasswordAuthenticationToken(loginUser, null, Collections.emptyList()));
-        SecurityContextHolder.setContext(context);
     }
 
     private static CommonComponentSaveReqDTO reqDTO() {

@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.service.ai.config.AiUsageAdminService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,13 +26,11 @@ public class AiUsageController {
     private AiUsageAdminService usageAdminService;
 
     @GetMapping("/statistics")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiUsageStatisticsRespDTO> statistics(@Valid AiUsageStatisticsReqDTO reqDTO) {
         return Result.ok(usageAdminService.statistics(reqDTO));
     }
 
     @GetMapping("/tasks")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<PageResult<AiUsageTaskRespDTO>> tasks(@Valid AiUsagePageReqDTO reqDTO) {
         return Result.ok(usageAdminService.tasks(reqDTO));
     }
