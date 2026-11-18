@@ -33,6 +33,7 @@ function makeRow(seed: RowSeed): ProposalRow {
     title: seed.title ?? seed.key,
     parentKey: seed.parentKey ?? null,
     confirmStatus: seed.confirmStatus ?? 'pending',
+    note: null,
   }
   return {
     ...summary,

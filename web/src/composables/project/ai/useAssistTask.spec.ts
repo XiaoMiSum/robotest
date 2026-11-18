@@ -39,6 +39,7 @@ function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
     taskId: 't1',
     executionId: 'e1',
     type: 'plan_order',
+    title: '',
     status: 'closed',
     budget: { maxSteps: 10 },
     latestExecution: {
@@ -65,6 +66,7 @@ function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
         title: '执行顺序建议（3 项）',
         parentKey: null,
         confirmStatus: 'pending',
+        note: null,
       },
     ],
     ...overrides,

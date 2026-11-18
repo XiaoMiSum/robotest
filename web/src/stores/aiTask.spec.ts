@@ -21,6 +21,7 @@ function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
     taskId: 't1',
     executionId: 'e1',
     type: 'requirement_import',
+    title: '',
     status: 'running',
     budget: { maxSteps: 4 },
     latestExecution: {

@@ -102,6 +102,8 @@ export interface AiTaskProposalSummary {
   /** 树形提案的父提案键，非树形为 null */
   parentKey: string | null
   confirmStatus: AiProposalConfirmStatus
+  /** 采纳记录 note（驳回原因），无采纳记录为 null */
+  note: string | null
 }
 
 /** 提案详情（详设 3.6.3 提案详情端点）：结构化产物 + 证据链 */
@@ -115,6 +117,8 @@ export interface AiTaskItem {
   /** 提交 / 再次执行响应携带本次执行 ID，其余场景为 null */
   executionId: string | null
   type: string
+  /** 执行产出提案后回填的主提案标题，空串表示尚未回填（列表按类型名兜底） */
+  title: string
   status: AiTaskStatus
   /** 提交 / 再次执行响应携带本次签发的预算快照，其余场景为 null */
   budget: AiTaskBudget | null

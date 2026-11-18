@@ -47,6 +47,7 @@ function makeTask(overrides: Partial<AiTaskItem> = {}): AiTaskItem {
     taskId: 't1',
     executionId: 'e1',
     type: 'bug_trend_summary',
+    title: '',
     status: 'closed',
     budget: { maxSteps: 10 },
     latestExecution: {

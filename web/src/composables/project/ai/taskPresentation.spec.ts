@@ -9,6 +9,8 @@ import {
   aiProposalKindCounts,
   aiProposalKindLabel,
   aiProposalProcessed,
+  aiTaskAdoptionProposals,
+  aiTaskAdoptionResult,
   aiTaskName,
   aiTaskStatusMeta,
   aiTaskTypeMeta,
@@ -38,6 +40,7 @@ function makeTask(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
     taskId: 't1',
     executionId: 'e1',
     type: 'requirement_import',
+    title: '',
     status: 'running',
     budget: { maxSteps: 4 },
     latestExecution: makeExecution(),
@@ -91,6 +94,12 @@ describe('taskPresentation', () => {
     it('任务名按类型派生', () => {
       expect(aiTaskName({ type: 'requirement_import' })).toBe('需求导入')
       expect(aiTaskName({ type: 'vector_reindex' })).toBe('向量索引重建')
+    })
+
+    it('任务名优先取回填标题，空标题按类型名兜底', () => {
+      expect(aiTaskName({ type: 'requirement_import', title: '登录用例生成' })).toBe('登录用例生成')
+      expect(aiTaskName({ type: 'requirement_import', title: '   ' })).toBe('需求导入')
+      expect(aiTaskName({ type: 'requirement_import', title: null })).toBe('需求导入')
     })
 
     it('未知类型降级为原文与「其他」域', () => {
@@ -226,6 +235,38 @@ describe('taskPresentation', () => {
       expect(aiProposalConfirmMeta('adopted_edited').label).toBe('已采纳')
       expect(aiProposalConfirmMeta('rejected').tagType).toBe('info')
       expect(aiProposalConfirmMeta('future').label).toBe('future')
+    })
+  })
+
+  describe('任务级采纳结果', () => {
+    it('按提案确认状态聚合为已采纳 / 已驳回 / 部分采纳', () => {
+      expect(aiTaskAdoptionResult([{ confirmStatus: 'adopted' }, { confirmStatus: 'adopted_edited' }]))
+        .toEqual({ label: '已采纳', tagType: 'success' })
+      expect(aiTaskAdoptionResult([{ confirmStatus: 'rejected' }, { confirmStatus: 'rejected' }]))
+        .toEqual({ label: '已驳回', tagType: 'info' })
+      expect(aiTaskAdoptionResult([{ confirmStatus: 'adopted' }, { confirmStatus: 'rejected' }]))
+        .toEqual({ label: '部分采纳', tagType: 'warning' })
+    })
+
+    it('待确认与只读建议不参与结果判定', () => {
+      expect(aiTaskAdoptionResult(null)).toBeNull()
+      expect(aiTaskAdoptionResult([{ confirmStatus: 'pending' }, { confirmStatus: 'not_applicable' }]))
+        .toBeNull()
+      expect(aiTaskAdoptionResult([
+        { confirmStatus: 'adopted' },
+        { confirmStatus: 'not_applicable' },
+      ])).toEqual({ label: '已采纳', tagType: 'success' })
+    })
+
+    it('只读回看仅保留采纳与驳回记录', () => {
+      const proposals = [
+        { key: 'a', confirmStatus: 'adopted' },
+        { key: 'b', confirmStatus: 'rejected' },
+        { key: 'c', confirmStatus: 'pending' },
+        { key: 'd', confirmStatus: 'not_applicable' },
+      ]
+      expect(aiTaskAdoptionProposals(proposals).map((item) => item.key)).toEqual(['a', 'b'])
+      expect(aiTaskAdoptionProposals(null)).toEqual([])
     })
   })
 

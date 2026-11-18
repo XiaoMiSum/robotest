@@ -34,6 +34,7 @@ function makeArtifact(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskPro
     title: 'BUG-0001',
     parentKey: null,
     confirmStatus: 'pending',
+    note: null,
     ...overrides,
   }
 }

@@ -34,6 +34,7 @@ function summary(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposal
     title: '登录验证码',
     parentKey: null,
     confirmStatus: 'pending',
+    note: null,
     ...overrides,
   }
 }
