@@ -4,7 +4,7 @@
 | ---- | ---- | ---- | ---- |
 | [02-workspace-ui-overview](02-workspace-ui-overview.md)（总览分册）   | V1.0 | 2026-09-23 | 起草中 |
 | [03-workspace-ui-workbench](03-workspace-ui-workbench.md)（分册：项目工作台与我的项目）   | V1.0 | 2026-09-23 | 起草中 |
-| [04-workspace-ui-test-case](04-workspace-ui-test-case.md)（分册：测试用例）   | V1.0 | 2026-09-23 | 起草中 |
+| [04-workspace-ui-test-case](04-workspace-ui-test-case.md)（分册：测试用例）   | V1.0 | 2026-11-18 | 起草中 |
 | [05-workspace-ui-test-review](05-workspace-ui-test-review.md)（分册：测试评审）   | V1.0 | 2026-09-23 | 起草中 |
 | [06-workspace-ui-test-plan](06-workspace-ui-test-plan.md)（分册：测试计划）   | V1.0 | 2026-09-23 | 起草中 |
 | [07-requirement-ui](07-requirement-ui.md)（分册：需求管理，功能测试子模块）   | V1.0 | 2026-10-03 | 起草中 |
