@@ -45,6 +45,10 @@ public interface AiTaskService {
     /** 3.6.3 详情：最新一次执行 + 提案清单摘要（最新一次执行）+ documentMeta */
     AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser);
 
+    /** 3.6.3 按节点查询最近一次任务（用例节点 AI 优化复用），无匹配返回 null */
+    AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, UUID activeProjectId,
+            UUID userId, LoginUser loginUser);
+
     /** 3.6.3 提案详情：完整内容（审核预览），键在最新一次执行的提案中定位 */
     AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, LoginUser loginUser);
 

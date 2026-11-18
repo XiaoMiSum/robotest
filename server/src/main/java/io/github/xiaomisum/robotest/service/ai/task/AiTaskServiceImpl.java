@@ -290,6 +290,13 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     @Override
+    public AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, UUID activeProjectId,
+            UUID userId, LoginUser loginUser) {
+        AiTask task = taskMapper.selectLatestByNode(type, documentId, nodeId, activeProjectId, userId);
+        return task == null ? null : buildDetailResp(task, loginUser);
+    }
+
+    @Override
     public AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, LoginUser loginUser) {
         AiTask task = requireVisible(taskId, loginUser);
         AiTaskProposal proposal = locateProposal(task, proposalKey);

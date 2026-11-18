@@ -54,6 +54,26 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     }
 
     /**
+     * 按节点查询最近一次任务（详设 3.6.3）：按输入中的 documentId 与 nodeIds 匹配；
+     * 有项目上下文时项目内成员任务均可见，无项目上下文时回退为本人任务。
+     */
+    default AiTask selectLatestByNode(String type, String documentId, String nodeId, UUID projectId, UUID userId) {
+        LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
+                .eq(AiTask::getType, type)
+                .orderByDesc(AiTask::getCreatedAt);
+        wrapper.apply("input->>'documentId' = {0}", documentId);
+        wrapper.apply("input->'nodeIds' @> jsonb_build_array(CAST({0} AS text))", nodeId);
+        if (projectId == null) {
+            wrapper.eq(AiTask::getSubmittedBy, userId);
+        } else {
+            wrapper.and(w -> w.eq(AiTask::getProjectId, projectId)
+                    .or(personal -> personal.isNull(AiTask::getProjectId).eq(AiTask::getSubmittedBy, userId)));
+        }
+        wrapper.last("LIMIT 1");
+        return selectOne(wrapper);
+    }
+
+    /**
      * 进行中任务计数（详设 3.6.3 顶栏指示器）：当前用户提交且 status = running（含执行挂起），过滤口径与列表一致。
      */
     default long countActive(UUID projectId, UUID submittedBy) {
