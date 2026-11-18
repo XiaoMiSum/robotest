@@ -1097,6 +1097,7 @@ CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WH
 CREATE TABLE ai_task (
     id             uuid PRIMARY KEY,
     type           varchar(30) NOT NULL,
+    title          varchar(200) NOT NULL DEFAULT '',
     status         varchar(20) NOT NULL DEFAULT 'running',
     project_id     uuid NULL,
     workspace_id   uuid NULL,
@@ -1969,6 +1970,7 @@ COMMENT ON COLUMN ai_prompt_template.version IS '自定义版本号，重置后�
 
 COMMENT ON TABLE ai_task IS 'AI 任务表（统一任务收口，总册 2.6.1）';
 COMMENT ON COLUMN ai_task.type IS '任务类型（全量枚举见 AI 助手与任务中心详设 3.6.1）';
+COMMENT ON COLUMN ai_task.title IS '任务标题：执行产出提案后回填主提案标题（空串表示尚未回填）';
 COMMENT ON COLUMN ai_task.status IS '任务状态：running/proposals_ready/closed/aborted（running 期间执行可挂起 waiting_confirmation）';
 COMMENT ON COLUMN ai_task.project_id IS '项目内任务的隔离归属（NULL = 不限项目的个人任务）';
 COMMENT ON COLUMN ai_task.workspace_id IS '执行作用域（助手类任务经 X-Active-Workspace 头写入），RAG 限权过滤依据';

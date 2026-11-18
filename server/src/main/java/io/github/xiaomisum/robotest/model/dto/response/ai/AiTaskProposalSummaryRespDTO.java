@@ -24,4 +24,7 @@ public class AiTaskProposalSummaryRespDTO {
      * adopted / adopted_edited / rejected（已有采纳记录时回填动作，总册 3.6.3）。
      */
     private String confirmStatus;
+
+    /** 采纳记录 note（驳回原因），无采纳记录为 null */
+    private String note;
 }

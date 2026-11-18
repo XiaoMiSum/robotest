@@ -325,14 +325,17 @@ class AiTaskServiceImplTest {
     @Test
     void page_mapsListItems() {
         AiTaskPageReqDTO pageReq = new AiTaskPageReqDTO();
+        AiTask titled = task(Constants.AiTaskFlowStatus.RUNNING);
+        titled.setTitle("登录用例生成");
         when(taskMapper.findPage(pageReq, PROJECT_ID, USER_ID, null, null))
-                .thenReturn(new PageResult<>(List.of(task(Constants.AiTaskFlowStatus.RUNNING)), 1L));
+                .thenReturn(new PageResult<>(List.of(titled), 1L));
         when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("running"));
 
         PageResult<AiTaskRespDTO> page = service.page(pageReq, PROJECT_ID, USER_ID);
 
         assertEquals(1, page.getTotal());
         assertEquals(TASK_ID, page.getList().get(0).getTaskId());
+        assertEquals("登录用例生成", page.getList().get(0).getTitle());
         assertEquals(EXEC_ID, page.getList().get(0).getLatestExecution().getExecutionId());
         // 列表项不下发 resultMeta / proposals / documentMeta（3.6.3）
         assertNull(page.getList().get(0).getProposals());
@@ -363,16 +366,40 @@ class AiTaskServiceImplTest {
     void detail_proposalsReady_returnsLatestExecutionProposals() {
         when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
         when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        AiTaskAdoption adopted = adoption("p1", "adopted");
+        adopted.setNote("采纳说明");
         when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
-        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(adoption("p1", "adopted")));
+        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(adopted));
 
         AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
 
         assertEquals(1, resp.getProposals().size());
         assertEquals("p1", resp.getProposals().get(0).getKey());
-        // 有采纳记录时按动作回填（3.6.3）
+        // 有采纳记录时按动作与 note 回填（3.6.3）
         assertEquals("adopted", resp.getProposals().get(0).getConfirmStatus());
+        assertEquals("采纳说明", resp.getProposals().get(0).getNote());
         assertNotNull(resp.getLatestExecution());
+    }
+
+    @Test
+    void detail_closed_rejectedProposalReturnsNote() {
+        AiTask closed = task(Constants.AiTaskFlowStatus.CLOSED);
+        closed.setTitle("登录用例生成");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(closed);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecution(EXEC_ID))
+                .thenReturn(List.of(proposal("p1", "pending"), proposal("p2", "pending")));
+        AiTaskAdoption rejected = adoption("p2", "rejected");
+        rejected.setNote("本期不支持短信登录");
+        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(rejected));
+
+        AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
+
+        assertEquals("登录用例生成", resp.getTitle());
+        assertEquals(2, resp.getProposals().size());
+        assertEquals("rejected", resp.getProposals().get(1).getConfirmStatus());
+        assertEquals("本期不支持短信登录", resp.getProposals().get(1).getNote());
+        assertNull(resp.getProposals().get(0).getNote());
     }
 
     @Test
