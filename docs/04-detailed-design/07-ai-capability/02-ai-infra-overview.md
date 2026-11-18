@@ -780,7 +780,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 #### 3.6.3 任务列表与详情
 
 - **列表**：`GET /api/ai/tasks`
-  - 参数：`type`、`status`、`pageNo`、`pageSize`；项目上下文经 `X-Active-Project` 头仅用于执行作用域与归属校验，**列表始终只返回当前登录用户提交的任务**（`ai_task.submitted_by`）。
+  - 参数：`type`、`status`、`pageNo`、`pageSize`；项目上下文经 `X-Active-Project` 头作为附加过滤条件，**列表始终只返回当前登录用户提交的任务**（`ai_task.submitted_by`）。
   - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串时前端按类型名兜底展示。
 - **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计当前登录用户提交且 `status = running`（含执行挂起）的任务数，过滤口径与列表一致。
   - 响应：`{ "count": 2 }`。
