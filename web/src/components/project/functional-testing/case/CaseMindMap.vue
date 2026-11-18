@@ -441,6 +441,7 @@ const handleLayoutCommand = (command: unknown) => {
 
 <style scoped lang="scss">
 @use '../minder/minder-base';
+@use '../minder/minder-menu' as menu;
 
 .mindmap-load-error {
   display: flex;
@@ -522,23 +523,20 @@ $priorities: p0, p1, p2, p3;
 .toolbar-caret { margin-left: 2px; font-size: 10px; }
 
 .toolbar-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  @include menu.minder-menu-row;
+  --el-font-size-base: #{menu.$minder-menu-font-size};
+  --el-dropdown-menuItem-hover-fill: #{menu.$minder-menu-hover-fill};
+  --el-dropdown-menuItem-hover-color: #{menu.$minder-menu-hover-color};
 }
 
 .toolbar-menu-item--danger {
-  --el-dropdown-menuItem-hover-fill: var(--el-color-danger-light-9);
-  --el-dropdown-menuItem-hover-color: var(--color-danger);
-  color: var(--color-danger);
+  --el-dropdown-menuItem-hover-fill: #{menu.$minder-menu-hover-fill};
+  --el-dropdown-menuItem-hover-color: #{menu.$minder-menu-danger-color};
+  color: menu.$minder-menu-danger-color;
 }
 
 .menu-action {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  @include menu.minder-menu-row;
 
   &.is-disabled {
     color: var(--el-text-color-disabled);

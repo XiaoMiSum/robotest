@@ -21,6 +21,8 @@ const emit = defineEmits<{ close: [] }>()
 </template>
 
 <style scoped lang="scss">
+@use './minder-menu' as menu;
+
 .mindmap-context-menu {
   position: fixed;
   z-index: 9999;
@@ -35,17 +37,17 @@ const emit = defineEmits<{ close: [] }>()
 /* 菜单项由父组件经 slot 传入，样式须用 :slotted 才能命中 */
 :slotted(.mindmap-context-menu__item) {
   padding: 7px 16px;
-  font-size: 13px;
+  font-size: menu.$minder-menu-font-size;
   cursor: pointer;
   transition: background 0.15s;
 }
 
 :slotted(.mindmap-context-menu__item:hover) {
-  background: var(--el-fill-color-light);
+  background: menu.$minder-menu-hover-fill;
 }
 
 :slotted(.mindmap-context-menu__item--danger) {
-  color: var(--el-color-danger);
+  color: menu.$minder-menu-danger-color;
 }
 
 :slotted(.mindmap-context-menu__item--indent) {

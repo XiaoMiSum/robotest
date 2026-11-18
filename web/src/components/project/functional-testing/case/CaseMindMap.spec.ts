@@ -15,6 +15,13 @@ describe('CaseMindMap · 工具条单行排版（交互 04 §1.2）', () => {
     expect(source).toContain("@use '../minder/minder-base'")
     expect(source).not.toContain('overflow-x')
   })
+
+  it('编辑下拉复用右键菜单的视觉 token，仅做视觉对齐', () => {
+    expect(source).toContain("@use '../minder/minder-menu' as menu")
+    expect(source).toContain('.toolbar-menu-item')
+    expect(source).toContain('--el-dropdown-menuItem-hover-fill')
+    expect(source).toContain('#{menu.$minder-menu-hover-fill}')
+  })
 })
 
 describe('CaseMindMap · 关联需求入口', () => {
