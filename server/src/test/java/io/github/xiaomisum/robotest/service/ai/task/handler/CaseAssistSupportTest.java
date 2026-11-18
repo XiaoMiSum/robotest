@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.completeCaseContext;
-import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.displayPriority;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.documentContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.existingFields;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.priorityCaseContext;
@@ -31,7 +30,6 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSup
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.scopeRequirementIds;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.sourceRefsOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -121,16 +119,6 @@ class CaseAssistSupportTest {
 
         assertEquals(List.of(REQUIREMENT_ID), scopeRequirementIds(Map.of("scope",
                 Map.of("requirementIds", List.of(REQUIREMENT_ID.toString())))));
-    }
-
-    @Test
-    void displayPriority_mapsP0ToP2AndKeepsUnknownNull() {
-        assertEquals("high", displayPriority("P0"));
-        assertEquals("medium", displayPriority("P1"));
-        assertEquals("low", displayPriority("P2"));
-        assertEquals("low", displayPriority("P3"));
-        assertNull(displayPriority(null));
-        assertNull(displayPriority("P9"));
     }
 
     // ---------- 归属校验与需求回溯 ----------
@@ -247,8 +235,8 @@ class CaseAssistSupportTest {
                 documentOf(PROJECT_ID), List.of(node), Map.of(CASE_ID, node), Map.of());
 
         assertTrue(completeCaseContext(resolved).contains("步骤：（空）"));
-        assertTrue(completeCaseContext(resolved).contains("优先级 high"));
-        assertTrue(priorityCaseContext(resolved).contains("当前级别 high"));
+        assertTrue(completeCaseContext(resolved).contains("优先级 P0"));
+        assertTrue(priorityCaseContext(resolved).contains("当前级别 P0"));
         assertTrue(priorityCaseContext(resolved).contains("（文档根）"));
         assertTrue(documentContext(resolved).contains(node.getTitle()));
 

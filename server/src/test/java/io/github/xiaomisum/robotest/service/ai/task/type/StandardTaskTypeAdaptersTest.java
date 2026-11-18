@@ -43,7 +43,7 @@ class StandardTaskTypeAdaptersTest {
         });
         Set<String> toolCodes = adapters.stream().flatMap(adapter -> adapter.toolCodes().stream())
                 .collect(Collectors.toSet());
-        assertEquals(12, toolCodes.size());
+        assertEquals(11, toolCodes.size());
         // 代码注册表 ⊇ 适配器声明，且注册表不再有本轮范围外的额外工具
         AgentToolRegistry registry = new AgentToolRegistry(ScopedSnapshotAgentTools.all());
         Set<String> registered = new LinkedHashSet<>();
