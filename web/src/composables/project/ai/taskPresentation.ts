@@ -92,9 +92,10 @@ export function aiTaskTypeMeta(type: string): AiTaskTypeMeta {
   return AI_TASK_TYPE_META[type] ?? { label: type, domain: '其他' }
 }
 
-/** 任务名按类型派生（后端无任务名字段） */
-export function aiTaskName(task: { type: string }): string {
-  return aiTaskTypeMeta(task.type).label
+/** 任务名优先取执行回填的主提案标题，空串（存量任务）才按类型名兜底 */
+export function aiTaskName(task: { type: string; title?: string | null }): string {
+  const title = task.title?.trim()
+  return title || aiTaskTypeMeta(task.type).label
 }
 
 /** 类型筛选下拉选项（枚举全量，顺序与详设 3.6.1 一致） */
@@ -290,6 +291,44 @@ export function aiProposalProcessed(
     processed: proposals.filter((item) => item.confirmStatus !== 'pending').length,
     total: proposals.length,
   }
+}
+
+// ==================== 任务级采纳结果（closed 只读回看，详设 3.6.3） ====================
+
+export type AiTaskAdoptionResult = 'adopted' | 'rejected' | 'partial'
+
+export interface AiTaskAdoptionResultMeta {
+  label: string
+  tagType: 'success' | 'info' | 'warning'
+}
+
+const AI_TASK_ADOPTION_RESULT_META: Record<AiTaskAdoptionResult, AiTaskAdoptionResultMeta> = {
+  adopted: { label: '已采纳', tagType: 'success' },
+  rejected: { label: '已驳回', tagType: 'info' },
+  partial: { label: '部分采纳', tagType: 'warning' },
+}
+
+function isAdoptionRecord(status: string): boolean {
+  return status === 'adopted' || status === 'adopted_edited' || status === 'rejected'
+}
+
+/** 任务级结果由采纳记录聚合；pending / not_applicable 不参与，避免只读提案污染判定 */
+export function aiTaskAdoptionResult(
+  proposals: Array<{ confirmStatus: string }> | null | undefined,
+): AiTaskAdoptionResultMeta | null {
+  const records = (proposals ?? []).filter((item) => isAdoptionRecord(item.confirmStatus))
+  if (records.length === 0) return null
+  const adopted = records.filter((item) => item.confirmStatus !== 'rejected').length
+  if (adopted === 0) return AI_TASK_ADOPTION_RESULT_META.rejected
+  if (adopted === records.length) return AI_TASK_ADOPTION_RESULT_META.adopted
+  return AI_TASK_ADOPTION_RESULT_META.partial
+}
+
+/** 只读回看区只展示产生过采纳动作的提案 */
+export function aiTaskAdoptionProposals<T extends { confirmStatus: string }>(
+  proposals: T[] | null | undefined,
+): T[] {
+  return (proposals ?? []).filter((item) => isAdoptionRecord(item.confirmStatus))
 }
 
 // ==================== 导入识别版本（需求详设 3.8 / 交互 06 §2.4） ====================

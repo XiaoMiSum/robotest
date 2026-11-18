@@ -15,6 +15,7 @@ import {
   aiPlanSteps,
   aiProposalKindCounts,
   aiProposalProcessed,
+  aiTaskAdoptionResult,
   aiTaskName,
   aiTaskStatusMeta,
   aiTaskTypeMeta,
@@ -171,6 +172,12 @@ export function useAiTaskDetail() {
   const proposalCounts = computed(() => aiProposalKindCounts(detail.value?.proposals))
   const proposals = computed(() => detail.value?.proposals ?? [])
   const processed = computed(() => aiProposalProcessed(proposals.value))
+  /** 任务级结果：closed 态由提案确认状态聚合派生（详设 3.6.3） */
+  const adoptionResult = computed(() => aiTaskAdoptionResult(proposals.value))
+  /** closed 且有提案时渲染只读回看区；aborted 不渲染 */
+  const showAdoptionResult = computed(
+    () => detail.value?.status === 'closed' && proposals.value.length > 0,
+  )
   const terminateText = computed(() => {
     const detailReason = detail.value?.terminateReason
     if (detailReason?.msg) {
@@ -234,6 +241,8 @@ export function useAiTaskDetail() {
     proposalCounts,
     proposals,
     processed,
+    adoptionResult,
+    showAdoptionResult,
     terminateText,
     canAbort,
     canReExecute,

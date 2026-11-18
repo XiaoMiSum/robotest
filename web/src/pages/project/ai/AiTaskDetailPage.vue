@@ -3,6 +3,7 @@ import { computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
 import AiProposalReviewPanel from '@/components/project/ai/AiProposalReviewPanel.vue'
+import AiTaskAdoptionResultPanel from '@/components/project/ai/AiTaskAdoptionResultPanel.vue'
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
 import GenerationArtifactTreeReview from '@/components/project/ai/GenerationArtifactTreeReview.vue'
 import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
@@ -26,6 +27,8 @@ const {
   planSteps,
   proposalCounts,
   proposals,
+  adoptionResult,
+  showAdoptionResult,
   terminateText,
   canAbort,
   canReExecute,
@@ -75,7 +78,7 @@ function focusReviewArea(): void {
     <nav class="task-breadcrumb" aria-label="面包屑">
       <el-link type="primary" :underline="false" @click="backToCenter">AI 任务中心</el-link>
       <span class="task-breadcrumb__sep" aria-hidden="true">›</span>
-      <span class="task-breadcrumb__current">任务详情</span>
+      <span class="task-breadcrumb__current" :title="name">{{ name || '任务详情' }}</span>
     </nav>
 
     <el-result
@@ -122,9 +125,12 @@ function focusReviewArea(): void {
         <header class="task-head">
           <div class="task-head__main">
             <div class="task-head__title-row">
-              <h1 class="task-head__title">{{ name }}</h1>
+              <h1 class="task-head__title" :title="name">{{ name }}</h1>
               <el-tag :type="statusMeta.tagType" size="small" effect="light">
                 {{ statusMeta.label }}
+              </el-tag>
+              <el-tag v-if="adoptionResult" :type="adoptionResult.tagType" size="small" effect="plain">
+                {{ adoptionResult.label }}
               </el-tag>
             </div>
             <p class="task-head__meta">
@@ -186,7 +192,7 @@ function focusReviewArea(): void {
           <TraceEventList :task-id="taskId" :execution-id="execution.executionId" />
         </section>
 
-        <!-- 审核区状态分支（交互 2.2）：仅 proposals_ready 渲染，aborted / closed 不渲染 -->
+        <!-- 审核区状态分支（交互 2.2）：仅 proposals_ready 渲染，closed 走下方只读回看 -->
         <section
           v-if="showReviewArea || showRunningPlaceholder || showEmptyProposals"
           id="task-review"
@@ -233,6 +239,11 @@ function focusReviewArea(): void {
           >
             <el-button @click="backToCenter">返回任务中心</el-button>
           </el-empty>
+        </section>
+
+        <!-- 已结束：逐条只读回看采纳 / 驳回结果，不提供操作（交互 2.2） -->
+        <section v-if="showAdoptionResult" class="task-section">
+          <AiTaskAdoptionResultPanel :proposals="proposals" :result="adoptionResult" />
         </section>
       </template>
     </template>

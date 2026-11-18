@@ -51,6 +51,7 @@ function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
     taskId: 't1',
     executionId: 'e1',
     type: 'requirement_import',
+    title: '',
     status: 'proposals_ready',
     budget: { maxSteps: 4 },
     latestExecution: {
@@ -77,6 +78,7 @@ function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
         title: '登录验证码',
         parentKey: null,
         confirmStatus: 'pending',
+        note: null,
       },
       {
         key: 'a2',
@@ -84,6 +86,7 @@ function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
         title: '订单超时',
         parentKey: null,
         confirmStatus: 'pending',
+        note: null,
       },
     ],
     ...overrides,
@@ -186,6 +189,12 @@ describe('useAiTaskDetail', () => {
       await vi.waitFor(() => expect(s.submitterText.value).toBe('张三'))
     })
 
+    it('任务名优先展示回填标题', async () => {
+      mocks.fetchAiTask.mockResolvedValue(makeDetail({ title: '登录用例生成' }))
+      const s = mountDetail()
+      await vi.waitFor(() => expect(s.name.value).toBe('登录用例生成'))
+    })
+
     it('任务不存在（1000018110）展示 404 而非错误条', async () => {
       mocks.fetchAiTask.mockRejectedValue(apiError(1000018110, '任务不存在'))
       const s = mountDetail()
@@ -247,6 +256,43 @@ describe('useAiTaskDetail', () => {
       await vi.waitFor(() => expect(s.showEmptyProposals.value).toBe(true))
       expect(s.showReviewArea.value).toBe(false)
       expect(s.proposals.value).toEqual([])
+    })
+
+    it('已结束按提案确认状态派生任务级结果并展示只读回看', async () => {
+      mocks.fetchAiTask.mockResolvedValue(makeDetail({
+        status: 'closed',
+        proposals: [
+          {
+            key: 'a1',
+            kind: 'requirement_suggestion',
+            title: '登录验证码',
+            parentKey: null,
+            confirmStatus: 'adopted',
+            note: null,
+          },
+          {
+            key: 'a2',
+            kind: 'requirement_suggestion',
+            title: '短信登录',
+            parentKey: null,
+            confirmStatus: 'rejected',
+            note: '本期不支持',
+          },
+        ],
+      }))
+      const s = mountDetail()
+      await vi.waitFor(() => expect(s.showAdoptionResult.value).toBe(true))
+      expect(s.adoptionResult.value?.label).toBe('部分采纳')
+      expect(s.detail.value?.proposals?.[1].note).toBe('本期不支持')
+      expect(s.showReviewArea.value).toBe(false)
+    })
+
+    it('已终止不展示采纳回看区', async () => {
+      mocks.fetchAiTask.mockResolvedValue(makeAbortedDetail())
+      const s = mountDetail()
+      await vi.waitFor(() => expect(s.loading.value).toBe(false))
+      expect(s.showAdoptionResult.value).toBe(false)
+      expect(s.adoptionResult.value).toBeNull()
     })
 
     it('执行中渲染占位，不进审核区', async () => {

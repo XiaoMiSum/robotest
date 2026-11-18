@@ -5038,6 +5038,7 @@ export interface components {
             title?: string;
             parentKey?: string;
             confirmStatus?: string;
+            note?: string;
         };
         AiTaskRespDTO: {
             /** Format: uuid */
@@ -5045,6 +5046,7 @@ export interface components {
             /** Format: uuid */
             executionId?: string;
             type?: string;
+            title?: string;
             status?: string;
             budget?: {
                 [key: string]: unknown;

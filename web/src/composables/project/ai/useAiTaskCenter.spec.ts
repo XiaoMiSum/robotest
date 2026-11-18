@@ -42,6 +42,7 @@ function makeItem(overrides: Partial<AiTaskItem> = {}): AiTaskItem {
     taskId: 't1',
     executionId: 'e1',
     type: 'requirement_import',
+    title: '',
     status: 'running',
     budget: { maxSteps: 4 },
     latestExecution: {
@@ -148,6 +149,17 @@ describe('useAiTaskCenter', () => {
       expect(s.hasLoaded.value).toBe(true)
       expect(s.loadError.value).toBe('')
       expect(s.loading.value).toBe(false)
+    })
+
+    it('任务名取后端回填标题，空串按类型名兜底', async () => {
+      mocks.fetchAiTasks.mockResolvedValue({
+        list: [makeItem({ title: '登录用例生成' }), makeItem({ taskId: 't2', title: '' })],
+        total: 2,
+      } as PageResult<AiTaskItem>)
+      const s = center()
+      await s.load()
+
+      expect(s.rows.value.map((row) => row.name)).toEqual(['登录用例生成', '需求导入'])
     })
 
     it('加载失败按 UI-PAGE-11 记录错误并可重试', async () => {
