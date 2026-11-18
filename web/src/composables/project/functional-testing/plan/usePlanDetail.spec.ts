@@ -65,6 +65,10 @@ function makePlan(overrides?: Partial<TestPlanDetail>): TestPlanDetail {
     endTime: null,
     executor: { id: 'user-1', name: '执行者' },
     requirements: [],
+    requirementIds: [],
+    replanStatus: 'idle',
+    replanMessage: null,
+    replanFinishedAt: null,
     createdAt: '2025-01-01T00:00:00',
     ...overrides,
   }

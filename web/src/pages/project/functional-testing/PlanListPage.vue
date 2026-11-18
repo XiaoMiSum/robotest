@@ -3,10 +3,28 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { completePlan, createPlan, deletePlan, fetchPlans, resumePlan } from '@/services/project'
-import type { PlanStatus, TestPlanCreatePayload, TestPlanListItem } from '@/types'
+import {
+  completePlan,
+  createPlan,
+  deletePlan,
+  fetchPlans,
+  getPlanDetail,
+  getPlanReplanStatus,
+  resumePlan,
+  updatePlan,
+} from '@/services/project'
+import type {
+  PlanStatus,
+  ReplanStatusResp,
+  TestPlanCreatePayload,
+  TestPlanDetail,
+  TestPlanListItem,
+  TestPlanUpdatePayload,
+} from '@/types'
 import PlanCreateDialog from '@/components/project/functional-testing/plan/PlanCreateDialog.vue'
+import PlanEditDialog from '@/components/project/functional-testing/plan/PlanEditDialog.vue'
 import PlanListTable from '@/components/project/functional-testing/plan/PlanListTable.vue'
+import { isRequirementSetChanged, useReplanPolling } from '@/composables/project/functional-testing/replan'
 import {
   PLAN_STATUS_META,
   planCountText,
@@ -57,6 +75,7 @@ const emptyTitle = computed(() =>
 // 权限判断与后端授权同源，表格只接收可用操作结果。
 const canCompletePlans = computed(() => authStore.hasPermission('plan:execute'))
 const canResumePlans = computed(() => authStore.hasPermission('plan:block'))
+const canEditPlans = computed(() => authStore.hasPermission('plan:execute'))
 const statusOptions = (Object.keys(PLAN_STATUS_META) as PlanStatus[]).map((value) => ({
   value,
   label: PLAN_STATUS_META[value].label,
@@ -167,6 +186,68 @@ async function submitCreate(payload: TestPlanCreatePayload) {
     createSubmitting.value = false
   }
 }
+
+const editDialogVisible = ref(false)
+const editSubmitting = ref(false)
+const editingPlan = ref<TestPlanListItem | null>(null)
+const editDetail = ref<TestPlanDetail | null>(null)
+
+function handleReplanFinish(status: ReplanStatusResp) {
+  if (status.status === 'succeeded') {
+    ElMessage.success(status.message || '测试用例重新规划完成')
+  } else {
+    ElMessage.error(status.message || '测试用例重新规划失败')
+  }
+  loadPlans()
+}
+function handleReplanError(message: string) {
+  ElMessage.error(message)
+  loadPlans()
+}
+const replanPolling = useReplanPolling(getPlanReplanStatus)
+
+async function openEditDialog(row: TestPlanListItem) {
+  try {
+    editDetail.value = await getPlanDetail(row.id)
+    editingPlan.value = row
+    editDialogVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载计划详情失败')
+  }
+}
+
+async function submitEdit(payload: TestPlanUpdatePayload) {
+  if (!editingPlan.value || !editDetail.value) return
+  const id = editingPlan.value.id
+  const changed = isRequirementSetChanged(editDetail.value.requirementIds, payload.requirementIds ?? [])
+  let replan = false
+  if (changed) {
+    try {
+      await ElMessageBox.confirm('检测到关联需求发生变化，是否重新规划测试用例？', '关联需求变化', {
+        type: 'warning',
+      })
+      replan = true
+    } catch {
+      replan = false
+    }
+  }
+  editSubmitting.value = true
+  try {
+    await updatePlan(id, { ...payload, replan })
+    editDialogVisible.value = false
+    if (replan) {
+      ElMessage.success('已保存，正在后台重新规划测试用例')
+      replanPolling.start(id, handleReplanFinish, handleReplanError)
+      return
+    }
+    ElMessage.success('已保存')
+    loadPlans()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '保存计划失败')
+  } finally {
+    editSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -232,8 +313,10 @@ async function submitCreate(payload: TestPlanCreatePayload) {
         :plans="plans"
         :can-complete="canCompletePlans"
         :can-resume="canResumePlans"
+        :can-edit="canEditPlans"
         :visible-keys="visibleKeys"
         @open="openPlan"
+        @edit="openEditDialog"
         @complete="handleComplete"
         @resume="handleResume"
         @delete="handleDelete"
@@ -265,6 +348,12 @@ async function submitCreate(payload: TestPlanCreatePayload) {
       v-model="createDialogVisible"
       :submitting="createSubmitting"
       @submit="submitCreate"
+    />
+    <PlanEditDialog
+      v-model="editDialogVisible"
+      :detail="editDetail"
+      :submitting="editSubmitting"
+      @submit="submitEdit"
     />
   </main>
 </template>

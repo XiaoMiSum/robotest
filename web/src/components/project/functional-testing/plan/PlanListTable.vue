@@ -16,9 +16,10 @@ import {
   planTimeRange,
 } from './planListPresentation'
 
-const props = defineProps<{ plans: TestPlanListItem[]; canComplete: boolean; canResume: boolean; visibleKeys: string[] }>()
+const props = defineProps<{ plans: TestPlanListItem[]; canComplete: boolean; canResume: boolean; canEdit: boolean; visibleKeys: string[] }>()
 const emit = defineEmits<{
   open: [id: string]
+  edit: [plan: TestPlanListItem]
   complete: [plan: TestPlanListItem]
   resume: [plan: TestPlanListItem]
   delete: [plan: TestPlanListItem]
@@ -92,12 +93,19 @@ const rows = computed(() =>
         ><span class="plan-table__time">{{ formatDateTime(row.plan.createdAt) }}</span></template
       >
     </el-table-column>
-    <el-table-column label="操作" width="220" fixed="right">
+    <el-table-column label="操作" width="280" fixed="right">
       <template #default="{ row }">
         <el-space :size="8">
           <el-button link type="primary" @click="emit('open', row.plan.id)">{{
             row.action === 'enter' ? '进入执行' : '查看详情'
           }}</el-button>
+          <el-button
+            v-if="canEdit && isActivePlan(row.plan.status)"
+            link
+            type="primary"
+            @click="emit('edit', row.plan)"
+            >编辑</el-button
+          >
           <el-button
             v-if="isActivePlan(row.plan.status) && canComplete"
             link

@@ -5,17 +5,44 @@ import { nextTick } from 'vue'
 import ReviewListPage from './ReviewListPage.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ReviewCreateDialog from '@/components/project/functional-testing/review/ReviewCreateDialog.vue'
-import type { TestReviewListItem } from '@/types'
+import ReviewEditDialog from '@/components/project/functional-testing/review/ReviewEditDialog.vue'
+import type { TestReviewDetail, TestReviewListItem } from '@/types'
 
-const mocks = vi.hoisted(() => ({ fetch: vi.fn(), create: vi.fn(), reopen: vi.fn(), delete: vi.fn(), push: vi.fn(), error: vi.fn(), success: vi.fn(), confirm: vi.fn() }))
-vi.mock('@/services/project', () => ({ fetchReviews: mocks.fetch, createReview: mocks.create, reopenReview: mocks.reopen, deleteReview: mocks.delete }))
+const mocks = vi.hoisted(() => ({
+  fetch: vi.fn(), create: vi.fn(), reopen: vi.fn(), delete: vi.fn(), detail: vi.fn(), update: vi.fn(), status: vi.fn(),
+  push: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn(), confirm: vi.fn(), currentUserId: 'u1',
+}))
+vi.mock('@/services/project', () => ({
+  fetchReviews: mocks.fetch,
+  createReview: mocks.create,
+  reopenReview: mocks.reopen,
+  deleteReview: mocks.delete,
+  getReviewDetail: mocks.detail,
+  updateReview: mocks.update,
+  getReviewReplanStatus: mocks.status,
+}))
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { id: mocks.currentUserId } }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('element-plus', async (original) => ({ ...await original<typeof import('element-plus')>(), ElMessage: { error: mocks.error, success: mocks.success }, ElMessageBox: { confirm: mocks.confirm } }))
 
 const row: TestReviewListItem = { id: 'r1', title: '支付评审', status: 'rejected', initiator: { id: 'u1', name: '张明' }, participants: [], participantCount: 0, createdAt: '2026-11-15T08:00:00Z', totalAssociated: 10, reviewed: 8, passed: 6, progressPercent: 80, passRate: 60, requirementCount: 2 }
+const activeRow: TestReviewListItem = { ...row, status: 'in_progress' }
+const detail: TestReviewDetail = {
+  id: 'r1', title: '支付评审', description: null, status: 'in_progress',
+  initiator: { id: 'u1', name: '张明' }, participantIds: ['u1'],
+  requirements: [], requirementIds: ['req-1'],
+  replanStatus: 'idle', replanMessage: null, replanFinishedAt: null,
+  createdAt: '2026-11-15T08:00:00Z',
+}
+const editPayload = {
+  title: '支付评审（调整）',
+  description: '',
+  participantIds: ['u1'],
+  requirementIds: ['req-2'],
+}
 const wrappers: ReturnType<typeof mount>[] = []
 function render() {
-  const wrapper = mount(ReviewListPage, { global: { stubs: { ReviewCreateDialog: true, ListPagination: true, Plus: true, Search: true }, directives: { loading: () => {} } } })
+  const wrapper = mount(ReviewListPage, { global: { stubs: { ReviewCreateDialog: true, ReviewEditDialog: true, ListPagination: true, Plus: true, Search: true }, directives: { loading: () => {} } } })
   wrappers.push(wrapper)
   return wrapper
 }
@@ -38,7 +65,15 @@ function deferred() {
   return { promise, resolve, reject }
 }
 
-beforeEach(() => { vi.resetAllMocks(); mocks.fetch.mockResolvedValue({ list: [], total: 0 }); mocks.confirm.mockResolvedValue('confirm') })
+beforeEach(() => {
+  vi.resetAllMocks()
+  mocks.currentUserId = 'u1'
+  mocks.fetch.mockResolvedValue({ list: [], total: 0 })
+  mocks.detail.mockResolvedValue(detail)
+  mocks.update.mockResolvedValue(detail)
+  mocks.status.mockResolvedValue({ status: 'succeeded', message: '规划完成', requestedAt: null, finishedAt: null })
+  mocks.confirm.mockResolvedValue('confirm')
+})
 afterEach(() => { wrappers.splice(0).forEach((wrapper) => wrapper.unmount()) })
 
 describe('评审列表样板', () => {
@@ -135,5 +170,78 @@ describe('评审列表样板', () => {
     await flushPromises()
     expect(mocks.delete).toHaveBeenCalledWith('r1')
     expect(mocks.fetch).toHaveBeenCalledTimes(3)
+  })
+
+  async function openEdit(wrapper: ReturnType<typeof mount>) {
+    await button(wrapper, '编辑').trigger('click')
+    await flushPromises()
+    expect(wrapper.getComponent(ReviewEditDialog).props('modelValue')).toBe(true)
+    return wrapper.getComponent(ReviewEditDialog)
+  }
+
+  it('仅发起人的活跃态评审显示编辑入口', async () => {
+    mocks.fetch.mockResolvedValue({ list: [activeRow, { ...activeRow, id: 'r2', initiator: { id: 'u2', name: '他人' } }, { ...row, id: 'r3', status: 'completed' }], total: 3 })
+    const wrapper = render()
+    await flushPromises()
+    const editButtons = wrapper.findAll('.review-table button').filter((item) => item.text() === '编辑')
+    expect(editButtons).toHaveLength(1)
+    await editButtons[0].trigger('click')
+    await flushPromises()
+    expect(mocks.detail).toHaveBeenCalledWith('r1')
+  })
+
+  it('关联需求变化确认后以 replan=true 保存，轮询终态并刷新列表', async () => {
+    mocks.fetch.mockResolvedValue({ list: [activeRow], total: 1 })
+    const wrapper = render()
+    await flushPromises()
+    const dialog = await openEdit(wrapper)
+    dialog.vm.$emit('submit', editPayload)
+    await flushPromises()
+    expect(mocks.confirm).toHaveBeenCalledWith('检测到关联需求发生变化，是否重新规划测试用例？', '关联需求变化', { type: 'warning' })
+    expect(mocks.update).toHaveBeenCalledWith('r1', { ...editPayload, replan: true })
+    expect(mocks.success).toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
+    expect(mocks.status).toHaveBeenCalledWith('r1')
+    expect(mocks.success).toHaveBeenCalledWith('规划完成')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(wrapper.getComponent(ReviewEditDialog).props('modelValue')).toBe(false)
+  })
+
+  it('取消重新规划仅保存，不触发状态轮询', async () => {
+    mocks.fetch.mockResolvedValue({ list: [activeRow], total: 1 })
+    mocks.confirm.mockRejectedValueOnce('cancel')
+    const wrapper = render()
+    await flushPromises()
+    const dialog = await openEdit(wrapper)
+    dialog.vm.$emit('submit', editPayload)
+    await flushPromises()
+    expect(mocks.update).toHaveBeenCalledWith('r1', { ...editPayload, replan: false })
+    expect(mocks.success).toHaveBeenCalledWith('已保存')
+    expect(mocks.success).not.toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
+    expect(mocks.status).not.toHaveBeenCalled()
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('仅调整关联需求顺序不弹确认且不重新规划', async () => {
+    mocks.fetch.mockResolvedValue({ list: [activeRow], total: 1 })
+    mocks.detail.mockResolvedValue({ ...detail, requirementIds: ['req-1', 'req-2'] })
+    const wrapper = render()
+    await flushPromises()
+    const dialog = await openEdit(wrapper)
+    dialog.vm.$emit('submit', { ...editPayload, requirementIds: ['req-2', 'req-1'] })
+    await flushPromises()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.update).toHaveBeenCalledWith('r1', expect.objectContaining({ replan: false }))
+    expect(mocks.status).not.toHaveBeenCalled()
+  })
+
+  it('详情加载失败时提示且不打开编辑弹窗', async () => {
+    mocks.fetch.mockResolvedValue({ list: [activeRow], total: 1 })
+    mocks.detail.mockRejectedValueOnce(new Error('详情不可用'))
+    const wrapper = render()
+    await flushPromises()
+    await button(wrapper, '编辑').trigger('click')
+    await flushPromises()
+    expect(mocks.error).toHaveBeenCalledWith('详情不可用')
+    expect(wrapper.getComponent(ReviewEditDialog).props('modelValue')).toBe(false)
   })
 })
