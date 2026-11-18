@@ -16,10 +16,10 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.abbreviate;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asMap;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asString;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.modelFailed;
@@ -30,41 +30,42 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 用例补全处理器（辅助功能详设 3.2）：逐选中用例产出字段补全与补充场景建议，
- * 逐节点一条 case_suggestion 产物待确认；模型未命中任何选中节点按模型失败落态。
+ * 用例优化处理器（辅助功能详设 3.2）：逐选中用例产出字段补全与级别建议，
+ * 逐节点一条 case_optimize_suggestion 产物待确认；模型未命中任何选中节点按模型失败落态。
  */
 @Component
-public class CaseCompleteTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
+public class CaseOptimizeTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
-    public static final String TYPE = "case_complete";
+    public static final String TYPE = "case_optimize";
 
     private static final String SYSTEM_PROMPT = "你是资深测试用例设计专家。严格按用户给出的 JSON 输出结构作答。";
 
     private static final int MAX_STEPS = 10;
     private static final int MAX_TAGS = 5;
-    private static final int MAX_EXTRA_NODES = 5;
-    private static final int MAX_TITLE = 200;
+    private static final Set<String> PRIORITIES = Set.of("P0", "P1", "P2", "P3");
+    /** 模型未给出有效建议时的兜底理由：保证每条产物都有结果（详设 3.2） */
+    private static final String FALLBACK_REASON = "模型未给出调整建议，保留当前级别";
 
     @Resource
     private CaseAssistSupport assistSupport;
 
     @Override
     public String type() {
-        return Constants.AiTaskType.CASE_COMPLETE;
+        return Constants.AiTaskType.CASE_OPTIMIZE;
     }
 
     @Override
     public String defaultPrompt() {
         return """
                 你是资深测试用例设计专家，只输出 JSON，不输出解释或代码块标记以外的任何文字。
-                为下列选中用例给出补全建议：
-                1. 每条产物只针对一个 nodeId（必须取自选中用例清单，不得编造）；未命中字段留空即可，已有人工填写内容不得覆盖；
-                2. fields 只给 suggested 值：precondition 为单段文本，steps 与 expected 一一对应（各至多 10 条），tags 至多 5 个；
-                3. extraNodes 为确实缺失的补充场景（至多 5 条），isTestCase=true 表示补一条完整用例、false 表示补结构分组节点；
+                为下列选中用例一次性给出字段补全与优先级建议：
+                1. 每条产物只针对一个 nodeId（必须取自选中用例清单，不得编造），必须同时给出 fields 与 priority；
+                2. fields 只给 suggested 值：precondition 为单段文本，steps 与 expected 一一对应（各至多 10 条），tags 至多 5 个；未命中字段留空即可，已有人工填写内容不得覆盖；
+                3. priority 只取 P0 / P1 / P2 / P3，并给出简短 reason；推荐依据只用给出的上游需求，不得臆造需求之外的信息；即使建议级别与当前级别相同也要输出，不得省略；
                 4. sourceRefs 只能引用上游需求清单中的需求 ID，quote 为原文摘录（至多 300 字），无来源则留空。
                 输出结构（JSON 对象，artifacts 即产物数组，每个选中节点一条 content）：
                 {"artifacts":[{"content":{"nodeId":"…","fields":{"precondition":"…","steps":["…"],"expected":["…"],"tags":["…"]},
-                "extraNodes":[{"title":"…","isTestCase":true}],"sourceRefs":[{"requirementId":"…","quote":"…"}]}}]}
+                "priority":{"suggested":"P0","reason":"…"},"sourceRefs":[{"requirementId":"…","quote":"…"}]}}]}
 
                 选中用例与现有字段：
                 {{caseContext}}
@@ -103,7 +104,7 @@ public class CaseCompleteTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         List<Requirement> requirements = assistSupport.upstreamRequirements(context.projectId(),
                 CaseAssistSupport.scopeRequirementIds(context.input()));
         Map<String, String> variables = new LinkedHashMap<>();
-        variables.put("caseContext", CaseAssistSupport.completeCaseContext(resolved));
+        variables.put("caseContext", CaseAssistSupport.optimizeCaseContext(resolved));
         variables.put("documentContext", CaseAssistSupport.documentContext(resolved));
         variables.put("requirementContext", CaseAssistSupport.requirementContext(requirements));
         return new AgentExecutionPreparation(variables, String.join("\n", variables.values()), List.of(),
@@ -113,9 +114,9 @@ public class CaseCompleteTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
 
     @Override public List<String> toolCodes() { return List.of("query_case_context", "query_requirements"); }
 
-    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.CASE_SUGGESTION; }
+    @Override protected String defaultProposalKind() { return Constants.AiProposalKind.CASE_OPTIMIZE_SUGGESTION; }
 
-    /** 逐选中节点产出一条产物：模型命中的字段用其建议值，未命中字段回退现有值（no-change） */
+    /** 逐选中节点产出一条产物：字段与级别合并；模型未命中字段回退现有值（no-change） */
     private List<Map<String, Object>> sanitize(AiChatReply reply, CaseAssistSupport.ResolvedCases resolved,
             List<Requirement> requirements) {
         Map<UUID, Map<String, Object>> suggestions = new LinkedHashMap<>();
@@ -136,13 +137,28 @@ public class CaseCompleteTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         int index = 0;
         for (TestCaseNode node : resolved.nodes()) {
             index++;
-            artifacts.add(artifactOf(index, node, suggestions.get(node.getId()), resolved, requirementById));
+            Map<String, Object> suggestion = suggestions.get(node.getId());
+
+            Map<String, Object> content = new LinkedHashMap<>();
+            content.put("nodeId", String.valueOf(node.getId()));
+            content.put("fields", fieldsOf(node, suggestion, resolved));
+            content.put("priority", priorityOf(node, suggestion));
+            content.put("sourceRefs", CaseAssistSupport.sourceRefsOf(suggestion, requirementById, true));
+
+            Map<String, Object> artifact = new LinkedHashMap<>();
+            artifact.put("key", "node-" + index);
+            artifact.put("kind", Constants.AiProposalKind.CASE_OPTIMIZE_SUGGESTION);
+            artifact.put("parentKey", null);
+            artifact.put("title", nvl(node.getTitle()));
+            artifact.put("content", content);
+            artifact.put("confirmStatus", "pending");
+            artifacts.add(artifact);
         }
         return artifacts;
     }
 
-    private static Map<String, Object> artifactOf(int index, TestCaseNode node, Map<String, Object> suggestion,
-            CaseAssistSupport.ResolvedCases resolved, Map<UUID, Requirement> requirementById) {
+    private static Map<String, Object> fieldsOf(TestCaseNode node, Map<String, Object> suggestion,
+            CaseAssistSupport.ResolvedCases resolved) {
         CaseAssistSupport.ExistingFields existing = CaseAssistSupport.existingFields(node, resolved);
         Map<String, Object> raw = asMap(suggestion == null ? null : suggestion.get("fields"));
 
@@ -152,21 +168,26 @@ public class CaseCompleteTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         fields.put("steps", fieldPair(existing.steps(), stringList(raw.get("steps"), MAX_STEPS)));
         fields.put("expected", fieldPair(existing.expected(), stringList(raw.get("expected"), MAX_STEPS)));
         fields.put("tags", fieldPair(existing.tags(), stringList(raw.get("tags"), MAX_TAGS)));
+        return fields;
+    }
 
-        Map<String, Object> content = new LinkedHashMap<>();
-        content.put("nodeId", String.valueOf(node.getId()));
-        content.put("fields", fields);
-        content.put("extraNodes", extraNodesOf(suggestion, node));
-        content.put("sourceRefs", CaseAssistSupport.sourceRefsOf(suggestion, requirementById, true));
-
-        Map<String, Object> artifact = new LinkedHashMap<>();
-        artifact.put("key", "node-" + index);
-        artifact.put("kind", Constants.AiProposalKind.CASE_SUGGESTION);
-        artifact.put("parentKey", null);
-        artifact.put("title", nvl(node.getTitle()));
-        artifact.put("content", content);
-        artifact.put("confirmStatus", "pending");
-        return artifact;
+    /** 级别建议：current 取用例现状；模型未给有效建议时回退 current 并补兜底理由 */
+    private static Map<String, Object> priorityOf(TestCaseNode node, Map<String, Object> suggestion) {
+        Map<String, Object> raw = asMap(suggestion == null ? null : suggestion.get("priority"));
+        String current = nvl(node.getPriority());
+        String suggested = trimToNull(asString(raw.get("suggested")));
+        if (suggested == null || !PRIORITIES.contains(suggested)) {
+            suggested = current;
+        }
+        String reason = trimToNull(asString(raw.get("reason")));
+        if (reason == null) {
+            reason = FALLBACK_REASON;
+        }
+        Map<String, Object> priority = new LinkedHashMap<>();
+        priority.put("current", current);
+        priority.put("suggested", suggested);
+        priority.put("reason", reason);
+        return priority;
     }
 
     /** existing / suggested 成对：模型省略或空值字段 suggested 回退 existing（详设 4.2 覆盖口径的展示基础） */
@@ -178,31 +199,5 @@ public class CaseCompleteTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         pair.put("existing", existing);
         pair.put("suggested", empty ? existing : suggested);
         return pair;
-    }
-
-    private static List<Map<String, Object>> extraNodesOf(Map<String, Object> suggestion, TestCaseNode node) {
-        if (suggestion == null) {
-            return List.of();
-        }
-        List<Map<String, Object>> extraNodes = new ArrayList<>();
-        if (suggestion.get("extraNodes") instanceof List<?> raw) {
-            for (Object element : raw) {
-                if (extraNodes.size() >= MAX_EXTRA_NODES) {
-                    break;
-                }
-                Map<String, Object> item = asMap(element);
-                String title = trimToNull(asString(item.get("title")));
-                if (title == null) {
-                    continue;
-                }
-                Map<String, Object> extra = new LinkedHashMap<>();
-                extra.put("title", abbreviate(title, MAX_TITLE));
-                extra.put("isTestCase", Boolean.parseBoolean(String.valueOf(item.get("isTestCase"))));
-                // 补充节点挂源用例之下，采纳期按目标位置（缺省 sibling）解析父级
-                extra.put("parentNodeId", String.valueOf(node.getId()));
-                extraNodes.add(extra);
-            }
-        }
-        return extraNodes;
     }
 }

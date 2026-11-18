@@ -107,10 +107,10 @@ class AssistAdoptSupportTest {
         Map<String, Object> nodeContent = Map.of("nodeId", NODE_ID.toString());
         AdoptContext context = context(DOCUMENT_ID, nodeContent, null);
 
-        support.record(context, "TEST_CASE_NODE", NODE_ID, "用例标题", "CASE_UPDATED", "采纳 AI 用例补全建议");
+        support.record(context, "TEST_CASE_NODE", NODE_ID, "用例标题", "CASE_UPDATED", "采纳 AI 用例优化建议");
 
         verify(projectActivityService).record(eq(PROJECT_ID), eq(OPERATOR_ID), eq("TEST_CASE_NODE"),
-                eq(NODE_ID), eq("用例标题"), eq("CASE_UPDATED"), eq("采纳 AI 用例补全建议"));
+                eq(NODE_ID), eq("用例标题"), eq("CASE_UPDATED"), eq("采纳 AI 用例优化建议"));
     }
 
     // ---------- fixtures ----------
@@ -133,10 +133,10 @@ class AssistAdoptSupportTest {
     private AdoptContext context(UUID targetDocumentId, Map<String, Object> nodeContent, Map<String, Object> input) {
         LoginUser loginUser = mock(LoginUser.class);
         AiTask task = new AiTask();
-        task.setType("case_complete");
+        task.setType("case_optimize");
         task.setInput(input);
         Map<String, Object> artifact = Map.of("key", "node-1", "content", nodeContent);
         return new AdoptContext(task, AdoptFixtures.proposal(artifact), "adopted", null, null, null, null, null,
-                targetDocumentId, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
+                targetDocumentId, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), loginUser);
     }
 }

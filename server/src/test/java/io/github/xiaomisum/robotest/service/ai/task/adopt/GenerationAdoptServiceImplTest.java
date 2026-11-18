@@ -270,7 +270,7 @@ class GenerationAdoptServiceImplTest {
     private AdoptContext context(Map<String, Object> artifact, String action, LoginUser user,
             UUID targetModuleId, Map<String, Object> content) {
         return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, content, null, targetModuleId, null,
-                null, null, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), user);
+                null, null, null, null, PROJECT_ID, OPERATOR_ID, Set.of(), user);
     }
 
     private static Map<String, Object> moduleArtifact() {

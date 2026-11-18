@@ -26,21 +26,21 @@ class TaskTypeAdapterRegistryTest {
 
     @Test
     void get_registeredType_returnsAdapter() {
-        TaskTypeAdapter adapter = stubAdapter("case_complete");
+        TaskTypeAdapter adapter = stubAdapter("case_optimize");
         TaskTypeAdapterRegistry registry = new TaskTypeAdapterRegistry(List.of(adapter));
 
-        assertSame(adapter, registry.get("case_complete"));
+        assertSame(adapter, registry.get("case_optimize"));
         assertNull(registry.get("bug_classify"));
         assertEquals(1, registry.all().size());
     }
 
     @Test
     void constructor_duplicateType_failsFast() {
-        TaskTypeAdapter first = stubAdapter("case_complete");
-        TaskTypeAdapter second = stubAdapter("case_complete");
+        TaskTypeAdapter first = stubAdapter("case_optimize");
+        TaskTypeAdapter second = stubAdapter("case_optimize");
         IllegalStateException exception = assertThrows(IllegalStateException.class,
                 () -> new TaskTypeAdapterRegistry(List.of(first, second)));
-        assertTrue(exception.getMessage().contains("case_complete"));
+        assertTrue(exception.getMessage().contains("case_optimize"));
     }
 
     private static TaskTypeAdapter stubAdapter(String type) {

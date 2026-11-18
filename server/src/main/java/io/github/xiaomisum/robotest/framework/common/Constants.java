@@ -95,8 +95,7 @@ public final class Constants {
     public interface AiTaskType {
         String REQUIREMENT_IMPORT = "requirement_import";
         String TEST_DESIGN_GENERATION = "test_design_generation";
-        String CASE_COMPLETE = "case_complete";
-        String CASE_PRIORITY = "case_priority";
+        String CASE_OPTIMIZE = "case_optimize";
         String PLAN_ORDER = "plan_order";
         String BUG_CLASSIFY = "bug_classify";
         String BUG_DUPLICATE_SCAN = "bug_duplicate_scan";
@@ -126,8 +125,7 @@ public final class Constants {
         String BUG_TRIAGE = "triage_order";
         String BUG_SUMMARY = "summary";
         String BUG_DUPLICATE_GROUP = "duplicate_group";
-        String CASE_SUGGESTION = "case_suggestion";
-        String PRIORITY_SUGGESTION = "priority_suggestion";
+        String CASE_OPTIMIZE_SUGGESTION = "case_optimize_suggestion";
         String ORDER_SUGGESTION = "order_suggestion";
     }
 

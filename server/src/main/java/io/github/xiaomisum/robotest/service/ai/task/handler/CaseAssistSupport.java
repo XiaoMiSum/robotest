@@ -31,7 +31,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 辅助功能（用例补全 / 级别推荐）共用支撑（辅助功能详设 3.2、3.3、4.1）：
+ * 辅助功能（用例优化）共用支撑（辅助功能详设 3.2、4.1）：
  * 输入解析与归属校验、上游需求回溯、提示词上下文装配。
  * 纯计算方法为静态，仅需落库查询的 resolve / upstreamRequirements 走实例。
  */
@@ -218,8 +218,8 @@ public class CaseAssistSupport {
         return builder.toString();
     }
 
-    /** 补全上下文：选中用例的现有属性清单，空缺显式写"（空）"提示模型可补 */
-    public static String completeCaseContext(ResolvedCases resolved) {
+    /** 优化上下文：选中用例的现有属性与当前级别，空缺显式写"（空）"提示模型可补 */
+    public static String optimizeCaseContext(ResolvedCases resolved) {
         StringBuilder builder = new StringBuilder("选中用例（共 ")
                 .append(resolved.nodes().size()).append(" 条）：\n");
         for (TestCaseNode node : resolved.nodes()) {
@@ -230,18 +230,6 @@ public class CaseAssistSupport {
             builder.append("    步骤：").append(joinOrEmpty(fields.steps())).append('\n');
             builder.append("    预期：").append(joinOrEmpty(fields.expected())).append('\n');
             builder.append("    标签：").append(joinOrEmpty(fields.tags())).append('\n');
-        }
-        return builder.toString();
-    }
-
-    /** 级别推荐上下文：仅需用例标识与当前级别 */
-    public static String priorityCaseContext(ResolvedCases resolved) {
-        StringBuilder builder = new StringBuilder("选中用例（共 ")
-                .append(resolved.nodes().size()).append(" 条）：\n");
-        for (TestCaseNode node : resolved.nodes()) {
-            builder.append("- [").append(node.getId()).append("] ").append(nvl(node.getTitle()))
-                    .append(" | 当前级别 ").append(nvl(node.getPriority()))
-                    .append(" | 路径 ").append(ancestorPath(node, resolved.nodesById())).append('\n');
         }
         return builder.toString();
     }
@@ -289,7 +277,7 @@ public class CaseAssistSupport {
     }
 
     /**
-     * 来源引用清洗：只保留上游需求范围内的引用，需求编号作 title；补全带 quote，级别推荐不带（详设 3.2 / 3.3）。
+     * 来源引用清洗：只保留上游需求范围内的引用，需求编号作 title；用例优化带 quote（详设 3.2）。
      */
     public static List<Map<String, Object>> sourceRefsOf(Map<String, Object> suggestion,
             Map<UUID, Requirement> requirementById, boolean withQuote) {

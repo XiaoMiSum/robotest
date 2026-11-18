@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
 import io.github.xiaomisum.robotest.service.ai.task.ProposalAdopter;
 import io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport;
-import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -20,33 +19,30 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asMap;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asString;
-import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.contentOf;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.nvl;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.stringList;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 用例补全建议承接（详设 3.2 落库 / 4.3 补充节点）：
- * 字段只补空缺、编辑值按 adopted_edited 局部落库，补充节点按 target.extraNodePosition 落位。
+ * 用例优化建议承接（详设 3.2 落库 / 4.2 覆盖口径）：
+ * 字段只补空缺、编辑值按 adopted_edited 局部落库；优先级随同一条提案应用，
+ * 级别变化项写级别列，级别一致项不写列但同样写用例修改记录（from = to）。
  */
 @Service
-public class CaseCompleteAdopter implements ProposalAdopter {
-
-    /** 补充节点落位（详设 3.2 target.extraNodePosition，缺省 sibling）：child 落源节点之下 */
-    private static final String POSITION_CHILD = "child";
+public class CaseOptimizeAdopter implements ProposalAdopter {
 
     private static final String FIELD_PRECONDITION = "precondition";
     private static final String FIELD_TAGS = "tags";
     private static final List<String> FIELDS = List.of(FIELD_PRECONDITION, "steps", "expected", FIELD_TAGS);
 
-    /** 新建用例节点的默认级别：与既有建用例流程缺省口径一致 */
-    private static final String DEFAULT_PRIORITY = "P1";
     /** 标签采纳上限与产物清洗口径一致（详设 3.2 TAGS=5），避免编辑载荷绕过清洗 */
     private static final int MAX_TAGS = 5;
+    private static final Set<String> PRIORITIES = Set.of("P0", "P1", "P2", "P3");
 
     @Resource
     private AssistAdoptSupport support;
@@ -54,12 +50,10 @@ public class CaseCompleteAdopter implements ProposalAdopter {
     private TestCaseNodeService testCaseNodeService;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
-    @Resource
-    private VectorIndexService vectorIndexService;
 
     @Override
     public String type() {
-        return Constants.AiTaskType.CASE_COMPLETE;
+        return Constants.AiTaskType.CASE_OPTIMIZE;
     }
 
     @Override
@@ -70,17 +64,29 @@ public class CaseCompleteAdopter implements ProposalAdopter {
         AssistAdoptSupport.CaseTarget target = support.resolveCaseTarget(context);
         Map<String, Object> content = context.proposalContent();
 
-        boolean touched = applyFields(context, target, content);
-        List<UUID> created = insertExtraNodes(context, target, content);
+        String current = nvl(target.node().getPriority());
+        String suggested = suggestedPriority(context, content);
+        // 先校验再落库：畸形编辑载荷在写入前拒绝，避免字段已改而级别失败
+        if (suggested != null && !PRIORITIES.contains(suggested)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_INPUT_INVALID);
+        }
+        boolean fieldsTouched = applyFields(context, target, content);
+        String detail = null;
+        if (suggested != null) {
+            boolean changed = applyPriority(target, suggested);
+            detail = changed ? current + " → " + suggested : current + "（from = to，级别未变化）";
+        }
 
-        if (touched || !created.isEmpty()) {
+        if (fieldsTouched || suggested != null) {
             support.record(context, "TEST_CASE_NODE", target.node().getId(), nvl(target.node().getTitle()),
-                    "CASE_UPDATED", "采纳 AI 用例补全建议「" + nvl(target.node().getTitle()) + "」");
+                    "CASE_UPDATED", "采纳 AI 用例优化建议「" + nvl(target.node().getTitle()) + "」"
+                            + (detail == null ? "" : "：" + detail));
         }
 
         Map<String, Object> adoptedRef = new LinkedHashMap<>();
         adoptedRef.put("nodeId", String.valueOf(target.node().getId()));
-        adoptedRef.put("createdNodeIds", created.stream().map(UUID::toString).toList());
+        adoptedRef.put("from", current);
+        adoptedRef.put("to", suggested);
         return new AdoptOutcome(target.node().getId(), adoptedRef);
     }
 
@@ -134,63 +140,25 @@ public class CaseCompleteAdopter implements ProposalAdopter {
         return true;
     }
 
-    /**
-     * 补充节点（详设 4.3）：结构节点不建用例实体；用例实体 direct insert（不走既有建用例入口，
-     * 免逐节点重嵌），批内统一一次 upsertTestCase。
-     */
-    private List<UUID> insertExtraNodes(AdoptContext context, AssistAdoptSupport.CaseTarget target,
-            Map<String, Object> content) {
-        Object rawExtras = effectiveExtras(context, content);
-        if (!(rawExtras instanceof List<?> extras) || extras.isEmpty()) {
-            return List.of();
-        }
-        UUID documentId = target.document().getId();
-        UUID parentId = resolveParent(context, target.node());
-        int order = testCaseNodeMapper.listByParentId(parentId).size();
-        List<UUID> created = new ArrayList<>(extras.size());
-        for (Object element : extras) {
-            Map<String, Object> extra = asMap(element);
-            String title = trimToNull(asString(extra.get("title")));
-            if (title == null) {
-                continue;
-            }
-            boolean isTestCase = Boolean.parseBoolean(asString(extra.get("isTestCase")));
-            TestCaseNode node = new TestCaseNode();
-            node.setDocumentId(documentId);
-            node.setParentId(parentId);
-            node.setType(isTestCase ? Constants.NodeType.CASE : Constants.NodeType.NORMAL);
-            node.setTitle(title);
-            node.setSortOrder(order++);
-            node.setVersion(1);
-            node.setAiGenerated(true);
-            if (isTestCase) {
-                node.setPriority(DEFAULT_PRIORITY);
-            }
-            testCaseNodeMapper.insert(node);
-            created.add(node.getId());
-        }
-        if (!created.isEmpty()) {
-            vectorIndexService.upsertTestCase(documentId, context.operatorId());
-        }
-        return created;
-    }
-
-    /** 补充节点清单：默认随产物采纳，adopted_edited 显式携带时以编辑载荷为准（可剔除） */
-    private static Object effectiveExtras(AdoptContext context, Map<String, Object> content) {
+    /** 建议级别：adopted_edited 以编辑载荷为准（人工显式采纳），否则取产物；空白视为无建议 */
+    private static String suggestedPriority(AdoptContext context, Map<String, Object> content) {
         if (Constants.AiProposalAction.ADOPTED_EDITED.equals(context.action())
-                && context.content() != null && context.content().containsKey("extraNodes")) {
-            return context.content().get("extraNodes");
+                && context.content() != null && context.content().containsKey("priority")) {
+            return trimToNull(asString(context.content().get("priority")));
         }
-        return content.get("extraNodes");
+        return trimToNull(asString(asMap(content.get("priority")).get("suggested")));
     }
 
-    /** 补充节点落位：child 落源节点之下，缺省 sibling 落源节点同级 */
-    private static UUID resolveParent(AdoptContext context, TestCaseNode source) {
-        if (POSITION_CHILD.equals(context.extraNodePosition())) {
-            return source.getId();
+    /** 建议级别与现状一致时不写级别列，留痕由调用方负责（详设 3.2）；返回是否实际落库 */
+    private boolean applyPriority(AssistAdoptSupport.CaseTarget target, String suggested) {
+        if (suggested.equals(nvl(target.node().getPriority()))) {
+            return false;
         }
-        // 源节点无父级（根下用例）时回退为 child，避免补充节点脱离文档树
-        return source.getParentId() != null ? source.getParentId() : source.getId();
+        TestCaseNode carrier = new TestCaseNode();
+        carrier.setId(target.node().getId());
+        carrier.setPriority(suggested);
+        testCaseNodeMapper.updateById(carrier);
+        return true;
     }
 
     private static Map<String, Object> editedFields(AdoptContext context) {

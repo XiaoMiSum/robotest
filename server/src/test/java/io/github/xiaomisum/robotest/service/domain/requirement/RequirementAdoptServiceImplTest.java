@@ -108,7 +108,7 @@ class RequirementAdoptServiceImplTest {
     private AdoptContext ctx(AiTask task, Map<String, Object> artifact, String action,
             Map<String, Object> content, String targetSystemVersion, Set<String> allProposalKeys) {
         return new AdoptContext(task, AdoptFixtures.proposal(artifact), action, content, null, null, null,
-                targetSystemVersion, null, null, null, null, PROJECT_ID, OPERATOR_ID,
+                targetSystemVersion, null, null, null, PROJECT_ID, OPERATOR_ID,
                 allProposalKeys, null);
     }
 

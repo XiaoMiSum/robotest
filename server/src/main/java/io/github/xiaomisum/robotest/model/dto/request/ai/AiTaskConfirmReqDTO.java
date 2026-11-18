@@ -46,13 +46,10 @@ public class AiTaskConfirmReqDTO {
         private String position;
 
         /**
-         * 承接的脑图用例文档（补全 / 级别推荐），须属当前项目（X-Active-Project）；
+         * 承接的脑图用例文档（用例优化），须属当前项目（X-Active-Project）；
          * 缺省回退任务入参 documentId（任务详情页发起时不带 target）。
          */
         private UUID documentId;
-
-        /** 补充节点落位（sibling / child），缺省 sibling；sibling 落源节点同级、无父级时回退 child */
-        private String extraNodePosition;
 
         /** 承接的测试计划（执行顺序建议），缺省回退任务入参 planId */
         private UUID planId;
