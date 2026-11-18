@@ -64,6 +64,16 @@ public class AiTaskController {
         return Result.ok(aiTaskService.countActive(loginUser.getActiveProjectId(), loginUser.getId(), loginUser));
     }
 
+    /** 3.6.3 按节点查询最近一次任务（用例节点 AI 优化复用；无匹配 data 为 null） */
+    @GetMapping("/{type}/latest")
+    public Result<AiTaskRespDTO> getLatestByNode(@AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable String type,
+            @RequestParam("documentId") String documentId,
+            @RequestParam("nodeId") String nodeId) {
+        return Result.ok(aiTaskService.getLatestByNode(type, documentId, nodeId,
+                loginUser.getActiveProjectId(), loginUser.getId(), loginUser));
+    }
+
     /** 3.6.3 详情（最新执行 + 提案清单摘要 + documentMeta） */
     @GetMapping("/{taskId}")
     public Result<AiTaskRespDTO> getDetail(@AuthenticationPrincipal LoginUser loginUser,

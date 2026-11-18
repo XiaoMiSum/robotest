@@ -412,6 +412,30 @@ class AiTaskServiceImplTest {
     }
 
     @Test
+    void getLatestByNode_returnsLatestDetail() {
+        AiTask latest = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        latest.setTitle("用例优化");
+        when(taskMapper.selectLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID)).thenReturn(latest);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
+        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
+
+        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID, loginUser);
+
+        assertNotNull(resp);
+        assertEquals(TASK_ID, resp.getTaskId());
+        assertEquals("用例优化", resp.getTitle());
+        assertEquals(1, resp.getProposals().size());
+    }
+
+    @Test
+    void getLatestByNode_returnsNullWhenAbsent() {
+        when(taskMapper.selectLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID)).thenReturn(null);
+
+        assertNull(service.getLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID, loginUser));
+    }
+
+    @Test
     void getProposal_returnsContentWithAdoptedStatus() {
         when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
         when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
