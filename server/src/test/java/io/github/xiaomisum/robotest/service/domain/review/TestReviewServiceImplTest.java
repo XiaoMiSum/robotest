@@ -1,11 +1,14 @@
 package io.github.xiaomisum.robotest.service.domain.review;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewDetailRespDTO;
@@ -13,6 +16,7 @@ import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewListResp
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.review.TestReview;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
@@ -39,6 +43,9 @@ import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotService;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewSnapshotServiceImpl;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewWorkflow;
 import io.github.xiaomisum.robotest.service.domain.review.ReviewWorkflowImpl;
+import io.github.xiaomisum.robotest.service.domain.review.TestReviewReplanRunner;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,6 +58,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
+import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -99,6 +108,8 @@ class TestReviewServiceImplTest {
         private ProjectAccessGuard projectAccessGuard;
         @Mock
         private ProjectActivityService projectActivityService;
+        @Mock
+        private TestReviewReplanRunner testReviewReplanRunner;
 
         @Spy
         private ReviewWorkflow reviewWorkflow = new ReviewWorkflowImpl();
@@ -114,6 +125,17 @@ class TestReviewServiceImplTest {
         private UUID userId;
         private UUID reviewId;
         private UUID otherUserId;
+
+        /** 纯单测无 MyBatis 启动：wrapper 的 lambda 列解析依赖 TableInfo 缓存 */
+        @BeforeAll
+        static void initTableInfo() {
+                MybatisConfiguration configuration = new MybatisConfiguration();
+                configuration.getTypeHandlerRegistry().register(UUID.class, UUIDTypeHandler.class);
+                MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "");
+                if (TableInfoHelper.getTableInfo(TestReview.class) == null) {
+                        TableInfoHelper.initTableInfo(assistant, TestReview.class);
+                }
+        }
 
         @BeforeEach
         void setUp() {
@@ -1179,5 +1201,231 @@ class TestReviewServiceImplTest {
 
                 assertThrows(ServiceException.class,
                                 () -> reviewService.syncReview(projectId, reviewId, userId));
+        }
+
+        // ========== updateReview（编辑与异步重规划） ==========
+
+        private TestReview draftReview(UUID... requirementIds) {
+                TestReview review = new TestReview();
+                review.setId(reviewId);
+                review.setProjectId(projectId);
+                review.setInitiatorId(userId);
+                review.setStatus(Constants.Status.NEW);
+                review.setTitle("Old Title");
+                review.setDescription("Old Desc");
+                review.setRequirementIds(List.of(requirementIds));
+                return review;
+        }
+
+        private Requirement requirement(UUID id) {
+                Requirement requirement = new Requirement();
+                requirement.setId(id);
+                requirement.setProjectId(projectId);
+                return requirement;
+        }
+
+        @Test
+        void updateReview_partialUpdate_onlyWritesPassedFields() {
+                UUID req = UUID.fromString("00000000-0000-0000-0000-000000000030");
+                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview(req));
+
+                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
+                reqDTO.setTitle("New Title");
+
+                reviewService.updateReview(projectId, reviewId, userId, reqDTO);
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                TestReview update = captor.getValue();
+                assertEquals(reviewId, update.getId());
+                assertEquals("New Title", update.getTitle());
+                assertNull(update.getDescription());
+                assertNull(update.getRequirementIds());
+                assertNull(update.getParticipantIds());
+                assertNull(update.getReplanStatus());
+                verify(testReviewReplanRunner, never()).run(any(), any());
+        }
+
+        @Test
+        void updateReview_notInitiator_throws() {
+                TestReview review = draftReview();
+                review.setInitiatorId(otherUserId);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
+                reqDTO.setTitle("New Title");
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> reviewService.updateReview(projectId, reviewId, userId, reqDTO));
+                assertEquals(ErrorCodeConstants.REVIEW_NOT_INITIATOR.code(), exception.getCode());
+                verify(testReviewMapper, never()).updateById(any(TestReview.class));
+        }
+
+        @Test
+        void updateReview_terminalStatus_throws() {
+                TestReview review = draftReview();
+                review.setStatus(Constants.Status.COMPLETED);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
+                reqDTO.setTitle("New Title");
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> reviewService.updateReview(projectId, reviewId, userId, reqDTO));
+                assertEquals(ErrorCodeConstants.TEST_REVIEW_FINISHED.code(), exception.getCode());
+        }
+
+        @Test
+        void updateReview_runningReplan_throws() {
+                TestReview review = draftReview();
+                review.setReplanStatus(Constants.ReplanStatus.RUNNING);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
+                reqDTO.setTitle("New Title");
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> reviewService.updateReview(projectId, reviewId, userId, reqDTO));
+                assertEquals(ErrorCodeConstants.REPLAN_IN_PROGRESS.code(), exception.getCode());
+                verify(testReviewMapper, never()).updateById(any(TestReview.class));
+        }
+
+        @Test
+        void updateReview_requirementOrderChange_doesNotReplan() {
+                UUID reqA = UUID.fromString("00000000-0000-0000-0000-000000000031");
+                UUID reqB = UUID.fromString("00000000-0000-0000-0000-000000000032");
+                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview(reqA, reqB));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(reqA), requirement(reqB)));
+
+                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
+                reqDTO.setRequirementIds(List.of(reqB, reqA));
+                reqDTO.setReplan(true);
+
+                reviewService.updateReview(projectId, reviewId, userId, reqDTO);
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertNull(captor.getValue().getReplanStatus());
+                verify(testReviewReplanRunner, never()).run(any(), any());
+        }
+
+        @Test
+        void updateReview_requirementSetChanged_replanTriggers() {
+                UUID oldReq = UUID.fromString("00000000-0000-0000-0000-000000000033");
+                UUID newReq = UUID.fromString("00000000-0000-0000-0000-000000000034");
+                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview(oldReq));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(newReq)));
+
+                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
+                reqDTO.setRequirementIds(List.of(newReq));
+                reqDTO.setReplan(true);
+
+                reviewService.updateReview(projectId, reviewId, userId, reqDTO);
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                TestReview update = captor.getValue();
+                assertEquals(Constants.ReplanStatus.RUNNING, update.getReplanStatus());
+                assertNotNull(update.getReplanRequestedAt());
+                assertEquals(List.of(newReq), update.getRequirementIds());
+                verify(testReviewMapper).update(isNull(), any(LambdaUpdateWrapperX.class));
+                verify(testReviewReplanRunner).run(projectId, reviewId);
+        }
+
+        @Test
+        void updateReview_requirementChangedReplanFalse_doesNotReplan() {
+                UUID oldReq = UUID.fromString("00000000-0000-0000-0000-000000000035");
+                UUID newReq = UUID.fromString("00000000-0000-0000-0000-000000000036");
+                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview(oldReq));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(newReq)));
+
+                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
+                reqDTO.setRequirementIds(List.of(newReq));
+                reqDTO.setReplan(false);
+
+                reviewService.updateReview(projectId, reviewId, userId, reqDTO);
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertEquals(List.of(newReq), captor.getValue().getRequirementIds());
+                assertNull(captor.getValue().getReplanStatus());
+                verify(testReviewReplanRunner, never()).run(any(), any());
+        }
+
+        // ========== getReplanStatus / executeReplan / 状态回写 ==========
+
+        @Test
+        void getReplanStatus_nullStatus_mapsToIdle() {
+                TestReview review = draftReview();
+                review.setReplanStatus(null);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                assertEquals(Constants.ReplanStatus.IDLE,
+                                reviewService.getReplanStatus(projectId, reviewId, userId).getStatus());
+        }
+
+        @Test
+        void getReplanStatus_runningStatus_returnedAsIs() {
+                TestReview review = draftReview();
+                review.setReplanStatus(Constants.ReplanStatus.RUNNING);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                assertEquals(Constants.ReplanStatus.RUNNING,
+                                reviewService.getReplanStatus(projectId, reviewId, userId).getStatus());
+        }
+
+        @Test
+        void executeReplan_filtersRequirementsByProject_andUpdatesCases() {
+                UUID reqA = UUID.fromString("00000000-0000-0000-0000-000000000037");
+                UUID reqB = UUID.fromString("00000000-0000-0000-0000-000000000038");
+                UUID docId = UUID.fromString("00000000-0000-0000-0000-000000000039");
+                UUID caseId = UUID.fromString("00000000-0000-0000-0000-000000000040");
+                TestReview review = draftReview(reqA, reqB);
+                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+
+                Requirement foreign = new Requirement();
+                foreign.setId(reqB);
+                foreign.setProjectId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(reqA), foreign));
+
+                Map<UUID, Set<UUID>> resolved = Map.of(docId, Set.of(caseId));
+                when(testCaseRequirementService.resolvePlannedCases(projectId, List.of(reqA))).thenReturn(resolved);
+                doNothing().when(reviewSnapshotService).updateCases(any(), any(), any());
+
+                String message = reviewService.executeReplan(projectId, reviewId);
+
+                verify(testCaseRequirementService).resolvePlannedCases(projectId, List.of(reqA));
+                ArgumentCaptor<List<TestReviewCreateReqDTO.SelectedNode>> nodeCaptor = ArgumentCaptor.forClass(List.class);
+                verify(reviewSnapshotService).updateCases(eq(reviewId), eq(projectId), nodeCaptor.capture());
+                assertEquals(1, nodeCaptor.getValue().size());
+                assertEquals(docId, nodeCaptor.getValue().get(0).getDocumentId());
+                assertEquals(List.of(caseId), nodeCaptor.getValue().get(0).getCaseIds());
+                assertTrue(message.contains("1 个用例"));
+        }
+
+        @Test
+        void markReplanSucceeded_persistsSucceededStatus() {
+                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview());
+
+                reviewService.markReplanSucceeded(projectId, reviewId, "done");
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertEquals(Constants.ReplanStatus.SUCCEEDED, captor.getValue().getReplanStatus());
+                assertEquals("done", captor.getValue().getReplanMessage());
+                assertNotNull(captor.getValue().getReplanFinishedAt());
+        }
+
+        @Test
+        void markReplanFailed_persistsFailedStatus() {
+                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview());
+
+                reviewService.markReplanFailed(projectId, reviewId, null);
+
+                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
+                verify(testReviewMapper).updateById(captor.capture());
+                assertEquals(Constants.ReplanStatus.FAILED, captor.getValue().getReplanStatus());
+                assertEquals("重新规划失败", captor.getValue().getReplanMessage());
+                assertNotNull(captor.getValue().getReplanFinishedAt());
         }
 }

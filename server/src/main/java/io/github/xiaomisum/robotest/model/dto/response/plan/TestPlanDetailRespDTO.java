@@ -21,6 +21,11 @@ public class TestPlanDetailRespDTO {
     private ExecutorInfo executor;
     /** 关联需求（按创建时所选顺序，需求已删除时跳过） */
     private List<RequirementRefRespDTO> requirements;
+    /** 关联需求原始 ID（含已删除需求），供编辑表单判定是否发生集合变化 */
+    private List<UUID> requirementIds;
+    private String replanStatus;
+    private String replanMessage;
+    private LocalDateTime replanFinishedAt;
     private LocalDateTime createdAt;
 
     @Data

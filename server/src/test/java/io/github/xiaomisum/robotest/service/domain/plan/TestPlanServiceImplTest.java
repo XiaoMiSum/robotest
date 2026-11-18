@@ -1,11 +1,14 @@
 package io.github.xiaomisum.robotest.service.domain.plan;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.convert.TestPlanConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.TestPlanConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
@@ -15,6 +18,7 @@ import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
@@ -28,8 +32,13 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
+import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
+import io.github.xiaomisum.robotest.service.domain.plan.TestPlanReplanRunner;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +50,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
+import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -85,6 +96,12 @@ class TestPlanServiceImplTest {
         private ProjectAccessGuard projectAccessGuard;
         @Mock
         private ProjectActivityService projectActivityService;
+        @Mock
+        private ProjectMapper projectMapper;
+        @Mock
+        private WorkspaceUserMapper workspaceUserMapper;
+        @Mock
+        private TestPlanReplanRunner testPlanReplanRunner;
         @Spy
         private TestPlanConvertMapper testPlanConvertMapper = new TestPlanConvertMapperImpl();
 
@@ -95,6 +112,17 @@ class TestPlanServiceImplTest {
         private UUID userId;
         private UUID planId;
         private UUID otherUserId;
+
+        /** 纯单测无 MyBatis 启动：wrapper 的 lambda 列解析依赖 TableInfo 缓存 */
+        @BeforeAll
+        static void initTableInfo() {
+                MybatisConfiguration configuration = new MybatisConfiguration();
+                configuration.getTypeHandlerRegistry().register(UUID.class, UUIDTypeHandler.class);
+                MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "");
+                if (TableInfoHelper.getTableInfo(TestPlan.class) == null) {
+                        TableInfoHelper.initTableInfo(assistant, TestPlan.class);
+                }
+        }
 
         @BeforeEach
         void setUp() {
@@ -1052,5 +1080,217 @@ class TestPlanServiceImplTest {
 
                 verify(planModuleSnapshotMapper).deleteById(moduleSnapId);
                 verify(planNodeSnapshotMapper).deleteById(nodeSnapId);
+        }
+
+        // ========== updatePlan（编辑与异步重规划） ==========
+
+        private TestPlan draftPlan(UUID... requirementIds) {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus(Constants.Status.NEW);
+                plan.setName("Old Name");
+                plan.setDescription("Old Desc");
+                plan.setRequirementIds(List.of(requirementIds));
+                return plan;
+        }
+
+        private Requirement requirement(UUID id) {
+                Requirement requirement = new Requirement();
+                requirement.setId(id);
+                requirement.setProjectId(projectId);
+                return requirement;
+        }
+
+        @Test
+        void updatePlan_partialUpdate_onlyWritesPassedFields() {
+                UUID req = UUID.fromString("00000000-0000-0000-0000-000000000050");
+                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan(req));
+
+                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
+                reqDTO.setName("New Name");
+
+                planService.updatePlan(projectId, planId, userId, reqDTO);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                TestPlan update = captor.getValue();
+                assertEquals(planId, update.getId());
+                assertEquals("New Name", update.getName());
+                assertNull(update.getDescription());
+                assertNull(update.getExecutorId());
+                assertNull(update.getStartTime());
+                assertNull(update.getRequirementIds());
+                assertNull(update.getReplanStatus());
+                verify(testPlanReplanRunner, never()).run(any(), any());
+        }
+
+        @Test
+        void updatePlan_blocked_throws() {
+                TestPlan plan = draftPlan();
+                plan.setStatus(Constants.Status.BLOCKED);
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
+                reqDTO.setName("New Name");
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.updatePlan(projectId, planId, userId, reqDTO));
+                assertEquals(ErrorCodeConstants.PLAN_IS_BLOCKED.code(), exception.getCode());
+                verify(testPlanMapper, never()).updateById(any(TestPlan.class));
+        }
+
+        @Test
+        void updatePlan_finished_throws() {
+                TestPlan plan = draftPlan();
+                plan.setStatus(Constants.Status.CLOSED);
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
+                reqDTO.setName("New Name");
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.updatePlan(projectId, planId, userId, reqDTO));
+                assertEquals(ErrorCodeConstants.TEST_PLAN_FINISHED.code(), exception.getCode());
+        }
+
+        @Test
+        void updatePlan_runningReplan_throws() {
+                TestPlan plan = draftPlan();
+                plan.setReplanStatus(Constants.ReplanStatus.RUNNING);
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
+                reqDTO.setName("New Name");
+
+                ServiceException exception = assertThrows(ServiceException.class,
+                                () -> planService.updatePlan(projectId, planId, userId, reqDTO));
+                assertEquals(ErrorCodeConstants.REPLAN_IN_PROGRESS.code(), exception.getCode());
+                verify(testPlanMapper, never()).updateById(any(TestPlan.class));
+        }
+
+        @Test
+        void updatePlan_requirementOrderChange_doesNotReplan() {
+                UUID reqA = UUID.fromString("00000000-0000-0000-0000-000000000051");
+                UUID reqB = UUID.fromString("00000000-0000-0000-0000-000000000052");
+                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan(reqA, reqB));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(reqA), requirement(reqB)));
+
+                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
+                reqDTO.setRequirementIds(List.of(reqB, reqA));
+                reqDTO.setReplan(true);
+
+                planService.updatePlan(projectId, planId, userId, reqDTO);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertNull(captor.getValue().getReplanStatus());
+                verify(testPlanReplanRunner, never()).run(any(), any());
+                verifyNoInteractions(planModuleSnapshotMapper, planNodeSnapshotMapper, planExecutionRecordMapper);
+        }
+
+        @Test
+        void updatePlan_requirementSetChanged_replanTriggers() {
+                UUID oldReq = UUID.fromString("00000000-0000-0000-0000-000000000053");
+                UUID newReq = UUID.fromString("00000000-0000-0000-0000-000000000054");
+                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan(oldReq));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(newReq)));
+
+                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
+                reqDTO.setRequirementIds(List.of(newReq));
+                reqDTO.setReplan(true);
+
+                planService.updatePlan(projectId, planId, userId, reqDTO);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                TestPlan update = captor.getValue();
+                assertEquals(Constants.ReplanStatus.RUNNING, update.getReplanStatus());
+                assertNotNull(update.getReplanRequestedAt());
+                assertEquals(List.of(newReq), update.getRequirementIds());
+                verify(testPlanMapper).update(isNull(), any(LambdaUpdateWrapperX.class));
+                verify(testPlanReplanRunner).run(projectId, planId);
+        }
+
+        @Test
+        void updatePlan_requirementChangedReplanFalse_doesNotReplan() {
+                UUID oldReq = UUID.fromString("00000000-0000-0000-0000-000000000055");
+                UUID newReq = UUID.fromString("00000000-0000-0000-0000-000000000056");
+                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan(oldReq));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(newReq)));
+
+                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
+                reqDTO.setRequirementIds(List.of(newReq));
+                reqDTO.setReplan(false);
+
+                planService.updatePlan(projectId, planId, userId, reqDTO);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(List.of(newReq), captor.getValue().getRequirementIds());
+                assertNull(captor.getValue().getReplanStatus());
+                verify(testPlanReplanRunner, never()).run(any(), any());
+                verifyNoInteractions(planModuleSnapshotMapper, planNodeSnapshotMapper, planExecutionRecordMapper);
+        }
+
+        // ========== getReplanStatus / executeReplan / 状态回写 ==========
+
+        @Test
+        void getReplanStatus_nullStatus_mapsToIdle() {
+                TestPlan plan = draftPlan();
+                plan.setReplanStatus(null);
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                assertEquals(Constants.ReplanStatus.IDLE,
+                                planService.getReplanStatus(projectId, planId, userId).getStatus());
+        }
+
+        @Test
+        void executeReplan_filtersRequirementsByProject_andMarksSnapshotSynced() {
+                UUID reqA = UUID.fromString("00000000-0000-0000-0000-000000000057");
+                UUID reqB = UUID.fromString("00000000-0000-0000-0000-000000000058");
+                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan(reqA, reqB));
+
+                Requirement foreign = new Requirement();
+                foreign.setId(reqB);
+                foreign.setProjectId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
+                when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(reqA), foreign));
+                when(testCaseDocumentMapper.listByIds(anyCollection())).thenReturn(List.of());
+                when(planModuleSnapshotMapper.listByPlanIdAndType(any(), any())).thenReturn(List.of());
+
+                String message = planService.executeReplan(projectId, planId);
+
+                verify(testCaseRequirementService).resolvePlannedCases(projectId, List.of(reqA));
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertNotNull(captor.getValue().getSnapshotSyncedAt());
+                assertTrue(message.contains("0 个用例"));
+        }
+
+        @Test
+        void markReplanSucceeded_persistsSucceededStatus() {
+                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan());
+
+                planService.markReplanSucceeded(projectId, planId, "done");
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.ReplanStatus.SUCCEEDED, captor.getValue().getReplanStatus());
+                assertEquals("done", captor.getValue().getReplanMessage());
+                assertNotNull(captor.getValue().getReplanFinishedAt());
+        }
+
+        @Test
+        void markReplanFailed_persistsFailedStatus() {
+                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan());
+
+                planService.markReplanFailed(projectId, planId, null);
+
+                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
+                verify(testPlanMapper).updateById(captor.capture());
+                assertEquals(Constants.ReplanStatus.FAILED, captor.getValue().getReplanStatus());
+                assertEquals("重新规划失败", captor.getValue().getReplanMessage());
+                assertNotNull(captor.getValue().getReplanFinishedAt());
         }
 }

@@ -7,11 +7,13 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgressRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -32,9 +34,12 @@ import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -67,6 +72,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     private ProjectActivityService projectActivityService;
     @Resource
     private TestCaseRequirementService testCaseRequirementService;
+    @Resource
+    private TestReviewReplanRunner testReviewReplanRunner;
 
     @Override
     public PageResult<TestReviewListRespDTO> getReviewPage(UUID projectId, UUID userId, String status,
@@ -196,6 +203,122 @@ public class TestReviewServiceImpl implements TestReviewService {
                 review.getTitle(), "REVIEW_CREATED", "创建评审「" + review.getTitle() + "」");
 
         return convertToDetailDTO(review);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TestReviewDetailRespDTO updateReview(UUID projectId, UUID reviewId, UUID userId,
+            TestReviewUpdateReqDTO reqDTO) {
+        TestReview review = requireReview(projectId, reviewId, userId);
+        if (!review.getInitiatorId().equals(userId)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REVIEW_NOT_INITIATOR);
+        }
+        // 基本信息编辑与调整用例同属活跃态操作，终态由状态机统一拦截
+        reviewWorkflow.assertTransition(review, ReviewEvent.UPDATE_CASES);
+        if (Constants.ReplanStatus.RUNNING.equals(review.getReplanStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REPLAN_IN_PROGRESS);
+        }
+
+        List<UUID> currentRequirementIds = normalizeRequirementIds(review.getRequirementIds());
+        List<UUID> nextRequirementIds = currentRequirementIds;
+        if (reqDTO.getRequirementIds() != null) {
+            nextRequirementIds = normalizeRequirementIds(reqDTO.getRequirementIds());
+            validateRequirementIds(projectId, nextRequirementIds);
+        }
+        if (reqDTO.getParticipantIds() != null) {
+            List<UUID> participantIds = normalizeParticipantIds(reqDTO.getParticipantIds());
+            validateWorkspaceMembers(projectId, participantIds);
+            review.setParticipantIds(participantIds);
+        }
+        boolean requirementChanged = reqDTO.getRequirementIds() != null
+                && !new HashSet<>(currentRequirementIds).equals(new HashSet<>(nextRequirementIds));
+        boolean shouldReplan = requirementChanged && Boolean.TRUE.equals(reqDTO.getReplan());
+
+        TestReview update = new TestReview();
+        update.setId(reviewId);
+        if (reqDTO.getTitle() != null) {
+            update.setTitle(reqDTO.getTitle());
+            review.setTitle(reqDTO.getTitle());
+        }
+        if (reqDTO.getDescription() != null) {
+            update.setDescription(reqDTO.getDescription());
+            review.setDescription(reqDTO.getDescription());
+        }
+        if (reqDTO.getParticipantIds() != null) {
+            update.setParticipantIds(review.getParticipantIds());
+        }
+        if (reqDTO.getRequirementIds() != null) {
+            update.setRequirementIds(nextRequirementIds);
+            review.setRequirementIds(nextRequirementIds);
+        }
+        if (shouldReplan) {
+            LocalDateTime requestedAt = LocalDateTime.now();
+            update.setReplanStatus(Constants.ReplanStatus.RUNNING);
+            update.setReplanRequestedAt(requestedAt);
+            review.setReplanStatus(Constants.ReplanStatus.RUNNING);
+            review.setReplanRequestedAt(requestedAt);
+            review.setReplanMessage(null);
+            review.setReplanFinishedAt(null);
+        }
+        testReviewMapper.updateById(update);
+        if (shouldReplan) {
+            // 上一次结果不代表本次任务，null 须显式写入（C11）
+            testReviewMapper.update(null, new LambdaUpdateWrapperX<TestReview>()
+                    .eq(TestReview::getId, reviewId)
+                    .set(TestReview::getReplanMessage, null)
+                    .set(TestReview::getReplanFinishedAt, null));
+        }
+
+        if (shouldReplan) {
+            triggerReplan(projectId, reviewId);
+        }
+        return convertToDetailDTO(review);
+    }
+
+    private void validateRequirementIds(UUID projectId, List<UUID> requirementIds) {
+        if (requirementIds.isEmpty()) {
+            return;
+        }
+        Set<UUID> validIds = requirementMapper.listByIds(requirementIds).stream()
+                .filter(requirement -> projectId.equals(requirement.getProjectId()))
+                .map(Requirement::getId)
+                .collect(Collectors.toSet());
+        if (!validIds.containsAll(requirementIds)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NOT_FOUND);
+        }
+    }
+
+    private void validateWorkspaceMembers(UUID projectId, List<UUID> memberIds) {
+        if (memberIds.isEmpty()) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.VALIDATION_FAILED);
+        }
+        Project project = projectMapper.selectById(projectId);
+        if (project == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
+        }
+        for (UUID memberId : memberIds) {
+            if (workspaceUserMapper.findByWorkspaceIdAndUserId(project.getWorkspaceId(), memberId) == null) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+            }
+        }
+    }
+
+    private List<UUID> normalizeParticipantIds(List<UUID> participantIds) {
+        return participantIds == null ? List.of()
+                : participantIds.stream().filter(Objects::nonNull).distinct().toList();
+    }
+
+    private void triggerReplan(UUID projectId, UUID reviewId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            testReviewReplanRunner.run(projectId, reviewId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                testReviewReplanRunner.run(projectId, reviewId);
+            }
+        });
     }
 
     private List<UUID> normalizeRequirementIds(List<UUID> requirementIds) {
@@ -474,8 +597,89 @@ public class TestReviewServiceImpl implements TestReviewService {
         reviewSnapshotService.syncSnapshots(reviewId);
     }
 
+    @Override
+    public TestReviewReplanStatusRespDTO getReplanStatus(UUID projectId, UUID reviewId, UUID userId) {
+        TestReview review = requireReview(projectId, reviewId, userId);
+        TestReviewReplanStatusRespDTO dto = new TestReviewReplanStatusRespDTO();
+        dto.setStatus(normalizeReplanStatus(review.getReplanStatus()));
+        dto.setMessage(review.getReplanMessage());
+        dto.setRequestedAt(review.getReplanRequestedAt());
+        dto.setFinishedAt(review.getReplanFinishedAt());
+        return dto;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String executeReplan(UUID projectId, UUID reviewId) {
+        TestReview review = requireReplanTarget(projectId, reviewId);
+        // 需求条目无物理删除，仍按当前项目过滤，避免历史脏 ID 使解析整体失败
+        List<UUID> requirementIds = requirementMapper.listByIds(review.getRequirementIds()).stream()
+                .filter(requirement -> projectId.equals(requirement.getProjectId()))
+                .map(Requirement::getId)
+                .toList();
+        Map<UUID, Set<UUID>> resolved = testCaseRequirementService.resolvePlannedCases(projectId, requirementIds);
+        reviewSnapshotService.updateCases(reviewId, projectId, toSelectedNodes(resolved));
+        long caseCount = resolved.values().stream().mapToLong(Set::size).sum();
+        return "重新规划完成，共 " + caseCount + " 个用例";
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markReplanSucceeded(UUID projectId, UUID reviewId, String message) {
+        TestReview review = requireReplanTarget(projectId, reviewId);
+        TestReview update = new TestReview();
+        update.setId(review.getId());
+        update.setReplanStatus(Constants.ReplanStatus.SUCCEEDED);
+        update.setReplanMessage(normalizeReplanMessage(message, true));
+        update.setReplanFinishedAt(LocalDateTime.now());
+        testReviewMapper.updateById(update);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markReplanFailed(UUID projectId, UUID reviewId, String message) {
+        TestReview review = requireReplanTarget(projectId, reviewId);
+        TestReview update = new TestReview();
+        update.setId(review.getId());
+        update.setReplanStatus(Constants.ReplanStatus.FAILED);
+        update.setReplanMessage(normalizeReplanMessage(message, false));
+        update.setReplanFinishedAt(LocalDateTime.now());
+        testReviewMapper.updateById(update);
+    }
+
+    private TestReview requireReplanTarget(UUID projectId, UUID reviewId) {
+        TestReview review = testReviewMapper.selectById(reviewId);
+        if (review == null || !projectId.equals(review.getProjectId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_REVIEW_NOT_FOUND);
+        }
+        return review;
+    }
+
+    private List<TestReviewCreateReqDTO.SelectedNode> toSelectedNodes(Map<UUID, Set<UUID>> resolved) {
+        return resolved.entrySet().stream().map(entry -> {
+            TestReviewCreateReqDTO.SelectedNode node = new TestReviewCreateReqDTO.SelectedNode();
+            node.setDocumentId(entry.getKey());
+            node.setCaseIds(new ArrayList<>(entry.getValue()));
+            return node;
+        }).toList();
+    }
+
+    private String normalizeReplanStatus(String status) {
+        return status == null || status.isBlank() ? Constants.ReplanStatus.IDLE : status;
+    }
+
+    private String normalizeReplanMessage(String message, boolean succeeded) {
+        if (message == null || message.isBlank()) {
+            return succeeded ? "重新规划完成" : "重新规划失败";
+        }
+        return message.length() > 1000 ? message.substring(0, 1000) : message;
+    }
+
     private TestReviewDetailRespDTO convertToDetailDTO(TestReview review) {
         TestReviewDetailRespDTO dto = testReviewConvertMapper.toDetailDTO(review);
+        if (dto.getReplanStatus() == null || dto.getReplanStatus().isBlank()) {
+            dto.setReplanStatus(Constants.ReplanStatus.IDLE);
+        }
 
         SysUser initiator = userMapper.selectById(review.getInitiatorId());
         if (initiator != null) {

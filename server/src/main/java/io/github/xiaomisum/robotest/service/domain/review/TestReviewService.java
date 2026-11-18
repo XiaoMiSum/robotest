@@ -3,11 +3,13 @@ package io.github.xiaomisum.robotest.service.domain.review;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgressRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 
@@ -22,6 +24,11 @@ public interface TestReviewService {
             Integer pageNo, Integer pageSize);
 
     TestReviewDetailRespDTO createReview(UUID projectId, UUID userId, TestReviewCreateReqDTO reqDTO);
+
+    /**
+     * 编辑评审基本信息（仅发起人、活跃态）；关联需求集合变化且 replan=true 时提交后台重规划
+     */
+    TestReviewDetailRespDTO updateReview(UUID projectId, UUID reviewId, UUID userId, TestReviewUpdateReqDTO reqDTO);
 
     TestReviewDetailRespDTO getReviewDetail(UUID projectId, UUID reviewId, UUID userId);
 
@@ -101,4 +108,26 @@ public interface TestReviewService {
     TestReviewProgressRespDTO getReviewProgress(UUID projectId, UUID reviewId, UUID userId);
 
     void syncReview(UUID projectId, UUID reviewId, UUID userId);
+
+    /**
+     * 查询关联需求变化后的用例重规划状态
+     */
+    TestReviewReplanStatusRespDTO getReplanStatus(UUID projectId, UUID reviewId, UUID userId);
+
+    /**
+     * 后台重规划执行入口，由独立 @Async Runner 调用（非请求入口）
+     *
+     * @return 结果摘要
+     */
+    String executeReplan(UUID projectId, UUID reviewId);
+
+    /**
+     * 回写重规划成功状态，由独立 Runner 调用
+     */
+    void markReplanSucceeded(UUID projectId, UUID reviewId, String message);
+
+    /**
+     * 回写重规划失败状态，由独立 Runner 调用
+     */
+    void markReplanFailed(UUID projectId, UUID reviewId, String message);
 }

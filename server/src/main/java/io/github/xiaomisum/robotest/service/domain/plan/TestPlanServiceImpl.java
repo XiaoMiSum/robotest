@@ -7,10 +7,12 @@ import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementRefRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
@@ -20,6 +22,7 @@ import io.github.xiaomisum.robotest.model.entity.plan.TestPlanExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanModuleSnapshot;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
+import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
@@ -31,6 +34,8 @@ import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
+import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
+import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
@@ -39,9 +44,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -78,6 +86,12 @@ public class TestPlanServiceImpl implements TestPlanService {
     private ProjectActivityService projectActivityService;
     @Resource
     private TestCaseRequirementService testCaseRequirementService;
+    @Resource
+    private ProjectMapper projectMapper;
+    @Resource
+    private WorkspaceUserMapper workspaceUserMapper;
+    @Resource
+    private TestPlanReplanRunner testPlanReplanRunner;
 
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, UUID userId, String status,
@@ -171,6 +185,119 @@ public class TestPlanServiceImpl implements TestPlanService {
                 plan.getName(), "PLAN_CREATED", "创建测试计划「" + plan.getName() + "」");
 
         return convertToDetailDTO(plan);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TestPlanDetailRespDTO updatePlan(UUID projectId, UUID planId, UUID userId, TestPlanUpdateReqDTO reqDTO) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
+        requireNotBlocked(plan);
+        if (!Constants.Status.NEW.equals(plan.getStatus())
+                && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_FINISHED);
+        }
+        if (Constants.ReplanStatus.RUNNING.equals(plan.getReplanStatus())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REPLAN_IN_PROGRESS);
+        }
+
+        List<UUID> currentRequirementIds = normalizeRequirementIds(plan.getRequirementIds());
+        List<UUID> nextRequirementIds = currentRequirementIds;
+        if (reqDTO.getRequirementIds() != null) {
+            nextRequirementIds = normalizeRequirementIds(reqDTO.getRequirementIds());
+            validateRequirementIds(projectId, nextRequirementIds);
+        }
+        if (reqDTO.getExecutorId() != null) {
+            validateWorkspaceMember(projectId, reqDTO.getExecutorId());
+        }
+        boolean requirementChanged = reqDTO.getRequirementIds() != null
+                && !new HashSet<>(currentRequirementIds).equals(new HashSet<>(nextRequirementIds));
+        boolean shouldReplan = requirementChanged && Boolean.TRUE.equals(reqDTO.getReplan());
+
+        TestPlan update = new TestPlan();
+        update.setId(planId);
+        if (reqDTO.getName() != null) {
+            update.setName(reqDTO.getName());
+            plan.setName(reqDTO.getName());
+        }
+        if (reqDTO.getDescription() != null) {
+            update.setDescription(reqDTO.getDescription());
+            plan.setDescription(reqDTO.getDescription());
+        }
+        if (reqDTO.getExecutorId() != null) {
+            update.setExecutorId(reqDTO.getExecutorId());
+            plan.setExecutorId(reqDTO.getExecutorId());
+        }
+        if (reqDTO.getStartTime() != null) {
+            update.setStartTime(reqDTO.getStartTime());
+            plan.setStartTime(reqDTO.getStartTime());
+        }
+        if (reqDTO.getEndTime() != null) {
+            update.setEndTime(reqDTO.getEndTime());
+            plan.setEndTime(reqDTO.getEndTime());
+        }
+        if (reqDTO.getEnvironment() != null) {
+            update.setEnvironment(reqDTO.getEnvironment());
+            plan.setEnvironment(reqDTO.getEnvironment());
+        }
+        if (reqDTO.getRequirementIds() != null) {
+            update.setRequirementIds(nextRequirementIds);
+            plan.setRequirementIds(nextRequirementIds);
+        }
+        if (shouldReplan) {
+            LocalDateTime requestedAt = LocalDateTime.now();
+            update.setReplanStatus(Constants.ReplanStatus.RUNNING);
+            update.setReplanRequestedAt(requestedAt);
+            plan.setReplanStatus(Constants.ReplanStatus.RUNNING);
+            plan.setReplanRequestedAt(requestedAt);
+            plan.setReplanMessage(null);
+            plan.setReplanFinishedAt(null);
+        }
+        testPlanMapper.updateById(update);
+        if (shouldReplan) {
+            // 上一次结果不代表本次任务，null 须显式写入（C11）
+            testPlanMapper.update(null, new LambdaUpdateWrapperX<TestPlan>()
+                    .eq(TestPlan::getId, planId)
+                    .set(TestPlan::getReplanMessage, null)
+                    .set(TestPlan::getReplanFinishedAt, null));
+            triggerReplan(projectId, planId);
+        }
+        return convertToDetailDTO(plan);
+    }
+
+    private void validateRequirementIds(UUID projectId, List<UUID> requirementIds) {
+        if (requirementIds.isEmpty()) {
+            return;
+        }
+        Set<UUID> validIds = requirementMapper.listByIds(requirementIds).stream()
+                .filter(requirement -> projectId.equals(requirement.getProjectId()))
+                .map(Requirement::getId)
+                .collect(Collectors.toSet());
+        if (!validIds.containsAll(requirementIds)) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_NOT_FOUND);
+        }
+    }
+
+    private void validateWorkspaceMember(UUID projectId, UUID memberId) {
+        Project project = projectMapper.selectById(projectId);
+        if (project == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.PROJECT_NOT_FOUND);
+        }
+        if (workspaceUserMapper.findByWorkspaceIdAndUserId(project.getWorkspaceId(), memberId) == null) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
+        }
+    }
+
+    private void triggerReplan(UUID projectId, UUID planId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            testPlanReplanRunner.run(projectId, planId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                testPlanReplanRunner.run(projectId, planId);
+            }
+        });
     }
 
     private List<UUID> normalizeRequirementIds(List<UUID> requirementIds) {
@@ -308,15 +435,23 @@ public class TestPlanServiceImpl implements TestPlanService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_FINISHED);
         }
 
+        applyCaseUpdate(plan, reqDTO.getSelectedNodes());
+        markSnapshotSynced(planId);
+        projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
+                plan.getName(), "PLAN_CASES_UPDATED", "调整测试计划「" + plan.getName() + "」的用例");
+    }
+
+    private void applyCaseUpdate(TestPlan plan, List<TestPlanCreateReqDTO.SelectedNode> selectedNodes) {
+        UUID planId = plan.getId();
         // 批量校验选中文档：一次 IN 查询替代逐条 selectById，避免 N+1
-        Set<UUID> selectedDocIds = reqDTO.getSelectedNodes().stream()
+        Set<UUID> selectedDocIds = selectedNodes.stream()
                 .map(TestPlanCreateReqDTO.SelectedNode::getDocumentId)
                 .collect(Collectors.toSet());
         Map<UUID, TestCaseDocument> docsById = testCaseDocumentMapper.listByIds(selectedDocIds).stream()
                 .collect(Collectors.toMap(TestCaseDocument::getId, m -> m));
 
         Map<UUID, Set<UUID>> newSelection = new LinkedHashMap<>();
-        for (TestPlanCreateReqDTO.SelectedNode sn : reqDTO.getSelectedNodes()) {
+        for (TestPlanCreateReqDTO.SelectedNode sn : selectedNodes) {
             TestCaseDocument doc = docsById.get(sn.getDocumentId());
             if (doc == null || !doc.getProjectId().equals(plan.getProjectId())) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_DOCUMENT_NOT_FOUND);
@@ -338,7 +473,7 @@ public class TestPlanServiceImpl implements TestPlanService {
         pruneEmptyDirectorySnapshots(planId);
 
         // 2. 新增文档：复用创建时的快照生成（内部已预置库中已有模块，不会重复复制目录）
-        List<TestPlanCreateReqDTO.SelectedNode> added = reqDTO.getSelectedNodes().stream()
+        List<TestPlanCreateReqDTO.SelectedNode> added = selectedNodes.stream()
                 .filter(sn -> !existingDocs.containsKey(sn.getDocumentId()))
                 .collect(Collectors.toList());
         if (!added.isEmpty()) {
@@ -352,10 +487,6 @@ public class TestPlanServiceImpl implements TestPlanService {
                 refreshDocumentSnapshot(planId, docSnap, entry.getValue());
             }
         }
-
-        markSnapshotSynced(planId);
-        projectActivityService.record(plan.getProjectId(), userId, "TEST_PLAN", planId,
-                plan.getName(), "PLAN_CASES_UPDATED", "调整测试计划「" + plan.getName() + "」的用例");
     }
 
     // 快照结构调整后回写同步时间，供执行顺序推荐判断快照新鲜度；载体只携带该字段（C9）
@@ -884,8 +1015,90 @@ public class TestPlanServiceImpl implements TestPlanService {
         children.forEach(child -> fillSnapshotChildren(child, parentMap));
     }
 
+    @Override
+    public TestPlanReplanStatusRespDTO getReplanStatus(UUID projectId, UUID planId, UUID userId) {
+        TestPlan plan = requirePlan(projectId, planId, userId);
+        TestPlanReplanStatusRespDTO dto = new TestPlanReplanStatusRespDTO();
+        dto.setStatus(normalizeReplanStatus(plan.getReplanStatus()));
+        dto.setMessage(plan.getReplanMessage());
+        dto.setRequestedAt(plan.getReplanRequestedAt());
+        dto.setFinishedAt(plan.getReplanFinishedAt());
+        return dto;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String executeReplan(UUID projectId, UUID planId) {
+        TestPlan plan = requireReplanTarget(projectId, planId);
+        // 需求条目无物理删除，仍按当前项目过滤，避免历史脏 ID 使解析整体失败
+        List<UUID> requirementIds = requirementMapper.listByIds(plan.getRequirementIds()).stream()
+                .filter(requirement -> projectId.equals(requirement.getProjectId()))
+                .map(Requirement::getId)
+                .toList();
+        Map<UUID, Set<UUID>> resolved = testCaseRequirementService.resolvePlannedCases(projectId, requirementIds);
+        applyCaseUpdate(plan, toSelectedNodes(resolved));
+        markSnapshotSynced(planId);
+        long caseCount = resolved.values().stream().mapToLong(Set::size).sum();
+        return "重新规划完成，共 " + caseCount + " 个用例";
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markReplanSucceeded(UUID projectId, UUID planId, String message) {
+        TestPlan plan = requireReplanTarget(projectId, planId);
+        TestPlan update = new TestPlan();
+        update.setId(plan.getId());
+        update.setReplanStatus(Constants.ReplanStatus.SUCCEEDED);
+        update.setReplanMessage(normalizeReplanMessage(message, true));
+        update.setReplanFinishedAt(LocalDateTime.now());
+        testPlanMapper.updateById(update);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markReplanFailed(UUID projectId, UUID planId, String message) {
+        TestPlan plan = requireReplanTarget(projectId, planId);
+        TestPlan update = new TestPlan();
+        update.setId(plan.getId());
+        update.setReplanStatus(Constants.ReplanStatus.FAILED);
+        update.setReplanMessage(normalizeReplanMessage(message, false));
+        update.setReplanFinishedAt(LocalDateTime.now());
+        testPlanMapper.updateById(update);
+    }
+
+    private TestPlan requireReplanTarget(UUID projectId, UUID planId) {
+        TestPlan plan = testPlanMapper.selectById(planId);
+        if (plan == null || !projectId.equals(plan.getProjectId())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_NOT_FOUND);
+        }
+        return plan;
+    }
+
+    private List<TestPlanCreateReqDTO.SelectedNode> toSelectedNodes(Map<UUID, Set<UUID>> resolved) {
+        return resolved.entrySet().stream().map(entry -> {
+            TestPlanCreateReqDTO.SelectedNode node = new TestPlanCreateReqDTO.SelectedNode();
+            node.setDocumentId(entry.getKey());
+            node.setCaseIds(new ArrayList<>(entry.getValue()));
+            return node;
+        }).toList();
+    }
+
+    private String normalizeReplanStatus(String status) {
+        return status == null || status.isBlank() ? Constants.ReplanStatus.IDLE : status;
+    }
+
+    private String normalizeReplanMessage(String message, boolean succeeded) {
+        if (message == null || message.isBlank()) {
+            return succeeded ? "重新规划完成" : "重新规划失败";
+        }
+        return message.length() > 1000 ? message.substring(0, 1000) : message;
+    }
+
     private TestPlanDetailRespDTO convertToDetailDTO(TestPlan plan) {
         TestPlanDetailRespDTO dto = testPlanConvertMapper.toDetailDTO(plan);
+        if (dto.getReplanStatus() == null || dto.getReplanStatus().isBlank()) {
+            dto.setReplanStatus(Constants.ReplanStatus.IDLE);
+        }
 
         if (plan.getExecutorId() != null) {
             SysUser executor = userMapper.selectById(plan.getExecutorId());
