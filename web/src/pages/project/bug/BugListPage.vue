@@ -105,17 +105,7 @@ function createBug() {
       @advanced-search="handleAdvancedSearch"
       @reset="handleReset"
       @create="createBug"
-    >
-      <template #column-setting>
-        <TableColumnSetting
-          :columns="BUG_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
-      </template>
-    </BugListToolbar>
+    />
 
     <section
       v-if="viewMode === 'list'"
@@ -142,6 +132,16 @@ function createBug() {
           @status="handleStatusAction"
           @more="handleMoreAction"
         >
+          <template #column-setting>
+            <TableColumnSetting
+              :columns="BUG_COLUMNS"
+              :visible-keys="visibleKeys"
+              icon-only
+              @change="(key, visible) => setVisible(key, visible)"
+              @select-all="selectAll"
+              @reset="reset"
+            />
+          </template>
           <template #empty>
             <div v-if="loading" role="status">正在加载缺陷…</div>
             <el-empty v-else-if="loadError" description="加载失败，请重新加载" :image-size="72" />

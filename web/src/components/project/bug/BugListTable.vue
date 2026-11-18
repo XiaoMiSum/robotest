@@ -141,6 +141,11 @@ const statusIcons: Record<BugStatus, string> = {
         >
       </el-table-column>
       <el-table-column label="操作" width="210" fixed="right">
+        <template #header>
+          <div class="bug-table__action-header">
+            <slot name="column-setting" />
+          </div>
+        </template>
         <template #default="{ row }">
           <el-space class="bug-table__actions" :size="8">
             <el-button link type="primary" @click="emit('detail', row as BugListItem)"
@@ -250,6 +255,12 @@ const statusIcons: Record<BugStatus, string> = {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+}
+.bug-table__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
 }
 .bug-table__status-icon {
   margin-right: var(--space-xs);

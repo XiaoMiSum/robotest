@@ -5,6 +5,7 @@ import type { TableColumnMeta } from '@/composables/common/useTableColumns'
 const props = defineProps<{
   columns: TableColumnMeta[]
   visibleKeys: string[]
+  iconOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,9 +26,9 @@ function onToggle(key: string, value: string | number | boolean) {
 <template>
   <el-popover placement="bottom-start" :width="220" trigger="click" popper-class="table-column-setting__popover">
     <template #reference>
-      <el-button text :aria-label="'列设置'">
+      <el-button :text="!iconOnly" :link="iconOnly" :aria-label="'列设置'">
         <el-icon><Setting /></el-icon>
-        <span>列设置</span>
+        <span v-if="!iconOnly">列设置</span>
       </el-button>
     </template>
     <div class="table-column-setting">

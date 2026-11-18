@@ -44,18 +44,6 @@ const emit = defineEmits<{
           {{ opt.label }}
         </el-radio-button>
       </el-radio-group>
-      <div class="bug-toolbar__actions">
-        <el-radio-group v-model="viewMode" aria-label="缺陷视图">
-          <el-radio-button value="list">列表</el-radio-button>
-          <el-radio-button value="board">看板</el-radio-button>
-        </el-radio-group>
-        <slot name="column-setting" />
-        <el-button type="primary" @click="emit('create')">
-          <el-icon><Plus /></el-icon>提交缺陷
-        </el-button>
-      </div>
-    </div>
-    <div class="bug-toolbar__search-row">
       <el-input
         v-model="keyword"
         class="bug-toolbar__search"
@@ -156,6 +144,15 @@ const emit = defineEmits<{
           </div>
         </el-form>
       </el-popover>
+      <div class="bug-toolbar__actions">
+        <el-radio-group v-model="viewMode" aria-label="缺陷视图">
+          <el-radio-button value="list">列表</el-radio-button>
+          <el-radio-button value="board">看板</el-radio-button>
+        </el-radio-group>
+        <el-button type="primary" @click="emit('create')">
+          <el-icon><Plus /></el-icon>提交缺陷
+        </el-button>
+      </div>
     </div>
   </section>
 </template>
@@ -167,7 +164,6 @@ const emit = defineEmits<{
   border-bottom: 1px solid var(--color-neutral-200);
 }
 .bug-toolbar__row,
-.bug-toolbar__search-row,
 .bug-toolbar__actions {
   display: flex;
   align-items: center;
@@ -183,9 +179,6 @@ const emit = defineEmits<{
 }
 .bug-toolbar__actions {
   margin-left: auto;
-}
-.bug-toolbar__search-row {
-  margin-top: var(--space-lg);
 }
 .bug-toolbar__search {
   flex: 1 1 16rem;
