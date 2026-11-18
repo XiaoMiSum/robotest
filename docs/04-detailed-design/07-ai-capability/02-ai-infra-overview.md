@@ -817,7 +817,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生（全部 `adopted / adopted_edited` → 已采纳，全部 `rejected` → 已驳回，混合 → 部分采纳），不新增后端字段；`closed` 态据此展示只读回看区，`aborted` 不展示。
+- 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生，仅统计 `adopted / adopted_edited / rejected`（`pending / not_applicable` 不参与，避免只读提案污染判定）：全部采纳 → 已采纳，全部驳回 → 已驳回，混合 → 部分采纳；不新增后端字段，`closed` 态据此展示只读回看区，`aborted` 不展示。
 - **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（审核预览用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。
 
 #### 3.6.4 执行管理与轨迹
