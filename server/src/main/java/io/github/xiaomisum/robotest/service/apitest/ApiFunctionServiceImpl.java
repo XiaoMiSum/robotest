@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.apitest;
 import freemarker.core.ParseException;
 import io.github.xiaomisum.robotest.framework.time.UtcTime;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiCustomFunctionSaveReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.apitest.ApiFunctionEvaluateReqDTO;
@@ -16,8 +15,6 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiFunction;
 import io.github.xiaomisum.robotest.repository.apitest.ApiFunctionMapper;
 import io.github.xiaomisum.robotest.service.apitest.execution.ports.ExpressionEvaluator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
@@ -112,7 +109,6 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
                                                      ApiCustomFunctionSaveReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         String scope = normalizeScope(reqDTO.getScope());
-        requireScopeEditPermission(scope);
         assertNameUsable(scope, workspaceId, projectId, reqDTO.getName(), null);
         scriptEngine.assertCompilable(reqDTO.getScript());
 
@@ -138,7 +134,6 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
                               ApiCustomFunctionSaveReqDTO reqDTO) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiFunction existing = requireVisible(workspaceId, projectId, id);
-        requireScopeEditPermission(existing.getScope());
         if (reqDTO.getScope() != null && !existing.getScope().equals(normalizeScope(reqDTO.getScope()))) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.API_CUSTOM_FUNCTION_NOT_FOUND, "函数作用域创建后不可变更");
         }
@@ -161,7 +156,6 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
     public void toggleCustom(UUID workspaceId, UUID projectId, UUID userId, UUID id, boolean enabled) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiFunction existing = requireVisible(workspaceId, projectId, id);
-        requireScopeEditPermission(existing.getScope());
 
         ApiFunction update = new ApiFunction();
         update.setId(id);
@@ -176,7 +170,6 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
     public void deleteCustom(UUID workspaceId, UUID projectId, UUID userId, UUID id) {
         projectAccessGuard.requireProjectMember(projectId, workspaceId, userId);
         ApiFunction existing = requireVisible(workspaceId, projectId, id);
-        requireScopeEditPermission(existing.getScope());
         functionMapper.deleteById(id);
         invalidateCache(existing.getScope(), projectId);
     }
@@ -203,19 +196,6 @@ public class ApiFunctionServiceImpl implements ApiFunctionService {
 
     private static String normalizeScope(String scope) {
         return scope == null || scope.isBlank() ? "project" : scope;
-    }
-
-    private static void requireScopeEditPermission(String scope) {
-        String required = switch (scope) {
-            case "workspace" -> "api-func:edit-space";
-            case "global" -> "api-func:edit-global";
-            default -> "api-func:edit";
-        };
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        LoginUser loginUser = auth != null && auth.getPrincipal() instanceof LoginUser lu ? lu : null;
-        if (loginUser == null || !loginUser.getPermissions().contains(required)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.NO_PERMISSION);
-        }
     }
 
     private void invalidateCache(String scope, UUID projectId) {

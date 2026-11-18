@@ -1,11 +1,9 @@
 package io.github.xiaomisum.robotest.framework.security;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.model.entity.admin.SysRole;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
 import io.github.xiaomisum.robotest.model.entity.workspace.WorkspaceUser;
-import io.github.xiaomisum.robotest.repository.admin.SysRoleMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
@@ -19,7 +17,7 @@ import java.util.UUID;
  * 项目级授权守卫（docs/00-spec/40-security/01-security.md 第 14 行：项目内操作另需 X-Active-Project 头，验证项目归属）。
  *
  * <p>校验链路：projectId → ws_project.workspaceId → ws_user 是否存在该成员。
- * 任一环节缺失即视为无权限；文档级校验（成员 / case:edit）为 WS 连接与可写帧的统一判定口径。</p>
+ * 任一环节缺失即视为无权限；文档级校验（成员身份）为 WS 连接与可写帧的统一判定口径。</p>
  */
 @Component
 public class ProjectAccessGuard {
@@ -30,17 +28,12 @@ public class ProjectAccessGuard {
      */
     public static final UUID SYSTEM_OPERATOR_ID = new UUID(0L, 0L);
 
-    /** 文档编辑权限码（sys_permission.code = 'case:edit'，见 v1.sql） */
-    private static final String PERMISSION_CASE_EDIT = "case:edit";
-
     @Resource
     private ProjectMapper projectMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
     @Resource
     private TestCaseDocumentMapper testCaseDocumentMapper;
-    @Resource
-    private SysRoleMapper sysRoleMapper;
 
     /**
      * 校验 userId 是否为 projectId 对应项目所在工作空间的成员；不满足抛业务异常。
@@ -65,7 +58,7 @@ public class ProjectAccessGuard {
      *
      * <p>workspaceId 以请求头为准而非 project 行反查，故必须先校验 project.workspaceId 与之一致，
      * 防止携带自己为管理员的其它空间头跨空间越权；归属不符按项目不存在处理（不泄露跨空间项目存在性）。
-     * 读写分级授权由 Controller 层 @PreAuthorize 权限码承担，本守卫只做归属一致性兜底。</p>
+     * 本守卫只做归属一致性兜底，不承担业务模块的权限码校验。</p>
      */
     public void requireProjectMember(UUID projectId, UUID workspaceId, UUID userId) {
         if (SYSTEM_OPERATOR_ID.equals(userId)) {
@@ -92,21 +85,6 @@ public class ProjectAccessGuard {
      */
     public boolean isDocumentMember(UUID docId, String userId) {
         return findDocumentMember(docId, userId) != null;
-    }
-
-    /**
-     * WS 可写帧转发与持久化前的编辑权限校验（安全规范 §4「对可写消息执行独立的业务权限校验」、
-     * 实时协议 78 号 6.1 写权限行）：在成员链路之上追加 sys_role.permissions 含 case:edit，
-     * 任一环节缺失即无权限（fail-closed）。WS 长连接权限可能在连接期间被撤销，
-     * 每次写操作前重查、不做缓存。
-     */
-    public boolean hasDocumentEditPermission(UUID docId, String userId) {
-        WorkspaceUser member = findDocumentMember(docId, userId);
-        if (member == null || member.getWorkspaceRole() == null) {
-            return false;
-        }
-        SysRole role = sysRoleMapper.selectById(member.getWorkspaceRole());
-        return role != null && role.getPermissions() != null && role.getPermissions().contains(PERMISSION_CASE_EDIT);
     }
 
     /**

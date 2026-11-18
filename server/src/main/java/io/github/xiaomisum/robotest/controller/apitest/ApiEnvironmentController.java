@@ -16,7 +16,6 @@ import io.github.xiaomisum.robotest.service.apitest.ApiEnvironmentService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,7 +41,6 @@ public class ApiEnvironmentController {
     private ApiEnvironmentService apiEnvironmentService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('api-env:view')")
     public Result<List<ApiEnvironmentListItemRespDTO>> list(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(value = "keyword", required = false) String keyword) {
@@ -50,7 +48,6 @@ public class ApiEnvironmentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvironmentIdRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiEnvironmentSaveReqDTO reqDTO) {
@@ -58,7 +55,6 @@ public class ApiEnvironmentController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiEnvironmentDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -66,7 +62,6 @@ public class ApiEnvironmentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -76,7 +71,6 @@ public class ApiEnvironmentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -85,7 +79,6 @@ public class ApiEnvironmentController {
     }
 
     @PatchMapping("/{id}/set-default")
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvironmentSetDefaultRespDTO> setDefault(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -93,7 +86,6 @@ public class ApiEnvironmentController {
     }
 
     @PatchMapping("/{id}/sort")
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> sort(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -105,7 +97,6 @@ public class ApiEnvironmentController {
     // ========== 连接测试（3.1.7 / 3.1.8，请求体传配置不落库） ==========
 
     @PostMapping("/{id}/data-sources/test")
-    @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiDataSourceTestRespDTO> testDataSourceConfig(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -114,7 +105,6 @@ public class ApiEnvironmentController {
     }
 
     @PostMapping("/{id}/http-configs/test")
-    @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiHttpTestRespDTO> testHttpConfig(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -125,7 +115,6 @@ public class ApiEnvironmentController {
     // ========== 环境导入导出（3.1.9 / 3.1.10） ==========
 
     @GetMapping("/{id}/export")
-    @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiEnvironmentDetailRespDTO> exportEnvironment(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -133,7 +122,6 @@ public class ApiEnvironmentController {
     }
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiEnvImportResultRespDTO> importEnvironment(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam("file") MultipartFile file,

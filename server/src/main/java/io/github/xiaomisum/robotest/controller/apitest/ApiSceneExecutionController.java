@@ -13,7 +13,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiSceneStepDebug
 import io.github.xiaomisum.robotest.service.apitest.execution.SceneExecutionService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,7 +33,6 @@ public class ApiSceneExecutionController {
     private SceneExecutionService executionService;
 
     @PostMapping("/api/project/api-scenes/{sceneId}/executions")
-    @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiExecutionStartRespDTO> execute(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID sceneId,
@@ -44,7 +42,6 @@ public class ApiSceneExecutionController {
     }
 
     @GetMapping("/api/project/api-scenes/{sceneId}/executions")
-    @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<PageResult<ApiExecutionHistoryItemRespDTO>> pageExecutions(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID sceneId,
@@ -55,7 +52,6 @@ public class ApiSceneExecutionController {
 
     /** 执行状态查询（GitLab 集成详设 3.3）：前端轮询至终态，CI 执行由服务端轮询回写，只读 */
     @GetMapping("/api/project/api-executions/{executionId}")
-    @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<ApiExecutionStatusRespDTO> getStatus(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID executionId) {
@@ -64,7 +60,6 @@ public class ApiSceneExecutionController {
     }
 
     @GetMapping("/api/project/api-scenes/{sceneId}/change-history")
-    @PreAuthorize("hasAuthority('api-scene:view')")
     public Result<PageResult<ApiChangeHistoryItemRespDTO>> pageChangeHistory(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID sceneId,
@@ -76,7 +71,6 @@ public class ApiSceneExecutionController {
     // ========== 单步调试 ==========
 
     @PostMapping("/api/project/api-scenes/{sceneId}/steps/{stepId}/debug")
-    @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiSceneStepDebugRespDTO> debugStep(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID sceneId,
@@ -87,7 +81,6 @@ public class ApiSceneExecutionController {
     }
 
     @PostMapping("/api/project/api-scenes/draft/execute")
-    @PreAuthorize("hasAuthority('api-scene:execute')")
     public Result<ApiSceneDraftExecuteRespDTO> draftExecute(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiSceneDraftExecuteReqDTO reqDTO) {

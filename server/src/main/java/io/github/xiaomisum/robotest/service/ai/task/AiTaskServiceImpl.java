@@ -67,8 +67,7 @@ import java.util.stream.Collectors;
  * 统一任务资源实现（总册 3.6，任务 · 执行 · 提案三资源）。
  *
  * <p>校验顺序遵循 3.6.2：总开关 → 类型（114）→ 输入（115）→ 预算（126）→ 可用模型（118 / 124）；
- * 任务端点不做权限校验（ai:task / ai:confirm 与任务类型资源权限均不校验，仅保留任务归属可见性），
- * 故不使用 @PreAuthorize。上下文（projectId / workspaceId）仅取自请求头解析后的 LoginUser（C4），
+ * 仅保留任务归属可见性。上下文（projectId / workspaceId）仅取自请求头解析后的 LoginUser（C4），
  * 不进 URL 与请求体。</p>
  */
 @Service

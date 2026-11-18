@@ -37,8 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * API 集成测试（GitLab 集成详细设计 3.2）：扫描预览 / 执行导入 / 进度查询的路由与信封契约。
  *
  * <p>与 ApiGitRepoControllerApiTest 同口径：上下文取自预置 activeWorkspaceId / activeProjectId
- * 的 LoginUser principal（C4，头解析由 ContextHeaderInterceptorTest 覆盖），
- * {@code @PreAuthorize} 授权语义不在独立 MockMvc 中生效。
+ * 的 LoginUser principal（C4，头解析由 ContextHeaderInterceptorTest 覆盖）。
  */
 class ApiGitImportControllerApiTest {
 

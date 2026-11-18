@@ -1,7 +1,5 @@
 package io.github.xiaomisum.robotest.service.ai.task.core;
 
-import io.github.xiaomisum.robotest.framework.security.LoginUser;
-import io.github.xiaomisum.robotest.framework.security.UserDetailsBridgeImpl;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
@@ -22,8 +20,6 @@ import org.mockito.InjectMocks;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +34,6 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -60,8 +55,6 @@ class AgentExecutionRunnerTest {
     private AiPromptService promptService;
     @Mock
     private AgentToolArgumentValidator argumentValidator;
-    @Mock
-    private UserDetailsBridgeImpl userDetailsBridge;
     @Mock
     private ExecutionControl control;
 
@@ -91,7 +84,6 @@ class AgentExecutionRunnerTest {
                 UUID.randomUUID(), UUID.randomUUID(), null, adapter);
 
         lenient().when(control.maxSteps(40)).thenReturn(10);
-        lenient().doReturn(new LoginUser()).when(userDetailsBridge).loadByUserId(anyString());
         lenient().when(promptService.render(anyString(), anyString(), any())).thenAnswer(invocation -> invocation.getArgument(1));
     }
 
@@ -112,7 +104,7 @@ class AgentExecutionRunnerTest {
 
     @Test
     void execute_toolLoop_checksAndRecordsAroundEveryCall() {
-        givenWhitelistedTool("query_x", null);
+        givenWhitelistedTool("query_x");
         when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
                 reply("计划", List.of(new AiToolCall("call-1", "query_x", "{}"))),
                 reply("最终产出", List.of()));
@@ -131,7 +123,7 @@ class AgentExecutionRunnerTest {
 
     @Test
     void execute_invalidToolArguments_feedsBackAndContinues() {
-        givenWhitelistedTool("query_x", null);
+        givenWhitelistedTool("query_x");
         when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
                 reply("计划", List.of(new AiToolCall("call-1", "query_x", "not-json"))),
                 reply("最终产出", List.of()));
@@ -145,7 +137,7 @@ class AgentExecutionRunnerTest {
 
     @Test
     void execute_schemaInvalidToolArguments_doesNotExecuteTool() {
-        givenWhitelistedTool("query_x", null);
+        givenWhitelistedTool("query_x");
         AgentTool tool = org.mockito.Mockito.mock(AgentTool.class);
         when(argumentValidator.validate(any(), any())).thenReturn("缺少必填参数: id");
         when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
@@ -176,14 +168,11 @@ class AgentExecutionRunnerTest {
     }
 
     @Test
-    void execute_grantedPermission_executesTool() throws Exception {
-        givenWhitelistedTool("query_x", "case:edit");
+    void execute_whitelistedTool_executesTool() throws Exception {
+        givenWhitelistedTool("query_x");
         AgentTool tool = org.mockito.Mockito.mock(AgentTool.class);
         when(toolRegistry.get("query_x")).thenReturn(tool);
         when(tool.execute(any(), any())).thenReturn("{\"ok\":true}");
-        LoginUser granted = new LoginUser();
-        granted.setAuthorities(List.of(new SimpleGrantedAuthority("case:edit")));
-        doReturn(granted).when(userDetailsBridge).loadByUserId(anyString());
         when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
                 reply("计划", List.of(new AiToolCall("call-1", "query_x", "{}"))),
                 reply("最终产出", List.of()));
@@ -215,7 +204,7 @@ class AgentExecutionRunnerTest {
         verify(modelClient, never()).chatWithToolDeclarations(any(), anyList(), anyList(), eq(false));
     }
 
-    private void givenWhitelistedTool(String toolCode, String permissionCode) {
+    private void givenWhitelistedTool(String toolCode) {
         adapter.toolCodes = List.of(toolCode);
         AiTaskTool row = new AiTaskTool();
         row.setToolCode(toolCode);
@@ -223,7 +212,7 @@ class AgentExecutionRunnerTest {
         row.setEnabled(true);
         when(taskToolMapper.selectList(any())).thenReturn(List.of(row));
         when(toolRegistry.definition(toolCode)).thenReturn(new AgentToolDefinition(
-                toolCode, toolCode, "查询类工具", Map.of(), permissionCode, "readonly"));
+                toolCode, toolCode, "查询类工具", Map.of(), "readonly"));
     }
 
     private static AiChatReply reply(String content, List<AiToolCall> toolCalls) {

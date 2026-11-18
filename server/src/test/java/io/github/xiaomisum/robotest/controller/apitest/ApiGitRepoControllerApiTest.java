@@ -51,8 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * X-Active-Workspace / X-Active-Project 头解析注入（C4，拦截器语义另有
  * ContextHeaderInterceptorTest 覆盖），本测试经 SecurityContextHolder 预置带上下文的登录态
  * 并注册 AuthenticationPrincipalArgumentResolver，校验 Service 收到的上下文参数
- * 即锁定「上下文只经请求头、不进 URL / body」的口径；
- * {@code @PreAuthorize} 授权语义由安全链与守卫测试覆盖，独立装配不生效。
+ * 即锁定「上下文只经请求头、不进 URL / body」的口径。
  */
 class ApiGitRepoControllerApiTest {
 

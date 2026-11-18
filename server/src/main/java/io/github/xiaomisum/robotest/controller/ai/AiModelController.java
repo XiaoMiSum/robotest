@@ -12,7 +12,6 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,21 +38,18 @@ public class AiModelController {
     private AiModelAdminService modelAdminService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiModelListRespDTO> list() {
         return Result.ok(modelAdminService.list());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiModelRespDTO> create(@AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid AiModelCreateReqDTO reqDTO, HttpServletRequest request) {
         return Result.ok(modelAdminService.create(reqDTO, loginUser, request));
     }
 
     @PutMapping("/{modelId}")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiModelRespDTO> update(@AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID modelId, @RequestBody @Valid AiModelUpdateReqDTO reqDTO,
             HttpServletRequest request) {
@@ -61,7 +57,6 @@ public class AiModelController {
     }
 
     @DeleteMapping("/{modelId}")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<Void> delete(@AuthenticationPrincipal LoginUser loginUser, @PathVariable UUID modelId,
             HttpServletRequest request) {
         modelAdminService.delete(modelId, loginUser, request);
@@ -69,7 +64,6 @@ public class AiModelController {
     }
 
     @PostMapping("/{modelId}/test")
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiModelTestRespDTO> test(@AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID modelId, HttpServletRequest request) {
         return Result.ok(modelAdminService.test(modelId, loginUser, request));

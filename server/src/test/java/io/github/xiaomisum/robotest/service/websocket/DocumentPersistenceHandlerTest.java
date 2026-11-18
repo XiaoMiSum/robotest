@@ -65,14 +65,14 @@ class DocumentPersistenceHandlerTest {
         lenient().when(session.getId()).thenReturn("session-1");
     }
 
-    private void stubEditPermission(boolean granted) {
-        when(projectAccessGuard.hasDocumentEditPermission(DOC_ID, USER_ID.toString())).thenReturn(granted);
+    private void stubDocumentMember(boolean isMember) {
+        when(projectAccessGuard.isDocumentMember(DOC_ID, USER_ID.toString())).thenReturn(isMember);
     }
 
     @Test
     void persist_withEditPermission_persistsLayout() throws Exception {
         attributes.put("USER_ID", USER_ID.toString());
-        stubEditPermission(true);
+        stubDocumentMember(true);
 
         handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
 
@@ -83,7 +83,7 @@ class DocumentPersistenceHandlerTest {
     @Test
     void persist_withEditPermission_addNode_insertsNode() throws Exception {
         attributes.put("USER_ID", USER_ID.toString());
-        stubEditPermission(true);
+        stubDocumentMember(true);
 
         handler.persist(DOC_ID, ADD_NODE_MSG, session);
 
@@ -94,7 +94,7 @@ class DocumentPersistenceHandlerTest {
     @Test
     void persist_withoutEditPermission_sendsErrorAndSkipsAllWrites() throws Exception {
         attributes.put("USER_ID", USER_ID.toString());
-        stubEditPermission(false);
+        stubDocumentMember(false);
 
         handler.persist(DOC_ID, ADD_NODE_MSG, session);
 
@@ -105,7 +105,7 @@ class DocumentPersistenceHandlerTest {
         verify(session).sendMessage(captor.capture());
         String payload = ((TextMessage) captor.getValue()).getPayload();
         assertTrue(payload.contains("PERMISSION_DENIED"));
-        assertTrue(payload.contains("无文档编辑权限"));
+        assertTrue(payload.contains("非文档成员"));
     }
 
     @Test
@@ -115,7 +115,7 @@ class DocumentPersistenceHandlerTest {
         handler.persist(DOC_ID, UPDATE_LAYOUT_MSG, session);
 
         verify(testCaseDocumentMapper, never()).updateLayout(any(), any());
-        verify(projectAccessGuard).hasDocumentEditPermission(DOC_ID, null);
+        verify(projectAccessGuard).isDocumentMember(DOC_ID, null);
 
         var captor = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(session).sendMessage(captor.capture());

@@ -244,7 +244,6 @@ class PlanOrderAdopterTest {
             List<Map<String, Object>> items, List<TestPlanNodeSnapshot> all,
             List<TestPlanNodeSnapshot> associated) {
         LoginUser loginUser = mock(LoginUser.class);
-        lenient().when(loginUser.getPermissions()).thenReturn(List.of("plan:execute"));
         AiTask task = new AiTask();
         task.setType("plan_order");
         lenient().when(testPlanNodeSnapshotMapper.listByPlanId(PLAN_ID)).thenReturn(new ArrayList<>(all));

@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -29,13 +28,11 @@ public class AiConfigController {
     private AiSettingsAdminService settingsAdminService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiSettingsRespDTO> get() {
         return Result.ok(settingsAdminService.get());
     }
 
     @PutMapping
-    @PreAuthorize("hasAuthority('ai:admin')")
     public Result<AiSettingsRespDTO> update(@AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid AiSettingsUpdateReqDTO reqDTO, HttpServletRequest request) {
         return Result.ok(settingsAdminService.update(reqDTO, loginUser, request));

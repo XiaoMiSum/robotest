@@ -13,7 +13,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiMockItemRespDT
 import io.github.xiaomisum.robotest.service.apitest.ApiMockService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,7 +41,6 @@ public class ApiMockController {
     private ApiMockService apiMockService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('api-mock:view')")
     public Result<PageResult<ApiMockItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(value = "interfaceId", required = false) UUID interfaceId,
@@ -58,7 +56,6 @@ public class ApiMockController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<ApiMockIdRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiMockSaveReqDTO reqDTO) {
@@ -66,7 +63,6 @@ public class ApiMockController {
     }
 
     @PostMapping("/from-interface/{interfaceId}")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<ApiMockIdRespDTO> createFromInterface(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID interfaceId,
@@ -76,7 +72,6 @@ public class ApiMockController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('api-mock:view')")
     public Result<ApiMockDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -84,7 +79,6 @@ public class ApiMockController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -94,7 +88,6 @@ public class ApiMockController {
     }
 
     @PatchMapping("/{id}/toggle")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<Boolean> toggle(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -104,7 +97,6 @@ public class ApiMockController {
     }
 
     @PostMapping("/batch-toggle")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<ApiMockBatchToggleRespDTO> batchToggle(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiMockBatchToggleReqDTO reqDTO) {
@@ -112,7 +104,6 @@ public class ApiMockController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('api-mock:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -121,7 +112,6 @@ public class ApiMockController {
     }
 
     @PostMapping("/{id}/debug")
-    @PreAuthorize("hasAuthority('api-mock:view')")
     public Result<ApiMockDebugRespDTO> debug(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,

@@ -10,7 +10,6 @@ import io.github.xiaomisum.robotest.service.apitest.ApiReportService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +33,6 @@ public class ApiReportController {
     private ApiReportService reportService;
 
     @GetMapping("/api/project/reports")
-    @PreAuthorize("hasAuthority('api-report:view')")
     public Result<PageResult<ApiReportPageItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid PageParam pageParam,
@@ -51,7 +49,6 @@ public class ApiReportController {
     }
 
     @GetMapping("/api/project/reports/{id}")
-    @PreAuthorize("hasAuthority('api-report:view')")
     public Result<ApiReportDetailRespDTO> detail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -59,7 +56,6 @@ public class ApiReportController {
     }
 
     @PostMapping("/api/project/reports/{id}/share")
-    @PreAuthorize("hasAuthority('api-report:view')")
     public Result<ApiReportShareRespDTO> share(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -69,7 +65,6 @@ public class ApiReportController {
     }
 
     @DeleteMapping("/api/project/reports/{id}")
-    @PreAuthorize("hasAuthority('api-report:delete')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -78,7 +73,6 @@ public class ApiReportController {
     }
 
     @PostMapping("/api/project/reports/batch-delete")
-    @PreAuthorize("hasAuthority('api-report:delete')")
     public Result<Boolean> batchDelete(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiReportBatchReqDTO reqDTO) {

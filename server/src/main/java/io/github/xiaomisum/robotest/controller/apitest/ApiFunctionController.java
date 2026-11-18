@@ -11,7 +11,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiFunctionEvalua
 import io.github.xiaomisum.robotest.service.apitest.ApiFunctionService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,16 +34,12 @@ import java.util.UUID;
 @RequestMapping("/api/project/functions")
 public class ApiFunctionController {
 
-    private static final String WRITE_AUTHORITY =
-            "hasAnyAuthority('api-func:edit', 'api-func:edit-space', 'api-func:edit-global')";
-
     @Resource
     private ApiFunctionService apiFunctionService;
 
     // ========== 内置函数（3.8.1） ==========
 
     @GetMapping("/builtin")
-    @PreAuthorize("hasAuthority('api-func:view')")
     public Result<List<ApiBuiltinFunctionGroupRespDTO>> builtin() {
         return Result.ok(apiFunctionService.builtinCatalog());
     }
@@ -52,7 +47,6 @@ public class ApiFunctionController {
     // ========== 试算（3.8.2） ==========
 
     @PostMapping("/evaluate")
-    @PreAuthorize("hasAuthority('api-func:view')")
     public Result<ApiFunctionEvaluateRespDTO> evaluate(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiFunctionEvaluateReqDTO reqDTO) {
@@ -62,7 +56,6 @@ public class ApiFunctionController {
     // ========== 自定义函数（3.8.3 – 3.8.7） ==========
 
     @GetMapping("/custom-functions")
-    @PreAuthorize("hasAuthority('api-func:view')")
     public Result<List<ApiCustomFunctionListItemRespDTO>> listCustom(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(value = "enabled", required = false) Boolean enabled,
@@ -73,7 +66,6 @@ public class ApiFunctionController {
     }
 
     @GetMapping("/custom-functions/{id}")
-    @PreAuthorize("hasAuthority('api-func:view')")
     public Result<ApiCustomFunctionDetailRespDTO> getCustomDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -81,7 +73,6 @@ public class ApiFunctionController {
     }
 
     @PostMapping("/custom-functions")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<ApiCustomFunctionIdRespDTO> createCustom(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiCustomFunctionSaveReqDTO reqDTO) {
@@ -89,7 +80,6 @@ public class ApiFunctionController {
     }
 
     @PutMapping("/custom-functions/{id}")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> updateCustom(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -99,7 +89,6 @@ public class ApiFunctionController {
     }
 
     @PatchMapping("/custom-functions/{id}/toggle")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> toggleCustom(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -109,7 +98,6 @@ public class ApiFunctionController {
     }
 
     @DeleteMapping("/custom-functions/{id}")
-    @PreAuthorize(WRITE_AUTHORITY)
     public Result<Boolean> deleteCustom(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {

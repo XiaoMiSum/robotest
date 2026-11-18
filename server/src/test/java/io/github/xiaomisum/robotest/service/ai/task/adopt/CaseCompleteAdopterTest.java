@@ -270,7 +270,6 @@ class CaseCompleteAdopterTest {
 
     private AdoptContext context(String action, Map<String, Object> edited, String extraNodePosition) {
         LoginUser loginUser = mock(LoginUser.class);
-        lenient().when(loginUser.getPermissions()).thenReturn(List.of("case:edit"));
         AiTask task = new AiTask();
         task.setType("case_complete");
         return new AdoptContext(task, AdoptFixtures.proposal(artifact()), action, edited, null, null, null, null,

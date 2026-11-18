@@ -68,8 +68,8 @@ public class DocumentPersistenceHandler {
             // 后端兜底（US-AI-013 3.5.3）：仅具有编辑权限的用户可编辑。
             // WS 是长连接，权限可能在连接期间被撤销，故每次写操作前都重查一次（委托统一守卫）。
             String userId = session != null ? (String) session.getAttributes().get(ATTR_USER_ID) : null;
-            if (!projectAccessGuard.hasDocumentEditPermission(docId, userId)) {
-                log.warn("[persist][用户({}) 对文档({}) 无 case:edit 权限，拒绝持久化]", userId, docId);
+            if (!projectAccessGuard.isDocumentMember(docId, userId)) {
+                log.warn("[persist][用户({}) 非文档({}) 成员，拒绝持久化]", userId, docId);
                 sendPermissionDenied(session);
                 return;
             }
@@ -126,7 +126,7 @@ public class DocumentPersistenceHandler {
      * 保证客户端对"被拒绝"的感知一致（错误码局部字符串、统一信封迁移见 78 号 DOC-005）。
      */
     public void sendPermissionDenied(WebSocketSession session) {
-        sendError(session, ERROR_CODE_PERMISSION_DENIED, "无文档编辑权限");
+        sendError(session, ERROR_CODE_PERMISSION_DENIED, "非文档成员，拒绝操作");
     }
 
     private void persistLayout(UUID docId, Map<String, Object> layout) {

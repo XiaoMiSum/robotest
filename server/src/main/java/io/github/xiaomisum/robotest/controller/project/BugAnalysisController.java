@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,28 +37,24 @@ public class BugAnalysisController {
     private BugDraftSuggestService bugDraftSuggestService;
 
     @GetMapping("/analysis/trends")
-    @PreAuthorize("hasAuthority('bug:view')")
     public Result<BugTrendsRespDTO> getTrends(@AuthenticationPrincipal LoginUser loginUser,
             BugAnalysisQueryReqDTO query) {
         return Result.ok(bugAnalysisService.trends(query, loginUser.getActiveProjectId(), loginUser.getId()));
     }
 
     @GetMapping("/analysis/metrics")
-    @PreAuthorize("hasAuthority('bug:view')")
     public Result<BugMetricsRespDTO> getMetrics(@AuthenticationPrincipal LoginUser loginUser,
             BugAnalysisQueryReqDTO query) {
         return Result.ok(bugAnalysisService.metrics(query, loginUser.getActiveProjectId(), loginUser.getId()));
     }
 
     @PostMapping("/duplicates/check")
-    @PreAuthorize("hasAuthority('bug:view')")
     public Result<BugDuplicateCheckRespDTO> checkDuplicates(@AuthenticationPrincipal LoginUser loginUser,
             @RequestBody BugDuplicateCheckReqDTO reqDTO) {
         return Result.ok(bugAnalysisService.checkDuplicates(reqDTO,
                 loginUser.getActiveProjectId(), loginUser.getId()));
     }
 
-    @PreAuthorize("hasAuthority('bug:view')")
     @Operation(summary = "新建缺陷建议（SSE 流式，详设 3.5）",
             description = "事件流：progress / done / error，每 15s 心跳注释行；"
                     + "流建立前校验失败为同步 HTTP 错误（输入非法 1000018287、无可用模型 1000018118）；"

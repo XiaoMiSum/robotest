@@ -23,7 +23,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -91,7 +90,6 @@ class AssistantExecuteServiceImplTest {
     void setUp() {
         loginUser = new LoginUser();
         loginUser.setId(USER_ID);
-        loginUser.setAuthorities(List.of(new SimpleGrantedAuthority("ai:confirm")));
         loginUser.setWorkspaceAuthorities(new ArrayList<>());
         loginUser.setActiveWorkspaceId(WORKSPACE_ID);
         loginUser.setActiveProjectId(PROJECT_ID);
@@ -298,17 +296,6 @@ class AssistantExecuteServiceImplTest {
         assertEquals("executed", resp.getExecution().get("status"));
         verify(testCaseNodeService)
                 .updateCaseFields(eq(otherProject), eq(USER_ID), eq(CASE_A), anyList());
-    }
-
-    @Test
-    void execute_withoutConfirmPermission_throws257() {
-        loginUser.setAuthorities(List.of(new SimpleGrantedAuthority("ai:task")));
-        stubMessage(message(intent("create_case"), null));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.execute(CONVERSATION_ID, MESSAGE_ID, null, loginUser));
-
-        assertEquals(ErrorCodeConstants.ASSISTANT_NO_PERMISSION.code(), exception.getCode());
     }
 
     @Test

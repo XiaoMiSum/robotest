@@ -58,9 +58,6 @@ import java.util.function.Supplier;
 @Service
 public class AssistantExecuteServiceImpl implements AssistantExecuteService {
 
-    /** 与任务中心产物确认同口径的执行权限点（详设 3.7 校验链 257） */
-    private static final String PERMISSION_AI_CONFIRM = "ai:confirm";
-
     private static final String STATUS_EXECUTED = "executed";
     private static final String STATUS_REJECTED = "rejected";
 
@@ -118,7 +115,6 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
         Map<String, Object> current = message.getExecution();
         List<Map<String, Object>> priorResults = requireRetryTargets(current, retryIndexes);
         requireScope(intent, loginUser);
-        requireConfirmPermission(loginUser);
 
         // 结构校验与回执项装配先于认领：结构非法不消耗 execution，可修复后重来
         UUID userId = loginUser.getId();
@@ -308,12 +304,6 @@ public class AssistantExecuteServiceImpl implements AssistantExecuteService {
     private static boolean scopeEquals(Object scopeValue, UUID headerValue) {
         return scopeValue != null && headerValue != null
                 && headerValue.toString().equals(String.valueOf(scopeValue));
-    }
-
-    private static void requireConfirmPermission(LoginUser loginUser) {
-        if (loginUser == null || !loginUser.getPermissions().contains(PERMISSION_AI_CONFIRM)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_NO_PERMISSION);
-        }
     }
 
     // ---------- 结构校验与回执项装配 ----------

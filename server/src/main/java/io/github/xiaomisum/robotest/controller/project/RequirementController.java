@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,7 +43,6 @@ public class RequirementController {
     private RequirementService requirementService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('requirement:view')")
     public Result<PageResult<RequirementListRespDTO>> getRequirementPage(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid RequirementPageReqDTO pageReq) {
@@ -52,7 +50,6 @@ public class RequirementController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('requirement:view')")
     public Result<RequirementDetailRespDTO> getRequirementDetail(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -60,7 +57,6 @@ public class RequirementController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('requirement:create')")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<RequirementDetailRespDTO> createRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
@@ -69,7 +65,6 @@ public class RequirementController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<RequirementDetailRespDTO> updateRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -78,7 +73,6 @@ public class RequirementController {
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAuthority('requirement:confirm')")
     public Result<RequirementDetailRespDTO> confirmRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -86,7 +80,6 @@ public class RequirementController {
     }
 
     @PostMapping("/{id}/archive")
-    @PreAuthorize("hasAuthority('requirement:confirm')")
     public Result<RequirementDetailRespDTO> archiveRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -94,7 +87,6 @@ public class RequirementController {
     }
 
     @PostMapping("/{id}/unarchive")
-    @PreAuthorize("hasAuthority('requirement:edit')")
     public Result<RequirementDetailRespDTO> unarchiveRequirement(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -103,7 +95,6 @@ public class RequirementController {
 
     /** 导入需求文档（3.8）：multipart 提交即返回任务入口，进度与产物确认走 AI 任务资源 */
     @PostMapping("/import")
-    @PreAuthorize("hasAuthority('requirement:create')")
     public Result<RequirementSplitSubmitRespDTO> importRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam("file") MultipartFile file) {
@@ -112,7 +103,6 @@ public class RequirementController {
     }
 
     @GetMapping("/{id}/change-logs")
-    @PreAuthorize("hasAuthority('requirement:view')")
     public Result<PageResult<RequirementChangeLogRespDTO>> getChangeLogs(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -123,7 +113,6 @@ public class RequirementController {
     }
 
     @GetMapping("/split-records")
-    @PreAuthorize("hasAuthority('requirement:view')")
     public Result<PageResult<RequirementSplitRecordRespDTO>> getSplitRecords(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(required = false) String status,

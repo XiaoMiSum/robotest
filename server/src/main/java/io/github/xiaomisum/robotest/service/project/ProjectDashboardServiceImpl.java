@@ -1,10 +1,7 @@
 package io.github.xiaomisum.robotest.service.project;
 
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.service.admin.PermissionFacade;
-import io.github.xiaomisum.robotest.service.admin.PermissionScope;
 import io.github.xiaomisum.robotest.model.convert.ProjectDashboardConvertMapper;
-import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectActivityRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.workspace.ProjectDashboardRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
 import io.github.xiaomisum.robotest.model.entity.workspace.Project;
@@ -27,7 +24,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -54,8 +50,6 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
     private ProjectAccessGuard projectAccessGuard;
     @Resource
     private ProjectActivityService projectActivityService;
-    @Resource
-    private PermissionFacade permissionFacade;
 
     @Override
     public ProjectDashboardRespDTO getDashboard(UUID projectId, UUID workspaceId, UUID userId) {
@@ -66,10 +60,7 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         dto.setProjectStatus(project.getStatus());
         dto.setStartTime(project.getStartTime());
         dto.setEndTime(project.getEndTime());
-        Set<String> permissions = permissionFacade.permissionsOf(userId, PermissionScope.WORKSPACE, workspaceId);
-        dto.setRecentActivities(projectActivityService.listRecent(projectId, 8).stream()
-                .filter(activity -> canViewActivity(activity, permissions))
-                .toList());
+        dto.setRecentActivities(projectActivityService.listRecent(projectId, 8));
 
         // Count case nodes belonging to this project's documents
         // document_id 列使用 UUIDTypeHandler，必须传 UUID 而非字符串（否则强转失败）
@@ -122,18 +113,4 @@ public class ProjectDashboardServiceImpl implements ProjectDashboardService {
         return dto;
     }
 
-    private boolean canViewActivity(ProjectActivityRespDTO activity, Set<String> permissions) {
-        if (permissions == null || permissions.isEmpty()) {
-            return false;
-        }
-        return switch (activity.getResourceType()) {
-            case "PROJECT" -> permissions.contains("project:view");
-            case "TEST_CASE_DOCUMENT", "TEST_CASE_NODE" -> permissions.contains("case:view");
-            case "TEST_REVIEW" -> permissions.contains("review:view");
-            case "TEST_PLAN" -> permissions.contains("plan:view");
-            case "BUG" -> permissions.contains("bug:view");
-            case "REQUIREMENT" -> permissions.contains("requirement:view");
-            default -> false;
-        };
-    }
 }

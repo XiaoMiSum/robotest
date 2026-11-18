@@ -12,7 +12,6 @@ import io.github.xiaomisum.robotest.service.apitest.ApiDebugSaveAsInterfaceServi
 import io.github.xiaomisum.robotest.service.apitest.ApiDebugService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +36,6 @@ public class ApiDebugController {
     private ApiDebugSaveAsInterfaceService apiDebugSaveAsInterfaceService;
 
     @PostMapping("/api/project/debug/execute")
-    @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<ApiDebugExecuteRespDTO> execute(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiDebugExecuteReqDTO reqDTO) {
@@ -45,7 +43,6 @@ public class ApiDebugController {
     }
 
     @GetMapping("/api/project/debug-records")
-    @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<PageResult<ApiDebugRecordItemRespDTO>> pageRecords(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid PageParam pageParam,
@@ -55,7 +52,6 @@ public class ApiDebugController {
     }
 
     @PutMapping("/api/project/debug-records/{id}")
-    @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<Boolean> rename(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -65,7 +61,6 @@ public class ApiDebugController {
     }
 
     @DeleteMapping("/api/project/debug-records/{id}")
-    @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -74,7 +69,6 @@ public class ApiDebugController {
     }
 
     @GetMapping("/api/project/debug-records/{id}/restore")
-    @PreAuthorize("hasAuthority('api-debug:view')")
     public Result<ApiDebugRestoreRespDTO> restore(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -82,7 +76,6 @@ public class ApiDebugController {
     }
 
     @PostMapping("/api/project/debug-records/{id}/save-as-interface")
-    @PreAuthorize("hasAuthority('api-interface:edit')")
     public Result<ApiDebugSaveAsInterfaceRespDTO> saveAsInterface(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,

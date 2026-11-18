@@ -594,7 +594,7 @@ class TestPlanServiceImplTest {
 
         @Test
         void syncPlan_nonExecutor_success() {
-                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:execute')")，服务层只校验归属与状态
+                // 功能测试模块不做权限码校验，服务层只校验归属与状态
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);
@@ -678,7 +678,7 @@ class TestPlanServiceImplTest {
 
         @Test
         void completePlan_nonExecutor_success() {
-                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:execute')")
+                // 功能测试模块不做权限码校验
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);
@@ -775,7 +775,7 @@ class TestPlanServiceImplTest {
 
         @Test
         void blockPlan_nonExecutor_success() {
-                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:block')")
+                // 功能测试模块不做权限码校验
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);
@@ -845,7 +845,7 @@ class TestPlanServiceImplTest {
 
         @Test
         void resumePlan_nonExecutor_success() {
-                // 负责人校验已上移到 Controller @PreAuthorize("hasAuthority('plan:block')")
+                // 功能测试模块不做权限码校验
                 TestPlan plan = new TestPlan();
                 plan.setId(planId);
                 plan.setProjectId(projectId);

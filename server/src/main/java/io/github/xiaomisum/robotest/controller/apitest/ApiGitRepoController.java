@@ -9,7 +9,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiGitRepoRespDTO
 import io.github.xiaomisum.robotest.service.apitest.ApiGitRepoService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +33,6 @@ public class ApiGitRepoController {
     private ApiGitRepoService apiGitRepoService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiGitRepoRespDTO> get(
             @AuthenticationPrincipal LoginUser loginUser) {
         return Result.ok(apiGitRepoService.getRepo(loginUser.getActiveProjectId(),
@@ -42,7 +40,6 @@ public class ApiGitRepoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<ApiGitRepoRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiGitRepoCreateReqDTO reqDTO) {
@@ -51,7 +48,6 @@ public class ApiGitRepoController {
     }
 
     @PutMapping("/{repoId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID repoId,
@@ -62,7 +58,6 @@ public class ApiGitRepoController {
     }
 
     @DeleteMapping("/{repoId}")
-    @PreAuthorize("hasAuthority('api-env:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID repoId) {
@@ -74,7 +69,6 @@ public class ApiGitRepoController {
     // ========== 连通性测试（3.1，不依赖 repoId，body 缺省字段回落已存配置，不落库） ==========
 
     @PostMapping("/connections/test")
-    @PreAuthorize("hasAuthority('api-env:view')")
     public Result<ApiGitRepoConnectionTestRespDTO> testConnection(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiGitRepoConnectionTestReqDTO reqDTO) {

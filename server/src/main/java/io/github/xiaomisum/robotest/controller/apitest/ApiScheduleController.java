@@ -12,7 +12,6 @@ import io.github.xiaomisum.robotest.model.dto.response.apitest.ApiScheduleValida
 import io.github.xiaomisum.robotest.service.apitest.ApiScheduleService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,7 +35,6 @@ public class ApiScheduleController {
     private ApiScheduleService scheduleService;
 
     @GetMapping("/api/project/scheduled-tasks")
-    @PreAuthorize("hasAuthority('api-timer:view')")
     public Result<PageResult<ApiSchedulePageItemRespDTO>> page(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid PageParam pageParam,
@@ -45,7 +43,6 @@ public class ApiScheduleController {
     }
 
     @PostMapping("/api/project/scheduled-tasks")
-    @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<ApiScheduleCreatedRespDTO> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody @Valid ApiScheduleSaveReqDTO reqDTO) {
@@ -53,7 +50,6 @@ public class ApiScheduleController {
     }
 
     @PutMapping("/api/project/scheduled-tasks/{id}")
-    @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> update(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -63,7 +59,6 @@ public class ApiScheduleController {
     }
 
     @PutMapping("/api/project/scheduled-tasks/{id}/toggle")
-    @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> toggle(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -73,7 +68,6 @@ public class ApiScheduleController {
     }
 
     @DeleteMapping("/api/project/scheduled-tasks/{id}")
-    @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<Boolean> delete(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -82,7 +76,6 @@ public class ApiScheduleController {
     }
 
     @PostMapping("/api/project/scheduled-tasks/{id}/execute")
-    @PreAuthorize("hasAuthority('api-timer:edit')")
     public Result<ApiScheduleExecuteNowRespDTO> executeNow(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
@@ -90,7 +83,6 @@ public class ApiScheduleController {
     }
 
     @GetMapping("/api/project/scheduled-tasks/{id}/executions")
-    @PreAuthorize("hasAuthority('api-timer:view')")
     public Result<PageResult<ApiScheduleExecutionItemRespDTO>> executions(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id,
@@ -99,7 +91,6 @@ public class ApiScheduleController {
     }
 
     @PostMapping("/api/project/scheduled-tasks/validate-cron")
-    @PreAuthorize("hasAuthority('api-timer:view')")
     public Result<ApiScheduleValidateCronRespDTO> validateCron(@RequestBody @Valid ApiScheduleValidateCronReqDTO reqDTO) {
         return Result.ok(scheduleService.validateCron(reqDTO));
     }

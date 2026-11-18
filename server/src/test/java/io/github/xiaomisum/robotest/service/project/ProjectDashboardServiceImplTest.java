@@ -10,8 +10,6 @@ import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
-import io.github.xiaomisum.robotest.service.admin.PermissionFacade;
-import io.github.xiaomisum.robotest.service.admin.PermissionScope;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.review.TestReviewMapper;
@@ -27,7 +25,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,8 +52,6 @@ class ProjectDashboardServiceImplTest {
     private ProjectAccessGuard projectAccessGuard;
     @Mock
     private ProjectActivityService projectActivityService;
-    @Mock
-    private PermissionFacade permissionFacade;
     @Spy
     private ProjectDashboardConvertMapper projectDashboardConvertMapper =
             new ProjectDashboardConvertMapperImpl();
@@ -79,8 +74,6 @@ class ProjectDashboardServiceImplTest {
         project.setStatus("active");
         when(projectMapper.selectById(projectId)).thenReturn(project);
         when(projectActivityService.listRecent(projectId, 8)).thenReturn(Collections.emptyList());
-        when(permissionFacade.permissionsOf(userId, PermissionScope.WORKSPACE, workspaceId))
-                .thenReturn(Set.of("project:view"));
     }
 
     @Test
