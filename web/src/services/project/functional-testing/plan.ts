@@ -4,7 +4,6 @@ import type {
   PageResult,
   PlannedCases,
   PlanStatus,
-  ReplanStatusResp,
   SnapshotModule,
   TestPlanCreatePayload,
   TestPlanDetail,
@@ -35,10 +34,6 @@ export function getPlanDetail(id: string): Promise<TestPlanDetail> {
 
 export function updatePlan(id: string, data: TestPlanUpdatePayload): Promise<TestPlanDetail> {
   return put(`/project/plans/${id}`, data)
-}
-
-export function getPlanReplanStatus(id: string): Promise<ReplanStatusResp> {
-  return get(`/project/plans/${id}/replan-status`)
 }
 
 export function getPlanSnapshotTree(

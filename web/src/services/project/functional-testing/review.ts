@@ -2,7 +2,6 @@ import { get, post, put, del } from '@/services'
 import type {
   PageResult,
   PlannedCases,
-  ReplanStatusResp,
   ReviewMark,
   ReviewRecord,
   ReviewStatus,
@@ -36,10 +35,6 @@ export function getReviewDetail(id: string): Promise<TestReviewDetail> {
 
 export function updateReview(id: string, data: TestReviewUpdatePayload): Promise<TestReviewDetail> {
   return put(`/project/reviews/${id}`, data)
-}
-
-export function getReviewReplanStatus(id: string): Promise<ReplanStatusResp> {
-  return get(`/project/reviews/${id}/replan-status`)
 }
 
 export function getReviewSnapshotTree(

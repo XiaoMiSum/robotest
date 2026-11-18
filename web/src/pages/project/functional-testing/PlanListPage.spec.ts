@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => ({
   delete: vi.fn(),
   detail: vi.fn(),
   update: vi.fn(),
-  status: vi.fn(),
   push: vi.fn(),
   error: vi.fn(),
   success: vi.fn(),
@@ -30,7 +29,6 @@ vi.mock('@/services/project', () => ({
   deletePlan: mocks.delete,
   getPlanDetail: mocks.detail,
   updatePlan: mocks.update,
-  getPlanReplanStatus: mocks.status,
 }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('element-plus', async (original) => ({
@@ -59,7 +57,6 @@ const detail: TestPlanDetail = {
   environment: 'staging', startTime: null, endTime: null,
   executor: { id: 'u1', name: '张明' },
   requirements: [], requirementIds: ['req-1'],
-  replanStatus: 'idle', replanMessage: null, replanFinishedAt: null,
   createdAt: '2026-11-15T08:00:00Z',
 }
 const editPayload = {
@@ -108,7 +105,6 @@ beforeEach(() => {
   mocks.fetch.mockResolvedValue({ list: [], total: 0 })
   mocks.detail.mockResolvedValue(detail)
   mocks.update.mockResolvedValue(detail)
-  mocks.status.mockResolvedValue({ status: 'succeeded', message: '规划完成', requestedAt: null, finishedAt: null })
   mocks.confirm.mockResolvedValue('confirm')
 })
 afterEach(() => {
@@ -253,7 +249,7 @@ describe('计划列表样板', () => {
     return wrapper.getComponent(PlanEditDialog)
   }
 
-  it('关联需求变化确认后以 replan=true 保存，轮询终态并刷新列表', async () => {
+  it('关联需求变化确认后以 replan=true 保存并提示后台重新规划，不轮询不刷新', async () => {
     mocks.fetch.mockResolvedValue({ list: [row], total: 1 })
     const wrapper = render()
     await flushPromises()
@@ -263,13 +259,11 @@ describe('计划列表样板', () => {
     expect(mocks.confirm).toHaveBeenCalledWith('检测到关联需求发生变化，是否重新规划测试用例？', '关联需求变化', { type: 'warning' })
     expect(mocks.update).toHaveBeenCalledWith('p1', { ...editPayload, replan: true })
     expect(mocks.success).toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
-    expect(mocks.status).toHaveBeenCalledWith('p1')
-    expect(mocks.success).toHaveBeenCalledWith('规划完成')
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
     expect(wrapper.getComponent(PlanEditDialog).props('modelValue')).toBe(false)
   })
 
-  it('取消重新规划仅保存，不触发状态轮询', async () => {
+  it('取消重新规划仅保存，提示已保存并刷新列表', async () => {
     mocks.fetch.mockResolvedValue({ list: [row], total: 1 })
     mocks.confirm.mockRejectedValueOnce('cancel')
     const wrapper = render()
@@ -280,7 +274,6 @@ describe('计划列表样板', () => {
     expect(mocks.update).toHaveBeenCalledWith('p1', { ...editPayload, replan: false })
     expect(mocks.success).toHaveBeenCalledWith('已保存')
     expect(mocks.success).not.toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
-    expect(mocks.status).not.toHaveBeenCalled()
     expect(mocks.fetch).toHaveBeenCalledTimes(2)
   })
 
@@ -294,6 +287,5 @@ describe('计划列表样板', () => {
     await flushPromises()
     expect(mocks.confirm).not.toHaveBeenCalled()
     expect(mocks.update).toHaveBeenCalledWith('p1', expect.objectContaining({ replan: false }))
-    expect(mocks.status).not.toHaveBeenCalled()
   })
 })

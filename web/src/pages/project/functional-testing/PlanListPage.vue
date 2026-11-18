@@ -8,13 +8,11 @@ import {
   deletePlan,
   fetchPlans,
   getPlanDetail,
-  getPlanReplanStatus,
   resumePlan,
   updatePlan,
 } from '@/services/project'
 import type {
   PlanStatus,
-  ReplanStatusResp,
   TestPlanCreatePayload,
   TestPlanDetail,
   TestPlanListItem,
@@ -23,7 +21,7 @@ import type {
 import PlanCreateDialog from '@/components/project/functional-testing/plan/PlanCreateDialog.vue'
 import PlanEditDialog from '@/components/project/functional-testing/plan/PlanEditDialog.vue'
 import PlanListTable from '@/components/project/functional-testing/plan/PlanListTable.vue'
-import { isRequirementSetChanged, useReplanPolling } from '@/composables/project/functional-testing/replan'
+import { isRequirementSetChanged } from '@/composables/project/functional-testing/replan'
 import {
   PLAN_STATUS_META,
   planCountText,
@@ -190,20 +188,6 @@ const editSubmitting = ref(false)
 const editingPlan = ref<TestPlanListItem | null>(null)
 const editDetail = ref<TestPlanDetail | null>(null)
 
-function handleReplanFinish(status: ReplanStatusResp) {
-  if (status.status === 'succeeded') {
-    ElMessage.success(status.message || '测试用例重新规划完成')
-  } else {
-    ElMessage.error(status.message || '测试用例重新规划失败')
-  }
-  loadPlans()
-}
-function handleReplanError(message: string) {
-  ElMessage.error(message)
-  loadPlans()
-}
-const replanPolling = useReplanPolling(getPlanReplanStatus)
-
 async function openEditDialog(row: TestPlanListItem) {
   try {
     editDetail.value = await getPlanDetail(row.id)
@@ -235,7 +219,6 @@ async function submitEdit(payload: TestPlanUpdatePayload) {
     editDialogVisible.value = false
     if (replan) {
       ElMessage.success('已保存，正在后台重新规划测试用例')
-      replanPolling.start(id, handleReplanFinish, handleReplanError)
       return
     }
     ElMessage.success('已保存')

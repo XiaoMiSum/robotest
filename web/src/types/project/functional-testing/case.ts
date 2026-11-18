@@ -18,17 +18,6 @@ export interface TestReviewCreatePayload {
   selectedNodes?: SelectedCaseNode[]
 }
 
-/** 关联需求变化后异步重规划任务的状态（idle 表示从未发起） */
-export type ReplanStatus = 'idle' | 'running' | 'succeeded' | 'failed'
-
-/** 重规划状态查询响应 */
-export interface ReplanStatusResp {
-  status: ReplanStatus
-  message: string | null
-  requestedAt: string | null
-  finishedAt: string | null
-}
-
 /** 评审编辑载荷（字段可选，沿用后端部分更新语义） */
 export interface TestReviewUpdatePayload {
   title?: string
@@ -83,9 +72,6 @@ export interface TestReviewDetail {
   requirements: RequirementRef[]
   /** 关联需求原始 ID（含已删除需求），供编辑表单判定集合变化 */
   requirementIds: string[]
-  replanStatus: ReplanStatus
-  replanMessage: string | null
-  replanFinishedAt: string | null
   createdAt: string
 }
 

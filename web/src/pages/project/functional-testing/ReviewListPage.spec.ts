@@ -9,7 +9,7 @@ import ReviewEditDialog from '@/components/project/functional-testing/review/Rev
 import type { TestReviewDetail, TestReviewListItem } from '@/types'
 
 const mocks = vi.hoisted(() => ({
-  fetch: vi.fn(), create: vi.fn(), reopen: vi.fn(), delete: vi.fn(), detail: vi.fn(), update: vi.fn(), status: vi.fn(),
+  fetch: vi.fn(), create: vi.fn(), reopen: vi.fn(), delete: vi.fn(), detail: vi.fn(), update: vi.fn(),
   push: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn(), confirm: vi.fn(), currentUserId: 'u1',
 }))
 vi.mock('@/services/project', () => ({
@@ -19,7 +19,6 @@ vi.mock('@/services/project', () => ({
   deleteReview: mocks.delete,
   getReviewDetail: mocks.detail,
   updateReview: mocks.update,
-  getReviewReplanStatus: mocks.status,
 }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { id: mocks.currentUserId } }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
@@ -31,7 +30,6 @@ const detail: TestReviewDetail = {
   id: 'r1', title: '支付评审', description: null, status: 'in_progress',
   initiator: { id: 'u1', name: '张明' }, participantIds: ['u1'],
   requirements: [], requirementIds: ['req-1'],
-  replanStatus: 'idle', replanMessage: null, replanFinishedAt: null,
   createdAt: '2026-11-15T08:00:00Z',
 }
 const editPayload = {
@@ -71,7 +69,6 @@ beforeEach(() => {
   mocks.fetch.mockResolvedValue({ list: [], total: 0 })
   mocks.detail.mockResolvedValue(detail)
   mocks.update.mockResolvedValue(detail)
-  mocks.status.mockResolvedValue({ status: 'succeeded', message: '规划完成', requestedAt: null, finishedAt: null })
   mocks.confirm.mockResolvedValue('confirm')
 })
 afterEach(() => { wrappers.splice(0).forEach((wrapper) => wrapper.unmount()) })
@@ -190,7 +187,7 @@ describe('评审列表样板', () => {
     expect(mocks.detail).toHaveBeenCalledWith('r1')
   })
 
-  it('关联需求变化确认后以 replan=true 保存，轮询终态并刷新列表', async () => {
+  it('关联需求变化确认后以 replan=true 保存并提示后台重新规划，不轮询不刷新', async () => {
     mocks.fetch.mockResolvedValue({ list: [activeRow], total: 1 })
     const wrapper = render()
     await flushPromises()
@@ -200,13 +197,11 @@ describe('评审列表样板', () => {
     expect(mocks.confirm).toHaveBeenCalledWith('检测到关联需求发生变化，是否重新规划测试用例？', '关联需求变化', { type: 'warning' })
     expect(mocks.update).toHaveBeenCalledWith('r1', { ...editPayload, replan: true })
     expect(mocks.success).toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
-    expect(mocks.status).toHaveBeenCalledWith('r1')
-    expect(mocks.success).toHaveBeenCalledWith('规划完成')
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
     expect(wrapper.getComponent(ReviewEditDialog).props('modelValue')).toBe(false)
   })
 
-  it('取消重新规划仅保存，不触发状态轮询', async () => {
+  it('取消重新规划仅保存，提示已保存并刷新列表', async () => {
     mocks.fetch.mockResolvedValue({ list: [activeRow], total: 1 })
     mocks.confirm.mockRejectedValueOnce('cancel')
     const wrapper = render()
@@ -217,7 +212,6 @@ describe('评审列表样板', () => {
     expect(mocks.update).toHaveBeenCalledWith('r1', { ...editPayload, replan: false })
     expect(mocks.success).toHaveBeenCalledWith('已保存')
     expect(mocks.success).not.toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
-    expect(mocks.status).not.toHaveBeenCalled()
     expect(mocks.fetch).toHaveBeenCalledTimes(2)
   })
 
@@ -231,7 +225,6 @@ describe('评审列表样板', () => {
     await flushPromises()
     expect(mocks.confirm).not.toHaveBeenCalled()
     expect(mocks.update).toHaveBeenCalledWith('r1', expect.objectContaining({ replan: false }))
-    expect(mocks.status).not.toHaveBeenCalled()
   })
 
   it('详情加载失败时提示且不打开编辑弹窗', async () => {
