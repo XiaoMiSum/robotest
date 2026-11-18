@@ -8,7 +8,6 @@ import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 
@@ -114,29 +113,12 @@ public interface TestPlanService {
     void deletePlan(UUID projectId, UUID planId, UUID userId);
 
     /**
-     * 查询关联需求变化后的用例重规划状态
-     */
-    TestPlanReplanStatusRespDTO getReplanStatus(UUID projectId, UUID planId, UUID userId);
-
-    /**
      * 后台重规划异步入口，经自身代理调用使 @Async 生效（非请求入口）
      */
     void runReplanAsync(UUID projectId, UUID planId);
 
     /**
      * 重规划执行逻辑，由 runReplanAsync 经自身代理调用
-     *
-     * @return 结果摘要
      */
-    String executeReplan(UUID projectId, UUID planId);
-
-    /**
-     * 回写重规划成功状态，由异步入口调用
-     */
-    void markReplanSucceeded(UUID projectId, UUID planId, String message);
-
-    /**
-     * 回写重规划失败状态，由异步入口调用
-     */
-    void markReplanFailed(UUID projectId, UUID planId, String message);
+    void executeReplan(UUID projectId, UUID planId);
 }

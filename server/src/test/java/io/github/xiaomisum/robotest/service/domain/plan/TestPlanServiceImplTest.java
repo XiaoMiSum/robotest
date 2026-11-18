@@ -42,7 +42,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -50,7 +49,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
@@ -1122,7 +1120,6 @@ class TestPlanServiceImplTest {
                 assertNull(update.getExecutorId());
                 assertNull(update.getStartTime());
                 assertNull(update.getRequirementIds());
-                assertNull(update.getReplanStatus());
                 verify(self, never()).runReplanAsync(any(), any());
         }
 
@@ -1156,21 +1153,6 @@ class TestPlanServiceImplTest {
         }
 
         @Test
-        void updatePlan_runningReplan_throws() {
-                TestPlan plan = draftPlan();
-                plan.setReplanStatus(Constants.ReplanStatus.RUNNING);
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
-
-                TestPlanUpdateReqDTO reqDTO = new TestPlanUpdateReqDTO();
-                reqDTO.setName("New Name");
-
-                ServiceException exception = assertThrows(ServiceException.class,
-                                () -> planService.updatePlan(projectId, planId, userId, reqDTO));
-                assertEquals(ErrorCodeConstants.REPLAN_IN_PROGRESS.code(), exception.getCode());
-                verify(testPlanMapper, never()).updateById(any(TestPlan.class));
-        }
-
-        @Test
         void updatePlan_requirementOrderChange_doesNotReplan() {
                 UUID reqA = UUID.fromString("00000000-0000-0000-0000-000000000051");
                 UUID reqB = UUID.fromString("00000000-0000-0000-0000-000000000052");
@@ -1183,9 +1165,7 @@ class TestPlanServiceImplTest {
 
                 planService.updatePlan(projectId, planId, userId, reqDTO);
 
-                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
-                verify(testPlanMapper).updateById(captor.capture());
-                assertNull(captor.getValue().getReplanStatus());
+                verify(testPlanMapper).updateById(any(TestPlan.class));
                 verify(self, never()).runReplanAsync(any(), any());
                 verifyNoInteractions(planModuleSnapshotMapper, planNodeSnapshotMapper, planExecutionRecordMapper);
         }
@@ -1205,11 +1185,7 @@ class TestPlanServiceImplTest {
 
                 ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
                 verify(testPlanMapper).updateById(captor.capture());
-                TestPlan update = captor.getValue();
-                assertEquals(Constants.ReplanStatus.RUNNING, update.getReplanStatus());
-                assertNotNull(update.getReplanRequestedAt());
-                assertEquals(List.of(newReq), update.getRequirementIds());
-                verify(testPlanMapper).update(isNull(), any(LambdaUpdateWrapperX.class));
+                assertEquals(List.of(newReq), captor.getValue().getRequirementIds());
                 verify(self).runReplanAsync(projectId, planId);
         }
 
@@ -1229,54 +1205,26 @@ class TestPlanServiceImplTest {
                 ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
                 verify(testPlanMapper).updateById(captor.capture());
                 assertEquals(List.of(newReq), captor.getValue().getRequirementIds());
-                assertNull(captor.getValue().getReplanStatus());
                 verify(self, never()).runReplanAsync(any(), any());
                 verifyNoInteractions(planModuleSnapshotMapper, planNodeSnapshotMapper, planExecutionRecordMapper);
         }
 
-        // ========== getReplanStatus / executeReplan / 状态回写 ==========
+        // ========== executeReplan / 异步入口 ==========
 
         @Test
-        void getReplanStatus_nullStatus_mapsToIdle() {
-                TestPlan plan = draftPlan();
-                plan.setReplanStatus(null);
-                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+        void runReplanAsync_success_callsExecuteReplan() {
+                planService.runReplanAsync(projectId, planId);
 
-                assertEquals(Constants.ReplanStatus.IDLE,
-                                planService.getReplanStatus(projectId, planId, userId).getStatus());
+                verify(self).executeReplan(projectId, planId);
         }
 
         @Test
-        void runReplanAsync_success_marksSucceeded() {
-                when(self.executeReplan(projectId, planId)).thenReturn("规划完成，共 5 个用例");
+        void runReplanAsync_executeFails_doesNotPropagate() {
+                doThrow(new IllegalStateException("boom")).when(self).executeReplan(projectId, planId);
 
                 planService.runReplanAsync(projectId, planId);
 
-                InOrder inOrder = inOrder(self);
-                inOrder.verify(self).executeReplan(projectId, planId);
-                inOrder.verify(self).markReplanSucceeded(projectId, planId, "规划完成，共 5 个用例");
-                verify(self, never()).markReplanFailed(any(), any(), any());
-        }
-
-        @Test
-        void runReplanAsync_executeFails_marksFailed() {
-                when(self.executeReplan(projectId, planId)).thenThrow(new IllegalStateException("boom"));
-
-                planService.runReplanAsync(projectId, planId);
-
-                verify(self).markReplanFailed(projectId, planId, "boom");
-                verify(self, never()).markReplanSucceeded(any(), any(), any());
-        }
-
-        @Test
-        void runReplanAsync_markFailedFails_doesNotPropagate() {
-                when(self.executeReplan(projectId, planId)).thenThrow(new IllegalStateException("boom"));
-                doThrow(new IllegalStateException("write failed"))
-                                .when(self).markReplanFailed(projectId, planId, "boom");
-
-                planService.runReplanAsync(projectId, planId);
-
-                verify(self).markReplanFailed(projectId, planId, "boom");
+                verify(self).executeReplan(projectId, planId);
         }
 
         @Test
@@ -1292,38 +1240,11 @@ class TestPlanServiceImplTest {
                 when(testCaseDocumentMapper.listByIds(anyCollection())).thenReturn(List.of());
                 when(planModuleSnapshotMapper.listByPlanIdAndType(any(), any())).thenReturn(List.of());
 
-                String message = planService.executeReplan(projectId, planId);
+                planService.executeReplan(projectId, planId);
 
                 verify(testCaseRequirementService).resolvePlannedCases(projectId, List.of(reqA));
                 ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
                 verify(testPlanMapper).updateById(captor.capture());
                 assertNotNull(captor.getValue().getSnapshotSyncedAt());
-                assertTrue(message.contains("0 个用例"));
-        }
-
-        @Test
-        void markReplanSucceeded_persistsSucceededStatus() {
-                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan());
-
-                planService.markReplanSucceeded(projectId, planId, "done");
-
-                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
-                verify(testPlanMapper).updateById(captor.capture());
-                assertEquals(Constants.ReplanStatus.SUCCEEDED, captor.getValue().getReplanStatus());
-                assertEquals("done", captor.getValue().getReplanMessage());
-                assertNotNull(captor.getValue().getReplanFinishedAt());
-        }
-
-        @Test
-        void markReplanFailed_persistsFailedStatus() {
-                when(testPlanMapper.selectById(planId)).thenReturn(draftPlan());
-
-                planService.markReplanFailed(projectId, planId, null);
-
-                ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
-                verify(testPlanMapper).updateById(captor.capture());
-                assertEquals(Constants.ReplanStatus.FAILED, captor.getValue().getReplanStatus());
-                assertEquals("重新规划失败", captor.getValue().getReplanMessage());
-                assertNotNull(captor.getValue().getReplanFinishedAt());
         }
 }

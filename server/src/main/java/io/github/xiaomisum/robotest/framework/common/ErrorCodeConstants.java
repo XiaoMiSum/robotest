@@ -77,7 +77,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode PLAN_IS_BLOCKED = ErrorCode.of(1000011025, "计划已阻塞，请先恢复后再操作");
     public static final ErrorCode TEST_REVIEW_FINISHED = ErrorCode.of(1000011026, "评审已完成，无法执行该操作");
     public static final ErrorCode TEST_PLAN_FINISHED = ErrorCode.of(1000011027, "计划已结束，无法执行该操作");
-    public static final ErrorCode REPLAN_IN_PROGRESS = ErrorCode.of(1000011028, "正在重新规划测试用例，请稍后再试");
     // ========== 项目模块管理 1,000,017,051-1,000,017,059（文档简写 70XX） ==========
     public static final ErrorCode PROJECT_MODULE_NOT_FOUND = ErrorCode.of(1000017051, "模块不存在");
     public static final ErrorCode PROJECT_MODULE_NAME_EXISTS = ErrorCode.of(1000017052, "同级模块名称已存在");

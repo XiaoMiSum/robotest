@@ -13,7 +13,6 @@ import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewDetailRe
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewRecordRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewProgressRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.review.TestReviewReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.entity.admin.SysUser;
@@ -43,7 +42,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -223,9 +221,6 @@ public class TestReviewServiceImpl implements TestReviewService {
         }
         // 基本信息编辑与调整用例同属活跃态操作，终态由状态机统一拦截
         reviewWorkflow.assertTransition(review, ReviewEvent.UPDATE_CASES);
-        if (Constants.ReplanStatus.RUNNING.equals(review.getReplanStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.REPLAN_IN_PROGRESS);
-        }
 
         List<UUID> currentRequirementIds = normalizeRequirementIds(review.getRequirementIds());
         List<UUID> nextRequirementIds = currentRequirementIds;
@@ -259,23 +254,7 @@ public class TestReviewServiceImpl implements TestReviewService {
             update.setRequirementIds(nextRequirementIds);
             review.setRequirementIds(nextRequirementIds);
         }
-        if (shouldReplan) {
-            LocalDateTime requestedAt = LocalDateTime.now();
-            update.setReplanStatus(Constants.ReplanStatus.RUNNING);
-            update.setReplanRequestedAt(requestedAt);
-            review.setReplanStatus(Constants.ReplanStatus.RUNNING);
-            review.setReplanRequestedAt(requestedAt);
-            review.setReplanMessage(null);
-            review.setReplanFinishedAt(null);
-        }
         testReviewMapper.updateById(update);
-        if (shouldReplan) {
-            // 上一次结果不代表本次任务，null 须显式写入（C11）
-            testReviewMapper.update(null, new LambdaUpdateWrapperX<TestReview>()
-                    .eq(TestReview::getId, reviewId)
-                    .set(TestReview::getReplanMessage, null)
-                    .set(TestReview::getReplanFinishedAt, null));
-        }
 
         if (shouldReplan) {
             triggerReplan(projectId, reviewId);
@@ -333,16 +312,9 @@ public class TestReviewServiceImpl implements TestReviewService {
     @Async
     public void runReplanAsync(UUID projectId, UUID reviewId) {
         try {
-            String message = self.executeReplan(projectId, reviewId);
-            self.markReplanSucceeded(projectId, reviewId, message);
+            self.executeReplan(projectId, reviewId);
         } catch (Exception e) {
-            // 事务内的快照更新由 executeReplan 回滚，失败状态单独回写，避免轮询一直停在 running
             log.warn("评审用例重规划失败：reviewId={}", reviewId, e);
-            try {
-                self.markReplanFailed(projectId, reviewId, e.getMessage());
-            } catch (Exception markException) {
-                log.error("评审重规划失败状态回写失败：reviewId={}", reviewId, markException);
-            }
         }
     }
 
@@ -623,19 +595,8 @@ public class TestReviewServiceImpl implements TestReviewService {
     }
 
     @Override
-    public TestReviewReplanStatusRespDTO getReplanStatus(UUID projectId, UUID reviewId, UUID userId) {
-        TestReview review = requireReview(projectId, reviewId, userId);
-        TestReviewReplanStatusRespDTO dto = new TestReviewReplanStatusRespDTO();
-        dto.setStatus(normalizeReplanStatus(review.getReplanStatus()));
-        dto.setMessage(review.getReplanMessage());
-        dto.setRequestedAt(review.getReplanRequestedAt());
-        dto.setFinishedAt(review.getReplanFinishedAt());
-        return dto;
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
-    public String executeReplan(UUID projectId, UUID reviewId) {
+    public void executeReplan(UUID projectId, UUID reviewId) {
         TestReview review = requireReplanTarget(projectId, reviewId);
         // 需求条目无物理删除，仍按当前项目过滤，避免历史脏 ID 使解析整体失败
         List<UUID> requirementIds = requirementMapper.listByIds(review.getRequirementIds()).stream()
@@ -644,32 +605,6 @@ public class TestReviewServiceImpl implements TestReviewService {
                 .toList();
         Map<UUID, Set<UUID>> resolved = testCaseRequirementService.resolvePlannedCases(projectId, requirementIds);
         reviewSnapshotService.updateCases(reviewId, projectId, toSelectedNodes(resolved));
-        long caseCount = resolved.values().stream().mapToLong(Set::size).sum();
-        return "重新规划完成，共 " + caseCount + " 个用例";
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void markReplanSucceeded(UUID projectId, UUID reviewId, String message) {
-        TestReview review = requireReplanTarget(projectId, reviewId);
-        TestReview update = new TestReview();
-        update.setId(review.getId());
-        update.setReplanStatus(Constants.ReplanStatus.SUCCEEDED);
-        update.setReplanMessage(normalizeReplanMessage(message, true));
-        update.setReplanFinishedAt(LocalDateTime.now());
-        testReviewMapper.updateById(update);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void markReplanFailed(UUID projectId, UUID reviewId, String message) {
-        TestReview review = requireReplanTarget(projectId, reviewId);
-        TestReview update = new TestReview();
-        update.setId(review.getId());
-        update.setReplanStatus(Constants.ReplanStatus.FAILED);
-        update.setReplanMessage(normalizeReplanMessage(message, false));
-        update.setReplanFinishedAt(LocalDateTime.now());
-        testReviewMapper.updateById(update);
     }
 
     private TestReview requireReplanTarget(UUID projectId, UUID reviewId) {
@@ -689,22 +624,8 @@ public class TestReviewServiceImpl implements TestReviewService {
         }).toList();
     }
 
-    private String normalizeReplanStatus(String status) {
-        return status == null || status.isBlank() ? Constants.ReplanStatus.IDLE : status;
-    }
-
-    private String normalizeReplanMessage(String message, boolean succeeded) {
-        if (message == null || message.isBlank()) {
-            return succeeded ? "重新规划完成" : "重新规划失败";
-        }
-        return message.length() > 1000 ? message.substring(0, 1000) : message;
-    }
-
     private TestReviewDetailRespDTO convertToDetailDTO(TestReview review) {
         TestReviewDetailRespDTO dto = testReviewConvertMapper.toDetailDTO(review);
-        if (dto.getReplanStatus() == null || dto.getReplanStatus().isBlank()) {
-            dto.setReplanStatus(Constants.ReplanStatus.IDLE);
-        }
 
         SysUser initiator = userMapper.selectById(review.getInitiatorId());
         if (initiator != null) {

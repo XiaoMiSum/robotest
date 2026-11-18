@@ -3,7 +3,6 @@ package io.github.xiaomisum.robotest.service.domain.review;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import org.mockito.InOrder;
 import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapper;
 import io.github.xiaomisum.robotest.model.convert.TestReviewConvertMapperImpl;
 import io.github.xiaomisum.robotest.model.dto.request.review.TestReviewCasesUpdateReqDTO;
@@ -58,7 +57,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
@@ -1242,7 +1240,6 @@ class TestReviewServiceImplTest {
                 assertNull(update.getDescription());
                 assertNull(update.getRequirementIds());
                 assertNull(update.getParticipantIds());
-                assertNull(update.getReplanStatus());
                 verify(self, never()).runReplanAsync(any(), any());
         }
 
@@ -1276,21 +1273,6 @@ class TestReviewServiceImplTest {
         }
 
         @Test
-        void updateReview_runningReplan_throws() {
-                TestReview review = draftReview();
-                review.setReplanStatus(Constants.ReplanStatus.RUNNING);
-                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
-
-                TestReviewUpdateReqDTO reqDTO = new TestReviewUpdateReqDTO();
-                reqDTO.setTitle("New Title");
-
-                ServiceException exception = assertThrows(ServiceException.class,
-                                () -> reviewService.updateReview(projectId, reviewId, userId, reqDTO));
-                assertEquals(ErrorCodeConstants.REPLAN_IN_PROGRESS.code(), exception.getCode());
-                verify(testReviewMapper, never()).updateById(any(TestReview.class));
-        }
-
-        @Test
         void updateReview_requirementOrderChange_doesNotReplan() {
                 UUID reqA = UUID.fromString("00000000-0000-0000-0000-000000000031");
                 UUID reqB = UUID.fromString("00000000-0000-0000-0000-000000000032");
@@ -1303,9 +1285,7 @@ class TestReviewServiceImplTest {
 
                 reviewService.updateReview(projectId, reviewId, userId, reqDTO);
 
-                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
-                verify(testReviewMapper).updateById(captor.capture());
-                assertNull(captor.getValue().getReplanStatus());
+                verify(testReviewMapper).updateById(any(TestReview.class));
                 verify(self, never()).runReplanAsync(any(), any());
         }
 
@@ -1324,11 +1304,7 @@ class TestReviewServiceImplTest {
 
                 ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
                 verify(testReviewMapper).updateById(captor.capture());
-                TestReview update = captor.getValue();
-                assertEquals(Constants.ReplanStatus.RUNNING, update.getReplanStatus());
-                assertNotNull(update.getReplanRequestedAt());
-                assertEquals(List.of(newReq), update.getRequirementIds());
-                verify(testReviewMapper).update(isNull(), any(LambdaUpdateWrapperX.class));
+                assertEquals(List.of(newReq), captor.getValue().getRequirementIds());
                 verify(self).runReplanAsync(projectId, reviewId);
         }
 
@@ -1348,63 +1324,25 @@ class TestReviewServiceImplTest {
                 ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
                 verify(testReviewMapper).updateById(captor.capture());
                 assertEquals(List.of(newReq), captor.getValue().getRequirementIds());
-                assertNull(captor.getValue().getReplanStatus());
                 verify(self, never()).runReplanAsync(any(), any());
         }
 
-        // ========== getReplanStatus / executeReplan / 状态回写 ==========
+        // ========== executeReplan / 异步入口 ==========
 
         @Test
-        void getReplanStatus_nullStatus_mapsToIdle() {
-                TestReview review = draftReview();
-                review.setReplanStatus(null);
-                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
+        void runReplanAsync_success_callsExecuteReplan() {
+                reviewService.runReplanAsync(projectId, reviewId);
 
-                assertEquals(Constants.ReplanStatus.IDLE,
-                                reviewService.getReplanStatus(projectId, reviewId, userId).getStatus());
+                verify(self).executeReplan(projectId, reviewId);
         }
 
         @Test
-        void getReplanStatus_runningStatus_returnedAsIs() {
-                TestReview review = draftReview();
-                review.setReplanStatus(Constants.ReplanStatus.RUNNING);
-                when(testReviewMapper.selectById(reviewId)).thenReturn(review);
-
-                assertEquals(Constants.ReplanStatus.RUNNING,
-                                reviewService.getReplanStatus(projectId, reviewId, userId).getStatus());
-        }
-
-        @Test
-        void runReplanAsync_success_marksSucceeded() {
-                when(self.executeReplan(projectId, reviewId)).thenReturn("规划完成，共 3 个用例");
+        void runReplanAsync_executeFails_doesNotPropagate() {
+                doThrow(new IllegalStateException("boom")).when(self).executeReplan(projectId, reviewId);
 
                 reviewService.runReplanAsync(projectId, reviewId);
 
-                InOrder inOrder = inOrder(self);
-                inOrder.verify(self).executeReplan(projectId, reviewId);
-                inOrder.verify(self).markReplanSucceeded(projectId, reviewId, "规划完成，共 3 个用例");
-                verify(self, never()).markReplanFailed(any(), any(), any());
-        }
-
-        @Test
-        void runReplanAsync_executeFails_marksFailed() {
-                when(self.executeReplan(projectId, reviewId)).thenThrow(new IllegalStateException("boom"));
-
-                reviewService.runReplanAsync(projectId, reviewId);
-
-                verify(self).markReplanFailed(projectId, reviewId, "boom");
-                verify(self, never()).markReplanSucceeded(any(), any(), any());
-        }
-
-        @Test
-        void runReplanAsync_markFailedFails_doesNotPropagate() {
-                when(self.executeReplan(projectId, reviewId)).thenThrow(new IllegalStateException("boom"));
-                doThrow(new IllegalStateException("write failed"))
-                                .when(self).markReplanFailed(projectId, reviewId, "boom");
-
-                reviewService.runReplanAsync(projectId, reviewId);
-
-                verify(self).markReplanFailed(projectId, reviewId, "boom");
+                verify(self).executeReplan(projectId, reviewId);
         }
 
         @Test
@@ -1425,7 +1363,7 @@ class TestReviewServiceImplTest {
                 when(testCaseRequirementService.resolvePlannedCases(projectId, List.of(reqA))).thenReturn(resolved);
                 doNothing().when(reviewSnapshotService).updateCases(any(), any(), any());
 
-                String message = reviewService.executeReplan(projectId, reviewId);
+                reviewService.executeReplan(projectId, reviewId);
 
                 verify(testCaseRequirementService).resolvePlannedCases(projectId, List.of(reqA));
                 ArgumentCaptor<List<TestReviewCreateReqDTO.SelectedNode>> nodeCaptor = ArgumentCaptor.forClass(List.class);
@@ -1433,32 +1371,5 @@ class TestReviewServiceImplTest {
                 assertEquals(1, nodeCaptor.getValue().size());
                 assertEquals(docId, nodeCaptor.getValue().get(0).getDocumentId());
                 assertEquals(List.of(caseId), nodeCaptor.getValue().get(0).getCaseIds());
-                assertTrue(message.contains("1 个用例"));
-        }
-
-        @Test
-        void markReplanSucceeded_persistsSucceededStatus() {
-                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview());
-
-                reviewService.markReplanSucceeded(projectId, reviewId, "done");
-
-                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
-                verify(testReviewMapper).updateById(captor.capture());
-                assertEquals(Constants.ReplanStatus.SUCCEEDED, captor.getValue().getReplanStatus());
-                assertEquals("done", captor.getValue().getReplanMessage());
-                assertNotNull(captor.getValue().getReplanFinishedAt());
-        }
-
-        @Test
-        void markReplanFailed_persistsFailedStatus() {
-                when(testReviewMapper.selectById(reviewId)).thenReturn(draftReview());
-
-                reviewService.markReplanFailed(projectId, reviewId, null);
-
-                ArgumentCaptor<TestReview> captor = ArgumentCaptor.forClass(TestReview.class);
-                verify(testReviewMapper).updateById(captor.capture());
-                assertEquals(Constants.ReplanStatus.FAILED, captor.getValue().getReplanStatus());
-                assertEquals("重新规划失败", captor.getValue().getReplanMessage());
-                assertNotNull(captor.getValue().getReplanFinishedAt());
         }
 }

@@ -12,7 +12,6 @@ import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementRefRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
@@ -51,7 +50,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
-import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -200,9 +198,6 @@ public class TestPlanServiceImpl implements TestPlanService {
                 && !Constants.Status.IN_PROGRESS.equals(plan.getStatus())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_PLAN_FINISHED);
         }
-        if (Constants.ReplanStatus.RUNNING.equals(plan.getReplanStatus())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.REPLAN_IN_PROGRESS);
-        }
 
         List<UUID> currentRequirementIds = normalizeRequirementIds(plan.getRequirementIds());
         List<UUID> nextRequirementIds = currentRequirementIds;
@@ -247,22 +242,8 @@ public class TestPlanServiceImpl implements TestPlanService {
             update.setRequirementIds(nextRequirementIds);
             plan.setRequirementIds(nextRequirementIds);
         }
-        if (shouldReplan) {
-            LocalDateTime requestedAt = LocalDateTime.now();
-            update.setReplanStatus(Constants.ReplanStatus.RUNNING);
-            update.setReplanRequestedAt(requestedAt);
-            plan.setReplanStatus(Constants.ReplanStatus.RUNNING);
-            plan.setReplanRequestedAt(requestedAt);
-            plan.setReplanMessage(null);
-            plan.setReplanFinishedAt(null);
-        }
         testPlanMapper.updateById(update);
         if (shouldReplan) {
-            // 上一次结果不代表本次任务，null 须显式写入（C11）
-            testPlanMapper.update(null, new LambdaUpdateWrapperX<TestPlan>()
-                    .eq(TestPlan::getId, planId)
-                    .set(TestPlan::getReplanMessage, null)
-                    .set(TestPlan::getReplanFinishedAt, null));
             triggerReplan(projectId, planId);
         }
         return convertToDetailDTO(plan);
@@ -308,16 +289,9 @@ public class TestPlanServiceImpl implements TestPlanService {
     @Async
     public void runReplanAsync(UUID projectId, UUID planId) {
         try {
-            String message = self.executeReplan(projectId, planId);
-            self.markReplanSucceeded(projectId, planId, message);
+            self.executeReplan(projectId, planId);
         } catch (Exception e) {
-            // 事务内的快照更新由 executeReplan 回滚，失败状态单独回写，避免轮询一直停在 running
             log.warn("计划用例重规划失败：planId={}", planId, e);
-            try {
-                self.markReplanFailed(projectId, planId, e.getMessage());
-            } catch (Exception markException) {
-                log.error("计划重规划失败状态回写失败：planId={}", planId, markException);
-            }
         }
     }
 
@@ -1037,19 +1011,8 @@ public class TestPlanServiceImpl implements TestPlanService {
     }
 
     @Override
-    public TestPlanReplanStatusRespDTO getReplanStatus(UUID projectId, UUID planId, UUID userId) {
-        TestPlan plan = requirePlan(projectId, planId, userId);
-        TestPlanReplanStatusRespDTO dto = new TestPlanReplanStatusRespDTO();
-        dto.setStatus(normalizeReplanStatus(plan.getReplanStatus()));
-        dto.setMessage(plan.getReplanMessage());
-        dto.setRequestedAt(plan.getReplanRequestedAt());
-        dto.setFinishedAt(plan.getReplanFinishedAt());
-        return dto;
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
-    public String executeReplan(UUID projectId, UUID planId) {
+    public void executeReplan(UUID projectId, UUID planId) {
         TestPlan plan = requireReplanTarget(projectId, planId);
         // 需求条目无物理删除，仍按当前项目过滤，避免历史脏 ID 使解析整体失败
         List<UUID> requirementIds = requirementMapper.listByIds(plan.getRequirementIds()).stream()
@@ -1059,32 +1022,6 @@ public class TestPlanServiceImpl implements TestPlanService {
         Map<UUID, Set<UUID>> resolved = testCaseRequirementService.resolvePlannedCases(projectId, requirementIds);
         applyCaseUpdate(plan, toSelectedNodes(resolved));
         markSnapshotSynced(planId);
-        long caseCount = resolved.values().stream().mapToLong(Set::size).sum();
-        return "重新规划完成，共 " + caseCount + " 个用例";
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void markReplanSucceeded(UUID projectId, UUID planId, String message) {
-        TestPlan plan = requireReplanTarget(projectId, planId);
-        TestPlan update = new TestPlan();
-        update.setId(plan.getId());
-        update.setReplanStatus(Constants.ReplanStatus.SUCCEEDED);
-        update.setReplanMessage(normalizeReplanMessage(message, true));
-        update.setReplanFinishedAt(LocalDateTime.now());
-        testPlanMapper.updateById(update);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void markReplanFailed(UUID projectId, UUID planId, String message) {
-        TestPlan plan = requireReplanTarget(projectId, planId);
-        TestPlan update = new TestPlan();
-        update.setId(plan.getId());
-        update.setReplanStatus(Constants.ReplanStatus.FAILED);
-        update.setReplanMessage(normalizeReplanMessage(message, false));
-        update.setReplanFinishedAt(LocalDateTime.now());
-        testPlanMapper.updateById(update);
     }
 
     private TestPlan requireReplanTarget(UUID projectId, UUID planId) {
@@ -1104,22 +1041,8 @@ public class TestPlanServiceImpl implements TestPlanService {
         }).toList();
     }
 
-    private String normalizeReplanStatus(String status) {
-        return status == null || status.isBlank() ? Constants.ReplanStatus.IDLE : status;
-    }
-
-    private String normalizeReplanMessage(String message, boolean succeeded) {
-        if (message == null || message.isBlank()) {
-            return succeeded ? "重新规划完成" : "重新规划失败";
-        }
-        return message.length() > 1000 ? message.substring(0, 1000) : message;
-    }
-
     private TestPlanDetailRespDTO convertToDetailDTO(TestPlan plan) {
         TestPlanDetailRespDTO dto = testPlanConvertMapper.toDetailDTO(plan);
-        if (dto.getReplanStatus() == null || dto.getReplanStatus().isBlank()) {
-            dto.setReplanStatus(Constants.ReplanStatus.IDLE);
-        }
 
         if (plan.getExecutorId() != null) {
             SysUser executor = userMapper.selectById(plan.getExecutorId());

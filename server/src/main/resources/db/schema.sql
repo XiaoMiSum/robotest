@@ -258,10 +258,6 @@ CREATE TABLE ft_plan (
                            environment       VARCHAR(200) NULL,
                            requirement_ids   JSONB        NULL,
                            snapshot_synced_at TIMESTAMP  NULL,
-                           replan_status     VARCHAR(20)  NULL,
-                           replan_message    TEXT         NULL,
-                           replan_requested_at TIMESTAMP  NULL,
-                           replan_finished_at TIMESTAMP  NULL,
                            is_deleted        BOOLEAN      NOT NULL DEFAULT FALSE,
                            created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                            updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -341,10 +337,6 @@ CREATE TABLE ft_review (
                              participant_ids JSONB        NOT NULL DEFAULT '[]',
                              requirement_ids JSONB        NULL,
                              status          VARCHAR(20)  NOT NULL DEFAULT 'new',
-                             replan_status     VARCHAR(20)  NULL,
-                             replan_message    TEXT         NULL,
-                             replan_requested_at TIMESTAMP  NULL,
-                             replan_finished_at TIMESTAMP  NULL,
                              is_deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
                              created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                              updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -1513,10 +1505,6 @@ COMMENT ON COLUMN ft_plan.end_time IS '计划结束时间';
 COMMENT ON COLUMN ft_plan.environment IS '测试环境描述';
 COMMENT ON COLUMN ft_plan.requirement_ids IS '关联需求 ID 集合（jsonb 数组，创建时写入）';
 COMMENT ON COLUMN ft_plan.snapshot_synced_at IS '计划快照最近同步时间（快照新建/调整/同步后写入，执行顺序推荐据此提示快照过期）';
-COMMENT ON COLUMN ft_plan.replan_status IS '关联需求变化后的用例重规划状态：running/succeeded/failed，空值为 idle';
-COMMENT ON COLUMN ft_plan.replan_message IS '重规划结果摘要或失败原因';
-COMMENT ON COLUMN ft_plan.replan_requested_at IS '重规划任务发起时间';
-COMMENT ON COLUMN ft_plan.replan_finished_at IS '重规划任务终态写入时间';
 
 COMMENT ON TABLE ft_plan_module_snapshot IS '计划模块快照表（创建计划时固化模块结构）';
 COMMENT ON COLUMN ft_plan_module_snapshot.id IS '快照唯一标识';
@@ -1560,10 +1548,6 @@ COMMENT ON COLUMN ft_review.initiator_id IS '发起人 ID，关联 sys_user.id';
 COMMENT ON COLUMN ft_review.participant_ids IS '参与者 ID 列表（JSON 数组）';
 COMMENT ON COLUMN ft_review.requirement_ids IS '关联需求 ID 集合（jsonb 数组，创建时写入）';
 COMMENT ON COLUMN ft_review.status IS '评审状态：new=待评审, in_progress=进行中, completed=已通过, rejected=已驳回';
-COMMENT ON COLUMN ft_review.replan_status IS '关联需求变化后的用例重规划状态：running/succeeded/failed，空值为 idle';
-COMMENT ON COLUMN ft_review.replan_message IS '重规划结果摘要或失败原因';
-COMMENT ON COLUMN ft_review.replan_requested_at IS '重规划任务发起时间';
-COMMENT ON COLUMN ft_review.replan_finished_at IS '重规划任务终态写入时间';
 
 COMMENT ON TABLE ft_review_module_snapshot IS '评审模块快照表（创建评审时固化模块结构）';
 COMMENT ON COLUMN ft_review_module_snapshot.id IS '快照唯一标识';

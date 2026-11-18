@@ -9,7 +9,6 @@ import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.service.domain.plan.TestPlanService;
@@ -63,13 +62,6 @@ public class TestPlanController {
             @PathVariable UUID id,
             @RequestBody @Valid TestPlanUpdateReqDTO reqDTO) {
         return Result.ok(testPlanService.updatePlan(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO));
-    }
-
-    @GetMapping("/{id}/replan-status")
-    public Result<TestPlanReplanStatusRespDTO> getReplanStatus(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID id) {
-        return Result.ok(testPlanService.getReplanStatus(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/modules")
