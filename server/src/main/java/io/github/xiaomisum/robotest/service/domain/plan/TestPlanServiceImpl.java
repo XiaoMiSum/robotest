@@ -42,6 +42,8 @@ import io.github.xiaomisum.robotest.repository.admin.SysUserMapper;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -90,8 +92,10 @@ public class TestPlanServiceImpl implements TestPlanService {
     private ProjectMapper projectMapper;
     @Resource
     private WorkspaceUserMapper workspaceUserMapper;
+    // 自身代理：使 @Async 与 @Transactional 在内部调用时仍然生效，@Lazy 打破自注入循环
+    @Lazy
     @Resource
-    private TestPlanReplanRunner testPlanReplanRunner;
+    private TestPlanService self;
 
     @Override
     public PageResult<TestPlanListRespDTO> getPlanPage(UUID projectId, UUID userId, String status,
@@ -289,15 +293,32 @@ public class TestPlanServiceImpl implements TestPlanService {
 
     private void triggerReplan(UUID projectId, UUID planId) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            testPlanReplanRunner.run(projectId, planId);
+            self.runReplanAsync(projectId, planId);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                testPlanReplanRunner.run(projectId, planId);
+                self.runReplanAsync(projectId, planId);
             }
         });
+    }
+
+    @Override
+    @Async
+    public void runReplanAsync(UUID projectId, UUID planId) {
+        try {
+            String message = self.executeReplan(projectId, planId);
+            self.markReplanSucceeded(projectId, planId, message);
+        } catch (Exception e) {
+            // 事务内的快照更新由 executeReplan 回滚，失败状态单独回写，避免轮询一直停在 running
+            log.warn("计划用例重规划失败：planId={}", planId, e);
+            try {
+                self.markReplanFailed(projectId, planId, e.getMessage());
+            } catch (Exception markException) {
+                log.error("计划重规划失败状态回写失败：planId={}", planId, markException);
+            }
+        }
     }
 
     private List<UUID> normalizeRequirementIds(List<UUID> requirementIds) {

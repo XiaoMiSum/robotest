@@ -36,13 +36,13 @@ import io.github.xiaomisum.robotest.repository.workspace.ProjectMapper;
 import io.github.xiaomisum.robotest.repository.workspace.WorkspaceUserMapper;
 import io.github.xiaomisum.robotest.service.project.ProjectActivityService;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
-import io.github.xiaomisum.robotest.service.domain.plan.TestPlanReplanRunner;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -101,7 +101,7 @@ class TestPlanServiceImplTest {
         @Mock
         private WorkspaceUserMapper workspaceUserMapper;
         @Mock
-        private TestPlanReplanRunner testPlanReplanRunner;
+        private TestPlanService self;
         @Spy
         private TestPlanConvertMapper testPlanConvertMapper = new TestPlanConvertMapperImpl();
 
@@ -1123,7 +1123,7 @@ class TestPlanServiceImplTest {
                 assertNull(update.getStartTime());
                 assertNull(update.getRequirementIds());
                 assertNull(update.getReplanStatus());
-                verify(testPlanReplanRunner, never()).run(any(), any());
+                verify(self, never()).runReplanAsync(any(), any());
         }
 
         @Test
@@ -1186,7 +1186,7 @@ class TestPlanServiceImplTest {
                 ArgumentCaptor<TestPlan> captor = ArgumentCaptor.forClass(TestPlan.class);
                 verify(testPlanMapper).updateById(captor.capture());
                 assertNull(captor.getValue().getReplanStatus());
-                verify(testPlanReplanRunner, never()).run(any(), any());
+                verify(self, never()).runReplanAsync(any(), any());
                 verifyNoInteractions(planModuleSnapshotMapper, planNodeSnapshotMapper, planExecutionRecordMapper);
         }
 
@@ -1210,7 +1210,7 @@ class TestPlanServiceImplTest {
                 assertNotNull(update.getReplanRequestedAt());
                 assertEquals(List.of(newReq), update.getRequirementIds());
                 verify(testPlanMapper).update(isNull(), any(LambdaUpdateWrapperX.class));
-                verify(testPlanReplanRunner).run(projectId, planId);
+                verify(self).runReplanAsync(projectId, planId);
         }
 
         @Test
@@ -1230,7 +1230,7 @@ class TestPlanServiceImplTest {
                 verify(testPlanMapper).updateById(captor.capture());
                 assertEquals(List.of(newReq), captor.getValue().getRequirementIds());
                 assertNull(captor.getValue().getReplanStatus());
-                verify(testPlanReplanRunner, never()).run(any(), any());
+                verify(self, never()).runReplanAsync(any(), any());
                 verifyNoInteractions(planModuleSnapshotMapper, planNodeSnapshotMapper, planExecutionRecordMapper);
         }
 
@@ -1244,6 +1244,39 @@ class TestPlanServiceImplTest {
 
                 assertEquals(Constants.ReplanStatus.IDLE,
                                 planService.getReplanStatus(projectId, planId, userId).getStatus());
+        }
+
+        @Test
+        void runReplanAsync_success_marksSucceeded() {
+                when(self.executeReplan(projectId, planId)).thenReturn("规划完成，共 5 个用例");
+
+                planService.runReplanAsync(projectId, planId);
+
+                InOrder inOrder = inOrder(self);
+                inOrder.verify(self).executeReplan(projectId, planId);
+                inOrder.verify(self).markReplanSucceeded(projectId, planId, "规划完成，共 5 个用例");
+                verify(self, never()).markReplanFailed(any(), any(), any());
+        }
+
+        @Test
+        void runReplanAsync_executeFails_marksFailed() {
+                when(self.executeReplan(projectId, planId)).thenThrow(new IllegalStateException("boom"));
+
+                planService.runReplanAsync(projectId, planId);
+
+                verify(self).markReplanFailed(projectId, planId, "boom");
+                verify(self, never()).markReplanSucceeded(any(), any(), any());
+        }
+
+        @Test
+        void runReplanAsync_markFailedFails_doesNotPropagate() {
+                when(self.executeReplan(projectId, planId)).thenThrow(new IllegalStateException("boom"));
+                doThrow(new IllegalStateException("write failed"))
+                                .when(self).markReplanFailed(projectId, planId, "boom");
+
+                planService.runReplanAsync(projectId, planId);
+
+                verify(self).markReplanFailed(projectId, planId, "boom");
         }
 
         @Test

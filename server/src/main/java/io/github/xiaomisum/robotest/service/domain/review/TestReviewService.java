@@ -115,19 +115,24 @@ public interface TestReviewService {
     TestReviewReplanStatusRespDTO getReplanStatus(UUID projectId, UUID reviewId, UUID userId);
 
     /**
-     * 后台重规划执行入口，由独立 @Async Runner 调用（非请求入口）
+     * 后台重规划异步入口，经自身代理调用使 @Async 生效（非请求入口）
+     */
+    void runReplanAsync(UUID projectId, UUID reviewId);
+
+    /**
+     * 重规划执行逻辑，由 runReplanAsync 经自身代理调用
      *
      * @return 结果摘要
      */
     String executeReplan(UUID projectId, UUID reviewId);
 
     /**
-     * 回写重规划成功状态，由独立 Runner 调用
+     * 回写重规划成功状态，由异步入口调用
      */
     void markReplanSucceeded(UUID projectId, UUID reviewId, String message);
 
     /**
-     * 回写重规划失败状态，由独立 Runner 调用
+     * 回写重规划失败状态，由异步入口调用
      */
     void markReplanFailed(UUID projectId, UUID reviewId, String message);
 }
