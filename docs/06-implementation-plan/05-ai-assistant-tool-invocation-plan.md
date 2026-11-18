@@ -14,14 +14,14 @@
 
 ### 1.2 范围
 
-- **覆盖**：① 后端工具体系与调用循环（`assistant_parse` 执行语义由提示词分流改为工具调用循环）；② 模型门面 `AiModelClient` 的工具调用扩展（Spring AI 接入，逐跳记账）；③ 消息表工具载荷补列、消息历史过滤与悬空补偿；④ 静态平台指引恢复并入知识检索；⑤ 前端执行请求头改造（删项目头）与查询进度帧；⑥ 旧判别段实现清理与提示词场景存量兼容（2.8）。
-- **不含**：会话 / 消息 CRUD、SSE 断线恢复等既有链路的行为变更（仅事件表增 `tool_call` 帧）；确认执行与回执链路（`AssistantExecuteService` 仅按固化 `intent.scope` 取目标项目，其余不动）；助手附图与 vision 能力（独立方案 `docs/06-implementation-plan/04-ai-vision-capability-plan.md` WP-V.3）；新增错误码（本轮零新增）。
+- **覆盖**：① 后端工具体系与调用循环（`assistant_parse` 执行语义由提示词分流改为工具调用循环）；② 模型门面 `AiModelClient` 的工具调用扩展（Spring AI 接入，逐跳记账）；③ 消息表工具载荷补列、消息历史过滤与悬空补偿；④ 静态平台指引恢复并入知识检索；⑤ 前端请求头改造（助手全部接口携带 `X-Active-Project`，目标项目取头）与查询进度帧；⑥ 旧判别段实现清理与提示词场景存量兼容（2.8）。
+- **不含**：会话 / 消息 CRUD、SSE 断线恢复等既有链路的行为变更（仅事件表增 `tool_call` 帧）；确认执行与回执链路（`AssistantExecuteService` 按头中项目取目标项目并做作用域自检，其余不动）；助手附图与 vision 能力（独立方案 `docs/06-implementation-plan/04-ai-vision-capability-plan.md` WP-V.3）；新增错误码（本轮零新增）。
 
 ### 1.3 基线文档
 
 | 层 | 文档 | 用途 |
 | ---- | ---- | ---- |
-| 需求 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 功能边界与业务规则（追问选项、查询补全、项目选择会话私有、零切换执行） |
+| 需求 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 功能边界与业务规则（追问选项、查询补全、项目级作用域、按当前项目执行） |
 | 概要 | `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md` | 4.2 提案采纳流、4.6 对话式任务执行（三类能力与待确认口径） |
 | 详细 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | **主基线**：工具清单与循环（4.1）、执行校验与作用域（4.2）、intent 结构（4.3）、上下文规则（4.4）、SSE 事件（3.5）、错误码（6）、实施说明（7） |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | 助手表 DDL（2.9）、任务类型 `assistant_parse`（3.6.1）、用量归因（4.3） |
@@ -35,7 +35,7 @@
 | 工具 | 详设 4.1 服务端固化注册的 16 个模型可调用能力：查询 / 检索 7、澄清 1（`ask_user`）、变更 8 |
 | 跳 | 循环内一次模型调用；单条消息上限 5 跳（详设 4.1） |
 | 拦截规范化 | 变更类工具调用被服务端拦截，按字段白名单与引用校验固化为 `intent`，确认前零业务写入（详设 4.1 / 4.2） |
-| 会话私有项目 | `context_snapshot` 内 `projectId / projectName`：解析或澄清写入，仅会话内生效，不改全局选择、不进请求头 |
+| 项目作用域 | 助手为项目级能力：目标空间 / 项目由 `X-Active-Workspace` / `X-Active-Project` 请求头唯一确定，创建时固化到会话 `workspace_id / project_id`，`intent.scope` 仅作展示与自检 |
 | 悬空补偿 | 任务中断时为缺回填的 `tool_calls` 补「未执行」`role = tool` 消息，保证协议配对（详设 4.1） |
 
 ---
@@ -48,7 +48,7 @@
 - **模型门面**：`AiModelClient` 仅 `chat / streamChat` 两形态，`buildOptions` 构建 `OpenAiChatOptions` 时不含任何工具声明；用量逐调用记账（`ai_usage_log`，`task_id = NULL`，scene 二分）已就绪。
 - **数据与消息**：`ai_assistant_message` 无 `tool_calls / tool_call_id` 列，`role` 枚举无 `tool`；消息历史接口不需过滤中间消息。
 - **提示词上下文**：`AssistantPromptSupport` 静态注入 `caseOptions / reviewOptions / planOptions` 候选清单，与「候选按需查询」的定稿口径冲突。
-- **前端**：`getRequestContextScope` 将 execute 划为 `project` 上下文（自动注入 `X-Active-Project`），与「助手接口一律不携带项目头」的定稿口径冲突；SSE 分发无 `tool_call` 事件。
+- **前端**：`getRequestContextScope` 将助手接口划为 `workspace` 上下文（抑制 `X-Active-Project`），与「助手全部接口统一携带项目头、目标项目取头」的定稿口径冲突；入口显隐仅按工作空间上下文判断，未收窄到项目；SSE 分发无 `tool_call` 事件。
 - **可复用遗产**：被移除的旧 function calling 方案（`7a5d6b23`）中 `ai/guide/*.md` 平台指引静态片段与 roles / topic 检索逻辑可原样捞回，供 `search_knowledge` 静态段使用。
 
 ### 2.2 总体结构
@@ -75,9 +75,9 @@ flowchart TD
 
 | 文件 | 职责 |
 | ---- | ---- |
-| `tool/AssistantTool.java`、`tool/ToolCategory.java`、`tool/AssistantToolDefinition.java`、`tool/AssistantToolContext.java` | 工具接口、分类枚举（`QUERY / CLARIFY / CHANGE`，决定循环行为）、定义 record 与执行上下文（userId / workspaceId / conversationId / attachments / 会话私有项目） |
+| `tool/AssistantTool.java`、`tool/ToolCategory.java`、`tool/AssistantToolDefinition.java`、`tool/AssistantToolContext.java` | 工具接口、分类枚举（`QUERY / CLARIFY / CHANGE`，决定循环行为）、定义 record 与执行上下文（userId / workspaceId / projectId / conversationId / attachments） |
 | `tool/AssistantToolRegistry.java` | 服务端**固化注册 16 个**：9 个执行体注册 + 变更 8 项 definition-only 登记（无执行体，执行即拦截）；清单外调用按 1000018255 拒绝 |
-| `tool/QueryProjectsTool`、`QueryDocTreeTool`、`QueryCasesTool`、`QueryReviewsTool`、`QueryPlansTool`、`QueryProgressTool` | 查询类执行体：一律按活跃工作空间及其项目范围过滤（与 RAG 同口径）；失败返回 error JSON **不抛异常**（回填模型，详设 4.1） |
+| `tool/QueryProjectsTool`、`QueryDocTreeTool`、`QueryCasesTool`、`QueryReviewsTool`、`QueryPlansTool`、`QueryProgressTool` | 查询类执行体：一律按请求头活跃工作空间及活跃项目范围过滤（与 RAG 同口径）；失败返回 error JSON **不抛异常**（回填模型，详设 4.1） |
 | `tool/SearchKnowledgeTool`、`tool/GuideKnowledgeBase` | 知识检索二合一：静态指引段（roles 过滤 + topic 匹配 + 站内 route，Top3）→ RAG 向量段（复用 `VectorSearchService`，TOP_K = 8）；降级口径按详设 4.1 |
 | `tool/AskUserTool` | 澄清入参校验（`question` 非空、`options` 2~5 条各 ≤200 字） |
 | `tool/AssistantIntentBuilder` | 变更类拦截规范化：**自 `AssistantParseHandler` 迁移** `buildIntent / assemble / sanitizedChanges / sanitizedParams / parseCaseIds`（kind 白名单、字段白名单、`AssistantRefChecker` 引用校验、scope 与 10 分钟过期固化），独立成类便于单测 |
@@ -91,11 +91,11 @@ flowchart TD
 | `service/ai/config/AiModelClient.java` | 新增 `chatWithTools(...)`：工具定义经 Spring AI 注册并返回 `toolCalls`（接入点见 2.6）；逐跳复用 `writeUsage` 记账 |
 | `service/ai/config/AiChatReply.java` | 扩展或并列 record（`content / toolCalls[] / tokensIn / tokensOut`） |
 | `service/ai/task/handler/AssistantParseHandler.java` | 重写为薄壳：校验、上下文与提示词组装 → 调 `AssistantToolLoop` → TaskResult；`DEFAULT_PROMPT` 重写为 agent 指令版（详设 4.1 行为口径） |
-| `service/ai/assistant/AssistantPromptSupport.java` | 删除 `caseOptions / reviewOptions / planOptions` 静态清单；`contextText` 增补会话私有项目状态与候选优先级说明 |
+| `service/ai/assistant/AssistantPromptSupport.java` | 删除 `caseOptions / reviewOptions / planOptions` 静态清单；`contextText` 增补当前项目作用域说明（取请求头项目，无项目二选一） |
 | `service/ai/assistant/AssistantServiceImpl.java` | 落盘扩展：assistant 消息持久化 `toolCalls`、新增 `appendToolMessage(toolCallId, content)`；`pageMessages` **过滤 `role = tool`** |
 | `model/entity/ai/AiAssistantMessage.java`、`model/dto/response/ai/AiAssistantMessageRespDTO.java` | 补 `toolCalls / toolCallId` 字段（DTO 不外露 tool 消息） |
 | `controller/ai/AiAssistantController.java` | 仅 `@Operation.description` 事件清单补 `tool_call`，**签名零变化** |
-| `framework/common/ErrorCodeConstants.java` | 1000018256 注释语义收窄为空间维自检（错误码表在详设 6 已同步；**无新增码**） |
+| `framework/common/ErrorCodeConstants.java` | 1000018256 注释语义为空间维 + 项目维自检、1000018263 含项目维归属（错误码表在详设 6 已同步；**无新增码**） |
 
 #### 2.3.3 循环编排要点（行为定义见详设 4.1，此处仅列实现落点）
 
@@ -104,29 +104,33 @@ flowchart TD
 - CLARIFY / CHANGE **先落盘再发事件**（`clarify` / `preview` + `done`）后终止，CHANGE 全程零业务写入；
 - 纯文本末跳走 `streamChat` 形态（scene = `assistant_answer`），其余各跳 scene = `assistant_parse`；
 - 异常：已流出正文随 `error` 落盘（沿用 `failMessage` 口径）；中断时执行**悬空补偿**；
-- 上下文组装：system（角色指令 + 页面上下文 + 会话私有项目）+ 近 20 条消息（含 tool 消息）+ 工具定义；用量每跳一条（`task_id = NULL`）。
+- 上下文组装：system（角色指令 + 页面上下文 + 请求头项目作用域）+ 近 20 条消息（含 tool 消息）+ 工具定义；用量每跳一条（`task_id = NULL`）。
 
 #### 2.3.4 数据库变更（C5 迁移说明，随 PR，DDL 见总册 2.9）
 
 ```sql
+ALTER TABLE ai_assistant_conversation ADD COLUMN project_id uuid NOT NULL;
+DROP INDEX idx_ai_assistant_conversation_user_workspace;
+CREATE INDEX idx_ai_assistant_conversation_user_scope ON ai_assistant_conversation (user_id, workspace_id, project_id, created_at);
 ALTER TABLE ai_assistant_message ADD COLUMN tool_calls   jsonb NULL;
 ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
--- role 枚举扩展 'tool'；加列不回填、不新增索引（配对查询走既有会话索引）
+-- role 枚举扩展 'tool'；加列不回填、不新增消息表索引（配对查询走既有会话索引）
 ```
 
 - 同步 `server/src/main/resources/db/schema.sql`；
-- `context_snapshot` 内会话私有项目为 jsonb 结构调整，**无 DDL**；
+- 会话表 `project_id` 取创建时 `X-Active-Project`，作为会话作用域过滤列；会话归属隔离仍只看 `user_id`；
 - 存量消息无工具载荷，不受影响，无需数据订正。
 
 ### 2.4 前端设计（行为见交互稿 2.2–2.4）
 
 | 文件 | 改动 |
 | ---- | ---- |
-| `web/src/services/index.ts` | `getRequestContextScope`：execute 路径 `'project'` → `'workspace'`（删项目头），注释同步 |
-| `web/src/services/assistantSse.ts` | 事件分发补 `tool_call` 类型（未知事件忽略，向后兼容） |
+| `web/src/services/index.ts` | `getRequestContextScope`：助手全部接口（含 list / create / send / execute / 消息历史 / 重命名 / 归档 / 删除）统一划为 `'project'` 上下文（携带 `X-Active-Project`），注释同步 |
+| `web/src/services/assistantSse.ts` | 事件分发补 `tool_call` 类型（未知事件忽略，向后兼容）；`getContextHeaders` 注入 `X-Active-Project` |
 | `web/src/stores/aiAssistant.ts` | 流式阶段文案状态：`tool_call` 帧 →「正在查询…」，delta / done 清除；轮次超限按普通助手消息渲染 |
+| `web/src/components/ai/assistant/AiAssistantEntry.vue` | 入口显隐由工作空间上下文收窄为当前项目上下文（空间相关页面隐藏） |
 | `web/src/components/ai/assistant/*` | 气泡内查询进行态展示（复用 StreamIndicator 样式） |
-| 对应 `*.spec.ts` | `tool_call` 分发与进度文案、execute 请求头无 `X-Active-Project` 断言 |
+| 对应 `*.spec.ts` | `tool_call` 分发与进度文案、助手全部接口请求头携带 `X-Active-Project` 断言、入口在项目上下文显隐断言 |
 
 ### 2.5 OpenAPI 与契约
 
@@ -153,8 +157,8 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | 查询工具与 `GuideKnowledgeBase` 测试（新） | 工作空间范围过滤、指引 roles / topic 检索与 RAG 降级双分支 |
 | `AiModelClient` 测试（扩） | `chatWithTools` 工具声明与 `toolCalls` 回传、逐跳记账（成功 / 失败） |
 | `AssistantServiceImpl` 测试（扩） | tool 消息落盘与 `pageMessages` 过滤、toolCalls 持久化 |
-| execute 测试（扩） | 按固化 `intent.scope` 落库且**无项目维拦截**、空间维自检（1000018256）与归属空间（1000018263）拒绝 |
-| 前端 spec | `tool_call` 解析与进度文案、execute 请求头断言 |
+| execute 测试（扩） | 按头中项目落库、作用域自检（1000018256）与归属空间 / 项目（1000018263）拒绝 |
+| 前端 spec | `tool_call` 解析与进度文案、助手全部接口请求头携带 `X-Active-Project` 断言、入口显隐断言 |
 
 ### 2.8 旧实现清理与兼容
 
@@ -200,7 +204,8 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | S3 | `AiModelClient.chatWithTools` 扩展与逐跳记账 | 后端 | S0 |
 | S4 | `AssistantToolLoop` 编排 + `AssistantParseHandler` 重写 + `AssistantPromptSupport` 收敛 + SSE `tool_call` 帧 | 后端 | S1、S2、S3 |
 | S5 | 静态指引捞回并入 `SearchKnowledgeTool` | 后端 | S2 |
-| S6 | 前端：execute 删项目头、`tool_call` 进度帧与状态、spec | 前端 | S4（事件契约） |
+| S6 | 前端：`tool_call` 进度帧与状态、spec | 前端 | S4（事件契约） |
+| S7 | 助手项目级作用域对齐：会话表增 `project_id` + 索引、全部接口携带项目头并按空间 + 项目过滤校验、入口收窄至项目上下文、目标项目取头 | 后端 + 前端 | S6 |
 
 ### 3.2 提交拆分（C7，一个提交只做一件事）
 
@@ -211,18 +216,20 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | 3 | `✨ feat(ai): AiModelClient 工具调用扩展与逐跳记账` | S3 |
 | 4 | `✨ feat(ai): 助手工具调用循环编排与解析任务重写` | S4 |
 | 5 | `✨ feat(ai): 静态平台指引恢复并入知识检索` | S5 |
-| 6 | `✨ feat(ai): 前端删执行项目头与查询进度帧` | S6 |
+| 6 | `✨ feat(ai): 前端查询进度帧与状态` | S6 |
+| 7 | `✨ feat(ai): 助手改为项目级能力并补会话项目作用域` | S7 |
 
 ### 3.3 实施顺序与门禁
 
-- **顺序**：S0 → S1 → S2 / S3（可并行）→ S4 → S5 → S6 → 双端联调；挂入主计划批次三，实施位置**排 WP-7.3 之后、WP-9.1 之前**（主计划 3.6）。
+- **顺序**：S0 → S1 → S2 / S3（可并行）→ S4 → S5 → S6 → S7 → 双端联调；挂入主计划批次三，实施位置**排 WP-7.3 之后、WP-9.1 之前**（主计划 3.6）。
 - **门禁**：每个提交跑本端脚本至 EXIT=0（`node scripts/validate.mjs --backend` / `--frontend`：C7、测试与覆盖率 C8、无 any C1）；全部完成后双端全量 + 文档脚本（`node scripts/validate.mjs --docs`）。
 - **人工验收重点**（交付时向用户逐项确认）：
-  1. 缺参追问闭环：无项目 / 多项目场景助手追问并给出 2~5 个快捷选项（场景 6 出现「当前 / 会话」二选一）；
-  2. 变更拦截零落库：预览生成前后业务表零写入，取消仅 `rejected`；
-  3. 零切换执行：任意导航状态点「确认执行」即落库，请求头无 `X-Active-Project`；
-  4. 轮次上限与查询失败降级：固定文案终止、会话可继续；
-  5. 断线恢复与消息历史：刷新后终态完整，`role = tool` 中间消息不可见。
+  1. 项目级入口与作用域：入口仅在活跃项目上下文显示、空间相关页面隐藏；助手全部接口请求头携带 `X-Active-Project`，跨项目指代被拒绝并提示切换作用域；
+  2. 缺参追问闭环：项目内缺参场景助手追问并给出 2~5 个快捷选项（不再出现项目「当前 / 会话」二选一）；
+  3. 变更拦截零落库：预览生成前后业务表零写入，取消仅 `rejected`；
+  4. 确认执行按当前项目落库：目标项目取请求头项目（即会话归属项目），头中项目与预览 `intent.scope` 不一致按 1000018256 拒绝；
+  5. 轮次上限与查询失败降级：固定文案终止、会话可继续；
+  6. 断线恢复与消息历史：刷新后终态完整，`role = tool` 中间消息不可见。
 
 ---
 
@@ -251,7 +258,8 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | S3 门面工具扩展 | ✅ | `63ff292c`（声明型回调 + `toolCalls` 载荷 + 逐跳记账扩展测试） |
 | S4 循环编排与任务重写 | ✅ | 执行侧 `55959923`、消息通道 `f938ce7d`、循环与任务重写 `79ac5753` |
 | S5 静态指引并入 | ✅ | `2e1f308`（8 指引片段自 `7a5d6b23` 捞回 + `search_knowledge`，注册表满 16） |
-| S6 前端改造 | ✅ | `510c30e7`（执行删项目头 + `tool_call` 进度帧与状态） |
+| S6 前端改造 | ✅ | `510c30e7`（`tool_call` 进度帧与状态） |
+| S7 助手项目级作用域对齐 | 待实施 | 会话表增 `project_id` + 索引、全部接口携带项目头并按空间 + 项目过滤校验、入口收窄至项目上下文、目标项目取头 |
 | 层 A 旧判别段与双路径清理 | ✅ | 判别段 / 独立渲染链 / 静态清单 / 旧测试随 S4（`79ac5753`）删净并重写 |
 | 层 B 提示词场景存量处置 | ✅ | 无种子行（全新库零存量）；`assistant_answer` 场景已注销（用量归因标签保留）；存量环境若自定义过 `assistant_parse` 提示词需在配置中心「恢复默认」（交付说明附 SQL 清除备选） |
 
@@ -271,3 +279,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | V1.0 | 2026-10-16 | 对齐 AI Task 新口径：存量 `assistant_parse` 任务超时清扫由置失败改置 `aborted`（1000018117） |
 | V1.0 | 2026-10-17 | 概要引用同步：`02-hld-ai-capability.md` 删除追溯矩阵节后章节顺延，1.2 基线行「4.7 对话式任务执行」改 4.6 |
 | V1.0 | 2026-11-18 | 智能助手工具调用实施计划免 RBAC 权限码校验：查询工具与测试要点改按工作空间 / 项目范围过滤描述 |
+| V1.0 | 2026-11-18 | 助手改为项目级能力：1.2 / 1.4 / 2.1 口径对齐（会话私有项目→请求头项目作用域）、2.3 工具上下文与提示词按头中项目、2.3.4 会话表补 `project_id` + 索引迁移、2.4 前端全部接口携带项目头与入口收窄、2.7 测试与 3.1–3.3 步骤 / 提交 / 验收同步（新增 S7）、5.1 登记待实施 |

@@ -128,7 +128,7 @@ flowchart TD
 - 任务框架统一状态机 `running（含挂起）/ proposals_ready / closed / aborted`，终态停止轮询，任务详情 2s 轮询；任务创建校验顺序为总开关 → 工作空间 / 项目成员归属 → 类型 → 输入 → 预算 → 可用模型；
 - SSE 流式协议以 `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` 为唯一定义处，断线后按消息轮询补齐；
 - 向量维度变更触发全量重建，重建走通用任务执行口径，期间维度输入只读；
-- 密钥类字段不回明文，仅回 `keyConfigured` 标记；管理配置接口不携带工作空间 / 项目上下文头，任务与助手接口按需携带（C4）。
+- 密钥类字段不回明文，仅回 `keyConfigured` 标记；管理配置接口不携带工作空间 / 项目上下文头，项目内任务接口按需携带，助手接口统一携带 `X-Active-Workspace` + `X-Active-Project`（C4）。
 
 #### 2.4.5 AI 生成链
 
@@ -149,7 +149,7 @@ flowchart TD
 
 #### 2.4.8 前端与导航
 
-- 菜单经路由注册表声明式注册（名称、图标、排序、分组；管理端保留权限码字段、业务模块不按权限码过滤），管理端设「AI 能力」分组，需求列表为功能测试侧栏首位子项（需求管理已并入功能测试模块），AI 助手悬浮球为平台级入口（`docs/05-interaction-design/02-global-navigation.md`）；
+- 菜单经路由注册表声明式注册（名称、图标、排序、分组；管理端保留权限码字段、业务模块不按权限码过滤），管理端设「AI 能力」分组，需求列表为功能测试侧栏首位子项（需求管理已并入功能测试模块），AI 助手悬浮球为项目级入口（`docs/05-interaction-design/02-global-navigation.md`）；
 - Pinia store 分域装载：`aiAdmin` 仅管理端装载、离开管理模式即卸载；分组路由激活态由路由派生；
 - 视觉只引用 `docs/05-interaction-design/03-visual-design.md` 的 CSS 变量，不自造颜色值；类型安全满足 C1（无 `any`）。
 
@@ -207,7 +207,7 @@ flowchart TD
 | WP-5.1 | 生成链任务类型与提案采纳后端 | P5 | 后端 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | WP-4.2、WP-2.1 | 类型适配器（工具白名单 + 预算默认 + 提案结构）就位；提案存 `ai_task_proposal`、采纳落 `ai_task_adoption`，执行与轨迹走框架（`ai_task_execution / ai_task_trace_event`），不新增表 |
 | WP-5.2 | 生成预览与确认前端 | P5 | 前端 | `docs/05-interaction-design/07-ai-capability/04-ai-generation-ui.md` | WP-5.1 | 人工采纳前不落业务数据 |
 | WP-6.1 | 助手会话与 SSE 后端 | P6 | 后端 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | WP-4.2 | 流式、断线补齐、确认执行回执通过 |
-| WP-6.2 | 助手面板与悬浮球前端 | P6 | 前端 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | WP-6.1 | 入口显隐随总开关与配置就绪态 |
+| WP-6.2 | 助手面板与悬浮球前端 | P6 | 前端 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | WP-6.1 | 入口显隐随总开关、配置就绪态与项目上下文（空间相关页面隐藏） |
 | WP-6.3 | 助手机制重构为工具调用 | P6 | 后端 + 前端 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` 4.1、`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` 2.9、`docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` 2.4 | WP-6.1、WP-6.2 | 变更拦截确认前零落库、缺参追问闭环、轮次上限与断线恢复通过，`validate-backend` / `validate-web` EXIT=0 |
 | WP-7.1 | 缺陷分析后端 | P7 | 后端 | `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md` | WP-4.2 | 四类分析任务化并可下钻 |
 | WP-7.2 | 缺陷分析前端 | P7 | 前端 | `docs/05-interaction-design/07-ai-capability/06-defect-analysis-ui.md` | WP-7.1 | 状态分支齐全 |
@@ -260,7 +260,7 @@ flowchart TD
 
 **WP-6.2 范围要点**（依据 `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` 与 `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` 第 3 节接口）：
 
-1. **入口与壳层**：悬浮球与 800×700 浮层卡片挂应用壳层（`web/src/layouts/BusinessLayout.vue`），路由切换不销毁；无遮罩、不锁底层滚动、点击外部不关闭、可拖动且不持久化、默认收起、宽度小于 768px 近全宽贴底；入口显隐 = AI 总开关 + 模型配置就绪 + 当前项目成员归属（无项目上下文时按当前工作空间归属）。
+1. **入口与壳层**：悬浮球与 800×700 浮层卡片挂应用壳层（`web/src/layouts/BusinessLayout.vue`），路由切换不销毁；无遮罩、不锁底层滚动、点击外部不关闭、可拖动且不持久化、默认收起、宽度小于 768px 近全宽贴底；入口显隐 = AI 总开关 + 模型配置就绪 + 当前项目上下文（空间相关页面不显示）+ 当前项目成员归属，无工作空间降级口径。助手全部接口携带 `X-Active-Workspace` + `X-Active-Project`，目标项目取头中项目。
 2. **状态骨架**：Pinia store `aiAssistant` 承载面板开合、会话列表、当前会话消息、流式缓冲、`previewing / executing` 与按会话暂存草稿。
 3. **SSE 客户端**：`fetch` + `ReadableStream` 解析事件流（`delta / clarify / preview / citations / done / error` 与 15s 心跳注释行）；断线置 `interrupted` 后自动轮询消息补齐至 `done`（现无 SSE 客户端需新建，轮询参照既有任务中心组合式）。
 4. **消息与卡片**：用户消息（正文 + 附件）、助手 Markdown 与 citations、澄清卡（快捷选项回填重发）、预览卡（字段级 diff、`expiresAt` 倒计时、确认执行 / 取消 / 返回修改、过期置灰并支持重新解析）、回执卡（逐项成败、对象链接跳转并收起面板、`retryIndexes` 单项重试）。
@@ -378,3 +378,4 @@ flowchart TD
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关引用与工作包标注「已取消——追溯矩阵需求整体下线」：1.2 范围、1.3 基线文档、2.3 依赖图、2.4.1 / 2.4.3 技术要点、3.1 阶段表（P3 更名链路追溯）、3.2 / 3.6 工作包（WP-1.2、WP-3.1、WP-3.2）、3.3 / 3.4 验收范围同步收敛 |
 | V1.0 | 2026-10-20 | 新建缺陷建议实时化（缺陷分析详设 3.5 改实时同步接口，移除指派候选与草稿截图入模）：WP-7.1 已交付的「同步建议（新建缺陷建议）」口径变更，需求 / 详设 / 交互 / 总册与 vision 方案文档已同步，回改随代码提交落地 |
 | V1.0 | 2026-11-18 | 需求与 AI 实施计划免 RBAC 权限码校验：范围、技术要点、工作包判据与验收项统一改为项目成员归属口径，保留管理端角色约束 |
+| V1.0 | 2026-11-18 | 助手改为项目级能力：2.4.6 / 3.2 / 3.5 WP-6.2 入口显隐收窄为项目上下文（去工作空间降级）、头口径统一含项目头，方案 `05-ai-assistant-tool-invocation-plan.md` 新增 S7 待实施 |

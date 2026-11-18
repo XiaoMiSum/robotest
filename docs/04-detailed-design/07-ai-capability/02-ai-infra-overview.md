@@ -189,7 +189,7 @@ CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WH
 | type | varchar(30) | NOT NULL | 任务类型，全量枚举见 3.6.1 |
 | title | varchar(200) | NOT NULL, DEFAULT '' | 任务标题：执行产出提案后回填首个 `parent_key IS NULL` 的提案标题（超长截断至 200）；空串表示尚未回填，列表按类型名兜底 |
 | status | varchar(20) | NOT NULL, DEFAULT 'running' | `running / proposals_ready / closed / aborted`（`running` 期间执行可挂起 `waiting_confirmation`） |
-| project_id | uuid | NULL | 项目内任务的隔离归属（NULL = 不限项目的个人任务，如助手解析） |
+| project_id | uuid | NULL | 项目内任务的隔离归属（NULL = 不限项目的个人任务；助手解析任务取 `X-Active-Project` 头） |
 | workspace_id | uuid | NULL | 执行作用域（助手类任务经 `X-Active-Workspace` 头写入），RAG 限权过滤依据 |
 | submitted_by | uuid | NOT NULL | 发起人（创建人）：任务列表与进行中计数统一按当前登录用户过滤，完成通知与再次执行的归属 |
 | input | jsonb | NOT NULL | 任务输入：源引用 + 参数（存引用不复制全文） |
@@ -460,17 +460,18 @@ CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id, execution_id);
 
 ### 2.9 助手表（ai_assistant_conversation / ai_assistant_message）
 
-**ai_assistant_conversation（会话，按登录用户归属；`workspace_id` 归属空间过滤）**
+**ai_assistant_conversation（会话，按登录用户归属；`workspace_id + project_id` 归属作用域过滤）**
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | title | varchar(100) | NOT NULL | 会话标题（首问自动生成，可重命名） |
 | user_id | uuid | NOT NULL | **归属人 = 唯一隔离维度**：列表与归属可见性只看它；仅本人可见可操作 |
 | workspace_id | uuid | NOT NULL | **归属工作空间**（创建时取 `X-Active-Workspace`，创建后不变）：会话列表按当前活跃空间过滤；**不参与归属判定**（可见性与隔离仍只看 `user_id`） |
+| project_id | uuid | NOT NULL | **归属项目**（创建时取 `X-Active-Project`，创建后不变）：会话列表按当前活跃项目过滤；发送 / 执行须与头中项目一致（1000018263）；**不参与归属判定** |
 | status | varchar(20) | NOT NULL, DEFAULT 'active' | `active / archived` |
-| context_snapshot | jsonb | NULL | 会话创建时的活跃工作空间、页面实体引用与**会话私有项目状态**（`projectId / projectName`，解析或澄清写入，仅会话内生效、不改全局、不进请求头）：默认上下文、预览来源展示、消息 `attachments` 兜底；**不参与归属判定** |
+| context_snapshot | jsonb | NULL | 会话创建时的活跃工作空间与页面实体引用：默认上下文、预览来源展示、消息 `attachments` 兜底；**不参与归属判定** |
 
-**索引**（1 个）：`idx_ai_assistant_conversation_user_workspace` (user_id, workspace_id, created_at)。
+**索引**（1 个）：`idx_ai_assistant_conversation_user_scope` (user_id, workspace_id, project_id, created_at)。
 
 **ai_assistant_message（消息）**
 
@@ -496,13 +497,14 @@ CREATE TABLE ai_assistant_conversation (
     title            varchar(100) NOT NULL,
     user_id          uuid NOT NULL,
     workspace_id     uuid NOT NULL,
+    project_id       uuid NOT NULL,
     status           varchar(20) NOT NULL DEFAULT 'active',
     context_snapshot jsonb NULL,
     created_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted       boolean NOT NULL DEFAULT FALSE
 );
-CREATE INDEX idx_ai_assistant_conversation_user_workspace ON ai_assistant_conversation (user_id, workspace_id, created_at);
+CREATE INDEX idx_ai_assistant_conversation_user_scope ON ai_assistant_conversation (user_id, workspace_id, project_id, created_at);
 
 CREATE TABLE ai_assistant_message (
     id              uuid PRIMARY KEY,
@@ -573,7 +575,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 - 基础路径：`/api/ai`（`docs/02-high-level-design/04-hld-data-interface.md` 2.1 已登记）：
   - **管理配置与用量**（3.2–3.5、3.7）：免 RBAC 权限码校验（登录即可），**不携带**工作空间 / 项目上下文头；
   - **任务**（3.6）：免 RBAC 权限码校验（登录即可提交），仅保留任务归属可见性（3.6.3）；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`（C4，上下文不出 URL）。
-  - **助手**（各分册）：免 RBAC 权限码校验，仅保留会话归属可见性（4.4）；上下文头要求同上。
+  - **助手**（各分册）：免 RBAC 权限码校验，仅保留会话归属可见性（4.4）；全部接口统一携带 `X-Active-Workspace` + `X-Active-Project`，目标项目取头中项目。
 - 响应使用平台通用 `Result<T>`，下文示例**仅展示 `data` 字段**；分页 `pageNo` / `pageSize` → `{ list, total }`；字段 camelCase。
 - 密钥字段（`apiKey`）**写入可用、读取永不返回**，列表与详情仅返回 `keyConfigured` 布尔。
 - 任务是全部 AI 执行的唯一收口：能力域分册的业务动作统一映射到 3.6 的任务资源，不另设平行的 AI 执行端点。
@@ -925,7 +927,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ### 4.4 RAG 与向量索引维护
 
 - **写侧**：业务实体变更事件（需求保存、用例保存、缺陷保存等）触发分块重嵌——按实体维度 upsert（`entity_type + entity_id` 旧分块先逻辑删除）；归档与逻辑删除的实体**移出索引**，不再被检索。
-- **读侧（限权）**：检索先按业务归属过滤——项目内任务取 `project_id = X-Active-Project`；助手类任务取活跃工作空间的项目集（`workspace_id` → 项目集）——**再**执行向量相似检索；范围外数据不得进入任何 AI 上下文。
+- **读侧（限权）**：检索先按业务归属过滤——项目内任务与助手类任务均取 `project_id = X-Active-Project`（助手为项目级能力，经头传递）——**再**执行向量相似检索；范围外数据不得进入任何 AI 上下文。
 - **维度 / 算子变更**：置向量能力不可用（查询返回 1000018122）→ 提交 `vector_reindex` 全量重建（新 `embedding_version`）→ 完成后恢复；重建期间依赖检索的能力提示不可用，**不降级为无引用生成**。
 
 ### 4.5 降级与容错
@@ -1102,3 +1104,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-12 | 整体移除评审/计划圈选建议（US-AI-008）：3.6.1 注销 `review_selection` / `plan_selection` 任务类型，3.6 目标型执行清单与 type 数量统计同步为九类 / 十一类 |
 | V1.0 | 2026-11-18 | AI 能力域整体免 RBAC 权限码校验：3.1 / 3.2 / 3.6 / 3.7 / 5.2 移除 `ai:admin` · `ai:task` · `ai:confirm` 与前端权限显隐口径（保留任务归属可见性与项目 / 空间成员校验），2.6.5 工具注册表去 `permission_code` 列，3.8 权限点表改为权限口径说明，6 注销 1000018121，7 删除权限点迁移脚本行 |
 | V1.0 | 2026-11-18 | 任务标题与采纳结果回看、可见范围收窄：2.6.1 `ai_task` 加 `title`（执行后由主提案回填），2.6.4 记回填规则，3.6.2 / 3.6.3 响应补 `title` 与提案 `note`（驳回原因）、列表与计数统一按当前用户过滤，5.2 增 `AiTaskAdoptionResultPanel`、5.3 补 `closed` 只读态，7 补存量库增列迁移 |
+| V1.0 | 2026-11-18 | 助手改为项目级能力：2.9 会话表增 `project_id`（NOT NULL，取 `X-Active-Project`）、索引改 `(user_id, workspace_id, project_id, created_at)`、去 `context_snapshot` 会话私有项目，3.1 助手上下文头统一含项目头、4.4 RAG 读侧助手按 `X-Active-Project` 限权，2.6.1 助手解析任务 `project_id` 取头 |
