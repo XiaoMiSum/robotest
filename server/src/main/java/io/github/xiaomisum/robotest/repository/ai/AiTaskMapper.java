@@ -40,12 +40,10 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     }
 
     /**
-     * 任务列表（详设 3.6.3）：始终只返回当前用户提交的任务，项目上下文为附加过滤条件。
+     * 任务列表（详设 3.6.3）：按项目上下文过滤项目内全部任务，不按提交人过滤。
      */
-    default PageResult<AiTask> findPage(PageParam pageParam, UUID projectId, UUID submittedBy, String type,
-            String status) {
+    default PageResult<AiTask> findPage(PageParam pageParam, UUID projectId, String type, String status) {
         LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
-                .eq(AiTask::getSubmittedBy, submittedBy)
                 .eqIfPresent(AiTask::getProjectId, projectId)
                 .eqIfPresent(AiTask::getType, type)
                 .eqIfPresent(AiTask::getStatus, status)
@@ -74,12 +72,11 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     }
 
     /**
-     * 进行中任务计数（详设 3.6.3 顶栏指示器）：当前用户提交且 status = running（含执行挂起），过滤口径与列表一致。
+     * 进行中任务计数（详设 3.6.3 顶栏指示器）：status = running（含执行挂起），过滤口径与列表一致。
      */
-    default long countActive(UUID projectId, UUID submittedBy) {
+    default long countActive(UUID projectId) {
         LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
                 .eq(AiTask::getStatus, Constants.AiTaskFlowStatus.RUNNING)
-                .eq(AiTask::getSubmittedBy, submittedBy)
                 .eqIfPresent(AiTask::getProjectId, projectId);
         return selectCount(wrapper);
     }

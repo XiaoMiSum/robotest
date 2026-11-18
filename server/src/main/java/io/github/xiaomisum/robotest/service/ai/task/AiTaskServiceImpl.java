@@ -269,8 +269,8 @@ public class AiTaskServiceImpl implements AiTaskService {
     // ---------- 3.6.3 列表与详情 ----------
 
     @Override
-    public PageResult<AiTaskRespDTO> page(AiTaskPageReqDTO pageReq, UUID activeProjectId, UUID userId) {
-        PageResult<AiTask> page = taskMapper.findPage(pageReq, activeProjectId, userId,
+    public PageResult<AiTaskRespDTO> page(AiTaskPageReqDTO pageReq, UUID activeProjectId) {
+        PageResult<AiTask> page = taskMapper.findPage(pageReq, activeProjectId,
                 pageReq.getType(), pageReq.getStatus());
         return new PageResult<>(page.getList().stream()
                 .map(this::buildListItem)
@@ -278,9 +278,9 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     @Override
-    public AiTaskCountRespDTO countActive(UUID activeProjectId, UUID userId, LoginUser loginUser) {
+    public AiTaskCountRespDTO countActive(UUID activeProjectId) {
         AiTaskCountRespDTO resp = new AiTaskCountRespDTO();
-        resp.setCount(taskMapper.countActive(activeProjectId, userId));
+        resp.setCount(taskMapper.countActive(activeProjectId));
         return resp;
     }
 

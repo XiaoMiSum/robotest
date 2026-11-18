@@ -36,11 +36,11 @@ public interface AiTaskService {
     AiTaskRespDTO submitInternal(String type, Map<String, Object> input, UUID submittedBy, UUID projectId,
             UUID workspaceId);
 
-    /** 3.6.3 列表：带 X-Active-Project 头按项目过滤，未附带则返回本人提交的任务 */
-    PageResult<AiTaskRespDTO> page(AiTaskPageReqDTO pageReq, UUID activeProjectId, UUID userId);
+    /** 3.6.3 列表：按 X-Active-Project 头过滤项目内全部任务，未附带时不过滤提交人 */
+    PageResult<AiTaskRespDTO> page(AiTaskPageReqDTO pageReq, UUID activeProjectId);
 
     /** 3.6.3 进行中计数（顶栏指示器）：status = running，过滤口径与列表一致 */
-    AiTaskCountRespDTO countActive(UUID activeProjectId, UUID userId, LoginUser loginUser);
+    AiTaskCountRespDTO countActive(UUID activeProjectId);
 
     /** 3.6.3 详情：最新一次执行 + 提案清单摘要（最新一次执行）+ documentMeta */
     AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser);

@@ -327,15 +327,18 @@ class AiTaskServiceImplTest {
         AiTaskPageReqDTO pageReq = new AiTaskPageReqDTO();
         AiTask titled = task(Constants.AiTaskFlowStatus.RUNNING);
         titled.setTitle("登录用例生成");
-        when(taskMapper.findPage(pageReq, PROJECT_ID, USER_ID, null, null))
+        // 他人提交的任务同样出现在列表，submittedBy 随列表项下发供前端展示发起人
+        titled.setSubmittedBy(OTHER_ID);
+        when(taskMapper.findPage(pageReq, PROJECT_ID, null, null))
                 .thenReturn(new PageResult<>(List.of(titled), 1L));
         when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("running"));
 
-        PageResult<AiTaskRespDTO> page = service.page(pageReq, PROJECT_ID, USER_ID);
+        PageResult<AiTaskRespDTO> page = service.page(pageReq, PROJECT_ID);
 
         assertEquals(1, page.getTotal());
         assertEquals(TASK_ID, page.getList().get(0).getTaskId());
         assertEquals("登录用例生成", page.getList().get(0).getTitle());
+        assertEquals(OTHER_ID, page.getList().get(0).getSubmittedBy());
         assertEquals(EXEC_ID, page.getList().get(0).getLatestExecution().getExecutionId());
         // 列表项不下发 resultMeta / proposals / documentMeta（3.6.3）
         assertNull(page.getList().get(0).getProposals());
@@ -344,9 +347,9 @@ class AiTaskServiceImplTest {
 
     @Test
     void countActive_returnsRunningCount() {
-        when(taskMapper.countActive(PROJECT_ID, USER_ID)).thenReturn(3L);
+        when(taskMapper.countActive(PROJECT_ID)).thenReturn(3L);
 
-        AiTaskCountRespDTO resp = service.countActive(PROJECT_ID, USER_ID, loginUser);
+        AiTaskCountRespDTO resp = service.countActive(PROJECT_ID);
         assertEquals(Long.valueOf(3L), resp.getCount());
     }
 
