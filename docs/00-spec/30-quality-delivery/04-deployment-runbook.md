@@ -327,6 +327,7 @@ DROP TABLE IF EXISTS ai_task;
 CREATE TABLE ai_task (
     id             uuid PRIMARY KEY,
     type           varchar(30) NOT NULL,
+    title          varchar(200) NOT NULL DEFAULT '',
     status         varchar(20) NOT NULL DEFAULT 'running',
     project_id     uuid NULL,
     workspace_id   uuid NULL,
@@ -353,6 +354,20 @@ CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
 - [ ] 六表齐备且索引与 `schema.sql` §17 一致；
 - [ ] 旧任务历史已清空（符合清空重建裁决）；
 - [ ] 应用启动后任务中心可提交新任务并正常产生执行与轨迹。
+
+### 10.2 AI 任务标题列增补（增量）
+
+S3 已执行的环境按以下语句增补标题列；存量行默认空串、不回填，列表按任务类型名兜底，执行产出提案后由首个根提案标题回填：
+
+```sql
+ALTER TABLE ai_task ADD COLUMN title varchar(200) NOT NULL DEFAULT '';
+COMMENT ON COLUMN ai_task.title IS '任务标题：执行产出提案后回填主提案标题';
+```
+
+**执行后验证**：
+
+- [ ] `ai_task.title` 存在且类型为 `varchar(200) NOT NULL DEFAULT ''`；
+- [ ] 存量任务标题为空串时任务中心列表仍按类型名展示。
 
 ## 11. 发布前检查
 
@@ -436,6 +451,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 | V1.0 | 2026-10-05 | 首次修改补建本表；新增「docker compose 全家桶」小节，原 7–14 章顺延为 8–15 |
 | V1.0 | 2026-10-27 | §10 增补 10.1「AI 任务六表重建（破坏性，S3 执行时点）」：前置五表与 `execution_id` 说明、`DROP ai_artifact_confirm / ai_task` 与新结构 DDL、执行后验证清单（C5 迁移说明，裁决见 AI Task 迁移计划 2.3.3） |
 | V1.0 | 2026-11-07 | §10.1 补提案 / 采纳表 `execution_id` 增列与 uk 改挂执行（再次执行唯一键冲突裁决，见总册 2.6.4 / 2.7），验证清单联动 |
+| V1.0 | 2026-11-18 | §10.1 重建 DDL 补 `ai_task.title`；新增 §10.2 增量增列脚本与验证清单（存量行默认空串、不回填，列表按类型名兜底，见详设 2.6.1） |
 
 ---
 
