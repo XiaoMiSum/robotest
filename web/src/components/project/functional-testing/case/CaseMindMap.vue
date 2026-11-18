@@ -116,6 +116,7 @@ const {
   running: assistRunning,
   failed: assistFailed,
   failedReason: assistFailedReason,
+  succeeded: assistSucceeded,
   progressText: assistProgressText,
   loadError: assistLoadError,
   launchOptimize,
@@ -428,12 +429,14 @@ const handleLayoutCommand = (command: unknown) => {
         :confirming="assistConfirming"
         :loading="assistLoading"
         :receipt="assistReceipt"
+        :retryable="assistSucceeded"
         @adopt="adoptAssist"
         @adopt-edited="adoptAssistEdited"
         @batch-adopt="batchAdoptAssist"
         @reject="rejectAssist"
         @open-source="openAssistSource"
         @clear-receipt="clearAssistReceipt"
+        @retry="retryAssist"
         @close="closeAssistPanel"
       />
     </el-dialog>

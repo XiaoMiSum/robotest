@@ -364,6 +364,22 @@ describe('AssistComparePanel', () => {
       expect(wrapper.emitted('close')).toHaveLength(1)
     })
 
+    it('任务执行完毕时提供重新执行入口并透传事件', async () => {
+      const wrapper = mountPanel({ rows: [optimizeRow()], retryable: true })
+
+      await actionButton(wrapper, '重新执行').trigger('click')
+
+      expect(wrapper.emitted('retry')).toHaveLength(1)
+    })
+
+    it('未执行完毕时不展示重新执行入口', () => {
+      const wrapper = mountPanel({ rows: [optimizeRow()] })
+
+      expect(
+        wrapper.findAll('button').some((item) => item.text().includes('重新执行')),
+      ).toBe(false)
+    })
+
     it('已采纳计数按处理状态统计', () => {
       const wrapper = mountPanel({
         rows: [

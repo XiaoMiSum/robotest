@@ -26,11 +26,14 @@ const props = withDefaults(
     receipt?: AiProposalConfirmResult[]
     /** 来源需求已变更：顶部提示，建议仅供参考但仍可采纳（交互 2.3） */
     sourceStale?: boolean
+    /** 任务已执行完毕：展示「重新执行」入口（交互 2.4） */
+    retryable?: boolean
   }>(),
   {
     loading: false,
     receipt: () => [],
     sourceStale: false,
+    retryable: false,
   },
 )
 
@@ -43,6 +46,7 @@ const emit = defineEmits<{
   reject: [key: string, note?: string]
   openSource: [ref: AiAssistSourceRef]
   clearReceipt: []
+  retry: []
   close: []
 }>()
 
@@ -316,6 +320,15 @@ function onReceiptRetry(item: ConfirmItemResult): void {
           :label="`${row.title || row.key}${row.confirmStatus === 'pending' ? '' : '（已处理）'}`"
         />
       </el-select>
+      <el-button
+        v-if="retryable"
+        link
+        type="primary"
+        :disabled="confirming"
+        @click="emit('retry')"
+      >
+        重新执行
+      </el-button>
       <el-button link @click="emit('close')">关闭</el-button>
     </header>
 

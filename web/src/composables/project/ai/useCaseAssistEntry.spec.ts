@@ -35,6 +35,7 @@ interface FakeTask {
   processed: Ref<{ processed: number; total: number }>
   submitting: Ref<boolean>
   isRunning: Ref<boolean>
+  isSucceeded: Ref<boolean>
   isFailed: Ref<boolean>
   failedReason: Ref<string>
   executionSummary: Ref<{ text: string; stepPercent: number | null } | null>
@@ -89,6 +90,7 @@ function fakeTask(): FakeTask {
     processed: ref({ processed: 0, total: 0 }),
     submitting: ref(false),
     isRunning: ref(false),
+    isSucceeded: ref(false),
     isFailed: ref(false),
     failedReason: ref(''),
     executionSummary: ref(null),
@@ -271,8 +273,8 @@ describe('useCaseAssistEntry', () => {
     })
   })
 
-  describe('当前文档会话内的结果复用', () => {
-    it('同一节点存在待处理结果时直接打开既有任务，不重复发起', async () => {
+  describe('当前文档会话内的任务复用', () => {
+    it('同一节点已有任务时直接打开，不重复发起', async () => {
       const s = mountEntry()
       await flushPromises()
 
@@ -284,6 +286,39 @@ describe('useCaseAssistEntry', () => {
       expect(tasks[0].launch).toHaveBeenCalledTimes(1)
       expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
       expect(s.panelVisible.value).toBe(true)
+    })
+
+    it('未完成任务再次点击回显任务进度', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+      tasks[0].isRunning.value = true
+
+      await s.launchOptimize('node-1')
+
+      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
+      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
+      expect(s.running.value).toBe(true)
+    })
+
+    it('已执行完毕的任务再次点击展示提案，不重新发起', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+      tasks[0].rows.value = [optimizeRow('node-1', 'adopted')]
+      tasks[0].isSucceeded.value = true
+      await nextTick()
+
+      await s.launchOptimize('node-1')
+
+      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
+      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
+      expect(s.succeeded.value).toBe(true)
+      expect(s.rows.value[0].confirmStatus).toBe('adopted')
     })
 
     it('切换节点只发起该节点任务，不复用其它节点的结果', async () => {
@@ -304,22 +339,27 @@ describe('useCaseAssistEntry', () => {
       expect(s.rows.value.map((row) => row.title)).toEqual(['node-2 用例'])
     })
 
-    it('结果采纳后缓存失效，再次点击重新发起', async () => {
+    it('重新执行后回写任务缓存，再次点击打开新任务', async () => {
       const s = mountEntry()
       await flushPromises()
 
       await s.launchOptimize('node-1')
       await nextTick()
-      tasks[0].rows.value = [optimizeRow('node-1', 'adopted')]
+      tasks[0].retry.mockImplementation(async () => {
+        tasks[0].taskId.value = 'task-node-1-r2'
+      })
+
+      await s.retry()
       await nextTick()
 
       await s.launchOptimize('node-1')
 
-      expect(tasks[0].open).not.toHaveBeenCalled()
-      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+      expect(tasks[0].retry).toHaveBeenCalled()
+      expect(tasks[0].open).toHaveBeenLastCalledWith('task-node-1-r2')
+      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
     })
 
-    it('任务终止后缓存失效，再次点击重新发起', async () => {
+    it('任务终止后再次点击回显终止状态与再次执行入口', async () => {
       const s = mountEntry()
       await flushPromises()
 
@@ -330,8 +370,8 @@ describe('useCaseAssistEntry', () => {
 
       await s.launchOptimize('node-1')
 
-      expect(tasks[0].open).not.toHaveBeenCalled()
-      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
+      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
     })
 
     it('切换文档清空缓存，返回原文档按新任务计算', async () => {
@@ -350,27 +390,6 @@ describe('useCaseAssistEntry', () => {
 
       expect(tasks[0].open).not.toHaveBeenCalled()
       expect(tasks[0].launch).toHaveBeenCalledTimes(2)
-    })
-
-    it('缓存任务已无该节点待处理结果时补发新任务', async () => {
-      const s = mountEntry()
-      await flushPromises()
-
-      await s.launchOptimize('node-1')
-      await nextTick()
-      tasks[0].open.mockImplementation(async (id: string) => {
-        tasks[0].taskId.value = id
-        tasks[0].rows.value = [optimizeRow('node-2')]
-      })
-
-      await s.launchOptimize('node-1')
-
-      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
-      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
-      expect(tasks[0].launch).toHaveBeenLastCalledWith({
-        documentId: 'doc-1',
-        nodeIds: ['node-1'],
-      })
     })
   })
 

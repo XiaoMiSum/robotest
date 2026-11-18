@@ -56,6 +56,8 @@ describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
     expect(source).toContain('v-else-if="assistLoadError"')
     expect(source).toContain('<AssistComparePanel')
     expect(source).toContain(':can-adopt="canAdoptAssist"')
+    expect(source).toContain(':retryable="assistSucceeded"')
+    expect(source).toContain('@retry="retryAssist"')
     expect(source).toContain('@closed="closeAssistPanel"')
   })
 
