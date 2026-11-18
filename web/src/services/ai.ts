@@ -7,6 +7,7 @@ import type {
   AiTaskEventsQuery,
   AiTaskEventsResult,
   AiTaskItem,
+  AiTaskLatestQuery,
   AiTaskPageQuery,
   AiTaskProposalPayload,
   AiTaskType,
@@ -40,6 +41,14 @@ export function fetchAiRunningCount(): Promise<{ count: number }> {
 /** 任务详情（详设 3.6.3）：最新执行 + 提案清单摘要 + documentMeta */
 export function fetchAiTask(taskId: string): Promise<AiTaskDetail> {
   return get(`/ai/tasks/${taskId}`)
+}
+
+/** 按节点查询最近一次任务（详设 3.6.3）：无匹配时 data 为 null，供用例节点 AI 优化复用 */
+export function fetchLatestAiTask(
+  type: AiTaskType,
+  params: AiTaskLatestQuery,
+): Promise<AiTaskDetail | null> {
+  return get(`/ai/tasks/${type}/latest`, { ...params })
 }
 
 /** 提案详情（详设 3.6.3）：完整内容，键在最新一次执行的提案中定位 */

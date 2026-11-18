@@ -164,6 +164,12 @@ export interface AiTaskPageQuery {
   pageSize?: number
 }
 
+/** 按节点查询最近一次任务的参数（详设 3.6.3）：用例节点 AI 优化入口复用 */
+export interface AiTaskLatestQuery {
+  documentId: string
+  nodeId: string
+}
+
 /** 轨迹查询参数（afterSeq 游标，默认 0；pageSize 默认 200 上限 500） */
 export interface AiTaskEventsQuery {
   afterSeq?: number

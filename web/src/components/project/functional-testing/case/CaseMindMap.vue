@@ -116,7 +116,7 @@ const {
   running: assistRunning,
   failed: assistFailed,
   failedReason: assistFailedReason,
-  succeeded: assistSucceeded,
+  retryable: assistRetryable,
   progressText: assistProgressText,
   loadError: assistLoadError,
   launchOptimize,
@@ -429,7 +429,7 @@ const handleLayoutCommand = (command: unknown) => {
         :confirming="assistConfirming"
         :loading="assistLoading"
         :receipt="assistReceipt"
-        :retryable="assistSucceeded"
+        :retryable="assistRetryable"
         @adopt="adoptAssist"
         @adopt-edited="adoptAssistEdited"
         @batch-adopt="batchAdoptAssist"

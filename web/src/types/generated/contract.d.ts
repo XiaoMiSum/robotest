@@ -3304,6 +3304,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/tasks/{type}/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getLatestByNode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -13830,6 +13846,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultListRequirementRefRespDTO"];
+                };
+            };
+        };
+    };
+    getLatestByNode: {
+        parameters: {
+            query: {
+                documentId: string;
+                nodeId: string;
+            };
+            header?: never;
+            path: {
+                type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
                 };
             };
         };

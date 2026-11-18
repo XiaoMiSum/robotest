@@ -8,12 +8,16 @@ import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
+  fetchLatestAiTask: vi.fn(),
   push: vi.fn(),
   ElMessage: { warning: vi.fn(), success: vi.fn(), error: vi.fn() },
   useAssistTask: vi.fn(),
 }))
 
-vi.mock('@/services/ai', () => ({ fetchAiStatus: mocks.fetchAiStatus }))
+vi.mock('@/services/ai', () => ({
+  fetchAiStatus: mocks.fetchAiStatus,
+  fetchLatestAiTask: mocks.fetchLatestAiTask,
+}))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
 vi.mock('@/composables/project/ai/useAssistTask', () => ({
@@ -74,6 +78,10 @@ function optimizeRow(
       sourceRefs: [],
     },
   }
+}
+
+function latestTask(taskId: string, status: AiTaskDetail['status']): AiTaskDetail {
+  return { taskId, status } as AiTaskDetail
 }
 
 function fakeTask(): FakeTask {
@@ -156,6 +164,7 @@ describe('useCaseAssistEntry', () => {
     readonly.value = false
     onConfirmed = vi.fn()
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
+    mocks.fetchLatestAiTask.mockResolvedValue(null)
     mocks.useAssistTask.mockImplementation(() => {
       const task = fakeTask()
       tasks.push(task)
@@ -207,7 +216,7 @@ describe('useCaseAssistEntry', () => {
   })
 
   describe('发起与面板状态', () => {
-    it('AI 优化按 documentId + 选中节点发起并打开面板', async () => {
+    it('该节点无任务时按 documentId + 选中节点发起并打开面板', async () => {
       const s = mountEntry()
       await flushPromises()
 
@@ -216,6 +225,10 @@ describe('useCaseAssistEntry', () => {
 
       await s.launchOptimize()
 
+      expect(mocks.fetchLatestAiTask).toHaveBeenCalledWith('case_optimize', {
+        documentId: 'doc-1',
+        nodeId: 'node-1',
+      })
       expect(s.panelVisible.value).toBe(true)
       expect(tasks[0].launch).toHaveBeenCalledWith({
         documentId: 'doc-1',
@@ -223,25 +236,30 @@ describe('useCaseAssistEntry', () => {
       })
     })
 
-    it('按悬浮窗传入的节点发起，而非依赖当前选中态', async () => {
+    it('按悬浮窗传入的节点查询并回退发起，而非依赖当前选中态', async () => {
       const s = mountEntry()
       await flushPromises()
 
       await s.launchOptimize('node-9')
 
+      expect(mocks.fetchLatestAiTask).toHaveBeenCalledWith('case_optimize', {
+        documentId: 'doc-1',
+        nodeId: 'node-9',
+      })
       expect(tasks[0].launch).toHaveBeenCalledWith({
         documentId: 'doc-1',
         nodeIds: ['node-9'],
       })
     })
 
-    it('不满足入口条件时不发起且提示原因', async () => {
+    it('不满足入口条件时不查询、不发起且提示原因', async () => {
       nodeId.value = ''
       const s = mountEntry()
       await flushPromises()
 
       await s.launchOptimize()
 
+      expect(mocks.fetchLatestAiTask).not.toHaveBeenCalled()
       expect(tasks[0].launch).not.toHaveBeenCalled()
       expect(s.panelVisible.value).toBe(false)
       expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请先在脑图中选中一个用例节点')
@@ -273,123 +291,150 @@ describe('useCaseAssistEntry', () => {
     })
   })
 
-  describe('当前文档会话内的任务复用', () => {
-    it('同一节点已有任务时直接打开，不重复发起', async () => {
+  describe('按节点复用最近一次任务', () => {
+    it('命中进行中任务时回显进度，不重复发起', async () => {
+      mocks.fetchLatestAiTask.mockResolvedValue(latestTask('task-1', 'running'))
       const s = mountEntry()
       await flushPromises()
-
-      await s.launchOptimize('node-1')
-      await nextTick()
-
-      await s.launchOptimize('node-1')
-
-      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
-      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
-      expect(s.panelVisible.value).toBe(true)
-    })
-
-    it('未完成任务再次点击回显任务进度', async () => {
-      const s = mountEntry()
-      await flushPromises()
-
-      await s.launchOptimize('node-1')
-      await nextTick()
       tasks[0].isRunning.value = true
 
       await s.launchOptimize('node-1')
 
-      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
-      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
+      expect(tasks[0].open).toHaveBeenCalledWith('task-1')
+      expect(tasks[0].launch).not.toHaveBeenCalled()
+      expect(s.panelVisible.value).toBe(true)
       expect(s.running.value).toBe(true)
     })
 
-    it('已执行完毕的任务再次点击展示提案，不重新发起', async () => {
+    it('命中已产出提案的任务时展示提案并提供重新执行', async () => {
+      mocks.fetchLatestAiTask.mockResolvedValue(latestTask('task-1', 'proposals_ready'))
       const s = mountEntry()
       await flushPromises()
-
-      await s.launchOptimize('node-1')
-      await nextTick()
-      tasks[0].rows.value = [optimizeRow('node-1', 'adopted')]
-      tasks[0].isSucceeded.value = true
-      await nextTick()
+      tasks[0].rows.value = [optimizeRow('node-1')]
 
       await s.launchOptimize('node-1')
 
-      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
-      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
-      expect(s.succeeded.value).toBe(true)
-      expect(s.rows.value[0].confirmStatus).toBe('adopted')
+      expect(tasks[0].open).toHaveBeenCalledWith('task-1')
+      expect(tasks[0].launch).not.toHaveBeenCalled()
+      expect(s.retryable.value).toBe(true)
+      expect(s.rows.value[0].title).toBe('node-1 用例')
     })
 
-    it('切换节点只发起该节点任务，不复用其它节点的结果', async () => {
+    it('已处理完毕的任务重新执行时按同一输入发起新任务', async () => {
+      mocks.fetchLatestAiTask.mockResolvedValue(latestTask('task-1', 'closed'))
+      const s = mountEntry()
+      await flushPromises()
+      tasks[0].rows.value = [optimizeRow('node-1', 'adopted')]
+
+      await s.launchOptimize('node-1')
+      tasks[0].task.value = latestTask('task-1', 'closed')
+      await s.retry()
+
+      expect(s.retryable.value).toBe(true)
+      expect(tasks[0].retry).not.toHaveBeenCalled()
+      expect(tasks[0].launch).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        nodeIds: ['node-1'],
+      })
+    })
+
+    it('已终止任务再次执行沿用同一任务', async () => {
+      mocks.fetchLatestAiTask.mockResolvedValue(latestTask('task-1', 'aborted'))
+      const s = mountEntry()
+      await flushPromises()
+      tasks[0].isFailed.value = true
+
+      await s.launchOptimize('node-1')
+      await s.retry()
+
+      expect(tasks[0].open).toHaveBeenCalledWith('task-1')
+      expect(tasks[0].retry).toHaveBeenCalled()
+      expect(tasks[0].launch).not.toHaveBeenCalled()
+      expect(s.failed.value).toBe(true)
+      expect(s.retryable.value).toBe(false)
+    })
+
+    it('切换节点按目标节点独立查询，不复用其它节点任务', async () => {
+      mocks.fetchLatestAiTask
+        .mockResolvedValueOnce(latestTask('task-1', 'closed'))
+        .mockResolvedValueOnce(null)
       const s = mountEntry()
       await flushPromises()
 
       await s.launchOptimize('node-1')
-      await nextTick()
-
       await s.launchOptimize('node-2')
 
-      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
-      expect(tasks[0].launch).toHaveBeenLastCalledWith({
+      expect(mocks.fetchLatestAiTask).toHaveBeenLastCalledWith('case_optimize', {
+        documentId: 'doc-1',
+        nodeId: 'node-2',
+      })
+      expect(tasks[0].open).toHaveBeenCalledTimes(1)
+      expect(tasks[0].open).toHaveBeenCalledWith('task-1')
+      expect(tasks[0].launch).toHaveBeenCalledWith({
         documentId: 'doc-1',
         nodeIds: ['node-2'],
       })
+    })
+
+    it('快速切换节点时丢弃过期查询结果', async () => {
+      let resolveFirst: (value: AiTaskDetail | null) => void = () => {}
+      mocks.fetchLatestAiTask
+        .mockImplementationOnce(
+          () => new Promise<AiTaskDetail | null>((resolve) => {
+            resolveFirst = resolve
+          }),
+        )
+        .mockResolvedValueOnce(null)
+      const s = mountEntry()
+      await flushPromises()
+
+      const first = s.launchOptimize('node-1')
+      await s.launchOptimize('node-2')
+      resolveFirst(latestTask('task-1', 'closed'))
+      await first
+      await nextTick()
+
       expect(tasks[0].open).not.toHaveBeenCalled()
-      expect(s.rows.value.map((row) => row.title)).toEqual(['node-2 用例'])
-    })
-
-    it('重新执行后回写任务缓存，再次点击打开新任务', async () => {
-      const s = mountEntry()
-      await flushPromises()
-
-      await s.launchOptimize('node-1')
-      await nextTick()
-      tasks[0].retry.mockImplementation(async () => {
-        tasks[0].taskId.value = 'task-node-1-r2'
+      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
+      expect(tasks[0].launch).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        nodeIds: ['node-2'],
       })
-
-      await s.retry()
-      await nextTick()
-
-      await s.launchOptimize('node-1')
-
-      expect(tasks[0].retry).toHaveBeenCalled()
-      expect(tasks[0].open).toHaveBeenLastCalledWith('task-node-1-r2')
-      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
     })
 
-    it('任务终止后再次点击回显终止状态与再次执行入口', async () => {
+    it('查询失败只提示错误，不自动发起任务', async () => {
+      mocks.fetchLatestAiTask.mockRejectedValue(new Error('网络错误'))
       const s = mountEntry()
       await flushPromises()
 
       await s.launchOptimize('node-1')
-      await nextTick()
-      tasks[0].isFailed.value = true
-      await nextTick()
 
-      await s.launchOptimize('node-1')
-
-      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
-      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
+      expect(tasks[0].launch).not.toHaveBeenCalled()
+      expect(s.panelVisible.value).toBe(false)
+      expect(mocks.ElMessage.error).toHaveBeenCalledWith('网络错误')
     })
 
-    it('切换文档清空缓存，返回原文档按新任务计算', async () => {
+    it('切换文档后重新查询，不沿用上一文档的任务', async () => {
+      mocks.fetchLatestAiTask.mockResolvedValueOnce(latestTask('task-1', 'closed'))
       const s = mountEntry()
       await flushPromises()
 
       await s.launchOptimize('node-1')
-      await nextTick()
-
       docId.value = 'doc-2'
       await nextTick()
-      docId.value = 'doc-1'
-      await nextTick()
+      mocks.fetchLatestAiTask.mockResolvedValueOnce(null)
 
       await s.launchOptimize('node-1')
 
-      expect(tasks[0].open).not.toHaveBeenCalled()
-      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+      expect(tasks[0].reset).toHaveBeenCalled()
+      expect(mocks.fetchLatestAiTask).toHaveBeenLastCalledWith('case_optimize', {
+        documentId: 'doc-2',
+        nodeId: 'node-1',
+      })
+      expect(tasks[0].launch).toHaveBeenCalledWith({
+        documentId: 'doc-2',
+        nodeIds: ['node-1'],
+      })
     })
   })
 

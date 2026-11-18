@@ -1,12 +1,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { fetchAiStatus } from '@/services/ai'
+import { fetchAiStatus, fetchLatestAiTask } from '@/services/ai'
 import { useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type {
   AiAssistSourceRef,
   AiProposalConfirmResult,
+  AiTaskDetail,
 } from '@/types'
 
 export interface CaseAssistEntryOptions {
@@ -23,8 +24,8 @@ export interface CaseAssistEntryOptions {
 /**
  * 脑图用例 AI 入口（详设 5.1 / 交互 2.3 / 2.4）：
  * AI 未启用时入口隐藏；无选中 / 非用例节点 / 只读时置灰并给出原因。
- * 当前文档查看会话内按节点复用任务：未完成回显进度，已执行完毕展示提案并支持重新执行；
- * 切换文档或卸载即清空，避免跨节点与跨文档串数据。
+ * 点击时按节点查询后端最近一次任务（项目内成员共享）：命中按状态回显进度或提案，
+ * 无任务才发起；快速切换节点时丢弃过期查询，避免跨节点串数据。
  */
 export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const router = useRouter()
@@ -65,10 +66,10 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   })
 
   const panelVisible = ref(false)
-  /** 面板当前承载的用例节点：重新执行后回写缓存以它为键，避免跨节点串数据 */
+  /** 面板当前承载的用例节点：重新执行以它为输入，避免跨节点串数据 */
   const activeNodeId = ref('')
-  /** 本次文档查看会话内该节点发起的任务：nodeId → taskId，切换文档或卸载即清空 */
-  const taskByNode = new Map<string, string>()
+  // 快速切换节点时后到的查询结果不得覆盖当前节点
+  let queryToken = 0
 
   // 展平为顶层 computed，便于宿主模板直接取用（嵌套 ref 不会自动解包）
   const rows = computed<AssistRow[]>(() => task.rows.value)
@@ -80,21 +81,21 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const running = computed(() => submitting.value || task.isRunning.value)
   const failed = computed(() => task.isFailed.value)
   const failedReason = computed(() => task.failedReason.value)
-  /** 任务已执行完毕：展示提案并提供重新执行（交互 2.4） */
-  const succeeded = computed(() => task.isSucceeded.value)
+  /** 任务已有提案：展示提案并提供重新执行（交互 2.4） */
+  const retryable = computed(() => rows.value.length > 0)
   const progressText = computed(() => task.executionSummary.value?.text ?? '')
   const loadError = computed(() => task.loadError.value)
 
-  // 关闭面板（含“后台运行，关闭”）不丢弃任务，但缓存归属需跟随面板切换
+  // 关闭面板（含“后台运行，关闭”）不丢弃任务，但面板归属需跟随面板切换
   watch(panelVisible, (visible) => {
     if (!visible) activeNodeId.value = ''
   })
 
-  // 切换文档即结束本次查看会话：缓存与面板一并清空，再次进入按新任务计算（交互 2.4）
+  // 切换文档即结束本次查看：面板与任务状态一并清空，避免把上一文档的任务带到新文档
   watch(
     () => options.documentId(),
     () => {
-      taskByNode.clear()
+      queryToken++
       activeNodeId.value = ''
       panelVisible.value = false
       task.reset()
@@ -108,8 +109,6 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
       documentId: options.documentId(),
       nodeIds: [nodeId],
     })
-    // 发起即登记：执行中关闭面板后再点仍能回到进度入口
-    if (task.taskId.value) taskByNode.set(nodeId, task.taskId.value)
   }
 
   async function launchOptimize(nodeId?: string): Promise<void> {
@@ -120,22 +119,39 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
       ElMessage.warning(reason)
       return
     }
-    const cachedTaskId = taskByNode.get(targetNodeId)
-    if (cachedTaskId) {
-      // 打开既有任务：进行中落进度态，已完毕落对照面板（交互 2.4）
+    const documentId = options.documentId()
+    const token = ++queryToken
+    let latest: AiTaskDetail | null
+    try {
+      latest = await fetchLatestAiTask('case_optimize', { documentId, nodeId: targetNodeId })
+    } catch (err) {
+      if (token !== queryToken) return
+      // 查询失败不自动发起，避免误耗额度
+      ElMessage.error(err instanceof Error && err.message ? err.message : '查询该节点任务失败')
+      return
+    }
+    if (token !== queryToken) return
+    if (latest) {
+      // 命中最近任务：进行中落进度态，已产出提案 / 已处理落对照面板，终止落失败态
       panelVisible.value = true
       activeNodeId.value = targetNodeId
-      await task.open(cachedTaskId)
+      await task.open(latest.taskId)
       return
     }
     await startOptimize(targetNodeId)
   }
 
   async function retry(): Promise<void> {
-    const nodeId = activeNodeId.value
+    const nodeId = activeNodeId.value || options.selectedNodeId()
+    // 已处理完毕的任务后端不允许再次执行，按同一输入发起新任务（交互 2.4）
+    if (task.task.value?.status === 'closed') {
+      await task.launch({
+        documentId: options.documentId(),
+        nodeIds: [nodeId],
+      })
+      return
+    }
     await task.retry()
-    // 重新执行可能生成新任务 ID；面板在执行中被关闭也要回写缓存
-    if (nodeId && task.taskId.value) taskByNode.set(nodeId, task.taskId.value)
   }
 
   function refresh(): Promise<void> {
@@ -192,7 +208,7 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
     running,
     failed,
     failedReason,
-    succeeded,
+    retryable,
     progressText,
     loadError,
     launchOptimize,
