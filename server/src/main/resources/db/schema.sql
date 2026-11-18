@@ -1186,14 +1186,14 @@ CREATE TABLE ai_task_tool (
 );
 CREATE UNIQUE INDEX uk_ai_task_tool ON ai_task_tool (tool_code) WHERE is_deleted = FALSE;
 
--- S4 普通任务只读工具种子：代码注册、种子与 TypeAdapter 白名单同源（9/9 类型覆盖）。
+-- S4 普通任务只读工具种子：代码注册、种子与 TypeAdapter 白名单同源（8/8 类型覆盖）。
 INSERT INTO ai_task_tool (id, tool_code, name, task_types, param_schema, side_effect) VALUES
 ('a1000000-0000-0000-0000-000000000001', 'read_import_source', '读取导入来源', '["requirement_import"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000002', 'query_project_modules', '查询项目模块', '["requirement_import","test_design_generation","bug_classify"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
-('a1000000-0000-0000-0000-000000000003', 'query_requirements', '查询需求', '["test_design_generation","case_complete"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000003', 'query_requirements', '查询需求', '["test_design_generation","case_optimize"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000004', 'search_project_knowledge', '检索项目知识', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000005', 'query_test_assets', '查询测试资产', '["test_design_generation"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
-('a1000000-0000-0000-0000-000000000007', 'query_case_context', '查询用例上下文', '["case_complete","case_priority"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
+('a1000000-0000-0000-0000-000000000007', 'query_case_context', '查询用例上下文', '["case_optimize"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000009', 'query_plan_order_context', '查询计划顺序上下文', '["plan_order"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000010', 'query_bugs', '查询缺陷', '["bug_classify","bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000011', 'search_similar_bugs', '检索相似缺陷', '["bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),

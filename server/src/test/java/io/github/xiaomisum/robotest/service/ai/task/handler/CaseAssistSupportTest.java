@@ -20,10 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.completeCaseContext;
+import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.optimizeCaseContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.documentContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.existingFields;
-import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.priorityCaseContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.requireDocumentId;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.requireNodeIds;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.requirementContext;
@@ -234,10 +233,8 @@ class CaseAssistSupportTest {
         CaseAssistSupport.ResolvedCases resolved = new CaseAssistSupport.ResolvedCases(
                 documentOf(PROJECT_ID), List.of(node), Map.of(CASE_ID, node), Map.of());
 
-        assertTrue(completeCaseContext(resolved).contains("步骤：（空）"));
-        assertTrue(completeCaseContext(resolved).contains("优先级 P0"));
-        assertTrue(priorityCaseContext(resolved).contains("当前级别 P0"));
-        assertTrue(priorityCaseContext(resolved).contains("（文档根）"));
+        assertTrue(optimizeCaseContext(resolved).contains("步骤：（空）"));
+        assertTrue(optimizeCaseContext(resolved).contains("优先级 P0"));
         assertTrue(documentContext(resolved).contains(node.getTitle()));
 
         assertTrue(requirementContext(List.of()).contains("（无上游需求）"));
