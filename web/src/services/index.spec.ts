@@ -360,7 +360,7 @@ describe('services/index.ts 请求上下文头', () => {
   })
 })
 
-describe('services/index.ts 助手接口上下文分层（详设 3.1）', () => {
+describe('services/index.ts 助手接口上下文（详设 3.1：项目级能力统一携带双头）', () => {
   function capture(): { workspace?: string; project?: string } {
     const received: { workspace?: string; project?: string } = {}
     withAdapter((config) => {
@@ -375,50 +375,50 @@ describe('services/index.ts 助手接口上下文分层（详设 3.1）', () => 
     localStorageMock.setItem('robotest_active_project', 'project-1')
   })
 
-  it('会话列表与创建工作空间注入 X-Active-Workspace，不注入项目头（详设 3.1）', async () => {
+  it('会话列表与创建注入双头（详设 3.1）', async () => {
     const list = capture()
     await api.get('/ai/conversations')
     expect(list.workspace).toBe('ws-1')
-    expect(list.project).toBeUndefined()
+    expect(list.project).toBe('project-1')
 
     const created = capture()
     await api.post('/ai/conversations', { title: '新会话' })
     expect(created.workspace).toBe('ws-1')
-    expect(created.project).toBeUndefined()
+    expect(created.project).toBe('project-1')
   })
 
-  it('消息历史仅携带 Authorization，不注入上下文头', async () => {
+  it('消息历史携带双头（详设 3.1：助手全部接口按项目级）', async () => {
     const history = capture()
     await api.get('/ai/conversations/c1/messages')
-    expect(history.workspace).toBeUndefined()
-    expect(history.project).toBeUndefined()
+    expect(history.workspace).toBe('ws-1')
+    expect(history.project).toBe('project-1')
   })
 
-  it('发送消息注入工作空间头，不注入项目头', async () => {
+  it('发送消息携带双头', async () => {
     const received = capture()
 
     await api.post('/ai/conversations/c1/messages', { content: 'hi' })
 
     expect(received.workspace).toBe('ws-1')
-    expect(received.project).toBeUndefined()
+    expect(received.project).toBe('project-1')
   })
 
-  it('确认执行注入工作空间头，不注入项目头（目标项目取固化 intent.scope，详设 3.1 / 4.2②）', async () => {
+  it('确认执行携带双头（目标项目取 X-Active-Project，详设 3.5 / 4.2②）', async () => {
     const received = capture()
 
     await api.post('/ai/conversations/c1/messages/m1/execute', {})
 
     expect(received.workspace).toBe('ws-1')
-    expect(received.project).toBeUndefined()
+    expect(received.project).toBe('project-1')
   })
 
-  it('取消预览不产生数据，不注入上下文头', async () => {
+  it('取消预览同样携带双头（详设 3.1：助手全部接口按项目级）', async () => {
     const received = capture()
 
     await api.post('/ai/conversations/c1/messages/m1/cancel')
 
-    expect(received.workspace).toBeUndefined()
-    expect(received.project).toBeUndefined()
+    expect(received.workspace).toBe('ws-1')
+    expect(received.project).toBe('project-1')
   })
 })
 

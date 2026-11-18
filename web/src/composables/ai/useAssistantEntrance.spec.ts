@@ -3,7 +3,7 @@ import { useAssistantEntrance } from './useAssistantEntrance'
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
-  routeMeta: { mode: 'workspace' } as { mode?: string },
+  routeMeta: { mode: 'project' } as { mode?: string },
 }))
 
 vi.mock('@/services/ai', () => ({ fetchAiStatus: mocks.fetchAiStatus }))
@@ -15,7 +15,7 @@ vi.mock('vue-router', () => ({
 describe('composables/ai/useAssistantEntrance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.routeMeta.mode = 'workspace'
+    mocks.routeMeta.mode = 'project'
   })
 
   it('AI 可用时入口可见', async () => {
@@ -38,7 +38,17 @@ describe('composables/ai/useAssistantEntrance', () => {
     expect(visible.value).toBe(false)
   })
 
-  it('未进入工作空间上下文（我的空间 mode=none）时入口隐藏', async () => {
+  it('空间级页面（mode=workspace）时入口隐藏：助手仅在项目上下文可用', async () => {
+    mocks.fetchAiStatus.mockResolvedValue({ available: true })
+    mocks.routeMeta.mode = 'workspace'
+    const { visible, refresh } = useAssistantEntrance()
+
+    await refresh()
+
+    expect(visible.value).toBe(false)
+  })
+
+  it('我的空间（mode=none）时入口隐藏', async () => {
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
     mocks.routeMeta.mode = 'none'
     const { visible, refresh } = useAssistantEntrance()
