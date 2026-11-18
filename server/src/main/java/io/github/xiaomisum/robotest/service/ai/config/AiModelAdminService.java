@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
@@ -137,7 +138,9 @@ public class AiModelAdminService {
                 .set(req.getProvider() != null, AiModelConfig::getProvider, req.getProvider())
                 .set(req.getBaseUrl() != null, AiModelConfig::getBaseUrl, req.getBaseUrl())
                 .set(req.getModelName() != null, AiModelConfig::getModelName, req.getModelName())
-                .set(req.getCapabilities() != null, AiModelConfig::getCapabilities, req.getCapabilities())
+                // wrapper.set 不套用 typeHandler，List 直传 pgjdbc 无法推断 SQL 类型
+                .set(req.getCapabilities() != null, AiModelConfig::getCapabilities,
+                        req.getCapabilities() == null ? null : JsonUtils.toJsonString(req.getCapabilities()))
                 .set(req.getPriority() != null, AiModelConfig::getPriority, req.getPriority())
                 .set(req.getEnabled() != null, AiModelConfig::getEnabled, req.getEnabled())
                 .set(req.getInputPrice() != null, AiModelConfig::getInputPrice, req.getInputPrice())
@@ -210,10 +213,11 @@ public class AiModelAdminService {
             result.put("msg", msg);
         }
         LocalDateTime at = LocalDateTime.now();
+        // wrapper.set 不套用 typeHandler，Map 直传会被 pgjdbc 当 hstore 解析
         modelMapper.update(null, new LambdaUpdateWrapperX<AiModelConfig>()
                 .eq(AiModelConfig::getId, model.getId())
                 .set(AiModelConfig::getLastTestAt, at)
-                .set(AiModelConfig::getLastTestResult, result));
+                .set(AiModelConfig::getLastTestResult, JsonUtils.toJsonString(result)));
     }
 
     private void validateName(String name, UUID selfId) {

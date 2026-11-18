@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import xyz.migoo.framework.common.pojo.PageParam;
 import xyz.migoo.framework.common.pojo.PageResult;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
@@ -113,7 +114,8 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     default boolean markResultMeta(UUID id, Map<String, Object> resultMeta) {
         return update(null, new LambdaUpdateWrapperX<AiTask>()
                 .eq(AiTask::getId, id)
-                .set(AiTask::getResultMeta, resultMeta)
+                // wrapper.set 不套用 typeHandler，Map 直传会被 pgjdbc 当 hstore 解析
+                .set(AiTask::getResultMeta, resultMeta == null ? null : JsonUtils.toJsonString(resultMeta))
                 .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
     }
 

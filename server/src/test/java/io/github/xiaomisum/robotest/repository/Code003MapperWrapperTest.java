@@ -3,6 +3,8 @@ package io.github.xiaomisum.robotest.repository;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiEnvironment;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiScene;
@@ -10,6 +12,8 @@ import io.github.xiaomisum.robotest.model.entity.apitest.ApiScheduledTask;
 import io.github.xiaomisum.robotest.model.entity.apitest.ApiSwaggerUrl;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiEnvironmentMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.apitest.ApiScheduledTaskMapper;
@@ -60,6 +64,8 @@ class Code003MapperWrapperTest {
         initTableInfo(configuration, ApiScene.class);
         initTableInfo(configuration, ApiSwaggerUrl.class);
         initTableInfo(configuration, ApiScheduledTask.class);
+        initTableInfo(configuration, AiTask.class);
+        initTableInfo(configuration, AiTaskExecution.class);
     }
 
     @Test
@@ -233,6 +239,43 @@ class Code003MapperWrapperTest {
         Collection<Object> cleared = ((LambdaUpdateWrapperX<?>) captor.getAllValues().get(1))
                 .getParamNameValuePairs().values();
         assertTrue(cleared.stream().noneMatch("{}"::equals), "null 入参不得被 JsonUtils 序列化成 {}");
+    }
+
+    @Test
+    void aiTaskResultMetaBindsAsJsonStringNotMap() {
+        AiTaskMapper mapper = mock(AiTaskMapper.class, CALLS_REAL_METHODS);
+        when(mapper.update(isNull(), any(LambdaUpdateWrapperX.class))).thenReturn(1);
+        clearInvocations(mapper);
+
+        assertTrue(mapper.markResultMeta(ID, Map.of("total", 3)));
+        assertTrue(mapper.markResultMeta(ID, null));
+
+        ArgumentCaptor<Wrapper<AiTask>> captor = wrapperCaptor();
+        verify(mapper, org.mockito.Mockito.times(2)).update(isNull(), captor.capture());
+        Collection<Object> values = ((LambdaUpdateWrapperX<?>) captor.getAllValues().get(0))
+                .getParamNameValuePairs().values();
+        assertTrue(values.stream().anyMatch(v -> v instanceof String json && json.contains("total")),
+                "result_meta 须以 JSON 字符串绑定（Map 直绑 pgjdbc 按 hstore 解析报 No hstore extension installed）");
+        assertTrue(values.stream().noneMatch(v -> v instanceof Map), "JSON 列禁止原始 Map 直绑 pgjdbc");
+        Collection<Object> cleared = ((LambdaUpdateWrapperX<?>) captor.getAllValues().get(1))
+                .getParamNameValuePairs().values();
+        assertTrue(cleared.stream().noneMatch("{}"::equals), "null 入参不得被 JsonUtils 序列化成 {}");
+    }
+
+    @Test
+    void aiTaskPlanBindsAsJsonStringNotMap() {
+        AiTaskExecutionMapper mapper = mock(AiTaskExecutionMapper.class, CALLS_REAL_METHODS);
+        when(mapper.update(isNull(), any(LambdaUpdateWrapperX.class))).thenReturn(1);
+        clearInvocations(mapper);
+
+        assertTrue(mapper.markPlan(ID, Map.of("steps", 2)));
+
+        ArgumentCaptor<Wrapper<AiTaskExecution>> captor = wrapperCaptor();
+        verify(mapper).update(isNull(), captor.capture());
+        Collection<Object> values = ((LambdaUpdateWrapperX<?>) captor.getValue()).getParamNameValuePairs().values();
+        assertTrue(values.stream().anyMatch(v -> v instanceof String json && json.contains("steps")),
+                "plan 须以 JSON 字符串绑定");
+        assertTrue(values.stream().noneMatch(v -> v instanceof Map), "JSON 列禁止原始 Map 直绑 pgjdbc");
     }
 
     private static void initTableInfo(MybatisConfiguration configuration, Class<?> entityClass) {

@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.config;
 
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import io.github.xiaomisum.robotest.framework.audit.AuditLogWriter;
 import io.github.xiaomisum.robotest.framework.audit.ClientIpResolver;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -25,10 +26,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -230,7 +235,11 @@ class AiModelAdminServiceTest {
         AiModelTestRespDTO resp = service.test(MODEL_ID, loginUser, request);
 
         assertTrue(resp.getSuccess());
-        verify(modelMapper).update(isNull(), any());
+        ArgumentCaptor<Wrapper<AiModelConfig>> captor = wrapperCaptor();
+        verify(modelMapper).update(isNull(), captor.capture());
+        Map<String, Object> saved = JsonUtils.parseObject(jsonParam(captor.getValue(), "latencyMs"), Map.class);
+        assertEquals(Boolean.TRUE, saved.get("success"));
+        assertTrue(((Number) saved.get("latencyMs")).intValue() >= 0);
     }
 
     @Test
@@ -244,7 +253,11 @@ class AiModelAdminServiceTest {
 
         assertEquals(ErrorCodeConstants.AI_MODEL_TEST_FAILED.code(), ex.getCode());
         assertTrue(ex.getMessage().contains("401 unauthorized"));
-        verify(modelMapper).update(isNull(), any());
+        ArgumentCaptor<Wrapper<AiModelConfig>> captor = wrapperCaptor();
+        verify(modelMapper).update(isNull(), captor.capture());
+        Map<String, Object> saved = JsonUtils.parseObject(jsonParam(captor.getValue(), "msg"), Map.class);
+        assertEquals(Boolean.FALSE, saved.get("success"));
+        assertEquals("401 unauthorized", saved.get("msg"));
     }
 
     @Test
@@ -255,5 +268,35 @@ class AiModelAdminServiceTest {
                 () -> service.test(MODEL_ID, loginUser, request));
 
         assertEquals(ErrorCodeConstants.AI_MODEL_NOT_FOUND.code(), ex.getCode());
+    }
+
+    @Test
+    void update_capabilitiesBindAsJsonStringNotList() {
+        when(modelMapper.selectById(MODEL_ID)).thenReturn(storedModel(MODEL_ID));
+        AiModelUpdateReqDTO req = new AiModelUpdateReqDTO();
+        req.setCapabilities(List.of("chat", "vision"));
+
+        service.update(MODEL_ID, req, loginUser, request);
+
+        ArgumentCaptor<Wrapper<AiModelConfig>> captor = wrapperCaptor();
+        verify(modelMapper).update(isNull(), captor.capture());
+        Collection<Object> values = ((LambdaUpdateWrapperX<?>) captor.getValue()).getParamNameValuePairs().values();
+        assertTrue(values.stream().anyMatch(v -> v instanceof String json && json.contains("vision")),
+                "capabilities 须以 JSON 字符串绑定");
+        assertTrue(values.stream().noneMatch(v -> v instanceof List), "JSON 列禁止原始 List 直绑 pgjdbc");
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static ArgumentCaptor<Wrapper<AiModelConfig>> wrapperCaptor() {
+        return (ArgumentCaptor) ArgumentCaptor.forClass(Wrapper.class);
+    }
+
+    private static String jsonParam(Object wrapper, String marker) {
+        return ((LambdaUpdateWrapperX<?>) wrapper).getParamNameValuePairs().values().stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .filter(json -> json.contains(marker))
+                .findFirst()
+                .orElseThrow();
     }
 }

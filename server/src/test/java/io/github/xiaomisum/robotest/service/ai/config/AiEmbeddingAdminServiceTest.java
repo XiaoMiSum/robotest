@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.service.ai.config;
 
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import io.github.xiaomisum.robotest.framework.audit.AuditLogWriter;
 import io.github.xiaomisum.robotest.framework.audit.ClientIpResolver;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
@@ -15,14 +16,18 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -162,6 +167,13 @@ class AiEmbeddingAdminServiceTest {
         assertEquals(768, dto.getDimensions());
         assertEquals(1, dto.getVersions().size());
         assertEquals(1536, dto.getVersions().get(0).get("dimensions"));
+        ArgumentCaptor<Wrapper<AiEmbeddingConfig>> captor = wrapperCaptor();
+        verify(embeddingMapper, org.mockito.Mockito.times(2)).update(any(), captor.capture());
+        Collection<Object> values = ((LambdaUpdateWrapperX<?>) captor.getAllValues().get(0))
+                .getParamNameValuePairs().values();
+        assertTrue(values.stream().anyMatch(v -> v instanceof String json && json.contains("1536")),
+                "versions 须以 JSON 字符串绑定");
+        assertTrue(values.stream().noneMatch(v -> v instanceof List), "JSON 列禁止原始 List 直绑 pgjdbc");
     }
 
     @Test
@@ -196,7 +208,11 @@ class AiEmbeddingAdminServiceTest {
 
         assertTrue(resp.getSuccess());
         assertEquals(3, resp.getDimensions());
-        verify(embeddingMapper).update(any(), any());
+        ArgumentCaptor<Wrapper<AiEmbeddingConfig>> captor = wrapperCaptor();
+        verify(embeddingMapper).update(any(), captor.capture());
+        Map<String, Object> saved = JsonUtils.parseObject(jsonParam(captor.getValue(), "latencyMs"), Map.class);
+        assertEquals(Boolean.TRUE, saved.get("success"));
+        assertEquals(3, saved.get("dimensions"));
     }
 
     @Test
@@ -211,6 +227,24 @@ class AiEmbeddingAdminServiceTest {
 
         assertEquals(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(), ex.getCode());
         assertTrue(ex.getMessage().contains("timeout"));
-        verify(embeddingMapper).update(any(), any());
+        ArgumentCaptor<Wrapper<AiEmbeddingConfig>> captor = wrapperCaptor();
+        verify(embeddingMapper).update(any(), captor.capture());
+        Map<String, Object> saved = JsonUtils.parseObject(jsonParam(captor.getValue(), "msg"), Map.class);
+        assertEquals(Boolean.FALSE, saved.get("success"));
+        assertEquals("timeout", saved.get("msg"));
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static ArgumentCaptor<Wrapper<AiEmbeddingConfig>> wrapperCaptor() {
+        return (ArgumentCaptor) ArgumentCaptor.forClass(Wrapper.class);
+    }
+
+    private static String jsonParam(Object wrapper, String marker) {
+        return ((LambdaUpdateWrapperX<?>) wrapper).getParamNameValuePairs().values().stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .filter(json -> json.contains(marker))
+                .findFirst()
+                .orElseThrow();
     }
 }

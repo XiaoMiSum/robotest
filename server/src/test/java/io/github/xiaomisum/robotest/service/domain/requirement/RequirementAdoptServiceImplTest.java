@@ -24,6 +24,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import java.util.ArrayList;
@@ -505,10 +506,10 @@ class RequirementAdoptServiceImplTest {
 
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
-        Object value = findParam(wrapperCaptor.getValue(), Map.class);
-        assertNotNull(value);
+        String json = findJsonParam(wrapperCaptor.getValue(), "adopted");
+        assertNotNull(json);
         @SuppressWarnings("unchecked")
-        Map<String, Object> merged = (Map<String, Object>) value;
+        Map<String, Object> merged = JsonUtils.parseObject(json, Map.class);
         @SuppressWarnings("unchecked")
         List<Object> adopted = (List<Object>) merged.get("adopted");
         assertEquals(1, adopted.size());
@@ -518,11 +519,11 @@ class RequirementAdoptServiceImplTest {
         assertEquals(OPERATOR_ID.toString(), merged.get("operatorId"));
     }
 
-    /** 从 wrapper 参数值里找到指定类型的第一个值（merged adoptResult 为 Map） */
-    private static Object findParam(Object wrapper, Class<?> type) {
+    /** 从 wrapper 参数值里找到包含指定标记的 JSON 字符串（adoptResult 经序列化绑定） */
+    private static String findJsonParam(Object wrapper, String marker) {
         for (Object value : ((LambdaUpdateWrapperX<?>) wrapper).getParamNameValuePairs().values()) {
-            if (type.isInstance(value)) {
-                return value;
+            if (value instanceof String json && json.startsWith("{") && json.contains(marker)) {
+                return json;
             }
         }
         return null;

@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.vector;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,9 +32,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import xyz.migoo.framework.common.exception.ServiceException;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +44,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -188,7 +193,12 @@ class VectorReindexExecutionStrategyTest {
         verify(control, times(5)).beforeCall();
         verify(indexMapper, times(3)).delete(any());
         verify(indexMapper, times(3)).insertBatch(any());
-        verify(embeddingMapper).update(isNull(), any());
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        ArgumentCaptor<Wrapper<AiEmbeddingConfig>> captor = (ArgumentCaptor) ArgumentCaptor.forClass(Wrapper.class);
+        verify(embeddingMapper).update(isNull(), captor.capture());
+        Collection<Object> values = ((LambdaUpdateWrapperX<?>) captor.getValue()).getParamNameValuePairs().values();
+        assertTrue(values.stream().anyMatch("[]"::equals), "versions 清空须以 JSON 字符串 [] 绑定");
+        assertTrue(values.stream().noneMatch(v -> v instanceof List), "JSON 列禁止原始 List 直绑 pgjdbc");
         verify(jdbcTemplate, never()).execute(anyString());
     }
 

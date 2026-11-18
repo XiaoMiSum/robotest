@@ -14,6 +14,7 @@ import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
 
 import java.time.LocalDateTime;
@@ -288,7 +289,9 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
         }
         LambdaUpdateWrapperX<RequirementSplitRecord> wrapper = new LambdaUpdateWrapperX<RequirementSplitRecord>();
         wrapper.eq(RequirementSplitRecord::getId, record.getId())
-                .set(RequirementSplitRecord::getAdoptResult, merged)
+                // wrapper.set 不套用 typeHandler，Map 直传会被 pgjdbc 当 hstore 解析
+                .set(RequirementSplitRecord::getAdoptResult,
+                        merged == null ? null : JsonUtils.toJsonString(merged))
                 .set(RequirementSplitRecord::getStatus, status)
                 .set(RequirementSplitRecord::getUpdatedAt, LocalDateTime.now());
         if (!task.getId().equals(record.getAiTaskId())) {

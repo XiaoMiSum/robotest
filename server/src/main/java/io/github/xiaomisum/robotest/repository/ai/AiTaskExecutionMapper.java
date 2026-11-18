@@ -1,6 +1,7 @@
 package io.github.xiaomisum.robotest.repository.ai;
 
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
+import xyz.migoo.framework.common.util.JsonUtils;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
 import xyz.migoo.framework.mybatis.core.LambdaUpdateWrapperX;
@@ -17,7 +18,8 @@ public interface AiTaskExecutionMapper extends BaseMapperX<AiTaskExecution> {
         return update(null, new LambdaUpdateWrapperX<AiTaskExecution>()
                 .eq(AiTaskExecution::getId, id)
                 .in(AiTaskExecution::getStatus, "running", "waiting_confirmation")
-                .set(AiTaskExecution::getPlan, plan)
+                // wrapper.set 不套用 typeHandler，Map 直传会被 pgjdbc 当 hstore 解析
+                .set(AiTaskExecution::getPlan, plan == null ? null : JsonUtils.toJsonString(plan))
                 .set(AiTaskExecution::getUpdatedAt, LocalDateTime.now())) == 1;
     }
 
