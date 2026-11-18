@@ -1,6 +1,6 @@
 import type { CaseNodeType } from '../shared'
 import type { RequirementRef } from '../../requirement'
-import type { ReplanStatus, SelectedCaseNode } from './case'
+import type { SelectedCaseNode } from './case'
 
 /** 计划编辑载荷（字段可选，沿用后端部分更新语义） */
 export interface TestPlanUpdatePayload {
@@ -65,9 +65,6 @@ export interface TestPlanDetail {
   requirements: RequirementRef[]
   /** 关联需求原始 ID（含已删除需求），供编辑表单判定集合变化 */
   requirementIds: string[]
-  replanStatus: ReplanStatus
-  replanMessage: string | null
-  replanFinishedAt: string | null
 }
 
 /** 执行结果 */

@@ -8,12 +8,10 @@ import {
   deleteReview,
   fetchReviews,
   getReviewDetail,
-  getReviewReplanStatus,
   reopenReview,
   updateReview,
 } from '@/services/project'
 import type {
-  ReplanStatusResp,
   ReviewStatus,
   TestReviewDetail,
   TestReviewListItem,
@@ -23,7 +21,7 @@ import type {
 import ReviewCreateDialog from '@/components/project/functional-testing/review/ReviewCreateDialog.vue'
 import ReviewEditDialog from '@/components/project/functional-testing/review/ReviewEditDialog.vue'
 import ReviewListTable from '@/components/project/functional-testing/review/ReviewListTable.vue'
-import { isRequirementSetChanged, useReplanPolling } from '@/composables/project/functional-testing/replan'
+import { isRequirementSetChanged } from '@/composables/project/functional-testing/replan'
 import { REVIEW_STATUS_META } from '@/components/project/functional-testing/review/reviewListPresentation'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListWorkspace from '@/components/common/ListWorkspace.vue'
@@ -172,20 +170,6 @@ const editSubmitting = ref(false)
 const editingReview = ref<TestReviewListItem | null>(null)
 const editDetail = ref<TestReviewDetail | null>(null)
 
-function handleReplanFinish(status: ReplanStatusResp) {
-  if (status.status === 'succeeded') {
-    ElMessage.success(status.message || '测试用例重新规划完成')
-  } else {
-    ElMessage.error(status.message || '测试用例重新规划失败')
-  }
-  loadReviews()
-}
-function handleReplanError(message: string) {
-  ElMessage.error(message)
-  loadReviews()
-}
-const replanPolling = useReplanPolling(getReviewReplanStatus)
-
 async function openEditDialog(row: TestReviewListItem) {
   try {
     editDetail.value = await getReviewDetail(row.id)
@@ -217,7 +201,6 @@ async function submitEdit(payload: TestReviewUpdatePayload) {
     editDialogVisible.value = false
     if (replan) {
       ElMessage.success('已保存，正在后台重新规划测试用例')
-      replanPolling.start(id, handleReplanFinish, handleReplanError)
       return
     }
     ElMessage.success('已保存')
