@@ -14,8 +14,6 @@ const props = defineProps<{ repo: ApiGitRepoConfig }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const {
-  canPreview,
-  canExecute,
   previewing,
   preview,
   gateBlocked,
@@ -136,7 +134,7 @@ const visibleCount = computed(() =>
 )
 
 const canRunImport = computed(
-  () => canExecute.value && !!preview.value && !previewing.value && !importing.value && !submitting.value,
+  () => !!preview.value && !previewing.value && !importing.value && !submitting.value,
 )
 
 const lastSummary = computed(() => props.repo.lastImportSummary ?? {})
@@ -181,28 +179,17 @@ const commitUrl = computed(
       </el-button>
     </el-alert>
 
-    <el-alert
-      v-if="!canPreview"
-      class="gi-alert"
-      type="info"
-      :closable="false"
-      show-icon
-      title="当前账号缺少 api-scene:view 权限，本页只读；扫描预览与导入进度不可用"
-    />
-
-    <!-- 动作行：[导出 CSV] 与权限提示靠左，[扫描预览] / [执行导入] 以图标 link 按钮固定右端（交互稿 27 §3.2） -->
-    <div v-if="canPreview || canExecute" class="gi-actions">
+    <!-- 动作行：[导出 CSV] 靠左，[扫描预览] / [执行导入] 以图标 link 按钮固定右端（交互稿 27 §3.2） -->
+    <div class="gi-actions">
       <div class="gi-actions__left">
         <el-button
-          v-if="canPreview && preview && preview.details.length > 0"
+          v-if="preview && preview.details.length > 0"
           :disabled="filteredDetails.length === 0"
           @click="exportDetailsCsv"
         >导出 CSV</el-button>
-        <span v-if="canPreview && !canExecute" class="gi-actions__hint">缺少 api-scene:edit 权限，不可执行导入</span>
       </div>
       <div class="gi-actions__right">
         <el-button
-          v-if="canPreview"
           link
           type="primary"
           :icon="Search"
@@ -211,7 +198,6 @@ const commitUrl = computed(
           @click="runPreview"
         >扫描预览</el-button>
         <el-button
-          v-if="canExecute"
           link
           type="primary"
           :icon="Download"
@@ -414,7 +400,7 @@ const commitUrl = computed(
   }
 }
 
-/* 动作行：左侧次级动作与权限提示，主操作 link 按钮固定右端 */
+/* 动作行：左侧次级动作，主操作 link 按钮固定右端 */
 .gi-actions {
   display: flex;
   align-items: center;
@@ -428,11 +414,6 @@ const commitUrl = computed(
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-}
-
-.gi-actions__hint {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
 }
 
 /* 汇总条：四段横排 + 环境说明 */

@@ -18,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   syncPlan: vi.fn<() => Promise<void>>(),
   ElMessage: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
-  useAuthStore: vi.fn(),
 }))
 
 vi.mock('vue', async () => {
@@ -44,10 +43,6 @@ vi.mock('@/services/project', () => ({
   blockPlan: mocks.blockPlan,
   resumePlan: mocks.resumePlan,
   syncPlan: mocks.syncPlan,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('@/components/project/functional-testing/plan/PlanMindMap.vue', () => ({ default: {} }))
@@ -95,18 +90,10 @@ function setupMocks(overrides?: {
   progress?: TestPlanProgress
   tree?: SnapshotModule[]
   plannedCases?: PlannedCases[]
-  userId?: string
-  /** 当前会话权限码；默认授予计划的同步/完成与阻塞/恢复两组码 */
-  permissions?: string[]
 }) {
   mocks.getPlanDetail.mockResolvedValue(overrides?.plan ?? makePlan())
   mocks.getPlanProgress.mockResolvedValue(overrides?.progress ?? makeProgress())
   mocks.getPlanModuleTree.mockResolvedValue(overrides?.tree ?? [])
-  const granted = new Set(overrides?.permissions ?? ['plan:execute', 'plan:block'])
-  mocks.useAuthStore.mockReturnValue({
-    user: { id: overrides?.userId ?? 'user-1' },
-    hasPermission: (code: string) => granted.has(code),
-  })
 }
 
 describe('usePlanDetail', () => {
@@ -209,9 +196,9 @@ describe('usePlanDetail', () => {
     })
   })
 
-  // 权限码与后端 @PreAuthorize 同源（详设 3.2）：缺码时入口不展示，避免注定 403 的请求
-  describe('computed 权限码显隐', () => {
-    it('活跃态且两组码齐备时可同步完成、可阻塞', async () => {
+  // 操作显隐只随计划状态变化，权限码不再参与前端判定（详设 3.2）
+  describe('computed 操作显隐', () => {
+    it('活跃态可同步完成与阻塞，不可恢复', async () => {
       setupMocks({ plan: makePlan({ status: 'in_progress' }) })
       const s = init()
       await vi.dynamicImportSettled()
@@ -220,7 +207,7 @@ describe('usePlanDetail', () => {
       expect(s.canResume.value).toBe(false)
     })
 
-    it('已阻塞且具备 plan:block 时仅可恢复', async () => {
+    it('已阻塞时仅可恢复', async () => {
       setupMocks({ plan: makePlan({ status: 'blocked' }) })
       const s = init()
       await vi.dynamicImportSettled()
@@ -229,24 +216,7 @@ describe('usePlanDetail', () => {
       expect(s.canOperateActive.value).toBe(false)
     })
 
-    it('缺 plan:block 时不展示阻塞入口', async () => {
-      setupMocks({ plan: makePlan({ status: 'in_progress' }), permissions: ['plan:execute'] })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canBlock.value).toBe(false)
-      expect(s.canResume.value).toBe(false)
-      expect(s.canOperateActive.value).toBe(true)
-    })
-
-    it('缺 plan:execute 时不展示同步与完成入口', async () => {
-      setupMocks({ plan: makePlan({ status: 'in_progress' }), permissions: ['plan:block'] })
-      const s = init()
-      await vi.dynamicImportSettled()
-      expect(s.canOperateActive.value).toBe(false)
-      expect(s.canBlock.value).toBe(true)
-    })
-
-    it('已结束计划即使有权限码也不展示活跃态入口', async () => {
+    it('已结束计划不展示任何活跃态入口', async () => {
       setupMocks({ plan: makePlan({ status: 'completed' }) })
       const s = init()
       await vi.dynamicImportSettled()
@@ -323,7 +293,6 @@ describe('usePlanDetail', () => {
       mocks.getPlanDetail.mockRejectedValue(new Error('网络错误'))
       mocks.getPlanProgress.mockResolvedValue(makeProgress())
       mocks.getPlanModuleTree.mockResolvedValue([])
-      mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
       const s = init()
       await vi.dynamicImportSettled()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('网络错误')
@@ -334,7 +303,6 @@ describe('usePlanDetail', () => {
       mocks.getPlanDetail.mockRejectedValue('string err')
       mocks.getPlanProgress.mockResolvedValue(makeProgress())
       mocks.getPlanModuleTree.mockResolvedValue([])
-      mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
       init()
       await vi.dynamicImportSettled()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('加载计划详情失败')
@@ -344,7 +312,6 @@ describe('usePlanDetail', () => {
       mocks.getPlanDetail.mockRejectedValue(new Error('fail'))
       mocks.getPlanProgress.mockResolvedValue(makeProgress())
       mocks.getPlanModuleTree.mockResolvedValue([])
-      mocks.useAuthStore.mockReturnValue({ user: { id: 'user-1' } })
       const s = init()
       await vi.dynamicImportSettled()
       expect(s.loading.value).toBe(false)

@@ -23,7 +23,6 @@ const mocks = vi.hoisted(() => ({
   previewGitImport: vi.fn<(repoId: string) => Promise<ApiGitImportPreview>>(),
   startGitImport: vi.fn<(repoId: string) => Promise<ApiGitImportStatus>>(),
   fetchGitImportStatus: vi.fn<(repoId: string) => Promise<ApiGitImportStatus>>(),
-  useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
 }))
@@ -32,10 +31,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push: vi.fn() }),
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 // 组件走真实 Element Plus 渲染，仅替换消息与确认框入口便于断言
@@ -125,7 +120,6 @@ async function openMoreMenu(wrapper: VueWrapper): Promise<HTMLElement> {
 describe('GitLabSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(true) })
     mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
     mocks.fetchGitImportStatus.mockResolvedValue(makeStatus())
   })

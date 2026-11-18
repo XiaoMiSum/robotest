@@ -2,23 +2,21 @@
 import { computed, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { List } from '@element-plus/icons-vue'
-import { useAuthStore } from '@/stores/auth'
 import { useNavStore } from '@/stores/nav'
 import { useAiTaskStore } from '@/stores/aiTask'
 
 /**
- * 顶栏 AI 任务指示器（交互 07 §1）：项目模式 + ai:task 权限显隐，
+ * 顶栏 AI 任务指示器（交互 07 §1）：项目模式显隐，
  * 角标为进行中（status = running，含执行挂起）任务数，0 时不显示角标；点击进任务中心。
  */
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
 const navStore = useNavStore()
 const aiTaskStore = useAiTaskStore()
 
-const visible = computed(() => navStore.isProjectMode && authStore.hasPermission('ai:task'))
+const visible = computed(() => navStore.isProjectMode)
 
-// 计数轮询随显隐启停（交互 07 §5）：workspace 模式或无权限时不空转请求
+// 计数轮询随显隐启停（交互 07 §5）：workspace 模式时不空转请求
 watch(
   visible,
   (show) => {

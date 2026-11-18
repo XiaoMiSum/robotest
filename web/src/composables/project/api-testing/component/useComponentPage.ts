@@ -6,7 +6,6 @@ import type {
   ApiDataSource,
   ApiHttpConfig,
 } from '@/types'
-import { useAuthStore } from '@/stores/auth'
 import {
   createComponent,
   deleteComponent,
@@ -59,12 +58,6 @@ export interface UseComponentPageOptions {
 
 export function useComponentPage(options: UseComponentPageOptions = {}) {
   const scroll = options.scroll
-  const authStore = useAuthStore()
-  const canEdit = computed(() =>
-    authStore.hasPermission('api-component:edit')
-    || authStore.hasPermission('api-component:edit-space')
-    || authStore.hasPermission('api-component:edit-global'),
-  )
 
   // ==================== 列表 ====================
 
@@ -493,7 +486,6 @@ export function useComponentPage(options: UseComponentPageOptions = {}) {
   onMounted(() => void loadList())
 
   return {
-    canEdit,
     listLoading,
     loadError,
     list,

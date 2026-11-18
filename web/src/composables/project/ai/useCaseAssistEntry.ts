@@ -2,7 +2,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchAiStatus } from '@/services/ai'
-import { useAuthStore } from '@/stores/auth'
 import { useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type {
@@ -26,11 +25,10 @@ export interface CaseAssistEntryOptions {
 
 /**
  * 脑图工具栏 AI 入口（详设 5.1 / 交互 2.3）：
- * AI 未启用或无 ai:task 时入口隐藏；无选中 / 非用例节点 / 只读时置灰并给出原因。
+ * AI 未启用时入口隐藏；无选中 / 非用例节点 / 只读时置灰并给出原因。
  * 面板私有状态由两个 useAssistTask 实例承载，按当前建议类型切换。
  */
 export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
-  const authStore = useAuthStore()
   const router = useRouter()
 
   const aiAvailable = ref(false)
@@ -46,9 +44,7 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
 
   onMounted(loadAvailability)
 
-  const entryVisible = computed(
-    () => aiAvailable.value && authStore.hasPermission('ai:task'),
-  )
+  const entryVisible = computed(() => aiAvailable.value)
 
   /** 入口置灰原因（交互 2.3 常驻展示，不靠悬浮猜测） */
   const gateReason = computed(() => {
@@ -60,10 +56,8 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   })
 
   const canLaunch = computed(() => entryVisible.value && gateReason.value === '')
-  /** 动作区放行条件：文档可写 + 具采纳权限（后端不校验，仅入口显隐，详设 3.1） */
-  const canAdopt = computed(
-    () => options.isReadonly?.() !== true && authStore.hasPermission('ai:confirm'),
-  )
+  /** 动作区放行条件：文档可写（只读时置灰，详设 3.1） */
+  const canAdopt = computed(() => options.isReadonly?.() !== true)
 
   const complete = useAssistTask('case_complete', {
     target: () => ({ documentId: options.documentId() }),

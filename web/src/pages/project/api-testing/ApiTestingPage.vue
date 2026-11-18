@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuInstance } from 'element-plus'
-import { useAuthStore } from '@/stores/auth'
 import EnvironmentPage from './environment/EnvironmentPage.vue'
 import GitLabSettingsPage from './gitlab/GitLabSettingsPage.vue'
 import FunctionPage from './function/FunctionPage.vue'
@@ -19,69 +18,35 @@ const route = useRoute()
 const router = useRouter()
 
 const menuItems = [
-  { key: 'debug', label: '快速调试', icon: 'Promotion', permission: 'api-debug:view' },
-  { key: 'interfaces', label: '接口管理', icon: 'Link', permission: 'api-interface:view' },
-  { key: 'mocks', label: 'Mock 服务', icon: 'Cpu', permission: 'api-mock:view' },
-  { key: 'scenes', label: '测试场景', icon: 'Operation', permission: 'api-scene:view' },
-  { key: 'reports', label: '测试报告', icon: 'DataAnalysis', permission: 'api-report:view' },
-  { key: 'schedules', label: '定时任务', icon: 'Timer', permission: 'api-timer:view' },
+  { key: 'debug', label: '快速调试', icon: 'Promotion' },
+  { key: 'interfaces', label: '接口管理', icon: 'Link' },
+  { key: 'mocks', label: 'Mock 服务', icon: 'Cpu' },
+  { key: 'scenes', label: '测试场景', icon: 'Operation' },
+  { key: 'reports', label: '测试报告', icon: 'DataAnalysis' },
+  { key: 'schedules', label: '定时任务', icon: 'Timer' },
 ]
 
-const authStore = useAuthStore()
-const has = (code: string) => authStore.hasPermission(code)
-
-// permission / permissionAny 二选一：入口按任一权限点放行（GitLab 集成要求环境或场景查询权限）
 interface SettingsItem {
   key: string
   label: string
   icon: string
   enabled: boolean
-  permission?: string
-  permissionAny?: string[]
-}
-
-function isSettingsItemVisible(item: SettingsItem): boolean {
-  if (item.permissionAny) return item.permissionAny.some((code) => has(code))
-  return item.permission ? has(item.permission) : false
 }
 
 const settingsItems: SettingsItem[] = [
-  { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true, permission: 'api-env:view' },
-  { key: 'gitlab', label: 'GitLab 集成', icon: 'Connection', enabled: true, permissionAny: ['api-env:view', 'api-scene:view'] },
-  { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true, permission: 'api-func:view' },
-  { key: 'assets', label: '公共组件', icon: 'Box', enabled: true, permission: 'api-component:view' },
+  { key: 'environments', label: '环境管理', icon: 'Compass', enabled: true },
+  { key: 'gitlab', label: 'GitLab 集成', icon: 'Connection', enabled: true },
+  { key: 'functions', label: '函数管理', icon: 'SetUp', enabled: true },
+  { key: 'assets', label: '公共组件', icon: 'Box', enabled: true },
 ]
 
-const visibleMenuItems = computed(() => menuItems.filter((item) => has(item.permission)))
-const visibleSettingsItems = computed(
-  () => settingsItems.filter((item) => item.enabled && isSettingsItemVisible(item)),
-)
-const visibleKeys = computed(() => [
-  ...visibleMenuItems.value.map((item) => item.key),
-  ...visibleSettingsItems.value.map((item) => item.key),
-])
-
 // 刷新与详情页返回时通过 ?tab= 恢复激活子模块（子页切换不走路由，仅初始化读取）。
-
+const allItems = [...menuItems, ...settingsItems]
+const allKeys = allItems.map((item) => item.key)
 const initialTab = String(route.query.tab ?? '')
-// 权限点异步加载完成后可见菜单会变化，激活项须始终落在可见列表内；?tab= 仅在可见时还原
-const activeMenu = ref('')
-watch(
-  visibleKeys,
-  (keys) => {
-    if (!keys.length) {
-      activeMenu.value = ''
-      return
-    }
-    if (!keys.includes(activeMenu.value)) {
-      activeMenu.value = keys.includes(initialTab) ? initialTab : keys[0]
-    }
-  },
-  { immediate: true },
-)
+const activeMenu = ref(allKeys.includes(initialTab) ? initialTab : allKeys[0] ?? '')
 const menuRef = ref<MenuInstance>()
 
-const allItems = [...menuItems, ...settingsItems]
 const activeLabel = computed(
   () => allItems.find((item) => item.key === activeMenu.value)?.label ?? '',
 )
@@ -129,7 +94,7 @@ watch(
   () => route.query.tab,
   (tab) => {
     const key = String(tab ?? '')
-    if (key && key !== activeMenu.value && visibleKeys.value.includes(key)) {
+    if (key && key !== activeMenu.value && allKeys.includes(key)) {
       activeMenu.value = key
     }
   },
@@ -145,13 +110,13 @@ watch(
         class="api-testing__sidebar-menu"
         @select="handleMenuSelect"
       >
-        <el-menu-item v-for="item in visibleMenuItems" :key="item.key" :index="item.key">
+        <el-menu-item v-for="item in menuItems" :key="item.key" :index="item.key">
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
         </el-menu-item>
-        <el-menu-item-group v-if="visibleSettingsItems.length" class="api-testing__settings-group" title="项目设置">
+        <el-menu-item-group class="api-testing__settings-group" title="项目设置">
           <el-menu-item
-            v-for="item in visibleSettingsItems"
+            v-for="item in settingsItems"
             :key="item.key"
             :index="item.key"
             :disabled="!item.enabled"
@@ -186,10 +151,6 @@ watch(
       />
       <SceneWorkspace v-else-if="activeMenu === 'scenes'" />
       <SchedulesPage v-else-if="activeMenu === 'schedules'" />
-      <div v-else-if="!activeMenu" class="api-testing__norights">
-        <div class="api-testing__norights-title">暂无可用功能模块</div>
-        <p class="api-testing__norights-desc">当前角色未被分配接口测试相关权限，请联系空间管理员</p>
-      </div>
       <div v-else class="api-testing__placeholder">
         <div class="api-testing__placeholder-icon">
           <el-icon :size="48"><Connection /></el-icon>
@@ -278,27 +239,6 @@ watch(
   border: 1px solid var(--shell-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-float);
-}
-
-.api-testing__norights {
-  margin: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.api-testing__norights-title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-neutral-700);
-  margin-bottom: var(--space-sm);
-}
-
-.api-testing__norights-desc {
-  font-size: var(--font-size-sm);
-  color: var(--color-neutral-400);
-  margin: 0;
 }
 
 .api-testing__placeholder {

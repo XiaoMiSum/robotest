@@ -29,19 +29,6 @@ declare module 'vue-router' {
   }
 }
 
-// 接口测试模块全部 view 权限点：菜单入口对任一模块 view 开放（与 ApiTestingPage 侧边导航口径一致）
-const API_MODULE_VIEW_PERMISSIONS = [
-  'api-debug:view',
-  'api-interface:view',
-  'api-mock:view',
-  'api-scene:view',
-  'api-report:view',
-  'api-timer:view',
-  'api-env:view',
-  'api-func:view',
-  'api-component:view',
-]
-
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
@@ -136,7 +123,7 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'AI 配置',
           mode: 'admin',
-          menu: { label: 'AI 配置', icon: 'Setting', order: 40, section: 'AI 能力', permission: 'ai:admin' },
+          menu: { label: 'AI 配置', icon: 'Setting', order: 40, section: 'AI 能力' },
         },
         children: [
           // redirect 必须用绝对路径：vue-router 的字符串 redirect 按“当前路由”解析，
@@ -247,7 +234,7 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '功能测试',
           mode: 'project',
-          menu: { label: '功能测试', icon: 'Monitor', order: 10, permission: 'case:view' },
+          menu: { label: '功能测试', icon: 'Monitor', order: 10 },
         },
       },
       {
@@ -281,7 +268,7 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '接口测试',
           mode: 'project',
-          menu: { label: '接口测试', icon: 'Connection', order: 30, permissionAny: API_MODULE_VIEW_PERMISSIONS },
+          menu: { label: '接口测试', icon: 'Connection', order: 30 },
         },
       },
       {
@@ -335,7 +322,7 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '缺陷管理',
           mode: 'project',
-          menu: { label: '缺陷管理', icon: 'Warning', order: 20, permission: 'bug:view' },
+          menu: { label: '缺陷管理', icon: 'Warning', order: 20 },
         },
       },
       {
@@ -345,11 +332,11 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '提交缺陷', mode: 'project' },
       },
       {
-        // 不入菜单：由缺陷管理工具栏「AI 分析」进入；页面内判权给 403（交互 2.4）
+        // 不入菜单：由缺陷管理工具栏「AI 分析」进入
         path: 'workspace/projects/bugs/analysis',
         name: 'BugAnalysis',
         component: () => import('@/pages/project/bug/BugAnalysisPage.vue'),
-        meta: { title: 'AI 缺陷分析', mode: 'project', permission: 'bug:view' },
+        meta: { title: 'AI 缺陷分析', mode: 'project' },
       },
       {
         path: 'workspace/projects/bugs/:bugId',

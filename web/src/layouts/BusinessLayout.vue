@@ -142,7 +142,7 @@ function handleUserCommand(cmd: string) {
           <span>系统管理</span>
         </div>
 
-        <!-- 顶栏 AI 任务指示器（交互 07 §1）：项目模式 + ai:task 显隐，进行中任务数角标 -->
+        <!-- 顶栏 AI 任务指示器（交互 07 §1）：项目模式显隐，进行中任务数角标 -->
         <AiTaskIndicator />
 
         <div class="top-nav__icon-btn">

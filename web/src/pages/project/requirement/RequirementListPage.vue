@@ -312,7 +312,7 @@ function openCreate(): void {
         <el-table-column v-if="visibleKeys.includes('updatedAt')" label="更新时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
-        <!-- 归档入口随 requirement:confirm，故下拉显隐由 edit / confirm 任一权限决定（SRS 1.2 行操作） -->
+        <!-- 操作列常驻，归档 / 取消归档按行状态切换（SRS 1.2 行操作） -->
         <el-table-column v-if="canConfirm || canEdit" label="操作" width="200" align="right" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>

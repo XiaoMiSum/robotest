@@ -33,7 +33,7 @@ const {
   load,
 } = usePlanDetail({ planId })
 
-// 状态文案取自展示口径模块；操作按钮按「状态 + 权限码」双条件显隐，服务端 @PreAuthorize 二次收口
+// 状态文案取自展示口径模块；操作按钮按计划状态显隐，服务端授权兜底
 const statusText = computed(() => planStatusLabel(detail.value?.status ?? ''))
 
 // ---------- 执行顺序建议（详设 5.1 / 交互 2.2） ----------

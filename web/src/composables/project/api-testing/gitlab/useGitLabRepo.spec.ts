@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => ({
   updateGitRepo: vi.fn<(repoId: string, data: ApiGitRepoUpdateReq) => Promise<boolean>>(),
   deleteGitRepo: vi.fn<(repoId: string) => Promise<boolean>>(),
   testGitRepoConnection: vi.fn<(data: ApiGitConnectionTestReq) => Promise<ApiGitConnectionTestResp>>(),
-  useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
 }))
@@ -36,10 +35,6 @@ vi.mock('element-plus', () => ({
 // 页签初始化读 ?gl= 落地参数（交互 09 §1.2），单测无路由实例时提供空 query
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('@/services/project/api-testing/gitRepo', () => ({
@@ -89,12 +84,9 @@ function makeConnectionResp(overrides?: Partial<ApiGitConnectionTestResp>): ApiG
   }
 }
 
-function setupMocks(options?: { repo?: ApiGitRepoConfig | null; hasPermission?: boolean }) {
+function setupMocks(options?: { repo?: ApiGitRepoConfig | null }) {
   const repo = options?.repo === undefined ? null : options.repo
   mocks.fetchGitRepo.mockResolvedValue(repo)
-  mocks.useAuthStore.mockReturnValue({
-    hasPermission: vi.fn().mockReturnValue(options?.hasPermission ?? true),
-  })
   mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
 }
 
@@ -146,13 +138,6 @@ describe('useGitLabRepo', () => {
   })
 
   describe('空态与创建态', () => {
-    it('只读账号点击立即配置被拒绝，不进入创建态', async () => {
-      const s = await initAndFlush({ hasPermission: false })
-      s.startCreate()
-      expect(s.creating.value).toBe(false)
-      expect(mocks.ElMessage.warning).toHaveBeenCalled()
-    })
-
     it('进入创建态时表单重置为缺省值', async () => {
       const s = await initAndFlush({ repo: makeRepo({ name: '旧名称' }) })
       s.startCreate()
@@ -162,12 +147,6 @@ describe('useGitLabRepo', () => {
       expect(s.form.repoPath).toBe('')
       expect(s.form.testSourceDir).toBe('src/test/java')
       expect(s.activeTab.value).toBe('basic')
-    })
-
-    it('只读账号不可切换接入方式', async () => {
-      const s = await initAndFlush({ hasPermission: false })
-      s.setImportMode('gitlab_ci')
-      expect(s.form.importMode).toBe('platform')
     })
   })
 
@@ -342,13 +321,6 @@ describe('useGitLabRepo', () => {
       expect(s.activeTab.value).toBe('basic')
     })
 
-    it('只读账号保存被拒绝，不发请求', async () => {
-      const s = await initAndFlush({ repo: makeRepo(), hasPermission: false })
-      await s.save()
-      expect(mocks.ElMessage.warning).toHaveBeenCalled()
-      expect(mocks.updateGitRepo).not.toHaveBeenCalled()
-      expect(mocks.createGitRepo).not.toHaveBeenCalled()
-    })
   })
 
   describe('保存（编辑）', () => {
@@ -413,12 +385,6 @@ describe('useGitLabRepo', () => {
       await s.handleDelete()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('1000017712 存在启用中的同步任务')
       expect(s.repo.value).not.toBeNull()
-    })
-
-    it('只读账号不弹删除确认', async () => {
-      const s = await initAndFlush({ repo: makeRepo(), hasPermission: false })
-      await s.handleDelete()
-      expect(mocks.ElMessageBox.confirm).not.toHaveBeenCalled()
     })
   })
 

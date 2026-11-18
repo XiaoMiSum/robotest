@@ -12,15 +12,9 @@ import { useCaseRequirementLink } from '@/composables/project/functional-testing
 import { useCaseAssistEntry } from '@/composables/project/ai/useCaseAssistEntry'
 import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
 import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
-import { useAuthStore } from '@/stores/auth'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps<{ docId: string }>()
-
-const authStore = useAuthStore()
-
-/** 关联需求为需求查看权限入口；保存由后端 case:edit 兜底 */
-const canManageRequirements = computed(() => authStore.hasPermission('requirement:view'))
 
 const kmEditorRef = { value: null as KMEditor | null }
 
@@ -316,7 +310,7 @@ const handleLayoutCommand = (command: unknown) => {
           </span>
         </el-tooltip>
       </div>
-      <div v-if="canManageRequirements" class="toolbar-group toolbar-group--end">
+      <div class="toolbar-group toolbar-group--end">
         <el-tooltip :content="requirementGateReason" placement="bottom">
           <span>
             <el-button

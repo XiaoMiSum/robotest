@@ -17,6 +17,15 @@ describe('CaseMindMap · 工具条单行排版（交互 04 §1.2）', () => {
   })
 })
 
+describe('CaseMindMap · 关联需求入口', () => {
+  it('关联需求工具条常驻，仅按选中节点类型置灰', () => {
+    expect(source).toContain('<el-icon><Link /></el-icon><span>关联需求</span>')
+    expect(source).toContain(':disabled="!canLinkRequirement"')
+    expect(source).not.toContain('canManageRequirements')
+    expect(source).not.toContain('requirement:view')
+  })
+})
+
 describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
   it('工具栏提供 AI 补全与级别推荐，按 AI 可用性隐藏、按选中态置灰', () => {
     expect(source).toContain('AI 补全')

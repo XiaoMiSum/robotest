@@ -14,7 +14,6 @@ const itemsEl = ref<HTMLElement | null>(null)
 let shiftBaseline = 0
 
 const {
-  canEdit,
   listLoading,
   loadError,
   list,
@@ -104,7 +103,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
             clearable
             @input="handleSearchInput"
           />
-          <el-button type="primary" :disabled="!canEdit" @click="startCreate">
+          <el-button type="primary" @click="startCreate">
             <el-icon><Plus /></el-icon>新建组件
           </el-button>
         </div>
@@ -187,7 +186,6 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
         <ComponentDetailPanel
           v-if="panelMode === 'view' && selectedItem"
           :item="selectedItem"
-          :can-edit="canEdit"
           @edit="startEdit()"
           @copy="startCopy(selectedItem)"
           @delete="handleDelete(selectedItem)"

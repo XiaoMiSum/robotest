@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { useBugAnalysisStore } from '@/stores/bugAnalysis'
 import { fetchAiStatus } from '@/services/ai'
 import AnalysisRangePicker from '@/components/project/bug/analysis/AnalysisRangePicker.vue'
@@ -12,15 +11,10 @@ import TriageQueueCard from '@/components/project/bug/analysis/TriageQueueCard.v
 import TrendChart from '@/components/project/bug/analysis/TrendChart.vue'
 
 const router = useRouter()
-const authStore = useAuthStore()
 const store = useBugAnalysisStore()
-
-/** 无缺陷查看权限不显示分析入口，直达路由 403（交互 2.4） */
-const canView = computed(() => authStore.hasPermission('bug:view'))
 
 const aiAvailable = ref(false)
 onMounted(async () => {
-  if (!canView.value) return
   try {
     aiAvailable.value = (await fetchAiStatus()).available
   } catch {
@@ -60,90 +54,74 @@ function drillToBugs(filters: { severity?: string; bugType?: string }): void {
 
 <template>
   <main class="bug-analysis">
-    <!-- 无权限：入口不展示，直达路由给 403 提示（交互 2.4） -->
-    <el-result
-      v-if="!canView"
-      status="403"
-      title="无权访问缺陷分析"
-      sub-title="当前账号没有缺陷查看权限（bug:view），请联系空间管理员"
-    >
-      <template #extra>
-        <el-button type="primary" @click="router.push('/workspace/projects/dashboard')">
-          返回项目工作台
-        </el-button>
-      </template>
-    </el-result>
-
-    <template v-else>
-      <header class="bug-analysis__head">
-        <div>
-          <h1 class="bug-analysis__title">AI 缺陷分析</h1>
-          <p class="bug-analysis__desc">趋势与质量度量、AI 摘要、分诊建议与存量扫描，范围限于当前项目</p>
-        </div>
-        <div class="bug-analysis__actions">
-          <BatchActions :ai-available="aiAvailable" @submitted="void 0" />
-        </div>
-      </header>
-
-      <el-card shadow="never" class="bug-analysis__range">
-        <AnalysisRangePicker
-          :from="store.from"
-          :to="store.to"
-          :group-by="store.groupBy"
-          :footnote="footnote"
-          @update:from="store.from = $event"
-          @update:to="store.to = $event"
-          @update:group-by="store.groupBy = $event"
-          @change="onRangeChange"
-        />
-      </el-card>
-
-      <TrendChart
-        class="bug-analysis__block"
-        :trends="store.trends"
-        :loading="store.trendsLoading"
-        @drill="drillToBugs"
-      />
-
-      <el-alert
-        v-if="store.trendsError || store.metricsError"
-        type="error"
-        :title="store.trendsError || store.metricsError"
-        show-icon
-        :closable="false"
-        class="bug-analysis__block"
-      >
-        <template #default>
-          <el-button size="small" type="danger" plain @click="void store.reload()">重试</el-button>
-        </template>
-      </el-alert>
-
-      <MetricCards
-        class="bug-analysis__block"
-        :metrics="store.metrics"
-        :loading="store.metricsLoading"
-      />
-
-      <div class="bug-analysis__block bug-analysis__split">
-        <AiSummaryCard
-          class="bug-analysis__summary"
-          :loading="store.summaryLoading"
-          :running="store.summaryRunning"
-          :text="store.summaryText"
-          :citations="store.summaryCitations"
-          :error="store.summaryError"
-          :stale="store.summaryStale"
-          @generate="void store.generateSummary()"
-        />
-        <TriageQueueCard
-          class="bug-analysis__triage"
-          :items="store.triageItems"
-          :loading="store.triageLoading"
-          :error="store.triageError"
-          @refresh="void store.loadTriage()"
-        />
+    <header class="bug-analysis__head">
+      <div>
+        <h1 class="bug-analysis__title">AI 缺陷分析</h1>
+        <p class="bug-analysis__desc">趋势与质量度量、AI 摘要、分诊建议与存量扫描，范围限于当前项目</p>
       </div>
-    </template>
+      <div class="bug-analysis__actions">
+        <BatchActions :ai-available="aiAvailable" @submitted="void 0" />
+      </div>
+    </header>
+
+    <el-card shadow="never" class="bug-analysis__range">
+      <AnalysisRangePicker
+        :from="store.from"
+        :to="store.to"
+        :group-by="store.groupBy"
+        :footnote="footnote"
+        @update:from="store.from = $event"
+        @update:to="store.to = $event"
+        @update:group-by="store.groupBy = $event"
+        @change="onRangeChange"
+      />
+    </el-card>
+
+    <TrendChart
+      class="bug-analysis__block"
+      :trends="store.trends"
+      :loading="store.trendsLoading"
+      @drill="drillToBugs"
+    />
+
+    <el-alert
+      v-if="store.trendsError || store.metricsError"
+      type="error"
+      :title="store.trendsError || store.metricsError"
+      show-icon
+      :closable="false"
+      class="bug-analysis__block"
+    >
+      <template #default>
+        <el-button size="small" type="danger" plain @click="void store.reload()">重试</el-button>
+      </template>
+    </el-alert>
+
+    <MetricCards
+      class="bug-analysis__block"
+      :metrics="store.metrics"
+      :loading="store.metricsLoading"
+    />
+
+    <div class="bug-analysis__block bug-analysis__split">
+      <AiSummaryCard
+        class="bug-analysis__summary"
+        :loading="store.summaryLoading"
+        :running="store.summaryRunning"
+        :text="store.summaryText"
+        :citations="store.summaryCitations"
+        :error="store.summaryError"
+        :stale="store.summaryStale"
+        @generate="void store.generateSummary()"
+      />
+      <TriageQueueCard
+        class="bug-analysis__triage"
+        :items="store.triageItems"
+        :loading="store.triageLoading"
+        :error="store.triageError"
+        @refresh="void store.loadTriage()"
+      />
+    </div>
   </main>
 </template>
 

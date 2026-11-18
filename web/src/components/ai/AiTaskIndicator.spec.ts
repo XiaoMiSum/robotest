@@ -9,12 +9,7 @@ import { useAiTaskStore } from '@/stores/aiTask'
 
 const mocks = vi.hoisted(() => ({
   state: { projectMode: true },
-  hasPermission: vi.fn(),
   fetchAiRunningCount: vi.fn(),
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({ hasPermission: mocks.hasPermission }),
 }))
 
 vi.mock('@/stores/nav', () => ({
@@ -41,7 +36,6 @@ describe('components/ai/AiTaskIndicator（顶栏进行中任务指示器，交�
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     setActivePinia(createPinia())
     mocks.state.projectMode = true
-    mocks.hasPermission.mockImplementation((code: string) => code === 'ai:task')
     mocks.fetchAiRunningCount.mockResolvedValue({ count: 0 })
     router = createRouter({
       history: createMemoryHistory(),
@@ -68,23 +62,16 @@ describe('components/ai/AiTaskIndicator（顶栏进行中任务指示器，交�
     return wrapper
   }
 
-  it('项目模式且有 ai:task 权限时显示并装载计数轮询', async () => {
+  it('项目模式时显示并装载计数轮询', async () => {
     const root = await mountIndicator()
     expect(root.text()).toContain('AI 任务')
     expect(mocks.fetchAiRunningCount).toHaveBeenCalledTimes(1)
     expect(useAiTaskStore().countPollTimer).not.toBeNull()
   })
 
-  it('workspace 模式或无权限时整键不渲染且不发起计数请求', async () => {
+  it('workspace 模式时整键不渲染且不发起计数请求', async () => {
     mocks.state.projectMode = false
-    let root = await mountIndicator()
-    expect(root.find('.top-nav__icon-btn').exists()).toBe(false)
-    expect(mocks.fetchAiRunningCount).not.toHaveBeenCalled()
-
-    wrapper?.unmount()
-    mocks.state.projectMode = true
-    mocks.hasPermission.mockReturnValue(false)
-    root = await mountIndicator()
+    const root = await mountIndicator()
     expect(root.find('.top-nav__icon-btn').exists()).toBe(false)
     expect(mocks.fetchAiRunningCount).not.toHaveBeenCalled()
   })

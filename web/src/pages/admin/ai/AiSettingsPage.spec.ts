@@ -165,10 +165,9 @@ describe('AI 配置中心 · 用量分析（交互 2.5 / 2.6）', () => {
 })
 
 describe('AI 配置中心 · 路由与侧栏高亮', () => {
-  it('父路由挂菜单（AI 能力分组 / ai:admin），子路由叶子声明 mode，未知分组重定向默认组', () => {
+  it('父路由挂菜单（AI 能力分组），子路由叶子声明 mode，未知分组重定向默认组', () => {
     expect(routerSource).toContain("path: 'ai'")
     expect(routerSource).toContain("section: 'AI 能力'")
-    expect(routerSource).toContain("permission: 'ai:admin'")
     // 绝对路径是回归关键：相对 redirect 会按当前路由解析、漂出 /admin/ai 落到首页（见 router/index.spec.ts）
     expect(routerSource).toContain("{ path: ':pathMatch(.*)*', redirect: '/admin/ai/models' }")
     expect(routerSource).toContain("{ path: '', name: 'AdminAi', redirect: '/admin/ai/models' },")

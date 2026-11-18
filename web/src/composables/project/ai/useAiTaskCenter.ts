@@ -2,7 +2,6 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { abortAiExecution, fetchAiStatus, fetchAiTasks, reExecuteAiTask } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
-import { useAuthStore } from '@/stores/auth'
 import { useAiTaskStore } from '@/stores/aiTask'
 import type { AiTaskItem, AiTaskStatus } from '@/types'
 import {
@@ -49,7 +48,6 @@ function shortId(id: string): string {
 }
 
 export function useAiTaskCenter() {
-  const authStore = useAuthStore()
   const aiTaskStore = useAiTaskStore()
 
   const loading = ref(false)
@@ -233,12 +231,6 @@ export function useAiTaskCenter() {
     }
   }
 
-  // ==================== 权限与空态 ====================
-  /** 任务中心入口按 ai:task 显隐，直达路由 403（交互 2.1.3） */
-  const canViewTasks = computed(() => authStore.hasPermission('ai:task'))
-  /** 终止 / 再次执行需 ai:task（后端不校验，仅入口显隐） */
-  const canManageTasks = canViewTasks
-
   onMounted(() => {
     // 保活回填：从详情页返回时沿用上次筛选与页码
     filters.type = aiTaskStore.filters.type
@@ -261,8 +253,6 @@ export function useAiTaskCenter() {
     memberMap,
     aiAvailable,
     aiStatusLoaded,
-    canViewTasks,
-    canManageTasks,
     load,
     retry,
     search,

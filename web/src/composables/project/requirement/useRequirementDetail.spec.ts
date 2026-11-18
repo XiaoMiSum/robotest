@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => ({
   fetchProjectModuleTree: vi.fn(),
   fetchAiStatus: vi.fn(),
   fetchMembers: vi.fn(),
-  useAuthStore: vi.fn(),
   takeCachedDetail: vi.fn((): RequirementDetail | null => null),
   cacheDetail: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -41,10 +40,6 @@ vi.mock('@/services/ai', () => ({
 
 vi.mock('@/services/workspace', () => ({
   fetchMembers: mocks.fetchMembers,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('@/stores/requirement', () => ({
@@ -113,7 +108,6 @@ function setup(): void {
   mocks.archiveRequirement.mockResolvedValue(makeDetail({ status: 'archived' }))
   mocks.unarchiveRequirement.mockResolvedValue(makeDetail({ status: 'draft' }))
   mocks.ElMessageBox.confirm.mockResolvedValue('confirm')
-  mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn(() => true) })
 }
 
 async function mount(): Promise<ReturnType<typeof useRequirementDetail>> {
@@ -192,15 +186,6 @@ describe('useRequirementDetail', () => {
   describe('统一编辑态', () => {
     it('归档只读时不可进入编辑态', async () => {
       mocks.getRequirement.mockResolvedValue(makeDetail({ status: 'archived' }))
-      const s = await mount()
-      s.startEdit()
-      expect(s.editing.value).toBe(false)
-    })
-
-    it('无 requirement:edit 权限时不可进入编辑态', async () => {
-      mocks.useAuthStore.mockReturnValue({
-        hasPermission: vi.fn(() => false),
-      })
       const s = await mount()
       s.startEdit()
       expect(s.editing.value).toBe(false)
@@ -455,16 +440,6 @@ describe('useRequirementDetail', () => {
       const s = await mount()
       expect(s.canConfirm.value).toBe(true)
       expect(s.canArchive.value).toBe(true)
-    })
-
-    it('无 requirement:confirm 权限时隐藏确认与归档', async () => {
-      mocks.useAuthStore.mockReturnValue({
-        hasPermission: vi.fn((code: string) => code === 'requirement:edit'),
-      })
-      const s = await mount()
-      expect(s.canConfirm.value).toBe(false)
-      expect(s.canArchive.value).toBe(false)
-      expect(s.canEdit.value).toBe(true)
     })
 
     it('变更记录多于首批时提供加载更多', async () => {

@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   abortAiExecution: vi.fn(),
   reExecuteAiTask: vi.fn(),
   fetchMembers: vi.fn(),
-  useAuthStore: vi.fn(),
   route: { params: { taskId: 't1' }, query: {} } as Record<string, unknown>,
   router: { push: vi.fn(), replace: vi.fn() },
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -29,10 +28,6 @@ vi.mock('@/services/ai', () => ({
 
 vi.mock('@/services/workspace', () => ({
   fetchMembers: mocks.fetchMembers,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('element-plus', () => ({
@@ -145,7 +140,6 @@ function setup(): void {
   mocks.abortAiExecution.mockResolvedValue(makeAbortedDetail())
   mocks.reExecuteAiTask.mockResolvedValue(makeRunningDetail())
   mocks.ElMessageBox.confirm.mockResolvedValue('confirm')
-  mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn(() => true) })
 }
 
 /** 详情页初始化在 onMounted，需经真实组件挂载触发 */
@@ -245,8 +239,6 @@ describe('useAiTaskDetail', () => {
       expect(s.showReviewArea.value).toBe(false)
       expect(s.canReExecute.value).toBe(true)
       expect(s.canAbort.value).toBe(false)
-      expect(s.canManageTask.value).toBe(true)
-      expect(s.canConfirm.value).toBe(true)
     })
 
     it('待采纳但无提案展示空态', async () => {
@@ -280,15 +272,6 @@ describe('useAiTaskDetail', () => {
       mocks.route = { params: {}, query: {} }
       const s = useAiTaskDetail()
       expect(s.taskId).toBe('')
-    })
-
-    it('权限按 ai:task / ai:confirm 显隐', () => {
-      mocks.useAuthStore.mockReturnValue({
-        hasPermission: (code: string) => code === 'ai:confirm',
-      })
-      const s = useAiTaskDetail()
-      expect(s.canConfirm.value).toBe(true)
-      expect(s.canManageTask.value).toBe(false)
     })
 
     it('发起人映射不到或接口失败时显示短 UUID，无发起人显示系统', async () => {

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 const mocks = vi.hoisted(() => ({
-  useAuthStore: vi.fn(),
   fetchComponents: vi.fn(),
   fetchEnvironments: vi.fn(),
   fetchEnvironmentDetail: vi.fn(),
@@ -24,10 +23,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
   ElMessageBox: mocks.ElMessageBox,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('@/services/project/api-testing/component', () => ({
@@ -78,12 +73,6 @@ vi.mock('@/composables/project/api-testing/processorFormModel', () => ({
 import type { ApiComponentListItem } from '@/types'
 import { useComponentPage } from './useComponentPage'
 
-function mockHasPermission(permissions: string[]) {
-  mocks.useAuthStore.mockReturnValue({
-    hasPermission: (code: string) => permissions.includes(code),
-  })
-}
-
 function item(id: string, over: Record<string, unknown> = {}): ApiComponentListItem {
   return {
     id,
@@ -119,7 +108,6 @@ function pagedMock(total: number): void {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockHasPermission([])
   mocks.resolveComponentError.mockReturnValue('操作失败')
   mocks.createProcessorComponentConfig.mockReturnValue({ enabled: true, testclass: 'http', config: {}, extractors: [] })
   mocks.defaultComponentConfig.mockReturnValue({ enabled: true })
@@ -134,23 +122,6 @@ afterEach(() => {
 })
 
 describe('useComponentPage', () => {
-  describe('canEdit', () => {
-    it('无权限 → false', () => {
-      mockHasPermission([])
-      expect(useComponentPage().canEdit.value).toBe(false)
-    })
-
-    it('具备任一组件编辑权限 → true', () => {
-      expect(useComponentPage().canEdit.value).toBe(false)
-      mockHasPermission(['api-component:edit'])
-      expect(useComponentPage().canEdit.value).toBe(true)
-      mockHasPermission(['api-component:edit-space'])
-      expect(useComponentPage().canEdit.value).toBe(true)
-      mockHasPermission(['api-component:edit-global'])
-      expect(useComponentPage().canEdit.value).toBe(true)
-    })
-  })
-
   describe('初始状态', () => {
     it('列表与右栏默认为空查看态', () => {
       const s = useComponentPage()

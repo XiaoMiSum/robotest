@@ -7,7 +7,6 @@ import { useFunctionPage } from '@/composables/project/api-testing/function/useF
 const editorExtensions = [java()]
 
 const {
-  canEdit,
   listLoading,
   loadError,
   builtinGroups,
@@ -72,7 +71,7 @@ function clearParamErrors(): void {
               <el-icon><Search /></el-icon>
             </template>
           </el-input>
-          <el-button type="primary" :disabled="!canEdit" class="fn-list__add" @click="startCreate">
+          <el-button type="primary" class="fn-list__add" @click="startCreate">
             <el-icon><Plus /></el-icon>新增
           </el-button>
         </div>
@@ -143,7 +142,7 @@ function clearParamErrors(): void {
                   </template>
                 </div>
                 <div class="fn-item__meta">{{ item.description }}</div>
-                <div v-if="item.type === 'custom' && canEdit" class="fn-item__acts" @click.stop>
+                <div v-if="item.type === 'custom'" class="fn-item__acts" @click.stop>
                   <el-button link size="small" type="danger" @click="handleDeleteItem(item)">删除</el-button>
                 </div>
               </li>
@@ -327,13 +326,12 @@ function clearParamErrors(): void {
               <el-checkbox
                 class="fn-detail__enable"
                 :model-value="customDetail.enabled"
-                :disabled="!canEdit"
                 @change="handleToggle(customDetail)"
               >启用</el-checkbox>
             </div>
             <div class="fn-detail__header-actions">
               <el-tag effect="plain">{{ formatScopeLabel(customDetail.scope) }}</el-tag>
-              <el-button v-if="canEdit" size="small" @click="startEdit">编辑</el-button>
+              <el-button size="small" @click="startEdit">编辑</el-button>
             </div>
           </div>
 

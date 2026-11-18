@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   previewGitImport: vi.fn<(repoId: string) => Promise<ApiGitImportPreview>>(),
   startGitImport: vi.fn<(repoId: string) => Promise<ApiGitImportStatus>>(),
   fetchGitImportStatus: vi.fn<(repoId: string) => Promise<ApiGitImportStatus>>(),
-  useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
 }))
@@ -18,10 +17,6 @@ vi.mock('@/services/project/api-testing/gitRepo', () => ({
   previewGitImport: mocks.previewGitImport,
   startGitImport: mocks.startGitImport,
   fetchGitImportStatus: mocks.fetchGitImportStatus,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 // 组件走真实 Element Plus 渲染，仅替换消息与确认框入口便于断言
@@ -129,9 +124,6 @@ async function runPreview(wrapper: VueWrapper): Promise<void> {
 describe('GitLabImportPane', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useAuthStore.mockReturnValue({
-      hasPermission: vi.fn().mockReturnValue(true),
-    })
     mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
     mocks.fetchGitImportStatus.mockResolvedValue(makeStatus())
   })
@@ -302,30 +294,6 @@ describe('GitLabImportPane', () => {
     const dialog = document.body.querySelector('.el-dialog')
     expect(dialog?.textContent).toContain('上次导入结果')
     expect(dialog?.textContent).toContain('a1b2c3d')
-  })
-
-  it('缺 api-scene:edit 时隐藏执行导入并提示，仍可预览', async () => {
-    mocks.useAuthStore.mockReturnValue({
-      hasPermission: vi.fn((code: string) => code === 'api-scene:view'),
-    })
-    mocks.previewGitImport.mockResolvedValue(makePreview())
-    const wrapper = mountPane()
-    await flushPromises()
-    expect(wrapper.text()).toContain('缺少 api-scene:edit 权限，不可执行导入')
-    expect(buttonByText(wrapper, '执行导入')).toBeUndefined()
-    await runPreview(wrapper)
-    expect(wrapper.find('.gi-sum').exists()).toBe(true)
-  })
-
-  it('缺 api-scene:view 时只读提示，不渲染动作行', async () => {
-    mocks.useAuthStore.mockReturnValue({
-      hasPermission: vi.fn(() => false),
-    })
-    const wrapper = mountPane()
-    await flushPromises()
-    expect(wrapper.text()).toContain('当前账号缺少 api-scene:view 权限')
-    expect(buttonByText(wrapper, '扫描预览')).toBeUndefined()
-    expect(buttonByText(wrapper, '执行导入')).toBeUndefined()
   })
 
   it('进行中的进度渲染阶段中文与计数', async () => {

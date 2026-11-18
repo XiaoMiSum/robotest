@@ -72,7 +72,7 @@ const changedCount = computed(() => diffRows.value.filter((row) => row.changed).
 
 const applyDisabledReason = computed(() => {
   if (props.rows.length === 0) return '暂无可处理的建议'
-  if (!props.canAdopt) return '当前账号没有计划执行权限'
+  if (!props.canAdopt) return '当前计划状态不可执行'
   if (props.confirming) return '正在提交采纳结果'
   if (!activeReady.value) return '建议内容暂不可用'
   if (activeRow.value?.confirmStatus !== 'pending') return '建议已采纳或已失效'

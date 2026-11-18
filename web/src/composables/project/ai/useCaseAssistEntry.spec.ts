@@ -7,16 +7,12 @@ import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
-  hasPermission: vi.fn(),
   push: vi.fn(),
   ElMessage: { warning: vi.fn(), success: vi.fn(), error: vi.fn() },
   useAssistTask: vi.fn(),
 }))
 
 vi.mock('@/services/ai', () => ({ fetchAiStatus: mocks.fetchAiStatus }))
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({ hasPermission: mocks.hasPermission }),
-}))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
 vi.mock('@/composables/project/ai/useAssistTask', () => ({
@@ -117,7 +113,6 @@ describe('useCaseAssistEntry', () => {
     readonly.value = false
     onConfirmed = vi.fn()
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
-    mocks.hasPermission.mockImplementation((code: string) => code === 'ai:task' || code === 'ai:confirm')
     mocks.useAssistTask.mockImplementation(() => {
       const task = fakeTask()
       tasks.push(task)
@@ -137,14 +132,6 @@ describe('useCaseAssistEntry', () => {
 
       expect(s.entryVisible.value).toBe(false)
       expect(s.canLaunch.value).toBe(false)
-    })
-
-    it('缺少 ai:task 权限时入口隐藏', async () => {
-      mocks.hasPermission.mockImplementation(() => false)
-      const s = mountEntry()
-      await flushPromises()
-
-      expect(s.entryVisible.value).toBe(false)
     })
 
     it('状态接口失败按不可用处理', async () => {

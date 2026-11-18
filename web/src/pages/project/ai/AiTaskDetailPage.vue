@@ -32,10 +32,6 @@ const {
   showReviewArea,
   showRunningPlaceholder,
   showEmptyProposals,
-  canManageTask,
-  canConfirm,
-  canConfirmGeneration,
-  canConfirmBug,
   taskId,
   load,
   handleAbort,
@@ -141,13 +137,13 @@ function focusReviewArea(): void {
           </div>
           <div class="task-head__actions">
             <el-button
-              v-if="canManageTask && canAbort"
+              v-if="canAbort"
               type="warning"
               plain
               @click="handleAbort"
             >终止</el-button>
             <el-button
-              v-if="canManageTask && canReExecute"
+              v-if="canReExecute"
               type="primary"
               @click="handleReExecute"
             >再次执行</el-button>
@@ -203,7 +199,6 @@ function focusReviewArea(): void {
               v-if="detail.type === 'test_design_generation'"
               :task-id="detail.taskId"
               :proposals="proposals"
-              :can-confirm="canConfirmGeneration"
               @confirmed="load"
               @leave="backToCenter"
             />
@@ -213,7 +208,6 @@ function focusReviewArea(): void {
               :task-id="detail.taskId"
               :task-type="detail.type"
               :proposals="proposals"
-              :can-confirm="canConfirmBug"
               @confirmed="load"
               @leave="backToCenter"
             />
@@ -222,7 +216,6 @@ function focusReviewArea(): void {
               :task-id="detail.taskId"
               :task-type="detail.type"
               :proposals="proposals"
-              :can-confirm="canConfirm"
               :document-meta="detail.documentMeta ?? null"
               @confirmed="load"
               @leave="backToCenter"

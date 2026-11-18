@@ -13,7 +13,6 @@ import ProcessorConfigDetail from '@/components/project/api-testing/ProcessorCon
 
 const props = defineProps<{
   item: ApiComponentListItem
-  canEdit: boolean
 }>()
 
 const emit = defineEmits<{
@@ -41,12 +40,12 @@ function onToggle(value: string | number | boolean) {
       <h4 class="cp-detail__name">{{ item.name }}</h4>
       <el-tag size="small" effect="plain">{{ componentTypeLabel(item.type) }}</el-tag>
       <el-tag size="small" :type="SCOPE_TAG_TYPE[item.scope]">{{ componentScopeLabel(item.scope) }}</el-tag>
-      <el-checkbox v-if="canEdit" :model-value="item.enabled" @change="onToggle">启用</el-checkbox>
+      <el-checkbox :model-value="item.enabled" @change="onToggle">启用</el-checkbox>
     </div>
     <div class="cp-detail__header-actions">
-      <el-button v-if="canEdit" size="small" @click="emit('edit')">编辑</el-button>
+      <el-button size="small" @click="emit('edit')">编辑</el-button>
       <el-button size="small" @click="emit('copy')">复制</el-button>
-      <el-button v-if="canEdit" size="small" type="danger" @click="emit('delete')">删除</el-button>
+      <el-button size="small" type="danger" @click="emit('delete')">删除</el-button>
     </div>
   </div>
 

@@ -6,7 +6,6 @@ import type {
   ApiCustomFunctionListItem,
   ApiFunctionScope,
 } from '@/types'
-import { useAuthStore } from '@/stores/auth'
 import {
   fetchBuiltinCatalog,
   fetchCustomFunctions,
@@ -41,17 +40,6 @@ interface DisplayListItem {
 type CustomPanelMode = 'view' | 'create' | 'edit'
 
 export function useFunctionPage() {
-  const authStore = useAuthStore()
-
-  // ==================== Permissions ====================
-
-  const canEdit = computed(
-    () =>
-      authStore.hasPermission('api-func:edit') ||
-      authStore.hasPermission('api-func:edit-space') ||
-      authStore.hasPermission('api-func:edit-global'),
-  )
-
   // ==================== List state ====================
 
   const listLoading = ref(false)
@@ -368,7 +356,6 @@ export function useFunctionPage() {
   onMounted(() => void loadAll())
 
   return {
-    canEdit,
     listLoading,
     loadError,
     builtinGroups,

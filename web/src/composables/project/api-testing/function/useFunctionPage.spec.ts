@@ -14,16 +14,11 @@ const mocks = vi.hoisted(() => ({
   resolveFunctionError: vi.fn<() => string>(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
-  useAuthStore: vi.fn(() => ({ hasPermission: vi.fn(() => false) })),
 }))
 
 vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
   ElMessageBox: mocks.ElMessageBox,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('@/services/project/api-testing/function', () => ({
@@ -91,7 +86,6 @@ describe('useFunctionPage', () => {
     mocks.fetchBuiltinCatalog.mockResolvedValue([])
     mocks.fetchCustomFunctions.mockResolvedValue([])
     mocks.resolveFunctionError.mockReturnValue('操作失败')
-    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn(() => false) } as never)
   })
 
   describe('初始状态', () => {
@@ -164,34 +158,6 @@ describe('useFunctionPage', () => {
       const { formErrors, paramErrors } = useFunctionPage()
       expect(formErrors.value).toEqual({ name: '', script: '' })
       expect(paramErrors.value).toEqual({})
-    })
-  })
-
-  describe('canEdit', () => {
-    it('无权限时返回 false', () => {
-      const { canEdit } = useFunctionPage()
-      expect(canEdit.value).toBe(false)
-    })
-
-    it('有 api-func:edit 权限时返回 true', () => {
-      const hasPermission = vi.fn((code: string) => code === 'api-func:edit')
-      mocks.useAuthStore.mockReturnValue({ hasPermission } as never)
-      const { canEdit } = useFunctionPage()
-      expect(canEdit.value).toBe(true)
-    })
-
-    it('有 api-func:edit-space 权限时返回 true', () => {
-      const hasPermission = vi.fn((code: string) => code === 'api-func:edit-space')
-      mocks.useAuthStore.mockReturnValue({ hasPermission } as never)
-      const { canEdit } = useFunctionPage()
-      expect(canEdit.value).toBe(true)
-    })
-
-    it('有 api-func:edit-global 权限时返回 true', () => {
-      const hasPermission = vi.fn((code: string) => code === 'api-func:edit-global')
-      mocks.useAuthStore.mockReturnValue({ hasPermission } as never)
-      const { canEdit } = useFunctionPage()
-      expect(canEdit.value).toBe(true)
     })
   })
 

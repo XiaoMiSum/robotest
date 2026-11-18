@@ -1,7 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadUserFile } from 'element-plus'
 import type { ApiEnvironmentDetail, ApiEnvironmentListItem, ApiImportResult } from '@/types'
-import { useAuthStore } from '@/stores/auth'
 import {
   deleteEnvironment,
   downloadEnvironmentJson,
@@ -22,9 +21,6 @@ import {
 } from '@/composables/project/api-testing/environment/environmentsModel'
 
 export function useEnvironmentPage() {
-  const authStore = useAuthStore()
-  const canEdit = computed(() => authStore.hasPermission('api-env:edit'))
-
   const listLoading = ref(false)
   const loadError = ref(false)
   const environments = ref<ApiEnvironmentListItem[]>([])
@@ -134,20 +130,12 @@ export function useEnvironmentPage() {
   }
 
   async function startCreate() {
-    if (!canEdit.value) {
-      ElMessage.warning('无环境编辑权限')
-      return
-    }
     if (!(await confirmLeaveCreate())) return
     enterCreate(emptyEnvironmentDetail(nextSortOrder()))
   }
 
   /** 复制：取源环境详情预填新建态面板，确认后由面板提交创建 */
   async function startCopy(item: ApiEnvironmentListItem) {
-    if (!canEdit.value) {
-      ElMessage.warning('无环境编辑权限')
-      return
-    }
     let source: ApiEnvironmentDetail
     try {
       source = await fetchEnvironmentDetail(item.id)
@@ -178,10 +166,6 @@ export function useEnvironmentPage() {
   const editing = ref(false)
 
   async function openEditDialog(item: ApiEnvironmentListItem) {
-    if (!canEdit.value) {
-      ElMessage.warning('无环境编辑权限')
-      return
-    }
     if (!(await confirmLeaveCreate())) return
     selectEnvironment(item.id)
     editTargetId.value = item.id
@@ -303,7 +287,6 @@ export function useEnvironmentPage() {
   onMounted(() => void loadList(false))
 
   return {
-    canEdit,
     listLoading,
     loadError,
     environments,
