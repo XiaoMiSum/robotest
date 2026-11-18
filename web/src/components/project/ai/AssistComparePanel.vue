@@ -1,29 +1,23 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Document as DocumentIcon, FolderOpened as FolderIcon } from '@element-plus/icons-vue'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import {
-  caseCompleteChangedFields,
-  caseCompleteCompareRows,
+  caseOptimizeChangedFields,
+  caseOptimizeCompareRows,
   casePriorityChanged,
-  isCaseCompleteSuggestion,
-  isCasePrioritySuggestion,
+  isCaseOptimizeSuggestion,
 } from '@/composables/project/ai/assistPresentation'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type { ConfirmItemResult } from '@/composables/project/ai/useAiProposalReview'
 import type {
   AiAssistFieldName,
   AiAssistSourceRef,
-  AiAssistTaskType,
+  AiCaseOptimizeSuggestion,
   AiProposalConfirmResult,
-  AiCaseCompleteSuggestion,
-  AiCasePrioritySuggestion,
 } from '@/types'
 
 const props = withDefaults(
   defineProps<{
-    /** 对照面板在补全与级别推荐间复用（交互 2.1） */
-    kind: Extract<AiAssistTaskType, 'case_complete' | 'case_priority'>
     rows: AssistRow[]
     /** 节点只读或无脑图编辑权时置灰并说明原因（交互 2.3） */
     canAdopt: boolean
@@ -41,9 +35,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  /** 整条采纳：补全走 adopted（只补空缺），级别推荐按建议级别落库 */
+  /** 整条采纳：批量采纳按建议值补空缺字段并应用建议级别 */
   adopt: [key: string]
-  /** 逐字段采纳：仅携带人工确认的字段，命中详设 4.2「人工显式采纳」口径 */
+  /** 逐字段采纳：仅携带人工确认的字段与建议级别，命中详设 4.2「人工显式采纳」口径 */
   adoptEdited: [key: string, content: Record<string, unknown>]
   batchAdopt: [keys: string[]]
   reject: [key: string, note?: string]
@@ -69,6 +63,8 @@ interface CompareItem {
   badge: string
   /** 级别场景的建议级别（P0–P3），用于按《视觉设计》优先级色标注 */
   level?: string
+  /** 级别建议理由，随级别行整行展示 */
+  note?: string
 }
 
 const activeKey = ref('')
@@ -76,7 +72,7 @@ const showUnchanged = ref(false)
 const rejectVisible = ref(false)
 const rejectNote = ref('')
 
-// 切换 kind 或内容刷新后停在首个未处理建议，便于逐条核对
+// 内容刷新后停在首个未处理建议，便于逐条核对
 watch(
   () => props.rows,
   (incoming) => {
@@ -93,32 +89,18 @@ watch(
   { immediate: true },
 )
 
-const title = computed(() => (props.kind === 'case_complete' ? 'AI 补全建议' : 'AI 级别推荐'))
-
 const activeRow = computed<AssistRow | null>(
   () => props.rows.find((row) => row.key === activeKey.value) ?? props.rows[0] ?? null,
 )
 
-const activeComplete = computed<AiCaseCompleteSuggestion | null>(() => {
+const activeOptimize = computed<AiCaseOptimizeSuggestion | null>(() => {
   const view = activeRow.value?.suggestion ?? null
-  return props.kind === 'case_complete' && isCaseCompleteSuggestion(view) ? view : null
-})
-
-const activePriority = computed<AiCasePrioritySuggestion | null>(() => {
-  const view = activeRow.value?.suggestion ?? null
-  return props.kind === 'case_priority' && isCasePrioritySuggestion(view) ? view : null
+  return isCaseOptimizeSuggestion(view) ? view : null
 })
 
 const activeReady = computed(() => activeRow.value?.suggestion != null)
 
-const extraNodes = computed(() => activeComplete.value?.extraNodes ?? [])
-
-const sourceRefs = computed<AiAssistSourceRef[]>(() => {
-  const view = activeRow.value?.suggestion ?? null
-  if (isCaseCompleteSuggestion(view)) return view.sourceRefs
-  if (isCasePrioritySuggestion(view)) return view.sourceRefs
-  return []
-})
+const sourceRefs = computed<AiAssistSourceRef[]>(() => activeOptimize.value?.sourceRefs ?? [])
 
 function displayValues(values: string[]): string {
   return values.length > 0 ? values.join('、') : '—'
@@ -128,27 +110,10 @@ function priorityLabel(priority: string): string {
   return PRIORITY_LABEL[priority] ?? (priority || '—')
 }
 
-const compareItems = computed<CompareItem[]>(() => {
-  const priority = activePriority.value
-  if (props.kind === 'case_priority') {
-    if (!priority) return []
-    const changed = casePriorityChanged(priority)
-    return [
-      {
-        id: 'priority',
-        label: '用例级别',
-        existing: priorityLabel(priority.current),
-        suggested: priorityLabel(priority.suggested),
-        changed,
-        badge: changed ? '调整' : '同级',
-        // 未识别的级别取值不着色，避免空色徽标与正文混同
-        level: PRIORITY_LABEL[priority.suggested] ? priority.suggested.toLowerCase() : undefined,
-      },
-    ]
-  }
-  const view = activeComplete.value
+const fieldItems = computed<CompareItem[]>(() => {
+  const view = activeOptimize.value
   if (!view) return []
-  return caseCompleteCompareRows(view.fields).map((row) => ({
+  return caseOptimizeCompareRows(view.fields).map((row) => ({
     id: row.name,
     label: row.label,
     existing: displayValues(row.existing),
@@ -158,17 +123,37 @@ const compareItems = computed<CompareItem[]>(() => {
   }))
 })
 
-const changedItems = computed(() => compareItems.value.filter((item) => item.changed))
-const unchangedCount = computed(() =>
-  props.kind === 'case_priority' ? 0 : compareItems.value.length - changedItems.value.length,
-)
-/** 级别推荐同级项也是有效结果，始终展示，不折叠（交互 2.1.2） */
-const visibleItems = computed(() =>
-  props.kind === 'case_priority' || showUnchanged.value ? compareItems.value : changedItems.value,
-)
-const activeUnchanged = computed(
-  () => props.kind !== 'case_priority' && changedItems.value.length === 0 && extraNodes.value.length === 0,
-)
+const priorityItem = computed<CompareItem | null>(() => {
+  const view = activeOptimize.value
+  if (!view) return null
+  const changed = casePriorityChanged(view.priority)
+  const hasSuggestion = view.priority.suggested !== ''
+  return {
+    id: 'priority',
+    label: '用例级别',
+    existing: priorityLabel(view.priority.current),
+    suggested: priorityLabel(view.priority.suggested),
+    changed,
+    badge: hasSuggestion ? (changed ? '调整' : '同级') : '',
+    // 未识别的级别取值不着色，避免空色徽标与正文混同
+    level: PRIORITY_LABEL[view.priority.suggested] ? view.priority.suggested.toLowerCase() : undefined,
+    note: view.priority.reason,
+  }
+})
+
+const changedItems = computed(() => fieldItems.value.filter((item) => item.changed))
+const unchangedCount = computed(() => fieldItems.value.length - changedItems.value.length)
+/** 级别同级项也是有效结果，始终展示，不折叠（交互 2.1.2） */
+const visibleItems = computed<CompareItem[]>(() => {
+  const fields = showUnchanged.value ? fieldItems.value : changedItems.value
+  return priorityItem.value ? [...fields, priorityItem.value] : [...fields]
+})
+
+const activeUnchanged = computed(() => {
+  const view = activeOptimize.value
+  if (!view) return false
+  return caseOptimizeChangedFields(view.fields).length === 0 && !casePriorityChanged(view.priority)
+})
 
 const pendingKeys = computed(() =>
   props.rows.filter((row) => row.confirmStatus === 'pending').map((row) => row.key),
@@ -181,14 +166,11 @@ const adoptedCount = computed(
 )
 const totalCount = computed(() => props.rows.length)
 
-/** 无变化判定只用于置灰补全项；级别推荐同级项可采纳并留痕，不算无变化 */
+/** 字段与级别均无变化才算无变化；级别同级项仍可采纳并留痕 */
 function rowUnchanged(row: AssistRow): boolean {
   const view = row.suggestion
-  if (isCasePrioritySuggestion(view)) return false
-  if (isCaseCompleteSuggestion(view)) {
-    return caseCompleteChangedFields(view.fields).length === 0 && view.extraNodes.length === 0
-  }
-  return false
+  if (!isCaseOptimizeSuggestion(view)) return false
+  return caseOptimizeChangedFields(view.fields).length === 0 && !casePriorityChanged(view.priority)
 }
 
 const allUnchanged = computed(
@@ -247,12 +229,12 @@ function wireValue(name: AiAssistFieldName, values: string[]): string | string[]
   return name === 'precondition' ? (values[0] ?? '') : values
 }
 
-function changedFieldsContent(view: AiCaseCompleteSuggestion): Record<string, unknown> {
+function changedFieldsContent(view: AiCaseOptimizeSuggestion): Record<string, unknown> {
   const fields: Record<string, unknown> = {}
-  for (const name of caseCompleteChangedFields(view.fields)) {
+  for (const name of caseOptimizeChangedFields(view.fields)) {
     fields[name] = wireValue(name, view.fields[name].suggested)
   }
-  return { fields }
+  return fields
 }
 
 /** 逐条核对推进到下一个未处理建议（失败项可经回执重试） */
@@ -270,14 +252,13 @@ function adoptActive(): void {
   const row = activeRow.value
   if (!row) return
   const view = row.suggestion
-  if (props.kind === 'case_complete' && isCaseCompleteSuggestion(view)) {
-    const content = changedFieldsContent(view)
-    retryOps.set(row.key, () => emit('adoptEdited', row.key, content))
-    emit('adoptEdited', row.key, content)
-  } else {
-    retryOps.set(row.key, () => emit('adopt', row.key))
-    emit('adopt', row.key)
+  if (!isCaseOptimizeSuggestion(view)) return
+  const content = {
+    fields: changedFieldsContent(view),
+    priority: view.priority.suggested,
   }
+  retryOps.set(row.key, () => emit('adoptEdited', row.key, content))
+  emit('adoptEdited', row.key, content)
   advance()
 }
 
@@ -313,10 +294,10 @@ function onReceiptRetry(item: ConfirmItemResult): void {
 </script>
 
 <template>
-  <section class="assist-panel" aria-label="AI 建议对照面板">
+  <section class="assist-panel" aria-label="AI 优化建议对照面板">
     <header class="assist-panel__head">
       <div class="assist-panel__title">
-        <h3>{{ title }}</h3>
+        <h3>AI 优化建议</h3>
         <el-tag v-if="activeRow" size="small" :type="activeRow.confirmTagType">
           {{ activeRow.confirmLabel }}
         </el-tag>
@@ -396,6 +377,7 @@ function onReceiptRetry(item: ConfirmItemResult): void {
               {{ item.badge }}
             </el-tag>
           </span>
+          <span v-if="item.note" class="assist-compare__note">{{ item.note }}</span>
         </div>
       </div>
 
@@ -410,25 +392,6 @@ function onReceiptRetry(item: ConfirmItemResult): void {
       </el-button>
 
       <p v-if="activeUnchanged" class="assist-panel__hint">建议与现有内容一致，无需变更</p>
-
-      <div v-if="extraNodes.length > 0" class="assist-extra">
-        <div class="assist-extra__head">
-          补充节点树预览
-          <span>采纳后新增，不直接写入脑图</span>
-        </div>
-        <ul class="assist-extra__list">
-          <li v-for="(node, index) in extraNodes" :key="`${node.title}-${index}`">
-            <el-icon>
-              <DocumentIcon v-if="node.isTestCase" />
-              <FolderIcon v-else />
-            </el-icon>
-            <span class="assist-extra__title">{{ node.title }}</span>
-            <el-tag size="small" :type="node.isTestCase ? 'primary' : 'info'" effect="plain">
-              {{ node.isTestCase ? '用例' : '结构' }}
-            </el-tag>
-          </li>
-        </ul>
-      </div>
     </template>
 
     <AiConfirmReceipt
@@ -608,6 +571,11 @@ function onReceiptRetry(item: ConfirmItemResult): void {
   gap: var(--space-xs);
 }
 
+.assist-compare__note {
+  grid-column: 1 / -1;
+  color: var(--color-neutral-400);
+}
+
 // 级别按《视觉设计》用例优先级色标注（视觉 4）；同处另有「调整」徽标，不单靠颜色表意
 .assist-compare__level {
   padding: 0 var(--space-xs);
@@ -631,40 +599,5 @@ function onReceiptRetry(item: ConfirmItemResult): void {
 
 .assist-compare__level--p3 {
   background: var(--color-priority-p3);
-}
-
-.assist-extra__head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-sm);
-  font-size: var(--font-size-sm);
-
-  span {
-    color: var(--color-neutral-400);
-  }
-}
-
-.assist-extra__list {
-  margin: var(--space-xs) 0 0;
-  padding: 0;
-  list-style: none;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    padding: var(--space-xs) var(--space-sm);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--color-neutral-50);
-    font-size: var(--font-size-sm);
-  }
-}
-
-.assist-extra__title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

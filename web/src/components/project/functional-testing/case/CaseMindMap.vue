@@ -102,14 +102,13 @@ watch(menuVisible, (visible) => {
   if (visible) caseNodePopover.close()
 })
 
-// AI 补全 / 级别推荐入口（详设 5.1）：选中用例节点发起，采纳后重载脑图同步落库结果
+// AI 优化入口（详设 5.1）：选中用例节点发起，采纳后重载脑图同步落库结果
 const {
   entryVisible: assistEntryVisible,
   gateReason: assistGateReason,
   canLaunch: canLaunchAssist,
   canAdopt: canAdoptAssist,
   panelVisible: assistPanelVisible,
-  activeKind: assistKind,
   rows: assistRows,
   loading: assistLoading,
   confirming: assistConfirming,
@@ -119,8 +118,7 @@ const {
   failedReason: assistFailedReason,
   progressText: assistProgressText,
   loadError: assistLoadError,
-  launchComplete,
-  launchPriority,
+  launchOptimize,
   retry: retryAssist,
   refresh: refreshAssist,
   adopt: adoptAssist,
@@ -380,15 +378,14 @@ const handleLayoutCommand = (command: unknown) => {
       :ai-entry-visible="assistEntryVisible"
       :ai-gate-reason="assistGateReason"
       :can-launch-ai="canLaunchAssist"
-      @ai-complete="openAssistFromPopover(launchComplete)"
-      @ai-priority="openAssistFromPopover(launchPriority)"
+      @ai-optimize="openAssistFromPopover(launchOptimize)"
       @link-requirement="openRequirementFromPopover"
     />
 
-    <!-- AI 建议面板：进行中展示进度入口，完成后切换为对照面板（交互 2.3） -->
+    <!-- AI 优化面板：进行中展示进度入口，完成后切换为对照面板（交互 2.3） -->
     <el-dialog
       v-model="assistPanelVisible"
-      title="AI 建议"
+      title="AI 优化"
       width="720px"
       :close-on-click-modal="false"
       @closed="closeAssistPanel"
@@ -424,7 +421,6 @@ const handleLayoutCommand = (command: unknown) => {
       </el-alert>
       <AssistComparePanel
         v-else
-        :kind="assistKind"
         :rows="assistRows"
         :can-adopt="canAdoptAssist"
         :confirming="assistConfirming"

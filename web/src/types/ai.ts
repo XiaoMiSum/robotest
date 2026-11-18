@@ -32,12 +32,11 @@ export type AiProposalConfirmStatus =
 /** 提案采纳动作（Constants.AiProposalAction） */
 export type AiProposalAction = 'adopted' | 'adopted_edited' | 'rejected'
 
-/** 任务类型（Constants.AiTaskType，11 类单一事实源） */
+/** 任务类型（Constants.AiTaskType，10 类单一事实源） */
 export type AiTaskType =
   | 'requirement_import'
   | 'test_design_generation'
-  | 'case_complete'
-  | 'case_priority'
+  | 'case_optimize'
   | 'plan_order'
   | 'bug_classify'
   | 'bug_duplicate_scan'
@@ -184,10 +183,8 @@ export interface AiProposalConfirmTarget {
   systemVersion?: string
   moduleId?: string
   position?: string
-  /** 承接的用例文档（补全 / 级别推荐），缺省回退任务入参 documentId */
+  /** 承接的用例文档（用例优化），缺省回退任务入参 documentId */
   documentId?: string
-  /** 补充节点落位 sibling / child，缺省 sibling */
-  extraNodePosition?: string
   /** 承接的测试计划（执行顺序建议），缺省回退任务入参 planId */
   planId?: string
   /** 推荐轮次（执行顺序建议） */
@@ -256,9 +253,9 @@ export interface AiGenerationScopeItem {
 // ==================== 辅助建议（辅助功能详设 3.2–3.4） ====================
 
 /** 辅助任务类型（脑图工具栏与计划详情各自发起，提案形态见详设 3.2–3.4） */
-export type AiAssistTaskType = 'case_complete' | 'case_priority' | 'plan_order'
+export type AiAssistTaskType = 'case_optimize' | 'plan_order'
 
-/** 补全字段键（详设 3.2 提案形态，不建议改写 priority） */
+/** 优化字段键（详设 3.2 提案形态，级别单独随同建议） */
 export type AiAssistFieldName = 'precondition' | 'steps' | 'expected' | 'tags'
 
 /** 现有值与建议值成对；字符串字段（precondition）归一为单元素列表便于统一比对渲染 */
@@ -267,32 +264,24 @@ export interface AiAssistFieldPair {
   suggested: string[]
 }
 
-/** 补充节点（详设 3.2）：仅预览，采纳后才落库 */
-export interface AiAssistExtraNode {
-  title: string
-  /** true=用例节点，false=结构节点；预览用不同图标区分 */
-  isTestCase: boolean
-}
-
-/** 来源引用（详设 3.2 / 3.3）：补全带 quote，级别推荐不带 */
+/** 来源引用（详设 3.2 / 3.3）：用例优化带 quote，执行顺序建议不带 */
 export interface AiAssistSourceRef {
   id: string
   title: string
   quote: string
 }
 
-export interface AiCaseCompleteSuggestion {
-  nodeId: string
-  fields: Record<AiAssistFieldName, AiAssistFieldPair>
-  extraNodes: AiAssistExtraNode[]
-  sourceRefs: AiAssistSourceRef[]
-}
-
+/** 级别建议（随用例优化同一条提案产出，详设 3.2） */
 export interface AiCasePrioritySuggestion {
-  nodeId: string
   current: string
   suggested: string
   reason: string
+}
+
+export interface AiCaseOptimizeSuggestion {
+  nodeId: string
+  fields: Record<AiAssistFieldName, AiAssistFieldPair>
+  priority: AiCasePrioritySuggestion
   sourceRefs: AiAssistSourceRef[]
 }
 
@@ -311,7 +300,4 @@ export interface AiPlanOrderSuggestion {
   afterOrder: string[]
 }
 
-export type AiAssistSuggestion =
-  | AiCaseCompleteSuggestion
-  | AiCasePrioritySuggestion
-  | AiPlanOrderSuggestion
+export type AiAssistSuggestion = AiCaseOptimizeSuggestion | AiPlanOrderSuggestion

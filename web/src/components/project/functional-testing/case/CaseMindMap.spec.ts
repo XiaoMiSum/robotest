@@ -25,8 +25,8 @@ describe('CaseMindMap · 工具条单行排版（交互 04 §1.2）', () => {
 })
 
 describe('CaseMindMap · 业务入口收拢', () => {
-  it('工具条不再放置 AI 补全、级别推荐与关联需求按钮', () => {
-    expect(source).not.toContain('<span>AI 补全</span>')
+  it('工具条不再放置 AI 优化、级别推荐与关联需求按钮', () => {
+    expect(source).not.toContain('<span>AI 优化</span>')
     expect(source).not.toContain('<span>级别推荐</span>')
     expect(source).not.toContain('<span>关联需求</span>')
     expect(source).not.toContain('canLinkRequirement')
@@ -39,6 +39,7 @@ describe('CaseMindMap · 业务入口收拢', () => {
 describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
   it('悬浮窗透传 AI 可用性与置灰原因，沿用同一任务入口', () => {
     expect(source).toContain('useCaseAssistEntry')
+    expect(source).toContain('launchOptimize')
     expect(source).toContain('documentId: () => props.docId')
     expect(source).toContain('selectedNodeId: () => selectedNodeId.value')
     expect(source).toContain('selectedType: () => selectedType.value')
@@ -54,7 +55,6 @@ describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
     expect(source).toContain('再次执行')
     expect(source).toContain('v-else-if="assistLoadError"')
     expect(source).toContain('<AssistComparePanel')
-    expect(source).toContain(':kind="assistKind"')
     expect(source).toContain(':can-adopt="canAdoptAssist"')
     expect(source).toContain('@closed="closeAssistPanel"')
   })
@@ -85,8 +85,7 @@ describe('CaseMindMap · 用例节点悬浮窗（交互 04 §1.2）', () => {
   })
 
   it('悬浮窗复用同一任务入口与关联选取器，已关联仍可重新打开', () => {
-    expect(source).toContain('@ai-complete="openAssistFromPopover(launchComplete)"')
-    expect(source).toContain('@ai-priority="openAssistFromPopover(launchPriority)"')
+    expect(source).toContain('@ai-optimize="openAssistFromPopover(launchOptimize)"')
     expect(source).toContain('@link-requirement="openRequirementFromPopover"')
     expect(source).toContain('void requirementLink.open()')
     expect(source).not.toContain('requirementLinked')

@@ -1,17 +1,16 @@
 import type {
-  AiAssistExtraNode,
   AiAssistFieldPair,
   AiAssistFieldName,
   AiAssistSourceRef,
   AiAssistSuggestion,
   AiAssistTaskType,
-  AiCaseCompleteSuggestion,
+  AiCaseOptimizeSuggestion,
   AiCasePrioritySuggestion,
   AiPlanOrderItem,
   AiPlanOrderSuggestion,
 } from '@/types'
 
-/** 补全字段渲染顺序（详设 3.2 产物形态） */
+/** 优化字段渲染顺序（详设 3.2 产物形态） */
 export const ASSIST_FIELD_NAMES: AiAssistFieldName[] = [
   'precondition',
   'steps',
@@ -63,18 +62,6 @@ function readPair(raw: unknown): AiAssistFieldPair {
   return { existing: readValues(source['existing']), suggested: readValues(source['suggested']) }
 }
 
-function readExtraNodes(raw: unknown): AiAssistExtraNode[] {
-  if (!Array.isArray(raw)) return []
-  const nodes: AiAssistExtraNode[] = []
-  for (const item of raw) {
-    const source = asRecord(item)
-    const title = readString(source, 'title').trim()
-    if (!title) continue
-    nodes.push({ title, isTestCase: source['isTestCase'] === true })
-  }
-  return nodes
-}
-
 function readSourceRefs(raw: unknown): AiAssistSourceRef[] {
   if (!Array.isArray(raw)) return []
   const refs: AiAssistSourceRef[] = []
@@ -87,7 +74,16 @@ function readSourceRefs(raw: unknown): AiAssistSourceRef[] {
   return refs
 }
 
-export function readCaseComplete(content: Record<string, unknown>): AiCaseCompleteSuggestion {
+function readPriority(raw: unknown): AiCasePrioritySuggestion {
+  const source = asRecord(raw)
+  return {
+    current: readString(source, 'current'),
+    suggested: readString(source, 'suggested'),
+    reason: readString(source, 'reason'),
+  }
+}
+
+export function readCaseOptimize(content: Record<string, unknown>): AiCaseOptimizeSuggestion {
   const fields = asRecord(content['fields'])
   return {
     nodeId: readString(content, 'nodeId'),
@@ -97,17 +93,7 @@ export function readCaseComplete(content: Record<string, unknown>): AiCaseComple
       expected: readPair(fields['expected']),
       tags: readPair(fields['tags']),
     },
-    extraNodes: readExtraNodes(content['extraNodes']),
-    sourceRefs: readSourceRefs(content['sourceRefs']),
-  }
-}
-
-export function readCasePriority(content: Record<string, unknown>): AiCasePrioritySuggestion {
-  return {
-    nodeId: readString(content, 'nodeId'),
-    current: readString(content, 'current'),
-    suggested: readString(content, 'suggested'),
-    reason: readString(content, 'reason'),
+    priority: readPriority(content['priority']),
     sourceRefs: readSourceRefs(content['sourceRefs']),
   }
 }
@@ -141,21 +127,14 @@ export function readAssistSuggestion(
   content: Record<string, unknown> | null,
 ): AiAssistSuggestion | null {
   if (!content) return null
-  if (kind === 'case_complete') return readCaseComplete(content)
-  if (kind === 'case_priority') return readCasePriority(content)
+  if (kind === 'case_optimize') return readCaseOptimize(content)
   return readPlanOrder(content)
 }
 
-export function isCaseCompleteSuggestion(
+export function isCaseOptimizeSuggestion(
   view: AiAssistSuggestion | null,
-): view is AiCaseCompleteSuggestion {
-  return view !== null && 'fields' in view
-}
-
-export function isCasePrioritySuggestion(
-  view: AiAssistSuggestion | null,
-): view is AiCasePrioritySuggestion {
-  return view !== null && 'suggested' in view
+): view is AiCaseOptimizeSuggestion {
+  return view !== null && 'fields' in view && 'priority' in view
 }
 
 export function isPlanOrderSuggestion(view: AiAssistSuggestion | null): view is AiPlanOrderSuggestion {
@@ -171,7 +150,7 @@ function sameValues(left: string[], right: string[]): boolean {
 }
 
 /** 与现有内容不同的字段（无变化项默认折叠，交互 2.1.2） */
-export function caseCompleteChangedFields(
+export function caseOptimizeChangedFields(
   fields: Record<AiAssistFieldName, AiAssistFieldPair>,
 ): AiAssistFieldName[] {
   return ASSIST_FIELD_NAMES.filter((name) => {
@@ -181,7 +160,7 @@ export function caseCompleteChangedFields(
 }
 
 /** 两栏对照行；labels 顺序即渲染顺序 */
-export function caseCompleteCompareRows(
+export function caseOptimizeCompareRows(
   fields: Record<AiAssistFieldName, AiAssistFieldPair>,
 ): AssistCompareRow[] {
   return ASSIST_FIELD_NAMES.map((name) => ({

@@ -6,14 +6,11 @@ import { useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type {
   AiAssistSourceRef,
-  AiAssistTaskType,
   AiProposalConfirmResult,
 } from '@/types'
 
-export type CaseAssistKind = Extract<AiAssistTaskType, 'case_complete' | 'case_priority'>
-
 export interface CaseAssistEntryOptions {
-  /** 当前脑图文档（补全 / 级别推荐输入的 documentId） */
+  /** 当前脑图文档（用例优化输入的 documentId） */
   documentId: () => string
   selectedNodeId: () => string
   selectedType: () => string
@@ -26,7 +23,7 @@ export interface CaseAssistEntryOptions {
 /**
  * 脑图用例 AI 入口（详设 5.1 / 交互 2.3）：
  * AI 未启用时入口隐藏；无选中 / 非用例节点 / 只读时置灰并给出原因。
- * 面板私有状态由两个 useAssistTask 实例承载，按当前建议类型切换。
+ * 单次优化同时补全字段并推荐级别，面板私有状态由同一个 useAssistTask 承载。
  */
 export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const router = useRouter()
@@ -50,7 +47,7 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const gateReason = computed(() => {
     if (!options.documentId()) return '请先打开用例文档'
     if (!options.selectedNodeId()) return '请先在脑图中选中一个用例节点'
-    if (options.selectedType() !== 'case') return '仅用例节点可使用 AI 补全或级别推荐'
+    if (options.selectedType() !== 'case') return '仅用例节点可使用 AI 优化'
     if (options.isReadonly?.() === true) return '当前文档只读，不可发起建议'
     return ''
   })
@@ -59,82 +56,65 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   /** 动作区放行条件：文档可写（只读时置灰，详设 3.1） */
   const canAdopt = computed(() => options.isReadonly?.() !== true)
 
-  const complete = useAssistTask('case_complete', {
-    target: () => ({ documentId: options.documentId() }),
-    onConfirmed: options.onConfirmed,
-  })
-  const priority = useAssistTask('case_priority', {
+  const task = useAssistTask('case_optimize', {
     target: () => ({ documentId: options.documentId() }),
     onConfirmed: options.onConfirmed,
   })
 
-  const activeKind = ref<CaseAssistKind>('case_complete')
   const panelVisible = ref(false)
-  const active = computed(() => (activeKind.value === 'case_complete' ? complete : priority))
 
   // 展平为顶层 computed，便于宿主模板直接取用（嵌套 ref 不会自动解包）
-  const rows = computed<AssistRow[]>(() => active.value.rows.value)
-  const loading = computed(() => active.value.loading.value)
-  const confirming = computed(() => active.value.confirming.value)
-  const receipt = computed<AiProposalConfirmResult[]>(() => active.value.receipt.value)
-  const processed = computed(() => active.value.processed.value)
-  const submitting = computed(() => active.value.submitting.value)
-  const running = computed(() => submitting.value || active.value.isRunning.value)
-  const failed = computed(() => active.value.isFailed.value)
-  const failedReason = computed(() => active.value.failedReason.value)
-  const progressText = computed(() => active.value.executionSummary.value?.text ?? '')
-  const loadError = computed(() => active.value.loadError.value)
+  const rows = computed<AssistRow[]>(() => task.rows.value)
+  const loading = computed(() => task.loading.value)
+  const confirming = computed(() => task.confirming.value)
+  const receipt = computed<AiProposalConfirmResult[]>(() => task.receipt.value)
+  const processed = computed(() => task.processed.value)
+  const submitting = computed(() => task.submitting.value)
+  const running = computed(() => submitting.value || task.isRunning.value)
+  const failed = computed(() => task.isFailed.value)
+  const failedReason = computed(() => task.failedReason.value)
+  const progressText = computed(() => task.executionSummary.value?.text ?? '')
+  const loadError = computed(() => task.loadError.value)
 
-  async function launch(kind: CaseAssistKind): Promise<void> {
+  async function launchOptimize(): Promise<void> {
     if (!entryVisible.value) return
     if (gateReason.value) {
       ElMessage.warning(gateReason.value)
       return
     }
-    activeKind.value = kind
     panelVisible.value = true
-    const other = kind === 'case_complete' ? priority : complete
-    other.reset()
-    await active.value.launch({
+    await task.launch({
       documentId: options.documentId(),
       nodeIds: [options.selectedNodeId()],
     })
   }
 
-  function launchComplete(): Promise<void> {
-    return launch('case_complete')
-  }
-
-  function launchPriority(): Promise<void> {
-    return launch('case_priority')
-  }
-
   function retry(): Promise<void> {
-    return active.value.retry()
+    return task.retry()
   }
 
   function refresh(): Promise<void> {
-    return active.value.refresh()
+    return task.refresh()
   }
 
   function adopt(key: string): Promise<void> {
-    return active.value.adopt(key)
+    return task.adopt(key)
   }
 
   function adoptEdited(key: string, content: Record<string, unknown>): Promise<void> {
-    return active.value.adoptEdited(key, content)
+    return task.adoptEdited(key, content)
   }
 
   function batchAdopt(keys: string[]): Promise<void> {
-    return active.value.batchAdopt(keys)
+    return task.batchAdopt(keys)
   }
 
   function reject(key: string, note?: string): Promise<void> {
-    return active.value.reject(key, note)
+    return task.reject(key, note)
   }
 
   function clearReceipt(): void {
-    active.value.clearReceipt()
+    task.clearReceipt()
   }
 
   function openSource(source: AiAssistSourceRef): void {
@@ -147,8 +127,7 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   }
 
   function closePanel(): void {
-    complete.reset()
-    priority.reset()
+    task.reset()
     panelVisible.value = false
   }
 
@@ -158,7 +137,6 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
     canLaunch,
     canAdopt,
     panelVisible,
-    activeKind,
     rows,
     loading,
     confirming,
@@ -170,8 +148,7 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
     failedReason,
     progressText,
     loadError,
-    launchComplete,
-    launchPriority,
+    launchOptimize,
     retry,
     refresh,
     adopt,

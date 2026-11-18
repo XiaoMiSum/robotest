@@ -164,33 +164,20 @@ describe('useCaseAssistEntry', () => {
   })
 
   describe('发起与面板状态', () => {
-    it('AI 补全按 documentId + 选中节点发起并打开面板', async () => {
+    it('AI 优化按 documentId + 选中节点发起并打开面板', async () => {
       const s = mountEntry()
       await flushPromises()
 
-      await s.launchComplete()
+      expect(mocks.useAssistTask).toHaveBeenCalledWith('case_optimize', expect.anything())
+      expect(tasks).toHaveLength(1)
+
+      await s.launchOptimize()
 
       expect(s.panelVisible.value).toBe(true)
       expect(tasks[0].launch).toHaveBeenCalledWith({
         documentId: 'doc-1',
         nodeIds: ['node-1'],
       })
-      expect(tasks[1].launch).not.toHaveBeenCalled()
-      expect(tasks[1].reset).toHaveBeenCalled()
-    })
-
-    it('级别推荐切换活动任务并发起', async () => {
-      const s = mountEntry()
-      await flushPromises()
-
-      await s.launchPriority()
-
-      expect(tasks[0].reset).toHaveBeenCalled()
-      expect(tasks[1].launch).toHaveBeenCalledWith({
-        documentId: 'doc-1',
-        nodeIds: ['node-1'],
-      })
-      expect(s.activeKind.value).toBe('case_priority')
     })
 
     it('不满足入口条件时不发起且提示原因', async () => {
@@ -198,14 +185,14 @@ describe('useCaseAssistEntry', () => {
       const s = mountEntry()
       await flushPromises()
 
-      await s.launchComplete()
+      await s.launchOptimize()
 
       expect(tasks[0].launch).not.toHaveBeenCalled()
       expect(s.panelVisible.value).toBe(false)
       expect(mocks.ElMessage.warning).toHaveBeenCalledWith('请先在脑图中选中一个用例节点')
     })
 
-    it('面板读取当前活动任务的执行状态与进度摘要', async () => {
+    it('面板读取任务的执行状态与进度摘要', async () => {
       const s = mountEntry()
       await flushPromises()
 
@@ -232,29 +219,31 @@ describe('useCaseAssistEntry', () => {
   })
 
   describe('采纳动作与关闭', () => {
-    it('采纳动作转发到当前活动任务', async () => {
+    it('采纳动作转发到当前任务', async () => {
       const s = mountEntry()
       await flushPromises()
-      await s.launchPriority()
+      await s.launchOptimize()
 
       await s.adopt('k1')
-      await s.adoptEdited('k1', { fields: { tags: ['a'] } })
+      await s.adoptEdited('k1', { fields: { tags: ['a'] }, priority: 'P0' })
       await s.batchAdopt(['k1', 'k2'])
       await s.reject('k1', '理由')
       await s.refresh()
 
-      expect(tasks[1].adopt).toHaveBeenCalledWith('k1')
-      expect(tasks[1].adoptEdited).toHaveBeenCalledWith('k1', { fields: { tags: ['a'] } })
-      expect(tasks[1].batchAdopt).toHaveBeenCalledWith(['k1', 'k2'])
-      expect(tasks[1].reject).toHaveBeenCalledWith('k1', '理由')
-      expect(tasks[1].refresh).toHaveBeenCalled()
-      expect(tasks[0].adopt).not.toHaveBeenCalled()
+      expect(tasks[0].adopt).toHaveBeenCalledWith('k1')
+      expect(tasks[0].adoptEdited).toHaveBeenCalledWith('k1', {
+        fields: { tags: ['a'] },
+        priority: 'P0',
+      })
+      expect(tasks[0].batchAdopt).toHaveBeenCalledWith(['k1', 'k2'])
+      expect(tasks[0].reject).toHaveBeenCalledWith('k1', '理由')
+      expect(tasks[0].refresh).toHaveBeenCalled()
 
       s.clearReceipt()
-      expect(tasks[1].clearReceipt).toHaveBeenCalled()
+      expect(tasks[0].clearReceipt).toHaveBeenCalled()
     })
 
-    it('关闭面板释放两个任务实例的本地状态', async () => {
+    it('关闭面板释放任务实例的本地状态', async () => {
       const s = mountEntry()
       await flushPromises()
       s.panelVisible.value = true
@@ -263,7 +252,6 @@ describe('useCaseAssistEntry', () => {
 
       expect(s.panelVisible.value).toBe(false)
       expect(tasks[0].reset).toHaveBeenCalled()
-      expect(tasks[1].reset).toHaveBeenCalled()
     })
 
     it('来源引用跳转需求详情', async () => {
