@@ -74,3 +74,22 @@ describe('CaseMindMap · 脑图加载失败反馈（用例页 F4）', () => {
     expect(source).toContain('@click="initMinder()"')
   })
 })
+
+describe('CaseMindMap · 用例节点悬浮窗（交互 04 §1.2）', () => {
+  it('单击用例节点弹出悬浮窗并关闭右键菜单', () => {
+    expect(source).toContain('onNodeClick: handleNodeClick')
+    expect(source).toContain('closeContextMenu()')
+    expect(source).toContain("node.data.type !== 'case'")
+    expect(source).toContain('caseNodePopover.open(nodeId')
+    expect(source).toContain('<CaseNodeActionPopover')
+  })
+
+  it('悬浮窗复用工具条入口与关联选取器，已关联时仅悬浮窗禁用', () => {
+    expect(source).toContain('@ai-complete="openAssistFromPopover(launchComplete)"')
+    expect(source).toContain('@ai-priority="openAssistFromPopover(launchPriority)"')
+    expect(source).toContain('@link-requirement="openRequirementFromPopover"')
+    expect(source).toContain('caseNodePopover.requirementLinked.value')
+    expect(source).toContain('如需修改请在顶部工具条操作')
+    expect(source).toContain(':disabled="!canLinkRequirement"')
+  })
+})

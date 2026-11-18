@@ -16,6 +16,11 @@ interface KMEditorLike {
   destroy(): void
 }
 
+/** 点击命中的节点：仅悬浮窗定位与用例判定所需的最小形状 */
+export interface ClickedMinderNode extends ContextMenuAnchorNode {
+  data: Record<string, unknown>
+}
+
 export function useMindmapInit(options: {
   docId: () => string
   containerRef: { value: HTMLDivElement | undefined }
@@ -50,6 +55,7 @@ export function useMindmapInit(options: {
     canUndo: { value: boolean }
     canRedo: { value: boolean }
   }
+  onNodeClick?: (node: ClickedMinderNode) => void
 }) {
   const {
     docId, containerRef, loading, selectedNodeId, beginInit, isStale,
@@ -58,6 +64,11 @@ export function useMindmapInit(options: {
   } = options
 
   const loadError = ref(false)
+
+  function handleNodeClick(): void {
+    const node = getMinder()?.getSelectedNode?.() as ClickedMinderNode | null | undefined
+    if (node) options.onNodeClick?.(node)
+  }
 
   const {
     visible: menuVisible,
@@ -72,6 +83,7 @@ export function useMindmapInit(options: {
   })
 
   function teardownMinder() {
+    getMinder()?.off?.('click', handleNodeClick)
     destroyMinder(kmEditorRef.value ? () => kmEditorRef.value?.destroy() : undefined)
     kmEditorRef.value = null
   }
@@ -110,6 +122,7 @@ export function useMindmapInit(options: {
       m.importJson(kmData)
 
       m.on('selectionchange', updateSelectedState)
+      m.on('click', handleNodeClick)
       m.on('contentchange', () => {
         layout.updateTemplate(
           (m.queryCommandValue?.('template') as string) || layout.currentTemplate.value,
