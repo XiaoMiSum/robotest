@@ -4,6 +4,7 @@ import type { TestReviewListItem } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import {
+  isActiveReview,
   reviewAvatars,
   reviewListAction,
   reviewNameSub,
@@ -13,9 +14,14 @@ import {
   reviewStatusMeta,
 } from './reviewListPresentation'
 
-const props = defineProps<{ reviews: TestReviewListItem[]; visibleKeys: string[] }>()
+const props = defineProps<{
+  reviews: TestReviewListItem[]
+  currentUserId: string
+  visibleKeys: string[]
+}>()
 const emit = defineEmits<{
   open: [id: string]
+  edit: [review: TestReviewListItem]
   reopen: [review: TestReviewListItem]
   delete: [review: TestReviewListItem]
 }>()
@@ -23,6 +29,7 @@ const rows = computed(() =>
   props.reviews.map((review) => ({
     id: review.id,
     review,
+    canEdit: isActiveReview(review.status) && review.initiator.id === props.currentUserId,
     meta: reviewStatusMeta(review.status),
     action: reviewListAction(review.status),
     passRate: reviewPassRate(review.status, review.passRate),
@@ -105,12 +112,13 @@ const brandAvatarStyle = {
         }}</span></template
       >
     </el-table-column>
-    <el-table-column label="操作" width="210" fixed="right">
+    <el-table-column label="操作" width="260" fixed="right">
       <template #default="{ row }">
         <el-space :size="8">
           <el-button link type="primary" @click="emit('open', row.review.id)">{{
             row.action === 'enter' ? '进入' : '查看'
           }}</el-button>
+          <el-button v-if="row.canEdit" link type="primary" @click="emit('edit', row.review)">编辑</el-button>
           <el-button
             v-if="row.review.status === 'rejected'"
             link

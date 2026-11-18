@@ -5,7 +5,8 @@ import { nextTick } from 'vue'
 import PlanListPage from './PlanListPage.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import PlanCreateDialog from '@/components/project/functional-testing/plan/PlanCreateDialog.vue'
-import type { TestPlanListItem } from '@/types'
+import PlanEditDialog from '@/components/project/functional-testing/plan/PlanEditDialog.vue'
+import type { TestPlanDetail, TestPlanListItem } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -13,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
   resume: vi.fn(),
   delete: vi.fn(),
+  detail: vi.fn(),
+  update: vi.fn(),
+  status: vi.fn(),
   push: vi.fn(),
   error: vi.fn(),
   success: vi.fn(),
@@ -25,6 +29,9 @@ vi.mock('@/services/project', () => ({
   completePlan: mocks.complete,
   resumePlan: mocks.resume,
   deletePlan: mocks.delete,
+  getPlanDetail: mocks.detail,
+  updatePlan: mocks.update,
+  getPlanReplanStatus: mocks.status,
 }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ hasPermission: mocks.hasPermission }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
@@ -49,11 +56,28 @@ const row: TestPlanListItem = {
   passRate: 60,
   requirementCount: 2,
 }
+const detail: TestPlanDetail = {
+  id: 'p1', name: '支付计划', description: null, status: 'in_progress',
+  environment: 'staging', startTime: null, endTime: null,
+  executor: { id: 'u1', name: '张明' },
+  requirements: [], requirementIds: ['req-1'],
+  replanStatus: 'idle', replanMessage: null, replanFinishedAt: null,
+  createdAt: '2026-11-15T08:00:00Z',
+}
+const editPayload = {
+  name: '支付计划（调整）',
+  description: '',
+  executorId: 'u1',
+  startTime: null,
+  endTime: null,
+  environment: 'staging',
+  requirementIds: ['req-2'],
+}
 const wrappers: ReturnType<typeof mount>[] = []
 function render() {
   const wrapper = mount(PlanListPage, {
     global: {
-      stubs: { PlanCreateDialog: true, ListPagination: true, Plus: true, Search: true },
+      stubs: { PlanCreateDialog: true, PlanEditDialog: true, ListPagination: true, Plus: true, Search: true },
       directives: { loading: () => {} },
     },
   })
@@ -84,6 +108,9 @@ function deferred() {
 beforeEach(() => {
   vi.resetAllMocks()
   mocks.fetch.mockResolvedValue({ list: [], total: 0 })
+  mocks.detail.mockResolvedValue(detail)
+  mocks.update.mockResolvedValue(detail)
+  mocks.status.mockResolvedValue({ status: 'succeeded', message: '规划完成', requestedAt: null, finishedAt: null })
   mocks.confirm.mockResolvedValue('confirm')
   mocks.hasPermission.mockReturnValue(true)
 })
@@ -212,5 +239,64 @@ describe('计划列表样板', () => {
     await flushPromises()
     expect(mocks.delete).toHaveBeenCalledWith('p1')
     expect(mocks.fetch).toHaveBeenCalledTimes(4)
+  })
+
+  it('缺少 plan:execute 时不显示编辑入口', async () => {
+    mocks.hasPermission.mockImplementation((value: string) => value !== 'plan:execute')
+    mocks.fetch.mockResolvedValue({ list: [row], total: 1 })
+    const wrapper = render()
+    await flushPromises()
+    expect(wrapper.findAll('.plan-table button').some((item) => item.text() === '编辑')).toBe(false)
+  })
+
+  async function openEdit(wrapper: ReturnType<typeof mount>) {
+    await button(wrapper, '编辑').trigger('click')
+    await flushPromises()
+    expect(wrapper.getComponent(PlanEditDialog).props('modelValue')).toBe(true)
+    return wrapper.getComponent(PlanEditDialog)
+  }
+
+  it('关联需求变化确认后以 replan=true 保存，轮询终态并刷新列表', async () => {
+    mocks.fetch.mockResolvedValue({ list: [row], total: 1 })
+    const wrapper = render()
+    await flushPromises()
+    const dialog = await openEdit(wrapper)
+    dialog.vm.$emit('submit', editPayload)
+    await flushPromises()
+    expect(mocks.confirm).toHaveBeenCalledWith('检测到关联需求发生变化，是否重新规划测试用例？', '关联需求变化', { type: 'warning' })
+    expect(mocks.update).toHaveBeenCalledWith('p1', { ...editPayload, replan: true })
+    expect(mocks.success).toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
+    expect(mocks.status).toHaveBeenCalledWith('p1')
+    expect(mocks.success).toHaveBeenCalledWith('规划完成')
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(wrapper.getComponent(PlanEditDialog).props('modelValue')).toBe(false)
+  })
+
+  it('取消重新规划仅保存，不触发状态轮询', async () => {
+    mocks.fetch.mockResolvedValue({ list: [row], total: 1 })
+    mocks.confirm.mockRejectedValueOnce('cancel')
+    const wrapper = render()
+    await flushPromises()
+    const dialog = await openEdit(wrapper)
+    dialog.vm.$emit('submit', editPayload)
+    await flushPromises()
+    expect(mocks.update).toHaveBeenCalledWith('p1', { ...editPayload, replan: false })
+    expect(mocks.success).toHaveBeenCalledWith('已保存')
+    expect(mocks.success).not.toHaveBeenCalledWith('已保存，正在后台重新规划测试用例')
+    expect(mocks.status).not.toHaveBeenCalled()
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('仅调整关联需求顺序不弹确认且不重新规划', async () => {
+    mocks.fetch.mockResolvedValue({ list: [row], total: 1 })
+    mocks.detail.mockResolvedValue({ ...detail, requirementIds: ['req-1', 'req-2'] })
+    const wrapper = render()
+    await flushPromises()
+    const dialog = await openEdit(wrapper)
+    dialog.vm.$emit('submit', { ...editPayload, requirementIds: ['req-2', 'req-1'] })
+    await flushPromises()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.update).toHaveBeenCalledWith('p1', expect.objectContaining({ replan: false }))
+    expect(mocks.status).not.toHaveBeenCalled()
   })
 })

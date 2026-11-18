@@ -2,10 +2,28 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createReview, deleteReview, fetchReviews, reopenReview } from '@/services/project'
-import type { ReviewStatus, TestReviewListItem, TestReviewCreatePayload } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+import {
+  createReview,
+  deleteReview,
+  fetchReviews,
+  getReviewDetail,
+  getReviewReplanStatus,
+  reopenReview,
+  updateReview,
+} from '@/services/project'
+import type {
+  ReplanStatusResp,
+  ReviewStatus,
+  TestReviewDetail,
+  TestReviewListItem,
+  TestReviewCreatePayload,
+  TestReviewUpdatePayload,
+} from '@/types'
 import ReviewCreateDialog from '@/components/project/functional-testing/review/ReviewCreateDialog.vue'
+import ReviewEditDialog from '@/components/project/functional-testing/review/ReviewEditDialog.vue'
 import ReviewListTable from '@/components/project/functional-testing/review/ReviewListTable.vue'
+import { isRequirementSetChanged, useReplanPolling } from '@/composables/project/functional-testing/replan'
 import { REVIEW_STATUS_META } from '@/components/project/functional-testing/review/reviewListPresentation'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListWorkspace from '@/components/common/ListWorkspace.vue'
@@ -29,6 +47,8 @@ const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
 })
 
 const router = useRouter()
+const authStore = useAuthStore()
+const currentUserId = computed(() => authStore.user?.id ?? '')
 const loading = ref(false)
 const hasLoaded = ref(false)
 const loadError = ref('')
@@ -146,6 +166,68 @@ async function submitCreate(payload: TestReviewCreatePayload) {
     createSubmitting.value = false
   }
 }
+
+const editDialogVisible = ref(false)
+const editSubmitting = ref(false)
+const editingReview = ref<TestReviewListItem | null>(null)
+const editDetail = ref<TestReviewDetail | null>(null)
+
+function handleReplanFinish(status: ReplanStatusResp) {
+  if (status.status === 'succeeded') {
+    ElMessage.success(status.message || '测试用例重新规划完成')
+  } else {
+    ElMessage.error(status.message || '测试用例重新规划失败')
+  }
+  loadReviews()
+}
+function handleReplanError(message: string) {
+  ElMessage.error(message)
+  loadReviews()
+}
+const replanPolling = useReplanPolling(getReviewReplanStatus)
+
+async function openEditDialog(row: TestReviewListItem) {
+  try {
+    editDetail.value = await getReviewDetail(row.id)
+    editingReview.value = row
+    editDialogVisible.value = true
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '加载评审详情失败')
+  }
+}
+
+async function submitEdit(payload: TestReviewUpdatePayload) {
+  if (!editingReview.value || !editDetail.value) return
+  const id = editingReview.value.id
+  const changed = isRequirementSetChanged(editDetail.value.requirementIds, payload.requirementIds ?? [])
+  let replan = false
+  if (changed) {
+    try {
+      await ElMessageBox.confirm('检测到关联需求发生变化，是否重新规划测试用例？', '关联需求变化', {
+        type: 'warning',
+      })
+      replan = true
+    } catch {
+      replan = false
+    }
+  }
+  editSubmitting.value = true
+  try {
+    await updateReview(id, { ...payload, replan })
+    editDialogVisible.value = false
+    if (replan) {
+      ElMessage.success('已保存，正在后台重新规划测试用例')
+      replanPolling.start(id, handleReplanFinish, handleReplanError)
+      return
+    }
+    ElMessage.success('已保存')
+    loadReviews()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '保存评审失败')
+  } finally {
+    editSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -209,8 +291,10 @@ async function submitCreate(payload: TestReviewCreatePayload) {
       </template>
       <ReviewListTable
         :reviews="reviews"
+        :current-user-id="currentUserId"
         :visible-keys="visibleKeys"
         @open="openReview"
+        @edit="openEditDialog"
         @reopen="handleReopen"
         @delete="handleDelete"
       >
@@ -241,6 +325,12 @@ async function submitCreate(payload: TestReviewCreatePayload) {
       v-model="createDialogVisible"
       :submitting="createSubmitting"
       @submit="submitCreate"
+    />
+    <ReviewEditDialog
+      v-model="editDialogVisible"
+      :detail="editDetail"
+      :submitting="editSubmitting"
+      @submit="submitEdit"
     />
   </main>
 </template>
