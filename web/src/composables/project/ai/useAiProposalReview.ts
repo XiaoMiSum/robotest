@@ -277,10 +277,10 @@ export function useAiProposalReview(
   async function submitItems(
     items: AiProposalConfirmItem[],
     target?: AiProposalConfirmTarget,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (items.length === 0) {
       ElMessage.warning('请先选择要处理的提案')
-      return
+      return false
     }
     confirming.value = true
     try {
@@ -301,8 +301,10 @@ export function useAiProposalReview(
       }
       // 服务端确认状态覆盖本地缓存，刷新提案清单（状态管理 4）
       onConfirmed()
+      return true
     } catch (err) {
       ElMessage.error(errorMessage(err, '确认提案失败'))
+      return false
     } finally {
       confirming.value = false
     }
@@ -331,7 +333,7 @@ export function useAiProposalReview(
     return keys.map((key) => ({ key, action }))
   }
 
-  function handleAdopt(row: ProposalRow, target?: AiProposalConfirmTarget): Promise<void> {
+  function handleAdopt(row: ProposalRow, target?: AiProposalConfirmTarget): Promise<boolean> {
     return submitItems(itemsFor([row.key], 'adopted'), target)
   }
 
@@ -339,13 +341,13 @@ export function useAiProposalReview(
     row: ProposalRow,
     note: string | undefined,
     target?: AiProposalConfirmTarget,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const item: AiProposalConfirmItem = { key: row.key, action: 'rejected' }
     if (note && note.trim()) item.note = note.trim()
     return submitItems([item], target)
   }
 
-  function handleBatchAdopt(target?: AiProposalConfirmTarget): Promise<void> {
+  function handleBatchAdopt(target?: AiProposalConfirmTarget): Promise<boolean> {
     return submitItems(itemsFor(selectedKeys.value, 'adopted'), target)
   }
 
@@ -354,12 +356,12 @@ export function useAiProposalReview(
     row: ProposalRow,
     values: Record<string, unknown>,
     target?: AiProposalConfirmTarget,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const content = profile.value.buildEditedContent(values, row.rawContent)
     return submitItems([{ key: row.key, action: 'adopted_edited', content }], target)
   }
 
-  async function handleBatchReject(target?: AiProposalConfirmTarget): Promise<void> {
+  async function handleBatchReject(target?: AiProposalConfirmTarget): Promise<boolean> {
     try {
       await ElMessageBox.confirm(
         `将驳回所选 ${selectedKeys.value.length} 条提案，不创建任何数据。`,
@@ -367,13 +369,13 @@ export function useAiProposalReview(
         { type: 'warning', confirmButtonText: '全部驳回', cancelButtonText: '取消' },
       )
     } catch {
-      return
+      return false
     }
-    await submitItems(itemsFor(selectedKeys.value, 'rejected'), target)
+    return submitItems(itemsFor(selectedKeys.value, 'rejected'), target)
   }
 
   /** 回执失败项单项重试（交互 2.3 回执，重试的是采纳动作而非任务） */
-  function retryResult(result: ConfirmItemResult): Promise<void> {
+  function retryResult(result: ConfirmItemResult): Promise<boolean> {
     const item = result.action as AiProposalAction
     return submitItems([{ key: result.key, action: item }])
   }

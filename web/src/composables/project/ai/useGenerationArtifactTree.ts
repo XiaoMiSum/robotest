@@ -30,7 +30,7 @@ export interface GenerationReviewBase {
   submitItems: (
     items: AiProposalConfirmItem[],
     target?: AiProposalConfirmTarget,
-  ) => Promise<void>
+  ) => Promise<boolean>
 }
 
 export interface AdoptPlan {

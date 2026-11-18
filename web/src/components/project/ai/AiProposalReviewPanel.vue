@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Operation as OperationIcon } from '@element-plus/icons-vue'
 import type {
   AiProposalConfirmTarget,
   AiTaskDocumentMeta,
@@ -8,6 +9,7 @@ import type {
 } from '@/types'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
+import type { ProposalRankItem } from '@/composables/project/ai/reviewProfiles'
 import {
   importVersionEvidence,
   importVersionHint,
@@ -24,14 +26,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{ confirmed: []; leave: [] }>()
 
-/** 需求域（拆分 / 导入）展示系统版本输入与需求字段，其余域只读预览提案 */
-const isRequirementDomain = computed(
-  () => props.taskType === 'requirement_split' || props.taskType === 'requirement_import',
-)
-const reviewTitle = computed(() =>
-  props.taskType === 'requirement_import' ? '导入结果审核' : '拆分结果审核',
-)
-
 const {
   rows,
   selectedKeys,
@@ -44,12 +38,20 @@ const {
   processed,
   selectableRows,
   allSelected,
+  reviewTitle,
+  editFields,
+  editValuesOf,
+  canEdit,
+  canReject,
+  canBatch,
+  needSystemVersion,
   NOTE_MAX_LENGTH,
   syncRows,
   init,
   select,
   toggle,
   toggleAll,
+  loadContent,
   handleAdopt,
   handleAdoptEdited,
   handleReject,
@@ -65,6 +67,7 @@ const {
     syncRows()
     emit('confirmed')
   },
+  () => props.taskType,
 )
 
 // init 首次同步提案行（proposals 由详情页轮询/确认后刷新传入）
@@ -74,7 +77,6 @@ init()
 /**
  * 未触碰时不提交 target.systemVersion：null → 服务端回退（拆分继承原条目 / 导入回落识别值）；
  * 触碰后提交当前值，空白串为显式清空（采纳后留空待手工补录）。
- * 导入任务以识别版本预填但不置 touched：未触碰仍不提交，服务端回退同值（交互 06 §2.4）。
  */
 const versionValue = ref(importVersionPrefill(props.documentMeta ?? null))
 const versionTouched = ref(false)
@@ -127,34 +129,78 @@ function moduleNameOf(moduleId: string): string {
 
 // ==================== 编辑后采纳 ====================
 const editVisible = ref(false)
-const editForm = ref({ title: '', description: '', moduleId: '', priority: '' })
 const editRowKey = ref('')
+const editForm = ref<Record<string, unknown>>({})
+const rankItems = ref<ProposalRankItem[]>([])
+const dragIndex = ref(-1)
+const overIndex = ref(-1)
 
-const priorityOptions = [
-  { value: 'high', label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low', label: '低' },
-]
+function fieldText(key: string): string {
+  const value = editForm.value[key]
+  if (Array.isArray(value)) return value.filter((item) => typeof item === 'string').join('\n')
+  return typeof value === 'string' ? value : ''
+}
 
-function openEdit(): void {
+function setField(key: string, value: unknown): void {
+  editForm.value = { ...editForm.value, [key]: value }
+}
+
+const editValid = computed(() =>
+  editFields.value.every((field) => !field.required || fieldText(field.key).trim().length > 0),
+)
+
+async function openEdit(): Promise<void> {
   const row = activeRow.value
   if (!row) return
+  if (!row.contentLoaded) await loadContent(row)
   editRowKey.value = row.key
-  editForm.value = {
-    title: row.content.title || row.title || '',
-    description: row.content.description,
-    moduleId: row.content.moduleId,
-    priority: row.content.priority,
-  }
+  editForm.value = editValuesOf(row)
+  const items = editForm.value.items
+  rankItems.value = Array.isArray(items)
+    ? (items as ProposalRankItem[]).map((item) => ({ ...item }))
+    : []
   editVisible.value = true
+}
+
+async function editRow(key: string): Promise<void> {
+  select(key)
+  await openEdit()
 }
 
 async function submitEdit(): Promise<void> {
   const row = rows.value.find((item) => item.key === editRowKey.value)
   if (!row) return
-  if (!editForm.value.title.trim()) return
-  await handleAdoptEdited(row, editForm.value, targetVersion())
-  editVisible.value = false
+  if (rankItems.value.length > 0) {
+    editForm.value = {
+      ...editForm.value,
+      items: rankItems.value.map((item, index) => ({ ...item, rank: index + 1 })),
+    }
+  }
+  const ok = await handleAdoptEdited(row, editForm.value, targetVersion())
+  if (ok) editVisible.value = false
+}
+
+function onRankDragStart(index: number): void {
+  dragIndex.value = index
+}
+
+function onRankDragOver(index: number): void {
+  overIndex.value = index
+}
+
+function onRankDragEnd(): void {
+  dragIndex.value = -1
+  overIndex.value = -1
+}
+
+function onRankDrop(index: number): void {
+  const from = dragIndex.value
+  onRankDragEnd()
+  if (from < 0 || from === index || from >= rankItems.value.length) return
+  const next = [...rankItems.value]
+  const [moved] = next.splice(from, 1)
+  if (moved) next.splice(index, 0, moved)
+  rankItems.value = next
 }
 
 // ==================== 驳回反馈 ====================
@@ -171,12 +217,12 @@ function openReject(key: string): void {
 async function submitReject(): Promise<void> {
   const row = rows.value.find((item) => item.key === rejectRowKey.value)
   if (!row) return
-  await handleReject(row, rejectNote.value, targetVersion())
-  rejectVisible.value = false
+  const ok = await handleReject(row, rejectNote.value, targetVersion())
+  if (ok) rejectVisible.value = false
 }
 
 function adoptActive(): void {
-  if (activeRow.value) void handleAdopt(activeRow.value, targetVersion())
+  if (activeRow.value && canEdit.value) void handleAdopt(activeRow.value, targetVersion())
 }
 
 function batchAdopt(): void {
@@ -188,7 +234,6 @@ function batchReject(): void {
 }
 
 const selectedCount = computed(() => selectedKeys.value.length)
-const canBatch = computed(() => selectedCount.value > 0)
 /** 提案全驳回 → 审核区空态「已全部驳回」（交互 2.4.3） */
 const allRejected = computed(
   () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),
@@ -199,15 +244,13 @@ const allRejected = computed(
   <section class="proposal-review">
     <header class="proposal-review__head">
       <div class="proposal-review__head-main">
-        <h2 class="proposal-review__title">
-          {{ isRequirementDomain ? reviewTitle : '提案审核' }}
-        </h2>
+        <h2 class="proposal-review__title">{{ reviewTitle }}</h2>
         <span class="proposal-review__processed">
           已处理 {{ processed.processed }} / 共 {{ processed.total }}
         </span>
       </div>
       <!-- 系统版本：导入预填识别版本并悬浮依据引语，未识别给补录提示（交互 06 §2.4） -->
-      <div v-if="isRequirementDomain" class="proposal-review__version">
+      <div v-if="needSystemVersion" class="proposal-review__version">
         <span class="proposal-review__version-label">版本</span>
         <el-input
           :model-value="versionValue"
@@ -229,7 +272,7 @@ const allRejected = computed(
 
     <!-- 拆分场景批量提示（交互 06 §2.4.2） -->
     <el-alert
-      v-if="isRequirementDomain && taskType === 'requirement_split'"
+      v-if="taskType === 'requirement_split'"
       type="info"
       :title="`新条目将继承原条目版本${versionTouched && versionValue.trim() ? `（当前值：${versionValue.trim()}）` : ''}、原条目将归档`"
       show-icon
@@ -248,6 +291,7 @@ const allRejected = computed(
       <div class="proposal-review__list">
         <div class="proposal-review__list-head">
           <el-checkbox
+            v-if="canBatch"
             :model-value="allSelected"
             :indeterminate="selectedCount > 0 && !allSelected"
             :disabled="selectableRows.length === 0"
@@ -258,45 +302,51 @@ const allRejected = computed(
           <span class="proposal-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
         </div>
 
-        <el-checkbox-group v-model="selectedKeys">
-          <div
-            v-for="row in rows"
-            :key="row.key"
-            class="proposal-review__row"
-            :class="{
-              'proposal-review__row--active': activeKey === row.key,
-              'proposal-review__row--handled': row.confirmStatus !== 'pending',
-            }"
-            @click="select(row.key)"
-          >
-            <el-checkbox
-              :value="row.key"
-              :disabled="row.confirmStatus !== 'pending'"
-              @click.stop
-              @change="toggle(row.key, $event as boolean)"
-            />
-            <div class="proposal-review__row-main">
-              <div class="proposal-review__row-title">
-                <span class="proposal-review__kind">{{ row.kindLabel }}</span>
-                <span class="proposal-review__name">{{ row.title || row.key }}</span>
-                <el-tag :type="row.confirmMeta.tagType" size="small" effect="light">
-                  {{ row.confirmMeta.label }}
-                </el-tag>
-              </div>
-              <div class="proposal-review__row-meta">
-                <span v-if="moduleNameOf(row.content.moduleId)">
-                  模块：{{ moduleNameOf(row.content.moduleId) }}
-                </span>
-                <span v-if="row.content.sourceRef">来源：{{ row.content.sourceRef }}</span>
-              </div>
+        <div
+          v-for="row in rows"
+          :key="row.key"
+          class="proposal-review__row"
+          :class="{
+            'proposal-review__row--active': activeKey === row.key,
+            'proposal-review__row--handled': row.confirmStatus !== 'pending',
+          }"
+          @click="select(row.key)"
+        >
+          <el-checkbox
+            v-if="canBatch && row.confirmStatus === 'pending'"
+            :value="row.key"
+            :disabled="row.confirmStatus !== 'pending'"
+            @click.stop
+            @change="toggle(row.key, $event as boolean)"
+          />
+          <div class="proposal-review__row-main">
+            <div class="proposal-review__row-title">
+              <span class="proposal-review__kind">{{ row.kindLabel }}</span>
+              <span class="proposal-review__name">{{ row.title || row.key }}</span>
+              <el-tag :type="row.confirmMeta.tagType" size="small" effect="light">
+                {{ row.confirmMeta.label }}
+              </el-tag>
             </div>
-            <div v-if="row.confirmStatus === 'pending'" class="proposal-review__row-actions" @click.stop>
-              <el-button link type="primary" @click="select(row.key); adoptActive()">采纳</el-button>
-              <el-button link type="primary" @click="select(row.key); openEdit()">修改后采纳</el-button>
-              <el-button link type="danger" @click="openReject(row.key)">驳回</el-button>
+            <div class="proposal-review__row-meta">
+              <span v-if="moduleNameOf(row.content.moduleId)">
+                模块：{{ moduleNameOf(row.content.moduleId) }}
+              </span>
+              <span v-if="row.content.sourceRef">来源：{{ row.content.sourceRef }}</span>
+              <span v-for="(warning, index) in row.parsed.warnings" :key="index" class="proposal-review__warning">
+                {{ warning }}
+              </span>
             </div>
           </div>
-        </el-checkbox-group>
+          <div
+            v-if="row.confirmStatus === 'pending' && (canEdit || canReject)"
+            class="proposal-review__row-actions"
+            @click.stop
+          >
+            <el-button v-if="canEdit" link type="primary" @click="select(row.key); adoptActive()">采纳</el-button>
+            <el-button v-if="canEdit" link type="primary" @click="editRow(row.key)">修改后采纳</el-button>
+            <el-button v-if="canReject" link type="danger" @click="openReject(row.key)">驳回</el-button>
+          </div>
+        </div>
 
         <el-empty
           v-if="rows.length === 0"
@@ -307,12 +357,31 @@ const allRejected = computed(
         </el-empty>
       </div>
 
-      <!-- 内容预览：只读渲染当前选中提案 -->
+      <!-- 内容预览：按任务类型策略渲染结构化视图 -->
       <aside class="proposal-review__preview">
         <template v-if="activeRow">
           <div v-loading="loadingContent" class="proposal-review__preview-body">
             <h3 class="proposal-review__preview-title">{{ activeRow.title || activeRow.key }}</h3>
-            <dl class="proposal-review__fields">
+
+            <!-- 编辑后采纳的并排对比：既有值 vs AI 建议 -->
+            <div v-if="activeRow.parsed.compare.length > 0" class="proposal-review__compare">
+              <div
+                v-for="(item, index) in activeRow.parsed.compare"
+                :key="`${item.label}-${index}`"
+                class="proposal-review__compare-row"
+                :class="{ 'proposal-review__compare-row--changed': item.changed }"
+              >
+                <span class="proposal-review__compare-label">{{ item.label }}</span>
+                <span>既有：{{ item.existing }}</span>
+                <span>建议：{{ item.suggested }}</span>
+              </div>
+            </div>
+
+            <dl v-if="activeRow.parsed.fields.length > 0" class="proposal-review__fields">
+              <div v-for="(item, index) in activeRow.parsed.fields" :key="`${item.label}-${index}`" class="proposal-review__field">
+                <dt>{{ item.label }}</dt>
+                <dd>{{ item.value }}</dd>
+              </div>
               <div v-if="moduleNameOf(activeRow.content.moduleId)" class="proposal-review__field">
                 <dt>所属模块</dt>
                 <dd>{{ moduleNameOf(activeRow.content.moduleId) }}</dd>
@@ -321,38 +390,52 @@ const allRejected = computed(
                 <dt>优先级</dt>
                 <dd>{{ activeRow.content.priority }}</dd>
               </div>
-              <div v-if="activeRow.content.sourceRef" class="proposal-review__field">
-                <dt>来源引用</dt>
-                <dd>{{ activeRow.content.sourceRef }}</dd>
-              </div>
             </dl>
+
+            <ol v-if="activeRow.parsed.rankItems.length > 0" class="proposal-review__rank">
+              <li v-for="item in activeRow.parsed.rankItems" :key="item.nodeId">
+                <span>{{ item.rank }}. {{ item.title }}</span>
+                <span v-if="item.reason" class="proposal-review__rank-reason">{{ item.reason }}</span>
+              </li>
+            </ol>
+
+            <div v-if="activeRow.parsed.sourceRefs.length > 0" class="proposal-review__sources">
+              <div v-for="(sourceRef, index) in activeRow.parsed.sourceRefs" :key="`${sourceRef.id}-${index}`">
+                <span class="proposal-review__source-title">{{ sourceRef.title || sourceRef.id }}</span>
+                <span class="proposal-review__source-quote">{{ sourceRef.quote }}</span>
+              </div>
+            </div>
+
             <div class="proposal-review__desc">
               <p
-                v-if="activeRow.content.description"
+                v-if="activeRow.parsed.description || activeRow.content.description"
                 class="proposal-review__desc-text"
-              >{{ activeRow.content.description }}</p>
+              >{{ activeRow.parsed.description || activeRow.content.description }}</p>
               <p v-else class="proposal-review__desc-empty">该提案未提供描述</p>
             </div>
           </div>
-          <div v-if="activeRow.confirmStatus === 'pending'" class="proposal-review__preview-actions">
-            <el-button type="primary" :loading="confirming" @click="adoptActive">采纳</el-button>
-            <el-button :loading="confirming" @click="openEdit">修改后采纳</el-button>
-            <el-button type="danger" plain :loading="confirming" @click="openReject(activeRow.key)">
+          <div v-if="activeRow.confirmStatus === 'pending' && (canEdit || canReject)" class="proposal-review__preview-actions">
+            <el-button v-if="canEdit" type="primary" :loading="confirming" @click="adoptActive">采纳</el-button>
+            <el-button v-if="canEdit" :loading="confirming" @click="openEdit">修改后采纳</el-button>
+            <el-button v-if="canReject" type="danger" plain :loading="confirming" @click="openReject(activeRow.key)">
               驳回（可附反馈）
             </el-button>
           </div>
+          <p v-else-if="activeRow.confirmStatus !== 'pending'" class="proposal-review__readonly">
+            该提案已处理，仅供回看
+          </p>
         </template>
         <el-empty v-else description="选择左侧提案查看详情" :image-size="80" />
       </aside>
     </div>
 
     <!-- 底部批量操作 -->
-    <footer v-if="rows.length > 0" class="proposal-review__foot">
+    <footer v-if="rows.length > 0 && canBatch" class="proposal-review__foot">
       <div class="proposal-review__foot-actions">
-        <el-button type="primary" :disabled="!canBatch" :loading="confirming" @click="batchAdopt">
+        <el-button type="primary" :disabled="!canBatch || selectedCount === 0" :loading="confirming" @click="batchAdopt">
           批量采纳
         </el-button>
-        <el-button type="danger" plain :disabled="!canBatch" :loading="confirming" @click="batchReject">
+        <el-button v-if="canReject" type="danger" plain :disabled="selectedCount === 0" :loading="confirming" @click="batchReject">
           全部驳回
         </el-button>
       </div>
@@ -368,48 +451,84 @@ const allRejected = computed(
       @clear="clearReceipt"
     />
 
-    <!-- 编辑后采纳 -->
-    <el-dialog v-model="editVisible" title="修改后采纳" width="640px" :close-on-click-modal="false">
+    <!-- 编辑后采纳：字段 schema 由任务类型策略决定 -->
+    <el-dialog v-model="editVisible" :title="reviewTitle" width="640px" :close-on-click-modal="false">
       <el-form label-position="top">
-        <el-form-item label="标题" required>
-          <el-input v-model="editForm.title" maxlength="300" show-word-limit placeholder="请输入标题" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input
-            v-model="editForm.description"
-            type="textarea"
-            :rows="6"
-            placeholder="可选，支持纯文本描述"
-          />
-        </el-form-item>
-        <div class="proposal-review__edit-row">
-          <el-form-item label="所属模块">
+        <template v-for="field in editFields" :key="field.key">
+          <el-form-item v-if="field.type === 'ranks'" :label="field.label">
+            <ol class="proposal-review__rank-edit">
+              <li
+                v-for="(item, index) in rankItems"
+                :key="item.nodeId"
+                class="proposal-review__rank-edit-row"
+                :class="{
+                  'proposal-review__rank-edit-row--over': overIndex === index && dragIndex >= 0,
+                  'proposal-review__rank-edit-row--dragging': dragIndex === index,
+                }"
+                draggable="true"
+                @dragstart="onRankDragStart(index)"
+                @dragover.prevent="onRankDragOver(index)"
+                @drop.prevent="onRankDrop(index)"
+                @dragend="onRankDragEnd"
+              >
+                <span class="proposal-review__rank-edit-num">{{ index + 1 }}</span>
+                <span class="proposal-review__rank-edit-title">{{ item.title }}</span>
+                <el-icon class="proposal-review__rank-edit-handle"><OperationIcon /></el-icon>
+              </li>
+            </ol>
+          </el-form-item>
+          <el-form-item v-else-if="field.type === 'select'" :label="field.label">
+            <el-select
+              :model-value="fieldText(field.key)"
+              clearable
+              placeholder="可选"
+              style="width: 100%"
+              @update:model-value="setField(field.key, $event)"
+            >
+              <el-option v-for="option in field.options" :key="option.value" :value="option.value" :label="option.label" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-else-if="field.type === 'tree'" :label="field.label">
             <el-tree-select
-              v-model="editForm.moduleId"
+              :model-value="fieldText(field.key)"
               :data="moduleTree"
               check-strictly
               clearable
               placeholder="可选"
               style="width: 100%"
+              @update:model-value="setField(field.key, $event)"
             />
           </el-form-item>
-          <el-form-item label="优先级">
-            <el-select v-model="editForm.priority" clearable placeholder="可选" style="width: 100%">
-              <el-option v-for="option in priorityOptions" :key="option.value" v-bind="option" />
-            </el-select>
+          <el-form-item v-else-if="field.type === 'textarea' || field.type === 'lines'" :label="field.label">
+            <el-input
+              :model-value="fieldText(field.key)"
+              type="textarea"
+              :rows="field.type === 'lines' ? 4 : 6"
+              :placeholder="field.type === 'lines' ? '每行一条' : '可选，支持纯文本描述'"
+              @update:model-value="setField(field.key, $event)"
+            />
           </el-form-item>
-        </div>
+          <el-form-item v-else :label="field.label" :required="field.required">
+            <el-input
+              :model-value="fieldText(field.key)"
+              :maxlength="field.maxlength"
+              show-word-limit
+              placeholder="请输入标题"
+              @update:model-value="setField(field.key, $event)"
+            />
+          </el-form-item>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :loading="confirming" :disabled="!editForm.title.trim()" @click="submitEdit">
+        <el-button type="primary" :loading="confirming" :disabled="!editValid" @click="submitEdit">
           确认采纳
         </el-button>
       </template>
     </el-dialog>
 
     <!-- 驳回反馈 -->
-    <el-dialog v-model="rejectVisible" title="驳回提案" width="480px" :close-on-click-modal="false">
+    <el-dialog v-if="canReject" v-model="rejectVisible" title="驳回提案" width="480px" :close-on-click-modal="false">
       <el-input
         v-model="rejectNote"
         type="textarea"
@@ -561,6 +680,10 @@ const allRejected = computed(
   font-size: var(--font-size-xs);
 }
 
+.proposal-review__warning {
+  color: var(--color-warning);
+}
+
 .proposal-review__row-actions {
   display: flex;
   flex-shrink: 0;
@@ -589,6 +712,32 @@ const allRejected = computed(
   font-weight: 600;
 }
 
+.proposal-review__compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxs, 2px);
+  margin-bottom: var(--space-sm);
+}
+
+.proposal-review__compare-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-xxs, 2px) var(--space-xs);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-xs);
+}
+
+.proposal-review__compare-row--changed {
+  background: var(--color-warning-light, var(--color-neutral-100));
+}
+
+.proposal-review__compare-label {
+  min-width: 64px;
+  color: var(--color-neutral-500);
+}
+
 .proposal-review__fields {
   margin: 0 0 var(--space-sm);
 }
@@ -608,6 +757,41 @@ const allRejected = computed(
 .proposal-review__field dd {
   margin: 0;
   color: var(--color-neutral-700);
+}
+
+.proposal-review__rank {
+  margin: 0 0 var(--space-sm);
+  padding-left: var(--space-lg);
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+}
+
+.proposal-review__rank li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xxs, 2px);
+}
+
+.proposal-review__rank-reason {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+}
+
+.proposal-review__sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxs, 2px);
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-xs);
+}
+
+.proposal-review__source-title {
+  color: var(--color-primary-500);
+}
+
+.proposal-review__source-quote {
+  color: var(--color-neutral-500);
 }
 
 .proposal-review__desc-text {
@@ -655,9 +839,41 @@ const allRejected = computed(
   gap: var(--space-sm);
 }
 
-.proposal-review__edit-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.proposal-review__rank-edit {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proposal-review__rank-edit-row {
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm, 4px);
+  cursor: grab;
+}
+
+.proposal-review__rank-edit-row--over {
+  border-color: var(--color-primary-500);
+}
+
+.proposal-review__rank-edit-row--dragging {
+  opacity: 0.6;
+}
+
+.proposal-review__rank-edit-num {
+  color: var(--color-primary-500);
+  font-weight: 600;
+}
+
+.proposal-review__rank-edit-title {
+  flex: 1;
+  color: var(--color-neutral-700);
+}
+
+.proposal-review__rank-edit-handle {
+  color: var(--color-neutral-400);
 }
 </style>
