@@ -10,6 +10,7 @@ import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
 import TraceEventList from '@/components/project/ai/TraceEventList.vue'
 import BugClassifyReviewPanel from '@/components/project/bug/BugClassifyReviewPanel.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
+import { reviewProfile } from '@/composables/project/ai/reviewProfiles'
 
 const route = useRoute()
 
@@ -42,10 +43,8 @@ const {
   backToCenter,
 } = useAiTaskDetail()
 
-/** 缺陷批量分类与存量重复扫描走缺陷审核面板；摘要 / 分诊提案只读，留通用面板预览 */
-const isBugReviewTask = computed(
-  () => detail.value?.type === 'bug_classify' || detail.value?.type === 'bug_duplicate_scan',
-)
+/** 审核面板形态由任务类型策略决定，新增任务类型无需改页面分发逻辑 */
+const reviewPanel = computed(() => reviewProfile(detail.value?.type ?? '').panel)
 
 /** 从列表「审核」进入时定位审核区（交互 2.1.2）；审核区在 proposals_ready 后才渲染，待其出现再定位 */
 const focusReview = route.query.review === '1'
@@ -202,7 +201,7 @@ function focusReviewArea(): void {
           <template v-if="showReviewArea">
             <!-- 生成链走三层树审核，其余任务沿用通用审核面板 -->
             <GenerationArtifactTreeReview
-              v-if="detail.type === 'test_design_generation'"
+              v-if="reviewPanel === 'tree'"
               :task-id="detail.taskId"
               :proposals="proposals"
               @confirmed="load"
@@ -210,7 +209,7 @@ function focusReviewArea(): void {
             />
             <!-- 缺陷批量分类与存量重复扫描走缺陷审核面板（详设 3.6 / 3.9） -->
             <BugClassifyReviewPanel
-              v-else-if="isBugReviewTask"
+              v-else-if="reviewPanel === 'bug'"
               :task-id="detail.taskId"
               :task-type="detail.type"
               :proposals="proposals"
