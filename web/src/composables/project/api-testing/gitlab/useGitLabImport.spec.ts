@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   previewGitImport: vi.fn<(repoId: string) => Promise<ApiGitImportPreview>>(),
   startGitImport: vi.fn<(repoId: string) => Promise<ApiGitImportStatus>>(),
   fetchGitImportStatus: vi.fn<(repoId: string) => Promise<ApiGitImportStatus>>(),
-  useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
   unmountHooks: [] as Array<() => void>,
@@ -32,10 +31,6 @@ vi.mock('vue', async () => {
 vi.mock('element-plus', () => ({
   ElMessage: mocks.ElMessage,
   ElMessageBox: mocks.ElMessageBox,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('@/services/project/api-testing/gitRepo', () => ({
@@ -125,14 +120,10 @@ async function flush(times = 10): Promise<void> {
 interface InitOptions {
   repo?: ApiGitRepoConfig
   onImported?: () => void
-  /** 权限判定：缺省全部放行 */
-  can?: (code: string) => boolean
 }
 
 function init(options?: InitOptions) {
   const repo = options?.repo ?? makeRepo()
-  const can = options?.can ?? (() => true)
-  mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn((code: string) => can(code)) })
   const onImported = options?.onImported ?? vi.fn()
   const s = useGitLabImport(() => repo, onImported)
   return { s, onImported, repo }
@@ -297,17 +288,6 @@ describe('useGitLabImport', () => {
       expect(s.previewing.value).toBe(false)
     })
 
-    it('缺 api-scene:view 时预览与执行均不可发起', async () => {
-      mocks.previewGitImport.mockResolvedValue(makePreview())
-      mocks.startGitImport.mockResolvedValue(makeStatus({ stage: 'fetch' }))
-      const { s } = init({ can: () => false })
-      await flush()
-      await s.runPreview()
-      await s.runImport()
-      expect(mocks.previewGitImport).not.toHaveBeenCalled()
-      expect(mocks.ElMessageBox.confirm).not.toHaveBeenCalled()
-      expect(mocks.startGitImport).not.toHaveBeenCalled()
-    })
   })
 
   describe('执行导入', () => {

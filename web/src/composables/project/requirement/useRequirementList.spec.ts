@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   archiveRequirement: vi.fn(),
   unarchiveRequirement: vi.fn(),
   fetchMembers: vi.fn(),
-  useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn() },
   ElMessageBox: { confirm: vi.fn() },
 }))
@@ -25,10 +24,6 @@ vi.mock('@/services/project', () => ({
 
 vi.mock('@/services/workspace', () => ({
   fetchMembers: mocks.fetchMembers,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('element-plus', () => ({
@@ -91,9 +86,6 @@ function setup(): void {
   mocks.archiveRequirement.mockResolvedValue({ status: 'archived' })
   mocks.unarchiveRequirement.mockResolvedValue({ status: 'draft' })
   mocks.ElMessageBox.confirm.mockResolvedValue('confirm')
-  mocks.useAuthStore.mockReturnValue({
-    hasPermission: vi.fn(() => true),
-  })
 }
 
 describe('useRequirementList', () => {
@@ -432,17 +424,12 @@ describe('useRequirementList', () => {
     })
   })
 
-  describe('权限', () => {
-    it('按权限点暴露入口', async () => {
-      const hasPermission = vi.fn(
-        (code: string) => code === 'requirement:create' || code === 'requirement:view',
-      )
-      mocks.useAuthStore.mockReturnValue({ hasPermission })
+  describe('操作入口', () => {
+    it('创建、确认与编辑入口常驻，不依赖权限码', () => {
       const s = useRequirementList()
-      await s.load()
       expect(s.canCreate.value).toBe(true)
-      expect(s.canConfirm.value).toBe(false)
-      expect(s.canEdit.value).toBe(false)
+      expect(s.canConfirm.value).toBe(true)
+      expect(s.canEdit.value).toBe(true)
     })
   })
 })

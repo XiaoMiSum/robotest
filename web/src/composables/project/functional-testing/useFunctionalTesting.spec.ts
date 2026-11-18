@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   useRoute: vi.fn(() => ({ query: {} })),
   useRouter: vi.fn(() => ({ replace: vi.fn() })),
-  permissions: [] as string[],
 }))
 
 vi.mock('vue-router', () => ({
@@ -11,18 +10,11 @@ vi.mock('vue-router', () => ({
   useRouter: mocks.useRouter,
 }))
 
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    hasPermission: (code: string) => mocks.permissions.includes(code),
-  }),
-}))
-
 import { useFunctionalTesting } from './useFunctionalTesting'
 
 describe('useFunctionalTesting', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.permissions = []
     mocks.useRoute.mockReturnValue({ query: {} } as never)
     mocks.useRouter.mockReturnValue({ replace: vi.fn() } as never)
   })
@@ -45,23 +37,14 @@ describe('useFunctionalTesting', () => {
       expect(activeMenu.value).toBe('cases')
     })
 
-    it('无 requirement:view 时隐藏需求列表且 ?tab=requirements 回退 cases', () => {
-      mocks.useRoute.mockReturnValue({ query: { tab: 'requirements' } } as never)
-      const { activeMenu, visibleItems } = useFunctionalTesting()
-      expect(visibleItems.value.map((m) => m.key)).toEqual(['cases', 'reviews', 'plans'])
-      expect(activeMenu.value).toBe('cases')
-    })
-
-    it('持 requirement:view 时需求列表居侧栏首位并可经 ?tab=requirements 落页', () => {
-      mocks.permissions = ['requirement:view']
+    it('需求列表常驻侧栏首位，?tab=requirements 可落页', () => {
       mocks.useRoute.mockReturnValue({ query: { tab: 'requirements' } } as never)
       const { activeMenu, visibleItems } = useFunctionalTesting()
       expect(visibleItems.value.map((m) => m.key)).toEqual(['requirements', 'cases', 'reviews', 'plans'])
       expect(activeMenu.value).toBe('requirements')
     })
 
-    it('无 ?tab 时缺省落测试用例，即使持需求查看权限', () => {
-      mocks.permissions = ['requirement:view']
+    it('无 ?tab 时缺省落测试用例', () => {
       const { activeMenu } = useFunctionalTesting()
       expect(activeMenu.value).toBe('cases')
     })
@@ -113,7 +96,6 @@ describe('useFunctionalTesting', () => {
     })
 
     it('切换到需求列表时写入 requirements tab 并保留既有查询参数', async () => {
-      mocks.permissions = ['requirement:view']
       mocks.useRoute.mockReturnValue({ query: { tab: 'cases', foo: 'bar' } } as never)
       const replace = vi.fn()
       mocks.useRouter.mockReturnValue({ replace } as never)

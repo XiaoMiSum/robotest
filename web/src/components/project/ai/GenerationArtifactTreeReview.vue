@@ -12,7 +12,6 @@ import {
 const props = defineProps<{
   taskId: string
   proposals: AiTaskProposalSummary[]
-  canConfirm: boolean
 }>()
 
 const emit = defineEmits<{ confirmed: []; leave: [] }>()
@@ -22,7 +21,7 @@ const router = useRouter()
 const base = useAiProposalReview(
   props.taskId,
   () => props.proposals,
-  () => props.canConfirm,
+  () => true,
   () => {
     base.syncRows()
     emit('confirmed')
@@ -159,10 +158,7 @@ function adoptSubtree(node: GenerationTreeNode): void {
           已处理 {{ base.processed.value.processed }} / 共 {{ base.processed.value.total }}
         </span>
       </div>
-      <span v-if="!canConfirm" class="gen-review__muted">
-        当前账号无产物确认权限，仅可预览
-      </span>
-      <span v-else class="gen-review__muted">
+      <span class="gen-review__muted">
         采纳按模块 → 文档 → 用例顺序落库，可整树采纳
       </span>
     </header>
@@ -179,7 +175,7 @@ function adoptSubtree(node: GenerationTreeNode): void {
           <el-checkbox
             :model-value="base.allSelected.value"
             :indeterminate="selectedCount > 0 && !base.allSelected.value"
-            :disabled="!canConfirm || base.selectableRows.value.length === 0"
+            :disabled="base.selectableRows.value.length === 0"
             @change="base.toggleAll($event as boolean)"
           >
             全选
@@ -189,7 +185,7 @@ function adoptSubtree(node: GenerationTreeNode): void {
           </span>
         </div>
 
-        <el-checkbox-group v-model="base.selectedKeys.value" :disabled="!canConfirm">
+        <el-checkbox-group v-model="base.selectedKeys.value">
           <div
             v-for="node in tree.visibleNodes.value"
             :key="node.key"
@@ -251,7 +247,7 @@ function adoptSubtree(node: GenerationTreeNode): void {
               </div>
             </div>
             <div
-              v-if="canConfirm && node.row.confirmStatus === 'pending'"
+              v-if="node.row.confirmStatus === 'pending'"
               class="gen-review__row-actions"
               @click.stop
             >
@@ -355,7 +351,7 @@ function adoptSubtree(node: GenerationTreeNode): void {
           </div>
 
           <div
-            v-if="canConfirm && activeNode.row.confirmStatus === 'pending'"
+            v-if="activeNode.row.confirmStatus === 'pending'"
             class="gen-review__preview-actions"
           >
             <el-button
@@ -378,15 +374,12 @@ function adoptSubtree(node: GenerationTreeNode): void {
               @click="openReject(activeNode)"
             >驳回（可附反馈）</el-button>
           </div>
-          <p v-else-if="!canConfirm" class="gen-review__readonly">
-            当前账号无产物确认权限，仅可预览
-          </p>
         </template>
         <el-empty v-else description="选择左侧产物查看详情" :image-size="80" />
       </aside>
     </div>
 
-    <footer v-if="canConfirm && base.rows.value.length > 0" class="gen-review__foot">
+    <footer v-if="base.rows.value.length > 0" class="gen-review__foot">
       <div class="gen-review__foot-actions">
         <el-button
           type="primary"

@@ -18,7 +18,6 @@ const props = defineProps<{
   taskId: string
   taskType: string
   proposals: AiTaskProposalSummary[]
-  canConfirm: boolean
   /** 导入任务的文档级识别版本与依据（详设 3.6.3），其余任务为 null */
   documentMeta?: AiTaskDocumentMeta | null
 }>()
@@ -45,7 +44,6 @@ const {
   processed,
   selectableRows,
   allSelected,
-  canConfirm,
   NOTE_MAX_LENGTH,
   syncRows,
   init,
@@ -62,7 +60,7 @@ const {
 } = useAiProposalReview(
   props.taskId,
   () => props.proposals,
-  () => props.canConfirm,
+  () => true,
   () => {
     syncRows()
     emit('confirmed')
@@ -190,7 +188,7 @@ function batchReject(): void {
 }
 
 const selectedCount = computed(() => selectedKeys.value.length)
-const canBatch = computed(() => canConfirm.value && selectedCount.value > 0)
+const canBatch = computed(() => selectedCount.value > 0)
 /** 提案全驳回 → 审核区空态「已全部驳回」（交互 2.4.3） */
 const allRejected = computed(
   () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),
@@ -209,7 +207,7 @@ const allRejected = computed(
         </span>
       </div>
       <!-- 系统版本：导入预填识别版本并悬浮依据引语，未识别给补录提示（交互 06 §2.4） -->
-      <div v-if="isRequirementDomain && canConfirm" class="proposal-review__version">
+      <div v-if="isRequirementDomain" class="proposal-review__version">
         <span class="proposal-review__version-label">版本</span>
         <el-input
           :model-value="versionValue"
@@ -231,7 +229,7 @@ const allRejected = computed(
 
     <!-- 拆分场景批量提示（交互 06 §2.4.2） -->
     <el-alert
-      v-if="isRequirementDomain && taskType === 'requirement_split' && canConfirm"
+      v-if="isRequirementDomain && taskType === 'requirement_split'"
       type="info"
       :title="`新条目将继承原条目版本${versionTouched && versionValue.trim() ? `（当前值：${versionValue.trim()}）` : ''}、原条目将归档`"
       show-icon
@@ -252,7 +250,7 @@ const allRejected = computed(
           <el-checkbox
             :model-value="allSelected"
             :indeterminate="selectedCount > 0 && !allSelected"
-            :disabled="!canConfirm || selectableRows.length === 0"
+            :disabled="selectableRows.length === 0"
             @change="toggleAll($event as boolean)"
           >
             全选
@@ -260,7 +258,7 @@ const allRejected = computed(
           <span class="proposal-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
         </div>
 
-        <el-checkbox-group v-model="selectedKeys" :disabled="!canConfirm">
+        <el-checkbox-group v-model="selectedKeys">
           <div
             v-for="row in rows"
             :key="row.key"
@@ -292,7 +290,7 @@ const allRejected = computed(
                 <span v-if="row.content.sourceRef">来源：{{ row.content.sourceRef }}</span>
               </div>
             </div>
-            <div v-if="canConfirm && row.confirmStatus === 'pending'" class="proposal-review__row-actions" @click.stop>
+            <div v-if="row.confirmStatus === 'pending'" class="proposal-review__row-actions" @click.stop>
               <el-button link type="primary" @click="select(row.key); adoptActive()">采纳</el-button>
               <el-button link type="primary" @click="select(row.key); openEdit()">修改后采纳</el-button>
               <el-button link type="danger" @click="openReject(row.key)">驳回</el-button>
@@ -336,21 +334,20 @@ const allRejected = computed(
               <p v-else class="proposal-review__desc-empty">该提案未提供描述</p>
             </div>
           </div>
-          <div v-if="canConfirm && activeRow.confirmStatus === 'pending'" class="proposal-review__preview-actions">
+          <div v-if="activeRow.confirmStatus === 'pending'" class="proposal-review__preview-actions">
             <el-button type="primary" :loading="confirming" @click="adoptActive">采纳</el-button>
             <el-button :loading="confirming" @click="openEdit">修改后采纳</el-button>
             <el-button type="danger" plain :loading="confirming" @click="openReject(activeRow.key)">
               驳回（可附反馈）
             </el-button>
           </div>
-          <p v-else-if="!canConfirm" class="proposal-review__readonly">当前账号无提案确认权限，仅可预览</p>
         </template>
         <el-empty v-else description="选择左侧提案查看详情" :image-size="80" />
       </aside>
     </div>
 
     <!-- 底部批量操作 -->
-    <footer v-if="canConfirm && rows.length > 0" class="proposal-review__foot">
+    <footer v-if="rows.length > 0" class="proposal-review__foot">
       <div class="proposal-review__foot-actions">
         <el-button type="primary" :disabled="!canBatch" :loading="confirming" @click="batchAdopt">
           批量采纳

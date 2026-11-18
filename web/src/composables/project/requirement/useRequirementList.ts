@@ -9,7 +9,6 @@ import {
 } from '@/services/project'
 import { fetchAiStatus } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
-import { useAuthStore } from '@/stores/auth'
 import { useRequirementStore } from '@/stores/requirement'
 import type {
   ProjectModule,
@@ -37,7 +36,6 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function useRequirementList() {
-  const authStore = useAuthStore()
   const requirementStore = useRequirementStore()
 
   const loading = ref(false)
@@ -243,10 +241,10 @@ export function useRequirementList() {
     )
   }
 
-  // ==================== 权限 ====================
-  const canCreate = computed(() => authStore.hasPermission('requirement:create'))
-  const canConfirm = computed(() => authStore.hasPermission('requirement:confirm'))
-  const canEdit = computed(() => authStore.hasPermission('requirement:edit'))
+  // ==================== 操作入口 ====================
+  const canCreate = computed(() => true)
+  const canConfirm = computed(() => true)
+  const canEdit = computed(() => true)
 
   // ==================== 批量选择与 AI 发起 ====================
   const selectedRows = ref<RequirementRow[]>([])
@@ -265,10 +263,8 @@ export function useRequirementList() {
     }
   }
 
-  /** 发起入口显隐：AI 可用且具备任务提交权限（后端 submit 口径 ai:task） */
-  const canLaunchAi = computed(
-    () => aiAvailable.value && authStore.hasPermission('ai:task'),
-  )
+  /** 发起入口随 AI 可用性显隐，行状态条件由生成对话框置灰 */
+  const canLaunchAi = computed(() => aiAvailable.value)
 
   onMounted(() => {
     // 保活回填：从详情页返回时沿用上次筛选与页码

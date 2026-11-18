@@ -1,10 +1,9 @@
 import { computed, ref, type ComputedRef } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchAiStatus } from '@/services/ai'
-import { useAuthStore } from '@/stores/auth'
 
 /**
- * 智能助手入口显隐：AI 总开关可用、具备 ai:task 权限且处于工作空间上下文
+ * 智能助手入口显隐：AI 总开关可用且处于工作空间上下文
  * （总册 4.5 / 交互 05 §1，「我的空间」页 mode=none 不提供上下文故隐藏）。
  * 不在内部挂载生命周期，由入口组件挂载时调用 refresh()，便于测试与调用时机控制。
  */
@@ -12,7 +11,6 @@ export function useAssistantEntrance(): {
   visible: ComputedRef<boolean>
   refresh: () => Promise<void>
 } {
-  const authStore = useAuthStore()
   const route = useRoute()
   const aiAvailable = ref(false)
 
@@ -25,9 +23,7 @@ export function useAssistantEntrance(): {
     }
   }
 
-  const visible = computed(
-    () => aiAvailable.value && authStore.hasPermission('ai:task') && route.meta.mode !== 'none',
-  )
+  const visible = computed(() => aiAvailable.value && route.meta.mode !== 'none')
 
   return { visible, refresh }
 }

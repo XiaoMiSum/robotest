@@ -299,7 +299,7 @@ describe('AssistComparePanel', () => {
   })
 
   describe('状态分支与回执', () => {
-    it('无编辑权限时置灰并提示原因', () => {
+    it('只读节点置灰并提示原因', () => {
       const wrapper = mountPanel('case_complete', {
         rows: [completeRow()],
         canAdopt: false,
@@ -308,7 +308,7 @@ describe('AssistComparePanel', () => {
       expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '驳回').attributes('disabled')).toBeDefined()
-      expect(wrapper.text()).toContain('当前节点只读或没有建议采纳权限')
+      expect(wrapper.text()).toContain('当前节点只读')
     })
 
     it('逐项回执渲染成败并可清空', async () => {

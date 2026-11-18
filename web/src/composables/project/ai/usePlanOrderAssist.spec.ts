@@ -7,14 +7,10 @@ import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
-  hasPermission: vi.fn(),
   useAssistTask: vi.fn(),
 }))
 
 vi.mock('@/services/ai', () => ({ fetchAiStatus: mocks.fetchAiStatus }))
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({ hasPermission: mocks.hasPermission }),
-}))
 vi.mock('@/composables/project/ai/useAssistTask', () => ({
   useAssistTask: mocks.useAssistTask,
 }))
@@ -86,7 +82,6 @@ describe('usePlanOrderAssist', () => {
     task = fakeTask()
     mocks.useAssistTask.mockReturnValue(task)
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
-    mocks.hasPermission.mockReturnValue(true)
     onConfirmed = vi.fn()
   })
 
@@ -108,17 +103,11 @@ describe('usePlanOrderAssist', () => {
     expect(options.target()).toEqual({ planId: 'p1' })
   })
 
-  it('AI 未启用 / 缺少 ai:task 时入口隐藏', async () => {
+  it('AI 未启用时入口隐藏', async () => {
     mocks.fetchAiStatus.mockResolvedValue({ available: false })
     const hidden = mountEntry()
     await flushPromises()
     expect(hidden.entryVisible.value).toBe(false)
-
-    mocks.fetchAiStatus.mockResolvedValue({ available: true })
-    mocks.hasPermission.mockReturnValue(false)
-    const noPermission = mountEntry()
-    await flushPromises()
-    expect(noPermission.entryVisible.value).toBe(false)
   })
 
   it('发起打开面板并按 planId 提交', async () => {

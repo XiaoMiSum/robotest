@@ -11,7 +11,6 @@ import type { AiAssistantConversation, AiAssistantIntent, AiAssistantMessage } f
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
-  hasPermission: vi.fn(),
   fetchAiAssistantConversations: vi.fn(),
   createAiAssistantConversation: vi.fn(),
   updateAiAssistantConversation: vi.fn(),
@@ -94,7 +93,6 @@ vi.mock('@/stores/auth', async () => {
   mocks.authState = state
   return {
     useAuthStore: () => ({
-      hasPermission: mocks.hasPermission,
       get activeWorkspaceId(): string | null {
         return state.activeWorkspaceId
       },
@@ -191,7 +189,6 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
-    mocks.hasPermission.mockReturnValue(true)
     if (mocks.authState) mocks.authState.activeWorkspaceId = 'ws-1'
     mocks.fetchAiAssistantConversations.mockResolvedValue({
       list: [makeConversation()],
@@ -211,13 +208,6 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
 
   it('AI 不可用时悬浮球不渲染', async () => {
     mocks.fetchAiStatus.mockResolvedValue({ available: false })
-    const wrapper = await mountEntry()
-
-    expect(wrapper.find('.ai-entry').exists()).toBe(false)
-  })
-
-  it('缺少 ai:task 权限时悬浮球不渲染', async () => {
-    mocks.hasPermission.mockReturnValue(false)
     const wrapper = await mountEntry()
 
     expect(wrapper.find('.ai-entry').exists()).toBe(false)

@@ -1,7 +1,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import {
   createGitRepo,
   deleteGitRepo,
@@ -76,9 +75,6 @@ export interface GitLabRepoForm {
 export type GitLabTab = 'basic' | 'import'
 
 export function useGitLabRepo() {
-  const authStore = useAuthStore()
-  const canEdit = computed(() => authStore.hasPermission('api-env:edit'))
-
   const loading = ref(false)
   const loadFailed = ref(false)
   const repo = ref<ApiGitRepoConfig | null>(null)
@@ -157,10 +153,6 @@ export function useGitLabRepo() {
   }
 
   function startCreate(): void {
-    if (!canEdit.value) {
-      ElMessage.warning('无 GitLab 配置编辑权限')
-      return
-    }
     resetForm()
     resetTestState()
     creating.value = true
@@ -168,7 +160,6 @@ export function useGitLabRepo() {
   }
 
   function setImportMode(mode: ApiGitImportMode): void {
-    if (!canEdit.value) return
     form.importMode = mode
   }
 
@@ -220,10 +211,6 @@ export function useGitLabRepo() {
   }
 
   async function save(): Promise<void> {
-    if (!canEdit.value) {
-      ElMessage.warning('无 GitLab 配置编辑权限')
-      return
-    }
     const invalid = validate()
     if (invalid) {
       ElMessage.warning(invalid)
@@ -286,7 +273,7 @@ export function useGitLabRepo() {
   }
 
   async function handleDelete(): Promise<void> {
-    if (!repo.value || !canEdit.value) return
+    if (!repo.value) return
     try {
       await ElMessageBox.confirm(
         '删除后本项目不再与该仓库绑定，已导入场景保留并标记「来源已移除」，可查看与编辑但不可再由流水线引擎执行。'
@@ -313,7 +300,6 @@ export function useGitLabRepo() {
   onMounted(() => void load())
 
   return {
-    canEdit,
     loading,
     loadFailed,
     repo,

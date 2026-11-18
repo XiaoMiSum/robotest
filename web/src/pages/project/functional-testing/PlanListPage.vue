@@ -2,7 +2,6 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useAuthStore } from '@/stores/auth'
 import {
   completePlan,
   createPlan,
@@ -52,7 +51,6 @@ const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
 })
 
 const router = useRouter()
-const authStore = useAuthStore()
 const loading = ref(false)
 const hasLoaded = ref(false)
 const loadError = ref('')
@@ -72,10 +70,10 @@ const emptyTitle = computed(() =>
         ? '没有符合条件的计划'
         : '暂无计划',
 )
-// 权限判断与后端授权同源，表格只接收可用操作结果。
-const canCompletePlans = computed(() => authStore.hasPermission('plan:execute'))
-const canResumePlans = computed(() => authStore.hasPermission('plan:block'))
-const canEditPlans = computed(() => authStore.hasPermission('plan:execute'))
+// 前端不再按权限码隐藏计划操作，状态条件由 PlanListTable 收口，服务端授权兜底
+const canCompletePlans = true
+const canResumePlans = true
+const canEditPlans = true
 const statusOptions = (Object.keys(PLAN_STATUS_META) as PlanStatus[]).map((value) => ({
   value,
   label: PLAN_STATUS_META[value].label,

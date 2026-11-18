@@ -6,7 +6,6 @@ import type { ApiEnvironmentListItem } from '@/types'
 import EnvironmentDetailPanel from './EnvironmentDetailPanel.vue'
 
 const {
-  canEdit,
   listLoading,
   loadError,
   selectedId,
@@ -91,7 +90,7 @@ async function submitEditDialog() {
             <el-icon><Plus /></el-icon>新建
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item :disabled="!canEdit" @click="openImportDialog">导入环境</el-dropdown-item>
+                <el-dropdown-item @click="openImportDialog">导入环境</el-dropdown-item>
                 <el-dropdown-item :disabled="!selectedId" @click="handleExport">导出当前环境</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -137,7 +136,7 @@ async function submitEditDialog() {
                   </el-tooltip>
                   <el-tag v-if="item.isDefault" size="small" type="warning" effect="light">默认</el-tag>
                   <el-button
-                    v-else-if="canEdit"
+                    v-else
                     link
                     size="small"
                     class="env-item__set-default"
@@ -150,7 +149,7 @@ async function submitEditDialog() {
                 {{ item.httpConfigCount }} HTTP · {{ item.variableCount }} 变量 · {{ item.dataSourceCount }} 数据源 ·
                 {{ item.processorCount }} 处理器
               </div>
-              <div v-if="canEdit" class="env-item__acts">
+              <div class="env-item__acts">
                 <el-button link size="small" :disabled="!canMove(item, -1)" @click.stop="handleMoveItem(item, -1)">
                   上移
                 </el-button>
@@ -174,7 +173,7 @@ async function submitEditDialog() {
           key="create"
           mode="create"
           :seed="createSeed"
-          :can-edit="canEdit"
+          :can-edit="true"
           @created="handleCreated"
           @cancelled="exitCreate"
           @dirty-change="createDirty = $event"
@@ -183,7 +182,7 @@ async function submitEditDialog() {
           v-else-if="selectedId"
           :key="selectedId"
           :environment-id="selectedId"
-          :can-edit="canEdit"
+          :can-edit="true"
           @changed="loadList()"
         />
         <div v-else class="env-empty env-empty--wide">

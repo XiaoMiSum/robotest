@@ -126,11 +126,11 @@ describe('PlanOrderPanel', () => {
     expect(wrapper.emitted('adoptEdited')).toBeUndefined()
   })
 
-  it('无执行权限时置灰并提示原因', () => {
+  it('计划状态不允许执行时置灰并提示原因', () => {
     const wrapper = mountPanel({ canAdopt: false })
 
     expect(actionButton(wrapper, '应用建议').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.plan-order__reason-text').text()).toBe('当前账号没有计划执行权限')
+    expect(wrapper.find('.plan-order__reason-text').text()).toBe('当前计划状态不可执行')
   })
 
   it('建议已采纳后提示失效并禁止重复应用', () => {

@@ -21,7 +21,6 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
   confirm: vi.fn(),
-  hasPermission: vi.fn(),
 }))
 vi.mock('@/services/project', () => ({
   fetchPlans: mocks.fetch,
@@ -33,7 +32,6 @@ vi.mock('@/services/project', () => ({
   updatePlan: mocks.update,
   getPlanReplanStatus: mocks.status,
 }))
-vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ hasPermission: mocks.hasPermission }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('element-plus', async (original) => ({
   ...(await original<typeof import('element-plus')>()),
@@ -112,7 +110,6 @@ beforeEach(() => {
   mocks.update.mockResolvedValue(detail)
   mocks.status.mockResolvedValue({ status: 'succeeded', message: '规划完成', requestedAt: null, finishedAt: null })
   mocks.confirm.mockResolvedValue('confirm')
-  mocks.hasPermission.mockReturnValue(true)
 })
 afterEach(() => {
   wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
@@ -197,16 +194,12 @@ describe('计划列表样板', () => {
   })
 
   it.each([
-    ['new', 'plan:execute', true, false],
-    ['in_progress', 'plan:execute', true, false],
-    ['blocked', 'plan:block', false, true],
-    ['blocked', 'plan:execute', false, false],
-    ['in_progress', 'plan:block', false, false],
-    ['completed', 'plan:execute', false, false],
-    ['closed', 'plan:block', false, false],
-    ['new', '', false, false],
-  ] as const)('%s 状态与 %s 权限共同约束操作', async (status, permission, complete, resume) => {
-    mocks.hasPermission.mockImplementation((value: string) => value === permission)
+    ['new', true, false],
+    ['in_progress', true, false],
+    ['blocked', false, true],
+    ['completed', false, false],
+    ['closed', false, false],
+  ] as const)('%s 状态约束完成与恢复操作', async (status, complete, resume) => {
     mocks.fetch.mockResolvedValueOnce({ list: [{ ...row, status }], total: 1 })
     const wrapper = render()
     await flushPromises()
@@ -241,12 +234,16 @@ describe('计划列表样板', () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(4)
   })
 
-  it('缺少 plan:execute 时不显示编辑入口', async () => {
-    mocks.hasPermission.mockImplementation((value: string) => value !== 'plan:execute')
-    mocks.fetch.mockResolvedValue({ list: [row], total: 1 })
-    const wrapper = render()
+  it('编辑入口仅随计划状态显隐', async () => {
+    mocks.fetch.mockResolvedValue({ list: [{ ...row, status: 'new' }], total: 1 })
+    const active = render()
     await flushPromises()
-    expect(wrapper.findAll('.plan-table button').some((item) => item.text() === '编辑')).toBe(false)
+    expect(active.findAll('.plan-table button').some((item) => item.text() === '编辑')).toBe(true)
+
+    mocks.fetch.mockResolvedValue({ list: [{ ...row, status: 'completed' }], total: 1 })
+    const finished = render()
+    await flushPromises()
+    expect(finished.findAll('.plan-table button').some((item) => item.text() === '编辑')).toBe(false)
   })
 
   async function openEdit(wrapper: ReturnType<typeof mount>) {

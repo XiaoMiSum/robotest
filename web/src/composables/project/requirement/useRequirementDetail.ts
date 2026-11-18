@@ -12,7 +12,6 @@ import {
 } from '@/services/project'
 import { fetchAiStatus } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
-import { useAuthStore } from '@/stores/auth'
 import { useRequirementStore } from '@/stores/requirement'
 import type {
   ProjectModule,
@@ -51,7 +50,6 @@ function errorCode(error: unknown): number | undefined {
 export function useRequirementDetail() {
   const route = useRoute()
   const router = useRouter()
-  const authStore = useAuthStore()
   const requirementStore = useRequirementStore()
 
   const requirementId = String(route.params.requirementId ?? '')
@@ -151,7 +149,7 @@ export function useRequirementDetail() {
 
   /** 进入编辑前回填服务端当前值，丢弃上次残留的草稿 */
   function startEdit(): void {
-    if (isReadonly.value || !canEdit.value || !detail.value) return
+    if (isReadonly.value || !detail.value) return
     syncEditable(detail.value)
     editing.value = true
   }
@@ -375,30 +373,21 @@ export function useRequirementDetail() {
     }
   }
 
-  /** 发起 AI 生成入口（交互 04 §1）：AI 可用且具备任务提交权限，状态条件由入口置灰 */
-  const canLaunchGeneration = computed(
-    () => aiAvailable.value && authStore.hasPermission('ai:task'),
-  )
+  /** 发起 AI 生成入口（交互 04 §1）：AI 可用时展示，状态条件由入口置灰 */
+  const canLaunchGeneration = computed(() => aiAvailable.value)
 
   // ==================== 派生状态 ====================
   const isReadonly = computed(() => (detail.value ? isRequirementReadonly(detail.value) : false))
   const canConfirm = computed(
     () =>
-      authStore.hasPermission('requirement:confirm') &&
       detail.value !== null &&
       (detail.value.status === 'draft' || detail.value.status === 'changed'),
   )
   const canArchive = computed(
-    () =>
-      authStore.hasPermission('requirement:confirm') &&
-      detail.value !== null &&
-      detail.value.status !== 'archived',
+    () => detail.value !== null && detail.value.status !== 'archived',
   )
-  const canUnarchive = computed(
-    () =>
-      authStore.hasPermission('requirement:edit') && detail.value?.status === 'archived',
-  )
-  const canEdit = computed(() => authStore.hasPermission('requirement:edit'))
+  const canUnarchive = computed(() => detail.value?.status === 'archived')
+  const canEdit = computed(() => true)
   const canLoadMoreLogs = computed(() => logs.value.length < logsTotal.value)
 
   onMounted(() => {

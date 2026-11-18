@@ -1,6 +1,5 @@
 import { computed, onMounted, ref } from 'vue'
 import { fetchAiStatus } from '@/services/ai'
-import { useAuthStore } from '@/stores/auth'
 import { useAssistTask } from '@/composables/project/ai/useAssistTask'
 
 export interface PlanOrderAssistOptions {
@@ -11,10 +10,9 @@ export interface PlanOrderAssistOptions {
 
 /**
  * 测试计划详情「执行顺序建议」入口（详设 5.1 / 交互 2.2）：
- * 入口显隐由 AI 可用性与 ai:task 决定，计划权限由页面按钮条件收口。
+ * 入口显隐由 AI 可用性决定，计划权限由页面按钮条件收口。
  */
 export function usePlanOrderAssist(options: PlanOrderAssistOptions) {
-  const authStore = useAuthStore()
   const aiAvailable = ref(false)
 
   async function loadAvailability(): Promise<void> {
@@ -28,9 +26,7 @@ export function usePlanOrderAssist(options: PlanOrderAssistOptions) {
 
   onMounted(loadAvailability)
 
-  const entryVisible = computed(
-    () => aiAvailable.value && authStore.hasPermission('ai:task'),
-  )
+  const entryVisible = computed(() => aiAvailable.value)
 
   const panelVisible = ref(false)
   const task = useAssistTask('plan_order', {

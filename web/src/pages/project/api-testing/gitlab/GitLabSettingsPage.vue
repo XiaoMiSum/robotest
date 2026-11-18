@@ -3,7 +3,6 @@ import { useGitLabRepo } from '@/composables/project/api-testing/gitlab/useGitLa
 import GitLabImportPane from './GitLabImportPane.vue'
 
 const {
-  canEdit,
   loading,
   loadFailed,
   repo,
@@ -64,7 +63,7 @@ const CI_MODE_HINT =
         <span class="gl-state__icon"><el-icon :size="40"><Connection /></el-icon></span>
         <div class="gl-state__title">尚未配置 GitLab 仓库</div>
         <p class="gl-state__desc">连接 GitLab 上的 Maven 测试工程，把其中的测试方法导入为接口测试场景</p>
-        <el-button v-if="canEdit" type="primary" @click="startCreate">立即配置</el-button>
+        <el-button type="primary" @click="startCreate">立即配置</el-button>
         <ul class="gl-reqs">
           <li><el-icon><CircleCheckFilled /></el-icon><span>测试工程为 Maven + TestNG + Ryze 结构</span></li>
           <li>
@@ -105,7 +104,7 @@ const CI_MODE_HINT =
         </button>
 
         <!-- 删除不与保存平级：移入 [⋯] 更多菜单（交互稿 27 §1） -->
-        <el-dropdown v-if="canEdit && !creating" trigger="click" @command="handleDelete">
+        <el-dropdown v-if="!creating" trigger="click" @command="handleDelete">
           <el-button class="gl-more" circle size="small" title="更多操作">
             <el-icon><MoreFilled /></el-icon>
           </el-button>
@@ -128,24 +127,16 @@ const CI_MODE_HINT =
 
       <!-- ============ 基础配置 ============ -->
       <div v-show="activeTab === 'basic'" class="gl-panel">
-        <el-alert
-          v-if="!canEdit"
-          class="gl-readonly"
-          type="info"
-          :closable="false"
-          title="当前账号缺少 api-env:edit 权限，本页只读；连接测试与配置维护操作不可用"
-        />
-
         <form class="gl-form" @submit.prevent="save">
           <div class="gl-grid">
             <div class="gl-field">
               <label class="gl-field__label">名称<span class="gl-field__req">*</span></label>
-              <el-input v-model="form.name" :disabled="!canEdit" maxlength="200" placeholder="如：订单接口自动化" />
+              <el-input v-model="form.name" maxlength="200" placeholder="如：订单接口自动化" />
               <div class="gl-field__hint">≤ 200 字符</div>
             </div>
             <div class="gl-field">
               <label class="gl-field__label">GitLab 地址<span class="gl-field__req">*</span></label>
-              <el-input v-model="form.gitlabBaseUrl" :disabled="!canEdit" placeholder="https://gitlab.example.com" />
+              <el-input v-model="form.gitlabBaseUrl" placeholder="https://gitlab.example.com" />
               <div class="gl-field__hint">仅 http/https，结尾不留 / · 支持自建实例</div>
             </div>
             <div class="gl-field">
@@ -154,7 +145,6 @@ const CI_MODE_HINT =
                 v-model="form.token"
                 type="password"
                 show-password
-                :disabled="!canEdit"
                 :placeholder="creating ? '需 api scope 与仓库读取权限' : '仅写不读，留空表示不修改'"
               />
               <div class="gl-field__hint">
@@ -163,19 +153,19 @@ const CI_MODE_HINT =
             </div>
             <div class="gl-field">
               <label class="gl-field__label">测试源码目录</label>
-              <el-input v-model="form.testSourceDir" :disabled="!canEdit" placeholder="src/test/java" />
+              <el-input v-model="form.testSourceDir" placeholder="src/test/java" />
               <div class="gl-field__hint">缺省 src/test/java</div>
             </div>
             <div class="gl-field">
               <label class="gl-field__label">资源目录</label>
-              <el-input v-model="form.resourceDir" :disabled="!canEdit" placeholder="src/test/resources" />
+              <el-input v-model="form.resourceDir" placeholder="src/test/resources" />
               <div class="gl-field__hint">缺省 src/test/resources</div>
             </div>
             <div class="gl-field">
               <label class="gl-field__label">环境声明文件路径</label>
               <el-input
                 v-model="form.envFilePath"
-                :disabled="!canEdit || !isPlatformMode"
+                :disabled="!isPlatformMode"
                 placeholder="common/env/env.yaml"
               />
               <div class="gl-field__hint">
@@ -186,7 +176,7 @@ const CI_MODE_HINT =
 
           <!-- 重复导入覆盖：流水线执行下不生效，不渲染（交互稿 27 §3.1） -->
           <div v-if="isPlatformMode" class="gl-switch-field">
-            <el-switch v-model="form.reimportOverwrite" :disabled="!canEdit" />
+            <el-switch v-model="form.reimportOverwrite" />
             <div class="gl-switch-field__text">
               <span class="gl-switch-field__label">重复导入覆盖</span>
               <span class="gl-field__hint">默认关；开启后再次导入将用仓库内容覆盖平台侧场景内容</span>
@@ -224,12 +214,12 @@ const CI_MODE_HINT =
             <div class="gl-grid">
               <div class="gl-field">
                 <label class="gl-field__label">项目路径<span class="gl-field__req">*</span></label>
-                <el-input v-model="form.repoPath" :disabled="!canEdit" placeholder="group/subgroup/repo" />
+                <el-input v-model="form.repoPath" placeholder="group/subgroup/repo" />
                 <div class="gl-field__hint">形如 group/subgroup/repo，不以 / 开头，不含 .git 后缀与协议前缀</div>
               </div>
               <div class="gl-field">
                 <label class="gl-field__label">默认分支</label>
-                <el-input v-model="form.defaultBranch" :disabled="!canEdit" placeholder="master" />
+                <el-input v-model="form.defaultBranch" placeholder="master" />
                 <div class="gl-field__hint">缺省 master，连通性测试通过后回显实际分支名</div>
               </div>
             </div>
@@ -242,7 +232,6 @@ const CI_MODE_HINT =
                   type="button"
                   class="gl-mode"
                   :class="{ 'is-active': form.importMode === 'platform' }"
-                  :disabled="!canEdit"
                   @click="setImportMode('platform')"
                 >
                   <span class="gl-mode__head">
@@ -257,7 +246,6 @@ const CI_MODE_HINT =
                   type="button"
                   class="gl-mode"
                   :class="{ 'is-active': form.importMode === 'gitlab_ci' }"
-                  :disabled="!canEdit"
                   @click="setImportMode('gitlab_ci')"
                 >
                   <span class="gl-mode__head">
@@ -274,7 +262,7 @@ const CI_MODE_HINT =
           </div>
 
           <!-- 只读态整行不渲染，避免留下无按钮的分隔线（交互稿 27 §4） -->
-          <div v-if="canEdit" class="gl-actions">
+          <div class="gl-actions">
             <el-button :loading="testing" @click="runConnectionTest">连通性测试</el-button>
             <span v-if="testOk !== null" class="gl-result" :class="testOk ? 'gl-result--ok' : 'gl-result--fail'">
               <template v-if="testOk">
@@ -464,10 +452,6 @@ const CI_MODE_HINT =
 
 .gl-panel {
   padding-top: var(--space-lg);
-}
-
-.gl-readonly {
-  margin-bottom: var(--space-md);
 }
 
 /* 窄窗口两列，宽窗口三列 */

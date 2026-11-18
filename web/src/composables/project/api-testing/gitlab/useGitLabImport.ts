@@ -1,6 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useAuthStore } from '@/stores/auth'
 import {
   fetchGitImportStatus,
   previewGitImport,
@@ -88,11 +87,6 @@ export function buildImportConfirmText(config: ApiGitRepoConfig): string {
  * @param onImported 导入完成回调：用于重拉仓库配置（上次导入信息条、源有更新徽标数据）
  */
 export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported: () => void) {
-  const authStore = useAuthStore()
-  /** 预览与进度查询为 api-scene:view，执行导入为 api-scene:edit（详设 3.2 权限口径） */
-  const canPreview = computed(() => authStore.hasPermission('api-scene:view'))
-  const canExecute = computed(() => authStore.hasPermission('api-scene:edit'))
-
   const previewing = ref(false)
   const preview = ref<ApiGitImportPreview | null>(null)
   /** 幂等拦截提示态（交互稿 27 §4：info 色信息条而非错误条，附 [查看上次结果]） */
@@ -170,7 +164,7 @@ export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported:
 
   async function runPreview(): Promise<void> {
     const current = repo()
-    if (!current || !canPreview.value || previewing.value) return
+    if (!current || previewing.value) return
     // 重新扫描先清上一次结果，loading 期间既不展示旧明细也不闪现空态引导（交互稿 27 §3.2）
     preview.value = null
     detailFilter.value = 'parsed'
@@ -197,7 +191,7 @@ export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported:
   async function runImport(): Promise<void> {
     const current = repo()
     // 执行导入以预览通过为前置（交互稿 27 §3.2）：无预览或闸门拦截态（preview 已清空）直接不可执行
-    if (!current || !canExecute.value || !preview.value || submitting.value || importing.value) return
+    if (!current || !preview.value || submitting.value || importing.value) return
     try {
       await ElMessageBox.confirm(buildImportConfirmText(current), '执行导入', {
         type: 'warning',
@@ -237,8 +231,6 @@ export function useGitLabImport(repo: () => ApiGitRepoConfig | null, onImported:
   onBeforeUnmount(stopPolling)
 
   return {
-    canPreview,
-    canExecute,
     previewing,
     preview,
     gateBlocked,

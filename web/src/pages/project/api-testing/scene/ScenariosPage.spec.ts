@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
   fetchGitRepo: vi.fn<() => Promise<ApiGitRepoConfig | null>>(),
   fetchProjectModuleTree: vi.fn<(assetType: string) => Promise<ProjectModule[]>>(),
   routerPush: vi.fn(),
-  useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn<() => Promise<void>>() },
 }))
@@ -37,10 +36,6 @@ vi.mock('element-plus', async () => {
   const actual = await vi.importActual<typeof import('element-plus')>('element-plus')
   return { ...actual, ElMessage: mocks.ElMessage, ElMessageBox: mocks.ElMessageBox }
 })
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
-}))
 
 vi.mock('@/services/project/api-testing/scene', async () => {
   const actual = await vi.importActual<typeof import('@/services/project/api-testing/scene')>(
@@ -171,7 +166,6 @@ async function changeSelect(wrapper: VueWrapper, placeholder: string, value: str
 describe('ScenariosPage GitLab 来源与源状态展示', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(true) })
     mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
   })
 
@@ -243,7 +237,6 @@ describe('ScenariosPage GitLab 来源与源状态展示', () => {
 describe('ScenariosPage 仓库级「源有更新」提示条', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(true) })
     mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
   })
 
@@ -286,7 +279,6 @@ describe('ScenariosPage 仓库级「源有更新」提示条', () => {
 describe('ScenariosPage KeepAlive 恢复时列表刷新', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(true) })
     mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
     mocks.fetchScenePage.mockResolvedValue({ list: [makeScene()], total: 1 })
     mocks.fetchGitRepo.mockResolvedValue(makeRepo())
@@ -313,7 +305,6 @@ describe('ScenariosPage KeepAlive 恢复时列表刷新', () => {
 describe('ScenariosPage 列表样板对齐', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn().mockReturnValue(true) })
     mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
   })
 

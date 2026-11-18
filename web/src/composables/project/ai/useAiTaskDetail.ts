@@ -8,7 +8,6 @@ import {
   reExecuteAiTask,
 } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
-import { useAuthStore } from '@/stores/auth'
 import { useAiTaskStore, isTerminalTaskStatus } from '@/stores/aiTask'
 import type { AiTaskDetail } from '@/types'
 import {
@@ -39,7 +38,6 @@ function errorCode(error: unknown): number | undefined {
 export function useAiTaskDetail() {
   const route = useRoute()
   const router = useRouter()
-  const authStore = useAuthStore()
   const aiTaskStore = useAiTaskStore()
 
   const taskId = String(route.params.taskId ?? '')
@@ -202,21 +200,6 @@ export function useAiTaskDetail() {
     () => detail.value?.status === 'proposals_ready' && proposals.value.length === 0,
   )
 
-  // ==================== 权限 ====================
-  const canManageTask = computed(() => authStore.hasPermission('ai:task'))
-  /** 确认提案需 ai:confirm；无权限隐藏审核动作，提案只读预览 */
-  const canConfirm = computed(() => authStore.hasPermission('ai:confirm'))
-  /** 生成链落库另需 case:edit（1000018208），缺权时审核区只读 */
-  const canConfirmGeneration = computed(
-    () => canConfirm.value && authStore.hasPermission('case:edit'),
-  )
-  /** 缺陷分析落库另需 bug:edit（详设 4.2），缺权时审核区只读；重复组确认只留痕无需 bug:edit */
-  const canConfirmBug = computed(() => {
-    if (!canConfirm.value) return false
-    return detail.value?.type === 'bug_duplicate_scan'
-      || authStore.hasPermission('bug:edit')
-  })
-
   onMounted(() => {
     void loadAiStatus()
     // 保活缓存先行展示，减少切回详情页的空白
@@ -258,10 +241,6 @@ export function useAiTaskDetail() {
     showReviewArea,
     showRunningPlaceholder,
     showEmptyProposals,
-    canManageTask,
-    canConfirm,
-    canConfirmGeneration,
-    canConfirmBug,
     load,
     handleAbort,
     handleReExecute,

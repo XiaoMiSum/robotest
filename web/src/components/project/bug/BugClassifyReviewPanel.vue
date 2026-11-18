@@ -19,7 +19,6 @@ const props = defineProps<{
   taskId: string
   taskType: string
   proposals: AiTaskProposalSummary[]
-  canConfirm: boolean
 }>()
 
 const emit = defineEmits<{ confirmed: []; leave: [] }>()
@@ -29,7 +28,7 @@ const router = useRouter()
 const review = useBugClassifyReview(
   props.taskId,
   () => props.proposals,
-  () => props.canConfirm,
+  () => true,
   () => {
     review.syncRows()
     emit('confirmed')
@@ -148,13 +147,10 @@ function similarityText(value: number): string {
           已处理 {{ review.processed.value.processed }} / 共 {{ review.processed.value.total }}
         </span>
       </div>
-      <!-- 确认需 ai:confirm；分类采纳落库另需 bug:edit（缺权时只读预览） -->
       <span class="bug-review__muted">
-        {{ canConfirm
-          ? (isDuplicateTask
-              ? '确认仅留痕，不修改任何缺陷，后续按既有「重复缺陷」流程处理'
-              : '采纳经既有缺陷服务更新字段；驳回不更新任何缺陷')
-          : '当前账号无产物确认权限，仅可预览' }}
+        {{ isDuplicateTask
+          ? '确认仅留痕，不修改任何缺陷，后续按既有「重复缺陷」流程处理'
+          : '采纳经既有缺陷服务更新字段；驳回不更新任何缺陷' }}
       </span>
     </header>
 
@@ -193,7 +189,7 @@ function similarityText(value: number): string {
               <span class="bug-review__muted">相似度 {{ similarityText(item.similarity) }}</span>
             </li>
           </ul>
-          <div v-if="canConfirm && row.confirmStatus === 'pending'" class="bug-review__group-actions">
+          <div v-if="row.confirmStatus === 'pending'" class="bug-review__group-actions">
             <el-button size="small" type="primary" :loading="review.confirming.value" @click="openGroup(row, 'adopted')">
               确认为重复组
             </el-button>
@@ -207,7 +203,7 @@ function similarityText(value: number): string {
 
     <!-- 批量分类任务：当前 vs 建议对照 + 逐条 / 批量动作 -->
     <template v-else>
-      <div v-if="canConfirm" class="bug-review__toolbar">
+      <div class="bug-review__toolbar">
         <el-checkbox
           :model-value="review.allSelected.value"
           :disabled="review.selectableRows.value.length === 0"
@@ -246,7 +242,7 @@ function similarityText(value: number): string {
           class="bug-review__row"
         >
           <el-checkbox
-            v-if="canConfirm && row.confirmStatus === 'pending'"
+            v-if="row.confirmStatus === 'pending'"
             :model-value="review.selectedKeys.value.includes(row.key)"
             @change="review.toggle(row.key, $event as boolean)"
           />
@@ -323,7 +319,7 @@ function similarityText(value: number): string {
               {{ row.content.suggestions.severity.reason }}
             </p>
 
-            <div v-if="canConfirm && row.confirmStatus === 'pending'" class="bug-review__row-actions">
+            <div v-if="row.confirmStatus === 'pending'" class="bug-review__row-actions">
               <el-button
                 size="small"
                 type="primary"

@@ -1,6 +1,5 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useAuthStore } from '@/stores/auth'
 import {
   blockPlan,
   completePlan,
@@ -58,23 +57,14 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
   const moduleTree = ref<SnapshotModule[]>([])
   const selectedDocId = ref('')
 
-  const authStore = useAuthStore()
-
   const canAdjustCases = computed(
     () => detail.value?.status === 'new' || detail.value?.status === 'in_progress',
   )
 
-  // 权限码与后端 @PreAuthorize 同源：缺码时不展示入口，避免注定 403 的请求（详设 3.2）。
-  // 状态条件复用 canAdjustCases / 已阻塞两个内联口径，组合式不依赖组件层（01-frontend.md §3）
-  const canOperateActive = computed(
-    () => canAdjustCases.value && authStore.hasPermission('plan:execute'),
-  )
-  const canBlock = computed(
-    () => canAdjustCases.value && authStore.hasPermission('plan:block'),
-  )
-  const canResume = computed(
-    () => detail.value?.status === 'blocked' && authStore.hasPermission('plan:block'),
-  )
+  // 与后端状态机一致：活跃态允许执行与阻塞，已阻塞仅允许恢复（详设 3.2）
+  const canOperateActive = computed(() => canAdjustCases.value)
+  const canBlock = computed(() => canAdjustCases.value)
+  const canResume = computed(() => detail.value?.status === 'blocked')
 
   // ==================== Load ====================
 

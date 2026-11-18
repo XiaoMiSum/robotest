@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   abortAiExecution: vi.fn(),
   reExecuteAiTask: vi.fn(),
   fetchMembers: vi.fn(),
-  useAuthStore: vi.fn(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: vi.fn() },
 }))
@@ -27,10 +26,6 @@ vi.mock('@/services/ai', () => ({
 
 vi.mock('@/services/workspace', () => ({
   fetchMembers: mocks.fetchMembers,
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: mocks.useAuthStore,
 }))
 
 vi.mock('element-plus', () => ({
@@ -111,7 +106,6 @@ function setup(): void {
   )
   mocks.reExecuteAiTask.mockResolvedValue(makeItem({ taskId: 't2', status: 'running' }))
   mocks.ElMessageBox.confirm.mockResolvedValue('confirm')
-  mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn(() => true) })
 }
 
 /** composable 的初始化在 onMounted，需经真实组件挂载触发（保活回填 + 首屏加载） */
@@ -299,20 +293,6 @@ describe('useAiTaskCenter', () => {
       expect(state.aiAvailable.value).toBe(false)
     })
 
-    it('入口与行操作均按 ai:task 显隐', () => {
-      mocks.useAuthStore.mockReturnValue({
-        hasPermission: (code: string) => code === 'ai:task',
-      })
-      const { state } = mountCenter()
-      expect(state.canViewTasks.value).toBe(true)
-      expect(state.canManageTasks.value).toBe(true)
-    })
-
-    it('无 ai:task 时隐藏入口', () => {
-      mocks.useAuthStore.mockReturnValue({ hasPermission: vi.fn(() => false) })
-      const { state } = mountCenter()
-      expect(state.canViewTasks.value).toBe(false)
-    })
   })
 
   describe('行操作', () => {

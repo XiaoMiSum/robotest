@@ -79,62 +79,62 @@ describe('currentMode 派生', () => {
 
 describe('dynamicMenuItems', () => {
   it('按当前模式过滤 + 权限过滤 + order 升序', () => {
-    h.currentRouteMeta = { mode: 'project' }
+    h.currentRouteMeta = { mode: 'admin' }
     // 故意乱序注册，验证排序依赖 menu.order 而非注册顺序
-    addRecord('/workspace/projects/api-testing', {
-      mode: 'project',
+    addRecord('/admin/roles', {
+      mode: 'admin',
       menu: {
-        label: '接口测试',
-        icon: 'Connection',
+        label: '角色管理',
+        icon: 'Setting',
         order: 30,
-        permissionAny: ['api-env:view', 'api-debug:view'],
+        permissionAny: ['role:view', 'user:view'],
       },
     })
-    addRecord('/workspace/projects/bugs', {
-      mode: 'project',
-      menu: { label: '缺陷管理', icon: 'Warning', order: 20, permission: 'bug:view' },
+    addRecord('/admin/audit', {
+      mode: 'admin',
+      menu: { label: '审计日志', icon: 'Document', order: 20, permission: 'audit:view' },
     })
-    addRecord('/workspace/projects/functional-testing', {
-      mode: 'project',
-      menu: { label: '功能测试', icon: 'Monitor', order: 10, permission: 'case:view' },
-    })
-    // 其他模式的菜单项不得串入
     addRecord('/admin/users', {
       mode: 'admin',
       menu: { label: '用户管理', icon: 'User', order: 10 },
     })
-    h.permissions = ['case:view', 'api-debug:view']
+    // 其他模式的菜单项不得串入
+    addRecord('/workspace/projects/functional-testing', {
+      mode: 'project',
+      menu: { label: '功能测试', icon: 'Monitor', order: 10 },
+    })
+    h.permissions = ['user:view']
 
     const nav = useNavStore()
-    expect(nav.dynamicMenuItems.map((item) => item.label)).toEqual(['功能测试', '接口测试'])
+    expect(nav.dynamicMenuItems.map((item) => item.label)).toEqual(['用户管理', '角色管理'])
   })
 
   it('permissionAny 任一命中即展示，全部未命中则隐藏', () => {
-    h.currentRouteMeta = { mode: 'project' }
-    addRecord('/workspace/projects/api-testing', {
-      mode: 'project',
+    h.currentRouteMeta = { mode: 'admin' }
+    addRecord('/admin/roles', {
+      mode: 'admin',
       menu: {
-        label: '接口测试',
-        icon: 'Connection',
+        label: '角色管理',
+        icon: 'Setting',
         order: 30,
-        permissionAny: ['api-env:view', 'api-debug:view'],
+        permissionAny: ['role:view', 'user:view'],
       },
     })
 
-    h.permissions = ['api-env:view']
+    h.permissions = ['user:view']
     expect(useNavStore().dynamicMenuItems).toHaveLength(1)
 
     // 换全新 store 实例，规避 computed 缓存（mock 非响应式）
     setActivePinia(createPinia())
-    h.permissions = ['bug:view']
+    h.permissions = ['audit:view']
     expect(useNavStore().dynamicMenuItems).toHaveLength(0)
   })
 
   it('无 meta.menu 的页面（详情/创建等）不进菜单', () => {
-    h.currentRouteMeta = { mode: 'project' }
-    addRecord('/workspace/projects/bugs/create', { mode: 'project', title: '提交缺陷' })
-    addRecord('/workspace/projects/bugs/:bugId', { mode: 'project', title: '缺陷详情' })
-    h.permissions = ['bug:view']
+    h.currentRouteMeta = { mode: 'admin' }
+    addRecord('/admin/users/create', { mode: 'admin', title: '新增用户' })
+    addRecord('/admin/users/:userId', { mode: 'admin', title: '用户详情' })
+    h.permissions = ['user:view']
 
     const nav = useNavStore()
     expect(nav.dynamicMenuItems).toEqual([])
