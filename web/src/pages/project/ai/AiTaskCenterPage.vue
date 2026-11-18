@@ -60,7 +60,7 @@ function asRow(row: unknown): AiTaskRow {
     <header class="page-head">
       <div>
         <h1 class="page-head__title">AI 任务中心</h1>
-        <p class="page-head__desc">我发起的 AI 任务的统一入口，跟踪执行过程并审核提案</p>
+        <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程并审核提案</p>
       </div>
       <div class="page-head__actions">
         <el-button @click="refresh">

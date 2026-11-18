@@ -51,17 +51,17 @@ public class AiTaskController {
                 loginUser.getActiveWorkspaceId(), loginUser.getId(), loginUser));
     }
 
-    /** 3.6.3 列表（项目上下文经 X-Active-Project 头过滤，未附带返回本人任务） */
+    /** 3.6.3 列表（按 X-Active-Project 头过滤项目内全部任务，未附带时不过滤提交人） */
     @GetMapping
     public Result<PageResult<AiTaskRespDTO>> page(@AuthenticationPrincipal LoginUser loginUser,
             @Valid AiTaskPageReqDTO pageReq) {
-        return Result.ok(aiTaskService.page(pageReq, loginUser.getActiveProjectId(), loginUser.getId()));
+        return Result.ok(aiTaskService.page(pageReq, loginUser.getActiveProjectId()));
     }
 
-    /** 顶栏指示器轮询（总册 3.6.3）：进行中任务计数（status = running） */
+    /** 顶栏指示器轮询（总册 3.6.3）：进行中任务计数（status = running），过滤口径与列表一致 */
     @GetMapping("/running-count")
     public Result<AiTaskCountRespDTO> runningCount(@AuthenticationPrincipal LoginUser loginUser) {
-        return Result.ok(aiTaskService.countActive(loginUser.getActiveProjectId(), loginUser.getId(), loginUser));
+        return Result.ok(aiTaskService.countActive(loginUser.getActiveProjectId()));
     }
 
     /** 3.6.3 按节点查询最近一次任务（用例节点 AI 优化复用；无匹配 data 为 null） */

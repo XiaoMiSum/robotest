@@ -191,7 +191,7 @@ CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WH
 | status | varchar(20) | NOT NULL, DEFAULT 'running' | `running / proposals_ready / closed / aborted`（`running` 期间执行可挂起 `waiting_confirmation`） |
 | project_id | uuid | NULL | 项目内任务的隔离归属（NULL = 不限项目的个人任务；助手解析任务取 `X-Active-Project` 头） |
 | workspace_id | uuid | NULL | 执行作用域（助手类任务经 `X-Active-Workspace` 头写入），RAG 限权过滤依据 |
-| submitted_by | uuid | NOT NULL | 发起人（创建人）：任务列表与进行中计数统一按当前登录用户过滤，完成通知与再次执行的归属 |
+| submitted_by | uuid | NOT NULL | 发起人（创建人）：任务列表作为提交人字段下发（按项目上下文过滤，不按当前用户过滤），完成通知与再次执行的归属 |
 | input | jsonb | NOT NULL | 任务输入：源引用 + 参数（存引用不复制全文） |
 | result_meta | jsonb | NULL | 文档级元数据（如 `requirement_import` 的 `documentMeta`），供确认面板预填 |
 | tokens_in / tokens_out | int | NOT NULL, DEFAULT 0 | 任务级 token 汇总（跨全部执行累加） |
@@ -201,7 +201,7 @@ CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WH
 **索引**（3 个）：
 
 - `idx_ai_task_project` (project_id, created_at) —— 项目任务中心列表；
-- `idx_ai_task_submitter` (submitted_by, created_at) —— 「我的任务」列表与完成通知；
+- `idx_ai_task_submitter` (submitted_by, created_at) —— 按发起人检索与完成通知；
 - `idx_ai_task_status` (status, updated_at) —— 任务态筛选与清扫。
 
 ```sql
@@ -781,9 +781,9 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 #### 3.6.3 任务列表与详情
 
 - **列表**：`GET /api/ai/tasks`
-  - 参数：`type`、`status`、`pageNo`、`pageSize`；项目上下文经 `X-Active-Project` 头作为附加过滤条件，**列表始终只返回当前登录用户提交的任务**（`ai_task.submitted_by`）。
+  - 参数：`type`、`status`、`pageNo`、`pageSize`；**列表不再按 `ai_task.submitted_by` 过滤当前用户**：附带 `X-Active-Project` 头时返回该项目内全部任务，未附带时不过滤提交人（返回全部任务）；列表项下发 `submittedBy` 供前端展示发起人。
   - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串时前端按类型名兜底展示。
-- **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计当前登录用户提交且 `status = running`（含执行挂起）的任务数，过滤口径与列表一致。
+- **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数，过滤口径与列表一致（按项目头过滤，不按提交人过滤）。
   - 响应：`{ "count": 2 }`。
 - **按节点查询最近任务**：`GET /api/ai/tasks/{type}/latest`
   - 参数：`documentId`、`nodeId`（均必填）；按任务输入中的 `documentId` 与 `nodeIds` 匹配，返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
@@ -963,8 +963,8 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 └── 进行中任务数角标（15s 轮询 running-count，0 时不显示角标），点击跳任务中心
 
 任务中心（项目工作区 /workspace/projects/ai/tasks → AiTaskCenterPage）
-├── TaskFilter（类型/状态筛选，列表仅当前用户任务）
-└── TaskTable（任务标题（空则类型名兜底）、执行摘要、终止原因、终止 / 再次执行，「详情 / 审核」跳转详情页）
+├── TaskFilter（类型/状态筛选，列表为项目内全部任务）
+└── TaskTable（任务标题（空则类型名兜底）、发起人、执行摘要、终止原因、终止 / 再次执行，「详情 / 审核」跳转详情页）
 
 任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage）
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
@@ -1110,3 +1110,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-18 | 助手改为项目级能力：2.9 会话表增 `project_id`（NOT NULL，取 `X-Active-Project`）、索引改 `(user_id, workspace_id, project_id, created_at)`、去 `context_snapshot` 会话私有项目，3.1 助手上下文头统一含项目头、4.4 RAG 读侧助手按 `X-Active-Project` 限权，2.6.1 助手解析任务 `project_id` 取头 |
 | V1.0 | 2026-11-18 | 辅助功能类型合并：3.6.1 注销 `case_complete` / `case_priority` 与 `case_suggestion` / `priority_suggestion`，改单一 `case_optimize` / `case_optimize_suggestion`；任务类型总数十一类→十类、普通目标型任务九类→八类，场景示例与执行入口统计同步 |
 | V1.0 | 2026-11-18 | 3.6.3 新增按节点查询最近任务端点 `GET /api/ai/tasks/{type}/latest`（`documentId` / `nodeId`，项目内成员任务可见），供用例节点 AI 优化复用最近一次任务 |
+| V1.0 | 2026-11-18 | AI 任务列表与进行中计数取消当前登录用户过滤：2.6.1 `submitted_by` 与索引说明改为提交人展示 / 按发起人检索，3.6.3 列表与计数改按项目头过滤、无项目头不过滤提交人，5.2 组件树补发起人列 |
