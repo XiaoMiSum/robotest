@@ -85,7 +85,9 @@ describe('CaseMindMap · 用例节点悬浮窗（交互 04 §1.2）', () => {
   })
 
   it('悬浮窗复用同一任务入口与关联选取器，已关联仍可重新打开', () => {
-    expect(source).toContain('@ai-optimize="openAssistFromPopover(launchOptimize)"')
+    expect(source).toContain('@ai-optimize="openOptimizeFromPopover"')
+    expect(source).toContain('const nodeId = caseNodePopover.targetNodeId.value')
+    expect(source).toContain('void launchOptimize(nodeId)')
     expect(source).toContain('@link-requirement="openRequirementFromPopover"')
     expect(source).toContain('void requirementLink.open()')
     expect(source).not.toContain('requirementLinked')

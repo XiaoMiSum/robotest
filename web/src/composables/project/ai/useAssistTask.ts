@@ -70,6 +70,15 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   /** 产物内容按 key 缓存；确认后清空重取，避免残留旧建议 */
   const contents = ref<Record<string, Record<string, unknown>>>({})
   let contentsInFlight = false
+  // 切换任务后旧请求的迟到响应必须丢弃，否则会把上一节点的提案内容写进当前面板
+  let contentsToken = 0
+  let requestToken = 0
+
+  function resetContents(): void {
+    contentsToken++
+    contentsInFlight = false
+    contents.value = {}
+  }
 
   function sync(detail: AiTaskDetail): void {
     task.value = detail
@@ -88,21 +97,26 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   async function loadContents(): Promise<void> {
     const summaries = task.value?.proposals ?? []
     if (summaries.length === 0) return
+    const currentTaskId = taskId.value
+    const token = ++contentsToken
     contentsInFlight = true
     loading.value = true
     try {
       const next: Record<string, Record<string, unknown>> = {}
       // 建议产物数量受选中范围约束，串行拉取避免与面板其余请求抢占连接
       for (const summary of summaries) {
-        const data = await fetchAiProposal(taskId.value, summary.key)
+        const data = await fetchAiProposal(currentTaskId, summary.key)
+        if (token !== contentsToken) return
         next[summary.key] = asRecord(data['content'])
       }
       contents.value = next
     } catch (err) {
-      loadError.value = errorMessage(err, '加载建议内容失败')
+      if (token === contentsToken) loadError.value = errorMessage(err, '加载建议内容失败')
     } finally {
-      contentsInFlight = false
-      loading.value = false
+      if (token === contentsToken) {
+        contentsInFlight = false
+        loading.value = false
+      }
     }
   }
 
@@ -149,71 +163,90 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
 
   async function refresh(): Promise<void> {
     if (!taskId.value) return
+    const currentTaskId = taskId.value
     loading.value = true
     loadError.value = ''
     try {
-      const detail = await fetchAiTask(taskId.value)
+      const detail = await fetchAiTask(currentTaskId)
+      if (taskId.value !== currentTaskId) return
       sync(detail)
       if (!isTerminalTaskStatus(detail.status)) {
         aiTaskStore.startPolling(detail.taskId)
       }
     } catch (err) {
-      loadError.value = errorMessage(err, '加载建议任务失败')
+      if (taskId.value === currentTaskId) {
+        loadError.value = errorMessage(err, '加载建议任务失败')
+      }
     } finally {
-      loading.value = false
+      if (taskId.value === currentTaskId) loading.value = false
     }
   }
 
   /** 发起建议任务：入口在脑图工具栏 / 计划详情（交互 1 入口） */
   async function launch(input: Record<string, unknown>): Promise<void> {
+    const token = ++requestToken
     submitting.value = true
     loadError.value = ''
     receipt.value = []
-    contents.value = {}
+    resetContents()
     try {
       const created = await submitAiTask(kind, input, SYNC_WAIT_SECONDS)
+      // 已被新的打开 / 发起动作取代：丢弃旧任务响应，避免面板展示与点击节点不一致
+      if (token !== requestToken) return
       taskId.value = created.taskId
+      task.value = null
       // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
       void aiTaskStore.refreshRunningCount()
       await refresh()
     } catch (err) {
-      loadError.value = errorMessage(err, '发起建议任务失败')
-      ElMessage.error(loadError.value)
+      if (token === requestToken) {
+        loadError.value = errorMessage(err, '发起建议任务失败')
+        ElMessage.error(loadError.value)
+      }
     } finally {
-      submitting.value = false
+      if (token === requestToken) submitting.value = false
     }
   }
 
   /** 挂到既有任务（进行中任务的进度入口，交互 2.3） */
   async function open(id: string): Promise<void> {
+    requestToken++
+    submitting.value = false
     taskId.value = id
+    task.value = null
     receipt.value = []
-    contents.value = {}
+    resetContents()
     await refresh()
   }
 
   /** 已终止任务再次执行：沿用同一任务新建执行实例，面板跟随新执行继续 */
   async function retry(): Promise<void> {
     if (!taskId.value) return
+    const token = ++requestToken
+    const currentTaskId = taskId.value
     try {
-      const created = await reExecuteAiTask(taskId.value)
+      const created = await reExecuteAiTask(currentTaskId)
+      if (token !== requestToken) return
       ElMessage.success('已重新排队')
       taskId.value = created.taskId
+      task.value = null
       receipt.value = []
-      contents.value = {}
+      resetContents()
       // 新任务入队：即时刷新顶栏进行中计数（交互 07 §5）
       void aiTaskStore.refreshRunningCount()
       await refresh()
     } catch (err) {
-      ElMessage.error(errorMessage(err, '重试任务失败'))
+      if (token === requestToken) ElMessage.error(errorMessage(err, '重试任务失败'))
     }
   }
 
   function reset(): void {
+    requestToken++
+    submitting.value = false
     aiTaskStore.stopPolling()
     taskId.value = ''
     task.value = null
-    contents.value = {}
+    resetContents()
     receipt.value = []
     loadError.value = ''
   }
@@ -231,11 +264,14 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
       return
     }
     confirming.value = true
+    const currentTaskId = taskId.value
     try {
-      const resp = await confirmAiProposals(taskId.value, {
+      const resp = await confirmAiProposals(currentTaskId, {
         items,
         target: target ?? options.target?.(),
       })
+      // 面板已切到别的任务：回执与刷新只作用于当前任务，避免覆盖新节点数据
+      if (taskId.value !== currentTaskId) return
       receipt.value = resp.results
       const failed = resp.results.filter((item) => !item.success)
       if (failed.length === 0) {
@@ -250,7 +286,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
         )
       }
       // 服务端确认状态覆盖本地缓存，重新拉取摘要与内容
-      contents.value = {}
+      resetContents()
       await refresh()
       options.onConfirmed?.()
     } catch (err) {

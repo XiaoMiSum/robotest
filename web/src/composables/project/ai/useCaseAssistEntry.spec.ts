@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { Ref } from 'vue'
+import type { AiTaskDetail } from '@/types'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 
 const mocks = vi.hoisted(() => ({
@@ -25,6 +26,8 @@ import type { CaseAssistEntryOptions } from './useCaseAssistEntry'
 type EntryState = ReturnType<typeof useCaseAssistEntry>
 
 interface FakeTask {
+  taskId: Ref<string>
+  task: Ref<AiTaskDetail | null>
   rows: Ref<AssistRow[]>
   loading: Ref<boolean>
   confirming: Ref<boolean>
@@ -37,6 +40,7 @@ interface FakeTask {
   executionSummary: Ref<{ text: string; stepPercent: number | null } | null>
   loadError: Ref<string>
   launch: ReturnType<typeof vi.fn>
+  open: ReturnType<typeof vi.fn>
   retry: ReturnType<typeof vi.fn>
   refresh: ReturnType<typeof vi.fn>
   adopt: ReturnType<typeof vi.fn>
@@ -47,9 +51,38 @@ interface FakeTask {
   reset: ReturnType<typeof vi.fn>
 }
 
-function fakeTask(): FakeTask {
+function optimizeRow(
+  nodeId: string,
+  status: 'pending' | 'adopted' = 'pending',
+): AssistRow {
   return {
-    rows: ref<AssistRow[]>([]),
+    key: `node-${nodeId}`,
+    title: `${nodeId} 用例`,
+    confirmStatus: status,
+    confirmLabel: status === 'pending' ? '待确认' : '已采纳',
+    confirmTagType: 'info',
+    suggestion: {
+      nodeId,
+      fields: {
+        precondition: { existing: [], suggested: [] },
+        steps: { existing: [], suggested: [] },
+        expected: { existing: [], suggested: [] },
+        tags: { existing: [], suggested: [] },
+      },
+      priority: { current: 'P1', suggested: 'P1', reason: '' },
+      sourceRefs: [],
+    },
+  }
+}
+
+function fakeTask(): FakeTask {
+  const taskId = ref('')
+  const rows = ref<AssistRow[]>([])
+  const task = ref<AiTaskDetail | null>(null)
+  return {
+    taskId,
+    task,
+    rows,
     loading: ref(false),
     confirming: ref(false),
     receipt: ref<unknown[]>([]),
@@ -60,7 +93,15 @@ function fakeTask(): FakeTask {
     failedReason: ref(''),
     executionSummary: ref(null),
     loadError: ref(''),
-    launch: vi.fn(),
+    launch: vi.fn(async (input: Record<string, unknown>) => {
+      const nodeIds = input.nodeIds as string[]
+      taskId.value = `task-${nodeIds[0]}`
+      rows.value = [optimizeRow(nodeIds[0])]
+      task.value = { taskId: taskId.value, status: 'closed' } as AiTaskDetail
+    }),
+    open: vi.fn(async (id: string) => {
+      taskId.value = id
+    }),
     retry: vi.fn(),
     refresh: vi.fn(),
     adopt: vi.fn(),
@@ -180,6 +221,18 @@ describe('useCaseAssistEntry', () => {
       })
     })
 
+    it('按悬浮窗传入的节点发起，而非依赖当前选中态', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-9')
+
+      expect(tasks[0].launch).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        nodeIds: ['node-9'],
+      })
+    })
+
     it('不满足入口条件时不发起且提示原因', async () => {
       nodeId.value = ''
       const s = mountEntry()
@@ -215,6 +268,109 @@ describe('useCaseAssistEntry', () => {
 
       tasks[0].submitting.value = true
       expect(s.running.value).toBe(true)
+    })
+  })
+
+  describe('当前文档会话内的结果复用', () => {
+    it('同一节点存在待处理结果时直接打开既有任务，不重复发起', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+
+      await s.launchOptimize('node-1')
+
+      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
+      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
+      expect(s.panelVisible.value).toBe(true)
+    })
+
+    it('切换节点只发起该节点任务，不复用其它节点的结果', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+
+      await s.launchOptimize('node-2')
+
+      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+      expect(tasks[0].launch).toHaveBeenLastCalledWith({
+        documentId: 'doc-1',
+        nodeIds: ['node-2'],
+      })
+      expect(tasks[0].open).not.toHaveBeenCalled()
+      expect(s.rows.value.map((row) => row.title)).toEqual(['node-2 用例'])
+    })
+
+    it('结果采纳后缓存失效，再次点击重新发起', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+      tasks[0].rows.value = [optimizeRow('node-1', 'adopted')]
+      await nextTick()
+
+      await s.launchOptimize('node-1')
+
+      expect(tasks[0].open).not.toHaveBeenCalled()
+      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+    })
+
+    it('任务终止后缓存失效，再次点击重新发起', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+      tasks[0].isFailed.value = true
+      await nextTick()
+
+      await s.launchOptimize('node-1')
+
+      expect(tasks[0].open).not.toHaveBeenCalled()
+      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+    })
+
+    it('切换文档清空缓存，返回原文档按新任务计算', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+
+      docId.value = 'doc-2'
+      await nextTick()
+      docId.value = 'doc-1'
+      await nextTick()
+
+      await s.launchOptimize('node-1')
+
+      expect(tasks[0].open).not.toHaveBeenCalled()
+      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+    })
+
+    it('缓存任务已无该节点待处理结果时补发新任务', async () => {
+      const s = mountEntry()
+      await flushPromises()
+
+      await s.launchOptimize('node-1')
+      await nextTick()
+      tasks[0].open.mockImplementation(async (id: string) => {
+        tasks[0].taskId.value = id
+        tasks[0].rows.value = [optimizeRow('node-2')]
+      })
+
+      await s.launchOptimize('node-1')
+
+      expect(tasks[0].open).toHaveBeenCalledWith('task-node-1')
+      expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+      expect(tasks[0].launch).toHaveBeenLastCalledWith({
+        documentId: 'doc-1',
+        nodeIds: ['node-1'],
+      })
     })
   })
 

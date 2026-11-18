@@ -1,8 +1,9 @@
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchAiStatus } from '@/services/ai'
 import { useAssistTask } from '@/composables/project/ai/useAssistTask'
+import { isCaseOptimizeSuggestion } from '@/composables/project/ai/assistPresentation'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type {
   AiAssistSourceRef,
@@ -21,9 +22,9 @@ export interface CaseAssistEntryOptions {
 }
 
 /**
- * 脑图用例 AI 入口（详设 5.1 / 交互 2.3）：
+ * 脑图用例 AI 入口（详设 5.1 / 交互 2.3 / 2.4）：
  * AI 未启用时入口隐藏；无选中 / 非用例节点 / 只读时置灰并给出原因。
- * 单次优化同时补全字段并推荐级别，面板私有状态由同一个 useAssistTask 承载。
+ * 当前文档查看会话内按节点复用未处理结果，切换文档或卸载即清空，避免跨节点与跨文档串数据。
  */
 export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const router = useRouter()
@@ -44,13 +45,15 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const entryVisible = computed(() => aiAvailable.value)
 
   /** 入口置灰原因（交互 2.3 常驻展示，不靠悬浮猜测） */
-  const gateReason = computed(() => {
+  const gateReason = computed(() => gateReasonFor(options.selectedNodeId()))
+
+  function gateReasonFor(nodeId: string): string {
     if (!options.documentId()) return '请先打开用例文档'
-    if (!options.selectedNodeId()) return '请先在脑图中选中一个用例节点'
+    if (!nodeId) return '请先在脑图中选中一个用例节点'
     if (options.selectedType() !== 'case') return '仅用例节点可使用 AI 优化'
     if (options.isReadonly?.() === true) return '当前文档只读，不可发起建议'
     return ''
-  })
+  }
 
   const canLaunch = computed(() => entryVisible.value && gateReason.value === '')
   /** 动作区放行条件：文档可写（只读时置灰，详设 3.1） */
@@ -62,6 +65,10 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   })
 
   const panelVisible = ref(false)
+  /** 面板当前承载的用例节点：缓存登记与校验都以它为键，避免跨节点串数据 */
+  const activeNodeId = ref('')
+  /** 本次文档查看会话内的待处理结果：nodeId → taskId，切换文档或卸载即清空 */
+  const pendingTaskByNode = new Map<string, string>()
 
   // 展平为顶层 computed，便于宿主模板直接取用（嵌套 ref 不会自动解包）
   const rows = computed<AssistRow[]>(() => task.rows.value)
@@ -76,17 +83,126 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const progressText = computed(() => task.executionSummary.value?.text ?? '')
   const loadError = computed(() => task.loadError.value)
 
-  async function launchOptimize(): Promise<void> {
-    if (!entryVisible.value) return
-    if (gateReason.value) {
-      ElMessage.warning(gateReason.value)
-      return
-    }
+  function hasPendingFor(nodeId: string): boolean {
+    return rows.value.some(
+      (row) =>
+        row.confirmStatus === 'pending' &&
+        isCaseOptimizeSuggestion(row.suggestion) &&
+        row.suggestion.nodeId === nodeId,
+    )
+  }
+
+  /** 内容全部就绪才可判定节点归属；仍在加载时按“可能命中”处理，等下一轮再校验 */
+  function contentsSettled(): boolean {
+    return rows.value.length > 0 && rows.value.every((row) => row.suggestion !== null)
+  }
+
+  // 待处理结果登记与失效：结果被采纳 / 驳回后同一节点再次点击应重新发起
+  watch(
+    [rows, () => task.taskId.value],
+    ([currentRows, taskId]) => {
+      const nodeId = activeNodeId.value
+      if (!taskId || !nodeId || currentRows.length === 0) return
+      if (!currentRows.every((row) => row.suggestion !== null)) return
+      if (hasPendingFor(nodeId)) {
+        pendingTaskByNode.set(nodeId, taskId)
+        return
+      }
+      if (pendingTaskByNode.get(nodeId) === taskId) pendingTaskByNode.delete(nodeId)
+    },
+    { immediate: true },
+  )
+
+  // 终止任务没有可复用结果，释放缓存后下次点击重新发起
+  watch(
+    () => task.isFailed.value,
+    (isFailed) => {
+      const nodeId = activeNodeId.value
+      if (!isFailed || !nodeId) return
+      if (pendingTaskByNode.get(nodeId) === task.taskId.value) pendingTaskByNode.delete(nodeId)
+    },
+  )
+
+  // 关闭面板（含“后台运行，关闭”）不丢弃结果，但缓存归属需跟随面板切换
+  watch(panelVisible, (visible) => {
+    if (!visible) activeNodeId.value = ''
+  })
+
+  // 切换文档即结束本次查看会话：缓存与面板一并清空，再次进入按新任务计算（交互 2.4）
+  watch(
+    () => options.documentId(),
+    () => {
+      pendingTaskByNode.clear()
+      activeNodeId.value = ''
+      panelVisible.value = false
+      task.reset()
+    },
+  )
+
+  /** 命中缓存的任务若已被处理（如其它端采纳），丢弃缓存并补发一次新任务 */
+  function recoverStaleCache(nodeId: string, taskId: string): void {
+    const stop = watch(
+      [rows, () => task.loadError.value],
+      ([currentRows, loadError]) => {
+        if (task.taskId.value !== taskId || loadError) {
+          stop()
+          return
+        }
+        if (currentRows.length === 0) return
+        if (!currentRows.every((row) => row.suggestion !== null)) return
+        stop()
+        if (hasPendingFor(nodeId)) return
+        pendingTaskByNode.delete(nodeId)
+        void startOptimize(nodeId)
+      },
+    )
+  }
+
+  async function startOptimize(nodeId: string): Promise<void> {
     panelVisible.value = true
+    activeNodeId.value = nodeId
     await task.launch({
       documentId: options.documentId(),
-      nodeIds: [options.selectedNodeId()],
+      nodeIds: [nodeId],
     })
+    if (task.taskId.value) {
+      // 发起即登记，便于任务执行中关闭面板后再次点击仍能回到进度入口
+      pendingTaskByNode.set(nodeId, task.taskId.value)
+      if (task.isFailed.value) pendingTaskByNode.delete(nodeId)
+    }
+  }
+
+  async function launchOptimize(nodeId?: string): Promise<void> {
+    if (!entryVisible.value) return
+    const targetNodeId = nodeId || options.selectedNodeId()
+    const reason = gateReasonFor(targetNodeId)
+    if (reason) {
+      ElMessage.warning(reason)
+      return
+    }
+    const cachedTaskId = pendingTaskByNode.get(targetNodeId)
+    if (cachedTaskId) {
+      panelVisible.value = true
+      activeNodeId.value = targetNodeId
+      await task.open(cachedTaskId)
+      if (task.taskId.value !== cachedTaskId) return
+      if (contentsSettled()) {
+        if (!hasPendingFor(targetNodeId)) {
+          pendingTaskByNode.delete(targetNodeId)
+          await startOptimize(targetNodeId)
+        }
+        return
+      }
+      // 任务已结束但没有提案：同样视为无可用结果，重新发起
+      if (rows.value.length === 0 && task.task.value?.status === 'closed') {
+        pendingTaskByNode.delete(targetNodeId)
+        await startOptimize(targetNodeId)
+        return
+      }
+      recoverStaleCache(targetNodeId, cachedTaskId)
+      return
+    }
+    await startOptimize(targetNodeId)
   }
 
   function retry(): Promise<void> {
@@ -129,6 +245,7 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   function closePanel(): void {
     task.reset()
     panelVisible.value = false
+    activeNodeId.value = ''
   }
 
   return {
