@@ -72,7 +72,7 @@
 ### 1.3 获取评审详情
 
 - **路径**：`GET /api/project/reviews/:id`
-- **响应**：`{ "id", "title", "description", "status", "initiator": { "id", "name" }, "participantIds", "requirementIds", "requirements": [{ "id", "code", "title" }], "replanStatus", "replanMessage", "replanFinishedAt", "createdAt" }`；`requirements` 按创建时所选顺序返回，需求已删除时跳过；`requirementIds` 为创建 / 最近一次编辑保存的关联需求原始 ID 列表（含已删除需求），供编辑表单判定关联需求是否变化；`replanStatus` 取 `idle` / `running` / `succeeded` / `failed`（未发起过重规划时为 `idle`）；`replanMessage` 为失败原因或结果摘要，`replanFinishedAt` 为完成时间（未完成时 null）。
+- **响应**：`{ "id", "title", "description", "status", "initiator": { "id", "name" }, "participantIds", "requirementIds", "requirements": [{ "id", "code", "title" }], "createdAt" }`；`requirements` 按创建时所选顺序返回，需求已删除时跳过；`requirementIds` 为创建 / 最近一次编辑保存的关联需求原始 ID 列表（含已删除需求），供编辑表单判定关联需求是否变化。
 - **前端**：详情页首屏与进度、快照模块树并行加载（见 1.4、1.10）；标记成功后仅重拉详情与进度，避免整页重载导致脑图丢失选中态。
 
 ### 1.4 获取评审进度
@@ -201,15 +201,9 @@
 
 - **`replan`**：可选布尔值，默认 false。仅当提交的 `requirementIds` 与当前关联不同且用户确认重新规划时为 true；为 false 时既不重新解析用例，也不改动任何快照。
 - **校验**：`title` 非空且不超过 200 字；`participantIds` 非空且均为当前工作空间成员；`requirementIds` 均属于当前项目，否则返回 1000018001。
-- **处理**：部分更新（C11），只回写实际传入的字段。`replan=true` 时事务内先将 `replan_status` 置 `running`、`replan_requested_at` 置当前时间，提交后触发后台异步任务：按最新 `requirement_ids` 调用 `resolvePlannedCases` 重新解析用例，复用 1.12 的快照差量逻辑更新快照（保留既有评审记录与标记），最终回写 `succeeded` / `failed`、`replan_message`、`replan_finished_at`。`replan_status=running` 期间再次提交编辑返回错误码 1000011028。
-- **响应**：200，结构同 1.3（含 `replanStatus`）。
-- **前端**：列表页 [编辑] 回显详情 → 提交时对比新旧 `requirementIds`，变化则提示「检测到关联需求发生变化，是否重新规划测试用例？」→ 确认后带 `replan=true` 提交并提交即提示「已保存，正在后台重新规划测试用例」；选择否仅提示「已保存」。随后轮询 1.17 直至终态，刷新列表并提示结果。
-
-### 1.17 查询重规划状态
-
-- **路径**：`GET /api/project/reviews/{id}/replan-status`
-- **响应**：`{ "status": "idle|running|succeeded|failed", "message": "...", "requestedAt": "...", "finishedAt": "..." }`；`status=idle` 表示从未发起过重规划。
-- **前端**：编辑提交后每 2 秒轮询一次，终态停止轮询并刷新列表；页面卸载时停止轮询。
+- **处理**：部分更新（C11），只回写实际传入的字段。`replan=true` 时事务内仅回写基础信息与关联需求，提交后经自身代理触发 `@Async` 异步任务：按最新 `requirement_ids` 调用 `resolvePlannedCases` 重新解析用例，复用 1.12 的快照差量逻辑更新快照（保留既有评审记录与标记）；任务失败仅记日志，不回写状态字段。
+- **响应**：200，结构同 1.3。
+- **前端**：列表页 [编辑] 回显详情 → 提交时对比新旧 `requirementIds`，变化则提示「检测到关联需求发生变化，是否重新规划测试用例？」→ 确认后带 `replan=true` 提交，提示「已保存，正在后台重新规划测试用例」并关闭弹窗，不轮询、不自动刷新列表，用户自行刷新查看结果；选择否仅保存并提示「已保存」。
 
 ## 2. 快照生成与裁剪
 
@@ -246,7 +240,7 @@
 | 筛选   | 标题关键字回车/清空即查询；状态下拉选择后点[查询]；[重置] | 重置清空条件并回到首页，其余查询在触发时刷新列表            |
 | 分页   | 点击页码     | 按当前筛选条件加载对应页（每页 20 条，仅切换页码，不提供每页条数切换） |
 | 发起评审 | 点击[发起评审] | 弹出创建表单：标题（必填，≤200 字）、描述、参与者（多选成员）、关联需求（需求选取器，多选）；校验至少一个参与者与一个需求，创建成功跳转详情页 |
-| 编辑 | 点击[编辑]（仅发起人，new/in_progress） | 弹出回显当前标题 / 描述 / 参与者 / 关联需求的编辑表单；提交时若关联需求变化则提示是否重新规划 → 保存后轮询状态并刷新列表 |
+| 编辑 | 点击[编辑]（仅发起人，new/in_progress） | 弹出回显当前标题 / 描述 / 参与者 / 关联需求的编辑表单；提交时若关联需求变化则提示是否重新规划 → 保存后关闭弹窗并提示，用户自行刷新列表 |
 | 进入评审 | 点击[进入]   | 跳转至评审详情页（new/in_progress）              |
 | 查看详情 | 点击[查看]   | 跳转至评审详情页（completed/rejected）           |
 | 重新发起 | 点击[重新发起] | 二次确认 → rejected 回到 in_progress，列表刷新   |
@@ -302,28 +296,19 @@
 
 ### 3.1 数据变更（C5 / C9）
 
-```sql
-ALTER TABLE ft_review
-    ADD COLUMN replan_status VARCHAR(20),
-    ADD COLUMN replan_message TEXT,
-    ADD COLUMN replan_requested_at TIMESTAMP,
-    ADD COLUMN replan_finished_at TIMESTAMP;
-```
-
-列均可空，`replan_status` 取 `running` / `succeeded` / `failed`，空值对外映射为 `idle`；`replan_finished_at` 在终态写入。全量建库同步进 `schema.sql` 的 `ft_review` 建表定义；无新表、无物理外键、无新索引（状态仅按主键详情读取，不参与列表筛选）。
+无新增列。关联需求保存在既有 `requirement_ids`，快照新鲜度由既有字段表达；已有环境若残留历史状态列，服务不再读写，可安全忽略。
 
 ### 3.2 异步执行边界
 
-- 编辑接口所在事务只负责基础信息、关联需求与 `running` 状态的持久化；异步任务通过独立 `@Async` 执行器触发，避免自调用导致异步失效。
+- 编辑接口所在事务只负责基础信息与关联需求的持久化；提交后经自身代理调用 `@Async` 入口，避免自调用导致异步失效。
 - 异步任务按 `reviewId` 读取最新 `requirement_ids` 并解析用例，调用差量快照更新；任务取消关联用例时保留历史标记作审计。
-- 任务成功 / 失败均以部分更新载体回写状态字段；失败原因写入 `replan_message`，前端轮询到 `failed` 后提示用户，可重新编辑再触发。
-- 应用重启时残留的 `running` 状态由启动扫描置为 `failed`（`replan_message` 记「服务重启导致中断」），避免前端无限轮询。
+- 任务失败仅记录日志，不回写状态、不通知前端；前端提交后即结束反馈，用户自行刷新查看快照结果。
 
 ### 3.3 测试要点（C8 ≥ 70%）
 
-- `TestReviewServiceImplTest`：编辑部分更新、终态 / 非发起人拒绝、`replan` 并发拒绝。
-- 异步执行器单测：成功回写 `succeeded`、解析失败回写 `failed`、快照差量更新保留评审记录。
-- 前端评审列表页测试：关联需求变化时提示、确认 / 取消分支、轮询终态后刷新列表。
+- `TestReviewServiceImplTest`：编辑部分更新、终态 / 非发起人拒绝、关联需求集合比较与异步触发。
+- 异步入口单测：正常调用用例解析与快照差量更新、解析失败不外抛异常、快照差量更新保留评审记录。
+- 前端评审列表页测试：关联需求变化时提示、确认 / 取消分支、确认后不轮询不刷新。
 
 ## 修改记录
 
@@ -334,3 +319,4 @@ ALTER TABLE ft_review
 | V1.0 | 2026-11-15 | 创建评审改为关联需求：新增 `requirementIds`（`selectedNodes` 改为可选）、按 `ft_case_requirement` 反查用例，详情返回 `requirements`、列表返回 `requirementCount` |
 | V1.0 | 2026-11-18 | 新增评审编辑：1.3 详情补 `requirementIds` / 重规划状态字段，1.16 编辑与 1.17 状态查询接口，2.1 列表 [编辑] 入口，第 3 章数据变更与异步执行边界，错误码 1000011028 |
 | V1.0 | 2026-11-18 | 移除评审模块 RBAC 权限码口径：菜单入口不按权限码过滤，发起人与参与者规则明确为项目归属校验 |
+| V1.0 | 2026-11-18 | 移除重规划状态机制：详情去状态字段、删除状态查询接口与错误码 1000011028，异步失败仅记日志；前端提示后关闭弹窗、不轮询不刷新 |
