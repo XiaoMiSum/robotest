@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import type { AiTaskDetail } from '@/types'
 
@@ -84,6 +84,14 @@ function orderContent(): Record<string, unknown> {
     beforeOrder: ['A', 'B', 'C'],
     afterOrder: ['B', 'A', 'C'],
   }
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
 }
 
 function setup(): void {
@@ -261,6 +269,60 @@ describe('useAssistTask', () => {
       expect(s.taskId.value).toBe('')
       expect(s.task.value).toBeNull()
       expect(s.rows.value).toEqual([])
+    })
+  })
+
+  describe('任务切换防串数据', () => {
+    it('切换任务后旧提案内容不覆盖新任务', async () => {
+      const stale = deferred<{ content: Record<string, unknown> }>()
+      mocks.fetchAiProposal
+        .mockImplementationOnce(() => stale.promise)
+        .mockResolvedValue({
+          content: {
+            planId: 'p2',
+            items: [{ nodeId: 'n9', caseTitle: 'Z', suggestedRank: 1, reason: '' }],
+            beforeOrder: ['Z'],
+            afterOrder: ['Z'],
+          },
+        })
+      const s = mountAssist()
+      await s.launch({ planId: 'p1' })
+      await vi.waitFor(() => expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(1))
+
+      mocks.fetchAiTask.mockResolvedValue(makeDetail({ taskId: 't2' }))
+      await s.open('t2')
+      await vi.waitFor(() => expect(s.rows.value[0]?.suggestion).not.toBeNull())
+      expect(s.rows.value[0].suggestion).toMatchObject({ beforeOrder: ['Z'] })
+
+      // 旧任务内容迟到：若未按令牌丢弃，会把 t1 的建议写进 t2 面板
+      stale.resolve({ content: orderContent() })
+      await flushPromises()
+
+      expect(s.taskId.value).toBe('t2')
+      expect(s.rows.value[0].suggestion).toMatchObject({ beforeOrder: ['Z'] })
+    })
+
+    it('并发发起时旧响应不覆盖当前任务', async () => {
+      const stale = deferred<{ taskId: string }>()
+      mocks.submitAiTask
+        .mockImplementationOnce(() => stale.promise)
+        .mockResolvedValue({ taskId: 't2' })
+      mocks.fetchAiTask.mockImplementation(async (id: string) => makeDetail({ taskId: id }))
+      const s = mountAssist()
+
+      const first = s.launch({ planId: 'p1' })
+      const second = s.launch({ planId: 'p2' })
+      await second
+      await vi.waitFor(() => expect(s.taskId.value).toBe('t2'))
+
+      // 先发起的请求后返回：不得把面板切回 t1
+      stale.resolve({ taskId: 't1' })
+      await first
+      await flushPromises()
+
+      expect(s.taskId.value).toBe('t2')
+      expect(s.task.value?.taskId).toBe('t2')
+      expect(s.submitting.value).toBe(false)
     })
   })
 
