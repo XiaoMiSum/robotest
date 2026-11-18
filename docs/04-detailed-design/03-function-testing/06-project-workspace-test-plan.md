@@ -70,7 +70,7 @@
 ### 1.3 获取计划详情
 
 - **路径**：`GET /api/project/plans/:id`
-- **响应**：`{ "id", "name", "description", "status", "environment", "startTime", "endTime", "executor": { "id", "name" }, "requirements": [{ "id", "code", "title" }], "createdAt" }`；`requirements` 按创建时所选顺序返回，需求已删除时跳过。
+- **响应**：`{ "id", "name", "description", "status", "environment", "startTime", "endTime", "executor": { "id", "name" }, "requirementIds", "requirements": [{ "id", "code", "title" }], "replanStatus", "replanMessage", "replanFinishedAt", "createdAt" }`；`requirements` 按创建时所选顺序返回，需求已删除时跳过；`requirementIds` 为创建 / 最近一次编辑保存的关联需求原始 ID 列表（含已删除需求），供编辑表单判定关联需求是否变化；`replanStatus` 取 `idle` / `running` / `succeeded` / `failed`（未发起过重规划时为 `idle`）；`replanMessage` 为失败原因或结果摘要，`replanFinishedAt` 为完成时间（未完成时 null）。
 - **前端**：详情页首屏与进度、快照模块树并行加载（见 1.4、1.8）；标记执行结果后仅重拉详情与进度，避免整页重载导致脑图丢失选中态。
 
 ### 1.4 获取计划进度
@@ -171,6 +171,38 @@
 - **处理**：状态置为 in_progress（部分更新载体）；记录项目活动 `PLAN_RESUMED`（“恢复测试计划「名称」”）。
 
 
+### 1.15 编辑计划
+
+- **路径**：`PUT /api/project/plans/{id}`
+- **权限**：`plan:execute`（`@PreAuthorize` 校验，缺码返回 HTTP 403）；不校验计划负责人。
+- **状态校验**：计划须为 new/in_progress；已阻塞返回错误码 1000011025（“计划已阻塞，请先恢复后再操作”），已结束返回错误码 1000011027（“计划已结束，无法执行该操作”）。
+- **请求体**（字段均可选，仅提交发生变化的字段）：
+
+  ```json
+  {
+    "name": "V1.4.2 回归测试（调整）",
+    "description": "...",
+    "executorId": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e10",
+    "startTime": "2026-09-20T00:00:00",
+    "endTime": "2026-09-24T00:00:00",
+    "environment": "staging",
+    "requirementIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e30"],
+    "replan": true
+  }
+  ```
+
+- **`replan`**：可选布尔值，默认 false。仅当提交的 `requirementIds` 与当前关联不同且用户确认重新规划时为 true；为 false 时既不重新解析用例，也不改动任何快照。
+- **校验**：`name` 非空且不超过 100 字；`executorId` 为当前工作空间成员；`requirementIds` 均属于当前项目，否则返回 1000018001。
+- **处理**：部分更新（C11），只回写实际传入的字段。`replan=true` 时事务内先将 `replan_status` 置 `running`、`replan_requested_at` 置当前时间，提交后触发后台异步任务：按最新 `requirement_ids` 调用 `resolvePlannedCases` 重新解析用例，复用 1.10 的快照差量逻辑更新快照并回写 `snapshot_synced_at`（保留既有执行记录），最终回写 `succeeded` / `failed`、`replan_message`、`replan_finished_at`。`replan_status=running` 期间再次提交编辑返回错误码 1000011028。
+- **响应**：200，结构同 1.3（含 `replanStatus`）。
+- **前端**：列表页 [编辑]（需 `plan:execute`）回显详情 → 提交时对比新旧 `requirementIds`，变化则提示「检测到关联需求发生变化，是否重新规划测试用例？」→ 确认后带 `replan=true` 提交并提示「已保存，正在后台重新规划测试用例」；选择否仅提示「已保存」。随后轮询 1.16 直至终态，刷新列表并提示结果。
+
+### 1.16 查询重规划状态
+
+- **路径**：`GET /api/project/plans/{id}/replan-status`
+- **响应**：`{ "status": "idle|running|succeeded|failed", "message": "...", "requestedAt": "...", "finishedAt": "..." }`；`status=idle` 表示从未发起过重规划。
+- **前端**：编辑提交后每 2 秒轮询一次，终态停止轮询并刷新列表；页面卸载时停止轮询。
+
 ## 2. 同步最新用例
 
 触发后批量对比原始节点与当前节点，更新快照属性；若原始节点不存在，快照节点 is_deleted=1。执行记录不受影响，最终状态保留。
@@ -208,6 +240,7 @@
 | 筛选   | 关键字回车/清空即查询；状态下拉选择后点[查询]；[重置] | 重置清空条件并回到首页，其余查询在触发时刷新列表 |
 | 分页   | 点击页码     | 按当前筛选条件加载对应页（每页 20 条，仅切换页码，不提供每页条数切换） |
 | 新建计划 | 点击页头[+ 新建计划] | 弹出创建表单：名称（必填）、描述、负责人（成员下拉）、开始/结束时间、执行环境、关联需求（需求选取器，多选，至少一个需求），提交成功后跳转详情页 |
+| 编辑 | 点击[编辑]（new/in_progress 且具备 `plan:execute`） | 弹出回显当前名称 / 描述 / 负责人 / 起止时间 / 环境 / 关联需求的编辑表单；提交时若关联需求变化则提示是否重新规划 → 保存后轮询状态并刷新列表 |
 | 进入执行 | 点击[进入执行]（执行中）或计划名称链接 | 跳转至计划详情页                     |
 | 查看详情 | 点击[查看详情]（其余状态）   | 跳转至计划详情页                     |
 | 完成 | 点击[完成]（未开始/执行中且具备 `plan:execute`） | 二次确认 → 调用 1.11，状态置 completed，列表刷新 |
@@ -323,6 +356,33 @@ WHERE is_deleted = FALSE AND type = 'workspace' AND NOT (permissions ? 'plan:blo
 - `SchemaSeedConsistencyTest`：增补 `plan:block` 权限点已登记、且预置「管理员」「成员」两角色均已授予的断言。
 - 前端 `usePlanDetail.spec.ts` 与计划列表页 spec：增补缺权限码时 [阻塞][恢复][同步用例][完成执行] 不展示的用例。
 
+## 4. 编辑与异步重规划实施说明
+
+### 4.1 数据变更（C5 / C9）
+
+```sql
+ALTER TABLE ft_plan
+    ADD COLUMN replan_status VARCHAR(20),
+    ADD COLUMN replan_message TEXT,
+    ADD COLUMN replan_requested_at TIMESTAMP,
+    ADD COLUMN replan_finished_at TIMESTAMP;
+```
+
+列均可空，`replan_status` 取 `running` / `succeeded` / `failed`，空值对外映射为 `idle`；`replan_finished_at` 在终态写入。全量建库同步进 `schema.sql` 的 `ft_plan` 建表定义；无新表、无物理外键、无新索引（状态仅按主键详情读取，不参与列表筛选）。与既有 `snapshot_synced_at` 并列，前者表示快照新鲜度，本次新增字段只表示重规划任务状态。
+
+### 4.2 异步执行边界
+
+- 编辑接口所在事务只负责基础信息、关联需求与 `running` 状态的持久化；异步任务通过独立 `@Async` 执行器触发，避免自调用导致异步失效。
+- 异步任务按 `planId` 读取最新 `requirement_ids` 并解析用例，调用差量快照更新并回写 `snapshot_synced_at`；取消关联用例时保留历史执行结果作审计。
+- 任务成功 / 失败均以部分更新载体回写状态字段；失败原因写入 `replan_message`，前端轮询到 `failed` 后提示用户，可重新编辑再触发。
+- 应用重启时残留的 `running` 状态由启动扫描置为 `failed`（`replan_message` 记「服务重启导致中断」），避免前端无限轮询。
+
+### 4.3 测试要点（C8 ≥ 70%）
+
+- `TestPlanServiceImplTest`：编辑部分更新、 blocked / 终态 / 缺权限拒绝、`replan` 并发拒绝。
+- 异步执行器单测：成功回写 `succeeded`、解析失败回写 `failed`、快照差量更新保留执行记录并回写 `snapshot_synced_at`。
+- 前端计划列表页测试：关联需求变化时提示、确认 / 取消分支、轮询终态后刷新列表，缺 `plan:execute` 时 [编辑] 不展示。
+
 ## 修改记录
 
 | 版本 | 日期 | 说明 |
@@ -331,3 +391,4 @@ WHERE is_deleted = FALSE AND type = 'workspace' AND NOT (permissions ? 'plan:blo
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_plan*` → `ft_plan*` |
 | V1.0 | 2026-10-20 | 计划授权改为权限码：阻塞/恢复挂 `plan:block`、同步/完成挂 `plan:execute`，删除仍限负责人；新增第 3 章权限点、方法映射与迁移说明，列表页与详情页入口改「状态 + 权限码」双条件显隐 |
 | V1.0 | 2026-11-15 | 创建计划改为关联需求：新增 `requirementIds`（`selectedNodes` 改为可选）、按 `ft_case_requirement` 反查用例，详情返回 `requirements`、列表返回 `requirementCount` |
+| V1.0 | 2026-11-18 | 新增计划编辑：1.3 详情补 `requirementIds` / 重规划状态字段，1.15 编辑与 1.16 状态查询接口，2.1 列表 [编辑] 入口，第 4 章数据变更与异步执行边界，错误码 1000011028 |
