@@ -4,10 +4,12 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 import io.github.xiaomisum.robotest.service.domain.plan.TestPlanService;
@@ -54,6 +56,22 @@ public class TestPlanController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID id) {
         return Result.ok(testPlanService.getPlanDetail(loginUser.getActiveProjectId(), id, loginUser.getId()));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('plan:execute')")
+    public Result<TestPlanDetailRespDTO> updatePlan(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id,
+            @RequestBody @Valid TestPlanUpdateReqDTO reqDTO) {
+        return Result.ok(testPlanService.updatePlan(loginUser.getActiveProjectId(), id, loginUser.getId(), reqDTO));
+    }
+
+    @GetMapping("/{id}/replan-status")
+    public Result<TestPlanReplanStatusRespDTO> getReplanStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable UUID id) {
+        return Result.ok(testPlanService.getReplanStatus(loginUser.getActiveProjectId(), id, loginUser.getId()));
     }
 
     @GetMapping("/{id}/modules")

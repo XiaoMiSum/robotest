@@ -3,10 +3,12 @@ package io.github.xiaomisum.robotest.service.domain.plan;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCasesUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanRecordReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.plan.TestPlanUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanDetailRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanSnapshotNodeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanProgressRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.plan.TestPlanReplanStatusRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.SnapshotModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.plan.PlannedCasesRespDTO;
 
@@ -21,6 +23,11 @@ public interface TestPlanService {
             Integer pageNo, Integer pageSize);
 
     TestPlanDetailRespDTO createPlan(UUID projectId, UUID userId, TestPlanCreateReqDTO reqDTO);
+
+    /**
+     * 编辑计划基本信息（权限由 Controller 校验、活跃态由服务校验）；关联需求集合变化且 replan=true 时提交后台重规划
+     */
+    TestPlanDetailRespDTO updatePlan(UUID projectId, UUID planId, UUID userId, TestPlanUpdateReqDTO reqDTO);
 
     TestPlanDetailRespDTO getPlanDetail(UUID projectId, UUID planId, UUID userId);
 
@@ -105,4 +112,26 @@ public interface TestPlanService {
      * @param userId 操作人 ID
      */
     void deletePlan(UUID projectId, UUID planId, UUID userId);
+
+    /**
+     * 查询关联需求变化后的用例重规划状态
+     */
+    TestPlanReplanStatusRespDTO getReplanStatus(UUID projectId, UUID planId, UUID userId);
+
+    /**
+     * 后台重规划执行入口，由独立 @Async Runner 调用（非请求入口）
+     *
+     * @return 结果摘要
+     */
+    String executeReplan(UUID projectId, UUID planId);
+
+    /**
+     * 回写重规划成功状态，由独立 Runner 调用
+     */
+    void markReplanSucceeded(UUID projectId, UUID planId, String message);
+
+    /**
+     * 回写重规划失败状态，由独立 Runner 调用
+     */
+    void markReplanFailed(UUID projectId, UUID planId, String message);
 }
