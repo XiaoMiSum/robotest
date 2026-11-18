@@ -62,6 +62,7 @@
 
 - 纯函数、composable、Store 和请求适配器使用单元测试。
 - 组件测试必须覆盖加载、空数据、错误、权限不足和提交中状态。
+- 权限不足状态仅适用于存在权限门禁的模块；功能测试、需求管理、接口测试、缺陷管理、AI 能力 5 个业务模块免 RBAC 权限码校验，不设权限状态分支，无需覆盖该状态（见 `docs/00-spec/40-security/01-security.md` §3.4）。
 - API service 测试必须断言 `Result` 解包、业务错误和 HTTP 错误。
 - 时间处理测试必须覆盖 UTC `Z`、带 offset、无时区兼容输入、非法输入和浏览器时区变化。
 - 滚动和响应式行为按 `docs/00-spec/50-ui/03-scroll-container.md` 由用户人工验收，交付时询问用户验收结果。
@@ -168,6 +169,12 @@ node scripts/validate.mjs --backend
 - 安全基线：`docs/00-spec/40-security/01-security.md`
 - 构建与 CI：`docs/00-spec/30-quality-delivery/03-deploy.md`
 - AI 任务流程：`docs/00-spec/00-governance/02-task-template.md`
+
+## 12. 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-11-18 | 补建修改记录；明确组件测试的「权限不足」状态覆盖不适用于免 RBAC 权限码校验的 5 个业务模块 |
 
 ---
 

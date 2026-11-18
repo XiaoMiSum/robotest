@@ -8,7 +8,7 @@
 
 ## 1. 报告列表筛选参数
 
-列表查询接口 `GET /api/project/reports` 的路径、权限（`api-report:view`）、排序（按 `created_at` 倒序）与响应结构见《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md`）1.1，本节定义列表页实际使用的筛选参数与列表范围。
+列表查询接口 `GET /api/project/reports` 的路径、权限（免 RBAC 权限码校验，保留项目成员校验）、排序（按 `created_at` 倒序）与响应结构见《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md`）1.1，本节定义列表页实际使用的筛选参数与列表范围。
 
 ### 1.1 筛选参数
 
@@ -35,7 +35,7 @@
 ## 2. 批量删除报告
 
 - **路径**：`POST /api/project/reports/batch-delete`（接口定位见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.5）
-- **权限**：`api-report:delete`；服务端另校验项目成员身份与每条报告的项目归属，报告不存在或不属于当前项目返回 **1000017311**（`API_REPORT_NOT_FOUND`「报告不存在或不属于当前项目」，号段见 `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md` 2.2）。
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）；服务端校验项目成员身份与每条报告的项目归属，报告不存在或不属于当前项目返回 **1000017311**（`API_REPORT_NOT_FOUND`「报告不存在或不属于当前项目」，号段见 `docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md` 2.2）。
 - **请求体**：
 
 ```json
@@ -89,7 +89,7 @@
 | `partial` | 部分通过 | warning（黄） |
 | 其他取值 | 原样展示 | info |
 
-**行内删除**：点击 [删除] 弹出确认框，文案为 `删除报告「<报告名>」？删除后不可恢复。`（确认按钮为危险样式），确认后调用 `DELETE /api/project/reports/:id`（权限 `api-report:delete`，`data` 为 `true`，接口定义见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.5），成功提示「已删除」，当前页无剩余数据且 `pageNo > 1` 时回退一页，否则刷新当前页；失败顶部弹出错误消息（缺省「删除失败」）。
+**行内删除**：点击 [删除] 弹出确认框，文案为 `删除报告「<报告名>」？删除后不可恢复。`（确认按钮为危险样式），确认后调用 `DELETE /api/project/reports/:id`（免 RBAC 权限码校验，保留项目成员校验，`data` 为 `true`，接口定义见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.5），成功提示「已删除」，当前页无剩余数据且 `pageNo > 1` 时回退一页，否则刷新当前页；失败顶部弹出错误消息（缺省「删除失败」）。
 
 ### 3.3 分页与状态分支
 
@@ -101,13 +101,11 @@
 
 ### 3.4 权限口径
 
-| 操作 | 权限码 |
+| 操作 | 权限 |
 | ---- | ---- |
-| 侧边栏「测试报告」菜单入口与列表查询 | `api-report:view` |
-| 打开报告详情、生成分享链接 | `api-report:view` |
-| 行内删除、批量删除 | `api-report:delete` |
+| 侧边栏「测试报告」菜单入口与列表查询、打开报告详情、生成分享链接、行内删除、批量删除 | " + STMT + " |
 
-> 页面不按权限码隐藏 [查看] / 行内 [删除] / 批量 [删除]，越权调用由后端 `@PreAuthorize` 鉴权拒绝（HTTP 403），口径见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.6；用户无任何接口测试模块权限时，模块主区域显示「暂无可用功能模块」。
+> 页面不按权限码隐藏 [查看] / 行内 [删除] / 批量 [删除]，服务端不做权限码校验、仅保留项目成员归属校验，口径见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.6。
 
 
 ## 4. 报告清理
@@ -128,3 +126,4 @@
 | V1.0 | 2026-10-17 | 批量删除入口改 link 形态（危险色）[删除] 并移至表格底部与分页同行，移除「已选 N 项」数量提示，同步权限口径表述与页面结构图 |
 | V1.0 | 2026-10-17 | 批量删除确认弹窗标题改「删除报告」，文案改「删除选中的 N 份报告？删除后不可恢复。」 |
 | V1.0 | 2026-11-11 | 批量删除入口改为页面底部浮动批量条（已选 N 项 + [批量删除] + [清空]），取消全部勾选自动隐藏 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

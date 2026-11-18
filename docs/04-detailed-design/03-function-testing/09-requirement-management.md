@@ -155,24 +155,11 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ### 3.1 通用约定
 
-- 基础路径：`/api/project/requirements`；请求需 `Authorization` + `X-Active-Workspace` + `X-Active-Project` 上下文头（C4，上下文不出 URL），服务端校验项目归属与需求权限。
+- 基础路径：`/api/project/requirements`；请求需 `Authorization` + `X-Active-Workspace` + `X-Active-Project` 上下文头（C4，上下文不出 URL），服务端校验项目归属与当前项目成员身份。
 - 响应使用平台通用 `Result<T>`，下文示例**仅展示 `data` 字段**；分页 `pageNo`（从 1）/ `pageSize`（默认 20，最大 100）→ `{ list, total }`；字段 camelCase。
 - 更新一律**部分更新（C11）**：请求体只包含发生变化的字段，服务端仅更新传入字段，未传字段保持原值。
 
-**权限码与方法映射**（GET 为并集；权限点登记见 6.2）：
-
-| 路径 | 方法 | 所需权限 |
-| ---- | ---- | ---- |
-| /api/project/requirements | GET | requirement:view |
-| /api/project/requirements | POST | requirement:create |
-| /api/project/requirements/{id} | GET | requirement:view |
-| /api/project/requirements/{id} | PUT | requirement:edit |
-| /api/project/requirements/{id}/confirm | POST | requirement:confirm |
-| /api/project/requirements/{id}/archive | POST | requirement:confirm |
-| /api/project/requirements/{id}/unarchive | POST | requirement:edit |
-| /api/project/requirements/import | POST | requirement:create |
-| /api/project/requirements/{id}/change-logs | GET | requirement:view |
-| /api/project/requirements/split-records | GET | requirement:view |
+需求管理接口免 RBAC 权限码校验，统一校验登录状态、活动上下文、项目归属与当前项目成员身份；各接口另按状态机与归档只读等业务规则执行。
 
 ### 3.2 需求列表
 
@@ -399,11 +386,11 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 3. 全部驳回：`split_record.status = rejected`，不产生任何需求；
 4. 采纳落库失败（如编号重试耗尽）时，该提案采纳动作整体回滚，任务侧保持待采纳态，可重试。
 
-### 4.6 权限与隔离
+### 4.6 归属与隔离
 
-- 所有查询强制 `project_id = X-Active-Project` 过滤，越权返回 404；
+- 所有查询强制 `project_id = X-Active-Project` 过滤，非本项目的资源返回 404；
 - `ownerId` 指派校验当前工作空间成员资格；
-- 导入任务的提交与结果读取复用 AI 任务资源的权限校验（发起人可见自己的任务）。
+- 导入任务的提交与结果读取复用 AI 任务资源的归属校验（发起人可见自己的任务）。
 
 ---
 
@@ -414,7 +401,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 ```
 项目工作区
 ├── /workspace/projects/functional-testing?tab=requirements  → FunctionalTestingPage（功能测试壳层，侧栏首位「需求列表」子项）
-│   └── RequirementListPage（需求列表，按 requirement:view 显隐）
+│   └── RequirementListPage（需求列表，常驻展示）
 ├── /workspace/projects/requirements/create                  → RequirementCreatePage（新建需求，过程页不入菜单）
 └── /workspace/projects/requirements/:requirementId          → RequirementDetailPage（需求详情，过程页不入菜单）
 
@@ -446,7 +433,7 @@ RequirementDetailPage
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务执行与轨迹订阅，任务完成回调刷新列表与拆解记录。
 - 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 执行与轨迹轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
-- 全部状态分支：列表空态（引导新建/导入）、归档只读降级、权限不足隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
+- 全部状态分支：列表空态（引导新建/导入）、归档只读降级、业务状态不满足时隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
 
 ---
 
@@ -466,17 +453,7 @@ RequirementDetailPage
 | 1000018008 | 400 | 导入文件为空或不可解析 |
 | 1000018010 | 400 | 需求属性取值非法（优先级、版本超长等） |
 | 1000018011 | 404 | 来源附件不存在 |
-| 1000018012 | 403 | 无需求管理权限 |
 | 1000018013 | 409 | 已存在进行中的导入任务 |
-
-### 6.1 权限点（新增，业务侧 scope = workspace）
-
-| code | 名称 |
-| ---- | ---- |
-| requirement:view | 查看需求 |
-| requirement:create | 新建与导入需求 |
-| requirement:edit | 编辑需求（含取消归档） |
-| requirement:confirm | 确认与归档需求 |
 
 ---
 
@@ -491,7 +468,6 @@ RequirementDetailPage
 | `server/.../service/requirement/RequirementService + Impl` | 列表、详情、部分更新、状态机 |
 | `server/.../service/requirement/RequirementAdoptService + Impl` | 导入拆解提案采纳落库 |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018001–1000018013 |
-| 权限点迁移脚本 | 新增 `requirement:*` 四个权限点（scope = workspace） |
 | `web/src/pages/project/RequirementListPage.vue`、`RequirementDetailPage.vue` 及子组件 | 前端页面 |
 | `web/src/stores/requirement.ts`、`web/src/services/requirement.ts`、`web/src/types/requirement.ts` | 状态、API 与类型 |
 
@@ -517,8 +493,8 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：编号分配并发与重试、状态机非法流转矩阵、归档只读、部分更新不覆盖未传字段、变更触发状态流转与变更记录、拆解采纳事务、导入大小/类型校验、关键词三段匹配、越权 404；
-- 前端：筛选与防抖查询、状态按钮可用性矩阵、导入全流程与任务详情页审核、归档只读降级、空态与权限隐藏。
+- 后端：编号分配并发与重试、状态机非法流转矩阵、归档只读、部分更新不覆盖未传字段、变更触发状态流转与变更记录、拆解采纳事务、导入大小/类型校验、关键词三段匹配、非本项目资源返回 404；
+- 前端：筛选与防抖查询、状态按钮可用性矩阵、导入全流程与任务详情页审核、归档只读降级、空态与业务状态隐藏。
 
 ---
 
@@ -530,7 +506,7 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-02 | 需求增加业务系统版本属性，导入支持 AI 识别版本，列表、筛选与属性栏同步 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/requirements |
 | V1.0 | 2026-10-03 | 导入/拆分进度与建议审核统一到任务详情页（/workspace/projects/ai/tasks/:taskId），删除进度弹窗与审核面板浮层口径 |
-| V1.0 | 2026-10-03 | 权限映射表拆解记录行对齐 3.11 路径（`{id}/split-logs` 与项目级 `/split-records`） |
+| V1.0 | 2026-10-03 | 接口映射拆解记录行对齐 3.11 路径（`{id}/split-logs` 与项目级 `/split-records`） |
 | V1.0 | 2026-10-06 | 3.8 补识别版本下发通道：`documentMeta` 经任务详情响应字段回传，确认面板据此预填 |
 | V1.0 | 2026-10-15 | 5.1 / 5.2 增需求管理壳层（页内侧栏承载需求列表与追溯矩阵子页）与旧路径重定向，TraceEntry 改为页内切至追溯子页 |
 | V1.0 | 2026-10-15 | 5.2 详情页组件对齐新建页骨架：操作区与面包屑同行、标题与描述并入统一编辑态、属性改为「属性 \| 变更记录」页签卡片，变更记录按页签激活加载 |
@@ -542,6 +518,7 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-15 | 5.1 / 5.2 增链路明细页路由（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），TraceEntry 改为跳转该页 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：统一任务资源改 AI Task 任务资源，确认端点 `artifacts/confirm` → `proposals/confirm`，任务 `result` → `result_meta`、`pending/running` 去重收敛为 `running`；产物改称提案，4.5 承接与前端状态分支同步 |
 | V1.0 | 2026-10-16 | 术语与状态口径残词勘误：3.8 导入响应示例 `status` 改 `running`（任务创建即启动）、3.10 `adoptResult` 键改 `proposalKey`、5.3 `aiTask` store 改任务执行与轨迹订阅 |
-| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除 3.11 追溯视图委托接口（含 `{id}/trace` 权限行与错误码 1000018014，登记收敛为 1000018001–1000018013）、4.4 影响分析触发（改为纯状态流转）与确认/更新处的影响任务表述，移除覆盖率筛选与 `coverageStatus` 字段、追溯子页路由与旧路径重定向、TraceEntry 与查看追溯入口 |
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除 3.11 追溯视图委托接口（含 `{id}/trace` 接口行与错误码 1000018014，登记收敛为 1000018001–1000018013）、4.4 影响分析触发（改为纯状态流转）与确认/更新处的影响任务表述，移除覆盖率筛选与 `coverageStatus` 字段、追溯子页路由与旧路径重定向、TraceEntry 与查看追溯入口 |
 | V1.0 | 2026-10-18 | 需求管理并入功能测试模块：5.1 / 5.2 删除需求管理壳层，需求列表改为功能测试侧栏首位子项（`?tab=requirements`），旧路径重定向至功能测试壳层；1.2 引用随分册迁移同步；后端设计（数据、接口、错误码）不变 |
 | V1.0 | 2026-10-19 | 5.2 描述编辑器新增底部拖拽手柄自由调高（最小 200px、最大视口高度；拖动后本次停留期间窗口缩放不再覆盖，不持久化），新建页与详情页编辑态同步生效 |
+| V1.0 | 2026-11-18 | 移除需求管理 RBAC 权限码口径：删除权限码映射、权限点清单与相关错误码，接口统一按项目归属和成员身份校验，前端入口不再按权限码显隐 |

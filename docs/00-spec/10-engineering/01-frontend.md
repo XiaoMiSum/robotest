@@ -141,7 +141,7 @@ const displayName = computed(() => props.user.name)
 - 成功反馈
 - 重试或刷新
 
-禁止只实现正常路径。
+禁止只实现正常路径。权限状态仅适用于存在权限门禁的模块；功能测试、需求管理、接口测试、缺陷管理、AI 能力 5 个业务模块免 RBAC 权限码校验，不设权限状态分支，无需该状态（见 `docs/00-spec/40-security/01-security.md` §3.4）。
 
 ### 4.3 命名
 
@@ -279,7 +279,7 @@ export interface PageResult<T> {
 - [ ] 组件不直接依赖 services 或 pages
 - [ ] 请求使用 `Result` 和统一错误处理
 - [ ] 分页使用 `pageNo/pageSize` 和 `list`
-- [ ] 加载、空态、错误和无权限状态完整
+- [ ] 加载、空态、错误和无权限状态完整（权限状态仅适用于有权限门禁的模块，见 4.2）
 - [ ] 页面已按职责拆分，Props/Emits/Slots 和状态拥有者清晰
 - [ ] 设计令牌、语义状态、可访问性和响应式要求已检查
 - [ ] 时间要求已检查
@@ -293,6 +293,12 @@ export interface PageResult<T> {
 - 页面开发：`docs/00-spec/50-ui/02-page-development.md`
 - 滚动专项：`docs/00-spec/50-ui/03-scroll-container.md`
 - 前端约定：`web/AGENTS.md`
+
+## 14. 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.1 | 2026-11-18 | 补建修改记录；明确组件状态完整性与审查清单中的权限状态不适用于免 RBAC 权限码校验的 5 个业务模块 |
 
 ---
 

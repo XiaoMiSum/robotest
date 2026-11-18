@@ -351,7 +351,6 @@ CREATE INDEX idx_ai_task_proposal_task ON ai_task_proposal (task_id, confirm_sta
 | name | varchar(100) | NOT NULL | 工具名称（轨迹与确认闸门展示用） |
 | task_types | jsonb | NOT NULL | 适用任务类型数组（白名单签发依据；`["*"]` 表示全部类型） |
 | param_schema | jsonb | NOT NULL | 参数结构声明（执行前按此校验） |
-| permission_code | varchar(50) | NULL | 调用所需权限点（NULL = 继承发起人权限），执行期服务端鉴权 |
 | side_effect | varchar(20) | NOT NULL, DEFAULT 'readonly' | `readonly / confirmation`；写库与出网副作用禁止注册 |
 | enabled | boolean | NOT NULL, DEFAULT TRUE | 停用后不出现在任何白名单 |
 
@@ -362,7 +361,6 @@ CREATE TABLE ai_task_tool (
     name            varchar(100) NOT NULL,
     task_types      jsonb NOT NULL,
     param_schema    jsonb NOT NULL,
-    permission_code varchar(50) NULL,
     side_effect     varchar(20) NOT NULL DEFAULT 'readonly',
     enabled         boolean NOT NULL DEFAULT TRUE,
     created_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -463,10 +461,10 @@ CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id, execution_id);
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | title | varchar(100) | NOT NULL | 会话标题（首问自动生成，可重命名） |
-| user_id | uuid | NOT NULL | **归属人 = 唯一隔离维度**：列表、可见性、权限校验只看它；仅本人可见可操作 |
-| workspace_id | uuid | NOT NULL | **归属工作空间**（创建时取 `X-Active-Workspace`，创建后不变）：会话列表按当前活跃空间过滤；**不参与权限判定**（可见性与隔离仍只看 `user_id`） |
+| user_id | uuid | NOT NULL | **归属人 = 唯一隔离维度**：列表与归属可见性只看它；仅本人可见可操作 |
+| workspace_id | uuid | NOT NULL | **归属工作空间**（创建时取 `X-Active-Workspace`，创建后不变）：会话列表按当前活跃空间过滤；**不参与归属判定**（可见性与隔离仍只看 `user_id`） |
 | status | varchar(20) | NOT NULL, DEFAULT 'active' | `active / archived` |
-| context_snapshot | jsonb | NULL | 会话创建时的活跃工作空间、页面实体引用与**会话私有项目状态**（`projectId / projectName`，解析或澄清写入，仅会话内生效、不改全局、不进请求头）：默认上下文、预览来源展示、消息 `attachments` 兜底；**不参与权限判定** |
+| context_snapshot | jsonb | NULL | 会话创建时的活跃工作空间、页面实体引用与**会话私有项目状态**（`projectId / projectName`，解析或澄清写入，仅会话内生效、不改全局、不进请求头）：默认上下文、预览来源展示、消息 `attachments` 兜底；**不参与归属判定** |
 
 **索引**（1 个）：`idx_ai_assistant_conversation_user_workspace` (user_id, workspace_id, created_at)。
 
@@ -569,16 +567,16 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 3.1 通用约定
 
 - 基础路径：`/api/ai`（`docs/02-high-level-design/04-hld-data-interface.md` 2.1 已登记）：
-  - **管理配置与用量**（3.2–3.5、3.7）：需系统角色 + `ai:admin` 权限，**不携带**工作空间 / 项目上下文头；
-  - **任务**（3.6）：后端不做权限校验（`ai:task` / `ai:confirm` 仅用于前端入口显隐），仅保留任务归属可见性（3.6.3）；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`（C4，上下文不出 URL）。
-  - **助手**（各分册）：需 `ai:confirm` 权限（助手执行接口独立于任务端点）；上下文头要求同上。
+  - **管理配置与用量**（3.2–3.5、3.7）：免 RBAC 权限码校验（登录即可），**不携带**工作空间 / 项目上下文头；
+  - **任务**（3.6）：免 RBAC 权限码校验（登录即可提交），仅保留任务归属可见性（3.6.3）；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`（C4，上下文不出 URL）。
+  - **助手**（各分册）：免 RBAC 权限码校验，仅保留会话归属可见性（4.4）；上下文头要求同上。
 - 响应使用平台通用 `Result<T>`，下文示例**仅展示 `data` 字段**；分页 `pageNo` / `pageSize` → `{ list, total }`；字段 camelCase。
 - 密钥字段（`apiKey`）**写入可用、读取永不返回**，列表与详情仅返回 `keyConfigured` 布尔。
 - 任务是全部 AI 执行的唯一收口：能力域分册的业务动作统一映射到 3.6 的任务资源，不另设平行的 AI 执行端点。
 
 ### 3.2 总开关与全局设置
 
-- **查询**：`GET /api/ai/settings`（`ai:admin`）
+- **查询**：`GET /api/ai/settings`（免 RBAC 权限码校验，登录即可）
 
 ```json
 {
@@ -595,7 +593,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
   - `modelReady / embeddingReady / available` 为入口可见性依据：`available = enabled && modelReady`；RAG 类能力额外要求 `embeddingReady`。
 
-- **业务端可用性**：`GET /api/ai/status`（登录即可，无需 `ai:admin`）→ `{ "enabled": true, "modelReady": true, "available": true }`
+- **业务端可用性**：`GET /api/ai/status`（登录即可，免 RBAC 权限码校验）→ `{ "enabled": true, "modelReady": true, "available": true }`
   - 仅回这三个布尔口径（`available = enabled && modelReady`），供业务端入口显隐；不返回任何配置明细或模型信息。
 
 - **更新**：`PUT /api/ai/settings`（部分更新）
@@ -741,7 +739,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 #### 3.6.2 提交任务（创建即启动执行）
 
-- **路径**：`POST /api/ai/tasks`（后端不做权限校验，登录即可提交）
+- **路径**：`POST /api/ai/tasks`（免 RBAC 权限码校验，登录即可提交）
 - **请求**：
 
 ```json
@@ -771,7 +769,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- **校验顺序**：总开关（1000018101）→ 类型 → 输入 → 预算 → 可用模型（1000018118；必需能力选型见 4.2，无候选 1000018124）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。任务端点不做权限校验（`ai:task` / `ai:confirm` 及任务类型资源权限均不校验），仅详情 / 操作的归属可见性按 3.6.3 判定。
+- **校验顺序**：总开关（1000018101）→ 类型 → 输入 → 预算 → 可用模型（1000018118；必需能力选型见 4.2，无候选 1000018124）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。任务端点免 RBAC 权限码校验（登录即可），仅详情 / 操作的归属可见性按 3.6.3 判定。
 
 #### 3.6.3 任务列表与详情
 
@@ -821,7 +819,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 #### 3.6.5 提案确认（采纳 / 驳回）
 
-- **路径**：`POST /api/ai/tasks/{taskId}/proposals/confirm`（后端不做权限校验，登录且任务可见即可）
+- **路径**：`POST /api/ai/tasks/{taskId}/proposals/confirm`（免 RBAC 权限码校验，登录且任务可见即可）
 - **请求**（批量，部分采纳支持逐条动作与编辑内容；落库目标项目经 `X-Active-Project` 头传递，不出请求体）：
 
 ```json
@@ -854,7 +852,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.7 用量统计
 
-- **聚合**：`GET /api/ai/usage/statistics`（`ai:admin`）
+- **聚合**：`GET /api/ai/usage/statistics`（免 RBAC 权限码校验，登录即可）
 - **参数**：
 
 | 参数 | 类型 | 必填 | 说明 |
@@ -879,13 +877,9 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 参数：`from / to`、`modelId`、`scene`、`status`、`callType`（`chat / vision / embedding`，按调用类型下钻）、`pageNo`、`pageSize`；
   - 响应列表项：`{ taskId, executionId, type, status, modelName, scene, totalTokens, latencyMs, createdAt }`，点击跳任务详情（3.6.3）。
 
-### 3.8 权限点（新增）
+### 3.8 权限口径
 
-| code | 名称 | scope | 用于 |
-| ---- | ---- | ---- | ---- |
-| ai:admin | AI 配置与用量管理 | global（系统角色） | 3.2–3.5、3.7 |
-| ai:task | AI 任务入口可见性 | workspace | 前端顶栏任务指示器显隐，后端接口不校验 |
-| ai:confirm | AI 提案确认入口可见性 | workspace | 前端确认操作入口显隐，后端接口不校验（助手执行接口的确认权限除外，见分册 04） |
+AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部免 RBAC 权限码校验（登录即可），不设权限点；仅保留任务 / 会话归属可见性（3.6.3、分册 04 4.4）与项目 / 空间成员归属隔离等非 RBAC 控制。
 
 ---
 
@@ -904,7 +898,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
 - **模型选型（能力 + 优先级）**：执行启动期按「任务必需能力」解析模型并回写执行行 `model_id`（维持启动时解析、执行不漂移），执行期以执行行 `model_id` 按同一规则复验；必需能力由类型适配器从任务输入派生（`bug_classify` 批量需结合项目范围解析缺陷集后判定）——`requirement_import` 图片文件、`assistant_parse` 消息附图、`bug_classify` 附带截图时为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。
-- **类型适配**：`type → 类型适配器`（每个适配器注册：input 校验器、工具白名单与预算默认值、提案结构定义、落库承接器）；执行核是通用 Agent 循环——AI 自主规划步骤（`plan` 事件入轨迹）、在白名单内选择并调用工具（参数校验 → 权限与作用域鉴权 → [确认型工具触发人工闸门] → 执行 → 结果回喂）、失败自行决定重试 / 改道 / 终止；应用层不在循环内预设业务流程。执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
+- **类型适配**：`type → 类型适配器`（每个适配器注册：input 校验器、工具白名单与预算默认值、提案结构定义、落库承接器）；执行核是通用 Agent 循环——AI 自主规划步骤（`plan` 事件入轨迹）、在白名单内选择并调用工具（参数校验 → 作用域鉴权 → [确认型工具触发人工闸门] → 执行 → 结果回喂）、失败自行决定重试 / 改道 / 终止；应用层不在循环内预设业务流程。执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
 - **预算护栏**：执行启动时按「类型默认值 + 请求下调」签发预算快照（2.6.2）；步数 / 时长 / token / 成本任一超限即终止执行与任务（`terminate_code = 1000018127`）；预算不可在执行中调高。
 - **生命周期**：执行 `running →（waiting_confirmation）→ succeeded / aborted`；任务 `running → proposals_ready → closed`，用户中止 / 预算耗尽 / 执行错误 / 总开关关闭时任务置 `aborted`；无待采纳提案的只读产出（摘要、排序建议）执行完成即 `closed`；心跳超时清扫器按 `task_timeout_seconds` 扫描 `status + heartbeat_at` 索引（2.6.2），超时置 `aborted`（`terminate_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待执行完成，超时返回执行中状态；等待不改变异步语义。
@@ -922,7 +916,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 4.4 RAG 与向量索引维护
 
 - **写侧**：业务实体变更事件（需求保存、用例保存、缺陷保存等）触发分块重嵌——按实体维度 upsert（`entity_type + entity_id` 旧分块先逻辑删除）；归档与逻辑删除的实体**移出索引**，不再被检索。
-- **读侧（限权）**：检索先按业务归属过滤——项目内任务取 `project_id = X-Active-Project`；助手类任务取活跃工作空间的项目集（`workspace_id` → 项目集）——**再**执行向量相似检索；无权限数据不得进入任何 AI 上下文。
+- **读侧（限权）**：检索先按业务归属过滤——项目内任务取 `project_id = X-Active-Project`；助手类任务取活跃工作空间的项目集（`workspace_id` → 项目集）——**再**执行向量相似检索；范围外数据不得进入任何 AI 上下文。
 - **维度 / 算子变更**：置向量能力不可用（查询返回 1000018122）→ 提交 `vector_reindex` 全量重建（新 `embedding_version`）→ 完成后恢复；重建期间依赖检索的能力提示不可用，**不降级为无引用生成**。
 
 ### 4.5 降级与容错
@@ -951,7 +945,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ### 5.2 业务端组件与状态
 
 ```
-顶栏 AI 任务指示器（AppLayout 层，项目模式 + ai:task 权限显隐）
+顶栏 AI 任务指示器（AppLayout 层，项目模式 + AI 可用时显隐）
 └── 进行中任务数角标（15s 轮询 running-count，0 时不显示角标），点击跳任务中心
 
 任务中心（项目工作区 /workspace/projects/ai/tasks → AiTaskCenterPage）
@@ -1006,7 +1000,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | 1000018118 | 400 | 未配置可用模型 |
 | 1000018119 | 400 | 向量 API 未配置或未启用，检索能力不可用 |
 | 1000018120 | 400 | 用量查询时间范围非法 |
-| 1000018121 | 403 | 无 AI 配置管理权限 |
 | 1000018122 | 409 | 向量索引不可用（全量重建中） |
 | 1000018123 | 400 | 同步等待参数超限（0–10 秒） |
 | 1000018124 | 400 | 未配置支持视觉能力的已启用模型 |
@@ -1030,7 +1023,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | `server/.../service/ai/task/type/*TypeAdapter` | 各 `type` 的类型适配器（input 校验、工具白名单与预算默认、提案结构、落库承接，分册实现） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018101–1000018124 及各分册号段 |
 | `server/pom.xml` | 引入 Spring AI 2.0.x（BOM + openai 模块）：模型 / 向量 HTTP 调用全量由框架执行（WP-4.6），替代自实现调用 |
-| 权限点迁移脚本 | 新增 `ai:admin`（global）、`ai:task` / `ai:confirm`（workspace） |
 | `web/src/pages/admin/AiSettingsPage.vue`、`web/src/pages/project/AiTaskCenterPage.vue`、`AiTaskDetailPage.vue` 及组件 | 管理端配置中心、任务中心与任务详情页 |
 | `web/src/stores/aiAdmin.ts`、`aiTask.ts`、`web/src/services/ai.ts`、`web/src/types/ai.ts` | 状态、API 与类型 |
 
@@ -1096,3 +1088,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-07 | 6 补登 1000018128「用户中止」：abort 端点执行与任务的 `terminate_code` 此前无登记码（预算耗尽 127 / 执行错误 117 / 总开关 101 沿用） |
 | V1.0 | 2026-11-07 | 助手与向量执行策略裁决落册：3.6.1 补两类首版默认预算与 steps 计法，4.2 补 vector chat 模型豁免、助手 5 跳与预算先到者终止、迟到用量只记明细不改汇总 |
 | V1.0 | 2026-11-12 | 整体移除评审/计划圈选建议（US-AI-008）：3.6.1 注销 `review_selection` / `plan_selection` 任务类型，3.6 目标型执行清单与 type 数量统计同步为九类 / 十一类 |
+| V1.0 | 2026-11-18 | AI 能力域整体免 RBAC 权限码校验：3.1 / 3.2 / 3.6 / 3.7 / 5.2 移除 `ai:admin` · `ai:task` · `ai:confirm` 与前端权限显隐口径（保留任务归属可见性与项目 / 空间成员校验），2.6.5 工具注册表去 `permission_code` 列，3.8 权限点表改为权限口径说明，6 注销 1000018121，7 删除权限点迁移脚本行 |

@@ -8,7 +8,7 @@
 
 ## 1. 导入接口
 
-**统一约定**：三个端点均为 POST，上下文（projectId）经请求头传递，不出现在 URL 与请求体中；执行导入（1.1、1.2）需权限 `api-interface:edit`，仅解析预览（1.3）需权限 `api-interface:view`。预览只解析不入库；导入记录（`api_import_record`）的写入时机与字段取值见 `docs/04-detailed-design/05-api-testing/07-api-testing-infra-import-record.md`。
+**统一约定**：三个端点均为 POST，上下文（projectId）经请求头传递，不出现在 URL 与请求体中；各端点免 RBAC 权限码校验，保留项目成员校验。预览只解析不入库；导入记录（`api_import_record`）的写入时机与字段取值见 `docs/04-detailed-design/05-api-testing/07-api-testing-infra-import-record.md`。
 
 ### 1.1 cURL 导入
 
@@ -136,7 +136,7 @@ cURL 解析在**前端**完成（复用快速调试 `curlParser`，见 `docs/04-
 
 ## 4. 导入弹窗
 
-- **入口**：接口工作区顶部右侧「导入」按钮（`web/src/pages/project/api-testing/interface/InterfaceWorkspace.vue`）先切回列表页签，再委托列表页打开弹窗（`web/src/pages/project/api-testing/interface/ImportDialog.vue`）；前端按钮未挂权限码，实际写入权限由后端 `api-interface:edit` 校验。
+- **入口**：接口工作区顶部右侧「导入」按钮（`web/src/pages/project/api-testing/interface/InterfaceWorkspace.vue`）先切回列表页签，再委托列表页打开弹窗（`web/src/pages/project/api-testing/interface/ImportDialog.vue`）；前端按钮不做权限码过滤，项目成员可用并保留项目成员归属校验。
 - **来源切换**：`Swagger URL` / `cURL` 单选切换，切换后清空已解析预览与本地解析结果；弹窗每次打开重置全部输入与结果。
 - **URL 导入**：URL 输入框，格式自动识别（Swagger/OpenAPI 2.0/3.0），「解析预览」调用预览接口（1.3）。
 - **cURL 导入**：多行粘贴区（支持多条命令），「本地解析」由前端 `parseCurlImport` 完成，不经过后端；本地预览条目动作恒为「新建」、`conflict` 恒为 `false`（前端不查后端去重情况）。
@@ -176,3 +176,4 @@ cURL 解析在**前端**完成（复用快速调试 `curlParser`，见 `docs/04-
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 按实现对齐：请求体移除未提交的 `source` 字段，响应摘要改为 `{created, updated, failed}` 并澄清响应无 `status`，补全错误码与权限口径、cURL 本地预览与失败反馈分支、增量匹配回退规则及动作取值 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

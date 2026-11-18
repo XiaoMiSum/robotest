@@ -21,7 +21,7 @@
 - **通用 API 约定**：请求/响应规范、分页、错误码号段；
 - **格式转换机制**：平台自有模型与 Ryze TestSuite 的映射关系、配置继承与优先级、转换失败处理。
 
-所有接口测试接口的鉴权、上下文传递（`X-Active-Workspace` / `X-Active-Project` 请求头）沿用平台既有约定（C4）。
+所有接口测试接口免 RBAC 权限码校验，保留项目成员归属校验；上下文传递（`X-Active-Workspace` / `X-Active-Project` 请求头）沿用平台既有约定（C4）。
 
 ### 1.3 参考资料
 
@@ -195,7 +195,7 @@
 - `uk_api_component_project` UNIQUE (project_id, type, name) WHERE scope = 'project' AND is_deleted = FALSE
 - `uk_api_component_workspace` UNIQUE (workspace_id, type, name) WHERE scope = 'workspace' AND is_deleted = FALSE
 
-> 公共组件支持三级作用域：项目级（仅项目内可见）、空间级（空间内所有项目可见）、全局级（全平台可见）。组件启用/停用状态仅影响资产选择器的可见性，不影响已配置场景的正常执行。维护权限分级：project → `api-component:edit`、workspace → `api-component:edit-space`、global → `api-component:edit-global`。
+> 公共组件支持三级作用域：项目级（仅项目内可见）、空间级（空间内所有项目可见）、全局级（全平台可见）。组件启用/停用状态仅影响资产选择器的可见性，不影响已配置场景的正常执行。公共组件维护不做 RBAC 权限码校验，保留项目成员归属校验。
 
 #### 2.1.6 导入记录表（api_import_record）
 
@@ -407,3 +407,4 @@ robotest:
 | V1.0 | 2026-10-13 | GitLab 集成号段扩至 1000017715：新增 `API_GIT_ARTIFACT_DOWNLOAD_FAILED`（制品下载失败，结果回收通道降级留痕）与 `API_GIT_ENVELOPE_INVALID`（结果信封缺失或无法解析，无可用信封时整批降级留痕） |
 | V1.0 | 2026-10-14 | 删除错误码 `1000017710`（执行阶段仓库不可达）：该场景与仓库被禁用统一按 `1000017707` 留痕，实现未启用本码，登记随之移除 |
 | V1.0 | 2026-10-18 | 错误码 `1000017714` 改义：`API_GIT_ARTIFACT_DOWNLOAD_FAILED` → `API_GIT_ARTIFACT_RECEIVE_FAILED`（结果回传改为 CI 主动推送，下载链路移除，编号保留防历史日志错位） |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

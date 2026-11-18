@@ -9,12 +9,12 @@
 ## 1. 接口定义管理
 
 > 前端统一经 `web/src/services/project/api-testing/interface.ts` 调用；当前项目上下文经请求头传递，不出现在 URL。响应示例仅展示 `data` 字段内容。
-> 权限口径由服务端 `@PreAuthorize` 强制：查询类接口（含导入预览）`api-interface:view`，新增/更新/移动/状态/关注/导入执行 `api-interface:edit`，删除 `api-interface:delete`；前端页面不做按钮级权限隐藏。
+> 权限口径：无（免 RBAC 权限码校验，保留项目成员校验）；前端页面不做按钮级权限隐藏。
 
 ### 1.1 查询接口列表
 
 - **路径**：`GET /api/project/interfaces?moduleId=&search=&pageNo=1&pageSize=20`
-- **权限**：`api-interface:view`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **筛选参数**：`moduleId`（可选，模块 ID）、`search`（可选，模糊匹配名称/路径）、`status`（可选，enabled / disabled）、`view`（可选，视图切换：followed=我关注的 / created=我创建的 / all=全部，缺省 all；followed 按当前用户关注关系过滤，created 按 `created_by` 过滤）。
 - **响应**：
 
@@ -42,7 +42,7 @@
 ### 1.2 查询接口详情
 
 - **路径**：`GET /api/project/interfaces/:id`
-- **权限**：`api-interface:view`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **响应**：包含完整请求参数模型、验证器/提取器定义、响应示例。
 
 ```json
@@ -85,7 +85,7 @@
 ### 1.3 创建接口定义
 
 - **路径**：`POST /api/project/interfaces`
-- **权限**：`api-interface:edit`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **请求体**：
 
 ```json
@@ -122,7 +122,7 @@
 ### 1.4 更新接口定义
 
 - **路径**：`PUT /api/project/interfaces/:id`
-- **权限**：`api-interface:edit`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **请求体**：同 1.3，另携带 `changeVersion`（当前版本号）。
 - **校验**：`changeVersion` 与库中当前版本不一致时返回错误码 1000017105（`API_INTERFACE_VERSION_CONFLICT`）；保存成功后版本号递增，并写入一条变更历史记录（见 1.13）。
 - **前端行为**：保存中按钮 loading；成功提示「已保存」并重新拉取详情刷新表单与版本号；识别到版本冲突时弹出确认框「接口已被他人修改，是否加载最新版本（将丢弃当前未保存的编辑）？」，确认后重新加载详情，取消则保留当前未保存的编辑。
@@ -132,7 +132,7 @@
 ### 1.5 删除接口定义
 
 - **路径**：`DELETE /api/project/interfaces/:id`
-- **权限**：`api-interface:delete`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **校验**：若接口被场景或 Mock 引用（`referenceCount > 0`），返回错误码 1000017103（`API_INTERFACE_REFERENCED`）。
 - **前端行为**：删除前二次确认「删除接口「××」？删除后不可恢复。」；成功提示「已删除」，当前页删空且非首页时自动回退一页。
 
@@ -154,7 +154,7 @@
 ### 1.9 批量移动接口
 
 - **路径**：`PUT /api/project/interfaces/batch/move`
-- **权限**：`api-interface:edit`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **请求体**：
 
 ```json
@@ -169,7 +169,7 @@
 ### 1.10 批量删除接口
 
 - **路径**：`DELETE /api/project/interfaces/batch`
-- **权限**：`api-interface:delete`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **请求体**：
 
 ```json
@@ -184,21 +184,21 @@
 ### 1.11 启用/停用接口
 
 - **路径**：`PUT /api/project/interfaces/:id/status`
-- **权限**：`api-interface:edit`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **请求体**：`{ "status": "enabled" }`（enabled / disabled）
 - **前端行为**：列表「状态」列开关即时切换，成功后列表状态与筛选立即生效；失败回滚开关原值并提示错误信息。
 
 ### 1.12 关注/取消关注接口
 
 - **路径**：`POST /api/project/interfaces/:id/follow`（关注）、`DELETE /api/project/interfaces/:id/follow`（取消关注）
-- **权限**：`api-interface:edit`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **说明**：关注关系按用户记录（`api_interface_follow`），列表页「我关注的」视图按关注关系过滤。
 - **前端行为**：列表首列星标图标切换（已关注实心高亮），行内即时更新，失败提示错误信息并保持原状态。
 
 ### 1.13 查询变更历史
 
 - **路径**：`GET /api/project/interfaces/:id/change-logs?pageNo=1&pageSize=20`
-- **权限**：`api-interface:view`
+- **权限**：无（免 RBAC 权限码校验，保留项目成员校验）
 - **说明**：创建、更新（摘要为字段差异）、导入创建/导入覆盖更新各写入一条记录；复制经 1.3 创建接口落库，记为创建；状态切换、关注、移动、删除不写入记录。按 `change_version` 倒序分页。
 - **响应**：
 
@@ -239,7 +239,7 @@
 
 ### 3.1 页面入口与工作区
 
-- 入口：接口测试页左侧菜单「接口管理」子页（`/workspace/projects/api-testing?tab=interfaces`，权限 `api-interface:view`）；旧独立编辑路由 `workspace/projects/interfaces/:interfaceId` 重定向到 `?tab=interfaces&interfaceId=<id>`（`new` 转为 `action=create`）。
+- 入口：接口测试页左侧菜单「接口管理」子页（`/workspace/projects/api-testing?tab=interfaces`）；旧独立编辑路由 `workspace/projects/interfaces/:interfaceId` 重定向到 `?tab=interfaces&interfaceId=<id>`（`new` 转为 `action=create`）。
 - 工作区（`web/src/pages/project/api-testing/interface/InterfaceWorkspace.vue`）为卡片式多 Tab：固定不可关闭的「全部接口」列表 Tab（KeepAlive 缓存）+ 每个编辑器一个可关闭 Tab。
 - Tab 标题为接口名称，新建未填名时显示「新接口」；标签前置蓝点表示有未保存修改，关闭时弹出确认框「该接口有未保存的修改，确定关闭？」。
 - Tab 条最右常驻「导入」「新建接口」按钮，始终作用于列表（自动切回列表 Tab 并复用当前模块上下文）。
@@ -286,7 +286,7 @@
   3. 请求体 / 响应示例 JSON 非法 → 见 1.3，不提交。
   4. 新建走创建（成功关闭 Tab 回列表并刷新），编辑携带 `changeVersion` 走更新（冲突处理见 1.4）。
 - 状态分支：详情加载中全屏遮罩；详情加载失败显示错误条与「重试」；新建 Tab 默认定位「请求头」页签、编辑 Tab 默认定位「基本信息」；Tab 标题随名称输入实时联动；复制预填失败回退空白新建态并提示。
-- 权限：子页挂载 `api-interface:view`；保存、导入、移动、状态、关注由服务端按 `api-interface:edit` 校验，删除按 `api-interface:delete` 校验，前端不做按钮级权限隐藏。
+- 权限：无（免 RBAC 权限码校验，保留项目成员校验），前端不做按钮级权限隐藏。
 
 ## 修改记录
 
@@ -295,3 +295,4 @@
 | V1.0 | 2026-10-02 | 按前端实现对齐：补全列表/详情字段与权限口径，修正变更历史写入与复制/批量操作交互，移除未实现的引用关系与引用场景查询，重写模块树与页面结构章节 |
 | V1.0 | 2026-10-20 | 列表表格改固定高度（`height="100%"` 沿页面高度链路取窗口剩余可用空间），数据超出仅表体内部滚动，搜索卡工具栏/表头/分页条固定不动 |
 | V1.0 | 2026-11-11 | 列表批量入口改为页面底部浮动批量条（已选 N 项 + 全称按钮 + 清空），取消全部勾选自动隐藏 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

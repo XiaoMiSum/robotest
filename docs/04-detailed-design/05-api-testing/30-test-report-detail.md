@@ -52,7 +52,7 @@
 
 ## 3. 报告查看页
 
-- **入口与定位**：详情页不是独立路由，而是接口测试页「测试报告」菜单（权限 `api-report:view`）下的子状态——报告列表点击报告名称链接或行内 [查看] 后，`ApiTestingPage.vue` 渲染 `web/src/pages/project/api-testing/report/ReportDetailPage.vue`；Hero 右侧 [关闭] 返回列表。
+- **入口与定位**：详情页不是独立路由，而是接口测试页「测试报告」菜单下的子状态——报告列表点击报告名称链接或行内 [查看] 后，`ApiTestingPage.vue` 渲染 `web/src/pages/project/api-testing/report/ReportDetailPage.vue`；Hero 右侧 [关闭] 返回列表。
 - **报告列表**（`ReportsPage.vue`，本页内嵌）：分页（每页 20 条）、筛选（状态 / 执行方式 / 场景 / 时间范围）、搜索（回车或清空触发的关键字）。
   - 列表列：选择框、报告名称（链接）、类型（套件 / 场景报告）、状态、通过率、耗时、创建时间、操作（查看 / 删除）。
   - 状态列：`success` 通过（绿）、`failed` 失败（红）、`partial` 部分通过（黄）。
@@ -72,7 +72,7 @@
   - **页脚**：报告生成时间、来源、环境。
   - 组件职责：`ReportResultView.vue` 编排数据（数据逻辑在 `useReportResultView.ts`），`ReportProcessorsTabs.vue`（`useReportProcessors.ts`）/ `ReportStepCard.vue`（`useReportStepCard.ts`）纯展示，状态文案与格式化辅助函数在 `useReportDisplay.ts`；颜色语义引用视觉设计 CSS 变量。
 - **加载与错误态**：详情页整体加载遮罩；加载失败以顶部错误消息提示（`ElMessage`），内容区留空；`result` 为空时展示「暂无报告内容」空态。
-- **接口与权限**：详情 `GET /api/project/reports/:id`、生成分享 `POST /api/project/reports/:id/share`，权限码均为 `api-report:view`；前端不按权限码隐藏 [分享] 等按钮，越权调用由后端拒绝（HTTP 403）。
+- **接口与权限**：详情 `GET /api/project/reports/:id`、生成分享 `POST /api/project/reports/:id/share`，权限均为无（免 RBAC 权限码校验，保留项目成员校验）；前端不按权限码隐藏 [分享] 等按钮，服务端仅保留项目成员归属校验。
 - **分享操作**：[分享] 按钮位于 Hero 右上角（始终可用）。打开弹窗时若报告存在**未过期分享**（详情接口 `share` 非空）→ 直接展示现有记录（分享链接、有效期至、分享人）+ [复制]；复制内容为带描述文本（报告名称 / 链接 / 有效期 / 分享人，见 `docs/04-detailed-design/05-api-testing/31-test-report-share.md` 1.3）。无未过期分享 → 弹窗两步式（选有效期，缺省 7 天 → 生成链接），生成后展示并支持复制；[重新生成] 显式覆盖旧分享。
 
 
@@ -92,3 +92,4 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-03 | 对齐实现：统一场景/套件报告状态判定口径，删除不存在的刷新操作，补全详情页入口、分区、聚焦横幅、加载错误态与接口权限 |
 | V1.0 | 2026-10-17 | 报告列表批量入口改 link 形态（危险色）[删除] 并移至表格底部与分页同行，移除「已选 N 项」数量提示 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

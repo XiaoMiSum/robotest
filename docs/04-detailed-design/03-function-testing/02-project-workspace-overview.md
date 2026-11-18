@@ -322,11 +322,11 @@
 每次提交记录时，事务中插入记录表并更新快照节点的最后状态字段。评审中仅用例节点可标记，所有节点可评论。执行中仅关联用例节点可标记执行结果，默认根节点不可执行。
 
 
-### 2.4 权限控制
+### 2.4 访问控制
 
-所有接口校验用户是否属于当前项目所属的工作空间。评审操作仅发起人可完成/同步/删除，参与者均可提交记录。计划操作按权限码收口：同步与完成校验 `plan:execute`，阻塞与恢复校验 `plan:block`，调整用例不限身份；删除计划仅计划负责人可操作，执行人可提交执行记录。
+所有接口校验登录状态、活动上下文与当前项目成员身份；项目工作台数据接口继续校验 `project:view`。功能测试（用例、模块、用例文档、评审、计划）、需求管理、接口测试、缺陷管理等业务模块免 RBAC 权限码校验，服务端不再按业务权限码放行或拒绝请求。前端顶部动态菜单与页面入口不按业务权限码过滤（见 2.5）。
 
-前后端共用同一套权限码口径：项目工作台数据接口校验 `project:view`；用例、模块与用例文档接口校验 `case:view`（写操作为 `case:edit`）；缺陷接口校验 `bug:view`；需求管理接口校验 `requirement:view`（新建与导入 `requirement:create`、编辑 `requirement:edit`、确认与归档 `requirement:confirm`）；测试计划的同步与完成校验 `plan:execute`、阻塞与恢复校验 `plan:block`；接口测试各子模块按 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view` 分别控制。前端顶部动态菜单与页面入口按同一权限码显隐（见 2.5）。
+项目成员归属校验之外的业务约束保持不变：评审仅发起人可完成/同步/删除，参与者均可提交记录；计划同步、完成、阻塞与恢复及关联用例调整对项目成员开放，删除计划仅计划负责人可操作，执行人可提交执行记录。
 
 ---
 
@@ -335,19 +335,19 @@
 
 从项目列表点击「进入项目」，或切换到设有默认项目的工作空间后，平台进入**项目模式**（路由 `meta.mode` 为 `project`，导航状态由路由注册表派生），并默认落在项目工作台。顶栏自左向右为：Logo（点击回项目工作台）→ 空间名 / 项目名胶囊 → 顶部动态菜单 → 我的空间、我的项目、空间管理、系统管理、消息中心 → 用户头像下拉（修改密码、退出登录）。
 
-顶部动态菜单取 `mode: 'project'` 且带 `meta.menu` 的路由记录，按 `order` 升序排列并按权限码过滤，权限不满足的菜单项不展示：
+顶部动态菜单取 `mode: 'project'` 且带 `meta.menu` 的路由记录，按 `order` 升序排列；项目模式下以下菜单项均展示，不按业务权限码过滤：
 
-| 顺序 | 菜单项 | 路由 | 图标 | 权限码 |
-| --- | --- | --- | --- | --- |
-| 10 | 功能测试 | `/workspace/projects/functional-testing` | Monitor | `case:view` |
-| 20 | 缺陷管理 | `/workspace/projects/bugs` | Warning | `bug:view` |
-| 30 | 接口测试 | `/workspace/projects/api-testing` | Connection | 任一 `api-*:view`（api-debug / api-interface / api-mock / api-scene / api-report / api-timer / api-env / api-func / api-component） |
+| 顺序 | 菜单项 | 路由 | 图标 |
+| --- | --- | --- | --- |
+| 10 | 功能测试 | `/workspace/projects/functional-testing` | Monitor |
+| 20 | 缺陷管理 | `/workspace/projects/bugs` | Warning |
+| 30 | 接口测试 | `/workspace/projects/api-testing` | Connection |
 
 项目工作台、评审/计划/缺陷详情、新建需求/需求详情等页面的路由不带 `meta.menu`，不进顶部菜单，由菜单项或页面跳转进入。功能测试与接口测试均为独立框架页，进入后子模块在框架内部切换，不再依赖顶部菜单。
 
 #### 2.5.1 功能测试工作区
 
-功能测试采用独立的框架页（FunctionalTestingPage）承载，路由 `/workspace/projects/functional-testing`。页面内部分为左右结构：左侧为模块侧栏白卡（el-menu，含需求列表、测试用例、测试评审、测试计划四个入口，需求列表为首位子项并按 `requirement:view` 显隐），右侧为主内容卡，按选中项渲染 RequirementListPage、TestCasePage、ReviewListPage、PlanListPage。侧栏与内容卡等高并排，当前选中项为浅蓝底胶囊高亮；该路由下业务布局内容区 padding 归零，由页内两张白卡自行成形。
+功能测试采用独立的框架页（FunctionalTestingPage）承载，路由 `/workspace/projects/functional-testing`。页面内部分为左右结构：左侧为模块侧栏白卡（el-menu，含需求列表、测试用例、测试评审、测试计划四个入口，需求列表为首位子项并常驻展示），右侧为主内容卡，按选中项渲染 RequirementListPage、TestCasePage、ReviewListPage、PlanListPage。侧栏与内容卡等高并排，当前选中项为浅蓝底胶囊高亮；该路由下业务布局内容区 padding 归零，由页内两张白卡自行成形。
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -365,7 +365,7 @@
 
 #### 2.5.2 接口测试
 
-接口测试为独立框架页（ApiTestingPage），路由 `/workspace/projects/api-testing`，与功能测试同构：左侧模块侧栏白卡 + 右侧内容卡，子模块经 `?tab=` 还原，菜单项按权限码过滤。主菜单：快速调试、接口管理、Mock 服务、测试场景、测试报告、定时任务；「项目设置」分组：环境管理、函数管理、公共组件（依次对应 `api-debug:view`、`api-interface:view`、`api-mock:view`、`api-scene:view`、`api-report:view`、`api-timer:view`、`api-env:view`、`api-func:view`、`api-component:view`）。任一 `api-*:view` 都不具备时入口菜单隐藏，直接访问路由则内容区展示「暂无可用功能模块」空态提示。测试报告分享页 `/share/api-report/:id` 为公开路由，不经本框架页。
+接口测试为独立框架页（ApiTestingPage），路由 `/workspace/projects/api-testing`，与功能测试同构：左侧模块侧栏白卡 + 右侧内容卡，子模块经 `?tab=` 还原，菜单项常驻展示且不按业务权限码过滤。主菜单：快速调试、接口管理、Mock 服务、测试场景、测试报告、定时任务；「项目设置」分组：环境管理、函数管理、公共组件。测试报告分享页 `/share/api-report/:id` 为公开路由，不经本框架页。
 
 #### 2.5.3 缺陷管理
 
@@ -374,29 +374,29 @@
 #### 2.5.4 模块树与项目上下文状态
 
 - **模块树**：`ProjectModuleTree` 组件封装 el-tree，逻辑下沉到 `useProjectModuleTree`。`assetType=testcase` 为文档模式：目录可新建、重命名、删除与拖拽排序，用例文档为叶子节点，点击文档在右侧打开脑图，切换已打开文档需二次确认；顶部关键字过滤命中后自动展开祖先链。`assetType=interface|scene` 为筛选模式：只有目录节点，点击目录仅过滤父页列表。树数据来自 `GET /api/project/modules?assetType=`，状态（treeData、loading、currentDocId）由 composable 持有，组件通过 emit 通知页面选中项。
-- **项目上下文状态**：活动项目 ID 与名称由 auth store 持有并持久化（`robotest_active_project`），切换或退出空间时先清空项目；请求层按 URL scope 注入 `X-Active-Workspace`、`X-Active-Project` 头，活动项目 ID 不出现在 URL 与请求体中（C4）。导航模式与顶部菜单由 nav store 从当前路由 `meta.mode`、`meta.menu` 派生，`dynamicMenuItems` 即当前模式下按权限过滤后的菜单项。
+- **项目上下文状态**：活动项目 ID 与名称由 auth store 持有并持久化（`robotest_active_project`），切换或退出空间时先清空项目；请求层按 URL scope 注入 `X-Active-Workspace`、`X-Active-Project` 头，活动项目 ID 不出现在 URL 与请求体中（C4）。导航模式与顶部菜单由 nav store 从当前路由 `meta.mode`、`meta.menu` 派生，`dynamicMenuItems` 即当前模式下的菜单项。
 
 
 ### 2.6 路由规划
 
-项目域路由均挂在业务布局（BusinessLayout）下，`meta.mode` 为 `project`；带 `meta.menu` 的路由同时是顶部动态菜单注册项（权限码见 2.5）。
+项目域路由均挂在业务布局（BusinessLayout）下，`meta.mode` 为 `project`；带 `meta.menu` 的路由同时是顶部动态菜单注册项（见 2.5）。
 
-| 路由 | 页面 | 菜单/权限 | 说明 |
+| 路由 | 页面 | 菜单/校验 | 说明 |
 | --------------------------------------------- | ------------------ | ---------------- | ------------------------------------ |
 | `/workspace/projects/dashboard` | 项目工作台（DashboardPage） | 不进菜单；数据接口 `project:view` | 进入项目默认落地页，展示统计、快捷入口与最近动态 |
-| `/workspace/projects/functional-testing` | 功能测试框架页（FunctionalTestingPage） | 菜单「功能测试」，`case:view` | `?tab=cases\|reviews\|plans\|requirements` 切换子模块，默认测试用例 |
-| `/workspace/projects/reviews` | 评审列表（ReviewListPage） | 不进菜单 | 独立直达路由，内容同功能测试「测试评审」子模块 |
-| `/workspace/projects/reviews/:reviewId` | 评审详情（ReviewDetailPage） | 不进菜单 | 快照树 + 评审标记/评论 |
-| `/workspace/projects/plans` | 计划列表（PlanListPage） | 不进菜单 | 独立直达路由，内容同功能测试「测试计划」子模块 |
-| `/workspace/projects/plans/:planId` | 计划详情（PlanDetailPage） | 不进菜单 | 快照树 + 执行跟踪 |
-| `/workspace/projects/requirements` | 需求列表（RequirementListPage） | 不进菜单；接口 `requirement:view` | 旧路径重定向至 `/workspace/projects/functional-testing?tab=requirements` |
-| `/workspace/projects/requirements/create` | 新建需求（RequirementCreatePage） | 不进菜单；接口 `requirement:create` | 页头吸顶，创建成功进入需求详情 |
-| `/workspace/projects/requirements/:requirementId` | 需求详情与编辑（RequirementDetailPage） | 不进菜单；接口 `requirement:view` | 查看/编辑双态，属性与变更记录页签 |
-| `/workspace/projects/api-testing` | 接口测试框架页（ApiTestingPage） | 菜单「接口测试」，任一 `api-*:view` | `?tab=` 还原子模块 |
-| `/workspace/projects/interfaces/:interfaceId` | 接口定义编辑（旧路由） | 不进菜单 | 重定向至 `/workspace/projects/api-testing?tab=interfaces`（`new` 转 `action=create`） |
-| `/workspace/projects/bugs` | 缺陷管理（BugListPage） | 菜单「缺陷管理」，`bug:view` | 看板/列表视图 |
-| `/workspace/projects/bugs/create` | 提交缺陷（BugCreatePage） | 不进菜单 | 禅道式表单，重现步骤 Markdown 编辑 |
-| `/workspace/projects/bugs/:bugId` | 缺陷详情（BugDetailPage） | 不进菜单 | 状态流转、日志与附件 |
+| `/workspace/projects/functional-testing` | 功能测试框架页（FunctionalTestingPage） | 菜单「功能测试」；业务免 RBAC 权限码校验 | `?tab=cases\|reviews\|plans\|requirements` 切换子模块，默认测试用例 |
+| `/workspace/projects/reviews` | 评审列表（ReviewListPage） | 不进菜单；业务免 RBAC 权限码校验 | 独立直达路由，内容同功能测试「测试评审」子模块 |
+| `/workspace/projects/reviews/:reviewId` | 评审详情（ReviewDetailPage） | 不进菜单；业务免 RBAC 权限码校验 | 快照树 + 评审标记/评论 |
+| `/workspace/projects/plans` | 计划列表（PlanListPage） | 不进菜单；业务免 RBAC 权限码校验 | 独立直达路由，内容同功能测试「测试计划」子模块 |
+| `/workspace/projects/plans/:planId` | 计划详情（PlanDetailPage） | 不进菜单；业务免 RBAC 权限码校验 | 快照树 + 执行跟踪 |
+| `/workspace/projects/requirements` | 需求列表（RequirementListPage） | 不进菜单；业务免 RBAC 权限码校验 | 旧路径重定向至 `/workspace/projects/functional-testing?tab=requirements` |
+| `/workspace/projects/requirements/create` | 新建需求（RequirementCreatePage） | 不进菜单；业务免 RBAC 权限码校验 | 页头吸顶，创建成功进入需求详情 |
+| `/workspace/projects/requirements/:requirementId` | 需求详情与编辑（RequirementDetailPage） | 不进菜单；业务免 RBAC 权限码校验 | 查看/编辑双态，属性与变更记录页签 |
+| `/workspace/projects/api-testing` | 接口测试框架页（ApiTestingPage） | 菜单「接口测试」；业务免 RBAC 权限码校验 | `?tab=` 还原子模块 |
+| `/workspace/projects/interfaces/:interfaceId` | 接口定义编辑（旧路由） | 不进菜单；业务免 RBAC 权限码校验 | 重定向至 `/workspace/projects/api-testing?tab=interfaces`（`new` 转 `action=create`） |
+| `/workspace/projects/bugs` | 缺陷管理（BugListPage） | 菜单「缺陷管理」；业务免 RBAC 权限码校验 | 看板/列表视图 |
+| `/workspace/projects/bugs/create` | 提交缺陷（BugCreatePage） | 不进菜单；业务免 RBAC 权限码校验 | 禅道式表单，重现步骤 Markdown 编辑 |
+| `/workspace/projects/bugs/:bugId` | 缺陷详情（BugDetailPage） | 不进菜单；业务免 RBAC 权限码校验 | 状态流转、日志与附件 |
 
 项目上下文入口为项目列表 `/workspace/projects`（workspace 模式，菜单权限 `project:view`）：「进入项目」时写入活动项目并跳转 `/workspace/projects/dashboard`；工作空间设有默认项目时切换空间也直接进入工作台。
 
@@ -449,7 +449,7 @@
 
 | 分册 | 文件 | 覆盖章节 |
 |---|---|---|
-| 总览 | `02-project-workspace-overview.md` | 1. 引言、2. 数据设计（2.1 数据库表设计、2.2 通用约定、2.2.1 项目域上下文边界、2.3 评审/执行记录与状态更新、2.4 权限控制、2.5 总体布局（2.5.1 功能测试工作区、2.5.2 接口测试、2.5.3 缺陷管理、2.5.4 模块树与项目上下文状态）、2.6 路由规划）、3. 错误码补充 |
+| 总览 | `02-project-workspace-overview.md` | 1. 引言、2. 数据设计（2.1 数据库表设计、2.2 通用约定、2.2.1 项目域上下文边界、2.3 评审/执行记录与状态更新、2.4 访问控制、2.5 总体布局（2.5.1 功能测试工作区、2.5.2 接口测试、2.5.3 缺陷管理、2.5.4 模块树与项目上下文状态）、2.6 路由规划）、3. 错误码补充 |
 | 项目工作台 | `03-project-workspace-workbench.md` | 1. 项目工作台接口（1.1 获取项目工作台数据、1.2 项目动态数据、1.3 项目工作台页面）、2. 约束与实施说明 |
 | 测试用例管理 | `04-project-workspace-test-case.md` | 1. 测试用例管理接口、2. 文档创建与默认根节点、3. 脑图实时协作（3.1 用例管理页） |
 | 测试评审管理 | `05-project-workspace-test-review.md` | 1. 测试评审管理接口、2. 快照生成与裁剪（2.1 评审列表页、2.2 评审详情页） |
@@ -464,8 +464,9 @@
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
-| V1.0 | 2026-10-02 | 对齐前端实现：模块划分与总体布局、项目态路由与顶部菜单权限码、模块树与项目上下文状态、数据表口径及分册-章节对照表 |
+| V1.0 | 2026-10-02 | 对齐前端实现：模块划分与总体布局、项目态路由与顶部菜单注册、模块树与项目上下文状态、数据表口径及分册-章节对照表 |
 | V1.0 | 2026-10-18 | 功能测试域表名登记并统一改用 `ft_` 域前缀：`test_plan*` / `test_review*` / `test_case_node` / `test_case_document` → `ft_plan*` / `ft_review*` / `ft_case_node` / `ft_case_document`，索引同步 `idx_ft_*` |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
-| V1.0 | 2026-10-20 | 2.4 权限控制口径更新：计划同步/完成改按 `plan:execute`、阻塞/恢复改按 `plan:block` 收口，删除计划仍限负责人，权限码清单同步 |
-| V1.0 | 2026-11-13 | 功能测试侧栏子项对齐实际实现：「需求池」更名为「需求列表」并居首位，组件名更正为 RequirementListPage，权限口径补 `requirement:create`/`requirement:confirm`，路由表补新建/详情两行与 `/requirements` 重定向说明 |
+| V1.0 | 2026-10-20 | 2.4 访问控制口径更新：计划同步、完成、阻塞、恢复与删除统一按业务归属规则校验，删除计划仍限负责人 |
+| V1.0 | 2026-11-13 | 功能测试侧栏子项对齐实际实现：「需求池」更名为「需求列表」并居首位，组件名更正为 RequirementListPage，路由表补新建/详情两行与 `/requirements` 重定向说明 |
+| V1.0 | 2026-11-18 | 移除功能测试、需求管理、接口测试与缺陷管理的 RBAC 权限码口径：2.4 改为登录/项目成员归属校验与业务规则说明，顶部菜单、框架页入口及路由表不再按业务权限码过滤 |

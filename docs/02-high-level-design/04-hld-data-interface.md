@@ -82,7 +82,7 @@
 | AiTaskExecution      | AI 任务一次执行：工具白名单与预算快照、执行状态与终止原因       |
 | AiTaskTraceEvent     | 执行轨迹事件：决策、工具调用与结果摘要的只增时序记录           |
 | AiTaskProposal       | 提案：结构化产物与证据链，待采纳态载体（不属业务库）           |
-| AiTaskTool           | 工具注册项：参数结构、权限点、作用域校验方式与副作用级别       |
+| AiTaskTool           | 工具注册项：参数结构、作用域校验方式与副作用级别           |
 | AiUsageLog           | AI 用量明细（按次调用），支撑统计与下钻               |
 | AiAssistantConversation | 助手会话（按登录用户归属 + 上下文快照）           |
 | AiAssistantMessage   | 助手消息（意图预览与执行回执）                     |
@@ -104,7 +104,7 @@
   * 管理接口：`/api/admin`，需要系统角色。
   * 工作空间级业务接口：`/api/workspace`，需头 `X-Active-Workspace`。
   * 项目内业务接口：`/api/project`，需头 `X-Active-Project`。
-  * AI 能力接口：`/api/ai`，管理配置需系统角色、业务调用按权限码；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`。
+  * AI 能力接口：`/api/ai`，管理配置位于系统管理端、业务调用免 RBAC 权限码校验并保留项目成员归属校验；涉及业务数据时按需附 `X-Active-Workspace` / `X-Active-Project`。
 * 上下文传递：工作空间和项目 ID 通过请求头传递，不在 URL 中暴露。
 * 通用响应格式：`{ "code": 200, "message": "success", "data": {...} }`
 
@@ -158,3 +158,4 @@
 | V1.0 | 2026-10-02 | 补入需求管理与 AI 能力的数据对象和接口概要 |
 | V1.0 | 2026-10-16 | 数据对象与接口概要对齐 AI Task 框架：实体关系图与数据对象表按 `ai_task_` 域六实体改写（AiArtifactConfirm 替换为 AiTaskAdoption 并补执行 / 轨迹 / 提案 / 工具），业务端 AI 能力概要改任务资源，WebSocket 概要补任务轨迹推送 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：实体关系图与数据对象表移除 TraceEdge / TraceCoverageResult，业务端需求管理与 AI 能力接口概要移除追溯查询与矩阵 / 覆盖 / 影响能力 |
+| V1.0 | 2026-11-18 | 数据与接口概要同步业务模块免 RBAC 权限码校验：AI 工具注册项移除权限点，AI 业务调用改按成员归属校验 |

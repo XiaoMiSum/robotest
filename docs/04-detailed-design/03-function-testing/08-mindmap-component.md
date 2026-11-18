@@ -423,7 +423,7 @@ web/src/composables/project/functional-testing/
 ### 11.3 协作感知
 
 - 由 `y-websocket` 的 `WebsocketProvider` 连接 `ws(s)://<host>/ws/documents`，房间名自动拼接为 `/ws/documents/{docId}`；浏览器 WebSocket 无法携带 Authorization 头，token 经查询参数供后端握手拦截器校验。
-- 服务端广播 Yjs 更新：可写二进制帧（sync step2 / update）广播前校验 `case:edit` 权限，只读帧（sync step1、awareness）直接转发；服务端返回的 JSON 文本错误帧由前端解析并 `ElMessage.error` 展示。
+- 服务端广播 Yjs 更新：可写二进制帧（sync step2 / update）广播前校验当前用户为文档成员，只读帧（sync step1、awareness）直接转发；服务端返回的 JSON 文本错误帧由前端解析并 `ElMessage.error` 展示。
 - Awareness 只交换用户信息（名称、颜色），用于画布右上角的在线用户头像（仅显示其他用户，头像描边取该用户颜色）；**不在画布上渲染他人光标或选中态**。
 - `status` 事件驱动断线横幅与在线头像显隐（见 10.4），重连成功后立即冲刷一次持久化。
 
@@ -579,8 +579,8 @@ web/src/composables/project/functional-testing/
 
 1. **组件选用**：页面按业务直接使用对应组件并传入 ID（CaseMindMap→`docId`；ReviewMindMap→`reviewId` + `documentId` + `removable`；PlanMindMap→`planId` + `documentId` + `removable`），各组件加载各自数据源；评审/计划组件通过 `marked` / `removed` 事件通知详情页刷新进度，并 `defineExpose` 暴露 `reload`（详情页同步快照后刷新画布）与 `openBug`。
 2. **数据加载**：编辑模式调用文档节点接口获取嵌套根节点对象；评审/计划模式调用 `modules` 快照树接口（`documentId` 限定单文档，缺省时只取首个根）。前端转换为 kityminder JSON 后渲染。
-3. **数据隔离**：快照模式（review/plan）完全不建立 WebSocket/Yjs 连接；编辑模式独占 `/ws/documents/{docId}` 房间，服务端对可写帧校验 `case:edit` 权限。
-4. **权限口径**：画布组件不设 `editable` prop；"移除用例"按钮与菜单项由 `removable`（详情页按评审/计划状态传入）控制；标记、评论、移除接口的操作权限校验由后端兜底。
+3. **数据隔离**：快照模式（review/plan）完全不建立 WebSocket/Yjs 连接；编辑模式独占 `/ws/documents/{docId}` 房间，服务端对可写帧校验当前用户的文档成员关系。
+4. **校验口径**：画布组件不设 `editable` prop；"移除用例"按钮与菜单项由 `removable`（详情页按评审/计划状态传入）控制；标记、评论、移除接口的成员归属与状态校验由后端兜底。
 5. **kityminder 扩展**：节点状态徽标由 `badges.ts` 以 `Module.register` 自定义渲染模块实现（写法参照 core 自身 priority 模块），左侧绘制类型/优先级、右侧绘制评审/执行标记，须在 `new Minder` 之前注册（loader 内统一完成）；画布不渲染 Bug 链接标签（见第 8 节）。
 6. **工具栏状态响应**：监听 kityminder 的 `selectionchange` 事件，更新类型/优先级与标记按钮高亮；撤销/重做按钮置灰态由 history 的 onChange 回调驱动（`KMEditor` 的 `onHistoryChange`）。
 7. **右键菜单**：`useContextMenu` 统一管理展示与关闭时机（仅选中节点时展示，编辑模式下空格键亦可唤醒），菜单项由各模式组件模板静态给出（slot），不设模式分支。
@@ -598,6 +598,7 @@ web/src/composables/project/functional-testing/
 | V1.0 | 2026-10-02 | 按实现对齐组件架构与目录、工具栏/右键菜单项、快照树与评审记录接口路径、徽标与状态分支、Yjs 协作感知及实施要点 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：`test_case_node` / `test_case_document` / `test_plan*` / `test_review*` → `ft_*` |
 | V1.0 | 2026-10-17 | 「文档关联需求」功能随追溯矩阵需求整体取消下线：删除编辑工具栏关联需求按钮、`useMindmapRequirementLink.ts`、文档需求关联接口行与相关表述 |
+| V1.0 | 2026-11-18 | 移除脑图组件 RBAC 权限码口径：编辑态 WebSocket 可写帧仅校验文档成员关系，组件校验说明改为成员归属与状态校验 |
 
 ---
 

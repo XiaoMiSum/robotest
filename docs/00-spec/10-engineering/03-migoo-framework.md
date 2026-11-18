@@ -107,7 +107,7 @@ Security 组件提供 JWT、用户加载、Token 校验和角色权限等框架�
 - **Token 撤销**：接入方在 `UserDetailsBridge` 实现 `clean` / `revokeByUserId` / `isTokenRevoked` / `isUserRevoked`，状态走 `StateStore`，用于登出与踢人；撤销语义见 `docs/00-spec/40-security/01-security.md`；
 - **登出**：由框架 `LogoutFilter` 承载（`migoo.security.logout-url`，仅撤销 Authorization 中的 access token），业务登出逻辑由应用在登出接口内自行完成。
 
-框架认证成功不等于业务授权成功。管理域、业务域和实时资源必须在服务端重新校验角色、成员关系和资源归属。通用边界见 `docs/00-spec/40-security/01-security.md`。
+框架认证成功不等于业务授权成功。系统管理、空间管理、项目管理和实时连接按各自契约在服务端校验角色或权限码；功能测试、需求管理、接口测试、缺陷管理、AI 能力 5 个业务模块不做 RBAC 权限码校验，仅保留成员归属隔离。通用边界见 `docs/00-spec/40-security/01-security.md`，业务模块例外口径以该规范 §3.4 为准。
 
 ### 4.6 WebSocket
 
@@ -165,6 +165,12 @@ Redis 能力用于缓存、限流、会话、短期 Ticket 和分布式协作。
 - 安全：`docs/00-spec/40-security/01-security.md`
 - 官方总览：<https://xiaomisum.github.io/springboot-migoo-framework/>
 - 官方发布说明：<https://github.com/XiaoMiSum/springboot-migoo-framework/releases>
+
+## 8. 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.1 | 2026-11-18 | 补建修改记录；Security 适配边界区分管理域权限码校验与 5 个业务模块的免 RBAC 权限码、保留成员归属隔离口径 |
 
 ---
 

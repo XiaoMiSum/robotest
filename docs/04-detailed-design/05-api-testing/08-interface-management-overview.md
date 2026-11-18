@@ -21,7 +21,7 @@
 
 快速调试（单请求调试、cURL 命令解析、调试记录管理）详见《快速调试详细设计说明书》（`docs/04-detailed-design/05-api-testing/11-quick-debug.md`）。
 
-所有接口测试接口的鉴权、上下文传递沿用平台既有约定（C4），详见《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`）2.3。
+所有接口测试接口免 RBAC 权限码校验，保留项目成员归属校验；上下文传递沿用平台既有约定（C4），详见《API 测试基础设施详细设计说明书》（`docs/04-detailed-design/05-api-testing/02-api-testing-infra-overview.md`）2.3。
 
 ### 1.3 参考资料
 
@@ -33,8 +33,8 @@
 
 ### 1.4 页面入口与权限口径
 
-- **壳路由与子模块**：`/workspace/projects/api-testing`（路由名 `ApiTesting`），项目菜单按 `permissionAny` 中任一接口测试 `*:view` 权限码开放入口；接口管理是壳页内的子模块，由侧边菜单切换并以 `?tab=` 同步记录（接口管理为 `?tab=interfaces`），刷新或外部改写 query 时按当前可见权限还原；无任何接口测试权限时壳页显示「暂无可用功能模块」。
-- **权限码**：前端仅在接口管理子菜单挂 `api-interface:view`，页内按钮不做前端权限隐藏；写操作（创建 / 更新 / 导入 / 批量移动 / 启停 / 关注）由服务端按 `api-interface:edit` 校验，删除按 `api-interface:delete` 校验。
+- **壳路由与子模块**：`/workspace/projects/api-testing`（路由名 `ApiTesting`），项目菜单对项目成员开放，不做权限码过滤；接口管理是壳页内的子模块，由侧边菜单切换并以 `?tab=` 同步记录（接口管理为 `?tab=interfaces`）。
+- **权限码**：无（免 RBAC 权限码校验，保留项目成员校验）；前端页内按钮与服务端接口均不做权限码校验。
 - **页面结构与直链**：卡片式多 Tab 工作区（固定不可关闭的列表 Tab + 每个编辑器一个可关闭 Tab）、头部常驻「导入 / 新建接口」按钮，以及 `?tab=interfaces&interfaceId=<id>`、`?tab=interfaces&action=create[&moduleId=|&copyFrom=]` 的直链恢复与旧独立路由 `/workspace/projects/interfaces/:interfaceId`（`new` 转 `action=create`）的重定向，详见《接口定义管理》（`docs/04-detailed-design/05-api-testing/09-interface-management-definition.md` 3.1）。
 
 ---
@@ -216,3 +216,4 @@ Swagger URL 导入的 SSRF 防护采用**配置文件可切换的两级策略**�
 | V1.0 | 2026-09-23 | 初始版本 |
 | V1.0 | 2026-10-02 | 对齐实现：范围改为 Swagger URL/cURL 导入，补页面入口与权限口径，URL 安全策略补端口白名单与配置缺省，修正引用与对照表章节号 |
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |

@@ -130,11 +130,11 @@ MapStruct 不是 migoo Starter 的通用 API，接入约定如下：
 | --- | --- | --- |
 | JWT | 框架 Token Provider / Security 配置 | 工程定义密钥、有效期、请求头和错误码 |
 | 用户加载 | UserDetails / 用户桥接适配 | 从用户服务加载，不把外部 Header 当可信身份 |
-| 角色权限 | Security 角色/权限能力 | 资源级 Guard 再次校验作用域权限 |
+| 角色权限 | Security 角色/权限能力 | 系统管理/空间管理/项目管理的资源级 Guard 再次校验权限码；5 个业务模块只校验成员归属，不做 RBAC 权限码校验 |
 | Token 刷新 | 框架刷新能力 | 按 `docs/00-spec/40-security/01-security.md` 和系统管理详细设计执行 |
 | 审计 | AOP/审计服务 | 记录操作者、资源、结果和脱敏变更 |
 
-框架认证成功不等于业务授权成功。各业务域和实时资源均必须在服务端校验角色与归属关系。
+框架认证成功不等于业务授权成功。系统管理、空间管理、项目管理和实时连接按各自契约在服务端校验角色或权限码；功能测试、需求管理、接口测试、缺陷管理、AI 能力 5 个业务模块不做 RBAC 权限码校验，仅校验成员归属关系（见 `docs/00-spec/40-security/01-security.md` §3.4）。
 
 ## 8. WebSocket API 摘要
 
@@ -192,6 +192,12 @@ MapStruct 不是 migoo Starter 的通用 API，接入约定如下：
 - 后端分层：`docs/00-spec/10-engineering/02-backend.md`
 - 安全规范：`docs/00-spec/40-security/01-security.md`
 - 实时协议：`docs/00-spec/20-contracts/03-realtime-protocol.md`
+
+## 13. 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-11-18 | 补建修改记录；Security API 摘要区分管理域权限码校验与 5 个业务模块的免 RBAC 权限码、保留成员归属隔离口径 |
 
 ---
 

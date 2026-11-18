@@ -75,7 +75,7 @@ flowchart LR
     end
     subgraph 采纳平面（编排归应用层）
         P --> U[人工采纳 AiProposalReviewPanel]
-        U --> D[类型适配器承接服务<br/>校验 + 事务落库<br/>后端不做权限校验]
+         U --> D[类型适配器承接服务<br/>校验 + 事务落库<br/>后端不做 RBAC 权限码校验]
         D --> ADOPT[ai_task_adoption]
     end
 ```
@@ -89,7 +89,7 @@ flowchart LR
 
 | 文件 | 职责 |
 | ---- | ---- |
-| `service/ai/task/core/AgentExecutionRunner` | 通用 Agent 循环驱动：计划快照入轨迹、白名单内工具调用（参数校验 → 权限与作用域鉴权 → 执行 → 结果回喂）、预算闸门、心跳 |
+| `service/ai/task/core/AgentExecutionRunner` | 通用 Agent 循环驱动：计划快照入轨迹、白名单内工具调用（参数校验 → 作用域归属校验 → 执行 → 结果回喂）、预算闸门、心跳 |
 | `service/ai/task/core/TraceRecorder` | 轨迹事件写入（`plan / ai_decision / tool_call / tool_result / proposal_emitted / status_change`），只增不改 |
 | `service/ai/task/core/BudgetGuard` | 预算签发（类型默认 + 请求下调）与四维（步数 / 时长 / token / 成本）超限判定 |
 | `service/ai/task/type/TaskTypeAdapter` + `TaskTypeAdapterRegistry` | 新 SPI：input 校验、工具白名单与预算默认、提案结构、承接器注册（替代 `TaskHandler`） |
@@ -101,7 +101,7 @@ flowchart LR
 
 | 文件 | 改动 |
 | ---- | ---- |
-| `AiTaskController` | 8 端点切换为：提交（创建即启动）、列表、running-count（`status = running`）、详情（`latestExecution + proposals + resultMeta`）、`GET …/executions/{executionId}/events`、`POST …/executions`（再次执行）、`POST …/executions/{executionId}/abort`、`GET …/proposals/{proposalKey}`、`POST …/proposals/confirm`；删除 cancel / retry / artifacts 三旧端点；权限口径沿用详设 3.6——后端不做 `ai:task / ai:confirm` 与任务类型资源权限校验（`ai:task` / `ai:confirm` 仅前端入口显隐），仅留任务归属可见性（错误码 1000018116 已注销）；涉及业务数据的请求按需附 `X-Active-Workspace / X-Active-Project` 头（C4，上下文不出 URL） |
+| `AiTaskController` | 8 端点切换为：提交（创建即启动）、列表、running-count（`status = running`）、详情（`latestExecution + proposals + resultMeta`）、`GET …/executions/{executionId}/events`、`POST …/executions`（再次执行）、`POST …/executions/{executionId}/abort`、`GET …/proposals/{proposalKey}`、`POST …/proposals/confirm`；删除 cancel / retry / artifacts 三旧端点；任务端点免 RBAC 权限码校验，保留任务归属与项目成员归属校验（错误码 1000018116 已注销）；涉及业务数据的请求按需附 `X-Active-Workspace / X-Active-Project` 头（C4，上下文不出 URL） |
 | `AiTaskServiceImpl` | 重写为任务 · 执行 · 提案三资源服务：启动执行单入口（收敛双触发）、waitSeconds 同步等待语义保留、逐项采纳事务改写 `ai_task_adoption`、确认门禁改 `proposals_ready` |
 | `AiTaskExecutor` → `AgentExecutionRunner` | CAS 状态机改新状态机（执行 `running / waiting_confirmation / succeeded / aborted`，任务 `running / proposals_ready / closed / aborted`）；进度上报改轨迹事件；模型选型（`requiredCapability`）迁至类型适配器声明并复用 `AiSettingsReader` |
 | `AiTaskSweeper` | 扫描 `status + heartbeat_at`（执行表），超时置 `aborted`（1000018117）；总开关关闭 `failActive` → `abortActive` |
@@ -298,7 +298,7 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-10-16 | 新增 2.8 在途计划联动：展开 vision 计划「Agent 执行核承接注」语义（旧 `AiTaskExecutor` 执行期模型能力复验随 S2 平移至 `AgentExecutionRunner`，收口后删除注记）与助手 SPI 耦合指向 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关任务迁移标注「已取消——追溯矩阵需求整体下线」：1.3 基线文档移除追溯详设，2.1 死路确认路径中两类 type 标注取消，风险 R7 收敛为无提案任务通用口径 |
 | V1.0 | 2026-10-18 | 2.3.3 数据库变更改为 `schema.sql` 唯一事实源口径：不建增量迁移脚本，`ai_task_tool` 种子并入 schema.sql，移除 `seed-ai.sql` 引用 |
-| V1.0 | 2026-10-27 | 对齐详设 / 交互稿 2026-10-19～20 两轮口径：任务端点移除后端权限校验仅留归属可见性（2.2 承接服务、2.3.2 Controller 补 C4 上下文头）、`bug_classify` 收窄为存量批量与新建缺陷建议改实时接口 `analysis/suggest`（2.3.2 Handler、2.4 跨域消费方）、`AiTaskEntryButton` 下线入口收敛顶栏指示器（2.4） |
+| V1.0 | 2026-10-27 | 对齐详设 / 交互稿 2026-10-19～20 两轮口径：任务端点免 RBAC 权限码校验，保留任务归属与项目成员归属校验（2.2 承接服务、2.3.2 Controller 补 C4 上下文头）、`bug_classify` 收窄为存量批量与新建缺陷建议改实时接口 `analysis/suggest`（2.3.2 Handler、2.4 跨域消费方）、`AiTaskEntryButton` 下线入口收敛顶栏指示器（2.4） |
 | V1.0 | 2026-10-27 | 实施边界勘误：S1 改纯增量（五表 DDL / 实体 / 常量并存 / 错误码，`AiTask` 重建与旧常量删除挪 S3）、S2 改不接线不删旧（删 `AiTaskExecutor` 归 S3）、type 数 15 → 13（追溯下线注销 coverage / impact）、`ai_task_tool` 种子改随 S4 TypeAdapter 落地（预算默认由 TypeAdapter 声明）、迁移说明交付于 runbook §10（2.3.3、3.1、3.2、层 A/C 同步） |
 | V1.0 | 2026-10-27 | 5.1 实施状态回填：S1 ✅（`f1191f09`）；S0 备注缺清理门禁脚本草稿 |
 | V1.0 | 2026-10-27 | 5.1 实施状态回填：S2 ✅（`a55419a6` 回填 `a2eb0d30`）——执行核、预算护栏、轨迹记录与类型适配器 SPI 纯增量落地，接线与删旧按勘误口径归 S3 |
@@ -307,3 +307,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-11-09 | 5.1 实施状态回填：S4 ✅（`53b9eea9` 策略分派入口 → `437b46d7` 十一类普通适配器与工具种子 → `db8f3e1e` 助手/向量策略与旧 SPI 删除）；助手/向量行为裁决与预算落册见总册 3.6.1 / 4.2、分册 04 §4.1（`65e9ec2e`） |
 | V1.0 | 2026-11-10 | 5.1 实施状态回填：S5 ✅（`f271bca6` 核心切换 → `1c0b6815` 跨域语义 → `28f4a8db` 四件改造接回入口）；孤立四件按用户裁决由「随迁改造接线」确认执行，前端清理门禁 E1/E2 转绿 |
 | V1.0 | 2026-11-12 | 整体移除评审/计划圈选建议（US-AI-008）：2.3.2 Handler 清单与各处 type / 适配器计数同步为 11，2.1 前端核心面去除 `SelectionReviewPanel` |
+| V1.0 | 2026-11-18 | AI Task 迁移计划免 RBAC 权限码校验：承接服务、执行核、Controller 与历史口径统一改为任务归属和项目成员归属校验 |

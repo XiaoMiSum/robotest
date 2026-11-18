@@ -134,7 +134,7 @@ erDiagram
 * 附件单文件大小受限，上传须经类型白名单与文件头校验，下载禁止类型嗅探（`docs/00-spec/40-security/` 相关规范）。
 * 所有异常经统一错误码抛出，错误码为 10 位（框架全局错误码除外）。
 * 缺陷数据经项目归属到工作空间，遵循数据库通用约定（`docs/00-spec/20-contracts/02-database.md`），无物理外键。
-* 页面级交互与状态分支（含空态、加载、错误、权限不足）见 `docs/05-interaction-design/04-bug-management/02-workspace-ui-bug.md`。
+* 页面级交互与状态分支（含空态、加载、错误、成员归属校验失败）见 `docs/05-interaction-design/04-bug-management/02-workspace-ui-bug.md`。
 
 ## 修改记录
 
@@ -143,3 +143,4 @@ erDiagram
 | V1.0 | 2026-10-01 | 初始版本 |
 | V1.0 | 2026-10-02 | 数据隔离口径引用改指数据与接口设计分册 |
 | V1.0 | 2026-10-16 | AI 建议「待确认态」统一为「待采纳态」，对齐 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`） |
+| V1.0 | 2026-11-18 | 缺陷管理页面状态分支口径改为成员归属校验失败，移除权限不足表述 |

@@ -57,7 +57,7 @@
 flowchart TD
     A[发送消息] --> B[assistant_parse 任务<br/>组装上下文 + 固化工具清单]
     B --> C[AssistantToolLoop：模型调用（携带工具定义）]
-    C -->|查询类工具| D[限权执行 → role=tool 落盘回填<br/>tool_call 进度帧] --> C
+    C -->|查询类工具| D[项目范围过滤执行 → role=tool 落盘回填<br/>tool_call 进度帧] --> C
     C -->|澄清工具 ask_user| E[clarify 事件 → 终止]
     C -->|变更类工具| F[AssistantIntentBuilder 拦截规范化<br/>零业务写入 → preview 事件 → 终止]
     C -->|纯文本| G[delta 流式 → done]
@@ -77,7 +77,7 @@ flowchart TD
 | ---- | ---- |
 | `tool/AssistantTool.java`、`tool/ToolCategory.java`、`tool/AssistantToolDefinition.java`、`tool/AssistantToolContext.java` | 工具接口、分类枚举（`QUERY / CLARIFY / CHANGE`，决定循环行为）、定义 record 与执行上下文（userId / workspaceId / conversationId / attachments / 会话私有项目） |
 | `tool/AssistantToolRegistry.java` | 服务端**固化注册 16 个**：9 个执行体注册 + 变更 8 项 definition-only 登记（无执行体，执行即拦截）；清单外调用按 1000018255 拒绝 |
-| `tool/QueryProjectsTool`、`QueryDocTreeTool`、`QueryCasesTool`、`QueryReviewsTool`、`QueryPlansTool`、`QueryProgressTool` | 查询类执行体：一律按活跃工作空间限权（与 RAG 同口径）；失败返回 error JSON **不抛异常**（回填模型，详设 4.1） |
+| `tool/QueryProjectsTool`、`QueryDocTreeTool`、`QueryCasesTool`、`QueryReviewsTool`、`QueryPlansTool`、`QueryProgressTool` | 查询类执行体：一律按活跃工作空间及其项目范围过滤（与 RAG 同口径）；失败返回 error JSON **不抛异常**（回填模型，详设 4.1） |
 | `tool/SearchKnowledgeTool`、`tool/GuideKnowledgeBase` | 知识检索二合一：静态指引段（roles 过滤 + topic 匹配 + 站内 route，Top3）→ RAG 向量段（复用 `VectorSearchService`，TOP_K = 8）；降级口径按详设 4.1 |
 | `tool/AskUserTool` | 澄清入参校验（`question` 非空、`options` 2~5 条各 ≤200 字） |
 | `tool/AssistantIntentBuilder` | 变更类拦截规范化：**自 `AssistantParseHandler` 迁移** `buildIntent / assemble / sanitizedChanges / sanitizedParams / parseCaseIds`（kind 白名单、字段白名单、`AssistantRefChecker` 引用校验、scope 与 10 分钟过期固化），独立成类便于单测 |
@@ -149,8 +149,8 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | 落点 | 覆盖 |
 | ---- | ---- |
 | `AssistantToolLoopTest`（新） | 轮次上限与固定文案终止、读工具失败回填不中断、澄清 / 变更先落盘再发事件与终止、悬空补偿配对、用量 scene 归因 |
-| `AssistantIntentBuilderTest`（新） | kind 与字段白名单矩阵、越权 / 幻觉引用拒绝（1000018261）、scope 与过期固化、**规范化路径零业务写入** |
-| 查询工具与 `GuideKnowledgeBase` 测试（新） | 工作空间限权过滤、指引 roles / topic 检索与 RAG 降级双分支 |
+| `AssistantIntentBuilderTest`（新） | kind 与字段白名单矩阵、范围外 / 幻觉引用拒绝（1000018261）、scope 与过期固化、**规范化路径零业务写入** |
+| 查询工具与 `GuideKnowledgeBase` 测试（新） | 工作空间范围过滤、指引 roles / topic 检索与 RAG 降级双分支 |
 | `AiModelClient` 测试（扩） | `chatWithTools` 工具声明与 `toolCalls` 回传、逐跳记账（成功 / 失败） |
 | `AssistantServiceImpl` 测试（扩） | tool 消息落盘与 `pageMessages` 过滤、toolCalls 持久化 |
 | execute 测试（扩） | 按固化 `intent.scope` 落库且**无项目维拦截**、空间维自检（1000018256）与归属空间（1000018263）拒绝 |
@@ -270,3 +270,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | V1.0 | 2026-10-16 | 1.2 基线文档行对齐 AI Task 双平面口径：概要引用章节改「4.2 提案采纳流」，待确认态改待确认口径 |
 | V1.0 | 2026-10-16 | 对齐 AI Task 新口径：存量 `assistant_parse` 任务超时清扫由置失败改置 `aborted`（1000018117） |
 | V1.0 | 2026-10-17 | 概要引用同步：`02-hld-ai-capability.md` 删除追溯矩阵节后章节顺延，1.2 基线行「4.7 对话式任务执行」改 4.6 |
+| V1.0 | 2026-11-18 | 智能助手工具调用实施计划免 RBAC 权限码校验：查询工具与测试要点改按工作空间 / 项目范围过滤描述 |

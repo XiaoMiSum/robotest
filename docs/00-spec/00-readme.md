@@ -98,6 +98,7 @@
 | UUID      | 使用框架默认生成策略，不强制 UUID 版本                 | `20-contracts/02-database.md` / `10-engineering/03-migoo-framework.md`  |
 | MapStruct | 转换器统一放在 `model/convert/`                        | `10-engineering/02-backend.md` / `10-engineering/03-migoo-framework.md` |
 | 上下文    | 作用域和资源归属必须可验证，客户端声明不能作为授权依据 | `40-security/01-security.md` / `20-contracts/01-api.md`                 |
+| 业务模块权限口径 | 功能测试/需求管理/接口测试/缺陷管理/AI 能力免 RBAC 权限码校验，保留成员归属隔离 | `40-security/01-security.md`（§3.4，单一事实源） |
 | 规范冲突  | 当前实现与目标规范冲突时暂停，由用户确认后再修改       | `00-governance/01-overview.md`                                          |
 | Git 分支  | 保留 `master`，以 `develop` 管理日常集成               | `30-quality-delivery/02-workflow.md`                                    |
 | WebSocket | 使用短时、一次性连接 Ticket；实时协议独立成文          | `20-contracts/03-realtime-protocol.md`                                  |

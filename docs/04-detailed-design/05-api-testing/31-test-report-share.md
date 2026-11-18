@@ -10,7 +10,7 @@
 
 ### 1.1 分享链接生成
 
-分享不设全局开关，也没有「关闭分享」入口——重新生成即唯一覆盖方式，旧 token 随即失效。生成接口 `POST /api/project/reports/{id}/share` 要求 `api-report:view` 权限（`@PreAuthorize`）并经项目成员校验；前端 [分享] 按钮始终展示，越权由后端拒绝（HTTP 403，见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.6）。有效期在生成时选择（前端提供 1 / 7 / 30 / 90 天，缺省 7 天），请求体仅 `{ "expiresInDays": 7 }`。
+分享不设全局开关，也没有「关闭分享」入口——重新生成即唯一覆盖方式，旧 token 随即失效。生成接口 `POST /api/project/reports/{id}/share`免 RBAC 权限码校验、保留项目成员校验；前端 [分享] 按钮始终展示，非项目成员由服务端拒绝（见 `docs/04-detailed-design/05-api-testing/05-api-testing-infra-report.md` 1.6）。有效期在生成时选择（前端提供 1 / 7 / 30 / 90 天，缺省 7 天），请求体仅 `{ "expiresInDays": 7 }`。
 
 1. 生成唯一 `share_token`（UUID v4 去横线，32 字符十六进制）。
 2. 设置过期时间 `share_expires_at = now + expiresInDays`（缺省 7 天）。
@@ -23,7 +23,7 @@
 
 ### 1.2 分享访问校验（免登录）
 
-接口 `GET /api/public/api-reports/{id}?token={token}`，路径在免登录白名单内，不接入 `@PreAuthorize`，鉴权完全依赖 token；`@RateLimit(limit = 60, window = 60)`，免登录口径为 **60 次 / 分钟**，超出返回框架 429（全局错误码）。上下文（workspaceId / projectId）经请求头传递（C4），URL 只含报告资源 ID 与分享令牌。
+接口 `GET /api/public/api-reports/{id}?token={token}`，路径在免登录白名单内，不接入 RBAC 权限码校验，鉴权完全依赖 token；`@RateLimit(limit = 60, window = 60)`，免登录口径为 **60 次 / 分钟**，超出返回框架 429（全局错误码）。上下文（workspaceId / projectId）经请求头传递（C4），URL 只含报告资源 ID 与分享令牌。
 
 1. 按 `id + share_token` 定位报告（`uk_report_share_token` 部分唯一索引支撑）。
 2. 校验 `share_expires_at > now`。
@@ -70,3 +70,4 @@
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | V1.0 | 2026-10-03 | 按实现对齐：补全生成接口权限与部分更新口径、索引名 `uk_report_share_token`、免登录接口路径/字段与 60 次/分限流、访问页路由与状态分支 |
+| V1.0 | 2026-11-18 | 移除接口测试模块 RBAC 权限码校验口径：接口、页面入口与按钮均免权限码校验，保留项目成员归属校验与上下文头；公共组件的三级作用域可见规则保持不变 |
