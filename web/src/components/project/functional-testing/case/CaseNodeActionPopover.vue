@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Link, Loading, MagicStick, Sort } from '@element-plus/icons-vue'
+import { Link, MagicStick, Sort } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   visible: boolean
@@ -9,9 +9,6 @@ const props = defineProps<{
   aiEntryVisible: boolean
   aiGateReason: string
   canLaunchAi: boolean
-  requirementDisabled: boolean
-  requirementLoading: boolean
-  requirementTitle: string
 }>()
 
 const emit = defineEmits<{
@@ -37,7 +34,6 @@ function onAiPriority(): void {
 }
 
 function onLinkRequirement(): void {
-  if (props.requirementDisabled || props.requirementLoading) return
   emit('link-requirement')
 }
 </script>
@@ -79,16 +75,13 @@ function onLinkRequirement(): void {
         <div class="case-node-popover__divider" />
       </template>
 
-      <el-tooltip :content="requirementTitle" placement="right">
+      <el-tooltip content="维护当前用例关联的需求" placement="right">
         <button
           type="button"
           class="case-node-popover__item"
-          :class="{ 'is-disabled': requirementDisabled || requirementLoading }"
-          :disabled="requirementDisabled || requirementLoading"
           @click="onLinkRequirement"
         >
-          <el-icon v-if="requirementLoading" class="is-loading"><Loading /></el-icon>
-          <el-icon v-else><Link /></el-icon>
+          <el-icon><Link /></el-icon>
           <span>关联需求</span>
         </button>
       </el-tooltip>

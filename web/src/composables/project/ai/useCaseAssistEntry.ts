@@ -24,7 +24,7 @@ export interface CaseAssistEntryOptions {
 }
 
 /**
- * 脑图工具栏 AI 入口（详设 5.1 / 交互 2.3）：
+ * 脑图用例 AI 入口（详设 5.1 / 交互 2.3）：
  * AI 未启用时入口隐藏；无选中 / 非用例节点 / 只读时置灰并给出原因。
  * 面板私有状态由两个 useAssistTask 实例承载，按当前建议类型切换。
  */

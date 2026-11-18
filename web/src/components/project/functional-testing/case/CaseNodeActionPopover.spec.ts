@@ -11,9 +11,6 @@ const baseProps = {
   aiEntryVisible: true,
   aiGateReason: '',
   canLaunchAi: true,
-  requirementDisabled: false,
-  requirementLoading: false,
-  requirementTitle: '为当前用例关联需求',
 }
 
 function mountPopover(props: Partial<typeof baseProps> = {}) {
@@ -50,9 +47,9 @@ describe('CaseNodeActionPopover', () => {
     expect(items().map((item) => item.textContent?.trim())).toEqual(['关联需求'])
   })
 
-  it('按门槛与关联状态置灰入口', () => {
-    mountPopover({ canLaunchAi: false, requirementDisabled: true })
-    expect(items().every((item) => item.disabled)).toBe(true)
+  it('按门槛置灰 AI 入口，关联需求入口始终可用', () => {
+    mountPopover({ canLaunchAi: false })
+    expect(items().map((item) => item.disabled)).toEqual([true, true, false])
   })
 
   it('点击可用入口透传事件，禁用入口不触发', () => {
@@ -63,11 +60,11 @@ describe('CaseNodeActionPopover', () => {
     expect(wrapper.emitted('link-requirement')).toHaveLength(1)
 
     document.body.innerHTML = ''
-    const disabled = mountPopover({ canLaunchAi: false, requirementDisabled: true })
+    const disabled = mountPopover({ canLaunchAi: false })
     items().forEach((item) => item.click())
     expect(disabled.emitted('ai-complete')).toBeUndefined()
     expect(disabled.emitted('ai-priority')).toBeUndefined()
-    expect(disabled.emitted('link-requirement')).toBeUndefined()
+    expect(disabled.emitted('link-requirement')).toHaveLength(1)
   })
 
   it('隐藏时不渲染浮层', () => {
