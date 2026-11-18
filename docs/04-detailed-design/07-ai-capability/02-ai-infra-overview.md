@@ -149,7 +149,7 @@ CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((tr
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
-| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`test_design_generation`、`case_complete`），与任务 `type` 对应 |
+| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`test_design_generation`、`case_optimize`），与任务 `type` 对应 |
 | name | varchar(100) | NOT NULL | 场景名称（展示用） |
 | content | text | NOT NULL | 模板正文，支持 `{{variable}}` 占位 |
 | variables | jsonb | NOT NULL, DEFAULT '[]' | 可用变量清单 `[{ name, desc, required }]`，保存时校验占位与清单一致 |
@@ -719,7 +719,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
-> 生成链、拆解、用例补全、级别 / 顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
+> 生成链、拆解、用例优化、顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
 
 #### 3.6.1 任务类型枚举（全量，单一事实源）
 
@@ -727,8 +727,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | ---- | ---- | ---- | ---- | ---- |
 | requirement_import | 需求 | `fileId` | `requirement_suggestion` | 需求模块采纳服务 |
 | test_design_generation | 生成链 | `requirementIds`、`targetModuleId?`、`granularity` | `module_suggestion / mindmap_document_suggestion / test_case_suggestion` | 生成链采纳服务 |
-| case_complete | 辅助 | `nodeIds` | `case_suggestion` | 用例采纳服务 |
-| case_priority | 辅助 | `nodeIds` | `priority_suggestion` | 用例采纳服务 |
+| case_optimize | 辅助 | `nodeIds` | `case_optimize_suggestion` | 用例采纳服务 |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | bug_classify | 缺陷 | `bugIds?` / 筛选 | `classify_suggestion` | 缺陷采纳服务 |
 | bug_duplicate_scan | 缺陷 | `scope` | `duplicate_group` | 人工按重复缺陷机制处理 |
@@ -739,7 +738,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的九类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的八类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
 `assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxDurationSeconds: 3600, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 
@@ -904,7 +903,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 ### 4.2 Agent 执行核与护栏
 
-- **执行入口与策略分派**：十一个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
+- **执行入口与策略分派**：十个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
 - **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清、回答与变更预览仍按分册 04 处理，不转为通用提案确认；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
@@ -1105,3 +1104,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-18 | AI 能力域整体免 RBAC 权限码校验：3.1 / 3.2 / 3.6 / 3.7 / 5.2 移除 `ai:admin` · `ai:task` · `ai:confirm` 与前端权限显隐口径（保留任务归属可见性与项目 / 空间成员校验），2.6.5 工具注册表去 `permission_code` 列，3.8 权限点表改为权限口径说明，6 注销 1000018121，7 删除权限点迁移脚本行 |
 | V1.0 | 2026-11-18 | 任务标题与采纳结果回看、可见范围收窄：2.6.1 `ai_task` 加 `title`（执行后由主提案回填），2.6.4 记回填规则，3.6.2 / 3.6.3 响应补 `title` 与提案 `note`（驳回原因）、列表与计数统一按当前用户过滤，5.2 增 `AiTaskAdoptionResultPanel`、5.3 补 `closed` 只读态，7 补存量库增列迁移 |
 | V1.0 | 2026-11-18 | 助手改为项目级能力：2.9 会话表增 `project_id`（NOT NULL，取 `X-Active-Project`）、索引改 `(user_id, workspace_id, project_id, created_at)`、去 `context_snapshot` 会话私有项目，3.1 助手上下文头统一含项目头、4.4 RAG 读侧助手按 `X-Active-Project` 限权，2.6.1 助手解析任务 `project_id` 取头 |
+| V1.0 | 2026-11-18 | 辅助功能类型合并：3.6.1 注销 `case_complete` / `case_priority` 与 `case_suggestion` / `priority_suggestion`，改单一 `case_optimize` / `case_optimize_suggestion`；任务类型总数十一类→十类、普通目标型任务九类→八类，场景示例与执行入口统计同步 |

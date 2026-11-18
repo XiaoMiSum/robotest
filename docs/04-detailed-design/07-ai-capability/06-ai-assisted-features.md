@@ -10,13 +10,13 @@
 
 ### 1.1 编写目的
 
-对**辅助功能**能力域进行详细设计：定义用例补全、用例级别推荐、测试用例执行顺序推荐三项能力的任务输入、提案结构与采纳落库规则。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
+对**辅助功能**能力域进行详细设计：定义用例优化、测试用例执行顺序推荐两项能力的任务输入、提案结构与采纳落库规则。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
 
 ### 1.2 范围与对应设计
 
-- 对应需求：`docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md`（US-AI-017 ~ 019）。
+- 对应需求：`docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md`（US-AI-017 ~ 018）。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
-- 权限：免 RBAC 权限码校验（登录即可）；用例补全与级别推荐、执行顺序推荐的入口由前端按节点只读 / 已处理等业务状态显隐，后端任务发起与采纳仅保留任务归属可见性与项目成员校验；范围限于当前项目。
+- 权限：免 RBAC 权限码校验（登录即可）；用例优化与执行顺序推荐的入口由前端按节点只读 / 已处理等业务状态显隐，后端任务发起与采纳仅保留任务归属可见性与项目成员校验；范围限于当前项目。
 
 ### 1.3 参考资料
 
@@ -28,8 +28,8 @@
 
 本分册**不新增表**，仅补一列：
 
-- 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_complete / case_priority / plan_order`）；
-- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_suggestion / priority_suggestion / order_suggestion`）；
+- 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_optimize / plan_order`）；
+- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_optimize_suggestion / order_suggestion`）；
 - 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；
 - 用例标签随补全建议采纳写入 `ft_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），列 DDL 以 `server/src/main/resources/db/schema.sql` 为唯一事实源，满足 C5；该列不进向量索引，也不参与脑图渲染。
 
@@ -39,17 +39,17 @@
 
 ### 3.1 通用约定
 
-- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义三类任务的 `type`、`input`、提案与承接语义。
+- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义两类任务的 `type`、`input`、提案与承接语义。
 - 上下文头：`X-Active-Workspace` + `X-Active-Project`（发起、确认一致），发起缺 `X-Active-Project` 头回 1000002008（缺少上下文请求头）；响应 `Result<T>`，示例**仅展示 `data`**。
 - 权限：任务发起与采纳免 RBAC 权限码校验（仅保留任务归属可见性与项目成员校验）；入口与动作显隐由前端按节点只读 / 已处理等业务状态控制。
 
-### 3.2 用例补全
+### 3.2 用例优化
 
 - **提交**：`POST /api/ai/tasks`
 
 ```json
 {
-  "type": "case_complete",
+  "type": "case_optimize",
   "input": {
     "documentId": "…",
     "nodeIds": ["…", "…"],
@@ -63,14 +63,14 @@
 | ---- | ---- | ---- | ---- |
 | documentId | uuid | 是 | 所属脑图用例文档（节点归属校验，否则 1000018301） |
 | nodeIds | uuid[] | 是 | 选中的用例节点（1–50，否则 1000018302）；非用例节点拒绝（1000018307） |
-| scope.requirementIds | uuid[] | 否 | 显式上游需求范围，作为补全建议的需求上下文 |
+| scope.requirementIds | uuid[] | 否 | 显式上游需求范围，作为字段补全与级别推荐的需求上下文 |
 
-- **提案**（`kind = case_suggestion`，逐节点一条，`confirmStatus = pending`）：
+- **提案**（`kind = case_optimize_suggestion`，逐节点一条，`confirmStatus = pending`）：
 
 ```json
 {
   "key": "node-3",
-  "kind": "case_suggestion",
+  "kind": "case_optimize_suggestion",
   "parentKey": null,
   "title": "验证码 60 秒重发限制",
   "content": {
@@ -81,60 +81,32 @@
       "expected": { "existing": ["发送成功提示"], "suggested": ["发送成功提示", "提示 60 秒后重试"] },
       "tags": { "existing": ["登录"], "suggested": ["登录", "限制"] }
     },
-    "extraNodes": [
-      { "title": "验证码 10 分钟后过期校验", "isTestCase": true, "parentNodeId": "…" },
-      { "title": "网络中断时重发", "isTestCase": false, "parentNodeId": "…" }
-    ],
+    "priority": {
+      "current": "P1",
+      "suggested": "P0",
+      "reason": "上游需求 REQ-001 优先级为高"
+    },
     "sourceRefs": [{ "type": "requirement", "id": "…", "title": "REQ-001", "quote": "验证码 60 秒内不可重发…" }]
   },
   "confirmStatus": "pending"
 }
 ```
 
+- `fields` 覆盖前置条件 / 执行步骤 / 预期结果 / 标签四类，`existing` 为节点当前值（`null` 或空数组表示空缺），`suggested` 为建议值；
+- 每个选中节点必产一条提案，`fields` 与 `priority` 均须有值；`priority.current / suggested` 取值 `P0 / P1 / P2 / P3`，与用例节点落库级别一致，`suggested == current` 时同样产出并正常展示，不折叠隐藏。
+
 - **确认**：总册 3.6.5，动作 `adopted / adopted_edited / rejected`；本类型 `target`：
 
 ```json
-{ "documentId": "…", "extraNodePosition": "sibling" }
+{ "documentId": "…" }
 ```
 
-- **承接**（用例采纳服务）：逐项事务更新节点字段（`adopted_edited` 以编辑值落库）、新增 `extraNodes` 节点；采纳写 `adopted_ref = { nodeId / createdNodeIds }`。
+  - `adopted_edited` 的 `content` 为编辑后的值：`{ "fields": { "precondition": "…", "steps": ["…"], "expected": ["…"], "tags": ["…"] }, "priority": "P0" }`，以人工编辑值落库；
+  - `adopted` 由承接器补空缺字段（已有值字段保持原值不覆盖）并按建议级别应用（`suggested != current` 时写级别列）。
 
-### 3.3 用例级别推荐
+- **承接**（用例采纳服务）：逐项事务更新节点字段与优先级（`adopted_edited` 以编辑值落库）；空缺字段与级别变化项写入节点，级别一致项不写级别列但同样写入用例修改记录留痕（`from = to`）；采纳写 `adopted_ref = { nodeId, from, to }`。
 
-- **提交**：`POST /api/ai/tasks`
-
-```json
-{
-  "type": "case_priority",
-  "input": { "documentId": "…", "nodeIds": ["…", "…"] },
-  "waitSeconds": 10
-}
-```
-
-- **提案**（`kind = priority_suggestion`，`confirmStatus = pending`）：
-
-```json
-{
-  "key": "node-3",
-  "kind": "priority_suggestion",
-  "title": "级别推荐：验证码重发限制",
-  "content": {
-    "nodeId": "…",
-    "current": "P1",
-    "suggested": "P0",
-    "reason": "上游需求 REQ-001 优先级为高",
-    "sourceRefs": [{ "type": "requirement", "id": "…", "title": "REQ-001" }]
-  },
-  "confirmStatus": "pending"
-}
-```
-
-- `current / suggested` 取值 `P0 / P1 / P2 / P3`，与用例节点落库级别一致，不另设展示级映射；
-- 每个选中节点必产一条提案，`suggested` 与 `reason` 均须有值；`suggested == current` 时同样产出并正常展示，不折叠隐藏。
-
-- **确认**：总册 3.6.5；承接服务**仅更新采纳项的用例优先级**（`target = { documentId }`），逐项事务；`current == suggested` 的项不写级别列，但同样写入用例修改记录留痕（`from = to`）。
-
-### 3.4 测试用例执行顺序推荐
+### 3.3 测试用例执行顺序推荐
 
 - **提交**：`POST /api/ai/tasks`
 
@@ -183,8 +155,9 @@
 
 ### 4.2 建议采纳的覆盖口径
 
-- **已有人工填写的字段默认不被覆盖**：`existing` 非空的字段仅在 `adopted_edited` 且编辑值与 `suggested` 一致时写入（即人工显式采纳）；空缺字段的补全同样须采纳确认后生效；
-- 已有人工设定的优先级不自动改变：级别推荐的批量采纳仅对 `current != suggested` 的项写级别列；`current == suggested` 的项采纳后级别不变，但仍写入用例修改记录留痕（每次采纳均有可见结果）；
+- **已有人工填写的字段默认不被覆盖**：`adopted` 仅写入空缺字段，`existing` 非空的字段保持原值；需覆盖已有字段时由人工在对照面板编辑后以 `adopted_edited` 提交编辑值；
+- 已有人工设定的优先级在采纳前不自动改变：`adopted` 按 `suggested` 应用（`current != suggested` 时写级别列）；`current == suggested` 时级别不变，但仍写入用例修改记录留痕（每次采纳均有可见结果）；
+- 字段与级别合并为一条提案、一次采纳动作，同一事务内落库；
 - 采纳结果作为**用例修改记录留痕**（调用既有修改记录服务）。
 
 ### 4.3 顺序推荐的边界
@@ -199,9 +172,8 @@
 ### 5.1 入口
 
 ```
-脑图编辑器工具栏
-├── 「AI 补全」（选中节点 → case_complete）
-└── 「级别推荐」（选中节点 → case_priority）
+脑图用例节点悬浮窗
+└── 「AI 优化」（当前节点 → case_optimize）
 
 测试计划详情
 └── 「执行顺序建议」（plan_order）
@@ -210,10 +182,9 @@
 ### 5.2 组件结构
 
 ```
-AssistComparePanel（通用对照面板，补全与级别推荐复用）
+AssistComparePanel（通用对照面板，用例优化使用）
 ├── Header（标题与处理状态；多节点发起时下拉切换核对节点，逐条采纳后自动推进到下一个待处理节点）
-├── SuggestList（现有 vs AI 建议两栏对照；无变化项折叠为「无变化 N 项」，可展开核对）
-├── ExtraNodesPreview（补充节点树预览，用例/结构图标区分）
+├── SuggestList（现有 vs AI 建议两栏对照：前置条件 / 执行步骤 / 预期结果 / 标签四类字段，以及级别与理由；无变化项折叠为「无变化 N 项」，可展开核对）
 ├── SourceRefsLinks（来源引用，点击跳需求详情）
 └── Actionbar（逐条采纳、批量采纳、驳回；置灰原因行与逐项回执）
 
@@ -228,7 +199,7 @@ PlanOrderPanel
 ### 5.3 状态管理与状态分支
 
 - 复用总册 `aiTask` store 轮询任务执行；本域私有状态挂 `AssistComparePanel` 本地（不入全局 store）；
-- 状态分支：任务进行中（超交互等待展示进度入口）、全部建议与现状一致（折叠 + 提示「无变化」）、部分采纳回执、补全/推荐入口对只读节点置灰、AI 未启用入口隐藏（总册 4.5）；入口放行后面板动作区仍对只读 / 已处理态置灰并常驻展示原因，避免入口与实际可采纳状态不一致。
+- 状态分支：任务进行中（超交互等待展示进度入口）、全部建议与现状一致（折叠 + 提示「无变化」）、部分采纳回执、用例优化入口对只读节点置灰、AI 未启用入口隐藏（总册 4.5）；入口放行后面板动作区仍对只读 / 已处理态置灰并常驻展示原因，避免入口与实际可采纳状态不一致。
 
 ---
 
@@ -255,15 +226,15 @@ PlanOrderPanel
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../service/ai/task/type/CaseCompleteTypeAdapter`、`CasePriorityTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、提案结构，共用 `CaseAssistSupport` 解析输入） |
-| `server/.../service/ai/task/adopt/CaseCompleteAdopter`、`CasePriorityAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用既有用例 / 计划服务与修改记录服务） |
+| `server/.../service/ai/task/type/CaseOptimizeTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、提案结构，共用 `CaseAssistSupport` 解析输入） |
+| `server/.../service/ai/task/adopt/CaseOptimizeAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用既有用例 / 计划服务与修改记录服务） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018307 |
 | `server/src/main/resources/db/schema.sql` | `ft_case_node.tags` 列 DDL（唯一事实源，存量库增量 SQL 按 runbook §10 手工执行） |
 | `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 对照与排序面板（含各自单测） |
 | `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与面板视图模型 |
 
 - **数据库**：无新增表；`ft_case_node.tags` 补列以 `server/src/main/resources/db/schema.sql` 为唯一事实源（见 2 节），落库均为既有业务表。
-- **OpenAPI**：三个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
+- **OpenAPI**：两个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
 
@@ -287,3 +258,4 @@ PlanOrderPanel
 | V1.0 | 2026-10-20 | 发起校验补上下文头口径：缺 `X-Active-Project` 回公共码 1000002008（3.1 / 6），10000183xx 仅指输入、归属与状态问题 |
 | V1.0 | 2026-11-18 | AI 能力域免 RBAC 权限码校验：1.2 / 3.1 / 5.3 / 7 移除 `ai:task` · `ai:confirm` 与权限不足 / 权限隐藏分支，改登录即可并保留任务归属可见性与项目成员校验 |
 | V1.0 | 2026-11-18 | 用例级别推荐：产物级别改 P0–P3 直通、移除历史缺陷热点依据与关联工具、每个选中节点必产结果（含同级项，不折叠）、同级项采纳写用例修改记录留痕（from=to） |
+| V1.0 | 2026-11-18 | 用例补全与级别推荐合并为「用例优化」：`type = case_optimize`、提案 `kind = case_optimize_suggestion`，单条提案同时含四类字段补全与级别建议；删除补充节点建议，保留标签；采纳目标收敛为 `{ documentId }`，字段与级别同事务落库 |
