@@ -40,34 +40,36 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     }
 
     /**
-     * 任务列表（详设 3.6.3）：带 X-Active-Project 头按项目过滤，未附带则返回本人提交的任务。
+     * 任务列表（详设 3.6.3）：始终只返回当前用户提交的任务，项目上下文为附加过滤条件。
      */
     default PageResult<AiTask> findPage(PageParam pageParam, UUID projectId, UUID submittedBy, String type,
             String status) {
-        LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>();
-        if (projectId != null) {
-            wrapper.eq(AiTask::getProjectId, projectId);
-        } else {
-            wrapper.eq(AiTask::getSubmittedBy, submittedBy);
-        }
-        wrapper.eqIfPresent(AiTask::getType, type)
+        LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
+                .eq(AiTask::getSubmittedBy, submittedBy)
+                .eqIfPresent(AiTask::getProjectId, projectId)
+                .eqIfPresent(AiTask::getType, type)
                 .eqIfPresent(AiTask::getStatus, status)
                 .orderByDesc(AiTask::getCreatedAt);
         return selectPage(pageParam, wrapper);
     }
 
     /**
-     * 进行中任务计数（详设 3.6.3 顶栏指示器）：status = running（含执行挂起），过滤口径与列表一致。
+     * 进行中任务计数（详设 3.6.3 顶栏指示器）：当前用户提交且 status = running（含执行挂起），过滤口径与列表一致。
      */
     default long countActive(UUID projectId, UUID submittedBy) {
         LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
-                .eq(AiTask::getStatus, Constants.AiTaskFlowStatus.RUNNING);
-        if (projectId != null) {
-            wrapper.eq(AiTask::getProjectId, projectId);
-        } else {
-            wrapper.eq(AiTask::getSubmittedBy, submittedBy);
-        }
+                .eq(AiTask::getStatus, Constants.AiTaskFlowStatus.RUNNING)
+                .eq(AiTask::getSubmittedBy, submittedBy)
+                .eqIfPresent(AiTask::getProjectId, projectId);
         return selectCount(wrapper);
+    }
+
+    /** 任务标题回填（总册 2.6.1）：执行产出提案后写回首个根提案标题，部分更新（C11） */
+    default boolean markTitle(UUID id, String title) {
+        return update(null, new LambdaUpdateWrapperX<AiTask>()
+                .eq(AiTask::getId, id)
+                .set(AiTask::getTitle, title)
+                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
     }
 
     /**

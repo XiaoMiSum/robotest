@@ -73,6 +73,7 @@ public class ExecutionLifecycle {
             throw new IllegalStateException("任务用量累计失败: " + taskId);
         }
         List<ProposalDraft> safeDrafts = drafts == null ? List.of() : drafts;
+        String rootProposalTitle = null;
         for (ProposalDraft draft : safeDrafts) {
             AiTaskProposal proposal = new AiTaskProposal();
             proposal.setTaskId(taskId);
@@ -80,14 +81,22 @@ public class ExecutionLifecycle {
             proposal.setProposalKey(draft.proposalKey());
             proposal.setKind(draft.kind());
             proposal.setParentKey(draft.parentKey());
-            proposal.setTitle(fit(ModelOutputSupport.nvl(draft.title()), TITLE_MAX));
+            String fittedTitle = fit(ModelOutputSupport.nvl(draft.title()), TITLE_MAX);
+            proposal.setTitle(fittedTitle);
             proposal.setContent(draft.content());
             proposal.setConfirmStatus(draft.confirmStatus());
             proposalMapper.insert(proposal);
+            if (rootProposalTitle == null && (draft.parentKey() == null || draft.parentKey().isBlank())) {
+                rootProposalTitle = fittedTitle;
+            }
             traceRecorder.record(executionId, Constants.AiTraceEventType.PROPOSAL_EMITTED,
                     "提案产出: " + draft.title(),
                     Map.of("proposalKey", ModelOutputSupport.nvl(draft.proposalKey()),
                             "kind", ModelOutputSupport.nvl(draft.kind())));
+        }
+        if (rootProposalTitle != null && !rootProposalTitle.isBlank()
+                && !taskMapper.markTitle(taskId, rootProposalTitle)) {
+            throw new IllegalStateException("任务标题写入失败: " + taskId);
         }
         boolean hasPending = safeDrafts.stream().anyMatch(draft ->
                 Constants.AiProposalConfirmStatus.PENDING.equals(draft.confirmStatus()));

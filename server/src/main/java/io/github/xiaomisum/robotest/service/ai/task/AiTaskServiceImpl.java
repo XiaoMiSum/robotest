@@ -566,6 +566,7 @@ public class AiTaskServiceImpl implements AiTaskService {
     private void fillTaskBase(AiTaskRespDTO resp, AiTask task) {
         resp.setTaskId(task.getId());
         resp.setType(task.getType());
+        resp.setTitle(task.getTitle());
         resp.setStatus(task.getStatus());
         resp.setSubmittedBy(task.getSubmittedBy());
         resp.setTokensIn(task.getTokensIn());
@@ -595,11 +596,11 @@ public class AiTaskServiceImpl implements AiTaskService {
         return resp;
     }
 
-    /** 提案清单摘要（3.6.3）：confirmStatus 由采纳记录回填动作，无记录取提案自身状态 */
+    /** 提案清单摘要（3.6.3）：confirmStatus 与 note 由采纳记录回填，无记录取提案自身状态 */
     private List<AiTaskProposalSummaryRespDTO> proposalSummaries(UUID taskId, UUID executionId) {
-        Map<String, String> adoptedActions = new LinkedHashMap<>();
+        Map<String, AiTaskAdoption> adoptions = new LinkedHashMap<>();
         for (AiTaskAdoption record : adoptionMapper.selectByExecution(executionId)) {
-            adoptedActions.putIfAbsent(record.getProposalKey(), record.getAction());
+            adoptions.putIfAbsent(record.getProposalKey(), record);
         }
         List<AiTaskProposalSummaryRespDTO> summaries = new ArrayList<>();
         for (AiTaskProposal proposal : proposalMapper.selectByExecution(executionId)) {
@@ -608,8 +609,9 @@ public class AiTaskServiceImpl implements AiTaskService {
             summary.setKind(proposal.getKind());
             summary.setTitle(proposal.getTitle());
             summary.setParentKey(proposal.getParentKey());
-            summary.setConfirmStatus(adoptedActions.getOrDefault(proposal.getProposalKey(),
-                    proposal.getConfirmStatus()));
+            AiTaskAdoption adoption = adoptions.get(proposal.getProposalKey());
+            summary.setConfirmStatus(adoption != null ? adoption.getAction() : proposal.getConfirmStatus());
+            summary.setNote(adoption != null ? adoption.getNote() : null);
             summaries.add(summary);
         }
         return summaries;
