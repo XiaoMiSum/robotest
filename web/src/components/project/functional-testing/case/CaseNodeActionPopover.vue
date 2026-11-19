@@ -43,81 +43,35 @@ function onLinkRequirement(): void {
     >
       <template v-if="aiEntryVisible">
         <el-tooltip :content="aiGateReason || '对选中用例发起 AI 优化'" placement="right">
-          <button
-            type="button"
-            class="case-node-popover__item"
-            :class="{ 'is-disabled': !canLaunchAi }"
-            :disabled="!canLaunchAi"
-            @click="onAiOptimize"
-          >
+          <el-button text class="case-node-popover__item" :disabled="!canLaunchAi" @click="onAiOptimize">
             <el-icon><MagicStick /></el-icon>
             <span>AI 优化</span>
-          </button>
+          </el-button>
         </el-tooltip>
-        <div class="case-node-popover__divider" />
       </template>
 
       <el-tooltip content="维护当前用例关联的需求" placement="right">
-        <button
-          type="button"
-          class="case-node-popover__item"
-          @click="onLinkRequirement"
-        >
+        <el-button text class="case-node-popover__item" @click="onLinkRequirement">
           <el-icon><Link /></el-icon>
           <span>关联需求</span>
-        </button>
+        </el-button>
       </el-tooltip>
     </div>
   </teleport>
 </template>
 
 <style scoped lang="scss">
-@use '../minder/minder-menu' as menu;
-
 .case-node-popover {
   position: fixed;
   z-index: 9998;
-  min-width: 168px;
-  padding: 4px 0;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  box-shadow: var(--el-box-shadow-light);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .case-node-popover__item {
-  @include menu.minder-menu-row;
-  width: 100%;
-  padding: 7px 16px;
-  font-size: menu.$minder-menu-font-size;
-  color: var(--el-text-color-regular);
-  text-align: left;
-  cursor: pointer;
-  background: transparent;
-  border: 0;
   justify-content: flex-start;
-  gap: 8px;
-
-  &:hover {
-    background: menu.$minder-menu-hover-fill;
-    color: menu.$minder-menu-hover-color;
-  }
-
-  &.is-disabled,
-  &:disabled {
-    color: var(--el-text-color-disabled);
-    cursor: not-allowed;
-
-    &:hover {
-      background: transparent;
-      color: var(--el-text-color-disabled);
-    }
-  }
-}
-
-.case-node-popover__divider {
-  height: 1px;
-  margin: 4px 0;
-  background: var(--el-border-color-lighter);
+  gap: 6px;
 }
 </style>

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import CaseNodeActionPopover from './CaseNodeActionPopover.vue'
+import popoverSource from './CaseNodeActionPopover.vue?raw'
 
 const baseProps = {
   visible: true,
@@ -68,5 +69,18 @@ describe('CaseNodeActionPopover', () => {
   it('隐藏时不渲染浮层', () => {
     mountPopover({ visible: false })
     expect(document.body.querySelector('.case-node-popover')).toBeNull()
+  })
+})
+
+describe('CaseNodeActionPopover · 透明背景按钮', () => {
+  it('悬浮窗不渲染卡片底色与阴影，入口使用文字按钮', () => {
+    expect(popoverSource).toContain('<el-button text class="case-node-popover__item"')
+    expect(popoverSource).not.toContain('background: var(--el-bg-color)')
+    expect(popoverSource).not.toContain('box-shadow: var(--el-box-shadow-light)')
+  })
+
+  it('两个入口渲染为 Element Plus 文字按钮', () => {
+    mountPopover()
+    expect(items().every((item) => item.classList.contains('el-button') && item.classList.contains('is-text'))).toBe(true)
   })
 })
