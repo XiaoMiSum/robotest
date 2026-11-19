@@ -1,15 +1,23 @@
 <script setup lang="ts">
 /**
- * 右键菜单壳（三模式组件共用）：teleport 到 body 的 fixed 定位容器与菜单样式，
- * 菜单项由各模式组件经 slot 传入；点击任意菜单项后整体关闭（由父层收到 close 处理）。
+ * 右键菜单壳（三模式组件共用）：fixed 定位容器与菜单样式，默认 teleport 到 body，
+ * 全屏容器内的模式可经 to 改写挂载点；菜单项由各模式组件经 slot 传入，
+ * 点击任意菜单项后整体关闭（由父层收到 close 处理）。
  */
-defineProps<{ x: number; y: number }>()
+withDefaults(
+  defineProps<{
+    x: number
+    y: number
+    to?: string | HTMLElement
+  }>(),
+  { to: 'body' },
+)
 
 const emit = defineEmits<{ close: [] }>()
 </script>
 
 <template>
-  <teleport to="body">
+  <teleport :to="to">
     <div
       class="mindmap-context-menu"
       :style="{ left: x + 'px', top: y + 'px' }"

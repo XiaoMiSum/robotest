@@ -2,14 +2,15 @@
 import { computed } from 'vue'
 import { Link, MagicStick } from '@element-plus/icons-vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   visible: boolean
   x: number
   y: number
   aiEntryVisible: boolean
   aiGateReason: string
   canLaunchAi: boolean
-}>()
+  to?: string | HTMLElement
+}>(), { to: 'body' })
 
 const emit = defineEmits<{
   close: []
@@ -33,7 +34,7 @@ function onLinkRequirement(): void {
 </script>
 
 <template>
-  <teleport to="body">
+  <teleport :to="to">
     <div
       v-if="visible"
       class="case-node-popover"
