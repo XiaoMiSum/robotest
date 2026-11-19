@@ -10,13 +10,13 @@
 
 ### 1.1 编写目的
 
-对**辅助功能**能力域进行详细设计：定义用例优化、测试用例执行顺序推荐两项能力的任务输入、提案结构与采纳执行口径。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
+对**辅助功能**能力域进行详细设计：定义用例优化、测试用例执行顺序推荐、脑图生成用例三项能力的任务输入、提案结构与采纳执行口径。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
 
 ### 1.2 范围与对应设计
 
-- 对应需求：`docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md`（US-AI-017 ~ 018）。
+- 对应需求：`docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md`（US-AI-017 ~ 019）。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
-- 权限：免 RBAC 权限码校验（登录即可）；用例优化与执行顺序推荐的入口由前端按节点只读 / 已处理等业务状态显隐，后端任务发起与采纳仅保留任务归属可见性与项目成员校验；范围限于当前项目。
+- 权限：免 RBAC 权限码校验（登录即可）；三项能力的入口由前端按节点只读 / 已处理等业务状态、AI 启用状态显隐，后端任务发起与采纳仅保留任务归属可见性与项目成员校验；范围限于当前项目。
 
 ### 1.3 参考资料
 
@@ -28,8 +28,8 @@
 
 本分册**不新增表**，仅补一列：
 
-- 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_optimize / plan_order`）；
-- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_optimize_suggestion / order_suggestion`）；
+- 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_optimize / mindmap_case_generation / plan_order`）；
+- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_optimize_suggestion / mindmap_case_suggestion / order_suggestion`）；
 - 采纳写既有节点 / 计划表：用例优化经脑图 WS 节点持久化管道落库、不写用例修改记录，执行顺序推荐经采纳服务只改排序字段；
 - 用例标签随补全建议采纳写入 `ft_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），列 DDL 以 `server/src/main/resources/db/schema.sql` 为唯一事实源，满足 C5；该列不进向量索引，也不参与脑图渲染。
 
@@ -39,7 +39,7 @@
 
 ### 3.1 通用约定
 
-- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义两类任务的 `type`、`input` 与提案语义，提案的节点操作由脑图前端执行、总册 3.6.5 确认协议仅记录采纳状态。
+- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义三类任务的 `type`、`input` 与提案语义，提案的节点操作由脑图前端执行、总册 3.6.5 确认协议仅记录采纳状态。
 - 上下文头：`X-Active-Workspace` + `X-Active-Project`（发起、确认一致），发起缺 `X-Active-Project` 头回 1000002008（缺少上下文请求头）；响应 `Result<T>`，示例**仅展示 `data`**。
 - 权限：任务发起与采纳免 RBAC 权限码校验（仅保留任务归属可见性与项目成员校验）；入口与动作显隐由前端按节点只读 / 已处理等业务状态控制。
 
@@ -150,6 +150,50 @@
 
 - **确认**：总册 3.6.5；承接服务按 `suggestedRank` 更新计划内执行顺序（`target = { planId, round }`）；**不修改计划关联用例集合与快照内容**，仅改排序字段，一次事务完成，人工最终顺序为准。
 
+### 3.4 脑图生成用例
+
+- **提交**：`POST /api/ai/tasks`
+
+```json
+{
+  "type": "mindmap_case_generation",
+  "input": {
+    "documentId": "…",
+    "requirementId": "…"
+  },
+  "waitSeconds": 10
+}
+```
+
+| input 字段 | 类型 | 必填 | 说明 |
+| ---- | ---- | ---- | ---- |
+| documentId | uuid | 是 | 当前脑图用例文档（须属当前项目，否则 1000018311） |
+| requirementId | uuid | 是 | 单条已确认需求（不属当前项目 1000018309，非已确认 1000018310） |
+
+- **提案**（`kind = mindmap_case_suggestion`，逐用例一条，`confirmStatus = pending`）：
+
+```json
+{
+  "key": "case-1",
+  "kind": "mindmap_case_suggestion",
+  "parentKey": null,
+  "title": "获取验证码",
+  "content": {
+    "priority": "P0",
+    "precondition": ["用户处于登录页"],
+    "steps": ["输入手机号", "点击获取验证码"],
+    "expected": ["提示验证码已发送"],
+    "tags": ["登录"],
+    "sourceRefs": [{ "type": "requirement", "id": "…", "title": "REQ-001", "quote": "支持短信验证码…" }]
+  },
+  "confirmStatus": "pending"
+}
+```
+
+- `priority` 取 `P0 / P1 / P2 / P3`；`precondition / steps / expected / tags` 为字符串数组，`steps` 与 `expected` 一一对应按短边截齐；`sourceRefs` 必填且指向当前项目需求，来源缺失的提案在清洗阶段丢弃；
+- **确认**：总册 3.6.5，动作 `adopted / rejected`；本类型 `target` 为 `{ "documentId": "…" }`。前端在脑图面板勾选提案后，先按提案在当前树上创建用例节点及其前置 / 步骤 / 预期子节点（追加到根节点下，`aiGenerated = true`），再调用确认协议记录采纳状态；后端 adopter 不执行任何节点变更，任务详情页不提供审核操作，只回看执行过程与提案。
+- 同输入（同 `documentId` + `requirementId`）存在进行中任务时重复发起返回 1000018312；任务被中止、执行错误或预算耗尽时不产生提案与节点。
+
 ---
 
 ## 4. 业务逻辑设计
@@ -174,6 +218,14 @@
 - 推荐依据限定平台内数据（上游需求优先级、历史缺陷热点、执行依赖），不引入外部信息；
 - 采纳只改排序，不改快照、不改关联集合；后续计划同步机制（用例增删）按既有规则重新排布，建议结果不持久复用。
 
+### 4.4 脑图生成用例的边界
+
+- 需求与文档均按当前项目校验；需求仅接受 `confirmed`，发起时对需求做快照，执行期间变更按快照继续并在面板提示「来源需求已变更」；
+- 提案在勾选插入前不落库；插入为新增节点，不覆盖既有节点，不修改既有树的层级与 ID；
+- 插入位置固定为当前文档根节点下：每个被勾选提案生成一个 `case` 节点（`priority` / `tags` 写入列、`aiGenerated = true`），其下依次追加 `precondition` / `step` / `expected` 子节点；`steps` 与 `expected` 按短边截齐；
+- 节点变更经脑图既有 WS 持久化管道落库并触发向量索引重嵌；确认协议只记录采纳状态，后端不写业务节点；
+- 任务详情对 `mindmap_case_generation` 注册只读展示策略，不提供采纳 / 编辑后采纳 / 驳回动作；提案状态由脑图面板的插入动作驱动。
+
 ---
 
 ## 5. 前端设计
@@ -184,11 +236,14 @@
 脑图用例节点悬浮窗
 └── 「AI 优化」（当前节点 → case_optimize）
 
+脑图编辑器工具栏（最右侧）
+└── 「AI测试用例」→ 选择需求（单选）→ AI 生成面板（mindmap_case_generation）
+
 测试计划详情
 └── 「执行顺序建议」（plan_order）
 ```
 
-点击「AI 优化」先按当前节点查询最近一次任务（`GET /api/ai/tasks/{type}/latest`，项目内任意成员发起的任务均可复用）：查到则未完成回显进度或已有提案，`proposals_ready` / `closed` 展示提案并提供「重新执行」，`aborted` 展示原因与「再次执行」；无任务时发起 `case_optimize`（交互 2.4）。
+点击「AI 优化」先按当前节点查询最近一次任务（`GET /api/ai/tasks/{type}/latest`，项目内任意成员发起的任务均可复用）：查到则未完成回显进度或已有提案，`proposals_ready` / `closed` 展示提案并提供「重新执行」，`aborted` 展示原因与「再次执行」；无任务时发起 `case_optimize`（交互 2.4）。「AI测试用例」不复用节点级任务：每次经需求单选弹窗确认后按 `{ documentId, requirementId }` 发起新任务，结果在独立面板内回显。
 
 ### 5.2 组件结构
 
@@ -203,13 +258,19 @@ PlanOrderPanel
 ├── OrderList（拖拽调整，序号徽标，建议理由悬浮）
 ├── BeforeAfterDiff（采纳前/后顺序对照，按当前顺序实时刷新）
 └── Actionbar（应用建议、放弃，应用后 toast 提示）
+
+AiCaseGenerationPanel（脑图生成用例，以对话框呈现）
+├── Header（所选需求、任务进度 / 失败原因 / 来源变更提示）
+├── CaseMindTree（复用用例选择器的脑图式勾选树，展示提案的用例与前置 / 步骤 / 预期子节点，支持关键字与优先级过滤）
+└── Actionbar（插入选中用例、重新执行、关闭；插入后回执逐项成败）
 ```
 
-各结构块落在对应 `.vue` 组件文件内，不拆独立组件文件（见 7 节文件清单）。
+各结构块落在对应 `.vue` 组件文件内，不拆独立组件文件（见 7 节文件清单）。用例选择器增加「注入树」模式：传入 AI 提案映射的 `TestCaseNode` 树时跳过后端文档加载，确认回传所选用例节点，复用既有勾选与脑图式渲染能力。
 
 ### 5.3 状态管理与状态分支
 
 - 复用总册 `aiTask` store 轮询任务执行；本域私有状态挂 `AssistComparePanel` 本地（不入全局 store）；
+- 脑图生成用例的所选需求、勾选集合与插入回执挂 `AiCaseGenerationPanel` 本地；提交后由 `aiTask` store 按 `taskId` 轮询，状态非 `running` 即停轮；`proposals_ready` 时把提案映射为可勾选的 `TestCaseNode` 树；失败与终止态提供再次执行；
 - 任务按用例节点查询后端最近一次任务（`GET /api/ai/tasks/{type}/latest`，项目内任意成员发起的任务均可复用）：命中后按任务状态回显进度 / 提案，无任务时发起；仅取最近一次，不查询更早历史；切换节点时丢弃过期查询响应，避免旧任务提案内容写入新任务；
 - 重新执行：`proposals_ready` / `aborted` 沿用同一任务新建执行实例（3.6.4）；`closed` 因后端不允许再次执行，按同一输入发起新任务；
 - 状态分支：任务进行中（超交互等待展示进度入口）、全部建议与现状一致（折叠 + 提示「无变化」）、部分采纳回执、用例优化入口对只读节点置灰、AI 未启用入口隐藏（总册 4.5）；入口放行后面板动作区仍对只读 / 已处理态置灰并常驻展示原因，避免入口与实际可采纳状态不一致。
@@ -228,6 +289,10 @@ PlanOrderPanel
 | 1000018304 | 400 | 计划关联用例为空，无法推荐顺序 |
 | 1000018305 | 409 | 建议已采纳或已失效 |
 | 1000018307 | 400 | 节点类型不支持（仅用例节点可优化） |
+| 1000018309 | 404 | 输入需求不存在或不属当前项目 |
+| 1000018310 | 400 | 输入需求非已确认状态，不可生成 |
+| 1000018311 | 404 | 输入文档不存在或不属当前项目 |
+| 1000018312 | 409 | 已存在进行中的同输入脑图生成用例任务 |
 
 > 上下文头缺失（`X-Active-Project` 未携带或未解析）回公共错误码 **1000002008**（缺少上下文请求头），不占用本号段；本号段错误码仅指输入取值、归属与状态问题。
 
@@ -253,8 +318,17 @@ PlanOrderPanel
 | `web/src/composables/project/ai/useCaseAssistEntry.ts` | 采纳 / 编辑后采纳 / 批量采纳透传提案锚点 `nodeId` 给执行器 |
 | `web/src/types/project/shared.ts`、`web/src/minder/adapter.ts` | `TestCaseNode` 携带 `aiGenerated` 并映射到脑图节点 data |
 | `web/src/types/ai.ts` | 新增 `AiCaseOptimizeOperationSuggestion`（operations 联合类型），任务详情旧类型保持不变 |
+| `server/.../service/ai/task/type/MindmapCaseGenerationTypeAdapter`、`handler/CaseGenerationSupport` | 脑图生成用例类型适配器：输入校验（文档 / 需求归属与状态）、需求快照与 RAG 上下文、提案清洗（完整用例属性 + 来源引用）、工具白名单与预算默认 |
+| `server/.../service/ai/config/AiPromptScenes`、`server/src/main/resources/ai/guide/case-mindmap.md` | 新增 `mindmap_case_generation` 场景与默认提示词（脑图节点结构与用例属性口径） |
+| `server/.../service/ai/task/adopt/MindmapCaseGenerationAdopter` | 确认协议后端承接：仅记录采纳状态，不执行节点变更 |
+| `server/.../framework/common/Constants`、`ErrorCodeConstants` | 登记任务类型 `mindmap_case_generation`、提案 kind `mindmap_case_suggestion` 与错误码 1000018309–1000018312 |
+| `web/src/components/project/functional-testing/case/AiCaseGenerationPanel.vue` + 单测 | 生成面板：进度 / 提案勾选树 / 插入回执 / 重新执行 |
+| `web/src/components/project/functional-testing/case/CaseSelector.vue` + 单测 | 增加注入树模式（传入 AI 提案映射的节点树时跳过后端文档加载） |
+| `web/src/composables/project/functional-testing/mindmap/useCaseGenerationInsert.ts` + 单测 | 按提案在根节点下创建用例与属性子节点、`contentchange` + 持久化与确认协议提交 |
+| `web/src/composables/project/ai/useCaseGenerationEntry.ts` + 单测 | 需求单选 → 任务提交 → 轮询 → 提案映射与面板状态 |
+| `web/src/composables/project/ai/reviewProfiles.ts`、`web/src/types/ai.ts` | 新任务类型登记只读展示策略（任务详情无审核动作）与新类型 / 提案类型 |
 
-- **数据库**：无新增表、无新增列；落库均为既有 `ft_case_node` 业务表（原地更新与新增节点复用现有列，`tags` 列为既有补列）。
+- **数据库**：无新增表、无新增列；任务 / 执行 / 提案 / 采纳记录复用 `ai_task_` 六表，节点落库均为既有 `ft_case_node` 业务表。
 - **OpenAPI**：两个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
@@ -285,3 +359,4 @@ PlanOrderPanel
 | V1.0 | 2026-11-19 | 用例优化改为节点操作指令模型：提案 operations（update 原地更新含标题 / 属性 / 优先级 / 标签、add 任意节点下新增，均带 path / reason），取消删旧插新，新增陈旧值保护与跨文档校验，登记 1000018308，同步 3.2 / 4.2 / 5.2 / 6 / 7 |
 | V1.0 | 2026-11-19 | 用例优化节点操作收敛为脑图前端执行：后端只产出 operations 提案、确认协议仅记录采纳状态，取消 `applyCaseOptimize` / 陈旧值保护 / 1000018308；`update_attrs` 扩展 `tags` 供标签更新随脑图持久化落库，任务详情页不参与节点执行；同步 1.1 / 2 / 3.1 / 3.2 / 4.2 / 6 / 7 |
 | V1.0 | 2026-11-19 | 用例优化采纳给被优化用例节点打 AI 标识：复用 `ai_generated`、按提案 `nodeId` 经 `update_attrs` 落库，不新增字段与快照继承；同步 3.2 / 4.2 / 7 |
+| V1.0 | 2026-11-19 | 新增脑图生成用例：登记 `mindmap_case_generation` / `mindmap_case_suggestion`、输入与提案结构（3.4）、边界（4.4）、入口与面板（5.1–5.3）、错误码 1000018309–1000018312（6）与实施文件清单（7）；任务详情只读、无审核动作 |
