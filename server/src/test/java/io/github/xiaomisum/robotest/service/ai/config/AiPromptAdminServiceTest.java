@@ -194,9 +194,9 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        // 登记场景 10 个（生成链统一为 test_design_generation，不再登记四阶段旧场景；用例补全与级别推荐合并为 case_optimize），
-        // 自定义行只覆盖导入
-        assertEquals(10, list.size());
+        // 登记场景 11 个（生成链统一为 test_design_generation，不再登记四阶段旧场景；用例补全与级别推荐合并为 case_optimize，
+        // 新增脑图生成用例 mindmap_case_generation），自定义行只覆盖导入
+        assertEquals(11, list.size());
         AiPromptListItemRespDTO importItem = list.stream()
             .filter(item -> "requirement_import".equals(item.getScene()))
                 .findFirst().orElseThrow();
@@ -217,7 +217,7 @@ class AiPromptAdminServiceTest {
 
         List<AiPromptListItemRespDTO> list = service.list();
 
-        assertEquals(10, list.size());
+        assertEquals(11, list.size());
         AiPromptListItemRespDTO importItem = list.stream()
                 .filter(item -> "requirement_import".equals(item.getScene()))
                 .findFirst().orElseThrow();

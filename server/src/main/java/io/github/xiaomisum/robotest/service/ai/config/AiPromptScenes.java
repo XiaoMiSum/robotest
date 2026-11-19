@@ -49,6 +49,10 @@ public final class AiPromptScenes {
                 new PromptVariable("caseContext", "选中用例节点与现有属性清单", true),
                 new PromptVariable("documentContext", "文档层级上下文", true),
                 new PromptVariable("requirementContext", "上游需求上下文", true))));
+        register(scenes, new PromptScene("mindmap_case_generation", "脑图生成用例", List.of(
+                new PromptVariable("requirementContext", "来源需求冻结快照", true),
+                new PromptVariable("documentContext", "当前文档与已存在用例标题", true),
+                new PromptVariable("ragContext", "向量检索命中的需求片段（可为空）", false))));
         register(scenes, new PromptScene("plan_order", "执行顺序建议", List.of(
                 new PromptVariable("planContext", "计划关联用例与最近执行结果", true),
                 new PromptVariable("roundCount", "推荐轮次（缺省空串）", false))));
