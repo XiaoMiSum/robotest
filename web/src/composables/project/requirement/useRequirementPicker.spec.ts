@@ -156,6 +156,26 @@ describe('useRequirementPicker', () => {
     expect(picker.selectedCount.value).toBe(0)
   })
 
+  it('selectOnly 替换整组已选且重复点击幂等', () => {
+    const { picker } = mountPicker()
+    const first = item('r1', 'REQ-001', '登录')
+    const second = item('r2', 'REQ-002', '登出')
+
+    picker.toggle(first)
+    picker.toggle(second)
+    expect(picker.selectedIds.value).toEqual(['r1', 'r2'])
+
+    picker.selectOnly(first)
+    expect(picker.selectedIds.value).toEqual(['r1'])
+    expect(picker.selected.value.get('r1')?.code).toBe('REQ-001')
+
+    picker.selectOnly(first)
+    expect(picker.selectedIds.value).toEqual(['r1'])
+
+    picker.selectOnly(second)
+    expect(picker.selectedIds.value).toEqual(['r2'])
+  })
+
   it('seed 回填既有条目，reset 保留已选但清空筛选', async () => {
     mocks.fetchRequirements.mockResolvedValue(page([]))
     const { picker } = mountPicker()
