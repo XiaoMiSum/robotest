@@ -42,7 +42,7 @@ function onLinkRequirement(): void {
       @contextmenu.prevent
     >
       <template v-if="aiEntryVisible">
-        <el-tooltip :content="aiGateReason || '对选中用例发起 AI 优化'" placement="right">
+        <el-tooltip :content="aiGateReason || '对选中用例发起 AI 优化'" placement="bottom">
           <el-button text class="case-node-popover__item case-node-popover__item--ai" :disabled="!canLaunchAi" @click="onAiOptimize">
             <el-icon><MagicStick /></el-icon>
             <span>AI 优化</span>
@@ -50,7 +50,7 @@ function onLinkRequirement(): void {
         </el-tooltip>
       </template>
 
-      <el-tooltip content="维护当前用例关联的需求" placement="right">
+      <el-tooltip content="维护当前用例关联的需求" placement="bottom">
         <el-button text class="case-node-popover__item case-node-popover__item--link" @click="onLinkRequirement">
           <el-icon><Link /></el-icon>
           <span>关联需求</span>
