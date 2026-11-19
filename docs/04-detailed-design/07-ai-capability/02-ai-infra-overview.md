@@ -728,6 +728,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | requirement_import | 需求 | `fileId` | `requirement_suggestion` | 需求模块采纳服务 |
 | test_design_generation | 生成链 | `requirementIds`、`targetModuleId?`、`granularity` | `module_suggestion / mindmap_document_suggestion / test_case_suggestion` | 生成链采纳服务 |
 | case_optimize | 辅助 | `nodeIds` | `case_optimize_suggestion` | 用例采纳服务 |
+| mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | bug_classify | 缺陷 | `bugIds?` / 筛选 | `classify_suggestion` | 缺陷采纳服务 |
 | bug_duplicate_scan | 缺陷 | `scope` | `duplicate_group` | 人工按重复缺陷机制处理 |
@@ -738,7 +739,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的八类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的九类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
 `assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxDurationSeconds: 3600, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 
@@ -907,7 +908,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 ### 4.2 Agent 执行核与护栏
 
-- **执行入口与策略分派**：十个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
+- **执行入口与策略分派**：十一个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
 - **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清、回答与变更预览仍按分册 04 处理，不转为通用提案确认；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
@@ -1117,3 +1118,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-19 | 5.2 通用提案审核区改明细卡片直出待处理前 3 条并移除勾选与批量操作；新增 `ProposalCompareView` 三列分区对照组件，回看明细一并复用 |
 | V1.0 | 2026-11-19 | 5.2 审核区组件树口径改为只展示当前 1 条待处理提案，确认成功后刷新清单并自动切换下一条 |
 | V1.0 | 2026-11-19 | 5.2 审核区扁平化为单卡：组件树移除 ProposalCard 层级，对比组件改卡内轻量三列，动作区右对齐 link |
+| V1.0 | 2026-11-19 | 3.6.1 登记辅助域新任务类型 `mindmap_case_generation`（`documentId` + `requirementId` → `mindmap_case_suggestion`，采纳由脑图面板执行、后端只记录状态）；任务类型总数十类→十一类、普通目标型任务八类→九类，4.2 执行入口统计同步 |

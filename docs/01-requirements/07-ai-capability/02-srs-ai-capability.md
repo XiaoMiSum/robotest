@@ -17,7 +17,7 @@ AI 能力是平台级基础能力，四大能力域构建其上：
 | AI+需求 生成链 | `docs/01-requirements/07-ai-capability/03-srs-ai-generation.md` | AI 将已确认的需求条目生成模块、脑图用例文档与测试用例 |
 | 智能助手 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 一句话下达任务，经确认后将数据落库（测试用例、测试评审、测试计划） |
 | 缺陷分析 | `docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md` | 缺陷趋势与质量度量、自动分类分诊、重复缺陷检测 |
-| 辅助功能 | `docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md` | 用例优化（字段补全 + 级别推荐）、测试用例执行顺序推荐 |
+| 辅助功能 | `docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md` | 用例优化（字段补全 + 级别推荐）、测试用例执行顺序推荐、脑图内基于需求生成测试用例 |
 
 AI 生成链以需求管理（功能测试子模块）的需求条目为输入，需求条目的管理行为见 `docs/01-requirements/03-function-testing/03-srs-requirement-management.md`；测试评审与测试计划的快照机制沿用既有口径，见 `docs/01-requirements/03-function-testing/02-srs-business-features.md`。
 
@@ -141,3 +141,4 @@ AI 生成链以需求管理（功能测试子模块）的需求条目为输入�
 | V1.0 | 2026-11-18 | 辅助功能口径合并：能力域定位、提示词清单与交互式建议时限中的「用例补全 / 级别推荐」统一改为「用例优化」 |
 | V1.0 | 2026-11-18 | AI 任务列表与进行中计数不再按当前登录用户过滤：按活跃项目展示项目内全部任务并标注发起人，无项目上下文时不过滤提交人 |
 | V1.0 | 2026-11-19 | 1.5 / 1.7 已结束任务的采纳结果回看改为可展开收起的提案卡片，展开查看该提案产物明细 |
+| V1.0 | 2026-11-19 | 1.1 辅助功能能力域纳入「脑图内基于需求生成测试用例」；该能力的提案采纳在脑图面板执行，任务详情只回看、不提供审核操作（见辅助功能分册） |
