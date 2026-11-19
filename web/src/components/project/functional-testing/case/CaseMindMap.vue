@@ -200,7 +200,7 @@ const handleLayoutCommand = (command: unknown) => {
     <div class="mindmap-toolbar">
       <template v-if="!isFullscreen">
         <el-tooltip content="撤销、重做、节点操作与删除" placement="bottom">
-          <el-dropdown @command="handleEditCommand">
+          <el-dropdown popper-class="case-edit-dropdown" @command="handleEditCommand">
             <el-button text>
               <el-icon><EditPen /></el-icon><span>编辑</span><el-icon class="toolbar-caret"><ArrowDown /></el-icon>
             </el-button>
@@ -537,21 +537,6 @@ $priorities: p0, p1, p2, p3;
 
 .toolbar-caret { margin-left: 2px; font-size: 10px; }
 
-.toolbar-menu-item {
-  @include menu.minder-menu-row;
-  --el-font-size-base: #{menu.$minder-menu-font-size};
-  --el-dropdown-menuItem-hover-fill: #{menu.$minder-menu-hover-fill};
-  --el-dropdown-menuItem-hover-color: #{menu.$minder-menu-hover-color};
-}
-
-.toolbar-menu-item--danger {
-  --el-dropdown-menuItem-hover-fill: #{menu.$minder-menu-hover-fill};
-  --el-dropdown-menuItem-hover-color: #{menu.$minder-menu-danger-color};
-  color: menu.$minder-menu-danger-color;
-
-  &.is-disabled { color: var(--el-text-color-disabled); }
-}
-
 .menu-action {
   @include menu.minder-menu-row;
 
@@ -641,5 +626,30 @@ $priorities: p0, p1, p2, p3;
 
 .ai-assist-progress__detail {
   color: var(--color-neutral-400);
+}
+</style>
+
+<style lang="scss">
+/*
+ * CODE-008 例外：Element Plus el-dropdown-item 为多根 Fragment 子组件，父组件 scopeId 不会透传到下拉项 li，
+ * scoped 选择器无法命中，故在全局作用域按 popper-class 锚定，避免扩散到其它下拉。
+ * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8。
+ */
+@use '../minder/minder-menu' as menu;
+
+.case-edit-dropdown {
+  .el-dropdown-menu__item.toolbar-menu-item {
+    @include menu.minder-menu-row;
+    --el-font-size-base: #{menu.$minder-menu-font-size};
+    --el-dropdown-menuItem-hover-fill: #{menu.$minder-menu-hover-fill};
+    --el-dropdown-menuItem-hover-color: #{menu.$minder-menu-hover-color};
+  }
+
+  .el-dropdown-menu__item.toolbar-menu-item--danger {
+    --el-dropdown-menuItem-hover-color: #{menu.$minder-menu-danger-color};
+    color: menu.$minder-menu-danger-color;
+
+    &.is-disabled { color: var(--el-text-color-disabled); }
+  }
 }
 </style>
