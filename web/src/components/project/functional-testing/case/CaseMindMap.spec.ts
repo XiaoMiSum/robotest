@@ -109,6 +109,20 @@ describe('CaseMindMap · 编辑下拉节点操作', () => {
 
   it('节点操作在编辑下拉与全屏工具栏均按选中态置灰', () => {
     expect(source).toContain('const hasSelectedNode = computed(() => Boolean(selectedNodeId.value))')
-    expect(source.match(/:disabled="!hasSelectedNode"/g) ?? []).toHaveLength(8)
+    expect(source.match(/:disabled="!hasSelectedNode"/g) ?? []).toHaveLength(14)
+  })
+
+  it('类型标记按钮按选中态置灰', () => {
+    for (const type of ['case', 'precondition', 'step', 'expected']) {
+      expect(source).toContain(`:disabled="!hasSelectedNode" @click="nodeOps.markAs('${type}')"`)
+    }
+    expect(source).toContain(':disabled="!hasSelectedNode" @click="nodeOps.clearMark"')
+  })
+
+  it('优先级按钮按选中态置灰，右键等级组同步置灰', () => {
+    expect(source).not.toContain('hasSelectedCaseNode')
+    expect(source).toMatch(/:disabled="!hasSelectedNode"\s+@click="nodeOps\.markPriority\(p\)"/)
+    expect(source).toContain("'is-selected': nodeOps.selectedPriority.value === p, 'is-disabled': !hasSelectedNode")
+    expect(source).toContain('&.is-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }')
   })
 })
