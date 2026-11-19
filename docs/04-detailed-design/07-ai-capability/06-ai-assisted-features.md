@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-对**辅助功能**能力域进行详细设计：定义用例优化、测试用例执行顺序推荐两项能力的任务输入、提案结构与采纳落库规则。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
+对**辅助功能**能力域进行详细设计：定义用例优化、测试用例执行顺序推荐两项能力的任务输入、提案结构与采纳执行口径。任务资源、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义本域的业务入口与提案语义。
 
 ### 1.2 范围与对应设计
 
@@ -30,7 +30,7 @@
 
 - 辅助任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = case_optimize / plan_order`）；
 - 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`case_optimize_suggestion / order_suggestion`）；
-- 采纳落库写既有用例 / 节点 / 计划表与用例修改记录；
+- 采纳写既有节点 / 计划表：用例优化经脑图 WS 节点持久化管道落库、不写用例修改记录，执行顺序推荐经采纳服务只改排序字段；
 - 用例标签随补全建议采纳写入 `ft_case_node.tags`（`jsonb` 数组，允许 NULL、不设默认值、不建物理外键），列 DDL 以 `server/src/main/resources/db/schema.sql` 为唯一事实源，满足 C5；该列不进向量索引，也不参与脑图渲染。
 
 ---
@@ -39,7 +39,7 @@
 
 ### 3.1 通用约定
 
-- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义两类任务的 `type`、`input`、提案与承接语义。
+- 全部执行经总册 3.6 AI Task 任务资源；本文档只定义两类任务的 `type`、`input` 与提案语义，提案的节点操作由脑图前端执行、总册 3.6.5 确认协议仅记录采纳状态。
 - 上下文头：`X-Active-Workspace` + `X-Active-Project`（发起、确认一致），发起缺 `X-Active-Project` 头回 1000002008（缺少上下文请求头）；响应 `Result<T>`，示例**仅展示 `data`**。
 - 权限：任务发起与采纳免 RBAC 权限码校验（仅保留任务归属可见性与项目成员校验）；入口与动作显隐由前端按节点只读 / 已处理等业务状态控制。
 
@@ -96,8 +96,8 @@
 ```
 
 - `nodeId` 为被优化用例节点，作为归属 / 类型校验锚点（否则 1000018301 / 1000018307）；`operations` 为该用例的操作指令清单，`op` 取 `update` / `add`：
-  - `update`：按 `nodeId` 定位目标节点（须与被优化用例同文档，否则 1000018308），`field` 取 `title`（用例节点或属性子节点文本）/ `priority` / `tags`（后两者仅用例节点有效）；`existing` 为节点当前值（`null` 或空数组表示空缺），`suggested` 为建议值；`priority` 的 `existing / suggested` 取值 `P0 / P1 / P2 / P3`，与落库级别一致，`suggested == existing` 时同样产出并正常展示，不折叠隐藏；
-  - `add`：按 `parentId` 定位父节点（被优化用例或其任一后代，须同文档，否则 1000018308），`nodeType` 取 `precondition / step / expected / normal`（不新增 `case` 节点，否则 1000018307），`title` 为新节点文本，`sortOrder` 为可选组尾序号；
+  - `update`：按 `nodeId` 定位目标节点（须取自本次产出的「可操作节点清单」，即目标用例及其后代；非法引用在清洗阶段丢弃），`field` 取 `title`（用例节点或属性子节点文本）/ `priority` / `tags`（后两者仅用例节点有效）；`existing` 为节点当前值（`null` 或空数组表示空缺），仅供人工核对，`suggested` 为建议值；`priority` 的 `existing / suggested` 取值 `P0 / P1 / P2 / P3`，与落库级别一致，`suggested == existing` 时同样产出并正常展示，不折叠隐藏；
+  - `add`：按 `parentId` 定位父节点（目标用例或其任一后代，非法引用在清洗阶段丢弃），`nodeType` 取 `precondition / step / expected / normal`（不新增 `case` 节点，非法类型在清洗阶段丢弃），`title` 为新节点文本，`sortOrder` 为可选组尾序号；
   - 每条操作携带 `path`（祖先路径，供对照面板定位展示）与 `reason`（建议理由）；
 - 每个选中节点必产一条提案，`operations` 可为空（无建议时按无变化展示）；模型输出引用的节点不存在 / 跨文档 / 字段或类型非法时，该条指令在清洗阶段丢弃，不产生无效建议。
 
@@ -107,10 +107,10 @@
 { "documentId": "…" }
 ```
 
-  - `adopted` 按提案 `operations` 逐条执行：`update` 原地改写目标节点 `field`（ID 与层级不变），`add` 在 `parentId` 下创建新节点；陈旧值跳过口径见 4.2；
-  - `adopted_edited` 的 `content` 为编辑后的操作清单 `{ "operations": [ { "op": "update", "nodeId": "…", "field": "title", "suggested": "…" } | { "op": "add", "parentId": "…", "nodeType": "step", "title": "…" } ] }`，以人工编辑值落库；编辑载荷仅覆盖建议值，定位字段（`op` / `nodeId` / `parentId` / `field` / `nodeType`）须与提案一致，否则整条按输入非法处理。
+  - 脑图面板采纳时，先由前端按 `operations` 在当前脑图树上执行节点操作（`update` 原地改写目标节点 `field`，`add` 在 `parentId` 下创建新节点），再调用确认协议记录采纳状态；确认协议的后端 adopter 不执行任何节点变更。本类型操作仅在脑图面板执行，任务详情页不承接用例优化采纳。
+  - `adopted_edited` 的 `content` 为编辑后的操作清单 `{ "operations": [ { "op": "update", "nodeId": "…", "field": "title", "suggested": "…" } | { "op": "add", "parentId": "…", "nodeType": "step", "title": "…" } ] }`，前端以人工编辑值执行；编辑载荷仅覆盖建议值，定位字段（`op` / `nodeId` / `parentId` / `field` / `nodeType`）须与提案一致，否则整条按输入非法处理。
 
-- **承接**（用例采纳服务）：单事务按 `operations` 定位节点执行，`update` 原地部分更新目标字段（不删旧插新，保留节点 ID 与协同引用），`add` 以框架默认 UUID 策略新建节点（`ai_generated = true`，无物理外键）；采纳前重读目标节点现状，与提案 `existing` 不一致（生成提案后人工改动）时跳过该条更新；优先级变化项写级别列、级别一致项不写列但同样写入用例修改记录留痕（`from = to`）；采纳后统一重嵌向量索引；采纳写 `adopted_ref = { nodeId, updated: n, added: m, skipped: k }`（更新 / 新增 / 跳过条数）。任务详情页与脑图面板的采纳共用同一承接服务，覆盖口径一致。
+- **前端执行**（脑图面板）：`update` 按 `nodeId` 定位节点后原地改写 `field`（`title` 写节点文本、`priority` 写级别列、`tags` 写标签列），节点 ID、层级与类型不变，不删旧插新；`add` 按 `parentId` 定位父节点并用脑图既有新建节点口径生成 UUID 追加子节点（`ai_generated = true`，无物理外键）。两类变更经脑图既有 WS 节点持久化管道落库并触发向量索引重嵌，`title` / `priority` 走 `update_attrs`、`add` 走 `add_node`、`tags` 走扩展后的 `update_attrs`；提案的 `existing` 仅用于对照展示，不作为写入前置条件。
 
 ### 3.3 测试用例执行顺序推荐
 
@@ -161,12 +161,12 @@
 
 ### 4.2 操作指令的覆盖口径
 
-- **原地更新**：`update` 按 `nodeId` 定位目标节点并原地改写 `field`，节点 ID、层级与类型不变，不采用删旧插新；建议值与现状一致时不写，避免无谓写入；建议值为空（空白串 / 空数组）时视为无建议，不修改目标字段；
-- **直接新增**：`add` 在 `parentId` 下创建新节点，节点 ID 由框架默认 UUID 策略生成、`ai_generated = true`、`version = 1`，序号追加到同类型组尾（或按给定 `sortOrder`）；父节点可为目标用例或其任一后代，但须与目标用例同文档；不新增 `case` 节点；
-- **陈旧值保护**：采纳时重读目标节点，若现状与提案 `existing` 不一致（生成提案后已被人工改动），跳过该 `update` 指令并在回执中标记，不覆盖人工编辑；`add` 指令的父节点若已不存在则跳过；
-- **优先级与标签**：`adopted` 按 `suggested` 应用（`existing != suggested` 时写列 / 写标签）；级别一致项不写列但同样写入用例修改记录留痕（`from = to`，每次采纳均有可见结果）；
-- 同一用例的全部操作合并为一条提案、一次采纳动作，同一事务内落库；任一指令定位节点跨文档时整条提案按 1000018308 拒绝，不产生部分落库；
-- 采纳结果作为**用例修改记录留痕**（调用既有修改记录服务），更新项与新增项分别记录；该口径同时适用于任务详情页采纳与脑图面板采纳。
+- **原地更新**：`update` 由脑图前端按 `nodeId` 定位目标节点并原地改写 `field`，节点 ID、层级与类型不变，不采用删旧插新；建议值与现状一致时不写，避免无谓写入；建议值为空（空白串 / 空数组）时视为无建议，不修改目标字段；
+- **直接新增**：`add` 由脑图前端在 `parentId` 下创建新节点，节点 ID 沿用脑图新建节点的 UUID 生成口径、`ai_generated = true`、`version = 1`，序号追加到同类型组尾（或按给定 `sortOrder`）；父节点可为目标用例或其任一后代；不新增 `case` 节点；
+- **以当前树为准**：提案的 `existing` 仅供人工核对写入前的现状；采纳在脑图当前树上按 ID 定位，目标节点或父节点已不存在时跳过该条指令并在回执中标记；
+- **优先级与标签**：`update` 的 `field = priority` / `tags` 按 `suggested` 写入对应列；级别一致项照常展示并可执行，采纳后由脑图持久化管道落库并触发向量索引重嵌；
+- 同一用例的全部操作合并为一条提案、一次采纳动作；非法节点引用在提案生成阶段清洗丢弃，不在采纳阶段产生跨文档写入；
+- 节点变更经脑图既有 WS 持久化管道落库（含权限重校验与向量索引重嵌），不写用例修改记录；确认协议仅记录提案采纳状态，任务详情页不参与用例优化的节点执行。
 
 ### 4.3 顺序推荐的边界
 
@@ -226,8 +226,7 @@ PlanOrderPanel
 | 1000018303 | 404 | 测试计划不存在 |
 | 1000018304 | 400 | 计划关联用例为空，无法推荐顺序 |
 | 1000018305 | 409 | 建议已采纳或已失效 |
-| 1000018307 | 400 | 节点类型不支持（仅用例节点可优化；`add` 不支持新增 `case` 节点） |
-| 1000018308 | 400 | 操作指令非法（目标 / 父节点跨文档或不存在，字段 / 节点类型 / 编辑载荷定位不合法） |
+| 1000018307 | 400 | 节点类型不支持（仅用例节点可优化） |
 
 > 上下文头缺失（`X-Active-Project` 未携带或未解析）回公共错误码 **1000002008**（缺少上下文请求头），不占用本号段；本号段错误码仅指输入取值、归属与状态问题。
 
@@ -240,22 +239,24 @@ PlanOrderPanel
 | 文件 | 说明 |
 | ---- | ---- |
 | `server/.../service/ai/task/type/CaseOptimizeTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、节点操作指令提案结构与清洗，共用 `CaseAssistSupport` 解析输入） |
-| `server/.../service/ai/task/handler/CaseAssistSupport` | 新增子树节点清单上下文 `nodeContext`（id / type / title / path），供模型定位节点 |
-| `server/.../service/domain/tcasedoc/TestCaseNodeService(+Impl)` | 新增 `applyCaseOptimize`：按操作指令原地更新 / 新增节点、陈旧值保护、统一重嵌向量索引、归属与成员校验 |
-| `server/.../service/ai/task/adopt/CaseOptimizeAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用 `applyCaseOptimize` 与修改记录服务） |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018308 |
+| `server/.../service/ai/task/handler/CaseAssistSupport`、`CaseOptimizeOps` | 子树节点清单上下文 `nodeContext`（id / type / title / path）与操作指令常量、清洗归一口径 |
+| `server/.../model/dto/request/tcase/DocumentUpdateAttrsReqDTO`、`repository/tcase/TestCaseNodeMapper`、`service/websocket/DocumentPersistenceHandler` | `update_attrs` 扩展 `tags`：DTO 增字段、`updateAttrsWithVersion` 增参数与条件写入、处理器透传，供前端标签更新随脑图持久化落库 |
+| `server/.../service/ai/task/adopt/PlanOrderAdopter` | 执行顺序推荐采纳落库（用例优化采纳由前端执行节点操作，后端 adopter 不改） |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018307 |
 | `server/src/main/resources/db/schema.sql` | `ft_case_node.tags` 列 DDL（唯一事实源，存量库增量 SQL 按 runbook §10 手工执行） |
 | `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 操作指令对照与排序面板（含各自单测） |
 | `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与操作指令视图模型 |
-| `web/src/types/ai.ts` | `AiCaseOptimizeSuggestion` 改 operations 联合类型 |
+| `web/src/composables/project/functional-testing/mindmap/useCaseOptimizeExecution.ts` + 单测 | 按 operations 在 kityminder 树上原地更新 / 新增节点并触发持久化 |
+| `web/src/composables/project/functional-testing/mindmap/useMindmapPersistence.ts` | `PersistSnap` 携带 `tags`，`update_attrs` 帧写入标签列 |
+| `web/src/types/ai.ts` | 新增 `AiCaseOptimizeOperationSuggestion`（operations 联合类型），任务详情旧类型保持不变 |
 
 - **数据库**：无新增表、无新增列；落库均为既有 `ft_case_node` 业务表（原地更新与新增节点复用现有列，`tags` 列为既有补列）。
 - **OpenAPI**：两个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：节点归属与类型校验矩阵、数量上限、`update` 原地更新（ID / 层级不变，含用例标题 / 属性子节点 / 优先级 / 标签，采纳动作 × existing 组合矩阵）、`add` 在任意后代节点下新增（类型白名单、拒绝 `case`）、陈旧值跳过、跨文档指令拒绝、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
-- 前端：操作指令对照列表渲染与折叠（更新两栏 / 新增行）、逐条/批量/驳回回执、拖拽序号与前后对照、只读置灰、任务超时转进度入口。
+- 后端：节点归属与类型校验矩阵、数量上限、非法节点 / 字段 / 类型引用在提案清洗阶段丢弃、`update_attrs` 携带 `tags` 落库与版本冲突处理、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
+- 前端：操作指令对照列表渲染与折叠（更新两栏 / 新增行）、逐条 / 批量 / 驳回回执、执行器按 `nodeId` 原地改写与按 `parentId` 新增节点（ID / 层级不变、类型白名单）、标签随 `update_attrs` 落库、节点不存在时跳过、拖拽序号与前后对照、只读置灰、任务超时转进度入口。
 
 ---
 
@@ -278,3 +279,4 @@ PlanOrderPanel
 | V1.0 | 2026-11-18 | 5.1 / 5.3 任务复用改为后端按节点查询最近一次任务（项目内成员共享）：未完成回显进度、已产出提案 / 已处理完毕展示提案并支持重新执行（已关闭任务按同一输入发起新任务），并加固任务切换丢弃过期响应 |
 | V1.0 | 2026-11-19 | 用例优化采纳口径：前置条件 / 操作步骤 / 预期结果在建议值与现状不同时删除原有关联子节点再插入新数据（任务详情页与脑图面板共用同一承接），标签与优先级维持原规则，同步 3.2 / 4.2 / 7 测试要点 |
 | V1.0 | 2026-11-19 | 用例优化改为节点操作指令模型：提案 operations（update 原地更新含标题 / 属性 / 优先级 / 标签、add 任意节点下新增，均带 path / reason），取消删旧插新，新增陈旧值保护与跨文档校验，登记 1000018308，同步 3.2 / 4.2 / 5.2 / 6 / 7 |
+| V1.0 | 2026-11-19 | 用例优化节点操作收敛为脑图前端执行：后端只产出 operations 提案、确认协议仅记录采纳状态，取消 `applyCaseOptimize` / 陈旧值保护 / 1000018308；`update_attrs` 扩展 `tags` 供标签更新随脑图持久化落库，任务详情页不参与节点执行；同步 1.1 / 2 / 3.1 / 3.2 / 4.2 / 6 / 7 |
