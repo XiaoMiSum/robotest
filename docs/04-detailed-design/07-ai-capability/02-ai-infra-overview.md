@@ -822,7 +822,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生，仅统计 `adopted / adopted_edited / rejected`（`pending / not_applicable` 不参与，避免只读提案污染判定）：全部采纳 → 已采纳，全部驳回 → 已驳回，混合 → 部分采纳；不新增后端字段，`closed` 态据此展示只读回看区，`aborted` 不展示。
+- 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生，仅统计 `adopted / adopted_edited / rejected`（`pending / not_applicable` 不参与，避免只读提案污染判定）：全部采纳 → 已采纳，全部驳回 → 已驳回，混合 → 部分采纳；不新增后端字段，`closed` 态据此展示只读回看卡片区，`aborted` 不展示。回看卡片头展示提案标题、确认状态与驳回原因；卡片默认收起，首次展开时按需调用提案详情端点（`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}`）取完整 `content`，按任务类型策略解析为描述、结构化字段、来源引用与警示展示，再次展开不重复请求；展开态与已加载明细存组件本地，不新增后端字段。
 - **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（审核预览用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。
 
 #### 3.6.4 执行管理与轨迹
@@ -971,10 +971,12 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
 ├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底）
 ├── AiProposalReviewPanel（通用提案审核区，proposals_ready 且有提案时渲染，各能力域复用）
-└── AiTaskAdoptionResultPanel（closed 态只读回看：逐条已采纳 / 已驳回标签、提案标题与驳回原因）
-    ├── ProposalTree（提案树，kind 图标区分）
-    ├── ProposalDetail（内容预览 / 与既有数据对比）
-    └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
+│   ├── ProposalTree（提案树，kind 图标区分）
+│   ├── ProposalDetail（内容预览 / 与既有数据对比）
+│   └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
+└── AiTaskAdoptionResultPanel（closed 态只读回看卡片：逐条状态标签、提案标题与驳回原因，可展开查看产物明细）
+    ├── AdoptionCard（卡片头 + 展开/收起，首次展开按需拉取提案详情）
+    └── ProposalDetailView（按任务类型解析 content：描述、结构化字段、来源引用与警示）
 ```
 
 - Pinia store：
@@ -1111,3 +1113,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-18 | 辅助功能类型合并：3.6.1 注销 `case_complete` / `case_priority` 与 `case_suggestion` / `priority_suggestion`，改单一 `case_optimize` / `case_optimize_suggestion`；任务类型总数十一类→十类、普通目标型任务九类→八类，场景示例与执行入口统计同步 |
 | V1.0 | 2026-11-18 | 3.6.3 新增按节点查询最近任务端点 `GET /api/ai/tasks/{type}/latest`（`documentId` / `nodeId`，项目内成员任务可见），供用例节点 AI 优化复用最近一次任务 |
 | V1.0 | 2026-11-18 | AI 任务列表与进行中计数取消当前登录用户过滤：2.6.1 `submitted_by` 与索引说明改为提交人展示 / 按发起人检索，3.6.3 列表与计数改按项目头过滤、无项目头不过滤提交人，5.2 组件树补发起人列 |
+| V1.0 | 2026-11-19 | 3.6.3 / 5.2 `closed` 态采纳结果回看改为可展开收起的只读卡片，首次展开按需拉取提案详情并按任务类型解析展示，组件结构同步 |
