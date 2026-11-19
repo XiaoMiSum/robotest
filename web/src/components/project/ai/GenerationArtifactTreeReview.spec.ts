@@ -63,28 +63,29 @@ describe('GenerationArtifactTreeReview', () => {
     mocks.confirmAiProposals.mockResolvedValue({ results: [] })
   })
 
-  it('默认以卡片展示前三条待处理产物，且无列表勾选与批量计数', () => {
+  it('默认以卡片只展示当前第一条待处理产物，且无列表勾选与批量计数', () => {
     const wrapper = mountReview(proposals(5))
-    expect(wrapper.findAll('.gen-review__card')).toHaveLength(3)
+    expect(wrapper.findAll('.gen-review__card')).toHaveLength(1)
     expect(wrapper.text()).toContain('产物1')
-    expect(wrapper.text()).toContain('产物3')
-    expect(wrapper.text()).not.toContain('产物4')
+    expect(wrapper.text()).not.toContain('产物2')
+    expect(wrapper.text()).not.toContain('产物3')
     expect(wrapper.text()).not.toContain('已选')
     expect(wrapper.text()).not.toContain('全选')
     expect(wrapper.text()).not.toContain('批量采纳')
     expect(wrapper.text()).toMatch(/已处理\s*0\s*\/\s*共\s*5/)
   })
 
-  it('提案刷新后按最新待处理清单继续展示前三条', async () => {
+  it('提案刷新后按最新待处理清单自动切换下一条', async () => {
     const wrapper = mountReview(proposals(5))
     const updated = proposals(5).map((item, index) =>
       index === 0 ? { ...item, confirmStatus: 'adopted' as const } : item,
     )
     await wrapper.setProps({ proposals: updated })
     await flushPromises()
-    expect(wrapper.findAll('.gen-review__card')).toHaveLength(3)
+    expect(wrapper.findAll('.gen-review__card')).toHaveLength(1)
     expect(wrapper.text()).not.toContain('产物1')
-    expect(wrapper.text()).toContain('产物4')
+    expect(wrapper.text()).toContain('产物2')
+    expect(wrapper.text()).not.toContain('产物3')
     expect(wrapper.text()).toMatch(/已处理\s*1\s*\/\s*共\s*5/)
   })
 
