@@ -141,7 +141,7 @@ const {
   selectedNodeId: () => selectedNodeId.value,
   selectedType: () => selectedType.value,
   isReadonly: () => getMinder()?.getStatus?.() === 'readonly',
-  executeOperations: (operations) => caseOptimizeExecution.execute(operations),
+  executeOperations: (operations, caseNodeId) => caseOptimizeExecution.execute(operations, caseNodeId),
 })
 
 // 悬浮窗与选取器复用同一实例，保证回显与全量覆盖语义一致

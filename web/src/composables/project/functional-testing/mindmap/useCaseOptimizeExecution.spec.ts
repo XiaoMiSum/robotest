@@ -66,7 +66,7 @@ describe('useCaseOptimizeExecution', () => {
 
     const result = executor.execute(ops)
 
-    expect(result).toEqual({ updated: 3, added: 0, skipped: 0 })
+    expect(result).toEqual({ updated: 3, added: 0, marked: 0, skipped: 0 })
     expect(nodes[0].data).toMatchObject({
       id: 'case-1', text: '登录（邮箱）', priority: 'P0', tags: ['登录', '高优'],
     })
@@ -88,7 +88,7 @@ describe('useCaseOptimizeExecution', () => {
 
     const result = executor.execute(ops)
 
-    expect(result).toEqual({ updated: 0, added: 1, skipped: 0 })
+    expect(result).toEqual({ updated: 0, added: 1, marked: 0, skipped: 0 })
     expect(createNode).toHaveBeenCalledTimes(1)
     const [data, parent, index] = createNode.mock.calls[0]
     expect(parent.getChildren).toBeDefined()
@@ -107,7 +107,7 @@ describe('useCaseOptimizeExecution', () => {
 
     const result = executor.execute(ops)
 
-    expect(result).toEqual({ updated: 0, added: 0, skipped: 2 })
+    expect(result).toEqual({ updated: 0, added: 0, marked: 0, skipped: 2 })
     expect(fire).not.toHaveBeenCalled()
     expect(flush).not.toHaveBeenCalled()
   })
@@ -118,7 +118,7 @@ describe('useCaseOptimizeExecution', () => {
       { op: 'update', nodeId: 'case-1', field: 'title', existing: [], suggested: ['x'], path: '', reason: '' },
     ]
 
-    expect(executor.execute(ops)).toEqual({ updated: 0, added: 0, skipped: 1 })
+    expect(executor.execute(ops)).toEqual({ updated: 0, added: 0, marked: 0, skipped: 1 })
   })
 
   it('部分成功部分跳过时仍触发一次落库', () => {
@@ -130,8 +130,41 @@ describe('useCaseOptimizeExecution', () => {
 
     const result = executor.execute(ops)
 
-    expect(result).toEqual({ updated: 1, added: 0, skipped: 1 })
+    expect(result).toEqual({ updated: 1, added: 0, marked: 0, skipped: 1 })
     expect(fire).toHaveBeenCalledTimes(1)
     expect(flush).toHaveBeenCalledTimes(1)
+  })
+
+  it('按提案锚点给被优化的用例节点打 AI 标识，可与操作同批落库', () => {
+    const { nodes, fire, flush, executor } = setup([
+      { id: 'case-1', text: '登录用例', type: 'case' },
+      { id: 'step-1', text: '输入邮箱', type: 'step' },
+    ])
+    const ops: AiCaseOptimizeOperation[] = [
+      { op: 'add', parentId: 'step-1', nodeType: 'expected', title: '邮箱校验', path: '', reason: '' },
+    ]
+
+    const result = executor.execute(ops, 'case-1')
+
+    expect(result).toEqual({ updated: 0, added: 1, marked: 1, skipped: 0 })
+    expect(nodes[0].data['aiGenerated']).toBe(true)
+    expect(nodes[1].data['aiGenerated']).toBeUndefined()
+    expect(fire).toHaveBeenCalledWith('contentchange')
+    expect(flush).toHaveBeenCalledTimes(1)
+  })
+
+  it('仅打标也触发落库，锚点节点缺失时跳过打标', () => {
+    const { fire, flush, executor } = setup()
+
+    expect(executor.execute([], 'case-1')).toEqual({ updated: 0, added: 0, marked: 1, skipped: 0 })
+    expect(fire).toHaveBeenCalledTimes(1)
+    expect(flush).toHaveBeenCalledTimes(1)
+
+    const missing = setup()
+    expect(missing.executor.execute([], '不存在的节点')).toEqual({
+      updated: 0, added: 0, marked: 0, skipped: 1,
+    })
+    expect(missing.fire).not.toHaveBeenCalled()
+    expect(missing.flush).not.toHaveBeenCalled()
   })
 })

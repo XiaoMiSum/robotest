@@ -100,6 +100,7 @@ describe('useMindmapPersistence', () => {
       parentId: null,
       sortOrder: 0,
       tags: [],
+      aiGenerated: false,
     })
     expect(nodes.get(ID_B)).toEqual({
       title: 'Child',
@@ -108,6 +109,7 @@ describe('useMindmapPersistence', () => {
       parentId: ID_A,
       sortOrder: 0,
       tags: [],
+      aiGenerated: false,
     })
   })
 
@@ -144,6 +146,16 @@ describe('useMindmapPersistence', () => {
     const root = makeNode(ID_A, 'Root', [], { tags: '畸形' })
     const { collectLiveNodes } = useMindmapPersistence(() => makeMinder(root))
     expect(collectLiveNodes().get(ID_A)?.tags).toEqual([])
+  })
+
+  it('collectLiveNodes 采集 aiGenerated 且仅认布尔真值', () => {
+    const root = makeNode(ID_A, 'Root', [], { aiGenerated: true })
+    const { collectLiveNodes } = useMindmapPersistence(() => makeMinder(root))
+    expect(collectLiveNodes().get(ID_A)?.aiGenerated).toBe(true)
+
+    const loose = makeNode(ID_B, 'Child', [], { aiGenerated: 'true' })
+    const looseCollector = useMindmapPersistence(() => makeMinder(loose))
+    expect(looseCollector.collectLiveNodes().get(ID_B)?.aiGenerated).toBe(false)
   })
 
   it('collectLiveNodes 多子节点按索引设置 sortOrder', () => {
@@ -285,6 +297,46 @@ describe('useMindmapPersistence', () => {
         },
       }),
     )
+  })
+
+  it('flushPersistence AI 标识变化单独发送 update_attrs 携带 aiGenerated', () => {
+    const root = makeNode(ID_A, 'Root')
+    const socket = makeSocket()
+    const factory = makeMinderFactory()
+    factory.setRoot(root)
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(factory.getMinder)
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    socket.send.mockClear()
+    factory.setRoot(makeNode(ID_A, 'Root', [], { aiGenerated: true }))
+    flushPersistence()
+    expect(socket.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'update_attrs',
+        payload: {
+          data: {
+            id: ID_A, title: 'Root', type: 'normal', priority: null,
+            aiGenerated: true,
+          },
+        },
+      }),
+    )
+  })
+
+  it('flushPersistence 属性变更时不重复附带未变的 aiGenerated', () => {
+    const root = makeNode(ID_A, 'Root', [], { aiGenerated: true })
+    const socket = makeSocket()
+    const factory = makeMinderFactory()
+    factory.setRoot(root)
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(factory.getMinder)
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    socket.send.mockClear()
+    factory.setRoot(makeNode(ID_A, 'Renamed', [], { aiGenerated: true }))
+    flushPersistence()
+    const attrs = JSON.parse(socket.send.mock.calls[0][0])
+    expect(attrs.type).toBe('update_attrs')
+    expect(attrs.payload.data.aiGenerated).toBeUndefined()
   })
 
   it('flushPersistence 属性变更时不重复附带未变的 tags', () => {

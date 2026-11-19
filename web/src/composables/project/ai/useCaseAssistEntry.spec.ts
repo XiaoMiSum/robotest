@@ -464,12 +464,15 @@ describe('useCaseAssistEntry', () => {
       const suggestion = tasks[0].rows.value[0].suggestion
       const proposalOps = suggestion && 'operations' in suggestion ? suggestion.operations : []
       expect(executeOperations).toHaveBeenCalledTimes(4)
-      expect(executeOperations).toHaveBeenCalledWith(proposalOps)
+      expect(executeOperations).toHaveBeenCalledWith(proposalOps, 'node-1')
       expect(executeOperations).toHaveBeenCalledWith([
         expect.objectContaining({
           op: 'update', nodeId: 'node-1', field: 'tags', suggested: ['a'],
         }),
-      ])
+      ], 'node-1')
+      const secondSuggestion = tasks[0].rows.value[1].suggestion
+      const proposalOps2 = secondSuggestion && 'operations' in secondSuggestion ? secondSuggestion.operations : []
+      expect(executeOperations).toHaveBeenCalledWith(proposalOps2, 'node-2')
 
       s.clearReceipt()
       expect(tasks[0].clearReceipt).toHaveBeenCalled()
@@ -485,6 +488,18 @@ describe('useCaseAssistEntry', () => {
 
       expect(tasks[0].adopt).toHaveBeenCalledWith('node-node-1')
       expect(executeOperations).not.toHaveBeenCalled()
+    })
+
+    it('提案无操作时仍透传锚点用于给用例节点打 AI 标识', async () => {
+      const s = mountEntry()
+      await flushPromises()
+      tasks[0].rows.value = [optimizeRow('node-1')]
+      const suggestion = tasks[0].rows.value[0].suggestion
+      if (suggestion && 'operations' in suggestion) suggestion.operations = []
+
+      await s.adopt('node-node-1')
+
+      expect(executeOperations).toHaveBeenCalledWith([], 'node-1')
     })
 
     it('关闭面板释放任务实例的本地状态', async () => {
