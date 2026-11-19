@@ -8,14 +8,17 @@
 
 /* 顶部常驻工具条：单行左对齐、以分隔线与画布相接、不随画布滚动；
    脑图编辑类功能在非全屏下收纳为下拉、全屏下平铺，
-   按钮总量始终可单行容纳，不设自身横向滚动 */
+   按钮总量始终可单行容纳，不设自身横向滚动；
+   固定 40px 与左侧模块树 header 同高，保持两卡片顶部齐平 */
 .mindmap-toolbar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: var(--space-xs);
-  padding: 7px 12px;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 12px;
   border-bottom: 1px solid var(--color-neutral-200);
   flex-wrap: nowrap;
   z-index: 10;
@@ -27,6 +30,10 @@
 .mindmap-toolbar--center {
   justify-content: center;
   flex-wrap: wrap;
+  // 此处允许换行承载，固定 40px 会裁切第二行，故只约束最小高度与左侧 header 齐平
+  height: auto;
+  min-height: 40px;
+  padding: 7px 12px;
 }
 
 /* 工具栏功能域分组：不用 el-button-group 是因为按钮需包 el-tooltip，
