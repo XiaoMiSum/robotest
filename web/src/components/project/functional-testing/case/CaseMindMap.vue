@@ -308,12 +308,12 @@ const handleLayoutCommand = (command: unknown) => {
 
       <el-divider direction="vertical" />
       <div class="toolbar-group">
-        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" @click="nodeOps.markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
-        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" @click="nodeOps.markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
-        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" @click="nodeOps.markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
-        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" @click="nodeOps.markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
+        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'case' }]" :disabled="!hasSelectedNode" @click="nodeOps.markAs('case')"><span class="type-dot type-dot--case" /><span>用例</span></el-button>
+        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'precondition' }]" :disabled="!hasSelectedNode" @click="nodeOps.markAs('precondition')"><span class="type-dot type-dot--precondition" /><span>前置</span></el-button>
+        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'step' }]" :disabled="!hasSelectedNode" @click="nodeOps.markAs('step')"><span class="type-dot type-dot--step" /><span>步骤</span></el-button>
+        <el-button text :class="['type-btn', { 'is-selected': selectedType === 'expected' }]" :disabled="!hasSelectedNode" @click="nodeOps.markAs('expected')"><span class="type-dot type-dot--expected" /><span>预期</span></el-button>
         <el-tooltip content="取消标记，恢复普通节点" placement="bottom">
-          <el-button text @click="nodeOps.clearMark"><el-icon><CircleClose /></el-icon></el-button>
+          <el-button text :disabled="!hasSelectedNode" @click="nodeOps.clearMark"><el-icon><CircleClose /></el-icon></el-button>
         </el-tooltip>
       </div>
       <el-divider direction="vertical" />
@@ -323,6 +323,7 @@ const handleLayoutCommand = (command: unknown) => {
           :key="p"
           text
           :class="['priority-btn', `priority-btn--${p.toLowerCase()}`, { 'is-selected': nodeOps.selectedPriority.value === p }]"
+          :disabled="!hasSelectedNode"
           @click="nodeOps.markPriority(p)"
         >{{ p }}</el-button>
       </div>
@@ -368,7 +369,7 @@ const handleLayoutCommand = (command: unknown) => {
         <span
           v-for="p in ['P0', 'P1', 'P2', 'P3']"
           :key="p"
-          :class="['menu-chip', `menu-chip--${p.toLowerCase()}`, { 'is-selected': nodeOps.selectedPriority.value === p }]"
+          :class="['menu-chip', `menu-chip--${p.toLowerCase()}`, { 'is-selected': nodeOps.selectedPriority.value === p, 'is-disabled': !hasSelectedNode }]"
           @click="nodeOps.markPriority(p)"
         >{{ p }}</span>
       </div>
@@ -593,6 +594,7 @@ $priorities: p0, p1, p2, p3;
 
   &:hover { background: var(--el-fill-color-light); }
   &.is-selected { background: var(--color-primary-50); color: var(--color-primary-600); }
+  &.is-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 }
 
 @each $p in $priorities {
