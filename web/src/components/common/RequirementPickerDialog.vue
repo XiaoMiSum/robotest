@@ -10,15 +10,19 @@ import { requirementStatusMeta } from '@/composables/project/requirement/require
 import type { RequirementListItem } from '@/types'
 
 /**
- * 「选择需求」选取器（交互 06 关联需求）：关键字过滤 + 分页多选 + 已选计数，
+ * 「选择需求」选取器（交互 06 关联需求）：关键字过滤 + 分页选择 + 已选计数，
  * 行内 [明细] 就近冒泡 Markdown 正文（仅正文展示，不联动勾选）。
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** 打开时回填的既有条目（跨页已选保留） */
   initial: RequirementPick[]
   /** 允许空选择确认（用例关联需求场景用于清空关联） */
   allowEmpty?: boolean
-}>()
+  /** 用例节点仅能关联一项需求，需按单选渲染 */
+  multiple?: boolean
+}>(), {
+  multiple: true,
+})
 
 const emit = defineEmits<{ confirm: [ids: string[], picks: RequirementPick[]] }>()
 
@@ -35,9 +39,15 @@ watch(visible, (open) => {
     closeDetailPopover()
     return
   }
-  picker.seed(props.initial)
+  // 单选模式回填多项会让用户在未察觉的情况下丢失其余关联
+  picker.seed(props.multiple === false ? props.initial.slice(0, 1) : props.initial)
   picker.reset()
 })
+
+function handleSelect(row: RequirementListItem): void {
+  if (props.multiple === false) picker.selectOnly(row)
+  else picker.toggle(row)
+}
 
 function closeDetailPopover(): void {
   detailVisible.value = false
@@ -97,14 +107,22 @@ function confirm(): void {
       :data="picker.rows.value"
       row-key="id"
       max-height="380"
-      @row-click="picker.toggle($event as RequirementListItem)"
+      @row-click="handleSelect($event as RequirementListItem)"
     >
       <el-table-column width="44" align="center">
         <template #default="{ row }">
+          <el-radio
+            v-if="multiple === false"
+            :model-value="picker.selected.value.has(row.id) ? row.id : ''"
+            :value="row.id"
+            @click.stop
+            @change="handleSelect(row as RequirementListItem)"
+          />
           <el-checkbox
+            v-else
             :model-value="picker.selected.value.has(row.id)"
             @click.stop
-            @change="picker.toggle(row as RequirementListItem)"
+            @change="handleSelect(row as RequirementListItem)"
           />
         </template>
       </el-table-column>
@@ -134,7 +152,7 @@ function confirm(): void {
           <el-popover
             :visible="detailVisible && detailTitle === row.title"
             placement="left"
-            :width="420"
+            :width="840"
           >
             <template #reference>
               <el-button text type="primary" size="small" @click.stop="toggleDetail(row as RequirementListItem)">

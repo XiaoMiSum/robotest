@@ -21,7 +21,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * 「选择需求」选取器（交互 06 关联需求）：关键字过滤 + 分页多选 + 已选计数，
+ * 「选择需求」选取器（交互 06 关联需求）：关键字过滤 + 分页选择 + 已选计数，
  * 明细按需拉取需求详情展示 Markdown 正文；已选跨页保留由 Map 承载。
  */
 export function useRequirementPicker() {
@@ -118,6 +118,11 @@ export function useRequirementPicker() {
     selected.value = next
   }
 
+  /** 单选模式整组替换而非切换，避免二次点击误清空关联 */
+  function selectOnly(row: RequirementListItem): void {
+    selected.value = new Map([[row.id, pickOf(row)]])
+  }
+
   function clearSelected(): void {
     selected.value = new Map()
   }
@@ -173,6 +178,7 @@ export function useRequirementPicker() {
     reset,
     changePage,
     toggle,
+    selectOnly,
     clearSelected,
     seed,
     openDetail,
