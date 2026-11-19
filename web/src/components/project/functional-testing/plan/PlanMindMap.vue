@@ -17,6 +17,18 @@ const props = defineProps<{ planId: string; documentId?: string; removable?: boo
 // 标记成功后通知详情页刷新进度，否则页头进度条需手动刷新才能更新
 const emit = defineEmits<{ marked: []; removed: [] }>()
 
+// 原生全屏只渲染全屏元素子树，默认 body 下的 teleport 菜单会消失
+const menuContainerRef = ref<HTMLElement | null>(null)
+const isFullscreen = ref(false)
+const syncFullscreen = () => {
+  isFullscreen.value = Boolean(document.fullscreenElement)
+}
+onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen))
+onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen))
+const menuTeleportTarget = computed(() =>
+  isFullscreen.value && menuContainerRef.value ? menuContainerRef.value : 'body',
+)
+
 // 基座选中状态（id/type）之上的扩展字段：当前节点的执行标记
 const execResult = ref<string | null>(null)
 
@@ -97,7 +109,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-loading="loading" class="mindmap-container">
+  <div ref="menuContainerRef" v-loading="loading" class="mindmap-container">
     <!-- 计划工具栏 -->
     <div class="mindmap-toolbar mindmap-toolbar--center">
       <el-button-group>
@@ -122,6 +134,7 @@ onBeforeUnmount(() => {
     <!-- 右键菜单 -->
     <MinderContextMenu
       v-if="menuVisible"
+      :to="menuTeleportTarget"
       :x="menuPos.x"
       :y="menuPos.y"
       @close="closeContextMenu"

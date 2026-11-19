@@ -14,7 +14,7 @@ const baseProps = {
   canLaunchAi: true,
 }
 
-function mountPopover(props: Partial<typeof baseProps> = {}) {
+function mountPopover(props: Partial<typeof baseProps & { to?: string | HTMLElement }> = {}) {
   return mount(CaseNodeActionPopover, {
     props: { ...baseProps, ...props },
     global: { plugins: [ElementPlus] },
@@ -100,5 +100,15 @@ describe('CaseNodeActionPopover · 透明背景按钮', () => {
   it('两个入口的悬浮提示均展示在下方', () => {
     expect(popoverSource.match(/placement="bottom"/g) ?? []).toHaveLength(2)
     expect(popoverSource).not.toContain('placement="right"')
+  })
+
+  it('默认挂载到 body，可经 to 改写为全屏容器', () => {
+    expect(popoverSource).toContain('<teleport :to="to">')
+    expect(popoverSource).toContain("{ to: 'body' }")
+
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    mountPopover({ to: host })
+    expect(host.querySelector('.case-node-popover')).not.toBeNull()
   })
 })

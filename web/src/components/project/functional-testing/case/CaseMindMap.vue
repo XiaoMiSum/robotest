@@ -161,6 +161,12 @@ const syncFullscreen = () => {
 onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen))
 onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen))
 
+const mindmapContainerRef = ref<HTMLElement | null>(null)
+// 原生全屏只渲染全屏元素子树，默认 body 下的 teleport 菜单会消失，故全屏时改挂到脑图容器
+const menuTeleportTarget = computed(() =>
+  isFullscreen.value && mindmapContainerRef.value ? mindmapContainerRef.value : 'body',
+)
+
 const hasSelectedNode = computed(() => Boolean(selectedNodeId.value))
 
 type EditCommand = 'undo' | 'redo' | 'addChild' | 'addSibling' | 'edit' | 'delete'
@@ -185,7 +191,7 @@ const handleLayoutCommand = (command: unknown) => {
 </script>
 
 <template>
-  <div v-loading="loading" class="mindmap-container">
+  <div ref="mindmapContainerRef" v-loading="loading" class="mindmap-container">
     <div v-if="loadError" class="mindmap-load-error" role="alert">
       <el-empty description="脑图加载失败">
         <el-button type="primary" @click="initMinder()">重试</el-button>
@@ -345,6 +351,7 @@ const handleLayoutCommand = (command: unknown) => {
 
     <MinderContextMenu
       v-if="menuVisible"
+      :to="menuTeleportTarget"
       :x="menuPos.x"
       :y="menuPos.y"
       @close="closeContextMenu"
@@ -378,6 +385,7 @@ const handleLayoutCommand = (command: unknown) => {
     </MinderContextMenu>
 
     <CaseNodeActionPopover
+      :to="menuTeleportTarget"
       :visible="caseNodePopover.visible.value"
       :x="caseNodePopover.anchor.value.x"
       :y="caseNodePopover.anchor.value.y"

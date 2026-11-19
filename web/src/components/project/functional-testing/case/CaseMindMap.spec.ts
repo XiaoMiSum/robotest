@@ -134,3 +134,12 @@ describe('CaseMindMap · 编辑下拉节点操作', () => {
     expect(source).toContain('&.is-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }')
   })
 })
+
+describe('CaseMindMap · 全屏菜单挂载点', () => {
+  it('全屏时右键菜单与悬浮窗挂载到脑图容器，非全屏回落 body', () => {
+    expect(source).toContain('const mindmapContainerRef = ref<HTMLElement | null>(null)')
+    expect(source).toContain("isFullscreen.value && mindmapContainerRef.value ? mindmapContainerRef.value : 'body'")
+    expect(source).toContain('<div ref="mindmapContainerRef" v-loading="loading" class="mindmap-container">')
+    expect(source.match(/:to="menuTeleportTarget"/g) ?? []).toHaveLength(2)
+  })
+})
