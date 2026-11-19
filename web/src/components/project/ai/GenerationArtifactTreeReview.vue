@@ -507,6 +507,7 @@ function adoptSubtree(node: GenerationTreeNode): void {
 .gen-review__card-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-sm);
 }
 
