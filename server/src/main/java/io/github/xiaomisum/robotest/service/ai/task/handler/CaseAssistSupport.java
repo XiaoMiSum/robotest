@@ -234,6 +234,33 @@ public class CaseAssistSupport {
         return builder.toString();
     }
 
+    /** 子树节点清单（详设 3.2）：每个选中用例及其全部后代的 id / type / title / path，供模型精确定位操作目标 */
+    public static String nodeContext(ResolvedCases resolved) {
+        StringBuilder builder = new StringBuilder("可操作节点清单（id | type | title | path，操作只能引用此清单内的 id）：\n");
+        for (TestCaseNode node : resolved.nodes()) {
+            appendSubtree(node, resolved, builder);
+        }
+        return builder.toString();
+    }
+
+    private static void appendSubtree(TestCaseNode node, ResolvedCases resolved, StringBuilder builder) {
+        builder.append("- ").append(node.getId()).append(" | ").append(nvl(node.getType()))
+                .append(" | ").append(nvl(node.getTitle()))
+                .append(" | ").append(nodePath(node, resolved.nodesById())).append('\n');
+        List<TestCaseNode> children = resolved.childrenByParent()
+                .getOrDefault(node.getId(), List.of()).stream().sorted(BY_ORDER).toList();
+        for (TestCaseNode child : children) {
+            appendSubtree(child, resolved, builder);
+        }
+    }
+
+    /** 节点完整路径：祖先链 + 自身标题（详设 3.2 path 展示口径） */
+    public static String nodePath(TestCaseNode node, Map<UUID, TestCaseNode> nodesById) {
+        String ancestors = ancestorPath(node, nodesById);
+        String title = nvl(node.getTitle());
+        return "（文档根）".equals(ancestors) ? title : ancestors + " › " + title;
+    }
+
     /** 现有属性：属性子节点按 type 归类、组内按 sortOrder 稳定排序；tags 取节点列 */
     public static ExistingFields existingFields(TestCaseNode node, ResolvedCases resolved) {
         List<TestCaseNode> children = resolved.childrenByParent().getOrDefault(node.getId(), List.of());

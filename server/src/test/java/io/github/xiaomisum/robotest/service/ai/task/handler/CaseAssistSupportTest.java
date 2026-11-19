@@ -23,6 +23,7 @@ import java.util.UUID;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.optimizeCaseContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.documentContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.existingFields;
+import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.nodeContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.requireDocumentId;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.requireNodeIds;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.CaseAssistSupport.requirementContext;
@@ -223,6 +224,23 @@ class CaseAssistSupportTest {
         assertEquals(List.of("点击获取验证码", "60 秒内再次点击"), fields.steps());
         assertEquals(List.of("发送成功提示"), fields.expected());
         assertEquals(List.of("登录"), fields.tags());
+    }
+
+    @Test
+    void nodeContext_listsSubtreeIdsTypesAndPaths() {
+        TestCaseNode node = caseNode("登录用例", null);
+        node.setId(CASE_ID);
+        TestCaseNode step = attrNode(Constants.NodeType.STEP, "输入邮箱", 1);
+        CaseAssistSupport.ResolvedCases resolved = new CaseAssistSupport.ResolvedCases(
+                documentOf(PROJECT_ID), List.of(node), Map.of(CASE_ID, node, step.getId(), step),
+                Map.of(CASE_ID, List.of(step)));
+
+        String context = nodeContext(resolved);
+
+        assertTrue(context.contains(CASE_ID.toString()));
+        assertTrue(context.contains(step.getId().toString()));
+        assertTrue(context.contains(Constants.NodeType.STEP));
+        assertTrue(context.contains("登录用例 › 输入邮箱"));
     }
 
     @Test
