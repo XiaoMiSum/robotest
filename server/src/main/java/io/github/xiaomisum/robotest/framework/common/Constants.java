@@ -96,6 +96,7 @@ public final class Constants {
         String REQUIREMENT_IMPORT = "requirement_import";
         String TEST_DESIGN_GENERATION = "test_design_generation";
         String CASE_OPTIMIZE = "case_optimize";
+        String MINDMAP_CASE_GENERATION = "mindmap_case_generation";
         String PLAN_ORDER = "plan_order";
         String BUG_CLASSIFY = "bug_classify";
         String BUG_DUPLICATE_SCAN = "bug_duplicate_scan";
@@ -126,6 +127,7 @@ public final class Constants {
         String BUG_SUMMARY = "summary";
         String BUG_DUPLICATE_GROUP = "duplicate_group";
         String CASE_OPTIMIZE_SUGGESTION = "case_optimize_suggestion";
+        String MINDMAP_CASE_SUGGESTION = "mindmap_case_suggestion";
         String ORDER_SUGGESTION = "order_suggestion";
     }
 

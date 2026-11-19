@@ -289,11 +289,15 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_ANALYSIS_SCOPE_INVALID = ErrorCode.of(1000018286, "重复扫描范围参数非法");
     public static final ErrorCode BUG_ANALYSIS_SUGGEST_INPUT_INVALID = ErrorCode.of(1000018287, "建议输入非法（标题为空或超长）");
 
-    // ========== AI 辅助功能 1000018301-1000018307（辅助功能详设 6，号段至 1000018329） ==========
+    // ========== AI 辅助功能 1000018301-1000018312（辅助功能详设 6，号段至 1000018329） ==========
     public static final ErrorCode ASSISTED_NODE_NOT_FOUND = ErrorCode.of(1000018301, "用例节点不存在或不属目标文档");
     public static final ErrorCode ASSISTED_INPUT_INVALID = ErrorCode.of(1000018302, "未选中节点或超出单次数量上限");
     public static final ErrorCode ASSISTED_PLAN_NOT_FOUND = ErrorCode.of(1000018303, "测试计划不存在");
     public static final ErrorCode ASSISTED_PLAN_CASES_EMPTY = ErrorCode.of(1000018304, "计划关联用例为空，无法推荐顺序");
     public static final ErrorCode ASSISTED_ADOPT_STALE = ErrorCode.of(1000018305, "建议已采纳或已失效");
     public static final ErrorCode ASSISTED_NODE_TYPE_UNSUPPORTED = ErrorCode.of(1000018307, "节点类型不支持（仅用例节点可补全或推荐）");
+    public static final ErrorCode MINDMAP_GENERATION_REQUIREMENT_NOT_FOUND = ErrorCode.of(1000018309, "输入需求不存在或不属当前项目");
+    public static final ErrorCode MINDMAP_GENERATION_REQUIREMENT_NOT_CONFIRMED = ErrorCode.of(1000018310, "输入需求非已确认状态，不可生成");
+    public static final ErrorCode MINDMAP_GENERATION_DOCUMENT_NOT_FOUND = ErrorCode.of(1000018311, "输入文档不存在或不属当前项目");
+    public static final ErrorCode MINDMAP_GENERATION_DUPLICATE_TASK = ErrorCode.of(1000018312, "已存在进行中的同输入脑图生成用例任务");
 }
