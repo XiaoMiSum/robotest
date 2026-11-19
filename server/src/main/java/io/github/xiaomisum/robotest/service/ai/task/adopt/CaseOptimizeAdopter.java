@@ -30,7 +30,8 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 
 /**
  * 用例优化建议承接（详设 3.2 落库 / 4.2 覆盖口径）：
- * 字段只补空缺、编辑值按 adopted_edited 局部落库；优先级随同一条提案应用，
+ * 前置条件 / 步骤 / 预期结果按建议值整体替换（删旧属性子节点再插新节点），标签只补空缺；
+ * 编辑值按 adopted_edited 局部落库；优先级随同一条提案应用，
  * 级别变化项写级别列，级别一致项不写列但同样写用例修改记录（from = to）。
  */
 @Service
@@ -91,9 +92,9 @@ public class CaseOptimizeAdopter implements ProposalAdopter {
     }
 
     /**
-     * 字段采纳（详设 4.2）：existing 非空不覆盖，仅 adopted_edited 携带的编辑值可改写；
-     * 解析后的值与现状一致则跳过（无变化即无写入）。
-     * 属性子节点复用既有 updateCaseFields（白名单不含 tags，标签走部分更新载体），
+     * 字段采纳（详设 4.2）：前置条件 / 步骤 / 预期结果以建议值整体替换，仅现状一致或建议为空时跳过，
+     * 避免无谓的属性子节点重建；标签维持仅补空缺，编辑值优先。
+     * 属性子节点复用既有 updateCaseFields 的 replace 语义删旧插新（白名单不含 tags，标签走部分更新载体），
      * 且该入口内建成员与归属二次校验，空变更列表时仅校验不写。
      */
     private boolean applyFields(AdoptContext context, AssistAdoptSupport.CaseTarget target,
@@ -112,8 +113,14 @@ public class CaseOptimizeAdopter implements ProposalAdopter {
         for (String field : FIELDS) {
             Object current = existing.get(field);
             Object suggested = asMap(pairs.get(field)).get("suggested");
-            Object resolved = edited.containsKey(field) ? edited.get(field)
-                    : (isEmpty(current) ? suggested : current);
+            Object resolved;
+            if (edited.containsKey(field)) {
+                resolved = edited.get(field);
+            } else if (FIELD_TAGS.equals(field)) {
+                resolved = isEmpty(current) ? suggested : current;
+            } else {
+                resolved = isEmpty(suggested) ? current : suggested;
+            }
             if (FIELD_TAGS.equals(field)) {
                 List<String> next = asTags(resolved);
                 if (!sameValue(current, next)) {

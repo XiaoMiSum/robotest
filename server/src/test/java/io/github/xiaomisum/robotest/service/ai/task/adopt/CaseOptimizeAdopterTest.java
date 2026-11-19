@@ -41,7 +41,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * 用例优化承接单测（C8）：字段只补空缺、编辑值落库、标签与级别应用、同级留痕、畸形载荷拒绝。
+ * 用例优化承接单测（C8）：属性字段整体替换、编辑值落库、标签仅补空缺与级别应用、同级留痕、畸形载荷拒绝。
  */
 @ExtendWith(MockitoExtension.class)
 class CaseOptimizeAdopterTest {
@@ -81,8 +81,8 @@ class CaseOptimizeAdopterTest {
     }
 
     @Test
-    void adopt_fillsOnlyEmptyFieldsAndAppliesPriority() {
-        // existing 非空的前置条件与步骤不被覆盖，仅空缺的预期结果补齐；标签已填保持原值（详设 4.2）
+    void adopt_replacesAttributeFieldsAndAppliesPriority() {
+        // 前置条件与步骤已有旧值但建议值不同 → 整体替换；预期结果空缺 → 补齐；标签已填保持原值（详设 4.2）
         stubTarget(List.of(child(Constants.NodeType.PRECONDITION, "手机号已输入", 0),
                 child(Constants.NodeType.STEP, "点击获取验证码", 1)), node(List.of("登录"), "P1"));
 
@@ -91,11 +91,15 @@ class CaseOptimizeAdopterTest {
 
         verify(testCaseNodeService).updateCaseFields(eq(PROJECT_ID), eq(OPERATOR_ID), eq(NODE_ID),
                 changesCaptor.capture());
-        assertEquals(1, changesCaptor.getValue().size());
-        Map<String, Object> change = changesCaptor.getValue().get(0);
-        assertEquals("expected", change.get("field"));
-        assertEquals("replace", change.get("op"));
-        assertEquals(List.of("发送成功提示"), change.get("value"));
+        List<Map<String, Object>> changes = changesCaptor.getValue();
+        assertEquals(List.of("precondition", "steps", "expected"),
+                changes.stream().map(change -> String.valueOf(change.get("field"))).toList());
+        for (Map<String, Object> change : changes) {
+            assertEquals("replace", change.get("op"));
+        }
+        assertEquals("手机号已输入并获取过一次验证码", changes.get(0).get("value"));
+        assertEquals(List.of("点击获取验证码", "60 秒内再次点击"), changes.get(1).get("value"));
+        assertEquals(List.of("发送成功提示"), changes.get(2).get("value"));
 
         // 级别变化 → 部分更新载体只带 id + priority（C11）；标签未变化不写载体
         verify(testCaseNodeMapper).updateById(nodeCaptor.capture());
@@ -126,9 +130,10 @@ class CaseOptimizeAdopterTest {
                 changesCaptor.capture());
         List<String> fields = changesCaptor.getValue().stream()
                 .map(entry -> String.valueOf(entry.get("field"))).toList();
-        // 编辑载荷中的前置条件改写 + 未编辑且空缺的预期结果补齐；已填的步骤不动
-        assertEquals(List.of("precondition", "expected"), fields);
+        // 编辑载荷的前置条件改写 + 步骤与预期结果按建议值整体替换（步骤旧值与建议不同）
+        assertEquals(List.of("precondition", "steps", "expected"), fields);
         assertEquals("手机号已输入并获取过一次验证码", changesCaptor.getValue().get(0).get("value"));
+        assertEquals(List.of("点击获取验证码", "60 秒内再次点击"), changesCaptor.getValue().get(1).get("value"));
 
         verify(testCaseNodeMapper, times(2)).updateById(nodeCaptor.capture());
         List<TestCaseNode> carriers = nodeCaptor.getAllValues();
@@ -136,6 +141,23 @@ class CaseOptimizeAdopterTest {
         assertNull(carriers.get(0).getPriority());
         assertEquals("P2", carriers.get(1).getPriority());
         assertNull(carriers.get(1).getTags());
+    }
+
+    @Test
+    void adopt_emptySuggestionKeepsExistingAttribute() {
+        stubTarget(List.of(child(Constants.NodeType.PRECONDITION, "手机号已输入", 0)), node(List.of(), "P1"));
+        Map<String, Object> artifact = artifact(
+                Map.of("precondition", pair("手机号已输入", null),
+                        "steps", pair(List.of(), List.of()),
+                        "expected", pair(List.of(), List.of()),
+                        "tags", pair(List.of(), List.of())),
+                "P1", "P1");
+
+        adopter.adopt(context(Constants.AiProposalAction.ADOPTED, null, artifact));
+
+        verify(testCaseNodeService).updateCaseFields(eq(PROJECT_ID), eq(OPERATOR_ID), eq(NODE_ID),
+                changesCaptor.capture());
+        assertTrue(changesCaptor.getValue().isEmpty());
     }
 
     @Test
