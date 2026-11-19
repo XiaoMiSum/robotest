@@ -412,14 +412,22 @@ const handleLayoutCommand = (command: unknown) => {
       @closed="closeAssistPanel"
     >
       <div v-if="assistRunning" class="ai-assist-progress">
-        <el-icon class="is-loading"><Loading /></el-icon>
-        <div class="ai-assist-progress__text">
-          <span>AI 正在生成建议…</span>
-          <span v-if="assistProgressText" class="ai-assist-progress__detail">
-            {{ assistProgressText }}
-          </span>
+        <div class="ai-assist-progress__status">
+          <el-icon class="is-loading ai-assist-progress__spinner"><Loading /></el-icon>
+          <div class="ai-assist-progress__text">
+            <span class="ai-assist-progress__title">AI 正在生成建议…</span>
+            <span v-if="assistProgressText" class="ai-assist-progress__detail">
+              {{ assistProgressText }}
+            </span>
+          </div>
+          <el-button size="small" plain @click="closeAssistPanel">关闭弹窗</el-button>
         </div>
-        <el-button link @click="closeAssistPanel">后台运行，关闭</el-button>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="关闭弹窗后任务仍在后台运行，可在顶部 AI 任务角标或 AI 任务中心查看进度"
+        />
       </div>
       <el-alert
         v-else-if="assistFailed"
@@ -627,21 +635,42 @@ $priorities: p0, p1, p2, p3;
 
 .ai-assist-progress {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.ai-assist-progress__status {
+  display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) 0;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-50);
+}
+
+.ai-assist-progress__spinner {
+  flex-shrink: 0;
+  font-size: var(--font-size-xl);
+  color: var(--color-primary-500);
 }
 
 .ai-assist-progress__text {
   display: flex;
   flex: 1;
+  min-width: 0;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-xs);
   font-size: var(--font-size-sm);
 }
 
+.ai-assist-progress__title {
+  color: var(--color-neutral-800);
+  font-weight: 600;
+}
+
 .ai-assist-progress__detail {
-  color: var(--color-neutral-400);
+  color: var(--color-neutral-500);
 }
 </style>
 

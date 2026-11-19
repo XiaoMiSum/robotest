@@ -51,6 +51,8 @@ describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
   it('发起后在对话框内覆盖进行中 / 终止 / 加载失败 / 对照面板四态', () => {
     expect(source).toContain('v-if="assistRunning"')
     expect(source).toContain('AI 正在生成建议')
+    expect(source).toContain('关闭弹窗后任务仍在后台运行')
+    expect(source).not.toContain('后台运行，关闭')
     expect(source).toContain('v-else-if="assistFailed"')
     expect(source).toContain('再次执行')
     expect(source).toContain('v-else-if="assistLoadError"')
