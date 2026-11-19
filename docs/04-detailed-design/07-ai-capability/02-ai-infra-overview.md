@@ -981,7 +981,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 - Pinia store：
   - `aiAdmin`：设置、模型、向量、提示词、用量（仅管理端装载）；
-  - `aiTask`：任务轮询（详情 `GET /api/ai/tasks/{id}` 按 2s 间隔轮询，`aborted / closed` 停止）、轨迹事件增量拉取（`events?afterSeq=`，WS 推送时即时合并）、任务中心列表、提案确认状态、顶栏指示器进行中计数（`GET /api/ai/tasks/running-count` 按 15s 间隔轮询，随业务布局装载/卸载启停）；
+  - `aiTask`：任务轮询（详情 `GET /api/ai/tasks/{id}` 按 2s 间隔轮询，仅 `running`（进行中）继续，状态非进行中即停止）、轨迹事件增量拉取（`events?afterSeq=`，WS 推送时即时合并）、任务中心列表、提案确认状态、顶栏指示器进行中计数（`GET /api/ai/tasks/running-count` 按 15s 间隔轮询，随业务布局装载/卸载启停）；
 - 密钥输入框：`keyConfigured = true` 时显示占位「已配置（输入新值以替换）」，提交为空则不修改。
 
 ### 5.3 状态分支

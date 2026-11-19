@@ -23,7 +23,7 @@ describe('AI 配置中心 · 壳层（交互 2.1）', () => {
     expect(shellSource).toContain('向量重建失败：')
     expect(shellSource).toContain('发起重建')
     expect(shellSource).toContain('aiTaskStore.startPolling(store.reindexTaskId)')
-    expect(shellSource).toContain('isTerminalTaskStatus(cached.status)')
+    expect(shellSource).toContain('shouldStopTaskDetailPolling(cached.status)')
     expect(shellSource).toContain("store.settleReindex(cached.terminateReason?.msg ?? '向量重建失败')")
     // 新状态机终态：closed 成功、aborted 失败；旧 succeeded / failed / cancelled 不再出现
     expect(shellSource).toContain("cached.status === 'closed'")

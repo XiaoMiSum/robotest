@@ -8,7 +8,7 @@ import {
   reExecuteAiTask,
 } from '@/services/ai'
 import { fetchMembers } from '@/services/workspace'
-import { useAiTaskStore, isTerminalTaskStatus } from '@/stores/aiTask'
+import { useAiTaskStore, shouldStopTaskDetailPolling } from '@/stores/aiTask'
 import type { AiTaskDetail } from '@/types'
 import {
   aiExecutionStatusMeta,
@@ -51,9 +51,9 @@ export function useAiTaskDetail() {
   const submitterText = ref('—')
   const aiAvailable = ref(true)
 
-  /** 终态或加载失败均不轮询；轮询在 store 内按 aborted / closed 停止 */
+  /** 仅 running（进行中）轮询；加载失败或非进行中不轮询，轮询在 store 内按非 running 停止 */
   const shouldPoll = computed(
-    () => detail.value !== null && !isTerminalTaskStatus(detail.value.status),
+    () => detail.value !== null && !shouldStopTaskDetailPolling(detail.value.status),
   )
 
   async function loadMemberName(submittedBy: string | null): Promise<void> {
@@ -90,7 +90,7 @@ export function useAiTaskDetail() {
       detail.value = task
       aiTaskStore.cacheDetail(task)
       void loadMemberName(task.submittedBy)
-      if (!isTerminalTaskStatus(task.status)) {
+      if (!shouldStopTaskDetailPolling(task.status)) {
         aiTaskStore.startPolling(taskId)
       }
     } catch (err) {

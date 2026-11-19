@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAiAdminStore } from '@/stores/aiAdmin'
-import { isTerminalTaskStatus, useAiTaskStore } from '@/stores/aiTask'
+import { shouldStopTaskDetailPolling, useAiTaskStore } from '@/stores/aiTask'
 
 const route = useRoute()
 const store = useAiAdminStore()
@@ -109,12 +109,12 @@ function reindexExecutionView(cached: NonNullable<typeof aiTaskStore.detail>) {
   return { percent, phase }
 }
 
-/** 重建进度复用 aiTask store 轮询（交互 5），到达终态时收口横幅状态 */
+/** 重建进度复用 aiTask store 轮询（交互 5），非进行中（非 running）即停止并收口横幅状态 */
 watch(
   () => aiTaskStore.detail,
   (cached) => {
     if (!cached || store.reindexTaskId === null || cached.taskId !== store.reindexTaskId) return
-    if (!isTerminalTaskStatus(cached.status)) {
+    if (!shouldStopTaskDetailPolling(cached.status)) {
       const view = reindexExecutionView(cached)
       reindexProgress.value = view.percent
       reindexPhase.value = view.phase
