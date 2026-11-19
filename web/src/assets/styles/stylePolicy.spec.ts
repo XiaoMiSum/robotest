@@ -39,6 +39,8 @@ const globalStyleExceptions: Record<string, string> = {
   'src/App.vue': '应用入口 reset、选区/焦点基线和 Vue 过渡类',
   'src/components/project/functional-testing/case/CaseSelector.vue':
     'Element Plus Dialog Teleport 根节点',
+  'src/components/project/functional-testing/case/CaseMindMap.vue':
+    'Element Plus 下拉项多根 Fragment 不透传 scopeId，按 popper-class 锚定下拉样式',
 }
 
 const teleportSelectorExceptions = new Set([

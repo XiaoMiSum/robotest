@@ -6,7 +6,7 @@ describe('CaseMindMap · 工具条单行排版（交互 04 §1.2）', () => {
     expect(source).toContain('fullscreenchange')
     expect(source).toContain('const isFullscreen = ref(false)')
     expect(source).toContain('<template v-if="!isFullscreen">')
-    expect(source).toContain('<el-dropdown @command="handleEditCommand">')
+    expect(source).toContain('<el-dropdown popper-class="case-edit-dropdown" @command="handleEditCommand">')
     expect(source).toContain('<el-dropdown @command="handleLayoutCommand">')
     expect(source).toContain('const handleEditCommand = (command: unknown)')
   })
@@ -105,6 +105,14 @@ describe('CaseMindMap · 编辑下拉节点操作', () => {
     expect(source).toContain('<span>删除节点</span><span class="menu-shortcut">Delete</span>')
     expect(source).toContain('toolbar-menu-item toolbar-menu-item--danger')
     expect(source).toContain('.menu-shortcut {\n  margin-left: auto;')
+  })
+
+  it('删除项危险色在全局作用域按 popper 类命中 EP 下拉项', () => {
+    expect(source).toContain('popper-class="case-edit-dropdown"')
+    expect(source).toContain('<style lang="scss">')
+    expect(source).toContain('.case-edit-dropdown {')
+    expect(source).toContain('.el-dropdown-menu__item.toolbar-menu-item--danger {')
+    expect(source).toContain('color: menu.$minder-menu-danger-color;')
   })
 
   it('节点操作在编辑下拉与全屏工具栏均按选中态置灰', () => {
