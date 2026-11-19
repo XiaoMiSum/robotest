@@ -971,12 +971,12 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
 ├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底）
 ├── AiProposalReviewPanel（通用提案审核区，proposals_ready 且有提案时渲染，各能力域复用）
-│   ├── ProposalTree（提案树，kind 图标区分）
-│   ├── ProposalDetail（内容预览 / 与既有数据对比）
-│   └── Actionbar（单条采纳、整树采纳、编辑后采纳、驳回、批量操作）
+│   ├── ProposalCard（待处理提案明细卡片，默认前 3 条：类型/标题/状态标签、描述、字段、来源、警示）
+│   ├── ProposalCompareView（既有 vs 建议三列分区对照，变更项高亮、无变化项折叠）
+│   └── CardActions（卡片内单条采纳、编辑后采纳、驳回附反馈；无勾选 / 全选 / 批量）
 └── AiTaskAdoptionResultPanel（closed 态只读回看卡片：逐条状态标签、提案标题与驳回原因，可展开查看产物明细）
     ├── AdoptionCard（卡片头 + 展开/收起，首次展开按需拉取提案详情）
-    └── ProposalDetailView（按任务类型解析 content：描述、结构化字段、来源引用与警示）
+    └── ProposalDetailView（按任务类型解析 content：描述、结构化字段、来源引用、既有 vs 建议对照与警示，复用 ProposalCompareView）
 ```
 
 - Pinia store：
@@ -1114,3 +1114,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-18 | 3.6.3 新增按节点查询最近任务端点 `GET /api/ai/tasks/{type}/latest`（`documentId` / `nodeId`，项目内成员任务可见），供用例节点 AI 优化复用最近一次任务 |
 | V1.0 | 2026-11-18 | AI 任务列表与进行中计数取消当前登录用户过滤：2.6.1 `submitted_by` 与索引说明改为提交人展示 / 按发起人检索，3.6.3 列表与计数改按项目头过滤、无项目头不过滤提交人，5.2 组件树补发起人列 |
 | V1.0 | 2026-11-19 | 3.6.3 / 5.2 `closed` 态采纳结果回看改为可展开收起的只读卡片，首次展开按需拉取提案详情并按任务类型解析展示，组件结构同步 |
+| V1.0 | 2026-11-19 | 5.2 通用提案审核区改明细卡片直出待处理前 3 条并移除勾选与批量操作；新增 `ProposalCompareView` 三列分区对照组件，回看明细一并复用 |
