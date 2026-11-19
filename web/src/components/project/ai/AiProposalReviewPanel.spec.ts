@@ -70,7 +70,7 @@ describe('AiProposalReviewPanel', () => {
     })
   })
 
-  it('用例优化按卡片直出，展示前三条待处理产物', async () => {
+  it('用例优化按卡片只展示当前第一条待处理产物', async () => {
     const wrapper = mountPanel('case_optimize', [
       proposal(),
       proposal({ key: 'p2', title: '第二项' }),
@@ -81,12 +81,35 @@ describe('AiProposalReviewPanel', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('用例优化审核')
-    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(3)
+    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(1)
     expect(wrapper.text()).toContain('登录用例优化')
-    expect(wrapper.text()).toContain('第二项')
-    expect(wrapper.text()).toContain('第三项')
+    expect(wrapper.text()).not.toContain('第二项')
+    expect(wrapper.text()).not.toContain('第三项')
     expect(wrapper.text()).not.toContain('第四项')
     expect(wrapper.text()).not.toContain('第五项')
+  })
+
+  it('当前产物处理后按最新清单自动切换下一条', async () => {
+    const wrapper = mountPanel('case_optimize', [
+      proposal(),
+      proposal({ key: 'p2', title: '第二项' }),
+      proposal({ key: 'p3', title: '第三项' }),
+    ])
+    await flushPromises()
+
+    await wrapper.setProps({
+      proposals: [
+        proposal({ confirmStatus: 'adopted' }),
+        proposal({ key: 'p2', title: '第二项' }),
+        proposal({ key: 'p3', title: '第三项' }),
+      ],
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(1)
+    expect(wrapper.text()).not.toContain('登录用例优化')
+    expect(wrapper.text()).toContain('第二项')
+    expect(wrapper.text()).not.toContain('第三项')
   })
 
   it('不渲染左侧列表、勾选、全选与批量操作计数', () => {

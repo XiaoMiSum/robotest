@@ -56,11 +56,11 @@ const {
 
 init()
 
-/** 待处理产物（未采纳也未驳回）前 3 条；采纳 / 驳回后由清单刷新补位 */
+/** 审核区只呈现当前 1 条待处理产物；确认成功后由清单刷新自动切换下一条 */
 const cardRows = computed(() =>
   rows.value
     .filter((row) => row.confirmStatus === 'pending' || row.confirmStatus === 'not_applicable')
-    .slice(0, 3),
+    .slice(0, 1),
 )
 const allRejected = computed(
   () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),

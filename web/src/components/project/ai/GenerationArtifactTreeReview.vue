@@ -51,9 +51,9 @@ watch(
   },
 )
 
-/** 一次只呈现前三条待处理产物，避免长提案树铺满审核区；处理后由清单刷新补位 */
+/** 审核区只呈现当前 1 条待处理产物；确认成功后由清单刷新自动切换下一条 */
 const pendingNodes = computed(() =>
-  tree.visibleNodes.value.filter((node) => node.row.confirmStatus === 'pending').slice(0, 3),
+  tree.visibleNodes.value.filter((node) => node.row.confirmStatus === 'pending').slice(0, 1),
 )
 
 const allRejected = computed(
