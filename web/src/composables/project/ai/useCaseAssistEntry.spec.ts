@@ -68,13 +68,11 @@ function optimizeRow(
     confirmTagType: 'info',
     suggestion: {
       nodeId,
-      fields: {
-        precondition: { existing: [], suggested: [] },
-        steps: { existing: [], suggested: [] },
-        expected: { existing: [], suggested: [] },
-        tags: { existing: [], suggested: [] },
-      },
-      priority: { current: 'P1', suggested: 'P1', reason: '' },
+      operations: [{
+        op: 'update', nodeId, field: 'title',
+        existing: ['旧标题'], suggested: ['新标题'],
+        path: `${nodeId} 用例`, reason: '',
+      }],
       sourceRefs: [],
     },
   }
@@ -130,7 +128,7 @@ const docId = ref('doc-1')
 const nodeId = ref('node-1')
 const nodeType = ref('case')
 const readonly = ref(false)
-let onConfirmed: ReturnType<typeof vi.fn>
+let executeOperations: ReturnType<typeof vi.fn>
 
 function mountEntry(extra: Partial<CaseAssistEntryOptions> = {}): EntryState {
   let state: EntryState | null = null
@@ -142,7 +140,7 @@ function mountEntry(extra: Partial<CaseAssistEntryOptions> = {}): EntryState {
           selectedNodeId: () => nodeId.value,
           selectedType: () => nodeType.value,
           isReadonly: () => readonly.value,
-          onConfirmed,
+          executeOperations,
           ...extra,
         })
         return () => h('div')
@@ -162,7 +160,7 @@ describe('useCaseAssistEntry', () => {
     nodeId.value = 'node-1'
     nodeType.value = 'case'
     readonly.value = false
-    onConfirmed = vi.fn()
+    executeOperations = vi.fn()
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
     mocks.fetchLatestAiTask.mockResolvedValue(null)
     mocks.useAssistTask.mockImplementation(() => {
@@ -439,28 +437,54 @@ describe('useCaseAssistEntry', () => {
   })
 
   describe('采纳动作与关闭', () => {
-    it('采纳动作转发到当前任务', async () => {
+    it('采纳动作转发到当前任务并先执行节点操作', async () => {
       const s = mountEntry()
       await flushPromises()
       await s.launchOptimize()
 
-      await s.adopt('k1')
-      await s.adoptEdited('k1', { fields: { tags: ['a'] }, priority: 'P0' })
-      await s.batchAdopt(['k1', 'k2'])
-      await s.reject('k1', '理由')
+      const editedContent = {
+        operations: [{ op: 'update', nodeId: 'node-1', field: 'tags', suggested: ['a'] }],
+      }
+      const key1 = 'node-node-1'
+      const key2 = 'node-node-2'
+      tasks[0].rows.value = [optimizeRow('node-1'), optimizeRow('node-2')]
+      await s.adopt(key1)
+      await s.adoptEdited(key1, editedContent)
+      await s.batchAdopt([key1, key2])
+      await s.reject(key1, '理由')
       await s.refresh()
 
-      expect(tasks[0].adopt).toHaveBeenCalledWith('k1')
-      expect(tasks[0].adoptEdited).toHaveBeenCalledWith('k1', {
-        fields: { tags: ['a'] },
-        priority: 'P0',
-      })
-      expect(tasks[0].batchAdopt).toHaveBeenCalledWith(['k1', 'k2'])
-      expect(tasks[0].reject).toHaveBeenCalledWith('k1', '理由')
+      expect(tasks[0].adopt).toHaveBeenCalledWith(key1)
+      expect(tasks[0].adoptEdited).toHaveBeenCalledWith(key1, editedContent)
+      expect(tasks[0].batchAdopt).toHaveBeenCalledWith([key1, key2])
+      expect(tasks[0].reject).toHaveBeenCalledWith(key1, '理由')
       expect(tasks[0].refresh).toHaveBeenCalled()
+
+      // 整条 / 批量采纳取提案原值，编辑后采纳取载荷值；驳回不执行
+      const suggestion = tasks[0].rows.value[0].suggestion
+      const proposalOps = suggestion && 'operations' in suggestion ? suggestion.operations : []
+      expect(executeOperations).toHaveBeenCalledTimes(4)
+      expect(executeOperations).toHaveBeenCalledWith(proposalOps)
+      expect(executeOperations).toHaveBeenCalledWith([
+        expect.objectContaining({
+          op: 'update', nodeId: 'node-1', field: 'tags', suggested: ['a'],
+        }),
+      ])
 
       s.clearReceipt()
       expect(tasks[0].clearReceipt).toHaveBeenCalled()
+    })
+
+    it('提案未就绪时采纳不执行节点操作', async () => {
+      const s = mountEntry()
+      await flushPromises()
+      tasks[0].rows.value = [optimizeRow('node-1')]
+      tasks[0].rows.value[0].suggestion = null
+
+      await s.adopt('node-node-1')
+
+      expect(tasks[0].adopt).toHaveBeenCalledWith('node-node-1')
+      expect(executeOperations).not.toHaveBeenCalled()
     })
 
     it('关闭面板释放任务实例的本地状态', async () => {

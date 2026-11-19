@@ -4,8 +4,13 @@ import { ElMessage } from 'element-plus'
 import { fetchAiStatus, fetchLatestAiTask } from '@/services/ai'
 import { useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
+import {
+  isCaseOptimizeSuggestion,
+  readWireOperations,
+} from '@/composables/project/ai/assistPresentation'
 import type {
   AiAssistSourceRef,
+  AiCaseOptimizeOperation,
   AiProposalConfirmResult,
   AiTaskDetail,
 } from '@/types'
@@ -17,8 +22,8 @@ export interface CaseAssistEntryOptions {
   selectedType: () => string
   /** 文档 / 节点只读时入口置灰（详设 5.3） */
   isReadonly?: () => boolean
-  /** 采纳成功后刷新脑图（交互 2.1.2 脑图联动） */
-  onConfirmed?: () => void
+  /** 采纳时在当前脑图树上执行节点操作（详设 4.2），由宿主注入以访问 Minder 与持久化 */
+  executeOperations?: (operations: AiCaseOptimizeOperation[]) => void
 }
 
 /**
@@ -62,7 +67,6 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
 
   const task = useAssistTask('case_optimize', {
     target: () => ({ documentId: options.documentId() }),
-    onConfirmed: options.onConfirmed,
   })
 
   const panelVisible = ref(false)
@@ -158,15 +162,29 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
     return task.refresh()
   }
 
+  /** 从当前提案取节点操作：整条采纳 / 批量采纳使用提案原值 */
+  function operationsFor(key: string): AiCaseOptimizeOperation[] {
+    const suggestion = task.rows.value.find((row) => row.key === key)?.suggestion ?? null
+    return isCaseOptimizeSuggestion(suggestion) ? suggestion.operations : []
+  }
+
+  function runOperations(operations: AiCaseOptimizeOperation[]): void {
+    if (operations.length > 0) options.executeOperations?.(operations)
+  }
+
   function adopt(key: string): Promise<void> {
+    runOperations(operationsFor(key))
     return task.adopt(key)
   }
 
+  /** 编辑后采纳：执行人工核对后的操作，payload 定位字段与提案一致 */
   function adoptEdited(key: string, content: Record<string, unknown>): Promise<void> {
+    runOperations(readWireOperations(content))
     return task.adoptEdited(key, content)
   }
 
   function batchAdopt(keys: string[]): Promise<void> {
+    keys.forEach((key) => runOperations(operationsFor(key)))
     return task.batchAdopt(keys)
   }
 

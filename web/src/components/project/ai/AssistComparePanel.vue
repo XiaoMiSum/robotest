@@ -2,17 +2,17 @@
 import { computed, ref, watch } from 'vue'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import {
-  caseOptimizeChangedFields,
-  caseOptimizeCompareRows,
-  casePriorityChanged,
+  caseOptimizeOperationFoldable,
+  caseOptimizeOperationLabel,
+  caseOptimizeOperationUnchanged,
   isCaseOptimizeSuggestion,
 } from '@/composables/project/ai/assistPresentation'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type { ConfirmItemResult } from '@/composables/project/ai/useAiProposalReview'
 import type {
-  AiAssistFieldName,
   AiAssistSourceRef,
-  AiCaseOptimizeSuggestion,
+  AiCaseOptimizeOperation,
+  AiCaseOptimizeOperationSuggestion,
   AiProposalConfirmResult,
 } from '@/types'
 
@@ -38,9 +38,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  /** 整条采纳：批量采纳按建议值补空缺字段并应用建议级别 */
+  /** 整条采纳：按提案原样执行全部操作指令 */
   adopt: [key: string]
-  /** 逐字段采纳：仅携带人工确认的字段与建议级别，命中详设 4.2「人工显式采纳」口径 */
+  /** 逐条采纳：仅携带人工核对后保留的操作指令 */
   adoptEdited: [key: string, content: Record<string, unknown>]
   batchAdopt: [keys: string[]]
   reject: [key: string, note?: string]
@@ -50,31 +50,33 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const PRIORITY_LABEL: Record<string, string> = {
-  P0: 'P0',
-  P1: 'P1',
-  P2: 'P2',
-  P3: 'P3',
+interface OpEdit {
+  suggested: string[]
+  skipped: boolean
 }
 
-interface CompareItem {
+interface OpCard {
   id: string
+  index: number
+  op: AiCaseOptimizeOperation
+  kindLabel: string
   label: string
-  existing: string
-  suggested: string
-  changed: boolean
-  /** 新增 / 变更徽标（视觉 4：浅底 + 小徽标，不单靠颜色表意） */
   badge: string
-  /** 级别场景的建议级别（P0–P3），用于按《视觉设计》优先级色标注 */
   level?: string
-  /** 级别建议理由，随级别行整行展示 */
-  note?: string
+  existing: string
+  suggested: string[]
+  unchanged: boolean
+  foldable: boolean
+  skipped: boolean
 }
+
+const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'].map((value) => ({ value, label: value }))
 
 const activeKey = ref('')
 const showUnchanged = ref(false)
 const rejectVisible = ref(false)
 const rejectNote = ref('')
+const edits = ref<Record<string, OpEdit>>({})
 
 // 内容刷新后停在首个未处理建议，便于逐条核对
 watch(
@@ -97,7 +99,7 @@ const activeRow = computed<AssistRow | null>(
   () => props.rows.find((row) => row.key === activeKey.value) ?? props.rows[0] ?? null,
 )
 
-const activeOptimize = computed<AiCaseOptimizeSuggestion | null>(() => {
+const activeOptimize = computed<AiCaseOptimizeOperationSuggestion | null>(() => {
   const view = activeRow.value?.suggestion ?? null
   return isCaseOptimizeSuggestion(view) ? view : null
 })
@@ -110,54 +112,69 @@ function displayValues(values: string[]): string {
   return values.length > 0 ? values.join('、') : '—'
 }
 
-function priorityLabel(priority: string): string {
-  return PRIORITY_LABEL[priority] ?? (priority || '—')
+function editId(key: string, index: number): string {
+  return `${key}#${index}`
 }
 
-const fieldItems = computed<CompareItem[]>(() => {
+function defaultSuggested(op: AiCaseOptimizeOperation): string[] {
+  return op.op === 'add' ? [op.title] : [...op.suggested]
+}
+
+function suggestedOf(key: string, index: number, op: AiCaseOptimizeOperation): string[] {
+  return edits.value[editId(key, index)]?.suggested ?? defaultSuggested(op)
+}
+
+function setSuggested(key: string, index: number, values: string[]): void {
+  const id = editId(key, index)
+  edits.value[id] = { suggested: values, skipped: edits.value[id]?.skipped === true }
+}
+
+function isSkipped(key: string, index: number): boolean {
+  return edits.value[editId(key, index)]?.skipped === true
+}
+
+function toggleSkipped(key: string, index: number, op: AiCaseOptimizeOperation): void {
+  const id = editId(key, index)
+  const previous = edits.value[id] ?? { suggested: defaultSuggested(op), skipped: false }
+  edits.value[id] = { ...previous, skipped: !previous.skipped }
+}
+
+function badgeOf(op: AiCaseOptimizeOperation, unchanged: boolean): string {
+  if (op.op === 'add') return '新增节点'
+  if (op.field === 'priority') return unchanged ? '同级' : '调整'
+  return unchanged ? (op.existing.length === 0 ? '补全' : '同级') : '变更'
+}
+
+const cards = computed<OpCard[]>(() => {
   const view = activeOptimize.value
+  const key = activeRow.value?.key ?? ''
   if (!view) return []
-  return caseOptimizeCompareRows(view.fields).map((row) => ({
-    id: row.name,
-    label: row.label,
-    existing: displayValues(row.existing),
-    suggested: displayValues(row.suggested),
-    changed: row.changed,
-    badge: row.changed ? (row.existing.length === 0 ? '补全' : '变更') : '',
-  }))
+  return view.operations.map((op, index) => {
+    const unchanged = caseOptimizeOperationUnchanged(op)
+    const foldable = caseOptimizeOperationFoldable(op)
+    const suggested = suggestedOf(key, index, op)
+    return {
+      id: editId(key, index),
+      index,
+      op,
+      kindLabel: op.op === 'update' ? '更新' : '新增',
+      label: caseOptimizeOperationLabel(op),
+      badge: badgeOf(op, unchanged),
+      level: op.op === 'update' && op.field === 'priority'
+        ? (suggested[0] ?? '').toLowerCase()
+        : undefined,
+      existing: op.op === 'update' ? displayValues(op.existing) : '',
+      suggested,
+      unchanged,
+      foldable,
+      skipped: isSkipped(key, index),
+    }
+  })
 })
 
-const priorityItem = computed<CompareItem | null>(() => {
-  const view = activeOptimize.value
-  if (!view) return null
-  const changed = casePriorityChanged(view.priority)
-  const hasSuggestion = view.priority.suggested !== ''
-  return {
-    id: 'priority',
-    label: '用例级别',
-    existing: priorityLabel(view.priority.current),
-    suggested: priorityLabel(view.priority.suggested),
-    changed,
-    badge: hasSuggestion ? (changed ? '调整' : '同级') : '',
-    // 未识别的级别取值不着色，避免空色徽标与正文混同
-    level: PRIORITY_LABEL[view.priority.suggested] ? view.priority.suggested.toLowerCase() : undefined,
-    note: view.priority.reason,
-  }
-})
-
-const changedItems = computed(() => fieldItems.value.filter((item) => item.changed))
-const unchangedCount = computed(() => fieldItems.value.length - changedItems.value.length)
-/** 级别同级项也是有效结果，始终展示，不折叠（交互 2.1.2） */
-const visibleItems = computed<CompareItem[]>(() => {
-  const fields = showUnchanged.value ? fieldItems.value : changedItems.value
-  return priorityItem.value ? [...fields, priorityItem.value] : [...fields]
-})
-
-const activeUnchanged = computed(() => {
-  const view = activeOptimize.value
-  if (!view) return false
-  return caseOptimizeChangedFields(view.fields).length === 0 && !casePriorityChanged(view.priority)
-})
+const visibleCards = computed(() => showUnchanged.value ? cards.value : cards.value.filter((card) => !card.foldable))
+const unchangedCount = computed(() => cards.value.filter((card) => card.foldable).length)
+const effectiveCount = computed(() => cards.value.filter((card) => !card.skipped).length)
 
 const pendingKeys = computed(() =>
   props.rows.filter((row) => row.confirmStatus === 'pending').map((row) => row.key),
@@ -170,13 +187,15 @@ const adoptedCount = computed(
 )
 const totalCount = computed(() => props.rows.length)
 
-/** 字段与级别均无变化才算无变化；级别同级项仍可采纳并留痕 */
 function rowUnchanged(row: AssistRow): boolean {
   const view = row.suggestion
   if (!isCaseOptimizeSuggestion(view)) return false
-  return caseOptimizeChangedFields(view.fields).length === 0 && !casePriorityChanged(view.priority)
+  return view.operations.length === 0 || view.operations.every(caseOptimizeOperationUnchanged)
 }
 
+const activeUnchanged = computed(
+  () => cards.value.length === 0 || cards.value.every((card) => card.unchanged),
+)
 const allUnchanged = computed(
   () => props.rows.length > 0 && props.rows.every((row) => row.suggestion != null && rowUnchanged(row)),
 )
@@ -189,6 +208,7 @@ const adoptDisabledReason = computed(() => {
   if (!activeReady.value) return '建议内容暂不可用'
   if (activeRow.value?.confirmStatus !== 'pending') return '当前建议已处理'
   if (activeUnchanged.value) return '当前节点建议与现有内容一致'
+  if (effectiveCount.value === 0) return '当前建议的操作已全部跳过'
   return ''
 })
 
@@ -228,17 +248,29 @@ const receiptItems = computed<ConfirmItemResult[]>(() =>
 
 const showReceipt = computed(() => receiptItems.value.length > 0)
 
-/** 单值字段（precondition）回写字符串，列表字段回写数组，与产物清洗口径一致 */
-function wireValue(name: AiAssistFieldName, values: string[]): string | string[] {
-  return name === 'precondition' ? (values[0] ?? '') : values
-}
-
-function changedFieldsContent(view: AiCaseOptimizeSuggestion): Record<string, unknown> {
-  const fields: Record<string, unknown> = {}
-  for (const name of caseOptimizeChangedFields(view.fields)) {
-    fields[name] = wireValue(name, view.fields[name].suggested)
-  }
-  return fields
+/** 编辑载荷仅覆盖建议值，nodeId / parentId / field / nodeType 与提案保持一致 */
+function buildContent(view: AiCaseOptimizeOperationSuggestion, rowKey: string): Record<string, unknown> {
+  const operations: Record<string, unknown>[] = []
+  view.operations.forEach((op, index) => {
+    if (isSkipped(rowKey, index)) return
+    const values = suggestedOf(rowKey, index, op)
+    if (op.op === 'update') {
+      operations.push({
+        op: 'update',
+        nodeId: op.nodeId,
+        field: op.field,
+        suggested: op.field === 'tags' ? values : (values[0] ?? ''),
+      })
+    } else {
+      operations.push({
+        op: 'add',
+        parentId: op.parentId,
+        nodeType: op.nodeType,
+        title: values[0] ?? '',
+      })
+    }
+  })
+  return { operations }
 }
 
 /** 逐条核对推进到下一个未处理建议（失败项可经回执重试） */
@@ -254,13 +286,9 @@ const retryOps = new Map<string, () => void>()
 
 function adoptActive(): void {
   const row = activeRow.value
-  if (!row) return
-  const view = row.suggestion
-  if (!isCaseOptimizeSuggestion(view)) return
-  const content = {
-    fields: changedFieldsContent(view),
-    priority: view.priority.suggested,
-  }
+  const view = activeOptimize.value
+  if (!row || !view) return
+  const content = buildContent(view, row.key)
   retryOps.set(row.key, () => emit('adoptEdited', row.key, content))
   emit('adoptEdited', row.key, content)
   advance()
@@ -363,35 +391,87 @@ function onReceiptRetry(item: ConfirmItemResult): void {
     </div>
 
     <template v-else>
-      <div v-if="visibleItems.length > 0" class="assist-compare">
-        <div class="assist-compare__head">
-          <span>项目</span>
-          <span>现有内容</span>
-          <span>AI 建议</span>
-        </div>
-        <div
-          v-for="item in visibleItems"
-          :key="item.id"
-          class="assist-compare__row"
-          :class="{ 'assist-compare__row--changed': item.changed }"
+      <div v-if="visibleCards.length > 0" class="assist-ops">
+        <article
+          v-for="card in visibleCards"
+          :key="card.id"
+          :class="['assist-op-card', { 'assist-op-card--skipped': card.skipped }]"
         >
-          <span class="assist-compare__label">{{ item.label }}</span>
-          <span class="assist-compare__existing">{{ item.existing }}</span>
-          <span class="assist-compare__suggested">
-            <span
-              v-if="item.level"
-              class="assist-compare__level"
-              :class="`assist-compare__level--${item.level}`"
-            >
-              {{ item.suggested }}
-            </span>
-            <template v-else>{{ item.suggested }}</template>
-            <el-tag v-if="item.badge" size="small" :effect="item.changed ? 'light' : 'plain'">
-              {{ item.badge }}
+          <header class="assist-op-card__head">
+            <span class="assist-op-card__seq">操作 {{ card.index + 1 }}</span>
+            <span class="assist-op-card__path">{{ card.op.path || '—' }}</span>
+            <span class="assist-op-card__field">· {{ card.label }}</span>
+            <el-tag size="small" :effect="card.op.op === 'add' ? 'dark' : 'plain'">
+              {{ card.kindLabel }}
             </el-tag>
-          </span>
-          <span v-if="item.note" class="assist-compare__note">{{ item.note }}</span>
-        </div>
+            <el-tag v-if="card.badge" size="small" :effect="card.unchanged ? 'plain' : 'light'">
+              {{ card.badge }}
+            </el-tag>
+            <el-button link size="small" @click="toggleSkipped(activeKey, card.index, card.op)">
+              {{ card.skipped ? '恢复' : '跳过' }}
+            </el-button>
+          </header>
+          <template v-if="card.op.op === 'update'">
+            <p class="assist-op-card__line">
+              <span class="assist-op-card__label">现有</span>
+              <span>{{ card.existing }}</span>
+            </p>
+            <p class="assist-op-card__line">
+              <span class="assist-op-card__label">建议</span>
+              <span v-if="card.op.field === 'priority'" class="assist-op-card__priority">
+                <span
+                  v-if="card.level"
+                  class="assist-op-card__level"
+                  :class="`assist-op-card__level--${card.level}`"
+                >{{ card.suggested[0] }}</span>
+                <el-select
+                  :model-value="card.suggested[0] ?? ''"
+                  size="small"
+                  class="assist-op-card__edit"
+                  @update:model-value="setSuggested(activeKey, card.index, [$event])"
+                >
+                  <el-option
+                    v-for="option in PRIORITY_OPTIONS"
+                    :key="option.value"
+                    :value="option.value"
+                    :label="option.label"
+                  />
+                </el-select>
+              </span>
+              <el-select
+                v-else-if="card.op.field === 'tags'"
+                :model-value="card.suggested"
+                size="small"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                :reserve-keyword="false"
+                class="assist-op-card__edit"
+                @update:model-value="setSuggested(activeKey, card.index, $event)"
+              />
+              <el-input
+                v-else
+                :model-value="card.suggested[0] ?? ''"
+                size="small"
+                class="assist-op-card__edit"
+                @update:model-value="setSuggested(activeKey, card.index, [$event])"
+              />
+            </p>
+          </template>
+          <template v-else>
+            <p class="assist-op-card__line">
+              <span class="assist-op-card__label">新节点</span>
+              <el-input
+                :model-value="card.suggested[0] ?? ''"
+                size="small"
+                class="assist-op-card__edit"
+                @update:model-value="setSuggested(activeKey, card.index, [$event])"
+              />
+            </p>
+          </template>
+          <p v-if="card.op.reason" class="assist-op-card__reason">理由：{{ card.op.reason }}</p>
+        </article>
       </div>
 
       <el-button
@@ -536,61 +616,86 @@ function onReceiptRetry(item: ConfirmItemResult): void {
   font-size: var(--font-size-sm);
 }
 
-.assist-compare {
-  display: grid;
-  grid-template-columns: minmax(88px, 1fr) minmax(0, 2fr) minmax(0, 2fr);
-  overflow: hidden;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-sm, 4px);
+.assist-ops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 360px;
+  overflow-y: auto;
 }
 
-.assist-compare__head {
-  display: contents;
+.assist-op-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-primary-50);
 
-  span {
-    padding: var(--space-xs) var(--space-sm);
+  &--skipped {
     background: var(--color-neutral-50);
-    color: var(--color-neutral-400);
-    font-size: var(--font-size-sm);
+    opacity: 0.7;
   }
 }
 
-.assist-compare__row {
-  display: contents;
+.assist-op-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
 }
 
-.assist-compare__row > span {
-  padding: var(--space-xs) var(--space-sm);
-  border-top: 1px solid var(--color-neutral-200);
+.assist-op-card__seq {
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-sm);
+}
+
+.assist-op-card__path {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.assist-op-card__field {
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-sm);
+}
+
+.assist-op-card__head > .el-button {
+  margin-left: auto;
+}
+
+.assist-op-card__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0;
   font-size: var(--font-size-sm);
   overflow-wrap: anywhere;
 }
 
-.assist-compare__row--changed > span {
-  background: var(--color-primary-100);
-}
-
-.assist-compare__label {
+.assist-op-card__label {
+  flex-shrink: 0;
   color: var(--color-neutral-400);
 }
 
-.assist-compare__existing {
-  color: var(--color-neutral-400);
+.assist-op-card__edit {
+  max-width: 320px;
 }
 
-.assist-compare__suggested {
+.assist-op-card__priority {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
 }
 
-.assist-compare__note {
-  grid-column: 1 / -1;
+.assist-op-card__reason {
+  margin: 0;
   color: var(--color-neutral-400);
+  font-size: var(--font-size-sm);
 }
 
-// 级别按《视觉设计》用例优先级色标注（视觉 4）；同处另有「调整」徽标，不单靠颜色表意
-.assist-compare__level {
+.assist-op-card__level {
   padding: 0 var(--space-xs);
   border-radius: var(--radius-sm, 4px);
   color: var(--color-neutral-0);
@@ -598,19 +703,9 @@ function onReceiptRetry(item: ConfirmItemResult): void {
   line-height: 20px;
 }
 
-.assist-compare__level--p0 {
-  background: var(--color-priority-p0);
-}
-
-.assist-compare__level--p1 {
-  background: var(--color-priority-p1);
-}
-
-.assist-compare__level--p2 {
-  background: var(--color-priority-p2);
-}
-
-.assist-compare__level--p3 {
-  background: var(--color-priority-p3);
+@each $p in p0, p1, p2, p3 {
+  .assist-op-card__level--#{$p} {
+    background: var(--color-priority-#{$p});
+  }
 }
 </style>
