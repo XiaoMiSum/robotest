@@ -110,7 +110,7 @@
   - 脑图面板采纳时，先由前端按 `operations` 在当前脑图树上执行节点操作（`update` 原地改写目标节点 `field`，`add` 在 `parentId` 下创建新节点），再调用确认协议记录采纳状态；确认协议的后端 adopter 不执行任何节点变更。本类型操作仅在脑图面板执行，任务详情页不承接用例优化采纳。
   - `adopted_edited` 的 `content` 为编辑后的操作清单 `{ "operations": [ { "op": "update", "nodeId": "…", "field": "title", "suggested": "…" } | { "op": "add", "parentId": "…", "nodeType": "step", "title": "…" } ] }`，前端以人工编辑值执行；编辑载荷仅覆盖建议值，定位字段（`op` / `nodeId` / `parentId` / `field` / `nodeType`）须与提案一致，否则整条按输入非法处理。
 
-- **前端执行**（脑图面板）：`update` 按 `nodeId` 定位节点后原地改写 `field`（`title` 写节点文本、`priority` 写级别列、`tags` 写标签列），节点 ID、层级与类型不变，不删旧插新；`add` 按 `parentId` 定位父节点并用脑图既有新建节点口径生成 UUID 追加子节点（`ai_generated = true`，无物理外键）。两类变更经脑图既有 WS 节点持久化管道落库并触发向量索引重嵌，`title` / `priority` 走 `update_attrs`、`add` 走 `add_node`、`tags` 走扩展后的 `update_attrs`；提案的 `existing` 仅用于对照展示，不作为写入前置条件。
+- **前端执行**（脑图面板）：`update` 按 `nodeId` 定位节点后原地改写 `field`（`title` 写节点文本、`priority` 写级别列、`tags` 写标签列），节点 ID、层级与类型不变，不删旧插新；`add` 按 `parentId` 定位父节点并用脑图既有新建节点口径生成 UUID 追加子节点（`ai_generated = true`，无物理外键）。两类变更经脑图既有 WS 节点持久化管道落库并触发向量索引重嵌，`title` / `priority` 走 `update_attrs`、`add` 走 `add_node`、`tags` 走扩展后的 `update_attrs`；提案的 `existing` 仅用于对照展示，不作为写入前置条件。采纳时另按提案 `nodeId` 给被优化用例节点写入 `ai_generated = true`（复用既有 AI 生成标识，不新增字段、不扩展评审 / 计划快照），与节点操作同批经 `update_attrs` 落库，目标节点已不存在时跳过。
 
 ### 3.3 测试用例执行顺序推荐
 
@@ -165,6 +165,7 @@
 - **直接新增**：`add` 由脑图前端在 `parentId` 下创建新节点，节点 ID 沿用脑图新建节点的 UUID 生成口径、`ai_generated = true`、`version = 1`，序号追加到同类型组尾（或按给定 `sortOrder`）；父节点可为目标用例或其任一后代；不新增 `case` 节点；
 - **以当前树为准**：提案的 `existing` 仅供人工核对写入前的现状；采纳在脑图当前树上按 ID 定位，目标节点或父节点已不存在时跳过该条指令并在回执中标记；
 - **优先级与标签**：`update` 的 `field = priority` / `tags` 按 `suggested` 写入对应列；级别一致项照常展示并可执行，采纳后由脑图持久化管道落库并触发向量索引重嵌；
+- **AI 标识**：采纳时按提案 `nodeId` 给被优化用例节点写入 `ai_generated = true`，复用既有 AI 生成标识列，与节点操作同批经脑图 `update_attrs` 落库；不新增字段、不扩展评审 / 计划快照，目标节点已不存在时跳过打标，已为 true 时幂等不重复写入；
 - 同一用例的全部操作合并为一条提案、一次采纳动作；非法节点引用在提案生成阶段清洗丢弃，不在采纳阶段产生跨文档写入；
 - 节点变更经脑图既有 WS 持久化管道落库（含权限重校验与向量索引重嵌），不写用例修改记录；确认协议仅记录提案采纳状态，任务详情页不参与用例优化的节点执行。
 
@@ -248,6 +249,9 @@ PlanOrderPanel
 | `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与操作指令视图模型 |
 | `web/src/composables/project/functional-testing/mindmap/useCaseOptimizeExecution.ts` + 单测 | 按 operations 在 kityminder 树上原地更新 / 新增节点并触发持久化 |
 | `web/src/composables/project/functional-testing/mindmap/useMindmapPersistence.ts` | `PersistSnap` 携带 `tags`，`update_attrs` 帧写入标签列 |
+| `web/src/composables/project/functional-testing/mindmap/useCaseOptimizeExecution.ts` | 采纳时按提案 `nodeId` 给被优化用例节点写 `aiGenerated`，与节点操作同批触发落库 |
+| `web/src/composables/project/ai/useCaseAssistEntry.ts` | 采纳 / 编辑后采纳 / 批量采纳透传提案锚点 `nodeId` 给执行器 |
+| `web/src/types/project/shared.ts`、`web/src/minder/adapter.ts` | `TestCaseNode` 携带 `aiGenerated` 并映射到脑图节点 data |
 | `web/src/types/ai.ts` | 新增 `AiCaseOptimizeOperationSuggestion`（operations 联合类型），任务详情旧类型保持不变 |
 
 - **数据库**：无新增表、无新增列；落库均为既有 `ft_case_node` 业务表（原地更新与新增节点复用现有列，`tags` 列为既有补列）。
@@ -280,3 +284,4 @@ PlanOrderPanel
 | V1.0 | 2026-11-19 | 用例优化采纳口径：前置条件 / 操作步骤 / 预期结果在建议值与现状不同时删除原有关联子节点再插入新数据（任务详情页与脑图面板共用同一承接），标签与优先级维持原规则，同步 3.2 / 4.2 / 7 测试要点 |
 | V1.0 | 2026-11-19 | 用例优化改为节点操作指令模型：提案 operations（update 原地更新含标题 / 属性 / 优先级 / 标签、add 任意节点下新增，均带 path / reason），取消删旧插新，新增陈旧值保护与跨文档校验，登记 1000018308，同步 3.2 / 4.2 / 5.2 / 6 / 7 |
 | V1.0 | 2026-11-19 | 用例优化节点操作收敛为脑图前端执行：后端只产出 operations 提案、确认协议仅记录采纳状态，取消 `applyCaseOptimize` / 陈旧值保护 / 1000018308；`update_attrs` 扩展 `tags` 供标签更新随脑图持久化落库，任务详情页不参与节点执行；同步 1.1 / 2 / 3.1 / 3.2 / 4.2 / 6 / 7 |
+| V1.0 | 2026-11-19 | 用例优化采纳给被优化用例节点打 AI 标识：复用 `ai_generated`、按提案 `nodeId` 经 `update_attrs` 落库，不新增字段与快照继承；同步 3.2 / 4.2 / 7 |
