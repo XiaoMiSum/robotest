@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ProposalRow } from '@/composables/project/ai/useAiProposalReview'
 import { reviewProfile } from '@/composables/project/ai/reviewProfiles'
+import ProposalCompareView from './ProposalCompareView.vue'
 
 const props = defineProps<{
   row: ProposalRow
@@ -127,17 +128,7 @@ function goRequirement(requirementId: string): void {
       <p v-if="parsed.description || content.description" class="adoption-detail__desc">
         {{ parsed.description || content.description }}
       </p>
-      <div v-if="parsed.compare.length > 0" class="adoption-detail__compare">
-        <div
-          v-for="(item, index) in parsed.compare"
-          :key="index"
-          class="adoption-detail__compare-row"
-        >
-          <span class="adoption-detail__label">{{ item.label }}</span>
-          <span>既有：{{ item.existing }}</span>
-          <span>建议：{{ item.suggested }}</span>
-        </div>
-      </div>
+      <ProposalCompareView :items="parsed.compare" />
       <dl v-if="parsed.fields.length > 0" class="adoption-detail__fields">
         <div
           v-for="(item, index) in parsed.fields"
@@ -238,15 +229,6 @@ function goRequirement(requirementId: string): void {
 .adoption-detail__expected {
   display: block;
   color: var(--color-neutral-500);
-}
-
-.adoption-detail__compare {
-  margin-bottom: var(--space-sm);
-}
-
-.adoption-detail__compare-row {
-  padding: var(--space-xs) 0;
-  border-bottom: 1px solid var(--color-neutral-200);
 }
 
 .adoption-detail__sources {

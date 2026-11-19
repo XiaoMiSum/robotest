@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Operation as OperationIcon } from '@element-plus/icons-vue'
-import type {
-  AiProposalConfirmTarget,
-  AiTaskDocumentMeta,
-  AiTaskProposalSummary,
-  ProjectModule,
-} from '@/types'
+import type { AiProposalConfirmTarget, AiTaskDocumentMeta, AiTaskProposalSummary } from '@/types'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
-import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
+import ProposalCompareView from '@/components/project/ai/ProposalCompareView.vue'
+import { useAiProposalReview, type ProposalRow } from '@/composables/project/ai/useAiProposalReview'
 import type { ProposalRankItem } from '@/composables/project/ai/reviewProfiles'
 import {
   importVersionEvidence,
@@ -28,35 +24,23 @@ const emit = defineEmits<{ confirmed: []; leave: [] }>()
 
 const {
   rows,
-  selectedKeys,
-  activeKey,
-  activeRow,
-  loadingContent,
   moduleTree,
   confirming,
   receipt,
   processed,
-  selectableRows,
-  allSelected,
   reviewTitle,
   editFields,
   editValuesOf,
   canEdit,
   canReject,
-  canBatch,
   needSystemVersion,
   NOTE_MAX_LENGTH,
   syncRows,
   init,
-  select,
-  toggle,
-  toggleAll,
   loadContent,
   handleAdopt,
   handleAdoptEdited,
   handleReject,
-  handleBatchAdopt,
-  handleBatchReject,
   retryResult,
   clearReceipt,
 } = useAiProposalReview(
@@ -70,8 +54,31 @@ const {
   () => props.taskType,
 )
 
-// init 首次同步提案行（proposals 由详情页轮询/确认后刷新传入）
 init()
+
+/** 待处理产物（未采纳也未驳回）前 3 条；采纳 / 驳回后由清单刷新补位 */
+const cardRows = computed(() =>
+  rows.value
+    .filter((row) => row.confirmStatus === 'pending' || row.confirmStatus === 'not_applicable')
+    .slice(0, 3),
+)
+const allRejected = computed(
+  () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),
+)
+const allHandled = computed(() => rows.value.length > 0 && cardRows.value.length === 0)
+
+async function preloadVisible(): Promise<void> {
+  await Promise.all(cardRows.value.map((row) => loadContent(row)))
+}
+void preloadVisible()
+
+watch(
+  () => props.proposals,
+  () => {
+    syncRows()
+    void preloadVisible()
+  },
+)
 
 // ==================== 系统版本（详设 4.5）====================
 /**
@@ -81,7 +88,6 @@ init()
 const versionValue = ref(importVersionPrefill(props.documentMeta ?? null))
 const versionTouched = ref(false)
 
-// 识别版本随后到时补预填（缓存详情先渲染的场景），用户已改过则不覆盖
 watch(
   () => props.documentMeta,
   (meta) => {
@@ -110,16 +116,15 @@ function targetVersion(): AiProposalConfirmTarget | undefined {
 }
 
 // ==================== 模块名映射 ====================
-function flattenModules(nodes: ProjectModule[], map: Map<string, string>): void {
-  for (const node of nodes) {
-    map.set(node.id, node.name)
-    if (node.children) flattenModules(node.children, map)
-  }
-}
-
 const moduleNameMap = computed(() => {
   const map = new Map<string, string>()
-  flattenModules(moduleTree.value, map)
+  const walk = (nodes: typeof moduleTree.value): void => {
+    for (const node of nodes) {
+      map.set(node.id, node.name)
+      if (node.children) walk(node.children)
+    }
+  }
+  walk(moduleTree.value)
   return map
 })
 
@@ -145,13 +150,16 @@ function setField(key: string, value: unknown): void {
   editForm.value = { ...editForm.value, [key]: value }
 }
 
+function scalarField(key: string): string {
+  const value = editForm.value[key]
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+}
+
 const editValid = computed(() =>
   editFields.value.every((field) => !field.required || fieldText(field.key).trim().length > 0),
 )
 
-async function openEdit(): Promise<void> {
-  const row = activeRow.value
-  if (!row) return
+async function openEdit(row: ProposalRow): Promise<void> {
   if (!row.contentLoaded) await loadContent(row)
   editRowKey.value = row.key
   editForm.value = editValuesOf(row)
@@ -160,11 +168,6 @@ async function openEdit(): Promise<void> {
     ? (items as ProposalRankItem[]).map((item) => ({ ...item }))
     : []
   editVisible.value = true
-}
-
-async function editRow(key: string): Promise<void> {
-  select(key)
-  await openEdit()
 }
 
 async function submitEdit(): Promise<void> {
@@ -203,6 +206,11 @@ function onRankDrop(index: number): void {
   rankItems.value = next
 }
 
+// ==================== 逐卡动作 ====================
+function adopt(row: ProposalRow): void {
+  if (canEdit.value) void handleAdopt(row, targetVersion())
+}
+
 // ==================== 驳回反馈 ====================
 const rejectVisible = ref(false)
 const rejectNote = ref('')
@@ -220,24 +228,6 @@ async function submitReject(): Promise<void> {
   const ok = await handleReject(row, rejectNote.value, targetVersion())
   if (ok) rejectVisible.value = false
 }
-
-function adoptActive(): void {
-  if (activeRow.value && canEdit.value) void handleAdopt(activeRow.value, targetVersion())
-}
-
-function batchAdopt(): void {
-  void handleBatchAdopt(targetVersion())
-}
-
-function batchReject(): void {
-  void handleBatchReject(targetVersion())
-}
-
-const selectedCount = computed(() => selectedKeys.value.length)
-/** 提案全驳回 → 审核区空态「已全部驳回」（交互 2.4.3） */
-const allRejected = computed(
-  () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),
-)
 </script>
 
 <template>
@@ -249,7 +239,6 @@ const allRejected = computed(
           已处理 {{ processed.processed }} / 共 {{ processed.total }}
         </span>
       </div>
-      <!-- 系统版本：导入预填识别版本并悬浮依据引语，未识别给补录提示（交互 06 §2.4） -->
       <div v-if="needSystemVersion" class="proposal-review__version">
         <span class="proposal-review__version-label">版本</span>
         <el-input
@@ -270,7 +259,6 @@ const allRejected = computed(
       </div>
     </header>
 
-    <!-- 拆分场景批量提示（交互 06 §2.4.2） -->
     <el-alert
       v-if="taskType === 'requirement_split'"
       type="info"
@@ -280,167 +268,121 @@ const allRejected = computed(
       class="proposal-review__hint"
     />
 
-    <div v-if="allRejected" class="proposal-review__body">
+    <div v-if="allRejected" class="proposal-review__empty">
       <el-empty description="已全部驳回，未创建任何数据" :image-size="80">
         <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
       </el-empty>
     </div>
+    <div v-else-if="allHandled" class="proposal-review__empty">
+      <el-empty description="待处理提案已全部审核完成" :image-size="80">
+        <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
+      </el-empty>
+    </div>
+    <div v-else-if="rows.length === 0" class="proposal-review__empty">
+      <el-empty description="提案为空（执行未产出建议）" :image-size="80">
+        <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
+      </el-empty>
+    </div>
 
-    <div v-else class="proposal-review__body">
-      <!-- 提案清单：选择态与编辑态存组件本地，来源页往返不丢失（状态管理 5） -->
-      <div class="proposal-review__list">
-        <div class="proposal-review__list-head">
-          <el-checkbox
-            v-if="canBatch"
-            :model-value="allSelected"
-            :indeterminate="selectedCount > 0 && !allSelected"
-            :disabled="selectableRows.length === 0"
-            @change="toggleAll($event as boolean)"
-          >
-            全选
-          </el-checkbox>
-          <span class="proposal-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
-        </div>
+    <div v-else class="proposal-review__cards">
+      <el-card v-for="row in cardRows" :key="row.key" shadow="never" class="proposal-review__card">
+        <template #header>
+          <div class="proposal-review__card-head">
+            <span class="proposal-review__kind">{{ row.kindLabel }}</span>
+            <span class="proposal-review__name" :title="row.title ?? row.key">
+              {{ row.title || row.key }}
+            </span>
+            <el-tag :type="row.confirmMeta.tagType" size="small" effect="plain">
+              {{ row.confirmMeta.label }}
+            </el-tag>
+          </div>
+        </template>
 
-        <div
-          v-for="row in rows"
-          :key="row.key"
-          class="proposal-review__row"
-          :class="{
-            'proposal-review__row--active': activeKey === row.key,
-            'proposal-review__row--handled': row.confirmStatus !== 'pending',
-          }"
-          @click="select(row.key)"
-        >
-          <el-checkbox
-            v-if="canBatch && row.confirmStatus === 'pending'"
-            :value="row.key"
-            :disabled="row.confirmStatus !== 'pending'"
-            @click.stop
-            @change="toggle(row.key, $event as boolean)"
+        <div v-loading="!row.contentLoaded" class="proposal-review__card-body">
+          <span v-if="moduleNameOf(row.content.moduleId)" class="proposal-review__meta">
+            模块：{{ moduleNameOf(row.content.moduleId) }}
+          </span>
+          <span v-if="row.content.sourceRef" class="proposal-review__meta">
+            来源：{{ row.content.sourceRef }}
+          </span>
+          <el-alert
+            v-for="(warning, index) in row.parsed.warnings"
+            :key="index"
+            type="warning"
+            :title="warning"
+            show-icon
+            :closable="false"
+            class="proposal-review__alert"
           />
-          <div class="proposal-review__row-main">
-            <div class="proposal-review__row-title">
-              <span class="proposal-review__kind">{{ row.kindLabel }}</span>
-              <span class="proposal-review__name">{{ row.title || row.key }}</span>
-              <el-tag :type="row.confirmMeta.tagType" size="small" effect="light">
-                {{ row.confirmMeta.label }}
-              </el-tag>
+
+          <p
+            v-if="row.parsed.description || row.content.description"
+            class="proposal-review__desc-text"
+          >
+            {{ row.parsed.description || row.content.description }}
+          </p>
+
+          <ProposalCompareView :items="row.parsed.compare" />
+
+          <dl v-if="row.parsed.fields.length > 0" class="proposal-review__fields">
+            <div
+              v-for="(item, index) in row.parsed.fields"
+              :key="`${item.label}-${index}`"
+              class="proposal-review__field"
+            >
+              <dt>{{ item.label }}</dt>
+              <dd>{{ item.value }}</dd>
             </div>
-            <div class="proposal-review__row-meta">
-              <span v-if="moduleNameOf(row.content.moduleId)">
-                模块：{{ moduleNameOf(row.content.moduleId) }}
-              </span>
-              <span v-if="row.content.sourceRef">来源：{{ row.content.sourceRef }}</span>
-              <span v-for="(warning, index) in row.parsed.warnings" :key="index" class="proposal-review__warning">
-                {{ warning }}
-              </span>
+            <div v-if="row.content.priority" class="proposal-review__field">
+              <dt>优先级</dt>
+              <dd>{{ row.content.priority }}</dd>
+            </div>
+          </dl>
+
+          <ol v-if="row.parsed.rankItems.length > 0" class="proposal-review__rank">
+            <li v-for="item in row.parsed.rankItems" :key="item.nodeId">
+              <span>{{ item.rank }}. {{ item.title }}</span>
+              <span v-if="item.reason" class="proposal-review__rank-reason">{{ item.reason }}</span>
+            </li>
+          </ol>
+
+          <div v-if="row.parsed.sourceRefs.length > 0" class="proposal-review__sources">
+            <div
+              v-for="(sourceRef, index) in row.parsed.sourceRefs"
+              :key="`${sourceRef.id}-${index}`"
+            >
+              <span class="proposal-review__source-title">{{
+                sourceRef.title || sourceRef.id
+              }}</span>
+              <span class="proposal-review__source-quote">{{ sourceRef.quote }}</span>
             </div>
           </div>
+        </div>
+
+        <template #footer>
           <div
             v-if="row.confirmStatus === 'pending' && (canEdit || canReject)"
-            class="proposal-review__row-actions"
-            @click.stop
+            class="proposal-review__card-actions"
           >
-            <el-button v-if="canEdit" link type="primary" @click="select(row.key); adoptActive()">采纳</el-button>
-            <el-button v-if="canEdit" link type="primary" @click="editRow(row.key)">修改后采纳</el-button>
-            <el-button v-if="canReject" link type="danger" @click="openReject(row.key)">驳回</el-button>
-          </div>
-        </div>
-
-        <el-empty
-          v-if="rows.length === 0"
-          description="提案为空（执行未产出建议）"
-          :image-size="80"
-        >
-          <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
-        </el-empty>
-      </div>
-
-      <!-- 内容预览：按任务类型策略渲染结构化视图 -->
-      <aside class="proposal-review__preview">
-        <template v-if="activeRow">
-          <div v-loading="loadingContent" class="proposal-review__preview-body">
-            <h3 class="proposal-review__preview-title">{{ activeRow.title || activeRow.key }}</h3>
-
-            <!-- 编辑后采纳的并排对比：既有值 vs AI 建议 -->
-            <div v-if="activeRow.parsed.compare.length > 0" class="proposal-review__compare">
-              <div
-                v-for="(item, index) in activeRow.parsed.compare"
-                :key="`${item.label}-${index}`"
-                class="proposal-review__compare-row"
-                :class="{ 'proposal-review__compare-row--changed': item.changed }"
-              >
-                <span class="proposal-review__compare-label">{{ item.label }}</span>
-                <span>既有：{{ item.existing }}</span>
-                <span>建议：{{ item.suggested }}</span>
-              </div>
-            </div>
-
-            <dl v-if="activeRow.parsed.fields.length > 0" class="proposal-review__fields">
-              <div v-for="(item, index) in activeRow.parsed.fields" :key="`${item.label}-${index}`" class="proposal-review__field">
-                <dt>{{ item.label }}</dt>
-                <dd>{{ item.value }}</dd>
-              </div>
-              <div v-if="moduleNameOf(activeRow.content.moduleId)" class="proposal-review__field">
-                <dt>所属模块</dt>
-                <dd>{{ moduleNameOf(activeRow.content.moduleId) }}</dd>
-              </div>
-              <div v-if="activeRow.content.priority" class="proposal-review__field">
-                <dt>优先级</dt>
-                <dd>{{ activeRow.content.priority }}</dd>
-              </div>
-            </dl>
-
-            <ol v-if="activeRow.parsed.rankItems.length > 0" class="proposal-review__rank">
-              <li v-for="item in activeRow.parsed.rankItems" :key="item.nodeId">
-                <span>{{ item.rank }}. {{ item.title }}</span>
-                <span v-if="item.reason" class="proposal-review__rank-reason">{{ item.reason }}</span>
-              </li>
-            </ol>
-
-            <div v-if="activeRow.parsed.sourceRefs.length > 0" class="proposal-review__sources">
-              <div v-for="(sourceRef, index) in activeRow.parsed.sourceRefs" :key="`${sourceRef.id}-${index}`">
-                <span class="proposal-review__source-title">{{ sourceRef.title || sourceRef.id }}</span>
-                <span class="proposal-review__source-quote">{{ sourceRef.quote }}</span>
-              </div>
-            </div>
-
-            <div class="proposal-review__desc">
-              <p
-                v-if="activeRow.parsed.description || activeRow.content.description"
-                class="proposal-review__desc-text"
-              >{{ activeRow.parsed.description || activeRow.content.description }}</p>
-              <p v-else class="proposal-review__desc-empty">该提案未提供描述</p>
-            </div>
-          </div>
-          <div v-if="activeRow.confirmStatus === 'pending' && (canEdit || canReject)" class="proposal-review__preview-actions">
-            <el-button v-if="canEdit" type="primary" :loading="confirming" @click="adoptActive">采纳</el-button>
-            <el-button v-if="canEdit" :loading="confirming" @click="openEdit">修改后采纳</el-button>
-            <el-button v-if="canReject" type="danger" plain :loading="confirming" @click="openReject(activeRow.key)">
+            <el-button v-if="canEdit" type="primary" :loading="confirming" @click="adopt(row)">
+              采纳
+            </el-button>
+            <el-button v-if="canEdit" :loading="confirming" @click="openEdit(row)">
+              修改后采纳
+            </el-button>
+            <el-button
+              v-if="canReject"
+              type="danger"
+              plain
+              :loading="confirming"
+              @click="openReject(row.key)"
+            >
               驳回（可附反馈）
             </el-button>
           </div>
-          <p v-else-if="activeRow.confirmStatus !== 'pending'" class="proposal-review__readonly">
-            该提案已处理，仅供回看
-          </p>
         </template>
-        <el-empty v-else description="选择左侧提案查看详情" :image-size="80" />
-      </aside>
+      </el-card>
     </div>
-
-    <!-- 底部批量操作 -->
-    <footer v-if="rows.length > 0 && canBatch" class="proposal-review__foot">
-      <div class="proposal-review__foot-actions">
-        <el-button type="primary" :disabled="!canBatch || selectedCount === 0" :loading="confirming" @click="batchAdopt">
-          批量采纳
-        </el-button>
-        <el-button v-if="canReject" type="danger" plain :disabled="selectedCount === 0" :loading="confirming" @click="batchReject">
-          全部驳回
-        </el-button>
-      </div>
-      <span class="proposal-review__count">已选 {{ selectedCount }} 条 / 共 {{ processed.total }} 条</span>
-    </footer>
 
     <!-- 逐项回执：失败项可单项重试（交互 2.3 回执） -->
     <AiConfirmReceipt
@@ -452,7 +394,12 @@ const allRejected = computed(
     />
 
     <!-- 编辑后采纳：字段 schema 由任务类型策略决定 -->
-    <el-dialog v-model="editVisible" :title="reviewTitle" width="640px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="editVisible"
+      :title="reviewTitle"
+      width="640px"
+      :close-on-click-modal="false"
+    >
       <el-form label-position="top">
         <template v-for="field in editFields" :key="field.key">
           <el-form-item v-if="field.type === 'ranks'" :label="field.label">
@@ -477,43 +424,46 @@ const allRejected = computed(
               </li>
             </ol>
           </el-form-item>
-          <el-form-item v-else-if="field.type === 'select'" :label="field.label">
-            <el-select
-              :model-value="fieldText(field.key)"
-              clearable
-              placeholder="可选"
-              style="width: 100%"
-              @update:model-value="setField(field.key, $event)"
-            >
-              <el-option v-for="option in field.options" :key="option.value" :value="option.value" :label="option.label" />
-            </el-select>
-          </el-form-item>
           <el-form-item v-else-if="field.type === 'tree'" :label="field.label">
             <el-tree-select
-              :model-value="fieldText(field.key)"
+              :model-value="scalarField(field.key)"
               :data="moduleTree"
+              :props="{ label: 'name', children: 'children' }"
+              node-key="id"
               check-strictly
-              clearable
-              placeholder="可选"
               style="width: 100%"
               @update:model-value="setField(field.key, $event)"
             />
           </el-form-item>
-          <el-form-item v-else-if="field.type === 'textarea' || field.type === 'lines'" :label="field.label">
+          <el-form-item v-else-if="field.type === 'select'" :label="field.label">
+            <el-select
+              :model-value="scalarField(field.key)"
+              style="width: 100%"
+              @update:model-value="setField(field.key, $event)"
+            >
+              <el-option
+                v-for="option in field.options"
+                :key="option.value"
+                :value="option.value"
+                :label="option.label"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-else-if="field.type === 'lines'" :label="field.label">
             <el-input
               :model-value="fieldText(field.key)"
               type="textarea"
-              :rows="field.type === 'lines' ? 4 : 6"
-              :placeholder="field.type === 'lines' ? '每行一条' : '可选，支持纯文本描述'"
+              :rows="4"
               @update:model-value="setField(field.key, $event)"
             />
           </el-form-item>
           <el-form-item v-else :label="field.label" :required="field.required">
             <el-input
               :model-value="fieldText(field.key)"
+              :type="field.type === 'textarea' ? 'textarea' : 'text'"
+              :rows="field.type === 'textarea' ? 3 : undefined"
               :maxlength="field.maxlength"
-              show-word-limit
-              placeholder="请输入标题"
+              :placeholder="field.placeholder"
               @update:model-value="setField(field.key, $event)"
             />
           </el-form-item>
@@ -528,7 +478,7 @@ const allRejected = computed(
     </el-dialog>
 
     <!-- 驳回反馈 -->
-    <el-dialog v-if="canReject" v-model="rejectVisible" title="驳回提案" width="480px" :close-on-click-modal="false">
+    <el-dialog v-model="rejectVisible" title="驳回产物" width="480px" :close-on-click-modal="false">
       <el-input
         v-model="rejectNote"
         type="textarea"
@@ -576,7 +526,8 @@ const allRejected = computed(
 }
 
 .proposal-review__processed,
-.proposal-review__count {
+.proposal-review__kind,
+.proposal-review__meta {
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
 }
@@ -587,155 +538,67 @@ const allRejected = computed(
   gap: var(--space-xs);
 }
 
-.proposal-review__version-label {
-  color: var(--color-neutral-700);
-  font-size: var(--font-size-sm);
-}
-
-.proposal-review__version-info {
-  color: var(--color-neutral-400);
-  cursor: help;
-}
-
-/* 识别依据引语过长时截断展示，全文走悬浮提示 */
+.proposal-review__version-label,
 .proposal-review__evidence {
-  max-width: 240px;
-  overflow: hidden;
   color: var(--color-neutral-500);
-  cursor: help;
   font-size: var(--font-size-sm);
+}
+
+.proposal-review__evidence {
+  max-width: 220px;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.proposal-review__hint {
-  margin-bottom: var(--space-md);
+.proposal-review__version-info {
+  color: var(--color-neutral-500);
 }
 
-.proposal-review__body {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+.proposal-review__hint,
+.proposal-review__empty,
+.proposal-review__alert {
+  margin-bottom: var(--space-sm);
+}
+
+.proposal-review__cards {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
 }
 
-.proposal-review__list {
-  min-width: 0;
-}
-
-.proposal-review__list-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--color-neutral-200);
-}
-
-.proposal-review__row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  padding: var(--space-sm);
-  border-bottom: 1px solid var(--color-neutral-100, var(--color-neutral-200));
-  cursor: pointer;
-}
-
-.proposal-review__row--active {
-  background: var(--color-primary-50, var(--color-neutral-50));
-}
-
-.proposal-review__row--handled {
-  opacity: 0.75;
-}
-
-.proposal-review__row-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.proposal-review__row-title {
+.proposal-review__card-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-xs);
 }
 
-.proposal-review__kind {
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
-}
-
 .proposal-review__name {
+  flex: 1;
+  min-width: 160px;
+  overflow: hidden;
   color: var(--color-neutral-900);
   font-size: var(--font-size-sm);
   font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.proposal-review__row-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-top: var(--space-xxs, 2px);
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
+.proposal-review__card-body {
+  min-height: 72px;
 }
 
-.proposal-review__warning {
-  color: var(--color-warning);
+.proposal-review__meta {
+  display: inline-block;
+  margin-right: var(--space-sm);
 }
 
-.proposal-review__row-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: var(--space-xxs, 2px);
-}
-
-.proposal-review__preview {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: var(--space-sm);
-  background: var(--color-neutral-50);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-md);
-}
-
-.proposal-review__preview-body {
-  flex: 1;
-  min-height: 160px;
-}
-
-.proposal-review__preview-title {
-  margin: 0 0 var(--space-sm);
-  color: var(--color-neutral-900);
-  font-size: var(--font-size-md);
-  font-weight: 600;
-}
-
-.proposal-review__compare {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xxs, 2px);
-  margin-bottom: var(--space-sm);
-}
-
-.proposal-review__compare-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  padding: var(--space-xxs, 2px) var(--space-xs);
-  border-radius: var(--radius-sm, 4px);
+.proposal-review__desc-text {
+  margin: var(--space-sm) 0;
   color: var(--color-neutral-700);
-  font-size: var(--font-size-xs);
-}
-
-.proposal-review__compare-row--changed {
-  background: var(--color-warning-light, var(--color-neutral-100));
-}
-
-.proposal-review__compare-label {
-  min-width: 64px;
-  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
 }
 
 .proposal-review__fields {
@@ -745,97 +608,52 @@ const allRejected = computed(
 .proposal-review__field {
   display: flex;
   gap: var(--space-sm);
-  margin-bottom: var(--space-xxs, 2px);
-  font-size: var(--font-size-sm);
-}
+  padding: var(--space-xs) 0;
 
-.proposal-review__field dt {
-  flex-shrink: 0;
-  color: var(--color-neutral-500);
-}
+  dt {
+    flex: 0 0 96px;
+    color: var(--color-neutral-500);
+  }
 
-.proposal-review__field dd {
-  margin: 0;
-  color: var(--color-neutral-700);
+  dd {
+    flex: 1;
+    margin: 0;
+  }
 }
 
 .proposal-review__rank {
   margin: 0 0 var(--space-sm);
-  padding-left: var(--space-lg);
-  color: var(--color-neutral-700);
-  font-size: var(--font-size-sm);
-}
+  padding-left: var(--space-md);
 
-.proposal-review__rank li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-xxs, 2px);
+  li {
+    margin-bottom: var(--space-xs);
+  }
 }
 
 .proposal-review__rank-reason {
+  display: block;
   color: var(--color-neutral-500);
-  font-size: var(--font-size-xs);
 }
 
 .proposal-review__sources {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xxs, 2px);
-  margin-bottom: var(--space-sm);
-  font-size: var(--font-size-xs);
-}
-
-.proposal-review__source-title {
-  color: var(--color-primary-500);
-}
-
-.proposal-review__source-quote {
-  color: var(--color-neutral-500);
-}
-
-.proposal-review__desc-text {
-  margin: 0;
-  color: var(--color-neutral-700);
-  font-size: var(--font-size-sm);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
-.proposal-review__desc-empty {
-  margin: 0;
-  color: var(--color-neutral-400);
-  font-size: var(--font-size-sm);
-}
-
-.proposal-review__preview-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-top: var(--space-sm);
   padding-top: var(--space-sm);
   border-top: 1px solid var(--color-neutral-200);
 }
 
-.proposal-review__readonly {
-  margin: var(--space-sm) 0 0;
-  color: var(--color-neutral-400);
+.proposal-review__source-title {
+  margin-right: var(--space-xs);
+  color: var(--color-neutral-900);
   font-size: var(--font-size-sm);
 }
 
-.proposal-review__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--color-neutral-200);
+.proposal-review__source-quote {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
 }
 
-.proposal-review__foot-actions {
+.proposal-review__card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
@@ -850,17 +668,19 @@ const allRejected = computed(
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-xs);
+  background: var(--color-neutral-100);
   border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   cursor: grab;
-}
 
-.proposal-review__rank-edit-row--over {
-  border-color: var(--color-primary-500);
-}
+  &--dragging {
+    opacity: 0.5;
+  }
 
-.proposal-review__rank-edit-row--dragging {
-  opacity: 0.6;
+  &--over {
+    border-color: var(--color-primary-500);
+  }
 }
 
 .proposal-review__rank-edit-num {
@@ -870,10 +690,9 @@ const allRejected = computed(
 
 .proposal-review__rank-edit-title {
   flex: 1;
-  color: var(--color-neutral-700);
 }
 
 .proposal-review__rank-edit-handle {
-  color: var(--color-neutral-400);
+  color: var(--color-neutral-500);
 }
 </style>

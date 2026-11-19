@@ -57,35 +57,63 @@ describe('AiProposalReviewPanel', () => {
     mocks.fetchProjectModuleTree.mockResolvedValue([])
     mocks.fetchAiProposal.mockResolvedValue({ content: {} })
     mocks.confirmAiProposals.mockResolvedValue({
-      results: [{ key: 'p1', action: 'adopted', success: true, createdId: null, errorCode: null, errorMsg: null }],
+      results: [
+        {
+          key: 'p1',
+          action: 'adopted',
+          success: true,
+          createdId: null,
+          errorCode: null,
+          errorMsg: null,
+        },
+      ],
     })
   })
 
-  it('用例优化按策略渲染标题、来源与导入版本区', () => {
-    const wrapper = mountPanel('case_optimize', [proposal()])
+  it('用例优化按卡片直出，展示前三条待处理产物', async () => {
+    const wrapper = mountPanel('case_optimize', [
+      proposal(),
+      proposal({ key: 'p2', title: '第二项' }),
+      proposal({ key: 'p3', title: '第三项' }),
+      proposal({ key: 'p4', title: '第四项' }),
+      proposal({ key: 'p5', title: '第五项', confirmStatus: 'adopted' }),
+    ])
+    await flushPromises()
+
     expect(wrapper.text()).toContain('用例优化审核')
-    expect(wrapper.find('.proposal-review__version').exists()).toBe(false)
-    expect(wrapper.findAll('.proposal-review__row')).toHaveLength(1)
+    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(3)
+    expect(wrapper.text()).toContain('登录用例优化')
+    expect(wrapper.text()).toContain('第二项')
+    expect(wrapper.text()).toContain('第三项')
+    expect(wrapper.text()).not.toContain('第四项')
+    expect(wrapper.text()).not.toContain('第五项')
   })
 
-  it('只读任务不渲染采纳与驳回操作', () => {
-    const wrapper = mountPanel('bug_triage', [proposal({ kind: 'triage_order' })])
-    expect(wrapper.text()).toContain('缺陷分诊结果')
-    expect(wrapper.text()).not.toContain('修改后采纳')
-    expect(wrapper.text()).not.toContain('批量采纳')
-    expect(wrapper.find('.proposal-review__foot').exists()).toBe(false)
-  })
-
-  it('需求导入展示版本输入与批量操作', () => {
+  it('不渲染左侧列表、勾选、全选与批量操作计数', () => {
     const wrapper = mountPanel('requirement_import', [
       proposal({ kind: 'requirement_suggestion', title: '登录需求' }),
     ])
+
     expect(wrapper.text()).toContain('导入结果审核')
     expect(wrapper.find('.proposal-review__version').exists()).toBe(true)
-    expect(wrapper.text()).toContain('批量采纳')
+    expect(wrapper.find('.proposal-review__list').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('全选')
+    expect(wrapper.text()).not.toContain('批量采纳')
+    expect(wrapper.text()).not.toContain('已选')
+    expect(wrapper.find('.proposal-review__foot').exists()).toBe(false)
   })
 
-  it('编辑后采纳按策略字段渲染弹窗并提交结构化载荷', async () => {
+  it('只读任务卡片不渲染采纳与驳回操作', async () => {
+    const wrapper = mountPanel('bug_triage', [proposal({ kind: 'triage_order' })])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('缺陷分诊结果')
+    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(1)
+    expect(wrapper.text()).not.toContain('修改后采纳')
+    expect(wrapper.text()).not.toContain('驳回')
+  })
+
+  it('卡片内展示既有与建议三列对比', async () => {
     mocks.fetchAiProposal.mockResolvedValue({
       content: {
         nodeId: 'n1',
@@ -94,16 +122,38 @@ describe('AiProposalReviewPanel', () => {
       },
     })
     const wrapper = mountPanel('case_optimize', [proposal()])
-    await wrapper.find('.proposal-review__row').trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('建议：点击登录、点击验证码')
 
-    const buttons = wrapper.findAll('.proposal-review__row-actions button')
-    const editButton = buttons.find((button) => button.text() === '修改后采纳')
-    expect(editButton).toBeDefined()
-    await editButton!.trigger('click')
+    expect(wrapper.find('.compare-view').exists()).toBe(true)
+    expect(wrapper.text()).toContain('AI 建议')
+    expect(wrapper.text()).toContain('点击登录、点击验证码')
+  })
+
+  it('卡片采纳按钮提交确认并触发刷新', async () => {
+    const wrapper = mountPanel('case_optimize', [proposal()])
     await flushPromises()
-    expect(wrapper.text()).toContain('前置条件')
-    expect(wrapper.text()).toContain('预期结果（每行一条）')
+
+    const adopt = wrapper
+      .findAll('.proposal-review__card-actions button')
+      .find((button) => button.text() === '采纳')
+    expect(adopt).toBeDefined()
+    await adopt!.trigger('click')
+    await flushPromises()
+
+    expect(mocks.confirmAiProposals).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ items: [{ key: 'p1', action: 'adopted' }] }),
+    )
+  })
+
+  it('全部驳回展示空态', async () => {
+    const wrapper = mountPanel('case_optimize', [
+      proposal({ confirmStatus: 'rejected' }),
+      proposal({ key: 'p2', confirmStatus: 'rejected' }),
+    ])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('已全部驳回')
+    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(0)
   })
 })
