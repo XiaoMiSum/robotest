@@ -10,7 +10,7 @@
 
 > 本文档为组件级设计文档（非归档文件，原位更新），章节按组件设计组织（概述 → 技术选型 → 组件架构 → 数据模型 → 各功能模块），与详细设计的统一骨架（引言 → 数据设计 → 接口详细设计 → 业务逻辑设计 → 前端设计 → 实施说明）不一致，属既有格式，沿用不改。
 
-脑图组件是功能测试模块的核心组件，用于测试用例的可视化编辑、评审与执行跟踪。采用 **kityminder-core** 作为脑图渲染引擎，通过 **Yjs** 实现多人实时协作。按业务场景拆分为三个独立组件；公共能力分两处沉淀：`web/src/minder/` 承载引擎加载、编辑内核、节点适配与 Yjs 同步等与 UI 无关的核心逻辑，`web/src/components/project/functional-testing/minder/` 承载右键菜单壳、导航器与三组件共用结构样式，业务编排则下沉到 `web/src/composables/project/functional-testing/`：
+脑图组件是功能测试模块的核心组件，用于测试用例的可视化编辑、评审与执行跟踪。采用 **kityminder-core** 作为脑图渲染引擎，通过 **Yjs** 实现多人实时协作。按业务场景拆分为三个独立组件；公共能力分两处沉淀：`web/src/minder/` 承载引擎加载、编辑内核、节点适配与 Yjs 同步等与 UI 无关的核心逻辑，`web/src/components/project/functional-testing/minder/` 承载节点悬浮窗壳、编辑模式右键菜单壳、导航器与三组件共用结构样式，业务编排则下沉到 `web/src/composables/project/functional-testing/`：
 
 - **CaseMindMap（编辑）**：节点增删改、复制/剪切/粘贴、类型标记、优先级标记、布局模板，节点变更经 WebSocket 文本帧持久化到 `ft_case_node` 表，并经 Yjs 多人实时同步。
 - **ReviewMindMap（评审）**：基于快照的只读脑图，提供评审标记（通过/不通过/待评审）、评论抽屉与用例移除，数据写入 `ft_review_record` 表并更新 `ft_review_node_snapshot.last_mark`。
@@ -26,7 +26,7 @@
 | 数据绑定  | kityminder-core 的 `importJson` / `exportJson` | JSON 格式数据中间层（后端嵌套节点树经 `adapter.ts` 转换）  |
 | 实时协作  | Yjs + y-websocket                             | 编辑模式下增量同步（分片模型见第 11 节），评审/计划模式不建立连接 |
 | 前端框架  | Vue 3 + Composition API                       | 封装为 Vue 组件与本地 composable，管理生命周期和交互   |
-| UI 增强 | Element Plus（按钮、下拉、抽屉、对话框）                  | 工具栏按钮与排版下拉、评论抽屉、移除确认；右键菜单为 teleport 到 body 的自定义容器 |
+| UI 增强 | Element Plus（按钮、下拉、抽屉、对话框）                  | 工具栏按钮与排版下拉、悬浮窗 `link` 按钮、评论抽屉、移除确认；悬浮窗与右键菜单均为 teleport 到 body 的自定义容器（右键菜单仅编辑模式） |
 
 ---
 
@@ -41,23 +41,23 @@ web/src/components/project/functional-testing/
 │     ├── 协作状态指示器（在线用户头像）与断线提示横幅
 │     └── 编辑右键菜单（节点操作/复制剪切粘贴/标记类型/标记等级/删除）
 ├── review/ReviewMindMap.vue  评审组件（props: reviewId、documentId、removable）
-│     ├── 评审工具栏（通过/不通过/待评审、评论、移除用例）
+│     ├── 用例节点悬浮窗（通过/不通过/待评审、评论、移除用例，link 按钮）
 │     ├── 快照只读画布（minder.disable()）
-│     ├── 评论抽屉（评审记录列表）
-│     └── 评审右键菜单（标记评审结果/添加评论/从评审中移除）
+│     └── 评论抽屉（评审记录列表）
 ├── plan/PlanMindMap.vue    计划组件（props: planId、documentId、removable）
-│     ├── 执行工具栏（通过/失败/阻塞/待执行、移除用例）
-│     ├── 快照只读画布（minder.disable()）
-│     └── 执行右键菜单（标记执行结果/从计划中移除）
+│     ├── 用例节点悬浮窗（通过/失败/阻塞/待执行、移除用例，link 按钮）
+│     └── 快照只读画布（minder.disable()）
 └── minder/                 三组件共用的 Vue 层基座
-      ├── MinderContextMenu.vue  右键菜单壳（teleport + 菜单样式，菜单项经 slot 传入）
+      ├── MinderContextMenu.vue  右键菜单壳（仅 CaseMindMap 使用）
+      ├── NodeActionPopover.vue  用例节点悬浮窗壳（teleport + 透明背景 + 水平排列，入口经 slot 传入）
       ├── MinderNavigator.vue    导航器（缩放条/定位根节点/抓手/缩略图/全屏，三组件共用）
       └── minder-base.scss       共享结构样式（容器/工具栏/画布）
 
 web/src/minder/             自研脑图核心（与 UI 无关）
       ├── loader.ts          引擎加载：经典 script 标签加载 kity/kityminder-core 并注册徽标模块
       ├── useMinderInstance.ts  实例骨架：容器/加载态/实例引用、竞态令牌、销毁、选中状态维护
-      ├── useContextMenu.ts     右键菜单状态：定位、空格唤醒、全局关闭监听（mousedown/Esc/wheel）
+      ├── useContextMenu.ts     右键菜单状态：定位、空格唤醒、全局关闭监听（仅编辑模式）
+      ├── useNodeActionPopover.ts 用例节点悬浮窗状态：定位、打开、全局关闭监听（mousedown/Esc/wheel）
       ├── fsm.ts             状态机：normal ⇄ input
       ├── receiver.ts        contenteditable 键盘接收器（IME 支持）
       ├── input.ts           原位内联编辑（定位/提交/取消/跟随重定位、双击编辑）
@@ -80,7 +80,7 @@ web/src/composables/project/functional-testing/
 └── plan/usePlanMindmapOps.ts          计划加载、执行标记、移除用例
 ```
 
-拆分原则：三组件仅共享"实例骨架 + 引擎加载 + 右键菜单壳 + 结构样式"这类与业务无关的能力；数据获取、工具栏、标记提交等业务逻辑各自独立（编辑走 `useMindmap*` 系列，评审/计划各走专属 ops composable），互不感知，避免单组件内 `mode` 分支蔓延。
+拆分原则：三组件仅共享"实例骨架 + 引擎加载 + 悬浮窗壳 + 结构样式"这类与业务无关的能力；右键菜单为编辑模式独占，数据获取、操作入口与标记提交等业务逻辑各自独立（编辑走 `useMindmap*` 系列，评审/计划各走专属 ops composable 且只用节点悬浮窗），互不感知，避免单组件内 `mode` 分支蔓延。
 
 ### 3.1 编辑内核关键机制
 
@@ -224,7 +224,7 @@ web/src/composables/project/functional-testing/
 
 ## 5. 工具栏设计
 
-工具栏位于脑图画布顶部，卡片顶栏形态（与画布以分隔线相接、不随画布滚动），集中呈现该模式下的核心操作，各组件拥有独立的工具栏：编辑工具栏单行左对齐、按功能域分组（分隔线相隔）、超宽时横向滚动不换行；评审/计划工具栏只有单个按钮组，水平居中、超宽时换行。
+工具栏位于脑图画布顶部，卡片顶栏形态（与画布以分隔线相接、不随画布滚动），集中呈现该模式下的核心操作；仅编辑模式保留顶部工具栏（单行左对齐、按功能域分组、超宽时横向滚动不换行）。评审/计划模式不设顶部工具栏，标记、评论与移除用例入口统一由用例节点悬浮窗承接：左键单击 `type=case` 节点时在节点下方展开，入口水平并排、透明背景、`link` 类型按钮，非用例节点点击不展示；不设右键菜单。
 
 ### 5.1 编辑（CaseMindMap）
 
@@ -253,25 +253,29 @@ web/src/composables/project/functional-testing/
 
 ### 5.2 评审（ReviewMindMap）
 
-| 按钮         | 功能                                               | 说明                                   |
+评审模式不设顶部工具栏。左键单击 `type=case` 节点时在其下方展开悬浮窗（形态同用例节点悬浮窗），提供以下入口；点击非用例节点、画布空白处、按 Esc 或滚轮滚动时收起，点击另一用例节点则先收起旧窗再在新节点旁展开。悬浮窗入口水平并排、透明背景、采用 Element Plus `link` 类型按钮，无卡片底色、边框与阴影；不设右键菜单。
+
+| 入口         | 功能                                               | 说明                                   |
 | ---------- | ------------------------------------------------ | ------------------------------------ |
-| ✅ 通过       | 标记通过，提交至 `POST /api/project/reviews/:id/records` | 仅 case 节点可用（其他节点提示"仅用例节点可标记评审结果"），高亮当前评审结果 |
+| ✅ 通过       | 标记通过，提交至 `POST /api/project/reviews/:id/records` | 高亮当前评审结果                       |
 | ❌ 不通过      | 标记不通过，同上                                         | 同上                                   |
-| ❓ 待评审      | 显式重置为待评审（`mark: 'pending'`，落库 last_mark 为 NULL）  | 任意节点可用，高亮"当前无标记"态                    |
-| 💬 评论      | 打开评论抽屉，查看/添加评论（见第 9 节）                             | 需先选中节点，否则提示"请先选中一个节点"                |
-| 🗑 移除用例    | 从评审中移除选中用例，走 `PUT /api/project/reviews/:id/cases` | 仅 `removable`（评审未完成）且选中已关联 case 节点时可用，执行前弹确认框 |
+| ❓ 待评审      | 显式重置为待评审（`mark: 'pending'`，落库 last_mark 为 NULL）  | 高亮"当前无标记"态                    |
+| 💬 评论      | 打开评论抽屉，查看/添加评论（见第 9 节）                             | 打开前收起悬浮窗                       |
+| 🗑 移除用例    | 从评审中移除选中用例，走 `PUT /api/project/reviews/:id/cases` | `removable`（评审未完成）时展示；`removable` 且选中已关联 case 节点时可用，执行前弹确认框 |
 
 缩放与抓手由导航器提供（见 5.4，命令均 enableReadOnly，只读态可用）。
 
 ### 5.3 计划（PlanMindMap）
 
-| 按钮         | 功能                                             | 说明                                   |
+计划模式不设顶部工具栏。左键单击 `type=case` 节点时在其下方展开悬浮窗（形态同用例节点悬浮窗），提供以下入口；关闭时机与评审悬浮窗一致。悬浮窗入口水平并排、透明背景、`link` 类型按钮；不设右键菜单。
+
+| 入口         | 功能                                             | 说明                                   |
 | ---------- | ---------------------------------------------- | ------------------------------------ |
-| ✅ 通过       | 标记通过，提交至 `POST /api/project/plans/:id/records` | 仅 case 节点可用（其他节点提示"仅关联用例节点可标记执行结果"），高亮当前执行结果 |
+| ✅ 通过       | 标记通过，提交至 `POST /api/project/plans/:id/records` | 高亮当前执行结果                       |
 | ❌ 失败       | 标记失败，同上                                        | 同上                                   |
 | ❓ 阻塞       | 标记阻塞，同上                                        |                                      |
 | 🔄 待执行     | 重置为待执行，同上                                      |                                      |
-| 🗑 移除用例    | 从计划中移除选中用例，走 `PUT /api/project/plans/:id/cases` | 仅 `removable`（计划可调整用例）且选中已关联 case 节点时可用，执行前弹确认框 |
+| 🗑 移除用例    | 从计划中移除选中用例，走 `PUT /api/project/plans/:id/cases` | `removable`（计划可调整用例）时展示；`removable` 且选中已关联 case 节点时可用，执行前弹确认框 |
 
 激活态按执行结果语义色高亮：通过 success、失败 danger、阻塞 `--color-blocked` 深红（EP 无内建阻塞档，覆盖按钮变量实现，避免与「失败」红撞色）、待执行 info。
 
@@ -287,13 +291,13 @@ web/src/composables/project/functional-testing/
 | 定位根节点  | `execCommand('camera', root, 600)` 平滑移动视野到根节点                        |
 | 抓手     | core 原生 `hand` 命令，监听 `statuschange` 事件同步激活态高亮                        |
 | 缩略图    | kity.Paper 缩略渲染（节点盒 + 连线路径 + 红框可视区域），监听 `layout`/`layoutallfinish`/`viewchange` 增量更新；点击/拖动缩略图移动画布视野；可开关，状态记忆于 localStorage（键 `minder-navigator-open`） |
-| 全屏     | 原生 Fullscreen API 对脑图容器全屏（保留工具栏），零新增依赖                             |
+| 全屏     | 原生 Fullscreen API 对脑图容器全屏（编辑模式保留工具栏，评审/计划无工具栏），零新增依赖       |
 
 ---
 
 ## 6. 右键菜单设计
 
-右键菜单仅在选中节点时展示（右键节点时先选中再弹出，空白处右键不弹菜单）；编辑模式下也可对选中节点按空格键唤醒，菜单定位到节点下方。关闭时机：点击菜单项、点击菜单外任意位置、按 Esc、滚轮滚动（视图变化后菜单会错位）；鼠标划过离开菜单不关闭。
+右键菜单仅用于编辑模式（`CaseMindMap`）：仅在选中节点时展示（右键节点时先选中再弹出，空白处右键不弹菜单），也可对选中节点按空格键唤醒，菜单定位到节点下方。关闭时机：点击菜单项、点击菜单外任意位置、按 Esc、滚轮滚动（视图变化后菜单会错位）；鼠标划过离开菜单不关闭。评审与计划模式不注册右键菜单。
 
 ### 6.1 编辑模式
 
@@ -309,20 +313,9 @@ web/src/composables/project/functional-testing/
 
 编辑入口为双击、F2 或工具栏"编辑内容"，右键菜单不提供编辑项。
 
-### 6.2 评审模式
+### 6.2 评审与计划模式
 
-- 标记评审结果 ▸ 通过 / 不通过 / 待评审
-- 添加评论
-- ──────────
-- 从评审中移除（仅 `removable` 且选中已关联 case 节点时显示）
-
-### 6.3 计划模式
-
-- 标记执行结果 ▸ 通过 / 失败 / 阻塞 / 待执行
-- ──────────
-- 从计划中移除（仅 `removable` 且选中已关联 case 节点时显示）
-
-菜单中没有"查看详情"项；快照只读（`minder.disable()`）只限制画布编辑，标记、评论与移除均照常可用。
+评审（`ReviewMindMap`）与计划（`PlanMindMap`）模式不注册右键菜单，标记、评论与移除用例仅由用例节点悬浮窗承载（见 5.2 / 5.3）。快照只读（`minder.disable()`）只限制画布编辑，悬浮窗内的标记、评论与移除照常可用。
 
 ---
 
@@ -355,7 +348,7 @@ web/src/composables/project/functional-testing/
 
 ### 9.1 评论抽屉
 
-- 打开方式：工具栏"💬评论"按钮或右键"添加评论"；需先选中节点，否则提示"请先选中一个节点"。
+- 打开方式：左键单击 case 节点后在悬浮窗点"💬评论"；悬浮窗仅 case 节点展开，故打开时必有选中节点。
 - 抽屉标题为"评审记录"（宽 380），打开时按当前节点拉取 `GET /api/project/reviews/:id/nodes/:nodeId/records`，同时展示标记与评论两类记录：作者、操作标签（标记通过 / 标记不通过 / 重置待评审）、评论内容、时间；无记录时显示空态"暂无评论或标记记录"。
 - 底部为多行输入框（500 字上限、实时字数），Enter 发送，内容为空时发送按钮禁用。
 - 提交经 `POST /api/project/reviews/:id/records`（`operationType='comment'`），成功后清空输入并重新拉取该节点记录列表刷新展示。
@@ -516,27 +509,16 @@ web/src/composables/project/functional-testing/
       </div>
     </div>
 
-    <!-- 评审工具栏（ReviewMindMap）：单组居中 -->
-    <div class="mindmap-toolbar mindmap-toolbar--center">
-      <el-button-group>
-        <el-button :type="reviewResult === 'pass' ? 'success' : ''" @click="markReview('pass')">✅通过</el-button>
-        <el-button :type="reviewResult === 'fail' ? 'danger' : ''" @click="markReview('fail')">❌不通过</el-button>
-        <el-button :type="reviewResult === null ? 'info' : ''" @click="markReview(null)">❓待评审</el-button>
-      </el-button-group>
-      <el-button @click="openComments">💬评论</el-button>
-      <el-button v-if="removable" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
-    </div>
-
-    <!-- 计划工具栏（PlanMindMap）：单组居中 -->
-    <div class="mindmap-toolbar mindmap-toolbar--center">
-      <el-button-group>
-        <el-button :type="execResult === 'pass' ? 'success' : ''" @click="markExecution('pass')">✅通过</el-button>
-        <el-button :type="execResult === 'fail' ? 'danger' : ''" @click="markExecution('fail')">❌失败</el-button>
-        <el-button :class="execResult === 'block' ? 'exec-block-active' : ''" @click="markExecution('block')">❓阻塞</el-button>
-        <el-button :type="execResult === 'untested' ? 'info' : ''" @click="markExecution('untested')">🔄待执行</el-button>
-      </el-button-group>
-      <el-button v-if="removable" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
-    </div>
+    <!-- 评审/计划：不设顶部工具栏，操作入口由用例节点悬浮窗承载（link 按钮、水平并排、透明背景） -->
+    <NodeActionPopover
+      :to="menuTeleportTarget"
+      :visible="nodePopover.visible.value"
+      :x="nodePopover.anchor.value.x"
+      :y="nodePopover.anchor.value.y"
+    >
+      <!-- ReviewMindMap：通过 / 不通过 / 待评审 / 评论 / 移除用例 -->
+      <!-- PlanMindMap：通过 / 失败 / 阻塞 / 待执行 / 移除用例 -->
+    </NodeActionPopover>
 
     <!-- 脑图画布（编辑模式下内核向容器注入 .km-receiver 接收器，双击节点进入编辑） -->
     <div ref="containerRef" class="minder-canvas" @contextmenu.prevent="onContextMenu" />
@@ -549,11 +531,9 @@ web/src/composables/project/functional-testing/
     <!-- 导航器：缩放条/定位根节点/抓手/缩略图/全屏，三模式共用 -->
     <MinderNavigator v-if="minder && !loading" :minder="minder" />
 
-    <!-- 右键菜单壳：teleport 到 body，菜单项由各模式组件经 slot 传入 -->
+    <!-- 右键菜单壳：仅 CaseMindMap 使用（评审/计划不注册右键菜单） -->
     <MinderContextMenu v-if="menuVisible" :x="menuPos.x" :y="menuPos.y" @close="closeContextMenu">
       <!-- CaseMindMap：新建下级/同级 → 复制/剪切/粘贴 → 类型 chip 行 → 等级 chip 行 → 删除节点 -->
-      <!-- ReviewMindMap：标记评审结果 ▸ 通过/不通过/待评审 → 添加评论 → 从评审中移除 -->
-      <!-- PlanMindMap：标记执行结果 ▸ 通过/失败/阻塞/待执行 → 从计划中移除 -->
     </MinderContextMenu>
 
     <!-- 评论抽屉（ReviewMindMap）：评审记录列表 + 输入框 -->
@@ -584,7 +564,7 @@ web/src/composables/project/functional-testing/
 3. **数据隔离**：快照模式（review/plan）完全不建立 WebSocket/Yjs 连接；编辑模式独占 `/ws/documents/{docId}` 房间，服务端对可写帧校验当前用户的文档成员关系。
 4. **校验口径**：画布组件不设 `editable` prop；"移除用例"按钮与菜单项由 `removable`（详情页按评审/计划状态传入）控制；标记、评论、移除接口的成员归属与状态校验由后端兜底。
 5. **kityminder 扩展**：节点状态徽标由 `badges.ts` 以 `Module.register` 自定义渲染模块实现（写法参照 core 自身 priority 模块），左侧绘制类型/优先级、右侧绘制评审/执行标记，须在 `new Minder` 之前注册（loader 内统一完成）；画布不渲染 Bug 链接标签（见第 8 节）。
-6. **工具栏状态响应**：监听 kityminder 的 `selectionchange` 事件，更新类型/优先级与标记按钮高亮；撤销/重做按钮置灰态由 history 的 onChange 回调驱动（`KMEditor` 的 `onHistoryChange`）。
+6. **工具栏状态响应**：监听 kityminder 的 `selectionchange` 事件，更新类型/优先级与标记按钮高亮；撤销/重做按钮置灰态由 history 的 onChange 回调驱动（`KMEditor` 的 `onHistoryChange`）。评审/计划悬浮窗由 `click` 事件驱动：读选中节点的 `data.type` 判定是否为用例，按 `getRenderBox(undefined, 'screen')` 定位；评审/计划不注册右键菜单（画布仅以 `@contextmenu.prevent` 抑制浏览器原生菜单）。
 7. **右键菜单**：`useContextMenu` 统一管理展示与关闭时机（仅选中节点时展示，编辑模式下空格键亦可唤醒），菜单项由各模式组件模板静态给出（slot），不设模式分支。
 8. **抓手模式**：接 core 原生 `hand` 命令（enableReadOnly，只读态可用），由导航器切换并监听 `statuschange` 同步激活态。
 9. **原位编辑接入**：编辑内核创建 minder 时传 `enableKeyReceiver: false` 禁用 core 内置接收器，由 receiver.ts 的 contenteditable 元素统一接管键盘；命令执行后 `fire('receiverfocus')` 保证快捷键持续可用。
@@ -604,6 +584,7 @@ web/src/composables/project/functional-testing/
 | V1.0 | 2026-11-19 | 节点操作按钮文案改为「新建下级节点 / 新建同级节点」，下拉与全屏按钮按选中态置灰并右对齐快捷键 |
 | V1.0 | 2026-11-19 | 类型标记与优先级入口按选中态激活，右键菜单等级组同步置灰 |
 | V1.0 | 2026-11-19 | 悬浮窗两入口改为水平并排，AI 优化增加绿色闪烁强调、关联需求改用主色调 |
+| V1.0 | 2026-11-19 | 评审/计划脑图移除顶部工具栏与右键菜单，标记、评论与移除用例入口改为用例节点悬浮窗（水平并排、透明背景、`link` 类型按钮，仅点击用例节点展示） |
 
 ---
 
