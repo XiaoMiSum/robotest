@@ -186,29 +186,23 @@ function adoptSubtree(node: GenerationTreeNode): void {
       </el-empty>
     </div>
 
-    <div v-else class="gen-review__cards">
-      <el-card v-for="node in pendingNodes" :key="node.key" shadow="never" class="gen-review__card">
-        <template #header>
-          <div class="gen-review__card-head">
-            <span class="gen-review__kind">{{ node.kindLabel }}</span>
-            <span class="gen-review__name">{{ nodeTitle(node) }}</span>
-            <el-tag v-if="node.level === 0" size="small" type="info" effect="plain"
-              >顶级目录</el-tag
-            >
-            <el-tag v-else-if="node.level === 1" size="small" type="info" effect="plain"
-              >文档</el-tag
-            >
-            <el-tag
-              v-if="node.row.content.isTestCase && node.row.content.attributes.priority"
-              size="small"
-              effect="plain"
-            >
-              {{ priorityLabel(node.row.content.attributes.priority) }}
-            </el-tag>
-          </div>
-        </template>
+    <div v-else class="gen-review__items">
+      <div v-for="node in pendingNodes" :key="node.key" class="gen-review__item">
+        <div class="gen-review__item-head">
+          <span class="gen-review__kind">{{ node.kindLabel }}</span>
+          <span class="gen-review__name">{{ nodeTitle(node) }}</span>
+          <el-tag v-if="node.level === 0" size="small" type="info" effect="plain">顶级目录</el-tag>
+          <el-tag v-else-if="node.level === 1" size="small" type="info" effect="plain">文档</el-tag>
+          <el-tag
+            v-if="node.row.content.isTestCase && node.row.content.attributes.priority"
+            size="small"
+            effect="plain"
+          >
+            {{ priorityLabel(node.row.content.attributes.priority) }}
+          </el-tag>
+        </div>
 
-        <div v-loading="base.loadingContent.value" class="gen-review__card-body">
+        <div v-loading="base.loadingContent.value" class="gen-review__item-body">
           <el-alert
             v-if="tree.isDuplicate(node)"
             type="error"
@@ -269,28 +263,26 @@ function adoptSubtree(node: GenerationTreeNode): void {
           </div>
         </div>
 
-        <template #footer>
-          <div class="gen-review__card-actions">
-            <el-button link type="primary" :loading="base.confirming.value" @click="adopt(node)"
-              >采纳</el-button
-            >
-            <el-button
-              v-if="node.children.length > 0"
-              link
-              type="primary"
-              :loading="base.confirming.value"
-              @click="adoptSubtree(node)"
-              >整树采纳</el-button
-            >
-            <el-button link type="primary" :loading="base.confirming.value" @click="openEdit(node)"
-              >修改后采纳</el-button
-            >
-            <el-button link type="danger" :loading="base.confirming.value" @click="openReject(node)"
-              >驳回（可附反馈）</el-button
-            >
-          </div>
-        </template>
-      </el-card>
+        <div class="gen-review__card-actions">
+          <el-button link type="primary" :loading="base.confirming.value" @click="adopt(node)"
+            >采纳</el-button
+          >
+          <el-button
+            v-if="node.children.length > 0"
+            link
+            type="primary"
+            :loading="base.confirming.value"
+            @click="adoptSubtree(node)"
+            >整树采纳</el-button
+          >
+          <el-button link type="primary" :loading="base.confirming.value" @click="openEdit(node)"
+            >修改后采纳</el-button
+          >
+          <el-button link type="danger" :loading="base.confirming.value" @click="openReject(node)"
+            >驳回（可附反馈）</el-button
+          >
+        </div>
+      </div>
     </div>
 
     <AiConfirmReceipt
@@ -413,17 +405,16 @@ function adoptSubtree(node: GenerationTreeNode): void {
   padding: var(--space-sm);
 }
 
-.gen-review__cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
+.gen-review__item {
+  border-top: 1px solid var(--color-neutral-200);
 }
 
-.gen-review__card-head {
+.gen-review__item-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-xs);
+  margin: var(--space-sm) 0;
 }
 
 .gen-review__kind {
@@ -437,7 +428,7 @@ function adoptSubtree(node: GenerationTreeNode): void {
   font-weight: 550;
 }
 
-.gen-review__card-body {
+.gen-review__item-body {
   min-height: 96px;
 }
 
@@ -509,6 +500,9 @@ function adoptSubtree(node: GenerationTreeNode): void {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-neutral-200);
 }
 
 .gen-review__edit-compare {

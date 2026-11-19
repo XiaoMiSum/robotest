@@ -65,7 +65,7 @@ describe('GenerationArtifactTreeReview', () => {
 
   it('默认以卡片只展示当前第一条待处理产物，且无列表勾选与批量计数', () => {
     const wrapper = mountReview(proposals(5))
-    expect(wrapper.findAll('.gen-review__card')).toHaveLength(1)
+    expect(wrapper.findAll('.gen-review__item')).toHaveLength(1)
     expect(wrapper.text()).toContain('产物1')
     expect(wrapper.text()).not.toContain('产物2')
     expect(wrapper.text()).not.toContain('产物3')
@@ -82,7 +82,7 @@ describe('GenerationArtifactTreeReview', () => {
     )
     await wrapper.setProps({ proposals: updated })
     await flushPromises()
-    expect(wrapper.findAll('.gen-review__card')).toHaveLength(1)
+    expect(wrapper.findAll('.gen-review__item')).toHaveLength(1)
     expect(wrapper.text()).not.toContain('产物1')
     expect(wrapper.text()).toContain('产物2')
     expect(wrapper.text()).not.toContain('产物3')
@@ -93,13 +93,13 @@ describe('GenerationArtifactTreeReview', () => {
     const rejected = mountReview(
       proposals(2).map((item) => ({ ...item, confirmStatus: 'rejected' as const })),
     )
-    expect(rejected.findAll('.gen-review__card')).toHaveLength(0)
+    expect(rejected.findAll('.gen-review__item')).toHaveLength(0)
     expect(rejected.text()).toContain('已全部驳回，未创建任何数据')
 
     const adopted = mountReview(
       proposals(2).map((item) => ({ ...item, confirmStatus: 'adopted' as const })),
     )
-    expect(adopted.findAll('.gen-review__card')).toHaveLength(0)
+    expect(adopted.findAll('.gen-review__item')).toHaveLength(0)
     expect(adopted.text()).toContain('待处理产物已全部审核完成')
   })
 
