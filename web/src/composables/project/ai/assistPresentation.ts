@@ -1,6 +1,4 @@
 import type {
-  AiAssistFieldPair,
-  AiAssistFieldName,
   AiAssistSourceRef,
   AiAssistSuggestion,
   AiAssistTaskType,
@@ -8,25 +6,9 @@ import type {
   AiCaseOptimizeNodeType,
   AiCaseOptimizeOperation,
   AiCaseOptimizeOperationSuggestion,
-  AiCaseOptimizeSuggestion,
   AiPlanOrderItem,
   AiPlanOrderSuggestion,
 } from '@/types'
-
-/** 旧版字段键仅用于任务详情审核视图；脑图面板消费节点操作指令 */
-export const ASSIST_FIELD_NAMES: AiAssistFieldName[] = [
-  'precondition',
-  'steps',
-  'expected',
-  'tags',
-]
-
-const ASSIST_FIELD_LABEL: Record<AiAssistFieldName, string> = {
-  precondition: '前置条件',
-  steps: '操作步骤',
-  expected: '预期结果',
-  tags: '标签',
-}
 
 export const CASE_OPTIMIZE_FIELD_LABEL: Record<AiCaseOptimizeField, string> = {
   title: '标题',
@@ -68,11 +50,6 @@ function readValues(raw: unknown): string[] {
   return readStrings(raw)
 }
 
-function readPair(raw: unknown): AiAssistFieldPair {
-  const source = asRecord(raw)
-  return { existing: readValues(source['existing']), suggested: readValues(source['suggested']) }
-}
-
 function readSourceRefs(raw: unknown): AiAssistSourceRef[] {
   if (!Array.isArray(raw)) return []
   const refs: AiAssistSourceRef[] = []
@@ -83,27 +60,6 @@ function readSourceRefs(raw: unknown): AiAssistSourceRef[] {
     refs.push({ id, title: readString(source, 'title'), quote: readString(source, 'quote') })
   }
   return refs
-}
-
-/** 任务详情旧版审核视图的字段模型，节点操作提案不复用 */
-export function readCaseOptimize(content: Record<string, unknown>): AiCaseOptimizeSuggestion {
-  const fields = asRecord(content['fields'])
-  const priority = asRecord(content['priority'])
-  return {
-    nodeId: readString(content, 'nodeId'),
-    fields: {
-      precondition: readPair(fields['precondition']),
-      steps: readPair(fields['steps']),
-      expected: readPair(fields['expected']),
-      tags: readPair(fields['tags']),
-    },
-    priority: {
-      current: readString(priority, 'current'),
-      suggested: readString(priority, 'suggested'),
-      reason: readString(priority, 'reason'),
-    },
-    sourceRefs: readSourceRefs(content['sourceRefs']),
-  }
 }
 
 function readOperation(raw: unknown): AiCaseOptimizeOperation | null {
@@ -201,10 +157,6 @@ export function isCaseOptimizeSuggestion(
 
 export function isPlanOrderSuggestion(view: AiAssistSuggestion | null): view is AiPlanOrderSuggestion {
   return view !== null && 'beforeOrder' in view
-}
-
-export function assistFieldLabel(name: AiAssistFieldName): string {
-  return ASSIST_FIELD_LABEL[name] ?? name
 }
 
 function sameValues(left: string[], right: string[]): boolean {

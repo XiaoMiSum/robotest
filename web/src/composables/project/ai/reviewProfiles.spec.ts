@@ -42,59 +42,42 @@ describe('reviewProfiles', () => {
     })
   })
 
-  describe('用例优化', () => {
-    it('解析 existing/suggested 对照与来源引用，编辑初值取建议值', () => {
+  describe('用例优化（详情只读）', () => {
+    it('不提供采纳 / 编辑 / 驳回动作，采纳在脑图面板执行', () => {
+      const profile = reviewProfile('case_optimize')
+      expect(isReadonlyProfile(profile)).toBe(true)
+      expect(profile.editFields).toEqual([])
+    })
+
+    it('只读展示节点操作指令、来源引用与用例节点', () => {
       const profile = reviewProfile('case_optimize')
       const parsed = profile.parse(
         {
           nodeId: 'n1',
-          fields: {
-            steps: { existing: ['点击登录'], suggested: ['点击登录', '点击验证码'] },
-            expected: { existing: ['成功'], suggested: ['成功'] },
-          },
-          priority: { current: 'P1', suggested: 'P0', reason: '上游需求为高' },
+          operations: [
+            {
+              op: 'update', nodeId: 'n1', field: 'priority',
+              existing: ['P1'], suggested: ['P0'], path: '登录用例', reason: '上游需求为高',
+            },
+            {
+              op: 'add', parentId: 'n1', nodeType: 'step',
+              title: '输入图形验证码', path: '登录用例', reason: '需求要求校验',
+            },
+          ],
           sourceRefs: [{ id: 'REQ-1', title: '需求一', quote: '原文' }],
         },
         '兜底',
       )
-      expect(parsed.compare.find((row) => row.label === '操作步骤')).toMatchObject({
-        existing: '点击登录',
-        suggested: '点击登录、点击验证码',
-        changed: true,
+      expect(parsed.fields).toContainEqual({ label: '用例节点', value: 'n1' })
+      expect(parsed.compare).toContainEqual({
+        label: '优先级', existing: 'P1', suggested: 'P0', changed: true,
       })
-      expect(parsed.compare.find((row) => row.label === '预期结果')?.changed).toBe(false)
-      expect(parsed.compare.find((row) => row.label === '优先级')).toMatchObject({
-        existing: 'P1',
-        suggested: 'P0',
-        changed: true,
+      expect(parsed.compare).toContainEqual({
+        label: '新增操作步骤', existing: '—', suggested: '新增：输入图形验证码', changed: true,
       })
       expect(parsed.sourceRefs).toEqual([
         { id: 'REQ-1', title: '需求一', quote: '原文', changed: false },
       ])
-      expect(parsed.editValues.priority).toBe('P0')
-      expect((parsed.editValues.steps as string).split('\n')).toEqual(['点击登录', '点击验证码'])
-    })
-
-    it('编辑载荷按详设组装为 fields + priority，多行按行拆分', () => {
-      const profile = reviewProfile('case_optimize')
-      const content = profile.buildEditedContent(
-        {
-          precondition: '  已登录  ',
-          steps: '步骤一\n步骤二\n',
-          expected: '',
-          tags: '登录',
-          priority: 'P0',
-        },
-        {},
-      )
-      expect(content).toEqual({
-        fields: {
-          precondition: '已登录',
-          steps: ['步骤一', '步骤二'],
-          tags: ['登录'],
-        },
-        priority: 'P0',
-      })
     })
   })
 

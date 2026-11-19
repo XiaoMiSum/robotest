@@ -80,7 +80,7 @@ describe('AiProposalReviewPanel', () => {
     ])
     await flushPromises()
 
-    expect(wrapper.text()).toContain('用例优化审核')
+    expect(wrapper.text()).toContain('用例优化结果')
     expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
     expect(wrapper.text()).toContain('登录用例优化')
     expect(wrapper.text()).not.toContain('第二项')
@@ -127,21 +127,30 @@ describe('AiProposalReviewPanel', () => {
   })
 
   it('只读任务卡片不渲染采纳与驳回操作', async () => {
-    const wrapper = mountPanel('bug_triage', [proposal({ kind: 'triage_order' })])
-    await flushPromises()
+    for (const [taskType, kind, title] of [
+      ['bug_triage', 'triage_order', '缺陷分诊结果'],
+      ['case_optimize', 'case_optimize_suggestion', '用例优化结果'],
+    ]) {
+      const wrapper = mountPanel(taskType, [proposal({ kind })])
+      await flushPromises()
 
-    expect(wrapper.text()).toContain('缺陷分诊结果')
-    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
-    expect(wrapper.text()).not.toContain('修改后采纳')
-    expect(wrapper.text()).not.toContain('驳回')
+      expect(wrapper.text()).toContain(title)
+      expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('修改后采纳')
+      expect(wrapper.text()).not.toContain('驳回')
+    }
   })
 
   it('卡片内展示既有与建议三列对比', async () => {
     mocks.fetchAiProposal.mockResolvedValue({
       content: {
         nodeId: 'n1',
-        fields: { steps: { suggested: ['点击登录', '点击验证码'] } },
-        priority: { current: 'P1', suggested: 'P0' },
+        operations: [
+          {
+            op: 'update', nodeId: 'n1', field: 'priority',
+            existing: ['P1'], suggested: ['P0'], path: '登录用例', reason: '上游需求为高',
+          },
+        ],
       },
     })
     const wrapper = mountPanel('case_optimize', [proposal()])
@@ -149,11 +158,13 @@ describe('AiProposalReviewPanel', () => {
 
     expect(wrapper.find('.compare-view').exists()).toBe(true)
     expect(wrapper.text()).toContain('AI 建议')
-    expect(wrapper.text()).toContain('点击登录、点击验证码')
+    expect(wrapper.text()).toContain('P0')
   })
 
   it('卡片采纳按钮提交确认并触发刷新', async () => {
-    const wrapper = mountPanel('case_optimize', [proposal()])
+    const wrapper = mountPanel('requirement_import', [
+      proposal({ kind: 'requirement_suggestion' }),
+    ])
     await flushPromises()
 
     const adopt = wrapper
