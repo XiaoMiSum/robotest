@@ -75,25 +75,31 @@
   "title": "验证码 60 秒重发限制",
   "content": {
     "nodeId": "…",
-    "fields": {
-      "precondition": { "existing": null, "suggested": "手机号已输入并获取过一次验证码" },
-      "steps": { "existing": ["点击获取验证码"], "suggested": ["点击获取验证码", "60 秒内再次点击"] },
-      "expected": { "existing": ["发送成功提示"], "suggested": ["发送成功提示", "提示 60 秒后重试"] },
-      "tags": { "existing": ["登录"], "suggested": ["登录", "限制"] }
-    },
-    "priority": {
-      "current": "P1",
-      "suggested": "P0",
-      "reason": "上游需求 REQ-001 优先级为高"
-    },
+    "operations": [
+      { "op": "update", "nodeId": "…", "field": "title",
+        "path": "登录用例 › 步骤 1", "existing": "输入邮箱", "suggested": "输入邮箱和密码",
+        "reason": "补充账号类型说明" },
+      { "op": "update", "nodeId": "…", "field": "priority",
+        "path": "登录用例", "existing": "P1", "suggested": "P0",
+        "reason": "上游需求 REQ-001 优先级为高" },
+      { "op": "update", "nodeId": "…", "field": "tags",
+        "path": "登录用例", "existing": ["登录"], "suggested": ["登录", "限制"],
+        "reason": "补充限制类标签" },
+      { "op": "add", "parentId": "…", "nodeType": "step",
+        "path": "登录用例", "title": "输入图形验证码", "sortOrder": 2,
+        "reason": "上游需求要求校验图形验证码" }
+    ],
     "sourceRefs": [{ "type": "requirement", "id": "…", "title": "REQ-001", "quote": "验证码 60 秒内不可重发…" }]
   },
   "confirmStatus": "pending"
 }
 ```
 
-- `fields` 覆盖前置条件 / 执行步骤 / 预期结果 / 标签四类，`existing` 为节点当前值（`null` 或空数组表示空缺），`suggested` 为建议值；
-- 每个选中节点必产一条提案，`fields` 与 `priority` 均须有值；`priority.current / suggested` 取值 `P0 / P1 / P2 / P3`，与用例节点落库级别一致，`suggested == current` 时同样产出并正常展示，不折叠隐藏。
+- `nodeId` 为被优化用例节点，作为归属 / 类型校验锚点（否则 1000018301 / 1000018307）；`operations` 为该用例的操作指令清单，`op` 取 `update` / `add`：
+  - `update`：按 `nodeId` 定位目标节点（须与被优化用例同文档，否则 1000018308），`field` 取 `title`（用例节点或属性子节点文本）/ `priority` / `tags`（后两者仅用例节点有效）；`existing` 为节点当前值（`null` 或空数组表示空缺），`suggested` 为建议值；`priority` 的 `existing / suggested` 取值 `P0 / P1 / P2 / P3`，与落库级别一致，`suggested == existing` 时同样产出并正常展示，不折叠隐藏；
+  - `add`：按 `parentId` 定位父节点（被优化用例或其任一后代，须同文档，否则 1000018308），`nodeType` 取 `precondition / step / expected / normal`（不新增 `case` 节点，否则 1000018307），`title` 为新节点文本，`sortOrder` 为可选组尾序号；
+  - 每条操作携带 `path`（祖先路径，供对照面板定位展示）与 `reason`（建议理由）；
+- 每个选中节点必产一条提案，`operations` 可为空（无建议时按无变化展示）；模型输出引用的节点不存在 / 跨文档 / 字段或类型非法时，该条指令在清洗阶段丢弃，不产生无效建议。
 
 - **确认**：总册 3.6.5，动作 `adopted / adopted_edited / rejected`；本类型 `target`：
 
@@ -101,10 +107,10 @@
 { "documentId": "…" }
 ```
 
-  - `adopted_edited` 的 `content` 为编辑后的值：`{ "fields": { "precondition": "…", "steps": ["…"], "expected": ["…"], "tags": ["…"] }, "priority": "P0" }`，以人工编辑值落库；
-  - `adopted` 对前置条件 / 操作步骤 / 预期结果按建议值整体替换（与该字段现状不同时删除旧属性子节点再插入新节点，一致时不写），标签仅补空缺，并按建议级别应用（`suggested != current` 时写级别列）。
+  - `adopted` 按提案 `operations` 逐条执行：`update` 原地改写目标节点 `field`（ID 与层级不变），`add` 在 `parentId` 下创建新节点；陈旧值跳过口径见 4.2；
+  - `adopted_edited` 的 `content` 为编辑后的操作清单 `{ "operations": [ { "op": "update", "nodeId": "…", "field": "title", "suggested": "…" } | { "op": "add", "parentId": "…", "nodeType": "step", "title": "…" } ] }`，以人工编辑值落库；编辑载荷仅覆盖建议值，定位字段（`op` / `nodeId` / `parentId` / `field` / `nodeType`）须与提案一致，否则整条按输入非法处理。
 
-- **承接**（用例采纳服务）：逐项事务更新节点字段与优先级（`adopted_edited` 以编辑值落库）；前置条件 / 步骤 / 预期结果在建议值与现状不同时先删旧属性子节点再插新节点，标签仅补空缺，级别变化项写入级别列、级别一致项不写列但同样写入用例修改记录留痕（`from = to`）；采纳写 `adopted_ref = { nodeId, from, to }`。任务详情页与脑图面板的采纳共用同一承接服务，覆盖口径一致。
+- **承接**（用例采纳服务）：单事务按 `operations` 定位节点执行，`update` 原地部分更新目标字段（不删旧插新，保留节点 ID 与协同引用），`add` 以框架默认 UUID 策略新建节点（`ai_generated = true`，无物理外键）；采纳前重读目标节点现状，与提案 `existing` 不一致（生成提案后人工改动）时跳过该条更新；优先级变化项写级别列、级别一致项不写列但同样写入用例修改记录留痕（`from = to`）；采纳后统一重嵌向量索引；采纳写 `adopted_ref = { nodeId, updated: n, added: m, skipped: k }`（更新 / 新增 / 跳过条数）。任务详情页与脑图面板的采纳共用同一承接服务，覆盖口径一致。
 
 ### 3.3 测试用例执行顺序推荐
 
@@ -153,13 +159,14 @@
 - 节点集合按 `documentId` 归属校验（1000018301 / 1000018307）；单次上限 50 个节点（1000018302），超限提示分批执行；
 - `plan_order` 输入的计划关联用例为空时返回 1000018304，入口置灰说明原因。
 
-### 4.2 建议采纳的覆盖口径
+### 4.2 操作指令的覆盖口径
 
-- **前置条件 / 操作步骤 / 预期结果整体替换**：建议值与现状不同时先删除该字段原有的全部属性子节点，再插入建议值对应的新子节点；建议值与现状一致时不写，避免无谓的子节点 ID 变更；建议值为空时不删除既有数据；该口径同时适用于任务详情页采纳与脑图面板采纳；
-- **标签保持补空缺**：`adopted` 仅写入空缺标签，`existing` 非空的标签维持原值；需覆盖已有标签时由人工在对照面板编辑后以 `adopted_edited` 提交编辑值；
-- 已有人工设定的优先级在采纳前不自动改变：`adopted` 按 `suggested` 应用（`current != suggested` 时写级别列）；`current == suggested` 时级别不变，但仍写入用例修改记录留痕（每次采纳均有可见结果）；
-- 字段与级别合并为一条提案、一次采纳动作，同一事务内落库；
-- 采纳结果作为**用例修改记录留痕**（调用既有修改记录服务）。
+- **原地更新**：`update` 按 `nodeId` 定位目标节点并原地改写 `field`，节点 ID、层级与类型不变，不采用删旧插新；建议值与现状一致时不写，避免无谓写入；建议值为空（空白串 / 空数组）时视为无建议，不修改目标字段；
+- **直接新增**：`add` 在 `parentId` 下创建新节点，节点 ID 由框架默认 UUID 策略生成、`ai_generated = true`、`version = 1`，序号追加到同类型组尾（或按给定 `sortOrder`）；父节点可为目标用例或其任一后代，但须与目标用例同文档；不新增 `case` 节点；
+- **陈旧值保护**：采纳时重读目标节点，若现状与提案 `existing` 不一致（生成提案后已被人工改动），跳过该 `update` 指令并在回执中标记，不覆盖人工编辑；`add` 指令的父节点若已不存在则跳过；
+- **优先级与标签**：`adopted` 按 `suggested` 应用（`existing != suggested` 时写列 / 写标签）；级别一致项不写列但同样写入用例修改记录留痕（`from = to`，每次采纳均有可见结果）；
+- 同一用例的全部操作合并为一条提案、一次采纳动作，同一事务内落库；任一指令定位节点跨文档时整条提案按 1000018308 拒绝，不产生部分落库；
+- 采纳结果作为**用例修改记录留痕**（调用既有修改记录服务），更新项与新增项分别记录；该口径同时适用于任务详情页采纳与脑图面板采纳。
 
 ### 4.3 顺序推荐的边界
 
@@ -187,7 +194,7 @@
 ```
 AssistComparePanel（通用对照面板，用例优化使用）
 ├── Header（标题与处理状态；多节点发起时下拉切换核对节点，逐条采纳后自动推进到下一个待处理节点）
-├── SuggestList（现有 vs AI 建议两栏对照：前置条件 / 执行步骤 / 预期结果 / 标签四类字段，以及级别与理由；无变化项折叠为「无变化 N 项」，可展开核对）
+├── OperationList（节点操作指令列表：每条显示「节点路径 · 字段」两栏对照（现有 vs 建议）或「在节点路径下新增类型节点」，附理由与新增 / 变更徽标；无变化项折叠为「无变化 N 项」，可展开核对）
 ├── SourceRefsLinks（来源引用，点击跳需求详情）
 └── Actionbar（逐条采纳、批量采纳、驳回；置灰原因行与逐项回执）
 
@@ -219,7 +226,8 @@ PlanOrderPanel
 | 1000018303 | 404 | 测试计划不存在 |
 | 1000018304 | 400 | 计划关联用例为空，无法推荐顺序 |
 | 1000018305 | 409 | 建议已采纳或已失效 |
-| 1000018307 | 400 | 节点类型不支持（仅用例节点可补全或推荐） |
+| 1000018307 | 400 | 节点类型不支持（仅用例节点可优化；`add` 不支持新增 `case` 节点） |
+| 1000018308 | 400 | 操作指令非法（目标 / 父节点跨文档或不存在，字段 / 节点类型 / 编辑载荷定位不合法） |
 
 > 上下文头缺失（`X-Active-Project` 未携带或未解析）回公共错误码 **1000002008**（缺少上下文请求头），不占用本号段；本号段错误码仅指输入取值、归属与状态问题。
 
@@ -231,20 +239,23 @@ PlanOrderPanel
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../service/ai/task/type/CaseOptimizeTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、提案结构，共用 `CaseAssistSupport` 解析输入） |
-| `server/.../service/ai/task/adopt/CaseOptimizeAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用既有用例 / 计划服务与修改记录服务） |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018307 |
+| `server/.../service/ai/task/type/CaseOptimizeTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、节点操作指令提案结构与清洗，共用 `CaseAssistSupport` 解析输入） |
+| `server/.../service/ai/task/handler/CaseAssistSupport` | 新增子树节点清单上下文 `nodeContext`（id / type / title / path），供模型定位节点 |
+| `server/.../service/domain/tcasedoc/TestCaseNodeService(+Impl)` | 新增 `applyCaseOptimize`：按操作指令原地更新 / 新增节点、陈旧值保护、统一重嵌向量索引、归属与成员校验 |
+| `server/.../service/ai/task/adopt/CaseOptimizeAdopter`、`PlanOrderAdopter` | 采纳落库（共用 `AssistAdoptSupport`，调用 `applyCaseOptimize` 与修改记录服务） |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018308 |
 | `server/src/main/resources/db/schema.sql` | `ft_case_node.tags` 列 DDL（唯一事实源，存量库增量 SQL 按 runbook §10 手工执行） |
-| `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 对照与排序面板（含各自单测） |
-| `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与面板视图模型 |
+| `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 操作指令对照与排序面板（含各自单测） |
+| `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与操作指令视图模型 |
+| `web/src/types/ai.ts` | `AiCaseOptimizeSuggestion` 改 operations 联合类型 |
 
-- **数据库**：无新增表；`ft_case_node.tags` 补列以 `server/src/main/resources/db/schema.sql` 为唯一事实源（见 2 节），落库均为既有业务表。
+- **数据库**：无新增表、无新增列；落库均为既有 `ft_case_node` 业务表（原地更新与新增节点复用现有列，`tags` 列为既有补列）。
 - **OpenAPI**：两个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：节点归属与类型校验矩阵、数量上限、前置条件 / 步骤 / 预期结果按建议值与现状异同删旧插新、标签仅补空缺（采纳动作 × existing 组合矩阵）、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
-- 前端：对照面板两栏渲染与折叠、逐条/批量/驳回回执、拖拽序号与前后对照、只读置灰、任务超时转进度入口。
+- 后端：节点归属与类型校验矩阵、数量上限、`update` 原地更新（ID / 层级不变，含用例标题 / 属性子节点 / 优先级 / 标签，采纳动作 × existing 组合矩阵）、`add` 在任意后代节点下新增（类型白名单、拒绝 `case`）、陈旧值跳过、跨文档指令拒绝、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
+- 前端：操作指令对照列表渲染与折叠（更新两栏 / 新增行）、逐条/批量/驳回回执、拖拽序号与前后对照、只读置灰、任务超时转进度入口。
 
 ---
 
@@ -266,3 +277,4 @@ PlanOrderPanel
 | V1.0 | 2026-11-18 | 用例补全与级别推荐合并为「用例优化」：`type = case_optimize`、提案 `kind = case_optimize_suggestion`，单条提案同时含四类字段补全与级别建议；删除补充节点建议，保留标签；采纳目标收敛为 `{ documentId }`，字段与级别同事务落库 |
 | V1.0 | 2026-11-18 | 5.1 / 5.3 任务复用改为后端按节点查询最近一次任务（项目内成员共享）：未完成回显进度、已产出提案 / 已处理完毕展示提案并支持重新执行（已关闭任务按同一输入发起新任务），并加固任务切换丢弃过期响应 |
 | V1.0 | 2026-11-19 | 用例优化采纳口径：前置条件 / 操作步骤 / 预期结果在建议值与现状不同时删除原有关联子节点再插入新数据（任务详情页与脑图面板共用同一承接），标签与优先级维持原规则，同步 3.2 / 4.2 / 7 测试要点 |
+| V1.0 | 2026-11-19 | 用例优化改为节点操作指令模型：提案 operations（update 原地更新含标题 / 属性 / 优先级 / 标签、add 任意节点下新增，均带 path / reason），取消删旧插新，新增陈旧值保护与跨文档校验，登记 1000018308，同步 3.2 / 4.2 / 5.2 / 6 / 7 |
