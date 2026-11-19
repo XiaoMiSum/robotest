@@ -5,28 +5,39 @@ import { ElMessage, ElTree } from 'element-plus'
 import CaseSelectTree from '@/components/project/functional-testing/case/CaseSelectTree.vue'
 import type { TestCaseNode } from '@/types'
 
+// 注入树的统一文档 key：AI 提案不在真实文档树内，仅作勾选归集锚点
+const INJECTED_DOC_ID = '__ai_generated__'
+
 const props = defineProps<{
   modelValue: boolean
   // 调整场景传入当前规划用例，打开时回显预选；创建场景不传，行为不变
   initialSelected?: { documentId: string; caseIds: string[] }[]
   // 单选模式：仅可勾选一个用例节点（缺陷关联用例场景），默认多选保持既有调用方行为
   single?: boolean
+  // 注入树模式：直接勾选 AI 提案映射的节点树，跳过后端模块 / 文档加载（详设 5.2）
+  injectedNodes?: TestCaseNode[]
+  // 内联模式：不包裹 el-dialog，供生成面板嵌入（详设 5.2）
+  inline?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [selectedNodes: { documentId: string; caseIds: string[] }[]]
+  /** 注入树模式下回传所选用例节点，id 即提案 key */
+  confirmNodes: [nodes: TestCaseNode[]]
+  /** 勾选变化实时回传，供内联承载面板驱动动作区 */
+  selectionChange: [caseIds: string[]]
 }>()
 
 const {
   loading,
   modules,
   selectedDocId,
+  docNodes,
   docLoading,
   filterKeyword,
   filterPriority,
   handleNodeClick,
-  docNodes,
   loadModules,
 } = useCaseSelector()
 
@@ -37,6 +48,20 @@ const selectedMap = ref<Record<string, Set<string>>>({})
 const priorities = ['P0', 'P1', 'P2', 'P3']
 
 const showFullDoc = ref(false)
+
+const injectedRoot = computed<TestCaseNode | null>(() => {
+  if (!props.injectedNodes?.length) return null
+  return {
+    id: INJECTED_DOC_ID,
+    parentId: null,
+    type: 'normal',
+    title: 'AI 生成用例',
+    priority: null,
+    sortOrder: 0,
+    version: 1,
+    children: props.injectedNodes,
+  }
+})
 
 // 精简视图：只保留用例节点及其祖先链（含嵌套用例），剔除前置/步骤/预期明细子树与无用例空分枝，
 // 保证与全量视图有可见差异；否则常规文档两视图渲染一致，切换项形同虚设
@@ -50,8 +75,10 @@ function pruneToCases(node: TestCaseNode): TestCaseNode | null {
 }
 
 const selectableRoot = computed(() => {
-  if (!docNodes.value) return null
-  return showFullDoc.value ? docNodes.value : pruneToCases(docNodes.value)
+  const root = injectedRoot.value ?? docNodes.value
+  if (!root) return null
+  if (injectedRoot.value || showFullDoc.value) return root
+  return pruneToCases(root)
 })
 
 // 预聚合各节点子树的用例数与已选数，驱动芯片全选/半选态；单选模式只统计节点自身，避免嵌套用例导致半选态
@@ -120,6 +147,12 @@ function collectCaseIds(node: TestCaseNode, acc: string[]) {
   node.children.forEach((child) => collectCaseIds(child, acc))
 }
 
+function emitSelection(): void {
+  const ids: string[] = []
+  Object.values(selectedMap.value).forEach((set) => ids.push(...set))
+  emit('selectionChange', ids)
+}
+
 // 级联勾选：整枝已全选则整枝取消，否则补齐整枝（含嵌套用例）；单选模式为跨文档互斥的替换式选中
 function handleToggle(node: TestCaseNode) {
   if (!selectedDocId.value) return
@@ -127,10 +160,11 @@ function handleToggle(node: TestCaseNode) {
     if (node.type !== 'case') return
     const already = selectedMap.value[selectedDocId.value]?.has(node.id)
     selectedMap.value = already ? {} : { [selectedDocId.value]: new Set([node.id]) }
+    emitSelection()
     return
   }
   if (!selectedMap.value[selectedDocId.value]) {
-    selectedMap.value[selectedDocId.value] = new Set()
+    selectedMap.value = { ...selectedMap.value, [selectedDocId.value]: new Set() }
   }
   const set = selectedMap.value[selectedDocId.value]
   const caseIds: string[] = []
@@ -143,6 +177,18 @@ function handleToggle(node: TestCaseNode) {
       set.add(id)
     }
   })
+  selectedMap.value = { ...selectedMap.value }
+  emitSelection()
+}
+
+function selectedNodesOf(root: TestCaseNode | null, ids: Set<string>): TestCaseNode[] {
+  const found: TestCaseNode[] = []
+  function walk(node: TestCaseNode) {
+    if (node.type === 'case' && ids.has(node.id)) found.push(node)
+    node.children.forEach(walk)
+  }
+  if (root) walk(root)
+  return found
 }
 
 function close() {
@@ -161,6 +207,7 @@ function handleConfirm() {
     return
   }
   emit('confirm', result)
+  emit('confirmNodes', selectedNodesOf(injectedRoot.value ?? docNodes.value, new Set(result.flatMap((item) => item.caseIds))))
   close()
 }
 
@@ -180,18 +227,40 @@ watch(
       // 弹窗内容常驻不销毁，el-tree 会按 node-key 恢复上次点击的高亮，
       // 需显式清除，避免左树残留高亮而右侧为空态的不一致
       treeRef.value?.setCurrentKey(null)
-      loadModules()
+      if (!props.injectedNodes) loadModules()
+      emitSelection()
     }
   },
 )
 
 onMounted(() => {
-  if (props.modelValue) loadModules()
+  if (props.modelValue && !props.injectedNodes) loadModules()
 })
+
+// 注入树模式无需后端模块树：直接以合成根节点填充右侧勾选画布
+watch(
+  [() => props.injectedNodes, () => props.modelValue],
+  ([nodes, visible]) => {
+    if (!nodes || !visible) return
+    selectedDocId.value = INJECTED_DOC_ID
+    docNodes.value = injectedRoot.value
+  },
+  { immediate: true },
+)
+
+// 提案集合整体变化（重新执行）时清空旧勾选，避免失效 key 混入插入与回执
+watch(
+  () => props.injectedNodes,
+  () => {
+    selectedMap.value = {}
+    emitSelection()
+  },
+)
 </script>
 
 <template>
   <el-dialog
+    v-if="!inline"
     class="case-selector-dialog"
     :model-value="modelValue"
     title="选择关联用例"
@@ -199,8 +268,7 @@ onMounted(() => {
     @update:model-value="close"
   >
     <div class="case-selector">
-      <!-- 左侧模块树 -->
-      <div v-loading="loading" class="case-selector__tree">
+      <div v-if="!injectedNodes" v-loading="loading" class="case-selector__tree">
         <el-tree
           ref="treeRef"
           :data="modules"
@@ -220,7 +288,6 @@ onMounted(() => {
         </el-tree>
       </div>
 
-      <!-- 右侧脑图式勾选树 -->
       <div class="case-selector__content">
         <div v-if="!selectedDocId" class="case-selector__hint">
           <el-empty description="请在左侧选择一个文档" :image-size="60" />
@@ -243,7 +310,7 @@ onMounted(() => {
             </el-select>
           </div>
           <div class="case-selector__toolbar">
-            <el-checkbox v-model="showFullDoc" size="small">展示全量文档视图</el-checkbox>
+            <el-checkbox v-if="!injectedNodes" v-model="showFullDoc" size="small">展示全量文档视图</el-checkbox>
             <div class="case-selector__toolbar-right">
               <span class="case-selector__tip">{{
                 single ? '仅可关联一个用例，再次选择将替换' : '勾选任意节点，其子孙用例将一并规划'
@@ -276,6 +343,54 @@ onMounted(() => {
       <el-button type="primary" @click="handleConfirm">确定关联 ({{ totalSelected }})</el-button>
     </template>
   </el-dialog>
+
+  <div v-else v-show="modelValue" class="case-selector-inline">
+    <div class="case-selector">
+      <div class="case-selector__content">
+        <div v-if="!selectedDocId" class="case-selector__hint">
+          <el-empty description="暂无可勾选的用例" :image-size="60" />
+        </div>
+        <div v-else class="case-selector__body">
+          <div class="case-selector__filters">
+            <el-input v-model="filterKeyword" size="small" placeholder="搜索用例名称" clearable>
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-select
+              v-model="filterPriority"
+              size="small"
+              placeholder="优先级"
+              clearable
+              class="case-selector__priority"
+            >
+              <el-option v-for="p in priorities" :key="p" :label="p" :value="p" />
+            </el-select>
+          </div>
+          <div class="case-selector__toolbar">
+            <span class="case-selector__tip">勾选要插入脑图的用例及属性节点</span>
+            <span class="case-selector__count">已选 {{ totalSelected }} 个用例</span>
+          </div>
+          <div class="case-selector__canvas">
+            <CaseSelectTree
+              v-if="selectableRoot && (!filterSets || filterSets.visible.size > 0)"
+              :node="selectableRoot"
+              :stats="nodeStats"
+              :visible-ids="filterSets ? filterSets.visible : null"
+              :matched-ids="filterSets ? filterSets.matched : null"
+              :single="single"
+              @toggle="handleToggle"
+            />
+            <el-empty
+              v-else
+              :description="selectableRoot ? '无匹配用例' : '暂无可勾选的用例'"
+              :image-size="40"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -283,6 +398,11 @@ onMounted(() => {
   display: flex;
   height: 100%;
   gap: 12px;
+}
+
+.case-selector-inline {
+  height: 100%;
+  min-height: 320px;
 }
 
 .case-selector__tree {

@@ -32,11 +32,12 @@ export type AiProposalConfirmStatus =
 /** 提案采纳动作（Constants.AiProposalAction） */
 export type AiProposalAction = 'adopted' | 'adopted_edited' | 'rejected'
 
-/** 任务类型（Constants.AiTaskType，10 类单一事实源） */
+/** 任务类型（Constants.AiTaskType，11 类单一事实源） */
 export type AiTaskType =
   | 'requirement_import'
   | 'test_design_generation'
   | 'case_optimize'
+  | 'mindmap_case_generation'
   | 'plan_order'
   | 'bug_classify'
   | 'bug_duplicate_scan'
@@ -259,7 +260,7 @@ export interface AiGenerationScopeItem {
 // ==================== 辅助建议（辅助功能详设 3.2–3.4） ====================
 
 /** 辅助任务类型（脑图工具栏与计划详情各自发起，提案形态见详设 3.2–3.4） */
-export type AiAssistTaskType = 'case_optimize' | 'plan_order'
+export type AiAssistTaskType = 'case_optimize' | 'mindmap_case_generation' | 'plan_order'
 
 /** 来源引用（详设 3.2 / 3.3）：用例优化带 quote，执行顺序建议不带 */
 export interface AiAssistSourceRef {
@@ -308,6 +309,16 @@ export interface AiPlanOrderItem {
   reason: string
 }
 
+/** 脑图生成用例提案（详设 3.4）：逐用例一条，含完整属性与来源引用 */
+export interface AiCaseGenerationSuggestion {
+  priority: string
+  precondition: string[]
+  steps: string[]
+  expected: string[]
+  tags: string[]
+  sourceRefs: AiAssistSourceRef[]
+}
+
 export interface AiPlanOrderSuggestion {
   planId: string
   items: AiPlanOrderItem[]
@@ -315,4 +326,7 @@ export interface AiPlanOrderSuggestion {
   afterOrder: string[]
 }
 
-export type AiAssistSuggestion = AiCaseOptimizeOperationSuggestion | AiPlanOrderSuggestion
+export type AiAssistSuggestion =
+  | AiCaseOptimizeOperationSuggestion
+  | AiCaseGenerationSuggestion
+  | AiPlanOrderSuggestion
