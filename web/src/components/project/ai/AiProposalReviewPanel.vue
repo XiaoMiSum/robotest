@@ -364,16 +364,16 @@ async function submitReject(): Promise<void> {
             v-if="row.confirmStatus === 'pending' && (canEdit || canReject)"
             class="proposal-review__card-actions"
           >
-            <el-button v-if="canEdit" type="primary" :loading="confirming" @click="adopt(row)">
+            <el-button link type="primary" :loading="confirming" @click="adopt(row)">
               采纳
             </el-button>
-            <el-button v-if="canEdit" :loading="confirming" @click="openEdit(row)">
+            <el-button link type="primary" :loading="confirming" @click="openEdit(row)">
               修改后采纳
             </el-button>
             <el-button
               v-if="canReject"
+              link
               type="danger"
-              plain
               :loading="confirming"
               @click="openReject(row.key)"
             >
@@ -654,6 +654,7 @@ async function submitReject(): Promise<void> {
 .proposal-review__card-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-sm);
 }
 
