@@ -1,6 +1,7 @@
 import {
   caseOptimizeOperationLabel,
   caseOptimizeOperationUnchanged,
+  readCaseGeneration,
   readCaseOptimizeOperations,
   readPlanOrder,
 } from '@/composables/project/ai/assistPresentation'
@@ -262,6 +263,22 @@ const caseOptimizeProfile: ProposalReviewProfile = {
   },
 }
 
+/** 脑图生成用例的节点插入在脑图面板执行，任务详情仅只读展示用例属性（详设 3.4 / 4.4） */
+const mindmapCaseGenerationProfile: ProposalReviewProfile = {
+  ...readonlyProfile('mindmap_case_generation', '脑图生成用例结果'),
+  parse(content, fallbackTitle) {
+    const parsed = emptyParsed(fallbackTitle)
+    const view = readCaseGeneration(content)
+    if (view.precondition.length) parsed.fields.push({ label: '前置条件', value: joinValues(view.precondition) })
+    parsed.fields.push({ label: '优先级', value: view.priority || '—' })
+    parsed.fields.push({ label: '操作步骤', value: joinValues(view.steps) })
+    parsed.fields.push({ label: '预期结果', value: joinValues(view.expected) })
+    parsed.fields.push({ label: '标签', value: joinValues(view.tags) })
+    parsed.sourceRefs = view.sourceRefs.map((ref) => ({ ...ref, changed: false }))
+    return parsed
+  },
+}
+
 /** 生成链与缺陷批量分类走专用面板，注册表仅登记其分发与树形态 */
 function specializedProfile(
   taskType: string,
@@ -284,6 +301,7 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   requirement_import: requirementProfile('requirement_import', '导入结果审核'),
   requirement_split: requirementProfile('requirement_split', '拆分结果审核'),
   case_optimize: caseOptimizeProfile,
+  mindmap_case_generation: mindmapCaseGenerationProfile,
   plan_order: planOrderProfile,
   test_design_generation: specializedProfile('test_design_generation', '用例生成', 'tree', true),
   bug_classify: specializedProfile('bug_classify', '缺陷批量分类', 'bug', false),

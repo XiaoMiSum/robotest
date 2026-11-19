@@ -10,11 +10,14 @@ import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/
 import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
 import { useCaseRequirementLink } from '@/composables/project/functional-testing/mindmap/useCaseRequirementLink'
 import { useCaseAssistEntry } from '@/composables/project/ai/useCaseAssistEntry'
+import { useCaseGenerationEntry } from '@/composables/project/ai/useCaseGenerationEntry'
 import { useCaseOptimizeExecution } from '@/composables/project/functional-testing/mindmap/useCaseOptimizeExecution'
+import { useCaseGenerationInsert } from '@/composables/project/functional-testing/mindmap/useCaseGenerationInsert'
 import { useCaseNodePopover } from '@/composables/project/functional-testing/mindmap/useCaseNodePopover'
 import type { ClickedMinderNode } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
 import CaseNodeActionPopover from './CaseNodeActionPopover.vue'
 import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
+import AiCaseGenerationPanel from '@/components/project/functional-testing/case/AiCaseGenerationPanel.vue'
 import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
@@ -142,6 +145,39 @@ const {
   selectedType: () => selectedType.value,
   isReadonly: () => getMinder()?.getStatus?.() === 'readonly',
   executeOperations: (operations, caseNodeId) => caseOptimizeExecution.execute(operations, caseNodeId),
+})
+
+// 脑图生成用例：提案节点插入当前文档根节点下，再走既有 WS 持久化管道（详设 4.4）
+const caseGenerationInsert = useCaseGenerationInsert(getMinderTyped, persistence.flushPersistenceNow)
+
+const {
+  entryVisible: caseGenEntryVisible,
+  gateReason: caseGenGateReason,
+  pickerVisible: caseGenPickerVisible,
+  pickerPicks: caseGenPickerPicks,
+  selectedRequirement: caseGenRequirement,
+  panelVisible: caseGenPanelVisible,
+  rows: caseGenRows,
+  loading: caseGenLoading,
+  confirming: caseGenConfirming,
+  receipt: caseGenReceipt,
+  running: caseGenRunning,
+  failed: caseGenFailed,
+  failedReason: caseGenFailedReason,
+  retryable: caseGenRetryable,
+  progressText: caseGenProgressText,
+  loadError: caseGenLoadError,
+  openPicker: openCaseGeneration,
+  confirmRequirement: confirmCaseGenerationRequirement,
+  insert: insertGeneratedCases,
+  retry: retryCaseGeneration,
+  confirmAgain: confirmCaseGenerationAgain,
+  refresh: refreshCaseGeneration,
+  clearReceipt: clearCaseGenerationReceipt,
+} = useCaseGenerationEntry({
+  documentId: () => props.docId,
+  isReadonly: () => getMinder()?.getStatus?.() === 'readonly',
+  insertCases: (cases) => caseGenerationInsert.execute(cases),
 })
 
 // 悬浮窗与选取器复用同一实例，保证回显与全量覆盖语义一致
@@ -340,6 +376,15 @@ const handleLayoutCommand = (command: unknown) => {
           @click="nodeOps.markPriority(p)"
         >{{ p }}</el-button>
       </div>
+
+      <!-- AI 测试用例入口常驻工具条最右，全屏与非全屏共用同一按钮（详设 5.1） -->
+      <div v-if="caseGenEntryVisible" class="toolbar-ai-entry">
+        <el-tooltip :content="caseGenGateReason || '根据需求生成用例并插入当前脑图'" placement="bottom">
+          <el-button text :disabled="Boolean(caseGenGateReason)" @click="openCaseGeneration">
+            <el-icon><MagicStick /></el-icon><span>AI测试用例</span>
+          </el-button>
+        </el-tooltip>
+      </div>
     </div>
 
     <div
@@ -474,6 +519,34 @@ const handleLayoutCommand = (command: unknown) => {
       allow-empty
       @confirm="(ids) => void requirementLink.confirm(ids)"
     />
+
+    <!-- AI 测试用例：需求单选 → 生成提案 → 勾选插入当前文档（详设 5.2） -->
+    <RequirementPickerDialog
+      v-model="caseGenPickerVisible"
+      :initial="caseGenPickerPicks"
+      :multiple="false"
+      @confirm="(ids, picks) => void confirmCaseGenerationRequirement(ids, picks)"
+    />
+
+    <AiCaseGenerationPanel
+      v-model="caseGenPanelVisible"
+      :requirement="caseGenRequirement"
+      :rows="caseGenRows"
+      :loading="caseGenLoading"
+      :confirming="caseGenConfirming"
+      :running="caseGenRunning"
+      :failed="caseGenFailed"
+      :failed-reason="caseGenFailedReason"
+      :progress-text="caseGenProgressText"
+      :retryable="caseGenRetryable"
+      :receipt="caseGenReceipt"
+      :load-error="caseGenLoadError"
+      @insert="insertGeneratedCases"
+      @retry="retryCaseGeneration"
+      @retry-item="(key) => void confirmCaseGenerationAgain(key)"
+      @refresh="refreshCaseGeneration"
+      @clear-receipt="clearCaseGenerationReceipt"
+    />
     </template>
   </div>
 </template>
@@ -558,6 +631,12 @@ $priorities: p0, p1, p2, p3;
 }
 
 .toolbar-btn--danger { --el-button-hover-text-color: var(--color-danger); }
+
+.toolbar-ai-entry {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
 
 .toolbar-caret { margin-left: 2px; font-size: 10px; }
 

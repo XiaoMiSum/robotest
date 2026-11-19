@@ -2,12 +2,15 @@ import type {
   AiAssistSourceRef,
   AiAssistSuggestion,
   AiAssistTaskType,
+  AiCaseGenerationSuggestion,
   AiCaseOptimizeField,
   AiCaseOptimizeNodeType,
   AiCaseOptimizeOperation,
   AiCaseOptimizeOperationSuggestion,
   AiPlanOrderItem,
   AiPlanOrderSuggestion,
+  CaseNodeType,
+  TestCaseNode,
 } from '@/types'
 
 export const CASE_OPTIMIZE_FIELD_LABEL: Record<AiCaseOptimizeField, string> = {
@@ -139,6 +142,52 @@ export function readPlanOrder(content: Record<string, unknown>): AiPlanOrderSugg
   }
 }
 
+/** 脑图生成用例提案（详设 3.4）：属性数组 + 来源引用，缺省值按后端清洗口径回落 */
+export function readCaseGeneration(content: Record<string, unknown>): AiCaseGenerationSuggestion {
+  return {
+    priority: readString(content, 'priority'),
+    precondition: readStrings(content['precondition']),
+    steps: readStrings(content['steps']),
+    expected: readStrings(content['expected']),
+    tags: readStrings(content['tags']),
+    sourceRefs: readSourceRefs(content['sourceRefs']),
+  }
+}
+
+/** 提案 → 选择器勾选树：节点 id 沿用提案 key，插入时据此定位提案并回传确认状态 */
+export function caseGenerationNodeOf(
+  key: string,
+  title: string,
+  view: AiCaseGenerationSuggestion,
+): TestCaseNode {
+  let order = 0
+  const child = (type: CaseNodeType, text: string): TestCaseNode => ({
+    id: `${key}-${type}-${order++}`,
+    parentId: key,
+    type,
+    title: text,
+    priority: null,
+    sortOrder: order,
+    version: 1,
+    children: [],
+  })
+  return {
+    id: key,
+    parentId: null,
+    type: 'case',
+    title,
+    priority: view.priority || null,
+    sortOrder: 0,
+    version: 1,
+    aiGenerated: true,
+    children: [
+      ...view.precondition.map((text) => child('precondition', text)),
+      ...view.steps.map((text) => child('step', text)),
+      ...view.expected.map((text) => child('expected', text)),
+    ],
+  }
+}
+
 /** 产物内容未加载（或已被确认后清空）时返回 null，面板降级为只读占位 */
 export function readAssistSuggestion(
   kind: AiAssistTaskType,
@@ -146,7 +195,14 @@ export function readAssistSuggestion(
 ): AiAssistSuggestion | null {
   if (!content) return null
   if (kind === 'case_optimize') return readCaseOptimizeOperations(content)
+  if (kind === 'mindmap_case_generation') return readCaseGeneration(content)
   return readPlanOrder(content)
+}
+
+export function isCaseGenerationSuggestion(
+  view: AiAssistSuggestion | null,
+): view is AiCaseGenerationSuggestion {
+  return view !== null && 'steps' in view
 }
 
 export function isCaseOptimizeSuggestion(
