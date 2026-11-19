@@ -970,10 +970,10 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
 ├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底）
-├── AiProposalReviewPanel（通用提案审核区，proposals_ready 且有提案时渲染，各能力域复用）
-│   ├── ProposalCard（当前待处理提案明细卡片，仅 1 条：类型/标题/状态标签、描述、字段、来源、警示）
-│   ├── ProposalCompareView（既有 vs 建议三列分区对照，变更项高亮、无变化项折叠）
-│   └── CardActions（卡片内单条采纳、编辑后采纳、驳回附反馈；无勾选 / 全选 / 批量）
+├── AiProposalReviewPanel（通用提案审核区，单卡直出当前 1 条提案，proposals_ready 且有提案时渲染，各能力域复用）
+│   ├── ProposalContent（类型/标题/状态标签、描述、字段、来源、警示，均为卡内区块而非子卡）
+│   ├── ProposalCompareView（卡内轻量三列对照，无表格外框，变更项高亮、无变化项折叠）
+│   └── CardActions（卡内单条采纳、编辑后采纳、驳回附反馈，右对齐 link；无勾选 / 全选 / 批量）
 └── AiTaskAdoptionResultPanel（closed 态只读回看卡片：逐条状态标签、提案标题与驳回原因，可展开查看产物明细）
     ├── AdoptionCard（卡片头 + 展开/收起，首次展开按需拉取提案详情）
     └── ProposalDetailView（按任务类型解析 content：描述、结构化字段、来源引用、既有 vs 建议对照与警示，复用 ProposalCompareView）
@@ -1116,3 +1116,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-19 | 3.6.3 / 5.2 `closed` 态采纳结果回看改为可展开收起的只读卡片，首次展开按需拉取提案详情并按任务类型解析展示，组件结构同步 |
 | V1.0 | 2026-11-19 | 5.2 通用提案审核区改明细卡片直出待处理前 3 条并移除勾选与批量操作；新增 `ProposalCompareView` 三列分区对照组件，回看明细一并复用 |
 | V1.0 | 2026-11-19 | 5.2 审核区组件树口径改为只展示当前 1 条待处理提案，确认成功后刷新清单并自动切换下一条 |
+| V1.0 | 2026-11-19 | 5.2 审核区扁平化为单卡：组件树移除 ProposalCard 层级，对比组件改卡内轻量三列，动作区右对齐 link |
