@@ -74,7 +74,7 @@ describe('CaseNodeActionPopover', () => {
 
 describe('CaseNodeActionPopover · 透明背景按钮', () => {
   it('悬浮窗不渲染卡片底色与阴影，入口使用文字按钮', () => {
-    expect(popoverSource).toContain('<el-button text class="case-node-popover__item"')
+    expect(popoverSource).toContain('<el-button text class="case-node-popover__item case-node-popover__item--ai"')
     expect(popoverSource).not.toContain('background: var(--el-bg-color)')
     expect(popoverSource).not.toContain('box-shadow: var(--el-box-shadow-light)')
   })
@@ -82,5 +82,18 @@ describe('CaseNodeActionPopover · 透明背景按钮', () => {
   it('两个入口渲染为 Element Plus 文字按钮', () => {
     mountPopover()
     expect(items().every((item) => item.classList.contains('el-button') && item.classList.contains('is-text'))).toBe(true)
+  })
+
+  it('两入口水平并排并采用差异化色彩与 AI 闪烁强调', () => {
+    expect(popoverSource).toContain('flex-direction: row;')
+    expect(popoverSource).toContain('--el-button-text-color: var(--color-success);')
+    expect(popoverSource).toContain('animation: case-node-ai-pulse')
+    expect(popoverSource).toContain('--el-button-text-color: var(--color-primary-500);')
+  })
+
+  it('AI 优化与关联需求渲染各自的样式类', () => {
+    mountPopover()
+    expect(items()[0].classList.contains('case-node-popover__item--ai')).toBe(true)
+    expect(items()[1].classList.contains('case-node-popover__item--link')).toBe(true)
   })
 })
