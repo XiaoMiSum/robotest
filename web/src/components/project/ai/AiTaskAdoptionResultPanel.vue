@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { AiTaskProposalSummary } from '@/types'
 import {
   aiProposalConfirmMeta,
@@ -7,15 +7,54 @@ import {
   aiTaskAdoptionProposals,
   type AiTaskAdoptionResultMeta,
 } from '@/composables/project/ai/taskPresentation'
+import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
+import AiProposalDetailView from './AiProposalDetailView.vue'
 
 const props = defineProps<{
+  taskId: string
+  taskType: string
   /** 最新一次执行的提案清单摘要 */
   proposals: AiTaskProposalSummary[]
   /** 任务级采纳结果（按提案确认状态聚合） */
   result: AiTaskAdoptionResultMeta | null
 }>()
 
-const rows = computed(() => aiTaskAdoptionProposals(props.proposals))
+const base = useAiProposalReview(
+  props.taskId,
+  () => aiTaskAdoptionProposals(props.proposals),
+  () => false,
+  () => {},
+  () => props.taskType,
+)
+
+base.syncRows()
+// 详情刷新（再次执行等）后重建回看卡片，展开态按仍存在的 key 保留
+watch(
+  () => props.proposals,
+  () => base.syncRows(),
+)
+
+const rows = computed(() => base.rows.value)
+const activeKeys = ref<string[]>([])
+const loadingKeys = ref<string[]>([])
+const failedKeys = ref<string[]>([])
+
+/** 首次展开才拉明细，收起后重展复用已加载内容 */
+async function loadDetail(key: string): Promise<void> {
+  const row = rows.value.find((item) => item.key === key)
+  if (!row || row.contentLoaded || loadingKeys.value.includes(key)) return
+  failedKeys.value = failedKeys.value.filter((item) => item !== key)
+  loadingKeys.value = [...loadingKeys.value, key]
+  await base.loadContent(row)
+  loadingKeys.value = loadingKeys.value.filter((item) => item !== key)
+  if (!row.contentLoaded) failedKeys.value = [...failedKeys.value, key]
+}
+
+watch(activeKeys, (keys, previous) => {
+  for (const key of keys) {
+    if (!previous?.includes(key)) void loadDetail(key)
+  }
+})
 </script>
 
 <template>
@@ -27,20 +66,35 @@ const rows = computed(() => aiTaskAdoptionProposals(props.proposals))
       </el-tag>
     </div>
     <p v-if="rows.length === 0" class="adoption-result__empty">本次执行没有采纳或驳回记录</p>
-    <ul v-else class="adoption-result__list">
-      <li v-for="row in rows" :key="row.key" class="adoption-result__row">
-        <span class="adoption-result__name" :title="row.title ?? row.key">
-          {{ row.title ?? row.key }}
-        </span>
-        <span class="adoption-result__kind">{{ aiProposalKindLabel(row.kind) }}</span>
-        <el-tag :type="aiProposalConfirmMeta(row.confirmStatus).tagType" size="small" effect="plain">
-          {{ aiProposalConfirmMeta(row.confirmStatus).label }}
-        </el-tag>
-        <span v-if="row.note" class="adoption-result__note">
-          {{ row.confirmStatus === 'rejected' ? '驳回原因' : '备注' }}：{{ row.note }}
-        </span>
-      </li>
-    </ul>
+    <el-collapse v-else v-model="activeKeys" class="adoption-result__list">
+      <el-collapse-item v-for="row in rows" :key="row.key" :name="row.key">
+        <template #title>
+          <div class="adoption-result__head-row">
+            <span class="adoption-result__kind">{{ aiProposalKindLabel(row.kind) }}</span>
+            <span class="adoption-result__name" :title="row.title ?? row.key">
+              {{ row.title ?? row.key }}
+            </span>
+            <el-tag
+              :type="aiProposalConfirmMeta(row.confirmStatus).tagType"
+              size="small"
+              effect="plain"
+            >
+              {{ aiProposalConfirmMeta(row.confirmStatus).label }}
+            </el-tag>
+          </div>
+          <span v-if="row.note" class="adoption-result__note">
+            {{ row.confirmStatus === 'rejected' ? '驳回原因' : '备注' }}：{{ row.note }}
+          </span>
+        </template>
+        <div v-loading="loadingKeys.includes(row.key)" class="adoption-result__detail">
+          <template v-if="failedKeys.includes(row.key)">
+            <span class="adoption-result__error">产物明细加载失败</span>
+            <el-button link type="primary" @click="loadDetail(row.key)">重试</el-button>
+          </template>
+          <AiProposalDetailView v-else-if="row.contentLoaded" :row="row" :task-type="taskType" />
+        </div>
+      </el-collapse-item>
+    </el-collapse>
   </section>
 </template>
 
@@ -72,23 +126,13 @@ const rows = computed(() => aiTaskAdoptionProposals(props.proposals))
   font-size: var(--font-size-sm);
 }
 
-.adoption-result__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.adoption-result__row {
+.adoption-result__head-row {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-xs) 0;
-  border-bottom: 1px solid var(--color-neutral-200);
-
-  &:last-child {
-    border-bottom: none;
-  }
+  min-width: 0;
 }
 
 .adoption-result__kind,
@@ -105,5 +149,19 @@ const rows = computed(() => aiTaskAdoptionProposals(props.proposals))
   font-size: var(--font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.adoption-result__note {
+  margin-left: auto;
+}
+
+.adoption-result__detail {
+  min-height: 24px;
+}
+
+.adoption-result__error {
+  margin-right: var(--space-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
 }
 </style>

@@ -242,7 +242,12 @@ function focusReviewArea(): void {
 
         <!-- 已结束：逐条只读回看采纳 / 驳回结果，不提供操作（交互 2.2） -->
         <section v-if="showAdoptionResult" class="task-section">
-          <AiTaskAdoptionResultPanel :proposals="proposals" :result="adoptionResult" />
+          <AiTaskAdoptionResultPanel
+            :task-id="detail.taskId"
+            :task-type="detail.type"
+            :proposals="proposals"
+            :result="adoptionResult"
+          />
         </section>
       </template>
     </template>
