@@ -96,4 +96,9 @@ describe('CaseNodeActionPopover · 透明背景按钮', () => {
     expect(items()[0].classList.contains('case-node-popover__item--ai')).toBe(true)
     expect(items()[1].classList.contains('case-node-popover__item--link')).toBe(true)
   })
+
+  it('两个入口的悬浮提示均展示在下方', () => {
+    expect(popoverSource.match(/placement="bottom"/g) ?? []).toHaveLength(2)
+    expect(popoverSource).not.toContain('placement="right"')
+  })
 })
