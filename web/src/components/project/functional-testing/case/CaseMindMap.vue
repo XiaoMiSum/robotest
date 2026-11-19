@@ -15,7 +15,7 @@ import type { ClickedMinderNode } from '@/composables/project/functional-testing
 import CaseNodeActionPopover from './CaseNodeActionPopover.vue'
 import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
 import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps<{ docId: string }>()
 
@@ -161,6 +161,8 @@ const syncFullscreen = () => {
 onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen))
 onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen))
 
+const hasSelectedNode = computed(() => Boolean(selectedNodeId.value))
+
 type EditCommand = 'undo' | 'redo' | 'addChild' | 'addSibling' | 'edit' | 'delete'
 const editActions: Record<EditCommand, () => void> = {
   undo: () => nodeOps.undo(),
@@ -210,17 +212,17 @@ const handleLayoutCommand = (command: unknown) => {
                 <el-dropdown-item command="redo" :disabled="!nodeOps.canRedo.value" class="toolbar-menu-item">
                   <span>重做</span><span class="menu-shortcut">Ctrl+Y</span>
                 </el-dropdown-item>
-                <el-dropdown-item command="addChild" divided class="toolbar-menu-item">
-                  <span>添加子节点</span><span class="menu-shortcut">Tab</span>
+                <el-dropdown-item command="addChild" divided class="toolbar-menu-item" :disabled="!hasSelectedNode">
+                  <span>新建下级节点</span><span class="menu-shortcut">Tab</span>
                 </el-dropdown-item>
-                <el-dropdown-item command="addSibling" class="toolbar-menu-item">
-                  <span>添加兄弟节点</span><span class="menu-shortcut">Enter</span>
+                <el-dropdown-item command="addSibling" class="toolbar-menu-item" :disabled="!hasSelectedNode">
+                  <span>新建同级节点</span><span class="menu-shortcut">Enter</span>
                 </el-dropdown-item>
-                <el-dropdown-item command="edit" class="toolbar-menu-item">
+                <el-dropdown-item command="edit" class="toolbar-menu-item" :disabled="!hasSelectedNode">
                   <span>编辑内容</span><span class="menu-shortcut">F2</span>
                 </el-dropdown-item>
-                <el-dropdown-item command="delete" divided class="toolbar-menu-item toolbar-menu-item--danger">
-                  <span>删除</span><span class="menu-shortcut">Delete</span>
+                <el-dropdown-item command="delete" divided class="toolbar-menu-item toolbar-menu-item--danger" :disabled="!hasSelectedNode">
+                  <span>删除节点</span><span class="menu-shortcut">Delete</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -265,16 +267,16 @@ const handleLayoutCommand = (command: unknown) => {
         <el-divider direction="vertical" />
         <div class="toolbar-group">
           <el-tooltip content="添加子节点 (Tab)" placement="bottom">
-            <el-button text @click="nodeOps.addChild"><el-icon><Plus /></el-icon><span>下级</span></el-button>
+            <el-button text :disabled="!hasSelectedNode" @click="nodeOps.addChild"><el-icon><Plus /></el-icon><span>下级</span></el-button>
           </el-tooltip>
           <el-tooltip content="添加兄弟节点 (Enter)" placement="bottom">
-            <el-button text @click="nodeOps.addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
+            <el-button text :disabled="!hasSelectedNode" @click="nodeOps.addSibling"><el-icon><Plus /></el-icon><span>同级</span></el-button>
           </el-tooltip>
           <el-tooltip content="编辑内容 (双击节点/F2)" placement="bottom">
-            <el-button text @click="nodeOps.editSelectedText"><el-icon><EditPen /></el-icon></el-button>
+            <el-button text :disabled="!hasSelectedNode" @click="nodeOps.editSelectedText"><el-icon><EditPen /></el-icon></el-button>
           </el-tooltip>
           <el-tooltip content="删除 (Delete)" placement="bottom">
-            <el-button text class="toolbar-btn--danger" @click="nodeOps.deleteNode"><el-icon><Delete /></el-icon></el-button>
+            <el-button text class="toolbar-btn--danger" :disabled="!hasSelectedNode" @click="nodeOps.deleteNode"><el-icon><Delete /></el-icon></el-button>
           </el-tooltip>
         </div>
         <el-divider direction="vertical" />
@@ -545,6 +547,8 @@ $priorities: p0, p1, p2, p3;
   --el-dropdown-menuItem-hover-fill: #{menu.$minder-menu-hover-fill};
   --el-dropdown-menuItem-hover-color: #{menu.$minder-menu-danger-color};
   color: menu.$minder-menu-danger-color;
+
+  &.is-disabled { color: var(--el-text-color-disabled); }
 }
 
 .menu-action {
@@ -558,6 +562,7 @@ $priorities: p0, p1, p2, p3;
 }
 
 .menu-shortcut {
+  margin-left: auto;
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }

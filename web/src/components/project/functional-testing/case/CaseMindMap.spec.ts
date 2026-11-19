@@ -97,3 +97,18 @@ describe('CaseMindMap · 用例节点悬浮窗（交互 04 §1.2）', () => {
     expect(source).not.toContain('如需修改请在顶部工具条操作')
   })
 })
+
+describe('CaseMindMap · 编辑下拉节点操作', () => {
+  it('下拉项使用新文案，快捷键右对齐且删除项带警示色', () => {
+    expect(source).toContain('<span>新建下级节点</span><span class="menu-shortcut">Tab</span>')
+    expect(source).toContain('<span>新建同级节点</span><span class="menu-shortcut">Enter</span>')
+    expect(source).toContain('<span>删除节点</span><span class="menu-shortcut">Delete</span>')
+    expect(source).toContain('toolbar-menu-item toolbar-menu-item--danger')
+    expect(source).toContain('.menu-shortcut {\n  margin-left: auto;')
+  })
+
+  it('节点操作在编辑下拉与全屏工具栏均按选中态置灰', () => {
+    expect(source).toContain('const hasSelectedNode = computed(() => Boolean(selectedNodeId.value))')
+    expect(source.match(/:disabled="!hasSelectedNode"/g) ?? []).toHaveLength(8)
+  })
+})
