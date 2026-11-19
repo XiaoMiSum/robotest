@@ -10,6 +10,7 @@ import { useMindmapYjs } from '@/composables/project/functional-testing/mindmap/
 import { useMindmapInit } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
 import { useCaseRequirementLink } from '@/composables/project/functional-testing/mindmap/useCaseRequirementLink'
 import { useCaseAssistEntry } from '@/composables/project/ai/useCaseAssistEntry'
+import { useCaseOptimizeExecution } from '@/composables/project/functional-testing/mindmap/useCaseOptimizeExecution'
 import { useCaseNodePopover } from '@/composables/project/functional-testing/mindmap/useCaseNodePopover'
 import type { ClickedMinderNode } from '@/composables/project/functional-testing/mindmap/useMindmapInit'
 import CaseNodeActionPopover from './CaseNodeActionPopover.vue'
@@ -102,7 +103,13 @@ watch(menuVisible, (visible) => {
   if (visible) caseNodePopover.close()
 })
 
-// AI 优化入口（详设 5.1）：选中用例节点发起，采纳后重载脑图同步落库结果
+// 用例优化的节点操作在当前脑图树上执行，不再重载整棵脑图（交互 2.1.2）
+const caseOptimizeExecution = useCaseOptimizeExecution(
+  getMinderTyped,
+  persistence.flushPersistenceNow,
+)
+
+// AI 优化入口（详设 5.1）：选中用例节点发起，采纳后即时更新脑图节点并落库
 const {
   entryVisible: assistEntryVisible,
   gateReason: assistGateReason,
@@ -134,7 +141,7 @@ const {
   selectedNodeId: () => selectedNodeId.value,
   selectedType: () => selectedType.value,
   isReadonly: () => getMinder()?.getStatus?.() === 'readonly',
-  onConfirmed: () => void initMinder(),
+  executeOperations: (operations) => caseOptimizeExecution.execute(operations),
 })
 
 // 悬浮窗与选取器复用同一实例，保证回显与全量覆盖语义一致
@@ -455,6 +462,7 @@ const handleLayoutCommand = (command: unknown) => {
     <RequirementPickerDialog
       v-model="requirementLink.visible.value"
       :initial="requirementLink.picks()"
+      :multiple="false"
       allow-empty
       @confirm="(ids) => void requirementLink.confirm(ids)"
     />

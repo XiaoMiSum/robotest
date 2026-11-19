@@ -99,6 +99,7 @@ describe('useMindmapPersistence', () => {
       priority: null,
       parentId: null,
       sortOrder: 0,
+      tags: [],
     })
     expect(nodes.get(ID_B)).toEqual({
       title: 'Child',
@@ -106,6 +107,7 @@ describe('useMindmapPersistence', () => {
       priority: null,
       parentId: ID_A,
       sortOrder: 0,
+      tags: [],
     })
   })
 
@@ -130,6 +132,18 @@ describe('useMindmapPersistence', () => {
     const root = makeNode(ID_A, 'Root')
     const { collectLiveNodes } = useMindmapPersistence(() => makeMinder(root))
     expect(collectLiveNodes().get(ID_A)?.type).toBe('normal')
+  })
+
+  it('collectLiveNodes 采集 tags 并过滤非字符串项', () => {
+    const root = makeNode(ID_A, 'Root', [], { tags: ['登录', 42, null, '高优'] })
+    const { collectLiveNodes } = useMindmapPersistence(() => makeMinder(root))
+    expect(collectLiveNodes().get(ID_A)?.tags).toEqual(['登录', '高优'])
+  })
+
+  it('collectLiveNodes 无 tags 时给空数组', () => {
+    const root = makeNode(ID_A, 'Root', [], { tags: '畸形' })
+    const { collectLiveNodes } = useMindmapPersistence(() => makeMinder(root))
+    expect(collectLiveNodes().get(ID_A)?.tags).toEqual([])
   })
 
   it('collectLiveNodes 多子节点按索引设置 sortOrder', () => {
@@ -247,6 +261,57 @@ describe('useMindmapPersistence', () => {
         },
       }),
     )
+  })
+
+  it('flushPersistence 标签变更单独发送 update_attrs 携带 tags', () => {
+    const root = makeNode(ID_A, 'Root')
+    const socket = makeSocket()
+    const factory = makeMinderFactory()
+    factory.setRoot(root)
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(factory.getMinder)
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    socket.send.mockClear()
+    factory.setRoot(makeNode(ID_A, 'Root', [], { tags: ['登录', '验证码'] }))
+    flushPersistence()
+    expect(socket.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'update_attrs',
+        payload: {
+          data: {
+            id: ID_A, title: 'Root', type: 'normal', priority: null,
+            tags: ['登录', '验证码'],
+          },
+        },
+      }),
+    )
+  })
+
+  it('flushPersistence 属性变更时不重复附带未变的 tags', () => {
+    const root = makeNode(ID_A, 'Root', [], { tags: ['登录'] })
+    const socket = makeSocket()
+    const factory = makeMinderFactory()
+    factory.setRoot(root)
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(factory.getMinder)
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    socket.send.mockClear()
+    factory.setRoot(makeNode(ID_A, 'Renamed', [], { tags: ['登录'] }))
+    flushPersistence()
+    const attrs = JSON.parse(socket.send.mock.calls[0][0])
+    expect(attrs.type).toBe('update_attrs')
+    expect(attrs.payload.data.tags).toBeUndefined()
+  })
+
+  it('flushPersistence 新节点 add_node 载荷不含 tags', () => {
+    const root = makeNode(ID_A, 'Root', [], { tags: ['登录'] })
+    const socket = makeSocket()
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(() => makeMinder(root))
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    const addMsg = JSON.parse(socket.send.mock.calls[0][0])
+    expect(addMsg.type).toBe('add_node')
+    expect(addMsg.payload.data.tags).toBeUndefined()
   })
 
   it('flushPersistence 父节点变更发送 move_node', () => {

@@ -4,13 +4,16 @@ import type {
   AiAssistSourceRef,
   AiAssistSuggestion,
   AiAssistTaskType,
+  AiCaseOptimizeField,
+  AiCaseOptimizeNodeType,
+  AiCaseOptimizeOperation,
+  AiCaseOptimizeOperationSuggestion,
   AiCaseOptimizeSuggestion,
-  AiCasePrioritySuggestion,
   AiPlanOrderItem,
   AiPlanOrderSuggestion,
 } from '@/types'
 
-/** 优化字段渲染顺序（详设 3.2 产物形态） */
+/** 旧版字段键仅用于任务详情审核视图；脑图面板消费节点操作指令 */
 export const ASSIST_FIELD_NAMES: AiAssistFieldName[] = [
   'precondition',
   'steps',
@@ -25,15 +28,23 @@ const ASSIST_FIELD_LABEL: Record<AiAssistFieldName, string> = {
   tags: '标签',
 }
 
-/** 对照面板行（交互 2.1 两栏对照） */
-export interface AssistCompareRow {
-  name: AiAssistFieldName
-  label: string
-  existing: string[]
-  suggested: string[]
-  /** changed 驱动「新增」徽标与无变化项折叠 */
-  changed: boolean
+export const CASE_OPTIMIZE_FIELD_LABEL: Record<AiCaseOptimizeField, string> = {
+  title: '标题',
+  priority: '优先级',
+  tags: '标签',
 }
+
+export const CASE_OPTIMIZE_NODE_TYPE_LABEL: Record<AiCaseOptimizeNodeType, string> = {
+  precondition: '前置条件',
+  step: '操作步骤',
+  expected: '预期结果',
+  normal: '普通节点',
+}
+
+const CASE_OPTIMIZE_FIELDS: AiCaseOptimizeField[] = ['title', 'priority', 'tags']
+const CASE_OPTIMIZE_NODE_TYPES: AiCaseOptimizeNodeType[] = [
+  'precondition', 'step', 'expected', 'normal',
+]
 
 function asRecord(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
@@ -49,7 +60,7 @@ function readStrings(raw: unknown): string[] {
   return raw.filter((item): item is string => typeof item === 'string')
 }
 
-/** existing / suggested 兼容字符串（precondition）与列表（steps / expected / tags） */
+/** existing / suggested 兼容字符串（title / priority）与列表（tags） */
 function readValues(raw: unknown): string[] {
   if (typeof raw === 'string') {
     return raw.trim() ? [raw] : []
@@ -74,17 +85,10 @@ function readSourceRefs(raw: unknown): AiAssistSourceRef[] {
   return refs
 }
 
-function readPriority(raw: unknown): AiCasePrioritySuggestion {
-  const source = asRecord(raw)
-  return {
-    current: readString(source, 'current'),
-    suggested: readString(source, 'suggested'),
-    reason: readString(source, 'reason'),
-  }
-}
-
+/** 任务详情旧版审核视图的字段模型，节点操作提案不复用 */
 export function readCaseOptimize(content: Record<string, unknown>): AiCaseOptimizeSuggestion {
   const fields = asRecord(content['fields'])
+  const priority = asRecord(content['priority'])
   return {
     nodeId: readString(content, 'nodeId'),
     fields: {
@@ -93,9 +97,67 @@ export function readCaseOptimize(content: Record<string, unknown>): AiCaseOptimi
       expected: readPair(fields['expected']),
       tags: readPair(fields['tags']),
     },
-    priority: readPriority(content['priority']),
+    priority: {
+      current: readString(priority, 'current'),
+      suggested: readString(priority, 'suggested'),
+      reason: readString(priority, 'reason'),
+    },
     sourceRefs: readSourceRefs(content['sourceRefs']),
   }
+}
+
+function readOperation(raw: unknown): AiCaseOptimizeOperation | null {
+  const source = asRecord(raw)
+  const op = readString(source, 'op')
+  if (op === 'update') {
+    const nodeId = readString(source, 'nodeId')
+    const field = readString(source, 'field') as AiCaseOptimizeField
+    if (!nodeId || !CASE_OPTIMIZE_FIELDS.includes(field)) return null
+    return {
+      op,
+      nodeId,
+      field,
+      existing: readValues(source['existing']),
+      suggested: readValues(source['suggested']),
+      path: readString(source, 'path'),
+      reason: readString(source, 'reason'),
+    }
+  }
+  if (op === 'add') {
+    const parentId = readString(source, 'parentId')
+    const nodeType = readString(source, 'nodeType') as AiCaseOptimizeNodeType
+    const title = readString(source, 'title')
+    if (!parentId || !title || !CASE_OPTIMIZE_NODE_TYPES.includes(nodeType)) return null
+    return {
+      op,
+      parentId,
+      nodeType,
+      title,
+      path: readString(source, 'path'),
+      reason: readString(source, 'reason'),
+    }
+  }
+  return null
+}
+
+export function readCaseOptimizeOperationList(raw: unknown): AiCaseOptimizeOperation[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map(readOperation).filter((op): op is AiCaseOptimizeOperation => op !== null)
+}
+
+export function readCaseOptimizeOperations(
+  content: Record<string, unknown>,
+): AiCaseOptimizeOperationSuggestion {
+  return {
+    nodeId: readString(content, 'nodeId'),
+    operations: readCaseOptimizeOperationList(content['operations']),
+    sourceRefs: readSourceRefs(content['sourceRefs']),
+  }
+}
+
+/** 编辑后采纳的载荷只写操作清单，定位字段沿用提案（详设 3.2 / 4.2） */
+export function readWireOperations(content: Record<string, unknown>): AiCaseOptimizeOperation[] {
+  return readCaseOptimizeOperationList(content['operations'])
 }
 
 export function readPlanOrder(content: Record<string, unknown>): AiPlanOrderSuggestion {
@@ -127,14 +189,14 @@ export function readAssistSuggestion(
   content: Record<string, unknown> | null,
 ): AiAssistSuggestion | null {
   if (!content) return null
-  if (kind === 'case_optimize') return readCaseOptimize(content)
+  if (kind === 'case_optimize') return readCaseOptimizeOperations(content)
   return readPlanOrder(content)
 }
 
 export function isCaseOptimizeSuggestion(
   view: AiAssistSuggestion | null,
-): view is AiCaseOptimizeSuggestion {
-  return view !== null && 'fields' in view && 'priority' in view
+): view is AiCaseOptimizeOperationSuggestion {
+  return view !== null && 'operations' in view
 }
 
 export function isPlanOrderSuggestion(view: AiAssistSuggestion | null): view is AiPlanOrderSuggestion {
@@ -149,32 +211,20 @@ function sameValues(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index])
 }
 
-/** 与现有内容不同的字段（无变化项默认折叠，交互 2.1.2） */
-export function caseOptimizeChangedFields(
-  fields: Record<AiAssistFieldName, AiAssistFieldPair>,
-): AiAssistFieldName[] {
-  return ASSIST_FIELD_NAMES.filter((name) => {
-    const pair = fields[name]
-    return !sameValues(pair.existing, pair.suggested)
-  })
+/** 更新值与现状相同视为无实质变更（新增始终视为变更），用于「全部一致」判定与徽标 */
+export function caseOptimizeOperationUnchanged(op: AiCaseOptimizeOperation): boolean {
+  return op.op === 'update' && sameValues(op.existing, op.suggested)
 }
 
-/** 两栏对照行；labels 顺序即渲染顺序 */
-export function caseOptimizeCompareRows(
-  fields: Record<AiAssistFieldName, AiAssistFieldPair>,
-): AssistCompareRow[] {
-  return ASSIST_FIELD_NAMES.map((name) => ({
-    name,
-    label: assistFieldLabel(name),
-    existing: fields[name].existing,
-    suggested: fields[name].suggested,
-    changed: !sameValues(fields[name].existing, fields[name].suggested),
-  }))
+/** 仅同值标题更新折叠为「无变化」；同级 / 标签一致照常展示以可采纳留痕（交互 2.1.1） */
+export function caseOptimizeOperationFoldable(op: AiCaseOptimizeOperation): boolean {
+  return op.op === 'update' && op.field === 'title' && sameValues(op.existing, op.suggested)
 }
 
-/** 无建议值（模型未响应）按无变化处理，不误导用户去改写既有内容 */
-export function casePriorityChanged(suggestion: AiCasePrioritySuggestion): boolean {
-  return suggestion.suggested !== '' && suggestion.suggested !== suggestion.current
+export function caseOptimizeOperationLabel(op: AiCaseOptimizeOperation): string {
+  return op.op === 'update'
+    ? CASE_OPTIMIZE_FIELD_LABEL[op.field]
+    : `新增${CASE_OPTIMIZE_NODE_TYPE_LABEL[op.nodeType]}`
 }
 
 /** 采纳前后顺序对照：按位置比对，返回发生变化的条目数（交互 2.2 前后对照） */

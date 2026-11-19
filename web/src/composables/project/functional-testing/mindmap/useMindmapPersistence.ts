@@ -12,6 +12,7 @@ export interface PersistSnap {
   priority: string | null
   parentId: string | null
   sortOrder: number
+  tags: string[]
 }
 
 interface LiveNode {
@@ -61,6 +62,9 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
         priority: (data.priority as string) ?? null,
         parentId,
         sortOrder,
+        tags: Array.isArray(data.tags)
+          ? data.tags.filter((tag): tag is string => typeof tag === 'string')
+          : [],
       })
       node.getChildren().forEach((child, index) => walk(child, id, index))
     }
@@ -98,13 +102,27 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
     for (const [id, snap] of current) {
       const prev = persistedSnapshot.get(id)
       if (!prev) {
-        sendPersistOp(socket, 'add_node', { id, ...snap })
+        // 新增节点无标签，add_node 协议不含 tags（详设 4.2）
+        sendPersistOp(socket, 'add_node', {
+          id,
+          title: snap.title,
+          type: snap.type,
+          priority: snap.priority,
+          parentId: snap.parentId,
+          sortOrder: snap.sortOrder,
+        })
         continue
       }
-      if (prev.title !== snap.title || prev.type !== snap.type || prev.priority !== snap.priority) {
-        sendPersistOp(socket, 'update_attrs', {
+      const attrsChanged = prev.title !== snap.title || prev.type !== snap.type
+        || prev.priority !== snap.priority
+      const tagsChanged = prev.tags.length !== snap.tags.length
+        || prev.tags.some((tag, index) => tag !== snap.tags[index])
+      if (attrsChanged || tagsChanged) {
+        const attrs: Record<string, unknown> = {
           id, title: snap.title, type: snap.type, priority: snap.priority,
-        })
+        }
+        if (tagsChanged) attrs.tags = snap.tags
+        sendPersistOp(socket, 'update_attrs', attrs)
       }
       if (prev.parentId !== snap.parentId || prev.sortOrder !== snap.sortOrder) {
         sendPersistOp(socket, 'move_node', { id, parentId: snap.parentId, sortOrder: snap.sortOrder })

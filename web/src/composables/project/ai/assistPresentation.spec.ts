@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
   assistFieldLabel,
-  caseOptimizeChangedFields,
-  caseOptimizeCompareRows,
-  casePriorityChanged,
+  caseOptimizeOperationFoldable,
+  caseOptimizeOperationLabel,
+  caseOptimizeOperationUnchanged,
   isCaseOptimizeSuggestion,
   isPlanOrderSuggestion,
   planOrderMovedCount,
   readAssistSuggestion,
   readCaseOptimize,
+  readCaseOptimizeOperations,
   readPlanOrder,
+  readWireOperations,
 } from './assistPresentation'
 
 describe('assistPresentation', () => {
-  describe('readCaseOptimize', () => {
+  describe('readCaseOptimize（任务详情旧版审核视图）', () => {
     it('归一字段、级别建议与来源引用', () => {
       const view = readCaseOptimize({
         nodeId: 'n1',
@@ -46,23 +48,84 @@ describe('assistPresentation', () => {
     it('结构缺字段时给空值而非猜测', () => {
       const view = readCaseOptimize({ nodeId: 'n1' })
 
-      expect(view.fields).toEqual({
-        precondition: { existing: [], suggested: [] },
-        steps: { existing: [], suggested: [] },
-        expected: { existing: [], suggested: [] },
-        tags: { existing: [], suggested: [] },
-      })
+      expect(view.fields.tags).toEqual({ existing: [], suggested: [] })
       expect(view.priority).toEqual({ current: '', suggested: '', reason: '' })
       expect(view.sourceRefs).toEqual([])
     })
+  })
 
-    it('丢弃无 id 的来源引用', () => {
-      const view = readCaseOptimize({
+  describe('readCaseOptimizeOperations（脑图操作提案）', () => {
+    it('保留 update / add 指令与定位字段，兼容字符串与列表值', () => {
+      const view = readCaseOptimizeOperations({
         nodeId: 'n1',
-        sourceRefs: [{ title: '缺 id' }, '畸形项'],
+        operations: [
+          {
+            op: 'update', nodeId: 'n1', field: 'title',
+            existing: '输入邮箱', suggested: '输入邮箱和密码',
+            path: '登录用例 › 步骤 1', reason: '补充账号类型',
+          },
+          {
+            op: 'update', nodeId: 'n1', field: 'tags',
+            existing: ['登录'], suggested: ['登录', '验证码'],
+            path: '登录用例', reason: '补充标签',
+          },
+          {
+            op: 'add', parentId: 'n1', nodeType: 'expected',
+            title: '发送成功提示', path: '登录用例', reason: '补充预期',
+          },
+        ],
+        sourceRefs: [{ id: 'r1', title: 'REQ-001', quote: '验证码 60 秒重发' }],
       })
 
-      expect(view.sourceRefs).toEqual([])
+      expect(view.nodeId).toBe('n1')
+      expect(view.operations).toHaveLength(3)
+      expect(view.operations[0]).toMatchObject({
+        op: 'update', field: 'title',
+        existing: ['输入邮箱'], suggested: ['输入邮箱和密码'],
+      })
+      expect(view.operations[1]).toMatchObject({ field: 'tags', suggested: ['登录', '验证码'] })
+      expect(view.operations[2]).toMatchObject({
+        op: 'add', parentId: 'n1', nodeType: 'expected', title: '发送成功提示',
+      })
+      expect(view.sourceRefs).toEqual([
+        { id: 'r1', title: 'REQ-001', quote: '验证码 60 秒重发' },
+      ])
+    })
+
+    it('丢弃非法字段 / 节点类型 / 缺定位字段的指令', () => {
+      const view = readCaseOptimizeOperations({
+        operations: [
+          { op: 'update', nodeId: 'n1', field: 'steps', suggested: 'x' },
+          { op: 'update', field: 'title', suggested: 'x' },
+          { op: 'add', parentId: 'n1', nodeType: 'case', title: 'x' },
+          { op: 'add', parentId: 'n1', nodeType: 'step', title: '' },
+          { op: 'unknown', nodeId: 'n1' },
+        ],
+      })
+
+      expect(view.operations).toEqual([])
+    })
+
+    it('operations 非数组时给空清单', () => {
+      expect(readCaseOptimizeOperations({ operations: '畸形' }).operations).toEqual([])
+    })
+  })
+
+  describe('readWireOperations（编辑后采纳载荷）', () => {
+    it('只保留采纳执行所需的定位与建议值，忽略现状 / 理由', () => {
+      const ops = readWireOperations({
+        operations: [
+          {
+            op: 'update', nodeId: 'n1', field: 'priority',
+            existing: 'P1', suggested: 'P0', path: '登录用例', reason: '优先级高',
+          },
+          { op: 'add', parentId: 'n1', nodeType: 'step', title: '输入密码', path: '登录用例' },
+        ],
+      })
+
+      expect(ops).toHaveLength(2)
+      expect(ops[0]).toMatchObject({ op: 'update', nodeId: 'n1', field: 'priority', suggested: ['P0'] })
+      expect(ops[1]).toMatchObject({ op: 'add', parentId: 'n1', nodeType: 'step', title: '输入密码' })
     })
   })
 
@@ -97,7 +160,7 @@ describe('assistPresentation', () => {
     it('按任务类型分发，content 为空返回 null', () => {
       expect(readAssistSuggestion('case_optimize', null)).toBeNull()
       expect(isCaseOptimizeSuggestion(
-        readAssistSuggestion('case_optimize', { fields: {}, priority: {} }),
+        readAssistSuggestion('case_optimize', { operations: [], nodeId: 'n1' }),
       )).toBe(true)
       expect(isPlanOrderSuggestion(
         readAssistSuggestion('plan_order', { beforeOrder: [], afterOrder: [] }),
@@ -112,51 +175,51 @@ describe('assistPresentation', () => {
     })
   })
 
-  describe('对照与变化派生', () => {
+  describe('派生展示', () => {
     it('字段标签按渲染口径给出', () => {
       expect(assistFieldLabel('precondition')).toBe('前置条件')
       expect(assistFieldLabel('tags')).toBe('标签')
     })
 
-    it('只返回与现有内容不同的字段', () => {
-      const view = readCaseOptimize({
-        fields: {
-          precondition: { existing: '手机号已输入', suggested: '手机号已输入' },
-          steps: { existing: ['点击获取验证码'], suggested: ['点击获取验证码', '60 秒内再次点击'] },
-          expected: { existing: [], suggested: [] },
-          tags: { existing: ['登录'], suggested: ['登录', '验证码'] },
-        },
-      })
-
-      expect(caseOptimizeChangedFields(view.fields)).toEqual(['steps', 'tags'])
+    it('更新值与现状相同视为无变化，新增始终为变更', () => {
+      expect(caseOptimizeOperationUnchanged({
+        op: 'update', nodeId: 'n1', field: 'title',
+        existing: ['同名'], suggested: ['同名'], path: '', reason: '',
+      })).toBe(true)
+      expect(caseOptimizeOperationUnchanged({
+        op: 'update', nodeId: 'n1', field: 'tags',
+        existing: ['登录'], suggested: ['登录', '验证码'], path: '', reason: '',
+      })).toBe(false)
+      expect(caseOptimizeOperationUnchanged({
+        op: 'add', parentId: 'n1', nodeType: 'step',
+        title: '新步骤', path: '', reason: '',
+      })).toBe(false)
     })
 
-    it('对照行保持字段顺序并标注变化', () => {
-      const view = readCaseOptimize({
-        fields: {
-          precondition: { existing: [], suggested: [] },
-          steps: { existing: [], suggested: ['点击获取验证码'] },
-        },
-      })
-      const rows = caseOptimizeCompareRows(view.fields)
-
-      expect(rows.map((row) => row.name)).toEqual([
-        'precondition', 'steps', 'expected', 'tags',
-      ])
-      expect(rows.map((row) => row.changed)).toEqual([false, true, false, false])
-      expect(rows[1].label).toBe('操作步骤')
+    it('仅同值标题更新折叠，同级 / 标签一致照常展示', () => {
+      expect(caseOptimizeOperationFoldable({
+        op: 'update', nodeId: 'n1', field: 'title',
+        existing: ['同名'], suggested: ['同名'], path: '', reason: '',
+      })).toBe(true)
+      expect(caseOptimizeOperationFoldable({
+        op: 'update', nodeId: 'n1', field: 'priority',
+        existing: ['P1'], suggested: ['P1'], path: '', reason: '',
+      })).toBe(false)
+      expect(caseOptimizeOperationFoldable({
+        op: 'update', nodeId: 'n1', field: 'tags',
+        existing: ['登录'], suggested: ['登录'], path: '', reason: '',
+      })).toBe(false)
     })
 
-    it('级别建议按同级判定变化，无建议视为无变化', () => {
-      const priorityOf = (suggested: string, current: string) => ({
-        current,
-        suggested,
-        reason: '',
-      })
-
-      expect(casePriorityChanged(priorityOf('P0', 'P1'))).toBe(true)
-      expect(casePriorityChanged(priorityOf('P1', 'P1'))).toBe(false)
-      expect(casePriorityChanged(priorityOf('', 'P1'))).toBe(false)
+    it('操作卡标签区分更新字段与新增类型', () => {
+      expect(caseOptimizeOperationLabel({
+        op: 'update', nodeId: 'n1', field: 'priority',
+        existing: ['P1'], suggested: ['P0'], path: '', reason: '',
+      })).toBe('优先级')
+      expect(caseOptimizeOperationLabel({
+        op: 'add', parentId: 'n1', nodeType: 'expected',
+        title: '新预期', path: '', reason: '',
+      })).toBe('新增预期结果')
     })
 
     it('顺序变化按位置统计', () => {

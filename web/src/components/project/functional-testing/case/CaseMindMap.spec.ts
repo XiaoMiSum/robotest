@@ -61,8 +61,11 @@ describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
     expect(source).toContain('@closed="closeAssistPanel"')
   })
 
-  it('采纳成功后重载脑图同步落库结果', () => {
-    expect(source).toContain('onConfirmed: () => void initMinder()')
+  it('采纳时在当前脑图树执行节点操作，不重载整棵脑图', () => {
+    expect(source).toContain('useCaseOptimizeExecution')
+    expect(source).toContain('executeOperations: (operations) => caseOptimizeExecution.execute(operations)')
+    expect(source).not.toContain('onConfirmed')
+    expect(source).toContain('persistence.flushPersistenceNow')
   })
 })
 

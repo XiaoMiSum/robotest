@@ -291,6 +291,38 @@ export interface AiCaseOptimizeSuggestion {
   sourceRefs: AiAssistSourceRef[]
 }
 
+/** 节点级操作指令（辅助功能详设 3.2）：更新按 nodeId 原地改写，新增按 parentId 挂子节点 */
+export type AiCaseOptimizeField = 'title' | 'priority' | 'tags'
+export type AiCaseOptimizeNodeType = 'precondition' | 'step' | 'expected' | 'normal'
+
+export interface AiCaseOptimizeUpdateOperation {
+  op: 'update'
+  nodeId: string
+  field: AiCaseOptimizeField
+  /** 归一为列表：title / priority 单元素，tags 多元素 */
+  existing: string[]
+  suggested: string[]
+  path: string
+  reason: string
+}
+
+export interface AiCaseOptimizeAddOperation {
+  op: 'add'
+  parentId: string
+  nodeType: AiCaseOptimizeNodeType
+  title: string
+  path: string
+  reason: string
+}
+
+export type AiCaseOptimizeOperation = AiCaseOptimizeUpdateOperation | AiCaseOptimizeAddOperation
+
+export interface AiCaseOptimizeOperationSuggestion {
+  nodeId: string
+  operations: AiCaseOptimizeOperation[]
+  sourceRefs: AiAssistSourceRef[]
+}
+
 /** 顺序建议条目（详设 3.4）：suggestedRank 已连续化，覆盖计划全部关联用例 */
 export interface AiPlanOrderItem {
   nodeId: string
@@ -306,4 +338,4 @@ export interface AiPlanOrderSuggestion {
   afterOrder: string[]
 }
 
-export type AiAssistSuggestion = AiCaseOptimizeSuggestion | AiPlanOrderSuggestion
+export type AiAssistSuggestion = AiCaseOptimizeOperationSuggestion | AiPlanOrderSuggestion
