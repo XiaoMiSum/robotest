@@ -8,8 +8,8 @@ import { usePlanMindmapOps } from '@/composables/project/functional-testing/plan
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useMinderInstance } from '@/minder/useMinderInstance'
-import { useContextMenu, type ContextMenuAnchorNode } from '@/minder/useContextMenu'
-import MinderContextMenu from '../minder/MinderContextMenu.vue'
+import { useNodeActionPopover, type NodeActionAnchorNode } from '@/minder/useNodeActionPopover'
+import NodeActionPopover from '../minder/NodeActionPopover.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
 
 const props = defineProps<{ planId: string; documentId?: string; removable?: boolean }>()
@@ -17,16 +17,16 @@ const props = defineProps<{ planId: string; documentId?: string; removable?: boo
 // 标记成功后通知详情页刷新进度，否则页头进度条需手动刷新才能更新
 const emit = defineEmits<{ marked: []; removed: [] }>()
 
-// 原生全屏只渲染全屏元素子树，默认 body 下的 teleport 菜单会消失
-const menuContainerRef = ref<HTMLElement | null>(null)
+// 原生全屏只渲染全屏元素子树，默认 body 下的 teleport 浮层会消失
+const popoverHostRef = ref<HTMLElement | null>(null)
 const isFullscreen = ref(false)
 const syncFullscreen = () => {
   isFullscreen.value = Boolean(document.fullscreenElement)
 }
 onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen))
 onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen))
-const menuTeleportTarget = computed(() =>
-  isFullscreen.value && menuContainerRef.value ? menuContainerRef.value : 'body',
+const popoverTeleportTarget = computed(() =>
+  isFullscreen.value && popoverHostRef.value ? popoverHostRef.value : 'body',
 )
 
 // 基座选中状态（id/type）之上的扩展字段：当前节点的执行标记
@@ -73,22 +73,38 @@ const {
   getRemovable: () => props.removable,
   onMarked: () => emit('marked'),
   onRemoved: () => emit('removed'),
+  onNodeClick: handleNodeClick,
 })
 
 // 移除按钮可用态：计划未结束（详情页传入）且当前选中为已关联 case 节点
 const canRemove = computed(() => props.removable === true && selectedType.value === 'case')
 
-// ==================== 右键菜单 ====================
-const {
-  visible: menuVisible,
-  pos: menuPos,
-  onContextMenu,
-  close: closeContextMenu,
-} = useContextMenu({
-  hasSelection: () => !!selectedNodeId.value,
-  getSelectedNode: () =>
-    getMinder()?.getSelectedNode?.() as ContextMenuAnchorNode | null | undefined,
-})
+// 左键单击用例节点展开悬浮窗：按节点渲染框定位，避免浮层遮挡被点击节点
+const nodePopover = useNodeActionPopover()
+
+function handleNodeClick(node: NodeActionAnchorNode): void {
+  const nodeId = node.data.id
+  if (node.data.type !== 'case' || typeof nodeId !== 'string' || !nodeId) {
+    nodePopover.close()
+    return
+  }
+  const box = node.getRenderBox?.(undefined, 'screen')
+  if (!box) {
+    nodePopover.close()
+    return
+  }
+  nodePopover.open(nodeId, { x: Math.round(box.x), y: Math.round(box.y + box.height + 4) })
+}
+
+function markFromPopover(result: Parameters<typeof markExecution>[0]): void {
+  nodePopover.close()
+  void markExecution(result)
+}
+
+function removeFromPopover(): void {
+  nodePopover.close()
+  void removeSelectedCase()
+}
 
 // ==================== Bug 链接跳转 ====================
 // 暴露给 kityminder 扩展节点渲染模板通过 ref 调用，避免事件冒泡干扰节点选中
@@ -96,11 +112,15 @@ function openBug(bugId: string) {
   window.open(`/workspace/projects/bugs/${bugId}`, '_blank')
 }
 
-// reload 供详情页同步快照后刷新画布（planId 不变，watch 不会触发）
-defineExpose({ openBug, reload: initMinder })
+// reload 供详情页同步快照后刷新画布（planId 不变，watch 不会触发）；先收起浮层避免定位到旧节点
+function reload(): void {
+  nodePopover.close()
+  void initMinder()
+}
+defineExpose({ openBug, reload })
 
 // ==================== 生命周期 ====================
-watch(() => [props.planId, props.documentId], initMinder)
+watch(() => [props.planId, props.documentId], reload)
 onMounted(initMinder)
 onBeforeUnmount(() => {
   invalidate()
@@ -109,61 +129,44 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="menuContainerRef" v-loading="loading" class="mindmap-container">
-    <!-- 计划工具栏 -->
-    <div class="mindmap-toolbar mindmap-toolbar--center">
-      <el-button-group>
-        <el-button :type="execResult==='pass'?'success':''" @click="markExecution('pass')">✅通过</el-button>
-        <el-button :type="execResult==='fail'?'danger':''" @click="markExecution('fail')">❌失败</el-button>
-        <el-button :class="execResult==='block'?'exec-block-active':''" @click="markExecution('block')">❓阻塞</el-button>
-        <el-button :type="execResult==='untested'?'info':''" @click="markExecution('untested')">🔄待执行</el-button>
-      </el-button-group>
-      <el-button v-if="removable" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
-    </div>
-
-    <!-- 脑图画布 -->
+  <div ref="popoverHostRef" v-loading="loading" class="mindmap-container">
+    <!-- 脑图画布：右键仅抑制浏览器原生菜单，不渲染自定义右键菜单 -->
     <div
       ref="containerRef"
       class="minder-canvas"
-      @contextmenu.prevent="onContextMenu"
+      @contextmenu.prevent
     />
 
     <!-- 导航器：缩放条/定位根节点/抓手/缩略图/全屏 -->
     <MinderNavigator v-if="minder && !loading" :minder="minder" />
 
-    <!-- 右键菜单 -->
-    <MinderContextMenu
-      v-if="menuVisible"
-      :to="menuTeleportTarget"
-      :x="menuPos.x"
-      :y="menuPos.y"
-      @close="closeContextMenu"
+    <!-- 用例节点悬浮窗：仅点击 case 节点展开，入口水平并排、透明背景、link 按钮 -->
+    <NodeActionPopover
+      :to="popoverTeleportTarget"
+      :visible="nodePopover.visible.value"
+      :x="nodePopover.anchor.value.x"
+      :y="nodePopover.anchor.value.y"
     >
-      <div class="mindmap-context-menu__subtitle">标记执行结果 ▸</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('pass')">通过</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('fail')">失败</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('block')">阻塞</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markExecution('untested')">待执行</div>
-      <div v-if="removable" class="mindmap-context-menu__divider" />
-      <div v-if="removable" class="mindmap-context-menu__item mindmap-context-menu__item--danger" @click="removeSelectedCase">从计划中移除</div>
-    </MinderContextMenu>
+      <el-button link class="node-action-btn" :class="{ 'node-action-btn--pass': execResult === 'pass' }" @click="markFromPopover('pass')">✅通过</el-button>
+      <el-button link class="node-action-btn" :class="{ 'node-action-btn--fail': execResult === 'fail' }" @click="markFromPopover('fail')">❌失败</el-button>
+      <el-button link class="node-action-btn" :class="{ 'node-action-btn--block': execResult === 'block' }" @click="markFromPopover('block')">❓阻塞</el-button>
+      <el-button link class="node-action-btn" :class="{ 'node-action-btn--untested': execResult === 'untested' }" @click="markFromPopover('untested')">🔄待执行</el-button>
+      <el-button v-if="removable" link class="node-action-btn node-action-btn--danger" :disabled="!canRemove" @click="removeFromPopover">🗑移除用例</el-button>
+    </NodeActionPopover>
   </div>
 </template>
 
 <style scoped lang="scss">
 @use '../minder/minder-base';
 
-// EP 无内建阻塞档：danger 会与「失败」按钮撞色、warning 为橙，故覆盖按钮变量取
-// --color-blocked 深红（视觉设计 4.1），悬停/按下取同相加深档
-.exec-block-active {
-  --el-button-bg-color: var(--color-blocked);
-  --el-button-border-color: var(--color-blocked);
-  --el-button-text-color: var(--color-neutral-0);
-  --el-button-hover-bg-color: color-mix(in srgb, var(--color-blocked) 88%, black);
-  --el-button-hover-border-color: color-mix(in srgb, var(--color-blocked) 88%, black);
-  --el-button-hover-text-color: var(--color-neutral-0);
-  --el-button-active-bg-color: color-mix(in srgb, var(--color-blocked) 88%, black);
-  --el-button-active-border-color: color-mix(in srgb, var(--color-blocked) 88%, black);
-  --el-button-active-text-color: var(--color-neutral-0);
+// link 按钮以文字色区分状态；EP 无内建阻塞档，取 --color-blocked 深红避免与「失败」撞色
+.node-action-btn {
+  --el-button-text-color: var(--el-text-color-regular);
+
+  &--pass { --el-button-text-color: var(--color-success); }
+  &--fail { --el-button-text-color: var(--color-danger); }
+  &--block { --el-button-text-color: var(--color-blocked); }
+  &--untested { --el-button-text-color: var(--el-color-info); }
+  &--danger { --el-button-text-color: var(--color-danger); }
 }
 </style>
