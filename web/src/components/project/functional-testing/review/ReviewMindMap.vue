@@ -11,8 +11,8 @@ import { formatDateTime } from '@/utils/format'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { useMinderInstance } from '@/minder/useMinderInstance'
-import { useContextMenu, type ContextMenuAnchorNode } from '@/minder/useContextMenu'
-import MinderContextMenu from '../minder/MinderContextMenu.vue'
+import { useNodeActionPopover, type NodeActionAnchorNode } from '@/minder/useNodeActionPopover'
+import NodeActionPopover from '../minder/NodeActionPopover.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
 
 const props = defineProps<{ reviewId: string; documentId?: string; removable?: boolean }>()
@@ -20,16 +20,16 @@ const props = defineProps<{ reviewId: string; documentId?: string; removable?: b
 // 标记成功后通知详情页刷新进度，否则页头进度条需手动刷新才能更新
 const emit = defineEmits<{ marked: []; removed: [] }>()
 
-// 原生全屏只渲染全屏元素子树，默认 body 下的 teleport 菜单会消失
-const menuContainerRef = ref<HTMLElement | null>(null)
+// 原生全屏只渲染全屏元素子树，默认 body 下的 teleport 浮层会消失
+const popoverHostRef = ref<HTMLElement | null>(null)
 const isFullscreen = ref(false)
 const syncFullscreen = () => {
   isFullscreen.value = Boolean(document.fullscreenElement)
 }
 onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen))
 onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFullscreen))
-const menuTeleportTarget = computed(() =>
-  isFullscreen.value && menuContainerRef.value ? menuContainerRef.value : 'body',
+const popoverTeleportTarget = computed(() =>
+  isFullscreen.value && popoverHostRef.value ? popoverHostRef.value : 'body',
 )
 
 // 基座选中状态（id/type）之上的扩展字段：当前节点的评审标记
@@ -81,22 +81,43 @@ const {
   getRemovable: () => props.removable,
   onMarked: () => emit('marked'),
   onRemoved: () => emit('removed'),
+  onNodeClick: handleNodeClick,
 })
 
 // 移除按钮可用态：评审未完成（详情页传入）且当前选中为已关联 case 节点
 const canRemove = computed(() => props.removable === true && selectedType.value === 'case')
 
-// ==================== 右键菜单 ====================
-const {
-  visible: menuVisible,
-  pos: menuPos,
-  onContextMenu,
-  close: closeContextMenu,
-} = useContextMenu({
-  hasSelection: () => !!selectedNodeId.value,
-  getSelectedNode: () =>
-    getMinder()?.getSelectedNode?.() as ContextMenuAnchorNode | null | undefined,
-})
+// 左键单击用例节点展开悬浮窗：按节点渲染框定位，避免浮层遮挡被点击节点
+const nodePopover = useNodeActionPopover()
+
+function handleNodeClick(node: NodeActionAnchorNode): void {
+  const nodeId = node.data.id
+  if (node.data.type !== 'case' || typeof nodeId !== 'string' || !nodeId) {
+    nodePopover.close()
+    return
+  }
+  const box = node.getRenderBox?.(undefined, 'screen')
+  if (!box) {
+    nodePopover.close()
+    return
+  }
+  nodePopover.open(nodeId, { x: Math.round(box.x), y: Math.round(box.y + box.height + 4) })
+}
+
+function markFromPopover(mark: Parameters<typeof markReview>[0]): void {
+  nodePopover.close()
+  void markReview(mark)
+}
+
+function openCommentsFromPopover(): void {
+  nodePopover.close()
+  openComments()
+}
+
+function removeFromPopover(): void {
+  nodePopover.close()
+  void removeSelectedCase()
+}
 
 // ==================== Bug 链接跳转 ====================
 // 暴露给 kityminder 扩展节点渲染模板通过 ref 调用，避免事件冒泡干扰节点选中
@@ -104,11 +125,15 @@ function openBug(bugId: string) {
   window.open(`/workspace/projects/bugs/${bugId}`, '_blank')
 }
 
-// reload 供详情页同步快照后刷新画布（reviewId 不变，watch 不会触发）
-defineExpose({ openBug, reload: initMinder })
+// reload 供详情页同步快照后刷新画布（reviewId 不变，watch 不会触发）；先收起浮层避免定位到旧节点
+function reload(): void {
+  nodePopover.close()
+  void initMinder()
+}
+defineExpose({ openBug, reload })
 
 // ==================== 生命周期 ====================
-watch(() => [props.reviewId, props.documentId], initMinder)
+watch(() => [props.reviewId, props.documentId], reload)
 onMounted(initMinder)
 onBeforeUnmount(() => {
   invalidate()
@@ -117,44 +142,30 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="menuContainerRef" v-loading="loading" class="mindmap-container">
-    <!-- 评审工具栏 -->
-    <div class="mindmap-toolbar mindmap-toolbar--center">
-      <el-button-group>
-        <el-button :type="reviewResult==='pass'?'success':''" @click="markReview('pass')">✅通过</el-button>
-        <el-button :type="reviewResult==='fail'?'danger':''" @click="markReview('fail')">❌不通过</el-button>
-        <el-button :type="reviewResult===null?'info':''" @click="markReview(null)">❓待评审</el-button>
-      </el-button-group>
-      <el-button @click="openComments">💬评论</el-button>
-      <el-button v-if="removable" :disabled="!canRemove" @click="removeSelectedCase">🗑移除用例</el-button>
-    </div>
-
-    <!-- 脑图画布 -->
+  <div ref="popoverHostRef" v-loading="loading" class="mindmap-container">
+    <!-- 脑图画布：右键仅抑制浏览器原生菜单，不渲染自定义右键菜单 -->
     <div
       ref="containerRef"
       class="minder-canvas"
-      @contextmenu.prevent="onContextMenu"
+      @contextmenu.prevent
     />
 
     <!-- 导航器：缩放条/定位根节点/抓手/缩略图/全屏 -->
     <MinderNavigator v-if="minder && !loading" :minder="minder" />
 
-    <!-- 右键菜单 -->
-    <MinderContextMenu
-      v-if="menuVisible"
-      :to="menuTeleportTarget"
-      :x="menuPos.x"
-      :y="menuPos.y"
-      @close="closeContextMenu"
+    <!-- 用例节点悬浮窗：仅点击 case 节点展开，入口水平并排、透明背景、link 按钮 -->
+    <NodeActionPopover
+      :to="popoverTeleportTarget"
+      :visible="nodePopover.visible.value"
+      :x="nodePopover.anchor.value.x"
+      :y="nodePopover.anchor.value.y"
     >
-      <div class="mindmap-context-menu__subtitle">标记评审结果 ▸</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('pass')">通过</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview('fail')">不通过</div>
-      <div class="mindmap-context-menu__item mindmap-context-menu__item--indent" @click="markReview(null)">待评审</div>
-      <div class="mindmap-context-menu__divider" />
-      <div class="mindmap-context-menu__item" @click="openComments">添加评论</div>
-      <div v-if="removable" class="mindmap-context-menu__item mindmap-context-menu__item--danger" @click="removeSelectedCase">从评审中移除</div>
-    </MinderContextMenu>
+      <el-button link class="node-action-btn" :class="{ 'node-action-btn--pass': reviewResult === 'pass' }" @click="markFromPopover('pass')">✅通过</el-button>
+      <el-button link class="node-action-btn" :class="{ 'node-action-btn--fail': reviewResult === 'fail' }" @click="markFromPopover('fail')">❌不通过</el-button>
+      <el-button link class="node-action-btn" :class="{ 'node-action-btn--pending': reviewResult === null }" @click="markFromPopover(null)">❓待评审</el-button>
+      <el-button link class="node-action-btn" @click="openCommentsFromPopover">💬评论</el-button>
+      <el-button v-if="removable" link class="node-action-btn node-action-btn--danger" :disabled="!canRemove" @click="removeFromPopover">🗑移除用例</el-button>
+    </NodeActionPopover>
 
     <!-- 评论抽屉 -->
     <el-drawer v-model="commentVisible" title="评审记录" :size="380" class="comment-drawer">
@@ -195,6 +206,15 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 @use '../minder/minder-base';
+
+.node-action-btn {
+  --el-button-text-color: var(--el-text-color-regular);
+
+  &--pass { --el-button-text-color: var(--color-success); }
+  &--fail { --el-button-text-color: var(--color-danger); }
+  &--pending { --el-button-text-color: var(--el-color-info); }
+  &--danger { --el-button-text-color: var(--color-danger); }
+}
 
 /* CODE-008 例外：评论抽屉 Teleport 到 body，scoped :deep 命中不了；
    规则限定在 .comment-drawer，避免污染其他抽屉。

@@ -4,6 +4,7 @@ import { getPlanSnapshotTree, getPlanPlannedCases, submitExecutionRecord, update
 import type { ExecutionResult, PlannedCases } from '@/types'
 import { planNodeToKm } from '@/minder/adapter'
 import { loadMinderEngine } from '@/minder/loader'
+import type { NodeActionAnchorNode } from '@/minder/useNodeActionPopover'
 import type { useMinderInstance } from '@/minder/useMinderInstance'
 
 export function usePlanMindmapOps({
@@ -24,6 +25,7 @@ export function usePlanMindmapOps({
   getRemovable,
   onMarked,
   onRemoved,
+  onNodeClick,
 }: Pick<
   ReturnType<typeof useMinderInstance>,
   | 'containerRef'
@@ -44,6 +46,7 @@ export function usePlanMindmapOps({
   getRemovable: () => boolean | undefined
   onMarked: () => void
   onRemoved: () => void
+  onNodeClick?: (node: NodeActionAnchorNode) => void
 }) {
   // ==================== 初始化 ====================
   async function initMinder() {
@@ -71,6 +74,10 @@ export function usePlanMindmapOps({
       m.disable?.()
 
       m.on('selectionchange', updateSelectedState)
+      m.on('click', () => {
+        const node = m.getSelectedNode?.() as NodeActionAnchorNode | null | undefined
+        if (node) onNodeClick?.(node)
+      })
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '加载脑图失败')
     } finally {

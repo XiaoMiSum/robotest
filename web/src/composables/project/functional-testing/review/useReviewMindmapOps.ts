@@ -10,6 +10,7 @@ import {
 import type { PlannedCases, ReviewMark, ReviewRecord } from '@/types'
 import { reviewNodeToKm } from '@/minder/adapter'
 import { loadMinderEngine } from '@/minder/loader'
+import type { NodeActionAnchorNode } from '@/minder/useNodeActionPopover'
 import type { useMinderInstance } from '@/minder/useMinderInstance'
 
 export function useReviewMindmapOps({
@@ -30,6 +31,7 @@ export function useReviewMindmapOps({
   getRemovable,
   onMarked,
   onRemoved,
+  onNodeClick,
 }: Pick<
   ReturnType<typeof useMinderInstance>,
   | 'containerRef'
@@ -50,6 +52,7 @@ export function useReviewMindmapOps({
   getRemovable: () => boolean | undefined
   onMarked: () => void
   onRemoved: () => void
+  onNodeClick?: (node: NodeActionAnchorNode) => void
 }) {
   // 评论抽屉
   const commentVisible = ref(false)
@@ -82,6 +85,10 @@ export function useReviewMindmapOps({
       m.disable?.()
 
       m.on('selectionchange', updateSelectedState)
+      m.on('click', () => {
+        const node = m.getSelectedNode?.() as NodeActionAnchorNode | null | undefined
+        if (node) onNodeClick?.(node)
+      })
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '加载脑图失败')
     } finally {
