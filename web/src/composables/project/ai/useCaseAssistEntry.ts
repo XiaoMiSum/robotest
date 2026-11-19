@@ -23,7 +23,7 @@ export interface CaseAssistEntryOptions {
   /** 文档 / 节点只读时入口置灰（详设 5.3） */
   isReadonly?: () => boolean
   /** 采纳时在当前脑图树上执行节点操作（详设 4.2），由宿主注入以访问 Minder 与持久化 */
-  executeOperations?: (operations: AiCaseOptimizeOperation[]) => void
+  executeOperations?: (operations: AiCaseOptimizeOperation[], caseNodeId: string | null) => void
 }
 
 /**
@@ -168,23 +168,29 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
     return isCaseOptimizeSuggestion(suggestion) ? suggestion.operations : []
   }
 
-  function runOperations(operations: AiCaseOptimizeOperation[]): void {
-    if (operations.length > 0) options.executeOperations?.(operations)
+  /** 提案锚点即被优化的用例节点，采纳时据此打 AI 标识 */
+  function caseNodeIdFor(key: string): string | null {
+    const suggestion = task.rows.value.find((row) => row.key === key)?.suggestion ?? null
+    return isCaseOptimizeSuggestion(suggestion) ? suggestion.nodeId : null
+  }
+
+  function runOperations(operations: AiCaseOptimizeOperation[], caseNodeId: string | null): void {
+    if (operations.length > 0 || caseNodeId) options.executeOperations?.(operations, caseNodeId)
   }
 
   function adopt(key: string): Promise<void> {
-    runOperations(operationsFor(key))
+    runOperations(operationsFor(key), caseNodeIdFor(key))
     return task.adopt(key)
   }
 
   /** 编辑后采纳：执行人工核对后的操作，payload 定位字段与提案一致 */
   function adoptEdited(key: string, content: Record<string, unknown>): Promise<void> {
-    runOperations(readWireOperations(content))
+    runOperations(readWireOperations(content), caseNodeIdFor(key))
     return task.adoptEdited(key, content)
   }
 
   function batchAdopt(keys: string[]): Promise<void> {
-    keys.forEach((key) => runOperations(operationsFor(key)))
+    keys.forEach((key) => runOperations(operationsFor(key), caseNodeIdFor(key)))
     return task.batchAdopt(keys)
   }
 

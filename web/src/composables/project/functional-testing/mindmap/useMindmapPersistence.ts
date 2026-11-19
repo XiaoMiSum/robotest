@@ -13,6 +13,7 @@ export interface PersistSnap {
   parentId: string | null
   sortOrder: number
   tags: string[]
+  aiGenerated: boolean
 }
 
 interface LiveNode {
@@ -65,6 +66,7 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
         tags: Array.isArray(data.tags)
           ? data.tags.filter((tag): tag is string => typeof tag === 'string')
           : [],
+        aiGenerated: data.aiGenerated === true,
       })
       node.getChildren().forEach((child, index) => walk(child, id, index))
     }
@@ -117,11 +119,13 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
         || prev.priority !== snap.priority
       const tagsChanged = prev.tags.length !== snap.tags.length
         || prev.tags.some((tag, index) => tag !== snap.tags[index])
-      if (attrsChanged || tagsChanged) {
+      const aiChanged = prev.aiGenerated !== snap.aiGenerated
+      if (attrsChanged || tagsChanged || aiChanged) {
         const attrs: Record<string, unknown> = {
           id, title: snap.title, type: snap.type, priority: snap.priority,
         }
         if (tagsChanged) attrs.tags = snap.tags
+        if (aiChanged) attrs.aiGenerated = snap.aiGenerated
         sendPersistOp(socket, 'update_attrs', attrs)
       }
       if (prev.parentId !== snap.parentId || prev.sortOrder !== snap.sortOrder) {

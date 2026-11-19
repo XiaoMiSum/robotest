@@ -54,6 +54,8 @@ export interface TestCaseNode {
   sortOrder: number
   version: number
   children: TestCaseNode[]
+  /** AI 标识（复用 ai_generated） */
+  aiGenerated?: boolean
 }
 
 /** 文档布局：模板名 + 各节点自由拖拽偏移（键为节点 data 中的 layout_*_offset 原始键名） */

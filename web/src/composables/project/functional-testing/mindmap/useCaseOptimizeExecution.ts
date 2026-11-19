@@ -9,6 +9,7 @@ import type { AiCaseOptimizeOperation } from '@/types'
 export interface CaseOptimizeExecutionResult {
   updated: number
   added: number
+  marked: number
   skipped: number
 }
 
@@ -52,11 +53,11 @@ export function useCaseOptimizeExecution(
     )
   }
 
-  function execute(operations: AiCaseOptimizeOperation[]): CaseOptimizeExecutionResult {
-    const result: CaseOptimizeExecutionResult = { updated: 0, added: 0, skipped: 0 }
+  function execute(operations: AiCaseOptimizeOperation[], caseNodeId?: string | null): CaseOptimizeExecutionResult {
+    const result: CaseOptimizeExecutionResult = { updated: 0, added: 0, marked: 0, skipped: 0 }
     const minder = getMinder()
     if (!minder) {
-      result.skipped = operations.length
+      result.skipped = operations.length + (caseNodeId ? 1 : 0)
       return result
     }
     for (const op of operations) {
@@ -78,7 +79,17 @@ export function useCaseOptimizeExecution(
         result.added++
       }
     }
-    if (result.updated + result.added > 0) {
+    if (caseNodeId) {
+      const caseNode = findNode(caseNodeId)
+      if (caseNode) {
+        // 复用既有 AI 生成标识：用例被 AI 优化采纳后即带 AI 标记（详设 4.2）
+        caseNode.setData('aiGenerated', true)
+        result.marked++
+      } else {
+        result.skipped++
+      }
+    }
+    if (result.updated + result.added + result.marked > 0) {
       // createNode / setData 不走内核命令，补发 contentchange 才能进入 history / Yjs / 防抖落库
       minder.refresh()
       minder.fire('contentchange')
