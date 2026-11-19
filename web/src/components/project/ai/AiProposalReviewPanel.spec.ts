@@ -81,7 +81,7 @@ describe('AiProposalReviewPanel', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('用例优化审核')
-    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(1)
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
     expect(wrapper.text()).toContain('登录用例优化')
     expect(wrapper.text()).not.toContain('第二项')
     expect(wrapper.text()).not.toContain('第三项')
@@ -106,7 +106,7 @@ describe('AiProposalReviewPanel', () => {
     })
     await flushPromises()
 
-    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(1)
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
     expect(wrapper.text()).not.toContain('登录用例优化')
     expect(wrapper.text()).toContain('第二项')
     expect(wrapper.text()).not.toContain('第三项')
@@ -131,7 +131,7 @@ describe('AiProposalReviewPanel', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('缺陷分诊结果')
-    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(1)
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
     expect(wrapper.text()).not.toContain('修改后采纳')
     expect(wrapper.text()).not.toContain('驳回')
   })
@@ -177,6 +177,6 @@ describe('AiProposalReviewPanel', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('已全部驳回')
-    expect(wrapper.findAll('.proposal-review__card')).toHaveLength(0)
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(0)
   })
 })

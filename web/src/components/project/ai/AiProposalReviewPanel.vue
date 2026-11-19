@@ -284,21 +284,19 @@ async function submitReject(): Promise<void> {
       </el-empty>
     </div>
 
-    <div v-else class="proposal-review__cards">
-      <el-card v-for="row in cardRows" :key="row.key" shadow="never" class="proposal-review__card">
-        <template #header>
-          <div class="proposal-review__card-head">
-            <span class="proposal-review__kind">{{ row.kindLabel }}</span>
-            <span class="proposal-review__name" :title="row.title ?? row.key">
-              {{ row.title || row.key }}
-            </span>
-            <el-tag :type="row.confirmMeta.tagType" size="small" effect="plain">
-              {{ row.confirmMeta.label }}
-            </el-tag>
-          </div>
-        </template>
+    <div v-else class="proposal-review__items">
+      <div v-for="row in cardRows" :key="row.key" class="proposal-review__item">
+        <div class="proposal-review__item-head">
+          <span class="proposal-review__kind">{{ row.kindLabel }}</span>
+          <span class="proposal-review__name" :title="row.title ?? row.key">
+            {{ row.title || row.key }}
+          </span>
+          <el-tag :type="row.confirmMeta.tagType" size="small" effect="plain">
+            {{ row.confirmMeta.label }}
+          </el-tag>
+        </div>
 
-        <div v-loading="!row.contentLoaded" class="proposal-review__card-body">
+        <div v-loading="!row.contentLoaded" class="proposal-review__item-body">
           <span v-if="moduleNameOf(row.content.moduleId)" class="proposal-review__meta">
             模块：{{ moduleNameOf(row.content.moduleId) }}
           </span>
@@ -359,29 +357,27 @@ async function submitReject(): Promise<void> {
           </div>
         </div>
 
-        <template #footer>
-          <div
-            v-if="row.confirmStatus === 'pending' && (canEdit || canReject)"
-            class="proposal-review__card-actions"
+        <div
+          v-if="row.confirmStatus === 'pending' && (canEdit || canReject)"
+          class="proposal-review__card-actions"
+        >
+          <el-button link type="primary" :loading="confirming" @click="adopt(row)">
+            采纳
+          </el-button>
+          <el-button link type="primary" :loading="confirming" @click="openEdit(row)">
+            修改后采纳
+          </el-button>
+          <el-button
+            v-if="canReject"
+            link
+            type="danger"
+            :loading="confirming"
+            @click="openReject(row.key)"
           >
-            <el-button link type="primary" :loading="confirming" @click="adopt(row)">
-              采纳
-            </el-button>
-            <el-button link type="primary" :loading="confirming" @click="openEdit(row)">
-              修改后采纳
-            </el-button>
-            <el-button
-              v-if="canReject"
-              link
-              type="danger"
-              :loading="confirming"
-              @click="openReject(row.key)"
-            >
-              驳回（可附反馈）
-            </el-button>
-          </div>
-        </template>
-      </el-card>
+            驳回（可附反馈）
+          </el-button>
+        </div>
+      </div>
     </div>
 
     <!-- 逐项回执：失败项可单项重试（交互 2.3 回执） -->
@@ -561,17 +557,16 @@ async function submitReject(): Promise<void> {
   margin-bottom: var(--space-sm);
 }
 
-.proposal-review__cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
+.proposal-review__item {
+  border-top: 1px solid var(--color-neutral-200);
 }
 
-.proposal-review__card-head {
+.proposal-review__item-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-xs);
+  margin: var(--space-sm) 0;
 }
 
 .proposal-review__name {
@@ -585,7 +580,7 @@ async function submitReject(): Promise<void> {
   white-space: nowrap;
 }
 
-.proposal-review__card-body {
+.proposal-review__item-body {
   min-height: 72px;
 }
 
@@ -656,6 +651,9 @@ async function submitReject(): Promise<void> {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-neutral-200);
 }
 
 .proposal-review__rank-edit {

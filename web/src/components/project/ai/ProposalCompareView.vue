@@ -44,26 +44,22 @@ const visibleItems = computed(() => (showUnchanged.value ? props.items : changed
 
 <style scoped lang="scss">
 .compare-view {
-  margin-bottom: var(--space-sm);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  margin: var(--space-xs) 0 var(--space-sm);
 }
 
 .compare-view__head,
 .compare-view__row {
   display: grid;
   grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr) minmax(0, 2fr);
+  column-gap: var(--space-sm);
 }
 
 .compare-view__head {
-  background: var(--color-neutral-100);
   font-size: var(--font-size-xs);
-  font-weight: 600;
 }
 
 .compare-view__head-cell {
-  padding: var(--space-xs) var(--space-sm);
+  padding-bottom: var(--space-xs);
   color: var(--color-neutral-500);
 
   &--new {
@@ -72,18 +68,20 @@ const visibleItems = computed(() => (showUnchanged.value ? props.items : changed
 }
 
 .compare-view__row {
-  border-top: 1px solid var(--color-neutral-200);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--color-neutral-200);
   font-size: var(--font-size-sm);
 
   &--changed {
+    padding-left: var(--space-sm);
     background: var(--color-success-light);
+    box-shadow: inset 3px 0 0 var(--color-success);
   }
 }
 
 .compare-view__label,
 .compare-view__existing,
 .compare-view__suggested {
-  padding: var(--space-xs) var(--space-sm);
   line-height: 1.5;
   word-break: break-word;
 }
