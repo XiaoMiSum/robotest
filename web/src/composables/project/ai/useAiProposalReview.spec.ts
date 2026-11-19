@@ -360,12 +360,16 @@ describe('useAiProposalReview', () => {
   })
 
   describe('任务类型策略接入', () => {
-    it('用例优化按策略解析 content，编辑载荷为 fields + priority', async () => {
+    it('用例优化按策略只读解析节点操作，不提供编辑与采纳', async () => {
       mocks.fetchAiProposal.mockResolvedValue({
         content: {
           nodeId: 'n1',
-          fields: { steps: { suggested: ['点击登录', '点击验证码'] } },
-          priority: { current: 'P1', suggested: 'P0' },
+          operations: [
+            {
+              op: 'update', nodeId: 'n1', field: 'priority',
+              existing: ['P1'], suggested: ['P0'], path: '登录用例', reason: '上游需求为高',
+            },
+          ],
         },
       })
       const s = useAiProposalReview(
@@ -378,32 +382,14 @@ describe('useAiProposalReview', () => {
       s.init()
       s.select('a1')
       await vi.waitFor(() => expect(s.rows.value[0].contentLoaded).toBe(true))
-      expect(s.reviewTitle.value).toBe('用例优化审核')
-      expect(s.editFields.value.map((field) => field.key)).toEqual([
-        'precondition',
-        'steps',
-        'expected',
-        'tags',
-        'priority',
-      ])
-      const values = s.editValuesOf(s.rows.value[0])
-      expect(values.priority).toBe('P0')
-      expect((values.steps as string).split('\n')).toEqual(['点击登录', '点击验证码'])
-      expect(s.rows.value[0].parsed.compare.find((row) => row.label === '操作步骤')?.changed).toBe(
+      expect(s.reviewTitle.value).toBe('用例优化结果')
+      expect(s.editFields.value).toEqual([])
+      expect(s.canEdit.value).toBe(false)
+      expect(s.canReject.value).toBe(false)
+      expect(s.selectableRows.value).toEqual([])
+      expect(s.rows.value[0].parsed.compare.find((row) => row.label === '优先级')?.changed).toBe(
         true,
       )
-
-      await s.handleAdoptEdited(s.rows.value[0], values)
-      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
-        items: [
-          {
-            key: 'a1',
-            action: 'adopted_edited',
-            content: { fields: { steps: ['点击登录', '点击验证码'] }, priority: 'P0' },
-          },
-        ],
-        target: undefined,
-      })
     })
 
     it('只读任务不提供可选项与编辑字段', () => {

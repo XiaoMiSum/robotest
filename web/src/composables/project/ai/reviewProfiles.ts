@@ -1,10 +1,10 @@
 import {
-  ASSIST_FIELD_NAMES,
-  assistFieldLabel,
-  readCaseOptimize,
+  caseOptimizeOperationLabel,
+  caseOptimizeOperationUnchanged,
+  readCaseOptimizeOperations,
   readPlanOrder,
 } from '@/composables/project/ai/assistPresentation'
-import type { AiCaseOptimizeSuggestion, AiPlanOrderItem } from '@/types'
+import type { AiPlanOrderItem } from '@/types'
 
 /** 编辑字段的输入形态；lines 按行拆为字符串数组，ranks 由有序 rankItems 驱动 */
 export type ProposalEditFieldType =
@@ -90,15 +90,6 @@ function readStrings(raw: unknown): string[] {
   return raw.filter((item): item is string => typeof item === 'string')
 }
 
-function toLines(value: unknown): string[] {
-  if (Array.isArray(value)) return readStrings(value)
-  if (typeof value !== 'string') return []
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-}
-
 function joinValues(values: string[]): string {
   return values.length > 0 ? values.join('、') : '—'
 }
@@ -171,81 +162,6 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
       return payload
     },
   }
-}
-
-/** 用例优化：编辑 fields（前置条件 / 步骤 / 预期 / 标签）与优先级，载荷按详设 3.6.5 组装 */
-const CASE_PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'].map((value) => ({ value, label: value }))
-
-const caseOptimizeProfile: ProposalReviewProfile = {
-  taskType: 'case_optimize',
-  title: '用例优化审核',
-  panel: 'generic',
-  tree: false,
-  allowAdopt: true,
-  allowEdit: true,
-  allowReject: true,
-  allowBatch: false,
-  needModuleTree: false,
-  needSystemVersion: false,
-  editFields: [
-    { key: 'precondition', label: '前置条件', type: 'textarea' },
-    { key: 'steps', label: '操作步骤（每行一步）', type: 'lines' },
-    { key: 'expected', label: '预期结果（每行一条）', type: 'lines' },
-    { key: 'tags', label: '标签（每行一个）', type: 'lines' },
-    { key: 'priority', label: '优先级', type: 'select', options: CASE_PRIORITY_OPTIONS },
-  ],
-  parse(content, fallbackTitle) {
-    const parsed = emptyParsed(fallbackTitle)
-    const view: AiCaseOptimizeSuggestion = readCaseOptimize(content)
-    parsed.compare = ASSIST_FIELD_NAMES.map((name) => {
-      const pair = view.fields[name]
-      return {
-        label: assistFieldLabel(name),
-        existing: joinValues(pair.existing),
-        suggested: joinValues(pair.suggested),
-        changed: pair.existing.join('\n') !== pair.suggested.join('\n'),
-      }
-    })
-    const priorityChanged =
-      view.priority.suggested !== '' && view.priority.suggested !== view.priority.current
-    parsed.compare.push({
-      label: '优先级',
-      existing: view.priority.current || '—',
-      suggested: view.priority.suggested || '—',
-      changed: priorityChanged,
-    })
-    if (view.priority.reason) {
-      parsed.fields.push({ label: '级别依据', value: view.priority.reason })
-    }
-    parsed.sourceRefs = view.sourceRefs.map((ref) => ({
-      id: ref.id,
-      title: ref.title,
-      quote: ref.quote,
-      changed: false,
-    }))
-    parsed.editValues = {
-      precondition: view.fields.precondition.suggested.join('\n'),
-      steps: view.fields.steps.suggested.join('\n'),
-      expected: view.fields.expected.suggested.join('\n'),
-      tags: view.fields.tags.suggested.join('\n'),
-      priority: view.priority.suggested,
-    }
-    return parsed
-  },
-  buildEditedContent(values) {
-    const fields: Record<string, string | string[]> = {}
-    const precondition = typeof values.precondition === 'string' ? values.precondition.trim() : ''
-    if (precondition) fields.precondition = precondition
-    for (const key of ['steps', 'expected', 'tags']) {
-      const lines = toLines(values[key])
-      if (lines.length > 0) fields[key] = lines
-    }
-    const payload: Record<string, unknown> = {}
-    if (Object.keys(fields).length > 0) payload.fields = fields
-    const priority = typeof values.priority === 'string' ? values.priority : ''
-    if (priority) payload.priority = priority
-    return payload
-  },
 }
 
 /** 计划排序：rankItems 驱动人工调整，提交 { items: [{ nodeId, suggestedRank }] } */
@@ -326,6 +242,24 @@ function readonlyProfile(taskType: string, title: string): ProposalReviewProfile
     },
     buildEditedContent: () => ({}),
   }
+}
+
+/** 用例优化采纳在脑图面板执行，任务详情仅只读展示节点操作提案（详设 3.2 / 4.2） */
+const caseOptimizeProfile: ProposalReviewProfile = {
+  ...readonlyProfile('case_optimize', '用例优化结果'),
+  parse(content, fallbackTitle) {
+    const parsed = emptyParsed(fallbackTitle)
+    const view = readCaseOptimizeOperations(content)
+    parsed.fields.push({ label: '用例节点', value: view.nodeId })
+    parsed.compare = view.operations.map((op) => ({
+      label: caseOptimizeOperationLabel(op),
+      existing: op.op === 'update' ? joinValues(op.existing) : '—',
+      suggested: op.op === 'update' ? joinValues(op.suggested) : `新增：${op.title}`,
+      changed: op.op === 'add' || !caseOptimizeOperationUnchanged(op),
+    }))
+    parsed.sourceRefs = view.sourceRefs.map((ref) => ({ ...ref, changed: false }))
+    return parsed
+  },
 }
 
 /** 生成链与缺陷批量分类走专用面板，注册表仅登记其分发与树形态 */

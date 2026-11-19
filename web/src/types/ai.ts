@@ -261,34 +261,11 @@ export interface AiGenerationScopeItem {
 /** 辅助任务类型（脑图工具栏与计划详情各自发起，提案形态见详设 3.2–3.4） */
 export type AiAssistTaskType = 'case_optimize' | 'plan_order'
 
-/** 优化字段键（详设 3.2 提案形态，级别单独随同建议） */
-export type AiAssistFieldName = 'precondition' | 'steps' | 'expected' | 'tags'
-
-/** 现有值与建议值成对；字符串字段（precondition）归一为单元素列表便于统一比对渲染 */
-export interface AiAssistFieldPair {
-  existing: string[]
-  suggested: string[]
-}
-
 /** 来源引用（详设 3.2 / 3.3）：用例优化带 quote，执行顺序建议不带 */
 export interface AiAssistSourceRef {
   id: string
   title: string
   quote: string
-}
-
-/** 级别建议（随用例优化同一条提案产出，详设 3.2） */
-export interface AiCasePrioritySuggestion {
-  current: string
-  suggested: string
-  reason: string
-}
-
-export interface AiCaseOptimizeSuggestion {
-  nodeId: string
-  fields: Record<AiAssistFieldName, AiAssistFieldPair>
-  priority: AiCasePrioritySuggestion
-  sourceRefs: AiAssistSourceRef[]
 }
 
 /** 节点级操作指令（辅助功能详设 3.2）：更新按 nodeId 原地改写，新增按 parentId 挂子节点 */

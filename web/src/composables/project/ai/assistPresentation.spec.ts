@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  assistFieldLabel,
   caseOptimizeOperationFoldable,
   caseOptimizeOperationLabel,
   caseOptimizeOperationUnchanged,
@@ -8,52 +7,12 @@ import {
   isPlanOrderSuggestion,
   planOrderMovedCount,
   readAssistSuggestion,
-  readCaseOptimize,
   readCaseOptimizeOperations,
   readPlanOrder,
   readWireOperations,
 } from './assistPresentation'
 
 describe('assistPresentation', () => {
-  describe('readCaseOptimize（任务详情旧版审核视图）', () => {
-    it('归一字段、级别建议与来源引用', () => {
-      const view = readCaseOptimize({
-        nodeId: 'n1',
-        fields: {
-          precondition: { existing: '手机号已输入', suggested: '手机号已输入并获取过一次验证码' },
-          steps: { existing: ['点击获取验证码'], suggested: ['点击获取验证码', '60 秒内再次点击'] },
-          expected: { existing: [], suggested: ['发送成功提示'] },
-          tags: { existing: ['登录'], suggested: ['登录', '验证码'] },
-        },
-        priority: { current: 'P1', suggested: 'P0', reason: '上游需求优先级为高' },
-        sourceRefs: [{ id: 'r1', title: 'REQ-001', quote: '验证码 60 秒重发' }],
-      })
-
-      expect(view.nodeId).toBe('n1')
-      expect(view.fields.precondition).toEqual({
-        existing: ['手机号已输入'],
-        suggested: ['手机号已输入并获取过一次验证码'],
-      })
-      expect(view.fields.steps.suggested).toEqual(['点击获取验证码', '60 秒内再次点击'])
-      expect(view.priority).toEqual({
-        current: 'P1',
-        suggested: 'P0',
-        reason: '上游需求优先级为高',
-      })
-      expect(view.sourceRefs).toEqual([
-        { id: 'r1', title: 'REQ-001', quote: '验证码 60 秒重发' },
-      ])
-    })
-
-    it('结构缺字段时给空值而非猜测', () => {
-      const view = readCaseOptimize({ nodeId: 'n1' })
-
-      expect(view.fields.tags).toEqual({ existing: [], suggested: [] })
-      expect(view.priority).toEqual({ current: '', suggested: '', reason: '' })
-      expect(view.sourceRefs).toEqual([])
-    })
-  })
-
   describe('readCaseOptimizeOperations（脑图操作提案）', () => {
     it('保留 update / add 指令与定位字段，兼容字符串与列表值', () => {
       const view = readCaseOptimizeOperations({
@@ -176,11 +135,6 @@ describe('assistPresentation', () => {
   })
 
   describe('派生展示', () => {
-    it('字段标签按渲染口径给出', () => {
-      expect(assistFieldLabel('precondition')).toBe('前置条件')
-      expect(assistFieldLabel('tags')).toBe('标签')
-    })
-
     it('更新值与现状相同视为无变化，新增始终为变更', () => {
       expect(caseOptimizeOperationUnchanged({
         op: 'update', nodeId: 'n1', field: 'title',
