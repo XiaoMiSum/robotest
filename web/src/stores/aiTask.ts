@@ -12,9 +12,9 @@ function emptyFilters(): AiTaskListFilters {
   return { type: '', status: '' }
 }
 
-/** 终态不再轮询（总册 3.6 生命周期：aborted / closed 为终态，proposals_ready 仍轮询） */
-export function isTerminalTaskStatus(status: AiTaskStatus): boolean {
-  return status === 'aborted' || status === 'closed'
+/** 定时获取任务明细：仅 running（进行中）继续轮询，非进行中即停止 */
+export function shouldStopTaskDetailPolling(status: AiTaskStatus): boolean {
+  return status !== 'running'
 }
 
 const POLL_INTERVAL_MS = 2000
@@ -99,7 +99,7 @@ export const useAiTaskStore = defineStore('aiTask', {
       this.pollBusy = true
       try {
         const detail = await this.pollOnce(taskId)
-        if (detail !== null && isTerminalTaskStatus(detail.status)) {
+        if (detail !== null && shouldStopTaskDetailPolling(detail.status)) {
           this.stopPolling()
         }
       } finally {

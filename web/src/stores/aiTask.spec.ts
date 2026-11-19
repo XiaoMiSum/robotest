@@ -14,7 +14,7 @@ vi.mock('@/services/ai', () => ({
   fetchAiTaskEvents: mocks.fetchAiTaskEvents,
 }))
 
-import { isTerminalTaskStatus, useAiTaskStore } from './aiTask'
+import { shouldStopTaskDetailPolling, useAiTaskStore } from './aiTask'
 
 function makeDetail(overrides: Partial<AiTaskDetail> = {}): AiTaskDetail {
   return {
@@ -87,11 +87,11 @@ describe('stores/aiTask', () => {
     expect(store.takeCachedDetail('other')).toBeNull()
   })
 
-  it('终态判定：aborted / closed 不再轮询，proposals_ready 仍轮询', () => {
-    expect(isTerminalTaskStatus('aborted')).toBe(true)
-    expect(isTerminalTaskStatus('closed')).toBe(true)
-    expect(isTerminalTaskStatus('running')).toBe(false)
-    expect(isTerminalTaskStatus('proposals_ready')).toBe(false)
+  it('轮询停止判定：仅 running（进行中）继续轮询，非进行中即停止', () => {
+    expect(shouldStopTaskDetailPolling('running')).toBe(false)
+    expect(shouldStopTaskDetailPolling('proposals_ready')).toBe(true)
+    expect(shouldStopTaskDetailPolling('aborted')).toBe(true)
+    expect(shouldStopTaskDetailPolling('closed')).toBe(true)
   })
 
   it('轮询成功写入缓存并清除中断标记', async () => {
@@ -112,9 +112,9 @@ describe('stores/aiTask', () => {
     expect(store.detail).toBeNull()
   })
 
-  it('轮询到终态自动停止', async () => {
+  it('轮询到非进行中状态自动停止', async () => {
     const store = useAiTaskStore()
-    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'closed' }))
+    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'proposals_ready' }))
     store.startPolling('t1')
     expect(store.polling).toBe(true)
     await store.pollTick('t1')
@@ -122,9 +122,9 @@ describe('stores/aiTask', () => {
     expect(store.pollTimer).toBeNull()
   })
 
-  it('非终态继续轮询，慢请求不叠加', async () => {
+  it('进行中继续轮询，慢请求不叠加', async () => {
     const store = useAiTaskStore()
-    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'proposals_ready' }))
+    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'running' }))
     store.startPolling('t1')
     const slow = store.pollTick('t1')
     // 慢请求未返回时再次 tick 直接跳过

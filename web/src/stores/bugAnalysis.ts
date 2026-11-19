@@ -18,8 +18,9 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-function isTerminal(status: string): boolean {
-  return status === 'closed' || status === 'aborted'
+/** 定时获取任务明细：仅 running（进行中）继续轮询，非进行中即停止 */
+function shouldStopTaskPolling(status: string): boolean {
+  return status !== 'running'
 }
 
 /** 范围指纹：摘要生成时记录，范围变化后据以判定快照过期 */
@@ -157,7 +158,7 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
         this.summaryRangeKey = rangeKeyOf(this.from, this.to, this.groupBy)
         this.summaryTaskId = task.taskId
         this.summaryStatus = task.status
-        if (isTerminal(task.status)) {
+        if (shouldStopTaskPolling(task.status)) {
           await this.resolveSummary(task.taskId, task.status)
         } else {
           this.startSummaryPolling(task.taskId)
@@ -188,21 +189,22 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
       try {
         const detail = await fetchAiTask(taskId)
         this.summaryStatus = detail.status
-        if (isTerminal(detail.status)) {
+        if (shouldStopTaskPolling(detail.status)) {
           this.stopSummaryPolling()
           await this.resolveSummary(taskId, detail.status)
         }
       } catch {
-        // 轮询网络失败不终止轮询，下一轮继续；终态由下一轮判定
+        // 轮询网络失败不终止轮询，下一轮继续；非进行中由下一轮判定
       }
     },
 
-    /** 终态分流：成功取产物内容，失败落原因供卡片重试（交互 2.4） */
+    /** 非进行中分流：closed/proposals_ready 取产物内容，aborted 落原因供卡片重试（交互 2.4） */
     async resolveSummary(taskId: string, status: AiTaskDetail['status']) {
-      if (status !== 'closed') {
-        this.summaryError = status === 'aborted' ? '摘要生成失败，可重试' : ''
+      if (status === 'aborted') {
+        this.summaryError = '摘要生成失败，可重试'
         return
       }
+      if (status === 'running') return
       try {
         const proposal = await fetchAiProposal(taskId, 'summary-1')
         // 提案详情响应为 { ...摘要, content }（详设 3.6.3），内容取 content 根节点
@@ -227,7 +229,7 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
       this.triageItems = []
       try {
         const task = await submitAiTask('bug_triage', {}, SYNC_WAIT_SECONDS)
-        if (isTerminal(task.status)) {
+        if (shouldStopTaskPolling(task.status)) {
           await this.resolveTriage(task.taskId, task.status)
         } else {
           this.startTriagePolling(task.taskId)
@@ -257,7 +259,7 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
     async pollTriage(taskId: string): Promise<void> {
       try {
         const detail = await fetchAiTask(taskId)
-        if (isTerminal(detail.status)) {
+        if (shouldStopTaskPolling(detail.status)) {
           this.stopTriagePolling()
           await this.resolveTriage(taskId, detail.status)
         }
@@ -267,10 +269,11 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
     },
 
     async resolveTriage(taskId: string, status: AiTaskDetail['status']) {
-      if (status !== 'closed') {
-        this.triageError = status === 'aborted' ? '分诊建议生成失败，可重新加载' : ''
+      if (status === 'aborted') {
+        this.triageError = '分诊建议生成失败，可重新加载'
         return
       }
+      if (status === 'running') return
       try {
         const proposal = await fetchAiProposal(taskId, 'triage')
         const content = (proposal.content ?? {}) as Record<string, unknown>

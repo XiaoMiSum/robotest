@@ -7,7 +7,7 @@ import {
   reExecuteAiTask,
   submitAiTask,
 } from '@/services/ai'
-import { isTerminalTaskStatus, useAiTaskStore } from '@/stores/aiTask'
+import { shouldStopTaskDetailPolling, useAiTaskStore } from '@/stores/aiTask'
 import type {
   AiProposalConfirmItem,
   AiProposalConfirmResult,
@@ -82,7 +82,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
 
   function sync(detail: AiTaskDetail): void {
     task.value = detail
-    if (isTerminalTaskStatus(detail.status)) aiTaskStore.stopPolling()
+    if (shouldStopTaskDetailPolling(detail.status)) aiTaskStore.stopPolling()
     // 提案随详情在 proposals_ready / closed 下发；内容仅在本地缓存为空时拉取，
     // 避免 2s 轮询重复请求；确认后缓存被清空会按需重取已处理项内容
     if (
@@ -170,7 +170,7 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
       const detail = await fetchAiTask(currentTaskId)
       if (taskId.value !== currentTaskId) return
       sync(detail)
-      if (!isTerminalTaskStatus(detail.status)) {
+      if (!shouldStopTaskDetailPolling(detail.status)) {
         aiTaskStore.startPolling(detail.taskId)
       }
     } catch (err) {
