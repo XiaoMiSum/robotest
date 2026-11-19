@@ -4,7 +4,10 @@ import type { CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
 import type { AiGenerationScopeItem } from '@/types'
-import type { RequirementRow } from '@/composables/project/requirement/requirementPresentation'
+import {
+  canConfirmRequirement,
+  type RequirementRow,
+} from '@/composables/project/requirement/requirementPresentation'
 import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
@@ -317,7 +320,7 @@ function openCreate(): void {
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
             <el-button
-              v-if="canConfirm && row.status !== 'archived'"
+              v-if="canConfirm && canConfirmRequirement(asRow(row))"
               link
               type="primary"
               @click="handleConfirm(asRow(row))"
