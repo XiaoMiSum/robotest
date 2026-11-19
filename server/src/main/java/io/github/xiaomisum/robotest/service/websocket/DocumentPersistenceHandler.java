@@ -170,7 +170,8 @@ public class DocumentPersistenceHandler {
         int currentVersion = node.getVersion() != null ? node.getVersion() : 0;
 
         int rows = testCaseNodeMapper.updateAttrsWithVersion(nodeId, currentVersion,
-                data.getTitle(), data.getType(), data.getPriority(), data.getSortOrder(), data.getAiGenerated());
+                data.getTitle(), data.getType(), data.getPriority(), data.getSortOrder(), data.getAiGenerated(),
+                data.getTags());
         if (rows == 0) {
             log.warn("Optimistic lock conflict for node {}, expected version {}", data.getId(), currentVersion);
         }

@@ -38,7 +38,7 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
     }
 
     default int updateAttrsWithVersion(UUID nodeId, int currentVersion, String title, String type,
-                                        String priority, Integer sortOrder, Boolean aiGenerated) {
+                                        String priority, Integer sortOrder, Boolean aiGenerated, List<String> tags) {
         var wrapper = new LambdaUpdateWrapperX<TestCaseNode>()
                 .eq(TestCaseNode::getId, nodeId)
                 .eq(TestCaseNode::getVersion, currentVersion)
@@ -48,6 +48,7 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
         if (priority != null) wrapper.set(TestCaseNode::getPriority, priority);
         if (sortOrder != null) wrapper.set(TestCaseNode::getSortOrder, sortOrder);
         if (aiGenerated != null) wrapper.set(TestCaseNode::getAiGenerated, aiGenerated);
+        if (tags != null) wrapper.set(TestCaseNode::getTags, tags);
         return update(null, wrapper);
     }
 
