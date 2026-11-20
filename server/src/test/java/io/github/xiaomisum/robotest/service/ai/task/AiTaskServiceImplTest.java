@@ -85,6 +85,7 @@ class AiTaskServiceImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID MODEL_ID = UUID.randomUUID();
+    private static final UUID NEW_MODEL_ID = UUID.randomUUID();
     private static final String TYPE = "requirement_import";
     private static final Map<String, Object> BUDGET = Map.of(
             "maxSteps", 40, "maxDurationSeconds", 600, "maxTokens", 200000, "maxCost", 5);
@@ -558,7 +559,7 @@ class AiTaskServiceImplTest {
         when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(ready);
         when(executionMapper.selectLatestByTaskIdForUpdate(TASK_ID)).thenReturn(previous);
-        when(settingsReader.resolveModel(MODEL_ID, null)).thenReturn(model());
+        when(settingsReader.resolveModel(null, null)).thenReturn(model(NEW_MODEL_ID));
         when(taskMapper.markRerun(TASK_ID)).thenReturn(true);
         when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(1);
 
@@ -571,11 +572,13 @@ class AiTaskServiceImplTest {
         AiTaskExecution created = captor.getValue();
         assertEquals(2, created.getSeq());
         assertEquals(PREV_EXEC_ID, created.getRetryOfExecutionId());
-        assertEquals(MODEL_ID, created.getModelId());
+        assertEquals(NEW_MODEL_ID, created.getModelId());
         assertEquals(BUDGET, created.getBudget());
         assertNotNull(resp.getExecutionId());
         verify(taskMapper).markRerun(TASK_ID);
         verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
+        verify(settingsReader).resolveModel(null, null);
+        verify(settingsReader, never()).resolveModel(eq(MODEL_ID), any());
     }
 
     @Test
@@ -585,7 +588,7 @@ class AiTaskServiceImplTest {
         previous.setId(PREV_EXEC_ID);
         when(taskMapper.selectById(TASK_ID)).thenReturn(ready);
         when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
-        when(settingsReader.resolveModel(MODEL_ID, null)).thenReturn(model());
+        when(settingsReader.resolveModel(null, null)).thenReturn(model(NEW_MODEL_ID));
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(ready);
         when(executionMapper.selectLatestByTaskIdForUpdate(TASK_ID)).thenReturn(previous);
         when(executionMapper.countActiveByTaskId(TASK_ID)).thenReturn(0L);
@@ -598,6 +601,32 @@ class AiTaskServiceImplTest {
 
         verify(transactionManager).rollback(any());
         verify(executionDispatcher, never()).dispatch(any());
+    }
+
+    /** 再次执行仍按必需能力选型：vision 能力传入解析入口，不沿用上次执行的模型 */
+    @Test
+    void reExecute_capabilityVision_resolvesAgainstLatestDefault() {
+        AiTask ready = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        AiTaskExecution previous = execution("succeeded");
+        previous.setId(PREV_EXEC_ID);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(ready);
+        when(adapter.requiredCapability(any(), any())).thenReturn(AiSettingsReader.CAPABILITY_VISION);
+        when(executionMapper.countActiveByTaskId(TASK_ID)).thenReturn(0L);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(ready);
+        when(executionMapper.selectLatestByTaskIdForUpdate(TASK_ID)).thenReturn(previous);
+        when(settingsReader.resolveModel(null, AiSettingsReader.CAPABILITY_VISION))
+                .thenReturn(model(NEW_MODEL_ID));
+        when(taskMapper.markRerun(TASK_ID)).thenReturn(true);
+        when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(1);
+
+        service.reExecute(TASK_ID, null, loginUser);
+
+        verify(settingsReader).resolveModel(null, AiSettingsReader.CAPABILITY_VISION);
+        verify(settingsReader, never()).resolveModel(eq(MODEL_ID), any());
+        ArgumentCaptor<AiTaskExecution> captor = ArgumentCaptor.forClass(AiTaskExecution.class);
+        verify(executionMapper).insert(captor.capture());
+        assertEquals(NEW_MODEL_ID, captor.getValue().getModelId());
     }
 
     @Test
@@ -788,8 +817,12 @@ class AiTaskServiceImplTest {
     // ---------- 夹具 ----------
 
     private static AiModelConfig model() {
+        return model(MODEL_ID);
+    }
+
+    private static AiModelConfig model(UUID id) {
         AiModelConfig model = new AiModelConfig();
-        model.setId(MODEL_ID);
+        model.setId(id);
         model.setEnabled(true);
         model.setModelName("gpt-x");
         model.setBaseUrl("http://localhost:11434/v1");

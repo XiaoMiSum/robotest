@@ -53,8 +53,9 @@ public class AiSettingsReader {
     }
 
     /**
-     * 执行期解析：优先任务回写的 model_id（提交时解析，4.1），其被停用 / 删除时回落当前可用模型
-     * （失败重试复用同模型，3.6.4；回落保证存量任务仍可执行）。
+     * 执行期解析：优先本次执行回写的 model_id（4.1），其被停用 / 删除时回落当前可用模型
+     * （自动短重试沿用本次执行模型，4.2；回落保证存量任务仍可执行）。
+     * 再次执行由调用方传 null，按当前默认模型重新解析（3.6.4）。
      */
     public AiModelConfig resolveModel(UUID preferredModelId) {
         return resolveModel(preferredModelId, null);
