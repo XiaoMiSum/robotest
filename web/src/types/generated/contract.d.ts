@@ -7288,6 +7288,15 @@ export interface components {
             msg?: string;
             data?: components["schemas"]["RequirementRefRespDTO"][];
         };
+        AiEmbeddingTestReqDTO: {
+            provider?: string;
+            baseUrl?: string;
+            apiKey?: string;
+            embeddingModel?: string;
+            /** Format: int32 */
+            dimensions?: number;
+            operator?: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -11589,7 +11598,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AiEmbeddingTestReqDTO"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

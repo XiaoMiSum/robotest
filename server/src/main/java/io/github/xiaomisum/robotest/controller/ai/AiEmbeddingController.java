@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.controller.ai;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiEmbeddingSaveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiEmbeddingTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiEmbeddingRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiEmbeddingTestRespDTO;
 import io.github.xiaomisum.robotest.service.ai.config.AiEmbeddingAdminService;
@@ -40,9 +41,10 @@ public class AiEmbeddingController {
         return Result.ok(embeddingAdminService.save(reqDTO, loginUser, request));
     }
 
+    /** 请求体可选：携带表单未保存配置时按表单值测试，缺省仍测已保存配置 */
     @PostMapping("/test")
     public Result<AiEmbeddingTestRespDTO> test(@AuthenticationPrincipal LoginUser loginUser,
-            HttpServletRequest request) {
-        return Result.ok(embeddingAdminService.test(loginUser, request));
+            @RequestBody(required = false) @Valid AiEmbeddingTestReqDTO reqDTO, HttpServletRequest request) {
+        return Result.ok(embeddingAdminService.test(reqDTO, loginUser, request));
     }
 }

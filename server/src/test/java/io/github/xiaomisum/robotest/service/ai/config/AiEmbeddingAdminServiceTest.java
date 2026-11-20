@@ -7,6 +7,7 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiEmbeddingSaveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiEmbeddingTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiEmbeddingRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiEmbeddingTestRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
@@ -35,6 +36,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,7 +44,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -232,6 +236,100 @@ class AiEmbeddingAdminServiceTest {
         Map<String, Object> saved = JsonUtils.parseObject(jsonParam(captor.getValue(), "msg"), Map.class);
         assertEquals(Boolean.FALSE, saved.get("success"));
         assertEquals("timeout", saved.get("msg"));
+    }
+
+    private static AiEmbeddingTestReqDTO fullTestReq() {
+        AiEmbeddingTestReqDTO req = new AiEmbeddingTestReqDTO();
+        req.setBaseUrl("https://draft.example.com/v1");
+        req.setEmbeddingModel("text-embedding-draft");
+        req.setDimensions(1024);
+        req.setOperator("l2");
+        return req;
+    }
+
+    @Test
+    void test_withFormPayload_usesDraftValuesWithoutWritingConfig() {
+        AiEmbeddingConfig row = configuredRow(1536, "cosine");
+        when(embeddingMapper.selectSingleton()).thenReturn(row);
+        when(embeddingClient.embed(any(), anyList(), any(), isNull(), isNull()))
+                .thenReturn(new AiEmbeddingClient.EmbeddingReply(List.of(0.1), 1, 5));
+
+        AiEmbeddingTestRespDTO resp = service.test(fullTestReq(), loginUser, request);
+
+        assertTrue(resp.getSuccess());
+        ArgumentCaptor<AiEmbeddingConfig> captor = ArgumentCaptor.forClass(AiEmbeddingConfig.class);
+        verify(embeddingClient).embed(captor.capture(), anyList(), any(), isNull(), isNull());
+        assertEquals("https://draft.example.com/v1", captor.getValue().getBaseUrl());
+        assertEquals("text-embedding-draft", captor.getValue().getEmbeddingModel());
+        assertEquals(1024, captor.getValue().getDimensions());
+        assertEquals("l2", captor.getValue().getOperator());
+        assertEquals("https://api.example.com/v1", row.getBaseUrl());
+        assertEquals(1536, row.getDimensions());
+    }
+
+    @Test
+    void test_withFormPayload_blankKeyReusesSavedCipher() {
+        AiEmbeddingConfig row = configuredRow(1536, "cosine");
+        when(embeddingMapper.selectSingleton()).thenReturn(row);
+        when(embeddingClient.embed(any(), anyList(), any(), isNull(), isNull()))
+                .thenReturn(new AiEmbeddingClient.EmbeddingReply(List.of(0.1), 1, 5));
+        AiEmbeddingTestReqDTO req = fullTestReq();
+        req.setApiKey("   ");
+
+        service.test(req, loginUser, request);
+
+        ArgumentCaptor<AiEmbeddingConfig> captor = ArgumentCaptor.forClass(AiEmbeddingConfig.class);
+        verify(embeddingClient).embed(captor.capture(), anyList(), any(), isNull(), isNull());
+        assertEquals("cipher", captor.getValue().getApiKeyEncrypted());
+    }
+
+    @Test
+    void test_withFormPayload_newKeyEncryptedForThisCallOnly() {
+        AiEmbeddingConfig row = configuredRow(1536, "cosine");
+        when(embeddingMapper.selectSingleton()).thenReturn(row);
+        when(embeddingClient.embed(any(), anyList(), any(), isNull(), isNull()))
+                .thenReturn(new AiEmbeddingClient.EmbeddingReply(List.of(0.1), 1, 5));
+        AiEmbeddingTestReqDTO req = fullTestReq();
+        req.setApiKey("sk-draft");
+
+        service.test(req, loginUser, request);
+
+        ArgumentCaptor<AiEmbeddingConfig> configCaptor = ArgumentCaptor.forClass(AiEmbeddingConfig.class);
+        verify(embeddingClient).embed(configCaptor.capture(), anyList(), any(), isNull(), isNull());
+        assertNotEquals("sk-draft", configCaptor.getValue().getApiKeyEncrypted());
+        assertNotEquals("cipher", configCaptor.getValue().getApiKeyEncrypted());
+        ArgumentCaptor<Wrapper<AiEmbeddingConfig>> updateCaptor = wrapperCaptor();
+        verify(embeddingMapper).update(any(), updateCaptor.capture());
+        Collection<Object> values = ((LambdaUpdateWrapperX<?>) updateCaptor.getValue())
+                .getParamNameValuePairs().values();
+        assertTrue(values.stream().noneMatch(v -> v instanceof String s
+                && (s.contains("sk-draft") || s.contains("draft.example.com"))));
+    }
+
+    @Test
+    void test_withFormPayload_missingRequiredFields_throwsTestFailed() {
+        when(embeddingMapper.selectSingleton()).thenReturn(null);
+        AiEmbeddingTestReqDTO req = new AiEmbeddingTestReqDTO();
+        req.setDimensions(1024);
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> service.test(req, loginUser, request));
+
+        assertEquals(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(), ex.getCode());
+        verifyNoInteractions(embeddingClient);
+    }
+
+    @Test
+    void test_withFullFormPayload_noSavedRow_testsWithoutPersisting() {
+        when(embeddingMapper.selectSingleton()).thenReturn(null);
+        when(embeddingClient.embed(any(), anyList(), any(), isNull(), isNull()))
+                .thenReturn(new AiEmbeddingClient.EmbeddingReply(List.of(0.1), 1, 5));
+        AiEmbeddingTestReqDTO req = fullTestReq();
+        req.setApiKey("sk-draft");
+
+        AiEmbeddingTestRespDTO resp = service.test(req, loginUser, request);
+
+        assertTrue(resp.getSuccess());
+        verify(embeddingMapper, never()).update(any(), any());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
