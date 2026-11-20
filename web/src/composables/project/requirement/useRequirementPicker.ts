@@ -63,6 +63,8 @@ export function useRequirementPicker() {
         keyword: keyword.value.trim() || undefined,
         pageNo: pageNo.value,
         pageSize: PAGE_SIZE,
+        // 选取器仅允许关联已确认需求，状态范围由前端收窄
+        status: 'confirmed',
       })
       if (id !== requestId) return
       rows.value = page.list
