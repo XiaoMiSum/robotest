@@ -14,9 +14,33 @@
   .field__label-row .field__label { margin-bottom: 0; }
   .field__count { font-size: var(--font-size-xs); color: var(--n-400); font-variant-numeric: tabular-nums; }
 
-  /* 标题输入：大号输入，对应 el-input size="large" */
+  /* 标题输入：大号输入，对应 el-input size="large"；append 槽保留 AI 建议入口（详设 3.5） */
   .title-group { display: flex; align-items: stretch; }
-  .title-input { height: 40px; font-size: var(--font-size-lg); border-radius: var(--radius-md); }
+  .title-input { height: 40px; font-size: var(--font-size-lg); border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  .title-group .input-append {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 40px; padding: 0 14px;
+    border: 1px solid var(--n-300); border-left: none;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: var(--n-0);
+    font-family: inherit; font-size: var(--font-size-base); font-weight: 600;
+    color: var(--st-success); cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  .title-group .input-append svg { width: 15px; height: 15px; }
+  .title-group .input-append:hover { background: var(--st-success-light); color: var(--st-success-strong); }
+  .title-group .input-append:disabled { color: var(--n-400); cursor: not-allowed; background: var(--n-50); }
+  .title-group .input-append[aria-busy="true"] { color: var(--n-500); cursor: wait; }
+
+  /* 标题建议条：对应 BugSuggestBadge 的采纳动作，演示草稿建议而非自动改写 */
+  .ai-suggestion {
+    display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 10px;
+    border: 1px solid var(--st-success-light); border-radius: var(--radius-md);
+    background: var(--st-success-light); font-size: var(--font-size-xs); color: var(--n-700);
+  }
+  .ai-suggestion__label { flex-shrink: 0; font-weight: 600; color: var(--st-success-strong); }
+  .ai-suggestion__text { flex: 1; min-width: 0; }
+  .ai-suggestion__actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
 
   /* 重现步骤：Markdown 工具栏与编辑区连体，对应 MarkdownEditor 的 toolbar 结构 */
   .md-toolbar {
@@ -151,6 +175,15 @@
               <input class="input title-input" id="f-title" maxlength="300"
                 placeholder="用一句话描述缺陷现象"
                 value="下单超时未释放库存，二次下单报缺货">
+              <button class="input-append" type="button" id="ai-suggest-btn" title="AI 建议"><span data-icon="sparkle"></span>AI 建议</button>
+            </div>
+            <div class="ai-suggestion" id="ai-suggestion" hidden>
+              <span class="ai-suggestion__label">AI 建议标题</span>
+              <span class="ai-suggestion__text" id="ai-suggestion-text"></span>
+              <span class="ai-suggestion__actions">
+                <button class="btn btn--link btn--sm" type="button" id="ai-suggestion-adopt">采纳</button>
+                <button class="btn btn--link btn--sm" type="button" id="ai-suggestion-dismiss">忽略</button>
+              </span>
             </div>
             <div class="field__error" id="f-title-error" hidden></div>
           </div>
@@ -437,9 +470,44 @@
   /* ---------------- 标题字数：对应 el-input show-word-limit ---------------- */
   var titleInput = byId('f-title');
   var titleCount = byId('f-title-count');
+  var aiBtn = byId('ai-suggest-btn');
+  var aiSuggestion = byId('ai-suggestion');
+  var aiSuggestionText = byId('ai-suggestion-text');
+  // 实际页在无标题时禁用建议入口，避免空标题触发无意义请求
+  function syncAiButton() { aiBtn.disabled = !titleInput.value.trim(); }
   function syncTitleCount() { titleCount.textContent = titleInput.value.length + '/300'; }
-  titleInput.addEventListener('input', syncTitleCount);
+  titleInput.addEventListener('input', function () {
+    syncTitleCount();
+    syncAiButton();
+    aiSuggestion.hidden = true;
+  });
   syncTitleCount();
+  syncAiButton();
+
+  /* ---------------- 标题 AI 建议：对应 handleRequestSuggest / BugSuggestBadge 采纳 ---------------- */
+  var SUGGESTED_TITLE = '支付超时后库存未释放，导致二次下单提示缺货';
+  aiBtn.addEventListener('click', function () {
+    if (!titleInput.value.trim()) return;
+    aiBtn.disabled = true;
+    aiBtn.setAttribute('aria-busy', 'true');
+    setTimeout(function () {
+      aiBtn.removeAttribute('aria-busy');
+      syncAiButton();
+      aiSuggestionText.textContent = SUGGESTED_TITLE;
+      aiSuggestion.hidden = false;
+      toast('已生成标题建议', 'success');
+    }, 500);
+  });
+  byId('ai-suggestion-adopt').addEventListener('click', function () {
+    titleInput.value = aiSuggestionText.textContent;
+    syncTitleCount();
+    syncAiButton();
+    aiSuggestion.hidden = true;
+    toast('已采纳标题建议', 'success');
+  });
+  byId('ai-suggestion-dismiss').addEventListener('click', function () {
+    aiSuggestion.hidden = true;
+  });
 
   /* ---------------- 重现步骤：Markdown 工具栏插入 ---------------- */
   var steps = byId('f-steps');

@@ -11,14 +11,25 @@
   /* 弹层/抽屉靠 hidden 开关，会被类里的 display 覆盖，需强制生效 */
   [hidden] { display: none !important; }
 
-  /* 页面结构对齐 ReviewDetailPage：面包屑 + 页头条（标题状态 + 进度统计 + 操作）+ 快照树(240) + 评审脑图 */
+  /* 页头收拢为单条无边框横条：面包屑与需求/状态/进度/操作同行，超宽整行横向滚动（交互 05 §1.2） */
   .detail-head {
-    display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
-    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
-    padding: 12px 16px; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    flex-wrap: nowrap; overflow-x: auto; margin-bottom: 16px;
+    scrollbar-width: none; -ms-overflow-style: none;
   }
-  .detail-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--n-900); white-space: nowrap; }
-  .detail-extra { display: flex; align-items: center; gap: 20px; }
+  .detail-head::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  .detail-breadcrumb {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap;
+    font-size: var(--font-size-sm); color: var(--n-600);
+  }
+  .detail-breadcrumb a { color: var(--brand-500); font-weight: 500; text-decoration: none; }
+  .detail-breadcrumb a:hover { color: var(--brand-600); }
+  .detail-breadcrumb [data-icon] svg { width: 13px; height: 13px; color: var(--n-400); }
+  .detail-breadcrumb > :last-child { color: var(--n-900); }
+
+  .detail-extra { display: flex; align-items: center; gap: 20px; flex-shrink: 0; white-space: nowrap; }
+  .detail-req { display: flex; align-items: center; gap: var(--space-xs); }
+  .detail-req__label { font-size: var(--font-size-2xs); color: var(--n-400); }
   .detail-progress { display: flex; align-items: center; gap: 12px; }
   .detail-progress .progress { width: 140px; }
   .detail-stats { display: flex; gap: 12px; }
@@ -26,6 +37,7 @@
     display: flex; align-items: center; gap: 8px;
     padding-left: 20px; border-left: 1px solid var(--n-200);
   }
+  .detail-actions .btn [data-icon] svg { width: 14px; height: 14px; }
 
   .rv-workspace { display: flex; gap: 16px; align-items: stretch; }
   .rv-tree { width: 240px; flex-shrink: 0; }
@@ -35,33 +47,24 @@
   .tree__twisty { display: inline-flex; transition: transform .15s ease; }
   .tree__item.is-collapsed .tree__twisty { transform: rotate(-90deg); }
 
-  /* 脑图工具条（评审标记操作）：按钮组水平居中，提示文案固定右侧不参与布局 */
-  .mm-bar {
-    position: relative;
-    display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;
-    padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+  /* 用例节点悬浮窗：透明底、水平并排、link 文字按钮；入口已从工具条/右键菜单移入节点（fd380891） */
+  .node-popover {
+    position: fixed; z-index: 9998; display: flex; flex-direction: row; align-items: center; gap: 8px;
+    background: transparent; padding: 0;
   }
-  .mm-hint {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    white-space: nowrap;
+  .node-action {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0; border: none; background: transparent; font: inherit; font-size: 12.5px;
+    color: var(--n-700); cursor: pointer; white-space: nowrap;
   }
-  .mm-tool {
-    display: inline-flex; align-items: center; gap: 5px;
-    height: 26px; padding: 0 9px; border: none; border-radius: var(--radius-md);
-    background: transparent; font: inherit; font-size: 12.5px;
-    color: var(--n-600); cursor: pointer;
-  }
-  /* 图标库 svg 无固有尺寸，不给尺寸会渲染为 0×0 而不可见 */
-  .mm-tool [data-icon] svg { width: 14px; height: 14px; }
-  .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
-  .mm-tool:disabled { color: var(--n-300); cursor: not-allowed; background: transparent; }
-  /* 选中用例的当前标记在工具条上高亮，口径同 ReviewMindMap 的按钮 type */
-  .mm-tool.is-on[data-mark="pass"] { background: var(--st-success-light); color: var(--st-success-strong); }
-  .mm-tool.is-on[data-mark="fail"] { background: var(--st-danger-light); color: var(--st-danger-strong); }
-  .mm-tool.is-on[data-mark="pending"] { background: var(--n-100); color: var(--n-700); }
-  .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
-  /* 视口过窄时提示文案会与居中的按钮组重叠，直接隐藏 */
-  @media (max-width: 1100px) { .mm-hint { display: none; } }
+  .node-action [data-icon] svg { width: 14px; height: 14px; }
+  .node-action--pass { color: var(--st-success-strong); }
+  .node-action--fail { color: var(--st-danger-strong); }
+  .node-action--pending { color: var(--n-500); }
+  .node-action--danger { color: var(--st-danger); }
+  .node-action[data-on] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  .node-action:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .node-action:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
 
   /* 脑图画布：快照树 + 评审标记徽标 */
   .mm {
@@ -91,28 +94,10 @@
   .tdot--precondition { background: #409eff; }
   .tdot--step { background: #67c23a; }
   .tdot--expected { background: #e6a23c; }
+  /* 右侧标记徽标同 REVIEW_MARK_BADGES：待评审是默认态，不渲染 */
   .mm-badge { font-size: 11px; line-height: 1; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
   .mm-badge--pass { background: #f0f9eb; color: #67c23a; }
   .mm-badge--fail { background: #fef0f0; color: #f56c6c; }
-  .mm-badge--pending { background: var(--n-100); color: var(--n-500); }
-
-  /* 画布右键菜单：结构对照真实 MinderContextMenu */
-  .ctx {
-    position: fixed; z-index: 230; width: 190px; padding: 6px;
-    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-  }
-  .ctx__sub { padding: 5px 10px 3px; font-size: var(--font-size-xs); color: var(--n-500); }
-  .ctx__item {
-    display: block; width: 100%; padding: 7px 10px; border: none; border-radius: var(--radius-md);
-    background: none; font: inherit; font-size: var(--font-size-sm); color: var(--n-700);
-    text-align: left; cursor: pointer;
-  }
-  .ctx__item:hover { background: var(--n-50); color: var(--n-900); }
-  .ctx__item--indent { padding-left: 22px; }
-  .ctx__item--danger { color: var(--st-danger); }
-  .ctx__item--danger:hover { background: var(--st-danger-light); color: var(--st-danger-strong); }
-  .ctx__sep { height: 1px; margin: 5px 4px; background: var(--n-100); }
 
   /* 评审记录抽屉：对照 ReviewMindMap 的评论抽屉（标题/记录/输入三段） */
   .rv-drawer {
@@ -164,19 +149,20 @@
 
 <main class="content">
 
-  <div class="breadcrumb">
-    <a href="reviews.html">测试评审</a>
-    <span data-icon="chevron-right"></span>
-    <span>下单模块用例评审</span>
-  </div>
-
-  <!-- 页头条：标题/状态 + 进度统计 + 操作组 -->
+  <!-- 页头：面包屑保持纯净，需求/状态/进度/操作与面包屑同行（a8549b20） -->
   <div class="detail-head">
-    <div class="flex-center flex-gap-sm">
-      <h1 class="detail-title">下单模块用例评审</h1>
-      <span class="status status--running" id="rvStatus"><span class="dot"></span>进行中</span>
+    <div class="detail-breadcrumb">
+      <a href="reviews.html">测试评审</a>
+      <span data-icon="chevron-right"></span>
+      <span>下单模块用例评审</span>
     </div>
     <div class="detail-extra">
+      <div class="detail-req">
+        <span class="detail-req__label">需求</span>
+        <span class="tag tag--info" title="购物车结算金额计算">REQ-2210</span>
+        <span class="tag tag--info" title="支付回调幂等处理">REQ-2235</span>
+      </div>
+      <span class="status status--running" id="rvStatus"><span class="dot"></span>进行中</span>
       <div class="detail-progress">
         <div class="progress">
           <div class="progress__track"><div class="progress__fill progress__fill--warning" id="rvFill" style="width:56%"></div></div>
@@ -189,7 +175,7 @@
           <span class="text-xs muted">共 <span id="rvTotal">32</span></span>
         </div>
       </div>
-      <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起 -->
+      <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
       <div class="detail-actions" id="actActive">
         <button class="btn btn--default btn--sm" type="button" id="btnAdjust"><span data-icon="edit"></span>调整用例</button>
         <button class="btn btn--default btn--sm" type="button" id="btnSync"><span data-icon="refresh"></span>同步用例</button>
@@ -224,39 +210,30 @@
     </div>
 
     <div class="card rv-mind">
-      <div class="mm-bar" role="toolbar" aria-label="评审标记工具条">
-        <button class="mm-tool" type="button" data-mark="pass" disabled><span data-icon="check"></span>通过</button>
-        <button class="mm-tool" type="button" data-mark="fail" disabled><span data-icon="x"></span>不通过</button>
-        <button class="mm-tool" type="button" data-mark="pending" disabled><span data-icon="circle"></span>待评审</button>
-        <span class="mm-sep"></span>
-        <button class="mm-tool" type="button" id="btnComment"><span data-icon="message"></span>评论</button>
-        <button class="mm-tool" type="button" id="btnRemove" hidden disabled><span data-icon="trash"></span>移除用例</button>
-        <span class="text-xs muted mm-hint">选中用例节点后标记 · 快照只读</span>
-      </div>
-
+      <!-- 右键仅抑制浏览器原生菜单，不渲染自定义右键菜单（fd380891） -->
       <div class="mm" data-doc="d1">
         <ul>
           <li><span class="mm-node mm-node--root"><span data-icon="document"></span>下单主流程（v1 快照）</span>
             <ul>
-              <li data-case="d1c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">下单页优惠券叠加校验</span><span class="mm-badge mm-badge--pass">通过</span></span>
+              <li data-case="d1c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">下单页优惠券叠加校验</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span>
                 <ul>
                   <li><span class="mm-node"><i class="tdot tdot--precondition"></i><span class="mm-type">前置</span>已登录并持有可用优惠券</span></li>
                   <li><span class="mm-node"><i class="tdot tdot--step"></i><span class="mm-type">步骤</span>提交含两张券的订单</span></li>
                   <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>优惠金额为各券之和</span></li>
                 </ul>
               </li>
-              <li data-case="d1c2" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">地址簿选择后金额重算</span><span class="mm-badge mm-badge--fail">不通过</span></span>
+              <li data-case="d1c2" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">地址簿选择后金额重算</span><span class="mm-badge mm-badge--fail">✕ 不通过</span></span>
                 <ul>
                   <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>缺少跨省运费的预期结果</span></li>
                 </ul>
               </li>
-              <li data-case="d1c3" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">同收货人合并下单</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d1c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">预售定金尾款计算</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d1c5" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">库存不足时下单拦截</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d1c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">多优惠券互斥规则</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d1c7" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">未登录用户下单拦截</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d1c8" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">下单接口超时重试</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d1c9" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">历史订单导出上限</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d1c3" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">同收货人合并下单</span></span></li>
+              <li data-case="d1c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">预售定金尾款计算</span></span></li>
+              <li data-case="d1c5" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">库存不足时下单拦截</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d1c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">多优惠券互斥规则</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d1c7" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">未登录用户下单拦截</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d1c8" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">下单接口超时重试</span></span></li>
+              <li data-case="d1c9" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">历史订单导出上限</span></span></li>
             </ul>
           </li>
         </ul>
@@ -266,18 +243,18 @@
         <ul>
           <li><span class="mm-node mm-node--root"><span data-icon="document"></span>优惠券规则（v1 快照）</span>
             <ul>
-              <li data-case="d2c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">满减券叠加规则</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d2c2" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">优惠券过期拦截</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d2c3" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">券码核销幂等</span><span class="mm-badge mm-badge--fail">不通过</span></span>
+              <li data-case="d2c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">满减券叠加规则</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d2c2" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">优惠券过期拦截</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d2c3" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">券码核销幂等</span><span class="mm-badge mm-badge--fail">✕ 不通过</span></span>
                 <ul>
                   <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>同一券码重复提交不重复扣减</span></li>
                 </ul>
               </li>
-              <li data-case="d2c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">跨店券分摊计算</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d2c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">会员折扣与券叠加</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d2c6" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">积分抵扣上限</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d2c7" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">退款券返还</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d2c8" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">券库存超卖回滚</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d2c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">跨店券分摊计算</span></span></li>
+              <li data-case="d2c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">会员折扣与券叠加</span></span></li>
+              <li data-case="d2c6" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">积分抵扣上限</span></span></li>
+              <li data-case="d2c7" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">退款券返还</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d2c8" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">券库存超卖回滚</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
             </ul>
           </li>
         </ul>
@@ -287,18 +264,18 @@
         <ul>
           <li><span class="mm-node mm-node--root"><span data-icon="document"></span>支付回调（v1 快照）</span>
             <ul>
-              <li data-case="d3c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">支付回调幂等校验</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d3c2" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调报文重放拦截</span><span class="mm-badge mm-badge--fail">不通过</span></span>
+              <li data-case="d3c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">支付回调幂等校验</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d3c2" data-mark="fail"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调报文重放拦截</span><span class="mm-badge mm-badge--fail">✕ 不通过</span></span>
                 <ul>
                   <li><span class="mm-node"><i class="tdot tdot--expected"></i><span class="mm-type">预期</span>重放报文不重复入账</span></li>
                 </ul>
               </li>
-              <li data-case="d3c3" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调签名校验</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d3c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">支付超时自动关单</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d3c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">分账结果通知</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d3c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">退款回调对账</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d3c7" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">多渠道回调乱序处理</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d3c8" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调失败重试上限</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
+              <li data-case="d3c3" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调签名校验</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d3c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">支付超时自动关单</span></span></li>
+              <li data-case="d3c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">分账结果通知</span></span></li>
+              <li data-case="d3c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">退款回调对账</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d3c7" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">多渠道回调乱序处理</span></span></li>
+              <li data-case="d3c8" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">回调失败重试上限</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
             </ul>
           </li>
         </ul>
@@ -308,32 +285,22 @@
         <ul>
           <li><span class="mm-node mm-node--root"><span data-icon="document"></span>发货时效（v1 快照）</span>
             <ul>
-              <li data-case="d4c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">同城当日达时效</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d4c2" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">偏远地区加时提示</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d4c3" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">预售订单发货起算</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d4c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">分单发货时效合并</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d4c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">缺货自动拆单</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
-              <li data-case="d4c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">物流停滞预警</span><span class="mm-badge mm-badge--pass">通过</span></span></li>
-              <li data-case="d4c7" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">签收状态回传延迟</span><span class="mm-badge mm-badge--pending">待评审</span></span></li>
+              <li data-case="d4c1" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">同城当日达时效</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d4c2" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">偏远地区加时提示</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d4c3" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">预售订单发货起算</span></span></li>
+              <li data-case="d4c4" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">分单发货时效合并</span></span></li>
+              <li data-case="d4c5" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">缺货自动拆单</span></span></li>
+              <li data-case="d4c6" data-mark="pass"><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">物流停滞预警</span><span class="mm-badge mm-badge--pass">✓ 通过</span></span></li>
+              <li data-case="d4c7" data-mark=""><span class="mm-node"><i class="tdot tdot--case"></i><span class="mm-name">签收状态回传延迟</span></span></li>
             </ul>
           </li>
         </ul>
       </div>
+      <div class="node-popover" id="nodePopover" hidden></div>
     </div>
   </div>
 
 </main>
-
-<!-- 画布右键菜单：结构对照真实 MinderContextMenu -->
-<div class="ctx" id="rvCtx" role="menu" hidden>
-  <div class="ctx__sub">标记评审结果 ▸</div>
-  <button class="ctx__item ctx__item--indent" type="button" data-mark="pass">通过</button>
-  <button class="ctx__item ctx__item--indent" type="button" data-mark="fail">不通过</button>
-  <button class="ctx__item ctx__item--indent" type="button" data-mark="pending">待评审</button>
-  <div class="ctx__sep"></div>
-  <button class="ctx__item" type="button" id="ctxComment">添加评论</button>
-  <button class="ctx__item ctx__item--danger" type="button" id="ctxRemove">从评审中移除</button>
-</div>
 
 <!-- 评审记录抽屉：标记与评论记录，Enter 发送 -->
 <aside class="rv-drawer" id="rvDrawer" aria-label="评审记录" hidden>
@@ -397,6 +364,7 @@
   // 演示账号即评审发起人，已驳回态可见「重新发起」
   var USER = '张明';
   var state = { status: 'in_progress', selected: null };
+  var popoverAnchor = null;
 
   // 各用例节点的评审记录（key 为 data-case），空数组展示空态
   var RECORDS = {
@@ -407,6 +375,12 @@
     ]
   };
   var drawerFor = null;
+  // 与 ReviewMindMap 悬浮窗文案一致：✅/❌/❓/💬/🗑
+  var MARK_ACTION = {
+    pass: { label: '✅通过', cls: 'node-action--pass' },
+    fail: { label: '❌不通过', cls: 'node-action--fail' },
+    pending: { label: '❓待评审', cls: 'node-action--pending' }
+  };
 
   function isActive() { return state.status === 'new' || state.status === 'in_progress'; }
 
@@ -440,7 +414,7 @@
     $('actActive').hidden = status !== 'in_progress';
     $('actRejected').hidden = status !== 'rejected';
     $('rvFill').className = 'progress__fill' + (meta[2] ? ' ' + meta[2] : '');
-    refreshToolbar();
+    hidePopover();
   }
 
   // 统计口径与实际页 progress 一致：已评审 = 通过 + 不通过，待评审 = 关联总数 - 已评审
@@ -496,22 +470,32 @@
     clearSelection();
   });
 
-  /* ---------------- 脑图：选中与标记 ---------------- */
+  /* ---------------- 用例节点悬浮窗：选中与标记 ---------------- */
 
-  function refreshToolbar() {
-    var mark = state.selected ? (state.selected.getAttribute('data-mark') || 'pending') : null;
-    var active = isActive();
-    forEach(document.querySelectorAll('.mm-bar [data-mark]'), function (btn) {
-      var m = btn.getAttribute('data-mark');
-      btn.classList.toggle('is-on', !!mark && mark === m);
-      btn.disabled = !active || !state.selected;
+  function hidePopover() { $('nodePopover').hidden = true; }
+
+  function showPopover() {
+    if (!state.selected) { hidePopover(); return; }
+    var current = state.selected.getAttribute('data-mark') || 'pending';
+    var html = '';
+    Object.keys(MARK_ACTION).forEach(function (key) {
+      var item = MARK_ACTION[key];
+      html += '<button type="button" class="node-action ' + item.cls + '" data-pop-mark="' + key + '"' +
+        (current === key ? ' data-on' : '') + (isActive() ? '' : ' disabled') + '>' +
+        item.label + '</button>';
     });
-    $('btnRemove').hidden = !active;
-    $('btnRemove').disabled = !state.selected;
-    $('ctxRemove').hidden = !active;
-    forEach(document.querySelectorAll('#rvCtx [data-mark]'), function (btn) {
-      btn.disabled = !active;
-    });
+    html += '<button type="button" class="node-action" data-pop-comment>💬评论</button>';
+    if (isActive()) {
+      html += '<button type="button" class="node-action node-action--danger" data-pop-remove>🗑移除用例</button>';
+    }
+    var popover = $('nodePopover');
+    popover.innerHTML = html;
+    popover.hidden = false;
+    var left = Math.max(8, Math.min(popoverAnchor.x, window.innerWidth - popover.offsetWidth - 8));
+    var top = Math.max(8, Math.min(popoverAnchor.y, window.innerHeight - popover.offsetHeight - 8));
+    popover.style.left = left + 'px';
+    popover.style.top = top + 'px';
+    if (window.RTIcons) window.RTIcons.hydrate(popover);
   }
 
   function selectCase(li) {
@@ -520,7 +504,9 @@
     }
     state.selected = li;
     li.querySelector('.mm-node').classList.add('mm-node--sel');
-    refreshToolbar();
+    var box = li.querySelector('.mm-node').getBoundingClientRect();
+    popoverAnchor = { x: Math.round(box.left), y: Math.round(box.bottom + 4) };
+    showPopover();
   }
 
   function clearSelection() {
@@ -529,7 +515,18 @@
       if (node) node.classList.remove('mm-node--sel');
     }
     state.selected = null;
-    refreshToolbar();
+    hidePopover();
+  }
+
+  // 待评审是默认态，徽标直接移除；pass/fail 文案与 REVIEW_MARK_BADGES 一致
+  function setBadge(li, next) {
+    var old = li.querySelector('.mm-badge');
+    if (old) old.parentNode.removeChild(old);
+    if (!next) return;
+    var badge = document.createElement('span');
+    badge.className = 'mm-badge mm-badge--' + next;
+    badge.textContent = next === 'pass' ? '✓ 通过' : '✕ 不通过';
+    li.querySelector('.mm-node').appendChild(badge);
   }
 
   function applyMark(mark) {
@@ -537,14 +534,11 @@
     var li = state.selected;
     var next = mark === 'pass' || mark === 'fail' ? mark : '';
     li.setAttribute('data-mark', next);
-    var badge = li.querySelector('.mm-badge');
-    badge.className = 'mm-badge mm-badge--' + (next || 'pending');
-    badge.textContent = next === 'pass' ? '通过' : next === 'fail' ? '不通过' : '待评审';
+    setBadge(li, next);
     pushRecord(li.getAttribute('data-case'), {
       name: USER, op: 'mark', mark: next || 'pending', text: null, time: nowText()
     });
     refreshStats();
-    refreshToolbar();
     if (drawerFor === li.getAttribute('data-case')) renderRecords();
     toast(mark === 'pass' ? '已标记通过' : mark === 'fail' ? '已标记不通过' : '已重置为待评审', 'success');
   }
@@ -552,48 +546,30 @@
   forEach(document.querySelectorAll('.mm'), function (panel) {
     panel.addEventListener('click', function (e) {
       var node = e.target.closest('.mm-node');
-      if (!node || node.parentElement.getAttribute('data-case') === null) return;
+      if (!node || node.parentElement.getAttribute('data-case') === null) {
+        hidePopover();
+        return;
+      }
       selectCase(node.parentElement);
     });
-    // 右键：光标下的用例节点先选中，再弹标记菜单
-    panel.addEventListener('contextmenu', function (e) {
-      var node = e.target.closest('.mm-node');
-      var li = node && node.parentElement.hasAttribute('data-case') ? node.parentElement : null;
-      if (li) selectCase(li);
-      if (!state.selected) return;
-      e.preventDefault();
-      showCtx(e.clientX, e.clientY);
-    });
+    // 右键仅阻止浏览器原生菜单，不再渲染自定义菜单（fd380891）
+    panel.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    panel.addEventListener('scroll', hidePopover);
   });
 
-  forEach(document.querySelectorAll('.mm-bar [data-mark]'), function (btn) {
-    btn.addEventListener('click', function () { applyMark(btn.getAttribute('data-mark')); });
+  $('nodePopover').addEventListener('click', function (e) {
+    var markBtn = e.target.closest('[data-pop-mark]');
+    if (markBtn) { hidePopover(); applyMark(markBtn.getAttribute('data-pop-mark')); return; }
+    if (e.target.closest('[data-pop-comment]')) { hidePopover(); openDrawer(); return; }
+    if (e.target.closest('[data-pop-remove]')) { hidePopover(); removeSelectedCase(); }
   });
 
-  /* ---------------- 右键菜单 ---------------- */
-
-  var ctx = $('rvCtx');
-
-  function showCtx(x, y) {
-    ctx.hidden = false;
-    var left = Math.max(8, Math.min(x, window.innerWidth - ctx.offsetWidth - 8));
-    var top = Math.max(8, Math.min(y, window.innerHeight - ctx.offsetHeight - 8));
-    ctx.style.left = left + 'px';
-    ctx.style.top = top + 'px';
-  }
-
-  function hideCtx() { ctx.hidden = true; }
-
-  ctx.addEventListener('click', function (e) {
-    var markBtn = e.target.closest('[data-mark]');
-    if (markBtn) { applyMark(markBtn.getAttribute('data-mark')); hideCtx(); }
-  });
-  $('ctxComment').addEventListener('click', function () { hideCtx(); openDrawer(); });
-  $('ctxRemove').addEventListener('click', function () { hideCtx(); removeSelectedCase(); });
   document.addEventListener('click', function (e) {
-    if (!ctx.hidden && !ctx.contains(e.target)) hideCtx();
+    if (!$('nodePopover').hidden &&
+        !e.target.closest('#nodePopover') && !e.target.closest('[data-case]')) {
+      hidePopover();
+    }
   });
-  document.addEventListener('scroll', hideCtx, true);
 
   /* ---------------- 评审记录抽屉 ---------------- */
 
@@ -631,7 +607,6 @@
     $('rvDrawer').hidden = false;
   }
 
-  $('btnComment').addEventListener('click', openDrawer);
   $('drawerClose').addEventListener('click', function () { $('rvDrawer').hidden = true; });
 
   function sendComment() {
@@ -728,8 +703,6 @@
       });
   }
 
-  $('btnRemove').addEventListener('click', removeSelectedCase);
-
   /* ---------------- 调整用例（CaseSelector 简化稿） ---------------- */
 
   function renderPicker() {
@@ -772,7 +745,6 @@
     if (state.selected && !state.selected.isConnected) clearSelection();
     $('rvCaseDialog').hidden = true;
     refreshStats();
-    refreshToolbar();
     toast('规划用例已更新', 'success');
   });
 
@@ -791,14 +763,13 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    hideCtx();
+    hidePopover();
     $('rvConfirm').hidden = true;
     $('rvCaseDialog').hidden = true;
     $('rvDrawer').hidden = true;
   });
 
   refreshStats();
-  refreshToolbar();
 })();
 </script>
 </body>

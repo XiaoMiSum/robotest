@@ -17,14 +17,36 @@
   /* 未选中文档时编辑卡只剩空态（编辑区不承载文档标题栏，交互设计 06 §1.2） */
   .ft-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
 
-  /* 目录树头部：搜索 + 新建（无底色，仅与树体的分隔线） */
+  /* 目录树头部固定 40px（含 1px 下边框），与脑图工具条齐平（对齐 ProjectModuleTree / mindmap-base） */
   .mt-toolbar {
     display: flex; align-items: center; gap: var(--space-xs);
-    padding: 8px; border-bottom: 1px solid var(--n-100);
+    height: 40px; box-sizing: border-box;
+    padding: 0 8px; border-bottom: 1px solid var(--n-100);
+    flex-shrink: 0;
   }
   .mt-toolbar .input-wrap { flex: 1; min-width: 0; }
   .mt-toolbar .input { height: 28px; font-size: var(--font-size-sm); }
   .ft-tree__body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 10px; }
+  /* 加载失败时树上方红色提示条（ProjectModuleTree 的 module-tree__load-bar），不遮住整棵树 */
+  .tree__load-bar {
+    display: flex; align-items: center; gap: var(--space-sm);
+    flex-shrink: 0; margin: 4px 8px; padding: 8px var(--space-sm);
+    border: 1px solid var(--st-danger-border); border-radius: var(--radius-md);
+    background: var(--st-danger-light); color: var(--st-danger-strong);
+    font-size: var(--font-size-xs);
+  }
+  .tree__load-bar .btn { height: 22px; }
+  /* 演示专用开关：静态页无真实请求，需显式入口才能查看加载失败态 */
+  .tree__demo {
+    display: flex; gap: 12px; flex-shrink: 0;
+    padding: 6px 10px; border-top: 1px solid var(--n-100);
+  }
+  .tree__demo button {
+    border: none; background: none; padding: 0;
+    font: inherit; font-size: var(--font-size-xs);
+    color: var(--n-400); cursor: pointer;
+  }
+  .tree__demo button:hover { color: var(--brand-600); }
 
   /* 层级缩进按 --depth 计算，支持无限层级模块树 */
   .tree__item { position: relative; padding-left: calc(12px + var(--depth, 0) * 18px); min-width: 0; }
@@ -33,7 +55,17 @@
     display: inline-flex; align-items: center; justify-content: center;
   }
   .tree__twisty svg { width: 12px; height: 12px; }
-  .tree__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tree__name { position: relative; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 名称截断后悬停/键盘聚焦仍可读全文（ProjectModuleTree 的 el-tooltip hover/focus） */
+  .tree__name[data-tip]:hover::after,
+  .tree__name[data-tip]:focus-visible::after {
+    content: attr(data-tip);
+    position: absolute; left: 0; top: calc(100% + 4px); z-index: 30;
+    max-width: 240px; padding: 5px 8px;
+    border-radius: var(--radius-sm); background: var(--n-800); color: var(--n-0);
+    font-size: var(--font-size-xs); white-space: normal; overflow-wrap: anywhere;
+    box-shadow: var(--shadow-md); pointer-events: none;
+  }
 
   /* 节点行内操作（新建/重命名/删除）：仅 hover 浮现，避免 280px 窄树被常驻按钮挤掉节点名 */
   .tree__actions {
@@ -73,20 +105,18 @@
   .tree-empty .state-block__icon svg { width: 20px; height: 20px; }
   .tree-empty .state-block__title { font-size: var(--font-size-sm); font-weight: 500; color: var(--n-500); }
 
-  /* 脑图工具条（顶部常驻）：单行不换行、左对齐、竖分隔线分组，命令组贴行末右侧；
-     按钮总量宽于容器时不换行（否则命令组被挤到第二行），改为工具条自身横向滚动 */
+  /* 脑图工具条：固定 40px 与左侧模块树 header 齐平；单行左对齐、不换行、无横向滚动
+     （对齐 mindmap-base / CaseMindMap：非全屏编辑类功能收进「编辑」「排版」下拉） */
   .mm-bar {
     display: flex; align-items: center; gap: 4px; flex-wrap: nowrap;
-    padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+    height: 40px; box-sizing: border-box;
+    padding: 0 12px; border-bottom: 1px solid var(--n-200);
     flex-shrink: 0;
-    overflow-x: auto; scrollbar-width: thin;
   }
-  .mm-bar::-webkit-scrollbar { height: 4px; }
-  .mm-bar::-webkit-scrollbar-thumb { background: var(--n-300); border-radius: 2px; }
-  .mm-bar::-webkit-scrollbar-track { background: transparent; }
-  /* 命令组整体右靠：有余量时贴行末右侧，超宽时紧随核心组同排滚动 */
   .mm-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .mm-group--end { margin-left: auto; }
+  /* 全屏下编辑类按钮恢复平铺，与非全屏下拉互斥 */
+  .mm-flat { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .mm-tool {
     display: inline-flex; align-items: center; justify-content: center; gap: 5px;
     flex-shrink: 0;
@@ -153,7 +183,7 @@
   }
   .mm-node--root { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); font-weight: 600; }
   .mm-node--sel { border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--brand-50); }
-  /* 节点徽标：对齐 minder badges.ts——[优先级][类型] 色块白字，堆叠于节点文本左侧 */
+  /* 节点徽标：对齐 minder badges.ts——[优先级][类型][AI] 色块白字，向文本左侧堆叠 */
   .mm-badge {
     display: inline-flex; align-items: center; flex-shrink: 0;
     height: 16px; padding: 0 5px; border-radius: 3px;
@@ -167,6 +197,8 @@
   .mm-badge--p1 { background: var(--priority-p1); }
   .mm-badge--p2 { background: var(--priority-p2); }
   .mm-badge--p3 { background: var(--priority-p3); }
+  /* AI 仅标记 type=case 且 aiGenerated=true 的节点，青色为设计保留档 */
+  .mm-badge--ai { background: #00a6a6; }
   /* 文本编辑态：聚焦框只落在被编辑节点上，失焦/回车提交、Esc 取消 */
   .mm-text[contenteditable] {
     border-radius: var(--radius-sm);
@@ -272,11 +304,17 @@
   .req-sel__pager { padding: 8px 0 0; border-top: none; }
   .page-btn:disabled { color: var(--n-300); cursor: default; }
 
+  /* 单选圆点：用例节点关联需求与 AI 覆盖雷达入口均为单选（RequirementPickerDialog :multiple=false） */
+  .req-item input[data-req] { flex-shrink: 0; margin: 0; cursor: pointer; accent-color: var(--brand-500); }
+  .req-item__code { flex-shrink: 0; font-size: var(--font-size-xs); color: var(--brand-600); font-weight: 600; }
+
   /* ===== 条目明细气泡：贴锚点定位、仅渲染 Markdown 正文（52 §1.2 查看明细） ===== */
   .req-pop {
     position: fixed;
     z-index: 260;
-    width: 340px;
+    /* 对齐 el-popover :width=840 的需求明细宽度，避免长正文频繁换行 */
+    width: 840px;
+    max-width: calc(100vw - 32px);
     max-height: 60vh;
     overflow: hidden;
     background: var(--n-0);
@@ -358,7 +396,139 @@
   .msgbox__msg { margin: 0 0 12px; font-size: var(--font-size-sm); color: var(--n-600); line-height: 1.7; }
   .msgbox__field { margin-top: 4px; }
 
-  .mm:focus-visible, .mm-tool:focus-visible, .tree__item:focus-visible {
+  /* ===== 用例节点悬浮窗：AI 优化与关联需求统一收拢于此（CaseNodeActionPopover） ===== */
+  .case-node-popover {
+    position: fixed; z-index: 250;
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  }
+  .cnp-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 10px;
+    border: none; border-radius: var(--radius-md);
+    background: transparent; font: inherit; font-size: var(--font-size-sm);
+    color: var(--n-600); cursor: pointer;
+  }
+  .cnp-item:hover { background: var(--n-50); }
+  .cnp-item [data-icon] svg { width: 14px; height: 14px; }
+  .cnp-item--ai { color: var(--st-success-strong); animation: cnp-ai-pulse 1.6s ease-in-out infinite; }
+  .cnp-item--link { color: var(--brand-600); }
+  /* 呼吸动画提示 AI 入口可用（CaseNodeActionPopover 的 case-node-ai-pulse） */
+  @keyframes cnp-ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+  /* ===== AI 弹窗：优化 720px / 覆盖雷达 1100px，交互按进行中→对照两段切换 ===== */
+  .ai-assist-dlg { width: 720px; }
+  .ai-gen-dlg { width: 1100px; }
+  .ai-dlg .dialog__body { padding: 12px 16px; }
+  .ai-alert {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 10px; padding: 8px 12px;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    font-size: var(--font-size-sm); line-height: 1.5;
+  }
+  .ai-alert--info { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-700); }
+  .ai-alert--error { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger-strong); }
+  .ai-alert--warning { background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong); }
+  .ai-alert [data-icon] svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+  .ai-alert__actions { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+  .ai-progress {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px; margin-bottom: 10px;
+    border: 1px solid var(--brand-200); border-radius: var(--radius-lg);
+    background: var(--brand-50);
+  }
+  .ai-progress__text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .ai-progress__title { font-weight: 600; color: var(--n-900); }
+  .ai-progress__detail { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-spinner { display: inline-flex; flex-shrink: 0; animation: ai-spin 1s linear infinite; }
+  .ai-spinner svg { width: 18px; height: 18px; }
+  @keyframes ai-spin { to { transform: rotate(360deg); } }
+  .ai-placeholder {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 180px; border: 1px dashed var(--n-200);
+    border-radius: var(--radius-md); color: var(--n-400);
+    font-size: var(--font-size-sm);
+  }
+
+  /* 优化对照：每条操作独立卡片，三列展示节点路径/现有/建议（AssistComparePanel） */
+  .ai-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .ai-head__title { flex: 1; font-size: var(--font-size-base); font-weight: 600; }
+  .ai-head__stat { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-ops { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+  .ai-op {
+    display: flex; flex-direction: column; gap: 5px;
+    padding: 10px 12px; border: 1px solid var(--n-200);
+    border-radius: var(--radius-md); background: var(--brand-50);
+  }
+  .ai-op--skipped { background: var(--n-50); opacity: .7; }
+  .ai-op--active { border-color: var(--brand-400); box-shadow: 0 0 0 1px var(--brand-100); }
+  .ai-op__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .ai-op__seq { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-op__path { font-size: var(--font-size-sm); font-weight: 600; }
+  .ai-op__field { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-op__skip { margin-left: auto; border: none; background: none; font: inherit; font-size: var(--font-size-xs); color: var(--brand-600); cursor: pointer; }
+  .ai-op__line { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+  .ai-op__label { flex-shrink: 0; width: 34px; color: var(--n-500); }
+  .ai-op__reason { margin: 0; font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid var(--n-100);
+  }
+  .ai-foot__stat { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-foot__actions { display: flex; gap: 8px; }
+
+  /* 覆盖雷达勾选树：复用用例选择器的脑图式卡片，勾选父节点随整枝一起插入（CaseSelectTree） */
+  .gen-tree { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; }
+  .gen-node { position: relative; padding-left: 0; }
+  .gen-children { margin-left: 18px; padding-left: 14px; border-left: 1px solid var(--n-200); }
+  .gen-branch { position: relative; padding: 2px 0 2px 14px; }
+  .gen-branch::before {
+    content: ''; position: absolute; left: 0; top: 50%;
+    width: 14px; border-top: 1px solid var(--n-200);
+  }
+  .gen-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border: 1px solid var(--n-300);
+    border-radius: 14px; background: var(--n-0);
+    font-size: 13px; white-space: nowrap; cursor: pointer;
+  }
+  .gen-chip:hover { border-color: var(--brand-400); }
+  .gen-chip--case { background: var(--brand-50); border-color: var(--brand-200); }
+  .gen-chip--checked { background: var(--brand-100); border-color: var(--brand-500); }
+  .gen-chip--locked { background: var(--n-100); border-color: var(--n-200); color: var(--n-500); cursor: default; }
+  .gen-chip input { margin: 0; accent-color: var(--brand-500); cursor: inherit; }
+  .gen-chip__badge, .gen-chip__prio {
+    color: var(--n-0); font-size: 11px; line-height: 16px;
+    border-radius: 8px; padding: 0 6px; flex-shrink: 0;
+  }
+  .gen-chip__badge--case { background: var(--node-case); }
+  .gen-chip__badge--precondition { background: var(--node-precondition); }
+  .gen-chip__badge--step { background: var(--node-step); }
+  .gen-chip__badge--expected { background: var(--node-expected); }
+  .gen-chip__prio--p0 { background: var(--priority-p0); }
+  .gen-chip__prio--p1 { background: var(--priority-p1); }
+  .gen-chip__prio--p2 { background: var(--priority-p2); }
+  .gen-chip__prio--p3 { background: var(--priority-p3); }
+  .gen-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--n-100); }
+  .gen-toolbar .input { height: 28px; width: 180px; font-size: var(--font-size-sm); }
+  .gen-toolbar__count { margin-left: auto; font-size: var(--font-size-xs); color: var(--n-500); }
+  .gen-check { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; }
+  .gen-check input { margin: 0; accent-color: var(--brand-500); cursor: pointer; }
+  .gen-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: var(--font-size-sm); }
+  .gen-head__label { color: var(--n-500); }
+  .gen-head__code { color: var(--brand-600); font-weight: 600; }
+  .gen-head__title { font-weight: 600; }
+  .gen-head__actions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* 全屏：编辑类按钮恢复平铺，非全屏保持下拉（CaseMindMap isFullscreen 切换） */
+  .mm-dropdown-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .mm-bar--full .mm-dropdown-wrap { display: none; }
+  .mm-bar:not(.mm-bar--full) .mm-flat { display: none; }
+
+  .mm:focus-visible, .mm-tool:focus-visible, .tree__item:focus-visible, .cnp-item:focus-visible {
     outline: 2px solid var(--brand-500); outline-offset: 2px;
   }
 </style>
@@ -377,6 +547,11 @@
           <div class="mt-toolbar">
             <div class="input-wrap"><span data-icon="search" aria-hidden="true"></span><input class="input" id="treeFilter" placeholder="搜索目录 / 文档" aria-label="搜索目录 / 文档"></div>
             <button class="btn btn--primary btn--sm" type="button" data-menu="newMenu" aria-haspopup="menu" aria-expanded="false"><span data-icon="plus" aria-hidden="true"></span>新建</button>
+          </div>
+          <!-- 模块树加载失败：树上方红色提示条 + 重试（ProjectModuleTree 的 module-tree__load-bar） -->
+          <div class="tree__load-bar" id="treeLoadBar" role="alert" hidden>
+            <span>模块树加载失败，请重试</span>
+            <button class="btn btn--default btn--sm" type="button" id="treeRetry">重试</button>
           </div>
           <div class="card__body ft-tree__body">
             <div class="tree" role="tree" aria-label="用例模块树" id="caseTree">
@@ -398,6 +573,11 @@
               <div class="state-block__title">暂无模块，点击[新建]创建</div>
             </div>
           </div>
+          <!-- 演示专用：静态页无真实请求，显式入口切换加载失败态 -->
+          <div class="tree__demo">
+            <button type="button" id="treeDemoFail">模拟加载失败</button>
+            <button type="button" id="treeDemoOk">恢复加载</button>
+          </div>
         </div>
 
         <!-- 文档编辑卡：顶部工具条（常驻） + 用例脑图；未选中文档时整体替换为空态 -->
@@ -405,16 +585,24 @@
           <!-- 断线重连态（Yjs 未连接时置顶通栏）：静态页无 WS，仅在载入时短暂呈现该状态 -->
           <div class="ft-banner" id="ftBanner" hidden>连接已断开，正在重连...</div>
           <div class="mm-bar" id="mmBar" role="toolbar" aria-label="脑图工具条">
-            <button class="mm-tool" type="button" data-op="undo" title="撤销 (Ctrl+Z)" aria-label="撤销" disabled><span class="mm-tool--flip" data-icon="refresh" aria-hidden="true"></span></button>
-            <button class="mm-tool" type="button" data-op="redo" title="重做 (Ctrl+Y)" aria-label="重做" disabled><span data-icon="refresh" aria-hidden="true"></span></button>
-            <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool" type="button" data-op="add-child" title="添加子节点 (Tab)"><span data-icon="plus" aria-hidden="true"></span>下级</button>
-            <button class="mm-tool" type="button" data-op="add-sibling" title="添加兄弟节点 (Enter)"><span data-icon="plus" aria-hidden="true"></span>同级</button>
-            <button class="mm-tool" type="button" data-op="edit" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit" aria-hidden="true"></span></button>
-            <button class="mm-tool mm-tool--danger" type="button" data-op="delete-node" title="删除 (Delete)" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>
-            <span class="mm-sep" aria-hidden="true"></span>
-            <button class="mm-tool" type="button" id="tplBtn" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
-            <button class="mm-tool" type="button" data-op="tidy" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
+            <!-- 非全屏：撤销/重做、节点操作与排版收进下拉 -->
+            <div class="mm-dropdown-wrap">
+              <button class="mm-tool" type="button" data-menu="editMenu" aria-haspopup="menu" aria-expanded="false" title="撤销、重做、节点操作与删除"><span data-icon="edit" aria-hidden="true"></span>编辑<span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" id="tplBtn" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span>排版<span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
+            </div>
+            <!-- 全屏：编辑类按钮恢复平铺，与下拉互斥 -->
+            <div class="mm-flat" id="mmFlat">
+              <button class="mm-tool" type="button" data-op="undo" title="撤销 (Ctrl+Z)" aria-label="撤销" disabled><span class="mm-tool--flip" data-icon="refresh" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" data-op="redo" title="重做 (Ctrl+Y)" aria-label="重做" disabled><span data-icon="refresh" aria-hidden="true"></span></button>
+              <span class="mm-sep" aria-hidden="true"></span>
+              <button class="mm-tool" type="button" data-op="add-child" title="添加子节点 (Tab)"><span data-icon="plus" aria-hidden="true"></span>下级</button>
+              <button class="mm-tool" type="button" data-op="add-sibling" title="添加兄弟节点 (Enter)"><span data-icon="plus" aria-hidden="true"></span>同级</button>
+              <button class="mm-tool" type="button" data-op="edit" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit" aria-hidden="true"></span></button>
+              <button class="mm-tool mm-tool--danger" type="button" data-op="delete-node" title="删除 (Delete)" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>
+              <span class="mm-sep" aria-hidden="true"></span>
+              <button class="mm-tool" type="button" id="tplBtnFull" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" data-op="tidy" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
+            </div>
             <span class="mm-sep" aria-hidden="true"></span>
             <button class="mm-tool type-btn is-selected" type="button" data-type="case" title="标记为用例" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
             <button class="mm-tool type-btn" type="button" data-type="precondition" title="标记为前置" aria-pressed="false"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
@@ -426,8 +614,9 @@
             <button class="mm-tool priority-btn priority-btn--p1" type="button" data-priority="P1" title="标记优先级 P1" aria-pressed="false">P1</button>
             <button class="mm-tool priority-btn priority-btn--p2" type="button" data-priority="P2" title="标记优先级 P2" aria-pressed="false">P2</button>
             <button class="mm-tool priority-btn priority-btn--p3" type="button" data-priority="P3" title="标记优先级 P3" aria-pressed="false">P3</button>
+            <!-- 覆盖雷达入口常驻最右，全屏与非全屏共用（CaseMindMap toolbar-ai-entry） -->
             <div class="mm-group mm-group--end">
-              <button class="mm-tool" type="button" id="reqLinkBtn" title="关联需求" aria-label="关联需求"><span data-icon="link" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" id="radarBtn" title="扫描需求测试用例覆盖率并补齐缺漏"><span data-icon="sparkle" aria-hidden="true"></span>AI覆盖雷达</button>
             </div>
           </div>
 
@@ -437,7 +626,7 @@
                 <ul role="tree" aria-label="用例节点">
                   <li role="treeitem" aria-expanded="true"><span class="mm-node mm-node--root"><span data-icon="document" aria-hidden="true"></span><span class="mm-text" id="mmRootName">优惠券叠加规则</span></span>
                     <ul role="group">
-                      <li role="treeitem" aria-expanded="true" aria-selected="true" data-type="case" data-prio="P0"><span class="mm-node mm-node--sel"><span class="mm-text">下单页优惠券叠加校验</span></span>
+                      <li role="treeitem" aria-expanded="true" aria-selected="true" data-type="case" data-prio="P0" data-req-id="r1"><span class="mm-node mm-node--sel"><span class="mm-text">下单页优惠券叠加校验</span></span>
                         <ul role="group">
                           <li role="treeitem" data-type="precondition"><span class="mm-node"><span class="mm-text">已登录并持有可用优惠券</span></span></li>
                           <li role="treeitem" data-type="step"><span class="mm-node"><span class="mm-text">提交含两张券的订单</span></span></li>
@@ -450,7 +639,7 @@
                           <li role="treeitem" data-type="expected"><span class="mm-node"><span class="mm-text">提示库存不足并阻止下单</span></span></li>
                         </ul>
                       </li>
-                      <li role="treeitem" aria-expanded="true" data-type="case" data-prio="P0"><span class="mm-node"><span class="mm-text">多优惠券互斥规则</span></span>
+                      <li role="treeitem" aria-expanded="true" data-type="case" data-prio="P0" data-ai="true"><span class="mm-node"><span class="mm-text">多优惠券互斥规则</span></span>
                         <ul role="group">
                           <li role="treeitem" data-type="step"><span class="mm-node"><span class="mm-text">勾选互斥的两张券</span></span></li>
                           <li role="treeitem" data-type="expected"><span class="mm-node"><span class="mm-text">提示互斥，仅可使用一张</span></span></li>
@@ -507,7 +696,19 @@
   </div>
 </main>
 
-<!-- 排版模板下拉：6 套模板，当前项禁用（useMindmapLayout） -->
+<!-- 编辑下拉：非全屏下撤销/重做、节点操作与删除收拢于此（CaseMindMap 的「编辑 ▾」） -->
+<div class="ctx ctx--dd" id="editMenu" role="menu" aria-label="编辑" hidden>
+  <button class="ctx__item" type="button" role="menuitem" data-op="undo" disabled><span>撤销</span><span class="ctx__kbd">Ctrl+Z</span></button>
+  <button class="ctx__item" type="button" role="menuitem" data-op="redo" disabled><span>重做</span><span class="ctx__kbd">Ctrl+Y</span></button>
+  <div class="ctx__sep"></div>
+  <button class="ctx__item" type="button" role="menuitem" data-op="add-child"><span>新建下级节点</span><span class="ctx__kbd">Tab</span></button>
+  <button class="ctx__item" type="button" role="menuitem" data-op="add-sibling"><span>新建同级节点</span><span class="ctx__kbd">Enter</span></button>
+  <button class="ctx__item" type="button" role="menuitem" data-op="edit"><span>编辑内容</span><span class="ctx__kbd">F2</span></button>
+  <div class="ctx__sep"></div>
+  <button class="ctx__item ctx__item--danger" type="button" role="menuitem" data-op="delete-node"><span>删除节点</span><span class="ctx__kbd">Delete</span></button>
+</div>
+
+<!-- 排版模板下拉：6 套模板 + 恢复自动排版，当前项禁用（useMindmapLayout） -->
 <div class="ctx ctx--dd" id="tplMenu" role="menu" aria-label="排版模板" hidden>
   <button class="ctx__item" type="button" role="menuitem" data-tpl disabled>思维导图</button>
   <button class="ctx__item" type="button" role="menuitem" data-tpl>右侧分布</button>
@@ -515,6 +716,8 @@
   <button class="ctx__item" type="button" role="menuitem" data-tpl>目录</button>
   <button class="ctx__item" type="button" role="menuitem" data-tpl>鱼骨图</button>
   <button class="ctx__item" type="button" role="menuitem" data-tpl>天盘</button>
+  <div class="ctx__sep"></div>
+  <button class="ctx__item" type="button" role="menuitem" data-op="tidy"><span>恢复自动排版</span></button>
 </div>
 
 <!-- 新建下拉：树顶 [新建]（根级）与节点 [+]（子级）共用 -->
@@ -548,7 +751,7 @@
   </div>
 </div>
 
-<!-- 需求条目选取器：工具条 [关联需求] 入口使用（交互设计 52 §1.2） -->
+<!-- 需求条目选取器：节点悬浮窗 [关联需求] 与工具条 [AI覆盖雷达] 共用，均为单选（交互设计 52 §1.2） -->
 <div class="dialog-mask req-mask" id="reqMask" hidden>
   <div class="dialog" role="dialog" aria-labelledby="reqSelTitle">
     <div class="dialog__header">
@@ -580,6 +783,34 @@
 <div class="req-pop" id="reqPop" data-req="" hidden>
   <button class="req-pop__close" type="button" id="reqPopClose" aria-label="关闭明细"><span data-icon="x" aria-hidden="true"></span></button>
   <div class="req-pop__body" id="reqPopBody"></div>
+</div>
+
+<!-- 用例节点悬浮窗：左键单击用例节点展开，AI 优化与关联需求收拢于此（CaseNodeActionPopover） -->
+<div class="case-node-popover" id="casePopover" hidden>
+  <button class="cnp-item cnp-item--ai" type="button" id="popAiBtn" title="对选中用例发起 AI 优化"><span data-icon="sparkle" aria-hidden="true"></span>AI 优化</button>
+  <button class="cnp-item cnp-item--link" type="button" id="popLinkBtn" title="维护当前用例关联的需求"><span data-icon="link" aria-hidden="true"></span>关联需求</button>
+</div>
+
+<!-- AI 优化弹窗：进行中展示进度，完成后切换为对照面板（AssistComparePanel） -->
+<div class="dialog-mask" id="aiAssistMask" hidden>
+  <div class="dialog ai-dlg ai-assist-dlg" role="dialog" aria-modal="true" aria-labelledby="aiAssistTitle">
+    <div class="dialog__header">
+      <span class="dialog__title" id="aiAssistTitle">AI 优化</span>
+      <button class="dialog__close" type="button" id="aiAssistClose" aria-label="关闭"><span data-icon="x" aria-hidden="true"></span></button>
+    </div>
+    <div class="dialog__body" id="aiAssistBody"></div>
+  </div>
+</div>
+
+<!-- AI覆盖雷达：命中最近任务直接回显，未命中选需求后生成提案并勾选采纳（AiCaseGenerationPanel） -->
+<div class="dialog-mask" id="aiGenMask" hidden>
+  <div class="dialog ai-dlg ai-gen-dlg" role="dialog" aria-modal="true" aria-labelledby="aiGenTitle">
+    <div class="dialog__header">
+      <span class="dialog__title" id="aiGenTitle">AI覆盖雷达</span>
+      <button class="dialog__close" type="button" id="aiGenClose" aria-label="关闭"><span data-icon="x" aria-hidden="true"></span></button>
+    </div>
+    <div class="dialog__body" id="aiGenBody"></div>
+  </div>
 </div>
 
 <!-- 画布右键菜单：结构对照真实 MinderContextMenu -->
@@ -666,14 +897,41 @@
       }
     ]
 
+    // AI覆盖雷达生成的候选用例：整枝勾选后插入当前文档根节点，采纳后节点带 AI 标识
+    var GEN_CASES = [
+      { key: 'g1', title: '优惠券叠加上限校验', prio: 'P0', children: [
+        { type: 'precondition', title: '用户持有 4 张可用券' },
+        { type: 'step', title: '一次提交叠加 4 张券的订单' },
+        { type: 'expected', title: '仅前 3 张生效，超出提示不可叠加' }
+      ] },
+      { key: 'g2', title: '过期券提交拦截校验', prio: 'P1', children: [
+        { type: 'precondition', title: '持有已过期的优惠券' },
+        { type: 'expected', title: '提交时拦截并提示该券已过期' }
+      ] },
+      { key: 'g3', title: '互斥券提示文案校验', prio: 'P2', children: [
+        { type: 'step', title: '勾选两张互斥券' },
+        { type: 'expected', title: '提示互斥，仅可使用一张' }
+      ] },
+      { key: 'g4', title: '券叠加金额分摊校验', prio: 'P0', children: [
+        { type: 'step', title: '提交跨店券与平台券叠加订单' },
+        { type: 'expected', title: '按面额从大到小分摊，尾差计入最大店铺' }
+      ] },
+      { key: 'g5', title: '券核销幂等校验', prio: 'P1', children: [
+        { type: 'step', title: '对同一券码并发提交两次核销' },
+        { type: 'expected', title: '仅扣减一次，第二次返回首次结果' }
+      ] }
+    ]
+
     var reqMask = $('reqMask')
     var ctx = $('ctxMenu')
     var S = {
-      // 文档已关联的需求条目（[关联需求] 入口维护，选取器按此初始化勾选）
-      docReqs: ['r1', 'r2'],
+      // 当前用例关联的需求：单选，存于节点 data（useCaseRequirementLink 的 requirementId）
+      nodeReqId: 'r1',
       reqSel: [],
       reqPage: 1,
       reqPageSize: 10,
+      reqMode: 'link',
+      reqOpener: null,
       // 当前打开的文档（data-path 为文档标识；空表示编辑区处于空态）
       docPath: 'd1/x1',
       docName: '优惠券叠加规则',
@@ -686,7 +944,16 @@
       // 应用内剪贴板：粘贴入口按此置灰（对齐 clipboard.ts 的 hasClipboard 口径）
       clipboard: null,
       // 正在编辑文本的节点（input 态），Esc 取消 / 回车与失焦提交
-      editing: null
+      editing: null,
+      // 用例节点悬浮窗的目标节点与锚点（useCaseNodePopover）
+      popNode: null,
+      // AI 优化弹窗状态：running → compare，rows 为当前节点的建议
+      assist: null,
+      // AI覆盖雷达最近任务：命中后直接回显，未命中才走需求单选
+      aiGen: null,
+      genFilter: '',
+      genPrio: '',
+      genShowAdopted: false
     }
 
     /* ---------------- 浮层菜单（右键 / 下拉） ---------------- */
@@ -701,6 +968,8 @@
     function closeMenu() {
       if (!S.menu) return
       S.menu.hidden = true
+      // 下拉触发器再次点开前需复位，避免图标停留在展开态
+      if (S.menuAnchor && S.menuAnchor.hasAttribute('aria-expanded')) S.menuAnchor.setAttribute('aria-expanded', 'false')
       S.menu = null
       S.menuAnchor = null
     }
@@ -868,6 +1137,12 @@
 
     $('treeFilter').addEventListener('input', renderTree)
 
+    // 演示开关：静态页无真实请求，显式切换加载失败态（真实组件由请求失败驱动提示条）
+    function setTreeLoadError(on) { $('treeLoadBar').hidden = !on }
+    $('treeDemoFail').addEventListener('click', function () { setTreeLoadError(true) })
+    $('treeDemoOk').addEventListener('click', function () { setTreeLoadError(false) })
+    $('treeRetry').addEventListener('click', function () { setTreeLoadError(false); toast('模块树已恢复', 'success') })
+
     function setExpanded(item, expanded) {
       item.setAttribute('data-collapsed', String(!expanded))
       renderTree()
@@ -936,7 +1211,11 @@
         '</span>' +
         '</div>'
       var node = wrap.firstElementChild
-      node.querySelector('.tree__name').textContent = opts.name
+      var nameEl = node.querySelector('.tree__name')
+      nameEl.textContent = opts.name
+      // 名称截断后仍需可读全文（el-tree 的 el-tooltip hover/focus）
+      nameEl.setAttribute('data-tip', opts.name)
+      nameEl.setAttribute('tabindex', '0')
       node.draggable = true
       if (window.RTIcons) window.RTIcons.hydrate(node)
       return node
@@ -987,6 +1266,7 @@
         inputValue: nameEl.textContent.trim(),
         onOk: function (value) {
           nameEl.textContent = value
+          nameEl.setAttribute('data-tip', value)
           if (item.getAttribute('data-path') === S.docPath) {
             S.docName = value
             $('mmRootName').textContent = value
@@ -1156,8 +1436,11 @@
         $('tplMenu').querySelectorAll('[data-tpl]').forEach(function (b) { b.disabled = false })
         el.disabled = true
         var label = el.textContent.trim()
-        $('tplBtn').setAttribute('title', '排版模板：' + label)
-        $('tplBtn').setAttribute('aria-label', '排版模板：' + label)
+        // 非全屏与全屏两个入口共享当前模板名，仅由悬浮提示回显
+        ;['tplBtn', 'tplBtnFull'].forEach(function (id) {
+          $(id).setAttribute('title', '排版模板：' + label)
+          $(id).setAttribute('aria-label', '排版模板：' + label)
+        })
         closeMenu()
       })
     })
@@ -1177,10 +1460,9 @@
     function snapshot() { return mmInner.innerHTML }
 
     function syncHistoryBtns() {
-      var undoBtn = document.querySelector('#mmBar [data-op="undo"]')
-      var redoBtn = document.querySelector('#mmBar [data-op="redo"]')
-      undoBtn.disabled = !hist.undo.length
-      redoBtn.disabled = !hist.redo.length
+      // 编辑下拉、全屏平铺与右键菜单各有 undo/redo，多处可用性必须同步
+      document.querySelectorAll('#mmBar [data-op="undo"], #editMenu [data-op="undo"]').forEach(function (b) { b.disabled = !hist.undo.length })
+      document.querySelectorAll('#mmBar [data-op="redo"], #editMenu [data-op="redo"]').forEach(function (b) { b.disabled = !hist.redo.length })
     }
 
     // 改动前入栈：撤销回到的是变更前的画布（对应 history.hasUndo / hasRedo 口径）
@@ -1214,7 +1496,8 @@
       syncHistoryBtns()
     }
 
-    // 徽标堆叠顺序对齐 badges.ts：[优先级][类型] 色块白字排在节点文本左侧
+    // 徽标堆叠顺序对齐 badges.ts：[优先级][类型][AI] 色块白字排在节点文本左侧；
+    // AI 仅标记 type=case 且 aiGenerated=true 的节点
     function renderBadges(li) {
       var node = li.querySelector(':scope > .mm-node')
       if (!node) return
@@ -1224,6 +1507,7 @@
       var type = li.getAttribute('data-type') || 'normal'
       if (prio) html += '<span class="mm-badge mm-badge--' + prio.toLowerCase() + '">' + prio + '</span>'
       if (TYPE_LABEL[type]) html += '<span class="mm-badge mm-badge--' + type + '">' + TYPE_LABEL[type] + '</span>'
+      if (type === 'case' && li.getAttribute('data-ai') === 'true') html += '<span class="mm-badge mm-badge--ai">AI</span>'
       if (html) node.insertAdjacentHTML('afterbegin', html)
     }
 
@@ -1239,6 +1523,8 @@
       if (selNode) selNode.classList.add('mm-node--sel')
       S.nodeType = li.getAttribute('data-type') || 'normal'
       S.nodePriority = li.getAttribute('data-prio') || ''
+      // 关联需求存于节点 data（useCaseRequirementLink 的 requirementId），随选中同步
+      S.nodeReqId = li.getAttribute('data-req-id') || ''
       renderMarks()
     }
 
@@ -1446,8 +1732,8 @@
     document.addEventListener('click', function (e) {
       var opEl = e.target.closest('[data-op]')
       if (opEl) {
-        // 右键菜单点任意项即整体关闭（MinderContextMenu 的 close 口径），置灰项也不例外
-        if (opEl.closest('#ctxMenu')) closeMenu()
+        // 右键菜单/编辑下拉点任意项即整体关闭，置灰项也不例外
+        if (opEl.closest('.ctx')) closeMenu()
         if (opEl.disabled) return
         var op = OPS[opEl.getAttribute('data-op')]
         if (op) op()
@@ -1520,6 +1806,10 @@
       var on = !!document.fullscreenElement
       $('navFull').textContent = on ? '⤡' : '⛶'
       $('navFull').setAttribute('title', on ? '退出全屏' : '全屏')
+      // 工具条形态跟随原生全屏：非全屏下拉、全屏平铺，切换时收起浮层
+      $('mmBar').classList.toggle('mm-bar--full', on)
+      closeMenu()
+      closePopover()
     })
 
     /* ---------------- 画布交互：选中 / 双击编辑 / 节点偏移拖拽 / 背景平移 ---------------- */
@@ -1580,10 +1870,45 @@
       window.setTimeout(function () { suppressClick = false }, 0)
     })
 
+    /* ---------------- 用例节点悬浮窗（useCaseNodePopover） ---------------- */
+    var pop = $('casePopover')
+
+    function openPopover(li) {
+      var node = li.querySelector(':scope > .mm-node')
+      if (!node) return
+      S.popNode = li
+      var r = node.getBoundingClientRect()
+      pop.hidden = false
+      // 贴节点渲染框下沿，越界时翻转到上方并做视口钳制
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8))
+      var top = r.bottom + 4
+      if (top + pop.offsetHeight > window.innerHeight - 8) top = Math.max(8, r.top - pop.offsetHeight - 4)
+      pop.style.left = left + 'px'
+      pop.style.top = top + 'px'
+    }
+
+    function closePopover() {
+      if (pop.hidden) return
+      pop.hidden = true
+      S.popNode = null
+    }
+
+    // 浮层按渲染框定位，视口滚动/缩放后失效，统一收起（useCaseNodePopover 的全局监听）
+    document.addEventListener('mousedown', function (e) {
+      if (!pop.hidden && !e.target.closest('#casePopover') && !e.target.closest('.mm-node')) closePopover()
+    }, true)
+    document.addEventListener('wheel', closePopover, true)
+    document.addEventListener('scroll', closePopover, true)
+
     mm.addEventListener('click', function (e) {
       if (suppressClick) { suppressClick = false; return }
       var node = e.target.closest('.mm-node')
-      if (node) selectLi(node.closest('li'))
+      if (!node) { closePopover(); return }
+      var li = node.closest('li')
+      selectLi(li)
+      // 仅用例节点展开悬浮窗，非用例节点收起（handleNodeClick 的 type=case 判定）
+      if (li.getAttribute('data-type') === 'case') openPopover(li)
+      else closePopover()
     })
 
     mm.addEventListener('dblclick', function (e) {
@@ -1679,29 +2004,34 @@
       return REQ_POOL.filter(function (r) { return r.id === id })[0]
     }
 
+    function reqCode(r) { return 'REQ-' + r.id.slice(1).padStart(3, '0') }
+
     function renderReqList() {
       var kw = $('reqFilter').value.trim()
-      var items = REQ_POOL.filter(function (r) { return !kw || r.title.indexOf(kw) >= 0 })
+      var items = REQ_POOL.filter(function (r) { return !kw || r.title.indexOf(kw) >= 0 || reqCode(r).indexOf(kw.toUpperCase()) >= 0 })
       var pages = Math.max(1, Math.ceil(items.length / S.reqPageSize))
       if (S.reqPage > pages) S.reqPage = pages
       var start = (S.reqPage - 1) * S.reqPageSize
       var pageItems = items.slice(start, start + S.reqPageSize)
       var box = $('reqList')
       if (!pageItems.length) {
-        box.innerHTML = '<div class="req-empty">暂无需求</div>'
+        box.innerHTML = '<div class="req-empty">无匹配需求</div>'
       } else {
+        // 单选：radio 互斥，关联需求可清空、覆盖雷达必须选一条（RequirementPickerDialog :multiple=false）
         box.innerHTML = pageItems.map(function (r) {
           var on = S.reqSel.indexOf(r.id) >= 0
           return '<label class="req-item">' +
-            '<input type="checkbox" data-req="' + r.id + '"' + (on ? ' checked' : '') + '>' +
+            '<input type="radio" name="reqPick" data-req="' + r.id + '"' + (on ? ' checked' : '') + '>' +
+            '<span class="req-item__code">' + reqCode(r) + '</span>' +
             '<span class="req-item__title">' + r.title + '</span>' +
             '<span class="req-item__date">' + r.date + '</span>' +
             '<button class="btn btn--text btn--sm" type="button" data-detail="' + r.id + '">明细</button>' +
             '</label>'
         }).join('')
       }
-      $('reqCount').textContent = '已选 ' + S.reqSel.length + ' 条'
+      $('reqCount').textContent = '已选 ' + S.reqSel.length + ' 项'
       $('reqTotal').textContent = '共 ' + items.length + ' 条'
+      $('reqConfirm').disabled = S.reqMode === 'gen' && S.reqSel.length === 0
       var html = ''
       for (var p = 1; p <= pages; p++) {
         html += '<button class="page-btn' + (p === S.reqPage ? ' page-btn--active' : '') +
@@ -1717,10 +2047,12 @@
       renderReqList()
     }
 
-    function openReqSel() {
+    function openReqSel(mode) {
+      S.reqMode = mode || 'link'
       // 关闭后回焦打开选取器的入口（45 §2.9 焦点管理）
       S.reqOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null
-      S.reqSel = S.docReqs.slice()
+      // 单选回填仅取当前值；覆盖雷达为新建任务，不带初始勾选
+      S.reqSel = S.reqMode === 'link' && S.nodeReqId ? [S.nodeReqId] : []
       S.reqPage = 1
       $('reqFilter').value = ''
       renderReqList()
@@ -1761,9 +2093,524 @@
       pop.removeAttribute('data-req')
     }
 
+    /* ---------------- AI 优化 / 覆盖雷达（交互 07 §2.3–2.5） ---------------- */
+
+    var ASSIST_STEPS = ['解析用例结构', '检索关联需求', '生成优化建议']
+    var GEN_STEPS = ['解析需求条目', '扫描现有用例覆盖', '补齐缺漏用例', '生成候选用例']
+    var assistTimer = 0
+    var genTimer = 0
+
+    function stopTimer(id) { if (id) window.clearTimeout(id) }
+
+    // 弹窗正文为动态插入，需再次水合图标（icons.js 仅在首屏执行一次）
+    function hydrateIcons(root) {
+      if (window.RTIcons) window.RTIcons.hydrate(root)
+    }
+
+    /* ---- AI 优化：进行中 → 对照（AssistComparePanel 的单条采纳口径） ---- */
+
+    // 建议以当前节点实际内容为「现有」，避免换节点后对照与现状不符
+    function buildAssistRows(li, title) {
+      var pre = '', step = '', exp = ''
+      li.querySelectorAll(':scope > ul[role="group"] > li').forEach(function (c) {
+        var t = c.querySelector(':scope > .mm-node > .mm-text')
+        if (!t) return
+        var type = c.getAttribute('data-type')
+        if (type === 'precondition' && !pre) pre = t.textContent
+        else if (type === 'step' && !step) step = t.textContent
+        else if (type === 'expected' && !exp) exp = t.textContent
+      })
+      var prio = li.getAttribute('data-prio') || 'P2'
+      return [
+        { key: 'a1', op: 'update', nodeType: 'precondition', field: '前置条件', kindLabel: '更新',
+          path: title + ' › 前置条件', existing: pre || '（无前置条件）',
+          suggested: '已登录并持有 3 张可用优惠券', reason: '与需求「满减券叠加规则」的前置口径对齐',
+          status: 'pending', skipped: false, unchanged: false },
+        { key: 'a2', op: 'update', nodeType: 'step', field: '操作步骤', kindLabel: '更新',
+          path: title + ' › 步骤 1', existing: step || '（无步骤）',
+          suggested: '提交含三张券的订单', reason: '覆盖叠加张数上限的边界',
+          status: 'pending', skipped: false, unchanged: false },
+        { key: 'a3', op: 'add', nodeType: 'expected', field: '预期结果', kindLabel: '新增',
+          path: title + ' › 预期结果', existing: '—',
+          suggested: '超出 3 张时提示不可叠加', reason: '补齐超限拦截预期',
+          status: 'pending', skipped: false, unchanged: false },
+        { key: 'a4', op: 'update', nodeType: 'case', field: '优先级', kindLabel: '更新',
+          path: title + ' › 优先级', existing: prio, suggested: prio,
+          reason: '建议与现有内容一致', status: 'pending', skipped: false, unchanged: true }
+      ]
+    }
+
+    function openAssist() {
+      var li = S.popNode || selectedLi()
+      if (!li) return
+      var textEl = nodeTextEl(li)
+      var title = textEl ? textEl.textContent : '当前用例'
+      closePopover()
+      S.assist = {
+        phase: 'running', step: 0, title: title, node: li,
+        rows: buildAssistRows(li, title), activeKey: '', showUnchanged: false
+      }
+      $('aiAssistMask').hidden = false
+      renderAssist()
+      tickAssist()
+    }
+
+    function assistActionable(a) {
+      return a.rows.filter(function (r) { return !r.unchanged })
+    }
+
+    function assistActive(a) {
+      return a.rows.find(function (r) { return r.key === a.activeKey }) || null
+    }
+
+    function assistNextKey(a) {
+      var next = a.rows.find(function (r) { return !r.unchanged && r.status === 'pending' && !r.skipped })
+      return next ? next.key : ''
+    }
+
+    function assistAdoptedCount(a) {
+      return a.rows.filter(function (r) { return r.status === 'adopted' }).length
+    }
+
+    function tickAssist() {
+      stopTimer(assistTimer)
+      var a = S.assist
+      if (!a || a.phase !== 'running') return
+      assistTimer = window.setTimeout(function () {
+        if (!S.assist || S.assist.phase !== 'running') return
+        S.assist.step++
+        if (S.assist.step >= ASSIST_STEPS.length) {
+          S.assist.phase = 'compare'
+          S.assist.step = ASSIST_STEPS.length - 1
+          S.assist.activeKey = assistNextKey(S.assist)
+        }
+        renderAssist()
+        tickAssist()
+      }, 800)
+    }
+
+    function renderAssist() {
+      var body = $('aiAssistBody')
+      var a = S.assist
+      if (!a) { body.innerHTML = ''; return }
+
+      if (a.phase === 'running') {
+        body.innerHTML =
+          '<div class="ai-alert ai-alert--info"><span data-icon="info-filled" aria-hidden="true"></span>' +
+          '<span>关闭弹窗后任务仍在后台运行，可在顶部 AI 任务角标或 AI 任务中心查看进度</span></div>' +
+          '<div class="ai-progress"><span class="ai-spinner" data-icon="loader" aria-hidden="true"></span>' +
+          '<div class="ai-progress__text">' +
+          '<span class="ai-progress__title">AI 正在分析用例… 当前步骤：' + ASSIST_STEPS[a.step] + '</span>' +
+          '<span class="ai-progress__detail">目标节点：' + escapeHtml(a.title) + '</span>' +
+          '</div></div>'
+        hydrateIcons(body)
+        return
+      }
+
+      var active = assistActive(a)
+      var source = reqById(S.nodeReqId)
+      var html = '<div class="ai-head">' +
+        '<span class="ai-head__title">AI 优化建议</span>' +
+        '<button class="btn btn--text btn--sm" type="button" id="assistRetry">重新执行</button>' +
+        '<button class="btn btn--text btn--sm" type="button" id="assistClose">关闭</button>' +
+        '</div>'
+      if (source) {
+        html += '<div class="gen-head"><span class="gen-head__label">来源</span>' +
+          '<span class="gen-head__code">' + reqCode(source) + '</span>' +
+          '<span class="gen-head__title">' + escapeHtml(source.title) + '</span></div>'
+      }
+      html += '<div class="ai-ops">'
+      a.rows.forEach(function (r, i) {
+        if (r.unchanged && !a.showUnchanged) return
+        var cls = 'ai-op' + (r.skipped ? ' ai-op--skipped' : '') + (active && active.key === r.key ? ' ai-op--active' : '')
+        html += '<article class="' + cls + '">'
+        html += '<header class="ai-op__head">' +
+          '<span class="ai-op__seq">操作 ' + (i + 1) + '</span>' +
+          '<span class="ai-op__path">' + escapeHtml(r.path) + '</span>' +
+          '<span class="ai-op__field">· ' + escapeHtml(r.field) + '</span>' +
+          '<span class="gen-chip__badge gen-chip__badge--' + (r.op === 'add' ? 'expected' : 'step') + '">' + r.kindLabel + '</span>' +
+          (r.unchanged
+            ? ''
+            : r.status === 'adopted'
+              ? '<span class="ai-op__field">已采纳</span>'
+              : '<button class="ai-op__skip" type="button" data-assist-skip="' + r.key + '">' + (r.skipped ? '恢复' : '跳过') + '</button>') +
+          '</header>'
+        if (r.unchanged) {
+          html += '<p class="ai-op__line"><span class="ai-op__label">建议</span><span>与现有内容一致，无需变更</span></p>'
+        } else if (r.op === 'add') {
+          html += '<p class="ai-op__line"><span class="ai-op__label">新节点</span><span>' + escapeHtml(r.suggested) + '</span></p>'
+        } else {
+          html += '<p class="ai-op__line"><span class="ai-op__label">现有</span><span>' + escapeHtml(r.existing) + '</span></p>'
+          html += '<p class="ai-op__line"><span class="ai-op__label">建议</span><span>' + escapeHtml(r.suggested) + '</span></p>'
+        }
+        if (r.reason) html += '<p class="ai-op__reason">理由：' + escapeHtml(r.reason) + '</p>'
+        html += '</article>'
+      })
+      html += '</div>'
+      if (a.rows.some(function (r) { return r.unchanged })) {
+        html += '<button class="btn btn--text btn--sm" type="button" id="assistFold">' +
+          (a.showUnchanged ? '收起无变化项' : '展开共有 1 项与现有内容相同') + '</button>'
+      }
+      var canAdopt = active && !active.skipped && active.status === 'pending'
+      html += '<div class="ai-foot"><span class="ai-foot__stat">已采纳 ' +
+        assistAdoptedCount(a) + ' / 共 ' + assistActionable(a).length + '</span>' +
+        '<div class="ai-foot__actions"><button class="btn btn--primary btn--sm" type="button" id="assistAdopt"' +
+        (canAdopt ? '' : ' disabled') + '>采纳</button></div></div>'
+      body.innerHTML = html
+      hydrateIcons(body)
+    }
+
+    // 采纳在当前脑图树上就地执行：更新按现有文本定位子节点，新增追加为子节点
+    function applyAssistRow(a, r) {
+      var li = a.node
+      if (!li) return
+      if (r.op === 'add') {
+        var group = li.querySelector(':scope > ul[role="group"]')
+        if (!group) {
+          group = document.createElement('ul')
+          group.setAttribute('role', 'group')
+          li.appendChild(group)
+        }
+        var child = document.createElement('li')
+        child.setAttribute('role', 'treeitem')
+        child.setAttribute('data-type', r.nodeType)
+        var cnode = document.createElement('span')
+        cnode.className = 'mm-node'
+        var ctext = document.createElement('span')
+        ctext.className = 'mm-text'
+        ctext.textContent = r.suggested
+        cnode.appendChild(ctext)
+        child.appendChild(cnode)
+        group.appendChild(child)
+        renderBadges(child)
+      } else {
+        var target = null
+        li.querySelectorAll(':scope > ul[role="group"] > li').forEach(function (c) {
+          var t = c.querySelector(':scope > .mm-node > .mm-text')
+          if (t && t.textContent === r.existing) target = c
+        })
+        if (!target) target = li
+        var textEl = nodeTextEl(target)
+        if (textEl) textEl.textContent = r.suggested
+        renderBadges(target)
+      }
+      // 采纳即视为 AI 产出：节点打 AI 标识（badges.ts 的 aiGenerated）
+      if (li.getAttribute('data-ai') !== 'true') {
+        li.setAttribute('data-ai', 'true')
+        renderBadges(li)
+      }
+    }
+
+    function adoptAssist() {
+      var a = S.assist
+      if (!a || a.phase !== 'compare') return
+      var active = assistActive(a)
+      if (!active || active.skipped || active.status !== 'pending') return
+      pushHistory()
+      active.status = 'adopted'
+      applyAssistRow(a, active)
+      a.activeKey = assistNextKey(a)
+      renderAssist()
+      if (!a.activeKey) toast('已采纳全部建议', 'success')
+    }
+
+    function toggleAssistSkip(key) {
+      var a = S.assist
+      if (!a) return
+      var row = a.rows.find(function (r) { return r.key === key })
+      if (!row || row.unchanged || row.status !== 'pending') return
+      row.skipped = !row.skipped
+      a.activeKey = assistNextKey(a)
+      renderAssist()
+    }
+
+    function retryAssist() {
+      var a = S.assist
+      if (!a) return
+      // 重新执行按当前节点内容重建对照，避免已落地的建议再次叠加
+      a.rows = buildAssistRows(a.node, a.title)
+      a.phase = 'running'
+      a.step = 0
+      a.activeKey = ''
+      a.showUnchanged = false
+      renderAssist()
+      tickAssist()
+    }
+
+    function closeAssist() {
+      stopTimer(assistTimer)
+      assistTimer = 0
+      $('aiAssistMask').hidden = true
+      S.assist = null
+    }
+
+    /* ---- 覆盖雷达：未命中最近任务先选需求，生成后勾选采纳（AiCaseGenerationPanel） ---- */
+
+    function radarClick() {
+      closeMenu()
+      closePopover()
+      // 命中最近任务直接回显；否则先选需求（仅已确认需求可选）
+      if (S.aiGen) { openGenPanel(); return }
+      openReqSel('gen')
+    }
+
+    function startGeneration(reqId) {
+      var req = reqById(reqId)
+      if (!req) return
+      S.aiGen = { reqId: reqId, phase: 'running', step: 0, selected: [], adopted: [] }
+      S.genFilter = ''
+      S.genPrio = ''
+      S.genShowAdopted = false
+      $('aiGenMask').hidden = false
+      renderGen()
+      tickGen()
+    }
+
+    function tickGen() {
+      stopTimer(genTimer)
+      var a = S.aiGen
+      if (!a || a.phase !== 'running') return
+      genTimer = window.setTimeout(function () {
+        if (!S.aiGen || S.aiGen.phase !== 'running') return
+        S.aiGen.step++
+        if (S.aiGen.step >= GEN_STEPS.length) {
+          S.aiGen.phase = 'selection'
+          S.aiGen.step = GEN_STEPS.length - 1
+        }
+        renderGen()
+        tickGen()
+      }, 800)
+    }
+
+    function openGenPanel() {
+      if (!S.aiGen) return
+      $('aiGenMask').hidden = false
+      renderGen()
+      if (S.aiGen.phase === 'running') tickGen()
+    }
+
+    function genCaseById(key) {
+      return GEN_CASES.filter(function (c) { return c.key === key })[0]
+    }
+
+    function genPendingCount(a) {
+      return GEN_CASES.filter(function (c) { return a.adopted.indexOf(c.key) < 0 }).length
+    }
+
+    function genSelectedPending(a) {
+      return a.selected.filter(function (k) { return a.adopted.indexOf(k) < 0 })
+    }
+
+    function genVisibleCases() {
+      var a = S.aiGen
+      if (!a) return []
+      var kw = S.genFilter.trim().toLowerCase()
+      return GEN_CASES.filter(function (c) {
+        if (a.adopted.indexOf(c.key) >= 0 && !S.genShowAdopted) return false
+        if (kw && c.title.toLowerCase().indexOf(kw) < 0) return false
+        if (S.genPrio && c.prio !== S.genPrio) return false
+        return true
+      })
+    }
+
+    function renderGen() {
+      var body = $('aiGenBody')
+      var a = S.aiGen
+      if (!a) { body.innerHTML = ''; return }
+      var req = reqById(a.reqId)
+      var head = '<div class="gen-head">' +
+        '<span class="gen-head__label">来源需求</span>' +
+        (req
+          ? '<span class="gen-head__code">' + reqCode(req) + '</span>' +
+            '<span class="gen-head__title">' + escapeHtml(req.title) + '</span>'
+          : '<span>—</span>') +
+        '<span class="gen-head__actions">' +
+        (a.phase === 'selection' ? '<button class="btn btn--text btn--sm" type="button" id="genRetry">重新执行</button>' : '') +
+        '<button class="btn btn--text btn--sm" type="button" id="genClose">关闭</button>' +
+        '</span></div>'
+
+      if (a.phase === 'running') {
+        body.innerHTML = head +
+          '<div class="ai-alert ai-alert--info"><span class="ai-spinner" data-icon="loader" aria-hidden="true"></span>' +
+          '<span>AI 正在生成用例… ' + GEN_STEPS[a.step] + '</span></div>' +
+          '<div class="ai-placeholder">生成完成后即可勾选并插入当前脑图</div>'
+        hydrateIcons(body)
+        return
+      }
+
+      body.innerHTML = head +
+        '<div class="gen-toolbar">' +
+        '<label class="gen-check"><input type="checkbox" id="genAll">全选</label>' +
+        '<input class="input" id="genFilter" placeholder="关键字" aria-label="关键字">' +
+        '<select class="input" id="genPrio" aria-label="优先级" style="width:96px">' +
+        '<option value="">优先级</option>' +
+        ['P0', 'P1', 'P2', 'P3'].map(function (p) {
+          return '<option value="' + p + '"' + (S.genPrio === p ? ' selected' : '') + '>' + p + '</option>'
+        }).join('') +
+        '</select>' +
+        (a.adopted.length
+          ? '<label class="gen-check"><input type="checkbox" id="genShowAdopted"' + (S.genShowAdopted ? ' checked' : '') + '>展示已采纳用例</label>'
+          : '') +
+        '<span class="gen-toolbar__count" id="genCount"></span>' +
+        '</div>' +
+        '<div class="gen-tree" id="genTreeBox"></div>' +
+        '<div class="ai-foot"><span class="ai-foot__stat" id="genFootStat"></span>' +
+        '<div class="ai-foot__actions"><button class="btn btn--primary btn--sm" type="button" id="genAdopt">采纳</button></div></div>'
+      // 关键字含引号时不能直接拼进 value 属性，渲染后回填
+      var filterEl = $('genFilter')
+      if (filterEl) filterEl.value = S.genFilter
+      renderGenTree()
+      hydrateIcons(body)
+    }
+
+    function renderGenTree() {
+      var a = S.aiGen
+      var box = $('genTreeBox')
+      if (!a || !box) return
+      var visible = genVisibleCases()
+      if (!visible.length) {
+        box.innerHTML = '<div class="req-empty">无匹配用例</div>'
+      } else {
+        box.innerHTML = visible.map(function (c) {
+          var locked = a.adopted.indexOf(c.key) >= 0
+          var checked = a.selected.indexOf(c.key) >= 0
+          var cls = 'gen-chip gen-chip--case' + (locked ? ' gen-chip--locked' : (checked ? ' gen-chip--checked' : ''))
+          var chip = '<label class="' + cls + '">' +
+            (locked ? '' : '<input type="checkbox" data-gen="' + c.key + '"' + (checked ? ' checked' : '') + '>') +
+            '<span class="gen-chip__badge gen-chip__badge--case">用例</span>' +
+            '<span>' + escapeHtml(c.title) + '</span>' +
+            (locked ? '<span class="ai-op__field">（已采纳）</span>' : '') +
+            '<span class="gen-chip__prio gen-chip__prio--' + c.prio.toLowerCase() + '">' + c.prio + '</span>' +
+            '</label>'
+          var children = c.children.map(function (ch) {
+            return '<div class="gen-branch"><span class="gen-chip">' +
+              '<span class="gen-chip__badge gen-chip__badge--' + ch.type + '">' + TYPE_LABEL[ch.type] + '</span>' +
+              '<span>' + escapeHtml(ch.title) + '</span></span></div>'
+          }).join('')
+          return '<div class="gen-node">' + chip +
+            (children ? '<div class="gen-children">' + children + '</div>' : '') + '</div>'
+        }).join('')
+      }
+      var selectedPending = genSelectedPending(a)
+      var visiblePending = visible.filter(function (c) { return a.adopted.indexOf(c.key) < 0 })
+      var allOn = visiblePending.length > 0 && visiblePending.every(function (c) {
+        return a.selected.indexOf(c.key) >= 0
+      })
+      var all = $('genAll')
+      if (all) {
+        all.checked = allOn
+        all.indeterminate = !allOn && selectedPending.length > 0
+      }
+      var countEl = $('genCount')
+      if (countEl) countEl.textContent = '已选 ' + selectedPending.length + ' 个用例'
+      var statEl = $('genFootStat')
+      if (statEl) {
+        // 分母对齐 injectedNodes：未展示已采纳时只算待处理用例
+        var injected = S.genShowAdopted ? GEN_CASES.length : genPendingCount(a)
+        statEl.textContent = '已勾选 ' + selectedPending.length + ' / ' + injected +
+          '；可采纳 ' + selectedPending.length
+      }
+      var adoptBtn = $('genAdopt')
+      if (adoptBtn) adoptBtn.disabled = selectedPending.length === 0
+    }
+
+    function toggleGenKey(key, on) {
+      var a = S.aiGen
+      if (!a) return
+      var i = a.selected.indexOf(key)
+      if (on && i < 0 && a.adopted.indexOf(key) < 0) a.selected.push(key)
+      else if (!on && i >= 0) a.selected.splice(i, 1)
+      renderGenTree()
+    }
+
+    function toggleGenAll(on) {
+      var a = S.aiGen
+      if (!a) return
+      genVisibleCases().forEach(function (c) {
+        if (a.adopted.indexOf(c.key) >= 0) return
+        var i = a.selected.indexOf(c.key)
+        if (on && i < 0) a.selected.push(c.key)
+        else if (!on && i >= 0) a.selected.splice(i, 1)
+      })
+      renderGenTree()
+    }
+
+    function buildGenCaseLi(c) {
+      var li = document.createElement('li')
+      li.setAttribute('role', 'treeitem')
+      li.setAttribute('aria-expanded', 'true')
+      li.setAttribute('data-type', 'case')
+      li.setAttribute('data-prio', c.prio)
+      li.setAttribute('data-ai', 'true')
+      var node = document.createElement('span')
+      node.className = 'mm-node'
+      var text = document.createElement('span')
+      text.className = 'mm-text'
+      text.textContent = c.title
+      node.appendChild(text)
+      li.appendChild(node)
+      if (c.children.length) {
+        var ul = document.createElement('ul')
+        ul.setAttribute('role', 'group')
+        c.children.forEach(function (ch) {
+          var cli = document.createElement('li')
+          cli.setAttribute('role', 'treeitem')
+          cli.setAttribute('data-type', ch.type)
+          var cn = document.createElement('span')
+          cn.className = 'mm-node'
+          var ct = document.createElement('span')
+          ct.className = 'mm-text'
+          ct.textContent = ch.title
+          cn.appendChild(ct)
+          cli.appendChild(cn)
+          ul.appendChild(cli)
+        })
+        li.appendChild(ul)
+      }
+      renderBadges(li)
+      return li
+    }
+
+    function adoptGen() {
+      var a = S.aiGen
+      if (!a) return
+      var keys = genSelectedPending(a)
+      if (!keys.length) return
+      var group = mmInner.querySelector('ul[role="group"]')
+      if (!group) return
+      pushHistory()
+      keys.forEach(function (k) {
+        var c = genCaseById(k)
+        if (!c) return
+        group.appendChild(buildGenCaseLi(c))
+        if (a.adopted.indexOf(k) < 0) a.adopted.push(k)
+      })
+      a.selected = a.selected.filter(function (k) { return keys.indexOf(k) < 0 })
+      renderMarks()
+      renderGen()
+      toast('已插入 ' + keys.length + ' 个 AI 用例', 'success')
+    }
+
+    function retryGen() {
+      var a = S.aiGen
+      if (!a) return
+      a.phase = 'running'
+      a.step = 0
+      a.selected = []
+      renderGen()
+      tickGen()
+    }
+
+    function closeGen() {
+      stopTimer(genTimer)
+      genTimer = 0
+      $('aiGenMask').hidden = true
+    }
+
     /* ---------------- 事件绑定 ---------------- */
 
-    $('reqLinkBtn').addEventListener('click', function () { openReqSel() })
+    // 关联需求入口收拢于用例节点悬浮窗；打开选取器时收起悬浮窗
+    $('popLinkBtn').addEventListener('click', function () { closePopover(); openReqSel('link') })
 
     $('reqSearch').addEventListener('click', searchReqList)
     $('reqFilter').addEventListener('keydown', function (e) {
@@ -1778,13 +2625,12 @@
       renderReqList()
     })
     $('reqList').addEventListener('change', function (e) {
-      var cb = e.target.closest('input[data-req]')
-      if (!cb) return
-      var id = cb.getAttribute('data-req')
-      var i = S.reqSel.indexOf(id)
-      if (cb.checked) { if (i < 0) S.reqSel.push(id) }
-      else if (i >= 0) S.reqSel.splice(i, 1)
-      $('reqCount').textContent = '已选 ' + S.reqSel.length + ' 条'
+      var rb = e.target.closest('input[data-req]')
+      if (!rb || !rb.checked) return
+      // 单选：radio 切换即替换当前选中项（RequirementPickerDialog :multiple=false）
+      S.reqSel = [rb.getAttribute('data-req')]
+      $('reqCount').textContent = '已选 ' + S.reqSel.length + ' 项'
+      $('reqConfirm').disabled = false
     })
     $('reqList').addEventListener('click', function (e) {
       var b = e.target.closest('[data-detail]')
@@ -1795,9 +2641,21 @@
       toggleReqPop(b.getAttribute('data-detail'), b)
     })
     $('reqConfirm').addEventListener('click', function () {
-      S.docReqs = S.reqSel.slice()
-      toast('已更新文档关联需求', 'success')
+      var picked = S.reqSel[0] || null
       closeReqSel()
+      if (S.reqMode === 'gen') {
+        // 覆盖雷达：确认需求后立即提交生成任务并打开面板
+        startGeneration(picked)
+      } else {
+        // 关联需求：单选写回当前节点 data（useCaseRequirementLink）
+        S.nodeReqId = picked
+        var li = selectedLi()
+        if (li) {
+          if (picked) li.setAttribute('data-req-id', picked)
+          else li.removeAttribute('data-req-id')
+        }
+        toast(picked ? '已更新用例关联需求' : '已清空用例关联需求', 'success')
+      }
     })
     $('reqCancel').addEventListener('click', closeReqSel)
     $('reqSelClose').addEventListener('click', closeReqSel)
@@ -1812,8 +2670,53 @@
       closeReqPop()
     })
 
+    // 节点悬浮窗 AI 优化入口与工具栏覆盖雷达入口
+    $('popAiBtn').addEventListener('click', openAssist)
+    $('radarBtn').addEventListener('click', radarClick)
+
+    // AI 弹窗关闭：标题栏 [×] 与遮罩空白处
+    $('aiAssistClose').addEventListener('click', closeAssist)
+    $('aiGenClose').addEventListener('click', closeGen)
+    $('aiAssistMask').addEventListener('click', function (e) { if (e.target === $('aiAssistMask')) closeAssist() })
+    $('aiGenMask').addEventListener('click', function (e) { if (e.target === $('aiGenMask')) closeGen() })
+
+    // 优化弹窗内容动态渲染，动作统一委托
+    $('aiAssistBody').addEventListener('click', function (e) {
+      if (e.target.closest('#assistRetry')) { retryAssist(); return }
+      if (e.target.closest('#assistClose')) { closeAssist(); return }
+      if (e.target.closest('#assistAdopt')) { adoptAssist(); return }
+      if (e.target.closest('#assistFold')) {
+        if (S.assist) { S.assist.showUnchanged = !S.assist.showUnchanged; renderAssist() }
+        return
+      }
+      var skip = e.target.closest('[data-assist-skip]')
+      if (skip) toggleAssistSkip(skip.getAttribute('data-assist-skip'))
+    })
+
+    // 覆盖雷达勾选树与筛选动态渲染，动作统一委托
+    $('aiGenBody').addEventListener('change', function (e) {
+      var cb = e.target.closest('input[data-gen]')
+      if (cb) { toggleGenKey(cb.getAttribute('data-gen'), cb.checked); return }
+      if (e.target.id === 'genAll') { toggleGenAll(e.target.checked); return }
+      if (e.target.id === 'genShowAdopted') { S.genShowAdopted = e.target.checked; renderGen(); return }
+      if (e.target.id === 'genPrio') { S.genPrio = e.target.value; renderGenTree(); return }
+    })
+    $('aiGenBody').addEventListener('input', function (e) {
+      // 仅重绘勾选树，保住关键字输入焦点
+      if (e.target.id !== 'genFilter') return
+      S.genFilter = e.target.value
+      renderGenTree()
+    })
+    $('aiGenBody').addEventListener('click', function (e) {
+      if (e.target.closest('#genRetry')) { retryGen(); return }
+      if (e.target.closest('#genClose')) { closeGen(); return }
+      if (e.target.closest('#genAdopt')) { adoptGen(); return }
+    })
+
     mm.addEventListener('contextmenu', function (e) {
       e.preventDefault()
+      // 右键菜单与节点悬浮窗互斥，避免两层浮叠在同一节点上
+      closePopover()
       // 右键节点时 core 先行选中该节点，菜单命令才作用在它身上
       var node = e.target.closest('.mm-node')
       if (node) selectLi(node.closest('li'))
@@ -1841,11 +2744,14 @@
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
-        // 由内向外逐层关闭：编辑态 → 输入/确认弹窗 → 明细气泡 → 需求选取器 → 右键菜单与下拉
+        // 由内向外逐层关闭：编辑态 → 各类弹窗 → 明细气泡 → 需求选取器 → 悬浮窗 → 右键菜单与下拉
         if (S.editing) { e.preventDefault(); commitEdit(true); return }
         if (!dlgMask.hidden) { closeDialog(); return }
+        if (!$('aiAssistMask').hidden) { closeAssist(); return }
+        if (!$('aiGenMask').hidden) { closeGen(); return }
         if (!$('reqPop').hidden) { closeReqPop(); return }
         if (!reqMask.hidden) { closeReqSel(); return }
+        if (!pop.hidden) { closePopover(); return }
         if (S.menu) { closeMenu(); return }
         return
       }

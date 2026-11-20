@@ -28,6 +28,26 @@
   .page-size { width: 104px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
 
   .dialog-tip { margin: 0 0 var(--space-md); color: var(--n-600); font-size: var(--font-size-sm); }
+
+  /* 列设置浮层：对齐 TableColumnSetting 的 220px popover 与浮层层级 */
+  .col-setting { position: relative; }
+  .col-setting__popover {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 60;
+    width: 220px; padding: 12px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  }
+  .col-setting__title { font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: var(--space-sm); }
+  .col-setting__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
+  .col-setting__actions {
+    display: flex; justify-content: space-between;
+    margin-top: var(--space-sm); padding-top: var(--space-sm);
+    border-top: 1px solid var(--n-200);
+  }
+  .col-opt { display: flex; align-items: center; gap: 7px; font-size: var(--font-size-sm); color: var(--n-600); }
+  .col-opt:not(.col-opt--pinned) { cursor: pointer; }
+  .col-opt:not(.col-opt--pinned):hover { color: var(--n-900); }
+  .col-opt--pinned { color: var(--n-400); }
 </style>
 </head>
 <body data-shell="admin" data-active="users" data-mode="admin">
@@ -52,6 +72,26 @@
         <select class="select" id="role-filter" style="width:160px"><option value="">角色</option><option>系统管理员</option><option>空间管理员</option><option>测试工程师</option><option>只读成员</option></select>
         <button class="btn btn--primary"><span data-icon="search"></span>查询</button>
         <button class="btn btn--default" data-reset-filters>重置</button>
+        <div class="col-setting" id="col-setting">
+          <button type="button" class="btn btn--default" id="col-setting-trigger" aria-label="列设置" aria-haspopup="true" aria-expanded="false" title="列设置"><span data-icon="settings"></span>列设置</button>
+          <!-- 操作/selection 列 pinned：强制展示且面板内禁用勾选，口径同 useTableColumns -->
+          <div class="col-setting__popover" id="col-setting-popover" hidden>
+            <div class="col-setting__title">显示列</div>
+            <div class="col-setting__list">
+              <span class="col-opt col-opt--pinned" data-col-key="selection" data-pinned="true" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on checkbox--disabled"></span>选择</span>
+              <span class="col-opt" data-col-key="user" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>用户</span>
+              <span class="col-opt" data-col-key="email" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>邮箱</span>
+              <span class="col-opt" data-col-key="status" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>状态</span>
+              <span class="col-opt" data-col-key="role" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>系统角色</span>
+              <span class="col-opt" data-col-key="createdAt" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>创建时间</span>
+              <span class="col-opt col-opt--pinned" data-col-key="actions" data-pinned="true" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on checkbox--disabled"></span>操作</span>
+            </div>
+            <div class="col-setting__actions">
+              <button type="button" class="btn btn--link btn--sm" data-col-all disabled>全选</button>
+              <button type="button" class="btn btn--link btn--sm" data-col-reset>恢复默认</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="toolbar__count">共 128 个账号</div>
     </div>
@@ -60,87 +100,87 @@
       <table class="table" id="user-table">
         <thead>
           <tr>
-            <th style="width:36px"><span class="checkbox" id="check-all" data-check-all></span></th>
-            <th style="width:210px">用户</th>
-            <th style="width:210px">邮箱</th>
-            <th style="width:100px">状态</th>
-            <th style="width:170px">系统角色</th>
-            <th style="width:170px">创建时间</th>
-            <th style="width:240px">操作</th>
+            <th data-col="selection" style="width:36px"><span class="checkbox" id="check-all" data-check-all></span></th>
+            <th data-col="user" style="width:210px">用户</th>
+            <th data-col="email" style="width:210px">邮箱</th>
+            <th data-col="status" style="width:100px">状态</th>
+            <th data-col="role" style="width:170px">系统角色</th>
+            <th data-col="createdAt" style="width:170px">创建时间</th>
+            <th data-col="actions" style="width:240px">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr data-status="active" data-username="zhangming">
-            <td><span class="checkbox" data-row-check></span></td>
-            <td class="flex-center flex-gap-sm">
+            <td data-col="selection"><span class="checkbox" data-row-check></span></td>
+            <td data-col="user" class="flex-center flex-gap-sm">
               <span class="avatar avatar--sm avatar--brand">张</span>
               <div><span class="user-link">zhangming</span><span class="cell-sub">张明</span></div>
             </td>
-            <td class="muted">zhangming@robotest.cn</td>
-            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td><span class="tag tag--outline">系统管理员</span></td>
-            <td class="num">2026-03-02 09:15</td>
-            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
+            <td data-col="email" class="muted">zhangming@robotest.cn</td>
+            <td data-col="status" class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td data-col="role"><span class="tag tag--outline">系统管理员</span></td>
+            <td data-col="createdAt" class="num">2026-03-02 09:15</td>
+            <td data-col="actions" class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
           <tr data-status="active" data-username="lihua">
-            <td><span class="checkbox" data-row-check></span></td>
-            <td class="flex-center flex-gap-sm">
+            <td data-col="selection"><span class="checkbox" data-row-check></span></td>
+            <td data-col="user" class="flex-center flex-gap-sm">
               <span class="avatar avatar--sm">李</span>
               <div><span class="user-link">lihua</span><span class="cell-sub">李华</span></div>
             </td>
-            <td class="muted">lihua@robotest.cn</td>
-            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td><span class="tag tag--outline">空间管理员</span><span class="tag tag--outline">测试工程师</span></td>
-            <td class="num">2026-04-18 14:20</td>
-            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
+            <td data-col="email" class="muted">lihua@robotest.cn</td>
+            <td data-col="status" class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td data-col="role"><span class="tag tag--outline">空间管理员</span><span class="tag tag--outline">测试工程师</span></td>
+            <td data-col="createdAt" class="num">2026-04-18 14:20</td>
+            <td data-col="actions" class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
           <tr data-status="active" data-username="wangfang">
-            <td><span class="checkbox" data-row-check></span></td>
-            <td class="flex-center flex-gap-sm">
+            <td data-col="selection"><span class="checkbox" data-row-check></span></td>
+            <td data-col="user" class="flex-center flex-gap-sm">
               <span class="avatar avatar--sm">王</span>
               <div><span class="user-link">wangfang</span><span class="cell-sub">王芳</span></div>
             </td>
-            <td class="muted">wangfang@robotest.cn</td>
-            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td><span class="tag tag--outline">测试工程师</span></td>
-            <td class="num">2026-05-06 11:48</td>
-            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
+            <td data-col="email" class="muted">wangfang@robotest.cn</td>
+            <td data-col="status" class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td data-col="role"><span class="tag tag--outline">测试工程师</span></td>
+            <td data-col="createdAt" class="num">2026-05-06 11:48</td>
+            <td data-col="actions" class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
           <tr data-status="disabled" data-username="chenqiang">
-            <td><span class="checkbox" data-row-check></span></td>
-            <td class="flex-center flex-gap-sm">
+            <td data-col="selection"><span class="checkbox" data-row-check></span></td>
+            <td data-col="user" class="flex-center flex-gap-sm">
               <span class="avatar avatar--sm">陈</span>
               <div><span class="user-link">chenqiang</span><span class="cell-sub">陈强</span></div>
             </td>
-            <td class="muted">chenqiang@robotest.cn</td>
-            <td class="status-cell"><span class="status status--neutral"><span class="dot"></span>禁用</span></td>
-            <td><span class="tag tag--outline">只读成员</span></td>
-            <td class="num">2026-06-30 16:05</td>
-            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link" data-set-status="active">启用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
+            <td data-col="email" class="muted">chenqiang@robotest.cn</td>
+            <td data-col="status" class="status-cell"><span class="status status--neutral"><span class="dot"></span>禁用</span></td>
+            <td data-col="role"><span class="tag tag--outline">只读成员</span></td>
+            <td data-col="createdAt" class="num">2026-06-30 16:05</td>
+            <td data-col="actions" class="ops-cell"><span class="op-link">编辑</span><span class="op-link" data-set-status="active">启用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
           <tr data-status="locked" data-username="zhaolei">
-            <td><span class="checkbox" data-row-check></span></td>
-            <td class="flex-center flex-gap-sm">
+            <td data-col="selection"><span class="checkbox" data-row-check></span></td>
+            <td data-col="user" class="flex-center flex-gap-sm">
               <span class="avatar avatar--sm">赵</span>
               <div><span class="user-link">zhaolei</span><span class="cell-sub">赵磊</span></div>
             </td>
-            <td class="muted">zhaolei@robotest.cn</td>
-            <td class="status-cell"><span class="status status--danger"><span class="dot"></span>锁定</span></td>
-            <td><span class="tag tag--outline">测试工程师</span></td>
-            <td class="num">2026-07-14 10:33</td>
-            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link" data-set-status="active">启用</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link" data-op="reset">重置密码</span></td>
+            <td data-col="email" class="muted">zhaolei@robotest.cn</td>
+            <td data-col="status" class="status-cell"><span class="status status--danger"><span class="dot"></span>锁定</span></td>
+            <td data-col="role"><span class="tag tag--outline">测试工程师</span></td>
+            <td data-col="createdAt" class="num">2026-07-14 10:33</td>
+            <td data-col="actions" class="ops-cell"><span class="op-link">编辑</span><span class="op-link" data-set-status="active">启用</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
           <tr data-status="active" data-username="zhoumin">
-            <td><span class="checkbox" data-row-check></span></td>
-            <td class="flex-center flex-gap-sm">
+            <td data-col="selection"><span class="checkbox" data-row-check></span></td>
+            <td data-col="user" class="flex-center flex-gap-sm">
               <span class="avatar avatar--sm">周</span>
               <div><span class="user-link">zhoumin</span><span class="cell-sub">周敏</span></div>
             </td>
-            <td class="muted">zhoumin@robotest.cn</td>
-            <td class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
-            <td><span class="muted">-</span></td>
-            <td class="num">2026-08-01 09:52</td>
-            <td class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
+            <td data-col="email" class="muted">zhoumin@robotest.cn</td>
+            <td data-col="status" class="status-cell"><span class="status status--success"><span class="dot"></span>启用</span></td>
+            <td data-col="role"><span class="muted">-</span></td>
+            <td data-col="createdAt" class="num">2026-08-01 09:52</td>
+            <td data-col="actions" class="ops-cell"><span class="op-link">编辑</span><span class="op-link op-link--danger" data-set-status="disabled">禁用</span><span class="op-link op-link--danger" data-set-status="locked">锁定</span><span class="op-link" data-op="reset">重置密码</span></td>
           </tr>
         </tbody>
       </table>
@@ -205,6 +245,59 @@
 <script>
   (function () {
     function byId(id) { return document.getElementById(id); }
+
+    /* 列显隐：对齐 useTableColumns 的 pinned 强制展示与「全选/恢复默认均恢复全部列」口径 */
+    var colState = { user: true, email: true, status: true, role: true, createdAt: true };
+    var colTrigger = byId('col-setting-trigger');
+    var colPopover = byId('col-setting-popover');
+
+    function setPopover(open) {
+      colPopover.hidden = !open;
+      colTrigger.setAttribute('aria-expanded', String(open));
+    }
+
+    function syncOpt(opt) {
+      var on = colState[opt.getAttribute('data-col-key')];
+      var box = opt.querySelector('.checkbox');
+      if (box) box.classList.toggle('checkbox--on', on);
+      opt.setAttribute('aria-checked', String(on));
+    }
+
+    function applyColumns() {
+      document.querySelectorAll('#user-table [data-col]').forEach(function (cell) {
+        cell.hidden = colState[cell.getAttribute('data-col')] === false;
+      });
+      colPopover.querySelector('[data-col-all]').disabled =
+        Object.keys(colState).every(function (key) { return colState[key]; });
+    }
+
+    function setAllCols(value) {
+      Object.keys(colState).forEach(function (key) { colState[key] = value; });
+      colPopover.querySelectorAll('.col-opt').forEach(syncOpt);
+      applyColumns();
+    }
+
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('#col-setting-trigger')) {
+        setPopover(colPopover.hidden);
+        return;
+      }
+      var opt = e.target.closest('.col-opt:not(.col-opt--pinned)');
+      if (opt) {
+        var key = opt.getAttribute('data-col-key');
+        colState[key] = !colState[key];
+        syncOpt(opt);
+        applyColumns();
+        return;
+      }
+      if (e.target.closest('[data-col-all]')) { setAllCols(true); return; }
+      if (e.target.closest('[data-col-reset]')) { setAllCols(true); return; }
+      if (!e.target.closest('#col-setting')) setPopover(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setPopover(false);
+    });
+    applyColumns();
 
     var STATUS = {
       active: { label: '启用', dot: 'status--success' },

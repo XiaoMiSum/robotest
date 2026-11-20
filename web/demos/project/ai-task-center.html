@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 任务中心 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
+<style>
+  /* 弹层与空态行靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
+  [hidden] { display: none !important; }
+
+  /* 操作列整体右对齐，换行会破坏「详情 / 审核 / 终止」的扫视顺序 */
+  .ops-cell { text-align: right; white-space: nowrap; }
+
+  /* 类型列保留实现中的能力域主标签，副行补任务类型以区分同域任务 */
+  .task-type__label { display: block; }
+  .task-type__name { display: block; color: var(--n-500); font-size: var(--font-size-2xs); }
+
+  /* AI 助手入口在现实项目页由悬浮卡片提供，静态稿用文字链接示意 */
+  .ai-entry { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-size-sm); }
+  .page-head__note { margin: 6px 0 0; color: var(--n-500); font-size: var(--font-size-xs); }
+
+  .rv-empty td { text-align: center; color: var(--n-500); padding: 36px 0; }
+  .rv-empty .btn { margin-left: 10px; }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side" data-side="ft"></aside>
+
+    <div class="split__main">
+      <div class="page-head">
+        <div>
+          <h1 class="page-head__title">AI 任务中心</h1>
+          <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程并审核提案</p>
+          <p class="page-head__note">AI 助手入口示意：实际从项目页右上角唤起，这里以文字链接跳转任务中心</p>
+        </div>
+        <div class="page-head__actions">
+          <a class="op-link ai-entry" href="ai-task-center.html" title="示意入口：从项目页进入 AI 助手"><span data-icon="sparkle"></span>AI 助手</a>
+          <button class="btn btn--default" type="button" id="atc-refresh"><span data-icon="refresh"></span>刷新</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar__filters">
+            <select class="select" id="atc-type" style="width:220px" aria-label="任务类型">
+              <option value="">全部类型</option>
+              <option value="requirement_import">需求导入（需求）</option>
+              <option value="test_design_generation">用例生成（生成链）</option>
+              <option value="case_optimize">用例优化（辅助）</option>
+              <option value="plan_order">计划排序（辅助）</option>
+              <option value="bug_classify">缺陷批量分类（缺陷）</option>
+              <option value="bug_duplicate_scan">重复缺陷扫描（缺陷）</option>
+              <option value="bug_triage">缺陷分诊（缺陷）</option>
+              <option value="bug_trend_summary">缺陷趋势总结（缺陷）</option>
+              <option value="assistant_parse">助手解析（助手）</option>
+              <option value="vector_reindex">向量索引重建（底座）</option>
+            </select>
+            <select class="select" id="atc-status" style="width:150px" aria-label="任务状态">
+              <option value="">全部状态</option>
+              <option value="running">执行中</option>
+              <option value="proposals_ready">待采纳</option>
+              <option value="closed">已结束</option>
+              <option value="aborted">已终止</option>
+            </select>
+            <button class="btn btn--primary" type="button" id="atc-search"><span data-icon="search"></span>查询</button>
+            <button class="btn btn--default" type="button" id="atc-reset">重置</button>
+          </div>
+          <div class="toolbar__count" id="atc-count">共 12 个任务 · 全部成员</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="atc-table">
+            <thead>
+              <tr><th>任务名</th><th>类型</th><th>状态</th><th>执行摘要</th><th>发起人</th><th>发起时间</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr data-page="1" data-status="running" data-type="test_design_generation" data-title="双十一促销下单链路用例生成">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=running">双十一促销下单链路用例生成</a><span class="cell-sub">生成链 · 用例生成</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">生成链</span><span class="task-type__name">用例生成</span></td>
+                <td><span class="status status--running"><span class="dot"></span>执行中</span></td>
+                <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--brand" style="width:60%"></div></div><span class="progress__text">3/5 步 · 生成用例</span></div></td>
+                <td>李华</td>
+                <td class="num">2026-11-20 09:42</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=running">详情</a><span class="op-link op-link--danger" data-op="abort">终止</span></td>
+              </tr>
+              <tr data-page="1" data-status="running" data-type="case_optimize" data-title="支付回调幂等用例优化">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=running">支付回调幂等用例优化</a><span class="cell-sub">辅助 · 用例优化</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">辅助</span><span class="task-type__name">用例优化</span></td>
+                <td><span class="status status--neutral"><span class="dot"></span>挂起</span></td>
+                <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:60%"></div></div><span class="progress__text">3/5 步 · 待人工批准</span></div></td>
+                <td>张明</td>
+                <td class="num">2026-11-19 16:20</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=running">详情</a><span class="op-link op-link--danger" data-op="abort">终止</span></td>
+              </tr>
+              <tr data-page="1" data-status="proposals_ready" data-type="case_optimize" data-title="优惠券边界用例优化建议">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=readonly">优惠券边界用例优化建议</a><span class="cell-sub">辅助 · 用例优化</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">辅助</span><span class="task-type__name">用例优化</span></td>
+                <td><span class="status status--warning"><span class="dot"></span>待采纳</span></td>
+                <td><span class="text-light">完成 · 6/6 步</span></td>
+                <td>王芳</td>
+                <td class="num">2026-11-19 11:05</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=readonly">详情</a><a class="op-link" href="ai-task-detail.html?scene=readonly&amp;review=1">审核</a></td>
+              </tr>
+              <tr data-page="1" data-status="proposals_ready" data-type="plan_order" data-title="购物车结算执行顺序调整">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=plan">购物车结算执行顺序调整</a><span class="cell-sub">辅助 · 计划排序</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">辅助</span><span class="task-type__name">计划排序</span></td>
+                <td><span class="status status--warning"><span class="dot"></span>待采纳</span></td>
+                <td><span class="text-light">完成 · 4/4 步</span></td>
+                <td>陈晓</td>
+                <td class="num">2026-11-18 17:32</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=plan">详情</a><a class="op-link" href="ai-task-detail.html?scene=plan&amp;review=1">审核</a></td>
+              </tr>
+              <tr data-page="1" data-status="closed" data-type="requirement_import" data-title="需求文档 R-2026-118 导入">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=closed">需求文档 R-2026-118 导入</a><span class="cell-sub">需求 · 需求导入</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">需求</span><span class="task-type__name">需求导入</span></td>
+                <td><span class="status status--neutral"><span class="dot"></span>已结束</span></td>
+                <td><span class="text-light">完成 · 8/8 步</span></td>
+                <td>李华</td>
+                <td class="num">2026-11-18 14:33</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
+              </tr>
+              <tr data-page="1" data-status="aborted" data-type="vector_reindex" data-title="向量索引重建（商品库）">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=aborted">向量索引重建（商品库）</a><span class="cell-sub">底座 · 向量索引重建</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">底座</span><span class="task-type__name">向量索引重建</span></td>
+                <td><span class="status status--danger" title="用户手动终止，可再次执行"><span class="dot"></span>已终止</span></td>
+                <td><span class="text-danger">用户手动终止 · 2/6 步</span></td>
+                <td>周敏</td>
+                <td class="num">2026-11-18 10:15</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=aborted">详情</a><span class="op-link" data-op="reexecute">再次执行</span></td>
+              </tr>
+              <tr data-page="1" data-status="running" data-type="bug_duplicate_scan" data-title="重复缺陷扫描（支付域）">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=running">重复缺陷扫描（支付域）</a><span class="cell-sub">缺陷 · 重复缺陷扫描</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">缺陷</span><span class="task-type__name">重复缺陷扫描</span></td>
+                <td><span class="status status--running"><span class="dot"></span>执行中</span></td>
+                <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--warning" style="width:50%"></div></div><span class="progress__text">2/4 步 · 扫描相似缺陷</span></div></td>
+                <td>系统</td>
+                <td class="num">2026-11-17 15:40</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=running">详情</a><span class="op-link op-link--danger" data-op="abort">终止</span></td>
+              </tr>
+              <tr data-page="1" data-status="closed" data-type="bug_trend_summary" data-title="缺陷趋势周报总结">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=closed">缺陷趋势周报总结</a><span class="cell-sub">缺陷 · 缺陷趋势总结</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">缺陷</span><span class="task-type__name">缺陷趋势总结</span></td>
+                <td><span class="status status--neutral"><span class="dot"></span>已结束</span></td>
+                <td><span class="text-light">完成 · 3/3 步</span></td>
+                <td>张明</td>
+                <td class="num">2026-11-17 09:10</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
+              </tr>
+              <tr data-page="2" data-status="proposals_ready" data-type="test_design_generation" data-title="库存扣减链路用例生成">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=tree">库存扣减链路用例生成</a><span class="cell-sub">生成链 · 用例生成</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">生成链</span><span class="task-type__name">用例生成</span></td>
+                <td><span class="status status--warning"><span class="dot"></span>待采纳</span></td>
+                <td><span class="text-light">完成 · 7/7 步</span></td>
+                <td>陈晓</td>
+                <td class="num">2026-11-16 14:50</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=tree">详情</a><a class="op-link" href="ai-task-detail.html?scene=tree&amp;review=1">审核</a></td>
+              </tr>
+              <tr data-page="2" data-status="closed" data-type="assistant_parse" data-title="自然语言需求解析（退款流程）">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=closed">自然语言需求解析（退款流程）</a><span class="cell-sub">助手 · 助手解析</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">助手</span><span class="task-type__name">助手解析</span></td>
+                <td><span class="status status--neutral"><span class="dot"></span>已结束</span></td>
+                <td><span class="text-light">完成 · 2/2 步</span></td>
+                <td>王芳</td>
+                <td class="num">2026-11-16 20:05</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
+              </tr>
+              <tr data-page="2" data-status="closed" data-type="bug_classify" data-title="登录后首页空白缺陷批量分类">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=closed">登录后首页空白缺陷批量分类</a><span class="cell-sub">缺陷 · 缺陷批量分类</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">缺陷</span><span class="task-type__name">缺陷批量分类</span></td>
+                <td><span class="status status--neutral"><span class="dot"></span>已结束</span></td>
+                <td><span class="text-light">完成 · 5/5 步</span></td>
+                <td>周敏</td>
+                <td class="num">2026-11-15 17:22</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
+              </tr>
+              <tr data-page="2" data-status="aborted" data-type="plan_order" data-title="会员权益测试计划排序">
+                <td class="cell-main"><a href="ai-task-detail.html?scene=aborted">会员权益测试计划排序</a><span class="cell-sub">辅助 · 计划排序</span></td>
+                <td><span class="tag tag--info tag--sm task-type__label">辅助</span><span class="task-type__name">计划排序</span></td>
+                <td><span class="status status--danger"><span class="dot"></span>已终止</span></td>
+                <td><span class="text-danger">模型响应超时 · 1/4 步</span></td>
+                <td>系统</td>
+                <td class="num">2026-11-15 11:08</td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=aborted">详情</a><span class="op-link" data-op="reexecute">再次执行</span></td>
+              </tr>
+              <tr class="rv-empty" id="atc-empty-filter" hidden><td colspan="7">无匹配结果<button class="btn btn--default" type="button" id="atc-empty-reset">重置筛选</button></td></tr>
+              <tr class="rv-empty" id="atc-empty-list" hidden><td colspan="7">暂无 AI 任务<a class="btn btn--primary" href="requirements.html">去需求列表发起 AI 任务</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span class="pagination__total" id="atc-pager-total">共 12 个任务 · 每页 20 条</span>
+          <button class="page-btn" type="button" data-page="prev" disabled>‹</button>
+          <button class="page-btn page-btn--active" type="button" data-page="1">1</button>
+          <button class="page-btn" type="button" data-page="2">2</button>
+          <button class="page-btn" type="button" data-page="next">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 终止执行二次确认：文案同实际页 ElMessageBox -->
+<div class="dialog-mask" id="atc-confirm-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="atc-confirm-title">确认终止执行</span>
+      <button class="dialog__close" data-close="atc-confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body"><p id="atc-confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="atc-confirm-dialog">取消</button>
+      <button class="btn btn--danger" type="button" id="atc-confirm-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+
+  var TOTAL = 12;
+  var typeSel = byId('atc-type');
+  var statusSel = byId('atc-status');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#atc-table tbody tr[data-status]'));
+  var emptyFilter = byId('atc-empty-filter');
+  var emptyList = byId('atc-empty-list');
+  var pageButtons = Array.prototype.slice.call(document.querySelectorAll('.pagination .page-btn'));
+  var applied = { type: '', status: '', page: 1 };
+  var confirmAction = null;
+  var confirmDialog = byId('atc-confirm-dialog');
+
+  function matches(row) {
+    return (!applied.type || row.getAttribute('data-type') === applied.type) &&
+      (!applied.status || row.getAttribute('data-status') === applied.status);
+  }
+
+  function setStatus(row, label, cls, summaryHtml, opsHtml) {
+    row.setAttribute('data-status', label === '执行中' ? 'running' : label === '已终止' ? 'aborted' : label === '待采纳' ? 'proposals_ready' : 'closed');
+    row.children[2].innerHTML = '<span class="status ' + cls + '"><span class="dot"></span>' + label + '</span>';
+    row.children[3].innerHTML = summaryHtml;
+    row.children[6].innerHTML = opsHtml;
+  }
+
+  function render() {
+    var shown = 0;
+    rows.forEach(function (row) {
+      var visible = matches(row) && Number(row.getAttribute('data-page')) === applied.page;
+      row.hidden = !visible;
+      if (visible) shown += 1;
+    });
+
+    var filtered = Boolean(applied.type || applied.status);
+    var matched = rows.filter(matches).length;
+    var total = filtered ? matched : TOTAL;
+    byId('atc-count').textContent = '共 ' + total + ' 个任务 · 全部成员';
+    byId('atc-pager-total').textContent = '共 ' + total + ' 个任务 · 每页 20 条';
+
+    emptyFilter.hidden = !filtered || shown !== 0;
+    emptyList.hidden = filtered || shown !== 0;
+
+    var pageCount = filtered ? Math.max(1, Math.ceil(matched / 8)) : 2;
+    pageButtons.forEach(function (btn) {
+      var value = btn.getAttribute('data-page');
+      if (value === 'prev') btn.disabled = applied.page === 1;
+      else if (value === 'next') btn.disabled = applied.page >= pageCount;
+      else {
+        btn.hidden = Number(value) > pageCount;
+        btn.classList.toggle('page-btn--active', Number(value) === applied.page);
+      }
+    });
+  }
+
+  function search() {
+    applied.type = typeSel.value;
+    applied.status = statusSel.value;
+    applied.page = 1;
+    render();
+  }
+
+  function reset() {
+    typeSel.value = '';
+    statusSel.value = '';
+    applied.type = '';
+    applied.status = '';
+    applied.page = 1;
+    render();
+  }
+
+  function askConfirm(title, body, okLabel, action) {
+    byId('atc-confirm-title').textContent = title;
+    byId('atc-confirm-body').textContent = body;
+    byId('atc-confirm-ok').textContent = okLabel;
+    confirmAction = action;
+    confirmDialog.hidden = false;
+  }
+
+  byId('atc-search').addEventListener('click', search);
+  byId('atc-reset').addEventListener('click', reset);
+  byId('atc-empty-reset').addEventListener('click', reset);
+  byId('atc-refresh').addEventListener('click', function () {
+    window.RTUX.toast('列表已刷新', { type: 'success' });
+  });
+  typeSel.addEventListener('keydown', function (e) { if (e.key === 'Enter') search(); });
+  statusSel.addEventListener('keydown', function (e) { if (e.key === 'Enter') search(); });
+
+  pageButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.getAttribute('data-page');
+      if (btn.disabled) return;
+      if (value === 'prev') applied.page -= 1;
+      else if (value === 'next') applied.page += 1;
+      else applied.page = Number(value);
+      render();
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var closer = e.target.closest('[data-close]');
+    if (closer) {
+      byId(closer.getAttribute('data-close')).hidden = true;
+      return;
+    }
+    var op = e.target.closest('[data-op]');
+    if (!op) return;
+    var row = op.closest('tr');
+    var title = row ? row.getAttribute('data-title') : '';
+    if (op.getAttribute('data-op') === 'abort') {
+      askConfirm('确认终止执行', '终止后「' + title + '」停止执行，不产生任何落库数据，可再次执行。', '终止执行', function () {
+        confirmDialog.hidden = true;
+        setStatus(row, '已终止', 'status--danger', '<span class="text-danger">用户手动终止</span>',
+          '<a class="op-link" href="ai-task-detail.html?scene=aborted">详情</a><span class="op-link" data-op="reexecute">再次执行</span>');
+        render();
+        window.RTUX.toast('执行已终止', { type: 'success' });
+      });
+    } else if (op.getAttribute('data-op') === 'reexecute') {
+      askConfirm('再次执行', '将沿用同一任务「' + title + '」新建一次执行实例。', '再次执行', function () {
+        confirmDialog.hidden = true;
+        setStatus(row, '执行中', 'status--running',
+          '<div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--brand" style="width:10%"></div></div><span class="progress__text">1/6 步 · 准备中</span></div>',
+          '<a class="op-link" href="ai-task-detail.html?scene=running">详情</a><span class="op-link op-link--danger" data-op="abort">终止</span>');
+        render();
+        window.RTUX.toast('已发起再次执行', { type: 'success' });
+      });
+    }
+  });
+
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) { if (e.target === mask) mask.hidden = true; });
+  });
+  byId('atc-confirm-ok').addEventListener('click', function () {
+    var action = confirmAction;
+    confirmAction = null;
+    if (action) action();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') confirmDialog.hidden = true;
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -156,6 +156,42 @@
   /* 来源恒为只读行（交互 06 §2.2.2） */
   .source-value { font-size: var(--font-size-base); color: var(--n-900); }
 
+  /* 需求明细弹窗（e740dc7d / RequirementPickerDialog）：标题 + 右上角圆形关闭 + 正文独立滚动 */
+  .detail-pop-mask {
+    position: fixed; inset: 0; z-index: 80;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 96px 24px 24px; background: rgba(0, 0, 0, 0.12);
+  }
+  .detail-pop {
+    width: min(840px, 100%); background: var(--n-0);
+    border: 1px solid var(--n-200); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  }
+  .detail-pop__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--n-200);
+  }
+  .detail-pop__title { font-weight: 600; color: var(--n-800); }
+  .detail-pop__close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0; border: 1px solid var(--n-200); border-radius: 50%;
+    background: var(--n-0); color: var(--n-500); cursor: pointer;
+  }
+  .detail-pop__close:hover { color: var(--n-900); background: var(--n-50); }
+  .detail-pop__close svg { width: 14px; height: 14px; }
+  /* 正文上限 420px 独立滚动，页脚关闭常在（对齐 picker__detail-body） */
+  .detail-pop__body { max-height: min(420px, 55vh); overflow-y: auto; padding: 16px; }
+  .detail-pop__body h2 { margin: 0 0 8px; font-size: var(--font-size-lg); color: var(--n-900); }
+  .detail-pop__body h3 { margin: 16px 0 8px; font-size: var(--font-size-base); color: var(--n-900); }
+  .detail-pop__body p { margin: 0 0 10px; }
+  .detail-pop__body ul, .detail-pop__body ol { margin: 0 0 10px; padding-left: 22px; }
+  .detail-pop__body code {
+    padding: 1px 5px; border-radius: 4px; background: var(--n-100); font-family: var(--font-mono); font-size: 0.92em;
+  }
+  .detail-pop__foot {
+    display: flex; justify-content: flex-end; padding: 10px 16px;
+    border-top: 1px solid var(--n-200);
+  }
+
   @media (max-width: 1024px) {
     .detail-layout { grid-template-columns: 1fr; }
     .detail-main, .detail-side { grid-column: 1; grid-row: auto; }
@@ -186,6 +222,7 @@
       <span class="title-field__count" id="f-title-count">0/300</span>
     </div>
     <span class="status status--warning" id="req-status"><span class="dot"></span>已变更</span>
+    <button class="btn btn--link btn--sm" type="button" id="btn-detail-pop">明细</button>
   </div>
   <div class="field__error title-error" id="f-title-error" hidden></div>
 
@@ -301,6 +338,20 @@
 
 </main>
 
+<!-- 需求明细弹窗（e740dc7d）：独立详情页按 RequirementPickerDialog 的明细形态演示，正文与页面正文同源 -->
+<div class="detail-pop-mask" id="detail-pop" hidden>
+  <div class="detail-pop" role="dialog" aria-modal="true" aria-labelledby="detail-pop-title">
+    <div class="detail-pop__head">
+      <span class="detail-pop__title" id="detail-pop-title">需求明细</span>
+      <button class="detail-pop__close" type="button" id="detail-pop-close" aria-label="关闭需求明细"><span data-icon="x"></span></button>
+    </div>
+    <div class="detail-pop__body" id="detail-pop-body"></div>
+    <div class="detail-pop__foot">
+      <button class="btn btn--default btn--sm" type="button" id="detail-pop-foot-close">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 归档 / 取消归档 / 确认保存变更 二次确认：文案同 useRequirementDetail 的 ElMessageBox -->
 <div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
   <div class="dialog" style="width:440px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
@@ -402,6 +453,18 @@
   var descInput = byId('f-desc');
   descInput.value = DESC_SRC;
   descView.innerHTML = renderMd(DESC_SRC);
+
+  // ==================== 需求明细弹窗（e740dc7d：标题 / 圆形关闭 / 正文独立滚动） ====================
+  var detailPop = byId('detail-pop');
+  function openDetailPop() {
+    byId('detail-pop-body').innerHTML = renderMd(descInput.value || DESC_SRC);
+    detailPop.hidden = false;
+  }
+  function closeDetailPop() { detailPop.hidden = true; }
+  byId('btn-detail-pop').addEventListener('click', openDetailPop);
+  byId('detail-pop-close').addEventListener('click', closeDetailPop);
+  byId('detail-pop-foot-close').addEventListener('click', closeDetailPop);
+  detailPop.addEventListener('click', function (e) { if (e.target === detailPop) closeDetailPop(); });
 
   // ==================== 属性表单状态 ====================
   var tags = ['超时', '订单'];
@@ -740,6 +803,7 @@
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     closeMenus();
+    closeDetailPop();
     byId('confirm-dialog').hidden = true;
   });
 
