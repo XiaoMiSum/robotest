@@ -55,7 +55,10 @@ describe('useCaseGenerationInsert', () => {
 
     const result = executor.execute([{ key: 'k1', node: source, tags: ['登录'] }])
 
-    expect(result).toEqual({ inserted: 1, skipped: 0 })
+    expect(result.inserted).toBe(1)
+    expect(result.skipped).toBe(0)
+    expect(result.caseIds).toHaveLength(1)
+    expect(UUID_RE.test(result.caseIds[0]!)).toBe(true)
     expect(createNode).toHaveBeenCalledTimes(4)
     const [caseData, parent, index] = createNode.mock.calls[0]
     expect(parent).toBe(root)
@@ -64,7 +67,9 @@ describe('useCaseGenerationInsert', () => {
     expect(UUID_RE.test(caseData['id'] as string)).toBe(true)
     expect(root.children).toHaveLength(1)
     expect(root.children[0].children.map((c) => c.data['text'])).toEqual(['先登录', '输入手机号', '提示已发送'])
+    expect(root.children[0].children.every((c) => c.data['aiGenerated'] === true)).toBe(true)
     expect(root.children[0].data).toMatchObject({ tags: ['登录'], aiGenerated: true })
+    expect(root.children[0].data['id']).toBe(result.caseIds[0])
     expect(refresh).toHaveBeenCalledTimes(2)
     expect(fire).toHaveBeenCalledTimes(2)
     expect(fire).toHaveBeenCalledWith('contentchange')
@@ -78,7 +83,9 @@ describe('useCaseGenerationInsert', () => {
       { key: 'k2', node: node('b', '用例 B', 'case'), tags: [] },
     ])
 
-    expect(result).toEqual({ inserted: 2, skipped: 0 })
+    expect(result.inserted).toBe(2)
+    expect(result.skipped).toBe(0)
+    expect(result.caseIds).toHaveLength(2)
     expect(root.children).toHaveLength(2)
     expect(createNode.mock.calls[0][0]).toMatchObject({ priority: 'P2' })
     expect(createNode.mock.calls[1][2]).toBe(1)
@@ -89,10 +96,11 @@ describe('useCaseGenerationInsert', () => {
     expect(empty.execute([{ key: 'k1', node: node('a', '用例 A', 'case'), tags: [] }])).toEqual({
       inserted: 0,
       skipped: 1,
+      caseIds: [],
     })
 
     const { fire, flush, executor } = setup()
-    expect(executor.execute([])).toEqual({ inserted: 0, skipped: 0 })
+    expect(executor.execute([])).toEqual({ inserted: 0, skipped: 0, caseIds: [] })
     expect(fire).not.toHaveBeenCalled()
     expect(flush).not.toHaveBeenCalled()
   })

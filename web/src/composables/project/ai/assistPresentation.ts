@@ -169,6 +169,7 @@ export function caseGenerationNodeOf(
     priority: null,
     sortOrder: order,
     version: 1,
+    aiGenerated: true,
     children: [],
   })
   return {
