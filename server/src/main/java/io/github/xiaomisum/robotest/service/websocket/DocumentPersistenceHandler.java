@@ -1,12 +1,16 @@
 package io.github.xiaomisum.robotest.service.websocket;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentAddNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentDeleteNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentMoveNodeReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.DocumentUpdateAttrsReqDTO;
+import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
+import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
@@ -26,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -42,11 +47,15 @@ public class DocumentPersistenceHandler {
     private static final String ATTR_USER_ID = "USER_ID";
 
     private static final String ERROR_CODE_PERMISSION_DENIED = "PERMISSION_DENIED";
+    private static final String ERROR_CODE_REQUIREMENT_NOT_FOUND =
+            String.valueOf(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code());
 
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
     private TestCaseDocumentMapper testCaseDocumentMapper;
+    @Resource
+    private RequirementMapper requirementMapper;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     /** 向量索引（WP-4.5）：WS 内容类变更触发整文档重嵌（详设 4.4） */
@@ -81,11 +90,14 @@ public class DocumentPersistenceHandler {
                     persistLayout(docId, layout);
                 }
                 case Constants.WebSocket.MSG_ADD_NODE -> {
-                    handleAddNode(docId, JsonUtils.toObject(payload.get("data"), DocumentAddNodeReqDTO.class));
+                    handleAddNode(docId, JsonUtils.toObject(payload.get("data"), DocumentAddNodeReqDTO.class), session);
                     contentChanged = true;
                 }
                 case Constants.WebSocket.MSG_UPDATE_ATTRS -> {
-                    handleUpdateAttrs(JsonUtils.toObject(payload.get("data"), DocumentUpdateAttrsReqDTO.class));
+                    JsonNode dataNode = payload.get("data");
+                    boolean requirementIdPresent = dataNode != null && dataNode.has("requirementId");
+                    handleUpdateAttrs(docId, JsonUtils.toObject(dataNode, DocumentUpdateAttrsReqDTO.class),
+                            requirementIdPresent, session);
                     contentChanged = true;
                 }
                 case Constants.WebSocket.MSG_DELETE_NODE -> {
@@ -133,7 +145,7 @@ public class DocumentPersistenceHandler {
         testCaseDocumentMapper.updateLayout(docId, layout);
     }
 
-    private void handleAddNode(UUID docId, DocumentAddNodeReqDTO data) {
+    private void handleAddNode(UUID docId, DocumentAddNodeReqDTO data, WebSocketSession session) {
         if (!StringUtils.hasText(data.getId())) {
             return;
         }
@@ -152,11 +164,13 @@ public class DocumentPersistenceHandler {
         node.setPriority(data.getPriority());
         node.setSortOrder(data.getSortOrder() != null ? data.getSortOrder() : 0);
         node.setAiGenerated(Boolean.TRUE.equals(data.getAiGenerated()));
+        node.setRequirementId(resolveRequirementId(docId, data.getRequirementId(), session));
         node.setVersion(1);
         testCaseNodeMapper.insert(node);
     }
 
-    private void handleUpdateAttrs(DocumentUpdateAttrsReqDTO data) {
+    private void handleUpdateAttrs(UUID docId, DocumentUpdateAttrsReqDTO data,
+                                   boolean requirementIdPresent, WebSocketSession session) {
         if (!StringUtils.hasText(data.getId())) {
             return;
         }
@@ -168,13 +182,55 @@ public class DocumentPersistenceHandler {
         }
 
         int currentVersion = node.getVersion() != null ? node.getVersion() : 0;
+        UUID requirementId = null;
+        boolean updateRequirement = false;
+        if (requirementIdPresent) {
+            // 显式 null 清空；保留“帧中未出现”与“显式清空”的区别，避免属性变更误清关联
+            updateRequirement = true;
+            if (StringUtils.hasText(data.getRequirementId())) {
+                UUID resolved = resolveRequirementId(docId, data.getRequirementId(), session);
+                // 非法需求只提示不改写，避免一次错误输入清掉既有有效关联
+                if (resolved != null) {
+                    requirementId = resolved;
+                } else {
+                    updateRequirement = false;
+                }
+            }
+        }
 
         int rows = testCaseNodeMapper.updateAttrsWithVersion(nodeId, currentVersion,
                 data.getTitle(), data.getType(), data.getPriority(), data.getSortOrder(), data.getAiGenerated(),
-                data.getTags());
+                data.getTags(), updateRequirement, requirementId);
         if (rows == 0) {
             log.warn("Optimistic lock conflict for node {}, expected version {}", data.getId(), currentVersion);
         }
+    }
+
+    /** 解析并校验需求归属；非法时经错误帧提示并返回 null，不写关联但保留节点本次其他变更 */
+    private UUID resolveRequirementId(UUID docId, String rawRequirementId, WebSocketSession session) {
+        if (!StringUtils.hasText(rawRequirementId)) {
+            return null;
+        }
+        UUID requirementId;
+        try {
+            requirementId = UUID.fromString(rawRequirementId);
+        } catch (IllegalArgumentException ex) {
+            sendRequirementError(session);
+            return null;
+        }
+        TestCaseDocument document = testCaseDocumentMapper.selectById(docId);
+        Requirement requirement = requirementMapper.selectById(requirementId);
+        if (document == null || requirement == null
+                || !Objects.equals(document.getProjectId(), requirement.getProjectId())) {
+            sendRequirementError(session);
+            return null;
+        }
+        return requirementId;
+    }
+
+    private void sendRequirementError(WebSocketSession session) {
+        sendError(session, ERROR_CODE_REQUIREMENT_NOT_FOUND,
+                ErrorCodeConstants.REQUIREMENT_NOT_FOUND.msg());
     }
 
     private void handleDeleteNode(DocumentDeleteNodeReqDTO data) {

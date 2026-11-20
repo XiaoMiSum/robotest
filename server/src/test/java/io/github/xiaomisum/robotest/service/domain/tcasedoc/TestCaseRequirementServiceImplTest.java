@@ -1,21 +1,14 @@
 package io.github.xiaomisum.robotest.service.domain.tcasedoc;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementRefRespDTO;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseRequirement;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseRequirementMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,168 +19,94 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TestCaseRequirementServiceImplTest {
 
     @Mock
-    private TestCaseRequirementMapper caseRequirementMapper;
-    @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
-    private TestCaseDocumentMapper testCaseDocumentMapper;
-    @Mock
     private RequirementMapper requirementMapper;
-    @Mock
-    private ProjectAccessGuard projectAccessGuard;
 
     @InjectMocks
     private TestCaseRequirementServiceImpl service;
 
     private UUID projectId;
-    private UUID userId;
-    private UUID caseId;
-    private UUID documentId;
 
     @BeforeEach
     void setUp() {
         projectId = UUID.randomUUID();
-        userId = UUID.randomUUID();
-        caseId = UUID.randomUUID();
-        documentId = UUID.randomUUID();
     }
 
     @Test
-    void saveRequirements_updateExistingLink() {
-        stubCaseNode(Constants.NodeType.CASE);
-        UUID requirementId = UUID.randomUUID();
-        stubRequirement(requirementId);
-        when(caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId)).thenReturn(1);
+    void listRequirementRefs_keepsOrderAndSkipsMissingOrCrossProject() {
+        UUID reqA = UUID.randomUUID();
+        UUID reqB = UUID.randomUUID();
+        UUID reqMissing = UUID.randomUUID();
+        Requirement foreign = requirement(UUID.randomUUID(), "REQ-X");
+        foreign.setProjectId(UUID.randomUUID());
+        when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(
+                requirement(reqB, "REQ-10"), requirement(reqA, "REQ-9"), foreign));
 
-        List<RequirementRefRespDTO> result = service.saveRequirements(projectId, caseId, requirementId, userId);
+        List<RequirementRefRespDTO> result = service.listRequirementRefs(projectId,
+                List.of(reqA, reqMissing, reqB, foreign.getId(), reqA));
 
-        assertEquals(List.of("REQ-1"), result.stream().map(RequirementRefRespDTO::getCode).toList());
-        verify(caseRequirementMapper).updateRequirementByCaseNode(projectId, caseId, requirementId);
-        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
-        verify(caseRequirementMapper, never()).deleteByCaseNodeId(any(), any());
+        assertEquals(List.of(reqA, reqB), result.stream().map(RequirementRefRespDTO::getId).toList());
+        assertEquals(List.of("REQ-9", "REQ-10"), result.stream().map(RequirementRefRespDTO::getCode).toList());
     }
 
     @Test
-    void saveRequirements_insertWhenNoExistingLink() {
-        stubCaseNode(Constants.NodeType.CASE);
-        UUID requirementId = UUID.randomUUID();
-        stubRequirement(requirementId);
-        when(caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId)).thenReturn(0);
-
-        List<RequirementRefRespDTO> result = service.saveRequirements(projectId, caseId, requirementId, userId);
-
-        assertEquals(List.of("REQ-1"), result.stream().map(RequirementRefRespDTO::getCode).toList());
-        ArgumentCaptor<TestCaseRequirement> captor = ArgumentCaptor.forClass(TestCaseRequirement.class);
-        verify(caseRequirementMapper).insert(captor.capture());
-        assertEquals(projectId, captor.getValue().getProjectId());
-        assertEquals(requirementId, captor.getValue().getRequirementId());
-        assertEquals(caseId, captor.getValue().getCaseNodeId());
-        assertEquals(documentId, captor.getValue().getDocumentId());
+    void listRequirementRefs_emptyIds_skipsQuery() {
+        assertTrue(service.listRequirementRefs(projectId, List.of()).isEmpty());
+        verify(requirementMapper, never()).listByIds(anyCollection());
     }
 
     @Test
-    void saveRequirements_nullClearsLink() {
-        stubCaseNode(Constants.NodeType.CASE);
-
-        List<RequirementRefRespDTO> result = service.saveRequirements(projectId, caseId, null, userId);
-
-        assertTrue(result.isEmpty());
-        verify(caseRequirementMapper).deleteByCaseNodeId(projectId, caseId);
-        verify(caseRequirementMapper, never()).updateRequirementByCaseNode(any(), any(), any());
-        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
-        verifyNoInteractions(requirementMapper);
-    }
-
-    @Test
-    void saveRequirements_idempotentWhenSameRequirement() {
-        stubCaseNode(Constants.NodeType.CASE);
-        UUID requirementId = UUID.randomUUID();
-        stubRequirement(requirementId);
-        when(caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId)).thenReturn(1);
-
-        service.saveRequirements(projectId, caseId, requirementId, userId);
-        service.saveRequirements(projectId, caseId, requirementId, userId);
-
-        verify(caseRequirementMapper, times(2)).updateRequirementByCaseNode(projectId, caseId, requirementId);
-        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
-    }
-
-    @Test
-    void saveRequirements_nonCaseNode_throws() {
-        stubCaseNode(Constants.NodeType.STEP);
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.saveRequirements(projectId, caseId, UUID.randomUUID(), userId));
-
-        assertEquals(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND.code(), exception.getCode());
-        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
-    }
-
-    @Test
-    void saveRequirements_crossProjectRequirement_throws() {
-        stubCaseNode(Constants.NodeType.CASE);
-        UUID requirementId = UUID.randomUUID();
-        Requirement otherProject = requirement(requirementId, "REQ-1");
-        otherProject.setProjectId(UUID.randomUUID());
-        when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(otherProject));
-
-        ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.saveRequirements(projectId, caseId, requirementId, userId));
-
-        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
-        verify(caseRequirementMapper, never()).updateRequirementByCaseNode(any(), any(), any());
-        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
-    }
-
-    @Test
-    void resolvePlannedCases_keepsOnlyExistingCaseNodes() {
+    void resolvePlannedCases_groupsCaseNodesByDocument() {
         UUID requirementId = UUID.randomUUID();
         when(requirementMapper.listByIds(anyCollection()))
                 .thenReturn(List.of(requirement(requirementId, "REQ-1")));
-        UUID caseNode = UUID.randomUUID();
-        UUID stepNode = UUID.randomUUID();
-        UUID removedNode = UUID.randomUUID();
-        when(caseRequirementMapper.listByRequirementIds(projectId, List.of(requirementId))).thenReturn(List.of(
-                link(requirementId, caseNode, documentId),
-                link(requirementId, stepNode, documentId),
-                link(requirementId, removedNode, documentId)));
-        when(testCaseNodeMapper.listByIds(anyCollection())).thenReturn(List.of(
-                node(caseNode, documentId, Constants.NodeType.CASE),
-                node(stepNode, documentId, Constants.NodeType.STEP)));
+        UUID docA = UUID.randomUUID();
+        UUID docB = UUID.randomUUID();
+        UUID caseA1 = UUID.randomUUID();
+        UUID caseA2 = UUID.randomUUID();
+        UUID caseB = UUID.randomUUID();
+        when(testCaseNodeMapper.listCasesByRequirementIds(List.of(requirementId))).thenReturn(List.of(
+                node(caseA1, docA), node(caseA2, docA), node(caseB, docB), node(UUID.randomUUID(), null)));
 
         Map<UUID, Set<UUID>> result = service.resolvePlannedCases(projectId, List.of(requirementId));
 
-        assertEquals(Set.of(caseNode), result.get(documentId));
+        assertEquals(Set.of(caseA1, caseA2), result.get(docA));
+        assertEquals(Set.of(caseB), result.get(docB));
+        assertEquals(2, result.size());
     }
 
-    private void stubCaseNode(String type) {
-        TestCaseNode node = node(caseId, documentId, type);
-        when(testCaseNodeMapper.selectById(caseId)).thenReturn(node);
-        TestCaseDocument document = new TestCaseDocument();
-        document.setId(documentId);
-        document.setProjectId(projectId);
-        when(testCaseDocumentMapper.selectById(documentId)).thenReturn(document);
+    @Test
+    void resolvePlannedCases_emptyIds_skipsQueries() {
+        assertTrue(service.resolvePlannedCases(projectId, List.of()).isEmpty());
+        verify(requirementMapper, never()).listByIds(anyCollection());
+        verify(testCaseNodeMapper, never()).listCasesByRequirementIds(anyCollection());
     }
 
-    private void stubRequirement(UUID requirementId) {
-        when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(requirementId, "REQ-1")));
-    }
+    @Test
+    void resolvePlannedCases_crossProjectRequirement_throws() {
+        UUID requirementId = UUID.randomUUID();
+        Requirement foreign = requirement(requirementId, "REQ-1");
+        foreign.setProjectId(UUID.randomUUID());
+        when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(foreign));
 
-    private static TestCaseNode node(UUID id, UUID docId, String type) {
-        TestCaseNode node = new TestCaseNode();
-        node.setId(id);
-        node.setDocumentId(docId);
-        node.setType(type);
-        return node;
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.resolvePlannedCases(projectId, List.of(requirementId)));
+
+        assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
+        verify(testCaseNodeMapper, never()).listCasesByRequirementIds(anyCollection());
     }
 
     private Requirement requirement(UUID id, String code) {
@@ -199,12 +118,10 @@ class TestCaseRequirementServiceImplTest {
         return requirement;
     }
 
-    private TestCaseRequirement link(UUID requirementId, UUID caseNodeId, UUID docId) {
-        TestCaseRequirement link = new TestCaseRequirement();
-        link.setProjectId(projectId);
-        link.setRequirementId(requirementId);
-        link.setCaseNodeId(caseNodeId);
-        link.setDocumentId(docId);
-        return link;
+    private static TestCaseNode node(UUID id, UUID docId) {
+        TestCaseNode node = new TestCaseNode();
+        node.setId(id);
+        node.setDocumentId(docId);
+        return node;
     }
 }

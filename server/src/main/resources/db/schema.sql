@@ -211,6 +211,7 @@ CREATE TABLE ft_case_node (
                                 title        VARCHAR(200) NOT NULL,
                                 priority     VARCHAR(2)   NULL,
                                 tags         jsonb        NULL,
+                                requirement_id UUID      NULL,
                                 sort_order   INT          NOT NULL DEFAULT 0,
                                 version      INT          NOT NULL DEFAULT 1,
                                 ai_generated BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -222,24 +223,7 @@ CREATE TABLE ft_case_node (
 CREATE INDEX idx_ft_case_node_document_id ON ft_case_node (document_id);
 CREATE INDEX idx_ft_case_node_parent_id ON ft_case_node (parent_id);
 CREATE INDEX idx_ft_case_node_document_type ON ft_case_node (document_id, type) WHERE is_deleted = FALSE;
-
--- 用例节点关联需求表（一条用例至多关联一条需求，计划/评审创建时按需求反查用例）
-CREATE TABLE ft_case_requirement (
-                                id             UUID      PRIMARY KEY,
-                                project_id     UUID      NOT NULL,
-                                requirement_id UUID      NOT NULL,
-                                case_node_id   UUID      NOT NULL,
-                                document_id    UUID      NOT NULL,
-                                is_deleted     BOOLEAN   NOT NULL DEFAULT FALSE,
-                                created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX uk_ft_case_requirement ON ft_case_requirement (requirement_id, case_node_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_ft_case_requirement_req ON ft_case_requirement (requirement_id);
-CREATE INDEX idx_ft_case_requirement_case ON ft_case_requirement (case_node_id);
-CREATE INDEX idx_ft_case_requirement_project ON ft_case_requirement (project_id);
-CREATE INDEX idx_ft_case_requirement_document ON ft_case_requirement (document_id);
+CREATE INDEX idx_ft_case_node_requirement_id ON ft_case_node (requirement_id) WHERE is_deleted = FALSE;
 
 -- ============================================================
 -- 4. 功能测试 — 测试计划
@@ -1486,13 +1470,7 @@ COMMENT ON COLUMN ft_case_node.tags IS '用例标签（jsonb 数组），AI 补�
 COMMENT ON COLUMN ft_case_node.sort_order IS '排序序号';
 COMMENT ON COLUMN ft_case_node.version IS '乐观锁版本号，用于并发冲突检测';
 COMMENT ON COLUMN ft_case_node.ai_generated IS 'AI 生成标识（挂载执行器写入，可手动移除）';
-
-COMMENT ON TABLE ft_case_requirement IS '用例节点关联需求表（一条用例至多关联一条需求）';
-COMMENT ON COLUMN ft_case_requirement.id IS '关联唯一标识';
-COMMENT ON COLUMN ft_case_requirement.project_id IS '所属项目 ID（隔离边界）';
-COMMENT ON COLUMN ft_case_requirement.requirement_id IS '需求 ID（逻辑外键 → requirement.id）';
-COMMENT ON COLUMN ft_case_requirement.case_node_id IS '用例节点 ID（逻辑外键 → ft_case_node.id，仅 type=case）';
-COMMENT ON COLUMN ft_case_requirement.document_id IS '用例节点所属文档 ID（冗余，供按文档分组带入计划/评审）';
+COMMENT ON COLUMN ft_case_node.requirement_id IS '关联需求 ID（逻辑外键 → requirement.id，仅 case 节点有值，NULL 表示未关联）';
 
 COMMENT ON TABLE ft_plan IS '测试计划表（用例执行计划）';
 COMMENT ON COLUMN ft_plan.id IS '计划唯一标识';

@@ -16,4 +16,6 @@ public class DocumentUpdateAttrsReqDTO {
     private Boolean aiGenerated;
     /** 标签更新（AI 用例优化）：null 表示不变更，空数组表示清空 */
     private List<String> tags;
+    /** 关联需求 id（帧中显式出现才更新，显式 null 表示清空；字段值本身不足以区分省略与清空） */
+    private String requirementId;
 }
