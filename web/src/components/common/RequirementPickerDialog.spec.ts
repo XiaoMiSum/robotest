@@ -135,6 +135,14 @@ describe('RequirementPickerDialog', () => {
     expect(onConfirm).toHaveBeenCalledWith(['r1'], [expect.objectContaining({ id: 'r1' })])
   })
 
+  it('打开弹窗仅请求已确认需求', async () => {
+    await openDialog()
+
+    expect(mocks.fetchRequirements).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'confirmed' }),
+    )
+  })
+
   it('需求明细弹窗宽度按共享组件统一加倍', () => {
     expect(dialogSource).toContain(':width="840"')
   })

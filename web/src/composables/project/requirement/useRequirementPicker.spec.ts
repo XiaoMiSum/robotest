@@ -62,7 +62,7 @@ describe('useRequirementPicker', () => {
     vi.useRealTimers()
   })
 
-  it('load 按当前页码与关键字请求并回填', async () => {
+  it('load 按当前页码与关键字请求并回填，固定只查已确认需求', async () => {
     mocks.fetchRequirements.mockResolvedValue(page([item('r1', 'REQ-001', '登录')]))
     const { picker } = mountPicker()
 
@@ -72,6 +72,7 @@ describe('useRequirementPicker', () => {
       keyword: undefined,
       pageNo: 1,
       pageSize: 10,
+      status: 'confirmed',
     })
     expect(picker.rows.value).toHaveLength(1)
     expect(picker.total.value).toBe(1)
@@ -104,6 +105,7 @@ describe('useRequirementPicker', () => {
       keyword: '结算',
       pageNo: 1,
       pageSize: 10,
+      status: 'confirmed',
     })
   })
 
@@ -188,7 +190,7 @@ describe('useRequirementPicker', () => {
     expect(picker.keyword.value).toBe('')
     expect(picker.selectedIds.value).toEqual(['r9'])
     expect(mocks.fetchRequirements).toHaveBeenCalledWith(
-      expect.objectContaining({ keyword: undefined, pageNo: 1 }),
+      expect.objectContaining({ keyword: undefined, pageNo: 1, status: 'confirmed' }),
     )
   })
 
