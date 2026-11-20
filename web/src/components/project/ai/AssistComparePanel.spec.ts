@@ -156,8 +156,7 @@ describe('AssistComparePanel', () => {
 
       expect(wrapper.text()).toContain('建议与现有内容一致，无需变更')
       expect(wrapper.text()).toContain('同级')
-      expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
-      expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeDefined()
+      expect(actionButton(wrapper, '采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '驳回').attributes('disabled')).toBeDefined()
     })
 
@@ -165,7 +164,7 @@ describe('AssistComparePanel', () => {
       const wrapper = mountPanel({ rows: [optimizeRow({ suggestion: null })] })
 
       expect(wrapper.text()).toContain('建议内容暂不可用')
-      expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
+      expect(actionButton(wrapper, '采纳').attributes('disabled')).toBeDefined()
     })
 
     it('加载中渲染骨架而非空态', () => {
@@ -176,10 +175,10 @@ describe('AssistComparePanel', () => {
   })
 
   describe('采纳与驳回', () => {
-    it('逐条采纳提交全部操作，仅携带定位字段与建议值', async () => {
+    it('采纳提交全部操作，仅携带定位字段与建议值', async () => {
       const wrapper = mountPanel({ rows: [optimizeRow()] })
 
-      await actionButton(wrapper, '逐条采纳').trigger('click')
+      await actionButton(wrapper, '采纳').trigger('click')
 
       expect(wrapper.emitted('adoptEdited')).toHaveLength(1)
       expect(wrapper.emitted('adoptEdited')?.[0]).toEqual([
@@ -202,7 +201,7 @@ describe('AssistComparePanel', () => {
 
       await input.setValue('输入邮箱和图形验证码')
 
-      await actionButton(wrapper, '逐条采纳').trigger('click')
+      await actionButton(wrapper, '采纳').trigger('click')
       const payload = wrapper.emitted('adoptEdited')?.[0]?.[1] as { operations: Record<string, unknown>[] }
       expect(payload.operations[0]).toMatchObject({
         op: 'update', nodeId: 'n1', field: 'title', suggested: '输入邮箱和图形验证码',
@@ -217,15 +216,15 @@ describe('AssistComparePanel', () => {
 
       await skip!.trigger('click')
       expect(wrapper.text()).toContain('恢复')
-      const hint = actionButton(wrapper, '逐条采纳')
+      const hint = actionButton(wrapper, '采纳')
       expect(hint.attributes('disabled')).toBeUndefined()
 
-      await actionButton(wrapper, '逐条采纳').trigger('click')
+      await actionButton(wrapper, '采纳').trigger('click')
       const payload = wrapper.emitted('adoptEdited')?.[0]?.[1] as { operations: Record<string, unknown>[] }
       expect(payload.operations.some((op) => op['field'] === 'title')).toBe(false)
     })
 
-    it('多节点时逐条采纳后推进到下一个待处理建议', async () => {
+    it('多节点时采纳后推进到下一个待处理建议', async () => {
       const second = optimizeRow({
         key: 'node-2',
         title: '登录-图形验证码',
@@ -240,21 +239,11 @@ describe('AssistComparePanel', () => {
       expect(wrapper.find('.assist-panel__switch').exists()).toBe(true)
       expect(nodeTitle(wrapper)).toBe('REQ-001')
 
-      await actionButton(wrapper, '逐条采纳').trigger('click')
+      await actionButton(wrapper, '采纳').trigger('click')
 
       expect(wrapper.emitted('adoptEdited')?.[0]?.[0]).toBe('node-1')
       await nextTick()
       expect(nodeTitle(wrapper)).toBe('REQ-002')
-    })
-
-    it('批量采纳提交全部待处理项', async () => {
-      const wrapper = mountPanel({
-        rows: [optimizeRow(), optimizeRow({ key: 'node-2', title: '登录-图形验证码' })],
-      })
-
-      await actionButton(wrapper, '批量采纳').trigger('click')
-
-      expect(wrapper.emitted('batchAdopt')?.[0]).toEqual([['node-1', 'node-2']])
     })
 
     it('驳回带说明提交，空白说明省略', async () => {
@@ -285,8 +274,7 @@ describe('AssistComparePanel', () => {
     it('只读节点置灰并提示原因', () => {
       const wrapper = mountPanel({ rows: [optimizeRow()], canAdopt: false })
 
-      expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeDefined()
-      expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeDefined()
+      expect(actionButton(wrapper, '采纳').attributes('disabled')).toBeDefined()
       expect(actionButton(wrapper, '驳回').attributes('disabled')).toBeDefined()
       expect(wrapper.text()).toContain('当前节点只读')
     })
@@ -338,7 +326,7 @@ describe('AssistComparePanel', () => {
         ],
       })
 
-      await actionButton(wrapper, '逐条采纳').trigger('click')
+      await actionButton(wrapper, '采纳').trigger('click')
       await nextTick()
       await actionButton(wrapper, '重试').trigger('click')
 
@@ -350,7 +338,7 @@ describe('AssistComparePanel', () => {
       const wrapper = mountPanel({ rows: [optimizeRow()], sourceStale: true })
 
       expect(wrapper.text()).toContain('来源需求已变更')
-      expect(actionButton(wrapper, '逐条采纳').attributes('disabled')).toBeUndefined()
+      expect(actionButton(wrapper, '采纳').attributes('disabled')).toBeUndefined()
 
       await actionButton(wrapper, '关闭').trigger('click')
       expect(wrapper.emitted('close')).toHaveLength(1)
@@ -382,7 +370,6 @@ describe('AssistComparePanel', () => {
       })
 
       expect(wrapper.text()).toContain('已采纳 1 / 共 3')
-      expect(actionButton(wrapper, '批量采纳').attributes('disabled')).toBeUndefined()
     })
   })
 })

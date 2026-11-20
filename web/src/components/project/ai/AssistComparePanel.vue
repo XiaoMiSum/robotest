@@ -40,9 +40,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   /** 整条采纳：按提案原样执行全部操作指令 */
   adopt: [key: string]
-  /** 逐条采纳：仅携带人工核对后保留的操作指令 */
+  /** 采纳当前核对节点：仅携带人工核对后保留的操作指令 */
   adoptEdited: [key: string, content: Record<string, unknown>]
-  batchAdopt: [keys: string[]]
   reject: [key: string, note?: string]
   openSource: [ref: AiAssistSourceRef]
   clearReceipt: []
@@ -176,9 +175,6 @@ const visibleCards = computed(() => showUnchanged.value ? cards.value : cards.va
 const unchangedCount = computed(() => cards.value.filter((card) => card.foldable).length)
 const effectiveCount = computed(() => cards.value.filter((card) => !card.skipped).length)
 
-const pendingKeys = computed(() =>
-  props.rows.filter((row) => row.confirmStatus === 'pending').map((row) => row.key),
-)
 const adoptedCount = computed(
   () =>
     props.rows.filter(
@@ -212,19 +208,9 @@ const adoptDisabledReason = computed(() => {
   return ''
 })
 
-const batchDisabledReason = computed(() => {
-  if (props.rows.length === 0) return '暂无可处理的建议'
-  if (!props.canAdopt) return '当前节点只读'
-  if (allUnchanged.value) return '全部建议与现有内容一致，仅可关闭'
-  if (props.confirming) return '正在提交采纳结果'
-  if (pendingKeys.value.length === 0) return '全部建议已处理'
-  return ''
-})
-
 const canAdoptActive = computed(() => adoptDisabledReason.value === '')
-const canBatch = computed(() => batchDisabledReason.value === '')
 /** 置灰原因可见展示（同 AiScopeCheckList 口径），不依赖悬浮才能读到 */
-const disabledReason = computed(() => adoptDisabledReason.value || batchDisabledReason.value)
+const disabledReason = computed(() => adoptDisabledReason.value)
 const canReject = computed(
   () =>
     props.canAdopt &&
@@ -292,13 +278,6 @@ function adoptActive(): void {
   retryOps.set(row.key, () => emit('adoptEdited', row.key, content))
   emit('adoptEdited', row.key, content)
   advance()
-}
-
-function onBatch(): void {
-  for (const key of pendingKeys.value) {
-    retryOps.set(key, () => emit('adopt', key))
-  }
-  emit('batchAdopt', pendingKeys.value)
 }
 
 function openReject(): void {
@@ -507,10 +486,7 @@ function onReceiptRetry(item: ConfirmItemResult): void {
           :loading="confirming"
           @click="adoptActive"
         >
-          逐条采纳
-        </el-button>
-        <el-button size="small" :disabled="!canBatch" :loading="confirming" @click="onBatch">
-          批量采纳
+          采纳
         </el-button>
         <el-button size="small" :disabled="!canReject" @click="openReject">驳回</el-button>
       </div>

@@ -134,7 +134,6 @@ const {
   refresh: refreshAssist,
   adopt: adoptAssist,
   adoptEdited: adoptAssistEdited,
-  batchAdopt: batchAdoptAssist,
   reject: rejectAssist,
   clearReceipt: clearAssistReceipt,
   openSource: openAssistSource,
@@ -503,7 +502,6 @@ const handleLayoutCommand = (command: unknown) => {
         :retryable="assistRetryable"
         @adopt="adoptAssist"
         @adopt-edited="adoptAssistEdited"
-        @batch-adopt="batchAdoptAssist"
         @reject="rejectAssist"
         @open-source="openAssistSource"
         @clear-receipt="clearAssistReceipt"
