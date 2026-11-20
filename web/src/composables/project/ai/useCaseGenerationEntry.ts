@@ -18,7 +18,7 @@ export interface CaseGenerationEntryOptions {
 }
 
 /**
- * 脑图工具栏「AI测试用例」入口（详设 5.1 / 5.3）：需求单选 → 新任务 → 轮询提案 →
+ * 脑图工具栏「AI覆盖雷达」入口（详设 5.1 / 5.3）：需求单选 → 新任务 → 轮询提案 →
  * 提案映射为可勾选节点树 → 插入后回传确认状态。本类型不复用节点级 /latest 任务。
  */
 export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
