@@ -801,10 +801,10 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串时前端按类型名兜底展示。
 - **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数，过滤口径与列表一致（按项目头过滤，不按提交人过滤）。
   - 响应：`{ "count": 2 }`。
-- **按节点查询最近任务**：`GET /api/ai/tasks/{type}/latest`
-  - 参数：`documentId`、`nodeId`（均必填）；按任务输入中的 `documentId` 与 `nodeIds` 匹配，返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
+- **按文档 / 节点查询最近任务**：`GET /api/ai/tasks/{type}/latest`
+  - 参数：`documentId`（必填）、`nodeId`（可选）；传 `nodeId` 时按任务输入中的 `documentId` 与 `nodeIds` 匹配（节点级任务），省略 `nodeId` 时仅按 `documentId` 匹配（文档级任务）；返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
   - 可见范围：当前项目内任意成员提交的任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
-  - 用途：用例节点「AI 优化」入口按节点复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
+  - 用途：用例节点「AI 优化」按节点、脑图「AI覆盖雷达」按当前文档复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
 - **详情**：`GET /api/ai/tasks/{taskId}`
   - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 执行产出提案后回填（见 2.6.4）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
 
@@ -1135,3 +1135,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-19 | 5.2 审核区扁平化为单卡：组件树移除 ProposalCard 层级，对比组件改卡内轻量三列，动作区右对齐 link |
 | V1.0 | 2026-11-19 | 3.6.1 登记辅助域新任务类型 `mindmap_case_generation`（`documentId` + `requirementId` → `mindmap_case_suggestion`，采纳由脑图面板执行、后端只记录状态）；任务类型总数十类→十一类、普通目标型任务八类→九类，4.2 执行入口统计同步 |
 | V1.0 | 2026-11-20 | 3.4 向量连通性测试支持携带表单未保存配置：请求体可选、合并后临时向量化不写回配置，空密钥沿用已保存密文，仅刷新 `lastTest`（无配置行不持久化） |
+| V1.0 | 2026-11-20 | 3.6.3 `/latest` 查询支持文档级复用：`nodeId` 改可选，省略时仅按 `documentId` 匹配，供脑图「AI覆盖雷达」回显当前文档最近一次生成任务 |
