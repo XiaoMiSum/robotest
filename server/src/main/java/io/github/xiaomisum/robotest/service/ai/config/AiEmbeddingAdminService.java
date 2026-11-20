@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.framework.audit.ClientIpResolver;
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.framework.util.SecretCryptoUtil;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiEmbeddingSaveReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.ai.AiEmbeddingTestReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiEmbeddingRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiEmbeddingTestRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiModelRespDTO;
@@ -159,19 +160,22 @@ public class AiEmbeddingAdminService {
         return resp;
     }
 
-    /**
-     * 连通性测试（3.4）：以已保存配置发起最小向量化（计入 ai_usage_log）。
-     * 成功持久化 last_test；失败抛 1000018107（响应含失败摘要）。
-     */
+    /** 兼容旧调用：不携带表单配置时测已保存配置 */
     public AiEmbeddingTestRespDTO test(LoginUser loginUser, HttpServletRequest request) {
+        return test(null, loginUser, request);
+    }
+
+    /**
+     * 连通性测试（3.4）：表单值覆盖已保存配置发起最小向量化（计入 ai_usage_log）。
+     * 表单值只用于本次调用、不写回配置；仅 last_test 写回已保存行。失败抛 1000018107。
+     */
+    public AiEmbeddingTestRespDTO test(AiEmbeddingTestReqDTO req, LoginUser loginUser, HttpServletRequest request) {
         AiEmbeddingConfig row = embeddingMapper.selectSingleton();
-        if (row == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(), "未配置向量 API，请先保存配置");
-        }
+        AiEmbeddingConfig target = buildTestConfig(req, row);
 
         long start = System.currentTimeMillis();
         try {
-            AiEmbeddingClient.EmbeddingReply reply = embeddingClient.embed(row, List.of("连通性探测"),
+            AiEmbeddingClient.EmbeddingReply reply = embeddingClient.embed(target, List.of("连通性探测"),
                     loginUser.getId(), null, null);
             int latencyMs = (int) (System.currentTimeMillis() - start);
             saveLastTest(row, true, reply.dimensions(), latencyMs, null);
@@ -193,6 +197,43 @@ public class AiEmbeddingAdminService {
 
     // ========== 私有 ==========
 
+    /** 表单值覆盖已保存配置：空项沿用已保存值，密钥非空仅加密用于本次调用 */
+    private AiEmbeddingConfig buildTestConfig(AiEmbeddingTestReqDTO req, AiEmbeddingConfig row) {
+        if (req == null) {
+            if (row == null) {
+                throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(), "未配置向量 API，请先保存配置");
+            }
+            return row;
+        }
+        String savedBaseUrl = row == null ? null : row.getBaseUrl();
+        String savedModel = row == null ? null : row.getEmbeddingModel();
+        String savedKey = row == null ? null : row.getApiKeyEncrypted();
+
+        AiEmbeddingConfig target = new AiEmbeddingConfig();
+        target.setProvider(orSaved(req.getProvider(), row == null ? null : row.getProvider()));
+        target.setBaseUrl(orSaved(req.getBaseUrl(), savedBaseUrl));
+        target.setEmbeddingModel(orSaved(req.getEmbeddingModel(), savedModel));
+        target.setDimensions(req.getDimensions() != null ? req.getDimensions() : row == null ? null : row.getDimensions());
+        target.setOperator(orSaved(req.getOperator(), row == null ? null : row.getOperator()));
+        String plainKey = req.getApiKey();
+        target.setApiKeyEncrypted(plainKey != null && !plainKey.isBlank() ? encrypt(plainKey.trim()) : savedKey);
+
+        if (isBlank(target.getBaseUrl()) || isBlank(target.getEmbeddingModel())
+                || target.getDimensions() == null || isBlank(target.getApiKeyEncrypted())) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(),
+                    "请先保存配置或填写完整测试参数");
+        }
+        return target;
+    }
+
+    private static String orSaved(String value, String saved) {
+        return isBlank(value) ? saved : value.trim();
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     /** 旧配置追加进 versions（2.4 结构 { version, embeddingModel, dimensions, operator, retiredAt }） */
     private boolean retireCurrentVersion(AiEmbeddingConfig row) {
         List<Map<String, Object>> versions = row.getVersions() == null ? new ArrayList<>() : row.getVersions();
@@ -211,6 +252,9 @@ public class AiEmbeddingAdminService {
     }
 
     private void saveLastTest(AiEmbeddingConfig row, boolean success, Integer dimensions, int latencyMs, String msg) {
+        if (row == null) {
+            return;
+        }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("success", success);
         result.put("latencyMs", latencyMs);
