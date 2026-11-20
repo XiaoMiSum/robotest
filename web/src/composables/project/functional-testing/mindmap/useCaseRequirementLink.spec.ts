@@ -20,7 +20,7 @@ describe('useCaseRequirementLink', () => {
     expect(link.picks()).toHaveLength(1)
     selected = 'case-b'
     await link.confirm([])
-    expect(mocks.update).toHaveBeenCalledWith('case-a', [])
+    expect(mocks.update).toHaveBeenCalledWith('case-a', null)
     expect(link.visible.value).toBe(false)
   })
 
@@ -43,6 +43,7 @@ describe('useCaseRequirementLink', () => {
     await link.open()
     mocks.update.mockRejectedValue(new Error('保存失败'))
     await link.confirm(['r1'])
+    expect(mocks.update).toHaveBeenCalledWith('case-a', 'r1')
     expect(mocks.error).toHaveBeenCalledWith('保存失败')
     expect(link.saving.value).toBe(false)
   })

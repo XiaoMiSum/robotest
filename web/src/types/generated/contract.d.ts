@@ -7279,8 +7279,9 @@ export interface components {
             code?: string;
             title?: string;
         };
-        TestCaseRequirementsUpdateReqDTO: {
-            requirementIds: string[];
+        TestCaseRequirementUpdateReqDTO: {
+            /** Format: uuid */
+            requirementId?: string;
         };
         ResultListRequirementRefRespDTO: {
             /** Format: int32 */
@@ -13848,7 +13849,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TestCaseRequirementsUpdateReqDTO"];
+                "application/json": components["schemas"]["TestCaseRequirementUpdateReqDTO"];
             };
         };
         responses: {

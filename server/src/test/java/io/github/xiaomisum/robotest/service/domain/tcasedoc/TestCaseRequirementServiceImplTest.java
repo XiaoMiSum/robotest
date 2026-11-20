@@ -62,29 +62,63 @@ class TestCaseRequirementServiceImplTest {
     }
 
     @Test
-    void saveRequirements_replacesDiff() {
+    void saveRequirements_updateExistingLink() {
         stubCaseNode(Constants.NodeType.CASE);
-        UUID keep = UUID.randomUUID();
-        UUID added = UUID.randomUUID();
-        UUID removed = UUID.randomUUID();
-        UUID removedLinkId = UUID.randomUUID();
-        when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(
-                requirement(keep, "REQ-2"), requirement(added, "REQ-10")));
-        when(caseRequirementMapper.listByCaseNodeId(projectId, caseId)).thenReturn(List.of(
-                link(UUID.randomUUID(), keep), link(removedLinkId, removed)));
+        UUID requirementId = UUID.randomUUID();
+        stubRequirement(requirementId);
+        when(caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId)).thenReturn(1);
 
-        List<RequirementRefRespDTO> result = service.saveRequirements(
-                projectId, caseId, List.of(keep, added), userId);
+        List<RequirementRefRespDTO> result = service.saveRequirements(projectId, caseId, requirementId, userId);
 
-        assertEquals(List.of("REQ-2", "REQ-10"), result.stream().map(RequirementRefRespDTO::getCode).toList());
-        verify(caseRequirementMapper).deleteById(removedLinkId);
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<TestCaseRequirement>> captor = ArgumentCaptor.forClass(List.class);
-        verify(caseRequirementMapper).insertBatch(captor.capture());
-        assertEquals(1, captor.getValue().size());
-        assertEquals(added, captor.getValue().get(0).getRequirementId());
-        assertEquals(caseId, captor.getValue().get(0).getCaseNodeId());
-        assertEquals(documentId, captor.getValue().get(0).getDocumentId());
+        assertEquals(List.of("REQ-1"), result.stream().map(RequirementRefRespDTO::getCode).toList());
+        verify(caseRequirementMapper).updateRequirementByCaseNode(projectId, caseId, requirementId);
+        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
+        verify(caseRequirementMapper, never()).deleteByCaseNodeId(any(), any());
+    }
+
+    @Test
+    void saveRequirements_insertWhenNoExistingLink() {
+        stubCaseNode(Constants.NodeType.CASE);
+        UUID requirementId = UUID.randomUUID();
+        stubRequirement(requirementId);
+        when(caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId)).thenReturn(0);
+
+        List<RequirementRefRespDTO> result = service.saveRequirements(projectId, caseId, requirementId, userId);
+
+        assertEquals(List.of("REQ-1"), result.stream().map(RequirementRefRespDTO::getCode).toList());
+        ArgumentCaptor<TestCaseRequirement> captor = ArgumentCaptor.forClass(TestCaseRequirement.class);
+        verify(caseRequirementMapper).insert(captor.capture());
+        assertEquals(projectId, captor.getValue().getProjectId());
+        assertEquals(requirementId, captor.getValue().getRequirementId());
+        assertEquals(caseId, captor.getValue().getCaseNodeId());
+        assertEquals(documentId, captor.getValue().getDocumentId());
+    }
+
+    @Test
+    void saveRequirements_nullClearsLink() {
+        stubCaseNode(Constants.NodeType.CASE);
+
+        List<RequirementRefRespDTO> result = service.saveRequirements(projectId, caseId, null, userId);
+
+        assertTrue(result.isEmpty());
+        verify(caseRequirementMapper).deleteByCaseNodeId(projectId, caseId);
+        verify(caseRequirementMapper, never()).updateRequirementByCaseNode(any(), any(), any());
+        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
+        verifyNoInteractions(requirementMapper);
+    }
+
+    @Test
+    void saveRequirements_idempotentWhenSameRequirement() {
+        stubCaseNode(Constants.NodeType.CASE);
+        UUID requirementId = UUID.randomUUID();
+        stubRequirement(requirementId);
+        when(caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId)).thenReturn(1);
+
+        service.saveRequirements(projectId, caseId, requirementId, userId);
+        service.saveRequirements(projectId, caseId, requirementId, userId);
+
+        verify(caseRequirementMapper, times(2)).updateRequirementByCaseNode(projectId, caseId, requirementId);
+        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
     }
 
     @Test
@@ -92,10 +126,10 @@ class TestCaseRequirementServiceImplTest {
         stubCaseNode(Constants.NodeType.STEP);
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.saveRequirements(projectId, caseId, List.of(UUID.randomUUID()), userId));
+                () -> service.saveRequirements(projectId, caseId, UUID.randomUUID(), userId));
 
         assertEquals(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND.code(), exception.getCode());
-        verify(caseRequirementMapper, never()).insertBatch(any());
+        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
     }
 
     @Test
@@ -107,9 +141,11 @@ class TestCaseRequirementServiceImplTest {
         when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(otherProject));
 
         ServiceException exception = assertThrows(ServiceException.class,
-                () -> service.saveRequirements(projectId, caseId, List.of(requirementId), userId));
+                () -> service.saveRequirements(projectId, caseId, requirementId, userId));
 
         assertEquals(ErrorCodeConstants.REQUIREMENT_NOT_FOUND.code(), exception.getCode());
+        verify(caseRequirementMapper, never()).updateRequirementByCaseNode(any(), any(), any());
+        verify(caseRequirementMapper, never()).insert(any(TestCaseRequirement.class));
     }
 
     @Test
@@ -121,9 +157,9 @@ class TestCaseRequirementServiceImplTest {
         UUID stepNode = UUID.randomUUID();
         UUID removedNode = UUID.randomUUID();
         when(caseRequirementMapper.listByRequirementIds(projectId, List.of(requirementId))).thenReturn(List.of(
-                link(UUID.randomUUID(), requirementId, caseNode, documentId),
-                link(UUID.randomUUID(), requirementId, stepNode, documentId),
-                link(UUID.randomUUID(), requirementId, removedNode, documentId)));
+                link(requirementId, caseNode, documentId),
+                link(requirementId, stepNode, documentId),
+                link(requirementId, removedNode, documentId)));
         when(testCaseNodeMapper.listByIds(anyCollection())).thenReturn(List.of(
                 node(caseNode, documentId, Constants.NodeType.CASE),
                 node(stepNode, documentId, Constants.NodeType.STEP)));
@@ -140,6 +176,10 @@ class TestCaseRequirementServiceImplTest {
         document.setId(documentId);
         document.setProjectId(projectId);
         when(testCaseDocumentMapper.selectById(documentId)).thenReturn(document);
+    }
+
+    private void stubRequirement(UUID requirementId) {
+        when(requirementMapper.listByIds(anyCollection())).thenReturn(List.of(requirement(requirementId, "REQ-1")));
     }
 
     private static TestCaseNode node(UUID id, UUID docId, String type) {
@@ -159,13 +199,8 @@ class TestCaseRequirementServiceImplTest {
         return requirement;
     }
 
-    private TestCaseRequirement link(UUID id, UUID requirementId) {
-        return link(id, requirementId, caseId, documentId);
-    }
-
-    private TestCaseRequirement link(UUID id, UUID requirementId, UUID caseNodeId, UUID docId) {
+    private TestCaseRequirement link(UUID requirementId, UUID caseNodeId, UUID docId) {
         TestCaseRequirement link = new TestCaseRequirement();
-        link.setId(id);
         link.setProjectId(projectId);
         link.setRequirementId(requirementId);
         link.setCaseNodeId(caseNodeId);

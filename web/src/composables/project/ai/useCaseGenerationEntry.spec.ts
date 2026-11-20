@@ -307,7 +307,7 @@ describe('useCaseGenerationEntry', () => {
 
     await s.adopt(['case-r1'])
 
-    expect(mocks.updateCaseRequirements).toHaveBeenCalledWith('node-1', ['r1'])
+    expect(mocks.updateCaseRequirements).toHaveBeenCalledWith('node-1', 'r1')
     expect(mocks.updateCaseRequirements.mock.invocationCallOrder[0]!).toBeLessThan(
       tasks[0].submitItems.mock.invocationCallOrder[0]!,
     )
@@ -333,7 +333,7 @@ describe('useCaseGenerationEntry', () => {
 
     await s.adopt(['case-r1'])
 
-    expect(mocks.updateCaseRequirements).toHaveBeenCalledWith('node-1', ['r2'])
+    expect(mocks.updateCaseRequirements).toHaveBeenCalledWith('node-1', 'r2')
   })
 
   it('节点未落库时按错误码有界重试关联', async () => {

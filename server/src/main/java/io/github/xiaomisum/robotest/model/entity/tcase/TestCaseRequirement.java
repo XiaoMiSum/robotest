@@ -10,7 +10,7 @@ import xyz.migoo.framework.mybatis.core.handler.UUIDTypeHandler;
 import java.util.UUID;
 
 /**
- * 用例节点关联需求（多对多）：documentId 冗余所属文档，供计划/评审创建时按文档分组带入用例。
+ * 用例节点关联需求（一条用例至多关联一条需求）：documentId 冗余所属文档，供计划/评审创建时按文档分组带入用例。
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

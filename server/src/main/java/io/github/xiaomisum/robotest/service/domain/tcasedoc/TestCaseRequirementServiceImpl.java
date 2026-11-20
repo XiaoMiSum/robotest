@@ -18,10 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import xyz.migoo.framework.security.core.annotation.AuditLog;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -59,40 +57,27 @@ public class TestCaseRequirementServiceImpl implements TestCaseRequirementServic
     @Override
     @AuditLog(action = "SAVE:CaseRequirements")
     @Transactional(rollbackFor = Exception.class)
-    public List<RequirementRefRespDTO> saveRequirements(UUID projectId, UUID caseId, List<UUID> requirementIds,
-            UUID userId) {
+    public List<RequirementRefRespDTO> saveRequirements(UUID projectId, UUID caseId, UUID requirementId, UUID userId) {
         projectAccessGuard.requireProjectMember(projectId, userId);
         TestCaseNode node = requireCaseNode(projectId, caseId, true);
-        List<UUID> targets = requirementIds == null ? List.of()
-                : requirementIds.stream().filter(Objects::nonNull).distinct().toList();
-        requireRequirements(projectId, targets);
 
-        List<TestCaseRequirement> existing = caseRequirementMapper.listByCaseNodeId(projectId, caseId);
-        Set<UUID> existingIds = existing.stream()
-                .map(TestCaseRequirement::getRequirementId)
-                .collect(Collectors.toCollection(HashSet::new));
-        Set<UUID> targetIds = new HashSet<>(targets);
+        if (requirementId == null) {
+            caseRequirementMapper.deleteByCaseNodeId(projectId, caseId);
+            return List.of();
+        }
 
-        existing.stream()
-                .filter(row -> !targetIds.contains(row.getRequirementId()))
-                .forEach(row -> caseRequirementMapper.deleteById(row.getId()));
+        requireRequirements(projectId, List.of(requirementId));
 
-        List<TestCaseRequirement> added = new ArrayList<>();
-        for (UUID requirementId : targets) {
-            if (existingIds.contains(requirementId)) {
-                continue;
-            }
+        int updated = caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId);
+        if (updated == 0) {
             TestCaseRequirement row = new TestCaseRequirement();
             row.setProjectId(projectId);
             row.setRequirementId(requirementId);
             row.setCaseNodeId(caseId);
             row.setDocumentId(node.getDocumentId());
-            added.add(row);
+            caseRequirementMapper.insert(row);
         }
-        if (!added.isEmpty()) {
-            caseRequirementMapper.insertBatch(added);
-        }
-        return toRefs(projectId, targets);
+        return toRefs(projectId, List.of(requirementId));
     }
 
     @Override

@@ -15,8 +15,7 @@ public interface TestCaseRequirementService {
 
     List<RequirementRefRespDTO> listRequirements(UUID projectId, UUID caseId, UUID userId);
 
-    List<RequirementRefRespDTO> saveRequirements(UUID projectId, UUID caseId, List<UUID> requirementIds,
-            UUID userId);
+    List<RequirementRefRespDTO> saveRequirements(UUID projectId, UUID caseId, UUID requirementId, UUID userId);
 
     /** 批量回显需求摘要（保序，缺失或跨项目跳过） */
     List<RequirementRefRespDTO> listRequirementRefs(UUID projectId, Collection<UUID> requirementIds);

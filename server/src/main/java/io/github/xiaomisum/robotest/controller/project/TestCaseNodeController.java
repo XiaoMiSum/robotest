@@ -2,7 +2,7 @@ package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseRequirementsUpdateReqDTO;
+import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseRequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementRefRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
@@ -73,8 +73,8 @@ public class TestCaseNodeController {
     public Result<List<RequirementRefRespDTO>> setCaseRequirements(
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable UUID caseId,
-            @RequestBody @Valid TestCaseRequirementsUpdateReqDTO reqDTO) {
+            @RequestBody @Valid TestCaseRequirementUpdateReqDTO reqDTO) {
         return Result.ok(testCaseRequirementService.saveRequirements(
-                loginUser.getActiveProjectId(), caseId, reqDTO.getRequirementIds(), loginUser.getId()));
+                loginUser.getActiveProjectId(), caseId, reqDTO.getRequirementId(), loginUser.getId()));
     }
 }

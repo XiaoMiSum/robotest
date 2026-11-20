@@ -173,7 +173,7 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
   async function associateOne(caseId: string, requirementId: string): Promise<boolean> {
     for (let attempt = 0; attempt < ASSOCIATE_ATTEMPTS; attempt++) {
       try {
-        await updateCaseRequirements(caseId, [requirementId])
+        await updateCaseRequirements(caseId, requirementId)
         return true
       } catch (error) {
         const code = (error as Error & { code?: number }).code
