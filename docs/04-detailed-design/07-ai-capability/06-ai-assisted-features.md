@@ -249,10 +249,10 @@
 
 ```
 AssistComparePanel（通用对照面板，用例优化使用）
-├── Header（标题与处理状态；多节点发起时下拉切换核对节点，逐条采纳后自动推进到下一个待处理节点）
+├── Header（标题与处理状态；多节点发起时下拉切换核对节点，采纳后自动推进到下一个待处理节点）
 ├── OperationList（节点操作指令列表：每条显示「节点路径 · 字段」两栏对照（现有 vs 建议）或「在节点路径下新增类型节点」，附理由与新增 / 变更徽标；无变化项折叠为「无变化 N 项」，可展开核对）
 ├── SourceRefsLinks（来源引用，点击跳需求详情）
-└── Actionbar（逐条采纳、批量采纳、驳回；置灰原因行与逐项回执）
+└── Actionbar（采纳、驳回；置灰原因行与逐项回执）
 
 PlanOrderPanel
 ├── OrderList（拖拽调整，序号徽标，建议理由悬浮）
@@ -315,7 +315,7 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现）
 | `web/src/composables/project/functional-testing/mindmap/useCaseOptimizeExecution.ts` + 单测 | 按 operations 在 kityminder 树上原地更新 / 新增节点并触发持久化 |
 | `web/src/composables/project/functional-testing/mindmap/useMindmapPersistence.ts` | `PersistSnap` 携带 `tags`，`update_attrs` 帧写入标签列 |
 | `web/src/composables/project/functional-testing/mindmap/useCaseOptimizeExecution.ts` | 采纳时按提案 `nodeId` 给被优化用例节点写 `aiGenerated`，与节点操作同批触发落库 |
-| `web/src/composables/project/ai/useCaseAssistEntry.ts` | 采纳 / 编辑后采纳 / 批量采纳透传提案锚点 `nodeId` 给执行器 |
+| `web/src/composables/project/ai/useCaseAssistEntry.ts` | 采纳 / 编辑后采纳透传提案锚点 `nodeId` 给执行器 |
 | `web/src/types/project/shared.ts`、`web/src/minder/adapter.ts` | `TestCaseNode` 携带 `aiGenerated` 并映射到脑图节点 data |
 | `web/src/types/ai.ts` | 新增 `AiCaseOptimizeOperationSuggestion`（operations 联合类型），任务详情旧类型保持不变 |
 | `server/.../service/ai/task/type/MindmapCaseGenerationTypeAdapter`、`handler/CaseGenerationSupport` | 脑图生成用例类型适配器：输入校验（文档 / 需求归属与状态）、需求快照与 RAG 上下文、提案清洗（完整用例属性 + 来源引用）、工具白名单与预算默认 |
@@ -334,7 +334,7 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现）
 **测试要点（C8 ≥ 70%）**
 
 - 后端：节点归属与类型校验矩阵、数量上限、非法节点 / 字段 / 类型引用在提案清洗阶段丢弃、`update_attrs` 携带 `tags` 落库与版本冲突处理、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
-- 前端：操作指令对照列表渲染与折叠（更新两栏 / 新增行）、逐条 / 批量 / 驳回回执、执行器按 `nodeId` 原地改写与按 `parentId` 新增节点（ID / 层级不变、类型白名单）、标签随 `update_attrs` 落库、节点不存在时跳过、拖拽序号与前后对照、只读置灰、任务超时转进度入口。
+- 前端：操作指令对照列表渲染与折叠（更新两栏 / 新增行）、采纳 / 驳回回执、执行器按 `nodeId` 原地改写与按 `parentId` 新增节点（ID / 层级不变、类型白名单）、标签随 `update_attrs` 落库、节点不存在时跳过、拖拽序号与前后对照、只读置灰、任务超时转进度入口。
 
 ---
 
@@ -360,3 +360,4 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现）
 | V1.0 | 2026-11-19 | 用例优化节点操作收敛为脑图前端执行：后端只产出 operations 提案、确认协议仅记录采纳状态，取消 `applyCaseOptimize` / 陈旧值保护 / 1000018308；`update_attrs` 扩展 `tags` 供标签更新随脑图持久化落库，任务详情页不参与节点执行；同步 1.1 / 2 / 3.1 / 3.2 / 4.2 / 6 / 7 |
 | V1.0 | 2026-11-19 | 用例优化采纳给被优化用例节点打 AI 标识：复用 `ai_generated`、按提案 `nodeId` 经 `update_attrs` 落库，不新增字段与快照继承；同步 3.2 / 4.2 / 7 |
 | V1.0 | 2026-11-19 | 新增脑图生成用例：登记 `mindmap_case_generation` / `mindmap_case_suggestion`、输入与提案结构（3.4）、边界（4.4）、入口与面板（5.1–5.3）、错误码 1000018309–1000018312（6）与实施文件清单（7）；任务详情只读、无审核动作 |
+| V1.0 | 2026-11-20 | 用例优化对照面板动作收敛为单个「采纳」：移除批量采纳，采纳按当前核对节点提交人工核对后的操作并自动推进，驳回保留，同步 5.2 组件结构、7 文件清单与测试要点 |
