@@ -36,10 +36,10 @@ export function fetchCaseRequirements(caseId: string): Promise<RequirementRef[]>
   return get(`/project/cases/${caseId}/requirements`)
 }
 
-/** 全量覆盖当前用例节点的需求关联；空数组表示清空 */
+/** 保存当前用例节点的需求关联；requirementId 为 null 表示清空 */
 export function updateCaseRequirements(
   caseId: string,
-  requirementIds: string[],
+  requirementId: string | null,
 ): Promise<RequirementRef[]> {
-  return put(`/project/cases/${caseId}/requirements`, { requirementIds })
+  return put(`/project/cases/${caseId}/requirements`, { requirementId })
 }

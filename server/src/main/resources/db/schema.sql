@@ -223,7 +223,7 @@ CREATE INDEX idx_ft_case_node_document_id ON ft_case_node (document_id);
 CREATE INDEX idx_ft_case_node_parent_id ON ft_case_node (parent_id);
 CREATE INDEX idx_ft_case_node_document_type ON ft_case_node (document_id, type) WHERE is_deleted = FALSE;
 
--- 用例节点关联需求表（多对多，计划/评审创建时按需求反查用例）
+-- 用例节点关联需求表（一条用例至多关联一条需求，计划/评审创建时按需求反查用例）
 CREATE TABLE ft_case_requirement (
                                 id             UUID      PRIMARY KEY,
                                 project_id     UUID      NOT NULL,
@@ -1487,7 +1487,7 @@ COMMENT ON COLUMN ft_case_node.sort_order IS '排序序号';
 COMMENT ON COLUMN ft_case_node.version IS '乐观锁版本号，用于并发冲突检测';
 COMMENT ON COLUMN ft_case_node.ai_generated IS 'AI 生成标识（挂载执行器写入，可手动移除）';
 
-COMMENT ON TABLE ft_case_requirement IS '用例节点关联需求表（多对多）';
+COMMENT ON TABLE ft_case_requirement IS '用例节点关联需求表（一条用例至多关联一条需求）';
 COMMENT ON COLUMN ft_case_requirement.id IS '关联唯一标识';
 COMMENT ON COLUMN ft_case_requirement.project_id IS '所属项目 ID（隔离边界）';
 COMMENT ON COLUMN ft_case_requirement.requirement_id IS '需求 ID（逻辑外键 → requirement.id）';

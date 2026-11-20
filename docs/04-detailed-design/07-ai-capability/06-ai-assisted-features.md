@@ -224,7 +224,7 @@
 - 提案在勾选插入前不落库；插入为新增节点，不覆盖既有节点，不修改既有树的层级与 ID；
 - 插入位置固定为当前文档根节点下：每个被勾选提案生成一个 `case` 节点（`priority` / `tags` 写入列、`aiGenerated = true`），其下依次追加 `precondition` / `step` / `expected` 子节点；`steps` 与 `expected` 按短边截齐；
 - 节点变更经脑图既有 WS 持久化管道落库并触发向量索引重嵌；确认协议只记录采纳状态，后端不写业务节点；
-- 采纳时为新建用例节点自动写入与来源需求的关联（既有 `ft_case_requirement`，需求取提案 `sourceRefs` 首项，缺失回退任务输入 `requirementId`）：前端在节点落库后按既有 `PUT /api/project/cases/{caseId}/requirements` 逐项全量覆盖写入；因节点经 WS 异步落库，须对「用例节点不存在（1000011022）」做有界重试，需求不属于当前项目（1000018001）等非时序错误不重试；关联失败提示用户，不回滚已插入节点与采纳状态；
+- 采纳时为新建用例节点自动写入与来源需求的关联（既有 `ft_case_requirement`，需求取提案 `sourceRefs` 首项，缺失回退任务输入 `requirementId`）：前端在节点落库后按既有 `PUT /api/project/cases/{caseId}/requirements` 单值写入；因节点经 WS 异步落库，须对「用例节点不存在（1000011022）」做有界重试，需求不属于当前项目（1000018001）等非时序错误不重试；关联失败提示用户，不回滚已插入节点与采纳状态；
 - 任务详情对 `mindmap_case_generation` 注册只读展示策略，不提供采纳 / 编辑后采纳 / 驳回动作；提案状态由脑图面板的采纳动作驱动。
 
 ---
@@ -329,7 +329,7 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 | `web/src/components/project/functional-testing/case/CaseSelector.vue` + 单测 | 增加注入树模式（传入 AI 提案映射的节点树时跳过后端文档加载） |
 | `web/src/composables/project/functional-testing/mindmap/useCaseGenerationInsert.ts` + 单测 | 按提案在根节点下创建用例与属性子节点、`contentchange` + 持久化，并返回新建用例节点 id 供需求关联 |
 | `web/src/composables/project/ai/useCaseGenerationEntry.ts` + 单测 | 需求单选 → 任务提交 → 轮询 → 提案映射 → 采纳建节点 → 自动关联来源需求（节点未落库时有界重试）→ 回传采纳状态 |
-| `web/src/services/project/functional-testing/testcase.ts` | 复用既有 `updateCaseRequirements` 全量覆盖接口写入来源需求关联 |
+| `web/src/services/project/functional-testing/testcase.ts` | 复用既有 `updateCaseRequirements` 单值接口写入来源需求关联 |
 | `web/src/composables/project/ai/reviewProfiles.ts`、`web/src/types/ai.ts` | 新任务类型登记只读展示策略（任务详情无审核动作）与新类型 / 提案类型 |
 
 - **数据库**：无新增表、无新增列；任务 / 执行 / 提案 / 采纳记录复用 `ai_task_` 六表，节点落库均为既有 `ft_case_node` 业务表。
@@ -368,4 +368,5 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 | V1.0 | 2026-11-20 | 「AI测试用例」更名「AI覆盖雷达」；5.1 / 5.3 明确脑图生成用例入口按文档复用最近一次任务（`/latest` 省略 `nodeId` 按 `documentId` 匹配），命中直接回显、未命中才选需求发起，查询失败不自动发起 |
 | V1.0 | 2026-11-20 | 5.2 / 5.3 补齐生成面板布局与选择口径：固定弹窗高度、候选卡片区内部滚动、结果区不额外包裹容器、全选 / 半选态与子节点整枝插入 |
 | V1.0 | 2026-11-20 | 5.2 / 5.3 补齐脑图生成用例已完成态：默认隐藏已采纳用例，可勾选展示且默认勾选只读；动作「插入选中用例」改「采纳」，仅对新勾选用例建节点并回传状态，不重复插入脑图 |
-| V1.0 | 2026-11-20 | 4.4 / 5.2 / 5.3 / 7 补齐采纳时自动关联来源需求：插入执行器返回新建节点 id，前端按既有全量覆盖接口逐项写入并只对节点未落库做有界重试，失败不回滚；同步测试要点 |
+| V1.0 | 2026-11-20 | 4.4 / 5.2 / 5.3 / 7 补齐采纳时自动关联来源需求：插入执行器返回新建节点 id，前端按既有接口逐项写入并只对节点未落库做有界重试，失败不回滚；同步测试要点 |
+| V1.0 | 2026-11-20 | 用例关联需求保存接口入参改为单个 `requirementId`，4.4 / 7 中来源需求关联写入口径同步为单值 |

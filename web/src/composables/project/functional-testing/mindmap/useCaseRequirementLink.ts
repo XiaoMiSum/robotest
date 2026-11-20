@@ -10,7 +10,7 @@ function errorMessage(error: unknown, fallback: string): string {
 
 /**
  * 脑图「关联需求」：作用于当前选中用例节点，打开前拉取既有关联回填，
- * 保存为全量覆盖语义（空选择即清空）。
+ * 保存为单值语义（空选择传 null 清空）。
  */
 export function useCaseRequirementLink(caseId: () => string) {
   const visible = ref(false)
@@ -54,7 +54,7 @@ export function useCaseRequirementLink(caseId: () => string) {
     if (!id || saving.value) return
     saving.value = true
     try {
-      linked.value = await updateCaseRequirements(id, ids)
+      linked.value = await updateCaseRequirements(id, ids[0] ?? null)
       visible.value = false
       ElMessage.success('关联需求已更新')
     } catch (err) {
