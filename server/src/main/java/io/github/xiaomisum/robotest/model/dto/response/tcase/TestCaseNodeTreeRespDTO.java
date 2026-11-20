@@ -17,5 +17,7 @@ public class TestCaseNodeTreeRespDTO {
     private Integer sortOrder;
     private Integer version;
     private Boolean aiGenerated;
+    /** 关联需求 id（用例节点专有，供前端回显关联需求） */
+    private UUID requirementId;
     private List<TestCaseNodeTreeRespDTO> children;
 }

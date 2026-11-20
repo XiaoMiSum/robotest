@@ -2,8 +2,10 @@ package io.github.xiaomisum.robotest.model.convert;
 
 import io.github.xiaomisum.robotest.model.dto.response.tcase.ProjectModuleTreeRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.model.entity.tcase.ProjectModule;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
+import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
@@ -63,6 +65,16 @@ class MapStructConvertersTest {
                     .toRespDTO(document);
             assertEquals(projectId, documentDto.getId());
             assertEquals("文档", documentDto.getName());
+
+            UUID requirementId = UUID.randomUUID();
+            TestCaseNode node = new TestCaseNode();
+            node.setId(UUID.randomUUID());
+            node.setRequirementId(requirementId);
+            node.setAiGenerated(true);
+            TestCaseNodeTreeRespDTO nodeDto = context.getBean(TestCaseNodeConvertMapper.class)
+                    .toTreeDTO(node);
+            assertEquals(requirementId, nodeDto.getRequirementId());
+            assertEquals(true, nodeDto.getAiGenerated());
         }
     }
 }
