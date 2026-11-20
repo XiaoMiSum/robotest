@@ -105,9 +105,6 @@
           <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
         </div>
         <div class="page-head__actions">
-          <span class="tip-wrap" id="ai-select-tip" title="请先勾选需求">
-            <button class="btn btn--default" type="button" id="ai-select" disabled><span data-icon="tickets"></span>AI 圈选建议</button>
-          </span>
           <span class="tip-wrap" id="ai-gen-tip" title="请先勾选需求">
             <button class="btn btn--default" type="button" id="ai-gen" disabled><span data-icon="sparkle"></span>AI 生成用例</button>
           </span>
@@ -490,9 +487,7 @@
     visibleRows().forEach(function (row) {
       if (row.querySelector('.checkbox--on')) n += 1;
     });
-    byId('ai-select').disabled = n === 0;
     byId('ai-gen').disabled = n === 0;
-    byId('ai-select-tip').title = n > 0 ? '对已选需求发起 AI 圈选建议' : '请先勾选需求';
     byId('ai-gen-tip').title = n > 0 ? '对已选需求生成模块、脑图用例文档与测试用例' : '请先勾选需求';
   }
 
@@ -752,9 +747,6 @@
   });
 
   // ==================== AI 入口（对话框由对应配置页承载，此处给出演示反馈） ====================
-  byId('ai-select').addEventListener('click', function () {
-    toast('AI 圈选建议：按已选需求打开圈选配置', 'success');
-  });
   byId('ai-gen').addEventListener('click', function () {
     toast('AI 生成用例：按已选需求打开生成配置', 'success');
   });
