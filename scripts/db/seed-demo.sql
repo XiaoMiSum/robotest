@@ -3032,8 +3032,7 @@ AI 生成链以需求管理（功能测试子模块）的需求条目为输入�
 | V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：模型调用失败改「执行终止、可再次执行」，统一任务框架改 AI Task 框架，结果摘要改提案摘要，提案确认 / 权限确认改采纳，终止口径「失败」改「执行错误」 |
 | V1.0 | 2026-10-16 | 追溯矩阵需求并入需求管理模块：1.1 去除追溯链表述、1.2 提示词清单去除「覆盖分析」、1.4 改为指引，定义与缩写及数据需求中的追溯条目移除 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：删除 1.4 追溯矩阵指引；后续章节号未重排（1.5 起沿用原编号），以保持各分册与交互设计中「总册 1.5」等交叉引用有效 |
-| V1.0 | 2026-10-19 | 权限口径调整：1.5 权限条目改为「前端按既有界面权限显隐入口，后端任务端点不做权限校验（仅保留任务归属可见性）」，业务校验与能力白名单约束不变 |
-| V1.0 | 2026-11-12 | 整体移除评审与计划圈选建议（US-AI-008） |', 'confirmed', 'medium', '7e57001f-0000-4000-8000-000000000009', '["AI 能力"]'::jsonb,
+| V1.0 | 2026-10-19 | 权限口径调整：1.5 权限条目改为「前端按既有界面权限显隐入口，后端任务端点不做权限校验（仅保留任务归属可见性）」，业务校验与能力白名单约束不变 |', 'confirmed', 'medium', '7e57001f-0000-4000-8000-000000000009', '["AI 能力"]'::jsonb,
         'import', NULL, CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days', FALSE);
 
 INSERT INTO requirement (id, project_id, module_id, system_version, code, title, description, status, priority, owner_id, tags, source, source_file_id, confirmed_at, created_at, updated_at, is_deleted)
@@ -3108,10 +3107,9 @@ VALUES ('5eed004b-0000-4000-8000-000000000000', '01a1523d-d4c9-7dbe-8f6f-8ff34bf
 | V1.0 | 2026-10-01 | 初始版本 |
 | V1.0 | 2026-10-15 | 发起入口按钮更名「AI 生成用例」 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：1.3 固定六阶段改「AI 规划步骤 + 轨迹回看 + 中止 / 再次执行」，产物改称提案、待确认态改待采纳态，1.4 / 1.5 措辞对齐总册 1.5 |
-| V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：1.4 标题及正文「确认」改「采纳」，终止口径改「中止、执行错误或预算耗尽」，圈选建议采纳后走既有创建流程 |
+| V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：1.4 标题及正文「确认」改「采纳」，终止口径改「中止、执行错误或预算耗尽」 |
 | V1.0 | 2026-10-16 | 追溯矩阵需求并入需求管理模块：1.6 矩阵视图与影响处置（US-AI-009）移出本分册，追溯术语改「来源对应 / 验证对应」并对齐追溯矩阵分册 |
-| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：移除生成采纳建立来源对应、圈选产出挂验证对应及其「待重新确认」标记等描述，采纳仅落库模块、脑图文档与测试用例，不建立任何对应关系 |
-| V1.0 | 2026-11-12 | 整体移除评审与计划圈选建议（US-AI-008） |', 'confirmed', 'high', '7e57001f-0000-4000-8000-000000000009', '["AI 能力","生成"]'::jsonb,
+| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：移除生成采纳建立来源对应、圈选产出挂验证对应及其「待重新确认」标记等描述，采纳仅落库模块、脑图文档与测试用例，不建立任何对应关系 |', 'confirmed', 'high', '7e57001f-0000-4000-8000-000000000009', '["AI 能力","生成"]'::jsonb,
         'import', NULL, CURRENT_TIMESTAMP - INTERVAL '4 days', CURRENT_TIMESTAMP - INTERVAL '4 days', CURRENT_TIMESTAMP - INTERVAL '4 days', FALSE);
 
 INSERT INTO requirement (id, project_id, module_id, system_version, code, title, description, status, priority, owner_id, tags, source, source_file_id, confirmed_at, created_at, updated_at, is_deleted)
