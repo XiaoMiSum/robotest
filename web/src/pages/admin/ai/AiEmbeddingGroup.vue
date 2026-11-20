@@ -290,10 +290,10 @@ onMounted(() => {
           ✘ {{ store.embedding.lastTest.msg }}
         </span>
       </el-form-item>
-      <!-- 无 label 时不占 112px 标签列，操作行与上方控件列右缘对齐（交互 2.3） -->
+      <!-- 无 label 时不占 112px 标签列：测试连接贴左缘、保存贴右缘，同行两端对齐（交互 2.3） -->
       <el-form-item class="embedding-group__actions">
-        <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
         <el-button :loading="testing" @click="runTest">测试连接</el-button>
+        <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
       </el-form-item>
     </el-form>
   </div>
@@ -327,8 +327,7 @@ onMounted(() => {
 
 .embedding-group__actions {
   :deep(.el-form-item__content) {
-    justify-content: flex-end;
-    gap: var(--space-sm);
+    justify-content: space-between;
   }
 }
 

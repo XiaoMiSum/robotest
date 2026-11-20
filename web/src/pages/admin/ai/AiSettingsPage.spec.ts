@@ -118,6 +118,13 @@ describe('AI 配置中心 · 向量 API（交互 2.3 / 2.6）', () => {
     expect(embeddingSource).toContain(':loading="testing" @click="runTest"')
     expect(embeddingSource).toContain('void store.loadEmbedding()')
     expect(embeddingSource).toContain('store.embedding.lastTest.success')
+    // 操作行两端对齐：测试连接在前贴左，保存在后贴右
+    expect(embeddingSource.indexOf('@click="runTest"')).toBeLessThan(
+      embeddingSource.indexOf('@click="submit"'),
+    )
+    const actionsStyle = embeddingSource.slice(embeddingSource.indexOf('.embedding-group__actions'))
+    expect(actionsStyle).toContain('justify-content: space-between')
+    expect(actionsStyle).not.toContain('justify-content: flex-end')
   })
 })
 
