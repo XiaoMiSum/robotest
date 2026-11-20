@@ -118,6 +118,78 @@ describe('CaseSelector · 注入树模式', () => {
     expect(wrapper.find('.case-selector__toolbar .el-checkbox__input.is-indeterminate').exists()).toBe(true)
   })
 
+  it('已采纳用例默认勾选且不可取消', async () => {
+    const wrapper = mount(CaseSelector, {
+      props: {
+        modelValue: true,
+        inline: true,
+        injectedNodes: injectedNodes(),
+        adoptedCaseIds: ['case-1'],
+      },
+      global: { plugins: [ElementPlus] },
+    })
+    await wrapper.vm.$nextTick()
+
+    const emissions = wrapper.emitted('selectionChange') ?? []
+    expect(emissions[emissions.length - 1]).toEqual([['case-1']])
+
+    const lockedChip = wrapper.findAll('.cst-chip').find((chip) => chip.text().includes('获取验证码'))!
+    expect(lockedChip.classes()).toContain('cst-chip--locked')
+    const checkbox = lockedChip.find('input')
+    expect(checkbox.attributes('disabled')).toBeDefined()
+
+    await lockedChip.trigger('click')
+    await wrapper.vm.$nextTick()
+    const afterClick = wrapper.emitted('selectionChange') ?? []
+    expect(afterClick[afterClick.length - 1]).toEqual([['case-1']])
+  })
+
+  it('全选跳过已采纳用例，只切换可采纳项', async () => {
+    const wrapper = mount(CaseSelector, {
+      props: {
+        modelValue: true,
+        inline: true,
+        injectedNodes: injectedNodes(),
+        adoptedCaseIds: ['case-1'],
+      },
+      global: { plugins: [ElementPlus] },
+    })
+    await wrapper.vm.$nextTick()
+
+    const selectAll = wrapper.find('.case-selector__toolbar input')
+    await selectAll.setValue(true)
+    await wrapper.vm.$nextTick()
+
+    let emissions = wrapper.emitted('selectionChange') ?? []
+    expect(emissions[emissions.length - 1]).toEqual([['case-1', 'case-2']])
+
+    await wrapper.find('.case-selector__toolbar input').setValue(false)
+    await wrapper.vm.$nextTick()
+    emissions = wrapper.emitted('selectionChange') ?? []
+    expect(emissions[emissions.length - 1]).toEqual([['case-1']])
+  })
+
+  it('展示状态切换时锁定项随可见性勾选或移除', async () => {
+    const wrapper = mount(CaseSelector, {
+      props: {
+        modelValue: true,
+        inline: true,
+        injectedNodes: [injectedNodes()[1]],
+        adoptedCaseIds: ['case-1'],
+      },
+      global: { plugins: [ElementPlus] },
+    })
+    await wrapper.vm.$nextTick()
+
+    let emissions = wrapper.emitted('selectionChange') ?? []
+    expect(emissions[emissions.length - 1]).toEqual([[]])
+
+    await wrapper.setProps({ injectedNodes: injectedNodes() })
+    await wrapper.vm.$nextTick()
+    emissions = wrapper.emitted('selectionChange') ?? []
+    expect(emissions[emissions.length - 1]).toEqual([['case-1']])
+  })
+
   it('重新注入提案集合时清空旧勾选', async () => {
     const wrapper = mount(CaseSelector, {
       props: { modelValue: true, inline: true, injectedNodes: injectedNodes() },

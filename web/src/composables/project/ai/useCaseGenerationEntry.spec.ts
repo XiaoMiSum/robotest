@@ -48,11 +48,11 @@ interface FakeTask {
   clearReceipt: ReturnType<typeof vi.fn>
 }
 
-function generationRow(key: string): AssistRow {
+function generationRow(key: string, confirmStatus: AssistRow['confirmStatus'] = 'pending'): AssistRow {
   return {
     key,
     title: `${key} 用例`,
-    confirmStatus: 'pending',
+    confirmStatus,
     confirmLabel: '待确认',
     confirmTagType: 'info',
     suggestion: {
@@ -279,7 +279,7 @@ describe('useCaseGenerationEntry', () => {
     await flushPromises()
     await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
 
-    await s.insert(['case-r1'])
+    await s.adopt(['case-r1'])
 
     expect(insertCases).toHaveBeenCalledTimes(1)
     const cases = insertCases.mock.calls[0][0] as AiGeneratedCase[]
@@ -296,17 +296,46 @@ describe('useCaseGenerationEntry', () => {
     )
   })
 
+  it('已采纳用例不重复插入脑图也不重复回传状态，仅采纳新勾选用例', async () => {
+    const s = mountEntry()
+    await flushPromises()
+    await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
+    tasks[0].rows.value = [generationRow('case-old', 'adopted'), generationRow('case-new')]
+
+    await s.adopt(['case-old', 'case-new'])
+
+    const cases = insertCases.mock.calls[0][0] as AiGeneratedCase[]
+    expect(cases.map((item) => item.key)).toEqual(['case-new'])
+    expect(tasks[0].submitItems).toHaveBeenCalledWith(
+      [{ key: 'case-new', action: 'adopted' }],
+      { documentId: 'doc-1' },
+    )
+  })
+
+  it('勾选集全为已采纳用例时不插入也不回传', async () => {
+    const s = mountEntry()
+    await flushPromises()
+    await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
+    tasks[0].rows.value = [generationRow('case-old', 'adopted_edited')]
+
+    await s.adopt(['case-old'])
+
+    expect(insertCases).not.toHaveBeenCalled()
+    expect(tasks[0].submitItems).not.toHaveBeenCalled()
+    expect(mocks.ElMessage.warning).toHaveBeenCalledWith('没有可采纳的新用例')
+  })
+
   it('无可用提案或脑图插入失败时不回传采纳状态', async () => {
     const s = mountEntry()
     await flushPromises()
     await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
 
-    await s.insert(['missing'])
+    await s.adopt(['missing'])
     expect(insertCases).not.toHaveBeenCalled()
     expect(tasks[0].submitItems).not.toHaveBeenCalled()
 
     insertCases.mockReturnValue({ inserted: 0, skipped: 1 })
-    await s.insert(['case-r1'])
+    await s.adopt(['case-r1'])
     expect(tasks[0].submitItems).not.toHaveBeenCalled()
     expect(mocks.ElMessage.warning).toHaveBeenCalledWith('未能在脑图中插入用例')
   })

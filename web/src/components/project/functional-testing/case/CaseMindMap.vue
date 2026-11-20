@@ -168,7 +168,7 @@ const {
   loadError: caseGenLoadError,
   openRadar: openCaseGeneration,
   confirmRequirement: confirmCaseGenerationRequirement,
-  insert: insertGeneratedCases,
+  adopt: adoptGeneratedCases,
   retry: retryCaseGeneration,
   confirmAgain: confirmCaseGenerationAgain,
   refresh: refreshCaseGeneration,
@@ -539,7 +539,7 @@ const handleLayoutCommand = (command: unknown) => {
       :retryable="caseGenRetryable"
       :receipt="caseGenReceipt"
       :load-error="caseGenLoadError"
-      @insert="insertGeneratedCases"
+      @adopt="adoptGeneratedCases"
       @retry="retryCaseGeneration"
       @retry-item="(key) => void confirmCaseGenerationAgain(key)"
       @refresh="refreshCaseGeneration"

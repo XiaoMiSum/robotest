@@ -11,6 +11,8 @@ const props = defineProps<{
   matchedIds: Set<string> | null
   // 单选模式：仅用例节点可勾选，分枝节点不提供级联全选
   single?: boolean
+  // 已采纳用例 id：只读回看，默认勾选且不可取消
+  lockedIds?: Set<string>
 }>()
 
 const emit = defineEmits<{ toggle: [node: TestCaseNode] }>()
@@ -37,8 +39,13 @@ function isIndeterminate(id: string): boolean {
   return s.selected > 0 && s.selected < s.total
 }
 
-// 子树不含任何用例的节点（前置/步骤/预期或空分枝）仅展示不可勾选；单选模式下分枝节点也不可勾选
+function isLocked(id: string): boolean {
+  return props.lockedIds?.has(id) === true
+}
+
+// 子树不含任何用例的节点（前置/步骤/预期或空分枝）仅展示不可勾选；已采纳用例只读
 function isSelectable(node: TestCaseNode): boolean {
+  if (isLocked(node.id)) return false
   if (props.single) return node.type === 'case'
   return stat(node.id).total > 0
 }
@@ -63,12 +70,14 @@ function visibleChildren(node: TestCaseNode): TestCaseNode[] {
         'cst-chip--checked': isChecked(node.id),
         'cst-chip--matched': matchedIds?.has(node.id),
         'cst-chip--plain': !isSelectable(node),
+        'cst-chip--locked': isLocked(node.id),
       }"
       @click="handleChipClick(node)"
     >
       <el-checkbox
-        v-if="isSelectable(node)"
-        :model-value="isChecked(node.id)"
+        v-if="isSelectable(node) || isLocked(node.id)"
+        :model-value="isLocked(node.id) || isChecked(node.id)"
+        :disabled="isLocked(node.id)"
         :indeterminate="isIndeterminate(node.id)"
         @click.stop
         @change="emit('toggle', node)"
@@ -100,6 +109,7 @@ function visibleChildren(node: TestCaseNode): TestCaseNode[] {
             :visible-ids="visibleIds"
             :matched-ids="matchedIds"
             :single="single"
+            :locked-ids="lockedIds"
             @toggle="emit('toggle', $event)"
           />
         </div>
@@ -146,6 +156,13 @@ function visibleChildren(node: TestCaseNode): TestCaseNode[] {
 .cst-chip--checked {
   background: var(--el-color-primary-light-8);
   border-color: var(--el-color-primary);
+}
+
+.cst-chip--locked {
+  cursor: default;
+  background: var(--el-fill-color-light);
+  border-color: var(--el-border-color-lighter);
+  color: var(--el-text-color-secondary);
 }
 
 .cst-chip--matched .cst-chip__title {

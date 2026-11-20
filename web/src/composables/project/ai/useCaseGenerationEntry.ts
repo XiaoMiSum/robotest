@@ -164,10 +164,16 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     return Promise.resolve()
   }
 
-  /** 先创建脑图节点，成功后才回传提案采纳状态（详设 4.4：确认协议不执行节点变更） */
-  async function insert(keys: string[]): Promise<void> {
+  /** 先创建脑图节点，成功后才回传提案采纳状态；已采纳用例只读回看，不重复插入与回传 */
+  async function adopt(keys: string[]): Promise<void> {
+    const adopted = new Set(
+      rows.value
+        .filter((row) => row.confirmStatus === 'adopted' || row.confirmStatus === 'adopted_edited')
+        .map((row) => row.key),
+    )
     const cases: AiGeneratedCase[] = []
     for (const key of keys) {
+      if (adopted.has(key)) continue
       const row = rows.value.find((item) => item.key === key)
       if (!row) continue
       const view = row.suggestion
@@ -179,7 +185,7 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
       })
     }
     if (cases.length === 0) {
-      ElMessage.warning('请先勾选要插入的用例')
+      ElMessage.warning('没有可采纳的新用例')
       return
     }
     const result = options.insertCases(cases)
@@ -226,7 +232,7 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     loadError,
     openRadar,
     confirmRequirement,
-    insert,
+    adopt,
     retry,
     confirmAgain,
     refresh,

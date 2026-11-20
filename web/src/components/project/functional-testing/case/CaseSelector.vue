@@ -18,6 +18,9 @@ const props = defineProps<{
   injectedNodes?: TestCaseNode[]
   // 内联模式：不包裹 el-dialog，供生成面板嵌入（详设 5.2）
   inline?: boolean
+  // 注入树模式：已采纳用例 key，只读回看且默认勾选
+  adoptedCaseIds?: string[]
+  showAdopted?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -27,6 +30,7 @@ const emit = defineEmits<{
   confirmNodes: [nodes: TestCaseNode[]]
   /** 勾选变化实时回传，供内联承载面板驱动动作区 */
   selectionChange: [caseIds: string[]]
+  'update:showAdopted': [value: boolean]
 }>()
 
 const {
@@ -44,6 +48,8 @@ const {
 const treeRef = ref<InstanceType<typeof ElTree>>()
 
 const selectedMap = ref<Record<string, Set<string>>>({})
+
+const lockedSet = computed(() => new Set(props.adoptedCaseIds ?? []))
 
 const priorities = ['P0', 'P1', 'P2', 'P3']
 
@@ -152,7 +158,7 @@ const selectableCaseIds = computed<string[]>(() => {
   if (!root) return []
   const ids: string[] = []
   collectCaseIds(root, ids)
-  return ids
+  return ids.filter((id) => !lockedSet.value.has(id))
 })
 
 // 全选作用于整棵勾选树的用例节点：部分子树已选时呈半选态，再点补齐整枝
@@ -167,6 +173,10 @@ const someSelected = computed(() => {
   const set = selectedMap.value[selectedDocId.value]
   return selectableCaseIds.value.some((id) => set?.has(id) === true)
 })
+
+function updateShowAdopted(value: boolean | string | number): void {
+  emit('update:showAdopted', value === true)
+}
 
 function toggleSelectAll(): void {
   const root = selectableRoot.value
@@ -195,8 +205,9 @@ function handleToggle(node: TestCaseNode) {
   const set = selectedMap.value[selectedDocId.value]
   const caseIds: string[] = []
   collectCaseIds(node, caseIds)
-  const allSelected = caseIds.length > 0 && caseIds.every((id) => set.has(id))
-  caseIds.forEach((id) => {
+  const actionable = caseIds.filter((id) => !lockedSet.value.has(id))
+  const allSelected = actionable.length > 0 && actionable.every((id) => set.has(id))
+  actionable.forEach((id) => {
     if (allSelected) {
       set.delete(id)
     } else {
@@ -263,24 +274,27 @@ onMounted(() => {
   if (props.modelValue && !props.injectedNodes) loadModules()
 })
 
-// 注入树模式无需后端模块树：直接以合成根节点填充右侧勾选画布
+// 注入树模式无需后端模块树：切换「展示已采纳」时只剔除失效 key 并补回锁定项，保留用户新勾选
 watch(
-  [() => props.injectedNodes, () => props.modelValue],
-  ([nodes, visible]) => {
+  [() => props.injectedNodes, () => props.adoptedCaseIds, () => props.modelValue],
+  ([nodes, adopted, visible]) => {
     if (!nodes || !visible) return
     selectedDocId.value = INJECTED_DOC_ID
     docNodes.value = injectedRoot.value
-  },
-  { immediate: true },
-)
-
-// 提案集合整体变化（重新执行）时清空旧勾选，避免失效 key 混入插入与回执
-watch(
-  () => props.injectedNodes,
-  () => {
-    selectedMap.value = {}
+    const presentIds: string[] = []
+    nodes.forEach((node) => collectCaseIds(node, presentIds))
+    const present = new Set(presentIds)
+    const next = new Set<string>()
+    ;(adopted ?? []).forEach((id) => {
+      if (present.has(id)) next.add(id)
+    })
+    selectedMap.value[INJECTED_DOC_ID]?.forEach((id) => {
+      if (present.has(id)) next.add(id)
+    })
+    selectedMap.value = { ...selectedMap.value, [INJECTED_DOC_ID]: next }
     emitSelection()
   },
+  { immediate: true },
 )
 </script>
 
@@ -352,6 +366,7 @@ watch(
               :visible-ids="filterSets ? filterSets.visible : null"
               :matched-ids="filterSets ? filterSets.matched : null"
               :single="single"
+              :locked-ids="lockedSet"
               @toggle="handleToggle"
             />
             <el-empty
@@ -404,6 +419,14 @@ watch(
               >
                 全选
               </el-checkbox>
+              <el-checkbox
+                v-if="adoptedCaseIds?.length"
+                :model-value="showAdopted"
+                size="small"
+                @change="updateShowAdopted"
+              >
+                展示已采纳用例
+              </el-checkbox>
               <span class="case-selector__tip">勾选要插入脑图的用例及属性节点</span>
             </div>
             <span class="case-selector__count">已选 {{ totalSelected }} 个用例</span>
@@ -416,6 +439,7 @@ watch(
               :visible-ids="filterSets ? filterSets.visible : null"
               :matched-ids="filterSets ? filterSets.matched : null"
               :single="single"
+              :locked-ids="lockedSet"
               @toggle="handleToggle"
             />
             <el-empty
