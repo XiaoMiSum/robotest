@@ -55,6 +55,19 @@ public final class ExecutionControl {
         heartbeatAndCheck();
     }
 
+    /**
+     * 长流期间的心跳保活：仅刷新 heartbeat_at，避免单次长模型调用期间被清扫器误判超时。
+     * 不检查预算与终态、不抛异常——活跃与预算校验仍在流结束后的 afterModelCall 统一执行，
+     * 防止迟到调用经 Reactor 异常通道改写任务终态。
+     */
+    public void heartbeatDuringStream() {
+        try {
+            executionMapper.heartbeat(execution.getId(), steps, clamp(tokensIn), clamp(tokensOut), cost);
+        } catch (RuntimeException ignored) {
+            // 保活失败不影响本次调用，由后续 afterModelCall 与清扫器兜底
+        }
+    }
+
     /** 工具计为一步；达到步数上限时在工具执行前终止。 */
     public void beforeToolCall() {
         beforeCall();

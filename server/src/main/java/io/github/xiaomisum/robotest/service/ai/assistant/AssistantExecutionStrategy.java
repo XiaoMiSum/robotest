@@ -160,6 +160,11 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
                 control.afterModelCall(tokensIn, tokensOut,
                         AiModelClient.calculateCost(ctx.model(), tokensIn, tokensOut));
             }
+
+            @Override
+            public void onStreamTick() {
+                control.heartbeatDuringStream();
+            }
         };
     }
 

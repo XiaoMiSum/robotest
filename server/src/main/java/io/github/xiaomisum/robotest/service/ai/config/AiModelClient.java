@@ -49,9 +49,21 @@ public class AiModelClient {
 
     private static final Logger log = LoggerFactory.getLogger(AiModelClient.class);
 
-    /** 单次生成请求超时：兜底长挂起，整体仍受任务超时清扫（4.2）约束；连接超时沿用底层 OkHttp 默认 10s */
+    /** 单次生成请求超时：仅连通性测试等阻塞式 call 路径使用；流式路径改由首 token / 空闲超时兜底 */
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
+    /** 流式护栏（详设 4.2）：首 token 等待上限与相邻 chunk 空闲上限，内置常量不开放配置 */
+    private static final Duration FIRST_TOKEN_TIMEOUT = Duration.ofSeconds(60);
+    private static final Duration IDLE_TIMEOUT = Duration.ofSeconds(30);
+    /** 长流期间心跳刷新间隔：与 IDLE_TIMEOUT 对齐，防止任务总预算 / 心跳清扫误杀长流 */
+    private static final Duration STREAM_HEARTBEAT_INTERVAL = Duration.ofSeconds(30);
+    /** 流式底层读取超时上限：远大于任务总预算，避免框架默认 60s 掐断长流；实际终止由 Reactor 护栏负责 */
+    private static final Duration STREAM_UNDERLYING_TIMEOUT = Duration.ofHours(24);
     private static final int ERROR_MSG_MAX_LENGTH = 500;
+
+    /** 护栏间隔为实例字段，默认取内置常量；测试可注入短值以验证各分支 */
+    private Duration firstTokenTimeout = FIRST_TOKEN_TIMEOUT;
+    private Duration idleTimeout = IDLE_TIMEOUT;
+    private Duration streamHeartbeatInterval = STREAM_HEARTBEAT_INTERVAL;
 
     /** 末跳纯文本归因场景（详设 4.3：判别与查询跳归 assistant_parse、回答生成归 assistant_answer） */
     private static final String SCENE_ANSWER = "assistant_answer";
@@ -114,9 +126,9 @@ public class AiModelClient {
         }
         long start = System.currentTimeMillis();
         try {
-            ChatModel model = buildChatModel(request, apiKey,
+            ChatModel model = buildStreamChatModel(request, apiKey,
                     toolDefinitions == null ? List.of() : toolDefinitions);
-            AiChatReply reply = extractReplyWithCalls(model.call(buildPrompt(request, priorTurns)));
+            AiChatReply reply = streamAndAggregate(model, buildPrompt(request, priorTurns), request.onTick());
             writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
                     null, reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
             return reply;
@@ -148,8 +160,8 @@ public class AiModelClient {
         }
         long start = System.currentTimeMillis();
         try {
-            ChatModel model = buildChatModelWithDeclarations(request, apiKey, declarations);
-            AiChatReply reply = extractReplyWithCalls(model.call(buildPrompt(request, priorTurns)));
+            ChatModel model = buildStreamChatModelWithDeclarations(request, apiKey, declarations);
+            AiChatReply reply = streamAndAggregate(model, buildPrompt(request, priorTurns), request.onTick());
             writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
                     null, assistant && reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
             return reply;
@@ -171,37 +183,81 @@ public class AiModelClient {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
         }
         long start = System.currentTimeMillis();
-        StringBuilder content = new StringBuilder();
-        int[] tokensIn = {0};
-        int[] tokensOut = {0};
         try {
-            ChatModel model = buildChatModel(request, apiKey);
-            model.stream(buildPrompt(request))
-                    .doOnNext(chunk -> {
-                        String text = textOf(chunk);
-                        if (text != null && !text.isEmpty()) {
-                            content.append(text);
-                            onDelta.accept(text);
-                        }
-                        Usage usage = chunk.getMetadata() == null ? null : chunk.getMetadata().getUsage();
-                        if (usage != null) {
-                            if (usage.getPromptTokens() != null) {
-                                tokensIn[0] = usage.getPromptTokens();
-                            }
-                            if (usage.getCompletionTokens() != null) {
-                                tokensOut[0] = usage.getCompletionTokens();
-                            }
-                        }
-                    })
-                    .blockLast();
-            AiChatReply reply = new AiChatReply(content.toString(), tokensIn[0], tokensOut[0]);
+            ChatModel model = buildStreamChatModel(request, apiKey);
+            AiChatReply reply = streamAndAggregate(model, buildPrompt(request), request.onTick(), onDelta);
             writeUsage(request, System.currentTimeMillis() - start, true, reply.tokensIn(), reply.tokensOut(),
                     null);
             return reply;
         } catch (Exception e) {
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
-            writeUsage(request, System.currentTimeMillis() - start, false, tokensIn[0], tokensOut[0], errorCode);
+            writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode);
             throw toServiceException(e, errorCode);
+        }
+    }
+
+    /**
+     * 流式调用聚合（详设 4.2）：以首 token / 空闲双层超时订阅响应流，逐段累积文本与账单，
+     * 工具调用取末帧完整列表（Spring AI 内部按 choice 累积，逐帧拼接会重复）。onDelta 逐段推送，
+     * onTick 按固定间隔刷新任务心跳，使任务总预算在单次长流期间持续生效。
+     */
+    private AiChatReply streamAndAggregate(ChatModel model, Prompt prompt, Runnable onTick) {
+        return streamAndAggregate(model, prompt, onTick, text -> { });
+    }
+
+    private AiChatReply streamAndAggregate(ChatModel model, Prompt prompt, Runnable onTick,
+            Consumer<String> onDelta) {
+        StringBuilder content = new StringBuilder();
+        List<AiToolCall>[] toolCalls = new List[]{List.of()};
+        int[] tokensIn = {0};
+        int[] tokensOut = {0};
+        long[] lastTick = {System.nanoTime()};
+        Runnable tick = onTick == null ? () -> { } : onTick;
+        model.stream(prompt)
+                // 首 token 用 FIRST_TOKEN_TIMEOUT，其后每个 chunk 用 IDLE_TIMEOUT 重置计时
+                .timeout(reactor.core.publisher.Mono.delay(firstTokenTimeout),
+                        chunk -> reactor.core.publisher.Mono.delay(idleTimeout))
+                .doOnNext(chunk -> {
+                    String text = textOf(chunk);
+                    if (text != null && !text.isEmpty()) {
+                        content.append(text);
+                        onDelta.accept(text);
+                    }
+                    List<AiToolCall> calls = toolCallsOf(chunk);
+                    if (!calls.isEmpty()) {
+                        toolCalls[0] = calls;
+                    }
+                    Usage usage = chunk.getMetadata() == null ? null : chunk.getMetadata().getUsage();
+                    if (usage != null) {
+                        if (usage.getPromptTokens() != null) {
+                            tokensIn[0] = usage.getPromptTokens();
+                        }
+                        if (usage.getCompletionTokens() != null) {
+                            tokensOut[0] = usage.getCompletionTokens();
+                        }
+                    }
+                    long now = System.nanoTime();
+                    if (java.time.Duration.ofNanos(now - lastTick[0]).compareTo(streamHeartbeatInterval) >= 0) {
+                        tick.run();
+                        lastTick[0] = now;
+                    }
+                })
+                .blockLast();
+        return new AiChatReply(content.toString(), tokensIn[0], tokensOut[0], toolCalls[0]);
+    }
+
+    /** 单帧工具调用抽取：仅末帧携带完整列表，供 streamAndAggregate 覆盖式累积 */
+    private static List<AiToolCall> toolCallsOf(ChatResponse chunk) {
+        try {
+            List<AssistantMessage.ToolCall> calls = chunk.getResult().getOutput().getToolCalls();
+            if (calls == null || calls.isEmpty()) {
+                return List.of();
+            }
+            return calls.stream()
+                    .map(call -> new AiToolCall(call.id(), call.name(), call.arguments()))
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
         }
     }
 
@@ -237,6 +293,31 @@ public class AiModelClient {
                 .build();
     }
 
+    /** 流式构建：底层读取超时改为远大于任务总预算的值，实际终止由首 token / 空闲护栏接管（详设 4.2） */
+    ChatModel buildStreamChatModel(AiChatRequest request, String apiKey) {
+        return OpenAiChatModel.builder()
+                .options(buildStreamOptionsWithDeclarations(request.model(), apiKey,
+                        settingsReader.settings().taskMaxRetries(), List.of()))
+                .build();
+    }
+
+    ChatModel buildStreamChatModel(AiChatRequest request, String apiKey,
+            List<AssistantToolDefinition> toolDefinitions) {
+        List<ToolDeclaration> declarations = toolDefinitions == null ? List.of()
+                : toolDefinitions.stream()
+                        .map(item -> new ToolDeclaration(item.name(), item.description(), item.paramsSchema()))
+                        .toList();
+        return buildStreamChatModelWithDeclarations(request, apiKey, declarations);
+    }
+
+    ChatModel buildStreamChatModelWithDeclarations(AiChatRequest request, String apiKey,
+            List<ToolDeclaration> declarations) {
+        return OpenAiChatModel.builder()
+                .options(buildStreamOptionsWithDeclarations(request.model(), apiKey,
+                        settingsReader.settings().taskMaxRetries(), declarations))
+                .build();
+    }
+
     /** 程序式构建调用选项：baseUrl / 密钥 / 模型名逐行取值，重试次数承接 task_max_retries（4.2） */
     static OpenAiChatOptions buildOptions(AiModelConfig model, String apiKey, int maxRetries) {
         return buildOptions(model, apiKey, maxRetries, List.of());
@@ -254,12 +335,28 @@ public class AiModelClient {
 
     private static OpenAiChatOptions buildOptionsWithDeclarations(AiModelConfig model, String apiKey, int maxRetries,
             List<ToolDeclaration> declarations) {
+        return buildOptionsInternal(model, apiKey, maxRetries, declarations, REQUEST_TIMEOUT);
+    }
+
+    /**
+     * 流式选项：底层读取超时放到远大于任务总预算的值（Spring AI builder 缺省 60s 会掐断长流），
+     * 真正的首 token / 空闲终止交由 Reactor 护栏（详设 4.2）。
+     */
+    private static OpenAiChatOptions buildStreamOptionsWithDeclarations(AiModelConfig model, String apiKey,
+            int maxRetries, List<ToolDeclaration> declarations) {
+        return buildOptionsInternal(model, apiKey, maxRetries, declarations, STREAM_UNDERLYING_TIMEOUT);
+    }
+
+    private static OpenAiChatOptions buildOptionsInternal(AiModelConfig model, String apiKey, int maxRetries,
+            List<ToolDeclaration> declarations, Duration timeout) {
         var builder = OpenAiChatOptions.builder()
                 .baseUrl(model.getBaseUrl())
                 .apiKey(apiKey)
                 .model(model.getModelName())
-                .maxRetries(maxRetries)
-                .timeout(REQUEST_TIMEOUT);
+                .maxRetries(maxRetries);
+        if (timeout != null) {
+            builder.timeout(timeout);
+        }
         if (declarations != null && !declarations.isEmpty()) {
             builder.toolCallbacks(declarationCallbacks(declarations));
         }
