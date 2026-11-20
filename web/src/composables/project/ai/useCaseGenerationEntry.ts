@@ -114,14 +114,14 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     if (latest) {
       panelVisible.value = true
       await task.open(latest.taskId)
-      restoreRequirement()
       return
     }
     pickerVisible.value = true
   }
 
-  /** 来源需求从提案引用还原，供面板展示与 closed 态按同一输入重新发起 */
+  // 提案内容在 open 之后异步加载，须待 suggestion 就绪再还原；已从选择器选定的来源不被覆盖
   function restoreRequirement(): void {
+    if (selectedRequirement.value) return
     for (const row of task.rows.value) {
       const view = row.suggestion
       if (!view || !isCaseGenerationSuggestion(view)) continue
@@ -132,6 +132,8 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
       return
     }
   }
+
+  watch(rows, restoreRequirement)
 
   async function confirmRequirement(ids: string[], picks: RequirementPick[]): Promise<void> {
     if (ids.length !== 1) {

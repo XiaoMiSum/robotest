@@ -208,6 +208,32 @@ describe('useCaseGenerationEntry', () => {
     expect(s.selectedRequirement.value).toEqual({ id: 'r1', code: 'REQ-001', title: 'REQ-001' })
   })
 
+  it('命中任务时提案内容异步加载完成后仍还原来源需求', async () => {
+    mocks.fetchLatestAiTask.mockResolvedValue({ taskId: 'task-latest', status: 'proposals_ready' } as AiTaskDetail)
+    let emitRows!: () => void
+    mocks.useAssistTask.mockImplementation(() => {
+      const task = fakeTask()
+      task.open.mockImplementation(async () => {
+        await new Promise<void>((resolve) => { emitRows = resolve })
+        task.rows.value = [generationRow('case-r1')]
+      })
+      tasks.push(task)
+      return task
+    })
+    const s = mountEntry()
+    await flushPromises()
+
+    const opening = s.openRadar()
+    await flushPromises()
+    expect(s.selectedRequirement.value).toBeNull()
+
+    emitRows()
+    await opening
+    await flushPromises()
+
+    expect(s.selectedRequirement.value).toEqual({ id: 'r1', code: 'REQ-001', title: 'REQ-001' })
+  })
+
   it('查询最近任务失败时提示且不自动发起', async () => {
     mocks.fetchLatestAiTask.mockRejectedValue(new Error('查询失败'))
     const s = mountEntry()
