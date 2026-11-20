@@ -45,3 +45,41 @@ describe('PlanDetailPage 操作按钮状态显隐', () => {
     expect(pageSource).toContain('void load()')
   })
 })
+
+// 详情页头收拢为单条无边框横条（交互 06 §1.2）：面包屑保持纯净，右侧同行按序承载需求/状态/进度/操作
+describe('PlanDetailPage 页头单条横条', () => {
+  it('删除独立标题卡片，当前页名称由面包屑末段承担', () => {
+    expect(pageSource).toContain('class="plan-detail__header"')
+    expect(pageSource).toContain('class="plan-detail__breadcrumb"')
+    expect(pageSource).toContain('to="/workspace/projects/functional-testing?tab=plans"')
+    expect(pageSource).not.toContain('plan-detail__head"')
+    expect(pageSource).not.toContain('plan-detail__title-row')
+    expect(pageSource).not.toContain('class="plan-detail__title"')
+  })
+
+  it('右侧区按需求、状态、进度统计、操作按钮顺序排布且统计与按钮竖线分隔', () => {
+    const requirement = pageSource.indexOf('plan-detail__requirements')
+    const status = pageSource.indexOf('planStatusMeta(detail.status).tagType')
+    const progress = pageSource.indexOf('plan-detail__progress-row')
+    const actions = pageSource.indexOf('class="plan-detail__actions"')
+    expect(requirement).toBeGreaterThanOrEqual(0)
+    expect(requirement).toBeLessThan(status)
+    expect(status).toBeLessThan(progress)
+    expect(progress).toBeLessThan(actions)
+    expect(pageSource).toContain('border-left: 1px solid var(--color-neutral-200)')
+  })
+
+  it('超宽时页头单行横向滚动不换行，保留滚动能力但隐藏视觉滚动条', () => {
+    const headerStyle = pageSource.slice(pageSource.indexOf('.plan-detail__header {'))
+    expect(headerStyle).toContain('overflow-x: auto')
+    expect(headerStyle).toContain('scrollbar-width: none')
+    expect(headerStyle).not.toContain('flex-wrap: wrap')
+  })
+
+  it('快照文档树卡片补齐固定 header，仅树体纵向滚动', () => {
+    expect(pageSource).toContain('class="plan-detail__tree-header"')
+    expect(pageSource).toContain('快照文档')
+    expect(pageSource).toContain('只读')
+    expect(pageSource).toContain('flex: 1;\n    min-height: 0;')
+  })
+})
