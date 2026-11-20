@@ -3,6 +3,7 @@ import type { PageResult } from '@/types'
 import type {
   AiEmbeddingConfig,
   AiEmbeddingSavePayload,
+  AiEmbeddingTestPayload,
   AiEmbeddingTestResult,
   AiModel,
   AiModelCreatePayload,
@@ -65,8 +66,9 @@ export function saveAiEmbedding(payload: AiEmbeddingSavePayload): Promise<AiEmbe
   return put('/ai/embedding', payload)
 }
 
-export function testAiEmbedding(): Promise<AiEmbeddingTestResult> {
-  return post('/ai/embedding/test')
+/** 连通性测试：按表单值临时向量化、不写回配置；不传载荷则测已保存配置 */
+export function testAiEmbedding(payload?: AiEmbeddingTestPayload): Promise<AiEmbeddingTestResult> {
+  return post('/ai/embedding/test', payload)
 }
 
 // ==================== 场景提示词（详设 3.5） ====================

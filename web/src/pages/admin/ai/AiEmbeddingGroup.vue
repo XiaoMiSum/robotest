@@ -3,13 +3,15 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { testAiEmbedding } from '@/services/aiAdmin'
 import { useAiAdminStore } from '@/stores/aiAdmin'
-import type { AiEmbeddingSavePayload } from '@/types'
+import type { AiEmbeddingSavePayload, AiEmbeddingTestPayload } from '@/types'
 
 const store = useAiAdminStore()
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
+const testing = ref(false)
 const saveError = ref('')
 
 /** 算子取值（详设 2.4：cosine / l2 / inner_product，默认 cosine） */
@@ -133,6 +135,33 @@ async function submit(): Promise<boolean> {
   }
 }
 
+/** 按表单当前值测试：后端临时向量化、不写回配置；空密钥沿用已保存密钥 */
+async function runTest() {
+  testing.value = true
+  try {
+    const payload: AiEmbeddingTestPayload = {
+      provider: form.provider.trim(),
+      baseUrl: form.baseUrl.trim(),
+      embeddingModel: form.embeddingModel.trim(),
+      dimensions: form.dimensions ?? undefined,
+      operator: form.operator,
+    }
+    if (form.apiKey.trim()) payload.apiKey = form.apiKey.trim()
+    const result = await testAiEmbedding(payload)
+    let message = `连接成功（${result.latencyMs ?? 0}ms）`
+    // 实测维度与表单配置不符说明端点配置有误，提示核对而非静默通过
+    if (result.dimensions !== null && form.dimensions !== null && result.dimensions !== form.dimensions) {
+      message += `，实测维度 ${result.dimensions} 与配置 ${form.dimensions} 不一致，请核对`
+    }
+    ElMessage.success(message)
+  } catch (error) {
+    ElMessage.error(error instanceof Error && error.message ? error.message : '连接测试失败')
+  } finally {
+    testing.value = false
+    void store.loadEmbedding()
+  }
+}
+
 // 切换分组存在未保存编辑：离开前拦截（交互 2.6：保存后离开 / 放弃修改 / 取消）
 onBeforeRouteLeave(async () => {
   if (snapshot() === originalSnapshot.value) return true
@@ -239,9 +268,32 @@ onMounted(() => {
         <el-switch v-model="form.enabled" />
         <span class="embedding-group__hint">未启用则 RAG 与相似检测不可用</span>
       </el-form-item>
+      <el-form-item label="连通性">
+        <span
+          v-if="!store.embedding.lastTest"
+          class="embedding-group__test embedding-group__test--unknown"
+        >
+          未知
+        </span>
+        <span
+          v-else-if="store.embedding.lastTest.success"
+          class="embedding-group__test embedding-group__test--ok"
+          :title="store.embedding.lastTest.msg ?? ''"
+        >
+          ✔ {{ store.embedding.lastTest.latencyMs }}ms
+        </span>
+        <span
+          v-else
+          class="embedding-group__test embedding-group__test--fail"
+          :title="store.embedding.lastTest.msg ?? ''"
+        >
+          ✘ {{ store.embedding.lastTest.msg }}
+        </span>
+      </el-form-item>
       <!-- 无 label 时不占 112px 标签列，操作行与上方控件列右缘对齐（交互 2.3） -->
       <el-form-item class="embedding-group__actions">
         <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
+        <el-button :loading="testing" @click="runTest">测试连接</el-button>
       </el-form-item>
     </el-form>
   </div>
@@ -276,6 +328,7 @@ onMounted(() => {
 .embedding-group__actions {
   :deep(.el-form-item__content) {
     justify-content: flex-end;
+    gap: var(--space-sm);
   }
 }
 
@@ -287,5 +340,27 @@ onMounted(() => {
   margin-left: var(--space-sm);
   font-size: var(--font-size-xs);
   color: var(--color-neutral-500);
+}
+
+.embedding-group__test {
+  font-size: var(--font-size-sm);
+
+  &--unknown {
+    color: var(--color-neutral-400);
+  }
+
+  &--ok {
+    color: var(--color-success);
+  }
+
+  &--fail {
+    display: inline-block;
+    max-width: 360px;
+    color: var(--color-danger);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+  }
 }
 </style>

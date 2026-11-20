@@ -109,6 +109,16 @@ describe('AI 配置中心 · 向量 API（交互 2.3 / 2.6）', () => {
     expect(embeddingSource).toContain('首次保存需填写密钥')
     expect(embeddingSource).toContain('if (form.apiKey.trim()) payload.apiKey = form.apiKey.trim()')
   })
+
+  it('测试连接按当前表单值发起、不写 saveError，测试后刷新连通性', () => {
+    expect(embeddingSource).toContain("import { testAiEmbedding } from '@/services/aiAdmin'")
+    expect(embeddingSource).toContain('const payload: AiEmbeddingTestPayload = {')
+    expect(embeddingSource).toContain('await testAiEmbedding(payload)')
+    expect(embeddingSource).toContain('实测维度')
+    expect(embeddingSource).toContain(':loading="testing" @click="runTest"')
+    expect(embeddingSource).toContain('void store.loadEmbedding()')
+    expect(embeddingSource).toContain('store.embedding.lastTest.success')
+  })
 })
 
 describe('AI 配置中心 · 场景提示词（交互 2.4）', () => {
