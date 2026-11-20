@@ -37,6 +37,12 @@
   .cp-item.is-hidden { display: none; }
   .cp-item__main { display: flex; align-items: center; gap: 6px; }
   .cp-item__name { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 名称可达性：键盘聚焦时显示聚焦环（对齐 ComponentPage .cp-item__name:focus-visible） */
+  .cp-item__name:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 1px; border-radius: 2px; }
+  /* 截断名称的悬停/聚焦全文：复刻 el-tooltip（300ms 延迟，仅悬停与聚焦触发） */
+  .demo-tip { position: fixed; z-index: 300; max-width: 320px; padding: 6px 10px; border-radius: var(--radius-md); background: var(--n-800); color: #fff; font-size: var(--font-size-xs); line-height: 1.5; box-shadow: var(--shadow-lg); pointer-events: none; }
+  /* 加载失败：列表已有数据时保留列表，仅在顶部提示并可重试（列表滚动时吸附可见） */
+  .cp-list__load-error { position: sticky; top: 0; z-index: 2; display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: 8px var(--space-sm); border: 1px solid var(--st-danger-border); border-radius: var(--radius-md); background: var(--st-danger-light); color: var(--st-danger-strong); font-size: var(--font-size-xs); }
   .cp-item__meta { margin-top: 2px; font-size: var(--font-size-xs); color: var(--n-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 名称过长时让位给作用域与状态标签，状态随启停即时刷新 */
   .cp-item__main .tag { flex: none; }
@@ -142,37 +148,42 @@
                 <button data-cptab="extractor">提取器</button>
               </span>
 
+              <div class="cp-list__load-error" id="cp-load-error" role="alert" hidden>
+                <span>组件列表加载失败，请重试</span>
+                <button class="btn btn--link btn--sm" type="button" data-list-retry>重新加载</button>
+              </div>
+
               <ul class="cp-items" id="cp-items">
                 <li class="cp-item is-active" data-cp="token">
-                  <div class="cp-item__main"><span class="cp-item__name">Token 预置</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">Token 预置</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">前置处理器 · 从环境变量获取 Token 并注入请求头</div>
                 </li>
                 <li class="cp-item" data-cp="login">
-                  <div class="cp-item__main"><span class="cp-item__name">登录态校验</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">登录态校验</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">验证器 · 校验登录态，失效时中断后续步骤</div>
                 </li>
                 <li class="cp-item" data-cp="cursor">
-                  <div class="cp-item__main"><span class="cp-item__name">分页游标提取</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">分页游标提取</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">提取器 · 提取下一页游标供循环步骤使用</div>
                 </li>
                 <li class="cp-item" data-cp="order">
-                  <div class="cp-item__main"><span class="cp-item__name">提取订单号</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">提取订单号</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">提取器 · 从响应体提取订单号供造数步骤引用</div>
                 </li>
                 <li class="cp-item" data-cp="track">
-                  <div class="cp-item__main"><span class="cp-item__name">提取物流单号</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">提取物流单号</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">提取器 · 从响应头提取物流轨迹号到变量 trackNo</div>
                 </li>
                 <li class="cp-item is-disabled" data-cp="cleanup">
-                  <div class="cp-item__main"><span class="cp-item__name">清理测试数据</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--outline cp-item__state">已停用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">清理测试数据</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--outline cp-item__state">已停用</span></div>
                   <div class="cp-item__meta">后置处理器 · 执行结束按订单号清理造数记录</div>
                 </li>
                 <li class="cp-item" data-cp="report">
-                  <div class="cp-item__main"><span class="cp-item__name">上报执行结果</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">上报执行结果</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">后置处理器 · 执行结束将结果按表单上报到报表服务</div>
                 </li>
                 <li class="cp-item" data-cp="errcode">
-                  <div class="cp-item__main"><span class="cp-item__name">统一错误码断言</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">统一错误码断言</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
                   <div class="cp-item__meta">验证器 · 响应体需包含标准错误码字段</div>
                 </li>
               </ul>
@@ -1374,7 +1385,7 @@
       CP.push(payload);
       var li = el('li', 'cp-item');
       li.setAttribute('data-cp', payload.id);
-      li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name"></span><span class="tag tag--outline cp-item__scope"></span><span class="tag tag--outline cp-item__state"></span></div><div class="cp-item__meta"></div>';
+      li.innerHTML = '<div class="cp-item__main"><span class="cp-item__name" tabindex="0"></span><span class="tag tag--outline cp-item__scope"></span><span class="tag tag--outline cp-item__state"></span></div><div class="cp-item__meta"></div>';
       byId('cp-items').appendChild(li);
       renderItem(payload);
       rt.toast('已创建', { type: 'success' });
@@ -1389,6 +1400,81 @@
 
   filterList();
   selectItem('token');
+</script>
+<script>
+  // 名称可达性：名称截断时悬停或键盘聚焦 300ms 显示全文（对齐 ComponentPage el-tooltip 配置）
+  (function () {
+    var tip = document.createElement('div');
+    tip.className = 'demo-tip';
+    tip.hidden = true;
+    document.body.appendChild(tip);
+
+    var timer = null;
+    var pending = null;
+
+    function hide() {
+      clearTimeout(timer);
+      timer = null;
+      pending = null;
+      tip.hidden = true;
+    }
+
+    function place(target) {
+      var rect = target.getBoundingClientRect();
+      var left = Math.min(rect.left, window.innerWidth - tip.offsetWidth - 8);
+      var top = rect.top - tip.offsetHeight - 6;
+      tip.style.left = Math.max(8, left) + 'px';
+      tip.style.top = (top < 8 ? rect.bottom + 6 : top) + 'px';
+    }
+
+    function schedule(target) {
+      if (pending === target) return;
+      clearTimeout(timer);
+      pending = target;
+      tip.hidden = true;
+      timer = setTimeout(function () {
+        if (pending !== target) return;
+        var text = target.textContent.trim();
+        if (!text) return;
+        tip.textContent = text;
+        tip.hidden = false;
+        place(target);
+      }, 300);
+    }
+
+    document.addEventListener('mouseover', function (e) {
+      var name = e.target.closest && e.target.closest('.cp-item__name');
+      if (name) schedule(name);
+    });
+    document.addEventListener('mouseout', function (e) {
+      var name = e.target.closest && e.target.closest('.cp-item__name');
+      if (!name) return;
+      if (e.relatedTarget && name.contains(e.relatedTarget)) return;
+      hide();
+    });
+    document.addEventListener('focusin', function (e) {
+      var name = e.target.closest && e.target.closest('.cp-item__name');
+      if (name) schedule(name);
+    });
+    document.addEventListener('focusout', function (e) {
+      if (e.target.closest && e.target.closest('.cp-item__name')) hide();
+    });
+    window.addEventListener('scroll', hide, true);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') hide();
+    });
+  })();
+
+  // 加载失败：静态稿用列表头部刷新图标触发顶部错误条，已有列表保留（对齐 cp-list__load-error）
+  (function () {
+    var bar = document.getElementById('cp-load-error');
+    // 演示失败态：URL 追加 #demo-load-error 触发，避免在工具栏暴露真实页面没有的入口
+    if (location.hash === '#demo-load-error') bar.hidden = false;
+    bar.querySelector('[data-list-retry]').addEventListener('click', function () {
+      bar.hidden = true;
+      window.RTUX.toast('已重新加载最新数据', { type: 'success' });
+    });
+  })();
 </script>
 </body>
 </html>

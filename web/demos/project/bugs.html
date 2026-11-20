@@ -148,6 +148,51 @@
     color: var(--n-900);
   }
 
+  /* 列显隐入口放在固定操作列的表头内：实际页 BugListTable 通过 #column-setting 插槽挂载 */
+  .bug-table__action-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .bug-col-setting { position: relative; display: inline-flex; }
+  .bug-col-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--n-500);
+    cursor: pointer;
+  }
+  .bug-col-trigger:hover { color: var(--n-900); background: var(--n-100); }
+  .bug-col-trigger svg { width: 14px; height: 14px; }
+  .bug-col-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 70;
+    width: 220px;
+    padding: 12px;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+  .bug-col-popover__title { margin-bottom: var(--space-sm); font-size: var(--font-size-sm); color: var(--n-600); }
+  .bug-col-popover__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
+  .bug-col-opt { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .bug-col-opt--pinned { color: var(--n-500); cursor: not-allowed; }
+  .bug-col-popover__actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--space-sm);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--n-200);
+  }
+
   /* —— 分页每页条数 —— */
   .page-size {
     display: inline-flex;
@@ -350,7 +395,37 @@
             <th style="width:100px">解决方案</th>
             <th style="width:110px">关闭时间</th>
             <th style="width:110px">创建时间</th>
-            <th style="width:210px">操作</th>
+            <th style="width:210px">
+              <span class="bug-table__action-head">
+                <span>操作</span>
+                <span class="bug-col-setting">
+                  <button class="bug-col-trigger" type="button" id="bug-col-trigger" aria-label="列设置" aria-expanded="false" aria-controls="bug-col-popover" title="列设置"><span data-icon="settings"></span></button>
+                  <div class="bug-col-popover" id="bug-col-popover" hidden>
+                    <div class="bug-col-popover__title">显示列</div>
+                    <div class="bug-col-popover__list">
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="id" role="checkbox" aria-checked="true"></span>ID</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="title" role="checkbox" aria-checked="true"></span>标题</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="type" role="checkbox" aria-checked="true"></span>类型</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="severity" role="checkbox" aria-checked="true"></span>严重等级</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="priority" role="checkbox" aria-checked="true"></span>优先级</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="status" role="checkbox" aria-checked="true"></span>状态</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="reporter" role="checkbox" aria-checked="true"></span>创建人</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="assignee" role="checkbox" aria-checked="true"></span>处理人</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="resolver" role="checkbox" aria-checked="true"></span>解决人</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="resolvedAt" role="checkbox" aria-checked="true"></span>解决时间</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="resolution" role="checkbox" aria-checked="true"></span>解决方案</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="closedAt" role="checkbox" aria-checked="true"></span>关闭时间</label>
+                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="createdAt" role="checkbox" aria-checked="true"></span>创建时间</label>
+                      <label class="bug-col-opt bug-col-opt--pinned"><span class="checkbox checkbox--on" role="checkbox" aria-checked="true"></span>操作（固定）</label>
+                    </div>
+                    <div class="bug-col-popover__actions">
+                      <button class="btn btn--link btn--sm" type="button" id="bug-col-all">全选</button>
+                      <button class="btn btn--link btn--sm" type="button" id="bug-col-reset">恢复默认</button>
+                    </div>
+                  </div>
+                </span>
+              </span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -797,6 +872,74 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { toastEl.hidden = true; }, 2400);
   }
+
+  // ==================== 列显隐（对齐 TableColumnSetting / useTableColumns） ====================
+  /* 下标按 thead 顺序取 1 起始的 nth-child；操作列 pinned 只展示不可取消 */
+  var BUG_COLUMNS = [
+    { key: 'id', index: 1 },
+    { key: 'title', index: 2 },
+    { key: 'type', index: 3 },
+    { key: 'severity', index: 4 },
+    { key: 'priority', index: 5 },
+    { key: 'status', index: 6 },
+    { key: 'reporter', index: 7 },
+    { key: 'assignee', index: 8 },
+    { key: 'resolver', index: 9 },
+    { key: 'resolvedAt', index: 10 },
+    { key: 'resolution', index: 11 },
+    { key: 'closedAt', index: 12 },
+    { key: 'createdAt', index: 13 }
+  ];
+  var hiddenBugKeys = {};
+
+  function applyBugColumns() {
+    var rules = BUG_COLUMNS.filter(function (c) { return hiddenBugKeys[c.key]; })
+      .map(function (c) {
+        return '.bug-table th:nth-child(' + c.index + '), .bug-table td:nth-child(' + c.index + ') { display: none; }';
+      }).join('\n');
+    var style = document.getElementById('bug-col-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'bug-col-style';
+      document.head.appendChild(style);
+    }
+    style.textContent = rules;
+    BUG_COLUMNS.forEach(function (c) {
+      var box = document.querySelector('[data-col-box="' + c.key + '"]');
+      box.classList.toggle('checkbox--on', !hiddenBugKeys[c.key]);
+      box.setAttribute('aria-checked', String(!hiddenBugKeys[c.key]));
+    });
+    document.getElementById('bug-col-all').disabled = BUG_COLUMNS.every(function (c) {
+      return !hiddenBugKeys[c.key];
+    });
+  }
+
+  document.getElementById('bug-col-trigger').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var pop = document.getElementById('bug-col-popover');
+    pop.hidden = !pop.hidden;
+    this.setAttribute('aria-expanded', String(!pop.hidden));
+  });
+  document.getElementById('bug-col-popover').addEventListener('click', function (e) { e.stopPropagation(); });
+  document.querySelectorAll('[data-col-box]').forEach(function (box) {
+    box.addEventListener('click', function () {
+      var key = box.getAttribute('data-col-box');
+      hiddenBugKeys[key] = !hiddenBugKeys[key];
+      applyBugColumns();
+    });
+  });
+  document.getElementById('bug-col-all').addEventListener('click', function () {
+    hiddenBugKeys = {};
+    applyBugColumns();
+  });
+  document.getElementById('bug-col-reset').addEventListener('click', function () {
+    hiddenBugKeys = {};
+    applyBugColumns();
+  });
+  document.addEventListener('click', function () {
+    document.getElementById('bug-col-popover').hidden = true;
+    document.getElementById('bug-col-trigger').setAttribute('aria-expanded', 'false');
+  });
 
   // ==================== 行渲染 ====================
   function opsHtml(tr) {
@@ -1351,6 +1494,7 @@
   });
 
   // ==================== 初始化 ====================
+  applyBugColumns();
   rows.forEach(renderOps);
   updateAdvCount();
   syncKeywordClear();

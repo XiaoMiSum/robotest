@@ -8,10 +8,25 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
+  [hidden] { display: none !important; }
   .date-range { display: inline-flex; align-items: center; gap: 6px; width: 280px; height: 32px; padding: 0 10px; border: 1px solid var(--n-200); border-radius: var(--radius-md); color: var(--n-500); font-size: var(--font-size-sm); background: #fff; }
   .date-range svg { width: 14px; height: 14px; color: var(--n-400); }
   .rate-bad { color: var(--st-danger); font-weight: 600; }
   .report-empty td { text-align: center; padding: 36px 0; color: var(--n-500); font-size: var(--font-size-sm); }
+
+  /* 列显隐：齿轮入口 + 220px 显示列浮层，pinned 列始终展示（对齐 TableColumnSetting） */
+  .colset { position: relative; display: inline-flex; }
+  .colset__pop { position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 120; width: 220px; padding: 12px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
+  .colset__title { margin-bottom: 8px; font-size: var(--font-size-sm); color: var(--n-600); }
+  .colset__list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+  .colset__item { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .colset__item.is-pinned { color: var(--n-500); cursor: default; }
+  .colset__item input { width: 15px; height: 15px; margin: 0; accent-color: var(--brand-500); }
+  .colset__actions { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--n-200); }
+
+  /* 加载失败口径（UI-PAGE-11）：顶部错误条 + 重新加载，已有数据保留 */
+  .list-load-error { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 14px; border: 1px solid var(--st-danger-border); border-radius: var(--radius-md); background: var(--st-danger-light); color: var(--st-danger-strong); font-size: var(--font-size-sm); }
+  .list-load-error__spacer { flex: 1; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -49,21 +64,39 @@
             </select>
             <span class="date-range"><span data-icon="calendar"></span>开始日期 至 结束日期</span>
             <div class="input-wrap" style="width:240px"><span data-icon="search"></span><input class="input" id="rp-kw" placeholder="搜索报告名称或场景名称"></div>
+            <div class="colset" id="rp-cols">
+              <button class="btn btn--default" type="button" id="rp-cols-btn" aria-label="列设置" aria-expanded="false"><span data-icon="settings"></span>列设置</button>
+              <div class="colset__pop" id="rp-cols-pop" hidden>
+                <div class="colset__title">显示列</div>
+                <div class="colset__list"></div>
+                <div class="colset__actions">
+                  <button class="btn btn--link btn--sm" type="button" data-cols-all>全选</button>
+                  <button class="btn btn--link btn--sm" type="button" data-cols-reset>恢复默认</button>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div class="list-load-error" id="rp-load-error" role="alert" hidden>
+          <span data-icon="alert-circle"></span>
+          <span>测试报告列表加载失败</span>
+          <span class="list-load-error__spacer"></span>
+          <button class="btn btn--link btn--sm" type="button" data-list-retry>重新加载</button>
         </div>
 
         <div class="table-wrap" data-ux-batchbar="#batchbar-reports">
           <table class="table">
             <thead>
               <tr>
-                <th style="width:40px"></th>
-                <th>报告名称</th>
-                <th style="width:90px">类型</th>
-                <th style="width:110px">状态</th>
-                <th style="width:90px">通过率</th>
-                <th style="width:90px">耗时</th>
-                <th style="width:170px">创建时间</th>
-                <th style="width:120px">操作</th>
+                <th style="width:40px" data-col="selection" data-label="选择"></th>
+                <th data-col="name">报告名称</th>
+                <th style="width:90px" data-col="type">类型</th>
+                <th style="width:110px" data-col="status">状态</th>
+                <th style="width:90px" data-col="passRate">通过率</th>
+                <th style="width:90px" data-col="duration">耗时</th>
+                <th style="width:170px" data-col="createdAt">创建时间</th>
+                <th style="width:120px" data-col="actions">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -226,6 +259,85 @@
     });
 
     render();
+  })();
+</script>
+<script>
+  // 列显隐：按 useTableColumns 口径还原选择与操作列固定、其余可勾选，静态稿仅本页内生效
+  (function () {
+    var root = document.getElementById('rp-cols');
+    var btn = document.getElementById('rp-cols-btn');
+    var pop = document.getElementById('rp-cols-pop');
+    var table = document.querySelector('.table-wrap .table');
+    if (!root || !btn || !pop || !table) return;
+    var ths = Array.prototype.slice.call(table.querySelectorAll('thead th'));
+    var emptyRow = table.querySelector('tbody tr[id$="-empty"], tbody tr.empty-row');
+    var keys = ths.map(function (th) { return th.getAttribute('data-col'); });
+    var defaults = keys.slice();
+    var visible = defaults.slice();
+    var pinned = { selection: true, actions: true };
+    var list = pop.querySelector('.colset__list');
+    var allBtn = pop.querySelector('[data-cols-all]');
+
+    ths.forEach(function (th, i) {
+      var key = keys[i];
+      var label = th.getAttribute('data-label') || th.textContent.trim() || key;
+      var row = document.createElement('label');
+      row.className = 'colset__item' + (pinned[key] ? ' is-pinned' : '');
+      row.innerHTML = '<input type="checkbox" data-key="' + key + '"' + (pinned[key] ? ' disabled' : '') + ' checked><span>' + label + '</span>';
+      list.appendChild(row);
+    });
+
+    function apply() {
+      var rows = table.querySelectorAll('tbody tr');
+      ths.forEach(function (th, i) {
+        var on = visible.indexOf(keys[i]) >= 0;
+        th.hidden = !on;
+        Array.prototype.forEach.call(rows, function (row) { if (row.cells[i]) row.cells[i].hidden = !on; });
+      });
+      if (emptyRow && emptyRow.cells[0]) emptyRow.cells[0].colSpan = visible.length;
+      list.querySelectorAll('input[data-key]').forEach(function (box) {
+        box.checked = visible.indexOf(box.getAttribute('data-key')) >= 0;
+      });
+      // 全选只在仍有可选列时可用（对齐 TableColumnSetting 的 allSelected 禁用态）
+      allBtn.disabled = defaults.every(function (k) { return pinned[k] || visible.indexOf(k) >= 0; });
+    }
+
+    list.addEventListener('change', function (e) {
+      var box = e.target.closest('input[data-key]');
+      if (!box || box.disabled) return;
+      var key = box.getAttribute('data-key');
+      visible = box.checked
+        ? defaults.filter(function (k) { return k === key || visible.indexOf(k) >= 0; })
+        : visible.filter(function (k) { return k !== key; });
+      apply();
+    });
+    pop.querySelector('[data-cols-all]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
+    pop.querySelector('[data-cols-reset]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      pop.hidden = !pop.hidden;
+      btn.setAttribute('aria-expanded', String(!pop.hidden));
+    });
+    document.addEventListener('click', function (e) {
+      if (!root.contains(e.target)) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+    });
+    apply();
+    // 行增删后重新套用可见列，避免新建行露出已隐藏列
+    new MutationObserver(apply).observe(table.tBodies[0], { childList: true });
+  })();
+
+  // 加载失败：静态稿用工具栏刷新图标触发 UI-PAGE-11 的顶部错误条与重试
+  (function () {
+    var bar = document.getElementById('rp-load-error');
+    // 演示失败态：URL 追加 #demo-load-error 触发，避免在工具栏暴露真实页面没有的入口
+    if (location.hash === '#demo-load-error') bar.hidden = false;
+    bar.querySelector('[data-list-retry]').addEventListener('click', function () {
+      bar.hidden = true;
+      window.RTUX.toast('已重新加载最新数据', { type: 'success' });
+    });
   })();
 </script>
 </body>

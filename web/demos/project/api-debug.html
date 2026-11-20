@@ -61,6 +61,10 @@
   .history__code--ok { color: var(--st-success-strong); background: var(--st-success-light); }
   .history__code--fail { color: var(--st-danger-strong); background: var(--st-danger-light); }
   .history__empty { margin-top: 80px; text-align: center; color: var(--n-300); font-size: var(--font-size-sm); }
+  /* 名称可达性：历史主列可键盘聚焦并显示聚焦环（对齐 DebugHistoryView &:focus-visible） */
+  .history__item-main:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; }
+  /* 截断名称的悬停全文：静态稿以固定层复刻 el-tooltip（300ms 延迟、不占 Tab 序） */
+  .demo-tip { position: fixed; z-index: 300; max-width: 320px; padding: 6px 10px; border-radius: var(--radius-md); background: var(--n-800); color: #fff; font-size: var(--font-size-xs); line-height: 1.5; box-shadow: var(--shadow-lg); pointer-events: none; }
 
   /* URL 栏 */
   .urlbar { display: flex; align-items: center; gap: 8px; padding: 12px 12px 4px; }
@@ -1549,6 +1553,77 @@
   });
 
   updateSendState();
+</script>
+<script>
+  // 名称可达性：标签仅悬停、历史名称悬停或聚焦，均延迟 300ms 出全文（对齐 el-tooltip show-after）
+  (function () {
+    var tip = document.createElement('div');
+    tip.className = 'demo-tip';
+    tip.hidden = true;
+    document.body.appendChild(tip);
+
+    var timer = null;
+    var pending = null;
+
+    function hide() {
+      clearTimeout(timer);
+      timer = null;
+      pending = null;
+      tip.hidden = true;
+    }
+
+    function place(target) {
+      var rect = target.getBoundingClientRect();
+      var left = Math.min(rect.left, window.innerWidth - tip.offsetWidth - 8);
+      var top = rect.top - tip.offsetHeight - 6;
+      tip.style.left = Math.max(8, left) + 'px';
+      tip.style.top = (top < 8 ? rect.bottom + 6 : top) + 'px';
+    }
+
+    function schedule(target) {
+      if (pending === target) return;
+      clearTimeout(timer);
+      pending = target;
+      tip.hidden = true;
+      timer = setTimeout(function () {
+        if (pending !== target) return;
+        // 历史主列同时包含名称与 URL，提示只取名称（对齐 DebugHistoryView :content）
+        var name = target.querySelector('.history__item-name');
+        var text = (name || target).textContent.trim();
+        if (!text) return;
+        tip.textContent = text;
+        tip.hidden = false;
+        place(target);
+      }, 300);
+    }
+
+    function targetOf(node) {
+      if (!node || !node.closest) return null;
+      return node.closest('.ws-tab__label') || node.closest('.history__item-main');
+    }
+
+    document.addEventListener('mouseover', function (e) {
+      var target = targetOf(e.target);
+      if (target) schedule(target);
+    });
+    document.addEventListener('mouseout', function (e) {
+      var target = targetOf(e.target);
+      if (!target) return;
+      if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+      hide();
+    });
+    document.addEventListener('focusin', function (e) {
+      var main = e.target.closest ? e.target.closest('.history__item-main') : null;
+      if (main) schedule(main);
+    });
+    document.addEventListener('focusout', function (e) {
+      if (e.target.closest && e.target.closest('.history__item-main')) hide();
+    });
+    window.addEventListener('scroll', hide, true);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') hide();
+    });
+  })();
 </script>
 </body>
 </html>

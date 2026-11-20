@@ -46,6 +46,7 @@
     users: 'admin/users.html',
     roles: 'admin/roles.html',
     workspaces: 'admin/workspaces.html',
+    'ai-config': 'admin/ai-config.html',
     // project 页左侧导航
     'ft-cases': 'project/functional-testing.html',
     'ft-reviews': 'project/reviews.html',
@@ -61,6 +62,8 @@
     'api-gitlab': 'project/api-gitlab.html',
     'api-functions': 'project/api-functions.html',
     'api-components': 'project/api-components.html',
+    'ai-task-center': 'project/ai-task-center.html',
+    'ai-task-detail': 'project/ai-task-detail.html',
   };
 
   function href(key) {
@@ -125,6 +128,8 @@
     html += '<a class="icon-btn" href="' + href('my-workspaces') + '">' + icon('folder-open') + '<span>我的空间</span></a>';
     if (mode === 'project') {
       html += '<a class="icon-btn icon-btn--active" href="' + href('my-projects') + '">' + icon('folder') + '<span>我的项目</span></a>';
+      // 项目页顶栏 AI 任务角标：对应真实应用「顶部 AI 任务指示器」入口（16c7ae93）
+      html += '<a class="icon-btn" href="' + href('ai-task-center') + '">' + icon('sparkle') + '<span>AI 任务</span></a>';
     }
     if (mode === 'workspace' || mode === 'project') {
       html += '<a class="icon-btn" href="' + href('workspace-manage') + '">' + icon('settings') + '<span>空间管理</span></a>';
@@ -177,6 +182,10 @@
         { key: 'workspaces', label: '空间管理', icon: 'building' },
       ],
     },
+    {
+      title: 'AI 能力',
+      items: [{ key: 'ai-config', label: 'AI 配置', icon: 'sparkle' }],
+    },
   ];
 
   function sideHtml() {
@@ -210,6 +219,8 @@
       { key: 'ft-cases', label: '测试用例', icon: 'document' },
       { key: 'ft-reviews', label: '测试评审', icon: 'check-circle' },
       { key: 'ft-plans', label: '测试计划', icon: 'calendar' },
+      // AI 任务中心在真实应用由顶栏角标进入；演示稿在侧栏补常驻入口，便于直达
+      { key: 'ai-task-center', label: 'AI 任务中心', icon: 'sparkle' },
     ],
     api: [
       { key: 'api-debug', label: '快速调试', icon: 'terminal' },
@@ -230,6 +241,7 @@
   // 详情/表单页归属其列表菜单项：页面文件名 → 应高亮的侧栏目标
   const SIDE_ACTIVE_ALIAS = {
     'api-schedule-form.html': 'api-schedules.html',
+    'ai-task-detail.html': 'ai-task-center.html',
   };
 
   function currentFile() {

@@ -1830,3 +1830,19 @@ a:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--n-400);
 }
+
+/* 减少动效偏好兜底（UI-DS-08）：用户开启后统一收紧过渡与动画时长，
+   作用域覆盖 Teleport 到 body 的弹层；演示稿以 body 为根，与实现侧 body[data-robotest-theme] 等价 */
+@media (prefers-reduced-motion: reduce) {
+  body {
+    scroll-behavior: auto;
+  }
+  body *,
+  body *::before,
+  body *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -10,11 +10,38 @@
   /* 弹层与空态行靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
   [hidden] { display: none !important; }
 
-  /* 实际页通过率列 align="right */
+  /* 通过率列右对齐，与 el-table-column align="right" 一致 */
   .table .rate-col { text-align: right; }
 
   /* 已关闭计划在实际页走 Element 默认色，演示页禁用蓝，以中性色表达终止态 */
   .progress__fill--muted { background: var(--n-300); }
+
+  /* 操作列固定宽度，表格总宽超过视口时保留横向滚动条（b77ae075） */
+  #plan-table { min-width: 1240px; }
+  #plan-table th:last-child,
+  #plan-table td.ops-cell { width: 280px; min-width: 280px; white-space: nowrap; }
+
+  /* 列显隐配置：220px popover，操作列 pinned 不可取消（TableColumnSetting） */
+  .col-setting { position: relative; flex-shrink: 0; }
+  .col-setting__popover {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 120; width: 220px;
+    padding: 12px; background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  }
+  .col-setting__title { font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: var(--space-sm); }
+  .col-setting__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
+  .col-setting__item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer;
+  }
+  .col-setting__actions {
+    display: flex; justify-content: space-between; margin-top: var(--space-sm);
+    padding-top: var(--space-sm); border-top: 1px solid var(--n-200);
+  }
+
+  /* 需求选择器：编辑弹窗内勾选关联需求，口径同 RequirementPickerDialog */
+  .req-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .req-pick__item { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -48,17 +75,28 @@
             </select>
             <button class="btn btn--primary" id="plan-search"><span data-icon="search"></span>查询</button>
             <button class="btn btn--default" id="plan-reset">重置</button>
+            <div class="col-setting">
+              <button class="btn btn--default btn--sm" id="plan-col-btn" type="button" aria-label="列设置"><span data-icon="settings"></span>列设置</button>
+              <div class="col-setting__popover" id="plan-col-popover" hidden>
+                <div class="col-setting__title">显示列</div>
+                <div class="col-setting__list" id="plan-col-list"></div>
+                <div class="col-setting__actions">
+                  <button class="btn btn--link btn--sm" id="plan-col-all" type="button">全选</button>
+                  <button class="btn btn--link btn--sm" id="plan-col-reset" type="button">恢复默认</button>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="toolbar__count" id="plan-count">共 18 个计划</div>
         </div>
 
         <div class="table-wrap">
-          <table class="table">
+          <table class="table" id="plan-table">
             <thead>
               <tr><th>名称</th><th>负责人</th><th>起止时间</th><th>环境</th><th>状态</th><th>进度</th><th class="rate-col">通过率</th><th>创建时间</th><th>操作</th></tr>
             </thead>
             <tbody>
-              <tr data-status="in_progress">
+              <tr data-status="in_progress" data-req="3" data-owner="张明" data-time="09-20 ~ 09-24" data-env="staging">
                 <td class="cell-main"><a href="plan-detail.html">V1.4.2 回归测试</a><span class="cell-sub">关联用例 47 条</span></td>
                 <td>张明</td>
                 <td class="num text-xs">09-20 ~ 09-24</td>
@@ -69,11 +107,12 @@
                 <td class="num">2026-09-20 09:12</td>
                 <td class="ops-cell">
                   <a class="op-link" href="plan-detail.html">进入执行</a>
+                  <span class="op-link" data-op="edit">编辑</span>
                   <span class="op-link" style="color:var(--st-success)" data-op="complete">完成</span>
                   <span class="op-link op-link--danger" data-op="delete">删除</span>
                 </td>
               </tr>
-              <tr data-status="blocked">
+              <tr data-status="blocked" data-req="2" data-owner="李华" data-time="09-19 ~ 09-23" data-env="staging">
                 <td class="cell-main"><a href="plan-detail.html">支付网关专项</a><span class="cell-sub">关联用例 36 条</span></td>
                 <td>李华</td>
                 <td class="num text-xs">09-19 ~ 09-23</td>
@@ -88,7 +127,7 @@
                   <span class="op-link op-link--danger" data-op="delete">删除</span>
                 </td>
               </tr>
-              <tr data-status="new">
+              <tr data-status="new" data-req="1" data-owner="王芳" data-time="09-22 09:00" data-env="">
                 <td class="cell-main"><a href="plan-detail.html">营销活动冒烟</a><span class="cell-sub">关联用例 32 条</span></td>
                 <td>王芳</td>
                 <td class="num text-xs">09-22 09:00</td>
@@ -99,11 +138,12 @@
                 <td class="num">2026-09-21 16:05</td>
                 <td class="ops-cell">
                   <a class="op-link" href="plan-detail.html">查看详情</a>
+                  <span class="op-link" data-op="edit">编辑</span>
                   <span class="op-link" style="color:var(--st-success)" data-op="complete">完成</span>
                   <span class="op-link op-link--danger" data-op="delete">删除</span>
                 </td>
               </tr>
-              <tr data-status="completed">
+              <tr data-status="completed" data-req="4" data-owner="周敏" data-time="09-10 ~ 09-16" data-env="staging">
                 <td class="cell-main"><a href="plan-detail.html">履约链路回归</a><span class="cell-sub">关联用例 58 条</span></td>
                 <td>周敏</td>
                 <td class="num text-xs">09-10 ~ 09-16</td>
@@ -117,7 +157,7 @@
                   <span class="op-link op-link--danger" data-op="delete">删除</span>
                 </td>
               </tr>
-              <tr data-status="completed">
+              <tr data-status="completed" data-req="6" data-owner="张明" data-time="08-26 ~ 09-02" data-env="production">
                 <td class="cell-main"><a href="plan-detail.html">8月版本全量回归</a><span class="cell-sub">关联用例 214 条</span></td>
                 <td>张明</td>
                 <td class="num text-xs">08-26 ~ 09-02</td>
@@ -131,7 +171,7 @@
                   <span class="op-link op-link--danger" data-op="delete">删除</span>
                 </td>
               </tr>
-              <tr data-status="closed">
+              <tr data-status="closed" data-req="2" data-owner="赵磊" data-time="09-05 ~ 09-08" data-env="staging">
                 <td class="cell-main"><a href="plan-detail.html">结算对账专项</a><span class="cell-sub">关联用例 64 条</span></td>
                 <td>赵磊</td>
                 <td class="num text-xs">09-05 ~ 09-08</td>
@@ -161,7 +201,7 @@
   </div>
 </main>
 
-<!-- 二次确认：对应实际页 完成 / 恢复 / 删除 的 ElMessageBox.confirm -->
+<!-- 二次确认：对应实际页 完成 / 恢复 / 删除 / 关联需求变化重新规划 的 ElMessageBox.confirm -->
 <div class="dialog-mask" id="confirm-dialog" hidden>
   <div class="dialog" style="width:420px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="dialog__header">
@@ -171,6 +211,7 @@
     <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
     <div class="dialog__footer">
       <button class="btn btn--default btn--sm" data-close="confirm-dialog">取消</button>
+      <button class="btn btn--default btn--sm" id="confirm-alt" hidden></button>
       <button class="btn btn--primary btn--sm" id="confirm-ok">确定</button>
     </div>
   </div>
@@ -234,11 +275,89 @@
   </div>
 </div>
 
+<!-- 编辑计划：字段与弹窗宽度同 PlanEditDialog，保存后按关联需求变化决定是否异步重规划 -->
+<div class="dialog-mask" id="edit-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:600px" role="dialog" aria-modal="true" aria-labelledby="e-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="e-title">编辑计划</span>
+      <button class="dialog__close" data-close="edit-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="field">
+        <label class="field__label" for="e-name">名称<span class="req">*</span></label>
+        <input class="input" id="e-name" maxlength="100" placeholder="请输入计划名称">
+        <div class="field__error" id="e-name-error" hidden></div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="e-desc">描述</label>
+        <textarea class="textarea" id="e-desc" rows="2" placeholder="计划描述（可选）"></textarea>
+      </div>
+      <div class="field">
+        <label class="field__label" for="e-owner">负责人</label>
+        <select class="select" id="e-owner">
+          <option value="">选择负责人</option>
+          <option>张明</option>
+          <option>李华</option>
+          <option>王芳</option>
+          <option>周敏</option>
+          <option>赵磊</option>
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label" for="e-start">开始时间</label>
+          <input class="input" type="date" id="e-start">
+        </div>
+        <div class="field">
+          <label class="field__label" for="e-end">结束时间</label>
+          <input class="input" type="date" id="e-end">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="e-env">执行环境</label>
+        <input class="input" id="e-env" placeholder="如：staging / production">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <span class="field__label">关联需求</span>
+        <div class="flex-center flex-gap-md">
+          <button class="btn btn--default btn--sm" id="e-pick" type="button">选择需求</button>
+          <span class="text-xs muted" id="e-req-count"></span>
+        </div>
+        <div class="req-pick" id="e-req-list" hidden>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2210"></span>REQ-2210 · 购物车结算金额计算</label>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2235"></span>REQ-2235 · 支付回调幂等处理</label>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2241"></span>REQ-2241 · 优惠券叠加规则</label>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2258"></span>REQ-2258 · 履约时效承诺</label>
+        </div>
+        <div class="field__error" id="e-req-error" hidden></div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" data-close="edit-dialog">取消</button>
+      <button class="btn btn--primary" id="e-submit">保存</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script>
 (function () {
   function byId(id) { return document.getElementById(id); }
+  function toast(msg, type) {
+    var root = document.querySelector('.ux-toasts');
+    if (!root) {
+      root = document.createElement('div');
+      root.className = 'ux-toasts';
+      document.body.appendChild(root);
+    }
+    var el = document.createElement('div');
+    el.className = 'ux-toast' + (type ? ' ux-toast--' + type : '');
+    el.innerHTML = '<span class="ux-toast__dot"></span><span class="ux-toast__msg"></span>';
+    el.querySelector('.ux-toast__msg').textContent = msg;
+    root.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 3000);
+  }
 
   var total = 18;
   var appliedKeyword = '';
@@ -253,16 +372,101 @@
     closed: { label: '已关闭', cls: 'status--neutral' }
   };
 
+  // 列显隐配置：pinned 的操作列强制展示且不可取消（useTableColumns / TableColumnSetting）
+  var COLUMNS = [
+    { key: 'name', label: '名称' },
+    { key: 'owner', label: '负责人' },
+    { key: 'timeRange', label: '起止时间' },
+    { key: 'environment', label: '环境' },
+    { key: 'status', label: '状态' },
+    { key: 'progress', label: '进度' },
+    { key: 'passRate', label: '通过率' },
+    { key: 'createdAt', label: '创建时间' },
+    { key: 'actions', label: '操作', pinned: true }
+  ];
+  var visibleKeys = COLUMNS.map(function (c) { return c.key; });
+
   function rowList() {
     return Array.prototype.slice.call(document.querySelectorAll('tbody tr[data-status]'));
   }
 
-  // 操作列条件与实际页 v-if 同源：主操作执行中进入执行，完成=活跃态，恢复=已阻塞，删除恒在
+  // 静态表格无法用 v-if，初始化时给每个单元格打列标记，列设置按标记切换隐藏
+  function markColumns() {
+    var headCells = document.querySelectorAll('#plan-table thead th');
+    Array.prototype.forEach.call(headCells, function (th, i) {
+      th.setAttribute('data-col', COLUMNS[i].key);
+    });
+    rowList().forEach(function (row) {
+      Array.prototype.forEach.call(row.children, function (td, i) {
+        if (i < COLUMNS.length) td.setAttribute('data-col', COLUMNS[i].key);
+      });
+      var req = Number(row.getAttribute('data-req') || 0);
+      if (req > 0) {
+        var sub = row.querySelector('.cell-sub');
+        sub.textContent = '关联需求 ' + req + ' 项 · ' + sub.textContent;
+      }
+    });
+  }
+
+  function applyColumns() {
+    COLUMNS.forEach(function (col) {
+      var visible = visibleKeys.indexOf(col.key) !== -1;
+      document.querySelectorAll('[data-col="' + col.key + '"]').forEach(function (cell) {
+        cell.hidden = !visible;
+      });
+    });
+  }
+
+  function renderColumnSetting() {
+    var html = '';
+    COLUMNS.forEach(function (col) {
+      var on = visibleKeys.indexOf(col.key) !== -1;
+      var cls = 'checkbox' + (on ? ' checkbox--on' : '') + (col.pinned ? ' checkbox--disabled' : '');
+      html += '<label class="col-setting__item"><span class="' + cls + '"></span>' + col.label +
+        (col.pinned ? '（固定）' : '') + '</label>';
+    });
+    byId('plan-col-list').innerHTML = html;
+    byId('plan-col-all').disabled = visibleKeys.length === COLUMNS.length;
+    byId('plan-col-reset').disabled = visibleKeys.length === COLUMNS.length;
+  }
+
+  function selectAllColumns() {
+    visibleKeys = COLUMNS.map(function (c) { return c.key; });
+    applyColumns();
+    renderColumnSetting();
+  }
+
+  byId('plan-col-btn').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var popover = byId('plan-col-popover');
+    if (popover.hidden) renderColumnSetting();
+    popover.hidden = !popover.hidden;
+  });
+  byId('plan-col-list').addEventListener('click', function (e) {
+    var item = e.target.closest('.col-setting__item');
+    if (!item) return;
+    var label = item.textContent.replace('（固定）', '');
+    var col = COLUMNS.filter(function (c) { return c.label === label; })[0];
+    if (!col || col.pinned) return;
+    var at = visibleKeys.indexOf(col.key);
+    if (at === -1) visibleKeys.push(col.key);
+    else visibleKeys.splice(at, 1);
+    applyColumns();
+    renderColumnSetting();
+  });
+  byId('plan-col-all').addEventListener('click', selectAllColumns);
+  byId('plan-col-reset').addEventListener('click', selectAllColumns);
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.col-setting')) byId('plan-col-popover').hidden = true;
+  });
+
+  // 操作列条件与实际页 v-if 同源：编辑仅活跃态，完成=活跃态，恢复=已阻塞，删除恒在
   function opsHtml(status) {
     var html = status === 'in_progress'
       ? '<a class="op-link" href="plan-detail.html">进入执行</a>'
       : '<a class="op-link" href="plan-detail.html">查看详情</a>';
     if (status === 'new' || status === 'in_progress') {
+      html += '<span class="op-link" data-op="edit">编辑</span>';
       html += '<span class="op-link" style="color:var(--st-success)" data-op="complete">完成</span>';
     }
     if (status === 'blocked') {
@@ -312,21 +516,35 @@
   });
 
   var pendingConfirm = null;
-  function askConfirm(title, body, onOk, danger) {
+  var pendingAlt = null;
+  function askConfirm(title, body, onOk, danger, okLabel, altLabel, onAlt) {
     byId('confirm-title').textContent = title;
     byId('confirm-body').textContent = body;
     byId('confirm-ok').className = 'btn btn--sm ' + (danger ? 'btn--danger' : 'btn--primary');
+    byId('confirm-ok').textContent = okLabel || '确定';
+    var alt = byId('confirm-alt');
+    alt.hidden = !altLabel;
+    alt.textContent = altLabel || '';
     pendingConfirm = onOk;
+    pendingAlt = onAlt || null;
     byId('confirm-dialog').hidden = false;
   }
 
-  byId('confirm-ok').addEventListener('click', function () {
+  function closeConfirm() {
     byId('confirm-dialog').hidden = true;
-    if (pendingConfirm) {
-      var fn = pendingConfirm;
-      pendingConfirm = null;
-      fn();
-    }
+    pendingConfirm = null;
+    pendingAlt = null;
+  }
+
+  byId('confirm-ok').addEventListener('click', function () {
+    var fn = pendingConfirm;
+    closeConfirm();
+    if (fn) fn();
+  });
+  byId('confirm-alt').addEventListener('click', function () {
+    var fn = pendingAlt;
+    closeConfirm();
+    if (fn) fn();
   });
 
   function setStatus(row, status) {
@@ -388,6 +606,106 @@
     setError('c-case-error', '');
   }
 
+  /* ---------------- 编辑计划 ---------------- */
+  var editDialog = byId('edit-dialog');
+  var editingRow = null;
+  var initialReqCodes = [];
+  var REQ_CODES = Array.prototype.map.call(
+    document.querySelectorAll('#e-req-list .checkbox'),
+    function (box) { return box.getAttribute('data-code'); }
+  );
+
+  function pickedReqCodes() {
+    return Array.prototype.filter.call(
+      document.querySelectorAll('#e-req-list .checkbox--on'),
+      function (box) { return box.getAttribute('data-code'); }
+    );
+  }
+
+  function refreshReqCount() {
+    var codes = pickedReqCodes();
+    byId('e-req-count').textContent = codes.length ? '已选 ' + codes.length + ' 个需求' : '';
+    setError('e-req-error', '');
+  }
+
+  function openEditDialog(row) {
+    editingRow = row;
+    byId('e-name').value = planName(row);
+    byId('e-desc').value = '覆盖核心下单与支付链路的版本回归验证。';
+    byId('e-owner').value = row.getAttribute('data-owner') || '';
+    var range = (row.getAttribute('data-time') || '').split(' ~ ');
+    byId('e-start').value = range[0] || '';
+    byId('e-end').value = range[1] || '';
+    byId('e-env').value = row.getAttribute('data-env') || '';
+    var reqCount = Number(row.getAttribute('data-req') || 0);
+    initialReqCodes = REQ_CODES.slice(0, Math.max(1, Math.min(reqCount, REQ_CODES.length)));
+    Array.prototype.forEach.call(document.querySelectorAll('#e-req-list .checkbox'), function (box) {
+      box.classList.toggle('checkbox--on', initialReqCodes.indexOf(box.getAttribute('data-code')) !== -1);
+    });
+    byId('e-req-list').hidden = true;
+    refreshReqCount();
+    setError('e-name-error', '');
+    editDialog.hidden = false;
+  }
+
+  byId('e-pick').addEventListener('click', function () {
+    byId('e-req-list').hidden = !byId('e-req-list').hidden;
+  });
+  byId('e-req-list').addEventListener('click', function (e) {
+    var box = e.target.closest('.checkbox');
+    if (!box) return;
+    box.classList.toggle('checkbox--on');
+    refreshReqCount();
+  });
+
+  byId('e-submit').addEventListener('click', function () {
+    var name = byId('e-name').value.trim();
+    if (!name) {
+      byId('e-name').classList.add('input--error');
+      setError('e-name-error', '请输入计划名称');
+      return;
+    }
+    var codes = pickedReqCodes();
+    if (!codes.length) { setError('e-req-error', '请关联至少一个需求'); return; }
+
+    function commit() {
+      var row = editingRow;
+      row.querySelector('.cell-main a').textContent = name;
+      row.setAttribute('data-owner', byId('e-owner').value);
+      row.setAttribute('data-req', String(codes.length));
+      row.setAttribute('data-env', byId('e-env').value);
+      row.setAttribute('data-time', [byId('e-start').value, byId('e-end').value].filter(Boolean).join(' ~ '));
+      var cells = row.children;
+      cells[1].textContent = byId('e-owner').value || '—';
+      cells[2].textContent = row.getAttribute('data-time') || '-';
+      cells[3].innerHTML = byId('e-env').value ? '<span class="chip">' + byId('e-env').value + '</span>' : '<span class="muted">—</span>';
+      var sub = cells[0].querySelector('.cell-sub');
+      var caseText = sub.textContent.replace(/^关联需求 \d+ 项 · /, '');
+      sub.textContent = '关联需求 ' + codes.length + ' 项 · ' + caseText;
+      editDialog.hidden = true;
+      render();
+    }
+
+    var changed = codes.join() !== initialReqCodes.join();
+    if (changed) {
+      // 取消重规划等价于 replan=false，仍需保存字段；确认则走后台异步重规划
+      askConfirm('关联需求变化', '检测到关联需求发生变化，是否重新规划测试用例？', function () {
+        commit();
+        toast('已保存，正在后台重新规划测试用例', 'success');
+      }, false, '重新规划', '仅保存', function () {
+        commit();
+        toast('已保存', 'success');
+      });
+      return;
+    }
+    commit();
+    toast('已保存', 'success');
+  });
+  byId('e-name').addEventListener('input', function () {
+    byId('e-name').classList.remove('input--error');
+    setError('e-name-error', '');
+  });
+
   document.addEventListener('click', function (e) {
     var opener = e.target.closest('[data-open]');
     if (opener) {
@@ -397,14 +715,18 @@
     }
     var closer = e.target.closest('[data-close]');
     if (closer) {
-      byId(closer.getAttribute('data-close')).hidden = true;
+      var targetId = closer.getAttribute('data-close');
+      if (targetId === 'confirm-dialog') closeConfirm();
+      else byId(targetId).hidden = true;
       return;
     }
     var op = e.target.closest('[data-op]');
     if (!op) return;
     var row = op.closest('tr');
     var action = op.getAttribute('data-op');
-    if (action === 'complete') {
+    if (action === 'edit') {
+      openEditDialog(row);
+    } else if (action === 'complete') {
       askConfirm('完成计划', '确定完成计划「' + planName(row) + '」？', function () { completeRow(row); });
     } else if (action === 'resume') {
       askConfirm('恢复计划', '确定恢复计划「' + planName(row) + '」？恢复后回到执行中。', function () { resumeRow(row); });
@@ -415,7 +737,9 @@
 
   document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
     mask.addEventListener('click', function (e) {
-      if (e.target === mask) mask.hidden = true;
+      if (e.target !== mask) return;
+      if (mask.id === 'confirm-dialog') closeConfirm();
+      else mask.hidden = true;
     });
   });
 
@@ -446,6 +770,8 @@
     window.location.href = 'plan-detail.html';
   });
 
+  markColumns();
+  applyColumns();
   render();
 })();
 </script>

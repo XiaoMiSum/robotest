@@ -17,6 +17,30 @@
   .page-size { width: 104px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
 
   .ws-empty td { text-align: center; color: var(--n-500); padding: 36px 0; }
+
+  /* segment 项改用 button 承载 aria-pressed，需抹掉浏览器默认按钮外观 */
+  .segment__item { border: 0; background: transparent; font-family: inherit; }
+  .segment__item--active { background: var(--n-0); }
+
+  /* 列设置浮层：对齐 TableColumnSetting 的 220px popover 与浮层层级 */
+  .col-setting { position: relative; }
+  .col-setting__popover {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 60;
+    width: 220px; padding: 12px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  }
+  .col-setting__title { font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: var(--space-sm); }
+  .col-setting__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
+  .col-setting__actions {
+    display: flex; justify-content: space-between;
+    margin-top: var(--space-sm); padding-top: var(--space-sm);
+    border-top: 1px solid var(--n-200);
+  }
+  .col-opt { display: flex; align-items: center; gap: 7px; font-size: var(--font-size-sm); color: var(--n-600); }
+  .col-opt:not(.col-opt--pinned) { cursor: pointer; }
+  .col-opt:not(.col-opt--pinned):hover { color: var(--n-900); }
+  .col-opt--pinned { color: var(--n-400); }
 </style>
 </head>
 <body data-shell="admin" data-active="workspaces" data-mode="admin">
@@ -37,13 +61,34 @@
     <!-- 无按状态计数接口，segment 不展示计数；keyword 仅匹配空间名称 -->
     <div class="toolbar">
       <div class="toolbar__filters">
-        <div class="segment" id="ws-segment">
-          <span class="segment__item segment__item--active" data-status="active">活跃</span>
-          <span class="segment__item" data-status="dissolved">归档</span>
+        <!-- role/aria-pressed 对齐 WorkspaceListPage 的状态段，读屏可感知当前选中项 -->
+        <div class="segment" id="ws-segment" role="group" aria-label="空间状态">
+          <button type="button" class="segment__item segment__item--active" data-status="active" aria-pressed="true">活跃</button>
+          <button type="button" class="segment__item" data-status="dissolved" aria-pressed="false">归档</button>
         </div>
         <div class="input-wrap"><span data-icon="search"></span><input class="input" id="ws-keyword" placeholder="搜索空间名称" style="width:220px" autocomplete="off"></div>
         <button class="btn btn--primary" id="ws-search"><span data-icon="search"></span>查询</button>
         <button class="btn btn--default" id="ws-reset">重置</button>
+        <div class="col-setting" id="col-setting">
+          <button type="button" class="btn btn--default" id="col-setting-trigger" aria-label="列设置" aria-haspopup="true" aria-expanded="false" title="列设置"><span data-icon="settings"></span>列设置</button>
+          <!-- 操作列 pinned：强制展示且面板内禁用勾选，口径同 useTableColumns -->
+          <div class="col-setting__popover" id="col-setting-popover" hidden>
+            <div class="col-setting__title">显示列</div>
+            <div class="col-setting__list">
+              <span class="col-opt" data-col-key="name" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>空间名称</span>
+              <span class="col-opt" data-col-key="description" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>描述</span>
+              <span class="col-opt" data-col-key="status" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>状态</span>
+              <span class="col-opt" data-col-key="members" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>成员</span>
+              <span class="col-opt" data-col-key="projects" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>项目</span>
+              <span class="col-opt" data-col-key="createdAt" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on"></span>创建时间</span>
+              <span class="col-opt col-opt--pinned" data-col-key="actions" data-pinned="true" role="checkbox" aria-checked="true"><span class="checkbox checkbox--on checkbox--disabled"></span>操作</span>
+            </div>
+            <div class="col-setting__actions">
+              <button type="button" class="btn btn--link btn--sm" data-col-all disabled>全选</button>
+              <button type="button" class="btn btn--link btn--sm" data-col-reset>恢复默认</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="toolbar__count">按创建时间倒序</div>
     </div>
@@ -51,72 +96,74 @@
     <div class="table-wrap">
       <table class="table table--clickable" id="ws-table">
         <thead>
-          <tr><th>空间名称</th><th>描述</th><th>状态</th><th>成员</th><th>项目</th><th>创建时间</th><th>操作</th></tr>
+          <tr>
+            <th data-col="name">空间名称</th><th data-col="description">描述</th><th data-col="status">状态</th><th data-col="members">成员</th><th data-col="projects">项目</th><th data-col="createdAt">创建时间</th><th data-col="actions">操作</th>
+          </tr>
         </thead>
         <tbody>
           <tr data-status="active" data-name="质量中台">
-            <td><a class="ws-link" href="workspace-detail.html">质量中台</a></td>
-            <td class="muted">核心业务线质量保障与用例资产沉淀</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td class="num">24</td><td class="num">6</td>
-            <td class="num">2026-09-18 10:24</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">质量中台</a></td>
+            <td data-col="description" class="muted">核心业务线质量保障与用例资产沉淀</td>
+            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td data-col="members" class="num">24</td><td data-col="projects" class="num">6</td>
+            <td data-col="createdAt" class="num">2026-09-18 10:24</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr data-status="active" data-name="供应链测试组">
-            <td><a class="ws-link" href="workspace-detail.html">供应链测试组</a></td>
-            <td class="muted">仓储、履约与结算链路回归</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td class="num">17</td><td class="num">4</td>
-            <td class="num">2026-09-12 15:02</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">供应链测试组</a></td>
+            <td data-col="description" class="muted">仓储、履约与结算链路回归</td>
+            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td data-col="members" class="num">17</td><td data-col="projects" class="num">4</td>
+            <td data-col="createdAt" class="num">2026-09-12 15:02</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr data-status="active" data-name="数据平台验证">
-            <td><a class="ws-link" href="workspace-detail.html">数据平台验证</a></td>
-            <td class="muted">数据仓库与报表准确性验证</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td class="num">9</td><td class="num">3</td>
-            <td class="num">2026-09-05 09:47</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">数据平台验证</a></td>
+            <td data-col="description" class="muted">数据仓库与报表准确性验证</td>
+            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td data-col="members" class="num">9</td><td data-col="projects" class="num">3</td>
+            <td data-col="createdAt" class="num">2026-09-05 09:47</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr data-status="active" data-name="移动端专项">
-            <td><a class="ws-link" href="workspace-detail.html">移动端专项</a></td>
-            <td class="muted">iOS / Android 客户端兼容性测试</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td class="num">13</td><td class="num">5</td>
-            <td class="num">2026-08-21 14:11</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">移动端专项</a></td>
+            <td data-col="description" class="muted">iOS / Android 客户端兼容性测试</td>
+            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td data-col="members" class="num">13</td><td data-col="projects" class="num">5</td>
+            <td data-col="createdAt" class="num">2026-08-21 14:11</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr data-status="active" data-name="开放平台联调">
-            <td><a class="ws-link" href="workspace-detail.html">开放平台联调</a></td>
-            <td class="muted">第三方接入与开放 API 验证</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td class="num">11</td><td class="num">4</td>
-            <td class="num">2026-08-08 16:39</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">开放平台联调</a></td>
+            <td data-col="description" class="muted">第三方接入与开放 API 验证</td>
+            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td data-col="members" class="num">11</td><td data-col="projects" class="num">4</td>
+            <td data-col="createdAt" class="num">2026-08-08 16:39</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr data-status="active" data-name="新业务孵化">
-            <td><a class="ws-link" href="workspace-detail.html">新业务孵化</a></td>
-            <td class="muted">—</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td class="num">5</td><td class="num">2</td>
-            <td class="num">2026-07-30 11:05</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">新业务孵化</a></td>
+            <td data-col="description" class="muted">—</td>
+            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td data-col="members" class="num">5</td><td data-col="projects" class="num">2</td>
+            <td data-col="createdAt" class="num">2026-07-30 11:05</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr data-status="dissolved" data-name="旧版商城重构">
-            <td><a class="ws-link" href="workspace-detail.html">旧版商城重构</a></td>
-            <td class="muted">业务迁移至新商城后归档留存</td>
-            <td><span class="status status--neutral"><span class="dot"></span>归档</span></td>
-            <td class="num">8</td><td class="num">2</td>
-            <td class="num">2026-05-14 09:20</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">旧版商城重构</a></td>
+            <td data-col="description" class="muted">业务迁移至新商城后归档留存</td>
+            <td data-col="status"><span class="status status--neutral"><span class="dot"></span>归档</span></td>
+            <td data-col="members" class="num">8</td><td data-col="projects" class="num">2</td>
+            <td data-col="createdAt" class="num">2026-05-14 09:20</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr data-status="dissolved" data-name="春季大促专项">
-            <td><a class="ws-link" href="workspace-detail.html">春季大促专项</a></td>
-            <td class="muted">活动结束后归档，报告与用例保留</td>
-            <td><span class="status status--neutral"><span class="dot"></span>归档</span></td>
-            <td class="num">15</td><td class="num">3</td>
-            <td class="num">2026-04-02 16:48</td>
-            <td><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="name"><a class="ws-link" href="workspace-detail.html">春季大促专项</a></td>
+            <td data-col="description" class="muted">活动结束后归档，报告与用例保留</td>
+            <td data-col="status"><span class="status status--neutral"><span class="dot"></span>归档</span></td>
+            <td data-col="members" class="num">15</td><td data-col="projects" class="num">3</td>
+            <td data-col="createdAt" class="num">2026-04-02 16:48</td>
+            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
           </tr>
           <tr class="ws-empty" id="ws-empty" hidden><td colspan="7">暂无数据</td></tr>
         </tbody>
@@ -184,6 +231,63 @@
 (function () {
   function byId(id) { return document.getElementById(id); }
 
+  /* 列显隐：对齐 useTableColumns 的 pinned 强制展示与「全选/恢复默认均恢复全部列」口径 */
+  var colState = {
+    name: true, description: true, status: true, members: true, projects: true, createdAt: true
+  };
+  var colTrigger = byId('col-setting-trigger');
+  var colPopover = byId('col-setting-popover');
+
+  function setPopover(open) {
+    colPopover.hidden = !open;
+    colTrigger.setAttribute('aria-expanded', String(open));
+  }
+
+  function syncOpt(opt) {
+    var on = colState[opt.getAttribute('data-col-key')];
+    var box = opt.querySelector('.checkbox');
+    if (box) box.classList.toggle('checkbox--on', on);
+    opt.setAttribute('aria-checked', String(on));
+  }
+
+  function applyColumns() {
+    document.querySelectorAll('#ws-table [data-col]').forEach(function (cell) {
+      cell.hidden = colState[cell.getAttribute('data-col')] === false;
+    });
+    byId('ws-empty').firstElementChild.colSpan =
+      Object.keys(colState).filter(function (key) { return colState[key]; }).length + 1;
+    colPopover.querySelector('[data-col-all]').disabled =
+      Object.keys(colState).every(function (key) { return colState[key]; });
+  }
+
+  function setAllCols(value) {
+    Object.keys(colState).forEach(function (key) { colState[key] = value; });
+    colPopover.querySelectorAll('.col-opt').forEach(syncOpt);
+    applyColumns();
+  }
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('#col-setting-trigger')) {
+      setPopover(colPopover.hidden);
+      return;
+    }
+    var opt = e.target.closest('.col-opt:not(.col-opt--pinned)');
+    if (opt) {
+      var key = opt.getAttribute('data-col-key');
+      colState[key] = !colState[key];
+      syncOpt(opt);
+      applyColumns();
+      return;
+    }
+    if (e.target.closest('[data-col-all]')) { setAllCols(true); return; }
+    if (e.target.closest('[data-col-reset]')) { setAllCols(true); return; }
+    if (!e.target.closest('#col-setting')) setPopover(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setPopover(false);
+  });
+  applyColumns();
+
   var segment = byId('ws-segment');
   var keyword = byId('ws-keyword');
   var total = byId('ws-total');
@@ -210,24 +314,26 @@
     render();
   }
 
+  function activateSegment(item) {
+    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
+      var on = s === item;
+      s.classList.toggle('segment__item--active', on);
+      s.setAttribute('aria-pressed', String(on));
+    });
+    status = item.getAttribute('data-status');
+  }
+
   function reset() {
     keyword.value = '';
     appliedKeyword = '';
-    status = 'active';
-    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
-      s.classList.toggle('segment__item--active', s.getAttribute('data-status') === 'active');
-    });
+    activateSegment(segment.querySelector('.segment__item[data-status="active"]'));
     render();
   }
 
   segment.addEventListener('click', function (e) {
     var item = e.target.closest('.segment__item');
     if (!item) return;
-    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
-      s.classList.remove('segment__item--active');
-    });
-    item.classList.add('segment__item--active');
-    status = item.getAttribute('data-status');
+    activateSegment(item);
     // 切换即查询，与实际页 handleStatusChange 一致
     render();
   });

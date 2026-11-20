@@ -7,16 +7,28 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  /* 页面结构对齐 PlanDetailPage：面包屑 + 页头条（标题状态 + 进度统计 + 操作）+ 快照树(240) + 执行脑图 */
+  /* 弹层靠 hidden 开关，会被类里的 display 覆盖，需强制生效 */
   [hidden] { display: none !important; }
 
+  /* 页头收拢为单条无边框横条：面包屑与需求/状态/进度/操作同行，超宽整行横向滚动（交互 06 §1.2） */
   .detail-head {
-    display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
-    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
-    padding: 12px 16px; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    flex-wrap: nowrap; overflow-x: auto; margin-bottom: 16px;
+    scrollbar-width: none; -ms-overflow-style: none;
   }
-  .detail-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--n-900); white-space: nowrap; }
-  .detail-extra { display: flex; align-items: center; gap: 20px; }
+  .detail-head::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  .detail-breadcrumb {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap;
+    font-size: var(--font-size-sm); color: var(--n-600);
+  }
+  .detail-breadcrumb a { color: var(--brand-500); font-weight: 500; text-decoration: none; }
+  .detail-breadcrumb a:hover { color: var(--brand-600); }
+  .detail-breadcrumb [data-icon] svg { width: 13px; height: 13px; color: var(--n-400); }
+  .detail-breadcrumb > :last-child { color: var(--n-900); }
+
+  .detail-extra { display: flex; align-items: center; gap: 20px; flex-shrink: 0; white-space: nowrap; }
+  .detail-req { display: flex; align-items: center; gap: var(--space-xs); }
+  .detail-req__label { font-size: var(--font-size-2xs); color: var(--n-400); }
   .detail-progress { display: flex; align-items: center; gap: 12px; }
   .detail-progress .progress { width: 140px; }
   .detail-stats { display: flex; gap: 12px; }
@@ -24,43 +36,32 @@
     display: flex; align-items: center; gap: 8px;
     padding-left: 20px; border-left: 1px solid var(--n-200);
   }
+  .detail-actions .btn [data-icon] svg { width: 14px; height: 14px; }
 
   .rv-workspace { display: flex; gap: 16px; align-items: stretch; }
   .rv-tree { width: 240px; flex-shrink: 0; }
   .rv-mind { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-  /* 脑图工具条（执行标记操作）：按钮组水平居中，提示文案固定右侧不参与布局 */
-  .mm-bar {
-    position: relative;
-    display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;
-    padding: 7px 12px; border-bottom: 1px solid var(--n-200);
+  /* 用例节点悬浮窗：透明底、水平并排、link 文字按钮；入口已从工具条移入节点（fd380891） */
+  .node-popover {
+    position: fixed; z-index: 9998; display: flex; flex-direction: row; align-items: center; gap: 8px;
+    background: transparent; padding: 0;
   }
-  .mm-hint {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    white-space: nowrap;
+  .node-action {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0; border: none; background: transparent; font: inherit; font-size: 12.5px;
+    color: var(--n-700); cursor: pointer; white-space: nowrap;
   }
-  .mm-tool {
-    display: inline-flex; align-items: center; gap: 5px;
-    height: 26px; padding: 0 9px; border: none; border-radius: var(--radius-md);
-    background: transparent; font: inherit; font-size: 12.5px;
-    color: var(--n-600); cursor: pointer;
-  }
-  /* 图标库 svg 无固有尺寸，不给尺寸会渲染为 0×0 而不可见 */
-  .mm-tool [data-icon] svg { width: 14px; height: 14px; }
-  .mm-tool:hover { background: var(--n-100); color: var(--n-900); }
-  .mm-sep { width: 1px; height: 15px; background: var(--n-200); margin: 0 5px; }
-  /* 当前选中节点的执行结果高亮在对应按钮上（同实际页 execResult → button type）；
-     规则置于 hover 之后，避免悬停把高亮色盖回灰底 */
-  .mm-tool[data-on] { color: #fff; font-weight: 500; }
-  .mm-tool[data-on="pass"] { background: var(--st-success); }
-  .mm-tool[data-on="fail"] { background: var(--st-danger); }
-  .mm-tool[data-on="block"] { background: var(--st-blocked); }
-  .mm-tool[data-on="untested"] { background: var(--n-500); }
-  .mm-tool[data-on]:hover { color: #fff; filter: brightness(.94); }
-  .mm-tool:disabled { color: var(--n-400); cursor: not-allowed; }
-  .mm-tool:disabled:hover { background: transparent; color: var(--n-400); filter: none; }
-  /* 视口过窄时提示文案会与居中的按钮组重叠，直接隐藏 */
-  @media (max-width: 1240px) { .mm-hint { display: none; } }
+  .node-action [data-icon] svg { width: 14px; height: 14px; }
+  .node-action--pass { color: var(--st-success-strong); }
+  .node-action--fail { color: var(--st-danger-strong); }
+  /* 阻塞取深红而非橙，与「失败」靠色深 + ⚠ 文案区分（badges.ts 对齐口径） */
+  .node-action--block { color: var(--st-blocked); }
+  .node-action--untested { color: var(--n-500); }
+  .node-action--danger { color: var(--st-danger); }
+  .node-action[data-on] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  .node-action:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .node-action:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
 
   /* 脑图画布：快照树 + 类型/优先级徽标 + 执行结果徽标 */
   .mm {
@@ -77,6 +78,7 @@
     background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
     padding: 4px 12px; font-size: 13px; color: var(--n-800); box-shadow: var(--shadow-card);
   }
+  li[data-case] > .mm-node { cursor: pointer; }
   .mm ul ul > li > .mm-node::before {
     content: ''; position: absolute; left: -21px; top: 50%;
     width: 15px; border-top: 1.5px solid var(--n-300);
@@ -99,6 +101,7 @@
   .mm-prio--p1 { background: #e6a23c; }
   .mm-prio--p2 { background: #409eff; }
   .mm-prio--p3 { background: #909399; }
+  /* 执行结果徽标同 EXECUTION_RESULT_BADGES：待执行/未执行为默认态，不渲染 */
   .mm-badge { font-size: 11px; line-height: 1; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
   .mm-badge--pass { background: #f0f9eb; color: #67c23a; }
   .mm-badge--fail { background: #fef0f0; color: #f56c6c; }
@@ -107,25 +110,39 @@
   /* 快照树：目录行的展开箭头（对应 el-tree 展开图标） */
   .tree__caret svg { width: 12px; height: 12px; color: var(--n-400); }
   .tree__item--active .tree__caret svg { color: var(--brand-500); }
+
+  /* 执行顺序建议：生成中进度 + 建议列表（对齐 PlanOrderPanel 的展示口径） */
+  .order-state { display: flex; align-items: center; gap: 12px; padding: 16px 0; }
+  .order-state .spin { display: inline-flex; animation: order-spin 1s linear infinite; }
+  .order-state .spin svg { width: 20px; height: 20px; color: var(--brand-500); }
+  @keyframes order-spin { to { transform: rotate(360deg); } }
+  .order-state__detail { margin-top: 4px; }
+  .order-list { display: flex; flex-direction: column; gap: 6px; }
+  .order-row {
+    display: grid; grid-template-columns: 64px 1fr 58px 200px; align-items: center; gap: 10px;
+    padding: 9px 12px; border: 1px solid var(--n-100); border-radius: var(--radius-md); font-size: 13px;
+  }
+  .order-row--head { background: var(--n-50); color: var(--n-500); font-size: var(--font-size-xs); font-weight: 600; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <div class="breadcrumb">
-    <a href="plans.html">测试计划</a>
-    <span data-icon="chevron-right"></span>
-    <span>V1.4.2 回归测试</span>
-  </div>
-
-  <!-- 页头条：标题/状态 + 进度统计 + 操作组（按钮随计划状态显隐，口径同 PlanDetailPage 的 v-if） -->
+  <!-- 页头：面包屑保持纯净，需求/状态/进度/操作与面包屑同行（a8549b20） -->
   <div class="detail-head">
-    <div class="flex-center flex-gap-sm">
-      <h1 class="detail-title">V1.4.2 回归测试</h1>
-      <span class="status status--running" id="plan-status"><span class="dot"></span>执行中</span>
+    <div class="detail-breadcrumb">
+      <a href="plans.html">测试计划</a>
+      <span data-icon="chevron-right"></span>
+      <span>V1.4.2 回归测试</span>
     </div>
     <div class="detail-extra">
+      <div class="detail-req">
+        <span class="detail-req__label">需求</span>
+        <span class="tag tag--info" title="购物车结算金额计算">REQ-2210</span>
+        <span class="tag tag--info" title="支付回调幂等处理">REQ-2235</span>
+      </div>
+      <span class="status status--running" id="plan-status"><span class="dot"></span>执行中</span>
       <div class="detail-progress">
         <div class="progress">
           <div class="progress__track"><div class="progress__fill progress__fill--warning" id="plan-fill" style="width:60%"></div></div>
@@ -141,6 +158,7 @@
       </div>
       <div class="detail-actions">
         <button class="btn btn--default btn--sm" id="act-adjust"><span data-icon="edit"></span>调整用例</button>
+        <button class="btn btn--default btn--sm" id="act-order" title="按 AI 建议调整计划执行顺序"><span data-icon="list"></span>执行顺序建议</button>
         <button class="btn btn--default btn--sm" id="act-sync"><span data-icon="refresh"></span>同步用例</button>
         <button class="btn btn--default btn--sm" id="act-block" hidden><span data-icon="pause"></span>阻塞</button>
         <button class="btn btn--default btn--sm" id="act-resume" hidden><span data-icon="play"></span>恢复</button>
@@ -170,16 +188,9 @@
     </div>
 
     <div class="card rv-mind">
-      <div class="mm-bar">
-        <button class="mm-tool" data-mark="pass"><span data-icon="check"></span>通过</button>
-        <button class="mm-tool" data-mark="fail" data-on="fail"><span data-icon="x"></span>失败</button>
-        <button class="mm-tool" data-mark="block"><span data-icon="ban"></span>阻塞</button>
-        <button class="mm-tool" data-mark="untested"><span data-icon="refresh"></span>待执行</button>
-        <span class="mm-sep"></span>
-        <button class="mm-tool" id="act-remove"><span data-icon="trash"></span>移除用例</button>
-        <span class="text-xs muted mm-hint" id="mind-hint">仅关联用例节点可标记与移除 · 快照只读</span>
-      </div>
+      <!-- 右键仅抑制浏览器原生菜单，不再渲染自定义菜单（fd380891） -->
       <div class="mm" id="mind"></div>
+      <div class="node-popover" id="nodePopover" hidden></div>
     </div>
   </div>
 
@@ -200,8 +211,34 @@
   </div>
 </div>
 
+<!-- 执行顺序建议：进行中展示进度，完成后切为排序面板（交互 2.2 / 2.3） -->
+<div class="dialog-mask" id="order-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:720px" role="dialog" aria-modal="true" aria-labelledby="order-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="order-title">执行顺序建议</span>
+      <button class="dialog__close" id="order-close" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="order-state" id="order-running">
+        <span class="spin" data-icon="loader"></span>
+        <div>
+          <div>AI 正在生成执行顺序建议…</div>
+          <div class="text-xs muted order-state__detail" id="order-progress-detail">正在分析关联用例的依赖与优先级</div>
+        </div>
+        <button class="btn btn--default btn--sm" id="order-bg" style="margin-left:auto">后台运行，关闭</button>
+      </div>
+      <div class="order-list" id="order-result" hidden></div>
+    </div>
+    <div class="dialog__footer" id="order-footer" hidden>
+      <button class="btn btn--default" id="order-cancel">取消</button>
+      <button class="btn btn--primary" id="order-adopt">采用排序</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script src="../assets/ux.js"></script>
 <script>
 (function () {
   function byId(id) { return document.getElementById(id); }
@@ -210,6 +247,7 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch];
     });
   }
+  function toast(msg, type) { if (window.RTUX) window.RTUX.toast(msg, { type: type || '' }); }
 
   // 状态标签与操作按钮显隐同源 planListPresentation：new/in_progress 为活跃态，blocked 仅恢复
   var STATUS = {
@@ -219,25 +257,25 @@
     blocked: { label: '已阻塞', cls: 'status--blocked' },
     closed: { label: '已关闭', cls: 'status--neutral' }
   };
-  // 待执行是默认态不渲染徽标，与 badges.ts 的 EXECUTION_RESULT_BADGES 口径一致
+  // 徽标文案与 badges.ts 一致；浮层按钮文案与 PlanMindMap 的 ✅/❌/❓/🔄 一致
   var MARK = {
-    pass: { label: '通过', cls: 'mm-badge--pass' },
-    fail: { label: '失败', cls: 'mm-badge--fail' },
-    block: { label: '阻塞', cls: 'mm-badge--block' },
-    untested: { label: '待执行', cls: '' }
+    pass: { label: '✅通过', badge: '✓ 通过', cls: 'mm-badge--pass', action: 'node-action--pass' },
+    fail: { label: '❌失败', badge: '✕ 失败', cls: 'mm-badge--fail', action: 'node-action--fail' },
+    block: { label: '❓阻塞', badge: '⚠ 阻塞', cls: 'mm-badge--block', action: 'node-action--block' },
+    untested: { label: '🔄待执行', badge: '', cls: '', action: 'node-action--untested' }
   };
   var TYPE = { precondition: '前置', step: '步骤', expected: '预期' };
-  // 非活跃态实际以校验失败 Toast 拦截，静态稿改用工具条文案提示同一约束
-  var INACTIVE_HINT = {
-    new: '',
-    in_progress: '',
-    completed: '计划已完成，不可再标记执行结果',
-    blocked: '计划已阻塞，不可标记执行结果',
-    closed: '计划已关闭，不可标记执行结果'
+  var PRIO_RANK = { P0: 0, P1: 1, P2: 2, P3: 3 };
+  var PRIO_REASON = {
+    P0: '核心链路，优先验证',
+    P1: '依赖前置结果，紧随其后',
+    P2: '回归范围，无强依赖',
+    P3: '低优先级，最后验证'
   };
 
   var status = 'in_progress';
   var selectedId = 'c-order-2';
+  var popoverAnchor = null;
 
   // 快照文档树：目录可展开/收起，文档点击切换右侧脑图（实际为单文档快照）
   var TREE = [
@@ -368,6 +406,11 @@
     byId('act-block').hidden = !active;
     byId('act-resume').hidden = status !== 'blocked';
     byId('act-complete').hidden = !active;
+    // 关联用例为空时后端 1000018304，入口置灰并说明原因（详设 4.1）
+    var orderBtn = byId('act-order');
+    orderBtn.hidden = !active;
+    orderBtn.disabled = counts.total === 0;
+    orderBtn.title = counts.total === 0 ? '计划关联用例为空，无法推荐执行顺序' : '按 AI 建议调整计划执行顺序';
   }
 
   // ==================== 快照文档树 ====================
@@ -396,7 +439,7 @@
       '" data-case="' + c.id + '">' +
       '<i class="tdot tdot--case"></i><span class="mm-type">用例</span>' + esc(c.title) +
       '<span class="mm-prio mm-prio--' + c.prio.toLowerCase() + '">' + c.prio + '</span>' +
-      (mark.cls ? '<span class="mm-badge ' + mark.cls + '">' + mark.label + '</span>' : '') +
+      (mark.cls ? '<span class="mm-badge ' + mark.cls + '">' + mark.badge + '</span>' : '') +
       '</span>';
     if (c.detail && c.detail.length) {
       html += '<ul>';
@@ -425,32 +468,39 @@
     if (window.RTIcons) window.RTIcons.hydrate(mind);
   }
 
-  function renderToolbar() {
+  // ==================== 用例节点悬浮窗 ====================
+  // 浮层按被点节点的渲染框定位，避免遮挡节点（NodeActionPopover 对齐口径）
+  function hidePopover() { byId('nodePopover').hidden = true; }
+
+  function showPopover() {
+    var target = selectedId ? findCase(selectedId) : null;
+    if (!target || !popoverAnchor) { hidePopover(); return; }
     var active = isActive();
-    var selected = selectedId ? findCase(selectedId) : null;
-    document.querySelectorAll('[data-mark]').forEach(function (btn) {
-      btn.disabled = !active || !selected;
-      // 高亮落在「当前选中节点的结果」对应的那个按钮上，而非整组按钮
-      if (selected && active && btn.getAttribute('data-mark') === selected.result) {
-        btn.setAttribute('data-on', selected.result);
-      } else {
-        btn.removeAttribute('data-on');
-      }
+    var keys = ['pass', 'fail', 'block', 'untested'];
+    var html = '';
+    keys.forEach(function (key) {
+      var item = MARK[key];
+      html += '<button type="button" class="node-action ' + item.action + '" data-mark="' + key + '"' +
+        (target.result === key ? ' data-on' : '') + (active ? '' : ' disabled') + '>' +
+        item.label + '</button>';
     });
-    var remove = byId('act-remove');
-    remove.hidden = !active;
-    remove.disabled = !active || !selected;
-    byId('mind-hint').textContent = !active
-      ? INACTIVE_HINT[status]
-      : selected ? '仅关联用例节点可标记与移除 · 快照只读'
-        : '请先在脑图中选中关联用例节点';
+    if (active) {
+      html += '<button type="button" class="node-action node-action--danger" data-remove>🗑移除用例</button>';
+    }
+    var popover = byId('nodePopover');
+    popover.innerHTML = html;
+    popover.hidden = false;
+    var left = Math.max(8, Math.min(popoverAnchor.x, window.innerWidth - popover.offsetWidth - 8));
+    var top = Math.max(8, Math.min(popoverAnchor.y, window.innerHeight - popover.offsetHeight - 8));
+    popover.style.left = left + 'px';
+    popover.style.top = top + 'px';
+    if (window.RTIcons) window.RTIcons.hydrate(popover);
   }
 
   function renderAll() {
     renderHead();
     renderTree();
     renderMind();
-    renderToolbar();
   }
 
   // ==================== 二次确认（同实际页 ElMessageBox.confirm 文案） ====================
@@ -474,6 +524,60 @@
   byId('confirm-cancel').addEventListener('click', closeConfirm);
   byId('confirm-close').addEventListener('click', closeConfirm);
 
+  // ==================== 执行顺序建议 ====================
+  var orderRows = [];
+  var orderTimer = null;
+
+  function renderOrderRows() {
+    var doc = DOCS[activeDoc];
+    orderRows = doc ? doc.cases.slice().sort(function (a, b) {
+      return (PRIO_RANK[a.prio] - PRIO_RANK[b.prio]) || a.title.localeCompare(b.title);
+    }) : [];
+    var html = '<div class="order-row order-row--head"><span>建议顺序</span><span>用例</span><span>优先级</span><span>建议依据</span></div>';
+    orderRows.forEach(function (c, i) {
+      html += '<div class="order-row"><span>第 ' + (i + 1) + ' 位</span><span>' + esc(c.title) + '</span>' +
+        '<span class="mm-prio mm-prio--' + c.prio.toLowerCase() + '">' + c.prio + '</span>' +
+        '<span class="muted">' + PRIO_REASON[c.prio] + '</span></div>';
+    });
+    byId('order-result').innerHTML = html || '<div class="rc-empty">当前文档未关联用例</div>';
+  }
+  function showOrderResult() {
+    byId('order-running').hidden = true;
+    byId('order-result').hidden = false;
+    byId('order-footer').hidden = false;
+  }
+  function closeOrderDialog() {
+    byId('order-dialog').hidden = true;
+    byId('order-running').hidden = false;
+    byId('order-result').hidden = true;
+    byId('order-footer').hidden = true;
+    if (orderTimer) { clearTimeout(orderTimer); orderTimer = null; }
+  }
+  byId('act-order').addEventListener('click', function () {
+    if (byId('act-order').disabled) return;
+    byId('order-dialog').hidden = false;
+    renderOrderRows();
+    // 生成中不预置结果：与实际页 running 态一致，完成后才切到排序面板
+    byId('order-running').hidden = false;
+    byId('order-result').hidden = true;
+    byId('order-footer').hidden = true;
+    orderTimer = setTimeout(showOrderResult, 900);
+  });
+  byId('order-bg').addEventListener('click', closeOrderDialog);
+  byId('order-close').addEventListener('click', closeOrderDialog);
+  byId('order-cancel').addEventListener('click', closeOrderDialog);
+  byId('order-dialog').addEventListener('click', function (e) {
+    if (e.target === byId('order-dialog')) closeOrderDialog();
+  });
+  byId('order-adopt').addEventListener('click', function () {
+    if (DOCS[activeDoc]) DOCS[activeDoc].cases = orderRows.slice();
+    closeOrderDialog();
+    selectedId = null;
+    hidePopover();
+    renderAll();
+    toast('已按 AI 建议调整执行顺序', 'success');
+  });
+
   // ==================== 事件 ====================
   byId('snapshot-tree').addEventListener('click', function (e) {
     var dir = e.target.closest('[data-dir]');
@@ -486,44 +590,38 @@
     if (!doc) return;
     var docId = doc.getAttribute('data-doc');
     if (docId === activeDoc) return;
-    // 切换文档即重载脑图，选中态随之清空（同实际页 initMinder）
+    // 切换文档即重载脑图，浮层与选中态随之清空（同实际页 initMinder / reload）
     activeDoc = docId;
     selectedId = null;
+    popoverAnchor = null;
+    hidePopover();
     renderTree();
     renderMind();
-    renderToolbar();
   });
 
   byId('mind').addEventListener('click', function (e) {
     var node = e.target.closest('[data-case]');
-    if (!node) return;
+    if (!node) { hidePopover(); return; }
+    var box = node.querySelector('.mm-node').getBoundingClientRect();
     selectedId = node.getAttribute('data-case');
+    popoverAnchor = { x: Math.round(box.left), y: Math.round(box.bottom + 4) };
     renderMind();
-    renderToolbar();
+    showPopover();
   });
+  byId('mind').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  byId('mind').addEventListener('scroll', hidePopover);
 
-  document.querySelectorAll('[data-mark]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (btn.disabled) return;
-      var target = findCase(selectedId);
-      if (!target) return;
-      // 未开始计划首次标记后自动转入执行中（交互设计 1.2）
-      if (status === 'new') status = 'in_progress';
-      target.result = btn.getAttribute('data-mark');
-      renderAll();
-    });
-  });
-
-  byId('act-remove').addEventListener('click', function () {
-    if (byId('act-remove').disabled) return;
+  function removeSelectedCase() {
     var target = findCase(selectedId);
     if (!target) return;
+    var id = target.id;
     askConfirm('移除用例',
       '确定从该计划中移除用例「' + target.title + '」吗？移除后该用例及其执行结果将不再展示，历史执行记录保留作审计。',
       function () {
         Object.keys(DOCS).forEach(function (key) {
           var cases = DOCS[key].cases;
-          var idx = cases.indexOf(target);
+          var idx = -1;
+          for (var i = 0; i < cases.length; i++) { if (cases[i].id === id) { idx = i; break; } }
           if (idx < 0) return;
           cases.splice(idx, 1);
           // 整文档用例清空时后端删除该文档快照，文档树条目同步消失并回退到首个文档
@@ -534,32 +632,63 @@
               dir.docs = dir.docs.filter(function (d) { return d !== key; });
             });
             TREE = TREE.filter(function (dir) { return dir.docs.length; });
-            if (activeDoc === key) { activeDoc = firstDoc(); }
+            if (activeDoc === key) {
+              activeDoc = firstDoc();
+              renderTree();
+            }
           }
         });
         selectedId = null;
         renderAll();
       }, true);
+  }
+
+  byId('nodePopover').addEventListener('click', function (e) {
+    if (e.target.closest('[data-remove]')) {
+      hidePopover();
+      removeSelectedCase();
+      return;
+    }
+    var btn = e.target.closest('[data-mark]');
+    if (!btn || btn.disabled) return;
+    var target = findCase(selectedId);
+    if (!target || !isActive()) return;
+    hidePopover();
+    // 未开始计划首次标记后自动转入执行中（交互设计 1.2）
+    if (status === 'new') status = 'in_progress';
+    target.result = btn.getAttribute('data-mark');
+    renderAll();
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!byId('nodePopover').hidden &&
+        !e.target.closest('#nodePopover') && !e.target.closest('[data-case]')) {
+      hidePopover();
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    hidePopover();
+    if (!byId('order-dialog').hidden) closeOrderDialog();
+    if (!byId('confirm-dialog').hidden) closeConfirm();
   });
 
   byId('act-block').addEventListener('click', function () {
     askConfirm('阻塞计划',
       '确定阻塞该计划吗？阻塞期间不可标记执行结果、调整用例、同步与完成。',
-      function () { status = 'blocked'; renderAll(); });
+      function () { hidePopover(); status = 'blocked'; renderAll(); });
   });
-
   byId('act-resume').addEventListener('click', function () {
     askConfirm('恢复计划', '确定恢复该计划吗？恢复后回到执行中。',
       function () { status = 'in_progress'; renderAll(); });
   });
-
   byId('act-complete').addEventListener('click', function () {
     askConfirm('完成执行', '确定完成该计划吗？完成后将不可再标记执行结果。',
-      function () { status = 'completed'; renderAll(); });
+      function () { hidePopover(); status = 'completed'; renderAll(); });
   });
-
   byId('act-sync').addEventListener('click', function () {
     askConfirm('同步最新用例', '同步将更新快照节点属性，已有执行记录不受影响。确定同步？', function () {
+      hidePopover();
       renderAll();
     });
   });

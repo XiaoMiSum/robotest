@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
+  [hidden] { display: none !important; }
   .exec-time { font-size: var(--font-size-xs); color: var(--n-400); margin-top: 2px; }
   .op-group { display: inline-flex; align-items: center; gap: 8px; }
   .more-caret { color: var(--n-500); font-size: var(--font-size-xs); cursor: pointer; }
@@ -63,6 +64,20 @@
   .exec-drawer__body .table td { padding: 9px 10px; }
   .exec-drawer__empty { padding: 32px 16px; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
   .exec-drawer__pager { flex-shrink: 0; border-top: 1px solid var(--n-100); border-bottom: none; }
+
+  /* 列显隐：齿轮入口 + 220px 显示列浮层，pinned 列始终展示（对齐 TableColumnSetting） */
+  .colset { position: relative; display: inline-flex; }
+  .colset__pop { position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 120; width: 220px; padding: 12px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
+  .colset__title { margin-bottom: 8px; font-size: var(--font-size-sm); color: var(--n-600); }
+  .colset__list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+  .colset__item { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .colset__item.is-pinned { color: var(--n-500); cursor: default; }
+  .colset__item input { width: 15px; height: 15px; margin: 0; accent-color: var(--brand-500); }
+  .colset__actions { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--n-200); }
+
+  /* 加载失败口径（UI-PAGE-11）：顶部错误条 + 重新加载，已有数据保留 */
+  .list-load-error { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 14px; border: 1px solid var(--st-danger-border); border-radius: var(--radius-md); background: var(--st-danger-light); color: var(--st-danger-strong); font-size: var(--font-size-sm); }
+  .list-load-error__spacer { flex: 1; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -91,20 +106,38 @@
               <option value="import_swagger">接口同步</option>
               <option value="gitlab_sync">GitLab 同步</option>
             </select>
+            <div class="colset" id="sch-cols">
+              <button class="btn btn--default" type="button" id="sch-cols-btn" aria-label="列设置" aria-expanded="false"><span data-icon="settings"></span>列设置</button>
+              <div class="colset__pop" id="sch-cols-pop" hidden>
+                <div class="colset__title">显示列</div>
+                <div class="colset__list"></div>
+                <div class="colset__actions">
+                  <button class="btn btn--link btn--sm" type="button" data-cols-all>全选</button>
+                  <button class="btn btn--link btn--sm" type="button" data-cols-reset>恢复默认</button>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div class="list-load-error" id="sch-load-error" role="alert" hidden>
+          <span data-icon="alert-circle"></span>
+          <span>定时任务列表加载失败</span>
+          <span class="list-load-error__spacer"></span>
+          <button class="btn btn--link btn--sm" type="button" data-list-retry>重新加载</button>
         </div>
 
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
-                <th style="min-width:180px">任务名称</th>
-                <th style="width:100px">类型</th>
-                <th style="min-width:160px">执行范围</th>
-                <th style="width:130px">调度</th>
-                <th style="width:80px">状态</th>
-                <th style="width:130px">上次执行</th>
-                <th style="width:220px">操作</th>
+                <th style="min-width:180px" data-col="name">任务名称</th>
+                <th style="width:120px" data-col="type" data-label="任务类型">任务类型</th>
+                <th style="min-width:150px" data-col="target" data-label="执行目标">执行目标</th>
+                <th style="width:140px" data-col="cron" data-label="调度表达式">调度表达式</th>
+                <th style="width:90px" data-col="enabled" data-label="启用状态">启用状态</th>
+                <th style="min-width:160px" data-col="lastExecution">上次执行</th>
+                <th style="width:220px" data-col="actions">操作</th>
               </tr>
             </thead>
             <tbody id="schedule-tbody">
@@ -497,6 +530,85 @@
   });
 
   refreshList();
+</script>
+<script>
+  // 列显隐：按 useTableColumns 口径固定操作列，其余可勾选，静态稿仅本页内生效
+  (function () {
+    var root = document.getElementById('sch-cols');
+    var btn = document.getElementById('sch-cols-btn');
+    var pop = document.getElementById('sch-cols-pop');
+    var table = document.querySelector('.table-wrap .table');
+    if (!root || !btn || !pop || !table) return;
+    var ths = Array.prototype.slice.call(table.querySelectorAll('thead th'));
+    var emptyRow = table.querySelector('tbody tr[id$="-empty"], tbody tr.empty-row');
+    var keys = ths.map(function (th) { return th.getAttribute('data-col'); });
+    var defaults = keys.slice();
+    var visible = defaults.slice();
+    var pinned = { actions: true };
+    var list = pop.querySelector('.colset__list');
+    var allBtn = pop.querySelector('[data-cols-all]');
+
+    ths.forEach(function (th, i) {
+      var key = keys[i];
+      var label = th.getAttribute('data-label') || th.textContent.trim() || key;
+      var row = document.createElement('label');
+      row.className = 'colset__item' + (pinned[key] ? ' is-pinned' : '');
+      row.innerHTML = '<input type="checkbox" data-key="' + key + '"' + (pinned[key] ? ' disabled' : '') + ' checked><span>' + label + '</span>';
+      list.appendChild(row);
+    });
+
+    function apply() {
+      var rows = table.querySelectorAll('tbody tr');
+      ths.forEach(function (th, i) {
+        var on = visible.indexOf(keys[i]) >= 0;
+        th.hidden = !on;
+        Array.prototype.forEach.call(rows, function (row) { if (row.cells[i]) row.cells[i].hidden = !on; });
+      });
+      if (emptyRow && emptyRow.cells[0]) emptyRow.cells[0].colSpan = visible.length;
+      list.querySelectorAll('input[data-key]').forEach(function (box) {
+        box.checked = visible.indexOf(box.getAttribute('data-key')) >= 0;
+      });
+      // 全选只在仍有可选列时可用（对齐 TableColumnSetting 的 allSelected 禁用态）
+      allBtn.disabled = defaults.every(function (k) { return pinned[k] || visible.indexOf(k) >= 0; });
+    }
+
+    list.addEventListener('change', function (e) {
+      var box = e.target.closest('input[data-key]');
+      if (!box || box.disabled) return;
+      var key = box.getAttribute('data-key');
+      visible = box.checked
+        ? defaults.filter(function (k) { return k === key || visible.indexOf(k) >= 0; })
+        : visible.filter(function (k) { return k !== key; });
+      apply();
+    });
+    pop.querySelector('[data-cols-all]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
+    pop.querySelector('[data-cols-reset]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      pop.hidden = !pop.hidden;
+      btn.setAttribute('aria-expanded', String(!pop.hidden));
+    });
+    document.addEventListener('click', function (e) {
+      if (!root.contains(e.target)) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+    });
+    apply();
+    // 行增删后重新套用可见列，避免新建行露出已隐藏列
+    new MutationObserver(apply).observe(table.tBodies[0], { childList: true });
+  })();
+
+  // 加载失败：静态稿用工具栏刷新图标触发 UI-PAGE-11 的顶部错误条与重试
+  (function () {
+    var bar = document.getElementById('sch-load-error');
+    // 演示失败态：URL 追加 #demo-load-error 触发，避免在工具栏暴露真实页面没有的入口
+    if (location.hash === '#demo-load-error') bar.hidden = false;
+    bar.querySelector('[data-list-retry]').addEventListener('click', function () {
+      bar.hidden = true;
+      window.RTUX.toast('已重新加载最新数据', { type: 'success' });
+    });
+  })();
 </script>
 </body>
 </html>

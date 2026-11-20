@@ -39,8 +39,37 @@
   .more-caret { display: inline-flex; vertical-align: -2px; }
   .more-caret svg { width: 12px; height: 12px; }
 
-  /* 确认置灰：confirmed 行仍展示入口但不可点（仅 draft / changed 可确认） */
-  .op-link--off { color: var(--n-300); cursor: not-allowed; }
+  /* 列显隐：对应 TableColumnSetting 的 220px popover，pinned 列（操作）只展示不可取消 */
+  .col-setting { position: relative; display: inline-flex; }
+  .col-popover {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; width: 220px;
+    padding: 12px; background: var(--n-0);
+    border: 1px solid var(--n-200); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  }
+  .col-popover__title { margin-bottom: var(--space-sm); font-size: var(--font-size-sm); color: var(--n-600); }
+  .col-popover__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
+  .col-opt { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .col-opt--pinned { color: var(--n-500); cursor: not-allowed; }
+  .col-popover__actions {
+    display: flex; justify-content: space-between; margin-top: var(--space-sm);
+    padding-top: var(--space-sm); border-top: 1px solid var(--n-200);
+  }
+
+  /* 刷新遮罩只盖表体：表头由 JS 实测高度让开，工具栏与分页条保持可见可交互（加载反馈口径文档 §4） */
+  .table-wrap { position: relative; }
+  /* b77ae075：保留横向滚动条，列溢出时可直接被发现（只隐藏纵向自绘条） */
+  #rp-table { min-width: 1080px; }
+  .table-mask {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: rgba(255, 255, 255, 0.62); color: var(--n-500); font-size: var(--font-size-sm);
+  }
+  .table-mask__spinner {
+    width: 16px; height: 16px; border: 2px solid var(--n-200);
+    border-top-color: var(--brand-500); border-radius: 50%;
+    animation: table-mask-spin 0.7s linear infinite;
+  }
+  @keyframes table-mask-spin { to { transform: rotate(360deg); } }
 
   /* 入口角标：对应筛选栏 el-badge 已设条件数（交互 06 §2.1.2），共享样式无该组件 */
   .filter-badge {
@@ -150,11 +179,34 @@
             <button class="btn btn--primary" type="button" id="btn-search"><span data-icon="search"></span>查询</button>
             <button class="btn btn--default" type="button" id="btn-reset">重置</button>
             <span class="filter-badge" id="filter-badge" hidden>0</span>
+            <div class="col-setting" id="req-col-setting">
+              <button class="btn btn--text" type="button" id="col-trigger" aria-expanded="false" aria-controls="col-popover">
+                <span data-icon="settings"></span>列设置
+              </button>
+              <div class="col-popover" id="col-popover" hidden>
+                <div class="col-popover__title">显示列</div>
+                <div class="col-popover__list">
+                  <label class="col-opt"><span class="checkbox checkbox--on" data-col-box="code" role="checkbox" aria-checked="true"></span>编号</label>
+                  <label class="col-opt"><span class="checkbox checkbox--on" data-col-box="title" role="checkbox" aria-checked="true"></span>标题</label>
+                  <label class="col-opt"><span class="checkbox checkbox--on" data-col-box="module" role="checkbox" aria-checked="true"></span>所属模块</label>
+                  <label class="col-opt"><span class="checkbox checkbox--on" data-col-box="version" role="checkbox" aria-checked="true"></span>版本</label>
+                  <label class="col-opt"><span class="checkbox checkbox--on" data-col-box="status" role="checkbox" aria-checked="true"></span>状态</label>
+                  <label class="col-opt"><span class="checkbox checkbox--on" data-col-box="owner" role="checkbox" aria-checked="true"></span>负责人</label>
+                  <label class="col-opt"><span class="checkbox checkbox--on" data-col-box="updatedAt" role="checkbox" aria-checked="true"></span>更新时间</label>
+                  <label class="col-opt col-opt--pinned"><span class="checkbox checkbox--on" role="checkbox" aria-checked="true"></span>操作（固定）</label>
+                </div>
+                <div class="col-popover__actions">
+                  <button class="btn btn--link btn--sm" type="button" id="col-all">全选</button>
+                  <button class="btn btn--link btn--sm" type="button" id="col-reset">恢复默认</button>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn--text btn--sm" type="button" id="btn-refresh" title="刷新（演示表体遮罩）"><span data-icon="refresh"></span></button>
           </div>
           <div class="toolbar__count" id="rp-count">共 8 条</div>
         </div>
 
-        <div class="table-wrap">
+        <div class="table-wrap" id="rp-table-wrap">
           <table class="table" id="rp-table">
             <colgroup>
               <col style="width:36px">
@@ -190,7 +242,7 @@
                 <td class="status-cell"><span class="status status--success"><span class="dot"></span>已确认</span></td>
                 <td>张明</td>
                 <td class="num">2026-11-10 14:32:05</td>
-                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link op-link--off" title="仅草稿或已变更状态可确认">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="draft" data-module="营销模块" data-owner="王芳" data-version="V2.3" data-code="REQ-0102" data-title="优惠券与积分叠加规则调整">
                 <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
@@ -223,7 +275,7 @@
                 <td class="status-cell"><span class="status status--success"><span class="dot"></span>已确认</span></td>
                 <td>周敏</td>
                 <td class="num">2026-11-09 10:12:33</td>
-                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link op-link--off" title="仅草稿或已变更状态可确认">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
+                <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="draft" data-module="营销模块" data-owner="张明" data-version="" data-code="REQ-0105" data-title="预售尾款提醒推送">
                 <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
@@ -294,6 +346,9 @@
               </tr>
             </tbody>
           </table>
+          <div class="table-mask" id="table-mask" hidden>
+            <span class="table-mask__spinner"></span><span>正在刷新…</span>
+          </div>
         </div>
 
         <div class="pagination">
@@ -436,6 +491,7 @@
 
   function search() {
     if (keywordTimer) { clearTimeout(keywordTimer); keywordTimer = null; }
+    refreshTable();
     applied.status = byId('f-status').value;
     applied.module = byId('f-module').value;
     applied.owner = byId('f-owner').value;
@@ -472,6 +528,7 @@
   });
   byId('page-size').addEventListener('change', function () {
     pageSize = parseInt(byId('page-size').value, 10);
+    refreshTable();
     render();
   });
 
@@ -511,13 +568,81 @@
     updateAi();
   });
 
+  // ==================== 列显隐（对齐 TableColumnSetting / useTableColumns） ====================
+  /* 列序号按 thead 顺序：选择列服务 AI 发起不入配置，操作列 pinned 只展示不可取消 */
+  var COLUMNS = [
+    { key: 'code', label: '编号', index: 2 },
+    { key: 'title', label: '标题', index: 3 },
+    { key: 'module', label: '所属模块', index: 4 },
+    { key: 'version', label: '版本', index: 5 },
+    { key: 'status', label: '状态', index: 6 },
+    { key: 'owner', label: '负责人', index: 7 },
+    { key: 'updatedAt', label: '更新时间', index: 8 }
+  ];
+  var hiddenKeys = {};
+
+  function applyColumns() {
+    var rules = COLUMNS.filter(function (c) { return hiddenKeys[c.key]; })
+      .map(function (c) {
+        return '#rp-table th:nth-child(' + c.index + '), #rp-table td:nth-child(' + c.index + ') { display: none; }';
+      }).join('\n');
+    var style = byId('col-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'col-style';
+      document.head.appendChild(style);
+    }
+    style.textContent = rules;
+    COLUMNS.forEach(function (c) {
+      var box = document.querySelector('[data-col-box="' + c.key + '"]');
+      box.classList.toggle('checkbox--on', !hiddenKeys[c.key]);
+      box.setAttribute('aria-checked', String(!hiddenKeys[c.key]));
+    });
+    byId('col-all').disabled = COLUMNS.every(function (c) { return !hiddenKeys[c.key]; });
+  }
+
+  byId('col-trigger').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var pop = byId('col-popover');
+    pop.hidden = !pop.hidden;
+    byId('col-trigger').setAttribute('aria-expanded', String(!pop.hidden));
+  });
+  byId('col-popover').addEventListener('click', function (e) { e.stopPropagation(); });
+  document.querySelectorAll('[data-col-box]').forEach(function (box) {
+    box.addEventListener('click', function () {
+      var key = box.getAttribute('data-col-box');
+      hiddenKeys[key] = !hiddenKeys[key];
+      applyColumns();
+    });
+  });
+  byId('col-all').addEventListener('click', function () { hiddenKeys = {}; applyColumns(); });
+  byId('col-reset').addEventListener('click', function () { hiddenKeys = {}; applyColumns(); });
+  document.addEventListener('click', function () {
+    byId('col-popover').hidden = true;
+    byId('col-trigger').setAttribute('aria-expanded', 'false');
+  });
+
+  // ==================== 刷新遮罩：只盖表体数据区，工具栏与分页保持可见可交互 ====================
+  var refreshTimer = null;
+  function refreshTable() {
+    var head = document.querySelector('#rp-table thead');
+    var mask = byId('table-mask');
+    mask.style.top = (head ? head.offsetHeight : 36) + 'px';
+    mask.hidden = false;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(function () { mask.hidden = true; }, 800);
+  }
+  byId('btn-refresh').addEventListener('click', refreshTable);
+  document.querySelector('.pagination').addEventListener('click', function (e) {
+    if (e.target.closest('.page-btn')) refreshTable();
+  });
+
   // ==================== 行渲染（状态流转后重建徽标与操作列） ====================
   function opsHtml(status) {
     var html = '<a class="op-link" href="requirement-detail.html">详情</a>';
-    if (status !== 'archived') {
-      html += status === 'confirmed'
-        ? '<span class="op-link op-link--off" title="仅草稿或已变更状态可确认">确认</span>'
-        : '<span class="op-link" data-op="confirm">确认</span>';
+    /* d6656412：仅草稿 / 已变更展示「确认」，已确认条目不再显示入口 */
+    if (status === 'draft' || status === 'changed') {
+      html += '<span class="op-link" data-op="confirm">确认</span>';
     }
     html += '<span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span>' +
       '<span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span>' +
@@ -751,6 +876,7 @@
     toast('AI 生成用例：按已选需求打开生成配置', 'success');
   });
 
+  applyColumns();
   render();
   updateAi();
 })();

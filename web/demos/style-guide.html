@@ -200,7 +200,7 @@
   <!-- ============ 4 阴影与过渡 ============ -->
   <section class="sg-section">
     <h2 class="sg-h2"><span class="idx">04</span>阴影与过渡</h2>
-    <p class="sg-desc">阴影收敛、低对比（<span class="mono">--shadow-*</span>），层级优先靠描边与留白而非投影；动效只用两档时长（<span class="mono">--transition-*</span>）。</p>
+    <p class="sg-desc">阴影收敛、低对比（<span class="mono">--shadow-*</span>），层级优先靠描边与留白而非投影；动效只用两档时长（<span class="mono">--transition-*</span>）。用户开启系统「减少动效」后，全局兜底把动画 / 过渡时长压到 <span class="mono">0.01ms</span> 并关闭平滑滚动（UI-DS-08），页面内更精细的局部规则优先。</p>
     <div class="demo-pad">
       <div class="shadow-demo mb-lg">
         <div class="shadow-item" style="box-shadow:var(--shadow-sm)">--shadow-sm</div>
@@ -213,6 +213,7 @@
       <div class="flex-wrap flex-gap-lg">
         <span class="text-sm mono" style="color:var(--n-500)">--transition-fast: 0.15s ease（悬停 / 焦点）</span>
         <span class="text-sm mono" style="color:var(--n-500)">--transition-base: 0.2s ease（浮影 / 展开）</span>
+        <span class="text-sm mono" style="color:var(--n-500)">prefers-reduced-motion: reduce → 0.01ms / scroll-behavior: auto</span>
       </div>
     </div>
   </section>
@@ -343,7 +344,7 @@
   <!-- ============ 9 表格与分页 ============ -->
   <section class="sg-section">
     <h2 class="sg-h2"><span class="idx">09</span>表格与分页</h2>
-    <p class="sg-desc">浅灰表头 + 大写小字号；行悬停极浅灰；行高宽松（13px 纵向内距）保证呼吸感。</p>
+    <p class="sg-desc">浅灰表头 + 大写小字号；行悬停极浅灰；行高宽松（13px 纵向内距）保证呼吸感。表格只隐藏纵向自绘滚动条，<b>保留横向滚动条</b>让列溢出可直接被发现（UI-SC-05）。</p>
     <div class="card">
       <div class="table-wrap">
         <table class="table">
@@ -509,8 +510,9 @@
 
   <!-- ============ 12 状态分支 ============ -->
   <section class="sg-section">
-    <h2 class="sg-h2"><span class="idx">12</span>状态分支（空 / 加载 / 错误 / 权限不足）</h2>
-    <p class="sg-desc">全部页面按此四类状态区块套用：统一图标圆底、标题、说明与主行动按钮。</p>
+    <!-- 权限不足态随五大业务模块 RBAC 校验一并移除，不再是通用状态分支 -->
+    <h2 class="sg-h2"><span class="idx">12</span>状态分支（空 / 加载 / 错误）</h2>
+    <p class="sg-desc">列表与详情页面按此三类状态区块套用：统一图标圆底、标题、说明与主行动按钮。</p>
     <div class="state-grid">
       <div class="card"><div class="state-block">
         <div class="state-block__icon"><span data-icon="folder"></span></div>
@@ -533,12 +535,6 @@
         <div class="state-block__title">加载失败</div>
         <div class="state-block__desc">网络异常或服务暂时不可用（错误码 503），请稍后重试</div>
         <div class="state-block__action"><button class="btn btn--default"><span data-icon="refresh"></span>重新加载</button></div>
-      </div></div>
-      <div class="card"><div class="state-block">
-        <div class="state-block__icon state-block__icon--warning"><span data-icon="lock"></span></div>
-        <div class="state-block__title">权限不足</div>
-        <div class="state-block__desc">你当前的角色（只读成员）无权访问该模块，请联系空间管理员</div>
-        <div class="state-block__action"><a class="btn btn--default" href="workspace/members.html">查看成员与角色</a></div>
       </div></div>
     </div>
   </section>

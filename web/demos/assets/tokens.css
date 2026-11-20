@@ -80,6 +80,8 @@
   --node-precondition: #409eff; /* 前置 */
   --node-step: #67c23a; /* 步骤 */
   --node-expected: #e6a23c; /* 预期 */
+  /* AI 生成/优化标识：青色自定义档，与类型/优先级色区隔（minder/badges.ts） */
+  --ai-badge: #00a6a6;
 
   /* ==================== 布局尺寸 ==================== */
   --header-height: 52px;

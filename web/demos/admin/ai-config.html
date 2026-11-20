@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 配置 · 系统管理 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
+<style>
+  /* 页级样式对齐 AiSettingsPage 的「常驻页头 + 左分组导航 + 右分组内容」三段结构 */
+  [hidden] { display: none !important; }
+  /* 演示稿 token 无 tag--primary / 按钮选中态，按 EP primary 语义就地补齐 */
+  .tag--primary { background: var(--brand-50); color: var(--brand-600); border-color: var(--brand-100); }
+  .btn.is-active { background: var(--brand-50); border-color: var(--brand-300); color: var(--brand-600); }
+  /* 仅本页用到的紧凑按钮分组（时间范围/维度切换） */
+  .btn-group { display: inline-flex; gap: 6px; }
+
+  .ai-shell { display: flex; flex-direction: column; gap: var(--space-lg); }
+  .ai-shell__head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg);
+    flex-wrap: wrap;
+  }
+  .ai-shell__title-block { display: flex; align-items: baseline; gap: var(--space-md); }
+  .ai-shell__title { margin: 0; font-size: var(--font-size-xl); font-weight: 650; color: var(--n-900); }
+  .ai-shell__hint { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-shell__globals { display: flex; align-items: center; gap: var(--space-sm); }
+  .ai-shell__global-label { font-size: var(--font-size-sm); color: var(--n-600); }
+  .ai-shell__default-model { min-width: 220px; }
+
+  /* 重建引导条：全宽横幅，切换分组不消失（AiSettingsPage §2.4） */
+  .ai-shell__reindex {
+    display: flex; align-items: center; gap: var(--space-md);
+    padding: 10px 14px; border: 1px solid var(--st-warning-border);
+    border-radius: var(--radius-md); background: var(--st-warning-light);
+    font-size: var(--font-size-sm); color: var(--n-800);
+  }
+  .ai-shell__reindex--running { border-color: var(--brand-200); background: var(--brand-50); }
+  .ai-shell__reindex-text { flex: none; }
+  .ai-shell__reindex-progress { flex: 1; min-width: 160px; }
+  .ai-shell__reindex-phase { font-size: var(--font-size-xs); color: var(--n-500); }
+
+  /* 分组导航：当前项主色文字 + 指示条（视觉 6.2） */
+  .ai-shell__body { display: flex; align-items: stretch; gap: var(--space-lg); }
+  .ai-shell__nav {
+    width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;
+    padding: 6px; background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg); align-self: flex-start;
+  }
+  .ai-shell__nav-item {
+    display: flex; align-items: center; gap: var(--space-sm);
+    height: 34px; padding: 0 10px; border-radius: var(--radius-md);
+    font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .ai-shell__nav-item:hover { background: var(--n-50); color: var(--n-900); }
+  .ai-shell__nav-item.is-active {
+    background: var(--brand-50); color: var(--brand-600);
+    border-left-color: var(--brand-500); font-weight: 500;
+  }
+  .ai-shell__main { flex: 1; min-width: 0; }
+  .ai-group { display: flex; flex-direction: column; gap: var(--space-md); }
+
+  /* 表格内文案与语义色 */
+  .muted { color: var(--n-500); }
+  .cap-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .test-state { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); }
+  .test-state--unknown { color: var(--n-500); }
+  .test-state--ok { color: var(--st-success-strong); }
+  .test-state--fail { color: var(--st-danger-strong); }
+  .cell-actions { display: inline-flex; gap: 10px; white-space: nowrap; }
+  .op-link { color: var(--brand-500); cursor: pointer; font-size: var(--font-size-sm); background: none; border: none; padding: 0; font-family: inherit; }
+  .op-link:hover { color: var(--brand-600); }
+  .op-link--danger { color: var(--st-danger); }
+  .op-link--danger:hover { color: var(--st-danger-strong); }
+  .op-link:disabled { color: var(--n-400); cursor: not-allowed; }
+  .table-head-actions { display: flex; justify-content: flex-end; }
+
+  /* 开关 */
+  .switch {
+    position: relative; width: 34px; height: 18px; border-radius: 999px;
+    background: var(--n-300); cursor: pointer; transition: background var(--transition-fast);
+    display: inline-block; flex-shrink: 0;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--n-0); transition: transform var(--transition-fast);
+  }
+  .switch.is-on { background: var(--brand-500); }
+  .switch.is-on::after { transform: translateX(16px); }
+  .switch.is-disabled { opacity: .55; cursor: not-allowed; }
+
+  /* 向量配置表单 */
+  .embed-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-md) var(--space-xl); }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field__label { font-size: var(--font-size-sm); color: var(--n-700); }
+  .field__hint { font-size: var(--font-size-xs); color: var(--n-500); }
+  .embed-actions {
+    grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;
+    padding-top: var(--space-md); border-top: 1px solid var(--n-100);
+  }
+  .numin { display: inline-flex; align-items: center; }
+  .numin .input { width: 120px; text-align: center; }
+
+  /* 用量分析 */
+  .usage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
+  .usage-summary { display: flex; gap: var(--space-2xl); padding: var(--space-md) 0; }
+  .usage-summary__item { display: flex; flex-direction: column; gap: 2px; }
+  .usage-summary__label { font-size: var(--font-size-xs); color: var(--n-500); }
+  .usage-summary__value { font-size: var(--font-size-xl); font-weight: 700; color: var(--n-900); font-variant-numeric: tabular-nums; }
+  .usage-chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 12px 0 26px; border-bottom: 1px solid var(--n-200); position: relative; }
+  .usage-chart__col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .usage-chart__bar { width: 70%; min-width: 12px; border-radius: 3px 3px 0 0; background: var(--brand-500); }
+  .usage-chart__bar--embedding { background: var(--ai-badge, #00a6a6); }
+  .usage-chart__label { position: absolute; bottom: -22px; font-size: var(--font-size-2xs); color: var(--n-500); white-space: nowrap; }
+  .usage-drill { margin-top: var(--space-lg); border-top: 1px solid var(--n-200); padding-top: var(--space-md); }
+  .usage-drill__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); }
+  .usage-drill__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+</style>
+</head>
+<body data-shell="admin" data-active="ai-config" data-mode="admin">
+
+<main class="content content--admin">
+  <div class="ai-shell">
+    <!-- 页头跨分组常驻：AI 总开关 + 默认模型 -->
+    <header class="ai-shell__head">
+      <div class="ai-shell__title-block">
+        <h1 class="ai-shell__title">AI 配置</h1>
+        <span class="ai-shell__hint">关闭后前端隐藏全部 AI 入口，进行中任务被取消；开启需已启用至少一个对话模型</span>
+      </div>
+      <div class="ai-shell__globals">
+        <span class="ai-shell__global-label">AI 总开关</span>
+        <span class="switch is-on" id="aiMaster" role="switch" aria-checked="true" tabindex="0" title="AI 总开关"></span>
+        <span class="ai-shell__global-label">默认模型</span>
+        <span class="select ai-shell__default-model" id="defaultModel">DeepSeek-V3（deepseek-chat）</span>
+      </div>
+    </header>
+
+    <!-- 重建引导条：维度变更后的全量重建入口 -->
+    <div class="ai-shell__reindex" id="reindexBar">
+      <span class="ai-shell__reindex-text" id="reindexText">向量维度已变更，需全量重建</span>
+      <div class="progress ai-shell__reindex-progress" id="reindexProgress" hidden><div class="progress__track"><div class="progress__fill progress__fill--brand" style="width:42%"></div></div></div>
+      <span class="ai-shell__reindex-phase" id="reindexPhase" hidden>向量化文档 42%</span>
+      <button class="btn btn--primary btn--sm" type="button" id="reindexBtn">发起重建</button>
+    </div>
+
+    <div class="ai-shell__body">
+      <!-- 左侧分组导航 -->
+      <nav class="ai-shell__nav" aria-label="AI 配置分组">
+        <div class="ai-shell__nav-item is-active" data-ai-group="models">模型配置</div>
+        <div class="ai-shell__nav-item" data-ai-group="embedding">向量 API</div>
+        <div class="ai-shell__nav-item" data-ai-group="prompts">场景提示词</div>
+        <div class="ai-shell__nav-item" data-ai-group="usage">用量分析</div>
+      </nav>
+
+      <div class="ai-shell__main">
+        <!-- ========== 分组 1 · 模型配置 ========== -->
+        <section class="ai-group" data-ai-panel="models">
+          <div class="card">
+            <div class="card__header">
+              <div class="table-head-actions"><button class="btn btn--link btn--sm" type="button" id="addModelBtn">添加模型</button></div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="min-width:120px">名称</th>
+                    <th style="width:100px">供应商</th>
+                    <th style="min-width:160px">BaseURL</th>
+                    <th style="min-width:130px">模型标识</th>
+                    <th style="min-width:110px">能力</th>
+                    <th style="width:80px">默认标记</th>
+                    <th style="width:76px">启用</th>
+                    <th style="min-width:140px">连通性</th>
+                    <th style="width:176px"></th>
+                  </tr>
+                </thead>
+                <tbody id="modelRows">
+                  <tr>
+                    <td>DeepSeek-V3</td><td>DeepSeek</td>
+                    <td class="muted" style="font-family:var(--font-mono)">https://api.deepseek.com</td>
+                    <td class="muted">deepseek-chat</td>
+                    <td><span class="cap-tags"><span class="tag tag--primary">文本</span></span></td>
+                    <td><span class="tag tag--primary">默认</span></td>
+                    <td><span class="switch is-on is-disabled" role="switch" aria-checked="true" title="默认模型不可关闭"></span></td>
+                    <td><span class="test-state test-state--ok" title="连接正常">✔ 236ms</span></td>
+                    <td>
+                      <span class="cell-actions">
+                        <button class="op-link" type="button" data-model-edit>编辑</button>
+                        <button class="op-link" type="button" data-model-test>测试</button>
+                        <button class="op-link op-link--danger" type="button" disabled>停用</button>
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>通义千问 Plus</td><td>阿里云</td>
+                    <td class="muted" style="font-family:var(--font-mono)">https://dashscope.aliyuncs.com/compatible-mode/v1</td>
+                    <td class="muted">qwen-plus</td>
+                    <td><span class="cap-tags"><span class="tag tag--primary">文本</span><span class="tag tag--success">视觉</span></span></td>
+                    <td class="muted">—</td>
+                    <td><span class="switch is-on" role="switch" aria-checked="true" data-model-toggle></span></td>
+                    <td><span class="test-state test-state--unknown">未知</span></td>
+                    <td>
+                      <span class="cell-actions">
+                        <button class="op-link" type="button" data-model-edit>编辑</button>
+                        <button class="op-link" type="button" data-model-test>测试</button>
+                        <button class="op-link op-link--danger" type="button" data-model-delete>停用</button>
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>GPT-4o mini</td><td>OpenAI</td>
+                    <td class="muted" style="font-family:var(--font-mono)">https://api.openai.com/v1</td>
+                    <td class="muted">gpt-4o-mini</td>
+                    <td><span class="cap-tags"><span class="tag tag--primary">文本</span><span class="tag tag--success">视觉</span></span></td>
+                    <td class="muted">—</td>
+                    <td><span class="switch" role="switch" aria-checked="false" data-model-toggle></span></td>
+                    <td><span class="test-state test-state--fail" title="鉴权失败">✘ 401 鉴权失败</span></td>
+                    <td>
+                      <span class="cell-actions">
+                        <button class="op-link" type="button" data-model-edit>编辑</button>
+                        <button class="op-link" type="button" data-model-test>测试</button>
+                        <button class="op-link op-link--danger" type="button" disabled>停用</button>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="field__hint">连通性按模型展示：未知 / ✔耗时 / ✘错误；「添加模型」入口固定在操作列表头，整表仅一个（对齐 AiModelsGroup §2.2）。</p>
+        </section>
+
+        <!-- ========== 分组 2 · 向量 API ========== -->
+        <section class="ai-group" data-ai-panel="embedding" hidden>
+          <div class="card">
+            <form class="embed-form" id="embedForm">
+              <div class="field">
+                <label class="field__label" for="emb-provider">服务商</label>
+                <input class="input" id="emb-provider" value="openai" maxlength="30">
+              </div>
+              <div class="field">
+                <label class="field__label" for="emb-base">端点地址</label>
+                <input class="input" id="emb-base" value="https://api.openai.com/v1" maxlength="500">
+              </div>
+              <div class="field">
+                <label class="field__label" for="emb-key">API Key</label>
+                <input class="input" id="emb-key" type="password" value="sk-xxxxxxxxxxxxxxxx" maxlength="500">
+                <span class="field__hint">已配置（输入新值以替换）</span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="emb-model">嵌入模型</label>
+                <input class="input" id="emb-model" value="text-embedding-3-small" maxlength="100">
+              </div>
+              <div class="field">
+                <label class="field__label" for="emb-dim">向量维度</label>
+                <span class="numin"><input class="input" id="emb-dim" value="1536" inputmode="numeric"></span>
+                <span class="field__hint" id="emb-dim-hint" hidden>需全量重建完成前维度不可变更</span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="emb-op">距离算子</label>
+                <span class="select" id="emb-op">余弦相似度</span>
+              </div>
+              <div class="field">
+                <span class="field__label">启用</span>
+                <span class="switch is-on" role="switch" aria-checked="true" id="embEnabled"></span>
+                <span class="field__hint">未启用则 RAG 与相似检测不可用</span>
+              </div>
+              <div class="field">
+                <span class="field__label">连通性</span>
+                <span class="test-state test-state--unknown" id="embTest">未知</span>
+              </div>
+              <div class="embed-actions">
+                <button class="btn btn--default" type="button" id="embTestBtn">测试连接</button>
+                <button class="btn btn--primary" type="button" id="embSaveBtn">保存</button>
+              </div>
+            </form>
+          </div>
+          <p class="field__hint">测试连接按表单当前值发起，不写回配置；空密钥沿用已保存密钥。测试连接贴左缘、保存贴右缘，同行两端对齐（交互 2.3）。</p>
+        </section>
+
+        <!-- ========== 分组 3 · 场景提示词 ========== -->
+        <section class="ai-group" data-ai-panel="prompts" hidden>
+          <div class="card">
+            <div class="card__header">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="min-width:180px">场景</th>
+                    <th style="min-width:240px">内容摘要</th>
+                    <th style="width:96px">来源</th>
+                    <th style="width:110px">更新人</th>
+                    <th style="width:176px">更新时间</th>
+                    <th style="width:150px">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><div><div>用例生成</div><div class="muted" style="font-family:var(--font-mono);font-size:var(--font-size-xs)">case_generate</div></div></td>
+                    <td class="muted">根据需求生成模块、脑图用例文档与测试用例…</td>
+                    <td><span class="tag">内置</span></td>
+                    <td class="muted">系统</td>
+                    <td class="muted">2026-11-18 10:24</td>
+                    <td><span class="cell-actions"><button class="op-link" type="button" data-prompt-edit>编辑</button><button class="op-link op-link--danger" type="button" disabled>恢复默认</button></span></td>
+                  </tr>
+                  <tr>
+                    <td><div><div>用例优化</div><div class="muted" style="font-family:var(--font-mono);font-size:var(--font-size-xs)">case_optimize</div></div></td>
+                    <td class="muted">对用例前置/步骤/预期给出原地更新或新增建议…</td>
+                    <td><span class="tag">内置</span></td>
+                    <td class="muted">系统</td>
+                    <td class="muted">2026-11-18 10:24</td>
+                    <td><span class="cell-actions"><button class="op-link" type="button" data-prompt-edit>编辑</button><button class="op-link op-link--danger" type="button" disabled>恢复默认</button></span></td>
+                  </tr>
+                  <tr>
+                    <td><div><div>计划排序建议</div><div class="muted" style="font-family:var(--font-mono);font-size:var(--font-size-xs)">plan_order</div></div></td>
+                    <td class="muted">按依赖与风险给出测试计划执行顺序建议…</td>
+                    <td><span class="tag tag--primary">自定义</span></td>
+                    <td class="muted">张敏</td>
+                    <td class="muted">2026-11-19 15:02</td>
+                    <td><span class="cell-actions"><button class="op-link" type="button" data-prompt-edit>编辑</button><button class="op-link op-link--danger" type="button" data-prompt-reset>恢复默认</button></span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== 分组 4 · 用量分析 ========== -->
+        <section class="ai-group" data-ai-panel="usage" hidden>
+          <div class="card">
+            <div class="usage-toolbar">
+              <div class="btn-group" role="group" aria-label="时间范围">
+                <button class="btn btn--default btn--sm" type="button" data-range="7">近 7 天</button>
+                <button class="btn btn--default btn--sm is-active" type="button" data-range="30">近 30 天</button>
+                <button class="btn btn--default btn--sm" type="button" data-range="custom">自定义</button>
+              </div>
+              <div class="btn-group" role="group" aria-label="分组维度">
+                <button class="btn btn--default btn--sm is-active" type="button" data-group="model">按模型</button>
+                <button class="btn btn--default btn--sm" type="button" data-group="callType">按调用类型</button>
+              </div>
+            </div>
+            <div class="usage-summary">
+              <div class="usage-summary__item"><span class="usage-summary__label">总调用</span><span class="usage-summary__value">1,284</span></div>
+              <div class="usage-summary__item"><span class="usage-summary__label">总 Tokens</span><span class="usage-summary__value">2.4M</span></div>
+              <div class="usage-summary__item"><span class="usage-summary__label">平均耗时</span><span class="usage-summary__value">1,120 ms</span></div>
+              <div class="usage-summary__item"><span class="usage-summary__label">成功率</span><span class="usage-summary__value">98.4%</span></div>
+            </div>
+            <div class="tabs" role="tablist" aria-label="指标">
+              <span class="tab tab--active" role="tab" aria-selected="true">调用次数</span>
+              <span class="tab" role="tab" aria-selected="false">Tokens</span>
+              <span class="tab" role="tab" aria-selected="false">平均耗时</span>
+            </div>
+            <!-- 按模型分组：名称缺失时回退模型标识；向量调用无模型标识则归入「向量」并以 callType=embedding 下钻 -->
+            <div class="usage-chart" id="usageChart" aria-label="调用次数趋势">
+              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:42%"></div><span class="usage-chart__label">10-22</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:58%"></div><span class="usage-chart__label">10-25</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:36%"></div><span class="usage-chart__label">10-28</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:74%"></div><span class="usage-chart__label">10-31</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:62%"></div><span class="usage-chart__label">11-03</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar usage-chart__bar--embedding" style="height:48%"></div><span class="usage-chart__label">11-06</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:88%"></div><span class="usage-chart__label">11-09</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar usage-chart__bar--embedding" style="height:66%"></div><span class="usage-chart__label">11-12</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:92%"></div><span class="usage-chart__label">11-15</span></div>
+              <div class="usage-chart__col"><div class="usage-chart__bar usage-chart__bar--embedding" style="height:54%"></div><span class="usage-chart__label">11-18</span></div>
+            </div>
+            <div class="usage-drill" id="usageDrill">
+              <div class="usage-drill__head">
+                <span class="usage-drill__title" id="drillTitle">下钻明细 · DeepSeek-V3</span>
+                <button class="btn btn--link btn--sm" type="button" id="drillClose">收起</button>
+              </div>
+              <table class="table">
+                <thead><tr><th style="min-width:140px">类型</th><th style="width:100px">状态</th><th style="width:110px">耗时</th><th style="width:110px">Tokens</th></tr></thead>
+                <tbody id="drillRows">
+                  <tr><td>脑图用例生成</td><td><span class="tag tag--success">成功</span></td><td class="muted">1,860 ms</td><td class="muted">6,204</td></tr>
+                  <tr><td>用例优化</td><td><span class="tag tag--success">成功</span></td><td class="muted">1,204 ms</td><td class="muted">3,816</td></tr>
+                  <tr><td>向量化（embedding）</td><td><span class="tag tag--danger">失败</span></td><td class="muted">240 ms</td><td class="muted">0</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="field__hint">按模型分组时名称缺失回退模型标识；向量调用无模型标识时归入「向量」，点击柱条按 callType=embedding 下钻（950923e9 / b563dafd）。</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 模型编辑弹窗 -->
+<div class="dialog-mask" id="modelDialog" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modelDialogTitle">
+    <div class="dialog__header"><span class="dialog__title" id="modelDialogTitle">添加模型</span><button class="dialog__close" type="button" data-close-dialog aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="dialog__body">
+      <div class="form-grid">
+        <div class="field"><label class="field__label" for="mf-name">名称</label><input class="input" id="mf-name" placeholder="如 DeepSeek-V3"></div>
+        <div class="field"><label class="field__label" for="mf-provider">供应商</label><input class="input" id="mf-provider" placeholder="如 DeepSeek"></div>
+        <div class="field"><label class="field__label" for="mf-base">BaseURL</label><input class="input" id="mf-base" placeholder="https://api.example.com/v1"></div>
+        <div class="field"><label class="field__label" for="mf-model">模型标识</label><input class="input" id="mf-model" placeholder="如 deepseek-chat"></div>
+      </div>
+    </div>
+    <div class="dialog__footer"><button class="btn btn--default" type="button" data-close-dialog>取消</button><button class="btn btn--primary" type="button" id="modelSave">保存</button></div>
+  </div>
+</div>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/ux.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+(function () {
+  function byId(id) { return document.getElementById(id); }
+  function toast(msg, kind) { if (window.RTUX) window.RTUX.toast(msg, { type: kind || 'success' }); }
+
+  // 分组切换：当前项主色文字 + 指示条，仅渲染当前分组内容
+  document.querySelectorAll('.ai-shell__nav-item').forEach(function (item) {
+    item.addEventListener('click', function () {
+      document.querySelectorAll('.ai-shell__nav-item').forEach(function (x) { x.classList.remove('is-active'); });
+      item.classList.add('is-active');
+      document.querySelectorAll('[data-ai-panel]').forEach(function (panel) {
+        panel.hidden = panel.getAttribute('data-ai-panel') !== item.getAttribute('data-ai-group');
+      });
+    });
+  });
+
+  // AI 总开关：关闭后前端隐藏全部 AI 入口
+  var master = byId('aiMaster');
+  function toggleMaster(el) {
+    var on = !el.classList.contains('is-on');
+    el.classList.toggle('is-on', on);
+    el.setAttribute('aria-checked', String(on));
+    toast(on ? 'AI 已启用' : 'AI 已关闭，前端 AI 入口已隐藏', on ? 'success' : 'warning');
+  }
+  master.addEventListener('click', function () { toggleMaster(master); });
+  master.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMaster(master); }
+  });
+
+  // 向量重建：发起 → 进行中 → 完成（终态只有 closed / aborted）
+  var reindexBtn = byId('reindexBtn');
+  reindexBtn.addEventListener('click', function () {
+    var bar = byId('reindexBar');
+    bar.classList.add('ai-shell__reindex--running');
+    byId('reindexText').textContent = '向量重建进行中';
+    byId('reindexProgress').hidden = false;
+    byId('reindexPhase').hidden = false;
+    reindexBtn.hidden = true;
+    setTimeout(function () {
+      bar.classList.remove('ai-shell__reindex--running');
+      byId('reindexText').textContent = '向量索引已就绪';
+      byId('reindexProgress').hidden = true;
+      byId('reindexPhase').hidden = true;
+      byId('emb-dim-hint').hidden = true;
+    }, 1800);
+  });
+
+  // 模型表：启用切换 / 测试连通性 / 默认模型不可停用
+  document.querySelectorAll('[data-model-toggle]').forEach(function (sw) {
+    sw.addEventListener('click', function () {
+      var on = !sw.classList.contains('is-on');
+      sw.classList.toggle('is-on', on);
+      sw.setAttribute('aria-checked', String(on));
+      toast(on ? '模型已启用' : '模型已停用', 'success');
+    });
+  });
+  document.querySelectorAll('[data-model-test]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var state = btn.closest('tr').querySelector('.test-state');
+      state.className = 'test-state test-state--ok';
+      state.textContent = '✔ ' + (180 + Math.floor(Math.random() * 500)) + 'ms';
+      toast('连通性测试通过', 'success');
+    });
+  });
+
+  // 模型弹窗
+  var modelDialog = byId('modelDialog');
+  function openModelDialog(title) {
+    byId('modelDialogTitle').textContent = title;
+    modelDialog.hidden = false;
+  }
+  function closeModelDialog() { modelDialog.hidden = true; }
+  byId('addModelBtn').addEventListener('click', function () { openModelDialog('添加模型'); });
+  document.querySelectorAll('[data-model-edit]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openModelDialog('编辑模型 · ' + btn.closest('tr').children[0].textContent); });
+  });
+  modelDialog.querySelectorAll('[data-close-dialog]').forEach(function (btn) { btn.addEventListener('click', closeModelDialog); });
+  modelDialog.addEventListener('click', function (e) { if (e.target === modelDialog) closeModelDialog(); });
+  byId('modelSave').addEventListener('click', function () { closeModelDialog(); toast('模型配置已保存', 'success'); });
+
+  // 向量表单：测试连接按当前值发起，展示连通性状态；保存后维度变更提示需重建
+  byId('embTestBtn').addEventListener('click', function () {
+    var state = byId('embTest');
+    state.className = 'test-state test-state--ok';
+    state.textContent = '✔ ' + (120 + Math.floor(Math.random() * 300)) + 'ms';
+    toast('连接测试成功', 'success');
+  });
+  byId('embSaveBtn').addEventListener('click', function () {
+    byId('emb-dim-hint').hidden = false;
+    byId('reindexText').textContent = '向量维度已变更，需全量重建';
+    byId('reindexBtn').hidden = false;
+    toast('向量配置已保存，需全量重建后生效', 'warning');
+  });
+  var embEnabled = byId('embEnabled');
+  embEnabled.addEventListener('click', function () {
+    var on = !embEnabled.classList.contains('is-on');
+    embEnabled.classList.toggle('is-on', on);
+    embEnabled.setAttribute('aria-checked', String(on));
+  });
+
+  // 场景提示词：编辑 / 恢复默认
+  document.querySelectorAll('[data-prompt-edit]').forEach(function (btn) {
+    btn.addEventListener('click', function () { toast('打开提示词编辑弹窗（对齐 AiPromptsGroup 720px 弹窗）', 'success'); });
+  });
+  document.querySelectorAll('[data-prompt-reset]').forEach(function (btn) {
+    btn.addEventListener('click', function () { toast('已恢复为内置默认提示词', 'success'); });
+  });
+
+  // 用量分析：时间范围 / 分组维度切换；按调用类型时图例显示「向量」
+  document.querySelectorAll('[data-range]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-range]').forEach(function (x) { x.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    });
+  });
+  document.querySelectorAll('[data-group]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-group]').forEach(function (x) { x.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      var byType = btn.getAttribute('data-group') === 'callType';
+      byId('drillTitle').textContent = byType ? '下钻明细 · 向量（embedding）' : '下钻明细 · DeepSeek-V3';
+      document.querySelectorAll('#drillRows tr').forEach(function (row) {
+        row.hidden = byType ? row.children[0].textContent.indexOf('向量') < 0 : false;
+      });
+    });
+  });
+  byId('drillClose').addEventListener('click', function () {
+    var drill = byId('usageDrill');
+    drill.hidden = !drill.hidden;
+  });
+  document.querySelectorAll('.usage-chart__col').forEach(function (col) {
+    col.addEventListener('click', function () { byId('usageDrill').hidden = false; });
+  });
+})();
+</script>
+</body>
+</html>
