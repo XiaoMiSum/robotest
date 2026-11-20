@@ -14,6 +14,7 @@ export interface PersistSnap {
   sortOrder: number
   tags: string[]
   aiGenerated: boolean
+  requirementId: string | null
 }
 
 interface LiveNode {
@@ -67,6 +68,7 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
           ? data.tags.filter((tag): tag is string => typeof tag === 'string')
           : [],
         aiGenerated: data.aiGenerated === true,
+        requirementId: typeof data.requirementId === 'string' ? data.requirementId : null,
       })
       node.getChildren().forEach((child, index) => walk(child, id, index))
     }
@@ -104,7 +106,7 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
     for (const [id, snap] of current) {
       const prev = persistedSnapshot.get(id)
       if (!prev) {
-        // 新增节点无标签，add_node 协议不含 tags（详设 4.2）
+        // 新增节点无标签，add_node 协议不含 tags（详设 4.2）；AI 标识与需求关联须随节点同帧落库
         sendPersistOp(socket, 'add_node', {
           id,
           title: snap.title,
@@ -112,6 +114,8 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
           priority: snap.priority,
           parentId: snap.parentId,
           sortOrder: snap.sortOrder,
+          aiGenerated: snap.aiGenerated,
+          requirementId: snap.requirementId,
         })
         continue
       }
@@ -120,12 +124,15 @@ export function useMindmapPersistence(getMinder: () => MinderLike | null) {
       const tagsChanged = prev.tags.length !== snap.tags.length
         || prev.tags.some((tag, index) => tag !== snap.tags[index])
       const aiChanged = prev.aiGenerated !== snap.aiGenerated
-      if (attrsChanged || tagsChanged || aiChanged) {
+      const reqChanged = prev.requirementId !== snap.requirementId
+      if (attrsChanged || tagsChanged || aiChanged || reqChanged) {
         const attrs: Record<string, unknown> = {
           id, title: snap.title, type: snap.type, priority: snap.priority,
         }
         if (tagsChanged) attrs.tags = snap.tags
         if (aiChanged) attrs.aiGenerated = snap.aiGenerated
+        // 清空关联须显式发 null；省略表示不变更（详设 1.6）
+        if (reqChanged) attrs.requirementId = snap.requirementId
         sendPersistOp(socket, 'update_attrs', attrs)
       }
       if (prev.parentId !== snap.parentId || prev.sortOrder !== snap.sortOrder) {

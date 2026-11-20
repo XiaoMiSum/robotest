@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchCaseRequirements, updateCaseRequirements } from '@/services/project'
+import type { Minder, MinderNode } from '@/minder/types'
+import { getRequirement } from '@/services/project'
 import type { RequirementRef } from '@/types'
 import type { RequirementPick } from '@/composables/project/requirement/useRequirementPicker'
 
@@ -8,11 +9,17 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
+export interface CaseRequirementLinkOptions {
+  caseId: () => string
+  getMinder: () => Minder | null
+  flushPersistence: () => void
+}
+
 /**
- * 脑图「关联需求」：作用于当前选中用例节点，打开前拉取既有关联回填，
- * 保存为单值语义（空选择传 null 清空）。
+ * 脑图「关联需求」：作用于当前选中用例节点。关联存于节点 data 的 requirementId，
+ * 随脑图持久化帧落库；回显按 id 取需求详情，无独立 REST 读写接口。
  */
-export function useCaseRequirementLink(caseId: () => string) {
+export function useCaseRequirementLink(options: CaseRequirementLinkOptions) {
   const visible = ref(false)
   const saving = ref(false)
   const linked = ref<RequirementRef[]>([])
@@ -20,15 +27,32 @@ export function useCaseRequirementLink(caseId: () => string) {
   let requestId = 0
   let targetCaseId = ''
 
+  function findNode(id: string): MinderNode | null {
+    const root = options.getMinder()?.getRoot()
+    if (!root || !id) return null
+    let found: MinderNode | null = null
+    root.traverse((node) => {
+      if (found === null && node.data['id'] === id) found = node
+    })
+    return found
+  }
+
   async function open(): Promise<void> {
-    const id = caseId()
+    const id = options.caseId()
     if (!id) return
+    const raw = findNode(id)?.data['requirementId']
+    const requirementId = typeof raw === 'string' && raw ? raw : null
     const seq = ++requestId
+    targetCaseId = id
+    linked.value = []
+    if (!requirementId) {
+      visible.value = true
+      return
+    }
     try {
-      const result = await fetchCaseRequirements(id)
-      if (seq !== requestId || id !== caseId()) return
-      linked.value = result
-      targetCaseId = id
+      const detail = await getRequirement(requirementId)
+      if (seq !== requestId || id !== options.caseId()) return
+      linked.value = [{ id: detail.id, code: detail.code, title: detail.title }]
     } catch (err) {
       if (seq !== requestId) return
       linked.value = []
@@ -49,16 +73,20 @@ export function useCaseRequirementLink(caseId: () => string) {
     return linked.value.map((item) => ({ id: item.id, code: item.code, title: item.title }))
   }
 
-  async function confirm(ids: string[]): Promise<void> {
+  function confirm(ids: string[]): void {
     const id = targetCaseId
     if (!id || saving.value) return
+    const minder = options.getMinder()
+    const node = findNode(id)
+    if (!minder || !node) return
     saving.value = true
     try {
-      linked.value = await updateCaseRequirements(id, ids[0] ?? null)
+      node.setData('requirementId', ids[0] ?? null)
+      // setData 不走内核命令，补发 contentchange 才能进入 history / Yjs / 持久化帧
+      minder.refresh()
+      minder.fire('contentchange')
+      options.flushPersistence()
       visible.value = false
-      ElMessage.success('关联需求已更新')
-    } catch (err) {
-      ElMessage.error(errorMessage(err, '保存关联需求失败'))
     } finally {
       saving.value = false
     }

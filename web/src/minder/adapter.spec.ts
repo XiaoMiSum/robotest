@@ -25,21 +25,21 @@ const caseTree: TestCaseNode = {
 }
 
 describe('caseNodeToKm', () => {
-  it('递归映射 id/text/type/priority/aiGenerated', () => {
+  it('递归映射 id/text/type/priority/aiGenerated/requirementId', () => {
     expect(caseNodeToKm(caseTree)).toEqual({
-      data: { id: 'n1', text: '登录成功', type: 'case', priority: 'P1', aiGenerated: false },
+      data: { id: 'n1', text: '登录成功', type: 'case', priority: 'P1', aiGenerated: false, requirementId: null },
       children: [
         {
-          data: { id: 'n2', text: '输入账号密码', type: 'step', priority: null, aiGenerated: false },
+          data: { id: 'n2', text: '输入账号密码', type: 'step', priority: null, aiGenerated: false, requirementId: null },
           children: [],
         },
       ],
     })
   })
 
-  it('AI 标识为真时映射到脑图节点 data', () => {
-    expect(caseNodeToKm({ ...caseTree, aiGenerated: true })).toMatchObject({
-      data: { aiGenerated: true },
+  it('AI 标识与关联需求映射到脑图节点 data', () => {
+    expect(caseNodeToKm({ ...caseTree, aiGenerated: true, requirementId: 'r1' })).toMatchObject({
+      data: { aiGenerated: true, requirementId: 'r1' },
     })
   })
 })

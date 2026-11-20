@@ -56,6 +56,8 @@ export interface TestCaseNode {
   children: TestCaseNode[]
   /** AI 标识（复用 ai_generated） */
   aiGenerated?: boolean
+  /** 关联需求 id（仅 case 节点有值，null 表示未关联） */
+  requirementId?: string | null
 }
 
 /** 文档布局：模板名 + 各节点自由拖拽偏移（键为节点 data 中的 layout_*_offset 原始键名） */

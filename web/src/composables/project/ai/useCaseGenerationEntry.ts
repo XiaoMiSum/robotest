@@ -1,17 +1,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchAiStatus, fetchLatestAiTask } from '@/services/ai'
-import { updateCaseRequirements } from '@/services/project'
 import { useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import { caseGenerationNodeOf, isCaseGenerationSuggestion } from '@/composables/project/ai/assistPresentation'
 import type { RequirementPick } from '@/composables/project/requirement/useRequirementPicker'
 import type { AiProposalConfirmResult, AiTaskDetail } from '@/types'
 import type { AiGeneratedCase, CaseGenerationInsertResult } from '@/composables/project/functional-testing/mindmap/useCaseGenerationInsert'
-
-const CASE_NODE_NOT_FOUND = 1000011022
-const ASSOCIATE_ATTEMPTS = 3
-const ASSOCIATE_RETRY_DELAY_MS = 200
 
 export interface CaseGenerationEntryOptions {
   /** 当前脑图文档，作为任务输入的 documentId（C4：项目上下文走请求头） */
@@ -169,31 +164,6 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     return Promise.resolve()
   }
 
-  /** 节点经 WS 异步落库，关联接口短暂查不到新节点时按固定间隔有界重试 */
-  async function associateOne(caseId: string, requirementId: string): Promise<boolean> {
-    for (let attempt = 0; attempt < ASSOCIATE_ATTEMPTS; attempt++) {
-      try {
-        await updateCaseRequirements(caseId, requirementId)
-        return true
-      } catch (error) {
-        const code = (error as Error & { code?: number }).code
-        if (code !== CASE_NODE_NOT_FOUND || attempt === ASSOCIATE_ATTEMPTS - 1) return false
-        await new Promise<void>((resolve) => setTimeout(resolve, ASSOCIATE_RETRY_DELAY_MS))
-      }
-    }
-    return false
-  }
-
-  async function associateRequirements(cases: AiGeneratedCase[], caseIds: string[]): Promise<number> {
-    let failed = 0
-    for (const [index, item] of cases.entries()) {
-      const caseId = caseIds[index]
-      if (!caseId || !item.requirementId) continue
-      if (!(await associateOne(caseId, item.requirementId))) failed++
-    }
-    return failed
-  }
-
   /** 先创建脑图节点，成功后才回传提案采纳状态；已采纳用例只读回看，不重复插入与回传 */
   async function adopt(keys: string[]): Promise<void> {
     const adopted = new Set(
@@ -224,14 +194,10 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
       ElMessage.warning('未能在脑图中插入用例')
       return
     }
-    const failed = await associateRequirements(cases, result.caseIds)
     await task.submitItems(
       cases.map((item) => ({ key: item.key, action: 'adopted' as const })),
       { documentId: options.documentId() },
     )
-    if (failed > 0) {
-      ElMessage.error(`${failed} 条用例关联需求失败，请稍后手动补充`)
-    }
   }
 
   /** 回执单项重试只重传确认状态：节点已在首次插入时创建，重传不得再次插入 */

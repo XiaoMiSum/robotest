@@ -101,6 +101,7 @@ describe('useMindmapPersistence', () => {
       sortOrder: 0,
       tags: [],
       aiGenerated: false,
+      requirementId: null,
     })
     expect(nodes.get(ID_B)).toEqual({
       title: 'Child',
@@ -110,6 +111,7 @@ describe('useMindmapPersistence', () => {
       sortOrder: 0,
       tags: [],
       aiGenerated: false,
+      requirementId: null,
     })
   })
 
@@ -156,6 +158,16 @@ describe('useMindmapPersistence', () => {
     const loose = makeNode(ID_B, 'Child', [], { aiGenerated: 'true' })
     const looseCollector = useMindmapPersistence(() => makeMinder(loose))
     expect(looseCollector.collectLiveNodes().get(ID_B)?.aiGenerated).toBe(false)
+  })
+
+  it('collectLiveNodes 采集 requirementId 且仅认字符串', () => {
+    const root = makeNode(ID_A, 'Root', [], { requirementId: 'r1' })
+    const { collectLiveNodes } = useMindmapPersistence(() => makeMinder(root))
+    expect(collectLiveNodes().get(ID_A)?.requirementId).toBe('r1')
+
+    const loose = makeNode(ID_B, 'Child', [], { requirementId: 42 })
+    const looseCollector = useMindmapPersistence(() => makeMinder(loose))
+    expect(looseCollector.collectLiveNodes().get(ID_B)?.requirementId).toBeNull()
   })
 
   it('collectLiveNodes 多子节点按索引设置 sortOrder', () => {
@@ -246,8 +258,10 @@ describe('useMindmapPersistence', () => {
             title: 'Root',
             type: 'normal',
             priority: null,
-                  parentId: null,
+            parentId: null,
             sortOrder: 0,
+            aiGenerated: false,
+            requirementId: null,
           },
         },
       }),
@@ -321,6 +335,74 @@ describe('useMindmapPersistence', () => {
         },
       }),
     )
+  })
+
+  it('flushPersistence 新节点 add_node 携带 aiGenerated 与 requirementId', () => {
+    const root = makeNode(ID_A, 'Root', [], { aiGenerated: true, requirementId: 'r1' })
+    const socket = makeSocket()
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(() => makeMinder(root))
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    const addMsg = JSON.parse(socket.send.mock.calls[0][0])
+    expect(addMsg.type).toBe('add_node')
+    expect(addMsg.payload.data.aiGenerated).toBe(true)
+    expect(addMsg.payload.data.requirementId).toBe('r1')
+  })
+
+  it('flushPersistence 需求关联变更单独发送 update_attrs 携带 requirementId', () => {
+    const root = makeNode(ID_A, 'Root')
+    const socket = makeSocket()
+    const factory = makeMinderFactory()
+    factory.setRoot(root)
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(factory.getMinder)
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    socket.send.mockClear()
+    factory.setRoot(makeNode(ID_A, 'Root', [], { requirementId: 'r1' }))
+    flushPersistence()
+    expect(socket.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'update_attrs',
+        payload: {
+          data: {
+            id: ID_A, title: 'Root', type: 'normal', priority: null,
+            requirementId: 'r1',
+          },
+        },
+      }),
+    )
+  })
+
+  it('flushPersistence 清空需求关联显式发送 null', () => {
+    const root = makeNode(ID_A, 'Root', [], { requirementId: 'r1' })
+    const socket = makeSocket()
+    const factory = makeMinderFactory()
+    factory.setRoot(root)
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(factory.getMinder)
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    socket.send.mockClear()
+    factory.setRoot(makeNode(ID_A, 'Root'))
+    flushPersistence()
+    const attrs = JSON.parse(socket.send.mock.calls[0][0])
+    expect(attrs.type).toBe('update_attrs')
+    expect(attrs.payload.data.requirementId).toBeNull()
+  })
+
+  it('flushPersistence 属性变更时不重复附带未变的 requirementId', () => {
+    const root = makeNode(ID_A, 'Root', [], { requirementId: 'r1' })
+    const socket = makeSocket()
+    const factory = makeMinderFactory()
+    factory.setRoot(root)
+    const { flushPersistence, setWsProvider } = useMindmapPersistence(factory.getMinder)
+    setWsProvider({ ws: socket })
+    flushPersistence()
+    socket.send.mockClear()
+    factory.setRoot(makeNode(ID_A, 'Renamed', [], { requirementId: 'r1' }))
+    flushPersistence()
+    const attrs = JSON.parse(socket.send.mock.calls[0][0])
+    expect(attrs.type).toBe('update_attrs')
+    expect(attrs.payload.data.requirementId).toBeUndefined()
   })
 
   it('flushPersistence 属性变更时不重复附带未变的 aiGenerated', () => {
