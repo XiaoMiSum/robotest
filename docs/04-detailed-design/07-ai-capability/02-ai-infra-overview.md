@@ -237,7 +237,7 @@ CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
 | status | varchar(20) | NOT NULL, DEFAULT 'running' | `running / waiting_confirmation / succeeded / aborted` |
 | started_by | uuid | NOT NULL | 执行发起人 |
 | prompt_scene | varchar(50) | NULL | 实际使用的提示词场景（关联 `ai_prompt_template.scene`），用量按场景归因 |
-| model_id | uuid | NULL | 执行期解析的模型（关联 `ai_model_config` 稳定 ID），**再次执行复用同模型** |
+| model_id | uuid | NULL | 执行期解析的模型（关联 `ai_model_config` 稳定 ID）；**再次执行按最新默认模型重新解析**，不沿用上次执行的模型 |
 | plan | jsonb | NULL | AI 在执行开始产出的计划步骤快照（可见思考产物，不作为应用层执行依据） |
 | budget | jsonb | NOT NULL | 预算快照 `{maxSteps, maxDurationSeconds, maxTokens, maxCost}`，按任务类型默认值签发，只可下调 |
 | steps | int | NOT NULL, DEFAULT 0 | 已执行步数（每次工具调用或决策计一步） |
@@ -844,7 +844,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 #### 3.6.4 执行管理与轨迹
 
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
-- **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 复用原执行模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
+- **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 按最新默认模型重新解析（选型规则见 4.2），不沿用上次执行的模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
 - **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
@@ -927,7 +927,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 - **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清、回答与变更预览仍按分册 04 处理，不转为通用提案确认；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。
-- **模型选型（能力 + 优先级）**：执行启动期按「任务必需能力」解析模型并回写执行行 `model_id`（维持启动时解析、执行不漂移），执行期以执行行 `model_id` 按同一规则复验；必需能力由类型适配器从任务输入派生（`bug_classify` 批量需结合项目范围解析缺陷集后判定）——`requirement_import` 图片文件、`assistant_parse` 消息附图、`bug_classify` 附带截图时为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。
+- **模型选型（能力 + 优先级）**：执行启动期按「任务必需能力」解析模型并回写执行行 `model_id`（维持启动时解析、执行不漂移），执行期以执行行 `model_id` 按同一规则复验；必需能力由类型适配器从任务输入派生（`bug_classify` 批量需结合项目范围解析缺陷集后判定）——`requirement_import` 图片文件、`assistant_parse` 消息附图、`bug_classify` 附带截图时为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。再次执行（3.6.4）不将上次执行 `model_id` 作为指定模型，按同一规则从当前默认模型重新解析；单次执行内的自动短重试（同 `model_id`，见「失败与自动重试」）不受影响。
 - **类型适配**：`type → 类型适配器`（每个适配器注册：input 校验器、工具白名单与预算默认值、提案结构定义、落库承接器）；执行核是通用 Agent 循环——AI 自主规划步骤（`plan` 事件入轨迹）、在白名单内选择并调用工具（参数校验 → 作用域鉴权 → [确认型工具触发人工闸门] → 执行 → 结果回喂）、失败自行决定重试 / 改道 / 终止；应用层不在循环内预设业务流程。执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
 - **预算护栏**：执行启动时按「类型默认值 + 请求下调」签发预算快照（2.6.2）；步数 / 时长 / token / 成本任一超限即终止执行与任务（`terminate_code = 1000018127`）；预算不可在执行中调高。
 - **生命周期**：执行 `running →（waiting_confirmation）→ succeeded / aborted`；任务 `running → proposals_ready → closed`，用户中止 / 预算耗尽 / 执行错误 / 总开关关闭时任务置 `aborted`；无待采纳提案的只读产出（摘要、排序建议）执行完成即 `closed`；心跳超时清扫器按 `task_timeout_seconds` 扫描 `status + heartbeat_at` 索引（2.6.2），超时置 `aborted`（`terminate_code = 1000018117`）。
@@ -1137,3 +1137,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-20 | 3.4 向量连通性测试支持携带表单未保存配置：请求体可选、合并后临时向量化不写回配置，空密钥沿用已保存密文，仅刷新 `lastTest`（无配置行不持久化） |
 | V1.0 | 2026-11-20 | 3.6.3 `/latest` 查询支持文档级复用：`nodeId` 改可选，省略时仅按 `documentId` 匹配，供脑图「AI覆盖雷达」回显当前文档最近一次生成任务 |
 | V1.0 | 2026-11-20 | 3.7 明确按模型分组 `keyName` 的兜底口径：配置名称缺失时回退 `modelName`，向量调用取 `ai_embedding_config.embedding_model` |
+| V1.0 | 2026-11-20 | 再次执行模型选型改为按最新默认模型解析、不沿用上次执行 `model_id`：2.6.2 字段说明、3.6.4 再次执行语义、4.2 选型规则同步；自动短重试仍沿用本次执行模型 |
