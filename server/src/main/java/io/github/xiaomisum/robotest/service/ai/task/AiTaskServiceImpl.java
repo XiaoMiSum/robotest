@@ -373,13 +373,12 @@ public class AiTaskServiceImpl implements AiTaskService {
                 || reqDTO.getFeedback().isBlank() ? null : reqDTO.getFeedback().trim();
         TaskSubmitContext submitContext = new TaskSubmitContext(task.getProjectId(), task.getWorkspaceId(),
                 loginUser.getId(), loginUser);
-        // model_id 复用原执行模型（3.6.4），其被停用时按能力回落当前可用模型；
-        // vector_reindex 豁免 chat 模型选型（总册 4.2），再次执行同样不解析模型
+        // 再次执行按当前默认模型重新解析（3.6.4），不沿用上次执行模型；
+        // 上次执行仅经 retry_of_execution_id 留痕。vector_reindex 仍豁免 chat 模型选型（总册 4.2）
         AiModelConfig model = null;
         if (!Constants.AiTaskType.VECTOR_REINDEX.equals(task.getType())) {
             String requiredCapability = adapter.requiredCapability(task.getInput(), submitContext);
-            model = settingsReader.resolveModel(
-                    previous == null ? null : previous.getModelId(), requiredCapability);
+            model = settingsReader.resolveModel(null, requiredCapability);
             if (model == null) {
                 throw ServiceExceptionUtil.get(requiredCapability == null
                         ? ErrorCodeConstants.AI_MODEL_NOT_CONFIGURED
