@@ -11,11 +11,15 @@ export interface AiGeneratedCase {
   key: string
   node: TestCaseNode
   tags: string[]
+  /** 来源需求 id：采纳后按此写入用例需求关联 */
+  requirementId?: string
 }
 
 export interface CaseGenerationInsertResult {
   inserted: number
   skipped: number
+  /** 按 cases 顺序的新建用例节点 id，供需求关联写入 */
+  caseIds: string[]
 }
 
 export function useCaseGenerationInsert(
@@ -26,38 +30,50 @@ export function useCaseGenerationInsert(
     const minder = getMinder()
     const root = minder?.getRoot?.()
     if (!minder || !root || cases.length === 0) {
-      return { inserted: 0, skipped: cases.length }
+      return { inserted: 0, skipped: cases.length, caseIds: [] }
     }
 
     const created: Array<{ node: MinderNode; tags: string[] }> = []
+    const caseIds: string[] = []
     for (const item of cases) {
       const source = item.node
+      const caseId = uuidv7()
       const caseNode = minder.createNode(
-        { id: uuidv7(), text: source.title, type: 'case', priority: source.priority ?? 'P2' },
+        {
+          id: caseId,
+          text: source.title,
+          type: 'case',
+          priority: source.priority ?? 'P2',
+          aiGenerated: true,
+        },
         root,
         root.getChildren().length,
       )
       source.children.forEach((child, index) => {
-        minder.createNode({ id: uuidv7(), text: child.title, type: child.type }, caseNode, index)
+        minder.createNode(
+          { id: uuidv7(), text: child.title, type: child.type, aiGenerated: true },
+          caseNode,
+          index,
+        )
       })
       created.push({ node: caseNode, tags: item.tags })
+      caseIds.push(caseId)
     }
 
-    // add_node 协议只带基础属性；先落一次建立新节点基线，随后按 diff 补写标签与 AI 标识
+    // AI 标识随 add_node 落库；标签不在 add_node 协议内，先落节点基线再按 diff 补写
     minder.refresh()
     minder.fire('contentchange')
     flushPersistence()
 
     for (const { node, tags } of created) {
       node.setData('tags', tags)
-      node.setData('aiGenerated', true)
     }
     if (created.length > 0) {
       minder.refresh()
       minder.fire('contentchange')
       flushPersistence()
     }
-    return { inserted: created.length, skipped: cases.length - created.length }
+    return { inserted: created.length, skipped: cases.length - created.length, caseIds }
   }
 
   return { execute }
