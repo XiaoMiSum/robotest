@@ -131,6 +131,8 @@ function categoryLabel(item: AiUsageSeriesItem): string {
   if (groupBy.value === 'day') return item.key
   if (groupBy.value === 'callType') return callTypeLabel(item.key)
   if (groupBy.value === 'scene' && !item.key) return '未归因场景'
+  // 向量调用无模型标识配置时，避免按模型分组出现空白标签
+  if (groupBy.value === 'model') return item.keyName || item.key || '向量'
   return item.keyName ?? item.key
 }
 
@@ -270,8 +272,13 @@ function openDrill(item: AiUsageSeriesItem) {
     filters.to = item.key
     title = item.key
   } else if (groupBy.value === 'model') {
-    filters.modelId = item.key
-    title = item.keyName ?? item.key
+    if (item.key) {
+      filters.modelId = item.key
+    } else {
+      // 向量调用无模型配置行，空 modelId 无法绑定 UUID；按调用类型下钻同一分组
+      filters.callType = 'embedding'
+    }
+    title = item.keyName || item.key || '向量'
   } else if (groupBy.value === 'scene') {
     if (!item.key) return // 无场景归因行无法按场景筛选，不开放下钻
     filters.scene = item.key

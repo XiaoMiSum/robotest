@@ -6,6 +6,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, type Pinia } from 'pinia'
 import { createRouter, createWebHistory, type Router } from 'vue-router'
 import ElementPlus from 'element-plus'
+import { init } from 'echarts/core'
 import AiUsageGroup from './AiUsageGroup.vue'
 
 const mocks = vi.hoisted(() => ({
@@ -100,6 +101,52 @@ describe('AI 配置中心 · 用量分析 setup 执行（TDZ 回归）', () => {
     await modelButton!.find('input').trigger('change')
     await flushPromises()
     expect(mocks.fetchAiUsageStatistics.mock.calls[1][0].groupBy).toBe('model')
+  })
+
+  it('按模型下钻向量分组改用 callType 过滤空 modelId', async () => {
+    mocks.fetchAiUsageStatistics.mockResolvedValue({
+      summary: {
+        totalCalls: 3,
+        successRate: 1,
+        totalTokens: 12,
+        avgLatencyMs: 5,
+        totalCost: 0,
+      },
+      series: [
+        {
+          key: '',
+          keyName: 'text-embedding-3-small',
+          calls: 3,
+          failed: 0,
+          tokens: 12,
+          avgLatencyMs: 5,
+          cost: 0,
+        },
+      ],
+    })
+    mocks.fetchAiUsageTasks.mockResolvedValue({ list: [], total: 0 })
+    const wrapper = mountGroup()
+    await flushPromises()
+
+    const modelButton = wrapper
+      .findAll('.el-radio-button')
+      .find((b) => b.text().includes('按模型'))
+    expect(modelButton).toBeTruthy()
+    await modelButton!.find('input').trigger('change')
+    await flushPromises()
+
+    const chart = vi.mocked(init).mock.results.at(-1)?.value as unknown as {
+      on: { mock: { calls: Array<[string, (params: { dataIndex: number }) => void]> } }
+    }
+    const clickHandler = chart.on.mock.calls.find(([event]) => event === 'click')?.[1]
+    expect(clickHandler).toBeTypeOf('function')
+    clickHandler!({ dataIndex: 0 })
+    await flushPromises()
+
+    const drillQuery = mocks.fetchAiUsageTasks.mock.calls[0][0]
+    expect(drillQuery.callType).toBe('embedding')
+    expect(drillQuery.modelId).toBeUndefined()
+    expect(wrapper.text()).toContain('下钻明细 · text-embedding-3-small')
   })
 
   it('空区间展示范围调整引导（交互 2.6），工具栏正常渲染', async () => {
