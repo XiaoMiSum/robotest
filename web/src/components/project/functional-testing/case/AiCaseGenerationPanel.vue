@@ -41,7 +41,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  insert: [keys: string[]]
+  adopt: [keys: string[]]
   retry: []
   retryItem: [key: string]
   refresh: []
@@ -49,15 +49,26 @@ const emit = defineEmits<{
   openSource: [ref: AiAssistSourceRef]
 }>()
 
-/** 提案 → 注入树：用例节点 id 即提案 key，插入与回执按此定位 */
-const injectedNodes = computed<TestCaseNode[]>(() =>
-  props.rows.flatMap((row) => {
-    const view = row.suggestion
-    return view && isCaseGenerationSuggestion(view)
-      ? [caseGenerationNodeOf(row.key, row.title || row.key, view)]
-      : []
-  }),
+const adoptedKeys = computed(() =>
+  props.rows
+    .filter((row) => row.confirmStatus === 'adopted' || row.confirmStatus === 'adopted_edited')
+    .map((row) => row.key),
 )
+
+const showAdopted = ref(false)
+
+/** 提案 → 注入树：已采纳用例默认不入树，开启展示后作为只读回看项出现 */
+const injectedNodes = computed<TestCaseNode[]>(() => {
+  const adopted = new Set(adoptedKeys.value)
+  return props.rows
+    .filter((row) => showAdopted.value || !adopted.has(row.key))
+    .flatMap((row) => {
+      const view = row.suggestion
+      return view && isCaseGenerationSuggestion(view)
+        ? [caseGenerationNodeOf(row.key, row.title || row.key, view)]
+        : []
+    })
+})
 
 const selectedKeys = ref<string[]>([])
 
@@ -65,9 +76,10 @@ function updateSelection(ids: string[]): void {
   selectedKeys.value = ids
 }
 
-// 重新执行后提案集合可能整体变化，清空旧勾选，避免已不存在的 key 混入插入与回执
-watch(injectedNodes, () => {
-  selectedKeys.value = []
+// 切换「展示已采纳」只改变可见集合，保留仍存在的勾选，避免误清用户新选的用例
+watch(injectedNodes, (nodes) => {
+  const present = new Set(nodes.map((node) => node.id))
+  selectedKeys.value = selectedKeys.value.filter((key) => present.has(key))
 })
 
 const receiptItems = computed<ConfirmItemResult[]>(() =>
@@ -86,13 +98,19 @@ const showReceipt = computed(() => receiptItems.value.length > 0)
 const pendingKeys = computed(() =>
   selectedKeys.value.filter((key) => props.rows.some((row) => row.key === key)),
 )
-const canInsert = computed(
-  () => !props.running && !props.confirming && !props.failed && pendingKeys.value.length > 0,
+// 已采纳用例仅作只读回看，不参与本次采纳与回执
+const adoptableKeys = computed(() => {
+  const adopted = new Set(adoptedKeys.value)
+  return pendingKeys.value.filter((key) => !adopted.has(key))
+})
+
+const canAdopt = computed(
+  () => !props.running && !props.confirming && !props.failed && adoptableKeys.value.length > 0,
 )
 
-function insert(): void {
-  if (!canInsert.value) return
-  emit('insert', [...pendingKeys.value])
+function adopt(): void {
+  if (!canAdopt.value) return
+  emit('adopt', [...adoptableKeys.value])
 }
 
 function close(): void {
@@ -185,7 +203,10 @@ function close(): void {
         class="ai-generation__selector"
         :model-value="true"
         :injected-nodes="injectedNodes"
+        :adopted-case-ids="adoptedKeys"
+        :show-adopted="showAdopted"
         inline
+        @update:show-adopted="showAdopted = $event"
         @selection-change="updateSelection"
       />
 
@@ -198,16 +219,18 @@ function close(): void {
       />
 
       <footer class="ai-generation__foot">
-        <span class="ai-generation__stat">已勾选 {{ pendingKeys.length }} / {{ injectedNodes.length }} 条用例</span>
+        <span class="ai-generation__stat">
+          已勾选 {{ pendingKeys.length }} / {{ injectedNodes.length }}；可采纳 {{ adoptableKeys.length }}
+        </span>
         <div class="ai-generation__actions">
           <el-button
             type="primary"
             size="small"
-            :disabled="!canInsert"
+            :disabled="!canAdopt"
             :loading="confirming"
-            @click="insert"
+            @click="adopt"
           >
-            插入选中用例
+            采纳
           </el-button>
         </div>
       </footer>

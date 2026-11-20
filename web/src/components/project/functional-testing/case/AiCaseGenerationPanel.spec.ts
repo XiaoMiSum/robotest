@@ -14,8 +14,10 @@ const selectorStub = defineComponent({
     injectedNodes: { type: Array, default: () => [] },
     modelValue: { type: Boolean, default: false },
     inline: { type: Boolean, default: false },
+    adoptedCaseIds: { type: Array, default: () => [] },
+    showAdopted: { type: Boolean, default: false },
   },
-  emits: ['selectionChange'],
+  emits: ['selectionChange', 'update:showAdopted'],
   setup(props, { emit }) {
     return () =>
       h('div', { class: 'selector-stub' }, [
@@ -33,6 +35,37 @@ const selectorStub = defineComponent({
           },
           '勾选第一条',
         ),
+        h(
+          'button',
+          {
+            class: 'pick-all',
+            onClick: () =>
+              emit('selectionChange', (props.injectedNodes as TestCaseNode[]).map((node) => node.id)),
+          },
+          '勾选全部',
+        ),
+        h(
+          'button',
+          {
+            class: 'pick-adopted',
+            onClick: () =>
+              emit(
+                'selectionChange',
+                (props.adoptedCaseIds as string[]).filter((id) =>
+                  (props.injectedNodes as TestCaseNode[]).some((node) => node.id === id),
+                ),
+              ),
+          },
+          '勾选已采纳',
+        ),
+        h(
+          'button',
+          {
+            class: 'toggle-adopted',
+            onClick: () => emit('update:showAdopted', !props.showAdopted),
+          },
+          '切换展示已采纳',
+        ),
       ])
   },
 })
@@ -45,11 +78,11 @@ const dialogStub = defineComponent({
   },
 })
 
-function row(key: string): AssistRow {
+function row(key: string, confirmStatus: AssistRow['confirmStatus'] = 'pending'): AssistRow {
   return {
     key,
     title: `${key} 用例`,
-    confirmStatus: 'pending',
+    confirmStatus,
     confirmLabel: '待确认',
     confirmTagType: 'info',
     suggestion: {
@@ -81,7 +114,7 @@ function mountPanel(
 }
 
 function buttonByText(wrapper: VueWrapper<InstanceType<typeof AiCaseGenerationPanel>>, text: string) {
-  return wrapper.findAll('button').find((item) => item.text().includes(text))
+  return wrapper.findAll('button').find((item) => item.text().trim() === text)
 }
 
 describe('AiCaseGenerationPanel', () => {
@@ -96,24 +129,58 @@ describe('AiCaseGenerationPanel', () => {
     expect(wrapper.find('.ai-generation__selector').exists()).toBe(true)
   })
 
-  it('勾选后插入按提案 key 透传，未勾选时按钮禁用', async () => {
+  it('勾选后按提案 key 透传采纳，未勾选时按钮禁用', async () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    expect(buttonByText(wrapper, '插入选中用例')?.attributes('disabled')).toBeDefined()
+    expect(buttonByText(wrapper, '采纳')?.attributes('disabled')).toBeDefined()
 
     await wrapper.find('.pick').trigger('click')
-    expect(buttonByText(wrapper, '插入选中用例')?.attributes('disabled')).toBeUndefined()
+    expect(buttonByText(wrapper, '采纳')?.attributes('disabled')).toBeUndefined()
 
-    await buttonByText(wrapper, '插入选中用例')!.trigger('click')
-    expect(wrapper.emitted('insert')).toEqual([[['case-1']]])
+    await buttonByText(wrapper, '采纳')!.trigger('click')
+    expect(wrapper.emitted('adopt')).toEqual([[['case-1']]])
   })
 
-  it('进行中或失败态不展示勾选树也不允许插入', async () => {
+  it('已完成任务默认隐藏已采纳用例，勾选后展示且只读', async () => {
+    const wrapper = mountPanel({ rows: [row('case-old', 'adopted'), row('case-new')] })
+    await flushPromises()
+
+    expect(wrapper.findAll('.stub-key').map((item) => item.attributes('data-key'))).toEqual(['case-new'])
+
+    await wrapper.find('.toggle-adopted').trigger('click')
+    expect(wrapper.findAll('.stub-key').map((item) => item.attributes('data-key'))).toEqual([
+      'case-old',
+      'case-new',
+    ])
+  })
+
+  it('勾选全为已采纳用例时采纳按钮置灰且不透传', async () => {
+    const wrapper = mountPanel({ rows: [row('case-old', 'adopted'), row('case-new')] })
+    await flushPromises()
+    await wrapper.find('.toggle-adopted').trigger('click')
+    await wrapper.find('.pick-adopted').trigger('click')
+
+    expect(buttonByText(wrapper, '采纳')?.attributes('disabled')).toBeDefined()
+    await buttonByText(wrapper, '采纳')!.trigger('click')
+    expect(wrapper.emitted('adopt')).toBeUndefined()
+  })
+
+  it('已采纳与新用例同时勾选时只透传新用例 key', async () => {
+    const wrapper = mountPanel({ rows: [row('case-old', 'adopted_edited'), row('case-new')] })
+    await flushPromises()
+    await wrapper.find('.toggle-adopted').trigger('click')
+    await wrapper.find('.pick-all').trigger('click')
+
+    await buttonByText(wrapper, '采纳')!.trigger('click')
+    expect(wrapper.emitted('adopt')).toEqual([[['case-new']]])
+  })
+
+  it('进行中或失败态不展示勾选树也不允许采纳', async () => {
     const running = mountPanel({ running: true })
     await flushPromises()
     expect(running.find('.selector-stub').exists()).toBe(false)
-    expect(running.emitted('insert')).toBeUndefined()
+    expect(running.emitted('adopt')).toBeUndefined()
 
     const failed = mountPanel({ failed: true, failedReason: '需求不存在' })
     await flushPromises()
@@ -167,11 +234,11 @@ describe('AiCaseGenerationPanel', () => {
 })
 
 describe('AiCaseGenerationPanel · 源码结构约束', () => {
-  it('插入动作只发事件，节点变更与采纳回执均由宿主执行', () => {
-    expect(panelSource).toContain('@click="insert"')
-    expect(panelSource).toContain("emit('insert', [...pendingKeys.value])")
+  it('采纳动作只发事件，节点变更与采纳回执均由宿主执行', () => {
+    expect(panelSource).toContain('@click="adopt"')
+    expect(panelSource).toContain("emit('adopt', [...adoptableKeys.value])")
     expect(panelSource).not.toContain('submitItems')
-    expect(panelSource).not.toContain('adopt(')
+    expect(panelSource).not.toContain('insertCases')
   })
 
   it('结果区不额外包裹容器，弹窗高度固定且仅卡片区内部滚动', () => {
