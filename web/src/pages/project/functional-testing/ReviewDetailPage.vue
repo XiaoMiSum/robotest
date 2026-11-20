@@ -42,22 +42,16 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
 
 <template>
   <div v-loading="loading" class="review-detail">
-    <div class="review-detail__breadcrumb">
-      <router-link to="/workspace/projects/functional-testing?tab=reviews">测试评审</router-link>
-      <el-icon :size="13"><ArrowRight /></el-icon>
-      <span>{{ detail?.title ?? '评审详情' }}</span>
-    </div>
-
-    <div class="review-detail__head">
-      <div class="review-detail__head-left">
-        <div class="review-detail__title-row">
-          <span class="review-detail__title">{{ detail?.title ?? '评审详情' }}</span>
-          <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
-            {{ statusText }}
-          </el-tag>
-        </div>
+    <!-- 页头收拢为单条无边框横条：面包屑保持纯净，右侧同行承载需求/状态/进度/操作（交互 05 §1.2） -->
+    <div class="review-detail__header">
+      <div class="review-detail__breadcrumb">
+        <router-link to="/workspace/projects/functional-testing?tab=reviews">测试评审</router-link>
+        <el-icon :size="13"><ArrowRight /></el-icon>
+        <span>{{ detail?.title ?? '评审详情' }}</span>
+      </div>
+      <div class="review-detail__extra">
         <div v-if="detail?.requirements?.length" class="review-detail__requirements">
-          <span class="review-detail__requirements-label">关联需求</span>
+          <span class="review-detail__requirements-label">需求</span>
           <el-tooltip
             v-for="item in detail.requirements"
             :key="item.id"
@@ -67,8 +61,9 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
             <el-tag size="small" effect="plain">{{ item.code }}</el-tag>
           </el-tooltip>
         </div>
-      </div>
-      <div class="review-detail__extra">
+        <el-tag v-if="detail" :type="statusMeta.tagType" size="small" effect="light" round>
+          {{ statusText }}
+        </el-tag>
         <div v-if="progress" class="review-detail__progress-row">
           <el-progress
             class="review-detail__progress"
@@ -175,14 +170,33 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
   overflow: hidden;
 }
 
+// 单条无边框横条：左侧面包屑 + 右侧信息/操作同行；超宽时整行横向滚动而非换行（交互 05 §1.2）
+.review-detail__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-sm);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.review-detail__header::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .review-detail__breadcrumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: var(--space-sm);
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: var(--font-size-sm);
   color: var(--color-neutral-600);
-  flex-shrink: 0;
 
   // 回退入口沿用全站链接色：颜色本身就是「可点击」信号，与仅作定位的当前页项区分
   a {
@@ -199,70 +213,32 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
     color: var(--color-neutral-400);
   }
 
-  // 当前页只加深不加粗：位置感交给深浅，强调由紧随其下的页面标题承担
+  // 当前页只加深不加粗：位置感交给深浅（UI-BC-04）
   > :last-child {
     color: var(--color-neutral-900);
   }
 }
 
-// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
-.review-detail__head {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-lg);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-}
-
-// 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
-.review-detail__head-left {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-}
-
-.review-detail__title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  max-width: 100%;
-  min-width: 0;
-}
-
 .review-detail__requirements {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-xs);
-  max-width: 100%;
 }
 
 .review-detail__requirements-label {
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
-}
-
-.review-detail__title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-neutral-800);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-// 标题行右侧：进度/统计 + 操作按钮同行排布
+// 右侧信息/操作区：需求、状态、进度统计、操作按钮同行不换行
 .review-detail__extra {
   display: flex;
   align-items: center;
   gap: var(--space-lg);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .review-detail__actions {

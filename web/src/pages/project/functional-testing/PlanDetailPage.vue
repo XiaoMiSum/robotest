@@ -70,26 +70,16 @@ const orderEmptyReason = computed(() =>
 
 <template>
   <div v-loading="loading" class="plan-detail">
-    <div class="plan-detail__breadcrumb">
-      <router-link to="/workspace/projects/functional-testing?tab=plans">测试计划</router-link>
-      <el-icon :size="13"><ArrowRight /></el-icon>
-      <span>{{ detail?.name ?? '计划详情' }}</span>
-    </div>
-
-    <div class="plan-detail__head">
-      <div class="plan-detail__head-left">
-        <div class="plan-detail__title-row">
-          <span class="plan-detail__title">{{ detail?.name ?? '计划详情' }}</span>
-          <el-tag
-            v-if="detail"
-            :type="planStatusMeta(detail.status).tagType"
-            size="small"
-            effect="light"
-            round
-          >{{ statusText }}</el-tag>
-        </div>
+    <!-- 页头收拢为单条无边框横条：面包屑保持纯净，右侧同行承载需求/状态/进度/操作（交互 06 §1.2） -->
+    <div class="plan-detail__header">
+      <div class="plan-detail__breadcrumb">
+        <router-link to="/workspace/projects/functional-testing?tab=plans">测试计划</router-link>
+        <el-icon :size="13"><ArrowRight /></el-icon>
+        <span>{{ detail?.name ?? '计划详情' }}</span>
+      </div>
+      <div class="plan-detail__extra">
         <div v-if="detail?.requirements?.length" class="plan-detail__requirements">
-          <span class="plan-detail__requirements-label">关联需求</span>
+          <span class="plan-detail__requirements-label">需求</span>
           <el-tooltip
             v-for="item in detail.requirements"
             :key="item.id"
@@ -99,8 +89,13 @@ const orderEmptyReason = computed(() =>
             <el-tag size="small" effect="plain">{{ item.code }}</el-tag>
           </el-tooltip>
         </div>
-      </div>
-      <div class="plan-detail__extra">
+        <el-tag
+          v-if="detail"
+          :type="planStatusMeta(detail.status).tagType"
+          size="small"
+          effect="light"
+          round
+        >{{ statusText }}</el-tag>
         <div v-if="progress" class="plan-detail__progress-row">
           <el-progress
             class="plan-detail__progress"
@@ -171,6 +166,12 @@ const orderEmptyReason = computed(() =>
     <!-- 计划详情工作区（交互设计 5.1） -->
     <div class="plan-detail__workspace">
       <el-card shadow="never" class="plan-detail__tree-card">
+        <template #header>
+          <div class="plan-detail__tree-header">
+            <span class="plan-detail__tree-title">快照文档</span>
+            <span class="plan-detail__tree-hint">只读</span>
+          </div>
+        </template>
         <SnapshotModuleTree
           :data="moduleTree"
           :current-doc-id="selectedDocId"
@@ -258,14 +259,33 @@ const orderEmptyReason = computed(() =>
   overflow: hidden;
 }
 
+// 单条无边框横条：左侧面包屑 + 右侧信息/操作同行；超宽时整行横向滚动而非换行（交互 06 §1.2）
+.plan-detail__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-sm);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.plan-detail__header::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .plan-detail__breadcrumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: var(--space-sm);
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: var(--font-size-sm);
   color: var(--color-neutral-600);
-  flex-shrink: 0;
 
   // 回退入口沿用全站链接色：颜色本身就是「可点击」信号，与仅作定位的当前页项区分
   a {
@@ -282,70 +302,32 @@ const orderEmptyReason = computed(() =>
     color: var(--color-neutral-400);
   }
 
-  // 当前页只加深不加粗：位置感交给深浅，强调由紧随其下的页面标题承担
+  // 当前页只加深不加粗：位置感交给深浅（UI-BC-04）
   > :last-child {
     color: var(--color-neutral-900);
   }
 }
 
-// 标题行用白底卡片化横条承载，与下方脑图卡片视觉统一
-.plan-detail__head {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-lg);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-}
-
-// 左侧标题/元信息区可伸缩，窗口变窄时优先裁剪标题而非挤压右侧操作区
-.plan-detail__head-left {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-}
-
-.plan-detail__title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  max-width: 100%;
-  min-width: 0;
-}
-
 .plan-detail__requirements {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-xs);
-  max-width: 100%;
 }
 
 .plan-detail__requirements-label {
   font-size: var(--font-size-2xs);
   color: var(--color-neutral-400);
-}
-
-.plan-detail__title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-neutral-800);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-// 标题行右侧：进度/统计 + 操作按钮同行排布
+// 右侧信息/操作区：需求、状态、进度统计、操作按钮同行不换行
 .plan-detail__extra {
   display: flex;
   align-items: center;
   gap: var(--space-lg);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .plan-detail__actions {
@@ -405,14 +387,18 @@ const orderEmptyReason = computed(() =>
   gap: var(--space-lg);
 }
 
+// 快照文档卡片：header 固定 + body 弹性滚动，与评审明细一致（交互 06 §1.2）
 .plan-detail__tree-card {
   width: 240px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 
   :deep(.el-card__body) {
+    flex: 1;
+    min-height: 0;
     padding: 0;
     overflow: auto;
-    height: 100%;
     // 只隐藏视觉滚动条：卡片 body 仍是滚动拥有者（UI-SC-03）
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -423,6 +409,23 @@ const orderEmptyReason = computed(() =>
     height: 0;
     display: none;
   }
+}
+
+.plan-detail__tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plan-detail__tree-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.plan-detail__tree-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
 }
 
 .plan-detail__placeholder {
