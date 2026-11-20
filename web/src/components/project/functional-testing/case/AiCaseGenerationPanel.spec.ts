@@ -245,7 +245,7 @@ describe('AiCaseGenerationPanel · 源码结构约束', () => {
     expect(panelSource).not.toContain('class="ai-generation__tree"')
     expect(panelSource).toContain('class="ai-generation__selector"')
     expect(panelSource).toContain('.ai-generation-dialog')
-    expect(panelSource).toContain('height: 72vh')
+    expect(panelSource).toContain('height: 88vh')
     expect(panelSource).toContain('.el-dialog__body')
     expect(panelSource).toContain('min-height: 0')
     expect(panelSource).toContain('overflow: hidden')

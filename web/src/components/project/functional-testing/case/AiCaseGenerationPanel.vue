@@ -334,15 +334,24 @@ function close(): void {
  * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8、docs/00-spec/50-ui/03-scroll-container.md UI-SC-01/02/06。
  */
 .ai-generation-dialog {
-  height: 72vh;
+  height: 88vh;
   display: flex;
   flex-direction: column;
 
+  .el-dialog__header {
+    padding: 12px 16px;
+  }
+
   .el-dialog__body {
+    padding: 12px 16px;
     position: relative;
     flex: 1;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .el-dialog__footer {
+    padding: 12px 16px;
   }
 }
 </style>

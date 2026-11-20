@@ -452,6 +452,7 @@ const handleLayoutCommand = (command: unknown) => {
       v-model="assistPanelVisible"
       title="AI 优化"
       width="720px"
+      class="ai-assist-dialog"
       :close-on-click-modal="false"
       @closed="closeAssistPanel"
     >
@@ -758,6 +759,15 @@ $priorities: p0, p1, p2, p3;
  * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8。
  */
 @use '../minder/minder-menu' as menu;
+
+// Dialog 根节点 Teleport 到 body 且无 scopeId，scoped 选择器无法命中，按 class 锚定仅收紧本弹窗容器 padding
+.ai-assist-dialog {
+  .el-dialog__header,
+  .el-dialog__body,
+  .el-dialog__footer {
+    padding: 12px 16px;
+  }
+}
 
 .case-edit-dropdown {
   .el-dropdown-menu__item.toolbar-menu-item {
