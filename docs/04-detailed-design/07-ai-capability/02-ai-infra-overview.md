@@ -699,7 +699,22 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 
   - 校验：`dimensions ∈ [64, 4096]`；**`dimensions / operator` 相对原值发生变化** → 旧配置追加进 `versions`，响应 `requiresReindex = true`，由前端引导发起全量重建任务（`type = vector_reindex`）；
-- **连通性测试**：`POST /api/ai/embedding/test` → `{ success, dimensions, latencyMs, msg }`；失败返回 1000018107。
+- **连通性测试**：`POST /api/ai/embedding/test` → `{ success, dimensions, latencyMs, msg }`；失败返回 1000018107。请求体可选，携带前端表单中尚未保存的配置：
+
+```json
+{
+  "provider": "openai",
+  "baseUrl": "https://api.example.com/v1",
+  "apiKey": "sk-…",
+  "embeddingModel": "text-embedding-x",
+  "dimensions": 1536,
+  "operator": "cosine"
+}
+```
+
+  - 传请求体时以表单值为依据发起最小向量化，**不写回配置字段**；`apiKey` 为空则沿用已保存密钥密文，非空则仅加密用于本次调用（不落库、不回显、不进日志）；不传请求体时沿用已保存配置，兼容旧调用；
+  - 合并后 `baseUrl / embeddingModel / dimensions` 仍有缺失 → 按 1000018107 返回「请先保存配置或填写完整测试参数」；实测维度与表单配置不一致时前端提示核对；
+  - 成功 / 失败均只把 `lastTest` 写回已保存配置行（尚无配置行时不持久化）；调用按 4.3 记 `ai_usage_log.call_type = embedding`、`task_id = NULL`。
 
 ### 3.5 场景提示词
 
@@ -1119,3 +1134,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-19 | 5.2 审核区组件树口径改为只展示当前 1 条待处理提案，确认成功后刷新清单并自动切换下一条 |
 | V1.0 | 2026-11-19 | 5.2 审核区扁平化为单卡：组件树移除 ProposalCard 层级，对比组件改卡内轻量三列，动作区右对齐 link |
 | V1.0 | 2026-11-19 | 3.6.1 登记辅助域新任务类型 `mindmap_case_generation`（`documentId` + `requirementId` → `mindmap_case_suggestion`，采纳由脑图面板执行、后端只记录状态）；任务类型总数十类→十一类、普通目标型任务八类→九类，4.2 执行入口统计同步 |
+| V1.0 | 2026-11-20 | 3.4 向量连通性测试支持携带表单未保存配置：请求体可选、合并后临时向量化不写回配置，空密钥沿用已保存密文，仅刷新 `lastTest`（无配置行不持久化） |
