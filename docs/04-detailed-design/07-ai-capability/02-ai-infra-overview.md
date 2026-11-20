@@ -901,7 +901,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-  - `groupBy = model` 时 `key` 形如 `modelId`，响应附 `keyName`（模型名）；`scene` 同理。
+  - `groupBy = model` 时 `key` 形如 `modelId`，响应附 `keyName`（分组展示名）：优先取 `ai_model_config.name`（配置名称），名称缺失时回退 `ai_model_config.modelName`（实际调用的模型标识）；向量 API 调用无模型配置行（`model_id` 为 NULL、`key` 为空串），`keyName` 取当前 `ai_embedding_config.embedding_model`（向量模型标识）。`scene` 同理。
 
 - **下钻**：`GET /api/ai/usage/tasks`
   - 参数：`from / to`、`modelId`、`scene`、`status`、`callType`（`chat / vision / embedding`，按调用类型下钻）、`pageNo`、`pageSize`；
@@ -1136,3 +1136,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-19 | 3.6.1 登记辅助域新任务类型 `mindmap_case_generation`（`documentId` + `requirementId` → `mindmap_case_suggestion`，采纳由脑图面板执行、后端只记录状态）；任务类型总数十类→十一类、普通目标型任务八类→九类，4.2 执行入口统计同步 |
 | V1.0 | 2026-11-20 | 3.4 向量连通性测试支持携带表单未保存配置：请求体可选、合并后临时向量化不写回配置，空密钥沿用已保存密文，仅刷新 `lastTest`（无配置行不持久化） |
 | V1.0 | 2026-11-20 | 3.6.3 `/latest` 查询支持文档级复用：`nodeId` 改可选，省略时仅按 `documentId` 匹配，供脑图「AI覆盖雷达」回显当前文档最近一次生成任务 |
+| V1.0 | 2026-11-20 | 3.7 明确按模型分组 `keyName` 的兜底口径：配置名称缺失时回退 `modelName`，向量调用取 `ai_embedding_config.embedding_model` |
