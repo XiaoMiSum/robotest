@@ -82,6 +82,42 @@ describe('CaseSelector · 注入树模式', () => {
     expect(emissions.some((payload) => payload.some((key) => key === 'step-1'))).toBe(false)
   })
 
+  it('全选一次选中全部提案用例，再次点击清空', async () => {
+    const wrapper = mount(CaseSelector, {
+      props: { modelValue: true, inline: true, injectedNodes: injectedNodes() },
+      global: { plugins: [ElementPlus] },
+    })
+    await wrapper.vm.$nextTick()
+
+    const selectAll = wrapper.find('.case-selector__toolbar input')
+    expect(selectAll.exists()).toBe(true)
+    await selectAll.setValue(true)
+    await wrapper.vm.$nextTick()
+
+    const emissions = wrapper.emitted('selectionChange') ?? []
+    expect(emissions[emissions.length - 1]).toEqual([['case-1', 'case-2']])
+
+    await wrapper.find('.case-selector__toolbar input').setValue(false)
+    await wrapper.vm.$nextTick()
+
+    const cleared = wrapper.emitted('selectionChange') ?? []
+    expect(cleared[cleared.length - 1]).toEqual([[]])
+  })
+
+  it('部分勾选时全选呈半选态', async () => {
+    const wrapper = mount(CaseSelector, {
+      props: { modelValue: true, inline: true, injectedNodes: injectedNodes() },
+      global: { plugins: [ElementPlus] },
+    })
+    await wrapper.vm.$nextTick()
+
+    const caseChip = wrapper.findAll('.cst-chip').find((chip) => chip.text().includes('获取验证码'))
+    caseChip!.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.case-selector__toolbar .el-checkbox__input.is-indeterminate').exists()).toBe(true)
+  })
+
   it('重新注入提案集合时清空旧勾选', async () => {
     const wrapper = mount(CaseSelector, {
       props: { modelValue: true, inline: true, injectedNodes: injectedNodes() },
