@@ -147,6 +147,32 @@ function collectCaseIds(node: TestCaseNode, acc: string[]) {
   node.children.forEach((child) => collectCaseIds(child, acc))
 }
 
+const selectableCaseIds = computed<string[]>(() => {
+  const root = selectableRoot.value
+  if (!root) return []
+  const ids: string[] = []
+  collectCaseIds(root, ids)
+  return ids
+})
+
+// 全选作用于整棵勾选树的用例节点：部分子树已选时呈半选态，再点补齐整枝
+const allSelected = computed(() => {
+  const ids = selectableCaseIds.value
+  if (!ids.length) return false
+  const set = selectedMap.value[selectedDocId.value]
+  return ids.every((id) => set?.has(id) === true)
+})
+
+const someSelected = computed(() => {
+  const set = selectedMap.value[selectedDocId.value]
+  return selectableCaseIds.value.some((id) => set?.has(id) === true)
+})
+
+function toggleSelectAll(): void {
+  const root = selectableRoot.value
+  if (root) handleToggle(root)
+}
+
 function emitSelection(): void {
   const ids: string[] = []
   Object.values(selectedMap.value).forEach((set) => ids.push(...set))
@@ -368,7 +394,18 @@ watch(
             </el-select>
           </div>
           <div class="case-selector__toolbar">
-            <span class="case-selector__tip">勾选要插入脑图的用例及属性节点</span>
+            <div class="case-selector__toolbar-left">
+              <el-checkbox
+                v-if="injectedNodes"
+                :model-value="allSelected"
+                :indeterminate="someSelected && !allSelected"
+                size="small"
+                @change="toggleSelectAll"
+              >
+                全选
+              </el-checkbox>
+              <span class="case-selector__tip">勾选要插入脑图的用例及属性节点</span>
+            </div>
             <span class="case-selector__count">已选 {{ totalSelected }} 个用例</span>
           </div>
           <div class="case-selector__canvas">
@@ -402,7 +439,7 @@ watch(
 
 .case-selector-inline {
   height: 100%;
-  min-height: 320px;
+  min-height: 0;
 }
 
 .case-selector__tree {
@@ -462,6 +499,12 @@ watch(
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.case-selector__toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .case-selector__tip {

@@ -41,6 +41,8 @@ const globalStyleExceptions: Record<string, string> = {
     'Element Plus Dialog Teleport 根节点',
   'src/components/project/functional-testing/case/CaseMindMap.vue':
     'Element Plus 下拉项多根 Fragment 不透传 scopeId，按 popper-class 锚定下拉样式',
+  'src/components/project/functional-testing/case/AiCaseGenerationPanel.vue':
+    'Element Plus Dialog Teleport 根节点固定高度布局',
 }
 
 const teleportSelectorExceptions = new Set([

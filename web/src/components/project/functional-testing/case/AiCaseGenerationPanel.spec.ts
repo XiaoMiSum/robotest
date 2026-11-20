@@ -93,6 +93,7 @@ describe('AiCaseGenerationPanel', () => {
     expect(keys.map((item) => item.attributes('data-key'))).toEqual(['case-1', 'case-2'])
     expect(keys[0].find('.stub-child').text()).toBe('已登录')
     expect(wrapper.find('.ai-generation__title').text()).toContain('验证码需求')
+    expect(wrapper.find('.ai-generation__selector').exists()).toBe(true)
   })
 
   it('勾选后插入按提案 key 透传，未勾选时按钮禁用', async () => {
@@ -171,5 +172,15 @@ describe('AiCaseGenerationPanel · 源码结构约束', () => {
     expect(panelSource).toContain("emit('insert', [...pendingKeys.value])")
     expect(panelSource).not.toContain('submitItems')
     expect(panelSource).not.toContain('adopt(')
+  })
+
+  it('结果区不额外包裹容器，弹窗高度固定且仅卡片区内部滚动', () => {
+    expect(panelSource).not.toContain('class="ai-generation__tree"')
+    expect(panelSource).toContain('class="ai-generation__selector"')
+    expect(panelSource).toContain('.ai-generation-dialog')
+    expect(panelSource).toContain('height: 72vh')
+    expect(panelSource).toContain('.el-dialog__body')
+    expect(panelSource).toContain('min-height: 0')
+    expect(panelSource).toContain('overflow: hidden')
   })
 })

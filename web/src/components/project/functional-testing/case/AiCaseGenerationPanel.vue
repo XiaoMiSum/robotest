@@ -180,14 +180,14 @@ function close(): void {
       <div v-else-if="rows.length === 0" class="ai-generation__placeholder">
         <el-empty :image-size="60" description="本次未生成候选用例" />
       </div>
-      <div v-else class="ai-generation__tree">
-        <CaseSelector
-          :model-value="true"
-          :injected-nodes="injectedNodes"
-          inline
-          @selection-change="updateSelection"
-        />
-      </div>
+      <CaseSelector
+        v-else
+        class="ai-generation__selector"
+        :model-value="true"
+        :injected-nodes="injectedNodes"
+        inline
+        @selection-change="updateSelection"
+      />
 
       <AiConfirmReceipt
         v-if="showReceipt"
@@ -220,7 +220,8 @@ function close(): void {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  min-height: 420px;
+  height: 100%;
+  min-height: 0;
 }
 
 .ai-generation__head {
@@ -228,6 +229,7 @@ function close(): void {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
+  flex-shrink: 0;
 }
 
 .ai-generation__requirement {
@@ -272,18 +274,14 @@ function close(): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 320px;
+  min-height: 0;
   flex: 1;
   width: 100%;
 }
 
-.ai-generation__tree {
+.ai-generation__selector {
   flex: 1;
-  min-height: 320px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm);
-  overflow: hidden;
+  min-height: 0;
 }
 
 .ai-generation__foot {
@@ -292,6 +290,7 @@ function close(): void {
   justify-content: space-between;
   padding-top: var(--space-sm);
   border-top: 1px solid var(--el-border-color-lighter);
+  flex-shrink: 0;
 }
 
 .ai-generation__stat {
@@ -302,5 +301,25 @@ function close(): void {
 .ai-generation__actions {
   display: flex;
   gap: var(--space-xs);
+}
+</style>
+
+// 弹窗根元素由 Element Plus Teleport 渲染，scoped 选择器无法命中；用 class 锚点限定布局（同 CaseSelector）。
+<style lang="scss">
+/*
+ * CODE-008 例外：Dialog 根节点无组件 scopeId，仅在本弹窗类内建立高度链，避免影响其他弹窗。
+ * 规则来源：docs/00-spec/10-engineering/01-frontend.md §8、docs/00-spec/50-ui/03-scroll-container.md UI-SC-01/02/06。
+ */
+.ai-generation-dialog {
+  height: 72vh;
+  display: flex;
+  flex-direction: column;
+
+  .el-dialog__body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 </style>
