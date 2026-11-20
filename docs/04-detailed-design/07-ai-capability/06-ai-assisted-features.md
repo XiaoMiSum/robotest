@@ -222,9 +222,9 @@
 
 - 需求与文档均按当前项目校验；需求仅接受 `confirmed`，发起时对需求做快照，执行期间变更按快照继续并在面板提示「来源需求已变更」；
 - 提案在勾选插入前不落库；插入为新增节点，不覆盖既有节点，不修改既有树的层级与 ID；
-- 插入位置固定为当前文档根节点下：每个被勾选提案生成一个 `case` 节点（`priority` / `tags` 写入列、`aiGenerated = true`），其下依次追加 `precondition` / `step` / `expected` 子节点；`steps` 与 `expected` 按短边截齐；
+- 插入位置固定为当前文档根节点下：每个被勾选提案生成一个 `case` 节点（`priority` / `tags` 写入列、`aiGenerated = true`、`requirementId` 随 `add_node` 帧写入），其下依次追加 `precondition` / `step` / `expected` 子节点（`aiGenerated = true`）；`steps` 与 `expected` 按短边截齐；
 - 节点变更经脑图既有 WS 持久化管道落库并触发向量索引重嵌；确认协议只记录采纳状态，后端不写业务节点；
-- 采纳时为新建用例节点自动写入与来源需求的关联（既有 `ft_case_requirement`，需求取提案 `sourceRefs` 首项，缺失回退任务输入 `requirementId`）：前端在节点落库后按既有 `PUT /api/project/cases/{caseId}/requirements` 单值写入；因节点经 WS 异步落库，须对「用例节点不存在（1000011022）」做有界重试，需求不属于当前项目（1000018001）等非时序错误不重试；关联失败提示用户，不回滚已插入节点与采纳状态；
+- 采纳时为新建用例节点自动写入与来源需求的关联（需求取提案 `sourceRefs` 首项，缺失回退任务输入 `requirementId`）：来源需求 id 写入用例节点 data 的 `requirementId`，随 `add_node` 帧与节点一同落库，不再单独调用接口、不再需要「节点未落库」重试；需求不属于当前项目（1000018001）时由后端错误帧提示，不回滚已插入节点与采纳状态；
 - 任务详情对 `mindmap_case_generation` 注册只读展示策略，不提供采纳 / 编辑后采纳 / 驳回动作；提案状态由脑图面板的采纳动作驱动。
 
 ---
@@ -266,14 +266,14 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 └── Actionbar（采纳、重新执行、关闭；采纳后自动关联来源需求并回执逐项成败）
 ```
 
-各结构块落在对应 `.vue` 组件文件内，不拆独立组件文件（见 7 节文件清单）。用例选择器增加「注入树」模式：传入 AI 提案映射的 `TestCaseNode` 树时跳过后端文档加载，确认回传所选用例节点，复用既有勾选与脑图式渲染能力；勾选用例时按整棵子树定位属性子节点，插入与回执仍只按用例提案 key 计数。注入树模式接收「展示已采纳用例」开关与已采纳用例 key 集合：关闭时提案树剔除已采纳用例，开启时这些用例默认勾选且不可取消，仅作回看；「采纳」按提案确认状态区分，先对新勾选用例建节点，再回传采纳状态，已采纳用例不重复插入也不重复回传。每个注入节点随行携带其来源需求 id（提案 `sourceRefs[0].id`，缺失回退任务输入）；插入执行器返回新建用例节点 id，供采纳流程逐项写入需求关联。AI 生成面板与 AI 优化面板的对话框容器（header / body / footer）四边 padding 统一收紧，内容区自身的间距与滚动口径不变。
+各结构块落在对应 `.vue` 组件文件内，不拆独立组件文件（见 7 节文件清单）。用例选择器增加「注入树」模式：传入 AI 提案映射的 `TestCaseNode` 树时跳过后端文档加载，确认回传所选用例节点，复用既有勾选与脑图式渲染能力；勾选用例时按整棵子树定位属性子节点，插入与回执仍只按用例提案 key 计数。注入树模式接收「展示已采纳用例」开关与已采纳用例 key 集合：关闭时提案树剔除已采纳用例，开启时这些用例默认勾选且不可取消，仅作回看；「采纳」按提案确认状态区分，先对新勾选用例建节点，再回传采纳状态，已采纳用例不重复插入也不重复回传。每个注入节点随行携带其来源需求 id（提案 `sourceRefs[0].id`，缺失回退任务输入）；插入执行器把该 id 写入用例节点 data 的 `requirementId`，随 `add_node` 帧落库。AI 生成面板与 AI 优化面板的对话框容器（header / body / footer）四边 padding 统一收紧，内容区自身的间距与滚动口径不变。
 
 ### 5.3 状态管理与状态分支
 
 - 复用总册 `aiTask` store 轮询任务执行；本域私有状态挂 `AssistComparePanel` 本地（不入全局 store）；
 - 脑图生成用例的所选需求、勾选集合、全选状态、展示已采纳开关与采纳回执挂 `AiCaseGenerationPanel` 本地；提交后由 `aiTask` store 按 `taskId` 轮询，状态非 `running` 即停轮；`proposals_ready` 时按提案确认状态分区：未采纳用例映射为可勾选的 `TestCaseNode` 树，已采纳（含编辑后采纳）用例在开关关闭时不入树，开启时作为默认勾选的只读节点入树；失败与终止态提供再次执行；
-- 脑图生成用例的「采纳」只作用于本次新勾选的未采纳用例：先创建脑图节点与属性子节点，再按新建节点 id 逐项写入需求关联，最后回传采纳状态；已采纳用例不重复建节点、不重复关联、不重复回传状态；勾选集全为已采纳用例时动作区置灰；
-- 需求关联写入复用既有 `updateCaseRequirements`，仅在节点未落库（1000011022）时按固定间隔有界重试；重试耗尽或返回其他错误时汇总提示，采纳状态照常回传；
+- 脑图生成用例的「采纳」只作用于本次新勾选的未采纳用例：创建脑图节点与属性子节点时把来源需求 id 写入节点 data 的 `requirementId` 并随 `add_node` 帧一同落库，随后回传采纳状态；已采纳用例不重复建节点、不重复关联、不重复回传状态；勾选集全为已采纳用例时动作区置灰；
+- 需求关联随节点 `add_node` 帧落库，无独立写入与「节点未落库」重试；需求归属校验失败经服务端错误帧提示，采纳状态照常回传；
 - 用例优化按用例节点、脑图生成用例按当前文档查询后端最近一次任务（同一 `GET /api/ai/tasks/{type}/latest`，前者传 `nodeId`、后者省略 `nodeId`，项目内任意成员发起的任务均可复用）：命中后按任务状态回显进度 / 提案，无任务时才进入各自的发起流程；仅取最近一次，不查询更早历史；查询失败只提示错误、不自动发起；切换节点 / 文档时丢弃过期查询响应，避免旧任务提案内容写入新任务；
 - 重新执行：`proposals_ready` / `aborted` 沿用同一任务新建执行实例（3.6.4）；`closed` 因后端不允许再次执行，按同一输入发起新任务；
 - 状态分支：任务进行中（超交互等待展示进度入口）、全部建议与现状一致（折叠 + 提示「无变化」）、部分采纳回执、用例优化入口对只读节点置灰、AI 未启用入口隐藏（总册 4.5）；入口放行后面板动作区仍对只读 / 已处理态置灰并常驻展示原因，避免入口与实际可采纳状态不一致。
@@ -309,14 +309,14 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 | ---- | ---- |
 | `server/.../service/ai/task/type/CaseOptimizeTypeAdapter`、`PlanOrderTypeAdapter` | 辅助域任务类型适配器（工具白名单与预算默认、节点操作指令提案结构与清洗，共用 `CaseAssistSupport` 解析输入） |
 | `server/.../service/ai/task/handler/CaseAssistSupport`、`CaseOptimizeOps` | 子树节点清单上下文 `nodeContext`（id / type / title / path）与操作指令常量、清洗归一口径 |
-| `server/.../model/dto/request/tcase/DocumentUpdateAttrsReqDTO`、`repository/tcase/TestCaseNodeMapper`、`service/websocket/DocumentPersistenceHandler` | `update_attrs` 扩展 `tags`：DTO 增字段、`updateAttrsWithVersion` 增参数与条件写入、处理器透传，供前端标签更新随脑图持久化落库 |
+| `server/.../model/dto/request/tcase/DocumentAddNodeReqDTO`、`DocumentUpdateAttrsReqDTO`、`repository/tcase/TestCaseNodeMapper`、`service/websocket/DocumentPersistenceHandler` | 脑图帧扩展 `requirementId`：`add_node` / `update_attrs` DTO 增字段、`updateAttrsWithVersion` 增参数与条件写入、处理器写入 `ft_case_node.requirement_id`（`add_node` 同时携带 `aiGenerated`），校验需求归属并经错误帧返回 1000018001 |
 | `server/.../service/ai/task/adopt/PlanOrderAdopter` | 执行顺序推荐采纳落库（用例优化采纳由前端执行节点操作，后端 adopter 不改） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018301–1000018307 |
-| `server/src/main/resources/db/schema.sql` | `ft_case_node.tags` 列 DDL（唯一事实源，存量库增量 SQL 按 runbook §10 手工执行） |
+| `server/src/main/resources/db/schema.sql` | `ft_case_node.tags`、`ft_case_node.requirement_id` 列及索引 DDL（唯一事实源）；删除 `ft_case_requirement` 表与索引 |
 | `web/src/components/project/ai/AssistComparePanel.vue`、`PlanOrderPanel.vue` | 操作指令对照与排序面板（含各自单测） |
 | `web/src/composables/project/ai/useAssistTask.ts`、`assistPresentation.ts` + 单测 | 任务提交（等待 + 超时转进度）、回执处理与操作指令视图模型 |
 | `web/src/composables/project/functional-testing/mindmap/useCaseOptimizeExecution.ts` + 单测 | 按 operations 在 kityminder 树上原地更新 / 新增节点并触发持久化 |
-| `web/src/composables/project/functional-testing/mindmap/useMindmapPersistence.ts` | `PersistSnap` 携带 `tags`，`update_attrs` 帧写入标签列 |
+| `web/src/composables/project/functional-testing/mindmap/useMindmapPersistence.ts` | `PersistSnap` 携带 `tags` / `requirementId`，`add_node` 帧携带 `aiGenerated` / `requirementId`，`update_attrs` 帧写入标签列与需求列（清空显式传 null） |
 | `web/src/composables/project/functional-testing/mindmap/useCaseOptimizeExecution.ts` | 采纳时按提案 `nodeId` 给被优化用例节点写 `aiGenerated`，与节点操作同批触发落库 |
 | `web/src/composables/project/ai/useCaseAssistEntry.ts` | 采纳 / 编辑后采纳透传提案锚点 `nodeId` 给执行器 |
 | `web/src/types/project/shared.ts`、`web/src/minder/adapter.ts` | `TestCaseNode` 携带 `aiGenerated` 并映射到脑图节点 data |
@@ -327,18 +327,19 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 | `server/.../framework/common/Constants`、`ErrorCodeConstants` | 登记任务类型 `mindmap_case_generation`、提案 kind `mindmap_case_suggestion` 与错误码 1000018309–1000018312 |
 | `web/src/components/project/functional-testing/case/AiCaseGenerationPanel.vue` + 单测 | 生成面板：进度 / 提案勾选树 / 插入回执 / 重新执行 |
 | `web/src/components/project/functional-testing/case/CaseSelector.vue` + 单测 | 增加注入树模式（传入 AI 提案映射的节点树时跳过后端文档加载） |
-| `web/src/composables/project/functional-testing/mindmap/useCaseGenerationInsert.ts` + 单测 | 按提案在根节点下创建用例与属性子节点、`contentchange` + 持久化，并返回新建用例节点 id 供需求关联 |
-| `web/src/composables/project/ai/useCaseGenerationEntry.ts` + 单测 | 需求单选 → 任务提交 → 轮询 → 提案映射 → 采纳建节点 → 自动关联来源需求（节点未落库时有界重试）→ 回传采纳状态 |
-| `web/src/services/project/functional-testing/testcase.ts` | 复用既有 `updateCaseRequirements` 单值接口写入来源需求关联 |
+| `web/src/composables/project/functional-testing/mindmap/useCaseGenerationInsert.ts` + 单测 | 按提案在根节点下创建用例与属性子节点，来源需求 id 写入用例节点 data 的 `requirementId`、`aiGenerated = true`，`contentchange` + 持久化随 `add_node` 落库 |
+| `web/src/composables/project/ai/useCaseGenerationEntry.ts` + 单测 | 需求单选 → 任务提交 → 轮询 → 提案映射 → 采纳建节点（需求关联随节点落库）→ 回传采纳状态 |
+| `web/src/types/project/shared.ts`、`web/src/minder/adapter.ts` | `TestCaseNode` 携带 `requirementId` 并映射到脑图节点 data |
+| `web/src/services/project/functional-testing/testcase.ts`、`web/src/composables/project/functional-testing/mindmap/useCaseRequirementLink.ts` | 删除 `fetchCaseRequirements` / `updateCaseRequirements` 服务与独立关联保存；选取器回显改按 id 调需求详情、确认后写节点 `requirementId` 并触发持久化 |
 | `web/src/composables/project/ai/reviewProfiles.ts`、`web/src/types/ai.ts` | 新任务类型登记只读展示策略（任务详情无审核动作）与新类型 / 提案类型 |
 
-- **数据库**：无新增表、无新增列；任务 / 执行 / 提案 / 采纳记录复用 `ai_task_` 六表，节点落库均为既有 `ft_case_node` 业务表。
+- **数据库**：用例关联需求复用 `ft_case_node.requirement_id` 列（详见 `docs/04-detailed-design/03-function-testing/04-project-workspace-test-case.md` 4 节），删除 `ft_case_requirement` 表；任务 / 执行 / 提案 / 采纳记录复用 `ai_task_` 六表，节点落库均为既有 `ft_case_node` 业务表。
 - **OpenAPI**：两个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
 
 **测试要点（C8 ≥ 70%）**
 
 - 后端：节点归属与类型校验矩阵、数量上限、非法节点 / 字段 / 类型引用在提案清洗阶段丢弃、`update_attrs` 携带 `tags` 落库与版本冲突处理、顺序采纳只改排序不碰集合、计划空集错误码、越权 404；
-- 前端：操作指令对照列表渲染与折叠（更新两栏 / 新增行）、采纳 / 驳回回执、执行器按 `nodeId` 原地改写与按 `parentId` 新增节点（ID / 层级不变、类型白名单）、标签随 `update_attrs` 落库、节点不存在时跳过、拖拽序号与前后对照、只读置灰、任务超时转进度入口；生成用例采纳按来源引用关联需求、节点未落库时重试、非时序错误不重试、失败只提示不回滚。
+- 前端：操作指令对照列表渲染与折叠（更新两栏 / 新增行）、采纳 / 驳回回执、执行器按 `nodeId` 原地改写与按 `parentId` 新增节点（ID / 层级不变、类型白名单）、标签随 `update_attrs` 落库、节点不存在时跳过、拖拽序号与前后对照、只读置灰、任务超时转进度入口；生成用例采纳时来源需求 id 随 `add_node` 帧落库、子节点 `aiGenerated` 同帧写入、需求归属错误经错误帧提示不回滚。
 
 ---
 
@@ -371,3 +372,4 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 | V1.0 | 2026-11-20 | 4.4 / 5.2 / 5.3 / 7 补齐采纳时自动关联来源需求：插入执行器返回新建节点 id，前端按既有接口逐项写入并只对节点未落库做有界重试，失败不回滚；同步测试要点 |
 | V1.0 | 2026-11-20 | 用例关联需求保存接口入参改为单个 `requirementId`，4.4 / 7 中来源需求关联写入口径同步为单值 |
 | V1.0 | 2026-11-20 | 5.2 生成面板弹窗高度调至约 88vh、上下留白一致（各约 6vh）；AI 生成与 AI 优化面板对话框容器 padding 统一收紧，内容区间距不变 |
+| V1.0 | 2026-11-20 | 用例关联需求改为 `ft_case_node.requirement_id` 随脑图帧落库：4.4 / 5.2 / 5.3 / 7 采纳时来源需求 id 写入节点 data 随 `add_node` 同帧落库，删除独立关联接口与有界重试，`add_node` 同时携带 `aiGenerated`，需求详情按 id 回显 |

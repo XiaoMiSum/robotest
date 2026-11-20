@@ -50,13 +50,14 @@
 | type        | enum('case','normal','precondition','step','expected') | NOT NULL, DEFAULT 'normal'            | 节点类型           |
 | title       | varchar(200)                                           | NOT NULL                              | 标题             |
 | priority    | varchar(2)                                             | NULL                                  | 优先级编码（仅case节点） |
+| requirement_id | binary(16)                                          | NULL                                  | 关联需求ID（仅case节点，逻辑外键） |
 | sort_order  | int                                                    | NOT NULL, DEFAULT 0                   | 排序号            |
 | version     | int                                                    | NOT NULL, DEFAULT 1                   | 乐观锁版本号         |
 | created_at  | datetime                                               | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 创建时间           |
 | updated_at  | datetime                                               | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间           |
 | is_deleted  | tinyint(1)                                             | NOT NULL, DEFAULT 0                   | 是否删除           |
 
-**索引**：`idx_document_id` (document_id), `idx_parent_id` (parent_id)
+**索引**：`idx_document_id` (document_id), `idx_parent_id` (parent_id), `idx_requirement_id` (requirement_id)
 
 #### 2.1.3 用例文档表（ft_case_document）
 
@@ -470,3 +471,4 @@
 | V1.0 | 2026-11-13 | 功能测试侧栏子项对齐实际实现：「需求池」更名为「需求列表」并居首位，组件名更正为 RequirementListPage，路由表补新建/详情两行与 `/requirements` 重定向说明 |
 | V1.0 | 2026-11-18 | 移除功能测试、需求管理、接口测试与缺陷管理的 RBAC 权限码口径：2.4 改为登录/项目成员归属校验与业务规则说明，顶部菜单、框架页入口及路由表不再按业务权限码过滤 |
 | V1.0 | 2026-11-18 | 移除重规划状态机制对应的错误码 1000011028 |
+| V1.0 | 2026-11-20 | 2.1.2 `ft_case_node` 字段清单补 `requirement_id` 及对应索引（用例关联需求改为节点字段存储） |

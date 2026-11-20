@@ -63,7 +63,7 @@
   ```
 
 - **校验**：`name` 非空；`requirementIds` 与 `selectedNodes` 均可为空（`selectedNodes` 保留供 AI 助手创建链路使用）；每个 `caseIds` 非空。前端创建表单另做校验：名称必填（输入框限 100 字）、至少关联一个需求，未满足时拦截并提示；所选需求无用例时允许创建空计划。
-- **处理**：校验 `requirementIds` 均属于当前项目，否则返回 1000018001；按 `ft_case_requirement` 解析所选需求的关联用例（仅 `type='case'` 节点），按 `documentId → caseIds` 分组后与显式 `selectedNodes` 合并去重；生成模块和节点快照（完整拷贝用例属性），按最终 `caseIds` 标记 `is_associated`，初始化 `last_result='untested'`，状态置 new；持久化 `requirement_ids`；记录项目活动 `PLAN_CREATED`。
+- **处理**：校验 `requirementIds` 均属于当前项目，否则返回 1000018001；按 `ft_case_node.requirement_id` 解析所选需求的关联用例（仅 `type='case'` 节点），按节点 `documentId → caseIds` 分组后与显式 `selectedNodes` 合并去重；生成模块和节点快照（完整拷贝用例属性），按最终 `caseIds` 标记 `is_associated`，初始化 `last_result='untested'`，状态置 new；持久化 `requirement_ids`；记录项目活动 `PLAN_CREATED`。
 - **响应**：201，返回计划详情（结构同 1.3）。
 - **前端**：创建成功后关闭弹窗并跳转至该计划详情页 `/workspace/projects/plans/:id`。
 
@@ -361,3 +361,4 @@
 | V1.0 | 2026-11-19 | 计划脑图移除顶部工具栏与右键菜单，标记/移除用例入口改为用例节点悬浮窗（水平并排、透明背景、`link` 类型按钮，仅点击 case 节点展示） |
 | V1.0 | 2026-11-20 | 详情页头改为单条无边框横条，面包屑保持纯净，状态/进度/统计/关联需求/操作按钮并入右侧同行独立容器、删除独立标题卡片；快照文档树补齐固定 header 与评审明细一致 |
 | V1.0 | 2026-11-20 | 「选择需求」选取器统一仅列已确认需求（前端列表请求传 `status=confirmed`），覆盖用例关联、评审与计划场景 |
+| V1.0 | 2026-11-20 | 创建 / 重规划计划的用例反查口径由 `ft_case_requirement` 改为 `ft_case_node.requirement_id` |

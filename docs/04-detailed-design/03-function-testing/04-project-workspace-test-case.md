@@ -115,7 +115,7 @@
   }
   ```
 
-- **字段说明**：`node` 为嵌套的根节点对象，每个节点包含 id、documentId、parentId、type、title、priority、sortOrder、version、aiGenerated 与 children 数组；根节点的 parentId 为 null，叶子节点的 children 为空数组。节点类型 `type` 取值 `normal`（普通）/ `case`（用例）/ `precondition`（前置）/ `step`（步骤）/ `expected`（预期），仅 `case` 节点可带 `priority`（P0-P3）。
+- **字段说明**：`node` 为嵌套的根节点对象，每个节点包含 id、documentId、parentId、type、title、priority、sortOrder、version、aiGenerated、requirementId 与 children 数组；根节点的 parentId 为 null，叶子节点的 children 为空数组。节点类型 `type` 取值 `normal`（普通）/ `case`（用例）/ `precondition`（前置）/ `step`（步骤）/ `expected`（预期），仅 `case` 节点可带 `priority`（P0-P3）与 `requirementId`（关联需求 id，未关联为 null）。
 - **校验**：免 RBAC 权限码校验，服务层校验项目成员身份。
 
 ### 1.5 获取用例详情
@@ -125,17 +125,12 @@
 
 ### 1.6 维护用例关联需求
 
-一条用例节点至多关联一条需求条目，供测试计划 / 测试评审按需求反查关联用例。前端「选择需求」选取器默认多选，测试用例场景为单选交互；确认时以单个 `requirementId` 提交，`null` 表示清空关联。选取器仅列已确认（`confirmed`）需求，列表请求由前端传 `status=confirmed`，草稿 / 已变更 / 已归档需求不展示。
+一条用例节点至多关联一条需求条目，供测试计划 / 测试评审按需求反查关联用例。关联以 `ft_case_node.requirement_id` 字段存储，随脑图节点变更一起通过 WS 文本帧落库，不设独立的需求关联接口。前端「选择需求」选取器默认多选，测试用例场景为单选交互；确认时以单个 `requirementId` 写入节点 data，`null` 表示清空关联。选取器仅列已确认（`confirmed`）需求，列表请求由前端传 `status=confirmed`，草稿 / 已变更 / 已归档需求不展示。
 
-- **查询**：`GET /api/project/cases/:caseId/requirements`
-  - **响应**：`[{ "id": "…", "code": "REQ-12", "title": "登录验证码" }]`，按需求编号升序；无用例关联时返回空数组。
-  - **校验**：登录、活动上下文与当前项目成员身份；免 RBAC 权限码校验。
-- **保存**：`PUT /api/project/cases/:caseId/requirements`
-  - **请求体**：`{ "requirementId": "…" }`，`null` 表示清空该用例节点的需求关联。
-  - **校验**：用例节点属于当前项目且存在，否则返回 1000011022；节点类型必须为 `case`，否则返回 1000011022；`requirementId` 非空时必须属于当前项目，否则返回 1000018001。
-  - **处理**：事务内按 `case_node_id` 定位 `ft_case_requirement`：先尝试更新关联行的 `requirement_id`，更新影响行数为 0 时插入新关联行；`requirementId` 为 `null` 时删除现有关联行（逻辑删除）。重复提交结果幂等。
-  - **响应**：保存后的需求摘要列表（结构同查询，至多一项）。
-  - **校验**：登录、活动上下文与当前项目成员身份；免 RBAC 权限码校验。
+- **回显**：节点 data 仅携带 `requirementId`，选取器回填所需的 `code` / `title` 由前端按 id 调 `GET /api/project/requirements/:id`（需求详情，见需求管理详设）获取；无关联时以空选择打开。
+- **保存**：确认后写入当前用例节点 data 的 `requirementId` 并触发脑图持久化：`add_node` 帧在插入用例节点时直接携带，`update_attrs` 帧在变更时携带（`null` 需显式发送以清空，省略表示不变更）；后端写入 `ft_case_node.requirement_id`。
+- **校验**：WS 写帧统一校验文档成员身份；`requirementId` 非空时必须属于当前项目，否则经错误帧返回 1000018001；仅 `case` 节点携带该字段。
+- **并发**：`update_attrs` 沿用 `version` 乐观锁，版本不符的关联变更丢弃并记日志。
 
 ## 2. 文档创建与默认根节点
 
@@ -147,7 +142,7 @@
 通过 WebSocket 连接 `ws(s)://<host>/ws/documents/{docId}?token=<accessToken>`（y-websocket 将房间名 `docId` 拼接到 `/ws/documents` 尾部，浏览器无法带 Authorization 头，token 走查询参数），服务端握手时校验 token 与项目成员身份后加入文档房间。连接上承载两类帧：
 
 - **二进制帧（Yjs sync/awareness 协议）**：负责多人实时同步与在线状态，不落库；可写帧（sync step2 / update）广播前校验当前用户为文档成员，只读帧（sync step1、awareness）直接转发；服务端回发空 awareness 帧保活。
-- **文本帧（JSON 操作协议）**：`{ "type": "...", "payload": {...} }`，`type` 取值 `add_node`、`move_node`、`update_attrs`、`delete_node`（payload 为 `{ "data": { ... } }`）与 `update_layout`（payload 即布局对象）。可写类型先广播给房间内其他用户，再由持久化处理器写库；每次写操作前重查文档成员身份，被拒时向发送者回 `{ "type": "error", "code": "...", "message": "非文档成员，无法编辑" }` 错误帧，不广播不落库。
+- **文本帧（JSON 操作协议）**：`{ "type": "...", "payload": {...} }`，`type` 取值 `add_node`、`move_node`、`update_attrs`、`delete_node`（payload 为 `{ "data": { ... } }`）与 `update_layout`（payload 即布局对象）。`add_node` 的 data 携带 `id`、`title`、`type`、`priority`、`parentId`、`sortOrder`、`aiGenerated`、`requirementId`；`update_attrs` 的 data 恒含 `id`、`title`、`type`、`priority`，并按需携带 `tags`、`aiGenerated`、`requirementId`（`requirementId` 显式传 `null` 表示清空，省略表示不变更）。可写类型先广播给房间内其他用户，再由持久化处理器写库；每次写操作前重查文档成员身份，被拒时向发送者回 `{ "type": "error", "code": "...", "message": "非文档成员，无法编辑" }` 错误帧，不广播不落库。需求关联校验失败（1000018001）同样经错误帧返回发送者。
 
 节点更新与移动使用 `version` 字段乐观锁（`update_attrs` / `move_node` 携带期望版本，版本不符则丢弃并记日志），布局 upsert 到 `ft_case_document.layout` JSON 列。前端脑图数据以嵌套树形结构渲染，内容变更经 400ms 防抖后比对快照差量，递归遍历节点树生成上述操作帧，经同一连接提交；远端协同回放期间不重复提交，切换文档或离开页面时立即冲刷未提交的变更。
 
@@ -220,28 +215,15 @@
 
 ## 4. 数据设计（用例关联需求）
 
-```sql
-CREATE TABLE ft_case_requirement (
-    id             uuid PRIMARY KEY,
-    project_id     uuid NOT NULL,
-    requirement_id uuid NOT NULL,
-    case_node_id   uuid NOT NULL,
-    document_id    uuid NOT NULL,
-    is_deleted     boolean NOT NULL DEFAULT FALSE,
-    created_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+用例与需求的关联在 `ft_case_node` 表增加 `requirement_id` 字段实现（一条用例至多关联一条需求），不设独立关联表。该字段随节点增删改一并落库，节点逻辑删除时关联自然失效；无物理外键。计划 / 评审创建时按该字段反查关联用例（仅 `type='case'` 节点），按节点自身 `document_id` 分组。
 
-CREATE UNIQUE INDEX uk_ft_case_requirement ON ft_case_requirement (requirement_id, case_node_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_ft_case_requirement_req ON ft_case_requirement (requirement_id);
-CREATE INDEX idx_ft_case_requirement_case ON ft_case_requirement (case_node_id);
-CREATE INDEX idx_ft_case_requirement_project ON ft_case_requirement (project_id);
-CREATE INDEX idx_ft_case_requirement_document ON ft_case_requirement (document_id);
+```sql
+ALTER TABLE ft_case_node ADD COLUMN IF NOT EXISTS requirement_id uuid NULL;
+CREATE INDEX IF NOT EXISTS idx_ft_case_node_requirement_id ON ft_case_node (requirement_id) WHERE is_deleted = FALSE;
+COMMENT ON COLUMN ft_case_node.requirement_id IS '关联需求 ID（逻辑外键 → requirement.id，仅 case 节点有值，NULL 表示未关联）';
 ```
 
-`document_id` 冗余用例节点所属文档，供计划 / 评审创建时按 `documentId → caseIds` 分组，避免反查节点表；无物理外键。
-
-存量数据库升级时，先执行本节建表及索引语句，再执行以下增列语句；全新环境使用 `server/src/main/resources/db/schema.sql`。历史计划、评审的需求关联为空，不反推或修改已有用例快照。
+全新环境使用 `server/src/main/resources/db/schema.sql`（已包含该列与索引）。历史计划、评审的需求关联为空，不反推或修改已有用例快照。
 
 ```sql
 ALTER TABLE ft_plan ADD COLUMN IF NOT EXISTS requirement_ids jsonb;
@@ -250,7 +232,7 @@ COMMENT ON COLUMN ft_plan.requirement_ids IS '关联需求 ID 集合（jsonb 数
 COMMENT ON COLUMN ft_review.requirement_ids IS '关联需求 ID 集合（jsonb 数组，创建时写入）';
 ```
 
-回滚应用版本时可保留新增表和列；若确认无需保留关联数据，再删除两列与 `ft_case_requirement` 表。
+回滚应用版本时可保留 `requirement_id` 列；若确认无需保留关联数据，再删除该列及其索引，并删除上面两列。
 
 ## 修改记录
 
@@ -271,3 +253,4 @@ COMMENT ON COLUMN ft_review.requirement_ids IS '关联需求 ID 集合（jsonb �
 | V1.0 | 2026-11-20 | 「选择需求」选取器统一仅列已确认需求（前端列表请求传 `status=confirmed`），覆盖用例关联、评审与计划场景 |
 | V1.0 | 2026-11-20 | 工具栏「AI测试用例」更名「AI覆盖雷达」：入口先按当前文档复用最近一次生成任务，未命中才选需求发起 |
 | V1.0 | 2026-11-20 | 用例关联需求接口入参由 `requirementIds` 数组改为单个 `requirementId`（`null` 清空），保存改为按 `case_node_id` 先更新、影响行数为 0 时插入 |
+| V1.0 | 2026-11-20 | 用例关联需求改为 `ft_case_node.requirement_id` 字段随脑图 `add_node` / `update_attrs` 帧落库，删除独立关联接口与 `ft_case_requirement` 表；`add_node` 同时携带 `aiGenerated`；需求详情按 id 回显到选取器 |
