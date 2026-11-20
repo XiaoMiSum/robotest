@@ -13867,7 +13867,7 @@ export interface operations {
         parameters: {
             query: {
                 documentId: string;
-                nodeId: string;
+                nodeId?: string;
             };
             header?: never;
             path: {

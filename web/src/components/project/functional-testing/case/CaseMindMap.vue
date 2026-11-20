@@ -166,7 +166,7 @@ const {
   retryable: caseGenRetryable,
   progressText: caseGenProgressText,
   loadError: caseGenLoadError,
-  openPicker: openCaseGeneration,
+  openRadar: openCaseGeneration,
   confirmRequirement: confirmCaseGenerationRequirement,
   insert: insertGeneratedCases,
   retry: retryCaseGeneration,
@@ -376,7 +376,7 @@ const handleLayoutCommand = (command: unknown) => {
         >{{ p }}</el-button>
       </div>
 
-      <!-- AI 测试用例入口常驻工具条最右，全屏与非全屏共用同一按钮（详设 5.1） -->
+      <!-- AI覆盖雷达入口常驻工具条最右，全屏与非全屏共用同一按钮（详设 5.1） -->
       <div v-if="caseGenEntryVisible" class="toolbar-ai-entry">
         <el-tooltip :content="caseGenGateReason || '扫描需求测试用例覆盖率并补齐缺漏'" placement="bottom">
           <el-button text :disabled="Boolean(caseGenGateReason)" @click="openCaseGeneration">
@@ -518,7 +518,7 @@ const handleLayoutCommand = (command: unknown) => {
       @confirm="(ids) => void requirementLink.confirm(ids)"
     />
 
-    <!-- AI 测试用例：需求单选 → 生成提案 → 勾选插入当前文档（详设 5.2） -->
+    <!-- AI覆盖雷达：命中最近任务直接回显，未命中需求单选 → 生成提案 → 勾选插入当前文档（详设 5.2） -->
     <RequirementPickerDialog
       v-model="caseGenPickerVisible"
       :initial="caseGenPickerPicks"
