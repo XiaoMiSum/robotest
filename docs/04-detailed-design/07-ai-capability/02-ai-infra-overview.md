@@ -1122,7 +1122,6 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-07 | 提案与采纳表挂 `execution_id`（再次执行唯一键冲突裁决）：2.6.4 / 2.7 增 `execution_id` 列、uk 改 `(execution_id, proposal_key)`；3.6.3 详情提案清单改「最新一次执行」口径，3.6.4 / 3.6.5 联动（同名键跨执行并存、确认按最新执行定位） |
 | V1.0 | 2026-11-07 | 6 补登 1000018128「用户中止」：abort 端点执行与任务的 `terminate_code` 此前无登记码（预算耗尽 127 / 执行错误 117 / 总开关 101 沿用） |
 | V1.0 | 2026-11-07 | 助手与向量执行策略裁决落册：3.6.1 补两类首版默认预算与 steps 计法，4.2 补 vector chat 模型豁免、助手 5 跳与预算先到者终止、迟到用量只记明细不改汇总 |
-| V1.0 | 2026-11-12 | 整体移除评审/计划圈选建议（US-AI-008）：3.6.1 注销 `review_selection` / `plan_selection` 任务类型，3.6 目标型执行清单与 type 数量统计同步为九类 / 十一类 |
 | V1.0 | 2026-11-18 | AI 能力域整体免 RBAC 权限码校验：3.1 / 3.2 / 3.6 / 3.7 / 5.2 移除 `ai:admin` · `ai:task` · `ai:confirm` 与前端权限显隐口径（保留任务归属可见性与项目 / 空间成员校验），2.6.5 工具注册表去 `permission_code` 列，3.8 权限点表改为权限口径说明，6 注销 1000018121，7 删除权限点迁移脚本行 |
 | V1.0 | 2026-11-18 | 任务标题与采纳结果回看、可见范围收窄：2.6.1 `ai_task` 加 `title`（执行后由主提案回填），2.6.4 记回填规则，3.6.2 / 3.6.3 响应补 `title` 与提案 `note`（驳回原因）、列表与计数统一按当前用户过滤，5.2 增 `AiTaskAdoptionResultPanel`、5.3 补 `closed` 只读态，7 补存量库增列迁移 |
 | V1.0 | 2026-11-18 | 助手改为项目级能力：2.9 会话表增 `project_id`（NOT NULL，取 `X-Active-Project`）、索引改 `(user_id, workspace_id, project_id, created_at)`、去 `context_snapshot` 会话私有项目，3.1 助手上下文头统一含项目头、4.4 RAG 读侧助手按 `X-Active-Project` 限权，2.6.1 助手解析任务 `project_id` 取头 |
