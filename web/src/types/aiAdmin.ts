@@ -124,6 +124,16 @@ export interface AiEmbeddingSavePayload {
   enabled?: boolean
 }
 
+/** 连通性测试载荷（3.4：字段缺省时后端沿用已保存配置，不写回配置） */
+export interface AiEmbeddingTestPayload {
+  provider?: string
+  baseUrl?: string
+  apiKey?: string
+  embeddingModel?: string
+  dimensions?: number
+  operator?: string
+}
+
 /** 向量 API 连通性测试结果（3.4） */
 export interface AiEmbeddingTestResult {
   success: boolean
