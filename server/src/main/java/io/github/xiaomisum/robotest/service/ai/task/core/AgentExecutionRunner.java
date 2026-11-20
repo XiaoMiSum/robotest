@@ -83,7 +83,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                 task.getSubmittedBy(), ctx.workspaceId(), ctx.projectId(), task.getId(), task.getType(),
                 task.getInput());
         List<Message> turns = new ArrayList<>();
-        AiChatRequest request = chatRequest(adapter, preparation, task, ctx);
+        AiChatRequest request = chatRequest(adapter, preparation, task, ctx, control);
         String finalOutput = null;
         for (int hop = 0; hop < maxSteps; hop++) {
             control.beforeCall();
@@ -188,7 +188,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
     // ---------- 请求与轮次构造 ----------
 
     private AiChatRequest chatRequest(TaskTypeAdapter adapter, AgentExecutionPreparation preparation,
-            AiTask task, ExecutionContext ctx) {
+            AiTask task, ExecutionContext ctx, ExecutionControl control) {
         String resolvedPrompt = promptService.render(adapter.type(), adapter.systemPrompt(),
                 preparation.promptVariables());
         String userPrompt = "任务类型: " + task.getType()
@@ -196,7 +196,8 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                 + (ModelOutputSupport.trimToNull(ctx.feedback()) == null
                         ? "" : "\n用户反馈:\n" + ctx.feedback());
         return new AiChatRequest(task.getId(), ctx.execution().getId(), ctx.projectId(), task.getSubmittedBy(),
-                task.getType(), ctx.model(), resolvedPrompt, userPrompt, preparation.media());
+                task.getType(), ctx.model(), resolvedPrompt, userPrompt, preparation.media(),
+                control::heartbeatDuringStream);
     }
 
     private static Message assistantTurn(AiChatReply reply) {

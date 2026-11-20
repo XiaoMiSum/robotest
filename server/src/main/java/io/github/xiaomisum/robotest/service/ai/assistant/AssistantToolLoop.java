@@ -122,6 +122,10 @@ public class AssistantToolLoop {
 
         default void afterHop(int tokensIn, int tokensOut) {
         }
+
+        /** 长流期间心跳保活（详设 4.2），默认无操作，任务型助手由执行控制覆写 */
+        default void onStreamTick() {
+        }
     }
 
     public LoopOutcome run(LoopRequest request, AiModelClient modelClient, HopObserver observer) {
@@ -139,7 +143,8 @@ public class AssistantToolLoop {
         for (int hop = 0; hop < MAX_LOOPS; hop++) {
             observer.beforeHop();
             AiChatRequest chatRequest = new AiChatRequest(null, null, request.userId(), "assistant_parse",
-                    request.model(), request.systemPrompt(), request.userPrompt(), request.media());
+                    request.model(), request.systemPrompt(), request.userPrompt(), request.media(),
+                    observer::onStreamTick);
             AiChatReply reply = modelClient.chatWithTools(chatRequest, definitions, turns);
             observer.afterHop(reply.tokensIn(), reply.tokensOut());
             tokensIn += reply.tokensIn();

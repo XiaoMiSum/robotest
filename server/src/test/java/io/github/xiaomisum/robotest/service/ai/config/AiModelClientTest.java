@@ -28,6 +28,7 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import xyz.migoo.framework.common.exception.ServiceException;
 
 import java.math.BigDecimal;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -234,7 +236,7 @@ class AiModelClientTest {
     @Test
     void streamChat_success_accumulatesDeltasWritesUsageAndStreamsOnDelta() {
         AiModelClient spy = Mockito.spy(client);
-        doReturn(chatModel).when(spy).buildChatModel(any(), any());
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any());
         when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
                 chunk("根据"), chunk("检索来源")));
         List<String> deltas = new ArrayList<>();
@@ -257,7 +259,7 @@ class AiModelClientTest {
     @Test
     void streamChat_failure_mapsTo18117AndWritesFailedUsageRow() {
         AiModelClient spy = Mockito.spy(client);
-        doReturn(chatModel).when(spy).buildChatModel(any(), any());
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any());
         when(chatModel.stream(any(Prompt.class))).thenThrow(new RuntimeException("stream broke"));
 
         ServiceException e = assertThrows(ServiceException.class,
@@ -280,6 +282,89 @@ class AiModelClientTest {
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
         verify(chatModel, never()).stream(any(Prompt.class));
         verify(usageLogMapper, never()).insert(any(AiUsageLog.class));
+    }
+
+    @Test
+    void stream_firstTokenTimeout_mapsTo18117AndWritesFailedUsage() {
+        AiModelClient spy = Mockito.spy(client);
+        ReflectionTestUtils.setField(spy, "firstTokenTimeout", Duration.ofMillis(50));
+        ReflectionTestUtils.setField(spy, "idleTimeout", Duration.ofSeconds(5));
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.never());
+
+        ServiceException e = assertThrows(ServiceException.class,
+                () -> spy.streamChat(request(), delta -> { }));
+
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("failed", captor.getValue().getStatus());
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), captor.getValue().getErrorCode());
+    }
+
+    @Test
+    void stream_idleTimeout_mapsTo18117AndWritesFailedUsage() {
+        AiModelClient spy = Mockito.spy(client);
+        ReflectionTestUtils.setField(spy, "firstTokenTimeout", Duration.ofSeconds(5));
+        ReflectionTestUtils.setField(spy, "idleTimeout", Duration.ofMillis(50));
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.concat(Flux.just(chunk("首段")), Flux.never()));
+
+        ServiceException e = assertThrows(ServiceException.class,
+                () -> spy.streamChat(request(), delta -> { }));
+
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
+        verify(usageLogMapper).insert(captor.capture());
+        assertEquals("failed", captor.getValue().getStatus());
+    }
+
+    @Test
+    void stream_chunksWithToolCalls_aggregatesTextAndToolCalls() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any(), any());
+        ChatResponse first = new ChatResponse(List.of(new Generation(new AssistantMessage("先查"))),
+                ChatResponseMetadata.builder().build());
+        AssistantMessage toolOutput = AssistantMessage.builder()
+                .toolCalls(List.of(new AssistantMessage.ToolCall("tc-9", "function", "query_projects", "{}")))
+                .build();
+        ChatResponse last = new ChatResponse(List.of(new Generation(toolOutput)),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(700, 25)).build());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(first, last));
+
+        AiChatReply reply = spy.chatWithTools(request(), List.of(queryProjectsDef()));
+
+        assertEquals("先查", reply.content());
+        assertEquals(1, reply.toolCalls().size());
+        assertEquals("query_projects", reply.toolCalls().get(0).name());
+        assertEquals(700, reply.tokensIn());
+        assertEquals(25, reply.tokensOut());
+    }
+
+    @Test
+    void stream_onTick_invokedDuringLongStream() {
+        AiModelClient spy = Mockito.spy(client);
+        ReflectionTestUtils.setField(spy, "firstTokenTimeout", Duration.ofSeconds(5));
+        ReflectionTestUtils.setField(spy, "idleTimeout", Duration.ofSeconds(5));
+        ReflectionTestUtils.setField(spy, "streamHeartbeatInterval", Duration.ZERO);
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(chunk("a"), chunk("b"), chunk("c")));
+        AtomicInteger ticks = new AtomicInteger();
+
+        spy.streamChat(requestWithTick(ticks::incrementAndGet), delta -> { });
+
+        assertEquals(3, ticks.get());
+    }
+
+    @Test
+    void buildStreamOptions_underlyingTimeoutFarAboveBlockingPath() {
+        var options = ReflectionTestUtils.invokeMethod(client, "buildStreamOptionsWithDeclarations",
+                model, "sk-test", 2, List.of());
+
+        Duration timeout = ((OpenAiChatOptions) options).getTimeout();
+        assertNotNull(timeout);
+        assertTrue(timeout.compareTo(Duration.ofHours(1)) > 0,
+                "流式底层超时须远大于阻塞式 120s，避免框架默认 60s 掐断长流");
     }
 
     // ---------- 带工具声明的单跳（助手详设 4.1 工具调用循环） ----------
@@ -309,15 +394,15 @@ class AiModelClientTest {
     @Test
     void chatWithTools_returnsToolCallsAndScenesByOutcome() {
         AiModelClient spy = Mockito.spy(client);
-        doReturn(chatModel).when(spy).buildChatModel(any(), any(), any());
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any(), any());
         AssistantMessage output = AssistantMessage.builder()
                 .content("先查一下项目")
                 .toolCalls(List.of(new AssistantMessage.ToolCall(
                         "tc-1", "function", "query_projects", "{\"keyword\":\"商城\"}")))
                 .build();
-        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(new ChatResponse(
                 List.of(new Generation(output)),
-                ChatResponseMetadata.builder().usage(new DefaultUsage(800, 40)).build()));
+                ChatResponseMetadata.builder().usage(new DefaultUsage(800, 40)).build())));
 
         AiChatReply reply = spy.chatWithTools(request(), List.of(queryProjectsDef()));
 
@@ -337,10 +422,10 @@ class AiModelClientTest {
     @Test
     void chatWithTools_textOnlyHop_scenesAsAssistantAnswer() {
         AiModelClient spy = Mockito.spy(client);
-        doReturn(chatModel).when(spy).buildChatModel(any(), any(), any());
-        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(new ChatResponse(
                 List.of(new Generation(new AssistantMessage("最终回答"))),
-                ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build()));
+                ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build())));
 
         AiChatReply reply = spy.chatWithTools(request(), List.of(queryProjectsDef()));
 
@@ -354,10 +439,10 @@ class AiModelClientTest {
     @Test
     void chatWithToolDeclarations_taskTextOnlyHop_keepsTaskScene() {
         AiModelClient spy = Mockito.spy(client);
-        doReturn(chatModel).when(spy).buildChatModelWithDeclarations(any(), any(), any());
-        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+        doReturn(chatModel).when(spy).buildStreamChatModelWithDeclarations(any(), any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(new ChatResponse(
                 List.of(new Generation(new AssistantMessage("任务结果"))),
-                ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build()));
+                ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build())));
 
         spy.chatWithToolDeclarations(request(), List.of(), List.of(), false);
 
@@ -369,8 +454,8 @@ class AiModelClientTest {
     @Test
     void chatWithTools_failure_maps18117AndWritesFailedUsageRow() {
         AiModelClient spy = Mockito.spy(client);
-        doReturn(chatModel).when(spy).buildChatModel(any(), any(), any());
-        when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("boom"));
+        doReturn(chatModel).when(spy).buildStreamChatModel(any(), any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenThrow(new RuntimeException("boom"));
 
         ServiceException e = assertThrows(ServiceException.class,
                 () -> spy.chatWithTools(request(), List.of(queryProjectsDef())));
@@ -386,6 +471,11 @@ class AiModelClientTest {
         return new AssistantToolDefinition("query_projects", "查询项目",
                 ToolSchemas.object(List.of(ToolSchemas.string("keyword", "关键词")), null),
                 ToolCategory.QUERY);
+    }
+
+    private AiChatRequest requestWithTick(Runnable onTick) {
+        return new AiChatRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "test",
+                model, "你是测试助手", "生成用例", List.of(), onTick);
     }
 
     private static ChatResponse chunk(String text) {
