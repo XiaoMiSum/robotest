@@ -2,13 +2,10 @@ package io.github.xiaomisum.robotest.controller.project;
 
 import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseNodeUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.tcase.TestCaseRequirementUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementRefRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseCaseListRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseDocumentNodesRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.tcase.TestCaseNodeTreeRespDTO;
 import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseNodeService;
-import io.github.xiaomisum.robotest.service.domain.tcasedoc.TestCaseRequirementService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import xyz.migoo.framework.common.pojo.PageResult;
 import xyz.migoo.framework.common.pojo.Result;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,8 +21,6 @@ public class TestCaseNodeController {
 
     @Resource
     private TestCaseNodeService testCaseNodeService;
-    @Resource
-    private TestCaseRequirementService testCaseRequirementService;
 
     @GetMapping("/documents/{docId}/nodes")
     public Result<TestCaseDocumentNodesRespDTO> getDocumentNodes(
@@ -59,22 +53,5 @@ public class TestCaseNodeController {
             @RequestBody @Valid TestCaseNodeUpdateReqDTO reqDTO) {
         testCaseNodeService.updateCaseNode(loginUser.getActiveProjectId(), caseId, loginUser.getId(), reqDTO);
         return Result.ok();
-    }
-
-    @GetMapping("/cases/{caseId}/requirements")
-    public Result<List<RequirementRefRespDTO>> getCaseRequirements(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID caseId) {
-        return Result.ok(testCaseRequirementService.listRequirements(
-                loginUser.getActiveProjectId(), caseId, loginUser.getId()));
-    }
-
-    @PutMapping("/cases/{caseId}/requirements")
-    public Result<List<RequirementRefRespDTO>> setCaseRequirements(
-            @AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID caseId,
-            @RequestBody @Valid TestCaseRequirementUpdateReqDTO reqDTO) {
-        return Result.ok(testCaseRequirementService.saveRequirements(
-                loginUser.getActiveProjectId(), caseId, reqDTO.getRequirementId(), loginUser.getId()));
     }
 }

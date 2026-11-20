@@ -26,6 +26,9 @@ public class TestCaseNode extends BaseUuidDO<TestCaseNode> {
     /** 用例标签（jsonb 数组）；辅助功能采纳落库，脑图渲染与向量索引均不使用 */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<String> tags;
+    /** 关联需求 ID（仅 case 节点有值，NULL 表示未关联） */
+    @TableField(typeHandler = UUIDTypeHandler.class)
+    private UUID requirementId;
     private Integer sortOrder;
     private Integer version;
     private Boolean aiGenerated;

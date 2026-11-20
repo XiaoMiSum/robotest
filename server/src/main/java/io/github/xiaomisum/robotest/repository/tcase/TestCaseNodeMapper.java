@@ -38,7 +38,8 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
     }
 
     default int updateAttrsWithVersion(UUID nodeId, int currentVersion, String title, String type,
-                                        String priority, Integer sortOrder, Boolean aiGenerated, List<String> tags) {
+                                        String priority, Integer sortOrder, Boolean aiGenerated, List<String> tags,
+                                        boolean updateRequirement, UUID requirementId) {
         var wrapper = new LambdaUpdateWrapperX<TestCaseNode>()
                 .eq(TestCaseNode::getId, nodeId)
                 .eq(TestCaseNode::getVersion, currentVersion)
@@ -49,7 +50,19 @@ public interface TestCaseNodeMapper extends BaseMapperX<TestCaseNode> {
         if (sortOrder != null) wrapper.set(TestCaseNode::getSortOrder, sortOrder);
         if (aiGenerated != null) wrapper.set(TestCaseNode::getAiGenerated, aiGenerated);
         if (tags != null) wrapper.set(TestCaseNode::getTags, tags);
+        // 清空关联需求需显式置 null，省略该字段时不得改写既有值（C11）
+        if (updateRequirement) wrapper.set(TestCaseNode::getRequirementId, requirementId);
         return update(null, wrapper);
+    }
+
+    /** 计划/评审按需求反查用例节点，空集合不发起查询；仅 case 节点参与 */
+    default List<TestCaseNode> listCasesByRequirementIds(Collection<UUID> requirementIds) {
+        if (requirementIds == null || requirementIds.isEmpty()) {
+            return List.of();
+        }
+        return selectList(new LambdaQueryWrapperX<TestCaseNode>()
+                .in(TestCaseNode::getRequirementId, requirementIds)
+                .eq(TestCaseNode::getType, Constants.NodeType.CASE));
     }
 
     default int moveNodeWithVersion(UUID nodeId, int currentVersion, UUID parentId, Integer sortOrder) {

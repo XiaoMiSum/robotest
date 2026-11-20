@@ -1,22 +1,14 @@
 package io.github.xiaomisum.robotest.service.domain.tcasedoc;
 
-import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementRefRespDTO;
 import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseDocument;
 import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseNode;
-import io.github.xiaomisum.robotest.model.entity.tcase.TestCaseRequirement;
 import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseDocumentMapper;
 import io.github.xiaomisum.robotest.repository.tcase.TestCaseNodeMapper;
-import io.github.xiaomisum.robotest.repository.tcase.TestCaseRequirementMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
-import xyz.migoo.framework.security.core.annotation.AuditLog;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -34,51 +26,9 @@ import java.util.stream.Collectors;
 public class TestCaseRequirementServiceImpl implements TestCaseRequirementService {
 
     @Resource
-    private TestCaseRequirementMapper caseRequirementMapper;
-    @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
     @Resource
-    private TestCaseDocumentMapper testCaseDocumentMapper;
-    @Resource
     private RequirementMapper requirementMapper;
-    @Resource
-    private ProjectAccessGuard projectAccessGuard;
-
-    @Override
-    public List<RequirementRefRespDTO> listRequirements(UUID projectId, UUID caseId, UUID userId) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        requireCaseNode(projectId, caseId, false);
-        List<UUID> requirementIds = caseRequirementMapper.listByCaseNodeId(projectId, caseId).stream()
-                .map(TestCaseRequirement::getRequirementId)
-                .toList();
-        return toRefs(projectId, requirementIds);
-    }
-
-    @Override
-    @AuditLog(action = "SAVE:CaseRequirements")
-    @Transactional(rollbackFor = Exception.class)
-    public List<RequirementRefRespDTO> saveRequirements(UUID projectId, UUID caseId, UUID requirementId, UUID userId) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        TestCaseNode node = requireCaseNode(projectId, caseId, true);
-
-        if (requirementId == null) {
-            caseRequirementMapper.deleteByCaseNodeId(projectId, caseId);
-            return List.of();
-        }
-
-        requireRequirements(projectId, List.of(requirementId));
-
-        int updated = caseRequirementMapper.updateRequirementByCaseNode(projectId, caseId, requirementId);
-        if (updated == 0) {
-            TestCaseRequirement row = new TestCaseRequirement();
-            row.setProjectId(projectId);
-            row.setRequirementId(requirementId);
-            row.setCaseNodeId(caseId);
-            row.setDocumentId(node.getDocumentId());
-            caseRequirementMapper.insert(row);
-        }
-        return toRefs(projectId, List.of(requirementId));
-    }
 
     @Override
     public List<RequirementRefRespDTO> listRequirementRefs(UUID projectId, Collection<UUID> requirementIds) {
@@ -90,47 +40,24 @@ public class TestCaseRequirementServiceImpl implements TestCaseRequirementServic
     }
 
     @Override
-    public Map<UUID, Set<UUID>> resolvePlannedCases(UUID projectId, Collection<UUID> requirementIds) {        List<UUID> targets = requirementIds == null ? List.of()
+    public Map<UUID, Set<UUID>> resolvePlannedCases(UUID projectId, Collection<UUID> requirementIds) {
+        List<UUID> targets = requirementIds == null ? List.of()
                 : requirementIds.stream().filter(Objects::nonNull).distinct().toList();
         if (targets.isEmpty()) {
             return Map.of();
         }
         requireRequirements(projectId, targets);
 
-        List<TestCaseRequirement> rows = caseRequirementMapper.listByRequirementIds(projectId, targets);
-        if (rows.isEmpty()) {
-            return Map.of();
-        }
-        Map<UUID, TestCaseNode> nodes = testCaseNodeMapper
-                .listByIds(rows.stream().map(TestCaseRequirement::getCaseNodeId).collect(Collectors.toSet()))
-                .stream()
-                .collect(Collectors.toMap(TestCaseNode::getId, Function.identity()));
-
+        List<TestCaseNode> nodes = testCaseNodeMapper.listCasesByRequirementIds(targets);
         Map<UUID, Set<UUID>> byDocument = new LinkedHashMap<>();
-        for (TestCaseRequirement row : rows) {
-            TestCaseNode node = nodes.get(row.getCaseNodeId());
-            // 用例被删除或已改类型时不再带入，避免计划/评审出现非用例节点
-            if (node == null || !Constants.NodeType.CASE.equals(node.getType()) || node.getDocumentId() == null) {
+        for (TestCaseNode node : nodes) {
+            // 用例所属文档缺失时跳过，避免计划/评审出现孤立节点
+            if (node.getDocumentId() == null) {
                 continue;
             }
             byDocument.computeIfAbsent(node.getDocumentId(), key -> new LinkedHashSet<>()).add(node.getId());
         }
         return byDocument;
-    }
-
-    private TestCaseNode requireCaseNode(UUID projectId, UUID caseId, boolean requireCaseType) {
-        TestCaseNode node = caseId == null ? null : testCaseNodeMapper.selectById(caseId);
-        if (node == null || node.getDocumentId() == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
-        }
-        TestCaseDocument document = testCaseDocumentMapper.selectById(node.getDocumentId());
-        if (document == null || !Objects.equals(document.getProjectId(), projectId)) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
-        }
-        if (requireCaseType && !Constants.NodeType.CASE.equals(node.getType())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.TEST_CASE_NODE_NOT_FOUND);
-        }
-        return node;
     }
 
     private void requireRequirements(UUID projectId, List<UUID> requirementIds) {
