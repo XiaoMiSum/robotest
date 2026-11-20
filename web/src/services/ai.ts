@@ -43,7 +43,7 @@ export function fetchAiTask(taskId: string): Promise<AiTaskDetail> {
   return get(`/ai/tasks/${taskId}`)
 }
 
-/** 按节点查询最近一次任务（详设 3.6.3）：无匹配时 data 为 null，供用例节点 AI 优化复用 */
+/** 按文档 / 节点查询最近一次任务（详设 3.6.3）：无匹配时 data 为 null，省略 nodeId 按文档匹配 */
 export function fetchLatestAiTask(
   type: AiTaskType,
   params: AiTaskLatestQuery,

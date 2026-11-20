@@ -103,7 +103,7 @@ function close(): void {
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="AI 测试用例"
+    title="AI覆盖雷达"
     width="1100px"
     top="6vh"
     class="ai-generation-dialog"

@@ -9,11 +9,15 @@ import type { CaseGenerationInsertResult } from '@/composables/project/functiona
 
 const mocks = vi.hoisted(() => ({
   fetchAiStatus: vi.fn(),
+  fetchLatestAiTask: vi.fn(),
   ElMessage: { warning: vi.fn(), success: vi.fn(), error: vi.fn() },
   useAssistTask: vi.fn(),
 }))
 
-vi.mock('@/services/ai', () => ({ fetchAiStatus: mocks.fetchAiStatus }))
+vi.mock('@/services/ai', () => ({
+  fetchAiStatus: mocks.fetchAiStatus,
+  fetchLatestAiTask: mocks.fetchLatestAiTask,
+}))
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
 vi.mock('@/composables/project/ai/useAssistTask', () => ({ useAssistTask: mocks.useAssistTask }))
 
@@ -36,6 +40,7 @@ interface FakeTask {
   executionSummary: Ref<{ text: string } | null>
   loadError: Ref<string>
   launch: ReturnType<typeof vi.fn>
+  open: ReturnType<typeof vi.fn>
   retry: ReturnType<typeof vi.fn>
   refresh: ReturnType<typeof vi.fn>
   reset: ReturnType<typeof vi.fn>
@@ -81,6 +86,10 @@ function fakeTask(): FakeTask {
       rows.value = [generationRow('case-r1')]
       task.value = { taskId: 'task-1', status: 'proposals_ready' } as AiTaskDetail
     }),
+    open: vi.fn(async () => {
+      rows.value = [generationRow('case-r1')]
+      task.value = { taskId: 'task-latest', status: 'proposals_ready' } as AiTaskDetail
+    }),
     retry: vi.fn(),
     refresh: vi.fn(),
     reset: vi.fn(),
@@ -122,6 +131,7 @@ describe('useCaseGenerationEntry', () => {
     readonly.value = false
     insertCases = vi.fn(() => ({ inserted: 1, skipped: 0 }))
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
+    mocks.fetchLatestAiTask.mockResolvedValue(null)
     mocks.useAssistTask.mockImplementation(() => {
       const task = fakeTask()
       tasks.push(task)
@@ -167,11 +177,12 @@ describe('useCaseGenerationEntry', () => {
     expect(s.canLaunch.value).toBe(true)
   })
 
-  it('需求单选确认后按 documentId + requirementId 发起新任务，不复用最近任务', async () => {
+  it('未命中最近任务时经需求单选确认后按 documentId + requirementId 发起新任务', async () => {
     const s = mountEntry()
     await flushPromises()
 
-    s.openPicker()
+    await s.openRadar()
+    expect(mocks.fetchLatestAiTask).toHaveBeenCalledWith('mindmap_case_generation', { documentId: 'doc-1' })
     expect(s.pickerVisible.value).toBe(true)
 
     await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
@@ -181,6 +192,49 @@ describe('useCaseGenerationEntry', () => {
     expect(s.selectedRequirement.value?.code).toBe('REQ-001')
     expect(s.pickerVisible.value).toBe(false)
     expect(s.panelVisible.value).toBe(true)
+  })
+
+  it('命中最近任务时直接打开面板回显并从提案引用还原来源需求', async () => {
+    mocks.fetchLatestAiTask.mockResolvedValue({ taskId: 'task-latest', status: 'proposals_ready' } as AiTaskDetail)
+    const s = mountEntry()
+    await flushPromises()
+
+    await s.openRadar()
+
+    expect(s.panelVisible.value).toBe(true)
+    expect(s.pickerVisible.value).toBe(false)
+    expect(tasks[0].open).toHaveBeenCalledWith('task-latest')
+    expect(tasks[0].launch).not.toHaveBeenCalled()
+    expect(s.selectedRequirement.value).toEqual({ id: 'r1', code: 'REQ-001', title: 'REQ-001' })
+  })
+
+  it('查询最近任务失败时提示且不自动发起', async () => {
+    mocks.fetchLatestAiTask.mockRejectedValue(new Error('查询失败'))
+    const s = mountEntry()
+    await flushPromises()
+
+    await s.openRadar()
+
+    expect(mocks.ElMessage.error).toHaveBeenCalledWith('查询失败')
+    expect(s.pickerVisible.value).toBe(false)
+    expect(s.panelVisible.value).toBe(false)
+    expect(tasks[0].launch).not.toHaveBeenCalled()
+  })
+
+  it('切换文档时丢弃过期的最近任务查询结果', async () => {
+    let resolveLatest!: (value: AiTaskDetail | null) => void
+    mocks.fetchLatestAiTask.mockReturnValue(new Promise((resolve) => { resolveLatest = resolve }))
+    const s = mountEntry()
+    await flushPromises()
+
+    const pending = s.openRadar()
+    docId.value = 'doc-2'
+    await flushPromises()
+    resolveLatest({ taskId: 'task-stale' } as AiTaskDetail)
+    await pending
+
+    expect(s.panelVisible.value).toBe(false)
+    expect(tasks[0].open).not.toHaveBeenCalled()
   })
 
   it('未单选需求时提示且不发起', async () => {
@@ -258,6 +312,22 @@ describe('useCaseGenerationEntry', () => {
     tasks[0].task.value = { taskId: 'task-1', status: 'aborted' } as AiTaskDetail
     await s.retry()
     expect(tasks[0].retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('已关闭任务缺少来源需求时改为重选需求，不用空输入发起', async () => {
+    mocks.fetchLatestAiTask.mockResolvedValue({ taskId: 'task-1', status: 'closed' } as AiTaskDetail)
+    const s = mountEntry()
+    await flushPromises()
+    tasks[0].open.mockImplementation(async () => {})
+    await s.openRadar()
+    tasks[0].task.value = { taskId: 'task-1', status: 'closed' } as AiTaskDetail
+
+    await s.retry()
+
+    expect(tasks[0].launch).not.toHaveBeenCalled()
+    expect(tasks[0].retry).not.toHaveBeenCalled()
+    expect(s.panelVisible.value).toBe(false)
+    expect(s.pickerVisible.value).toBe(true)
   })
 
   it('关闭面板释放任务实例，切换文档也关闭面板', async () => {

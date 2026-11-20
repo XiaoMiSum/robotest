@@ -1,11 +1,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchAiStatus } from '@/services/ai'
+import { fetchAiStatus, fetchLatestAiTask } from '@/services/ai'
 import { useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import { caseGenerationNodeOf, isCaseGenerationSuggestion } from '@/composables/project/ai/assistPresentation'
 import type { RequirementPick } from '@/composables/project/requirement/useRequirementPicker'
-import type { AiProposalConfirmResult } from '@/types'
+import type { AiProposalConfirmResult, AiTaskDetail } from '@/types'
 import type { AiGeneratedCase, CaseGenerationInsertResult } from '@/composables/project/functional-testing/mindmap/useCaseGenerationInsert'
 
 export interface CaseGenerationEntryOptions {
@@ -18,8 +18,9 @@ export interface CaseGenerationEntryOptions {
 }
 
 /**
- * 脑图工具栏「AI覆盖雷达」入口（详设 5.1 / 5.3）：需求单选 → 新任务 → 轮询提案 →
- * 提案映射为可勾选节点树 → 插入后回传确认状态。本类型不复用节点级 /latest 任务。
+ * 脑图工具栏「AI覆盖雷达」入口（详设 5.1 / 5.3）：先按文档复用最近一次生成任务，
+ * 命中直接回显进度 / 提案，未命中才经需求单选发起新任务；提案映射为可勾选节点树，
+ * 插入后回传确认状态。
  */
 export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
   const aiAvailable = ref(false)
@@ -49,6 +50,8 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     selectedRequirement.value ? [selectedRequirement.value] : [],
   )
   const lastInput = ref<Record<string, string>>({})
+  // 切换文档 / 关闭面板时递增，丢弃尚未返回的 /latest 查询，避免旧任务提案写入新面板
+  let queryToken = 0
 
   const task = useAssistTask('mindmap_case_generation', {
     target: () => ({ documentId: options.documentId() }),
@@ -79,14 +82,55 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     () => closePanel(),
   )
 
-  function openPicker(): void {
+  function closePanel(): void {
+    queryToken++
+    panelVisible.value = false
+    // 文档切换时同步停掉轮询，不等 watch 下个 tick，避免旧任务进度回写新文档面板
+    task.reset()
+    selectedRequirement.value = null
+    lastInput.value = {}
+  }
+
+  /** 打开入口：先按文档查最近任务，命中直接回显；未命中才进入需求单选（详设 5.1） */
+  async function openRadar(): Promise<void> {
     if (!entryVisible.value) return
     const reason = gateReason.value
     if (reason) {
       ElMessage.warning(reason)
       return
     }
+    const documentId = options.documentId()
+    const token = ++queryToken
+    let latest: AiTaskDetail | null
+    try {
+      latest = await fetchLatestAiTask('mindmap_case_generation', { documentId })
+    } catch (err) {
+      if (token !== queryToken) return
+      // 查询失败不自动发起，避免误耗额度
+      ElMessage.error(err instanceof Error && err.message ? err.message : '查询该文档任务失败')
+      return
+    }
+    if (token !== queryToken) return
+    if (latest) {
+      panelVisible.value = true
+      await task.open(latest.taskId)
+      restoreRequirement()
+      return
+    }
     pickerVisible.value = true
+  }
+
+  /** 来源需求从提案引用还原，供面板展示与 closed 态按同一输入重新发起 */
+  function restoreRequirement(): void {
+    for (const row of task.rows.value) {
+      const view = row.suggestion
+      if (!view || !isCaseGenerationSuggestion(view)) continue
+      const ref = view.sourceRefs[0]
+      if (!ref) continue
+      selectedRequirement.value = { id: ref.id, code: ref.title, title: ref.title }
+      lastInput.value = { documentId: options.documentId(), requirementId: ref.id }
+      return
+    }
   }
 
   async function confirmRequirement(ids: string[], picks: RequirementPick[]): Promise<void> {
@@ -94,6 +138,7 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
       ElMessage.warning('请选择一条需求')
       return
     }
+    queryToken++
     selectedRequirement.value = picks.find((pick) => pick.id === ids[0]) ?? {
       id: ids[0],
       code: '',
@@ -107,10 +152,14 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
 
   function retry(): Promise<void> {
     // 已关闭任务后端不允许再执行，按同一输入发起新任务
-    if (task.task.value?.status === 'closed' && Object.keys(lastInput.value).length > 0) {
+    if (task.task.value?.status !== 'closed') return task.retry()
+    if (Object.keys(lastInput.value).length > 0) {
       return task.launch({ ...lastInput.value })
     }
-    return task.retry()
+    // 既有任务无提案引用时拿不到来源需求，交由用户重选后再发起
+    closePanel()
+    pickerVisible.value = true
+    return Promise.resolve()
   }
 
   /** 先创建脑图节点，成功后才回传提案采纳状态（详设 4.4：确认协议不执行节点变更） */
@@ -155,10 +204,6 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     task.clearReceipt()
   }
 
-  function closePanel(): void {
-    panelVisible.value = false
-  }
-
   return {
     entryVisible,
     gateReason,
@@ -177,7 +222,7 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
     retryable,
     progressText,
     loadError,
-    openPicker,
+    openRadar,
     confirmRequirement,
     insert,
     retry,
