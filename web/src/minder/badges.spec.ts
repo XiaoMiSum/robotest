@@ -1,5 +1,15 @@
-import { describe, it, expect } from 'vitest'
-import { typeBadge, priorityBadge, reviewMarkBadge, executionResultBadge, badgeWidth } from './badges'
+// @vitest-environment jsdom
+import { describe, it, expect, afterEach } from 'vitest'
+import {
+  typeBadge,
+  priorityBadge,
+  reviewMarkBadge,
+  executionResultBadge,
+  badgeWidth,
+  aiGeneratedBadge,
+  registerBadgesModule,
+} from './badges'
+import type { KityMinderGlobal } from './types'
 
 describe('typeBadge', () => {
   it('四种业务类型映射到文案与颜色', () => {
@@ -29,6 +39,57 @@ describe('priorityBadge', () => {
     expect(priorityBadge(null)).toBeNull()
     expect(priorityBadge('P4')).toBeNull()
     expect(priorityBadge('p0')).toBeNull()
+  })
+})
+
+describe('aiGeneratedBadge', () => {
+  it('仅 AI 生成的用例节点显示 AI 徽标', () => {
+    expect(aiGeneratedBadge('case', true)).toEqual({ label: 'AI', color: '#00A6A6' })
+  })
+
+  it('人工用例、非用例节点与非布尔真值不显示', () => {
+    expect(aiGeneratedBadge('case', false)).toBeNull()
+    expect(aiGeneratedBadge('case', undefined)).toBeNull()
+    expect(aiGeneratedBadge('case', 'true')).toBeNull()
+    expect(aiGeneratedBadge('step', true)).toBeNull()
+    expect(aiGeneratedBadge('normal', true)).toBeNull()
+    expect(aiGeneratedBadge(undefined, true)).toBeNull()
+  })
+})
+
+describe('registerBadgesModule', () => {
+  const originalKity = window.kity
+  const originalKityminder = window.kityminder
+
+  afterEach(() => {
+    window.kity = originalKity
+    window.kityminder = originalKityminder
+  })
+
+  it('AI 徽标渲染器先于用例徽标注册，显示在用例徽标右侧', () => {
+    const renderers: unknown[] = []
+    const modules: Record<string, () => Record<string, unknown>> = {}
+    window.kity = {
+      createClass: (_name: string, _defines: Record<string, unknown>): unknown => {
+        const renderer = { order: renderers.length }
+        renderers.push(renderer)
+        return renderer
+      },
+    }
+    window.kityminder = {
+      Render: {},
+      Module: {
+        register: (name: string, factory: () => Record<string, unknown>): void => {
+          modules[name] = factory
+        },
+      },
+    } as unknown as KityMinderGlobal
+
+    expect(registerBadgesModule()).toBe(true)
+    const left = modules['TestBadgesModule']?.()['renderers'] as { left: unknown[]; right: unknown[] } | undefined
+    expect(left?.left[0]).toBe(renderers[0])
+    expect(left?.left[1]).toBe(renderers[1])
+    expect(left?.left[2]).toBe(renderers[2])
   })
 })
 
