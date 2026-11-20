@@ -378,9 +378,9 @@ const handleLayoutCommand = (command: unknown) => {
 
       <!-- AI 测试用例入口常驻工具条最右，全屏与非全屏共用同一按钮（详设 5.1） -->
       <div v-if="caseGenEntryVisible" class="toolbar-ai-entry">
-        <el-tooltip :content="caseGenGateReason || '根据需求生成用例并插入当前脑图'" placement="bottom">
+        <el-tooltip :content="caseGenGateReason || '扫描需求测试用例覆盖率并补齐缺漏'" placement="bottom">
           <el-button text :disabled="Boolean(caseGenGateReason)" @click="openCaseGeneration">
-            <el-icon><MagicStick /></el-icon><span>AI测试用例</span>
+            <el-icon><MagicStick /></el-icon><span>AI覆盖雷达</span>
           </el-button>
         </el-tooltip>
       </div>
