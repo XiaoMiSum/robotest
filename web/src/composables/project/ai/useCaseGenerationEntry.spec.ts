@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   fetchLatestAiTask: vi.fn(),
   ElMessage: { warning: vi.fn(), success: vi.fn(), error: vi.fn() },
   useAssistTask: vi.fn(),
-  updateCaseRequirements: vi.fn(),
 }))
 
 vi.mock('@/services/ai', () => ({
@@ -21,7 +20,6 @@ vi.mock('@/services/ai', () => ({
 }))
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
 vi.mock('@/composables/project/ai/useAssistTask', () => ({ useAssistTask: mocks.useAssistTask }))
-vi.mock('@/services/project', () => ({ updateCaseRequirements: mocks.updateCaseRequirements }))
 
 import { useCaseGenerationEntry } from './useCaseGenerationEntry'
 import type { AiGeneratedCase } from '@/composables/project/functional-testing/mindmap/useCaseGenerationInsert'
@@ -132,8 +130,6 @@ describe('useCaseGenerationEntry', () => {
     docId.value = 'doc-1'
     readonly.value = false
     insertCases = vi.fn(() => ({ inserted: 1, skipped: 0, caseIds: ['node-1'] }))
-    mocks.updateCaseRequirements.mockReset()
-    mocks.updateCaseRequirements.mockResolvedValue([])
     mocks.fetchAiStatus.mockResolvedValue({ available: true })
     mocks.fetchLatestAiTask.mockResolvedValue(null)
     mocks.useAssistTask.mockImplementation(() => {
@@ -291,6 +287,7 @@ describe('useCaseGenerationEntry', () => {
     expect(cases[0].node).toMatchObject({ type: 'case', title: 'case-r1 用例', priority: 'P1', aiGenerated: true })
     expect(cases[0].node.children.map((c) => c.type)).toEqual(['precondition', 'step', 'expected'])
     expect(cases[0].tags).toEqual(['登录'])
+    expect(cases[0].requirementId).toBe('r1')
     expect(tasks[0].submitItems).toHaveBeenCalledWith(
       [{ key: 'case-r1', action: 'adopted' }],
       { documentId: 'doc-1' },
@@ -300,20 +297,21 @@ describe('useCaseGenerationEntry', () => {
     )
   })
 
-  it('采纳时按提案来源引用写入需求关联，且先关联再回传采纳状态', async () => {
+  it('提案来源需求 id 随用例节点插入一并落库，且先插入再回传采纳状态', async () => {
     const s = mountEntry()
     await flushPromises()
     await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
 
     await s.adopt(['case-r1'])
 
-    expect(mocks.updateCaseRequirements).toHaveBeenCalledWith('node-1', 'r1')
-    expect(mocks.updateCaseRequirements.mock.invocationCallOrder[0]!).toBeLessThan(
+    const cases = insertCases.mock.calls[0][0] as AiGeneratedCase[]
+    expect(cases[0].requirementId).toBe('r1')
+    expect(insertCases.mock.invocationCallOrder[0]!).toBeLessThan(
       tasks[0].submitItems.mock.invocationCallOrder[0]!,
     )
   })
 
-  it('提案无来源引用时回退任务输入需求 id 关联', async () => {
+  it('提案无来源引用时回退任务输入需求 id 写入用例节点', async () => {
     const s = mountEntry()
     await flushPromises()
     await s.confirmRequirement(['r2'], [{ id: 'r2', code: 'REQ-002', title: '其他需求' }])
@@ -333,39 +331,8 @@ describe('useCaseGenerationEntry', () => {
 
     await s.adopt(['case-r1'])
 
-    expect(mocks.updateCaseRequirements).toHaveBeenCalledWith('node-1', 'r2')
-  })
-
-  it('节点未落库时按错误码有界重试关联', async () => {
-    mocks.updateCaseRequirements
-      .mockRejectedValueOnce(Object.assign(new Error('用例节点不存在'), { code: 1000011022 }))
-      .mockResolvedValueOnce([])
-    const s = mountEntry()
-    await flushPromises()
-    await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
-
-    await s.adopt(['case-r1'])
-
-    expect(mocks.updateCaseRequirements).toHaveBeenCalledTimes(2)
-    expect(mocks.ElMessage.error).not.toHaveBeenCalled()
-  })
-
-  it('非时序错误不重试，提示失败且仍回传采纳状态', async () => {
-    mocks.updateCaseRequirements.mockRejectedValueOnce(
-      Object.assign(new Error('需求不存在'), { code: 1000018001 }),
-    )
-    const s = mountEntry()
-    await flushPromises()
-    await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
-
-    await s.adopt(['case-r1'])
-
-    expect(mocks.updateCaseRequirements).toHaveBeenCalledTimes(1)
-    expect(mocks.ElMessage.error).toHaveBeenCalledWith('1 条用例关联需求失败，请稍后手动补充')
-    expect(tasks[0].submitItems).toHaveBeenCalledWith(
-      [{ key: 'case-r1', action: 'adopted' }],
-      { documentId: 'doc-1' },
-    )
+    const cases = insertCases.mock.calls[0][0] as AiGeneratedCase[]
+    expect(cases[0].requirementId).toBe('r2')
   })
 
   it('已采纳用例不重复插入脑图也不重复回传状态，仅采纳新勾选用例', async () => {

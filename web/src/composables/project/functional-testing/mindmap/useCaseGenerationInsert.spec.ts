@@ -53,7 +53,7 @@ describe('useCaseGenerationInsert', () => {
     const source = node('case-1', '获取验证码', 'case', 'P0')
     source.children = [priority, step, expected]
 
-    const result = executor.execute([{ key: 'k1', node: source, tags: ['登录'] }])
+    const result = executor.execute([{ key: 'k1', node: source, tags: ['登录'], requirementId: 'r1' }])
 
     expect(result.inserted).toBe(1)
     expect(result.skipped).toBe(0)
@@ -68,7 +68,7 @@ describe('useCaseGenerationInsert', () => {
     expect(root.children).toHaveLength(1)
     expect(root.children[0].children.map((c) => c.data['text'])).toEqual(['先登录', '输入手机号', '提示已发送'])
     expect(root.children[0].children.every((c) => c.data['aiGenerated'] === true)).toBe(true)
-    expect(root.children[0].data).toMatchObject({ tags: ['登录'], aiGenerated: true })
+    expect(root.children[0].data).toMatchObject({ tags: ['登录'], aiGenerated: true, requirementId: 'r1' })
     expect(root.children[0].data['id']).toBe(result.caseIds[0])
     expect(refresh).toHaveBeenCalledTimes(2)
     expect(fire).toHaveBeenCalledTimes(2)

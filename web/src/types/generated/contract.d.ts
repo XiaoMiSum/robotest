@@ -3288,22 +3288,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/cases/{caseId}/requirements": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getCaseRequirements"];
-        put: operations["setCaseRequirements"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/ai/tasks/{type}/latest": {
         parameters: {
             query?: never;
@@ -6239,6 +6223,8 @@ export interface components {
             /** Format: int32 */
             version?: number;
             aiGenerated?: boolean;
+            /** Format: uuid */
+            requirementId?: string;
             children?: components["schemas"]["TestCaseNodeTreeRespDTO"][];
         };
         ApiDebugRecordItemRespDTO: {
@@ -7278,16 +7264,6 @@ export interface components {
             id?: string;
             code?: string;
             title?: string;
-        };
-        TestCaseRequirementUpdateReqDTO: {
-            /** Format: uuid */
-            requirementId?: string;
-        };
-        ResultListRequirementRefRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            msg?: string;
-            data?: components["schemas"]["RequirementRefRespDTO"][];
         };
         AiEmbeddingTestReqDTO: {
             provider?: string;
@@ -13812,54 +13788,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    getCaseRequirements: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListRequirementRefRespDTO"];
-                };
-            };
-        };
-    };
-    setCaseRequirements: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TestCaseRequirementUpdateReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListRequirementRefRespDTO"];
                 };
             };
         };

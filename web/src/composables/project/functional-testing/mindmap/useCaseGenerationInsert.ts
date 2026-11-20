@@ -11,14 +11,14 @@ export interface AiGeneratedCase {
   key: string
   node: TestCaseNode
   tags: string[]
-  /** 来源需求 id：采纳后按此写入用例需求关联 */
+  /** 来源需求 id：写入用例节点 data，随 add_node 帧一并落库 */
   requirementId?: string
 }
 
 export interface CaseGenerationInsertResult {
   inserted: number
   skipped: number
-  /** 按 cases 顺序的新建用例节点 id，供需求关联写入 */
+  /** 按 cases 顺序的新建用例节点 id */
   caseIds: string[]
 }
 
@@ -45,6 +45,7 @@ export function useCaseGenerationInsert(
           type: 'case',
           priority: source.priority ?? 'P2',
           aiGenerated: true,
+          requirementId: item.requirementId ?? null,
         },
         root,
         root.getChildren().length,
@@ -60,7 +61,7 @@ export function useCaseGenerationInsert(
       caseIds.push(caseId)
     }
 
-    // AI 标识随 add_node 落库；标签不在 add_node 协议内，先落节点基线再按 diff 补写
+    // AI 标识与来源需求随 add_node 落库；标签不在 add_node 协议内，先落节点基线再按 diff 补写
     minder.refresh()
     minder.fire('contentchange')
     flushPersistence()

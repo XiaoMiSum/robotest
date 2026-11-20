@@ -9,6 +9,7 @@ export function caseNodeToKm(node: TestCaseNode): Record<string, unknown> {
     data: {
       id: node.id, text: node.title, type: node.type, priority: node.priority,
       aiGenerated: node.aiGenerated === true,
+      requirementId: node.requirementId ?? null,
     },
     children: node.children.map(caseNodeToKm),
   }

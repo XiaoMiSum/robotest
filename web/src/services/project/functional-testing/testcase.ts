@@ -1,5 +1,5 @@
 import { get, post, put, del } from '@/services'
-import type { DocumentNodes, RequirementRef, TestCaseDocument, TestCaseNode } from '@/types'
+import type { DocumentNodes, TestCaseDocument, TestCaseNode } from '@/types'
 
 // ==================== 测试用例文档（V1.2 用例管理） ====================
 
@@ -29,17 +29,4 @@ export function fetchDocumentNodes(docId: string): Promise<DocumentNodes> {
 
 export function getCaseDetail(caseId: string): Promise<TestCaseNode> {
   return get(`/project/cases/${caseId}`)
-}
-
-/** 当前用例节点已关联的需求（按编号升序） */
-export function fetchCaseRequirements(caseId: string): Promise<RequirementRef[]> {
-  return get(`/project/cases/${caseId}/requirements`)
-}
-
-/** 保存当前用例节点的需求关联；requirementId 为 null 表示清空 */
-export function updateCaseRequirements(
-  caseId: string,
-  requirementId: string | null,
-): Promise<RequirementRef[]> {
-  return put(`/project/cases/${caseId}/requirements`, { requirementId })
 }

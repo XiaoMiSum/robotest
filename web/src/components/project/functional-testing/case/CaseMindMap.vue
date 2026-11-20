@@ -180,7 +180,11 @@ const {
 })
 
 // 悬浮窗与选取器复用同一实例，保证回显与全量覆盖语义一致
-const requirementLink = useCaseRequirementLink(() => selectedNodeId.value)
+const requirementLink = useCaseRequirementLink({
+  caseId: () => selectedNodeId.value,
+  getMinder: getMinderTyped,
+  flushPersistence: persistence.flushPersistenceNow,
+})
 
 function openOptimizeFromPopover(): void {
   // 悬浮窗记录的是被点击节点；先取值再关窗，避免关闭时清空目标节点
