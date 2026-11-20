@@ -27,6 +27,9 @@ const PRIORITY_BADGES: Record<string, Badge> = {
   P3: { label: 'P3', color: '#909399' },
 }
 
+// 取视觉设计为 AI 标识保留的青色自定义档，避免与已有类型/优先级色混淆
+const AI_BADGE: Badge = { label: 'AI', color: '#00A6A6' }
+
 // 评审标记与执行结果回显在节点右侧，与左侧类型/优先级徽标区分开；
 // 待评审/未执行是默认态，不渲染徽标以免满屏噪音
 const REVIEW_MARK_BADGES: Record<string, Badge> = {
@@ -48,6 +51,11 @@ export function typeBadge(type: unknown): Badge | null {
 
 export function priorityBadge(priority: unknown): Badge | null {
   return typeof priority === 'string' ? (PRIORITY_BADGES[priority] ?? null) : null
+}
+
+// 非布尔真值按未标记处理，与持久化采集口径一致，防止字符串标志误触发徽标
+export function aiGeneratedBadge(type: unknown, aiGenerated: unknown): Badge | null {
+  return type === 'case' && aiGenerated === true ? AI_BADGE : null
 }
 
 export function reviewMarkBadge(mark: unknown): Badge | null {
@@ -168,6 +176,9 @@ export function registerBadgesModule(): boolean {
   if (!km || !kity) return false
   if (registeredTargets.has(km)) return true
 
+  const aiRenderer = defineBadgeRenderer(kity, km.Render, (node) =>
+    aiGeneratedBadge(node.getData('type'), node.getData('aiGenerated')),
+  )
   const typeRenderer = defineBadgeRenderer(kity, km.Render, (node) => typeBadge(node.getData('type')))
   const priorityRenderer = defineBadgeRenderer(kity, km.Render, (node) => priorityBadge(node.getData('priority')))
   // 评审/计划模式下节点 data 才有 lastMark/lastResult，编辑模式自然不渲染，无需按模式区分注册
@@ -179,7 +190,8 @@ export function registerBadgesModule(): boolean {
   km.Module.register('PriorityModule', () => ({}))
   km.Module.register('TestBadgesModule', () => ({
     renderers: {
-      left: [typeRenderer, priorityRenderer],
+      // 左侧渲染器按数组顺序向文本左侧堆叠：AI 先注册才能落在「用例」徽标右侧
+      left: [aiRenderer, typeRenderer, priorityRenderer],
       right: [reviewMarkRenderer, executionResultRenderer],
     },
   }))
