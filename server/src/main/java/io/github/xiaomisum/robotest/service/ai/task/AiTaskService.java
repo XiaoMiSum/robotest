@@ -45,7 +45,7 @@ public interface AiTaskService {
     /** 3.6.3 详情：最新一次执行 + 提案清单摘要（最新一次执行）+ documentMeta */
     AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser);
 
-    /** 3.6.3 按节点查询最近一次任务（用例节点 AI 优化复用），无匹配返回 null */
+    /** 3.6.3 按文档 / 节点查询最近一次任务（nodeId 为空时仅按文档匹配），无匹配返回 null */
     AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, UUID activeProjectId,
             UUID userId, LoginUser loginUser);
 
