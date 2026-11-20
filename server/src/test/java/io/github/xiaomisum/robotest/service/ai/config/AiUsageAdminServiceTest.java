@@ -7,7 +7,9 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageSeriesRowDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageStatisticsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageSummaryRowDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageTaskRespDTO;
+import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
+import io.github.xiaomisum.robotest.repository.ai.AiEmbeddingConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiUsageLogMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +50,8 @@ class AiUsageAdminServiceTest {
     private AiUsageLogMapper usageLogMapper;
     @Mock
     private AiModelConfigMapper modelMapper;
+    @Mock
+    private AiEmbeddingConfigMapper embeddingMapper;
 
     @InjectMocks
     private AiUsageAdminService service;
@@ -162,12 +166,45 @@ class AiUsageAdminServiceTest {
         AiModelConfig model = new AiModelConfig();
         model.setId(modelId);
         model.setName("gpt-x");
+        model.setModelName("gpt-4o");
         when(modelMapper.selectBatchIds(any())).thenReturn(List.of(model));
 
         AiUsageStatisticsRespDTO dto = service.statistics(statisticsReq(FROM, TO, "model"));
 
         assertEquals("gpt-x", dto.getSeries().get(0).getKeyName());
         assertEquals(modelId.toString(), dto.getSeries().get(0).getKey());
+    }
+
+    @Test
+    void statistics_modelSeries_fallsBackToModelNameWhenNameMissing() {
+        stubSummary(summaryRow(10, 0));
+        UUID modelId = UUID.randomUUID();
+        when(usageLogMapper.selectSeriesByModel(any(), any()))
+                .thenReturn(List.of(seriesRow(modelId.toString(), 10, 0)));
+        AiModelConfig model = new AiModelConfig();
+        model.setId(modelId);
+        model.setName("");
+        model.setModelName("gpt-4o");
+        when(modelMapper.selectBatchIds(any())).thenReturn(List.of(model));
+
+        AiUsageStatisticsRespDTO dto = service.statistics(statisticsReq(FROM, TO, "model"));
+
+        assertEquals("gpt-4o", dto.getSeries().get(0).getKeyName());
+    }
+
+    @Test
+    void statistics_modelSeries_vectorGroupUsesEmbeddingModelIdentifier() {
+        stubSummary(summaryRow(5, 0));
+        when(usageLogMapper.selectSeriesByModel(any(), any()))
+                .thenReturn(List.of(seriesRow(null, 5, 0)));
+        AiEmbeddingConfig embedding = new AiEmbeddingConfig();
+        embedding.setEmbeddingModel("text-embedding-3-small");
+        when(embeddingMapper.selectSingleton()).thenReturn(embedding);
+
+        AiUsageStatisticsRespDTO dto = service.statistics(statisticsReq(FROM, TO, "model"));
+
+        assertEquals("", dto.getSeries().get(0).getKey());
+        assertEquals("text-embedding-3-small", dto.getSeries().get(0).getKeyName());
     }
 
     @Test

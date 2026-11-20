@@ -7,7 +7,9 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageSeriesRowDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageStatisticsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageSummaryRowDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiUsageTaskRespDTO;
+import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
+import io.github.xiaomisum.robotest.repository.ai.AiEmbeddingConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiUsageLogMapper;
 import jakarta.annotation.Resource;
@@ -46,6 +48,8 @@ public class AiUsageAdminService {
     private AiUsageLogMapper usageLogMapper;
     @Resource
     private AiModelConfigMapper modelMapper;
+    @Resource
+    private AiEmbeddingConfigMapper embeddingMapper;
 
     /** 聚合（3.7）：summary + series；groupBy = day 时按日补 0 */
     public AiUsageStatisticsRespDTO statistics(AiUsageStatisticsReqDTO req) {
@@ -133,7 +137,8 @@ public class AiUsageAdminService {
         Map<String, String> keyNames = resolveKeyNames(groupBy, rows);
         List<AiUsageStatisticsRespDTO.SeriesItem> series = new ArrayList<>(rows.size());
         for (AiUsageSeriesRowDTO row : rows) {
-            series.add(toItem(row, keyNames.getOrDefault(row.getKey(), null)));
+            String key = row.getKey() == null ? "" : row.getKey();
+            series.add(toItem(row, keyNames.getOrDefault(key, null)));
         }
         return series;
     }
@@ -155,6 +160,14 @@ public class AiUsageAdminService {
     private Map<String, String> resolveKeyNames(String groupBy, List<AiUsageSeriesRowDTO> rows) {
         Map<String, String> keyNames = new HashMap<>();
         if ("model".equals(groupBy)) {
+            // 向量调用无模型配置行，key 为空串：用当前向量模型标识兜底，避免按模型分组出现空白标签
+            if (rows.stream().anyMatch(row -> row.getKey() == null || row.getKey().isBlank())) {
+                AiEmbeddingConfig embedding = embeddingMapper.selectSingleton();
+                if (embedding != null && embedding.getEmbeddingModel() != null
+                        && !embedding.getEmbeddingModel().isBlank()) {
+                    keyNames.put("", embedding.getEmbeddingModel());
+                }
+            }
             Set<UUID> modelIds = rows.stream()
                     .map(AiUsageSeriesRowDTO::getKey)
                     .filter(key -> key != null && !key.isBlank())
@@ -163,10 +176,17 @@ public class AiUsageAdminService {
             if (modelIds.isEmpty()) {
                 return keyNames;
             }
-            Map<UUID, String> names = modelMapper.selectBatchIds(modelIds).stream()
-                    .collect(Collectors.toMap(AiModelConfig::getId, AiModelConfig::getName, (a, b) -> a));
+            Map<UUID, AiModelConfig> configs = modelMapper.selectBatchIds(modelIds).stream()
+                    .collect(Collectors.toMap(AiModelConfig::getId, Function.identity(), (a, b) -> a));
             for (UUID id : modelIds) {
-                keyNames.put(id.toString(), names.get(id));
+                AiModelConfig config = configs.get(id);
+                if (config == null) {
+                    continue;
+                }
+                // 配置名为空时展示实际调用的模型标识，而不是原始 UUID
+                String name = config.getName() != null && !config.getName().isBlank()
+                        ? config.getName() : config.getModelName();
+                keyNames.put(id.toString(), name);
             }
         } else if ("scene".equals(groupBy)) {
             for (AiUsageSeriesRowDTO row : rows) {
