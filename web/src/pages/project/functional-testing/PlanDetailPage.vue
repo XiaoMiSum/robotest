@@ -29,7 +29,10 @@ const {
   openCaseSelector,
   handleCasesConfirm,
   handleCasesRemoved,
-  refreshProgress,
+  executionOrder,
+  nextPendingCase,
+  focusNextCase,
+  handleMarked,
   load,
 } = usePlanDetail({ planId })
 
@@ -122,6 +125,17 @@ const orderEmptyReason = computed(() =>
             <el-icon><EditPen /></el-icon>调整用例
           </el-button>
           <el-tooltip
+            v-if="canOperateActive"
+            :content="nextPendingCase ? `定位第 ${nextPendingCase.order} 个待执行用例：${nextPendingCase.title}` : '全部用例已执行'"
+            placement="top"
+          >
+            <span>
+              <el-button size="small" plain :disabled="!nextPendingCase" @click="focusNextCase">
+                <el-icon><Right /></el-icon>下一个待执行用例
+              </el-button>
+            </span>
+          </el-tooltip>
+          <el-tooltip
             v-if="orderEntryVisible && canOperateActive"
             :content="orderEmptyReason || '按 AI 建议调整计划执行顺序'"
             placement="top"
@@ -188,7 +202,8 @@ const orderEmptyReason = computed(() =>
           :plan-id="planId"
           :document-id="selectedDocId"
           :removable="canAdjustCases"
-          @marked="refreshProgress"
+          :execution-order="executionOrder"
+          @marked="handleMarked"
           @removed="handleCasesRemoved"
         />
       </el-card>

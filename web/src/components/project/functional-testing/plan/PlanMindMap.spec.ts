@@ -35,6 +35,15 @@ describe('PlanMindMap · 操作入口收拢到用例节点悬浮窗', () => {
   it('重载画布前收起浮层，避免定位到过期节点', () => {
     expect(source).toContain('function reload(): void')
     expect(source).toContain('nodePopover.close()')
-    expect(source).toContain('defineExpose({ openBug, reload })')
+    expect(source).toContain('defineExpose({ openBug, reload, focusCase })')
+  })
+
+  it('执行引导按快照 id 定位并高亮，跨文档重载后再应用', () => {
+    expect(source).toContain('executionOrder: ReadonlyMap<string, number>')
+    expect(source).toContain('executionOrder: computed(() => props.executionOrder)')
+    expect(source).toContain('root.traverse(')
+    expect(source).toContain("m.select?.(node, true)")
+    expect(source).toContain("m.execCommand?.('camera', node, 600)")
+    expect(source).toContain('void initMinder().then(applyPendingFocus)')
   })
 })

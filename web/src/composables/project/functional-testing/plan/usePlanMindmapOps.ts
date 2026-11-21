@@ -20,6 +20,7 @@ export function usePlanMindmapOps({
   updateSelectedState,
   destroyMinder,
   execResult,
+  executionOrder,
   getPlanId,
   getDocumentId,
   getRemovable,
@@ -41,10 +42,11 @@ export function usePlanMindmapOps({
   | 'destroyMinder'
 > & {
   execResult: Ref<string | null>
+  executionOrder: Ref<ReadonlyMap<string, number>>
   getPlanId: () => string
   getDocumentId: () => string | undefined
   getRemovable: () => boolean | undefined
-  onMarked: () => void
+  onMarked: (payload: { snapshotNodeId: string; result: ExecutionResult }) => void
   onRemoved: () => void
   onNodeClick?: (node: NodeActionAnchorNode) => void
 }) {
@@ -57,7 +59,7 @@ export function usePlanMindmapOps({
     try {
       // documentId 限定单文档快照；不传时后端返回多文档多根，仅取首个，页面应始终传入
       const tree = await getPlanSnapshotTree(getPlanId(), getDocumentId() || undefined)
-      const root = tree.length ? planNodeToKm(tree[0]) : { data: { text: '空快照' }, children: [] }
+      const root = tree.length ? planNodeToKm(tree[0], executionOrder.value) : { data: { text: '空快照' }, children: [] }
       const kmData = { root, template: 'default', theme: 'fresh-purple' }
 
       const km = await loadMinderEngine()
@@ -92,15 +94,16 @@ export function usePlanMindmapOps({
       ElMessage.warning('仅关联用例节点可标记执行结果')
       return
     }
+    const snapshotNodeId = selectedNodeId.value
     try {
-      await submitExecutionRecord(getPlanId(), { snapshotNodeId: selectedNodeId.value, result })
+      await submitExecutionRecord(getPlanId(), { snapshotNodeId, result })
       execResult.value = result
       const data = getSelectedNodeData()
       if (data) { data.lastResult = result; data.executionStatus = { result } }
       getMinder()?.refresh?.()
       const labels: Record<string, string> = { pass: '通过', fail: '失败', block: '阻塞', untested: '待执行' }
       ElMessage.success(`已标记${labels[result]}`)
-      onMarked()
+      onMarked({ snapshotNodeId, result })
     } catch (err) {
       ElMessage.error(err instanceof Error ? err.message : '提交执行结果失败')
     }

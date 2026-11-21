@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { caseNodeToKm, reviewNodeToKm, planNodeToKm, uuidv7, UUID_RE } from './adapter'
+import {
+  buildPlanExecutionOrder,
+  caseNodeToKm,
+  planExecutionOrderMap,
+  planNodeToKm,
+  reviewNodeToKm,
+  uuidv7,
+  UUID_RE,
+} from './adapter'
 import type { TestCaseNode, TestReviewSnapshotNode, TestPlanSnapshotNode } from '@/types'
 
 const caseTree: TestCaseNode = {
@@ -95,6 +103,41 @@ describe('planNodeToKm', () => {
   it('lastResult 为空时 executionStatus 为 null', () => {
     const km = planNodeToKm({ ...node, lastResult: null })
     expect(km.data).toMatchObject({ lastResult: null, executionStatus: null })
+  })
+
+  it('按序号映射写入 executionOrder，非关联节点为 null', () => {
+    const child: TestPlanSnapshotNode = { ...node, id: 'p2', type: 'step', isAssociated: false }
+    const tree: TestPlanSnapshotNode = { ...node, children: [child] }
+    const km = planNodeToKm(tree, new Map([['p1', 3]])) as {
+      data: Record<string, unknown>
+      children: Array<{ data: Record<string, unknown> }>
+    }
+    expect(km.data.executionOrder).toBe(3)
+    expect(km.children[0].data.executionOrder).toBeNull()
+  })
+})
+
+describe('buildPlanExecutionOrder', () => {
+  const caseNode = (id: string, title: string, lastResult: TestPlanSnapshotNode['lastResult'] = null): TestPlanSnapshotNode => ({
+    id, originalNodeId: `orig-${id}`, parentId: null, title, type: 'case', priority: 'P1',
+    isAssociated: true, lastResult, lastExecutorId: null, lastExecutedAt: null, sortOrder: 0, children: [],
+  })
+
+  it('跨文档按 DFS 现序编号，仅关联用例入选', () => {
+    const unassociated: TestPlanSnapshotNode = { ...caseNode('x', '未关联'), isAssociated: false }
+    const nestedDoc: TestPlanSnapshotNode = {
+      ...caseNode('doc', '文档'), type: 'normal', isAssociated: false,
+      children: [caseNode('c2', '用例二', 'pass')],
+    }
+    const cases = buildPlanExecutionOrder([caseNode('c1', '用例一'), unassociated, nestedDoc])
+    expect(cases.map((c) => [c.snapshotNodeId, c.order])).toEqual([['c1', 1], ['c2', 2]])
+    expect(cases[0]).toMatchObject({ originalNodeId: 'orig-c1', title: '用例一', lastResult: null })
+    expect(cases[1].lastResult).toBe('pass')
+  })
+
+  it('序号映射由快照 id 索引', () => {
+    const cases = buildPlanExecutionOrder([caseNode('c1', '用例一'), caseNode('c2', '用例二')])
+    expect(planExecutionOrderMap(cases)).toEqual(new Map([['c1', 1], ['c2', 2]]))
   })
 })
 

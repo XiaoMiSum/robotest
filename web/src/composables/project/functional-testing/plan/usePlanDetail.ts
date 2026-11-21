@@ -7,16 +7,19 @@ import {
   getPlanModuleTree,
   getPlanPlannedCases,
   getPlanProgress,
+  getPlanSnapshotTree,
   resumePlan,
   syncPlan,
   updatePlanCases,
 } from '@/services/project'
 import type {
+  ExecutionResult,
   PlannedCases,
   SnapshotModule,
   TestPlanDetail,
   TestPlanProgress,
 } from '@/types'
+import { buildPlanExecutionOrder, planExecutionOrderMap, type PlanExecutionCase } from '@/minder/adapter'
 
 // ==================== Helpers ====================
 
@@ -45,6 +48,7 @@ export interface UsePlanDetailOptions {
 interface PlanMindMapRef {
   openBug: (bugId: string) => void
   reload: () => Promise<void>
+  focusCase: (snapshotNodeId: string) => void
 }
 
 export function usePlanDetail(options: UsePlanDetailOptions) {
@@ -66,6 +70,51 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
   const canBlock = computed(() => canAdjustCases.value)
   const canResume = computed(() => detail.value?.status === 'blocked')
 
+  // ==================== 执行顺序引导 ====================
+
+  const executionCases = ref<PlanExecutionCase[]>([])
+  const executionOrder = computed(() => planExecutionOrderMap(executionCases.value))
+  const nextPendingCase = computed(() =>
+    executionCases.value.find((item) => item.lastResult == null || item.lastResult === 'untested') ?? null,
+  )
+
+  async function loadExecutionOrder(): Promise<void> {
+    try {
+      // 全量快照给出跨文档的稳定顺序，规划用例给出用例所属文档，两者合流供序号与引导共用
+      const [allNodes, planned] = await Promise.all([
+        getPlanSnapshotTree(planId),
+        getPlanPlannedCases(planId),
+      ])
+      const docByCase = new Map<string, string>()
+      for (const doc of planned) {
+        for (const caseId of doc.caseIds) docByCase.set(caseId, doc.documentId)
+      }
+      executionCases.value = buildPlanExecutionOrder(allNodes).map((item) => ({
+        ...item,
+        documentId: item.originalNodeId ? docByCase.get(item.originalNodeId) ?? null : null,
+      }))
+    } catch {
+      // 引导依赖额外读取，失败时保留已有序号，不阻断详情页加载
+    }
+  }
+
+  function focusNextCase(): void {
+    const next = nextPendingCase.value
+    if (!next) return
+    if (next.documentId && next.documentId !== selectedDocId.value) {
+      selectedDocId.value = next.documentId
+    }
+    // 跨文档时节点尚未渲染，focusCase 会暂存 id 待重载后定位
+    mindMapRef.value?.focusCase(next.snapshotNodeId)
+  }
+
+  function handleMarked(payload: { snapshotNodeId: string; result: ExecutionResult }): void {
+    const target = executionCases.value.find((item) => item.snapshotNodeId === payload.snapshotNodeId)
+    if (target) target.lastResult = payload.result
+    void refreshProgress()
+    focusNextCase()
+  }
+
   // ==================== Load ====================
 
   async function load() {
@@ -79,6 +128,7 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
       detail.value = d
       progress.value = p
       moduleTree.value = tree
+      await loadExecutionOrder()
       if (!selectedDocId.value || !findDoc(tree, selectedDocId.value)) {
         selectedDocId.value = firstDocument(tree)?.id ?? ''
       }
@@ -219,6 +269,8 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     selectedDocId,
     selectorVisible,
     plannedCases,
+    executionOrder,
+    nextPendingCase,
     // Computed
     canAdjustCases,
     canOperateActive,
@@ -234,5 +286,7 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
     handleCasesConfirm,
     handleCasesRemoved,
     refreshProgress,
+    focusNextCase,
+    handleMarked,
   }
 }

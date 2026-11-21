@@ -4,12 +4,14 @@ import type {
   SnapshotModule,
   TestPlanDetail,
   TestPlanProgress,
+  TestPlanSnapshotNode,
 } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   getPlanDetail: vi.fn<() => Promise<TestPlanDetail>>(),
   getPlanProgress: vi.fn<() => Promise<TestPlanProgress>>(),
   getPlanModuleTree: vi.fn<() => Promise<SnapshotModule[]>>(),
+  getPlanSnapshotTree: vi.fn<() => Promise<TestPlanSnapshotNode[]>>(),
   getPlanPlannedCases: vi.fn<() => Promise<PlannedCases[]>>(),
   updatePlanCases: vi.fn<() => Promise<void>>(),
   completePlan: vi.fn<() => Promise<void>>(),
@@ -37,6 +39,7 @@ vi.mock('@/services/project', () => ({
   getPlanDetail: mocks.getPlanDetail,
   getPlanProgress: mocks.getPlanProgress,
   getPlanModuleTree: mocks.getPlanModuleTree,
+  getPlanSnapshotTree: mocks.getPlanSnapshotTree,
   getPlanPlannedCases: mocks.getPlanPlannedCases,
   updatePlanCases: mocks.updatePlanCases,
   completePlan: mocks.completePlan,
@@ -86,11 +89,14 @@ function setupMocks(overrides?: {
   plan?: TestPlanDetail
   progress?: TestPlanProgress
   tree?: SnapshotModule[]
+  snapshotTree?: TestPlanSnapshotNode[]
   plannedCases?: PlannedCases[]
 }) {
   mocks.getPlanDetail.mockResolvedValue(overrides?.plan ?? makePlan())
   mocks.getPlanProgress.mockResolvedValue(overrides?.progress ?? makeProgress())
   mocks.getPlanModuleTree.mockResolvedValue(overrides?.tree ?? [])
+  mocks.getPlanSnapshotTree.mockResolvedValue(overrides?.snapshotTree ?? [])
+  mocks.getPlanPlannedCases.mockResolvedValue(overrides?.plannedCases ?? [])
 }
 
 describe('usePlanDetail', () => {
@@ -415,8 +421,7 @@ describe('usePlanDetail', () => {
   describe('openCaseSelector', () => {
     it('成功加载后设置 plannedCases 并显示选择器', async () => {
       const cases = [{ documentId: 'doc-1', caseIds: ['c1', 'c2'] }]
-      mocks.getPlanPlannedCases.mockResolvedValue(cases as PlannedCases[])
-      setupMocks()
+      setupMocks({ plannedCases: cases })
       const s = init()
       await vi.dynamicImportSettled()
       await s.openCaseSelector()
@@ -425,8 +430,8 @@ describe('usePlanDetail', () => {
     })
 
     it('加载失败时显示错误消息', async () => {
-      mocks.getPlanPlannedCases.mockRejectedValue(new Error('加载失败'))
       setupMocks()
+      mocks.getPlanPlannedCases.mockRejectedValue(new Error('加载失败'))
       const s = init()
       await vi.dynamicImportSettled()
       await s.openCaseSelector()
@@ -435,8 +440,8 @@ describe('usePlanDetail', () => {
     })
 
     it('加载失败非 Error 异常显示通用消息', async () => {
-      mocks.getPlanPlannedCases.mockRejectedValue(42)
       setupMocks()
+      mocks.getPlanPlannedCases.mockRejectedValue(42)
       const s = init()
       await vi.dynamicImportSettled()
       await s.openCaseSelector()
@@ -507,6 +512,85 @@ describe('usePlanDetail', () => {
       const s = init()
       await vi.dynamicImportSettled()
       await expect(s.refreshProgress()).resolves.toBeUndefined()
+    })
+  })
+
+  describe('执行顺序引导', () => {
+    const snap = (
+      id: string,
+      originalNodeId: string,
+      lastResult: TestPlanSnapshotNode['lastResult'] = null,
+    ): TestPlanSnapshotNode => ({
+      id,
+      originalNodeId,
+      parentId: null,
+      title: `用例${id}`,
+      type: 'case',
+      priority: 'P1',
+      isAssociated: true,
+      lastResult,
+      lastExecutorId: null,
+      lastExecutedAt: null,
+      sortOrder: 0,
+      children: [],
+    })
+
+    const planned = [
+      { documentId: 'doc-1', caseIds: ['c1'] },
+      { documentId: 'doc-2', caseIds: ['c2', 'c3'] },
+    ] as PlannedCases[]
+
+    it('按全量快照现序生成序号并映射用例所属文档', async () => {
+      setupMocks({ snapshotTree: [snap('s1', 'c1'), snap('s2', 'c2')], plannedCases: planned })
+      const s = init()
+      await vi.dynamicImportSettled()
+      expect(s.executionOrder.value).toEqual(new Map([['s1', 1], ['s2', 2]]))
+      expect(s.nextPendingCase.value).toMatchObject({ snapshotNodeId: 's1', documentId: 'doc-1', order: 1 })
+    })
+
+    it('标记后自动前移到下一个待执行用例', async () => {
+      setupMocks({
+        snapshotTree: [snap('s1', 'c1', 'pass'), snap('s2', 'c2'), snap('s3', 'c3')],
+        plannedCases: planned,
+      })
+      const s = init()
+      await vi.dynamicImportSettled()
+      const focusCase = vi.fn()
+      s.mindMapRef.value = { reload: vi.fn(), focusCase } as never
+      expect(s.nextPendingCase.value?.snapshotNodeId).toBe('s2')
+      s.handleMarked({ snapshotNodeId: 's2', result: 'fail' })
+      expect(s.nextPendingCase.value?.snapshotNodeId).toBe('s3')
+      expect(focusCase).toHaveBeenCalledWith('s3')
+    })
+
+    it('目标在其他文档时先切换文档再定位', async () => {
+      setupMocks({
+        tree: [makeModule('doc-1', '文档1', 'document')],
+        snapshotTree: [snap('s1', 'c1', 'pass'), snap('s2', 'c2')],
+        plannedCases: planned,
+      })
+      const s = init()
+      await vi.dynamicImportSettled()
+      const focusCase = vi.fn()
+      s.mindMapRef.value = { reload: vi.fn(), focusCase } as never
+      expect(s.selectedDocId.value).toBe('doc-1')
+      s.focusNextCase()
+      expect(s.selectedDocId.value).toBe('doc-2')
+      expect(focusCase).toHaveBeenCalledWith('s2')
+    })
+
+    it('全部执行后无下一个用例', async () => {
+      setupMocks({
+        snapshotTree: [snap('s1', 'c1', 'pass'), snap('s2', 'c2', 'untested')],
+        plannedCases: planned,
+      })
+      const s = init()
+      await vi.dynamicImportSettled()
+      const focusCase = vi.fn()
+      s.mindMapRef.value = { reload: vi.fn(), focusCase } as never
+      s.handleMarked({ snapshotNodeId: 's2', result: 'pass' })
+      expect(s.nextPendingCase.value).toBeNull()
+      expect(focusCase).not.toHaveBeenCalled()
     })
   })
 

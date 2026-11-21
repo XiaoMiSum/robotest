@@ -30,6 +30,9 @@ const PRIORITY_BADGES: Record<string, Badge> = {
 // 取视觉设计为 AI 标识保留的青色自定义档，避免与已有类型/优先级色混淆
 const AI_BADGE: Badge = { label: 'AI', color: '#00A6A6' }
 
+// 推荐序号取亮橙，与预期 / 执行结果的橙色系区分（视觉设计 §节点徽标）
+const EXECUTION_ORDER_COLOR = '#FF6F00'
+
 // 评审标记与执行结果回显在节点右侧，与左侧类型/优先级徽标区分开；
 // 待评审/未执行是默认态，不渲染徽标以免满屏噪音
 const REVIEW_MARK_BADGES: Record<string, Badge> = {
@@ -64,6 +67,12 @@ export function reviewMarkBadge(mark: unknown): Badge | null {
 
 export function executionResultBadge(result: unknown): Badge | null {
   return typeof result === 'string' ? (EXECUTION_RESULT_BADGES[result] ?? null) : null
+}
+
+export function executionOrderBadge(order: unknown): Badge | null {
+  return typeof order === 'number' && Number.isInteger(order) && order > 0
+    ? { label: `#${order}`, color: EXECUTION_ORDER_COLOR }
+    : null
 }
 
 const BADGE_HEIGHT = 16
@@ -184,14 +193,15 @@ export function registerBadgesModule(): boolean {
   // 评审/计划模式下节点 data 才有 lastMark/lastResult，编辑模式自然不渲染，无需按模式区分注册
   const reviewMarkRenderer = defineBadgeRenderer(kity, km.Render, (node) => reviewMarkBadge(node.getData('lastMark')), 'right')
   const executionResultRenderer = defineBadgeRenderer(kity, km.Render, (node) => executionResultBadge(node.getData('lastResult')), 'right')
+  const executionOrderRenderer = defineBadgeRenderer(kity, km.Render, (node) => executionOrderBadge(node.getData('executionOrder')))
 
   // 同名覆盖 core 内置 PriorityModule（_modules[name] 纯赋值）：
   // 其 shouldRender 对 'P0' 字符串判真，会渲染无填充色的隐形图标白占 20px 布局空间
   km.Module.register('PriorityModule', () => ({}))
   km.Module.register('TestBadgesModule', () => ({
     renderers: {
-      // 左侧渲染器按数组顺序向文本左侧堆叠：AI 先注册才能落在「用例」徽标右侧
-      left: [aiRenderer, typeRenderer, priorityRenderer],
+      // 左侧渲染器按数组顺序向文本左侧堆叠：序号先注册才能紧贴标题左侧
+      left: [executionOrderRenderer, aiRenderer, typeRenderer, priorityRenderer],
       right: [reviewMarkRenderer, executionResultRenderer],
     },
   }))

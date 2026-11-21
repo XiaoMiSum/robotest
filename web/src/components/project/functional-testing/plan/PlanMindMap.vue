@@ -7,15 +7,25 @@ import { usePlanMindmapOps } from '@/composables/project/functional-testing/plan
  * 设计文档第 13 节代码骨架同样在组件内直接调用 API。
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import type { ExecutionResult } from '@/types'
 import { useMinderInstance } from '@/minder/useMinderInstance'
 import { useNodeActionPopover, type NodeActionAnchorNode } from '@/minder/useNodeActionPopover'
+import type { MinderNode } from '@/minder/types'
 import NodeActionPopover from '../minder/NodeActionPopover.vue'
 import MinderNavigator from '../minder/MinderNavigator.vue'
 
-const props = defineProps<{ planId: string; documentId?: string; removable?: boolean }>()
+const props = defineProps<{
+  planId: string
+  documentId?: string
+  removable?: boolean
+  executionOrder: ReadonlyMap<string, number>
+}>()
 
-// 标记成功后通知详情页刷新进度，否则页头进度条需手动刷新才能更新
-const emit = defineEmits<{ marked: []; removed: [] }>()
+// 标记成功后通知详情页刷新进度并推进引导，否则页头进度条需手动刷新才能更新
+const emit = defineEmits<{
+  marked: [payload: { snapshotNodeId: string; result: ExecutionResult }]
+  removed: []
+}>()
 
 // 原生全屏只渲染全屏元素子树，默认 body 下的 teleport 浮层会消失
 const popoverHostRef = ref<HTMLElement | null>(null)
@@ -68,10 +78,11 @@ const {
   updateSelectedState,
   destroyMinder,
   execResult,
+  executionOrder: computed(() => props.executionOrder),
   getPlanId: () => props.planId,
   getDocumentId: () => props.documentId,
   getRemovable: () => props.removable,
-  onMarked: () => emit('marked'),
+  onMarked: (payload) => emit('marked', payload),
   onRemoved: () => emit('removed'),
   onNodeClick: handleNodeClick,
 })
@@ -106,6 +117,36 @@ function removeFromPopover(): void {
   void removeSelectedCase()
 }
 
+// ==================== 执行引导 ====================
+// 跨文档切换时目标节点尚未渲染，先记下 id 待重载完成后再定位
+let pendingFocusId: string | null = null
+
+function findNodeById(id: string): MinderNode | null {
+  const root = getMinder()?.getRoot?.() as MinderNode | null | undefined
+  if (!root) return null
+  let found: MinderNode | null = null
+  root.traverse((node) => {
+    if (!found && node.data?.id === id) found = node
+  })
+  return found
+}
+
+function applyPendingFocus(): void {
+  if (!pendingFocusId) return
+  const m = getMinder()
+  const node = findNodeById(pendingFocusId)
+  if (!m || !node) return
+  pendingFocusId = null
+  m.select?.(node, true)
+  m.execCommand?.('camera', node, 600)
+  updateSelectedState()
+}
+
+function focusCase(snapshotNodeId: string): void {
+  pendingFocusId = snapshotNodeId
+  applyPendingFocus()
+}
+
 // ==================== Bug 链接跳转 ====================
 // 暴露给 kityminder 扩展节点渲染模板通过 ref 调用，避免事件冒泡干扰节点选中
 function openBug(bugId: string) {
@@ -115,11 +156,22 @@ function openBug(bugId: string) {
 // reload 供详情页同步快照后刷新画布（planId 不变，watch 不会触发）；先收起浮层避免定位到旧节点
 function reload(): void {
   nodePopover.close()
-  void initMinder()
+  void initMinder().then(applyPendingFocus)
 }
-defineExpose({ openBug, reload })
+defineExpose({ openBug, reload, focusCase })
 
 // ==================== 生命周期 ====================
+// 序号依赖额外快照读取，可能晚于脑图初始化到达，变化时原位刷新而不重载整棵树
+watch(() => props.executionOrder, (order) => {
+  const m = getMinder()
+  const root = m?.getRoot?.() as MinderNode | null | undefined
+  if (!m || !root) return
+  root.traverse((node) => {
+    const id = node.data?.id
+    if (typeof id === 'string') node.setData('executionOrder', order.get(id) ?? null)
+  })
+  m.refresh?.()
+})
 watch(() => [props.planId, props.documentId], reload)
 onMounted(initMinder)
 onBeforeUnmount(() => {

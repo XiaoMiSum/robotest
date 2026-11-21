@@ -5,7 +5,7 @@ import composableSource from '../../../composables/project/functional-testing/pl
 // 详情页操作按钮按状态显隐，状态判定集中在组合式函数以便单测覆盖
 describe('PlanDetailPage 操作按钮状态显隐', () => {
   it('同步与完成共用活跃态，阻塞共用活跃态，恢复按已阻塞状态', () => {
-    expect(pageSource.match(/v-if="canOperateActive"/g)).toHaveLength(2)
+    expect(pageSource.match(/v-if="canOperateActive"/g)).toHaveLength(3)
     expect(pageSource).toContain('v-if="canBlock"')
     expect(pageSource).toContain('v-if="canResume"')
     expect(pageSource).toContain('v-if="canAdjustCases"')
@@ -43,6 +43,14 @@ describe('PlanDetailPage 操作按钮状态显隐', () => {
   it('应用建议后刷新计划详情与脑图', () => {
     expect(pageSource).toContain('mindMapRef.value?.reload()')
     expect(pageSource).toContain('void load()')
+  })
+
+  it('页头提供下一个待执行用例入口并传递序号映射', () => {
+    expect(pageSource).toContain('下一个待执行用例')
+    expect(pageSource).toContain('@click="focusNextCase"')
+    expect(pageSource).toContain(':disabled="!nextPendingCase"')
+    expect(pageSource).toContain(':execution-order="executionOrder"')
+    expect(pageSource).toContain('@marked="handleMarked"')
   })
 })
 

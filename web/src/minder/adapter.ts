@@ -1,4 +1,4 @@
-import type { TestCaseNode, TestReviewSnapshotNode, TestPlanSnapshotNode } from '@/types'
+import type { TestCaseNode, TestReviewSnapshotNode, TestPlanSnapshotNode, ExecutionResult } from '@/types'
 
 /**
  * 后端节点树 ⇄ kityminder JSON 的映射（从各模式脑图组件抽出以便单测）。
@@ -27,15 +27,52 @@ export function reviewNodeToKm(node: TestReviewSnapshotNode): Record<string, unk
   }
 }
 
-export function planNodeToKm(node: TestPlanSnapshotNode): Record<string, unknown> {
+/** 关联用例的执行序列：快照树已按 sortOrder 排序，DFS 现序即计划内稳定顺序 */
+export interface PlanExecutionCase {
+  snapshotNodeId: string
+  originalNodeId: string | null
+  title: string
+  documentId: string | null
+  lastResult: ExecutionResult | null
+  order: number
+}
+
+export function buildPlanExecutionOrder(roots: TestPlanSnapshotNode[]): PlanExecutionCase[] {
+  const cases: PlanExecutionCase[] = []
+  const visit = (node: TestPlanSnapshotNode): void => {
+    if (node.isAssociated && node.type === 'case') {
+      cases.push({
+        snapshotNodeId: node.id,
+        originalNodeId: node.originalNodeId,
+        title: node.title,
+        documentId: null,
+        lastResult: node.lastResult,
+        order: cases.length + 1,
+      })
+    }
+    node.children.forEach(visit)
+  }
+  roots.forEach(visit)
+  return cases
+}
+
+export function planExecutionOrderMap(cases: PlanExecutionCase[]): Map<string, number> {
+  return new Map(cases.map((item) => [item.snapshotNodeId, item.order]))
+}
+
+export function planNodeToKm(
+  node: TestPlanSnapshotNode,
+  executionOrder?: ReadonlyMap<string, number>,
+): Record<string, unknown> {
   return {
     data: {
       id: node.id, originalNodeId: node.originalNodeId, text: node.title, type: node.type, priority: node.priority,
       isAssociated: node.isAssociated, lastResult: node.lastResult,
       executionStatus: node.lastResult ? { result: node.lastResult } : null,
+      executionOrder: executionOrder?.get(node.id) ?? null,
       relatedBugIds: [],
     },
-    children: node.children.map(planNodeToKm),
+    children: node.children.map((child) => planNodeToKm(child, executionOrder)),
   }
 }
 

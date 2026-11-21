@@ -5,6 +5,7 @@ import {
   priorityBadge,
   reviewMarkBadge,
   executionResultBadge,
+  executionOrderBadge,
   badgeWidth,
   aiGeneratedBadge,
   registerBadgesModule,
@@ -66,7 +67,7 @@ describe('registerBadgesModule', () => {
     window.kityminder = originalKityminder
   })
 
-  it('AI 徽标渲染器先于用例徽标注册，显示在用例徽标右侧', () => {
+  it('序号徽标渲染器先注册以紧贴标题，AI 徽标位于用例徽标右侧', () => {
     const renderers: unknown[] = []
     const modules: Record<string, () => Record<string, unknown>> = {}
     window.kity = {
@@ -87,9 +88,11 @@ describe('registerBadgesModule', () => {
 
     expect(registerBadgesModule()).toBe(true)
     const left = modules['TestBadgesModule']?.()['renderers'] as { left: unknown[]; right: unknown[] } | undefined
-    expect(left?.left[0]).toBe(renderers[0])
-    expect(left?.left[1]).toBe(renderers[1])
-    expect(left?.left[2]).toBe(renderers[2])
+    expect(left?.left).toHaveLength(4)
+    expect(left?.left[0]).toBe(renderers[5])
+    expect(left?.left[1]).toBe(renderers[0])
+    expect(left?.left[2]).toBe(renderers[1])
+    expect(left?.left[3]).toBe(renderers[2])
   })
 })
 
@@ -116,6 +119,21 @@ describe('executionResultBadge', () => {
   it('未执行是默认态不显示徽标', () => {
     expect(executionResultBadge('untested')).toBeNull()
     expect(executionResultBadge(null)).toBeNull()
+  })
+})
+
+describe('executionOrderBadge', () => {
+  it('正整数序号映射为亮橙 #N 徽标', () => {
+    expect(executionOrderBadge(1)).toEqual({ label: '#1', color: '#FF6F00' })
+    expect(executionOrderBadge(12)).toEqual({ label: '#12', color: '#FF6F00' })
+  })
+
+  it('非关联节点与非法序号不显示徽标', () => {
+    expect(executionOrderBadge(null)).toBeNull()
+    expect(executionOrderBadge(0)).toBeNull()
+    expect(executionOrderBadge(-1)).toBeNull()
+    expect(executionOrderBadge(1.5)).toBeNull()
+    expect(executionOrderBadge('1')).toBeNull()
   })
 })
 
