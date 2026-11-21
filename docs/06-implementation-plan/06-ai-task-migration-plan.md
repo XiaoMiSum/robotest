@@ -50,7 +50,7 @@
 - 已存在的可复用能力：模型能力选型 `requiredCapability`（落在旧 SPI 上）、`AiSettingsReader.resolveModel`、用量记账 `AiUsageLog` 族、助手域独立工具注册表（`AssistantToolRegistry`，不属任务引擎）。
 - **不存在的能力（新架构需新建）**：Agent 循环、执行 / 轨迹 / 提案 / 采纳 / 工具注册表五表与对应服务、预算护栏、轨迹事件流。
 - 盘点确认的死代码与重复路径（迁移时一并清除）：
-  1. 6 个 type 有 Handler 无 Adopter（`vector_reindex / assistant_parse / bug_triage / bug_trend_summary`，另有 `coverage_analysis / impact_analysis` 两类已取消——追溯矩阵需求整体下线，其 Handler 随需求删除），confirm 必然 1000018114（死路确认路径）；
+  1. 5 个 type 有 Handler 无 Adopter（`vector_reindex / assistant_parse / bug_triage`，另有 `coverage_analysis / impact_analysis` 两类已取消——追溯矩阵需求整体下线，其 Handler 随需求删除），confirm 必然 1000018114（死路确认路径）；
   2. 状态字面量三套并存（`Constants.AiTaskStatus`、`AiTaskMapper` 内联、`AiTaskServiceImpl:515` 硬编码）；
   3. `startTask()` 直调 + `afterCommit` 双触发重复路径；
   4. 提示词默认值双轨（`AiPromptAdminService.builtinContent` vs `AiPromptScenes` vs `Handler.defaultPrompt()`）；
@@ -60,7 +60,7 @@
 **web（涉及约 75–80 文件：实现 ~52、测试 24）**
 
 - 全仓无任何新设计代码（`proposals / afterSeq / proposals_ready / waiting_confirmation` 零命中）。
-- 核心面：`types/ai.ts`（五态枚举 + 产物全族类型）、`services/ai.ts`（9 函数对应旧端点）、`stores/aiTask.ts`（`isTerminalTaskStatus` 单点定义被 trace / bug / admin 三域 7 处引用）、`AiTaskCenterPage` / `AiTaskDetailPage`（五态筛选、进度条、阶段时间线、取消 / 重试）、`AiArtifactReviewPanel`（666 行）、`BugClassifyReviewPanel`、`useAiArtifactReview` 确认基座、`taskPresentation`（硬编码阶段表与五态徽标）、`AiTaskIndicator`。
+- 核心面：`types/ai.ts`（五态枚举 + 产物全族类型）、`services/ai.ts`（9 函数对应旧端点）、`stores/aiTask.ts`（`isTerminalTaskStatus` 单点定义被 trace / bug / admin 三域 7 处引用）、`AiTaskCenterPage` / `AiTaskDetailPage`（五态筛选、进度条、阶段时间线、取消 / 重试）、`AiArtifactReviewPanel`（666 行）、`useAiArtifactReview` 确认基座、`taskPresentation`（硬编码阶段表与五态徽标）、`AiTaskIndicator`。
 - 孤立链路（无生产引用，仅 spec）：`AssistComparePanel` / `PlanOrderPanel` / `useAssistTask` / `assistPresentation`——按设计文档仍为辅助功能的目标 UI，随迁改造并接线（见 4 风险 R4）。
 
 ### 2.2 总体结构
@@ -105,7 +105,7 @@ flowchart LR
 | `AiTaskExecutor` → `AgentExecutionRunner` | CAS 状态机改新状态机（执行 `running / waiting_confirmation / succeeded / aborted`，任务 `running / proposals_ready / closed / aborted`）；进度上报改轨迹事件；模型选型（`requiredCapability`）迁至类型适配器声明并复用 `AiSettingsReader` |
 | `AiTaskSweeper` | 扫描 `status + heartbeat_at`（执行表），超时置 `aborted`（1000018117）；总开关关闭 `failActive` → `abortActive` |
 | `ArtifactAdopter` → `ProposalAdopter`（SPI 更名） | `AdoptContext` 产物字段改提案（`proposalKey`）、回写 `ai_task_adoption.adopted_ref`；14 个承接实现逐一对齐 |
-| 11 个旧 Handler → TypeAdapter | `PlanOrder / CaseComplete / CasePriority / RequirementImport / BugClassify / BugTriage / BugTrendSummary / BugDuplicateScan / VectorReindex` 逐个改造（`CoverageAnalysis / ImpactAnalysis` 已随追溯矩阵下线删除，不占位）：去 `context.report` 进度上报、产出改提案行、只读结论类（trend / triage）执行完成即任务 `closed`；`AssistantParse` 最小适配为 TypeAdapter（执行语义仍为对话式解析，不进 Agent 循环，助手链路重构归 05 计划）；`BugClassify` 收窄为存量批量（`bugIds` / 筛选）——新建缺陷建议已改实时同步接口 `analysis/suggest`，不走任务引擎（见缺陷分析详设 3.5） |
+| 9 个旧 Handler → TypeAdapter | `PlanOrder / CaseComplete / CasePriority / RequirementImport / BugTriage / BugDuplicateScan / VectorReindex` 逐个改造（`CoverageAnalysis / ImpactAnalysis` 已随追溯矩阵下线删除，不占位）：去 `context.report` 进度上报、产出改提案行、只读结论类（triage）执行完成即任务 `closed`；`AssistantParse` 最小适配为 TypeAdapter（执行语义仍为对话式解析，不进 Agent 循环，助手链路重构归 05 计划）；新建缺陷建议已改实时同步接口 `analysis/suggest`，不走任务引擎（见缺陷分析详设 3.4） |
 | `Constants` | `AiTaskStatus` 五态 → 新任务 / 执行双状态机；`AiArtifactKind` → `AiProposalKind`（**kind 取值保持不变**，避免提示词与提案结构连锁变更）；`AiArtifactAction` → `AiProposalAction`（取值不变） |
 | `ErrorCodeConstants` | 112 / 113 文案改提案；登记空号 1000018125（执行不存在）/ 126（预算非法）/ 127（执行已终止 / 预算耗尽）；111 语义扩展至执行态 |
 | `RequirementServiceImpl` 等跨层点 | 删除对 `AiTaskMapper` 的直读，导入进行中判定改经任务服务新状态口径；`ImpactAnalysisTaskPublisher` 依赖新提交入口 |
@@ -131,13 +131,13 @@ flowchart LR
 | `AiTaskCenterPage` | 状态筛选改四态，进度 / 阶段列改执行摘要（步数与最近动作），操作改终止 / 再次执行 |
 | `AiTaskDetailPage` | 进度区改 `ExecutionPanel`（步数与预算消耗、终止原因）、阶段时间线改 `PlanTimeline`（`plan` 快照驱动）、新增 `TraceEventList`、审核区改 `proposals_ready` 门禁 |
 | `AiArtifactReviewPanel` → `AiProposalReviewPanel` | 文件与组件更名，props / 行模型改提案，确认调用改 `confirmAiProposals` |
-| `BugClassifyReviewPanel` | 类型与基座切换（保留组件名，符合各域详设文件清单） |
+| `BugDuplicateReviewPanel` | 类型与基座切换，对齐重复组提案结构（符合各域详设文件清单） |
 | `useAiArtifactReview` → `useAiProposalReview` | 基座更名改造：`syncRows` 按提案 `confirmStatus`、内容拉取改提案详情、分批确认改新端点、回执语义不变 |
 | `taskPresentation.ts` | 删除五态徽标表与硬编码阶段表，改新状态机徽标 + 计划步骤视图模型 |
 | `useAiTaskCenter / useAiTaskDetail` | 取消 / 重试动作改终止 / 再次执行（再次执行沿用同一任务引用）；轮询与审核区门禁改新状态 |
 | 孤立链路四件 | `AssistComparePanel / PlanOrderPanel / useAssistTask / assistPresentation` 按新口径改造并接回生产路由（产品可裁剪，见 R4） |
 | `AiTaskIndicator` | 计数注释与兜底口径改 `running`；删除「后端置 failed」注释；任务中心入口已收敛为本指示器单层入口（`AiTaskEntryButton` 已下线，S5 无能力页按钮改造） |
-| 跨域消费方 | `useTraceCoverage / useTraceImpact`（retry → 再次执行、进度条改执行状态与轨迹）、`bugAnalysis` store 与 `useBugBatchActions / useBugClassifyReview`（succeeded / failed 分支改新状态；新建缺陷建议已改实时接口 `analysis/suggest`，`useBugCreateSuggest` 不再消费任务态）、`AiSettingsPage`（reindex 分支改 `closed / aborted`）、`AiUsageGroup`（任务详情路由名不变，状态徽标更新） |
+| 跨域消费方 | `useTraceCoverage / useTraceImpact`（retry → 再次执行、进度条改执行状态与轨迹）、`bugAnalysis` store 与 `useBugDuplicateScan / useBugDuplicateReview`（succeeded / failed 分支改新状态；新建缺陷建议已改实时接口 `analysis/suggest`，`useBugCreateSuggest` 不再消费任务态）、`AiSettingsPage`（reindex 分支改 `closed / aborted`）、`AiUsageGroup`（任务详情路由名不变，状态徽标更新） |
 
 ### 2.5 OpenAPI 与契约
 
@@ -162,7 +162,7 @@ flowchart LR
 | `AiTaskMapper` 内联状态字面量与 `casStart / casSucceed / casFail / casCancel / reportProgress / failActive / failStale` | 删除重写：新状态机更新路径 + 执行表心跳扫描；状态常量单点收口至 `Constants` | S3 |
 | `AiArtifactConfirm` 实体 / Mapper / 全部引用（`artifactKey` 链） | 删除，由 `AiTaskAdoption`（`proposalKey`）替代 | S3 |
 | `/{taskId}/cancel`、`/{taskId}/retry`、`/{taskId}/artifacts/**` 端点与 `retryOfTaskId` 字段 | 删除；对应 DTO 字段（`progress / phase / result / artifacts / retryOfTaskId`）随 DTO 重写清除 | S3 |
-| 6 个 type 的死路确认路径（有 Handler 无 Adopter 的 confirm 分支） | 随确认门禁改 `proposals_ready` 自然失效，删除对应 1000018114 兜底分支中属于确认端点的部分 | S3 |
+| 5 个 type 的死路确认路径（有 Handler 无 Adopter 的 confirm 分支） | 随确认门禁改 `proposals_ready` 自然失效，删除对应 1000018114 兜底分支中属于确认端点的部分 | S3 |
 | `startTask()` 双触发（直调 + afterCommit） | 收敛为单入口：创建即启动，事务提交后触发一次，删除双保险分支 | S3 |
 | 提示词双轨（`AiPromptAdminService.builtinContent` 回落链 / `AiPromptScenes` / `Handler.defaultPrompt()`） | 单轨化：默认提示词唯一登记点收敛至 TypeAdapter 声明，删除重复登记 | S4 |
 | `RequirementServiceImpl` 直读 `AiTaskMapper`（跨层） | 删除直读，改经任务服务查询新状态 | S3 |
@@ -306,3 +306,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-11-10 | 5.1 实施状态回填：S5 ✅（`f271bca6` 核心切换 → `1c0b6815` 跨域语义 → `28f4a8db` 四件改造接回入口）；孤立四件按用户裁决由「随迁改造接线」确认执行，前端清理门禁 E1/E2 转绿 |
 | V1.0 | 2026-11-18 | AI Task 迁移计划免 RBAC 权限码校验：承接服务、执行核、Controller 与历史口径统一改为任务归属和项目成员归属校验 |
 | V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：2.1 死代码盘点删除对应死接口，2.3.1 / 2.7 文件清单删除对应类型与组件；历史实施记录中的旧 Handler 与承接实现计数保留原貌 |
+| V1.0 | 2026-11-21 | 移除趋势摘要与存量批量分类：2.1 死代码盘点、2.3.2 Handler 清单与 2.4 / 2.7 前端清单删除对应类型和审核组件，跨域消费方改引重复扫描，缺陷分析详设引用由 3.5 顺延为 3.4 |
