@@ -3,7 +3,6 @@
 | 文档 | 版本 | 日期 | 状态 |
 | ---- | ---- | ---- | ---- |
 | [02-ai-infra-overview](02-ai-infra-overview.md)（总册：AI 底座——数据设计、配置与用量、AI Task 任务资源、通用约定） | V1.0 | 2026-10-02 | 起草中 |
-| [03-ai-generation](03-ai-generation.md)（分册：AI+需求 生成链） | V1.0 | 2026-10-02 | 起草中 |
 | [04-ai-assistant](04-ai-assistant.md)（分册：智能助手） | V1.0 | 2026-10-02 | 起草中 |
 | [05-ai-defect-analysis](05-ai-defect-analysis.md)（分册：缺陷分析） | V1.0 | 2026-10-02 | 起草中 |
 | [06-ai-assisted-features](06-ai-assisted-features.md)（分册：辅助功能） | V1.0 | 2026-10-02 | 起草中 |

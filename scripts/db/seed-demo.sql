@@ -342,7 +342,7 @@ VALUES ('5eed002e-0000-4000-8000-000000000000', '01a1523d-d4c9-7dbe-8f6f-8ff34bf
 | 业务功能模块 | `03-function-testing/02-srs-business-features.md`（功能测试）及 `03-function-testing/03-srs-requirement-management.md`（需求管理，功能测试子模块） | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
-| AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/03-srs-ai-generation.md`、`07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
+| AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
 
 ## 修改记录
 
@@ -352,7 +352,8 @@ VALUES ('5eed002e-0000-4000-8000-000000000000', '01a1523d-d4c9-7dbe-8f6f-8ff34bf
 | V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：数据需求中 AI 任务改为记录执行与产出提案，提案为待采纳态、经人工采纳后才落库 |
 | V1.0 | 2026-10-16 | 追溯矩阵需求并入需求管理模块：分册对照表同步，范围、术语与数据需求中的追溯条目改写 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：范围与术语表移除追溯矩阵引用，数据需求删除对应关系实体，分册对照表移除追溯矩阵分册 |
-| V1.0 | 2026-10-18 | 需求管理并入功能测试模块：分册对照表需求管理行并入业务功能模块（功能测试）行，分册迁入 `03-function-testing/` |', 'confirmed', 'medium', '7e57001f-0000-4000-8000-000000000001', '["平台","总览"]'::jsonb,
+| V1.0 | 2026-10-18 | 需求管理并入功能测试模块：分册对照表需求管理行并入业务功能模块（功能测试）行，分册迁入 `03-function-testing/` |
+| V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：分册对照表删除对应分册 |', 'confirmed', 'medium', '7e57001f-0000-4000-8000-000000000001', '["平台","总览"]'::jsonb,
         'import', NULL, CURRENT_TIMESTAMP - INTERVAL '33 days', CURRENT_TIMESTAMP - INTERVAL '33 days', CURRENT_TIMESTAMP - INTERVAL '33 days', FALSE);
 
 INSERT INTO requirement (id, project_id, module_id, system_version, code, title, description, status, priority, owner_id, tags, source, source_file_id, confirmed_at, created_at, updated_at, is_deleted)
@@ -2909,16 +2910,13 @@ VALUES ('5eed004a-0000-4000-8000-000000000000', '01a1523d-d4c9-7dbe-8f6f-8ff34bf
 
 ### 1.1 总体描述
 
-AI 能力是平台级基础能力，四大能力域构建其上：
+AI 能力是平台级基础能力，三大能力域构建其上：
 
 | 能力域 | 分册 | 一句话定位 |
 | ---- | ---- | ---- |
-| AI+需求 生成链 | `docs/01-requirements/07-ai-capability/03-srs-ai-generation.md` | AI 将已确认的需求条目生成模块、脑图用例文档与测试用例 |
 | 智能助手 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 一句话下达任务，经确认后将数据落库（测试用例、测试评审、测试计划） |
 | 缺陷分析 | `docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md` | 缺陷趋势与质量度量、自动分类分诊、重复缺陷检测 |
 | 辅助功能 | `docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md` | 用例优化（字段补全 + 级别推荐）、测试用例执行顺序推荐 |
-
-AI 生成链以需求管理（功能测试子模块）的需求条目为输入，需求条目的管理行为见 `docs/01-requirements/03-function-testing/03-srs-requirement-management.md`；测试评审与测试计划的快照机制沿用既有口径，见 `docs/01-requirements/03-function-testing/02-srs-business-features.md`。
 
 **两条全局原则**：
 
@@ -2947,9 +2945,9 @@ AI 生成链以需求管理（功能测试子模块）的需求条目为输入�
 **功能点**：
 
 - **总开关**：全局开启 / 关闭 AI 功能；关闭后全平台 AI 功能入口不可用并提示「AI 功能已关闭」，已生成的数据与确认记录保留可查。
-- **多模型配置**：可配置多个模型条目，每条含名称、能力声明（文本生成 / 多模态解析）、接入地址、密钥与启用状态；可指定默认模型，各能力域（生成链、助手、缺陷分析、辅助功能）可分别覆盖默认模型；每条模型提供连通性测试与启用 / 停用。
+- **多模型配置**：可配置多个模型条目，每条含名称、能力声明（文本生成 / 多模态解析）、接入地址、密钥与启用状态；可指定默认模型，各能力域（助手、缺陷分析、辅助功能）可分别覆盖默认模型；每条模型提供连通性测试与启用 / 停用。
 - **向量 API 配置**：向量化 API 独立配置（接入地址、密钥、模型标识），可与模型配置来自不同供应商；提供连通性测试；未配置时依赖检索的能力（RAG、相似检测）不可用。
-- **业务场景提示词配置**：按业务场景维护提示词模板（测试用例生成、需求拆解、助手任务执行、缺陷分类分诊、缺陷重复检测、用例优化等），支持查看默认提示词、自定义覆盖与恢复默认；场景随能力域扩展，未自定义的场景使用默认提示词。
+- **业务场景提示词配置**：按业务场景维护提示词模板（需求拆解、助手任务执行、缺陷分类分诊、缺陷重复检测、用例优化等），支持查看默认提示词、自定义覆盖与恢复默认；场景随能力域扩展，未自定义的场景使用默认提示词。
 - **使用情况分析**：按时间范围、模型、能力域统计调用次数、成功 / 失败分布与失败原因、平均响应时延、token 消耗（模型服务上报时）；提供趋势图与异常提示（如失败率突增）；可下钻查看对应的 AI 任务列表。
 
 **业务规则**：
@@ -3035,82 +3033,6 @@ AI 生成链以需求管理（功能测试子模块）的需求条目为输入�
 | V1.0 | 2026-10-19 | 权限口径调整：1.5 权限条目改为「前端按既有界面权限显隐入口，后端任务端点不做权限校验（仅保留任务归属可见性）」，业务校验与能力白名单约束不变 |', 'confirmed', 'medium', '7e57001f-0000-4000-8000-000000000009', '["AI 能力"]'::jsonb,
         'import', NULL, CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days', FALSE);
 
-INSERT INTO requirement (id, project_id, module_id, system_version, code, title, description, status, priority, owner_id, tags, source, source_file_id, confirmed_at, created_at, updated_at, is_deleted)
-VALUES ('5eed004b-0000-4000-8000-000000000000', '01a1523d-d4c9-7dbe-8f6f-8ff34bffac0a', '5eed002a-0000-4000-8000-000000000000', 'V1.1', 'REQ-030', 'AI+需求 生成链',
-        '# 软件测试平台——AI+需求 生成链
-
-**文档版本**：V1.0  
-**日期**：2026-10-01  
-**状态**：起草中
-
----
-
-## 1. AI+需求 生成链
-
-### 1.1 总体描述
-
-生成链将 AI 贯穿需求到测试评审 / 测试计划的完整链路：
-
-- `AI + 需求 = 模块 + 脑图用例文档 + 测试用例`：一次生成产出三层派生物。
-
-输入为功能测试模块需求子模块中**已确认的需求**（见 `docs/01-requirements/03-function-testing/03-srs-requirement-management.md`）。生成由 AI 自主编排执行，产出为提案，任务与提案采纳的通用口径见总册 1.5（`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`），本分册不重复定义。
-
-### 1.2 发起生成（US-AI-005）
-
-**功能描述**：选择已确认的需求，发起测试设计生成任务。  
-**功能点**：
-
-- 入口一：需求列表 / 需求详情中多选需求 → 「AI 生成用例」。
-- 入口二：在需求列表按模块批量选中需求，一键发起。
-- 发起时可配置：目标项目与模块落位（新建顶级目录 / 挂到既有模块节点）、生成范围（所选需求）、用例粒度偏好（精简 / 标准 / 详细）。
-- 提交后立即创建任务并启动执行、跳转任务详情页，不阻塞当前操作。
-
-**业务规则**：
-
-- 仅已确认需求可作为输入；草稿、已变更、已归档需求不可选，入口对不可选需求置灰并说明原因。
-- 任务执行期间输入需求被变更时，任务按发起时的需求快照继续执行，提案采纳时提示「来源需求已变更」，由人工决定采纳或驳回。
-
-### 1.3 执行过程与进度（US-AI-006）
-
-**功能描述**：展示生成任务的执行过程与结果。  
-**功能点**：
-
-- 任务详情页展示 AI 规划的执行步骤与当前进度（典型步骤序列：解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性，序列由 AI 自主规划，仅供展示参考）。
-- 完整执行过程可在轨迹中逐步回看；展示已产出提案数量与终止原因摘要。
-- 支持中止进行中的任务；中止后可再次执行，保留原执行记录与轨迹。
-
-**业务规则**：
-
-- 中止、执行错误或预算耗尽的任务不产生任何落库数据与提案。
-- 执行完成任务的提案进入待采纳态等待审核（见 1.4）。
-
-### 1.4 提案审核与采纳（US-AI-007）
-
-**功能描述**：审核三层生成提案，采纳后落库。  
-**功能点**：
-
-- 提案以三层树预览：模块（建议）→ 脑图文档（建议）→ 脑图节点（其中标记为用例的节点附用例属性建议：优先级、前置条件、测试步骤、预期结果、标签）。
-- 审核操作：单条采纳、整树采纳、编辑后采纳、驳回；驳回可附反馈重新生成该子树。
-- 采纳时指定落库的目标项目与模块位置；采纳后落库为正式模块、脑图文档与测试用例。
-- 每个标记为用例的脑图节点对应生成一条测试用例实体，可回溯到脑图节点路径。
-
-**业务规则**：
-
-- 未采纳的提案不落库，驳回提案保留记录供审计。
-- 采纳以新增方式落库，不覆盖既有模块与用例；与既有数据疑似重复时提示人工处理。
-- 采纳后 AI 不再自动覆盖；人工编辑过的产出仅在显式重新生成并二次采纳后可被覆盖（总册 1.5）。
-
-## 修改记录
-
-| 版本 | 日期 | 说明 |
-| ---- | ---- | ---- |
-| V1.0 | 2026-10-01 | 初始版本 |
-| V1.0 | 2026-10-15 | 发起入口按钮更名「AI 生成用例」 |
-| V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：1.3 固定六阶段改「AI 规划步骤 + 轨迹回看 + 中止 / 再次执行」，产物改称提案、待确认态改待采纳态，1.4 / 1.5 措辞对齐总册 1.5 |
-| V1.0 | 2026-10-16 | 对齐 AI Task 双平面口径：1.4 标题及正文「确认」改「采纳」，终止口径改「中止、执行错误或预算耗尽」 |
-| V1.0 | 2026-10-16 | 追溯矩阵需求并入需求管理模块：1.6 矩阵视图与影响处置（US-AI-009）移出本分册，追溯术语改「来源对应 / 验证对应」并对齐追溯矩阵分册 |
-| V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：移除生成采纳建立来源对应、圈选产出挂验证对应及其「待重新确认」标记等描述，采纳仅落库模块、脑图文档与测试用例，不建立任何对应关系 |', 'confirmed', 'high', '7e57001f-0000-4000-8000-000000000009', '["AI 能力","生成"]'::jsonb,
-        'import', NULL, CURRENT_TIMESTAMP - INTERVAL '4 days', CURRENT_TIMESTAMP - INTERVAL '4 days', CURRENT_TIMESTAMP - INTERVAL '4 days', FALSE);
 
 INSERT INTO requirement (id, project_id, module_id, system_version, code, title, description, status, priority, owner_id, tags, source, source_file_id, confirmed_at, created_at, updated_at, is_deleted)
 VALUES ('5eed004c-0000-4000-8000-000000000000', '01a1523d-d4c9-7dbe-8f6f-8ff34bffac0a', '5eed002b-0000-4000-8000-000000000000', 'V1.1', 'REQ-031', '智能助手',
@@ -3386,8 +3308,6 @@ INSERT INTO requirement_change_log (id, requirement_id, operator_id, change_type
 VALUES ('5eed0055-0000-4000-8000-000000000000', '5eed0032-0000-4000-8000-000000000000', '7e57001f-0000-4000-8000-000000000004', 'status', '{"status":"draft"}'::jsonb, '{"status":"confirmed"}'::jsonb, CURRENT_TIMESTAMP - INTERVAL '22 days', CURRENT_TIMESTAMP - INTERVAL '22 days', FALSE);
 INSERT INTO requirement_change_log (id, requirement_id, operator_id, change_type, before_summary, after_summary, created_at, updated_at, is_deleted)
 VALUES ('5eed0056-0000-4000-8000-000000000000', '5eed0041-0000-4000-8000-000000000000', '7e57001f-0000-4000-8000-000000000005', 'status', '{"status":"draft"}'::jsonb, '{"status":"confirmed"}'::jsonb, CURRENT_TIMESTAMP - INTERVAL '12 days', CURRENT_TIMESTAMP - INTERVAL '12 days', FALSE);
-INSERT INTO requirement_change_log (id, requirement_id, operator_id, change_type, before_summary, after_summary, created_at, updated_at, is_deleted)
-VALUES ('5eed0057-0000-4000-8000-000000000000', '5eed004b-0000-4000-8000-000000000000', '7e57001f-0000-4000-8000-000000000009', 'status', '{"status":"draft"}'::jsonb, '{"status":"confirmed"}'::jsonb, CURRENT_TIMESTAMP - INTERVAL '9 days', CURRENT_TIMESTAMP - INTERVAL '9 days', FALSE);
 INSERT INTO requirement_change_log (id, requirement_id, operator_id, change_type, before_summary, after_summary, created_at, updated_at, is_deleted)
 VALUES ('5eed0058-0000-4000-8000-000000000000', '5eed0042-0000-4000-8000-000000000000', '7e57001f-0000-4000-8000-000000000008', 'attribute', '{"priority":"medium"}'::jsonb, '{"priority":"high"}'::jsonb, CURRENT_TIMESTAMP - INTERVAL '10 days', CURRENT_TIMESTAMP - INTERVAL '10 days', FALSE);
 

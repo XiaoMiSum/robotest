@@ -10,13 +10,13 @@
 
 ### 1.1 编写目的
 
-对 **AI 能力模块的 AI 底座**进行详细设计：定义 AI 域 14 张表的 DDL、AI 配置与用量接口、AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）及通用约定，作为四个能力域分册（生成链、智能助手、缺陷分析、辅助功能）的公共事实源；分册只定义各自的接口与业务逻辑，不重复底座约定。任务框架（Agent 执行核、工具注册表、预算护栏、提案采纳）的机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`。
+对 **AI 能力模块的 AI 底座**进行详细设计：定义 AI 域 14 张表的 DDL、AI 配置与用量接口、AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）及通用约定，作为三个能力域分册（智能助手、缺陷分析、辅助功能）的公共事实源；分册只定义各自的接口与业务逻辑，不重复底座约定。任务框架（Agent 执行核、工具注册表、预算护栏、提案采纳）的机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`。
 
 ### 1.2 范围与对应设计
 
-- 对应需求：`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`（总册）及四个分册。
+- 对应需求：`docs/01-requirements/07-ai-capability/02-srs-ai-capability.md`（总册）及三个分册。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
-- 能力域分册：[03-ai-generation](03-ai-generation.md)、[04-ai-assistant](04-ai-assistant.md)、[05-ai-defect-analysis](05-ai-defect-analysis.md)、[06-ai-assisted-features](06-ai-assisted-features.md)。
+- 能力域分册：[04-ai-assistant](04-ai-assistant.md)、[05-ai-defect-analysis](05-ai-defect-analysis.md)、[06-ai-assisted-features](06-ai-assisted-features.md)。
 
 ### 1.3 参考资料
 
@@ -149,7 +149,7 @@ CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((tr
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
-| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`test_design_generation`、`case_optimize`），与任务 `type` 对应 |
+| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`case_optimize`），与任务 `type` 对应 |
 | name | varchar(100) | NOT NULL | 场景名称（展示用） |
 | content | text | NOT NULL | 模板正文，支持 `{{variable}}` 占位 |
 | variables | jsonb | NOT NULL, DEFAULT '[]' | 可用变量清单 `[{ name, desc, required }]`，保存时校验占位与清单一致 |
@@ -315,7 +315,7 @@ CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id,
 | task_id | uuid | NOT NULL | 所属任务 |
 | execution_id | uuid | NOT NULL | 所属执行：提案键按执行命名空间——再次执行产生新提案，键与原提案并存不冲突（3.6.4） |
 | proposal_key | varchar(100) | NOT NULL | 提案在本次执行产出中的定位键 |
-| kind | varchar(50) | NOT NULL | 提案类型（枚举由各分册定义，如 `module_suggestion`） |
+| kind | varchar(50) | NOT NULL | 提案类型（枚举由各分册定义，如 `case_optimize_suggestion`） |
 | parent_key | varchar(100) | NULL | 树形提案的父提案键 |
 | title | varchar(200) | NOT NULL | 提案标题 |
 | content | jsonb | NOT NULL | 结构化产物 + 证据链（结构由各分册定义） |
@@ -730,18 +730,16 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 - **重置**：`POST /api/ai/prompts/{scene}/reset` → 恢复内置默认。
 - 生效规则：仅影响该场景**后续**任务调用，不改变已采纳的产出。
 - 任务场景的默认提示词由类型适配器唯一声明，管理端展示、重置与执行期回落使用同一来源；执行期优先使用已保存的自定义模板。
-- 测试设计生成统一使用 `test_design_generation` 场景。旧 `test_design_generation_modules / test_design_generation_documents / test_design_generation_nodes / test_design_generation_attributes` 四个固定阶段场景不再登记或执行；存量自定义行保留但不自动拼接，发布前由管理员将需要保留的指令人工迁入统一场景，并核对其变量清单。
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
-> 生成链、拆解、用例优化、顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
+> 拆解、用例优化、顺序建议、缺陷批量分析等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
 
 #### 3.6.1 任务类型枚举（全量，单一事实源）
 
 | type | 能力域 | input 要点 | 提案 kind | 落库承接 |
 | ---- | ---- | ---- | ---- | ---- |
 | requirement_import | 需求 | `fileId` | `requirement_suggestion` | 需求模块采纳服务 |
-| test_design_generation | 生成链 | `requirementIds`、`targetModuleId?`、`granularity` | `module_suggestion / mindmap_document_suggestion / test_case_suggestion` | 生成链采纳服务 |
 | case_optimize | 辅助 | `nodeIds` | `case_optimize_suggestion` | 用例采纳服务 |
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
@@ -754,7 +752,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的九类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的八类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
 `assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxDurationSeconds: 3600, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 
@@ -765,8 +763,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ```json
 {
-  "type": "test_design_generation",
-  "input": { "requirementIds": ["…"], "granularity": "standard" },
+  "type": "requirement_import",
+  "input": { "fileId": "…" },
   "budget": { "maxSteps": 40 },
   "waitSeconds": 0
 }
@@ -779,7 +777,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 {
   "taskId": "…",
   "executionId": "…",
-  "type": "test_design_generation",
+  "type": "requirement_import",
   "title": "",
   "status": "running",
   "budget": { "maxSteps": 40, "maxDurationSeconds": 600, "maxTokens": 200000, "maxCost": 5 },
@@ -811,8 +809,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```json
 {
   "taskId": "…",
-  "type": "test_design_generation",
-  "title": "登录用例生成",
+  "type": "requirement_import",
+  "title": "需求文档拆解",
   "status": "proposals_ready",
   "submittedBy": "…",
   "latestExecution": {
@@ -822,7 +820,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
     "steps": 23,
     "budget": { "maxSteps": 40, "maxDurationSeconds": 600, "maxTokens": 200000, "maxCost": 5 },
     "consumed": { "durationMs": 94000, "tokensIn": 1200, "tokensOut": 3400, "cost": 0.21 },
-    "plan": { "steps": ["解析需求", "生成模块结构", "生成脑图文档", "标记用例节点", "填充用例属性"] },
+    "plan": { "steps": ["解析文档", "识别需求条目", "生成提案"] },
     "terminateReason": null
   },
   "tokensIn": 1200,
@@ -830,10 +828,9 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   "terminateReason": null,
   "documentMeta": null,
   "proposals": [
-    { "key": "module-1", "kind": "module_suggestion", "title": "登录模块", "parentKey": null, "confirmStatus": "pending", "note": null },
-    { "key": "doc-1", "kind": "mindmap_document_suggestion", "title": "登录用例文档", "parentKey": "module-1", "confirmStatus": "pending", "note": null },
-    { "key": "case-3", "kind": "test_case_suggestion", "title": "获取验证码", "parentKey": "doc-1", "confirmStatus": "adopted", "note": null },
-    { "key": "case-4", "kind": "test_case_suggestion", "title": "短信登录", "parentKey": "doc-1", "confirmStatus": "rejected", "note": "本期不支持短信登录" }
+    { "key": "req-1", "kind": "requirement_suggestion", "title": "登录验证码", "parentKey": null, "confirmStatus": "pending", "note": null },
+    { "key": "req-2", "kind": "requirement_suggestion", "title": "找回密码", "parentKey": null, "confirmStatus": "adopted", "note": null },
+    { "key": "req-3", "kind": "requirement_suggestion", "title": "短信登录", "parentKey": null, "confirmStatus": "rejected", "note": "本期不支持短信登录" }
   ]
 }
 ```
@@ -923,7 +920,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 ### 4.2 Agent 执行核与护栏
 
-- **执行入口与策略分派**：十一个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
+- **执行入口与策略分派**：十个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
 - **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清、回答与变更预览仍按分册 04 处理，不转为通用提案确认；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。chat 类调用（任务执行核、助手、缺陷建议）经 Spring AI `stream()` 流式读取并聚合响应，平台仅在响应流上编排首 token 超时与空闲超时（内置常量、不开放配置；超时按 1000018117 终止），不接管传输层；向量 embedding 与模型连通性测试仍走阻塞式 `call()`。流式调用沿用任务总时长预算（`maxDurationSeconds`）与心跳超时清扫口径（4.2），不改变其判定。
@@ -1010,7 +1007,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 ## 6. 错误码定义
 
-号段申请：**1000018101–1000018150（AI 配置与任务框架）**，登记于 `docs/04-detailed-design/02-project-module.md` 6.3；以 `ErrorCodeConstants` 实际登记为准，冲突时顺延。各能力域分册错误码号段见其对应章节（生成链 201–249、助手 251–279、缺陷分析 281–299、辅助功能 301–329）。
+号段申请：**1000018101–1000018150（AI 配置与任务框架）**，登记于 `docs/04-detailed-design/02-project-module.md` 6.3；以 `ErrorCodeConstants` 实际登记为准，冲突时顺延。各能力域分册错误码号段见其对应章节（助手 251–279、缺陷分析 281–299、辅助功能 301–329）。
 
 | 错误码 | HTTP | 说明 |
 | ---- | ---- | ---- |
@@ -1090,7 +1087,7 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 
 | 版本 | 日期 | 说明 |
 | ---- | ---- | ---- |
-| V1.0 | 2026-11-07 | 明确十一类普通任务首版默认预算；测试设计生成统一为单提示词场景，旧四阶段自定义行保留、发布前人工迁移，不自动拼接 |
+| V1.0 | 2026-11-07 | 明确十一类普通任务首版默认预算 |
 | V1.0 | 2026-11-07 | 4.2 明确注册策略分派：目标型任务走 Agent 循环、助手复用对话循环、向量重建走确定性执行；统一启动、心跳、预算、中止、轨迹与终态事务，不恢复旧任务引擎 |
 | V1.0 | 2026-10-02 | 初始版本 |
 | V1.0 | 2026-10-02 | 前端路由对齐全局导航约定，改为 /workspace/projects/ai/tasks |
@@ -1138,3 +1135,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-20 | 3.7 明确按模型分组 `keyName` 的兜底口径：配置名称缺失时回退 `modelName`，向量调用取 `ai_embedding_config.embedding_model` |
 | V1.0 | 2026-11-20 | 再次执行模型选型改为按最新默认模型解析、不沿用上次执行 `model_id`：2.6.2 字段说明、3.6.4 再次执行语义、4.2 选型规则同步；自动短重试仍沿用本次执行模型 |
 | V1.0 | 2026-11-20 | 4.2 调用层技术口径补充：chat 类调用改经 Spring AI `stream()` 流式读取并聚合响应，平台仅编排首 token / 空闲超时（内置常量、不开放配置）；embedding 与连通性测试仍走阻塞式 `call()`，任务总预算与心跳口径不变 |
+| V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：1.1 / 1.2 分册口径、2.5 场景示例、2.6.4 提案示例、3.5 提示词规则、3.6 任务类型枚举与接口示例、4.2 执行入口统计、6 错误码号段说明同步删除；任务类型总数十一类→十类、普通目标型任务九类→八类 |

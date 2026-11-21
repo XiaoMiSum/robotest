@@ -172,7 +172,7 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | `ANSWER_SYSTEM` + `SCENE_ANSWER` 独立渲染链（`render(SCENE_ANSWER, …)` 调用点） | 删除——末跳回答在循环内基于工具结果生成，`assistant_answer` 仅保留为用量归因标签（总册 4.3），不再有模板渲染 | 提交 4 |
 | `AssistantPromptSupport` 的 `caseOptions / reviewOptions / planOptions` 及其专用查询 | 删除（查询工具按需自查） | 提交 4（随判别段重写，S2 时判别段仍引用不可先行删除） |
 | 旧测试：`AssistantParseHandlerTest` 判别分流断言、`AssistantPromptSupportTest` 三清单用例 | 同步重写 / 删除，**不留新旧双份断言** | 随各提交 |
-| `RequirementSuggestionParser.parseJsonObject`、`ModelOutputSupport` 中仅判别段专用的方法 | 全仓查引用后删；被需求生成链共用的一律不动 | 提交 4 |
+| `RequirementSuggestionParser.parseJsonObject`、`ModelOutputSupport` 中仅判别段专用的方法 | 全仓查引用后删；被其他任务类型共用的一律不动 | 提交 4 |
 
 - **原则**：不做「旧路径运行时兜底开关」——双路径意味着分流歧义、两套提示词并存与测试面翻倍；回滚靠 `git revert`，不靠开关。
 
@@ -280,3 +280,4 @@ ALTER TABLE ai_assistant_message ADD COLUMN tool_call_id varchar(64) NULL;
 | V1.0 | 2026-10-17 | 概要引用同步：`02-hld-ai-capability.md` 删除追溯矩阵节后章节顺延，1.2 基线行「4.7 对话式任务执行」改 4.6 |
 | V1.0 | 2026-11-18 | 智能助手工具调用实施计划免 RBAC 权限码校验：查询工具与测试要点改按工作空间 / 项目范围过滤描述 |
 | V1.0 | 2026-11-18 | 助手改为项目级能力：1.2 / 1.4 / 2.1 口径对齐（会话私有项目→请求头项目作用域）、2.3 工具上下文与提示词按头中项目、2.3.4 会话表补 `project_id` + 索引迁移、2.4 前端全部接口携带项目头与入口收窄、2.7 测试与 3.1–3.3 步骤 / 提交 / 验收同步（新增 S7）、5.1 登记待实施 |
+| V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：2.8.1 存量清理边界措辞改为「被其他任务类型共用」 |

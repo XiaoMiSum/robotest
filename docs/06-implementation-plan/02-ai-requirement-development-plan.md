@@ -19,7 +19,7 @@
 1. **需求管理**：需求 CRUD、导入（Markdown / Word / 图片 ≤20MB，AI 按模块拆分）、属性与版本变更、变更记录；
 2. **追溯矩阵**：已取消——追溯矩阵需求整体下线，原范围（追溯关系维护、覆盖率统计、影响分析及其页面）不实施；
 3. **AI 底座**：AI 配置中心（模型、向量 API、场景提示词、用量、总开关）、AI 任务框架、向量与 RAG、重建引导；
-4. **AI 场景**：生成链、智能助手、缺陷分析、辅助功能、导入 AI 识别文档级版本；
+4. **AI 场景**：智能助手、缺陷分析、辅助功能、导入 AI 识别文档级版本；
 5. **横切内容**：全局导航与菜单注册、项目成员归属校验接入、任务中心与任务详情、视觉规范落地。
 
 不覆盖：本计划不描述功能行为、表结构、接口报文与页面交互细节，它们分别以需求、详细设计、交互设计文档为准。
@@ -32,7 +32,6 @@
 | ---- | ---- | ---- |
 | 需求 | `docs/01-requirements/03-function-testing/03-srs-requirement-management.md` | 需求管理功能行为与验收口径 |
 | 需求 | `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md` | AI 能力总册（底座与公共口径） |
-| 需求 | `docs/01-requirements/07-ai-capability/03-srs-ai-generation.md` | 生成链需求 |
 | 需求 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 智能助手需求 |
 | 需求 | `docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md` | 缺陷分析需求 |
 | 需求 | `docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md` | 辅助功能需求 |
@@ -42,7 +41,6 @@
 | 概要 | `docs/02-high-level-design/04-hld-data-interface.md` | 数据与接口概要 |
 | 详细 | `docs/04-detailed-design/03-function-testing/09-requirement-management.md` | 需求管理 DDL 与接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` | AI 底座 DDL、任务框架与公共协议 |
-| 详细 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | 生成链编排与接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | 助手会话、SSE 与确认执行 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/05-ai-defect-analysis.md` | 缺陷分析接口 |
 | 详细 | `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md` | 辅助功能接口 |
@@ -55,7 +53,6 @@
 
 | 术语 | 定义 |
 | ---- | ---- |
-| 生成链 | 需求到用例的 AI 生成（Agent 循环编排，提案采纳落库生效）：典型步骤 解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性 |
 | AI 底座 | 模型配置、任务框架、向量与 RAG、提示词与用量等平台级 AI 基础能力 |
 | 阶段 / 工作包 | 计划的两级实施单元，编号分别为 P* 与 WP-*；本文只描述阶段与依赖，不排期、不给人天 |
 | 交付批次 | 面向验收与合入的分组，一批对应一个可独立验收的范围 |
@@ -86,20 +83,17 @@ flowchart TD
   P0["P0 准备与环境"] --> P1["P1 数据层迁移"]
   P1 --> P2["P2 需求管理"]
   P1 --> P4["P4 AI 底座"]
-  P2 --> P5["P5 AI 生成链"]
-  P4 --> P5
   P4 --> P6["P6 智能助手"]
   P4 --> P7["P7 缺陷分析与辅助功能"]
   P2 --> P8["P8 导入 AI 识别版本"]
   P4 --> P8
   P2 --> P9["P9 联调与验收"]
-  P5 --> P9
   P6 --> P9
   P7 --> P9
   P8 --> P9
 ```
 
-> 已取消——追溯矩阵需求整体下线：原 P3 阶段及其对 P5 / P9 的依赖从依赖图中移除，阶段登记见 3.1、工作包标注见 3.2 / 3.6。
+> 已取消——追溯矩阵需求整体下线：原 P3 阶段及其对 P9 的依赖从依赖图中移除，阶段登记见 3.1、工作包标注见 3.2 / 3.6。
 
 ### 2.4 技术实施要点
 
@@ -130,11 +124,7 @@ flowchart TD
 - 向量维度变更触发全量重建，重建走通用任务执行口径，期间维度输入只读；
 - 密钥类字段不回明文，仅回 `keyConfigured` 标记；管理配置接口不携带工作空间 / 项目上下文头，项目内任务接口按需携带，助手接口统一携带 `X-Active-Workspace` + `X-Active-Project`（C4）。
 
-#### 2.4.5 AI 生成链
-
-- 任务执行由 Agent 循环编排（AI 自主规划步骤，典型序列：解析需求 → 生成模块结构 → 生成脑图文档 → 标记用例节点 → 填充用例属性，计划与过程见轨迹）；提案存 `ai_task_proposal`，采纳记录落 `ai_task_adoption`，执行与轨迹落 `ai_task_execution / ai_task_trace_event`；
-- 预览 → 人工采纳 → 生效；采纳前不写入需求 / 用例业务数据；
-- 脑图编辑复用既有脑图组件与 Yjs 协同（`docs/04-detailed-design/03-function-testing/08-mindmap-component.md`）。
+> 2.4.5 为章节占位；后续章节号未重排，以保持文内交叉引用有效。
 
 #### 2.4.6 智能助手
 
@@ -177,7 +167,6 @@ flowchart TD
 | P2 | 需求管理 | CRUD / 属性 / 导入后端与前端 | P1（需求表族） |
 | P3 | 链路追溯 | 已取消——追溯矩阵需求整体下线，原「追溯与覆盖率后端、矩阵前端」不再实施 | P1 |
 | P4 | AI 底座 | 配置中心、任务框架与 SSE、用量、任务中心前端 | P1（AI 表族） |
-| P5 | AI 生成链 | 生成链任务类型后端与生成预览采纳前端 | P4、P2 |
 | P6 | 智能助手 | 会话 SSE、预览确认执行、悬浮球面板 | P4 |
 | P7 | 缺陷分析与辅助功能 | 分析后端与页面、两个辅助面板 | P4、既有用例 / 计划模块 |
 | P8 | 导入 AI 识别版本 | 导入文档级版本 AI 识别 | P4、P2 |
@@ -204,8 +193,6 @@ flowchart TD
 | WP-4.4 | 任务中心与任务详情前端 | P4 | 前端 | `docs/05-interaction-design/07-ai-capability/03-ai-task-ui.md` | WP-4.2 | 2s 轮询、终态停轮询 |
 | WP-4.5 | 向量索引维护（`vector_reindex` 完整实现） | P4 | 后端 | AI 底座详设 4.4、3.6.1 | WP-4.1 | 全量重建任务执行通过；需求 / 用例 / 缺陷变更事件触发分块重嵌；读侧按项目 / 工作空间归属过滤 |
 | WP-4.6 | AI 调用层迁移 Spring AI（替换全部自实现模型 / 向量 HTTP 调用） | P4 | 后端 | AI 底座详设 4.2、7 | WP-4.1、WP-4.5 | `service/ai` 内零自实现 HTTP 调用（传输 / 序列化 / 重试 / 解析由 Spring AI 2.0.x 执行），门面签名、逐次记账与 10 位错误码口径不变，`validate-backend` EXIT=0 |
-| WP-5.1 | 生成链任务类型与提案采纳后端 | P5 | 后端 | `docs/04-detailed-design/07-ai-capability/03-ai-generation.md` | WP-4.2、WP-2.1 | 类型适配器（工具白名单 + 预算默认 + 提案结构）就位；提案存 `ai_task_proposal`、采纳落 `ai_task_adoption`，执行与轨迹走框架（`ai_task_execution / ai_task_trace_event`），不新增表 |
-| WP-5.2 | 生成预览与确认前端 | P5 | 前端 | `docs/05-interaction-design/07-ai-capability/04-ai-generation-ui.md` | WP-5.1 | 人工采纳前不落业务数据 |
 | WP-6.1 | 助手会话与 SSE 后端 | P6 | 后端 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` | WP-4.2 | 流式、断线补齐、确认执行回执通过 |
 | WP-6.2 | 助手面板与悬浮球前端 | P6 | 前端 | `docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` | WP-6.1 | 入口显隐随总开关、配置就绪态与项目上下文（空间相关页面隐藏） |
 | WP-6.3 | 助手机制重构为工具调用 | P6 | 后端 + 前端 | `docs/04-detailed-design/07-ai-capability/04-ai-assistant.md` 4.1、`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md` 2.9、`docs/05-interaction-design/07-ai-capability/05-ai-assistant-ui.md` 2.4 | WP-6.1、WP-6.2 | 变更拦截确认前零落库、缺参追问闭环、轮次上限与断线恢复通过，`validate-backend` / `validate-web` EXIT=0 |
@@ -226,7 +213,7 @@ flowchart TD
 | 批次 | 覆盖阶段 | 范围 | 验收重点 |
 | ---- | ---- | ---- | ---- |
 | 批次一 | P0、P1、P2，另随批提前 WP-4.2（任务框架段）与 WP-4.4（任务详情前端） | 需求管理（业务不依赖 AI 场景，导入执行经任务框架） | 需求导入端到端全流程（提交、执行与轨迹、采纳）、属性与版本变更 |
-| 批次二 | P4（其余）、P5、P8，另含 WP-2.0、WP-2.2、WP-4.5、WP-4.6 | AI 底座与生成主链路、文件底座与需求导入闭环 | 配置中心分组与连通性、生成提案人工采纳、任务终止再次执行、三类文件导入端到端、向量全量重建、调用层迁移（零自实现 HTTP 调用）、导入识别版本 |
+| 批次二 | P4（其余）、P8，另含 WP-2.0、WP-2.2、WP-4.5、WP-4.6 | AI 底座、文件底座与需求导入闭环 | 配置中心分组与连通性、任务终止再次执行、三类文件导入端到端、向量全量重建、调用层迁移（零自实现 HTTP 调用）、导入识别版本 |
 | 批次三 | P6、P7 | AI 场景扩展 | 助手 SSE、确认执行与工具调用重构、缺陷分析四类、辅助两面板 |
 
 批次间关系：批次二、三均依赖批次一的数据层与业务数据；批次内部后端可先于前端联调，前端按 OpenAPI 契约并行。
@@ -243,7 +230,7 @@ flowchart TD
 人工验收关键路径（每批至少覆盖）：
 
 - 批次一：三类文件导入、属性与版本变更；
-- 批次二：模型连通性测试、维度变更重建引导、生成提案预览采纳、任务终止再次执行、三类文件导入端到端、向量全量重建与项目范围检索、导入识别版本确认；
+- 批次二：模型连通性测试、维度变更重建引导、任务终止再次执行、三类文件导入端到端、向量全量重建与项目范围检索、导入识别版本确认；
 - 批次三：助手流式与断线恢复、多步查询与缺参追问闭环、变更拦截零落库、超出所属工作空间 / 项目范围的只读问答拒绝、缺陷分析下钻、辅助面板采纳生效。
 
 ### 3.5 批次三执行顺序与提交拆分
@@ -278,7 +265,7 @@ flowchart TD
 - WP-7.1：缺陷分析统计查询、同步建议（新建分类草稿、分诊队列、录入重复检测）、AI 摘要 / 批量分类 / 重复扫描任务与确认承接；
 - WP-7.2：分析页图表看板与范围切换、AI 摘要与分诊队列、新建建议区与录入重复检测、任务详情批量分类与重复组审核；
 - WP-7.3：两类型适配器与采纳落库（含 `tags` 补列迁移）、任务编排与视图模型、用例优化对照面板、执行顺序建议面板；
-- 批次二遗留：WP-5.1 生成链提案、WP-2.2 三类导入、WP-5.2 生成预览前端、WP-8.1 导入版本确认面板；
+- 批次二遗留：WP-2.2 三类导入、WP-8.1 导入版本确认面板；
 - 发布阻塞：docker 镜像构建待 migoo 1.4.0 / ryze 6.1.1 发布到 Maven Central（维持既定裁决，不阻塞代码开发）。
 
 ### 3.6 工作包实施状态
@@ -304,8 +291,6 @@ flowchart TD
 | WP-4.4 | 任务中心与任务详情前端 | ✅ | 新架构对齐后复验（AI Task 迁移 S0–S6） |
 | WP-4.5 | 向量索引维护（`vector_reindex`） | ✅ | |
 | WP-4.6 | AI 调用层迁移 Spring AI | ✅ | Spring AI 2.0.x，`service/ai` 内零自实现 HTTP 调用 |
-| WP-5.1 | 生成链任务类型与提案采纳后端 | ✅（待验收） | 新架构对齐后复验（AI Task 迁移 S0–S6） |
-| WP-5.2 | 生成预览与确认前端 | ✅（待验收） | |
 | WP-6.1 | 助手会话与 SSE 后端 | ✅（待验收） | 提交记录见 3.5 |
 | WP-6.2 | 助手面板与悬浮球前端 | ✅（待验收） | 提交拆分 ①②③④ 全部落地（状态骨架、悬浮球与会话列表、消息时间线与 SSE 接线、变更预览确认执行与回执卡），提交记录见 3.5 |
 | WP-6.3 | 助手机制重构为工具调用 | ✅（待验收） | 实施收口（2026-10-16）：后端 7 提交（`76766773` / `9d60a457` / `63ff292c` / `55959923` / `f938ce7d` / `79ac5753` / `2e1f308`）+ 前端 1 提交（`510c30e7`），`validate-backend` / `validate-web` EXIT=0；验收要点见方案 3.3，验收结果按 3.4 第 4 条回填 |
@@ -315,7 +300,7 @@ flowchart TD
 | WP-8.1 | 导入版本确认面板前端 | ✅（待验收） | |
 | WP-9.1 | 分批联调与验收 | ❌ | 批次一 / 二人工验收结果未回填，发布阻塞见 3.5 |
 
-> 实施顺序按 3.5 逐包收口：WP-7.3 已收口，下一包为 WP-9.1；需求导入端到端入口已补齐，其人工验收结果待按 3.4 第 4 条回填。AI Task 迁移（`docs/06-implementation-plan/06-ai-task-migration-plan.md` S0–S6）完成后，3.6 中 WP-4.5 / WP-5.2 / WP-6.x / WP-7.x / WP-8.1 各行 ✅ 的含义同为「新架构对齐后复验」，验收结果按 3.4 第 4 条回填。
+> 实施顺序按 3.5 逐包收口：WP-7.3 已收口，下一包为 WP-9.1；需求导入端到端入口已补齐，其人工验收结果待按 3.4 第 4 条回填。AI Task 迁移（`docs/06-implementation-plan/06-ai-task-migration-plan.md` S0–S6）完成后，3.6 中 WP-4.5 / WP-6.x / WP-7.x / WP-8.1 各行 ✅ 的含义同为「新架构对齐后复验」，验收结果按 3.4 第 4 条回填。
 
 ## 4. 风险与应对
 
@@ -339,7 +324,7 @@ flowchart TD
 
 | 编号 | 待办 | 分析范围 | 依赖 | 状态 |
 | ---- | ---- | ---- | ---- | ---- |
-| TODO-1 | vision 能力标签落地分析 | ① 智能助手多模态功能：助手会话中用户上传图片（截图、附件）时，如何检测 `vision` 能力并将其传入 Spring AI 的多模态消息构造；② AI 任务多模态功能：需求导入图片、缺陷截图等场景在生成链 / 缺陷分析 / 辅助功能中如何使用 `vision` 能力；③ 智能路由：当默认模型不具备 `vision` 能力但当前请求需要图片理解时，如何按 `capabilities` + `priority` 自动路由到具备 `vision` 的已启用模型，以及无法路由时的降级提示 | WP-4.1 ✅（模型配置 `capabilities` 字段已落地） | 已裁决实施（结论见 `docs/06-implementation-plan/04-ai-vision-capability-plan.md` 5.1） |
+| TODO-1 | vision 能力标签落地分析 | ① 智能助手多模态功能：助手会话中用户上传图片（截图、附件）时，如何检测 `vision` 能力并将其传入 Spring AI 的多模态消息构造；② AI 任务多模态功能：需求导入图片、缺陷截图等场景在缺陷分析 / 辅助功能中如何使用 `vision` 能力；③ 智能路由：当默认模型不具备 `vision` 能力但当前请求需要图片理解时，如何按 `capabilities` + `priority` 自动路由到具备 `vision` 的已启用模型，以及无法路由时的降级提示 | WP-4.1 ✅（模型配置 `capabilities` 字段已落地） | 已裁决实施（结论见 `docs/06-implementation-plan/04-ai-vision-capability-plan.md` 5.1） |
 | TODO-2 | 模型通用兜底机制 | 默认模型失效（停用 / 删除）时，纯文本调用按 `priority` 升序尝试其余启用模型，兑现详设 2.3「兜底顺序」语义；与 vision 能力选型扫描的边界按 vision 方案 D2 裁决拆分（vision 调用已走能力选型 + priority 扫描，本项只覆盖纯文本路径） | 依赖 WP-V.1（解析入口复用） | 待排期 |
 
 > 该待办为分析项，产出为方案文档（含详设变更草案与交互影响评估），确认后再拆工作包实施。
@@ -355,7 +340,6 @@ flowchart TD
 | V1.0 | 2026-10-04 | 快照引用边取值 `snapshot_ref` 更名为 `case_snapshot`，WP-3.1 判据与范围登记同步 |
 | V1.0 | 2026-10-04 | 批次二裁决落地：范围补 WP-2.0（文件管理模块，由「本期仅记录」转实施）、WP-2.2、WP-4.5（`vector_reindex` 完整实现）；`coverage_analysis` 处理器仍在批次二；新增外部依赖 echarts 登记于 2.5；用量成本口径（`input_price / output_price / cost`）随详设 02 同步 |
 | V1.0 | 2026-10-04 | AI 客户端选型裁决：模型 / 向量 HTTP 调用全量迁移 Spring AI 2.0.x，新增 WP-4.6（P4，排 WP-4.5 之后）；外部依赖 Spring AI 登记于 2.5，批次二范围与验收重点同步 |
-| V1.0 | 2026-10-06 | WP-5.1 判据措辞对齐详设 03 第 2 节：产物明细存 `ai_task.result`、确认记录落 `ai_artifact_confirm`，不新增表 |
 | V1.0 | 2026-10-04 | WP-2.0 详设补建：新建 `docs/04-detailed-design/08-file-management/02-file-management.md`（泛化附件资源 `file_resource`、MinIO 存储与 presigned/平台双通道、缺陷附件迁移、文件管理页、docker-compose 全家桶），WP-2.0 设计依据由「随本包补建」改指该文档 |
 | V1.0 | 2026-10-05 | WP-2.0 存储引擎定标 MinIO → SeaweedFS（S3 兼容，官方发布仓库固定版本镜像）：§1.2 登记与 WP-2.0 范围/验收行同步，历史记录行不改 |
 | V1.0 | 2026-10-05 | WP-2.2 范围裁决：文档级版本识别（提示词识别与 `documentMeta.detectedVersion` 输出）随 WP-2.2 顺带交付，WP-8.1 由「全」收窄为版本确认面板前端，验收口径同步 |
@@ -373,10 +357,11 @@ flowchart TD
 | V1.0 | 2026-10-16 | 助手机制切换为工具调用：2.4.6 措辞对齐，新增 WP-6.3（助手机制重构，依赖 WP-6.1 / WP-6.2，实施排 WP-7.3 后、WP-9.1 前），3.6 登记未开始，批次三范围与验收重点补多步查询追问、轮次上限与变更拦截零落库 |
 | V1.0 | 2026-10-16 | WP-6.3 实施收口：3.6 状态改为 ✅（待验收），登记后端 7 提交与前端 1 提交（双端门禁 EXIT=0），验收要点与回填口径见方案 `docs/06-implementation-plan/05-ai-assistant-tool-invocation-plan.md` 3.3 / 5.1 |
 | V1.0 | 2026-10-16 | WP-6.3 实施方案落盘 `docs/06-implementation-plan/05-ai-assistant-tool-invocation-plan.md`（文件级清单、Spring AI 接入双方案与 spike、六步骤六提交拆分、门禁与验收重点），3.6 状态行补方案指引，目录索引同步 |
-| V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：2.4.5 六阶段任务化改 Agent 循环编排（计划入轨迹），`ai_task.result / ai_artifact_confirm` 改 `ai_task_proposal / ai_task_adoption`；WP-5.1 范围与判据改类型适配器 + 提案采纳 |
+| V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：`ai_task.result / ai_artifact_confirm` 改 `ai_task_proposal / ai_task_adoption` |
 | V1.0 | 2026-10-16 | 对齐 AI Task 新口径：1.3 基线文档表补概要（AI Task）行；「人工确认 / 生成物」改「人工采纳 / 提案」、`result.documentMeta` 改 `result_meta.documentMeta`、「任务处理器」改「类型适配器」、失败态改执行终止（`aborted`）支持再次执行、任务执行与轨迹口径统一 |
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消，相关引用与工作包标注「已取消——追溯矩阵需求整体下线」：1.2 范围、1.3 基线文档、2.3 依赖图、2.4.1 / 2.4.3 技术要点、3.1 阶段表（P3 更名链路追溯）、3.2 / 3.6 工作包（WP-1.2、WP-3.1、WP-3.2）、3.3 / 3.4 验收范围同步收敛 |
 | V1.0 | 2026-10-20 | 新建缺陷建议实时化（缺陷分析详设 3.5 改实时同步接口，移除指派候选与草稿截图入模）：WP-7.1 已交付的「同步建议（新建缺陷建议）」口径变更，需求 / 详设 / 交互 / 总册与 vision 方案文档已同步，回改随代码提交落地 |
 | V1.0 | 2026-11-18 | 需求与 AI 实施计划免 RBAC 权限码校验：范围、技术要点、工作包判据与验收项统一改为项目成员归属口径，保留管理端角色约束 |
 | V1.0 | 2026-11-18 | 助手改为项目级能力：2.4.6 / 3.2 / 3.5 WP-6.2 入口显隐收窄为项目上下文（去工作空间降级）、头口径统一含项目头，方案 `05-ai-assistant-tool-invocation-plan.md` 新增 S7 待实施 |
 | V1.0 | 2026-11-18 | 辅助功能口径合并：用例补全与级别推荐合并为「用例优化」，P7 / WP-7.3 判据与验收由三面板 / 三接口收敛为两面板 / 两接口 |
+| V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：1.2 范围 / 1.3 基线 / 1.4 术语、2.3 依赖图、2.4.5 技术要点、3.1 阶段表（P5）、3.2 / 3.6 工作包（WP-5.1 / WP-5.2）、3.3 / 3.4 批次与验收范围同步删除；后续章节号未重排 |

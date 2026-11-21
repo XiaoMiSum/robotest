@@ -193,7 +193,7 @@
 | 业务功能模块 | `03-function-testing/02-srs-business-features.md`（功能测试）及 `03-function-testing/03-srs-requirement-management.md`（需求管理，功能测试子模块） | 3.2 业务功能模块（功能测试） |
 | 空间管理模块 | `02-space-management/02-srs-space-management.md`（总览）及页面分册 `02-space-management/03-srs-space-management-my-workspace.md`、`02-space-management/04-srs-space-management-info.md`、`02-space-management/05-srs-space-management-member.md`、`02-space-management/06-srs-space-management-project.md`、`02-space-management/07-srs-space-management-invite-join.md` | 3.2 业务功能模块（空间管理） |
 | 缺陷管理模块 | `04-bug-management/02-srs-bug-management.md` | 3.2 业务功能模块（缺陷管理） |
-| AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/03-srs-ai-generation.md`、`07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
+| AI 能力模块 | `07-ai-capability/02-srs-ai-capability.md`（总册）及分册 `07-ai-capability/04-srs-ai-assistant.md`、`07-ai-capability/05-srs-ai-defect-analysis.md`、`07-ai-capability/06-srs-ai-assisted-features.md` | 3.2 业务功能模块（AI 能力） |
 
 ## 修改记录
 
@@ -206,3 +206,4 @@
 | V1.0 | 2026-10-18 | 需求管理并入功能测试模块：分册对照表需求管理行并入业务功能模块（功能测试）行，分册迁入 `03-function-testing/` |
 | V1.0 | 2026-10-20 | 附录 A 角色权限矩阵：测试计划操作统一免 RBAC 权限码校验，保留项目成员归属与计划负责人约束 |
 | V1.0 | 2026-11-18 | 业务模块免 RBAC 权限码校验：总览角色边界与附录 A 改为成员归属口径，系统管理 / 空间管理 / 项目管理权限口径保持不变 |
+| V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：分册对照表删除对应分册 |

@@ -375,7 +375,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 1. `PUT` 更新成功且变更字段 ∈ {`title`, `description`, `moduleId`} 且变更前 `status = confirmed`（`systemVersion` 等属性变更不触发，见 3.5）：
    - 状态转 `changed`；
    - 写 `requirement_change_log`（`before_summary / after_summary` 为字段级前后值）；
-2. `changed` 态需求不可作为生成输入（生成链校验见 `docs/04-detailed-design/07-ai-capability/03-ai-generation.md`），直至重新 `confirm`。
+2. `changed` 态需求不可作为生成输入，直至重新 `confirm`。
 
 ### 4.5 导入拆解的采纳落库
 
@@ -422,7 +422,7 @@ RequirementListPage
     └── 分页（20/50/100）
 
 RequirementDetailPage
-├── DetailHeader（面包屑与操作区同行吸顶：查看态按频次分组「编辑 │ AI 生成用例 │ 确认 / 更多（归档、取消归档）」，编辑态「取消 / 保存」；编号、标题、状态徽标）
+├── DetailHeader（面包屑与操作区同行吸顶：查看态按频次分组「编辑 │ 确认 / 更多（归档、取消归档）」，编辑态「取消 / 保存」；编号、标题、状态徽标）
 ├── AttributeCard（卡片容器「属性 | 变更记录」页签；属性表单两态同款控件，查看态禁用、编辑态启用，「保存」一次性提交变更字段；卡片与描述区按窗口动态同高）
 ├── MarkdownDescription（描述渲染，父容器高度按窗口动态取剩余可用空间 90%；编辑态切换为编辑器，编辑器底部拖拽手柄可自由调高——拖动后本次停留期间以拖动值为准、窗口缩放不再覆盖，不持久化）
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
@@ -513,7 +513,6 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-15 | 5.2 描述与属性卡片高度改为按窗口动态同高；属性查看态改为同款表单控件禁用态，不再以只读文本替换组件 |
 | V1.0 | 2026-10-15 | 5.2 详情页操作区按频次分组（编辑/追溯改 link、归档收进「更多」下拉），移除「AI 拆分」详情页入口（接口 3.9 保留） |
 | V1.0 | 2026-10-15 | 5.2 列表行操作：「归档」收进「更多」下拉，操作列右对齐 |
-| V1.0 | 2026-10-15 | 5.2 详情页 AI 入口按钮更名「AI 生成用例」 |
 | V1.0 | 2026-10-15 | 下线条目内 AI 拆分：删除原 3.9 接口与 split-logs 反查（后续章节顺次前移编号），拆解记录表移除 `source_requirement_id` 及其索引，4.5 收敛为导入采纳落库，错误码 1000018009 注销、1000018013 收敛为导入口径 |
 | V1.0 | 2026-10-15 | 5.1 / 5.2 增链路明细页路由（`/workspace/projects/requirements/trace/:nodeType/:nodeId`），TraceEntry 改为跳转该页 |
 | V1.0 | 2026-10-16 | 同步 AI Task 双平面口径（`docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）：统一任务资源改 AI Task 任务资源，确认端点 `artifacts/confirm` → `proposals/confirm`，任务 `result` → `result_meta`、`pending/running` 去重收敛为 `running`；产物改称提案，4.5 承接与前端状态分支同步 |
@@ -522,3 +521,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-18 | 需求管理并入功能测试模块：5.1 / 5.2 删除需求管理壳层，需求列表改为功能测试侧栏首位子项（`?tab=requirements`），旧路径重定向至功能测试壳层；1.2 引用随分册迁移同步；后端设计（数据、接口、错误码）不变 |
 | V1.0 | 2026-10-19 | 5.2 描述编辑器新增底部拖拽手柄自由调高（最小 200px、最大视口高度；拖动后本次停留期间窗口缩放不再覆盖，不持久化），新建页与详情页编辑态同步生效 |
 | V1.0 | 2026-11-18 | 移除需求管理 RBAC 权限码口径：删除权限码映射、权限点清单与相关错误码，接口统一按项目归属和成员身份校验，前端入口不再按权限码显隐 |
+| V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：4.4 删除指向生成链详设的引用，5.2 组件树删除「AI 生成用例」入口 |
