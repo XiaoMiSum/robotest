@@ -71,7 +71,7 @@ public interface BugMapper extends BaseMapperX<Bug> {
         return selectBatchIds(ids);
     }
 
-    /** 分诊队列范围（缺陷分析详设 3.7）：激活且未指派的缺陷，创建早的在前 */
+    /** 分诊队列范围（缺陷分析详设 3.5）：激活且未指派的缺陷，创建早的在前 */
     default List<Bug> listActiveUnassigned(UUID projectId) {
         return selectList(new LambdaQueryWrapperX<Bug>()
                 .eq(Bug::getProjectId, projectId)
@@ -80,16 +80,7 @@ public interface BugMapper extends BaseMapperX<Bug> {
                 .orderByAsc(Bug::getCreatedAt));
     }
 
-    /** 批量分类筛选解析（缺陷分析详设 3.6 input.filter）：按状态取缺陷，创建早的在前，调用方限定上限 */
-    default List<Bug> listByProjectIdAndStatuses(UUID projectId, Collection<String> statuses, int limit) {
-        return selectList(new LambdaQueryWrapperX<Bug>()
-                .eq(Bug::getProjectId, projectId)
-                .in(Bug::getStatus, statuses)
-                .orderByAsc(Bug::getCreatedAt)
-                .last("LIMIT " + limit));
-    }
-
-    /** 重复扫描范围（缺陷分析详设 3.9 scope=active）：激活缺陷，创建早的在前，调用方限定上限 */
+    /** 重复扫描范围（缺陷分析详设 3.7 scope=active）：激活缺陷，创建早的在前，调用方限定上限 */
     default List<Bug> listByStatus(UUID projectId, String status, int limit) {
         return selectList(new LambdaQueryWrapperX<Bug>()
                 .eq(Bug::getProjectId, projectId)

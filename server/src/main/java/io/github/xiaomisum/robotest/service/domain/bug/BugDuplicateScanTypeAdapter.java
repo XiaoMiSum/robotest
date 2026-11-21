@@ -35,7 +35,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.domain.requirement.RequirementSuggestionParser.parseJsonObject;
 
 /**
- * 存量重复扫描处理器（缺陷分析详设 3.9）：向量检索为候选生成信号、模型归并分组；
+ * 存量重复扫描处理器（缺陷分析详设 3.7）：向量检索为候选生成信号、模型归并分组；
  * 产物为疑似重复分组（confirmStatus = pending），确认仅留痕、不修改缺陷（详设 3.9 / 4.2）。
  */
 @Component

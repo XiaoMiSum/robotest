@@ -30,7 +30,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.domain.requirement.RequirementSuggestionParser.parseJsonObject;
 
 /**
- * 分诊顺序建议处理器（缺陷分析详设 3.7）：范围固定为「激活未指派」缺陷，
+ * 分诊顺序建议处理器（缺陷分析详设 3.5）：范围固定为「激活未指派」缺陷，
  * 建议仅作排序展示，不写入任何数据（confirmStatus = not_applicable）。
  */
 @Component

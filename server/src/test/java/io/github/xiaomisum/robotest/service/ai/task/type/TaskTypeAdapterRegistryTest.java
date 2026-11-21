@@ -30,7 +30,7 @@ class TaskTypeAdapterRegistryTest {
         TaskTypeAdapterRegistry registry = new TaskTypeAdapterRegistry(List.of(adapter));
 
         assertSame(adapter, registry.get("case_optimize"));
-        assertNull(registry.get("bug_classify"));
+        assertNull(registry.get("unknown_type"));
         assertEquals(1, registry.all().size());
     }
 

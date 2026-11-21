@@ -14,7 +14,7 @@ import java.util.Map;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asMap;
 
 /**
- * 存量重复扫描确认承接（缺陷分析详设 3.9）：只写确认留痕，不修改任何缺陷——
+ * 存量重复扫描确认承接（缺陷分析详设 3.7）：只写确认留痕，不修改任何缺陷——
  * 确认记录（ai_artifact_confirm，含 action / note）由总册确认入口内建，此处仅回执分组结论；
  * 确认后由人工在缺陷中按既有「重复缺陷」解决方案逐条处理。
  */

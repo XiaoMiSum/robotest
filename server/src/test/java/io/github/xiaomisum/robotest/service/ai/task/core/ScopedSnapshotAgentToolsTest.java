@@ -15,7 +15,7 @@ class ScopedSnapshotAgentToolsTest {
         UUID trusted = UUID.randomUUID();
         UUID outside = UUID.randomUUID();
         AgentToolContext context = new AgentToolContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                UUID.randomUUID(), "bug_classify", Map.of("bugIds", List.of(trusted.toString())));
+                UUID.randomUUID(), "bug_duplicate_scan", Map.of("bugIds", List.of(trusted.toString())));
 
         String result = new ScopedSnapshotAgentTools.QueryBugs().execute(context,
                 Map.of("resourceIds", List.of(outside.toString())));

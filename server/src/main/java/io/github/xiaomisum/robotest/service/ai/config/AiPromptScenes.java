@@ -35,13 +35,8 @@ public final class AiPromptScenes {
                 new PromptVariable("bugContext", "缺陷草稿（标题 / 重现步骤 / 已选模块）", true),
                 new PromptVariable("moduleOptions", "候选模块清单", true),
                 new PromptVariable("caseOptions", "候选用例清单（id|标题，无则为空）", true))));
-        register(scenes, new PromptScene("bug_classify", "缺陷批量分类建议", List.of(
-                new PromptVariable("bugContext", "批量缺陷清单", true),
-                new PromptVariable("moduleOptions", "候选模块清单", true))));
         register(scenes, new PromptScene("bug_triage", "分诊顺序建议", List.of(
                 new PromptVariable("bugContext", "激活未指派缺陷清单", true))));
-        register(scenes, new PromptScene("bug_trend_summary", "缺陷趋势摘要", List.of(
-                new PromptVariable("statsContext", "趋势与度量统计快照", true))));
         register(scenes, new PromptScene("bug_duplicate_scan", "存量重复扫描", List.of(
                 new PromptVariable("bugContext", "扫描范围内缺陷清单", true))));
         register(scenes, new PromptScene("case_optimize", "用例优化", List.of(

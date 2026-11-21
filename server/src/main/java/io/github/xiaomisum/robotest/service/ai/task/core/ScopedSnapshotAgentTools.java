@@ -25,13 +25,12 @@ public final class ScopedSnapshotAgentTools {
     private ScopedSnapshotAgentTools() {
     }
 
-    /** 9 个注册工具的完整清单（Spring 同样按 @Component 收集，供一致性核对使用）。 */
+    /** 8 个注册工具的完整清单（Spring 同样按 @Component 收集，供一致性核对使用）。 */
     public static List<AgentTool> all() {
         return List.of(
                 new ReadImportSource(), new QueryProjectModules(), new QueryRequirements(),
                 new QueryCaseContext(), new QueryPlanOrderContext(),
-                new QueryBugs(), new SearchSimilarBugs(), new QueryTriageBugs(),
-                new QueryBugAnalysisSnapshot());
+                new QueryBugs(), new SearchSimilarBugs(), new QueryTriageBugs());
     }
 
     private abstract static class BaseTool implements AgentTool {
@@ -98,5 +97,4 @@ public final class ScopedSnapshotAgentTools {
     @Component static final class QueryBugs extends BaseTool { QueryBugs() { super("query_bugs", "查询缺陷"); } }
     @Component static final class SearchSimilarBugs extends BaseTool { SearchSimilarBugs() { super("search_similar_bugs", "检索相似缺陷"); } }
     @Component static final class QueryTriageBugs extends BaseTool { QueryTriageBugs() { super("query_triage_bugs", "查询分诊缺陷"); } }
-    @Component static final class QueryBugAnalysisSnapshot extends BaseTool { QueryBugAnalysisSnapshot() { super("query_bug_analysis_snapshot", "查询缺陷分析快照"); } }
 }
