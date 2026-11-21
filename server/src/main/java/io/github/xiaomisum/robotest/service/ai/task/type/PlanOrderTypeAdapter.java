@@ -3,7 +3,9 @@ package io.github.xiaomisum.robotest.service.ai.task.type;
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlan;
+import io.github.xiaomisum.robotest.model.entity.plan.TestPlanExecutionRecord;
 import io.github.xiaomisum.robotest.model.entity.plan.TestPlanNodeSnapshot;
+import io.github.xiaomisum.robotest.repository.plan.TestPlanExecutionRecordMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanMapper;
 import io.github.xiaomisum.robotest.repository.plan.TestPlanNodeSnapshotMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatReply;
@@ -25,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.abbreviate;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asMap;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.asString;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.modelFailed;
@@ -34,8 +37,8 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.parseUuid;
 
 /**
- * 执行顺序建议处理器（辅助功能详设 3.4）：按计划快照现序产出 order_suggestion 单产物，
- * items 全覆盖计划内关联用例；采纳只改排序，不改关联集合与快照内容（详设 4.4）。
+ * 执行顺序建议处理器（辅助功能详设 3.3）：按计划快照现序产出 order_suggestion 单产物，
+ * items 全覆盖计划内关联用例；依据取自快照树的依赖线索与执行记录的历史失败率（详设 4.3）。
  */
 @Component
 public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
@@ -48,6 +51,10 @@ public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
     private TestPlanMapper testPlanMapper;
     @Resource
     private TestPlanNodeSnapshotMapper testPlanNodeSnapshotMapper;
+    @Resource
+    private TestPlanExecutionRecordMapper testPlanExecutionRecordMapper;
+
+    private static final int FIELD_TEXT_LIMIT = 120;
 
     @Override
     public String type() {
@@ -60,8 +67,10 @@ public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
                 你是资深测试计划执行专家，只输出 JSON，不输出解释或代码块标记以外的任何文字。
                 为计划内关联用例给出执行顺序建议（suggestedRank 从 1 开始，1 为最先执行）：
                 1. 只能引用计划用例清单中的 nodeId，每个用例恰好出现一次，不得引入清单外用例；
-                2. 依据限于清单给出的信息（优先级、最近执行结果、用例路径），不得臆造；
-                3. reason 简述该用例排在该位次的依据，可留空。
+                2. 依据限于清单给出的信息（优先级、最近执行结果、用例路径、前置 / 步骤 / 预期文本、历史失败率），不得臆造；
+                3. 依赖线索：排在后面的用例若其前置 / 步骤提到前面用例的路径或标题，应调整顺序；被依赖者先执行；
+                4. 历史失败率高的用例靠前，以便尽早暴露风险；优先级高者靠前；空值依据忽略，不得虚构；
+                5. reason 简述该用例排在该位次的依据，可留空。
                 输出结构（JSON 对象，artifacts 即产物数组）：
                 {"artifacts":[{"content":{"items":[{"nodeId":"…","suggestedRank":1,"reason":"…"}]}}]}
 
@@ -101,9 +110,10 @@ public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         if (plan == null || !context.projectId().equals(plan.getProjectId())) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTED_PLAN_NOT_FOUND);
         }
-        List<TestPlanNodeSnapshot> currentOrder = currentOrder(planId, requireAssociatedCases(planId));
+        List<TestPlanNodeSnapshot> allNodes = testPlanNodeSnapshotMapper.listByPlanId(planId);
+        List<TestPlanNodeSnapshot> currentOrder = currentOrder(allNodes, requireAssociatedCases(planId));
         Map<String, String> variables = new LinkedHashMap<>();
-        variables.put("planContext", planContext(currentOrder));
+        variables.put("planContext", planContext(currentOrder, allNodes, failureRates(planId)));
         variables.put("roundCount", nvl(parseRound(context.input())));
         return new AgentExecutionPreparation(variables, variables.get("planContext"), List.of(),
                 output -> ProposalDrafts.fromArtifact(sanitize(new AiChatReply(output, 0, 0), plan, currentOrder)),
@@ -115,8 +125,8 @@ public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
     @Override protected String defaultProposalKind() { return Constants.AiProposalKind.ORDER_SUGGESTION; }
 
     /** 计划用例按快照树现序（DFS 平铺，兄弟与根均按 sortOrder nullsLast 稳定排序） */
-    private List<TestPlanNodeSnapshot> currentOrder(UUID planId, List<TestPlanNodeSnapshot> associated) {
-        List<TestPlanNodeSnapshot> all = testPlanNodeSnapshotMapper.listByPlanId(planId);
+    private List<TestPlanNodeSnapshot> currentOrder(List<TestPlanNodeSnapshot> all,
+            List<TestPlanNodeSnapshot> associated) {
         Map<UUID, List<TestPlanNodeSnapshot>> children = new HashMap<>();
         List<TestPlanNodeSnapshot> roots = new ArrayList<>();
         Set<UUID> ids = all.stream().map(TestPlanNodeSnapshot::getId).collect(Collectors.toSet());
@@ -162,17 +172,86 @@ public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         return associated;
     }
 
-    private static String planContext(List<TestPlanNodeSnapshot> currentOrder) {
+    /** 组装推荐依据：把快照树里的依赖线索与执行记录的历史失败率一并喂给模型，避免空壳推荐 */
+    private static String planContext(List<TestPlanNodeSnapshot> currentOrder,
+            List<TestPlanNodeSnapshot> allNodes, Map<UUID, long[]> failureRates) {
+        Map<UUID, TestPlanNodeSnapshot> byId = allNodes.stream()
+                .collect(Collectors.toMap(TestPlanNodeSnapshot::getId, node -> node, (left, right) -> left));
+        Map<UUID, List<TestPlanNodeSnapshot>> children = new HashMap<>();
+        for (TestPlanNodeSnapshot node : allNodes) {
+            if (node.getParentId() != null) {
+                children.computeIfAbsent(node.getParentId(), key -> new ArrayList<>()).add(node);
+            }
+        }
         StringBuilder builder = new StringBuilder("计划关联用例（共 ").append(currentOrder.size())
-                .append(" 条，按当前执行顺序，id | 优先级 | 最近结果 | 标题）：\n");
+                .append(" 条，按当前执行顺序，id | 优先级 | 最近结果 | 历史失败率 | 路径 | 前置 | 步骤 | 预期 | 标题）：\n");
         for (TestPlanNodeSnapshot node : currentOrder) {
             builder.append("- ").append(node.getId())
                     .append(" | ").append(nvl(node.getPriority()))
                     .append(" | ").append(nvl(node.getLastResult()))
+                    .append(" | ").append(formatFailureRate(failureRates.get(node.getId())))
+                    .append(" | ").append(abbreviate(nodePath(node, byId), FIELD_TEXT_LIMIT))
+                    .append(" | ").append(abbreviate(childField(node, children, Constants.NodeType.PRECONDITION), FIELD_TEXT_LIMIT))
+                    .append(" | ").append(abbreviate(childField(node, children, Constants.NodeType.STEP), FIELD_TEXT_LIMIT))
+                    .append(" | ").append(abbreviate(childField(node, children, Constants.NodeType.EXPECTED), FIELD_TEXT_LIMIT))
                     .append(" | ").append(nvl(node.getTitle()))
                     .append('\n');
         }
         return builder.toString();
+    }
+
+    /** 祖先路径：沿 parentId 回溯到文档根，含自身标题，供依赖线索判断 */
+    private static String nodePath(TestPlanNodeSnapshot node, Map<UUID, TestPlanNodeSnapshot> byId) {
+        List<String> titles = new ArrayList<>();
+        Set<UUID> visited = new HashSet<>();
+        TestPlanNodeSnapshot cursor = node;
+        while (cursor != null && visited.add(cursor.getId())) {
+            titles.add(0, nvl(cursor.getTitle()));
+            cursor = cursor.getParentId() == null ? null : byId.get(cursor.getParentId());
+        }
+        return String.join(" › ", titles);
+    }
+
+    /** 属性子节点文本：同类型子节点按 sortOrder 拼接，快照含前置 / 步骤 / 预期子节点 */
+    private static String childField(TestPlanNodeSnapshot node,
+            Map<UUID, List<TestPlanNodeSnapshot>> children, String type) {
+        return children.getOrDefault(node.getId(), List.of()).stream()
+                .filter(child -> type.equals(child.getType()))
+                .sorted(Comparator.comparing(
+                        child -> child.getSortOrder() == null ? Integer.MAX_VALUE : child.getSortOrder()))
+                .map(child -> nvl(child.getTitle()))
+                .filter(text -> !text.isBlank())
+                .collect(Collectors.joining("；"));
+    }
+
+    /** 历史失败率：fail /（pass + fail + block），无执行记录显式留空，模型不得臆造 */
+    private Map<UUID, long[]> failureRates(UUID planId) {
+        Map<UUID, long[]> rates = new HashMap<>();
+        for (TestPlanExecutionRecord record : testPlanExecutionRecordMapper.listByPlanId(planId)) {
+            if (record.getSnapshotNodeId() == null || record.getResult() == null) {
+                continue;
+            }
+            long[] counts = rates.computeIfAbsent(record.getSnapshotNodeId(), key -> new long[3]);
+            switch (record.getResult()) {
+                case Constants.ExecutionResult.FAIL -> counts[0]++;
+                case Constants.ExecutionResult.PASS -> counts[1]++;
+                case Constants.ExecutionResult.BLOCK -> counts[2]++;
+                default -> { }
+            }
+        }
+        return rates;
+    }
+
+    private static String formatFailureRate(long[] counts) {
+        if (counts == null) {
+            return "";
+        }
+        long fail = counts[0];
+        long total = counts[0] + counts[1] + counts[2];
+        if (total == 0) {
+            return "";
+        }
+        return Math.round(fail * 100.0 / total) + "% (" + fail + "/" + total + ")";
     }
 
     /** 清洗为单产物：模型响应项按 suggestedRank 升序、未响应按现序补尾，suggestedRank 连续化覆盖全部关联用例 */

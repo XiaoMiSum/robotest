@@ -705,7 +705,7 @@ public class TestPlanServiceImpl implements TestPlanService {
                 .stream()
                 .collect(Collectors.toMap(TestCaseNode::getId, n -> n));
 
-        // 2. 同步节点快照：标题、类型、优先级、排序与原始节点保持一致；已删除的节点标记 isDeleted
+        // 2. 同步节点快照：标题、类型、优先级与原始节点保持一致；排序不覆盖，保留采纳 / 人工调整的稳定顺序；已删除的节点标记 isDeleted
         for (TestPlanNodeSnapshot snapshot : snapshotNodes) {
             if (snapshot.getOriginalNodeId() == null) {
                 continue;
@@ -725,7 +725,6 @@ public class TestPlanServiceImpl implements TestPlanService {
                 nodeUpdate.setTitle(currentNode.getTitle());
                 nodeUpdate.setType(currentNode.getType());
                 nodeUpdate.setPriority(currentNode.getPriority());
-                nodeUpdate.setSortOrder(currentNode.getSortOrder());
                 nodeUpdate.setAiGenerated(currentNode.getAiGenerated());
             }
             planNodeSnapshotMapper.updateById(nodeUpdate);

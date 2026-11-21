@@ -591,6 +591,36 @@ class TestPlanServiceImplTest {
         }
 
         @Test
+        void syncPlan_preservesAdjustedSortOrder() {
+                TestPlan plan = new TestPlan();
+                plan.setId(planId);
+                plan.setProjectId(projectId);
+                plan.setExecutorId(userId);
+                plan.setStatus("in_progress");
+                when(testPlanMapper.selectById(planId)).thenReturn(plan);
+
+                TestPlanNodeSnapshot snapshot = new TestPlanNodeSnapshot();
+                snapshot.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+                snapshot.setPlanId(planId);
+                snapshot.setOriginalNodeId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
+                snapshot.setSortOrder(3);
+                when(planNodeSnapshotMapper.listByPlanId(planId)).thenReturn(List.of(snapshot));
+
+                TestCaseNode currentNode = new TestCaseNode();
+                currentNode.setId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
+                currentNode.setSortOrder(0);
+                currentNode.setIsDeleted(false);
+                when(testCaseNodeMapper.listByIds(anyCollection())).thenReturn(List.of(currentNode));
+
+                planService.syncPlan(projectId, planId, userId);
+
+                ArgumentCaptor<TestPlanNodeSnapshot> nodeCaptor = ArgumentCaptor.forClass(TestPlanNodeSnapshot.class);
+                verify(planNodeSnapshotMapper).updateById(nodeCaptor.capture());
+                assertNull(nodeCaptor.getValue().getSortOrder(),
+                                "同步不应把原始用例顺序写回快照，采纳 / 人工调整的顺序须稳定保留");
+        }
+
+        @Test
         void syncPlan_nonExecutor_success() {
                 // 功能测试模块不做权限码校验，服务层只校验归属与状态
                 TestPlan plan = new TestPlan();
