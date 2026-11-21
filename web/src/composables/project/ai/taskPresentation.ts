@@ -78,10 +78,8 @@ export const AI_TASK_TYPE_META: Record<string, AiTaskTypeMeta> = {
   requirement_import: { label: '需求导入', domain: '需求' },
   case_optimize: { label: '用例优化', domain: '辅助' },
   plan_order: { label: '计划排序', domain: '辅助' },
-  bug_classify: { label: '缺陷批量分类', domain: '缺陷' },
   bug_duplicate_scan: { label: '重复缺陷扫描', domain: '缺陷' },
   bug_triage: { label: '缺陷分诊', domain: '缺陷' },
-  bug_trend_summary: { label: '缺陷趋势总结', domain: '缺陷' },
   assistant_parse: { label: '助手解析', domain: '助手' },
   vector_reindex: { label: '向量索引重建', domain: '底座' },
 }
@@ -212,10 +210,8 @@ const PROPOSAL_KIND_LABEL: Record<string, string> = {
   requirement_suggestion: '需求建议',
   case_optimize_suggestion: '用例优化',
   order_suggestion: '排序建议',
-  classify_suggestion: '分类建议',
   duplicate_group: '重复组',
   triage_order: '分诊顺序',
-  summary: '总结',
   intent_preview: '意图预览',
   answer: '回答',
 }

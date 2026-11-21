@@ -5,7 +5,6 @@ import type {
   AiTaskDetail,
   BugAnalysisGroupBy,
   BugMetricsResp,
-  BugSourceRef,
   BugTriageContent,
   BugTrendsResp,
 } from '@/types'
@@ -23,35 +22,14 @@ function shouldStopTaskPolling(status: string): boolean {
   return status !== 'running'
 }
 
-/** 范围指纹：摘要生成时记录，范围变化后据以判定快照过期 */
-function rangeKeyOf(from: string, to: string, groupBy: string): string {
-  return `${from}|${to}|${groupBy}`
-}
-
-function readStringList(raw: unknown): BugSourceRef[] {
-  if (!Array.isArray(raw)) return []
-  const refs: BugSourceRef[] = []
-  for (const item of raw) {
-    if (typeof item !== 'object' || item === null) continue
-    const source = item as Record<string, unknown>
-    refs.push({
-      type: typeof source['type'] === 'string' ? source['type'] : '',
-      id: typeof source['id'] === 'string' ? source['id'] : '',
-      title: typeof source['title'] === 'string' ? source['title'] : '',
-      quote: typeof source['quote'] === 'string' ? source['quote'] : undefined,
-    })
-  }
-  return refs
-}
-
 // 请求序号：范围切换后的过期响应丢弃标记（模块级，随 store 生命周期无泄漏风险）
 let trendsSeq = 0
 let metricsSeq = 0
 
 /**
- * 缺陷分析页状态（交互 5）：范围与分组条件、趋势/度量数据、摘要与分诊任务状态。
+ * 缺陷分析页状态（交互 5）：范围与分组条件、趋势/度量数据、分诊任务状态。
  * 范围切换取消上一请求（防竞态，以最新范围结果为准）；
- * 摘要与分诊复用 aiTask 详情缓存会互相挤占，故本地轮询 fetchAiTask。
+ * 分诊轮询直接查 aiTask 详情，避免复用全局任务详情缓存造成干扰。
  */
 export const useBugAnalysisStore = defineStore('bugAnalysis', {
   state: () => ({
@@ -65,16 +43,6 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
     metrics: null as BugMetricsResp | null,
     metricsLoading: false,
     metricsError: '',
-    // ---------- AI 摘要（详设 3.4，只读建议不写入） ----------
-    summaryTaskId: null as string | null,
-    summaryStatus: '' as AiTaskDetail['status'] | '',
-    summaryText: '',
-    summaryCitations: [] as BugSourceRef[],
-    summaryLoading: false,
-    summaryError: '',
-    summaryPollTimer: null as ReturnType<typeof setInterval> | null,
-    /** 摘要生成时的范围指纹（空串表示尚未生成） */
-    summaryRangeKey: '',
     // ---------- 分诊队列（详设 3.7，只读排序建议） ----------
     triageItems: [] as BugTriageContent['items'],
     triageLoading: false,
@@ -89,14 +57,6 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
       if (state.to) query.to = state.to
       if (state.groupBy !== 'none') query.groupBy = state.groupBy
       return query
-    },
-    summaryRunning(state): boolean {
-      return state.summaryStatus === 'running'
-    },
-    /** 摘要基于上一次范围计算：范围变化后标记过期，提示重新生成（交互 2.1.2） */
-    summaryStale(state): boolean {
-      if (!state.summaryRangeKey) return false
-      return state.summaryRangeKey !== rangeKeyOf(state.from, state.to, state.groupBy)
     },
   },
   actions: {
@@ -138,85 +98,6 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
     /** 范围 / 分组切换：全页数据重取（交互 2.1.2） */
     async reload() {
       await Promise.all([this.loadTrends(), this.loadMetrics()])
-    },
-
-    // ==================== AI 摘要 ====================
-
-    /** 生成 / 重新生成：按当前范围计算，同步快路径超时转轮询 */
-    async generateSummary() {
-      this.stopSummaryPolling()
-      this.summaryLoading = true
-      this.summaryError = ''
-      this.summaryText = ''
-      this.summaryCitations = []
-      try {
-        const task = await submitAiTask(
-          'bug_trend_summary',
-          { ...this.queryRange },
-          SYNC_WAIT_SECONDS,
-        )
-        this.summaryRangeKey = rangeKeyOf(this.from, this.to, this.groupBy)
-        this.summaryTaskId = task.taskId
-        this.summaryStatus = task.status
-        if (shouldStopTaskPolling(task.status)) {
-          await this.resolveSummary(task.taskId, task.status)
-        } else {
-          this.startSummaryPolling(task.taskId)
-        }
-      } catch (error) {
-        this.summaryError = errorMessage(error, '生成缺陷摘要失败')
-        this.summaryStatus = 'aborted'
-      } finally {
-        this.summaryLoading = false
-      }
-    },
-
-    startSummaryPolling(taskId: string) {
-      this.stopSummaryPolling()
-      this.summaryPollTimer = setInterval(() => {
-        void this.pollSummary(taskId)
-      }, POLL_INTERVAL_MS)
-    },
-
-    stopSummaryPolling() {
-      if (this.summaryPollTimer !== null) {
-        clearInterval(this.summaryPollTimer)
-        this.summaryPollTimer = null
-      }
-    },
-
-    async pollSummary(taskId: string): Promise<void> {
-      try {
-        const detail = await fetchAiTask(taskId)
-        this.summaryStatus = detail.status
-        if (shouldStopTaskPolling(detail.status)) {
-          this.stopSummaryPolling()
-          await this.resolveSummary(taskId, detail.status)
-        }
-      } catch {
-        // 轮询网络失败不终止轮询，下一轮继续；非进行中由下一轮判定
-      }
-    },
-
-    /** 非进行中分流：closed/proposals_ready 取产物内容，aborted 落原因供卡片重试（交互 2.4） */
-    async resolveSummary(taskId: string, status: AiTaskDetail['status']) {
-      if (status === 'aborted') {
-        this.summaryError = '摘要生成失败，可重试'
-        return
-      }
-      if (status === 'running') return
-      try {
-        const proposal = await fetchAiProposal(taskId, 'summary-1')
-        // 提案详情响应为 { ...摘要, content }（详设 3.6.3），内容取 content 根节点
-        const content = (proposal.content ?? {}) as Record<string, unknown>
-        this.summaryText = typeof content['text'] === 'string' ? content['text'] : ''
-        this.summaryCitations = readStringList(content['citations'])
-        if (!this.summaryText) {
-          this.summaryError = '摘要产物为空，可重新生成'
-        }
-      } catch (error) {
-        this.summaryError = errorMessage(error, '加载摘要失败')
-      }
     },
 
     // ==================== 分诊队列 ====================
@@ -264,7 +145,7 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
           await this.resolveTriage(taskId, detail.status)
         }
       } catch {
-        // 同摘要轮询：网络失败不终止，下一轮继续
+        // 轮询网络失败不终止，下一轮继续
       }
     },
 
@@ -301,7 +182,6 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
 
     /** 页面卸载：停掉本地轮询，避免计时器泄漏 */
     dispose() {
-      this.stopSummaryPolling()
       this.stopTriagePolling()
     },
   },

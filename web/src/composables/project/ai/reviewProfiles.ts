@@ -58,7 +58,7 @@ export interface ProposalParsed {
   editValues: Record<string, unknown>
 }
 
-/** 审核面板形态：缺陷批量分类专用面板、其余通用面板 */
+/** 审核面板形态：缺陷重复扫描专用面板、其余通用面板 */
 export type ProposalReviewPanelKind = 'generic' | 'bug'
 
 export interface ProposalReviewProfile {
@@ -210,7 +210,7 @@ const planOrderProfile: ProposalReviewProfile = {
   },
 }
 
-/** 只读分诊 / 总结 / 解析类提案：不提供确认动作，仅结构化预览 */
+/** 只读分诊 / 解析类提案：不提供确认动作，仅结构化预览 */
 function readonlyProfile(taskType: string, title: string): ProposalReviewProfile {
   return {
     taskType,
@@ -275,7 +275,7 @@ const mindmapCaseGenerationProfile: ProposalReviewProfile = {
   },
 }
 
-/** 缺陷批量分类走专用面板，注册表仅登记其分发 */
+/** 缺陷重复扫描走专用面板，注册表仅登记其分发 */
 function specializedProfile(
   taskType: string,
   title: string,
@@ -297,10 +297,8 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   case_optimize: caseOptimizeProfile,
   mindmap_case_generation: mindmapCaseGenerationProfile,
   plan_order: planOrderProfile,
-  bug_classify: specializedProfile('bug_classify', '缺陷批量分类', 'bug'),
   bug_duplicate_scan: specializedProfile('bug_duplicate_scan', '重复缺陷扫描', 'bug'),
   bug_triage: readonlyProfile('bug_triage', '缺陷分诊结果'),
-  bug_trend_summary: readonlyProfile('bug_trend_summary', '缺陷趋势总结'),
   assistant_parse: readonlyProfile('assistant_parse', '助手解析结果'),
   vector_reindex: readonlyProfile('vector_reindex', '向量索引重建结果'),
 }

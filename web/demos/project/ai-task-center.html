@@ -53,10 +53,8 @@
               <option value="requirement_import">需求导入（需求）</option>
               <option value="case_optimize">用例优化（辅助）</option>
               <option value="plan_order">计划排序（辅助）</option>
-              <option value="bug_classify">缺陷批量分类（缺陷）</option>
               <option value="bug_duplicate_scan">重复缺陷扫描（缺陷）</option>
               <option value="bug_triage">缺陷分诊（缺陷）</option>
-              <option value="bug_trend_summary">缺陷趋势总结（缺陷）</option>
               <option value="assistant_parse">助手解析（助手）</option>
               <option value="vector_reindex">向量索引重建（底座）</option>
             </select>
@@ -70,7 +68,7 @@
             <button class="btn btn--primary" type="button" id="atc-search"><span data-icon="search"></span>查询</button>
             <button class="btn btn--default" type="button" id="atc-reset">重置</button>
           </div>
-          <div class="toolbar__count" id="atc-count">共 12 个任务 · 全部成员</div>
+          <div class="toolbar__count" id="atc-count">共 8 个任务 · 全部成员</div>
         </div>
 
         <div class="table-wrap">
@@ -133,15 +131,6 @@
                 <td class="num">2026-11-17 15:40</td>
                 <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=running">详情</a><span class="op-link op-link--danger" data-op="abort">终止</span></td>
               </tr>
-              <tr data-page="1" data-status="closed" data-type="bug_trend_summary" data-title="缺陷趋势周报总结">
-                <td class="cell-main"><a href="ai-task-detail.html?scene=closed">缺陷趋势周报总结</a><span class="cell-sub">缺陷 · 缺陷趋势总结</span></td>
-                <td><span class="tag tag--info tag--sm task-type__label">缺陷</span><span class="task-type__name">缺陷趋势总结</span></td>
-                <td><span class="status status--neutral"><span class="dot"></span>已结束</span></td>
-                <td><span class="text-light">完成 · 3/3 步</span></td>
-                <td>张明</td>
-                <td class="num">2026-11-17 09:10</td>
-                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
-              </tr>
               <tr data-page="2" data-status="closed" data-type="assistant_parse" data-title="自然语言需求解析（退款流程）">
                 <td class="cell-main"><a href="ai-task-detail.html?scene=closed">自然语言需求解析（退款流程）</a><span class="cell-sub">助手 · 助手解析</span></td>
                 <td><span class="tag tag--info tag--sm task-type__label">助手</span><span class="task-type__name">助手解析</span></td>
@@ -149,15 +138,6 @@
                 <td><span class="text-light">完成 · 2/2 步</span></td>
                 <td>王芳</td>
                 <td class="num">2026-11-16 20:05</td>
-                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
-              </tr>
-              <tr data-page="2" data-status="closed" data-type="bug_classify" data-title="登录后首页空白缺陷批量分类">
-                <td class="cell-main"><a href="ai-task-detail.html?scene=closed">登录后首页空白缺陷批量分类</a><span class="cell-sub">缺陷 · 缺陷批量分类</span></td>
-                <td><span class="tag tag--info tag--sm task-type__label">缺陷</span><span class="task-type__name">缺陷批量分类</span></td>
-                <td><span class="status status--neutral"><span class="dot"></span>已结束</span></td>
-                <td><span class="text-light">完成 · 5/5 步</span></td>
-                <td>周敏</td>
-                <td class="num">2026-11-15 17:22</td>
                 <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
               </tr>
               <tr data-page="2" data-status="aborted" data-type="plan_order" data-title="会员权益测试计划排序">
@@ -176,7 +156,7 @@
         </div>
 
         <div class="pagination">
-          <span class="pagination__total" id="atc-pager-total">共 12 个任务 · 每页 20 条</span>
+          <span class="pagination__total" id="atc-pager-total">共 8 个任务 · 每页 20 条</span>
           <button class="page-btn" type="button" data-page="prev" disabled>‹</button>
           <button class="page-btn page-btn--active" type="button" data-page="1">1</button>
           <button class="page-btn" type="button" data-page="2">2</button>

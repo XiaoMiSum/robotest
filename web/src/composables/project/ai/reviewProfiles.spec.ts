@@ -124,8 +124,8 @@ describe('reviewProfiles', () => {
   })
 
   describe('只读与兜底', () => {
-    it('分诊 / 总结 / 解析类提案不提供确认动作', () => {
-      for (const type of ['bug_triage', 'bug_trend_summary', 'assistant_parse', 'vector_reindex']) {
+    it('分诊 / 解析类提案不提供确认动作', () => {
+      for (const type of ['bug_triage', 'assistant_parse', 'vector_reindex']) {
         const profile = reviewProfile(type)
         expect(isReadonlyProfile(profile)).toBe(true)
         expect(profile.editFields).toEqual([])
@@ -143,7 +143,6 @@ describe('reviewProfiles', () => {
     })
 
     it('按任务类型指定审核面板形态', () => {
-      expect(reviewProfile('bug_classify').panel).toBe('bug')
       expect(reviewProfile('bug_duplicate_scan').panel).toBe('bug')
       expect(reviewProfile('case_optimize').panel).toBe('generic')
       expect(reviewProfile('future_task').panel).toBe('generic')

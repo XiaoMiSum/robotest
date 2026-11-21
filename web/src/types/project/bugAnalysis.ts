@@ -52,7 +52,7 @@ export interface BugMetricsResp {
   typeDist: BugDistItem[]
 }
 
-// ==================== 录入时重复检测（详设 3.8） ====================
+// ==================== 录入时重复检测（详设 3.7） ====================
 export interface BugDuplicateCheckReq {
   title: string
   steps?: string
@@ -72,7 +72,7 @@ export interface BugDuplicateCheckResp {
   list: BugDuplicateCheckItem[]
 }
 
-// ==================== 产物 content（详设 3.4–3.9） ====================
+// ==================== 产物 content（详设 3.2–3.7） ====================
 
 /** 建议值：value 为建议内容，reason 为理由 */
 export interface BugSuggestionField<T> {
@@ -80,30 +80,15 @@ export interface BugSuggestionField<T> {
   reason: string
 }
 
-/** 分类建议字段集（批量产物 content 与实时建议共用） */
-export interface BugClassifySuggestions {
+/** 缺陷分类建议字段集（新建缺陷实时建议复用） */
+export interface BugSuggestionFields {
   bugType?: BugSuggestionField<BugType>
   severity?: BugSuggestionField<BugSeverity>
   priority?: BugSuggestionField<BugPriority>
   moduleId?: BugSuggestionField<string | null>
   keywords?: BugSuggestionField<string[]>
-  /** 采纳承接支持的可选建议字段（模型清洗产出中不含，编辑后采纳可携带） */
+  /** 采纳承接支持的可选建议字段（模型清洗产出中不含，仅人工补录时携带） */
   assigneeId?: BugSuggestionField<string | null>
-}
-
-/** 来源引用（草稿建议与摘要均附带） */
-export interface BugSourceRef {
-  type: string
-  id: string
-  title: string
-  quote?: string
-}
-
-/** 分类建议产物 content（批量逐缺陷一条） */
-export interface BugClassifyContent {
-  bugId?: string
-  suggestions: BugClassifySuggestions
-  sourceRefs?: BugSourceRef[]
 }
 
 /** 分诊顺序产物 content（只读，不写入任何数据） */
@@ -112,27 +97,13 @@ export interface BugTriageContent {
   scope: string
 }
 
-/** 趋势摘要产物 content（只读建议，必附 citations） */
-export interface BugSummaryContent {
-  text: string
-  citations: BugSourceRef[]
-}
-
 /** 重复组产物 content（分组确认仅留痕，不修改任何缺陷） */
 export interface BugDuplicateGroupContent {
   canonicalBugId: string | null
   items: Array<{ bugId: string; similarity: number; reason: string }>
 }
 
-// ==================== 批量分类发起（详设 3.6） ====================
-
-/** 批量分类输入：bugIds 显式圈定优先，其次 filter.statuses 按状态筛选 */
-export interface BugClassifyInput {
-  bugIds?: string[]
-  filter?: { statuses: BugStatus[] }
-}
-
-// ==================== 新建缺陷实时建议（详设 3.5） ====================
+// ==================== 新建缺陷实时建议（详设 3.4） ====================
 
 /** 实时建议请求：title 必填（≤300），steps / moduleId 为已填内容上下文 */
 export interface BugDraftSuggestReq {
@@ -148,8 +119,8 @@ export interface BugRelatedCaseSuggestion {
   reason: string
 }
 
-/** 实时建议的分类字段集：在批量建议字段基础上补关联用例 */
-export interface BugDraftSuggestFields extends BugClassifySuggestions {
+/** 实时建议的分类字段集：在通用建议字段基础上补关联用例 */
+export interface BugDraftSuggestFields extends BugSuggestionFields {
   relatedCase?: BugRelatedCaseSuggestion
 }
 

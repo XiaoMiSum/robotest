@@ -46,7 +46,7 @@ function makeTask(overrides: Partial<AiTaskItem> = {}): AiTaskItem {
   return {
     taskId: 't1',
     executionId: 'e1',
-    type: 'bug_trend_summary',
+    type: 'bug_triage',
     title: '',
     status: 'closed',
     budget: { maxSteps: 10 },
@@ -137,85 +137,9 @@ describe('stores/bugAnalysis', () => {
     expect(store.trends?.axis).toEqual(['2026-10-08'])
   })
 
-  it('摘要同步快路径成功：取产物内容与引用', async () => {
-    const store = useBugAnalysisStore()
-    mocks.submitAiTask.mockResolvedValue(makeTask())
-    mocks.fetchAiProposal.mockResolvedValue({
-      content: {
-        text: '区间内新增 3 个缺陷，存量 5 个',
-        citations: [{ type: 'bug', id: 'b1', title: '登录按钮无反应' }],
-      },
-    })
-
-    await store.generateSummary()
-    expect(mocks.submitAiTask).toHaveBeenCalledWith(
-      'bug_trend_summary',
-      {},
-      10,
-    )
-    expect(store.summaryText).toContain('新增 3 个缺陷')
-    expect(store.summaryCitations).toHaveLength(1)
-    expect(store.summaryError).toBe('')
-  })
-
-  it('摘要生成失败：落错误供卡片重试，标记范围指纹', async () => {
-    const store = useBugAnalysisStore()
-    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'aborted' }))
-
-    await store.generateSummary()
-    expect(store.summaryError).toContain('失败')
-    // 同步快路径失败即落新状态机失败占位，卡片按 error 提供重试入口
-    expect(store.summaryStatus).toBe('aborted')
-    expect(store.summaryRangeKey).toBe('||none')
-  })
-
-  it('范围变化后摘要标记过期（stale）', async () => {
-    const store = useBugAnalysisStore()
-    mocks.submitAiTask.mockResolvedValue(makeTask())
-    mocks.fetchAiProposal.mockResolvedValue({ content: { text: '摘要', citations: [] } })
-    await store.generateSummary()
-    expect(store.summaryStale).toBe(false)
-
-    store.from = '2026-10-01'
-    store.to = '2026-10-02'
-    expect(store.summaryStale).toBe(true)
-  })
-
-  it('摘要超时转轮询：轮到终态后停止计时器并取产物', async () => {
-    const store = useBugAnalysisStore()
-    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
-    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'closed' }))
-    mocks.fetchAiProposal.mockResolvedValue({ content: { text: 'ok', citations: [] } })
-
-    await store.generateSummary()
-    expect(store.summaryRunning).toBe(true)
-    await vi.advanceTimersByTimeAsync(2100)
-    expect(store.summaryText).toBe('ok')
-    expect(store.summaryPollTimer).toBeNull()
-  })
-
-  it('轮询到 aborted 终态：停止计时器、落失败占位且不取产物', async () => {
-    const store = useBugAnalysisStore()
-    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
-    mocks.fetchAiTask.mockResolvedValue(
-      makeDetail({
-        status: 'aborted',
-        terminateReason: { code: 1000018117, msg: '模型不可用' },
-      }),
-    )
-
-    await store.generateSummary()
-    expect(store.summaryRunning).toBe(true)
-    await vi.advanceTimersByTimeAsync(2100)
-    expect(store.summaryStatus).toBe('aborted')
-    expect(store.summaryError).toContain('失败')
-    expect(store.summaryPollTimer).toBeNull()
-    expect(mocks.fetchAiProposal).not.toHaveBeenCalled()
-  })
-
   it('分诊成功解析 items；空结果给降级提示', async () => {
     const store = useBugAnalysisStore()
-    mocks.submitAiTask.mockResolvedValue(makeTask({ type: 'bug_triage' }))
+    mocks.submitAiTask.mockResolvedValue(makeTask())
     mocks.fetchAiProposal.mockResolvedValue({
       content: {
         items: [{ bugId: 'b1', rank: 1, reason: '致命 + 存放 3 天' }],
@@ -224,10 +148,11 @@ describe('stores/bugAnalysis', () => {
     })
 
     await store.loadTriage()
+    expect(mocks.submitAiTask).toHaveBeenCalledWith('bug_triage', {}, 10)
     expect(store.triageItems).toEqual([{ bugId: 'b1', rank: 1, reason: '致命 + 存放 3 天' }])
     expect(store.triageError).toBe('')
 
-    mocks.submitAiTask.mockResolvedValue(makeTask({ type: 'bug_triage' }))
+    mocks.submitAiTask.mockResolvedValue(makeTask())
     mocks.fetchAiProposal.mockResolvedValue({ content: { items: [], scope: 'active_unassigned' } })
     await store.loadTriage()
     expect(store.triageError).toContain('没有需要分诊')
@@ -243,14 +168,65 @@ describe('stores/bugAnalysis', () => {
     expect(store.triageError).toContain('分析输入为空')
   })
 
-  it('dispose 停掉两个轮询计时器', async () => {
+  it('分诊超时转轮询：轮到终态后停止计时器并取产物', async () => {
     const store = useBugAnalysisStore()
     mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
-    await store.generateSummary()
-    expect(store.summaryPollTimer).not.toBeNull()
+    mocks.fetchAiTask.mockResolvedValue(makeDetail({ status: 'closed' }))
+    mocks.fetchAiProposal.mockResolvedValue({
+      content: { items: [{ bugId: 'b1', rank: 1, reason: '优先处理' }], scope: 'active_unassigned' },
+    })
+
+    await store.loadTriage()
+    expect(store.triagePollTimer).not.toBeNull()
+    await vi.advanceTimersByTimeAsync(2100)
+    expect(store.triageItems).toEqual([{ bugId: 'b1', rank: 1, reason: '优先处理' }])
+    expect(store.triagePollTimer).toBeNull()
+  })
+
+  it('分诊轮询到 aborted：停止计时器、落失败占位且不取产物', async () => {
+    const store = useBugAnalysisStore()
+    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
+    mocks.fetchAiTask.mockResolvedValue(
+      makeDetail({
+        status: 'aborted',
+        terminateReason: { code: 1000018117, msg: '模型不可用' },
+      }),
+    )
+
+    await store.loadTriage()
+    expect(store.triagePollTimer).not.toBeNull()
+    await vi.advanceTimersByTimeAsync(2100)
+    expect(store.triageError).toContain('失败')
+    expect(store.triagePollTimer).toBeNull()
+    expect(mocks.fetchAiProposal).not.toHaveBeenCalled()
+  })
+
+  it('分诊轮询网络失败不终止，下一轮继续', async () => {
+    const store = useBugAnalysisStore()
+    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
+    mocks.fetchAiTask
+      .mockRejectedValueOnce(new Error('网络抖动'))
+      .mockResolvedValueOnce(makeDetail({ status: 'closed' }))
+    mocks.fetchAiProposal.mockResolvedValue({
+      content: { items: [], scope: 'active_unassigned' },
+    })
+
+    await store.loadTriage()
+    await vi.advanceTimersByTimeAsync(2100)
+    expect(mocks.fetchAiTask).toHaveBeenCalledTimes(1)
+    // 首轮网络失败不终止轮询，下一轮继续并取到产物
+    await vi.advanceTimersByTimeAsync(2100)
+    expect(mocks.fetchAiTask).toHaveBeenCalledTimes(2)
+    expect(store.triagePollTimer).toBeNull()
+  })
+
+  it('dispose 停掉分诊轮询计时器', async () => {
+    const store = useBugAnalysisStore()
+    mocks.submitAiTask.mockResolvedValue(makeTask({ status: 'running' }))
+    await store.loadTriage()
+    expect(store.triagePollTimer).not.toBeNull()
 
     store.dispose()
-    expect(store.summaryPollTimer).toBeNull()
     expect(store.triagePollTimer).toBeNull()
   })
 })

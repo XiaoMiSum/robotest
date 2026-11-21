@@ -4,8 +4,7 @@ import { useRouter } from 'vue-router'
 import { useBugAnalysisStore } from '@/stores/bugAnalysis'
 import { fetchAiStatus } from '@/services/ai'
 import AnalysisRangePicker from '@/components/project/bug/analysis/AnalysisRangePicker.vue'
-import AiSummaryCard from '@/components/project/bug/analysis/AiSummaryCard.vue'
-import BatchActions from '@/components/project/bug/analysis/BatchActions.vue'
+import DuplicateScanActions from '@/components/project/bug/analysis/DuplicateScanActions.vue'
 import MetricCards from '@/components/project/bug/analysis/MetricCards.vue'
 import TriageQueueCard from '@/components/project/bug/analysis/TriageQueueCard.vue'
 import TrendChart from '@/components/project/bug/analysis/TrendChart.vue'
@@ -57,10 +56,10 @@ function drillToBugs(filters: { severity?: string; bugType?: string }): void {
     <header class="bug-analysis__head">
       <div>
         <h1 class="bug-analysis__title">AI 缺陷分析</h1>
-        <p class="bug-analysis__desc">趋势与质量度量、AI 摘要、分诊建议与存量扫描，范围限于当前项目</p>
+        <p class="bug-analysis__desc">趋势与质量度量、分诊建议与存量重复扫描，范围限于当前项目</p>
       </div>
       <div class="bug-analysis__actions">
-        <BatchActions :ai-available="aiAvailable" @submitted="void 0" />
+        <DuplicateScanActions :ai-available="aiAvailable" @submitted="void 0" />
       </div>
     </header>
 
@@ -103,25 +102,13 @@ function drillToBugs(filters: { severity?: string; bugType?: string }): void {
       :loading="store.metricsLoading"
     />
 
-    <div class="bug-analysis__block bug-analysis__split">
-      <AiSummaryCard
-        class="bug-analysis__summary"
-        :loading="store.summaryLoading"
-        :running="store.summaryRunning"
-        :text="store.summaryText"
-        :citations="store.summaryCitations"
-        :error="store.summaryError"
-        :stale="store.summaryStale"
-        @generate="void store.generateSummary()"
-      />
-      <TriageQueueCard
-        class="bug-analysis__triage"
-        :items="store.triageItems"
-        :loading="store.triageLoading"
-        :error="store.triageError"
-        @refresh="void store.loadTriage()"
-      />
-    </div>
+    <TriageQueueCard
+      class="bug-analysis__block"
+      :items="store.triageItems"
+      :loading="store.triageLoading"
+      :error="store.triageError"
+      @refresh="void store.loadTriage()"
+    />
   </main>
 </template>
 
@@ -155,16 +142,5 @@ function drillToBugs(filters: { severity?: string; bugType?: string }): void {
 
 .bug-analysis__block {
   margin-bottom: var(--block-gap);
-}
-
-.bug-analysis__split {
-  display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: var(--space-md);
-}
-
-.bug-analysis__summary,
-.bug-analysis__triage {
-  min-width: 0;
 }
 </style>

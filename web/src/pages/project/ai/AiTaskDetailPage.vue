@@ -7,7 +7,7 @@ import AiTaskAdoptionResultPanel from '@/components/project/ai/AiTaskAdoptionRes
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
 import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
 import TraceEventList from '@/components/project/ai/TraceEventList.vue'
-import BugClassifyReviewPanel from '@/components/project/bug/BugClassifyReviewPanel.vue'
+import BugDuplicateReviewPanel from '@/components/project/bug/BugDuplicateReviewPanel.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
 import { reviewProfile } from '@/composables/project/ai/reviewProfiles'
 
@@ -198,11 +198,10 @@ function focusReviewArea(): void {
           :class="{ 'task-section--focus': focusReview }"
         >
           <template v-if="showReviewArea">
-            <!-- 缺陷批量分类与存量重复扫描走缺陷审核面板（详设 3.6 / 3.9） -->
-            <BugClassifyReviewPanel
+            <!-- 存量重复扫描走缺陷分组审核面板（详设 3.9） -->
+            <BugDuplicateReviewPanel
               v-if="reviewPanel === 'bug'"
               :task-id="detail.taskId"
-              :task-type="detail.type"
               :proposals="proposals"
               @confirmed="load"
               @leave="backToCenter"

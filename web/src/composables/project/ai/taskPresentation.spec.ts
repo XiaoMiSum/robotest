@@ -109,7 +109,7 @@ describe('taskPresentation', () => {
 
     it('类型筛选选项带能力域后缀', () => {
       const options = aiTaskTypeOptions()
-      expect(options.length).toBeGreaterThanOrEqual(9)
+      expect(options.length).toBe(7)
       expect(options.find((item) => item.value === 'requirement_import')?.label).toBe(
         '需求导入（需求）',
       )
