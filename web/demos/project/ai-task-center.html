@@ -51,7 +51,6 @@
             <select class="select" id="atc-type" style="width:220px" aria-label="任务类型">
               <option value="">全部类型</option>
               <option value="requirement_import">需求导入（需求）</option>
-              <option value="test_design_generation">用例生成（生成链）</option>
               <option value="case_optimize">用例优化（辅助）</option>
               <option value="plan_order">计划排序（辅助）</option>
               <option value="bug_classify">缺陷批量分类（缺陷）</option>
@@ -80,15 +79,6 @@
               <tr><th>任务名</th><th>类型</th><th>状态</th><th>执行摘要</th><th>发起人</th><th>发起时间</th><th>操作</th></tr>
             </thead>
             <tbody>
-              <tr data-page="1" data-status="running" data-type="test_design_generation" data-title="双十一促销下单链路用例生成">
-                <td class="cell-main"><a href="ai-task-detail.html?scene=running">双十一促销下单链路用例生成</a><span class="cell-sub">生成链 · 用例生成</span></td>
-                <td><span class="tag tag--info tag--sm task-type__label">生成链</span><span class="task-type__name">用例生成</span></td>
-                <td><span class="status status--running"><span class="dot"></span>执行中</span></td>
-                <td><div class="progress"><div class="progress__track"><div class="progress__fill progress__fill--brand" style="width:60%"></div></div><span class="progress__text">3/5 步 · 生成用例</span></div></td>
-                <td>李华</td>
-                <td class="num">2026-11-20 09:42</td>
-                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=running">详情</a><span class="op-link op-link--danger" data-op="abort">终止</span></td>
-              </tr>
               <tr data-page="1" data-status="running" data-type="case_optimize" data-title="支付回调幂等用例优化">
                 <td class="cell-main"><a href="ai-task-detail.html?scene=running">支付回调幂等用例优化</a><span class="cell-sub">辅助 · 用例优化</span></td>
                 <td><span class="tag tag--info tag--sm task-type__label">辅助</span><span class="task-type__name">用例优化</span></td>
@@ -151,15 +141,6 @@
                 <td>张明</td>
                 <td class="num">2026-11-17 09:10</td>
                 <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=closed">详情</a></td>
-              </tr>
-              <tr data-page="2" data-status="proposals_ready" data-type="test_design_generation" data-title="库存扣减链路用例生成">
-                <td class="cell-main"><a href="ai-task-detail.html?scene=tree">库存扣减链路用例生成</a><span class="cell-sub">生成链 · 用例生成</span></td>
-                <td><span class="tag tag--info tag--sm task-type__label">生成链</span><span class="task-type__name">用例生成</span></td>
-                <td><span class="status status--warning"><span class="dot"></span>待采纳</span></td>
-                <td><span class="text-light">完成 · 7/7 步</span></td>
-                <td>陈晓</td>
-                <td class="num">2026-11-16 14:50</td>
-                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=tree">详情</a><a class="op-link" href="ai-task-detail.html?scene=tree&amp;review=1">审核</a></td>
               </tr>
               <tr data-page="2" data-status="closed" data-type="assistant_parse" data-title="自然语言需求解析（退款流程）">
                 <td class="cell-main"><a href="ai-task-detail.html?scene=closed">自然语言需求解析（退款流程）</a><span class="cell-sub">助手 · 助手解析</span></td>

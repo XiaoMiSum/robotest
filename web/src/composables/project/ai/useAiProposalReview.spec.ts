@@ -149,11 +149,6 @@ describe('useAiProposalReview', () => {
         moduleId: 'm1',
         priority: 'high',
         sourceRef: 'P3 §2.1',
-        isTestCase: false,
-        parentRef: '',
-        attributes: { priority: '', precondition: '', steps: [], expected: [], tags: [] },
-        sourceRefs: [],
-        suspectedDuplicateOf: '',
       })
       expect(s.loadingContent.value).toBe(false)
 
@@ -303,7 +298,7 @@ describe('useAiProposalReview', () => {
       expect(mocks.confirmAiProposals).toHaveBeenCalledTimes(2)
       expect(mocks.confirmAiProposals.mock.calls[0][1].items).toHaveLength(200)
       expect(mocks.confirmAiProposals.mock.calls[1][1].items).toHaveLength(1)
-      // 分批按传入顺序，保证整树采纳父先子序（1000018210）
+      // 分批按传入顺序，避免后序批次越过前序批次提交
       expect(mocks.confirmAiProposals.mock.calls[1][1].items[0].key).toBe('k200')
     })
 

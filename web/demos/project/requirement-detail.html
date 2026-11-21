@@ -33,9 +33,6 @@
     background: var(--st-warning); border-color: var(--st-warning); color: #fff;
   }
 
-  /* AI 入口的悬浮说明挂在包裹层：禁用按钮不派发鼠标事件 */
-  .tip-wrap { display: inline-flex; }
-
   /* 「更多」下拉：演示稿无 el-dropdown，沿用 api-testing 的浮层菜单范式 */
   .more-wrap { position: relative; display: inline-block; }
   .more-menu {
@@ -612,11 +609,6 @@
     if (status !== 'archived') {
       parts.push('<button class="btn btn--link" type="button" data-act="edit">编辑</button>');
     }
-    var aiDisabled = status !== 'confirmed';
-    parts.push('<span class="tip-wrap" title="' +
-      (aiDisabled ? '仅已确认需求可生成' : '基于该需求生成模块、脑图用例文档与测试用例') + '">' +
-      '<button class="btn btn--default" type="button" data-act="ai"' + (aiDisabled ? ' disabled' : '') + '>AI 生成用例</button></span>');
-
     var life = '';
     if (status === 'draft' || status === 'changed') {
       life += '<button class="btn btn--primary" type="button" data-act="confirm">确认</button>';
@@ -747,7 +739,6 @@
     if (act === 'edit') startEdit();
     else if (act === 'cancel') cancelEdit();
     else if (act === 'save') saveAll();
-    else if (act === 'ai') toast('AI 生成用例：打开生成配置对话框', 'success');
     else if (act === 'confirm') setStatus('confirmed', '需求已确认');
     else if (act === 'archive') {
       askConfirm(

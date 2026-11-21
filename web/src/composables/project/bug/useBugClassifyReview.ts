@@ -229,7 +229,7 @@ export function useBugClassifyReview(
     }
   }
 
-  /** 并发预取未确认行内容（与生成链同口径） */
+  /** 并发预取未确认行内容 */
   async function preloadContents(): Promise<void> {
     const targets = rows.value.filter((row) => row.confirmStatus === 'pending' && !row.loaded)
     let cursor = 0

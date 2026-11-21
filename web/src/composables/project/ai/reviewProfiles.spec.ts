@@ -143,7 +143,6 @@ describe('reviewProfiles', () => {
     })
 
     it('按任务类型指定审核面板形态', () => {
-      expect(reviewProfile('test_design_generation').panel).toBe('tree')
       expect(reviewProfile('bug_classify').panel).toBe('bug')
       expect(reviewProfile('bug_duplicate_scan').panel).toBe('bug')
       expect(reviewProfile('case_optimize').panel).toBe('generic')

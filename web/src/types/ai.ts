@@ -32,10 +32,9 @@ export type AiProposalConfirmStatus =
 /** 提案采纳动作（Constants.AiProposalAction） */
 export type AiProposalAction = 'adopted' | 'adopted_edited' | 'rejected'
 
-/** 任务类型（Constants.AiTaskType，11 类单一事实源） */
+/** 任务类型（Constants.AiTaskType，10 类单一事实源） */
 export type AiTaskType =
   | 'requirement_import'
-  | 'test_design_generation'
   | 'case_optimize'
   | 'mindmap_case_generation'
   | 'plan_order'
@@ -215,46 +214,6 @@ export interface AiProposalConfirmResult {
 
 export interface AiProposalConfirmReceipt {
   results: AiProposalConfirmResult[]
-}
-
-// ==================== 提案内容（生成链详设 3.3–3.5） ====================
-
-/** 来源需求引用；changed 由详情回读比对（详设 4.1） */
-export interface AiProposalSourceRef {
-  requirementId: string
-  quote: string
-  changed: boolean
-}
-
-/** 用例属性（mindmap 详设 4.5 口径，steps 与 expected 成对） */
-export interface AiCaseAttributes {
-  priority: string
-  precondition: string
-  steps: string[]
-  expected: string[]
-  tags: string[]
-}
-
-// ==================== 生成链（生成链详设 3.2 / 3.6） ====================
-
-/** 目标模块落位：新建顶级目录（默认）/ 挂到既有模块节点（须带 targetModuleId） */
-export type AiGenerationPlacement = 'new_top_level' | 'attach'
-
-/** 用例粒度偏好（默认 standard） */
-export type AiGenerationGranularity = 'concise' | 'standard' | 'detailed'
-
-export interface AiGenerationConfig {
-  placement: AiGenerationPlacement
-  targetModuleId?: string
-  granularity: AiGenerationGranularity
-}
-
-/** 发起对话框的生成范围条目（列表行 / 详情条目归一） */
-export interface AiGenerationScopeItem {
-  id: string
-  code: string
-  title: string
-  status: string
 }
 
 // ==================== 辅助建议（辅助功能详设 3.2–3.4） ====================

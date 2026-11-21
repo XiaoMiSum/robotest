@@ -109,7 +109,7 @@ describe('taskPresentation', () => {
 
     it('类型筛选选项带能力域后缀', () => {
       const options = aiTaskTypeOptions()
-      expect(options.length).toBeGreaterThanOrEqual(10)
+      expect(options.length).toBeGreaterThanOrEqual(9)
       expect(options.find((item) => item.value === 'requirement_import')?.label).toBe(
         '需求导入（需求）',
       )
@@ -204,17 +204,17 @@ describe('taskPresentation', () => {
   describe('提案', () => {
     it('按 kind 分组计数并映射中文标签', () => {
       const counts = aiProposalKindCounts([
-        { kind: 'module_suggestion' },
-        { kind: 'module_suggestion' },
-        { kind: 'mindmap_document_suggestion' },
+        { kind: 'requirement_suggestion' },
+        { kind: 'requirement_suggestion' },
+        { kind: 'case_optimize_suggestion' },
         { kind: 'custom_kind' },
       ])
       expect(counts).toEqual([
-        { kind: 'module_suggestion', label: '模块', count: 2 },
-        { kind: 'mindmap_document_suggestion', label: '文档', count: 1 },
+        { kind: 'requirement_suggestion', label: '需求建议', count: 2 },
+        { kind: 'case_optimize_suggestion', label: '用例优化', count: 1 },
         { kind: 'custom_kind', label: 'custom_kind', count: 1 },
       ])
-      expect(aiProposalKindLabel('test_case_suggestion')).toBe('用例')
+      expect(aiProposalKindLabel('custom_kind')).toBe('custom_kind')
       expect(aiProposalKindLabel('case_optimize_suggestion')).toBe('用例优化')
     })
 

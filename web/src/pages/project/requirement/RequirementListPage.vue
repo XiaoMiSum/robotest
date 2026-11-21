@@ -3,12 +3,10 @@ import { computed, ref } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
-import type { AiGenerationScopeItem } from '@/types'
 import {
   canConfirmRequirement,
   type RequirementRow,
 } from '@/composables/project/requirement/requirementPresentation'
-import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
 import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
@@ -49,11 +47,7 @@ const {
   canCreate,
   canConfirm,
   canEdit,
-  canLaunchAi,
   aiAvailable,
-  selectedRows,
-  handleSelectionChange,
-  load,
   retry,
   search,
   resetFilters,
@@ -76,27 +70,9 @@ const cardBodyStyle: CSSProperties = {
   minHeight: '0',
 }
 
-// ==================== AI 生成发起 ====================
-const generationDialogVisible = ref(false)
-
 /** 导入经任务框架执行，AI 总开关关闭或未配模型时入口隐藏（总册 4.5） */
 const importDialogVisible = ref(false)
 const canImport = computed(() => canCreate.value && aiAvailable.value)
-
-/** 已选行归一为发起范围条目（草稿 / 已变更 / 已归档在对话框内置灰） */
-const aiScope = computed<AiGenerationScopeItem[]>(() =>
-  selectedRows.value.map((row) => ({
-    id: row.id,
-    code: row.code,
-    title: row.title,
-    status: row.status,
-  })),
-)
-
-function openGeneration(): void {
-  if (selectedRows.value.length === 0) return
-  generationDialogVisible.value = true
-}
 
 const statusOptions = [
   { value: 'draft', label: '草稿' },
@@ -134,20 +110,9 @@ function openCreate(): void {
     <header class="page-head">
       <div>
         <h1 class="page-head__title">需求列表</h1>
-        <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
+        <p class="page-head__desc">沉淀项目需求，驱动用例设计</p>
       </div>
       <div class="page-head__actions">
-        <el-tooltip
-          v-if="canLaunchAi"
-          :content="selectedRows.length > 0 ? '对已选需求生成模块、脑图用例文档与测试用例' : '请先勾选需求'"
-          placement="bottom"
-        >
-          <span>
-            <el-button :disabled="selectedRows.length === 0" @click="openGeneration">
-              <el-icon><MagicStick /></el-icon>AI 生成用例
-            </el-button>
-          </span>
-        </el-tooltip>
         <el-button v-if="canImport" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>导入需求
         </el-button>
@@ -277,10 +242,7 @@ function openCreate(): void {
         class="requirement-list__table"
         :data="rows"
         row-key="id"
-        @selection-change="handleSelectionChange"
       >
-        <!-- 选择列服务 AI 发起（交互 2.1），入口隐藏时无消费方不渲染 -->
-        <el-table-column v-if="canLaunchAi" type="selection" width="36" />
         <el-table-column v-if="visibleKeys.includes('code')" label="编号" width="110">
           <template #default="{ row }">
             <span class="requirement-list__code">{{ row.code }}</span>
@@ -374,12 +336,6 @@ function openCreate(): void {
       />
     </el-card>
 
-    <GenerationConfigDialog
-      v-model="generationDialogVisible"
-      :requirements="aiScope"
-      :module-tree="moduleTree"
-      @stale="load"
-    />
     <RequirementImportDialog v-model="importDialogVisible" />
   </main>
 </template>

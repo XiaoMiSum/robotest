@@ -65,10 +65,6 @@
 
   .case-steps { margin: 8px 0; padding-left: 20px; }
   .case-step { margin-bottom: 4px; }
-  .case-step__expected { display: block; color: var(--n-500); }
-  .case-label { margin-right: 6px; color: var(--n-500); font-size: var(--font-size-xs); font-weight: 600; }
-  .source-button { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 0; background: none; border: none; color: var(--brand-500); cursor: pointer; font-size: var(--font-size-sm); text-align: left; }
-  .source-button__quote { flex: 1; min-width: 0; overflow: hidden; color: var(--n-700); text-overflow: ellipsis; white-space: nowrap; }
 
   .order-list { margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--n-200); border-radius: var(--radius-sm); list-style: none; }
   .order-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: var(--font-size-sm); }
@@ -117,7 +113,6 @@
       <div class="scene-switcher">
         <span class="muted">演示场景</span>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="import">需求导入 · 待采纳</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="tree">用例生成 · 待采纳</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="readonly">用例优化 · 只读预览</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="plan">计划排序 · 待采纳</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="running">执行中</button>
@@ -184,15 +179,6 @@
               </div>
             </header>
             <div id="dt-import-cards"></div>
-          </div>
-
-          <!-- 生成链审核：模块 → 文档 → 用例顺序落库，整树采纳沿用同一确认入口 -->
-          <div class="review-scene" data-scene="tree" hidden>
-            <header class="review-head">
-              <div class="review-head__main"><h2 class="section-title">测试设计产物审核</h2><span class="muted" id="dt-tree-progress">已处理 0 / 共 5</span></div>
-              <span class="muted">采纳按模块 → 文档 → 用例顺序落库，可整树采纳</span>
-            </header>
-            <div id="dt-tree-cards"></div>
           </div>
 
           <!-- 只读策略照常展示结构化预览，不给采纳/驳回入口，也不展示权限提示 -->
@@ -300,7 +286,7 @@
   </div>
 </main>
 
-<!-- 编辑后采纳：字段由任务类型策略给出；静态稿按 通用 / 生成树 两种形态复用同一弹层 -->
+<!-- 编辑后采纳：字段由任务类型策略给出；静态稿按通用形态复用同一弹层 -->
 <div class="dialog-mask" id="dt-edit-dialog" data-mask-close hidden>
   <div class="dialog" style="width:640px">
     <div class="dialog__header"><span class="dialog__title" id="dt-edit-title">修改后采纳</span><button class="dialog__close" data-close="dt-edit-dialog" aria-label="关闭"><span data-icon="x"></span></button></div>
@@ -357,15 +343,6 @@
       counts: [['需求建议', 3], ['模块', 1]],
       trace: [['计划', '生成 4 步执行计划', '10:12:03'], ['AI 决策', '按段落拆分需求条目', '10:12:11'], ['工具调用', 'document.parse', '10:12:15'], ['产出提案', '需求建议 ×3', '10:12:22'], ['状态变更', 'running → proposals_ready', '10:12:23']]
     },
-    tree: {
-      title: '库存扣减链路用例生成', status: '待采纳', statusTag: 'tag--warning', adoption: '',
-      meta: '类型 用例生成（生成链） · 发起人 陈晓 · 发起时间 2026-11-20 11:04',
-      exec: '已成功', execTag: 'tag--success', steps: 7, max: 7, seq: 1,
-      terminate: '', poll: '任务处于待采纳，详情页已停止轮询',
-      plan: [['识别模块与文档', 'done'], ['拆解测试点', 'done'], ['生成用例树', 'done'], ['等待人工确认', 'current']],
-      counts: [['模块', 1], ['文档', 2], ['用例', 5]],
-      trace: [['计划', '生成 4 步执行计划', '11:04:01'], ['AI 决策', '按库存链路拆模块', '11:04:09'], ['产出提案', '模块 ×1 / 文档 ×2 / 用例 ×5', '11:04:26'], ['状态变更', 'running → proposals_ready', '11:04:27']]
-    },
     readonly: {
       title: '优惠券边界用例优化建议', status: '待采纳', statusTag: 'tag--warning', adoption: '',
       meta: '类型 用例优化（辅助） · 发起人 王芳 · 发起时间 2026-11-19 11:05',
@@ -385,13 +362,13 @@
       trace: [['计划', '生成 3 步执行计划', '17:32:04'], ['AI 决策', '按依赖调整执行顺序', '17:32:12'], ['产出提案', '排序建议 ×1', '17:32:20'], ['状态变更', 'running → proposals_ready', '17:32:21']]
     },
     running: {
-      title: '双十一促销下单链路用例生成', status: '执行中', statusTag: 'tag--warning', adoption: '',
-      meta: '类型 用例生成（生成链） · 发起人 李华 · 发起时间 2026-11-20 09:42',
+      title: '支付回调幂等用例优化', status: '执行中', statusTag: 'tag--warning', adoption: '',
+      meta: '类型 用例优化（辅助） · 发起人 李华 · 发起时间 2026-11-20 09:42',
       exec: '执行中', execTag: 'tag--warning', steps: 3, max: 5, seq: 2,
       terminate: '', poll: '',
-      plan: [['识别模块与文档', 'done'], ['拆解测试点', 'done'], ['生成用例树', 'current'], ['写入提案清单', 'pending'], ['等待人工确认', 'pending']],
-      counts: [['模块', 1], ['文档', 2]],
-      trace: [['计划', '生成 5 步执行计划', '09:42:05'], ['AI 决策', '按促销链路拆文档', '09:42:14'], ['工具调用', 'module.list', '09:42:19'], ['工具结果', '返回 3 个模块', '09:42:20']]
+      plan: [['读取脑图节点', 'done'], ['分析幂等边界', 'done'], ['生成节点优化建议', 'current'], ['写入提案清单', 'pending'], ['等待人工确认', 'pending']],
+      counts: [['用例优化', 3]],
+      trace: [['计划', '生成 5 步执行计划', '09:42:05'], ['AI 决策', '按回调链路分析边界', '09:42:14'], ['工具调用', 'mindmap.readNodes', '09:42:19'], ['工具结果', '返回 3 个用例节点', '09:42:20']]
     },
     aborted: {
       title: '向量索引重建（商品库）', status: '已终止', statusTag: 'tag--danger', adoption: '',
@@ -434,17 +411,6 @@
         { label: '过期判定', existing: '自然日 23:59', suggested: '服务端时区 23:59:59', changed: true },
         { label: '时区口径', existing: '未定义', suggested: 'Asia/Shanghai', changed: true }
       ], sources: [{ id: 'REQ-24118', quote: '优惠券有效期至自然日结束' }] }
-  ];
-
-  var treeRows = [
-    { key: 't1', kind: '模块', title: '库存扣减链路', status: 'pending', level: 0, priority: '', children: 2, duplicate: false, stale: false, desc: '覆盖库存查询、预扣与回滚主链路。', steps: [], sources: [] },
-    { key: 't2', kind: '文档', title: '预扣库存', status: 'pending', level: 1, priority: '', children: 2, duplicate: false, stale: true, desc: '文档聚合预扣相关测试点。', steps: [], sources: [{ id: 'REQ-24092', quote: '下单时预扣库存，支付失败后回滚' }] },
-    { key: 't3', kind: '用例', title: '并发预扣库存不超卖', status: 'pending', level: 2, priority: 'high', children: 0, duplicate: true, stale: true,
-      desc: '并发下单场景下预扣库存不得超卖。', precondition: '商品 A 可售库存 1 件', steps: [['并发提交 10 个下单请求', '仅 1 个请求预扣成功']], sources: [{ id: 'REQ-24092', quote: '库存不得为负，预扣需原子化' }] },
-    { key: 't4', kind: '用例', title: '支付失败回滚库存', status: 'pending', level: 2, priority: 'medium', children: 0, duplicate: false, stale: false,
-      desc: '支付失败后预扣库存应回滚。', precondition: '已预扣 1 件库存', steps: [['模拟支付回调失败', '库存恢复为预扣前数量']], sources: [{ id: 'REQ-24092', quote: '支付失败后回滚预占库存' }] },
-    { key: 't5', kind: '用例', title: '库存查询缓存一致性', status: 'pending', level: 2, priority: 'low', children: 0, duplicate: false, stale: false,
-      desc: '扣减后缓存与数据库库存一致。', precondition: '查询接口命中缓存', steps: [['完成一次成功扣减', '缓存与数据库均为最新库存']], sources: [] }
   ];
 
   var orderItems = [
@@ -495,10 +461,6 @@
     return html + '</div>';
   }
 
-  function priorityLabel(value) {
-    return ({ high: 'P0·高', medium: 'P1·中', low: 'P2·低' })[value] || value || '';
-  }
-
   function renderImport() {
     var pending = importRows.filter(function (row) { return row.status === 'pending'; });
     var done = importRows.length - pending.length;
@@ -529,49 +491,6 @@
       '<button class="btn btn--link" type="button" data-review-action="edit" data-row-key="' + row.key + '">修改后采纳</button>' +
       '<button class="btn btn--link" type="button" data-review-action="reject" data-row-key="' + row.key + '">驳回（可附反馈）</button></div></div>';
     host.innerHTML = html;
-  }
-
-  function renderTree() {
-    var pending = treeRows.filter(function (row) { return row.status === 'pending'; });
-    byId('dt-tree-progress').textContent = processedText(treeRows.length - pending.length, treeRows.length);
-    var host = byId('dt-tree-cards');
-    if (pending.length === 0) {
-      var allRejected = treeRows.every(function (row) { return row.status === 'rejected'; });
-      host.innerHTML = '<div class="review-empty">' + (allRejected ? '已全部驳回，未创建任何数据' : '待处理产物已全部审核完成') +
-        '<a class="btn btn--primary" href="ai-task-center.html">返回任务中心</a></div>';
-      return;
-    }
-    var row = pending[0];
-    var html = '<div class="review-card"><div class="review-card__head">' +
-      '<span class="review-card__kind">' + esc(row.kind) + '</span><span class="review-card__name">' + esc(row.title) + '</span>' +
-      (row.level === 0 ? '<span class="tag tag--sm tag--neutral">顶级目录</span>' : row.level === 1 ? '<span class="tag tag--sm tag--neutral">文档</span>' : '') +
-      (row.priority ? '<span class="tag tag--sm">' + priorityLabel(row.priority) + '</span>' : '') + '</div><div class="review-card__body">';
-    if (row.duplicate) html += '<div class="alert alert--danger review-card__alert">疑似与既有数据重复：修改后采纳（改名）或驳回，直接采纳将被拒绝</div>';
-    if (row.stale) html += '<div class="alert alert--warning review-card__alert">来源需求已变更，采纳前请核对需求原文</div>';
-    html += '<p>' + esc(row.desc) + '</p>';
-    if (row.precondition) html += '<p><span class="case-label">前置条件</span>' + esc(row.precondition) + '</p>';
-    if (row.steps.length) {
-      html += '<ol class="case-steps">';
-      row.steps.forEach(function (step, index) {
-        html += '<li class="case-step"><span class="case-label">步骤 ' + (index + 1) + '</span>' + esc(step[0]) +
-          '<span class="case-step__expected">预期：' + esc(step[1]) + '</span></li>';
-      });
-      html += '</ol>';
-    }
-    if (row.sources.length) {
-      html += '<div class="review-sources"><span class="case-label">来源需求</span>';
-      row.sources.forEach(function (source) {
-        html += '<button class="source-button" type="button"><span data-icon="link"></span><span class="source-button__quote">' + esc(source.quote || '查看需求原文') + '</span></button>';
-      });
-      html += '</div>';
-    }
-    html += '</div><div class="review-actions">' +
-      '<button class="btn btn--link" type="button" data-tree-action="adopt" data-row-key="' + row.key + '">采纳</button>' +
-      (row.children > 0 ? '<button class="btn btn--link" type="button" data-tree-action="subtree" data-row-key="' + row.key + '">整树采纳</button>' : '') +
-      '<button class="btn btn--link" type="button" data-tree-action="edit" data-row-key="' + row.key + '">修改后采纳</button>' +
-      '<button class="btn btn--link" type="button" data-tree-action="reject" data-row-key="' + row.key + '">驳回（可附反馈）</button></div></div>';
-    host.innerHTML = html;
-    window.RTIcons.hydrate(host);
   }
 
   function renderOrderDiff() {
@@ -682,7 +601,6 @@
         : '';
 
     if (name === 'import') renderImport();
-    if (name === 'tree') renderTree();
     if (name === 'plan') renderOrder();
   }
 
@@ -808,33 +726,6 @@
       return;
     }
 
-    var treeAction = e.target.closest('[data-tree-action]');
-    if (treeAction) {
-      var node = treeRows.find(function (item) { return item.key === treeAction.getAttribute('data-row-key'); });
-      if (!node) return;
-      var kind = treeAction.getAttribute('data-tree-action');
-      if (kind === 'adopt' || kind === 'subtree') {
-        if (kind === 'subtree') {
-          treeRows.forEach(function (item) { if (item.status === 'pending') item.status = 'adopted'; });
-        } else {
-          node.status = 'adopted';
-        }
-        renderTree();
-        window.RTUX.toast('确认完成', { type: 'success' });
-      } else if (kind === 'edit') {
-        openEditDialog('修改后采纳', [
-          { key: 'name', label: '名称', type: 'text', value: node.title, required: true, maxlength: 300 },
-          { key: 'priority', label: '优先级', type: 'select', value: node.priority || 'medium', options: ['high', 'medium', 'low'] },
-          { key: 'precondition', label: '前置条件', type: 'textarea', value: node.precondition || '' },
-          { key: 'steps', label: '步骤（每行一步）', type: 'textarea', value: (node.steps || []).map(function (step) { return step[0]; }).join('\n') },
-          { key: 'expected', label: '预期（每行一条）', type: 'textarea', value: (node.steps || []).map(function (step) { return step[1]; }).join('\n') }
-        ], 'AI 建议原值：' + node.title, { kind: 'tree', key: node.key });
-      } else {
-        openRejectDialog({ kind: 'tree', key: node.key });
-      }
-      return;
-    }
-
     var move = e.target.closest('[data-order-move]');
     if (move && !planApplied) {
       var index = Number(move.getAttribute('data-index'));
@@ -867,25 +758,15 @@
   byId('dt-edit-ok').addEventListener('click', function () {
     if (!editTarget) return;
     var values = editValues();
-    if (editTarget.kind === 'import') {
-      var row = importRows.find(function (item) { return item.key === editTarget.key; });
-      if (row) {
-        row.title = values.title || row.title;
-        row.desc = values.description || row.desc;
-        row.module = values.moduleId || row.module;
-        row.priority = values.priority || row.priority;
-        row.status = 'adopted_edited';
-      }
-      renderImport();
-    } else {
-      var node = treeRows.find(function (item) { return item.key === editTarget.key; });
-      if (node) {
-        node.title = values.name || node.title;
-        node.priority = values.priority || node.priority;
-        node.status = 'adopted_edited';
-      }
-      renderTree();
+    var row = importRows.find(function (item) { return item.key === editTarget.key; });
+    if (row) {
+      row.title = values.title || row.title;
+      row.desc = values.description || row.desc;
+      row.module = values.moduleId || row.module;
+      row.priority = values.priority || row.priority;
+      row.status = 'adopted_edited';
     }
+    renderImport();
     byId('dt-edit-dialog').hidden = true;
     editTarget = null;
     window.RTUX.toast('确认完成', { type: 'success' });
@@ -897,13 +778,12 @@
   byId('dt-reject-ok').addEventListener('click', function () {
     if (!rejectTarget) return;
     var note = byId('dt-reject-note').value.trim();
-    var rows = rejectTarget.kind === 'import' ? importRows : treeRows;
-    var row = rows.find(function (item) { return item.key === rejectTarget.key; });
+    var row = importRows.find(function (item) { return item.key === rejectTarget.key; });
     if (row) { row.status = 'rejected'; row.note = note; }
-    if (rejectTarget.kind === 'import') renderImport(); else renderTree();
+    renderImport();
     byId('dt-reject-dialog').hidden = true;
     rejectTarget = null;
-    var allRejected = rows.every(function (item) { return item.status === 'rejected'; });
+    var allRejected = importRows.every(function (item) { return item.status === 'rejected'; });
     window.RTUX.toast(allRejected ? '已全部驳回，未创建任何数据' : '确认完成', { type: 'success' });
   });
 

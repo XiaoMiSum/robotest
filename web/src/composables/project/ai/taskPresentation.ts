@@ -76,7 +76,6 @@ export interface AiTaskTypeMeta {
 /** 任务类型 → 中文名与能力域（详设 3.6.1 枚举） */
 export const AI_TASK_TYPE_META: Record<string, AiTaskTypeMeta> = {
   requirement_import: { label: '需求导入', domain: '需求' },
-  test_design_generation: { label: '用例生成', domain: '生成链' },
   case_optimize: { label: '用例优化', domain: '辅助' },
   plan_order: { label: '计划排序', domain: '辅助' },
   bug_classify: { label: '缺陷批量分类', domain: '缺陷' },
@@ -211,9 +210,6 @@ export function aiTraceEventLabel(eventType: string): string {
 /** 提案 kind → 中文标签（详设 3.6.1 提案 kind 列） */
 const PROPOSAL_KIND_LABEL: Record<string, string> = {
   requirement_suggestion: '需求建议',
-  module_suggestion: '模块',
-  mindmap_document_suggestion: '文档',
-  test_case_suggestion: '用例',
   case_optimize_suggestion: '用例优化',
   order_suggestion: '排序建议',
   classify_suggestion: '分类建议',

@@ -3,12 +3,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { confirmAiProposals, fetchAiProposal } from '@/services/ai'
 import { fetchProjectModuleTree } from '@/services/project'
 import type {
-  AiCaseAttributes,
   AiProposalAction,
   AiProposalConfirmItem,
   AiProposalConfirmResult,
   AiProposalConfirmTarget,
-  AiProposalSourceRef,
   AiTaskProposalSummary,
   ProjectModule,
 } from '@/types'
@@ -22,10 +20,10 @@ import {
   type ProposalParsed,
 } from '@/composables/project/ai/reviewProfiles'
 
-/** 单次确认上限（详设 3.6.5 items @Size(max=200)），超限按父先子序分批顺序提交 */
+/** 单次确认上限（详设 3.6.5 items @Size(max=200)），超限分批顺序提交 */
 const CONFIRM_MAX_ITEMS = 200
 const NOTE_MAX_LENGTH = 500
-/** 预取提案内容的并发上限，避免长提案树打爆同域连接 */
+/** 预取提案内容的并发上限，避免长提案列表打爆同域连接 */
 const PRELOAD_CONCURRENCY = 6
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -56,38 +54,6 @@ function readString(source: Record<string, unknown>, key: string): string {
   return typeof value === 'string' ? value : ''
 }
 
-function readStringList(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return []
-  return raw.filter((item): item is string => typeof item === 'string')
-}
-
-/** attributes 结构不定型（生成链阶段 5），缺字段回退空值而非猜测 */
-function readAttributes(raw: unknown): AiCaseAttributes {
-  const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
-  return {
-    priority: readString(source, 'priority'),
-    precondition: readString(source, 'precondition'),
-    steps: readStringList(source['steps']),
-    expected: readStringList(source['expected']),
-    tags: readStringList(source['tags']),
-  }
-}
-
-function readSourceRefs(raw: unknown): AiProposalSourceRef[] {
-  if (!Array.isArray(raw)) return []
-  const refs: AiProposalSourceRef[] = []
-  for (const item of raw) {
-    if (typeof item !== 'object' || item === null) continue
-    const source = item as Record<string, unknown>
-    refs.push({
-      requirementId: readString(source, 'requirementId'),
-      quote: readString(source, 'quote'),
-      changed: source['changed'] === true,
-    })
-  }
-  return refs
-}
-
 /** 提案内容（提案详情 content 结构不定型，按需取字段，缺省回退摘要标题） */
 export interface AiProposalContent {
   title: string
@@ -95,16 +61,6 @@ export interface AiProposalContent {
   moduleId: string
   priority: string
   sourceRef: string
-  /** 生成链：是否用例节点（false 为分组节点） */
-  isTestCase: boolean
-  /** 生成链：文档内父节点引用（空为挂根，详设 3.3 层级约束） */
-  parentRef: string
-  /** 生成链：用例属性（非用例节点为默认空值） */
-  attributes: AiCaseAttributes
-  /** 生成链：来源需求引用（含回读比对的 changed 标注） */
-  sourceRefs: AiProposalSourceRef[]
-  /** 生成链：疑似重复指向的既有资源 ID，非空时仅改名后可采纳 */
-  suspectedDuplicateOf: string
 }
 
 const EMPTY_CONTENT: AiProposalContent = {
@@ -113,11 +69,6 @@ const EMPTY_CONTENT: AiProposalContent = {
   moduleId: '',
   priority: '',
   sourceRef: '',
-  isTestCase: false,
-  parentRef: '',
-  attributes: { priority: '', precondition: '', steps: [], expected: [], tags: [] },
-  sourceRefs: [],
-  suspectedDuplicateOf: '',
 }
 
 /** 审核行：提案摘要 + 派生展示字段与已加载内容 */
@@ -228,19 +179,13 @@ export function useAiProposalReview(
       const raw = payload.content ?? {}
       row.rawContent = raw
       row.parsed = profile.value.parse(raw, row.title || '')
-      const attributes = readAttributes(raw['attributes'])
       row.content = {
-        // 模块 / 文档用 name、用例用 title（生成链 3.3），缺省回退摘要标题
+        // 不同任务以 title 或 name 表示标题，缺省回退摘要标题
         title: readString(raw, 'title') || readString(raw, 'name') || row.title || '',
         description: readString(raw, 'description'),
         moduleId: readString(raw, 'moduleId'),
-        priority: readString(raw, 'priority') || attributes.priority,
+        priority: readString(raw, 'priority'),
         sourceRef: readString(raw, 'sourceRef'),
-        isTestCase: raw['isTestCase'] === true,
-        parentRef: readString(raw, 'parentRef'),
-        attributes,
-        sourceRefs: readSourceRefs(raw['sourceRefs']),
-        suspectedDuplicateOf: readString(raw, 'suspectedDuplicateOf'),
       }
       row.contentLoaded = true
     } catch (err) {
@@ -270,10 +215,7 @@ export function useAiProposalReview(
   }
 
   // ==================== 确认动作 ====================
-  /**
-   * 批量确认：items 超过单次上限时按传入顺序分批顺序提交（生成链整树采纳
-   * 依赖父先子序，前序批次落库后后续批次才能通过父级校验，1000018210）。
-   */
+  /** 批量确认：items 超过单次上限时分批顺序提交，前序批次落库后再提交后续批次 */
   async function submitItems(
     items: AiProposalConfirmItem[],
     target?: AiProposalConfirmTarget,
@@ -393,7 +335,7 @@ export function useAiProposalReview(
     }
   }
 
-  /** 并发预取未确认提案内容：生成链树需要行内展示属性徽标与来源警示 */
+  /** 并发预取未确认提案内容，避免长提案列表串行加载 */
   async function preloadContents(): Promise<void> {
     const targets = rows.value.filter(
       (row) => row.confirmStatus === 'pending' && !row.contentLoaded,

@@ -41,11 +41,6 @@ function row(overrides: Partial<ProposalRow> = {}): ProposalRow {
       moduleId: '',
       priority: '',
       sourceRef: '',
-      isTestCase: false,
-      parentRef: '',
-      attributes: { priority: '', precondition: '', steps: [], expected: [], tags: [] },
-      sourceRefs: [],
-      suspectedDuplicateOf: '',
     },
     ...overrides,
   }
@@ -59,32 +54,6 @@ function mountDetail(item: ProposalRow, taskType: string): ReturnType<typeof mou
 }
 
 describe('AiProposalDetailView', () => {
-  it('生成链展示用例属性、来源引用并可跳转需求原文', async () => {
-    const item = row({
-      content: {
-        ...row().content,
-        isTestCase: true,
-        priority: 'medium',
-        attributes: {
-          priority: 'medium',
-          precondition: '已注册',
-          steps: ['输入账号'],
-          expected: ['进入首页'],
-          tags: ['登录'],
-        },
-        sourceRefs: [{ requirementId: 'r1', quote: '支持登录', changed: false }],
-      },
-    })
-    const wrapper = mountDetail(item, 'test_design_generation')
-
-    expect(wrapper.text()).toContain('P1·中')
-    expect(wrapper.text()).toContain('已注册')
-    expect(wrapper.text()).toContain('输入账号')
-    expect(wrapper.text()).toContain('进入首页')
-    await wrapper.find('.el-link').trigger('click')
-    expect(push).toHaveBeenCalledWith('/workspace/projects/requirements/r1')
-  })
-
   it('通用任务展示解析字段并渲染警示', () => {
     const item = row({
       parsed: {

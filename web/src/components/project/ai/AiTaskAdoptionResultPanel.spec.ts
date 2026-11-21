@@ -127,36 +127,6 @@ describe('AiTaskAdoptionResultPanel', () => {
     expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(2)
   })
 
-  it('生成链任务展开展示用例步骤、预期与来源需求', async () => {
-    mocks.fetchAiProposal.mockResolvedValue({
-      content: {
-        title: '登录用例',
-        isTestCase: true,
-        attributes: {
-          priority: 'high',
-          precondition: '已注册',
-          steps: ['输入账号', '点击登录'],
-          expected: ['展示首页', '跳转成功'],
-          tags: ['登录'],
-        },
-        sourceRefs: [{ requirementId: 'r1', quote: '支持账号登录', changed: true }],
-      },
-    })
-    const wrapper = mountPanel(
-      [proposal({ kind: 'test_case_suggestion', title: '登录用例' })],
-      'test_design_generation',
-    )
-
-    await wrapper.find('.el-collapse-item__header').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('步骤 1')
-    expect(wrapper.text()).toContain('输入账号')
-    expect(wrapper.text()).toContain('预期：跳转成功')
-    expect(wrapper.text()).toContain('支持账号登录')
-    expect(wrapper.text()).toContain('来源需求已变更')
-    expect(wrapper.find('.adoption-detail__source .el-link').exists()).toBe(true)
-  })
-
   it('明细为空时展示暂无明细', async () => {
     mocks.fetchAiProposal.mockResolvedValue({ content: {} })
     const wrapper = mountPanel([proposal()])

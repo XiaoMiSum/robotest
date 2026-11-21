@@ -209,7 +209,7 @@ const adoptDisabledReason = computed(() => {
 })
 
 const canAdoptActive = computed(() => adoptDisabledReason.value === '')
-/** 置灰原因可见展示（同 AiScopeCheckList 口径），不依赖悬浮才能读到 */
+/** 置灰原因可见展示，不依赖悬浮才能读到 */
 const disabledReason = computed(() => adoptDisabledReason.value)
 const canReject = computed(
   () =>

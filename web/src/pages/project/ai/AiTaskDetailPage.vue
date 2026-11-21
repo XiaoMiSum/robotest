@@ -5,7 +5,6 @@ import { formatDateTime } from '@/utils/format'
 import AiProposalReviewPanel from '@/components/project/ai/AiProposalReviewPanel.vue'
 import AiTaskAdoptionResultPanel from '@/components/project/ai/AiTaskAdoptionResultPanel.vue'
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
-import GenerationArtifactTreeReview from '@/components/project/ai/GenerationArtifactTreeReview.vue'
 import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
 import TraceEventList from '@/components/project/ai/TraceEventList.vue'
 import BugClassifyReviewPanel from '@/components/project/bug/BugClassifyReviewPanel.vue'
@@ -199,17 +198,9 @@ function focusReviewArea(): void {
           :class="{ 'task-section--focus': focusReview }"
         >
           <template v-if="showReviewArea">
-            <!-- 生成链走三层树审核，其余任务沿用通用审核面板 -->
-            <GenerationArtifactTreeReview
-              v-if="reviewPanel === 'tree'"
-              :task-id="detail.taskId"
-              :proposals="proposals"
-              @confirmed="load"
-              @leave="backToCenter"
-            />
             <!-- 缺陷批量分类与存量重复扫描走缺陷审核面板（详设 3.6 / 3.9） -->
             <BugClassifyReviewPanel
-              v-else-if="reviewPanel === 'bug'"
+              v-if="reviewPanel === 'bug'"
               :task-id="detail.taskId"
               :task-type="detail.type"
               :proposals="proposals"

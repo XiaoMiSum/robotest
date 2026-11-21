@@ -58,14 +58,13 @@ export interface ProposalParsed {
   editValues: Record<string, unknown>
 }
 
-/** 审核面板形态：生成链三层树、缺陷批量分类专用面板、其余通用面板 */
-export type ProposalReviewPanelKind = 'generic' | 'tree' | 'bug'
+/** 审核面板形态：缺陷批量分类专用面板、其余通用面板 */
+export type ProposalReviewPanelKind = 'generic' | 'bug'
 
 export interface ProposalReviewProfile {
   taskType: string
   title: string
   panel: ProposalReviewPanelKind
-  tree: boolean
   allowAdopt: boolean
   allowEdit: boolean
   allowReject: boolean
@@ -119,7 +118,6 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
     taskType,
     title,
     panel: 'generic',
-    tree: false,
     allowAdopt: true,
     allowEdit: true,
     allowReject: true,
@@ -170,7 +168,6 @@ const planOrderProfile: ProposalReviewProfile = {
   taskType: 'plan_order',
   title: '执行顺序审核',
   panel: 'generic',
-  tree: false,
   allowAdopt: true,
   allowEdit: true,
   allowReject: true,
@@ -219,7 +216,6 @@ function readonlyProfile(taskType: string, title: string): ProposalReviewProfile
     taskType,
     title,
     panel: 'generic',
-    tree: false,
     allowAdopt: false,
     allowEdit: false,
     allowReject: false,
@@ -279,17 +275,15 @@ const mindmapCaseGenerationProfile: ProposalReviewProfile = {
   },
 }
 
-/** 生成链与缺陷批量分类走专用面板，注册表仅登记其分发与树形态 */
+/** 缺陷批量分类走专用面板，注册表仅登记其分发 */
 function specializedProfile(
   taskType: string,
   title: string,
   panel: ProposalReviewPanelKind,
-  tree: boolean,
 ): ProposalReviewProfile {
   return {
     ...readonlyProfile(taskType, title),
     panel,
-    tree,
     allowAdopt: true,
     allowEdit: true,
     allowReject: true,
@@ -303,9 +297,8 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   case_optimize: caseOptimizeProfile,
   mindmap_case_generation: mindmapCaseGenerationProfile,
   plan_order: planOrderProfile,
-  test_design_generation: specializedProfile('test_design_generation', '用例生成', 'tree', true),
-  bug_classify: specializedProfile('bug_classify', '缺陷批量分类', 'bug', false),
-  bug_duplicate_scan: specializedProfile('bug_duplicate_scan', '重复缺陷扫描', 'bug', false),
+  bug_classify: specializedProfile('bug_classify', '缺陷批量分类', 'bug'),
+  bug_duplicate_scan: specializedProfile('bug_duplicate_scan', '重复缺陷扫描', 'bug'),
   bug_triage: readonlyProfile('bug_triage', '缺陷分诊结果'),
   bug_trend_summary: readonlyProfile('bug_trend_summary', '缺陷趋势总结'),
   assistant_parse: readonlyProfile('assistant_parse', '助手解析结果'),

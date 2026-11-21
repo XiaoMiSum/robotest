@@ -5,8 +5,7 @@ import type { TabPaneName } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
-import GenerationConfigDialog from '@/components/project/ai/GenerationConfigDialog.vue'
-import type { AiGenerationScopeItem, RequirementPriority } from '@/types'
+import type { RequirementPriority } from '@/types'
 import {
   requirementChangeLines,
   requirementChangeTypeLabel,
@@ -52,26 +51,8 @@ const {
   handleConfirm,
   handleArchive,
   handleUnarchive,
-  canLaunchGeneration,
-  load,
   retry,
 } = useRequirementDetail()
-
-// ==================== AI 生成发起 ====================
-const generationDialogVisible = ref(false)
-
-const generationScope = computed<AiGenerationScopeItem[]>(() =>
-  detail.value
-    ? [
-        {
-          id: detail.value.id,
-          code: detail.value.code,
-          title: detail.value.title,
-          status: detail.value.status,
-        },
-      ]
-    : [],
-)
 
 const statusMeta = computed(() =>
   detail.value ? requirementStatusMeta(detail.value.status) : null,
@@ -91,16 +72,13 @@ function onSideTabChange(name: TabPaneName): void {
   if (name === 'logs') ensureLogs()
 }
 
-// ==================== 操作区分组（按频次：编辑 │ AI 生成 │ 生命周期） ====================
+// ==================== 操作区分组（按频次：编辑 │ 生命周期） ====================
 const showEditEntry = computed(() => Boolean(detail.value) && canEdit.value && !isReadonly.value)
 const hasEditGroup = computed(() => showEditEntry.value)
 const hasLifecycleGroup = computed(
   () => canConfirm.value || canArchive.value || canUnarchive.value,
 )
-const showDividerBeforeAi = computed(() => canLaunchGeneration.value && hasEditGroup.value)
-const showDividerBeforeLifecycle = computed(
-  () => hasLifecycleGroup.value && (hasEditGroup.value || canLaunchGeneration.value),
-)
+const showDividerBeforeLifecycle = computed(() => hasLifecycleGroup.value && hasEditGroup.value)
 
 /** 「更多」下拉：归档 / 取消归档共用二次确认入口 */
 function handleLifecycleCommand(command: string | number | object): void {
@@ -198,28 +176,13 @@ function goBack(): void {
             >保存</el-button>
           </template>
           <template v-else>
-            <!-- 按操作频次分组：①编辑（link）②AI 生成 ③生命周期（确认 + 更多下拉），主色取项目 token -->
+            <!-- 按操作频次分组：①编辑（link）②生命周期（确认 + 更多下拉），主色取项目 token -->
             <el-button
               v-if="showEditEntry"
               link
               type="primary"
               @click="startEdit"
             >编辑</el-button>
-
-            <el-divider v-if="showDividerBeforeAi" direction="vertical" />
-
-            <el-tooltip
-              v-if="canLaunchGeneration"
-              :content="detail?.status === 'confirmed' ? '基于该需求生成模块、脑图用例文档与测试用例' : '仅已确认需求可生成'"
-              placement="bottom"
-            >
-              <span>
-                <el-button
-                  :disabled="detail?.status !== 'confirmed'"
-                  @click="generationDialogVisible = true"
-                >AI 生成用例</el-button>
-              </span>
-            </el-tooltip>
 
             <el-divider v-if="showDividerBeforeLifecycle" direction="vertical" />
 
@@ -432,13 +395,6 @@ function goBack(): void {
           </div>
         </template>
       </div>
-
-      <GenerationConfigDialog
-        v-model="generationDialogVisible"
-        :requirements="generationScope"
-        :module-tree="moduleTree"
-        @stale="load"
-      />
     </template>
   </div>
 </template>

@@ -116,9 +116,6 @@
 
   .import-error { margin-top: var(--space-md); }
   .import-error [data-icon] { display: inline-flex; }
-
-  /* AI 入口的悬浮说明由包裹层承载：禁用按钮不派发鼠标事件，title 要挂在父级 */
-  .tip-wrap { display: inline-flex; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -131,12 +128,9 @@
       <div class="page-head">
         <div>
           <h1 class="page-head__title">需求列表</h1>
-          <p class="page-head__desc">沉淀项目需求，驱动用例设计与 AI 生成</p>
+          <p class="page-head__desc">沉淀项目需求，驱动用例设计</p>
         </div>
         <div class="page-head__actions">
-          <span class="tip-wrap" id="ai-gen-tip" title="请先勾选需求">
-            <button class="btn btn--default" type="button" id="ai-gen" disabled><span data-icon="sparkle"></span>AI 生成用例</button>
-          </span>
           <button class="btn btn--default" type="button" data-open="import-dialog"><span data-icon="upload"></span>导入需求</button>
           <a class="btn btn--primary" href="requirement-create.html"><span data-icon="plus"></span>新建需求</a>
         </div>
@@ -209,7 +203,6 @@
         <div class="table-wrap" id="rp-table-wrap">
           <table class="table" id="rp-table">
             <colgroup>
-              <col style="width:36px">
               <col style="width:110px">
               <col>
               <col style="width:130px">
@@ -221,7 +214,6 @@
             </colgroup>
             <thead>
               <tr>
-                <th><span class="checkbox" id="check-all" role="checkbox" aria-checked="false"></span></th>
                 <th>编号</th>
                 <th>标题</th>
                 <th>所属模块</th>
@@ -234,7 +226,6 @@
             </thead>
             <tbody>
               <tr data-status="confirmed" data-module="登录模块" data-owner="张明" data-version="V2.3" data-code="REQ-0101" data-title="登录验证码失败时的重试提示">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0101</span></td>
                 <td><a href="requirement-detail.html">登录验证码失败时的重试提示</a></td>
                 <td>登录模块</td>
@@ -245,7 +236,6 @@
                 <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="draft" data-module="营销模块" data-owner="王芳" data-version="V2.3" data-code="REQ-0102" data-title="优惠券与积分叠加规则调整">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0102</span></td>
                 <td><a href="requirement-detail.html">优惠券与积分叠加规则调整</a></td>
                 <td>营销模块</td>
@@ -256,7 +246,6 @@
                 <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="changed" data-module="订单模块" data-owner="李华" data-version="V2.4" data-code="REQ-0103" data-title="订单超时未支付自动关闭">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0103</span></td>
                 <td><a href="requirement-detail.html">订单超时未支付自动关闭</a></td>
                 <td>订单模块</td>
@@ -267,7 +256,6 @@
                 <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="confirmed" data-module="支付模块" data-owner="周敏" data-version="V2.3" data-code="REQ-0104" data-title="支付失败自动重试上限">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0104</span></td>
                 <td><a href="requirement-detail.html">支付失败自动重试上限</a></td>
                 <td>支付模块</td>
@@ -278,7 +266,6 @@
                 <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="draft" data-module="营销模块" data-owner="张明" data-version="" data-code="REQ-0105" data-title="预售尾款提醒推送">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0105</span></td>
                 <td><a href="requirement-detail.html">预售尾款提醒推送</a></td>
                 <td>营销模块</td>
@@ -289,7 +276,6 @@
                 <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="changed" data-module="订单模块" data-owner="李华" data-version="V2.4" data-code="REQ-0106" data-title="多收货地址智能推荐排序">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0106</span></td>
                 <td><a href="requirement-detail.html">多收货地址智能推荐排序</a></td>
                 <td>订单模块</td>
@@ -300,7 +286,6 @@
                 <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="op-link" data-op="confirm">确认</span><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item more-menu__item--warning" data-row-act="archive">归档</span></span></span></td>
               </tr>
               <tr data-status="archived" data-module="订单模块" data-owner="赵磊" data-version="V2.2" data-code="REQ-0107" data-title="老版购物车结算页改造">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0107</span></td>
                 <td><a href="requirement-detail.html">老版购物车结算页改造</a></td>
                 <td>订单模块</td>
@@ -311,7 +296,6 @@
                 <td class="ops-cell"><a class="op-link" href="requirement-detail.html">详情</a><span class="more-wrap"><span class="op-link" data-more>更多 <span class="more-caret" data-icon="chevron-down"></span></span><span class="more-menu" hidden><span class="more-menu__item" data-row-act="edit">编辑</span><span class="more-menu__item" data-row-act="unarchive">取消归档</span></span></span></td>
               </tr>
               <tr data-status="archived" data-module="" data-owner="王芳" data-version="V2.1" data-code="REQ-0108" data-title="商家后台数据看板一期">
-                <td><span class="checkbox" data-check role="checkbox" aria-checked="false"></span></td>
                 <td><span class="mono muted">REQ-0108</span></td>
                 <td><a href="requirement-detail.html">商家后台数据看板一期</a></td>
                 <td><span class="muted">—</span></td>
@@ -532,52 +516,16 @@
     render();
   });
 
-  // ==================== 选择列（服务 AI 发起） ====================
-  var checkAll = byId('check-all');
-
-  function visibleRows() {
-    return rows.filter(function (row) { return !row.hidden; });
-  }
-
-  function updateAi() {
-    var n = 0;
-    visibleRows().forEach(function (row) {
-      if (row.querySelector('.checkbox--on')) n += 1;
-    });
-    byId('ai-gen').disabled = n === 0;
-    byId('ai-gen-tip').title = n > 0 ? '对已选需求生成模块、脑图用例文档与测试用例' : '请先勾选需求';
-  }
-
-  function syncCheckAll() {
-    var list = visibleRows();
-    var on = list.length > 0 && list.every(function (row) {
-      return row.querySelector('.checkbox--on');
-    });
-    checkAll.classList.toggle('checkbox--on', on);
-    checkAll.setAttribute('aria-checked', String(on));
-  }
-
-  checkAll.addEventListener('click', function () {
-    var on = !checkAll.classList.contains('checkbox--on');
-    visibleRows().forEach(function (row) {
-      var box = row.querySelector('.checkbox');
-      box.classList.toggle('checkbox--on', on);
-      box.setAttribute('aria-checked', String(on));
-    });
-    checkAll.setAttribute('aria-checked', String(on));
-    updateAi();
-  });
-
   // ==================== 列显隐（对齐 TableColumnSetting / useTableColumns） ====================
-  /* 列序号按 thead 顺序：选择列服务 AI 发起不入配置，操作列 pinned 只展示不可取消 */
+  /* 列序号按 thead 顺序：操作列 pinned 只展示不可取消 */
   var COLUMNS = [
-    { key: 'code', label: '编号', index: 2 },
-    { key: 'title', label: '标题', index: 3 },
-    { key: 'module', label: '所属模块', index: 4 },
-    { key: 'version', label: '版本', index: 5 },
-    { key: 'status', label: '状态', index: 6 },
-    { key: 'owner', label: '负责人', index: 7 },
-    { key: 'updatedAt', label: '更新时间', index: 8 }
+    { key: 'code', label: '编号', index: 1 },
+    { key: 'title', label: '标题', index: 2 },
+    { key: 'module', label: '所属模块', index: 3 },
+    { key: 'version', label: '版本', index: 4 },
+    { key: 'status', label: '状态', index: 5 },
+    { key: 'owner', label: '负责人', index: 6 },
+    { key: 'updatedAt', label: '更新时间', index: 7 }
   ];
   var hiddenKeys = {};
 
@@ -704,15 +652,6 @@
       var willOpen = menu.hidden;
       closeMenus();
       menu.hidden = !willOpen;
-      return;
-    }
-
-    var box = e.target.closest('[data-check]');
-    if (box) {
-      box.classList.toggle('checkbox--on');
-      box.setAttribute('aria-checked', String(box.classList.contains('checkbox--on')));
-      syncCheckAll();
-      updateAi();
       return;
     }
 
@@ -871,14 +810,8 @@
     resetImport();
   });
 
-  // ==================== AI 入口（对话框由对应配置页承载，此处给出演示反馈） ====================
-  byId('ai-gen').addEventListener('click', function () {
-    toast('AI 生成用例：按已选需求打开生成配置', 'success');
-  });
-
   applyColumns();
   render();
-  updateAi();
 })();
 </script>
 </body>
