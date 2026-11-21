@@ -35,7 +35,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TaskExecutionDispatcherTest {
 
-    private static final String TYPE = "test_design_generation";
+    private static final String TYPE = "requirement_import";
 
     @Mock
     private TaskTypeAdapterRegistry adapterRegistry;

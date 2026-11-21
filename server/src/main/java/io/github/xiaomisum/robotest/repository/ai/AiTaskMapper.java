@@ -28,7 +28,7 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     }
 
     /**
-     * 同项目同类型的进行中任务（生成链 3.6.2 同输入去重比对用）：
+     * 同项目同类型的进行中任务（同输入去重比对用）：
      * 未终态 = running / proposals_ready（已 aborted / closed 不占位）。
      */
     default List<AiTask> listInProgressByType(UUID projectId, String type) {

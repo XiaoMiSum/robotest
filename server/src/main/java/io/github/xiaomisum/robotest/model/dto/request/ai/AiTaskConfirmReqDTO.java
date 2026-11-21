@@ -18,7 +18,7 @@ public class AiTaskConfirmReqDTO {
     @Size(max = 200, message = "单次最多确认 200 项")
     private List<ConfirmItemReqDTO> items;
 
-    /** 落库目标位置提示（生成链场景），项目经 X-Active-Project 头传递 */
+    /** 落库目标位置提示，项目经 X-Active-Project 头传递 */
     private TargetReqDTO target;
 
     @Data

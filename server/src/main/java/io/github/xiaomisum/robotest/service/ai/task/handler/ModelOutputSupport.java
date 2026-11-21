@@ -14,8 +14,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 模型输出解析共用支撑（生成链详设 3.3 各阶段口径一致）：
- * 解析、类型取值与产物清单提取，供生成链处理器复用。
+ * 模型输出解析共用支撑：
+ * 解析、类型取值与产物清单提取，供各任务处理器复用。
  */
 public final class ModelOutputSupport {
 

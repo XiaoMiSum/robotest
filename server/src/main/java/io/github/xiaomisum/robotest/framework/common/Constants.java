@@ -94,7 +94,6 @@ public final class Constants {
     /** AI Task 类型单一常量源（总册 3.6.1）。 */
     public interface AiTaskType {
         String REQUIREMENT_IMPORT = "requirement_import";
-        String TEST_DESIGN_GENERATION = "test_design_generation";
         String CASE_OPTIMIZE = "case_optimize";
         String MINDMAP_CASE_GENERATION = "mindmap_case_generation";
         String PLAN_ORDER = "plan_order";
@@ -116,12 +115,9 @@ public final class Constants {
     }
 
     /**
-     * AI 提案种类（生成链详设 3.4）：与目标实体类型对齐
+     * AI 提案种类：与目标实体类型对齐
      */
     public interface AiProposalKind {
-        String MODULE = "module_suggestion";
-        String MINDMAP_DOCUMENT = "mindmap_document_suggestion";
-        String TEST_CASE = "test_case_suggestion";
         String BUG_CLASSIFY = "classify_suggestion";
         String BUG_TRIAGE = "triage_order";
         String BUG_SUMMARY = "summary";
@@ -152,7 +148,7 @@ public final class Constants {
     }
 
     /**
-     * AI 助手 / 生成链引用的实体类型（需求 / 模块 / 脑图文档 / 用例 / 评审 / 计划）
+     * AI 相关功能引用的实体类型（需求 / 模块 / 脑图文档 / 用例 / 评审 / 计划）
      */
     public interface EntityType {
         String REQUIREMENT = "requirement";

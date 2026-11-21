@@ -25,11 +25,10 @@ public final class ScopedSnapshotAgentTools {
     private ScopedSnapshotAgentTools() {
     }
 
-    /** 11 个注册工具的完整清单（Spring 同样按 @Component 收集，供一致性核对使用）。 */
+    /** 9 个注册工具的完整清单（Spring 同样按 @Component 收集，供一致性核对使用）。 */
     public static List<AgentTool> all() {
         return List.of(
                 new ReadImportSource(), new QueryProjectModules(), new QueryRequirements(),
-                new SearchProjectKnowledge(), new QueryTestAssets(),
                 new QueryCaseContext(), new QueryPlanOrderContext(),
                 new QueryBugs(), new SearchSimilarBugs(), new QueryTriageBugs(),
                 new QueryBugAnalysisSnapshot());
@@ -94,8 +93,6 @@ public final class ScopedSnapshotAgentTools {
     @Component static final class ReadImportSource extends BaseTool { ReadImportSource() { super("read_import_source", "读取导入来源"); } }
     @Component static final class QueryProjectModules extends BaseTool { QueryProjectModules() { super("query_project_modules", "查询项目模块"); } }
     @Component static final class QueryRequirements extends BaseTool { QueryRequirements() { super("query_requirements", "查询需求"); } }
-    @Component static final class SearchProjectKnowledge extends BaseTool { SearchProjectKnowledge() { super("search_project_knowledge", "检索项目知识"); } }
-    @Component static final class QueryTestAssets extends BaseTool { QueryTestAssets() { super("query_test_assets", "查询测试资产"); } }
     @Component static final class QueryCaseContext extends BaseTool { QueryCaseContext() { super("query_case_context", "查询用例上下文"); } }
     @Component static final class QueryPlanOrderContext extends BaseTool { QueryPlanOrderContext() { super("query_plan_order_context", "查询计划顺序上下文"); } }
     @Component static final class QueryBugs extends BaseTool { QueryBugs() { super("query_bugs", "查询缺陷"); } }

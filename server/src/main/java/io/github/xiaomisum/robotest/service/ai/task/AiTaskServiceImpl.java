@@ -23,13 +23,11 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskProposal;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskTraceEvent;
-import io.github.xiaomisum.robotest.model.entity.requirement.Requirement;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskAdoptionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskProposalMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskTraceEventMapper;
-import io.github.xiaomisum.robotest.repository.requirement.RequirementMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.core.BudgetGuard;
 import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionLifecycle;
@@ -115,8 +113,6 @@ public class AiTaskServiceImpl implements AiTaskService {
     private ExecutionLifecycle executionLifecycle;
     @Resource
     private PlatformTransactionManager transactionManager;
-    @Resource
-    private RequirementMapper requirementMapper;
 
     // ---------- 3.6.2 提交（创建即启动） ----------
 
@@ -307,8 +303,6 @@ public class AiTaskServiceImpl implements AiTaskService {
         resp.setParentKey(proposal.getParentKey());
         resp.setConfirmStatus(resolveConfirmStatus(proposal));
         resp.setContent(proposal.getContent());
-        // 生成链产物回读比对来源需求当前状态（生成链详设 4.1）：sourceRefs 逐条标注 changed
-        markSourceChanged(task, proposal.getContent());
         return resp;
     }
 
@@ -654,64 +648,6 @@ public class AiTaskServiceImpl implements AiTaskService {
         return code == null ? null : new AiTerminateReasonRespDTO(code, msg);
     }
 
-    /**
-     * 生成链产物回读比对来源需求当前状态（生成链详设 4.1）：sourceRefs 逐条标注 changed
-     * （需求已删除 / 离开已确认态 / 快照后更新时间变化），确认面板据此展示「来源需求已变更」。
-     */
-    @SuppressWarnings("unchecked")
-    private void markSourceChanged(AiTask task, Map<String, Object> content) {
-        if (task.getInput() == null
-                || !(task.getInput().get("requirementSnapshots") instanceof List<?> snapshots)
-                || content == null
-                || !(content.get("sourceRefs") instanceof List<?> refs)) {
-            return;
-        }
-        Map<String, Map<String, Object>> snapshotById = new LinkedHashMap<>();
-        for (Object element : snapshots) {
-            if (element instanceof Map<?, ?> snapshot && snapshot.get("id") != null) {
-                snapshotById.put(String.valueOf(snapshot.get("id")), (Map<String, Object>) snapshot);
-            }
-        }
-        Map<UUID, Requirement> currentById = new LinkedHashMap<>();
-        List<UUID> requirementIds = new ArrayList<>();
-        for (Object element : refs) {
-            if (element instanceof Map<?, ?> ref && ref.get("requirementId") != null) {
-                try {
-                    requirementIds.add(UUID.fromString(String.valueOf(ref.get("requirementId"))));
-                } catch (IllegalArgumentException ignored) {
-                    // 非法引用无法比对，保持未标注
-                }
-            }
-        }
-        if (!requirementIds.isEmpty()) {
-            requirementMapper.listByIds(requirementIds)
-                    .forEach(item -> currentById.put(item.getId(), item));
-        }
-        for (Object element : refs) {
-            if (!(element instanceof Map)) {
-                continue;
-            }
-            Map<String, Object> ref = (Map<String, Object>) element;
-            UUID id = parseUuid(ref.get("requirementId"));
-            Requirement current = id == null ? null : currentById.get(id);
-            ref.put("changed", sourceChanged(snapshotById.get(String.valueOf(ref.get("requirementId"))), current));
-        }
-    }
-
-    private static boolean sourceChanged(Map<String, Object> snapshot, Requirement current) {
-        if (current == null) {
-            // 快照存在但需求已删除 → 已变更；两侧皆无从判断时不标注
-            return snapshot != null;
-        }
-        if (!Constants.RequirementStatus.CONFIRMED.equals(current.getStatus())) {
-            return true;
-        }
-        if (snapshot == null || snapshot.get("updatedAt") == null || current.getUpdatedAt() == null) {
-            return false;
-        }
-        return !String.valueOf(snapshot.get("updatedAt")).equals(String.valueOf(current.getUpdatedAt()));
-    }
-
     // ---------- 定位与校验 ----------
 
     /**
@@ -755,17 +691,6 @@ public class AiTaskServiceImpl implements AiTaskService {
         return Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(status)
                 || Constants.AiTaskFlowStatus.CLOSED.equals(status)
                 || Constants.AiTaskFlowStatus.ABORTED.equals(status);
-    }
-
-    private static UUID parseUuid(Object raw) {
-        if (raw == null) {
-            return null;
-        }
-        try {
-            return UUID.fromString(String.valueOf(raw));
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
     }
 
     private static String asString(Object value) {

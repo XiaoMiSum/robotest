@@ -39,7 +39,7 @@ public interface RequirementMapper extends BaseMapperX<Requirement> {
         return selectPage(pageParam, wrapper);
     }
 
-    /** 按 ID 批量读取（AI 助手 / 生成链的实体引用解析） */
+    /** 按 ID 批量读取（AI 助手的实体引用解析） */
     default List<Requirement> listByIds(Collection<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();

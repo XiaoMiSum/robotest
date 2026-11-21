@@ -28,14 +28,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StandardTaskTypeAdaptersTest {
 
     @Test
-    void eightOrdinaryAdaptersUseUnifiedBudgetAndCoverSeededTools() {
+    void sevenOrdinaryAdaptersUseUnifiedBudgetAndCoverSeededTools() {
         List<TaskTypeAdapter> adapters = List.of(
-                new RequirementImportTypeAdapter(), new TestDesignGenerationTypeAdapter(),
+                new RequirementImportTypeAdapter(),
                 new CaseOptimizeTypeAdapter(), new PlanOrderTypeAdapter(),
                 new BugClassifyTypeAdapter(), new BugDuplicateScanTypeAdapter(),
                 new BugTriageTypeAdapter(), new BugTrendSummaryTypeAdapter());
 
-        assertEquals(8, adapters.stream().map(TaskTypeAdapter::type).collect(Collectors.toSet()).size());
+        assertEquals(7, adapters.stream().map(TaskTypeAdapter::type).collect(Collectors.toSet()).size());
         adapters.forEach(adapter -> {
             assertEquals(TaskTypeAdapter.STANDARD_BUDGET, adapter.defaultBudget());
             assertFalse(adapter.toolCodes().isEmpty());
@@ -43,7 +43,7 @@ class StandardTaskTypeAdaptersTest {
         });
         Set<String> toolCodes = adapters.stream().flatMap(adapter -> adapter.toolCodes().stream())
                 .collect(Collectors.toSet());
-        assertEquals(11, toolCodes.size());
+        assertEquals(9, toolCodes.size());
         // 代码注册表 ⊇ 适配器声明，且注册表不再有本轮范围外的额外工具
         AgentToolRegistry registry = new AgentToolRegistry(ScopedSnapshotAgentTools.all());
         Set<String> registered = new LinkedHashSet<>();
@@ -66,28 +66,28 @@ class StandardTaskTypeAdaptersTest {
     }
 
     /**
-     * 11/11 类型适配器注册齐全（总册 3.6.1）：注册表覆盖全量枚举、类型唯一，
+     * 10/10 类型适配器注册齐全（总册 3.6.1）：注册表覆盖全量枚举、类型唯一，
      * 助手与向量两类自带预算与策略（不落入普通类型统一预算）。
      */
     @Test
-    void elevenTypeAdaptersRegisterAcrossFullEnum() {
+    void tenTypeAdaptersRegisterAcrossFullEnum() {
         Set<String> expectedTypes = Set.of(
-                "requirement_import", "test_design_generation",
+                "requirement_import",
                 "case_optimize", "mindmap_case_generation", "plan_order", "bug_classify",
                 "bug_duplicate_scan", "bug_triage", "bug_trend_summary",
                 "assistant_parse", "vector_reindex");
         List<TaskTypeAdapter> adapters = List.of(
-                new RequirementImportTypeAdapter(), new TestDesignGenerationTypeAdapter(),
+                new RequirementImportTypeAdapter(),
                 new CaseOptimizeTypeAdapter(), new MindmapCaseGenerationTypeAdapter(),
                 new PlanOrderTypeAdapter(), new BugClassifyTypeAdapter(), new BugDuplicateScanTypeAdapter(),
                 new BugTriageTypeAdapter(), new BugTrendSummaryTypeAdapter(),
                 new AssistantParseTypeAdapter(), new VectorReindexTypeAdapter());
 
-        assertEquals(11, adapters.size());
+        assertEquals(10, adapters.size());
         assertEquals(expectedTypes, adapters.stream().map(TaskTypeAdapter::type)
                 .collect(Collectors.toSet()));
 
-        // Spring 同样按该集合装配：同 type 重复注册为装配错误，11 类全部可解析
+        // Spring 同样按该集合装配：同 type 重复注册为装配错误，10 类全部可解析
         TaskTypeAdapterRegistry registry = new TaskTypeAdapterRegistry(adapters);
         for (String type : expectedTypes) {
             assertTrue(registry.get(type) != null, "注册表缺类型: " + type);

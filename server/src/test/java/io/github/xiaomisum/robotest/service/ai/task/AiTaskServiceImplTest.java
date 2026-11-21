@@ -873,7 +873,7 @@ class AiTaskServiceImplTest {
         proposal.setTaskId(TASK_ID);
         proposal.setExecutionId(EXEC_ID);
         proposal.setProposalKey(key);
-        proposal.setKind("test_case_suggestion");
+        proposal.setKind("case_optimize_suggestion");
         proposal.setTitle("T");
         proposal.setContent(Map.of("cells", List.of()));
         proposal.setConfirmStatus(confirmStatus);

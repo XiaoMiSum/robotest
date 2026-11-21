@@ -19,7 +19,7 @@ class TaskTypeAdapterRegistryTest {
     @Test
     void get_withoutRegistrations_returnsNull() {
         TaskTypeAdapterRegistry registry = new TaskTypeAdapterRegistry(List.of());
-        assertNull(registry.get("test_design_generation"));
+        assertNull(registry.get("unknown_type"));
         assertNull(registry.get(null));
         assertTrue(registry.all().isEmpty());
     }

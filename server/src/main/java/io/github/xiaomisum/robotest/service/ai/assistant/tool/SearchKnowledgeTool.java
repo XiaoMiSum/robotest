@@ -23,7 +23,7 @@ import java.util.UUID;
 @Component
 public class SearchKnowledgeTool implements AssistantTool {
 
-    /** 检索条数与引语长度（与生成链 RAG_TOP_K / RAG_FRAGMENT_CHARS 同口径，详设 4.1） */
+    /** 检索条数与引语长度（RAG_TOP_K / RAG_FRAGMENT_CHARS 同口径，详设 4.1） */
     private static final int TOP_K = 8;
     private static final int QUOTE_CHARS = 500;
 

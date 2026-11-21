@@ -253,15 +253,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_EXECUTION_FINISHED = ErrorCode.of(1000018127, "执行已结束，不可终止");
     public static final ErrorCode AI_TASK_ABORTED_BY_USER = ErrorCode.of(1000018128, "用户中止");
 
-    // ========== AI 生成链 1,000,018,201-1,000,018,210（生成链详设 6，号段至 1,000,018,249） ==========
-    public static final ErrorCode GENERATION_REQUIREMENT_NOT_FOUND = ErrorCode.of(1000018201, "输入需求不存在");
-    public static final ErrorCode GENERATION_REQUIREMENT_NOT_CONFIRMED = ErrorCode.of(1000018202, "存在非已确认需求，不可作为生成输入");
-    public static final ErrorCode GENERATION_TARGET_MODULE_INVALID = ErrorCode.of(1000018203, "落位目标模块不存在或不属当前项目");
-    public static final ErrorCode GENERATION_ARTIFACT_DUPLICATE = ErrorCode.of(1000018204, "产物与既有数据疑似重复，需人工处理");
-    public static final ErrorCode GENERATION_INPUT_INVALID = ErrorCode.of(1000018205, "生成参数非法（粒度、条数、落位方式）");
-    public static final ErrorCode GENERATION_DUPLICATE_TASK = ErrorCode.of(1000018209, "已存在进行中的同输入生成任务");
-    public static final ErrorCode GENERATION_PARENT_NOT_ADOPTED = ErrorCode.of(1000018210, "父级产物尚未采纳，无法落库");
-
     // ========== 智能助手 1000018251-1000018264（助手详设 6，号段至 1000018279） ==========
     public static final ErrorCode ASSISTANT_CONVERSATION_NOT_FOUND = ErrorCode.of(1000018251, "会话不存在或非本人会话");
     public static final ErrorCode ASSISTANT_MESSAGE_NOT_FOUND = ErrorCode.of(1000018252, "消息不存在");

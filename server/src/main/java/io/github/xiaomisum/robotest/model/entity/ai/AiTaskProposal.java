@@ -30,7 +30,7 @@ public class AiTaskProposal extends BaseUuidDO<AiTaskProposal> {
     /** 提案在本次执行产出中的定位键 */
     private String proposalKey;
 
-    /** 提案类型（kind 取值由各分册定义，如 module_suggestion） */
+    /** 提案类型（kind 取值由各分册定义，如 case_optimize_suggestion） */
     private String kind;
 
     /** 树形提案的父提案键 */
