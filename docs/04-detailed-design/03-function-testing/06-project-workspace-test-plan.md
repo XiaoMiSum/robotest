@@ -96,7 +96,7 @@
 
 - **路径**：`GET /api/project/plans/:id/modules`
 - **参数**：`documentId`（可选，按文档过滤）
-- **响应**：裁剪后的节点树数组，数组元素为嵌套的根节点对象，字段为 `id`、`originalNodeId`、`parentId`、`title`、`type`、`priority`、`isAssociated`、`lastResult`、`lastExecutorId`、`lastExecutedAt`、`sortOrder`、`children`；节点为完整拷贝属性，其中 `isAssociated` 标识是否为规划用例，`lastResult` 取 `pass`/`fail`/`block`/`untested` 或 `null`。
+- **响应**：裁剪后的节点树数组，数组元素为嵌套的根节点对象，字段为 `id`、`originalNodeId`、`parentId`、`title`、`type`、`priority`、`isAssociated`、`lastResult`、`lastExecutorId`、`lastExecutedAt`、`sortOrder`、`children`；节点为完整拷贝属性，其中 `isAssociated` 标识是否为规划用例，`lastResult` 取 `pass`/`fail`/`block`/`untested` 或 `null`；`sortOrder` 为计划内执行顺序，采纳 / 人工调整后的值为稳定排序，同步与差量调整不覆盖，前端据此渲染用例序号并定位「下一个待执行用例」。
 - **前端**：详情页脑图始终传入当前选中文档的 `documentId` 加载单文档快照；不传时后端返回多文档多根，前端只取首个根节点，页面不使用该形态。
 
 ### 1.6 提交执行记录
@@ -120,7 +120,7 @@
 
 - **路径**：`POST /api/project/plans/:id/sync`
 - **校验**：免 RBAC 权限码校验，服务端校验项目成员身份；计划须未结束（new/in_progress），已结束返回错误码 1000011027；已阻塞返回错误码 1000011025（“计划已阻塞，请先恢复后再操作”）。
-- **处理**：与评审同步逻辑一致，更新快照节点属性，保留执行记录。
+- **处理**：与评审同步逻辑一致，更新快照节点属性，保留执行记录与已调整的执行顺序（`sort_order`）：仅补入的新节点按原始顺序补位，已存在的快照节点不被原始用例顺序覆盖。
 - **前端**：二次确认（“同步将更新快照节点属性，已有执行记录不受影响”）→ 成功后重新拉取详情、进度与快照模块树并重载脑图。
 
 ### 1.8 获取模块快照树
@@ -362,3 +362,4 @@
 | V1.0 | 2026-11-20 | 详情页头改为单条无边框横条，面包屑保持纯净，状态/进度/统计/关联需求/操作按钮并入右侧同行独立容器、删除独立标题卡片；快照文档树补齐固定 header 与评审明细一致 |
 | V1.0 | 2026-11-20 | 「选择需求」选取器统一仅列已确认需求（前端列表请求传 `status=confirmed`），覆盖用例关联、评审与计划场景 |
 | V1.0 | 2026-11-20 | 创建 / 重规划计划的用例反查口径由 `ft_case_requirement` 改为 `ft_case_node.requirement_id` |
+| V1.0 | 2026-11-21 | 1.5 / 1.7：`sortOrder` 明确为稳定执行顺序（同步 / 差量调整不覆盖、补入节点按原序补位），供前端序号展示与「下一个待执行用例」引导使用 |
