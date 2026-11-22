@@ -3,8 +3,7 @@ package io.github.xiaomisum.robotest.service.ai.assistant.tool;
 import java.util.Map;
 
 /**
- * 可执行工具（QUERY / CLARIFY）接口；CHANGE 类无执行体——注册表只登记定义，
- * 调用即转 {@link AssistantIntentBuilder} 拦截规范化（详设 4.1）。
+ * 可执行工具（QUERY / CLARIFY）接口（详设 4.1）。
  */
 public interface AssistantTool {
 

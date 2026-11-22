@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 助手消息（总册 2.9）：content 流式结束后落盘供断线重连续读；intent 固化预览结构，execution 承载回执。
+ * 助手消息（总册 2.9）：content 流式结束后落盘供断线重连续读；intent / execution 为历史列，保留以兼容存量数据。
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -45,15 +45,15 @@ public class AiAssistantMessage extends BaseUuidDO<AiAssistantMessage> {
     /** role = tool 结果消息回指的调用标识（详设 2 / 总册 2.9） */
     private String toolCallId;
 
-    /** 意图解析结构化预览（动作、目标、字段级变更、作用域与过期时间） */
+    /** 历史意图列（保留以兼容存量数据，不再产生新数据） */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> intent;
 
-    /** 来源引用集合（只读问答与预览附带的可跳转引用） */
+    /** 来源引用集合（只读问答附带的可跳转引用） */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private List<Map<String, Object>> citations;
 
-    /** 执行回执 {status: previewed/executed/rejected, results[], …} */
+    /** 历史执行回执列（保留以兼容存量数据，不再产生新数据） */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> execution;
 

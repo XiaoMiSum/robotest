@@ -16,7 +16,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** 查询计划清单（详设 4.1）：按项目取近期计划并可按名称过滤，供调整类动作引用 planId。 */
+/** 查询计划清单（详设 4.1）：按项目取近期计划并可按名称过滤，供只读问答定位与引用计划。 */
 @Component
 public class QueryPlansTool implements AssistantTool {
 

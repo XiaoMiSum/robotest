@@ -21,13 +21,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * 助手实体引用校验（详设 3.3 context / 3.5 attachments / 4.4 跨工作空间指代）：类型白名单取
@@ -139,16 +133,8 @@ public class AssistantRefChecker {
         }
     }
 
-    /** 解析出的项目引用须存在且属活跃工作空间（详设 4.4），否则 1000018261；不存在与越权同码 */
-    public void requireActiveWorkspaceProject(UUID activeWorkspaceId, UUID projectId) {
-        Project project = projectMapper.selectById(projectId);
-        if (project == null || !activeWorkspaceId.equals(project.getWorkspaceId())) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
-        }
-    }
-
     /**
-     * 工具 / 意图显式给出的项目须与头中活跃项目一致（详设 4.1 / 4.4）：助手为项目级能力，
+     * 工具显式给出的项目须与头中活跃项目一致（详设 4.1 / 4.4）：助手为项目级能力，
      * 跨项目指代一律按 1000018261 拒绝并提示切换作用域。
      */
     public void requireActiveProject(UUID activeProjectId, UUID projectId) {
@@ -157,49 +143,7 @@ public class AssistantRefChecker {
         }
     }
 
-    /**
-     * 批量用例引用校验（详设 4.4）：一次取回用例 → 文档 → 项目链，任一缺失或越权按 1000018261 拒绝。
-     * 入参须为去重集合，行数不足即判定为幻觉或已删除引用；校验通过返回用例链解析出的项目集。
-     */
-    public Set<UUID> requireActiveWorkspaceCases(UUID activeWorkspaceId, Collection<UUID> caseIds) {
-        if (caseIds == null || caseIds.isEmpty()) {
-            return Set.of();
-        }
-        List<TestCaseNode> rows = testCaseNodeMapper.listByIds(caseIds);
-        if (rows.size() != caseIds.size()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
-        }
-        Set<UUID> documentIds = rows.stream()
-                .map(TestCaseNode::getDocumentId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        if (documentIds.size() != rows.size()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
-        }
-        List<TestCaseDocument> documents = testCaseDocumentMapper.listByIds(documentIds);
-        if (documents.size() != documentIds.size()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
-        }
-        Set<UUID> projectIds = documents.stream()
-                .map(TestCaseDocument::getProjectId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        if (projectIds.size() != documents.size()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
-        }
-        List<Project> projects = projectMapper.listByIds(projectIds);
-        if (projects.size() != projectIds.size()) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
-        }
-        for (Project project : projects) {
-            if (!activeWorkspaceId.equals(project.getWorkspaceId())) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE);
-            }
-        }
-        return projectIds;
-    }
-
-    /** 引用展示标题（citations / 预览目标名）：需求优先取编号，其余取名称字段；缺失返回 null */
+    /** 引用展示标题（citations）：需求优先取编号，其余取名称字段；缺失返回 null */
     public String titleOf(String entityType, UUID entityId) {
         if (entityType == null || entityId == null) {
             return null;

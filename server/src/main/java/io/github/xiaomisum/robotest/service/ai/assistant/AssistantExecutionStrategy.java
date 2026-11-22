@@ -33,8 +33,8 @@ import java.util.UUID;
 
 /**
  * assistant_parse 执行策略（分册 04 §4.1）：近 20 条会话历史装配为 agent 提示词，
- * 交既有 {@link AssistantToolLoop} 执行工具调用循环（查询回填、澄清 / 变更终止），
- * 终态按 clarify / intent / answer 三路落盘并发事件——先落盘再发事件（详设 3.5）。
+ * 交既有 {@link AssistantToolLoop} 执行工具调用循环（查询回填、澄清终止），
+ * 终态按 clarify / answer 两路落盘并发事件——先落盘再发事件（详设 3.5）。
  *
  * <p>共享执行控制按模型跳计步（查询工具不额外计步），5 跳硬上限由循环自身约束、
  * 与预算护栏先到者终止；用户中止 / 预算耗尽 / 终态竞争失败置消息 interrupted
@@ -45,22 +45,19 @@ import java.util.UUID;
 public class AssistantExecutionStrategy implements TaskExecutionStrategy {
 
     private static final String KIND_CLARIFY = "clarify";
-    private static final String KIND_INTENT = "intent";
     private static final String KIND_ANSWER = "answer";
 
     private static final String EVENT_DELTA = "delta";
     private static final String EVENT_CLARIFY = "clarify";
-    private static final String EVENT_PREVIEW = "preview";
     private static final String EVENT_CITATIONS = "citations";
     private static final String EVENT_DONE = "done";
     private static final String EVENT_ERROR = "error";
 
     private static final int TITLE_MAX = 100;
-    private static final String DEFAULT_SUMMARY = "已解析为以下变更，确认后执行。";
 
     /** agent 固定角色行；场景提示词主体可经配置中心自定义覆盖（scene = assistant_parse，详设 3.5） */
     private static final String AGENT_SYSTEM =
-            "你是测试平台的智能助手，面向测试设计与管理场景，经由工具完成查询、澄清与变更；行为规则见用户消息中的指令。";
+            "你是测试平台的智能助手，面向测试设计与管理场景，经由工具完成查询与澄清；行为规则见用户消息中的指令。";
 
     @Resource
     private AiAssistantMessageMapper messageMapper;
@@ -127,7 +124,6 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
             control.ensureFinishing();
             return switch (outcome.kind()) {
                 case KIND_CLARIFY -> handleClarify(outcome, message, channel);
-                case KIND_INTENT -> handleIntent(outcome, message, channel);
                 case KIND_ANSWER -> handleAnswer(outcome, triggerContent, message, channel);
                 default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_PARSE_FAILED);
             };
@@ -168,7 +164,7 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
         };
     }
 
-    // ---------- 终态三路（先落盘再发事件，详设 3.5） ----------
+    // ---------- 终态两路（先落盘再发事件，详设 3.5） ----------
 
     private ExecutionResult handleClarify(AssistantToolLoop.LoopOutcome outcome, AiAssistantMessage message,
             AssistantStreamBridge.StreamChannel channel) {
@@ -178,7 +174,7 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
         if (!options.isEmpty()) {
             content += "\n\n" + String.join("\n", options.stream().map(option -> "- " + option).toList());
         }
-        persistDone(message.getId(), content, null, null, outcome.toolCalls());
+        persistDone(message.getId(), content, null, outcome.toolCalls());
         if (channel != null) {
             channel.send(EVENT_CLARIFY, Map.of("question", question, "options", options));
             channel.send(EVENT_DONE, Map.of("messageId", message.getId()));
@@ -187,30 +183,11 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
         return new ExecutionResult(List.of(), Map.of("kind", KIND_CLARIFY));
     }
 
-    private ExecutionResult handleIntent(AssistantToolLoop.LoopOutcome outcome, AiAssistantMessage message,
-            AssistantStreamBridge.StreamChannel channel) {
-        Map<String, Object> intent = outcome.intent();
-        persistDone(message.getId(), DEFAULT_SUMMARY, intent, null, outcome.toolCalls());
-        if (channel != null) {
-            channel.send(EVENT_PREVIEW, intent);
-            channel.send(EVENT_DONE, Map.of("messageId", message.getId()));
-            channel.close();
-        }
-        Map<String, Object> artifact = Map.of(
-                "key", "intent-preview",
-                "kind", "intent_preview",
-                "title", ModelOutputSupport.abbreviate(
-                        ModelOutputSupport.nvl((String) intent.get("targetTitle")), TITLE_MAX),
-                "content", intent);
-        return new ExecutionResult(List.of(),
-                Map.of("kind", KIND_INTENT, "artifacts", List.of(artifact)));
-    }
-
     private ExecutionResult handleAnswer(AssistantToolLoop.LoopOutcome outcome, String triggerContent,
             AiAssistantMessage message, AssistantStreamBridge.StreamChannel channel) {
         List<Map<String, Object>> citations = outcome.citations();
         String answer = ModelOutputSupport.nvl(outcome.answer());
-        persistDone(message.getId(), answer, null, citations, outcome.toolCalls());
+        persistDone(message.getId(), answer, citations, outcome.toolCalls());
         if (channel != null) {
             if (!citations.isEmpty()) {
                 channel.send(EVENT_CITATIONS, citations);
@@ -312,17 +289,14 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
     // ---------- 落盘与事件 ----------
 
     /**
-     * 终态落盘（C11 载体仅带 id 与本次字段）：content / intent / citations 按分流择项写入；
+     * 终态落盘（C11 载体仅带 id 与本次字段）：content / citations 按分流择项写入；
      * toolCalls 为累计的模型调用载荷（审计轨迹，详设 2 消息表），空则不落。
      */
-    private void persistDone(UUID messageId, String content, Map<String, Object> intent,
-            List<Map<String, Object>> citations, List<Map<String, Object>> toolCalls) {
+    private void persistDone(UUID messageId, String content, List<Map<String, Object>> citations,
+            List<Map<String, Object>> toolCalls) {
         AiAssistantMessage carrier = new AiAssistantMessage();
         carrier.setId(messageId);
         carrier.setContent(content);
-        if (intent != null) {
-            carrier.setIntent(intent);
-        }
         if (citations != null) {
             carrier.setCitations(citations);
         }

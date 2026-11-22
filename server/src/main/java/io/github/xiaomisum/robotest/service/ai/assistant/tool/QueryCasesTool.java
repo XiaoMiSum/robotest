@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** 检索测试用例（详设 4.1）：按文档 / 项目 / 关键词定位 caseId，供更新、补全与圈选类动作引用。 */
+/** 检索测试用例（详设 4.1）：按文档 / 项目 / 关键词定位 caseId，供只读问答定位与引用用例。 */
 @Component
 public class QueryCasesTool implements AssistantTool {
 

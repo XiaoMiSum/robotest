@@ -4,13 +4,10 @@ import io.github.xiaomisum.robotest.framework.security.LoginUser;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationCreateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantConversationUpdateReqDTO;
-import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantExecuteReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessagePageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.ai.AiAssistantMessageSendReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantConversationRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantExecuteRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiAssistantMessageRespDTO;
-import io.github.xiaomisum.robotest.service.ai.assistant.AssistantExecuteService;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -45,13 +42,11 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/ai/conversations")
-@Tag(name = "AI 助手", description = "会话、消息历史与执行（详设 04-ai-assistant）")
+@Tag(name = "AI 助手", description = "会话与消息历史（详设 04-ai-assistant）")
 public class AiAssistantController {
 
     @Resource
     private AssistantService assistantService;
-    @Resource
-    private AssistantExecuteService assistantExecuteService;
 
     @GetMapping
     public Result<PageResult<AiAssistantConversationRespDTO>> pageConversations(
@@ -90,7 +85,7 @@ public class AiAssistantController {
     }
 
     @Operation(summary = "发送消息（SSE 流式，详设 3.5）",
-            description = "事件流：delta / tool_call / clarify / preview / citations / done / error，每 15s 心跳注释行；"
+            description = "事件流：delta / tool_call / clarify / citations / done / error，每 15s 心跳注释行；"
                     + "须携带 X-Active-Workspace 与 X-Active-Project（4000 字符上限与附件校验在服务层）")
     @ApiResponse(responseCode = "200", description = "SSE 事件流",
             content = @Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
@@ -100,23 +95,5 @@ public class AiAssistantController {
             @PathVariable UUID conversationId, @RequestBody @Valid AiAssistantMessageSendReqDTO reqDTO) {
         return assistantService.send(conversationId, reqDTO, loginUser.getId(),
                 loginUser.getActiveWorkspaceId(), loginUser.getActiveProjectId());
-    }
-
-    @Operation(summary = "确认执行（详设 3.7）",
-            description = "按 intent 固化输入逐项落库并返回回执；须携带 X-Active-Workspace 与 X-Active-Project，"
-                    + "目标项目取 X-Active-Project 头（与会话归属及 intent.scope 一致），retryIndexes 可选表示对上次失败项单项重试")
-    @PostMapping("/{conversationId}/messages/{messageId}/execute")
-    public Result<AiAssistantExecuteRespDTO> executeMessage(@AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID conversationId, @PathVariable UUID messageId,
-            @RequestBody(required = false) AiAssistantExecuteReqDTO reqDTO) {
-        return Result.ok(assistantExecuteService.execute(conversationId, messageId, reqDTO, loginUser));
-    }
-
-    @Operation(summary = "取消预览（详设 3.8）",
-            description = "execution 置 rejected（1000018254 防重复），不产生任何业务数据")
-    @PostMapping("/{conversationId}/messages/{messageId}/cancel")
-    public Result<AiAssistantExecuteRespDTO> cancelMessage(@AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID conversationId, @PathVariable UUID messageId) {
-        return Result.ok(assistantExecuteService.cancel(conversationId, messageId, loginUser));
     }
 }

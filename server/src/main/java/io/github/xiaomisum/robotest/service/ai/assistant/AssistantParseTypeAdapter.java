@@ -23,7 +23,7 @@ import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 /**
  * assistant_parse 类型适配器（总册 3.6.1，分册 04 §4.1）：登记输入校验、vision 能力派生、
  * 助手预算与场景提示词正文；执行走对话式 {@link AssistantExecutionStrategy}（不套 Agent 循环），
- * 助手澄清 / 回答 / 变更预览按分册 04 处理，不产生通用提案。
+ * 助手澄清 / 回答按分册 04 处理，不产生通用提案。
  */
 @Component
 public class AssistantParseTypeAdapter implements TaskTypeAdapter {
@@ -40,14 +40,12 @@ public class AssistantParseTypeAdapter implements TaskTypeAdapter {
      * 场景主体可经配置中心自定义覆盖（scene = assistant_parse），本方法为唯一回落正文。
      */
     private static final String DEFAULT_PROMPT = """
-            你是测试平台的智能助手，通过调用工具完成查询、澄清与数据变更任务：
+            你是测试平台的智能助手，通过调用工具完成查询与澄清任务：
             1. 需要项目、文档树、用例、评审、计划、进度或知识信息时先调用对应查询工具，
                一切 ID 只能取工具返回值，不得虚构；
             2. 信息不足、存在歧义或多个候选需要用户抉择时调用 ask_user 澄清（选项来自查询结果
                或上下文，2~5 个）；无据可依时明确说明，不得编造；
-            3. 数据变更一律通过变更类工具发起：调用只生成变更预览，落库由用户确认后执行；
-               变更参数须满足工具描述中的必填项，字段变更必须基于用户指令，不得臆造；
-            4. 最终答复直接输出正文（Markdown，简洁，给出具体对象名称与数值），不复述工具调用过程。
+            3. 最终答复直接输出正文（Markdown，简洁，给出具体对象名称与数值），不复述工具调用过程。
 
             会话历史（时间正序，最后一条为用户最新输入）：
             {{history}}

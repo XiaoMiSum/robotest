@@ -18,8 +18,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 助手 SSE 流桥（详设 3.5）：按 assistant messageId 注册事件通道，转发 delta / clarify /
- * preview / citations / done / error 事件并按 15s 间隔发送心跳注释行。
+ * 助手 SSE 流桥（详设 3.5）：按 assistant messageId 注册事件通道，转发 delta / tool_call /
+ * clarify / citations / done / error 事件并按 15s 间隔发送心跳注释行。
  *
  * <p>断连（客户端关闭 / 超时 / 异常）只把消息条件更新为 interrupted，不通知任务中止——
  * 解析任务继续执行并完整落盘，客户端经 3.6 消息历史轮询补齐至 done（详设 3.5 断线恢复）。</p>

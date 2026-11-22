@@ -47,12 +47,12 @@ public interface AssistantService {
     /**
      * 3.5 发送消息（SSE 流式）：会话可发（259）、正文（260）、上下文头（2008）、活跃空间成员
      * 与归属空间 / 项目一致（263）及附件归属（262）校验后落盘用户与 assistant 消息并提交 assistant_parse 任务，
-     * 返回事件流（delta / clarify / preview / citations / done / error + 15s 心跳）。
+     * 返回事件流（delta / tool_call / clarify / citations / done / error + 15s 心跳）。
      * 解析任务 projectId 取 X-Active-Project 头（助手为项目级能力）。
      */
     SseEmitter send(UUID conversationId, AiAssistantMessageSendReqDTO reqDTO, UUID userId, UUID activeWorkspaceId,
             UUID activeProjectId);
 
-    /** 会话归属校验（详设 3.1 防 IDOR）：非本人或不存在一律 1000018251，供发送 / 执行 / 取消复用 */
+    /** 会话归属校验（详设 3.1 防 IDOR）：非本人或不存在一律 1000018251，供发送消息复用 */
     AiAssistantConversation getOwnedConversation(UUID conversationId, UUID userId);
 }

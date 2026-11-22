@@ -18,7 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** 查询项目文档树（详设 4.1）：模块 → 测试用例文档两级结构，供 create_case 精确指定落点与指代消解。 */
+/** 查询项目文档树（详设 4.1）：模块 → 测试用例文档两级结构，供用例检索与指代消解。 */
 @Component
 public class QueryDocTreeTool implements AssistantTool {
 

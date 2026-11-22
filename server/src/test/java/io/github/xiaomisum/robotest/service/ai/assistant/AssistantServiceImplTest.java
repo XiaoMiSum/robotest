@@ -408,8 +408,6 @@ class AssistantServiceImplTest {
         message.setAttachments(List.of(Map.of("entityType", "mindmap_document", "entityId", ENTITY_ID.toString())));
         message.setImages(List.of(Map.of("fileId", ENTITY_ID.toString(), "name", "截图.png")));
         message.setCitations(List.of(Map.of("entityId", ENTITY_ID.toString())));
-        message.setIntent(Map.of("action", "create_case"));
-        message.setExecution(Map.of("status", "executed"));
         message.setStatus("done");
         message.setCreatedAt(LocalDateTime.now());
         AiAssistantMessagePageReqDTO pageReq = new AiAssistantMessagePageReqDTO();
@@ -425,8 +423,6 @@ class AssistantServiceImplTest {
         assertEquals("assistant", resp.getRole());
         assertEquals("回答正文", resp.getContent());
         assertEquals("done", resp.getStatus());
-        assertEquals("create_case", resp.getIntent().get("action"));
-        assertEquals("executed", resp.getExecution().get("status"));
         assertEquals(1, resp.getCitations().size());
         assertEquals(1, resp.getAttachments().size());
         assertEquals(1, resp.getImages().size());

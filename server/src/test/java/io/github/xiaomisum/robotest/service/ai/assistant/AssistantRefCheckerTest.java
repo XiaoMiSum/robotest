@@ -18,14 +18,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import xyz.migoo.framework.common.exception.ServiceException;
 
-import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -193,55 +190,6 @@ class AssistantRefCheckerTest {
     }
 
     @Test
-    void requireActiveWorkspaceProject_passesMatchAndRejectsMissingOrForeign() {
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(projectOfWorkspace());
-        checker.requireActiveWorkspaceProject(WORKSPACE_ID, PROJECT_ID);
-
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(null);
-        ServiceException missing = assertThrows(ServiceException.class,
-                () -> checker.requireActiveWorkspaceProject(WORKSPACE_ID, PROJECT_ID));
-        assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), missing.getCode());
-
-        when(projectMapper.selectById(PROJECT_ID)).thenReturn(projectOfWorkspace());
-        ServiceException foreign = assertThrows(ServiceException.class, () -> checker
-                .requireActiveWorkspaceProject(UUID.randomUUID(), PROJECT_ID));
-        assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), foreign.getCode());
-    }
-
-    @Test
-    void requireActiveWorkspaceCases_returnsProjectSetWhenChainInsideWorkspace() {
-        when(testCaseNodeMapper.listByIds(any())).thenReturn(List.of(caseNode()));
-        when(testCaseDocumentMapper.listByIds(any())).thenReturn(List.of(document()));
-        when(projectMapper.listByIds(any())).thenReturn(List.of(projectOfWorkspace()));
-
-        Set<UUID> projectIds = checker.requireActiveWorkspaceCases(WORKSPACE_ID, Set.of(NODE_ID));
-
-        assertEquals(Set.of(PROJECT_ID), projectIds);
-    }
-
-    @Test
-    void requireActiveWorkspaceCases_passesEmptyInputWithoutQueries() {
-        assertEquals(Set.of(), checker.requireActiveWorkspaceCases(WORKSPACE_ID, Set.of()));
-        assertEquals(Set.of(), checker.requireActiveWorkspaceCases(WORKSPACE_ID, null));
-        verifyNoInteractions(testCaseNodeMapper, testCaseDocumentMapper, projectMapper);
-    }
-
-    @Test
-    void requireActiveWorkspaceCases_rejectsMissingRowOrForeignProject() {
-        when(testCaseNodeMapper.listByIds(any())).thenReturn(List.of());
-        ServiceException missingRow = assertThrows(ServiceException.class, () -> checker
-                .requireActiveWorkspaceCases(WORKSPACE_ID, Set.of(NODE_ID)));
-        assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), missingRow.getCode());
-
-        when(testCaseNodeMapper.listByIds(any())).thenReturn(List.of(caseNode()));
-        when(testCaseDocumentMapper.listByIds(any())).thenReturn(List.of(document()));
-        when(projectMapper.listByIds(any())).thenReturn(List.of(projectOfWorkspace()));
-        ServiceException foreign = assertThrows(ServiceException.class, () -> checker
-                .requireActiveWorkspaceCases(UUID.randomUUID(), Set.of(NODE_ID)));
-        assertEquals(ErrorCodeConstants.ASSISTANT_CROSS_WORKSPACE.code(), foreign.getCode());
-    }
-
-    @Test
     void titleOf_resolvesPerEntityOrNullWhenUnknown() {
         Requirement requirement = requirementOfProject();
         requirement.setCode("REQ-001");
@@ -273,13 +221,6 @@ class AssistantRefCheckerTest {
         node.setDocumentId(DOCUMENT_ID);
         node.setTitle("验证码正确可登录");
         return node;
-    }
-
-    private static TestCaseDocument document() {
-        TestCaseDocument document = new TestCaseDocument();
-        document.setId(DOCUMENT_ID);
-        document.setProjectId(PROJECT_ID);
-        return document;
     }
 
     private Project projectOfWorkspace() {

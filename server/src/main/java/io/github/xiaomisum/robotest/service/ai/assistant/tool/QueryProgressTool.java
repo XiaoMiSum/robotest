@@ -14,8 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 查询进度（详设 4.1）：评审 / 计划的执行进度统计直答数据源——进度类问题归只读问答
- * （需求 1.5），不再产生 intent kind。
+ * 查询进度（详设 4.1）：评审 / 计划的执行进度统计直答数据源，进度类问题归只读问答（需求 1.5）。
  */
 @Component
 public class QueryProgressTool implements AssistantTool {

@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -69,6 +70,8 @@ class AssistantParseTypeAdapterTest {
         assertTrue(prompt.contains("{{history}}"));
         assertTrue(prompt.contains("{{context}}"));
         assertTrue(prompt.contains("ask_user"));
+        assertFalse(prompt.contains("变更"));
+        assertFalse(prompt.contains("预览"));
         // 助手走自有 AssistantToolRegistry，不签发 Agent 工具白名单，也不产生通用提案
         assertTrue(adapter.toolCodes().isEmpty());
         assertTrue(adapter.buildProposals("{}", Map.of()).isEmpty());

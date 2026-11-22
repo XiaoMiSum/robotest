@@ -15,7 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** 查询评审清单（详设 4.1）：按项目取近期评审并可按名称过滤，供调整类动作引用 reviewId。 */
+/** 查询评审清单（详设 4.1）：按项目取近期评审并可按名称过滤，供只读问答定位与引用评审。 */
 @Component
 public class QueryReviewsTool implements AssistantTool {
 

@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.assistant;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
-import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantIntentBuilder;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantTool;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolContext;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolDefinition;
@@ -34,7 +33,7 @@ import java.util.UUID;
 
 /**
  * 工具调用循环编排（详设 4.1）：单条消息最多 5 跳，查询类即时执行并以 role=tool 消息回填，
- * 澄清 / 变更类终止本轮；tool_call 进度帧与逐跳用量由本类负责，终态统一以 {@link LoopOutcome}
+ * 澄清类终止本轮；tool_call 进度帧与逐跳用量由本类负责，终态统一以 {@link LoopOutcome}
  * 交回处理器——任何终态先落盘再发事件（详设 3.5）。
  *
  * <p>assistant(tool_calls) 轮次在内存中随循环推进（OpenAI 协议要求与 tool 回填成对出现），
@@ -51,14 +50,11 @@ public class AssistantToolLoop {
 
     private static final String EVENT_TOOL_CALL = "tool_call";
     private static final String KIND_CLARIFY = "clarify";
-    private static final String KIND_INTENT = "intent";
     private static final String KIND_ANSWER = "answer";
     private static final String SEARCH_KNOWLEDGE = "search_knowledge";
 
     @Resource
     private AssistantToolRegistry registry;
-    @Resource
-    private AssistantIntentBuilder intentBuilder;
     /** 回填消息写入下沉组件：依赖本组件而非会话服务，避免经注册表回到会话服务的循环依赖 */
     @Resource
     private AssistantToolMessageWriter toolMessageWriter;
@@ -78,28 +74,22 @@ public class AssistantToolLoop {
     }
 
     /**
-     * 循环终态（kind ∈ clarify / intent / answer）：toolCalls 为本条消息累计的模型调用载荷
+     * 循环终态（kind ∈ clarify / answer）：toolCalls 为本条消息累计的模型调用载荷
      * （终态消息落盘的审计轨迹，详设 2 消息表）；citations 仅 answer 终态可能非空（详设 4.1）。
      */
-    public record LoopOutcome(String kind, String question, List<String> options,
-            Map<String, Object> intent, String answer, List<Map<String, Object>> citations,
-            List<Map<String, Object>> toolCalls, int tokensIn, int tokensOut) {
+    public record LoopOutcome(String kind, String question, List<String> options, String answer,
+            List<Map<String, Object>> citations, List<Map<String, Object>> toolCalls,
+            int tokensIn, int tokensOut) {
 
         public static LoopOutcome clarify(String question, List<String> options,
                 List<Map<String, Object>> toolCalls, int tokensIn, int tokensOut) {
-            return new LoopOutcome(KIND_CLARIFY, question, List.copyOf(options), null, null,
-                    List.of(), List.copyOf(toolCalls), tokensIn, tokensOut);
-        }
-
-        public static LoopOutcome intent(Map<String, Object> intent, List<Map<String, Object>> toolCalls,
-                int tokensIn, int tokensOut) {
-            return new LoopOutcome(KIND_INTENT, null, List.of(), intent, null,
+            return new LoopOutcome(KIND_CLARIFY, question, List.copyOf(options), null,
                     List.of(), List.copyOf(toolCalls), tokensIn, tokensOut);
         }
 
         public static LoopOutcome answer(String answer, List<Map<String, Object>> citations,
                 List<Map<String, Object>> toolCalls, int tokensIn, int tokensOut) {
-            return new LoopOutcome(KIND_ANSWER, null, List.of(), null, answer,
+            return new LoopOutcome(KIND_ANSWER, null, List.of(), answer,
                     List.copyOf(citations), List.copyOf(toolCalls), tokensIn, tokensOut);
         }
     }
@@ -192,12 +182,6 @@ public class AssistantToolLoop {
                         return LoopOutcome.clarify(
                                 ModelOutputSupport.trimToNull(ModelOutputSupport.asString(args.get("question"))),
                                 optionsOf(args.get("options")), callTrail, tokensIn, tokensOut);
-                    }
-                    case CHANGE -> {
-                        // 变更类：入参规范化为固化 intent，确认前零业务写入（详设 4.1 / 4.2①）
-                        Map<String, Object> intent = intentBuilder.normalize(
-                                call.name(), parseArgs(call), request.workspaceId(), request.projectId());
-                        return LoopOutcome.intent(intent, callTrail, tokensIn, tokensOut);
                     }
                     default -> throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_PARSE_FAILED);
                 }

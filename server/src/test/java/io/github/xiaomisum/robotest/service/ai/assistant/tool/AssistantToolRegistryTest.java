@@ -7,10 +7,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 工具注册表单测（详设 4.1）：16 个固化定义（执行体 + 变更 definition-only）、
+ * 工具注册表单测（详设 4.1）：8 个固化定义（7 查询/检索 + 1 澄清）、
  * 类别归属与清单外拒绝口径（C8）。
  */
 class AssistantToolRegistryTest {
@@ -22,8 +21,8 @@ class AssistantToolRegistryTest {
 
     @Test
     void registers_all_definitions_and_excludes_unknown() {
-        // 7 查询（含知识检索）+ 澄清 = 8 执行体 + 8 变更 definition = 16（详设 4.1 固化清单）
-        assertEquals(16, registry.all().size());
+        // 7 查询（含知识检索）+ 澄清 = 8 执行体（详设 4.1 固化清单）
+        assertEquals(8, registry.all().size());
         assertNull(registry.definition("not_exist_tool"));
         assertNull(registry.definition(null));
         assertNull(registry.executable("not_exist_tool"));
@@ -41,19 +40,5 @@ class AssistantToolRegistryTest {
         }
         assertEquals(ToolCategory.CLARIFY, registry.definition("ask_user").category());
         assertNotNull(registry.executable("ask_user"));
-    }
-
-    @Test
-    void change_kinds_are_definition_only_with_eight_kinds() {
-        assertEquals(8, AssistantToolRegistry.CHANGE_KINDS.size());
-        assertTrue(AssistantToolRegistry.CHANGE_KINDS.stream()
-                .noneMatch(kind -> kind.startsWith("view_")));
-        for (String kind : AssistantToolRegistry.CHANGE_KINDS) {
-            AssistantToolDefinition definition = registry.definition(kind);
-            assertNotNull(definition);
-            assertEquals(ToolCategory.CHANGE, definition.category());
-            // 变更类无执行体：调用即拦截规范化（详设 4.1 零落库）
-            assertNull(registry.executable(kind));
-        }
     }
 }

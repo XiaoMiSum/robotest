@@ -2,7 +2,6 @@ package io.github.xiaomisum.robotest.service.ai.assistant;
 
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
-import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantIntentBuilder;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantTool;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolContext;
 import io.github.xiaomisum.robotest.service.ai.assistant.tool.AssistantToolDefinition;
@@ -43,7 +42,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * 工具调用循环单测（详设 4.1）：轮次上限与固定文案、查询回填与进度帧、澄清校验与错误回填、
- * 变更规范化终止、清单外拒绝与参数非法降级（C8）。
+ * 清单外拒绝与参数非法降级（C8）。
  */
 @ExtendWith(MockitoExtension.class)
 class AssistantToolLoopTest {
@@ -57,13 +56,9 @@ class AssistantToolLoopTest {
             "query_projects", "查询项目", Map.of("type", "object"), ToolCategory.QUERY);
     private static final AssistantToolDefinition ASK_DEF = new AssistantToolDefinition(
             "ask_user", "澄清", Map.of("type", "object"), ToolCategory.CLARIFY);
-    private static final AssistantToolDefinition CREATE_DEF = new AssistantToolDefinition(
-            "create_case", "创建用例", Map.of("type", "object"), ToolCategory.CHANGE);
 
     @Mock
     private AssistantToolRegistry registry;
-    @Mock
-    private AssistantIntentBuilder intentBuilder;
     @Mock
     private AssistantToolMessageWriter toolMessageWriter;
     @Mock
@@ -168,22 +163,6 @@ class AssistantToolLoopTest {
     }
 
     @Test
-    void changeHop_normalizesAndReturnsIntent() {
-        stubRegistry();
-        Map<String, Object> args = Map.of("targetTitle", "登录用例");
-        when(modelClient.chatWithTools(any(), anyList(), anyList())).thenReturn(new AiChatReply("", 4, 6,
-                List.of(new AiToolCall("tc-4", "create_case", "{\"targetTitle\":\"登录用例\"}"))));
-        Map<String, Object> intent = Map.of("kind", "create_case");
-        when(intentBuilder.normalize(eq("create_case"), any(), eq(WS_ID), eq(PROJECT_ID))).thenReturn(intent);
-
-        AssistantToolLoop.LoopOutcome outcome = loop.run(request(), modelClient);
-
-        assertEquals("intent", outcome.kind());
-        assertEquals(intent, outcome.intent());
-        verify(intentBuilder).normalize(eq("create_case"), any(), eq(WS_ID), eq(PROJECT_ID));
-    }
-
-    @Test
     void unknownTool_throwsParseFailed() {
         stubRegistry();
         when(registry.definition("bogus_tool")).thenReturn(null);
@@ -265,13 +244,12 @@ class AssistantToolLoopTest {
     }
 
     private void stubRegistry() {
-        lenient().when(registry.all()).thenReturn(List.of(QUERY_DEF, ASK_DEF, CREATE_DEF));
+        lenient().when(registry.all()).thenReturn(List.of(QUERY_DEF, ASK_DEF));
         lenient().when(registry.definition(anyString())).thenAnswer(invocation -> {
             String name = invocation.getArgument(0);
             return switch (name) {
                 case "query_projects" -> QUERY_DEF;
                 case "ask_user" -> ASK_DEF;
-                case "create_case" -> CREATE_DEF;
                 default -> null;
             };
         });

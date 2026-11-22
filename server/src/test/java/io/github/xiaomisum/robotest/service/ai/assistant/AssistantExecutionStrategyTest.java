@@ -49,7 +49,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 助手执行策略单测（总册 4.2 助手与向量策略口径 / 分册 04 §4.1）：终态三路落盘与事件、
+ * 助手执行策略单测（总册 4.2 助手与向量策略口径 / 分册 04 §4.1）：终态两路落盘与事件、
  * 共享控制逐跳介入、用户中止 / 预算耗尽置 interrupted（非模型错误不置 error）、
  * 模型或系统错误先置 error 再抛出、终态竞争失败不写消息终态（C8）。
  */
@@ -127,7 +127,7 @@ class AssistantExecutionStrategyTest {
         lenient().when(promptService.render(anyString(), anyString(), anyMap())).thenReturn("rendered");
     }
 
-    // ---------- 终态三路（先落盘再发事件） ----------
+    // ---------- 终态两路（先落盘再发事件） ----------
 
     @Test
     void execute_clarify_persistsQuestionWithOptionsAndReturnsMeta() {
@@ -149,27 +149,6 @@ class AssistantExecutionStrategyTest {
         verify(channel).send(eq("done"), anyMap());
         verify(channel).close();
         verify(control).ensureFinishing();
-    }
-
-    @Test
-    void execute_intent_persistsPreviewWithoutMutatingConversation() {
-        Map<String, Object> intent = intent();
-        when(toolLoop.run(any(), eq(modelClient), any())).thenReturn(
-                AssistantToolLoop.LoopOutcome.intent(intent, List.of(), 30, 9));
-
-        TaskExecutionStrategy.ExecutionResult result = strategy.execute(context, control);
-
-        assertEquals("intent", result.resultMeta().get("kind"));
-        List<?> artifacts = (List<?>) result.resultMeta().get("artifacts");
-        assertEquals(1, artifacts.size());
-        assertEquals("intent-preview", ((Map<?, ?>) artifacts.get(0)).get("key"));
-        ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
-        verify(messageMapper).updateById(captor.capture());
-        assertEquals(intent, captor.getValue().getIntent());
-        // 项目作用域由会话归属固化，预览阶段不再回写会话私有项目（详设 4.4）
-        verify(conversationMapper, never()).updateById(any(AiAssistantConversation.class));
-        verify(channel).send(eq("preview"), anyMap());
-        verify(channel).send(eq("done"), anyMap());
     }
 
     @Test
@@ -360,7 +339,7 @@ class AssistantExecutionStrategyTest {
         AiAssistantMessage done = assistantMessage();
         done.setId(UUID.randomUUID());
         done.setStatus(Constants.AiAssistantMessageStatus.DONE);
-        done.setToolCalls(List.of(Map.of("id", "tc-done", "name", "create_case")));
+        done.setToolCalls(List.of(Map.of("id", "tc-done", "name", "query_cases")));
         when(promptSupport.history(CONVERSATION_ID, MESSAGE_ID)).thenReturn(
                 List.of(trigger(), dangling, done));
         when(toolLoop.run(any(), eq(modelClient), any())).thenReturn(
@@ -427,17 +406,5 @@ class AssistantExecutionStrategyTest {
 
     private static List<AiAssistantMessage> history() {
         return List.of(trigger());
-    }
-
-    private static Map<String, Object> intent() {
-        Map<String, Object> scope = new java.util.LinkedHashMap<>();
-        scope.put("workspaceId", WORKSPACE_ID.toString());
-        scope.put("projectId", PROJECT_ID.toString());
-        scope.put("projectName", "商城项目");
-        Map<String, Object> intent = new java.util.LinkedHashMap<>();
-        intent.put("kind", "create_case");
-        intent.put("targetTitle", "登录用例");
-        intent.put("scope", scope);
-        return intent;
     }
 }
