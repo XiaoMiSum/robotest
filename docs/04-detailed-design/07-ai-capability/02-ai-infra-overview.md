@@ -484,9 +484,9 @@ CREATE INDEX idx_ai_usage_log_task ON ai_usage_log (task_id, execution_id);
 | images | jsonb | NULL | 用户随消息上传的图片文件引用集合 `[{ fileId, name }]`（≤3 张，vision 调用的媒体来源，接口见助手分册 3.5） |
 | tool_calls | jsonb | NULL | assistant 消息的工具调用载荷（名称与入参），工具结果消息经 `tool_call_id` 与之配对 |
 | tool_call_id | varchar(64) | NULL | 工具结果消息（`role = tool`）回指的调用标识，保证 `tool_calls` 后必有回填 |
-| intent | jsonb | NULL | 意图解析结构化预览：动作、目标、字段级变更、影响数量 |
-| citations | jsonb | NULL | 来源引用集合（只读问答与预览附带的可跳转引用） |
-| execution | jsonb | NULL | 执行回执：`previewed → executed / rejected`、逐项成功失败、执行人与时间 |
+| intent | jsonb | NULL | 意图预览载荷（列保留但不写入、不暴露） |
+| citations | jsonb | NULL | 来源引用集合（只读问答附带的可跳转引用） |
+| execution | jsonb | NULL | 执行回执载荷（列保留但不写入、不暴露） |
 | status | varchar(20) | NOT NULL, DEFAULT 'done' | `streaming / done / interrupted / error` |
 
 **索引**（1 个）：`idx_ai_assistant_message_conversation` (conversation_id, created_at)。
@@ -920,7 +920,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ### 4.2 Agent 执行核与护栏
 
 - **执行入口与策略分派**：八个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
-- **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清、回答与变更预览仍按分册 04 处理，不转为通用提案确认；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
+- **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清与回答仍按分册 04 处理，不转为通用提案确认、不经人工确认落库；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。chat 类调用（任务执行核、助手、缺陷建议）经 Spring AI `stream()` 流式读取并聚合响应，平台仅在响应流上编排首 token 超时与空闲超时（内置常量、不开放配置；超时按 1000018117 终止），不接管传输层；向量 embedding 与模型连通性测试仍走阻塞式 `call()`。流式调用沿用任务总时长预算（`maxDurationSeconds`）与心跳超时清扫口径（4.2），不改变其判定。
 - **模型选型（能力 + 优先级）**：执行启动期按「任务必需能力」解析模型并回写执行行 `model_id`（维持启动时解析、执行不漂移），执行期以执行行 `model_id` 按同一规则复验；必需能力由类型适配器从任务输入派生——`requirement_import` 图片文件、`assistant_parse` 消息附图为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。再次执行（3.6.4）不将上次执行 `model_id` 作为指定模型，按同一规则从当前默认模型重新解析；单次执行内的自动短重试（同 `model_id`，见「失败与自动重试」）不受影响。
@@ -1137,3 +1137,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：1.1 / 1.2 分册口径、2.5 场景示例、2.6.4 提案示例、3.5 提示词规则、3.6 任务类型枚举与接口示例、4.2 执行入口统计、6 错误码号段说明同步删除；任务类型总数十一类→十类、普通目标型任务九类→八类 |
 | V1.0 | 2026-11-21 | 移除趋势摘要与存量批量分类：3.6.1 注销 `bug_classify` / `bug_trend_summary` 两类任务（总数十类→八类、普通目标型八类→六类），3.6 目标型执行示例、4.2 必需能力派生与只读产出口径同步收窄 |
 | V1.0 | 2026-11-22 | 新增辅助域任务类型 `review_case_review`（`reviewId` → `review_suggestion`，采纳写回评审标记）：3.6.1 任务枚举登记，`/latest` 支持 `reviewId` 复用，细则见 `docs/04-detailed-design/07-ai-capability/07-ai-review.md` |
+| V1.0 | 2026-11-22 | 智能助手移除变更类能力：2.9 `intent` / `execution` 列改为存量兼容说明（不产生新数据、表结构不变），4.2 助手策略分派去掉变更预览与人工确认口径 |

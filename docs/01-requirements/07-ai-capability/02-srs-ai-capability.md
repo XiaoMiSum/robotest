@@ -14,7 +14,7 @@ AI 能力是平台级基础能力，三个能力域构建其上：
 
 | 能力域 | 分册 | 一句话定位 |
 | ---- | ---- | ---- |
-| 智能助手 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 一句话下达任务，经确认后将数据落库（测试用例、测试评审、测试计划） |
+| 智能助手 | `docs/01-requirements/07-ai-capability/04-srs-ai-assistant.md` | 项目内对话式只读问答：查询平台数据、缺参澄清追问、回答附来源引用，不提供数据变更操作 |
 | 缺陷分析 | `docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md` | 缺陷趋势与质量度量、自动分类分诊、重复缺陷检测 |
 | 辅助功能 | `docs/01-requirements/07-ai-capability/06-srs-ai-assisted-features.md`、`docs/01-requirements/07-ai-capability/07-srs-ai-review.md` | 用例优化（字段补全 + 级别推荐）、测试用例执行顺序推荐、脑图内基于需求生成测试用例、规划用例的 AI 评审 |
 
@@ -140,3 +140,4 @@ AI 能力是平台级基础能力，三个能力域构建其上：
 | V1.0 | 2026-11-19 | 1.1 辅助功能能力域纳入「脑图内基于需求生成测试用例」；该能力的提案采纳在脑图面板执行，任务详情只回看、不提供审核操作（见辅助功能分册） |
 | V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：1.1 能力域清单、总体描述与多模型 / 提示词配置口径同步删除对应条目 |
 | V1.0 | 2026-11-22 | 1.1 辅助功能能力域纳入「规划用例的 AI 评审」（US-AI-020，见 `docs/01-requirements/07-ai-capability/07-srs-ai-review.md`） |
+| V1.0 | 2026-11-22 | 智能助手移除变更类能力：1.1 能力域定位改为只读问答与澄清，不创建、修改或删除业务数据 |
