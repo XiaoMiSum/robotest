@@ -101,6 +101,7 @@ public final class Constants {
         String BUG_TRIAGE = "bug_triage";
         String ASSISTANT_PARSE = "assistant_parse";
         String VECTOR_REINDEX = "vector_reindex";
+        String REVIEW_CASE_REVIEW = "review_case_review";
     }
 
     /**
@@ -121,6 +122,7 @@ public final class Constants {
         String CASE_OPTIMIZE_SUGGESTION = "case_optimize_suggestion";
         String MINDMAP_CASE_SUGGESTION = "mindmap_case_suggestion";
         String ORDER_SUGGESTION = "order_suggestion";
+        String REVIEW_SUGGESTION = "review_suggestion";
     }
 
     /**

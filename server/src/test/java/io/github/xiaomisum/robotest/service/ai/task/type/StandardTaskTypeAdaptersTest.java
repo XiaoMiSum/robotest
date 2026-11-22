@@ -63,28 +63,29 @@ class StandardTaskTypeAdaptersTest {
     }
 
     /**
-     * 8/8 类型适配器注册齐全（总册 3.6.1）：注册表覆盖全量枚举、类型唯一，
+     * 9/9 类型适配器注册齐全（总册 3.6.1）：注册表覆盖全量枚举、类型唯一，
      * 助手与向量两类自带预算与策略（不落入普通类型统一预算）。
      */
     @Test
-    void eightTypeAdaptersRegisterAcrossFullEnum() {
+    void nineTypeAdaptersRegisterAcrossFullEnum() {
         Set<String> expectedTypes = Set.of(
                 "requirement_import",
                 "case_optimize", "mindmap_case_generation", "plan_order",
                 "bug_duplicate_scan", "bug_triage",
-                "assistant_parse", "vector_reindex");
+                "assistant_parse", "vector_reindex", "review_case_review");
         List<TaskTypeAdapter> adapters = List.of(
                 new RequirementImportTypeAdapter(),
                 new CaseOptimizeTypeAdapter(), new MindmapCaseGenerationTypeAdapter(),
                 new PlanOrderTypeAdapter(), new BugDuplicateScanTypeAdapter(),
                 new BugTriageTypeAdapter(),
-                new AssistantParseTypeAdapter(), new VectorReindexTypeAdapter());
+                new AssistantParseTypeAdapter(), new VectorReindexTypeAdapter(),
+                new ReviewCaseReviewTypeAdapter());
 
-        assertEquals(8, adapters.size());
+        assertEquals(9, adapters.size());
         assertEquals(expectedTypes, adapters.stream().map(TaskTypeAdapter::type)
                 .collect(Collectors.toSet()));
 
-        // Spring 同样按该集合装配：同 type 重复注册为装配错误，8 类全部可解析
+        // Spring 同样按该集合装配：同 type 重复注册为装配错误，9 类全部可解析
         TaskTypeAdapterRegistry registry = new TaskTypeAdapterRegistry(adapters);
         for (String type : expectedTypes) {
             assertTrue(registry.get(type) != null, "注册表缺类型: " + type);

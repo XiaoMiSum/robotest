@@ -50,6 +50,10 @@ public final class AiPromptScenes {
         register(scenes, new PromptScene("plan_order", "执行顺序建议", List.of(
                 new PromptVariable("planContext", "计划关联用例与最近执行结果", true),
                 new PromptVariable("roundCount", "推荐轮次（缺省空串）", false))));
+        register(scenes, new PromptScene("review_case_review", "AI 评审规划用例", List.of(
+                new PromptVariable("reviewCaseContext", "关联规划用例快照与祖先路径", true),
+                new PromptVariable("requirementContext", "关联需求冻结快照", true),
+                new PromptVariable("ragContext", "向量检索命中的需求片段（可为空）", false))));
         SCENES = Collections.unmodifiableMap(scenes);
     }
 

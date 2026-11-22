@@ -424,7 +424,7 @@ class AiTaskServiceImplTest {
         when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
         when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
 
-        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID, loginUser);
+        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", "node-1", null, PROJECT_ID, USER_ID, loginUser);
 
         assertNotNull(resp);
         assertEquals(TASK_ID, resp.getTaskId());
@@ -436,7 +436,7 @@ class AiTaskServiceImplTest {
     void getLatestByNode_returnsNullWhenAbsent() {
         when(taskMapper.selectLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID)).thenReturn(null);
 
-        assertNull(service.getLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID, loginUser));
+        assertNull(service.getLatestByNode(TYPE, "doc-1", "node-1", null, PROJECT_ID, USER_ID, loginUser));
     }
 
     @Test
@@ -448,11 +448,31 @@ class AiTaskServiceImplTest {
         when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
         when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
 
-        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", null, PROJECT_ID, USER_ID, loginUser);
+        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", null, null, PROJECT_ID, USER_ID, loginUser);
 
         assertNotNull(resp);
         assertEquals(TASK_ID, resp.getTaskId());
         assertEquals("AI覆盖雷达", resp.getTitle());
+    }
+
+    @Test
+    void getLatestByReviewId_usesReviewLookupForReviewType() {
+        AiTask latest = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        latest.setTitle("AI 评审");
+        String reviewId = UUID.randomUUID().toString();
+        when(taskMapper.selectLatestByReviewId(Constants.AiTaskType.REVIEW_CASE_REVIEW, reviewId,
+                PROJECT_ID, USER_ID)).thenReturn(latest);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
+        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
+
+        AiTaskRespDTO resp = service.getLatestByNode(Constants.AiTaskType.REVIEW_CASE_REVIEW, null, null,
+                reviewId, PROJECT_ID, USER_ID, loginUser);
+
+        assertNotNull(resp);
+        assertEquals(TASK_ID, resp.getTaskId());
+        assertEquals("AI 评审", resp.getTitle());
+        verify(taskMapper, never()).selectLatestByNode(any(), any(), any(), any(), any());
     }
 
     @Test
