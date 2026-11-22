@@ -10,7 +10,7 @@
 
 ### 1.1 编写目的
 
-对**缺陷分析**能力域进行详细设计：定义趋势与质量度量查询接口、新建建议、分诊队列与重复缺陷检测的接口与规则。任务提交、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义缺陷域的业务入口与提案语义。
+对**缺陷分析**能力域进行详细设计：定义趋势与质量度量查询接口、新建建议、分诊队列与录入时重复检测的接口与规则。任务提交、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义缺陷域的业务入口与提案语义。
 
 ### 1.2 范围与对应设计
 
@@ -29,8 +29,8 @@
 
 本分册**不新增表**：
 
-- 分析任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = bug_triage / bug_duplicate_scan`）；
-- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`duplicate_group / triage_order`）；
+- 分析任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = bug_triage`）；
+- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`triage_order`）；
 - 录入时相似检测为**同步向量检索**，读 `ai_vector_index`（`entity_type = bug`，DDL 见总册 2.10），不产生任务；
 - 新建缺陷建议为**实时 SSE 流式接口**（单跳流式模型调用，向量检索仅取候选用例上下文），不产生任务、不落库；
 - 趋势与度量为实时聚合查询，**不落中间表、不缓存过期结论**。
@@ -42,7 +42,7 @@
 ### 3.1 通用约定
 
 - 查询类入口走缺陷业务路径 `/api/project/bugs/analysis/*`（`X-Active-Workspace` + `X-Active-Project` 头，免 RBAC 权限码校验，保留项目成员校验）；
-- 分诊建议与存量重复扫描为任务，统一 `POST /api/ai/tasks` 提交（本域 `type` 与提案确认映射见 4.2），结果经总册 3.6.3 查询；
+- 分诊建议为任务，统一 `POST /api/ai/tasks` 提交（本域 `type` 与提案确认映射见 4.2），结果经总册 3.6.3 查询；
 - 响应 `Result<T>`，示例**仅展示 `data`**；分页同总册。
 
 ### 3.2 趋势查询
@@ -180,31 +180,6 @@
 - **前端触发**：标题输入框失焦时发起（标题为空不触发）；命中时弹窗展示相似缺陷明细，无命中或功能不可用（AI 未启用 / 向量未就绪 / 请求失败）不作任何提示（交互口径见 `docs/05-interaction-design/07-ai-capability/06-defect-analysis-ui.md` 2.2、3.1）。
 - **校验规则**：仅检索当前项目的 `entity_type = bug` 向量（先业务归属过滤再相似检索，总册 4.4）；相似度仅作排序，阈值不对外承诺；`title` 必填（否则 1000018284）；向量能力未就绪时返回 1000018258 口径错误（前端按功能不可用静默处理）。用户确认为重复时，走既有「重复缺陷」解决方案提交（须指定原始缺陷）。
 
-### 3.7 存量重复扫描（任务）
-
-- **提交**：`POST /api/ai/tasks`
-
-```json
-{ "type": "bug_duplicate_scan", "input": { "scope": "active" }, "waitSeconds": 0 }
-```
-
-- **提案**（`kind = duplicate_group`，`confirmStatus = pending`）：
-
-```json
-{
-  "key": "group-1",
-  "kind": "duplicate_group",
-  "title": "疑似重复分组（3 条）",
-  "content": {
-    "canonicalBugId": "…",
-    "items": [{ "bugId": "…", "similarity": 0.83, "reason": "…" }]
-  },
-  "confirmStatus": "pending"
-}
-```
-
-- **确认**：人工确认分组（`adopted` / `rejected`，`note` 记录结论）——承接服务**只写确认留痕，不修改任何缺陷**；确认后由人工在缺陷中按既有「重复缺陷」解决方案逐条处理；检测结果不自动合并、不改状态。
-
 ---
 
 ## 4. 业务逻辑设计
@@ -219,17 +194,10 @@
 | type | 提案确认 |
 | ---- | ---- |
 | bug_triage | `not_applicable` |
-| bug_duplicate_scan | 分组 `adopted/rejected` 留痕 |
 
 - 新建缺陷建议不走任务（实时 SSE 流式接口，见 3.4）；
 
-- 任务发起与采纳均免 RBAC 权限码校验（仅保留任务归属可见性与项目成员校验）；作用域一律取请求头 `X-Active-Project`。
-
-### 4.3 扫描任务的执行与确认
-
-1. 存量重复扫描按缺陷分片执行，进度以执行步数与轨迹事件呈现（总册 3.6.3 / 3.6.4）；
-2. 确认走总册 3.6.5：人工采纳重复分组仅写确认留痕，不修改任何缺陷；失败项回滚、成功项保留；
-3. AI 不自动改写任何已提交缺陷；采纳与驳回全部记审计。
+- 任务发起免 RBAC 权限码校验（仅保留任务归属可见性与项目成员校验）；作用域一律取请求头 `X-Active-Project`。
 
 ---
 
@@ -257,14 +225,12 @@ BugAnalysisPage
 ├── SuggestBadge（分类建议值标记：类型 / 等级 / 优先级 / 模块 / 关键词，一键采纳）
 ├── RelatedCaseSuggestBadge（关联用例建议：「选择用例」按钮旁徽标，点击采纳写入关联用例）
 └── BugDuplicateDialog（标题失焦触发的相似检测弹窗：相似度排序列表 + 跳转）
-
-存量扫描入口 → DuplicateScanPanel（分组审核，确认留痕后引导既有重复缺陷流程）
 ```
 
 ### 5.3 状态管理与状态分支
 
-- Pinia store `bugAnalysis`：范围与分组条件、趋势/度量数据、存量扫描任务引用（轮询复用 `aiTask` store）；
-- 状态分支：范围无数据（空图表补 0）、向量未就绪（录入检测静默不弹窗、扫描入口置灰）。
+- Pinia store `bugAnalysis`：范围与分组条件、趋势/度量数据；
+- 状态分支：范围无数据（空图表补 0）、向量未就绪（录入检测静默不弹窗）。
 
 ---
 
@@ -279,7 +245,6 @@ BugAnalysisPage
 | 1000018283 | 400 | 分析输入为空（无可分析的缺陷） |
 | 1000018284 | 400 | 检测输入非法（标题为空或超长） |
 | 1000018285 | 400 | 分组参数非法（groupBy 取值越界） |
-| 1000018286 | 400 | 重复扫描范围参数非法 |
 | 1000018287 | 400 | 建议输入非法（标题为空或超长） |
 
 ---
@@ -294,8 +259,7 @@ BugAnalysisPage
 | `server/.../service/domain/bug/BugAnalysisService + Impl` | 实时聚合与口径计算 |
 | `server/.../service/domain/bug/BugDraftSuggestService + Impl` | 新建建议实时 SSE：上下文装配（模块 / 用例候选 / 枚举）、流式单跳模型调用与清洗、SseEmitter 事件写出 |
 | `server/.../service/ai/config/AiPromptScenes` | 登记实时建议提示词场景（`bug_draft_suggest`，变量：bugContext / moduleOptions / caseOptions） |
-| `server/.../service/domain/bug/BugTriageTypeAdapter`、`BugDuplicateScanTypeAdapter` | 缺陷域任务类型适配器（工具白名单与预算默认、提案结构，随对应能力域就近注册） |
-| `server/.../service/domain/bug/BugDuplicateScanAdopter` | 重复扫描留痕承接 |
+| `server/.../service/domain/bug/BugTriageTypeAdapter` | 缺陷域任务类型适配器（工具白名单与预算默认、提案结构，随对应能力域就近注册） |
 | `server/.../framework/common/ErrorCodeConstants` | 登记 1000018281–1000018287 |
 | `web/src/pages/project/BugAnalysisPage.vue` 及组件、`web/src/stores/bugAnalysis.ts` | 分析页与状态 |
 | `web/src/composables/project/bug/useBugCreateSuggest.ts` | 改同步接口调用（移除任务提交与轮询） |
@@ -330,3 +294,4 @@ BugAnalysisPage
 | V1.0 | 2026-10-20 | 3.5 传输通道改 SSE 流式（`text/event-stream`：`progress` / `done` / `error` 事件 + 15s 心跳，无客户端总超时；流建立前校验仍为同步 HTTP 错误），1 概述、3.x、5.1 接口清单、7 实施说明与测试要点同步 |
 | V1.0 | 2026-11-18 | AI 能力域免 RBAC 权限码校验：1.2 / 3.1 / 3.5 / 3.8 / 4.2 / 5.3 移除 `ai:task` · `bug:view` 与权限拒绝 / 权限不足分支，改登录即可并保留任务归属可见性与项目成员校验 |
 | V1.0 | 2026-11-21 | 移除趋势摘要与存量批量分类：删除 3.4 / 3.6 两节及对应任务类型、提案种类与采纳承接，后续小节顺延为 3.4–3.7，数据设计、接口约定、业务逻辑、前端组件与实施 / 测试要点同步收窄 |
+| V1.0 | 2026-11-21 | 移除存量重复扫描任务：删除 3.7 节与 4.3 节，数据设计、接口约定、提案映射、前端组件与状态、错误码 1000018286、实施文件清单同步收窄，接口节保留 3.1–3.6 |

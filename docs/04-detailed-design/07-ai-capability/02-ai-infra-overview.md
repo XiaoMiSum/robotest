@@ -733,7 +733,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
-> 拆解、用例优化、顺序建议、缺陷重复扫描等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
+> 拆解、用例优化、顺序建议、缺陷分诊等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
 
 #### 3.6.1 任务类型枚举（全量，单一事实源）
 
@@ -744,7 +744,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | review_case_review | 辅助 | `reviewId` | `review_suggestion` | 评审标记写回采纳服务 |
-| bug_duplicate_scan | 缺陷 | `scope` | `duplicate_group` | 人工按重复缺陷机制处理 |
 | bug_triage | 缺陷 | 无 | `triage_order`（只读建议，无确认） | 不落库 |
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
@@ -1138,3 +1137,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-21 | 移除趋势摘要与存量批量分类：3.6.1 注销 `bug_classify` / `bug_trend_summary` 两类任务（总数十类→八类、普通目标型八类→六类），3.6 目标型执行示例、4.2 必需能力派生与只读产出口径同步收窄 |
 | V1.0 | 2026-11-22 | 新增辅助域任务类型 `review_case_review`（`reviewId` → `review_suggestion`，采纳写回评审标记）：3.6.1 任务枚举登记，`/latest` 支持 `reviewId` 复用，细则见 `docs/04-detailed-design/07-ai-capability/07-ai-review.md` |
 | V1.0 | 2026-11-22 | 智能助手移除变更类能力：2.9 `intent` / `execution` 列改为存量兼容说明（不产生新数据、表结构不变），4.2 助手策略分派去掉变更预览与人工确认口径 |
+| V1.0 | 2026-11-21 | 移除存量重复扫描任务：3.6.1 注销 `bug_duplicate_scan` / `duplicate_group`（总数九类→八类、普通目标型七类→六类），3.6 目标型执行示例与 4.2 执行入口统计改引保留类型 |
