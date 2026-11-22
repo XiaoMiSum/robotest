@@ -203,11 +203,5 @@ describe('reviewProfiles', () => {
       expect(profile.allowEdit).toBe(true)
       expect(profile.needSystemVersion).toBe(false)
     })
-
-    it('按任务类型指定审核面板形态', () => {
-      expect(reviewProfile('bug_duplicate_scan').panel).toBe('bug')
-      expect(reviewProfile('case_optimize').panel).toBe('generic')
-      expect(reviewProfile('future_task').panel).toBe('generic')
-    })
   })
 })

@@ -43,7 +43,7 @@ export const useBugAnalysisStore = defineStore('bugAnalysis', {
     metrics: null as BugMetricsResp | null,
     metricsLoading: false,
     metricsError: '',
-    // ---------- 分诊队列（详设 3.7，只读排序建议） ----------
+    // ---------- 分诊队列（详设 3.5，只读排序建议） ----------
     triageItems: [] as BugTriageContent['items'],
     triageLoading: false,
     triageError: '',

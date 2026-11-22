@@ -52,7 +52,7 @@ export interface BugMetricsResp {
   typeDist: BugDistItem[]
 }
 
-// ==================== 录入时重复检测（详设 3.7） ====================
+// ==================== 录入时重复检测（详设 3.6） ====================
 export interface BugDuplicateCheckReq {
   title: string
   steps?: string
@@ -72,7 +72,7 @@ export interface BugDuplicateCheckResp {
   list: BugDuplicateCheckItem[]
 }
 
-// ==================== 产物 content（详设 3.2–3.7） ====================
+// ==================== 产物 content（详设 3.1–3.6） ====================
 
 /** 建议值：value 为建议内容，reason 为理由 */
 export interface BugSuggestionField<T> {
@@ -95,12 +95,6 @@ export interface BugSuggestionFields {
 export interface BugTriageContent {
   items: Array<{ bugId: string; rank: number; reason: string }>
   scope: string
-}
-
-/** 重复组产物 content（分组确认仅留痕，不修改任何缺陷） */
-export interface BugDuplicateGroupContent {
-  canonicalBugId: string | null
-  items: Array<{ bugId: string; similarity: number; reason: string }>
 }
 
 // ==================== 新建缺陷实时建议（详设 3.4） ====================

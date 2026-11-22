@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBugAnalysisStore } from '@/stores/bugAnalysis'
-import { fetchAiStatus } from '@/services/ai'
 import AnalysisRangePicker from '@/components/project/bug/analysis/AnalysisRangePicker.vue'
-import DuplicateScanActions from '@/components/project/bug/analysis/DuplicateScanActions.vue'
 import MetricCards from '@/components/project/bug/analysis/MetricCards.vue'
 import TriageQueueCard from '@/components/project/bug/analysis/TriageQueueCard.vue'
 import TrendChart from '@/components/project/bug/analysis/TrendChart.vue'
@@ -12,15 +10,8 @@ import TrendChart from '@/components/project/bug/analysis/TrendChart.vue'
 const router = useRouter()
 const store = useBugAnalysisStore()
 
-const aiAvailable = ref(false)
-onMounted(async () => {
-  try {
-    aiAvailable.value = (await fetchAiStatus()).available
-  } catch {
-    // 状态查询失败按 AI 不可用降级，分析图表不受影响
-    aiAvailable.value = false
-  }
-  await store.reload()
+onMounted(() => {
+  void store.reload()
 })
 
 onBeforeUnmount(() => {
@@ -56,10 +47,7 @@ function drillToBugs(filters: { severity?: string; bugType?: string }): void {
     <header class="bug-analysis__head">
       <div>
         <h1 class="bug-analysis__title">AI 缺陷分析</h1>
-        <p class="bug-analysis__desc">趋势与质量度量、分诊建议与存量重复扫描，范围限于当前项目</p>
-      </div>
-      <div class="bug-analysis__actions">
-        <DuplicateScanActions :ai-available="aiAvailable" @submitted="void 0" />
+        <p class="bug-analysis__desc">趋势与质量度量、分诊建议，范围限于当前项目</p>
       </div>
     </header>
 
@@ -132,12 +120,6 @@ function drillToBugs(filters: { severity?: string; bugType?: string }): void {
   margin: var(--space-xs) 0 0;
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
-}
-
-.bug-analysis__actions {
-  display: flex;
-  gap: var(--space-sm);
-  flex-shrink: 0;
 }
 
 .bug-analysis__block {

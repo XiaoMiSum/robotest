@@ -59,13 +59,9 @@ export interface ProposalParsed {
   editValues: Record<string, unknown>
 }
 
-/** 审核面板形态：缺陷重复扫描专用面板、其余通用面板 */
-export type ProposalReviewPanelKind = 'generic' | 'bug'
-
 export interface ProposalReviewProfile {
   taskType: string
   title: string
-  panel: ProposalReviewPanelKind
   allowAdopt: boolean
   allowEdit: boolean
   allowReject: boolean
@@ -118,7 +114,6 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
   return {
     taskType,
     title,
-    panel: 'generic',
     allowAdopt: true,
     allowEdit: true,
     allowReject: true,
@@ -168,7 +163,6 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
 const planOrderProfile: ProposalReviewProfile = {
   taskType: 'plan_order',
   title: '执行顺序审核',
-  panel: 'generic',
   allowAdopt: true,
   allowEdit: true,
   allowReject: true,
@@ -215,7 +209,6 @@ const planOrderProfile: ProposalReviewProfile = {
 const reviewCaseReviewProfile: ProposalReviewProfile = {
   taskType: 'review_case_review',
   title: 'AI 评审结果',
-  panel: 'generic',
   allowAdopt: true,
   allowEdit: true,
   allowReject: true,
@@ -269,7 +262,6 @@ function readonlyProfile(taskType: string, title: string): ProposalReviewProfile
   return {
     taskType,
     title,
-    panel: 'generic',
     allowAdopt: false,
     allowEdit: false,
     allowReject: false,
@@ -329,22 +321,6 @@ const mindmapCaseGenerationProfile: ProposalReviewProfile = {
   },
 }
 
-/** 缺陷重复扫描走专用面板，注册表仅登记其分发 */
-function specializedProfile(
-  taskType: string,
-  title: string,
-  panel: ProposalReviewPanelKind,
-): ProposalReviewProfile {
-  return {
-    ...readonlyProfile(taskType, title),
-    panel,
-    allowAdopt: true,
-    allowEdit: true,
-    allowReject: true,
-    allowBatch: true,
-  }
-}
-
 const REGISTRY: Record<string, ProposalReviewProfile> = {
   requirement_import: requirementProfile('requirement_import', '导入结果审核'),
   requirement_split: requirementProfile('requirement_split', '拆分结果审核'),
@@ -352,7 +328,6 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   mindmap_case_generation: mindmapCaseGenerationProfile,
   plan_order: planOrderProfile,
   review_case_review: reviewCaseReviewProfile,
-  bug_duplicate_scan: specializedProfile('bug_duplicate_scan', '重复缺陷扫描', 'bug'),
   bug_triage: readonlyProfile('bug_triage', '缺陷分诊结果'),
   assistant_parse: readonlyProfile('assistant_parse', '助手解析结果'),
   vector_reindex: readonlyProfile('vector_reindex', '向量索引重建结果'),

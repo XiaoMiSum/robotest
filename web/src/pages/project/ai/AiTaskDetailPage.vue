@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, watch } from 'vue'
+import { nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
 import AiProposalReviewPanel from '@/components/project/ai/AiProposalReviewPanel.vue'
@@ -7,9 +7,7 @@ import AiTaskAdoptionResultPanel from '@/components/project/ai/AiTaskAdoptionRes
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
 import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
 import TraceEventList from '@/components/project/ai/TraceEventList.vue'
-import BugDuplicateReviewPanel from '@/components/project/bug/BugDuplicateReviewPanel.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
-import { reviewProfile } from '@/composables/project/ai/reviewProfiles'
 
 const route = useRoute()
 
@@ -41,9 +39,6 @@ const {
   handleReExecute,
   backToCenter,
 } = useAiTaskDetail()
-
-/** 审核面板形态由任务类型策略决定，新增任务类型无需改页面分发逻辑 */
-const reviewPanel = computed(() => reviewProfile(detail.value?.type ?? '').panel)
 
 /** 从列表「审核」进入时定位审核区（交互 2.1.2）；审核区在 proposals_ready 后才渲染，待其出现再定位 */
 const focusReview = route.query.review === '1'
@@ -198,16 +193,7 @@ function focusReviewArea(): void {
           :class="{ 'task-section--focus': focusReview }"
         >
           <template v-if="showReviewArea">
-            <!-- 存量重复扫描走缺陷分组审核面板（详设 3.9） -->
-            <BugDuplicateReviewPanel
-              v-if="reviewPanel === 'bug'"
-              :task-id="detail.taskId"
-              :proposals="proposals"
-              @confirmed="load"
-              @leave="backToCenter"
-            />
             <AiProposalReviewPanel
-              v-else
               :task-id="detail.taskId"
               :task-type="detail.type"
               :proposals="proposals"
