@@ -15,9 +15,9 @@ class ScopedSnapshotAgentToolsTest {
         UUID trusted = UUID.randomUUID();
         UUID outside = UUID.randomUUID();
         AgentToolContext context = new AgentToolContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                UUID.randomUUID(), "bug_duplicate_scan", Map.of("bugIds", List.of(trusted.toString())));
+                UUID.randomUUID(), "bug_triage", Map.of("bugIds", List.of(trusted.toString())));
 
-        String result = new ScopedSnapshotAgentTools.QueryBugs().execute(context,
+        String result = new ScopedSnapshotAgentTools.QueryTriageBugs().execute(context,
                 Map.of("resourceIds", List.of(outside.toString())));
 
         assertTrue(result.contains("超出任务可信范围"));

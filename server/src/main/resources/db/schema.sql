@@ -1170,15 +1170,13 @@ CREATE TABLE ai_task_tool (
 );
 CREATE UNIQUE INDEX uk_ai_task_tool ON ai_task_tool (tool_code) WHERE is_deleted = FALSE;
 
--- S4 普通任务只读工具种子：代码注册、种子与 TypeAdapter 白名单同源（5/5 类型覆盖）。
+-- S4 普通任务只读工具种子：代码注册、种子与 TypeAdapter 白名单同源（4/4 类型覆盖）。
 INSERT INTO ai_task_tool (id, tool_code, name, task_types, param_schema, side_effect) VALUES
 ('a1000000-0000-0000-0000-000000000001', 'read_import_source', '读取导入来源', '["requirement_import"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000002', 'query_project_modules', '查询项目模块', '["requirement_import"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000003', 'query_requirements', '查询需求', '["case_optimize"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000007', 'query_case_context', '查询用例上下文', '["case_optimize"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000009', 'query_plan_order_context', '查询计划顺序上下文', '["plan_order"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
-('a1000000-0000-0000-0000-000000000010', 'query_bugs', '查询缺陷', '["bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
-('a1000000-0000-0000-0000-000000000011', 'search_similar_bugs', '检索相似缺陷', '["bug_duplicate_scan"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly'),
 ('a1000000-0000-0000-0000-000000000012', 'query_triage_bugs', '查询分诊缺陷', '["bug_triage"]', '{"type":"object","properties":{"resourceIds":{"type":"array","maxItems":500,"items":{"type":"string"}}}}', 'readonly');
 
 CREATE TABLE ai_task_adoption (

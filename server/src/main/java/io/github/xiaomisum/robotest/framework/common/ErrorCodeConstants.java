@@ -272,7 +272,6 @@ public class ErrorCodeConstants {
     public static final ErrorCode BUG_ANALYSIS_INPUT_EMPTY = ErrorCode.of(1000018283, "分析输入为空（无可分析的缺陷）");
     public static final ErrorCode BUG_ANALYSIS_CHECK_INPUT_INVALID = ErrorCode.of(1000018284, "检测输入非法（标题为空或超长）");
     public static final ErrorCode BUG_ANALYSIS_GROUP_BY_INVALID = ErrorCode.of(1000018285, "分组参数非法");
-    public static final ErrorCode BUG_ANALYSIS_SCOPE_INVALID = ErrorCode.of(1000018286, "重复扫描范围参数非法");
     public static final ErrorCode BUG_ANALYSIS_SUGGEST_INPUT_INVALID = ErrorCode.of(1000018287, "建议输入非法（标题为空或超长）");
 
     // ========== AI 辅助功能 1000018301-1000018315（辅助功能详设 6，号段至 1000018329） ==========

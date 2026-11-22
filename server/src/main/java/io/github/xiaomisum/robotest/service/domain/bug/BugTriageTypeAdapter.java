@@ -67,7 +67,7 @@ public class BugTriageTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
                 """;
     }
 
-    /** 输入范围固定，无入参可校验（详设 3.7） */
+    /** 输入范围固定，无入参可校验（详设 3.5） */
     @Override
     public void validateInput(Map<String, Object> input) {
     }
@@ -157,7 +157,7 @@ public class BugTriageTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
         artifact.put("kind", Constants.AiProposalKind.BUG_TRIAGE);
         artifact.put("title", "分诊顺序建议");
         artifact.put("content", content);
-        // 只读建议，不写入任何数据（详设 3.7）
+        // 只读建议，不写入任何数据（详设 3.5）
         artifact.put("confirmStatus", "not_applicable");
         return artifact;
     }

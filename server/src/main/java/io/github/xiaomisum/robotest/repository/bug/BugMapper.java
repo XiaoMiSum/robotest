@@ -80,15 +80,6 @@ public interface BugMapper extends BaseMapperX<Bug> {
                 .orderByAsc(Bug::getCreatedAt));
     }
 
-    /** 重复扫描范围（缺陷分析详设 3.7 scope=active）：激活缺陷，创建早的在前，调用方限定上限 */
-    default List<Bug> listByStatus(UUID projectId, String status, int limit) {
-        return selectList(new LambdaQueryWrapperX<Bug>()
-                .eq(Bug::getProjectId, projectId)
-                .eq(Bug::getStatus, status)
-                .orderByAsc(Bug::getCreatedAt)
-                .last("LIMIT " + limit));
-    }
-
     /**
      * 趋势 / 度量分析集（缺陷分析详设 3.2）：分析区间内可能产生计数的缺陷——
      * 创建早于区间末，且尚未关闭或关闭时间不早于区间起（未关闭缺陷参与逐日存量）。
