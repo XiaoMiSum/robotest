@@ -743,6 +743,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | case_optimize | 辅助 | `nodeIds` | `case_optimize_suggestion` | 用例采纳服务 |
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
+| review_case_review | 辅助 | `reviewId` | `review_suggestion` | 评审标记写回采纳服务 |
 | bug_duplicate_scan | 缺陷 | `scope` | `duplicate_group` | 人工按重复缺陷机制处理 |
 | bug_triage | 缺陷 | 无 | `triage_order`（只读建议，无确认） | 不落库 |
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
@@ -797,10 +798,10 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串时前端按类型名兜底展示。
 - **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数，过滤口径与列表一致（按项目头过滤，不按提交人过滤）。
   - 响应：`{ "count": 2 }`。
-- **按文档 / 节点查询最近任务**：`GET /api/ai/tasks/{type}/latest`
-  - 参数：`documentId`（必填）、`nodeId`（可选）；传 `nodeId` 时按任务输入中的 `documentId` 与 `nodeIds` 匹配（节点级任务），省略 `nodeId` 时仅按 `documentId` 匹配（文档级任务）；返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
+- **按文档 / 节点 / 评审查询最近任务**：`GET /api/ai/tasks/{type}/latest`
+  - 参数：`documentId` / `reviewId`、`nodeId`（可选）；`reviewId` 用于 `review_case_review`（按任务输入的 `reviewId` 匹配），`documentId` 用于其他类型——传 `nodeId` 时按任务输入中的 `documentId` 与 `nodeIds` 匹配（节点级任务），省略 `nodeId` 时仅按 `documentId` 匹配（文档级任务）；返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
   - 可见范围：当前项目内任意成员提交的任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
-  - 用途：用例节点「AI 优化」按节点、脑图「AI覆盖雷达」按当前文档复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
+  - 用途：用例节点「AI 优化」按节点、脑图「AI覆盖雷达」按当前文档、评审详情页「AI 评审」按评审 id 复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
 - **详情**：`GET /api/ai/tasks/{taskId}`
   - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 执行产出提案后回填（见 2.6.4）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
 
@@ -1135,3 +1136,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-20 | 4.2 调用层技术口径补充：chat 类调用改经 Spring AI `stream()` 流式读取并聚合响应，平台仅编排首 token / 空闲超时（内置常量、不开放配置）；embedding 与连通性测试仍走阻塞式 `call()`，任务总预算与心跳口径不变 |
 | V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：1.1 / 1.2 分册口径、2.5 场景示例、2.6.4 提案示例、3.5 提示词规则、3.6 任务类型枚举与接口示例、4.2 执行入口统计、6 错误码号段说明同步删除；任务类型总数十一类→十类、普通目标型任务九类→八类 |
 | V1.0 | 2026-11-21 | 移除趋势摘要与存量批量分类：3.6.1 注销 `bug_classify` / `bug_trend_summary` 两类任务（总数十类→八类、普通目标型八类→六类），3.6 目标型执行示例、4.2 必需能力派生与只读产出口径同步收窄 |
+| V1.0 | 2026-11-22 | 新增辅助域任务类型 `review_case_review`（`reviewId` → `review_suggestion`，采纳写回评审标记）：3.6.1 任务枚举登记，`/latest` 支持 `reviewId` 复用，细则见 `docs/04-detailed-design/07-ai-capability/07-ai-review.md` |
