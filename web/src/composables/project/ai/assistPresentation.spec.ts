@@ -5,10 +5,12 @@ import {
   caseOptimizeOperationUnchanged,
   isCaseOptimizeSuggestion,
   isPlanOrderSuggestion,
+  isReviewSuggestion,
   planOrderMovedCount,
   readAssistSuggestion,
   readCaseOptimizeOperations,
   readPlanOrder,
+  readReview,
   readWireOperations,
 } from './assistPresentation'
 
@@ -115,6 +117,53 @@ describe('assistPresentation', () => {
     })
   })
 
+  describe('readReview（AI 评审建议）', () => {
+    it('保留建议标记、理由、问题清单与来源引用', () => {
+      const view = readReview({
+        reviewId: 'rv-1',
+        snapshotNodeId: 'snap-1',
+        caseTitle: '获取验证码',
+        suggestedMark: 'fail',
+        reason: '缺少错误分支预期',
+        issues: [
+          {
+            severity: 'high', category: '预期不完整',
+            description: '未覆盖错误输入', path: '获取验证码 › 步骤 2',
+          },
+        ],
+        sourceRefs: [{ id: 'r1', title: 'REQ-001', quote: '错误时提示' }],
+      })
+
+      expect(view).toMatchObject({
+        reviewId: 'rv-1',
+        snapshotNodeId: 'snap-1',
+        caseTitle: '获取验证码',
+        suggestedMark: 'fail',
+        reason: '缺少错误分支预期',
+      })
+      expect(view.issues).toEqual([{
+        severity: 'high', category: '预期不完整',
+        description: '未覆盖错误输入', path: '获取验证码 › 步骤 2',
+      }])
+      expect(view.sourceRefs).toEqual([{ id: 'r1', title: 'REQ-001', quote: '错误时提示' }])
+    })
+
+    it('丢弃非法严重度，非法标记回退通过，清单非数组给空数组', () => {
+      const view = readReview({
+        suggestedMark: 'pending',
+        issues: [
+          { severity: 'critical', category: '非法' },
+          { severity: 'low', category: '低' },
+        ],
+        sourceRefs: '畸形',
+      })
+
+      expect(view.suggestedMark).toBe('pass')
+      expect(view.issues.map((issue) => issue.severity)).toEqual(['low'])
+      expect(view.sourceRefs).toEqual([])
+    })
+  })
+
   describe('readAssistSuggestion 与类型守卫', () => {
     it('按任务类型分发，content 为空返回 null', () => {
       expect(readAssistSuggestion('case_optimize', null)).toBeNull()
@@ -124,6 +173,9 @@ describe('assistPresentation', () => {
       expect(isPlanOrderSuggestion(
         readAssistSuggestion('plan_order', { beforeOrder: [], afterOrder: [] }),
       )).toBe(true)
+      expect(isReviewSuggestion(
+        readAssistSuggestion('review_case_review', { suggestedMark: 'pass' }),
+      )).toBe(true)
     })
 
     it('守卫对 null 与异类视图返回 false', () => {
@@ -131,6 +183,8 @@ describe('assistPresentation', () => {
       expect(isCaseOptimizeSuggestion(order)).toBe(false)
       expect(isCaseOptimizeSuggestion(null)).toBe(false)
       expect(isPlanOrderSuggestion(null)).toBe(false)
+      expect(isReviewSuggestion(order)).toBe(false)
+      expect(isReviewSuggestion(null)).toBe(false)
     })
   })
 

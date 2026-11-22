@@ -9,6 +9,8 @@ import type {
   AiCaseOptimizeOperationSuggestion,
   AiPlanOrderItem,
   AiPlanOrderSuggestion,
+  AiReviewIssue,
+  AiReviewSuggestion,
   CaseNodeType,
   TestCaseNode,
 } from '@/types'
@@ -30,6 +32,7 @@ const CASE_OPTIMIZE_FIELDS: AiCaseOptimizeField[] = ['title', 'priority', 'tags'
 const CASE_OPTIMIZE_NODE_TYPES: AiCaseOptimizeNodeType[] = [
   'precondition', 'step', 'expected', 'normal',
 ]
+const REVIEW_SEVERITIES: AiReviewIssue['severity'][] = ['high', 'medium', 'low']
 
 function asRecord(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
@@ -189,6 +192,37 @@ export function caseGenerationNodeOf(
   }
 }
 
+/** AI 评审建议：问题清单按严重度白名单清洗，非法项与后端清洗口径一致直接丢弃 */
+function readReviewIssues(raw: unknown): AiReviewIssue[] {
+  if (!Array.isArray(raw)) return []
+  const issues: AiReviewIssue[] = []
+  for (const element of raw) {
+    const source = asRecord(element)
+    const severity = readString(source, 'severity') as AiReviewIssue['severity']
+    if (!REVIEW_SEVERITIES.includes(severity)) continue
+    issues.push({
+      severity,
+      category: readString(source, 'category'),
+      description: readString(source, 'description'),
+      path: readString(source, 'path'),
+    })
+  }
+  return issues
+}
+
+export function readReview(content: Record<string, unknown>): AiReviewSuggestion {
+  const mark = readString(content, 'suggestedMark')
+  return {
+    reviewId: readString(content, 'reviewId'),
+    snapshotNodeId: readString(content, 'snapshotNodeId'),
+    caseTitle: readString(content, 'caseTitle'),
+    suggestedMark: mark === 'fail' ? 'fail' : 'pass',
+    reason: readString(content, 'reason'),
+    issues: readReviewIssues(content['issues']),
+    sourceRefs: readSourceRefs(content['sourceRefs']),
+  }
+}
+
 /** 产物内容未加载（或已被确认后清空）时返回 null，面板降级为只读占位 */
 export function readAssistSuggestion(
   kind: AiAssistTaskType,
@@ -197,6 +231,7 @@ export function readAssistSuggestion(
   if (!content) return null
   if (kind === 'case_optimize') return readCaseOptimizeOperations(content)
   if (kind === 'mindmap_case_generation') return readCaseGeneration(content)
+  if (kind === 'review_case_review') return readReview(content)
   return readPlanOrder(content)
 }
 
@@ -214,6 +249,10 @@ export function isCaseOptimizeSuggestion(
 
 export function isPlanOrderSuggestion(view: AiAssistSuggestion | null): view is AiPlanOrderSuggestion {
   return view !== null && 'beforeOrder' in view
+}
+
+export function isReviewSuggestion(view: AiAssistSuggestion | null): view is AiReviewSuggestion {
+  return view !== null && 'suggestedMark' in view
 }
 
 function sameValues(left: string[], right: string[]): boolean {

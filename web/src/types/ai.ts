@@ -32,7 +32,7 @@ export type AiProposalConfirmStatus =
 /** 提案采纳动作（Constants.AiProposalAction） */
 export type AiProposalAction = 'adopted' | 'adopted_edited' | 'rejected'
 
-/** 任务类型（Constants.AiTaskType，8 类单一事实源） */
+/** 任务类型（Constants.AiTaskType，9 类单一事实源） */
 export type AiTaskType =
   | 'requirement_import'
   | 'case_optimize'
@@ -42,6 +42,7 @@ export type AiTaskType =
   | 'bug_triage'
   | 'assistant_parse'
   | 'vector_reindex'
+  | 'review_case_review'
 
 /** 终止原因（terminate_code / terminate_msg 响应投影，10 位错误码） */
 export interface AiTaskTerminateReason {
@@ -162,10 +163,11 @@ export interface AiTaskPageQuery {
   pageSize?: number
 }
 
-/** 按文档 / 节点查询最近一次任务的参数（详设 3.6.3）：省略 nodeId 时按文档匹配 */
+/** 按文档 / 节点 / 评审查询最近一次任务的参数（详设 3.6.3 / AI 评审 3.3）：按传入的定位字段匹配 */
 export interface AiTaskLatestQuery {
-  documentId: string
+  documentId?: string
   nodeId?: string
+  reviewId?: string
 }
 
 /** 轨迹查询参数（afterSeq 游标，默认 0；pageSize 默认 200 上限 500） */
@@ -216,8 +218,12 @@ export interface AiProposalConfirmReceipt {
 
 // ==================== 辅助建议（辅助功能详设 3.2–3.4） ====================
 
-/** 辅助任务类型（脑图工具栏与计划详情各自发起，提案形态见详设 3.2–3.4） */
-export type AiAssistTaskType = 'case_optimize' | 'mindmap_case_generation' | 'plan_order'
+/** 辅助任务类型（脑图工具栏、计划详情与评审详情各自发起，提案形态见详设 3.2–3.4 与 AI 评审 3.4） */
+export type AiAssistTaskType =
+  | 'case_optimize'
+  | 'mindmap_case_generation'
+  | 'plan_order'
+  | 'review_case_review'
 
 /** 来源引用（详设 3.2 / 3.3）：用例优化带 quote，执行顺序建议不带 */
 export interface AiAssistSourceRef {
@@ -283,7 +289,27 @@ export interface AiPlanOrderSuggestion {
   afterOrder: string[]
 }
 
+/** AI 评审问题项（AI 评审详设 3.4）：suggestedMark = fail 时至少一项 */
+export interface AiReviewIssue {
+  severity: 'high' | 'medium' | 'low'
+  category: string
+  description: string
+  path: string
+}
+
+/** AI 评审建议（AI 评审详设 3.4）：逐用例一条，snapshotNodeId 为采纳定位锚点 */
+export interface AiReviewSuggestion {
+  reviewId: string
+  snapshotNodeId: string
+  caseTitle: string
+  suggestedMark: 'pass' | 'fail'
+  reason: string
+  issues: AiReviewIssue[]
+  sourceRefs: AiAssistSourceRef[]
+}
+
 export type AiAssistSuggestion =
   | AiCaseOptimizeOperationSuggestion
   | AiCaseGenerationSuggestion
   | AiPlanOrderSuggestion
+  | AiReviewSuggestion

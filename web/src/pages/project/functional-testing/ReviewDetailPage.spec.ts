@@ -37,3 +37,31 @@ describe('ReviewDetailPage 页头单条横条', () => {
     expect(pageSource).toContain('只读')
   })
 })
+
+// AI 评审入口与面板（AI 评审详设 5.1 / 交互 05 §1.4）
+describe('ReviewDetailPage AI 评审', () => {
+  it('活跃态操作组内按 AI 可用性展示入口，且位于调整用例之前', () => {
+    const actionsStart = pageSource.indexOf('class="review-detail__actions"')
+    const actions = pageSource.slice(actionsStart, pageSource.indexOf('<!-- 已驳回', actionsStart))
+
+    expect(actions).toContain('v-if="reviewEntryVisible"')
+    expect(actions).toContain('openAiReview')
+    expect(actions).toContain('<MagicStick />')
+    expect(actions.indexOf('AI 评审')).toBeLessThan(actions.indexOf('调整用例'))
+  })
+
+  it('页尾弹窗按进行中、失败、加载错误与提案面板分支渲染', () => {
+    expect(pageSource).toContain('v-model="reviewPanelVisible"')
+    expect(pageSource).toContain('@closed="closeAiReviewPanel"')
+    expect(pageSource).toContain('v-if="reviewRunning"')
+    expect(pageSource).toContain('v-else-if="reviewFailed"')
+    expect(pageSource).toContain('v-else-if="reviewLoadError"')
+    expect(pageSource).toContain('<AiReviewPanel')
+    expect(pageSource).toContain(':can-adopt="isActiveReview(detail?.status ?? \'\')"')
+  })
+
+  it('采纳写回后联动刷新进度与脑图徽标', () => {
+    expect(pageSource).toContain('void refreshProgress()')
+    expect(pageSource).toContain('mindMapRef.value?.reload()')
+  })
+})

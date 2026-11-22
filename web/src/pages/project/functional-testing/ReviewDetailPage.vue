@@ -10,6 +10,8 @@ import {
 import ReviewMindMap from '@/components/project/functional-testing/review/ReviewMindMap.vue'
 import SnapshotModuleTree from '@/components/project/functional-testing/review/SnapshotModuleTree.vue'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
+import AiReviewPanel from '@/components/project/functional-testing/review/AiReviewPanel.vue'
+import { useReviewTask } from '@/composables/project/ai/useReviewTask'
 
 const route = useRoute()
 const reviewId = route.params.reviewId as string
@@ -34,6 +36,37 @@ const {
   refreshProgress,
   authStore,
 } = useReviewDetail({ reviewId })
+
+// ---------- AI 评审（AI 评审详设 5.1 / 交互 05 §1.4） ----------
+const {
+  entryVisible: reviewEntryVisible,
+  panelVisible: reviewPanelVisible,
+  rows: reviewRows,
+  loading: reviewLoading,
+  confirming: reviewConfirming,
+  receipt: reviewReceipt,
+  running: reviewRunning,
+  failed: reviewFailed,
+  failedReason: reviewFailedReason,
+  progressText: reviewProgressText,
+  retryable: reviewRetryable,
+  loadError: reviewLoadError,
+  open: openAiReview,
+  retry: retryAiReview,
+  refresh: refreshAiReview,
+  adopt: adoptAiReview,
+  adoptEdited: adoptEditedAiReview,
+  reject: rejectAiReview,
+  clearReceipt: clearAiReviewReceipt,
+  openSource: openAiReviewSource,
+  closePanel: closeAiReviewPanel,
+} = useReviewTask({
+  reviewId,
+  onConfirmed: () => {
+    void refreshProgress()
+    mindMapRef.value?.reload()
+  },
+})
 
 // 状态展示口径与列表页共用（交互设计 07 §1.1）
 const statusMeta = computed(() => reviewStatusMeta(detail.value?.status ?? ''))
@@ -85,6 +118,9 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
         </div>
         <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
         <div v-if="detail && isActiveReview(detail.status)" class="review-detail__actions">
+          <el-button v-if="reviewEntryVisible" size="small" plain @click="openAiReview">
+            <el-icon><MagicStick /></el-icon>AI 评审
+          </el-button>
           <el-button size="small" plain @click="openCaseSelector">
             <el-icon><EditPen /></el-icon>调整用例
           </el-button>
@@ -158,6 +194,61 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
       :initial-selected="plannedCases"
       @confirm="handleCasesConfirm"
     />
+
+    <!-- AI 评审：进行中回显进度，终止展示原因，提案就绪进入逐用例处置面板（交互 05 §1.4） -->
+    <el-dialog
+      v-model="reviewPanelVisible"
+      title="AI 评审"
+      width="720px"
+      :close-on-click-modal="false"
+      @closed="closeAiReviewPanel"
+    >
+      <div v-if="reviewRunning" class="review-detail__ai-progress">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <div class="review-detail__ai-progress-text">
+          <span>AI 正在评审规划用例…</span>
+          <span v-if="reviewProgressText" class="review-detail__ai-progress-detail">
+            {{ reviewProgressText }}
+          </span>
+        </div>
+        <el-button link @click="closeAiReviewPanel">后台运行，关闭</el-button>
+      </div>
+      <el-alert
+        v-else-if="reviewFailed"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="reviewFailedReason || 'AI 评审执行失败'"
+      >
+        <el-button size="small" type="danger" plain @click="retryAiReview">再次执行</el-button>
+      </el-alert>
+      <el-alert
+        v-else-if="reviewLoadError"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="reviewLoadError"
+      >
+        <el-button size="small" plain @click="refreshAiReview">重试</el-button>
+        <el-button size="small" plain @click="closeAiReviewPanel">关闭</el-button>
+      </el-alert>
+      <AiReviewPanel
+        v-else
+        :rows="reviewRows"
+        :can-adopt="isActiveReview(detail?.status ?? '')"
+        :confirming="reviewConfirming"
+        :loading="reviewLoading"
+        :receipt="reviewReceipt"
+        :retryable="reviewRetryable"
+        @adopt="adoptAiReview"
+        @adopt-edited="adoptEditedAiReview"
+        @reject="rejectAiReview"
+        @open-source="openAiReviewSource"
+        @clear-receipt="clearAiReviewReceipt"
+        @retry="retryAiReview"
+        @close="closeAiReviewPanel"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -362,5 +453,24 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
     flex-direction: column;
     overflow: hidden;
   }
+}
+
+.review-detail__ai-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+}
+
+.review-detail__ai-progress-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.review-detail__ai-progress-detail {
+  color: var(--color-neutral-400);
 }
 </style>

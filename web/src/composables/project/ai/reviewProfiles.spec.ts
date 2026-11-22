@@ -123,6 +123,68 @@ describe('reviewProfiles', () => {
     })
   })
 
+  describe('AI 评审', () => {
+    it('允许采纳、编辑结论与理由、驳回，并提供对应编辑字段', () => {
+      const profile = reviewProfile('review_case_review')
+
+      expect(profile.title).toBe('AI 评审结果')
+      expect(isReadonlyProfile(profile)).toBe(false)
+      expect(profile.allowBatch).toBe(false)
+      expect(profile.editFields).toEqual([
+        {
+          key: 'suggestedMark', label: '评审结论', type: 'select', required: true,
+          options: [{ value: 'pass', label: '通过' }, { value: 'fail', label: '不通过' }],
+        },
+        { key: 'reason', label: '评审理由', type: 'textarea', maxlength: 500 },
+      ])
+    })
+
+    it('解析建议原因、问题清单与来源引用作为预览和编辑初值', () => {
+      const profile = reviewProfile('review_case_review')
+      const parsed = profile.parse(
+        {
+          reviewId: 'rv-1',
+          snapshotNodeId: 'snap-1',
+          caseTitle: '获取验证码',
+          suggestedMark: 'fail',
+          reason: '缺少错误分支预期',
+          issues: [
+            {
+              severity: 'medium', category: '预期不完整',
+              description: '未覆盖错误输入', path: '获取验证码 › 步骤 2',
+            },
+          ],
+          sourceRefs: [{ id: 'r1', title: 'REQ-001', quote: '错误时提示' }],
+        },
+        '兜底',
+      )
+
+      expect(parsed.description).toBe('缺少错误分支预期')
+      expect(parsed.fields).toContainEqual({ label: '用例', value: '获取验证码' })
+      expect(parsed.fields).toContainEqual({ label: '建议标记', value: '不通过' })
+      expect(parsed.fields.some((field) => field.label === '问题清单'
+        && field.value.includes('medium · 预期不完整'))).toBe(true)
+      expect(parsed.sourceRefs).toEqual([
+        { id: 'r1', title: 'REQ-001', quote: '错误时提示', changed: false },
+      ])
+      expect(parsed.editValues).toEqual({
+        suggestedMark: 'fail', reason: '缺少错误分支预期',
+      })
+    })
+
+    it('编辑载荷只包含人工修正后的结论与理由', () => {
+      const profile = reviewProfile('review_case_review')
+
+      expect(profile.buildEditedContent(
+        { suggestedMark: 'pass', reason: '  人工复核通过  ' },
+        {},
+      )).toEqual({ suggestedMark: 'pass', reason: '人工复核通过' })
+      expect(profile.buildEditedContent({}, {})).toEqual({
+        suggestedMark: 'pass', reason: '',
+      })
+    })
+  })
+
   describe('只读与兜底', () => {
     it('分诊 / 解析类提案不提供确认动作', () => {
       for (const type of ['bug_triage', 'assistant_parse', 'vector_reindex']) {

@@ -4,6 +4,7 @@ import {
   readCaseGeneration,
   readCaseOptimizeOperations,
   readPlanOrder,
+  readReview,
 } from '@/composables/project/ai/assistPresentation'
 import type { AiPlanOrderItem } from '@/types'
 
@@ -210,6 +211,59 @@ const planOrderProfile: ProposalReviewProfile = {
   },
 }
 
+/** AI 评审结论与理由可人工修正，写回由后端承接（AI 评审详设 3.4 / 4.3） */
+const reviewCaseReviewProfile: ProposalReviewProfile = {
+  taskType: 'review_case_review',
+  title: 'AI 评审结果',
+  panel: 'generic',
+  allowAdopt: true,
+  allowEdit: true,
+  allowReject: true,
+  allowBatch: false,
+  needModuleTree: false,
+  needSystemVersion: false,
+  editFields: [
+    {
+      key: 'suggestedMark',
+      label: '评审结论',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'pass', label: '通过' },
+        { value: 'fail', label: '不通过' },
+      ],
+    },
+    { key: 'reason', label: '评审理由', type: 'textarea', maxlength: 500 },
+  ],
+  parse(content, fallbackTitle) {
+    const parsed = emptyParsed(fallbackTitle)
+    const view = readReview(content)
+    parsed.description = view.reason
+    parsed.fields.push({ label: '用例', value: view.caseTitle || fallbackTitle })
+    parsed.fields.push({
+      label: '建议标记',
+      value: view.suggestedMark === 'pass' ? '通过' : '不通过',
+    })
+    if (view.issues.length > 0) {
+      parsed.fields.push({
+        label: '问题清单',
+        value: view.issues
+          .map((issue) => `${issue.severity} · ${issue.category} · ${issue.description} · ${issue.path}`)
+          .join('；'),
+      })
+    }
+    parsed.sourceRefs = view.sourceRefs.map((ref) => ({ ...ref, changed: false }))
+    parsed.editValues = { suggestedMark: view.suggestedMark, reason: view.reason }
+    return parsed
+  },
+  buildEditedContent(values) {
+    return {
+      suggestedMark: values.suggestedMark === 'fail' ? 'fail' : 'pass',
+      reason: typeof values.reason === 'string' ? values.reason.trim() : '',
+    }
+  },
+}
+
 /** 只读分诊 / 解析类提案：不提供确认动作，仅结构化预览 */
 function readonlyProfile(taskType: string, title: string): ProposalReviewProfile {
   return {
@@ -297,6 +351,7 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   case_optimize: caseOptimizeProfile,
   mindmap_case_generation: mindmapCaseGenerationProfile,
   plan_order: planOrderProfile,
+  review_case_review: reviewCaseReviewProfile,
   bug_duplicate_scan: specializedProfile('bug_duplicate_scan', '重复缺陷扫描', 'bug'),
   bug_triage: readonlyProfile('bug_triage', '缺陷分诊结果'),
   assistant_parse: readonlyProfile('assistant_parse', '助手解析结果'),
