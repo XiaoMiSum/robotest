@@ -1,9 +1,7 @@
 import { defineStore } from 'pinia'
 import {
-  cancelAiAssistantMessage,
   createAiAssistantConversation,
   deleteAiAssistantConversation,
-  executeAiAssistantMessage,
   fetchAiAssistantConversations,
   fetchAiAssistantMessages,
   updateAiAssistantConversation,
@@ -12,7 +10,6 @@ import { AssistantStreamError, AssistantStreamInterruptedError, streamAssistantM
 import type {
   AiAssistantConversation,
   AiAssistantEntityRef,
-  AiAssistantExecution,
   AiAssistantMessage,
   AiAssistantPendingImage,
   AiAssistantSseError,
@@ -87,16 +84,14 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
     pollTimer: null as ReturnType<typeof setInterval> | null,
     // 慢请求未返回时不叠加下一次轮询
     pollBusy: false,
-    /** 预览确认执行中：回执生成前 ComposerInput 禁用 */
-    executing: false,
   }),
   getters: {
     currentConversation(state): AiAssistantConversation | null {
       return state.conversations.find((item) => item.id === state.currentId) ?? null
     },
-    /** 归档会话只读不可续写；流式或执行中禁发（详设 2.3 / 2.4） */
+    /** 归档会话只读不可续写；流式中禁发（详设 2.3 / 2.4） */
     canSend(state): boolean {
-      if (state.streaming || state.executing) return false
+      if (state.streaming) return false
       const conversation = state.conversations.find((item) => item.id === state.currentId)
       return conversation ? conversation.status === 'active' : true
     },
@@ -193,11 +188,6 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       this.attachments[key] = (this.attachments[key] ?? []).filter(
         (item) => item.entityId !== entityId,
       )
-    },
-
-    /** 整体替换待发附件：重新解析还原原始输入，避免误带无关草稿附件（交互 05 §2.3） */
-    setAttachments(refs: AiAssistantEntityRef[]): void {
-      this.attachments[this.currentId ?? ''] = [...refs]
     },
 
     /** 登记待发附图并返回登记项：上传编排在 useAssistantImages，回写需回带登记时会话键（期间可能已切换） */
@@ -376,9 +366,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
             content: text,
             attachments: attachments.length > 0 ? attachments : null,
             images: imageRefs.length > 0 ? imageRefs : null,
-            intent: null,
             citations: null,
-            execution: null,
             status: 'done',
             createdAt: new Date().toISOString(),
           },
@@ -406,7 +394,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
               sawTerminal = true
               this.streamError = event.data
             }
-            // clarify / preview / citations 是已提交状态的投影（详设 3.5）：
+            // clarify / citations 是已提交状态的投影（详设 3.5）：
             // done 后统一 refreshMessages 对齐，避免事件与持久化双写不一致
           },
         )
@@ -484,32 +472,6 @@ export const useAiAssistantStore = defineStore('aiAssistant', {
       } finally {
         this.pollBusy = false
       }
-    },
-
-    // ---------- 预览执行 ----------
-
-    async executePreview(messageId: string, retryIndexes?: number[]): Promise<void> {
-      if (!this.currentId) return
-      this.executing = true
-      try {
-        const payload = retryIndexes && retryIndexes.length > 0 ? { retryIndexes } : {}
-        const result = await executeAiAssistantMessage(this.currentId, messageId, payload)
-        this.patchExecution(messageId, result.execution)
-      } finally {
-        this.executing = false
-      }
-    },
-
-    async cancelPreview(messageId: string): Promise<void> {
-      if (!this.currentId) return
-      const result = await cancelAiAssistantMessage(this.currentId, messageId)
-      this.patchExecution(messageId, result.execution)
-    },
-
-    patchExecution(messageId: string, execution: AiAssistantExecution): void {
-      this.messages = this.messages.map((message) =>
-        message.id === messageId ? { ...message, execution } : message,
-      )
     },
   },
 })

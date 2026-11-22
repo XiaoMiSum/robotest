@@ -3,17 +3,9 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import AssistantMessage from './AssistantMessage.vue'
 import ClarifyCard from './ClarifyCard.vue'
-import PreviewCard from './PreviewCard.vue'
-import ReceiptCard from './ReceiptCard.vue'
 import UserMessage from './UserMessage.vue'
 import { ASSISTANT_EXAMPLES, isClarifyMessage, parseClarifyContent } from '@/utils/assistant'
-import type {
-  AiAssistantCitation,
-  AiAssistantClarify,
-  AiAssistantExecution,
-  AiAssistantIntent,
-  AiAssistantMessage,
-} from '@/types'
+import type { AiAssistantCitation, AiAssistantClarify, AiAssistantMessage } from '@/types'
 
 /** 距底部阈值内视为跟随；触顶阈值内触发加载更早页（交互 05 §2.1 MessageTimeline） */
 const FOLLOW_THRESHOLD = 40
@@ -28,10 +20,6 @@ const props = defineProps<{
   /** tool_call 进度帧步骤文案（交互 05 §2.2 查询进行态），空串不渲染 */
   streamStage: string
   recovering: boolean
-  /** 预览确认执行 / 回执重试进行中：禁用卡片操作（交互 05 §2.3） */
-  executing: boolean
-  /** 归档会话只读（详设 3.4） */
-  readonly: boolean
 }>()
 
 const emit = defineEmits<{
@@ -39,52 +27,32 @@ const emit = defineEmits<{
   'pick-example': [text: string]
   'clarify-pick': [option: string]
   'citation-jump': [citation: AiAssistantCitation]
-  'preview-execute': [messageId: string]
-  'preview-cancel': [messageId: string]
-  'preview-edit': [text: string]
-  'preview-reparse': [messageId: string]
-  'receipt-retry': [messageId: string, index: number]
-  'receipt-jump': [path: string]
 }>()
 
 interface TimelineRow {
-  kind: 'user' | 'clarify' | 'assistant' | 'preview' | 'receipt'
+  kind: 'user' | 'clarify' | 'assistant'
   message: AiAssistantMessage
   clarify: AiAssistantClarify | null
-  intent: AiAssistantIntent | null
-  execution: AiAssistantExecution | null
 }
 
 const scrollEl = ref<HTMLElement | null>(null)
 const follow = ref(true)
 
-/** 预览 / 回执消息可无正文（只承载 intent / execution），不渲染即丢失操作入口 */
+/** 恢复中的空正文消息也须入列，否则断线补齐前看不到进行态 */
 const rows = computed<TimelineRow[]>(() => {
   const result: TimelineRow[] = []
   for (const message of props.messages) {
-    const visible =
-      message.intent !== null ||
-      message.execution !== null ||
-      Boolean(message.content) ||
-      (props.recovering && message.status !== 'done')
-    if (!visible) continue
+    if (!message.content && !(props.recovering && message.status !== 'done')) continue
     if (message.role === 'user') {
-      result.push({ kind: 'user', message, clarify: null, intent: null, execution: null })
-    } else if (message.execution !== null) {
-      // 已执行 / 已取消后预览卡让位回执卡（交互 05 §2.3）
-      result.push({ kind: 'receipt', message, clarify: null, intent: message.intent, execution: message.execution })
-    } else if (message.intent !== null) {
-      result.push({ kind: 'preview', message, clarify: null, intent: message.intent, execution: null })
+      result.push({ kind: 'user', message, clarify: null })
     } else if (isClarifyMessage(message)) {
       result.push({
         kind: 'clarify',
         message,
         clarify: parseClarifyContent(message.content),
-        intent: null,
-        execution: null,
       })
     } else {
-      result.push({ kind: 'assistant', message, clarify: null, intent: null, execution: null })
+      result.push({ kind: 'assistant', message, clarify: null })
     }
   }
   return result
@@ -157,37 +125,6 @@ onMounted(() => {
               :question="row.clarify?.question ?? ''"
               :options="row.clarify?.options ?? []"
               @pick="emit('clarify-pick', $event)"
-            />
-          </div>
-          <div v-else-if="row.kind === 'preview'" class="ai-timeline__card">
-            <p class="ai-timeline__role">🤖 助手</p>
-            <MarkdownView
-              v-if="row.message.content"
-              :content="row.message.content"
-              class="ai-timeline__card-content"
-            />
-            <PreviewCard
-              v-if="row.intent"
-              :intent="row.intent"
-              :executing="executing"
-              :readonly="readonly"
-              :editable="Boolean(row.message.content)"
-              @execute="emit('preview-execute', row.message.id)"
-              @cancel="emit('preview-cancel', row.message.id)"
-              @edit="emit('preview-edit', row.message.content ?? '')"
-              @reparse="emit('preview-reparse', row.message.id)"
-            />
-          </div>
-          <div v-else-if="row.kind === 'receipt'" class="ai-timeline__card">
-            <p class="ai-timeline__role">🤖 助手</p>
-            <ReceiptCard
-              v-if="row.execution"
-              :execution="row.execution"
-              :intent="row.intent"
-              :executing="executing"
-              :readonly="readonly"
-              @retry="emit('receipt-retry', row.message.id, $event)"
-              @jump="emit('receipt-jump', $event)"
             />
           </div>
           <AssistantMessage
@@ -282,7 +219,6 @@ onMounted(() => {
   }
 
   &__clarify,
-  &__card,
   &__stream {
     display: flex;
     flex-direction: column;
@@ -291,8 +227,7 @@ onMounted(() => {
     align-self: flex-start;
   }
 
-  &__stream-content,
-  &__card-content {
+  &__stream-content {
     font-size: 14px;
   }
 

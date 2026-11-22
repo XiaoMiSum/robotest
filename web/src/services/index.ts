@@ -113,8 +113,8 @@ export function getRequestContextScope(
   if (path === '/project' || path.startsWith('/project/')) return 'project'
   // AI 任务资源挂 /api/ai/tasks 但按项目范围过滤（详设 3.6.3），需带项目头；/ai/status 仍为 none
   if (path === '/ai/tasks' || path.startsWith('/ai/tasks/')) return 'project'
-  // 助手为项目级能力（详设 3.1）：全部会话 / 消息 / 执行接口统一携带工作空间与项目头，
-  // 目标项目取 X-Active-Project（详设 3.5 / 4.2②），故一律按 project 作用域注入双头
+  // 助手为项目级能力（详设 3.1）：会话与消息接口统一携带工作空间与项目头，
+  // 目标项目取 X-Active-Project，故该前缀一律按 project 作用域注入双头
   if (path === '/ai/conversations' || path.startsWith('/ai/conversations/')) {
     return 'project'
   }

@@ -148,6 +148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/project/reviews/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getReviewDetail"];
+        put: operations["updateReview"];
+        post?: never;
+        delete: operations["deleteReview"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/project/reviews/{id}/cases": {
         parameters: {
             query?: never;
@@ -175,6 +191,22 @@ export interface paths {
         put: operations["updateRequirement"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/plans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPlanDetail"];
+        put: operations["updatePlan"];
+        post?: never;
+        delete: operations["deletePlan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1955,49 +1987,9 @@ export interface paths {
         put?: never;
         /**
          * 发送消息（SSE 流式，详设 3.5）
-         * @description 事件流：delta / tool_call / clarify / preview / citations / done / error，每 15s 心跳注释行；须携带 X-Active-Workspace 与 X-Active-Project（4000 字符上限与附件校验在服务层）
+         * @description 事件流：delta / tool_call / clarify / citations / done / error，每 15s 心跳注释行；须携带 X-Active-Workspace 与 X-Active-Project（4000 字符上限与附件校验在服务层）
          */
         post: operations["sendMessage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai/conversations/{conversationId}/messages/{messageId}/execute": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 确认执行（详设 3.7）
-         * @description 按 intent 固化输入逐项落库并返回回执；须携带 X-Active-Workspace 与 X-Active-Project，目标项目取 X-Active-Project 头（与会话归属及 intent.scope 一致），retryIndexes 可选表示对上次失败项单项重试
-         */
-        post: operations["executeMessage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai/conversations/{conversationId}/messages/{messageId}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 取消预览（详设 3.8）
-         * @description execution 置 rejected（1000018254 防重复），不产生任何业务数据
-         */
-        post: operations["cancelMessage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2436,22 +2428,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/reviews/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getReviewDetail"];
-        put?: never;
-        post?: never;
-        delete: operations["deleteReview"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/reviews/{id}/progress": {
         parameters: {
             query?: never;
@@ -2575,22 +2551,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_9"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/plans/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getPlanDetail"];
-        put?: never;
-        post?: never;
-        delete: operations["deletePlan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3000,6 +2960,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/tasks/{type}/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getLatestByNode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/tasks/{taskId}": {
         parameters: {
             query?: never;
@@ -3288,22 +3264,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ai/tasks/{type}/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getLatestByNode"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3438,6 +3398,43 @@ export interface components {
         ApiScheduleToggleReqDTO: {
             enabled: boolean;
         };
+        TestReviewUpdateReqDTO: {
+            title?: string;
+            description?: string;
+            participantIds?: string[];
+            requirementIds?: string[];
+            replan?: boolean;
+        };
+        InitiatorInfo: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+        };
+        RequirementRefRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            code?: string;
+            title?: string;
+        };
+        ResultTestReviewDetailRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["TestReviewDetailRespDTO"];
+            msg?: string;
+        };
+        TestReviewDetailRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            title?: string;
+            description?: string;
+            status?: string;
+            initiator?: components["schemas"]["InitiatorInfo"];
+            participantIds?: string[];
+            requirements?: components["schemas"]["RequirementRefRespDTO"][];
+            requirementIds?: string[];
+            /** Format: date-time */
+            createdAt?: string;
+        };
         SelectedNode: {
             /** Format: uuid */
             documentId?: string;
@@ -3492,6 +3489,47 @@ export interface components {
             /** Format: uuid */
             fileId?: string;
             name?: string;
+        };
+        TestPlanUpdateReqDTO: {
+            name?: string;
+            description?: string;
+            /** Format: uuid */
+            executorId?: string;
+            /** Format: date-time */
+            startTime?: string;
+            /** Format: date-time */
+            endTime?: string;
+            environment?: string;
+            requirementIds?: string[];
+            replan?: boolean;
+        };
+        ExecutorInfo: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+        };
+        ResultTestPlanDetailRespDTO: {
+            /** Format: int32 */
+            code?: number;
+            data?: components["schemas"]["TestPlanDetailRespDTO"];
+            msg?: string;
+        };
+        TestPlanDetailRespDTO: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            description?: string;
+            status?: string;
+            environment?: string;
+            /** Format: date-time */
+            startTime?: string;
+            /** Format: date-time */
+            endTime?: string;
+            executor?: components["schemas"]["ExecutorInfo"];
+            requirements?: components["schemas"]["RequirementRefRespDTO"][];
+            requirementIds?: string[];
+            /** Format: date-time */
+            createdAt?: string;
         };
         TestPlanCasesUpdateReqDTO: {
             selectedNodes: components["schemas"]["SelectedNode"][];
@@ -4122,31 +4160,8 @@ export interface components {
             title: string;
             description?: string;
             participantIds: string[];
-            selectedNodes?: components["schemas"]["SelectedNode"][];
             requirementIds?: string[];
-        };
-        InitiatorInfo: {
-            /** Format: uuid */
-            id?: string;
-            name?: string;
-        };
-        ResultTestReviewDetailRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["TestReviewDetailRespDTO"];
-            msg?: string;
-        };
-        TestReviewDetailRespDTO: {
-            /** Format: uuid */
-            id?: string;
-            title?: string;
-            description?: string;
-            status?: string;
-            initiator?: components["schemas"]["InitiatorInfo"];
-            participantIds?: string[];
-            /** Format: date-time */
-            createdAt?: string;
-            requirements?: components["schemas"]["RequirementRefRespDTO"][];
+            selectedNodes?: components["schemas"]["SelectedNode"][];
         };
         TestReviewRecordReqDTO: {
             /** Format: uuid */
@@ -4208,35 +4223,8 @@ export interface components {
             /** Format: date-time */
             endTime?: string;
             environment?: string;
-            selectedNodes?: components["schemas"]["SelectedNode"][];
             requirementIds?: string[];
-        };
-        ExecutorInfo: {
-            /** Format: uuid */
-            id?: string;
-            name?: string;
-        };
-        ResultTestPlanDetailRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["TestPlanDetailRespDTO"];
-            msg?: string;
-        };
-        TestPlanDetailRespDTO: {
-            /** Format: uuid */
-            id?: string;
-            name?: string;
-            description?: string;
-            status?: string;
-            environment?: string;
-            /** Format: date-time */
-            startTime?: string;
-            /** Format: date-time */
-            endTime?: string;
-            executor?: components["schemas"]["ExecutorInfo"];
-            /** Format: date-time */
-            createdAt?: string;
-            requirements?: components["schemas"]["RequirementRefRespDTO"][];
+            selectedNodes?: components["schemas"]["SelectedNode"][];
         };
         TestPlanRecordReqDTO: {
             /** Format: uuid */
@@ -4977,8 +4965,8 @@ export interface components {
             hasWorkspace?: boolean;
             permissionCodes?: string[];
             permissions?: string[];
-            accountNonExpired?: boolean;
             accountNonLocked?: boolean;
+            accountNonExpired?: boolean;
             credentialsNonExpired?: boolean;
         };
         ResultLoginResultLoginUser: {
@@ -5162,6 +5150,15 @@ export interface components {
             data?: components["schemas"]["AiModelTestRespDTO"];
             msg?: string;
         };
+        AiEmbeddingTestReqDTO: {
+            provider?: string;
+            baseUrl?: string;
+            apiKey?: string;
+            embeddingModel?: string;
+            /** Format: int32 */
+            dimensions?: number;
+            operator?: string;
+        };
         AiEmbeddingTestRespDTO: {
             success?: boolean;
             /** Format: int32 */
@@ -5217,20 +5214,6 @@ export interface components {
             content?: string;
             attachments?: components["schemas"]["AiAssistantEntityRefReqDTO"][];
             images?: components["schemas"]["AiAssistantImageRefReqDTO"][];
-        };
-        AiAssistantExecuteReqDTO: {
-            retryIndexes?: number[];
-        };
-        AiAssistantExecuteRespDTO: {
-            execution?: {
-                [key: string]: unknown;
-            };
-        };
-        ResultAiAssistantExecuteRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["AiAssistantExecuteRespDTO"];
-            msg?: string;
         };
         WorkspaceCreateReqDTO: {
             name: string;
@@ -6959,6 +6942,7 @@ export interface components {
             title?: string;
             parentKey?: string;
             confirmStatus?: string;
+            note?: string;
             content?: {
                 [key: string]: unknown;
             };
@@ -7078,15 +7062,9 @@ export interface components {
             toolCalls?: {
                 [key: string]: unknown;
             }[];
-            intent?: {
-                [key: string]: unknown;
-            };
             citations?: {
                 [key: string]: unknown;
             }[];
-            execution?: {
-                [key: string]: unknown;
-            };
             status?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -7258,21 +7236,6 @@ export interface components {
         };
         ApiSceneBatchDeleteReqDTO: {
             ids: string[];
-        };
-        RequirementRefRespDTO: {
-            /** Format: uuid */
-            id?: string;
-            code?: string;
-            title?: string;
-        };
-        AiEmbeddingTestReqDTO: {
-            provider?: string;
-            baseUrl?: string;
-            apiKey?: string;
-            embeddingModel?: string;
-            /** Format: int32 */
-            dimensions?: number;
-            operator?: string;
         };
     };
     responses: never;
@@ -7611,6 +7574,76 @@ export interface operations {
             };
         };
     };
+    getReviewDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultTestReviewDetailRespDTO"];
+                };
+            };
+        };
+    };
+    updateReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestReviewUpdateReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultTestReviewDetailRespDTO"];
+                };
+            };
+        };
+    };
+    deleteReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
     getReviewPlannedCases: {
         parameters: {
             query?: never;
@@ -7703,6 +7736,76 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultRequirementDetailRespDTO"];
+                };
+            };
+        };
+    };
+    getPlanDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultTestPlanDetailRespDTO"];
+                };
+            };
+        };
+    };
+    updatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestPlanUpdateReqDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultTestPlanDetailRespDTO"];
+                };
+            };
+        };
+    };
+    deletePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
                 };
             };
         };
@@ -11688,56 +11791,6 @@ export interface operations {
             };
         };
     };
-    executeMessage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: string;
-                messageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["AiAssistantExecuteReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiAssistantExecuteRespDTO"];
-                };
-            };
-        };
-    };
-    cancelMessage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: string;
-                messageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiAssistantExecuteRespDTO"];
-                };
-            };
-        };
-    };
     getWorkspacePage: {
         parameters: {
             query?: {
@@ -12530,50 +12583,6 @@ export interface operations {
             };
         };
     };
-    getReviewDetail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTestReviewDetailRespDTO"];
-                };
-            };
-        };
-    };
-    deleteReview: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
     getReviewProgress: {
         parameters: {
             query?: never;
@@ -12783,50 +12792,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultBoolean"];
-                };
-            };
-        };
-    };
-    getPlanDetail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTestPlanDetailRespDTO"];
-                };
-            };
-        };
-    };
-    deletePlan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
                 };
             };
         };
@@ -13383,6 +13348,32 @@ export interface operations {
             };
         };
     };
+    getLatestByNode: {
+        parameters: {
+            query?: {
+                documentId?: string;
+                nodeId?: string;
+                reviewId?: string;
+            };
+            header?: never;
+            path: {
+                type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
+                };
+            };
+        };
+    };
     getDetail_2: {
         parameters: {
             query?: never;
@@ -13788,31 +13779,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    getLatestByNode: {
-        parameters: {
-            query: {
-                documentId: string;
-                nodeId?: string;
-            };
-            header?: never;
-            path: {
-                type: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAiTaskRespDTO"];
                 };
             };
         };

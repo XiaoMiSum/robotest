@@ -23,6 +23,8 @@ describe('services/assistantSse 帧解析', () => {
 
   it('未知事件名返回 null（后端新增事件不致前端崩溃）', () => {
     expect(parseSseFrame('event: revalidate\ndata: {}')).toBeNull()
+    // 预览事件已下线，白名单收紧后残留帧同样被忽略
+    expect(parseSseFrame('event: preview\ndata: {}')).toBeNull()
     expect(parseSseFrame(': ping')).toBeNull()
   })
 
@@ -49,6 +51,15 @@ describe('services/assistantSse 帧解析', () => {
       { type: 'delta', data: { text: '流式' } },
       { type: 'done', data: { messageId: 'm1' } },
     ])
+  })
+
+  it('增量解析器忽略已下线的 preview 帧', () => {
+    const events: AiAssistantSseEvent[] = []
+    const parser = createSseFrameParser((event) => events.push(event))
+
+    parser.push('event: preview\ndata: {}\n\nevent: done\ndata: {"messageId":"m1"}\n\n')
+
+    expect(events).toEqual([{ type: 'done', data: { messageId: 'm1' } }])
   })
 
   it('flush 处理结尾缺少空行的残留帧', () => {

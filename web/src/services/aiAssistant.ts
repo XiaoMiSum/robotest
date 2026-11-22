@@ -4,8 +4,6 @@ import type {
   AiAssistantConversationCreatePayload,
   AiAssistantConversationPageQuery,
   AiAssistantConversationUpdatePayload,
-  AiAssistantExecutePayload,
-  AiAssistantExecuteResult,
   AiAssistantMessage,
   AiAssistantMessagePageQuery,
   PageResult,
@@ -43,21 +41,4 @@ export function fetchAiAssistantMessages(
   params: AiAssistantMessagePageQuery = {},
 ): Promise<PageResult<AiAssistantMessage>> {
   return get(`/ai/conversations/${conversationId}/messages`, { pageNo: 1, pageSize: 20, ...params })
-}
-
-/** 确认执行 / 单项重试（详设 4.2），整体 200、逐项成败 */
-export function executeAiAssistantMessage(
-  conversationId: string,
-  messageId: string,
-  payload: AiAssistantExecutePayload = {},
-): Promise<AiAssistantExecuteResult> {
-  return post(`/ai/conversations/${conversationId}/messages/${messageId}/execute`, payload)
-}
-
-/** 取消预览：intent 固化不变，execution 落 rejected 回执 */
-export function cancelAiAssistantMessage(
-  conversationId: string,
-  messageId: string,
-): Promise<AiAssistantExecuteResult> {
-  return post(`/ai/conversations/${conversationId}/messages/${messageId}/cancel`)
 }

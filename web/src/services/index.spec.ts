@@ -402,24 +402,6 @@ describe('services/index.ts 助手接口上下文（详设 3.1：项目级能力
     expect(received.workspace).toBe('ws-1')
     expect(received.project).toBe('project-1')
   })
-
-  it('确认执行携带双头（目标项目取 X-Active-Project，详设 3.5 / 4.2②）', async () => {
-    const received = capture()
-
-    await api.post('/ai/conversations/c1/messages/m1/execute', {})
-
-    expect(received.workspace).toBe('ws-1')
-    expect(received.project).toBe('project-1')
-  })
-
-  it('取消预览同样携带双头（详设 3.1：助手全部接口按项目级）', async () => {
-    const received = capture()
-
-    await api.post('/ai/conversations/c1/messages/m1/cancel')
-
-    expect(received.workspace).toBe('ws-1')
-    expect(received.project).toBe('project-1')
-  })
 })
 
 describe('services/index.ts 令牌存储与跨标签页同步', () => {

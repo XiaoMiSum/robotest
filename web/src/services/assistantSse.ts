@@ -25,7 +25,6 @@ const EVENT_NAMES = new Set([
   'delta',
   'tool_call',
   'clarify',
-  'preview',
   'citations',
   'done',
   'error',
