@@ -249,6 +249,30 @@ class ReviewCaseReviewTypeAdapterTest {
                         "sourceRefs":[{"id":"%s"}]}}]}
                         """.formatted(FOREIGN_NODE_ID, REQUIREMENT_ID)));
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), error.getCode());
+        assertTrue(error.getMessage().contains("invalid_node=1"));
+    }
+
+    @Test
+    void proposalParser_reportsDropReasonsWhenAllInvalid() {
+        when(reviewNodeSnapshotMapper.listByReviewId(REVIEW_ID)).thenReturn(allNodes());
+        when(reviewSnapshotService.listAssociatedByReviewId(REVIEW_ID, Constants.NodeType.CASE))
+                .thenReturn(cases());
+        when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any())).thenReturn(List.of());
+        AgentExecutionPreparation preparation = prepare(input());
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> preparation.proposalParser().apply("""
+                        {"artifacts":[
+                          {"content":{"snapshotNodeId":"%s","suggestedMark":"fail","reason":"缺来源",
+                            "issues":[{"severity":"high","category":"缺失","description":"...","path":"p"}],
+                            "sourceRefs":[{"type":"requirement","id":"%s","quote":"越界"}]}},
+                          {"content":{"snapshotNodeId":"%s","suggestedMark":"unknown","reason":"bad",
+                            "issues":[],"sourceRefs":[{"type":"requirement","id":"%s","quote":"q"}]}}
+                        ]}
+                        """.formatted(CASE_1, UUID.randomUUID(), CASE_2, REQUIREMENT_ID)));
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), error.getCode());
+        assertTrue(error.getMessage().contains("missing_source_refs=1"));
+        assertTrue(error.getMessage().contains("invalid_mark=1"));
     }
 
     private AgentExecutionPreparation prepare(Map<String, Object> input) {

@@ -72,6 +72,8 @@ public class TaskExecutionDispatcher {
         } catch (ExecutionControl.BudgetExceededException e) {
             terminate(context, control, ErrorCodeConstants.AI_EXECUTION_FINISHED.code(), "预算耗尽");
         } catch (ServiceException e) {
+            log.warn("[AI] 任务业务失败 taskId={} type={} executionId={} code={} msg={}",
+                    task.getId(), task.getType(), execution.getId(), e.getCode(), e.getMessage());
             terminate(context, control, e.getCode(), e.getMessage());
         } catch (DuplicateKeyException e) {
             terminate(context, control, ErrorCodeConstants.AI_PROPOSAL_ALREADY_CONFIRMED.code(), "提案键重复");

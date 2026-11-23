@@ -39,7 +39,7 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ReviewContextSupport.ragContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ReviewContextSupport.requirementContext;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ReviewContextSupport.reviewCaseContext;
-import static io.github.xiaomisum.robotest.service.ai.task.handler.ReviewContextSupport.sanitizeContent;
+import static io.github.xiaomisum.robotest.service.ai.task.handler.ReviewContextSupport.sanitizeContentWithReason;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ReviewContextSupport.snapshotRequirementsById;
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ReviewContextSupport.snapshotOf;
 
@@ -236,15 +236,26 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
             Map<UUID, TestReviewNodeSnapshot> associatedById,
             Map<UUID, Map<String, Object>> requirementsById) {
         Map<UUID, Map<String, Object>> sanitizedByNode = new LinkedHashMap<>();
-        for (Map<String, Object> item : parsedArtifacts(new AiChatReply(output, 0, 0))) {
-            Map<String, Object> content = sanitizeContent(asMap(item.get("content")), reviewId,
-                    associatedById, requirementsById);
-            if (content == null) {
-                log.debug("丢弃非法 AI 评审建议 snapshotNodeId={}",
-                        asMap(item.get("content")).get("snapshotNodeId"));
+        Map<String, Integer> dropReasons = new LinkedHashMap<>();
+        List<Map<String, Object>> parsed = parsedArtifacts(new AiChatReply(output, 0, 0));
+        for (Map<String, Object> item : parsed) {
+            Map<String, Object> rawContent = asMap(item.get("content"));
+            var outcome = sanitizeContentWithReason(rawContent, reviewId, associatedById, requirementsById);
+            if (!outcome.accepted()) {
+                dropReasons.merge(outcome.dropReason(), 1, Integer::sum);
+                log.debug("[AI] 丢弃非法评审建议 reviewId={} reason={} snapshotNodeId={}",
+                        reviewId, outcome.dropReason(), rawContent.get("snapshotNodeId"));
                 continue;
             }
-            sanitizedByNode.putIfAbsent(parseUuid(content.get("snapshotNodeId")), content);
+            Map<String, Object> content = outcome.content();
+            UUID nodeId = parseUuid(content.get("snapshotNodeId"));
+            if (nodeId == null) {
+                dropReasons.merge("invalid_node", 1, Integer::sum);
+                continue;
+            }
+            if (sanitizedByNode.putIfAbsent(nodeId, content) != null) {
+                dropReasons.merge("duplicate_node", 1, Integer::sum);
+            }
         }
 
         List<Map<String, Object>> artifacts = new ArrayList<>();
@@ -266,8 +277,20 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
             artifacts.add(artifact);
         }
         if (artifacts.isEmpty()) {
-            throw modelFailed("模型未产出有效评审建议");
+            String summary = dropSummary(dropReasons);
+            log.warn("[AI] 评审建议清洗后为空 reviewId={} associatedCases={} artifacts={} {} output={}",
+                    reviewId, associated.size(), parsed.size(), summary, abbreviate(output, 1200));
+            throw modelFailed("模型未产出有效评审建议：" + summary);
         }
         return ProposalDrafts.fromArtifacts(artifacts);
+    }
+
+    private static String dropSummary(Map<String, Integer> dropReasons) {
+        if (dropReasons == null || dropReasons.isEmpty()) {
+            return "无可解析产物";
+        }
+        return dropReasons.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining(", "));
     }
 }

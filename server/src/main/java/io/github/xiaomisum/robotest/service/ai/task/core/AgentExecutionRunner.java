@@ -122,9 +122,28 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         if (ModelOutputSupport.trimToNull(finalOutput) == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "模型无有效输出");
         }
-        List<ProposalDraft> drafts = preparation.proposalParser().apply(finalOutput);
-        Map<String, Object> resultMeta = preparation.resultMetaParser().apply(finalOutput);
-        return new ExecutionResult(drafts, resultMeta);
+        String output = finalOutput;
+        try {
+            List<ProposalDraft> drafts = preparation.proposalParser().apply(output);
+            Map<String, Object> resultMeta = preparation.resultMetaParser().apply(output);
+            return new ExecutionResult(drafts, resultMeta);
+        } catch (ServiceException e) {
+            recordOutputParseFailure(control, e, output);
+            throw e;
+        }
+    }
+
+    private void recordOutputParseFailure(ExecutionControl control, ServiceException e, String output) {
+        try {
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("errorCode", e.getCode());
+            detail.put("errorMessage", ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(e.getMessage()), 500));
+            detail.put("outputChars", output == null ? 0 : output.length());
+            detail.put("outputPreview", ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(output), RESULT_ABBREV));
+            control.recordTrace(Constants.AiTraceEventType.AI_DECISION, "模型输出解析失败", detail);
+        } catch (Exception traceError) {
+            log.debug("[AI] 记录输出解析失败轨迹失败", traceError);
+        }
     }
 
     // ---------- 工具分发（不信赖模型：清单外 / 参数非法一律回喂，不中断循环） ----------

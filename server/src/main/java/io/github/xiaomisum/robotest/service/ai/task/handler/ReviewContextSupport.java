@@ -121,30 +121,45 @@ public final class ReviewContextSupport {
         return "\n相关需求片段（向量检索命中）：\n" + String.join("\n", lines);
     }
 
+    /** 清洗结果：失败时携带原因，供执行轨迹与日志定位模型输出问题。 */
+    public record SanitizeOutcome(Map<String, Object> content, String dropReason) {
+        public boolean accepted() {
+            return content != null;
+        }
+
+        public static SanitizeOutcome accepted(Map<String, Object> content) {
+            return new SanitizeOutcome(content, null);
+        }
+
+        public static SanitizeOutcome rejected(String dropReason) {
+            return new SanitizeOutcome(null, dropReason);
+        }
+    }
+
     /**
-     * 提案内容清洗：非法节点 / 非法标记 / 不满足约束的 issues / 无有效来源的提案返回 null，
+     * 提案内容清洗：非法节点 / 非法标记 / 不满足约束的 issues / 无有效来源的提案返回拒绝原因，
      * 由调用方丢弃（详设 4.2：非法提案不进入待采纳态）。
      */
-    public static Map<String, Object> sanitizeContent(Map<String, Object> raw, UUID reviewId,
+    public static SanitizeOutcome sanitizeContentWithReason(Map<String, Object> raw, UUID reviewId,
             Map<UUID, TestReviewNodeSnapshot> associatedById,
             Map<UUID, Map<String, Object>> requirementsById) {
         Map<String, Object> source = asMap(raw);
         UUID nodeId = parseUuid(source.get("snapshotNodeId"));
         TestReviewNodeSnapshot node = nodeId == null ? null : associatedById.get(nodeId);
         if (node == null) {
-            return null;
+            return SanitizeOutcome.rejected("invalid_node");
         }
         String mark = trimToNull(asString(source.get("suggestedMark")));
         if (mark == null || !MARKS.contains(mark)) {
-            return null;
+            return SanitizeOutcome.rejected("invalid_mark");
         }
         List<Map<String, Object>> issues = sanitizeIssues(source.get("issues"), mark);
         if (issues == null) {
-            return null;
+            return SanitizeOutcome.rejected("invalid_issues");
         }
         List<Map<String, Object>> sourceRefs = sanitizeSourceRefs(source.get("sourceRefs"), requirementsById);
         if (sourceRefs.isEmpty()) {
-            return null;
+            return SanitizeOutcome.rejected("missing_source_refs");
         }
 
         String caseTitle = trimToNull(asString(source.get("caseTitle")));
@@ -157,7 +172,17 @@ public final class ReviewContextSupport {
         content.put("reason", reason == null ? "" : reason);
         content.put("issues", issues);
         content.put("sourceRefs", sourceRefs);
-        return content;
+        return SanitizeOutcome.accepted(content);
+    }
+
+    /**
+     * 提案内容清洗：非法节点 / 非法标记 / 不满足约束的 issues / 无有效来源的提案返回 null，
+     * 由调用方丢弃（详设 4.2：非法提案不进入待采纳态）。
+     */
+    public static Map<String, Object> sanitizeContent(Map<String, Object> raw, UUID reviewId,
+            Map<UUID, TestReviewNodeSnapshot> associatedById,
+            Map<UUID, Map<String, Object>> requirementsById) {
+        return sanitizeContentWithReason(raw, reviewId, associatedById, requirementsById).content();
     }
 
     /** 快照 requirements 列表转 id 索引，供提案来源引用按冻结需求校验 */
