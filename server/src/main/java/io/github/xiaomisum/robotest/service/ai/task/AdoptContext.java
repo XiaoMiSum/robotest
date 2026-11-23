@@ -14,7 +14,7 @@ import java.util.UUID;
  * allProposalKeys 为最新一次执行的提案键全集（拆解记录「全部处置完毕」判定用）；
  * loginUser 随请求带入，供承接服务做落库资源权限判定（1000018208）；
  * targetDocumentId / targetPlanId / round 为辅助功能两类型的落位提示，
- * 缺省时由承接服务回退任务入参（任务详情页发起不带 target）。
+ * 缺省时由承接服务回退任务入参（业务面板发起不带 target）。
  */
 public record AdoptContext(AiTask task, AiTaskProposal proposal, String action,
                            Map<String, Object> content, String note, UUID targetModuleId, String position,

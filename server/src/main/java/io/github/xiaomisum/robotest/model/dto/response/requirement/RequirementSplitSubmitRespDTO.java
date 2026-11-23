@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.UUID;
 
 /**
- * 条目内 AI 拆分提交回执（详设 3.9）：提交即返回任务入口，进度与审核在任务详情页完成。
+ * 条目内 AI 拆分提交回执（详设 3.9）：提交即返回任务入口，进度与结果在需求管理页跟踪。
  */
 @Data
 public class RequirementSplitSubmitRespDTO {

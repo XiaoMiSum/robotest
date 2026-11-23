@@ -11,7 +11,7 @@
   /* 弹层与空态行靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
   [hidden] { display: none !important; }
 
-  /* 操作列整体右对齐，换行会破坏「详情 / 审核 / 终止」的扫视顺序 */
+  /* 操作列整体右对齐，换行会破坏「详情 / 终止」的扫视顺序 */
   .ops-cell { text-align: right; white-space: nowrap; }
 
   /* 类型列保留实现中的能力域主标签，副行补任务类型以区分同域任务 */
@@ -36,7 +36,7 @@
       <div class="page-head">
         <div>
           <h1 class="page-head__title">AI 任务中心</h1>
-          <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程并审核提案</p>
+          <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程与采纳结果</p>
           <p class="page-head__note">AI 助手入口示意：实际从项目页右上角唤起，这里以文字链接跳转任务中心</p>
         </div>
         <div class="page-head__actions">
@@ -91,7 +91,7 @@
                 <td><span class="text-light">完成 · 6/6 步</span></td>
                 <td>王芳</td>
                 <td class="num">2026-11-19 11:05</td>
-                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=readonly">详情</a><a class="op-link" href="ai-task-detail.html?scene=readonly&amp;review=1">审核</a></td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=readonly">详情</a></td>
               </tr>
               <tr data-page="1" data-status="proposals_ready" data-type="plan_order" data-title="购物车结算执行顺序调整">
                 <td class="cell-main"><a href="ai-task-detail.html?scene=plan">购物车结算执行顺序调整</a><span class="cell-sub">辅助 · 计划排序</span></td>
@@ -100,7 +100,7 @@
                 <td><span class="text-light">完成 · 4/4 步</span></td>
                 <td>陈晓</td>
                 <td class="num">2026-11-18 17:32</td>
-                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=plan">详情</a><a class="op-link" href="ai-task-detail.html?scene=plan&amp;review=1">审核</a></td>
+                <td class="ops-cell"><a class="op-link" href="ai-task-detail.html?scene=plan">详情</a></td>
               </tr>
               <tr data-page="1" data-status="closed" data-type="requirement_import" data-title="需求文档 R-2026-118 导入">
                 <td class="cell-main"><a href="ai-task-detail.html?scene=closed">需求文档 R-2026-118 导入</a><span class="cell-sub">需求 · 需求导入</span></td>

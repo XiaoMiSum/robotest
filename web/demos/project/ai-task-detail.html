@@ -22,25 +22,13 @@
   .task-head__actions { display: flex; gap: 8px; flex-shrink: 0; }
   .assistant-entry { display: flex; align-items: center; gap: 4px; margin: -6px 0 14px; color: var(--n-500); font-size: var(--font-size-xs); }
   .task-section { margin-bottom: 16px; }
-  .task-proposals { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .count-badge { cursor: pointer; }
 
   .review-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
   .review-head__main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
   .section-title { margin: 0; color: var(--n-900); font-size: var(--font-size-lg); font-weight: 650; }
-  .version-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .version-bar__evidence { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .review-card { border-top: 1px solid var(--n-200); padding-top: 12px; }
-  .review-card + .review-card { margin-top: 12px; }
-  .review-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .review-card__kind { color: var(--n-500); font-size: var(--font-size-xs); }
-  .review-card__name { flex: 1; min-width: 160px; overflow: hidden; color: var(--n-900); font-size: var(--font-size-sm); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
   .review-card__body { min-height: 72px; color: var(--n-700); font-size: var(--font-size-sm); line-height: 1.6; }
   .review-card__body p { margin: 8px 0; }
-  .review-meta { color: var(--n-500); font-size: var(--font-size-sm); }
-  .review-meta span { margin-left: 12px; }
-  .review-card__alert { margin-bottom: 8px; }
   .review-fields { margin: 8px 0; }
   .review-field { display: flex; gap: 12px; padding: 4px 0; }
   .review-field dt { flex: 0 0 96px; color: var(--n-500); }
@@ -49,9 +37,6 @@
   .review-source { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0; }
   .review-source__title { color: var(--n-900); font-weight: 600; }
   .review-source__quote { color: var(--n-500); }
-  .review-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--n-200); }
-  .review-empty { padding: 24px 0; text-align: center; color: var(--n-500); font-size: var(--font-size-sm); }
-  .review-empty .btn { margin-left: 10px; }
 
   .compare-view { margin: 8px 0 12px; }
   .compare-head, .compare-row { display: grid; grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr) minmax(0, 2fr); column-gap: 8px; }
@@ -66,23 +51,6 @@
   .case-steps { margin: 8px 0; padding-left: 20px; }
   .case-step { margin-bottom: 4px; }
 
-  .order-list { margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--n-200); border-radius: var(--radius-sm); list-style: none; }
-  .order-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: var(--font-size-sm); }
-  .order-row + .order-row { border-top: 1px solid var(--n-100); }
-  .order-row--over { background: var(--brand-50); }
-  .order-row--dragging { opacity: .6; }
-  .order-row__rank { display: inline-flex; flex: 0 0 24px; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--brand-500); color: #fff; }
-  .order-row__title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .order-row__reason { flex: 1; min-width: 0; overflow: hidden; color: var(--n-500); text-overflow: ellipsis; white-space: nowrap; }
-  .order-diff { overflow: hidden; border: 1px solid var(--n-200); border-radius: var(--radius-sm); margin-top: 12px; }
-  .order-diff__head { display: flex; justify-content: space-between; padding: 6px 10px; background: var(--n-50); font-size: var(--font-size-sm); }
-  .order-diff__cols { display: grid; grid-template-columns: 1fr 1fr; }
-  .order-diff__cols ul { margin: 0; padding: 6px 0; list-style: none; }
-  .order-diff__cols ul + ul { border-left: 1px solid var(--n-200); }
-  .order-diff__cols li { display: flex; gap: 6px; padding: 2px 10px; font-size: var(--font-size-sm); }
-  .order-diff__cols li.changed { background: var(--brand-50); color: var(--brand-600); }
-  .order-diff__idx { color: var(--n-400); }
-
   .collapse-item { border-bottom: 1px solid var(--n-200); }
   .collapse-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 10px 0; background: none; border: none; cursor: pointer; font-size: var(--font-size-sm); text-align: left; }
   .collapse-head__kind { color: var(--n-500); font-size: var(--font-size-xs); }
@@ -91,10 +59,6 @@
   .collapse-body { padding: 4px 0 14px; }
   .collapse-body__loading { color: var(--n-500); font-size: var(--font-size-sm); }
 
-  .empty-block { padding: 28px 0; text-align: center; color: var(--n-500); }
-  .empty-block p { margin: 6px 0 2px; font-size: var(--font-size-sm); }
-  .empty-block span.muted { font-size: var(--font-size-xs); }
-  .edit-original { margin: 0; color: var(--n-500); font-size: var(--font-size-sm); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -113,7 +77,7 @@
       <div class="scene-switcher">
         <span class="muted">演示场景</span>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="import">需求导入 · 待采纳</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="readonly">用例优化 · 只读预览</button>
+        <button class="btn btn--default btn--sm" type="button" data-scene-btn="readonly">用例优化 · 待采纳</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="plan">计划排序 · 待采纳</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="running">执行中</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="aborted">已终止</button>
@@ -155,80 +119,9 @@
         <div class="card__body"><ol class="timeline" id="dt-plan-list"></ol></div>
       </section>
 
-      <section class="task-section task-proposals" id="dt-proposals">
-        <span class="muted">提案计数</span>
-        <span id="dt-proposal-badges"></span>
-      </section>
-
       <section class="card task-section" id="dt-trace-section">
         <div class="card__header"><span class="card__title">执行轨迹</span></div>
         <div class="card__body"><ol class="timeline" id="dt-trace-list"></ol></div>
-      </section>
-
-      <section class="card task-section" id="dt-review">
-        <div class="card__body">
-          <!-- 通用审核：卡片直出 + 三列对照 + 右对齐 link 动作，处理后自动补位 -->
-          <div class="review-scene" data-scene="import" hidden>
-            <header class="review-head">
-              <div class="review-head__main"><h2 class="section-title">导入结果审核</h2><span class="muted" id="dt-import-progress">已处理 0 / 共 4</span></div>
-              <div class="version-bar">
-                <span class="muted">版本</span>
-                <input class="input" id="dt-version" maxlength="50" value="V2.4" style="width:200px" aria-label="版本">
-                <span class="muted version-bar__evidence" id="dt-version-evidence">识别依据：需求正文「版本号 V2.4」</span>
-                <span class="muted" id="dt-version-hint">已预填文档识别版本，可修改、可清空</span>
-              </div>
-            </header>
-            <div id="dt-import-cards"></div>
-          </div>
-
-          <!-- 只读策略照常展示结构化预览，不给采纳/驳回入口，也不展示权限提示 -->
-          <div class="review-scene" data-scene="readonly" hidden>
-            <header class="review-head">
-              <div class="review-head__main"><h2 class="section-title">用例优化结果</h2><span class="muted">已处理 0 / 共 3</span></div>
-              <span class="tag tag--sm tag--warning">待确认</span>
-            </header>
-            <div class="review-card">
-              <div class="review-card__head"><span class="review-card__kind">用例优化</span><span class="review-card__name">优惠券叠加边界用例</span><span class="tag tag--sm tag--warning">待确认</span></div>
-              <div class="review-card__body">
-                <div class="review-meta">模块：促销中心 / 优惠券<span>来源：REQ-24118</span></div>
-                <p>模型给出 3 项节点级优化：补全前置条件、调整优先级、补充标签。</p>
-                <div class="compare-view">
-                  <div class="compare-head"><span>项目</span><span>现有内容</span><span>AI 建议</span></div>
-                  <div class="compare-row compare-row--changed"><span class="compare-row__label">标题</span><span class="compare-row__existing">优惠券用例</span><span>优惠券叠加边界用例</span></div>
-                  <div class="compare-row compare-row--changed"><span class="compare-row__label">优先级</span><span class="compare-row__existing">P2·低</span><span>P1·中</span></div>
-                  <div class="compare-row" data-unchanged hidden><span class="compare-row__label">标签</span><span class="compare-row__existing">优惠券</span><span>优惠券</span></div>
-                  <button class="btn btn--link btn--sm compare-fold" type="button" data-compare-fold>展开其余 1 项无变化内容</button>
-                </div>
-                <dl class="review-fields"><div class="review-field"><dt>用例节点</dt><dd>node-coupon-07</dd></div></dl>
-                <div class="review-sources">
-                  <div class="review-source"><span class="review-source__title">REQ-24118</span><span class="review-source__quote">同一订单仅允许使用一张优惠券</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 计划排序：顺序为面板私有状态，拖拽/上移只改本地，应用时整包提交 -->
-          <div class="review-scene" data-scene="plan" hidden>
-            <header class="review-head">
-              <div class="review-head__main"><h2 class="section-title">执行顺序审核</h2><span class="muted" id="dt-plan-progress">已处理 0 / 共 1</span></div>
-              <span class="tag tag--sm tag--warning" id="dt-plan-order-status">待确认</span>
-              <span class="tag tag--sm tag--warning" id="dt-plan-adjusted" hidden>已人工调整</span>
-            </header>
-            <ol class="order-list" id="dt-order-list"></ol>
-            <div class="order-diff">
-              <div class="order-diff__head"><span>采纳前 vs 采纳后 顺序对照</span><span class="muted" id="dt-order-diff-count">2 项顺序变化</span></div>
-              <div class="order-diff__cols"><ul id="dt-order-before"></ul><ul id="dt-order-after"></ul></div>
-            </div>
-            <div class="review-actions">
-              <button class="btn btn--link" type="button" id="dt-order-apply">应用建议</button>
-              <button class="btn btn--link" type="button" id="dt-order-discard">放弃</button>
-            </div>
-          </div>
-
-          <div class="review-scene" data-scene="running" hidden>
-            <div class="empty-block"><span data-icon="loader"></span><p>执行进行中，完成后在此审核</p><span class="muted">仅执行中态持续轮询；完成后按任务类型切换审核形态</span></div>
-          </div>
-        </div>
       </section>
 
       <section class="card task-section" id="dt-adoption-section" hidden>
@@ -286,32 +179,6 @@
   </div>
 </main>
 
-<!-- 编辑后采纳：字段由任务类型策略给出；静态稿按通用形态复用同一弹层 -->
-<div class="dialog-mask" id="dt-edit-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:640px">
-    <div class="dialog__header"><span class="dialog__title" id="dt-edit-title">修改后采纳</span><button class="dialog__close" data-close="dt-edit-dialog" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="dialog__body"><div id="dt-edit-fields"></div><p class="edit-original" id="dt-edit-original" hidden></p></div>
-    <div class="dialog__footer">
-      <button class="btn btn--default" type="button" data-close="dt-edit-dialog">取消</button>
-      <button class="btn btn--primary" type="button" id="dt-edit-ok">确认采纳</button>
-    </div>
-  </div>
-</div>
-
-<div class="dialog-mask" id="dt-reject-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:480px">
-    <div class="dialog__header"><span class="dialog__title">驳回产物</span><button class="dialog__close" data-close="dt-reject-dialog" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="dialog__body">
-      <textarea class="textarea" id="dt-reject-note" rows="4" maxlength="500" placeholder="反馈可选，用于改进后续生成（不超过 500 字）"></textarea>
-      <div class="field__hint"><span id="dt-reject-count">0</span>/500</div>
-    </div>
-    <div class="dialog__footer">
-      <button class="btn btn--default" type="button" data-close="dt-reject-dialog">取消</button>
-      <button class="btn btn--danger" type="button" id="dt-reject-ok">确认驳回</button>
-    </div>
-  </div>
-</div>
-
 <div class="dialog-mask" id="dt-confirm-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px">
     <div class="dialog__header"><span class="dialog__title" id="dt-confirm-title">确认终止执行</span><button class="dialog__close" data-close="dt-confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button></div>
@@ -340,7 +207,6 @@
       exec: '已成功', execTag: 'tag--success', steps: 8, max: 8, seq: 1,
       terminate: '', poll: '任务处于待采纳，详情页已停止轮询',
       plan: [['解析需求文档', 'done'], ['抽取候选需求', 'done'], ['生成需求建议', 'done'], ['等待人工确认', 'current']],
-      counts: [['需求建议', 3], ['模块', 1]],
       trace: [['计划', '生成 4 步执行计划', '10:12:03'], ['AI 决策', '按段落拆分需求条目', '10:12:11'], ['工具调用', 'document.parse', '10:12:15'], ['产出提案', '需求建议 ×3', '10:12:22'], ['状态变更', 'running → proposals_ready', '10:12:23']]
     },
     readonly: {
@@ -349,7 +215,6 @@
       exec: '已成功', execTag: 'tag--success', steps: 6, max: 6, seq: 1,
       terminate: '', poll: '任务处于待采纳，详情页已停止轮询',
       plan: [['读取脑图节点', 'done'], ['生成节点优化建议', 'done'], ['输出结构化预览', 'done']],
-      counts: [['用例优化', 3]],
       trace: [['计划', '生成 3 步执行计划', '11:05:02'], ['工具调用', 'mindmap.readNodes', '11:05:10'], ['产出提案', '用例优化 ×3', '11:05:18'], ['状态变更', 'running → proposals_ready', '11:05:19']]
     },
     plan: {
@@ -358,7 +223,6 @@
       exec: '已成功', execTag: 'tag--success', steps: 4, max: 4, seq: 1,
       terminate: '', poll: '任务处于待采纳，详情页已停止轮询',
       plan: [['读取计划节点', 'done'], ['评估前置依赖', 'done'], ['生成排序建议', 'done']],
-      counts: [['排序建议', 1]],
       trace: [['计划', '生成 3 步执行计划', '17:32:04'], ['AI 决策', '按依赖调整执行顺序', '17:32:12'], ['产出提案', '排序建议 ×1', '17:32:20'], ['状态变更', 'running → proposals_ready', '17:32:21']]
     },
     running: {
@@ -367,7 +231,6 @@
       exec: '执行中', execTag: 'tag--warning', steps: 3, max: 5, seq: 2,
       terminate: '', poll: '',
       plan: [['读取脑图节点', 'done'], ['分析幂等边界', 'done'], ['生成节点优化建议', 'current'], ['写入提案清单', 'pending'], ['等待人工确认', 'pending']],
-      counts: [['用例优化', 3]],
       trace: [['计划', '生成 5 步执行计划', '09:42:05'], ['AI 决策', '按回调链路分析边界', '09:42:14'], ['工具调用', 'mindmap.readNodes', '09:42:19'], ['工具结果', '返回 3 个用例节点', '09:42:20']]
     },
     aborted: {
@@ -376,7 +239,6 @@
       exec: '已终止', execTag: 'tag--danger', steps: 2, max: 6, seq: 1,
       terminate: '用户手动终止（错误码 1000018210）', poll: '任务已终止，详情页已停止轮询',
       plan: [['扫描向量集合', 'done'], ['重建商品索引', 'aborted'], ['校验索引版本', 'pending'], ['切换读别名', 'pending']],
-      counts: [],
       trace: [['计划', '生成 4 步执行计划', '10:15:02'], ['工具调用', 'vector.reindex', '10:15:13'], ['状态变更', 'running → aborted', '10:16:41']]
     },
     closed: {
@@ -385,151 +247,9 @@
       exec: '已成功', execTag: 'tag--success', steps: 8, max: 8, seq: 1,
       terminate: '', poll: '任务已结束，详情页已停止轮询',
       plan: [['解析需求文档', 'done'], ['抽取候选需求', 'done'], ['生成需求建议', 'done'], ['写入采纳结果', 'done']],
-      counts: [['需求建议', 2], ['用例', 1], ['排序建议', 1]],
       trace: [['计划', '生成 4 步执行计划', '14:33:01'], ['产出提案', '需求建议 ×2 / 用例 ×1', '14:33:29'], ['状态变更', 'proposals_ready → closed', '14:41:12']]
     }
   };
-
-  var importRows = [
-    { key: 'p1', kind: '需求建议', title: '补充优惠券叠加规则', status: 'pending', desc: '文档未明确叠加限制，建议在同一订单维度约束为单张券。', module: '促销中心 / 优惠券', source: 'REQ-24118', priority: '高', note: '',
-      warnings: [], compare: [
-        { label: '叠加规则', existing: '未定义', suggested: '同一订单仅可用一张优惠券', changed: true },
-        { label: '适用范围', existing: 'APP / H5', suggested: 'APP / H5', changed: false },
-        { label: '异常提示', existing: '—', suggested: '叠加时提示「不可与其他优惠券同用」', changed: true }
-      ], sources: [{ id: 'REQ-24118', quote: '同一订单仅允许使用一张优惠券' }] },
-    { key: 'p2', kind: '需求建议', title: '补充退款后优惠券回收规则', status: 'pending', desc: '整单退款后应回收已使用的优惠券，避免二次占用。', module: '促销中心 / 优惠券', source: 'REQ-24118', priority: '中', note: '',
-      warnings: ['来源片段位于文档附录，建议人工复核'], compare: [
-        { label: '回收时机', existing: '未定义', suggested: '整单退款成功后回收', changed: true },
-        { label: '适用范围', existing: 'APP / H5', suggested: 'APP / H5', changed: false }
-      ], sources: [{ id: 'REQ-24118', quote: '退款成功后券权益应回滚' }] },
-    { key: 'p3', kind: '模块', title: '促销中心 / 优惠券', status: 'pending', desc: '建议新建模块承载优惠券规则相关需求。', module: '', source: 'REQ-24118', priority: '', note: '',
-      warnings: [], compare: [
-        { label: '模块名', existing: '—', suggested: '促销中心 / 优惠券', changed: true }
-      ], sources: [] },
-    { key: 'p4', kind: '需求建议', title: '明确券过期边界', status: 'pending', desc: '过期时间按服务端时区判定，避免跨时区歧义。', module: '促销中心 / 优惠券', source: 'REQ-24118', priority: '低', note: '',
-      warnings: [], compare: [
-        { label: '过期判定', existing: '自然日 23:59', suggested: '服务端时区 23:59:59', changed: true },
-        { label: '时区口径', existing: '未定义', suggested: 'Asia/Shanghai', changed: true }
-      ], sources: [{ id: 'REQ-24118', quote: '优惠券有效期至自然日结束' }] }
-  ];
-
-  var orderItems = [
-    { id: 'n1', title: '购物车结算主链路', reason: '前置依赖其他用例' },
-    { id: 'n2', title: '优惠叠加边界', reason: '依赖结算入口' },
-    { id: 'n3', title: '支付回调幂等', reason: '结算后校验' },
-    { id: 'n4', title: '订单取消回滚', reason: '独立场景' }
-  ];
-  // 面板初始展示的是 AI 建议顺序，beforeOrder 保留采纳前顺序用于对照
-  var beforeOrder = ['优惠叠加边界', '支付回调幂等', '订单取消回滚', '购物车结算主链路'];
-  var suggestedOrder = orderItems.map(function (item) { return item.title; });
-  var planApplied = false;
-  var dragIndex = -1;
-
-  function processedText(done, total) { return '已处理 ' + done + ' / 共 ' + total; }
-
-  function compareHtml(items) {
-    var html = '<div class="compare-view"><div class="compare-head"><span>项目</span><span>现有内容</span><span>AI 建议</span></div>';
-    var unchanged = 0;
-    items.forEach(function (item) {
-      if (!item.changed) unchanged += 1;
-      html += '<div class="compare-row' + (item.changed ? ' compare-row--changed' : '') + '"' + (item.changed ? '' : ' data-unchanged hidden') + '>' +
-        '<span class="compare-row__label">' + esc(item.label) + '</span>' +
-        '<span class="compare-row__existing">' + esc(item.existing || '—') + '</span><span>' + esc(item.suggested || '—') + '</span></div>';
-    });
-    if (unchanged > 0) {
-      html += '<button class="btn btn--link btn--sm compare-fold" type="button" data-compare-fold>展开其余 ' + unchanged + ' 项无变化内容</button>';
-    }
-    return html + '</div>';
-  }
-
-  function fieldsHtml(fields) {
-    if (!fields.length) return '';
-    var html = '<dl class="review-fields">';
-    fields.forEach(function (field) {
-      html += '<div class="review-field"><dt>' + esc(field.label) + '</dt><dd>' + esc(field.value) + '</dd></div>';
-    });
-    return html + '</dl>';
-  }
-
-  function sourcesHtml(sources, titleKey) {
-    if (!sources.length) return '';
-    var html = '<div class="review-sources">';
-    sources.forEach(function (source) {
-      html += '<div class="review-source"><span class="review-source__title">' + esc(source[titleKey] || '') + '</span>' +
-        '<span class="review-source__quote">' + esc(source.quote || '') + '</span></div>';
-    });
-    return html + '</div>';
-  }
-
-  function renderImport() {
-    var pending = importRows.filter(function (row) { return row.status === 'pending'; });
-    var done = importRows.length - pending.length;
-    byId('dt-import-progress').textContent = processedText(done, importRows.length);
-    var host = byId('dt-import-cards');
-    if (importRows.length && pending.length === 0) {
-      var allRejected = importRows.every(function (row) { return row.status === 'rejected'; });
-      host.innerHTML = '<div class="review-empty">' + (allRejected ? '已全部驳回，未创建任何数据' : '待处理提案已全部审核完成') +
-        '<a class="btn btn--primary" href="ai-task-center.html">返回任务中心</a></div>';
-      return;
-    }
-    if (importRows.length === 0) {
-      host.innerHTML = '<div class="review-empty">提案为空（执行未产出建议）<a class="btn btn--primary" href="ai-task-center.html">返回任务中心</a></div>';
-      return;
-    }
-    var row = pending[0];
-    var html = '<div class="review-card"><div class="review-card__head">' +
-      '<span class="review-card__kind">' + esc(row.kind) + '</span><span class="review-card__name">' + esc(row.title) + '</span>' +
-      '<span class="tag tag--sm tag--warning">待确认</span></div><div class="review-card__body">';
-    if (row.module) html += '<div class="review-meta">模块：' + esc(row.module) + '<span>来源：' + esc(row.source) + '</span></div>';
-    row.warnings.forEach(function (warning) { html += '<div class="alert alert--warning review-card__alert">' + esc(warning) + '</div>'; });
-    html += '<p>' + esc(row.desc) + '</p>' + compareHtml(row.compare);
-    var fields = [{ label: '模块 ID', value: row.module || '—' }];
-    if (row.priority) fields.push({ label: '优先级', value: row.priority });
-    if (row.source) fields.push({ label: '来源引用', value: row.source });
-    html += fieldsHtml(fields) + sourcesHtml(row.sources, 'id') + '</div>' +
-      '<div class="review-actions"><button class="btn btn--link" type="button" data-review-action="adopt" data-row-key="' + row.key + '">采纳</button>' +
-      '<button class="btn btn--link" type="button" data-review-action="edit" data-row-key="' + row.key + '">修改后采纳</button>' +
-      '<button class="btn btn--link" type="button" data-review-action="reject" data-row-key="' + row.key + '">驳回（可附反馈）</button></div></div>';
-    host.innerHTML = html;
-  }
-
-  function renderOrderDiff() {
-    var current = orderItems.map(function (item) { return item.title; });
-    var changed = current.filter(function (title, index) { return beforeOrder[index] !== title; }).length;
-    byId('dt-order-diff-count').textContent = changed > 0 ? changed + ' 项顺序变化' : '顺序与采纳前一致';
-    byId('dt-plan-adjusted').hidden = current.join('\n') === suggestedOrder.join('\n');
-    byId('dt-order-before').innerHTML = beforeOrder.map(function (title, index) {
-      return '<li><span class="order-diff__idx">' + (index + 1) + '</span>' + esc(title) + '</li>';
-    }).join('');
-    byId('dt-order-after').innerHTML = current.map(function (title, index) {
-      return '<li' + (beforeOrder[index] === title ? '' : ' class="changed"') + '><span class="order-diff__idx">' + (index + 1) + '</span>' + esc(title) + '</li>';
-    }).join('');
-  }
-
-  function renderOrder() {
-    var list = byId('dt-order-list');
-    var html = '';
-    orderItems.forEach(function (item, index) {
-      html += '<li class="order-row" draggable="true" data-order-id="' + item.id + '" data-index="' + index + '">' +
-        '<span class="order-row__rank">' + (index + 1) + '</span><span class="order-row__title">' + esc(item.title) + '</span>' +
-        '<span class="order-row__reason">' + esc(item.reason) + '</span>' +
-        '<button class="btn btn--link btn--sm" type="button" data-order-move="up" data-index="' + index + '">上移</button>' +
-        '<button class="btn btn--link btn--sm" type="button" data-order-move="down" data-index="' + index + '">下移</button></li>';
-    });
-    list.innerHTML = html;
-    renderOrderDiff();
-    byId('dt-order-apply').disabled = planApplied;
-    byId('dt-order-discard').disabled = planApplied;
-  }
-
-  function moveOrder(from, to) {
-    if (from < 0 || to < 0 || from >= orderItems.length || to >= orderItems.length || from === to) return;
-    var next = orderItems.slice();
-    var moved = next.splice(from, 1)[0];
-    next.splice(to, 0, moved);
-    orderItems = next;
-    renderOrder();
-  }
 
   function timelineHtml(items, kind) {
     var dotClass = { done: 'success', current: 'brand', aborted: 'danger', pending: '', info: '' };
@@ -577,9 +297,6 @@
 
     byId('dt-plan-list').innerHTML = timelineHtml(scene.plan, 'plan');
     byId('dt-trace-list').innerHTML = timelineHtml(scene.trace, 'trace');
-    byId('dt-proposal-badges').innerHTML = scene.counts.map(function (count) {
-      return '<span class="tag tag--sm tag--outline count-badge">' + esc(count[0]) + ' ' + count[1] + '</span>';
-    }).join('');
 
     byId('dt-plan-section').hidden = scene.plan.length === 0;
     byId('dt-trace-section').hidden = scene.trace.length === 0;
@@ -588,10 +305,6 @@
       btn.classList.toggle('btn--primary', btn.getAttribute('data-scene-btn') === name);
       btn.classList.toggle('btn--default', btn.getAttribute('data-scene-btn') !== name);
     });
-    document.querySelectorAll('.review-scene').forEach(function (panel) {
-      panel.hidden = panel.getAttribute('data-scene') !== name;
-    });
-    byId('dt-review').hidden = name === 'aborted' || name === 'closed';
     byId('dt-adoption-section').hidden = name !== 'closed';
 
     byId('dt-actions').innerHTML = name === 'running'
@@ -599,53 +312,9 @@
       : name === 'aborted'
         ? '<button class="btn btn--primary" type="button" data-page-op="reexecute">再次执行</button>'
         : '';
-
-    if (name === 'import') renderImport();
-    if (name === 'plan') renderOrder();
   }
 
-  var editTarget = null;
-  var rejectTarget = null;
   var confirmAction = null;
-
-  function openEditDialog(title, fields, original, target) {
-    editTarget = target;
-    byId('dt-edit-title').textContent = title;
-    var host = byId('dt-edit-fields');
-    host.innerHTML = fields.map(function (field) {
-      var label = '<div class="field"><label class="field__label">' + esc(field.label) + (field.required ? '<span class="req">*</span>' : '') + '</label>';
-      var control;
-      if (field.type === 'select') {
-        control = '<select class="select" data-edit-key="' + field.key + '">' + field.options.map(function (option) {
-          return '<option value="' + esc(option) + '"' + (option === field.value ? ' selected' : '') + '>' + esc(option) + '</option>';
-        }).join('') + '</select>';
-      } else if (field.type === 'textarea') {
-        control = '<textarea class="textarea" rows="3" data-edit-key="' + field.key + '">' + esc(field.value) + '</textarea>';
-      } else {
-        control = '<input class="input" data-edit-key="' + field.key + '" value="' + esc(field.value) + '"' + (field.maxlength ? ' maxlength="' + field.maxlength + '"' : '') + '>';
-      }
-      return label + control + '</div>';
-    }).join('');
-    var originalEl = byId('dt-edit-original');
-    originalEl.hidden = !original;
-    originalEl.textContent = original;
-    byId('dt-edit-dialog').hidden = false;
-  }
-
-  function editValues() {
-    var values = {};
-    document.querySelectorAll('#dt-edit-fields [data-edit-key]').forEach(function (field) {
-      values[field.getAttribute('data-edit-key')] = field.value;
-    });
-    return values;
-  }
-
-  function openRejectDialog(target) {
-    rejectTarget = target;
-    byId('dt-reject-note').value = '';
-    byId('dt-reject-count').textContent = '0';
-    byId('dt-reject-dialog').hidden = false;
-  }
 
   function askConfirm(title, body, okLabel, action) {
     byId('dt-confirm-title').textContent = title;
@@ -679,13 +348,6 @@
     var sceneBtn = e.target.closest('[data-scene-btn]');
     if (sceneBtn) { setScene(sceneBtn.getAttribute('data-scene-btn')); return; }
 
-    var badge = e.target.closest('.count-badge');
-    if (badge) {
-      var targetSection = byId('dt-review').hidden ? byId('dt-adoption-section') : byId('dt-review');
-      targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-
     var pageOp = e.target.closest('[data-page-op]');
     if (pageOp) {
       if (pageOp.getAttribute('data-page-op') === 'abort') {
@@ -703,126 +365,6 @@
       }
       return;
     }
-
-    var action = e.target.closest('[data-review-action]');
-    if (action) {
-      var row = importRows.find(function (item) { return item.key === action.getAttribute('data-row-key'); });
-      if (!row) return;
-      if (action.getAttribute('data-review-action') === 'adopt') {
-        row.status = 'adopted';
-        row.note = '';
-        renderImport();
-        window.RTUX.toast('确认完成', { type: 'success' });
-      } else if (action.getAttribute('data-review-action') === 'edit') {
-        openEditDialog('修改后采纳', [
-          { key: 'title', label: '标题', type: 'text', value: row.title, required: true, maxlength: 300 },
-          { key: 'description', label: '描述', type: 'textarea', value: row.desc },
-          { key: 'moduleId', label: '所属模块', type: 'text', value: row.module },
-          { key: 'priority', label: '优先级', type: 'select', value: row.priority || '中', options: ['高', '中', '低'] }
-        ], '', { kind: 'import', key: row.key });
-      } else {
-        openRejectDialog({ kind: 'import', key: row.key });
-      }
-      return;
-    }
-
-    var move = e.target.closest('[data-order-move]');
-    if (move && !planApplied) {
-      var index = Number(move.getAttribute('data-index'));
-      moveOrder(index, move.getAttribute('data-order-move') === 'up' ? index - 1 : index + 1);
-      return;
-    }
-
-    if (e.target.closest('#dt-order-apply') && !planApplied) {
-      planApplied = true;
-      byId('dt-plan-order-status').className = 'tag tag--sm tag--success';
-      byId('dt-plan-order-status').textContent = '已采纳';
-      byId('dt-plan-progress').textContent = processedText(1, 1);
-      renderOrderDiff();
-      byId('dt-order-apply').disabled = true;
-      byId('dt-order-discard').disabled = true;
-      window.RTUX.toast('确认完成', { type: 'success' });
-      return;
-    }
-
-    if (e.target.closest('#dt-order-discard') && !planApplied) {
-      // 放弃只还原面板预览顺序，任务状态保持待采纳
-      orderItems = beforeOrder.map(function (title) {
-        return { id: 'n' + beforeOrder.indexOf(title), title: title, reason: '采纳前顺序' };
-      });
-      renderOrder();
-      window.RTUX.toast('已放弃本次建议', {});
-    }
-  });
-
-  byId('dt-edit-ok').addEventListener('click', function () {
-    if (!editTarget) return;
-    var values = editValues();
-    var row = importRows.find(function (item) { return item.key === editTarget.key; });
-    if (row) {
-      row.title = values.title || row.title;
-      row.desc = values.description || row.desc;
-      row.module = values.moduleId || row.module;
-      row.priority = values.priority || row.priority;
-      row.status = 'adopted_edited';
-    }
-    renderImport();
-    byId('dt-edit-dialog').hidden = true;
-    editTarget = null;
-    window.RTUX.toast('确认完成', { type: 'success' });
-  });
-
-  byId('dt-reject-note').addEventListener('input', function () {
-    byId('dt-reject-count').textContent = String(this.value.length);
-  });
-  byId('dt-reject-ok').addEventListener('click', function () {
-    if (!rejectTarget) return;
-    var note = byId('dt-reject-note').value.trim();
-    var row = importRows.find(function (item) { return item.key === rejectTarget.key; });
-    if (row) { row.status = 'rejected'; row.note = note; }
-    renderImport();
-    byId('dt-reject-dialog').hidden = true;
-    rejectTarget = null;
-    var allRejected = importRows.every(function (item) { return item.status === 'rejected'; });
-    window.RTUX.toast(allRejected ? '已全部驳回，未创建任何数据' : '确认完成', { type: 'success' });
-  });
-
-  byId('dt-version').addEventListener('input', function () {
-    var value = this.value.trim();
-    byId('dt-version-hint').textContent = value ? '采纳时使用当前版本值' : '采纳后版本留空，可手工补录';
-    byId('dt-version-evidence').hidden = true;
-  });
-
-  byId('dt-order-list').addEventListener('dragstart', function (e) {
-    var row = e.target.closest('.order-row');
-    if (!row) return;
-    dragIndex = Number(row.getAttribute('data-index'));
-    row.classList.add('order-row--dragging');
-  });
-  byId('dt-order-list').addEventListener('dragover', function (e) {
-    e.preventDefault();
-    var row = e.target.closest('.order-row');
-    if (row) row.classList.add('order-row--over');
-  });
-  byId('dt-order-list').addEventListener('dragleave', function (e) {
-    var row = e.target.closest('.order-row');
-    if (row) row.classList.remove('order-row--over');
-  });
-  byId('dt-order-list').addEventListener('drop', function (e) {
-    e.preventDefault();
-    var row = e.target.closest('.order-row');
-    if (!row || dragIndex < 0) return;
-    var from = dragIndex;
-    var to = Number(row.getAttribute('data-index'));
-    dragIndex = -1;
-    // 拖拽只改面板私有顺序，落库由「应用建议」整包提交
-    moveOrder(from, to);
-  });
-  byId('dt-order-list').addEventListener('dragend', function () {
-    dragIndex = -1;
-    document.querySelectorAll('.order-row--dragging, .order-row--over').forEach(function (row) {
-      row.classList.remove('order-row--dragging', 'order-row--over');
-    });
   });
 
   byId('dt-confirm-ok').addEventListener('click', function () {
@@ -841,12 +383,6 @@
   var params = new URLSearchParams(window.location.search);
   var initial = params.get('scene');
   setScene(scenes[initial] ? initial : 'import');
-  if (params.get('review') === '1') {
-    window.setTimeout(function () {
-      var section = byId('dt-review').hidden ? byId('dt-adoption-section') : byId('dt-review');
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 0);
-  }
 })();
 </script>
 </body>

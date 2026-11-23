@@ -1,8 +1,8 @@
 -- ============================================================
 -- RoboTest 多产物 AI 任务演示数据（本地开发用，禁止用于生产）
 --
--- 内容：1 个 case_optimize 任务 + 1 条 succeeded 执行 + 5 条待审核产物。
---       用于验收「审核区只展示 1 条 / 采纳后自动切换下一条」与
+-- 内容：1 个 case_optimize 任务 + 1 条 succeeded 执行 + 5 条待处置产物。
+--       用于验收业务面板「单条直出 / 采纳后自动切换下一条」与
 --       「项目 / 现有内容 / AI 建议」三列对比（含无变化项折叠）。
 --
 -- 目标库：本地开发库（dev profile 默认 jdbc:postgresql://localhost:5432/robotest）
@@ -12,7 +12,7 @@
 --   docker exec -i pgvector psql -U postgres -d robotest -v ON_ERROR_STOP=1 < scripts/db/seed-ai-multi-artifact.sql
 --
 -- 可重复执行：本脚本数据主键统一使用 '5eedb' 前缀，重跑时先按前缀清理。
--- 查看入口：项目 → AI 能力 → AI 任务 → 「登录相关用例优化（多产物示例）」
+-- 查看入口：项目 → 功能测试 → 脑图用例优化面板（任务详情仅回看执行过程与采纳结果）
 -- ============================================================
 
 BEGIN;
@@ -42,7 +42,7 @@ DELETE FROM ai_task_execution  WHERE task_id::text LIKE '5eedb%';
 DELETE FROM ai_task            WHERE id::text LIKE '5eedb%';
 
 -- ============================================================
--- 1. 任务本体：status 必须为 proposals_ready，详情页才会挂审核区
+-- 1. 任务本体：status 为 proposals_ready，表示执行完成、产物待业务面板处置
 -- ============================================================
 INSERT INTO ai_task (
     id, type, title, status, project_id, workspace_id, submitted_by,
@@ -79,7 +79,7 @@ INSERT INTO ai_task_execution (
 );
 
 -- ============================================================
--- 3. 五条产物（pending）：审核区只展示当前 1 条，采纳/驳回后自动切换下一条
+-- 3. 五条产物（pending）：业务面板单条直出，采纳/驳回后自动切换下一条
 --    content.fields 驱动三列对比；changed 由前端比对 existing/suggested 得出
 -- ============================================================
 INSERT INTO ai_task_proposal (
@@ -207,7 +207,7 @@ COMMIT;
 
 -- ============================================================
 -- 验收提示
--- 1) 审核区应只显示 1 张卡片（item-1），无左侧列表 / 全选 / 批量按钮；
+-- 1) 业务面板应只显示 1 张卡片（item-1），无左侧列表 / 全选 / 批量按钮；
 -- 2) 卡片内三列对比：字段与优先级按既有 / 建议分区、变更项高亮；处理到 item-3 时其「优先级」与 tags 为无变化项，默认折叠；
 -- 3) 采纳 item-1 后刷新，自动切换为 item-2；
 -- 4) 任务全部处理后状态流转由后端接管，本脚本只造 proposals_ready 快照。

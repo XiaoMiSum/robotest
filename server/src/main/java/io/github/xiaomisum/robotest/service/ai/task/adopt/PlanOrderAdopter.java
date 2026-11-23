@@ -183,7 +183,7 @@ public class PlanOrderAdopter implements ProposalAdopter {
         }
     }
 
-    /** 承接计划：target.planId 显式优先，缺省回退任务入参（任务详情页发起不带 target） */
+    /** 承接计划：target.planId 显式优先，缺省回退任务入参（业务面板发起不带 target） */
     private static UUID requirePlanId(AdoptContext context) {
         if (context.targetPlanId() != null) {
             return context.targetPlanId();

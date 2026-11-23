@@ -49,7 +49,7 @@ public interface AiTaskService {
     AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, String reviewId,
             UUID activeProjectId, UUID userId, LoginUser loginUser);
 
-    /** 3.6.3 提案详情：完整内容（审核预览），键在最新一次执行的提案中定位 */
+    /** 3.6.3 提案详情：完整内容（业务面板与只读回看共用），键在最新一次执行的提案中定位 */
     AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, LoginUser loginUser);
 
     /** 3.6.4 轨迹查询：afterSeq 游标增量（默认 200 条，上限 500），nextSeq 供续拉 */

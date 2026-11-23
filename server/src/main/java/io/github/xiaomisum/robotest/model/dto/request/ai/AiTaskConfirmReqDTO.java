@@ -47,7 +47,7 @@ public class AiTaskConfirmReqDTO {
 
         /**
          * 承接的脑图用例文档（用例优化），须属当前项目（X-Active-Project）；
-         * 缺省回退任务入参 documentId（任务详情页发起时不带 target）。
+         * 缺省回退任务入参 documentId（业务面板发起时不带 target）。
          */
         private UUID documentId;
 
