@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import AiReviewPanel from './AiReviewPanel.vue'
+import source from './AiReviewPanel.vue?raw'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type { AiProposalConfirmResult, AiReviewSuggestion } from '@/types'
 
@@ -135,34 +136,16 @@ describe('AiReviewPanel', () => {
       expect(wrapper.emitted('adopt')).toEqual([['case-1']])
     })
 
-    it('编辑后采纳提交人工修正的结论与理由', async () => {
+    it('处置按钮右对齐，顺序为驳回、采纳，均为 link 且按危险/成功着色', () => {
       const wrapper = mountPanel({ rows: [reviewRow()] })
+      const buttons = wrapper.find('.review-card__actions').findAll('button')
 
-      await actionButton(wrapper, '编辑后采纳').trigger('click')
-      const select = wrapper.findComponent({ name: 'ElSelect' })
-      select.vm.$emit('update:modelValue', 'pass')
-      await nextTick()
-      const textarea = wrapper.find('textarea')
-      expect(textarea.exists()).toBe(true)
-      await textarea.setValue('人工复核后认为预期充分')
-      await actionButton(wrapper, '提交').trigger('click')
-
-      expect(wrapper.emitted('adoptEdited')).toEqual([[
-        'case-1',
-        { suggestedMark: 'pass', reason: '人工复核后认为预期充分' },
-      ]])
-    })
-
-    it('编辑区可取消且恢复默认初值', async () => {
-      const wrapper = mountPanel({ rows: [reviewRow()] })
-
-      await actionButton(wrapper, '编辑后采纳').trigger('click')
-      expect(wrapper.find('textarea').exists()).toBe(true)
-      await actionButton(wrapper, '取消').trigger('click')
-      expect(wrapper.find('textarea').exists()).toBe(false)
-
-      await actionButton(wrapper, '编辑后采纳').trigger('click')
-      expect(wrapper.find('textarea').element.value).toBe('缺少验证码错误分支的预期')
+      expect(buttons.map((button) => button.text())).toEqual(['驳回', '采纳'])
+      expect(buttons.every((button) => button.classes().includes('is-link'))).toBe(true)
+      expect(buttons[0]?.classes()).toContain('el-button--danger')
+      expect(buttons[1]?.classes()).toContain('el-button--success')
+      expect(source).toMatch(/\.review-card__actions\s*\{[^}]*justify-content:\s*flex-end;/)
+      expect(source).not.toContain('编辑后采纳')
     })
 
     it('驳回填写原因后透传，空白原因省略', async () => {

@@ -34,7 +34,6 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   adopt: [key: string]
-  adoptEdited: [key: string, content: Record<string, unknown>]
   reject: [key: string, note?: string]
   openSource: [ref: AiAssistSourceRef]
   clearReceipt: []
@@ -42,15 +41,6 @@ const emit = defineEmits<{
   close: []
 }>()
 
-interface ReviewEdit {
-  suggestedMark: 'pass' | 'fail'
-  reason: string
-}
-
-const MARK_OPTIONS = [
-  { value: 'pass', label: '通过' },
-  { value: 'fail', label: '不通过' },
-]
 const SEVERITY_LABEL: Record<AiReviewIssue['severity'], string> = {
   high: '高',
   medium: '中',
@@ -63,8 +53,6 @@ const SEVERITY_TYPE: Record<AiReviewIssue['severity'], 'danger' | 'warning' | 'i
 }
 
 const activeKey = ref('')
-const editingKey = ref('')
-const edits = ref<Record<string, ReviewEdit>>({})
 const rejectVisible = ref(false)
 const rejectKey = ref('')
 const rejectNote = ref('')
@@ -77,7 +65,6 @@ watch(
     if (!active || active.confirmStatus !== 'pending') {
       activeKey.value =
         (incoming.find((row) => row.confirmStatus === 'pending') ?? incoming[0])?.key ?? ''
-      editingKey.value = ''
     }
   },
   { immediate: true },
@@ -89,38 +76,6 @@ const processedRows = computed(() => props.rows.filter((row) => row.confirmStatu
 function viewOf(row: AssistRow): AiReviewSuggestion | null {
   const view = row.suggestion
   return isReviewSuggestion(view) ? view : null
-}
-
-function editOf(row: AssistRow): ReviewEdit {
-  const view = viewOf(row)
-  return edits.value[row.key] ?? {
-    suggestedMark: view?.suggestedMark ?? 'pass',
-    reason: view?.reason ?? '',
-  }
-}
-
-function beginEdit(row: AssistRow): void {
-  edits.value[row.key] = { ...editOf(row) }
-  editingKey.value = row.key
-}
-
-function cancelEdit(key: string): void {
-  delete edits.value[key]
-  if (editingKey.value === key) editingKey.value = ''
-}
-
-function setMark(row: AssistRow, value: unknown): void {
-  edits.value[row.key] = {
-    suggestedMark: value === 'fail' ? 'fail' : 'pass',
-    reason: editOf(row).reason,
-  }
-}
-
-function setReason(row: AssistRow, value: unknown): void {
-  edits.value[row.key] = {
-    suggestedMark: editOf(row).suggestedMark,
-    reason: typeof value === 'string' ? value : '',
-  }
 }
 
 function canOperate(row: AssistRow): boolean {
@@ -135,17 +90,6 @@ const retryOps = new Map<string, () => void>()
 function adopt(row: AssistRow): void {
   retryOps.set(row.key, () => emit('adopt', row.key))
   emit('adopt', row.key)
-}
-
-function confirmEdited(row: AssistRow): void {
-  const edit = editOf(row)
-  const content: Record<string, unknown> = {
-    suggestedMark: edit.suggestedMark,
-    reason: edit.reason.trim(),
-  }
-  retryOps.set(row.key, () => emit('adoptEdited', row.key, content))
-  emit('adoptEdited', row.key, content)
-  editingKey.value = ''
 }
 
 function openReject(key: string): void {
@@ -267,57 +211,20 @@ function onReceiptRetry(item: ConfirmItemResult): void {
 
           <div class="review-card__actions">
             <el-button
-              type="primary"
+              link
+              type="danger"
+              size="small"
+              :disabled="!canOperate(row)"
+              @click="openReject(row.key)"
+            >驳回</el-button>
+            <el-button
+              link
+              type="success"
               size="small"
               :disabled="!canOperate(row)"
               :loading="confirming && activeKey === row.key"
               @click="adopt(row)"
             >采纳</el-button>
-            <el-button size="small" :disabled="!canOperate(row)" @click="beginEdit(row)">
-              编辑后采纳
-            </el-button>
-            <el-button size="small" :disabled="!canOperate(row)" @click="openReject(row.key)">
-              驳回
-            </el-button>
-          </div>
-
-          <div v-if="editingKey === row.key && viewOf(row)" class="review-card__edit">
-            <label class="review-card__edit-field">
-              <span>评审结论</span>
-              <el-select
-                :model-value="editOf(row).suggestedMark"
-                size="small"
-                @update:model-value="setMark(row, $event)"
-              >
-                <el-option
-                  v-for="option in MARK_OPTIONS"
-                  :key="option.value"
-                  :value="option.value"
-                  :label="option.label"
-                />
-              </el-select>
-            </label>
-            <label class="review-card__edit-field review-card__edit-field--reason">
-              <span>评审理由</span>
-              <el-input
-                :model-value="editOf(row).reason"
-                type="textarea"
-                :rows="3"
-                maxlength="500"
-                show-word-limit
-                @update:model-value="setReason(row, $event)"
-              />
-            </label>
-            <div class="review-card__edit-actions">
-              <el-button size="small" @click="cancelEdit(row.key)">取消</el-button>
-              <el-button
-                type="primary"
-                size="small"
-                :disabled="!canOperate(row)"
-                :loading="confirming"
-                @click="confirmEdited(row)"
-              >提交</el-button>
-            </div>
           </div>
         </article>
       </div>
@@ -511,27 +418,11 @@ function onReceiptRetry(item: ConfirmItemResult): void {
   gap: var(--space-xs);
 }
 
-.review-card__actions,
-.review-card__edit-actions {
+.review-card__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-xs);
-}
-
-.review-card__edit {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  padding-top: var(--space-xs);
-  border-top: 1px dashed var(--color-neutral-200);
-}
-
-.review-card__edit-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
 }
 </style>

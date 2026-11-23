@@ -55,7 +55,6 @@ const {
   retry: retryAiReview,
   refresh: refreshAiReview,
   adopt: adoptAiReview,
-  adoptEdited: adoptEditedAiReview,
   reject: rejectAiReview,
   clearReceipt: clearAiReviewReceipt,
   openSource: openAiReviewSource,
@@ -241,7 +240,6 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
         :receipt="reviewReceipt"
         :retryable="reviewRetryable"
         @adopt="adoptAiReview"
-        @adopt-edited="adoptEditedAiReview"
         @reject="rejectAiReview"
         @open-source="openAiReviewSource"
         @clear-receipt="clearAiReviewReceipt"
