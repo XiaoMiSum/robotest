@@ -1540,26 +1540,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/bugs/analysis/suggest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 新建缺陷建议（SSE 流式，含重复缺陷检测，详设 3.4）
-         * @description 事件流：progress / done / error，每 15s 心跳注释行；done 载荷含字段建议与 duplicates 疑似重复缺陷；流建立前校验失败为同步 HTTP 错误（输入非法 1000018287、无可用模型 1000018118）；须携带 X-Active-Project
-         */
-        post: operations["suggestDraft"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/api-scenes": {
         parameters: {
             query?: never;
@@ -4691,11 +4671,6 @@ export interface components {
             code?: number;
             data?: components["schemas"]["BugAttachmentRespDTO"];
             msg?: string;
-        };
-        BugDraftSuggestReqDTO: {
-            title?: string;
-            steps?: string;
-            moduleId?: string;
         };
         ApiSceneCreateReqDTO: {
             name: string;
@@ -10818,30 +10793,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultBugAttachmentRespDTO"];
-                };
-            };
-        };
-    };
-    suggestDraft: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BugDraftSuggestReqDTO"];
-            };
-        };
-        responses: {
-            /** @description SSE 事件流 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
                 };
             };
         };

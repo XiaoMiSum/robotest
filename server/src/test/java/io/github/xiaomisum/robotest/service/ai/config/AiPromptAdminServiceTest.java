@@ -114,15 +114,18 @@ class AiPromptAdminServiceTest {
         assertTrue(dto.getVariables().stream().allMatch(v -> Boolean.TRUE.equals(v.getRequired())));
     }
 
-    /** 回落链单轨（S4 收口）：任务场景正文取自 TypeAdapter，非任务场景取自 AiPromptScenes，无旧处理器注册表参与 */
+    /** 回落链单轨（S4 收口）：任务场景正文取自 TypeAdapter，无旧处理器注册表参与 */
     @Test
-    void get_nonTaskScene_fallsBackToScenesBuiltinWithoutAdapter() {
+    void get_taskScene_fallsBackToAdapterBuiltin() {
         when(promptMapper.selectOne(any())).thenReturn(null);
+        TaskTypeAdapter adapter = org.mockito.Mockito.mock(TaskTypeAdapter.class);
+        when(adapter.systemPrompt()).thenReturn("bug draft prompt");
+        when(adapterRegistry.get("bug_draft_suggest")).thenReturn(adapter);
 
         AiPromptDetailRespDTO dto = service.get("bug_draft_suggest");
 
         assertEquals("default", dto.getSource());
-        assertEquals(AiPromptScenes.builtin("bug_draft_suggest"), dto.getContent());
+        assertEquals("bug draft prompt", dto.getContent());
     }
 
     @Test

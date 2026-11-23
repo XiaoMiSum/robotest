@@ -19,6 +19,7 @@ public final class AiTaskTitleResolver {
             Constants.AiTaskType.MINDMAP_CASE_GENERATION, "脑图用例生成",
             Constants.AiTaskType.PLAN_ORDER, "计划排序",
             Constants.AiTaskType.REVIEW_CASE_REVIEW, "AI 评审",
+            Constants.AiTaskType.BUG_DRAFT_SUGGEST, "缺陷建议",
             Constants.AiTaskType.ASSISTANT_PARSE, "助手解析",
             Constants.AiTaskType.VECTOR_REINDEX, "向量索引重建");
 

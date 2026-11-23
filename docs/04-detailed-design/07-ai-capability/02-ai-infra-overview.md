@@ -746,6 +746,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | review_case_review | 辅助 | `reviewId` | `review_suggestion` | 评审标记写回采纳服务 |
+| bug_draft_suggest | 缺陷 | `title`、`steps?`、`moduleId?` | `bug_draft_suggestion` | 只读建议提案；前端采纳仅写入新建缺陷表单，不调用提案确认落库 |
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
@@ -758,6 +759,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 脑图用例生成 | 需求标题（`requirementId` → `Requirement.title`） |
 | plan_order | 计划排序 | 计划名称（`planId` → `TestPlan.name`） |
 | review_case_review | AI 评审 | 评审标题（`reviewId` → `TestReview.title`） |
+| bug_draft_suggest | 缺陷建议 | 缺陷标题（`input.title`，截断后作为来源标题） |
 | assistant_parse | 助手解析 | 会话标题（`messageId` → `AiAssistantMessage.conversationId` → `AiAssistantConversation.title`） |
 | vector_reindex | 向量索引重建 | 索引范围（`scope.entityTypes` 映射为「需求 / 用例 / 缺陷」，缺省「全量」） |
 
@@ -781,7 +783,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- **参数**：`type` 必填（枚举见 3.6.1，否则 1000018114）；`input` 按 type 分发校验（否则 1000018115）；`budget` 可选，仅可低于类型默认值，超上限或取值越界返回 1000018126；`waitSeconds ∈ [0, 10]`（否则 1000018123）——**同步等待**：执行在等待期内完成则响应直接携带 `proposals`，超时返回执行中状态转轮询（交互式反馈的快路径；实时表单建议为独立同步接口、不经任务，见缺陷分析分册 3.4）。
+- **参数**：`type` 必填（枚举见 3.6.1，否则 1000018114）；`input` 按 type 分发校验（否则 1000018115）；`budget` 可选，仅可低于类型默认值，超上限或取值越界返回 1000018126；`waitSeconds ∈ [0, 10]`（否则 1000018123）——**同步等待**：执行在等待期内完成则响应直接携带 `proposals`，超时返回执行中状态转轮询（交互式反馈的快路径；新建缺陷 AI 建议通过 `bug_draft_suggest` 任务使用该快路径，见缺陷分析分册 3.4）。
 - **响应**：
 
 ```json

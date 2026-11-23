@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useBugCreate } from '@/composables/project/bug/useBugCreate'
 import { useBugCreateSuggest } from '@/composables/project/bug/useBugCreateSuggest'
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
-import BugSuggestBadge from '@/components/project/bug/BugSuggestBadge.vue'
-import BugDuplicateSuggestList from '@/components/project/bug/BugDuplicateSuggestList.vue'
+import BugAiSuggestionDialog from '@/components/project/bug/BugAiSuggestionDialog.vue'
 import { fetchAiStatus } from '@/services/ai'
-import type { BugPriority, BugSeverity, BugRelatedCaseSuggestion, BugType, ProjectModule } from '@/types'
+import type { BugPriority, BugSeverity } from '@/types'
 
 const {
   formRef,
@@ -40,30 +39,28 @@ void fetchAiStatus()
     aiAvailable.value = status.available
   })
   .catch(() => {
-    // 状态查询失败按不可用降级，不阻塞录入
     aiAvailable.value = false
   })
 
+const suggestDialogVisible = ref(false)
 const {
   loading: suggestLoading,
   error: suggestError,
   titleSuggestion,
   reproStepsSuggestion,
   suggestions,
-  relatedCase,
   duplicates,
   requestSuggestion,
 } = useBugCreateSuggest()
 
-/** 标题填写后点击获取实时建议（详设 3.4，SSE 流式一次返回字段建议与疑似重复缺陷，不落库） */
 async function handleRequestSuggest(): Promise<void> {
   if (!form.title.trim()) {
     ElMessage.warning('请先填写缺陷标题')
     return
   }
+  suggestDialogVisible.value = true
   await requestSuggestion({
     title: form.title.trim(),
-    // 默认模板未改动等同未填，不送建议，避免模板文本稀释语义
     steps: normalizedReproSteps.value || undefined,
     moduleId: form.moduleId || undefined,
   })
@@ -100,83 +97,20 @@ function priorityButtonStyle(value: BugPriority): Record<string, string> {
   }
 }
 
-/** 用户已填值与建议不一致时以用户值为准，徽标点击才采纳（交互 2.2） */
-function adoptSuggestion(field: 'bugType' | 'severity' | 'priority' | 'moduleId', value: string): void {
-  if (field === 'moduleId') form.moduleId = value
-  else if (field === 'bugType') form.bugType = value as typeof form.bugType
-  else if (field === 'severity') form.severity = value as typeof form.severity
-  else form.priority = value as typeof form.priority
-}
-
-function adoptKeywords(value: string[]): void {
-  form.keywords = value.join(' ')
-}
-
-/** 标题 / 重现步骤 / 关联用例经点击采纳后写入，属用户主动动作（交互 2.2） */
-function adoptTitle(value: string): void {
-  form.title = value
-}
-
-function adoptReproSteps(value: string): void {
-  form.reproSteps = value
-}
-
-function adoptRelatedCase(suggestion: BugRelatedCaseSuggestion): void {
-  form.relatedCaseId = suggestion.value
-  selectedCaseTitle.value = suggestion.caseTitle
-}
-
-/** 关键词建议为字符串数组，展示时以空格连接（采纳即写入关键词字段） */
-const keywordsSuggestion = computed(() =>
-  suggestions.value.keywords
-    ? { value: suggestions.value.keywords.value.join(' '), reason: suggestions.value.keywords.reason }
-    : null,
-)
-
-/** moduleId 建议值可为 null（未指定），徽标只在有明确建议时展示 */
-const moduleIdSuggestion = computed(() => {
-  const suggestion = suggestions.value.moduleId
-  return suggestion && suggestion.value ? { value: suggestion.value, reason: suggestion.reason } : null
-})
-
-/** 枚举建议徽标展示名称而非 key（与下拉 / 分段按钮文案同源）；后端新增取值时回退原文 */
-const bugTypeBadgeText = computed(() => {
-  const value = suggestions.value.bugType?.value
-  return value ? (BUG_TYPE_LABEL[value as BugType] ?? value) : undefined
-})
-
-const severityBadgeText = computed(() => {
-  const value = suggestions.value.severity?.value
-  return value ? (severityLabel[value as BugSeverity] ?? value) : undefined
-})
-
-const priorityBadgeText = computed(() => {
-  const value = suggestions.value.priority?.value
-  return value ? (priorityLabel[value as BugPriority] ?? value) : undefined
-})
-
-function findModuleName(nodes: ProjectModule[], id: string): string | undefined {
-  for (const node of nodes) {
-    if (node.id === id) return node.name
-    const found = findModuleName(node.children ?? [], id)
-    if (found) return found
+function handleAdoptSuggestion(payload: { key: string; value: string | string[]; caseTitle?: string }): void {
+  const { key, value, caseTitle } = payload
+  if (key === 'title' && typeof value === 'string') form.title = value
+  else if (key === 'reproSteps' && typeof value === 'string') form.reproSteps = value
+  else if (key === 'bugType' && typeof value === 'string') form.bugType = value as typeof form.bugType
+  else if (key === 'severity' && typeof value === 'string') form.severity = value as typeof form.severity
+  else if (key === 'priority' && typeof value === 'string') form.priority = value as typeof form.priority
+  else if (key === 'moduleId' && typeof value === 'string') form.moduleId = value
+  else if (key === 'keywords' && Array.isArray(value)) form.keywords = value.join(' ')
+  else if (key === 'relatedCase' && typeof value === 'string') {
+    form.relatedCaseId = value
+    if (caseTitle) selectedCaseTitle.value = caseTitle
   }
-  return undefined
 }
-
-/** 模块建议写入值为 id，徽标展示需回显模块名（树深度优先查找，未命中回退 id） */
-const moduleBadgeText = computed(() => {
-  const id = moduleIdSuggestion.value?.value
-  if (!id) return undefined
-  return findModuleName(moduleTree.value, id) ?? id
-})
-
-/** 关联用例建议展示文本取用例标题（写入值为用例 id） */
-const relatedCaseSuggestion = computed(() =>
-  relatedCase.value
-    ? { value: relatedCase.value.value, reason: relatedCase.value.reason }
-    : null,
-)
 </script>
 
 <template>
@@ -198,14 +132,6 @@ const relatedCaseSuggestion = computed(() =>
       <div class="bug-create__layout">
         <!-- 主列分区不渲染标题、不套卡片（详设 1.14），靠间距区分 -->
         <div class="bug-create__main">
-          <el-alert
-            v-if="suggestError"
-            type="warning"
-            :title="suggestError"
-            show-icon
-            :closable="false"
-            class="bug-create__suggest-error"
-          />
           <el-form-item prop="title">
             <el-input
               v-model="form.title"
@@ -215,7 +141,6 @@ const relatedCaseSuggestion = computed(() =>
               size="large"
               :class="{ 'bug-create__title-input--noai': !aiAvailable }"
             >
-              <!-- 草稿建议入口（详设 3.5）：AI 未启用时挂载点隐藏，输入组按无 append 形态收口 -->
               <template #append>
                 <el-button
                   v-if="aiAvailable"
@@ -228,28 +153,9 @@ const relatedCaseSuggestion = computed(() =>
                 </el-button>
               </template>
             </el-input>
-            <!-- 标题优化建议：点击采纳覆盖标题（用户主动动作，交互 2.2） -->
-            <BugSuggestBadge
-              class="bug-create__suggest-badge"
-              :model-value="form.title"
-              label="标题"
-              :suggestion="titleSuggestion"
-              @adopt="adoptTitle"
-            />
-            <!-- 疑似重复缺陷随同一次建议返回，在建议区内展示（无命中或向量未就绪时不渲染） -->
-            <BugDuplicateSuggestList class="bug-create__suggest-badge" :items="duplicates" />
           </el-form-item>
           <el-form-item class="bug-create__repro">
             <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" maximizable />
-            <!-- 重现步骤建议（含实际结果与期望结果）：点击采纳写入编辑器 -->
-            <BugSuggestBadge
-              class="bug-create__suggest-badge"
-              :model-value="normalizedReproSteps"
-              label="重现步骤"
-              :suggestion="reproStepsSuggestion"
-              display-text="执行步骤 / 实际结果 / 期望结果"
-              @adopt="adoptReproSteps"
-            />
           </el-form-item>
           <!-- UI-DS-09 例外（已确认）：拖拽区默认 40px 纵向内边距 + 大图标撑高，按需求压到约一半 -->
           <el-upload
@@ -275,13 +181,6 @@ const relatedCaseSuggestion = computed(() =>
               <el-select v-model="form.bugType">
                 <el-option v-for="(label, key) in BUG_TYPE_LABEL" :key="key" :label="label" :value="key" />
               </el-select>
-              <BugSuggestBadge
-                :model-value="form.bugType"
-                :label="'类型'"
-                :suggestion="suggestions.bugType"
-                :display-text="bugTypeBadgeText"
-                @adopt="adoptSuggestion('bugType', $event)"
-              />
             </el-form-item>
             <el-form-item label="所属模块">
               <el-tree-select
@@ -293,14 +192,6 @@ const relatedCaseSuggestion = computed(() =>
                 clearable
                 placeholder="选择所属模块（可选）"
               />
-              <BugSuggestBadge
-                :model-value="form.moduleId"
-                :label="'模块'"
-                :suggestion="moduleIdSuggestion"
-                :adopt-value="moduleIdSuggestion?.value ?? ''"
-                :display-text="moduleBadgeText"
-                @adopt="adoptSuggestion('moduleId', $event)"
-              />
             </el-form-item>
             <el-form-item label="严重等级" prop="severity">
               <el-radio-group v-model="form.severity">
@@ -311,13 +202,6 @@ const relatedCaseSuggestion = computed(() =>
                   :style="severityButtonStyle(key as BugSeverity)"
                 >{{ label }}</el-radio-button>
               </el-radio-group>
-              <BugSuggestBadge
-                :model-value="form.severity"
-                :label="'等级'"
-                :suggestion="suggestions.severity"
-                :display-text="severityBadgeText"
-                @adopt="adoptSuggestion('severity', $event)"
-              />
             </el-form-item>
             <el-form-item label="优先级" prop="priority">
               <el-radio-group v-model="form.priority">
@@ -328,13 +212,6 @@ const relatedCaseSuggestion = computed(() =>
                   :style="priorityButtonStyle(key as BugPriority)"
                 >{{ label }}</el-radio-button>
               </el-radio-group>
-              <BugSuggestBadge
-                :model-value="form.priority"
-                :label="'优先级'"
-                :suggestion="suggestions.priority"
-                :display-text="priorityBadgeText"
-                @adopt="adoptSuggestion('priority', $event)"
-              />
             </el-form-item>
             <el-form-item label="截止日期">
               <el-date-picker
@@ -347,12 +224,6 @@ const relatedCaseSuggestion = computed(() =>
             </el-form-item>
             <el-form-item label="关键词">
               <el-input v-model="form.keywords" placeholder="多个关键词用空格分隔（可选）" maxlength="255" />
-              <BugSuggestBadge
-                :model-value="form.keywords"
-                :label="'关键词'"
-                :suggestion="keywordsSuggestion"
-                @adopt="adoptKeywords($event.split(' '))"
-              />
             </el-form-item>
           </el-card>
           <el-card shadow="never">
@@ -362,19 +233,9 @@ const relatedCaseSuggestion = computed(() =>
               </el-select>
             </el-form-item>
             <el-form-item label="关联用例">
-              <!-- 左状态右操作，与详情侧栏同构：空态占位避免行内控件随文案宽度漂移 -->
               <div class="bug-create__case">
                 <span class="bug-create__case-state">{{ selectedCaseTitle || '未关联' }}</span>
                 <el-button link type="primary" @click="caseSelectorVisible = true">选择用例</el-button>
-                <!-- 关联用例建议：点击采纳写入关联用例（交互 2.2） -->
-                <BugSuggestBadge
-                  :model-value="form.relatedCaseId"
-                  label="关联用例"
-                  :suggestion="relatedCaseSuggestion"
-                  :adopt-value="relatedCase?.value ?? ''"
-                  :display-text="relatedCase?.caseTitle"
-                  @adopt="relatedCase && adoptRelatedCase(relatedCase)"
-                />
               </div>
             </el-form-item>
             <el-form-item label="关联计划">
@@ -388,6 +249,16 @@ const relatedCaseSuggestion = computed(() =>
     </el-form>
 
     <CaseSelector v-model="caseSelectorVisible" single @confirm="handleCaseSelected" />
+    <BugAiSuggestionDialog
+      v-model="suggestDialogVisible"
+      :loading="suggestLoading"
+      :error="suggestError"
+      :title-suggestion="titleSuggestion"
+      :repro-steps-suggestion="reproStepsSuggestion"
+      :suggestions="suggestions"
+      :duplicates="duplicates"
+      @adopt="handleAdoptSuggestion"
+    />
   </div>
 </template>
 
@@ -459,15 +330,7 @@ const relatedCaseSuggestion = computed(() =>
   gap: var(--space-lg);
 }
 
-.bug-create__suggest-error {
-  margin-bottom: var(--space-md);
-}
 
-// 实时建议徽标换行挂在输入控件下方：去左缩进、补上间距
-.bug-create__suggest-badge {
-  margin-left: 0;
-  margin-top: var(--space-xs);
-}
 
 .bug-create__form :deep(.el-select),
 .bug-create__form :deep(.el-tree-select) {

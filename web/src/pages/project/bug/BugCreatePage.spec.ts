@@ -1,26 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import pageSource from './BugCreatePage.vue?raw'
 
-describe('BugCreatePage AI 建议徽标展示（交互 2.2）', () => {
-  it('枚举徽标展示名称而非 key，模块徽标展示模块名而非 id', () => {
-    expect(pageSource).toContain(':display-text="bugTypeBadgeText"')
-    expect(pageSource).toContain(':display-text="severityBadgeText"')
-    expect(pageSource).toContain(':display-text="priorityBadgeText"')
-    expect(pageSource).toContain(':display-text="moduleBadgeText"')
-  })
-
-  it('徽标文案与表单控件同源，未知取值回退原文', () => {
-    expect(pageSource).toContain('BUG_TYPE_LABEL[value as BugType] ?? value')
-    expect(pageSource).toContain('severityLabel[value as BugSeverity] ?? value')
-    expect(pageSource).toContain('priorityLabel[value as BugPriority] ?? value')
-    expect(pageSource).toContain('findModuleName(moduleTree.value, id) ?? id')
+describe('BugCreatePage AI 建议弹窗（交互 2.2）', () => {
+  it('通过 AI 建议弹窗审核建议并挂载任务建议状态', () => {
+    expect(pageSource).toContain('<BugAiSuggestionDialog')
+    expect(pageSource).toContain('v-model="suggestDialogVisible"')
+    expect(pageSource).toContain(':title-suggestion="titleSuggestion"')
+    expect(pageSource).toContain(':repro-steps-suggestion="reproStepsSuggestion"')
+    expect(pageSource).toContain(':suggestions="suggestions"')
+    expect(pageSource).toContain(':duplicates="duplicates"')
+    expect(pageSource).toContain('@adopt="handleAdoptSuggestion"')
   })
 
   it('采纳写入值不变：枚举写 key、模块写 id、关联用例写节点 id', () => {
-    expect(pageSource).toContain("@adopt=\"adoptSuggestion('bugType', $event)\"")
-    expect(pageSource).toContain("@adopt=\"adoptSuggestion('severity', $event)\"")
-    expect(pageSource).toContain("@adopt=\"adoptSuggestion('priority', $event)\"")
-    expect(pageSource).toContain("@adopt=\"adoptSuggestion('moduleId', $event)\"")
-    expect(pageSource).toContain('@adopt="relatedCase && adoptRelatedCase(relatedCase)"')
+    expect(pageSource).toContain("if (key === 'title' && typeof value === 'string') form.title = value")
+    expect(pageSource).toContain("else if (key === 'reproSteps' && typeof value === 'string') form.reproSteps = value")
+    expect(pageSource).toContain("else if (key === 'bugType' && typeof value === 'string') form.bugType = value as typeof form.bugType")
+    expect(pageSource).toContain("else if (key === 'severity' && typeof value === 'string') form.severity = value as typeof form.severity")
+    expect(pageSource).toContain("else if (key === 'priority' && typeof value === 'string') form.priority = value as typeof form.priority")
+    expect(pageSource).toContain("else if (key === 'moduleId' && typeof value === 'string') form.moduleId = value")
+    expect(pageSource).toContain("else if (key === 'relatedCase' && typeof value === 'string') {")
+    expect(pageSource).toContain('form.relatedCaseId = value')
+  })
+
+  it('AI 建议通过通用任务链路请求，不再使用独立 suggest 接口', () => {
+    expect(pageSource).toContain('requestSuggestion({')
+    expect(pageSource).toContain('title: form.title.trim()')
+    expect(pageSource).not.toContain('suggestBugDraft')
+    expect(pageSource).not.toContain('/analysis/suggest')
   })
 })

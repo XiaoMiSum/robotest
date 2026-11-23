@@ -8,20 +8,19 @@ export interface BugSuggestionField<T> {
   reason: string
 }
 
-/** 缺陷分类建议字段集（新建缺陷实时建议复用） */
+/** 缺陷分类建议字段集（新建缺陷建议复用） */
 export interface BugSuggestionFields {
   bugType?: BugSuggestionField<BugType>
   severity?: BugSuggestionField<BugSeverity>
   priority?: BugSuggestionField<BugPriority>
   moduleId?: BugSuggestionField<string | null>
   keywords?: BugSuggestionField<string[]>
-  /** 采纳承接支持的可选建议字段（模型清洗产出中不含，仅人工补录时携带） */
   assigneeId?: BugSuggestionField<string | null>
 }
 
-// ==================== 新建缺陷实时建议（详设 3.4） ====================
+// ==================== 新建缺陷 AI 建议（详设 3.4） ====================
 
-/** 实时建议请求：title 必填（≤300），steps / moduleId 为已填内容上下文 */
+/** 建议请求输入：title 必填（≤300），steps / moduleId 为已填内容上下文 */
 export interface BugDraftSuggestReq {
   title: string
   steps?: string
@@ -49,10 +48,10 @@ export interface BugDraftSuggestFields extends BugSuggestionFields {
   relatedCase?: BugRelatedCaseSuggestion
 }
 
-/** 实时建议响应：一次 SSE done 终态同时给出字段建议与疑似重复缺陷，不产生任务、不落库 */
-export interface BugDraftSuggestResp {
+/** 建议提案内容：单条 bug_draft_suggestion 的 content 结构 */
+export interface BugDraftSuggestContent {
   title?: BugSuggestionField<string>
   reproSteps?: BugSuggestionField<string>
-  suggestions: BugDraftSuggestFields
-  duplicates: BugDuplicateSuggestItem[]
+  suggestions?: BugDraftSuggestFields
+  duplicates?: BugDuplicateSuggestItem[]
 }

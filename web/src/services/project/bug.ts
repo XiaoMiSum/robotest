@@ -1,10 +1,7 @@
-import api, { get, post, put, patch, del, getContextHeaders, getAccessToken } from '@/services'
-import { createSseFrameParser } from '@/utils/sse'
+import api, { get, post, put, patch, del } from '@/services'
 import type {
   BugAttachment,
   BugDetail,
-  BugDraftSuggestReq,
-  BugDraftSuggestResp,
   BugListItem,
   BugLog,
   BugPriority,
@@ -97,97 +94,7 @@ export function assignBug(id: string, assigneeId: string): Promise<void> {
   return put(`/project/bugs/${id}/assign`, { assigneeId })
 }
 
-// ==================== 缺陷分析（详设 3.4） ====================
 
-/** 建议 SSE 流错误：前置校验失败（1000018287 / 1000018118）、流内 error 事件与连接中断统一承载 */
-export class BugSuggestStreamError extends Error {
-  readonly code: number
-
-  constructor(code: number, message: string) {
-    super(message)
-    this.name = 'BugSuggestStreamError'
-    this.code = code
-  }
-}
-
-function readSuggestError(body: string): BugSuggestStreamError | null {
-  try {
-    const parsed = JSON.parse(body) as { code?: number; msg?: string }
-    if (typeof parsed.code === 'number') {
-      return new BugSuggestStreamError(parsed.code, parsed.msg || '请求失败')
-    }
-  } catch {
-    // 非 Result 包装（如网关 HTML），走 HTTP 状态兜底
-  }
-  return null
-}
-
-/**
- * 新建缺陷实时建议（详设 3.4）：fetch 直读 SSE 事件流，done 终态一次给出字段建议与疑似重复缺陷。
- *
- * 注意：fetch 路径不经过 axios 拦截器，401 不会触发刷新链，以错误码抛出由调用方提示；
- * 无客户端总超时——事件到达与后端 15s 心跳即保活（progress 不承载 UI 语义，仅示连接存活）。
- */
-export async function suggestBugDraft(data: BugDraftSuggestReq): Promise<BugDraftSuggestResp> {
-  const path = '/project/bugs/analysis/suggest'
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'text/event-stream',
-    ...getContextHeaders({ url: path, method: 'post' }),
-  }
-  const token = getAccessToken()
-  if (token) headers.Authorization = `Bearer ${token}`
-
-  let response: Response
-  try {
-    response = await fetch(`/api${path}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(data),
-    })
-  } catch {
-    throw new BugSuggestStreamError(0, '连接中断，请重试')
-  }
-
-  const contentType = response.headers.get('Content-Type') ?? ''
-  if (!response.ok || !contentType.includes('text/event-stream')) {
-    const body = await response.text()
-    throw (
-      readSuggestError(body) ??
-      new BugSuggestStreamError(response.status, `请求失败（HTTP ${response.status}）`)
-    )
-  }
-
-  const reader = response.body?.getReader()
-  if (!reader) throw new BugSuggestStreamError(0, '连接中断，请重试')
-
-  const outcome: { resp?: BugDraftSuggestResp; error?: BugSuggestStreamError } = {}
-  const decoder = new TextDecoder()
-  const parser = createSseFrameParser((frame) => {
-    if (frame.name === 'done') {
-      outcome.resp = frame.data as BugDraftSuggestResp
-    } else if (frame.name === 'error') {
-      const payload = frame.data as { code?: number; msg?: string }
-      outcome.error = new BugSuggestStreamError(payload.code ?? 0, payload.msg || '建议生成失败')
-    }
-  })
-  try {
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      parser.push(decoder.decode(value, { stream: true }))
-    }
-    parser.flush()
-  } catch {
-    throw new BugSuggestStreamError(0, '连接中断，请重试')
-  } finally {
-    reader.releaseLock()
-  }
-
-  if (outcome.error) throw outcome.error
-  if (outcome.resp) return outcome.resp
-  throw new BugSuggestStreamError(0, '建议流异常结束，请重试')
-}
 
 // ==================== 缺陷附件 ====================
 
