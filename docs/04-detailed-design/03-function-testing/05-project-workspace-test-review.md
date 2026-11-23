@@ -97,7 +97,7 @@
 
 - **路径**：`GET /api/project/reviews/:id/modules`
 - **参数**：`documentId`（可选，按文档过滤）
-- **响应**：裁剪后的节点树数组，数组元素为嵌套的根节点对象，字段为 `id`、`originalNodeId`、`parentId`、`title`、`type`、`priority`、`isAssociated`、`lastMark`、`lastReviewerId`、`lastReviewedAt`、`sortOrder`、`children`；节点为完整拷贝属性，其中 `isAssociated` 标识是否为规划用例，`lastMark` 取 `pass`/`fail` 或 `null`（待评审）。
+- **响应**：裁剪后的节点树数组，数组元素为嵌套的根节点对象，字段为 `id`、`originalNodeId`、`parentId`、`title`、`type`、`priority`、`isAssociated`、`lastMark`、`lastMarkAiAdopted`、`lastReviewerId`、`lastReviewedAt`、`sortOrder`、`children`；节点为完整拷贝属性，其中 `isAssociated` 标识是否为规划用例，`lastMark` 取 `pass`/`fail` 或 `null`（待评审），`lastMarkAiAdopted` 表示当前最后标记是否由 AI 建议采纳产生。
 - **前端**：详情页脑图始终传入当前选中文档的 `documentId` 加载单文档快照；不传时后端返回多文档多根，页面不使用该形态。
 
 ### 1.6 提交评审记录
@@ -115,7 +115,7 @@
   }
   ```
 
-- **处理**：新增 ft_review_record，更新 ft_review_node_snapshot 的 last_mark、last_reviewer_id、last_reviewed_at。仅 type='case' 节点可标记，所有节点均可评论；`operationType` 取 `mark` / `comment`，提交评论时只传 `comment`。
+- **处理**：新增 ft_review_record，更新 ft_review_node_snapshot 的 last_mark、last_mark_ai_adopted、last_reviewer_id、last_reviewed_at。人工标记/重置时 `last_mark_ai_adopted=false`；AI 建议采纳写回时 `last_mark_ai_adopted=true`。仅 type='case' 节点可标记，所有节点均可评论；`operationType` 取 `mark` / `comment`，提交评论时只传 `comment`。
 - **mark 取值**：`pass` / `fail` / `pending`。pending 表示重置回待评审，仅为 API 交互值，落库时 last_mark 置 NULL（即初始态）；脑图不设顶部工具栏，用例节点悬浮窗提供“通过/不通过/待评审”三态标记（水平并排、透明背景、`link` 类型按钮，仅点击 case 节点展示），标记结果以徽标形式回显在节点右侧。
 - **前端校验**：悬浮窗仅 case 节点展开；接口侧对非 case 节点拦截并提示“仅用例节点可标记评审结果”。
 - **状态校验**：评审进入终态（completed/rejected）时拒绝，返回语义化错误码 1000011026（“评审已完成，无法执行该操作”）；待评审（new）状态下首次标记成功后评审自动转入 in_progress。

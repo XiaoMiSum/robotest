@@ -185,7 +185,7 @@ AI 生成标识复用节点 `data.aiGenerated`：仅 `type=case` 且 `aiGenerate
 }
 ```
 
-评审快照树（`GET /api/project/reviews/:id/modules?documentId=`）和计划快照树（`GET /api/project/plans/:id/modules?documentId=`）的节点部分采用相同结构，额外包含 `originalNodeId`、`isAssociated`、`lastMark` / `lastResult`、`lastReviewerId`、`lastReviewedAt` 等快照特有字段；评论不挂在节点上，按节点经记录接口查询（见第 9 节）。
+评审快照树（`GET /api/project/reviews/:id/modules?documentId=`）和计划快照树（`GET /api/project/plans/:id/modules?documentId=`）的节点部分采用相同结构，额外包含 `originalNodeId`、`isAssociated`、`lastMark` / `lastMarkAiAdopted` / `lastResult`、`lastReviewerId`、`lastReviewedAt` 等快照特有字段；评论不挂在节点上，按节点经记录接口查询（见第 9 节）。
 
 ### 4.3 kityminder 节点数据结构（统一模型）
 
@@ -207,7 +207,7 @@ AI 生成标识复用节点 `data.aiGenerated`：仅 `type=case` 且 `aiGenerate
 | 模式         | 字段                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------- |
 | edit       | `id`、`text`、`type`、`priority`，以及自由拖拽产生的 `layout_*_offset`（键名由 core 按模板决定）                              |
-| review     | `id`、`originalNodeId`、`text`、`type`、`priority`、`isAssociated`、`lastMark`、`reviewStatus`（由 `lastMark` 派生）、`relatedBugIds`（恒为空数组，见第 8 节） |
+| review     | `id`、`originalNodeId`、`text`、`type`、`priority`、`isAssociated`、`lastMark`、`lastMarkAiAdopted`、`reviewStatus`（由 `lastMark` 派生）、`relatedBugIds`（恒为空数组，见第 8 节） |
 | plan       | `id`、`originalNodeId`、`text`、`type`、`priority`、`isAssociated`、`lastResult`、`executionStatus`（由 `lastResult` 派生）、`relatedBugIds`（恒为空数组） |
 
 评论、评审人、评审时间等明细不写入节点 `data`，由评审记录接口按节点返回（见 9.1）。
@@ -326,7 +326,7 @@ AI 生成标识复用节点 `data.aiGenerated`：仅 `type=case` 且 `aiGenerate
 
 ### 7.1 节点徽标
 
-评审与执行回显徽标由 `badges.ts` 的右侧渲染器绘制（读取节点 `data.lastMark` / `data.lastResult`，与左侧类型/优先级徽标区分），数据由后端在快照树中填充：
+评审与执行回显徽标由 `badges.ts` 的右侧渲染器绘制（读取节点 `data.lastMark` / `data.lastMarkAiAdopted` / `data.lastResult`，与左侧类型/优先级徽标区分），数据由后端在快照树中填充：
 
 - 评审标记：`✓ 通过`（绿 `#67C23A`）、`✕ 不通过`（红 `#F56C6C`）
 - 执行结果：`✓ 通过`（绿 `#67C23A`）、`✕ 失败`（红 `#F56C6C`）、`⚠ 阻塞`（深红 `#C45656`，同 `docs/05-interaction-design/03-visual-design.md` 第 7 节 `--color-blocked`，与失败红以深浅 + 符号 + 文案区分）

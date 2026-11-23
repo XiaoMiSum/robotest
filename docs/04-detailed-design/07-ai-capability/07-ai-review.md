@@ -33,7 +33,7 @@
 - 任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = review_case_review`）；
 - 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind = review_suggestion`）；
 - 评审上下文读取：`ft_review_node_snapshot`（规划用例快照）、评审关联需求（`ft_review.requirement_ids` 及需求详情）；
-- 采纳写回：`ft_review_record`（新增标记类评审记录）、`ft_review_node_snapshot`（更新 `last_mark / last_reviewer_id / last_reviewed_at`）；
+- 采纳写回：`ft_review_record`（新增标记类评审记录）、`ft_review_node_snapshot`（更新 `last_mark / last_mark_ai_adopted / last_reviewer_id / last_reviewed_at`）；
 - 溯源：`ai_task_adoption.adopted_ref` 写入 `{ "recordId": "…", "snapshotNodeId": "…" }`，反查「这条标记来自哪个提案」，不新增业务列；
 - 需求快照随任务 `input` 一并保存，不新增表。
 
@@ -157,7 +157,7 @@
 - 每项「`ai_task_adoption` 采纳记录 + 评审记录写入 + 快照节点更新」在同一事务内完成（逐项事务，失败仅该项回滚）。
 - `adopted` / `adopted_edited`：按 `snapshotNodeId` 定位快照用例节点，校验仍属本评审、为 case 节点、评审未进入终态，否则该项返回 `success = false` 与对应业务错误码；通过后：
   1. 新增 `ft_review_record`：`operationType = 'mark'`、`mark = suggestedMark`、`reviewerId = 采纳操作人`、`comment = '[AI 建议] ' + reason`；
-  2. 更新 `ft_review_node_snapshot`：`last_mark = suggestedMark`、`last_reviewer_id = 采纳操作人`、`last_reviewed_at = 当前时间`；
+  2. 更新 `ft_review_node_snapshot`：`last_mark = suggestedMark`、`last_mark_ai_adopted = true`、`last_reviewer_id = 采纳操作人`、`last_reviewed_at = 当前时间`；人工再次标记或重置待评审时将 `last_mark_ai_adopted` 置为 `false`；
   3. `ai_task_adoption.adopted_ref` 写入 `{ recordId, snapshotNodeId }`，`action` 取 `adopted` / `adopted_edited`。
 - `rejected`：仅写 `ai_task_adoption`（`action = rejected`、`note` 为驳回原因），不写评审记录与快照。
 - 幂等由 `uk_ai_task_adoption (execution_id, proposal_key)` 兜底，重复提交回 1000018113。
