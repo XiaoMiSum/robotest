@@ -289,7 +289,7 @@ CREATE INDEX idx_ai_task_execution_status ON ai_task_execution (status, heartbea
 | seq | int | NOT NULL | 执行内单调递增序号 |
 | event_type | varchar(30) | NOT NULL | `plan / ai_decision / tool_call / tool_result / proposal_emitted / status_change` |
 | summary | varchar(500) | NOT NULL | 事件摘要（面向用户展示） |
-| detail | jsonb | NULL | 事件明细（工具参数与结果摘要、决策上下文摘要等） |
+| detail | jsonb | NULL | 事件明细（工具参数与结果摘要、决策上下文摘要等）；`ai_decision` 事件另含 `rawRequest`（请求摘要）与 `rawResponse`（完整模型响应）两个键，结构见 3.6.4 |
 
 **索引**（1 个）：`uk_ai_task_trace_event` UNIQUE (execution_id, seq) WHERE is_deleted = FALSE —— 轨迹只增不改，游标增量拉取（3.6.4）。
 
@@ -307,6 +307,8 @@ CREATE TABLE ai_task_trace_event (
 );
 CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id, seq) WHERE is_deleted = FALSE;
 ```
+
+> **`ai_decision` 事件的 `detail` 扩展键**：`rawRequest` 为请求摘要（`model` 模型标识、`promptScene` 场景、`context` 业务上下文摘要含任务类型 / 来源引用 / 用户反馈、`tools` 工具声明名称清单），不含 system 提示词全文、模型 options 与密钥；`rawResponse` 为完整模型响应（`content` 正文全文、`toolCalls` 工具调用原文数组含 `id/name/arguments`、`finishReason` 结束原因、`usage` token 用量）。两键仅 `ai_decision` 事件写入，其余事件沿用既有摘要字段；字段按原样完整保存、不截断，密钥 / Token 禁止进入任一键。
 
 #### 2.6.4 提案表（ai_task_proposal）
 
@@ -851,7 +853,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
 - **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 按最新默认模型重新解析（选型规则见 4.2），不沿用上次执行的模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
-- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。
+- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。`ai_decision` 事件的 `detail.rawRequest` / `detail.rawResponse` 随本接口原样下发，供前端展开查看；沿用任务归属可见性，不新增权限码；完整响应可能较大，前端按折叠方式渲染，不进入日志与审计详情。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
 
@@ -941,6 +943,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 - **失败与自动重试**：模型调用失败先按 `task_max_retries` 自动短重试（同 `model_id`），耗尽后执行终止；用户再次执行走 3.6.4（新执行实例）。重试由 Spring AI 内建重试策略执行，最大尝试次数按 `task_max_retries` 注入，平台不自实现 HTTP 重试循环。
 - **总开关联动**：开关关闭 → 新提交拒绝（1000018101）；存量 `running / waiting_confirmation` 执行批量终止置 `aborted`（原因「AI 总开关关闭」）；任务、提案与轨迹数据保留可查。
 - **审计**：提交、终止、再次执行、采纳、驳回全部记审计（含任务 ID、执行 ID、提案键、操作人）；轨迹只增不改。
+- **决策原始数据留存**：`AiModelClient` 在任务域模型调用处统一采集——请求侧仅保留业务上下文与工具声明摘要（`detail.rawRequest`），响应侧保留聚合后的完整 `content`、工具调用原文、`finishReason` 与 `usage`（`detail.rawResponse`），随当次 `ai_decision` 事件写入轨迹；采集不改动 Spring AI 传输与重试机制，不记录 API Key / Token，不另写日志。请求摘要与完整响应均不做长度截断，沿用项目 / 任务归属可见性（3.8）。
 
 ### 4.3 用量记录
 
@@ -991,7 +994,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage）
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
-├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底）
+├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底；AI 决策事件可展开查看 `detail.rawRequest` 请求摘要与 `detail.rawResponse` 完整响应，复用折叠 JSON 展示）
 ├── AiProposalReviewPanel（通用提案审核区，单卡直出当前 1 条提案，proposals_ready 且有提案时渲染；review_case_review 等只读类型以只读模式展示、无审核动作）
 │   ├── ProposalNav（多产物时显示「上一个 / 下一个」与「第 N / M 条」，按全部 proposals 导航，已处置项只读；切换按 proposalKey 按需加载）
 │   ├── ProposalContent（类型/标题/状态标签、描述、字段、来源、警示，均为卡内区块而非子卡）
@@ -1153,3 +1156,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-21 | 移除存量重复扫描任务：3.6.1 注销 `bug_duplicate_scan` / `duplicate_group`（总数九类→八类、普通目标型七类→六类），3.6 目标型执行示例与 4.2 执行入口统计改引保留类型 |
 | V1.0 | 2026-11-23 | 任务标题改创建时生成：3.6.1 登记「类型描述 - 来源标题」生成规则与八类来源映射，2.6.1 / 2.6.4 / 3.6.2 / 3.6.3 / 5.2 / 7 移除执行回填口径，存量空串仍按类型名兜底 |
 | V1.0 | 2026-11-23 | 3.6.3 / 5.2 / 5.3 登记审核区产物导航：按 `proposals[]` 全量定位（已处置只读），切换按 `proposalKey` 按需加载；`review_case_review` 等只读类型任务详情以只读模式展示提案、无审核动作 |
+| V1.0 | 2026-11-23 | AI 决策轨迹下钻：2.6.3 detail 约定 `rawRequest`（请求摘要）与 `rawResponse`（完整响应）键及结构，3.6.4 随轨迹接口原样下发，4.2 登记门面层统一采集口径与脱敏边界，5.2 轨迹组件支持展开查看 |
