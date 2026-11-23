@@ -847,7 +847,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 
 - 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生，仅统计 `adopted / adopted_edited / rejected`（`pending / not_applicable` 不参与，避免只读提案污染判定）：全部采纳 → 已采纳，全部驳回 → 已驳回，混合 → 部分采纳；不新增后端字段，`closed` 态据此展示只读回看卡片区，`aborted` 不展示。回看卡片头展示提案标题、确认状态与驳回原因；卡片默认收起，首次展开时按需调用提案详情端点（`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}`）取完整 `content`，按任务类型策略解析为描述、结构化字段、来源引用与警示展示，再次展开不重复请求；展开态与已加载明细存组件本地，不新增后端字段。
-- **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（审核预览用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。
+- **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（审核预览用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。审核区按 `proposals[]` 顺序定位当前项（含已处置项，已处置只读），切换上一条 / 下一条时按 `proposalKey` 调用该端点获取当前产物完整信息；详情下发时仍只给清单摘要，不做全量拉取。
 
 #### 3.6.4 执行管理与轨迹
 
@@ -994,10 +994,11 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
 ├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底）
-├── AiProposalReviewPanel（通用提案审核区，单卡直出当前 1 条提案，proposals_ready 且有提案时渲染，各能力域复用）
+├── AiProposalReviewPanel（通用提案审核区，单卡直出当前 1 条提案，proposals_ready 且有提案时渲染；review_case_review 等只读类型以只读模式展示、无审核动作）
+│   ├── ProposalNav（多产物时显示「上一个 / 下一个」与「第 N / M 条」，按全部 proposals 导航，已处置项只读；切换按 proposalKey 按需加载）
 │   ├── ProposalContent（类型/标题/状态标签、描述、字段、来源、警示，均为卡内区块而非子卡）
 │   ├── ProposalCompareView（卡内轻量三列对照，无表格外框，变更项高亮、无变化项折叠）
-│   └── CardActions（卡内单条采纳、编辑后采纳、驳回附反馈，右对齐 link；无勾选 / 全选 / 批量）
+│   └── CardActions（卡内单条采纳、编辑后采纳、驳回附反馈，右对齐 link；无勾选 / 全选 / 批量；仅 pending 提案渲染）
 └── AiTaskAdoptionResultPanel（closed 态只读回看卡片：逐条状态标签、提案标题与驳回原因，可展开查看产物明细）
     ├── AdoptionCard（卡片头 + 展开/收起，首次展开按需拉取提案详情）
     └── ProposalDetailView（按任务类型解析 content：描述、结构化字段、来源引用、既有 vs 建议对照与警示，复用 ProposalCompareView）
@@ -1006,12 +1007,13 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 - Pinia store：
   - `aiAdmin`：设置、模型、向量、提示词、用量（仅管理端装载）；
   - `aiTask`：任务轮询（详情 `GET /api/ai/tasks/{id}` 按 2s 间隔轮询，仅 `running`（进行中）继续，状态非进行中即停止）、轨迹事件增量拉取（`events?afterSeq=`，WS 推送时即时合并）、任务中心列表、提案确认状态、顶栏指示器进行中计数（`GET /api/ai/tasks/running-count` 按 15s 间隔轮询，随业务布局装载/卸载启停）；
+- 只读类型（`review_case_review` / `case_optimize` / `mindmap_case_generation`）：任务详情页只展示执行过程与提案只读明细，不渲染 `AiProposalReviewPanel` 的审核动作；`review_case_review` 的处置在评审详情页 AI 评审面板完成（见分册 07），`case_optimize` / `mindmap_case_generation` 在脑图面板完成（见分册 06）。
 - 密钥输入框：`keyConfigured = true` 时显示占位「已配置（输入新值以替换）」，提交为空则不修改。
 
 ### 5.3 状态分支
 
 - 配置未就绪（`available = false`）：业务端 AI 入口隐藏或置灰并提示"AI 能力未启用/未配置模型"；
-- 任务态：执行中（步数与预算消耗、当前步骤）、挂起（待人工批准副作用）、待采纳（审核区）、已结束（任务级结果标识 + 只读展示已采纳 / 已驳回提案）、已终止（原因 + 再次执行，不展示审核区）；
+- 任务态：执行中（步数与预算消耗、当前步骤）、挂起（待人工批准副作用）、待采纳（审核区；只读类型仅展示提案明细、无审核动作）、已结束（任务级结果标识 + 只读展示已采纳 / 已驳回提案）、已终止（原因 + 再次执行，不展示审核区）；
 - 用量空区间补 0、图表加载与无数据态；向量重建中的 `requiresReindex` 引导条。
 
 ---
@@ -1152,3 +1154,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-22 | 智能助手移除变更类能力：2.9 `intent` / `execution` 列改为存量兼容说明（不产生新数据、表结构不变），4.2 助手策略分派去掉变更预览与人工确认口径 |
 | V1.0 | 2026-11-21 | 移除存量重复扫描任务：3.6.1 注销 `bug_duplicate_scan` / `duplicate_group`（总数九类→八类、普通目标型七类→六类），3.6 目标型执行示例与 4.2 执行入口统计改引保留类型 |
 | V1.0 | 2026-11-23 | 任务标题改创建时生成：3.6.1 登记「类型描述 - 来源标题」生成规则与八类来源映射，2.6.1 / 2.6.4 / 3.6.2 / 3.6.3 / 5.2 / 7 移除执行回填口径，存量空串仍按类型名兜底 |
+| V1.0 | 2026-11-23 | 3.6.3 / 5.2 / 5.3 登记审核区产物导航：按 `proposals[]` 全量定位（已处置只读），切换按 `proposalKey` 按需加载；`review_case_review` 等只读类型任务详情以只读模式展示提案、无审核动作 |
