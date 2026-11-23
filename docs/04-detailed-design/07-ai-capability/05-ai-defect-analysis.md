@@ -10,17 +10,17 @@
 
 ### 1.1 编写目的
 
-对**缺陷分析**能力域进行详细设计：定义趋势与质量度量查询接口、新建建议、分诊队列与录入时重复检测的接口与规则。任务提交、提案确认协议与错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义缺陷域的业务入口与提案语义。
+对**缺陷分析**能力域进行详细设计：定义新建缺陷实时建议与录入时重复检测的接口与规则。错误码分段见总册 `docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`，本文档只定义缺陷域的业务入口。
 
 ### 1.2 范围与对应设计
 
-- 对应需求：`docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md`（US-AI-014 ~ 016）。
+- 对应需求：`docs/01-requirements/07-ai-capability/05-srs-ai-defect-analysis.md`（US-AI-015、US-AI-016）。
 - 对应概要：`docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`；缺陷实体与状态流转沿用 `docs/01-requirements/04-bug-management/02-srs-bug-management.md`。
-- 权限：免 RBAC 权限码校验（登录即可）；分析入口与可发起任务由前端按业务状态显隐，后端任务发起与采纳仅保留任务归属可见性与项目成员校验；范围限于当前项目。
+- 权限：免 RBAC 权限码校验（登录即可）；建议入口由前端按业务状态显隐，后端仅保留项目成员校验；范围限于当前项目。
 
 ### 1.3 参考资料
 
-- 总册：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（3.6 任务资源、6 错误码分段）
+- 总册：`docs/04-detailed-design/07-ai-capability/02-ai-infra-overview.md`（错误码分段）
 - 缺陷管理详细设计：`docs/04-detailed-design/04-bug-management/02-project-workspace-bug.md`（缺陷列表筛选与字段口径）
 
 ---
@@ -29,11 +29,8 @@
 
 本分册**不新增表**：
 
-- 分析任务、执行与轨迹：`ai_task / ai_task_execution / ai_task_trace_event`（`type = bug_triage`）；
-- 提案与采纳：`ai_task_proposal / ai_task_adoption`（提案 `kind`：`triage_order`）；
 - 录入时相似检测为**同步向量检索**，读 `ai_vector_index`（`entity_type = bug`，DDL 见总册 2.10），不产生任务；
-- 新建缺陷建议为**实时 SSE 流式接口**（单跳流式模型调用，向量检索仅取候选用例上下文），不产生任务、不落库；
-- 趋势与度量为实时聚合查询，**不落中间表、不缓存过期结论**。
+- 新建缺陷建议为**实时 SSE 流式接口**（单跳流式模型调用，向量检索仅取候选用例上下文），不产生任务、不落库。
 
 ---
 
@@ -41,52 +38,8 @@
 
 ### 3.1 通用约定
 
-- 查询类入口走缺陷业务路径 `/api/project/bugs/analysis/*`（`X-Active-Workspace` + `X-Active-Project` 头，免 RBAC 权限码校验，保留项目成员校验）；
-- 分诊建议为任务，统一 `POST /api/ai/tasks` 提交（本域 `type` 与提案确认映射见 4.2），结果经总册 3.6.3 查询；
+- 建议与检测入口走缺陷业务路径 `/api/project/bugs/analysis/*` 与 `/api/project/bugs/duplicates/check`（`X-Active-Workspace` + `X-Active-Project` 头，免 RBAC 权限码校验，保留项目成员校验）；
 - 响应 `Result<T>`，示例**仅展示 `data`**；分页同总册。
-
-### 3.2 趋势查询
-
-- **路径**：`GET /api/project/bugs/analysis/trends`
-- **参数**：
-
-| 参数 | 类型 | 必填 | 说明 |
-| ---- | ---- | ---- | ---- |
-| from / to | date | 否 | 时间范围，默认最近 30 天（否则 1000018281） |
-| groupBy | string | 否 | `none`（默认）/ `module` / `severity` / `type` —— 分组对比维度 |
-
-- **响应**：
-
-```json
-{
-  "axis": ["2026-10-01", "2026-10-02"],
-  "series": [
-    { "key": "all", "label": "全部", "created": [6, 4], "closed": [3, 5], "active": [21, 20] }
-  ],
-  "groupBy": "module"
-}
-```
-
-- **校验规则**：口径与缺陷管理分册的状态定义一致（新增 = 创建时间落区间，关闭 = 关闭时间落区间，存量 = 区间末激活数）；`groupBy` 非法返回 1000018285；数据实时计算，前端点击数据点下钻复用缺陷列表既有筛选（跳转带参）。
-
-### 3.3 质量度量查询
-
-- **路径**：`GET /api/project/bugs/analysis/metrics`
-- **参数**：`from`、`to`（同 3.2）。
-- **响应**：
-
-```json
-{
-  "fixDuration": { "avgHours": 14.2, "p50Hours": 8.5, "p90Hours": 41.0, "sample": 96 },
-  "reopenRate": 0.06,
-  "duplicateRate": 0.04,
-  "severityDist": [{ "key": "high", "count": 12 }],
-  "moduleDist": [{ "key": "登录模块", "count": 18 }],
-  "typeDist": [{ "key": "functional", "count": 30 }]
-}
-```
-
-- **校验规则**：修复时长 = 激活 → 已修复的首条有效流转（同缺陷多次流转取首次）；重开率 = 激活次数 ≥ 1 的缺陷占比；重复缺陷占比 = 解决方案为「重复缺陷」的占比；分母为 0 时比率返回 0（前端不显示除零）。比率与三张分布的分母统一取**区间内新增缺陷**（创建时间落区间）；修复时长样本取修复时间落区间的缺陷，激活时刻取该次修复前最近一次激活日志（无则取创建时间）；`axis` 逐日存量 = 创建 ≤ 当日且（关闭时间为空或晚于当日）的缺陷数。
 
 ### 3.4 新建缺陷建议（实时 SSE 流式）
 
@@ -131,33 +84,6 @@
 
 - **校验规则**：`title` 必填且 ≤300（否则 1000018287）；SSE 流式单跳模型调用，**不产生任务、不落库**；**无客户端总超时**（事件持续到达即保活，后端 15s 心跳兜底），模型调用失败 / 无可用模型按总册 4.2 映射（流内失败走 `error` 事件 1000018117，流建立前失败同步返回 1000018118），前端轻提示可重试。**上下文装配**：可用模块取当前项目模块清单（`id|名称`）；固定选项取缺陷类型 / 严重等级 / 优先级取值域（常量枚举）；候选用例先按标题向量检索项目内用例文档（top 8）再展开为用例节点清单（`id|标题`，≤30，按文档序截断），向量能力未就绪时无用例候选（不报错、不产出 `relatedCase`）。**不检索相似存量缺陷**（相似性判断由录入时重复检测 3.6 承担，建议入口不重复检索）。**清洗**：枚举值非法剔除，模块 id 不属当前项目、用例 id 非本项目用例节点剔除，`relatedCase` 至多一条。建议值仅在表单中以徽标呈现，用户一键采纳或修改后提交，**用户填写值与建议不一致时以用户值为准**；实时通道为纯文本调用，不随附截图。
 
-### 3.5 分诊队列建议（同步）
-
-- **提交**：`POST /api/ai/tasks`
-
-```json
-{ "type": "bug_triage", "input": {}, "waitSeconds": 10 }
-```
-
-- **提案**（`kind = triage_order`，只读，`confirmStatus = not_applicable`）：
-
-```json
-{
-  "key": "triage",
-  "kind": "triage_order",
-  "title": "分诊顺序建议",
-  "content": {
-    "items": [
-      { "bugId": "…", "rank": 1, "reason": "高严重等级 + 存放 6 天 + 登录模块热点" }
-    ],
-    "scope": "active_unassigned"
-  },
-  "confirmStatus": "not_applicable"
-}
-```
-
-- **校验规则**：输入范围固定为「激活未指派」缺陷；空集返回 1000018283；建议仅作排序展示，人工可自由调整，**不写入任何数据**。
-
 ### 3.6 录入时重复检测（同步向量检索，非任务）
 
 - **路径**：`POST /api/project/bugs/duplicates/check`（免 RBAC 权限码校验，保留项目成员校验）
@@ -184,20 +110,15 @@
 
 ## 4. 业务逻辑设计
 
-### 4.1 统计口径与实时性
+### 4.1 数据边界与实时性
 
-- 全部统计按当前项目实时计算，时间字段取 UTC 日期；口径（状态定义、修复时长、重开、重复）与缺陷管理分册完全一致，每张图表标注口径与时间范围；
-- **建议不写入业务数据**。
+- 建议与检测范围限于当前项目，检索先做业务归属过滤；
+- **建议与检测结果仅作参考，不写入业务数据**。
 
-### 4.2 任务 type 与提案确认映射
+### 4.2 入口与作用域
 
-| type | 提案确认 |
-| ---- | ---- |
-| bug_triage | `not_applicable` |
-
-- 新建缺陷建议不走任务（实时 SSE 流式接口，见 3.4）；
-
-- 任务发起免 RBAC 权限码校验（仅保留任务归属可见性与项目成员校验）；作用域一律取请求头 `X-Active-Project`。
+- 新建缺陷建议与录入时重复检测均不走 AI Task 任务（建议为实时 SSE 流式接口，见 3.4；检测为同步向量检索，见 3.6）；
+- 免 RBAC 权限码校验（仅保留项目成员校验）；作用域一律取请求头 `X-Active-Project`。
 
 ---
 
@@ -207,18 +128,12 @@
 
 ```
 项目工作区
-└── /workspace/projects/bugs/analysis   → BugAnalysisPage（缺陷分析页，或缺陷页内 Tab）
+└── /workspace/projects/bugs/create   → BugCreatePage（提交缺陷页，承载新建建议与录入时重复检测）
 ```
 
 ### 5.2 组件结构
 
 ```
-BugAnalysisPage
-├── AnalysisRangePicker（时间范围 + 分组维度，口径脚注）
-├── TrendChart（新增/关闭/存量折线，数据点点击 → 缺陷列表下钻带参）
-├── MetricCards（修复时长 p50/p90、重开率、重复占比、分布环图）
-└── TriageQueueCard（分诊顺序建议列表，可拖拽调整，只读落库）
-
 新建缺陷表单（既有 BugCreatePage 扩展）
 ├── TitleSuggestBadge（优化后标题建议：标题输入框下方行内徽标，点击采纳覆盖标题）
 ├── ReproStepsSuggestBadge（重现步骤建议：编辑器下方行内徽标，点击采纳写入执行步骤 / 实际结果 / 期望结果）
@@ -229,22 +144,18 @@ BugAnalysisPage
 
 ### 5.3 状态管理与状态分支
 
-- Pinia store `bugAnalysis`：范围与分组条件、趋势/度量数据；
-- 状态分支：范围无数据（空图表补 0）、向量未就绪（录入检测静默不弹窗）。
+- 新建表单建议与检测结果存组件本地，提交后释放；
+- 状态分支：向量未就绪（录入检测静默不弹窗）、实时建议失败（轻提示可重试）。
 
 ---
 
 ## 6. 错误码定义
 
-号段：**1000018281–1000018299（缺陷分析）**，以 `ErrorCodeConstants` 实际登记为准，冲突时顺延。
+号段：**1000018281–1000018299（缺陷分析）**，以 `ErrorCodeConstants` 实际登记为准，冲突时顺延；1000018281–1000018283、1000018285 已注销不复用。
 
 | 错误码 | HTTP | 说明 |
 | ---- | ---- | ---- |
-| 1000018281 | 400 | 分析时间范围非法 |
-| 1000018282 | 404 | 缺陷不存在 |
-| 1000018283 | 400 | 分析输入为空（无可分析的缺陷） |
 | 1000018284 | 400 | 检测输入非法（标题为空或超长） |
-| 1000018285 | 400 | 分组参数非法（groupBy 取值越界） |
 | 1000018287 | 400 | 建议输入非法（标题为空或超长） |
 
 ---
@@ -255,23 +166,21 @@ BugAnalysisPage
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../controller/project/BugAnalysisController` | 趋势 / 度量 / 录入检测 / 新建建议路由（仅路由，C2） |
-| `server/.../service/domain/bug/BugAnalysisService + Impl` | 实时聚合与口径计算 |
+| `server/.../controller/project/BugAnalysisController` | 录入检测 / 新建建议路由（仅路由，C2） |
+| `server/.../service/domain/bug/BugAnalysisService + Impl` | 录入时重复检测的实时向量检索与项目内过滤 |
 | `server/.../service/domain/bug/BugDraftSuggestService + Impl` | 新建建议实时 SSE：上下文装配（模块 / 用例候选 / 枚举）、流式单跳模型调用与清洗、SseEmitter 事件写出 |
 | `server/.../service/ai/config/AiPromptScenes` | 登记实时建议提示词场景（`bug_draft_suggest`，变量：bugContext / moduleOptions / caseOptions） |
-| `server/.../service/domain/bug/BugTriageTypeAdapter` | 缺陷域任务类型适配器（工具白名单与预算默认、提案结构，随对应能力域就近注册） |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018281–1000018287 |
-| `web/src/pages/project/BugAnalysisPage.vue` 及组件、`web/src/stores/bugAnalysis.ts` | 分析页与状态 |
-| `web/src/composables/project/bug/useBugCreateSuggest.ts` | 改同步接口调用（移除任务提交与轮询） |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018284、1000018287 |
+| `web/src/composables/project/bug/useBugCreateSuggest.ts` | 实时建议 SSE 流式调用（事件解析、中断提示与重试） |
 | `web/src/pages/project/BugCreatePage.vue` 扩展（标题 / 重现步骤 / 关联用例建议徽标，移除指派候选） | 新建页扩展 |
 
-- **数据库**：无新增表、无迁移（统计实时计算，向量读既有 `ai_vector_index`）。
-- **OpenAPI**：`analysis/suggest` 标注 SSE 流式（`text/event-stream`）；`duplicates/check` 标注同步检索；任务 type 的 `input / 提案` 结构随任务分组暴露。
+- **数据库**：无新增表、无迁移（向量读既有 `ai_vector_index`）。
+- **OpenAPI**：`analysis/suggest` 标注 SSE 流式（`text/event-stream`）；`duplicates/check` 标注同步检索。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：趋势口径（新增/关闭/存量边界）、修复时长首次流转取值、除零补零、分组参数校验、实时建议的输入校验（1000018287）与 SSE 事件写出（`done` / 流内 `error` 映射 1000018117、心跳保活、流建立前同步错误）、用例候选展开与向量未就绪降级、清洗（枚举 / 项目归属剔除）、录入检测项目内过滤、空集错误码；
-- 前端：图表下钻带参、建议徽标与用户值优先（标题 / 重现步骤 / 关联用例采纳写入）、实时建议流式读取（事件解析、流中断提示与再次点击重试）、分诊拖拽不落库、向量未就绪降级。
+- 后端：实时建议的输入校验（1000018287）与 SSE 事件写出（`done` / 流内 `error` 映射 1000018117、心跳保活、流建立前同步错误）、用例候选展开与向量未就绪降级、清洗（枚举 / 项目归属剔除）、录入检测项目内过滤与输入校验（1000018284）；
+- 前端：建议徽标与用户值优先（标题 / 重现步骤 / 关联用例采纳写入）、实时建议流式读取（事件解析、流中断提示与再次点击重试）、向量未就绪降级。
 
 ---
 

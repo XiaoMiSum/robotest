@@ -733,7 +733,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.6 AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）
 
-> 拆解、用例优化、顺序建议、缺陷分诊等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
+> 拆解、用例优化、顺序建议等**目标型 AI 执行**均通过本资源提交与管理（双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`）；助手为对话式执行通道，不走 Agent 循环（分册 04）。各分册只定义 `type` 取值、`input` 结构与提案语义。
 
 #### 3.6.1 任务类型枚举（全量，单一事实源）
 
@@ -744,7 +744,6 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | review_case_review | 辅助 | `reviewId` | `review_suggestion` | 评审标记写回采纳服务 |
-| bug_triage | 缺陷 | 无 | `triage_order`（只读建议，无确认） | 不落库 |
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
@@ -757,13 +756,12 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 脑图用例生成 | 需求标题（`requirementId` → `Requirement.title`） |
 | plan_order | 计划排序 | 计划名称（`planId` → `TestPlan.name`） |
 | review_case_review | AI 评审 | 评审标题（`reviewId` → `TestReview.title`） |
-| bug_triage | 缺陷分诊 | 范围描述「激活未指派缺陷」（无输入，取任务作用域语义） |
 | assistant_parse | 助手解析 | 会话标题（`messageId` → `AiAssistantMessage.conversationId` → `AiAssistantConversation.title`） |
 | vector_reindex | 向量索引重建 | 索引范围（`scope.entityTypes` 映射为「需求 / 用例 / 缺陷」，缺省「全量」） |
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的六类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的五类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
 `assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxDurationSeconds: 3600, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 

@@ -8,7 +8,7 @@
 
 ## 1. 概述
 
-AI 任务中心是项目内全部 AI 任务的统一入口，任务统一经 `POST /api/ai/tasks` 提交、`GET /api/ai/tasks/{id}` 查询，执行过程经轨迹接口（`GET /api/ai/tasks/{id}/executions/{executionId}/events`）与实时通道呈现；任务详情与提案审核合并为同一个任务详情页，任务中心与各能力页统一跳转该页。通用提案审核面板（`AiProposalReviewPanel`）为各能力域复用组件，以详情页内审核区的形式渲染（只读类型如 AI 评审仅展示提案明细、不渲染审核动作），本分册定义其通用交互，需求导入、缺陷分诊等域扩展见各自分册。执行编排归 AI、写库编排归应用层的双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`。
+AI 任务中心是项目内全部 AI 任务的统一入口，任务统一经 `POST /api/ai/tasks` 提交、`GET /api/ai/tasks/{id}` 查询，执行过程经轨迹接口（`GET /api/ai/tasks/{id}/executions/{executionId}/events`）与实时通道呈现；任务详情与提案审核合并为同一个任务详情页，任务中心与各能力页统一跳转该页。通用提案审核面板（`AiProposalReviewPanel`）为各能力域复用组件，以详情页内审核区的形式渲染（只读类型如 AI 评审仅展示提案明细、不渲染审核动作），本分册定义其通用交互，需求导入等域扩展见各自分册。执行编排归 AI、写库编排归应用层的双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`。
 
 **路由**：任务中心 `/workspace/projects/ai/tasks`；任务详情 `/workspace/projects/ai/tasks/:taskId`（任务中心的子路由）
 
