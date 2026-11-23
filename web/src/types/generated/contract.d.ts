@@ -5641,6 +5641,7 @@ export interface components {
             priority?: string;
             isAssociated?: boolean;
             lastMark?: string;
+            lastMarkAiAdopted?: boolean;
             /** Format: uuid */
             lastReviewerId?: string;
             /** Format: date-time */
