@@ -77,7 +77,9 @@ export interface AiTaskTypeMeta {
 export const AI_TASK_TYPE_META: Record<string, AiTaskTypeMeta> = {
   requirement_import: { label: '需求导入', domain: '需求' },
   case_optimize: { label: '用例优化', domain: '辅助' },
+  mindmap_case_generation: { label: '脑图用例生成', domain: '辅助' },
   plan_order: { label: '计划排序', domain: '辅助' },
+  review_case_review: { label: 'AI 评审', domain: '辅助' },
   bug_triage: { label: '缺陷分诊', domain: '缺陷' },
   assistant_parse: { label: '助手解析', domain: '助手' },
   vector_reindex: { label: '向量索引重建', domain: '底座' },
@@ -87,7 +89,7 @@ export function aiTaskTypeMeta(type: string): AiTaskTypeMeta {
   return AI_TASK_TYPE_META[type] ?? { label: type, domain: '其他' }
 }
 
-/** 任务名优先取执行回填的主提案标题，空串（存量任务）才按类型名兜底 */
+/** 任务名优先取创建时生成的标题，空串（存量任务）才按类型名兜底 */
 export function aiTaskName(task: { type: string; title?: string | null }): string {
   const title = task.title?.trim()
   return title || aiTaskTypeMeta(task.type).label

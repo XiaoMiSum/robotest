@@ -89,6 +89,16 @@ public class AssistantParseTypeAdapter implements TaskTypeAdapter {
         }
     }
 
+    @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        AiAssistantMessage message = bridgeMessage(input);
+        if (message == null) {
+            return null;
+        }
+        AiAssistantConversation conversation = conversationMapper.selectById(message.getConversationId());
+        return conversation == null ? null : conversation.getTitle();
+    }
+
     /** 提交与执行两条路径的能力派生（详设 4.1）：当前消息附图非空 ⇒ vision；派生不抛错中断任务 */
     @Override
     public String requiredCapability(Map<String, Object> input) {

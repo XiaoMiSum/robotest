@@ -109,6 +109,12 @@ public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapte
         }
     }
 
+    @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        FileResource file = fileResourceMapper.selectById(parseFileId(input));
+        return file == null ? null : file.getFileName();
+    }
+
     /**
      * 图片文件经 vision 直传（详设 4.2 / 方案 2.5.1）：仅查 fileId 元数据（文件名，不读字节）判扩展派生
      * 必需能力；文件缺失 / 非图片返回无——缺失由执行期按 1000018011 失败，与现行语义一致。

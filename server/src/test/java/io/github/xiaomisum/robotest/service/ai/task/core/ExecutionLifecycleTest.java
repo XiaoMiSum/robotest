@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,6 +31,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.ArgumentCaptor;
@@ -110,7 +112,6 @@ class ExecutionLifecycleTest {
         when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
                 .thenReturn(true);
         when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
-        when(taskMapper.markTitle(TASK_ID, "title")).thenReturn(true);
         when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED)).thenReturn(true);
 
         assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID,
@@ -130,7 +131,6 @@ class ExecutionLifecycleTest {
         when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
                 .thenReturn(true);
         when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
-        when(taskMapper.markTitle(TASK_ID, "readonly")).thenReturn(true);
         when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY)).thenReturn(true);
 
         assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID, List.of(
@@ -143,39 +143,40 @@ class ExecutionLifecycleTest {
     }
 
     @Test
-    void succeed_backfillsTitleFromFirstRootProposal() {
+    void succeed_proposalTitlesArePersistedWithoutRewritingTaskTitle() {
         lockCurrent(execution);
         when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
                 .thenReturn(true);
         when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
-        when(taskMapper.markTitle(TASK_ID, "根提案标题")).thenReturn(true);
         when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY)).thenReturn(true);
 
         assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID, List.of(
                         new ProposalDraft("child", "kind", "root-1", "子提案标题", Map.of()),
-                        new ProposalDraft("root-1", "kind", null, "根提案标题", Map.of()),
-                        new ProposalDraft("root-2", "kind", "", "第二个根提案", Map.of())), null,
+                        new ProposalDraft("root-1", "kind", null, "根提案标题", Map.of())), null,
                 new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
 
-        verify(taskMapper).markTitle(TASK_ID, "根提案标题");
+        ArgumentCaptor<AiTaskProposal> captor = ArgumentCaptor.forClass(AiTaskProposal.class);
+        verify(proposalMapper, times(2)).insert(captor.capture());
+        assertTrue(captor.getAllValues().stream().anyMatch(item -> "根提案标题".equals(item.getTitle())));
+        assertTrue(captor.getAllValues().stream().anyMatch(item -> "子提案标题".equals(item.getTitle())));
     }
 
     @Test
-    void succeed_titleOverLimit_isFittedTo200() {
+    void succeed_proposalTitleOverLimit_isFittedTo200() {
         lockCurrent(execution);
         when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
                 .thenReturn(true);
         when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
         String longTitle = "标".repeat(220);
-        String expected = "标".repeat(199) + "…";
-        when(taskMapper.markTitle(TASK_ID, expected)).thenReturn(true);
         when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY)).thenReturn(true);
 
         assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID,
                 List.of(new ProposalDraft("p1", "kind", null, longTitle, Map.of())), null,
                 new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
 
-        verify(taskMapper).markTitle(TASK_ID, expected);
+        ArgumentCaptor<AiTaskProposal> captor = ArgumentCaptor.forClass(AiTaskProposal.class);
+        verify(proposalMapper).insert(captor.capture());
+        assertEquals("标".repeat(199) + "…", captor.getValue().getTitle());
     }
 
     @Test

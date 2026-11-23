@@ -108,6 +108,16 @@ public class CaseOptimizeTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
     }
 
     @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        if (context == null || context.projectId() == null) {
+            return null;
+        }
+        CaseAssistSupport.ResolvedCases resolved = assistSupport.resolve(context.projectId(),
+                CaseAssistSupport.requireDocumentId(input), CaseAssistSupport.requireNodeIds(input));
+        return resolved.document() == null ? null : resolved.document().getName();
+    }
+
+    @Override
     public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
         CaseAssistSupport.ResolvedCases resolved = assistSupport.resolve(context.projectId(),
                 CaseAssistSupport.requireDocumentId(context.input()), CaseAssistSupport.requireNodeIds(context.input()));

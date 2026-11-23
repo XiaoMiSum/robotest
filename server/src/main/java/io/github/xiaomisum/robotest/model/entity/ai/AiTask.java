@@ -24,7 +24,7 @@ public class AiTask extends BaseUuidDO<AiTask> {
     /** 任务类型（总册 3.6.1 枚举） */
     private String type;
 
-    /** 任务标题：执行产出提案后由首个根提案标题回填，空串表示尚未回填 */
+    /** 任务标题：提交创建时按「类型描述 - 来源标题」生成，执行不改写；存量行可能为空串 */
     private String title;
 
     /** running / proposals_ready / closed / aborted（running 期间执行可挂起 waiting_confirmation） */

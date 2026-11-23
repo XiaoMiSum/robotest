@@ -80,6 +80,11 @@ public class BugTriageTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
     }
 
     @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        return "激活未指派缺陷";
+    }
+
+    @Override
     public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
         List<Bug> bugs = bugMapper.listActiveUnassigned(context.projectId());
         if (bugs.isEmpty()) throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_INPUT_EMPTY);

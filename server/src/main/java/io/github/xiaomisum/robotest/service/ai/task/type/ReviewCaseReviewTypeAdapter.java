@@ -134,6 +134,12 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
     }
 
     @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        TestReview review = testReviewMapper.selectById(requireReviewId(input));
+        return review == null ? null : review.getTitle();
+    }
+
+    @Override
     public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
         Map<String, Object> input = context.input() == null ? Map.of() : context.input();
         UUID reviewId = requireReviewId(input);

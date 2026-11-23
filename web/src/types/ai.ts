@@ -114,7 +114,7 @@ export interface AiTaskItem {
   /** 提交 / 再次执行响应携带本次执行 ID，其余场景为 null */
   executionId: string | null
   type: string
-  /** 执行产出提案后回填的主提案标题，空串表示尚未回填（列表按类型名兜底） */
+  /** 提交创建时按「类型描述 - 来源标题」生成，执行不改写（存量空串按类型名兜底） */
   title: string
   status: AiTaskStatus
   /** 提交 / 再次执行响应携带本次签发的预算快照，其余场景为 null */

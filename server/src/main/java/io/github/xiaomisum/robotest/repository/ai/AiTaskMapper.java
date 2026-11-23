@@ -101,14 +101,6 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
         return selectCount(wrapper);
     }
 
-    /** 任务标题回填（总册 2.6.1）：执行产出提案后写回首个根提案标题，部分更新（C11） */
-    default boolean markTitle(UUID id, String title) {
-        return update(null, new LambdaUpdateWrapperX<AiTask>()
-                .eq(AiTask::getId, id)
-                .set(AiTask::getTitle, title)
-                .set(AiTask::getUpdatedAt, LocalDateTime.now())) == 1;
-    }
-
     /**
      * 任务态流转（总册 3.6：running → proposals_ready → closed / aborted）：
      * 条件写——仅 running / proposals_ready 可流转，与终止竞争以先到者为准。

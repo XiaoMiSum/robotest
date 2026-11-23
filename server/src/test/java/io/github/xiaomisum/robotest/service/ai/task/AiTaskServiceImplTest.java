@@ -240,6 +240,19 @@ class AiTaskServiceImplTest {
         verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
     }
 
+    /** 标题在提交创建时按「类型描述 - 来源标题」生成并入库，执行不改写（详设 3.6.1） */
+    @Test
+    void submit_persistsGeneratedTitleAtCreation() {
+        when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(0);
+        when(adapter.sourceTitle(any(), any())).thenReturn("  需求规格V2.md  ");
+
+        service.submit(submitReq(0), PROJECT_ID, WORKSPACE_ID, USER_ID, loginUser);
+
+        ArgumentCaptor<AiTask> taskCaptor = ArgumentCaptor.forClass(AiTask.class);
+        verify(taskMapper).insert(taskCaptor.capture());
+        assertEquals("需求导入 - 需求规格V2.md", taskCaptor.getValue().getTitle());
+    }
+
     @Test
     void submit_activeTransaction_startsOnceAfterCommit() {
         TransactionSynchronizationManager.initSynchronization();

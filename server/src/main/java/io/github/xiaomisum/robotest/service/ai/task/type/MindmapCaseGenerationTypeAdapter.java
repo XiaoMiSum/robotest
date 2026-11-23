@@ -129,6 +129,12 @@ public class MindmapCaseGenerationTypeAdapter extends AbstractOrdinaryTaskTypeAd
     }
 
     @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        Requirement requirement = requirementMapper.selectById(requireRequirementId(input));
+        return requirement == null ? null : requirement.getTitle();
+    }
+
+    @Override
     public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
         Map<String, Object> input = context.input() == null ? Map.of() : context.input();
         UUID documentId = CaseAssistSupport.requireDocumentId(input);

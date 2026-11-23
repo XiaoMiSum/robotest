@@ -96,8 +96,10 @@ describe('taskPresentation', () => {
       expect(aiTaskName({ type: 'vector_reindex' })).toBe('向量索引重建')
     })
 
-    it('任务名优先取回填标题，空标题按类型名兜底', () => {
-      expect(aiTaskName({ type: 'requirement_import', title: '登录用例生成' })).toBe('登录用例生成')
+    it('任务名优先取创建时生成的标题，空标题按类型名兜底', () => {
+      expect(aiTaskName({ type: 'requirement_import', title: '需求导入 - 需求规格V2.md' })).toBe(
+        '需求导入 - 需求规格V2.md',
+      )
       expect(aiTaskName({ type: 'requirement_import', title: '   ' })).toBe('需求导入')
       expect(aiTaskName({ type: 'requirement_import', title: null })).toBe('需求导入')
     })
@@ -109,7 +111,13 @@ describe('taskPresentation', () => {
 
     it('类型筛选选项带能力域后缀', () => {
       const options = aiTaskTypeOptions()
-      expect(options.length).toBe(6)
+      expect(options.length).toBe(8)
+      expect(options.find((item) => item.value === 'mindmap_case_generation')?.label).toBe(
+        '脑图用例生成（辅助）',
+      )
+      expect(options.find((item) => item.value === 'review_case_review')?.label).toBe(
+        'AI 评审（辅助）',
+      )
       expect(options.find((item) => item.value === 'requirement_import')?.label).toBe(
         '需求导入（需求）',
       )

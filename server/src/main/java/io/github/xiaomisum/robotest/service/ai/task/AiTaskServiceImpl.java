@@ -150,6 +150,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         Map<String, Object> effectiveInput = input == null ? Map.of() : new LinkedHashMap<>(input);
         TaskSubmitContext submitContext = new TaskSubmitContext(projectId, workspaceId, userId, loginUser);
         adapter.validateInput(effectiveInput, submitContext);
+        String title = AiTaskTitleResolver.resolve(type, adapter.sourceTitle(effectiveInput, submitContext));
         // 预算签发（3.6.2）：类型默认为上限，请求仅可下调，越界 1000018126
         Map<String, Object> budget = budgetGuard.sign(adapter.defaultBudget(), budgetOverride);
         // 必需能力选型（总册 4.2）：适配器从输入派生（批量随附截图需结合项目范围）；
@@ -171,6 +172,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         CreatedRun created = template.execute(status -> {
             AiTask task = new AiTask();
             task.setType(type);
+            task.setTitle(title);
             task.setStatus(Constants.AiTaskFlowStatus.RUNNING);
             task.setProjectId(projectId);
             task.setWorkspaceId(workspaceId);

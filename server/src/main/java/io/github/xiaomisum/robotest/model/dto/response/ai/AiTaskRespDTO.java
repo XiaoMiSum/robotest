@@ -21,7 +21,7 @@ public class AiTaskRespDTO {
 
     private String type;
 
-    /** 任务标题：执行产出提案后回填，空串表示尚未回填 */
+    /** 任务标题：提交创建时生成，执行不改写；存量行可能为空串 */
     private String title;
 
     /** running / proposals_ready / closed / aborted */

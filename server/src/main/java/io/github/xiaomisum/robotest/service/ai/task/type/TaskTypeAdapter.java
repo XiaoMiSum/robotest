@@ -49,6 +49,14 @@ public interface TaskTypeAdapter {
     }
 
     /**
+     * 任务标题的来源标题（详设 3.6.1）：提交创建时从输入指向的来源对象解析，执行不改写；
+     * 缺省无来源（仅保留类型描述）。实现只做读取，不写业务数据。
+     */
+    default String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        return null;
+    }
+
+    /**
      * 本次任务输入的必需模型能力（总册 4.2 模型选型）：提交与执行两条路径据此选型；
      * 缺省无必需能力（纯文本调用）；需结合上下文派生的类型重写带 context 的重载。
      */

@@ -2,6 +2,7 @@ package io.github.xiaomisum.robotest.service.ai.vector;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
+import io.github.xiaomisum.robotest.service.ai.task.TaskSubmitContext;
 import io.github.xiaomisum.robotest.service.ai.task.core.TaskExecutionStrategy;
 import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDraft;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
@@ -29,6 +30,9 @@ public class VectorReindexTypeAdapter implements TaskTypeAdapter {
             "maxTokens", 10000000,
             "maxCost", 20);
 
+    private static final Map<String, String> ENTITY_LABELS = Map.of(
+            "requirement", "需求", "testcase", "用例", "bug", "缺陷");
+
     @Resource
     private VectorReindexExecutionStrategy executionStrategy;
 
@@ -40,6 +44,16 @@ public class VectorReindexTypeAdapter implements TaskTypeAdapter {
     @Override
     public void validateInput(Map<String, Object> input) {
         resolveTypes(input);
+    }
+
+    @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        Set<String> types = resolveTypes(input);
+        if (types.size() == VectorIndexService.ALL_TYPES.size()) {
+            return "全量";
+        }
+        List<String> labels = types.stream().map(type -> ENTITY_LABELS.getOrDefault(type, type)).toList();
+        return String.join(" / ", labels);
     }
 
     @Override

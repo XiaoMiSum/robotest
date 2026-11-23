@@ -104,6 +104,12 @@ public class PlanOrderTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
     }
 
     @Override
+    public String sourceTitle(Map<String, Object> input, TaskSubmitContext context) {
+        TestPlan plan = testPlanMapper.selectById(requirePlanId(input));
+        return plan == null ? null : plan.getName();
+    }
+
+    @Override
     public AgentExecutionPreparation prepare(TaskTypeAdapter.PreparationContext context) {
         UUID planId = requirePlanId(context.input());
         TestPlan plan = testPlanMapper.selectById(planId);
