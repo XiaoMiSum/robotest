@@ -8,8 +8,10 @@ import io.github.xiaomisum.robotest.model.entity.review.TestReviewNodeSnapshot;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +37,8 @@ public final class ReviewContextSupport {
     private static final int MAX_ANCESTOR_DEPTH = 32;
     private static final Set<String> MARKS = Set.of(Constants.ReviewMark.PASS, Constants.ReviewMark.FAIL);
     private static final Set<String> SEVERITIES = Set.of("high", "medium", "low");
+    private static final List<String> SOURCE_ID_FIELDS = List.of(
+            "id", "requirementId", "code", "requirementCode", "requirementNo", "title", "requirementTitle");
 
     private static final Comparator<TestReviewNodeSnapshot> BY_ORDER = Comparator.comparing(
             node -> node.getSortOrder() == null ? Integer.MAX_VALUE : node.getSortOrder());
@@ -58,16 +62,17 @@ public final class ReviewContextSupport {
         return snapshot;
     }
 
-    /** 需求上下文（基于快照：需求编号 + 标题 + 冻结正文） */
+    /** 需求上下文（基于快照：唯一可信 id + 编号 + 标题 + 冻结正文） */
     public static String requirementContext(Map<String, Object> snapshot) {
         List<Map<String, Object>> items = requirementItems(snapshot);
         if (items.isEmpty()) {
             return "（无关联需求）";
         }
-        StringBuilder builder = new StringBuilder("关联需求（已冻结快照，sourceRefs 只引用下方 id）：\n");
+        StringBuilder builder = new StringBuilder("【来源需求白名单】sourceRefs.id 只能逐字复制下方 id= 后的 UUID；")
+                .append("编号与标题仅供人工核对，禁止填入 id。sourceRefs.quote 取「内容」原文摘录：\n");
         for (Map<String, Object> item : items) {
-            builder.append("- [").append(nvl(asString(item.get("id")))).append("] ")
-                    .append(nvl(asString(item.get("code")))).append(" | ")
+            builder.append("- [id=").append(nvl(asString(item.get("id")))).append("] code=")
+                    .append(nvl(asString(item.get("code")))).append(" | title=")
                     .append(nvl(asString(item.get("title")))).append('\n');
             String content = trimToNull(asString(item.get("content")));
             if (content != null) {
@@ -121,18 +126,22 @@ public final class ReviewContextSupport {
         return "\n相关需求片段（向量检索命中）：\n" + String.join("\n", lines);
     }
 
-    /** 清洗结果：失败时携带原因，供执行轨迹与日志定位模型输出问题。 */
-    public record SanitizeOutcome(Map<String, Object> content, String dropReason) {
+    /** 清洗结果：失败时携带原因与首个非法取值，供执行轨迹与日志定位模型输出问题。 */
+    public record SanitizeOutcome(Map<String, Object> content, String dropReason, String sample) {
         public boolean accepted() {
             return content != null;
         }
 
         public static SanitizeOutcome accepted(Map<String, Object> content) {
-            return new SanitizeOutcome(content, null);
+            return new SanitizeOutcome(content, null, null);
         }
 
         public static SanitizeOutcome rejected(String dropReason) {
-            return new SanitizeOutcome(null, dropReason);
+            return new SanitizeOutcome(null, dropReason, null);
+        }
+
+        public static SanitizeOutcome rejected(String dropReason, String sample) {
+            return new SanitizeOutcome(null, dropReason, sample);
         }
     }
 
@@ -159,7 +168,8 @@ public final class ReviewContextSupport {
         }
         List<Map<String, Object>> sourceRefs = sanitizeSourceRefs(source.get("sourceRefs"), requirementsById);
         if (sourceRefs.isEmpty()) {
-            return SanitizeOutcome.rejected("missing_source_refs");
+            return SanitizeOutcome.rejected("missing_source_refs",
+                    firstSourceCandidate(source.get("sourceRefs")));
         }
 
         String caseTitle = trimToNull(asString(source.get("caseTitle")));
@@ -242,35 +252,91 @@ public final class ReviewContextSupport {
         return issues;
     }
 
-    /** 来源引用限定冻结需求范围，越界引用一并丢弃；无来源的提案由调用方丢弃 */
+    /** 来源引用按冻结快照的 id / code / title 归一化，越界引用一并丢弃；无来源的提案由调用方丢弃 */
     private static List<Map<String, Object>> sanitizeSourceRefs(Object raw,
             Map<UUID, Map<String, Object>> requirementsById) {
         if (!(raw instanceof List<?> items)) {
             return List.of();
         }
+        Map<String, Map<String, Object>> byAlias = sourceAliasIndex(requirementsById);
         List<Map<String, Object>> refs = new ArrayList<>();
         for (Object element : items) {
             if (refs.size() >= MAX_SOURCE_REFS) {
                 break;
             }
             Map<String, Object> item = asMap(element);
-            UUID requirementId = parseUuid(item.get("id"));
-            if (requirementId == null) {
-                requirementId = parseUuid(item.get("requirementId"));
-            }
-            Map<String, Object> requirement = requirementId == null ? null : requirementsById.get(requirementId);
+            Map<String, Object> requirement = resolveRequirement(item, requirementsById, byAlias);
             if (requirement == null) {
                 continue;
             }
-            String title = trimToNull(asString(requirement.get("code")));
             Map<String, Object> ref = new LinkedHashMap<>();
             ref.put("type", "requirement");
-            ref.put("id", requirementId.toString());
-            ref.put("title", title == null ? nvl(asString(requirement.get("title"))) : title);
+            ref.put("id", nvl(asString(requirement.get("id"))));
+            ref.put("title", nvl(asString(requirement.get("title"))));
+            ref.put("code", nvl(asString(requirement.get("code"))));
             ref.put("quote", abbreviate(nvl(asString(item.get("quote"))), MAX_QUOTE));
             refs.add(ref);
         }
         return refs;
+    }
+
+    /** 冻结快照的 UUID / 编号 / 标题统一建小写索引，兼容模型把 code / title 填进 id 的常见偏移 */
+    private static Map<String, Map<String, Object>> sourceAliasIndex(
+            Map<UUID, Map<String, Object>> requirementsById) {
+        Map<String, Map<String, Object>> index = new HashMap<>();
+        for (Map.Entry<UUID, Map<String, Object>> entry : requirementsById.entrySet()) {
+            putAlias(index, entry.getKey().toString(), entry.getValue());
+            putAlias(index, entry.getKey().toString().replace("-", ""), entry.getValue());
+            putAlias(index, asString(entry.getValue().get("code")), entry.getValue());
+            putAlias(index, asString(entry.getValue().get("title")), entry.getValue());
+        }
+        return index;
+    }
+
+    private static void putAlias(Map<String, Map<String, Object>> index, String alias,
+            Map<String, Object> requirement) {
+        String key = trimToNull(alias);
+        if (key != null) {
+            index.putIfAbsent(key.toLowerCase(Locale.ROOT), requirement);
+        }
+    }
+
+    /** 优先按 UUID 精确命中，其次按编号 / 标题回查；任一命中都必须落在本次冻结快照内 */
+    private static Map<String, Object> resolveRequirement(Map<String, Object> item,
+            Map<UUID, Map<String, Object>> requirementsById,
+            Map<String, Map<String, Object>> byAlias) {
+        for (String field : SOURCE_ID_FIELDS) {
+            String candidate = trimToNull(asString(item.get(field)));
+            if (candidate == null) {
+                continue;
+            }
+            UUID id = parseUuid(candidate);
+            if (id != null && requirementsById.containsKey(id)) {
+                return requirementsById.get(id);
+            }
+            Map<String, Object> matched = byAlias.get(candidate.toLowerCase(Locale.ROOT));
+            if (matched != null) {
+                return matched;
+            }
+        }
+        return null;
+    }
+
+    /** 首条来源引用的首个非空候选值，供全量丢弃时的错误提示定位模型实际写了什么 */
+    private static String firstSourceCandidate(Object raw) {
+        if (!(raw instanceof List<?> items)) {
+            return null;
+        }
+        for (Object element : items) {
+            Map<String, Object> item = asMap(element);
+            for (String field : SOURCE_ID_FIELDS) {
+                String candidate = trimToNull(asString(item.get(field)));
+                if (candidate != null) {
+                    return abbreviate(candidate, 80);
+                }
+            }
+        }
+        return null;
     }
 
     private static List<String> childrenOfType(Collection<TestReviewNodeSnapshot> children, String type) {

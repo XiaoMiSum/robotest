@@ -123,14 +123,68 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "模型无有效输出");
         }
         String output = finalOutput;
+        ServiceException parseError;
         try {
-            List<ProposalDraft> drafts = preparation.proposalParser().apply(output);
-            Map<String, Object> resultMeta = preparation.resultMetaParser().apply(output);
-            return new ExecutionResult(drafts, resultMeta);
+            return buildResult(preparation, output);
         } catch (ServiceException e) {
-            recordOutputParseFailure(control, e, output);
-            throw e;
+            parseError = e;
         }
+        if (!adapter.supportsOutputRepair()) {
+            recordOutputParseFailure(control, parseError, output);
+            throw parseError;
+        }
+        AiChatReply repairReply;
+        try {
+            repairReply = callForRepair(request, declarations, control, output, parseError);
+        } catch (ServiceException repairCallError) {
+            // 自愈调用失败保留原始解析错误，避免用网络错误掩盖真正的输出缺陷
+            recordOutputParseFailure(control, parseError, output);
+            throw parseError;
+        }
+        String repaired = repairReply.content();
+        if (ModelOutputSupport.trimToNull(repaired) != null) {
+            try {
+                return buildResult(preparation, repaired);
+            } catch (ServiceException repairError) {
+                recordOutputParseFailure(control, repairError, repaired);
+                throw repairError;
+            }
+        }
+        recordOutputParseFailure(control, parseError, output);
+        throw parseError;
+    }
+
+    private static ExecutionResult buildResult(AgentExecutionPreparation preparation, String output) {
+        List<ProposalDraft> drafts = preparation.proposalParser().apply(output);
+        Map<String, Object> resultMeta = preparation.resultMetaParser().apply(output);
+        return new ExecutionResult(drafts, resultMeta);
+    }
+
+    /** 全量解析失败后的一次性回喂：复用系统提示词，附加错误上下文要求模型自愈重出 JSON。 */
+    private AiChatReply callForRepair(AiChatRequest request, List<ToolDeclaration> declarations,
+            ExecutionControl control, String output, ServiceException parseError) {
+        String instruction = """
+                上一次输出未能通过应用层校验：%s
+                请严格按系统提示词重新输出完整 JSON（只输出 JSON）：
+                - sourceRefs.id 必须逐字复制「来源需求白名单」中的 UUID，禁止填需求编号或标题；
+                - sourceRefs 只输出 id 与 quote，type / title / code 由系统补全；
+                - 每条关联规划用例必须输出一条建议。
+                上一次原始输出：
+                %s
+                """.formatted(ModelOutputSupport.nvl(parseError.getMessage()),
+                ModelOutputSupport.abbreviate(output, RESULT_ABBREV));
+        AiChatRequest repairRequest = new AiChatRequest(request.taskId(), request.executionId(),
+                request.projectId(), request.userId(), request.promptScene(), request.model(),
+                request.systemPrompt(), request.userPrompt() + "\n\n【输出修正要求】\n" + instruction,
+                request.media(), request.onTick());
+        control.beforeCall();
+        AiChatReply reply = modelClient.chatWithToolDeclarations(repairRequest, declarations, List.of(), false);
+        control.afterModelCall(reply.tokensIn(), reply.tokensOut(),
+                AiModelClient.calculateCost(request.model(), reply.tokensIn(), reply.tokensOut()));
+        control.recordTrace(Constants.AiTraceEventType.AI_DECISION, "模型输出解析失败后自愈重试",
+                Map.of("errorCode", parseError.getCode(), "errorMessage",
+                        ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(parseError.getMessage()), 500)));
+        return reply;
     }
 
     private void recordOutputParseFailure(ExecutionControl control, ServiceException e, String output) {

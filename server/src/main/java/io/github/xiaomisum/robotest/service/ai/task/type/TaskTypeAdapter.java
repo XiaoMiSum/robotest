@@ -32,6 +32,14 @@ public interface TaskTypeAdapter {
         return defaultAgentStrategy;
     }
 
+    /**
+     * 结构化输出全量解析失败时是否允许一次回喂自愈（预算内，仅该类型开启）；
+     * 默认关闭，避免通用执行核改变其他任务类型的失败语义。
+     */
+    default boolean supportsOutputRepair() {
+        return false;
+    }
+
     /** 任务类型（总册 3.6.1 全量枚举，注册表内唯一） */
     String type();
 

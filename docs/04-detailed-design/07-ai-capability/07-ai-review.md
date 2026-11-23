@@ -74,7 +74,6 @@
 - 扩展参数 `reviewId`（可选）：传 `reviewId` 时按任务输入中的 `reviewId` 匹配本类型任务，返回 `created_at` 最新的一条（结构同总册 3.6.3 详情）；`documentId` / `nodeId` 仍按原口径用于其他任务类型。
 - 可见范围：当前项目内任意成员提交的 `review_case_review` 任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
 - 前端命中后按任务状态回显进度、提案或终止原因，不再弹出确认，不重复发起。
-- 重新执行按总册 3.6.4 分叉：`running` 仅回显原任务进度，不新建任务或执行实例；`aborted` 沿用原任务调用再次执行端点；`proposals_ready` / `closed` 由评审详情页 AI 评审面板按原评审输入新建任务，原任务及其执行、提案与采纳记录保留只读回看，不被覆盖。后端对 `review_case_review` 在 `proposals_ready` 态拒绝再次执行端点（1000018111）。
 
 ### 3.4 提案确认（采纳写回）
 
@@ -169,7 +168,7 @@
 - 评审进入终态后，既有提案不可再采纳，写回校验返回 1000018314；进行中任务按总册 3.6.4 中止或继续。
 - 快照在提案产出后被同步或调整，导致 `snapshotNodeId` 失效时，该项处置失败并提示，其余项继续；不自动重建提案。
 - 来源需求在任务执行期间变更时按发起时快照继续，提案 `sourceRefs` 可追溯；需求已删除时来源引用按快照内容展示，不阻断采纳。
-- 任务被中止、执行错误或预算耗尽时不产出提案、不产生写回数据；任务详情展示原因，并仅在 `aborted` 态提供「再次执行」（3.3 分叉）。
+- 任务被中止、执行错误或预算耗尽时不产出提案、不产生写回数据；任务详情展示原因并提供再次执行。
 
 ---
 
@@ -200,7 +199,6 @@ AiReviewPanel（AI 评审面板，评审详情页内呈现）
 
 - 复用总册 `aiTask` store 轮询任务执行；面板私有状态（勾选、编辑内容、回执）挂组件本地，不入全局 store。
 - 任务状态非 `running` 即停轮；`proposals_ready` 时按 `confirmStatus` 分区展示待处置与已处置提案；已处置提案只读回看，不重复处置。
-- 面板动作区「再次执行」按 3.3 分叉：`running` 仅回显进度、不提供该动作；`aborted` 沿用原任务新建执行实例；`proposals_ready` / `closed` 按当前评审输入新建任务并保留原任务只读回看；任务中心与任务详情页仅对 `aborted` 态提供「再次执行」。
 - 采纳 / 编辑后采纳 / 驳回后刷新提案清单，并同步刷新评审脑图徽标与页头进度统计；逐项失败保留失败原因展示。
 - 状态分支：任务中止展示原因并提供再次执行；已采纳提案只读；提案项节点失效时该项标红提示；评审进入终态后面板入口隐藏、既有提案不可处置；查询过期响应切换评审时丢弃，避免旧任务提案写入新评审。
 
@@ -232,8 +230,7 @@ AiReviewPanel（AI 评审面板，评审详情页内呈现）
 | `server/.../service/ai/config/AiPromptScenes`、评审场景默认提示词资源 | 新增 `review_case_review` 场景与默认提示词（逐用例建议结构与来源引用口径；提示词文件随实现新增） |
 | `server/.../framework/common/Constants`、`ErrorCodeConstants` | 登记任务类型 `review_case_review`、提案 kind `review_suggestion` 与错误码 1000018313–1000018315 |
 | `web/src/components/project/functional-testing/review/AiReviewPanel.vue` + 单测 | 逐用例建议列表、采纳 / 编辑后采纳 / 驳回、逐项回执 |
-| `web/src/composables/project/ai/useReviewTask.ts` + 单测 | 最近任务查询、任务提交、轮询、提案映射与采纳回执处理、重新执行按状态分叉 |
-| `server/.../service/ai/task/AiTaskServiceImpl` | 再次执行按任务类型拒绝 `proposals_ready`（`review_case_review` 复用 1000018111） |
+| `web/src/composables/project/ai/useReviewTask.ts` + 单测 | 最近任务查询、任务提交、轮询、提案映射与采纳回执处理 |
 | `web/src/types/ai.ts` | 新增 `AiReviewSuggestion`（评审建议 content 结构），任务详情旧类型保持不变 |
 
 - **数据库**：无新增表、无新增列；任务 / 执行 / 提案 / 采纳复用 `ai_task_` 六表，写回目标为既有 `ft_review_record` 与 `ft_review_node_snapshot`。
@@ -253,4 +250,3 @@ AiReviewPanel（AI 评审面板，评审详情页内呈现）
 | V1.0 | 2026-11-22 | 初始版本 |
 | V1.0 | 2026-11-23 | 任务标题改提交创建时生成：按总册 3.6.1 取评审标题拼接「AI 评审 - 评审标题」，执行不再回填 |
 | V1.0 | 2026-11-23 | 任务详情页改只读展示策略：不渲染通用审核区与采纳 / 编辑后采纳 / 驳回动作，处置统一由评审详情页 AI 评审面板承担 |
-| V1.0 | 2026-11-23 | 3.3 / 4.4 / 5.3 / 7 重新执行改按状态分叉：`running` 仅回显、`aborted` 沿用原任务、`proposals_ready` / `closed` 按原评审输入新建任务且保留原记录；后端拒绝 `review_case_review` 的 `proposals_ready` 再次执行 |

@@ -1,5 +1,7 @@
 package io.github.xiaomisum.robotest.service.ai.task.core;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
+import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
@@ -15,6 +17,8 @@ import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDraft;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import xyz.migoo.framework.common.exception.ServiceException;
+import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.ArgumentCaptor;
@@ -34,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -191,6 +196,52 @@ class AgentExecutionRunnerTest {
                 () -> runner.execute(context, control));
 
         assertEquals(1000018117, exception.getCode());
+        verify(modelClient, times(1)).chatWithToolDeclarations(any(), anyList(), anyList(), eq(false));
+    }
+
+    @Test
+    void execute_outputRepair_retriesOnceAndSucceeds() {
+        adapter.supportsRepair = true;
+        java.util.concurrent.atomic.AtomicInteger parses = new java.util.concurrent.atomic.AtomicInteger();
+        adapter.preparation = new AgentExecutionPreparation(Map.of("name", "demo"), "trusted", List.of(),
+                output -> {
+                    if (parses.getAndIncrement() == 0) {
+                        throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                                "missing_source_refs=1（示例取值 REQ-020）");
+                    }
+                    return List.of(new ProposalDraft("p1", "kind", null, "title", Map.of()));
+                }, output -> Map.of());
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false)))
+                .thenReturn(reply("坏输出", List.of()), reply("好输出", List.of()));
+
+        TaskExecutionStrategy.ExecutionResult result = runner.execute(context, control);
+
+        assertEquals(1, result.proposals().size());
+        assertEquals(2, parses.get());
+        verify(modelClient, times(2)).chatWithToolDeclarations(any(), anyList(), anyList(), eq(false));
+        ArgumentCaptor<AiChatRequest> captor = ArgumentCaptor.forClass(AiChatRequest.class);
+        verify(modelClient, atLeastOnce()).chatWithToolDeclarations(captor.capture(), anyList(), anyList(), eq(false));
+        assertTrue(captor.getAllValues().get(1).userPrompt().contains("输出修正要求"));
+        assertTrue(captor.getAllValues().get(1).userPrompt().contains("REQ-020"));
+        assertEquals("系统提示词", captor.getAllValues().get(1).systemPrompt());
+        verify(control).recordTrace(eq(Constants.AiTraceEventType.AI_DECISION), contains("自愈重试"), any());
+    }
+
+    @Test
+    void execute_outputRepairStillInvalid_keepsFirstError() {
+        adapter.supportsRepair = true;
+        adapter.preparation = new AgentExecutionPreparation(Map.of(), "trusted", List.of(),
+                output -> {
+                    throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "全量丢弃");
+                }, output -> Map.of());
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false)))
+                .thenReturn(reply("坏输出", List.of()), reply("仍坏输出", List.of()));
+
+        ServiceException error = assertThrows(ServiceException.class, () -> runner.execute(context, control));
+
+        assertTrue(error.getMessage().contains("全量丢弃"));
+        verify(modelClient, times(2)).chatWithToolDeclarations(any(), anyList(), anyList(), eq(false));
+        verify(control).recordTrace(eq(Constants.AiTraceEventType.AI_DECISION), eq("模型输出解析失败"), any());
     }
 
     @Test
@@ -224,10 +275,16 @@ class AgentExecutionRunnerTest {
         private List<ProposalDraft> drafts = List.of();
         private Map<String, Object> resultMeta;
         private AgentExecutionPreparation preparation;
+        private boolean supportsRepair;
 
         @Override
         public String type() {
             return TYPE;
+        }
+
+        @Override
+        public boolean supportsOutputRepair() {
+            return supportsRepair;
         }
 
         @Override

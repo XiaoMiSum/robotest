@@ -80,21 +80,22 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
                 你是资深软件测试评审专家。针对下方每条关联规划用例给出评审建议，只输出 JSON，
                 不输出解释或代码块标记以外的任何文字。
                 1. artifacts 数组逐用例一条，content.snapshotNodeId 必须取自「关联规划用例」清单中的 id，
-                   每条用例只输出一条建议，不得引用清单外的节点；
+                   每条用例只输出一条建议（无问题也输出 suggestedMark=pass、issues=[]），不得引用清单外的节点；
                 2. content.suggestedMark 只能是 pass 或 fail（不得输出 pending）；
                    fail 时 issues 至少一项，每项含 severity（high / medium / low）、category、description、path；
                    pass 时 issues 为空数组；
                 3. content.reason 给出简短理由，采纳时写入评审记录；
-                4. content.sourceRefs 必填，只引用「关联需求」快照中给出的需求 id，
-                   每项含 type=requirement、id、title、quote（需求原文摘录，至多 300 字）；
-                   无有效来源的建议不要输出；
+                4. content.sourceRefs 必填，每项只输出 id 与 quote（quote 为需求原文摘录，至多 300 字）：
+                   - id 只能从「来源需求白名单」中逐字复制 UUID（形如 00000000-0000-4000-8000-000000000000）；
+                   - 禁止把需求编号（REQ-xxx）或需求标题写进 id，否则该条建议会被系统丢弃；
+                   - type、title、code 由系统按白名单自动补全，不要输出；
                 5. 只依据下方用例与需求快照判断，不读取评审记录、历史缺陷或执行数据；
                    缺失维度显式留空，不臆造。
                 输出结构（JSON 对象）：
                 {"artifacts":[{"content":{"snapshotNodeId":"…","caseTitle":"…",
                 "suggestedMark":"fail","reason":"…",
                 "issues":[{"severity":"medium","category":"预期不完整","description":"…","path":"…"}],
-                "sourceRefs":[{"type":"requirement","id":"…","title":"REQ-001","quote":"…"}]}}]}
+                "sourceRefs":[{"id":"00000000-0000-4000-8000-000000000000","quote":"…"}]}}]}
 
                 {{reviewCaseContext}}
 
@@ -180,6 +181,12 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
         return Constants.AiProposalKind.REVIEW_SUGGESTION;
     }
 
+    /** 评审来源引用是高频格式偏移点，全量丢弃时允许执行核回喂一次模型自愈 */
+    @Override
+    public boolean supportsOutputRepair() {
+        return true;
+    }
+
     private static UUID requireReviewId(Map<String, Object> input) {
         Object raw = input == null ? null : input.get("reviewId");
         if (raw == null || String.valueOf(raw).isBlank()) {
@@ -243,12 +250,16 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
             Map<UUID, Map<String, Object>> requirementsById) {
         Map<UUID, Map<String, Object>> sanitizedByNode = new LinkedHashMap<>();
         Map<String, Integer> dropReasons = new LinkedHashMap<>();
+        Map<String, String> dropSamples = new LinkedHashMap<>();
         List<Map<String, Object>> parsed = parsedArtifacts(new AiChatReply(output, 0, 0));
         for (Map<String, Object> item : parsed) {
             Map<String, Object> rawContent = asMap(item.get("content"));
             var outcome = sanitizeContentWithReason(rawContent, reviewId, associatedById, requirementsById);
             if (!outcome.accepted()) {
                 dropReasons.merge(outcome.dropReason(), 1, Integer::sum);
+                if (outcome.sample() != null) {
+                    dropSamples.putIfAbsent(outcome.dropReason(), outcome.sample());
+                }
                 log.debug("[AI] 丢弃非法评审建议 reviewId={} reason={} snapshotNodeId={}",
                         reviewId, outcome.dropReason(), rawContent.get("snapshotNodeId"));
                 continue;
@@ -283,20 +294,23 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
             artifacts.add(artifact);
         }
         if (artifacts.isEmpty()) {
-            String summary = dropSummary(dropReasons);
+            String summary = dropSummary(dropReasons, dropSamples);
             log.warn("[AI] 评审建议清洗后为空 reviewId={} associatedCases={} artifacts={} {} output={}",
                     reviewId, associated.size(), parsed.size(), summary, abbreviate(output, 1200));
-            throw modelFailed("模型未产出有效评审建议：" + summary);
+            throw modelFailed("模型输出的建议全部被清洗丢弃：" + summary
+                    + "；来源引用须取自「来源需求白名单」中的 UUID，请核对后重试");
         }
         return ProposalDrafts.fromArtifacts(artifacts);
     }
 
-    private static String dropSummary(Map<String, Integer> dropReasons) {
+    private static String dropSummary(Map<String, Integer> dropReasons, Map<String, String> samples) {
         if (dropReasons == null || dropReasons.isEmpty()) {
             return "无可解析产物";
         }
         return dropReasons.entrySet().stream()
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .map(entry -> entry.getKey() + "=" + entry.getValue()
+                        + (samples.get(entry.getKey()) == null
+                                ? "" : "（示例取值 " + samples.get(entry.getKey()) + "）"))
                 .collect(Collectors.joining(", "));
     }
 }

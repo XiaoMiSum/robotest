@@ -71,6 +71,10 @@ class ReviewCaseReviewTypeAdapterTest {
         assertTrue(adapter.systemPrompt().contains("{{reviewCaseContext}}"));
         assertTrue(adapter.systemPrompt().contains("{{requirementContext}}"));
         assertTrue(adapter.systemPrompt().contains("{{ragContext}}"));
+        assertTrue(adapter.systemPrompt().contains("来源需求白名单"));
+        assertTrue(adapter.systemPrompt().contains("逐字复制 UUID"));
+        assertTrue(adapter.systemPrompt().contains("禁止把需求编号"));
+        assertTrue(adapter.supportsOutputRepair());
         assertTrue(adapter.toolCodes().isEmpty());
         AiPromptScenes.PromptScene scene = AiPromptScenes.get(adapter.type());
         assertNotNull(scene);
@@ -225,7 +229,8 @@ class ReviewCaseReviewTypeAdapterTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> refs = (List<Map<String, Object>>) content.get("sourceRefs");
         assertEquals(1, refs.size());
-        assertEquals("REQ-001", refs.get(0).get("title"));
+        assertEquals("短信登录", refs.get(0).get("title"));
+        assertEquals("REQ-001", refs.get(0).get("code"));
         assertEquals(REQUIREMENT_ID.toString(), refs.get(0).get("id"));
 
         ProposalDraft second = drafts.get(1);
@@ -233,6 +238,56 @@ class ReviewCaseReviewTypeAdapterTest {
         assertEquals("校验手机号", second.title());
         assertEquals("pass", second.content().get("suggestedMark"));
         assertEquals(List.of(), second.content().get("issues"));
+    }
+
+    @Test
+    void proposalParser_normalizesCodeAndTitleSourceRefs() {
+        when(reviewNodeSnapshotMapper.listByReviewId(REVIEW_ID)).thenReturn(allNodes());
+        when(reviewSnapshotService.listAssociatedByReviewId(REVIEW_ID, Constants.NodeType.CASE))
+                .thenReturn(cases());
+        when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any())).thenReturn(List.of());
+        AgentExecutionPreparation preparation = prepare(input());
+
+        String output = """
+                {"artifacts":[
+                  {"content":{"snapshotNodeId":"%s","suggestedMark":"pass","reason":"编号引用",
+                    "issues":[],"sourceRefs":[{"id":"REQ-001","quote":"支持短信验证码登录"}]}},
+                  {"content":{"snapshotNodeId":"%s","suggestedMark":"pass","reason":"标题引用",
+                    "issues":[],"sourceRefs":[{"id":"短信登录","quote":"验证码错误时提示"}]}}
+                ]}
+                """.formatted(CASE_1, CASE_2);
+
+        List<ProposalDraft> drafts = preparation.proposalParser().apply(output);
+
+        assertEquals(2, drafts.size());
+        for (ProposalDraft draft : drafts) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> refs = (List<Map<String, Object>>) draft.content().get("sourceRefs");
+            assertEquals(1, refs.size());
+            assertEquals("requirement", refs.get(0).get("type"));
+            assertEquals(REQUIREMENT_ID.toString(), refs.get(0).get("id"));
+            assertEquals("短信登录", refs.get(0).get("title"));
+            assertEquals("REQ-001", refs.get(0).get("code"));
+        }
+    }
+
+    @Test
+    void proposalParser_unknownCodeStillRejected() {
+        when(reviewNodeSnapshotMapper.listByReviewId(REVIEW_ID)).thenReturn(allNodes());
+        when(reviewSnapshotService.listAssociatedByReviewId(REVIEW_ID, Constants.NodeType.CASE))
+                .thenReturn(cases());
+        when(vectorSearchService.search(any(), anyList(), any(), anyInt(), any())).thenReturn(List.of());
+        AgentExecutionPreparation preparation = prepare(input());
+
+        ServiceException error = assertThrows(ServiceException.class,
+                () -> preparation.proposalParser().apply("""
+                        {"artifacts":[{"content":{"snapshotNodeId":"%s","suggestedMark":"pass",
+                        "issues":[],"sourceRefs":[{"id":"REQ-999","quote":"越界"}]}}]}
+                        """.formatted(CASE_1)));
+
+        assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), error.getCode());
+        assertTrue(error.getMessage().contains("missing_source_refs=1"));
+        assertTrue(error.getMessage().contains("示例取值 REQ-999"));
     }
 
     @Test
@@ -273,6 +328,7 @@ class ReviewCaseReviewTypeAdapterTest {
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), error.getCode());
         assertTrue(error.getMessage().contains("missing_source_refs=1"));
         assertTrue(error.getMessage().contains("invalid_mark=1"));
+        assertTrue(error.getMessage().contains("示例取值"));
     }
 
     private AgentExecutionPreparation prepare(Map<String, Object> input) {
