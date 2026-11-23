@@ -994,7 +994,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage）
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
-├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底；AI 决策事件可展开查看 `detail.rawRequest` 请求摘要与 `detail.rawResponse` 完整响应，复用折叠 JSON 展示）
+├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底；AI 决策事件可展开查看 `detail.rawRequest` 请求摘要与 `detail.rawResponse` 完整响应，复用折叠 JSON 展示；响应 `content` 先按 JSON 解析（含剥离 Markdown 代码围栏后重试）再展示，失败保留原文，复制内容与展示一致）
 └── AiTaskAdoptionResultPanel（closed 态只读回看卡片：逐条状态标签、提案标题与驳回原因，可展开查看产物明细）
     ├── AdoptionCard（卡片头 + 展开/收起，首次展开按需拉取提案详情）
     └── ProposalDetailView（按任务类型解析 content：描述、结构化字段、来源引用、既有 vs 建议对照与警示，复用 ProposalCompareView）
@@ -1153,3 +1153,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-23 | 3.6.3 / 5.2 / 5.3 登记审核区产物导航：按 `proposals[]` 全量定位（已处置只读），切换按 `proposalKey` 按需加载；`review_case_review` 等只读类型任务详情以只读模式展示提案、无审核动作 |
 | V1.0 | 2026-11-23 | AI 决策轨迹下钻：2.6.3 detail 约定 `rawRequest`（请求摘要）与 `rawResponse`（完整响应）键及结构，3.6.4 随轨迹接口原样下发，4.2 登记门面层统一采集口径与脱敏边界，5.2 轨迹组件支持展开查看 |
 | V1.0 | 2026-11-23 | 任务列表与详情移除审核功能：5.2 组件树删除 `AiProposalReviewPanel`、「详情 / 审核」改「详情」，任务详情只保留执行、轨迹与采纳结果只读回看；提案详情端点保留供业务面板与回看卡片共用，5.3 状态分支同步 |
+| V1.0 | 2026-11-23 | 5.2 轨迹组件模型响应展示细化：`content` 先按 JSON 解析（含 Markdown 代码围栏剥离）为可折叠节点，失败保留原文，复制内容与展示一致；存储与接口不变 |
