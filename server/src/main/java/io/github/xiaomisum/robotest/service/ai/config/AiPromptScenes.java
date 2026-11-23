@@ -35,8 +35,6 @@ public final class AiPromptScenes {
                 new PromptVariable("bugContext", "缺陷草稿（标题 / 重现步骤 / 已选模块）", true),
                 new PromptVariable("moduleOptions", "候选模块清单", true),
                 new PromptVariable("caseOptions", "候选用例清单（id|标题，无则为空）", true))));
-        register(scenes, new PromptScene("bug_triage", "分诊顺序建议", List.of(
-                new PromptVariable("bugContext", "激活未指派缺陷清单", true))));
         register(scenes, new PromptScene("case_optimize", "用例优化", List.of(
                 new PromptVariable("caseContext", "选中用例节点与现有属性清单", true),
                 new PromptVariable("documentContext", "文档层级上下文", true),

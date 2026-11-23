@@ -97,7 +97,6 @@ public final class Constants {
         String CASE_OPTIMIZE = "case_optimize";
         String MINDMAP_CASE_GENERATION = "mindmap_case_generation";
         String PLAN_ORDER = "plan_order";
-        String BUG_TRIAGE = "bug_triage";
         String ASSISTANT_PARSE = "assistant_parse";
         String VECTOR_REINDEX = "vector_reindex";
         String REVIEW_CASE_REVIEW = "review_case_review";
@@ -116,7 +115,6 @@ public final class Constants {
      * AI 提案种类：与目标实体类型对齐
      */
     public interface AiProposalKind {
-        String BUG_TRIAGE = "triage_order";
         String CASE_OPTIMIZE_SUGGESTION = "case_optimize_suggestion";
         String MINDMAP_CASE_SUGGESTION = "mindmap_case_suggestion";
         String ORDER_SUGGESTION = "order_suggestion";

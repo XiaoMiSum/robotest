@@ -1,6 +1,5 @@
 package io.github.xiaomisum.robotest.service.ai.task.type;
 
-import io.github.xiaomisum.robotest.service.domain.bug.BugTriageTypeAdapter;
 import io.github.xiaomisum.robotest.service.domain.requirement.RequirementImportTypeAdapter;
 import io.github.xiaomisum.robotest.service.ai.assistant.AssistantParseTypeAdapter;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorReindexTypeAdapter;
@@ -25,13 +24,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StandardTaskTypeAdaptersTest {
 
     @Test
-    void fourOrdinaryAdaptersUseUnifiedBudgetAndCoverSeededTools() {
+    void threeOrdinaryAdaptersUseUnifiedBudgetAndCoverSeededTools() {
         List<TaskTypeAdapter> adapters = List.of(
                 new RequirementImportTypeAdapter(),
-                new CaseOptimizeTypeAdapter(), new PlanOrderTypeAdapter(),
-                new BugTriageTypeAdapter());
+                new CaseOptimizeTypeAdapter(), new PlanOrderTypeAdapter());
 
-        assertEquals(4, adapters.stream().map(TaskTypeAdapter::type).collect(Collectors.toSet()).size());
+        assertEquals(3, adapters.stream().map(TaskTypeAdapter::type).collect(Collectors.toSet()).size());
         adapters.forEach(adapter -> {
             assertEquals(TaskTypeAdapter.STANDARD_BUDGET, adapter.defaultBudget());
             assertFalse(adapter.toolCodes().isEmpty());
@@ -39,7 +37,7 @@ class StandardTaskTypeAdaptersTest {
         });
         Set<String> toolCodes = adapters.stream().flatMap(adapter -> adapter.toolCodes().stream())
                 .collect(Collectors.toSet());
-        assertEquals(6, toolCodes.size());
+        assertEquals(5, toolCodes.size());
         // 代码注册表 ⊇ 适配器声明，且注册表不再有本轮范围外的额外工具
         AgentToolRegistry registry = new AgentToolRegistry(ScopedSnapshotAgentTools.all());
         Set<String> registered = new LinkedHashSet<>();
@@ -62,29 +60,27 @@ class StandardTaskTypeAdaptersTest {
     }
 
     /**
-     * 8/8 类型适配器注册齐全（总册 3.6.1）：注册表覆盖全量枚举、类型唯一，
+     * 7/7 类型适配器注册齐全（总册 3.6.1）：注册表覆盖全量枚举、类型唯一，
      * 助手与向量两类自带预算与策略（不落入普通类型统一预算）。
      */
     @Test
-    void eightTypeAdaptersRegisterAcrossFullEnum() {
+    void sevenTypeAdaptersRegisterAcrossFullEnum() {
         Set<String> expectedTypes = Set.of(
                 "requirement_import",
                 "case_optimize", "mindmap_case_generation", "plan_order",
-                "bug_triage",
                 "assistant_parse", "vector_reindex", "review_case_review");
         List<TaskTypeAdapter> adapters = List.of(
                 new RequirementImportTypeAdapter(),
                 new CaseOptimizeTypeAdapter(), new MindmapCaseGenerationTypeAdapter(),
                 new PlanOrderTypeAdapter(),
-                new BugTriageTypeAdapter(),
                 new AssistantParseTypeAdapter(), new VectorReindexTypeAdapter(),
                 new ReviewCaseReviewTypeAdapter());
 
-        assertEquals(8, adapters.size());
+        assertEquals(7, adapters.size());
         assertEquals(expectedTypes, adapters.stream().map(TaskTypeAdapter::type)
                 .collect(Collectors.toSet()));
 
-        // Spring 同样按该集合装配：同 type 重复注册为装配错误，8 类全部可解析
+        // Spring 同样按该集合装配：同 type 重复注册为装配错误，7 类全部可解析
         TaskTypeAdapterRegistry registry = new TaskTypeAdapterRegistry(adapters);
         for (String type : expectedTypes) {
             assertTrue(registry.get(type) != null, "注册表缺类型: " + type);

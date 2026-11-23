@@ -17,7 +17,6 @@ class AiTaskTitleResolverTest {
 
     @Test
     void resolve_withoutSourceTitle_keepsTypeLabelOnly() {
-        assertEquals("缺陷分诊", AiTaskTitleResolver.resolve(Constants.AiTaskType.BUG_TRIAGE, null));
         assertEquals("用例优化", AiTaskTitleResolver.resolve(Constants.AiTaskType.CASE_OPTIMIZE, "   "));
     }
 
