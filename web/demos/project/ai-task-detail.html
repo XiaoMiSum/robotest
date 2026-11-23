@@ -81,7 +81,7 @@
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="plan">计划排序 · 待采纳</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="running">执行中</button>
         <button class="btn btn--default btn--sm" type="button" data-scene-btn="aborted">已终止</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="closed">已结束 · 采纳结果</button>
+        <button class="btn btn--default btn--sm" type="button" data-scene-btn="closed">已结束 · 只读回看</button>
       </div>
 
       <header class="task-head">
@@ -124,55 +124,13 @@
         <div class="card__body"><ol class="timeline" id="dt-trace-list"></ol></div>
       </section>
 
-      <section class="card task-section" id="dt-adoption-section" hidden>
+      <section class="card task-section" id="dt-proposal-section" hidden>
         <div class="card__body adoption-result">
           <header class="review-head">
-            <div class="review-head__main"><h2 class="section-title">采纳结果</h2><span class="tag tag--sm tag--warning">部分采纳</span></div>
-            <span class="muted">已结束任务逐条只读回看，不提供操作</span>
+            <div class="review-head__main"><h2 class="section-title">提案与审核结果</h2><span class="tag tag--sm" id="dt-proposal-result" hidden>部分采纳</span></div>
+            <span class="muted" id="dt-proposal-hint">只读查看提案产物与审核结果，不提供审核操作</span>
           </header>
-          <div class="collapse-item">
-            <button class="collapse-head" type="button" data-collapse>
-              <span class="collapse-head__kind">需求建议</span><span class="collapse-head__name">优惠券叠加规则</span><span class="tag tag--sm tag--success">已采纳</span>
-              <span class="collapse-head__note">备注：按建议补充叠加限制</span><span data-icon="chevron-down"></span>
-            </button>
-            <div class="collapse-body" hidden>
-              <div class="review-card__body">
-                <p>同一订单仅可使用一张优惠券，叠加规则写入需求描述。</p>
-                <div class="compare-view">
-                  <div class="compare-head"><span>项目</span><span>现有内容</span><span>AI 建议</span></div>
-                  <div class="compare-row compare-row--changed"><span class="compare-row__label">叠加规则</span><span class="compare-row__existing">未定义</span><span>同一订单仅一张</span></div>
-                  <div class="compare-row" data-unchanged hidden><span class="compare-row__label">适用端</span><span class="compare-row__existing">APP / H5</span><span>APP / H5</span></div>
-                  <button class="btn btn--link btn--sm compare-fold" type="button" data-compare-fold>展开其余 1 项无变化内容</button>
-                </div>
-                <dl class="review-fields"><div class="review-field"><dt>模块 ID</dt><dd>mod-coupon</dd></div><div class="review-field"><dt>优先级</dt><dd>高</dd></div></dl>
-                <div class="review-sources"><div class="review-source"><span class="review-source__title">REQ-24118</span><span class="review-source__quote">同一订单仅允许使用一张优惠券</span></div></div>
-              </div>
-            </div>
-          </div>
-          <div class="collapse-item">
-            <button class="collapse-head" type="button" data-collapse>
-              <span class="collapse-head__kind">用例</span><span class="collapse-head__name">重复优惠叠加用例</span><span class="tag tag--sm tag--neutral">已驳回</span>
-              <span class="collapse-head__note">驳回原因：与既有 P0 用例重复</span><span data-icon="chevron-down"></span>
-            </button>
-            <div class="collapse-body" hidden>
-              <div class="review-card__body">
-                <p>模型建议新增的叠加边界用例与既有 P0 用例覆盖点一致。</p>
-                <dl class="review-fields"><div class="review-field"><dt>模块 ID</dt><dd>mod-coupon</dd></div><div class="review-field"><dt>优先级</dt><dd>P0·高</dd></div></dl>
-                <div class="alert alert--warning">疑似与既有数据重复</div>
-              </div>
-            </div>
-          </div>
-          <div class="collapse-item">
-            <button class="collapse-head" type="button" data-collapse>
-              <span class="collapse-head__kind">排序建议</span><span class="collapse-head__name">结算主链路前置</span><span class="tag tag--sm tag--success">已采纳</span>
-              <span class="collapse-head__note">备注：沿用建议顺序</span><span data-icon="chevron-down"></span>
-            </button>
-            <div class="collapse-body" hidden>
-              <div class="review-card__body">
-                <ol class="case-steps"><li class="case-step">购物车结算主链路</li><li class="case-step">优惠叠加边界</li><li class="case-step">支付回调幂等</li></ol>
-              </div>
-            </div>
-          </div>
+          <div id="dt-proposal-list"></div>
         </div>
       </section>
     </div>
@@ -202,12 +160,16 @@
 
   var scenes = {
     import: {
-      title: '优惠券规则需求文档导入', status: '待采纳', statusTag: 'tag--warning', adoption: '',
+      title: '优惠券规则需求文档导入', status: '待采纳', statusTag: 'tag--warning', adoption: '待采纳',
       meta: '类型 需求导入（需求） · 发起人 陈晓 · 发起时间 2026-11-20 10:12',
       exec: '已成功', execTag: 'tag--success', steps: 8, max: 8, seq: 1,
-      terminate: '', poll: '任务处于待采纳，详情页已停止轮询',
+      terminate: '', poll: '任务处于待采纳，详情页已停止轮询；提案处置在需求管理页完成',
       plan: [['解析需求文档', 'done'], ['抽取候选需求', 'done'], ['生成需求建议', 'done'], ['等待人工确认', 'current']],
-      trace: [['计划', '生成 4 步执行计划', '10:12:03'], ['AI 决策', '按段落拆分需求条目', '10:12:11'], ['工具调用', 'document.parse', '10:12:15'], ['产出提案', '需求建议 ×3', '10:12:22'], ['状态变更', 'running → proposals_ready', '10:12:23']]
+      trace: [['计划', '生成 4 步执行计划', '10:12:03'], ['AI 决策', '按段落拆分需求条目', '10:12:11'], ['工具调用', 'document.parse', '10:12:15'], ['产出提案', '需求建议 ×3', '10:12:22'], ['状态变更', 'running → proposals_ready', '10:12:23']],
+      proposals: [
+        { kind: '需求建议', title: '优惠券叠加规则', status: '待采纳', tag: 'tag--warning', note: '', detail: '<p>同一订单仅可使用一张优惠券，叠加规则写入需求描述。</p><dl class="review-fields"><div class="review-field"><dt>模块 ID</dt><dd>mod-coupon</dd></div><div class="review-field"><dt>优先级</dt><dd>高</dd></div></dl>' },
+        { kind: '需求建议', title: '优惠券有效期说明', status: '待采纳', tag: 'tag--warning', note: '', detail: '<p>补充优惠券有效期、时区与过期提示说明。</p>' }
+      ]
     },
     readonly: {
       title: '优惠券边界用例优化建议', status: '待采纳', statusTag: 'tag--warning', adoption: '',
@@ -247,7 +209,11 @@
       exec: '已成功', execTag: 'tag--success', steps: 8, max: 8, seq: 1,
       terminate: '', poll: '任务已结束，详情页已停止轮询',
       plan: [['解析需求文档', 'done'], ['抽取候选需求', 'done'], ['生成需求建议', 'done'], ['写入采纳结果', 'done']],
-      trace: [['计划', '生成 4 步执行计划', '14:33:01'], ['产出提案', '需求建议 ×2 / 用例 ×1', '14:33:29'], ['状态变更', 'proposals_ready → closed', '14:41:12']]
+      trace: [['计划', '生成 4 步执行计划', '14:33:01'], ['产出提案', '需求建议 ×2 / 用例 ×1', '14:33:29'], ['状态变更', 'proposals_ready → closed', '14:41:12']],
+      proposals: [
+        { kind: '需求建议', title: '优惠券叠加规则', status: '已采纳', tag: 'tag--success', note: '备注：按建议补充叠加限制', detail: '<p>同一订单仅可使用一张优惠券，叠加规则写入需求描述。</p><dl class="review-fields"><div class="review-field"><dt>模块 ID</dt><dd>mod-coupon</dd></div><div class="review-field"><dt>优先级</dt><dd>高</dd></div></dl>' },
+        { kind: '用例', title: '重复优惠叠加用例', status: '已驳回', tag: 'tag--neutral', note: '驳回原因：与既有 P0 用例重复', detail: '<p>模型建议新增的叠加边界用例与既有 P0 用例覆盖点一致。</p><div class="alert alert--warning">疑似与既有数据重复</div>' }
+      ]
     }
   };
 
@@ -305,7 +271,27 @@
       btn.classList.toggle('btn--primary', btn.getAttribute('data-scene-btn') === name);
       btn.classList.toggle('btn--default', btn.getAttribute('data-scene-btn') !== name);
     });
-    byId('dt-adoption-section').hidden = name !== 'closed';
+    var proposalSection = byId('dt-proposal-section');
+    var proposals = scene.proposals || [];
+    proposalSection.hidden = proposals.length === 0;
+    var proposalResult = byId('dt-proposal-result');
+    proposalResult.hidden = !scene.adoption;
+    if (scene.adoption) {
+      proposalResult.className = 'tag tag--sm ' + (scene.adoption === '待采纳' ? 'tag--warning' : scene.adoption === '已采纳' ? 'tag--success' : 'tag--warning');
+      proposalResult.textContent = scene.adoption;
+    }
+    byId('dt-proposal-hint').textContent = name === 'closed'
+      ? '已结束任务逐条只读回看，不提供审核操作'
+      : '只读查看提案产物与审核结果，实际处置在对应业务面板完成';
+    byId('dt-proposal-list').innerHTML = proposals.map(function (item, idx) {
+      return '<div class="collapse-item"><button class="collapse-head" type="button" data-collapse>' +
+        '<span class="collapse-head__kind">' + esc(item.kind) + '</span><span class="collapse-head__name">' + esc(item.title) + '</span>' +
+        '<span class="tag tag--sm ' + esc(item.tag) + '">' + esc(item.status) + '</span>' +
+        (item.note ? '<span class="collapse-head__note">' + esc(item.note) + '</span>' : '') +
+        '<span data-icon="chevron-down"></span></button>' +
+        '<div class="collapse-body" ' + (idx === 0 ? '' : 'hidden') + '><div class="review-card__body">' + item.detail + '</div></div></div>';
+    }).join('');
+    if (window.RTIcons && typeof window.RTIcons.replace === 'function') window.RTIcons.replace();
 
     byId('dt-actions').innerHTML = name === 'running'
       ? '<button class="btn btn--danger" type="button" data-page-op="abort">终止</button>'

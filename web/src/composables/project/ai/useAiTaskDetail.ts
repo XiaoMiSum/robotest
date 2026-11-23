@@ -168,11 +168,16 @@ export function useAiTaskDetail() {
   /** 计划步骤时间线（plan 快照驱动，交互 2.2） */
   const planSteps = computed(() => aiPlanSteps(execution.value))
   const proposals = computed(() => detail.value?.proposals ?? [])
-  /** 任务级结果：closed 态由提案确认状态聚合派生（详设 3.6.3） */
+  /** 任务级结果：由提案确认状态聚合派生（详设 3.6.3） */
   const adoptionResult = computed(() => aiTaskAdoptionResult(proposals.value))
-  /** closed 且有提案时渲染只读回看区；aborted 不渲染 */
-  const showAdoptionResult = computed(
-    () => detail.value?.status === 'closed' && proposals.value.length > 0,
+  /** 有提案时渲染只读查看区：可查看产物与审核结果，不提供审核动作 */
+  const showProposalPanel = computed(
+    () =>
+      (detail.value?.status === 'proposals_ready' || detail.value?.status === 'closed') &&
+      proposals.value.length > 0,
+  )
+  const showEmptyProposals = computed(
+    () => detail.value?.status === 'proposals_ready' && proposals.value.length === 0,
   )
   const terminateText = computed(() => {
     const detailReason = detail.value?.terminateReason
@@ -227,7 +232,8 @@ export function useAiTaskDetail() {
     planSteps,
     proposals,
     adoptionResult,
-    showAdoptionResult,
+    showProposalPanel,
+    showEmptyProposals,
     terminateText,
     canAbort,
     canReExecute,

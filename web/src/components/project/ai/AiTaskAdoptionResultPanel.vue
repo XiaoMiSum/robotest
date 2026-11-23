@@ -4,7 +4,6 @@ import type { AiTaskProposalSummary } from '@/types'
 import {
   aiProposalConfirmMeta,
   aiProposalKindLabel,
-  aiTaskAdoptionProposals,
   type AiTaskAdoptionResultMeta,
 } from '@/composables/project/ai/taskPresentation'
 import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
@@ -21,7 +20,7 @@ const props = defineProps<{
 
 const base = useAiProposalReview(
   props.taskId,
-  () => aiTaskAdoptionProposals(props.proposals),
+  () => props.proposals ?? [],
   () => false,
   () => {},
   () => props.taskType,
@@ -60,12 +59,12 @@ watch(activeKeys, (keys, previous) => {
 <template>
   <section class="adoption-result">
     <div class="adoption-result__head">
-      <h2 class="adoption-result__title">采纳结果</h2>
+      <h2 class="adoption-result__title">提案与审核结果</h2>
       <el-tag v-if="result" :type="result.tagType" size="small" effect="light">
         {{ result.label }}
       </el-tag>
     </div>
-    <p v-if="rows.length === 0" class="adoption-result__empty">本次执行没有采纳或驳回记录</p>
+    <p v-if="rows.length === 0" class="adoption-result__empty">本次执行没有提案记录</p>
     <el-collapse v-else v-model="activeKeys" class="adoption-result__list">
       <el-collapse-item v-for="row in rows" :key="row.key" :name="row.key">
         <template #title>

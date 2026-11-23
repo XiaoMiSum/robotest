@@ -20,7 +20,8 @@ const {
   planSteps,
   proposals,
   adoptionResult,
-  showAdoptionResult,
+  showProposalPanel,
+  showEmptyProposals,
   terminateText,
   canAbort,
   canReExecute,
@@ -136,14 +137,23 @@ const {
           <TraceEventList :task-id="taskId" :execution-id="execution.executionId" />
         </section>
 
-        <!-- 已结束：逐条只读回看采纳 / 驳回结果，不提供操作（交互 2.2） -->
-        <section v-if="showAdoptionResult" class="task-section">
+        <!-- 提案与审核结果：只读查看产物与确认状态，不提供审核动作（交互 2.2/2.3） -->
+        <section v-if="showProposalPanel" class="task-section">
           <AiTaskAdoptionResultPanel
             :task-id="detail.taskId"
             :task-type="detail.type"
             :proposals="proposals"
             :result="adoptionResult"
           />
+        </section>
+
+        <section v-else-if="showEmptyProposals" class="task-section">
+          <el-empty
+            description="任务完成，但没有需要审核的提案"
+            :image-size="80"
+          >
+            <el-button @click="backToCenter">返回任务中心</el-button>
+          </el-empty>
         </section>
       </template>
     </template>

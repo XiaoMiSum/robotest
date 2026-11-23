@@ -71,19 +71,20 @@ describe('AiTaskAdoptionResultPanel', () => {
     })
   })
 
-  it('默认收起展示只读卡片，无采纳 / 驳回操作按钮', async () => {
+  it('默认收起展示只读卡片，包含待采纳提案且无审核操作按钮', async () => {
     const wrapper = mountPanel([
       proposal(),
       proposal({ key: 'p2', title: '短信登录', confirmStatus: 'rejected', note: '本期不支持' }),
-      proposal({ key: 'p3', confirmStatus: 'pending' }),
+      proposal({ key: 'p3', title: '找回密码', confirmStatus: 'pending' }),
     ])
 
-    expect(wrapper.text()).toContain('采纳结果')
+    expect(wrapper.text()).toContain('提案与审核结果')
     expect(wrapper.text()).toContain('部分采纳')
     expect(wrapper.text()).toContain('登录验证码')
     expect(wrapper.text()).toContain('短信登录')
+    expect(wrapper.text()).toContain('找回密码')
     expect(wrapper.text()).toContain('驳回原因：本期不支持')
-    expect(wrapper.findAll('.el-collapse-item')).toHaveLength(2)
+    expect(wrapper.findAll('.el-collapse-item')).toHaveLength(3)
     expect(wrapper.text()).not.toContain('需求描述')
     expect(wrapper.findAll('button')).toHaveLength(0)
     await flushPromises()
@@ -136,13 +137,10 @@ describe('AiTaskAdoptionResultPanel', () => {
     expect(wrapper.text()).toContain('暂无明细')
   })
 
-  it('无采纳记录展示空态', () => {
-    const wrapper = mountPanel([
-      proposal({ confirmStatus: 'pending' }),
-      proposal({ key: 'p4', confirmStatus: 'not_applicable' }),
-    ])
+  it('无提案记录展示空态', () => {
+    const wrapper = mountPanel([])
 
-    expect(wrapper.text()).toContain('本次执行没有采纳或驳回记录')
+    expect(wrapper.text()).toContain('本次执行没有提案记录')
     expect(wrapper.findAll('.el-collapse-item')).toHaveLength(0)
   })
 })

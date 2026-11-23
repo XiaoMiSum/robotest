@@ -245,12 +245,21 @@ describe('useAiTaskDetail', () => {
       expect(s.canAbort.value).toBe(false)
     })
 
-    it('待采纳但无提案时不展示采纳回看区', async () => {
+    it('待采纳但无提案时不展示只读提案区', async () => {
       mocks.fetchAiTask.mockResolvedValue(makeDetail({ proposals: null }))
       const s = mountDetail()
       await vi.waitFor(() => expect(s.loading.value).toBe(false))
-      expect(s.showAdoptionResult.value).toBe(false)
+      expect(s.showProposalPanel.value).toBe(false)
+      expect(s.showEmptyProposals.value).toBe(true)
       expect(s.proposals.value).toEqual([])
+    })
+
+    it('待采纳有提案时展示只读提案区', async () => {
+      const s = mountDetail()
+      await vi.waitFor(() => expect(s.loading.value).toBe(false))
+      expect(s.detail.value?.status).toBe('proposals_ready')
+      expect(s.showProposalPanel.value).toBe(true)
+      expect(s.showEmptyProposals.value).toBe(false)
     })
 
     it('已结束按提案确认状态派生任务级结果并展示只读回看', async () => {
@@ -276,16 +285,17 @@ describe('useAiTaskDetail', () => {
         ],
       }))
       const s = mountDetail()
-      await vi.waitFor(() => expect(s.showAdoptionResult.value).toBe(true))
+      await vi.waitFor(() => expect(s.showProposalPanel.value).toBe(true))
       expect(s.adoptionResult.value?.label).toBe('部分采纳')
       expect(s.detail.value?.proposals?.[1].note).toBe('本期不支持')
     })
 
-    it('已终止不展示采纳回看区', async () => {
+    it('已终止不展示只读提案区', async () => {
       mocks.fetchAiTask.mockResolvedValue(makeAbortedDetail())
       const s = mountDetail()
       await vi.waitFor(() => expect(s.loading.value).toBe(false))
-      expect(s.showAdoptionResult.value).toBe(false)
+      expect(s.showProposalPanel.value).toBe(false)
+      expect(s.showEmptyProposals.value).toBe(false)
       expect(s.adoptionResult.value).toBeNull()
     })
 
