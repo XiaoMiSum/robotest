@@ -6,6 +6,8 @@ import type {
   AiTaskPlanSnapshot,
   AiTaskStatus,
   AiTraceEventType,
+  AiTraceRawRequest,
+  AiTraceRawResponse,
 } from '@/types'
 
 // ==================== 任务状态徽标 ====================
@@ -201,6 +203,50 @@ export const AI_TRACE_EVENT_LABEL: Record<AiTraceEventType, string> = {
 
 export function aiTraceEventLabel(eventType: string): string {
   return AI_TRACE_EVENT_LABEL[eventType as AiTraceEventType] ?? eventType
+}
+
+/** 仅 AI 决策事件有原始数据键；其余事件或存量事件缺键时返回 null 走空态 */
+export function isAiDecisionEvent(eventType: string): boolean {
+  return eventType === 'ai_decision'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** detail.rawRequest 含上下文对象即为有效请求摘要（字段缺失按空态处理） */
+export function aiTraceRawRequest(detail: unknown): AiTraceRawRequest | null {
+  if (!isRecord(detail) || !isRecord(detail.context)) return null
+  return {
+    model: typeof detail.model === 'string' ? detail.model : null,
+    promptScene: typeof detail.promptScene === 'string' ? detail.promptScene : null,
+    context: {
+      taskType: typeof detail.context.taskType === 'string' ? detail.context.taskType : null,
+      input: detail.context.input ?? null,
+      feedback: typeof detail.context.feedback === 'string' ? detail.context.feedback : null,
+    },
+    tools: Array.isArray(detail.tools)
+      ? detail.tools.filter((item): item is string => typeof item === 'string')
+      : [],
+  }
+}
+
+/** detail.rawResponse 为对象即为有效完整响应（字段按需收窄，缺失留空） */
+export function aiTraceRawResponse(detail: unknown): AiTraceRawResponse | null {
+  if (!isRecord(detail)) return null
+  const toolCalls = Array.isArray(detail.toolCalls)
+    ? detail.toolCalls.filter(isRecord).map((call) => ({
+        id: typeof call.id === 'string' ? call.id : '',
+        name: typeof call.name === 'string' ? call.name : '',
+        arguments: typeof call.arguments === 'string' ? call.arguments : '',
+      }))
+    : []
+  return {
+    content: typeof detail.content === 'string' ? detail.content : null,
+    toolCalls,
+    finishReason: typeof detail.finishReason === 'string' ? detail.finishReason : null,
+    usage: isRecord(detail.usage) ? detail.usage : {},
+  }
 }
 
 // ==================== 提案 ====================

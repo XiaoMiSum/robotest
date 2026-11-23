@@ -9,9 +9,11 @@ const props = defineProps<{
   depth: number
   /** 父级为对象成员时为 true（数组元素不展示下标 key） */
   parentHasKey?: boolean
+  /** 完整响应可能较大，详情场景默认折叠，避免首屏展开大量节点 */
+  initiallyCollapsed?: boolean
 }>()
 
-const collapsed = ref(false)
+const collapsed = ref(props.initiallyCollapsed ?? false)
 
 const kind = computed(() => {
   if (props.value === null) return 'null'

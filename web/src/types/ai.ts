@@ -138,6 +138,26 @@ export interface AiTaskDetail extends AiTaskItem {
   proposals: AiTaskProposalSummary[] | null
 }
 
+/** AI 决策请求摘要（detail.rawRequest，仅业务上下文与工具名，不含密钥） */
+export interface AiTraceRawRequest {
+  model: string | null
+  promptScene: string | null
+  context: {
+    taskType: string | null
+    input: unknown
+    feedback: string | null
+  }
+  tools: string[]
+}
+
+/** AI 决策完整模型响应（detail.rawResponse） */
+export interface AiTraceRawResponse {
+  content: string | null
+  toolCalls: Array<{ id: string; name: string; arguments: string }>
+  finishReason: string | null
+  usage: Record<string, unknown>
+}
+
 /** 轨迹事件行（详设 3.6.4 events，只增不改） */
 export interface AiTaskTraceEvent {
   seq: number

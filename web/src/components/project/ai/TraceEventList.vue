@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import { useAiTaskStore } from '@/stores/aiTask'
-import { aiTraceEventLabel } from '@/composables/project/ai/taskPresentation'
+import JsonResponseView from '@/components/common/JsonResponseView.vue'
+import {
+  aiTraceEventLabel,
+  aiTraceRawRequest,
+  aiTraceRawResponse,
+  isAiDecisionEvent,
+} from '@/composables/project/ai/taskPresentation'
+import type { AiTaskTraceEvent } from '@/types'
 
 const props = defineProps<{
   taskId: string
@@ -12,6 +20,8 @@ const props = defineProps<{
 
 const store = useAiTaskStore()
 const expanded = ref(false)
+/** 手风琴：同一时刻只展开一条 AI 决策的原始详情，seq 为 null 表示全部收起 */
+const openDetailSeq = ref<number | null>(null)
 
 const events = computed(() => store.events)
 const loading = computed(() => store.eventsLoading)
@@ -31,6 +41,7 @@ watch(
       store.resetEvents()
       return
     }
+    openDetailSeq.value = null
     if (expanded.value) void load(true)
     else store.resetEvents()
   },
@@ -39,7 +50,33 @@ watch(
 
 function toggle(): void {
   expanded.value = !expanded.value
+  if (!expanded.value) openDetailSeq.value = null
   if (expanded.value && store.eventsExecutionId !== props.executionId) void load(true)
+}
+
+function canExpand(event: AiTaskTraceEvent): boolean {
+  return isAiDecisionEvent(event.eventType)
+}
+
+function toggleDetail(seq: number): void {
+  openDetailSeq.value = openDetailSeq.value === seq ? null : seq
+}
+
+function requestOf(event: AiTaskTraceEvent) {
+  return aiTraceRawRequest(event.detail?.rawRequest)
+}
+
+function responseOf(event: AiTaskTraceEvent) {
+  return aiTraceRawResponse(event.detail?.rawResponse)
+}
+
+async function copy(section: unknown): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(section, null, 2))
+    ElMessage.success('已复制')
+  } catch {
+    ElMessage.warning('复制失败，请手动选择复制')
+  }
 }
 </script>
 
@@ -81,12 +118,76 @@ function toggle(): void {
 
       <ul v-else class="trace-events__list">
         <li v-for="event in events" :key="event.seq" class="trace-events__item">
-          <span class="trace-events__seq">#{{ event.seq }}</span>
-          <el-tag size="small" effect="plain" class="trace-events__type">
-            {{ aiTraceEventLabel(event.eventType) }}
-          </el-tag>
-          <span class="trace-events__summary">{{ event.summary || '—' }}</span>
-          <time class="trace-events__time">{{ formatDateTime(event.createdAt) }}</time>
+          <div class="trace-events__row">
+            <span class="trace-events__seq">#{{ event.seq }}</span>
+            <el-tag size="small" effect="plain" class="trace-events__type">
+              {{ aiTraceEventLabel(event.eventType) }}
+            </el-tag>
+            <span class="trace-events__summary">{{ event.summary || '—' }}</span>
+            <el-button
+              v-if="canExpand(event)"
+              link
+              type="primary"
+              class="trace-events__detail-toggle"
+              @click="toggleDetail(event.seq)"
+            >
+              {{ openDetailSeq === event.seq ? '收起详情 ▴' : '查看详情 ▾' }}
+            </el-button>
+            <time class="trace-events__time">{{ formatDateTime(event.createdAt) }}</time>
+          </div>
+
+          <div v-if="canExpand(event) && openDetailSeq === event.seq" class="trace-events__detail">
+            <template v-if="requestOf(event) || responseOf(event)">
+              <section class="trace-events__section">
+                <div class="trace-events__section-head">
+                  <span class="trace-events__section-title">请求摘要</span>
+                  <el-button
+                    v-if="requestOf(event)"
+                    link
+                    size="small"
+                    :disabled="!requestOf(event)"
+                    @click="void copy(requestOf(event))"
+                  >
+                    复制
+                  </el-button>
+                </div>
+                <div v-if="requestOf(event)" class="trace-events__json">
+                  <JsonResponseView
+                    :value="requestOf(event)"
+                    path="rawRequest"
+                    :depth="0"
+                    :initially-collapsed="true"
+                  />
+                </div>
+                <div v-else class="trace-events__empty">暂无原始数据</div>
+              </section>
+
+              <section class="trace-events__section">
+                <div class="trace-events__section-head">
+                  <span class="trace-events__section-title">模型响应</span>
+                  <el-button
+                    v-if="responseOf(event)"
+                    link
+                    size="small"
+                    :disabled="!responseOf(event)"
+                    @click="void copy(responseOf(event))"
+                  >
+                    复制
+                  </el-button>
+                </div>
+                <div v-if="responseOf(event)" class="trace-events__json">
+                  <JsonResponseView
+                    :value="responseOf(event)"
+                    path="rawResponse"
+                    :depth="0"
+                    :initially-collapsed="true"
+                  />
+                </div>
+                <div v-else class="trace-events__empty">暂无原始数据</div>
+              </section>
+            </template>
+            <div v-else class="trace-events__empty">暂无原始数据</div>
+          </div>
         </li>
       </ul>
 
@@ -138,12 +239,15 @@ function toggle(): void {
 }
 
 .trace-events__item {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-sm);
   padding: var(--space-xs) 0;
   border-bottom: 1px solid var(--color-neutral-100, var(--color-neutral-200));
   font-size: var(--font-size-sm);
+}
+
+.trace-events__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
 }
 
 .trace-events__seq {
@@ -163,10 +267,48 @@ function toggle(): void {
   overflow-wrap: anywhere;
 }
 
+.trace-events__detail-toggle {
+  flex-shrink: 0;
+  height: auto;
+  padding: 0;
+}
+
 .trace-events__time {
   flex-shrink: 0;
   color: var(--color-neutral-400);
   font-size: var(--font-size-xs);
+}
+
+.trace-events__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+  padding: var(--space-sm);
+  background: var(--color-neutral-50, var(--color-neutral-100));
+  border-radius: var(--radius-sm);
+}
+
+.trace-events__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trace-events__section-title {
+  color: var(--color-neutral-700);
+  font-weight: 600;
+}
+
+.trace-events__json {
+  margin-top: var(--space-xs);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.trace-events__empty {
+  padding: var(--space-xs) 0;
+  color: var(--color-neutral-400);
 }
 
 .trace-events__more {
