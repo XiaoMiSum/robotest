@@ -124,22 +124,20 @@ describe('reviewProfiles', () => {
   })
 
   describe('AI 评审', () => {
-    it('允许采纳、编辑结论与理由、驳回，并提供对应编辑字段', () => {
+    it('任务详情只读展示，不提供采纳、编辑与驳回动作', () => {
       const profile = reviewProfile('review_case_review')
 
       expect(profile.title).toBe('AI 评审结果')
-      expect(isReadonlyProfile(profile)).toBe(false)
+      expect(isReadonlyProfile(profile)).toBe(true)
+      expect(profile.allowAdopt).toBe(false)
+      expect(profile.allowEdit).toBe(false)
+      expect(profile.allowReject).toBe(false)
       expect(profile.allowBatch).toBe(false)
-      expect(profile.editFields).toEqual([
-        {
-          key: 'suggestedMark', label: '评审结论', type: 'select', required: true,
-          options: [{ value: 'pass', label: '通过' }, { value: 'fail', label: '不通过' }],
-        },
-        { key: 'reason', label: '评审理由', type: 'textarea', maxlength: 500 },
-      ])
+      expect(profile.editFields).toEqual([])
+      expect(profile.buildEditedContent({}, {})).toEqual({})
     })
 
-    it('解析建议原因、问题清单与来源引用作为预览和编辑初值', () => {
+    it('解析建议原因、问题清单与来源引用作为只读预览', () => {
       const profile = reviewProfile('review_case_review')
       const parsed = profile.parse(
         {
@@ -167,21 +165,7 @@ describe('reviewProfiles', () => {
       expect(parsed.sourceRefs).toEqual([
         { id: 'r1', title: 'REQ-001', quote: '错误时提示', changed: false },
       ])
-      expect(parsed.editValues).toEqual({
-        suggestedMark: 'fail', reason: '缺少错误分支预期',
-      })
-    })
-
-    it('编辑载荷只包含人工修正后的结论与理由', () => {
-      const profile = reviewProfile('review_case_review')
-
-      expect(profile.buildEditedContent(
-        { suggestedMark: 'pass', reason: '  人工复核通过  ' },
-        {},
-      )).toEqual({ suggestedMark: 'pass', reason: '人工复核通过' })
-      expect(profile.buildEditedContent({}, {})).toEqual({
-        suggestedMark: 'pass', reason: '',
-      })
+      expect(parsed.editValues).toEqual({ title: '兜底' })
     })
   })
 

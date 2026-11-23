@@ -89,7 +89,7 @@ describe('AiProposalReviewPanel', () => {
     expect(wrapper.text()).not.toContain('第五项')
   })
 
-  it('当前产物处理后按最新清单自动切换下一条', async () => {
+  it('已处置项保留在导航中且只读，可切换回看', async () => {
     const wrapper = mountPanel('case_optimize', [
       proposal(),
       proposal({ key: 'p2', title: '第二项' }),
@@ -106,10 +106,59 @@ describe('AiProposalReviewPanel', () => {
     })
     await flushPromises()
 
-    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
-    expect(wrapper.text()).not.toContain('登录用例优化')
+    expect(wrapper.text()).toContain('第 1 / 3 条')
+    expect(wrapper.text()).toContain('登录用例优化')
+    expect(wrapper.text()).not.toContain('修改后采纳')
+    expect(wrapper.text()).not.toContain('驳回')
+
+    await wrapper.findAll('.proposal-review__nav button')[1].trigger('click')
+    await flushPromises()
     expect(wrapper.text()).toContain('第二项')
-    expect(wrapper.text()).not.toContain('第三项')
+    expect(wrapper.text()).not.toContain('登录用例优化')
+  })
+
+  it('多产物按上一个/下一个导航并按需加载，边界禁用', async () => {
+    const wrapper = mountPanel('case_optimize', [
+      proposal(),
+      proposal({ key: 'p2', title: '第二项' }),
+      proposal({ key: 'p3', title: '第三项' }),
+    ])
+    await flushPromises()
+
+    const navButtons = () => wrapper.findAll('.proposal-review__nav button')
+    expect(wrapper.text()).toContain('第 1 / 3 条')
+    expect(navButtons()[0].attributes('disabled')).toBeDefined()
+    expect(navButtons()[1].attributes('disabled')).toBeUndefined()
+    expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'p1')
+
+    await navButtons()[1].trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('第 2 / 3 条')
+    expect(wrapper.text()).toContain('第二项')
+    expect(wrapper.text()).not.toContain('登录用例优化')
+    expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'p2')
+
+    await navButtons()[0].trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('第 1 / 3 条')
+    expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(2)
+  })
+
+  it('导航加载失败卡片内提示可重试，已加载项保留', async () => {
+    const wrapper = mountPanel('case_optimize', [
+      proposal(),
+      proposal({ key: 'p2', title: '第二项' }),
+    ])
+    await flushPromises()
+    mocks.fetchAiProposal.mockRejectedValueOnce(new Error('明细加载失败'))
+
+    await wrapper.findAll('.proposal-review__nav button')[1].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('明细加载失败')
+    expect(wrapper.text()).toContain('重试')
+    expect(wrapper.text()).toContain('第 2 / 2 条')
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
   })
 
   it('不渲染左侧列表、勾选、全选与批量操作计数', () => {
@@ -180,14 +229,28 @@ describe('AiProposalReviewPanel', () => {
     )
   })
 
-  it('全部驳回展示空态', async () => {
+  it('只读提案不误报已全部审核完成', async () => {
     const wrapper = mountPanel('case_optimize', [
-      proposal({ confirmStatus: 'rejected' }),
+      proposal({ confirmStatus: 'not_applicable' }),
+    ])
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('待处理提案已全部审核完成')
+    expect(wrapper.text()).not.toContain('已全部驳回')
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
+  })
+
+  it('全部驳回保留卡片供导航回看并展示驳回原因', async () => {
+    const wrapper = mountPanel('case_optimize', [
+      proposal({ confirmStatus: 'rejected', note: '与实际流程不符' }),
       proposal({ key: 'p2', confirmStatus: 'rejected' }),
     ])
     await flushPromises()
 
     expect(wrapper.text()).toContain('已全部驳回')
-    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(0)
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
+    expect(wrapper.text()).toContain('驳回原因：与实际流程不符')
+    expect(wrapper.text()).toContain('第 1 / 2 条')
+    expect(wrapper.text()).not.toContain('采纳')
   })
 })

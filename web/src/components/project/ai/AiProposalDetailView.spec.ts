@@ -25,6 +25,7 @@ function row(overrides: Partial<ProposalRow> = {}): ProposalRow {
     kindLabel: '需求建议',
     confirmMeta: { label: '已采纳', tagType: 'success' },
     contentLoaded: true,
+    contentError: '',
     rawContent: {},
     parsed: {
       description: '',

@@ -81,6 +81,8 @@ export interface ProposalRow extends AiTaskProposalSummary {
   /** 原始 content 与按任务类型策略解析的结构化视图（方案驱动预览与编辑） */
   rawContent: Record<string, unknown>
   parsed: ProposalParsed
+  /** 产物详情按需加载失败原因，卡片内提示并支持重试 */
+  contentError: string
 }
 
 /** 逐项回执行（AiConfirmReceipt 展示与单项重试载荷，非任务重试） */
@@ -119,6 +121,12 @@ export function useAiProposalReview(
 
   const activeRow = computed(
     () => rows.value.find((row) => row.key === activeKey.value) ?? null,
+  )
+  /** 审核区导航位置（交互 2.3）：按全部提案顺序定位，含已处置项 */
+  const activeIndex = computed(() => rows.value.findIndex((row) => row.key === activeKey.value))
+  const canGoPrev = computed(() => activeIndex.value > 0)
+  const canGoNext = computed(
+    () => activeIndex.value >= 0 && activeIndex.value < rows.value.length - 1,
   )
 
   const selectableRows = computed(() =>
@@ -159,14 +167,15 @@ export function useAiProposalReview(
         contentLoaded: existing?.contentLoaded ?? false,
         rawContent: existing?.rawContent ?? {},
         parsed: existing?.parsed ?? emptyParsed(proposal.title ?? ''),
+        contentError: existing?.contentError ?? '',
       }
     })
     // 已确认项移出选择集，避免残留选择态
     selectedKeys.value = selectedKeys.value.filter((key) =>
       rows.value.some((row) => row.key === key && row.confirmStatus === 'pending'),
     )
-    if (activeKey.value && !rows.value.some((row) => row.key === activeKey.value)) {
-      activeKey.value = ''
+    if (!rows.value.some((row) => row.key === activeKey.value)) {
+      activeKey.value = rows.value[0]?.key ?? ''
     }
   }
 
@@ -174,6 +183,7 @@ export function useAiProposalReview(
   async function loadContent(row: ProposalRow): Promise<void> {
     if (row.contentLoaded) return
     loadingContent.value = true
+    row.contentError = ''
     try {
       const payload = await fetchAiProposal(taskId, row.key)
       const raw = payload.content ?? {}
@@ -189,8 +199,8 @@ export function useAiProposalReview(
       }
       row.contentLoaded = true
     } catch (err) {
-      // 内容加载失败保留只读占位，不阻塞其余动作
-      ElMessage.error(errorMessage(err, '加载提案内容失败'))
+      row.contentError = errorMessage(err, '加载提案内容失败')
+      ElMessage.error(row.contentError)
     } finally {
       loadingContent.value = false
     }
@@ -200,6 +210,19 @@ export function useAiProposalReview(
     activeKey.value = key
     const row = rows.value.find((item) => item.key === key)
     if (row) void loadContent(row)
+  }
+
+  /** 上一条 / 下一条：切换时按 proposalKey 按需获取当前产物完整信息（详设 3.6.3） */
+  function movePrev(): void {
+    if (!canGoPrev.value) return
+    const row = rows.value[activeIndex.value - 1]
+    if (row) select(row.key)
+  }
+
+  function moveNext(): void {
+    if (!canGoNext.value) return
+    const row = rows.value[activeIndex.value + 1]
+    if (row) select(row.key)
   }
 
   function toggle(key: string, checked: boolean): void {
@@ -240,6 +263,12 @@ export function useAiProposalReview(
             ? '已全部驳回，未创建任何数据'
             : '确认完成',
         )
+        // 处置成功后自动定位下一条待处理提案（交互 2.3）
+        const handled = new Set(items.map((item) => item.key))
+        const next = rows.value.find(
+          (row) => row.confirmStatus === 'pending' && !handled.has(row.key),
+        )
+        if (next) select(next.key)
       }
       // 服务端确认状态覆盖本地缓存，刷新提案清单（状态管理 4）
       onConfirmed()
@@ -362,7 +391,10 @@ export function useAiProposalReview(
     rows,
     selectedKeys,
     activeKey,
+    activeIndex,
     activeRow,
+    canGoPrev,
+    canGoNext,
     loadingContent,
     moduleTree,
     confirming,
@@ -385,6 +417,8 @@ export function useAiProposalReview(
     syncRows,
     init,
     select,
+    movePrev,
+    moveNext,
     toggle,
     toggleAll,
     loadContent,

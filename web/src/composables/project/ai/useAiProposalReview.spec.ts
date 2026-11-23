@@ -100,7 +100,7 @@ describe('useAiProposalReview', () => {
       await expect(Promise.resolve()).resolves.toBeUndefined()
     })
 
-    it('提案消失时清空选中与激活态', () => {
+    it('提案消失时清空选中并将激活态定位到剩余首条', () => {
       let artifacts = [summary()]
       const review = useAiProposalReview('t1', () => artifacts, () => true, vi.fn())
       review.init()
@@ -110,7 +110,7 @@ describe('useAiProposalReview', () => {
 
       artifacts = [summary({ key: 'a9' })]
       review.syncRows()
-      expect(review.activeKey.value).toBe('')
+      expect(review.activeKey.value).toBe('a9')
       expect(review.selectedKeys.value).toEqual([])
     })
 
@@ -176,6 +176,18 @@ describe('useAiProposalReview', () => {
         expect(mocks.ElMessage.error).toHaveBeenCalledWith('提案不存在'),
       )
       expect(s.rows.value[0].contentLoaded).toBe(false)
+    })
+
+    it('内容加载失败记录原因便于卡片内重试', async () => {
+      mocks.fetchAiProposal.mockRejectedValue(new Error('明细加载失败'))
+      const s = setupProposals([summary()])
+      s.init()
+      s.select('a1')
+      await vi.waitFor(() => expect(s.rows.value[0].contentError).toBe('明细加载失败'))
+      mocks.fetchAiProposal.mockResolvedValue({ content: { title: '登录验证码' } })
+      await s.loadContent(s.rows.value[0])
+      expect(s.rows.value[0].contentError).toBe('')
+      expect(s.rows.value[0].contentLoaded).toBe(true)
     })
 
     it('模块树失败降级为空树', async () => {
@@ -351,6 +363,58 @@ describe('useAiProposalReview', () => {
         items: [{ key: 'a1', action: 'adopted' }],
         target: undefined,
       })
+    })
+  })
+
+  describe('产物导航', () => {
+    it('按全部提案顺序切换，边界禁用且不重复请求', async () => {
+      mocks.fetchAiProposal.mockResolvedValue({ content: {} })
+      const s = setupProposals([
+        summary(),
+        summary({ key: 'a2', title: '第二项' }),
+        summary({ key: 'a3', title: '第三项' }),
+      ])
+      s.init()
+      expect(s.activeIndex.value).toBe(0)
+      expect(s.canGoPrev.value).toBe(false)
+      expect(s.canGoNext.value).toBe(true)
+
+      s.movePrev()
+      expect(s.activeKey.value).toBe('a1')
+
+      s.moveNext()
+      expect(s.activeKey.value).toBe('a2')
+      expect(s.activeIndex.value).toBe(1)
+      expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'a2')
+      await vi.waitFor(() => expect(s.rows.value[1].contentLoaded).toBe(true))
+
+      s.moveNext()
+      expect(s.activeKey.value).toBe('a3')
+      expect(s.canGoNext.value).toBe(false)
+      s.moveNext()
+      expect(s.activeKey.value).toBe('a3')
+      await vi.waitFor(() => expect(s.rows.value[2].contentLoaded).toBe(true))
+
+      s.movePrev()
+      expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(2)
+    })
+
+    it('处置成功后自动定位下一条待处理提案', async () => {
+      mocks.fetchAiProposal.mockResolvedValue({ content: {} })
+      mocks.confirmAiProposals.mockResolvedValue({
+        results: [
+          { key: 'a1', action: 'adopted', success: true, createdId: null, errorCode: null, errorMsg: null },
+        ],
+      })
+      const s = setupProposals([
+        summary(),
+        summary({ key: 'a2', title: '第二项' }),
+        summary({ key: 'a3', confirmStatus: 'rejected' }),
+      ])
+      s.init()
+      s.select('a1')
+      await s.handleAdopt(s.rows.value[0])
+      expect(s.activeKey.value).toBe('a2')
     })
   })
 

@@ -205,29 +205,9 @@ const planOrderProfile: ProposalReviewProfile = {
   },
 }
 
-/** AI 评审结论与理由可人工修正，写回由后端承接（AI 评审详设 3.4 / 4.3） */
+/** AI 评审采纳在评审详情页面板执行，任务详情仅只读展示逐用例建议（AI 评审详设 5.2） */
 const reviewCaseReviewProfile: ProposalReviewProfile = {
-  taskType: 'review_case_review',
-  title: 'AI 评审结果',
-  allowAdopt: true,
-  allowEdit: true,
-  allowReject: true,
-  allowBatch: false,
-  needModuleTree: false,
-  needSystemVersion: false,
-  editFields: [
-    {
-      key: 'suggestedMark',
-      label: '评审结论',
-      type: 'select',
-      required: true,
-      options: [
-        { value: 'pass', label: '通过' },
-        { value: 'fail', label: '不通过' },
-      ],
-    },
-    { key: 'reason', label: '评审理由', type: 'textarea', maxlength: 500 },
-  ],
+  ...readonlyProfile('review_case_review', 'AI 评审结果'),
   parse(content, fallbackTitle) {
     const parsed = emptyParsed(fallbackTitle)
     const view = readReview(content)
@@ -246,14 +226,7 @@ const reviewCaseReviewProfile: ProposalReviewProfile = {
       })
     }
     parsed.sourceRefs = view.sourceRefs.map((ref) => ({ ...ref, changed: false }))
-    parsed.editValues = { suggestedMark: view.suggestedMark, reason: view.reason }
     return parsed
-  },
-  buildEditedContent(values) {
-    return {
-      suggestedMark: values.suggestedMark === 'fail' ? 'fail' : 'pass',
-      reason: typeof values.reason === 'string' ? values.reason.trim() : '',
-    }
   },
 }
 

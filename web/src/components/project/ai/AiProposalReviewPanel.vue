@@ -24,6 +24,12 @@ const emit = defineEmits<{ confirmed: []; leave: [] }>()
 
 const {
   rows,
+  activeRow,
+  activeIndex,
+  canGoPrev,
+  canGoNext,
+  movePrev,
+  moveNext,
   moduleTree,
   confirming,
   receipt,
@@ -56,19 +62,19 @@ const {
 
 init()
 
-/** 审核区只呈现当前 1 条待处理产物；确认成功后由清单刷新自动切换下一条 */
-const cardRows = computed(() =>
-  rows.value
-    .filter((row) => row.confirmStatus === 'pending' || row.confirmStatus === 'not_applicable')
-    .slice(0, 1),
-)
-const allRejected = computed(
-  () => rows.value.length > 0 && rows.value.every((row) => row.confirmStatus === 'rejected'),
-)
-const allHandled = computed(() => rows.value.length > 0 && cardRows.value.length === 0)
+const HANDLED_CONFIRM_STATUSES = new Set(['adopted', 'adopted_edited', 'rejected'])
+
+/** 全部处置完成后保留卡片供导航回看，仅在头部提示并给出返回入口 */
+const handledHint = computed(() => {
+  if (rows.value.length === 0) return ''
+  if (!rows.value.every((row) => HANDLED_CONFIRM_STATUSES.has(row.confirmStatus))) return ''
+  return rows.value.every((row) => row.confirmStatus === 'rejected')
+    ? '已全部驳回，未创建任何数据'
+    : '待处理提案已全部审核完成'
+})
 
 async function preloadVisible(): Promise<void> {
-  await Promise.all(cardRows.value.map((row) => loadContent(row)))
+  if (activeRow.value) await loadContent(activeRow.value)
 }
 void preloadVisible()
 
@@ -268,24 +274,32 @@ async function submitReject(): Promise<void> {
       class="proposal-review__hint"
     />
 
-    <div v-if="allRejected" class="proposal-review__empty">
-      <el-empty description="已全部驳回，未创建任何数据" :image-size="80">
-        <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
-      </el-empty>
-    </div>
-    <div v-else-if="allHandled" class="proposal-review__empty">
-      <el-empty description="待处理提案已全部审核完成" :image-size="80">
-        <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
-      </el-empty>
-    </div>
-    <div v-else-if="rows.length === 0" class="proposal-review__empty">
+    <el-alert
+      v-if="handledHint"
+      type="info"
+      :title="handledHint"
+      show-icon
+      :closable="false"
+      class="proposal-review__hint"
+    >
+      <template #default>
+        <el-button link type="primary" @click="emit('leave')">返回任务中心</el-button>
+      </template>
+    </el-alert>
+
+    <div v-if="rows.length === 0" class="proposal-review__empty">
       <el-empty description="提案为空（执行未产出建议）" :image-size="80">
         <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
       </el-empty>
     </div>
 
     <div v-else class="proposal-review__items">
-      <div v-for="row in cardRows" :key="row.key" class="proposal-review__item">
+      <div v-if="rows.length >= 2" class="proposal-review__nav">
+        <el-button link :disabled="!canGoPrev" @click="movePrev">上一个</el-button>
+        <span class="proposal-review__nav-pos">第 {{ activeIndex + 1 }} / {{ rows.length }} 条</span>
+        <el-button link :disabled="!canGoNext" @click="moveNext">下一个</el-button>
+      </div>
+      <div v-for="row in activeRow ? [activeRow] : []" :key="row.key" class="proposal-review__item">
         <div class="proposal-review__item-head">
           <span class="proposal-review__kind">{{ row.kindLabel }}</span>
           <span class="proposal-review__name" :title="row.title ?? row.key">
@@ -296,7 +310,20 @@ async function submitReject(): Promise<void> {
           </el-tag>
         </div>
 
-        <div v-loading="!row.contentLoaded" class="proposal-review__item-body">
+        <div v-loading="!row.contentLoaded && !row.contentError" class="proposal-review__item-body">
+          <el-alert
+            v-if="row.contentError"
+            type="error"
+            :title="row.contentError"
+            show-icon
+            :closable="false"
+            class="proposal-review__alert"
+          >
+            <template #default>
+              <el-button link type="primary" @click="loadContent(row)">重试</el-button>
+            </template>
+          </el-alert>
+          <p v-if="row.note" class="proposal-review__note">驳回原因：{{ row.note }}</p>
           <span v-if="moduleNameOf(row.content.moduleId)" class="proposal-review__meta">
             模块：{{ moduleNameOf(row.content.moduleId) }}
           </span>
@@ -557,8 +584,27 @@ async function submitReject(): Promise<void> {
   margin-bottom: var(--space-sm);
 }
 
+.proposal-review__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding-bottom: var(--space-sm);
+}
+
+.proposal-review__nav-pos {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
 .proposal-review__item {
   border-top: 1px solid var(--color-neutral-200);
+}
+
+.proposal-review__note {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
 }
 
 .proposal-review__item-head {
