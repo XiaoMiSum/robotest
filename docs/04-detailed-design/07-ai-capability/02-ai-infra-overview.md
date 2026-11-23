@@ -187,7 +187,7 @@ CREATE UNIQUE INDEX uk_ai_prompt_template_scene ON ai_prompt_template (scene) WH
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
 | type | varchar(30) | NOT NULL | 任务类型，全量枚举见 3.6.1 |
-| title | varchar(200) | NOT NULL, DEFAULT '' | 任务标题：执行产出提案后回填首个 `parent_key IS NULL` 的提案标题（超长截断至 200）；空串表示尚未回填，列表按类型名兜底 |
+| title | varchar(200) | NOT NULL, DEFAULT '' | 任务标题：提交创建时按「类型描述 - 来源标题」生成（超长截断至 200，见 3.6.1）；执行不改写；存量空串按类型名兜底 |
 | status | varchar(20) | NOT NULL, DEFAULT 'running' | `running / proposals_ready / closed / aborted`（`running` 期间执行可挂起 `waiting_confirmation`） |
 | project_id | uuid | NULL | 项目内任务的隔离归属（NULL = 不限项目的个人任务；助手解析任务取 `X-Active-Project` 头） |
 | workspace_id | uuid | NULL | 执行作用域（助手类任务经 `X-Active-Workspace` 头写入），RAG 限权过滤依据 |
@@ -321,7 +321,7 @@ CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id,
 | content | jsonb | NOT NULL | 结构化产物 + 证据链（结构由各分册定义） |
 | confirm_status | varchar(20) | NOT NULL, DEFAULT 'pending' | `pending`（待采纳）/ `not_applicable`（只读建议，无确认动作） |
 
-> 任务标题回填：执行产出提案时取首个 `parent_key IS NULL` 的提案标题写入 `ai_task.title`（超长截断至 200 字符）；无根提案时留空，列表按类型名兜底。
+> 任务标题在提交创建时生成，执行不改写（规则见 3.6.1）；提案标题独立存储于 `ai_task_proposal.title`，与任务标题无回填关系。
 
 **索引**（2 个）：
 
@@ -748,6 +748,19 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
+**任务标题生成规则（单一事实源）**：提交创建时按「<类型描述> - <来源标题>」生成并写入 `ai_task.title`；类型描述复用任务类型中文名，来源标题按类型从输入指向的来源对象解析（校验阶段已加载来源时直接复用，不重复查询）。来源缺失或解析失败时只保留类型描述；标题整体超长截断至 200 字符（末位以 `…` 标记），与列宽一致。执行成功产出提案不再改写任务标题。
+
+| type | 类型描述 | 来源标题 |
+| ---- | ---- | ---- |
+| requirement_import | 需求导入 | 需求文档文件名（`fileId` → `FileResource.fileName`） |
+| case_optimize | 用例优化 | 用例文档名称（`documentId` → `TestCaseDocument.name`；多节点场景取文档名保证单一来源） |
+| mindmap_case_generation | 脑图用例生成 | 需求标题（`requirementId` → `Requirement.title`） |
+| plan_order | 计划排序 | 计划名称（`planId` → `TestPlan.name`） |
+| review_case_review | AI 评审 | 评审标题（`reviewId` → `TestReview.title`） |
+| bug_triage | 缺陷分诊 | 范围描述「激活未指派缺陷」（无输入，取任务作用域语义） |
+| assistant_parse | 助手解析 | 会话标题（`messageId` → `AiAssistantMessage.conversationId` → `AiAssistantConversation.title`） |
+| vector_reindex | 向量索引重建 | 索引范围（`scope.entityTypes` 映射为「需求 / 用例 / 缺陷」，缺省「全量」） |
+
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
 普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的六类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
@@ -788,13 +801,13 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 
 - **校验顺序**：总开关（1000018101）→ 类型 → 输入 → 预算 → 可用模型（1000018118；必需能力选型见 4.2，无候选 1000018124）；RAG 依赖型任务在向量不可用时拒绝（1000018119 / 1000018122）。任务端点免 RBAC 权限码校验（登录即可），仅详情 / 操作的归属可见性按 3.6.3 判定。
-- **任务标题**：提交时 `title` 为空串，执行产出提案后由首个根提案标题回填（见 2.6.4），列表与详情均下发。
+- **任务标题**：提交时按 3.6.1 规则生成并入库，执行不改写，列表与详情均下发；存量空标题按类型名兜底。
 
 #### 3.6.3 任务列表与详情
 
 - **列表**：`GET /api/ai/tasks`
   - 参数：`type`、`status`、`pageNo`、`pageSize`；**列表不再按 `ai_task.submitted_by` 过滤当前用户**：附带 `X-Active-Project` 头时返回该项目内全部任务，未附带时不过滤提交人（返回全部任务）；列表项下发 `submittedBy` 供前端展示发起人。
-  - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串时前端按类型名兜底展示。
+  - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串（存量任务）时前端按类型名兜底展示。
 - **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数，过滤口径与列表一致（按项目头过滤，不按提交人过滤）。
   - 响应：`{ "count": 2 }`。
 - **按文档 / 节点 / 评审查询最近任务**：`GET /api/ai/tasks/{type}/latest`
@@ -802,7 +815,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 可见范围：当前项目内任意成员提交的任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
   - 用途：用例节点「AI 优化」按节点、脑图「AI覆盖雷达」按当前文档、评审详情页「AI 评审」按评审 id 复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
 - **详情**：`GET /api/ai/tasks/{taskId}`
-  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 执行产出提案后回填（见 2.6.4）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
+  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 创建时生成、执行不改写（见 3.6.1）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
 
 ```json
 {
@@ -975,7 +988,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 任务中心（项目工作区 /workspace/projects/ai/tasks → AiTaskCenterPage）
 ├── TaskFilter（类型/状态筛选，列表为项目内全部任务）
-└── TaskTable（任务标题（空则类型名兜底）、发起人、执行摘要、终止原因、终止 / 再次执行，「详情 / 审核」跳转详情页）
+└── TaskTable（任务标题（创建时生成，存量空则类型名兜底）、发起人、执行摘要、终止原因、终止 / 再次执行，「详情 / 审核」跳转详情页）
 
 任务详情页（/workspace/projects/ai/tasks/:taskId → AiTaskDetailPage）
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
@@ -1068,7 +1081,7 @@ ALTER TABLE ai_model_config ADD COLUMN output_price numeric(14,6) NOT NULL DEFAU
 ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 ```
 
-- `ai_task.title` 存量行默认空串，不回填；列表按类型名兜底，执行产出提案后由首个根提案标题回填；
+- `ai_task.title` 存量行默认空串且不做历史回填，新任务创建时按 3.6.1 规则生成；列表对存量空串按类型名兜底；
 - UUID 主键使用框架默认策略；无物理外键；单表索引数均 ≤ 5（C9）；
 - 依赖：PostgreSQL + pgvector 扩展启用（`docs/00-spec/20-contracts/02-database.md` 既定决策）；未启用 pgvector 时仅向量索引表不可建，AI 配置、任务与用量功能不受影响（RAG 类能力按 4.5 降级）。
 
@@ -1138,3 +1151,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-22 | 新增辅助域任务类型 `review_case_review`（`reviewId` → `review_suggestion`，采纳写回评审标记）：3.6.1 任务枚举登记，`/latest` 支持 `reviewId` 复用，细则见 `docs/04-detailed-design/07-ai-capability/07-ai-review.md` |
 | V1.0 | 2026-11-22 | 智能助手移除变更类能力：2.9 `intent` / `execution` 列改为存量兼容说明（不产生新数据、表结构不变），4.2 助手策略分派去掉变更预览与人工确认口径 |
 | V1.0 | 2026-11-21 | 移除存量重复扫描任务：3.6.1 注销 `bug_duplicate_scan` / `duplicate_group`（总数九类→八类、普通目标型七类→六类），3.6 目标型执行示例与 4.2 执行入口统计改引保留类型 |
+| V1.0 | 2026-11-23 | 任务标题改创建时生成：3.6.1 登记「类型描述 - 来源标题」生成规则与八类来源映射，2.6.1 / 2.6.4 / 3.6.2 / 3.6.3 / 5.2 / 7 移除执行回填口径，存量空串仍按类型名兜底 |

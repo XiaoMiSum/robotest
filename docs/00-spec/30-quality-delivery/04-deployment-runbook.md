@@ -357,11 +357,11 @@ CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
 
 ### 10.2 AI 任务标题列增补（增量）
 
-S3 已执行的环境按以下语句增补标题列；存量行默认空串、不回填，列表按任务类型名兜底，执行产出提案后由首个根提案标题回填：
+S3 已执行的环境按以下语句增补标题列；存量行默认空串、不做历史回填，列表按任务类型名兜底；新任务在提交创建时按「类型描述 - 来源标题」生成，执行不改写（见详设 3.6.1）：
 
 ```sql
 ALTER TABLE ai_task ADD COLUMN title varchar(200) NOT NULL DEFAULT '';
-COMMENT ON COLUMN ai_task.title IS '任务标题：执行产出提案后回填主提案标题';
+COMMENT ON COLUMN ai_task.title IS '任务标题：创建时按类型描述与来源标题生成，执行不改写';
 ```
 
 **执行后验证**：
@@ -452,6 +452,7 @@ Windows 无 bash 时改用等价命令：`node scripts/validate.mjs --all`。
 | V1.0 | 2026-10-27 | §10 增补 10.1「AI 任务六表重建（破坏性，S3 执行时点）」：前置五表与 `execution_id` 说明、`DROP ai_artifact_confirm / ai_task` 与新结构 DDL、执行后验证清单（C5 迁移说明，裁决见 AI Task 迁移计划 2.3.3） |
 | V1.0 | 2026-11-07 | §10.1 补提案 / 采纳表 `execution_id` 增列与 uk 改挂执行（再次执行唯一键冲突裁决，见总册 2.6.4 / 2.7），验证清单联动 |
 | V1.0 | 2026-11-18 | §10.1 重建 DDL 补 `ai_task.title`；新增 §10.2 增量增列脚本与验证清单（存量行默认空串、不回填，列表按类型名兜底，见详设 2.6.1） |
+| V1.0 | 2026-11-23 | §10.2 标题列口径改为创建时生成、执行不改写，列注释与验证清单同步（详见详设 3.6.1） |
 
 ---
 
