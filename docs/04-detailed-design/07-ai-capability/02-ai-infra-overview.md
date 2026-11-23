@@ -846,7 +846,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 }
 ```
 
-- 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生，仅统计 `adopted / adopted_edited / rejected`（`pending / not_applicable` 不参与，避免只读提案污染判定）：全部采纳 → 已采纳，全部驳回 → 已驳回，混合 → 部分采纳；不新增后端字段。任务详情有提案时展示只读审核面板：`closed` 展示聚合结果与确认状态，`proposals_ready` 展示待采纳状态与产物明细，均不提供审核动作。面板复用审核信息布局，展示提案标题、`kind`、确认状态、驳回原因、描述、结构化字段、来源引用、对比与警示；多条提案通过“上一个 / 下一个”切换，切换时按需调用提案详情端点（`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}`）取完整 `content`，已加载内容缓存复用。
+- 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生，仅统计 `adopted / adopted_edited / rejected`（`pending / not_applicable` 不参与，避免只读提案污染判定）：全部采纳 → 已采纳，全部驳回 → 已驳回，混合 → 部分采纳；不新增后端字段。任务详情有提案时展示只读审核面板：复用 `AiProposalReviewPanel` 的信息展示结构（头部、导航、产物明细、compare、来源引用、警示），仅禁用审核动作；`closed` 展示聚合结果与确认状态，`proposals_ready` 展示待采纳状态与产物明细。切换时按需调用提案详情端点（`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}`）取完整 `content`，已加载内容缓存复用。
 - **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（业务面板审核与任务详情只读查看共用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。业务面板按自身提案清单定位当前项，切换时按 `proposalKey` 调用该端点获取当前产物完整信息；任务详情只读区首次展开时按需调用，详情下发时仍只给清单摘要，不做全量拉取。
 
 #### 3.6.4 执行管理与轨迹
@@ -995,7 +995,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 ├── ExecutionPanel（执行区：预算消耗、当前步骤、终止原因、终止 / 再次执行）
 ├── PlanTimeline（AI 计划步骤时间线，随轨迹更新）
 ├── TraceEventList（轨迹事件流，WS 实时推送 + 游标轮询兜底；AI 决策事件可展开查看 `detail.rawRequest` 请求摘要与 `detail.rawResponse` 完整响应，复用折叠 JSON 展示；响应 `content` 先按 JSON 解析（含剥离 Markdown 代码围栏后重试）再展示，失败保留原文，复制内容与展示一致）
-└── AiTaskAdoptionResultPanel（closed 态只读回看卡片：逐条状态标签、提案标题与驳回原因，可展开查看产物明细）
+└── AiProposalReviewPanel（readonly：复用审核面板信息展示，去掉审核动作；任务详情只读查看提案产物与审核结果）
     ├── AdoptionCard（卡片头 + 展开/收起，首次展开按需拉取提案详情）
     └── ProposalDetailView（按任务类型解析 content：描述、结构化字段、来源引用、既有 vs 建议对照与警示，复用 ProposalCompareView）
 ```
