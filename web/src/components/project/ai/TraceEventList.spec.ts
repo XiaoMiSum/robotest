@@ -127,6 +127,65 @@ describe('TraceEventList AI 决策原始详情', () => {
     expect(mocks.success).toHaveBeenCalled()
   })
 
+  it('content 为 JSON 字符串时按结构化节点展示并复制解析结果', async () => {
+    mocks.clipboardWriteText.mockResolvedValue(undefined)
+    const wrapper = await mountList([
+      decisionEvent({ rawResponse: { content: '{"title":"登录","steps":[1,2]}' } }),
+    ])
+    await expandTrace(wrapper)
+
+    await wrapper.find('.trace-events__detail-toggle').trigger('click')
+    await flushPromises()
+
+    await wrapper.find('.trace-events__json .jn-toggle').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.trace-events__json').text()).toContain('title')
+
+    const copyButtons = wrapper.findAll('.trace-events__section button')
+    await copyButtons[0].trigger('click')
+    await flushPromises()
+
+    const copied = mocks.clipboardWriteText.mock.calls[0][0] as string
+    expect(copied).toContain('"title": "登录"')
+    expect(copied).not.toContain('\\"title\\"')
+  })
+
+  it('content 为 Markdown 代码围栏包裹的 JSON 时剥离围栏后解析', async () => {
+    mocks.clipboardWriteText.mockResolvedValue(undefined)
+    const wrapper = await mountList([
+      decisionEvent({ rawResponse: { content: '```json\n{"code":0}\n```' } }),
+    ])
+    await expandTrace(wrapper)
+
+    await wrapper.find('.trace-events__detail-toggle').trigger('click')
+    await flushPromises()
+    const copyButtons = wrapper.findAll('.trace-events__section button')
+    await copyButtons[0].trigger('click')
+    await flushPromises()
+
+    const copied = mocks.clipboardWriteText.mock.calls[0][0] as string
+    expect(copied).toContain('"code": 0')
+    expect(copied).not.toContain('```json')
+  })
+
+  it('代码围栏内非 JSON 时保留原文', async () => {
+    mocks.clipboardWriteText.mockResolvedValue(undefined)
+    const wrapper = await mountList([
+      decisionEvent({ rawResponse: { content: '```json\n这不是 JSON\n```' } }),
+    ])
+    await expandTrace(wrapper)
+
+    await wrapper.find('.trace-events__detail-toggle').trigger('click')
+    await flushPromises()
+    const copyButtons = wrapper.findAll('.trace-events__section button')
+    await copyButtons[0].trigger('click')
+    await flushPromises()
+
+    const copied = mocks.clipboardWriteText.mock.calls[0][0] as string
+    expect(copied).toContain('```json')
+    expect(copied).toContain('这不是 JSON')
+  })
+
   it('缺少原始数据键时展示空态', async () => {
     const wrapper = await mountList([decisionEvent()])
     await expandTrace(wrapper)

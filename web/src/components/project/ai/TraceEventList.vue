@@ -8,6 +8,7 @@ import {
   aiTraceEventLabel,
   aiTraceRawRequest,
   aiTraceRawResponse,
+  aiTraceResponseForDisplay,
   isAiDecisionEvent,
 } from '@/composables/project/ai/taskPresentation'
 import type { AiTaskTraceEvent } from '@/types'
@@ -68,6 +69,11 @@ function requestOf(event: AiTaskTraceEvent) {
 
 function responseOf(event: AiTaskTraceEvent) {
   return aiTraceRawResponse(event.detail?.rawResponse)
+}
+
+function displayResponseOf(event: AiTaskTraceEvent) {
+  const response = responseOf(event)
+  return response ? aiTraceResponseForDisplay(response) : null
 }
 
 async function copy(section: unknown): Promise<void> {
@@ -166,18 +172,17 @@ async function copy(section: unknown): Promise<void> {
                 <div class="trace-events__section-head">
                   <span class="trace-events__section-title">模型响应</span>
                   <el-button
-                    v-if="responseOf(event)"
+                    v-if="displayResponseOf(event)"
                     link
                     size="small"
-                    :disabled="!responseOf(event)"
-                    @click="void copy(responseOf(event))"
+                    @click="void copy(displayResponseOf(event))"
                   >
                     复制
                   </el-button>
                 </div>
-                <div v-if="responseOf(event)" class="trace-events__json">
+                <div v-if="displayResponseOf(event)" class="trace-events__json">
                   <JsonResponseView
-                    :value="responseOf(event)"
+                    :value="displayResponseOf(event)"
                     path="rawResponse"
                     :depth="0"
                     :initially-collapsed="true"

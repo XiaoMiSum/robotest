@@ -249,6 +249,36 @@ export function aiTraceRawResponse(detail: unknown): AiTraceRawResponse | null {
   }
 }
 
+/** 模型响应展示态：content 解析为 JSON 后不再是字符串，单独收窄避免误用原类型 */
+export interface AiTraceResponseDisplay extends Omit<AiTraceRawResponse, 'content'> {
+  content: unknown
+}
+
+const FENCED_JSON = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n?[ \t]*```$/i
+
+/** LLM 常以 ```json 包裹结构化输出，严格解析失败后再剥离围栏重试，仍失败才回退原文 */
+function parseAiTraceContent(content: string | null): unknown {
+  if (!content) return content
+  try {
+    const parsed: unknown = JSON.parse(content)
+    return parsed
+  } catch {
+    const fenced = FENCED_JSON.exec(content.trim())
+    if (!fenced) return content
+    try {
+      const parsed: unknown = JSON.parse(fenced[1])
+      return parsed
+    } catch {
+      return content
+    }
+  }
+}
+
+/** 仅转换展示结构，原始 detail 仍按原样存储与下发 */
+export function aiTraceResponseForDisplay(response: AiTraceRawResponse): AiTraceResponseDisplay {
+  return { ...response, content: parseAiTraceContent(response.content) }
+}
+
 // ==================== 提案 ====================
 
 /** 提案 kind → 中文标签（详设 3.6.1 提案 kind 列） */
