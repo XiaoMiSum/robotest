@@ -71,59 +71,69 @@ describe('AiTaskAdoptionResultPanel', () => {
     })
   })
 
-  it('默认收起展示只读卡片，包含待采纳提案且无审核操作按钮', async () => {
+  it('只读审核面板展示当前提案、状态与导航，无审核操作按钮', async () => {
     const wrapper = mountPanel([
-      proposal(),
+      proposal({ confirmStatus: 'pending' }),
       proposal({ key: 'p2', title: '短信登录', confirmStatus: 'rejected', note: '本期不支持' }),
-      proposal({ key: 'p3', title: '找回密码', confirmStatus: 'pending' }),
+      proposal({ key: 'p3', title: '找回密码', confirmStatus: 'adopted' }),
     ])
+    await flushPromises()
 
     expect(wrapper.text()).toContain('提案与审核结果')
     expect(wrapper.text()).toContain('部分采纳')
     expect(wrapper.text()).toContain('登录验证码')
-    expect(wrapper.text()).toContain('短信登录')
-    expect(wrapper.text()).toContain('找回密码')
-    expect(wrapper.text()).toContain('驳回原因：本期不支持')
-    expect(wrapper.findAll('.el-collapse-item')).toHaveLength(3)
-    expect(wrapper.text()).not.toContain('需求描述')
-    expect(wrapper.findAll('button')).toHaveLength(0)
-    await flushPromises()
-    expect(mocks.fetchAiProposal).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('第 1 / 3 条')
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
+    expect(wrapper.find('.proposal-review__nav').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('修改后采纳')
+    expect(wrapper.text()).not.toContain('驳回（可附反馈）')
+    expect(wrapper.text()).not.toContain('批量')
+    expect(mocks.confirmAiProposals).not.toHaveBeenCalled()
   })
 
-  it('首次展开按需加载明细，收起重展不重复请求', async () => {
-    const wrapper = mountPanel([proposal()])
-    const header = wrapper.find('.el-collapse-item__header')
-
-    await header.trigger('click')
+  it('切换上一个/下一个按需加载明细，已加载项不重复请求', async () => {
+    mocks.fetchAiProposal.mockImplementation(async (_taskId: string, key: string) => ({
+      content: { description: `详情-${key}`, priority: 'high', sourceRef: 'PRD §2' },
+    }))
+    const wrapper = mountPanel([
+      proposal({ key: 'p1', title: '登录验证码' }),
+      proposal({ key: 'p2', title: '短信登录', confirmStatus: 'rejected', note: '本期不支持' }),
+    ])
     await flushPromises()
+
     expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(1)
     expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'p1')
-    expect(wrapper.text()).toContain('需求描述')
-    expect(wrapper.text()).toContain('来源引用')
+    expect(wrapper.text()).toContain('详情-p1')
 
-    await header.trigger('click')
+    const next = wrapper.findAll('.proposal-review__nav button')[1]
+    await next.trigger('click')
     await flushPromises()
-    await header.trigger('click')
+    expect(wrapper.text()).toContain('短信登录')
+    expect(wrapper.text()).toContain('驳回原因：本期不支持')
+    expect(wrapper.text()).toContain('详情-p2')
+    expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'p2')
+
+    const prev = wrapper.findAll('.proposal-review__nav button')[0]
+    await prev.trigger('click')
     await flushPromises()
-    expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('需求描述')
+    expect(wrapper.text()).toContain('登录验证码')
+    expect(mocks.fetchAiProposal).toHaveBeenNthCalledWith(1, 't1', 'p1')
+    expect(mocks.fetchAiProposal).toHaveBeenNthCalledWith(2, 't1', 'p2')
+    expect(mocks.fetchAiProposal.mock.calls.filter(([, key]) => key === 'p1')).toHaveLength(1)
   })
 
   it('明细加载失败展示重试，重试成功后隐藏错误', async () => {
     mocks.fetchAiProposal.mockRejectedValueOnce(new Error('网络异常'))
     const wrapper = mountPanel([proposal()])
-    const header = wrapper.find('.el-collapse-item__header')
-
-    await header.trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('产物明细加载失败')
+
+    expect(wrapper.text()).toContain('网络异常')
     const retry = wrapper.findAll('button').find((button) => button.text() === '重试')
     expect(retry).toBeDefined()
 
     await retry!.trigger('click')
     await flushPromises()
-    expect(wrapper.text()).not.toContain('产物明细加载失败')
+    expect(wrapper.text()).not.toContain('网络异常')
     expect(wrapper.text()).toContain('需求描述')
     expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(2)
   })
@@ -131,9 +141,8 @@ describe('AiTaskAdoptionResultPanel', () => {
   it('明细为空时展示暂无明细', async () => {
     mocks.fetchAiProposal.mockResolvedValue({ content: {} })
     const wrapper = mountPanel([proposal()])
-
-    await wrapper.find('.el-collapse-item__header').trigger('click')
     await flushPromises()
+
     expect(wrapper.text()).toContain('暂无明细')
   })
 
@@ -141,6 +150,7 @@ describe('AiTaskAdoptionResultPanel', () => {
     const wrapper = mountPanel([])
 
     expect(wrapper.text()).toContain('本次执行没有提案记录')
-    expect(wrapper.findAll('.el-collapse-item')).toHaveLength(0)
+    expect(wrapper.find('.proposal-review__nav').exists()).toBe(false)
+    expect(wrapper.findAll('.proposal-review__item')).toHaveLength(0)
   })
 })

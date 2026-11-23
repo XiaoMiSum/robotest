@@ -18,7 +18,7 @@ const props = defineProps<{
   result: AiTaskAdoptionResultMeta | null
 }>()
 
-const base = useAiProposalReview(
+const review = useAiProposalReview(
   props.taskId,
   () => props.proposals ?? [],
   () => false,
@@ -26,141 +26,198 @@ const base = useAiProposalReview(
   () => props.taskType,
 )
 
-base.syncRows()
-// 详情刷新（再次执行等）后重建回看卡片，展开态按仍存在的 key 保留
-watch(
-  () => props.proposals,
-  () => base.syncRows(),
-)
+review.init()
 
-const rows = computed(() => base.rows.value)
-const activeKeys = ref<string[]>([])
-const loadingKeys = ref<string[]>([])
-const failedKeys = ref<string[]>([])
+const pendingKeys = ref(new Set<string>())
 
-/** 首次展开才拉明细，收起后重展复用已加载内容 */
-async function loadDetail(key: string): Promise<void> {
-  const row = rows.value.find((item) => item.key === key)
-  if (!row || row.contentLoaded || loadingKeys.value.includes(key)) return
-  failedKeys.value = failedKeys.value.filter((item) => item !== key)
-  loadingKeys.value = [...loadingKeys.value, key]
-  await base.loadContent(row)
-  loadingKeys.value = loadingKeys.value.filter((item) => item !== key)
-  if (!row.contentLoaded) failedKeys.value = [...failedKeys.value, key]
+async function preloadActive(key?: string): Promise<void> {
+  const row = review.activeRow.value
+  if (!row || row.contentLoaded || pendingKeys.value.has(row.key)) return
+  if (key !== undefined && row.key !== key) return
+  pendingKeys.value.add(row.key)
+  try {
+    await review.loadContent(row)
+  } finally {
+    pendingKeys.value.delete(row.key)
+  }
 }
 
-watch(activeKeys, (keys, previous) => {
-  for (const key of keys) {
-    if (!previous?.includes(key)) void loadDetail(key)
-  }
-})
+watch(
+  () => props.proposals,
+  () => {
+    review.syncRows()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => review.activeRow.value?.key,
+  (key) => {
+    void preloadActive(key)
+  },
+  { immediate: true },
+)
+
+const rows = computed(() => review.rows.value)
+const activeRow = computed(() => review.activeRow.value)
+const activeIndex = computed(() => review.activeIndex.value)
 </script>
 
 <template>
-  <section class="adoption-result">
-    <div class="adoption-result__head">
-      <h2 class="adoption-result__title">提案与审核结果</h2>
-      <el-tag v-if="result" :type="result.tagType" size="small" effect="light">
-        {{ result.label }}
-      </el-tag>
-    </div>
-    <p v-if="rows.length === 0" class="adoption-result__empty">本次执行没有提案记录</p>
-    <el-collapse v-else v-model="activeKeys" class="adoption-result__list">
-      <el-collapse-item v-for="row in rows" :key="row.key" :name="row.key">
-        <template #title>
-          <div class="adoption-result__head-row">
-            <span class="adoption-result__kind">{{ aiProposalKindLabel(row.kind) }}</span>
-            <span class="adoption-result__name" :title="row.title ?? row.key">
-              {{ row.title ?? row.key }}
-            </span>
-            <el-tag
-              :type="aiProposalConfirmMeta(row.confirmStatus).tagType"
-              size="small"
-              effect="plain"
-            >
-              {{ aiProposalConfirmMeta(row.confirmStatus).label }}
-            </el-tag>
-          </div>
-          <span v-if="row.note" class="adoption-result__note">
-            {{ row.confirmStatus === 'rejected' ? '驳回原因' : '备注' }}：{{ row.note }}
+  <section class="proposal-review proposal-review--readonly">
+    <header class="proposal-review__head">
+      <div class="proposal-review__head-main">
+        <h2 class="proposal-review__title">提案与审核结果</h2>
+        <span class="proposal-review__processed">
+          共 {{ rows.length }} 条
+        </span>
+        <el-tag v-if="result" :type="result.tagType" size="small" effect="light">
+          {{ result.label }}
+        </el-tag>
+      </div>
+    </header>
+
+    <p v-if="rows.length === 0" class="proposal-review__empty">本次执行没有提案记录</p>
+
+    <div v-else class="proposal-review__items">
+      <div v-if="rows.length >= 2" class="proposal-review__nav">
+        <el-button link :disabled="!review.canGoPrev.value" @click="review.movePrev()">上一个</el-button>
+        <span class="proposal-review__nav-pos">第 {{ activeIndex + 1 }} / {{ rows.length }} 条</span>
+        <el-button link :disabled="!review.canGoNext.value" @click="review.moveNext()">下一个</el-button>
+      </div>
+
+      <article v-if="activeRow" :key="activeRow.key" class="proposal-review__item">
+        <div class="proposal-review__item-head">
+          <span class="proposal-review__kind">{{ aiProposalKindLabel(activeRow.kind) }}</span>
+          <span class="proposal-review__name" :title="activeRow.title ?? activeRow.key">
+            {{ activeRow.title || activeRow.key }}
           </span>
-        </template>
-        <div v-loading="loadingKeys.includes(row.key)" class="adoption-result__detail">
-          <template v-if="failedKeys.includes(row.key)">
-            <span class="adoption-result__error">产物明细加载失败</span>
-            <el-button link type="primary" @click="loadDetail(row.key)">重试</el-button>
-          </template>
-          <AiProposalDetailView v-else-if="row.contentLoaded" :row="row" :task-type="taskType" />
+          <el-tag
+            :type="aiProposalConfirmMeta(activeRow.confirmStatus).tagType"
+            size="small"
+            effect="plain"
+          >
+            {{ aiProposalConfirmMeta(activeRow.confirmStatus).label }}
+          </el-tag>
         </div>
-      </el-collapse-item>
-    </el-collapse>
+
+        <div
+          v-loading="!activeRow.contentLoaded && !activeRow.contentError"
+          class="proposal-review__item-body"
+        >
+          <el-alert
+            v-if="activeRow.contentError"
+            type="error"
+            :title="activeRow.contentError"
+            show-icon
+            :closable="false"
+            class="proposal-review__alert"
+          >
+            <template #default>
+              <el-button link type="primary" @click="review.loadContent(activeRow)">重试</el-button>
+            </template>
+          </el-alert>
+
+          <p v-if="activeRow.note" class="proposal-review__note">
+            {{ activeRow.confirmStatus === 'rejected' ? '驳回原因' : '备注' }}：{{ activeRow.note }}
+          </p>
+
+          <AiProposalDetailView
+            v-if="activeRow.contentLoaded"
+            :row="activeRow"
+            :task-type="taskType"
+          />
+        </div>
+      </article>
+    </div>
   </section>
 </template>
 
 <style scoped lang="scss">
-.adoption-result {
+.proposal-review {
   padding: var(--space-md);
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
 }
 
-.adoption-result__head {
+.proposal-review__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
 }
 
-.adoption-result__title {
+.proposal-review__head-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.proposal-review__title {
   margin: 0;
   color: var(--color-neutral-900);
   font-size: var(--font-size-lg);
   font-weight: 650;
 }
 
-.adoption-result__empty {
+.proposal-review__processed,
+.proposal-review__kind,
+.proposal-review__nav-pos,
+.proposal-review__note {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
+.proposal-review__empty {
   margin: 0;
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
 }
 
-.adoption-result__head-row {
+.proposal-review__nav {
   display: flex;
-  flex: 1;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.proposal-review__item {
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+}
+
+.proposal-review__item-head {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm);
-  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-neutral-200);
+  background: var(--color-neutral-50);
 }
 
-.adoption-result__kind,
-.adoption-result__note {
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
-}
-
-.adoption-result__name {
+.proposal-review__name {
   flex: 1;
   min-width: 160px;
   overflow: hidden;
   color: var(--color-neutral-900);
   font-size: var(--font-size-sm);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.adoption-result__note {
-  margin-left: auto;
+.proposal-review__item-body {
+  min-height: 72px;
+  padding: var(--space-md);
 }
 
-.adoption-result__detail {
-  min-height: 24px;
-}
-
-.adoption-result__error {
-  margin-right: var(--space-sm);
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
+.proposal-review__alert,
+.proposal-review__note {
+  margin: 0 0 var(--space-sm);
 }
 </style>

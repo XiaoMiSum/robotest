@@ -127,10 +127,28 @@
       <section class="card task-section" id="dt-proposal-section" hidden>
         <div class="card__body adoption-result">
           <header class="review-head">
-            <div class="review-head__main"><h2 class="section-title">提案与审核结果</h2><span class="tag tag--sm" id="dt-proposal-result" hidden>部分采纳</span></div>
-            <span class="muted" id="dt-proposal-hint">只读查看提案产物与审核结果，不提供审核操作</span>
+            <div class="review-head__main">
+              <h2 class="section-title">提案与审核结果</h2>
+              <span class="tag tag--sm" id="dt-proposal-result" hidden>部分采纳</span>
+            </div>
+            <div class="review-head__main">
+              <button class="btn btn--link btn--sm" type="button" id="dt-proposal-prev">上一个</button>
+              <span class="muted" id="dt-proposal-pos"></span>
+              <button class="btn btn--link btn--sm" type="button" id="dt-proposal-next">下一个</button>
+            </div>
           </header>
-          <div id="dt-proposal-list"></div>
+          <p class="muted" id="dt-proposal-hint" style="margin:0 0 12px">只读查看提案产物与审核结果，不提供审核操作</p>
+          <div class="review-card" id="dt-proposal-card">
+            <div class="review-head" style="margin-bottom:8px">
+              <div class="review-head__main">
+                <span class="muted" id="dt-proposal-kind"></span>
+                <strong id="dt-proposal-title"></strong>
+                <span class="tag tag--sm" id="dt-proposal-status"></span>
+              </div>
+            </div>
+            <p class="muted" id="dt-proposal-note" hidden></p>
+            <div class="review-card__body" id="dt-proposal-detail"></div>
+          </div>
         </div>
       </section>
     </div>
@@ -156,6 +174,32 @@
   function byId(id) { return document.getElementById(id); }
   function esc(text) {
     return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  var currentScene = 'import';
+  var proposalIndex = 0;
+
+  function renderProposal() {
+    var scene = scenes[currentScene] || scenes.import;
+    var proposals = scene.proposals || [];
+    var section = byId('dt-proposal-section');
+    if (!proposals.length) { section.hidden = true; return; }
+    section.hidden = false;
+    if (proposalIndex < 0) proposalIndex = 0;
+    if (proposalIndex >= proposals.length) proposalIndex = proposals.length - 1;
+    var item = proposals[proposalIndex];
+    byId('dt-proposal-pos').textContent = '第 ' + (proposalIndex + 1) + ' / ' + proposals.length + ' 条';
+    byId('dt-proposal-prev').disabled = proposalIndex === 0;
+    byId('dt-proposal-next').disabled = proposalIndex === proposals.length - 1;
+    byId('dt-proposal-kind').textContent = item.kind;
+    byId('dt-proposal-title').textContent = item.title;
+    var status = byId('dt-proposal-status');
+    status.className = 'tag tag--sm ' + item.tag;
+    status.textContent = item.status;
+    var note = byId('dt-proposal-note');
+    note.hidden = !item.note;
+    note.textContent = item.note || '';
+    byId('dt-proposal-detail').innerHTML = item.detail;
   }
 
   var scenes = {
@@ -283,14 +327,9 @@
     byId('dt-proposal-hint').textContent = name === 'closed'
       ? '已结束任务逐条只读回看，不提供审核操作'
       : '只读查看提案产物与审核结果，实际处置在对应业务面板完成';
-    byId('dt-proposal-list').innerHTML = proposals.map(function (item, idx) {
-      return '<div class="collapse-item"><button class="collapse-head" type="button" data-collapse>' +
-        '<span class="collapse-head__kind">' + esc(item.kind) + '</span><span class="collapse-head__name">' + esc(item.title) + '</span>' +
-        '<span class="tag tag--sm ' + esc(item.tag) + '">' + esc(item.status) + '</span>' +
-        (item.note ? '<span class="collapse-head__note">' + esc(item.note) + '</span>' : '') +
-        '<span data-icon="chevron-down"></span></button>' +
-        '<div class="collapse-body" ' + (idx === 0 ? '' : 'hidden') + '><div class="review-card__body">' + item.detail + '</div></div></div>';
-    }).join('');
+    currentScene = name;
+    proposalIndex = 0;
+    renderProposal();
     if (window.RTIcons && typeof window.RTIcons.replace === 'function') window.RTIcons.replace();
 
     byId('dt-actions').innerHTML = name === 'running'
@@ -324,10 +363,14 @@
       return;
     }
 
-    var collapse = e.target.closest('[data-collapse]');
-    if (collapse) {
-      var body = collapse.nextElementSibling;
-      body.hidden = !body.hidden;
+    if (e.target.closest('#dt-proposal-prev')) {
+      proposalIndex -= 1;
+      renderProposal();
+      return;
+    }
+    if (e.target.closest('#dt-proposal-next')) {
+      proposalIndex += 1;
+      renderProposal();
       return;
     }
 
