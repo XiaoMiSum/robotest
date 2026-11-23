@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatDateTime } from '@/utils/format'
-import AiTaskAdoptionResultPanel from '@/components/project/ai/AiTaskAdoptionResultPanel.vue'
+import AiProposalReviewPanel from '@/components/project/ai/AiProposalReviewPanel.vue'
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
 import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
 import TraceEventList from '@/components/project/ai/TraceEventList.vue'
@@ -139,11 +139,12 @@ const {
 
         <!-- 提案与审核结果：只读查看产物与确认状态，不提供审核动作（交互 2.2/2.3） -->
         <section v-if="showProposalPanel" class="task-section">
-          <AiTaskAdoptionResultPanel
+          <AiProposalReviewPanel
             :task-id="detail.taskId"
             :task-type="detail.type"
             :proposals="proposals"
-            :result="adoptionResult"
+            readonly
+            @leave="backToCenter"
           />
         </section>
 

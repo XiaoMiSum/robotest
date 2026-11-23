@@ -33,7 +33,7 @@ vi.mock('element-plus', async (importOriginal) => {
   }
 })
 
-import AiTaskAdoptionResultPanel from './AiTaskAdoptionResultPanel.vue'
+import AiProposalReviewPanel from './AiProposalReviewPanel.vue'
 
 function proposal(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposalSummary {
   return {
@@ -51,18 +51,18 @@ function mountPanel(
   proposals: AiTaskProposalSummary[],
   taskType = 'requirement_import',
 ): ReturnType<typeof mount> {
-  return mount(AiTaskAdoptionResultPanel, {
+  return mount(AiProposalReviewPanel, {
     props: {
       taskId: 't1',
       taskType,
       proposals,
-      result: { label: '部分采纳', tagType: 'warning' },
+      readonly: true,
     },
     global: { plugins: [ElementPlus] },
   })
 }
 
-describe('AiTaskAdoptionResultPanel', () => {
+describe('AiProposalReviewPanel readonly', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.fetchProjectModuleTree.mockResolvedValue([])
@@ -79,15 +79,14 @@ describe('AiTaskAdoptionResultPanel', () => {
     ])
     await flushPromises()
 
-    expect(wrapper.text()).toContain('提案与审核结果')
-    expect(wrapper.text()).toContain('部分采纳')
+    expect(wrapper.text()).toContain('导入结果审核')
     expect(wrapper.text()).toContain('登录验证码')
     expect(wrapper.text()).toContain('第 1 / 3 条')
     expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
     expect(wrapper.find('.proposal-review__nav').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('修改后采纳')
     expect(wrapper.text()).not.toContain('驳回（可附反馈）')
-    expect(wrapper.text()).not.toContain('批量')
+    expect(wrapper.text()).not.toContain('批量采纳')
     expect(mocks.confirmAiProposals).not.toHaveBeenCalled()
   })
 
@@ -149,7 +148,7 @@ describe('AiTaskAdoptionResultPanel', () => {
   it('无提案记录展示空态', () => {
     const wrapper = mountPanel([])
 
-    expect(wrapper.text()).toContain('本次执行没有提案记录')
+    expect(wrapper.text()).toContain('提案为空')
     expect(wrapper.find('.proposal-review__nav').exists()).toBe(false)
     expect(wrapper.findAll('.proposal-review__item')).toHaveLength(0)
   })
