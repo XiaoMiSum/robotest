@@ -113,7 +113,11 @@ export function useReviewMindmapOps({
       })
       reviewResult.value = mark
       const data = getSelectedNodeData()
-      if (data) { data.lastMark = mark; data.reviewStatus = mark ? { result: mark } : null }
+      if (data) {
+        data.lastMark = mark
+        data.lastMarkAiAdopted = false
+        data.reviewStatus = mark ? { result: mark } : null
+      }
       getMinder()?.refresh?.()
       ElMessage.success(mark ? `已标记${mark === 'pass' ? '通过' : '不通过'}` : '已重置为待评审')
       onMarked()

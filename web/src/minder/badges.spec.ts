@@ -102,10 +102,16 @@ describe('reviewMarkBadge', () => {
     expect(reviewMarkBadge('fail')).toEqual({ label: '✕ 不通过', color: '#F56C6C' })
   })
 
+  it('AI 采纳的评审标记追加 AI 标识', () => {
+    expect(reviewMarkBadge('pass', true)).toEqual({ label: '✓ 通过 AI', color: '#67C23A' })
+    expect(reviewMarkBadge('fail', true)).toEqual({ label: '✕ 不通过 AI', color: '#F56C6C' })
+  })
+
   it('待评审（空值）与非法标记不显示徽标', () => {
     expect(reviewMarkBadge(null)).toBeNull()
     expect(reviewMarkBadge(undefined)).toBeNull()
     expect(reviewMarkBadge('block')).toBeNull()
+    expect(reviewMarkBadge(null, true)).toBeNull()
   })
 })
 

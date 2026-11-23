@@ -85,6 +85,8 @@ export interface TestReviewSnapshotNode {
   priority: string | null
   isAssociated: boolean
   lastMark: ReviewMark | null
+  /** 当前最新评审标记是否由 AI 建议采纳产生 */
+  lastMarkAiAdopted?: boolean
   lastReviewerId: string | null
   lastReviewedAt: string | null
   sortOrder: number

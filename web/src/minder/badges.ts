@@ -61,8 +61,10 @@ export function aiGeneratedBadge(type: unknown, aiGenerated: unknown): Badge | n
   return type === 'case' && aiGenerated === true ? AI_BADGE : null
 }
 
-export function reviewMarkBadge(mark: unknown): Badge | null {
-  return typeof mark === 'string' ? (REVIEW_MARK_BADGES[mark] ?? null) : null
+export function reviewMarkBadge(mark: unknown, aiAdopted = false): Badge | null {
+  const badge = typeof mark === 'string' ? (REVIEW_MARK_BADGES[mark] ?? null) : null
+  if (!badge || !aiAdopted) return badge
+  return { label: `${badge.label} AI`, color: badge.color }
 }
 
 export function executionResultBadge(result: unknown): Badge | null {
@@ -191,7 +193,7 @@ export function registerBadgesModule(): boolean {
   const typeRenderer = defineBadgeRenderer(kity, km.Render, (node) => typeBadge(node.getData('type')))
   const priorityRenderer = defineBadgeRenderer(kity, km.Render, (node) => priorityBadge(node.getData('priority')))
   // 评审/计划模式下节点 data 才有 lastMark/lastResult，编辑模式自然不渲染，无需按模式区分注册
-  const reviewMarkRenderer = defineBadgeRenderer(kity, km.Render, (node) => reviewMarkBadge(node.getData('lastMark')), 'right')
+  const reviewMarkRenderer = defineBadgeRenderer(kity, km.Render, (node) => reviewMarkBadge(node.getData('lastMark'), node.getData('lastMarkAiAdopted') === true), 'right')
   const executionResultRenderer = defineBadgeRenderer(kity, km.Render, (node) => executionResultBadge(node.getData('lastResult')), 'right')
   const executionOrderRenderer = defineBadgeRenderer(kity, km.Render, (node) => executionOrderBadge(node.getData('executionOrder')))
 

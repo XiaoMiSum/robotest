@@ -19,7 +19,7 @@ export function reviewNodeToKm(node: TestReviewSnapshotNode): Record<string, unk
   return {
     data: {
       id: node.id, originalNodeId: node.originalNodeId, text: node.title, type: node.type, priority: node.priority,
-      isAssociated: node.isAssociated, lastMark: node.lastMark,
+      isAssociated: node.isAssociated, lastMark: node.lastMark, lastMarkAiAdopted: node.lastMarkAiAdopted === true,
       reviewStatus: node.lastMark ? { result: node.lastMark } : null,
       relatedBugIds: [],
     },

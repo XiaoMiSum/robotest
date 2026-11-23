@@ -62,6 +62,7 @@ describe('reviewNodeToKm', () => {
     priority: 'P1',
     isAssociated: true,
     lastMark: 'pass',
+    lastMarkAiAdopted: false,
     lastReviewerId: null,
     lastReviewedAt: null,
     sortOrder: 0,
@@ -70,12 +71,17 @@ describe('reviewNodeToKm', () => {
 
   it('lastMark 存在时生成 reviewStatus', () => {
     const km = reviewNodeToKm(node)
-    expect(km.data).toMatchObject({ id: 'r1', originalNodeId: 'n1', lastMark: 'pass', reviewStatus: { result: 'pass' } })
+    expect(km.data).toMatchObject({ id: 'r1', originalNodeId: 'n1', lastMark: 'pass', lastMarkAiAdopted: false, reviewStatus: { result: 'pass' } })
   })
 
   it('lastMark 为空时 reviewStatus 为 null', () => {
     const km = reviewNodeToKm({ ...node, lastMark: null })
     expect(km.data).toMatchObject({ lastMark: null, reviewStatus: null })
+  })
+
+  it('AI 采纳标记映射到脑图节点 data', () => {
+    const km = reviewNodeToKm({ ...node, lastMark: 'fail', lastMarkAiAdopted: true })
+    expect(km.data).toMatchObject({ lastMark: 'fail', lastMarkAiAdopted: true, reviewStatus: { result: 'fail' } })
   })
 })
 
