@@ -62,6 +62,7 @@ public interface TestReviewNodeSnapshotMapper extends BaseMapperX<TestReviewNode
         update(null, new LambdaUpdateWrapperX<TestReviewNodeSnapshot>()
                 .eq(TestReviewNodeSnapshot::getId, snapshotNodeId)
                 .set(TestReviewNodeSnapshot::getLastMark, null)
+                .set(TestReviewNodeSnapshot::getLastMarkAiAdopted, false)
                 .set(TestReviewNodeSnapshot::getLastReviewerId, reviewerId)
                 .set(TestReviewNodeSnapshot::getLastReviewedAt, reviewedAt));
     }

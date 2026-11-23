@@ -426,7 +426,8 @@ public class TestReviewServiceImpl implements TestReviewService {
             if (isPending) {
                 reviewSnapshotService.resetMarkAsPending(snapshotNode.getId(), userId, LocalDateTime.now());
             } else {
-                reviewSnapshotService.applyMark(snapshotNode.getId(), userId, mark, LocalDateTime.now());
+                // 人工标记覆盖当前评审结果时清除 AI 采纳标识
+                reviewSnapshotService.applyMark(snapshotNode.getId(), userId, mark, LocalDateTime.now(), false);
             }
             // 需求：标记评审结果后待评审评审自动转入进行中
             ReviewStatus next = reviewWorkflow.transition(review, ReviewEvent.SUBMIT_RECORD);

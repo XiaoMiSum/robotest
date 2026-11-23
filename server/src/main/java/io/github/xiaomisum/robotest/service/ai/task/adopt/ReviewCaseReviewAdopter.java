@@ -96,7 +96,7 @@ public class ReviewCaseReviewAdopter implements ProposalAdopter {
         record.setMark(mark);
         record.setComment("[AI 建议] " + (reason == null ? "" : reason));
         reviewRecordMapper.insert(record);
-        reviewSnapshotService.applyMark(snapshotNodeId, context.operatorId(), mark, LocalDateTime.now());
+        reviewSnapshotService.applyMark(snapshotNodeId, context.operatorId(), mark, LocalDateTime.now(), true);
 
         Map<String, Object> adoptedRef = new LinkedHashMap<>();
         adoptedRef.put("recordId", String.valueOf(record.getId()));

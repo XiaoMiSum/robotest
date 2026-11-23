@@ -28,6 +28,7 @@ public class TestReviewNodeSnapshot extends BaseUuidDO<TestReviewNodeSnapshot> {
     private String priority;
     private Boolean isAssociated;
     private String lastMark;
+    private Boolean lastMarkAiAdopted;
     @TableField(typeHandler = UUIDTypeHandler.class)
     private UUID lastReviewerId;
     private LocalDateTime lastReviewedAt;

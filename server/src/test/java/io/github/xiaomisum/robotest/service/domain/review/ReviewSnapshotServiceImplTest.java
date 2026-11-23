@@ -211,12 +211,13 @@ class ReviewSnapshotServiceImplTest {
                 UUID snapshotId = UUID.fromString("00000000-0000-0000-0000-000000000222");
 
                 snapshotService.applyMark(snapshotId, UUID.fromString("00000000-0000-0000-0000-000000000002"), "fail",
-                        LocalDateTime.of(2026, 9, 13, 12, 0));
+                        LocalDateTime.of(2026, 9, 13, 12, 0), true);
 
                 ArgumentCaptor<TestReviewNodeSnapshot> captor = ArgumentCaptor.forClass(TestReviewNodeSnapshot.class);
                 verify(reviewNodeSnapshotMapper).updateById(captor.capture());
                 assertEquals(snapshotId, captor.getValue().getId());
                 assertEquals("fail", captor.getValue().getLastMark());
+                assertEquals(true, captor.getValue().getLastMarkAiAdopted());
                 assertEquals(UUID.fromString("00000000-0000-0000-0000-000000000002"),
                         captor.getValue().getLastReviewerId());
         }

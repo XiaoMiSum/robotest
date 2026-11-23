@@ -274,11 +274,12 @@ public class ReviewSnapshotServiceImpl implements ReviewSnapshotService {
     }
 
     @Override
-    public void applyMark(UUID snapshotNodeId, UUID reviewerId, String mark, LocalDateTime reviewedAt) {
+    public void applyMark(UUID snapshotNodeId, UUID reviewerId, String mark, LocalDateTime reviewedAt, boolean aiAdopted) {
         // 更新载体只携带本次标记字段，避免全列覆盖导致并发丢失更新
         TestReviewNodeSnapshot snapUpdate = new TestReviewNodeSnapshot();
         snapUpdate.setId(snapshotNodeId);
         snapUpdate.setLastMark(mark);
+        snapUpdate.setLastMarkAiAdopted(aiAdopted);
         snapUpdate.setLastReviewerId(reviewerId);
         snapUpdate.setLastReviewedAt(reviewedAt);
         reviewNodeSnapshotMapper.updateById(snapUpdate);

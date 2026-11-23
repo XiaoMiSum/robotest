@@ -53,7 +53,7 @@ public interface ReviewSnapshotService {
     /**
      * 更新节点评审标记（仅携带标记字段，避免整行覆盖并发评审结果）
      */
-    void applyMark(UUID snapshotNodeId, UUID reviewerId, String mark, LocalDateTime reviewedAt);
+    void applyMark(UUID snapshotNodeId, UUID reviewerId, String mark, LocalDateTime reviewedAt, boolean aiAdopted);
 
     /**
      * 查询文档下快照树：以关联用例为根保留祖先与后代，剪除孤立节点

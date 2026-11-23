@@ -357,6 +357,7 @@ CREATE TABLE ft_review_node_snapshot (
                                            priority               VARCHAR(2)   NULL,
                                            is_associated          BOOLEAN      NOT NULL DEFAULT FALSE,
                                            last_mark              VARCHAR(10)  NULL,
+                                           last_mark_ai_adopted   BOOLEAN      NOT NULL DEFAULT FALSE,
                                            last_reviewer_id       UUID         NULL,
                                            last_reviewed_at       TIMESTAMP    NULL,
                                            sort_order             INT          NOT NULL DEFAULT 0,
@@ -1543,6 +1544,7 @@ COMMENT ON COLUMN ft_review_node_snapshot.type IS '节点类型：case/normal/pr
 COMMENT ON COLUMN ft_review_node_snapshot.priority IS '用例优先级（固化原值）';
 COMMENT ON COLUMN ft_review_node_snapshot.is_associated IS '是否被选入评审';
 COMMENT ON COLUMN ft_review_node_snapshot.last_mark IS '最新评审标记：pass/fail，NULL=待评审';
+COMMENT ON COLUMN ft_review_node_snapshot.last_mark_ai_adopted IS '当前最新评审标记是否由 AI 建议采纳产生；人工标记或重置待评审后为 FALSE';
 COMMENT ON COLUMN ft_review_node_snapshot.last_reviewer_id IS '最近一次评审人 ID';
 COMMENT ON COLUMN ft_review_node_snapshot.last_reviewed_at IS '最近一次评审时间';
 COMMENT ON COLUMN ft_review_node_snapshot.ai_generated IS 'AI 生成标识（随评审快照继承）';

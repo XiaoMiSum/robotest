@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -71,7 +72,7 @@ class ReviewCaseReviewAdopterTest {
         assertNull(adopter.adopt(context(Constants.AiProposalAction.REJECTED, null, proposalContent(), REVIEW_ID)));
 
         verify(reviewRecordMapper, never()).insert(any(TestReviewRecord.class));
-        verify(reviewSnapshotService, never()).applyMark(any(), any(), any(), any());
+        verify(reviewSnapshotService, never()).applyMark(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -93,7 +94,7 @@ class ReviewCaseReviewAdopterTest {
         assertEquals("fail", record.getMark());
         assertEquals("[AI 建议] 缺少错误分支预期", record.getComment());
         verify(reviewSnapshotService).applyMark(eq(SNAPSHOT_NODE_ID), eq(OPERATOR_ID), eq("fail"),
-                any(LocalDateTime.class));
+                any(LocalDateTime.class), eq(true));
         assertEquals(RECORD_ID, outcome.createdId());
         assertEquals(RECORD_ID.toString(), outcome.adoptedRef().get("recordId"));
         assertEquals(SNAPSHOT_NODE_ID.toString(), outcome.adoptedRef().get("snapshotNodeId"));
@@ -113,7 +114,7 @@ class ReviewCaseReviewAdopterTest {
         assertEquals("pass", captor.getValue().getMark());
         assertEquals("[AI 建议] 人工复核后认为预期充分", captor.getValue().getComment());
         verify(reviewSnapshotService).applyMark(eq(SNAPSHOT_NODE_ID), eq(OPERATOR_ID), eq("pass"),
-                any(LocalDateTime.class));
+                any(LocalDateTime.class), eq(true));
     }
 
     @Test

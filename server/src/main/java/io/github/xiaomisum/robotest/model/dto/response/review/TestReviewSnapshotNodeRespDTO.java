@@ -17,6 +17,7 @@ public class TestReviewSnapshotNodeRespDTO {
     private String priority;
     private Boolean isAssociated;
     private String lastMark;
+    private Boolean lastMarkAiAdopted;
     private UUID lastReviewerId;
     private LocalDateTime lastReviewedAt;
     private Integer sortOrder;
