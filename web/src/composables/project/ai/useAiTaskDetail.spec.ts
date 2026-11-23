@@ -173,7 +173,7 @@ describe('useAiTaskDetail', () => {
   })
 
   describe('加载与状态分支', () => {
-    it('成功加载后填充派生状态与提案计数', async () => {
+    it('成功加载后填充派生状态', async () => {
       const s = mountDetail()
       await vi.waitFor(() => expect(s.loading.value).toBe(false))
       expect(s.detail.value?.taskId).toBe('t1')
@@ -181,11 +181,7 @@ describe('useAiTaskDetail', () => {
       expect(s.statusMeta.value.label).toBe('待采纳')
       expect(s.typeMeta.value.domain).toBe('需求')
       expect(s.planSteps.value.every((step) => step.state === 'done')).toBe(true)
-      expect(s.proposalCounts.value).toEqual([
-        { kind: 'requirement_suggestion', label: '需求建议', count: 2 },
-      ])
-      expect(s.showReviewArea.value).toBe(true)
-      expect(s.showEmptyProposals.value).toBe(false)
+      expect(s.proposals.value).toHaveLength(2)
       await vi.waitFor(() => expect(s.submitterText.value).toBe('张三'))
     })
 
@@ -245,16 +241,15 @@ describe('useAiTaskDetail', () => {
       const s = mountDetail()
       await vi.waitFor(() => expect(s.loading.value).toBe(false))
       expect(s.terminateText.value).toBe('用户终止（错误码 1000018127）')
-      expect(s.showReviewArea.value).toBe(false)
       expect(s.canReExecute.value).toBe(true)
       expect(s.canAbort.value).toBe(false)
     })
 
-    it('待采纳但无提案展示空态', async () => {
+    it('待采纳但无提案时不展示采纳回看区', async () => {
       mocks.fetchAiTask.mockResolvedValue(makeDetail({ proposals: null }))
       const s = mountDetail()
-      await vi.waitFor(() => expect(s.showEmptyProposals.value).toBe(true))
-      expect(s.showReviewArea.value).toBe(false)
+      await vi.waitFor(() => expect(s.loading.value).toBe(false))
+      expect(s.showAdoptionResult.value).toBe(false)
       expect(s.proposals.value).toEqual([])
     })
 
@@ -284,7 +279,6 @@ describe('useAiTaskDetail', () => {
       await vi.waitFor(() => expect(s.showAdoptionResult.value).toBe(true))
       expect(s.adoptionResult.value?.label).toBe('部分采纳')
       expect(s.detail.value?.proposals?.[1].note).toBe('本期不支持')
-      expect(s.showReviewArea.value).toBe(false)
     })
 
     it('已终止不展示采纳回看区', async () => {
@@ -295,11 +289,10 @@ describe('useAiTaskDetail', () => {
       expect(s.adoptionResult.value).toBeNull()
     })
 
-    it('执行中渲染占位，不进审核区', async () => {
+    it('执行中展示计划步骤与轮询状态', async () => {
       mocks.fetchAiTask.mockResolvedValue(makeRunningDetail())
       const s = mountDetail()
-      await vi.waitFor(() => expect(s.showRunningPlaceholder.value).toBe(true))
-      expect(s.showReviewArea.value).toBe(false)
+      await vi.waitFor(() => expect(s.isRunning.value).toBe(true))
       expect(s.planSteps.value.map((step) => step.state)).toEqual([
         'done',
         'current',

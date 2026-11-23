@@ -31,8 +31,6 @@ export interface AiTaskRow {
   canAbort: boolean
   /** 可再次执行：任务已终止（交互 2.1.2 行操作） */
   canReExecute: boolean
-  /** 可进入审核：proposals_ready（跳详情定位审核区） */
-  canReview: boolean
   /** 悬浮终止原因文案（aborted 展示） */
   terminateText: string
 }
@@ -113,7 +111,6 @@ export function useAiTaskCenter() {
       executionId: execution?.executionId ?? null,
       canAbort: abortable,
       canReExecute: item.status === 'aborted',
-      canReview: item.status === 'proposals_ready',
       terminateText:
         item.terminateReason?.msg
         || execution?.terminateReason?.msg
@@ -207,7 +204,6 @@ export function useAiTaskCenter() {
         current.executionId = nextRow.executionId
         current.canAbort = nextRow.canAbort
         current.canReExecute = nextRow.canReExecute
-        current.canReview = nextRow.canReview
         current.terminateText = nextRow.terminateText
       }
       // 终止即出队：即时刷新顶栏进行中计数，不等 15s 轮询（交互 07 §5）

@@ -6,7 +6,6 @@ import {
   aiExecutionSummary,
   aiPlanSteps,
   aiProposalConfirmMeta,
-  aiProposalKindCounts,
   aiProposalKindLabel,
   aiProposalProcessed,
   aiTaskAdoptionProposals,
@@ -210,25 +209,9 @@ describe('taskPresentation', () => {
   })
 
   describe('提案', () => {
-    it('按 kind 分组计数并映射中文标签', () => {
-      const counts = aiProposalKindCounts([
-        { kind: 'requirement_suggestion' },
-        { kind: 'requirement_suggestion' },
-        { kind: 'case_optimize_suggestion' },
-        { kind: 'custom_kind' },
-      ])
-      expect(counts).toEqual([
-        { kind: 'requirement_suggestion', label: '需求建议', count: 2 },
-        { kind: 'case_optimize_suggestion', label: '用例优化', count: 1 },
-        { kind: 'custom_kind', label: 'custom_kind', count: 1 },
-      ])
+    it('提案 kind 映射中文标签', () => {
       expect(aiProposalKindLabel('custom_kind')).toBe('custom_kind')
       expect(aiProposalKindLabel('case_optimize_suggestion')).toBe('用例优化')
-    })
-
-    it('空清单返回空计数', () => {
-      expect(aiProposalKindCounts(null)).toEqual([])
-      expect(aiProposalKindCounts([])).toEqual([])
     })
 
     it('已处理数排除待确认', () => {

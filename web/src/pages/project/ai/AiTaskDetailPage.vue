@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import { nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
-import AiProposalReviewPanel from '@/components/project/ai/AiProposalReviewPanel.vue'
 import AiTaskAdoptionResultPanel from '@/components/project/ai/AiTaskAdoptionResultPanel.vue'
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
 import PlanTimeline from '@/components/project/ai/PlanTimeline.vue'
 import TraceEventList from '@/components/project/ai/TraceEventList.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
-
-const route = useRoute()
 
 const {
   loading,
@@ -23,46 +18,18 @@ const {
   name,
   execution,
   planSteps,
-  proposalCounts,
   proposals,
   adoptionResult,
   showAdoptionResult,
   terminateText,
   canAbort,
   canReExecute,
-  showReviewArea,
-  showRunningPlaceholder,
-  showEmptyProposals,
   taskId,
   load,
   handleAbort,
   handleReExecute,
   backToCenter,
 } = useAiTaskDetail()
-
-/** 从列表「审核」进入时定位审核区（交互 2.1.2）；审核区在 proposals_ready 后才渲染，待其出现再定位 */
-const focusReview = route.query.review === '1'
-
-function scrollReview(): void {
-  void nextTick(() => {
-    document
-      .getElementById('task-review')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
-}
-
-watch(
-  () => detail.value?.status,
-  (status) => {
-    if (focusReview && status === 'proposals_ready') scrollReview()
-  },
-  { immediate: true },
-)
-
-/** 提案计数徽标点击定位审核区（交互 2.2） */
-function focusReviewArea(): void {
-  if (showReviewArea.value) scrollReview()
-}
 </script>
 
 <template>
@@ -164,56 +131,9 @@ function focusReviewArea(): void {
           <PlanTimeline :steps="planSteps" />
         </section>
 
-        <!-- 提案计数：徽标点击定位审核区（交互 2.2） -->
-        <section v-if="proposalCounts.length > 0" class="task-section task-proposals">
-          <span class="task-proposals__label">提案计数</span>
-          <el-tag
-            v-for="item in proposalCounts"
-            :key="item.kind"
-            size="small"
-            effect="plain"
-            class="task-proposals__badge"
-            :class="{ 'task-proposals__badge--clickable': showReviewArea }"
-            @click="focusReviewArea"
-          >
-            {{ item.label }} {{ item.count }}
-          </el-tag>
-        </section>
-
         <!-- 轨迹区：游标增量拉取，实时通道接入前以展开刷新兜底（交互 2.2） -->
         <section v-if="execution" class="task-section">
           <TraceEventList :task-id="taskId" :execution-id="execution.executionId" />
-        </section>
-
-        <!-- 审核区状态分支（交互 2.2）：仅 proposals_ready 渲染，closed 走下方只读回看 -->
-        <section
-          v-if="showReviewArea || showRunningPlaceholder || showEmptyProposals"
-          id="task-review"
-          class="task-section"
-          :class="{ 'task-section--focus': focusReview }"
-        >
-          <template v-if="showReviewArea">
-            <AiProposalReviewPanel
-              :task-id="detail.taskId"
-              :task-type="detail.type"
-              :proposals="proposals"
-              :document-meta="detail.documentMeta ?? null"
-              @confirmed="load"
-              @leave="backToCenter"
-            />
-          </template>
-          <el-empty
-            v-else-if="showRunningPlaceholder"
-            description="执行进行中，完成后在此审核"
-            :image-size="80"
-          />
-          <el-empty
-            v-else
-            description="任务完成，但没有需要审核的提案"
-            :image-size="80"
-          >
-            <el-button @click="backToCenter">返回任务中心</el-button>
-          </el-empty>
         </section>
 
         <!-- 已结束：逐条只读回看采纳 / 驳回结果，不提供操作（交互 2.2） -->
@@ -298,24 +218,5 @@ function focusReviewArea(): void {
   color: var(--color-neutral-900);
   font-size: var(--font-size-lg);
   font-weight: 650;
-}
-
-.task-proposals {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.task-proposals__label {
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
-}
-
-.task-proposals__badge {
-  cursor: default;
-}
-
-.task-proposals__badge--clickable {
-  cursor: pointer;
 }
 </style>

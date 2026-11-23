@@ -381,15 +381,15 @@ describe('useAiTaskCenter', () => {
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('任务不存在')
     })
 
-    it('待采纳任务给出审核入口标记', async () => {
+    it('待采纳任务状态正确展示且不提供审核入口', async () => {
       const s = center()
       mocks.fetchAiTasks.mockResolvedValue({
         list: [makeItem({ status: 'proposals_ready' })],
         total: 1,
       } as PageResult<AiTaskItem>)
       await s.load()
-      expect(s.rows.value[0].canReview).toBe(true)
       expect(s.rows.value[0].statusMeta.label).toBe('待采纳')
+      expect(s.rows.value[0]).not.toHaveProperty('canReview')
     })
   })
 })

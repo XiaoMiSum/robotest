@@ -8,6 +8,7 @@ import type {
   AiProposalConfirmResult,
   AiProposalConfirmTarget,
   AiTaskProposalSummary,
+  ConfirmItemResult,
   ProjectModule,
 } from '@/types'
 import {
@@ -83,18 +84,6 @@ export interface ProposalRow extends AiTaskProposalSummary {
   parsed: ProposalParsed
   /** 产物详情按需加载失败原因，卡片内提示并支持重试 */
   contentError: string
-}
-
-/** 逐项回执行（AiConfirmReceipt 展示与单项重试载荷，非任务重试） */
-export interface ConfirmItemResult {
-  key: string
-  title: string
-  action: string
-  success: boolean
-  errorCode: number | null
-  errorMsg: string
-  /** 落库资源 id（承接服务返回新建资源时用于成功跳转等后续动作） */
-  createdId: string | null
 }
 
 export function useAiProposalReview(

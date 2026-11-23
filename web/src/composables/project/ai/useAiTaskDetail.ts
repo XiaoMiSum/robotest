@@ -13,8 +13,6 @@ import type { AiTaskDetail } from '@/types'
 import {
   aiExecutionStatusMeta,
   aiPlanSteps,
-  aiProposalKindCounts,
-  aiProposalProcessed,
   aiTaskAdoptionResult,
   aiTaskName,
   aiTaskStatusMeta,
@@ -169,9 +167,7 @@ export function useAiTaskDetail() {
   )
   /** 计划步骤时间线（plan 快照驱动，交互 2.2） */
   const planSteps = computed(() => aiPlanSteps(execution.value))
-  const proposalCounts = computed(() => aiProposalKindCounts(detail.value?.proposals))
   const proposals = computed(() => detail.value?.proposals ?? [])
-  const processed = computed(() => aiProposalProcessed(proposals.value))
   /** 任务级结果：closed 态由提案确认状态聚合派生（详设 3.6.3） */
   const adoptionResult = computed(() => aiTaskAdoptionResult(proposals.value))
   /** closed 且有提案时渲染只读回看区；aborted 不渲染 */
@@ -197,15 +193,6 @@ export function useAiTaskDetail() {
   /** 任务已终止时可再次执行（交互 2.2 操作） */
   const canReExecute = computed(() => detail.value?.status === 'aborted')
   const isRunning = computed(() => detail.value?.status === 'running')
-  /** 审核区门禁：proposals_ready 且有提案（交互 2.2，R7 无提案任务执行完成即 closed 不进审核区） */
-  const showReviewArea = computed(
-    () => detail.value?.status === 'proposals_ready' && proposals.value.length > 0,
-  )
-  const showRunningPlaceholder = computed(() => isRunning.value)
-  /** proposals_ready 但无提案（异常兜底）：空态而非静默隐藏 */
-  const showEmptyProposals = computed(
-    () => detail.value?.status === 'proposals_ready' && proposals.value.length === 0,
-  )
 
   onMounted(() => {
     void loadAiStatus()
@@ -238,18 +225,13 @@ export function useAiTaskDetail() {
     execution,
     executionStatusMeta,
     planSteps,
-    proposalCounts,
     proposals,
-    processed,
     adoptionResult,
     showAdoptionResult,
     terminateText,
     canAbort,
     canReExecute,
     isRunning,
-    showReviewArea,
-    showRunningPlaceholder,
-    showEmptyProposals,
     load,
     handleAbort,
     handleReExecute,

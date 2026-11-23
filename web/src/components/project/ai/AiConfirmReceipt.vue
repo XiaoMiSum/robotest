@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ConfirmItemResult } from '@/composables/project/ai/useAiProposalReview'
+import type { ConfirmItemResult } from '@/types'
 
 defineProps<{
   receipt: ConfirmItemResult[]

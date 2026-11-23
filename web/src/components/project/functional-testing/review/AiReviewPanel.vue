@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import { isReviewSuggestion } from '@/composables/project/ai/assistPresentation'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
-import type { ConfirmItemResult } from '@/composables/project/ai/useAiProposalReview'
+import type { ConfirmItemResult } from '@/types'
 import type {
   AiAssistSourceRef,
   AiProposalConfirmResult,

@@ -230,6 +230,18 @@ export interface AiProposalConfirmResult {
   errorMsg: string | null
 }
 
+/** 审核面板逐项回执（结果与展示标题合流，供各业务面板回执组件复用） */
+export interface ConfirmItemResult {
+  key: string
+  title: string
+  action: string
+  success: boolean
+  errorCode: number | null
+  errorMsg: string
+  /** 落库资源 id（承接服务返回新建资源时用于成功跳转等后续动作） */
+  createdId: string | null
+}
+
 export interface AiProposalConfirmReceipt {
   results: AiProposalConfirmResult[]
 }

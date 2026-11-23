@@ -8,7 +8,7 @@ import {
   isCaseOptimizeSuggestion,
 } from '@/composables/project/ai/assistPresentation'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
-import type { ConfirmItemResult } from '@/composables/project/ai/useAiProposalReview'
+import type { ConfirmItemResult } from '@/types'
 import type {
   AiAssistSourceRef,
   AiCaseOptimizeOperation,

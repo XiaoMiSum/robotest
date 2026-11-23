@@ -44,11 +44,6 @@ function openDetail(taskId: string): void {
   void router.push(`/workspace/projects/ai/tasks/${taskId}`)
 }
 
-/** proposals_ready：跳详情并定位审核区（交互 2.1.2） */
-function openReview(taskId: string): void {
-  void router.push({ path: `/workspace/projects/ai/tasks/${taskId}`, query: { review: '1' } })
-}
-
 /** el-table 插槽行是宽松类型，此处收窄为行视图模型（no-unsafe 后端未知键本就不读取） */
 function asRow(row: unknown): AiTaskRow {
   return row as AiTaskRow
@@ -60,7 +55,7 @@ function asRow(row: unknown): AiTaskRow {
     <header class="page-head">
       <div>
         <h1 class="page-head__title">AI 任务中心</h1>
-        <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程并审核提案</p>
+        <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程与采纳结果</p>
       </div>
       <div class="page-head__actions">
         <el-button @click="refresh">
@@ -190,13 +185,6 @@ function asRow(row: unknown): AiTaskRow {
                 type="primary"
                 @click="handleReExecute(asRow(row))"
               >再次执行</el-button>
-              <!-- 列表项不含提案清单（详设 3.6.3），待采纳态给出审核入口，详情页按真实提案渲染 -->
-              <el-button
-                v-if="asRow(row).canReview"
-                link
-                type="success"
-                @click="openReview(row.taskId)"
-              >审核</el-button>
             </template>
           </el-table-column>
           <template #empty>

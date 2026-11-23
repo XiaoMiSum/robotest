@@ -260,33 +260,6 @@ const PROPOSAL_KIND_LABEL: Record<string, string> = {
   answer: '回答',
 }
 
-export interface AiProposalKindCount {
-  kind: string
-  label: string
-  count: number
-}
-
-/** 提案计数徽标（详情页，按 kind 分组，顺序按出现次序） */
-export function aiProposalKindCounts(
-  proposals: Array<{ kind: string }> | null | undefined,
-): AiProposalKindCount[] {
-  if (!proposals || proposals.length === 0) return []
-  const counts: AiProposalKindCount[] = []
-  for (const proposal of proposals) {
-    const existing = counts.find((item) => item.kind === proposal.kind)
-    if (existing) {
-      existing.count += 1
-    } else {
-      counts.push({
-        kind: proposal.kind,
-        label: PROPOSAL_KIND_LABEL[proposal.kind] ?? proposal.kind,
-        count: 1,
-      })
-    }
-  }
-  return counts
-}
-
 export function aiProposalKindLabel(kind: string): string {
   return PROPOSAL_KIND_LABEL[kind] ?? kind
 }
