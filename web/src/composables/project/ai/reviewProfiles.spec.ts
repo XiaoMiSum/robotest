@@ -170,8 +170,8 @@ describe('reviewProfiles', () => {
   })
 
   describe('只读与兜底', () => {
-    it('分诊 / 解析类提案不提供确认动作', () => {
-      for (const type of ['bug_triage', 'assistant_parse', 'vector_reindex']) {
+    it('解析类提案不提供确认动作', () => {
+      for (const type of ['assistant_parse', 'vector_reindex']) {
         const profile = reviewProfile(type)
         expect(isReadonlyProfile(profile)).toBe(true)
         expect(profile.editFields).toEqual([])

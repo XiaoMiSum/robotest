@@ -177,7 +177,6 @@ describe('AiProposalReviewPanel', () => {
 
   it('只读任务卡片不渲染采纳与驳回操作', async () => {
     for (const [taskType, kind, title] of [
-      ['bug_triage', 'triage_order', '缺陷分诊结果'],
       ['case_optimize', 'case_optimize_suggestion', '用例优化结果'],
     ]) {
       const wrapper = mountPanel(taskType, [proposal({ kind })])

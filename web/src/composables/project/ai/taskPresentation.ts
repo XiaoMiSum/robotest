@@ -80,7 +80,6 @@ export const AI_TASK_TYPE_META: Record<string, AiTaskTypeMeta> = {
   mindmap_case_generation: { label: '脑图用例生成', domain: '辅助' },
   plan_order: { label: '计划排序', domain: '辅助' },
   review_case_review: { label: 'AI 评审', domain: '辅助' },
-  bug_triage: { label: '缺陷分诊', domain: '缺陷' },
   assistant_parse: { label: '助手解析', domain: '助手' },
   vector_reindex: { label: '向量索引重建', domain: '底座' },
 }
@@ -211,7 +210,6 @@ const PROPOSAL_KIND_LABEL: Record<string, string> = {
   requirement_suggestion: '需求建议',
   case_optimize_suggestion: '用例优化',
   order_suggestion: '排序建议',
-  triage_order: '分诊顺序',
   intent_preview: '意图预览',
   answer: '回答',
 }

@@ -2780,38 +2780,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/bugs/analysis/trends": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getTrends"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/project/bugs/analysis/metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getMetrics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/api-scenes/{sceneId}/change-history": {
         parameters: {
             query?: never;
@@ -6517,38 +6485,12 @@ export interface components {
             data?: components["schemas"]["BugAttachmentRespDTO"][];
             msg?: string;
         };
-        BugAnalysisQueryReqDTO: {
-            from?: string;
-            to?: string;
-            groupBy?: string;
-        };
-        BugTrendsRespDTO: {
-            axis?: string[];
-            series?: components["schemas"]["Series"][];
-            groupBy?: string;
-        };
-        ResultBugTrendsRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["BugTrendsRespDTO"];
-            msg?: string;
-        };
         Series: {
             key?: string;
             label?: string;
             created?: number[];
             closed?: number[];
             active?: number[];
-        };
-        BugMetricsRespDTO: {
-            fixDuration?: components["schemas"]["FixDuration"];
-            /** Format: double */
-            reopenRate?: number;
-            /** Format: double */
-            duplicateRate?: number;
-            severityDist?: components["schemas"]["DistItem"][];
-            moduleDist?: components["schemas"]["DistItem"][];
-            typeDist?: components["schemas"]["DistItem"][];
         };
         DistItem: {
             key?: string;
@@ -6564,12 +6506,6 @@ export interface components {
             p90Hours?: number;
             /** Format: int32 */
             sample?: number;
-        };
-        ResultBugMetricsRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["BugMetricsRespDTO"];
-            msg?: string;
         };
         ApiScenePageItemRespDTO: {
             /** Format: uuid */
@@ -13105,50 +13041,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
-                };
-            };
-        };
-    };
-    getTrends: {
-        parameters: {
-            query: {
-                query: components["schemas"]["BugAnalysisQueryReqDTO"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBugTrendsRespDTO"];
-                };
-            };
-        };
-    };
-    getMetrics: {
-        parameters: {
-            query: {
-                query: components["schemas"]["BugAnalysisQueryReqDTO"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBugMetricsRespDTO"];
                 };
             };
         };

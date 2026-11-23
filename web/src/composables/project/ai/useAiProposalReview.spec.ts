@@ -457,7 +457,7 @@ describe('useAiProposalReview', () => {
         () => [summary()],
         () => true,
         vi.fn(),
-        'bug_triage',
+        'assistant_parse',
       )
       s.init()
       expect(s.selectableRows.value).toEqual([])

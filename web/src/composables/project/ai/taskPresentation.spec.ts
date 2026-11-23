@@ -111,7 +111,7 @@ describe('taskPresentation', () => {
 
     it('类型筛选选项带能力域后缀', () => {
       const options = aiTaskTypeOptions()
-      expect(options.length).toBe(8)
+      expect(options.length).toBe(7)
       expect(options.find((item) => item.value === 'mindmap_case_generation')?.label).toBe(
         '脑图用例生成（辅助）',
       )

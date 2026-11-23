@@ -1,57 +1,5 @@
 import type { BugPriority, BugSeverity, BugStatus, BugType } from './bug'
 
-// ==================== 趋势与度量（详设 3.2 / 3.3） ====================
-
-/** 分析分组维度：none 默认；module 按模块；severity / type 按枚举 */
-export type BugAnalysisGroupBy = 'none' | 'module' | 'severity' | 'type'
-
-/** 分析时间范围（日期为 yyyy-MM-dd 的 UTC 日历日，缺省最近 30 天） */
-export interface BugAnalysisQuery {
-  from?: string
-  to?: string
-  groupBy?: BugAnalysisGroupBy
-}
-
-/** 趋势分组序列：key=all（全部）/ 模块 id / 枚举值 */
-export interface BugTrendSeries {
-  key: string
-  label: string
-  created: number[]
-  closed: number[]
-  active: number[]
-}
-
-/** 趋势查询响应：axis 为区间逐日 UTC 日期 */
-export interface BugTrendsResp {
-  axis: string[]
-  series: BugTrendSeries[]
-  groupBy: BugAnalysisGroupBy
-}
-
-/** 修复时长度量：sample 为修复时间落在区间内的缺陷数 */
-export interface BugFixDuration {
-  avgHours: number | null
-  p50Hours: number | null
-  p90Hours: number | null
-  sample: number | null
-}
-
-/** 分布项：severity / type 为枚举值；module 为模块名称（未指定为「未指定模块」） */
-export interface BugDistItem {
-  key: string
-  count: number
-}
-
-/** 质量度量响应：比率与分布分母统一为区间内新增缺陷，分母为 0 时比率为 0 */
-export interface BugMetricsResp {
-  fixDuration: BugFixDuration | null
-  reopenRate: number | null
-  duplicateRate: number | null
-  severityDist: BugDistItem[]
-  moduleDist: BugDistItem[]
-  typeDist: BugDistItem[]
-}
-
 // ==================== 录入时重复检测（详设 3.6） ====================
 export interface BugDuplicateCheckReq {
   title: string
@@ -72,7 +20,7 @@ export interface BugDuplicateCheckResp {
   list: BugDuplicateCheckItem[]
 }
 
-// ==================== 产物 content（详设 3.1–3.6） ====================
+// ==================== 建议字段（详设 3.4） ====================
 
 /** 建议值：value 为建议内容，reason 为理由 */
 export interface BugSuggestionField<T> {
@@ -89,12 +37,6 @@ export interface BugSuggestionFields {
   keywords?: BugSuggestionField<string[]>
   /** 采纳承接支持的可选建议字段（模型清洗产出中不含，仅人工补录时携带） */
   assigneeId?: BugSuggestionField<string | null>
-}
-
-/** 分诊顺序产物 content（只读，不写入任何数据） */
-export interface BugTriageContent {
-  items: Array<{ bugId: string; rank: number; reason: string }>
-  scope: string
 }
 
 // ==================== 新建缺陷实时建议（详设 3.4） ====================

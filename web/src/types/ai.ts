@@ -32,13 +32,12 @@ export type AiProposalConfirmStatus =
 /** 提案采纳动作（Constants.AiProposalAction） */
 export type AiProposalAction = 'adopted' | 'adopted_edited' | 'rejected'
 
-/** 任务类型（Constants.AiTaskType，8 类单一事实源） */
+/** 任务类型（Constants.AiTaskType，7 类单一事实源） */
 export type AiTaskType =
   | 'requirement_import'
   | 'case_optimize'
   | 'mindmap_case_generation'
   | 'plan_order'
-  | 'bug_triage'
   | 'assistant_parse'
   | 'vector_reindex'
   | 'review_case_review'

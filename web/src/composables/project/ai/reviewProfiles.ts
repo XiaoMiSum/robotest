@@ -301,7 +301,6 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   mindmap_case_generation: mindmapCaseGenerationProfile,
   plan_order: planOrderProfile,
   review_case_review: reviewCaseReviewProfile,
-  bug_triage: readonlyProfile('bug_triage', '缺陷分诊结果'),
   assistant_parse: readonlyProfile('assistant_parse', '助手解析结果'),
   vector_reindex: readonlyProfile('vector_reindex', '向量索引重建结果'),
 }
