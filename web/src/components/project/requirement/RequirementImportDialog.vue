@@ -78,7 +78,7 @@ async function handleSubmit(): Promise<void> {
       <div class="el-upload__text">将文件拖到此处，或<em>点击选择</em></div>
       <template #tip>
         <div class="import-dialog__hint">
-          支持 Markdown（.md）、Word（.docx）与图片，单文件不超过 20MB；提交后在任务详情页跟踪进度并审核导入结果
+          支持 Markdown（.md）、Word（.docx）与图片，单文件不超过 20MB；提交后在需求管理页跟踪进度并审核导入结果
         </div>
       </template>
     </el-upload>

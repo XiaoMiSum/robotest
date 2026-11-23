@@ -29,7 +29,7 @@ vi.mock('element-plus', async (importOriginal) => {
   }
 })
 
-import AiProposalReviewPanel from './AiProposalReviewPanel.vue'
+import RequirementImportReviewPanel from './RequirementImportReviewPanel.vue'
 
 function proposal(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposalSummary {
   return {
@@ -44,13 +44,13 @@ function proposal(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposa
 }
 
 function mountPanel(taskType: string, proposals: AiTaskProposalSummary[]) {
-  return mount(AiProposalReviewPanel, {
+  return mount(RequirementImportReviewPanel, {
     props: { taskId: 't1', taskType, proposals },
     global: { plugins: [ElementPlus], stubs: { InfoFilled: true } },
   })
 }
 
-describe('AiProposalReviewPanel', () => {
+describe('RequirementImportReviewPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setActivePinia(createPinia())

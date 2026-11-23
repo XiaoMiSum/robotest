@@ -78,13 +78,13 @@ describe('useRequirementImport', () => {
       expect(s.fileError.value).toContain('请先选择')
     })
 
-    it('提交成功关闭流程并跳转任务详情页', async () => {
+    it('提交成功关闭流程并跳转导入结果审核页', async () => {
       const s = useRequirementImport()
       s.pickFile(makeFile('需求.docx'))
       await expect(s.submit()).resolves.toBe(true)
       expect(mocks.importRequirement).toHaveBeenCalledWith(s.selectedFile.value)
       expect(mocks.ElMessage.success).toHaveBeenCalled()
-      expect(mocks.router.push).toHaveBeenCalledWith('/workspace/projects/ai/tasks/t1')
+      expect(mocks.router.push).toHaveBeenCalledWith('/workspace/projects/requirements/import-review/t1')
       expect(s.submitting.value).toBe(false)
     })
 

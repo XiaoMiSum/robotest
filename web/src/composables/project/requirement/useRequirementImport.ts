@@ -28,7 +28,7 @@ function errorCode(error: unknown): number | undefined {
   return undefined
 }
 
-/** 需求导入（交互 06 §2.3）：文件预校验 → 提交 → 跳转任务详情页跟踪进度与审核 */
+/** 需求导入（交互 06 §2.3）：文件预校验 → 提交 → 跳转需求管理导入结果审核页 */
 export function useRequirementImport() {
   const router = useRouter()
   const selectedFile = ref<File | null>(null)
@@ -67,7 +67,7 @@ export function useRequirementImport() {
     fileError.value = ''
   }
 
-  /** @returns 提交成功（已跳转任务详情页）为 true；预校验失败或接口报错为 false 且保留对话框 */
+  /** @returns 提交成功（已跳转导入结果审核页）为 true；预校验失败或接口报错为 false 且保留对话框 */
   async function submit(): Promise<boolean> {
     if (selectedFile.value === null) {
       fileError.value = '请先选择要导入的文件'
@@ -77,7 +77,7 @@ export function useRequirementImport() {
     try {
       const result = await importRequirement(selectedFile.value)
       ElMessage.success('导入任务已提交')
-      void router.push(`/workspace/projects/ai/tasks/${result.taskId}`)
+      void router.push(`/workspace/projects/requirements/import-review/${result.taskId}`)
       return true
     } catch (err) {
       // 同项目已有进行中导入任务：引导去任务中心看该任务（交互 06 §2.3.2）

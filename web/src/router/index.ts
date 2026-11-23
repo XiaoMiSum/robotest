@@ -297,6 +297,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '新建需求', mode: 'project' },
       },
       {
+        // 不入菜单：需求导入提交后进入导入结果审核（交互 06 §2.3）；须先于 :requirementId 注册
+        path: 'workspace/projects/requirements/import-review/:taskId',
+        name: 'RequirementImportReview',
+        component: () => import('@/pages/project/requirement/RequirementImportReviewPage.vue'),
+        meta: { title: '导入结果审核', mode: 'project' },
+      },
+      {
         path: 'workspace/projects/requirements/:requirementId',
         name: 'RequirementDetail',
         component: () => import('@/pages/project/requirement/RequirementDetailPage.vue'),
