@@ -307,3 +307,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：2.1 死代码盘点删除对应死接口，2.3.1 / 2.7 文件清单删除对应类型与组件；历史实施记录中的旧 Handler 与承接实现计数保留原貌 |
 | V1.0 | 2026-11-21 | 移除趋势摘要与存量批量分类：2.1 死代码盘点、2.3.2 Handler 清单与 2.4 / 2.7 前端清单删除对应类型和审核组件，跨域消费方改引重复扫描，缺陷分析详设引用由 3.5 顺延为 3.4 |
 | V1.0 | 2026-11-21 | 移除存量重复扫描任务：2.3.2 Handler 清单去 `BugDuplicateScan`、2.4 组件清单去 `BugDuplicateReviewPanel`、跨域消费方去 `useBugDuplicateScan` / `useBugDuplicateReview` |
+| V1.0 | 2026-11-23 | 迁移历史记录保留原貌；任务列表与详情的审核功能已下线，提案处置统一在业务面板完成，现行口径以需求 / 概要 / 详设 / 交互各分册为准 |

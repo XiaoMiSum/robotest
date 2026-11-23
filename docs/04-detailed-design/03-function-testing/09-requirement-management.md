@@ -296,7 +296,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 }
 ```
 
-- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有进行中（`running`）的导入任务时拒绝重复提交（1000018013）。任务执行过程与提案确认走 AI Task 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/proposals/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result_meta` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），经任务详情响应 `documentMeta` 字段下发（见 AI 底座详设 3.6.3），确认面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
+- **校验规则**：类型不符 1000018006、超限 1000018007、不可解析 1000018008；同项目已有进行中（`running`）的导入任务时拒绝重复提交（1000018013）。任务执行过程与提案确认走 AI Task 任务资源（`GET /api/ai/tasks/{taskId}`、`POST /api/ai/tasks/{taskId}/proposals/confirm`），采纳落库由本模块服务承接（见 4.5）。任务 `result_meta` 含文档级 `documentMeta.detectedVersion`（AI 从文档识别的系统版本，附识别依据引语），经任务详情响应 `documentMeta` 字段下发（见 AI 底座详设 3.6.3），供需求管理页导入结果审核面板预填、可修改或清空；识别不到时为 `null`，采纳后留空待手工补录。
 
 ### 3.9 变更记录
 
@@ -403,6 +403,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 ├── /workspace/projects/functional-testing?tab=requirements  → FunctionalTestingPage（功能测试壳层，侧栏首位「需求列表」子项）
 │   └── RequirementListPage（需求列表，常驻展示）
 ├── /workspace/projects/requirements/create                  → RequirementCreatePage（新建需求，过程页不入菜单）
+├── /workspace/projects/requirements/import-review/:taskId   → RequirementImportReviewPage（导入结果审核，过程页不入菜单）
 └── /workspace/projects/requirements/:requirementId          → RequirementDetailPage（需求详情，过程页不入菜单）
 
 旧路径 /workspace/projects/requirements 重定向至 /workspace/projects/functional-testing?tab=requirements
@@ -427,12 +428,16 @@ RequirementDetailPage
 ├── MarkdownDescription（描述渲染，父容器高度按窗口动态取剩余可用空间 90%；编辑态切换为编辑器，编辑器底部拖拽手柄可自由调高——拖动后本次停留期间以拖动值为准、窗口缩放不再覆盖，不持久化）
 ├── SourceAttachment（来源附件预览与下载，source=import 时）
 └── ChangeTimeline（变更记录时间线，页签首次激活时加载，支持「加载更多」分页）
+
+RequirementImportReviewPage（导入结果审核，需求管理业务页）
+├── ImportReviewHeader（面包屑「需求列表 › 导入结果审核」、任务状态、终止原因、再次执行）
+└── RequirementImportReviewPanel（版本预填/可修改/可清空、逐条与批量采纳、修改后采纳、驳回附反馈、逐项回执）
 ```
 
 ### 5.3 状态管理与交互
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务执行与轨迹订阅，任务完成回调刷新列表与拆解记录。
-- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转任务详情页（`/workspace/projects/ai/tasks/:taskId`）→ 执行与轨迹轮询 → 同页审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新列表。
+- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转需求管理导入结果审核页（`/workspace/projects/requirements/import-review/:taskId`）→ 任务状态轮询 → 审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新需求列表。AI 任务详情仅回看执行过程与采纳结果，不提供审核动作。
 - 全部状态分支：列表空态（引导新建/导入）、归档只读降级、业务状态不满足时隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
 
 ---
@@ -494,7 +499,7 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 **测试要点（C8 ≥ 70%）**
 
 - 后端：编号分配并发与重试、状态机非法流转矩阵、归档只读、部分更新不覆盖未传字段、变更触发状态流转与变更记录、拆解采纳事务、导入大小/类型校验、关键词三段匹配、非本项目资源返回 404；
-- 前端：筛选与防抖查询、状态按钮可用性矩阵、导入全流程与任务详情页审核、归档只读降级、空态与业务状态隐藏。
+- 前端：筛选与防抖查询、状态按钮可用性矩阵、导入全流程与需求管理页审核、归档只读降级、空态与业务状态隐藏。
 
 ---
 
@@ -522,3 +527,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-10-19 | 5.2 描述编辑器新增底部拖拽手柄自由调高（最小 200px、最大视口高度；拖动后本次停留期间窗口缩放不再覆盖，不持久化），新建页与详情页编辑态同步生效 |
 | V1.0 | 2026-11-18 | 移除需求管理 RBAC 权限码口径：删除权限码映射、权限点清单与相关错误码，接口统一按项目归属和成员身份校验，前端入口不再按权限码显隐 |
 | V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：4.4 删除指向生成链详设的引用，5.2 组件树删除「AI 生成用例」入口 |
+| V1.0 | 2026-11-23 | 导入结果审核从任务详情迁至需求管理业务页：5.1 新增 `RequirementImportReviewPage` 路由、5.2 新增页面与面板组件，5.3 导入流程与测试要点同步；AI 任务详情仅回看 |
