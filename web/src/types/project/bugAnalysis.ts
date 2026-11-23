@@ -1,25 +1,5 @@
 import type { BugPriority, BugSeverity, BugStatus, BugType } from './bug'
 
-// ==================== 录入时重复检测（详设 3.6） ====================
-export interface BugDuplicateCheckReq {
-  title: string
-  steps?: string
-  limit?: number
-}
-
-/** similarity 仅作排序信号，阈值不对外承诺；basis 为向量命中的原文分块 */
-export interface BugDuplicateCheckItem {
-  bugId: string
-  title: string
-  status: BugStatus
-  similarity: number
-  basis: string
-}
-
-export interface BugDuplicateCheckResp {
-  list: BugDuplicateCheckItem[]
-}
-
 // ==================== 建议字段（详设 3.4） ====================
 
 /** 建议值：value 为建议内容，reason 为理由 */
@@ -48,6 +28,15 @@ export interface BugDraftSuggestReq {
   moduleId?: string
 }
 
+/** 疑似重复缺陷：similarity 仅作排序信号，阈值不对外承诺；basis 为向量命中的原文分块 */
+export interface BugDuplicateSuggestItem {
+  bugId: string
+  title: string
+  status: BugStatus
+  similarity: number
+  basis: string
+}
+
 /** 关联用例建议：value 为候选用例节点 id，caseTitle 取候选用例清单原值 */
 export interface BugRelatedCaseSuggestion {
   value: string
@@ -60,9 +49,10 @@ export interface BugDraftSuggestFields extends BugSuggestionFields {
   relatedCase?: BugRelatedCaseSuggestion
 }
 
-/** 实时建议响应：同步单跳调用一次返回，不产生任务、不落库 */
+/** 实时建议响应：一次 SSE done 终态同时给出字段建议与疑似重复缺陷，不产生任务、不落库 */
 export interface BugDraftSuggestResp {
   title?: BugSuggestionField<string>
   reproSteps?: BugSuggestionField<string>
   suggestions: BugDraftSuggestFields
+  duplicates: BugDuplicateSuggestItem[]
 }

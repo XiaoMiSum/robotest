@@ -3,8 +3,6 @@ import { createSseFrameParser } from '@/utils/sse'
 import type {
   BugAttachment,
   BugDetail,
-  BugDuplicateCheckReq,
-  BugDuplicateCheckResp,
   BugDraftSuggestReq,
   BugDraftSuggestResp,
   BugListItem,
@@ -99,12 +97,7 @@ export function assignBug(id: string, assigneeId: string): Promise<void> {
   return put(`/project/bugs/${id}/assign`, { assigneeId })
 }
 
-// ==================== 缺陷分析（详设 3.4、3.6） ====================
-
-/** 录入时重复检测：同步向量检索，向量未就绪回执 1000018258（入口置灰） */
-export function checkBugDuplicates(data: BugDuplicateCheckReq): Promise<BugDuplicateCheckResp> {
-  return post('/project/bugs/duplicates/check', data)
-}
+// ==================== 缺陷分析（详设 3.4） ====================
 
 /** 建议 SSE 流错误：前置校验失败（1000018287 / 1000018118）、流内 error 事件与连接中断统一承载 */
 export class BugSuggestStreamError extends Error {
@@ -130,7 +123,7 @@ function readSuggestError(body: string): BugSuggestStreamError | null {
 }
 
 /**
- * 新建缺陷实时建议（详设 3.5）：fetch 直读 SSE 事件流，done 终态一次给出全部建议。
+ * 新建缺陷实时建议（详设 3.4）：fetch 直读 SSE 事件流，done 终态一次给出字段建议与疑似重复缺陷。
  *
  * 注意：fetch 路径不经过 axios 拦截器，401 不会触发刷新链，以错误码抛出由调用方提示；
  * 无客户端总超时——事件到达与后端 15s 心跳即保活（progress 不承载 UI 语义，仅示连接存活）。

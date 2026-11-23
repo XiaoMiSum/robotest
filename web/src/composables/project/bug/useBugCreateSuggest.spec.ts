@@ -27,6 +27,10 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
         keywords: { value: ['登录', '无响应'], reason: '检索词' },
         relatedCase: { value: 'c1', caseTitle: '登录-正常登录', reason: '正向用例' },
       },
+      duplicates: [
+        { bugId: 'b1', title: '低相似', status: 'active', similarity: 0.4, basis: '块A' },
+        { bugId: 'b2', title: '高相似', status: 'closed', similarity: 0.9, basis: '块B' },
+      ],
     })
 
     const suggest = useBugCreateSuggest()
@@ -42,6 +46,8 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     expect(suggest.suggestions.value.keywords?.value).toEqual(['登录', '无响应'])
     expect(suggest.relatedCase.value?.value).toBe('c1')
     expect(suggest.relatedCase.value?.caseTitle).toBe('登录-正常登录')
+    // 字段建议与疑似重复缺陷同属一次 done 终态，高相似项前置
+    expect(suggest.duplicates.value.map((item) => item.bugId)).toEqual(['b2', 'b1'])
     expect(suggest.loading.value).toBe(false)
   })
 
@@ -54,6 +60,22 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     expect(suggest.titleSuggestion.value).toBeNull()
     expect(suggest.reproStepsSuggestion.value).toBeNull()
     expect(suggest.relatedCase.value).toBeNull()
+    expect(suggest.duplicates.value).toEqual([])
+  })
+
+  it('向量未就绪 / 无命中时静默降级，字段建议照常展示', async () => {
+    mocks.suggestBugDraft.mockResolvedValue({
+      title: { value: '优化后标题', reason: '现象明确' },
+      suggestions: {},
+      duplicates: [],
+    })
+
+    const suggest = useBugCreateSuggest()
+    await suggest.requestSuggestion({ title: 't' })
+
+    expect(suggest.titleSuggestion.value?.value).toBe('优化后标题')
+    expect(suggest.duplicates.value).toEqual([])
+    expect(suggest.error.value).toBe('')
   })
 
   it('失败不阻塞录入：落错误提示并清空建议', async () => {
@@ -64,19 +86,23 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     expect(suggest.error.value).toContain('模型不可用')
     expect(suggest.loading.value).toBe(false)
     expect(suggest.suggestions.value).toEqual({})
+    expect(suggest.duplicates.value).toEqual([])
   })
 
   it('重复请求先清空上一次建议，避免过期值残留', async () => {
     mocks.suggestBugDraft.mockResolvedValueOnce({
       suggestions: { severity: { value: 'serious', reason: 'r' } },
+      duplicates: [{ bugId: 'b-old', title: '旧', status: 'active', similarity: 0.9, basis: 'x' }],
     })
     const suggest = useBugCreateSuggest()
     await suggest.requestSuggestion({ title: 't1' })
     expect(suggest.suggestions.value.severity?.value).toBe('serious')
+    expect(suggest.duplicates.value).toHaveLength(1)
 
-    mocks.suggestBugDraft.mockResolvedValueOnce({ suggestions: {} })
+    mocks.suggestBugDraft.mockResolvedValueOnce({ suggestions: {}, duplicates: [] })
     const pending = suggest.requestSuggestion({ title: 't2' })
     expect(suggest.suggestions.value.severity).toBeUndefined()
+    expect(suggest.duplicates.value).toEqual([])
     await pending
   })
 })

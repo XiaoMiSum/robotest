@@ -1540,22 +1540,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/project/bugs/duplicates/check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["checkDuplicates"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/project/bugs/analysis/suggest": {
         parameters: {
             query?: never;
@@ -1566,8 +1550,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 新建缺陷建议（SSE 流式，详设 3.5）
-         * @description 事件流：progress / done / error，每 15s 心跳注释行；流建立前校验失败为同步 HTTP 错误（输入非法 1000018287、无可用模型 1000018118）；须携带 X-Active-Project
+         * 新建缺陷建议（SSE 流式，含重复缺陷检测，详设 3.4）
+         * @description 事件流：progress / done / error，每 15s 心跳注释行；done 载荷含字段建议与 duplicates 疑似重复缺陷；流建立前校验失败为同步 HTTP 错误（输入非法 1000018287、无可用模型 1000018118）；须携带 X-Active-Project
          */
         post: operations["suggestDraft"];
         delete?: never;
@@ -4706,30 +4690,6 @@ export interface components {
             /** Format: int32 */
             code?: number;
             data?: components["schemas"]["BugAttachmentRespDTO"];
-            msg?: string;
-        };
-        BugDuplicateCheckReqDTO: {
-            title?: string;
-            steps?: string;
-            /** Format: int32 */
-            limit?: number;
-        };
-        BugDuplicateCheckRespDTO: {
-            list?: components["schemas"]["Item"][];
-        };
-        Item: {
-            /** Format: uuid */
-            bugId?: string;
-            title?: string;
-            status?: string;
-            /** Format: double */
-            similarity?: number;
-            basis?: string;
-        };
-        ResultBugDuplicateCheckRespDTO: {
-            /** Format: int32 */
-            code?: number;
-            data?: components["schemas"]["BugDuplicateCheckRespDTO"];
             msg?: string;
         };
         BugDraftSuggestReqDTO: {
@@ -10858,30 +10818,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResultBugAttachmentRespDTO"];
-                };
-            };
-        };
-    };
-    checkDuplicates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BugDuplicateCheckReqDTO"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBugDuplicateCheckRespDTO"];
                 };
             };
         };

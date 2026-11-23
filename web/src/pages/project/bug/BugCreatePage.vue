@@ -6,7 +6,7 @@ import { useBugCreateSuggest } from '@/composables/project/bug/useBugCreateSugge
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugSuggestBadge from '@/components/project/bug/BugSuggestBadge.vue'
-import BugDuplicateDialog from '@/components/project/bug/BugDuplicateDialog.vue'
+import BugDuplicateSuggestList from '@/components/project/bug/BugDuplicateSuggestList.vue'
 import { fetchAiStatus } from '@/services/ai'
 import type { BugPriority, BugSeverity, BugRelatedCaseSuggestion, BugType, ProjectModule } from '@/types'
 
@@ -32,7 +32,7 @@ const {
   BUG_TYPE_LABEL,
 } = useBugCreate()
 
-// ==================== AI 建议与录入检测（交互 2.2 / 3.1） ====================
+// ==================== AI 建议（含重复缺陷检测，交互 2.2） ====================
 
 const aiAvailable = ref(false)
 void fetchAiStatus()
@@ -51,10 +51,11 @@ const {
   reproStepsSuggestion,
   suggestions,
   relatedCase,
+  duplicates,
   requestSuggestion,
 } = useBugCreateSuggest()
 
-/** 标题填写后点击获取实时建议（详设 3.5，SSE 流式一次返回全部建议，不落库） */
+/** 标题填写后点击获取实时建议（详设 3.4，SSE 流式一次返回字段建议与疑似重复缺陷，不落库） */
 async function handleRequestSuggest(): Promise<void> {
   if (!form.title.trim()) {
     ElMessage.warning('请先填写缺陷标题')
@@ -176,16 +177,6 @@ const relatedCaseSuggestion = computed(() =>
     ? { value: relatedCase.value.value, reason: relatedCase.value.reason }
     : null,
 )
-
-// ==================== 相似缺陷检测（交互 3.1） ====================
-
-const duplicateVisible = ref(false)
-const duplicateCheckRef = ref<InstanceType<typeof BugDuplicateDialog> | null>(null)
-
-/** 标题失焦触发（交互 3.1）：无命中或功能不可用由组件静默处理，不弹窗不提示 */
-function handleTitleBlur(): void {
-  void duplicateCheckRef.value?.check()
-}
 </script>
 
 <template>
@@ -223,7 +214,6 @@ function handleTitleBlur(): void {
               show-word-limit
               size="large"
               :class="{ 'bug-create__title-input--noai': !aiAvailable }"
-              @blur="handleTitleBlur"
             >
               <!-- 草稿建议入口（详设 3.5）：AI 未启用时挂载点隐藏，输入组按无 append 形态收口 -->
               <template #append>
@@ -246,6 +236,8 @@ function handleTitleBlur(): void {
               :suggestion="titleSuggestion"
               @adopt="adoptTitle"
             />
+            <!-- 疑似重复缺陷随同一次建议返回，在建议区内展示（无命中或向量未就绪时不渲染） -->
+            <BugDuplicateSuggestList class="bug-create__suggest-badge" :items="duplicates" />
           </el-form-item>
           <el-form-item class="bug-create__repro">
             <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" maximizable />
@@ -394,15 +386,6 @@ function handleTitleBlur(): void {
         </div>
       </div>
     </el-form>
-
-    <!-- 相似缺陷检测（交互 3.1）：标题失焦触发，命中弹窗展示，无命中或功能不可用静默 -->
-    <BugDuplicateDialog
-      ref="duplicateCheckRef"
-      v-model="duplicateVisible"
-      :title="form.title"
-      :steps="normalizedReproSteps"
-      :ai-available="aiAvailable"
-    />
 
     <CaseSelector v-model="caseSelectorVisible" single @confirm="handleCaseSelected" />
   </div>
