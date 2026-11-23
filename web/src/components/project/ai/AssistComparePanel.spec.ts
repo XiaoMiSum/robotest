@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import AssistComparePanel from './AssistComparePanel.vue'
+import source from './AssistComparePanel.vue?raw'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type {
   AiCaseOptimizeAddOperation,
@@ -175,6 +176,17 @@ describe('AssistComparePanel', () => {
   })
 
   describe('采纳与驳回', () => {
+    it('动作按钮右对齐，顺序为驳回、采纳，均为 link 且按危险/成功着色', () => {
+      const wrapper = mountPanel({ rows: [optimizeRow()] })
+      const buttons = wrapper.find('.assist-panel__actions').findAll('button')
+
+      expect(buttons.map((button) => button.text())).toEqual(['驳回', '采纳'])
+      expect(buttons.every((button) => button.classes().includes('is-link'))).toBe(true)
+      expect(buttons[0]?.classes()).toContain('el-button--danger')
+      expect(buttons[1]?.classes()).toContain('el-button--success')
+      expect(source).toMatch(/\.assist-panel__actions\s*\{[^}]*justify-content:\s*flex-end;/)
+    })
+
     it('采纳提交全部操作，仅携带定位字段与建议值', async () => {
       const wrapper = mountPanel({ rows: [optimizeRow()] })
 

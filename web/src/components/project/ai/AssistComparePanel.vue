@@ -480,15 +480,20 @@ function onReceiptRetry(item: ConfirmItemResult): void {
       <span class="assist-panel__stat">已采纳 {{ adoptedCount }} / 共 {{ totalCount }}</span>
       <div class="assist-panel__actions">
         <el-button
-          type="primary"
+          link
+          type="danger"
+          size="small"
+          :disabled="!canReject"
+          @click="openReject"
+        >驳回</el-button>
+        <el-button
+          link
+          type="success"
           size="small"
           :disabled="!canAdoptActive"
           :loading="confirming"
           @click="adoptActive"
-        >
-          采纳
-        </el-button>
-        <el-button size="small" :disabled="!canReject" @click="openReject">驳回</el-button>
+        >采纳</el-button>
       </div>
     </footer>
 
@@ -578,6 +583,7 @@ function onReceiptRetry(item: ConfirmItemResult): void {
 .assist-panel__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-xs);
 }
 
