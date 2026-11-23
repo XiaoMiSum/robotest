@@ -1,19 +1,16 @@
 package io.github.xiaomisum.robotest.service.domain.bug;
 
-import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
-import io.github.xiaomisum.robotest.framework.security.ProjectAccessGuard;
-import io.github.xiaomisum.robotest.model.dto.request.bug.BugDuplicateCheckReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiVectorSearchHitRespDTO;
-import io.github.xiaomisum.robotest.model.dto.response.bug.BugDuplicateCheckRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.bug.BugDraftSuggestRespDTO;
 import io.github.xiaomisum.robotest.model.entity.bug.Bug;
 import io.github.xiaomisum.robotest.repository.bug.BugMapper;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorSearchService;
 import jakarta.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import xyz.migoo.framework.common.exception.ServiceException;
-import xyz.migoo.framework.common.exception.ServiceExceptionUtil;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -25,14 +22,15 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 缺陷分析实现（详设 3.6）：录入时重复检测走同步向量检索，仅做项目内过滤与排序建议，不落中间表。
+ * 缺陷相似检索实现（详设 3.4）：新建建议内部的同步向量检索，仅做项目内过滤与排序建议，
+ * 能力不可用时静默降级为空，不单独对外暴露。
  */
 @Service
 public class BugAnalysisServiceImpl implements BugAnalysisService {
 
-    private static final int TITLE_MAX_LENGTH = 300;
-    private static final int DEFAULT_DUPLICATE_LIMIT = 5;
-    private static final int MAX_DUPLICATE_LIMIT = 20;
+    private static final Logger log = LoggerFactory.getLogger(BugAnalysisServiceImpl.class);
+
+    private static final int DUPLICATE_LIMIT = 5;
     private static final int BASIS_MAX_LENGTH = 200;
     /** 比率精度：四位小数，避免展示层出现无意义尾数 */
     private static final int RATE_SCALE = 10_000;
@@ -40,34 +38,20 @@ public class BugAnalysisServiceImpl implements BugAnalysisService {
     @Resource
     private BugMapper bugMapper;
     @Resource
-    private ProjectAccessGuard projectAccessGuard;
-    @Resource
     private VectorSearchService vectorSearchService;
 
     @Override
-    public BugDuplicateCheckRespDTO checkDuplicates(BugDuplicateCheckReqDTO reqDTO, UUID projectId, UUID userId) {
-        projectAccessGuard.requireProjectMember(projectId, userId);
-        String title = reqDTO.getTitle() == null ? "" : reqDTO.getTitle().trim();
-        if (title.isEmpty() || title.length() > TITLE_MAX_LENGTH) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_CHECK_INPUT_INVALID);
-        }
-        int limit = reqDTO.getLimit() == null ? DEFAULT_DUPLICATE_LIMIT : reqDTO.getLimit();
-        if (limit < 1 || limit > MAX_DUPLICATE_LIMIT) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.BUG_ANALYSIS_CHECK_INPUT_INVALID);
-        }
-        String queryText = StringUtils.hasText(reqDTO.getSteps()) ? title + "\n" + reqDTO.getSteps() : title;
-
+    public List<BugDraftSuggestRespDTO.DuplicateItem> findDuplicates(String title, String steps,
+            UUID projectId, UUID userId) {
+        String queryText = StringUtils.hasText(steps) ? title + "\n" + steps : title;
         List<AiVectorSearchHitRespDTO> hits;
         try {
-            hits = vectorSearchService.search(queryText, List.of(projectId), VectorIndexService.TYPE_BUG,
-                    limit, userId);
-        } catch (ServiceException e) {
-            // 未配置 / 重建中按向量能力未就绪口径回执，入口据此静默降级（详设 3.6）
-            if (e.getCode() == ErrorCodeConstants.AI_EMBEDDING_NOT_CONFIGURED.code()
-                    || e.getCode() == ErrorCodeConstants.AI_VECTOR_INDEX_UNAVAILABLE.code()) {
-                throw ServiceExceptionUtil.get(ErrorCodeConstants.ASSISTANT_RAG_UNAVAILABLE);
-            }
-            throw e;
+            hits = vectorSearchService.search(queryText, List.of(projectId),
+                    VectorIndexService.TYPE_BUG, DUPLICATE_LIMIT, userId);
+        } catch (Exception e) {
+            // 向量未就绪 / 检索失败只影响重复检测部分，静默降级不阻断字段建议（详设 3.4）
+            log.warn("[AI] 缺陷相似检索不可用 projectId={}", projectId, e);
+            return List.of();
         }
 
         List<UUID> hitIds = hits.stream()
@@ -80,9 +64,9 @@ public class BugAnalysisServiceImpl implements BugAnalysisService {
                         .filter(bug -> projectId.equals(bug.getProjectId()))
                         .collect(Collectors.toMap(Bug::getId, bug -> bug, (left, right) -> left));
 
-        // 同一缺陷多分块命中只回首条（检索已按相似度排序）；已删除缺陷跳过
+        // 同一缺陷多分块命中只回首条（检索已按相似度排序）；已删除缺陷由 listByIds 过滤
         Set<UUID> seen = new LinkedHashSet<>();
-        List<BugDuplicateCheckRespDTO.Item> items = new ArrayList<>();
+        List<BugDraftSuggestRespDTO.DuplicateItem> items = new ArrayList<>();
         for (AiVectorSearchHitRespDTO hit : hits) {
             UUID bugId = hit.getEntityId();
             if (bugId == null || !seen.add(bugId)) {
@@ -92,20 +76,20 @@ public class BugAnalysisServiceImpl implements BugAnalysisService {
             if (bug == null) {
                 continue;
             }
-            BugDuplicateCheckRespDTO.Item item = new BugDuplicateCheckRespDTO.Item();
+            BugDraftSuggestRespDTO.DuplicateItem item = new BugDraftSuggestRespDTO.DuplicateItem();
             item.setBugId(bug.getId());
             item.setTitle(bug.getTitle());
             item.setStatus(bug.getStatus());
-            // similarity 由距离单调换算，仅作排序展示，阈值不对外承诺（详设 3.6）
+            // similarity 由距离单调换算，仅作排序展示，阈值不对外承诺（详设 3.4）
             item.setSimilarity(hit.getDistance() == null ? null
                     : Math.round((1 - hit.getDistance()) * RATE_SCALE) / (double) RATE_SCALE);
             item.setBasis(basisOf(hit.getContent()));
             items.add(item);
+            if (items.size() >= DUPLICATE_LIMIT) {
+                break;
+            }
         }
-
-        BugDuplicateCheckRespDTO resp = new BugDuplicateCheckRespDTO();
-        resp.setList(items);
-        return resp;
+        return items;
     }
 
     private static String basisOf(String content) {

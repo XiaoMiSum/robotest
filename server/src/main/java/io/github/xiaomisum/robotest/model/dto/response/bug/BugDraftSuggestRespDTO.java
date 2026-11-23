@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.model.dto.response.bug;
 import lombok.Data;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 新建缺陷实时建议响应（POST /api/project/bugs/analysis/suggest，详设 3.5）。
@@ -19,6 +20,25 @@ public class BugDraftSuggestRespDTO {
 
     /** 分类与关键词建议（逐字段独立，可缺省） */
     private Suggestions suggestions;
+
+    /** 同一次建议检索出的疑似重复缺陷（向量未就绪或无命中时为空） */
+    private List<DuplicateItem> duplicates;
+
+    @Data
+    public static class DuplicateItem {
+
+        private UUID bugId;
+
+        private String title;
+
+        private String status;
+
+        /** 仅作排序信号，阈值不对外承诺 */
+        private Double similarity;
+
+        /** 命中依据：向量命中的原文分块 */
+        private String basis;
+    }
 
     @Data
     public static class FieldSuggestion {

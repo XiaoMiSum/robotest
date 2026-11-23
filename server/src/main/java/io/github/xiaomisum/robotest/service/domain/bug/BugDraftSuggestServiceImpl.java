@@ -44,10 +44,10 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport.trimToNull;
 
 /**
- * 新建缺陷实时建议实现（详设 3.5）：SSE 流式单跳模型调用（progress / done / error + 15s 心跳），
+ * 新建缺陷实时建议实现（详设 3.4）：SSE 流式单跳模型调用（progress / done / error + 15s 心跳），
  * 不产生任务、不落库；前置校验同步失败，上下文装配与模型调用在 @Async 线程执行。
  * 上下文装配：项目模块清单 + 固定选项枚举 + 用例候选（向量检索用例文档 top 8 展开用例节点 ≤30，
- * 未就绪静默降级为无用例候选）；不检索相似存量缺陷（相似性判断由录入时重复检测详设 3.8 承担）。
+ * 未就绪静默降级为无用例候选）；同一次请求内检索当前项目疑似重复缺陷（未就绪降级为空，详设 3.4）。
  * 清洗：枚举值非法剔除，模块 / 用例归属校验，relatedCase 至多一条；失败映射为 error 事件（总册 4.2）。
  */
 @Service
@@ -66,7 +66,7 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
     private static final String STAGE_GENERATING = "generating";
 
     private static final int TITLE_MAX_LENGTH = 300;
-    /** 用例候选：相似用例文档 top 8 展开为用例节点，总量截断防上下文膨胀（详设 3.5） */
+    /** 用例候选：相似用例文档 top 8 展开为用例节点，总量截断防上下文膨胀（详设 3.4） */
     private static final int CASE_DOC_TOPK = 8;
     private static final int CASE_OPTION_LIMIT = 30;
     private static final int KEYWORD_LIMIT = 5;
@@ -85,6 +85,8 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
     private ProjectModuleMapper projectModuleMapper;
     @Resource
     private TestCaseNodeMapper testCaseNodeMapper;
+    @Resource
+    private BugAnalysisService bugAnalysisService;
     @Resource
     private ProjectAccessGuard projectAccessGuard;
     @Resource
@@ -127,6 +129,8 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
 
             List<ProjectModule> modules = projectModuleMapper.listByProjectId(projectId);
             Map<UUID, String> caseOptions = caseOptions(title, projectId, userId);
+            List<BugDraftSuggestRespDTO.DuplicateItem> duplicates =
+                    bugAnalysisService.findDuplicates(title, steps, projectId, userId);
 
             sink.progress(STAGE_GENERATING);
             Map<String, String> variables = new HashMap<>();
@@ -138,7 +142,7 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
             AiChatReply reply = modelClient.streamChat(
                     new AiChatRequest(null, projectId, userId, SCENE, model, SYSTEM_PROMPT, userPrompt),
                     delta -> { });
-            sink.done(sanitize(reply, modules, caseOptions));
+            sink.done(sanitize(reply, modules, caseOptions, duplicates));
         } catch (ServiceException e) {
             sink.error(e.getCode(), e.getMessage());
         } catch (Exception e) {
@@ -223,13 +227,14 @@ public class BugDraftSuggestServiceImpl implements BugDraftSuggestService {
     // ---------- 产物清洗 ----------
 
     private BugDraftSuggestRespDTO sanitize(AiChatReply reply, List<ProjectModule> modules,
-            Map<UUID, String> caseOptions) {
+            Map<UUID, String> caseOptions, List<BugDraftSuggestRespDTO.DuplicateItem> duplicates) {
         Map<String, Object> parsed = asMap(RequirementSuggestionParser.parseJsonObject(reply.content()));
 
         BugDraftSuggestRespDTO resp = new BugDraftSuggestRespDTO();
         resp.setTitle(fieldSuggestion(parsed.get("title")));
         resp.setReproSteps(fieldSuggestion(parsed.get("reproSteps")));
         resp.setSuggestions(sanitizeSuggestions(asMap(parsed.get("suggestions")), modules, caseOptions));
+        resp.setDuplicates(duplicates == null ? List.of() : duplicates);
         return resp;
     }
 

@@ -3,7 +3,7 @@ package io.github.xiaomisum.robotest.model.dto.request.bug;
 import lombok.Data;
 
 /**
- * 新建缺陷实时建议请求（POST /api/project/bugs/analysis/suggest，详设 3.5）。
+ * 新建缺陷实时建议请求（POST /api/project/bugs/analysis/suggest，详设 3.4）。
  */
 @Data
 public class BugDraftSuggestReqDTO {

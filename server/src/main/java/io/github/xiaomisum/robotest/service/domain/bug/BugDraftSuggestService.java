@@ -8,8 +8,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.UUID;
 
 /**
- * 新建缺陷实时建议（详设 3.5）：基于标题与已填内容流式单跳模型调用（SSE），
- * 不产生任务、不落库，建议仅以徽标呈现、用户值优先。
+ * 新建缺陷实时建议（详设 3.4）：基于标题与已填内容流式单跳模型调用（SSE），
+ * 同一次请求返回字段建议与疑似重复缺陷；不产生任务、不落库，建议仅以徽标呈现、用户值优先。
  */
 public interface BugDraftSuggestService {
 

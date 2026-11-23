@@ -58,6 +58,8 @@ class BugDraftSuggestServiceImplTest {
     @Mock
     private TestCaseNodeMapper testCaseNodeMapper;
     @Mock
+    private BugAnalysisService bugAnalysisService;
+    @Mock
     private ProjectAccessGuard projectAccessGuard;
     @Mock
     private VectorSearchService vectorSearchService;
@@ -107,6 +109,16 @@ class BugDraftSuggestServiceImplTest {
         hit.setEntityType(VectorIndexService.TYPE_TESTCASE);
         hit.setProjectId(PROJECT_ID);
         return hit;
+    }
+
+    private static BugDraftSuggestRespDTO.DuplicateItem duplicate() {
+        BugDraftSuggestRespDTO.DuplicateItem item = new BugDraftSuggestRespDTO.DuplicateItem();
+        item.setBugId(UUID.randomUUID());
+        item.setTitle("登录按钮无反应");
+        item.setStatus("active");
+        item.setSimilarity(0.87);
+        item.setBasis("登录页点击登录按钮后无任何响应");
+        return item;
     }
 
     private void stubStream(AiChatReply reply) {
@@ -190,6 +202,9 @@ class BugDraftSuggestServiceImplTest {
                 eq(VectorIndexService.TYPE_TESTCASE), anyInt(), eq(USER_ID)))
                 .thenReturn(List.of(hit(DOCUMENT_ID)));
         when(testCaseNodeMapper.listCasesByDocumentIds(anyCollection())).thenReturn(List.of(caseNode()));
+        BugDraftSuggestRespDTO.DuplicateItem duplicate = duplicate();
+        when(bugAnalysisService.findDuplicates(eq("登录页点击登录无响应"), eq("1. 打开登录页"),
+                eq(PROJECT_ID), eq(USER_ID))).thenReturn(List.of(duplicate));
         stubStream(new AiChatReply("""
                 {"title":{"value":"登录页点击登录按钮后无任何响应","reason":"现象明确"},
                  "reproSteps":{"value":"##### 执行步骤\\n1. 打开登录页\\n##### 实际结果\\n无响应\\n##### 期望结果\\n登录成功","reason":"三段结构"},
@@ -220,6 +235,10 @@ class BugDraftSuggestServiceImplTest {
         assertEquals(List.of("登录", "无响应", "按钮"), resp.getSuggestions().getKeywords().getValue());
         assertEquals(CASE_ID.toString(), resp.getSuggestions().getRelatedCase().getValue());
         assertEquals("登录-正常登录", resp.getSuggestions().getRelatedCase().getCaseTitle());
+        // 重复检索结果与字段建议同属一次 done 终态
+        assertEquals(1, resp.getDuplicates().size());
+        assertEquals(duplicate.getBugId(), resp.getDuplicates().get(0).getBugId());
+        assertEquals("登录按钮无反应", resp.getDuplicates().get(0).getTitle());
 
         // 上下文变量：已选模块名称与候选用例清单均进入提示词
         @SuppressWarnings("unchecked")
@@ -260,6 +279,7 @@ class BugDraftSuggestServiceImplTest {
 
         assertEquals("优化后标题", sink.resp.getTitle().getValue());
         assertNull(sink.resp.getSuggestions().getRelatedCase());
+        assertTrue(sink.resp.getDuplicates().isEmpty());
     }
 
     // ---------- 流内失败（error 事件） ----------
