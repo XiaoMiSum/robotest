@@ -581,6 +581,59 @@ class AiTaskServiceImplTest {
         verify(executionMapper, never()).insert(any(AiTaskExecution.class));
     }
 
+    /** 轻量能力提案就绪态由业务入口新建任务，再次执行端点必须拒绝，避免覆盖原提案与采纳记录（总册 3.6.4） */
+    private void assertLightweightProposalsReadyRejected(String type) {
+        AiTask ready = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        ready.setType(type);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(ready);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.reExecute(TASK_ID, null, loginUser));
+        assertEquals(ErrorCodeConstants.AI_TASK_STATE_INVALID.code(), exception.getCode());
+        verify(executionMapper, never()).insert(any(AiTaskExecution.class));
+        verify(executionDispatcher, never()).dispatch(any());
+    }
+
+    @Test
+    void reExecute_caseOptimizeProposalsReady_throws111() {
+        assertLightweightProposalsReadyRejected(Constants.AiTaskType.CASE_OPTIMIZE);
+    }
+
+    @Test
+    void reExecute_mindmapCaseGenerationProposalsReady_throws111() {
+        assertLightweightProposalsReadyRejected(Constants.AiTaskType.MINDMAP_CASE_GENERATION);
+    }
+
+    @Test
+    void reExecute_reviewCaseReviewProposalsReady_throws111() {
+        assertLightweightProposalsReadyRejected(Constants.AiTaskType.REVIEW_CASE_REVIEW);
+    }
+
+    @Test
+    void reExecute_lightweightAborted_createsNextExecutionOnSameTask() {
+        AiTask aborted = task(Constants.AiTaskFlowStatus.ABORTED);
+        aborted.setType(Constants.AiTaskType.CASE_OPTIMIZE);
+        when(adapterRegistry.get(Constants.AiTaskType.CASE_OPTIMIZE)).thenReturn(adapter);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(aborted);
+        when(executionMapper.countActiveByTaskId(TASK_ID)).thenReturn(0L);
+        AiTaskExecution previous = execution("succeeded");
+        previous.setId(PREV_EXEC_ID);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(previous);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(aborted);
+        when(executionMapper.selectLatestByTaskIdForUpdate(TASK_ID)).thenReturn(previous);
+        when(settingsReader.resolveModel(null, null)).thenReturn(model(NEW_MODEL_ID));
+        when(taskMapper.markRerun(TASK_ID)).thenReturn(true);
+        when(executionMapper.selectMaxSeqByTaskId(TASK_ID)).thenReturn(1);
+
+        AiTaskRespDTO resp = service.reExecute(TASK_ID, null, loginUser);
+
+        ArgumentCaptor<AiTaskExecution> captor = ArgumentCaptor.forClass(AiTaskExecution.class);
+        verify(executionMapper).insert(captor.capture());
+        assertEquals(PREV_EXEC_ID, captor.getValue().getRetryOfExecutionId());
+        assertNotNull(resp.getExecutionId());
+        verify(executionDispatcher).dispatch(any(TaskExecutionDispatcher.DispatchContext.class));
+    }
+
     @Test
     void reExecute_proposalsReady_createsNextExecution() {
         AiTask ready = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);

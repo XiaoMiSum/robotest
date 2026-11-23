@@ -87,6 +87,12 @@ public class AiTaskServiceImpl implements AiTaskService {
             Constants.AiProposalAction.ADOPTED_EDITED,
             Constants.AiProposalAction.REJECTED);
 
+    /** 轻量能力提案就绪态不沿用原任务重跑，改由业务入口按原输入新建任务，避免覆盖原提案与采纳记录（总册 3.6.4） */
+    private static final Set<String> LIGHTWEIGHT_RERUN_TYPES = Set.of(
+            Constants.AiTaskType.CASE_OPTIMIZE,
+            Constants.AiTaskType.MINDMAP_CASE_GENERATION,
+            Constants.AiTaskType.REVIEW_CASE_REVIEW);
+
     @Resource
     private AiTaskMapper taskMapper;
     @Resource
@@ -349,9 +355,7 @@ public class AiTaskServiceImpl implements AiTaskService {
     @AuditLog(action = "REEXECUTE:AiTask")
     public AiTaskRespDTO reExecute(UUID taskId, AiTaskExecutionCreateReqDTO reqDTO, LoginUser loginUser) {
         AiTask task = requireVisible(taskId, loginUser);
-        // 门禁（3.6.4）：aborted（终止后重跑）或 proposals_ready（附反馈重新生成）
-        if (!Constants.AiTaskFlowStatus.ABORTED.equals(task.getStatus())
-                && !Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(task.getStatus())) {
+        if (!canReExecute(task)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
         }
         if (!settingsReader.settings().enabled()) {
@@ -392,8 +396,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         TransactionTemplate template = new TransactionTemplate(transactionManager);
         CreatedRun created = template.execute(status -> {
             AiTask lockedTask = taskMapper.selectByIdForUpdate(taskId);
-            if (lockedTask == null || (!Constants.AiTaskFlowStatus.ABORTED.equals(lockedTask.getStatus())
-                    && !Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(lockedTask.getStatus()))) {
+            if (lockedTask == null || !canReExecute(lockedTask)) {
                 throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
             }
             AiTaskExecution lockedPrevious = executionMapper.selectLatestByTaskIdForUpdate(taskId);
@@ -415,6 +418,15 @@ public class AiTaskServiceImpl implements AiTaskService {
             throw new IllegalStateException("再次执行事务未返回结果");
         }
         return buildSubmitResp(created.task(), created.execution());
+    }
+
+    /** 轻量能力仅在 aborted 沿用原任务重跑；proposals_ready 的重新生成由业务入口新建任务承担 */
+    private boolean canReExecute(AiTask task) {
+        if (Constants.AiTaskFlowStatus.ABORTED.equals(task.getStatus())) {
+            return true;
+        }
+        return Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(task.getStatus())
+                && !LIGHTWEIGHT_RERUN_TYPES.contains(task.getType());
     }
 
     // ---------- 3.6.5 提案确认（逐项事务） ----------
