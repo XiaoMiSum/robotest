@@ -224,14 +224,13 @@ function close(): void {
         </span>
         <div class="ai-generation__actions">
           <el-button
-            type="primary"
+            link
+            type="success"
             size="small"
             :disabled="!canAdopt"
             :loading="confirming"
             @click="adopt"
-          >
-            采纳
-          </el-button>
+          >采纳</el-button>
         </div>
       </footer>
     </div>
@@ -323,6 +322,7 @@ function close(): void {
 
 .ai-generation__actions {
   display: flex;
+  justify-content: flex-end;
   gap: var(--space-xs);
 }
 </style>

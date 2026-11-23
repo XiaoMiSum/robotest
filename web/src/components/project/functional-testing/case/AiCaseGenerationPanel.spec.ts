@@ -118,6 +118,16 @@ function buttonByText(wrapper: VueWrapper<InstanceType<typeof AiCaseGenerationPa
 }
 
 describe('AiCaseGenerationPanel', () => {
+  it('页脚采纳按钮右对齐且为 link 成功色', async () => {
+    const wrapper = mountPanel({ rows: [row('case-1')] })
+    await flushPromises()
+
+    const adopt = buttonByText(wrapper, '采纳')
+    expect(adopt?.classes()).toContain('is-link')
+    expect(adopt?.classes()).toContain('el-button--success')
+    expect(panelSource).toMatch(/\.ai-generation__actions\s*\{[^}]*justify-content:\s*flex-end;/)
+  })
+
   it('把每条提案映射为可勾选的用例树，节点 id 沿用提案 key', async () => {
     const wrapper = mountPanel({ rows: [row('case-1'), row('case-2')] })
     await flushPromises()
