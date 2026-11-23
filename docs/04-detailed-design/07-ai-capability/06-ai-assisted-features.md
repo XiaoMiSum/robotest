@@ -246,7 +246,7 @@
 └── 「执行顺序建议」（plan_order）
 ```
 
-点击「AI 优化」先按当前节点查询最近一次任务（`GET /api/ai/tasks/{type}/latest`，项目内任意成员发起的任务均可复用）：查到则未完成回显进度或已有提案，`proposals_ready` / `closed` 展示提案并提供「重新执行」，`aborted` 展示原因与「再次执行」；无任务时发起 `case_optimize`（交互 2.4）。「AI覆盖雷达」按当前文档查询最近一次 `mindmap_case_generation` 任务（同一 `/latest` 端点省略 `nodeId`，按 `documentId` 匹配）：命中则直接打开面板按状态回显进度 / 提案 / 终止原因，不再弹出需求选择；未命中才经需求单选弹窗确认后按 `{ documentId, requirementId }` 发起新任务，结果在独立面板内回显。查询失败只提示错误、不自动发起；仅取最近一次，更早任务在任务中心回看。来源需求从任务数据回显，`closed` 态「重新执行」按该需求与当前文档重新发起。
+点击「AI 优化」先按当前节点查询最近一次任务（`GET /api/ai/tasks/{type}/latest`，项目内任意成员发起的任务均可复用）：命中后按状态回显——`running` 仅回显进度、不新建任务或执行实例；`aborted` 展示原因与「再次执行」（沿用原任务新建执行实例）；`proposals_ready` / `closed` 展示提案并提供「重新执行」（按同一输入新建任务，原任务及提案、采纳记录保留只读回看）；无任务时发起 `case_optimize`（交互 2.4）。「AI覆盖雷达」按当前文档查询最近一次 `mindmap_case_generation` 任务（同一 `/latest` 端点省略 `nodeId`，按 `documentId` 匹配）：命中则直接打开面板按状态回显进度 / 提案 / 终止原因，不再弹出需求选择；未命中才经需求单选弹窗确认后按 `{ documentId, requirementId }` 发起新任务，结果在独立面板内回显。查询失败只提示错误、不自动发起；仅取最近一次，更早任务在任务中心回看。来源需求从任务数据回显，`proposals_ready` / `closed` 态「重新执行」按该需求与当前文档新建任务。
 
 ### 5.2 组件结构
 
@@ -277,7 +277,7 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 - 脑图生成用例的「采纳」只作用于本次新勾选的未采纳用例：创建脑图节点与属性子节点时把来源需求 id 写入节点 data 的 `requirementId` 并随 `add_node` 帧一同落库，随后回传采纳状态；已采纳用例不重复建节点、不重复关联、不重复回传状态；勾选集全为已采纳用例时动作区置灰；
 - 需求关联随节点 `add_node` 帧落库，无独立写入与「节点未落库」重试；需求归属校验失败经服务端错误帧提示，采纳状态照常回传；
 - 用例优化按用例节点、脑图生成用例按当前文档查询后端最近一次任务（同一 `GET /api/ai/tasks/{type}/latest`，前者传 `nodeId`、后者省略 `nodeId`，项目内任意成员发起的任务均可复用）：命中后按任务状态回显进度 / 提案，无任务时才进入各自的发起流程；仅取最近一次，不查询更早历史；查询失败只提示错误、不自动发起；切换节点 / 文档时丢弃过期查询响应，避免旧任务提案内容写入新任务；
-- 重新执行：`proposals_ready` / `aborted` 沿用同一任务新建执行实例（3.6.4）；`closed` 因后端不允许再次执行，按同一输入发起新任务；
+- 重新执行（总册 3.6.4 分叉）：`running` 仅回显原任务进度，不新建任务或执行实例；`aborted` 沿用同一任务新建执行实例；`proposals_ready` / `closed` 按原输入发起新任务，原任务及其执行、提案、采纳记录保留只读回看。后端对 `case_optimize` / `mindmap_case_generation` 在 `proposals_ready` 态拒绝再次执行端点（1000018111），任务中心与详情页仅对 `aborted` 态提供「再次执行」；
 - 状态分支：任务进行中（超交互等待展示进度入口）、全部建议与现状一致（折叠 + 提示「无变化」）、部分采纳回执、用例优化入口对只读节点置灰、AI 未启用入口隐藏（总册 4.5）；入口放行后面板动作区仍对只读 / 已处理态置灰并常驻展示原因，避免入口与实际可采纳状态不一致。
 
 ---
@@ -334,6 +334,8 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 | `web/src/types/project/shared.ts`、`web/src/minder/adapter.ts` | `TestCaseNode` 携带 `requirementId` 并映射到脑图节点 data |
 | `web/src/services/project/functional-testing/testcase.ts`、`web/src/composables/project/functional-testing/mindmap/useCaseRequirementLink.ts` | 删除 `fetchCaseRequirements` / `updateCaseRequirements` 服务与独立关联保存；选取器回显改按 id 调需求详情、确认后写节点 `requirementId` 并触发持久化 |
 | `web/src/composables/project/ai/reviewProfiles.ts`、`web/src/types/ai.ts` | 新任务类型登记只读展示策略（任务详情无审核动作）与新类型 / 提案类型 |
+| `server/.../service/ai/task/AiTaskServiceImpl` | 再次执行按任务类型拒绝 `proposals_ready`：`case_optimize` / `mindmap_case_generation` 复用 1000018111（分册 07 覆盖 `review_case_review`） |
+| `web/src/composables/project/ai/useCaseAssistEntry.ts`、`useCaseGenerationEntry.ts` + 单测 | 重新执行按任务状态分叉：`running` 仅回显、`aborted` 沿用原任务、`proposals_ready` / `closed` 按原输入发起新任务 |
 
 - **数据库**：用例关联需求复用 `ft_case_node.requirement_id` 列（详见 `docs/04-detailed-design/03-function-testing/04-project-workspace-test-case.md` 4 节），删除 `ft_case_requirement` 表；任务 / 执行 / 提案 / 采纳记录复用 `ai_task_` 六表，节点落库均为既有 `ft_case_node` 业务表。
 - **OpenAPI**：两个任务 type 的 `input / 提案` 结构随任务分组暴露；确认复用总册 3.6.5。
@@ -376,3 +378,4 @@ AiCaseGenerationPanel（脑图生成用例，以对话框呈现，高度固定�
 | V1.0 | 2026-11-20 | 5.2 生成面板弹窗高度调至约 88vh、上下留白一致（各约 6vh）；AI 生成与 AI 优化面板对话框容器 padding 统一收紧，内容区间距不变 |
 | V1.0 | 2026-11-20 | 用例关联需求改为 `ft_case_node.requirement_id` 随脑图帧落库：4.4 / 5.2 / 5.3 / 7 采纳时来源需求 id 写入节点 data 随 `add_node` 同帧落库，删除独立关联接口与有界重试，`add_node` 同时携带 `aiGenerated`，需求详情按 id 回显 |
 | V1.0 | 2026-11-21 | US-AI-018 执行顺序推荐补齐真实智能：4.3 推荐依据改为实际读取前置 / 步骤 / 预期、祖先路径与 `ft_plan_execution_record` 历史失败率；采纳排序改为稳定排序（同步 / 重规划 / 差量调整保留，补入用例按原序补位）；新增按排序的执行序号展示与「下一个待执行用例」引导 |
+| V1.0 | 2026-11-23 | 5.1 / 5.3 重新执行改按任务状态分叉：`running` 仅回显、`aborted` 沿用原任务、`proposals_ready` / `closed` 按原输入新建任务且保留原记录；后端拒绝这三类轻量能力任务的 `proposals_ready` 再次执行，任务中心与详情页仅 `aborted` 态提供再次执行 |

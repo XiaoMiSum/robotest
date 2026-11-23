@@ -851,6 +851,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
 - **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 按最新默认模型重新解析（选型规则见 4.2），不沿用上次执行的模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
+- **轻量能力的重新执行分叉（单一事实源）**：`case_optimize` / `mindmap_case_generation` / `review_case_review` 三类任务的业务入口与任务中心 / 任务详情页按最近任务状态分流：`running`（含执行挂起）仅回显原任务进度，不新建任务或执行实例；`aborted` 沿用原任务调用再次执行端点；`proposals_ready` / `closed` 在业务入口按原输入新建任务，原任务及其执行、提案、采纳记录保留只读回看，不被覆盖。后端对这三类任务在 `proposals_ready` 态拒绝再次执行端点（1000018111），`running` 态仍受「同任务至多一个进行中执行」门禁（1000018111）；任务中心与任务详情页只对这三类任务的 `aborted` 态提供「再次执行」，新建任务由持有原输入的业务入口承担。分册具体口径见 `docs/04-detailed-design/07-ai-capability/06-ai-assisted-features.md` 5、`docs/04-detailed-design/07-ai-capability/07-ai-review.md` 3.3 / 5。
 - **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
@@ -1006,12 +1007,13 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
   - `aiAdmin`：设置、模型、向量、提示词、用量（仅管理端装载）；
   - `aiTask`：任务轮询（详情 `GET /api/ai/tasks/{id}` 按 2s 间隔轮询，仅 `running`（进行中）继续，状态非进行中即停止）、轨迹事件增量拉取（`events?afterSeq=`，WS 推送时即时合并）、任务中心列表、提案确认状态、顶栏指示器进行中计数（`GET /api/ai/tasks/running-count` 按 15s 间隔轮询，随业务布局装载/卸载启停）；
 - 只读类型（`review_case_review` / `case_optimize` / `mindmap_case_generation`）：任务详情页只展示执行过程与提案只读明细，不渲染 `AiProposalReviewPanel` 的审核动作；`review_case_review` 的处置在评审详情页 AI 评审面板完成（见分册 07），`case_optimize` / `mindmap_case_generation` 在脑图面板完成（见分册 06）。
+- 轻量能力任务（`case_optimize` / `mindmap_case_generation` / `review_case_review`）的任务中心行操作与详情页操作仅对 `aborted` 态提供「再次执行」（沿用原任务新建执行实例），`running` / `proposals_ready` / `closed` 不提供；`proposals_ready` / `closed` 的重新发起由持有原输入的业务入口按 3.6.4 分叉新建任务。
 - 密钥输入框：`keyConfigured = true` 时显示占位「已配置（输入新值以替换）」，提交为空则不修改。
 
 ### 5.3 状态分支
 
 - 配置未就绪（`available = false`）：业务端 AI 入口隐藏或置灰并提示"AI 能力未启用/未配置模型"；
-- 任务态：执行中（步数与预算消耗、当前步骤）、挂起（待人工批准副作用）、待采纳（审核区；只读类型仅展示提案明细、无审核动作）、已结束（任务级结果标识 + 只读展示已采纳 / 已驳回提案）、已终止（原因 + 再次执行，不展示审核区）；
+- 任务态：执行中（步数与预算消耗、当前步骤）、挂起（待人工批准副作用）、待采纳（审核区；只读类型仅展示提案明细、无审核动作）、已结束（任务级结果标识 + 只读展示已采纳 / 已驳回提案）、已终止（原因 + 再次执行，不展示审核区）；轻量能力任务的再次执行仅 `aborted` 态可用（3.6.4）；
 - 用量空区间补 0、图表加载与无数据态；向量重建中的 `requiresReindex` 引导条。
 
 ---
@@ -1032,7 +1034,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 | 1000018108 | 404 | 提示词场景不存在 |
 | 1000018109 | 400 | 提示词模板校验失败（变量缺失或非法） |
 | 1000018110 | 404 | 任务不存在 |
-| 1000018111 | 409 | 任务状态不允许该操作 |
+| 1000018111 | 409 | 任务状态不允许该操作（含轻量能力任务在 `proposals_ready` 态再次执行、同任务存在进行中执行） |
 | 1000018112 | 404 | 任务提案不存在 |
 | 1000018113 | 409 | 提案已确认，不可重复操作 |
 | 1000018114 | 400 | 不支持的任务类型 |
@@ -1153,3 +1155,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-21 | 移除存量重复扫描任务：3.6.1 注销 `bug_duplicate_scan` / `duplicate_group`（总数九类→八类、普通目标型七类→六类），3.6 目标型执行示例与 4.2 执行入口统计改引保留类型 |
 | V1.0 | 2026-11-23 | 任务标题改创建时生成：3.6.1 登记「类型描述 - 来源标题」生成规则与八类来源映射，2.6.1 / 2.6.4 / 3.6.2 / 3.6.3 / 5.2 / 7 移除执行回填口径，存量空串仍按类型名兜底 |
 | V1.0 | 2026-11-23 | 3.6.3 / 5.2 / 5.3 登记审核区产物导航：按 `proposals[]` 全量定位（已处置只读），切换按 `proposalKey` 按需加载；`review_case_review` 等只读类型任务详情以只读模式展示提案、无审核动作 |
+| V1.0 | 2026-11-23 | 3.6.4 新增轻量能力重新执行分叉单一事实源：`running` 仅回显、`aborted` 沿用原任务新建执行、`proposals_ready` / `closed` 按原输入新建任务并保留原记录；后端拒绝这三类任务的 `proposals_ready` 再次执行（1000018111），5.2 / 5.3 任务中心与详情页只在该三类任务的 `aborted` 态提供再次执行 |
