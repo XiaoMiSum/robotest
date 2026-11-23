@@ -92,7 +92,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                     AiModelClient.calculateCost(ctx.model(), reply.tokensIn(), reply.tokensOut()));
             control.recordTrace(Constants.AiTraceEventType.AI_DECISION,
                     reply.toolCalls().isEmpty() ? "模型完成任务" : "模型选择调用工具",
-                    Map.of("toolCalls", reply.toolCalls().stream().map(AiToolCall::name).toList()));
+                    decisionDetail(request, declarations, reply, task, ctx));
             if (hop == 0 && !reply.toolCalls().isEmpty()
                     && ModelOutputSupport.trimToNull(reply.content()) != null) {
                 // 计划快照：首跳带工具的正文视为计划（可见思考产物，不作为执行依据）
@@ -135,7 +135,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         }
         AiChatReply repairReply;
         try {
-            repairReply = callForRepair(request, declarations, control, output, parseError);
+            repairReply = callForRepair(request, declarations, control, output, parseError, task, ctx);
         } catch (ServiceException repairCallError) {
             // 自愈调用失败保留原始解析错误，避免用网络错误掩盖真正的输出缺陷
             recordOutputParseFailure(control, parseError, output);
@@ -160,9 +160,34 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         return new ExecutionResult(drafts, resultMeta);
     }
 
+    /** AI 决策事件明细：保留工具名摘要并附请求摘要与完整响应（详设 2.6.3 / 4.2） */
+    private static Map<String, Object> decisionDetail(AiChatRequest request, List<ToolDeclaration> declarations,
+            AiChatReply reply, AiTask task, ExecutionContext ctx) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("toolCalls", reply.toolCalls().stream().map(AiToolCall::name).toList());
+        detail.put("rawRequest", rawRequest(request, declarations, task, ctx));
+        detail.put("rawResponse", reply.rawResponse());
+        return detail;
+    }
+
+    /** 请求摘要只含业务上下文与工具名，systemPrompt / options / 密钥不进轨迹（详设 4.2） */
+    private static Map<String, Object> rawRequest(AiChatRequest request, List<ToolDeclaration> declarations,
+            AiTask task, ExecutionContext ctx) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("taskType", task.getType());
+        context.put("input", task.getInput());
+        context.put("feedback", ctx.feedback());
+        Map<String, Object> raw = new LinkedHashMap<>();
+        raw.put("model", request.model() == null ? null : request.model().getModelName());
+        raw.put("promptScene", request.promptScene());
+        raw.put("context", context);
+        raw.put("tools", declarations.stream().map(ToolDeclaration::name).toList());
+        return raw;
+    }
+
     /** 全量解析失败后的一次性回喂：复用系统提示词，附加错误上下文要求模型自愈重出 JSON。 */
     private AiChatReply callForRepair(AiChatRequest request, List<ToolDeclaration> declarations,
-            ExecutionControl control, String output, ServiceException parseError) {
+            ExecutionControl control, String output, ServiceException parseError, AiTask task, ExecutionContext ctx) {
         String instruction = """
                 上一次输出未能通过应用层校验：%s
                 请严格按系统提示词重新输出完整 JSON（只输出 JSON）：
@@ -181,9 +206,12 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         AiChatReply reply = modelClient.chatWithToolDeclarations(repairRequest, declarations, List.of(), false);
         control.afterModelCall(reply.tokensIn(), reply.tokensOut(),
                 AiModelClient.calculateCost(request.model(), reply.tokensIn(), reply.tokensOut()));
-        control.recordTrace(Constants.AiTraceEventType.AI_DECISION, "模型输出解析失败后自愈重试",
-                Map.of("errorCode", parseError.getCode(), "errorMessage",
-                        ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(parseError.getMessage()), 500)));
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("errorCode", parseError.getCode());
+        detail.put("errorMessage", ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(parseError.getMessage()), 500));
+        detail.put("rawRequest", rawRequest(repairRequest, declarations, task, ctx));
+        detail.put("rawResponse", reply.rawResponse());
+        control.recordTrace(Constants.AiTraceEventType.AI_DECISION, "模型输出解析失败后自愈重试", detail);
         return reply;
     }
 

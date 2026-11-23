@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.DefaultUsage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -167,6 +168,28 @@ class AiModelClientTest {
         assertNotNull(usage.getLatencyMs());
         // 成本 = 1000/1e6 × 0.5 + 200/1e6 × 2.0 = 0.0009（4.3 计价公式）
         assertEquals(0, usage.getCost().compareTo(new BigDecimal("0.0009")));
+    }
+
+    @Test
+    void chat_success_capturesFullRawResponse() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildChatModel(any(), any());
+        ChatResponse response = new ChatResponse(
+                List.of(new Generation(new AssistantMessage("生成完毕"),
+                        ChatGenerationMetadata.builder().finishReason("STOP").build())),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(1000, 200)).build());
+        when(chatModel.call(any(Prompt.class))).thenReturn(response);
+
+        AiChatReply reply = spy.chat(request());
+
+        AiRawResponse raw = reply.rawResponse();
+        assertNotNull(raw);
+        assertEquals("生成完毕", raw.content());
+        assertEquals("STOP", raw.finishReason());
+        assertTrue(raw.toolCalls().isEmpty());
+        assertEquals(1000, ((Number) raw.usage().get("promptTokens")).intValue());
+        assertEquals(200, ((Number) raw.usage().get("completionTokens")).intValue());
+        assertEquals(1200, ((Number) raw.usage().get("totalTokens")).intValue());
     }
 
     @Test
@@ -339,6 +362,14 @@ class AiModelClientTest {
         assertEquals("query_projects", reply.toolCalls().get(0).name());
         assertEquals(700, reply.tokensIn());
         assertEquals(25, reply.tokensOut());
+        AiRawResponse raw = reply.rawResponse();
+        assertNotNull(raw);
+        assertEquals("先查", raw.content());
+        assertEquals(1, raw.toolCalls().size());
+        assertEquals("query_projects", raw.toolCalls().get(0).name());
+        assertEquals("{}", raw.toolCalls().get(0).arguments());
+        assertEquals(700, ((Number) raw.usage().get("promptTokens")).intValue());
+        assertEquals(25, ((Number) raw.usage().get("completionTokens")).intValue());
     }
 
     @Test
@@ -449,6 +480,22 @@ class AiModelClientTest {
         ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
         verify(usageLogMapper).insert(captor.capture());
         assertEquals("test", captor.getValue().getPromptScene());
+    }
+
+    @Test
+    void chatWithToolDeclarations_streamCapturesFinishReason() {
+        AiModelClient spy = Mockito.spy(client);
+        doReturn(chatModel).when(spy).buildStreamChatModelWithDeclarations(any(), any(), any());
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(new ChatResponse(
+                List.of(new Generation(new AssistantMessage("任务结果"),
+                        ChatGenerationMetadata.builder().finishReason("STOP").build())),
+                ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build())));
+
+        AiChatReply reply = spy.chatWithToolDeclarations(request(), List.of(), List.of(), false);
+
+        assertNotNull(reply.rawResponse());
+        assertEquals("STOP", reply.rawResponse().finishReason());
+        assertEquals("任务结果", reply.rawResponse().content());
     }
 
     @Test

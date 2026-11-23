@@ -34,7 +34,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -211,6 +213,8 @@ public class AiModelClient {
         List<AiToolCall>[] toolCalls = new List[]{List.of()};
         int[] tokensIn = {0};
         int[] tokensOut = {0};
+        int[] totalTokens = {0};
+        String[] finishReason = {null};
         long[] lastTick = {System.nanoTime()};
         Runnable tick = onTick == null ? () -> { } : onTick;
         model.stream(prompt)
@@ -235,6 +239,13 @@ public class AiModelClient {
                         if (usage.getCompletionTokens() != null) {
                             tokensOut[0] = usage.getCompletionTokens();
                         }
+                        if (usage.getTotalTokens() != null) {
+                            totalTokens[0] = usage.getTotalTokens();
+                        }
+                    }
+                    String reason = finishReasonOf(chunk);
+                    if (reason != null && !reason.isBlank()) {
+                        finishReason[0] = reason;
                     }
                     long now = System.nanoTime();
                     if (java.time.Duration.ofNanos(now - lastTick[0]).compareTo(streamHeartbeatInterval) >= 0) {
@@ -243,7 +254,9 @@ public class AiModelClient {
                     }
                 })
                 .blockLast();
-        return new AiChatReply(content.toString(), tokensIn[0], tokensOut[0], toolCalls[0]);
+        String fullContent = content.toString();
+        return new AiChatReply(fullContent, tokensIn[0], tokensOut[0], toolCalls[0],
+                rawResponse(fullContent, toolCalls[0], finishReason[0], tokensIn[0], tokensOut[0], totalTokens[0]));
     }
 
     /** 单帧工具调用抽取：仅末帧携带完整列表，供 streamAndAggregate 覆盖式累积 */
@@ -265,6 +278,25 @@ public class AiModelClient {
         try {
             String text = chunk.getResult().getOutput().getText();
             return text == null || text.isEmpty() ? null : text;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 完整响应原文随轨迹留存以支持审计回放（详设 4.2），账单与正文同源 */
+    private static AiRawResponse rawResponse(String content, List<AiToolCall> toolCalls, String finishReason,
+            int tokensIn, int tokensOut, int totalTokens) {
+        Map<String, Object> usage = new LinkedHashMap<>();
+        usage.put("promptTokens", tokensIn);
+        usage.put("completionTokens", tokensOut);
+        usage.put("totalTokens", totalTokens);
+        return new AiRawResponse(content, toolCalls, finishReason, usage);
+    }
+
+    /** 结束原因取不到时留空，避免模型元数据差异中断主调用 */
+    private static String finishReasonOf(ChatResponse response) {
+        try {
+            return response.getResult().getMetadata().getFinishReason();
         } catch (Exception e) {
             return null;
         }
@@ -446,7 +478,10 @@ public class AiModelClient {
             Usage usage = response.getMetadata().getUsage();
             int tokensIn = usage == null || usage.getPromptTokens() == null ? 0 : usage.getPromptTokens();
             int tokensOut = usage == null || usage.getCompletionTokens() == null ? 0 : usage.getCompletionTokens();
-            return new AiChatReply(content, tokensIn, tokensOut);
+            int totalTokens = usage == null || usage.getTotalTokens() == null ? tokensIn + tokensOut
+                    : usage.getTotalTokens();
+            return new AiChatReply(content, tokensIn, tokensOut, List.of(),
+                    rawResponse(content, List.of(), finishReasonOf(response), tokensIn, tokensOut, totalTokens));
         } catch (Exception e) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
         }
@@ -464,7 +499,10 @@ public class AiModelClient {
             Usage usage = response.getMetadata().getUsage();
             int tokensIn = usage == null || usage.getPromptTokens() == null ? 0 : usage.getPromptTokens();
             int tokensOut = usage == null || usage.getCompletionTokens() == null ? 0 : usage.getCompletionTokens();
-            return new AiChatReply(content, tokensIn, tokensOut, toolCalls);
+            int totalTokens = usage == null || usage.getTotalTokens() == null ? tokensIn + tokensOut
+                    : usage.getTotalTokens();
+            return new AiChatReply(content, tokensIn, tokensOut, toolCalls,
+                    rawResponse(content, toolCalls, finishReasonOf(response), tokensIn, tokensOut, totalTokens));
         } catch (Exception e) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
         }

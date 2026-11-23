@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatRequest;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
+import io.github.xiaomisum.robotest.service.ai.config.AiRawResponse;
 import io.github.xiaomisum.robotest.service.ai.config.AiToolCall;
 import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDraft;
 import io.github.xiaomisum.robotest.service.ai.task.type.TaskTypeAdapter;
@@ -105,6 +106,42 @@ class AgentExecutionRunnerTest {
         assertEquals(adapter.resultMeta, result.resultMeta());
         verify(control, times(2)).beforeCall();
         verify(control).afterModelCall(7, 3, new BigDecimal("0.000000"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void execute_aiDecision_traceCarriesRequestSummaryAndFullResponse() {
+        model.setModelName("gpt-x-mini");
+        givenWhitelistedTool("query_x");
+        when(modelClient.chatWithToolDeclarations(any(), anyList(), anyList(), eq(false))).thenReturn(
+                reply("计划", List.of(new AiToolCall("call-1", "query_x", "{}"))),
+                reply("最终产出", List.of()));
+
+        runner.execute(context, control);
+
+        ArgumentCaptor<Map<String, Object>> detailCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(control, times(2)).recordTrace(eq(Constants.AiTraceEventType.AI_DECISION), anyString(),
+                detailCaptor.capture());
+        Map<String, Object> first = detailCaptor.getAllValues().get(0);
+        assertEquals(List.of("query_x"), first.get("toolCalls"));
+
+        Map<String, Object> rawRequest = (Map<String, Object>) first.get("rawRequest");
+        assertEquals("gpt-x-mini", rawRequest.get("model"));
+        assertEquals(TYPE, rawRequest.get("promptScene"));
+        assertEquals(List.of("query_x"), rawRequest.get("tools"));
+        assertEquals(java.util.Set.of("model", "promptScene", "context", "tools"), rawRequest.keySet());
+
+        Map<String, Object> reqContext = (Map<String, Object>) rawRequest.get("context");
+        assertEquals(TYPE, reqContext.get("taskType"));
+        assertEquals(task.getInput(), reqContext.get("input"));
+        assertEquals(java.util.Set.of("taskType", "input", "feedback"), reqContext.keySet());
+
+        AiRawResponse rawResponse = (AiRawResponse) first.get("rawResponse");
+        assertEquals("计划", rawResponse.content());
+        assertEquals("STOP", rawResponse.finishReason());
+        assertEquals(7, ((Number) rawResponse.usage().get("promptTokens")).intValue());
+        assertEquals(3, ((Number) rawResponse.usage().get("completionTokens")).intValue());
+        assertEquals(10, ((Number) rawResponse.usage().get("totalTokens")).intValue());
     }
 
     @Test
@@ -267,7 +304,9 @@ class AgentExecutionRunnerTest {
     }
 
     private static AiChatReply reply(String content, List<AiToolCall> toolCalls) {
-        return new AiChatReply(content, 7, 3, toolCalls);
+        return new AiChatReply(content, 7, 3, toolCalls,
+                new AiRawResponse(content, toolCalls, "STOP",
+                        Map.of("promptTokens", 7, "completionTokens", 3, "totalTokens", 10)));
     }
 
     private static final class StubAdapter implements TaskTypeAdapter {
