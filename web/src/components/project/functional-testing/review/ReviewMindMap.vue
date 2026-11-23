@@ -8,6 +8,7 @@ import { useReviewMindmapOps } from '@/composables/project/functional-testing/re
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { formatDateTime } from '@/utils/format'
+import type { ReviewRecord } from '@/types'
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 // window.kity / window.kityminder 的类型声明在 minder/types.ts 中统一维护
 import { useMinderInstance } from '@/minder/useMinderInstance'
@@ -119,6 +120,10 @@ function removeFromPopover(): void {
   void removeSelectedCase()
 }
 
+function isAiAdoptedRecord(record: ReviewRecord): boolean {
+  return record.comment?.startsWith('[AI 建议]') === true
+}
+
 // ==================== Bug 链接跳转 ====================
 // 暴露给 kityminder 扩展节点渲染模板通过 ref 调用，避免事件冒泡干扰节点选中
 function openBug(bugId: string) {
@@ -178,6 +183,7 @@ onBeforeUnmount(() => {
               <el-tag v-if="c.operationType === 'mark'" size="small" effect="light" round :type="c.mark === 'pass' ? 'success' : c.mark === 'fail' ? 'danger' : 'info'">
                 {{ c.mark === 'pass' ? '标记通过' : c.mark === 'fail' ? '标记不通过' : '重置待评审' }}
               </el-tag>
+              <el-tag v-if="isAiAdoptedRecord(c)" size="small" effect="light" round class="comment-item__ai-tag">AI</el-tag>
             </div>
             <p v-if="c.comment" class="comment-item__body">{{ c.comment }}</p>
             <div class="comment-item__time">{{ formatDateTime(c.createdAt) }}</div>
@@ -271,6 +277,13 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+}
+
+.comment-item__ai-tag {
+  --el-tag-bg-color: var(--el-color-primary-light-9);
+  --el-tag-border-color: var(--el-color-primary-light-5);
+  --el-tag-text-color: var(--el-color-primary);
+  font-weight: 600;
 }
 
 .comment-item__body {
