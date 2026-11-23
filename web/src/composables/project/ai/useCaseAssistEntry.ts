@@ -2,7 +2,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchAiStatus, fetchLatestAiTask } from '@/services/ai'
-import { useAssistTask } from '@/composables/project/ai/useAssistTask'
+import { resolveReExecuteRoute, useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import {
   isCaseOptimizeSuggestion,
@@ -85,8 +85,10 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   const running = computed(() => submitting.value || task.isRunning.value)
   const failed = computed(() => task.isFailed.value)
   const failedReason = computed(() => task.failedReason.value)
-  /** 任务已有提案：展示提案并提供重新执行（交互 2.4） */
-  const retryable = computed(() => rows.value.length > 0)
+  /** 任务已有提案且非执行中：展示提案并提供重新执行（交互 2.4） */
+  const retryable = computed(
+    () => rows.value.length > 0 && resolveReExecuteRoute(task.task.value?.status) !== 'echo',
+  )
   const progressText = computed(() => task.executionSummary.value?.text ?? '')
   const loadError = computed(() => task.loadError.value)
 
@@ -146,9 +148,10 @@ export function useCaseAssistEntry(options: CaseAssistEntryOptions) {
   }
 
   async function retry(): Promise<void> {
+    const route = resolveReExecuteRoute(task.task.value?.status)
+    if (route === 'echo') return
     const nodeId = activeNodeId.value || options.selectedNodeId()
-    // 已处理完毕的任务后端不允许再次执行，按同一输入发起新任务（交互 2.4）
-    if (task.task.value?.status === 'closed') {
+    if (route === 'new-task') {
       await task.launch({
         documentId: options.documentId(),
         nodeIds: [nodeId],

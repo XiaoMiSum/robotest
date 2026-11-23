@@ -2,7 +2,7 @@ import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchAiStatus, fetchLatestAiTask } from '@/services/ai'
-import { useAssistTask } from '@/composables/project/ai/useAssistTask'
+import { resolveReExecuteRoute, useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import type { AiAssistSourceRef, AiProposalConfirmResult, AiTaskDetail } from '@/types'
 
@@ -50,8 +50,10 @@ export function useReviewTask(options: ReviewTaskOptions) {
   const failed = computed(() => task.isFailed.value)
   const failedReason = computed(() => task.failedReason.value)
   const progressText = computed(() => task.executionSummary.value?.text ?? '')
-  /** 已有提案：提供再次执行入口（交互 05 §1.4） */
-  const retryable = computed(() => rows.value.length > 0)
+  /** 已有提案且非执行中：提供重新执行入口（交互 05 §1.4） */
+  const retryable = computed(
+    () => rows.value.length > 0 && resolveReExecuteRoute(task.task.value?.status) !== 'echo',
+  )
   const loadError = computed(() => task.loadError.value)
 
   async function open(): Promise<void> {
@@ -76,8 +78,9 @@ export function useReviewTask(options: ReviewTaskOptions) {
   }
 
   async function retry(): Promise<void> {
-    // 已处理完毕的任务后端不允许再次执行，按同一评审发起新任务
-    if (task.task.value?.status === 'closed') {
+    const route = resolveReExecuteRoute(task.task.value?.status)
+    if (route === 'echo') return
+    if (route === 'new-task') {
       await task.launch({ reviewId: options.reviewId })
       return
     }

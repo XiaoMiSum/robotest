@@ -16,6 +16,7 @@ import type {
   AiAssistSuggestion,
   AiAssistTaskType,
   AiTaskDetail,
+  AiTaskStatus,
 } from '@/types'
 import {
   aiExecutionSummary,
@@ -43,6 +44,15 @@ export interface AssistTaskOptions {
   target?: () => AiProposalConfirmTarget | undefined
   /** 采纳成功后的联动（刷新脑图 / 计划详情），与回执展示解耦 */
   onConfirmed?: () => void
+}
+
+export type ReExecuteRoute = 'echo' | 'reuse' | 'new-task'
+
+/** 重新执行按状态分叉：running 仅回显以免重复发起，aborted 沿用原任务，其余新建任务不覆盖原记录 */
+export function resolveReExecuteRoute(status: AiTaskStatus | undefined): ReExecuteRoute {
+  if (status === 'running') return 'echo'
+  if (status === 'aborted') return 'reuse'
+  return 'new-task'
 }
 
 function errorMessage(error: unknown, fallback: string): string {

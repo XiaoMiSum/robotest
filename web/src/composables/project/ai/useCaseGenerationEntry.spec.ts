@@ -19,7 +19,10 @@ vi.mock('@/services/ai', () => ({
   fetchLatestAiTask: mocks.fetchLatestAiTask,
 }))
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
-vi.mock('@/composables/project/ai/useAssistTask', () => ({ useAssistTask: mocks.useAssistTask }))
+vi.mock('@/composables/project/ai/useAssistTask', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/project/ai/useAssistTask')>()),
+  useAssistTask: mocks.useAssistTask,
+}))
 
 import { useCaseGenerationEntry } from './useCaseGenerationEntry'
 import type { AiGeneratedCase } from '@/composables/project/functional-testing/mindmap/useCaseGenerationInsert'
@@ -406,6 +409,33 @@ describe('useCaseGenerationEntry', () => {
     tasks[0].task.value = { taskId: 'task-1', status: 'aborted' } as AiTaskDetail
     await s.retry()
     expect(tasks[0].retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('已产出提案任务按原文档与来源需求发起新任务，不沿用原任务', async () => {
+    const s = mountEntry()
+    await flushPromises()
+    await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
+
+    tasks[0].task.value = { taskId: 'task-1', status: 'proposals_ready' } as AiTaskDetail
+    await s.retry()
+
+    expect(tasks[0].launch).toHaveBeenCalledTimes(2)
+    expect(tasks[0].launch).toHaveBeenLastCalledWith({ documentId: 'doc-1', requirementId: 'r1' })
+    expect(tasks[0].retry).not.toHaveBeenCalled()
+  })
+
+  it('执行中任务不展示重新执行，重试也不发起任何请求', async () => {
+    const s = mountEntry()
+    await flushPromises()
+    await s.confirmRequirement(['r1'], [{ id: 'r1', code: 'REQ-001', title: '验证码需求' }])
+
+    tasks[0].task.value = { taskId: 'task-1', status: 'running' } as AiTaskDetail
+    tasks[0].isRunning.value = true
+    expect(s.retryable.value).toBe(false)
+
+    await s.retry()
+    expect(tasks[0].retry).not.toHaveBeenCalled()
+    expect(tasks[0].launch).toHaveBeenCalledTimes(1)
   })
 
   it('已关闭任务缺少来源需求时改为重选需求，不用空输入发起', async () => {

@@ -27,7 +27,7 @@ vi.mock('element-plus', () => ({
 }))
 
 import { useAiTaskStore } from '@/stores/aiTask'
-import { useAssistTask } from './useAssistTask'
+import { resolveReExecuteRoute, useAssistTask } from './useAssistTask'
 import type { AssistTaskOptions } from './useAssistTask'
 
 type AssistState = ReturnType<typeof useAssistTask>
@@ -135,6 +135,16 @@ function mountAssist(options: AssistTaskOptions = {}): AssistState {
   if (state === null) throw new Error('composable 未初始化')
   return state
 }
+
+describe('resolveReExecuteRoute', () => {
+  it('running 仅回显；aborted 沿用原任务；其余状态新建任务', () => {
+    expect(resolveReExecuteRoute('running')).toBe('echo')
+    expect(resolveReExecuteRoute('aborted')).toBe('reuse')
+    expect(resolveReExecuteRoute('proposals_ready')).toBe('new-task')
+    expect(resolveReExecuteRoute('closed')).toBe('new-task')
+    expect(resolveReExecuteRoute(undefined)).toBe('new-task')
+  })
+})
 
 describe('useAssistTask', () => {
   beforeEach(() => {

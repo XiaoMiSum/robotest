@@ -1,7 +1,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchAiStatus, fetchLatestAiTask } from '@/services/ai'
-import { useAssistTask } from '@/composables/project/ai/useAssistTask'
+import { resolveReExecuteRoute, useAssistTask } from '@/composables/project/ai/useAssistTask'
 import type { AssistRow } from '@/composables/project/ai/useAssistTask'
 import { caseGenerationNodeOf, isCaseGenerationSuggestion } from '@/composables/project/ai/assistPresentation'
 import type { RequirementPick } from '@/composables/project/requirement/useRequirementPicker'
@@ -64,7 +64,9 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
   const running = computed(() => task.submitting.value || task.isRunning.value)
   const failed = computed(() => task.isFailed.value)
   const failedReason = computed(() => task.failedReason.value)
-  const retryable = computed(() => rows.value.length > 0)
+  const retryable = computed(
+    () => rows.value.length > 0 && resolveReExecuteRoute(task.task.value?.status) !== 'echo',
+  )
   const progressText = computed(() => task.executionSummary.value?.text ?? '')
   const loadError = computed(() => task.loadError.value)
 
@@ -153,8 +155,9 @@ export function useCaseGenerationEntry(options: CaseGenerationEntryOptions) {
   }
 
   function retry(): Promise<void> {
-    // 已关闭任务后端不允许再执行，按同一输入发起新任务
-    if (task.task.value?.status !== 'closed') return task.retry()
+    const route = resolveReExecuteRoute(task.task.value?.status)
+    if (route === 'echo') return Promise.resolve()
+    if (route === 'reuse') return task.retry()
     if (Object.keys(lastInput.value).length > 0) {
       return task.launch({ ...lastInput.value })
     }

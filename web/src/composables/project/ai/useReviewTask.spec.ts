@@ -20,7 +20,8 @@ vi.mock('@/services/ai', () => ({
 }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
-vi.mock('@/composables/project/ai/useAssistTask', () => ({
+vi.mock('@/composables/project/ai/useAssistTask', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/project/ai/useAssistTask')>()),
   useAssistTask: mocks.useAssistTask,
 }))
 
@@ -317,6 +318,34 @@ describe('useReviewTask', () => {
       tasks[0].task.value = latestTask('task-rv-1', 'aborted')
       await s.retry()
       expect(tasks[0].retry).toHaveBeenCalledTimes(1)
+    })
+
+    it('已产出提案任务重新执行按同一评审发起新任务，不沿用原任务', async () => {
+      const s = mountEntry()
+      await flushPromises()
+      await s.open()
+      tasks[0].rows.value = [reviewRow()]
+      tasks[0].task.value = latestTask('task-rv-1', 'proposals_ready')
+
+      await s.retry()
+
+      expect(tasks[0].retry).not.toHaveBeenCalled()
+      expect(tasks[0].launch).toHaveBeenLastCalledWith({ reviewId: 'rv-1' })
+    })
+
+    it('执行中任务不展示重新执行，重试也不发起任何请求', async () => {
+      const s = mountEntry()
+      await flushPromises()
+      await s.open()
+      tasks[0].rows.value = [reviewRow()]
+      tasks[0].task.value = latestTask('task-rv-1', 'running')
+      tasks[0].isRunning.value = true
+
+      expect(s.retryable.value).toBe(false)
+      await s.retry()
+
+      expect(tasks[0].retry).not.toHaveBeenCalled()
+      expect(tasks[0].launch).toHaveBeenCalledTimes(1)
     })
 
     it('采纳 / 编辑后采纳 / 驳回直接透传，前端不执行写回', async () => {

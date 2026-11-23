@@ -20,7 +20,8 @@ vi.mock('@/services/ai', () => ({
 }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('element-plus', () => ({ ElMessage: mocks.ElMessage }))
-vi.mock('@/composables/project/ai/useAssistTask', () => ({
+vi.mock('@/composables/project/ai/useAssistTask', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/project/ai/useAssistTask')>()),
   useAssistTask: mocks.useAssistTask,
 }))
 
@@ -318,6 +319,39 @@ describe('useCaseAssistEntry', () => {
       expect(s.rows.value[0].title).toBe('node-1 用例')
     })
 
+    it('已产出提案任务重新执行时按同一输入发起新任务，不沿用原任务', async () => {
+      mocks.fetchLatestAiTask.mockResolvedValue(latestTask('task-1', 'proposals_ready'))
+      const s = mountEntry()
+      await flushPromises()
+      tasks[0].rows.value = [optimizeRow('node-1')]
+
+      await s.launchOptimize('node-1')
+      tasks[0].task.value = latestTask('task-1', 'proposals_ready')
+      await s.retry()
+
+      expect(tasks[0].retry).not.toHaveBeenCalled()
+      expect(tasks[0].launch).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        nodeIds: ['node-1'],
+      })
+    })
+
+    it('执行中任务不展示重新执行，重试也不发起任何请求', async () => {
+      mocks.fetchLatestAiTask.mockResolvedValue(latestTask('task-1', 'running'))
+      const s = mountEntry()
+      await flushPromises()
+      tasks[0].rows.value = [optimizeRow('node-1')]
+      tasks[0].isRunning.value = true
+
+      await s.launchOptimize('node-1')
+      tasks[0].task.value = latestTask('task-1', 'running')
+      expect(s.retryable.value).toBe(false)
+
+      await s.retry()
+      expect(tasks[0].retry).not.toHaveBeenCalled()
+      expect(tasks[0].launch).not.toHaveBeenCalled()
+    })
+
     it('已处理完毕的任务重新执行时按同一输入发起新任务', async () => {
       mocks.fetchLatestAiTask.mockResolvedValue(latestTask('task-1', 'closed'))
       const s = mountEntry()
@@ -343,6 +377,7 @@ describe('useCaseAssistEntry', () => {
       tasks[0].isFailed.value = true
 
       await s.launchOptimize('node-1')
+      tasks[0].task.value = latestTask('task-1', 'aborted')
       await s.retry()
 
       expect(tasks[0].open).toHaveBeenCalledWith('task-1')
