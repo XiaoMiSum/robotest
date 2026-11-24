@@ -456,9 +456,9 @@ function onReceiptRetry(item: ConfirmItemResult): void {
 
       <el-button
         v-if="unchangedCount > 0"
-        link
-        type="info"
         class="assist-panel__fold"
+        link
+        size="small"
         @click="showUnchanged = !showUnchanged"
       >
         {{ showUnchanged ? '收起无变化项' : `展开共有 ${unchangedCount} 项与现有内容相同` }}

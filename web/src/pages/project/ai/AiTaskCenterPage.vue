@@ -169,7 +169,8 @@ function asRow(row: unknown): AiTaskRow {
               <el-button
                 v-if="asRow(row).canAbort"
                 link
-                type="warning"
+                type="danger"
+                size="small"
                 @click="handleAbort(asRow(row))"
               >终止</el-button>
               <el-button

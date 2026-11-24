@@ -106,7 +106,8 @@ const {
             <el-button
               v-if="canAbort"
               link
-              type="warning"
+              type="danger"
+              size="small"
               @click="handleAbort"
             >终止</el-button>
             <el-button

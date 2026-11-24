@@ -106,7 +106,7 @@ function backToList(): void {
             </p>
           </div>
           <div class="import-review__actions">
-            <el-button v-if="canAbort" link type="warning" @click="handleAbort">终止</el-button>
+            <el-button v-if="canAbort" link type="danger" size="small" @click="handleAbort">终止</el-button>
             <el-button v-if="canReExecute" link type="primary" size="small" @click="handleReExecute">重新执行</el-button>
             <router-link :to="REQUIREMENT_LIST_ROUTE">返回需求列表</router-link>
           </div>

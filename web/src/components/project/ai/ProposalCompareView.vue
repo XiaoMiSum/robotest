@@ -32,9 +32,9 @@ const visibleItems = computed(() => (showUnchanged.value ? props.items : changed
     </div>
     <el-button
       v-if="unchangedItems.length > 0"
-      link
-      type="info"
       class="compare-view__fold"
+      link
+      size="small"
       @click="showUnchanged = !showUnchanged"
     >
       {{ showUnchanged ? '收起无变化项' : `展开其余 ${unchangedItems.length} 项无变化内容` }}

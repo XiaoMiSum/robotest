@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { TestReviewListItem } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import RowActions from '@/components/common/RowActions.vue'
 import {
   isActiveReview,
   reviewAvatars,
@@ -25,6 +26,24 @@ const emit = defineEmits<{
   reopen: [review: TestReviewListItem]
   delete: [review: TestReviewListItem]
 }>()
+function actionsOf(row: unknown) {
+  const item = row as { review: TestReviewListItem; canEdit: boolean; action: string }
+  return [
+    { key: 'open', label: item.action === 'enter' ? '进入' : '查看', form: 'PLsm' as const },
+    { key: 'edit', label: '编辑', form: 'PLsm' as const, visible: item.canEdit },
+    { key: 'reopen', label: '重新执行', form: 'PLsm' as const, visible: item.review.status === 'rejected' },
+    { key: 'delete', label: '删除', form: 'DGsm' as const },
+  ]
+}
+
+function onRowAction(key: string, row: unknown): void {
+  const review = (row as { review: TestReviewListItem }).review
+  if (key === 'open') emit('open', review.id)
+  else if (key === 'edit') emit('edit', review)
+  else if (key === 'reopen') emit('reopen', review)
+  else if (key === 'delete') emit('delete', review)
+}
+
 const rows = computed(() =>
   props.reviews.map((review) => ({
     id: review.id,
@@ -120,20 +139,7 @@ const brandAvatarStyle = {
         </div>
       </template>
       <template #default="{ row }">
-        <el-space :size="8">
-          <el-button link type="primary" size="small" @click="emit('open', row.review.id)">{{
-            row.action === 'enter' ? '进入' : '查看'
-          }}</el-button>
-          <el-button v-if="row.canEdit" link type="primary" size="small" @click="emit('edit', row.review)">编辑</el-button>
-          <el-button
-            v-if="row.review.status === 'rejected'"
-            link
-            type="primary"
-            size="small"
-            @click="emit('reopen', row.review)"
-            >重新执行</el-button>
-          <el-button link type="danger" size="small" @click="emit('delete', row.review)">删除</el-button>
-        </el-space>
+        <RowActions :actions="actionsOf(row)" @action="(key) => onRowAction(key, row)" />
       </template>
     </el-table-column>
   </el-table>

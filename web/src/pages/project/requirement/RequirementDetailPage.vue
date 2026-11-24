@@ -187,7 +187,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
               @click="handleConfirm"
             >确认</el-button>
             <el-dropdown v-if="canArchive || canUnarchive" @command="handleLifecycleCommand">
-              <el-button type="warning" plain>
+              <el-button link size="small">
                 更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
               </el-button>
               <template #dropdown>

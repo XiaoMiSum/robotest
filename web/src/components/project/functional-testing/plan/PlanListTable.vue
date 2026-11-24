@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { TestPlanListItem } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
+import RowActions from '@/components/common/RowActions.vue'
 import {
   isActivePlan,
   canResumePlan,
@@ -24,6 +25,27 @@ const emit = defineEmits<{
   resume: [plan: TestPlanListItem]
   delete: [plan: TestPlanListItem]
 }>()
+function actionsOf(row: unknown) {
+  const item = row as { plan: TestPlanListItem; action: string }
+  const active = isActivePlan(item.plan.status)
+  return [
+    { key: 'open', label: item.action === 'enter' ? '进入执行' : '查看详情', form: 'PLsm' as const },
+    { key: 'edit', label: '编辑', form: 'PLsm' as const, visible: props.canEdit && active },
+    { key: 'complete', label: '完成', form: 'DLsm' as const, visible: active && props.canComplete },
+    { key: 'resume', label: '恢复', form: 'PLsm' as const, visible: canResumePlan(item.plan.status) && props.canResume },
+    { key: 'delete', label: '删除', form: 'DGsm' as const },
+  ]
+}
+
+function onRowAction(key: string, row: unknown): void {
+  const plan = (row as { plan: TestPlanListItem }).plan
+  if (key === 'open') emit('open', plan.id)
+  else if (key === 'edit') emit('edit', plan)
+  else if (key === 'complete') emit('complete', plan)
+  else if (key === 'resume') emit('resume', plan)
+  else if (key === 'delete') emit('delete', plan)
+}
+
 const rows = computed(() =>
   props.plans.map((plan) => ({
     id: plan.id,
@@ -101,32 +123,7 @@ const rows = computed(() =>
         </div>
       </template>
       <template #default="{ row }">
-        <el-space :size="8">
-          <el-button link type="primary" size="small" @click="emit('open', row.plan.id)">{{
-            row.action === 'enter' ? '进入执行' : '查看详情'
-          }}</el-button>
-          <el-button
-            v-if="canEdit && isActivePlan(row.plan.status)"
-            link
-            type="primary"
-            size="small"
-            @click="emit('edit', row.plan)"
-            >编辑</el-button>
-          <el-button
-            v-if="isActivePlan(row.plan.status) && canComplete"
-            link
-            size="small"
-            @click="emit('complete', row.plan)"
-            >完成</el-button>
-          <el-button
-            v-if="canResumePlan(row.plan.status) && canResume"
-            link
-            type="primary"
-            size="small"
-            @click="emit('resume', row.plan)"
-            >恢复</el-button>
-          <el-button link type="danger" size="small" @click="emit('delete', row.plan)">删除</el-button>
-        </el-space>
+        <RowActions :actions="actionsOf(row)" @action="(key) => onRowAction(key, row)" />
       </template>
     </el-table-column>
   </el-table>
