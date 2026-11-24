@@ -105,12 +105,13 @@ const {
           <div class="task-head__actions">
             <el-button
               v-if="canAbort"
+              link
               type="warning"
-              plain
               @click="handleAbort"
             >终止</el-button>
             <el-button
               v-if="canReExecute"
+              link
               type="primary"
               @click="handleReExecute"
             >再次执行</el-button>
