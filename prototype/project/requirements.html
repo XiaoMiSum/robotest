@@ -83,6 +83,14 @@
   }
   @keyframes table-mask-spin { to { transform: rotate(360deg); } }
 
+  /* 「最近一次导入」按钮 loading：对应 el-button 的 :loading，查询期间禁用防重复点击 */
+  #btn-latest-import:disabled { opacity: .72; cursor: not-allowed; }
+  .btn-loading-spinner {
+    display: inline-block; width: 13px; height: 13px; vertical-align: -2px; margin-right: 6px;
+    border: 2px solid var(--n-200); border-top-color: var(--brand-500); border-radius: 50%;
+    animation: table-mask-spin 0.7s linear infinite;
+  }
+
   /* 入口角标：对应筛选栏 el-badge 已设条件数（交互 06 §2.1.2），共享样式无该组件 */
   .filter-badge {
     display: inline-flex; align-items: center; justify-content: center;
@@ -414,18 +422,6 @@
   </div>
 </div>
 
-<!-- 最近一次导入：展示本页会话内真实产生的导入记录（不持久化） -->
-<div class="dialog-mask" id="latest-import-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:480px" role="dialog" aria-modal="true" aria-labelledby="latest-import-title">
-    <div class="dialog__header">
-      <span class="dialog__title" id="latest-import-title">最近一次导入</span>
-      <button class="dialog__close" data-close="latest-import-dialog" aria-label="关闭"><span data-icon="x"></span></button>
-    </div>
-    <div class="dialog__body" id="latest-import-body"></div>
-    <div class="dialog__footer" id="latest-import-footer"></div>
-  </div>
-</div>
-
 <!-- 归档 / 取消归档二次确认：文案同 useRequirementList / useRequirementDetail 的 ElMessageBox -->
 <div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
@@ -478,8 +474,7 @@
   var searchedKeyword = '';
   var keywordTimer = null;
 
-  /* 本页会话内的数据：导入新增行与导入记录只存内存，刷新即恢复 demo 初始数据 */
-  var importRecords = [];
+  /* 本页会话内的数据：导入新增行只存内存，刷新即恢复 demo 初始数据 */
   var nextCode = 109;
 
   function esc(value) {
@@ -590,9 +585,30 @@
     if (id === 'confirm-dialog') pendingConfirm = null;
   }
 
-  byId('btn-latest-import').addEventListener('click', function () {
-    renderLatestImport();
-    byId('latest-import-dialog').hidden = false;
+  /* 最近一次导入：对应 openLatestImport —— 查最近一条 requirement_import AI 任务，
+     命中跳导入结果审核页，空/失败仅提示并停留当前页，不展示记录详情弹窗。
+     #latest-import-empty / #latest-import-error 为反馈演示入口，默认走跳转。 */
+  var latestImportBtn = byId('btn-latest-import');
+  var latestImportBusy = false;
+  latestImportBtn.addEventListener('click', function () {
+    if (latestImportBusy) return;
+    latestImportBusy = true;
+    var original = latestImportBtn.innerHTML;
+    latestImportBtn.disabled = true;
+    latestImportBtn.innerHTML = '<span class="btn-loading-spinner"></span>查询中…';
+    var hash = location.hash;
+    window.setTimeout(function () {
+      latestImportBtn.disabled = false;
+      latestImportBtn.innerHTML = original;
+      latestImportBusy = false;
+      if (hash === '#latest-import-empty') {
+        toast('暂无导入记录');
+      } else if (hash === '#latest-import-error') {
+        toast('获取最近一次导入记录失败，请稍后重试', { type: 'danger' });
+      } else {
+        window.location.href = 'requirement-import-review.html';
+      }
+    }, 450);
   });
   byId('list-error-retry').addEventListener('click', function () {
     byId('list-error').hidden = true;
@@ -825,7 +841,6 @@
     byId('col-popover').hidden = true;
     byId('col-trigger').setAttribute('aria-expanded', 'false');
     closeDialog('import-dialog');
-    closeDialog('latest-import-dialog');
     closeDialog('confirm-dialog');
   });
 
@@ -941,58 +956,11 @@
     return { code: code, title: title, time: stamp, count: 1 };
   }
 
-  function renderLatestImport() {
-    var body = byId('latest-import-body');
-    var footer = byId('latest-import-footer');
-    var rec = importRecords[0];
-
-    if (!rec) {
-      body.innerHTML =
-        '<div class="state-block" style="padding:28px 12px">' +
-        '<div class="state-block__icon"><span data-icon="clock-circle"></span></div>' +
-        '<div class="state-block__title">暂无导入记录</div>' +
-        '<div class="state-block__desc">导入需求后，可在此查看最近一次导入的文件与结果</div>' +
-        '<div class="state-block__action"><button class="btn btn--primary" type="button" id="latest-go-import">去导入</button></div>' +
-        '</div>';
-      footer.innerHTML = '<button class="btn btn--default" type="button" data-close="latest-import-dialog">关闭</button>';
-      if (window.RTIcons) window.RTIcons.hydrate(body);
-      byId('latest-go-import').addEventListener('click', function () {
-        closeDialog('latest-import-dialog');
-        resetImport();
-        byId('import-dialog').hidden = false;
-      });
-      return;
-    }
-
-    body.innerHTML =
-      '<div class="desc-list">' +
-      '<div class="desc-item"><div class="desc-item__label">文件名</div><div class="desc-item__value">' + esc(rec.name) + '</div></div>' +
-      '<div class="desc-item"><div class="desc-item__label">导入时间</div><div class="desc-item__value num">' + esc(rec.time) + '</div></div>' +
-      '<div class="desc-item"><div class="desc-item__label">新增需求</div><div class="desc-item__value">' + rec.count + ' 条</div></div>' +
-      '<div class="desc-item"><div class="desc-item__label">状态</div><div class="desc-item__value"><span class="tag tag--success tag--sm">已提交</span></div></div>' +
-      '</div>' +
-      '<div class="alert alert--success import-error">' +
-      '<span data-icon="check-circle"></span>' +
-      '<span>本次导入的需求已写入当前列表（编号 ' + esc(rec.code) + '），可在导入结果审核页跟踪处理进度。</span>' +
-      '</div>';
-    footer.innerHTML =
-      '<button class="btn btn--default" type="button" data-close="latest-import-dialog">关闭</button>' +
-      '<button class="btn btn--default" type="button" id="latest-import-again">再次导入</button>' +
-      '<a class="btn btn--primary" href="requirement-import-review.html">查看导入结果</a>';
-    if (window.RTIcons) window.RTIcons.hydrate(body);
-    byId('latest-import-again').addEventListener('click', function () {
-      closeDialog('latest-import-dialog');
-      resetImport();
-      byId('import-dialog').hidden = false;
-    });
-  }
-
   byId('imp-submit').addEventListener('click', function () {
     if (!impFile) { setImportError('请先选择要导入的文件'); return; }
     var file = impFile;
     closeDialog('import-dialog');
-    var added = addImportedRequirement(file);
-    importRecords.unshift({ name: file.name, time: added.time, count: added.count, code: added.code });
+    addImportedRequirement(file);
     reset();
     toast('已导入 1 条需求', {
       type: 'success',
