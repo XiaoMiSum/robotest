@@ -95,16 +95,16 @@ function handleNameActivate(): void {
 
     <div class="project-card__actions" @click.stop>
       <template v-if="!archived">
-        <el-button v-if="!project.isDefault" link type="primary" @click="emit('setDefault')">
+        <el-button v-if="!project.isDefault" link type="primary" size="small" @click="emit('setDefault')">
           设为默认
         </el-button>
-        <el-button v-if="isAdmin" link type="warning" @click="emit('archive')">归档</el-button>
-        <el-button v-if="canEdit" link @click="emit('edit')">编辑</el-button>
-        <el-button link type="primary" @click="emit('enter')">进入</el-button>
+        <el-button v-if="isAdmin" link size="small" @click="emit('archive')">归档</el-button>
+        <el-button v-if="canEdit" link size="small" @click="emit('edit')">编辑</el-button>
+        <el-button link type="primary" size="small" @click="emit('enter')">进入</el-button>
       </template>
       <template v-else>
         <span class="project-card__readonly">只读</span>
-        <el-button v-if="isAdmin" link @click="emit('unarchive')">启封</el-button>
+        <el-button v-if="isAdmin" link size="small" @click="emit('unarchive')">启封</el-button>
         <el-button v-if="isAdmin" link type="danger" size="small" @click="emit('delete')">删除</el-button>
       </template>
     </div>

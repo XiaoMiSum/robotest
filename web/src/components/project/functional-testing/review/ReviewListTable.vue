@@ -121,10 +121,10 @@ const brandAvatarStyle = {
       </template>
       <template #default="{ row }">
         <el-space :size="8">
-          <el-button link type="primary" @click="emit('open', row.review.id)">{{
+          <el-button link type="primary" size="small" @click="emit('open', row.review.id)">{{
             row.action === 'enter' ? '进入' : '查看'
           }}</el-button>
-          <el-button v-if="row.canEdit" link type="primary" @click="emit('edit', row.review)">编辑</el-button>
+          <el-button v-if="row.canEdit" link type="primary" size="small" @click="emit('edit', row.review)">编辑</el-button>
           <el-button
             v-if="row.review.status === 'rejected'"
             link

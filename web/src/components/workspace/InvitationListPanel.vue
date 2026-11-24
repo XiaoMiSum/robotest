@@ -114,19 +114,21 @@ function handleSizeChange(pageSize: number): void {
           <template #default="{ row }">
             <div class="invitation-list-card__row-actions">
               <el-button
-                link
-                type="primary"
                 :disabled="!canCopyInvitation(row as InvitationListItem)"
                 :loading="copyingId === row.id"
+                link
+                type="primary"
+                size="small"
                 @click="emit('copy', row as InvitationListItem)"
               >
                 复制
               </el-button>
               <el-button
                 v-if="canExpireInvitation(row as InvitationListItem)"
+                :loading="revokingId === row.id"
                 link
                 type="danger"
-                :loading="revokingId === row.id"
+                size="small"
                 @click="emit('expire', row as InvitationListItem)"
               >
                 失效

@@ -43,8 +43,8 @@ function onToggle(value: string | number | boolean) {
       <el-checkbox :model-value="item.enabled" @change="onToggle">启用</el-checkbox>
     </div>
     <div class="cp-detail__header-actions">
-      <el-button size="small" @click="emit('edit')">编辑</el-button>
-      <el-button size="small" @click="emit('copy')">复制</el-button>
+      <el-button link size="small" @click="emit('edit')">编辑</el-button>
+      <el-button link size="small" @click="emit('copy')">复制</el-button>
       <el-button link type="danger" size="small" @click="emit('delete')">删除</el-button>
     </div>
   </div>

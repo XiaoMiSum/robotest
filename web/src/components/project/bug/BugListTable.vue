@@ -148,9 +148,8 @@ const statusIcons: Record<BugStatus, string> = {
         </template>
         <template #default="{ row }">
           <el-space class="bug-table__actions" :size="8">
-            <el-button link type="primary" @click="emit('detail', row as BugListItem)"
-              >详情</el-button
-            >
+            <el-button link type="primary" size="small" @click="emit('detail', row as BugListItem)"
+              >详情</el-button>
             <el-button
               v-if="row.status === 'active'"
               link
@@ -169,9 +168,9 @@ const statusIcons: Record<BugStatus, string> = {
               v-if="row.status === 'resolved' || row.status === 'rejected'"
               link
               type="primary"
+              size="small"
               @click="emit('status', row as BugListItem, 'closed', '缺陷已关闭')"
-              >关闭</el-button
-            >
+              >关闭</el-button>
             <el-button
               v-if="row.status === 'closed'"
               link
@@ -180,7 +179,7 @@ const statusIcons: Record<BugStatus, string> = {
               @click="emit('status', row as BugListItem, 'active', '缺陷已激活')"
               >激活</el-button>
             <el-dropdown @command="(command: string) => emit('more', command, row as BugListItem)">
-              <el-button link type="primary" :aria-label="`${row.title}的更多操作`"
+              <el-button link type="primary" size="small" :aria-label="`${row.title}的更多操作`"
                 >更多<el-icon><ArrowDown /></el-icon
               ></el-button>
               <template #dropdown>

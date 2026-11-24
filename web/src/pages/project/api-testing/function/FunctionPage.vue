@@ -331,7 +331,7 @@ function clearParamErrors(): void {
             </div>
             <div class="fn-detail__header-actions">
               <el-tag effect="plain">{{ formatScopeLabel(customDetail.scope) }}</el-tag>
-              <el-button size="small" @click="startEdit">编辑</el-button>
+              <el-button link size="small" @click="startEdit">编辑</el-button>
             </div>
           </div>
 

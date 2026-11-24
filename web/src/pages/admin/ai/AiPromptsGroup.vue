@@ -178,7 +178,7 @@ onMounted(async () => {
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row as AiPromptListItem)">编辑</el-button>
+          <el-button link type="primary" size="small" @click="openEdit(row as AiPromptListItem)">编辑</el-button>
           <el-button
             :disabled="row.source !== 'custom'"
             link

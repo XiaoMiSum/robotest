@@ -313,11 +313,12 @@ function openCreate(): void {
             </div>
           </template>
           <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
+            <el-button link type="primary" size="small" @click="openDetail(row.id)">详情</el-button>
             <el-button
               v-if="canConfirm && canConfirmRequirement(asRow(row))"
               link
               type="primary"
+              size="small"
               @click="handleConfirm(asRow(row))"
             >确认</el-button>
             <el-dropdown
@@ -326,7 +327,7 @@ function openCreate(): void {
               class="requirement-list__more"
               @command="(command: string) => handleRowCommand(command, row)"
             >
-              <el-button link type="primary">更多<el-icon><ArrowDown /></el-icon></el-button>
+              <el-button link type="primary" size="small">更多<el-icon><ArrowDown /></el-icon></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canEdit" command="edit">编辑</el-dropdown-item>

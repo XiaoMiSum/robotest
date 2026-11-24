@@ -273,24 +273,26 @@ async function runTest(model: AiModel) {
       <el-table-column width="176" fixed="right">
         <template #header>
           <div class="model-group__actions-head">
-            <el-button link type="primary" @click="openCreate">添加模型</el-button>
+            <el-button link type="primary" size="small" @click="openCreate">添加模型</el-button>
           </div>
         </template>
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row as AiModel)">编辑</el-button>
+          <el-button link type="primary" size="small" @click="openEdit(row as AiModel)">编辑</el-button>
           <el-button
+            :loading="testingId === row.id"
             link
             type="primary"
-            :loading="testingId === row.id"
+            size="small"
             @click="runTest(row as AiModel)"
           >
             测试
           </el-button>
           <el-button
             v-if="row.enabled"
+            :disabled="isDefault(row as AiModel)"
             link
             type="danger"
-            :disabled="isDefault(row as AiModel)"
+            size="small"
             @click="toggleEnabled(row as AiModel, false)"
           >
             停用
@@ -299,6 +301,7 @@ async function runTest(model: AiModel) {
             v-else
             link
             type="primary"
+            size="small"
             @click="toggleEnabled(row as AiModel, true)"
           >
             启用

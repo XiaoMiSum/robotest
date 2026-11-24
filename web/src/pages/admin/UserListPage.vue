@@ -337,13 +337,14 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="操作" width="240" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="goUserDetail(row.id)">
+              <el-button link type="primary" size="small" @click="goUserDetail(row.id)">
                 编辑
               </el-button>
               <el-button
                 v-if="row.status !== 'active'"
                 link
                 type="primary"
+                size="small"
                 @click="handleChangeStatus(row as AdminUser, 'active')"
               >
                 启用
@@ -352,6 +353,7 @@ onMounted(() => {
                 v-if="row.status !== 'disabled'"
                 link
                 type="danger"
+                size="small"
                 @click="handleChangeStatus(row as AdminUser, 'disabled')"
               >
                 禁用
@@ -360,11 +362,12 @@ onMounted(() => {
                 v-if="row.status !== 'locked'"
                 link
                 type="danger"
+                size="small"
                 @click="handleChangeStatus(row as AdminUser, 'locked')"
               >
                 锁定
               </el-button>
-              <el-button link type="primary" @click="openResetDialog(row as AdminUser)">
+              <el-button link type="primary" size="small" @click="openResetDialog(row as AdminUser)">
                 重置密码
               </el-button>
             </template>

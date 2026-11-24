@@ -102,23 +102,22 @@ const rows = computed(() =>
       </template>
       <template #default="{ row }">
         <el-space :size="8">
-          <el-button link type="primary" @click="emit('open', row.plan.id)">{{
+          <el-button link type="primary" size="small" @click="emit('open', row.plan.id)">{{
             row.action === 'enter' ? '进入执行' : '查看详情'
           }}</el-button>
           <el-button
             v-if="canEdit && isActivePlan(row.plan.status)"
             link
             type="primary"
+            size="small"
             @click="emit('edit', row.plan)"
-            >编辑</el-button
-          >
+            >编辑</el-button>
           <el-button
             v-if="isActivePlan(row.plan.status) && canComplete"
             link
-            type="success"
+            size="small"
             @click="emit('complete', row.plan)"
-            >完成</el-button
-          >
+            >完成</el-button>
           <el-button
             v-if="canResumePlan(row.plan.status) && canResume"
             link
