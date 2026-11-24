@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>导入结果审核 · RoboTest</title>
+<link rel="stylesheet" href="../assets/tokens.css">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/ux.css">
+<style>
+  [hidden] { display: none !important; }
+
+  .crumb { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: var(--font-size-sm); color: var(--n-500); }
+  .crumb a { color: var(--brand-600); text-decoration: none; }
+  .crumb__sep { color: var(--n-400); }
+
+  .review-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .review-head h1 { margin: 0; color: var(--n-900); font-size: var(--font-size-2xl); font-weight: 650; }
+  .review-head p { margin: 6px 0 0; color: var(--n-500); font-size: var(--font-size-sm); }
+  .head-actions { display: flex; gap: 8px; }
+
+  .card__body { padding: 16px 24px; }
+  .exec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 24px; }
+  .exec-item__label { color: var(--n-500); font-size: var(--font-size-xs); }
+  .exec-item__value { margin-top: 4px; color: var(--n-900); font-size: var(--font-size-sm); }
+  .step-line { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .step { padding: 3px 10px; border-radius: 999px; background: var(--n-50); color: var(--n-500); font-size: var(--font-size-xs); }
+  .step--done { background: var(--st-success-light); color: var(--st-success); }
+
+  .version-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .version-row label { color: var(--n-700); font-size: var(--font-size-sm); font-weight: 600; }
+  .version-row input[type="text"] { height: 32px; width: 200px; padding: 0 10px; border: 1px solid var(--n-300); border-radius: var(--radius-md); font-size: var(--font-size-sm); }
+  .version-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--brand-500); }
+  .evidence { color: var(--n-500); font-size: var(--font-size-xs); }
+
+  .sug-list { display: flex; flex-direction: column; gap: 10px; }
+  .sug { border: 1px solid var(--n-200); border-radius: var(--radius-lg); overflow: hidden; }
+  .sug--picked { border-color: var(--brand-300); box-shadow: 0 0 0 1px var(--brand-100); }
+  .sug__main { display: flex; gap: 12px; padding: 14px 16px; }
+  .sug__check { padding-top: 2px; }
+  .sug__check input { width: 15px; height: 15px; accent-color: var(--brand-500); }
+  .sug__body { flex: 1; min-width: 0; }
+  .sug__title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .sug__title strong { color: var(--n-900); font-size: var(--font-size-sm); }
+  .sug__module { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; color: var(--n-600); font-size: var(--font-size-xs); }
+  .sug__desc { margin: 8px 0 0; color: var(--n-500); font-size: var(--font-size-xs); line-height: 1.6; }
+  .sug__source { margin-top: 6px; color: var(--n-400); font-size: var(--font-size-xs); }
+  .sug__source a { color: var(--brand-600); text-decoration: none; }
+  .sug__ops { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex-shrink: 0; }
+  .tag--new { background: var(--st-warning-light); color: var(--st-warning-strong); }
+  .tag--existing { background: var(--n-50); color: var(--n-600); }
+
+  .edit-box { padding: 14px 16px; border-top: 1px dashed var(--n-200); background: var(--n-25); }
+  .edit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .edit-row label { min-width: 72px; color: var(--n-600); font-size: var(--font-size-xs); }
+  .edit-row input[type="text"], .edit-row select { height: 30px; padding: 0 8px; border: 1px solid var(--n-300); border-radius: var(--radius-md); font-size: var(--font-size-xs); }
+  .edit-row input[type="text"] { min-width: 260px; }
+  .edit-row__radio { display: flex; align-items: center; gap: 6px; color: var(--n-700); font-size: var(--font-size-xs); }
+  .edit-row__radio input { accent-color: var(--brand-500); }
+  .edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  .batch-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--n-200); }
+  .batch-bar__count { margin-left: auto; color: var(--n-500); font-size: var(--font-size-xs); }
+  .receipt { padding: 12px 24px; border-top: 1px solid var(--n-200); background: var(--st-success-light); color: var(--st-success); font-size: var(--font-size-xs); }
+  .hint { margin-top: 10px; color: var(--n-500); font-size: var(--font-size-xs); }
+</style>
+</head>
+<body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
+
+<main class="content content--flush">
+  <div class="split">
+    <aside class="split__side" data-side="ft"></aside>
+
+    <div class="split__main">
+      <nav class="crumb" aria-label="面包屑">
+        <a href="requirements.html">需求列表</a>
+        <span class="crumb__sep" aria-hidden="true">›</span>
+        <span>导入结果审核</span>
+      </nav>
+
+      <header class="review-head">
+        <div>
+          <h1>导入结果审核</h1>
+          <p>03-srs-requirement-management.md · 单模块文档整篇保留，不按功能点拆分</p>
+        </div>
+        <div class="head-actions">
+          <span class="tag tag--warning tag--sm" id="rv-status">待采纳</span>
+          <button class="btn btn--default btn--sm" type="button" id="rv-rerun">再次执行</button>
+        </div>
+      </header>
+
+      <!-- 执行区 -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">执行状态</h2>
+          <span class="muted">最近一次执行 · 10:12:22 完成</span>
+        </div>
+        <div class="card__body">
+          <div class="exec-grid">
+            <div class="exec-item"><div class="exec-item__label">任务状态</div><div class="exec-item__value">待采纳（proposals_ready）</div></div>
+            <div class="exec-item"><div class="exec-item__label">来源文件</div><div class="exec-item__value">03-srs-requirement-management.md</div></div>
+            <div class="exec-item"><div class="exec-item__label">模块判定</div><div class="exec-item__value">单一模块：需求管理 → 整篇保留为 1 条</div></div>
+            <div class="exec-item"><div class="exec-item__label">当前步骤</div><div class="exec-item__value">等待人工采纳</div></div>
+          </div>
+          <div class="step-line">
+            <span class="step step--done">读取来源文件</span>
+            <span class="step step--done">判定模块边界</span>
+            <span class="step step--done">识别系统版本</span>
+            <span class="step step--done">产出需求建议</span>
+            <span class="step">等待采纳</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 审核区 -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">采纳建议</h2>
+          <span class="muted">原始文件保留为来源附件，可回看原文</span>
+        </div>
+        <div class="card__body">
+          <div class="version-row">
+            <label for="rv-version">被测业务系统版本</label>
+            <input id="rv-version" type="text" value="V1.0" aria-label="版本">
+            <span class="evidence">识别依据：文档元信息「文档版本：V1.0」</span>
+            <span class="evidence">· 可修改或清空</span>
+          </div>
+
+          <p class="hint">单模块文档仅 1 条建议、描述为原文全文；多模块文档按模块各 1 条、描述为对应原文片段。每条建议展示模块名称，未命中现有模块时标记「新增模块」。</p>
+
+          <div class="sug-list" id="rv-list" style="margin-top:12px">
+            <article class="sug sug--picked" data-key="item-1">
+              <div class="sug__main">
+                <div class="sug__check"><input type="checkbox" checked aria-label="选择建议"></div>
+                <div class="sug__body">
+                  <div class="sug__title"><strong>软件测试平台——需求管理</strong><span class="tag tag--info tag--sm">整篇保留</span></div>
+                  <div class="sug__module">模块名称：<strong>需求管理</strong><span class="tag tag--new tag--sm">新增模块</span><span class="muted">· 项目内暂无同名模块</span></div>
+                  <p class="sug__desc">描述为文档原文全文：需求列表、需求详情与编辑、需求导入与拆解、数据需求等章节整体保留，不按 US-RM 编号拆分。</p>
+                  <div class="sug__source">来源：<span>全文</span> <a href="#">[定位原文]</a></div>
+                </div>
+                <div class="sug__ops">
+                  <button class="btn btn--primary btn--sm" type="button" data-act="adopt">采纳</button>
+                  <button class="btn btn--default btn--sm" type="button" data-act="edit">修改后采纳</button>
+                  <button class="btn btn--text btn--sm" type="button" data-act="reject">驳回</button>
+                </div>
+              </div>
+              <div class="edit-box" hidden>
+                <div class="edit-row"><label>标题</label><input type="text" value="软件测试平台——需求管理"></div>
+                <div class="edit-row">
+                  <label>模块归属</label>
+                  <label class="edit-row__radio"><input type="radio" name="mod-item-1" value="existing"> 已有模块</label>
+                  <select aria-label="已有模块"><option>登录模块</option><option>订单模块</option></select>
+                  <label class="edit-row__radio"><input type="radio" name="mod-item-1" value="new" checked> 新增模块</label>
+                  <input type="text" value="需求管理" aria-label="新模块名称">
+                </div>
+                <div class="edit-actions">
+                  <button class="btn btn--default btn--sm" type="button" data-act="cancel-edit">取消</button>
+                  <button class="btn btn--primary btn--sm" type="button" data-act="save-edit">保存并采纳</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="sug" data-key="item-2">
+              <div class="sug__main">
+                <div class="sug__check"><input type="checkbox" aria-label="选择建议"></div>
+                <div class="sug__body">
+                  <div class="sug__title"><strong>订单超时自动取消</strong><span class="tag tag--neutral tag--sm">多模块文档片段</span></div>
+                  <div class="sug__module">模块名称：<strong>订单模块</strong><span class="tag tag--existing tag--sm">已有模块</span></div>
+                  <p class="sug__desc">描述为该模块对应的原文片段，保持原文表述，不按功能点或用户故事编号细分。</p>
+                  <div class="sug__source">来源：<span>订单需求文档 P5 §3.2</span> <a href="#">[定位原文]</a></div>
+                </div>
+                <div class="sug__ops">
+                  <button class="btn btn--primary btn--sm" type="button" data-act="adopt">采纳</button>
+                  <button class="btn btn--default btn--sm" type="button" data-act="edit">修改后采纳</button>
+                  <button class="btn btn--text btn--sm" type="button" data-act="reject">驳回</button>
+                </div>
+              </div>
+              <div class="edit-box" hidden>
+                <div class="edit-row"><label>标题</label><input type="text" value="订单超时自动取消"></div>
+                <div class="edit-row">
+                  <label>模块归属</label>
+                  <label class="edit-row__radio"><input type="radio" name="mod-item-2" value="existing" checked> 已有模块</label>
+                  <select aria-label="已有模块"><option>订单模块</option><option>登录模块</option></select>
+                  <label class="edit-row__radio"><input type="radio" name="mod-item-2" value="new"> 新增模块</label>
+                  <input type="text" value="" aria-label="新模块名称" disabled>
+                </div>
+                <div class="edit-actions">
+                  <button class="btn btn--default btn--sm" type="button" data-act="cancel-edit">取消</button>
+                  <button class="btn btn--primary btn--sm" type="button" data-act="save-edit">保存并采纳</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="batch-bar">
+          <button class="btn btn--primary btn--sm" type="button" id="rv-batch">批量采纳</button>
+          <button class="btn btn--default btn--sm" type="button" id="rv-reject-all">全部驳回</button>
+          <span class="batch-bar__count" id="rv-count">已选 1 条 / 共 2 条</span>
+        </div>
+        <div class="receipt" id="rv-receipt" hidden>采纳完成：新增模块「需求管理」并关联需求 REQ-001；「订单模块」需求 REQ-002 已确认。</div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/icons.js"></script>
+<script src="../assets/shell.js"></script>
+<script>
+  (function () {
+    var list = document.getElementById('rv-list');
+    var count = document.getElementById('rv-count');
+    var receipt = document.getElementById('rv-receipt');
+
+    function refreshCount() {
+      var boxes = list.querySelectorAll('.sug__check input');
+      var picked = 0;
+      boxes.forEach(function (b) { if (b.checked) picked++; });
+      count.textContent = '已选 ' + picked + ' 条 / 共 ' + boxes.length + ' 条';
+    }
+
+    list.addEventListener('change', function (e) {
+      if (e.target.type === 'checkbox') {
+        e.target.closest('.sug').classList.toggle('sug--picked', e.target.checked);
+        refreshCount();
+      }
+      if (e.target.type === 'radio') {
+        var box = e.target.closest('.edit-box');
+        var nameInput = box.querySelector('input[type="text"][aria-label="新模块名称"]');
+        var select = box.querySelector('select');
+        var isNew = e.target.value === 'new';
+        if (nameInput) nameInput.disabled = !isNew;
+        if (select) select.disabled = isNew;
+      }
+    });
+
+    list.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      var card = btn.closest('.sug');
+      var act = btn.getAttribute('data-act');
+      var editBox = card.querySelector('.edit-box');
+      if (act === 'edit') { editBox.hidden = false; return; }
+      if (act === 'cancel-edit') { editBox.hidden = true; return; }
+      if (act === 'save-edit') {
+        var nameInput = editBox.querySelector('input[aria-label="新模块名称"]');
+        var isNew = editBox.querySelector('input[type="radio"]:checked').value === 'new';
+        var label = card.querySelector('.sug__module');
+        label.innerHTML = '模块名称：<strong>' + (isNew ? nameInput.value : editBox.querySelector('select').value) + '</strong>' +
+          (isNew ? '<span class="tag tag--new tag--sm">新增模块</span>' : '<span class="tag tag--existing tag--sm">已有模块</span>');
+        editBox.hidden = true;
+      }
+      if (act === 'adopt' || act === 'save-edit' || act === 'reject') {
+        receipt.hidden = false;
+        receipt.textContent = act === 'reject' ? '已驳回 1 条建议，未创建需求。' : '采纳成功：模块归属已解析，需求已按编号规则落库。';
+      }
+    });
+
+    document.getElementById('rv-batch').addEventListener('click', function () {
+      receipt.hidden = false;
+      receipt.textContent = '批量采纳完成：单模块文档整篇生成 1 条需求，新增模块在项目内创建并关联。';
+    });
+    document.getElementById('rv-reject-all').addEventListener('click', function () {
+      receipt.hidden = false;
+      receipt.textContent = '已全部驳回，未创建需求。';
+    });
+    document.getElementById('rv-rerun').addEventListener('click', function () {
+      receipt.hidden = true;
+    });
+    refreshCount();
+  })();
+</script>
+</body>
+</html>
