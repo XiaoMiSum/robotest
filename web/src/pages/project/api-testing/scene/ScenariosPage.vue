@@ -532,7 +532,7 @@ onActivated(async () => {
 
     <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
       <el-button size="small" type="primary" @click="showBatchMove = true">批量移动</el-button>
-      <el-button size="small" type="danger" @click="handleBatchDelete">批量删除</el-button>
+      <el-button type="danger" @click="handleBatchDelete">批量删除</el-button>
     </BatchActionBar>
 
     <el-dialog v-model="showBatchMove" title="批量移动到模块" width="420px">

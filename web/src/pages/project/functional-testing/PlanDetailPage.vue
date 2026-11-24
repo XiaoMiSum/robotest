@@ -159,8 +159,6 @@ const orderEmptyReason = computed(() =>
           </el-button>
           <el-button
             v-if="canResume"
-            size="small"
-            plain
             @click="handleResume"
           >
             <el-icon><VideoPlay /></el-icon>恢复

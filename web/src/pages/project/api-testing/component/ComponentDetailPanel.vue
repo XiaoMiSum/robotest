@@ -45,7 +45,7 @@ function onToggle(value: string | number | boolean) {
     <div class="cp-detail__header-actions">
       <el-button size="small" @click="emit('edit')">编辑</el-button>
       <el-button size="small" @click="emit('copy')">复制</el-button>
-      <el-button size="small" type="danger" @click="emit('delete')">删除</el-button>
+      <el-button link type="danger" size="small" @click="emit('delete')">删除</el-button>
     </div>
   </div>
 

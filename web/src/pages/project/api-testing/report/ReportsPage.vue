@@ -335,7 +335,7 @@ onMounted(async () => {
     </div>
 
     <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
-      <el-button size="small" type="danger" data-test="batch-delete-btn" @click="handleBatchDelete">批量删除</el-button>
+      <el-button data-test="batch-delete-btn" type="danger" @click="handleBatchDelete">批量删除</el-button>
     </BatchActionBar>
   </div>
 </template>

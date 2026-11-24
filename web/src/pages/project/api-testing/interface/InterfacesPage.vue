@@ -443,7 +443,7 @@ defineExpose({ openCreate, openImport })
 
     <BatchActionBar :count="selectedRows.length" @clear="tableRef?.clearSelection()">
       <el-button size="small" data-test="batch-move-btn" @click="showBatchMove = true">批量移动</el-button>
-      <el-button size="small" type="danger" plain data-test="batch-delete-btn" @click="confirmBatchDelete">批量删除</el-button>
+      <el-button data-test="batch-delete-btn" type="danger" @click="confirmBatchDelete">批量删除</el-button>
     </BatchActionBar>
 
     <ImportDialog v-model="showImport" @imported="handleImported" />

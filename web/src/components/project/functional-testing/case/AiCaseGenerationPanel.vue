@@ -225,11 +225,11 @@ function close(): void {
         </span>
         <div class="ai-generation__actions">
           <el-button
-            link
-            type="success"
-            size="small"
             :disabled="!canAdopt"
             :loading="confirming"
+            link
+            type="primary"
+            size="small"
             @click="adopt"
           >采纳</el-button>
         </div>

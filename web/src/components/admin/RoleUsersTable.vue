@@ -67,7 +67,7 @@ const {
               </el-button>
             </template>
             <template #default="{ row }">
-              <el-button link type="danger" @click="handleRemove(row as AdminUser)">移除</el-button>
+              <el-button link type="danger" size="small" @click="handleRemove(row as AdminUser)">移除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -106,7 +106,7 @@ const {
               </el-button>
             </template>
             <template #default="{ row }">
-              <el-button link type="danger" @click="handleRemoveWorkspace(row as RoleWorkspaceUser)">
+              <el-button link type="danger" size="small" @click="handleRemoveWorkspace(row as RoleWorkspaceUser)">
                 移除
               </el-button>
             </template>

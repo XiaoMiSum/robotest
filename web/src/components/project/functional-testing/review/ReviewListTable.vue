@@ -132,7 +132,7 @@ const brandAvatarStyle = {
             size="small"
             @click="emit('reopen', row.review)"
             >重新执行</el-button>
-          <el-button link type="danger" @click="emit('delete', row.review)">删除</el-button>
+          <el-button link type="danger" size="small" @click="emit('delete', row.review)">删除</el-button>
         </el-space>
       </template>
     </el-table-column>

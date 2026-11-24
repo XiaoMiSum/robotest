@@ -119,6 +119,8 @@ const hasContent = computed(() => rows.value.length > 0 || props.duplicates.leng
                 </div>
               </div>
               <el-button
+                link
+                type="primary"
                 size="small"
                 @click="emit('adopt', {
                   key: row.key,

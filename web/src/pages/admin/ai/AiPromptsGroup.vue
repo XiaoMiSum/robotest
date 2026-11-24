@@ -180,9 +180,9 @@ onMounted(async () => {
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row as AiPromptListItem)">编辑</el-button>
           <el-button
-            link
-            type="danger"
             :disabled="row.source !== 'custom'"
+            link
+            size="small"
             @click="reset(row as AiPromptListItem)"
           >
             恢复默认

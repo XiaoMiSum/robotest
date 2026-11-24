@@ -155,16 +155,16 @@ const statusIcons: Record<BugStatus, string> = {
               v-if="row.status === 'active'"
               link
               type="primary"
+              size="small"
               @click="emit('resolve', row as BugListItem)"
-              >解决</el-button
-            >
+              >解决</el-button>
             <el-button
               v-if="row.status === 'active'"
               link
-              type="primary"
+              type="danger"
+              size="small"
               @click="emit('status', row as BugListItem, 'rejected', '缺陷已拒绝')"
-              >拒绝</el-button
-            >
+              >拒绝</el-button>
             <el-button
               v-if="row.status === 'resolved' || row.status === 'rejected'"
               link
@@ -176,9 +176,9 @@ const statusIcons: Record<BugStatus, string> = {
               v-if="row.status === 'closed'"
               link
               type="primary"
+              size="small"
               @click="emit('status', row as BugListItem, 'active', '缺陷已激活')"
-              >激活</el-button
-            >
+              >激活</el-button>
             <el-dropdown @command="(command: string) => emit('more', command, row as BugListItem)">
               <el-button link type="primary" :aria-label="`${row.title}的更多操作`"
                 >更多<el-icon><ArrowDown /></el-icon

@@ -105,7 +105,7 @@ function handleNameActivate(): void {
       <template v-else>
         <span class="project-card__readonly">只读</span>
         <el-button v-if="isAdmin" link @click="emit('unarchive')">启封</el-button>
-        <el-button v-if="isAdmin" link type="danger" @click="emit('delete')">删除</el-button>
+        <el-button v-if="isAdmin" link type="danger" size="small" @click="emit('delete')">删除</el-button>
       </template>
     </div>
   </article>

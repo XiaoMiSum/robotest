@@ -151,7 +151,7 @@ watch(() => props.draft?.name, () => { nameError.value = '' })
               <el-button link size="small" :disabled="row.number === count" @click="emit('move', row.number - 1, 1)">下移</el-button>
               <el-button link size="small" @click="emit('edit', row.processor)">编辑</el-button>
               <el-button link size="small" @click="emit('copy', row.processor)">复制</el-button>
-              <el-button link size="small" type="danger" @click="emit('remove', row.processor)">删除</el-button>
+              <el-button link type="danger" size="small" @click="emit('remove', row.processor)">删除</el-button>
             </template>
           </div>
         </div>

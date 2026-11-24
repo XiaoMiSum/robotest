@@ -126,7 +126,7 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
           <el-button size="small" plain @click="handleSync">
             <el-icon><Refresh /></el-icon>同步用例
           </el-button>
-          <el-button size="small" type="danger" plain @click="handleReject">
+          <el-button type="danger" @click="handleReject">
             <el-icon><CircleClose /></el-icon>驳回
           </el-button>
           <el-tooltip

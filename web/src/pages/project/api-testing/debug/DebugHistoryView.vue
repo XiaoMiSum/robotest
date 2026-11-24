@@ -238,11 +238,11 @@ function formatMetaTime(value: string): string {
           </span>
 
           <el-tooltip content="恢复到新标签" placement="top">
-            <el-button link type="primary" @click="handleRestore(record)">恢复</el-button>
+            <el-button link type="primary" size="small" @click="handleRestore(record)">恢复</el-button>
           </el-tooltip>
           <!-- 行内操作平铺（交互设计 1.7），不收纳进下拉菜单 -->
           <el-button link type="primary" @click="startRename(record)">重命名</el-button>
-          <el-button link type="danger" @click="handleDelete(record)">删除</el-button>
+          <el-button link type="danger" size="small" @click="handleDelete(record)">删除</el-button>
         </div>
       </section>
 

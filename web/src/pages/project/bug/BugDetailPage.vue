@@ -169,7 +169,7 @@ watch(detail, async () => {
               <el-table-column label="操作" width="120">
                 <template #default="{ row }">
                   <el-button link type="primary" @click="handleAttachmentDownload(row as BugAttachment)">下载</el-button>
-                  <el-button v-if="isEditable" link type="danger" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
+                  <el-button v-if="isEditable" link type="danger" size="small" @click="handleAttachmentDelete(row as BugAttachment)">删除</el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -210,10 +210,10 @@ watch(detail, async () => {
 
       <div class="bug-detail__footer">
         <el-button v-if="isActive && !detail.confirmed" @click="handleConfirm">确认</el-button>
-        <el-button v-if="isActive" type="success" @click="resolveDialogVisible = true">解决</el-button>
-        <el-button v-if="isActive" type="warning" @click="handleReject">拒绝</el-button>
+        <el-button v-if="isActive" @click="resolveDialogVisible = true">解决</el-button>
+        <el-button v-if="isActive" @click="handleReject">拒绝</el-button>
         <el-button v-if="isResolved || isRejected" type="info" @click="handleClose">关闭</el-button>
-        <el-button v-if="isResolved || isRejected || isClosed" type="danger" @click="handleReopen">激活</el-button>
+        <el-button v-if="isResolved || isRejected || isClosed" @click="handleReopen">激活</el-button>
         <el-button v-if="isEditable" type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </div>
     </template>

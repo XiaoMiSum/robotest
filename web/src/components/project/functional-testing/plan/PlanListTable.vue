@@ -123,10 +123,10 @@ const rows = computed(() =>
             v-if="canResumePlan(row.plan.status) && canResume"
             link
             type="primary"
+            size="small"
             @click="emit('resume', row.plan)"
-            >恢复</el-button
-          >
-          <el-button link type="danger" @click="emit('delete', row.plan)">删除</el-button>
+            >恢复</el-button>
+          <el-button link type="danger" size="small" @click="emit('delete', row.plan)">删除</el-button>
         </el-space>
       </template>
     </el-table-column>

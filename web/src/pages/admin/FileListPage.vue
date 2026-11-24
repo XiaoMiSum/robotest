@@ -214,7 +214,7 @@ onMounted(() => {
             <template #default="{ row }">
               <el-button link type="primary" @click="handleDownload(row as FileItem)">下载</el-button>
               <el-button link type="primary" @click="handleCopyLink(row as FileItem)">复制链接</el-button>
-              <el-button v-if="canDelete" link type="danger" @click="handleDelete(row as FileItem)">删除</el-button>
+              <el-button v-if="canDelete" link type="danger" size="small" @click="handleDelete(row as FileItem)">删除</el-button>
             </template>
           </el-table-column>
           <template #empty>

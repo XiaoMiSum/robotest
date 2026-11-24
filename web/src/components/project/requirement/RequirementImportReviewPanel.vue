@@ -428,7 +428,7 @@ async function submitReject(): Promise<void> {
           v-if="row.confirmStatus === 'pending' && (canEdit || canReject)"
           class="proposal-review__card-actions"
         >
-          <el-button link type="primary" :loading="confirming" @click="adopt(row)">
+          <el-button :loading="confirming" link type="primary" size="small" @click="adopt(row)">
             采纳
           </el-button>
           <el-button link type="primary" :loading="confirming" @click="openEdit(row)">
@@ -580,7 +580,7 @@ async function submitReject(): Promise<void> {
       />
       <template #footer>
         <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" :loading="confirming" @click="submitReject">确认驳回</el-button>
+        <el-button :loading="confirming" type="danger" @click="submitReject">确认驳回</el-button>
       </template>
     </el-dialog>
   </section>

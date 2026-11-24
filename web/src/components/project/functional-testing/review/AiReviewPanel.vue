@@ -212,18 +212,18 @@ function onReceiptRetry(item: ConfirmItemResult): void {
 
           <div class="review-card__actions">
             <el-button
+              :disabled="!canOperate(row)"
               link
               type="danger"
               size="small"
-              :disabled="!canOperate(row)"
               @click="openReject(row.key)"
             >驳回</el-button>
             <el-button
-              link
-              type="success"
-              size="small"
               :disabled="!canOperate(row)"
               :loading="confirming && activeKey === row.key"
+              link
+              type="primary"
+              size="small"
               @click="adopt(row)"
             >采纳</el-button>
           </div>
@@ -273,7 +273,7 @@ function onReceiptRetry(item: ConfirmItemResult): void {
       />
       <template #footer>
         <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmReject">确认驳回</el-button>
+        <el-button type="danger" @click="confirmReject">确认驳回</el-button>
       </template>
     </el-dialog>
   </section>

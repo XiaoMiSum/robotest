@@ -143,7 +143,7 @@ function clearParamErrors(): void {
                 </div>
                 <div class="fn-item__meta">{{ item.description }}</div>
                 <div v-if="item.type === 'custom'" class="fn-item__acts" @click.stop>
-                  <el-button link size="small" type="danger" @click="handleDeleteItem(item)">删除</el-button>
+                  <el-button link type="danger" size="small" @click="handleDeleteItem(item)">删除</el-button>
                 </div>
               </li>
             </ul>
@@ -279,7 +279,7 @@ function clearParamErrors(): void {
                         title="下移"
                         @click="moveParamRow(i, 1)"
                       >↓</el-button>
-                      <el-button link size="small" type="danger" @click="removeParamRow(i)">删除</el-button>
+                      <el-button link type="danger" size="small" @click="removeParamRow(i)">删除</el-button>
                     </td>
                   </tr>
                   <tr v-if="form.params.length === 0">

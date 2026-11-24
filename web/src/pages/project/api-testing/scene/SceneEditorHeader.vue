@@ -259,7 +259,7 @@ const emit = defineEmits<{
         </el-tooltip>
         <el-button link @click="emit('save', 'draft')">保存</el-button>
         <el-button link type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
-        <el-button link type="danger" @click="emit('delete')">删除</el-button>
+        <el-button type="danger" @click="emit('delete')">删除</el-button>
       </div>
     </template>
 

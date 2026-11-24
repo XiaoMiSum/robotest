@@ -158,7 +158,7 @@ async function submitEditDialog() {
                 </el-button>
                 <el-button link size="small" @click.stop="openEdit(item)">编辑</el-button>
                 <el-button link size="small" @click.stop="startCopy(item)">复制</el-button>
-                <el-button link size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
+                <el-button link type="danger" size="small" @click.stop="handleDelete(item)">删除</el-button>
               </div>
               </li>
             </ul>

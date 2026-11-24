@@ -212,9 +212,8 @@ function handleRoleVisibleChange(visible: boolean) {
         <el-table-column v-if="!isDissolved" label="操作" width="130" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="startEditRole(row.userId)">改角色</el-button>
-            <el-button link type="danger" @click="handleRemoveMember(row as WorkspaceMember)"
-              >移除</el-button
-            >
+            <el-button link type="danger" size="small" @click="handleRemoveMember(row as WorkspaceMember)"
+              >移除</el-button>
           </template>
         </el-table-column>
       </el-table>

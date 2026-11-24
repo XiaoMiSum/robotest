@@ -111,7 +111,7 @@ const {
                 </el-select>
                 <el-input v-model="v.expression" size="small" placeholder="表达式（如 $.code）" class="step-editor__field--flex" />
                 <el-input v-model="v.expected" size="small" placeholder="期望值" class="step-editor__field--flex" />
-                <el-button link size="small" type="danger" @click="removeValidator(i)">删除</el-button>
+                <el-button link type="danger" size="small" @click="removeValidator(i)">删除</el-button>
               </div>
             </div>
             <el-button size="small" @click="addValidator">+ 添加验证器</el-button>
@@ -128,7 +128,7 @@ const {
                 </el-select>
                 <el-input v-model="e.expression" size="small" placeholder="表达式" class="step-editor__field--flex" />
                 <el-input v-model="e.variableName" size="small" placeholder="变量名" class="step-editor__field--flex" />
-                <el-button link size="small" type="danger" @click="removeExtractor(i)">删除</el-button>
+                <el-button link type="danger" size="small" @click="removeExtractor(i)">删除</el-button>
               </div>
             </div>
             <el-button size="small" @click="addExtractor">+ 添加提取器</el-button>
