@@ -75,7 +75,7 @@ CREATE UNIQUE INDEX uk_ai_config_singleton ON ai_config ((true)) WHERE is_delete
 | input_price | numeric(14,6) | NOT NULL, DEFAULT 0 | 输入侧每百万 token 单价（0 = 不计价；仅作用量记账值，不设币种口径） |
 | output_price | numeric(14,6) | NOT NULL, DEFAULT 0 | 输出侧每百万 token 单价（同上） |
 | last_test_at | timestamp | NULL | 最近连通性测试时间 |
-| last_test_result | jsonb | NULL | 最近连通性测试结果 `{ success, latencyMs, msg }` |
+| last_test_result | jsonb | NULL | 最近连通性测试结果 `{ success, latencyMs, msg }`；失败时 `msg` 为脱敏后的底层真实原因（见 4.5） |
 
 **索引**（2 个）：
 
@@ -118,7 +118,7 @@ CREATE INDEX idx_ai_model_config_enabled ON ai_model_config (enabled, priority);
 | index_type | varchar(20) | NOT NULL, DEFAULT 'hnsw' | 索引类型：`hnsw / ivfflat` |
 | enabled | boolean | NOT NULL, DEFAULT FALSE | 启停；未启用则 RAG 与相似检测不可用 |
 | versions | jsonb | NOT NULL, DEFAULT '[]' | 历史版本记录：`[{ version, embeddingModel, dimensions, operator, retiredAt }]` |
-| last_test_at / last_test_result | timestamp / jsonb | NULL | 最近连通性测试 |
+| last_test_at / last_test_result | timestamp / jsonb | NULL | 最近连通性测试；失败时 `last_test_result.msg` 为脱敏后的底层真实原因（见 4.5） |
 
 **索引**（1 个）：`uk_ai_embedding_config_singleton` UNIQUE ((true)) WHERE is_deleted = FALSE。
 
@@ -665,7 +665,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 { "success": true, "latencyMs": 420, "msg": "ok" }
 ```
 
-  - 以该配置发起最小 chat 调用（不计业务用量，计入 `ai_usage_log.call_type = chat`、`task_id = NULL`）；失败返回 1000018105，响应含失败摘要。
+  - 以该配置发起最小 chat 调用（不计业务用量，计入 `ai_usage_log.call_type = chat`、`task_id = NULL`）；失败返回 1000018105，响应 `msg` 与 `last_test_result.msg` 记录脱敏后的底层真实失败原因（见 4.5），不得仅为错误码通用文案。
 
 ### 3.4 向量 API 配置
 
@@ -716,7 +716,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
   - 传请求体时以表单值为依据发起最小向量化，**不写回配置字段**；`apiKey` 为空则沿用已保存密钥密文，非空则仅加密用于本次调用（不落库、不回显、不进日志）；不传请求体时沿用已保存配置，兼容旧调用；
   - 合并后 `baseUrl / embeddingModel / dimensions` 仍有缺失 → 按 1000018107 返回「请先保存配置或填写完整测试参数」；实测维度与表单配置不一致时前端提示核对；
-  - 成功 / 失败均只把 `lastTest` 写回已保存配置行（尚无配置行时不持久化）；调用按 4.3 记 `ai_usage_log.call_type = embedding`、`task_id = NULL`。
+  - 成功 / 失败均只把 `lastTest` 写回已保存配置行（尚无配置行时不持久化）；失败响应 `msg` 与 `last_test_result.msg` 记录脱敏后的底层真实失败原因（见 4.5）；调用按 4.3 记 `ai_usage_log.call_type = embedding`、`task_id = NULL`。
 
 ### 3.5 场景提示词
 
@@ -943,6 +943,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 - **生命周期**：执行 `running →（waiting_confirmation）→ succeeded / aborted`；任务 `running → proposals_ready → closed`，用户中止 / 预算耗尽 / 执行错误 / 总开关关闭时任务置 `aborted`；无待采纳提案的只读产出（排序建议）执行完成即 `closed`；心跳超时清扫器按 `task_timeout_seconds` 扫描 `status + heartbeat_at` 索引（2.6.2），超时置 `aborted`（`terminate_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待执行完成，超时返回执行中状态；等待不改变异步语义。
 - **失败与自动重试**：模型调用失败先按 `task_max_retries` 自动短重试（同 `model_id`），耗尽后执行终止；用户再次执行走 3.6.4（新执行实例）。重试由 Spring AI 内建重试策略执行，最大尝试次数按 `task_max_retries` 注入，平台不自实现 HTTP 重试循环。
+- **失败原因记录**：执行终止时 `ai_task_execution.terminate_msg` 与 `ai_task.terminate_msg` 写入脱敏后的底层真实失败原因（见 4.5），错误码 `terminate_code` 保持稳定；不得仅以 `1000018117` 等通用文案代替真实原因。
 - **总开关联动**：开关关闭 → 新提交拒绝（1000018101）；存量 `running / waiting_confirmation` 执行批量终止置 `aborted`（原因「AI 总开关关闭」）；任务、提案与轨迹数据保留可查。
 - **审计**：提交、终止、再次执行、采纳、驳回全部记审计（含任务 ID、执行 ID、提案键、操作人）；轨迹只增不改。
 - **决策原始数据留存**：`AiModelClient` 在任务域模型调用处统一采集——请求侧仅保留业务上下文与工具声明摘要（`detail.rawRequest`），响应侧保留聚合后的完整 `content`、工具调用原文、`finishReason` 与 `usage`（`detail.rawResponse`），随当次 `ai_decision` 事件写入轨迹；采集不改动 Spring AI 传输与重试机制，不记录 API Key / Token，不另写日志。请求摘要与完整响应均不做长度截断，沿用项目 / 任务归属可见性（3.8）。
@@ -962,7 +963,12 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 ### 4.5 降级与容错
 
-- 模型不可用 / 超时 / 限流 → 执行终止置 `aborted` 并给出原因（`1000018117`），可再次执行；配置页连通性测试失败给出摘要与排查提示。
+- 模型不可用 / 超时 / 限流 → 执行终止置 `aborted` 并给出原因（`1000018117`，文案见「失败原因口径」），可再次执行；配置页连通性测试失败给出摘要与排查提示。
+- **失败原因口径**（单一事实源）：所有模型 / 向量调用失败落点——任务终止原因（`terminate_msg`）、连通性测试摘要（`last_test_result.msg`）、助手 SSE `error.msg` 与服务端日志——统一保留底层失败原因，而非仅记录 `1000018117` / `1000018105` / `1000018107` 等错误码通用文案：
+  - **提取**：优先取异常链顶层的业务消息；仅当其为通用包装文案时，沿 cause 链取最深层根因消息，必要时拼接为「顶层原因: 根因」摘要（复用 migoo `ExceptionUtils`）；项目通用包装词表由平台维护。
+  - **脱敏**：`Authorization` / `Bearer` / `api_key` / `token` / `sk-` 等凭据及密钥值替换为占位符；不记录原始异常对象、堆栈或完整请求 / 响应体（遵循 `docs/00-spec/40-security/01-security.md` 6.4）。
+  - **截断**：按落点既有长度上限截断——`terminate_msg` 500 字符、`last_test_result.msg` 300 字符，超出保留前缀；SSE `error.msg` 沿用助手事件载荷上限。
+  - **日志**：服务端日志记录异常类型与脱敏后的原因，不打印密钥、令牌与原始堆栈；同一失败在日志与用户可见落点使用同一份脱敏原因。
 - 图片（vision）调用在提交期无可用视觉模型 → 快速失败（`1000018124`），不静默丢图；执行期已回写模型失效时按选型规则复验（4.2），无候选同码失败。
 - 向量 API 未配置或未启用 → `embeddingReady = false`，RAG 问答、相似检测等依赖检索的能力入口不可用并说明原因。
 - 总开关关闭 → `available = false`，业务端 AI 入口隐藏；既有数据（提案、采纳记录）全部保留可查。
@@ -1048,6 +1054,8 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 | 1000018126 | 400 | 执行预算参数非法（超类型默认上限或取值越界） |
 | 1000018127 | 409 | 执行已结束，不可终止（预算耗尽终止原因亦用此码） |
 | 1000018128 | 409 | 用户中止（终止原因专用码：abort 端点执行与任务的 terminate_code） |
+
+失败类错误码（1000018105 / 1000018107 / 1000018117）仅标识失败类别，响应 `msg` 与落盘原因按 4.5「失败原因口径」记录脱敏后的底层真实原因。
 
 ---
 
@@ -1156,3 +1164,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-23 | AI 决策轨迹下钻：2.6.3 detail 约定 `rawRequest`（请求摘要）与 `rawResponse`（完整响应）键及结构，3.6.4 随轨迹接口原样下发，4.2 登记门面层统一采集口径与脱敏边界，5.2 轨迹组件支持展开查看 |
 | V1.0 | 2026-11-23 | 任务列表与详情移除审核动作：5.2 「详情 / 审核」改「详情」，任务详情保留提案产物与审核结果只读查看、不提供审核动作；提案详情端点供业务面板与任务详情只读区共用，5.3 状态分支同步 |
 | V1.0 | 2026-11-23 | 5.2 轨迹组件模型响应展示细化：`content` 先按 JSON 解析（含 Markdown 代码围栏剥离）为可折叠节点，失败保留原文，复制内容与展示一致；存储与接口不变 |
+| V1.0 | 2026-11-24 | 4.5 新增「失败原因口径」：任务终止原因、连通性测试摘要、助手错误事件与服务端日志统一记录脱敏后的底层真实原因（提取 / 脱敏 / 截断 / 日志），2.3 / 2.4 / 3.3 / 3.4 / 4.2 / 6 引用 |
