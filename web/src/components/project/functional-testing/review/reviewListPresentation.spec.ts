@@ -25,7 +25,7 @@ const row = {
 }
 
 describe('reviewStatusMeta', () => {
-  it('四态标签与语义色与演示稿一致', () => {
+  it('四态标签与语义色与项目原型一致', () => {
     expect(REVIEW_STATUS_META.new).toEqual({ label: '待评审', tagType: 'info', modifier: 'neutral' })
     expect(REVIEW_STATUS_META.in_progress).toEqual({ label: '进行中', tagType: 'warning', modifier: 'running' })
     expect(REVIEW_STATUS_META.completed).toEqual({ label: '已通过', tagType: 'success', modifier: 'success' })

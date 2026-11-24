@@ -130,7 +130,7 @@
 
 - **路径**：`POST /api/project/reviews/:id/complete`
 - **归属校验**：仅发起人（非发起人返回错误码 1000011012）。
-- **前端校验**：详情页要求待评审数与不通过数均为 0（全部通过）才允许提交，否则按钮置灰并以 tooltip 提示“全部用例评审通过后才能完成评审”；列表页不再提供 [完成] 入口（视觉基准 `web/demos/project/reviews.html` 裁剪，完成评审统一由详情页承载）。
+- **前端校验**：详情页要求待评审数与不通过数均为 0（全部通过）才允许提交，否则按钮置灰并以 tooltip 提示“全部用例评审通过后才能完成评审”；列表页不再提供 [完成] 入口（视觉基准 `prototype/project/reviews.html` 裁剪，完成评审统一由详情页承载）。
 - **处理**：状态变更为 completed，快照冻结；终态幂等（重复完成仍返回 completed）。
 
 ### 1.9 同步最新用例
@@ -214,7 +214,7 @@
 
 **路由**：`/workspace/projects/reviews`（`meta.title` 测试评审、`mode` project，无独立菜单项）
 
-列表同时作为功能测试页的子模块渲染：功能测试页左侧菜单选中“测试评审”时展示，地址为 `/workspace/projects/functional-testing?tab=reviews`（菜单挂载于功能测试页，不按权限码过滤）。视觉与结构验收基准 `web/demos/project/reviews.html`，页面结构与列口径见 `docs/05-interaction-design/03-function-testing/05-workspace-ui-test-review.md` 1.1。
+列表同时作为功能测试页的子模块渲染：功能测试页左侧菜单选中“测试评审”时展示，地址为 `/workspace/projects/functional-testing?tab=reviews`（菜单挂载于功能测试页，不按权限码过滤）。视觉与结构验收基准 `prototype/project/reviews.html`，页面结构与列口径见 `docs/05-interaction-design/03-function-testing/05-workspace-ui-test-review.md` 1.1。
 
 **页面布局**：
 
@@ -321,3 +321,4 @@
 | V1.0 | 2026-11-20 | 详情页头改为单条无边框横条，面包屑保持纯净，状态/进度/统计/关联需求/操作按钮并入右侧同行独立容器、删除独立标题卡片；补述快照文档树卡片固定 header |
 | V1.0 | 2026-11-20 | 「选择需求」选取器统一仅列已确认需求（前端列表请求传 `status=confirmed`），覆盖用例关联、评审与计划场景 |
 | V1.0 | 2026-11-20 | 创建 / 重规划评审的用例反查口径由 `ft_case_requirement` 改为 `ft_case_node.requirement_id` |
+| V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |

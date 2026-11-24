@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import pageSource from './WorkspaceInfoPage.vue?raw'
 
 describe('WorkspaceInfoPage demo styling', () => {
-  it('保留现有数据并采用演示稿的信息层级', () => {
+  it('保留现有数据并采用项目原型的信息层级', () => {
     expect(pageSource).toContain('空间信息')
     expect(pageSource).toContain('空间基础资料与运行统计')
     expect(pageSource).toContain('ws-info__kpi-grid')

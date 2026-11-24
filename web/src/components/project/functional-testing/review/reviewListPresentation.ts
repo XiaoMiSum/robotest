@@ -1,6 +1,6 @@
 import type { ReviewStatus, TestReviewListItem } from '@/types'
 
-/** 状态元信息：标签与语义色（列表与详情共用，基准 web/demos/project/reviews.html） */
+/** 状态元信息：标签与语义色（列表与详情共用，基准 prototype/project/reviews.html） */
 export interface ReviewStatusMeta {
   label: string
   tagType: 'info' | 'warning' | 'success' | 'danger'

@@ -130,7 +130,7 @@ defineExpose({ reload: load })
     background: transparent;
   }
 
-  /* 节点底色/描边对齐演示稿 role-item：hover 浅底、选中浅色底+浅边（border-box 保证不撑高） */
+  /* 节点底色/描边对齐项目原型 role-item：hover 浅底、选中浅色底+浅边（border-box 保证不撑高） */
   :deep(.el-tree-node__content) {
     border: 1px solid transparent;
     border-radius: var(--radius-md);
@@ -167,7 +167,7 @@ defineExpose({ reload: load })
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* 角色名对齐演示稿 role-item__name */
+  /* 角色名对齐项目原型 role-item__name */
   font-size: 14px;
   font-weight: 600;
   color: var(--color-neutral-900);
@@ -193,7 +193,7 @@ defineExpose({ reload: load })
   flex-shrink: 0;
 }
 
-/* 人数徽标对齐演示稿 tag--neutral */
+/* 人数徽标对齐项目原型 tag--neutral */
 .role-tree__count {
   padding: 1px 8px;
   border: 1px solid var(--color-neutral-200);

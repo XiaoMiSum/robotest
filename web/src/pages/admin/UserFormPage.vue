@@ -308,7 +308,7 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* 双列卡片对齐演示稿 card-grid--2，列间距同 block-gap(24px) */
+/* 双列卡片对齐项目原型 card-grid--2，列间距同 block-gap(24px) */
 .user-form__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -346,7 +346,7 @@ onMounted(() => {
   color: var(--color-neutral-500);
 }
 
-/* 字段纵向间距对齐演示稿 .field(20px)；标签 13px/500 对齐 field__label */
+/* 字段纵向间距对齐项目原型 .field(20px)；标签 13px/500 对齐 field__label */
 .user-form__card-body {
   padding: 24px;
   --el-form-item-margin-bottom: 20px;

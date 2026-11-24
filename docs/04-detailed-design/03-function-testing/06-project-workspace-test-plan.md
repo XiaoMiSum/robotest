@@ -208,7 +208,7 @@
 
 列表同时作为功能测试页的子模块渲染：功能测试页左侧菜单选中“测试计划”时展示，地址为 `/workspace/projects/functional-testing?tab=plans`（菜单挂载于功能测试页，不按权限码过滤）。详情页面包屑返回该地址。
 
-**页面布局**（验收基准 `web/demos/project/plans.html`，裁剪口径见交互设计 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.1）：
+**页面布局**（验收基准 `prototype/project/plans.html`，裁剪口径见交互设计 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.1）：
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -363,3 +363,4 @@
 | V1.0 | 2026-11-20 | 「选择需求」选取器统一仅列已确认需求（前端列表请求传 `status=confirmed`），覆盖用例关联、评审与计划场景 |
 | V1.0 | 2026-11-20 | 创建 / 重规划计划的用例反查口径由 `ft_case_requirement` 改为 `ft_case_node.requirement_id` |
 | V1.0 | 2026-11-21 | 1.5 / 1.7：`sortOrder` 明确为稳定执行顺序（同步 / 差量调整不覆盖、补入节点按原序补位），供前端序号展示与「下一个待执行用例」引导使用 |
+| V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |

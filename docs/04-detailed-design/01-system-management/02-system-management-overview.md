@@ -29,7 +29,7 @@
 - 《系统管理模块页面交互设计》（`docs/05-interaction-design/01-readme.md`）
 - 《审计查询详细设计说明书》（`docs/04-detailed-design/01-system-management/08-audit-query.md`）
 - `docs/00-spec/20-contracts/01-api.md`（URL/方法/分页规范）、`docs/00-spec/10-engineering/02-backend.md`（分层、Mapper 封装、部分更新）、`docs/00-spec/20-contracts/02-database.md`（DDL/索引规范）、`docs/00-spec/10-engineering/01-frontend.md`
-- 示例页面 `web/demos/admin/dashboard.html`
+- 示例页面 `prototype/admin/dashboard.html`
 
 ---
 
@@ -468,3 +468,4 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 | V1.0 | 2026-10-03 | 分册-章节对照表与交叉引用一致性复检 |
 | V1.0 | 2026-11-11 | 预置角色权限改为可编辑（默认锁定、前端勾选解锁），移除错误码 1000002004 |
 | V1.0 | 2026-11-11 | AdminLayout 顶栏「系统管理」激活按钮按 `hasSystemPermission` 显隐 |
+| V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |

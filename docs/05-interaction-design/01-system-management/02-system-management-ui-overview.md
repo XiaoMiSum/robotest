@@ -14,7 +14,7 @@
 
 本版本范围约定：
 
-- **数据概览页**为新版设计，按示例 `web/demos/admin/dashboard.html` 实现，整体替代原「仪表盘」页设计；该页不提供「导出报表」功能（示例中含该按钮，按需求裁剪），KPI 卡片亦不展示示例中的「接口调用 12.4k · 失败 0.3%」脚注，详见 `docs/05-interaction-design/01-system-management/03-system-management-ui-dashboard.md` 1.2、1.6。
+- **数据概览页**为新版设计，按示例 `prototype/admin/dashboard.html` 实现，整体替代原「仪表盘」页设计；该页不提供「导出报表」功能（示例中含该按钮，按需求裁剪），KPI 卡片亦不展示示例中的「接口调用 12.4k · 失败 0.3%」脚注，详见 `docs/05-interaction-design/01-system-management/03-system-management-ui-dashboard.md` 1.2、1.6。
 - **用户管理**在既有交互基础上扩展用户状态「**锁定**」：状态取值、展示、行操作与登录限制见 `docs/05-interaction-design/01-system-management/04-system-management-ui-user.md` 1.2；其余交互（搜索、批量操作、重置密码、分页等）保持不变。
 - 工作空间管理、角色与权限管理的页面设计分别见 `docs/05-interaction-design/01-system-management/05-system-management-ui-workspace.md`、`docs/05-interaction-design/01-system-management/06-system-management-ui-role.md`。
 
@@ -101,3 +101,9 @@
 | 用户管理 | `04-system-management-ui-user.md` | 1. 用户管理 |
 | 工作空间管理 | `05-system-management-ui-workspace.md` | 1. 工作空间管理 |
 | 角色与权限管理 | `06-system-management-ui-role.md` | 1. 角色与权限管理 |
+
+## 修改记录
+
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |

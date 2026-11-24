@@ -337,7 +337,7 @@ function handleRoleVisibleChange(visible: boolean) {
   word-break: break-all;
 }
 
-/* 状态点标对齐演示稿 status（圆点 + 文案），色义：活跃绿 / 归档灰 */
+/* 状态点标对齐项目原型 status（圆点 + 文案），色义：活跃绿 / 归档灰 */
 .ws-detail__status {
   display: inline-flex;
   align-items: center;
@@ -359,7 +359,7 @@ function handleRoleVisibleChange(visible: boolean) {
   background: var(--color-success);
 }
 
-/* 单卡片承载信息表单/成员表，对齐演示稿 workspace-detail.html 结构 */
+/* 单卡片承载信息表单/成员表，对齐项目原型 workspace-detail.html 结构 */
 .ws-detail__card {
   margin-bottom: var(--space-lg);
   background: var(--color-neutral-0);
@@ -409,7 +409,7 @@ function handleRoleVisibleChange(visible: boolean) {
   color: var(--color-neutral-700);
 }
 
-/* 左右双列：空间名称 + 创建人，对齐演示稿 form-grid */
+/* 左右双列：空间名称 + 创建人，对齐项目原型 form-grid */
 .ws-detail__grid2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -453,7 +453,7 @@ function handleRoleVisibleChange(visible: boolean) {
   gap: var(--space-sm);
 }
 
-/* 空间角色标签对齐演示稿 tag--info / tag--outline，按预置角色 ID 区分管理员 */
+/* 空间角色标签对齐项目原型 tag--info / tag--outline，按预置角色 ID 区分管理员 */
 .ws-detail__role-tag {
   display: inline-flex;
   align-items: center;

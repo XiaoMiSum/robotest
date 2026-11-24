@@ -3,7 +3,7 @@ import pageSource from './WorkspaceListPage.vue?raw'
 import composableSource from '../../composables/workspace/useWorkspaceListPage.ts?raw'
 
 describe('WorkspaceListPage demo strings', () => {
-  it('保留演示稿的页头、筛选、排序和创建文案', () => {
+  it('保留项目原型的页头、筛选、排序和创建文案', () => {
     expect(pageSource).toContain('我的空间')
     expect(pageSource).toContain('选择一个工作空间开始协作，或创建新的空间')
     expect(pageSource).toContain('搜索空间名称')

@@ -1,7 +1,7 @@
 import type { PlanStatus } from '@/types'
 import { formatDate, formatShortDateTime } from '@/utils/format'
 
-/** 状态元信息：标签与语义色（列表、详情页与工作台共用，基准 web/demos/project/plans.html） */
+/** 状态元信息：标签与语义色（列表、详情页与工作台共用，基准 prototype/project/plans.html） */
 export interface PlanStatusMeta {
   label: string
   tagType: 'info' | 'warning' | 'success' | 'danger'

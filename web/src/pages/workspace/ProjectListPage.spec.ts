@@ -3,7 +3,7 @@ import pageSource from './ProjectListPage.vue?raw'
 import composableSource from '../../composables/workspace/useProjectListPage.ts?raw'
 
 describe('ProjectListPage card structure', () => {
-  it('保留演示稿的页头、状态分段、搜索和排序文案', () => {
+  it('保留项目原型的页头、状态分段、搜索和排序文案', () => {
     expect(pageSource).toContain('项目列表')
     expect(pageSource).toContain('新建项目')
     expect(pageSource).toContain('活跃')

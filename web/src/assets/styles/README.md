@@ -1,6 +1,6 @@
 # Web 样式例外登记（CODE-008）
 
-本登记覆盖 `web/src` 下的 Vue、SCSS 和 CSS 源码；`web/demos` 是演示资源，不纳入应用源码门禁。规范依据为 `docs/00-spec/10-engineering/01-frontend.md` §8 和 `docs/00-spec/50-ui/01-frontend-design.md` §6.2。
+本登记覆盖 `web/src` 下的 Vue、SCSS 和 CSS 源码；`prototype` 是演示资源，不纳入应用源码门禁。规范依据为 `docs/00-spec/10-engineering/01-frontend.md` §8 和 `docs/00-spec/50-ui/01-frontend-design.md` §6.2。
 
 ## 审计结论
 

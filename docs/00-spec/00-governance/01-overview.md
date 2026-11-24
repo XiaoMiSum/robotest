@@ -55,6 +55,7 @@
 | UI-DS-01～09 | 前端视觉、布局、组件样式、状态、响应式和可访问性规则 | `docs/00-spec/50-ui/01-frontend-design.md` | 设计验收、用户人工验收、代码审查 |
 | UI-PAGE-01～11 | 页面拆分、组件边界、状态归属、数据流和列表错误可见性规则 | `docs/00-spec/50-ui/02-page-development.md` | 代码审查、组件测试、页面验收 |
 | UI-BC-01～05 | 详情页面包屑的结构、视觉基准和回退交互规则 | `docs/00-spec/50-ui/05-breadcrumb.md` | 用户人工验收、代码审查 |
+| UI-PROTO-01 | 涉及页面样式、布局、交互、视觉状态、响应式或动效的变更，必须先更新 `prototype/` 原型并经用户确认后编码 | `docs/00-spec/50-ui/01-frontend-design.md` / `docs/00-spec/50-ui/02-page-development.md` | 代码审查、用户人工验收 |
 
 规则登记册只保存摘要和链接；正例、反例、例外和完整说明以主规范为准。
 
@@ -67,7 +68,7 @@
 | `20-contracts/` | `01-api.md`、`02-database.md`、`03-realtime-protocol.md` | HTTP、数据和实时通信契约 |
 | `30-quality-delivery/` | `01-quality.md`、`02-workflow.md`、`03-deploy.md`、`04-deployment-runbook.md` | 质量、协作、构建、部署和项目操作 |
 | `40-security/` | `01-security.md` | 认证、授权、隔离、密钥和审计 |
-| `50-ui/` | `01-frontend-design.md`、`02-page-development.md`、`03-scroll-container.md` | 视觉设计、页面开发和专项组件边界 |
+| `50-ui/` | `01-frontend-design.md`、`02-page-development.md`、`03-scroll-container.md`、`04-style-exceptions.md`、`05-breadcrumb.md` | 视觉设计、页面开发、原型基准和专项组件边界 |
 
 ## 4. 技术事实来源
 
@@ -115,6 +116,7 @@
 | ---- | ---- | ---- |
 | V1.0 | 2026-09-24 | 初始版本：C1–C11 规则登记册 |
 | V1.0 | 2026-10-18 | 事实基准中数据库结构口径改为「`schema.sql` 唯一事实源」，对齐 `docs/00-spec/20-contracts/02-database.md` §5 |
+| V1.0 | 2026-11-24 | 新增 `UI-PROTO-01` 规则登记，明确 UI 变更先改 `prototype/` 原型并确认后编码；补全 `50-ui/` 文档清单 |
 
 ---
 

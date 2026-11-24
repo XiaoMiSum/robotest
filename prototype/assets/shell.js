@@ -13,7 +13,7 @@
     return;
   }
 
-  // 由脚本自身位置（demos/assets/）推导 demos 根：任意子目录页面都无需手写 ../ 相对路径
+  // 由脚本自身位置（prototype/assets/）推导 demos 根：任意子目录页面都无需手写 ../ 相对路径
   const BASE = new URL('../', document.currentScript.src);
 
   const mode = body.getAttribute('data-mode') || 'none';
@@ -219,7 +219,7 @@
       { key: 'ft-cases', label: '测试用例', icon: 'document' },
       { key: 'ft-reviews', label: '测试评审', icon: 'check-circle' },
       { key: 'ft-plans', label: '测试计划', icon: 'calendar' },
-      // AI 任务中心在真实应用由顶栏角标进入；演示稿在侧栏补常驻入口，便于直达
+      // AI 任务中心在真实应用由顶栏角标进入；原型在侧栏补常驻入口，便于直达
       { key: 'ai-task-center', label: 'AI 任务中心', icon: 'sparkle' },
     ],
     api: [

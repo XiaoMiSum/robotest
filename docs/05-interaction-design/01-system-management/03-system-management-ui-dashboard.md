@@ -10,7 +10,7 @@
 
 **路由**：`/admin/dashboard`  
 **菜单名**：数据概览（侧栏命名，原「仪表盘」命名废弃）  
-**设计基准**：`web/demos/admin/dashboard.html`
+**设计基准**：`prototype/admin/dashboard.html`
 
 ### 1.1 页面布局
 
@@ -108,4 +108,8 @@
 
 ---
 
+## 修改记录
 
+| 版本 | 日期 | 说明 |
+| --- | --- | --- |
+| V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |

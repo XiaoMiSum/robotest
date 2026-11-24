@@ -22,7 +22,7 @@
   /* 操作列整体右对齐（交互 06 §2.1.2），操作文案不换行 */
   .ops-cell { text-align: right; white-space: nowrap; }
 
-  /* 「更多」下拉：演示稿无 el-dropdown，沿用 api-testing 的浮层菜单范式 */
+  /* 「更多」下拉：原型无 el-dropdown，沿用 api-testing 的浮层菜单范式 */
   .more-wrap { position: relative; display: inline-block; }
   .more-menu {
     position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 96px;
@@ -805,7 +805,7 @@
   byId('imp-submit').addEventListener('click', function () {
     if (!impFile) { setImportError('请先选择要导入的文件'); return; }
     byId('import-dialog').hidden = true;
-    /* 实际实现提交成功后跳转 AI 任务详情页跟踪进度；演示稿无该页，仅给回执 */
+    /* 实际实现提交成功后跳转 AI 任务详情页跟踪进度；原型无该页，仅给回执 */
     toast('导入任务已提交', 'success');
     resetImport();
   });

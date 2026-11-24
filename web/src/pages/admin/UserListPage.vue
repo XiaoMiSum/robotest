@@ -437,7 +437,7 @@ onMounted(() => {
   color: var(--color-neutral-500);
 }
 
-/* 单卡片承载 toolbar/表格/分页，对齐演示稿 users.html 结构（表格与分页的基础观感由全局变量层提供） */
+/* 单卡片承载 toolbar/表格/分页，对齐项目原型 users.html 结构（表格与分页的基础观感由全局变量层提供） */
 .user-list__card {
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
@@ -519,7 +519,7 @@ onMounted(() => {
   color: var(--color-neutral-500);
 }
 
-/* 状态点标对齐演示稿 status（圆点 + 文案），色义沿用 4.2.2 的三态映射 */
+/* 状态点标对齐项目原型 status（圆点 + 文案），色义沿用 4.2.2 的三态映射 */
 .user-list__status {
   display: inline-flex;
   align-items: center;
@@ -545,7 +545,7 @@ onMounted(() => {
   background: var(--color-danger);
 }
 
-/* 描边标签对齐演示稿 tag--outline，避免填充色与状态点标语义冲突 */
+/* 描边标签对齐项目原型 tag--outline，避免填充色与状态点标语义冲突 */
 .user-list__role {
   display: inline-flex;
   align-items: center;

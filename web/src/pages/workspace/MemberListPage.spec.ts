@@ -37,7 +37,7 @@ describe('MemberListPage demo structure', () => {
     expect(pageSource).not.toContain('member-page-pane-in')
   })
 
-  it('按演示稿提供筛选、链接式行操作与统一表头高度', () => {
+  it('按项目原型提供筛选、链接式行操作与统一表头高度', () => {
     expect(memberPanelSource).toContain('姓名 / 邮箱')
     expect(memberPanelSource).toContain('全部角色')
     expect(memberPanelSource).toContain('改角色')

@@ -168,7 +168,7 @@ CREATE INDEX idx_ft_case_node_document_type
 
 ### 4.1 页面结构
 
-路由为 `/workspaces`（name `Workspaces`，`meta.title` 为“我的空间”，`meta.mode` 为 `none`，不挂载任何顶部菜单项），站点根路径 `/` 重定向到该页。布局基准为 `web/demos/workspace/list.html`：
+路由为 `/workspaces`（name `Workspaces`，`meta.title` 为“我的空间”，`meta.mode` 为 `none`，不挂载任何顶部菜单项），站点根路径 `/` 重定向到该页。布局基准为 `prototype/workspace/list.html`：
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -261,3 +261,4 @@ CREATE INDEX idx_ft_case_node_document_type
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-02 | 对齐前端实现：分页默认 12 与 12/24/48 选项、路由与菜单口径、卡片与状态分支细化、新建空间对话框字段与校验、切换防重入。 |
 | V1.0 | 2026-10-18 | 功能测试域表名统一 `ft_` 前缀：工作台统计口径中 `test_case_node` → `ft_case_node`，索引 `idx_test_case_node_document_type` → `idx_ft_case_node_document_type` |
+| V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |
