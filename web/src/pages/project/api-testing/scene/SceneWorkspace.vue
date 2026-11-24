@@ -188,22 +188,96 @@ restoreFromQuery()
   display: flex;
   flex-direction: column;
 
+  // 整条标签头以快速调试 .debug-tabbar 为准，收敛 Element Plus 默认结构的样式差异（UI-DS-09 例外，已确认原型）
   :deep(.el-tabs__header) {
     margin-bottom: var(--space-sm);
+    padding: 4px 6px 0;
+    gap: var(--space-xs);
+    border-bottom: 1px solid var(--color-neutral-200);
     justify-content: flex-start;
   }
 
   :deep(.el-tabs__nav-wrap) {
     flex: 0 1 auto;
     min-width: 0;
+    margin-bottom: 0;
+
+    // 页签头底边线已是公共基线，避免与激活下划线叠成双线
+    &::after {
+      display: none;
+    }
   }
 
-  // UI-DS-09 例外（已确认原型）：新建入口改为与快速调试一致的无边框 link 图标
+  :deep(.el-tabs__nav) {
+    float: none;
+    gap: 2px;
+  }
+
+  :deep(.el-tabs__item) {
+    height: 36px;
+    padding: 0 12px;
+    color: var(--color-neutral-500);
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+
+    &:hover {
+      color: var(--color-neutral-800);
+    }
+
+    &.is-active {
+      color: var(--color-primary-600);
+      font-weight: 600;
+    }
+
+    // 激活下划线压在底边线上，内缩 6px 与快速调试一致
+    &.is-active::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: -1px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--color-primary-500);
+    }
+  }
+
+  // EP 对首尾页签有清零内边距的默认规则，需显式还原快速调试的 12px
+  :deep(.el-tabs__item:nth-child(2)) {
+    padding-left: 12px;
+  }
+
+  :deep(.el-tabs__item:last-child) {
+    padding-right: 12px;
+  }
+
+  :deep(.el-tabs__active-bar) {
+    display: none;
+  }
+
+  :deep(.el-tabs__item .is-icon-close) {
+    margin-left: 0;
+    padding: 0 3px;
+    color: var(--color-neutral-400);
+    font-size: 14px;
+
+    &:hover {
+      color: var(--color-neutral-700);
+      background: var(--color-neutral-100);
+      border-radius: 50%;
+    }
+  }
+
+  // [+] 与快速调试新建入口同形态；固定 26px 高以与接口管理 [导入] 口径一致
   :deep(.el-tabs__new-tab) {
-    width: auto;
-    height: auto;
-    margin: 0 0 0 2px;
-    padding: 2px 4px;
+    box-sizing: border-box;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    margin: 0 auto 0 var(--space-xs);
+    padding: 0 4px;
     border: none;
     background: transparent;
     color: var(--color-neutral-400);
@@ -226,10 +300,6 @@ restoreFromQuery()
     overflow: hidden;
   }
 
-  :deep(.el-tabs__item.is-closable:hover .el-icon-close) {
-    background: var(--color-neutral-100);
-    border-radius: 50%;
-  }
 }
 
 .scene-workspace__tabs {
