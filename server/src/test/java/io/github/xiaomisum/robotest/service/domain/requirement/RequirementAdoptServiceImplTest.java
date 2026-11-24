@@ -112,12 +112,16 @@ class RequirementAdoptServiceImplTest {
                 allProposalKeys, null);
     }
 
-    private void stubModule() {
+    private static ProjectModule module(UUID id) {
         ProjectModule module = new ProjectModule();
-        module.setId(MODULE_ID);
+        module.setId(id);
         module.setProjectId(PROJECT_ID);
         module.setName("登录模块");
-        when(projectModuleMapper.selectById(MODULE_ID)).thenReturn(module);
+        return module;
+    }
+
+    private void stubModule() {
+        when(projectModuleMapper.selectById(MODULE_ID)).thenReturn(module(MODULE_ID));
     }
 
     private void stubAllocator() {
@@ -444,6 +448,81 @@ class RequirementAdoptServiceImplTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.adopt(ctx(task, art, "adopted", null, null)));
         assertEquals(ErrorCodeConstants.REQUIREMENT_MODULE_NOT_FOUND.code(), exception.getCode());
+        verifyNoInteractions(codeAllocator);
+    }
+
+    private Map<String, Object> newModuleArtifact(String moduleName) {
+        Map<String, Object> content = new LinkedHashMap<>();
+        content.put("title", "建议一");
+        content.put("description", "拆分出的描述");
+        content.put("moduleId", null);
+        content.put("moduleName", moduleName);
+        content.put("newModule", true);
+        Map<String, Object> art = new LinkedHashMap<>();
+        art.put("key", "item-1");
+        art.put("kind", "requirement_suggestion");
+        art.put("title", "建议一");
+        art.put("content", content);
+        return art;
+    }
+
+    @Test
+    void adopt_newModuleReusesExistingByName() {
+        Map<String, Object> art = newModuleArtifact("登录模块");
+        AiTask task = importTask(List.of(art));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        when(projectModuleMapper.findByNameAndParent(PROJECT_ID, null, "登录模块")).thenReturn(module(MODULE_ID));
+        stubAllocator();
+
+        service.adopt(ctx(task, art, "adopted", null, null));
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(codeAllocator).insertWithCodeAllocation(eq(PROJECT_ID), captor.capture());
+        assertEquals(MODULE_ID, captor.getValue().getModuleId());
+        verify(projectModuleMapper, never()).insert(any(ProjectModule.class));
+    }
+
+    @Test
+    void adopt_newModuleCreatesRootModuleAndAssociatesRequirement() {
+        Map<String, Object> art = newModuleArtifact("需求管理");
+        AiTask task = importTask(List.of(art));
+        UUID newModuleId = UUID.randomUUID();
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        when(projectModuleMapper.findByNameAndParent(PROJECT_ID, null, "需求管理")).thenReturn(null);
+        doAnswer(inv -> {
+            ProjectModule module = inv.getArgument(0);
+            module.setId(newModuleId);
+            return 1;
+        }).when(projectModuleMapper).insert(any(ProjectModule.class));
+        stubAllocator();
+
+        service.adopt(ctx(task, art, "adopted", null, null));
+
+        ArgumentCaptor<ProjectModule> moduleCaptor = ArgumentCaptor.forClass(ProjectModule.class);
+        verify(projectModuleMapper).insert(moduleCaptor.capture());
+        assertEquals(PROJECT_ID, moduleCaptor.getValue().getProjectId());
+        assertEquals("需求管理", moduleCaptor.getValue().getName());
+        assertNull(moduleCaptor.getValue().getParentId());
+        assertEquals(0, moduleCaptor.getValue().getSortOrder());
+        ArgumentCaptor<Requirement> reqCaptor = ArgumentCaptor.forClass(Requirement.class);
+        verify(codeAllocator).insertWithCodeAllocation(eq(PROJECT_ID), reqCaptor.capture());
+        assertEquals(newModuleId, reqCaptor.getValue().getModuleId());
+    }
+
+    @Test
+    void adopt_newModuleBlankOrOverlongNameThrowsAttributeInvalid() {
+        Map<String, Object> blank = newModuleArtifact("  ");
+        AiTask blankTask = importTask(List.of(blank));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        ServiceException blankException = assertThrows(ServiceException.class,
+                () -> service.adopt(ctx(blankTask, blank, "adopted", null, null)));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_ATTRIBUTE_INVALID.code(), blankException.getCode());
+
+        Map<String, Object> overlong = newModuleArtifact("m".repeat(101));
+        AiTask overlongTask = importTask(List.of(overlong));
+        ServiceException overlongException = assertThrows(ServiceException.class,
+                () -> service.adopt(ctx(overlongTask, overlong, "adopted", null, null)));
+        assertEquals(ErrorCodeConstants.REQUIREMENT_ATTRIBUTE_INVALID.code(), overlongException.getCode());
         verifyNoInteractions(codeAllocator);
     }
 

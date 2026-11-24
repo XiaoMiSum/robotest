@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 /**
  * 拆分 / 导入共用的模型输出解析与产物清洗（详设 4.5 采纳入参口径）：
  * 容忍 ```json 代码栅栏与扁平结构；标题缺失的建议丢弃，moduleId / priority 非法置 null；
+ * 补 moduleName / newModule：新增模块时清空 moduleId，未标记新增但缺模块名时按命中模块反填；
  * key 统一定序为 item-N，保证确认引用稳定。
  */
 public final class RequirementSuggestionParser {
@@ -45,6 +46,8 @@ public final class RequirementSuggestionParser {
             return List.of();
         }
         Set<UUID> moduleIds = modules.stream().map(ProjectModule::getId).collect(Collectors.toSet());
+        Map<UUID, String> moduleNames = modules.stream()
+                .collect(Collectors.toMap(ProjectModule::getId, ProjectModule::getName, (first, ignored) -> first));
         List<Map<String, Object>> artifacts = new ArrayList<>();
         int seq = 0;
         for (Object element : rawArtifacts) {
@@ -65,7 +68,17 @@ public final class RequirementSuggestionParser {
             content.put("title", title.trim());
             String description = asString(content.get("description"));
             content.put("description", description == null || description.isBlank() ? null : description);
-            content.put("moduleId", normalizeModuleId(content.get("moduleId"), moduleIds));
+            String moduleId = normalizeModuleId(content.get("moduleId"), moduleIds);
+            boolean newModule = Boolean.parseBoolean(asString(content.get("newModule")));
+            String moduleName = normalizeModuleName(content.get("moduleName"));
+            if (newModule) {
+                moduleId = null;
+            } else if (moduleName == null && moduleId != null) {
+                moduleName = moduleNames.get(UUID.fromString(moduleId));
+            }
+            content.put("moduleId", moduleId);
+            content.put("moduleName", moduleName);
+            content.put("newModule", newModule);
             content.put("priority", normalizePriority(content.get("priority")));
 
             Map<String, Object> artifact = new LinkedHashMap<>();
@@ -122,7 +135,15 @@ public final class RequirementSuggestionParser {
         return body.trim();
     }
 
-    private static Object normalizeModuleId(Object raw, Set<UUID> moduleIds) {
+    private static String normalizeModuleName(Object raw) {
+        String value = asString(raw);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private static String normalizeModuleId(Object raw, Set<UUID> moduleIds) {
         String value = asString(raw);
         if (value == null || value.isBlank()) {
             return null;

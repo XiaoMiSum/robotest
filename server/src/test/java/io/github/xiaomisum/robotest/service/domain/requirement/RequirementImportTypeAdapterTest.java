@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.repository.file.FileResourceMapper;
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiSettingsReader;
 import io.github.xiaomisum.robotest.service.ai.task.type.AgentExecutionPreparation;
+import io.github.xiaomisum.robotest.service.ai.task.type.ProposalDraft;
 import io.github.xiaomisum.robotest.service.domain.file.FileContent;
 import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -46,5 +49,20 @@ class RequirementImportTypeAdapterTest {
         assertEquals("V2", ((Map<?, ?>) prepared.resultMetaParser().apply(
                 "{\"documentMeta\":{\"detectedVersion\":\"V2\"}}").get("documentMeta"))
                 .get("detectedVersion"));
+        List<?> newModuleArtifacts = prepared.proposalParser().apply(
+                "{\"artifacts\":[{\"content\":{\"title\":\"订单\",\"moduleName\":\"订单模块\",\"newModule\":true,\"priority\":\"high\"}}]}");
+        Map<?, ?> content = ((ProposalDraft) newModuleArtifacts.get(0)).content();
+        assertEquals("订单模块", content.get("moduleName"));
+        assertEquals(true, content.get("newModule"));
+        assertNull(content.get("moduleId"));
+    }
+
+    @Test
+    void defaultPrompt_singleModuleKeepsWholeDocumentAndEmitsModuleFields() {
+        String prompt = new RequirementImportTypeAdapter().defaultPrompt();
+        assertTrue(prompt.contains("只产出一条建议"));
+        assertTrue(prompt.contains("与文档原文全文完全一致"));
+        assertTrue(prompt.contains("moduleName"));
+        assertTrue(prompt.contains("newModule"));
     }
 }

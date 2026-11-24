@@ -43,6 +43,7 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
     private static final String SPLIT_REJECTED = "rejected";
     private static final Set<String> PRIORITIES = Set.of("high", "medium", "low");
     private static final int SYSTEM_VERSION_MAX_LENGTH = 50;
+    private static final int MODULE_NAME_MAX_LENGTH = 100;
 
     @Resource
     private RequirementSplitRecordMapper splitRecordMapper;
@@ -132,7 +133,7 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
         item.setTitle(title.trim());
         String description = asString(content.get("description"));
         item.setDescription(description == null || description.isBlank() ? null : description);
-        item.setModuleId(resolveModuleId(content.get("moduleId"), context.projectId()));
+        item.setModuleId(resolveModuleId(content, context.projectId()));
         item.setPriority(resolvePriority(content.get("priority")));
         item.setSystemVersion(resolveSystemVersion(context));
         item.setStatus(Constants.RequirementStatus.CONFIRMED);
@@ -153,7 +154,34 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
         return new LinkedHashMap<>(context.proposalContent());
     }
 
-    private UUID resolveModuleId(Object raw, UUID projectId) {
+    /** 模块归属（4.5）：新增模块按名称复用或建根节点，否则沿用已有模块校验 */
+    private UUID resolveModuleId(Map<String, Object> content, UUID projectId) {
+        if (Boolean.parseBoolean(asString(content.get("newModule")))) {
+            return resolveNewModuleId(content, projectId);
+        }
+        return resolveExistingModuleId(content.get("moduleId"), projectId);
+    }
+
+    private UUID resolveNewModuleId(Map<String, Object> content, UUID projectId) {
+        String raw = asString(content.get("moduleName"));
+        String moduleName = raw == null ? null : raw.trim();
+        if (moduleName == null || moduleName.isEmpty() || moduleName.length() > MODULE_NAME_MAX_LENGTH) {
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_ATTRIBUTE_INVALID);
+        }
+        ProjectModule existing = projectModuleMapper.findByNameAndParent(projectId, null, moduleName);
+        if (existing != null) {
+            return existing.getId();
+        }
+        ProjectModule module = new ProjectModule();
+        module.setProjectId(projectId);
+        module.setParentId(null);
+        module.setName(moduleName);
+        module.setSortOrder(0);
+        projectModuleMapper.insert(module);
+        return module.getId();
+    }
+
+    private UUID resolveExistingModuleId(Object raw, UUID projectId) {
         String value = asString(raw);
         if (value == null || value.isBlank()) {
             return null;

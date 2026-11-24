@@ -41,6 +41,7 @@ import java.util.zip.ZipInputStream;
 /**
  * 需求导入任务处理器（详设 3.8 / 4.5）：读取来源文件 → 按类型取正文（md 直读 / docx 抽取 /
  * 图片经 media 多模态直传）→ 渲染提示词 → 调模型 → 产物为 documentMeta + requirement_suggestion 列表。
+ * 拆分以模块为唯一边界（单模块整篇保留、多模块按模块拆分），产物带模块名称与新增模块标记。
  * 文档级版本识别（detectedVersion + 识别依据引语）随本处理器交付，识别不到为 null（3.8）。
  */
 @Component
@@ -57,18 +58,22 @@ public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapte
     private static final String SYSTEM_PROMPT = "你是严谨的需求分析助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
 
     private static final String DEFAULT_PROMPT = """
-            将给定需求文档解析为按模块划分的需求建议，并识别被测业务系统版本。
-            要求：
-            1. 按文档的模块 / 功能边界拆分为若干条建议，每条给出标题、描述（Markdown，含可验证的验收要点）、所属模块与优先级；
-            2. 标题互不重复且具体，描述基于原文改写，不得臆造原文没有的业务规则；
-            3. 拆分粒度以「单条可独立测试」为准，原文已足够细时可少拆甚至不拆；
-            4. 仅当原文明确属于某模块时给出该模块 id，否则 moduleId 为 null；
+            将给定需求文档解析为需求建议，并识别被测业务系统版本。
+            拆分规则（模块是唯一边界）：
+            1. 先判断文档整体是否只归属一个模块：若是，只产出一条建议，标题取文档标题，description 与文档原文全文完全一致，
+               不得改写、摘要，也不得按功能点 / 用户故事编号 / 章节小节拆分；
+            2. 仅当文档明确覆盖多个模块时，按模块各产出一条建议，description 为该模块对应的原文片段，
+               不得按功能点、用户故事编号或章节小节细分；
+            3. 每条建议给出标题、模块名称 moduleName、新增模块标记 newModule 与优先级，不得臆造原文没有的业务规则；
+            4. moduleName 必填且不超过 100 字符。原文明确属于「可用模块」中的某个模块时，moduleId 填该模块 id、
+               newModule 为 false、moduleName 填该模块名称；没有匹配的现有模块时，moduleId 为 null、
+               newModule 为 true、moduleName 填建议新建的模块名；
             5. 优先级只允许 high / medium / low；
             6. documentMeta.detectedVersion 为从文档识别的被测业务系统版本（如 V2.3），versionEvidence 为识别依据的原文引语，
                识别不到时对应值为 null，不得臆造；
             7. 图片附件随消息直接发送（多模态），此时文档内容为空，正文从图片中读取。
             输出结构（JSON 对象，artifacts 数组即产物清单）：
-            {"documentMeta":{"detectedVersion":null,"versionEvidence":null},"artifacts":[{"content":{"title":"…","description":"…","moduleId":null,"priority":"medium"}}]}
+            {"documentMeta":{"detectedVersion":null,"versionEvidence":null},"artifacts":[{"content":{"title":"…","description":"…","moduleId":null,"moduleName":"…","newModule":true,"priority":"medium"}}]}
 
             文档文件名：{{documentName}}
             文档内容：
