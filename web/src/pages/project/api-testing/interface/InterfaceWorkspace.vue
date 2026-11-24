@@ -214,7 +214,10 @@ watch(
 
     <!-- [导入] 固定在页签条最右；新建入口由 el-tabs 原生 addable 提供，位于页签末尾 -->
     <div class="interface-workspace__actions">
-      <el-button link data-test="interface-import-btn" @click="handleHeaderImport">导入</el-button>
+      <el-button link type="primary" size="small" data-test="interface-import-btn" @click="handleHeaderImport">
+        <el-icon><Download /></el-icon>
+        <span>导入</span>
+      </el-button>
     </div>
   </div>
 </template>
@@ -229,8 +232,8 @@ watch(
 
   :deep(.el-tabs__header) {
     margin-bottom: var(--space-sm);
-    // 为最右侧 [导入] 链接预留空间；左对齐让原生 [+] 紧跟最后一个页签
-    padding-right: 72px;
+    // 为最右侧带图标的主色小按钮 [导入] 预留空间；左对齐让原生 [+] 紧跟最后一个页签
+    padding-right: 88px;
     justify-content: flex-start;
   }
 

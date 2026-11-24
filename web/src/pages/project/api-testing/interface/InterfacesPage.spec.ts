@@ -11,13 +11,14 @@ describe('InterfacesPage 列表表格高度', () => {
 })
 
 describe('InterfaceWorkspace 页签条形态', () => {
-  it('默认型页签 + 页签末尾虚线新建入口，导入为主色链接', () => {
+  it('默认型页签 + 页签末尾虚线新建入口，导入为与快速调试一致的主色小按钮带图标', () => {
     expect(workspaceSource).toContain('addable')
     expect(workspaceSource).not.toContain('type="card"')
     expect(workspaceSource).toContain('@tab-add="handleHeaderCreate"')
     expect(workspaceSource).not.toContain('border-style: dashed')
     expect(workspaceSource).toContain('color: var(--color-neutral-400)')
-    expect(workspaceSource).toContain('<el-button link data-test="interface-import-btn"')
+    expect(workspaceSource).toContain('<el-button link type="primary" size="small" data-test="interface-import-btn"')
+    expect(workspaceSource).toContain('<el-icon><Download /></el-icon>')
     expect(workspaceSource).not.toContain('interface-create-btn')
   })
 })
