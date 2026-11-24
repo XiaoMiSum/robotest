@@ -316,7 +316,8 @@ const mindmapCaseGenerationProfile: ProposalReviewProfile = {
 }
 
 const REGISTRY: Record<string, ProposalReviewProfile> = {
-  requirement_import: requirementProfile('requirement_import', '导入结果审核', true),
+  // 需求导入审核只开放逐条动作，批量入口在 profile 层关闭
+  requirement_import: { ...requirementProfile('requirement_import', '导入结果审核', true), allowBatch: false },
   requirement_split: requirementProfile('requirement_split', '拆分结果审核'),
   case_optimize: caseOptimizeProfile,
   mindmap_case_generation: mindmapCaseGenerationProfile,

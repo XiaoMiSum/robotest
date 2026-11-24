@@ -40,11 +40,6 @@ const {
   canEdit,
   canReject,
   needSystemVersion,
-  canBatch,
-  selectedKeys,
-  selectableRows,
-  allSelected,
-  toggleAll,
   NOTE_MAX_LENGTH,
   syncRows,
   init,
@@ -52,8 +47,6 @@ const {
   handleAdopt,
   handleAdoptEdited,
   handleReject,
-  handleBatchAdopt,
-  handleBatchReject,
   retryResult,
   clearReceipt,
 } = useAiProposalReview(
@@ -189,10 +182,6 @@ function onExistingModuleChange(moduleId: string): void {
   editForm.value = { ...editForm.value, moduleId, moduleName: moduleNameOf(moduleId) }
 }
 
-function onToggleAll(value: unknown): void {
-  toggleAll(value === true)
-}
-
 function onModuleModeChange(value: unknown): void {
   setModuleMode(value === 'new' ? 'new' : 'existing')
 }
@@ -272,15 +261,6 @@ async function submitReject(): Promise<void> {
   if (!row) return
   const ok = await handleReject(row, rejectNote.value, targetVersion())
   if (ok) rejectVisible.value = false
-}
-
-// ==================== 批量动作 ====================
-async function batchAdopt(): Promise<void> {
-  await handleBatchAdopt(targetVersion())
-}
-
-async function batchReject(): Promise<void> {
-  await handleBatchReject(targetVersion())
 }
 </script>
 
@@ -465,35 +445,6 @@ async function batchReject(): Promise<void> {
           </el-button>
         </div>
       </div>
-    </div>
-
-    <!-- 批量动作：沿用提案审核的组合式能力，选中集仅含待处理项 -->
-    <div v-if="canBatch && rows.length > 0" class="proposal-review__batch">
-      <el-checkbox
-        :model-value="allSelected"
-        :disabled="selectableRows.length === 0"
-        @update:model-value="onToggleAll"
-      >
-        全选待处理
-      </el-checkbox>
-      <el-button
-        type="primary"
-        size="small"
-        :loading="confirming"
-        :disabled="selectedKeys.length === 0"
-        @click="batchAdopt"
-      >
-        批量采纳
-      </el-button>
-      <el-button
-        size="small"
-        :loading="confirming"
-        :disabled="selectedKeys.length === 0"
-        @click="batchReject"
-      >
-        全部驳回
-      </el-button>
-      <span class="proposal-review__batch-count">已选 {{ selectedKeys.length }} / 共 {{ rows.length }}</span>
     </div>
 
     <!-- 逐项回执：失败项可单项重试（交互 2.3 回执） -->
@@ -856,22 +807,6 @@ async function batchReject(): Promise<void> {
 
 .proposal-review__rank-edit-handle {
   color: var(--color-neutral-500);
-}
-
-.proposal-review__batch {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-neutral-200);
-}
-
-.proposal-review__batch-count {
-  margin-left: auto;
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
 }
 
 .proposal-review__module-mode {

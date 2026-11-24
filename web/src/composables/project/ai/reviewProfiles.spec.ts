@@ -58,6 +58,15 @@ describe('reviewProfiles', () => {
       expect(parsed.editValues.title).toBe('订单条目')
       expect(profile.buildEditedContent(parsed.editValues, {})).toEqual({ title: '订单条目' })
     })
+
+    it('导入审核只开放逐条动作，不提供批量审核', () => {
+      const profile = reviewProfile('requirement_import')
+
+      expect(profile.allowAdopt).toBe(true)
+      expect(profile.allowEdit).toBe(true)
+      expect(profile.allowReject).toBe(true)
+      expect(profile.allowBatch).toBe(false)
+    })
   })
 
   describe('用例优化（详情只读）', () => {

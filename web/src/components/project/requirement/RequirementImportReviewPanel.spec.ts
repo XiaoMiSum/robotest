@@ -161,7 +161,7 @@ describe('RequirementImportReviewPanel', () => {
     expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
   })
 
-  it('导入审核渲染批量操作但不渲染左侧列表', () => {
+  it('导入审核仅渲染逐条操作，不渲染批量操作与左侧列表', () => {
     const wrapper = mountPanel('requirement_import', [
       proposal({ kind: 'requirement_suggestion', title: '登录需求' }),
     ])
@@ -169,9 +169,9 @@ describe('RequirementImportReviewPanel', () => {
     expect(wrapper.text()).toContain('导入结果审核')
     expect(wrapper.find('.proposal-review__version').exists()).toBe(true)
     expect(wrapper.find('.proposal-review__list').exists()).toBe(false)
-    expect(wrapper.text()).toContain('全选待处理')
-    expect(wrapper.text()).toContain('批量采纳')
-    expect(wrapper.text()).toContain('已选')
+    expect(wrapper.text()).not.toContain('全选待处理')
+    expect(wrapper.text()).not.toContain('批量采纳')
+    expect(wrapper.text()).not.toContain('全部驳回')
     expect(wrapper.find('.proposal-review__foot').exists()).toBe(false)
   })
 
