@@ -238,6 +238,25 @@ class AiEmbeddingAdminServiceTest {
         assertEquals("timeout", saved.get("msg"));
     }
 
+    @Test
+    void test_failure_genericWrapperWithCause_persistsRootReason() {
+        AiEmbeddingConfig row = configuredRow(1536, "cosine");
+        when(embeddingMapper.selectSingleton()).thenReturn(row);
+        when(embeddingClient.embed(any(), anyList(), any(), isNull(), isNull()))
+                .thenThrow(new RuntimeException(ErrorCodeConstants.AI_MODEL_CALL_FAILED.msg(),
+                        new IllegalStateException("quota exceeded")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.test(loginUser, request));
+
+        assertEquals(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(), ex.getCode());
+        assertEquals("quota exceeded", ex.getMessage());
+        ArgumentCaptor<Wrapper<AiEmbeddingConfig>> captor = wrapperCaptor();
+        verify(embeddingMapper).update(any(), captor.capture());
+        Map<String, Object> saved = JsonUtils.parseObject(jsonParam(captor.getValue(), "msg"), Map.class);
+        assertEquals("quota exceeded", saved.get("msg"));
+    }
+
     private static AiEmbeddingTestReqDTO fullTestReq() {
         AiEmbeddingTestReqDTO req = new AiEmbeddingTestReqDTO();
         req.setBaseUrl("https://draft.example.com/v1");

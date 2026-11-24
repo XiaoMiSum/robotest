@@ -118,6 +118,18 @@ class TaskExecutionDispatcherTest {
     }
 
     @Test
+    void dispatch_runtimeFailure_terminatesWithUnderlyingReason() {
+        when(adapterRegistry.get(TYPE)).thenReturn(new StubAdapter(null));
+        when(agentExecutionRunner.execute(any(), any()))
+                .thenThrow(new IllegalStateException("quota exceeded", new RuntimeException("HTTP 429")));
+
+        dispatcher.dispatch(context);
+
+        verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
+                eq(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code()), eq("quota exceeded: HTTP 429"), any());
+    }
+
+    @Test
     void dispatch_lastModelHopExceedsBudget_terminatesWithoutSuccessAndKeepsSingleUsage() {
         TaskExecutionStrategy measured = (strategyContext, control) -> {
             control.afterModelCall(7, 3, new BigDecimal("0.25"));

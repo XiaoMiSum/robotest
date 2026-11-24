@@ -284,6 +284,7 @@ class AssistantExecutionStrategyTest {
         verify(channel).send(eq("error"), data.capture());
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
                 ((Map<?, ?>) data.getValue()).get("code"));
+        assertEquals("boom", ((Map<?, ?>) data.getValue()).get("msg"));
         ArgumentCaptor<AiAssistantMessage> captor = ArgumentCaptor.forClass(AiAssistantMessage.class);
         verify(messageMapper).updateById(captor.capture());
         assertEquals(Constants.AiAssistantMessageStatus.ERROR, captor.getValue().getStatus());

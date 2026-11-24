@@ -277,6 +277,23 @@ class AiModelAdminServiceTest {
     }
 
     @Test
+    void test_failure_genericWrapperWithCause_persistsRootReason() {
+        when(modelMapper.selectById(MODEL_ID)).thenReturn(storedModel(MODEL_ID));
+        when(modelClient.chat(any())).thenThrow(new RuntimeException(
+                ErrorCodeConstants.AI_MODEL_CALL_FAILED.msg(), new IllegalStateException("quota exceeded")));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.test(MODEL_ID, loginUser, request));
+
+        assertEquals(ErrorCodeConstants.AI_MODEL_TEST_FAILED.code(), ex.getCode());
+        assertEquals("quota exceeded", ex.getMessage());
+        ArgumentCaptor<Wrapper<AiModelConfig>> captor = wrapperCaptor();
+        verify(modelMapper).update(isNull(), captor.capture());
+        Map<String, Object> saved = JsonUtils.parseObject(jsonParam(captor.getValue(), "msg"), Map.class);
+        assertEquals("quota exceeded", saved.get("msg"));
+    }
+
+    @Test
     void test_notFound_throwsModelNotFound() {
         when(modelMapper.selectById(MODEL_ID)).thenReturn(null);
 

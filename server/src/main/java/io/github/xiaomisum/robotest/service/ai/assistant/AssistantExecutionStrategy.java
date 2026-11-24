@@ -8,6 +8,7 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantConversationMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiAssistantMessageMapper;
 import io.github.xiaomisum.robotest.service.ai.config.AiChatMedia;
+import io.github.xiaomisum.robotest.service.ai.config.AiFailureReason;
 import io.github.xiaomisum.robotest.service.ai.config.AiModelClient;
 import io.github.xiaomisum.robotest.service.ai.config.AiPromptService;
 import io.github.xiaomisum.robotest.service.ai.task.core.ExecutionControl;
@@ -16,6 +17,8 @@ import io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSupport;
 import io.github.xiaomisum.robotest.service.domain.file.FileContent;
 import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import jakarta.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import xyz.migoo.framework.common.exception.ServiceException;
@@ -44,6 +47,8 @@ import java.util.UUID;
 @Component
 public class AssistantExecutionStrategy implements TaskExecutionStrategy {
 
+    private static final Logger log = LoggerFactory.getLogger(AssistantExecutionStrategy.class);
+
     private static final String KIND_CLARIFY = "clarify";
     private static final String KIND_ANSWER = "answer";
 
@@ -54,6 +59,7 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
     private static final String EVENT_ERROR = "error";
 
     private static final int TITLE_MAX = 100;
+    private static final int ERROR_MSG_MAX = 500;
 
     /** agent 固定角色行；场景提示词主体可经配置中心自定义覆盖（scene = assistant_parse，详设 3.5） */
     private static final String AGENT_SYSTEM =
@@ -132,13 +138,19 @@ public class AssistantExecutionStrategy implements TaskExecutionStrategy {
             markInterrupted(message);
             throw e;
         } catch (ServiceException e) {
+            String reason = AiFailureReason.of(e, ERROR_MSG_MAX);
+            log.warn("[AI] 助手执行失败 messageId={} code={} type={} reason={}", messageId, e.getCode(),
+                    e.getClass().getSimpleName(), reason);
             failMessage(message);
-            sendError(channel, e.getCode(), e.getMessage());
+            sendError(channel, e.getCode(), reason);
             throw e;
         } catch (RuntimeException e) {
             int code = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
+            String reason = AiFailureReason.of(e, ERROR_MSG_MAX);
+            log.warn("[AI] 助手执行失败 messageId={} code={} type={} reason={}", messageId, code,
+                    e.getClass().getSimpleName(), reason);
             failMessage(message);
-            sendError(channel, code, ErrorCodeConstants.AI_MODEL_CALL_FAILED.msg());
+            sendError(channel, code, reason);
             throw e;
         }
     }

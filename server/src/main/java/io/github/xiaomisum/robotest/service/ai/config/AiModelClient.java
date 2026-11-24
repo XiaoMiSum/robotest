@@ -61,6 +61,8 @@ public class AiModelClient {
     /** 流式底层读取超时上限：远大于任务总预算，避免框架默认 60s 掐断长流；实际终止由 Reactor 护栏负责 */
     private static final Duration STREAM_UNDERLYING_TIMEOUT = Duration.ofHours(24);
     private static final int ERROR_MSG_MAX_LENGTH = 500;
+    /** 密钥缺失 / 解密失败是配置类原因，不能用模型调用的通用文案替代（详设总册 4.5） */
+    private static final String KEY_FAILURE_REASON = "模型密钥未配置或解密失败";
 
     /** 护栏间隔为实例字段，默认取内置常量；测试可注入短值以验证各分支 */
     private Duration firstTokenTimeout = FIRST_TOKEN_TIMEOUT;
@@ -86,7 +88,7 @@ public class AiModelClient {
         String apiKey = secretKey == null ? null
                 : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
         if (apiKey == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), KEY_FAILURE_REASON);
         }
         long start = System.currentTimeMillis();
         try {
@@ -96,6 +98,7 @@ public class AiModelClient {
                     null);
             return reply;
         } catch (Exception e) {
+            logFailure(request.promptScene(), e);
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
             writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode);
             throw toServiceException(e, errorCode);
@@ -124,7 +127,7 @@ public class AiModelClient {
         String apiKey = secretKey == null ? null
                 : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
         if (apiKey == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), KEY_FAILURE_REASON);
         }
         long start = System.currentTimeMillis();
         try {
@@ -135,6 +138,7 @@ public class AiModelClient {
                     null, reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
             return reply;
         } catch (Exception e) {
+            logFailure(request.promptScene(), e);
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
             writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode, request.promptScene());
             throw toServiceException(e, errorCode);
@@ -158,7 +162,7 @@ public class AiModelClient {
         String apiKey = secretKey == null ? null
                 : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
         if (apiKey == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), KEY_FAILURE_REASON);
         }
         long start = System.currentTimeMillis();
         try {
@@ -168,6 +172,7 @@ public class AiModelClient {
                     null, assistant && reply.toolCalls().isEmpty() ? SCENE_ANSWER : request.promptScene());
             return reply;
         } catch (Exception e) {
+            logFailure(request.promptScene(), e);
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
             writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode, request.promptScene());
             throw toServiceException(e, errorCode);
@@ -182,7 +187,7 @@ public class AiModelClient {
         String apiKey = secretKey == null ? null
                 : SecretCryptoUtil.decrypt(secretKey, request.model().getApiKeyEncrypted());
         if (apiKey == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), KEY_FAILURE_REASON);
         }
         long start = System.currentTimeMillis();
         try {
@@ -192,6 +197,7 @@ public class AiModelClient {
                     null);
             return reply;
         } catch (Exception e) {
+            logFailure(request.promptScene(), e);
             int errorCode = ErrorCodeConstants.AI_MODEL_CALL_FAILED.code();
             writeUsage(request, System.currentTimeMillis() - start, false, 0, 0, errorCode);
             throw toServiceException(e, errorCode);
@@ -483,7 +489,8 @@ public class AiModelClient {
             return new AiChatReply(content, tokensIn, tokensOut, List.of(),
                     rawResponse(content, List.of(), finishReasonOf(response), tokensIn, tokensOut, totalTokens));
         } catch (Exception e) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                    AiFailureReason.of(e, ERROR_MSG_MAX_LENGTH));
         }
     }
 
@@ -504,7 +511,8 @@ public class AiModelClient {
             return new AiChatReply(content, tokensIn, tokensOut, toolCalls,
                     rawResponse(content, toolCalls, finishReasonOf(response), tokensIn, tokensOut, totalTokens));
         } catch (Exception e) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                    AiFailureReason.of(e, ERROR_MSG_MAX_LENGTH));
         }
     }
 
@@ -512,11 +520,13 @@ public class AiModelClient {
         if (e instanceof ServiceException se && se.getCode() != null && se.getCode() == errorCode) {
             return se;
         }
-        String message = e.getMessage() == null ? ErrorCodeConstants.AI_MODEL_CALL_FAILED.msg() : e.getMessage();
-        if (message.length() > ERROR_MSG_MAX_LENGTH) {
-            message = message.substring(0, ERROR_MSG_MAX_LENGTH);
-        }
-        return ServiceExceptionUtil.get(errorCode, message);
+        return ServiceExceptionUtil.get(errorCode, AiFailureReason.of(e, ERROR_MSG_MAX_LENGTH));
+    }
+
+    /** 失败日志只记录异常类型与脱敏原因，不打印原始异常对象（详设总册 4.5） */
+    private static void logFailure(String scene, Exception e) {
+        log.warn("[AI] 模型调用失败 scene={} type={} reason={}", scene, e.getClass().getSimpleName(),
+                AiFailureReason.of(e));
     }
 
     /** 每次逻辑调用记一条用量明细；记录失败只告警，不中断模型调用（4.3） */
@@ -547,7 +557,8 @@ public class AiModelClient {
             usage.setCost(calculateCost(request.model(), promptTokens, completionTokens));
             usageLogMapper.insert(usage);
         } catch (Exception e) {
-            log.warn("[AI] 用量记录写入失败 taskId={} scene={}", request.taskId(), request.promptScene(), e);
+            log.warn("[AI] 用量记录写入失败 taskId={} scene={} type={} reason={}", request.taskId(),
+                    request.promptScene(), e.getClass().getSimpleName(), AiFailureReason.of(e));
         }
     }
 

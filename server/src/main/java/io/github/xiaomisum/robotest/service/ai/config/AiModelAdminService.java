@@ -17,6 +17,8 @@ import io.github.xiaomisum.robotest.repository.ai.AiConfigMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiModelConfigMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -44,6 +46,8 @@ import java.util.UUID;
  */
 @Component
 public class AiModelAdminService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiModelAdminService.class);
 
     private static final Set<String> SUPPORTED_CAPABILITIES = Set.of("chat", "vision");
     private static final int TEST_MSG_MAX_LENGTH = 300;
@@ -196,15 +200,25 @@ public class AiModelAdminService {
             resp.setMsg("ok (" + reply.tokensIn() + " tokens)");
             return resp;
         } catch (ServiceException e) {
-            int latencyMs = (int) (System.currentTimeMillis() - start);
-            String msg = truncate(e.getMessage());
-            saveLastTest(model, false, latencyMs, msg);
-            writeAudit(OPERATION_TEST, modelId, loginUser, request, Map.of("success", false, "msg", msg));
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_TEST_FAILED.code(), msg);
+            throw failTest(model, modelId, loginUser, request, start, e);
+        } catch (RuntimeException e) {
+            throw failTest(model, modelId, loginUser, request, start, e);
         }
     }
 
     // ========== 私有 ==========
+
+    /** 失败摘要统一取脱敏后的底层原因：落 lastTest、审计与响应共用同一份文案（详设总册 4.5） */
+    private ServiceException failTest(AiModelConfig model, UUID modelId, LoginUser loginUser,
+            HttpServletRequest request, long start, Exception e) {
+        int latencyMs = (int) (System.currentTimeMillis() - start);
+        String msg = AiFailureReason.of(e, TEST_MSG_MAX_LENGTH);
+        log.warn("[AI] 模型连通性测试失败 modelId={} type={} reason={}", modelId,
+                e.getClass().getSimpleName(), msg);
+        saveLastTest(model, false, latencyMs, msg);
+        writeAudit(OPERATION_TEST, modelId, loginUser, request, Map.of("success", false, "msg", msg));
+        return ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_TEST_FAILED.code(), msg);
+    }
 
     private void saveLastTest(AiModelConfig model, boolean success, int latencyMs, String msg) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -334,12 +348,5 @@ public class AiModelAdminService {
         record.setRequestIp(clientIpResolver.resolve(request));
         record.setChanges(changes == null ? Map.of() : changes);
         auditLogWriter.write(record);
-    }
-
-    private static String truncate(String text) {
-        if (text == null) {
-            return null;
-        }
-        return text.length() <= TEST_MSG_MAX_LENGTH ? text : text.substring(0, TEST_MSG_MAX_LENGTH);
     }
 }

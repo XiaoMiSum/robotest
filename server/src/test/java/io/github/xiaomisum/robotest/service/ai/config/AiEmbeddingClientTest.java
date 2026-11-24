@@ -176,6 +176,7 @@ class AiEmbeddingClientTest {
                 () -> spy.embed(config, List.of("你好"), null, null, null));
 
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        assertEquals("connect timed out", e.getMessage());
         ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
         verify(usageLogMapper).insert(captor.capture());
         assertEquals("failed", captor.getValue().getStatus());

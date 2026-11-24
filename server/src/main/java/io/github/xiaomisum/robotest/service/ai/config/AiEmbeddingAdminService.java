@@ -15,6 +15,8 @@ import io.github.xiaomisum.robotest.model.entity.ai.AiEmbeddingConfig;
 import io.github.xiaomisum.robotest.repository.ai.AiEmbeddingConfigMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -40,6 +42,8 @@ import java.util.Map;
  */
 @Component
 public class AiEmbeddingAdminService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiEmbeddingAdminService.class);
 
     private static final String OPERATION_SAVE = "save";
     private static final String OPERATION_TEST = "test";
@@ -187,15 +191,24 @@ public class AiEmbeddingAdminService {
             resp.setMsg("ok");
             return resp;
         } catch (ServiceException e) {
-            int latencyMs = (int) (System.currentTimeMillis() - start);
-            String msg = truncate(e.getMessage());
-            saveLastTest(row, false, null, latencyMs, msg);
-            writeAudit(OPERATION_TEST, loginUser, request, Map.of("success", false, "msg", msg));
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(), msg);
+            throw failTest(row, loginUser, request, start, e);
+        } catch (RuntimeException e) {
+            throw failTest(row, loginUser, request, start, e);
         }
     }
 
     // ========== 私有 ==========
+
+    /** 失败摘要统一取脱敏后的底层原因：落 lastTest、审计与响应共用同一份文案（详设总册 4.5） */
+    private ServiceException failTest(AiEmbeddingConfig row, LoginUser loginUser, HttpServletRequest request,
+            long start, Exception e) {
+        int latencyMs = (int) (System.currentTimeMillis() - start);
+        String msg = AiFailureReason.of(e, TEST_MSG_MAX_LENGTH);
+        log.warn("[AI] 向量连通性测试失败 type={} reason={}", e.getClass().getSimpleName(), msg);
+        saveLastTest(row, false, null, latencyMs, msg);
+        writeAudit(OPERATION_TEST, loginUser, request, Map.of("success", false, "msg", msg));
+        return ServiceExceptionUtil.get(ErrorCodeConstants.AI_EMBEDDING_TEST_FAILED.code(), msg);
+    }
 
     /** 表单值覆盖已保存配置：空项沿用已保存值，密钥非空仅加密用于本次调用 */
     private AiEmbeddingConfig buildTestConfig(AiEmbeddingTestReqDTO req, AiEmbeddingConfig row) {
@@ -322,12 +335,5 @@ public class AiEmbeddingAdminService {
         record.setRequestIp(clientIpResolver.resolve(request));
         record.setChanges(changes);
         auditLogWriter.write(record);
-    }
-
-    private static String truncate(String text) {
-        if (text == null) {
-            return null;
-        }
-        return text.length() <= TEST_MSG_MAX_LENGTH ? text : text.substring(0, TEST_MSG_MAX_LENGTH);
     }
 }

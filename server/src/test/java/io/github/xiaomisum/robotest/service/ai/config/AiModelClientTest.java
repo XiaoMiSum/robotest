@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -220,6 +221,7 @@ class AiModelClientTest {
         ServiceException e = assertThrows(ServiceException.class, () -> spy.chat(request()));
 
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        assertEquals("rate limited", e.getMessage());
         ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
         verify(usageLogMapper).insert(captor.capture());
         assertEquals("failed", captor.getValue().getStatus());
@@ -237,6 +239,8 @@ class AiModelClientTest {
         ServiceException e = assertThrows(ServiceException.class, () -> spy.chat(request()));
 
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), e.getCode());
+        assertFalse(ErrorCodeConstants.AI_MODEL_CALL_FAILED.msg().equals(e.getMessage()));
+        assertFalse(e.getMessage().isBlank());
         ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
         verify(usageLogMapper).insert(captor.capture());
         assertEquals("failed", captor.getValue().getStatus());

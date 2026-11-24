@@ -41,6 +41,8 @@ public class AiEmbeddingClient {
     /** 单次向量化请求超时；连接超时沿用底层 OkHttp 默认 10s */
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
     private static final int ERROR_MSG_MAX_LENGTH = 500;
+    /** 密钥缺失 / 解密失败是配置类原因，不能用模型调用的通用文案替代（详设总册 4.5） */
+    private static final String KEY_FAILURE_REASON = "向量 API 密钥未配置或解密失败";
 
     private final byte[] secretKey;
 
@@ -77,7 +79,7 @@ public class AiEmbeddingClient {
             UUID projectId, boolean strict) {
         String apiKey = secretKey == null ? null : SecretCryptoUtil.decrypt(secretKey, config.getApiKeyEncrypted());
         if (apiKey == null) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED);
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), KEY_FAILURE_REASON);
         }
         long start = System.currentTimeMillis();
         try {
@@ -89,10 +91,12 @@ public class AiEmbeddingClient {
                     reply.tokens(), null);
             return reply;
         } catch (ServiceException e) {
+            logFailure(e);
             writeUsage(config, userId, taskId, projectId, System.currentTimeMillis() - start, false, 0,
                     ErrorCodeConstants.AI_MODEL_CALL_FAILED.code());
             throw e;
         } catch (Exception e) {
+            logFailure(e);
             writeUsage(config, userId, taskId, projectId, System.currentTimeMillis() - start, false, 0,
                     ErrorCodeConstants.AI_MODEL_CALL_FAILED.code());
             throw toServiceException(e);
@@ -148,7 +152,8 @@ public class AiEmbeddingClient {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "向量响应解析失败");
+            throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                    AiFailureReason.of(e, ERROR_MSG_MAX_LENGTH));
         }
     }
 
@@ -170,16 +175,19 @@ public class AiEmbeddingClient {
             usage.setCost(BigDecimal.ZERO.setScale(6, RoundingMode.HALF_UP));
             usageLogMapper.insert(usage);
         } catch (Exception e) {
-            log.warn("[AI] 向量用量记录写入失败 taskId={} userId={}", taskId, userId, e);
+            log.warn("[AI] 向量用量记录写入失败 taskId={} userId={} type={} reason={}", taskId, userId,
+                    e.getClass().getSimpleName(), AiFailureReason.of(e));
         }
     }
 
     private static ServiceException toServiceException(Exception e) {
-        String message = e.getMessage() == null ? ErrorCodeConstants.AI_MODEL_CALL_FAILED.msg() : e.getMessage();
-        if (message.length() > ERROR_MSG_MAX_LENGTH) {
-            message = message.substring(0, ERROR_MSG_MAX_LENGTH);
-        }
-        return ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), message);
+        return ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                AiFailureReason.of(e, ERROR_MSG_MAX_LENGTH));
+    }
+
+    /** 失败日志只记录异常类型与脱敏原因，不打印原始异常对象（详设总册 4.5） */
+    private static void logFailure(Exception e) {
+        log.warn("[AI] 向量调用失败 type={} reason={}", e.getClass().getSimpleName(), AiFailureReason.of(e));
     }
 
     /** 向量化回复：dimensions 用于维度一致性校验（3.4 测试响应与 4.4 重建） */
