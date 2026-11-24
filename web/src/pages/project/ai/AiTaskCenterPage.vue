@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import ListPagination from '@/components/common/ListPagination.vue'
 import { formatDateTime } from '@/utils/format'
 import { aiTaskTypeOptions } from '@/composables/project/ai/taskPresentation'
 import type { AiTaskRow } from '@/composables/project/ai/useAiTaskCenter'
 import { useAiTaskCenter } from '@/composables/project/ai/useAiTaskCenter'
-
-const router = useRouter()
 
 const {
   loading,
@@ -39,10 +36,6 @@ const statusOptions = [
   { value: 'closed', label: '已结束' },
   { value: 'aborted', label: '已终止' },
 ]
-
-function openDetail(taskId: string): void {
-  void router.push(`/workspace/projects/ai/tasks/${taskId}`)
-}
 
 /** el-table 插槽行是宽松类型，此处收窄为行视图模型（no-unsafe 后端未知键本就不读取） */
 function asRow(row: unknown): AiTaskRow {
@@ -124,9 +117,9 @@ function asRow(row: unknown): AiTaskRow {
         <el-table v-loading="loading" :data="rows" row-key="taskId">
           <el-table-column label="任务名" min-width="200" show-overflow-tooltip>
             <template #default="{ row }">
-              <el-link type="primary" :underline="false" @click.stop="openDetail(row.taskId)">
+              <router-link :to="`/workspace/projects/ai/tasks/${row.taskId}`">
                 {{ row.name }}
-              </el-link>
+              </router-link>
             </template>
           </el-table-column>
           <el-table-column label="类型" width="110">
@@ -172,7 +165,7 @@ function asRow(row: unknown): AiTaskRow {
           </el-table-column>
           <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openDetail(asRow(row).taskId)">详情</el-button>
+              <router-link :to="`/workspace/projects/ai/tasks/${asRow(row).taskId}`">详情</router-link>
               <el-button
                 v-if="asRow(row).canAbort"
                 link
@@ -197,12 +190,9 @@ function asRow(row: unknown): AiTaskRow {
               <el-button @click="resetFilters">重置筛选</el-button>
             </el-empty>
             <el-empty v-else description="暂无 AI 任务" :image-size="80">
-              <el-button
-                type="primary"
-                @click="router.push('/workspace/projects/functional-testing?tab=requirements')"
-              >
+              <router-link to="/workspace/projects/functional-testing?tab=requirements">
                 去需求列表发起 AI 任务
-              </el-button>
+              </router-link>
             </el-empty>
           </template>
         </el-table>
@@ -272,6 +262,11 @@ function asRow(row: unknown): AiTaskRow {
 
 .ai-task-center__card {
   margin-bottom: var(--space-md);
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+  }
 }
 
 .task-summary {

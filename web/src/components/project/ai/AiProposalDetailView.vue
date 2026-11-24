@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import type { ProposalRow } from '@/composables/project/ai/useAiProposalReview'
 import ProposalCompareView from './ProposalCompareView.vue'
 
@@ -8,8 +7,6 @@ const props = defineProps<{
   row: ProposalRow
   taskType: string
 }>()
-
-const router = useRouter()
 
 const content = computed(() => props.row.content)
 const parsed = computed(() => props.row.parsed)
@@ -26,9 +23,6 @@ const hasDetail = computed(() => {
   )
 })
 
-function goRequirement(requirementId: string): void {
-  if (requirementId) void router.push(`/workspace/projects/requirements/${requirementId}`)
-}
 </script>
 
 <template>
@@ -63,9 +57,10 @@ function goRequirement(requirementId: string): void {
           :key="`${source.id}-${index}`"
           class="adoption-detail__source"
         >
-          <el-link type="primary" underline="never" @click="goRequirement(source.id)">
-            {{ source.title || source.id || '查看来源原文' }}
-          </el-link>
+          <router-link v-if="source.id" :to="`/workspace/projects/requirements/${source.id}`">
+            {{ source.title || '查看来源原文' }}
+          </router-link>
+          <span v-else>{{ source.title || '查看来源原文' }}</span>
           <span class="adoption-detail__expected">{{ source.quote }}</span>
           <el-tag v-if="source.changed" size="small" type="warning" effect="light">已变更</el-tag>
         </div>
@@ -151,6 +146,11 @@ function goRequirement(requirementId: string): void {
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-xs) 0;
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+  }
 }
 
 .adoption-detail__alert {

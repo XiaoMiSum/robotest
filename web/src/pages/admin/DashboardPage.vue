@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { useDashboard, DASHBOARD_WORKSPACE_PAGE_SIZE } from '@/composables/admin/useDashboard'
 import ListPagination from '@/components/common/ListPagination.vue'
 import { formatDateTime } from '@/utils/format'
-
-const router = useRouter()
 
 const {
   loading,
@@ -160,9 +157,7 @@ const {
     <section class="panel">
       <header class="panel__head">
         <h2 class="panel__title">最近创建的空间</h2>
-        <el-link type="primary" underline="never" @click="router.push('/admin/workspaces')"
-          >查看全部 →</el-link
-        >
+        <router-link to="/admin/workspaces">查看全部 →</router-link>
       </header>
       <div v-if="workspaceError" class="dashboard__error" role="alert">
         <span>{{ workspaceError }}</span>
@@ -340,6 +335,11 @@ const {
   justify-content: space-between;
   gap: var(--space-md);
   margin-bottom: var(--space-lg);
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+  }
 }
 
 .panel__title {

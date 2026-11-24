@@ -45,7 +45,7 @@ function backToList(): void {
 <template>
   <main class="import-review">
     <nav class="import-review__breadcrumb" aria-label="面包屑">
-      <el-link type="primary" :underline="false" @click="backToList">需求列表</el-link>
+      <router-link :to="REQUIREMENT_LIST_ROUTE">需求列表</router-link>
       <span aria-hidden="true">›</span>
       <span>导入结果审核</span>
     </nav>
@@ -57,7 +57,7 @@ function backToList(): void {
       sub-title="任务可能已被删除，或当前账号无权查看"
     >
       <template #extra>
-        <el-button type="primary" @click="backToList">返回需求列表</el-button>
+        <router-link :to="REQUIREMENT_LIST_ROUTE">返回需求列表</router-link>
       </template>
     </el-result>
 
@@ -108,7 +108,7 @@ function backToList(): void {
           <div class="import-review__actions">
             <el-button v-if="canAbort" link type="warning" @click="handleAbort">终止</el-button>
             <el-button v-if="canReExecute" link type="primary" size="small" @click="handleReExecute">重新执行</el-button>
-            <el-button link @click="backToList">返回需求列表</el-button>
+            <router-link :to="REQUIREMENT_LIST_ROUTE">返回需求列表</router-link>
           </div>
         </header>
 
@@ -141,7 +141,7 @@ function backToList(): void {
           description="任务已完成，但没有需要审核的导入建议"
           :image-size="80"
         >
-          <el-button @click="backToList">返回需求列表</el-button>
+          <router-link :to="REQUIREMENT_LIST_ROUTE">返回需求列表</router-link>
         </el-empty>
       </template>
     </template>
@@ -160,6 +160,18 @@ function backToList(): void {
   margin-bottom: var(--space-md);
   color: var(--color-neutral-500);
   font-size: var(--font-size-sm);
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+  }
+}
+
+.el-result__extra a,
+.el-empty__bottom a,
+.import-review__actions a {
+  color: var(--color-primary-500);
+  text-decoration: none;
 }
 
 .import-review__skeleton,

@@ -44,7 +44,6 @@ defineProps<{
   caseDetailRows: { id: string; depth: number; badge: Badge; title: string }[]
   caseDocName: string
   loadCaseDetail: () => void
-  openCaseDocument: () => void
 }>()
 
 const emit = defineEmits<{
@@ -160,9 +159,15 @@ const sideTab = ref<'attributes' | 'resolution' | 'logs'>('attributes')
                       </div>
                     </div>
                     <div class="bug-detail__case-pop-footer">
-                      <el-link type="primary" underline="never" @click="openCaseDocument">
+                      <router-link
+                        v-if="caseDetail?.documentId"
+                        :to="{
+                          path: '/workspace/projects/functional-testing',
+                          query: { tab: 'cases', documentId: caseDetail.documentId },
+                        }"
+                      >
                         <el-icon><Position /></el-icon>打开所在文档
-                      </el-link>
+                      </router-link>
                     </div>
                   </template>
                   <el-empty
@@ -203,13 +208,9 @@ const sideTab = ref<'attributes' | 'resolution' | 'logs'>('attributes')
             <span v-else>-</span>
           </el-descriptions-item>
           <el-descriptions-item v-if="detail.duplicateOfBugId" label="重复缺陷">
-            <el-link
-              type="primary"
-              underline="never"
-              :href="`/workspace/projects/bugs/${detail.duplicateOfBugId}`"
-            >
+            <router-link :to="`/workspace/projects/bugs/${detail.duplicateOfBugId}`">
               查看原始缺陷
-            </el-link>
+            </router-link>
           </el-descriptions-item>
           <el-descriptions-item label="解决人">
             {{ detail.resolvedBy ? `${detail.resolvedBy.name}（${formatDateTime(detail.resolvedAt!)}）` : '-' }}
@@ -397,6 +398,16 @@ const sideTab = ref<'attributes' | 'resolution' | 'logs'>('attributes')
   .el-icon {
     margin-right: var(--space-xs);
   }
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+  }
+}
+
+.bug-detail__resolution a {
+  color: var(--color-primary-500);
+  text-decoration: none;
 }
 
 .bug-detail__severity-dot {

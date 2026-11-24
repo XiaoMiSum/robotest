@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import type { TabPaneName } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
@@ -142,18 +141,13 @@ onMounted(() => {
 
 onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 
-const router = useRouter()
-
-function goBack(): void {
-  void router.push('/workspace/projects/functional-testing?tab=requirements')
-}
 </script>
 
 <template>
   <div class="requirement-detail">
     <div v-if="notFound" class="requirement-detail__missing">
       <el-empty description="需求不存在或无权访问" :image-size="120">
-        <el-button type="primary" @click="goBack">返回需求列表</el-button>
+        <router-link to="/workspace/projects/functional-testing?tab=requirements">返回需求列表</router-link>
       </el-empty>
     </div>
 
@@ -409,6 +403,11 @@ function goBack(): void {
   align-items: center;
   justify-content: center;
   min-height: 320px;
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+  }
 }
 
 // UI-BC-02：面包屑容器排版基准（同新建页）

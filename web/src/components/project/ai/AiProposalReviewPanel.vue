@@ -146,13 +146,13 @@ function moduleNameOf(moduleId: string): string {
       class="proposal-review__hint"
     >
       <template #default>
-        <el-button link type="primary" @click="emit('leave')">返回任务中心</el-button>
+        <el-link type="primary" underline="never" @click="emit('leave')">返回任务中心</el-link>
       </template>
     </el-alert>
 
     <div v-if="rows.length === 0" class="proposal-review__empty">
       <el-empty description="提案为空（执行未产出建议）" :image-size="80">
-        <el-button type="primary" @click="emit('leave')">返回任务中心</el-button>
+        <el-link type="primary" underline="never" @click="emit('leave')">返回任务中心</el-link>
       </el-empty>
     </div>
 

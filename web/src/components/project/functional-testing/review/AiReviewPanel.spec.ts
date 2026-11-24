@@ -84,7 +84,7 @@ describe('AiReviewPanel', () => {
       expect(text).toContain('获取验证码 › 步骤 2')
       expect(text).toContain('前置缺失')
       expect(text).toContain('REQ-001')
-      expect(wrapper.find('.el-link').exists()).toBe(true)
+      expect(wrapper.find('.review-card__sources .el-button').exists()).toBe(true)
     })
 
     it('建议通过时展示通过徽标且无问题时展示理由为空占位', () => {
@@ -102,7 +102,7 @@ describe('AiReviewPanel', () => {
     it('来源引用点击透传给宿主跳需求详情', async () => {
       const wrapper = mountPanel({ rows: [reviewRow()] })
 
-      await wrapper.find('.el-link').trigger('click')
+      await wrapper.find('.review-card__sources .el-button').trigger('click')
 
       expect(wrapper.emitted('openSource')).toHaveLength(1)
       expect(wrapper.emitted('openSource')?.[0]?.[0]).toMatchObject({

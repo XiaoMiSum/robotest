@@ -204,9 +204,9 @@ function onReceiptRetry(item: ConfirmItemResult): void {
               :content="source.quote || source.title"
               :disabled="!source.quote"
             >
-              <el-link type="primary" @click="emit('openSource', source)">
+              <el-button link type="primary" size="small" @click="emit('openSource', source)">
                 {{ source.title || source.id }}
-              </el-link>
+              </el-button>
             </el-tooltip>
           </div>
 

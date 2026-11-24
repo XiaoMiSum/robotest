@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { formatShortId } from '@/utils/format'
 import { BUG_STATUS_LABEL } from '@/composables/project/bug/bugStatus'
 import type { BugDuplicateSuggestItem, BugStatus } from '@/types'
 
 defineProps<{ items: BugDuplicateSuggestItem[] }>()
-
-const router = useRouter()
 
 /** 相似度百分比仅作排序信号，阈值不对外承诺（详设 3.4） */
 function similarityText(value: number): string {
@@ -17,9 +14,6 @@ function statusLabel(status: BugStatus): string {
   return BUG_STATUS_LABEL[status] ?? status
 }
 
-function openBug(bugId: string): void {
-  void router.push(`/workspace/projects/bugs/${bugId}`)
-}
 </script>
 
 <template>
@@ -28,9 +22,9 @@ function openBug(bugId: string): void {
     <ul class="dup-suggest__list">
       <li v-for="item in items" :key="item.bugId" class="dup-suggest__item">
         <div class="dup-suggest__row">
-          <el-link type="primary" :underline="false" @click="openBug(item.bugId)">
+          <router-link :to="`/workspace/projects/bugs/${item.bugId}`">
             {{ formatShortId(item.bugId) }}
-          </el-link>
+          </router-link>
           <span class="dup-suggest__bug-title">{{ item.title }}</span>
           <el-tag size="small" effect="plain">{{ statusLabel(item.status) }}</el-tag>
           <el-tooltip content="相似度仅作排序信号，不对外承诺阈值" placement="top">
@@ -77,6 +71,11 @@ function openBug(bugId: string): void {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+
+  a {
+    color: var(--color-primary-500);
+    text-decoration: none;
+  }
 }
 
 .dup-suggest__bug-title {

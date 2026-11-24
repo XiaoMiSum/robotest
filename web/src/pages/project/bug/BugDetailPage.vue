@@ -39,7 +39,6 @@ const {
   uploading,
   handleCaseSelected,
   loadCaseDetail,
-  openCaseDocument,
   handleSave,
   handleConfirm,
   handleResolve,
@@ -202,7 +201,6 @@ watch(detail, async () => {
           :case-detail-rows="caseDetailRows"
           :case-doc-name="caseDocName"
           :load-case-detail="loadCaseDetail"
-          :open-case-document="openCaseDocument"
           @open-case-selector="handleOpenCaseSelector"
           @clear-case="handleClearCase"
         />

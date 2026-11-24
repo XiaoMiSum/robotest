@@ -37,7 +37,7 @@ const {
   <main class="ai-task-detail">
     <!-- 面包屑：内容区顶部回退入口（UI-BC-01） -->
     <nav class="task-breadcrumb" aria-label="面包屑">
-      <el-link type="primary" :underline="false" @click="backToCenter">AI 任务中心</el-link>
+      <router-link to="/workspace/projects/ai/tasks">AI 任务中心</router-link>
       <span class="task-breadcrumb__sep" aria-hidden="true">›</span>
       <span class="task-breadcrumb__current" :title="name">{{ name || '任务详情' }}</span>
     </nav>
@@ -49,7 +49,7 @@ const {
       sub-title="任务可能已被删除，或当前账号无权查看"
     >
       <template #extra>
-        <el-button type="primary" @click="backToCenter">返回任务中心</el-button>
+        <router-link to="/workspace/projects/ai/tasks">返回任务中心</router-link>
       </template>
     </el-result>
 
@@ -155,7 +155,7 @@ const {
             description="任务完成，但没有需要审核的提案"
             :image-size="80"
           >
-            <el-button @click="backToCenter">返回任务中心</el-button>
+            <router-link to="/workspace/projects/ai/tasks">返回任务中心</router-link>
           </el-empty>
         </section>
       </template>
@@ -172,8 +172,20 @@ const {
   font-size: var(--font-size-sm);
 }
 
+.task-breadcrumb a {
+  color: var(--color-primary-500);
+  font-weight: 500;
+  text-decoration: none;
+}
+
 .task-breadcrumb__sep {
   color: var(--color-neutral-400);
+}
+
+.el-result__extra a,
+.el-empty__bottom a {
+  color: var(--color-primary-500);
+  text-decoration: none;
 }
 
 .task-breadcrumb__current {

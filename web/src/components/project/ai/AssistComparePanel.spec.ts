@@ -78,7 +78,7 @@ function actionButton(wrapper: VueWrapper, text: string) {
 }
 
 function nodeTitle(wrapper: VueWrapper): string {
-  const link = wrapper.find('.assist-panel__sources .el-link')
+  const link = wrapper.find('.assist-panel__sources .el-button')
   return link.exists() ? link.text() : ''
 }
 
@@ -136,7 +136,7 @@ describe('AssistComparePanel', () => {
     it('来源引用点击透传给宿主跳需求详情', async () => {
       const wrapper = mountPanel({ rows: [optimizeRow()] })
 
-      await wrapper.find('.assist-panel__sources .el-link').trigger('click')
+      await wrapper.find('.assist-panel__sources .el-button').trigger('click')
 
       expect(wrapper.emitted('openSource')).toHaveLength(1)
       expect(wrapper.emitted('openSource')?.[0]?.[0]).toMatchObject({
