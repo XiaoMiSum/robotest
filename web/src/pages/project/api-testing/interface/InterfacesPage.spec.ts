@@ -10,28 +10,26 @@ describe('InterfacesPage 列表表格高度', () => {
   })
 })
 
-describe('InterfaceWorkspace 页签头形态', () => {
-  it('整条标签头对齐快速调试：36px 页签、内缩下划线、无边框新建入口', () => {
-    expect(workspaceSource).toContain('addable')
-    expect(workspaceSource).not.toContain('type="card"')
-    expect(workspaceSource).toContain('@tab-add="handleHeaderCreate"')
-    expect(workspaceSource).toContain('padding: 4px 88px 0 6px')
+describe('InterfaceWorkspace 标签头形态', () => {
+  it('直接沿用快速调试页标签头结构，不再用 el-tabs 覆盖样式', () => {
+    expect(workspaceSource).not.toContain('<el-tabs')
+    expect(workspaceSource).toContain('class="workspace-tabbar"')
+    expect(workspaceSource).toContain('class="workspace-tabs"')
+    expect(workspaceSource).toContain('class="workspace-tab"')
+    expect(workspaceSource).toContain('class="workspace-tabbar__add"')
+    expect(workspaceSource).toContain('padding: 4px 6px 0')
     expect(workspaceSource).toContain('height: 36px')
     expect(workspaceSource).toContain('padding: 0 12px')
+    expect(workspaceSource).toContain('bottom: -1px')
     expect(workspaceSource).toContain('background: var(--color-primary-500)')
-    expect(workspaceSource).not.toContain('border-style: dashed')
-    expect(workspaceSource).toContain('height: 26px')
-    expect(workspaceSource).toContain('color: var(--color-neutral-400)')
   })
 
-  it('导入按钮为主色 link 小按钮带图标，且与新建入口上下边缘齐平', () => {
+  it('导入按钮与快速调试一致：主色 link 小按钮 + 下载图标，固定在最右', () => {
+    expect(workspaceSource).toContain('class="workspace-tabbar__right"')
     expect(workspaceSource).toContain('<el-button link type="primary" size="small" data-test="interface-import-btn"')
     expect(workspaceSource).toContain('<el-icon><Download /></el-icon>')
+    expect(workspaceSource).toContain('margin-left: auto')
     expect(workspaceSource).not.toContain('interface-create-btn')
-    expect(workspaceSource).toContain('top: 4px')
-    expect(workspaceSource).toContain('right: 6px')
-    expect(workspaceSource).toContain('height: 36px')
-    expect(workspaceSource).toContain(':deep(.el-button)')
   })
 })
 

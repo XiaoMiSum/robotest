@@ -57,12 +57,6 @@ function openCopyFrom(id: string) {
   void router.replace({ query: { tab: 'interfaces', action: 'create', copyFrom: id } })
 }
 
-async function closeByName(name: string | number) {
-  const key = String(name)
-  const tab = tabs.value.find((t) => t.key === key)
-  if (tab) await closeTab(tab)
-}
-
 async function closeTab(tab: EditorTab) {
   if (tab.dirty) {
     try {
@@ -157,45 +151,60 @@ watch(
 
 <template>
   <div class="interface-workspace">
-    <el-tabs
-      v-model="active"
-      addable
-      class="interface-workspace__tabs"
-      @tab-add="handleHeaderCreate"
-      @tab-remove="closeByName"
-    >
-      <template #add-icon>
-        <span title="新建接口"><el-icon><Plus /></el-icon></span>
-      </template>
-      <el-tab-pane :name="LIST_KEY" :closable="false">
-        <template #label>
-          <span class="interface-workspace__list-label">全部接口</span>
-        </template>
-        <KeepAlive>
-          <InterfacesPage
-            v-if="active === LIST_KEY"
-            ref="listRef"
-            @create="handleCreate"
-            @edit="handleEdit"
-            @copy="handleCopy"
-          />
-        </KeepAlive>
-      </el-tab-pane>
-
-      <el-tab-pane
-        v-for="tab in tabs"
-        :key="tab.key"
-        :name="tab.key"
-        :closable="true"
-      >
-        <template #label>
-          <span
-            class="interface-workspace__tab-label"
-            :class="{ 'is-dirty': tab.dirty }"
-          >
+    <!-- 标签头直接沿用快速调试页 .debug-tabbar 的结构与样式，不再用 el-tabs 包裹 -->
+    <div class="workspace-tabbar">
+      <div class="workspace-tabs">
+        <div
+          class="workspace-tab"
+          :class="{ 'is-active': active === LIST_KEY }"
+          @click="active = LIST_KEY"
+        >
+          <span>全部接口</span>
+        </div>
+        <div
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="workspace-tab"
+          :class="{ 'is-active': active === tab.key, 'is-dirty': tab.dirty }"
+          @click="active = tab.key"
+        >
+          <span class="workspace-tab__label">
             {{ tab.name || (tab.createMode ? '新接口' : '') }}
           </span>
-        </template>
+          <el-button
+            class="workspace-tab__close"
+            link
+            aria-label="关闭标签"
+            @click.stop="closeTab(tab)"
+          >
+            <el-icon><Close /></el-icon>
+          </el-button>
+        </div>
+      </div>
+
+      <el-button link class="workspace-tabbar__add" title="新建接口" @click="handleHeaderCreate">
+        <el-icon><Plus /></el-icon>
+      </el-button>
+
+      <div class="workspace-tabbar__right">
+        <el-button link type="primary" size="small" data-test="interface-import-btn" @click="handleHeaderImport">
+          <el-icon><Download /></el-icon>
+          <span>导入</span>
+        </el-button>
+      </div>
+    </div>
+
+    <div class="workspace-content">
+      <KeepAlive>
+        <InterfacesPage
+          v-if="active === LIST_KEY"
+          ref="listRef"
+          @create="handleCreate"
+          @edit="handleEdit"
+          @copy="handleCopy"
+        />
+      </KeepAlive>
+      <template v-for="tab in tabs" :key="tab.key">
         <KeepAlive>
           <InterfaceEditorPage
             v-if="active === tab.key"
@@ -209,182 +218,137 @@ watch(
             @dirty-change="(d: boolean) => handleDirty(tab.key, d)"
           />
         </KeepAlive>
-      </el-tab-pane>
-    </el-tabs>
-
-    <!-- [导入] 固定在页签条最右；新建入口由 el-tabs 原生 addable 提供，位于页签末尾 -->
-    <div class="interface-workspace__actions">
-      <el-button link type="primary" size="small" data-test="interface-import-btn" @click="handleHeaderImport">
-        <el-icon><Download /></el-icon>
-        <span>导入</span>
-      </el-button>
+      </template>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+// 以下标签头样式逐条对齐 DebugPage.vue 的 .debug-page__tabbar / .debug-tab，保持三页视觉一致
 .interface-workspace {
-  position: relative;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-
-  // 整条标签头以快速调试 .debug-tabbar 为准，收敛 Element Plus 默认结构的样式差异（UI-DS-09 例外，已确认原型）
-  :deep(.el-tabs__header) {
-    margin-bottom: var(--space-sm);
-    // 右侧为 [导入] 预留空间；左对齐让 [+] 紧跟最后一个页签
-    padding: 4px 88px 0 6px;
-    gap: var(--space-xs);
-    border-bottom: 1px solid var(--color-neutral-200);
-    justify-content: flex-start;
-  }
-
-  :deep(.el-tabs__nav-wrap) {
-    flex: 0 1 auto;
-    min-width: 0;
-    margin-bottom: 0;
-
-    // 页签头底边线已是公共基线，避免与激活下划线叠成双线
-    &::after {
-      display: none;
-    }
-  }
-
-  :deep(.el-tabs__nav) {
-    float: none;
-    gap: 2px;
-  }
-
-  :deep(.el-tabs__item) {
-    height: 36px;
-    padding: 0 12px;
-    color: var(--color-neutral-500);
-    font-size: var(--font-size-sm);
-    font-weight: 400;
-
-    &:hover {
-      color: var(--color-neutral-800);
-    }
-
-    &.is-active {
-      color: var(--color-primary-600);
-      font-weight: 600;
-    }
-
-    // 激活下划线压在底边线上，内缩 6px 与快速调试一致
-    &.is-active::after {
-      content: '';
-      position: absolute;
-      left: 6px;
-      right: 6px;
-      bottom: -1px;
-      height: 2px;
-      border-radius: 1px;
-      background: var(--color-primary-500);
-    }
-  }
-
-  // EP 对首尾页签有清零内边距的默认规则，需显式还原快速调试的 12px
-  :deep(.el-tabs__item:nth-child(2)) {
-    padding-left: 12px;
-  }
-
-  :deep(.el-tabs__item:last-child) {
-    padding-right: 12px;
-  }
-
-  :deep(.el-tabs__active-bar) {
-    display: none;
-  }
-
-  :deep(.el-tabs__item .is-icon-close) {
-    margin-left: 0;
-    padding: 0 3px;
-    color: var(--color-neutral-400);
-    font-size: 14px;
-
-    &:hover {
-      color: var(--color-neutral-700);
-      background: var(--color-neutral-100);
-      border-radius: 50%;
-    }
-  }
-
-  // [+] 与右侧 [导入] 小按钮同高，保证两个按钮上下边缘齐平
-  :deep(.el-tabs__new-tab) {
-    box-sizing: border-box;
-    height: 26px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    margin: 0 auto 0 var(--space-xs);
-    padding: 0 4px;
-    border: none;
-    background: transparent;
-    color: var(--color-neutral-400);
-    font-size: 14px;
-
-    &:hover {
-      color: var(--color-primary-500);
-    }
-  }
-
-  :deep(.el-tabs__content) {
-    // 让内容区垂直伸满 tab 容器，保证编辑器/列表页的 height:100% 能解析到满高
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  :deep(.el-tab-pane) {
-    height: 100%;
-    overflow: hidden;
-  }
-
 }
 
-.interface-workspace__tabs {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-// [导入] 固定在页签头最右，与页签同一水平线（页签头 4px 上内边距 + 36px 页签高）
-.interface-workspace__actions {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  z-index: 10;
-  height: 36px;
+.workspace-tabbar {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--color-neutral-200);
+}
 
-  // 与 [+] 同高，保证两个按钮上下边缘齐平
-  :deep(.el-button) {
-    box-sizing: border-box;
-    height: 26px;
-    padding: 0 4px;
+.workspace-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 
-.interface-workspace__list-label {
-  font-weight: 500;
-}
+.workspace-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  max-width: 200px;
+  flex-shrink: 0;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: color var(--transition-fast);
 
-.interface-workspace__tab-label {
+  &:hover {
+    color: var(--color-neutral-800);
+  }
+
+  &.is-active {
+    color: var(--color-primary-600);
+    font-weight: 600;
+  }
+
+  // 激活下划线压在标签条底边线上，所有页签共用一条基线
+  &.is-active::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-primary-500);
+  }
+
+  // 未保存修改的蓝点：与快速调试页签内的状态标记同尺寸
   &.is-dirty::before {
     content: '';
-    display: inline-block;
     width: 6px;
     height: 6px;
-    margin-right: 6px;
     border-radius: 50%;
     background: var(--color-primary-500);
-    vertical-align: middle;
+    flex-shrink: 0;
   }
+
+  &__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  // el-button link 的文字色与 hover 背景由 EP 类控制，需借父级选择器提升优先级覆盖
+  &__close {
+    color: var(--color-neutral-400);
+    font-size: 14px;
+    flex-shrink: 0;
+    height: auto;
+    padding: 0 3px;
+  }
+
+  &__close:not(:disabled):hover {
+    color: var(--color-neutral-700);
+    background: var(--color-neutral-100);
+    border-radius: 50%;
+  }
+}
+
+.workspace-tabbar__add {
+  padding: 2px 4px;
+  color: var(--color-neutral-400);
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    color: var(--color-primary-500);
+  }
+}
+
+.workspace-tabbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: var(--space-xs);
+}
+
+.workspace-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>

@@ -54,12 +54,6 @@ function openCopyFrom(id: string) {
   void router.replace({ query: { ...route.query, tab: 'scenes', action: 'create', copyFrom: id } })
 }
 
-async function closeByName(name: string | number) {
-  const key = String(name)
-  const tab = tabs.value.find((t) => t.key === key)
-  if (tab) await closeTab(tab)
-}
-
 async function closeTab(tab: EditorTab) {
   if (tab.dirty) {
     try {
@@ -124,44 +118,52 @@ restoreFromQuery()
 
 <template>
   <div class="scene-workspace">
-    <el-tabs
-      v-model="active"
-      addable
-      class="scene-workspace__tabs"
-      @tab-add="handleCreate"
-      @tab-remove="closeByName"
-    >
-      <template #add-icon>
-        <span title="新建场景"><el-icon><Plus /></el-icon></span>
-      </template>
-      <el-tab-pane :name="LIST_KEY" :closable="false">
-        <template #label>
-          <span class="scene-workspace__list-label">全部场景</span>
-        </template>
-        <KeepAlive>
-          <ScenariosPage
-            v-if="active === LIST_KEY"
-            @create="handleCreate"
-            @edit="handleEdit"
-            @copy="handleCopy"
-          />
-        </KeepAlive>
-      </el-tab-pane>
-
-      <el-tab-pane
-        v-for="tab in tabs"
-        :key="tab.key"
-        :name="tab.key"
-        :closable="true"
-      >
-        <template #label>
-          <span
-            class="scene-workspace__tab-label"
-            :class="{ 'is-dirty': tab.dirty }"
-          >
+    <!-- 标签头直接沿用快速调试页 .debug-tabbar 的结构与样式，不再用 el-tabs 包裹 -->
+    <div class="workspace-tabbar">
+      <div class="workspace-tabs">
+        <div
+          class="workspace-tab"
+          :class="{ 'is-active': active === LIST_KEY }"
+          @click="active = LIST_KEY"
+        >
+          <span>全部场景</span>
+        </div>
+        <div
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="workspace-tab"
+          :class="{ 'is-active': active === tab.key, 'is-dirty': tab.dirty }"
+          @click="active = tab.key"
+        >
+          <span class="workspace-tab__label">
             {{ tab.name || (tab.createMode ? '新场景' : '') }}
           </span>
-        </template>
+          <el-button
+            class="workspace-tab__close"
+            link
+            aria-label="关闭标签"
+            @click.stop="closeTab(tab)"
+          >
+            <el-icon><Close /></el-icon>
+          </el-button>
+        </div>
+      </div>
+
+      <el-button link class="workspace-tabbar__add" title="新建场景" @click="handleCreate()">
+        <el-icon><Plus /></el-icon>
+      </el-button>
+    </div>
+
+    <div class="workspace-content">
+      <KeepAlive>
+        <ScenariosPage
+          v-if="active === LIST_KEY"
+          @create="handleCreate"
+          @edit="handleEdit"
+          @copy="handleCopy"
+        />
+      </KeepAlive>
+      <template v-for="tab in tabs" :key="tab.key">
         <KeepAlive>
           <SceneEditorPage
             v-if="active === tab.key"
@@ -175,154 +177,128 @@ restoreFromQuery()
             @dirty-change="(d: boolean) => handleDirty(tab.key, d)"
           />
         </KeepAlive>
-      </el-tab-pane>
-    </el-tabs>
+      </template>
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+// 以下标签头样式逐条对齐 DebugPage.vue 的 .debug-page__tabbar / .debug-tab，保持三页视觉一致
 .scene-workspace {
-  position: relative;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
 
-  // 整条标签头以快速调试 .debug-tabbar 为准，收敛 Element Plus 默认结构的样式差异（UI-DS-09 例外，已确认原型）
-  :deep(.el-tabs__header) {
-    margin-bottom: var(--space-sm);
-    padding: 4px 6px 0;
-    gap: var(--space-xs);
-    border-bottom: 1px solid var(--color-neutral-200);
-    justify-content: flex-start;
-  }
+.workspace-tabbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--color-neutral-200);
+}
 
-  :deep(.el-tabs__nav-wrap) {
-    flex: 0 1 auto;
-    min-width: 0;
-    margin-bottom: 0;
+.workspace-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
 
-    // 页签头底边线已是公共基线，避免与激活下划线叠成双线
-    &::after {
-      display: none;
-    }
-  }
-
-  :deep(.el-tabs__nav) {
-    float: none;
-    gap: 2px;
-  }
-
-  :deep(.el-tabs__item) {
-    height: 36px;
-    padding: 0 12px;
-    color: var(--color-neutral-500);
-    font-size: var(--font-size-sm);
-    font-weight: 400;
-
-    &:hover {
-      color: var(--color-neutral-800);
-    }
-
-    &.is-active {
-      color: var(--color-primary-600);
-      font-weight: 600;
-    }
-
-    // 激活下划线压在底边线上，内缩 6px 与快速调试一致
-    &.is-active::after {
-      content: '';
-      position: absolute;
-      left: 6px;
-      right: 6px;
-      bottom: -1px;
-      height: 2px;
-      border-radius: 1px;
-      background: var(--color-primary-500);
-    }
-  }
-
-  // EP 对首尾页签有清零内边距的默认规则，需显式还原快速调试的 12px
-  :deep(.el-tabs__item:nth-child(2)) {
-    padding-left: 12px;
-  }
-
-  :deep(.el-tabs__item:last-child) {
-    padding-right: 12px;
-  }
-
-  :deep(.el-tabs__active-bar) {
+  &::-webkit-scrollbar {
     display: none;
   }
-
-  :deep(.el-tabs__item .is-icon-close) {
-    margin-left: 0;
-    padding: 0 3px;
-    color: var(--color-neutral-400);
-    font-size: 14px;
-
-    &:hover {
-      color: var(--color-neutral-700);
-      background: var(--color-neutral-100);
-      border-radius: 50%;
-    }
-  }
-
-  // [+] 与快速调试新建入口同形态；固定 26px 高以与接口管理 [导入] 口径一致
-  :deep(.el-tabs__new-tab) {
-    box-sizing: border-box;
-    height: 26px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    margin: 0 auto 0 var(--space-xs);
-    padding: 0 4px;
-    border: none;
-    background: transparent;
-    color: var(--color-neutral-400);
-    font-size: 14px;
-
-    &:hover {
-      color: var(--color-primary-500);
-    }
-  }
-
-  :deep(.el-tabs__content) {
-    // 让内容区垂直伸满 tab 容器，保证编辑器/列表页的 height:100% 能解析到满高
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  :deep(.el-tab-pane) {
-    height: 100%;
-    overflow: hidden;
-  }
-
 }
 
-.scene-workspace__tabs {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
+.workspace-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  max-width: 200px;
+  flex-shrink: 0;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: color var(--transition-fast);
 
-.scene-workspace__list-label {
-  font-weight: 500;
-}
+  &:hover {
+    color: var(--color-neutral-800);
+  }
 
-.scene-workspace__tab-label {
+  &.is-active {
+    color: var(--color-primary-600);
+    font-weight: 600;
+  }
+
+  // 激活下划线压在标签条底边线上，所有页签共用一条基线
+  &.is-active::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-primary-500);
+  }
+
+  // 未保存修改的蓝点：与快速调试页签内的状态标记同尺寸
   &.is-dirty::before {
     content: '';
-    display: inline-block;
     width: 6px;
     height: 6px;
-    margin-right: 6px;
     border-radius: 50%;
     background: var(--color-primary-500);
-    vertical-align: middle;
+    flex-shrink: 0;
   }
+
+  &__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  // el-button link 的文字色与 hover 背景由 EP 类控制，需借父级选择器提升优先级覆盖
+  &__close {
+    color: var(--color-neutral-400);
+    font-size: 14px;
+    flex-shrink: 0;
+    height: auto;
+    padding: 0 3px;
+  }
+
+  &__close:not(:disabled):hover {
+    color: var(--color-neutral-700);
+    background: var(--color-neutral-100);
+    border-radius: 50%;
+  }
+}
+
+.workspace-tabbar__add {
+  padding: 2px 4px;
+  color: var(--color-neutral-400);
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    color: var(--color-primary-500);
+  }
+}
+
+.workspace-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>
