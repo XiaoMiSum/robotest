@@ -10,6 +10,17 @@ describe('InterfacesPage 列表表格高度', () => {
   })
 })
 
+describe('InterfaceWorkspace 页签条形态', () => {
+  it('默认型页签 + 页签末尾虚线新建入口，导入为主色链接', () => {
+    expect(workspaceSource).toContain('addable')
+    expect(workspaceSource).not.toContain('type="card"')
+    expect(workspaceSource).toContain('@tab-add="handleHeaderCreate"')
+    expect(workspaceSource).toContain('border-style: dashed')
+    expect(workspaceSource).toContain('<el-button link data-test="interface-import-btn"')
+    expect(workspaceSource).not.toContain('interface-create-btn')
+  })
+})
+
 describe('InterfacesPage KeepAlive 恢复时列表刷新', () => {
   it('列表页经 onActivated 加载数据（新建/编辑器返回列表 Tab 时刷新），不再依赖 onMounted', () => {
     expect(pageSource).toContain('onActivated')

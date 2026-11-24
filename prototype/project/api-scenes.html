@@ -9,9 +9,8 @@
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
   [hidden] { display: none !important; }
-  /* SceneWorkspace: el-tabs header margin-bottom var(--space-sm), padding-right for action button */
-  .split__main > .ws-tabs { margin-bottom: var(--space-sm); padding-right: 120px; position: relative; }
-  .ws-tabs__actions { position: absolute; top: 0; right: 0; height: 40px; display: flex; align-items: center; gap: var(--space-sm); z-index: 10; }
+  /* 与实现 el-tabs header 的 margin-bottom 对齐；新建入口是页签末尾的弱样式，无需为右侧按钮预留空间 */
+  .split__main > .ws-tabs { margin-bottom: var(--space-sm); }
   .ws-tab__label { font-weight: 500; }
   .ws-tab.is-dirty .ws-tab__label::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--brand-500); vertical-align: middle; }
   .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
@@ -400,13 +399,11 @@
     <aside class="split__side" data-side="api"></aside>
 
     <div class="split__main">
-      <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：全部场景（固定）+ 已打开的编排 Tab（可关闭），
-           页面级新建入口固定在页签条最右端（对齐 SceneWorkspace 的「新建场景」按钮） -->
+      <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：默认型页签（下划线选中，不用 card），首个固定「全部场景」，
+           其后为编排 Tab（可关闭）；末尾虚线 [+] 为弱新建入口，不与编排页 [运行]/[保存]/[发布] 争主色 -->
       <div class="ws-tabs">
         <div class="ws-tab is-active" data-pane="list"><span class="ws-tab__label">全部场景</span></div>
-        <div class="ws-tabs__actions">
-          <button type="button" class="btn btn--primary" id="btn-new-scene"><span data-icon="plus"></span>新建场景</button>
-        </div>
+        <button type="button" class="ws-tabs__add" id="tab-add-scene" title="新建场景" aria-label="新建场景"><span data-icon="plus"></span></button>
       </div>
 
       <div class="ws-pane" data-pane="list">
@@ -2702,8 +2699,7 @@ Content-Type: application/json
       btn.addEventListener('click', clearActiveDirty);
     });
 
-    // 页面级「新建场景」按钮固定在页签条最右端（SceneWorkspace 口径），不随激活 Tab 变化，
-    // 主视觉权重自然留给编排页操作条的 [运行场景][保存为草稿][发布]
+    // 主视觉权重留给编排页操作条的 [运行场景][保存为草稿][发布]，页签条新建入口保持弱样式
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
       var isList = tab.getAttribute('data-pane') === 'list';
@@ -2735,8 +2731,8 @@ Content-Type: application/json
         if (isCI) found.setAttribute('data-ci', '1');
         found.innerHTML = '<span class="ws-tab__label"></span><span class="ws-tab__close" data-close>×</span>';
         found.firstElementChild.textContent = name;
-        // 插到「新建场景」按钮之前，保证新建入口紧跟最后一个页签
-        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__actions'));
+        // 插到 [+] 之前，保证虚线新建入口恒在最后一个页签之后
+        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__add'));
       }
       activate(found);
     }
@@ -2764,8 +2760,8 @@ Content-Type: application/json
       });
     });
 
-    // 右上角 [新建场景]：新建态 Tab（无发布状态 / 优先级 / 删除入口）
-    document.getElementById('btn-new-scene').addEventListener('click', function () {
+    // 页签末尾 [+]：新建态 Tab（无发布状态 / 优先级 / 删除入口）
+    document.getElementById('tab-add-scene').addEventListener('click', function () {
       openTab('新场景', true);
     });
 

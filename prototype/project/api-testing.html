@@ -243,15 +243,15 @@
 
     <div class="split__main">
       <div class="ws">
-        <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：全部接口（固定）+ 打开的编辑 Tab（脏态蓝点 / 可关闭），
-             与实现一致，页签条最右端为 [导入] + [新建接口]，不随激活 Tab 变化 -->
+        <!-- 编辑器 Tab 条即页面首行（页面不设标题行）：默认型页签（下划线选中，不用 card），首个固定「全部接口」，
+             其后为编辑 Tab（脏态蓝点 / 可关闭）；末尾虚线 [+] 为弱新建入口，最右 [导入] 为主色链接按钮，均不与编辑器 [保存] 争主色 -->
         <div class="ws-tabs">
           <div class="ws-tab is-active" data-pane="list"><span>全部接口</span></div>
           <div class="ws-tab is-dirty" data-name="创建订单" data-method="POST" data-path="/api/v1/orders"><span>创建订单</span><span class="ws-tab__close" data-close>×</span></div>
           <div class="ws-tab" data-name="查询订单详情" data-method="GET" data-path="/api/v1/orders/{orderId}"><span>查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
+          <button type="button" class="ws-tabs__add" id="tab-add-interface" title="新建接口" aria-label="新建接口"><span data-icon="plus"></span></button>
           <div class="ws-tabs__actions">
-            <button class="btn btn--default" id="btn-import-interface">导入</button>
-            <button class="btn btn--primary" id="btn-new-interface"><span data-icon="plus"></span>新建接口</button>
+            <button type="button" class="btn btn--link" id="btn-import-interface">导入</button>
           </div>
         </div>
 
@@ -1038,7 +1038,7 @@ var rt = window.RTUX;
 
     function activeTab() { return tabsBar.querySelector('.ws-tab.is-active'); }
 
-    // 页签条最右的 [导入] / [新建接口] 不随激活 Tab 变换；编辑器默认页签按实现口径：
+    // 页签末尾 [+] 与最右 [导入] 均为弱入口，不随激活 Tab 变换；编辑器默认页签按实现口径：
     // 新建态落「请求头」，编辑态落「基本信息」
     function activate(tab) {
       tabsBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
@@ -1118,8 +1118,8 @@ var rt = window.RTUX;
         if (create) found.setAttribute('data-create', '1');
         found.innerHTML = '<span></span><span class="ws-tab__close" data-close>×</span>';
         found.querySelector('span').textContent = name;
-        // 插到最右动作区之前，保证 [导入] / [新建接口] 恒在页签条最右
-        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__actions'));
+        // 插到 [+] 之前，保证虚线新建入口恒在最后一个页签之后
+        tabsBar.insertBefore(found, tabsBar.querySelector('.ws-tabs__add'));
       }
       activate(found);
     }
@@ -1219,8 +1219,8 @@ var rt = window.RTUX;
     });
 
     // 名称链接与行内 [编辑] 均按接口打开编辑页签（openEditor 两个入口）
-    // 页签条最右 [新建接口]：新建态页签，编辑器默认落「请求头」
-    document.getElementById('btn-new-interface').addEventListener('click', function () {
+    // 页签末尾虚线 [+]：新建态页签，编辑器默认落「请求头」
+    document.getElementById('tab-add-interface').addEventListener('click', function () {
       openTab('新接口', 'GET', '', true);
     });
     // 页签条最右 [导入]：先切回列表，再弹导入对话框（实现 handleHeaderImport）

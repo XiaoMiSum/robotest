@@ -126,9 +126,14 @@ restoreFromQuery()
   <div class="scene-workspace">
     <el-tabs
       v-model="active"
+      addable
       class="scene-workspace__tabs"
+      @tab-add="handleCreate"
       @tab-remove="closeByName"
     >
+      <template #add-icon>
+        <span title="新建场景"><el-icon class="is-icon-plus"><Plus /></el-icon></span>
+      </template>
       <el-tab-pane :name="LIST_KEY" :closable="false">
         <template #label>
           <span class="scene-workspace__list-label">全部场景</span>
@@ -172,13 +177,6 @@ restoreFromQuery()
         </KeepAlive>
       </el-tab-pane>
     </el-tabs>
-
-    <!-- 顶部最右侧：列表数据操作按钮，始终可见，不与 tab 条重叠 -->
-    <div class="scene-workspace__actions">
-      <el-button type="primary" data-test="scene-create-btn" @click="handleCreate()">
-        <el-icon><Plus /></el-icon>新建场景
-      </el-button>
-    </div>
   </div>
 </template>
 
@@ -192,8 +190,27 @@ restoreFromQuery()
 
   :deep(.el-tabs__header) {
     margin-bottom: var(--space-sm);
-    // 为最右侧「新建场景」按钮预留横向空间，避免 tab 条与其重叠
-    padding-right: 120px;
+    justify-content: flex-start;
+  }
+
+  :deep(.el-tabs__nav-wrap) {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  // UI-DS-09 例外（已确认原型）：原生新建页签按钮为实线，改为虚线弱入口且不与编排页主操作争色
+  :deep(.el-tabs__new-tab) {
+    width: 26px;
+    height: 26px;
+    margin: 7px 0 7px 8px;
+    border-style: dashed;
+    border-color: var(--el-border-color-lighter);
+    color: var(--el-text-color-placeholder);
+
+    &:hover {
+      color: var(--el-color-primary);
+      border-color: var(--el-color-primary-light-5);
+    }
   }
 
   :deep(.el-tabs__content) {
@@ -219,18 +236,6 @@ restoreFromQuery()
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-// 覆盖到最右侧，与 tab 条同一行、垂直居中，始终可见（不随激活 Tab 变化）
-.scene-workspace__actions {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 10;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
 }
 
 .scene-workspace__list-label {

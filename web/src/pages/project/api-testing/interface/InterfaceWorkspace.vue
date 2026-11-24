@@ -90,7 +90,7 @@ function handleCopy(id: string) {
   openCopyFrom(id)
 }
 
-// 头部「新建/导入」作用于列表数据：确保切回列表 Tab 后，经 ref 委托给列表页（复用其当前模块上下文）
+// 页签条 [+] / [导入] 作用于列表数据：切回列表 Tab 后经 ref 委托列表页，复用当前模块上下文
 const listRef = ref<InstanceType<typeof InterfacesPage> | null>(null)
 
 async function ensureOnList() {
@@ -159,10 +159,14 @@ watch(
   <div class="interface-workspace">
     <el-tabs
       v-model="active"
-      type="card"
+      addable
       class="interface-workspace__tabs"
+      @tab-add="handleHeaderCreate"
       @tab-remove="closeByName"
     >
+      <template #add-icon>
+        <span title="新建接口"><el-icon class="is-icon-plus"><Plus /></el-icon></span>
+      </template>
       <el-tab-pane :name="LIST_KEY" :closable="false">
         <template #label>
           <span class="interface-workspace__list-label">全部接口</span>
@@ -208,12 +212,9 @@ watch(
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 顶部最右侧：列表数据操作按钮，始终可见，不与 tab 条重叠 -->
+    <!-- [导入] 固定在页签条最右；新建入口由 el-tabs 原生 addable 提供，位于页签末尾 -->
     <div class="interface-workspace__actions">
-      <el-button data-test="interface-import-btn" @click="handleHeaderImport">导入</el-button>
-      <el-button type="primary" data-test="interface-create-btn" @click="handleHeaderCreate">
-        <el-icon><Plus /></el-icon>新建接口
-      </el-button>
+      <el-button link data-test="interface-import-btn" @click="handleHeaderImport">导入</el-button>
     </div>
   </div>
 </template>
@@ -228,8 +229,29 @@ watch(
 
   :deep(.el-tabs__header) {
     margin-bottom: var(--space-sm);
-    // 为最右侧「导入 / 新建接口」按钮预留横向空间，避免 tab 条与其重叠
-    padding-right: 200px;
+    // 为最右侧 [导入] 链接预留空间；左对齐让原生 [+] 紧跟最后一个页签
+    padding-right: 72px;
+    justify-content: flex-start;
+  }
+
+  :deep(.el-tabs__nav-wrap) {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  // UI-DS-09 例外（已确认原型）：原生新建页签按钮为实线，改为虚线弱入口且不与编辑器按钮争主色
+  :deep(.el-tabs__new-tab) {
+    width: 26px;
+    height: 26px;
+    margin: 7px 0 7px 8px;
+    border-style: dashed;
+    border-color: var(--el-border-color-lighter);
+    color: var(--el-text-color-placeholder);
+
+    &:hover {
+      color: var(--el-color-primary);
+      border-color: var(--el-color-primary-light-5);
+    }
   }
 
   :deep(.el-tabs__content) {
@@ -257,7 +279,7 @@ watch(
   flex-direction: column;
 }
 
-// 覆盖到最右侧，与 tab 条同一行、垂直居中，始终可见（不随激活 Tab 变化）
+// [导入] 固定在页签条最右，不随激活 Tab 变化
 .interface-workspace__actions {
   position: absolute;
   top: 0;
