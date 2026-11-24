@@ -331,4 +331,8 @@ describe('ScenariosPage 搜索栏容器', () => {
     expect(pageSource).toContain('<div class="scenarios-page__toolbar">')
     expect(pageSource).toContain('flex-shrink: 0')
   })
+
+  it('搜索栏顶部留白与新增/编辑页表单一致为 12px', () => {
+    expect(pageSource).toContain('padding-top: var(--space-md)')
+  })
 })

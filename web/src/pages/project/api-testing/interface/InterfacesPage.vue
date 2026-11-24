@@ -478,6 +478,8 @@ defineExpose({ openCreate, openImport })
   align-items: center;
   gap: var(--space-sm);
   flex-shrink: 0;
+  // 与新增/编辑页表单同源的 12px 顶部留白，标签头之后不再贴边
+  padding-top: var(--space-md);
 }
 
 .interfaces-page__spacer {
