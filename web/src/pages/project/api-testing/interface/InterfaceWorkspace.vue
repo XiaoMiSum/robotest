@@ -165,7 +165,7 @@ watch(
       @tab-remove="closeByName"
     >
       <template #add-icon>
-        <span title="新建接口"><el-icon class="is-icon-plus"><Plus /></el-icon></span>
+        <span title="新建接口"><el-icon><Plus /></el-icon></span>
       </template>
       <el-tab-pane :name="LIST_KEY" :closable="false">
         <template #label>
@@ -239,18 +239,19 @@ watch(
     min-width: 0;
   }
 
-  // UI-DS-09 例外（已确认原型）：原生新建页签按钮为实线，改为虚线弱入口且不与编辑器按钮争主色
+  // UI-DS-09 例外（已确认原型）：新建入口改为与快速调试一致的无边框 link 图标
   :deep(.el-tabs__new-tab) {
-    width: 26px;
-    height: 26px;
-    margin: 7px 0 7px 8px;
-    border-style: dashed;
-    border-color: var(--el-border-color-lighter);
-    color: var(--el-text-color-placeholder);
+    width: auto;
+    height: auto;
+    margin: 0 0 0 2px;
+    padding: 2px 4px;
+    border: none;
+    background: transparent;
+    color: var(--color-neutral-400);
+    font-size: 14px;
 
     &:hover {
-      color: var(--el-color-primary);
-      border-color: var(--el-color-primary-light-5);
+      color: var(--color-primary-500);
     }
   }
 

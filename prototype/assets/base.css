@@ -1318,21 +1318,18 @@ a:hover {
   padding-left: var(--space-xs);
 }
 
-/* 新建入口：紧跟最后一个页签的虚线 + 图标，无文字，避免与页签文字混排时抢注意力 */
+/* 新建入口：紧跟最后一个页签的无边框 link 图标，与快速调试 .tabbar__add 同形态 */
 .ws-tabs__add {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  margin-left: var(--space-xs);
-  padding: 0;
+  padding: 2px 4px;
+  border: none;
   background: transparent;
-  border: 1px dashed var(--n-200);
-  border-radius: var(--radius-md);
   color: var(--n-400);
   cursor: pointer;
   flex-shrink: 0;
+  font-size: 14px;
 }
 
 .ws-tabs__add svg {
@@ -1342,7 +1339,6 @@ a:hover {
 
 .ws-tabs__add:hover {
   color: var(--brand-500);
-  border-color: var(--brand-300);
 }
 
 /* 分段控件（活跃/已归档 等） */

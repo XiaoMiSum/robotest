@@ -51,6 +51,9 @@ const activeLabel = computed(
   () => allItems.find((item) => item.key === activeMenu.value)?.label ?? '',
 )
 
+// 页签即页面首行的子页不需要顶部留白，否则页签条与卡片顶边之间出现明显空隙
+const isTabbedPage = computed(() => ['debug', 'interfaces', 'scenes'].includes(activeMenu.value))
+
 // 接口管理多 Tab 编辑器：刷新/直链经 query 恢复由 InterfaceWorkspace 内部处理；
 // pendingInterfaceId 供「快速调试 → 查看接口」跨子页跳转打开对应编辑 Tab
 const pendingInterfaceId = ref<string | null>(null)
@@ -128,7 +131,7 @@ watch(
       </el-menu>
     </aside>
 
-    <main class="api-testing__main">
+    <main class="api-testing__main" :class="{ 'api-testing__main--tabs': isTabbedPage }">
       <EnvironmentPage v-if="activeMenu === 'environments'" />
       <GitLabSettingsPage v-else-if="activeMenu === 'gitlab'" />
       <FunctionPage v-else-if="activeMenu === 'functions'" />
@@ -239,6 +242,10 @@ watch(
   border: 1px solid var(--shell-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-float);
+
+  &--tabs {
+    padding-top: 0;
+  }
 }
 
 .api-testing__placeholder {

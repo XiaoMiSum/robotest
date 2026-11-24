@@ -15,6 +15,12 @@ describe('ApiTestingPage 子模块入口', () => {
     expect(pageSource).not.toContain('暂无可用功能模块')
   })
 
+  it('页签首行的三个子页收紧顶部留白，其余子页保持卡片内边距', () => {
+    expect(pageSource).toContain("['debug', 'interfaces', 'scenes'].includes(activeMenu.value)")
+    expect(pageSource).toContain("'api-testing__main--tabs': isTabbedPage")
+    expect(pageSource).toContain('padding-top: 0;')
+  })
+
   it('GitLab 集成入口渲染配置子页', () => {
     expect(pageSource).toContain("key: 'gitlab'")
     expect(pageSource).toContain("import GitLabSettingsPage from './gitlab/GitLabSettingsPage.vue'")
