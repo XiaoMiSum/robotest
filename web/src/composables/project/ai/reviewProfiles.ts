@@ -8,12 +8,13 @@ import {
 } from '@/composables/project/ai/assistPresentation'
 import type { AiPlanOrderItem } from '@/types'
 
-/** 编辑字段的输入形态；lines 按行拆为字符串数组，ranks 由有序 rankItems 驱动 */
+/** 编辑字段的输入形态；module 为已有模块树 / 新增模块名的二选一，ranks 由有序 rankItems 驱动 */
 export type ProposalEditFieldType =
   | 'text'
   | 'textarea'
   | 'select'
   | 'tree'
+  | 'module'
   | 'lines'
   | 'ranks'
 
@@ -81,6 +82,10 @@ function readString(source: Record<string, unknown>, key: string): string {
   return typeof value === 'string' ? value : ''
 }
 
+function readBoolean(source: Record<string, unknown>, key: string): boolean {
+  return source[key] === true
+}
+
 function readStrings(raw: unknown): string[] {
   if (typeof raw === 'string') return raw.trim() ? [raw] : []
   if (!Array.isArray(raw)) return []
@@ -110,7 +115,7 @@ const PRIORITY_OPTIONS = [
   { value: 'low', label: '低' },
 ]
 
-function requirementProfile(taskType: string, title: string): ProposalReviewProfile {
+function requirementProfile(taskType: string, title: string, withNewModule = false): ProposalReviewProfile {
   return {
     taskType,
     title,
@@ -123,7 +128,11 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
     editFields: [
       { key: 'title', label: '标题', type: 'text', required: true, maxlength: 300 },
       { key: 'description', label: '描述', type: 'textarea' },
-      { key: 'moduleId', label: '所属模块', type: 'tree' },
+      {
+        key: 'moduleId',
+        label: withNewModule ? '模块归属' : '所属模块',
+        type: withNewModule ? 'module' : 'tree',
+      },
       { key: 'priority', label: '优先级', type: 'select', options: PRIORITY_OPTIONS },
     ],
     parse(content, fallbackTitle) {
@@ -131,8 +140,11 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
       parsed.description = readString(content, 'description')
       const title = readString(content, 'title') || readString(content, 'name') || fallbackTitle
       const moduleId = readString(content, 'moduleId')
+      const moduleName = readString(content, 'moduleName')
+      const newModule = readBoolean(content, 'newModule')
       const priority = readString(content, 'priority')
       if (moduleId) parsed.fields.push({ label: '模块 ID', value: moduleId })
+      if (withNewModule && newModule) parsed.fields.push({ label: '新增模块', value: '是' })
       if (priority) parsed.fields.push({ label: '优先级', value: priority })
       const sourceRef = readString(content, 'sourceRef')
       if (sourceRef) parsed.fields.push({ label: '来源引用', value: sourceRef })
@@ -140,11 +152,13 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
         title,
         description: parsed.description,
         moduleId,
+        moduleName,
+        newModule,
         priority,
       }
       return parsed
     },
-    buildEditedContent(values) {
+    buildEditedContent(values, content) {
       const payload: Record<string, unknown> = {}
       const title = typeof values.title === 'string' ? values.title.trim() : ''
       const description = typeof values.description === 'string' ? values.description.trim() : ''
@@ -153,6 +167,13 @@ function requirementProfile(taskType: string, title: string): ProposalReviewProf
       if (title) payload.title = title
       if (description) payload.description = description
       if (moduleId) payload.moduleId = moduleId
+      if (withNewModule) {
+        const moduleName = typeof values.moduleName === 'string'
+          ? values.moduleName.trim() : readString(content, 'moduleName')
+        payload.moduleName = moduleName
+        payload.newModule = typeof values.newModule === 'boolean'
+          ? values.newModule : readBoolean(content, 'newModule')
+      }
       if (priority) payload.priority = priority
       return payload
     },
@@ -295,7 +316,7 @@ const mindmapCaseGenerationProfile: ProposalReviewProfile = {
 }
 
 const REGISTRY: Record<string, ProposalReviewProfile> = {
-  requirement_import: requirementProfile('requirement_import', '导入结果审核'),
+  requirement_import: requirementProfile('requirement_import', '导入结果审核', true),
   requirement_split: requirementProfile('requirement_split', '拆分结果审核'),
   case_optimize: caseOptimizeProfile,
   mindmap_case_generation: mindmapCaseGenerationProfile,

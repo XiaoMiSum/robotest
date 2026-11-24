@@ -60,6 +60,8 @@ export interface AiProposalContent {
   title: string
   description: string
   moduleId: string
+  moduleName: string
+  newModule: boolean
   priority: string
   sourceRef: string
 }
@@ -68,6 +70,8 @@ const EMPTY_CONTENT: AiProposalContent = {
   title: '',
   description: '',
   moduleId: '',
+  moduleName: '',
+  newModule: false,
   priority: '',
   sourceRef: '',
 }
@@ -183,6 +187,8 @@ export function useAiProposalReview(
         title: readString(raw, 'title') || readString(raw, 'name') || row.title || '',
         description: readString(raw, 'description'),
         moduleId: readString(raw, 'moduleId'),
+        moduleName: readString(raw, 'moduleName'),
+        newModule: raw.newModule === true,
         priority: readString(raw, 'priority'),
         sourceRef: readString(raw, 'sourceRef'),
       }

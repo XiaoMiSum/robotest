@@ -147,6 +147,8 @@ describe('useAiProposalReview', () => {
         title: '登录验证码',
         description: '校验短信验证码',
         moduleId: 'm1',
+        moduleName: '',
+        newModule: false,
         priority: 'high',
         sourceRef: 'P3 §2.1',
       })

@@ -161,7 +161,7 @@ describe('RequirementImportReviewPanel', () => {
     expect(wrapper.findAll('.proposal-review__item')).toHaveLength(1)
   })
 
-  it('不渲染左侧列表、勾选、全选与批量操作计数', () => {
+  it('导入审核渲染批量操作但不渲染左侧列表', () => {
     const wrapper = mountPanel('requirement_import', [
       proposal({ kind: 'requirement_suggestion', title: '登录需求' }),
     ])
@@ -169,10 +169,30 @@ describe('RequirementImportReviewPanel', () => {
     expect(wrapper.text()).toContain('导入结果审核')
     expect(wrapper.find('.proposal-review__version').exists()).toBe(true)
     expect(wrapper.find('.proposal-review__list').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('全选')
-    expect(wrapper.text()).not.toContain('批量采纳')
-    expect(wrapper.text()).not.toContain('已选')
+    expect(wrapper.text()).toContain('全选待处理')
+    expect(wrapper.text()).toContain('批量采纳')
+    expect(wrapper.text()).toContain('已选')
     expect(wrapper.find('.proposal-review__foot').exists()).toBe(false)
+  })
+
+  it('导入审核展示模块名称、新增模块标记与拆分规则提示', async () => {
+    mocks.fetchAiProposal.mockResolvedValue({
+      content: {
+        title: '需求管理',
+        description: '文档原文全文',
+        moduleName: '需求管理',
+        newModule: true,
+      },
+    })
+    const wrapper = mountPanel('requirement_import', [
+      proposal({ kind: 'requirement_suggestion', title: '需求管理' }),
+    ])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('单模块文档整篇保留')
+    expect(wrapper.text()).toContain('模块：需求管理')
+    expect(wrapper.text()).toContain('新增模块')
+    expect(wrapper.text()).toContain('文档原文全文')
   })
 
   it('只读任务卡片不渲染采纳与驳回操作', async () => {

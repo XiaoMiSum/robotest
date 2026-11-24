@@ -40,6 +40,11 @@ const {
   canEdit,
   canReject,
   needSystemVersion,
+  canBatch,
+  selectedKeys,
+  selectableRows,
+  allSelected,
+  toggleAll,
   NOTE_MAX_LENGTH,
   syncRows,
   init,
@@ -47,6 +52,8 @@ const {
   handleAdopt,
   handleAdoptEdited,
   handleReject,
+  handleBatchAdopt,
+  handleBatchReject,
   retryResult,
   clearReceipt,
 } = useAiProposalReview(
@@ -138,6 +145,10 @@ function moduleNameOf(moduleId: string): string {
   return moduleNameMap.value.get(moduleId) ?? ''
 }
 
+function proposalModuleName(row: ProposalRow): string {
+  return row.content.moduleName || moduleNameOf(row.content.moduleId)
+}
+
 // ==================== 编辑后采纳 ====================
 const editVisible = ref(false)
 const editRowKey = ref('')
@@ -161,9 +172,37 @@ function scalarField(key: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 }
 
-const editValid = computed(() =>
-  editFields.value.every((field) => !field.required || fieldText(field.key).trim().length > 0),
-)
+const moduleModeNew = computed(() => editForm.value.newModule === true)
+const moduleMode = computed<'existing' | 'new'>(() => (moduleModeNew.value ? 'new' : 'existing'))
+
+function setModuleMode(mode: 'existing' | 'new'): void {
+  const next: Record<string, unknown> = { ...editForm.value, newModule: mode === 'new' }
+  if (mode === 'new') {
+    next.moduleId = ''
+  } else {
+    next.moduleName = moduleNameOf(scalarField('moduleId'))
+  }
+  editForm.value = next
+}
+
+function onExistingModuleChange(moduleId: string): void {
+  editForm.value = { ...editForm.value, moduleId, moduleName: moduleNameOf(moduleId) }
+}
+
+function onToggleAll(value: unknown): void {
+  toggleAll(value === true)
+}
+
+function onModuleModeChange(value: unknown): void {
+  setModuleMode(value === 'new' ? 'new' : 'existing')
+}
+
+const editValid = computed(() => {
+  const fieldsValid = editFields.value.every(
+    (field) => !field.required || fieldText(field.key).trim().length > 0,
+  )
+  return fieldsValid && (!moduleModeNew.value || scalarField('moduleName').trim().length > 0)
+})
 
 async function openEdit(row: ProposalRow): Promise<void> {
   if (!row.contentLoaded) await loadContent(row)
@@ -234,6 +273,15 @@ async function submitReject(): Promise<void> {
   const ok = await handleReject(row, rejectNote.value, targetVersion())
   if (ok) rejectVisible.value = false
 }
+
+// ==================== 批量动作 ====================
+async function batchAdopt(): Promise<void> {
+  await handleBatchAdopt(targetVersion())
+}
+
+async function batchReject(): Promise<void> {
+  await handleBatchReject(targetVersion())
+}
 </script>
 
 <template>
@@ -269,6 +317,15 @@ async function submitReject(): Promise<void> {
       v-if="taskType === 'requirement_split'"
       type="info"
       :title="`新条目将继承原条目版本${versionTouched && versionValue.trim() ? `（当前值：${versionValue.trim()}）` : ''}、原条目将归档`"
+      show-icon
+      :closable="false"
+      class="proposal-review__hint"
+    />
+
+    <el-alert
+      v-if="taskType === 'requirement_import'"
+      type="info"
+      title="单模块文档整篇保留为 1 条建议（描述为原文全文）；多模块文档按模块拆分，不按功能点或章节细分。"
       show-icon
       :closable="false"
       class="proposal-review__hint"
@@ -324,8 +381,11 @@ async function submitReject(): Promise<void> {
             </template>
           </el-alert>
           <p v-if="row.note" class="proposal-review__note">驳回原因：{{ row.note }}</p>
-          <span v-if="moduleNameOf(row.content.moduleId)" class="proposal-review__meta">
-            模块：{{ moduleNameOf(row.content.moduleId) }}
+          <span v-if="proposalModuleName(row)" class="proposal-review__meta">
+            模块：{{ proposalModuleName(row) }}
+            <el-tag v-if="row.content.newModule" type="warning" size="small" effect="plain">
+              新增模块
+            </el-tag>
           </span>
           <span v-if="row.content.sourceRef" class="proposal-review__meta">
             来源：{{ row.content.sourceRef }}
@@ -407,6 +467,35 @@ async function submitReject(): Promise<void> {
       </div>
     </div>
 
+    <!-- 批量动作：沿用提案审核的组合式能力，选中集仅含待处理项 -->
+    <div v-if="canBatch && rows.length > 0" class="proposal-review__batch">
+      <el-checkbox
+        :model-value="allSelected"
+        :disabled="selectableRows.length === 0"
+        @update:model-value="onToggleAll"
+      >
+        全选待处理
+      </el-checkbox>
+      <el-button
+        type="primary"
+        size="small"
+        :loading="confirming"
+        :disabled="selectedKeys.length === 0"
+        @click="batchAdopt"
+      >
+        批量采纳
+      </el-button>
+      <el-button
+        size="small"
+        :loading="confirming"
+        :disabled="selectedKeys.length === 0"
+        @click="batchReject"
+      >
+        全部驳回
+      </el-button>
+      <span class="proposal-review__batch-count">已选 {{ selectedKeys.length }} / 共 {{ rows.length }}</span>
+    </div>
+
     <!-- 逐项回执：失败项可单项重试（交互 2.3 回执） -->
     <AiConfirmReceipt
       v-if="receipt.length > 0"
@@ -446,6 +535,34 @@ async function submitReject(): Promise<void> {
                 <el-icon class="proposal-review__rank-edit-handle"><OperationIcon /></el-icon>
               </li>
             </ol>
+          </el-form-item>
+          <el-form-item v-else-if="field.type === 'module'" :label="field.label">
+            <el-radio-group
+              :model-value="moduleMode"
+              class="proposal-review__module-mode"
+              @update:model-value="onModuleModeChange"
+            >
+              <el-radio value="existing">已有模块</el-radio>
+              <el-radio value="new">新增模块</el-radio>
+            </el-radio-group>
+            <el-tree-select
+              v-if="!moduleModeNew"
+              :model-value="scalarField('moduleId')"
+              :data="moduleTree"
+              :props="{ label: 'name', children: 'children' }"
+              node-key="id"
+              check-strictly
+              style="width: 100%"
+              @update:model-value="onExistingModuleChange"
+            />
+            <el-input
+              v-else
+              :model-value="scalarField('moduleName')"
+              maxlength="100"
+              show-word-limit
+              placeholder="填写新增模块名称"
+              @update:model-value="setField('moduleName', $event)"
+            />
           </el-form-item>
           <el-form-item v-else-if="field.type === 'tree'" :label="field.label">
             <el-tree-select
@@ -739,5 +856,27 @@ async function submitReject(): Promise<void> {
 
 .proposal-review__rank-edit-handle {
   color: var(--color-neutral-500);
+}
+
+.proposal-review__batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-neutral-200);
+}
+
+.proposal-review__batch-count {
+  margin-left: auto;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
+.proposal-review__module-mode {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
 }
 </style>

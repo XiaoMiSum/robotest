@@ -40,6 +40,8 @@ function row(overrides: Partial<ProposalRow> = {}): ProposalRow {
       title: '登录',
       description: '',
       moduleId: '',
+      moduleName: '',
+      newModule: false,
       priority: '',
       sourceRef: '',
     },

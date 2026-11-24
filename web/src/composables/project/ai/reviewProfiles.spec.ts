@@ -19,6 +19,8 @@ describe('reviewProfiles', () => {
         title: '登录验证码',
         description: '支持图形验证码',
         moduleId: 'm1',
+        moduleName: '',
+        newModule: false,
         priority: 'high',
       })
       expect(parsed.fields).toEqual([
@@ -30,7 +32,23 @@ describe('reviewProfiles', () => {
         title: '登录验证码',
         description: '支持图形验证码',
         moduleId: 'm1',
+        moduleName: '',
+        newModule: false,
         priority: 'high',
+      })
+    })
+
+    it('导入产物保留模块名称与新增模块标记', () => {
+      const profile = reviewProfile('requirement_import')
+      const parsed = profile.parse(
+        { title: '需求管理', moduleName: '需求管理', newModule: true },
+        '兜底',
+      )
+      expect(parsed.editValues).toMatchObject({ moduleName: '需求管理', newModule: true })
+      expect(parsed.fields).toContainEqual({ label: '新增模块', value: '是' })
+      expect(profile.buildEditedContent(parsed.editValues, {})).toMatchObject({
+        moduleName: '需求管理',
+        newModule: true,
       })
     })
 
