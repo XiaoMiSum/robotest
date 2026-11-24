@@ -379,12 +379,15 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ### 4.5 导入拆解的采纳落库
 
+任务提案 `content` 口径（产物单一事实源）：`title`、`description`、`moduleId`（已有模块 id 或 null）、`moduleName`（模块名称，必填）、`newModule`（布尔，是否新增模块）、`priority`。`newModule = false` 时 `moduleId` 须命中项目现有模块；`newModule = true` 时 `moduleId` 为 null、`moduleName` 为建议新建的模块名。AI 拆分仅以模块为边界：单模块文档产出一条建议且 `description` 为原文全文，多模块文档每个模块一条建议且描述为对应原文片段，不按功能点、用户故事编号或章节小节细分。
+
 1. 任务提案逐条确认（`POST /api/ai/tasks/{taskId}/proposals/confirm`，`action = adopted / adopted_edited / rejected`）；
 2. `adopted / adopted_edited` 时由本模块 `RequirementAdoptService` 承接落库：
+   - 事务内先解析模块归属：`newModule = true` 且 `moduleName` 非空（≤ 100 字符）时，在项目根层级按名称查找模块——命中则复用、未命中则新建 `project_module`（`parent_id = null`、`sort_order = 0`），以该模块 id 作为需求归属；`newModule = false` 时沿用既有校验，`moduleId` 不存在或不属当前项目返回 1000018005。`moduleName` 为空或超长返回 1000018010；
    - 事务内分配编号、写 `requirement`（`status = confirmed`、`source = import`、`source_file_id` 继承来源文档）；`system_version` 取确认请求 `target.systemVersion`（确认面板修改值），缺省回退任务 `documentMeta.detectedVersion`，识别不到则留空待手工补录；
    - 写 `adopted_ref` 回填（任务侧记录新需求 ID），更新 `requirement_split_record.adopt_result` 与 `status`；
 3. 全部驳回：`split_record.status = rejected`，不产生任何需求；
-4. 采纳落库失败（如编号重试耗尽）时，该提案采纳动作整体回滚，任务侧保持待采纳态，可重试。
+4. 采纳落库失败（如编号重试耗尽、模块新建冲突）时，该提案采纳动作整体回滚，任务侧保持待采纳态，可重试。
 
 ### 4.6 归属与隔离
 
@@ -431,13 +434,13 @@ RequirementDetailPage
 
 RequirementImportReviewPage（导入结果审核，需求管理业务页）
 ├── ImportReviewHeader（面包屑「需求列表 › 导入结果审核」、任务状态、终止原因、再次执行）
-└── RequirementImportReviewPanel（版本预填/可修改/可清空、逐条与批量采纳、修改后采纳、驳回附反馈、逐项回执）
+└── RequirementImportReviewPanel（版本预填/可修改/可清空、逐条展示模块名称与新增模块标记、逐条与批量采纳、修改后采纳可改模块归属、驳回附反馈、逐项回执）
 ```
 
 ### 5.3 状态管理与交互
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务执行与轨迹订阅，任务完成回调刷新列表与拆解记录。
-- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转需求管理导入结果审核页（`/workspace/projects/requirements/import-review/:taskId`）→ 任务状态轮询 → 审核区（预填 AI 识别的版本，可修改或清空）逐条/批量采纳 → 刷新需求列表。AI 任务详情可只读查看提案产物与审核结果，不提供审核动作。
+- 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转需求管理导入结果审核页（`/workspace/projects/requirements/import-review/:taskId`）→ 任务状态轮询 → 审核区（预填 AI 识别的版本，可修改或清空）逐条查看模块名称与新增模块标记、逐条/批量采纳（修改后采纳可改模块归属）→ 刷新需求列表。AI 任务详情可只读查看提案产物与审核结果，不提供审核动作。
 - 全部状态分支：列表空态（引导新建/导入）、归档只读降级、业务状态不满足时隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
 
 ---
@@ -528,3 +531,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-11-18 | 移除需求管理 RBAC 权限码口径：删除权限码映射、权限点清单与相关错误码，接口统一按项目归属和成员身份校验，前端入口不再按权限码显隐 |
 | V1.0 | 2026-11-21 | 移除 AI+需求 生成链能力域：4.4 删除指向生成链详设的引用，5.2 组件树删除「AI 生成用例」入口 |
 | V1.0 | 2026-11-23 | 导入结果审核从任务详情迁至需求管理业务页：5.1 新增 `RequirementImportReviewPage` 路由、5.2 新增页面与面板组件，5.3 导入流程与测试要点同步；AI 任务详情仅回看 |
+| V1.0 | 2026-11-24 | 4.5 定义拆分产物 `moduleName` / `newModule` 口径与单模块整篇保留规则：采纳时复用或新建模块并关联需求，5.2 / 5.3 审核区同步展示模块名称与新增模块标记 |
