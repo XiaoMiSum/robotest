@@ -17,13 +17,36 @@
   #rv-table { min-width: 1300px; }
   #rv-table th:last-child,
   #rv-table td.ops-cell { width: 260px; min-width: 260px; white-space: nowrap; }
+  #rv-table td.ops-cell .btn { padding: 2px 4px; min-width: 0; height: auto; font-size: var(--font-size-sm); vertical-align: baseline; }
+  .btn--link.btn--link--danger { color: var(--st-danger); }
+  .btn--link.btn--link--danger:hover { color: var(--st-danger-strong); background: var(--st-danger-light); }
 
-  /* 列显隐配置：220px popover，操作列 pinned 不可取消（TableColumnSetting） */
-  .col-setting { position: relative; flex-shrink: 0; }
+  /* 列显隐配置：对齐 TableColumnSetting(icon-only) 放在操作列表头 */
+  .review-table__action-head {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-xs);
+    width: 100%;
+  }
+  .col-setting { position: relative; display: inline-flex; }
+  .col-setting__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--n-500);
+    cursor: pointer;
+  }
+  .col-setting__trigger:hover { color: var(--n-900); background: var(--n-100); }
+  .col-setting__trigger svg { width: 14px; height: 14px; }
   .col-setting__popover {
     position: absolute; top: calc(100% + 6px); right: 0; z-index: 120; width: 220px;
     padding: 12px; background: var(--n-0); border: 1px solid var(--n-200);
-    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); text-align: left;
   }
   .col-setting__title { font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: var(--space-sm); }
   .col-setting__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
@@ -70,27 +93,18 @@
       <div class="card">
         <div class="toolbar">
           <div class="toolbar__filters">
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" id="rv-keyword" placeholder="评审标题"></div>
-            <select class="select" id="rv-status" style="width:130px">
+            <div class="input-wrap" style="flex:1 1 14rem;max-width:32rem;min-width:0"><span data-icon="search"></span><input class="input" id="rv-keyword" aria-label="评审标题" placeholder="评审标题"></div>
+            <select class="select" id="rv-status" aria-label="评审状态" style="width:130px">
               <option value="">全部状态</option>
               <option value="new">待评审</option>
               <option value="in_progress">进行中</option>
               <option value="completed">已通过</option>
               <option value="rejected">已驳回</option>
             </select>
-            <button class="btn btn--primary" type="button" id="rv-search"><span data-icon="search"></span>查询</button>
-            <button class="btn btn--default" type="button" id="rv-reset">重置</button>
-            <div class="col-setting">
-              <button class="btn btn--default btn--sm" id="rv-col-btn" type="button" aria-label="列设置"><span data-icon="settings"></span>列设置</button>
-              <div class="col-setting__popover" id="rv-col-popover" hidden>
-                <div class="col-setting__title">显示列</div>
-                <div class="col-setting__list" id="rv-col-list"></div>
-                <div class="col-setting__actions">
-                  <button class="btn btn--link btn--sm" id="rv-col-all" type="button">全选</button>
-                  <button class="btn btn--link btn--sm" id="rv-col-reset" type="button">恢复默认</button>
-                </div>
-              </div>
-            </div>
+            <span class="btn-row" style="gap:8px">
+              <button class="btn btn--primary" type="button" id="rv-search"><span data-icon="search"></span>查询</button>
+              <button class="btn btn--default" type="button" id="rv-reset">重置</button>
+            </span>
           </div>
           <div class="toolbar__count" id="rv-count">共 24 场评审</div>
         </div>
@@ -98,7 +112,31 @@
         <div class="table-wrap">
           <table class="table" id="rv-table">
             <thead>
-              <tr><th>标题</th><th>发起人</th><th>状态</th><th>进度</th><th class="rate-col">通过率</th><th>参与者</th><th>创建时间</th><th>操作</th></tr>
+              <tr>
+                <th style="min-width:300px">标题</th>
+                <th style="width:100px">发起人</th>
+                <th style="width:96px">状态</th>
+                <th style="min-width:170px">进度</th>
+                <th class="rate-col" style="width:92px">通过率</th>
+                <th style="width:124px">参与者</th>
+                <th style="width:160px">创建时间</th>
+                <th style="width:260px">
+                  <div class="review-table__action-head">
+                    <span>操作</span>
+                    <div class="col-setting">
+                      <button class="col-setting__trigger" id="rv-col-btn" type="button" aria-label="列设置" aria-expanded="false"><span data-icon="settings"></span></button>
+                      <div class="col-setting__popover" id="rv-col-popover" hidden>
+                        <div class="col-setting__title">显示列</div>
+                        <div class="col-setting__list" id="rv-col-list"></div>
+                        <div class="col-setting__actions">
+                          <button class="btn btn--link btn--sm" id="rv-col-all" type="button">全选</button>
+                          <button class="btn btn--link btn--sm" id="rv-col-reset" type="button">恢复默认</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </th>
+              </tr>
             </thead>
             <tbody>
               <tr data-status="in_progress" data-title="下单模块用例评审" data-req="3" data-initiator="张明" data-participants="张明,李华,王芳,陈晓" data-reqs="REQ-2210,REQ-2235,REQ-2241">
@@ -109,7 +147,10 @@
                 <td class="num rate-col">40%</td>
                 <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">张</span><span class="avatar avatar--sm">李</span><span class="avatar avatar--sm">王</span><span class="avatar-stack__more">+1</span></span></td>
                 <td class="num">2026-09-21 11:20</td>
-                <td class="ops-cell"><a class="op-link" href="review-detail.html">进入</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
+                <td class="ops-cell">
+                  <button class="btn btn--link" type="button" data-nav="review-detail.html">进入</button>
+                  <button class="btn btn--link btn--link--danger" type="button" data-op="delete">删除</button>
+                </td>
               </tr>
               <tr data-status="new" data-title="支付中心回归用例评审" data-req="2" data-initiator="李华" data-participants="李华,陈晓,周敏" data-reqs="REQ-2235,REQ-2258">
                 <td class="cell-main"><a href="review-detail.html">支付中心回归用例评审</a><span class="cell-sub">关联用例 48 条</span></td>
@@ -119,7 +160,10 @@
                 <td class="num rate-col text-light">—</td>
                 <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">李</span><span class="avatar avatar--sm">陈</span><span class="avatar avatar--sm">周</span></span></td>
                 <td class="num">2026-09-20 15:44</td>
-                <td class="ops-cell"><a class="op-link" href="review-detail.html">进入</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
+                <td class="ops-cell">
+                  <button class="btn btn--link" type="button" data-nav="review-detail.html">进入</button>
+                  <button class="btn btn--link btn--link--danger" type="button" data-op="delete">删除</button>
+                </td>
               </tr>
               <tr data-status="completed" data-title="营销优惠边界用例评审" data-req="4" data-initiator="王芳" data-participants="王芳,张明" data-reqs="REQ-2210,REQ-2235,REQ-2241,REQ-2258">
                 <td class="cell-main"><a href="review-detail.html">营销优惠边界用例评审</a><span class="cell-sub">关联用例 26 条</span></td>
@@ -129,7 +173,10 @@
                 <td class="num rate-col text-success strong">96.2%</td>
                 <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">王</span><span class="avatar avatar--sm">张</span></span></td>
                 <td class="num">2026-09-17 10:12</td>
-                <td class="ops-cell"><a class="op-link" href="review-detail.html">查看</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
+                <td class="ops-cell">
+                  <button class="btn btn--link" type="button" data-nav="review-detail.html">查看</button>
+                  <button class="btn btn--link btn--link--danger" type="button" data-op="delete">删除</button>
+                </td>
               </tr>
               <tr data-status="rejected" data-title="履约配送用例评审" data-req="2" data-initiator="周敏" data-participants="周敏,李华,陈晓" data-reqs="REQ-2258,REQ-2260">
                 <td class="cell-main"><a href="review-detail.html">履约配送用例评审</a><span class="cell-sub">关联用例 35 条</span></td>
@@ -139,7 +186,11 @@
                 <td class="num rate-col text-danger">62.9%</td>
                 <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">周</span><span class="avatar avatar--sm">李</span><span class="avatar avatar--sm">陈</span></span></td>
                 <td class="num">2026-09-14 14:30</td>
-                <td class="ops-cell"><a class="op-link" href="review-detail.html">查看</a><span class="op-link" data-op="reopen">重新发起</span><span class="op-link op-link--danger" data-op="delete">删除</span></td>
+                <td class="ops-cell">
+                  <button class="btn btn--link" type="button" data-nav="review-detail.html">查看</button>
+                  <button class="btn btn--link" type="button" data-op="reopen">重新发起</button>
+                  <button class="btn btn--link btn--link--danger" type="button" data-op="delete">删除</button>
+                </td>
               </tr>
               <tr data-status="completed" data-title="冒烟集季度清理评审" data-req="1" data-initiator="张明" data-participants="张明,王芳" data-reqs="REQ-2210">
                 <td class="cell-main"><a href="review-detail.html">冒烟集季度清理评审</a><span class="cell-sub">关联用例 32 条</span></td>
@@ -149,7 +200,10 @@
                 <td class="num rate-col text-success strong">100%</td>
                 <td><span class="avatar-stack"><span class="avatar avatar--sm avatar--brand">张</span><span class="avatar avatar--sm">王</span></span></td>
                 <td class="num">2026-09-02 09:18</td>
-                <td class="ops-cell"><a class="op-link" href="review-detail.html">查看</a><span class="op-link op-link--danger" data-op="delete">删除</span></td>
+                <td class="ops-cell">
+                  <button class="btn btn--link" type="button" data-nav="review-detail.html">查看</button>
+                  <button class="btn btn--link btn--link--danger" type="button" data-op="delete">删除</button>
+                </td>
               </tr>
               <tr class="rv-empty" id="rv-empty" hidden><td colspan="8">暂无评审</td></tr>
             </tbody>
@@ -158,10 +212,17 @@
 
         <div class="pagination">
           <span class="pagination__total" id="rv-pager-total">共 24 场 · 每页 20 条</span>
-          <button class="page-btn" disabled>‹</button>
-          <button class="page-btn page-btn--active">1</button>
-          <button class="page-btn">2</button>
-          <button class="page-btn">›</button>
+          <select class="select" id="rv-page-size" style="width:110px;height:30px;font-size:var(--font-size-sm)" aria-label="每页条数">
+            <option value="20" selected>20 / 页</option>
+            <option value="50">50 / 页</option>
+            <option value="100">100 / 页</option>
+          </select>
+          <button class="page-btn" type="button" id="rv-pager-prev" disabled>‹</button>
+          <span id="rv-pages">
+            <button class="page-btn page-btn--active" type="button" data-page="1">1</button>
+            <button class="page-btn" type="button" data-page="2">2</button>
+          </span>
+          <button class="page-btn" type="button" id="rv-pager-next">›</button>
         </div>
       </div>
     </div>
@@ -201,7 +262,14 @@
         <label class="field__label">关联需求<span class="req">*</span></label>
         <div class="flex-center flex-gap-md">
           <button class="btn btn--default" type="button" id="rv-pick-req">选择需求</button>
-          <span class="text-xs muted" id="rv-req-count" hidden>已选 2 个需求</span>
+          <span class="text-xs muted" id="rv-req-count" hidden></span>
+        </div>
+        <div class="req-pick" id="rv-req-list" hidden>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2210"></span>REQ-2210 · 购物车结算金额计算</label>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2235"></span>REQ-2235 · 支付回调幂等处理</label>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2241"></span>REQ-2241 · 优惠券叠加规则</label>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2258"></span>REQ-2258 · 履约时效承诺</label>
+          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2260"></span>REQ-2260 · 配送超时赔付</label>
         </div>
         <div class="field__error" id="rv-req-error" hidden></div>
       </div>
@@ -275,7 +343,7 @@
     <div class="dialog__footer">
       <button class="btn btn--default" type="button" data-close="rv-confirm-dialog">取消</button>
       <button class="btn btn--default" type="button" id="rv-confirm-alt" hidden></button>
-      <button class="btn btn--danger" type="button" id="rv-confirm-ok">确认</button>
+      <button class="btn btn--primary" type="button" id="rv-confirm-ok">确认</button>
     </div>
   </div>
 </div>
@@ -312,9 +380,16 @@
   var TOTAL = 24;
   var keyword = byId('rv-keyword');
   var statusSel = byId('rv-status');
-  var rows = Array.prototype.slice.call(document.querySelectorAll('#rv-table tbody tr[data-status]'));
+  var tbody = byId('rv-table').tBodies[0];
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-status]'));
   var emptyRow = byId('rv-empty');
   var applied = { keyword: '', status: '' };
+  var pageSize = 20;
+  var currentPage = 1;
+  var pagerPrev = byId('rv-pager-prev');
+  var pagerNext = byId('rv-pager-next');
+  var pagerPages = byId('rv-pages');
+  var pageSizeSel = byId('rv-page-size');
 
   // 列显隐配置：pinned 的操作列强制展示且不可取消（useTableColumns / TableColumnSetting）
   var COLUMNS = [
@@ -329,20 +404,22 @@
   ];
   var visibleKeys = COLUMNS.map(function (c) { return c.key; });
 
-  // 静态表格无法用 v-if，初始化时给每个单元格打列标记，列设置按标记切换隐藏
+  // 静态表格无法用 v-if，给单元格打列标记，列设置按标记切换隐藏；新建行也复用同一标记逻辑
+  function markRowColumns(row) {
+    Array.prototype.forEach.call(row.children, function (td, i) {
+      if (i < COLUMNS.length) td.setAttribute('data-col', COLUMNS[i].key);
+    });
+    var req = Number(row.getAttribute('data-req') || 0);
+    if (!req) return;
+    var sub = row.querySelector('.cell-sub');
+    sub.textContent = '关联需求 ' + req + ' 项 · ' + sub.textContent;
+  }
+
   function markColumns() {
     Array.prototype.forEach.call(document.querySelectorAll('#rv-table thead th'), function (th, i) {
       th.setAttribute('data-col', COLUMNS[i].key);
     });
-    rows.forEach(function (row) {
-      Array.prototype.forEach.call(row.children, function (td, i) {
-        if (i < COLUMNS.length) td.setAttribute('data-col', COLUMNS[i].key);
-      });
-      var req = Number(row.getAttribute('data-req') || 0);
-      if (!req) return;
-      var sub = row.querySelector('.cell-sub');
-      sub.textContent = '关联需求 ' + req + ' 项 · ' + sub.textContent;
-    });
+    rows.forEach(markRowColumns);
   }
 
   function applyColumns() {
@@ -364,7 +441,7 @@
     });
     byId('rv-col-list').innerHTML = html;
     byId('rv-col-all').disabled = visibleKeys.length === COLUMNS.length;
-    byId('rv-col-reset').disabled = visibleKeys.length === COLUMNS.length;
+    byId('rv-col-reset').disabled = false;
   }
 
   function selectAllColumns() {
@@ -376,8 +453,10 @@
   byId('rv-col-btn').addEventListener('click', function (e) {
     e.stopPropagation();
     var popover = byId('rv-col-popover');
+    var btn = byId('rv-col-btn');
     if (popover.hidden) renderColumnSetting();
     popover.hidden = !popover.hidden;
+    btn.setAttribute('aria-expanded', String(!popover.hidden));
   });
   byId('rv-col-list').addEventListener('click', function (e) {
     var item = e.target.closest('.col-setting__item');
@@ -393,28 +472,53 @@
   });
   byId('rv-col-all').addEventListener('click', selectAllColumns);
   byId('rv-col-reset').addEventListener('click', selectAllColumns);
+  function closeColPopover() {
+    byId('rv-col-popover').hidden = true;
+    byId('rv-col-btn').setAttribute('aria-expanded', 'false');
+  }
   document.addEventListener('click', function (e) {
-    if (!e.target.closest('.col-setting')) byId('rv-col-popover').hidden = true;
+    if (!e.target.closest('.col-setting')) closeColPopover();
   });
 
+  function matches(row) {
+    return (!applied.status || row.getAttribute('data-status') === applied.status) &&
+      (!applied.keyword || row.getAttribute('data-title').indexOf(applied.keyword) !== -1);
+  }
+
+  function pageTotal(filtered) {
+    return (applied.keyword || applied.status) ? filtered.length : TOTAL;
+  }
+
+  function renderPager(pages) {
+    var html = '';
+    for (var p = 1; p <= pages; p++) {
+      html += '<button class="page-btn' + (p === currentPage ? ' page-btn--active' : '') +
+        '" type="button" data-page="' + p + '">' + p + '</button>';
+    }
+    pagerPages.innerHTML = html;
+    pagerPrev.disabled = currentPage <= 1;
+    pagerNext.disabled = currentPage >= pages;
+  }
+
   function render() {
-    var shown = 0;
-    rows.forEach(function (row) {
-      var matched =
-        (!applied.status || row.getAttribute('data-status') === applied.status) &&
-        (!applied.keyword || row.getAttribute('data-title').indexOf(applied.keyword) !== -1);
-      row.hidden = !matched;
-      if (matched) shown += 1;
-    });
-    var total = (applied.keyword || applied.status) ? shown : TOTAL;
-    emptyRow.hidden = shown !== 0;
+    var filtered = rows.filter(matches);
+    var total = pageTotal(filtered);
+    var pages = Math.max(1, Math.ceil(total / pageSize));
+    if (currentPage > pages) currentPage = pages;
+    var start = (currentPage - 1) * pageSize;
+    var pageRows = filtered.slice(start, start + pageSize);
+    rows.forEach(function (row) { row.hidden = pageRows.indexOf(row) === -1; });
+    emptyRow.hidden = pageRows.length !== 0;
+    emptyRow.querySelector('td').textContent = currentPage > 1 ? '当前页暂无演示数据' : '暂无评审';
     byId('rv-count').textContent = '共 ' + total + ' 场评审';
-    byId('rv-pager-total').textContent = '共 ' + total + ' 场 · 每页 20 条';
+    byId('rv-pager-total').textContent = '共 ' + total + ' 场 · 每页 ' + pageSize + ' 条';
+    renderPager(pages);
   }
 
   function search() {
     applied.keyword = keyword.value.trim();
     applied.status = statusSel.value;
+    currentPage = 1;
     render();
   }
 
@@ -423,12 +527,32 @@
     statusSel.value = '';
     applied.keyword = '';
     applied.status = '';
+    currentPage = 1;
     render();
   }
 
   byId('rv-search').addEventListener('click', search);
   keyword.addEventListener('keydown', function (e) { if (e.key === 'Enter') search(); });
   byId('rv-reset').addEventListener('click', reset);
+
+  pageSizeSel.addEventListener('change', function () {
+    pageSize = parseInt(pageSizeSel.value, 10) || 20;
+    currentPage = 1;
+    render();
+  });
+  pagerPrev.addEventListener('click', function () {
+    if (currentPage > 1) { currentPage -= 1; render(); }
+  });
+  pagerNext.addEventListener('click', function () {
+    var pages = Math.max(1, Math.ceil(pageTotal(rows.filter(matches)) / pageSize));
+    if (currentPage < pages) { currentPage += 1; render(); }
+  });
+  pagerPages.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-page]');
+    if (!btn) return;
+    currentPage = parseInt(btn.getAttribute('data-page'), 10);
+    render();
+  });
 
   var createDialog = byId('rv-create-dialog');
   var editDialog = byId('rv-edit-dialog');
@@ -441,6 +565,11 @@
     byId('rv-title').value = '';
     byId('rv-desc').value = '';
     byId('rv-title-count').textContent = '0';
+    byId('rv-req-list').hidden = true;
+    Array.prototype.forEach.call(byId('rv-req-list').querySelectorAll('.checkbox'), function (box) {
+      box.classList.remove('checkbox--on');
+    });
+    byId('rv-req-count').textContent = '';
     byId('rv-req-count').hidden = true;
     memberItems.forEach(function (item) { item.querySelector('.checkbox').classList.remove('checkbox--on'); });
     setError('rv-title-error', '');
@@ -448,11 +577,27 @@
     setError('rv-req-error', '');
   }
 
+  function pickedCreateReqCodes() {
+    return Array.prototype.map.call(
+      byId('rv-req-list').querySelectorAll('.checkbox--on'),
+      function (box) { return box.getAttribute('data-code'); }
+    );
+  }
+
+  function refreshCreateReqCount() {
+    var codes = pickedCreateReqCodes();
+    var countEl = byId('rv-req-count');
+    countEl.textContent = codes.length ? '已选 ' + codes.length + ' 个需求' : '';
+    countEl.hidden = codes.length === 0;
+    setError('rv-req-error', '');
+  }
+
   function askConfirm(title, body, okLabel, onOk, danger, altLabel, onAlt) {
     byId('rv-confirm-title').textContent = title;
     byId('rv-confirm-body').textContent = body;
     byId('rv-confirm-ok').textContent = okLabel;
-    byId('rv-confirm-ok').className = 'btn btn--sm ' + (danger ? 'btn--danger' : 'btn--primary');
+    // 与 ElMessageBox.confirm 口径一致：删除 danger，其余 warning→primary
+    byId('rv-confirm-ok').className = 'btn ' + (danger ? 'btn--danger' : 'btn--primary');
     var alt = byId('rv-confirm-alt');
     alt.hidden = !altLabel;
     alt.textContent = altLabel || '';
@@ -488,14 +633,14 @@
 
   function opsHtml(row) {
     var status = row.getAttribute('data-status');
-    var html = '<a class="op-link" href="review-detail.html">' +
-      (activeStatus[status] ? '进入' : '查看') + '</a>';
+    var html = '<button class="btn btn--link" type="button" data-nav="review-detail.html">' +
+      (activeStatus[status] ? '进入' : '查看') + '</button>';
     // 编辑仅活跃态且发起人为当前用户，与 canEdit 条件一致
     if (activeStatus[status] && row.getAttribute('data-initiator') === CURRENT_USER) {
-      html += '<span class="op-link" data-op="edit">编辑</span>';
+      html += '<button class="btn btn--link" type="button" data-op="edit">编辑</button>';
     }
-    if (status === 'rejected') html += '<span class="op-link" data-op="reopen">重新发起</span>';
-    return html + '<span class="op-link op-link--danger" data-op="delete">删除</span>';
+    if (status === 'rejected') html += '<button class="btn btn--link" type="button" data-op="reopen">重新发起</button>';
+    return html + '<button class="btn btn--link btn--link--danger" type="button" data-op="delete">删除</button>';
   }
 
   function syncOps() {
@@ -516,6 +661,11 @@
       else byId(targetId).hidden = true;
       return;
     }
+    var nav = e.target.closest('[data-nav]');
+    if (nav) {
+      window.location.href = nav.getAttribute('data-nav');
+      return;
+    }
     var member = e.target.closest('.member-pick__item');
     if (member) {
       member.querySelector('.checkbox').classList.toggle('checkbox--on');
@@ -526,7 +676,8 @@
     var reqPick = e.target.closest('.req-pick__item');
     if (reqPick) {
       reqPick.querySelector('.checkbox').classList.toggle('checkbox--on');
-      refreshEditReqCount();
+      if (reqPick.closest('#rv-create-dialog')) refreshCreateReqCount();
+      else refreshEditReqCount();
       return;
     }
     var op = e.target.closest('[data-op]');
@@ -550,10 +701,11 @@
     } else if (action === 'delete') {
       askConfirm('删除评审', '确定删除评审「' + title + '」？删除后不可恢复', '删除', function () {
         closeConfirm();
-        row.hidden = true;
         rows = rows.filter(function (r) { return r !== row; });
-        TOTAL -= 1;
+        if (row.parentNode) row.parentNode.removeChild(row);
+        TOTAL = Math.max(0, TOTAL - 1);
         render();
+        toast('已删除评审「' + title + '」', 'success');
       }, true);
     }
   });
@@ -568,7 +720,7 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    byId('rv-col-popover').hidden = true;
+    closeColPopover();
     createDialog.hidden = true;
     editDialog.hidden = true;
     closeConfirm();
@@ -590,26 +742,67 @@
     setError('rv-title-error', '');
   });
 
-  // 实际页经 RequirementPickerDialog 选择需求，静态稿给定一次选择结果
+  // 实际页经 RequirementPickerDialog 选择需求；原型用可勾选列表做同口径的本地选择
   byId('rv-pick-req').addEventListener('click', function () {
-    byId('rv-req-count').hidden = false;
-    setError('rv-req-error', '');
+    var list = byId('rv-req-list');
+    list.hidden = !list.hidden;
+    if (!list.hidden) refreshCreateReqCount();
   });
 
   byId('rv-create-ok').addEventListener('click', function () {
-    if (!byId('rv-title').value.trim()) {
+    var title = byId('rv-title').value.trim();
+    if (!title) {
       setError('rv-title-error', '请输入评审标题');
       return;
     }
-    if (!createDialog.querySelectorAll('.member-pick__item .checkbox--on').length) {
+    var members = Array.prototype.map.call(
+      createDialog.querySelectorAll('.member-pick__item'),
+      function (item) { return item.querySelector('.checkbox--on') ? item.textContent.trim() : ''; }
+    ).filter(Boolean);
+    if (!members.length) {
       setError('rv-member-error', '请选择至少一个参与者');
       return;
     }
-    if (byId('rv-req-count').hidden) {
+    var codes = pickedCreateReqCodes();
+    if (!codes.length) {
       setError('rv-req-error', '请关联至少一个需求');
       return;
     }
-    window.location.href = 'review-detail.html';
+
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    var now = new Date();
+    var createdAt = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) +
+      ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+    var row = document.createElement('tr');
+    row.setAttribute('data-status', 'new');
+    row.setAttribute('data-title', title);
+    row.setAttribute('data-req', String(codes.length));
+    row.setAttribute('data-initiator', CURRENT_USER);
+    row.setAttribute('data-participants', members.join(','));
+    row.setAttribute('data-reqs', codes.join(','));
+    row.innerHTML =
+      '<td class="cell-main"><a href="review-detail.html">' + escapeHtml(title) + '</a>' +
+        '<span class="cell-sub">关联用例 0 条</span></td>' +
+      '<td>' + escapeHtml(CURRENT_USER) + '</td>' +
+      '<td><span class="status status--neutral"><span class="dot"></span>待评审</span></td>' +
+      '<td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:0%"></div></div>' +
+        '<span class="progress__text">0/0</span></div></td>' +
+      '<td class="num rate-col text-light">—</td>' +
+      '<td>' + avatarStackHtml(members, CURRENT_USER) + '</td>' +
+      '<td class="num">' + createdAt + '</td>' +
+      '<td class="ops-cell"></td>';
+
+    tbody.insertBefore(row, emptyRow);
+    rows.push(row);
+    markRowColumns(row);
+    applyColumns();
+    row.querySelector('.ops-cell').innerHTML = opsHtml(row);
+    TOTAL += 1;
+    currentPage = 1;
+    createDialog.hidden = true;
+    render();
+    toast('评审「' + title + '」已创建', 'success');
   });
 
   /* ---------------- 编辑评审 ---------------- */

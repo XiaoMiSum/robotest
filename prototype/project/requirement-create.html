@@ -8,88 +8,368 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 弹层与错误文案靠 visible/hidden 切换，作者样式的 display 会盖过 UA [hidden] */
   [hidden] { display: none !important; }
 
-  /* 页头吸顶：负偏移贴住滚动容器内容盒上缘，分割线压底（同实现页 sticky 口径） */
+  /* 页头吸顶：负偏移贴住滚动容器内容盒上缘，分割线压底（对齐 RequirementCreatePage） */
   .req-head {
-    position: sticky; top: calc(-1 * var(--page-pad)); z-index: 10;
-    display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+    position: sticky;
+    top: calc(-1 * var(--page-pad));
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
     padding-bottom: var(--space-md);
-    background: var(--n-0); border-bottom: 1px solid var(--n-200);
+    background: var(--n-0);
+    border-bottom: 1px solid var(--n-200);
   }
-  .req-head .breadcrumb { margin-bottom: 0; }
-  .req-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 
-  /* 标题项无 label：字数计数悬浮在输入框右缘（对应 show-word-limit） */
-  .title-field { position: relative; }
-  .title-field .input { padding-right: 62px; }
-  .title-field__count {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    font-size: var(--font-size-xs); color: var(--n-400);
-    font-variant-numeric: tabular-nums; pointer-events: none;
+  /* UI-BC-02：面包屑排版基准 */
+  .req-head .breadcrumb {
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-sm);
+    color: var(--n-600);
   }
-  /* 校验错误文案固定占位，出现/消失不推挤布局（交互 06 §2.5.2） */
-  .field--title .field__error { min-height: 18px; margin-top: 6px; }
+  .req-head .breadcrumb a {
+    color: var(--brand-500);
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .req-head .breadcrumb a:hover { color: var(--brand-600); }
+  .req-head .breadcrumb svg { width: 13px; height: 13px; color: var(--n-400); }
+  .req-head .breadcrumb > :last-child { color: var(--n-900); }
+
+  .req-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+  }
+
+  .req-form { margin-top: var(--space-md); }
+
+  /* 标题项无 label：对齐 el-input show-word-limit 的内嵌字数 */
+  .title-field {
+    --el-form-item-margin-bottom: var(--space-xl);
+    margin-bottom: var(--space-xl);
+  }
+  .title-input-wrap {
+    position: relative;
+  }
+  .title-input-wrap .input {
+    height: 32px;
+    padding-right: 62px;
+  }
+  .title-input-wrap__count {
+    position: absolute;
+    right: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: var(--font-size-xs);
+    color: var(--n-400);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    line-height: 1;
+  }
+  /* 校验错误文案固定占位，出现/消失不推挤布局 */
+  .title-field .field__error {
+    min-height: 18px;
+    margin-top: 4px;
+    font-size: var(--font-size-xs);
+    color: var(--st-danger);
+    line-height: 18px;
+  }
 
   /* 双栏：右栏 360px 属性卡片、左栏描述编辑器；DOM 中属性置前，窄屏回流保持「标题 → 属性 → 描述」 */
   .create-layout {
-    display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
     gap: var(--space-xl);
   }
   .create-main { min-width: 0; grid-column: 1; grid-row: 1; }
   .create-side { min-width: 0; grid-column: 2; grid-row: 1; }
-  .create-side .card { height: 100%; }
 
-  /* 描述编辑器：MarkdownEditor 的工具栏 + 编辑区连体结构（参照缺陷新建页范式） */
-  .md-toolbar {
-    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-    padding: 6px 8px; border: 1px solid var(--n-300); border-bottom: 0;
-    border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--n-50);
+  /* 右栏：el-card shadow="never"，高度与左栏编辑器齐平 */
+  .side-card {
+    height: 100%;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: none;
   }
-  .md-toolbar__btn {
-    height: 24px; min-width: 26px; padding: 0 7px; border: 0; background: none;
-    border-radius: var(--radius-sm); color: var(--n-600);
-    font-size: var(--font-size-xs); font-family: inherit; cursor: pointer;
+  .side-card__body {
+    padding: 20px;
   }
-  .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
-  .md-toolbar__sep { width: 1px; height: 14px; margin: 0 5px; background: var(--n-200); }
-  .md-editor { border-radius: 0 0 var(--radius-md) var(--radius-md); min-height: 320px; resize: none; }
+  .side-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  .side-fields .field { margin-bottom: 0; }
+  .side-fields .field__label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    color: var(--n-700);
+    line-height: 22px;
+  }
+  .side-fields .input,
+  .side-fields .select {
+    width: 100%;
+  }
 
-  /* 优先级分段控件：选中态沿用缺陷优先级色（交互 06 §4） */
-  .prio-seg .segment__item[data-prio="high"] { --prio-color: var(--priority-p1); }
-  .prio-seg .segment__item[data-prio="medium"] { --prio-color: var(--priority-p2); }
-  .prio-seg .segment__item[data-prio="low"] { --prio-color: var(--priority-p3); }
-  .prio-seg .segment__item.is-on { background: var(--prio-color); color: #fff; box-shadow: none; }
+  /* 版本：带 show-word-limit 的输入 */
+  .input-with-count { position: relative; }
+  .input-with-count .input { padding-right: 46px; }
+  .input-with-count__count {
+    position: absolute;
+    right: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: var(--font-size-xs);
+    color: var(--n-400);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
 
-  /* 标签多选可回车创建：对应 el-select multiple + allow-create，共享样式无该控件 */
-  .tag-input {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-    min-height: 32px; padding: 4px 8px;
-    border: 1px solid var(--n-300); border-radius: var(--radius-md); background: var(--n-0);
+  /* 优先级：对齐 el-radio-group + el-radio-button，选中态用优先级色 */
+  .prio-group {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+  .prio-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 15px;
+    margin: 0;
+    border: 1px solid var(--n-300);
+    background: var(--n-0);
+    color: var(--n-700);
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .prio-btn + .prio-btn { margin-left: -1px; }
+  .prio-btn:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  .prio-btn:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+  .prio-btn:hover { color: var(--brand-500); z-index: 1; }
+  .prio-btn.is-on {
+    color: #fff;
+    z-index: 2;
+  }
+  .prio-btn.is-on[data-prio="high"] { background: var(--priority-p1); border-color: var(--priority-p1); box-shadow: -1px 0 0 0 var(--priority-p1); }
+  .prio-btn.is-on[data-prio="medium"] { background: var(--priority-p2); border-color: var(--priority-p2); box-shadow: -1px 0 0 0 var(--priority-p2); }
+  .prio-btn.is-on[data-prio="low"] { background: var(--priority-p3); border-color: var(--priority-p3); box-shadow: -1px 0 0 0 var(--priority-p3); }
+  .prio-btn.is-on:first-child { box-shadow: none; }
+  .prio-hint {
+    margin-top: 6px;
+    font-size: var(--font-size-xs);
+    color: var(--n-500);
+    line-height: 1.4;
+  }
+
+  /* 标签：对齐 el-select multiple allow-create 的外观 */
+  .tag-select {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 2px 30px 2px 8px;
+    border: 1px solid var(--n-300);
+    border-radius: var(--radius-md);
+    background: var(--n-0);
+    position: relative;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   }
-  .tag-input:focus-within { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(51, 112, 255, 0.14); }
+  .tag-select:hover { border-color: var(--n-400); }
+  .tag-select:focus-within { border-color: var(--brand-500); box-shadow: 0 0 0 1px var(--brand-500) inset; }
+  .tag-select::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    transform: translateY(-50%);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a8abb2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 14px;
+    pointer-events: none;
+  }
   .tag-chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    height: 20px; padding: 0 4px 0 7px; border-radius: var(--radius-sm);
-    background: var(--n-100); color: var(--n-700);
-    font-size: var(--font-size-xs); white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 24px;
+    padding: 0 4px 0 8px;
+    border-radius: var(--radius-sm);
+    background: var(--n-100);
+    color: var(--n-600);
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    white-space: nowrap;
   }
-  .tag-chip__x { display: inline-flex; padding: 1px; border: 0; background: none; color: var(--n-400); cursor: pointer; }
-  .tag-chip__x:hover { color: var(--n-700); }
-  .tag-chip__x svg { width: 11px; height: 11px; }
-  .tag-input > input {
-    flex: 1; min-width: 90px; height: 20px;
-    border: 0; outline: none; background: transparent;
-    font-family: inherit; font-size: var(--font-size-sm); color: var(--n-900);
+  .tag-chip__x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--n-400);
+    cursor: pointer;
+    border-radius: 50%;
   }
-  .tag-input > input::placeholder { color: var(--n-400); }
+  .tag-chip__x:hover { color: var(--n-0); background: var(--n-400); }
+  .tag-chip__x svg { width: 12px; height: 12px; }
+  .tag-select > input {
+    flex: 1;
+    min-width: 80px;
+    height: 24px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    color: var(--n-900);
+    padding: 0;
+  }
+  .tag-select > input::placeholder { color: var(--n-400); }
+
+  /* 描述编辑器：MarkdownEditor（Vditor）静态近似，工具栏+编辑区+最大化按钮 */
+  .md-wrap { width: 100%; }
+  .md-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    border: 1px solid var(--n-300);
+    border-bottom: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background: var(--n-50);
+  }
+  .md-toolbar__btn {
+    height: 28px;
+    min-width: 28px;
+    padding: 0 7px;
+    border: 0;
+    background: none;
+    border-radius: var(--radius-sm);
+    color: var(--n-600);
+    font-size: var(--font-size-xs);
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
+  .md-toolbar__btn svg { width: 16px; height: 16px; }
+  .md-toolbar__sep { width: 1px; height: 16px; margin: 0 5px; background: var(--n-200); flex-shrink: 0; }
+  .md-toolbar__spacer { flex: 1; }
+  .md-editor {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    min-height: 320px;
+    resize: none;
+    border: 1px solid var(--n-300);
+  }
+  .md-editor:focus {
+    border-color: var(--brand-500);
+    box-shadow: 0 0 0 1px var(--brand-500) inset;
+  }
+
+  /* 预览切换：编辑区与渲染结果真实互换（对齐 BugCreatePage 原型口径） */
+  .md-toolbar__btn.is-active { background: var(--brand-50); color: var(--brand-600); }
+  .md-preview {
+    min-height: 320px; padding: 12px 14px; overflow: auto;
+    border: 1px solid var(--n-300); border-radius: 0 0 var(--radius-md) var(--radius-md);
+    font-size: var(--font-size-base); line-height: 1.7; color: var(--n-800);
+  }
+  .md-preview h1, .md-preview h2, .md-preview h3,
+  .md-preview h4, .md-preview h5, .md-preview h6 { margin: 10px 0 6px; font-weight: 600; line-height: 1.4; }
+  .md-preview h5 { font-size: var(--font-size-base); }
+  .md-preview p { margin: 6px 0; }
+  .md-preview blockquote { margin: 8px 0; padding-left: 10px; border-left: 3px solid var(--n-200); color: var(--n-500); }
+  .md-preview ul, .md-preview ol { margin: 6px 0; padding-left: 22px; }
+  .md-preview li { margin-bottom: 4px; }
+  .md-preview code {
+    font-family: var(--font-mono); font-size: var(--font-size-sm);
+    background: var(--n-100); padding: 1px 4px; border-radius: var(--radius-sm);
+  }
+  .md-preview a { color: var(--brand-500); }
+
+  /* 创建结果：本次会话真实写入的需求记录（刷新即恢复初始状态） */
+  .req-created {
+    margin-top: var(--space-lg); padding: 28px; background: var(--n-0);
+    border: 1px solid var(--n-200); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  }
+  .req-created__head { display: flex; align-items: center; gap: 10px; }
+  .req-created__head svg { width: 22px; height: 22px; color: var(--st-success); }
+  .req-created__title { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-900); }
+  .req-created__id {
+    margin-left: auto; padding: 3px 10px; border-radius: 999px;
+    background: var(--brand-50); color: var(--brand-600);
+    font-size: var(--font-size-xs); font-variant-numeric: tabular-nums;
+  }
+  .req-created__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin-top: 20px; }
+  .req-created__wide { grid-column: 1 / -1; }
+  .req-created__label { font-size: var(--font-size-xs); color: var(--n-500); }
+  .req-created__value { margin-top: 2px; font-size: var(--font-size-sm); color: var(--n-900); word-break: break-all; }
+  .req-created__desc {
+    margin-top: 18px; padding: 12px 14px; background: var(--n-50);
+    border-radius: var(--radius-md); white-space: pre-wrap;
+    font-size: var(--font-size-sm); line-height: 1.7; color: var(--n-700);
+  }
+  .req-created__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+  .req-created__session { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--n-200); font-size: var(--font-size-xs); color: var(--n-500); }
+  .req-created__session ul { margin: 6px 0 0; padding-left: 18px; }
+  @media (max-width: 640px) { .req-created__grid { grid-template-columns: 1fr; } }
+
+  /* shell.js 注入的顶栏占位元素在本页补上真实交互所需的样式 */
+  .icon-btn.is-read .dot-badge::after { display: none; }
+  .user-menu-pop {
+    position: fixed; top: 56px; right: 16px; z-index: 200;
+    min-width: 168px; padding: 6px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .user-menu-pop__item {
+    display: block; width: 100%; padding: 8px 10px;
+    border: 0; border-radius: var(--radius-sm);
+    background: transparent; color: var(--n-700);
+    font: inherit; font-size: var(--font-size-sm); text-align: left; cursor: pointer;
+  }
+  .user-menu-pop__item:hover { background: var(--n-50); color: var(--brand-500); }
 
   @media (max-width: 1024px) {
     .create-layout { grid-template-columns: 1fr; }
     .create-main, .create-side { grid-column: 1; grid-row: auto; }
-    .create-side .card { height: auto; }
+    .side-card { height: auto; }
+    .side-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-md);
+    }
+    .side-fields .field--tags { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 640px) {
+    .side-fields { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -102,92 +382,152 @@
     <div class="breadcrumb">
       <a href="requirements.html">需求管理</a>
       <span data-icon="chevron-right"></span>
-      <span>新建需求</span>
+      <span id="bc-current">新建需求</span>
     </div>
     <div class="req-actions">
-      <a class="btn btn--default" href="requirements.html">取消</a>
+      <a class="btn btn--default" id="btn-cancel" href="requirements.html">取消</a>
       <button class="btn btn--primary" type="button" id="btn-create">创建</button>
     </div>
   </div>
 
-  <!-- 标题无 label、跨双栏全宽：必填由失焦/提交校验提示表达（交互 06 §2.5.2） -->
-  <div class="field field--title">
-    <div class="title-field">
-      <input class="input" id="f-title" maxlength="300" placeholder="请输入需求标题">
-      <span class="title-field__count" id="f-title-count">0/300</span>
+  <div class="req-form" id="req-form">
+    <!-- 标题无 label：必填由失焦/提交校验提示表达，不显示星号 -->
+    <div class="title-field" id="title-field">
+      <div class="title-input-wrap">
+        <input class="input" id="f-title" maxlength="300" placeholder="请输入需求标题" aria-describedby="f-title-error">
+        <span class="title-input-wrap__count" id="f-title-count">0/300</span>
+      </div>
+      <div class="field__error" id="f-title-error"></div>
     </div>
-    <div class="field__error" id="f-title-error"></div>
-  </div>
 
-  <div class="create-layout">
-    <div class="create-side">
-      <div class="card">
-        <div class="card__body">
-          <div class="field">
-            <label class="field__label" for="f-module">所属模块</label>
-            <select class="select" id="f-module">
-              <option value="" selected>可选</option>
-              <option value="m-login">登录模块</option>
-              <option value="m-order">订单模块</option>
-              <option value="m-pay">支付模块</option>
-              <option value="m-mkt">营销模块</option>
-              <option value="m-user">用户中心</option>
-            </select>
-          </div>
+    <div class="create-layout">
+      <!-- 属性栏在 DOM 中置前：窄屏回流保持「标题 → 属性 → 描述」顺序；桌面端由 grid 显式定位到右栏 -->
+      <div class="create-side">
+        <div class="side-card">
+          <div class="side-card__body">
+            <div class="side-fields">
+              <div class="field">
+                <label class="field__label" for="f-module">所属模块</label>
+                <select class="select" id="f-module">
+                  <option value="" selected>可选</option>
+                  <option value="m-login">登录模块</option>
+                  <option value="m-order">订单模块</option>
+                  <option value="m-pay">支付模块</option>
+                  <option value="m-mkt">营销模块</option>
+                  <option value="m-user">用户中心</option>
+                </select>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-version">版本</label>
-            <input class="input" id="f-version" maxlength="50" placeholder="可选">
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-version">版本</label>
+                <div class="input-with-count">
+                  <input class="input" id="f-version" maxlength="50" placeholder="可选">
+                  <span class="input-with-count__count" id="f-version-count">0/50</span>
+                </div>
+              </div>
 
-          <div class="field">
-            <span class="field__label">优先级</span>
-            <div class="segment prio-seg" id="f-priority">
-              <span class="segment__item" data-prio="high">高</span>
-              <span class="segment__item" data-prio="medium">中</span>
-              <span class="segment__item" data-prio="low">低</span>
-            </div>
-            <div class="field__hint">再次点击当前项可清空回未设置</div>
-          </div>
+              <div class="field">
+                <span class="field__label">优先级</span>
+                <div class="prio-group" id="f-priority" role="radiogroup" aria-label="优先级">
+                  <button class="prio-btn" type="button" data-prio="high">高</button>
+                  <button class="prio-btn" type="button" data-prio="medium">中</button>
+                  <button class="prio-btn" type="button" data-prio="low">低</button>
+                </div>
+                <div class="prio-hint">再次点击当前项可清空回未设置</div>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-owner">负责人</label>
-            <select class="select" id="f-owner">
-              <option value="" selected>可选</option>
-              <option value="u-zhangming">张明</option>
-              <option value="u-lihua">李华</option>
-              <option value="u-wangfang">王芳</option>
-              <option value="u-zhoumin">周敏</option>
-              <option value="u-zhaolei">赵磊</option>
-            </select>
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-owner">负责人</label>
+                <select class="select" id="f-owner">
+                  <option value="" selected>可选</option>
+                  <option value="u-zhangming">张明</option>
+                  <option value="u-lihua">李华</option>
+                  <option value="u-wangfang">王芳</option>
+                  <option value="u-zhoumin">周敏</option>
+                  <option value="u-zhaolei">赵磊</option>
+                </select>
+              </div>
 
-          <div class="field" style="margin-bottom:0">
-            <span class="field__label">标签</span>
-            <div class="tag-input" id="f-tags">
-              <input id="f-tag-input" placeholder="可选，回车创建">
+              <div class="field field--tags">
+                <span class="field__label">标签</span>
+                <div class="tag-select" id="f-tags">
+                  <input id="f-tag-input" placeholder="可选，回车创建">
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="create-main">
-      <!-- 描述无 label、左栏主视觉区：Markdown 编辑器，高度取剩余可用空间的 90%（最小 320px） -->
-      <div class="md-toolbar">
-        <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
-        <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
-        <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
-        <span class="md-toolbar__sep"></span>
-        <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
-        <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
-        <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
-        <span class="md-toolbar__sep"></span>
-        <button class="md-toolbar__btn" type="button" data-md="insert" data-token="[链接文字](https://)">链接</button>
+      <div class="create-main">
+        <!-- 描述无 label：MarkdownEditor（所见即所得）撑满左栏 -->
+        <div class="md-wrap">
+          <div class="md-toolbar">
+            <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
+            <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
+            <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
+            <span class="md-toolbar__sep"></span>
+            <button class="md-toolbar__btn" type="button" title="引用" data-md="prefix" data-token="&gt; ">引用</button>
+            <button class="md-toolbar__btn" type="button" title="列表" data-md="prefix" data-token="- ">列表</button>
+            <button class="md-toolbar__btn" type="button" title="代码" data-md="wrap" data-token="`">代码</button>
+            <span class="md-toolbar__sep"></span>
+            <button class="md-toolbar__btn" type="button" title="链接" data-md="insert" data-token="[链接文字](https://)">链接</button>
+            <span class="md-toolbar__spacer"></span>
+            <button class="md-toolbar__btn" type="button" id="md-preview-btn" title="预览" aria-label="预览" aria-pressed="false">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true"><path d="m160 96.064 192 .192a32 32 0 0 1 0 64l-192-.192V352a32 32 0 0 1-64 0V96h64zm0 831.872V928H96V672a32 32 0 1 1 64 0v191.936l192-.192a32 32 0 1 1 0 64zM864 96.064V96h64v256a32 32 0 1 1-64 0V160.064l-192 .192a32 32 0 1 1 0-64zm0 831.872-192-.192a32 32 0 0 1 0-64l192 .192V672a32 32 0 1 1 64 0v256h-64z"/><path d="M256 320h512c0-78.592-12.608-142.4-36.928-192h-434.24C269.504 192.384 256 256.256 256 320m503.936 64H264.064a256.128 256.128 0 0 0 495.872 0M544 638.4V896h96a32 32 0 1 1 0 64H384a32 32 0 1 1 0-64h96V638.4A320 320 0 0 1 192 320c0-85.632 21.312-170.944 64-256h512c42.688 64.32 64 149.632 64 256a320 320 0 0 1-288 318.4"/></svg>
+            </button>
+          </div>
+          <textarea class="textarea md-editor" id="f-desc" placeholder="需求描述（支持 Markdown，可选）"></textarea>
+          <div class="md-preview" id="desc-preview" hidden></div>
+        </div>
       </div>
-      <textarea class="textarea md-editor" id="f-desc" placeholder="需求描述（支持 Markdown，可选）"></textarea>
     </div>
   </div>
+
+  <!-- 创建结果：本次会话真实写入的需求记录（刷新即恢复初始状态） -->
+  <section class="req-created" id="req-created" hidden aria-live="polite">
+    <div class="req-created__head">
+      <span data-icon="check-circle"></span>
+      <span class="req-created__title">需求创建成功</span>
+      <span class="req-created__id" id="created-id"></span>
+    </div>
+    <div class="req-created__grid">
+      <div class="req-created__wide">
+        <div class="req-created__label">需求标题</div>
+        <div class="req-created__value" id="created-title-text"></div>
+      </div>
+      <div>
+        <div class="req-created__label">所属模块</div>
+        <div class="req-created__value" id="created-module"></div>
+      </div>
+      <div>
+        <div class="req-created__label">版本</div>
+        <div class="req-created__value" id="created-version"></div>
+      </div>
+      <div>
+        <div class="req-created__label">优先级</div>
+        <div class="req-created__value" id="created-priority"></div>
+      </div>
+      <div>
+        <div class="req-created__label">负责人</div>
+        <div class="req-created__value" id="created-owner"></div>
+      </div>
+      <div>
+        <div class="req-created__label">标签</div>
+        <div class="req-created__value" id="created-tags"></div>
+      </div>
+    </div>
+    <div class="req-created__desc" id="created-desc"></div>
+    <div class="req-created__actions">
+      <a class="btn btn--primary" href="requirement-detail.html">查看详情</a>
+      <a class="btn btn--default" href="requirements.html">返回需求列表</a>
+      <button class="btn btn--default" type="button" id="created-again">继续新建</button>
+    </div>
+    <div class="req-created__session">
+      本次会话已创建 <span class="num" id="created-count">0</span> 条需求
+      <ul id="created-session-list"></ul>
+    </div>
+  </section>
 
 </main>
 
@@ -223,15 +563,28 @@
   titleInput.addEventListener('blur', validateTitle);
   syncTitleCount();
 
+  /* ---------------- 版本字数（对齐 el-input show-word-limit） ---------------- */
+  var versionInput = byId('f-version');
+  var versionCount = byId('f-version-count');
+  function syncVersionCount() { versionCount.textContent = versionInput.value.length + '/50'; }
+  versionInput.addEventListener('input', syncVersionCount);
+  syncVersionCount();
+
   /* ---------------- 优先级分段控件：再次点击当前项清空回未设置 ---------------- */
   var priority = '';
-  byId('f-priority').querySelectorAll('.segment__item').forEach(function (item) {
-    item.addEventListener('click', function () {
-      var value = item.getAttribute('data-prio');
-      priority = priority === value ? '' : value;
-      byId('f-priority').querySelectorAll('.segment__item').forEach(function (other) {
-        other.classList.toggle('is-on', other.getAttribute('data-prio') === priority);
-      });
+  var prioGroup = byId('f-priority');
+  function setPriority(value) {
+    priority = value;
+    prioGroup.querySelectorAll('.prio-btn').forEach(function (other) {
+      var on = other.getAttribute('data-prio') === priority;
+      other.classList.toggle('is-on', on);
+      other.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  prioGroup.querySelectorAll('.prio-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.getAttribute('data-prio');
+      setPriority(priority === value ? '' : value);
     });
   });
 
@@ -266,6 +619,9 @@
     tagInput.value = '';
     renderTags();
   });
+  tagBox.addEventListener('click', function (e) {
+    if (e.target === tagBox || e.target === tagInput) tagInput.focus();
+  });
 
   /* ---------------- 描述编辑器高度：剩余可用空间的 90%，下限 320px（交互 06 §2.5.2） ---------------- */
   var editor = byId('f-desc');
@@ -280,42 +636,290 @@
   window.addEventListener('load', function () { editorTop = 0; fitEditor(); });
   fitEditor();
 
-  /* ---------------- Markdown 工具栏插入（静态演示，同缺陷新建页范式） ---------------- */
+  /* ---------------- Markdown 工具栏：真实写入编辑区 ---------------- */
+  function applyMd(mode, token) {
+    var start = editor.selectionStart;
+    var end = editor.selectionEnd;
+    var selected = editor.value.slice(start, end);
+    var next = editor.value;
+    var cursor = end;
+    if (mode === 'wrap') {
+      next = editor.value.slice(0, start) + token + selected + token + editor.value.slice(end);
+      cursor = selected ? end + token.length * 2 : start + token.length;
+    } else if (mode === 'prefix') {
+      var lineStart = editor.value.lastIndexOf('\n', start - 1) + 1;
+      next = editor.value.slice(0, lineStart) + token + editor.value.slice(lineStart);
+      cursor = start + token.length;
+    } else {
+      next = editor.value.slice(0, start) + token + editor.value.slice(end);
+      cursor = start + token.length;
+    }
+    editor.value = next;
+    editor.focus();
+    editor.setSelectionRange(cursor, cursor);
+  }
   document.querySelectorAll('[data-md]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var mode = btn.getAttribute('data-md');
-      var token = btn.getAttribute('data-token');
-      var start = editor.selectionStart;
-      var end = editor.selectionEnd;
-      var selected = editor.value.slice(start, end);
-      var next = editor.value;
-      var cursor = end;
-      if (mode === 'wrap') {
-        next = editor.value.slice(0, start) + token + selected + token + editor.value.slice(end);
-        cursor = selected ? end + token.length * 2 : start + token.length;
-      } else if (mode === 'prefix') {
-        var lineStart = editor.value.lastIndexOf('\n', start - 1) + 1;
-        next = editor.value.slice(0, lineStart) + token + editor.value.slice(lineStart);
-        cursor = start + token.length;
-      } else {
-        next = editor.value.slice(0, start) + token + editor.value.slice(end);
-        cursor = start + token.length;
-      }
-      editor.value = next;
-      editor.focus();
-      editor.setSelectionRange(cursor, cursor);
+      if (previewOn) setPreview(false);
+      applyMd(btn.getAttribute('data-md'), btn.getAttribute('data-token'));
     });
   });
 
-  /* ---------------- 创建：校验通过后 toast 并进入详情页（实际行为） ---------------- */
+  /* ---------------- 预览：真实切换编辑区与渲染结果 ---------------- */
+  var previewBtn = byId('md-preview-btn');
+  var descPreview = byId('desc-preview');
+  var previewOn = false;
+
+  function appendInline(text, parent) {
+    var re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+    var last = 0;
+    var m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var token = m[0];
+      if (token.slice(0, 2) === '**') {
+        var strong = document.createElement('strong');
+        strong.textContent = token.slice(2, -2);
+        parent.appendChild(strong);
+      } else if (token.charAt(0) === '*') {
+        var em = document.createElement('em');
+        em.textContent = token.slice(1, -1);
+        parent.appendChild(em);
+      } else if (token.charAt(0) === '`') {
+        var code = document.createElement('code');
+        code.textContent = token.slice(1, -1);
+        parent.appendChild(code);
+      } else {
+        var cut = token.indexOf('](');
+        var href = token.slice(cut + 2, -1);
+        var link = document.createElement('a');
+        link.textContent = token.slice(1, cut);
+        link.href = /^https?:\/\//i.test(href) ? href : '#';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        parent.appendChild(link);
+      }
+      last = re.lastIndex;
+    }
+    if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+  }
+
+  function renderMarkdown(src, root) {
+    root.textContent = '';
+    var list = null;
+    var listTag = '';
+    function closeList() { list = null; listTag = ''; }
+    src.split('\n').forEach(function (line) {
+      var heading = /^(#{1,6})\s+(.*)$/.exec(line);
+      if (heading) {
+        closeList();
+        var h = document.createElement('h' + heading[1].length);
+        appendInline(heading[2], h);
+        root.appendChild(h);
+        return;
+      }
+      var quote = /^>\s?(.*)$/.exec(line);
+      if (quote) {
+        closeList();
+        var blockquote = document.createElement('blockquote');
+        appendInline(quote[1], blockquote);
+        root.appendChild(blockquote);
+        return;
+      }
+      var unordered = /^[-*]\s+(.*)$/.exec(line);
+      var ordered = /^\d+\.\s+(.*)$/.exec(line);
+      if (unordered || ordered) {
+        var tag = unordered ? 'ul' : 'ol';
+        if (!list || listTag !== tag) {
+          closeList();
+          list = document.createElement(tag);
+          listTag = tag;
+          root.appendChild(list);
+        }
+        var li = document.createElement('li');
+        appendInline((unordered || ordered)[1], li);
+        list.appendChild(li);
+        return;
+      }
+      closeList();
+      if (!line.trim()) return;
+      var paragraph = document.createElement('p');
+      appendInline(line, paragraph);
+      root.appendChild(paragraph);
+    });
+  }
+
+  function setPreview(on) {
+    previewOn = on;
+    if (on) {
+      renderMarkdown(editor.value, descPreview);
+      descPreview.style.height = editor.style.height;
+    }
+    descPreview.hidden = !on;
+    editor.hidden = on;
+    previewBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    previewBtn.classList.toggle('is-active', on);
+    previewBtn.title = on ? '返回编辑' : '预览';
+    previewBtn.setAttribute('aria-label', previewBtn.title);
+  }
+  previewBtn.addEventListener('click', function () { setPreview(!previewOn); });
+
+  /* ---------------- 创建：写入本地数据并渲染结果面板（不持久化） ---------------- */
+  var localRequirements = [];
+  var reqForm = byId('req-form');
+  var reqCreated = byId('req-created');
+
+  function selectedLabel(id) {
+    var el = byId(id);
+    if (!el || !el.value) return '—';
+    var option = el.options[el.selectedIndex];
+    return option ? option.textContent : '—';
+  }
+  function priorityLabel() {
+    var on = prioGroup.querySelector('.prio-btn.is-on');
+    return on ? on.textContent.trim() : '—';
+  }
+  function pad3(n) { return ('00' + n).slice(-3); }
+
+  function renderCreatedList() {
+    var list = byId('created-session-list');
+    list.textContent = '';
+    localRequirements.forEach(function (req) {
+      var li = document.createElement('li');
+      li.textContent = req.id + ' ' + req.title;
+      list.appendChild(li);
+    });
+    byId('created-count').textContent = String(localRequirements.length);
+  }
+
   byId('btn-create').addEventListener('click', function () {
     if (!validateTitle()) {
       titleInput.focus();
       return;
     }
+    var req = {
+      id: 'REQ-' + pad3(localRequirements.length + 1),
+      title: titleInput.value.trim(),
+      module: selectedLabel('f-module'),
+      version: versionInput.value.trim() || '—',
+      priority: priorityLabel(),
+      owner: selectedLabel('f-owner'),
+      tags: tags.length ? tags.join('、') : '无',
+      desc: editor.value.trim() || '（未填写）'
+    };
+    localRequirements.push(req);
+
+    var values = {
+      'created-id': req.id,
+      'created-title-text': req.title,
+      'created-module': req.module,
+      'created-version': req.version,
+      'created-priority': req.priority,
+      'created-owner': req.owner,
+      'created-tags': req.tags,
+      'created-desc': req.desc
+    };
+    Object.keys(values).forEach(function (id) { byId(id).textContent = values[id]; });
+
+    renderCreatedList();
+    if (window.RTIcons) window.RTIcons.hydrate(reqCreated);
+    reqForm.hidden = true;
+    reqCreated.hidden = false;
+    byId('btn-create').hidden = true;
+    byId('bc-current').textContent = '创建成功';
+    byId('btn-cancel').textContent = '返回需求列表';
     toast('需求已创建', 'success');
-    window.setTimeout(function () { window.location.href = 'requirement-detail.html'; }, 400);
+    reqCreated.scrollIntoView({ block: 'start' });
   });
+
+  /* ---------------- 继续新建：恢复初始 DOM 与本地数据状态 ---------------- */
+  byId('created-again').addEventListener('click', function () {
+    reqForm.reset();
+    tags = [];
+    renderTags();
+    setPriority('');
+    setPreview(false);
+    syncTitleCount();
+    syncVersionCount();
+    titleError.textContent = '';
+    titleInput.classList.remove('input--error');
+    reqCreated.hidden = true;
+    reqForm.hidden = false;
+    byId('btn-create').hidden = false;
+    byId('bc-current').textContent = '新建需求';
+    byId('btn-cancel').textContent = '取消';
+    titleInput.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  /* ---------------- shell.js 注入的顶栏占位元素：真实新窗口 / 用户菜单 ---------------- */
+  function openDemoWindow(name, title, rows, width, height) {
+    var win = window.open('', name, 'width=' + width + ',height=' + height);
+    if (!win) return;
+    var body = rows.map(function (row) {
+      return '<div class="row"><b>' + row[0] + '</b><span>' + row[1] + '</span></div>';
+    }).join('');
+    win.document.write(
+      '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>' + title + '</title>' +
+      '<style>body{margin:0;padding:20px;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#303133}' +
+      'h1{font-size:16px;margin:0 0 16px}.row{padding:12px;border:1px solid #e4e7ed;border-radius:6px;margin-bottom:10px}' +
+      '.row b{display:block;margin-bottom:2px}.row span{color:#606266;font-size:12px}' +
+      '.close{margin-top:8px;padding:7px 15px;border:1px solid #dcdfe6;border-radius:4px;background:#fff;cursor:pointer}' +
+      '</style></head><body><h1>' + title + '</h1>' + body +
+      '<button type="button" class="close" onclick="window.close()">关闭窗口</button></body></html>'
+    );
+    win.document.close();
+  }
+
+  function initShell() {
+    var msgBtn = Array.prototype.slice.call(document.querySelectorAll('.icon-btn'))
+      .filter(function (el) { return el.querySelector('.dot-badge'); })[0];
+    if (msgBtn) {
+      msgBtn.addEventListener('click', function () {
+        msgBtn.classList.add('is-read');
+        openDemoWindow('rt-messages', '消息中心（演示窗口）', [
+          ['需求提醒', 'REQ-0103 订单超时未支付自动关闭已变更 · 2 分钟前'],
+          ['缺陷提醒', 'BUG-208 支付回调重复入账已提交 · 1 小时前'],
+          ['评审提醒', '下单模块用例评审待你参与 · 昨天 14:32']
+        ], 420, 480);
+      });
+    }
+
+    var topbarUser = document.querySelector('.topbar__user');
+    var userMenu = null;
+    function hideUserMenu() {
+      if (userMenu) { userMenu.remove(); userMenu = null; }
+    }
+    if (topbarUser) {
+      topbarUser.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (userMenu) { hideUserMenu(); return; }
+        userMenu = document.createElement('div');
+        userMenu.className = 'user-menu-pop';
+        userMenu.innerHTML =
+          '<button type="button" class="user-menu-pop__item" data-user-menu="profile">个人设置</button>' +
+          '<button type="button" class="user-menu-pop__item" data-user-menu="logout">退出登录</button>';
+        document.body.appendChild(userMenu);
+        userMenu.querySelector('[data-user-menu="profile"]').addEventListener('click', function () {
+          hideUserMenu();
+          openDemoWindow('rt-profile', '个人设置（演示窗口）', [
+            ['账号', 'zhangming'], ['姓名', '张明'], ['所属空间', '质量中台']
+          ], 380, 320);
+        });
+        userMenu.querySelector('[data-user-menu="logout"]').addEventListener('click', function () {
+          window.location.href = '../auth/login.html';
+        });
+      });
+    }
+    document.addEventListener('click', function (e) {
+      if (userMenu && !e.target.closest('.user-menu-pop') && !e.target.closest('.topbar__user')) hideUserMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && userMenu) hideUserMenu();
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initShell);
+  else initShell();
 })();
 </script>
 </body>

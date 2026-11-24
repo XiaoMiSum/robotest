@@ -8,59 +8,74 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 弹层靠 hidden 开关，会被类里的 display 覆盖，需强制生效 */
   [hidden] { display: none !important; }
 
-  /* 页头对应 BugDetailPage topbar：返回 + ID + 标题 + 状态/次数/提交 */
-  .detail-top { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-  .detail-back {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: var(--font-size-sm); color: var(--n-600); text-decoration: none; flex-shrink: 0;
+  /* 页头：面包屑 + 右侧状态/操作（对应 BugDetailPage header/actions） */
+  .bug-detail__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
   }
-  .detail-back:hover { color: var(--brand-600); }
-  .detail-back svg { width: 14px; height: 14px; }
-  .detail-divider { width: 1px; height: 16px; background: var(--n-300); flex-shrink: 0; }
-  .detail-title-input {
-    flex: 1; min-width: 0; height: 36px;
+  .bug-detail__breadcrumb,
+  .bug-detail__actions { margin-bottom: var(--space-sm); }
+  .bug-detail__breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-size: var(--font-size-sm); color: var(--n-600);
+  }
+  .bug-detail__breadcrumb a {
+    color: var(--brand-500); font-weight: 500; text-decoration: none;
+  }
+  .bug-detail__breadcrumb a:hover { color: var(--brand-600); }
+  .bug-detail__breadcrumb svg { width: 13px; height: 13px; color: var(--n-400); }
+  .bug-detail__breadcrumb > :last-child { color: var(--n-900); }
+  .bug-detail__actions {
+    display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0;
+  }
+
+  /* 标题行：ID + 标题（对应 bug-detail__title-row） */
+  .bug-detail__title-row {
+    display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md);
+  }
+  .bug-detail__id-tag { flex-shrink: 0; font-family: var(--font-mono); }
+  .bug-detail__title-input {
+    flex: 1; min-width: 0; height: 32px;
     font-size: 18px; font-weight: 700;
+    border-color: transparent; box-shadow: none; padding-left: 0;
   }
-  .detail-title-text {
+  .bug-detail__title-input:hover,
+  .bug-detail__title-input:focus {
+    border-color: var(--n-300); padding-left: 11px;
+  }
+  .bug-detail__title-text {
     flex: 1; min-width: 0;
     font-size: 18px; font-weight: 700; color: var(--n-900);
-    line-height: 36px;
+    line-height: 32px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .detail-top__right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  /* 校验错误提示保持在页头行内，不打断布局 */
-  .detail-top .field__error { align-self: center; white-space: nowrap; }
+  .field__error-inline { font-size: var(--font-size-xs); color: var(--st-danger); white-space: nowrap; }
 
-  /* 底部粘性操作栏：透明背景居中，按钮投影浮起（对应 bug-detail__footer） */
-  .detail-footer {
-    position: sticky; bottom: 0; z-index: 10;
-    display: flex; justify-content: center; gap: 10px;
-    margin-top: 16px; padding: 12px 0;
-    pointer-events: none;
+  /* 主体布局（对应 bug-detail__layout） */
+  .bug-detail__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--space-lg);
+    align-items: start;
+    margin-top: var(--space-md);
   }
-  .detail-footer .btn { pointer-events: auto; box-shadow: var(--shadow-md); }
+  @media (max-width: 1024px) {
+    .bug-detail__layout { grid-template-columns: 1fr; }
+  }
+  .bug-detail__main {
+    display: flex; flex-direction: column; gap: var(--space-xl); min-width: 0;
+  }
 
-  /* 流转按钮底色按实现的 el-button type：解决绿 / 拒绝橙 / 关闭灰 / 激活红 */
-  .btn--success { background: var(--st-success); color: #fff; }
-  .btn--success:hover { background: var(--st-success-strong); }
-  .btn--warning { background: var(--st-warning); color: #fff; }
-  .btn--warning:hover { background: var(--st-warning-strong); }
-  .btn--info { background: var(--st-neutral); color: #fff; }
-  .btn--info:hover { background: var(--n-600); }
-
-  /* 关闭态整页只读：控件隐藏、静态文本显示（对应 isClosed 分支） */
-  .view-only { display: none; }
-  body.is-closed .view-only { display: revert; }
-  body.is-closed .edit-only { display: none !important; }
-
-  /* 重现步骤 Markdown 工具栏：与 MarkdownEditor 结构一致 */
+  /* 重现步骤：直接放置无卡片包裹（对应 MarkdownEditor/MarkdownView） */
+  .md-editor { border: 1px solid var(--n-300); border-radius: var(--radius-md); background: var(--n-0); }
   .md-toolbar {
     display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-    padding: 6px 8px; border: 1px solid var(--n-300); border-bottom: 0;
-    border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--n-50);
+    padding: 6px 8px; border-bottom: 1px solid var(--n-200); background: var(--n-50);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
   }
   .md-toolbar__btn {
     height: 24px; min-width: 26px; padding: 0 7px; border: 0; background: none;
@@ -69,46 +84,155 @@
   }
   .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
   .md-toolbar__sep { width: 1px; height: 14px; margin: 0 5px; background: var(--n-200); }
-  #f-steps { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+  .md-toolbar__spacer { flex: 1; }
+  .md-editor .textarea {
+    border: 0; border-radius: 0 0 var(--radius-md) var(--radius-md);
+    min-height: 180px; resize: vertical;
+  }
+  .md-editor .textarea:focus { box-shadow: none; }
+  .md-editor--fullscreen {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; flex-direction: column;
+    border: 0; border-radius: 0; background: var(--n-0);
+  }
+  .md-editor--fullscreen .md-toolbar { flex-shrink: 0; }
+  .md-editor--fullscreen .textarea { flex: 1; min-height: 0; resize: none; border-radius: 0; }
+  .md-view {
+    font-size: var(--font-size-sm); color: var(--n-700); line-height: 1.7;
+  }
+  .md-view p { margin: 0 0 6px; color: var(--n-600); }
+  .md-view h1,.md-view h2,.md-view h3 { margin: 12px 0 6px; font-size: var(--font-size-base); font-weight: 600; color: var(--n-900); }
 
-  /* 属性表单（label 在上，同 el-form label-position="top"） */
-  .props .field:last-child { margin-bottom: 0; }
+  /* 附件卡片：shadow="never" + 紧凑内边距（对应 bug-detail__attachments） */
+  .bug-detail__attachments.card { box-shadow: none; }
+  .bug-detail__attachments .card__body { padding: var(--space-sm); }
+  .bug-detail__upload {
+    display: flex; justify-content: flex-end; margin-bottom: var(--space-sm);
+  }
+  .attach-empty { padding: 28px 0; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
 
-  /* 关联用例：触发文字悬停弹出用例明细（对应 BugSidebar 的 popover） */
-  .case-rel { position: relative; display: flex; align-items: center; gap: 8px; width: 100%; }
+  /* 侧栏 border-card 页签（对应 BugSidebar el-tabs type="border-card"） */
+  .side-tabs {
+    border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0);
+    overflow: hidden; display: flex; flex-direction: column;
+    height: var(--side-height, 560px);
+  }
+  .side-tabs__header {
+    display: flex; background: var(--n-50); border-bottom: 1px solid var(--n-200); flex-shrink: 0;
+  }
+  .side-tabs__tab {
+    padding: 10px 16px; font-size: var(--font-size-sm); color: var(--n-600);
+    background: transparent; border: 0; border-right: 1px solid var(--n-200);
+    cursor: pointer; font-family: inherit; position: relative;
+  }
+  .side-tabs__tab:hover { color: var(--brand-500); }
+  .side-tabs__tab--active {
+    color: var(--brand-500); background: var(--n-0); font-weight: 500;
+  }
+  .side-tabs__tab--active::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--n-0);
+  }
+  .side-tabs__content { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
+  .side-tabs__pane[hidden] { display: none !important; }
+
+  /* 属性表单（el-form label-position="top"） */
+  .props-form .field { margin-bottom: var(--space-md); }
+  .props-form .field:last-child { margin-bottom: 0; }
+  .props-form .field__label { font-weight: 500; color: var(--n-600); margin-bottom: var(--space-xs); }
+  .props-form .select, .props-form .input { width: 100%; }
+  .detail-text { font-size: var(--font-size-sm); color: var(--n-700); line-height: 1.6; }
+
+  /* 关联用例（对应 BugSidebar relation row） */
+  .bug-detail__relation { display: flex; align-items: center; gap: var(--space-sm); width: 100%; }
+  .bug-detail__relation .detail-text { flex: 1; }
   .case-trigger { font-size: var(--font-size-sm); color: var(--n-500); }
   .case-trigger--on {
     color: var(--brand-500); cursor: pointer;
     text-decoration: underline dashed; text-underline-offset: 3px;
   }
+  .case-rel { position: relative; flex: 1; min-width: 0; }
   .case-pop {
-    position: absolute; z-index: 40; top: calc(100% + 6px); left: 0;
-    width: 300px; padding: 12px;
+    position: absolute; z-index: 40; top: calc(100% + 6px); right: 0;
+    width: 320px; padding: 12px;
     background: var(--n-0); border: 1px solid var(--n-200);
     border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
   }
-  .case-pop__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-900); }
-  .case-pop__doc { margin-top: 4px; font-size: var(--font-size-xs); color: var(--n-400); }
+  .case-pop__header { display: flex; align-items: center; gap: var(--space-sm); }
+  .case-pop__title { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); word-break: break-all; }
+  .case-pop__prio { font-size: 11px; font-weight: 600; color: #fff; border-radius: 8px; padding: 0 6px; line-height: 16px; flex-shrink: 0; background: var(--priority-p0); }
+  .case-pop__doc { margin-top: 4px; font-size: var(--font-size-xs); color: var(--n-500); }
   .case-pop__rows { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--n-100); display: flex; flex-direction: column; gap: 6px; }
   .case-pop__row { display: flex; align-items: flex-start; gap: 6px; font-size: var(--font-size-xs); line-height: 18px; color: var(--n-700); }
-  .case-pop__badge {
-    flex-shrink: 0; font-size: 11px; color: #fff;
-    border-radius: 8px; padding: 0 6px; line-height: 16px;
-  }
+  .case-pop__badge { flex-shrink: 0; font-size: 11px; color: #fff; border-radius: 8px; padding: 0 6px; line-height: 16px; }
   .case-pop__footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--n-100); text-align: right; }
 
-  /* 操作记录正文（对应 bug-detail__log-content） */
-  .log-content { color: var(--n-500); font-size: var(--font-size-xs); font-weight: 400; margin-left: 6px; }
+  /* 解决信息描述列表（对应 el-descriptions） */
+  .desc-list { margin: 0; }
+  .desc-row { display: flex; gap: 12px; padding: 6px 0; font-size: var(--font-size-sm); }
+  .desc-row__label { width: 72px; flex-shrink: 0; color: var(--n-500); }
+  .desc-row__value { flex: 1; min-width: 0; color: var(--n-700); }
 
-  .attach-empty { padding: 28px 0; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
-
-  /* 选择关联用例弹窗（对应 CaseSelector single 模式） */
-  .case-selector { display: flex; gap: 12px; }
-  .case-selector__tree {
-    width: 180px; flex-shrink: 0; padding: 8px;
-    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+  /* 操作记录（对应 el-timeline） */
+  .timeline { list-style: none; margin: 0; padding: 0 0 0 4px; }
+  .timeline__item { position: relative; padding: 0 0 16px 20px; }
+  .timeline__item:last-child { padding-bottom: 0; }
+  .timeline__item::before { content: ''; position: absolute; left: 4px; top: 14px; bottom: 0; width: 1px; background: var(--n-200); }
+  .timeline__item:last-child::before { display: none; }
+  .timeline__dot {
+    position: absolute; left: 0; top: 4px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--n-300); border: 2px solid var(--n-0); box-shadow: 0 0 0 1px var(--n-300);
   }
-  .case-list { display: flex; flex-direction: column; gap: 4px; min-height: 200px; max-height: 320px; overflow: auto; }
+  .timeline__head { font-size: var(--font-size-sm); color: var(--n-800); line-height: 1.5; }
+  .timeline__time { display: block; margin-top: 4px; font-size: var(--font-size-xs); color: var(--n-400); }
+  .log-content { color: var(--n-500); font-size: var(--font-size-xs); margin-left: 6px; }
+
+  /* 底部粘性操作栏（对应 bug-detail__footer） */
+  .bug-detail__footer {
+    position: sticky; bottom: 0; z-index: 10;
+    display: flex; justify-content: center; gap: var(--space-sm);
+    margin-top: var(--space-lg); padding: var(--space-md) var(--space-lg);
+    background: transparent; pointer-events: none;
+  }
+  .bug-detail__footer .btn { pointer-events: auto; box-shadow: var(--shadow-md); }
+
+  /* 按钮风格映射 Element Plus type */
+  .btn--success { background: var(--st-success); color: #fff; border-color: transparent; }
+  .btn--success:hover { background: var(--st-success-strong); }
+  .btn--warning { background: var(--st-warning); color: #fff; border-color: transparent; }
+  .btn--warning:hover { background: var(--st-warning-strong); }
+  .btn--info { background: var(--n-500); color: #fff; border-color: transparent; }
+  .btn--info:hover { background: var(--n-600); }
+  .btn--link-primary {
+    background: transparent; border-color: transparent; color: var(--brand-500); padding: 0 4px; height: auto;
+  }
+  .btn--link-primary:hover { color: var(--brand-600); background: transparent; }
+  .btn--link-danger {
+    background: transparent; border-color: transparent; color: var(--st-danger); padding: 0 4px; height: auto;
+  }
+  .btn--link-danger:hover { color: var(--st-danger-strong); background: transparent; }
+
+  /* 关闭态只读切换 */
+  .view-only { display: none; }
+  body.is-closed .view-only { display: revert; }
+  body.is-closed .edit-only { display: none !important; }
+
+  /* 关联用例选择弹窗 */
+  .case-selector { display: flex; gap: 12px; min-height: 320px; }
+  .case-selector__tree {
+    width: 200px; flex-shrink: 0; padding: 8px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-md); overflow: auto;
+  }
+  .case-tree-item {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer;
+  }
+  .case-tree-item:hover { background: var(--n-50); }
+  .case-tree-item--active { background: var(--brand-50); color: var(--brand-600); }
+  .case-tree-item__count { margin-left: auto; font-size: var(--font-size-xs); color: var(--n-400); }
+  .case-selector__content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .case-selector__toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .case-hint { font-size: var(--font-size-xs); color: var(--n-400); }
+  .case-list { display: flex; flex-direction: column; gap: 4px; flex: 1; overflow: auto; }
   .case-row {
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
     border: 1px solid transparent; border-radius: var(--radius-md);
@@ -118,46 +242,58 @@
   .case-row:hover { background: var(--n-50); }
   .case-row--on { background: var(--brand-50); border-color: var(--brand-100); color: var(--brand-700); }
   .case-row__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .case-hint { font-size: var(--font-size-xs); color: var(--n-400); }
+
+  /* 弹窗表单控件宽度 */
+  .dialog-form .field { margin-bottom: 18px; }
+  .dialog-form .field:last-child { margin-bottom: 0; }
+  .dialog-form .select, .dialog-form .textarea, .dialog-form .input { width: 100%; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统" data-status="active">
 
 <main class="content">
 
-  <!-- 页头：返回 + ID + 标题（非关闭态内联可编辑） + 状态/激活次数/提交入口 -->
-  <div class="detail-top">
-    <a class="detail-back" href="bugs.html"><span data-icon="arrow-left"></span>返回</a>
-    <span class="detail-divider"></span>
-    <span class="tag tag--info mono">BUG-208</span>
-    <input class="input detail-title-input edit-only" id="f-title" maxlength="300" value="支付回调重复入账" aria-label="缺陷标题">
-    <span class="detail-title-text view-only" id="view-title">支付回调重复入账</span>
-    <div class="field__error edit-only" id="f-title-err" hidden>标题不能为空</div>
-    <div class="detail-top__right">
-      <span class="tag tag--info" id="status-tag">激活</span>
+  <!-- 页头：面包屑（缺陷管理 › 缺陷详情） + 状态/激活次数/提交缺陷（对应 BugDetailPage） -->
+  <div class="bug-detail__header">
+    <div class="bug-detail__breadcrumb">
+      <a href="bugs.html">缺陷管理</a>
+      <span data-icon="chevron-right"></span>
+      <span>缺陷详情</span>
+    </div>
+    <div class="bug-detail__actions">
+      <span class="tag tag--warning" id="status-tag"><span class="dot"></span>激活</span>
       <span class="tag tag--danger" id="reopen-tag">激活 1 次</span>
       <a class="btn btn--primary" href="bug-create.html"><span data-icon="plus"></span>提交缺陷</a>
     </div>
   </div>
 
-  <div class="card-grid" style="grid-template-columns: minmax(0, 1fr) 320px; align-items:start">
-    <div>
-      <!-- 重现步骤（非关闭态 MarkdownEditor，关闭态只读渲染） -->
-      <div class="card">
-        <div class="card__header"><h3 class="card__title">重现步骤</h3></div>
-        <div class="card__body edit-only">
-          <div class="field" style="margin-bottom:0">
-            <div class="md-toolbar">
-              <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
-              <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
-              <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
-              <span class="md-toolbar__sep"></span>
-              <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
-              <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
-              <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
-            </div>
-            <textarea class="textarea" id="f-steps" style="min-height:150px"
-              placeholder="重现步骤（支持 Markdown）">## 重现步骤
+  <!-- 标题行：ID tag + 标题（可编辑态 input / 只读态 text） -->
+  <div class="bug-detail__title-row">
+    <span class="tag tag--info bug-detail__id-tag">BUG-208</span>
+    <input class="input bug-detail__title-input edit-only" id="f-title" maxlength="300" value="支付回调重复入账" aria-label="缺陷标题">
+    <span class="bug-detail__title-text view-only" id="view-title" title="支付回调重复入账">支付回调重复入账</span>
+    <span class="field__error-inline edit-only" id="f-title-err" hidden>标题不能为空</span>
+  </div>
+
+  <div class="bug-detail__layout" id="layout-wrap">
+    <!-- 主区：重现步骤（无卡片包裹） + 附件卡片 -->
+    <div class="bug-detail__main">
+      <div class="edit-only">
+        <div class="md-editor">
+          <div class="md-toolbar">
+            <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
+            <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
+            <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
+            <span class="md-toolbar__sep"></span>
+            <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
+            <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
+            <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
+            <span class="md-toolbar__spacer"></span>
+            <button class="md-toolbar__btn" type="button" id="btn-md-fullscreen" title="全屏" aria-label="全屏">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px" aria-hidden="true"><path d="M8 3.5H3.5V8M16 3.5h4.5V8M8 20.5H3.5V16M16 20.5h4.5V16"/></svg>
+            </button>
+          </div>
+          <textarea class="textarea" id="f-steps" placeholder="重现步骤（支持 Markdown）">## 重现步骤
 
 1. 沙箱环境连续发起两笔相同金额的支付
 2. 第一次回调正常入账后，人为重放同一回调报文
@@ -170,203 +306,218 @@
 ## 实际结果
 
 账务流水出现两笔同渠道记录</textarea>
-            <div class="field__hint">支持 Markdown；每行一步</div>
-          </div>
         </div>
-        <div class="card__body view-only" id="view-steps"></div>
       </div>
+      <div class="view-only md-view" id="view-steps"></div>
 
-      <!-- 附件：上传入口在卡片头，操作列下载任意状态可用、删除仅非关闭态 -->
-      <div class="card">
-        <div class="card__header">
-          <h3 class="card__title">附件</h3>
-          <button class="btn btn--default btn--sm edit-only" id="btn-upload" type="button">
-            <span data-icon="upload"></span>上传附件
-          </button>
-        </div>
-        <input type="file" id="f-file" hidden>
-        <div class="table-wrap" id="attach-wrap">
-          <table class="table">
-            <thead><tr><th>文件名</th><th style="width:90px">大小</th><th style="width:100px">上传人</th><th style="width:150px">上传时间</th><th style="width:130px">操作</th></tr></thead>
-            <tbody id="attach-body">
-              <tr>
-                <td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span><span class="mono text-sm">callback-replay.json</span></td>
-                <td class="num">4.2 KB</td><td>王芳</td><td class="num">2026-09-22 14:02</td>
-                <td><span class="op-link" data-dl>下载</span><span class="op-link op-link--danger edit-only" data-del>删除</span></td>
-              </tr>
-              <tr>
-                <td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span><span class="mono text-sm">ledger-diff.png</span></td>
-                <td class="num">128 KB</td><td>王芳</td><td class="num">2026-09-22 14:03</td>
-                <td><span class="op-link" data-dl>下载</span><span class="op-link op-link--danger edit-only" data-del>删除</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="attach-empty" id="attach-empty" hidden>暂无附件</div>
-      </div>
-
-      <!-- 操作记录：由状态流转、指派、附件等操作写入，无独立评论入口 -->
-      <div class="card">
-        <div class="card__header"><h3 class="card__title">操作记录<span class="card__subtitle" id="activity-count">6</span></h3></div>
+      <div class="card bug-detail__attachments">
         <div class="card__body">
-          <ul class="timeline" id="activity-list">
-            <li class="timeline__item"><span class="timeline__dot timeline__dot--brand"></span>
-              <div class="timeline__head"><strong>李华</strong> update<span class="log-content">更新缺陷</span><span class="timeline__time">2026-09-23 09:12</span></div></li>
-            <li class="timeline__item"><span class="timeline__dot timeline__dot--warning"></span>
-              <div class="timeline__head"><strong>王芳</strong> reopen<span class="log-content">重开缺陷，说明：修复后沙箱仍可复现</span><span class="timeline__time">2026-09-22 17:40</span></div></li>
-            <li class="timeline__item"><span class="timeline__dot timeline__dot--success"></span>
-              <div class="timeline__head"><strong>李华</strong> resolve<span class="log-content">解决缺陷，方案「fixed」，说明：补充回调幂等键校验</span><span class="timeline__time">2026-09-22 16:20</span></div></li>
-            <li class="timeline__item"><span class="timeline__dot"></span>
-              <div class="timeline__head"><strong>王芳</strong> assign<span class="log-content">指派处理人为「李华」</span><span class="timeline__time">2026-09-22 14:05</span></div></li>
-            <li class="timeline__item"><span class="timeline__dot"></span>
-              <div class="timeline__head"><strong>王芳</strong> attachment_upload<span class="log-content">上传附件「callback-replay.json」</span><span class="timeline__time">2026-09-22 14:02</span></div></li>
-            <li class="timeline__item"><span class="timeline__dot"></span>
-              <div class="timeline__head"><strong>王芳</strong> create<span class="log-content">创建缺陷</span><span class="timeline__time">2026-09-22 13:58</span></div></li>
-          </ul>
+          <div class="bug-detail__upload edit-only">
+            <button class="btn btn--link-primary btn--sm" id="btn-upload" type="button">
+              <span data-icon="upload"></span>上传附件
+            </button>
+          </div>
+          <input type="file" id="f-file" hidden>
+          <div class="table-wrap" id="attach-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>文件名</th>
+                  <th style="width:100px">大小</th>
+                  <th style="width:120px">上传人</th>
+                  <th style="width:170px">上传时间</th>
+                  <th style="width:120px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="attach-body">
+                <tr>
+                  <td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span><span class="mono text-sm">callback-replay.json</span></td>
+                  <td>4.2 KB</td><td>王芳</td><td class="num">2026-09-22 14:02</td>
+                  <td><button class="btn btn--link-primary btn--sm" type="button" data-dl>下载</button><button class="btn btn--link-danger btn--sm edit-only" type="button" data-del>删除</button></td>
+                </tr>
+                <tr>
+                  <td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span><span class="mono text-sm">ledger-diff.png</span></td>
+                  <td>128 KB</td><td>王芳</td><td class="num">2026-09-22 14:03</td>
+                  <td><button class="btn btn--link-primary btn--sm" type="button" data-dl>下载</button><button class="btn btn--link-danger btn--sm edit-only" type="button" data-del>删除</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="attach-empty" id="attach-empty" hidden>暂无附件</div>
         </div>
       </div>
     </div>
 
-    <!-- 侧栏：解决信息（已修复/已关闭时展示）+ 属性 -->
-    <div>
-      <div class="card" id="res-card" hidden>
-        <div class="card__header"><h3 class="card__title">解决信息</h3></div>
-        <div class="card__body" style="display:flex;flex-direction:column;gap:14px">
-          <div class="desc-item"><div class="desc-item__label">解决方案</div>
-            <div class="desc-item__value"><span class="tag tag--success" id="res-solution">已解决</span></div></div>
-          <div class="desc-item" id="res-dup-item" hidden><div class="desc-item__label">重复缺陷</div>
-            <div class="desc-item__value"><a class="op-link" href="bug-detail.html">查看原始缺陷</a></div></div>
-          <div class="desc-item"><div class="desc-item__label">解决人</div>
-            <div class="desc-item__value text-sm" id="res-resolver">-</div></div>
-          <div class="desc-item" id="res-closer-item" hidden><div class="desc-item__label">关闭人</div>
-            <div class="desc-item__value text-sm" id="res-closer">-</div></div>
+    <!-- 侧栏：border-card 页签（属性 / 解决信息 / 操作记录），对应 BugSidebar -->
+    <div class="bug-detail__side">
+      <div class="side-tabs" id="side-tabs">
+        <div class="side-tabs__header" role="tablist" aria-label="缺陷侧栏">
+          <button class="side-tabs__tab side-tabs__tab--active" type="button" role="tab" aria-selected="true" data-tab="attributes">属性</button>
+          <button class="side-tabs__tab" type="button" role="tab" aria-selected="false" data-tab="resolution">解决信息</button>
+          <button class="side-tabs__tab" type="button" role="tab" aria-selected="false" data-tab="logs">操作记录</button>
         </div>
-      </div>
+        <div class="side-tabs__content">
+          <div class="side-tabs__pane" data-pane="attributes">
+            <div class="props-form">
+              <div class="field">
+                <label class="field__label" for="f-type">缺陷类型</label>
+                <select class="select edit-only" id="f-type">
+                  <option value="code_error" selected>代码错误</option>
+                  <option value="ui_improvement">界面优化</option>
+                  <option value="design_defect">设计缺陷</option>
+                  <option value="configuration">配置相关</option>
+                  <option value="installation">安装部署</option>
+                  <option value="security">安全相关</option>
+                  <option value="performance">性能问题</option>
+                  <option value="standard_spec">标准规范</option>
+                  <option value="other">其他</option>
+                </select>
+                <span class="view-only detail-text" id="view-type">代码错误</span>
+              </div>
 
-      <div class="card">
-        <div class="card__header"><h3 class="card__title">属性</h3></div>
-        <div class="card__body props">
-          <div class="field">
-            <label class="field__label" for="f-type">缺陷类型</label>
-            <select class="select edit-only" id="f-type">
-              <option value="code_error" selected>代码错误</option>
-              <option value="ui_improvement">界面优化</option>
-              <option value="design_defect">设计缺陷</option>
-              <option value="configuration">配置相关</option>
-              <option value="installation">安装部署</option>
-              <option value="security">安全相关</option>
-              <option value="performance">性能问题</option>
-              <option value="standard_spec">标准规范</option>
-              <option value="other">其他</option>
-            </select>
-            <span class="view-only text-sm" id="view-type">代码错误</span>
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-module">所属模块</label>
+                <select class="select edit-only" id="f-module">
+                  <option value="">选择所属模块</option>
+                  <option selected>支付中心</option>
+                  <option>下单流程</option>
+                  <option>用户中心</option>
+                </select>
+                <span class="view-only detail-text" id="view-module">支付中心</span>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-module">所属模块</label>
-            <select class="select edit-only" id="f-module">
-              <option selected>支付中心</option><option>下单流程</option><option>用户中心</option>
-            </select>
-            <span class="view-only text-sm" id="view-module">支付中心</span>
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-sev">严重等级</label>
+                <select class="select edit-only" id="f-sev">
+                  <option value="fatal">致命</option>
+                  <option value="serious" selected>严重</option>
+                  <option value="general">一般</option>
+                  <option value="minor">轻微</option>
+                </select>
+                <span class="view-only" id="view-sev"><span class="tag tag--warning"><span class="dot"></span>严重</span></span>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-sev">严重等级</label>
-            <select class="select edit-only" id="f-sev">
-              <option value="fatal">致命</option>
-              <option value="serious" selected>严重</option>
-              <option value="general">一般</option>
-              <option value="minor">轻微</option>
-            </select>
-            <span class="view-only" id="view-sev"><span class="tag tag--warning"><span class="dot"></span>严重</span></span>
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-prio">优先级</label>
+                <select class="select edit-only" id="f-prio">
+                  <option value="high" selected>高</option>
+                  <option value="medium">中</option>
+                  <option value="low">低</option>
+                </select>
+                <span class="view-only" id="view-prio"><span class="tag tag--warning">高</span></span>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-prio">优先级</label>
-            <select class="select edit-only" id="f-prio">
-              <option value="high" selected>高</option>
-              <option value="medium">中</option>
-              <option value="low">低</option>
-            </select>
-            <span class="view-only" id="view-prio"><span class="tag tag--warning">高</span></span>
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-due">截止日期</label>
+                <input class="input edit-only" type="date" id="f-due" value="2026-09-23">
+                <span class="view-only detail-text" id="view-due">2026-09-23</span>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-due">截止日期</label>
-            <input class="input edit-only" type="date" id="f-due" value="2026-09-23">
-            <span class="view-only text-sm" id="view-due">2026-09-23</span>
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-keywords">关键词</label>
+                <input class="input edit-only" id="f-keywords" maxlength="255" placeholder="多个关键词用空格分隔" value="幂等 回调 重复入账">
+                <span class="view-only detail-text" id="view-keywords">幂等 回调 重复入账</span>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-keywords">关键词</label>
-            <input class="input edit-only" id="f-keywords" maxlength="255" placeholder="多个关键词用空格分隔" value="幂等 回调 重复入账">
-            <span class="view-only text-sm" id="view-keywords">幂等 回调 重复入账</span>
-          </div>
+              <div class="field">
+                <label class="field__label" for="f-assignee">指派给</label>
+                <select class="select edit-only" id="f-assignee">
+                  <option selected>李华</option><option>王芳</option><option>张明</option><option>周敏</option><option>陈强</option>
+                </select>
+                <span class="view-only detail-text" id="view-assignee">李华</span>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-assignee">指派给</label>
-            <select class="select edit-only" id="f-assignee">
-              <option selected>李华</option><option>王芳</option><option>张明</option><option>周敏</option><option>陈强</option>
-            </select>
-            <span class="view-only text-sm" id="view-assignee">李华</span>
-          </div>
-
-          <div class="field">
-            <label class="field__label">关联用例</label>
-            <div class="case-rel" id="case-rel">
-              <span class="case-trigger case-trigger--on" id="case-trigger">已关联 1 个用例</span>
-              <button class="btn btn--default btn--sm edit-only" id="btn-case" type="button">更换</button>
-              <button class="btn btn--text btn--sm edit-only" id="btn-case-clear" type="button" style="color:var(--st-danger)">清除</button>
-              <div class="case-pop" id="case-pop" hidden>
-                <div class="case-pop__title">支付回调幂等校验</div>
-                <div class="case-pop__doc">所属文档：支付中心</div>
-                <div class="case-pop__rows">
-                  <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--brand-500)">前置</span>沙箱环境已配置渠道回调地址</div>
-                  <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--n-600)">步骤</span>发起支付并接收渠道回调</div>
-                  <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--n-600)">步骤</span>重放同一回调报文</div>
-                  <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--st-success)">预期</span>账务仅入账一次，重放被拦截</div>
+              <div class="field">
+                <label class="field__label">关联用例</label>
+                <div class="bug-detail__relation">
+                  <div class="case-rel" id="case-rel">
+                    <span class="case-trigger case-trigger--on" id="case-trigger">已关联 1 个用例</span>
+                    <div class="case-pop" id="case-pop" hidden>
+                      <div class="case-pop__header">
+                        <span class="case-pop__title">支付回调幂等校验</span>
+                        <span class="case-pop__prio">P0</span>
+                      </div>
+                      <div class="case-pop__doc">所属文档：支付中心</div>
+                      <div class="case-pop__rows">
+                        <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--brand-500)">前置</span>沙箱环境已配置渠道回调地址</div>
+                        <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--n-600)">步骤</span>发起支付并接收渠道回调</div>
+                        <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--n-600)">步骤</span>重放同一回调报文</div>
+                        <div class="case-pop__row"><span class="case-pop__badge" style="background:var(--st-success)">预期</span>账务仅入账一次，重放被拦截</div>
+                      </div>
+                      <div class="case-pop__footer">
+                        <a class="op-link" href="functional-testing.html">打开所在文档</a>
+                      </div>
+                    </div>
+                  </div>
+                  <template class="edit-only"></template>
+                  <button class="btn btn--link-primary btn--sm edit-only" id="btn-case" type="button">更换</button>
+                  <button class="btn btn--link-danger btn--sm edit-only" id="btn-case-clear" type="button">清除</button>
                 </div>
-                <div class="case-pop__footer">
-                  <a class="op-link" href="functional-testing.html">打开所在文档</a>
-                </div>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="f-plan">关联计划</label>
+                <select class="select edit-only" id="f-plan">
+                  <option value="">选择计划（可选）</option>
+                  <option value="V1.4.2 回归测试" selected>V1.4.2 回归测试</option>
+                  <option value="V1.4.3 冒烟测试">V1.4.3 冒烟测试</option>
+                </select>
+                <span class="view-only detail-text" id="view-plan">V1.4.2 回归测试</span>
               </div>
             </div>
           </div>
 
-          <div class="field">
-            <label class="field__label" for="f-plan">关联计划</label>
-            <select class="select edit-only" id="f-plan">
-              <option value="">选择计划（可选）</option>
-              <option value="V1.4.2 回归测试" selected>V1.4.2 回归测试</option>
-              <option value="V1.4.3 冒烟测试">V1.4.3 冒烟测试</option>
-            </select>
-            <span class="view-only text-sm" id="view-plan">V1.4.2 回归测试</span>
+          <div class="side-tabs__pane" data-pane="resolution" hidden>
+            <div id="res-empty" class="attach-empty" style="padding:36px 0">暂无解决信息</div>
+            <dl class="desc-list" id="res-card" hidden>
+              <div class="desc-row"><dt class="desc-row__label">解决方案</dt><dd class="desc-row__value"><span class="tag tag--success" id="res-solution">已解决</span></dd></div>
+              <div class="desc-row" id="res-dup-item" hidden><dt class="desc-row__label">重复缺陷</dt><dd class="desc-row__value"><a class="op-link" href="bug-detail.html" target="_blank">查看原始缺陷</a></dd></div>
+              <div class="desc-row"><dt class="desc-row__label">解决人</dt><dd class="desc-row__value" id="res-resolver">-</dd></div>
+              <div class="desc-row" id="res-closer-item" hidden><dt class="desc-row__label">关闭人</dt><dd class="desc-row__value" id="res-closer">-</dd></div>
+            </dl>
+          </div>
+
+          <div class="side-tabs__pane" data-pane="logs" hidden>
+            <ul class="timeline" id="activity-list">
+              <li class="timeline__item"><span class="timeline__dot"></span>
+                <div class="timeline__head"><strong>李华</strong> update<span class="log-content">更新缺陷</span><span class="timeline__time">2026-09-23 09:12</span></div></li>
+              <li class="timeline__item"><span class="timeline__dot"></span>
+                <div class="timeline__head"><strong>王芳</strong> reopen<span class="log-content">重开缺陷，说明：修复后沙箱仍可复现</span><span class="timeline__time">2026-09-22 17:40</span></div></li>
+              <li class="timeline__item"><span class="timeline__dot"></span>
+                <div class="timeline__head"><strong>李华</strong> resolve<span class="log-content">解决缺陷，方案「fixed」，说明：补充回调幂等键校验</span><span class="timeline__time">2026-09-22 16:20</span></div></li>
+              <li class="timeline__item"><span class="timeline__dot"></span>
+                <div class="timeline__head"><strong>王芳</strong> assign<span class="log-content">指派处理人为「李华」</span><span class="timeline__time">2026-09-22 14:05</span></div></li>
+              <li class="timeline__item"><span class="timeline__dot"></span>
+                <div class="timeline__head"><strong>王芳</strong> attachment_upload<span class="log-content">上传附件「callback-replay.json」</span><span class="timeline__time">2026-09-22 14:02</span></div></li>
+              <li class="timeline__item"><span class="timeline__dot"></span>
+                <div class="timeline__head"><strong>王芳</strong> create<span class="log-content">创建缺陷</span><span class="timeline__time">2026-09-22 13:58</span></div></li>
+            </ul>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 底部粘性流转操作：按钮随状态机显隐，保存仅非关闭态 -->
-  <div class="detail-footer">
+  <!-- 底部粘性流转操作：按钮随状态机显隐，保存仅非关闭态（对应 bug-detail__footer） -->
+  <div class="bug-detail__footer">
     <button class="btn btn--default" id="btn-confirm" type="button">确认</button>
     <button class="btn btn--success" id="btn-resolve" type="button">解决</button>
     <button class="btn btn--warning" id="btn-reject" type="button">拒绝</button>
     <button class="btn btn--info" id="btn-close" type="button" hidden>关闭</button>
     <button class="btn btn--danger" id="btn-reopen" type="button" hidden>激活</button>
-    <button class="btn btn--primary" id="btn-save" type="button" data-ux-key="mod+s"><span data-icon="check"></span>保存</button>
+    <button class="btn btn--primary" id="btn-save" type="button">保存</button>
   </div>
 
 </main>
 
-<!-- 确认缺陷 / 删除附件等二次确认 -->
-<div class="dialog-mask" id="confirm-dialog" hidden>
+<!-- 确认缺陷 / 删除附件等二次确认（对应 ElMessageBox.confirm） -->
+<div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px">
     <div class="dialog__header">
       <span class="dialog__title" id="confirm-title">确认操作</span>
       <button class="dialog__close" type="button" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
-    <div class="dialog__body"><p id="confirm-text" style="margin:0;color:var(--n-700)"></p></div>
+    <div class="dialog__body"><p id="confirm-text" style="margin:0;color:var(--n-700);font-size:var(--font-size-sm)"></p></div>
     <div class="dialog__footer">
       <button class="btn btn--default" type="button" data-close="confirm-dialog">取消</button>
       <button class="btn btn--primary" id="confirm-ok" type="button">确定</button>
@@ -374,14 +525,14 @@
   </div>
 </div>
 
-<!-- 解决缺陷弹窗（对应 BugResolveDialog） -->
-<div class="dialog-mask" id="resolve-dialog" hidden>
+<!-- 解决缺陷弹窗（对应 BugResolveDialog，el-dialog 480px） -->
+<div class="dialog-mask" id="resolve-dialog" data-mask-close hidden>
   <div class="dialog" style="width:480px">
     <div class="dialog__header">
       <span class="dialog__title">解决缺陷</span>
       <button class="dialog__close" type="button" data-close="resolve-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
-    <div class="dialog__body">
+    <div class="dialog__body dialog-form">
       <div class="field">
         <label class="field__label" for="resolve-resolution">解决方案 <span class="req">*</span></label>
         <select class="select" id="resolve-resolution">
@@ -402,9 +553,9 @@
           <option value="BUG-203">BUG-203 对账文件重复生成</option>
         </select>
       </div>
-      <div class="field" style="margin-bottom:0">
+      <div class="field">
         <label class="field__label" for="resolve-comment">备注 <span class="req">*</span></label>
-        <textarea class="textarea" id="resolve-comment" placeholder="请填写解决说明"></textarea>
+        <textarea class="textarea" id="resolve-comment" rows="3" placeholder="请填写解决说明"></textarea>
         <div class="field__error" id="resolve-error" hidden></div>
       </div>
     </div>
@@ -415,16 +566,16 @@
   </div>
 </div>
 
-<!-- 状态变更说明（拒绝/关闭/激活均必填） -->
+<!-- 状态变更说明（拒绝/关闭/激活，对应 ElMessageBox.prompt） -->
 <div class="dialog-mask" id="status-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px">
     <div class="dialog__header">
       <span class="dialog__title">状态变更</span>
       <button class="dialog__close" type="button" data-close="status-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
-    <div class="dialog__body">
-      <p class="text-sm" style="margin:0 0 14px;color:var(--n-700)">确定要将状态变更为「<span class="strong" id="status-target"></span>」吗？</p>
-      <div class="field" style="margin-bottom:0">
+    <div class="dialog__body dialog-form">
+      <p style="margin:0 0 14px;color:var(--n-700);font-size:var(--font-size-sm)">确定要将状态变更为「<span class="strong" id="status-target"></span>」吗？</p>
+      <div class="field">
         <label class="field__label" for="status-comment">变更说明 <span class="req">*</span></label>
         <textarea class="textarea" id="status-comment" placeholder="请输入变更说明（必填）"></textarea>
         <div class="field__error" id="status-error" hidden></div>
@@ -439,7 +590,7 @@
 
 <!-- 选择关联用例弹窗（对应 CaseSelector single 模式） -->
 <div class="dialog-mask" id="case-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:640px">
+  <div class="dialog" style="width:720px">
     <div class="dialog__header">
       <span class="dialog__title">选择关联用例</span>
       <button class="dialog__close" type="button" data-close="case-dialog" aria-label="关闭"><span data-icon="x"></span></button>
@@ -447,21 +598,19 @@
     <div class="dialog__body">
       <div class="case-selector">
         <div class="case-selector__tree">
-          <div class="tree">
-            <div class="tree__item tree__item--active" data-doc="pay" role="button" tabindex="0"><span data-icon="folder"></span>支付中心<span class="tree__count">2</span></div>
-            <div class="tree__item" data-doc="order" role="button" tabindex="0"><span data-icon="folder"></span>下单流程<span class="tree__count">2</span></div>
-            <div class="tree__item" data-doc="user" role="button" tabindex="0"><span data-icon="folder"></span>用户中心<span class="tree__count">1</span></div>
-          </div>
+          <div class="case-tree-item case-tree-item--active" data-doc="pay" role="button" tabindex="0"><span data-icon="folder"></span>支付中心<span class="case-tree-item__count">2</span></div>
+          <div class="case-tree-item" data-doc="order" role="button" tabindex="0"><span data-icon="folder"></span>下单流程<span class="case-tree-item__count">2</span></div>
+          <div class="case-tree-item" data-doc="user" role="button" tabindex="0"><span data-icon="folder"></span>用户中心<span class="case-tree-item__count">1</span></div>
         </div>
-        <div style="flex:1;min-width:0">
-          <div class="flex-between" style="margin-bottom:8px">
+        <div class="case-selector__content">
+          <div class="case-selector__toolbar">
             <span class="case-hint">仅可关联一个用例，再次选择将替换</span>
-            <span class="case-hint">单选</span>
+            <span class="case-hint" id="case-count">已选 1 个用例</span>
           </div>
           <div class="case-list">
             <div class="case-list__doc" data-doc-section="pay">
-              <button class="case-row" type="button" data-case-id="TC-1026">
-                <span class="checkbox"></span>
+              <button class="case-row case-row--on" type="button" data-case-id="TC-1026">
+                <span class="checkbox checkbox--on"></span>
                 <span class="case-row__title">支付-01 支付回调幂等校验</span>
                 <span class="prio prio--p0">P0</span>
               </button>
@@ -496,7 +645,7 @@
     </div>
     <div class="dialog__footer">
       <button class="btn btn--default" type="button" data-close="case-dialog">取消</button>
-      <button class="btn btn--primary" id="case-ok" type="button">确定关联</button>
+      <button class="btn btn--primary" id="case-ok" type="button">确定关联 (1)</button>
     </div>
   </div>
 </div>
@@ -506,11 +655,12 @@
 <script src="../assets/ux.js"></script>
 <script>
 (function () {
-  // 与实际页口径一致：四态状态机 + 合法流转（BugStatusChangeServiceImpl）
+  // 与实际实现对齐：BugDetailPage + BugSidebar + BugResolveDialog + bugStatus.ts
   var STATUS_LABEL = { active: '激活', resolved: '已修复', rejected: '已拒绝', closed: '已关闭' };
-  var STATUS_TAG = { active: 'tag--info', resolved: 'tag--success', rejected: 'tag--warning', closed: 'tag--neutral' };
+  // 实际 BUG_STATUS_TAG_TYPE: active=warning, resolved=success, rejected=warning, closed=info
+  var STATUS_TAG = { active: 'tag--warning', resolved: 'tag--success', rejected: 'tag--warning', closed: 'tag--info' };
   var SEV_LABEL = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' };
-  var SEV_TAG = { fatal: 'tag--danger', serious: 'tag--warning', general: 'tag--neutral', minor: 'tag--success' };
+  var SEV_TAG = { fatal: 'tag--danger', serious: 'tag--warning', general: 'tag--info', minor: 'tag--success' };
   var PRIO_LABEL = { high: '高', medium: '中', low: '低' };
   var PRIO_TAG = { high: 'tag--warning', medium: 'tag--info', low: 'tag--neutral' };
   var TYPE_LABEL = {
@@ -522,7 +672,6 @@
     fixed: '已解决', by_design: '设计如此', duplicate: '重复缺陷', external: '外部原因',
     cannot_reproduce: '无法重现', deferred: '延期处理', wont_fix: '不予解决'
   };
-  var LOG_DOT = { resolve: 'timeline__dot--success', reject: 'timeline__dot--warning', reopen: 'timeline__dot--warning' };
 
   var FIELD_LABELS = {
     'f-title': '标题', 'f-steps': '重现步骤', 'f-type': '缺陷类型', 'f-module': '所属模块',
@@ -541,8 +690,8 @@
   var stepsInput = document.getElementById('f-steps');
   var stepsView = document.getElementById('view-steps');
   var logList = document.getElementById('activity-list');
-  var logCount = document.getElementById('activity-count');
   var resCard = document.getElementById('res-card');
+  var resEmpty = document.getElementById('res-empty');
   var attachBody = document.getElementById('attach-body');
   var attachWrap = document.getElementById('attach-wrap');
   var attachEmpty = document.getElementById('attach-empty');
@@ -562,30 +711,24 @@
   };
 
   function byId(id) { return document.getElementById(id); }
-
   function esc(text) {
     return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
-
   function toast(msg, type) {
     if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {});
   }
-
   function pad(n) { return n < 10 ? '0' + n : String(n); }
-
   function nowStr() {
     var d = new Date();
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
       ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
-
   function fmtSize(size) {
     if (size < 1024) return size + ' B';
     if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
     return (size / 1024 / 1024).toFixed(1) + ' MB';
   }
 
-  // 极简 Markdown 渲染，仅覆盖演示数据用到的标题/有序列表/段落
   function renderMarkdown(src) {
     var out = [];
     var inList = false;
@@ -593,17 +736,17 @@
       var line = raw.trim();
       if (/^#{1,6}\s/.test(line)) {
         if (inList) { out.push('</ol>'); inList = false; }
-        out.push('<div class="strong" style="margin:12px 0 6px">' + esc(line.replace(/^#{1,6}\s*/, '')) + '</div>');
+        out.push('<h3>' + esc(line.replace(/^#{1,6}\s*/, '')) + '</h3>');
         return;
       }
       if (/^\d+[.、)]\s*/.test(line)) {
-        if (!inList) { out.push('<ol style="margin:0 0 6px;padding-left:20px;color:var(--n-600)">'); inList = true; }
+        if (!inList) { out.push('<ol style="margin:0 0 8px;padding-left:20px;color:var(--n-600)">'); inList = true; }
         out.push('<li>' + esc(line.replace(/^\d+[.、)]\s*/, '')) + '</li>');
         return;
       }
       if (!line) { if (inList) { out.push('</ol>'); inList = false; } return; }
       if (inList) { out.push('</ol>'); inList = false; }
-      out.push('<p style="margin:0 0 6px;color:var(--n-600)">' + esc(line) + '</p>');
+      out.push('<p>' + esc(line) + '</p>');
     });
     if (inList) out.push('</ol>');
     return out.join('');
@@ -622,9 +765,9 @@
     titleErr.hidden = true;
   }
 
-  // 关闭态展示以输入区当前值为准，避免未保存修改在只读视图中丢失
   function applyViews(v) {
     titleView.textContent = v['f-title'];
+    titleView.title = v['f-title'];
     stepsView.innerHTML = renderMarkdown(v['f-steps']);
     byId('view-type').textContent = TYPE_LABEL[v['f-type']] || '-';
     byId('view-module').textContent = v['f-module'] || '-';
@@ -639,19 +782,18 @@
   function addLog(op, content) {
     var li = document.createElement('li');
     li.className = 'timeline__item';
-    li.innerHTML = '<span class="timeline__dot ' + (LOG_DOT[op] || '') + '"></span>' +
+    li.innerHTML = '<span class="timeline__dot"></span>' +
       '<div class="timeline__head"><strong>' + CURRENT_USER + '</strong> ' + op +
       (content ? '<span class="log-content">' + esc(content) + '</span>' : '') +
       '<span class="timeline__time">' + nowStr() + '</span></div>';
     logList.insertBefore(li, logList.firstChild);
-    logCount.textContent = String(logList.children.length);
   }
 
   function renderStatus() {
     var s = state.status;
     body.classList.toggle('is-closed', s === 'closed');
     statusTag.className = 'tag ' + STATUS_TAG[s];
-    statusTag.textContent = STATUS_LABEL[s];
+    statusTag.innerHTML = '<span class="dot"></span>' + STATUS_LABEL[s];
     reopenTag.className = 'tag ' + (state.reopenCount > 0 ? 'tag--danger' : 'tag--info');
     reopenTag.textContent = '激活 ' + state.reopenCount + ' 次';
 
@@ -662,8 +804,10 @@
     byId('btn-reopen').hidden = !(s === 'resolved' || s === 'rejected' || s === 'closed');
     byId('btn-save').hidden = s === 'closed';
 
-    resCard.hidden = !(s === 'resolved' || s === 'closed');
-    if (!resCard.hidden) {
+    var showResolution = s === 'resolved' || s === 'closed';
+    resCard.hidden = !showResolution;
+    resEmpty.hidden = showResolution;
+    if (showResolution) {
       byId('res-solution').textContent = state.resolution ? RESOLUTION_LABEL[state.resolution] : '-';
       byId('res-dup-item').hidden = !state.duplicate;
       byId('res-resolver').textContent = state.resolvedBy ? state.resolvedBy + '（' + state.resolvedAt + '）' : '-';
@@ -678,13 +822,14 @@
     var trig = byId('case-trigger');
     var btn = byId('btn-case');
     var clr = byId('btn-case-clear');
+    var s = state.status;
     if (relatedCase) {
       trig.textContent = '已关联 1 个用例';
       trig.classList.add('case-trigger--on');
       btn.textContent = '更换';
-      clr.hidden = false;
+      clr.hidden = s === 'closed';
     } else {
-      trig.textContent = state.status === 'closed' ? '-' : '未关联';
+      trig.textContent = s === 'closed' ? '-' : '未关联';
       trig.classList.remove('case-trigger--on');
       btn.textContent = '选择用例';
       clr.hidden = true;
@@ -698,7 +843,6 @@
     attachEmpty.hidden = !empty;
   }
 
-  // ==================== 保存 ====================
   function save() {
     if (state.status === 'closed') return;
     var title = titleInput.value.trim();
@@ -725,6 +869,31 @@
     snapshot = v;
     toast('已保存', 'success');
   }
+
+  // ==================== 侧栏页签 ====================
+  var sideTabs = document.getElementById('side-tabs');
+  sideTabs.querySelectorAll('.side-tabs__tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var name = tab.getAttribute('data-tab');
+      sideTabs.querySelectorAll('.side-tabs__tab').forEach(function (t) {
+        var active = t === tab;
+        t.classList.toggle('side-tabs__tab--active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      sideTabs.querySelectorAll('[data-pane]').forEach(function (pane) {
+        pane.hidden = pane.getAttribute('data-pane') !== name;
+      });
+    });
+  });
+
+  function measureSideHeight() {
+    var wrap = document.getElementById('layout-wrap');
+    if (!wrap) return;
+    var top = wrap.getBoundingClientRect().top;
+    var h = Math.max(320, Math.floor((window.innerHeight - top) * 0.9));
+    sideTabs.style.setProperty('--side-height', h + 'px');
+  }
+  window.addEventListener('resize', measureSideHeight);
 
   // ==================== 通用确认弹窗 ====================
   var confirmDlg = byId('confirm-dialog');
@@ -865,6 +1034,26 @@
     });
   });
 
+  // ==================== Markdown 全屏（真实切换编辑器 DOM 状态） ====================
+  var mdEditor = stepsInput.closest('.md-editor');
+  var fsBtn = byId('btn-md-fullscreen');
+  var FS_SVG_PATH = 'M8 3.5H3.5V8M16 3.5h4.5V8M8 20.5H3.5V16M16 20.5h4.5V16';
+  var FS_EXIT_PATH = 'M3.5 8H8V3.5M20.5 8H16V3.5M3.5 16H8v4.5M20.5 16H16v4.5';
+  function fsIcon(path) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px" ' +
+      'aria-hidden="true"><path d="' + path + '"/></svg>';
+  }
+  function setMdFullscreen(on) {
+    mdEditor.classList.toggle('md-editor--fullscreen', on);
+    fsBtn.innerHTML = fsIcon(on ? FS_EXIT_PATH : FS_SVG_PATH);
+    fsBtn.setAttribute('aria-label', on ? '退出全屏' : '全屏');
+    fsBtn.title = on ? '退出全屏' : '全屏';
+  }
+  fsBtn.addEventListener('click', function () {
+    setMdFullscreen(!mdEditor.classList.contains('md-editor--fullscreen'));
+  });
+
   // ==================== 附件 ====================
   byId('btn-upload').addEventListener('click', function () { byId('f-file').click(); });
   byId('f-file').addEventListener('change', function (e) {
@@ -878,8 +1067,8 @@
     var tr = document.createElement('tr');
     tr.innerHTML = '<td class="flex-center flex-gap-sm"><span data-icon="document" style="width:15px;height:15px;color:var(--n-400)"></span>' +
       '<span class="mono text-sm">' + esc(file.name) + '</span></td>' +
-      '<td class="num">' + fmtSize(file.size) + '</td><td>' + CURRENT_USER + '</td><td class="num">' + nowStr() + '</td>' +
-      '<td><span class="op-link" data-dl>下载</span><span class="op-link op-link--danger edit-only" data-del>删除</span></td>';
+      '<td>' + fmtSize(file.size) + '</td><td>' + CURRENT_USER + '</td><td class="num">' + nowStr() + '</td>' +
+      '<td><button class="btn btn--link-primary btn--sm" type="button" data-dl>下载</button><button class="btn btn--link-danger btn--sm edit-only" type="button" data-del>删除</button></td>';
     attachBody.appendChild(tr);
     if (window.RTIcons) window.RTIcons.hydrate(tr);
     updateAttachEmpty();
@@ -887,10 +1076,26 @@
     toast('附件已上传', 'success');
   });
 
+  function downloadAttachment(name) {
+    var blob = new Blob(['RoboTest 原型演示附件：' + name + '\n（本地生成，非真实文件内容）'], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    addLog('attachment_download', '下载附件「' + name + '」');
+  }
+
   attachBody.addEventListener('click', function (e) {
     var dl = e.target.closest('[data-dl]');
     if (dl) {
-      toast('已开始下载「' + dl.closest('tr').querySelector('.mono').textContent + '」');
+      var dlName = dl.closest('tr').querySelector('.mono').textContent;
+      downloadAttachment(dlName);
+      toast('已下载「' + dlName + '」', 'success');
       return;
     }
     var del = e.target.closest('[data-del]');
@@ -913,6 +1118,11 @@
   caseRel.addEventListener('mouseleave', function () {
     byId('case-pop').hidden = true;
   });
+  caseRel.addEventListener('click', function (e) {
+    if (!relatedCase || e.target.closest('.case-pop a')) return;
+    var pop = byId('case-pop');
+    pop.hidden = !pop.hidden;
+  });
 
   byId('btn-case-clear').addEventListener('click', function () {
     relatedCase = '';
@@ -922,12 +1132,18 @@
 
   var caseDlg = byId('case-dialog');
   var pendingCase = '';
+  function updateCaseDialogCount() {
+    var count = pendingCase ? 1 : 0;
+    byId('case-count').textContent = '已选 ' + count + ' 个用例';
+    byId('case-ok').textContent = '确定关联 (' + count + ')';
+  }
   function markCaseRows() {
     caseDlg.querySelectorAll('.case-row').forEach(function (row) {
       var on = row.getAttribute('data-case-id') === pendingCase;
       row.classList.toggle('case-row--on', on);
       row.querySelector('.checkbox').classList.toggle('checkbox--on', on);
     });
+    updateCaseDialogCount();
   }
   byId('btn-case').addEventListener('click', function () {
     pendingCase = relatedCase;
@@ -942,12 +1158,16 @@
     });
   });
   caseDlg.querySelectorAll('[data-doc]').forEach(function (item) {
-    item.addEventListener('click', function () {
-      caseDlg.querySelectorAll('[data-doc]').forEach(function (i) { i.classList.remove('tree__item--active'); });
-      item.classList.add('tree__item--active');
+    function selectDoc() {
+      caseDlg.querySelectorAll('[data-doc]').forEach(function (i) { i.classList.remove('case-tree-item--active'); });
+      item.classList.add('case-tree-item--active');
       caseDlg.querySelectorAll('[data-doc-section]').forEach(function (section) {
         section.hidden = section.getAttribute('data-doc-section') !== item.getAttribute('data-doc');
       });
+    }
+    item.addEventListener('click', selectDoc);
+    item.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectDoc(); }
     });
   });
   byId('case-ok').addEventListener('click', function () {
@@ -977,6 +1197,8 @@
     ['confirm-dialog', 'resolve-dialog', 'status-dialog', 'case-dialog'].forEach(function (id) {
       byId(id).hidden = true;
     });
+    byId('case-pop').hidden = true;
+    setMdFullscreen(false);
   });
 
   // ==================== 初始化 ====================
@@ -984,6 +1206,7 @@
   snapshot = values();
   updateAttachEmpty();
   renderStatus();
+  measureSideHeight();
 })();
 </script>
 </body>

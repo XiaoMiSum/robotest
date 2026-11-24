@@ -10,20 +10,51 @@
   /* 弹层靠 hidden 属性开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
   [hidden] { display: none !important; }
 
-  /* 名称列在实际页是可点的主链接（el-link primary），cell-main 的深色会盖掉链接色 */
-  .ws-link { color: var(--brand-500); font-weight: 500; }
-  .ws-link:hover { color: var(--brand-600); }
+  /* 对齐 ListTitleLink：主色链接、单行省略、悬停下划线 */
+  .list-title-link {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--brand-600);
+    font: inherit;
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .list-title-link:hover { text-decoration: underline; }
+  .list-title-link:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; }
 
-  .page-size { width: 104px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
+  .ws-segment { padding: 3px; gap: 2px; }
+  .ws-segment .segment__item {
+    padding: 5px 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--n-600);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ws-segment .segment__item:hover { color: var(--n-800); }
+  .ws-segment .segment__item--active {
+    background: var(--n-0);
+    color: var(--n-900);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
 
-  .ws-empty td { text-align: center; color: var(--n-500); padding: 36px 0; }
+  .toolbar__sort-note { font-size: var(--font-size-xs); color: var(--n-500); white-space: nowrap; }
 
-  /* segment 项改用 button 承载 aria-pressed，需抹掉浏览器默认按钮外观 */
-  .segment__item { border: 0; background: transparent; font-family: inherit; }
-  .segment__item--active { background: var(--n-0); }
-
-  /* 列设置浮层：对齐 TableColumnSetting 的 220px popover 与浮层层级 */
+  /* 列设置浮层：对齐 TableColumnSetting 的 text 按钮 + 220px popover */
   .col-setting { position: relative; }
+  .col-setting__trigger.btn--text { gap: 6px; }
   .col-setting__popover {
     position: absolute; top: calc(100% + 8px); left: 0; z-index: 60;
     width: 220px; padding: 12px;
@@ -41,6 +72,37 @@
   .col-opt:not(.col-opt--pinned) { cursor: pointer; }
   .col-opt:not(.col-opt--pinned):hover { color: var(--n-900); }
   .col-opt--pinned { color: var(--n-400); }
+
+  .ws-status { display: inline-flex; align-items: center; gap: 7px; font-size: var(--font-size-sm); color: var(--n-700); white-space: nowrap; }
+  .ws-status__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--n-400); }
+  .ws-status--success .ws-status__dot { background: var(--st-success); }
+  .ws-status--neutral .ws-status__dot { background: var(--n-400); }
+  .ws-num { font-variant-numeric: tabular-nums; }
+
+  .ws-empty { padding: 28px 20px; text-align: center; color: var(--n-500); font-size: var(--font-size-sm); }
+
+  /* 对齐 ListPagination 默认形态：左侧总数文案 + 右侧 sizes/prev/pager/next */
+  .list-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: 14px 20px;
+    border-top: 1px solid var(--n-100);
+  }
+  .list-pager__total { color: var(--n-500); font-size: var(--font-size-sm); }
+  .list-pager__right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .list-pager .page-size { width: 104px; min-width: 104px; height: 32px; font-size: var(--font-size-sm); }
+  .list-pager .page-btn { min-width: 32px; height: 32px; }
+  .list-pager__pages { display: inline-flex; gap: 8px; }
+
+  /* 对齐 el-table-column fixed="right" 的操作列观感 */
+  #ws-table th[data-col="actions"],
+  #ws-table td[data-col="actions"] { position: sticky; right: 0; background: var(--n-0); }
+  #ws-table th[data-col="actions"] { background: var(--n-50); z-index: 2; }
+  #ws-table td[data-col="actions"] { z-index: 1; box-shadow: -8px 0 8px -8px rgba(0, 0, 0, 0.08); }
+  #ws-table tbody tr:hover td[data-col="actions"] { background: var(--n-25); }
 </style>
 </head>
 <body data-shell="admin" data-active="workspaces" data-mode="admin">
@@ -62,7 +124,7 @@
     <div class="toolbar">
       <div class="toolbar__filters">
         <!-- role/aria-pressed 对齐 WorkspaceListPage 的状态段，读屏可感知当前选中项 -->
-        <div class="segment" id="ws-segment" role="group" aria-label="空间状态">
+        <div class="segment ws-segment" id="ws-segment" role="group" aria-label="空间状态">
           <button type="button" class="segment__item segment__item--active" data-status="active" aria-pressed="true">活跃</button>
           <button type="button" class="segment__item" data-status="dissolved" aria-pressed="false">归档</button>
         </div>
@@ -70,7 +132,7 @@
         <button class="btn btn--primary" id="ws-search"><span data-icon="search"></span>查询</button>
         <button class="btn btn--default" id="ws-reset">重置</button>
         <div class="col-setting" id="col-setting">
-          <button type="button" class="btn btn--default" id="col-setting-trigger" aria-label="列设置" aria-haspopup="true" aria-expanded="false" title="列设置"><span data-icon="settings"></span>列设置</button>
+          <button type="button" class="btn btn--text col-setting__trigger" id="col-setting-trigger" aria-label="列设置" aria-haspopup="true" aria-expanded="false" title="列设置"><span data-icon="settings"></span>列设置</button>
           <!-- 操作列 pinned：强制展示且面板内禁用勾选，口径同 useTableColumns -->
           <div class="col-setting__popover" id="col-setting-popover" hidden>
             <div class="col-setting__title">显示列</div>
@@ -90,97 +152,100 @@
           </div>
         </div>
       </div>
-      <div class="toolbar__count">按创建时间倒序</div>
+      <div class="toolbar__sort-note">按创建时间倒序</div>
     </div>
 
     <div class="table-wrap">
       <table class="table table--clickable" id="ws-table">
         <thead>
           <tr>
-            <th data-col="name">空间名称</th><th data-col="description">描述</th><th data-col="status">状态</th><th data-col="members">成员</th><th data-col="projects">项目</th><th data-col="createdAt">创建时间</th><th data-col="actions">操作</th>
+            <th data-col="name" style="min-width:160px">空间名称</th><th data-col="description" style="min-width:200px">描述</th><th data-col="status" style="width:100px">状态</th><th data-col="members" style="width:80px">成员</th><th data-col="projects" style="width:80px">项目</th><th data-col="createdAt" style="width:170px">创建时间</th><th data-col="actions" style="width:110px">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr data-status="active" data-name="质量中台">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">质量中台</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>质量中台</button></td>
             <td data-col="description" class="muted">核心业务线质量保障与用例资产沉淀</td>
-            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td data-col="members" class="num">24</td><td data-col="projects" class="num">6</td>
-            <td data-col="createdAt" class="num">2026-09-18 10:24</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--success"><span class="ws-status__dot"></span>活跃</span></td>
+            <td data-col="members"><span class="ws-num">24</span></td><td data-col="projects"><span class="ws-num">6</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-09-18 10:24</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
           <tr data-status="active" data-name="供应链测试组">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">供应链测试组</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>供应链测试组</button></td>
             <td data-col="description" class="muted">仓储、履约与结算链路回归</td>
-            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td data-col="members" class="num">17</td><td data-col="projects" class="num">4</td>
-            <td data-col="createdAt" class="num">2026-09-12 15:02</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--success"><span class="ws-status__dot"></span>活跃</span></td>
+            <td data-col="members"><span class="ws-num">17</span></td><td data-col="projects"><span class="ws-num">4</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-09-12 15:02</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
           <tr data-status="active" data-name="数据平台验证">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">数据平台验证</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>数据平台验证</button></td>
             <td data-col="description" class="muted">数据仓库与报表准确性验证</td>
-            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td data-col="members" class="num">9</td><td data-col="projects" class="num">3</td>
-            <td data-col="createdAt" class="num">2026-09-05 09:47</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--success"><span class="ws-status__dot"></span>活跃</span></td>
+            <td data-col="members"><span class="ws-num">9</span></td><td data-col="projects"><span class="ws-num">3</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-09-05 09:47</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
           <tr data-status="active" data-name="移动端专项">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">移动端专项</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>移动端专项</button></td>
             <td data-col="description" class="muted">iOS / Android 客户端兼容性测试</td>
-            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td data-col="members" class="num">13</td><td data-col="projects" class="num">5</td>
-            <td data-col="createdAt" class="num">2026-08-21 14:11</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--success"><span class="ws-status__dot"></span>活跃</span></td>
+            <td data-col="members"><span class="ws-num">13</span></td><td data-col="projects"><span class="ws-num">5</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-08-21 14:11</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
           <tr data-status="active" data-name="开放平台联调">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">开放平台联调</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>开放平台联调</button></td>
             <td data-col="description" class="muted">第三方接入与开放 API 验证</td>
-            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td data-col="members" class="num">11</td><td data-col="projects" class="num">4</td>
-            <td data-col="createdAt" class="num">2026-08-08 16:39</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--success"><span class="ws-status__dot"></span>活跃</span></td>
+            <td data-col="members"><span class="ws-num">11</span></td><td data-col="projects"><span class="ws-num">4</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-08-08 16:39</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
           <tr data-status="active" data-name="新业务孵化">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">新业务孵化</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>新业务孵化</button></td>
             <td data-col="description" class="muted">—</td>
-            <td data-col="status"><span class="status status--success"><span class="dot"></span>活跃</span></td>
-            <td data-col="members" class="num">5</td><td data-col="projects" class="num">2</td>
-            <td data-col="createdAt" class="num">2026-07-30 11:05</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--success"><span class="ws-status__dot"></span>活跃</span></td>
+            <td data-col="members"><span class="ws-num">5</span></td><td data-col="projects"><span class="ws-num">2</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-07-30 11:05</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
           <tr data-status="dissolved" data-name="旧版商城重构">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">旧版商城重构</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>旧版商城重构</button></td>
             <td data-col="description" class="muted">业务迁移至新商城后归档留存</td>
-            <td data-col="status"><span class="status status--neutral"><span class="dot"></span>归档</span></td>
-            <td data-col="members" class="num">8</td><td data-col="projects" class="num">2</td>
-            <td data-col="createdAt" class="num">2026-05-14 09:20</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--neutral"><span class="ws-status__dot"></span>归档</span></td>
+            <td data-col="members"><span class="ws-num">8</span></td><td data-col="projects"><span class="ws-num">2</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-05-14 09:20</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
           <tr data-status="dissolved" data-name="春季大促专项">
-            <td data-col="name"><a class="ws-link" href="workspace-detail.html">春季大促专项</a></td>
+            <td data-col="name"><button type="button" class="list-title-link" data-detail-link>春季大促专项</button></td>
             <td data-col="description" class="muted">活动结束后归档，报告与用例保留</td>
-            <td data-col="status"><span class="status status--neutral"><span class="dot"></span>归档</span></td>
-            <td data-col="members" class="num">15</td><td data-col="projects" class="num">3</td>
-            <td data-col="createdAt" class="num">2026-04-02 16:48</td>
-            <td data-col="actions"><a class="op-link" href="workspace-detail.html">查看详情</a></td>
+            <td data-col="status"><span class="ws-status ws-status--neutral"><span class="ws-status__dot"></span>归档</span></td>
+            <td data-col="members"><span class="ws-num">15</span></td><td data-col="projects"><span class="ws-num">3</span></td>
+            <td data-col="createdAt"><span class="ws-num">2026-04-02 16:48</span></td>
+            <td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>
           </tr>
-          <tr class="ws-empty" id="ws-empty" hidden><td colspan="7">暂无数据</td></tr>
         </tbody>
       </table>
     </div>
+    <div class="ws-empty" id="ws-empty" hidden>暂无数据</div>
 
-    <div class="pagination">
-      <span class="pagination__total" id="ws-total">共 6 条</span>
-      <select class="select page-size">
-        <option>10条/页</option>
-        <option selected>20条/页</option>
-        <option>50条/页</option>
-        <option>100条/页</option>
-      </select>
-      <button class="page-btn" disabled>‹</button>
-      <button class="page-btn page-btn--active">1</button>
-      <button class="page-btn" disabled>›</button>
+    <div class="list-pager">
+      <div class="list-pager__left">
+        <span class="list-pager__total" id="ws-total">共 6 条 · 每页 20 条</span>
+      </div>
+      <div class="list-pager__right">
+        <select class="select page-size" id="ws-page-size" aria-label="每页条数">
+          <option value="20" selected>20条/页</option>
+          <option value="50">50条/页</option>
+          <option value="100">100条/页</option>
+        </select>
+        <button type="button" class="page-btn" id="ws-prev" aria-label="上一页" disabled>‹</button>
+        <span class="list-pager__pages" id="ws-pages"><button type="button" class="page-btn page-btn--active" aria-current="page">1</button></span>
+        <button type="button" class="page-btn" id="ws-next" aria-label="下一页" disabled>›</button>
+      </div>
     </div>
   </div>
 
@@ -254,8 +319,6 @@
     document.querySelectorAll('#ws-table [data-col]').forEach(function (cell) {
       cell.hidden = colState[cell.getAttribute('data-col')] === false;
     });
-    byId('ws-empty').firstElementChild.colSpan =
-      Object.keys(colState).filter(function (key) { return colState[key]; }).length + 1;
     colPopover.querySelector('[data-col-all]').disabled =
       Object.keys(colState).every(function (key) { return colState[key]; });
   }
@@ -283,34 +346,81 @@
     if (e.target.closest('[data-col-reset]')) { setAllCols(true); return; }
     if (!e.target.closest('#col-setting')) setPopover(false);
   });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') setPopover(false);
-  });
   applyColumns();
 
   var segment = byId('ws-segment');
   var keyword = byId('ws-keyword');
   var total = byId('ws-total');
   var emptyRow = byId('ws-empty');
-  var rows = Array.prototype.slice.call(document.querySelectorAll('#ws-table tbody tr[data-status]'));
+  var pageSize = byId('ws-page-size');
+  var tbody = document.querySelector('#ws-table tbody');
   var status = 'active';
   var appliedKeyword = '';
+  var page = 1;
+
+  function esc(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // 以初始 DOM 行作为本地数据源；刷新即恢复 demo 初始数据，不写入任何存储
+  var workspaces = Array.prototype.slice.call(
+    document.querySelectorAll('#ws-table tbody tr[data-status]')
+  ).map(function (row) {
+    return {
+      name: row.getAttribute('data-name'),
+      description: row.querySelector('[data-col="description"]').textContent.trim(),
+      status: row.getAttribute('data-status'),
+      members: row.querySelector('[data-col="members"]').textContent.trim(),
+      projects: row.querySelector('[data-col="projects"]').textContent.trim(),
+      createdAt: row.querySelector('[data-col="createdAt"]').textContent.trim()
+    };
+  });
+
+  function rowHtml(ws) {
+    var active = ws.status === 'active';
+    return '<tr data-status="' + ws.status + '" data-name="' + esc(ws.name) + '">' +
+      '<td data-col="name"><button type="button" class="list-title-link" data-detail-link>' + esc(ws.name) + '</button></td>' +
+      '<td data-col="description" class="muted">' + esc(ws.description) + '</td>' +
+      '<td data-col="status"><span class="ws-status ' + (active ? 'ws-status--success' : 'ws-status--neutral') + '"><span class="ws-status__dot"></span>' + (active ? '活跃' : '归档') + '</span></td>' +
+      '<td data-col="members"><span class="ws-num">' + esc(ws.members) + '</span></td>' +
+      '<td data-col="projects"><span class="ws-num">' + esc(ws.projects) + '</span></td>' +
+      '<td data-col="createdAt"><span class="ws-num">' + esc(ws.createdAt) + '</span></td>' +
+      '<td data-col="actions"><button type="button" class="btn btn--link" data-detail-link>查看详情</button></td>' +
+      '</tr>';
+  }
+
+  function renderPager(pageCount) {
+    var html = '';
+    for (var i = 1; i <= pageCount; i += 1) {
+      html += '<button type="button" class="page-btn' + (i === page ? ' page-btn--active' : '') +
+        '"' + (i === page ? ' aria-current="page"' : '') + ' data-page="' + i + '">' + i + '</button>';
+    }
+    byId('ws-pages').innerHTML = html;
+    byId('ws-prev').disabled = page <= 1;
+    byId('ws-next').disabled = page >= pageCount;
+  }
 
   function render() {
-    var shown = 0;
-    rows.forEach(function (row) {
-      var matched =
-        row.getAttribute('data-status') === status &&
-        (!appliedKeyword || row.getAttribute('data-name').indexOf(appliedKeyword) !== -1);
-      row.hidden = !matched;
-      if (matched) shown += 1;
+    var filtered = workspaces.filter(function (ws) {
+      return ws.status === status &&
+        (!appliedKeyword || ws.name.indexOf(appliedKeyword) !== -1);
     });
-    emptyRow.hidden = shown !== 0;
-    total.textContent = '共 ' + shown + ' 条';
+    var size = parseInt(pageSize.value, 10);
+    var pageCount = Math.max(1, Math.ceil(filtered.length / size));
+    if (page > pageCount) page = pageCount;
+    var shown = filtered.slice((page - 1) * size, page * size);
+
+    tbody.innerHTML = shown.map(rowHtml).join('');
+    emptyRow.hidden = shown.length !== 0;
+    total.textContent = '共 ' + filtered.length + ' 条 · 每页 ' + size + ' 条';
+    renderPager(pageCount);
+    applyColumns();
   }
 
   function search() {
     appliedKeyword = keyword.value.trim();
+    page = 1;
     render();
   }
 
@@ -321,6 +431,7 @@
       s.setAttribute('aria-pressed', String(on));
     });
     status = item.getAttribute('data-status');
+    page = 1;
   }
 
   function reset() {
@@ -343,10 +454,31 @@
     if (e.key === 'Enter') search();
   });
   byId('ws-reset').addEventListener('click', reset);
+  pageSize.addEventListener('change', function () { page = 1; render(); });
 
-  // 行点击与名称/查看详情链接同跳详情，对应实际页 row-click → 详情
+  byId('ws-pages').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-page]');
+    if (!btn) return;
+    page = parseInt(btn.getAttribute('data-page'), 10);
+    render();
+  });
+  byId('ws-prev').addEventListener('click', function () {
+    if (page <= 1) return;
+    page -= 1;
+    render();
+  });
+  byId('ws-next').addEventListener('click', function () {
+    page += 1;
+    render();
+  });
+
+  // 行点击与名称/查看详情按钮同跳详情，对应实际页 row-click / ListTitleLink / 查看详情按钮
   byId('ws-table').addEventListener('click', function (e) {
-    if (e.target.closest('a')) return;
+    if (e.target.closest('[data-detail-link]')) {
+      e.stopPropagation();
+      window.location.href = 'workspace-detail.html';
+      return;
+    }
     if (e.target.closest('tr[data-status]')) window.location.href = 'workspace-detail.html';
   });
 
@@ -376,6 +508,7 @@
     var opener = e.target.closest('[data-open]');
     if (opener) {
       resetCreateForm();
+      setPopover(false);
       dialog.hidden = false;
       return;
     }
@@ -391,6 +524,13 @@
     });
   });
 
+  // ESC 先关最上层弹窗，再关列设置浮层
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!dialog.hidden) { dialog.hidden = true; return; }
+    setPopover(false);
+  });
+
   nameInput.addEventListener('input', function () {
     byId('ws-name-count').textContent = String(nameInput.value.length);
     setError('ws-name-error', '');
@@ -400,6 +540,13 @@
     setError('ws-desc-error', '');
   });
   adminSelect.addEventListener('change', function () { setError('ws-admin-error', ''); });
+
+  function nowStr() {
+    var d = new Date();
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
 
   byId('ws-create-ok').addEventListener('click', function () {
     var name = nameInput.value.trim();
@@ -419,9 +566,22 @@
       setError('ws-desc-error', '描述最多 200 个字符');
       return;
     }
-    // 实际页创建成功后跳转新空间详情
+    // 原型本地新建：写入本地数组并重绘列表后关闭弹窗；刷新即恢复 demo 初始数据
+    workspaces.unshift({
+      name: name,
+      description: descInput.value.trim() || '—',
+      status: 'active',
+      members: '1',
+      projects: '0',
+      createdAt: nowStr()
+    });
     dialog.hidden = true;
-    window.location.href = 'workspace-detail.html';
+    keyword.value = '';
+    appliedKeyword = '';
+    page = 1;
+    activateSegment(segment.querySelector('.segment__item[data-status="active"]'));
+    resetCreateForm();
+    render();
   });
 
   render();

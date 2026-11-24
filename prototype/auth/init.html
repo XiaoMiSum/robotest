@@ -7,97 +7,509 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .init-wrap { position: relative; min-height: 100vh; background: var(--n-50); display: flex; align-items: center; justify-content: center; padding: 40px 24px; overflow: hidden; }
-  /* 细点阵中心向四周渐隐，弱化空旷感 */
-  .init-wrap::before {
-    content: ''; position: absolute; inset: 0;
+  .init-page {
+    position: relative;
+    min-height: 100vh;
+    background: var(--n-50);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    overflow: hidden;
+  }
+  /* 细点阵纹理，中心向四周渐隐，弱化空旷感（对应 InitPage.vue） */
+  .init-page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background-image: radial-gradient(rgba(100, 116, 139, 0.12) 1px, transparent 1px);
     background-size: 26px 26px;
     -webkit-mask-image: radial-gradient(ellipse at 50% 35%, #000 30%, transparent 75%);
     mask-image: radial-gradient(ellipse at 50% 35%, #000 30%, transparent 75%);
   }
-  .init-card { position: relative; width: 440px; padding: 40px 40px 32px; }
-  /* 内边距已由卡片自身给出，抵消 card__body 默认内边距避免双层留白 */
-  .init-card .card__body { padding: 0; }
-  .init-card__brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 24px; }
-  .init-card__brand .topbar__logo-mark { width: 34px; height: 34px; border-radius: 8px; }
-  .init-card__brand .topbar__logo-mark svg { width: 22px; height: 22px; }
-  .init-card__logo-text { font-size: 22px; font-weight: 700; color: var(--n-900); letter-spacing: -0.01em; }
-  .init-card__desc { text-align: center; font-size: 13px; color: var(--n-500); margin-bottom: 24px; }
-  .init-card__hints {
-    display: flex; flex-wrap: wrap; gap: 4px 14px;
-    padding: 10px 12px; margin-bottom: 16px;
-    border-radius: var(--radius-md);
-    background: var(--n-50); border: 1px solid var(--n-100);
+  .init-card {
+    position: relative;
+    width: 440px;
+    padding: 40px 40px 32px;
+    background: var(--n-0);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--n-200);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.03);
   }
-  .init-card__hint { font-size: 12px; line-height: 1.6; color: var(--n-400); }
+  .init-card__brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: var(--space-xl);
+  }
+  .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--brand-600);
+    color: var(--n-0);
+  }
+  .brand-logo__cutout { fill: var(--brand-600); }
+  .init-card__logo-text {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--n-900);
+    letter-spacing: -0.01em;
+  }
+  .init-card__desc {
+    text-align: center;
+    font-size: 13px;
+    color: var(--n-500);
+    margin-bottom: var(--space-xl);
+  }
+  .init-card__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-xl) 0;
+    color: var(--n-500);
+    font-size: var(--font-size-sm);
+  }
+  .init-card__loading svg { animation: init-spin 1s linear infinite; }
+  @keyframes init-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* el-form label-position="top" + el-input size="large" 静态复刻 */
+  .init-card__form { width: 100%; }
+  .el-form-item { margin-bottom: 22px; }
+  .el-form-item__label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: var(--font-size-base);
+    font-weight: 400;
+    color: var(--n-700);
+    line-height: 22px;
+  }
+  .el-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+  .el-input__wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    padding: 0 11px;
+    background: var(--n-0);
+    border: 1px solid var(--n-300);
+    border-radius: var(--radius-md);
+    box-shadow: 0 0 0 1px transparent inset;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .el-input__wrapper:hover { border-color: var(--n-400); }
+  .el-input__wrapper.is-focus {
+    border-color: var(--brand-500);
+    box-shadow: 0 0 0 1px var(--brand-500) inset;
+  }
+  .el-input__wrapper.is-disabled {
+    background: var(--n-50);
+    border-color: var(--n-200);
+    color: var(--n-400);
+    cursor: not-allowed;
+  }
+  .el-input__prefix {
+    display: inline-flex;
+    align-items: center;
+    color: var(--n-400);
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  .el-input__prefix svg, .el-input__suffix svg { width: 16px; height: 16px; display: block; }
+  .el-input__inner {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    color: var(--n-900);
+  }
+  .el-input__inner::placeholder { color: var(--n-400); }
+  .el-input__wrapper.is-disabled .el-input__inner { color: var(--n-400); cursor: not-allowed; }
+  .el-input__suffix {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    color: var(--n-400);
+    flex-shrink: 0;
+  }
+  .el-input__password {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--n-400);
+    cursor: pointer;
+  }
+  .el-input__password:hover { color: var(--n-600); }
+  /* 显隐切换：eye 图标上叠加斜线，复用已有 eye 图标而不引入新依赖 */
+  .el-input__password [data-icon] { position: relative; display: inline-flex; }
+  .el-input__password.is-shown [data-icon]::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1.5px;
+    border-radius: 1px;
+    background: currentColor;
+    transform: rotate(-45deg);
+  }
+  /* 校验失败的行内反馈，与真实 el-form-item error 一致 */
+  .init-card__error {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--st-danger);
+  }
+  .init-card__error[hidden] { display: none; }
+  .el-input.is-error .el-input__wrapper {
+    border-color: var(--st-danger);
+    box-shadow: 0 0 0 1px var(--st-danger) inset;
+  }
+
+  .init-card__hints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    padding: 10px 12px;
+    margin-bottom: var(--space-lg);
+    border-radius: var(--radius-md);
+    background: var(--n-50);
+    border: 1px solid var(--n-100);
+  }
+  .init-card__hint {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--n-400);
+  }
   .init-card__hint--ok { color: var(--st-success-strong); }
-  .pwd-strength { display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%; }
+
+  /* PasswordStrengthBar.vue */
+  .pwd-strength { display: flex; align-items: center; gap: var(--space-sm); margin-top: 6px; width: 100%; }
   .pwd-strength__bar { flex: 1; display: flex; gap: 4px; }
-  .pwd-strength__segment { flex: 1; height: 4px; border-radius: 999px; background: var(--n-200); transition: background-color 0.3s ease; }
+  .pwd-strength__segment {
+    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--n-200);
+    transition: background-color 0.3s ease;
+  }
   .pwd-strength__label { font-size: var(--font-size-2xs); font-weight: 500; white-space: nowrap; }
-  .init-card__btn { width: 100%; letter-spacing: 0.15em; text-indent: 0.15em; }
-  .init-card__footer { text-align: center; font-size: 12px; color: var(--n-400); margin-top: 8px; }
+
+  /* el-button type="primary" size="large" */
+  .el-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 40px;
+    padding: 12px 19px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
+  }
+  .el-button--primary {
+    background: var(--brand-500);
+    border-color: var(--brand-500);
+    color: #fff;
+  }
+  .el-button--primary:hover { background: var(--brand-600); border-color: var(--brand-600); }
+  .el-button--primary:active { background: var(--brand-700); border-color: var(--brand-700); }
+  .el-button.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  .el-button.is-disabled,
+  .el-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .el-button__loading-icon { width: 16px; height: 16px; animation: init-spin 2s linear infinite; }
+  .init-card__btn {
+    width: 100%;
+    letter-spacing: 0.15em;
+    text-indent: 0.15em;
+  }
+  .init-card__footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--n-400);
+    margin-top: var(--space-sm);
+  }
 </style>
 </head>
 <body data-shell="bare">
 
-<div class="init-wrap">
-  <div class="card init-card">
-    <div class="card__body">
-      <div class="init-card__brand">
-        <span class="topbar__logo-mark"><span data-icon="zap"></span></span>
-        <span class="init-card__logo-text">RoboTest</span>
-      </div>
+<div class="init-page">
+  <div class="init-card">
+    <div class="init-card__brand">
+      <!-- BrandLogo.vue: size=34, primary background, robot cutout mark -->
+      <span class="brand-logo" aria-hidden="true">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="3" r="1.4" fill="currentColor" />
+          <rect x="11.35" y="4.2" width="1.3" height="2.4" rx="0.65" fill="currentColor" />
+          <rect x="1.6" y="10.4" width="2" height="5" rx="1" fill="currentColor" />
+          <rect x="20.4" y="10.4" width="2" height="5" rx="1" fill="currentColor" />
+          <rect x="4.4" y="6.6" width="15.2" height="12.4" rx="3.6" fill="currentColor" />
+          <circle cx="9.2" cy="11.6" r="1.5" class="brand-logo__cutout" />
+          <circle cx="14.8" cy="11.6" r="1.5" class="brand-logo__cutout" />
+          <rect x="9" y="15" width="6" height="1.4" rx="0.7" class="brand-logo__cutout" />
+        </svg>
+      </span>
+      <span class="init-card__logo-text">RoboTest</span>
+    </div>
 
-      <div class="init-card__desc">首次部署，请为系统管理员设置登录密码</div>
+    <div class="init-card__desc">首次部署，请为系统管理员设置登录密码</div>
 
-      <div class="field">
-        <label class="field__label">登录名</label>
-        <div class="input-wrap">
-          <span data-icon="user"></span>
-          <input class="input" value="admin" disabled>
+    <!-- checking state (v-if="checking"): shown while checkInitStatus runs
+    <div class="init-card__loading">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+      </svg>
+      <span>检查系统状态...</span>
+    </div>
+    -->
+
+    <!-- el-form label-position="top" @submit.prevent="handleSetup" -->
+    <form class="init-card__form" id="init-form" novalidate>
+      <!-- el-form-item label="登录名" -->
+      <div class="el-form-item">
+        <label class="el-form-item__label">登录名</label>
+        <div class="el-input is-disabled">
+          <div class="el-input__wrapper is-disabled">
+            <span class="el-input__prefix"><span data-icon="user"></span></span>
+            <input class="el-input__inner" value="admin" disabled>
+          </div>
         </div>
       </div>
 
-      <div class="field">
-        <label class="field__label">管理员密码</label>
-        <div class="input-wrap">
-          <span data-icon="lock"></span>
-          <input class="input" type="password" placeholder="请输入密码（8-64 个字符）" value="Passw0rd!">
+      <!-- el-form-item label="管理员密码" -->
+      <div class="el-form-item">
+        <label class="el-form-item__label">管理员密码</label>
+        <div class="el-input" id="init-password-field">
+          <div class="el-input__wrapper">
+            <span class="el-input__prefix"><span data-icon="lock"></span></span>
+            <input class="el-input__inner" id="init-password" type="password" placeholder="请输入密码（8-64 个字符）" value="Passw0rd!" aria-label="管理员密码">
+            <span class="el-input__suffix">
+              <button type="button" class="el-input__password" id="init-password-eye" title="显示密码" aria-label="显示密码" aria-pressed="false">
+                <span data-icon="eye"></span>
+              </button>
+            </span>
+          </div>
+          <div class="init-card__error" id="init-password-error" hidden></div>
         </div>
-        <div class="pwd-strength">
+        <!-- PasswordStrengthBar: renders only when password is non-empty -->
+        <div class="pwd-strength" id="init-strength">
           <div class="pwd-strength__bar">
             <span class="pwd-strength__segment" style="background-color: var(--st-danger)"></span>
             <span class="pwd-strength__segment" style="background-color: var(--st-warning)"></span>
             <span class="pwd-strength__segment" style="background-color: var(--st-success-strong)"></span>
             <span class="pwd-strength__segment" style="background-color: var(--st-success)"></span>
           </div>
-          <span class="pwd-strength__label" style="color: var(--st-success)">强</span>
+          <span class="pwd-strength__label" id="init-strength-label" style="color: var(--st-success)">强</span>
         </div>
       </div>
 
-      <div class="field">
-        <label class="field__label">确认密码</label>
-        <div class="input-wrap">
-          <span data-icon="lock"></span>
-          <input class="input" type="password" placeholder="请再次输入密码" value="Passw0rd!">
+      <!-- el-form-item label="确认密码" -->
+      <div class="el-form-item">
+        <label class="el-form-item__label">确认密码</label>
+        <div class="el-input" id="init-confirm-field">
+          <div class="el-input__wrapper">
+            <span class="el-input__prefix"><span data-icon="lock"></span></span>
+            <input class="el-input__inner" id="init-confirm" type="password" placeholder="请再次输入密码" value="Passw0rd!" aria-label="确认密码">
+            <span class="el-input__suffix">
+              <button type="button" class="el-input__password" id="init-confirm-eye" title="显示密码" aria-label="显示密码" aria-pressed="false">
+                <span data-icon="eye"></span>
+              </button>
+            </span>
+          </div>
+          <div class="init-card__error" id="init-confirm-error" hidden></div>
         </div>
       </div>
 
-      <div class="init-card__hints">
-        <span class="init-card__hint init-card__hint--ok">✓ 8-64 个字符</span>
-        <span class="init-card__hint init-card__hint--ok">✓ 包含字母</span>
-        <span class="init-card__hint init-card__hint--ok">✓ 包含数字与符号更安全</span>
+      <!-- Realtime hints: same source as submit validation -->
+      <div class="init-card__hints" id="init-hints">
+        <span class="init-card__hint init-card__hint--ok" data-hint="length" data-label="8-64 个字符">✓ 8-64 个字符</span>
+        <span class="init-card__hint init-card__hint--ok" data-hint="letter" data-label="包含字母">✓ 包含字母</span>
+        <span class="init-card__hint init-card__hint--ok" data-hint="symbol" data-label="包含数字与符号更安全">✓ 包含数字与符号更安全</span>
       </div>
 
-      <button class="btn btn--primary btn--lg init-card__btn">完成初始化</button>
+      <!-- el-form-item > el-button type="primary" size="large" :loading="loading" class="init-card__btn" @click="handleSetup" -->
+      <div class="el-form-item" style="margin-bottom: 0;">
+        <button type="submit" class="el-button el-button--primary init-card__btn" id="init-submit">完成初始化</button>
+        <!-- loading state:
+        <button type="button" class="el-button el-button--primary init-card__btn is-loading" disabled>
+          <svg class="el-button__loading-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path fill="currentColor" d="M512 64a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32zm0 640a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V736a32 32 0 0 1 32-32zm448-192a32 32 0 0 1-32 32H736a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32zm-640 0a32 32 0 0 1-32 32H96a32 32 0 0 1 0-64h192a32 32 0 0 1 32 32zM195.2 195.2a32 32 0 0 1 45.3 0L376 330.7a32 32 0 0 1-45.3 45.3L195.2 240.5a32 32 0 0 1 0-45.3zm452.5 452.5a32 32 0 0 1 45.3 0L828.5 783.2a32 32 0 0 1-45.3 45.3L647.7 693a32 32 0 0 1 0-45.3zM828.8 195.2a32 32 0 0 1 0 45.3L693.3 376a32 32 0 0 1-45.3-45.3l135.5-135.5a32 32 0 0 1 45.3 0zm-452.5 452.5a32 32 0 0 1 0 45.3L240.8 828.5a32 32 0 0 1-45.3-45.3l135.5-135.5a32 32 0 0 1 45.3 0z"/></svg>
+          完成初始化
+        </button>
+        -->
+      </div>
+    </form>
 
-      <div class="init-card__footer">初始化完成后将跳转至登录页</div>
-    </div>
+    <div class="init-card__footer" id="init-footer">初始化完成后将跳转至登录页</div>
   </div>
 </div>
 
 <script src="../assets/icons.js"></script>
+<script>
+  // 原型无后端：本地校验 → 加载态 → 跳转登录页；显隐与强度实时更新，不持久化
+  (function () {
+    var form = document.getElementById('init-form');
+    var pwInput = document.getElementById('init-password');
+    var confirmInput = document.getElementById('init-confirm');
+    var pwField = document.getElementById('init-password-field');
+    var confirmField = document.getElementById('init-confirm-field');
+    var pwError = document.getElementById('init-password-error');
+    var confirmError = document.getElementById('init-confirm-error');
+    var pwEye = document.getElementById('init-password-eye');
+    var confirmEye = document.getElementById('init-confirm-eye');
+    var submitBtn = document.getElementById('init-submit');
+    var footer = document.getElementById('init-footer');
+    var strength = document.getElementById('init-strength');
+    var strengthLabel = document.getElementById('init-strength-label');
+    var segments = strength.querySelectorAll('.pwd-strength__segment');
+    var hints = document.querySelectorAll('#init-hints [data-hint]');
+
+    function setError(field, errorEl, message) {
+      field.classList.add('is-error');
+      errorEl.textContent = message;
+      errorEl.hidden = false;
+    }
+    function clearError(field, errorEl) {
+      field.classList.remove('is-error');
+      errorEl.textContent = '';
+      errorEl.hidden = true;
+    }
+    function bindFocus(input) {
+      var wrap = input.closest('.el-input__wrapper');
+      input.addEventListener('focus', function () { wrap.classList.add('is-focus'); });
+      input.addEventListener('blur', function () { wrap.classList.remove('is-focus'); });
+    }
+
+    bindFocus(pwInput);
+    bindFocus(confirmInput);
+
+    // 显示/隐藏密码：切换 input.type，并给 eye 图标叠加斜线
+    function bindEye(btn, input) {
+      btn.addEventListener('click', function () {
+        var wasShown = input.type === 'text';
+        input.type = wasShown ? 'password' : 'text';
+        btn.classList.toggle('is-shown', !wasShown);
+        btn.setAttribute('aria-pressed', String(!wasShown));
+        btn.title = wasShown ? '显示密码' : '隐藏密码';
+        btn.setAttribute('aria-label', btn.title);
+        input.focus();
+      });
+    }
+    bindEye(pwEye, pwInput);
+    bindEye(confirmEye, confirmInput);
+
+    function ruleStates(v) {
+      return {
+        length: v.length >= 8 && v.length <= 64,
+        letter: /[A-Za-z]/.test(v),
+        digit: /[0-9]/.test(v),
+        symbol: /[^A-Za-z0-9]/.test(v),
+      };
+    }
+    function updateStrength() {
+      var v = pwInput.value;
+      var r = ruleStates(v);
+      strength.style.display = v ? '' : 'none';
+
+      var order = ['length', 'letter', 'digit', 'symbol'];
+      var colors = ['--st-danger', '--st-warning', '--st-success-strong', '--st-success'];
+      var score = 0;
+      segments.forEach(function (seg, i) {
+        if (r[order[i]]) score++;
+        seg.style.setProperty('background-color', 'var(' + (i < score ? colors[i] : '--n-200') + ')');
+      });
+      var levels = [
+        { min: 0, text: '弱', color: '--st-danger' },
+        { min: 2, text: '中', color: '--st-warning' },
+        { min: 3, text: '良', color: '--st-success-strong' },
+        { min: 4, text: '强', color: '--st-success' },
+      ];
+      var level = levels[0];
+      levels.forEach(function (l) { if (score >= l.min) level = l; });
+      strengthLabel.textContent = v ? level.text : '';
+      strengthLabel.style.setProperty('color', 'var(' + level.color + ')');
+
+      var hintState = { length: r.length, letter: r.letter, symbol: r.digit && r.symbol };
+      hints.forEach(function (h) {
+        var ok = !!hintState[h.getAttribute('data-hint')];
+        h.classList.toggle('init-card__hint--ok', ok);
+        h.textContent = (ok ? '✓ ' : '○ ') + h.getAttribute('data-label');
+      });
+    }
+
+    pwInput.addEventListener('input', function () {
+      clearError(pwField, pwError);
+      updateStrength();
+    });
+    confirmInput.addEventListener('input', function () {
+      clearError(confirmField, confirmError);
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (submitBtn.disabled) return;
+      clearError(pwField, pwError);
+      clearError(confirmField, confirmError);
+
+      var v = pwInput.value;
+      var c = confirmInput.value;
+      if (!v || v.length < 8 || v.length > 64) {
+        setError(pwField, pwError, v ? '密码长度须为 8-64 个字符' : '请输入管理员密码');
+        pwInput.focus();
+        return;
+      }
+      if (!c || c !== v) {
+        setError(confirmField, confirmError, c ? '两次输入的密码不一致' : '请再次输入密码');
+        confirmInput.focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.classList.add('is-loading');
+      submitBtn.setAttribute('aria-busy', 'true');
+      submitBtn.innerHTML =
+        '<svg class="el-button__loading-icon" viewBox="0 0 1024 1024" aria-hidden="true">' +
+        '<path fill="currentColor" d="M512 64a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32zm0 640a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V736a32 32 0 0 1 32-32zm448-192a32 32 0 0 1-32 32H736a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32zm-640 0a32 32 0 0 1-32 32H96a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32zM195.2 195.2a32 32 0 0 1 45.3 0L376 330.7a32 32 0 0 1-45.3 45.3L195.2 240.5a32 32 0 0 1 0-45.3zm452.5 452.5a32 32 0 0 1 45.3 0L828.5 783.2a32 32 0 0 1-45.3 45.3L647.7 693a32 32 0 0 1 0-45.3zM828.8 195.2a32 32 0 0 1 0 45.3L693.3 376a32 32 0 1 1-45.3-45.3l135.5-135.5a32 32 0 0 1 45.3 0zm-452.5 452.5a32 32 0 0 1 0 45.3L240.8 828.5a32 32 0 0 1-45.3-45.3l135.5-135.5a32 32 0 0 1 45.3 0z"/>' +
+        '</svg>完成初始化';
+      footer.textContent = '系统初始化成功，正在跳转登录页…';
+      window.setTimeout(function () { window.location.href = 'login.html'; }, 900);
+    });
+
+    updateStrength();
+  })();
+</script>
 </body>
 </html>

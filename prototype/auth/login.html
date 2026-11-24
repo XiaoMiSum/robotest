@@ -7,140 +7,447 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .auth { display: flex; min-height: 100vh; }
-  .auth__brand {
-    flex: 0 0 46%; background: var(--n-900); color: #fff;
-    padding: 48px 56px; display: flex; flex-direction: column; justify-content: space-between;
-    position: relative; overflow: hidden;
+  .login-page {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--n-0);
   }
-  .auth__brand::before {
-    content: ''; position: absolute; right: -120px; bottom: -120px;
-    width: 380px; height: 380px; border-radius: 50%;
-    border: 56px solid rgba(51,112,255,.14);
-  }
-  .auth__brand::after {
-    content: ''; position: absolute; right: 90px; top: 90px;
-    width: 140px; height: 140px; border-radius: 24px;
-    border: 1.5px solid rgba(255,255,255,.12); transform: rotate(18deg);
-  }
-  .auth__logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; position: relative; z-index: 1; }
-  .auth__slogan { position: relative; z-index: 1; }
-  .auth__accent { display: block; width: 40px; height: 3px; border-radius: 2px; background: var(--brand-500); margin-bottom: 24px; }
-  .auth__slogan h2 { margin: 0 0 16px; font-size: 32px; font-weight: 600; line-height: 1.45; letter-spacing: -0.02em; }
-  .auth__slogan p { margin: 0 0 48px; font-size: 14px; color: rgba(255,255,255,.55); max-width: 400px; line-height: 1.9; }
-  .auth__features { display: flex; flex-direction: column; gap: 20px; list-style: none; padding: 0; margin: 0; }
-  .auth__feature { display: flex; align-items: flex-start; gap: 12px; }
-  .auth__feature-dot { margin-top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-500); flex-shrink: 0; }
-  .auth__feature-title { font-size: var(--font-size-sm); font-weight: 600; color: rgba(255,255,255,.88); margin-bottom: 3px; }
-  .auth__feature-desc { font-size: 13px; color: rgba(255,255,255,.5); }
-  .auth__copyright { position: relative; z-index: 1; font-size: var(--font-size-xs); color: rgba(255,255,255,.35); }
-  .auth__form-wrap {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    background: var(--n-0); padding: 40px;
-  }
-  .auth__card { width: 360px; }
-  .auth__title { font-size: 24px; font-weight: 600; color: var(--n-900); letter-spacing: -0.02em; }
-  .auth__sub { font-size: 13px; color: var(--n-500); margin: 8px 0 32px; }
 
-  /* 输入框尾部操作（对应 el-input 的 clearable / show-password） */
-  .auth__card .input-wrap .input { padding-right: 32px; }
-  .auth__input-action {
-    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-    display: flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px; padding: 0; border: 0;
-    background: none; color: var(--n-400); cursor: pointer; border-radius: var(--radius-sm);
+  .login-page__brand {
+    position: relative;
+    width: 46%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 48px 56px;
+    background: var(--n-900);
+    overflow: hidden;
   }
-  .auth__input-action:hover { color: var(--n-600); background: var(--n-50); }
-  .auth__input-action.is-on { color: var(--brand-500); }
-  .auth__input-action svg { width: 15px; height: 15px; }
-  .auth__input-action[hidden] { display: none; }
 
-  /* 顶部消息（对应 ElMessage：警告=橙、成功=绿） */
+  /* 细点阵纹理，向右下渐隐，避免大面积纯色的呆板感 */
+  .login-page__brand::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(148, 163, 184, 0.14) 1px, transparent 1px);
+    background-size: 26px 26px;
+    mask-image: linear-gradient(160deg, #000 20%, transparent 70%);
+  }
+
+  .login-page__logo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--brand-600);
+    color: var(--n-0);
+  }
+
+  .brand-logo__cutout {
+    fill: var(--brand-600);
+  }
+
+  .login-page__logo-text {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--n-0);
+    letter-spacing: -0.01em;
+  }
+
+  .login-page__hero {
+    position: relative;
+  }
+
+  .login-page__accent {
+    display: block;
+    width: 40px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--brand-500);
+    margin-bottom: var(--space-xl);
+  }
+
+  .login-page__slogan {
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--n-100);
+    margin: 0 0 var(--space-lg);
+  }
+
+  .login-page__sub {
+    font-size: var(--font-size-sm);
+    line-height: 1.9;
+    color: var(--n-400);
+    max-width: 400px;
+    margin: 0 0 48px;
+  }
+
+  .login-page__features {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .login-page__feature {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+  }
+
+  .login-page__feature-dot {
+    margin-top: 7px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--brand-500);
+    flex-shrink: 0;
+  }
+
+  .login-page__feature-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--n-200);
+    margin-bottom: 3px;
+  }
+
+  .login-page__feature-desc {
+    font-size: 13px;
+    color: var(--n-500);
+  }
+
+  .login-page__copyright {
+    position: relative;
+    font-size: var(--font-size-xs);
+    color: var(--n-600);
+  }
+
+  .login-page__main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-box {
+    width: 360px;
+  }
+
+  .login-box__title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--n-900);
+    margin-bottom: var(--space-sm);
+  }
+
+  .login-box__subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--n-500);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .login-box__form {
+    width: 100%;
+  }
+
+  /* 静态模拟 Element Plus：el-form label-position="top" + el-input size="large" */
+  .el-form-item {
+    margin-bottom: 22px;
+  }
+
+  .el-form-item__label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: var(--font-size-base);
+    line-height: 22px;
+    color: var(--n-700);
+  }
+
+  .el-input {
+    position: relative;
+    width: 100%;
+  }
+
+  .el-input__wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 40px;
+    padding: 1px 11px;
+    background: var(--n-0);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 0 0 1px var(--n-300) inset;
+    transition: box-shadow var(--transition-fast);
+  }
+
+  .el-input__wrapper:hover {
+    box-shadow: 0 0 0 1px var(--n-400) inset;
+  }
+
+  .el-input__wrapper.is-focus {
+    box-shadow: 0 0 0 1px var(--brand-500) inset;
+  }
+
+  .el-input__prefix,
+  .el-input__suffix {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--n-400);
+  }
+
+  .el-input__prefix {
+    margin-right: 8px;
+  }
+
+  .el-input__suffix {
+    margin-left: 8px;
+    gap: 4px;
+  }
+
+  .el-input__prefix svg,
+  .el-input__suffix svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .el-input__inner {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    line-height: 38px;
+    color: var(--n-700);
+  }
+
+  .el-input__inner::placeholder {
+    color: var(--n-400);
+  }
+
+  .el-input__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--n-400);
+    cursor: pointer;
+  }
+
+  .el-input__action:hover {
+    color: var(--n-600);
+  }
+
+  .el-input__action[hidden] {
+    display: none;
+  }
+
+  .el-input__action.is-on {
+    color: var(--brand-500);
+  }
+
+  .login-box__btn {
+    width: 100%;
+    margin-top: var(--space-sm);
+    letter-spacing: 0.3em;
+    text-indent: 0.3em;
+  }
+
+  /* 静态模拟 Element Plus large button loading（:loading="loading"） */
+  .login-box__btn.is-loading {
+    position: relative;
+    pointer-events: none;
+  }
+
+  .login-box__btn.is-loading::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    margin-right: 2px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: login-spin 0.8s linear infinite;
+  }
+
+  @keyframes login-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .login-box__footer {
+    margin-top: var(--space-xl);
+    text-align: center;
+    font-size: var(--font-size-xs);
+    color: var(--n-400);
+  }
+
+  /* 顶部消息（对应 ElMessage：warning / success） */
   .auth__toast {
-    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
-    box-shadow: 0 6px 20px rgba(0,0,0,.10); z-index: 100;
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    z-index: 100;
   }
-  .auth__toast[hidden] { display: none; }
+
+  .auth__toast[hidden] {
+    display: none;
+  }
 
   /* 与实际页一致：窄屏收起品牌区，退化为居中表单 */
   @media (max-width: 960px) {
-    .auth__brand { display: none; }
+    .login-page__brand {
+      display: none;
+    }
   }
 </style>
 </head>
 <body data-shell="bare">
 
-<div class="auth">
-  <div class="auth__brand">
-    <div class="auth__logo">
-      <span class="topbar__logo-mark"><span data-icon="zap"></span></span>RoboTest
+<div class="login-page">
+  <aside class="login-page__brand">
+    <div class="login-page__logo">
+      <span class="brand-logo" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 天线 -->
+          <circle cx="12" cy="3" r="1.4" fill="currentColor" />
+          <rect x="11.35" y="4.2" width="1.3" height="2.4" rx="0.65" fill="currentColor" />
+          <!-- 耳朵 -->
+          <rect x="1.6" y="10.4" width="2" height="5" rx="1" fill="currentColor" />
+          <rect x="20.4" y="10.4" width="2" height="5" rx="1" fill="currentColor" />
+          <!-- 头部 -->
+          <rect x="4.4" y="6.6" width="15.2" height="12.4" rx="3.6" fill="currentColor" />
+          <!-- 眼睛与嘴：挖空效果，取容器背景色 -->
+          <circle cx="9.2" cy="11.6" r="1.5" class="brand-logo__cutout" />
+          <circle cx="14.8" cy="11.6" r="1.5" class="brand-logo__cutout" />
+          <rect x="9" y="15" width="6" height="1.4" rx="0.7" class="brand-logo__cutout" />
+        </svg>
+      </span>
+      <span class="login-page__logo-text">RoboTest</span>
     </div>
 
-    <div class="auth__slogan">
-      <span class="auth__accent"></span>
-      <h2>软件测试平台</h2>
-      <p>覆盖用例管理、测试评审、测试计划与缺陷跟踪全流程，让测试协作更高效。</p>
-      <ul class="auth__features">
-        <li class="auth__feature">
-          <span class="auth__feature-dot"></span>
+    <div class="login-page__hero">
+      <span class="login-page__accent"></span>
+      <h1 class="login-page__slogan">软件测试平台</h1>
+      <p class="login-page__sub">覆盖用例管理、测试评审、测试计划与缺陷跟踪全流程，让测试协作更高效。</p>
+      <ul class="login-page__features">
+        <li class="login-page__feature">
+          <span class="login-page__feature-dot"></span>
           <div>
-            <div class="auth__feature-title">脑图式用例管理</div>
-            <div class="auth__feature-desc">结构化组织用例，编辑顺滑高效</div>
+            <div class="login-page__feature-title">脑图式用例管理</div>
+            <div class="login-page__feature-desc">结构化组织用例，编辑顺滑高效</div>
           </div>
         </li>
-        <li class="auth__feature">
-          <span class="auth__feature-dot"></span>
+        <li class="login-page__feature">
+          <span class="login-page__feature-dot"></span>
           <div>
-            <div class="auth__feature-title">评审与计划协同</div>
-            <div class="auth__feature-desc">多人实时协作，评审进度一目了然</div>
+            <div class="login-page__feature-title">评审与计划协同</div>
+            <div class="login-page__feature-desc">多人实时协作，评审进度一目了然</div>
           </div>
         </li>
-        <li class="auth__feature">
-          <span class="auth__feature-dot"></span>
+        <li class="login-page__feature">
+          <span class="login-page__feature-dot"></span>
           <div>
-            <div class="auth__feature-title">缺陷全生命周期管理</div>
-            <div class="auth__feature-desc">流转状态清晰可控</div>
+            <div class="login-page__feature-title">缺陷全生命周期管理</div>
+            <div class="login-page__feature-desc">流转状态清晰可控</div>
           </div>
         </li>
       </ul>
     </div>
 
-    <div class="auth__copyright">© <span id="auth-year">2026</span> RoboTest</div>
-  </div>
+    <div class="login-page__copyright">© <span id="auth-year">2026</span> RoboTest</div>
+  </aside>
 
-  <div class="auth__form-wrap">
-    <div class="auth__card">
-      <div class="auth__title">登录</div>
-      <div class="auth__sub">欢迎回来，请输入你的账号信息</div>
+  <main class="login-page__main">
+    <div class="login-box">
+      <div class="login-box__title">登录</div>
+      <div class="login-box__subtitle">欢迎回来，请输入你的账号信息</div>
 
-      <div class="field">
-        <label class="field__label" for="login-identifier">账号</label>
-        <div class="input-wrap">
-          <span data-icon="user"></span>
-          <input class="input" id="login-identifier" placeholder="用户名 / 邮箱" value="zhangming" autocomplete="username">
-          <button type="button" class="auth__input-action" id="login-clear" title="清空">
-            <span data-icon="x"></span>
-          </button>
+      <form class="login-box__form" id="login-form" novalidate>
+        <!-- Element Plus: el-form label-position="top" / el-form-item label="账号" -->
+        <div class="el-form-item">
+          <label class="el-form-item__label" for="login-identifier">账号</label>
+          <div class="el-input el-input--large el-input--prefix el-input--suffix">
+            <div class="el-input__wrapper" id="identifier-wrap">
+              <span class="el-input__prefix">
+                <span data-icon="user"></span>
+              </span>
+              <input
+                class="el-input__inner"
+                id="login-identifier"
+                placeholder="用户名 / 邮箱"
+                value=""
+                autocomplete="username"
+              >
+              <!-- el-input clearable -->
+              <span class="el-input__suffix">
+                <button type="button" class="el-input__action" id="login-clear" title="清空" hidden>
+                  <span data-icon="x-circle"></span>
+                </button>
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="field">
-        <label class="field__label" for="login-password">密码</label>
-        <div class="input-wrap">
-          <span data-icon="lock"></span>
-          <input class="input" id="login-password" type="password" placeholder="请输入密码" value="12345678" autocomplete="current-password">
-          <button type="button" class="auth__input-action" id="login-eye" title="显示密码">
-            <span data-icon="eye"></span>
-          </button>
+
+        <!-- Element Plus: el-form-item label="密码" -->
+        <div class="el-form-item">
+          <label class="el-form-item__label" for="login-password">密码</label>
+          <div class="el-input el-input--large el-input--prefix el-input--suffix">
+            <div class="el-input__wrapper" id="password-wrap">
+              <span class="el-input__prefix">
+                <span data-icon="lock"></span>
+              </span>
+              <input
+                class="el-input__inner"
+                id="login-password"
+                type="password"
+                placeholder="请输入密码"
+                value=""
+                autocomplete="current-password"
+              >
+              <!-- el-input show-password -->
+              <span class="el-input__suffix">
+                <button type="button" class="el-input__action" id="login-eye" title="显示密码">
+                  <span data-icon="eye"></span>
+                </button>
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <button class="btn btn--primary btn--lg btn--block" id="login-submit" type="button">登 录</button>
+        <div class="el-form-item" style="margin-bottom: 0;">
+          <!-- Element Plus: el-button type="primary" size="large" class="login-box__btn" -->
+          <button class="btn btn--primary btn--lg btn--block login-box__btn" id="login-submit" type="submit">登 录</button>
+        </div>
+      </form>
 
-      <div class="text-xs text-light text-center" style="margin-top:24px">
-        首次部署？系统将自动引导完成初始化
-      </div>
+      <div class="login-box__footer">首次部署？系统将自动引导完成初始化</div>
     </div>
-  </div>
+  </main>
 </div>
 
 <div class="alert auth__toast" id="login-toast" hidden>
@@ -151,15 +458,19 @@
 
 <script src="../assets/icons.js"></script>
 <script>
-  // 原型无后端：复刻实际页的空表单校验、提交 loading 与消息反馈
+  // 原型无后端：复刻实际页的空表单校验、提交 loading 与 ElMessage 反馈
   (function () {
     document.getElementById('auth-year').textContent = new Date().getFullYear();
 
+    var form = document.getElementById('login-form');
     var idInput = document.getElementById('login-identifier');
     var pwInput = document.getElementById('login-password');
+    var idWrap = document.getElementById('identifier-wrap');
+    var pwWrap = document.getElementById('password-wrap');
     var clearBtn = document.getElementById('login-clear');
     var eyeBtn = document.getElementById('login-eye');
     var submitBtn = document.getElementById('login-submit');
+    var subtitle = document.querySelector('.login-box__subtitle');
     var toast = document.getElementById('login-toast');
     var toastMsg = document.getElementById('toast-msg');
     var toastWarn = document.getElementById('toast-warn');
@@ -167,7 +478,15 @@
     var toastTimer;
 
     function syncClear() { clearBtn.hidden = !idInput.value; }
+    function bindFocus(input, wrap) {
+      input.addEventListener('focus', function () { wrap.classList.add('is-focus'); });
+      input.addEventListener('blur', function () { wrap.classList.remove('is-focus'); });
+    }
+
     syncClear();
+    bindFocus(idInput, idWrap);
+    bindFocus(pwInput, pwWrap);
+
     idInput.addEventListener('input', syncClear);
     clearBtn.addEventListener('click', function () {
       idInput.value = '';
@@ -176,10 +495,11 @@
     });
 
     eyeBtn.addEventListener('click', function () {
-      var shown = pwInput.type === 'text';
-      pwInput.type = shown ? 'password' : 'text';
-      eyeBtn.classList.toggle('is-on', !shown);
-      eyeBtn.title = shown ? '显示密码' : '隐藏密码';
+      var plain = pwInput.type === 'password';
+      pwInput.type = plain ? 'text' : 'password';
+      eyeBtn.title = plain ? '隐藏密码' : '显示密码';
+      eyeBtn.setAttribute('aria-label', eyeBtn.title);
+      eyeBtn.classList.toggle('is-on', plain);
     });
 
     function showToast(msg, type) {
@@ -192,24 +512,28 @@
       toastTimer = window.setTimeout(function () { toast.hidden = true; }, 2600);
     }
 
-    function submit() {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
       if (submitBtn.disabled) return;
       if (!idInput.value || !pwInput.value) {
         showToast('请输入用户名/邮箱和密码', 'warning');
         return;
       }
       submitBtn.disabled = true;
-      submitBtn.textContent = '登录中…';
+      submitBtn.classList.add('is-loading');
+      submitBtn.textContent = '登 录';
+      submitBtn.setAttribute('aria-busy', 'true');
       window.setTimeout(function () {
-        submitBtn.disabled = false;
+        submitBtn.classList.remove('is-loading');
+        submitBtn.removeAttribute('aria-busy');
         submitBtn.textContent = '登 录';
+        if (subtitle) subtitle.textContent = '登录成功，正在进入我的空间…';
         showToast('登录成功', 'success');
+        window.setTimeout(function () {
+          window.location.href = '../workspace/list.html';
+        }, 400);
       }, 900);
-    }
-
-    submitBtn.addEventListener('click', submit);
-    idInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
-    pwInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+    });
   })();
 </script>
 </body>

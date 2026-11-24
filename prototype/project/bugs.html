@@ -7,21 +7,63 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  /* hidden 属性会被 display:flex 等规则覆盖，需强制生效 */
   [hidden] { display: none !important; }
 
-  /* —— 筛选区 —— */
-  .bug-filters { padding: 14px 20px; }
-  /* 列表模式下筛选区吸顶，对应实际页 filters--sticky */
-  .bug-filters--sticky { position: sticky; top: 0; z-index: 10; }
-  .bug-filters__row {
+  /* —— 工具栏（对齐 BugListToolbar） —— */
+  .bug-toolbar {
+    flex-shrink: 0;
+    padding: 20px;
+    border-bottom: 1px solid var(--n-200);
+  }
+  .bug-toolbar__row,
+  .bug-toolbar__actions {
     display: flex;
     align-items: center;
-    gap: var(--space-md);
     flex-wrap: wrap;
+    gap: 12px;
   }
-  .bug-filters__row .input-wrap .input { width: 360px; }
-  /* 清空按钮复用 [data-icon] 定位通道，改到右侧并恢复可点击（对应 el-input clearable） */
+  .bug-toolbar__row { justify-content: space-between; }
+  .bug-toolbar__actions { margin-left: auto; }
+
+  /* 快捷筛选：el-radio-group + radio-button */
+  .radio-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .radio-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 15px;
+    border: 1px solid var(--n-300);
+    background: var(--n-0);
+    color: var(--n-700);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    cursor: pointer;
+    margin-left: -1px;
+    position: relative;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+    white-space: nowrap;
+  }
+  .radio-btn:first-child { margin-left: 0; border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  .radio-btn:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+  .radio-btn:hover { color: var(--brand-500); z-index: 1; }
+  .radio-btn--active {
+    color: #fff;
+    background: var(--brand-500);
+    border-color: var(--brand-500);
+    z-index: 2;
+  }
+
+  .bug-toolbar__search {
+    flex: 1 1 16rem;
+    max-width: 32rem;
+    min-width: 0;
+  }
+  .input-wrap--search .input { width: 100%; padding-right: 30px; }
   .input-wrap > .input-clear {
     left: auto;
     right: 8px;
@@ -35,48 +77,26 @@
     pointer-events: auto;
   }
   .input-wrap > .input-clear:hover { color: var(--n-600); }
-  /* 输入内容为清空按钮让位 */
-  #keyword { padding-right: 30px; }
 
-  .segment__item {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .segment__item [data-icon] svg { width: 14px; height: 14px; }
-
-  .bug-adv-trigger {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--brand-500);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-    background: none;
-    border: none;
-    font-family: inherit;
-    padding: 0;
-  }
-  .bug-adv-trigger [data-icon] svg { width: 13px; height: 13px; transition: transform var(--transition-fast); }
-  .bug-adv-trigger.is-open [data-icon] svg { transform: rotate(180deg); }
-
-  /* 已生效的高级筛选条件数，对应实际页 el-badge */
-  .bug-adv-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
+  /* 更多筛选：el-badge + el-button + el-popover */
+  .filter-badge { position: relative; display: inline-flex; }
+  .filter-badge__count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
     border-radius: 999px;
     background: var(--brand-500);
     color: #fff;
-    font-size: var(--font-size-2xs);
+    font-size: 11px;
     font-weight: 600;
-    line-height: 1;
+    line-height: 18px;
+    text-align: center;
   }
-
-  .bug-adv-popover {
+  .btn .caret-icon svg { width: 14px; height: 14px; margin-left: 2px; }
+  .adv-popover {
     position: absolute;
     margin-top: 8px;
     width: 300px;
@@ -87,45 +107,134 @@
     padding: 18px;
     z-index: 50;
   }
-  .bug-adv-popover .field { margin-bottom: 14px; }
-  .bug-adv-popover .field__label { margin-bottom: 6px; }
-  .bug-adv-actions {
+  .adv-form .field {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .adv-form .field__label { margin-bottom: 0; font-size: var(--font-size-sm); color: var(--n-700); }
+  .adv-form .select { width: 100%; }
+  .bug-toolbar__filter-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: 4px;
   }
 
-  /* —— 列表表格 —— */
-  .bug-table { min-width: 1730px; }
-  .bug-table td:last-child { white-space: nowrap; }
-  .bug-table .cell-main { color: var(--n-900); font-weight: 500; }
-  .bug-table .cell-main:hover { color: var(--brand-600); }
+  /* —— 列表区 —— */
+  .bug-page__list { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .bug-page__content { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+  .bug-table-wrap { flex: 1; min-height: 0; overflow: auto; }
+  .bug-table { min-width: 1710px; width: 100%; }
 
-  /* 操作列固定右侧（对应实际页 fixed="right"），必须给不透明底色否则横向滚动时透出下层内容 */
-  .bug-table th:last-child,
-  .bug-table td:last-child {
+  .bug-table__id { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-600); }
+  .bug-table__title {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--brand-600);
+    font: inherit;
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .bug-table__title:hover { text-decoration: underline; }
+  .bug-table__secondary, .bug-table__time, .bug-table__confirmed {
+    color: var(--n-600);
+    font-size: var(--font-size-sm);
+  }
+  .bug-table__time { font-variant-numeric: tabular-nums; }
+  .bug-table__status { display: flex; align-items: center; gap: 8px; }
+  .bug-table__status-icon { margin-right: 4px; vertical-align: middle; display: inline-flex; }
+  .bug-table__status-icon svg { width: 12px; height: 12px; }
+  .bug-table__dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    vertical-align: middle;
+  }
+
+  /* 操作列固定右侧 */
+  .bug-table th.col-actions,
+  .bug-table td.col-actions {
     position: sticky;
     right: 0;
     background: var(--n-0);
     box-shadow: -8px 0 8px -8px rgba(0, 0, 0, 0.14);
   }
-  .bug-table thead th:last-child {
-    z-index: 2;
-    background: var(--n-50);
-  }
-  .bug-table tbody tr:hover td:last-child { background: var(--n-25); }
-  /* 空态行横跨全列，不参与固定 */
-  #empty-row td:last-child { position: static; box-shadow: none; }
+  .bug-table thead th.col-actions { z-index: 2; background: var(--n-50); }
+  .bug-table tbody tr:hover td.col-actions { background: var(--n-25); }
+  .bug-table__action-header { display: flex; align-items: center; justify-content: flex-end; width: 100%; }
+  .bug-table__actions { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
 
-  .more-trigger {
+  /* el-button link 风格 */
+  .btn-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 2px;
+    line-height: 1.5;
   }
-  .more-trigger [data-icon] svg { width: 12px; height: 12px; }
+  .btn-link--primary { color: var(--brand-500); }
+  .btn-link--primary:hover { color: var(--brand-600); }
+  .btn-link svg { width: 14px; height: 14px; }
 
-  /* 更多下拉菜单 */
+  /* 列设置 popover */
+  .col-setting { position: relative; display: inline-flex; }
+  .col-setting__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: var(--brand-500);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  .col-setting__trigger:hover { color: var(--brand-600); background: var(--brand-50); }
+  .col-setting__trigger svg { width: 16px; height: 16px; }
+  .col-setting__popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 70;
+    width: 220px;
+    padding: 12px;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+  .col-setting__title { font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: 8px; }
+  .col-setting__list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+  .col-setting__opt { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .col-setting__opt--disabled { color: var(--n-500); cursor: not-allowed; }
+  .col-setting__actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--n-200);
+  }
+  .btn-link--sm { font-size: var(--font-size-xs); }
+  .btn-link:disabled { color: var(--n-400); cursor: not-allowed; }
+
+  /* 更多下拉 */
   .more-dropdown {
     position: fixed;
     background: var(--n-0);
@@ -143,162 +252,137 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .more-dropdown__item:hover {
-    background: var(--n-50);
-    color: var(--n-900);
-  }
+  .more-dropdown__item:hover { background: var(--n-50); color: var(--n-900); }
 
-  /* 列显隐入口放在固定操作列的表头内：实际页 BugListTable 通过 #column-setting 插槽挂载 */
-  .bug-table__action-head {
+  /* 分页：对齐 ListPagination */
+  .list-pager {
     display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 12px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--n-100);
   }
-  .bug-col-setting { position: relative; display: inline-flex; }
-  .bug-col-trigger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
+  .list-pager__total { color: var(--n-500); font-size: var(--font-size-sm); }
+  .list-pager__right { display: flex; align-items: center; gap: 8px; }
+  .pager-sizes { height: 32px; padding: 0 24px 0 8px; border: 1px solid var(--n-300); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--n-700); background: var(--n-0); }
+  .pager-btns { display: inline-flex; align-items: center; gap: 6px; }
+  .page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 4px;
     border: 0;
-    border-radius: var(--radius-sm);
     background: transparent;
-    color: var(--n-500);
+    color: var(--n-700);
+    font-size: var(--font-size-sm);
+    border-radius: var(--radius-md);
     cursor: pointer;
   }
-  .bug-col-trigger:hover { color: var(--n-900); background: var(--n-100); }
-  .bug-col-trigger svg { width: 14px; height: 14px; }
-  .bug-col-popover {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 70;
-    width: 220px;
-    padding: 12px;
-    background: var(--n-0);
-    border: 1px solid var(--n-200);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-  }
-  .bug-col-popover__title { margin-bottom: var(--space-sm); font-size: var(--font-size-sm); color: var(--n-600); }
-  .bug-col-popover__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
-  .bug-col-opt { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
-  .bug-col-opt--pinned { color: var(--n-500); cursor: not-allowed; }
-  .bug-col-popover__actions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: var(--space-sm);
-    padding-top: var(--space-sm);
-    border-top: 1px solid var(--n-200);
-  }
+  .page-btn:hover:not(:disabled):not(.page-btn--active) { color: var(--brand-500); }
+  .page-btn--active { background: var(--brand-500); color: #fff; font-weight: 600; }
+  .page-btn:disabled { color: var(--n-300); cursor: not-allowed; }
 
-  /* —— 分页每页条数 —— */
-  .page-size {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--n-500);
-  }
-  /* 页码与前后翻页成组，仅这一组随筛选 / 每页条数重绘 */
-  .pager-list {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  /* —— 看板视图 —— */
+  /* —— 看板 —— */
   .bug-board {
     display: flex;
-    gap: var(--space-md);
+    gap: 12px;
+    padding: 20px;
+    overflow-x: auto;
+    flex: 1;
     min-height: 400px;
   }
   .bug-board__column {
     flex: 1;
-    min-width: 220px;
+    min-width: 200px;
     background: var(--n-50);
-    border: 1px solid var(--n-200);
-    border-radius: var(--radius-lg);
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
+    border: 1px solid var(--n-200);
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
   }
+  .bug-board__column--valid { border-color: var(--brand-400); background: var(--brand-50); }
+  .bug-board__column--invalid { opacity: 0.5; }
   .bug-board__col-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-sm) var(--space-md);
+    padding: 8px 12px;
     border-bottom: 1px solid var(--n-200);
   }
-  .bug-board__col-title {
-    font-weight: 600;
-    font-size: var(--font-size-xs);
-    color: var(--n-700);
-  }
+  .bug-board__col-title { font-weight: 600; font-size: var(--font-size-sm); color: var(--n-800); }
   .bug-board__col-count {
-    font-size: var(--font-size-2xs);
-    color: var(--n-500);
+    font-size: var(--font-size-xs);
+    color: var(--n-600);
     background: var(--n-200);
-    border-radius: 999px;
+    border-radius: 12px;
     padding: 1px 6px;
-    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
   .bug-board__col-body {
     flex: 1;
-    padding: var(--space-sm);
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: var(--space-sm);
+    gap: 8px;
     overflow-y: auto;
   }
   .bug-board__card {
     display: block;
+    width: 100%;
+    font: inherit;
+    text-align: left;
     background: var(--n-0);
-    border: 1px solid var(--n-200);
-    border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-sizing: border-box;
     cursor: grab;
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-    text-decoration: none;
+    border: 1px solid var(--n-200);
+    transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
   }
-  .bug-board__card:hover {
-    box-shadow: var(--shadow-sm);
-    border-color: var(--brand-200);
-  }
+  .bug-board__card:hover { box-shadow: var(--shadow-sm); border-color: var(--brand-200); }
   .bug-board__card:active { cursor: grabbing; }
   .bug-board__card-title {
-    font-size: var(--font-size-xs);
+    display: block;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--n-800);
-    margin-bottom: var(--space-xs);
+    margin-bottom: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .bug-board__card-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-  }
-  .bug-board__card-assignee {
-    font-size: var(--font-size-2xs);
-    color: var(--n-500);
-  }
+  .bug-board__card-meta { display: flex; align-items: center; gap: 8px; }
+  .bug-board__card-assignee { font-size: var(--font-size-xs); color: var(--n-600); }
+  .bug-board__empty { padding: 24px 0; text-align: center; font-size: var(--font-size-xs); color: var(--n-400); }
 
-  /* 拖拽落点反馈：可放列高亮，不可放列降透明 */
-  .bug-board__column--valid {
-    border-color: var(--brand-500);
-    background: var(--brand-50);
-  }
-  .bug-board__column--invalid { opacity: 0.5; }
+  /* —— 弹窗 —— */
+  .dialog-mask { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 200; }
+  .dialog { background: var(--n-0); border-radius: 8px; box-shadow: var(--shadow-lg); max-width: calc(100vw - 32px); }
+  .dialog__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--n-100); }
+  .dialog__title { font-size: 16px; font-weight: 600; color: var(--n-900); }
+  .dialog__close { cursor: pointer; color: var(--n-500); display: inline-flex; }
+  .dialog__close:hover { color: var(--n-700); }
+  .dialog__close svg { width: 18px; height: 18px; }
+  .dialog__body { padding: 20px; }
+  .dialog__footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--n-100); }
+  .form-item { margin-bottom: 18px; }
+  .form-item:last-child { margin-bottom: 0; }
+  .form-item__label { display: block; font-size: var(--font-size-sm); color: var(--n-700); margin-bottom: 8px; }
+  .form-item__label .req { color: var(--st-danger); margin-left: 2px; }
+  .form-item--horizontal { display: grid; grid-template-columns: 96px 1fr; align-items: start; gap: 0; }
+  .form-item--horizontal .form-item__label { margin-bottom: 0; padding-top: 8px; }
+  .form-control { width: 100%; }
+  .field__error { margin-top: 6px; font-size: var(--font-size-xs); color: var(--st-danger); }
 
-  .bug-board__empty {
-    padding: var(--space-lg) 0;
-    text-align: center;
-    font-size: var(--font-size-xs);
-    color: var(--n-400);
-  }
+  /* ElMessageBox 风格提示 */
+  .msgbox .dialog__header { border-bottom: 0; padding-bottom: 0; }
+  .msgbox .dialog__body { padding-top: 12px; }
+  .msgbox .dialog__footer { border-top: 0; padding-top: 0; }
+  .msgbox__content { font-size: var(--font-size-sm); color: var(--n-700); margin: 0 0 14px; }
 
-  /* —— 操作结果提示（对应实际页 ElMessage） —— */
   .bug-toast {
     position: fixed;
     top: 76px;
@@ -316,399 +400,356 @@
     color: var(--n-800);
     z-index: 300;
   }
-  .bug-toast__dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--st-success);
-    flex-shrink: 0;
-  }
+  .bug-toast__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-success); flex-shrink: 0; }
 
+  .page-shell { display: flex; flex-direction: column; min-height: 100%; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
+  <div class="page-shell">
+    <!-- 工具栏：对齐 BugListToolbar -->
+    <section class="bug-toolbar" aria-label="缺陷筛选与操作">
+      <div class="bug-toolbar__row">
+        <div class="radio-group" id="quick-filter" role="radiogroup" aria-label="快捷过滤">
+          <button type="button" class="radio-btn radio-btn--active" data-quick="">全部</button>
+          <button type="button" class="radio-btn" data-quick="unresolved">未修复的</button>
+          <button type="button" class="radio-btn" data-quick="reported">由我创建</button>
+          <button type="button" class="radio-btn" data-quick="assigned">指派给我</button>
+          <button type="button" class="radio-btn" data-quick="resolved">由我修复</button>
+          <button type="button" class="radio-btn" data-quick="closed">由我关闭</button>
+        </div>
 
-  <!-- 筛选区 -->
-  <div class="card bug-filters bug-filters--sticky" id="filter-card" style="margin-bottom:var(--block-gap)">
-    <div class="bug-filters__row">
-      <div class="segment" id="quick-filter">
-        <span class="segment__item segment__item--active" data-quick="">全部</span>
-        <span class="segment__item" data-quick="unresolved">未修复的</span>
-        <span class="segment__item" data-quick="reported">由我创建</span>
-        <span class="segment__item" data-quick="assigned">指派给我</span>
-        <span class="segment__item" data-quick="resolved">由我修复</span>
-        <span class="segment__item" data-quick="closed">由我关闭</span>
-      </div>
-      <div class="input-wrap"><span data-icon="search"></span><input class="input" id="keyword" placeholder="搜索 ID（前缀/后缀）或标题"><button type="button" class="input-clear" id="keyword-clear" title="清空" data-icon="x" hidden></button></div>
-      <button class="bug-adv-trigger" id="adv-trigger">
-        更多筛选<span class="bug-adv-count" id="adv-count" hidden>0</span><span data-icon="chevron-down"></span>
-      </button>
-      <div style="flex:1"></div>
-      <div class="segment" id="view-toggle">
-        <span class="segment__item segment__item--active" data-view="list"><span data-icon="list"></span>列表</span>
-        <span class="segment__item" data-view="board"><span data-icon="grid"></span>看板</span>
-      </div>
-      <a class="btn btn--primary" href="bug-create.html"><span data-icon="plus"></span>提交缺陷</a>
-    </div>
-    <div class="bug-adv-popover" id="adv-popover" hidden>
-      <div class="field">
-        <label class="field__label">状态</label>
-        <select class="select" id="adv-status"><option value="">全部</option><option value="active">激活</option><option value="resolved">已修复</option><option value="rejected">已拒绝</option><option value="closed">已关闭</option></select>
-      </div>
-      <div class="field">
-        <label class="field__label">类型</label>
-        <select class="select" id="adv-type"><option value="">全部</option><option value="code_error">代码错误</option><option value="ui_improvement">界面优化</option><option value="design_defect">设计缺陷</option><option value="configuration">配置相关</option><option value="installation">安装部署</option><option value="security">安全相关</option><option value="performance">性能问题</option><option value="standard_spec">标准规范</option><option value="other">其他</option></select>
-      </div>
-      <div class="field">
-        <label class="field__label">严重等级</label>
-        <select class="select" id="adv-severity"><option value="">全部</option><option value="fatal">致命</option><option value="serious">严重</option><option value="general">一般</option><option value="minor">轻微</option></select>
-      </div>
-      <div class="field">
-        <label class="field__label">优先级</label>
-        <select class="select" id="adv-priority"><option value="">全部</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select>
-      </div>
-      <div class="bug-adv-actions">
-        <button class="btn btn--primary btn--sm" id="adv-apply"><span data-icon="search"></span>查询</button>
-        <button class="btn btn--default btn--sm" id="adv-reset">重置</button>
-      </div>
-    </div>
-  </div>
+        <div class="input-wrap input-wrap--search bug-toolbar__search">
+          <span data-icon="search"></span>
+          <input class="input" id="keyword" aria-label="搜索缺陷 ID 或标题" placeholder="搜索 ID（前缀/后缀）或标题">
+          <button type="button" class="input-clear" id="keyword-clear" title="清空" aria-label="清空" data-icon="x" hidden></button>
+        </div>
 
-  <!-- 列表视图 -->
-  <div class="card" id="list-view">
-    <div class="table-wrap">
-      <table class="table bug-table">
-        <thead>
-          <tr>
-            <th style="width:110px">ID</th>
-            <th style="min-width:200px">标题</th>
-            <th style="width:100px">类型</th>
-            <th style="width:100px">严重等级</th>
-            <th style="width:80px">优先级</th>
-            <th style="width:130px">状态</th>
-            <th style="width:100px">创建人</th>
-            <th style="width:100px">处理人</th>
-            <th style="width:100px">解决人</th>
-            <th style="width:110px">解决时间</th>
-            <th style="width:100px">解决方案</th>
-            <th style="width:110px">关闭时间</th>
-            <th style="width:110px">创建时间</th>
-            <th style="width:210px">
-              <span class="bug-table__action-head">
-                <span>操作</span>
-                <span class="bug-col-setting">
-                  <button class="bug-col-trigger" type="button" id="bug-col-trigger" aria-label="列设置" aria-expanded="false" aria-controls="bug-col-popover" title="列设置"><span data-icon="settings"></span></button>
-                  <div class="bug-col-popover" id="bug-col-popover" hidden>
-                    <div class="bug-col-popover__title">显示列</div>
-                    <div class="bug-col-popover__list">
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="id" role="checkbox" aria-checked="true"></span>ID</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="title" role="checkbox" aria-checked="true"></span>标题</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="type" role="checkbox" aria-checked="true"></span>类型</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="severity" role="checkbox" aria-checked="true"></span>严重等级</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="priority" role="checkbox" aria-checked="true"></span>优先级</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="status" role="checkbox" aria-checked="true"></span>状态</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="reporter" role="checkbox" aria-checked="true"></span>创建人</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="assignee" role="checkbox" aria-checked="true"></span>处理人</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="resolver" role="checkbox" aria-checked="true"></span>解决人</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="resolvedAt" role="checkbox" aria-checked="true"></span>解决时间</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="resolution" role="checkbox" aria-checked="true"></span>解决方案</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="closedAt" role="checkbox" aria-checked="true"></span>关闭时间</label>
-                      <label class="bug-col-opt"><span class="checkbox checkbox--on" data-col-box="createdAt" role="checkbox" aria-checked="true"></span>创建时间</label>
-                      <label class="bug-col-opt bug-col-opt--pinned"><span class="checkbox checkbox--on" role="checkbox" aria-checked="true"></span>操作（固定）</label>
-                    </div>
-                    <div class="bug-col-popover__actions">
-                      <button class="btn btn--link btn--sm" type="button" id="bug-col-all">全选</button>
-                      <button class="btn btn--link btn--sm" type="button" id="bug-col-reset">恢复默认</button>
-                    </div>
-                  </div>
-                </span>
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- 1. active, not confirmed -->
-          <tr class="bug-row" data-status="active" data-confirmed="false" data-type="code_error" data-severity="serious" data-priority="high" data-reporter="王芳" data-assignee="李华" data-resolved-by="" data-closed-by="" data-id="f3a2d4e6-1c9a-4b3d-8e7f-9d4b2c7ae2f3">
-            <td><span class="mono text-sm muted">f3a2...e2f3</span></td>
-            <td><a href="bug-detail.html" class="cell-main">支付回调重复入账</a></td>
-            <td>代码错误</td>
-            <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
-            <td><span class="tag tag--warning">高</span></td>
-            <td><span class="tag tag--info">激活</span></td>
-            <td>王芳</td>
-            <td>李华</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="num">09-22 13:58</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <!-- 2. active, confirmed -->
-          <tr class="bug-row" data-status="active" data-confirmed="true" data-type="code_error" data-severity="fatal" data-priority="high" data-reporter="李华" data-assignee="张明" data-resolved-by="" data-closed-by="" data-id="a1b2c7d8-3f5e-4d21-9c8b-7e6f2a4da6b7">
-            <td><span class="mono text-sm muted">a1b2...a6b7</span></td>
-            <td><a href="bug-detail.html" class="cell-main">下单超时未释放库存</a></td>
-            <td>代码错误</td>
-            <td><span class="tag tag--danger"><span class="dot"></span>致命</span></td>
-            <td><span class="tag tag--warning">高</span></td>
-            <td>
-              <span class="tag tag--info">激活</span>
-              <span class="tag tag--warning tag--sm" style="margin-left:4px">已确认</span>
-            </td>
-            <td>李华</td>
-            <td>张明</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="num">09-22 11:20</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <!-- 3. resolved -->
-          <tr class="bug-row" data-status="resolved" data-confirmed="false" data-type="design_defect" data-severity="general" data-priority="medium" data-reporter="张明" data-assignee="周敏" data-resolved-by="周敏" data-closed-by="" data-id="c3d4e5f6-2b7d-4a91-8f3e-1d6c9b5ec8d9">
-            <td><span class="mono text-sm muted">c3d4...c8d9</span></td>
-            <td><a href="bug-detail.html" class="cell-main">优惠券叠加计算少于预期</a></td>
-            <td>设计缺陷</td>
-            <td><span class="tag tag--neutral"><span class="dot"></span>一般</span></td>
-            <td><span class="tag tag--info">中</span></td>
-            <td><span class="tag tag--success">已修复</span></td>
-            <td>张明</td>
-            <td>周敏</td>
-            <td>周敏</td>
-            <td class="num">09-21 18:30</td>
-            <td>已解决</td>
-            <td class="num muted">-</td>
-            <td class="num">09-21 16:44</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <!-- 4. closed -->
-          <tr class="bug-row" data-status="closed" data-confirmed="false" data-type="ui_improvement" data-severity="minor" data-priority="low" data-reporter="周敏" data-assignee="陈强" data-resolved-by="陈强" data-closed-by="张明" data-id="e5f6a1b2-9c4a-4e28-b7d5-3a8f1c6de0f1">
-            <td><span class="mono text-sm muted">e5f6...e0f1</span></td>
-            <td><a href="bug-detail.html" class="cell-main">订单列表分页跳转闪烁</a></td>
-            <td>界面优化</td>
-            <td><span class="tag tag--success"><span class="dot"></span>轻微</span></td>
-            <td><span class="tag tag--neutral">低</span></td>
-            <td><span class="tag tag--neutral">已关闭</span></td>
-            <td>周敏</td>
-            <td>陈强</td>
-            <td>陈强</td>
-            <td class="num">09-19 11:20</td>
-            <td>已解决</td>
-            <td class="num">09-19 14:00</td>
-            <td class="num">09-19 10:12</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <!-- 5. rejected -->
-          <tr class="bug-row" data-status="rejected" data-confirmed="false" data-type="code_error" data-severity="serious" data-priority="medium" data-reporter="王芳" data-assignee="王芳" data-resolved-by="" data-closed-by="" data-rejected-by="李华" data-id="b7c8d9ea-4d1f-4c63-a2b8-6e9d5f3cf2a3">
-            <td><span class="mono text-sm muted">b7c8...f2a3</span></td>
-            <td><a href="bug-detail.html" class="cell-main">配送时效计算跨时区错误</a></td>
-            <td>代码错误</td>
-            <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
-            <td><span class="tag tag--info">中</span></td>
-            <td><span class="tag tag--warning">已拒绝</span></td>
-            <td>王芳</td>
-            <td>王芳</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="num">09-17 14:06</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <!-- 6. closed -->
-          <tr class="bug-row" data-status="closed" data-confirmed="false" data-type="ui_improvement" data-severity="general" data-priority="low" data-reporter="陈强" data-assignee="王芳" data-resolved-by="王芳" data-closed-by="王芳" data-id="d9e0f1a2-7e3b-4f59-c1d8-2b6a4e9db4c5">
-            <td><span class="mono text-sm muted">d9e0...b4c5</span></td>
-            <td><a href="bug-detail.html" class="cell-main">支付失败提示文案歧义</a></td>
-            <td>界面优化</td>
-            <td><span class="tag tag--neutral"><span class="dot"></span>一般</span></td>
-            <td><span class="tag tag--neutral">低</span></td>
-            <td><span class="tag tag--neutral">已关闭</span></td>
-            <td>陈强</td>
-            <td>王芳</td>
-            <td>王芳</td>
-            <td class="num">09-15 10:00</td>
-            <td>已解决</td>
-            <td class="num">09-15 16:30</td>
-            <td class="num">09-15 09:33</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <!-- 7. resolved, confirmed -->
-          <tr class="bug-row" data-status="resolved" data-confirmed="true" data-type="security" data-severity="fatal" data-priority="high" data-reporter="李华" data-assignee="张明" data-resolved-by="张明" data-closed-by="" data-id="a4b5c6d7-5f8c-4b26-9d4a-1e7c3f5ae8f9">
-            <td><span class="mono text-sm muted">a4b5...e8f9</span></td>
-            <td><a href="bug-detail.html" class="cell-main">用户权限校验绕过风险</a></td>
-            <td>安全相关</td>
-            <td><span class="tag tag--danger"><span class="dot"></span>致命</span></td>
-            <td><span class="tag tag--warning">高</span></td>
-            <td>
-              <span class="tag tag--success">已修复</span>
-              <span class="tag tag--warning tag--sm" style="margin-left:4px">已确认</span>
-            </td>
-            <td>李华</td>
-            <td>张明</td>
-            <td>张明</td>
-            <td class="num">09-14 09:15</td>
-            <td>已解决</td>
-            <td class="num muted">-</td>
-            <td class="num">09-13 17:50</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <!-- 8. active, not confirmed, no assignee -->
-          <tr class="bug-row" data-status="active" data-confirmed="false" data-type="performance" data-severity="serious" data-priority="medium" data-reporter="周敏" data-assignee="" data-resolved-by="" data-closed-by="" data-id="e8f9a0b1-6a2d-4e70-b3c9-4f8d2b6ac2d3">
-            <td><span class="mono text-sm muted">e8f9...c2d3</span></td>
-            <td><a href="bug-detail.html" class="cell-main">接口响应时间超阈值</a></td>
-            <td>性能问题</td>
-            <td><span class="tag tag--warning"><span class="dot"></span>严重</span></td>
-            <td><span class="tag tag--info">中</span></td>
-            <td><span class="tag tag--info">激活</span></td>
-            <td>周敏</td>
-            <td class="muted">-</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="muted">-</td>
-            <td class="num muted">-</td>
-            <td class="num">09-12 08:45</td>
-            <td class="bug-ops"></td>
-          </tr>
-          <tr id="empty-row" hidden>
-            <td colspan="14" class="muted" style="text-align:center;padding:32px 0">暂无数据</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="pagination">
-      <span class="pagination__total" id="pager-total">共 82 条</span>
-      <span class="page-size">
-        <select class="select" id="page-size" style="width:auto;height:28px;padding:0 24px 0 8px">
-          <option value="20">20条/页</option>
-          <option value="50">50条/页</option>
-          <option value="100">100条/页</option>
-        </select>
-      </span>
-      <span class="pager-list" id="pager-list">
-        <button class="page-btn" disabled>‹</button>
-        <button class="page-btn page-btn--active">1</button>
-        <button class="page-btn">2</button>
-        <button class="page-btn">3</button>
-        <button class="page-btn">…</button>
-        <button class="page-btn">5</button>
-        <button class="page-btn">›</button>
-      </span>
-    </div>
-  </div>
+        <div style="position:relative;display:inline-flex">
+          <span class="filter-badge">
+            <button type="button" class="btn btn--default" id="adv-trigger" aria-expanded="false">
+              更多筛选<span class="caret-icon" data-icon="chevron-down"></span>
+            </button>
+            <span class="filter-badge__count" id="adv-count" hidden>0</span>
+          </span>
+          <div class="adv-popover" id="adv-popover" hidden>
+            <form class="adv-form" id="adv-form" onsubmit="return false">
+              <div class="field">
+                <label class="field__label" for="adv-status">状态</label>
+                <select class="select" id="adv-status"><option value="">全部</option><option value="active">激活</option><option value="resolved">已修复</option><option value="rejected">已拒绝</option><option value="closed">已关闭</option></select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="adv-type">类型</label>
+                <select class="select" id="adv-type"><option value="">全部</option><option value="code_error">代码错误</option><option value="ui_improvement">界面优化</option><option value="design_defect">设计缺陷</option><option value="configuration">配置相关</option><option value="installation">安装部署</option><option value="security">安全相关</option><option value="performance">性能问题</option><option value="standard_spec">标准规范</option><option value="other">其他</option></select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="adv-severity">严重等级</label>
+                <select class="select" id="adv-severity"><option value="">全部</option><option value="fatal">致命</option><option value="serious">严重</option><option value="general">一般</option><option value="minor">轻微</option></select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="adv-priority">优先级</label>
+                <select class="select" id="adv-priority"><option value="">全部</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select>
+              </div>
+              <div class="bug-toolbar__filter-actions">
+                <button type="button" class="btn btn--default" id="adv-reset">重置</button>
+                <button type="submit" class="btn btn--primary" id="adv-apply">查询</button>
+              </div>
+            </form>
+          </div>
+        </div>
 
-  <!-- 看板视图 -->
-  <div class="bug-board" id="board-view" hidden>
-    <div class="bug-board__column" data-status="active">
-      <div class="bug-board__col-header">
-        <span class="bug-board__col-title">激活</span>
-        <span class="bug-board__col-count">3</span>
-      </div>
-      <div class="bug-board__col-body">
-        <div class="bug-board__empty" hidden>暂无数据</div>
-        <a href="bug-detail.html" class="bug-board__card" draggable="true">
-          <div class="bug-board__card-title">支付回调重复入账</div>
-          <div class="bug-board__card-meta">
-            <span class="tag tag--warning tag--sm">严重</span>
-            <span class="bug-board__card-assignee">李华</span>
+        <div class="bug-toolbar__actions">
+          <div class="radio-group" id="view-toggle" role="radiogroup" aria-label="缺陷视图">
+            <button type="button" class="radio-btn radio-btn--active" data-view="list">列表</button>
+            <button type="button" class="radio-btn" data-view="board">看板</button>
           </div>
-        </a>
-        <a href="bug-detail.html" class="bug-board__card" draggable="true">
-          <div class="bug-board__card-title">下单超时未释放库存</div>
-          <div class="bug-board__card-meta">
-            <span class="tag tag--danger tag--sm">致命</span>
-            <span class="bug-board__card-assignee">张明</span>
-          </div>
-        </a>
-        <a href="bug-detail.html" class="bug-board__card" draggable="true">
-          <div class="bug-board__card-title">接口响应时间超阈值</div>
-          <div class="bug-board__card-meta">
-            <span class="tag tag--warning tag--sm">严重</span>
-          </div>
-        </a>
-      </div>
-    </div>
-    <div class="bug-board__column" data-status="resolved">
-      <div class="bug-board__col-header">
-        <span class="bug-board__col-title">已修复</span>
-        <span class="bug-board__col-count">2</span>
-      </div>
-      <div class="bug-board__col-body">
-        <div class="bug-board__empty" hidden>暂无数据</div>
-        <a href="bug-detail.html" class="bug-board__card" draggable="true">
-          <div class="bug-board__card-title">优惠券叠加计算少于预期</div>
-          <div class="bug-board__card-meta">
-            <span class="tag tag--neutral tag--sm">一般</span>
-            <span class="bug-board__card-assignee">周敏</span>
-          </div>
-        </a>
-        <a href="bug-detail.html" class="bug-board__card" draggable="true">
-          <div class="bug-board__card-title">用户权限校验绕过风险</div>
-          <div class="bug-board__card-meta">
-            <span class="tag tag--danger tag--sm">致命</span>
-            <span class="bug-board__card-assignee">张明</span>
-          </div>
-        </a>
-      </div>
-    </div>
-    <div class="bug-board__column" data-status="closed">
-      <div class="bug-board__col-header">
-        <span class="bug-board__col-title">已关闭</span>
-        <span class="bug-board__col-count">2</span>
-      </div>
-      <div class="bug-board__col-body">
-        <div class="bug-board__empty" hidden>暂无数据</div>
-        <a href="bug-detail.html" class="bug-board__card" draggable="true">
-          <div class="bug-board__card-title">订单列表分页跳转闪烁</div>
-          <div class="bug-board__card-meta">
-            <span class="tag tag--success tag--sm">轻微</span>
-            <span class="bug-board__card-assignee">陈强</span>
-          </div>
-        </a>
-        <a href="bug-detail.html" class="bug-board__card" draggable="true">
-          <div class="bug-board__card-title">支付失败提示文案歧义</div>
-          <div class="bug-board__card-meta">
-            <span class="tag tag--neutral tag--sm">一般</span>
-            <span class="bug-board__card-assignee">王芳</span>
-          </div>
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <!-- 指派弹窗 -->
-  <div class="dialog-mask" id="assign-dialog" hidden>
-    <div class="dialog" style="width:420px">
-      <div class="dialog__header">
-        <span class="dialog__title">指派处理人</span>
-        <span class="dialog__close" data-close="assign-dialog"><span data-icon="x"></span></span>
-      </div>
-      <div class="dialog__body">
-        <div class="field" style="margin-bottom:0">
-          <label class="field__label">处理人 <span class="req">*</span></label>
-          <select class="select" id="assign-select"><option value="">选择处理人</option><option>李华</option><option>王芳</option><option>张明</option><option>周敏</option><option>陈强</option></select>
-          <div class="field__error" id="assign-error" hidden></div>
+          <a class="btn btn--primary" href="bug-create.html"><span data-icon="plus"></span>提交缺陷</a>
         </div>
       </div>
-      <div class="dialog__footer">
-        <button class="btn btn--default" data-close="assign-dialog">取消</button>
-        <button class="btn btn--primary" id="assign-confirm">确定</button>
+    </section>
+    <!-- 列表视图：对齐 BugListTable + ListPagination -->
+    <section class="bug-page__list" id="list-view" aria-label="缺陷列表">
+      <div class="bug-page__content">
+        <div class="bug-table-wrap">
+          <table class="table bug-table">
+            <thead>
+              <tr>
+                <th data-col="id" style="width:110px">ID</th>
+                <th data-col="title" style="min-width:300px">标题</th>
+                <th data-col="type" style="width:110px">类型</th>
+                <th data-col="severity" style="width:100px">严重等级</th>
+                <th data-col="priority" style="width:80px">优先级</th>
+                <th data-col="status" style="width:180px">状态</th>
+                <th data-col="reporter" style="width:100px">创建人</th>
+                <th data-col="assignee" style="width:100px">处理人</th>
+                <th data-col="resolver" style="width:100px">解决人</th>
+                <th data-col="resolvedAt" style="width:120px">解决时间</th>
+                <th data-col="resolution" style="width:100px">解决方案</th>
+                <th data-col="closedAt" style="width:120px">关闭时间</th>
+                <th data-col="createdAt" style="width:120px">创建时间</th>
+                <th class="col-actions" style="width:210px">
+                  <div class="bug-table__action-header">
+                    <div class="col-setting">
+                      <button type="button" class="col-setting__trigger" id="col-setting-trigger" aria-label="列设置" aria-expanded="false"><span data-icon="settings"></span></button>
+                      <div class="col-setting__popover" id="col-setting-popover" hidden>
+                        <div class="col-setting__title">显示列</div>
+                        <div class="col-setting__list" id="col-setting-list">
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="id" checked> ID</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="title" checked> 标题</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="type" checked> 类型</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="severity" checked> 严重等级</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="priority" checked> 优先级</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="status" checked> 状态</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="reporter" checked> 创建人</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="assignee" checked> 处理人</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="resolver" checked> 解决人</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="resolvedAt" checked> 解决时间</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="resolution" checked> 解决方案</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="closedAt" checked> 关闭时间</label>
+                          <label class="col-setting__opt"><input type="checkbox" data-col-toggle="createdAt" checked> 创建时间</label>
+                          <label class="col-setting__opt col-setting__opt--disabled"><input type="checkbox" checked disabled> 操作</label>
+                        </div>
+                        <div class="col-setting__actions">
+                          <button type="button" class="btn-link btn-link--primary btn-link--sm" id="col-select-all">全选</button>
+                          <button type="button" class="btn-link btn-link--primary btn-link--sm" id="col-reset">恢复默认</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="bug-tbody">
+              <tr class="bug-row" data-id="f3a2d4e6-1c9a-4b3d-8e7f-9d4b2c7ae2f3" data-status="active" data-confirmed="false" data-type="code_error" data-severity="serious" data-priority="high" data-reporter="王芳" data-assignee="李华" data-resolved-by="" data-closed-by="" data-rejected-by="">
+                <td data-col="id"><span class="bug-table__id">f3a2...e2f3</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">支付回调重复入账</button></td>
+                <td data-col="type">代码错误</td>
+                <td data-col="severity"><span class="tag tag--warning"><span class="bug-table__dot"></span>严重</span></td>
+                <td data-col="priority"><span class="tag tag--warning">高</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--warning"><span class="bug-table__status-icon" data-icon="alert-triangle"></span>激活</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">王芳</span></td>
+                <td data-col="assignee">李华</td>
+                <td data-col="resolver"><span class="bug-table__secondary">-</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="resolution">-</td>
+                <td data-col="closedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-22 13:58</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr class="bug-row" data-id="a1b2c7d8-3f5e-4d21-9c8b-7e6f2a4da6b7" data-status="active" data-confirmed="true" data-type="code_error" data-severity="fatal" data-priority="high" data-reporter="李华" data-assignee="张明" data-resolved-by="" data-closed-by="" data-rejected-by="">
+                <td data-col="id"><span class="bug-table__id">a1b2...a6b7</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">下单超时未释放库存</button></td>
+                <td data-col="type">代码错误</td>
+                <td data-col="severity"><span class="tag tag--danger"><span class="bug-table__dot"></span>致命</span></td>
+                <td data-col="priority"><span class="tag tag--warning">高</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--warning"><span class="bug-table__status-icon" data-icon="alert-triangle"></span>激活</span><span class="bug-table__confirmed">已确认</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">李华</span></td>
+                <td data-col="assignee">张明</td>
+                <td data-col="resolver"><span class="bug-table__secondary">-</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="resolution">-</td>
+                <td data-col="closedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-22 11:20</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr class="bug-row" data-id="c3d4e5f6-2b7d-4a91-8f3e-1d6c9b5ec8d9" data-status="resolved" data-confirmed="false" data-type="design_defect" data-severity="general" data-priority="medium" data-reporter="张明" data-assignee="周敏" data-resolved-by="周敏" data-closed-by="" data-rejected-by="">
+                <td data-col="id"><span class="bug-table__id">c3d4...c8d9</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">优惠券叠加计算少于预期</button></td>
+                <td data-col="type">设计缺陷</td>
+                <td data-col="severity"><span class="tag tag--info"><span class="bug-table__dot"></span>一般</span></td>
+                <td data-col="priority"><span class="tag tag--info">中</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--success"><span class="bug-table__status-icon" data-icon="check-circle"></span>已修复</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">张明</span></td>
+                <td data-col="assignee">周敏</td>
+                <td data-col="resolver"><span class="bug-table__secondary">周敏</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">09-21 18:30</span></td>
+                <td data-col="resolution">已解决</td>
+                <td data-col="closedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-21 16:44</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr class="bug-row" data-id="e5f6a1b2-9c4a-4e28-b7d5-3a8f1c6de0f1" data-status="closed" data-confirmed="false" data-type="ui_improvement" data-severity="minor" data-priority="low" data-reporter="周敏" data-assignee="陈强" data-resolved-by="陈强" data-closed-by="张明" data-rejected-by="">
+                <td data-col="id"><span class="bug-table__id">e5f6...e0f1</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">订单列表分页跳转闪烁</button></td>
+                <td data-col="type">界面优化</td>
+                <td data-col="severity"><span class="tag tag--success"><span class="bug-table__dot"></span>轻微</span></td>
+                <td data-col="priority"><span class="tag tag--neutral">低</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--info"><span class="bug-table__status-icon" data-icon="lock"></span>已关闭</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">周敏</span></td>
+                <td data-col="assignee">陈强</td>
+                <td data-col="resolver"><span class="bug-table__secondary">陈强</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">09-19 11:20</span></td>
+                <td data-col="resolution">已解决</td>
+                <td data-col="closedAt"><span class="bug-table__time">09-19 14:00</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-19 10:12</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr class="bug-row" data-id="b7c8d9ea-4d1f-4c63-a2b8-6e9d5f3cf2a3" data-status="rejected" data-confirmed="false" data-type="code_error" data-severity="serious" data-priority="medium" data-reporter="王芳" data-assignee="王芳" data-resolved-by="" data-closed-by="" data-rejected-by="李华">
+                <td data-col="id"><span class="bug-table__id">b7c8...f2a3</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">配送时效计算跨时区错误</button></td>
+                <td data-col="type">代码错误</td>
+                <td data-col="severity"><span class="tag tag--warning"><span class="bug-table__dot"></span>严重</span></td>
+                <td data-col="priority"><span class="tag tag--info">中</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--warning"><span class="bug-table__status-icon" data-icon="x-circle"></span>已拒绝</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">王芳</span></td>
+                <td data-col="assignee">王芳</td>
+                <td data-col="resolver"><span class="bug-table__secondary">-</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="resolution">-</td>
+                <td data-col="closedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-17 14:06</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr class="bug-row" data-id="d9e0f1a2-7e3b-4f59-c1d8-2b6a4e9db4c5" data-status="closed" data-confirmed="false" data-type="ui_improvement" data-severity="general" data-priority="low" data-reporter="陈强" data-assignee="王芳" data-resolved-by="王芳" data-closed-by="王芳" data-rejected-by="">
+                <td data-col="id"><span class="bug-table__id">d9e0...b4c5</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">支付失败提示文案歧义</button></td>
+                <td data-col="type">界面优化</td>
+                <td data-col="severity"><span class="tag tag--info"><span class="bug-table__dot"></span>一般</span></td>
+                <td data-col="priority"><span class="tag tag--neutral">低</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--info"><span class="bug-table__status-icon" data-icon="lock"></span>已关闭</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">陈强</span></td>
+                <td data-col="assignee">王芳</td>
+                <td data-col="resolver"><span class="bug-table__secondary">王芳</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">09-15 10:00</span></td>
+                <td data-col="resolution">已解决</td>
+                <td data-col="closedAt"><span class="bug-table__time">09-15 16:30</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-15 09:33</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr class="bug-row" data-id="a4b5c6d7-5f8c-4b26-9d4a-1e7c3f5ae8f9" data-status="resolved" data-confirmed="true" data-type="security" data-severity="fatal" data-priority="high" data-reporter="李华" data-assignee="张明" data-resolved-by="张明" data-closed-by="" data-rejected-by="">
+                <td data-col="id"><span class="bug-table__id">a4b5...e8f9</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">用户权限校验绕过风险</button></td>
+                <td data-col="type">安全相关</td>
+                <td data-col="severity"><span class="tag tag--danger"><span class="bug-table__dot"></span>致命</span></td>
+                <td data-col="priority"><span class="tag tag--warning">高</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--success"><span class="bug-table__status-icon" data-icon="check-circle"></span>已修复</span><span class="bug-table__confirmed">已确认</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">李华</span></td>
+                <td data-col="assignee">张明</td>
+                <td data-col="resolver"><span class="bug-table__secondary">张明</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">09-14 09:15</span></td>
+                <td data-col="resolution">已解决</td>
+                <td data-col="closedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-13 17:50</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr class="bug-row" data-id="e8f9a0b1-6a2d-4e70-b3c9-4f8d2b6ac2d3" data-status="active" data-confirmed="false" data-type="performance" data-severity="serious" data-priority="medium" data-reporter="周敏" data-assignee="" data-resolved-by="" data-closed-by="" data-rejected-by="">
+                <td data-col="id"><span class="bug-table__id">e8f9...c2d3</span></td>
+                <td data-col="title"><button type="button" class="bug-table__title" data-action="detail">接口响应时间超阈值</button></td>
+                <td data-col="type">性能问题</td>
+                <td data-col="severity"><span class="tag tag--warning"><span class="bug-table__dot"></span>严重</span></td>
+                <td data-col="priority"><span class="tag tag--info">中</span></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--warning"><span class="bug-table__status-icon" data-icon="alert-triangle"></span>激活</span></div></td>
+                <td data-col="reporter"><span class="bug-table__secondary">周敏</span></td>
+                <td data-col="assignee">-</td>
+                <td data-col="resolver"><span class="bug-table__secondary">-</span></td>
+                <td data-col="resolvedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="resolution">-</td>
+                <td data-col="closedAt"><span class="bug-table__time">-</span></td>
+                <td data-col="createdAt"><span class="bug-table__time">09-12 08:45</span></td>
+                <td class="col-actions bug-ops"></td>
+              </tr>
+              <tr id="empty-row" hidden>
+                <td colspan="14" class="muted" style="text-align:center;padding:32px 0">暂无数据</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="list-pager">
+        <div class="list-pager__left"><span class="list-pager__total" id="pager-total">共 82 条 · 每页 20 条</span></div>
+        <div class="list-pager__right">
+          <select class="pager-sizes" id="page-size" aria-label="每页条数">
+            <option value="20">20条/页</option>
+            <option value="50">50条/页</option>
+            <option value="100">100条/页</option>
+          </select>
+          <div class="pager-btns" id="pager-list">
+            <button type="button" class="page-btn" disabled aria-label="上一页">‹</button>
+            <button type="button" class="page-btn page-btn--active">1</button>
+            <button type="button" class="page-btn">2</button>
+            <button type="button" class="page-btn">3</button>
+            <button type="button" class="page-btn">…</button>
+            <button type="button" class="page-btn">5</button>
+            <button type="button" class="page-btn" aria-label="下一页">›</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 看板视图 -->
+    <div class="bug-board" id="board-view" hidden>
+      <div class="bug-board__column" data-status="active">
+        <div class="bug-board__col-header">
+          <span class="bug-board__col-title">激活</span>
+          <span class="bug-board__col-count">3</span>
+        </div>
+        <div class="bug-board__col-body">
+          <div class="bug-board__empty" hidden>暂无数据</div>
+          <button type="button" class="bug-board__card" draggable="true" data-title="支付回调重复入账">
+            <span class="bug-board__card-title">支付回调重复入账</span>
+            <span class="bug-board__card-meta"><span class="tag tag--warning tag--sm">严重</span><span class="bug-board__card-assignee">李华</span></span>
+          </button>
+          <button type="button" class="bug-board__card" draggable="true" data-title="下单超时未释放库存">
+            <span class="bug-board__card-title">下单超时未释放库存</span>
+            <span class="bug-board__card-meta"><span class="tag tag--danger tag--sm">致命</span><span class="bug-board__card-assignee">张明</span></span>
+          </button>
+          <button type="button" class="bug-board__card" draggable="true" data-title="接口响应时间超阈值">
+            <span class="bug-board__card-title">接口响应时间超阈值</span>
+            <span class="bug-board__card-meta"><span class="tag tag--warning tag--sm">严重</span></span>
+          </button>
+        </div>
+      </div>
+      <div class="bug-board__column" data-status="resolved">
+        <div class="bug-board__col-header">
+          <span class="bug-board__col-title">已修复</span>
+          <span class="bug-board__col-count">2</span>
+        </div>
+        <div class="bug-board__col-body">
+          <div class="bug-board__empty" hidden>暂无数据</div>
+          <button type="button" class="bug-board__card" draggable="true" data-title="优惠券叠加计算少于预期">
+            <span class="bug-board__card-title">优惠券叠加计算少于预期</span>
+            <span class="bug-board__card-meta"><span class="tag tag--info tag--sm">一般</span><span class="bug-board__card-assignee">周敏</span></span>
+          </button>
+          <button type="button" class="bug-board__card" draggable="true" data-title="用户权限校验绕过风险">
+            <span class="bug-board__card-title">用户权限校验绕过风险</span>
+            <span class="bug-board__card-meta"><span class="tag tag--danger tag--sm">致命</span><span class="bug-board__card-assignee">张明</span></span>
+          </button>
+        </div>
+      </div>
+      <div class="bug-board__column" data-status="closed">
+        <div class="bug-board__col-header">
+          <span class="bug-board__col-title">已关闭</span>
+          <span class="bug-board__col-count">2</span>
+        </div>
+        <div class="bug-board__col-body">
+          <div class="bug-board__empty" hidden>暂无数据</div>
+          <button type="button" class="bug-board__card" draggable="true" data-title="订单列表分页跳转闪烁">
+            <span class="bug-board__card-title">订单列表分页跳转闪烁</span>
+            <span class="bug-board__card-meta"><span class="tag tag--success tag--sm">轻微</span><span class="bug-board__card-assignee">陈强</span></span>
+          </button>
+          <button type="button" class="bug-board__card" draggable="true" data-title="支付失败提示文案歧义">
+            <span class="bug-board__card-title">支付失败提示文案歧义</span>
+            <span class="bug-board__card-meta"><span class="tag tag--info tag--sm">一般</span><span class="bug-board__card-assignee">王芳</span></span>
+          </button>
+        </div>
       </div>
     </div>
+
   </div>
 
-  <!-- 解决弹窗（对应 BugResolveDialog） -->
-  <div class="dialog-mask" id="resolve-dialog" hidden>
+  <!-- 解决弹窗：对齐 BugResolveDialog -->
+  <div class="dialog-mask" id="resolve-dialog" data-mask-close hidden>
     <div class="dialog" style="width:480px">
       <div class="dialog__header">
         <span class="dialog__title">解决缺陷</span>
         <span class="dialog__close" data-close="resolve-dialog"><span data-icon="x"></span></span>
       </div>
       <div class="dialog__body">
-        <div class="field">
-          <label class="field__label">解决方案 <span class="req">*</span></label>
-          <select class="select" id="resolve-resolution">
+        <div class="form-item form-item--horizontal">
+          <label class="form-item__label" for="resolve-resolution">解决方案 <span class="req">*</span></label>
+          <select class="select form-control" id="resolve-resolution">
             <option value="fixed">已解决</option>
             <option value="by_design">设计如此</option>
             <option value="duplicate">重复缺陷</option>
@@ -718,98 +759,126 @@
             <option value="wont_fix">不予解决</option>
           </select>
         </div>
-        <div class="field" id="resolve-duplicate-field" hidden>
-          <label class="field__label">重复缺陷 <span class="req">*</span></label>
-          <select class="select" id="resolve-duplicate"></select>
+        <div class="form-item form-item--horizontal" id="resolve-duplicate-field" hidden>
+          <label class="form-item__label" for="resolve-duplicate">重复缺陷 <span class="req">*</span></label>
+          <select class="select form-control" id="resolve-duplicate"></select>
         </div>
-        <div class="field" style="margin-bottom:0">
-          <label class="field__label">备注 <span class="req">*</span></label>
-          <textarea class="textarea" id="resolve-comment" placeholder="请填写解决说明"></textarea>
-          <div class="field__error" id="resolve-error" hidden></div>
+        <div class="form-item form-item--horizontal" style="margin-bottom:0">
+          <label class="form-item__label" for="resolve-comment">备注 <span class="req">*</span></label>
+          <div>
+            <textarea class="textarea form-control" id="resolve-comment" rows="3" placeholder="请填写解决说明"></textarea>
+            <div class="field__error" id="resolve-error" hidden></div>
+          </div>
         </div>
       </div>
       <div class="dialog__footer">
-        <button class="btn btn--default" data-close="resolve-dialog">取消</button>
-        <button class="btn btn--primary" id="resolve-confirm">确定</button>
+        <button type="button" class="btn btn--default" data-close="resolve-dialog">取消</button>
+        <button type="button" class="btn btn--primary" id="resolve-confirm">确定</button>
       </div>
     </div>
   </div>
 
-  <!-- 状态变更说明（对应关闭 / 拒绝 / 激活的说明必填） -->
-  <div class="dialog-mask" id="status-dialog" hidden>
+  <!-- 指派弹窗：对齐 el-dialog + el-form label-position="top" -->
+  <div class="dialog-mask" id="assign-dialog" data-mask-close hidden>
     <div class="dialog" style="width:420px">
+      <div class="dialog__header">
+        <span class="dialog__title">指派处理人</span>
+        <span class="dialog__close" data-close="assign-dialog"><span data-icon="x"></span></span>
+      </div>
+      <div class="dialog__body">
+        <div class="form-item" style="margin-bottom:0">
+          <label class="form-item__label" for="assign-select">处理人 <span class="req">*</span></label>
+          <select class="select form-control" id="assign-select">
+            <option value="">选择处理人</option>
+            <option value="李华">李华</option>
+            <option value="王芳">王芳</option>
+            <option value="张明">张明</option>
+            <option value="周敏">周敏</option>
+            <option value="陈强">陈强</option>
+          </select>
+          <div class="field__error" id="assign-error" hidden></div>
+        </div>
+      </div>
+      <div class="dialog__footer">
+        <button type="button" class="btn btn--default" data-close="assign-dialog">取消</button>
+        <button type="button" class="btn btn--primary" id="assign-confirm">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 状态变更：对齐 ElMessageBox.prompt -->
+  <div class="dialog-mask" id="status-dialog" data-mask-close hidden>
+    <div class="dialog msgbox" style="width:420px">
       <div class="dialog__header">
         <span class="dialog__title">状态变更</span>
         <span class="dialog__close" data-close="status-dialog"><span data-icon="x"></span></span>
       </div>
       <div class="dialog__body">
-        <p class="text-sm" style="margin:0 0 14px;color:var(--n-700)">确定要将状态变更为「<span class="strong" id="status-target"></span>」吗？</p>
-        <div class="field" style="margin-bottom:0">
-          <label class="field__label">变更说明 <span class="req">*</span></label>
-          <textarea class="textarea" id="status-comment" placeholder="请输入变更说明（必填）"></textarea>
+        <p class="msgbox__content">确定要将状态变更为「<span id="status-target"></span>」吗？</p>
+        <div class="form-item" style="margin-bottom:0">
+          <textarea class="textarea form-control" id="status-comment" rows="3" placeholder="请输入变更说明（必填）"></textarea>
           <div class="field__error" id="status-error" hidden></div>
         </div>
       </div>
       <div class="dialog__footer">
-        <button class="btn btn--default" data-close="status-dialog">取消</button>
-        <button class="btn btn--primary" id="status-confirm">确定</button>
+        <button type="button" class="btn btn--default" data-close="status-dialog">取消</button>
+        <button type="button" class="btn btn--primary" id="status-confirm">确定</button>
       </div>
     </div>
   </div>
 
-  <!-- 确认缺陷 -->
-  <div class="dialog-mask" id="confirm-dialog" hidden>
-    <div class="dialog" style="width:420px">
+  <!-- 确认缺陷：对齐 ElMessageBox.confirm -->
+  <div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
+    <div class="dialog msgbox" style="width:420px">
       <div class="dialog__header">
         <span class="dialog__title">确认缺陷</span>
         <span class="dialog__close" data-close="confirm-dialog"><span data-icon="x"></span></span>
       </div>
       <div class="dialog__body">
-        <p class="text-sm" style="margin:0;color:var(--n-700)">确认该缺陷有效并需要处理吗？</p>
+        <p class="msgbox__content" style="margin-bottom:0">确认该缺陷有效并需要处理吗？</p>
       </div>
       <div class="dialog__footer">
-        <button class="btn btn--default" data-close="confirm-dialog">取消</button>
-        <button class="btn btn--primary" id="confirm-ok">确定</button>
+        <button type="button" class="btn btn--default" data-close="confirm-dialog">取消</button>
+        <button type="button" class="btn btn--primary" id="confirm-ok">确定</button>
       </div>
     </div>
   </div>
 
-  <!-- 操作结果提示 -->
   <div class="bug-toast" id="toast" hidden>
     <span class="bug-toast__dot"></span>
     <span class="bug-toast__msg"></span>
   </div>
-
-  <!-- 更多下拉菜单（浮动定位） -->
   <div class="more-dropdown" id="more-dropdown" hidden></div>
-
 </main>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script>
 (function () {
-  // 当前登录人与 shell 顶栏一致，快捷筛选「由我…」按其过滤
   var CURRENT_USER = '张明';
   var STATUS_LABEL = { active: '激活', resolved: '已修复', rejected: '已拒绝', closed: '已关闭' };
-  // 激活取信息蓝（对齐实际代码 active=primary 与详情页配色），已关闭取灰，避免两态撞色
-  var STATUS_TAG = { active: 'tag--neutral', resolved: 'tag--success', rejected: 'tag--warning', closed: 'tag--neutral' };
-  // 与后端 BugStatusChangeServiceImpl 的合法流转保持一致，看板落点据此判定
+  var STATUS_TAG = { active: 'tag--warning', resolved: 'tag--success', rejected: 'tag--warning', closed: 'tag--info' };
+  var STATUS_ICON = { active: 'alert-triangle', resolved: 'check-circle', rejected: 'x-circle', closed: 'lock' };
+  var SEVERITY_LABEL = { fatal: '致命', serious: '严重', general: '一般', minor: '轻微' };
+  var SEVERITY_TAG = { fatal: 'tag--danger', serious: 'tag--warning', general: 'tag--info', minor: 'tag--success' };
+  var PRIORITY_LABEL = { high: '高', medium: '中', low: '低' };
+  var PRIORITY_TAG = { high: 'tag--warning', medium: 'tag--info', low: 'tag--neutral' };
+  var TYPE_LABEL = {
+    code_error: '代码错误', ui_improvement: '界面优化', design_defect: '设计缺陷',
+    configuration: '配置相关', installation: '安装部署', security: '安全相关',
+    performance: '性能问题', standard_spec: '标准规范', other: '其他'
+  };
+  var RESOLUTION_LABEL = {
+    fixed: '已解决', by_design: '设计如此', duplicate: '重复缺陷', external: '外部原因',
+    cannot_reproduce: '无法重现', deferred: '延期处理', wont_fix: '不予解决'
+  };
   var TRANSITIONS = { active: ['resolved', 'rejected'], resolved: ['closed', 'active'], rejected: ['closed', 'active'], closed: ['active'] };
   var BOARD_STATUSES = ['active', 'resolved', 'closed'];
-  var RESOLUTION_LABEL = {
-    fixed: '已解决',
-    by_design: '设计如此',
-    duplicate: '重复缺陷',
-    external: '外部原因',
-    cannot_reproduce: '无法重现',
-    deferred: '延期处理',
-    wont_fix: '不予解决'
-  };
+  var currentPage = 1;
+  var pageCount = 1;
 
   var listView = document.getElementById('list-view');
   var boardView = document.getElementById('board-view');
-  var filterCard = document.getElementById('filter-card');
   var advPopover = document.getElementById('adv-popover');
   var advTrigger = document.getElementById('adv-trigger');
   var advCount = document.getElementById('adv-count');
@@ -823,48 +892,106 @@
   var pagerTotal = document.getElementById('pager-total');
   var pageSizeSel = document.getElementById('page-size');
   var pagerList = document.getElementById('pager-list');
-  // 演示表只静态呈现 8 行，未筛选时的总数按后端真实口径给
-  var DEMO_TOTAL = 82;
-  var tbody = document.querySelector('.bug-table tbody');
+  var tbody = document.getElementById('bug-tbody');
   var emptyRow = document.getElementById('empty-row');
   var toastEl = document.getElementById('toast');
   var rows = Array.prototype.slice.call(tbody.querySelectorAll('.bug-row'));
   var cards = Array.prototype.slice.call(document.querySelectorAll('.bug-board__card'));
 
-  // ==================== 工具 ====================
-  function hydrate(root) {
-    if (window.RTIcons) window.RTIcons.hydrate(root);
+  // ---- 本地分页演示数据：页面 1 保留原有 8 条基准数据，其余页在内存中构造，刷新即还原 ----
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+  function demoTime(i) {
+    return '09-' + pad2(10 + (i % 18)) + ' ' + pad2(8 + (i % 12)) + ':' + pad2((i * 7) % 60);
+  }
+  var EXTRA_TITLES = [
+    '购物车结算金额偶发为 0', '验证码短信重复发送', '订单导出缺少退款字段',
+    '商品搜索结果排序不稳定', '移动端首页白屏偶现', '收货地址保存后回显错误',
+    '优惠券过期仍可使用', '后台登录验证码不刷新', '商品库存扣减未同步',
+    '退款状态展示与账单不一致', '文件上传超过 10M 无提示', '浏览器后退导致重复提交',
+    '订单详情页发票信息丢失', '会员折扣计算精度错误', '消息中心已读状态不同步',
+    '促销活动时间显示差 8 小时', '批量删除后列表未刷新', '导出 Excel 中文乱码',
+    '支付二维码过期未自动刷新', '用户头像上传后裁切异常'
+  ];
+  var EXTRA_TYPES = ['code_error', 'ui_improvement', 'design_defect', 'configuration', 'security', 'performance'];
+  var EXTRA_SEVERITIES = ['fatal', 'serious', 'general', 'minor'];
+  var EXTRA_PRIORITIES = ['high', 'medium', 'low'];
+  var EXTRA_PEOPLE = ['王芳', '李华', '张明', '周敏', '陈强'];
+  var EXTRA_STATUSES = ['active', 'resolved', 'rejected', 'closed'];
+
+  function buildDemoRow(index, page) {
+    var clone = rows[index % 8].cloneNode(true);
+    var title = EXTRA_TITLES[index % EXTRA_TITLES.length];
+    if (index >= EXTRA_TITLES.length) title += '（' + (Math.floor(index / EXTRA_TITLES.length) + 1) + '）';
+    var status = EXTRA_STATUSES[index % EXTRA_STATUSES.length];
+    var type = EXTRA_TYPES[index % EXTRA_TYPES.length];
+    var severity = EXTRA_SEVERITIES[index % EXTRA_SEVERITIES.length];
+    var priority = EXTRA_PRIORITIES[index % EXTRA_PRIORITIES.length];
+    var reporter = EXTRA_PEOPLE[index % EXTRA_PEOPLE.length];
+    var assignee = EXTRA_PEOPLE[(index + 2) % EXTRA_PEOPLE.length];
+    var hex = ('00000000' + (index + 0x1a2b3c4d).toString(16)).slice(-8);
+    var fullId = hex + '-4a2b-4c3d-8e9f-' + ('000000000000' + (index * 7919 + 0xabcd).toString(16)).slice(-12);
+    var resolvedBy = (status === 'resolved' || status === 'closed') ? assignee : '';
+    var closedBy = status === 'closed' ? EXTRA_PEOPLE[(index + 1) % EXTRA_PEOPLE.length] : '';
+
+    clone.dataset.id = fullId;
+    clone.dataset.page = String(page);
+    clone.dataset.status = status;
+    clone.dataset.confirmed = index % 3 === 0 ? 'true' : 'false';
+    clone.dataset.type = type;
+    clone.dataset.severity = severity;
+    clone.dataset.priority = priority;
+    clone.dataset.reporter = reporter;
+    clone.dataset.assignee = assignee;
+    clone.dataset.resolvedBy = resolvedBy;
+    clone.dataset.closedBy = closedBy;
+    clone.dataset.rejectedBy = status === 'rejected' ? EXTRA_PEOPLE[(index + 1) % EXTRA_PEOPLE.length] : '';
+
+    clone.querySelector('.bug-table__id').textContent = hex.slice(0, 4) + '...' + hex.slice(-4);
+    clone.querySelector('.bug-table__title').textContent = title;
+    clone.querySelector('[data-col="type"]').textContent = TYPE_LABEL[type];
+    clone.querySelector('[data-col="severity"]').innerHTML = '<span class="tag ' + SEVERITY_TAG[severity] + '"><span class="bug-table__dot"></span>' + SEVERITY_LABEL[severity] + '</span>';
+    clone.querySelector('[data-col="priority"]').innerHTML = '<span class="tag ' + PRIORITY_TAG[priority] + '">' + PRIORITY_LABEL[priority] + '</span>';
+    clone.querySelector('[data-col="reporter"]').innerHTML = '<span class="bug-table__secondary">' + reporter + '</span>';
+    setCell(clone, 'assignee', assignee);
+    setCell(clone, 'resolver', resolvedBy, 'secondary');
+    setCell(clone, 'resolvedAt', resolvedBy ? demoTime(index) : '-', 'time');
+    setCell(clone, 'resolution', resolvedBy ? '已解决' : '-');
+    setCell(clone, 'closedAt', closedBy ? demoTime(index + 3) : '-', 'time');
+    setCell(clone, 'createdAt', demoTime(index + 1), 'time');
+    renderStatus(clone);
+    return clone;
   }
 
-  function titleOf(tr) {
-    return tr.cells[1].textContent.trim();
-  }
-
-  function rowByTitle(title) {
-    for (var i = 0; i < rows.length; i++) {
-      if (titleOf(rows[i]) === title) return rows[i];
+  rows.forEach(function (tr) { tr.dataset.page = '1'; });
+  var extraIndex = 0;
+  for (var demoPage = 2; demoPage <= 5; demoPage++) {
+    var demoCount = demoPage === 5 ? 14 : 20;
+    for (var demoIndex = 0; demoIndex < demoCount; demoIndex++) {
+      var demoRow = buildDemoRow(extraIndex++, demoPage);
+      tbody.insertBefore(demoRow, emptyRow);
+      rows.push(demoRow);
     }
+  }
+
+  function hydrate(root) { if (window.RTIcons) window.RTIcons.hydrate(root); }
+  function titleOf(tr) { return tr.querySelector('.bug-table__title').textContent.trim(); }
+  function rowByTitle(title) {
+    for (var i = 0; i < rows.length; i++) if (titleOf(rows[i]) === title) return rows[i];
     return null;
   }
-
   function cardByTitle(title) {
     for (var i = 0; i < cards.length; i++) {
-      if (cards[i].querySelector('.bug-board__card-title').textContent.trim() === title) return cards[i];
+      var t = cards[i].getAttribute('data-title') || cards[i].querySelector('.bug-board__card-title').textContent.trim();
+      if (t === title) return cards[i];
     }
     return null;
   }
-
   function nowShort() {
     var d = new Date();
     function pad(n) { return n < 10 ? '0' + n : String(n); }
     return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
-
-  function showError(el, msg) {
-    el.textContent = msg;
-    el.hidden = false;
-  }
-
+  function showError(el, msg) { el.textContent = msg; el.hidden = false; }
   var toastTimer;
   function toast(msg) {
     toastEl.querySelector('.bug-toast__msg').textContent = msg;
@@ -873,155 +1000,110 @@
     toastTimer = setTimeout(function () { toastEl.hidden = true; }, 2400);
   }
 
-  // ==================== 列显隐（对齐 TableColumnSetting / useTableColumns） ====================
-  /* 下标按 thead 顺序取 1 起始的 nth-child；操作列 pinned 只展示不可取消 */
-  var BUG_COLUMNS = [
-    { key: 'id', index: 1 },
-    { key: 'title', index: 2 },
-    { key: 'type', index: 3 },
-    { key: 'severity', index: 4 },
-    { key: 'priority', index: 5 },
-    { key: 'status', index: 6 },
-    { key: 'reporter', index: 7 },
-    { key: 'assignee', index: 8 },
-    { key: 'resolver', index: 9 },
-    { key: 'resolvedAt', index: 10 },
-    { key: 'resolution', index: 11 },
-    { key: 'closedAt', index: 12 },
-    { key: 'createdAt', index: 13 }
-  ];
-  var hiddenBugKeys = {};
-
-  function applyBugColumns() {
-    var rules = BUG_COLUMNS.filter(function (c) { return hiddenBugKeys[c.key]; })
-      .map(function (c) {
-        return '.bug-table th:nth-child(' + c.index + '), .bug-table td:nth-child(' + c.index + ') { display: none; }';
-      }).join('\n');
-    var style = document.getElementById('bug-col-style');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'bug-col-style';
-      document.head.appendChild(style);
-    }
-    style.textContent = rules;
-    BUG_COLUMNS.forEach(function (c) {
-      var box = document.querySelector('[data-col-box="' + c.key + '"]');
-      box.classList.toggle('checkbox--on', !hiddenBugKeys[c.key]);
-      box.setAttribute('aria-checked', String(!hiddenBugKeys[c.key]));
+  // ---- Column visibility (mirrors TableColumnSetting / useTableColumns) ----
+  var BUG_COLUMNS = ['id','title','type','severity','priority','status','reporter','assignee','resolver','resolvedAt','resolution','closedAt','createdAt'];
+  var hiddenCols = {};
+  function applyColumns() {
+    BUG_COLUMNS.forEach(function (key) {
+      var hidden = !!hiddenCols[key];
+      var nodes = document.querySelectorAll('[data-col="' + key + '"]');
+      Array.prototype.forEach.call(nodes, function (n) { n.hidden = hidden; });
+      var cb = document.querySelector('[data-col-toggle="' + key + '"]');
+      if (cb) cb.checked = !hidden;
     });
-    document.getElementById('bug-col-all').disabled = BUG_COLUMNS.every(function (c) {
-      return !hiddenBugKeys[c.key];
-    });
+    var allOn = BUG_COLUMNS.every(function (k) { return !hiddenCols[k]; });
+    document.getElementById('col-select-all').disabled = allOn;
   }
-
-  document.getElementById('bug-col-trigger').addEventListener('click', function (e) {
+  document.getElementById('col-setting-trigger').addEventListener('click', function (e) {
     e.stopPropagation();
-    var pop = document.getElementById('bug-col-popover');
+    var pop = document.getElementById('col-setting-popover');
     pop.hidden = !pop.hidden;
     this.setAttribute('aria-expanded', String(!pop.hidden));
   });
-  document.getElementById('bug-col-popover').addEventListener('click', function (e) { e.stopPropagation(); });
-  document.querySelectorAll('[data-col-box]').forEach(function (box) {
-    box.addEventListener('click', function () {
-      var key = box.getAttribute('data-col-box');
-      hiddenBugKeys[key] = !hiddenBugKeys[key];
-      applyBugColumns();
+  document.getElementById('col-setting-popover').addEventListener('click', function (e) { e.stopPropagation(); });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-col-toggle]'), function (cb) {
+    cb.addEventListener('change', function () {
+      hiddenCols[cb.getAttribute('data-col-toggle')] = !cb.checked;
+      applyColumns();
     });
   });
-  document.getElementById('bug-col-all').addEventListener('click', function () {
-    hiddenBugKeys = {};
-    applyBugColumns();
-  });
-  document.getElementById('bug-col-reset').addEventListener('click', function () {
-    hiddenBugKeys = {};
-    applyBugColumns();
-  });
-  document.addEventListener('click', function () {
-    document.getElementById('bug-col-popover').hidden = true;
-    document.getElementById('bug-col-trigger').setAttribute('aria-expanded', 'false');
-  });
+  document.getElementById('col-select-all').addEventListener('click', function () { hiddenCols = {}; applyColumns(); });
+  document.getElementById('col-reset').addEventListener('click', function () { hiddenCols = {}; applyColumns(); });
 
-  // ==================== 行渲染 ====================
+  // ---- Row rendering ----
   function opsHtml(tr) {
     var status = tr.dataset.status;
-    var html = '<a class="op-link" href="bug-detail.html">详情</a>';
+    var html = '<div class="bug-table__actions">';
+    html += '<button type="button" class="btn-link btn-link--primary" data-action="detail">详情</button>';
     if (status === 'active') {
-      html += '<span class="op-link" style="color:var(--st-success)" data-action="resolve">解决</span>';
-      html += '<span class="op-link" style="color:var(--st-warning)" data-action="reject">拒绝</span>';
+      html += '<button type="button" class="btn-link btn-link--primary" data-action="resolve">解决</button>';
+      html += '<button type="button" class="btn-link btn-link--primary" data-action="reject">拒绝</button>';
     }
     if (status === 'resolved' || status === 'rejected') {
-      html += '<span class="op-link op-link--muted" data-action="close">关闭</span>';
+      html += '<button type="button" class="btn-link btn-link--primary" data-action="close">关闭</button>';
     }
     if (status === 'closed') {
-      html += '<span class="op-link op-link--danger" data-action="reopen">激活</span>';
+      html += '<button type="button" class="btn-link btn-link--primary" data-action="reopen">激活</button>';
     }
-    html += '<span class="op-link more-trigger" data-action="more">更多<span data-icon="chevron-down"></span></span>';
+    html += '<button type="button" class="btn-link btn-link--primary" data-action="more" aria-label="' + titleOf(tr) + '的更多操作">更多<span data-icon="chevron-down"></span></button>';
+    html += '</div>';
     return html;
   }
-
   function renderOps(tr) {
-    tr.cells[13].innerHTML = opsHtml(tr);
-    hydrate(tr.cells[13]);
+    var cell = tr.querySelector('.bug-ops');
+    cell.innerHTML = opsHtml(tr);
+    hydrate(cell);
   }
-
   function renderStatus(tr) {
-    var html = '<span class="tag ' + STATUS_TAG[tr.dataset.status] + '">' + STATUS_LABEL[tr.dataset.status] + '</span>';
-    if (tr.dataset.confirmed === 'true') {
-      html += '<span class="tag tag--warning tag--sm" style="margin-left:4px">已确认</span>';
+    var status = tr.dataset.status;
+    var html = '<div class="bug-table__status"><span class="tag ' + STATUS_TAG[status] + '"><span class="bug-table__status-icon" data-icon="' + STATUS_ICON[status] + '"></span>' + STATUS_LABEL[status] + '</span>';
+    if (tr.dataset.confirmed === 'true') html += '<span class="bug-table__confirmed">已确认</span>';
+    html += '</div>';
+    var cell = tr.querySelector('[data-col="status"]');
+    cell.innerHTML = html;
+    hydrate(cell);
+  }
+  function setCell(tr, key, value, cls) {
+    var cell = tr.querySelector('[data-col="' + key + '"]');
+    if (!cell) return;
+    if (cls === 'time' || cls === 'secondary') {
+      cell.innerHTML = '<span class="bug-table__' + cls + '">' + (value || '-') + '</span>';
+    } else {
+      cell.textContent = value || '-';
     }
-    tr.cells[5].innerHTML = html;
   }
 
-  function setNameCell(tr, idx, value) {
-    tr.cells[idx].className = value ? '' : 'muted';
-    tr.cells[idx].textContent = value || '-';
-  }
-
-  function setTimeCell(tr, idx, value) {
-    tr.cells[idx].className = value ? 'num' : 'num muted';
-    tr.cells[idx].textContent = value || '-';
-  }
-
-  function setTextCell(tr, idx, value) {
-    tr.cells[idx].className = value === '-' ? 'muted' : '';
-    tr.cells[idx].textContent = value;
-  }
-
-  // ==================== 状态流转（字段落点与 BugMapper resolve/reject/close/reopen 一致） ====================
   function applyStatus(tr, target, opts) {
     opts = opts || {};
     if (target === 'resolved') {
-      // 解决即置为已确认，处理人回到创建人等待其验证
       tr.dataset.confirmed = 'true';
-      tr.dataset.assignee = tr.cells[6].textContent.trim();
+      tr.dataset.assignee = tr.dataset.reporter;
       tr.dataset.resolvedBy = CURRENT_USER;
       tr.dataset.closedBy = '';
-      setNameCell(tr, 7, tr.dataset.assignee);
-      setNameCell(tr, 8, CURRENT_USER);
-      setTimeCell(tr, 9, nowShort());
-      setTextCell(tr, 10, opts.resolution || RESOLUTION_LABEL.fixed);
-      setTimeCell(tr, 11, '');
+      setCell(tr, 'assignee', tr.dataset.assignee);
+      setCell(tr, 'resolver', CURRENT_USER, 'secondary');
+      setCell(tr, 'resolvedAt', nowShort(), 'time');
+      tr.querySelector('[data-col="resolution"]').textContent = opts.resolution || RESOLUTION_LABEL.fixed;
+      setCell(tr, 'closedAt', '-', 'time');
     } else if (target === 'rejected') {
-      // 拒绝只把缺陷回派创建人并记录拒绝人，不动解决字段（对应 rejectById）
-      tr.dataset.assignee = tr.cells[6].textContent.trim();
+      tr.dataset.assignee = tr.dataset.reporter;
       tr.dataset.rejectedBy = CURRENT_USER;
-      setNameCell(tr, 7, tr.dataset.assignee);
+      setCell(tr, 'assignee', tr.dataset.assignee);
     } else if (target === 'closed') {
       tr.dataset.closedBy = CURRENT_USER;
-      setTimeCell(tr, 11, nowShort());
+      setCell(tr, 'closedAt', nowShort(), 'time');
     } else if (target === 'active') {
-      // 重开清空解决/拒绝/关闭记录，处理人按「解决人 → 拒绝人 → 原处理人」回派（对应 reopenById）
-      var resolvedBy = tr.cells[8].textContent.trim();
+      var resolvedBy = tr.dataset.resolvedBy;
       var rejectedBy = tr.dataset.rejectedBy;
-      tr.dataset.assignee = resolvedBy && resolvedBy !== '-' ? resolvedBy : (rejectedBy || tr.dataset.assignee);
+      tr.dataset.assignee = resolvedBy || rejectedBy || tr.dataset.assignee;
       tr.dataset.resolvedBy = '';
       tr.dataset.rejectedBy = '';
       tr.dataset.closedBy = '';
-      setNameCell(tr, 7, tr.dataset.assignee);
-      setNameCell(tr, 8, '');
-      setTimeCell(tr, 9, '');
-      setTextCell(tr, 10, '-');
-      setTimeCell(tr, 11, '');
+      setCell(tr, 'assignee', tr.dataset.assignee || '-');
+      setCell(tr, 'resolver', '-', 'secondary');
+      setCell(tr, 'resolvedAt', '-', 'time');
+      tr.querySelector('[data-col="resolution"]').textContent = '-';
+      setCell(tr, 'closedAt', '-', 'time');
     }
     tr.dataset.status = target;
     renderStatus(tr);
@@ -1034,17 +1116,17 @@
     var card = cardByTitle(titleOf(tr));
     if (!card) return;
     var assignee = tr.dataset.assignee;
-    var assigneeEl = card.querySelector('.bug-board__card-assignee');
+    var meta = card.querySelector('.bug-board__card-meta');
+    var assigneeEl = meta.querySelector('.bug-board__card-assignee');
     if (assignee) {
       if (!assigneeEl) {
         assigneeEl = document.createElement('span');
         assigneeEl.className = 'bug-board__card-assignee';
-        card.querySelector('.bug-board__card-meta').appendChild(assigneeEl);
+        meta.appendChild(assigneeEl);
       }
       assigneeEl.textContent = assignee;
-      assigneeEl.hidden = false;
     } else if (assigneeEl) {
-      assigneeEl.hidden = true;
+      assigneeEl.remove();
     }
     if (BOARD_STATUSES.indexOf(tr.dataset.status) !== -1) {
       var body = document.querySelector('.bug-board__column[data-status="' + tr.dataset.status + '"] .bug-board__col-body');
@@ -1052,11 +1134,11 @@
     }
   }
 
-  // ==================== 筛选 ====================
+  // ---- Filters ----
   function currentFilters() {
-    var quickItem = document.querySelector('#quick-filter .segment__item--active');
+    var activeQuick = document.querySelector('#quick-filter .radio-btn--active');
     return {
-      quick: quickItem ? quickItem.getAttribute('data-quick') : '',
+      quick: activeQuick ? activeQuick.getAttribute('data-quick') : '',
       keyword: keywordInput.value.trim().toLowerCase(),
       status: statusSel.value,
       type: typeSel.value,
@@ -1064,7 +1146,6 @@
       priority: prioritySel.value
     };
   }
-
   function matchRow(tr, f) {
     var d = tr.dataset;
     if (f.status && d.status !== f.status) return false;
@@ -1077,39 +1158,34 @@
     if (f.quick === 'resolved' && d.resolvedBy !== CURRENT_USER) return false;
     if (f.quick === 'closed' && d.closedBy !== CURRENT_USER) return false;
     if (f.keyword) {
-      // 关键词对全量 ID（data-id）匹配前缀/后缀，展示态的缩写 ID 不参与
-      var text = ((d.id || '') + ' ' + tr.cells[1].textContent).toLowerCase();
+      var text = ((d.id || '') + ' ' + titleOf(tr)).toLowerCase();
       if (text.indexOf(f.keyword) === -1) return false;
     }
     return true;
   }
-
-  function isFiltered(f) {
-    return Boolean(f.quick || f.keyword || f.status || f.type || f.severity || f.priority);
-  }
-
-  // 演示不真正翻页，页码按钮只做呈现；超过 4 页时收敛为「1 2 3 … n」
+  function isFiltered(f) { return Boolean(f.quick || f.keyword || f.status || f.type || f.severity || f.priority); }
   function pageNumbers(pages) {
-    if (pages > 4) return [1, 2, 3, '…', pages];
+    if (pages > 4) {
+      var nums = [1, 2, 3, '…', pages];
+      if (currentPage > 3 && currentPage < pages) nums[3] = currentPage;
+      return nums;
+    }
     var nums = [];
     for (var i = 1; i <= pages; i++) nums.push(i);
     return nums;
   }
-
-  function updatePager(visible, filtered) {
+  function updatePager(total, pages) {
     var size = Number(pageSizeSel.value) || 20;
-    var total = filtered ? visible : DEMO_TOTAL;
-    var pages = Math.max(1, Math.ceil(total / size));
-    pagerTotal.textContent = '共 ' + total + ' 条';
-    // 只重绘本组：页大小下拉留在原节点上，整块 innerHTML 重建会丢掉它的选中项
+    pageCount = pages;
+    if (currentPage > pages) currentPage = pages;
+    pagerTotal.textContent = '共 ' + total + ' 条 · 每页 ' + size + ' 条';
     pagerList.innerHTML =
-      '<button class="page-btn" disabled>‹</button>' +
+      '<button type="button" class="page-btn"' + (currentPage <= 1 ? ' disabled' : '') + ' aria-label="上一页">‹</button>' +
       pageNumbers(pages).map(function (n) {
-        return '<button class="page-btn' + (n === 1 ? ' page-btn--active' : '') + '">' + n + '</button>';
+        return '<button type="button" class="page-btn' + (n === currentPage ? ' page-btn--active' : '') + '">' + n + '</button>';
       }).join('') +
-      '<button class="page-btn"' + (pages > 1 ? '' : ' disabled') + '>›</button>';
+      '<button type="button" class="page-btn"' + (currentPage >= pages ? ' disabled' : '') + ' aria-label="下一页">›</button>';
   }
-
   function updateBoardCounts() {
     BOARD_STATUSES.forEach(function (status) {
       var column = document.querySelector('.bug-board__column[data-status="' + status + '"]');
@@ -1123,142 +1199,148 @@
       if (empty) empty.hidden = visible > 0;
     });
   }
-
   function applyFilters() {
     var f = currentFilters();
+    var filtered = isFiltered(f);
+    var size = Number(pageSizeSel.value) || 20;
+    var matched = rows.filter(function (tr) { return matchRow(tr, f); });
+    var pages = Math.max(1, Math.ceil(matched.length / size));
+    if (currentPage > pages) currentPage = pages;
     var visible = 0;
     rows.forEach(function (tr) {
-      var ok = matchRow(tr, f);
+      var pos = matched.indexOf(tr);
+      var rowPage = pos === -1 ? 0 : (filtered ? Math.floor(pos / size) + 1 : Number(tr.dataset.page || 1));
+      var ok = rowPage === currentPage;
       tr.hidden = !ok;
       if (ok) visible += 1;
     });
     emptyRow.hidden = visible > 0;
-
     cards.forEach(function (card) {
       var column = card.closest('.bug-board__column');
       var columnStatus = column ? column.getAttribute('data-status') : '';
-      var row = rowByTitle(card.querySelector('.bug-board__card-title').textContent.trim());
+      var title = card.getAttribute('data-title') || card.querySelector('.bug-board__card-title').textContent.trim();
+      var row = rowByTitle(title);
       card.hidden = !(row && row.dataset.status === columnStatus && matchRow(row, f));
     });
     updateBoardCounts();
-    updatePager(visible, isFiltered(f));
+    updatePager(matched.length, pages);
   }
-
   function updateAdvCount() {
     var count = [statusSel.value, typeSel.value, severitySel.value, prioritySel.value].filter(Boolean).length;
     advCount.textContent = String(count);
     advCount.hidden = count === 0;
   }
 
-  // ==================== 视图 / 筛选交互 ====================
+  // ---- View toggle ----
   document.getElementById('view-toggle').addEventListener('click', function (e) {
-    var item = e.target.closest('.segment__item');
-    if (!item) return;
-    Array.prototype.forEach.call(this.querySelectorAll('.segment__item'), function (s) {
-      s.classList.remove('segment__item--active');
-    });
-    item.classList.add('segment__item--active');
-    var view = item.getAttribute('data-view');
+    var btn = e.target.closest('.radio-btn');
+    if (!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll('.radio-btn'), function (b) { b.classList.remove('radio-btn--active'); });
+    btn.classList.add('radio-btn--active');
+    var view = btn.getAttribute('data-view');
     listView.hidden = view !== 'list';
     boardView.hidden = view !== 'board';
-    filterCard.classList.toggle('bug-filters--sticky', view === 'list');
   });
 
+  // ---- Quick filter ----
   document.getElementById('quick-filter').addEventListener('click', function (e) {
-    var item = e.target.closest('.segment__item');
-    if (!item) return;
-    Array.prototype.forEach.call(this.querySelectorAll('.segment__item'), function (s) {
-      s.classList.remove('segment__item--active');
-    });
-    item.classList.add('segment__item--active');
+    var btn = e.target.closest('.radio-btn');
+    if (!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll('.radio-btn'), function (b) { b.classList.remove('radio-btn--active'); });
+    btn.classList.add('radio-btn--active');
+    restartPaging();
     applyFilters();
   });
 
+  // ---- Keyword ----
   var keywordTimer;
-  function searchKeyword() {
-    clearTimeout(keywordTimer);
-    applyFilters();
-  }
-  // el-input clearable：仅在有输入内容时展示清空按钮
-  function syncKeywordClear() {
-    keywordClear.hidden = keywordInput.value === '';
-  }
+  function restartPaging() { currentPage = 1; }
+  function syncKeywordClear() { keywordClear.hidden = keywordInput.value === ''; }
+  function searchKeyword() { clearTimeout(keywordTimer); restartPaging(); applyFilters(); }
   keywordInput.addEventListener('input', function () {
     syncKeywordClear();
     clearTimeout(keywordTimer);
-    keywordTimer = setTimeout(applyFilters, 1000);
+    keywordTimer = setTimeout(function () { restartPaging(); applyFilters(); }, 1000);
   });
-  keywordInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') searchKeyword();
-  });
+  keywordInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') searchKeyword(); });
   keywordInput.addEventListener('blur', searchKeyword);
   keywordClear.addEventListener('click', function () {
     keywordInput.value = '';
     syncKeywordClear();
+    restartPaging();
     applyFilters();
     keywordInput.focus();
   });
+  pageSizeSel.addEventListener('change', function () { restartPaging(); applyFilters(); });
 
-  pageSizeSel.addEventListener('change', function () {
+  // ---- 分页：真实切换激活页与当前页的行内容 ----
+  pagerList.addEventListener('click', function (e) {
+    var btn = e.target.closest('.page-btn');
+    if (!btn || btn.disabled) return;
+    var label = btn.textContent.trim();
+    if (label === '‹') currentPage = Math.max(1, currentPage - 1);
+    else if (label === '›') currentPage = Math.min(pageCount, currentPage + 1);
+    else if (label === '…') currentPage = Math.max(1, pageCount - 1);
+    else {
+      var page = parseInt(label, 10);
+      if (isNaN(page)) return;
+      currentPage = page;
+    }
     applyFilters();
   });
 
+  // ---- Advanced filter popover ----
   advTrigger.addEventListener('click', function (e) {
     e.stopPropagation();
     advPopover.hidden = !advPopover.hidden;
-    advTrigger.classList.toggle('is-open', !advPopover.hidden);
+    advTrigger.setAttribute('aria-expanded', String(!advPopover.hidden));
+    var caret = advTrigger.querySelector('[data-icon]');
+    if (caret) caret.style.transform = advPopover.hidden ? '' : 'rotate(180deg)';
   });
   advPopover.addEventListener('click', function (e) { e.stopPropagation(); });
-  [statusSel, typeSel, severitySel, prioritySel].forEach(function (sel) {
-    sel.addEventListener('change', updateAdvCount);
-  });
+  [statusSel, typeSel, severitySel, prioritySel].forEach(function (sel) { sel.addEventListener('change', updateAdvCount); });
   document.getElementById('adv-apply').addEventListener('click', function () {
     advPopover.hidden = true;
-    advTrigger.classList.remove('is-open');
+    advTrigger.setAttribute('aria-expanded', 'false');
+    restartPaging();
+    applyFilters();
+  });
+  document.getElementById('adv-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    advPopover.hidden = true;
+    advTrigger.setAttribute('aria-expanded', 'false');
+    restartPaging();
     applyFilters();
   });
   document.getElementById('adv-reset').addEventListener('click', function () {
-    statusSel.value = '';
-    typeSel.value = '';
-    severitySel.value = '';
-    prioritySel.value = '';
+    statusSel.value = ''; typeSel.value = ''; severitySel.value = ''; prioritySel.value = '';
     keywordInput.value = '';
     syncKeywordClear();
-    var items = document.querySelectorAll('#quick-filter .segment__item');
-    Array.prototype.forEach.call(items, function (s) { s.classList.remove('segment__item--active'); });
-    items[0].classList.add('segment__item--active');
+    var qBtns = document.querySelectorAll('#quick-filter .radio-btn');
+    Array.prototype.forEach.call(qBtns, function (b) { b.classList.remove('radio-btn--active'); });
+    qBtns[0].classList.add('radio-btn--active');
     updateAdvCount();
+    restartPaging();
     applyFilters();
   });
-  document.addEventListener('click', function () {
-    advPopover.hidden = true;
-    advTrigger.classList.remove('is-open');
-  });
 
-  // ==================== 行操作 ====================
+  // ---- Table actions ----
   tbody.addEventListener('click', function (e) {
     var trigger = e.target.closest('[data-action]');
     if (!trigger) return;
     var tr = trigger.closest('tr');
     if (!tr) return;
     var action = trigger.getAttribute('data-action');
-    if (action === 'more') {
-      e.stopPropagation();
-      openMore(trigger, tr);
-    } else if (action === 'resolve') {
-      openResolve(tr);
-    } else if (action === 'reject') {
-      openStatusChange(tr, 'rejected', '缺陷已拒绝');
-    } else if (action === 'close') {
-      openStatusChange(tr, 'closed', '缺陷已关闭');
-    } else if (action === 'reopen') {
-      openStatusChange(tr, 'active', '缺陷已激活');
-    }
+    if (action === 'detail') { location.href = 'bug-detail.html'; return; }
+    if (action === 'more') { e.stopPropagation(); openMore(trigger, tr); }
+    else if (action === 'resolve') openResolve(tr);
+    else if (action === 'reject') openStatusChange(tr, 'rejected', '缺陷已拒绝');
+    else if (action === 'close') openStatusChange(tr, 'closed', '缺陷已关闭');
+    else if (action === 'reopen') openStatusChange(tr, 'active', '缺陷已激活');
   });
 
-  // 更多下拉菜单
+  // ---- More dropdown ----
   var moreRow = null;
-
   function moreItems(tr) {
     var status = tr.dataset.status;
     var confirmed = tr.dataset.confirmed === 'true';
@@ -1269,7 +1351,6 @@
     items.push({ label: '复制', action: 'copy' });
     return items;
   }
-
   function openMore(trigger, tr) {
     moreRow = tr;
     moreDropdown.innerHTML = moreItems(tr).map(function (item) {
@@ -1278,9 +1359,8 @@
     moreDropdown.hidden = false;
     var rect = trigger.getBoundingClientRect();
     moreDropdown.style.top = (rect.bottom + 4) + 'px';
-    moreDropdown.style.left = rect.left + 'px';
+    moreDropdown.style.left = Math.max(8, rect.left - 40) + 'px';
   }
-
   moreDropdown.addEventListener('click', function (e) {
     e.stopPropagation();
     var item = e.target.closest('.more-dropdown__item');
@@ -1288,20 +1368,13 @@
     var action = item.getAttribute('data-action');
     var tr = moreRow;
     moreDropdown.hidden = true;
-    if (action === 'confirm') {
-      openConfirm(tr);
-    } else if (action === 'reopen') {
-      openStatusChange(tr, 'active', '缺陷已激活');
-    } else if (action === 'assign') {
-      openAssign(tr);
-    } else if (action === 'copy') {
-      location.href = 'bug-create.html?copyFrom=' + encodeURIComponent(tr.dataset.id || '');
-    }
+    if (action === 'confirm') openConfirm(tr);
+    else if (action === 'reopen') openStatusChange(tr, 'active', '缺陷已激活');
+    else if (action === 'assign') openAssign(tr);
+    else if (action === 'copy') location.href = 'bug-create.html?copyFrom=' + encodeURIComponent(tr.dataset.id || '');
   });
 
-  document.addEventListener('click', function () { moreDropdown.hidden = true; });
-
-  // ==================== 解决弹窗 ====================
+  // ---- Resolve dialog ----
   var resolveDialog = document.getElementById('resolve-dialog');
   var resolveRow = null;
   var resolutionSel = document.getElementById('resolve-resolution');
@@ -1309,7 +1382,6 @@
   var duplicateSel = document.getElementById('resolve-duplicate');
   var resolveComment = document.getElementById('resolve-comment');
   var resolveError = document.getElementById('resolve-error');
-
   function rebuildDuplicateOptions(excludeTitle) {
     var html = '<option value="">搜索并选择原始缺陷</option>';
     rows.forEach(function (row) {
@@ -1318,7 +1390,6 @@
     });
     duplicateSel.innerHTML = html;
   }
-
   function openResolve(tr) {
     resolveRow = tr;
     resolutionSel.value = 'fixed';
@@ -1329,139 +1400,117 @@
     rebuildDuplicateOptions(titleOf(tr));
     resolveDialog.hidden = false;
   }
-
   resolutionSel.addEventListener('change', function () {
     duplicateField.hidden = resolutionSel.value !== 'duplicate';
     resolveError.hidden = true;
   });
-
   document.getElementById('resolve-confirm').addEventListener('click', function () {
-    if (resolutionSel.value === 'duplicate' && !duplicateSel.value) {
-      showError(resolveError, '请选择重复的原始缺陷');
-      return;
-    }
-    if (!resolveComment.value.trim()) {
-      showError(resolveError, '请填写备注说明');
-      return;
-    }
-    var tr = resolveRow;
-    var resolution = RESOLUTION_LABEL[resolutionSel.value] || RESOLUTION_LABEL.fixed;
-    resolveRow = null;
-    resolveDialog.hidden = true;
-    applyStatus(tr, 'resolved', { resolution: resolution });
+    if (resolutionSel.value === 'duplicate' && !duplicateSel.value) { showError(resolveError, '请选择重复的原始缺陷'); return; }
+    if (!resolveComment.value.trim()) { showError(resolveError, '请填写备注说明'); return; }
+    var tr = resolveRow; resolveRow = null; resolveDialog.hidden = true;
+    applyStatus(tr, 'resolved', { resolution: RESOLUTION_LABEL[resolutionSel.value] || RESOLUTION_LABEL.fixed });
     toast('缺陷已解决');
   });
 
-  // ==================== 状态变更说明弹窗 ====================
+  // ---- Status change dialog ----
   var statusDialog = document.getElementById('status-dialog');
   var statusTargetEl = document.getElementById('status-target');
   var statusComment = document.getElementById('status-comment');
   var statusError = document.getElementById('status-error');
-  var statusRow = null;
-  var statusTarget = '';
-  var statusMessage = '';
-
+  var statusRow = null, statusTarget = '', statusMessage = '';
   function openStatusChange(tr, target, message) {
-    statusRow = tr;
-    statusTarget = target;
-    statusMessage = message;
+    statusRow = tr; statusTarget = target; statusMessage = message;
     statusTargetEl.textContent = STATUS_LABEL[target];
-    statusComment.value = '';
-    statusError.hidden = true;
+    statusComment.value = ''; statusError.hidden = true;
     statusDialog.hidden = false;
   }
-
   document.getElementById('status-confirm').addEventListener('click', function () {
-    if (!statusComment.value.trim()) {
-      showError(statusError, '请填写变更说明');
-      return;
-    }
-    var tr = statusRow;
-    var target = statusTarget;
-    var message = statusMessage;
-    statusRow = null;
-    statusDialog.hidden = true;
+    if (!statusComment.value.trim()) { showError(statusError, '请填写变更说明'); return; }
+    var tr = statusRow, target = statusTarget, message = statusMessage;
+    statusRow = null; statusDialog.hidden = true;
     applyStatus(tr, target);
     toast(message);
   });
 
-  // ==================== 确认弹窗 ====================
+  // ---- Confirm dialog ----
   var confirmDialog = document.getElementById('confirm-dialog');
   var confirmRow = null;
-
-  function openConfirm(tr) {
-    confirmRow = tr;
-    confirmDialog.hidden = false;
-  }
-
+  function openConfirm(tr) { confirmRow = tr; confirmDialog.hidden = false; }
   document.getElementById('confirm-ok').addEventListener('click', function () {
-    var tr = confirmRow;
-    confirmRow = null;
-    confirmDialog.hidden = true;
+    var tr = confirmRow; confirmRow = null; confirmDialog.hidden = true;
     if (!tr) return;
     tr.dataset.confirmed = 'true';
     renderStatus(tr);
     toast('缺陷已确认');
   });
 
-  // ==================== 指派弹窗 ====================
+  // ---- Assign dialog ----
   var assignDialog = document.getElementById('assign-dialog');
   var assignSelect = document.getElementById('assign-select');
   var assignError = document.getElementById('assign-error');
   var assignRow = null;
-
   function openAssign(tr) {
     assignRow = tr;
     assignSelect.value = tr.dataset.assignee || '';
     assignError.hidden = true;
     assignDialog.hidden = false;
   }
-
   document.getElementById('assign-confirm').addEventListener('click', function () {
     var name = assignSelect.value;
-    if (!name) {
-      showError(assignError, '请选择处理人');
-      return;
-    }
-    var tr = assignRow;
-    assignRow = null;
-    assignDialog.hidden = true;
+    if (!name) { showError(assignError, '请选择处理人'); return; }
+    var tr = assignRow; assignRow = null; assignDialog.hidden = true;
     tr.dataset.assignee = name;
-    setNameCell(tr, 7, name);
+    setCell(tr, 'assignee', name);
     syncCard(tr);
     applyFilters();
     toast('已指派');
   });
 
-  // 关闭弹窗
+  // ---- Dialog close / outside clicks ----
   document.addEventListener('click', function (e) {
     var closer = e.target.closest('[data-close]');
-    if (closer) {
-      document.getElementById(closer.getAttribute('data-close')).hidden = true;
+    if (closer) document.getElementById(closer.getAttribute('data-close')).hidden = true;
+    if (!e.target.closest('#adv-trigger') && !e.target.closest('#adv-popover')) {
+      advPopover.hidden = true; advTrigger.setAttribute('aria-expanded', 'false');
+    }
+    if (!e.target.closest('#col-setting-trigger') && !e.target.closest('#col-setting-popover')) {
+      document.getElementById('col-setting-popover').hidden = true;
+      document.getElementById('col-setting-trigger').setAttribute('aria-expanded', 'false');
+    }
+    if (!e.target.closest('[data-action="more"]') && !e.target.closest('#more-dropdown')) {
+      moreDropdown.hidden = true;
     }
   });
+  Array.prototype.forEach.call(document.querySelectorAll('.dialog-mask[data-mask-close]'), function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    Array.prototype.forEach.call(document.querySelectorAll('.dialog-mask'), function (mask) { mask.hidden = true; });
+    advPopover.hidden = true;
+    advTrigger.setAttribute('aria-expanded', 'false');
+    document.getElementById('col-setting-popover').hidden = true;
+    document.getElementById('col-setting-trigger').setAttribute('aria-expanded', 'false');
+    moreDropdown.hidden = true;
+  });
 
-  // ==================== 看板拖拽 ====================
+  // ---- Board drag ----
   var draggingCard = null;
-
-  function cardColumn(card) {
-    return card.closest('.bug-board__column');
-  }
-
+  function cardColumn(card) { return card.closest('.bug-board__column'); }
   function canDrop(card, targetStatus) {
     var column = cardColumn(card);
     if (!column) return false;
     var from = column.getAttribute('data-status');
     return from !== targetStatus && TRANSITIONS[from].indexOf(targetStatus) !== -1;
   }
-
   function clearDragMarks() {
     Array.prototype.forEach.call(document.querySelectorAll('.bug-board__column'), function (column) {
       column.classList.remove('bug-board__column--valid', 'bug-board__column--invalid');
     });
     draggingCard = null;
   }
-
   cards.forEach(function (card) {
     card.addEventListener('dragstart', function () {
       draggingCard = card;
@@ -1474,8 +1523,8 @@
       });
     });
     card.addEventListener('dragend', clearDragMarks);
+    card.addEventListener('click', function () { location.href = 'bug-detail.html'; });
   });
-
   Array.prototype.forEach.call(document.querySelectorAll('.bug-board__column'), function (column) {
     var targetStatus = column.getAttribute('data-status');
     column.addEventListener('dragover', function (e) {
@@ -1484,7 +1533,7 @@
     column.addEventListener('drop', function (e) {
       if (!draggingCard || !canDrop(draggingCard, targetStatus)) return;
       e.preventDefault();
-      var title = draggingCard.querySelector('.bug-board__card-title').textContent.trim();
+      var title = draggingCard.getAttribute('data-title') || draggingCard.querySelector('.bug-board__card-title').textContent.trim();
       clearDragMarks();
       var tr = rowByTitle(title);
       if (!tr) return;
@@ -1493,9 +1542,10 @@
     });
   });
 
-  // ==================== 初始化 ====================
-  applyBugColumns();
+  // ---- Init ----
   rows.forEach(renderOps);
+  hydrate(document);
+  applyColumns();
   updateAdvCount();
   syncKeywordClear();
   applyFilters();

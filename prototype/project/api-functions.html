@@ -9,41 +9,54 @@
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
   [hidden] { display: none !important; }
-  .fn-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .fn-page { display: flex; flex-direction: column; height: 100%; }
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-lg); margin-bottom: var(--block-gap); }
+  .page-head__title { margin: 0; color: var(--n-900); font-size: var(--font-size-2xl); font-weight: 650; letter-spacing: -0.01em; }
+  .page-head__desc { margin: 4px 0 0; color: var(--n-500); font-size: var(--font-size-sm); }
   .fn-body { flex: 1; display: flex; gap: var(--space-lg); min-height: 0; }
 
-  /* 左：函数列表 */
+  /* 左：函数列表（对齐 FunctionPage：搜索 + 新增、el-segmented、小尺寸标签） */
   .fn-list { width: 340px; flex-shrink: 0; overflow: hidden; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
   .fn-list__head { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
   .fn-list__head .input-wrap { flex: 1; min-width: 0; }
-  .fn-list__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-sm); }
+  .fn-list__add { flex-shrink: 0; }
+  .fn-list__body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
+  .fn-list__body::-webkit-scrollbar { display: none; }
 
-  .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; width: 100%; }
-  .radio-seg button { flex: 1; height: 26px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
-  .radio-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+  /* el-segmented size="small" 视觉近似 */
+  .segmented { display: flex; width: 100%; gap: 2px; background: var(--n-100); border-radius: var(--radius-md); padding: 2px; flex-shrink: 0; }
+  .segmented button { flex: 1; height: 28px; border: none; background: none; border-radius: calc(var(--radius-md) - 2px); font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; transition: all var(--transition-fast); }
+  .segmented button:hover { color: var(--n-800); }
+  .segmented button.is-active { background: #fff; color: var(--n-900); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+  .fn-list__load-error { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: 8px var(--space-sm); border: 1px solid var(--st-danger-border); border-radius: var(--radius-md); background: var(--st-danger-light); color: var(--st-danger-strong); font-size: var(--font-size-xs); }
 
   .fn-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  .fn-item { border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); cursor: pointer; }
+  .fn-item { border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); cursor: pointer; transition: all var(--transition-fast); }
   .fn-item:hover { background: var(--n-50); }
-  .fn-item.is-active { border-color: #b3d8ff; background: rgba(59,130,246,.06); }
+  .fn-item.is-active { border-color: #bfdbfe; background: rgba(59,130,246,.06); }
   .fn-item.is-disabled { opacity: .55; }
   .fn-item__main { display: flex; align-items: center; gap: var(--space-sm); }
-  .fn-item__name { font-size: var(--font-size-sm); font-weight: 500; font-family: monospace; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fn-item__name { display: block; flex: 1; min-width: 0; overflow: hidden; font-size: var(--font-size-sm); font-weight: 500; font-family: var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+  .fn-item__name:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 1px; border-radius: 2px; }
   .fn-item__meta { margin-top: 2px; font-size: var(--font-size-xs); color: var(--n-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fn-item__acts { margin-top: 4px; font-size: var(--font-size-xs); }
-  .fn-item__acts .op-link + .op-link { margin-left: 8px; }
-  .fn-item__state { flex-shrink: 0; }
+  .fn-item__acts { margin-top: 4px; }
+  .fn-item__acts .btn--link { padding: 0; height: auto; font-size: var(--font-size-xs); }
+  .btn--link.op-link--danger { color: var(--st-danger); }
+  .btn--link.op-link--danger:hover { color: var(--st-danger-strong, #b91c1c); background: transparent; }
+  .fn-item.is-hidden { display: none; }
 
-  /* 启停勾选：口径同公共组件示例（详情头部勾选即时启停，同步列表状态标签与灰化） */
-  .cell-check { width: 14px; height: 14px; accent-color: var(--brand-500); }
-  .fn-enable { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; user-select: none; }
-  .fn-enable input { margin: 0; }
+  .tag--sm { height: 20px; padding: 0 7px; font-size: var(--font-size-2xs); border-radius: 4px; }
+  .tag--info-light { background: var(--n-100); color: var(--n-500); border-color: var(--n-200); }
 
-  /* 右：详情（头部吸顶，分区标签左置两栏对齐） */
-  .fn-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
+  /* 右：详情（对齐 FunctionPage：头部吸顶、分区两栏、滚动条隐藏） */
+  .fn-detail { flex: 1; min-width: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
+  .fn-detail::-webkit-scrollbar { display: none; }
   .fn-detail__header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm); margin: 0 calc(0px - var(--space-lg)) var(--space-lg); padding: var(--space-md) var(--space-lg); background: #fff; border-bottom: 1px solid var(--n-100); }
-  .fn-detail__name { margin: 0; font-size: var(--font-size-lg); font-family: var(--font-mono); color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fn-detail__id { display: flex; align-items: center; gap: var(--space-sm); flex: 1 1 auto; min-width: 0; }
+  .fn-detail__name { margin: 0; font-size: var(--font-size-lg); font-family: var(--font-mono); color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fn-detail__enable { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; user-select: none; }
+  .fn-detail__enable input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand-500); }
   .fn-detail__header-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 
   .fn-detail__section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
@@ -54,40 +67,43 @@
   .fn-detail__code--block { display: block; width: 100%; padding: 9px 12px; border-left: 3px solid var(--brand-500); border-radius: var(--radius-md); }
 
   .fn-params { display: flex; flex-direction: column; gap: 6px; }
-  .fn-params > .fn-detail__text { color: var(--n-400); }
   .fn-param { display: flex; align-items: center; gap: var(--space-sm); padding: 7px 10px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); }
   .fn-param .fn-detail__code { flex-shrink: 0; background: #fff; }
   .fn-param__desc { flex: 1; min-width: 0; color: var(--n-500); font-size: var(--font-size-sm); }
 
-  /* Groovy 脚本：编辑器容器（标题条 + 代码区） */
-  .code-block { border: 1px solid var(--n-100); border-radius: var(--radius-md); overflow: hidden; }
+  .code-block { width: 100%; border: 1px solid var(--n-100); border-radius: var(--radius-md); overflow: hidden; }
   .code-block__bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #2d2d2d; color: #9aa0a6; font-family: var(--font-mono); font-size: var(--font-size-2xs); letter-spacing: .08em; text-transform: uppercase; }
-  .code-block .code-view { min-height: 160px; border: none; border-radius: 0; }
+  .code-view { width: 100%; min-height: 160px; border: none; border-radius: 0; background: #1e1e1e; color: #d4d4d4; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; padding: 10px 12px; resize: vertical; }
+  .code-view--edit { min-height: 180px; }
 
-  .code-view { width: 100%; min-height: 160px; border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #1e1e1e; color: #d4d4d4; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; padding: 10px 12px; resize: vertical; }
-
-  .fn-item.is-hidden { display: none; }
   .fn-empty { text-align: center; padding: var(--space-lg) var(--space-sm); color: var(--n-500); font-size: var(--font-size-sm); }
   .fn-empty p { margin: 0 0 var(--space-sm); }
+  .fn-empty--wide { padding-top: 72px; }
 
-  /* 参数配置（docs23 §1.3）：行编辑表格 + 表单下方实时序列化预览 */
+  /* 表单（对齐 el-form label-position="top"） */
+  .fn-form .field { margin-bottom: 18px; }
+  .fn-form .field__label { font-size: var(--font-size-sm); color: var(--n-700); margin-bottom: 8px; }
+  .fn-form .field__label.is-required::before { content: '*'; color: var(--st-danger); margin-right: 4px; }
+  .fn-form .select, .fn-form .input, .fn-form .textarea { width: 100%; }
+
+  /* 参数配置（对齐 FunctionPage param-table） */
+  .param-config { width: 100%; }
   .param-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .param-table th { padding: 6px 8px; font-size: var(--font-size-2xs); font-weight: 600; color: var(--n-400); text-align: left; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--n-100); }
+  .param-table th { padding: 6px 8px; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-align: left; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--n-100); }
   .param-table td { padding: 5px 8px; border-bottom: 1px solid var(--n-100); vertical-align: middle; }
-  .param-table th:nth-child(1), .param-table td:nth-child(1) { width: 26%; }
+  .param-table th:nth-child(1), .param-table td:nth-child(1) { width: 30%; }
   .param-table th:nth-child(2), .param-table td:nth-child(2) { width: 56px; text-align: center; }
-  .param-table th:nth-child(4), .param-table td:nth-child(4) { width: 104px; text-align: right; white-space: nowrap; }
+  .param-table th:nth-child(4), .param-table td:nth-child(4) { width: 132px; text-align: right; white-space: nowrap; }
   .param-table td .input { height: 28px; font-size: var(--font-size-sm); }
-  .param-table .cell-check { margin: 0; }
+  .param-table .cell-check { width: 14px; height: 14px; margin: 0; accent-color: var(--brand-500); }
   .param-table__empty td { padding: 12px 8px; color: var(--n-400); font-size: var(--font-size-sm); text-align: left; }
-  .param-table__ops .op-link { margin-right: 8px; }
-  .param-table__ops .op-link:last-child { margin-right: 0; }
+  .param-table__ops .btn--link { padding: 0 4px; height: auto; font-size: var(--font-size-xs); }
+  .param-table__ops .btn--link:disabled { opacity: .45; cursor: not-allowed; }
   .param-add { margin-top: 8px; }
   .param-preview { margin-top: 8px; font-size: var(--font-size-xs); color: var(--n-500); word-break: break-all; }
   .param-preview code { font-family: var(--font-mono); color: var(--brand-600); }
   .param-error { margin: 6px 0 0; font-size: var(--font-size-xs); color: var(--st-danger); }
 
-  /* 表单底部操作条：分隔线 + 右对齐 */
   .fn-detail__footer { display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--n-100); }
 
 </style>
@@ -99,133 +115,138 @@
     <aside class="split__side" data-side="api"></aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">函数管理</h1>
-          <p class="page-head__desc">项目内可复用的自定义函数，内置函数由平台统一提供</p>
-        </div>
-      </div>
-
       <div class="fn-page">
+        <header class="page-head">
+          <div>
+            <h1 class="page-head__title">函数管理</h1>
+            <p class="page-head__desc">项目内可复用的自定义函数，内置函数由平台统一提供</p>
+          </div>
+        </header>
+
         <div class="fn-body">
-          <!-- 左：函数列表（docs23 §1.1：搜索与 [新增] 位于列表首行） -->
+          <!-- 左：函数列表（对齐 FunctionPage：搜索 + 新增、el-segmented） -->
           <aside class="fn-list">
             <div class="fn-list__head">
-              <div class="input-wrap"><span data-icon="search"></span><input class="input" id="fn-search" placeholder="搜索函数名称..."></div>
-              <button class="btn btn--primary" id="fn-add"><span data-icon="plus"></span>新增</button>
+              <div class="input-wrap"><span data-icon="search"></span><input class="input" id="fn-search" placeholder="搜索函数名称..." aria-label="搜索函数名称"></div>
+              <button class="btn btn--primary fn-list__add" id="fn-add"><span data-icon="plus"></span>新增</button>
             </div>
-            <div class="fn-list__body">
 
-              <span class="radio-seg">
-                <button class="is-active" data-fntab="all">全部</button>
-                <button data-fntab="builtin">内置函数</button>
-                <button data-fntab="custom">自定义函数</button>
-              </span>
+            <div class="fn-list__body">
+              <div class="segmented" role="tablist" aria-label="函数类型">
+                <button class="is-active" data-fntab="all" role="tab" aria-selected="true">全部</button>
+                <button data-fntab="builtin" role="tab" aria-selected="false">内置函数</button>
+                <button data-fntab="custom" role="tab" aria-selected="false">自定义函数</button>
+              </div>
+
+              <div class="fn-list__load-error" id="fn-load-error" role="alert" hidden>
+                <span>函数列表加载失败，请重试</span>
+                <button class="btn btn--link btn--sm" type="button" data-list-retry>重新加载</button>
+              </div>
 
               <!-- 内置函数目录与 ApiBuiltinFunctionRegistry.catalog() 一致（分组内顺序按注册顺序） -->
               <ul class="fn-items" data-fnlist="builtin">
                 <li class="fn-item is-active" data-fn="random" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">random</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">random</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">生成指定区间的随机整数</div>
                 </li>
                 <li class="fn-item" data-fn="random_string" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">random_string</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">random_string</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">生成指定长度的随机字符串（含字母与数字）</div>
                 </li>
                 <li class="fn-item" data-fn="faker" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">faker</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">faker</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">按 Faker 表达式生成仿真测试数据</div>
                 </li>
                 <li class="fn-item" data-fn="uuid" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">uuid</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">uuid</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">生成随机 UUID（去连字符）</div>
                 </li>
                 <li class="fn-item" data-fn="timestamp" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">timestamp</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">timestamp</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">当前时间戳，默认毫秒；可指定秒或日期格式</div>
                 </li>
                 <li class="fn-item" data-fn="time_shift" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">time_shift</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">time_shift</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">基于当前时间按 ISO-8601 偏移量平移后格式化输出</div>
                 </li>
                 <li class="fn-item" data-fn="json" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">json</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">json</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">将多组 k=v 参数组装为 JSON 字符串</div>
                 </li>
                 <li class="fn-item" data-fn="json_read" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">json_read</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">json_read</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">从 JSON 文本中按 JsonPath 提取值</div>
                 </li>
                 <li class="fn-item" data-fn="url_encode" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">url_encode</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">url_encode</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">URL 编码（application/x-www-form-urlencoded）</div>
                 </li>
                 <li class="fn-item" data-fn="url_decode" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">url_decode</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">url_decode</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">URL 解码</div>
                 </li>
                 <li class="fn-item" data-fn="base64_encode" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">base64_encode</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">base64_encode</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">Base64 编码</div>
                 </li>
                 <li class="fn-item" data-fn="base64_decode" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">base64_decode</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">base64_decode</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">Base64 解码</div>
                 </li>
                 <li class="fn-item" data-fn="property" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">property</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">property</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">读取平台变量值（就近作用域解析）</div>
                 </li>
                 <li class="fn-item" data-fn="digest" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">digest</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">digest</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">摘要算法（md5/sha-1/sha-256 等，支持盐值）</div>
                 </li>
                 <li class="fn-item" data-fn="google2fa" data-scope="builtin">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">google2fa</span>
-                    <span class="tag tag--outline">内置</span>
+                    <span class="fn-item__name" tabindex="0">google2fa</span>
+                    <span class="tag tag--outline tag--sm">内置</span>
                   </div>
                   <div class="fn-item__meta">根据 2FA 密钥生成 Google 验证码</div>
                 </li>
@@ -234,33 +255,33 @@
               <ul class="fn-items" data-fnlist="custom">
                 <li class="fn-item" data-fn="signParams" data-scope="custom">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">signParams</span>
-                    <span class="tag tag--success">自定义</span>
-                    <span class="tag tag--outline fn-item__scope">项目</span>
-                    <span class="tag tag--success fn-item__state">已启用</span>
+                    <span class="fn-item__name" tabindex="0">signParams</span>
+                    <span class="tag tag--success tag--sm">自定义</span>
+                    <span class="tag tag--outline tag--sm fn-item__scope">项目</span>
+                    <span class="tag tag--success tag--sm fn-item__state">已启用</span>
                   </div>
                   <div class="fn-item__meta">按业务规则生成签名参数</div>
-                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>
+                  <div class="fn-item__acts"><button class="btn btn--link btn--sm op-link--danger" type="button" data-fn-del>删除</button></div>
                 </li>
                 <li class="fn-item" data-fn="genOrderNo" data-scope="custom">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">genOrderNo</span>
-                    <span class="tag tag--success">自定义</span>
-                    <span class="tag tag--outline fn-item__scope">空间</span>
-                    <span class="tag tag--success fn-item__state">已启用</span>
+                    <span class="fn-item__name" tabindex="0">genOrderNo</span>
+                    <span class="tag tag--success tag--sm">自定义</span>
+                    <span class="tag tag--outline tag--sm fn-item__scope">空间</span>
+                    <span class="tag tag--success tag--sm fn-item__state">已启用</span>
                   </div>
                   <div class="fn-item__meta">生成雪花订单号</div>
-                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>
+                  <div class="fn-item__acts"><button class="btn btn--link btn--sm op-link--danger" type="button" data-fn-del>删除</button></div>
                 </li>
                 <li class="fn-item is-disabled" data-fn="legacyFmt" data-scope="custom">
                   <div class="fn-item__main">
-                    <span class="fn-item__name">legacyFmt</span>
-                    <span class="tag tag--success">自定义</span>
-                    <span class="tag tag--outline fn-item__scope">项目</span>
-                    <span class="tag tag--outline fn-item__state">已停用</span>
+                    <span class="fn-item__name" tabindex="0">legacyFmt</span>
+                    <span class="tag tag--success tag--sm">自定义</span>
+                    <span class="tag tag--outline tag--sm fn-item__scope">项目</span>
+                    <span class="tag tag--info-light tag--sm fn-item__state">已停用</span>
                   </div>
                   <div class="fn-item__meta">旧版报文格式化（已停用）</div>
-                  <div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>
+                  <div class="fn-item__acts"><button class="btn btn--link btn--sm op-link--danger" type="button" data-fn-del>删除</button></div>
                 </li>
               </ul>
 
@@ -271,7 +292,7 @@
             </div>
           </aside>
 
-          <!-- 右：函数详情（内容由脚本按选中项渲染） -->
+          <!-- 右：内置函数详情 -->
           <section class="fn-detail" data-fndetail="builtin">
             <div class="fn-detail__header">
               <div class="fn-detail__id">
@@ -314,11 +335,12 @@
             </div>
           </section>
 
+          <!-- 右：自定义函数详情 -->
           <section class="fn-detail" data-fndetail="custom" hidden>
             <div class="fn-detail__header">
               <div class="fn-detail__id">
                 <h4 class="fn-detail__name" id="cu-name">signParams</h4>
-                <label class="fn-enable"><input type="checkbox" class="cell-check" id="cu-enable"><span>启用</span></label>
+                <label class="fn-detail__enable"><input type="checkbox" id="cu-enable"><span>启用</span></label>
               </div>
               <div class="fn-detail__header-actions">
                 <span class="tag tag--outline" id="cu-scope">项目</span>
@@ -358,55 +380,58 @@
           <!-- 新建 / 编辑自定义函数（对应 FunctionPage 右侧表单面板） -->
           <section class="fn-detail" data-fnform hidden>
             <div class="fn-detail__header">
-              <h4 class="fn-detail__name" id="fn-form-title">新建自定义函数</h4>
+              <div class="fn-detail__id">
+                <h4 class="fn-detail__name" id="fn-form-title">新建自定义函数</h4>
+              </div>
               <div class="fn-detail__header-actions">
                 <span class="tag tag--outline">自定义</span>
               </div>
             </div>
 
-            <div class="form-grid">
+            <div class="fn-form">
               <div class="field">
-                <label class="field__label" for="fn-name">函数名称<span class="req">*</span></label>
-                <input class="input" style="width:100%" id="fn-name" maxlength="100" placeholder="如：myFunc">
+                <label class="field__label is-required" for="fn-name">函数名称</label>
+                <input class="input" id="fn-name" maxlength="100" placeholder="如：myFunc">
                 <div class="field__error" id="fn-name-err" hidden>请输入函数名称</div>
               </div>
 
               <div class="field">
                 <label class="field__label" for="fn-scope">作用域</label>
-                <select class="select" style="width:100%" id="fn-scope">
+                <select class="select" id="fn-scope">
                   <option value="project">项目</option>
                   <option value="workspace">空间</option>
                   <option value="global">公共</option>
                 </select>
               </div>
-            </div>
 
-            <div class="field">
-              <label class="field__label" for="fn-desc">描述</label>
-              <textarea class="textarea" style="width:100%" rows="2" id="fn-desc" maxlength="500"></textarea>
-            </div>
-
-            <!-- 参数配置（docs23 §1.3）：表格逐行编辑，保存时序列化为 paramsDesc -->
-            <div class="field">
-              <label class="field__label">参数配置</label>
-              <table class="param-table">
-                <thead>
-                  <tr><th>参数名</th><th>必填</th><th>描述</th><th>操作</th></tr>
-                </thead>
-                <tbody id="fn-param-rows"></tbody>
-              </table>
-              <div class="param-add"><button class="btn btn--default btn--sm" id="fn-param-add" type="button">＋ 添加参数</button></div>
-              <div class="param-preview">保存为参数说明：<code id="fn-params-preview">（无参数）</code></div>
-              <div id="fn-params-err" hidden></div>
-            </div>
-
-            <div class="field">
-              <label class="field__label" for="fn-script">Groovy 脚本<span class="req">*</span></label>
-              <div class="code-block">
-                <div class="code-block__bar"><span data-icon="terminal"></span>Groovy</div>
-                <textarea class="code-view" style="min-height:180px" id="fn-script" spellcheck="false" placeholder="// args 数组承接调用参数，返回值即求值结果&#10;return args[0]"></textarea>
+              <div class="field">
+                <label class="field__label" for="fn-desc">描述</label>
+                <textarea class="textarea" rows="2" id="fn-desc" maxlength="500"></textarea>
               </div>
-              <div class="field__error" id="fn-script-err" hidden>请输入 Groovy 脚本</div>
+
+              <div class="field">
+                <label class="field__label">参数配置</label>
+                <div class="param-config">
+                  <table class="param-table">
+                    <thead>
+                      <tr><th>参数名</th><th>必填</th><th>描述</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="fn-param-rows"></tbody>
+                  </table>
+                  <div class="param-add"><button class="btn btn--default btn--sm" id="fn-param-add" type="button">＋ 添加参数</button></div>
+                  <div class="param-preview">保存为参数说明：<code id="fn-params-preview">（无参数）</code></div>
+                  <div id="fn-params-err" hidden></div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="field__label is-required" for="fn-script">Groovy 脚本</label>
+                <div class="code-block">
+                  <div class="code-block__bar"><span data-icon="terminal"></span>Groovy</div>
+                  <textarea class="code-view code-view--edit" id="fn-script" spellcheck="false" placeholder="// args 数组承接调用参数，返回值即求值结果&#10;return args[0]"></textarea>
+                </div>
+                <div class="field__error" id="fn-script-err" hidden>请输入 Groovy 脚本</div>
+              </div>
             </div>
 
             <div class="fn-detail__footer">
@@ -415,8 +440,9 @@
             </div>
           </section>
 
+          <!-- 未选中 -->
           <section class="fn-detail" id="fn-detail-empty" hidden>
-            <div class="fn-empty" style="padding-top:72px"><p>选择函数查看详情</p></div>
+            <div class="fn-empty fn-empty--wide"><p>选择函数查看详情</p></div>
           </section>
         </div>
       </div>
@@ -713,13 +739,21 @@
     }
   }
 
-  document.querySelectorAll('[data-fn]').forEach(function (item) {
+  function bindItemSelect(item) {
     item.addEventListener('click', function (e) {
       // 行内操作（删除）不触发详情选中
       if (e.target.closest('[data-fn-del]')) return;
       selectItem(item);
     });
-  });
+    // 名称 span 可聚焦，回车/空格同样真实选中并切换详情
+    var name = item.querySelector('.fn-item__name');
+    if (name) {
+      name.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectItem(item); }
+      });
+    }
+  }
+  document.querySelectorAll('[data-fn]').forEach(bindItemSelect);
 
   // 列表可见性 = 页签 + 关键字（与 functionModel.filterFunctions 口径一致：仅名称或描述命中）
   function refreshList() {
@@ -746,8 +780,12 @@
 
   document.querySelectorAll('[data-fntab]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('[data-fntab]').forEach(function (b) { b.classList.remove('is-active'); });
+      document.querySelectorAll('[data-fntab]').forEach(function (b) {
+        b.classList.remove('is-active');
+        b.setAttribute('aria-selected', 'false');
+      });
       btn.classList.add('is-active');
+      btn.setAttribute('aria-selected', 'true');
       activeTab = btn.getAttribute('data-fntab');
       refreshList();
     });
@@ -758,6 +796,13 @@
     searchInput.value = '';
     refreshList();
     searchInput.focus();
+  });
+
+  // 加载失败重试：真实收起错误条并按当前页签/关键字重绘列表
+  document.querySelector('[data-list-retry]').addEventListener('click', function () {
+    document.getElementById('fn-load-error').hidden = true;
+    refreshList();
+    rt.toast('已重新加载函数列表', { type: 'success' });
   });
 
   // 详情头部标识当前自定义函数；列表项被搜索隐藏时以详情名为准
@@ -786,13 +831,21 @@
     confirmFn = onOk;
     confirmBox.hidden = false;
   }
+  function closeConfirm() {
+    confirmBox.hidden = true;
+    confirmFn = null;
+  }
   confirmBox.addEventListener('click', function (e) {
-    if (e.target.closest('[data-confirm-cancel]')) { confirmBox.hidden = true; confirmFn = null; return; }
+    // 点遮罩、关闭按钮、取消都真实收起确认框
+    if (e.target === confirmBox || e.target.closest('[data-confirm-cancel]')) { closeConfirm(); return; }
     if (e.target === document.getElementById('fn-confirm-ok')) {
       confirmBox.hidden = true;
       if (confirmFn) confirmFn();
       confirmFn = null;
     }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !confirmBox.hidden) closeConfirm();
   });
 
   document.addEventListener('click', function (e) {
@@ -857,7 +910,7 @@
         '<td><input class="input param-name" maxlength="50" placeholder="参数名"></td>' +
         '<td><input type="checkbox" class="cell-check param-req" title="必填"></td>' +
         '<td><input class="input param-desc" maxlength="200" placeholder="描述（可选）"></td>' +
-        '<td class="param-table__ops"><span class="op-link param-up" title="上移">↑</span><span class="op-link param-down" title="下移">↓</span><span class="op-link op-link--danger param-del">删除</span></td>';
+        '<td class="param-table__ops"><button class="btn btn--link btn--sm param-up" type="button" title="上移">↑</button><button class="btn btn--link btn--sm param-down" type="button" title="下移">↓</button><button class="btn btn--link btn--sm op-link--danger param-del" type="button">删除</button></td>';
       var nameCell = tr.querySelector('.param-name');
       nameCell.value = row.n;
       nameCell.addEventListener('input', function () { row.n = nameCell.value; refreshParamPreview(); });
@@ -867,8 +920,12 @@
       var descCell = tr.querySelector('.param-desc');
       descCell.value = row.d;
       descCell.addEventListener('input', function () { row.d = descCell.value; refreshParamPreview(); });
-      tr.querySelector('.param-up').addEventListener('click', function () { moveParamRow(i, -1); });
-      tr.querySelector('.param-down').addEventListener('click', function () { moveParamRow(i, 1); });
+      var upBtn = tr.querySelector('.param-up');
+      var downBtn = tr.querySelector('.param-down');
+      upBtn.disabled = i === 0;
+      downBtn.disabled = i === paramRows.length - 1;
+      upBtn.addEventListener('click', function () { moveParamRow(i, -1); });
+      downBtn.addEventListener('click', function () { moveParamRow(i, 1); });
       tr.querySelector('.param-del').addEventListener('click', function () { paramRows.splice(i, 1); renderParamRows(); });
       paramRowsBody.appendChild(tr);
     });
@@ -997,12 +1054,12 @@
     }, 600);
   });
 
-  // 状态标签与灰化同口径同步：启用=已启用（成功色），禁用=已停用（描边）并整行降透明
+  // 状态标签与灰化同口径同步：启用=已启用（success light），禁用=已停用（info/plain）并整行降透明
   function applyListState(li, fn) {
     li.classList.toggle('is-disabled', !fn.enabled);
     var state = li.querySelector('.fn-item__state');
     state.textContent = fn.enabled ? '已启用' : '已停用';
-    state.className = 'tag fn-item__state ' + (fn.enabled ? 'tag--success' : 'tag--outline');
+    state.className = 'tag tag--sm fn-item__state ' + (fn.enabled ? 'tag--success' : 'tag--info-light');
   }
 
   function buildListItem(key, fn) {
@@ -1012,21 +1069,18 @@
     li.setAttribute('data-scope', 'custom');
     li.innerHTML =
       '<div class="fn-item__main">' +
-        '<span class="fn-item__name"></span>' +
-        '<span class="tag tag--success">自定义</span>' +
-        '<span class="tag tag--outline fn-item__scope"></span>' +
-        '<span class="tag fn-item__state"></span>' +
+        '<span class="fn-item__name" tabindex="0"></span>' +
+        '<span class="tag tag--success tag--sm">自定义</span>' +
+        '<span class="tag tag--outline tag--sm fn-item__scope"></span>' +
+        '<span class="tag tag--sm fn-item__state"></span>' +
       '</div>' +
       '<div class="fn-item__meta"></div>' +
-      '<div class="fn-item__acts"><span class="op-link op-link--danger" data-fn-del>删除</span></div>';
+      '<div class="fn-item__acts"><button class="btn btn--link btn--sm op-link--danger" type="button" data-fn-del">删除</button></div>';
     li.querySelector('.fn-item__name').textContent = key;
     li.querySelector('.fn-item__scope').textContent = SCOPE_LABELS[fn.scope];
     li.querySelector('.fn-item__meta').textContent = fn.desc || '';
     applyListState(li, fn);
-    li.addEventListener('click', function (e) {
-      if (e.target.closest('[data-fn-del]')) return;
-      selectItem(li);
-    });
+    bindItemSelect(li);
     return li;
   }
 

@@ -7,115 +7,496 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  /* 弹层与状态行靠 hidden 属性开关，作者样式的 display:flex 会盖过 UA [hidden]，需强制生效 */
   [hidden] { display: none !important; }
 
-  /* 密码强度条：与 PasswordStrengthBar 组件同款结构，仅在有输入时展示 */
-  .pwd-strength { display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%; }
-  .pwd-strength__bar { flex: 1; display: flex; gap: 4px; }
-  .pwd-strength__segment { flex: 1; height: 4px; border-radius: 999px; background: var(--n-200); transition: background-color 0.3s ease; }
-  .pwd-strength__label { font-size: var(--font-size-2xs); font-weight: 500; white-space: nowrap; }
+  /* 对齐 UserFormPage.vue scoped 样式：静态原型内用同名类复刻视觉 */
+  .user-form__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--space-sm);
+    font-size: var(--font-size-sm);
+    color: var(--n-600);
+  }
 
-  /* 编辑态密码行只有「修改密码」链接，撑出与输入框一致的行高 */
-  .pwd-link-row { display: flex; align-items: center; min-height: 32px; }
+  .user-form__breadcrumb a {
+    color: var(--brand-500);
+    font-weight: 500;
+    text-decoration: none;
+  }
 
-  /* 系统角色竖排复选，仅角色名（角色描述无数据源） */
-  .role-opt { display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; font-size: var(--font-size-base); color: var(--n-700); }
+  .user-form__breadcrumb a:hover {
+    color: var(--brand-600);
+  }
+
+  .user-form__breadcrumb [data-icon],
+  .user-form__breadcrumb [data-icon] svg {
+    width: 13px;
+    height: 13px;
+    color: var(--n-400);
+    flex-shrink: 0;
+  }
+
+  .user-form__breadcrumb > :last-child {
+    color: var(--n-900);
+  }
+
+  .user-form__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-xl);
+  }
+
+  .user-form__title {
+    margin: 0 0 var(--space-xs);
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--n-900);
+  }
+
+  .user-form__desc {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--n-500);
+  }
+
+  .user-form__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .user-form__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-xl);
+  }
+
+  .user-form__card {
+    min-width: 0;
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+
+  .user-form__card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--n-100);
+  }
+
+  .user-form__card-title {
+    margin: 0;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--n-900);
+  }
+
+  .user-form__card-subtitle {
+    margin-left: 8px;
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    color: var(--n-500);
+  }
+
+  .user-form__card-body {
+    padding: 24px;
+  }
+
+  .user-form__field {
+    margin-bottom: 20px;
+  }
+
+  .user-form__field:last-child {
+    margin-bottom: 0;
+  }
+
+  .user-form__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 8px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--n-700);
+    line-height: 1.4;
+  }
+
+  .user-form__label .req {
+    color: var(--st-danger);
+    margin-left: 4px;
+  }
+
+  .user-form__hint {
+    width: 100%;
+    margin-top: 6px;
+    font-size: var(--font-size-xs);
+    color: var(--n-500);
+    line-height: 1.5;
+  }
+
+  .user-form__error {
+    margin-top: 6px;
+    font-size: var(--font-size-xs);
+    color: var(--st-danger);
+    line-height: 1.5;
+  }
+
+  .user-form__input-wrap {
+    position: relative;
+  }
+
+  .user-form__input-wrap .input {
+    width: 100%;
+  }
+
+  .user-form__input-wrap--password .input {
+    padding-right: 36px;
+  }
+
+  .user-form__input-wrap--limit .input {
+    padding-right: 52px;
+  }
+
+  .user-form__word-limit {
+    position: absolute;
+    right: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: var(--font-size-xs);
+    color: var(--n-400);
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .user-form__pwd-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--n-400);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .user-form__pwd-toggle:hover {
+    color: var(--n-600);
+  }
+
+  .user-form__pwd-toggle svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .user-form__roles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .user-form__role {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 20px;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    color: var(--n-700);
+    user-select: none;
+  }
+
+  .user-form__role .checkbox {
+    margin-top: 0;
+  }
+
+  .pwd-strength {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    width: 100%;
+  }
+
+  .pwd-strength__bar {
+    flex: 1;
+    display: flex;
+    gap: 4px;
+  }
+
+  .pwd-strength__segment {
+    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--n-200);
+    transition: background-color 0.3s ease;
+  }
+
+  .pwd-strength__label {
+    font-size: var(--font-size-2xs);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* 模拟 Element Plus 按钮外观：用于静态原型对齐实现 */
+  .el-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    padding: 8px 15px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    background: var(--n-0);
+    transition: .1s;
+  }
+
+  .el-btn--default {
+    border-color: var(--n-300);
+    color: var(--n-700);
+    background: var(--n-0);
+  }
+
+  .el-btn--default:hover {
+    color: var(--brand-500);
+    border-color: var(--brand-200);
+    background: var(--brand-50);
+  }
+
+  .el-btn--primary {
+    color: #fff;
+    background: var(--brand-500);
+    border-color: var(--brand-500);
+  }
+
+  .el-btn--primary:hover {
+    background: var(--brand-400);
+    border-color: var(--brand-400);
+  }
+
+  .el-btn.is-link {
+    border-color: transparent;
+    background: transparent;
+    padding: 2px;
+    height: auto;
+    color: var(--n-600);
+  }
+
+  .el-btn.is-link:hover {
+    color: var(--n-900);
+  }
+
+  .el-btn.is-link.el-btn--primary {
+    color: var(--brand-500);
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .el-btn.is-link.el-btn--primary:hover {
+    color: var(--brand-400);
+  }
+
+  .dialog__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 14px 24px 18px;
+    border-top: 1px solid var(--n-100);
+  }
+
+  /* 保存后的本地结果区：无持久化，仅展示本次会话内已写入的记录 */
+  .user-form__saved {
+    margin-bottom: var(--space-lg);
+    padding: 16px 24px;
+    border: 1px solid var(--st-success-border);
+    border-radius: var(--radius-lg);
+    background: var(--st-success-light);
+  }
+  .user-form__saved-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .user-form__saved-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: var(--font-size-sm); font-weight: 600; color: var(--st-success-strong);
+  }
+  .user-form__saved-badge svg { width: 14px; height: 14px; }
+  .user-form__saved-tip { font-size: var(--font-size-xs); color: var(--n-500); }
+  .user-form__saved-table { width: 100%; background: var(--n-0); }
+  .user-form__saved-actions { display: flex; gap: 12px; margin-top: 12px; }
+  .user-form__saved-actions .el-btn { text-decoration: none; }
+  .user-form__pwd-done { margin-left: 8px; font-size: var(--font-size-xs); color: var(--st-success-strong); }
+
+  /* shell.js 注入的顶栏元素在本页补上真实交互所需的样式 */
+  .icon-btn.is-read .dot-badge::after { display: none; }
+  .user-menu-pop {
+    position: fixed; top: 56px; right: 16px; z-index: 200;
+    min-width: 168px; padding: 6px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .user-menu-pop__item {
+    display: block; width: 100%; padding: 8px 10px;
+    border: 0; border-radius: var(--radius-sm);
+    background: transparent; color: var(--n-700);
+    font: inherit; font-size: var(--font-size-sm); text-align: left; cursor: pointer;
+  }
+  .user-menu-pop__item:hover { background: var(--n-50); color: var(--brand-500); }
 </style>
 </head>
 <body data-shell="admin" data-active="users" data-mode="admin">
 
 <main class="content content--admin">
-
-  <div class="breadcrumb">
-    <a href="users.html">用户管理</a>
-    <span data-icon="chevron-right"></span>
-    <span id="crumb-current">新建用户</span>
-  </div>
-
-  <div class="page-head">
-    <div>
-      <h1 class="page-head__title" id="page-title">新建用户</h1>
-      <p class="page-head__desc" id="page-desc">创建平台账号并分配系统级角色</p>
+  <div class="user-form">
+    <div class="user-form__breadcrumb">
+      <a href="users.html">用户管理</a>
+      <span data-icon="chevron-right"></span>
+      <span id="crumb-current">新建用户</span>
     </div>
-    <div class="page-head__actions">
-      <a class="btn btn--text" href="users.html">取消</a>
-      <button class="btn btn--primary" id="btn-save" type="button">保存</button>
+
+    <div class="user-form__head">
+      <div>
+        <h1 class="user-form__title" id="page-title">新建用户</h1>
+        <p class="user-form__desc" id="page-desc">创建平台账号并分配系统级角色</p>
+      </div>
+      <div class="user-form__actions">
+        <button type="button" class="el-btn is-link" id="btn-cancel">取消</button>
+        <button type="button" class="el-btn el-btn--primary" id="btn-save">保存</button>
+      </div>
     </div>
-  </div>
 
-  <div class="card-grid card-grid--2">
-    <div class="card">
-      <div class="card__header"><h3 class="card__title">基本信息</h3></div>
-      <div class="card__body">
-        <div class="field">
-          <label class="field__label" for="f-username">用户名<span class="req">*</span></label>
-          <input class="input" id="f-username" placeholder="登录账号" value="sunhao">
-          <div class="field__hint">3-30 个字符，允许字母、数字、_、-</div>
-          <div class="field__error" id="f-username-error" hidden></div>
-        </div>
-        <div class="field">
-          <label class="field__label" for="f-name">姓名<span class="req">*</span></label>
-          <input class="input" id="f-name" placeholder="请输入姓名" maxlength="50" value="孙浩">
-          <div class="field__error" id="f-name-error" hidden></div>
-        </div>
-        <div class="field">
-          <label class="field__label" for="f-email">邮箱<span class="req">*</span></label>
-          <input class="input" id="f-email" placeholder="请输入邮箱" value="sunhao@robotest.cn">
-          <div class="field__error" id="f-email-error" hidden></div>
-        </div>
+    <section class="user-form__saved" id="saved-panel" hidden aria-live="polite">
+      <div class="user-form__saved-head">
+        <span class="user-form__saved-badge"><span data-icon="check-circle"></span>已保存</span>
+        <span class="user-form__saved-tip">以下记录已写入本次会话的本地列表，刷新页面后重置</span>
+      </div>
+      <table class="table user-form__saved-table">
+        <thead>
+          <tr><th>用户名</th><th>姓名</th><th>邮箱</th><th>系统角色</th><th>密码</th></tr>
+        </thead>
+        <tbody id="saved-tbody"></tbody>
+      </table>
+      <div class="user-form__saved-actions">
+        <a class="el-btn el-btn--primary" href="users.html">返回用户管理</a>
+        <button type="button" class="el-btn el-btn--default" id="btn-create-more">继续新建</button>
+      </div>
+    </section>
 
-        <!-- 密码行两态互斥：新建态为密码框 + 强度条，编辑态（#edit）为修改密码入口 -->
-        <div class="field" id="row-pwd-create">
-          <label class="field__label" for="f-password">密码<span class="req">*</span></label>
-          <input class="input" id="f-password" type="password" placeholder="8-64 字符" value="Passw0rd!">
-          <div class="pwd-strength" id="strength-create">
-            <div class="pwd-strength__bar">
-              <span class="pwd-strength__segment"></span>
-              <span class="pwd-strength__segment"></span>
-              <span class="pwd-strength__segment"></span>
-              <span class="pwd-strength__segment"></span>
+    <form class="user-form__form" novalidate>
+      <div class="user-form__grid">
+        <section class="user-form__card">
+          <header class="user-form__card-head">
+            <h3 class="user-form__card-title">基本信息</h3>
+          </header>
+          <div class="user-form__card-body">
+            <div class="user-form__field">
+              <label class="user-form__label" for="f-username">用户名<span class="req">*</span></label>
+              <div class="user-form__input-wrap">
+                <input class="input" id="f-username" placeholder="登录账号" value="sunhao">
+              </div>
+              <div class="user-form__hint">3-30 个字符，允许字母、数字、_、-</div>
+              <div class="user-form__error" id="f-username-error" hidden></div>
             </div>
-            <span class="pwd-strength__label"></span>
-          </div>
-          <div class="field__error" id="f-password-error" hidden></div>
-        </div>
 
-        <div class="field" id="row-pwd-edit" hidden>
-          <label class="field__label">密码</label>
-          <div class="pwd-link-row">
-            <button class="btn btn--link" id="btn-change-pwd" type="button">修改密码</button>
-          </div>
-        </div>
-      </div>
-    </div>
+            <div class="user-form__field">
+              <label class="user-form__label" for="f-name">姓名<span class="req">*</span></label>
+              <div class="user-form__input-wrap user-form__input-wrap--limit">
+                <input class="input" id="f-name" placeholder="请输入姓名" maxlength="50" value="孙浩">
+                <span class="user-form__word-limit" id="name-limit">2 / 50</span>
+              </div>
+              <div class="user-form__error" id="f-name-error" hidden></div>
+            </div>
 
-    <div class="card">
-      <div class="card__header">
-        <h3 class="card__title">系统角色<span class="card__subtitle">决定全局管理权限</span></h3>
+            <div class="user-form__field">
+              <label class="user-form__label" for="f-email">邮箱<span class="req">*</span></label>
+              <div class="user-form__input-wrap">
+                <input class="input" id="f-email" placeholder="请输入邮箱" value="sunhao@robotest.cn">
+              </div>
+              <div class="user-form__error" id="f-email-error" hidden></div>
+            </div>
+
+            <div class="user-form__field" id="row-pwd-create">
+              <label class="user-form__label" for="f-password">密码<span class="req">*</span></label>
+              <div class="user-form__input-wrap user-form__input-wrap--password">
+                <input class="input" id="f-password" type="password" placeholder="8-64 字符" value="Passw0rd!">
+                <button type="button" class="user-form__pwd-toggle" data-toggle-password="f-password" aria-label="显示密码">
+                  <span data-icon="eye"></span>
+                </button>
+              </div>
+              <div class="pwd-strength" id="strength-create">
+                <div class="pwd-strength__bar">
+                  <span class="pwd-strength__segment"></span>
+                  <span class="pwd-strength__segment"></span>
+                  <span class="pwd-strength__segment"></span>
+                  <span class="pwd-strength__segment"></span>
+                </div>
+                <span class="pwd-strength__label"></span>
+              </div>
+              <div class="user-form__error" id="f-password-error" hidden></div>
+            </div>
+
+            <div class="user-form__field" id="row-pwd-edit" hidden>
+              <label class="user-form__label">密码</label>
+              <div>
+                <button type="button" class="el-btn is-link el-btn--primary" id="btn-change-pwd">修改密码</button>
+                <span class="user-form__pwd-done" id="pwd-done" hidden>本次会话已更新密码</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="user-form__card">
+          <header class="user-form__card-head">
+            <h3 class="user-form__card-title">
+              系统角色<span class="user-form__card-subtitle">决定全局管理权限</span>
+            </h3>
+          </header>
+          <div class="user-form__card-body">
+            <div class="user-form__roles" id="role-options">
+              <label class="user-form__role" data-role="sys"><span class="checkbox"></span><span>系统管理员</span></label>
+              <label class="user-form__role" data-role="ws"><span class="checkbox"></span><span>空间管理员</span></label>
+              <label class="user-form__role" data-role="qa"><span class="checkbox"></span><span>测试工程师</span></label>
+              <label class="user-form__role" data-role="ro"><span class="checkbox"></span><span>只读成员</span></label>
+            </div>
+          </div>
+        </section>
       </div>
-      <div class="card__body">
-        <div class="field" style="margin-bottom:0">
-          <label class="role-opt" data-role="sys"><span class="checkbox"></span><span>系统管理员</span></label>
-          <label class="role-opt" data-role="ws"><span class="checkbox"></span><span>空间管理员</span></label>
-          <label class="role-opt" data-role="qa"><span class="checkbox"></span><span>测试工程师</span></label>
-          <label class="role-opt" data-role="ro"><span class="checkbox"></span><span>只读成员</span></label>
-        </div>
-      </div>
-    </div>
+    </form>
   </div>
-
 </main>
 
-<!-- 修改密码：仅编辑态可达，对应实际页 el-dialog -->
 <div class="dialog-mask" id="pwd-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px">
     <div class="dialog__header">
       <span class="dialog__title">修改密码</span>
-      <button class="dialog__close" data-close="pwd-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+      <button type="button" class="dialog__close" data-close="pwd-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="dialog__body">
-      <input class="input" id="pwd-input" type="password" placeholder="请输入新密码">
+      <div class="user-form__input-wrap user-form__input-wrap--password">
+        <input class="input" id="pwd-input" type="password" placeholder="请输入新密码">
+        <button type="button" class="user-form__pwd-toggle" data-toggle-password="pwd-input" aria-label="显示密码">
+          <span data-icon="eye"></span>
+        </button>
+      </div>
       <div class="pwd-strength" id="strength-dialog">
         <div class="pwd-strength__bar">
           <span class="pwd-strength__segment"></span>
@@ -125,11 +506,11 @@
         </div>
         <span class="pwd-strength__label"></span>
       </div>
-      <div class="field__error" id="pwd-error" hidden></div>
+      <div class="user-form__error" id="pwd-error" hidden></div>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-close="pwd-dialog">取消</button>
-      <button class="btn btn--primary btn--sm" id="pwd-ok" type="button">确定</button>
+      <button type="button" class="el-btn el-btn--default" data-close="pwd-dialog">取消</button>
+      <button type="button" class="el-btn el-btn--primary" id="pwd-ok">确定</button>
     </div>
   </div>
 </div>
@@ -140,13 +521,15 @@
 (function () {
   function byId(id) { return document.getElementById(id); }
 
-  /* ---------------- 密码强度条（同 PasswordStrengthBar 口径） ---------------- */
   var STRENGTH_COLORS = ['var(--st-danger)', 'var(--st-warning)', 'var(--st-success-strong)', 'var(--st-success)'];
   var STRENGTH_LABELS = ['弱', '较弱', '中', '强'];
 
+  // 本次会话内的本地数据，不写入任何 storage，刷新即恢复 demo 初始数据
+  var savedUsers = [];
+  var currentUser = null;
+
   function strengthOf(value) {
     if (!value) return 0;
-    // 不足 8 位时按长度给基础强度，保证输入即有视觉反馈
     if (value.length < 8) return Math.max(1, Math.floor(value.length / 2));
     return [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function (re) { return re.test(value); }).length;
   }
@@ -164,36 +547,86 @@
     label.style.color = STRENGTH_COLORS[s - 1];
   }
 
-  /* ---------------- 新建 / 编辑两态（单页覆盖 /create 与 /:id 两条路由） ---------------- */
+  function renderNameLimit() {
+    var input = byId('f-name');
+    byId('name-limit').textContent = input.value.length + ' / 50';
+  }
+
   var ROLE_ON = { create: ['qa'], edit: ['ws', 'qa'] };
+  var ROLE_NAMES = { sys: '系统管理员', ws: '空间管理员', qa: '测试工程师', ro: '只读成员' };
+
+  function isEditMode() { return location.hash === '#edit'; }
+
+  function selectedRoleKeys() {
+    return Array.prototype.slice.call(document.querySelectorAll('#role-options [data-role]'))
+      .filter(function (row) { return row.querySelector('.checkbox').classList.contains('checkbox--on'); })
+      .map(function (row) { return row.getAttribute('data-role'); });
+  }
+
+  function renderSaved() {
+    var tbody = byId('saved-tbody');
+    tbody.textContent = '';
+    savedUsers.forEach(function (user) {
+      var tr = document.createElement('tr');
+      [
+        user.username,
+        user.name,
+        user.email,
+        user.roles.length ? user.roles.join('、') : '未分配',
+        user.passwordState
+      ].forEach(function (text) {
+        var td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
 
   function applyMode() {
-    var edit = location.hash === '#edit';
+    var edit = isEditMode();
     var title = edit ? '编辑用户' : '新建用户';
     byId('crumb-current').textContent = title;
     byId('page-title').textContent = title;
     byId('page-desc').textContent = edit ? '更新账号信息与系统角色分配' : '创建平台账号并分配系统级角色';
     document.title = title + ' · 系统管理 · RoboTest';
 
+    var data = currentUser || {
+      username: edit ? 'lihua' : 'sunhao',
+      name: edit ? '李华' : '孙浩',
+      email: edit ? 'lihua@robotest.cn' : 'sunhao@robotest.cn'
+    };
     var username = byId('f-username');
-    username.disabled = edit; // 编辑态用户名只读，与实际页 :disabled="isEdit" 一致
-    username.value = edit ? 'lihua' : 'sunhao';
-    byId('f-name').value = edit ? '李华' : '孙浩';
-    byId('f-email').value = edit ? 'lihua@robotest.cn' : 'sunhao@robotest.cn';
+    username.disabled = edit;
+    username.value = data.username;
+    byId('f-name').value = data.name;
+    byId('f-email').value = data.email;
+    byId('f-password').value = edit ? '' : 'Passw0rd!';
 
     byId('row-pwd-create').hidden = edit;
     byId('row-pwd-edit').hidden = !edit;
+    byId('pwd-done').hidden = !(edit && currentUser && currentUser.passwordState === '已更新');
 
-    var on = ROLE_ON[edit ? 'edit' : 'create'];
-    document.querySelectorAll('[data-role]').forEach(function (row) {
+    var on = currentUser ? currentUser.roleKeys : ROLE_ON[edit ? 'edit' : 'create'];
+    document.querySelectorAll('#role-options [data-role]').forEach(function (row) {
       row.querySelector('.checkbox').classList.toggle('checkbox--on', on.indexOf(row.getAttribute('data-role')) >= 0);
     });
 
+    renderNameLimit();
     renderStrength(byId('f-password'), byId('strength-create'));
+    clearAllErrors();
+    if (!byId('saved-panel').hidden) renderSaved();
   }
-  window.addEventListener('hashchange', applyMode);
 
-  /* ---------------- 校验（规则与 UserFormPage rules 同文案，失焦与保存时触发） ---------------- */
+  function clearAllErrors() {
+    ['f-username', 'f-name', 'f-email', 'f-password'].forEach(function (id) {
+      var err = byId(id + '-error');
+      if (err) { err.hidden = true; err.textContent = ''; }
+      var input = byId(id);
+      if (input) input.classList.remove('input--error');
+    });
+  }
+
   var RULES = {
     'f-username': function (v) {
       if (!v) return '请输入用户名';
@@ -219,7 +652,6 @@
   };
 
   function validateField(id) {
-    // 编辑态密码行被隐藏，不参与校验
     if (id === 'f-password' && byId('row-pwd-create').hidden) return true;
     var input = byId(id);
     var msg = RULES[id](input.value.trim());
@@ -233,18 +665,84 @@
     byId(id).addEventListener('blur', function () { validateField(id); });
   });
 
-  byId('btn-save').addEventListener('click', function () {
-    var results = Object.keys(RULES).map(validateField);
-    if (results.indexOf(false) >= 0) return;
-    location.href = 'users.html'; // 保存成功后跳转列表页
+  byId('btn-cancel').addEventListener('click', function () {
+    location.href = 'users.html';
   });
 
-  /* ---------------- 修改密码弹窗与角色勾选 ---------------- */
+  byId('btn-save').addEventListener('click', function () {
+    var results = Object.keys(RULES).map(function (id) { return validateField(id); });
+    if (results.indexOf(false) >= 0) return;
+
+    var edit = isEditMode();
+    var roleKeys = selectedRoleKeys();
+    var record = {
+      username: byId('f-username').value.trim(),
+      name: byId('f-name').value.trim(),
+      email: byId('f-email').value.trim(),
+      roleKeys: roleKeys,
+      roles: roleKeys.map(function (key) { return ROLE_NAMES[key]; }),
+      passwordState: edit ? (currentUser ? currentUser.passwordState : '未修改') : '已设置'
+    };
+
+    if (currentUser && edit) {
+      var index = savedUsers.indexOf(currentUser);
+      if (index >= 0) savedUsers[index] = record;
+      else savedUsers.push(record);
+    } else {
+      savedUsers.push(record);
+    }
+    currentUser = record;
+
+    if (!edit) {
+      location.hash = 'edit';
+      applyMode();
+    }
+    byId('saved-panel').hidden = false;
+    renderSaved();
+  });
+
+  byId('btn-create-more').addEventListener('click', function () {
+    currentUser = null;
+    byId('saved-panel').hidden = true;
+    byId('pwd-done').hidden = true;
+    location.hash = '';
+    applyMode();
+    byId('f-username').focus();
+  });
+
+  function openPwdDialog() {
+    byId('pwd-error').hidden = true;
+    byId('pwd-input').value = '';
+    renderStrength(byId('pwd-input'), byId('strength-dialog'));
+    byId('pwd-dialog').hidden = false;
+    byId('pwd-input').focus();
+  }
+
+  function closePwdDialog() {
+    byId('pwd-dialog').hidden = true;
+    byId('pwd-error').hidden = true;
+    byId('pwd-input').value = '';
+    renderStrength(byId('pwd-input'), byId('strength-dialog'));
+    if (byId('btn-change-pwd').offsetParent !== null) byId('btn-change-pwd').focus();
+  }
+
   document.addEventListener('click', function (e) {
     var target;
 
     if ((target = e.target.closest('[data-close]'))) {
       byId(target.getAttribute('data-close')).hidden = true;
+      return;
+    }
+
+    if ((target = e.target.closest('[data-toggle-password]'))) {
+      var input = byId(target.getAttribute('data-toggle-password'));
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      target.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+      target.innerHTML = show
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.58 10.58a2 2 0 0 0 2.83 2.83"/><path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c7 0 10 7 10 7a17.3 17.3 0 0 1-4.13 4.82"/><path d="M6.61 6.61C4.62 7.96 3 10 2 12c0 0 3 7 10 7a10.94 10.94 0 0 0 5.39-1.39"/></svg>'
+        : '<span data-icon="eye"></span>';
+      if (!show && window.RTIcons) window.RTIcons.hydrate(target);
       return;
     }
 
@@ -254,28 +752,32 @@
     }
 
     if (e.target.closest('#btn-change-pwd')) {
-      byId('pwd-error').hidden = true;
-      renderStrength(byId('pwd-input'), byId('strength-dialog'));
-      byId('pwd-dialog').hidden = false;
+      openPwdDialog();
     }
   });
 
   byId('pwd-ok').addEventListener('click', function () {
-    var input = byId('pwd-input');
-    if (!input.value) {
+    var value = byId('pwd-input').value;
+    if (!value) {
       byId('pwd-error').textContent = '请输入新密码';
       byId('pwd-error').hidden = false;
       return;
     }
-    byId('pwd-dialog').hidden = true;
-    input.value = '';
-    renderStrength(input, byId('strength-dialog'));
+    if (value.length < 8 || value.length > 64) {
+      byId('pwd-error').textContent = '密码长度为 8-64 个字符';
+      byId('pwd-error').hidden = false;
+      return;
+    }
+    if (currentUser) currentUser.passwordState = '已更新';
+    closePwdDialog();
+    byId('pwd-done').hidden = false;
+    if (!byId('saved-panel').hidden) renderSaved();
   });
 
-  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
-    mask.addEventListener('click', function (e) {
-      if (e.target === mask) mask.hidden = true;
-    });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!byId('pwd-dialog').hidden) { closePwdDialog(); return; }
+    hideUserMenu();
   });
 
   byId('f-password').addEventListener('input', function () {
@@ -284,7 +786,82 @@
   byId('pwd-input').addEventListener('input', function () {
     renderStrength(this, byId('strength-dialog'));
   });
+  byId('f-name').addEventListener('input', renderNameLimit);
 
+  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+
+  /* 顶栏由 shell.js 注入：真链接已有跳转，这里补齐仅剩的 3 个 cursor:pointer 元素 */
+  function openDemoWindow(name, title, rows, width, height) {
+    var win = window.open('', name, 'width=' + width + ',height=' + height);
+    if (!win) return;
+    var body = rows.map(function (row) {
+      return '<div class="row"><b>' + row[0] + '</b><span>' + row[1] + '</span></div>';
+    }).join('');
+    win.document.write(
+      '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>' + title + '</title>' +
+      '<style>body{margin:0;padding:20px;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#303133}' +
+      'h1{font-size:16px;margin:0 0 16px}.row{padding:12px;border:1px solid #e4e7ed;border-radius:6px;margin-bottom:10px}' +
+      '.row b{display:block;margin-bottom:2px}.row span{color:#606266;font-size:12px}' +
+      '.close{margin-top:8px;padding:7px 15px;border:1px solid #dcdfe6;border-radius:4px;background:#fff;cursor:pointer}' +
+      '</style></head><body><h1>' + title + '</h1>' + body +
+      '<button type="button" class="close" onclick="window.close()">关闭窗口</button></body></html>'
+    );
+    win.document.close();
+  }
+
+  var msgBtn = Array.prototype.slice.call(document.querySelectorAll('.icon-btn'))
+    .filter(function (el) { return el.querySelector('.dot-badge'); })[0];
+  if (msgBtn) {
+    msgBtn.addEventListener('click', function () {
+      msgBtn.classList.add('is-read');
+      openDemoWindow('rt-messages', '消息中心（演示窗口）', [
+        ['系统通知', '李华的用户资料已更新 · 2 分钟前'],
+        ['权限变更', '你的空间管理员角色已生效 · 昨天 18:20'],
+        ['测试提醒', '定时任务「核心链路冒烟」执行完成 · 3 天前']
+      ], 420, 480);
+    });
+  }
+
+  var topbarUser = document.querySelector('.topbar__user');
+  var userMenu = null;
+  function hideUserMenu() {
+    if (userMenu) { userMenu.remove(); userMenu = null; }
+  }
+  if (topbarUser) {
+    topbarUser.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (userMenu) { hideUserMenu(); return; }
+      userMenu = document.createElement('div');
+      userMenu.className = 'user-menu-pop';
+      userMenu.innerHTML =
+        '<button type="button" class="user-menu-pop__item" data-user-menu="profile">个人设置</button>' +
+        '<button type="button" class="user-menu-pop__item" data-user-menu="logout">退出登录</button>';
+      document.body.appendChild(userMenu);
+      userMenu.querySelector('[data-user-menu="profile"]').addEventListener('click', function () {
+        hideUserMenu();
+        openDemoWindow('rt-profile', '个人设置（演示窗口）', [
+          ['账号', 'zhangming'], ['姓名', '张明'], ['所属空间', '质量中台']
+        ], 380, 320);
+      });
+      userMenu.querySelector('[data-user-menu="logout"]').addEventListener('click', function () {
+        location.href = '../auth/login.html';
+      });
+    });
+  }
+  document.addEventListener('click', function (e) {
+    if (userMenu && !e.target.closest('.user-menu-pop') && !e.target.closest('.topbar__user')) hideUserMenu();
+  });
+
+  var adminLogo = document.querySelector('.topbar__logo');
+  if (adminLogo && adminLogo.tagName === 'DIV') {
+    adminLogo.addEventListener('click', function () { location.href = 'dashboard.html'; });
+  }
+
+  window.addEventListener('hashchange', applyMode);
   applyMode();
 })();
 </script>

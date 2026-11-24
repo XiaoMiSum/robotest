@@ -8,57 +8,115 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 弹层、折叠体与场景面板靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
   [hidden] { display: none !important; }
 
-  /* 静态稿用场景切换演示类型策略分发，实际页面由任务状态与类型驱动 */
-  .scene-switcher { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; padding: 8px 12px; background: var(--brand-50); border: 1px solid var(--brand-100); border-radius: var(--radius-md); }
   .task-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: var(--font-size-sm); }
+  .task-breadcrumb__link { color: var(--brand-500); text-decoration: none; cursor: pointer; }
+  .task-breadcrumb__link:hover { color: var(--brand-600); }
   .task-breadcrumb__sep { color: var(--n-400); }
+  .task-breadcrumb__current { max-width: min(560px, 60vw); overflow: hidden; color: var(--n-500); text-overflow: ellipsis; white-space: nowrap; }
+
   .task-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .task-head__main { min-width: 0; flex: 1; }
   .task-head__title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .task-head__title { margin: 0; color: var(--n-900); font-size: var(--font-size-2xl); font-weight: 650; }
+  .task-head__title { margin: 0; color: var(--n-900); font-size: var(--font-size-2xl); font-weight: 650; letter-spacing: -0.01em; }
   .task-head__meta { margin: 6px 0 0; color: var(--n-500); font-size: var(--font-size-sm); }
   .task-head__actions { display: flex; gap: 8px; flex-shrink: 0; }
-  .assistant-entry { display: flex; align-items: center; gap: 4px; margin: -6px 0 14px; color: var(--n-500); font-size: var(--font-size-xs); }
+
+  .btn--text-warning { color: var(--st-warning); }
+  .btn--text-warning:hover { background: var(--st-warning-light, #fff7e6); color: var(--st-warning); }
+  .btn--text-primary { color: var(--brand-500); }
+  .btn--text-primary:hover { background: var(--brand-50); color: var(--brand-600); }
+  .btn--danger-plain { background: var(--st-danger-light, #fff1f0); border-color: var(--st-danger-border, #ffccc7); color: var(--st-danger); }
+  .btn--danger-plain:hover { background: var(--st-danger); border-color: var(--st-danger); color: #fff; }
+  .btn--link.is-copied { color: var(--st-success); }
+
   .task-section { margin-bottom: 16px; }
+  .task-section__title { margin: 0 0 8px; color: var(--n-900); font-size: var(--font-size-lg); font-weight: 650; }
 
-  .review-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
-  .review-head__main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-  .section-title { margin: 0; color: var(--n-900); font-size: var(--font-size-lg); font-weight: 650; }
+  .detail-skeleton, .detail-state { padding: 16px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .skeleton-line { height: 14px; margin-bottom: 12px; background: linear-gradient(90deg, var(--n-100) 25%, var(--n-50) 37%, var(--n-100) 63%); background-size: 400% 100%; border-radius: 4px; animation: sk 1.4s ease infinite; }
+  .skeleton-line:last-child { margin-bottom: 0; width: 60%; }
+  @keyframes sk { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
-  .review-card__body { min-height: 72px; color: var(--n-700); font-size: var(--font-size-sm); line-height: 1.6; }
-  .review-card__body p { margin: 8px 0; }
-  .review-fields { margin: 8px 0; }
-  .review-field { display: flex; gap: 12px; padding: 4px 0; }
-  .review-field dt { flex: 0 0 96px; color: var(--n-500); }
-  .review-field dd { flex: 1; margin: 0; }
-  .review-sources { padding-top: 8px; border-top: 1px solid var(--n-200); }
-  .review-source { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0; }
-  .review-source__title { color: var(--n-900); font-weight: 600; }
-  .review-source__quote { color: var(--n-500); }
+  .result-block { padding: 40px 16px; text-align: center; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .result-block__icon { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin-bottom: 12px; border-radius: 50%; font-size: 28px; font-weight: 700; }
+  .result-block__icon--warning { background: var(--st-warning-light, #fff7e6); color: var(--st-warning); }
+  .result-block__icon--info { background: var(--n-100); color: var(--n-500); }
+  .result-block__title { margin: 0; color: var(--n-900); font-size: var(--font-size-lg); font-weight: 650; }
+  .result-block__sub { margin: 8px 0 0; color: var(--n-500); font-size: var(--font-size-sm); }
+  .result-block__extra { margin-top: 16px; }
 
-  .compare-view { margin: 8px 0 12px; }
-  .compare-head, .compare-row { display: grid; grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr) minmax(0, 2fr); column-gap: 8px; }
-  .compare-head { font-size: var(--font-size-xs); color: var(--n-500); }
-  .compare-head span:last-child { color: var(--brand-500); }
-  .compare-row { padding: 4px 0; border-bottom: 1px solid var(--n-200); font-size: var(--font-size-sm); word-break: break-word; }
-  .compare-row--changed { padding-left: 8px; background: var(--st-success-light); box-shadow: inset 3px 0 0 var(--st-success); }
-  .compare-row__label { color: var(--n-500); font-weight: 600; }
-  .compare-row__existing { color: var(--n-500); }
-  .compare-fold { margin-top: 4px; }
+  .execution-panel { padding: 16px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .execution-panel__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .execution-panel__seq { color: var(--n-500); font-size: var(--font-size-sm); }
+  .execution-panel__metrics { color: var(--n-700); font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
+  .execution-panel__terminate { margin: 8px 0 0; color: var(--st-danger); font-size: var(--font-size-sm); }
 
-  .case-steps { margin: 8px 0; padding-left: 20px; }
-  .case-step { margin-bottom: 4px; }
+  .plan-timeline { display: flex; flex-wrap: wrap; gap: 16px; margin: 0; padding: 16px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); list-style: none; }
+  .plan-timeline__item { display: inline-flex; align-items: center; gap: 6px; color: var(--n-400); font-size: var(--font-size-sm); }
+  .plan-timeline__dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 2px solid currentcolor; border-radius: 50%; font-size: 11px; line-height: 1; }
+  .plan-timeline__item--done { color: var(--st-success); }
+  .plan-timeline__item--done .plan-timeline__dot { background: var(--st-success); border-color: var(--st-success); color: #fff; }
+  .plan-timeline__item--current { color: var(--brand-500); }
+  .plan-timeline__item--current .plan-timeline__dot { background: var(--brand-500); border-color: var(--brand-500); }
+  .plan-timeline__item--aborted { color: var(--st-danger); }
+  .plan-timeline__item--aborted .plan-timeline__dot { background: var(--st-danger); border-color: var(--st-danger); color: #fff; }
 
-  .collapse-item { border-bottom: 1px solid var(--n-200); }
-  .collapse-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 10px 0; background: none; border: none; cursor: pointer; font-size: var(--font-size-sm); text-align: left; }
-  .collapse-head__kind { color: var(--n-500); font-size: var(--font-size-xs); }
-  .collapse-head__name { flex: 1; min-width: 160px; overflow: hidden; color: var(--n-900); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  .collapse-head__note { margin-left: auto; color: var(--n-500); }
-  .collapse-body { padding: 4px 0 14px; }
-  .collapse-body__loading { color: var(--n-500); font-size: var(--font-size-sm); }
+  .trace-events { padding: 8px 16px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .trace-events__head { display: flex; align-items: center; gap: 8px; }
+  .trace-events__count { color: var(--n-500); font-size: var(--font-size-xs); }
+  .trace-events__body { margin-top: 8px; padding-bottom: 8px; }
+  .trace-events__list { margin: 0; padding: 0; list-style: none; }
+  .trace-events__item { padding: 6px 0; border-bottom: 1px solid var(--n-100); font-size: var(--font-size-sm); }
+  .trace-events__row { display: flex; align-items: baseline; gap: 8px; }
+  .trace-events__seq { flex-shrink: 0; color: var(--n-400); font-variant-numeric: tabular-nums; }
+  .trace-events__summary { flex: 1; min-width: 0; color: var(--n-700); overflow-wrap: anywhere; }
+  .trace-events__time { flex-shrink: 0; color: var(--n-400); font-size: var(--font-size-xs); }
+  .trace-events__detail { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding: 8px; background: var(--n-50); border-radius: var(--radius-sm); }
+  .trace-events__section-head { display: flex; align-items: center; justify-content: space-between; }
+  .trace-events__section-title { color: var(--n-700); font-weight: 600; font-size: var(--font-size-sm); }
+  .trace-events__json { margin-top: 6px; padding: 8px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-sm); color: var(--n-700); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .trace-events__empty { padding: 4px 0; color: var(--n-400); font-size: var(--font-size-sm); }
+  .trace-events__more { display: flex; justify-content: center; padding-top: 8px; }
 
+  .proposal-review { padding: 16px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .proposal-review__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+  .proposal-review__head-main { display: flex; align-items: baseline; gap: 8px; }
+  .proposal-review__title { margin: 0; color: var(--n-900); font-size: var(--font-size-lg); font-weight: 650; }
+  .proposal-review__processed, .proposal-review__kind, .proposal-review__meta, .proposal-review__evidence { color: var(--n-500); font-size: var(--font-size-sm); }
+  .proposal-review__version { display: flex; align-items: center; gap: 6px; }
+  .proposal-review__nav { display: flex; align-items: center; justify-content: center; gap: 16px; padding-bottom: 8px; }
+  .proposal-review__nav-pos { color: var(--n-500); font-size: var(--font-size-sm); }
+  .proposal-review__item { border-top: 1px solid var(--n-200); }
+  .proposal-review__item-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+  .proposal-review__name { flex: 1; min-width: 160px; overflow: hidden; color: var(--n-900); font-size: var(--font-size-sm); font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+  .proposal-review__item-body { min-height: 72px; }
+  .proposal-review__note { margin: 0 0 8px; color: var(--st-danger); font-size: var(--font-size-sm); }
+  .proposal-review__desc-text { margin: 8px 0; color: var(--n-700); font-size: var(--font-size-sm); line-height: 1.6; }
+  .proposal-review__fields { margin: 0 0 8px; }
+  .proposal-review__field { display: flex; gap: 8px; padding: 4px 0; font-size: var(--font-size-sm); }
+  .proposal-review__field dt { flex: 0 0 96px; color: var(--n-500); }
+  .proposal-review__field dd { flex: 1; margin: 0; color: var(--n-700); }
+  .proposal-review__sources { padding-top: 8px; border-top: 1px solid var(--n-200); }
+  .proposal-review__source-title { margin-right: 6px; color: var(--n-900); font-size: var(--font-size-sm); }
+  .proposal-review__source-quote { color: var(--n-500); font-size: var(--font-size-sm); }
+
+  .compare-view { margin: 6px 0 10px; }
+  .compare-view__head, .compare-view__row { display: grid; grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr) minmax(0, 2fr); column-gap: 8px; }
+  .compare-view__head { font-size: var(--font-size-xs); }
+  .compare-view__head-cell { padding-bottom: 4px; color: var(--n-500); }
+  .compare-view__head-cell--new { color: var(--brand-500); }
+  .compare-view__row { padding: 4px 0; border-bottom: 1px solid var(--n-200); font-size: var(--font-size-sm); }
+  .compare-view__row--changed { padding-left: 8px; background: var(--st-success-light, #f0faf3); box-shadow: inset 3px 0 0 var(--st-success); }
+  .compare-view__label, .compare-view__existing, .compare-view__suggested { line-height: 1.5; word-break: break-word; }
+  .compare-view__label { color: var(--n-500); font-weight: 600; }
+  .compare-view__existing { color: var(--n-500); }
+  .compare-view__suggested { color: var(--n-900); }
+  .compare-view__fold { margin-top: 4px; }
+
+  .empty-block { padding: 24px 16px; text-align: center; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .empty-block__text { margin: 0 0 12px; color: var(--n-500); font-size: var(--font-size-sm); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -69,99 +127,145 @@
 
     <div class="split__main">
       <nav class="task-breadcrumb" aria-label="面包屑">
-        <a href="ai-task-center.html">AI 任务中心</a>
+        <a class="task-breadcrumb__link" href="ai-task-center.html">AI 任务中心</a>
         <span class="task-breadcrumb__sep" aria-hidden="true">›</span>
         <span class="task-breadcrumb__current" id="dt-breadcrumb">任务详情</span>
       </nav>
 
-      <div class="scene-switcher">
-        <span class="muted">演示场景</span>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="import">需求导入 · 待采纳</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="readonly">用例优化 · 待采纳</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="plan">计划排序 · 待采纳</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="running">执行中</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="aborted">已终止</button>
-        <button class="btn btn--default btn--sm" type="button" data-scene-btn="closed">已结束 · 只读回看</button>
+      <div id="dt-not-found" class="result-block" hidden>
+        <div class="result-block__icon result-block__icon--info">?</div>
+        <h2 class="result-block__title">任务不存在或无权访问</h2>
+        <p class="result-block__sub">任务可能已被删除，或当前账号无权查看</p>
+        <div class="result-block__extra"><a class="btn btn--primary" href="ai-task-center.html">返回任务中心</a></div>
       </div>
 
-      <header class="task-head">
-        <div>
-          <div class="task-head__title-row">
-            <h1 class="task-head__title" id="dt-title">任务详情</h1>
-            <span class="tag tag--sm" id="dt-status">待采纳</span>
-            <span class="tag tag--sm" id="dt-adoption" hidden>部分采纳</span>
-          </div>
-          <p class="task-head__meta" id="dt-meta">类型 — · 发起人 — · 发起时间 —</p>
+      <div id="dt-loading" class="detail-skeleton" hidden>
+        <div class="skeleton-line" style="width:88%"></div>
+        <div class="skeleton-line" style="width:94%"></div>
+        <div class="skeleton-line" style="width:72%"></div>
+        <div class="skeleton-line" style="width:90%"></div>
+        <div class="skeleton-line" style="width:66%"></div>
+        <div class="skeleton-line" style="width:84%"></div>
+        <div class="skeleton-line" style="width:78%"></div>
+        <div class="skeleton-line"></div>
+      </div>
+
+      <div id="dt-load-error" class="detail-state" hidden>
+        <div class="alert alert--danger" style="margin:0">
+          <span id="dt-load-error-text">加载任务详情失败</span>
+          <button class="btn btn--danger-plain btn--sm" type="button" id="dt-retry" style="margin-left:12px">重试</button>
         </div>
-        <div class="task-head__actions" id="dt-actions"></div>
-      </header>
+      </div>
 
-      <div class="assistant-entry"><span data-icon="sparkle"></span><span>AI 助手入口示意：</span><a href="ai-task-center.html">前往 AI 任务中心</a></div>
+      <div id="dt-ai-unavailable" class="result-block" hidden>
+        <div class="result-block__icon result-block__icon--warning">!</div>
+        <h2 class="result-block__title">AI 能力未启用 / 未配置模型</h2>
+        <p class="result-block__sub">开启 AI 总开关并配置可用模型后可继续使用</p>
+      </div>
 
-      <section class="card task-section" id="dt-execution">
-        <div class="card__header"><span class="card__title">执行</span><span class="card__subtitle" id="dt-exec-seq">第 1 次执行</span></div>
-        <div class="card__body">
-          <div class="flex-center flex-gap-md">
-            <span class="tag tag--sm" id="dt-exec-status">已成功</span>
-            <span class="muted" id="dt-exec-metric">已完成 8 / 8 步 · 预算消耗 80%</span>
-          </div>
-          <div class="progress" style="margin-top:10px">
-            <div class="progress__track"><div class="progress__fill" id="dt-exec-fill" style="width:100%"></div></div>
-            <span class="progress__text" id="dt-exec-percent">100%</span>
-          </div>
-          <div class="alert alert--danger" id="dt-terminate" style="margin-top:10px" hidden></div>
-          <p class="muted" id="dt-poll-note" style="margin:10px 0 0" hidden></p>
-        </div>
-      </section>
-
-      <section class="card task-section" id="dt-plan-section">
-        <div class="card__header"><span class="card__title">计划步骤</span></div>
-        <div class="card__body"><ol class="timeline" id="dt-plan-list"></ol></div>
-      </section>
-
-      <section class="card task-section" id="dt-trace-section">
-        <div class="card__header"><span class="card__title">执行轨迹</span></div>
-        <div class="card__body"><ol class="timeline" id="dt-trace-list"></ol></div>
-      </section>
-
-      <section class="card task-section" id="dt-proposal-section" hidden>
-        <div class="card__body adoption-result">
-          <header class="review-head">
-            <div class="review-head__main">
-              <h2 class="section-title">提案与审核结果</h2>
-              <span class="tag tag--sm" id="dt-proposal-result" hidden>部分采纳</span>
+      <div id="dt-content" hidden>
+        <header class="task-head">
+          <div class="task-head__main">
+            <div class="task-head__title-row">
+              <h1 class="task-head__title" id="dt-title">任务详情</h1>
+              <span class="tag tag--sm" id="dt-status">执行中</span>
+              <span class="tag tag--sm" id="dt-adoption" hidden>部分采纳</span>
             </div>
-            <div class="review-head__main">
-              <button class="btn btn--link btn--sm" type="button" id="dt-proposal-prev">上一个</button>
-              <span class="muted" id="dt-proposal-pos"></span>
-              <button class="btn btn--link btn--sm" type="button" id="dt-proposal-next">下一个</button>
+            <p class="task-head__meta" id="dt-meta"></p>
+          </div>
+          <div class="task-head__actions" id="dt-actions"></div>
+        </header>
+
+        <section class="task-section">
+          <div class="execution-panel">
+            <div class="execution-panel__head">
+              <span class="tag tag--sm" id="dt-exec-task-status">执行中</span>
+              <span class="tag tag--sm" id="dt-exec-badge" hidden>已成功</span>
+              <span class="execution-panel__seq" id="dt-exec-seq" hidden></span>
+              <span class="execution-panel__metrics" id="dt-exec-metrics"></span>
             </div>
-          </header>
-          <p class="muted" id="dt-proposal-hint" style="margin:0 0 12px">只读查看提案产物与审核结果，不提供审核操作</p>
-          <div class="review-card" id="dt-proposal-card">
-            <div class="review-head" style="margin-bottom:8px">
-              <div class="review-head__main">
-                <span class="muted" id="dt-proposal-kind"></span>
-                <strong id="dt-proposal-title"></strong>
-                <span class="tag tag--sm" id="dt-proposal-status"></span>
+            <p class="execution-panel__terminate" id="dt-terminate" hidden></p>
+          </div>
+        </section>
+
+        <section class="task-section" id="dt-plan-section" hidden>
+          <h2 class="task-section__title">计划步骤</h2>
+          <ol class="plan-timeline" id="dt-plan-list"></ol>
+        </section>
+
+        <section class="task-section" id="dt-trace-section" hidden>
+          <div class="trace-events">
+            <div class="trace-events__head">
+              <button class="btn btn--link" type="button" id="dt-trace-toggle">展开轨迹 ▾</button>
+              <button class="btn btn--text btn--sm" type="button" id="dt-trace-refresh" hidden>刷新</button>
+              <span class="trace-events__count" id="dt-trace-count" hidden></span>
+            </div>
+            <div class="trace-events__body" id="dt-trace-body" hidden>
+              <ul class="trace-events__list" id="dt-trace-list"></ul>
+              <div class="trace-events__more" id="dt-trace-more" hidden>
+                <button class="btn btn--default btn--sm" type="button" id="dt-trace-load-more">加载更多</button>
               </div>
             </div>
-            <p class="muted" id="dt-proposal-note" hidden></p>
-            <div class="review-card__body" id="dt-proposal-detail"></div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section class="task-section" id="dt-proposal-section" hidden>
+          <div class="proposal-review">
+            <header class="proposal-review__head">
+              <div class="proposal-review__head-main">
+                <h2 class="proposal-review__title" id="dt-proposal-title">提案与审核结果</h2>
+                <span class="proposal-review__processed" id="dt-proposal-processed"></span>
+              </div>
+              <div class="proposal-review__version" id="dt-proposal-version" hidden>
+                <span class="proposal-review__evidence">版本</span>
+                <span class="proposal-review__evidence" id="dt-proposal-version-value"></span>
+              </div>
+            </header>
+            <div class="proposal-review__nav" id="dt-proposal-nav" hidden>
+              <button class="btn btn--link" type="button" id="dt-proposal-prev">上一个</button>
+              <span class="proposal-review__nav-pos" id="dt-proposal-pos"></span>
+              <button class="btn btn--link" type="button" id="dt-proposal-next">下一个</button>
+            </div>
+            <div class="proposal-review__item" id="dt-proposal-card">
+              <div class="proposal-review__item-head">
+                <span class="proposal-review__kind" id="dt-proposal-kind"></span>
+                <span class="proposal-review__name" id="dt-proposal-name"></span>
+                <span class="tag tag--sm" id="dt-proposal-status"></span>
+              </div>
+              <div class="proposal-review__item-body">
+                <p class="proposal-review__note" id="dt-proposal-note" hidden></p>
+                <p class="proposal-review__desc-text" id="dt-proposal-desc" hidden></p>
+                <div id="dt-proposal-compare"></div>
+                <dl class="proposal-review__fields" id="dt-proposal-fields"></dl>
+                <div class="proposal-review__sources" id="dt-proposal-sources" hidden></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="task-section" id="dt-empty-proposals" hidden>
+          <div class="empty-block">
+            <p class="empty-block__text">任务完成，但没有需要审核的提案</p>
+            <a class="btn btn--default" href="ai-task-center.html">返回任务中心</a>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
 </main>
 
 <div class="dialog-mask" id="dt-confirm-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px">
-    <div class="dialog__header"><span class="dialog__title" id="dt-confirm-title">确认终止执行</span><button class="dialog__close" data-close="dt-confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="dialog__body"><p id="dt-confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__header">
+      <span class="dialog__title">确认终止执行</span>
+      <button class="dialog__close" data-close="dt-confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p style="margin:0;color:var(--n-600)">终止后本任务停止执行，不产生任何落库数据，可再次执行。</p>
+    </div>
     <div class="dialog__footer">
-      <button class="btn btn--default" type="button" data-close="dt-confirm-dialog">取消</button>
-      <button class="btn btn--danger" type="button" id="dt-confirm-ok">确认</button>
+      <button class="btn btn--default" type="button" data-close="dt-confirm-dialog">不终止</button>
+      <button class="btn btn--primary" type="button" id="dt-confirm-ok">终止执行</button>
     </div>
   </div>
 </div>
@@ -173,245 +277,513 @@
 (function () {
   function byId(id) { return document.getElementById(id); }
   function esc(text) {
-    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
   }
 
-  var currentScene = 'import';
-  var proposalIndex = 0;
+  var TASK_STATUS_META = {
+    running: { label: '执行中', cls: 'tag--primary' },
+    proposals_ready: { label: '待采纳', cls: 'tag--warning' },
+    closed: { label: '已结束', cls: 'tag--info' },
+    aborted: { label: '已终止', cls: 'tag--danger' }
+  };
+  var EXEC_STATUS_META = {
+    running: { label: '执行中', cls: 'tag--primary' },
+    waiting_confirmation: { label: '挂起', cls: 'tag--info' },
+    succeeded: { label: '已成功', cls: 'tag--success' },
+    aborted: { label: '已终止', cls: 'tag--danger' }
+  };
+  var TYPE_META = {
+    requirement_import: '需求导入',
+    case_optimize: '用例优化',
+    mindmap_case_generation: '脑图用例生成',
+    plan_order: '计划排序',
+    review_case_review: 'AI 评审',
+    assistant_parse: '助手解析',
+    vector_reindex: '向量索引重建'
+  };
+  var PROPOSAL_KIND = {
+    requirement_suggestion: '需求建议',
+    case_optimize_suggestion: '用例优化',
+    order_suggestion: '排序建议',
+    intent_preview: '意图预览',
+    answer: '回答'
+  };
+  var CONFIRM_META = {
+    pending: { label: '待确认', cls: 'tag--warning' },
+    not_applicable: { label: '只读建议', cls: 'tag--info' },
+    adopted: { label: '已采纳', cls: 'tag--success' },
+    adopted_edited: { label: '已采纳', cls: 'tag--success' },
+    rejected: { label: '已驳回', cls: 'tag--info' }
+  };
 
-  function renderProposal() {
-    var scene = scenes[currentScene] || scenes.import;
-    var proposals = scene.proposals || [];
+  var scenes = {
+    running: {
+      taskId: 'task-running-001',
+      title: '支付回调幂等用例优化',
+      type: 'case_optimize',
+      status: 'running',
+      submitter: '李华',
+      createdAt: '2026-11-20T09:42:00Z',
+      execution: {
+        seq: 2, status: 'running', steps: 3, budget: { maxSteps: 5, maxDurationSeconds: 600, maxTokens: 20000, maxCost: 2 },
+        consumed: { durationMs: 52000, tokensIn: 3200, tokensOut: 1400, cost: 0.42 }, terminateReason: null
+      },
+      plan: ['读取脑图节点', '分析幂等边界', '生成节点优化建议', '写入提案清单', '等待人工确认'],
+      trace: [
+        { seq: 1, eventType: 'plan', summary: '生成 5 步执行计划', createdAt: '2026-11-20T09:42:05Z' },
+        { seq: 2, eventType: 'ai_decision', summary: '按回调链路分析边界', createdAt: '2026-11-20T09:42:14Z', detail: { rawRequest: { model: 'gpt-4.1', promptScene: 'case_optimize', context: { taskType: 'case_optimize', input: '支付回调幂等', feedback: null }, tools: ['mindmap.readNodes'] }, rawResponse: { content: '{"focus":"idempotency"}', toolCalls: [], finishReason: 'stop', usage: { totalTokens: 1200 } } } },
+        { seq: 3, eventType: 'tool_call', summary: 'mindmap.readNodes', createdAt: '2026-11-20T09:42:19Z' },
+        { seq: 4, eventType: 'tool_result', summary: '返回 3 个用例节点', createdAt: '2026-11-20T09:42:20Z' }
+      ],
+      proposals: []
+    },
+    proposals_ready: {
+      taskId: 'task-ready-001',
+      title: '优惠券规则需求文档导入',
+      type: 'requirement_import',
+      status: 'proposals_ready',
+      submitter: '陈晓',
+      createdAt: '2026-11-20T10:12:00Z',
+      execution: {
+        seq: 1, status: 'succeeded', steps: 8, budget: { maxSteps: 8, maxDurationSeconds: 600, maxTokens: 20000, maxCost: 2 },
+        consumed: { durationMs: 83000, tokensIn: 8200, tokensOut: 3100, cost: 0.93 }, terminateReason: null
+      },
+      plan: ['解析需求文档', '抽取候选需求', '生成需求建议', '等待人工确认'],
+      trace: [
+        { seq: 1, eventType: 'plan', summary: '生成 4 步执行计划', createdAt: '2026-11-20T10:12:03Z' },
+        { seq: 2, eventType: 'ai_decision', summary: '按段落拆分需求条目', createdAt: '2026-11-20T10:12:11Z', detail: { rawRequest: { model: 'gpt-4.1', promptScene: 'requirement_import', context: { taskType: 'requirement_import', input: '优惠券规则', feedback: null }, tools: ['document.parse'] }, rawResponse: { content: '{"items":3}', toolCalls: [], finishReason: 'stop', usage: { totalTokens: 2100 } } } },
+        { seq: 3, eventType: 'tool_call', summary: 'document.parse', createdAt: '2026-11-20T10:12:15Z' },
+        { seq: 4, eventType: 'proposal_emitted', summary: '需求建议 ×3', createdAt: '2026-11-20T10:12:22Z' },
+        { seq: 5, eventType: 'status_change', summary: 'running → proposals_ready', createdAt: '2026-11-20T10:12:23Z' }
+      ],
+      proposals: [
+        { key: 'p1', kind: 'requirement_suggestion', title: '优惠券叠加规则', confirmStatus: 'pending', note: '', description: '同一订单仅可使用一张优惠券，叠加规则写入需求描述。', fields: [{ label: '模块 ID', value: 'mod-coupon' }, { label: '优先级', value: '高' }], sourceRefs: [{ title: '优惠券规则.docx', quote: '同一订单仅可使用一张优惠券' }] },
+        { key: 'p2', kind: 'requirement_suggestion', title: '优惠券有效期说明', confirmStatus: 'pending', note: '', description: '补充优惠券有效期、时区与过期提示说明。', fields: [{ label: '优先级', value: '中' }], sourceRefs: [] }
+      ]
+    },
+    aborted: {
+      taskId: 'task-aborted-001',
+      title: '向量索引重建（商品库）',
+      type: 'vector_reindex',
+      status: 'aborted',
+      submitter: '周敏',
+      createdAt: '2026-11-18T10:15:00Z',
+      execution: {
+        seq: 1, status: 'aborted', steps: 2, budget: { maxSteps: 6, maxDurationSeconds: 1200, maxTokens: 0, maxCost: 0 },
+        consumed: { durationMs: 98000, tokensIn: 0, tokensOut: 0, cost: 0 }, terminateReason: { code: 1000018210, msg: '用户手动终止' }
+      },
+      plan: ['扫描向量集合', '重建商品索引', '校验索引版本', '切换读别名'],
+      trace: [
+        { seq: 1, eventType: 'plan', summary: '生成 4 步执行计划', createdAt: '2026-11-18T10:15:02Z' },
+        { seq: 2, eventType: 'tool_call', summary: 'vector.reindex', createdAt: '2026-11-18T10:15:13Z' },
+        { seq: 3, eventType: 'status_change', summary: 'running → aborted', createdAt: '2026-11-18T10:16:41Z' }
+      ],
+      proposals: []
+    },
+    closed: {
+      taskId: 'task-closed-001',
+      title: '需求文档 R-2026-118 导入',
+      type: 'requirement_import',
+      status: 'closed',
+      submitter: '陈晓',
+      createdAt: '2026-11-18T14:33:00Z',
+      execution: {
+        seq: 1, status: 'succeeded', steps: 8, budget: { maxSteps: 8, maxDurationSeconds: 600, maxTokens: 20000, maxCost: 2 },
+        consumed: { durationMs: 91000, tokensIn: 7600, tokensOut: 2800, cost: 0.88 }, terminateReason: null
+      },
+      plan: ['解析需求文档', '抽取候选需求', '生成需求建议', '写入采纳结果'],
+      trace: [
+        { seq: 1, eventType: 'plan', summary: '生成 4 步执行计划', createdAt: '2026-11-18T14:33:01Z' },
+        { seq: 2, eventType: 'proposal_emitted', summary: '需求建议 ×2 / 用例 ×1', createdAt: '2026-11-18T14:33:29Z' },
+        { seq: 3, eventType: 'status_change', summary: 'proposals_ready → closed', createdAt: '2026-11-18T14:41:12Z' }
+      ],
+      proposals: [
+        { key: 'c1', kind: 'requirement_suggestion', title: '优惠券叠加规则', confirmStatus: 'adopted', note: '按建议补充叠加限制', description: '同一订单仅可使用一张优惠券，叠加规则写入需求描述。', fields: [{ label: '模块 ID', value: 'mod-coupon' }, { label: '优先级', value: '高' }], sourceRefs: [] },
+        { key: 'c2', kind: 'case_optimize_suggestion', title: '重复优惠叠加用例', confirmStatus: 'rejected', note: '与既有 P0 用例重复', description: '模型建议新增的叠加边界用例与既有 P0 用例覆盖点一致。', fields: [], compare: [{ label: '前置条件', existing: '已有优惠券', suggested: '已有优惠券', changed: false }, { label: '操作步骤', existing: '提交订单', suggested: '提交订单并叠加两张券', changed: true }, { label: '预期结果', existing: '提示不可叠加', suggested: '提示不可叠加并记录日志', changed: true }], sourceRefs: [] }
+      ]
+    },
+    not_found: { notFound: true },
+    ai_unavailable: { aiUnavailable: true },
+    load_error: { loadError: '加载任务详情失败' }
+  };
+
+  var currentScene = 'proposals_ready';
+  var proposalIndex = 0;
+  var traceExpanded = false;
+  var openTraceSeq = null;
+  var compareFolded = true;
+  var tracePage = 1;
+  var copiedTraceKeys = {};
+  var TRACE_PAGE_SIZE = 3;
+
+  function nextTraceSeq(scene) {
+    var max = 0;
+    (scene.trace || []).forEach(function (e) { max = Math.max(max, Number(e.seq) || 0); });
+    return max + 1;
+  }
+
+  function copyButton(key) {
+    var copied = !!copiedTraceKeys[key];
+    return '<button class="btn btn--link btn--sm' + (copied ? ' is-copied' : '') + '" type="button" data-copy-trace="' + key + '">' + (copied ? '已复制 ✓' : '复制') + '</button>';
+  }
+
+  function taskStatusMeta(status, executionStatus) {
+    if (status === 'running' && executionStatus === 'waiting_confirmation') return { label: '挂起', cls: 'tag--info' };
+    return TASK_STATUS_META[status] || { label: status, cls: 'tag--info' };
+  }
+
+  function adoptionResult(proposals) {
+    var records = proposals.filter(function (p) { return p.confirmStatus === 'adopted' || p.confirmStatus === 'adopted_edited' || p.confirmStatus === 'rejected'; });
+    if (!records.length) return null;
+    var adopted = records.filter(function (p) { return p.confirmStatus !== 'rejected'; }).length;
+    if (adopted === 0) return { label: '已驳回', cls: 'tag--info' };
+    if (adopted === records.length) return { label: '已采纳', cls: 'tag--success' };
+    return { label: '部分采纳', cls: 'tag--warning' };
+  }
+
+  function metricsText(execution) {
+    if (!execution) return '—';
+    var steps = execution.steps || 0;
+    var maxSteps = execution.budget && execution.budget.maxSteps;
+    var stepText = maxSteps ? steps + '/' + maxSteps + ' 步' : steps + ' 步';
+    var durationMs = execution.consumed ? execution.consumed.durationMs : null;
+    var durationText = durationMs == null ? '—' : Math.round(durationMs / 1000) + 's';
+    var maxSeconds = execution.budget && execution.budget.maxDurationSeconds;
+    var maxDurationText = maxSeconds ? maxSeconds + 's' : '—';
+    var consumed = execution.consumed || {};
+    var used = (consumed.tokensIn || 0) + (consumed.tokensOut || 0);
+    var maxTokens = execution.budget && execution.budget.maxTokens;
+    var tokensText = maxTokens ? used + '/' + maxTokens : String(used);
+    var cost = consumed.cost;
+    var maxCost = execution.budget ? execution.budget.maxCost : null;
+    var costText = cost == null ? '—' : (maxCost != null ? cost + '/' + maxCost : String(cost));
+    return '步数 ' + stepText + ' · 时长 ' + durationText + '/' + maxDurationText + ' · tokens ' + tokensText + ' · 成本 ' + costText;
+  }
+
+  function planState(index, execution) {
+    var executed = execution ? (execution.steps || 0) : 0;
+    var status = execution ? execution.status : '';
+    if (status === 'succeeded') return 'done';
+    if (index < executed) return 'done';
+    if (index === executed) return status === 'aborted' ? 'aborted' : 'current';
+    return 'pending';
+  }
+
+  function renderPlan(scene) {
+    var section = byId('dt-plan-section');
+    var list = byId('dt-plan-list');
+    if (!scene.plan || !scene.plan.length) { section.hidden = true; list.innerHTML = ''; return; }
+    section.hidden = false;
+    list.innerHTML = scene.plan.map(function (label, index) {
+      var state = planState(index, scene.execution);
+      var dot = state === 'done' ? '✓' : state === 'aborted' ? '×' : '';
+      return '<li class="plan-timeline__item plan-timeline__item--' + state + '">' +
+        '<span class="plan-timeline__dot" aria-hidden="true">' + dot + '</span>' +
+        '<span class="plan-timeline__label">' + esc(label) + '</span></li>';
+    }).join('');
+  }
+
+  function traceLabel(type) {
+    var map = { plan: '计划', ai_decision: 'AI 决策', tool_call: '工具调用', tool_result: '工具结果', proposal_emitted: '产出提案', status_change: '状态变更' };
+    return map[type] || type;
+  }
+
+  function renderTrace(scene) {
+    var section = byId('dt-trace-section');
+    if (!scene.execution) { section.hidden = true; return; }
+    section.hidden = false;
+    var allEvents = scene.trace || [];
+    var events = allEvents.slice(0, tracePage * TRACE_PAGE_SIZE);
+    byId('dt-trace-count').textContent = '共 ' + allEvents.length + ' 条（已显示 ' + events.length + ' 条）';
+    byId('dt-trace-count').hidden = !traceExpanded;
+    byId('dt-trace-refresh').hidden = !traceExpanded;
+    byId('dt-trace-body').hidden = !traceExpanded;
+    byId('dt-trace-toggle').textContent = traceExpanded ? '收起轨迹 ▴' : '展开轨迹 ▾';
+    if (!traceExpanded) return;
+    var list = byId('dt-trace-list');
+    list.innerHTML = events.map(function (event) {
+      var canExpand = event.eventType === 'ai_decision';
+      var open = openTraceSeq === event.seq;
+      var detailHtml = '';
+      if (canExpand && open) {
+        var req = event.detail && event.detail.rawRequest;
+        var resp = event.detail && event.detail.rawResponse;
+        detailHtml = '<div class="trace-events__detail">' +
+          '<section><div class="trace-events__section-head"><span class="trace-events__section-title">请求摘要</span>' +
+          (req ? copyButton('req-' + event.seq) : '') +
+          '</div>' + (req ? '<div class="trace-events__json" id="trace-req-' + event.seq + '">' + esc(JSON.stringify(req, null, 2)) + '</div>' : '<div class="trace-events__empty">暂无原始数据</div>') + '</section>' +
+          '<section><div class="trace-events__section-head"><span class="trace-events__section-title">模型响应</span>' +
+          (resp ? copyButton('resp-' + event.seq) : '') +
+          '</div>' + (resp ? '<div class="trace-events__json" id="trace-resp-' + event.seq + '">' + esc(JSON.stringify(resp, null, 2)) + '</div>' : '<div class="trace-events__empty">暂无原始数据</div>') + '</section></div>';
+      }
+      return '<li class="trace-events__item"><div class="trace-events__row">' +
+        '<span class="trace-events__seq">#' + event.seq + '</span>' +
+        '<span class="tag tag--sm tag--info">' + esc(traceLabel(event.eventType)) + '</span>' +
+        '<span class="trace-events__summary">' + esc(event.summary || '—') + '</span>' +
+        (canExpand ? '<button class="btn btn--link btn--sm" type="button" data-trace-seq="' + event.seq + '">' + (open ? '收起详情 ▴' : '查看详情 ▾') + '</button>' : '') +
+        '<time class="trace-events__time">' + esc(fmtTime(event.createdAt)) + '</time></div>' + detailHtml + '</li>';
+    }).join('');
+    byId('dt-trace-more').hidden = allEvents.length <= events.length;
+  }
+
+  function renderCompare(compare) {
+    if (!compare || !compare.length) return '';
+    var changed = compare.filter(function (i) { return i.changed; });
+    var unchanged = compare.filter(function (i) { return !i.changed; });
+    var showAll = !compareFolded;
+    var visible = showAll || !changed.length ? compare : changed;
+    var rows = visible.map(function (item) {
+      return '<div class="compare-view__row' + (item.changed ? ' compare-view__row--changed' : '') + '">' +
+        '<span class="compare-view__label">' + esc(item.label) + '</span>' +
+        '<span class="compare-view__existing">' + esc(item.existing || '—') + '</span>' +
+        '<span class="compare-view__suggested">' + esc(item.suggested || '—') + '</span></div>';
+    }).join('');
+    var fold = !unchanged.length || !changed.length ? '' :
+      '<button class="btn btn--text btn--sm compare-view__fold" type="button" data-compare-fold>' +
+      (showAll ? '收起无变化内容' : '展开其余 ' + unchanged.length + ' 项无变化内容') + '</button>';
+    return '<div class="compare-view"><div class="compare-view__head">' +
+      '<span class="compare-view__head-cell">项目</span><span class="compare-view__head-cell">现有内容</span><span class="compare-view__head-cell compare-view__head-cell--new">AI 建议</span></div>' +
+      rows + fold + '</div>';
+  }
+
+  function renderProposal(scene) {
     var section = byId('dt-proposal-section');
-    if (!proposals.length) { section.hidden = true; return; }
+    var proposals = scene.proposals || [];
+    if (!(scene.status === 'proposals_ready' || scene.status === 'closed') || !proposals.length) {
+      section.hidden = true;
+      return;
+    }
     section.hidden = false;
     if (proposalIndex < 0) proposalIndex = 0;
     if (proposalIndex >= proposals.length) proposalIndex = proposals.length - 1;
     var item = proposals[proposalIndex];
+    var processed = proposals.filter(function (p) { return p.confirmStatus !== 'pending'; }).length;
+    byId('dt-proposal-title').textContent = TYPE_META[scene.type] ? (scene.type === 'requirement_import' ? '导入结果审核' : scene.type === 'case_optimize' ? '用例优化结果' : '提案与审核结果') : '提案与审核结果';
+    byId('dt-proposal-processed').textContent = '已处理 ' + processed + ' / 共 ' + proposals.length;
+    var versionWrap = byId('dt-proposal-version');
+    var showVersion = scene.type === 'requirement_import';
+    versionWrap.hidden = !showVersion;
+    if (showVersion) byId('dt-proposal-version-value').textContent = scene.status === 'closed' ? 'v1.2.0' : '未识别';
+
+    var nav = byId('dt-proposal-nav');
+    nav.hidden = proposals.length < 2;
     byId('dt-proposal-pos').textContent = '第 ' + (proposalIndex + 1) + ' / ' + proposals.length + ' 条';
     byId('dt-proposal-prev').disabled = proposalIndex === 0;
     byId('dt-proposal-next').disabled = proposalIndex === proposals.length - 1;
-    byId('dt-proposal-kind').textContent = item.kind;
-    byId('dt-proposal-title').textContent = item.title;
-    var status = byId('dt-proposal-status');
-    status.className = 'tag tag--sm ' + item.tag;
-    status.textContent = item.status;
+
+    byId('dt-proposal-kind').textContent = PROPOSAL_KIND[item.kind] || item.kind;
+    byId('dt-proposal-name').textContent = item.title || item.key;
+    byId('dt-proposal-name').title = item.title || item.key;
+    var cm = CONFIRM_META[item.confirmStatus] || { label: item.confirmStatus, cls: 'tag--info' };
+    var statusEl = byId('dt-proposal-status');
+    statusEl.className = 'tag tag--sm ' + cm.cls;
+    statusEl.textContent = cm.label;
+
     var note = byId('dt-proposal-note');
     note.hidden = !item.note;
-    note.textContent = item.note || '';
-    byId('dt-proposal-detail').innerHTML = item.detail;
-  }
-
-  var scenes = {
-    import: {
-      title: '优惠券规则需求文档导入', status: '待采纳', statusTag: 'tag--warning', adoption: '待采纳',
-      meta: '类型 需求导入（需求） · 发起人 陈晓 · 发起时间 2026-11-20 10:12',
-      exec: '已成功', execTag: 'tag--success', steps: 8, max: 8, seq: 1,
-      terminate: '', poll: '任务处于待采纳，详情页已停止轮询；提案处置在需求管理页完成',
-      plan: [['解析需求文档', 'done'], ['抽取候选需求', 'done'], ['生成需求建议', 'done'], ['等待人工确认', 'current']],
-      trace: [['计划', '生成 4 步执行计划', '10:12:03'], ['AI 决策', '按段落拆分需求条目', '10:12:11'], ['工具调用', 'document.parse', '10:12:15'], ['产出提案', '需求建议 ×3', '10:12:22'], ['状态变更', 'running → proposals_ready', '10:12:23']],
-      proposals: [
-        { kind: '需求建议', title: '优惠券叠加规则', status: '待采纳', tag: 'tag--warning', note: '', detail: '<p>同一订单仅可使用一张优惠券，叠加规则写入需求描述。</p><dl class="review-fields"><div class="review-field"><dt>模块 ID</dt><dd>mod-coupon</dd></div><div class="review-field"><dt>优先级</dt><dd>高</dd></div></dl>' },
-        { kind: '需求建议', title: '优惠券有效期说明', status: '待采纳', tag: 'tag--warning', note: '', detail: '<p>补充优惠券有效期、时区与过期提示说明。</p>' }
-      ]
-    },
-    readonly: {
-      title: '优惠券边界用例优化建议', status: '待采纳', statusTag: 'tag--warning', adoption: '',
-      meta: '类型 用例优化（辅助） · 发起人 王芳 · 发起时间 2026-11-19 11:05',
-      exec: '已成功', execTag: 'tag--success', steps: 6, max: 6, seq: 1,
-      terminate: '', poll: '任务处于待采纳，详情页已停止轮询',
-      plan: [['读取脑图节点', 'done'], ['生成节点优化建议', 'done'], ['输出结构化预览', 'done']],
-      trace: [['计划', '生成 3 步执行计划', '11:05:02'], ['工具调用', 'mindmap.readNodes', '11:05:10'], ['产出提案', '用例优化 ×3', '11:05:18'], ['状态变更', 'running → proposals_ready', '11:05:19']]
-    },
-    plan: {
-      title: '购物车结算执行顺序调整', status: '待采纳', statusTag: 'tag--warning', adoption: '',
-      meta: '类型 计划排序（辅助） · 发起人 李华 · 发起时间 2026-11-19 17:32',
-      exec: '已成功', execTag: 'tag--success', steps: 4, max: 4, seq: 1,
-      terminate: '', poll: '任务处于待采纳，详情页已停止轮询',
-      plan: [['读取计划节点', 'done'], ['评估前置依赖', 'done'], ['生成排序建议', 'done']],
-      trace: [['计划', '生成 3 步执行计划', '17:32:04'], ['AI 决策', '按依赖调整执行顺序', '17:32:12'], ['产出提案', '排序建议 ×1', '17:32:20'], ['状态变更', 'running → proposals_ready', '17:32:21']]
-    },
-    running: {
-      title: '支付回调幂等用例优化', status: '执行中', statusTag: 'tag--warning', adoption: '',
-      meta: '类型 用例优化（辅助） · 发起人 李华 · 发起时间 2026-11-20 09:42',
-      exec: '执行中', execTag: 'tag--warning', steps: 3, max: 5, seq: 2,
-      terminate: '', poll: '',
-      plan: [['读取脑图节点', 'done'], ['分析幂等边界', 'done'], ['生成节点优化建议', 'current'], ['写入提案清单', 'pending'], ['等待人工确认', 'pending']],
-      trace: [['计划', '生成 5 步执行计划', '09:42:05'], ['AI 决策', '按回调链路分析边界', '09:42:14'], ['工具调用', 'mindmap.readNodes', '09:42:19'], ['工具结果', '返回 3 个用例节点', '09:42:20']]
-    },
-    aborted: {
-      title: '向量索引重建（商品库）', status: '已终止', statusTag: 'tag--danger', adoption: '',
-      meta: '类型 向量索引重建（底座） · 发起人 周敏 · 发起时间 2026-11-18 10:15',
-      exec: '已终止', execTag: 'tag--danger', steps: 2, max: 6, seq: 1,
-      terminate: '用户手动终止（错误码 1000018210）', poll: '任务已终止，详情页已停止轮询',
-      plan: [['扫描向量集合', 'done'], ['重建商品索引', 'aborted'], ['校验索引版本', 'pending'], ['切换读别名', 'pending']],
-      trace: [['计划', '生成 4 步执行计划', '10:15:02'], ['工具调用', 'vector.reindex', '10:15:13'], ['状态变更', 'running → aborted', '10:16:41']]
-    },
-    closed: {
-      title: '需求文档 R-2026-118 导入', status: '已结束', statusTag: 'tag--neutral', adoption: '部分采纳',
-      meta: '类型 需求导入（需求） · 发起人 陈晓 · 发起时间 2026-11-18 14:33 · 第 1 次执行',
-      exec: '已成功', execTag: 'tag--success', steps: 8, max: 8, seq: 1,
-      terminate: '', poll: '任务已结束，详情页已停止轮询',
-      plan: [['解析需求文档', 'done'], ['抽取候选需求', 'done'], ['生成需求建议', 'done'], ['写入采纳结果', 'done']],
-      trace: [['计划', '生成 4 步执行计划', '14:33:01'], ['产出提案', '需求建议 ×2 / 用例 ×1', '14:33:29'], ['状态变更', 'proposals_ready → closed', '14:41:12']],
-      proposals: [
-        { kind: '需求建议', title: '优惠券叠加规则', status: '已采纳', tag: 'tag--success', note: '备注：按建议补充叠加限制', detail: '<p>同一订单仅可使用一张优惠券，叠加规则写入需求描述。</p><dl class="review-fields"><div class="review-field"><dt>模块 ID</dt><dd>mod-coupon</dd></div><div class="review-field"><dt>优先级</dt><dd>高</dd></div></dl>' },
-        { kind: '用例', title: '重复优惠叠加用例', status: '已驳回', tag: 'tag--neutral', note: '驳回原因：与既有 P0 用例重复', detail: '<p>模型建议新增的叠加边界用例与既有 P0 用例覆盖点一致。</p><div class="alert alert--warning">疑似与既有数据重复</div>' }
-      ]
-    }
-  };
-
-  function timelineHtml(items, kind) {
-    var dotClass = { done: 'success', current: 'brand', aborted: 'danger', pending: '', info: '' };
-    return items.map(function (item) {
-      var label = kind === 'plan' ? item[0] : item[0];
-      var body = kind === 'plan' ? '' : item[1];
-      var time = kind === 'plan' ? '' : item[2];
-      var state = kind === 'plan' ? item[1] : '';
-      return '<li class="timeline__item"><span class="timeline__dot' + (dotClass[state] ? ' timeline__dot--' + dotClass[state] : '') + '"></span>' +
-        '<div class="timeline__head"><span>' + esc(label) + '</span>' + (time ? '<span class="timeline__time">' + esc(time) + '</span>' : '') + '</div>' +
-        (body ? '<div class="timeline__body">' + esc(body) + '</div>' : '') + '</li>';
+    note.textContent = item.note ? ('驳回原因：' + item.note) : '';
+    var desc = byId('dt-proposal-desc');
+    desc.hidden = !item.description;
+    desc.textContent = item.description || '';
+    byId('dt-proposal-compare').innerHTML = renderCompare(item.compare);
+    var fields = item.fields || [];
+    var fieldsEl = byId('dt-proposal-fields');
+    fieldsEl.hidden = !fields.length;
+    fieldsEl.innerHTML = fields.map(function (f) {
+      return '<div class="proposal-review__field"><dt>' + esc(f.label) + '</dt><dd>' + esc(f.value) + '</dd></div>';
+    }).join('');
+    var sources = item.sourceRefs || [];
+    var sourcesEl = byId('dt-proposal-sources');
+    sourcesEl.hidden = !sources.length;
+    sourcesEl.innerHTML = sources.map(function (s) {
+      return '<div><span class="proposal-review__source-title">' + esc(s.title || s.id || '') + '</span><span class="proposal-review__source-quote">' + esc(s.quote || '') + '</span></div>';
     }).join('');
   }
 
-  function setScene(name) {
-    var scene = scenes[name] || scenes.import;
+  function render(sceneKey, opts) {
+    opts = opts || {};
+    var scene = scenes[sceneKey] || scenes.proposals_ready;
+    currentScene = sceneKey in scenes ? sceneKey : 'proposals_ready';
+    if (!opts.preserveView) {
+      proposalIndex = 0;
+      traceExpanded = false;
+      openTraceSeq = null;
+      compareFolded = true;
+      tracePage = 1;
+      copiedTraceKeys = {};
+    }
+
+    byId('dt-not-found').hidden = !scene.notFound;
+    byId('dt-loading').hidden = true;
+    byId('dt-load-error').hidden = !scene.loadError;
+    byId('dt-ai-unavailable').hidden = !scene.aiUnavailable;
+    byId('dt-content').hidden = !!(scene.notFound || scene.loadError || scene.aiUnavailable);
+    if (scene.loadError) byId('dt-load-error-text').textContent = scene.loadError;
+    if (scene.notFound || scene.loadError || scene.aiUnavailable) return;
+
+    var statusMeta = taskStatusMeta(scene.status, scene.execution && scene.execution.status);
+    var adoption = adoptionResult(scene.proposals || []);
     byId('dt-title').textContent = scene.title;
-    byId('dt-breadcrumb').textContent = scene.title;
-    byId('dt-meta').textContent = scene.meta;
+    byId('dt-breadcrumb').textContent = scene.title || '任务详情';
+    byId('dt-breadcrumb').title = scene.title || '任务详情';
     var statusEl = byId('dt-status');
-    statusEl.className = 'tag tag--sm ' + scene.statusTag;
-    statusEl.textContent = scene.status;
+    statusEl.className = 'tag tag--sm ' + statusMeta.cls;
+    statusEl.textContent = statusMeta.label;
     var adoptionEl = byId('dt-adoption');
-    adoptionEl.hidden = !scene.adoption;
-    if (scene.adoption) {
-      adoptionEl.className = 'tag tag--sm tag--warning';
-      adoptionEl.textContent = scene.adoption;
-    }
+    adoptionEl.hidden = !adoption;
+    if (adoption) { adoptionEl.className = 'tag tag--sm ' + adoption.cls; adoptionEl.textContent = adoption.label; }
 
-    byId('dt-exec-seq').textContent = scene.seq > 1 ? '第 ' + scene.seq + ' 次执行' : '';
-    var execStatus = byId('dt-exec-status');
-    execStatus.className = 'tag tag--sm ' + scene.execTag;
-    execStatus.textContent = scene.exec;
-    byId('dt-exec-metric').textContent = '已完成 ' + scene.steps + ' / ' + scene.max + ' 步 · 预算消耗 ' + Math.round(scene.steps / scene.max * 100) + '%';
-    var fill = byId('dt-exec-fill');
-    fill.style.width = Math.round(scene.steps / scene.max * 100) + '%';
-    fill.className = 'progress__fill' + (scene.exec === '执行中' ? ' progress__fill--brand' : scene.exec === '已终止' ? ' progress__fill--danger' : '');
-    byId('dt-exec-percent').textContent = Math.round(scene.steps / scene.max * 100) + '%';
+    var meta = '类型 ' + (TYPE_META[scene.type] || scene.type) + ' · 发起人 ' + (scene.submitter || '—') + ' · 发起时间 ' + fmtTime(scene.createdAt);
+    if (scene.execution && (scene.execution.seq || 0) > 1) meta += ' · 第 ' + scene.execution.seq + ' 次执行';
+    byId('dt-meta').textContent = meta;
+
+    var actions = byId('dt-actions');
+    var canAbort = scene.execution && (scene.execution.status === 'running' || scene.execution.status === 'waiting_confirmation');
+    var canReExecute = scene.status === 'aborted';
+    actions.innerHTML = (canAbort ? '<button class="btn btn--text btn--text-warning" type="button" data-action="abort">终止</button>' : '') +
+      (canReExecute ? '<button class="btn btn--text btn--text-primary" type="button" data-action="reexecute">再次执行</button>' : '');
+
+    var taskMeta = taskStatusMeta(scene.status, scene.execution && scene.execution.status);
+    var execTaskStatus = byId('dt-exec-task-status');
+    execTaskStatus.className = 'tag tag--sm ' + taskMeta.cls;
+    execTaskStatus.textContent = taskMeta.label;
+    var execBadge = byId('dt-exec-badge');
+    var showExecBadge = scene.execution && scene.execution.status !== 'running';
+    execBadge.hidden = !showExecBadge;
+    if (showExecBadge) {
+      var em = EXEC_STATUS_META[scene.execution.status] || { label: scene.execution.status, cls: 'tag--info' };
+      execBadge.className = 'tag tag--sm ' + em.cls;
+      execBadge.textContent = em.label;
+    }
+    var seqEl = byId('dt-exec-seq');
+    var showSeq = scene.execution && (scene.execution.seq || 0) > 1;
+    seqEl.hidden = !showSeq;
+    if (showSeq) seqEl.textContent = '第 ' + scene.execution.seq + ' 次执行';
+    byId('dt-exec-metrics').textContent = metricsText(scene.execution);
+
     var terminate = byId('dt-terminate');
-    terminate.hidden = !scene.terminate;
-    terminate.textContent = scene.terminate;
-    var poll = byId('dt-poll-note');
-    poll.hidden = !scene.poll;
-    poll.textContent = scene.poll;
+    var reason = scene.execution && scene.execution.terminateReason;
+    var terminateText = reason ? (reason.msg + (reason.code ? '（错误码 ' + reason.code + '）' : '')) : '';
+    terminate.hidden = !terminateText;
+    terminate.textContent = terminateText ? '终止原因：' + terminateText : '';
 
-    byId('dt-plan-list').innerHTML = timelineHtml(scene.plan, 'plan');
-    byId('dt-trace-list').innerHTML = timelineHtml(scene.trace, 'trace');
+    renderPlan(scene);
+    renderTrace(scene);
+    renderProposal(scene);
 
-    byId('dt-plan-section').hidden = scene.plan.length === 0;
-    byId('dt-trace-section').hidden = scene.trace.length === 0;
-
-    document.querySelectorAll('[data-scene-btn]').forEach(function (btn) {
-      btn.classList.toggle('btn--primary', btn.getAttribute('data-scene-btn') === name);
-      btn.classList.toggle('btn--default', btn.getAttribute('data-scene-btn') !== name);
-    });
-    var proposalSection = byId('dt-proposal-section');
-    var proposals = scene.proposals || [];
-    proposalSection.hidden = proposals.length === 0;
-    var proposalResult = byId('dt-proposal-result');
-    proposalResult.hidden = !scene.adoption;
-    if (scene.adoption) {
-      proposalResult.className = 'tag tag--sm ' + (scene.adoption === '待采纳' ? 'tag--warning' : scene.adoption === '已采纳' ? 'tag--success' : 'tag--warning');
-      proposalResult.textContent = scene.adoption;
-    }
-    byId('dt-proposal-hint').textContent = name === 'closed'
-      ? '已结束任务逐条只读回看，不提供审核操作'
-      : '只读查看提案产物与审核结果，实际处置在对应业务面板完成';
-    currentScene = name;
-    proposalIndex = 0;
-    renderProposal();
-    if (window.RTIcons && typeof window.RTIcons.replace === 'function') window.RTIcons.replace();
-
-    byId('dt-actions').innerHTML = name === 'running'
-      ? '<button class="btn btn--danger" type="button" data-page-op="abort">终止</button>'
-      : name === 'aborted'
-        ? '<button class="btn btn--primary" type="button" data-page-op="reexecute">再次执行</button>'
-        : '';
-  }
-
-  var confirmAction = null;
-
-  function askConfirm(title, body, okLabel, action) {
-    byId('dt-confirm-title').textContent = title;
-    byId('dt-confirm-body').textContent = body;
-    byId('dt-confirm-ok').textContent = okLabel;
-    confirmAction = action;
-    byId('dt-confirm-dialog').hidden = false;
+    var showEmpty = scene.status === 'proposals_ready' && !(scene.proposals && scene.proposals.length);
+    byId('dt-empty-proposals').hidden = !showEmpty;
   }
 
   document.addEventListener('click', function (e) {
-    var closer = e.target.closest('[data-close]');
-    if (closer) { byId(closer.getAttribute('data-close')).hidden = true; return; }
+    var close = e.target.closest('[data-close]');
+    if (close) { byId(close.getAttribute('data-close')).hidden = true; return; }
 
-    var fold = e.target.closest('[data-compare-fold]');
-    if (fold) {
-      var view = fold.closest('.compare-view');
-      var hiddenRows = view.querySelectorAll('[data-unchanged]');
-      var expanding = fold.textContent.indexOf('展开') === 0;
-      hiddenRows.forEach(function (row) { row.hidden = !expanding; });
-      fold.textContent = expanding ? '收起无变化项' : '展开其余 ' + hiddenRows.length + ' 项无变化内容';
-      return;
-    }
-
-    if (e.target.closest('#dt-proposal-prev')) {
-      proposalIndex -= 1;
-      renderProposal();
-      return;
-    }
-    if (e.target.closest('#dt-proposal-next')) {
-      proposalIndex += 1;
-      renderProposal();
-      return;
-    }
-
-    var sceneBtn = e.target.closest('[data-scene-btn]');
-    if (sceneBtn) { setScene(sceneBtn.getAttribute('data-scene-btn')); return; }
-
-    var pageOp = e.target.closest('[data-page-op]');
-    if (pageOp) {
-      if (pageOp.getAttribute('data-page-op') === 'abort') {
-        askConfirm('确认终止执行', '终止后本任务停止执行，不产生任何落库数据，可再次执行。', '终止执行', function () {
-          byId('dt-confirm-dialog').hidden = true;
-          setScene('aborted');
-          window.RTUX.toast('执行已终止', { type: 'success' });
+    var action = e.target.closest('[data-action]');
+    if (action) {
+      var kind = action.getAttribute('data-action');
+      if (kind === 'abort') {
+        byId('dt-confirm-dialog').hidden = false;
+      } else if (kind === 'reexecute') {
+        var reScene = scenes[currentScene];
+        reScene.status = 'running';
+        reScene.execution.seq = (reScene.execution.seq || 0) + 1;
+        reScene.execution.status = 'running';
+        reScene.execution.steps = 1;
+        reScene.execution.consumed = { durationMs: 0, tokensIn: 0, tokensOut: 0, cost: 0 };
+        reScene.execution.terminateReason = null;
+        reScene.trace.push({
+          seq: nextTraceSeq(reScene), eventType: 'status_change',
+          summary: 'aborted → running（第 ' + reScene.execution.seq + ' 次执行）', createdAt: new Date().toISOString()
         });
-      } else {
-        askConfirm('再次执行', '将沿用同一任务新建一次执行实例。', '再次执行', function () {
-          byId('dt-confirm-dialog').hidden = true;
-          setScene('running');
-          window.RTUX.toast('已发起再次执行', { type: 'success' });
-        });
+        render(currentScene, { preserveView: true });
       }
       return;
     }
+
+    if (e.target.closest('#dt-trace-toggle')) {
+      traceExpanded = !traceExpanded;
+      renderTrace(scenes[currentScene]);
+      return;
+    }
+    if (e.target.closest('#dt-trace-refresh')) {
+      var refreshScene = scenes[currentScene];
+      refreshScene.trace.push({
+        seq: nextTraceSeq(refreshScene), eventType: 'tool_result',
+        summary: '增量同步完成，拉取到最新轨迹事件', createdAt: new Date().toISOString()
+      });
+      tracePage = Math.ceil(refreshScene.trace.length / TRACE_PAGE_SIZE);
+      renderTrace(refreshScene);
+      return;
+    }
+    if (e.target.closest('#dt-trace-load-more')) {
+      tracePage += 1;
+      renderTrace(scenes[currentScene]);
+      return;
+    }
+    var traceSeq = e.target.closest('[data-trace-seq]');
+    if (traceSeq) {
+      var seq = Number(traceSeq.getAttribute('data-trace-seq'));
+      openTraceSeq = openTraceSeq === seq ? null : seq;
+      renderTrace(scenes[currentScene]);
+      return;
+    }
+    var copyTrace = e.target.closest('[data-copy-trace]');
+    if (copyTrace) {
+      var copyKey = copyTrace.getAttribute('data-copy-trace');
+      var node = byId('trace-' + copyKey);
+      if (node && navigator.clipboard && navigator.clipboard.writeText) {
+        var copied = navigator.clipboard.writeText(node.textContent || '');
+        if (copied && copied.catch) copied.catch(function () {});
+      }
+      copiedTraceKeys[copyKey] = true;
+      copyTrace.textContent = '已复制 ✓';
+      copyTrace.classList.add('is-copied');
+      return;
+    }
+    if (e.target.closest('[data-compare-fold]')) {
+      var currentProposal = (scenes[currentScene].proposals || [])[proposalIndex];
+      if (currentProposal) {
+        compareFolded = !compareFolded;
+        byId('dt-proposal-compare').innerHTML = renderCompare(currentProposal.compare);
+      }
+      return;
+    }
+    if (e.target.closest('#dt-proposal-prev')) { proposalIndex -= 1; renderProposal(scenes[currentScene]); return; }
+    if (e.target.closest('#dt-proposal-next')) { proposalIndex += 1; renderProposal(scenes[currentScene]); return; }
+    if (e.target.closest('#dt-retry')) { render('proposals_ready'); }
   });
 
   byId('dt-confirm-ok').addEventListener('click', function () {
-    var action = confirmAction;
-    confirmAction = null;
-    if (action) action();
+    byId('dt-confirm-dialog').hidden = true;
+    var abortScene = scenes[currentScene];
+    abortScene.status = 'aborted';
+    abortScene.execution.status = 'aborted';
+    abortScene.execution.terminateReason = { code: 1000018210, msg: '用户手动终止' };
+    abortScene.trace.push({
+      seq: nextTraceSeq(abortScene), eventType: 'status_change',
+      summary: 'running → aborted（用户手动终止）', createdAt: new Date().toISOString()
+    });
+    render(currentScene, { preserveView: true });
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    document.querySelectorAll('.dialog-mask').forEach(function (mask) { mask.hidden = true; });
+    if (e.key === 'Escape') byId('dt-confirm-dialog').hidden = true;
   });
-  document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
-    mask.addEventListener('click', function (e) { if (e.target === mask) mask.hidden = true; });
+  byId('dt-confirm-dialog').addEventListener('click', function (e) {
+    if (e.target === this) this.hidden = true;
   });
 
   var params = new URLSearchParams(window.location.search);
   var initial = params.get('scene');
-  setScene(scenes[initial] ? initial : 'import');
+  render(initial && scenes[initial] ? initial : 'proposals_ready');
 })();
 </script>
 </body>

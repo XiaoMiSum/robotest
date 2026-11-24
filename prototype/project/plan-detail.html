@@ -12,8 +12,8 @@
 
   /* 页头收拢为单条无边框横条：面包屑与需求/状态/进度/操作同行，超宽整行横向滚动（交互 06 §1.2） */
   .detail-head {
-    display: flex; align-items: center; justify-content: space-between; gap: 24px;
-    flex-wrap: nowrap; overflow-x: auto; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg);
+    flex-wrap: nowrap; overflow-x: auto; margin-bottom: var(--space-sm);
     scrollbar-width: none; -ms-overflow-style: none;
   }
   .detail-head::-webkit-scrollbar { width: 0; height: 0; display: none; }
@@ -26,21 +26,55 @@
   .detail-breadcrumb [data-icon] svg { width: 13px; height: 13px; color: var(--n-400); }
   .detail-breadcrumb > :last-child { color: var(--n-900); }
 
-  .detail-extra { display: flex; align-items: center; gap: 20px; flex-shrink: 0; white-space: nowrap; }
+  .detail-extra { display: flex; align-items: center; gap: var(--space-lg); flex-shrink: 0; white-space: nowrap; }
   .detail-req { display: flex; align-items: center; gap: var(--space-xs); }
-  .detail-req__label { font-size: var(--font-size-2xs); color: var(--n-400); }
-  .detail-progress { display: flex; align-items: center; gap: 12px; }
+  .detail-req__label { font-size: var(--font-size-2xs); color: var(--n-400); white-space: nowrap; }
+  .detail-progress { display: flex; align-items: center; gap: var(--space-md); }
   .detail-progress .progress { width: 140px; }
-  .detail-stats { display: flex; gap: 12px; }
+  .detail-stats { display: flex; gap: var(--space-md); font-size: var(--font-size-xs); color: var(--n-500); }
+  .detail-stat--pass { color: var(--st-success); }
+  .detail-stat--fail { color: var(--st-danger); }
+  .detail-stat--blocked { color: var(--st-blocked); }
   .detail-actions {
-    display: flex; align-items: center; gap: 8px;
-    padding-left: 20px; border-left: 1px solid var(--n-200);
+    display: flex; align-items: center; gap: var(--space-sm);
+    padding-left: var(--space-lg); border-left: 1px solid var(--n-200);
   }
-  .detail-actions .btn [data-icon] svg { width: 14px; height: 14px; }
+  .detail-actions .btn [data-icon] svg { width: 14px; height: 14px; margin-right: 0; }
+  .detail-actions .btn + .btn { margin-left: 0; }
+  /* Element Plus plain 小按钮：浅色描边背景，对齐 PlanDetailPage 的 size="small" plain */
+  .btn--plain {
+    background: var(--n-0);
+    border-color: var(--n-300);
+    color: var(--n-700);
+  }
+  .btn--plain:hover {
+    background: var(--brand-50);
+    border-color: var(--brand-300);
+    color: var(--brand-500);
+  }
+  .btn--plain:disabled {
+    background: var(--n-0);
+    border-color: var(--n-200);
+    color: var(--n-400);
+  }
+  .btn-tip-wrap { display: inline-flex; }
+
+  /* 状态标签：对齐 el-tag size="small" effect="light" round */
+  .plan-status-tag {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; line-height: 1;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .plan-status-tag--info { color: var(--st-neutral); background: var(--st-neutral-light); border-color: #d3d4d6; }
+  .plan-status-tag--warning { color: var(--st-warning-strong); background: var(--st-warning-light); border-color: #f3d19e; }
+  .plan-status-tag--success { color: var(--st-success-strong); background: var(--st-success-light); border-color: #b3e19d; }
+  .plan-status-tag--danger { color: var(--st-danger-strong); background: var(--st-danger-light); border-color: #fab6b6; }
+  .detail-req .tag { border-radius: 4px; }
 
   .rv-workspace { display: flex; gap: 16px; align-items: stretch; }
   .rv-tree { width: 240px; flex-shrink: 0; }
   .rv-mind { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .rv-mind .card__body { flex: 1; min-height: 0; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
 
   /* 用例节点悬浮窗：透明底、水平并排、link 文字按钮；入口已从工具条移入节点（fd380891） */
   .node-popover {
@@ -112,57 +146,110 @@
   .tree__item--active .tree__caret svg { color: var(--brand-500); }
 
   /* 执行顺序建议：生成中进度 + 建议列表（对齐 PlanOrderPanel 的展示口径） */
-  .order-state { display: flex; align-items: center; gap: 12px; padding: 16px 0; }
-  .order-state .spin { display: inline-flex; animation: order-spin 1s linear infinite; }
-  .order-state .spin svg { width: 20px; height: 20px; color: var(--brand-500); }
+  .dialog--order { width: 720px; }
+  .order-state { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-md) 0; font-size: var(--font-size-sm); }
+  .order-state .spin { display: inline-flex; animation: order-spin 1s linear infinite; color: var(--brand-500); }
+  .order-state .spin svg { width: 20px; height: 20px; }
   @keyframes order-spin { to { transform: rotate(360deg); } }
-  .order-state__detail { margin-top: 4px; }
-  .order-list { display: flex; flex-direction: column; gap: 6px; }
-  .order-row {
-    display: grid; grid-template-columns: 64px 1fr 58px 200px; align-items: center; gap: 10px;
-    padding: 9px 12px; border: 1px solid var(--n-100); border-radius: var(--radius-md); font-size: 13px;
+  .order-state__text { display: flex; flex: 1; flex-direction: column; gap: 2px; }
+  .order-state__detail { margin-top: 0; color: var(--n-400); }
+  .order-panel { display: flex; flex-direction: column; gap: var(--space-sm); }
+  .order-panel__head { display: flex; align-items: center; gap: var(--space-xs); }
+  .order-panel__title { flex: 1; font-size: var(--font-size-base); font-weight: 600; color: var(--n-900); }
+  .order-badge {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 4px;
+    font-size: 12px; border: 1px solid transparent; white-space: nowrap;
   }
-  .order-row--head { background: var(--n-50); color: var(--n-500); font-size: var(--font-size-xs); font-weight: 600; }
+  .order-badge--pending { color: var(--st-warning-strong); background: var(--st-warning-light); border-color: #f3d19e; }
+  .order-badge--adjusted { color: var(--st-warning-strong); background: #fff; border-color: #f3d19e; }
+  .order-list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--n-200); border-radius: 4px; overflow: hidden; }
+  .order-row { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) var(--space-sm); font-size: var(--font-size-sm); background: #fff; }
+  .order-row + .order-row { border-top: 1px solid var(--n-100); }
+  .order-row__rank {
+    display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px;
+    width: 24px; height: 24px; border-radius: 50%; background: var(--brand-500); color: #fff; font-size: var(--font-size-sm);
+  }
+  .order-row__title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--n-800); }
+  .order-row__reason { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--n-500); cursor: help; }
+  .order-row__handle { flex-shrink: 0; color: var(--n-400); display: inline-flex; }
+  .order-row__handle svg { width: 16px; height: 16px; }
+  .order-diff { overflow: hidden; border: 1px solid var(--n-200); border-radius: 4px; }
+  .order-diff__head {
+    display: flex; align-items: center; justify-content: space-between; padding: var(--space-xs) var(--space-sm);
+    background: var(--n-50); color: var(--n-600); font-size: var(--font-size-sm);
+  }
+  .order-diff__count { color: var(--n-400); }
+  .order-diff__cols { display: grid; grid-template-columns: 1fr 1fr; }
+  .order-diff__cols ul { margin: 0; padding: var(--space-xs) 0; list-style: none; }
+  .order-diff__cols ul + ul { border-left: 1px solid var(--n-200); }
+  .order-diff__cols li { display: flex; gap: var(--space-xs); padding: 2px var(--space-sm); color: var(--n-600); font-size: var(--font-size-sm); }
+  .order-diff__item--changed { background: var(--brand-50); color: var(--brand-600); }
+  .order-diff__idx { color: var(--n-400); min-width: 14px; }
+  #order-footer { justify-content: flex-end; gap: var(--space-xs); padding-top: var(--space-sm); border-top: 1px solid var(--n-200); }
+
+  /* 执行顺序建议的行拖拽：原生 HTML5 drag，拖动后重排并重算序号/对照 */
+  .order-row[draggable="true"] { cursor: grab; }
+  .order-row.is-dragging { opacity: .45; }
+
+  /* 调整用例（CaseSelector 简化稿）：按模块/文档分组的用例勾选列表 */
+  .cs-list { max-height: 48vh; overflow-y: auto; border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 6px; }
+  .cs-group { padding: 8px 8px 2px; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-500); }
+  .cs-doc { padding: 4px 8px 0; font-size: var(--font-size-xs); color: var(--n-400); }
+  .cs-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+    border-radius: var(--radius-md); font-size: var(--font-size-sm);
+    color: var(--n-700); cursor: pointer;
+  }
+  .cs-item:hover { background: var(--n-50); }
+  .cs-item input { accent-color: var(--brand-500); }
+  /* 需求标签改成 <a> 后保持原中性呈现，避免默认链接蓝破坏视觉基准 */
+  .detail-req a.tag { color: inherit; }
+  .detail-req a.tag:hover { color: var(--brand-500); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <!-- 页头：面包屑保持纯净，需求/状态/进度/操作与面包屑同行（a8549b20） -->
+  <!-- 页头：面包屑保持纯净，需求/状态/进度/操作与面包屑同行（交互 06 §1.2） -->
   <div class="detail-head">
     <div class="detail-breadcrumb">
       <a href="plans.html">测试计划</a>
       <span data-icon="chevron-right"></span>
-      <span>V1.4.2 回归测试</span>
+      <span id="plan-name">V1.4.2 回归测试</span>
     </div>
     <div class="detail-extra">
-      <div class="detail-req">
+      <div class="detail-req" id="plan-requirements">
         <span class="detail-req__label">需求</span>
-        <span class="tag tag--info" title="购物车结算金额计算">REQ-2210</span>
-        <span class="tag tag--info" title="支付回调幂等处理">REQ-2235</span>
+        <a class="tag tag--plain" href="requirement-detail.html" title="购物车结算金额计算">REQ-2210</a>
+        <a class="tag tag--plain" href="requirement-detail.html" title="支付回调幂等处理">REQ-2235</a>
       </div>
-      <span class="status status--running" id="plan-status"><span class="dot"></span>执行中</span>
+      <span class="plan-status-tag plan-status-tag--warning" id="plan-status">执行中</span>
       <div class="detail-progress">
         <div class="progress">
           <div class="progress__track"><div class="progress__fill progress__fill--warning" id="plan-fill" style="width:60%"></div></div>
           <span class="progress__text" id="plan-percent">60%</span>
         </div>
         <div class="detail-stats">
-          <span class="text-xs" style="color:var(--st-success)">通过 <span id="stat-pass">5</span></span>
-          <span class="text-xs" style="color:var(--st-danger)">失败 <span id="stat-fail">2</span></span>
-          <span class="text-xs" style="color:var(--st-blocked)">阻塞 <span id="stat-block">2</span></span>
-          <span class="text-xs muted">待执行 <span id="stat-untested">6</span></span>
-          <span class="text-xs muted">共 <span id="stat-total">15</span></span>
+          <span class="detail-stat detail-stat--pass">通过 <span id="stat-pass">5</span></span>
+          <span class="detail-stat detail-stat--fail">失败 <span id="stat-fail">2</span></span>
+          <span class="detail-stat detail-stat--blocked">阻塞 <span id="stat-block">2</span></span>
+          <span class="detail-stat">待执行 <span id="stat-untested">6</span></span>
+          <span class="detail-stat">共 <span id="stat-total">15</span></span>
         </div>
       </div>
       <div class="detail-actions">
-        <button class="btn btn--default btn--sm" id="act-adjust"><span data-icon="edit"></span>调整用例</button>
-        <button class="btn btn--default btn--sm" id="act-order" title="按 AI 建议调整计划执行顺序"><span data-icon="list"></span>执行顺序建议</button>
-        <button class="btn btn--default btn--sm" id="act-sync"><span data-icon="refresh"></span>同步用例</button>
-        <button class="btn btn--default btn--sm" id="act-block" hidden><span data-icon="pause"></span>阻塞</button>
-        <button class="btn btn--default btn--sm" id="act-resume" hidden><span data-icon="play"></span>恢复</button>
-        <button class="btn btn--primary btn--sm" id="act-complete"><span data-icon="check"></span>完成执行</button>
+        <button class="btn btn--plain btn--sm" id="act-adjust"><span data-icon="edit"></span>调整用例</button>
+        <span class="btn-tip-wrap" id="act-next-wrap" title="全部用例已执行">
+          <button class="btn btn--plain btn--sm" id="act-next" disabled><span data-icon="arrow-right"></span>下一个待执行用例</button>
+        </span>
+        <span class="btn-tip-wrap" id="act-order-wrap" title="按 AI 建议调整计划执行顺序">
+          <button class="btn btn--plain btn--sm" id="act-order"><span data-icon="list"></span>执行顺序建议</button>
+        </span>
+        <button class="btn btn--plain btn--sm" id="act-sync"><span data-icon="refresh"></span>同步用例</button>
+        <button class="btn btn--plain btn--sm" id="act-block" hidden><span data-icon="pause"></span>阻塞</button>
+        <button class="btn btn--plain btn--sm" id="act-resume" hidden><span data-icon="play"></span>恢复</button>
+        <button class="btn btn--primary btn--sm" id="act-complete"><span data-icon="check-circle"></span>完成执行</button>
       </div>
     </div>
   </div>
@@ -188,9 +275,11 @@
     </div>
 
     <div class="card rv-mind">
-      <!-- 右键仅抑制浏览器原生菜单，不再渲染自定义菜单（fd380891） -->
-      <div class="mm" id="mind"></div>
-      <div class="node-popover" id="nodePopover" hidden></div>
+      <div class="card__body">
+        <!-- 右键仅抑制浏览器原生菜单，不再渲染自定义菜单（fd380891） -->
+        <div class="mm" id="mind"></div>
+        <div class="node-popover" id="nodePopover" hidden></div>
+      </div>
     </div>
   </div>
 
@@ -203,7 +292,7 @@
       <span class="dialog__title" id="confirm-title">确认操作</span>
       <button class="dialog__close" id="confirm-close" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
-    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600);font-size:14px;line-height:1.6"></p></div>
     <div class="dialog__footer">
       <button class="btn btn--default btn--sm" id="confirm-cancel">取消</button>
       <button class="btn btn--primary btn--sm" id="confirm-ok">确定</button>
@@ -211,30 +300,49 @@
   </div>
 </div>
 
-<!-- 执行顺序建议：进行中展示进度，完成后切为排序面板（交互 2.2 / 2.3） -->
-<div class="dialog-mask" id="order-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:720px" role="dialog" aria-modal="true" aria-labelledby="order-title">
+<!-- 调整用例：CaseSelector 简化稿，确认后差量更新快照（可增删文档与用例） -->
+<div class="dialog-mask" id="case-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:640px" role="dialog" aria-modal="true" aria-labelledby="case-title">
     <div class="dialog__header">
-      <span class="dialog__title" id="order-title">执行顺序建议</span>
-      <button class="dialog__close" id="order-close" aria-label="关闭"><span data-icon="x"></span></button>
+      <span class="dialog__title" id="case-title">选择关联用例</span>
+      <button class="dialog__close" id="case-close" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="dialog__body">
-      <div class="order-state" id="order-running">
-        <span class="spin" data-icon="loader"></span>
-        <div>
-          <div>AI 正在生成执行顺序建议…</div>
-          <div class="text-xs muted order-state__detail" id="order-progress-detail">正在分析关联用例的依赖与优先级</div>
-        </div>
-        <button class="btn btn--default btn--sm" id="order-bg" style="margin-left:auto">后台运行，关闭</button>
-      </div>
-      <div class="order-list" id="order-result" hidden></div>
+      <div class="text-xs muted" style="margin-bottom:8px">勾选需要关联的用例，取消勾选将从快照中移除</div>
+      <div class="cs-list" id="case-list"></div>
     </div>
-    <div class="dialog__footer" id="order-footer" hidden>
-      <button class="btn btn--default" id="order-cancel">取消</button>
-      <button class="btn btn--primary" id="order-adopt">采用排序</button>
+    <div class="dialog__footer">
+      <span class="text-xs muted" id="case-count" style="margin-right:auto;align-self:center"></span>
+      <button class="btn btn--default btn--sm" id="case-cancel">取消</button>
+      <button class="btn btn--primary btn--sm" id="case-ok">确定关联</button>
     </div>
   </div>
 </div>
+
+<!-- 执行顺序建议：进行中展示进度，完成后切为排序面板（交互 2.2 / 2.3） -->
+  <div class="dialog-mask" id="order-dialog" data-mask-close hidden>
+    <div class="dialog dialog--order" role="dialog" aria-modal="true" aria-labelledby="order-title">
+      <div class="dialog__header">
+        <span class="dialog__title" id="order-title">执行顺序建议</span>
+        <button class="dialog__close" id="order-close" aria-label="关闭"><span data-icon="x"></span></button>
+      </div>
+      <div class="dialog__body">
+        <div class="order-state" id="order-running">
+          <span class="spin" data-icon="loader"></span>
+          <div class="order-state__text">
+            <div>AI 正在生成执行顺序建议…</div>
+            <div class="text-xs muted order-state__detail" id="order-progress-detail">正在分析关联用例的依赖与优先级</div>
+          </div>
+          <button class="btn btn--text btn--sm" id="order-bg" style="margin-left:auto">后台运行，关闭</button>
+        </div>
+        <div id="order-result" hidden></div>
+      </div>
+      <div class="dialog__footer" id="order-footer" hidden>
+        <button class="btn btn--primary btn--sm" id="order-adopt">应用建议</button>
+        <button class="btn btn--default btn--sm" id="order-cancel">放弃</button>
+      </div>
+    </div>
+  </div>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
@@ -251,11 +359,11 @@
 
   // 状态标签与操作按钮显隐同源 planListPresentation：new/in_progress 为活跃态，blocked 仅恢复
   var STATUS = {
-    new: { label: '未开始', cls: 'status--neutral' },
-    in_progress: { label: '执行中', cls: 'status--running' },
-    completed: { label: '已完成', cls: 'status--success' },
-    blocked: { label: '已阻塞', cls: 'status--blocked' },
-    closed: { label: '已关闭', cls: 'status--neutral' }
+    new: { label: '未开始', cls: 'plan-status-tag--info' },
+    in_progress: { label: '执行中', cls: 'plan-status-tag--warning' },
+    completed: { label: '已完成', cls: 'plan-status-tag--success' },
+    blocked: { label: '已阻塞', cls: 'plan-status-tag--danger' },
+    closed: { label: '已关闭', cls: 'plan-status-tag--info' }
   };
   // 徽标文案与 badges.ts 一致；浮层按钮文案与 PlanMindMap 的 ✅/❌/❓/🔄 一致
   var MARK = {
@@ -349,6 +457,46 @@
     }
   };
 
+  // 上游用例库：同步/调整用例时补入快照；仅内存数据，刷新后恢复初始状态
+  var UPSTREAM = [
+    { doc: 'doc-pay', id: 'c-pay-4', title: '回调签名过期拒绝', prio: 'P1',
+      detail: [{ type: 'expected', text: '过期时间戳的回调被拒绝并记录安全日志' }] },
+    { doc: 'doc-order', id: 'c-order-6', title: '购物车金额精度校验', prio: 'P2',
+      detail: [{ type: 'expected', text: '金额按分计算，不出现浮点误差' }] },
+    { doc: 'doc-exception', id: 'c-ex-1', title: '库存服务不可用降级', prio: 'P1',
+      docName: '异常场景', group: '异常场景模块',
+      detail: [{ type: 'expected', text: '返回友好提示并保留购物车内容' }] }
+  ];
+
+  function makeUpstreamCase(u) {
+    return {
+      id: u.id, title: u.title, prio: u.prio, result: 'untested',
+      detail: (u.detail || []).map(function (d) { return { type: d.type, text: d.text }; })
+    };
+  }
+
+  // 文档可能被同步/调整用例补入，需同步补齐快照数据、树节点与文档名
+  function ensureDocIn(target, docId, docName, groupName) {
+    if (!target[docId]) target[docId] = { root: (docName || docId) + '（执行快照）', cases: [] };
+    if (!DOC_NAME[docId]) DOC_NAME[docId] = docName || docId;
+    var found = false;
+    TREE.forEach(function (dir) { if (dir.docs.indexOf(docId) >= 0) found = true; });
+    if (!found) {
+      var group = null;
+      if (groupName) {
+        TREE.forEach(function (dir) { if (dir.name === groupName) group = dir; });
+      }
+      if (!group) { group = { name: groupName || '其他模块', open: true, docs: [] }; TREE.push(group); }
+      group.docs.push(docId);
+    }
+  }
+
+  function upstreamOf(docId) {
+    var found = null;
+    UPSTREAM.forEach(function (u) { if (u.doc === docId && !found) found = u; });
+    return found;
+  }
+
   function isActive() { return status === 'new' || status === 'in_progress'; }
 
   function findCase(id) {
@@ -370,11 +518,30 @@
   }
 
   // ==================== 页头：状态 / 进度 / 统计 / 操作 ====================
+  function nextPendingCase() {
+    // 跨文档查找，避免当前文档无待执行用例时误判「全部已执行」
+    var seq = 0;
+    for (var t = 0; t < TREE.length; t++) {
+      for (var d = 0; d < TREE[t].docs.length; d++) {
+        var docId = TREE[t].docs[d];
+        var doc = DOCS[docId];
+        if (!doc) continue;
+        for (var i = 0; i < doc.cases.length; i++) {
+          seq++;
+          if (doc.cases[i].result === 'untested') {
+            return { id: doc.cases[i].id, title: doc.cases[i].title, docId: docId, order: seq };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   function renderHead() {
     var meta = STATUS[status];
     var tag = byId('plan-status');
-    tag.className = 'status ' + meta.cls;
-    tag.innerHTML = '<span class="dot"></span>' + meta.label;
+    tag.className = 'plan-status-tag ' + meta.cls;
+    tag.textContent = meta.label;
 
     var counts = { pass: 0, fail: 0, block: 0, untested: 0, total: 0 };
     Object.keys(DOCS).forEach(function (key) {
@@ -406,11 +573,22 @@
     byId('act-block').hidden = !active;
     byId('act-resume').hidden = status !== 'blocked';
     byId('act-complete').hidden = !active;
+
+    var next = nextPendingCase();
+    var nextBtn = byId('act-next');
+    var nextWrap = byId('act-next-wrap');
+    nextBtn.hidden = !active;
+    nextWrap.hidden = !active;
+    nextBtn.disabled = !next;
+    nextWrap.title = next ? ('定位第 ' + next.order + ' 个待执行用例：' + next.title) : '全部用例已执行';
+
     // 关联用例为空时后端 1000018304，入口置灰并说明原因（详设 4.1）
     var orderBtn = byId('act-order');
+    var orderWrap = byId('act-order-wrap');
     orderBtn.hidden = !active;
+    orderWrap.hidden = !active;
     orderBtn.disabled = counts.total === 0;
-    orderBtn.title = counts.total === 0 ? '计划关联用例为空，无法推荐执行顺序' : '按 AI 建议调整计划执行顺序';
+    orderWrap.title = counts.total === 0 ? '计划关联用例为空，无法推荐执行顺序' : '按 AI 建议调整计划执行顺序';
   }
 
   // ==================== 快照文档树 ====================
@@ -524,23 +702,260 @@
   byId('confirm-cancel').addEventListener('click', closeConfirm);
   byId('confirm-close').addEventListener('click', closeConfirm);
 
+  // ==================== 调整用例（CaseSelector 简化稿） ====================
+  function collectCaseGroups() {
+    var groups = [];
+    var index = {};
+    function groupOf(name) {
+      if (!index[name]) { index[name] = { name: name, docs: [] }; groups.push(index[name]); }
+      return index[name];
+    }
+    function groupNameOf(docId) {
+      for (var t = 0; t < TREE.length; t++) {
+        if (TREE[t].docs.indexOf(docId) >= 0) return TREE[t].name;
+      }
+      return '';
+    }
+    TREE.forEach(function (dir) { groupOf(dir.name); });
+    var docIds = [];
+    TREE.forEach(function (dir) {
+      dir.docs.forEach(function (id) { if (docIds.indexOf(id) < 0) docIds.push(id); });
+    });
+    Object.keys(DOCS).forEach(function (id) { if (docIds.indexOf(id) < 0) docIds.push(id); });
+    UPSTREAM.forEach(function (u) { if (docIds.indexOf(u.doc) < 0) docIds.push(u.doc); });
+
+    docIds.forEach(function (docId) {
+      var um = upstreamOf(docId);
+      var name = groupNameOf(docId) || (um && um.group) || '其他模块';
+      var items = [];
+      if (DOCS[docId]) {
+        DOCS[docId].cases.forEach(function (c) {
+          items.push({ id: c.id, title: c.title, prio: c.prio, doc: docId, checked: true });
+        });
+      }
+      UPSTREAM.forEach(function (u) {
+        if (u.doc !== docId || findCase(u.id)) return;
+        items.push({ id: u.id, title: u.title, prio: u.prio, doc: docId, checked: false });
+      });
+      groupOf(name).docs.push({
+        id: docId,
+        name: DOC_NAME[docId] || (um && um.docName) || docId,
+        items: items
+      });
+    });
+    return groups;
+  }
+
+  function renderCaseDialog() {
+    var html = '<div class="cs-list">';
+    collectCaseGroups().forEach(function (g) {
+      var count = 0;
+      g.docs.forEach(function (d) { count += d.items.length; });
+      if (!count) return;
+      html += '<div class="cs-group">' + esc(g.name) + '</div>';
+      g.docs.forEach(function (d) {
+        if (!d.items.length) return;
+        html += '<div class="cs-doc">' + esc(d.name) + '</div>';
+        d.items.forEach(function (it) {
+          html += '<label class="cs-item">' +
+            '<input type="checkbox" data-case="' + esc(it.id) + '" data-doc="' + esc(it.doc) + '"' +
+            (it.checked ? ' checked' : '') + '>' +
+            '<span class="mm-prio mm-prio--' + it.prio.toLowerCase() + '">' + it.prio + '</span>' +
+            esc(it.title) + '</label>';
+        });
+      });
+    });
+    html += '</div>';
+    byId('case-list').innerHTML = html;
+    updateCaseDialogCount();
+  }
+
+  function updateCaseDialogCount() {
+    var n = byId('case-list').querySelectorAll('input:checked').length;
+    byId('case-count').textContent = '已选 ' + n + ' 个用例';
+    byId('case-ok').textContent = '确定关联 (' + n + ')';
+  }
+
+  function closeCaseDialog() { byId('case-dialog').hidden = true; }
+
+  function applyCaseSelection() {
+    var keep = {};
+    var inputs = byId('case-list').querySelectorAll('input:checked');
+    for (var i = 0; i < inputs.length; i++) keep[inputs[i].getAttribute('data-case')] = true;
+    if (!Object.keys(keep).length) { toast('请至少选择一个用例', 'warning'); return; }
+
+    var nextDocs = {};
+    Object.keys(DOCS).forEach(function (docId) {
+      var kept = DOCS[docId].cases.filter(function (c) { return keep[c.id]; });
+      if (kept.length) nextDocs[docId] = { root: DOCS[docId].root, cases: kept };
+    });
+    UPSTREAM.forEach(function (u) {
+      if (!keep[u.id] || nextCaseIn(nextDocs, u.id)) return;
+      ensureDocIn(nextDocs, u.doc, u.docName, u.group);
+      nextDocs[u.doc].cases.push(makeUpstreamCase(u));
+    });
+    DOCS = nextDocs;
+    TREE.forEach(function (dir) {
+      dir.docs = dir.docs.filter(function (id) { return !!DOCS[id]; });
+    });
+    TREE = TREE.filter(function (dir) { return dir.docs.length; });
+    if (!DOCS[activeDoc]) activeDoc = firstDoc();
+    if (selectedId && !findCase(selectedId)) { selectedId = null; hidePopover(); }
+    closeCaseDialog();
+    renderAll();
+    toast('规划用例已更新', 'success');
+  }
+
+  function nextCaseIn(docs, id) {
+    var found = false;
+    Object.keys(docs).forEach(function (key) {
+      docs[key].cases.forEach(function (c) { if (c.id === id) found = true; });
+    });
+    return found;
+  }
+
+  byId('act-adjust').addEventListener('click', function () {
+    renderCaseDialog();
+    byId('case-dialog').hidden = false;
+  });
+  byId('case-list').addEventListener('change', updateCaseDialogCount);
+  byId('case-ok').addEventListener('click', applyCaseSelection);
+  byId('case-close').addEventListener('click', closeCaseDialog);
+  byId('case-cancel').addEventListener('click', closeCaseDialog);
+  byId('case-dialog').addEventListener('click', function (e) {
+    if (e.target === byId('case-dialog')) closeCaseDialog();
+  });
+
+  // ==================== 同步最新用例 ====================
+  var syncSeq = 0;
+  function syncUpstreamCases() {
+    syncSeq++;
+    var added = null;
+    for (var i = 0; i < UPSTREAM.length; i++) {
+      var u = UPSTREAM[i];
+      if (findCase(u.id)) continue;
+      ensureDocIn(DOCS, u.doc, u.docName, u.group);
+      DOCS[u.doc].cases.push(makeUpstreamCase(u));
+      added = u.title;
+      // 切到补入用例所在文档，让新增节点在脑图中直接可见
+      if (u.doc !== activeDoc) {
+        activeDoc = u.doc;
+        selectedId = null;
+        popoverAnchor = null;
+        renderTree();
+      }
+      break;
+    }
+    // 无新增用例时仍刷新快照属性（同步版本号），保证每次操作都有真实 DOM 变化
+    if (!added && DOCS[activeDoc]) {
+      var doc = DOCS[activeDoc];
+      doc.root = doc.root.replace(/\s·\s同步 #\d+$/, '') + ' · 同步 #' + syncSeq;
+    }
+    hidePopover();
+    renderAll();
+    return added;
+  }
+
   // ==================== 执行顺序建议 ====================
   var orderRows = [];
   var orderTimer = null;
 
-  function renderOrderRows() {
+  function renderOrderRows(useCurrent) {
     var doc = DOCS[activeDoc];
-    orderRows = doc ? doc.cases.slice().sort(function (a, b) {
-      return (PRIO_RANK[a.prio] - PRIO_RANK[b.prio]) || a.title.localeCompare(b.title);
-    }) : [];
-    var html = '<div class="order-row order-row--head"><span>建议顺序</span><span>用例</span><span>优先级</span><span>建议依据</span></div>';
+    if (useCurrent && orderRows.length) {
+      var valid = {};
+      if (doc) doc.cases.forEach(function (c) { valid[c.id] = true; });
+      orderRows = orderRows.filter(function (c) { return valid[c.id]; });
+    } else {
+      orderRows = doc ? doc.cases.slice().sort(function (a, b) {
+        return (PRIO_RANK[a.prio] - PRIO_RANK[b.prio]) || a.title.localeCompare(b.title);
+      }) : [];
+    }
+    var changedCount = 0;
+    var before = doc ? doc.cases.map(function (c) { return c.title; }) : [];
+    var after = orderRows.map(function (c) { return c.title; });
+    var max = Math.max(before.length, after.length);
+    for (var k = 0; k < max; k++) { if ((before[k] || '') !== (after[k] || '')) changedCount++; }
+
+    var html = '<section class="order-panel" aria-label="执行顺序建议面板">';
+    html += '<header class="order-panel__head">';
+    html += '<span class="order-panel__title">执行顺序建议</span>';
+    html += '<span class="order-badge order-badge--pending">待采纳</span>';
+    if (changedCount > 0) html += '<span class="order-badge order-badge--adjusted">已人工调整</span>';
+    html += '</header>';
+    html += '<ol class="order-list">';
     orderRows.forEach(function (c, i) {
-      html += '<div class="order-row"><span>第 ' + (i + 1) + ' 位</span><span>' + esc(c.title) + '</span>' +
-        '<span class="mm-prio mm-prio--' + c.prio.toLowerCase() + '">' + c.prio + '</span>' +
-        '<span class="muted">' + PRIO_REASON[c.prio] + '</span></div>';
+      html += '<li class="order-row" data-order-id="' + esc(c.id) + '" draggable="true">' +
+        '<span class="order-row__rank">' + (i + 1) + '</span>' +
+        '<span class="order-row__title">' + esc(c.title) + '</span>' +
+        '<span class="order-row__reason" title="理由：' + esc(PRIO_REASON[c.prio]) + '">' + esc(PRIO_REASON[c.prio]) + '</span>' +
+        '<span class="order-row__handle" data-icon="list" title="拖动调整执行顺序"></span>' +
+        '</li>';
     });
-    byId('order-result').innerHTML = html || '<div class="rc-empty">当前文档未关联用例</div>';
+    html += '</ol>';
+
+    html += '<div class="order-diff">';
+    html += '<div class="order-diff__head"><span>采纳前 vs 采纳后 顺序对照</span><span class="order-diff__count">' +
+      (changedCount > 0 ? changedCount + ' 项顺序变化' : '顺序与采纳前一致') + '</span></div>';
+    html += '<div class="order-diff__cols"><ul>';
+    for (var i = 0; i < max; i++) {
+      var b = before[i] || '—';
+      var a = after[i] || '—';
+      html += '<li class="' + (b !== a ? 'order-diff__item--changed' : '') + '"><span class="order-diff__idx">' + (i + 1) + '</span>' + esc(b) + '</li>';
+    }
+    html += '</ul><ul>';
+    for (var j = 0; j < max; j++) {
+      var b2 = before[j] || '—';
+      var a2 = after[j] || '—';
+      html += '<li class="' + (b2 !== a2 ? 'order-diff__item--changed' : '') + '"><span class="order-diff__idx">' + (j + 1) + '</span>' + esc(a2) + '</li>';
+    }
+    html += '</ul></div></div>';
+    html += '</section>';
+    byId('order-result').innerHTML = html;
+    if (window.RTIcons) window.RTIcons.hydrate(byId('order-result'));
   }
+
+  // 原生 HTML5 拖拽：拖动行后按 DOM 顺序回写 orderRows，重算序号与前后对照
+  var dragRow = null;
+  var orderResult = byId('order-result');
+  orderResult.addEventListener('dragstart', function (e) {
+    var row = e.target.closest('.order-row');
+    if (!row) return;
+    dragRow = row;
+    row.classList.add('is-dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', row.getAttribute('data-order-id'));
+    }
+  });
+  orderResult.addEventListener('dragover', function (e) {
+    if (!dragRow) return;
+    e.preventDefault();
+    var row = e.target.closest('.order-row');
+    var list = orderResult.querySelector('.order-list');
+    if (!row || row === dragRow || !list) return;
+    var box = row.getBoundingClientRect();
+    list.insertBefore(dragRow, e.clientY > box.top + box.height / 2 ? row.nextSibling : row);
+  });
+  orderResult.addEventListener('drop', function (e) { if (dragRow) e.preventDefault(); });
+  orderResult.addEventListener('dragend', function () {
+    if (!dragRow) return;
+    dragRow.classList.remove('is-dragging');
+    dragRow = null;
+    var ids = [];
+    orderResult.querySelectorAll('.order-row').forEach(function (row) {
+      ids.push(row.getAttribute('data-order-id'));
+    });
+    var map = {};
+    orderRows.forEach(function (c) { map[c.id] = c; });
+    var next = [];
+    ids.forEach(function (id) { if (map[id]) next.push(map[id]); });
+    if (next.length && next.length === orderRows.length) {
+      orderRows = next;
+      renderOrderRows(true);
+    }
+  });
+
   function showOrderResult() {
     byId('order-running').hidden = true;
     byId('order-result').hidden = false;
@@ -562,6 +977,27 @@
     byId('order-result').hidden = true;
     byId('order-footer').hidden = true;
     orderTimer = setTimeout(showOrderResult, 900);
+  });
+  byId('act-next').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var next = nextPendingCase();
+    if (!next) return;
+    if (next.docId !== activeDoc) {
+      activeDoc = next.docId;
+      selectedId = null;
+      popoverAnchor = null;
+      hidePopover();
+      renderTree();
+    }
+    selectedId = next.id;
+    renderMind();
+    var node = byId('mind').querySelector('.mm-node[data-case="' + next.id + '"]');
+    if (node) {
+      var box = node.getBoundingClientRect();
+      popoverAnchor = { x: Math.round(box.left), y: Math.round(box.bottom + 4) };
+      node.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      showPopover();
+    }
   });
   byId('order-bg').addEventListener('click', closeOrderDialog);
   byId('order-close').addEventListener('click', closeOrderDialog);
@@ -600,9 +1036,9 @@
   });
 
   byId('mind').addEventListener('click', function (e) {
-    var node = e.target.closest('[data-case]');
+    var node = e.target.closest('.mm-node[data-case]');
     if (!node) { hidePopover(); return; }
-    var box = node.querySelector('.mm-node').getBoundingClientRect();
+    var box = node.getBoundingClientRect();
     selectedId = node.getAttribute('data-case');
     popoverAnchor = { x: Math.round(box.left), y: Math.round(box.bottom + 4) };
     renderMind();
@@ -666,10 +1102,15 @@
       hidePopover();
     }
   });
+  byId('confirm-dialog').addEventListener('click', function (e) {
+    if (e.target === byId('confirm-dialog')) closeConfirm();
+  });
+
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     hidePopover();
     if (!byId('order-dialog').hidden) closeOrderDialog();
+    if (!byId('case-dialog').hidden) closeCaseDialog();
     if (!byId('confirm-dialog').hidden) closeConfirm();
   });
 
@@ -687,9 +1128,9 @@
       function () { hidePopover(); status = 'completed'; renderAll(); });
   });
   byId('act-sync').addEventListener('click', function () {
-    askConfirm('同步最新用例', '同步将更新快照节点属性，已有执行记录不受影响。确定同步？', function () {
-      hidePopover();
-      renderAll();
+    askConfirm('同步最新用例', '同步将按原始节点 ID 更新快照属性并补入最新用例，已有执行记录保留。确定同步？', function () {
+      var added = syncUpstreamCases();
+      toast(added ? ('已同步，补入用例：' + added) : '快照属性已刷新', 'success');
     });
   });
 

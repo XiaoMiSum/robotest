@@ -20,8 +20,15 @@
   .rr-hero__meta { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 12.8px; color: rgba(19,161,76,.72); }
   .rr-hero__meta b { font-weight: 600; color: var(--st-success-strong); }
   .rr-mono { font-family: var(--font-mono); }
-  .btn-hero { background: rgba(255,255,255,.85); border: 1px solid rgba(19,161,76,.18); color: var(--st-success-strong); }
-  .btn-hero:hover { background: #fff; border-color: rgba(19,161,76,.4); }
+  .detail-actions__btn {
+    background: color-mix(in srgb, var(--color-neutral-0) 85%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-success) 18%, transparent);
+    color: var(--color-success-strong);
+  }
+  .detail-actions__btn:hover {
+    background: var(--color-neutral-0);
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+  }
 
   /* 统计卡 */
   .rr-card { background: #fff; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 20px -8px rgba(0,0,0,.12); margin-bottom: 18px; overflow: hidden; }
@@ -159,38 +166,46 @@
 
   .rr-footer { font-size: 12.5px; color: var(--n-600); text-align: center; margin: 22px 0 0; }
 
-  /* 分享弹窗 */
+  /* 页面容器：对齐 ReportDetailPage .report-detail__content */
+  .report-detail__content {
+    background: var(--color-neutral-50, var(--n-50));
+    border-radius: 16px;
+    padding: 20px 24px;
+  }
+
+  /* 分享弹窗：对齐 ReportDetailPage el-dialog */
   [hidden] { display: none !important; }
-  .share-hint { font-size: var(--font-size-sm); color: var(--n-500); margin: 0 0 var(--space-sm); }
-  .share-url { display: flex; }
-  .share-url .input { flex: 1; border-top-right-radius: 0; border-bottom-right-radius: 0; }
-  .share-url .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
-  .share-meta { font-size: var(--font-size-xs); color: var(--n-400); margin: var(--space-sm) 0 0; }
-  .share-actions { display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: var(--space-lg); }
-  .expiry-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
-  .expiry-seg button { height: 26px; padding: 0 14px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
-  .expiry-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
+  .share-dialog__hint { font-size: var(--font-size-sm); color: var(--color-neutral-500, var(--n-500)); margin: 0 0 var(--space-sm); }
+  .share-dialog__url { display: flex; }
+  .share-dialog__url .input { flex: 1; border-top-right-radius: 0; border-bottom-right-radius: 0; background: var(--n-50); }
+  .share-dialog__url .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; min-width: 64px; }
+  .share-dialog__expires { font-size: var(--font-size-xs); color: var(--color-neutral-400, var(--n-400)); margin: var(--space-sm) 0 0; }
+  .share-dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: var(--space-lg); }
+  .share-dialog__expiry { display: inline-flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--n-200); border-radius: var(--radius-md); overflow: hidden; }
+  .share-dialog__expiry button {
+    height: 32px; padding: 0 16px; border: none; border-right: 1px solid var(--n-200);
+    background: #fff; color: var(--n-600); font-size: var(--font-size-sm); cursor: pointer; font-family: inherit;
+  }
+  .share-dialog__expiry button:last-child { border-right: none; }
+  .share-dialog__expiry button:hover { color: var(--brand-500); }
+  .share-dialog__expiry button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <div class="breadcrumb">
-    <a href="api-reports.html">测试报告</a>
-    <span data-icon="chevron-right"></span>
-    <span>支付回归夜跑-2026-09-22 03:00:04</span>
-  </div>
+  <div class="report-detail__content">
 
-  <!-- Hero -->
+  <!-- Hero：对齐 ReportResultView + ReportDetailPage hero-actions 插槽 -->
   <div class="rr-hero">
     <div class="rr-hero__top">
       <h1 class="rr-hero__title">支付回归夜跑-2026-09-22 03:00:04</h1>
       <span class="rr-pill rr-pill--fail">✗ 执行失败</span>
       <span class="rr-pill rr-pill--on-dark">定时任务</span>
       <div class="rr-hero__actions">
-        <button class="btn btn--sm btn-hero" id="btn-share"><span data-icon="link"></span>分享</button>
-        <a class="btn btn--sm btn-hero" href="api-reports.html">关闭</a>
+        <button class="btn detail-actions__btn" id="btn-share"><span data-icon="link"></span>分享</button>
+        <button class="btn detail-actions__btn" id="btn-close" onclick="location.href='api-reports.html'">关闭</button>
       </div>
     </div>
     <div class="rr-hero__meta">
@@ -1097,9 +1112,10 @@
   </section>
 
   <p class="rr-footer">报告生成时间 2026-09-22 03:00:16 · 来源：定时任务 · 环境：测试环境</p>
+  </div>
 </main>
 
-<!-- 分享弹窗（两步式：选有效期 → 生成链接；已有分享直接展示记录，对应 ReportDetailPage 的 create / record 视图） -->
+<!-- 分享弹窗：对齐 ReportDetailPage el-dialog（width=480px, close-on-click-modal=false） -->
 <div class="dialog-mask" id="share-dialog" hidden>
   <div class="dialog" style="width:480px">
     <div class="dialog__header">
@@ -1107,33 +1123,33 @@
       <button class="dialog__close" data-close>✕</button>
     </div>
 
-    <div class="dialog__body" data-share-view="create">
-      <p class="share-hint" id="share-hint">选择有效期后生成分享链接，有效期内可免登录访问</p>
-      <span class="expiry-seg" id="expiry-seg">
-        <button data-days="1">1 天</button>
-        <button class="is-active" data-days="7">7 天</button>
-        <button data-days="30">30 天</button>
-        <button data-days="90">90 天</button>
-      </span>
-      <p class="share-meta">生成后可在记录视图复制「报告名称 + 链接 + 有效期 + 分享人」的分享文案</p>
-    </div>
-
+    <!-- record 视图：有未过期分享时复用展示 -->
     <div class="dialog__body" data-share-view="record" hidden>
-      <div class="share-url">
+      <div class="share-dialog__url">
         <input class="input" id="share-url" readonly value="">
-        <button class="btn btn--default btn--sm" id="btn-copy-share">复制</button>
+        <button class="btn btn--default" id="btn-copy-share">复制</button>
       </div>
-      <p class="share-meta" id="share-expires">有效期至：—</p>
-      <p class="share-meta" id="share-by">分享人：—</p>
-      <p class="share-meta">复制将带上报告名称、链接、有效期与分享人，可直接粘贴到聊天工具</p>
+      <p class="share-dialog__expires" id="share-expires">有效期至：—</p>
+      <p class="share-dialog__expires" id="share-by">分享人：—</p>
+      <p class="share-dialog__expires" id="share-copied" hidden>已复制分享内容，可直接粘贴发送</p>
+      <div class="share-dialog__actions">
+        <button class="btn btn--default" id="btn-regenerate">重新生成</button>
+      </div>
     </div>
 
-    <div class="dialog__footer" data-share-view="create">
-      <button class="btn btn--default btn--sm" data-close>取消</button>
-      <button class="btn btn--primary btn--sm" id="btn-generate">生成分享链接</button>
-    </div>
-    <div class="dialog__footer" data-share-view="record" hidden>
-      <button class="btn btn--default btn--sm" id="btn-regenerate">重新生成</button>
+    <!-- create 视图：选有效期并生成 -->
+    <div class="dialog__body" data-share-view="create">
+      <p class="share-dialog__hint" id="share-hint">选择有效期后生成分享链接，有效期内可免登录访问</p>
+      <div class="share-dialog__expiry" id="expiry-seg" role="radiogroup" aria-label="有效期">
+        <button type="button" data-days="1">1 天</button>
+        <button type="button" class="is-active" data-days="7">7 天</button>
+        <button type="button" data-days="30">30 天</button>
+        <button type="button" data-days="90">90 天</button>
+      </div>
+      <div class="share-dialog__actions">
+        <button class="btn btn--default" data-close>取消</button>
+        <button class="btn btn--primary" id="btn-generate">生成分享链接</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1147,23 +1163,42 @@
     var head = scene.querySelector('.rr-scene__head');
     var body = scene.querySelector('[data-scene-body]');
     var chev = scene.querySelector('[data-chev]');
-    head.addEventListener('click', function () {
+
+    function toggleScene() {
       var open = !body.hasAttribute('hidden');
       if (open) { body.setAttribute('hidden', ''); chev.classList.remove('rr-chev--open'); }
       else { body.removeAttribute('hidden'); chev.classList.add('rr-chev--open'); }
+    }
+
+    head.addEventListener('click', toggleScene);
+    // 箭头自身也是按钮：独立处理折叠并阻止冒泡，避免与场景头重复触发
+    chev.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleScene();
     });
   });
 
-  // 步骤默认仅失败步骤展开，工具栏按钮一键全开/全关
+  // 步骤默认仅失败步骤展开，工具栏按钮按当前状态一键全开/全关
   document.querySelectorAll('[data-steps]').forEach(function (card) {
     var btn = card.querySelector('[data-toggle-all]');
     if (!btn) return;
-    var allOpen = false;
+    var cards = Array.prototype.slice.call(card.querySelectorAll('details.rsc__card'));
+
+    function isAllOpen() {
+      return cards.length > 0 && cards.every(function (d) { return d.open; });
+    }
+    function syncLabel() {
+      btn.textContent = isAllOpen() ? '全部收起' : '全部展开';
+    }
+
     btn.addEventListener('click', function () {
-      allOpen = !allOpen;
-      card.querySelectorAll('details.rsc__card').forEach(function (d) { d.open = allOpen; });
-      btn.textContent = allOpen ? '全部收起' : '全部展开';
+      var shouldOpen = !isAllOpen();
+      cards.forEach(function (d) { d.open = shouldOpen; });
+      syncLabel();
     });
+    // 手动逐个展开/收起后，按钮文案仍与真实状态一致
+    cards.forEach(function (d) { d.addEventListener('toggle', syncLabel); });
+    syncLabel();
   });
 
   /* ---------------- 前置 / 后置处理器 ---------------- */
@@ -1200,9 +1235,14 @@
   var REPORT_NAME = '支付回归夜跑-2026-09-22 03:00:04';
   var SHARE_BY = '李晓明';
   var mask = document.getElementById('share-dialog');
+  var openBtn = document.getElementById('btn-share');
   var genBtn = document.getElementById('btn-generate');
+  var copyBtn = document.getElementById('btn-copy-share');
+  var copiedHint = document.getElementById('share-copied');
+  var shareUrlInput = document.getElementById('share-url');
   var shareRecord = null; // { url, expiresAt, shareBy }
   var expiryDays = 7;
+  var copyResetTimer;
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
   function fmtDateTime(d) {
@@ -1252,13 +1292,36 @@
 
   function copyShare() {
     copyText(shareText()).then(function () {
+      shareUrlInput.focus();
+      shareUrlInput.select();
+      copyBtn.textContent = '已复制 ✓';
+      copiedHint.hidden = false;
+      window.clearTimeout(copyResetTimer);
+      copyResetTimer = window.setTimeout(function () {
+        copyBtn.textContent = '复制';
+        copiedHint.hidden = true;
+      }, 2400);
       window.RTUX.toast('已复制分享链接', { type: 'success' });
     }).catch(function () {
+      shareUrlInput.focus();
+      shareUrlInput.select();
       window.RTUX.toast('复制失败，请手动复制', { type: 'danger' });
     });
   }
 
-  document.getElementById('btn-share').addEventListener('click', function () {
+  function resetCopyState() {
+    window.clearTimeout(copyResetTimer);
+    copyBtn.textContent = '复制';
+    copiedHint.hidden = true;
+  }
+
+  function closeShare() {
+    mask.setAttribute('hidden', '');
+    resetCopyState();
+    openBtn.focus();
+  }
+
+  openBtn.addEventListener('click', function () {
     document.getElementById('share-hint').textContent = shareRecord
       ? '选择有效期后生成分享链接，有效期内可免登录访问（将覆盖当前分享）'
       : '选择有效期后生成分享链接，有效期内可免登录访问';
@@ -1267,8 +1330,12 @@
     mask.removeAttribute('hidden');
   });
 
+  // 关闭按钮、点遮罩、ESC 三种方式均真实隐藏弹窗
   mask.addEventListener('click', function (e) {
-    if (e.target === mask || e.target.hasAttribute('data-close')) mask.setAttribute('hidden', '');
+    if (e.target.hasAttribute('data-close') || e.target === mask) closeShare();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!mask.hasAttribute('hidden') && (e.key === 'Escape' || e.key === 'Esc')) closeShare();
   });
 
   document.querySelectorAll('#expiry-seg button').forEach(function (btn) {
@@ -1292,6 +1359,7 @@
       };
       genBtn.disabled = false;
       genBtn.textContent = '生成分享链接';
+      resetCopyState();
       fillRecord();
       setShareView('record');
       window.RTUX.toast('分享链接已生成，' + expiryDays + ' 天内有效', { type: 'success' });
@@ -1299,9 +1367,10 @@
   });
 
   document.getElementById('btn-regenerate').addEventListener('click', function () {
+    resetCopyState();
     setShareView('create');
   });
-  document.getElementById('btn-copy-share').addEventListener('click', copyShare);
+  copyBtn.addEventListener('click', copyShare);
 </script>
 </body>
 </html>

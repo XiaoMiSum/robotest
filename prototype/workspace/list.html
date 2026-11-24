@@ -10,219 +10,682 @@
   /* 作者样式强于 UA [hidden]，筛选 / 空态 / 弹层显隐须显式补显隐契约 */
   [hidden] { display: none !important; }
 
-  /* 对应 WorkspaceListPage 的自适应卡片栅格 */
-  .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+  .workspace-list-page__toolbar-card {
+    margin-bottom: var(--space-lg);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    background: var(--n-0);
+    box-shadow: var(--shadow-card);
+  }
 
-  .ws-card {
-    background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg);
-    padding: 22px 24px; min-height: 200px; box-shadow: var(--shadow-card); cursor: pointer; position: relative;
+  .workspace-list-page__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: 14px 20px;
+    flex-wrap: wrap;
+  }
+
+  .workspace-list-page__filters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .workspace-list-page__segment {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--radius-md);
+    background: var(--n-100);
+  }
+
+  .workspace-list-page__segment-button {
+    min-height: 26px;
+    padding: 4px 14px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--n-600);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    line-height: 1.4;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .workspace-list-page__segment-button:hover {
+    color: var(--n-900);
+  }
+
+  .workspace-list-page__segment-button--active {
+    background: var(--n-0);
+    color: var(--n-900);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .workspace-list-page__search {
+    position: relative;
+    width: 220px;
+  }
+
+  .workspace-list-page__search-icon {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    z-index: 1;
+    width: 15px;
+    height: 15px;
+    color: var(--n-400);
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .workspace-list-page__search-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .workspace-list-page__search-input {
+    width: 100%;
+    height: 32px;
+    padding: 0 11px 0 32px;
+    border: 1px solid var(--n-300);
+    border-radius: var(--radius-md);
+    background: var(--n-0);
+    color: var(--n-900);
+    font: inherit;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .workspace-list-page__search-input::placeholder { color: var(--n-400); }
+  .workspace-list-page__search-input:hover { border-color: var(--n-400); }
+  .workspace-list-page__search-input:focus {
+    border-color: var(--brand-500);
+    box-shadow: 0 0 0 3px var(--brand-100);
+  }
+
+  .workspace-list-page__sort-note {
+    color: var(--n-500);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+  }
+
+  .workspace-list-page__visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .ws-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .workspace-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 200px;
+    padding: 22px var(--card-pad);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    background: var(--n-0);
+    box-shadow: var(--shadow-card);
+    color: var(--n-700);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   }
-  .ws-card:hover { border-color: var(--brand-300); box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
 
-  /* 已归档空间只读，不响应进入 */
-  .ws-card--archived { cursor: default; }
-  .ws-card--archived:hover { border-color: var(--n-200); box-shadow: var(--shadow-card); transform: none; }
+  .workspace-card:hover,
+  .workspace-card:focus-visible {
+    border-color: var(--brand-300);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
 
-  .ws-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-  .ws-card__icon {
-    width: 40px; height: 40px; border-radius: 10px; background: var(--n-900); color: #fff;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .ws-card__icon svg { width: 20px; height: 20px; }
-  .ws-card__icon--brand { background: var(--brand-500); }
-  .ws-card__badges { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-xs); }
-  .ws-card__name {
-    font-size: 15px; font-weight: 650; color: var(--n-900); margin-top: 14px;
-    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  }
-  .ws-card__desc {
-    font-size: 12.5px; color: var(--n-500); margin-top: 6px; line-height: 1.6; min-height: 40px;
-    display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  }
-  .ws-card__stats { display: flex; gap: 18px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--n-200); font-size: 12px; color: var(--n-500); }
-  .ws-card__stats b { color: var(--n-900); font-weight: 650; font-variant-numeric: tabular-nums; margin-right: 3px; }
+  .workspace-card--active { border-color: var(--brand-200); }
 
-  /* 虚线新建卡片：对应实际页 create-card */
-  .ws-create {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 200px; padding: var(--space-xl) var(--card-pad);
-    border: 1px dashed var(--n-300); border-radius: var(--radius-lg);
-    background: transparent; color: var(--n-700); font: inherit; cursor: pointer; text-align: center;
+  .workspace-card--archived {
+    cursor: default;
+  }
+
+  .workspace-card--archived:hover,
+  .workspace-card--archived:focus-visible {
+    border-color: var(--n-200);
+    box-shadow: var(--shadow-card);
+    transform: none;
+  }
+
+  .workspace-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  .workspace-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--n-900);
+    color: var(--n-0);
+  }
+
+  .workspace-card__icon--admin { background: var(--brand-500); }
+  .workspace-card__icon svg { width: 20px; height: 20px; }
+
+  .workspace-card__badges {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    min-width: 0;
+    font-size: var(--font-size-xs);
+  }
+
+  .workspace-card__role,
+  .workspace-card__current,
+  .workspace-card__archived-badge,
+  .workspace-card__readonly {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .workspace-card__role {
+    background: var(--n-100);
+    border-color: var(--n-200);
+    color: var(--n-600);
+  }
+
+  .workspace-card__role--admin {
+    border-color: var(--brand-100);
+    background: var(--brand-50);
+    color: var(--brand-600);
+  }
+
+  .workspace-card__current {
+    background: var(--brand-50);
+    border-color: var(--brand-100);
+    color: var(--brand-700);
+  }
+
+  .workspace-card__archived-badge,
+  .workspace-card__readonly {
+    background: var(--n-100);
+    border-color: var(--n-200);
+    color: var(--n-500);
+  }
+
+  .workspace-card__name {
+    display: block;
+    min-width: 0;
+    margin-top: 14px;
+    overflow: hidden;
+    color: var(--n-900);
+    font-size: 15px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .workspace-card__desc {
+    display: -webkit-box;
+    min-height: 40px;
+    margin-top: 6px;
+    overflow: hidden;
+    color: var(--n-500);
+    font-size: 12.5px;
+    line-height: 1.6;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .workspace-card__stats {
+    display: flex;
+    gap: 18px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--n-200);
+    color: var(--n-500);
+    font-size: var(--font-size-xs);
+  }
+
+  .workspace-card__stats strong {
+    margin-right: 3px;
+    color: var(--n-900);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .workspace-list-page__create-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: var(--space-xl) var(--card-pad);
+    border: 1px dashed var(--n-300);
+    border-radius: var(--radius-lg);
+    background: transparent;
+    color: var(--n-700);
+    font: inherit;
+    cursor: pointer;
     transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
   }
-  .ws-create:hover { border-color: var(--brand-400); background: var(--brand-50); transform: translateY(-2px); }
-  .ws-create__icon {
-    display: flex; align-items: center; justify-content: center;
-    width: 56px; height: 56px; margin-bottom: 12px;
-    border: 1px solid var(--n-200); border-radius: 50%; background: var(--n-50); color: var(--n-400);
+
+  .workspace-list-page__create-card:hover,
+  .workspace-list-page__create-card:focus-visible {
+    border-color: var(--brand-400);
+    background: var(--brand-50);
+    transform: translateY(-2px);
   }
-  .ws-create__icon svg { width: 24px; height: 24px; }
-  .ws-create strong { color: var(--n-900); font-size: var(--font-size-sm); font-weight: 600; }
-  .ws-create > span:last-child { margin-top: 4px; color: var(--n-500); font-size: var(--font-size-xs); }
+
+  .workspace-list-page__create-card strong {
+    color: var(--n-900);
+    font-size: var(--font-size-sm);
+  }
+
+  .workspace-list-page__create-card > span:last-child {
+    margin-top: 4px;
+    color: var(--n-500);
+    font-size: var(--font-size-xs);
+  }
+
+  .workspace-list-page__create-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 12px;
+    border: 1px solid var(--n-200);
+    border-radius: 50%;
+    background: var(--n-50);
+    color: var(--n-400);
+  }
+
+  .workspace-list-page__create-icon svg { width: 24px; height: 24px; }
+
+  .workspace-list-page__state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 56px 24px;
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    background: var(--n-0);
+    text-align: center;
+  }
+
+  .workspace-list-page__state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+    border: 1px solid var(--n-200);
+    border-radius: 50%;
+    background: var(--n-50);
+    color: var(--n-400);
+    font-size: var(--font-size-2xl);
+  }
+
+  .workspace-list-page__state-icon--danger {
+    border-color: var(--st-danger-border);
+    background: var(--st-danger-light);
+    color: var(--st-danger);
+    font-weight: 700;
+  }
+
+  .workspace-list-page__state-title {
+    margin: 0;
+    color: var(--n-800);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+  }
+
+  .workspace-list-page__state-desc {
+    margin: 6px 0 0;
+    color: var(--n-500);
+    font-size: var(--font-size-sm);
+  }
+
+  .workspace-list-page__state .btn { margin-top: 18px; }
+
+  .workspace-list-page__error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+    padding: 10px 14px;
+    border: 1px solid var(--st-danger-border);
+    border-radius: var(--radius-md);
+    background: var(--st-danger-light);
+    color: var(--st-danger-strong);
+    font-size: var(--font-size-sm);
+  }
+
+  .workspace-list-page__error-banner button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .workspace-list-page__pager {
+    margin-top: var(--space-xl);
+  }
+
+  .list-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+  }
+
+  .list-pager__total {
+    color: var(--n-500);
+    font-size: var(--font-size-sm);
+  }
+
+  .dialog-form .field:last-child { margin-bottom: 0; }
+
+  /* shell.js 注入的顶栏元素在本页补上真实交互所需的样式 */
+  .icon-btn.is-read .dot-badge::after { display: none; }
+  .user-menu-pop {
+    position: fixed; top: 56px; right: 16px; z-index: 200;
+    min-width: 168px; padding: 6px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .user-menu-pop__item {
+    display: block; width: 100%; padding: 8px 10px;
+    border: 0; border-radius: var(--radius-sm);
+    background: transparent; color: var(--n-700);
+    font: inherit; font-size: var(--font-size-sm); text-align: left; cursor: pointer;
+  }
+  .user-menu-pop__item:hover { background: var(--n-50); color: var(--brand-500); }
 </style>
 </head>
 <body data-shell="business" data-mode="none">
 
 <main class="content">
 
-  <!-- 新建入口常驻：前端不再按业务模块权限码过滤，权限由后端接口兜底（44521cab） -->
   <div class="page-head">
     <div>
       <h1 class="page-head__title">我的空间</h1>
       <p class="page-head__desc">选择一个工作空间开始协作，或创建新的空间</p>
     </div>
-    <div class="page-head__actions">
-      <button class="btn btn--primary" type="button" data-open="ws-create-dialog"><span data-icon="plus"></span>新建空间</button>
+    <div class="page-head__actions" id="ws-create-action">
+      <button class="btn btn--primary" type="button" data-open="ws-create-dialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="width:15px;height:15px"><path d="M12 5v14M5 12h14" stroke-linecap="round" /></svg>
+        新建空间
+      </button>
     </div>
   </div>
 
-  <div class="card mb-lg">
-    <div class="toolbar" style="border-bottom:none">
-      <div class="toolbar__filters">
-        <div class="segment" id="scope-segment" role="group" aria-label="空间范围">
-          <span class="segment__item segment__item--active" data-scope="all">全部（6）</span>
-          <span class="segment__item" data-scope="managed">我管理的（2）</span>
-          <span class="segment__item" data-scope="archived">已归档（1）</span>
+  <section class="workspace-list-page__toolbar-card" aria-label="工作空间筛选">
+    <div class="workspace-list-page__toolbar">
+      <div class="workspace-list-page__filters">
+        <div class="workspace-list-page__segment" id="scope-segment" role="group" aria-label="空间范围">
+          <button type="button" class="workspace-list-page__segment-button workspace-list-page__segment-button--active" data-scope="all" aria-pressed="true">全部（6）</button>
+          <button type="button" class="workspace-list-page__segment-button" data-scope="managed" aria-pressed="false">我管理的（2）</button>
+          <button type="button" class="workspace-list-page__segment-button" data-scope="archived" aria-pressed="false">已归档（1）</button>
         </div>
-        <form id="ws-search" role="search" style="margin:0">
-          <div class="input-wrap"><span data-icon="search"></span><input class="input" type="search" id="ws-keyword" placeholder="搜索空间名称" autocomplete="off" aria-label="搜索空间名称"></div>
+
+        <form id="ws-search" class="workspace-list-page__search" role="search">
+          <label class="workspace-list-page__visually-hidden" for="workspace-keyword">搜索空间名称</label>
+          <span class="workspace-list-page__search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="10.8" cy="10.8" r="6.3" />
+              <path d="m16 16 4.2 4.2" stroke-linecap="round" />
+            </svg>
+          </span>
+          <input
+            id="workspace-keyword"
+            class="workspace-list-page__search-input"
+            type="search"
+            placeholder="搜索空间名称"
+            autocomplete="off"
+          />
         </form>
       </div>
-      <div class="toolbar__count">按最近访问排序</div>
+      <span class="workspace-list-page__sort-note">按最近访问排序</span>
     </div>
+  </section>
+
+  <div class="workspace-list-page__error-banner" id="ws-error-banner" role="alert" hidden>
+    <span id="ws-error-text"></span>
+    <button type="button" id="ws-retry">重试</button>
   </div>
 
   <div class="ws-grid" id="ws-grid">
 
-    <div class="ws-card" data-role="admin" data-status="active" data-search="质量中台" data-enter="../project/dashboard.html">
-      <div class="ws-card__head">
-        <span class="ws-card__icon ws-card__icon--brand" data-icon="folder"></span>
-        <span class="ws-card__badges">
-          <span class="tag tag--info tag--sm">管理员</span>
-          <span class="tag tag--info tag--sm">当前空间</span>
+    <button type="button" class="workspace-card workspace-card--active" data-role="admin" data-status="active" data-search="质量中台" data-enter="../project/dashboard.html" aria-label="进入工作空间：质量中台" aria-current="page">
+      <span class="workspace-card__head">
+        <span class="workspace-card__icon workspace-card__icon--admin" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
         </span>
-      </div>
-      <div class="ws-card__name">质量中台</div>
-      <div class="ws-card__desc">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</div>
-      <div class="ws-card__stats"><span><b>24</b>成员</span><span><b>6</b>项目</span><span><b>1,024</b>用例</span></div>
-    </div>
-
-    <div class="ws-card" data-role="member" data-status="active" data-search="供应链测试组" data-enter="projects.html">
-      <div class="ws-card__head">
-        <span class="ws-card__icon" data-icon="folder"></span>
-        <span class="ws-card__badges"><span class="tag tag--neutral tag--sm">成员</span></span>
-      </div>
-      <div class="ws-card__name">供应链测试组</div>
-      <div class="ws-card__desc">仓储、履约与结算链路的日常回归，含大促专项预案验证。</div>
-      <div class="ws-card__stats"><span><b>17</b>成员</span><span><b>4</b>项目</span><span><b>736</b>用例</span></div>
-    </div>
-
-    <div class="ws-card" data-role="admin" data-status="active" data-search="数据平台验证" data-enter="projects.html">
-      <div class="ws-card__head">
-        <span class="ws-card__icon ws-card__icon--brand" data-icon="folder"></span>
-        <span class="ws-card__badges"><span class="tag tag--info tag--sm">管理员</span></span>
-      </div>
-      <div class="ws-card__name">数据平台验证</div>
-      <div class="ws-card__desc">数据仓库分层校验与报表口径准确性验证。</div>
-      <div class="ws-card__stats"><span><b>9</b>成员</span><span><b>3</b>项目</span><span><b>412</b>用例</span></div>
-    </div>
-
-    <div class="ws-card" data-role="member" data-status="active" data-search="移动端专项" data-enter="projects.html">
-      <div class="ws-card__head">
-        <span class="ws-card__icon" data-icon="folder"></span>
-        <span class="ws-card__badges"><span class="tag tag--neutral tag--sm">成员</span></span>
-      </div>
-      <div class="ws-card__name">移动端专项</div>
-      <div class="ws-card__desc">iOS / Android 兼容性、弱网与性能专项测试空间。</div>
-      <div class="ws-card__stats"><span><b>13</b>成员</span><span><b>5</b>项目</span><span><b>588</b>用例</span></div>
-    </div>
-
-    <!-- 描述留空：实际页按 description || 暂无描述 兜底 -->
-    <div class="ws-card" data-role="member" data-status="active" data-search="开放平台联调" data-enter="projects.html">
-      <div class="ws-card__head">
-        <span class="ws-card__icon" data-icon="folder"></span>
-        <span class="ws-card__badges"><span class="tag tag--neutral tag--sm">成员</span></span>
-      </div>
-      <div class="ws-card__name">开放平台联调</div>
-      <div class="ws-card__desc">暂无描述</div>
-      <div class="ws-card__stats"><span><b>11</b>成员</span><span><b>4</b>项目</span><span><b>349</b>用例</span></div>
-    </div>
-
-    <div class="ws-card ws-card--archived" data-role="member" data-status="archived" data-search="2025大促专项">
-      <div class="ws-card__head">
-        <span class="ws-card__icon" data-icon="folder"></span>
-        <span class="ws-card__badges">
-          <span class="tag tag--neutral tag--sm">成员</span>
-          <span class="tag tag--neutral tag--sm">已归档</span>
-          <span class="tag tag--neutral tag--sm">只读</span>
+        <span class="workspace-card__badges">
+          <span class="workspace-card__role workspace-card__role--admin">管理员</span>
+          <span class="workspace-card__current">当前空间</span>
         </span>
-      </div>
-      <div class="ws-card__name">2025大促专项</div>
-      <div class="ws-card__desc">大促全链路容量与稳定性复盘，活动结束后归档留存。</div>
-      <div class="ws-card__stats"><span><b>15</b>成员</span><span><b>3</b>项目</span><span><b>652</b>用例</span></div>
-    </div>
+      </span>
+      <span class="workspace-card__name" title="质量中台">质量中台</span>
+      <span class="workspace-card__desc" title="核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</span>
+      <span class="workspace-card__stats" aria-label="工作空间统计">
+        <span><strong>24</strong>成员</span>
+        <span><strong>6</strong>项目</span>
+        <span><strong>1,024</strong>用例</span>
+      </span>
+    </button>
 
-    <button class="ws-create" type="button" data-open="ws-create-dialog">
-      <span class="ws-create__icon" data-icon="plus"></span>
+    <button type="button" class="workspace-card" data-role="member" data-status="active" data-search="供应链测试组" data-enter="projects.html" aria-label="进入工作空间：供应链测试组">
+      <span class="workspace-card__head">
+        <span class="workspace-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
+        </span>
+        <span class="workspace-card__badges">
+          <span class="workspace-card__role">成员</span>
+        </span>
+      </span>
+      <span class="workspace-card__name" title="供应链测试组">供应链测试组</span>
+      <span class="workspace-card__desc" title="仓储、履约与结算链路的日常回归，含大促专项预案验证。">仓储、履约与结算链路的日常回归，含大促专项预案验证。</span>
+      <span class="workspace-card__stats" aria-label="工作空间统计">
+        <span><strong>17</strong>成员</span>
+        <span><strong>4</strong>项目</span>
+        <span><strong>736</strong>用例</span>
+      </span>
+    </button>
+
+    <button type="button" class="workspace-card" data-role="admin" data-status="active" data-search="数据平台验证" data-enter="projects.html" aria-label="进入工作空间：数据平台验证">
+      <span class="workspace-card__head">
+        <span class="workspace-card__icon workspace-card__icon--admin" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
+        </span>
+        <span class="workspace-card__badges">
+          <span class="workspace-card__role workspace-card__role--admin">管理员</span>
+        </span>
+      </span>
+      <span class="workspace-card__name" title="数据平台验证">数据平台验证</span>
+      <span class="workspace-card__desc" title="数据仓库分层校验与报表口径准确性验证。">数据仓库分层校验与报表口径准确性验证。</span>
+      <span class="workspace-card__stats" aria-label="工作空间统计">
+        <span><strong>9</strong>成员</span>
+        <span><strong>3</strong>项目</span>
+        <span><strong>412</strong>用例</span>
+      </span>
+    </button>
+
+    <button type="button" class="workspace-card" data-role="member" data-status="active" data-search="移动端专项" data-enter="projects.html" aria-label="进入工作空间：移动端专项">
+      <span class="workspace-card__head">
+        <span class="workspace-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
+        </span>
+        <span class="workspace-card__badges">
+          <span class="workspace-card__role">成员</span>
+        </span>
+      </span>
+      <span class="workspace-card__name" title="移动端专项">移动端专项</span>
+      <span class="workspace-card__desc" title="iOS / Android 兼容性、弱网与性能专项测试空间。">iOS / Android 兼容性、弱网与性能专项测试空间。</span>
+      <span class="workspace-card__stats" aria-label="工作空间统计">
+        <span><strong>13</strong>成员</span>
+        <span><strong>5</strong>项目</span>
+        <span><strong>588</strong>用例</span>
+      </span>
+    </button>
+
+    <button type="button" class="workspace-card" data-role="member" data-status="active" data-search="开放平台联调" data-enter="projects.html" aria-label="进入工作空间：开放平台联调">
+      <span class="workspace-card__head">
+        <span class="workspace-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
+        </span>
+        <span class="workspace-card__badges">
+          <span class="workspace-card__role">成员</span>
+        </span>
+      </span>
+      <span class="workspace-card__name" title="开放平台联调">开放平台联调</span>
+      <span class="workspace-card__desc" title="暂无描述">暂无描述</span>
+      <span class="workspace-card__stats" aria-label="工作空间统计">
+        <span><strong>11</strong>成员</span>
+        <span><strong>4</strong>项目</span>
+        <span><strong>349</strong>用例</span>
+      </span>
+    </button>
+
+    <article class="workspace-card workspace-card--archived" data-role="member" data-status="archived" data-search="2025大促专项" aria-label="已归档工作空间：2025大促专项，只读">
+      <span class="workspace-card__head">
+        <span class="workspace-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
+        </span>
+        <span class="workspace-card__badges">
+          <span class="workspace-card__role">成员</span>
+          <span class="workspace-card__archived-badge">已归档</span>
+          <span class="workspace-card__readonly">只读</span>
+        </span>
+      </span>
+      <span class="workspace-card__name" title="2025大促专项">2025大促专项</span>
+      <span class="workspace-card__desc" title="大促全链路容量与稳定性复盘，活动结束后归档留存。">大促全链路容量与稳定性复盘，活动结束后归档留存。</span>
+      <span class="workspace-card__stats" aria-label="工作空间统计">
+        <span><strong>15</strong>成员</span>
+        <span><strong>3</strong>项目</span>
+        <span><strong>652</strong>用例</span>
+      </span>
+    </article>
+
+    <button type="button" class="workspace-list-page__create-card" data-open="ws-create-dialog">
+      <span class="workspace-list-page__create-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+        </svg>
+      </span>
       <strong>新建工作空间</strong>
       <span>从空间开始组织你的项目与成员</span>
     </button>
 
   </div>
 
-  <!-- 无匹配时整段替换为空态，创建卡片随栅格一并不渲染（对应实际页 v-else-if 分支） -->
-  <div class="card" id="ws-empty-filtered" hidden>
-    <div class="state-block">
-      <div class="state-block__icon" style="font-size:22px">＋</div>
-      <div class="state-block__title">未找到匹配的工作空间</div>
-      <div class="state-block__desc">请调整名称或切换空间范围</div>
-      <div class="state-block__action"><button class="btn btn--default" type="button" id="ws-clear-filters">清除筛选</button></div>
+  <section class="workspace-list-page__state" id="ws-empty-filtered" hidden>
+    <div class="workspace-list-page__state-icon" aria-hidden="true">＋</div>
+    <h2 class="workspace-list-page__state-title">未找到匹配的工作空间</h2>
+    <p class="workspace-list-page__state-desc">请调整名称或切换空间范围</p>
+    <button type="button" class="btn btn--default" id="ws-clear-filters">清除筛选</button>
+  </section>
+
+  <section class="workspace-list-page__state" id="ws-empty-none" hidden>
+    <div class="workspace-list-page__state-icon" aria-hidden="true">＋</div>
+    <h2 class="workspace-list-page__state-title">暂无归属的工作空间，请联系管理员</h2>
+    <p class="workspace-list-page__state-desc">你还可以创建一个新的工作空间</p>
+    <button type="button" class="btn btn--default" data-open="ws-create-dialog">新建空间</button>
+  </section>
+
+  <div class="workspace-list-page__pager" id="ws-pager" hidden>
+    <div class="list-pager">
+      <span class="list-pager__total" id="ws-pager-total">共 6 条 · 每页 12 条</span>
+      <div class="pagination" style="padding:0;border-top:0">
+        <button class="page-btn" type="button" id="ws-pager-prev" disabled aria-label="上一页">‹</button>
+        <span id="ws-pager-pages" style="display:inline-flex;gap:8px"></span>
+        <button class="page-btn" type="button" id="ws-pager-next" disabled aria-label="下一页">›</button>
+      </div>
     </div>
   </div>
 
-  <!-- 无归属空间时的另一空态；演示数据非空，仅保留实际页文案结构 -->
-  <div class="card" id="ws-empty-none" hidden>
-    <div class="state-block">
-      <div class="state-block__icon" style="font-size:22px">＋</div>
-      <div class="state-block__title">暂无归属的工作空间，请联系管理员</div>
-      <div class="state-block__desc">你还可以创建一个新的工作空间</div>
-      <div class="state-block__action"><button class="btn btn--default" type="button" data-open="ws-create-dialog">新建空间</button></div>
-    </div>
-  </div>
-
-  <!-- 新建弹窗：字段、占位与校验文案对齐 WorkspaceCreateDialog / useWorkspaceCreate -->
   <div class="dialog-mask" id="ws-create-dialog" role="dialog" aria-modal="true" aria-labelledby="ws-create-title" hidden>
     <div class="dialog" style="width:480px">
       <div class="dialog__header">
         <span class="dialog__title" id="ws-create-title">新建工作空间</span>
-        <span class="dialog__close" data-close="ws-create-dialog" role="button" tabindex="0" aria-label="关闭"><span data-icon="x"></span></span>
+        <button class="dialog__close" type="button" data-close="ws-create-dialog" aria-label="关闭"><span data-icon="x"></span></button>
       </div>
       <div class="dialog__body">
-        <div class="field">
-          <label class="field__label" for="ws-create-name">名称 <span class="req">*</span></label>
-          <input class="input" id="ws-create-name" maxlength="50" placeholder="请输入工作空间名称" autocomplete="off">
-          <div class="field__hint"><span id="ws-create-name-count">0</span>/50</div>
-          <div class="field__error" id="ws-create-name-error" hidden></div>
-        </div>
-        <!-- 实际为可远程搜索的下拉（仅活跃用户），原型以静态选项近似，默认选中当前登录用户 -->
-        <div class="field">
-          <label class="field__label" for="ws-create-admin">管理员 <span class="req">*</span></label>
-          <select class="select" id="ws-create-admin">
-            <option value="">输入姓名搜索（仅活跃用户）</option>
-            <option value="u-zhangming" selected>张明</option>
-            <option value="u-lihua">李华</option>
-            <option value="u-wangfang">王芳</option>
-            <option value="u-chenqiang">陈强</option>
-            <option value="u-zhoumin">周敏</option>
-          </select>
-          <div class="field__error" id="ws-create-admin-error" hidden></div>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <label class="field__label" for="ws-create-desc">描述</label>
-          <textarea class="textarea" id="ws-create-desc" rows="3" maxlength="200" placeholder="请输入工作空间描述（可选）"></textarea>
-          <div class="field__hint"><span id="ws-create-desc-count">0</span>/200</div>
-          <div class="field__error" id="ws-create-desc-error" hidden></div>
+        <div class="dialog-form">
+          <div class="field">
+            <label class="field__label" for="ws-create-name">名称 <span class="req">*</span></label>
+            <input class="input" id="ws-create-name" maxlength="50" placeholder="请输入工作空间名称" autocomplete="off">
+            <div class="field__hint"><span id="ws-create-name-count">0</span>/50</div>
+            <div class="field__error" id="ws-create-name-error" hidden></div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="ws-create-admin">管理员 <span class="req">*</span></label>
+            <select class="select" id="ws-create-admin">
+              <option value="">输入姓名搜索（仅活跃用户）</option>
+              <option value="u-zhangming" selected>张明</option>
+              <option value="u-lihua">李华</option>
+              <option value="u-wangfang">王芳</option>
+              <option value="u-chenqiang">陈强</option>
+              <option value="u-zhoumin">周敏</option>
+            </select>
+            <div class="field__error" id="ws-create-admin-error" hidden></div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="ws-create-desc">描述</label>
+            <textarea class="textarea" id="ws-create-desc" rows="3" maxlength="200" placeholder="请输入工作空间描述（可选）"></textarea>
+            <div class="field__hint"><span id="ws-create-desc-count">0</span>/200</div>
+            <div class="field__error" id="ws-create-desc-error" hidden></div>
+          </div>
         </div>
       </div>
       <div class="dialog__footer">
@@ -241,16 +704,24 @@
   var grid = document.getElementById('ws-grid');
   var emptyFiltered = document.getElementById('ws-empty-filtered');
   var emptyNone = document.getElementById('ws-empty-none');
-  var keyword = document.getElementById('ws-keyword');
+  var keyword = document.getElementById('workspace-keyword');
   var segment = document.getElementById('scope-segment');
-  var cards = Array.prototype.slice.call(grid.querySelectorAll('.ws-card'));
+  var pager = document.getElementById('ws-pager');
+  var pagerTotal = document.getElementById('ws-pager-total');
+  var errorBanner = document.getElementById('ws-error-banner');
+  var pagerPrev = document.getElementById('ws-pager-prev');
+  var pagerNext = document.getElementById('ws-pager-next');
+  var pagerPages = document.getElementById('ws-pager-pages');
+  var cards = Array.prototype.slice.call(grid.querySelectorAll('.workspace-card'));
   var scope = 'all';
   var debounceTimer = null;
+  var currentPage = 1;
+  var pageSize = 12;
   var SCOPE_LABELS = { all: '全部', managed: '我管理的', archived: '已归档' };
 
   function matchesKeyword(card) {
     var kw = keyword.value.trim().toLowerCase();
-    return kw === '' || card.getAttribute('data-search').toLowerCase().indexOf(kw) !== -1;
+    return kw === '' || (card.getAttribute('data-search') || '').toLowerCase().indexOf(kw) !== -1;
   }
 
   function matchesScope(card) {
@@ -259,7 +730,6 @@
     return true;
   }
 
-  // 计数接口随关键词联动，故分段数字按关键词过滤后的集合重算
   function renderCounts() {
     var counts = { all: 0, managed: 0, archived: 0 };
     cards.forEach(function (card) {
@@ -268,29 +738,61 @@
       if (card.getAttribute('data-role') === 'admin') counts.managed += 1;
       if (card.getAttribute('data-status') === 'archived') counts.archived += 1;
     });
-    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (item) {
+    Array.prototype.forEach.call(segment.querySelectorAll('.workspace-list-page__segment-button'), function (item) {
       var key = item.getAttribute('data-scope');
       item.textContent = SCOPE_LABELS[key] + '（' + counts[key] + '）';
     });
   }
 
+  function matchedCards() {
+    return cards.filter(function (card) {
+      return matchesKeyword(card) && matchesScope(card);
+    });
+  }
+
+  function renderPagerButtons(totalPages) {
+    pagerPages.innerHTML = '';
+    for (var p = 1; p <= totalPages; p += 1) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'page-btn' + (p === currentPage ? ' page-btn--active' : '');
+      btn.setAttribute('data-page', String(p));
+      if (p === currentPage) btn.setAttribute('aria-current', 'page');
+      btn.textContent = String(p);
+      pagerPages.appendChild(btn);
+    }
+    pagerPrev.disabled = currentPage <= 1;
+    pagerNext.disabled = currentPage >= totalPages;
+  }
+
   function render() {
     renderCounts();
-    var shown = 0;
-    cards.forEach(function (card) {
-      var matched = matchesKeyword(card) && matchesScope(card);
-      card.hidden = !matched;
-      if (matched) shown += 1;
+    var matched = matchedCards();
+    var totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    var start = (currentPage - 1) * pageSize;
+    var end = start + pageSize;
+
+    cards.forEach(function (card) { card.hidden = true; });
+    matched.forEach(function (card, index) {
+      card.hidden = index < start || index >= end;
     });
+
+    var shown = matched.length;
     var hasFilters = keyword.value.trim() !== '' || scope !== 'all';
     grid.hidden = shown === 0;
     emptyFiltered.hidden = !(shown === 0 && hasFilters);
     emptyNone.hidden = !(shown === 0 && !hasFilters);
+    pager.hidden = shown <= pageSize;
+    pagerTotal.textContent = '共 ' + shown + ' 条 · 每页 ' + pageSize + ' 条';
+    if (!pager.hidden) renderPagerButtons(totalPages);
   }
 
   function syncSegment() {
-    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (item) {
-      item.classList.toggle('segment__item--active', item.getAttribute('data-scope') === scope);
+    Array.prototype.forEach.call(segment.querySelectorAll('.workspace-list-page__segment-button'), function (item) {
+      var active = item.getAttribute('data-scope') === scope;
+      item.classList.toggle('workspace-list-page__segment-button--active', active);
+      item.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
   }
 
@@ -298,20 +800,22 @@
     clearTimeout(debounceTimer);
     keyword.value = '';
     scope = 'all';
+    currentPage = 1;
     syncSegment();
   }
 
   segment.addEventListener('click', function (e) {
-    var item = e.target.closest('.segment__item');
+    var item = e.target.closest('.workspace-list-page__segment-button');
     if (!item) return;
     scope = item.getAttribute('data-scope');
+    currentPage = 1;
     syncSegment();
     render();
   });
 
-  // 与实际页一致：输入 300ms 防抖，清空或回车立即刷新
   keyword.addEventListener('input', function () {
     clearTimeout(debounceTimer);
+    currentPage = 1;
     if (keyword.value === '') {
       render();
       return;
@@ -322,6 +826,24 @@
   document.getElementById('ws-search').addEventListener('submit', function (e) {
     e.preventDefault();
     clearTimeout(debounceTimer);
+    currentPage = 1;
+    render();
+  });
+
+  pager.addEventListener('click', function (e) {
+    var btn = e.target.closest('.page-btn');
+    if (!btn || btn.disabled) return;
+    var totalPages = Math.max(1, Math.ceil(matchedCards().length / pageSize));
+    var next = currentPage;
+    if (btn === pagerPrev) next = currentPage - 1;
+    else if (btn === pagerNext) next = currentPage + 1;
+    else {
+      var page = parseInt(btn.getAttribute('data-page'), 10);
+      if (isNaN(page)) return;
+      next = page;
+    }
+    if (next < 1 || next > totalPages || next === currentPage) return;
+    currentPage = next;
     render();
   });
 
@@ -330,14 +852,20 @@
     render();
   });
 
-  // 进入空间：实际按是否存在默认项目跳转项目工作台或项目列表，归档空间只读不可进入
-  grid.addEventListener('click', function (e) {
-    var card = e.target.closest('.ws-card');
-    if (!card || card.classList.contains('ws-card--archived')) return;
-    window.location.href = card.getAttribute('data-enter');
+  document.getElementById('ws-retry').addEventListener('click', function () {
+    errorBanner.hidden = true;
+    render();
   });
 
-  /* ---------- 新建工作空间弹窗 ---------- */
+  grid.addEventListener('click', function (e) {
+    var create = e.target.closest('.workspace-list-page__create-card');
+    if (create) return;
+    var card = e.target.closest('.workspace-card');
+    if (!card || card.classList.contains('workspace-card--archived')) return;
+    var target = card.getAttribute('data-enter');
+    if (target) window.location.href = target;
+  });
+
   var dialog = document.getElementById('ws-create-dialog');
   var nameInput = document.getElementById('ws-create-name');
   var adminSelect = document.getElementById('ws-create-admin');
@@ -357,7 +885,6 @@
     document.getElementById('ws-create-desc-count').textContent = String(descInput.value.length);
   }
 
-  // 打开即重置，对应实际页 watch(modelValue) → reset()
   function resetDialog() {
     nameInput.value = '';
     descInput.value = '';
@@ -407,7 +934,6 @@
     if (closer) document.getElementById(closer.getAttribute('data-close')).hidden = true;
   });
 
-  // el-dialog 默认支持点击遮罩与 Esc 关闭
   dialog.addEventListener('click', function (e) {
     if (e.target === dialog) dialog.hidden = true;
   });
@@ -417,27 +943,35 @@
 
   function appendCreatedCard(name, desc) {
     var isAdmin = adminSelect.value === 'u-zhangming';
-    var card = document.createElement('div');
-    card.className = 'ws-card';
+    var card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'workspace-card';
     card.setAttribute('data-role', isAdmin ? 'admin' : 'member');
     card.setAttribute('data-status', 'active');
     card.setAttribute('data-search', name);
     card.setAttribute('data-enter', 'projects.html');
+    card.setAttribute('aria-label', '进入工作空间：' + name);
     card.innerHTML =
-      '<div class="ws-card__head">' +
-        '<span class="ws-card__icon' + (isAdmin ? ' ws-card__icon--brand' : '') + '" data-icon="folder"></span>' +
-        '<span class="ws-card__badges"><span class="tag tag--' + (isAdmin ? 'info' : 'neutral') +
-        ' tag--sm">' + (isAdmin ? '管理员' : '成员') + '</span></span>' +
-      '</div>' +
-      '<div class="ws-card__name"></div>' +
-      '<div class="ws-card__desc"></div>' +
-      // 创建仅写入所选管理员一条成员关系，成员数即为 1
-      '<div class="ws-card__stats"><span><b>1</b>成员</span><span><b>0</b>项目</span><span><b>0</b>用例</span></div>';
-    card.querySelector('.ws-card__name').textContent = name;
-    card.querySelector('.ws-card__desc').textContent = desc || '暂无描述';
-    // 最近访问排序下，新建的空间排在首位
+      '<span class="workspace-card__head">' +
+        '<span class="workspace-card__icon' + (isAdmin ? ' workspace-card__icon--admin' : '') + '" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" /></svg>' +
+        '</span>' +
+        '<span class="workspace-card__badges">' +
+          '<span class="workspace-card__role' + (isAdmin ? ' workspace-card__role--admin' : '') + '">' + (isAdmin ? '管理员' : '成员') + '</span>' +
+        '</span>' +
+      '</span>' +
+      '<span class="workspace-card__name"></span>' +
+      '<span class="workspace-card__desc"></span>' +
+      '<span class="workspace-card__stats" aria-label="工作空间统计">' +
+        '<span><strong>1</strong>成员</span>' +
+        '<span><strong>0</strong>项目</span>' +
+        '<span><strong>0</strong>用例</span>' +
+      '</span>';
+    card.querySelector('.workspace-card__name').textContent = name;
+    card.querySelector('.workspace-card__name').title = name;
+    card.querySelector('.workspace-card__desc').textContent = desc || '暂无描述';
+    card.querySelector('.workspace-card__desc').title = desc || '暂无描述';
     grid.insertBefore(card, grid.firstElementChild);
-    if (window.RTIcons) window.RTIcons.hydrate(card);
     cards.unshift(card);
   }
 
@@ -446,11 +980,80 @@
     var name = nameInput.value.trim();
     var desc = descInput.value.trim();
     dialog.hidden = true;
-    // 创建成功后实际页清空关键词与范围筛选并重新拉取列表
     resetFilters();
     appendCreatedCard(name, desc);
     render();
   });
+
+  /* shell.js 注入的顶栏占位元素：消息中心开真实新窗口，用户区开可关闭菜单 */
+  function openDemoWindow(name, title, rows, width, height) {
+    var win = window.open('', name, 'width=' + width + ',height=' + height);
+    if (!win) return;
+    var body = rows.map(function (row) {
+      return '<div class="row"><b>' + row[0] + '</b><span>' + row[1] + '</span></div>';
+    }).join('');
+    win.document.write(
+      '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>' + title + '</title>' +
+      '<style>body{margin:0;padding:20px;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#303133}' +
+      'h1{font-size:16px;margin:0 0 16px}.row{padding:12px;border:1px solid #e4e7ed;border-radius:6px;margin-bottom:10px}' +
+      '.row b{display:block;margin-bottom:2px}.row span{color:#606266;font-size:12px}' +
+      '.close{margin-top:8px;padding:7px 15px;border:1px solid #dcdfe6;border-radius:4px;background:#fff;cursor:pointer}' +
+      '</style></head><body><h1>' + title + '</h1>' + body +
+      '<button type="button" class="close" onclick="window.close()">关闭窗口</button></body></html>'
+    );
+    win.document.close();
+  }
+
+  function initShell() {
+    var msgBtn = Array.prototype.slice.call(document.querySelectorAll('.icon-btn'))
+      .filter(function (el) { return el.querySelector('.dot-badge'); })[0];
+    if (msgBtn) {
+      msgBtn.addEventListener('click', function () {
+        msgBtn.classList.add('is-read');
+        openDemoWindow('rt-messages', '消息中心（演示窗口）', [
+          ['空间提醒', '质量中台：V1.4.2 回归计划进入执行中 · 2 分钟前'],
+          ['评审提醒', '供应链测试组：入库模块用例评审待你参与 · 昨天 14:32'],
+          ['系统提醒', '工作空间创建权限已开通，可在列表页新建空间 · 昨天 09:10']
+        ], 420, 480);
+      });
+    }
+
+    var topbarUser = document.querySelector('.topbar__user');
+    var userMenu = null;
+    function hideUserMenu() {
+      if (userMenu) { userMenu.remove(); userMenu = null; }
+    }
+    if (topbarUser) {
+      topbarUser.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (userMenu) { hideUserMenu(); return; }
+        userMenu = document.createElement('div');
+        userMenu.className = 'user-menu-pop';
+        userMenu.innerHTML =
+          '<button type="button" class="user-menu-pop__item" data-user-menu="profile">个人设置</button>' +
+          '<button type="button" class="user-menu-pop__item" data-user-menu="logout">退出登录</button>';
+        document.body.appendChild(userMenu);
+        userMenu.querySelector('[data-user-menu="profile"]').addEventListener('click', function () {
+          hideUserMenu();
+          openDemoWindow('rt-profile', '个人设置（演示窗口）', [
+            ['账号', 'zhangming'], ['姓名', '张明'], ['所属空间', '质量中台']
+          ], 380, 320);
+        });
+        userMenu.querySelector('[data-user-menu="logout"]').addEventListener('click', function () {
+          window.location.href = '../auth/login.html';
+        });
+      });
+    }
+    document.addEventListener('click', function (e) {
+      if (userMenu && !e.target.closest('.user-menu-pop') && !e.target.closest('.topbar__user')) hideUserMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && userMenu) hideUserMenu();
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initShell);
+  else initShell();
 
   render();
 })();

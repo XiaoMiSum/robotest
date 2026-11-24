@@ -6,164 +6,734 @@
 <title>数据概览 · 系统管理 · RoboTest</title>
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
+<style>
+  /* 对齐 DashboardPage.vue：页面级结构与样式用原型 token 复刻实现 */
+  .dashboard__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-xl);
+  }
+
+  .dashboard__title {
+    margin: 0 0 var(--space-xs);
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    color: var(--n-900);
+  }
+
+  .dashboard__desc {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--n-500);
+  }
+
+  .dashboard__error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+    color: var(--st-danger);
+    font-size: var(--font-size-sm);
+  }
+
+  .dashboard__kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+  }
+
+  @media (max-width: 1200px) {
+    .dashboard__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 640px) {
+    .dashboard__kpis { grid-template-columns: 1fr; }
+  }
+
+  .kpi {
+    padding: var(--space-lg) var(--space-xl);
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+
+  .kpi__label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-sm);
+    color: var(--n-500);
+  }
+
+  .kpi__label svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .kpi__value {
+    margin-top: 6px;
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--n-900);
+  }
+
+  .kpi__unit {
+    margin-left: 4px;
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    color: var(--n-500);
+  }
+
+  .kpi__foot {
+    margin-top: 6px;
+    font-size: var(--font-size-xs);
+    color: var(--n-500);
+  }
+
+  .kpi__delta {
+    font-weight: 600;
+    color: var(--n-500);
+  }
+
+  .kpi__delta--up {
+    color: var(--st-success-strong);
+  }
+
+  .dashboard__charts {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+  }
+
+  @media (max-width: 1100px) {
+    .dashboard__charts { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    padding: var(--space-xl);
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+
+  .panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+  }
+
+  .panel__title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--n-900);
+  }
+
+  .panel__subtitle {
+    margin-left: var(--space-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    color: var(--n-400);
+  }
+
+  .legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-xs);
+    color: var(--n-500);
+  }
+
+  .legend__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand-500);
+  }
+
+  .chart {
+    display: block;
+    width: 100%;
+    height: 210px;
+  }
+
+  .chart__grid {
+    stroke: var(--n-100);
+    stroke-width: 1;
+  }
+
+  .chart__grid--base {
+    stroke: var(--n-300);
+  }
+
+  .chart__area {
+    fill: rgba(51, 112, 255, 0.08);
+    stroke: none;
+  }
+
+  .chart__line {
+    fill: none;
+    stroke: var(--brand-500);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .chart__dot {
+    fill: var(--brand-500);
+    stroke: var(--n-0);
+    stroke-width: 2;
+  }
+
+  .chart__last {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--n-800);
+  }
+
+  .chart__axis {
+    font-size: 11px;
+    fill: var(--n-400);
+  }
+
+  .donut {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+  }
+
+  .donut__svg {
+    flex-shrink: 0;
+  }
+
+  .donut__track {
+    fill: none;
+    stroke: var(--n-100);
+    stroke-width: 14;
+  }
+
+  .donut__seg {
+    fill: none;
+    stroke-width: 14;
+  }
+
+  .donut__total {
+    font-size: 22px;
+    font-weight: 700;
+    fill: var(--n-900);
+  }
+
+  .donut__caption {
+    font-size: 11px;
+    fill: var(--n-400);
+  }
+
+  .donut__legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--font-size-sm);
+    color: var(--n-700);
+  }
+
+  .donut__swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 2px;
+  }
+
+  /* 表格与分页对齐 DashboardPage + ListPagination 默认样式 */
+  .dashboard-table th,
+  .dashboard-table td {
+    font-size: var(--font-size-base);
+  }
+
+  .dashboard-table .num-col {
+    text-align: center;
+  }
+
+  .dot-status {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 50%;
+    vertical-align: middle;
+  }
+
+  .dot-status--success { background: var(--st-success); }
+  .dot-status--neutral { background: var(--n-400); }
+
+  .dashboard__table-foot {
+    margin-top: var(--space-lg);
+  }
+
+  .list-pager {
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: 14px 20px;
+    border-top: 1px solid var(--n-100);
+  }
+
+  .list-pager__total {
+    color: var(--n-500);
+    font-size: var(--font-size-sm);
+  }
+
+  .list-pager__right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .page-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--n-600);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+  }
+
+  .page-btn:hover { background: var(--n-100); }
+  .page-btn--active { background: var(--brand-500); color: #fff; font-weight: 500; }
+  .page-btn--active:hover { background: var(--brand-600); }
+  .page-btn:disabled { color: var(--n-300); cursor: not-allowed; background: transparent; }
+
+  /* 刷新中的旋转指示器：随按钮文案切换显示，不改变按钮几何尺寸 */
+  .dashboard__spin {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: dashboard-spin .7s linear infinite;
+  }
+  .dashboard__spin[hidden] { display: none !important; }
+  @keyframes dashboard-spin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body data-shell="admin" data-active="dashboard" data-mode="admin">
 
 <main class="content content--admin">
 
-  <div class="page-head">
+  <div class="dashboard__head">
     <div>
-      <h1 class="page-head__title">数据概览</h1>
-      <p class="page-head__desc">平台整体运行状态 · 数据截至 2026-09-22 09:00</p>
+      <h1 class="dashboard__title">数据概览</h1>
+      <p class="dashboard__desc">平台整体运行状态 · <span id="dashboard-asof">数据截至 2026-09-22 09:00</span></p>
     </div>
-    <div class="page-head__actions">
-      <button class="btn btn--default"><span data-icon="refresh"></span>刷新</button>
-    </div>
+    <!-- el-button default, icon before text -->
+    <button class="btn btn--default" id="dashboard-refresh" type="button"><span class="dashboard__spin" id="dashboard-spinner" hidden></span><span data-icon="refresh"></span><span id="dashboard-refresh-label">刷新</span></button>
   </div>
 
-  <!-- KPI -->
-  <div class="card-grid card-grid--4">
-    <div class="card kpi">
+  <!-- KPI：对应 useDashboard.kpiCards（User/OfficeBuilding/Folder/Lightning） -->
+  <div class="dashboard__kpis">
+    <div class="kpi">
       <div class="kpi__label"><span data-icon="user"></span>用户总数</div>
-      <div class="kpi__value">128<span class="unit">人</span></div>
-      <div class="kpi__foot">较上周 <span class="kpi__delta kpi__delta--up">+6</span> · 启用 108</div>
+      <div class="kpi__value"><span data-kpi="users">128</span><span class="kpi__unit">人</span></div>
+      <div class="kpi__foot">较上周 <span class="kpi__delta kpi__delta--up" data-kpi="newUsers">+6</span> · 启用 <span data-kpi="enabled">108</span></div>
     </div>
-    <div class="card kpi">
+    <div class="kpi">
       <div class="kpi__label"><span data-icon="building"></span>工作空间</div>
-      <div class="kpi__value">16<span class="unit">个</span></div>
-      <div class="kpi__foot">活跃 14 · 归档 2</div>
+      <div class="kpi__value"><span data-kpi="workspaces">16</span><span class="kpi__unit">个</span></div>
+      <div class="kpi__foot">活跃 <span data-kpi="activeWs">14</span> · 归档 <span data-kpi="archivedWs">2</span></div>
     </div>
-    <div class="card kpi">
+    <div class="kpi">
       <div class="kpi__label"><span data-icon="folder"></span>项目总数</div>
-      <div class="kpi__value">54<span class="unit">个</span></div>
-      <div class="kpi__foot">近 7 日新增 <span class="kpi__delta kpi__delta--up">+3</span></div>
+      <div class="kpi__value"><span data-kpi="projects">54</span><span class="kpi__unit">个</span></div>
+      <div class="kpi__foot">近 7 日新增 <span class="kpi__delta kpi__delta--up" data-kpi="newProjects">+3</span></div>
     </div>
-    <div class="card kpi">
+    <div class="kpi">
       <div class="kpi__label"><span data-icon="zap"></span>今日活跃</div>
-      <div class="kpi__value">63<span class="unit">人次</span></div>
+      <div class="kpi__value"><span data-kpi="todayActive">63</span><span class="kpi__unit">人次</span></div>
     </div>
   </div>
 
-  <!-- 图表行 -->
-  <div class="card-grid card-grid--3 block-gap">
-    <div class="card" style="grid-column: span 2">
-      <div class="card__header">
-        <h3 class="card__title">近 14 日活跃用户<span class="card__subtitle">按日去重登录用户</span></h3>
-        <div class="legend">
-          <span class="legend__item"><span class="legend__swatch" style="background:#409eff"></span>活跃用户</span>
-        </div>
-      </div>
-      <div class="card__body">
-        <svg class="chart" height="210" viewBox="0 0 640 210">
-          <line x1="0" y1="170" x2="640" y2="170" stroke="#e4e7ed"/>
-          <line x1="0" y1="120" x2="640" y2="120" stroke="#f0f2f5"/>
-          <line x1="0" y1="70" x2="640" y2="70" stroke="#f0f2f5"/>
-          <line x1="0" y1="20" x2="640" y2="20" stroke="#f0f2f5"/>
-          <path d="M20 148 L65 136 L110 140 L155 118 L200 124 L245 102 L290 108 L335 86 L380 94 L425 72 L470 78 L515 56 L560 64 L605 40 L605 170 L20 170 Z" fill="rgba(51,112,255,.08)"/>
-          <polyline points="20,148 65,136 110,140 155,118 200,124 245,102 290,108 335,86 380,94 425,72 470,78 515,56 560,64 605,40" fill="none" stroke="#409eff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-          <circle cx="605" cy="40" r="4" fill="#409eff" stroke="#fff" stroke-width="2"/>
-          <text x="605" y="28" font-size="12" font-weight="600" fill="#303133" text-anchor="end" font-family="monospace">63</text>
-          <text x="20" y="196" font-size="11" fill="#a8abb2">09-08</text>
-          <text x="290" y="196" font-size="11" fill="#a8abb2">09-15</text>
-          <text x="605" y="196" font-size="11" fill="#a8abb2" text-anchor="end">09-22</text>
-        </svg>
-      </div>
-    </div>
+  <div class="dashboard__charts">
+    <section class="panel">
+      <header class="panel__head">
+        <h2 class="panel__title">近 14 日活跃用户<span class="panel__subtitle">按日去重登录用户</span></h2>
+        <span class="legend"><span class="legend__dot"></span>活跃用户</span>
+      </header>
+      <svg class="chart" viewBox="0 0 640 210" height="210" role="img" aria-label="近 14 日活跃用户趋势">
+        <line class="chart__grid" x1="0" y1="20" x2="640" y2="20" />
+        <line class="chart__grid" x1="0" y1="70" x2="640" y2="70" />
+        <line class="chart__grid" x1="0" y1="120" x2="640" y2="120" />
+        <line class="chart__grid chart__grid--base" x1="0" y1="170" x2="640" y2="170" />
+        <path class="chart__area" id="dash-area" d="M 20,148 L 65,136 L 110,140 L 155,118 L 200,124 L 245,102 L 290,108 L 335,86 L 380,94 L 425,72 L 470,78 L 515,56 L 560,64 L 605,40 L 605,170 L 20,170 Z" />
+        <polyline class="chart__line" id="dash-line" points="20,148 65,136 110,140 155,118 200,124 245,102 290,108 335,86 380,94 425,72 470,78 515,56 560,64 605,40" />
+        <circle class="chart__dot" id="dash-last-dot" cx="605" cy="40" r="4" />
+        <text class="chart__last" id="dash-last-label" x="605" y="28" text-anchor="end">63</text>
+        <text class="chart__axis" data-axis="first" x="20" y="196" text-anchor="start">09-08</text>
+        <text class="chart__axis" data-axis="mid" x="312.5" y="196" text-anchor="middle">09-15</text>
+        <text class="chart__axis" data-axis="last" x="605" y="196" text-anchor="end">09-22</text>
+      </svg>
+    </section>
 
-    <div class="card">
-      <div class="card__header">
-        <h3 class="card__title">用户状态分布</h3>
+    <section class="panel">
+      <header class="panel__head">
+        <h2 class="panel__title">用户状态分布</h2>
         <span class="legend">按用户数</span>
-      </div>
-      <div class="card__body flex-center" style="gap:20px;min-height:210px">
-        <svg width="132" height="132" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="46" fill="none" stroke="#e4e7ed" stroke-width="14"/>
-          <circle cx="60" cy="60" r="46" fill="none" stroke="#67c23a" stroke-width="14" stroke-dasharray="244 289" transform="rotate(-90 60 60)"/>
-          <circle cx="60" cy="60" r="46" fill="none" stroke="#909399" stroke-width="14" stroke-dasharray="36 289" stroke-dashoffset="-244" transform="rotate(-90 60 60)"/>
-          <circle cx="60" cy="60" r="46" fill="none" stroke="#f56c6c" stroke-width="14" stroke-dasharray="9 289" stroke-dashoffset="-280" transform="rotate(-90 60 60)"/>
-          <text x="60" y="58" text-anchor="middle" font-size="22" font-weight="700" fill="#303133">128</text>
-          <text x="60" y="76" text-anchor="middle" font-size="11" fill="#909399">全部用户</text>
+      </header>
+      <div class="donut">
+        <svg class="donut__svg" width="132" height="132" viewBox="0 0 120 120" role="img" aria-label="用户状态分布">
+          <circle class="donut__track" cx="60" cy="60" r="46" />
+          <circle class="donut__seg" data-seg="enabled" cx="60" cy="60" r="46" transform="rotate(-90 60 60)" style="stroke:var(--st-success);stroke-dasharray:244 45;stroke-dashoffset:0" />
+          <circle class="donut__seg" data-seg="disabled" cx="60" cy="60" r="46" transform="rotate(-90 60 60)" style="stroke:var(--st-neutral);stroke-dasharray:36 253;stroke-dashoffset:-244" />
+          <circle class="donut__seg" data-seg="locked" cx="60" cy="60" r="46" transform="rotate(-90 60 60)" style="stroke:var(--st-danger);stroke-dasharray:9 280;stroke-dashoffset:-280" />
+          <text class="donut__total" x="60" y="58" text-anchor="middle" data-kpi="users">128</text>
+          <text class="donut__caption" x="60" y="76" text-anchor="middle">全部用户</text>
         </svg>
-        <div class="legend" style="flex-direction:column;gap:10px">
-          <span class="legend__item"><span class="legend__swatch" style="background:#67c23a"></span>启用 108</span>
-          <span class="legend__item"><span class="legend__swatch" style="background:#909399"></span>停用 16</span>
-          <span class="legend__item"><span class="legend__swatch" style="background:#f56c6c"></span>锁定 4</span>
-        </div>
+        <ul class="donut__legend">
+          <li><span class="donut__swatch" style="background:var(--st-success)"></span>启用 <span data-kpi="enabled">108</span></li>
+          <li><span class="donut__swatch" style="background:var(--st-neutral)"></span>停用 <span data-kpi="disabled">16</span></li>
+          <li><span class="donut__swatch" style="background:var(--st-danger)"></span>锁定 <span data-kpi="locked">4</span></li>
+        </ul>
       </div>
-    </div>
+    </section>
   </div>
 
-  <!-- 最近空间 -->
-  <div class="card block-gap">
-    <div class="card__header">
-      <h3 class="card__title">最近创建的空间</h3>
-      <a class="text-sm" href="workspaces.html">查看全部 →</a>
-    </div>
+  <section class="panel">
+    <header class="panel__head">
+      <h2 class="panel__title">最近创建的空间</h2>
+      <!-- el-link type="primary" underline="never" -->
+      <a href="workspaces.html" style="font-size:var(--font-size-sm);color:var(--brand-500);text-decoration:none">查看全部 →</a>
+    </header>
+
     <div class="table-wrap">
-      <table class="table">
+      <table class="table dashboard-table">
         <thead>
-          <tr><th>空间名称</th><th>创建人</th><th>成员</th><th>项目</th><th>状态</th><th>创建时间</th></tr>
-        </thead>
-        <tbody>
           <tr>
-            <td class="cell-main">质量中台</td><td>张明</td>
-            <td class="num">24</td><td class="num">6</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <th style="min-width:160px">空间名称</th>
+            <th style="width:120px">创建人</th>
+            <th style="width:80px" class="num-col">成员</th>
+            <th style="width:80px" class="num-col">项目</th>
+            <th style="width:110px">状态</th>
+            <th style="width:160px">创建时间</th>
+          </tr>
+        </thead>
+        <tbody id="dash-space-tbody">
+          <tr>
+            <td>质量中台</td>
+            <td>张明</td>
+            <td class="num-col">24</td>
+            <td class="num-col">6</td>
+            <td><span class="dot-status dot-status--success"></span>活跃</td>
             <td class="num">2026-09-18 10:24</td>
           </tr>
           <tr>
-            <td class="cell-main">供应链测试组</td><td>李华</td>
-            <td class="num">17</td><td class="num">4</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td>供应链测试组</td>
+            <td>李华</td>
+            <td class="num-col">17</td>
+            <td class="num-col">4</td>
+            <td><span class="dot-status dot-status--success"></span>活跃</td>
             <td class="num">2026-09-12 15:02</td>
           </tr>
           <tr>
-            <td class="cell-main">数据平台验证</td><td>王芳</td>
-            <td class="num">9</td><td class="num">3</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td>数据平台验证</td>
+            <td>王芳</td>
+            <td class="num-col">9</td>
+            <td class="num-col">3</td>
+            <td><span class="dot-status dot-status--success"></span>活跃</td>
             <td class="num">2026-09-05 09:47</td>
           </tr>
           <tr>
-            <td class="cell-main">移动端专项</td><td>赵强</td>
-            <td class="num">15</td><td class="num">4</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td>移动端专项</td>
+            <td>赵强</td>
+            <td class="num-col">15</td>
+            <td class="num-col">4</td>
+            <td><span class="dot-status dot-status--success"></span>活跃</td>
             <td class="num">2026-08-28 14:12</td>
           </tr>
           <tr>
-            <td class="cell-main">结算服务验证</td><td>陈静</td>
-            <td class="num">11</td><td class="num">3</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td>结算服务验证</td>
+            <td>陈静</td>
+            <td class="num-col">11</td>
+            <td class="num-col">3</td>
+            <td><span class="dot-status dot-status--success"></span>活跃</td>
             <td class="num">2026-08-11 16:40</td>
           </tr>
           <tr>
-            <td class="cell-main">IoT 设备平台</td><td>刘洋</td>
-            <td class="num">8</td><td class="num">2</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td>IoT 设备平台</td>
+            <td>刘洋</td>
+            <td class="num-col">8</td>
+            <td class="num-col">2</td>
+            <td><span class="dot-status dot-status--success"></span>活跃</td>
             <td class="num">2026-07-25 11:05</td>
           </tr>
           <tr>
-            <td class="cell-main">客服系统回归</td><td>孙敏</td>
-            <td class="num">13</td><td class="num">5</td>
-            <td><span class="status status--success"><span class="dot"></span>活跃</span></td>
+            <td>客服系统回归</td>
+            <td>孙敏</td>
+            <td class="num-col">13</td>
+            <td class="num-col">5</td>
+            <td><span class="dot-status dot-status--success"></span>活跃</td>
             <td class="num">2026-07-03 09:33</td>
           </tr>
           <tr>
-            <td class="cell-main">旧版商城回归</td><td>张明</td>
-            <td class="num">12</td><td class="num">5</td>
-            <td><span class="status status--neutral"><span class="dot"></span>归档</span></td>
+            <td>旧版商城回归</td>
+            <td>张明</td>
+            <td class="num-col">12</td>
+            <td class="num-col">5</td>
+            <td><span class="dot-status dot-status--neutral"></span>归档</td>
             <td class="num">2026-06-21 11:30</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="pagination"><span class="pagination__total">共 16 个空间</span>
-      <button class="page-btn" disabled>‹</button><button class="page-btn page-btn--active">1</button><button class="page-btn">2</button><button class="page-btn">›</button>
+
+    <!-- ListPagination: page-sizes=[] unit="个空间", layout prev,pager,next -->
+    <div class="list-pager dashboard__table-foot">
+      <div class="list-pager__left">
+        <span class="list-pager__total">共 16 个空间 · 每页 8 条</span>
+      </div>
+      <div class="list-pager__right" id="dash-pager" aria-label="分页">
+        <button class="page-btn" type="button" data-page-nav="prev" disabled aria-label="上一页">‹</button>
+        <button class="page-btn page-btn--active" type="button" data-page="1" aria-current="page">1</button>
+        <button class="page-btn" type="button" data-page="2">2</button>
+        <button class="page-btn" type="button" data-page-nav="next" aria-label="下一页">›</button>
+      </div>
     </div>
-  </div>
+  </section>
 
 </main>
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  var PAGE_SIZE = 8;
+  var CIRC = 2 * Math.PI * 46;
+  var BASE = {
+    users: 128, enabled: 108, disabled: 16, locked: 4,
+    newUsers: 6, workspaces: 16, activeWs: 14, archivedWs: 2,
+    projects: 54, newProjects: 3, today: 63,
+    trend: [11, 16, 15, 25, 22, 33, 30, 41, 37, 47, 45, 55, 51, 63],
+    asOf: new Date(2026, 8, 22, 9, 0)
+  };
+
+  // 两页共 16 个空间：翻页时真实替换表体，数据只存在于本次页面会话
+  var SPACES = [
+    ['质量中台', '张明', 24, 6, 'active', '2026-09-18 10:24'],
+    ['供应链测试组', '李华', 17, 4, 'active', '2026-09-12 15:02'],
+    ['数据平台验证', '王芳', 9, 3, 'active', '2026-09-05 09:47'],
+    ['移动端专项', '赵强', 15, 4, 'active', '2026-08-28 14:12'],
+    ['结算服务验证', '陈静', 11, 3, 'active', '2026-08-11 16:40'],
+    ['IoT 设备平台', '刘洋', 8, 2, 'active', '2026-07-25 11:05'],
+    ['客服系统回归', '孙敏', 13, 5, 'active', '2026-07-03 09:33'],
+    ['旧版商城回归', '张明', 12, 5, 'dissolved', '2026-06-21 11:30'],
+    ['交易链路压测', '周敏', 10, 4, 'dissolved', '2026-05-30 14:08'],
+    ['报表平台迁移', '吴磊', 7, 2, 'dissolved', '2026-05-12 10:45'],
+    ['支付网关联调', '郑浩', 14, 5, 'dissolved', '2026-04-26 16:20'],
+    ['内容审核专项', '何静', 6, 2, 'dissolved', '2026-04-09 09:18'],
+    ['智能客服验证', '高翔', 9, 3, 'dissolved', '2026-03-22 13:55'],
+    ['数据同步校验', '马超', 5, 2, 'dissolved', '2026-03-05 11:42'],
+    ['运营后台回归', '林悦', 12, 4, 'dissolved', '2026-02-17 15:36'],
+    ['历史订单迁移', '徐帆', 4, 1, 'dissolved', '2026-01-28 10:12']
+  ];
+
+  var tbody = document.getElementById('dash-space-tbody');
+  var pager = document.getElementById('dash-pager');
+  var refreshBtn = document.getElementById('dashboard-refresh');
+  var spinner = document.getElementById('dashboard-spinner');
+  var refreshLabel = document.getElementById('dashboard-refresh-label');
+  var asOf = document.getElementById('dashboard-asof');
+  var area = document.getElementById('dash-area');
+  var line = document.getElementById('dash-line');
+  var lastDot = document.getElementById('dash-last-dot');
+  var lastLabel = document.getElementById('dash-last-label');
+  var axis = {
+    first: document.querySelector('[data-axis="first"]'),
+    mid: document.querySelector('[data-axis="mid"]'),
+    last: document.querySelector('[data-axis="last"]')
+  };
+
+  var state = {
+    users: BASE.users, enabled: BASE.enabled, disabled: BASE.disabled, locked: BASE.locked,
+    newUsers: BASE.newUsers, workspaces: BASE.workspaces, activeWs: BASE.activeWs,
+    archivedWs: BASE.archivedWs, projects: BASE.projects, newProjects: BASE.newProjects,
+    today: BASE.today, trend: BASE.trend.slice(), asOf: new Date(BASE.asOf.getTime())
+  };
+  var page = 1;
+  var round = 0;
+  var refreshing = false;
+  var totalPages = Math.ceil(BASE.workspaces / PAGE_SIZE);
+
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+  function addDays(date, days) {
+    var next = new Date(date.getTime());
+    next.setDate(next.getDate() + days);
+    return next;
+  }
+  function shortDate(date) { return pad(date.getMonth() + 1) + '-' + pad(date.getDate()); }
+  function fullDate(date) {
+    return date.getFullYear() + '-' + shortDate(date) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+
+  function setKpi(key, value) {
+    document.querySelectorAll('[data-kpi="' + key + '"]').forEach(function (el) {
+      el.textContent = String(value);
+    });
+  }
+
+  function renderKpis() {
+    setKpi('users', state.users);
+    setKpi('enabled', state.enabled);
+    setKpi('disabled', state.disabled);
+    setKpi('locked', state.locked);
+    setKpi('workspaces', state.workspaces);
+    setKpi('activeWs', state.activeWs);
+    setKpi('archivedWs', state.archivedWs);
+    setKpi('projects', state.projects);
+    setKpi('todayActive', state.today);
+    [['newUsers', state.newUsers], ['newProjects', state.newProjects]].forEach(function (pair) {
+      var el = document.querySelector('[data-kpi="' + pair[0] + '"]');
+      el.textContent = '+' + pair[1];
+      el.classList.toggle('kpi__delta--up', pair[1] > 0);
+    });
+  }
+
+  function renderDonut() {
+    var offset = 0;
+    ['enabled', 'disabled', 'locked'].forEach(function (key) {
+      var len = CIRC * state[key] / state.users;
+      var seg = document.querySelector('[data-seg="' + key + '"]');
+      seg.style.strokeDasharray = len.toFixed(1) + ' ' + (CIRC - len).toFixed(1);
+      seg.style.strokeDashoffset = (-offset).toFixed(1);
+      offset += len;
+    });
+  }
+
+  function renderChart() {
+    var scale = 130 / 63;
+    var points = state.trend.map(function (value, index) {
+      return {
+        x: 20 + index * 45,
+        y: Math.max(10, Math.min(170, 170 - value * scale))
+      };
+    });
+    var coords = points.map(function (point) { return point.x + ',' + point.y; });
+    var last = points[points.length - 1];
+    area.setAttribute('d', 'M ' + coords.join(' L ') + ' L 605,170 L 20,170 Z');
+    line.setAttribute('points', coords.join(' '));
+    lastDot.setAttribute('cy', String(last.y));
+    lastLabel.setAttribute('y', String(last.y - 12));
+    lastLabel.textContent = String(state.trend[state.trend.length - 1]);
+    axis.first.textContent = shortDate(addDays(state.asOf, -13));
+    axis.mid.textContent = shortDate(addDays(state.asOf, -7));
+    axis.last.textContent = shortDate(state.asOf);
+  }
+
+  function renderRows() {
+    var rows = SPACES.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    tbody.innerHTML = rows.map(function (space, index) {
+      var active = space[4] === 'active';
+      var members = space[2] + (page === 1 && index === 0 ? round : 0);
+      return '<tr>' +
+        '<td>' + space[0] + '</td>' +
+        '<td>' + space[1] + '</td>' +
+        '<td class="num-col">' + members + '</td>' +
+        '<td class="num-col">' + space[3] + '</td>' +
+        '<td><span class="dot-status ' + (active ? 'dot-status--success' : 'dot-status--neutral') + '"></span>' + (active ? '活跃' : '归档') + '</td>' +
+        '<td class="num">' + space[5] + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderPager() {
+    pager.querySelectorAll('.page-btn').forEach(function (btn) {
+      var target = btn.getAttribute('data-page');
+      if (target) {
+        var on = Number(target) === page;
+        btn.classList.toggle('page-btn--active', on);
+        if (on) btn.setAttribute('aria-current', 'page');
+        else btn.removeAttribute('aria-current');
+        return;
+      }
+      var nav = btn.getAttribute('data-page-nav');
+      if (nav === 'prev') btn.disabled = page === 1;
+      if (nav === 'next') btn.disabled = page === totalPages;
+    });
+  }
+
+  function renderAll() {
+    renderKpis();
+    renderDonut();
+    renderChart();
+    renderRows();
+    renderPager();
+    asOf.textContent = '数据截至 ' + fullDate(state.asOf);
+  }
+
+  pager.addEventListener('click', function (e) {
+    var btn = e.target.closest('.page-btn');
+    if (!btn || btn.disabled) return;
+    var target = btn.getAttribute('data-page');
+    var nav = btn.getAttribute('data-page-nav');
+    if (target) page = Number(target);
+    else if (nav === 'prev') page = Math.max(1, page - 1);
+    else if (nav === 'next') page = Math.min(totalPages, page + 1);
+    else return;
+    renderRows();
+    renderPager();
+  });
+
+  refreshBtn.addEventListener('click', function () {
+    if (refreshing) return;
+    refreshing = true;
+    refreshBtn.disabled = true;
+    spinner.hidden = false;
+    refreshLabel.textContent = '刷新中…';
+    asOf.textContent = '正在刷新…';
+
+    window.setTimeout(function () {
+      round += 1;
+      state.users = BASE.users + round;
+      state.enabled = BASE.enabled + round;
+      state.newUsers = BASE.newUsers + round;
+      state.projects = BASE.projects + round;
+      state.newProjects = BASE.newProjects + round;
+      state.trend = state.trend.slice(1).concat([state.trend[state.trend.length - 1] + 1]);
+      state.today = state.trend[state.trend.length - 1];
+      state.asOf = addDays(state.asOf, 1);
+      page = 1;
+      renderAll();
+      spinner.hidden = true;
+      refreshLabel.textContent = '刷新';
+      refreshBtn.disabled = false;
+      refreshing = false;
+    }, 450);
+  });
+
+  renderAll();
+})();
+</script>
 </body>
 </html>

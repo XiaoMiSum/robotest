@@ -13,49 +13,59 @@
   .role-layout .card__body,
   .role-detail__pane { flex: 1 1 auto; min-height: 0; }
 
-  /* 角色树：分组根弱化为区块标题，具体角色沿用 role-item */
-  .role-tree { padding: 8px; }
+  /* 角色树：对齐 RoleTreePanel.vue（el-tree 自定义节点） */
+  .role-tree { padding: 8px; overflow-y: auto; }
   .role-group + .role-group { margin-top: 4px; }
   .role-group__head {
     display: flex; align-items: center; gap: 6px;
-    min-height: 40px; padding: 0 8px;
+    min-height: 44px; padding: 0 8px;
     font-size: 12px; font-weight: 600; color: var(--n-500); letter-spacing: 0.03em;
   }
-  .role-group__caret { display: inline-flex; }
-  .role-group__caret svg { width: 14px; height: 14px; color: var(--n-400); }
-  .role-group__add { margin-left: auto; }
+  .role-group__caret { display: inline-flex; color: var(--n-400); }
+  .role-group__caret svg { width: 14px; height: 14px; }
   .role-group__children { padding-left: 14px; }
 
   .role-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 14px 16px; border-radius: var(--radius-md); cursor: pointer;
-    border: 1px solid transparent;
+    min-height: 44px; padding: 0 12px; margin-bottom: 4px;
+    border-radius: var(--radius-md); cursor: pointer;
+    border: 1px solid transparent; box-sizing: border-box;
   }
   .role-item:hover { background: var(--n-25); }
   .role-item--active { background: var(--brand-50); border-color: var(--brand-100); }
   .role-item__main { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .role-item__name { font-size: 14px; font-weight: 600; color: var(--n-900); }
-  /* 重命名/删除只随选中叶节点出现（预置角色恒不出现） */
-  .role-item__actions { display: none; align-items: center; gap: 2px; }
-  .role-item--active .role-item__actions { display: flex; }
-
-  .role-node-action {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px; padding: 0;
-    border: none; border-radius: var(--radius-sm);
-    background: transparent; color: var(--n-400); cursor: pointer;
+  .role-item__name { font-size: 14px; font-weight: 600; color: var(--n-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .role-item__side { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .role-item__count {
+    padding: 1px 8px; border: 1px solid var(--n-200); border-radius: var(--radius-full);
+    background: var(--n-50); font-size: 12px; line-height: 1.6; color: var(--n-500);
   }
-  .role-node-action:hover { background: var(--n-100); color: var(--n-700); }
-  .role-node-action--danger:hover { color: var(--st-danger); }
-  .role-node-action svg { width: 14px; height: 14px; }
+  /* 分组入口常驻，叶节点仅跟随选中态；隐藏用 display:none 让人数徽标对齐 */
+  .role-item__actions { display: none; align-items: center; }
+  .role-item__actions--visible { display: flex; }
+  .role-item__actions .btn + .btn { margin-left: 2px; }
+  .role-item--active.role-item--custom .role-item__count { display: none; }
 
-  /* 权限点/关联用户 Tab 共用等高卡体，滚动收进各 pane */
-  .role-detail .tabs { flex-shrink: 0; }
+  /* el-button link size=small 图标按钮的原型近似 */
+  .btn--icon-link { padding: 0 4px; min-width: 24px; height: 24px; border: none; background: transparent; }
+  .btn--icon-link svg { width: 14px; height: 14px; }
+  .btn--icon-link.btn--link { color: var(--n-500); }
+  .btn--icon-link.btn--link:hover { color: var(--brand-500); background: transparent; }
+  .btn--icon-link.btn--link-danger { color: var(--st-danger); }
+  .btn--link-danger { color: var(--st-danger); }
+  .btn--link-danger:hover { color: var(--st-danger-strong); background: transparent; }
+
+  /* 权限点/关联用户 Tab：对齐 RolePage.vue el-tabs 头部样式 */
+  .role-detail .tabs { flex-shrink: 0; padding: 0 24px; border-bottom: 1px solid var(--n-100); margin-bottom: 0; gap: 0; }
+  .role-detail .tab { padding: 14px 0; margin-right: 32px; font-size: 14px; }
   .role-detail__pane { padding: 12px 24px 16px; }
 
   .perm-table { font-size: 13px; }
+  .perm-table td { vertical-align: middle; }
   .perm-table__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .perm-table__header-main { display: flex; align-items: center; gap: 8px; }
+  .perm-table__header-actions { display: flex; align-items: center; gap: 16px; }
+  .perm-table__header-actions .btn + .btn { margin-left: 0; }
   .perm-table .checkbox { cursor: pointer; }
   .perm-top { white-space: nowrap; }
   .perm-list { display: flex; flex-wrap: wrap; gap: 10px 22px; }
@@ -69,7 +79,23 @@
     width: 6px; height: 2px; background: #fff; border-radius: 1px;
   }
 
+  .role-users__ws-tag { margin-right: 4px; margin-bottom: 2px; }
+  .role-users__pager { margin-top: 0; padding-top: 12px; border-top: 1px solid var(--n-100); }
   .page-size { width: 100px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
+
+  /* 交互：弹层 hidden 需覆盖 base.css 的 display:flex */
+  [hidden] { display: none !important; }
+  .role-group__caret { cursor: pointer; border-radius: var(--radius-sm); }
+  .role-group__caret:hover { background: var(--n-50); }
+  .role-group--collapsed .role-group__children { display: none; }
+  .role-group--collapsed .role-group__caret svg { transform: rotate(-90deg); }
+  .role-empty { text-align: center; color: var(--n-500); padding: 28px 0 !important; font-size: 13px; }
+  .dialog-tip { margin: 0 0 16px; color: var(--n-600); font-size: var(--font-size-sm); line-height: 1.6; }
+  .dialog-form .field { margin-bottom: 14px; }
+  .dialog-form .field:last-child { margin-bottom: 0; }
+  .perm-space-option { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 13px; color: var(--n-700); cursor: pointer; }
+  .perm-save-state { margin-left: 8px; font-size: 12px; color: var(--st-success); }
+  #user-pages { display: inline-flex; align-items: center; gap: 6px; }
 </style>
 </head>
 <body data-shell="admin" data-active="roles" data-mode="admin">
@@ -84,48 +110,87 @@
   </div>
 
   <div class="role-layout">
-    <!-- 角色列表：分组根 + 具体角色，新增入口在分组行 -->
+    <!-- 角色列表：RoleTreePanel.vue（el-tree 自定义节点） -->
     <div class="card">
-      <div class="card__header"><h3 class="card__title">角色列表<span class="card__subtitle">5</span></h3></div>
+      <div class="card__header">
+        <h3 class="card__title">角色列表<span class="card__subtitle">5</span></h3>
+      </div>
       <div class="card__body role-tree">
-        <div class="role-group">
+        <div class="role-group" data-group="system">
           <div class="role-group__head">
-            <span class="role-group__caret" data-icon="chevron-down"></span>
+            <span class="role-group__caret" data-icon="chevron-down" role="button" tabindex="0" aria-label="折叠或展开系统角色" aria-expanded="true"></span>
             <span>系统角色</span>
-            <button type="button" class="role-node-action role-group__add" aria-label="新增系统角色" data-ux-feedback="新增角色：输入角色名称后创建"><span data-icon="plus"></span></button>
+            <span class="role-item__side" style="margin-left:auto">
+              <span class="role-item__actions role-item__actions--visible">
+                <button type="button" class="btn btn--link btn--sm btn--icon-link" aria-label="新增系统角色" data-role-action="create"><span data-icon="plus"></span></button>
+              </span>
+            </span>
           </div>
           <div class="role-group__children">
             <div class="role-item">
-              <span class="role-item__main"><span class="role-item__name">系统管理员</span><span class="tag tag--warning tag--sm">预置</span></span>
-              <span class="tag tag--neutral tag--sm">3 人</span>
+              <span class="role-item__main">
+                <span class="role-item__name">系统管理员</span>
+                <span class="tag tag--warning tag--sm">预置</span>
+              </span>
+              <span class="role-item__side">
+                <span class="role-item__count">3 人</span>
+                <span class="role-item__actions"></span>
+              </span>
             </div>
             <div class="role-item">
-              <span class="role-item__main"><span class="role-item__name">空间管理员</span><span class="tag tag--warning tag--sm">预置</span></span>
-              <span class="tag tag--neutral tag--sm">2 人</span>
+              <span class="role-item__main">
+                <span class="role-item__name">空间管理员</span>
+                <span class="tag tag--warning tag--sm">预置</span>
+              </span>
+              <span class="role-item__side">
+                <span class="role-item__count">2 人</span>
+                <span class="role-item__actions"></span>
+              </span>
             </div>
           </div>
         </div>
 
-        <div class="role-group">
+        <div class="role-group" data-group="workspace">
           <div class="role-group__head">
-            <span class="role-group__caret" data-icon="chevron-down"></span>
+            <span class="role-group__caret" data-icon="chevron-down" role="button" tabindex="0" aria-label="折叠或展开工作空间角色" aria-expanded="true"></span>
             <span>工作空间角色</span>
-            <button type="button" class="role-node-action role-group__add" aria-label="新增工作空间角色" data-ux-feedback="新增角色：输入角色名称后创建"><span data-icon="plus"></span></button>
+            <span class="role-item__side" style="margin-left:auto">
+              <span class="role-item__actions role-item__actions--visible">
+                <button type="button" class="btn btn--link btn--sm btn--icon-link" aria-label="新增工作空间角色" data-role-action="create"><span data-icon="plus"></span></button>
+              </span>
+            </span>
           </div>
           <div class="role-group__children">
             <div class="role-item">
-              <span class="role-item__main"><span class="role-item__name">管理员</span><span class="tag tag--warning tag--sm">预置</span></span>
-              <span class="tag tag--neutral tag--sm">8 人</span>
+              <span class="role-item__main">
+                <span class="role-item__name">管理员</span>
+                <span class="tag tag--warning tag--sm">预置</span>
+              </span>
+              <span class="role-item__side">
+                <span class="role-item__count">8 人</span>
+                <span class="role-item__actions"></span>
+              </span>
             </div>
             <div class="role-item">
-              <span class="role-item__main"><span class="role-item__name">成员</span><span class="tag tag--warning tag--sm">预置</span></span>
-              <span class="tag tag--neutral tag--sm">96 人</span>
+              <span class="role-item__main">
+                <span class="role-item__name">成员</span>
+                <span class="tag tag--warning tag--sm">预置</span>
+              </span>
+              <span class="role-item__side">
+                <span class="role-item__count">96 人</span>
+                <span class="role-item__actions"></span>
+              </span>
             </div>
-            <div class="role-item role-item--active">
-              <span class="role-item__main"><span class="role-item__name">测试工程师</span></span>
-              <span class="role-item__actions">
-                <button type="button" class="role-node-action" aria-label="重命名角色" data-ux-feedback="重命名角色：输入新的角色名称"><span data-icon="edit"></span></button>
-                <button type="button" class="role-node-action role-node-action--danger" aria-label="删除角色" data-ux-feedback="删除角色：确认后删除该角色"><span data-icon="trash"></span></button>
+            <div class="role-item role-item--active role-item--custom">
+              <span class="role-item__main">
+                <span class="role-item__name">测试工程师</span>
+              </span>
+              <span class="role-item__side">
+                <span class="role-item__count">5 人</span>
+                <span class="role-item__actions role-item__actions--visible">
+                  <button type="button" class="btn btn--link btn--sm btn--icon-link" aria-label="重命名角色" data-role-action="rename"><span data-icon="edit"></span></button>
+                  <button type="button" class="btn btn--link btn--sm btn--icon-link btn--link-danger" aria-label="删除角色" data-role-action="delete"><span data-icon="trash"></span></button>
+                </span>
               </span>
             </div>
           </div>
@@ -133,14 +198,14 @@
       </div>
     </div>
 
-    <!-- 详情：权限点 / 关联用户共用一张卡，Tab 承担卡头 -->
+    <!-- 详情：RolePage.vue，el-tabs 承担卡头，权限点/关联用户共用等高卡体 -->
     <div class="card role-detail">
       <div class="tabs">
         <span class="tab tab--active" data-tab="permissions">权限点</span>
         <span class="tab" data-tab="users">关联用户</span>
       </div>
 
-      <!-- 权限点：一级/二级模块两级分组，非预置角色可勾选并保存 -->
+      <!-- 权限点：PermissionTable.vue -->
       <div class="role-detail__pane" data-pane="permissions">
         <div class="table-wrap">
           <table class="table perm-table">
@@ -151,11 +216,13 @@
                 <th>
                   <div class="perm-table__header">
                     <span class="perm-table__header-main">
-                      <span class="checkbox checkbox--indeterminate" id="perm-all" role="checkbox" aria-label="全选"></span>权限点
+                      <span class="checkbox checkbox--indeterminate" id="perm-all" role="checkbox" aria-label="全选"></span>
+                      <span>权限点</span>
                     </span>
-                    <span class="btn-row">
-                      <button type="button" class="btn btn--default btn--sm" id="perm-revert" disabled>撤销修改</button>
-                      <button type="button" class="btn btn--primary btn--sm" id="perm-save" disabled>保存权限</button>
+                    <span class="perm-table__header-actions">
+                      <button type="button" class="btn btn--default" id="perm-revert" disabled>撤销修改</button>
+                      <button type="button" class="btn btn--primary" id="perm-save" disabled>保存权限</button>
+                      <span class="perm-save-state" id="perm-save-state" hidden>已保存</span>
                     </span>
                   </div>
                 </th>
@@ -344,71 +411,71 @@
         </div>
       </div>
 
-      <!-- 关联用户：空间角色按归属空间聚合，分页钉在 pane 底 -->
+      <!-- 关联用户：RoleUsersTable.vue（空间角色场景） -->
       <div class="role-detail__pane" data-pane="users" hidden>
         <div class="table-wrap">
-          <table class="table">
+          <table class="table perm-table">
             <thead>
               <tr>
-                <th>用户名</th>
-                <th>姓名</th>
-                <th>归属空间</th>
-                <th>授权时间</th>
+                <th style="min-width:140px">用户名</th>
+                <th style="min-width:120px">姓名</th>
+                <th style="min-width:200px">归属空间</th>
+                <th style="width:170px">授权时间</th>
                 <th style="width:130px">
-                  <button type="button" class="btn btn--primary btn--sm" data-ux-feedback="添加关联用户与空间：选择用户并指定归属空间"><span data-icon="plus"></span>添加用户</button>
+                  <button type="button" class="btn btn--link" id="user-add-btn"><span data-icon="plus"></span>添加用户</button>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="user-table-body">
               <tr>
                 <td>zhangming</td>
                 <td class="cell-main">张明</td>
-                <td><span class="tag tag--outline tag--sm">质量中台</span><span class="tag tag--outline tag--sm">供应链测试组</span></td>
+                <td><span class="tag tag--neutral tag--sm role-users__ws-tag">质量中台</span><span class="tag tag--neutral tag--sm role-users__ws-tag">供应链测试组</span></td>
                 <td class="num">2026-03-02 09:15</td>
-                <td><span class="op-link op-link--danger" data-ux-feedback="选择要移除的空间后移除">移除</span></td>
+                <td><button type="button" class="btn btn--link btn--link-danger" data-user-remove>移除</button></td>
               </tr>
               <tr>
                 <td>lihua</td>
                 <td class="cell-main">李华</td>
-                <td><span class="tag tag--outline tag--sm">质量中台</span></td>
+                <td><span class="tag tag--neutral tag--sm role-users__ws-tag">质量中台</span></td>
                 <td class="num">2026-04-18 14:20</td>
-                <td><span class="op-link op-link--danger" data-ux-feedback="确认后移除该用户在此空间中的该角色">移除</span></td>
+                <td><button type="button" class="btn btn--link btn--link-danger" data-user-remove>移除</button></td>
               </tr>
               <tr>
                 <td>wangfang</td>
                 <td class="cell-main">王芳</td>
-                <td><span class="tag tag--outline tag--sm">数据平台验证</span></td>
+                <td><span class="tag tag--neutral tag--sm role-users__ws-tag">数据平台验证</span></td>
                 <td class="num">2026-05-06 11:48</td>
-                <td><span class="op-link op-link--danger" data-ux-feedback="确认后移除该用户在此空间中的该角色">移除</span></td>
+                <td><button type="button" class="btn btn--link btn--link-danger" data-user-remove>移除</button></td>
               </tr>
               <tr>
                 <td>zhoumin</td>
                 <td class="cell-main">周敏</td>
-                <td><span class="tag tag--outline tag--sm">质量中台</span><span class="tag tag--outline tag--sm">移动端专项</span></td>
+                <td><span class="tag tag--neutral tag--sm role-users__ws-tag">质量中台</span><span class="tag tag--neutral tag--sm role-users__ws-tag">移动端专项</span></td>
                 <td class="num">2026-08-01 09:52</td>
-                <td><span class="op-link op-link--danger" data-ux-feedback="选择要移除的空间后移除">移除</span></td>
+                <td><button type="button" class="btn btn--link btn--link-danger" data-user-remove>移除</button></td>
               </tr>
               <tr>
                 <td>chenqiang</td>
                 <td class="cell-main">陈强</td>
-                <td><span class="tag tag--outline tag--sm">供应链测试组</span></td>
+                <td><span class="tag tag--neutral tag--sm role-users__ws-tag">供应链测试组</span></td>
                 <td class="num">2026-09-12 15:37</td>
-                <td><span class="op-link op-link--danger" data-ux-feedback="确认后移除该用户在此空间中的该角色">移除</span></td>
+                <td><button type="button" class="btn btn--link btn--link-danger" data-user-remove>移除</button></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <div class="pagination">
-          <span class="pagination__total">共 5 人</span>
-          <select class="select page-size" aria-label="每页条数">
+        <div class="pagination role-users__pager">
+          <span class="pagination__total" id="user-total">共 5 条 · 每页 20 条</span>
+          <select class="select page-size" id="user-page-size" aria-label="每页条数">
             <option selected>20条/页</option>
             <option>50条/页</option>
             <option>100条/页</option>
           </select>
-          <button type="button" class="page-btn" disabled>‹</button>
-          <button type="button" class="page-btn page-btn--active">1</button>
-          <button type="button" class="page-btn" disabled>›</button>
+          <button type="button" class="page-btn" id="user-prev" disabled>‹</button>
+          <span id="user-pages"><button type="button" class="page-btn page-btn--active" data-page="1">1</button></span>
+          <button type="button" class="page-btn" id="user-next" disabled>›</button>
         </div>
       </div>
     </div>
@@ -416,77 +483,647 @@
 
 </main>
 
+<!-- 交互弹层：所有变更只作用于本地 DOM / 内存模型，不写任何存储 -->
+<div class="dialog-mask" id="role-create-dialog" data-mask-close hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="role-create-title" style="width:440px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="role-create-title">新增角色</span>
+      <button type="button" class="dialog__close" data-close="role-create-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="dialog-tip">新角色默认不勾选任何权限，创建后可在「权限点」中继续配置。</p>
+      <div class="dialog-form">
+        <div class="field">
+          <label class="field__label" for="role-new-name">角色名称<span class="req">*</span></label>
+          <input class="input" id="role-new-name" type="text" maxlength="30" placeholder="请输入角色名称">
+          <div class="field__error" id="role-new-error" hidden></div>
+        </div>
+        <div class="field">
+          <span class="field__label">所属分组</span>
+          <div id="role-new-group" style="height:32px;display:flex;align-items:center;padding:0 11px;border:1px solid var(--n-200);border-radius:var(--radius-md);background:var(--n-50);font-size:var(--font-size-sm);color:var(--n-600)">系统角色</div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default" data-close="role-create-dialog">取消</button>
+      <button type="button" class="btn btn--primary" id="role-create-confirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-mask" id="role-rename-dialog" data-mask-close hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="role-rename-title" style="width:440px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="role-rename-title">重命名角色</span>
+      <button type="button" class="dialog__close" data-close="role-rename-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="dialog-form">
+        <div class="field">
+          <label class="field__label" for="role-rename-input">新名称<span class="req">*</span></label>
+          <input class="input" id="role-rename-input" type="text" maxlength="30">
+          <div class="field__error" id="role-rename-error" hidden></div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default" data-close="role-rename-dialog">取消</button>
+      <button type="button" class="btn btn--primary" id="role-rename-confirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-mask" id="role-delete-dialog" data-mask-close hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="role-delete-title" style="width:420px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="role-delete-title">删除角色</span>
+      <button type="button" class="dialog__close" data-close="role-delete-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="dialog-tip" id="role-delete-tip"></p>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default" data-close="role-delete-dialog">取消</button>
+      <button type="button" class="btn btn--danger" id="role-delete-confirm">删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-mask" id="user-add-dialog" data-mask-close hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="user-add-title" style="width:480px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="user-add-title">添加关联用户</span>
+      <button type="button" class="dialog__close" data-close="user-add-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="dialog-form">
+        <div class="field">
+          <label class="field__label" for="user-add-username">用户名<span class="req">*</span></label>
+          <input class="input" id="user-add-username" type="text" maxlength="40" placeholder="请输入用户名">
+        </div>
+        <div class="field">
+          <label class="field__label" for="user-add-name">姓名<span class="req">*</span></label>
+          <input class="input" id="user-add-name" type="text" maxlength="30" placeholder="请输入姓名">
+        </div>
+        <div class="field">
+          <label class="field__label" for="user-add-space">归属空间<span class="req">*</span></label>
+          <select class="select" id="user-add-space">
+            <option value="">请选择空间</option>
+            <option value="质量中台">质量中台</option>
+            <option value="供应链测试组">供应链测试组</option>
+            <option value="数据平台验证">数据平台验证</option>
+            <option value="移动端专项">移动端专项</option>
+          </select>
+          <div class="field__error" id="user-add-error" hidden></div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default" data-close="user-add-dialog">取消</button>
+      <button type="button" class="btn btn--primary" id="user-add-confirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-mask" id="user-remove-dialog" data-mask-close hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="user-remove-title" style="width:440px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="user-remove-title">移除用户</span>
+      <button type="button" class="dialog__close" data-close="user-remove-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <p class="dialog-tip" id="user-remove-tip"></p>
+      <div id="user-remove-spaces"></div>
+      <div class="field__error" id="user-remove-error" hidden></div>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default" data-close="user-remove-dialog">取消</button>
+      <button type="button" class="btn btn--danger" id="user-remove-confirm">确认移除</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
   (function () {
-    /* Tab 切换：单击角色默认停在「权限点」，与 RolePage 的 el-tabs 一致 */
-    var tabs = document.querySelectorAll('.role-detail .tab');
-    var panes = document.querySelectorAll('.role-detail [data-pane]');
-    tabs.forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        var name = tab.getAttribute('data-tab');
-        tabs.forEach(function (t) { t.classList.toggle('tab--active', t === tab); });
-        panes.forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== name; });
-      });
-    });
+    'use strict';
 
-    /* 勾选态与保存快照比对得脏态，驱动撤销/保存按钮（对应 usePermissionTable.dirty） */
-    var allBox = document.getElementById('perm-all');
-    var revertBtn = document.getElementById('perm-revert');
-    var saveBtn = document.getElementById('perm-save');
-    var points = Array.prototype.slice.call(document.querySelectorAll('.perm'));
-    var savedPoints = points.filter(isChecked);
+    function byId(id) { return document.getElementById(id); }
+    function all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
 
-    function isChecked(perm) {
-      return perm.querySelector('.checkbox').classList.contains('checkbox--on');
+    /* ---------- 本地内存模型（不写 localStorage/sessionStorage，刷新即恢复 demo 初值） ---------- */
+    var SPACES = ['质量中台', '供应链测试组', '数据平台验证', '移动端专项'];
+    var POOL = [
+      ['zhangming', '张明'], ['lihua', '李华'], ['wangfang', '王芳'], ['zhoumin', '周敏'], ['chenqiang', '陈强'],
+      ['sunli', '孙丽'], ['zhaolei', '赵磊'], ['qianyun', '钱芸'], ['liwei', '李伟'], ['wujing', '吴静'],
+      ['zhenghao', '郑浩'], ['fengxia', '冯霞'], ['chenjie', '陈杰'], ['dongmei', '董梅'], ['liangbo', '梁博']
+    ];
+
+    function makeDemoUsers(n) {
+      var list = [];
+      for (var i = 0; i < n; i++) {
+        var p = POOL[i % POOL.length];
+        var round = Math.floor(i / POOL.length);
+        list.push({
+          username: round ? p[0] + (round + 1) : p[0],
+          name: round ? p[1] + (round + 1) : p[1],
+          spaces: [SPACES[i % SPACES.length]],
+          time: '2026-' + pad((i % 12) + 1) + '-' + pad((i % 28) + 1) + ' ' + pad(8 + (i % 10)) + ':' + pad((i * 7) % 60)
+        });
+      }
+      return list;
     }
 
-    function refresh() {
-      var checked = points.filter(isChecked);
-      allBox.classList.toggle('checkbox--on', checked.length === points.length);
-      allBox.classList.toggle('checkbox--indeterminate', checked.length > 0 && checked.length < points.length);
+    function nowStr() {
+      var d = new Date();
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    var permNodes = all('.perm');
+    function isChecked(perm) { return perm.querySelector('.checkbox').classList.contains('checkbox--on'); }
+    function permsFromDom() { return permNodes.map(isChecked); }
+    function permsAll(value) { return permNodes.map(function () { return value; }); }
+    function permsViewOnly() { return permNodes.map(function (p) { return p.textContent.trim().indexOf('查看') === 0; }); }
+
+    /* 先取初始 5 行用户，再统一由模型重绘，避免把渲染结果当成初始数据 */
+    var initialUsers = all('#user-table-body tr').filter(function (tr) { return tr.querySelector('td:nth-child(2)'); }).map(function (tr) {
+      var tds = tr.querySelectorAll('td');
+      return {
+        username: tds[0].textContent.trim(),
+        name: tds[1].textContent.trim(),
+        spaces: all('.role-users__ws-tag', tds[2]).map(function (s) { return s.textContent.trim(); }),
+        time: tds[3].textContent.trim()
+      };
+    });
+
+    var groups = all('.role-tree .role-group');
+    var roles = [];
+    var seq = 0;
+    var activeRole = null;
+    var userPage = 1;
+    var pendingCreateGroup = 'system';
+    var pendingRenameRole = null;
+    var pendingDeleteRole = null;
+    var pendingRemoveIndex = -1;
+    var savedFlagTimer = null;
+
+    function registerRole(el, group, preset, perms, users) {
+      var role = {
+        id: 'role-' + (++seq),
+        name: el.querySelector('.role-item__name').textContent.trim(),
+        group: group, preset: preset, el: el,
+        perms: perms.slice(), savedPerms: perms.slice(), users: users
+      };
+      el.setAttribute('data-role-id', role.id);
+      roles.push(role);
+      return role;
+    }
+
+    groups.forEach(function (g) {
+      var group = g.getAttribute('data-group');
+      all('.role-item', g).forEach(function (el) {
+        var name = el.querySelector('.role-item__name').textContent.trim();
+        var count = parseInt(el.querySelector('.role-item__count').textContent, 10) || 0;
+        var perms;
+        if (name === '系统管理员' || name === '管理员') perms = permsAll(true);
+        else if (name === '成员') perms = permsViewOnly();
+        else perms = permsFromDom();
+        var users = name === '测试工程师' ? initialUsers : makeDemoUsers(count);
+        var role = registerRole(el, group, !!el.querySelector('.tag--warning'), perms, users);
+        if (el.classList.contains('role-item--active')) activeRole = role;
+      });
+    });
+    if (!activeRole) activeRole = roles[0];
+
+    function roleById(el) {
+      var id = el && el.getAttribute('data-role-id');
+      return roles.filter(function (r) { return r.id === id; })[0] || null;
+    }
+
+    function updateRoleTotal() {
+      var subtitle = document.querySelector('.role-layout .card__header .card__subtitle');
+      if (subtitle) subtitle.textContent = String(roles.length);
+    }
+
+    function updateRoleCount(role, n) {
+      if (!role) return;
+      var badge = role.el.querySelector('.role-item__count');
+      if (badge) badge.textContent = n + ' 人';
+    }
+
+    /* ---------- 权限点：勾选 / 全选 / 撤销 / 保存均写入当前角色模型 ---------- */
+    function refreshPermState() {
+      var checked = permNodes.filter(isChecked);
+      var allBox = byId('perm-all');
+      allBox.classList.toggle('checkbox--on', checked.length === permNodes.length);
+      allBox.classList.toggle('checkbox--indeterminate', checked.length > 0 && checked.length < permNodes.length);
       allBox.setAttribute(
         'aria-checked',
-        checked.length === points.length ? 'true' : checked.length === 0 ? 'false' : 'mixed'
+        checked.length === permNodes.length ? 'true' : checked.length === 0 ? 'false' : 'mixed'
       );
-      var savedSet = new Set(savedPoints);
-      var dirty = checked.length !== savedPoints.length || checked.some(function (p) { return !savedSet.has(p); });
-      revertBtn.disabled = !dirty;
-      saveBtn.disabled = !dirty;
+      var dirty = !!activeRole && activeRole.perms.some(function (v, i) { return v !== activeRole.savedPerms[i]; });
+      byId('perm-revert').disabled = !dirty;
+      byId('perm-save').disabled = !dirty;
     }
 
-    points.forEach(function (perm) {
-      perm.addEventListener('click', function () {
-        perm.querySelector('.checkbox').classList.toggle('checkbox--on');
-        refresh();
+    function renderPerms(role) {
+      permNodes.forEach(function (perm, i) {
+        perm.querySelector('.checkbox').classList.toggle('checkbox--on', !!(role && role.perms[i]));
+      });
+      byId('perm-save-state').hidden = true;
+      refreshPermState();
+    }
+
+    /* ---------- 关联用户：按模型重绘表格、计数与分页 ---------- */
+    function renderUsers(role) {
+      var tbody = byId('user-table-body');
+      tbody.innerHTML = '';
+      var list = role ? role.users : [];
+      var size = parseInt(byId('user-page-size').value, 10) || 20;
+      var pages = Math.max(1, Math.ceil(list.length / size));
+      if (userPage > pages) userPage = pages;
+      var start = (userPage - 1) * size;
+      var slice = list.slice(start, start + size);
+
+      if (!slice.length) {
+        var emptyTr = document.createElement('tr');
+        var emptyTd = document.createElement('td');
+        emptyTd.colSpan = 5;
+        emptyTd.className = 'role-empty';
+        emptyTd.textContent = '暂无关联用户，点击表头「添加用户」开始设置';
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+      }
+
+      slice.forEach(function (user, offset) {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-user-index', String(start + offset));
+
+        var tdUser = document.createElement('td');
+        tdUser.textContent = user.username;
+        var tdName = document.createElement('td');
+        tdName.className = 'cell-main';
+        tdName.textContent = user.name;
+        var tdSpace = document.createElement('td');
+        user.spaces.forEach(function (space) {
+          var tag = document.createElement('span');
+          tag.className = 'tag tag--neutral tag--sm role-users__ws-tag';
+          tag.textContent = space;
+          tdSpace.appendChild(tag);
+        });
+        var tdTime = document.createElement('td');
+        tdTime.className = 'num';
+        tdTime.textContent = user.time;
+        var tdOp = document.createElement('td');
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn btn--link btn--link-danger';
+        removeBtn.setAttribute('data-user-remove', '');
+        removeBtn.textContent = '移除';
+        tdOp.appendChild(removeBtn);
+
+        [tdUser, tdName, tdSpace, tdTime, tdOp].forEach(function (td) { tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+
+      byId('user-total').textContent = '共 ' + list.length + ' 条 · 每页 ' + size + ' 条';
+      var host = byId('user-pages');
+      host.innerHTML = '';
+      for (var p = 1; p <= pages; p++) {
+        var pageBtn = document.createElement('button');
+        pageBtn.type = 'button';
+        pageBtn.className = 'page-btn' + (p === userPage ? ' page-btn--active' : '');
+        pageBtn.textContent = String(p);
+        pageBtn.setAttribute('data-page', String(p));
+        host.appendChild(pageBtn);
+      }
+      byId('user-prev').disabled = userPage <= 1;
+      byId('user-next').disabled = userPage >= pages;
+      updateRoleCount(role, list.length);
+    }
+
+    /* ---------- 选中角色：高亮 + 权限/用户内容同步切换 ---------- */
+    function selectRole(role) {
+      activeRole = role;
+      userPage = 1;
+      all('.role-tree .role-item').forEach(function (el) {
+        var r = roleById(el);
+        el.classList.toggle('role-item--active', !!role && el === role.el);
+        var actions = el.querySelector('.role-item__actions');
+        if (actions && r) {
+          actions.classList.toggle('role-item__actions--visible', !r.preset && el === role.el);
+        }
+      });
+      renderPerms(role);
+      renderUsers(role);
+    }
+
+    function activateTab(name) {
+      all('.role-detail .tab').forEach(function (t) {
+        t.classList.toggle('tab--active', t.getAttribute('data-tab') === name);
+      });
+      all('.role-detail [data-pane]').forEach(function (p) {
+        p.hidden = p.getAttribute('data-pane') !== name;
+      });
+    }
+
+    /* ---------- 弹层：关闭按钮 / 遮罩 / ESC 都能关 ---------- */
+    function openDialog(id) {
+      all('.dialog-mask').forEach(function (mask) { mask.hidden = true; });
+      var dialog = byId(id);
+      dialog.hidden = false;
+      var focusable = dialog.querySelector('input:not([type=checkbox]), select');
+      if (focusable) focusable.focus();
+    }
+
+    function closeDialog(id) { byId(id).hidden = true; }
+
+    function setError(id, msg) {
+      var el = byId(id);
+      el.textContent = msg || '';
+      el.hidden = !msg;
+    }
+
+    /* ---------- 新增 / 重命名 / 删除角色 ---------- */
+    function openCreate(group) {
+      pendingCreateGroup = group;
+      byId('role-new-name').value = '';
+      byId('role-new-group').textContent = group === 'system' ? '系统角色' : '工作空间角色';
+      setError('role-new-error', '');
+      openDialog('role-create-dialog');
+    }
+
+    function doCreate() {
+      var name = byId('role-new-name').value.trim();
+      if (!name) { setError('role-new-error', '请输入角色名称'); return; }
+      if (roles.some(function (r) { return r.name === name; })) { setError('role-new-error', '角色名称已存在'); return; }
+
+      var el = document.createElement('div');
+      el.className = 'role-item role-item--custom';
+      el.innerHTML =
+        '<span class="role-item__main"><span class="role-item__name"></span></span>' +
+        '<span class="role-item__side"><span class="role-item__count">0 人</span>' +
+        '<span class="role-item__actions role-item__actions--visible">' +
+        '<button type="button" class="btn btn--link btn--sm btn--icon-link" data-role-action="rename" aria-label="重命名角色"><span data-icon="edit"></span></button>' +
+        '<button type="button" class="btn btn--link btn--sm btn--icon-link btn--link-danger" data-role-action="delete" aria-label="删除角色"><span data-icon="trash"></span></button>' +
+        '</span></span>';
+      el.querySelector('.role-item__name').textContent = name;
+      (pendingCreateGroup === 'system' ? groups[0] : groups[1]).querySelector('.role-group__children').appendChild(el);
+      if (window.RTIcons) window.RTIcons.hydrate(el);
+
+      var role = registerRole(el, pendingCreateGroup, false, permsAll(false), []);
+      role.el.classList.remove('role-item--active');
+      updateRoleTotal();
+      closeDialog('role-create-dialog');
+      selectRole(role);
+      activateTab('permissions');
+    }
+
+    function openRename(role) {
+      pendingRenameRole = role;
+      byId('role-rename-input').value = role.name;
+      setError('role-rename-error', '');
+      openDialog('role-rename-dialog');
+    }
+
+    function doRename() {
+      var name = byId('role-rename-input').value.trim();
+      if (!name) { setError('role-rename-error', '请输入角色名称'); return; }
+      if (roles.some(function (r) { return r !== pendingRenameRole && r.name === name; })) {
+        setError('role-rename-error', '角色名称已存在');
+        return;
+      }
+      pendingRenameRole.name = name;
+      pendingRenameRole.el.querySelector('.role-item__name').textContent = name;
+      closeDialog('role-rename-dialog');
+      pendingRenameRole = null;
+    }
+
+    function openDelete(role) {
+      pendingDeleteRole = role;
+      byId('role-delete-tip').textContent =
+        '确定删除角色「' + role.name + '」吗？该角色的权限配置与 ' + role.users.length + ' 条关联用户记录将一并移除。';
+      openDialog('role-delete-dialog');
+    }
+
+    function doDelete() {
+      var role = pendingDeleteRole;
+      if (!role) return;
+      role.el.remove();
+      roles = roles.filter(function (r) { return r !== role; });
+      updateRoleTotal();
+      closeDialog('role-delete-dialog');
+      pendingDeleteRole = null;
+      selectRole(activeRole === role ? (roles[0] || null) : activeRole);
+    }
+
+    /* ---------- 添加 / 移除关联用户 ---------- */
+    function openAddUser() {
+      if (!activeRole) return;
+      byId('user-add-username').value = '';
+      byId('user-add-name').value = '';
+      byId('user-add-space').value = '';
+      setError('user-add-error', '');
+      openDialog('user-add-dialog');
+    }
+
+    function doAddUser() {
+      var username = byId('user-add-username').value.trim();
+      var name = byId('user-add-name').value.trim();
+      var space = byId('user-add-space').value;
+      if (!username || !name || !space) {
+        setError('user-add-error', '请填写用户名、姓名并选择归属空间');
+        return;
+      }
+      if (!activeRole) return;
+      activeRole.users.push({ username: username, name: name, spaces: [space], time: nowStr() });
+      userPage = 1;
+      closeDialog('user-add-dialog');
+      renderUsers(activeRole);
+    }
+
+    function openRemoveUser(index) {
+      var user = activeRole && activeRole.users[index];
+      if (!user) return;
+      pendingRemoveIndex = index;
+      byId('user-remove-tip').textContent =
+        '移除用户「' + user.name + '（' + user.username + '）」在所选空间中的该角色。';
+      var box = byId('user-remove-spaces');
+      box.innerHTML = '';
+      user.spaces.forEach(function (space) {
+        var label = document.createElement('label');
+        label.className = 'perm-space-option';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = space;
+        cb.checked = user.spaces.length === 1;
+        var text = document.createElement('span');
+        text.textContent = space;
+        label.appendChild(cb);
+        label.appendChild(text);
+        box.appendChild(label);
+      });
+      setError('user-remove-error', '');
+      openDialog('user-remove-dialog');
+    }
+
+    function doRemoveUser() {
+      var selected = all('#user-remove-spaces input:checked').map(function (cb) { return cb.value; });
+      if (!selected.length) { setError('user-remove-error', '请至少选择一个要移除的空间'); return; }
+      var user = activeRole && activeRole.users[pendingRemoveIndex];
+      if (!user) return;
+      user.spaces = user.spaces.filter(function (s) { return selected.indexOf(s) === -1; });
+      if (!user.spaces.length) activeRole.users.splice(pendingRemoveIndex, 1);
+      closeDialog('user-remove-dialog');
+      pendingRemoveIndex = -1;
+      renderUsers(activeRole);
+    }
+
+    /* ---------- 事件绑定 ---------- */
+    all('.role-group__caret').forEach(function (caret) {
+      function toggle() {
+        var collapsed = caret.closest('.role-group').classList.toggle('role-group--collapsed');
+        caret.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      }
+      caret.addEventListener('click', toggle);
+      caret.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
       });
     });
 
-    allBox.addEventListener('click', function () {
-      var turnOn = !allBox.classList.contains('checkbox--on');
-      points.forEach(function (perm) {
-        perm.querySelector('.checkbox').classList.toggle('checkbox--on', turnOn);
+    document.querySelector('.role-tree').addEventListener('click', function (e) {
+      var actionBtn = e.target.closest('[data-role-action]');
+      if (actionBtn) {
+        e.stopPropagation();
+        var item = actionBtn.closest('.role-item');
+        var role = item ? roleById(item) : null;
+        var action = actionBtn.getAttribute('data-role-action');
+        if (action === 'create') openCreate(actionBtn.closest('.role-group').getAttribute('data-group'));
+        else if (action === 'rename' && role) openRename(role);
+        else if (action === 'delete' && role) openDelete(role);
+        return;
+      }
+      if (e.target.closest('.role-group__caret')) return;
+      var clickedItem = e.target.closest('.role-item');
+      if (clickedItem) {
+        var clickedRole = roleById(clickedItem);
+        if (clickedRole) selectRole(clickedRole);
+      }
+    });
+
+    all('.role-detail .tab').forEach(function (tab) {
+      tab.addEventListener('click', function () { activateTab(tab.getAttribute('data-tab')); });
+    });
+
+    document.querySelector('.role-detail [data-pane="permissions"]').addEventListener('click', function (e) {
+      var perm = e.target.closest('.perm');
+      if (perm) {
+        var idx = permNodes.indexOf(perm);
+        if (idx >= 0 && activeRole) {
+          activeRole.perms[idx] = !activeRole.perms[idx];
+          perm.querySelector('.checkbox').classList.toggle('checkbox--on', activeRole.perms[idx]);
+          byId('perm-save-state').hidden = true;
+          refreshPermState();
+        }
+        return;
+      }
+      if (e.target.closest('#perm-all')) {
+        if (!activeRole) return;
+        var turnOn = !byId('perm-all').classList.contains('checkbox--on');
+        activeRole.perms = permsAll(turnOn);
+        permNodes.forEach(function (p) { p.querySelector('.checkbox').classList.toggle('checkbox--on', turnOn); });
+        byId('perm-save-state').hidden = true;
+        refreshPermState();
+        return;
+      }
+      if (e.target.closest('#perm-revert')) {
+        if (!activeRole) return;
+        activeRole.perms = activeRole.savedPerms.slice();
+        renderPerms(activeRole);
+        return;
+      }
+      if (e.target.closest('#perm-save')) {
+        if (!activeRole) return;
+        activeRole.savedPerms = activeRole.perms.slice();
+        refreshPermState();
+        var flag = byId('perm-save-state');
+        flag.hidden = false;
+        window.clearTimeout(savedFlagTimer);
+        savedFlagTimer = window.setTimeout(function () { flag.hidden = true; }, 2000);
+      }
+    });
+
+    byId('user-add-btn').addEventListener('click', openAddUser);
+    byId('user-page-size').addEventListener('change', function () {
+      userPage = 1;
+      if (activeRole) renderUsers(activeRole);
+    });
+    byId('user-prev').addEventListener('click', function () {
+      if (userPage > 1) { userPage -= 1; if (activeRole) renderUsers(activeRole); }
+    });
+    byId('user-next').addEventListener('click', function () {
+      if (!activeRole) return;
+      var size = parseInt(byId('user-page-size').value, 10) || 20;
+      if (userPage < Math.ceil(activeRole.users.length / size)) { userPage += 1; renderUsers(activeRole); }
+    });
+    byId('user-pages').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-page]');
+      if (!btn) return;
+      userPage = parseInt(btn.getAttribute('data-page'), 10);
+      if (activeRole) renderUsers(activeRole);
+    });
+    byId('user-table-body').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-user-remove]');
+      if (!btn) return;
+      var tr = btn.closest('tr[data-user-index]');
+      if (tr) openRemoveUser(parseInt(tr.getAttribute('data-user-index'), 10));
+    });
+
+    byId('role-create-confirm').addEventListener('click', doCreate);
+    byId('role-rename-confirm').addEventListener('click', doRename);
+    byId('role-delete-confirm').addEventListener('click', doDelete);
+    byId('user-add-confirm').addEventListener('click', doAddUser);
+    byId('user-remove-confirm').addEventListener('click', doRemoveUser);
+
+    var enterTargets = [
+      ['role-new-name', doCreate], ['role-rename-input', doRename],
+      ['user-add-username', doAddUser], ['user-add-name', doAddUser]
+    ];
+    enterTargets.forEach(function (pair) {
+      byId(pair[0]).addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); pair[1](); }
       });
-      refresh();
     });
 
-    revertBtn.addEventListener('click', function () {
-      var savedSet = new Set(savedPoints);
-      points.forEach(function (perm) {
-        perm.querySelector('.checkbox').classList.toggle('checkbox--on', savedSet.has(perm));
-      });
-      refresh();
+    var errorTargets = [
+      ['role-new-name', 'role-new-error'], ['role-rename-input', 'role-rename-error'],
+      ['user-add-username', 'user-add-error'], ['user-add-name', 'user-add-error'], ['user-add-space', 'user-add-error']
+    ];
+    errorTargets.forEach(function (pair) {
+      byId(pair[0]).addEventListener('input', function () { setError(pair[1], ''); });
+      byId(pair[0]).addEventListener('change', function () { setError(pair[1], ''); });
     });
 
-    saveBtn.addEventListener('click', function () {
-      savedPoints = points.filter(isChecked);
-      refresh();
-      if (window.RTUX) window.RTUX.toast('权限已保存', { type: 'success' });
+    document.addEventListener('click', function (e) {
+      var closer = e.target.closest('[data-close]');
+      if (closer) closeDialog(closer.getAttribute('data-close'));
+    });
+    all('[data-mask-close]').forEach(function (mask) {
+      mask.addEventListener('click', function (e) { if (e.target === mask) mask.hidden = true; });
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var openMasks = all('.dialog-mask').filter(function (m) { return !m.hidden; });
+      if (openMasks.length) openMasks[openMasks.length - 1].hidden = true;
     });
 
-    refresh();
+    /* ---------- 初始渲染：保留 demo 视觉，数据由内存模型驱动 ---------- */
+    updateRoleTotal();
+    selectRole(activeRole);
+    activateTab('permissions');
   })();
 </script>
 </body>

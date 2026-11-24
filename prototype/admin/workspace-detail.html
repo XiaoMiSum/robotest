@@ -10,132 +10,249 @@
   /* 弹层靠 hidden 属性开关，会被 .dialog-mask 的 display:flex 覆盖，需强制生效 */
   [hidden] { display: none !important; }
 
-  .page-size { width: 104px; height: 30px; font-size: var(--font-size-sm); padding-left: 8px; }
+  .ws-detail__breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: var(--space-sm); font-size: var(--font-size-sm); color: var(--n-600); }
+  .ws-detail__breadcrumb a { color: var(--brand-500); font-weight: 500; }
+  .ws-detail__breadcrumb a:hover { color: var(--brand-600); }
+  .ws-detail__breadcrumb svg { width: 13px; height: 13px; color: var(--n-400); }
+  .ws-detail__breadcrumb > :last-child { color: var(--n-900); }
+
+  .ws-detail__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-lg); margin-bottom: var(--space-xl); }
+  .ws-detail__title-row { display: flex; align-items: center; gap: var(--space-md); }
+  .ws-detail__title { margin: 0; font-size: var(--font-size-2xl); font-weight: 600; letter-spacing: -0.01em; color: var(--n-900); }
+  .ws-detail__desc { margin: var(--space-xs) 0 0; font-size: var(--font-size-sm); color: var(--n-500); }
+  .ws-detail__mono { font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--n-700); word-break: break-all; }
+
+  .ws-detail__status { display: inline-flex; align-items: center; gap: 7px; font-size: var(--font-size-sm); color: var(--n-700); white-space: nowrap; }
+  .ws-detail__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--n-400); }
+  .ws-detail__status--success .ws-detail__dot { background: var(--st-success); }
+  .ws-detail__status--neutral .ws-detail__dot { background: var(--n-400); }
+
+  .ws-detail__card { margin-bottom: var(--space-lg); background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+  .ws-detail__card-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--n-100); }
+  .ws-detail__card-head-left { display: flex; align-items: baseline; gap: var(--space-sm); }
+  .ws-detail__card-title { margin: 0; font-size: var(--font-size-base); font-weight: 600; color: var(--n-900); }
+  .ws-detail__card-subtitle { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ws-detail__card-body { padding: 24px; }
+
+  .ws-detail__form .field { margin-bottom: 20px; }
+  .ws-detail__form .field__label { font-size: var(--font-size-sm); font-weight: 500; line-height: 1.4; color: var(--n-700); }
+  .ws-detail__grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); }
+
+  .ws-detail__stats { display: flex; gap: var(--space-md); margin-bottom: var(--space-lg); }
+  .ws-detail__stat-badge { display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-md); border-radius: 999px; font-size: var(--font-size-xs); font-weight: 500; }
+  .ws-detail__stat-badge svg { width: 14px; height: 14px; }
+  .ws-detail__stat-badge--primary { background: var(--brand-50); color: var(--brand-700); }
+  .ws-detail__stat-badge--blue { background: var(--brand-50); color: var(--brand-700); }
+
+  .ws-detail__form-actions { display: flex; justify-content: flex-end; gap: 12px; }
+
+  .ws-detail__user { display: flex; align-items: center; gap: var(--space-sm); }
+  .ws-detail__avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--n-300); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .ws-detail__avatar--brand { background: var(--brand-500); }
+
+  .ws-detail__role-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--n-300); border-radius: var(--radius-sm); background: transparent; color: var(--n-600); font-size: var(--font-size-xs); font-weight: 500; white-space: nowrap; }
+  .ws-detail__role-tag--info { border-color: var(--brand-100); background: var(--brand-50); color: var(--brand-600); }
+  .ws-detail__role-select { width: 120px; height: 24px; font-size: var(--font-size-xs); padding: 0 28px 0 8px; }
+
+  .ws-detail__num { font-variant-numeric: tabular-nums; font-size: var(--font-size-sm); color: var(--n-700); }
+  .ws-detail__table td, .ws-detail__table th { font-size: var(--font-size-base); }
+  .ws-detail__op-btn { padding: 0; height: auto; border: 0; background: transparent; font-size: var(--font-size-base); cursor: pointer; font-family: inherit; }
+  .ws-detail__op-btn + .ws-detail__op-btn { margin-left: 12px; }
+  .ws-detail__op-btn--primary { color: var(--brand-500); }
+  .ws-detail__op-btn--primary:hover { color: var(--brand-600); }
+  .ws-detail__op-btn--danger { color: var(--st-danger); }
+  .ws-detail__op-btn--danger:hover { color: var(--st-danger-strong); }
+
+  .ws-detail__pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md); padding: 14px 20px; border-top: 1px solid var(--n-100); }
+  .ws-detail__pager-total { color: var(--n-500); font-size: var(--font-size-sm); }
+  .ws-detail__pager-right { display: flex; align-items: center; gap: 8px; }
+  .ws-detail__pager .page-size { width: 100px; height: 32px; font-size: var(--font-size-sm); padding-left: 8px; }
+  .ws-detail__pager .page-btn { min-width: 32px; height: 32px; padding: 0 4px; border: 0; border-radius: 2px; background: transparent; color: var(--n-600); font-size: var(--font-size-base); cursor: pointer; }
+  .ws-detail__pager .page-btn:hover:not(:disabled) { color: var(--brand-500); }
+  .ws-detail__pager .page-btn--active { background: var(--brand-500); color: #fff; font-weight: 700; }
+  .ws-detail__pager .page-btn--active:hover { color: #fff; }
+  .ws-detail__pager .page-btn:disabled { color: var(--n-400); cursor: not-allowed; }
+  .ws-detail__pager-pages { display: inline-flex; gap: 8px; }
+
+  .ws-detail__empty { padding: 28px 20px; text-align: center; color: var(--n-500); font-size: var(--font-size-sm); }
 
   .dialog-tip { margin: 0 0 var(--space-md); color: var(--n-600); font-size: var(--font-size-sm); }
+  .dialog-form .field { margin-bottom: 18px; }
+  .dialog-form .field:last-child { margin-bottom: 0; }
+  .dialog-form .field__label { font-size: var(--font-size-sm); color: var(--n-700); }
 
-  /* 成员 / 项目计数徽标：落在表单与按钮区之间，对应实际页 stat-badge */
-  .stat-row { display: flex; gap: var(--space-md); margin: var(--space-sm) 0 var(--space-lg); }
-  .stat-row .tag { height: 26px; padding: 0 10px; }
-
-  /* 已选用户与角色选择左右分列，对应实际页 pending 列表 */
-  .pending { border-top: 1px solid var(--n-200); padding-top: var(--space-md); }
-  .pending__item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) 0; }
-  .pending__name { font-size: var(--font-size-sm); color: var(--n-700); }
-  .pending__role { width: 140px; }
+  .ws-detail__pending { border-top: 1px solid var(--n-200); padding-top: var(--space-md); }
+  .ws-detail__pending-item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) 0; }
+  .ws-detail__pending-name { font-size: var(--font-size-sm); color: var(--n-700); }
+  .ws-detail__pending-role { width: 180px; height: 24px; font-size: var(--font-size-xs); }
 </style>
 </head>
 <body data-shell="admin" data-active="workspaces" data-mode="admin">
 
 <main class="content content--admin">
 
-  <div class="breadcrumb">
+  <div class="ws-detail__breadcrumb">
     <a href="workspaces.html">空间管理</a>
     <span data-icon="chevron-right"></span>
-    <span>质量中台</span>
+    <span id="breadcrumb-name">质量中台</span>
   </div>
 
-  <div class="page-head">
-    <div>
-      <div class="flex-center flex-gap-sm">
-        <h1 class="page-head__title">质量中台</h1>
-        <span class="status status--success" id="ws-status"><span class="dot"></span>活跃</span>
+  <div class="ws-detail__head">
+    <div class="ws-detail__head-main">
+      <div class="ws-detail__title-row">
+        <h1 class="ws-detail__title" id="ws-title">质量中台</h1>
+        <span class="ws-detail__status ws-detail__status--success" id="ws-status">
+          <span class="ws-detail__dot"></span><span id="ws-status-text">活跃</span>
+        </span>
       </div>
-      <p class="page-head__desc">空间 ID <span class="mono">f47ac10b-58cc-4372-a567-0e02b2c3d479</span> · 创建于 2026-09-18 10:24</p>
+      <p class="ws-detail__desc">
+        空间 ID <span class="ws-detail__mono">f47ac10b-58cc-4372-a567-0e02b2c3d479</span> · 创建于 2026-09-18 10:24
+      </p>
     </div>
-    <div class="page-head__actions">
-      <button class="btn btn--danger" id="archive-btn" data-active-only>归档空间</button>
-      <button class="btn btn--primary" id="restore-btn" data-archived-only hidden>重新启用</button>
-    </div>
+    <button class="btn btn--danger" id="archive-btn" data-active-only type="button">归档空间</button>
+    <button class="btn btn--primary" id="restore-btn" data-archived-only type="button" hidden>重新启用</button>
   </div>
 
-  <div class="card">
-    <div class="card__header"><h3 class="card__title">空间信息</h3></div>
-    <div class="card__body">
-      <div class="form-grid">
-        <div class="field">
-          <label class="field__label" for="ws-name">空间名称<span class="req">*</span></label>
-          <input class="input" id="ws-name" value="质量中台" maxlength="50">
-          <div class="field__error" id="ws-name-error" hidden></div>
+  <section class="ws-detail__card">
+    <header class="ws-detail__card-head">
+      <h3 class="ws-detail__card-title">空间信息</h3>
+    </header>
+    <div class="ws-detail__card-body">
+      <div class="ws-detail__form" id="ws-info-form">
+        <div class="ws-detail__grid2">
+          <div class="field">
+            <label class="field__label" for="ws-name">空间名称<span class="req">*</span></label>
+            <input class="input" id="ws-name" value="质量中台" maxlength="50">
+            <div class="field__error" id="ws-name-error" hidden></div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="ws-creator">创建人</label>
+            <input class="input" id="ws-creator" value="张明" disabled>
+          </div>
         </div>
         <div class="field">
-          <label class="field__label" for="ws-creator">创建人</label>
-          <input class="input" id="ws-creator" value="张明" disabled>
+          <label class="field__label" for="ws-desc">描述</label>
+          <textarea class="textarea" id="ws-desc" maxlength="200" rows="3" style="min-height:72px">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea>
         </div>
       </div>
-      <div class="field">
-        <label class="field__label" for="ws-desc">描述</label>
-        <textarea class="textarea" id="ws-desc" maxlength="200" style="min-height:72px">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea>
+
+      <div class="ws-detail__stats">
+        <div class="ws-detail__stat-badge ws-detail__stat-badge--primary">
+          <span data-icon="userfilled"></span>
+          成员 <span id="stat-members">24</span>
+        </div>
+        <div class="ws-detail__stat-badge ws-detail__stat-badge--blue">
+          <span data-icon="folder"></span>
+          项目 <span id="stat-projects">6</span>
+        </div>
       </div>
 
-      <div class="stat-row">
-        <span class="tag tag--outline"><span data-icon="userfilled"></span>成员 <span id="stat-members">24</span></span>
-        <span class="tag tag--outline"><span data-icon="folder"></span>项目 <span id="stat-projects">6</span></span>
-      </div>
-
-      <div class="flex-center flex-gap-md" data-active-only style="justify-content:flex-end;margin-bottom:0">
-        <button class="btn btn--text" id="reset-btn">重置</button>
-        <button class="btn btn--primary" id="save-btn">保存修改</button>
+      <div class="ws-detail__form-actions" data-active-only>
+        <button class="btn btn--text" id="reset-btn" type="button">重置</button>
+        <button class="btn btn--primary" id="save-btn" type="button">保存修改</button>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="card block-gap">
-    <div class="card__header">
-      <h3 class="card__title">成员列表<span class="card__subtitle" id="member-count">24 人</span></h3>
-      <button class="btn btn--default btn--sm" data-active-only data-open="add-dialog"><span data-icon="plus"></span>添加用户</button>
-    </div>
+  <section class="ws-detail__card">
+    <header class="ws-detail__card-head">
+      <div class="ws-detail__card-head-left">
+        <h3 class="ws-detail__card-title">成员列表</h3>
+        <span class="ws-detail__card-subtitle" id="member-count">24 人</span>
+      </div>
+      <button class="btn btn--default btn--sm" data-active-only data-open="add-dialog" type="button">
+        <span data-icon="plus"></span>添加用户
+      </button>
+    </header>
     <div class="table-wrap">
-      <table class="table">
+      <table class="table ws-detail__table">
         <thead>
           <tr>
-            <th>用户</th>
-            <th style="width:150px">空间角色</th>
-            <th style="width:180px">加入时间</th>
-            <th style="width:140px" data-active-only>操作</th>
+            <th style="min-width:160px">用户</th>
+            <th style="width:140px">空间角色</th>
+            <th style="width:170px">加入时间</th>
+            <th style="width:130px" data-active-only>操作</th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm avatar--brand">张</span><span class="cell-main">zhangming</span></td>
-            <td><span class="tag tag--success" data-role="admin">管理员</span></td>
-            <td class="num">2026-09-18 10:24</td>
-            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="zhangming">移除</span></td>
+        <tbody id="member-tbody">
+          <tr data-user-id="u1">
+            <td>
+              <div class="ws-detail__user">
+                <span class="ws-detail__avatar ws-detail__avatar--brand">Z</span>
+                <span>zhangming</span>
+              </div>
+            </td>
+            <td data-role-cell><span class="ws-detail__role-tag ws-detail__role-tag--info" data-role="admin">管理员</span></td>
+            <td><span class="ws-detail__num">2026-09-18 10:24</span></td>
+            <td data-active-only>
+              <button class="ws-detail__op-btn ws-detail__op-btn--primary" type="button" data-role-edit>改角色</button>
+              <button class="ws-detail__op-btn ws-detail__op-btn--danger" type="button" data-remove="zhangming">移除</button>
+            </td>
           </tr>
-          <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">李</span><span class="cell-main">lihua</span></td>
-            <td><span class="tag tag--success" data-role="admin">管理员</span></td>
-            <td class="num">2026-09-18 10:31</td>
-            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="lihua">移除</span></td>
+          <tr data-user-id="u2">
+            <td>
+              <div class="ws-detail__user">
+                <span class="ws-detail__avatar">L</span>
+                <span>lihua</span>
+              </div>
+            </td>
+            <td data-role-cell><span class="ws-detail__role-tag ws-detail__role-tag--info" data-role="admin">管理员</span></td>
+            <td><span class="ws-detail__num">2026-09-18 10:31</span></td>
+            <td data-active-only>
+              <button class="ws-detail__op-btn ws-detail__op-btn--primary" type="button" data-role-edit>改角色</button>
+              <button class="ws-detail__op-btn ws-detail__op-btn--danger" type="button" data-remove="lihua">移除</button>
+            </td>
           </tr>
-          <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">王</span><span class="cell-main">wangfang</span></td>
-            <td><span class="tag tag--outline" data-role="member">成员</span></td>
-            <td class="num">2026-09-18 14:02</td>
-            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="wangfang">移除</span></td>
+          <tr data-user-id="u3">
+            <td>
+              <div class="ws-detail__user">
+                <span class="ws-detail__avatar">W</span>
+                <span>wangfang</span>
+              </div>
+            </td>
+            <td data-role-cell><span class="ws-detail__role-tag" data-role="member">成员</span></td>
+            <td><span class="ws-detail__num">2026-09-18 14:02</span></td>
+            <td data-active-only>
+              <button class="ws-detail__op-btn ws-detail__op-btn--primary" type="button" data-role-edit>改角色</button>
+              <button class="ws-detail__op-btn ws-detail__op-btn--danger" type="button" data-remove="wangfang">移除</button>
+            </td>
           </tr>
-          <tr>
-            <td class="flex-center flex-gap-sm"><span class="avatar avatar--sm">陈</span><span class="cell-main">chenqiang</span></td>
-            <td><span class="tag tag--outline" data-role="member">成员</span></td>
-            <td class="num">2026-09-19 09:15</td>
-            <td data-active-only><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="chenqiang">移除</span></td>
+          <tr data-user-id="u4">
+            <td>
+              <div class="ws-detail__user">
+                <span class="ws-detail__avatar">C</span>
+                <span>chenqiang</span>
+              </div>
+            </td>
+            <td data-role-cell><span class="ws-detail__role-tag" data-role="member">成员</span></td>
+            <td><span class="ws-detail__num">2026-09-19 09:15</span></td>
+            <td data-active-only>
+              <button class="ws-detail__op-btn ws-detail__op-btn--primary" type="button" data-role-edit>改角色</button>
+              <button class="ws-detail__op-btn ws-detail__op-btn--danger" type="button" data-remove="chenqiang">移除</button>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="pagination">
-      <span class="pagination__total" id="member-total">共 24 条</span>
-      <select class="select page-size"><option>20条/页</option><option>50条/页</option><option>100条/页</option></select>
-      <button class="page-btn" disabled>‹</button>
-      <button class="page-btn page-btn--active">1</button>
-      <button class="page-btn">2</button>
-      <button class="page-btn">›</button>
+    <div class="ws-detail__empty" id="member-empty" hidden>暂无成员</div>
+    <div class="ws-detail__pager">
+      <span class="ws-detail__pager-total" id="member-total">共 24 人 · 每页 20 条</span>
+      <div class="ws-detail__pager-right">
+        <select class="select page-size" id="member-page-size" aria-label="每页条数">
+          <option value="20" selected>20 条/页</option>
+          <option value="50">50 条/页</option>
+          <option value="100">100 条/页</option>
+        </select>
+        <button class="page-btn" data-page-prev disabled aria-label="上一页">‹</button>
+        <span class="ws-detail__pager-pages" id="pager-pages"></span>
+        <button class="page-btn" data-page-next aria-label="下一页">›</button>
+      </div>
     </div>
-  </div>
+  </section>
 
 </main>
 
-<!-- 添加用户：搜索多选后逐个指定空间角色再一次性提交 -->
+<!-- 添加用户：对齐实际页 el-dialog + el-select multiple remote + 待选角色列表 -->
 <div class="dialog-mask" id="add-dialog" data-mask-close hidden>
   <div class="dialog" style="width:520px">
     <div class="dialog__header">
@@ -143,46 +260,55 @@
       <button class="dialog__close" data-close="add-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="dialog__body">
-      <div class="field">
-        <label class="field__label" for="add-search">选择用户</label>
-        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="add-search" placeholder="输入用户名 / 邮箱搜索"></div>
-      </div>
-      <div class="pending">
-        <div class="pending__item">
-          <span class="pending__name">赵雨欣</span>
-          <select class="select pending__role"><option>管理员</option><option selected>成员</option></select>
+      <div class="dialog-form">
+        <div class="field">
+          <label class="field__label" for="add-search">选择用户</label>
+          <div class="input-wrap"><span data-icon="search"></span><input class="input" id="add-search" placeholder="输入用户名 / 邮箱搜索"></div>
+          <div class="field__hint">实际页为 el-select multiple filterable remote reserve-keyword；原型用静态候选展示交互。</div>
         </div>
-        <div class="pending__item">
-          <span class="pending__name">周子墨</span>
-          <select class="select pending__role"><option>管理员</option><option selected>成员</option></select>
+      </div>
+      <div class="ws-detail__pending" id="add-pending">
+        <div class="ws-detail__pending-item">
+          <span class="ws-detail__pending-name">赵雨欣</span>
+          <select class="select ws-detail__pending-role" aria-label="赵雨欣角色">
+            <option value="admin">管理员</option>
+            <option value="member" selected>成员</option>
+          </select>
+        </div>
+        <div class="ws-detail__pending-item">
+          <span class="ws-detail__pending-name">周子墨</span>
+          <select class="select ws-detail__pending-role" aria-label="周子墨角色">
+            <option value="admin">管理员</option>
+            <option value="member" selected>成员</option>
+          </select>
         </div>
       </div>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-close="add-dialog">取消</button>
-      <button class="btn btn--primary btn--sm" data-close="add-dialog">确认</button>
+      <button class="btn btn--default" data-close="add-dialog" type="button">取消</button>
+      <button class="btn btn--primary" id="add-ok" type="button">确定</button>
     </div>
   </div>
 </div>
 
 <!-- 移除成员的二次确认，文案与实际页 ElMessageBox.confirm 一致 -->
-<div class="dialog-mask" id="remove-dialog" hidden>
+<div class="dialog-mask" id="remove-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px">
     <div class="dialog__header">
       <span class="dialog__title">确认移除</span>
       <button class="dialog__close" data-close="remove-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
-    <div class="dialog__body"><p id="remove-body" style="margin:0;color:var(--n-600)"></p></div>
+    <div class="dialog__body"><p id="remove-body" style="margin:0;color:var(--n-600);font-size:var(--font-size-sm);line-height:1.6"></p></div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-close="remove-dialog">取消</button>
-      <button class="btn btn--danger btn--sm" id="remove-ok">确认</button>
+      <button class="btn btn--default" data-close="remove-dialog" type="button">取消</button>
+      <button class="btn btn--primary" id="remove-ok" type="button">确定</button>
     </div>
   </div>
 </div>
 
 <!-- 归档需键入空间名称二次确认，文案与实际页 ElMessageBox.prompt 一致 -->
-<div class="dialog-mask" id="archive-dialog" hidden>
-  <div class="dialog" style="width:460px">
+<div class="dialog-mask" id="archive-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:420px">
     <div class="dialog__header">
       <span class="dialog__title">归档空间</span>
       <button class="dialog__close" data-close="archive-dialog" aria-label="关闭"><span data-icon="x"></span></button>
@@ -193,8 +319,8 @@
       <div class="field__error" id="archive-error" hidden></div>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-close="archive-dialog">取消</button>
-      <button class="btn btn--danger btn--sm" id="archive-ok">确认</button>
+      <button class="btn btn--default" data-close="archive-dialog" type="button">取消</button>
+      <button class="btn btn--primary" id="archive-ok" type="button">确定</button>
     </div>
   </div>
 </div>
@@ -207,18 +333,93 @@
 
     var wsName = byId('ws-name').value;
     var initial = { name: wsName, desc: byId('ws-desc').value };
-    var memberTotal = 24;
     var pendingRemove = null;
 
+    /* 成员为本地数组：页面加载即重置，刷新恢复 demo 初始数据；不写任何 storage */
+    var extraNames = [
+      'sunqi', 'zhouming', 'wujing', 'zhengshuang', 'huangtao',
+      'linxia', 'gaoyang', 'luoqiang', 'songwei', 'xieping',
+      'tangjie', 'dengchao', 'caoyu', 'pengfei', 'zengli',
+      'xiaotian', 'hengrui', 'fanglei', 'sunhao', 'baiyang'
+    ];
+    var members = [
+      { id: 'u1', name: 'zhangming', initial: 'Z', role: 'admin', joined: '2026-09-18 10:24', brand: true },
+      { id: 'u2', name: 'lihua', initial: 'L', role: 'admin', joined: '2026-09-18 10:31', brand: false },
+      { id: 'u3', name: 'wangfang', initial: 'W', role: 'member', joined: '2026-09-18 14:02', brand: false },
+      { id: 'u4', name: 'chenqiang', initial: 'C', role: 'member', joined: '2026-09-19 09:15', brand: false }
+    ];
+    extraNames.forEach(function (name, i) {
+      members.push({
+        id: 'u' + (i + 5),
+        name: name,
+        initial: name.charAt(0).toUpperCase(),
+        role: i % 5 === 0 ? 'admin' : 'member',
+        joined: '2026-09-20 ' + String(8 + (i % 10)).padStart(2, '0') + ':30',
+        brand: false
+      });
+    });
+    var uid = members.length;
+    var pageSize = 20;
+    var currentPage = 1;
+
     function roleTag(role) {
-      return '<span class="tag ' + (role === 'admin' ? 'tag--success' : 'tag--outline') +
-        '" data-role="' + role + '">' + (role === 'admin' ? '管理员' : '成员') + '</span>';
+      var isAdmin = role === 'admin';
+      return '<span class="ws-detail__role-tag ' + (isAdmin ? 'ws-detail__role-tag--info' : '') +
+        '" data-role="' + role + '">' + (isAdmin ? '管理员' : '成员') + '</span>';
+    }
+
+    function rowHtml(m) {
+      return '<tr data-user-id="' + m.id + '">' +
+        '<td><div class="ws-detail__user">' +
+          '<span class="ws-detail__avatar' + (m.brand ? ' ws-detail__avatar--brand' : '') + '">' + m.initial + '</span>' +
+          '<span>' + m.name + '</span></div></td>' +
+        '<td data-role-cell>' + roleTag(m.role) + '</td>' +
+        '<td><span class="ws-detail__num">' + m.joined + '</span></td>' +
+        '<td data-active-only>' +
+          '<button class="ws-detail__op-btn ws-detail__op-btn--primary" type="button" data-role-edit>改角色</button>' +
+          '<button class="ws-detail__op-btn ws-detail__op-btn--danger" type="button" data-remove="' + m.name + '">移除</button>' +
+        '</td>' +
+      '</tr>';
     }
 
     function renderCounts() {
-      byId('member-count').textContent = memberTotal + ' 人';
-      byId('member-total').textContent = '共 ' + memberTotal + ' 条';
-      byId('stat-members').textContent = memberTotal;
+      byId('member-count').textContent = members.length + ' 人';
+      byId('member-total').textContent = '共 ' + members.length + ' 人 · 每页 ' + pageSize + ' 条';
+      byId('stat-members').textContent = members.length;
+    }
+
+    function renderPager() {
+      var totalPages = Math.max(1, Math.ceil(members.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      var html = '';
+      for (var i = 1; i <= totalPages; i++) {
+        html += '<button class="page-btn' + (i === currentPage ? ' page-btn--active' : '') +
+          '" type="button" data-page="' + i + '"' + (i === currentPage ? ' aria-current="page"' : '') +
+          '>' + i + '</button>';
+      }
+      byId('pager-pages').innerHTML = html;
+      document.querySelector('[data-page-prev]').disabled = currentPage <= 1;
+      document.querySelector('[data-page-next]').disabled = currentPage >= totalPages;
+    }
+
+    function syncEmpty() {
+      byId('member-empty').hidden = byId('member-tbody').querySelector('tr') !== null;
+    }
+
+    function renderTable() {
+      var start = (currentPage - 1) * pageSize;
+      var pageMembers = members.slice(start, start + pageSize);
+      byId('member-tbody').innerHTML = pageMembers.map(rowHtml).join('');
+      syncEmpty();
+      renderPager();
+      renderCounts();
+    }
+
+    function syncName(name) {
+      wsName = name;
+      byId('ws-title').textContent = name;
+      byId('breadcrumb-name').textContent = name;
+      byId('archive-name').textContent = name;
     }
 
     /* 归档态整页只读：信息与成员维护入口全部收起，仅留[重新启用]，与实际页 isDissolved 口径一致 */
@@ -229,24 +430,29 @@
       byId('ws-name').disabled = on;
       byId('ws-desc').disabled = on;
       var status = byId('ws-status');
-      status.className = 'status ' + (on ? 'status--neutral' : 'status--success');
-      status.innerHTML = '<span class="dot"></span>' + (on ? '归档' : '活跃');
+      status.className = 'ws-detail__status ' + (on ? 'ws-detail__status--neutral' : 'ws-detail__status--success');
+      byId('ws-status-text').textContent = on ? '归档' : '活跃';
     }
 
     // 改角色为行内编辑：角色列原地变下拉，切换即回填标签、失焦即回退
     function startRoleEdit(trigger) {
-      var cell = trigger.closest('tr').children[1];
+      var cell = trigger.closest('tr').querySelector('[data-role-cell]');
       var tag = cell.querySelector('[data-role]');
       if (!tag || cell.querySelector('select')) return;
       var previous = tag.getAttribute('data-role');
       var select = document.createElement('select');
-      select.className = 'select';
+      select.className = 'select ws-detail__role-select';
       select.innerHTML = '<option value="admin">管理员</option><option value="member">成员</option>';
       select.value = previous;
       cell.textContent = '';
       cell.appendChild(select);
       select.focus();
-      select.addEventListener('change', function () { cell.innerHTML = roleTag(select.value); });
+      select.addEventListener('change', function () {
+        var value = select.value;
+        cell.innerHTML = roleTag(value);
+        var m = members.find(function (x) { return x.id === trigger.closest('tr').getAttribute('data-user-id'); });
+        if (m) m.role = value;
+      });
       select.addEventListener('blur', function () {
         if (cell.contains(select)) cell.innerHTML = roleTag(previous);
       });
@@ -277,6 +483,22 @@
         return;
       }
 
+      if ((target = e.target.closest('[data-page]'))) {
+        currentPage = parseInt(target.getAttribute('data-page'), 10);
+        renderTable();
+        return;
+      }
+
+      if (e.target.closest('[data-page-prev]')) {
+        if (currentPage > 1) { currentPage--; renderTable(); }
+        return;
+      }
+
+      if (e.target.closest('[data-page-next]')) {
+        if (currentPage < Math.max(1, Math.ceil(members.length / pageSize))) { currentPage++; renderTable(); }
+        return;
+      }
+
       if (e.target.closest('#archive-btn')) {
         byId('archive-input').value = '';
         byId('archive-error').hidden = true;
@@ -300,10 +522,14 @@
     byId('remove-ok').addEventListener('click', function () {
       byId('remove-dialog').hidden = true;
       if (!pendingRemove) return;
-      pendingRemove.style.display = 'none';
+      var row = pendingRemove;
+      var rowId = row.getAttribute('data-user-id');
+      members = members.filter(function (m) { return m.id !== rowId; });
+      row.remove();
       pendingRemove = null;
-      memberTotal -= 1;
       renderCounts();
+      renderPager();
+      syncEmpty();
     });
 
     byId('archive-ok').addEventListener('click', function () {
@@ -315,6 +541,50 @@
       byId('archive-dialog').hidden = true;
       // 实际页归档成功后跳回空间列表；原型就地切到归档态，便于查看只读与[重新启用]
       setArchived(true);
+    });
+
+    byId('add-search').addEventListener('input', function () {
+      var kw = this.value.trim();
+      byId('add-pending').querySelectorAll('.ws-detail__pending-item').forEach(function (item) {
+        var name = item.querySelector('.ws-detail__pending-name');
+        item.hidden = !!kw && name && name.textContent.indexOf(kw) === -1;
+      });
+    });
+
+    byId('add-ok').addEventListener('click', function () {
+      var added = 0;
+      byId('add-pending').querySelectorAll('.ws-detail__pending-item').forEach(function (item) {
+        var nameEl = item.querySelector('.ws-detail__pending-name');
+        var roleSel = item.querySelector('.ws-detail__pending-role');
+        if (!nameEl) return;
+        var name = nameEl.textContent.trim();
+        if (!name) return;
+        var m = {
+          id: 'u' + (++uid),
+          name: name,
+          initial: name.charAt(0),
+          role: roleSel ? roleSel.value : 'member',
+          joined: '2026-11-24 10:00',
+          brand: false
+        };
+        members.push(m);
+        byId('member-tbody').insertAdjacentHTML('beforeend', rowHtml(m));
+        added++;
+      });
+      if (added) {
+        syncEmpty();
+        renderCounts();
+        renderPager();
+      }
+      byId('add-dialog').hidden = true;
+      byId('add-search').value = '';
+      byId('add-pending').querySelectorAll('.ws-detail__pending-item').forEach(function (item) { item.hidden = false; });
+    });
+
+    byId('member-page-size').addEventListener('change', function () {
+      pageSize = parseInt(this.value, 10);
+      currentPage = 1;
+      renderTable();
     });
 
     byId('save-btn').addEventListener('click', function () {
@@ -331,8 +601,7 @@
         return;
       }
       error.hidden = true;
-      wsName = value;
-      byId('archive-name').textContent = value;
+      syncName(value);
       initial.name = value;
       initial.desc = byId('ws-desc').value;
       var btn = byId('save-btn');
@@ -345,6 +614,16 @@
         if (e.target === mask) mask.hidden = true;
       });
     });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.dialog-mask').forEach(function (m) { m.hidden = true; });
+      }
+    });
+
+    // 初始保持 demo 的 4 行视觉不变；仅渲染分页器与计数（与静态 HTML 的 1/2 页、24 人一致）
+    renderPager();
+    renderCounts();
 
     if (window.location.hash === '#archived') setArchived(true);
   })();

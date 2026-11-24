@@ -32,12 +32,26 @@
   .detail-req__label { font-size: var(--font-size-2xs); color: var(--n-400); }
   .detail-progress { display: flex; align-items: center; gap: 12px; }
   .detail-progress .progress { width: 140px; }
-  .detail-stats { display: flex; gap: 12px; }
+  .detail-stats { display: flex; gap: 12px; font-size: var(--font-size-xs); color: var(--n-500); }
+  .detail-stat--pass { color: var(--st-success); }
+  .detail-stat--fail { color: var(--st-danger); }
+  .detail-stat--pending { color: var(--st-warning); }
   .detail-actions {
     display: flex; align-items: center; gap: 8px;
     padding-left: 20px; border-left: 1px solid var(--n-200);
   }
-  .detail-actions .btn [data-icon] svg { width: 14px; height: 14px; }
+  .detail-actions .btn [data-icon] svg,
+  .detail-actions .btn .btn-icon { width: 14px; height: 14px; }
+  .detail-actions .btn .btn-icon { display: inline-flex; align-items: center; justify-content: center; }
+  .detail-actions .btn .btn-icon svg { width: 14px; height: 14px; }
+  .btn--plain-danger { background: var(--n-0); border-color: rgba(214, 69, 69, .35); color: var(--st-danger); }
+  .btn--plain-danger:hover { background: var(--st-danger-light); border-color: rgba(214, 69, 69, .55); color: var(--st-danger-strong); }
+  /* btn disabled 复用 base.css .btn:disabled */
+  .tag--round { border-radius: 999px; }
+  .tag--light.tag--info { background: var(--st-info-light); border-color: var(--st-info-border); color: var(--st-info-strong); }
+  .tag--light.tag--warning { background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong); }
+  .tag--light.tag--success { background: var(--st-success-light); border-color: var(--st-success-border); color: var(--st-success-strong); }
+  .tag--light.tag--danger { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger-strong); }
 
   .rv-workspace { display: flex; gap: 16px; align-items: stretch; }
   .rv-tree { width: 240px; flex-shrink: 0; }
@@ -143,48 +157,72 @@
   }
   .cs-item:hover { background: var(--n-50); }
   .cs-item input { accent-color: var(--brand-500); }
+
+  .ai-review-state { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .ai-review-spinner { width: 18px; height: 18px; border: 2px solid var(--n-200); border-top-color: var(--brand-500); border-radius: 50%; animation: ai-spin .8s linear infinite; flex-shrink: 0; }
+  @keyframes ai-spin { to { transform: rotate(360deg); } }
+  .ai-review-state__text { display: flex; flex: 1; flex-direction: column; gap: 2px; font-size: var(--font-size-sm); color: var(--n-800); }
+  .ai-review-alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--st-danger-light); border: 1px solid var(--st-danger-border); color: var(--st-danger-strong); }
+  .ai-review-alert__main { display: flex; flex-direction: column; gap: 2px; }
+  .ai-review-ready-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .ai-review-ready-title { font-size: var(--font-size-base); font-weight: 600; color: var(--n-900); }
+  .ai-review-card { padding: 12px; border: 1px solid var(--n-200); border-radius: var(--radius-md); background: var(--n-0); }
+  .ai-review-card + .ai-review-card { margin-top: 8px; }
+  .ai-review-card__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ai-review-card__title { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .ai-review-card__reason { margin: 8px 0 0; font-size: var(--font-size-sm); color: var(--n-600); line-height: 1.6; }
+  .ai-review-card--done { opacity: .72; }
+  .ai-review-card__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .ai-review-reason { display: flex; gap: 8px; margin-top: 10px; }
+  .ai-review-reason .input { flex: 1; height: 32px; }
+  .ai-review-card__result { margin-top: 8px; font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-review-card__result--danger { color: var(--st-danger-strong); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <!-- 页头：面包屑保持纯净，需求/状态/进度/操作与面包屑同行（a8549b20） -->
+  <!-- 页头：面包屑保持纯净，需求/状态/进度/操作与面包屑同行（交互 05 §1.2） -->
   <div class="detail-head">
     <div class="detail-breadcrumb">
       <a href="reviews.html">测试评审</a>
       <span data-icon="chevron-right"></span>
-      <span>下单模块用例评审</span>
+      <span id="rvTitle">下单模块用例评审</span>
     </div>
     <div class="detail-extra">
-      <div class="detail-req">
+      <div class="detail-req" id="rvReqs">
         <span class="detail-req__label">需求</span>
-        <span class="tag tag--info" title="购物车结算金额计算">REQ-2210</span>
-        <span class="tag tag--info" title="支付回调幂等处理">REQ-2235</span>
+        <span class="tag tag--info tag--light" title="购物车结算金额计算">REQ-2210</span>
+        <span class="tag tag--info tag--light" title="支付回调幂等处理">REQ-2235</span>
       </div>
-      <span class="status status--running" id="rvStatus"><span class="dot"></span>进行中</span>
-      <div class="detail-progress">
+      <span class="tag tag--warning tag--light tag--round tag--sm" id="rvStatus">进行中</span>
+      <div class="detail-progress" id="rvProgressWrap">
         <div class="progress">
           <div class="progress__track"><div class="progress__fill progress__fill--warning" id="rvFill" style="width:56%"></div></div>
-          <span class="progress__text" id="rvProgressText">18/32</span>
+          <span class="progress__text" id="rvProgressText">56%</span>
         </div>
         <div class="detail-stats">
-          <span class="text-xs" style="color:var(--st-success)">通过 <span id="rvPass">15</span></span>
-          <span class="text-xs" style="color:var(--st-danger)">不通过 <span id="rvFail">3</span></span>
-          <span class="text-xs" style="color:var(--st-warning)">待评审 <span id="rvPending">14</span></span>
-          <span class="text-xs muted">共 <span id="rvTotal">32</span></span>
+          <span class="detail-stat detail-stat--pass">通过 <span id="rvPass">15</span></span>
+          <span class="detail-stat detail-stat--fail">不通过 <span id="rvFail">3</span></span>
+          <span class="detail-stat detail-stat--pending">待评审 <span id="rvPending">14</span></span>
+          <span class="detail-stat">共 <span id="rvTotal">32</span></span>
         </div>
       </div>
-      <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
+      <!-- 活跃态操作组：AI评审/调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
       <div class="detail-actions" id="actActive">
-        <button class="btn btn--default btn--sm" type="button" id="btnAdjust"><span data-icon="edit"></span>调整用例</button>
+        <button class="btn btn--link btn--sm" type="button" id="aiIndicator" hidden></button>
+        <button class="btn btn--default btn--sm" type="button" id="btnAiReview"><span class="btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.7 4.8 4.8 1.7-4.8 1.7L12 16.5l-1.7-4.8L5.5 10l4.8-1.7z"/><path d="M18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg></span>AI 评审</button>
+        <button class="btn btn--default btn--sm" type="button" id="btnAdjust"><span class="btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10.5-10.5a1.5 1.5 0 0 0 0-2.1l-1.9-1.9a1.5 1.5 0 0 0-2.1 0L4 16z"/><path d="M12.5 7.5l4 4"/></svg></span>调整用例</button>
         <button class="btn btn--default btn--sm" type="button" id="btnSync"><span data-icon="refresh"></span>同步用例</button>
-        <button class="btn btn--danger btn--sm" type="button" id="btnReject"><span data-icon="x-circle"></span>驳回</button>
-        <button class="btn btn--primary btn--sm" type="button" id="btnComplete" disabled title="全部用例评审通过后才能完成评审"><span data-icon="check-circle"></span>完成评审</button>
+        <button class="btn btn--default btn--sm btn--plain-danger" type="button" id="btnReject"><span data-icon="x-circle"></span>驳回</button>
+        <span id="btnCompleteWrap" title="全部用例评审通过后才能完成评审">
+          <button class="btn btn--primary btn--sm" type="button" id="btnComplete" disabled><span data-icon="check-circle"></span>完成评审</button>
+        </span>
       </div>
       <!-- 已驳回：仅发起人可见，演示账号即发起人 -->
       <div class="detail-actions" id="actRejected" hidden>
-        <button class="btn btn--primary btn--sm" type="button" id="btnReopen"><span data-icon="refresh"></span>重新发起</button>
+        <button class="btn btn--primary btn--sm" type="button" id="btnReopen"><span class="btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7H4V4"/><path d="M4 7a8 8 0 1 0 2.3-5.7"/></svg></span>重新发起</button>
       </div>
     </div>
   </div>
@@ -194,7 +232,10 @@
     <div class="card rv-tree">
       <div class="card__header" style="padding:10px 14px">
         <h3 class="card__title" style="font-size:13px">快照文档</h3>
-        <span class="text-xs muted">只读</span>
+        <span class="flex flex-gap-sm">
+          <span class="text-xs muted">只读</span>
+          <span class="tag tag--success tag--light tag--sm" id="rvSyncTag" hidden></span>
+        </span>
       </div>
       <div class="card__body" style="padding:8px 10px">
         <div class="tree" id="rvTree">
@@ -302,6 +343,9 @@
 
 </main>
 
+<!-- 抽屉遮罩：点击遮罩关闭抽屉，与弹窗保持一致 -->
+<div class="dialog-mask" id="drawerMask" data-mask-close hidden></div>
+
 <!-- 评审记录抽屉：标记与评论记录，Enter 发送 -->
 <aside class="rv-drawer" id="rvDrawer" aria-label="评审记录" hidden>
   <div class="rv-drawer__head">
@@ -352,6 +396,50 @@
   </div>
 </div>
 
+<!-- AI 评审：实际页为 720px el-dialog；原型按交互设计 05 §1.4 表达状态与逐条处置 -->
+<div class="dialog-mask" id="aiReviewDialog" data-mask-close hidden>
+  <div class="dialog" style="width:720px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="aiReviewTitle">AI 评审</span>
+      <span class="flex flex-gap-sm" style="margin-left:auto;margin-right:12px">
+        <span class="tag tag--neutral tag--light tag--sm" id="aiRunTag">第 1 次执行</span>
+        <a class="btn btn--link btn--sm" href="ai-task-detail.html">任务详情</a>
+      </span>
+      <button class="dialog__close" type="button" id="aiReviewClose" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div id="aiReviewRunning" class="ai-review-state">
+        <span class="ai-review-spinner" aria-hidden="true"></span>
+        <div class="ai-review-state__text">
+          <span>AI 正在评审规划用例…</span>
+          <span class="text-xs muted">可关闭弹窗，后台继续运行；也可终止本次执行</span>
+        </div>
+        <button class="btn btn--link btn--sm btn--plain-danger" type="button" id="aiReviewAbort">终止</button>
+        <button class="btn btn--link btn--sm" type="button" id="aiReviewBackground">后台运行，关闭</button>
+      </div>
+      <div id="aiReviewFailed" class="ai-review-alert" hidden>
+        <div class="ai-review-alert__main">
+          <strong>AI 评审已终止</strong>
+          <span class="text-xs muted">可沿用当前评审输入再次执行，已有评审标记保留。</span>
+        </div>
+        <button class="btn btn--default btn--sm btn--plain-danger" type="button" id="aiReviewRetry">再次执行</button>
+      </div>
+      <div id="aiReviewReady" hidden>
+        <div class="ai-review-ready-head">
+          <span class="ai-review-ready-title">逐用例评审建议</span>
+          <span class="tag tag--neutral tag--light tag--sm tag--round" id="aiPendingCount">待处理 2</span>
+        </div>
+        <div id="aiSuggestionList"></div>
+        <div class="text-xs muted" style="margin-top:8px">[驳回] 填写原因后仅记录原因，[采纳] 写入标记并刷新脑图与统计。</div>
+      </div>
+    </div>
+    <div class="dialog__footer" id="aiReviewFooter">
+      <button class="btn btn--default" type="button" id="aiReviewReexecute" hidden>重新执行</button>
+      <button class="btn btn--default" type="button" id="aiReviewCloseFooter">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
@@ -363,8 +451,12 @@
 
   // 演示账号即评审发起人，已驳回态可见「重新发起」
   var USER = '张明';
-  var state = { status: 'in_progress', selected: null };
+  var state = {
+    status: 'in_progress', selected: null, aiTimer: null,
+    aiPhase: 'idle', aiRun: 0
+  };
   var popoverAnchor = null;
+  var SYNC_VERSION = 1;
 
   // 各用例节点的评审记录（key 为 data-case），空数组展示空态
   var RECORDS = {
@@ -397,28 +489,87 @@
 
   function caseName(li) { return li.querySelector('.mm-name').textContent; }
 
+  function findCase(id) { return document.querySelector('.mm [data-case="' + id + '"]'); }
+
+  // 调整用例支持恢复已移除节点：初始化时留存原始节点与文档顺序，刷新页面即回到 demo 初态
+  var CASE_CATALOG = [];
+  forEach(document.querySelectorAll('.mm'), function (panel) {
+    forEach(panel.querySelectorAll('[data-case]'), function (li) {
+      CASE_CATALOG.push({
+        id: li.getAttribute('data-case'),
+        docId: panel.getAttribute('data-doc'),
+        name: caseName(li),
+        order: CASE_CATALOG.length,
+        clone: li.cloneNode(true)
+      });
+    });
+  });
+
+  // AI 建议与快照用例一一对应，采纳写回标记，驳回只记录原因
+  var SUGGESTIONS = [
+    {
+      caseId: 'd1c2', title: '地址簿选择后金额重算', mark: 'fail',
+      tag: 'tag--danger', tagLabel: '建议不通过',
+      reason: '理由：缺少跨省运费变化后的金额重算预期。',
+      status: 'pending', rejecting: false, result: ''
+    },
+    {
+      caseId: 'd1c3', title: '同收货人合并下单', mark: 'pass',
+      tag: 'tag--success', tagLabel: '建议通过',
+      reason: '理由：覆盖主路径与合并规则，断言完整。',
+      status: 'pending', rejecting: false, result: ''
+    }
+  ];
+
   /* ---------------- 页头：状态 / 进度统计 / 提交校验 ---------------- */
 
   var STATUS_META = {
-    in_progress: ['status--running', '进行中', 'progress__fill--warning'],
-    rejected: ['status--danger', '已驳回', 'progress__fill--danger'],
-    completed: ['status--success', '已通过', '']
+    new: { tag: 'tag--info', label: '待评审', fill: '' },
+    in_progress: { tag: 'tag--warning', label: '进行中', fill: 'progress__fill--warning' },
+    rejected: { tag: 'tag--danger', label: '已驳回', fill: 'progress__fill--danger' },
+    completed: { tag: 'tag--success', label: '已通过', fill: '' }
   };
 
   function setStatus(status) {
     state.status = status;
-    var meta = STATUS_META[status];
+    var meta = STATUS_META[status] || STATUS_META.in_progress;
     var chip = $('rvStatus');
-    chip.className = 'status ' + meta[0];
-    chip.innerHTML = '<span class="dot"></span>' + meta[1];
+    chip.className = 'tag tag--light tag--round tag--sm ' + meta.tag;
+    chip.textContent = meta.label;
     $('actActive').hidden = status !== 'in_progress';
     $('actRejected').hidden = status !== 'rejected';
-    $('rvFill').className = 'progress__fill' + (meta[2] ? ' ' + meta[2] : '');
+    $('rvFill').className = 'progress__fill' + (meta.fill ? ' ' + meta.fill : '');
+    if (!isActive()) {
+      window.clearTimeout(state.aiTimer);
+      $('aiReviewDialog').hidden = true;
+      $('aiIndicator').hidden = true;
+    }
     hidePopover();
+    syncDocTree();
   }
 
-  // 统计口径与实际页 progress 一致：已评审 = 通过 + 不通过，待评审 = 关联总数 - 已评审
+  // 文档无剩余用例时移除树条目，并把选中态回退到第一个仍有用例的文档
+  function syncDocTree() {
+    forEach(document.querySelectorAll('.tree__item[data-doc]'), function (row) {
+      var panel = document.querySelector('.mm[data-doc="' + row.getAttribute('data-doc') + '"]');
+      row.hidden = !panel || !panel.querySelector('[data-case]');
+    });
+    var active = document.querySelector('.tree__item[data-doc].tree__item--active:not([hidden])');
+    if (active) return;
+    active = document.querySelector('.tree__item[data-doc]:not([hidden])');
+    if (!active) return;
+    forEach(document.querySelectorAll('.tree__item[data-doc]'), function (row) {
+      row.classList.toggle('tree__item--active', row === active);
+    });
+    forEach(document.querySelectorAll('.mm'), function (panel) {
+      panel.hidden = panel.getAttribute('data-doc') !== active.getAttribute('data-doc');
+    });
+    clearSelection();
+  }
+
+  // 统计口径与实际页 progress 一致：进度条按 progressPercent，文案显示百分比
   function refreshStats() {
+    syncDocTree();
     var cases = document.querySelectorAll('.mm [data-case]');
     var pass = 0, fail = 0;
     forEach(cases, function (li) {
@@ -429,21 +580,23 @@
     var total = cases.length;
     var pending = total - pass - fail;
     var reviewed = pass + fail;
+    var percent = total ? Math.round(reviewed / total * 100) : 0;
     $('rvPass').textContent = String(pass);
     $('rvFail').textContent = String(fail);
     $('rvPending').textContent = String(pending);
     $('rvTotal').textContent = String(total);
-    $('rvProgressText').textContent = reviewed + '/' + total;
-    $('rvFill').style.width = (total ? Math.round(reviewed / total * 100) : 0) + '%';
+    $('rvProgressText').textContent = percent + '%';
+    $('rvFill').style.width = percent + '%';
     setCanComplete(pending === 0 && fail === 0);
   }
 
   // 待评审与不通过均为 0 才允许提交，否则置灰并给出 tooltip
   function setCanComplete(can) {
     var btn = $('btnComplete');
+    var wrap = $('btnCompleteWrap');
     btn.disabled = !can;
-    if (can) btn.removeAttribute('title');
-    else btn.setAttribute('title', '全部用例评审通过后才能完成评审');
+    if (can) wrap.removeAttribute('title');
+    else wrap.setAttribute('title', '全部用例评审通过后才能完成评审');
   }
 
   /* ---------------- 快照树：目录折叠 + 文档切换 ---------------- */
@@ -529,9 +682,10 @@
     li.querySelector('.mm-node').appendChild(badge);
   }
 
-  function applyMark(mark) {
-    if (!isActive() || !state.selected) return;
-    var li = state.selected;
+  function applyMark(mark, target) {
+    if (!isActive()) return;
+    var li = target || state.selected;
+    if (!li || !li.isConnected) return;
     var next = mark === 'pass' || mark === 'fail' ? mark : '';
     li.setAttribute('data-mark', next);
     setBadge(li, next);
@@ -584,6 +738,8 @@
       var label = rec.mark === 'pass' ? '标记通过' : rec.mark === 'fail' ? '标记不通过' : '重置待评审';
       var cls = rec.mark === 'pass' ? 'tag--success' : rec.mark === 'fail' ? 'tag--danger' : 'tag--neutral';
       tag = '<span class="tag ' + cls + ' tag--sm">' + label + '</span>';
+    } else if (rec.op === 'ai_reject') {
+      tag = '<span class="tag tag--danger tag--sm">AI 建议驳回</span>';
     }
     var body = rec.text ? '<p class="rc__body">' + escapeHtml(rec.text) + '</p>' : '';
     return '<div class="rc"><div class="rc__avatar">' + escapeHtml(rec.name.charAt(0)) + '</div>' +
@@ -600,14 +756,20 @@
     list.scrollTop = list.scrollHeight;
   }
 
+  function closeDrawer() {
+    $('rvDrawer').hidden = true;
+    $('drawerMask').hidden = true;
+  }
+
   function openDrawer() {
     if (!state.selected) { toast('请先选中一个节点', 'warning'); return; }
     drawerFor = state.selected.getAttribute('data-case');
     renderRecords();
+    $('drawerMask').hidden = false;
     $('rvDrawer').hidden = false;
   }
 
-  $('drawerClose').addEventListener('click', function () { $('rvDrawer').hidden = true; });
+  $('drawerClose').addEventListener('click', closeDrawer);
 
   function sendComment() {
     var input = $('drawerInput');
@@ -667,6 +829,178 @@
     });
   });
 
+  /* ---------------- AI 评审：执行状态 + 逐条建议处置 ---------------- */
+
+  function aiPending() {
+    return SUGGESTIONS.filter(function (s) { return s.status === 'pending' || s.rejecting; }).length;
+  }
+
+  function renderSuggestions() {
+    var pending = aiPending();
+    $('aiPendingCount').textContent = pending ? '待处理 ' + pending : '已全部处置';
+    $('aiSuggestionList').innerHTML = SUGGESTIONS.map(function (s, i) {
+      var statusTag;
+      if (s.status === 'adopted') statusTag = '<span class="tag tag--success tag--light tag--sm tag--round">已采纳</span>';
+      else if (s.status === 'rejected') statusTag = '<span class="tag tag--danger tag--light tag--sm tag--round">已驳回</span>';
+      else if (s.status === 'missing') statusTag = '<span class="tag tag--danger tag--light tag--sm tag--round">节点已移除 · 处置失败</span>';
+      else statusTag = '<span class="tag ' + s.tag + ' tag--light tag--sm tag--round">' + s.tagLabel + '</span>';
+
+      var actions = '';
+      var result = '';
+      if (s.status === 'pending') {
+        if (s.rejecting) {
+          actions = '<div class="ai-review-reason">' +
+            '<input class="input" type="text" maxlength="200" placeholder="请填写驳回原因" data-sug-reason="' + i + '">' +
+            '<button class="btn btn--default btn--sm" type="button" data-sug-cancel="' + i + '">取消</button>' +
+            '<button class="btn btn--primary btn--sm" type="button" data-sug-submit="' + i + '">提交驳回</button>' +
+            '</div>';
+        } else {
+          actions = '<div class="ai-review-card__actions">' +
+            '<button class="btn btn--link btn--sm btn--plain-danger" type="button" data-sug-reject="' + i + '">驳回</button>' +
+            '<button class="btn btn--link btn--sm" type="button" data-sug-adopt="' + i + '">采纳</button>' +
+            '</div>';
+        }
+      } else if (s.status === 'adopted') {
+        result = '<div class="ai-review-card__result">已采纳并写入评审标记，脑图徽标与进度统计已刷新。</div>';
+      } else if (s.status === 'rejected') {
+        result = '<div class="ai-review-card__result">驳回原因：' + escapeHtml(s.result) + '</div>';
+      } else if (s.status === 'missing') {
+        result = '<div class="ai-review-card__result ai-review-card__result--danger">提案产出后用例已从快照移除，本次处置未写入。</div>';
+      }
+      return '<div class="ai-review-card' + (s.status === 'pending' ? '' : ' ai-review-card--done') + '">' +
+        '<div class="ai-review-card__head"><span class="ai-review-card__title">' + escapeHtml(s.title) + '</span>' + statusTag + '</div>' +
+        '<p class="ai-review-card__reason">' + escapeHtml(s.reason) + '</p>' + actions + result + '</div>';
+    }).join('');
+  }
+
+  function updateAiIndicator() {
+    var btn = $('aiIndicator');
+    if (!isActive() || state.aiPhase === 'idle') { btn.hidden = true; return; }
+    btn.hidden = false;
+    btn.textContent = state.aiPhase === 'running' ? 'AI 评审进行中…' :
+      state.aiPhase === 'aborted' ? 'AI 评审已终止 · 查看' :
+        'AI 评审完成 · ' + aiPending() + ' 条待处理 · 查看';
+  }
+
+  function renderAiPhase() {
+    var running = state.aiPhase === 'running';
+    var aborted = state.aiPhase === 'aborted';
+    var ready = state.aiPhase === 'ready';
+    $('aiReviewRunning').hidden = !running;
+    $('aiReviewFailed').hidden = !aborted;
+    $('aiReviewReady').hidden = !ready;
+    $('aiReviewReexecute').hidden = !ready;
+    $('aiRunTag').textContent = '第 ' + (state.aiRun || 1) + ' 次执行';
+    $('aiReviewTitle').textContent = 'AI 评审 · ' + $('rvTitle').textContent;
+    if (ready) renderSuggestions();
+    updateAiIndicator();
+  }
+
+  function startAiRun(reset) {
+    window.clearTimeout(state.aiTimer);
+    if (reset) {
+      forEach(SUGGESTIONS, function (s) { s.status = 'pending'; s.rejecting = false; s.result = ''; });
+    }
+    state.aiRun += 1;
+    state.aiPhase = 'running';
+    renderAiPhase();
+    state.aiTimer = window.setTimeout(function () {
+      state.aiPhase = 'ready';
+      renderAiPhase();
+      toast('AI 评审已完成，待人工处置', 'success');
+    }, 700);
+  }
+
+  function openAiDialog() {
+    if (!isActive()) return;
+    if (state.aiPhase === 'idle') startAiRun(false);
+    else renderAiPhase();
+    $('aiReviewDialog').hidden = false;
+  }
+
+  function closeAiDialog() { $('aiReviewDialog').hidden = true; }
+
+  function adoptSuggestion(i) {
+    var s = SUGGESTIONS[i];
+    if (!s || s.status !== 'pending' || !isActive()) return;
+    var li = findCase(s.caseId);
+    if (!li) {
+      s.status = 'missing';
+      renderSuggestions();
+      updateAiIndicator();
+      toast('提案对应用例已移除，处置失败', 'warning');
+      return;
+    }
+    applyMark(s.mark, li);
+    s.status = 'adopted';
+    renderSuggestions();
+    updateAiIndicator();
+    toast('已采纳建议并写入评审标记', 'success');
+  }
+
+  function rejectSuggestion(i, reason) {
+    var s = SUGGESTIONS[i];
+    if (!s || s.status !== 'pending' || !s.rejecting) return;
+    if (!reason) { toast('请填写驳回原因', 'warning'); return; }
+    pushRecord(s.caseId, {
+      name: USER, op: 'ai_reject', mark: null,
+      text: 'AI 建议驳回：' + reason, time: nowText()
+    });
+    if (drawerFor === s.caseId) renderRecords();
+    s.status = 'rejected';
+    s.rejecting = false;
+    s.result = reason;
+    renderSuggestions();
+    updateAiIndicator();
+    toast('已驳回 AI 建议', 'success');
+  }
+
+  $('btnAiReview').addEventListener('click', openAiDialog);
+  $('aiIndicator').addEventListener('click', openAiDialog);
+  $('aiReviewClose').addEventListener('click', closeAiDialog);
+  $('aiReviewCloseFooter').addEventListener('click', closeAiDialog);
+  $('aiReviewBackground').addEventListener('click', function () {
+    closeAiDialog();
+    updateAiIndicator();
+    toast('AI 评审将在后台继续运行', 'info');
+  });
+  $('aiReviewAbort').addEventListener('click', function () {
+    askConfirm('终止 AI 评审', '确定终止本次 AI 评审吗？已产生的评审标记与评论会保留。', '终止', function () {
+      window.clearTimeout(state.aiTimer);
+      state.aiPhase = 'aborted';
+      renderAiPhase();
+      toast('AI 评审已终止', 'warning');
+    });
+  });
+  $('aiReviewRetry').addEventListener('click', function () { startAiRun(false); });
+  $('aiReviewReexecute').addEventListener('click', function () { startAiRun(true); });
+
+  $('aiSuggestionList').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    var adopt = btn.getAttribute('data-sug-adopt');
+    var reject = btn.getAttribute('data-sug-reject');
+    var submit = btn.getAttribute('data-sug-submit');
+    var cancel = btn.getAttribute('data-sug-cancel');
+    if (adopt !== null) { adoptSuggestion(Number(adopt)); return; }
+    if (reject !== null) {
+      SUGGESTIONS[Number(reject)].rejecting = true;
+      renderSuggestions();
+      var input = $('aiSuggestionList').querySelector('[data-sug-reason="' + reject + '"]');
+      if (input) input.focus();
+      return;
+    }
+    if (submit !== null) {
+      var field = $('aiSuggestionList').querySelector('[data-sug-reason="' + submit + '"]');
+      rejectSuggestion(Number(submit), field ? field.value.trim() : '');
+      return;
+    }
+    if (cancel !== null) {
+      SUGGESTIONS[Number(cancel)].rejecting = false;
+      renderSuggestions();
+    }
+  });
+
   $('btnReject').addEventListener('click', function () {
     askConfirm('驳回评审', '确定驳回该评审吗？驳回后将不可再标记或调整用例，可通过「重新发起」恢复评审。', '驳回', function () {
       setStatus('rejected');
@@ -683,7 +1017,18 @@
 
   $('btnSync').addEventListener('click', function () {
     askConfirm('同步最新用例', '同步将更新快照节点属性，已有标记不受影响。确定同步？', '同步', function () {
-      toast('已同步', 'success');
+      SYNC_VERSION += 1;
+      forEach(document.querySelectorAll('.mm-node--root'), function (root) {
+        forEach(root.childNodes, function (node) {
+          if (node.nodeType === 3 && /（v\d+ 快照）/.test(node.textContent)) {
+            node.textContent = node.textContent.replace(/（v\d+ 快照）/, '（v' + SYNC_VERSION + ' 快照）');
+          }
+        });
+      });
+      var tag = $('rvSyncTag');
+      tag.textContent = '已同步 ' + nowText().slice(11);
+      tag.hidden = false;
+      toast('快照已更新至 v' + SYNC_VERSION, 'success');
     });
   });
 
@@ -708,15 +1053,35 @@
   function renderPicker() {
     var html = '';
     forEach(document.querySelectorAll('.mm'), function (panel) {
-      var treeItem = document.querySelector('.tree__item[data-doc="' + panel.getAttribute('data-doc') + '"]');
+      var docId = panel.getAttribute('data-doc');
+      var treeItem = document.querySelector('.tree__item[data-doc="' + docId + '"]');
       html += '<div class="cs-group">' + escapeHtml(treeItem.textContent.trim()) + '</div>';
-      forEach(panel.querySelectorAll('[data-case]'), function (li) {
-        html += '<label class="cs-item"><input type="checkbox" data-case="' + li.getAttribute('data-case') + '" checked>' +
-          escapeHtml(caseName(li)) + '</label>';
+      forEach(CASE_CATALOG, function (entry) {
+        if (entry.docId !== docId) return;
+        var present = !!findCase(entry.id);
+        html += '<label class="cs-item"><input type="checkbox" data-case="' + entry.id + '"' + (present ? ' checked' : '') + '>' +
+          escapeHtml(entry.name) + (present ? '' : '（已移除）') + '</label>';
       });
     });
     $('csList').innerHTML = html;
     updatePickerCount();
+  }
+
+  // 重新勾选时按初始化顺序插回原文档，标记重置为待评审，历史评论仍留在 RECORDS
+  function restoreCase(entry) {
+    var li = entry.clone.cloneNode(true);
+    li.setAttribute('data-mark', '');
+    var badge = li.querySelector('.mm-badge');
+    if (badge) badge.parentNode.removeChild(badge);
+    var panel = document.querySelector('.mm[data-doc="' + entry.docId + '"]');
+    var container = panel.querySelector('ul ul');
+    var anchor = null;
+    forEach(container.children, function (sib) {
+      if (!sib.hasAttribute('data-case') || anchor) return;
+      var sibEntry = CASE_CATALOG.filter(function (c) { return c.id === sib.getAttribute('data-case'); })[0];
+      if (sibEntry && sibEntry.order > entry.order) anchor = sib;
+    });
+    container.insertBefore(li, anchor);
   }
 
   function updatePickerCount() {
@@ -738,9 +1103,11 @@
       keep[input.getAttribute('data-case')] = true;
     });
     if (!Object.keys(keep).length) { toast('请至少选择一个用例', 'warning'); return; }
-    // 未勾选的用例等价于从规划中剔除，脑图与统计同步收敛
-    forEach(document.querySelectorAll('.mm [data-case]'), function (li) {
-      if (!keep[li.getAttribute('data-case')]) li.remove();
+    // 未勾选的用例从规划中剔除，重新勾选的按原顺序插回，脑图与统计同步收敛
+    forEach(CASE_CATALOG, function (entry) {
+      var present = findCase(entry.id);
+      if (keep[entry.id] && !present) restoreCase(entry);
+      else if (!keep[entry.id] && present) present.remove();
     });
     if (state.selected && !state.selected.isConnected) clearSelection();
     $('rvCaseDialog').hidden = true;
@@ -758,7 +1125,11 @@
   });
 
   forEach(document.querySelectorAll('[data-mask-close]'), function (mask) {
-    mask.addEventListener('click', function (e) { if (e.target === mask) mask.hidden = true; });
+    mask.addEventListener('click', function (e) {
+      if (e.target !== mask) return;
+      mask.hidden = true;
+      if (mask.id === 'drawerMask') $('rvDrawer').hidden = true;
+    });
   });
 
   document.addEventListener('keydown', function (e) {
@@ -766,7 +1137,8 @@
     hidePopover();
     $('rvConfirm').hidden = true;
     $('rvCaseDialog').hidden = true;
-    $('rvDrawer').hidden = true;
+    closeDrawer();
+    $('aiReviewDialog').hidden = true;
   });
 
   refreshStats();

@@ -24,8 +24,20 @@
     padding: 0 8px; border-bottom: 1px solid var(--n-100);
     flex-shrink: 0;
   }
-  .mt-toolbar .input-wrap { flex: 1; min-width: 0; }
   .mt-toolbar .input { height: 28px; font-size: var(--font-size-sm); }
+  /* 搜索框 append 合并新建：本体右侧圆角清零，连接处直线分隔（ProjectModuleTree） */
+  .mt-search { flex: 1; min-width: 0; display: flex; }
+  .mt-search .input-wrap { flex: 1; min-width: 0; }
+  .mt-search .input-wrap .input { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .mt-search__append {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 10px; flex-shrink: 0;
+    border: 1px solid var(--n-200); border-left: 0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: var(--n-0); color: var(--brand-500); cursor: pointer;
+  }
+  .mt-search__append:hover { color: var(--brand-600); background: var(--n-25, #fcfcfd); }
+  .mt-search__append svg { width: 14px; height: 14px; }
   .ft-tree__body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 10px; }
   /* 加载失败时树上方红色提示条（ProjectModuleTree 的 module-tree__load-bar），不遮住整棵树 */
   .tree__load-bar {
@@ -130,7 +142,7 @@
   .mm-tool:disabled:hover { background: transparent; color: var(--n-300); }
   /* 图标库 svg 无固有尺寸，不给尺寸会渲染为 0×0 而不可见 */
   .mm-tool [data-icon] svg { width: 14px; height: 14px; }
-  .mm-tool--flip { transform: scaleX(-1); }
+
   .mm-tool--danger:hover { color: var(--st-danger); }
   .mm-caret { display: inline-flex; }
   .mm-tool .mm-caret svg { width: 10px; height: 10px; }
@@ -162,6 +174,16 @@
   .mm--hand { cursor: grab; }
   .mm.is-panning { cursor: grabbing; user-select: none; }
   .mm-inner { display: block; }
+  /* 排版模板必须真实改变画布结构与连接线，不能只改提示文案 */
+  .mm-inner[data-layout="right"] ul ul { display: flex; flex-wrap: wrap; gap: 8px 0; margin-left: 14px; padding-left: 16px; border-left-color: var(--brand-300); }
+  .mm-inner[data-layout="org"] ul ul { margin-left: 34px; padding-left: 24px; border-left: 2px solid var(--brand-300); }
+  .mm-inner[data-layout="org"] .mm-node { border-radius: var(--radius-sm); }
+  .mm-inner[data-layout="catalog"] ul ul { margin-left: 10px; padding-left: 14px; border-left: 1px dashed var(--brand-300); }
+  .mm-inner[data-layout="catalog"] .mm-node { border-color: transparent; background: transparent; box-shadow: none; }
+  .mm-inner[data-layout="fishbone"] ul ul { margin-left: 46px; border-left: 2px solid var(--n-400); }
+  .mm-inner[data-layout="fishbone"] ul ul > li > .mm-node::before { border-top-style: dashed; border-top-color: var(--n-400); }
+  .mm-inner[data-layout="sky"] ul ul { margin-left: 28px; padding-left: 22px; border-left: 1px dotted var(--brand-500); }
+  .mm-inner[data-layout="sky"] .mm-node { border-radius: 999px; }
   .mm ul { list-style: none; margin: 0; padding: 0; }
   .mm ul ul { margin-top: 4px; margin-left: 10px; padding-left: 20px; border-left: 1.5px solid var(--n-300); }
   .mm li { position: relative; padding: 6px 0; }
@@ -400,21 +422,22 @@
   .case-node-popover {
     position: fixed; z-index: 250;
     display: flex; align-items: center; gap: 8px;
-    padding: 4px;
-    background: var(--n-0); border: 1px solid var(--n-200);
-    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
   }
   .cnp-item {
     display: inline-flex; align-items: center; gap: 6px;
-    height: 28px; padding: 0 10px;
+    height: 32px; padding: 0 8px;
     border: none; border-radius: var(--radius-md);
     background: transparent; font: inherit; font-size: var(--font-size-sm);
-    color: var(--n-600); cursor: pointer;
+    cursor: pointer;
   }
-  .cnp-item:hover { background: var(--n-50); }
   .cnp-item [data-icon] svg { width: 14px; height: 14px; }
-  .cnp-item--ai { color: var(--st-success-strong); animation: cnp-ai-pulse 1.6s ease-in-out infinite; }
-  .cnp-item--link { color: var(--brand-600); }
+  .cnp-item--ai {
+    color: var(--st-success-strong);
+    animation: cnp-ai-pulse 1.6s ease-in-out infinite;
+  }
+  .cnp-item--ai:hover { color: var(--st-success); background: transparent; }
+  .cnp-item--link { color: var(--brand-500); }
+  .cnp-item--link:hover { color: var(--brand-600); background: transparent; }
   /* 呼吸动画提示 AI 入口可用（CaseNodeActionPopover 的 case-node-ai-pulse） */
   @keyframes cnp-ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
@@ -537,7 +560,12 @@
 
 <main class="content content--flush">
   <div class="split">
-    <aside class="split__side" data-side="ft"></aside>
+    <aside class="split__side" aria-label="功能测试导航">
+      <a class="menu-item side__item" href="requirements.html"><span data-icon="tickets" aria-hidden="true"></span><span>需求列表</span></a>
+      <a class="menu-item side__item menu-item--active" href="functional-testing.html" aria-current="page"><span data-icon="document" aria-hidden="true"></span><span>测试用例</span></a>
+      <a class="menu-item side__item" href="reviews.html"><span data-icon="check-circle" aria-hidden="true"></span><span>测试评审</span></a>
+      <a class="menu-item side__item" href="plans.html"><span data-icon="calendar" aria-hidden="true"></span><span>测试计划</span></a>
+    </aside>
 
     <div class="split__main">
       <div class="ft-workspace">
@@ -545,13 +573,15 @@
         <!-- 项目模块树（目录 + 用例文档，点文档打开编辑） -->
         <div class="card ft-tree">
           <div class="mt-toolbar">
-            <div class="input-wrap"><span data-icon="search" aria-hidden="true"></span><input class="input" id="treeFilter" placeholder="搜索目录 / 文档" aria-label="搜索目录 / 文档"></div>
-            <button class="btn btn--primary btn--sm" type="button" data-menu="newMenu" aria-haspopup="menu" aria-expanded="false"><span data-icon="plus" aria-hidden="true"></span>新建</button>
+            <div class="mt-search">
+              <div class="input-wrap"><span data-icon="search" aria-hidden="true"></span><input class="input" id="treeFilter" placeholder="搜索目录 / 文档" aria-label="搜索目录 / 文档"></div>
+              <button class="mt-search__append" type="button" data-menu="newMenu" aria-haspopup="menu" aria-expanded="false" title="新建" aria-label="新建"><span data-icon="plus" aria-hidden="true"></span></button>
+            </div>
           </div>
-          <!-- 模块树加载失败：树上方红色提示条 + 重试（ProjectModuleTree 的 module-tree__load-bar） -->
+          <!-- 模块树加载失败：树上方红色提示条 + 重新加载（ProjectModuleTree 的 module-tree__load-bar） -->
           <div class="tree__load-bar" id="treeLoadBar" role="alert" hidden>
             <span>模块树加载失败，请重试</span>
-            <button class="btn btn--default btn--sm" type="button" id="treeRetry">重试</button>
+            <button class="btn btn--link btn--sm" type="button" id="treeRetry">重新加载</button>
           </div>
           <div class="card__body ft-tree__body">
             <div class="tree" role="tree" aria-label="用例模块树" id="caseTree">
@@ -587,28 +617,28 @@
           <div class="mm-bar" id="mmBar" role="toolbar" aria-label="脑图工具条">
             <!-- 非全屏：撤销/重做、节点操作与排版收进下拉 -->
             <div class="mm-dropdown-wrap">
-              <button class="mm-tool" type="button" data-menu="editMenu" aria-haspopup="menu" aria-expanded="false" title="撤销、重做、节点操作与删除"><span data-icon="edit" aria-hidden="true"></span>编辑<span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
-              <button class="mm-tool" type="button" id="tplBtn" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span>排版<span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" data-menu="editMenu" aria-haspopup="menu" aria-expanded="false" title="撤销、重做、节点操作与删除"><span data-icon="edit-pen" aria-hidden="true"></span>编辑<span class="mm-caret" data-icon="arrow-down" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" id="tplBtn" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span>排版<span class="mm-caret" data-icon="arrow-down" aria-hidden="true"></span></button>
             </div>
             <!-- 全屏：编辑类按钮恢复平铺，与下拉互斥 -->
             <div class="mm-flat" id="mmFlat">
-              <button class="mm-tool" type="button" data-op="undo" title="撤销 (Ctrl+Z)" aria-label="撤销" disabled><span class="mm-tool--flip" data-icon="refresh" aria-hidden="true"></span></button>
-              <button class="mm-tool" type="button" data-op="redo" title="重做 (Ctrl+Y)" aria-label="重做" disabled><span data-icon="refresh" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" data-op="undo" title="撤销 (Ctrl+Z)" aria-label="撤销" disabled><span data-icon="refresh-left" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" data-op="redo" title="重做 (Ctrl+Y)" aria-label="重做" disabled><span data-icon="refresh-right" aria-hidden="true"></span></button>
               <span class="mm-sep" aria-hidden="true"></span>
               <button class="mm-tool" type="button" data-op="add-child" title="添加子节点 (Tab)"><span data-icon="plus" aria-hidden="true"></span>下级</button>
               <button class="mm-tool" type="button" data-op="add-sibling" title="添加兄弟节点 (Enter)"><span data-icon="plus" aria-hidden="true"></span>同级</button>
-              <button class="mm-tool" type="button" data-op="edit" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit" aria-hidden="true"></span></button>
-              <button class="mm-tool mm-tool--danger" type="button" data-op="delete-node" title="删除 (Delete)" aria-label="删除"><span data-icon="trash" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" data-op="edit" title="编辑内容 (双击节点/F2)" aria-label="编辑"><span data-icon="edit-pen" aria-hidden="true"></span></button>
+              <button class="mm-tool mm-tool--danger" type="button" data-op="delete-node" title="删除 (Delete)" aria-label="删除"><span data-icon="delete" aria-hidden="true"></span></button>
               <span class="mm-sep" aria-hidden="true"></span>
-              <button class="mm-tool" type="button" id="tplBtnFull" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="chevron-down" aria-hidden="true"></span></button>
-              <button class="mm-tool" type="button" data-op="tidy" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="sparkle" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" id="tplBtnFull" data-menu="tplMenu" aria-haspopup="menu" aria-expanded="false" title="排版模板：思维导图" aria-label="排版模板：思维导图"><span data-icon="grid" aria-hidden="true"></span><span class="mm-caret" data-icon="arrow-down" aria-hidden="true"></span></button>
+              <button class="mm-tool" type="button" data-op="tidy" title="清除手动拖拽的节点偏移，恢复自动排版" aria-label="恢复排版"><span data-icon="magic-stick" aria-hidden="true"></span></button>
             </div>
             <span class="mm-sep" aria-hidden="true"></span>
             <button class="mm-tool type-btn is-selected" type="button" data-type="case" title="标记为用例" aria-pressed="true"><i class="tdot tdot--case" aria-hidden="true"></i>用例</button>
             <button class="mm-tool type-btn" type="button" data-type="precondition" title="标记为前置" aria-pressed="false"><i class="tdot tdot--precondition" aria-hidden="true"></i>前置</button>
             <button class="mm-tool type-btn" type="button" data-type="step" title="标记为步骤" aria-pressed="false"><i class="tdot tdot--step" aria-hidden="true"></i>步骤</button>
             <button class="mm-tool type-btn" type="button" data-type="expected" title="标记为预期" aria-pressed="false"><i class="tdot tdot--expected" aria-hidden="true"></i>预期</button>
-            <button class="mm-tool" type="button" data-mark="clear" title="取消标记，恢复普通节点" aria-label="清除标记"><span data-icon="x-circle" aria-hidden="true"></span></button>
+            <button class="mm-tool" type="button" data-mark="clear" title="取消标记，恢复普通节点" aria-label="清除标记"><span data-icon="circle-close" aria-hidden="true"></span></button>
             <span class="mm-sep" aria-hidden="true"></span>
             <button class="mm-tool priority-btn priority-btn--p0 is-selected" type="button" data-priority="P0" title="标记优先级 P0" aria-pressed="true">P0</button>
             <button class="mm-tool priority-btn priority-btn--p1" type="button" data-priority="P1" title="标记优先级 P1" aria-pressed="false">P1</button>
@@ -622,7 +652,7 @@
 
           <div class="mm-stage" id="mmStage">
             <div class="mm" id="mmCanvas" tabindex="0" aria-label="用例脑图画布">
-              <div class="mm-inner" id="mmInner">
+              <div class="mm-inner" id="mmInner" data-layout="mindmap">
                 <ul role="tree" aria-label="用例节点">
                   <li role="treeitem" aria-expanded="true"><span class="mm-node mm-node--root"><span data-icon="document" aria-hidden="true"></span><span class="mm-text" id="mmRootName">优惠券叠加规则</span></span>
                     <ul role="group">
@@ -1431,12 +1461,15 @@
     treeEl.addEventListener('dragend', endDrag)
 
     /* ---------------- 排版模板下拉 ---------------- */
+    var LAYOUT_OF = { '思维导图': 'mindmap', '右侧分布': 'right', '组织结构': 'org', '目录': 'catalog', '鱼骨图': 'fishbone', '天盘': 'sky' }
     $('tplMenu').querySelectorAll('[data-tpl]').forEach(function (el) {
       el.addEventListener('click', function () {
         $('tplMenu').querySelectorAll('[data-tpl]').forEach(function (b) { b.disabled = false })
         el.disabled = true
         var label = el.textContent.trim()
-        // 非全屏与全屏两个入口共享当前模板名，仅由悬浮提示回显
+        // 切换即落地到画布：布局属性驱动缩进/连接线变体，用户可见结构变化而非仅改提示
+        $('mmInner').setAttribute('data-layout', LAYOUT_OF[label] || 'mindmap')
+        // 非全屏与全屏两个入口共享当前模板名，悬浮提示同步回显
         ;['tplBtn', 'tplBtnFull'].forEach(function (id) {
           $(id).setAttribute('title', '排版模板：' + label)
           $(id).setAttribute('aria-label', '排版模板：' + label)
@@ -1786,7 +1819,12 @@
     })
 
     $('navRoot').addEventListener('click', function () {
+      // 定位根节点：滚动 + 选中根节点 + 复位缩放，保证任何状态下都有可见 DOM 变化
       mm.scrollTo({ left: 0, top: 0, behavior: 'smooth' })
+      setZoom(100)
+      var rootLi = mmInner.querySelector('li')
+      if (rootLi) selectLi(rootLi)
+      closePopover()
     })
 
     $('navThumb').addEventListener('click', function () {

@@ -10,6 +10,10 @@
   /* 作者样式强于 UA [hidden]，分段/搜索切换须显式补显隐契约 */
   [hidden] { display: none !important; }
 
+  /* 表单校验失败态 */
+  .input.is-error,
+  .textarea.is-error { border-color: var(--st-danger); }
+
   /* 对应 ProjectListPage 的自适应卡片栅格 */
   .proj-grid {
     display: grid;
@@ -77,6 +81,26 @@
     gap: var(--space-xs);
   }
 
+  .proj-card__default,
+  .proj-card__readonly {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 2px 6px;
+    border: 1px solid var(--brand-100);
+    border-radius: var(--radius-sm);
+    background: var(--brand-50);
+    color: var(--brand-700);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+  }
+
+  .proj-card__readonly {
+    border-color: var(--n-200);
+    background: var(--n-100);
+    color: var(--n-500);
+  }
+
   .proj-card__name {
     display: flex;
     align-items: center;
@@ -128,6 +152,7 @@
   .proj-card__actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     flex-wrap: wrap;
     gap: 2px;
     margin-top: auto;
@@ -135,24 +160,42 @@
     border-top: 1px solid var(--n-100);
   }
 
-  .proj-card__actions .op-link { margin-right: 10px; }
+  .proj-card__actions .btn.btn--link {
+    height: 24px;
+    padding: 0 4px;
+    font-size: var(--font-size-sm);
+  }
 
-  /* 归档属警示操作，用橙色区别于蓝色可点击链接 */
-  .op-link--warning { color: var(--st-warning); }
-  .op-link--warning:hover { color: var(--st-warning-strong); }
+  .proj-card__actions .btn--link.is-warning {
+    color: var(--st-warning);
+  }
 
-  .proj-card__readonly {
-    display: inline-flex;
-    align-items: center;
-    min-height: 20px;
-    margin-right: auto;
-    padding: 2px 6px;
-    border: 1px solid var(--n-200);
-    border-radius: var(--radius-sm);
+  .proj-card__actions .btn--link.is-warning:hover {
+    color: var(--st-warning-strong);
+    background: var(--st-warning-light);
+  }
+
+  .proj-card__actions .btn--link.is-danger {
+    color: var(--st-danger);
+  }
+
+  .proj-card__actions .btn--link.is-danger:hover {
+    color: var(--st-danger-strong);
+    background: var(--st-danger-light);
+  }
+
+  .proj-card__actions .btn--link.is-muted {
+    color: var(--n-600);
+  }
+
+  .proj-card__actions .btn--link.is-muted:hover {
+    color: var(--n-800);
     background: var(--n-100);
-    color: var(--n-500);
-    font-size: var(--font-size-xs);
-    white-space: nowrap;
+  }
+
+  /* 已归档时「只读」标签靠左，操作按钮仍靠右 */
+  .proj-card__actions .proj-card__readonly {
+    margin-right: auto;
   }
 
   .proj-create {
@@ -160,21 +203,22 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 270px;
-    padding: 20px;
-    border: 1px dashed var(--brand-300);
+    min-height: 200px;
+    padding: var(--space-xl) var(--card-pad);
+    border: 1px dashed var(--n-300);
     border-radius: var(--radius-lg);
-    background: var(--brand-50);
-    color: var(--brand-700);
+    background: transparent;
+    color: var(--n-700);
     cursor: pointer;
     font: inherit;
     text-align: center;
-    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
   }
 
-  .proj-create:hover {
-    border-color: var(--brand-500);
-    background: var(--brand-100);
+  .proj-create:hover,
+  .proj-create:focus-visible {
+    border-color: var(--brand-400);
+    background: var(--brand-50);
     transform: translateY(-2px);
   }
 
@@ -182,17 +226,18 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
-    border: 1px solid var(--brand-200);
+    width: 56px;
+    height: 56px;
+    margin-bottom: 12px;
+    border: 1px solid var(--n-200);
     border-radius: 50%;
-    background: var(--n-0);
-    color: var(--brand-500);
+    background: var(--n-50);
+    color: var(--n-400);
   }
 
-  .proj-create__icon svg { width: 20px; height: 20px; }
-  .proj-create strong { margin-top: var(--space-sm); font-size: var(--font-size-base); font-weight: 600; }
-  .proj-create > span:last-child { max-width: 220px; margin-top: var(--space-xs); color: var(--brand-600); font-size: var(--font-size-xs); line-height: 1.5; }
+  .proj-create__icon svg { width: 24px; height: 24px; }
+  .proj-create strong { color: var(--n-900); font-size: var(--font-size-sm); font-weight: 600; }
+  .proj-create > span:last-child { margin-top: 4px; color: var(--n-500); font-size: var(--font-size-xs); line-height: 1.5; }
 
   .proj-loadmore {
     display: flex;
@@ -213,21 +258,21 @@
   <div class="page-head">
     <div>
       <h1 class="page-head__title">项目列表</h1>
-      <p class="page-head__desc">质量中台空间下的全部项目</p>
+      <p class="page-head__desc" id="workspace-desc">质量中台空间下的全部项目</p>
     </div>
     <div class="page-head__actions">
-      <button class="btn btn--primary" data-open="project-dialog"><span data-icon="plus"></span>新建项目</button>
+      <button class="btn btn--primary" id="btn-create-project" data-open="project-dialog"><span data-icon="plus"></span>新建项目</button>
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" aria-label="项目筛选">
     <div class="toolbar" style="border-bottom:none">
       <div class="toolbar__filters">
-        <div class="segment" id="status-segment">
-          <span class="segment__item segment__item--active" data-status="active">活跃（5）</span>
-          <span class="segment__item" data-status="archived">已归档（1）</span>
+        <div class="segment" id="status-segment" role="group" aria-label="项目状态">
+          <span class="segment__item segment__item--active" data-status="active">活跃（<span id="count-active">5</span>）</span>
+          <span class="segment__item" data-status="archived">已归档（<span id="count-archived">1</span>）</span>
         </div>
-        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="project-keyword" placeholder="项目名称 / 描述" autocomplete="off"></div>
+        <div class="input-wrap"><span data-icon="search"></span><input class="input" id="project-keyword" type="search" placeholder="项目名称 / 描述" autocomplete="off" aria-label="搜索项目名称或描述"></div>
       </div>
       <div class="toolbar__count">按最近更新排序</div>
     </div>
@@ -235,106 +280,106 @@
 
   <div class="proj-grid" id="proj-grid">
 
-    <article class="proj-card" data-status="active" data-search="电商核心系统 下单、支付、履约全链路质量保障" data-name="电商核心系统" data-desc="下单、支付、履约全链路质量保障" data-start="2026-06-01" data-end="2026-12-31">
+    <article class="proj-card" data-status="active" data-search="电商核心系统 下单、支付、履约全链路质量保障" data-name="电商核心系统" data-desc="下单、支付、履约全链路质量保障" data-start="2026-06-01" data-end="2026-12-31" aria-label="项目：电商核心系统">
       <div class="proj-card__head">
-        <span class="proj-card__icon" data-icon="monitor"></span>
+        <span class="proj-card__icon" aria-hidden="true" data-icon="monitor"></span>
         <span class="proj-card__badges">
-          <span class="tag tag--info tag--sm">默认项目</span>
-          <span class="tag tag--success">活跃</span>
+          <span class="proj-card__default">默认项目</span>
+          <span class="tag tag--success tag--sm">活跃</span>
         </span>
       </div>
-      <h3 class="proj-card__name"><span class="proj-card__star" data-icon="star"></span>电商核心系统</h3>
-      <p class="proj-card__desc">下单、支付、履约全链路质量保障</p>
+      <h3 class="proj-card__name"><span class="proj-card__star" aria-label="默认项目" data-icon="star"></span><span title="电商核心系统">电商核心系统</span></h3>
+      <p class="proj-card__desc" title="下单、支付、履约全链路质量保障">下单、支付、履约全链路质量保障</p>
       <div class="proj-card__dates"><span>开始：2026-06-01</span><span>结束：2026-12-31</span></div>
       <div class="proj-card__creator">张明 创建于 2026-05-28</div>
       <div class="proj-card__actions">
-        <span class="op-link op-link--warning">归档</span>
-        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
-        <span class="op-link">进入</span>
+        <button type="button" class="btn btn--link is-warning" data-action="archive">归档</button>
+        <button type="button" class="btn btn--link is-muted" data-action="edit">编辑</button>
+        <button type="button" class="btn btn--link" data-action="enter">进入</button>
       </div>
     </article>
 
-    <article class="proj-card" data-status="active" data-search="开放平台 开放 API 合同、鉴权与限流验证" data-name="开放平台" data-desc="开放 API 合同、鉴权与限流验证" data-start="2026-07-15" data-end="2026-11-30">
+    <article class="proj-card" data-status="active" data-search="开放平台 开放 API 合同、鉴权与限流验证" data-name="开放平台" data-desc="开放 API 合同、鉴权与限流验证" data-start="2026-07-15" data-end="2026-11-30" aria-label="项目：开放平台">
       <div class="proj-card__head">
-        <span class="proj-card__icon" data-icon="monitor"></span>
-        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+        <span class="proj-card__icon" aria-hidden="true" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success tag--sm">活跃</span></span>
       </div>
-      <h3 class="proj-card__name">开放平台</h3>
-      <p class="proj-card__desc">开放 API 合同、鉴权与限流验证</p>
+      <h3 class="proj-card__name"><span title="开放平台">开放平台</span></h3>
+      <p class="proj-card__desc" title="开放 API 合同、鉴权与限流验证">开放 API 合同、鉴权与限流验证</p>
       <div class="proj-card__dates"><span>开始：2026-07-15</span><span>结束：2026-11-30</span></div>
       <div class="proj-card__creator">李华 创建于 2026-07-10</div>
       <div class="proj-card__actions">
-        <span class="op-link">设为默认</span>
-        <span class="op-link op-link--warning">归档</span>
-        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
-        <span class="op-link">进入</span>
+        <button type="button" class="btn btn--link" data-action="default">设为默认</button>
+        <button type="button" class="btn btn--link is-warning" data-action="archive">归档</button>
+        <button type="button" class="btn btn--link is-muted" data-action="edit">编辑</button>
+        <button type="button" class="btn btn--link" data-action="enter">进入</button>
       </div>
     </article>
 
-    <article class="proj-card" data-status="active" data-search="数据服务 数仓分层校验与经营报表口径验证" data-name="数据服务" data-desc="数仓分层校验与经营报表口径验证" data-start="2026-08-01" data-end="2027-03-31">
+    <article class="proj-card" data-status="active" data-search="数据服务 数仓分层校验与经营报表口径验证" data-name="数据服务" data-desc="数仓分层校验与经营报表口径验证" data-start="2026-08-01" data-end="2027-03-31" aria-label="项目：数据服务">
       <div class="proj-card__head">
-        <span class="proj-card__icon" data-icon="monitor"></span>
-        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+        <span class="proj-card__icon" aria-hidden="true" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success tag--sm">活跃</span></span>
       </div>
-      <h3 class="proj-card__name">数据服务</h3>
-      <p class="proj-card__desc">数仓分层校验与经营报表口径验证</p>
+      <h3 class="proj-card__name"><span title="数据服务">数据服务</span></h3>
+      <p class="proj-card__desc" title="数仓分层校验与经营报表口径验证">数仓分层校验与经营报表口径验证</p>
       <div class="proj-card__dates"><span>开始：2026-08-01</span><span>结束：2027-03-31</span></div>
       <div class="proj-card__creator">王芳 创建于 2026-07-29</div>
       <div class="proj-card__actions">
-        <span class="op-link">设为默认</span>
-        <span class="op-link op-link--warning">归档</span>
-        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
-        <span class="op-link">进入</span>
+        <button type="button" class="btn btn--link" data-action="default">设为默认</button>
+        <button type="button" class="btn btn--link is-warning" data-action="archive">归档</button>
+        <button type="button" class="btn btn--link is-muted" data-action="edit">编辑</button>
+        <button type="button" class="btn btn--link" data-action="enter">进入</button>
       </div>
     </article>
 
-    <article class="proj-card" data-status="active" data-search="性能压测专项 大促峰值场景容量与稳定性验证" data-name="性能压测专项" data-desc="大促峰值场景容量与稳定性验证" data-start="2026-09-10" data-end="2026-11-01">
+    <article class="proj-card" data-status="active" data-search="性能压测专项 大促峰值场景容量与稳定性验证" data-name="性能压测专项" data-desc="大促峰值场景容量与稳定性验证" data-start="2026-09-10" data-end="2026-11-01" aria-label="项目：性能压测专项">
       <div class="proj-card__head">
-        <span class="proj-card__icon" data-icon="monitor"></span>
-        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+        <span class="proj-card__icon" aria-hidden="true" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success tag--sm">活跃</span></span>
       </div>
-      <h3 class="proj-card__name">性能压测专项</h3>
-      <p class="proj-card__desc">大促峰值场景容量与稳定性验证</p>
+      <h3 class="proj-card__name"><span title="性能压测专项">性能压测专项</span></h3>
+      <p class="proj-card__desc" title="大促峰值场景容量与稳定性验证">大促峰值场景容量与稳定性验证</p>
       <div class="proj-card__dates"><span>开始：2026-09-10</span><span>结束：2026-11-01</span></div>
       <div class="proj-card__creator">周敏 创建于 2026-09-05</div>
       <div class="proj-card__actions">
-        <span class="op-link">设为默认</span>
-        <span class="op-link op-link--warning">归档</span>
-        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
-        <span class="op-link">进入</span>
+        <button type="button" class="btn btn--link" data-action="default">设为默认</button>
+        <button type="button" class="btn btn--link is-warning" data-action="archive">归档</button>
+        <button type="button" class="btn btn--link is-muted" data-action="edit">编辑</button>
+        <button type="button" class="btn btn--link" data-action="enter">进入</button>
       </div>
     </article>
 
-    <article class="proj-card" data-status="active" data-search="安全合规" data-name="安全合规" data-desc="" data-start="2026-05-20" data-end="2026-10-30">
+    <article class="proj-card" data-status="active" data-search="安全合规" data-name="安全合规" data-desc="" data-start="2026-05-20" data-end="2026-10-30" aria-label="项目：安全合规">
       <div class="proj-card__head">
-        <span class="proj-card__icon" data-icon="monitor"></span>
-        <span class="proj-card__badges"><span class="tag tag--success">活跃</span></span>
+        <span class="proj-card__icon" aria-hidden="true" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--success tag--sm">活跃</span></span>
       </div>
-      <h3 class="proj-card__name">安全合规</h3>
-      <p class="proj-card__desc">暂无描述</p>
+      <h3 class="proj-card__name"><span title="安全合规">安全合规</span></h3>
+      <p class="proj-card__desc" title="暂无描述">暂无描述</p>
       <div class="proj-card__dates"><span>开始：2026-05-20</span><span>结束：2026-10-30</span></div>
       <div class="proj-card__creator">陈强 创建于 2026-05-18</div>
       <div class="proj-card__actions">
-        <span class="op-link">设为默认</span>
-        <span class="op-link op-link--warning">归档</span>
-        <span class="op-link op-link--muted" data-open="project-dialog">编辑</span>
-        <span class="op-link">进入</span>
+        <button type="button" class="btn btn--link" data-action="default">设为默认</button>
+        <button type="button" class="btn btn--link is-warning" data-action="archive">归档</button>
+        <button type="button" class="btn btn--link is-muted" data-action="edit">编辑</button>
+        <button type="button" class="btn btn--link" data-action="enter">进入</button>
       </div>
     </article>
 
-    <article class="proj-card proj-card--archived" data-status="archived" data-search="2025双十一大促专项 大促全链路容量与稳定性复盘" data-name="2025双十一大促专项" data-desc="大促全链路容量与稳定性复盘" data-start="2025-09-01" data-end="2025-11-30">
+    <article class="proj-card proj-card--archived" data-status="archived" data-search="2025双十一大促专项 大促全链路容量与稳定性复盘" data-name="2025双十一大促专项" data-desc="大促全链路容量与稳定性复盘" data-start="2025-09-01" data-end="2025-11-30" aria-label="已归档项目：2025双十一大促专项，只读" aria-disabled="true">
       <div class="proj-card__head">
-        <span class="proj-card__icon" data-icon="monitor"></span>
-        <span class="proj-card__badges"><span class="tag tag--neutral">已归档</span></span>
+        <span class="proj-card__icon" aria-hidden="true" data-icon="monitor"></span>
+        <span class="proj-card__badges"><span class="tag tag--neutral tag--sm">已归档</span></span>
       </div>
-      <h3 class="proj-card__name">2025双十一大促专项</h3>
-      <p class="proj-card__desc">大促全链路容量与稳定性复盘</p>
+      <h3 class="proj-card__name"><span title="2025双十一大促专项">2025双十一大促专项</span></h3>
+      <p class="proj-card__desc" title="大促全链路容量与稳定性复盘">大促全链路容量与稳定性复盘</p>
       <div class="proj-card__dates"><span>开始：2025-09-01</span><span>结束：2025-11-30</span></div>
       <div class="proj-card__creator">张明 创建于 2025-08-20</div>
       <div class="proj-card__actions">
         <span class="proj-card__readonly">只读</span>
-        <span class="op-link op-link--muted">启封</span>
-        <span class="op-link op-link--danger">删除</span>
+        <button type="button" class="btn btn--link is-muted" data-action="unarchive">启封</button>
+        <button type="button" class="btn btn--link is-danger" data-action="delete">删除</button>
       </div>
     </article>
 
@@ -353,7 +398,16 @@
       <div class="state-block__icon" style="font-size:24px;font-weight:600">?</div>
       <div class="state-block__title">未找到匹配的项目</div>
       <div class="state-block__desc">请调整项目名称或描述，或切换项目状态</div>
-      <div class="state-block__action"><button class="btn btn--default" id="clear-filters">清除筛选</button></div>
+      <div class="state-block__action"><button class="btn btn--default" type="button" id="clear-filters">清除筛选</button></div>
+    </div>
+  </div>
+
+  <div class="card block-gap" id="proj-workspace-empty" hidden>
+    <div class="state-block">
+      <div class="state-block__icon"><span data-icon="folder"></span></div>
+      <div class="state-block__title">欢迎来到「质量中台」</div>
+      <div class="state-block__desc">当前工作空间还没有任何项目，创建您的第一个项目开始测试管理</div>
+      <div class="state-block__action"><button class="btn btn--primary" type="button" data-open="project-dialog">创建第一个项目</button></div>
     </div>
   </div>
 
@@ -368,6 +422,7 @@
           <label class="field__label" for="project-name">名称 <span class="req">*</span></label>
           <input class="input" id="project-name" maxlength="100" placeholder="项目名称（工作空间内唯一）">
           <div class="field__hint"><span id="project-name-count">0</span>/100</div>
+          <div class="field__error" id="project-name-error" hidden></div>
         </div>
         <div class="field">
           <label class="field__label" for="project-desc">描述</label>
@@ -380,11 +435,12 @@
         <div class="field" style="margin-bottom:0">
           <label class="field__label" for="project-end">结束时间</label>
           <input class="input" id="project-end" type="date" placeholder="选择结束日期">
+          <div class="field__error" id="project-end-error" hidden></div>
         </div>
       </div>
       <div class="dialog__footer">
-        <button class="btn btn--default" data-close="project-dialog">取消</button>
-        <button class="btn btn--primary" id="project-submit">创建</button>
+        <button class="btn btn--default" type="button" data-close="project-dialog">取消</button>
+        <button class="btn btn--primary" type="button" id="project-submit">创建</button>
       </div>
     </div>
   </div>
@@ -397,58 +453,12 @@
 (function () {
   var grid = document.getElementById('proj-grid');
   var emptyState = document.getElementById('proj-empty');
+  var workspaceEmpty = document.getElementById('proj-workspace-empty');
   var loadMore = document.getElementById('proj-loadmore');
   var keyword = document.getElementById('project-keyword');
   var segment = document.getElementById('status-segment');
-  var cards = Array.prototype.slice.call(grid.querySelectorAll('.proj-card'));
-  var createCard = grid.querySelector('.proj-create');
-  var status = 'active';
-  var debounceTimer = null;
-
-  function render() {
-    var kw = keyword.value.trim().toLowerCase();
-    var shown = 0;
-    cards.forEach(function (card) {
-      var matched =
-        card.getAttribute('data-status') === status &&
-        (!kw || card.getAttribute('data-search').toLowerCase().indexOf(kw) !== -1);
-      card.hidden = !matched;
-      if (matched) shown += 1;
-    });
-    // 无匹配结果时整段替换为空态，新建卡片与加载提示一并不渲染
-    grid.hidden = shown === 0;
-    createCard.hidden = shown === 0;
-    loadMore.hidden = shown === 0;
-    emptyState.hidden = shown !== 0;
-  }
-
-  segment.addEventListener('click', function (e) {
-    var item = e.target.closest('.segment__item');
-    if (!item) return;
-    Array.prototype.forEach.call(this.querySelectorAll('.segment__item'), function (s) {
-      s.classList.remove('segment__item--active');
-    });
-    item.classList.add('segment__item--active');
-    status = item.getAttribute('data-status');
-    render();
-  });
-
-  // 与实际页一致：按名称 / 描述搜索，输入 300ms 防抖
-  keyword.addEventListener('input', function () {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(render, 300);
-  });
-
-  document.getElementById('clear-filters').addEventListener('click', function () {
-    clearTimeout(debounceTimer);
-    keyword.value = '';
-    status = 'active';
-    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
-      s.classList.toggle('segment__item--active', s.getAttribute('data-status') === 'active');
-    });
-    render();
-  });
-
+  var countActive = document.getElementById('count-active');
+  var countArchived = document.getElementById('count-archived');
   var dialog = document.getElementById('project-dialog');
   var dialogTitle = document.getElementById('project-dialog-title');
   var nameInput = document.getElementById('project-name');
@@ -457,29 +467,308 @@
   var endInput = document.getElementById('project-end');
   var submitBtn = document.getElementById('project-submit');
   var nameCount = document.getElementById('project-name-count');
+  var nameError = document.getElementById('project-name-error');
+  var endError = document.getElementById('project-end-error');
+
+  // 只在加载时从静态卡片读取一次，任何变更都写入内存数组并重绘；刷新即恢复 demo 初始数据
+  var projects = Array.prototype.slice.call(grid.querySelectorAll('.proj-card')).map(function (card, i) {
+    return {
+      id: 'p' + (i + 1),
+      status: card.getAttribute('data-status'),
+      name: card.getAttribute('data-name') || '',
+      desc: card.getAttribute('data-desc') || '',
+      start: card.getAttribute('data-start') || '',
+      end: card.getAttribute('data-end') || '',
+      creator: card.querySelector('.proj-card__creator').textContent.trim(),
+      isDefault: !!card.querySelector('.proj-card__default')
+    };
+  });
+  var idSeq = projects.length;
+  var status = 'active';
+  var editingId = null;
+  var debounceTimer = null;
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function findProject(id) {
+    for (var i = 0; i < projects.length; i += 1) {
+      if (projects[i].id === id) return projects[i];
+    }
+    return null;
+  }
+
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+
+  function cardHtml(p) {
+    var archived = p.status === 'archived';
+    var desc = p.desc || '暂无描述';
+    var badges = archived
+      ? '<span class="tag tag--neutral tag--sm">已归档</span>'
+      : (p.isDefault ? '<span class="proj-card__default">默认项目</span>' : '') +
+        '<span class="tag tag--success tag--sm">活跃</span>';
+    var star = p.isDefault && !archived
+      ? '<span class="proj-card__star" aria-label="默认项目" data-icon="star"></span>'
+      : '';
+    var actions = archived
+      ? '<span class="proj-card__readonly">只读</span>' +
+        '<button type="button" class="btn btn--link is-muted" data-action="unarchive">启封</button>' +
+        '<button type="button" class="btn btn--link is-danger" data-action="delete">删除</button>'
+      : (p.isDefault ? '' : '<button type="button" class="btn btn--link" data-action="default">设为默认</button>') +
+        '<button type="button" class="btn btn--link is-warning" data-action="archive">归档</button>' +
+        '<button type="button" class="btn btn--link is-muted" data-action="edit">编辑</button>' +
+        '<button type="button" class="btn btn--link" data-action="enter">进入</button>';
+
+    return '<article class="proj-card' + (archived ? ' proj-card--archived' : '') + '"' +
+      ' data-id="' + esc(p.id) + '"' +
+      ' data-status="' + (archived ? 'archived' : 'active') + '"' +
+      ' data-search="' + esc((p.name + ' ' + p.desc).trim()) + '"' +
+      ' data-name="' + esc(p.name) + '"' +
+      ' data-desc="' + esc(p.desc) + '"' +
+      ' data-start="' + esc(p.start) + '"' +
+      ' data-end="' + esc(p.end) + '"' +
+      ' aria-label="' + (archived ? '已归档项目：' : '项目：') + esc(p.name) + (archived ? '，只读' : '') + '"' +
+      (archived ? ' aria-disabled="true"' : '') + '>' +
+        '<div class="proj-card__head">' +
+          '<span class="proj-card__icon" aria-hidden="true" data-icon="monitor"></span>' +
+          '<span class="proj-card__badges">' + badges + '</span>' +
+        '</div>' +
+        '<h3 class="proj-card__name">' + star + '<span title="' + esc(p.name) + '">' + esc(p.name) + '</span></h3>' +
+        '<p class="proj-card__desc" title="' + esc(desc) + '">' + esc(desc) + '</p>' +
+        '<div class="proj-card__dates"><span>开始：' + esc(p.start) + '</span><span>结束：' + esc(p.end) + '</span></div>' +
+        '<div class="proj-card__creator">' + esc(p.creator) + '</div>' +
+        '<div class="proj-card__actions">' + actions + '</div>' +
+      '</article>';
+  }
+
+  function updateCounts() {
+    var active = 0;
+    var archived = 0;
+    projects.forEach(function (p) {
+      if (p.status === 'archived') archived += 1;
+      else active += 1;
+    });
+    countActive.textContent = String(active);
+    countArchived.textContent = String(archived);
+  }
+
+  function applyFilter() {
+    var kw = keyword.value.trim().toLowerCase();
+    var shown = 0;
+    Array.prototype.forEach.call(grid.querySelectorAll('.proj-card'), function (card) {
+      var matched = card.getAttribute('data-status') === status &&
+        (!kw || (card.getAttribute('data-search') || '').toLowerCase().indexOf(kw) !== -1);
+      card.hidden = !matched;
+      if (matched) shown += 1;
+    });
+    var total = projects.length;
+    grid.hidden = total === 0 || shown === 0;
+    loadMore.hidden = grid.hidden;
+    emptyState.hidden = total === 0 || shown !== 0;
+    workspaceEmpty.hidden = total !== 0;
+  }
+
+  function renderCards() {
+    grid.innerHTML = projects.map(cardHtml).join('') +
+      '<button class="proj-create" type="button" data-open="project-dialog">' +
+        '<span class="proj-create__icon" data-icon="plus"></span>' +
+        '<strong>新建项目</strong>' +
+        '<span>从项目开始组织测试资产与团队协作</span>' +
+      '</button>';
+    if (window.RTIcons) window.RTIcons.hydrate(grid);
+    updateCounts();
+    applyFilter();
+  }
+
+  function setSegment(next) {
+    status = next;
+    Array.prototype.forEach.call(segment.querySelectorAll('.segment__item'), function (s) {
+      s.classList.toggle('segment__item--active', s.getAttribute('data-status') === status);
+    });
+  }
+
+  // 变更后切到目标状态并清空搜索词，保证新建 / 编辑 / 归档结果立即可见
+  function reveal(p) {
+    setSegment(p.status);
+    keyword.value = '';
+    renderCards();
+  }
+
+  function goProject() {
+    window.location.href = new URL('../project/dashboard.html', window.location.href).href;
+  }
+
+  function clearErrors() {
+    [nameError, endError].forEach(function (el) { el.hidden = true; el.textContent = ''; });
+    [nameInput, endInput].forEach(function (el) { el.classList.remove('is-error'); });
+  }
+
+  function showError(el, input, msg) {
+    el.textContent = msg;
+    el.hidden = false;
+    input.classList.add('is-error');
+    input.focus();
+  }
+
+  function openDialog(id) {
+    editingId = id || null;
+    var p = editingId ? findProject(editingId) : null;
+    dialogTitle.textContent = p ? '编辑项目' : '新建项目';
+    submitBtn.textContent = p ? '保存' : '创建';
+    nameInput.value = p ? p.name : '';
+    descInput.value = p ? p.desc : '';
+    startInput.value = p ? p.start : '';
+    endInput.value = p ? p.end : '';
+    nameCount.textContent = String(nameInput.value.length);
+    clearErrors();
+    dialog.hidden = false;
+    nameInput.focus();
+  }
+
+  function closeDialog() {
+    dialog.hidden = true;
+    editingId = null;
+    clearErrors();
+  }
+
+  segment.addEventListener('click', function (e) {
+    var item = e.target.closest('.segment__item');
+    if (!item) return;
+    setSegment(item.getAttribute('data-status'));
+    applyFilter();
+  });
+
+  // 与实际页一致：按名称 / 描述搜索，输入 300ms 防抖
+  keyword.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(applyFilter, 300);
+  });
+
+  document.getElementById('clear-filters').addEventListener('click', function () {
+    clearTimeout(debounceTimer);
+    keyword.value = '';
+    setSegment('active');
+    applyFilter();
+  });
+
+  grid.addEventListener('click', function (e) {
+    var card = e.target.closest('.proj-card');
+    if (!card) return;
+    var p = findProject(card.getAttribute('data-id'));
+    if (!p) return;
+    var actionBtn = e.target.closest('[data-action]');
+    if (actionBtn) {
+      var action = actionBtn.getAttribute('data-action');
+      if (action === 'enter') {
+        goProject();
+      } else if (action === 'edit') {
+        openDialog(p.id);
+      } else if (action === 'default') {
+        projects.forEach(function (item) { item.isDefault = item.id === p.id; });
+        renderCards();
+      } else if (action === 'archive' || action === 'unarchive') {
+        p.status = action === 'archive' ? 'archived' : 'active';
+        reveal(p);
+      } else if (action === 'delete') {
+        projects = projects.filter(function (item) { return item.id !== p.id; });
+        renderCards();
+      }
+      return;
+    }
+    if (p.status === 'active') goProject();
+  });
 
   document.addEventListener('click', function (e) {
     var opener = e.target.closest('[data-open]');
     if (opener) {
-      // 新建 / 编辑共用弹窗，编辑时按卡片数据预填
-      var card = opener.closest('.proj-card');
-      dialogTitle.textContent = card ? '编辑项目' : '新建项目';
-      submitBtn.textContent = card ? '保存' : '创建';
-      nameInput.value = card ? card.getAttribute('data-name') : '';
-      descInput.value = card ? card.getAttribute('data-desc') : '';
-      startInput.value = card ? card.getAttribute('data-start') : '';
-      endInput.value = card ? card.getAttribute('data-end') : '';
-      nameCount.textContent = String(nameInput.value.length);
-      dialog.hidden = false;
+      if (opener.getAttribute('data-open') === 'project-dialog') openDialog(null);
       return;
     }
     var closer = e.target.closest('[data-close]');
-    if (closer) document.getElementById(closer.getAttribute('data-close')).hidden = true;
+    if (closer) {
+      var target = document.getElementById(closer.getAttribute('data-close'));
+      if (target) target.hidden = true;
+      return;
+    }
+    if (e.target === dialog) closeDialog();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Escape' || e.key === 'Esc') && !dialog.hidden) {
+      e.preventDefault();
+      closeDialog();
+    }
   });
 
   nameInput.addEventListener('input', function () {
     nameCount.textContent = String(nameInput.value.length);
+    nameError.hidden = true;
+    nameInput.classList.remove('is-error');
   });
+  [descInput, startInput, endInput].forEach(function (el) {
+    el.addEventListener('input', function () {
+      endError.hidden = true;
+      endInput.classList.remove('is-error');
+    });
+  });
+
+  submitBtn.addEventListener('click', function () {
+    clearErrors();
+    var name = nameInput.value.trim();
+    var desc = descInput.value.trim();
+    var start = startInput.value;
+    var end = endInput.value;
+    if (!name) {
+      showError(nameError, nameInput, '请输入项目名称');
+      return;
+    }
+    var duplicated = projects.some(function (p) {
+      return p.id !== editingId && p.name.trim().toLowerCase() === name.toLowerCase();
+    });
+    if (duplicated) {
+      showError(nameError, nameInput, '项目名称已存在，请更换');
+      return;
+    }
+    if (start && end && start > end) {
+      showError(endError, endInput, '结束时间不能早于开始时间');
+      return;
+    }
+    var target;
+    if (editingId) {
+      target = findProject(editingId);
+      if (target) {
+        target.name = name;
+        target.desc = desc;
+        target.start = start;
+        target.end = end;
+      }
+    } else {
+      target = {
+        id: 'p' + (idSeq += 1),
+        status: 'active',
+        name: name,
+        desc: desc,
+        start: start,
+        end: end,
+        creator: '张明 创建于 ' + today(),
+        isDefault: projects.length === 0
+      };
+      projects.push(target);
+    }
+    closeDialog();
+    reveal(target);
+  });
+
+  renderCards();
 })();
 </script>
 </body>

@@ -16,32 +16,67 @@
   /* 已关闭计划在实际页走 Element 默认色，演示页禁用蓝，以中性色表达终止态 */
   .progress__fill--muted { background: var(--n-300); }
 
+  /* 当前页是状态展示而非可点击项，与 Element Plus 分页的 current 一致 */
+  #pager-current { cursor: default; }
+
   /* 操作列固定宽度，表格总宽超过视口时保留横向滚动条（b77ae075） */
   #plan-table { min-width: 1240px; }
   #plan-table th:last-child,
   #plan-table td.ops-cell { width: 280px; min-width: 280px; white-space: nowrap; }
 
-  /* 列显隐配置：220px popover，操作列 pinned 不可取消（TableColumnSetting） */
-  .col-setting { position: relative; flex-shrink: 0; }
+  /* 列显隐入口在操作列表头内，对齐 TableColumnSetting(icon-only) */
+  .plan-table__action-head {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-xs);
+    width: 100%;
+  }
+  .col-setting { position: relative; display: inline-flex; }
+  .col-setting__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--n-500);
+    cursor: pointer;
+  }
+  .col-setting__trigger:hover { color: var(--n-900); background: var(--n-100); }
+  .col-setting__trigger svg { width: 14px; height: 14px; }
   .col-setting__popover {
     position: absolute; top: calc(100% + 6px); right: 0; z-index: 120; width: 220px;
     padding: 12px; background: var(--n-0); border: 1px solid var(--n-200);
-    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); text-align: left;
   }
   .col-setting__title { font-size: var(--font-size-sm); color: var(--n-600); margin-bottom: var(--space-sm); }
   .col-setting__list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 320px; overflow-y: auto; }
   .col-setting__item {
     display: flex; align-items: center; gap: 8px;
-    font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer;
+    font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; font-weight: 400;
   }
   .col-setting__actions {
     display: flex; justify-content: space-between; margin-top: var(--space-sm);
     padding-top: var(--space-sm); border-top: 1px solid var(--n-200);
   }
 
+  /* 分页每页条数：对齐 ListPagination 默认 sizes [20,50,100] */
+  .page-size {
+    width: auto; height: 28px; padding: 0 24px 0 8px;
+    font-size: var(--font-size-sm);
+    background-position: right 6px center;
+  }
+
   /* 需求选择器：编辑弹窗内勾选关联需求，口径同 RequirementPickerDialog */
   .req-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .req-pick__item { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .req-pick--dialog { max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .req-pick--dialog .req-pick__item { padding: 7px 8px; border-radius: var(--radius-sm); }
+  .req-pick--dialog .req-pick__item:hover { background: var(--n-100); }
+  .req-pick__empty { padding: 16px 8px; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
+  .plan-create__requirement-count, .plan-edit__requirement-count { margin-left: 8px; font-size: var(--font-size-xs); color: var(--n-400); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -57,15 +92,15 @@
           <p class="page-head__desc">计划维度组织用例执行与通过率统计</p>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--primary" data-open="create-dialog"><span data-icon="plus"></span>新建计划</button>
+          <button class="btn btn--primary" type="button" data-open="create-dialog"><span data-icon="plus"></span>新建计划</button>
         </div>
       </div>
 
       <div class="card">
         <div class="toolbar">
           <div class="toolbar__filters">
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" id="plan-keyword" placeholder="计划名称" style="width:200px"></div>
-            <select class="select" id="plan-status" style="width:130px">
+            <div class="input-wrap" style="flex:1 1 14rem;max-width:32rem;min-width:0"><span data-icon="search"></span><input class="input" id="plan-keyword" aria-label="计划名称" placeholder="计划名称" style="width:100%"></div>
+            <select class="select" id="plan-status" aria-label="计划状态" style="width:130px">
               <option value="">全部状态</option>
               <option value="new">未开始</option>
               <option value="in_progress">执行中</option>
@@ -73,19 +108,8 @@
               <option value="blocked">已阻塞</option>
               <option value="closed">已关闭</option>
             </select>
-            <button class="btn btn--primary" id="plan-search"><span data-icon="search"></span>查询</button>
-            <button class="btn btn--default" id="plan-reset">重置</button>
-            <div class="col-setting">
-              <button class="btn btn--default btn--sm" id="plan-col-btn" type="button" aria-label="列设置"><span data-icon="settings"></span>列设置</button>
-              <div class="col-setting__popover" id="plan-col-popover" hidden>
-                <div class="col-setting__title">显示列</div>
-                <div class="col-setting__list" id="plan-col-list"></div>
-                <div class="col-setting__actions">
-                  <button class="btn btn--link btn--sm" id="plan-col-all" type="button">全选</button>
-                  <button class="btn btn--link btn--sm" id="plan-col-reset" type="button">恢复默认</button>
-                </div>
-              </div>
-            </div>
+            <button class="btn btn--primary" type="button" id="plan-search"><span data-icon="search"></span>查询</button>
+            <button class="btn btn--default" type="button" id="plan-reset">重置</button>
           </div>
           <div class="toolbar__count" id="plan-count">共 18 个计划</div>
         </div>
@@ -93,7 +117,25 @@
         <div class="table-wrap">
           <table class="table" id="plan-table">
             <thead>
-              <tr><th>名称</th><th>负责人</th><th>起止时间</th><th>环境</th><th>状态</th><th>进度</th><th class="rate-col">通过率</th><th>创建时间</th><th>操作</th></tr>
+              <tr>
+                <th>名称</th><th>负责人</th><th>起止时间</th><th>环境</th><th>状态</th><th>进度</th><th class="rate-col">通过率</th><th>创建时间</th>
+                <th>
+                  <div class="plan-table__action-head">
+                    <span>操作</span>
+                    <div class="col-setting">
+                      <button class="col-setting__trigger" id="plan-col-btn" type="button" aria-label="列设置"><span data-icon="settings"></span></button>
+                      <div class="col-setting__popover" id="plan-col-popover" hidden>
+                        <div class="col-setting__title">显示列</div>
+                        <div class="col-setting__list" id="plan-col-list"></div>
+                        <div class="col-setting__actions">
+                          <button class="btn btn--link btn--sm" id="plan-col-all" type="button">全选</button>
+                          <button class="btn btn--link btn--sm" id="plan-col-reset" type="button">恢复默认</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </th>
+              </tr>
             </thead>
             <tbody>
               <tr data-status="in_progress" data-req="3" data-owner="张明" data-time="09-20 ~ 09-24" data-env="staging">
@@ -192,9 +234,14 @@
 
         <div class="pagination">
           <span class="pagination__total" id="pager-total">共 18 个计划 · 每页 20 条</span>
-          <button class="page-btn" disabled>‹</button>
-          <button class="page-btn page-btn--active">1</button>
-          <button class="page-btn" disabled>›</button>
+          <select class="select page-size" id="page-size" aria-label="每页条数">
+            <option value="20" selected>20 条/页</option>
+            <option value="50">50 条/页</option>
+            <option value="100">100 条/页</option>
+          </select>
+          <button class="page-btn" id="pager-prev" type="button" disabled>‹</button>
+          <span class="page-btn page-btn--active" id="pager-current" aria-current="page">1</span>
+          <button class="page-btn" id="pager-next" type="button" disabled>›</button>
         </div>
       </div>
     </div>
@@ -202,7 +249,7 @@
 </main>
 
 <!-- 二次确认：对应实际页 完成 / 恢复 / 删除 / 关联需求变化重新规划 的 ElMessageBox.confirm -->
-<div class="dialog-mask" id="confirm-dialog" hidden>
+<div class="dialog-mask" id="confirm-dialog" data-mask-close style="z-index:300" hidden>
   <div class="dialog" style="width:420px" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="dialog__header">
       <span class="dialog__title" id="confirm-title">确认操作</span>
@@ -217,7 +264,7 @@
   </div>
 </div>
 
-<!-- 新建计划：字段与校验口径同实际页 el-dialog -->
+<!-- 新建计划：字段与校验口径同 PlanCreateDialog / RequirementPickerDialog -->
 <div class="dialog-mask" id="create-dialog" data-mask-close hidden>
   <div class="dialog" style="width:600px" role="dialog" aria-modal="true" aria-labelledby="create-title">
     <div class="dialog__header">
@@ -232,7 +279,7 @@
       </div>
       <div class="field">
         <label class="field__label" for="c-desc">描述</label>
-        <textarea class="textarea" id="c-desc" placeholder="计划描述（可选）"></textarea>
+        <textarea class="textarea" id="c-desc" rows="2" placeholder="计划描述（可选）"></textarea>
       </div>
       <div class="field">
         <label class="field__label" for="c-owner">负责人</label>
@@ -245,32 +292,30 @@
           <option>赵磊</option>
         </select>
       </div>
-      <div class="form-grid">
-        <div class="field">
-          <label class="field__label" for="c-start">开始时间</label>
-          <input class="input" type="date" id="c-start">
-        </div>
-        <div class="field">
-          <label class="field__label" for="c-end">结束时间</label>
-          <input class="input" type="date" id="c-end">
-        </div>
+      <div class="field">
+        <label class="field__label" for="c-start">开始时间</label>
+        <input class="input" type="date" id="c-start">
+      </div>
+      <div class="field">
+        <label class="field__label" for="c-end">结束时间</label>
+        <input class="input" type="date" id="c-end">
       </div>
       <div class="field">
         <label class="field__label" for="c-env">执行环境</label>
         <input class="input" id="c-env" placeholder="如：staging / production">
       </div>
-      <div class="field">
-        <span class="field__label">关联用例</span>
+      <div class="field" style="margin-bottom:0">
+        <span class="field__label">关联需求</span>
         <div class="flex-center flex-gap-md">
-          <button class="btn btn--default btn--sm" id="c-pick">选择用例</button>
-          <span class="text-xs muted" id="c-count" hidden></span>
+          <button class="btn btn--default" type="button" id="c-pick">选择需求</button>
+          <span class="plan-create__requirement-count" id="c-count" hidden></span>
         </div>
         <div class="field__error" id="c-case-error" hidden></div>
       </div>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default" data-close="create-dialog">取消</button>
-      <button class="btn btn--primary" id="c-submit">创建</button>
+      <button class="btn btn--default" type="button" data-close="create-dialog">取消</button>
+      <button class="btn btn--primary" type="button" id="c-submit">创建</button>
     </div>
   </div>
 </div>
@@ -303,15 +348,13 @@
           <option>赵磊</option>
         </select>
       </div>
-      <div class="form-grid">
-        <div class="field">
-          <label class="field__label" for="e-start">开始时间</label>
-          <input class="input" type="date" id="e-start">
-        </div>
-        <div class="field">
-          <label class="field__label" for="e-end">结束时间</label>
-          <input class="input" type="date" id="e-end">
-        </div>
+      <div class="field">
+        <label class="field__label" for="e-start">开始时间</label>
+        <input class="input" type="date" id="e-start">
+      </div>
+      <div class="field">
+        <label class="field__label" for="e-end">结束时间</label>
+        <input class="input" type="date" id="e-end">
       </div>
       <div class="field">
         <label class="field__label" for="e-env">执行环境</label>
@@ -320,14 +363,8 @@
       <div class="field" style="margin-bottom:0">
         <span class="field__label">关联需求</span>
         <div class="flex-center flex-gap-md">
-          <button class="btn btn--default btn--sm" id="e-pick" type="button">选择需求</button>
-          <span class="text-xs muted" id="e-req-count"></span>
-        </div>
-        <div class="req-pick" id="e-req-list" hidden>
-          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2210"></span>REQ-2210 · 购物车结算金额计算</label>
-          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2235"></span>REQ-2235 · 支付回调幂等处理</label>
-          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2241"></span>REQ-2241 · 优惠券叠加规则</label>
-          <label class="req-pick__item"><span class="checkbox" data-code="REQ-2258"></span>REQ-2258 · 履约时效承诺</label>
+          <button class="btn btn--default" type="button" id="e-pick">选择需求</button>
+          <span class="plan-edit__requirement-count" id="e-req-count"></span>
         </div>
         <div class="field__error" id="e-req-error" hidden></div>
       </div>
@@ -335,6 +372,28 @@
     <div class="dialog__footer">
       <button class="btn btn--default" data-close="edit-dialog">取消</button>
       <button class="btn btn--primary" id="e-submit">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 需求选择器：新建与编辑共用，勾选后真实回写各自的关联需求数 -->
+<div class="dialog-mask" id="req-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:520px" role="dialog" aria-modal="true" aria-labelledby="rq-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="rq-title">选择需求</span>
+      <button class="dialog__close" type="button" data-close="req-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="flex-center flex-gap-sm" style="margin-bottom:12px">
+        <input class="input" id="rq-filter" placeholder="按需求编号或标题过滤" aria-label="按需求编号或标题过滤" style="flex:1">
+        <button class="btn btn--default" type="button" id="rq-search">过滤</button>
+      </div>
+      <div class="req-pick req-pick--dialog" id="rq-list"></div>
+    </div>
+    <div class="dialog__footer">
+      <span class="plan-create__requirement-count" id="rq-count" style="margin-right:auto">已选 0 个需求</span>
+      <button class="btn btn--default" type="button" data-close="req-dialog">取消</button>
+      <button class="btn btn--primary" type="button" id="rq-confirm">确定</button>
     </div>
   </div>
 </div>
@@ -360,8 +419,35 @@
   }
 
   var total = 18;
+  var pageSize = 20;
+  var currentPage = 1;
   var appliedKeyword = '';
   var appliedStatus = '';
+
+  // 需求选择器的数据源与已提交选择：新建/编辑各自独立，刷新即回到初始态
+  var REQUIREMENTS = [
+    { code: 'REQ-2210', label: '购物车结算金额计算' },
+    { code: 'REQ-2235', label: '支付回调幂等处理' },
+    { code: 'REQ-2241', label: '优惠券叠加规则' },
+    { code: 'REQ-2258', label: '履约时效承诺' }
+  ];
+  var committedReq = { create: [], edit: [] };
+  var pickerTarget = null;
+  var pickerTemp = [];
+  var pickerFilter = '';
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  function nowText() {
+    var d = new Date();
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
 
   // 与实际页 planListPresentation 的标签与语义色同源
   var STATUS = {
@@ -390,22 +476,26 @@
     return Array.prototype.slice.call(document.querySelectorAll('tbody tr[data-status]'));
   }
 
-  // 静态表格无法用 v-if，初始化时给每个单元格打列标记，列设置按标记切换隐藏
-  function markColumns() {
+  // 静态表格无法用 v-if，用列标记让列设置与新建行都能切换隐藏
+  function markHeadColumns() {
     var headCells = document.querySelectorAll('#plan-table thead th');
     Array.prototype.forEach.call(headCells, function (th, i) {
       th.setAttribute('data-col', COLUMNS[i].key);
     });
-    rowList().forEach(function (row) {
-      Array.prototype.forEach.call(row.children, function (td, i) {
-        if (i < COLUMNS.length) td.setAttribute('data-col', COLUMNS[i].key);
-      });
-      var req = Number(row.getAttribute('data-req') || 0);
-      if (req > 0) {
-        var sub = row.querySelector('.cell-sub');
-        sub.textContent = '关联需求 ' + req + ' 项 · ' + sub.textContent;
-      }
+  }
+
+  function markRowColumns(row) {
+    Array.prototype.forEach.call(row.children, function (td, i) {
+      if (i < COLUMNS.length) td.setAttribute('data-col', COLUMNS[i].key);
     });
+    var req = Number(row.getAttribute('data-req') || 0);
+    var sub = row.querySelector('.cell-sub');
+    if (req > 0 && sub) sub.textContent = '关联需求 ' + req + ' 项 · ' + sub.textContent;
+  }
+
+  function markColumns() {
+    markHeadColumns();
+    rowList().forEach(markRowColumns);
   }
 
   function applyColumns() {
@@ -480,24 +570,35 @@
   }
 
   function render() {
-    var shown = 0;
+    var matchedRows = [];
     rowList().forEach(function (row) {
       var name = row.querySelector('.cell-main a').textContent;
       var matched =
         (!appliedKeyword || name.indexOf(appliedKeyword) !== -1) &&
         (!appliedStatus || row.getAttribute('data-status') === appliedStatus);
       row.hidden = !matched;
-      if (matched) shown += 1;
+      if (matched) matchedRows.push(row);
     });
-    byId('plan-empty').hidden = shown !== 0;
-    var text = appliedKeyword || appliedStatus ? '共 ' + shown + ' 个计划' : countText();
+    var pageCount = Math.max(1, Math.ceil(matchedRows.length / pageSize));
+    if (currentPage > pageCount) currentPage = pageCount;
+    var start = (currentPage - 1) * pageSize;
+    matchedRows.forEach(function (row, i) {
+      row.hidden = i < start || i >= start + pageSize;
+    });
+
+    byId('plan-empty').hidden = matchedRows.length !== 0;
+    var text = appliedKeyword || appliedStatus ? '共 ' + matchedRows.length + ' 个计划' : countText();
     byId('plan-count').textContent = text;
-    byId('pager-total').textContent = text + ' · 每页 20 条';
+    byId('pager-total').textContent = text + ' · 每页 ' + pageSize + ' 条';
+    byId('pager-current').textContent = String(currentPage);
+    byId('pager-prev').disabled = currentPage <= 1;
+    byId('pager-next').disabled = currentPage >= pageCount;
   }
 
   function search() {
     appliedKeyword = byId('plan-keyword').value.trim();
     appliedStatus = byId('plan-status').value;
+    currentPage = 1;
     render();
   }
 
@@ -506,6 +607,7 @@
     byId('plan-status').value = '';
     appliedKeyword = '';
     appliedStatus = '';
+    currentPage = 1;
     render();
   }
 
@@ -513,6 +615,18 @@
   byId('plan-reset').addEventListener('click', reset);
   byId('plan-keyword').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') search();
+  });
+  byId('page-size').addEventListener('change', function (e) {
+    pageSize = parseInt(e.target.value, 10);
+    currentPage = 1;
+    render();
+  });
+  byId('pager-prev').addEventListener('click', function () {
+    if (currentPage > 1) { currentPage -= 1; render(); }
+  });
+  byId('pager-next').addEventListener('click', function () {
+    currentPage += 1;
+    render();
   });
 
   var pendingConfirm = null;
@@ -600,31 +714,82 @@
     byId('c-start').value = '';
     byId('c-end').value = '';
     byId('c-env').value = '';
+    committedReq.create = [];
     byId('c-count').hidden = true;
+    byId('c-count').textContent = '';
     nameInput.classList.remove('input--error');
     setError('c-name-error', '');
     setError('c-case-error', '');
   }
 
+  /* ---------------- 需求选择器（新建 / 编辑共用） ---------------- */
+  function openPicker(target) {
+    pickerTarget = target;
+    pickerTemp = committedReq[target].slice();
+    pickerFilter = '';
+    byId('rq-filter').value = '';
+    renderPickerList();
+    byId('req-dialog').hidden = false;
+  }
+
+  function renderPickerList() {
+    var keyword = pickerFilter.trim();
+    var items = REQUIREMENTS.filter(function (req) {
+      return !keyword || req.code.indexOf(keyword) !== -1 || req.label.indexOf(keyword) !== -1;
+    });
+    byId('rq-list').innerHTML = items.length
+      ? items.map(function (req) {
+          return '<label class="req-pick__item" data-code="' + req.code + '">' +
+            '<span class="checkbox' + (pickerTemp.indexOf(req.code) !== -1 ? ' checkbox--on' : '') + '"></span>' +
+            req.code + ' · ' + req.label + '</label>';
+        }).join('')
+      : '<div class="req-pick__empty">没有匹配的需求</div>';
+    byId('rq-count').textContent = '已选 ' + pickerTemp.length + ' 个需求';
+  }
+
+  function filterPicker() {
+    pickerFilter = byId('rq-filter').value;
+    renderPickerList();
+  }
+
+  byId('rq-search').addEventListener('click', filterPicker);
+  byId('rq-filter').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') filterPicker();
+  });
+  byId('rq-list').addEventListener('click', function (e) {
+    var item = e.target.closest('.req-pick__item');
+    if (!item) return;
+    var code = item.getAttribute('data-code');
+    var at = pickerTemp.indexOf(code);
+    if (at === -1) pickerTemp.push(code);
+    else pickerTemp.splice(at, 1);
+    item.querySelector('.checkbox').classList.toggle('checkbox--on', at === -1);
+    byId('rq-count').textContent = '已选 ' + pickerTemp.length + ' 个需求';
+  });
+  byId('rq-confirm').addEventListener('click', function () {
+    if (!pickerTarget) return;
+    committedReq[pickerTarget] = pickerTemp.slice();
+    var label = '已选 ' + pickerTemp.length + ' 个需求';
+    if (pickerTarget === 'create') {
+      byId('c-count').hidden = pickerTemp.length === 0;
+      byId('c-count').textContent = label;
+      setError('c-case-error', '');
+    } else {
+      byId('e-req-count').textContent = pickerTemp.length ? label : '';
+      setError('e-req-error', '');
+    }
+    pickerTarget = null;
+    byId('req-dialog').hidden = true;
+  });
+
   /* ---------------- 编辑计划 ---------------- */
   var editDialog = byId('edit-dialog');
   var editingRow = null;
   var initialReqCodes = [];
-  var REQ_CODES = Array.prototype.map.call(
-    document.querySelectorAll('#e-req-list .checkbox'),
-    function (box) { return box.getAttribute('data-code'); }
-  );
-
-  function pickedReqCodes() {
-    return Array.prototype.filter.call(
-      document.querySelectorAll('#e-req-list .checkbox--on'),
-      function (box) { return box.getAttribute('data-code'); }
-    );
-  }
 
   function refreshReqCount() {
-    var codes = pickedReqCodes();
-    byId('e-req-count').textContent = codes.length ? '已选 ' + codes.length + ' 个需求' : '';
+    var count = committedReq.edit.length;
+    byId('e-req-count').textContent = count ? '已选 ' + count + ' 个需求' : '';
     setError('e-req-error', '');
   }
 
@@ -638,25 +803,15 @@
     byId('e-end').value = range[1] || '';
     byId('e-env').value = row.getAttribute('data-env') || '';
     var reqCount = Number(row.getAttribute('data-req') || 0);
-    initialReqCodes = REQ_CODES.slice(0, Math.max(1, Math.min(reqCount, REQ_CODES.length)));
-    Array.prototype.forEach.call(document.querySelectorAll('#e-req-list .checkbox'), function (box) {
-      box.classList.toggle('checkbox--on', initialReqCodes.indexOf(box.getAttribute('data-code')) !== -1);
-    });
-    byId('e-req-list').hidden = true;
+    initialReqCodes = REQUIREMENTS.map(function (r) { return r.code; })
+      .slice(0, Math.max(1, Math.min(reqCount, REQUIREMENTS.length)));
+    committedReq.edit = initialReqCodes.slice();
     refreshReqCount();
     setError('e-name-error', '');
     editDialog.hidden = false;
   }
 
-  byId('e-pick').addEventListener('click', function () {
-    byId('e-req-list').hidden = !byId('e-req-list').hidden;
-  });
-  byId('e-req-list').addEventListener('click', function (e) {
-    var box = e.target.closest('.checkbox');
-    if (!box) return;
-    box.classList.toggle('checkbox--on');
-    refreshReqCount();
-  });
+  byId('e-pick').addEventListener('click', function () { openPicker('edit'); });
 
   byId('e-submit').addEventListener('click', function () {
     var name = byId('e-name').value.trim();
@@ -665,7 +820,7 @@
       setError('e-name-error', '请输入计划名称');
       return;
     }
-    var codes = pickedReqCodes();
+    var codes = committedReq.edit;
     if (!codes.length) { setError('e-req-error', '请关联至少一个需求'); return; }
 
     function commit() {
@@ -678,7 +833,7 @@
       var cells = row.children;
       cells[1].textContent = byId('e-owner').value || '—';
       cells[2].textContent = row.getAttribute('data-time') || '-';
-      cells[3].innerHTML = byId('e-env').value ? '<span class="chip">' + byId('e-env').value + '</span>' : '<span class="muted">—</span>';
+      cells[3].innerHTML = byId('e-env').value ? '<span class="chip">' + escapeHtml(byId('e-env').value) + '</span>' : '<span class="muted">—</span>';
       var sub = cells[0].querySelector('.cell-sub');
       var caseText = sub.textContent.replace(/^关联需求 \d+ 项 · /, '');
       sub.textContent = '关联需求 ' + codes.length + ' 项 · ' + caseText;
@@ -743,31 +898,75 @@
     });
   });
 
+  // ESC 逐层关闭最上层弹层，保留下层表单内容
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    if (!byId('req-dialog').hidden) { byId('req-dialog').hidden = true; return; }
+    if (!byId('confirm-dialog').hidden) { closeConfirm(); return; }
+    if (!dialog.hidden) { dialog.hidden = true; return; }
+    if (!editDialog.hidden) { editDialog.hidden = true; return; }
+    byId('plan-col-popover').hidden = true;
+  });
+
   nameInput.addEventListener('input', function () {
     nameInput.classList.remove('input--error');
     setError('c-name-error', '');
   });
 
-  // CaseSelector 是独立弹层，演示页以固定已选数代替选择结果
-  byId('c-pick').addEventListener('click', function () {
-    byId('c-count').hidden = false;
-    byId('c-count').textContent = '已选 12 个用例';
-    setError('c-case-error', '');
-  });
+  byId('c-pick').addEventListener('click', function () { openPicker('create'); });
+
+  function createRow(data) {
+    var row = document.createElement('tr');
+    row.setAttribute('data-status', 'new');
+    row.setAttribute('data-req', String(data.req));
+    row.setAttribute('data-owner', escapeHtml(data.owner));
+    row.setAttribute('data-time', escapeHtml(data.time));
+    row.setAttribute('data-env', escapeHtml(data.env));
+    row.innerHTML =
+      '<td class="cell-main"><a href="plan-detail.html">' + escapeHtml(data.name) + '</a>' +
+        '<span class="cell-sub">关联用例 0 条</span></td>' +
+      '<td>' + (data.owner ? escapeHtml(data.owner) : '—') + '</td>' +
+      '<td class="num text-xs">' + (data.time ? escapeHtml(data.time) : '-') + '</td>' +
+      '<td>' + (data.env ? '<span class="chip">' + escapeHtml(data.env) + '</span>' : '<span class="muted">—</span>') + '</td>' +
+      '<td class="status-cell"><span class="status status--neutral"><span class="dot"></span>未开始</span></td>' +
+      '<td><div class="progress"><div class="progress__track"><div class="progress__fill" style="width:0%"></div></div>' +
+        '<span class="progress__text">0%</span></div></td>' +
+      '<td class="num rate-col rate-cell text-light">—</td>' +
+      '<td class="num">' + data.createdAt + '</td>' +
+      '<td class="ops-cell">' + opsHtml('new') + '</td>';
+    markRowColumns(row);
+    return row;
+  }
 
   byId('c-submit').addEventListener('click', function () {
-    if (!nameInput.value.trim()) {
+    var name = nameInput.value.trim();
+    if (!name) {
       nameInput.classList.add('input--error');
       setError('c-name-error', '请输入计划名称');
       return;
     }
-    if (byId('c-count').hidden) {
-      setError('c-case-error', '请关联至少一个用例');
+    var codes = committedReq.create;
+    if (!codes.length) {
+      setError('c-case-error', '请关联至少一个需求');
       return;
     }
-    // 创建成功后跳转计划详情，与实际页 router.push 一致
+    var time = [byId('c-start').value, byId('c-end').value].filter(Boolean).join(' ~ ');
+    var row = createRow({
+      name: name,
+      owner: byId('c-owner').value,
+      time: time,
+      env: byId('c-env').value.trim(),
+      req: codes.length,
+      createdAt: nowText()
+    });
+    var tbody = byId('plan-table').querySelector('tbody');
+    tbody.insertBefore(row, tbody.firstChild);
+    total += 1;
+    applyColumns();
     dialog.hidden = true;
-    window.location.href = 'plan-detail.html';
+    resetCreateForm();
+    reset();
+    toast('计划已创建', 'success');
   });
 
   markColumns();

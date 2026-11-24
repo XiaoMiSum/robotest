@@ -7,117 +7,143 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  /* 弹层靠 hidden 属性开关，作者样式的 display:flex 会盖过 UA [hidden]，需强制生效 */
   [hidden] { display: none !important; }
 
-  .field__label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .field__label-row .field__label { margin-bottom: 0; }
-  .field__count { font-size: var(--font-size-xs); color: var(--n-400); font-variant-numeric: tabular-nums; }
-
-  /* 标题输入：大号输入，对应 el-input size="large"；append 槽保留 AI 建议入口（详设 3.5） */
-  .title-group { display: flex; align-items: stretch; }
-  .title-input { height: 40px; font-size: var(--font-size-lg); border-radius: var(--radius-md) 0 0 var(--radius-md); }
-  .title-group .input-append {
-    display: inline-flex; align-items: center; gap: 5px;
-    height: 40px; padding: 0 14px;
-    border: 1px solid var(--n-300); border-left: none;
-    border-radius: 0 var(--radius-md) var(--radius-md) 0;
-    background: var(--n-0);
-    font-family: inherit; font-size: var(--font-size-base); font-weight: 600;
-    color: var(--st-success); cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast);
-  }
-  .title-group .input-append svg { width: 15px; height: 15px; }
-  .title-group .input-append:hover { background: var(--st-success-light); color: var(--st-success-strong); }
-  .title-group .input-append:disabled { color: var(--n-400); cursor: not-allowed; background: var(--n-50); }
-  .title-group .input-append[aria-busy="true"] { color: var(--n-500); cursor: wait; }
-
-  /* 标题建议条：对应 BugSuggestBadge 的采纳动作，演示草稿建议而非自动改写 */
-  .ai-suggestion {
-    display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 10px;
-    border: 1px solid var(--st-success-light); border-radius: var(--radius-md);
-    background: var(--st-success-light); font-size: var(--font-size-xs); color: var(--n-700);
-  }
-  .ai-suggestion__label { flex-shrink: 0; font-weight: 600; color: var(--st-success-strong); }
-  .ai-suggestion__text { flex: 1; min-width: 0; }
-  .ai-suggestion__actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
-
-  /* 重现步骤：Markdown 工具栏与编辑区连体，对应 MarkdownEditor 的 toolbar 结构 */
-  .md-toolbar {
-    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-    padding: 6px 8px; border: 1px solid var(--n-300); border-bottom: 0;
-    border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--n-50);
-  }
-  .md-toolbar__btn {
-    height: 24px; min-width: 26px; padding: 0 7px; border: 0; background: none;
-    border-radius: var(--radius-sm); color: var(--n-600);
-    font-size: var(--font-size-xs); font-family: inherit; cursor: pointer;
-  }
-  .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
-  .md-toolbar__sep { width: 1px; height: 14px; margin: 0 5px; background: var(--n-200); }
-  #f-steps { border-radius: 0 0 var(--radius-md) var(--radius-md); }
-
-  /* 严重等级下拉：选中与候选项带等级色点，对应 el-option 内的 severity-dot */
-  .sev-select { position: relative; }
-  .sev-select__btn { display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
-  .sev-select__menu {
-    position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0;
-    padding: 4px; background: var(--n-0);
-    border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
-  }
-  .sev-select__opt {
-    display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px;
-    border: 0; background: none; border-radius: var(--radius-sm);
-    font-family: inherit; font-size: var(--font-size-base); color: var(--n-700);
-    text-align: left; cursor: pointer;
-  }
-  .sev-select__opt:hover { background: var(--n-50); }
-  .sev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .sev-dot--fatal { background: var(--bug-fatal); }
-  .sev-dot--serious { background: var(--bug-serious); }
-  .sev-dot--general { background: var(--bug-general); }
-  .sev-dot--minor { background: var(--bug-minor); }
-  .sev-select.is-error .sev-select__btn { border-color: var(--st-danger); }
-
-  .upload {
-    border: 1.5px dashed var(--n-300); border-radius: var(--radius-lg);
-    padding: 26px; text-align: center; color: var(--n-500); font-size: 13px;
-    background: var(--n-25); cursor: pointer; transition: border-color var(--transition-fast);
-  }
-  .upload:hover, .upload--over { border-color: var(--brand-400); color: var(--brand-600); }
-  .upload svg { width: 22px; height: 22px; display: block; margin: 0 auto 8px; }
-  .upload em { font-style: normal; color: var(--brand-500); }
-  .upload:hover em { color: var(--brand-600); }
-
-  .upload-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-  .upload-item {
-    display: flex; align-items: center; gap: 10px; padding: 7px 10px;
-    border: 1px solid var(--n-200); border-radius: var(--radius-md);
-    background: var(--n-50); font-size: var(--font-size-xs); color: var(--n-700);
-  }
-  .upload-item__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .upload-item__size { color: var(--n-400); font-variant-numeric: tabular-nums; }
-  .upload-item__remove { display: flex; padding: 2px; border: 0; background: none; color: var(--n-400); cursor: pointer; }
-  .upload-item__remove:hover { color: var(--st-danger); }
-  .upload-item__remove svg { width: 14px; height: 14px; }
-
-  /* 顶栏：面包屑独占一行，提交操作移到底部 sticky footer（对应 el-page-header + bug-create__footer） */
-  .page-topbar {
+  /* 页头：对齐 BugCreatePage.vue .bug-create__header（sticky + breadcrumb + actions） */
+  .bug-create__header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-md);
-    margin-bottom: var(--block-gap);
+    gap: var(--space-sm);
+    padding-bottom: var(--space-md);
+    background: var(--n-0);
+    border-bottom: 1px solid var(--n-200);
   }
-  .page-topbar .breadcrumb { margin-bottom: 0; }
+  .bug-create__breadcrumb,
+  .bug-create__actions { margin-bottom: var(--space-sm); }
+  .bug-create__breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-size: var(--font-size-sm); color: var(--n-600);
+  }
+  .bug-create__breadcrumb a { color: var(--brand-500); font-weight: 500; }
+  .bug-create__breadcrumb a:hover { color: var(--brand-600); }
+  .bug-create__breadcrumb svg { width: 13px; height: 13px; color: var(--n-400); }
+  .bug-create__breadcrumb > :last-child { color: var(--n-900); }
+  .bug-create__actions { display: flex; align-items: center; gap: 12px; }
 
-  .create-footer {
-    position: sticky; bottom: 0; z-index: 10;
-    display: flex; justify-content: center; gap: 10px;
-    margin-top: var(--block-gap); padding: 14px 0;
-    pointer-events: none;
+  .bug-create__form { margin-top: var(--space-md); }
+  .bug-create__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--space-lg);
+    align-items: start;
   }
-  .create-footer .btn { pointer-events: auto; box-shadow: var(--shadow-md); }
+  @media (max-width: 1024px) { .bug-create__layout { grid-template-columns: 1fr; } }
+  .bug-create__main, .bug-create__side { display: flex; flex-direction: column; gap: var(--space-lg); }
+
+  /* 标题：el-input size="large" + append AI 建议 */
+  .field { margin-bottom: 0; }
+  .title-input-wrap { display: flex; align-items: stretch; width: 100%; }
+  .title-input {
+    flex: 1; min-width: 0; height: 40px; padding: 0 15px;
+    font-size: var(--font-size-md); border-radius: var(--radius-md) 0 0 var(--radius-md);
+  }
+  .title-input-wrap .input-append {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 40px; padding: 0 15px; white-space: nowrap;
+    border: 1px solid var(--n-300); border-left: 1px solid var(--n-200);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: transparent; color: var(--st-success);
+    font-family: inherit; font-size: var(--font-size-base); cursor: pointer;
+  }
+  .title-input-wrap .input-append svg { width: 14px; height: 14px; }
+  .title-input-wrap .input-append:hover { color: var(--st-success-strong); }
+  .title-input-wrap .input-append:disabled { color: var(--n-400); cursor: not-allowed; }
+  .title-input-wrap .input-append[aria-busy="true"] { color: var(--n-500); cursor: wait; }
+  .title-input-wrap.is-noai .title-input { border-radius: var(--radius-md); }
+  .title-input-wrap.is-noai .input-append { display: none; }
+  .field__count { margin-top: 4px; text-align: right; font-size: var(--font-size-xs); color: var(--n-400); font-variant-numeric: tabular-nums; }
+
+  /* MarkdownEditor 静态近似：vditor 工具栏 + 内容区 */
+  .md-editor {
+    border: 1px solid var(--n-300); border-radius: var(--radius-md); overflow: hidden; background: var(--n-0);
+  }
+  .md-editor__toolbar {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 6px 8px; border-bottom: 1px solid var(--n-200); background: var(--n-0);
+  }
+  .md-editor__btn {
+    height: 28px; min-width: 28px; padding: 0 6px; border: 0; background: none;
+    border-radius: var(--radius-sm); color: var(--n-600); font-size: 13px; font-family: inherit; cursor: pointer;
+  }
+  .md-editor__btn:hover { background: var(--n-100); color: var(--n-900); }
+  .md-editor__sep { width: 1px; height: 16px; margin: 0 4px; background: var(--n-200); }
+  .md-editor__spacer { flex: 1; }
+  .md-editor__textarea {
+    width: 100%; min-height: 280px; padding: 12px 14px; border: 0; outline: none; resize: vertical;
+    font-family: inherit; font-size: var(--font-size-base); line-height: 1.7; color: var(--n-800);
+  }
+  .md-editor__textarea::placeholder { color: var(--n-400); }
+
+  /* el-upload drag 近似（UI-DS-09 例外：压缩高度） */
+  .upload-dragger {
+    border: 1px dashed var(--n-300); border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-lg); text-align: center; cursor: pointer;
+    background: var(--n-0); transition: border-color var(--transition-fast);
+  }
+  .upload-dragger:hover, .upload-dragger.is-dragover { border-color: var(--brand-500); }
+  .upload-dragger__icon { width: 24px; height: 24px; color: var(--n-300); margin: 0 auto var(--space-xs); display: block; }
+  .upload-dragger__text { font-size: var(--font-size-sm); color: var(--n-600); }
+  .upload-dragger__text em { font-style: normal; color: var(--brand-500); }
+  .upload-hint { margin-left: var(--space-sm); margin-top: 7px; font-size: var(--font-size-2xs); color: var(--n-400); }
+  .upload-list { margin: 8px 0 0; padding: 0; list-style: none; }
+  .upload-list__item {
+    display: flex; align-items: center; gap: 8px; padding: 4px 4px; font-size: var(--font-size-sm); color: var(--n-700);
+  }
+  .upload-list__item:hover { background: var(--n-50); border-radius: var(--radius-sm); }
+  .upload-list__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .upload-list__remove { border: 0; background: none; color: var(--n-400); cursor: pointer; display: inline-flex; padding: 2px; }
+  .upload-list__remove:hover { color: var(--st-danger); }
+  .upload-list__remove svg { width: 14px; height: 14px; }
+
+  /* 侧栏卡片：无 header（详设 1.14） */
+  .side-card { background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-lg); }
+  .side-card + .side-card { margin-top: 0; }
+  .side-card__body { padding: 20px; }
+  .side-card .field { margin-bottom: 18px; }
+  .side-card .field:last-child { margin-bottom: 0; }
+  .side-card .field__label { font-weight: 500; color: var(--n-600); margin-bottom: var(--space-xs); }
+
+  /* el-radio-button 分段近似 */
+  .radio-group { display: flex; flex-wrap: wrap; gap: 0; }
+  .radio-btn {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    height: 32px; padding: 0 15px; margin-left: -1px;
+    border: 1px solid var(--n-300); background: var(--n-0); color: var(--n-700);
+    font-size: var(--font-size-base); font-family: inherit; cursor: pointer; user-select: none;
+  }
+  .radio-btn:first-child { margin-left: 0; border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  .radio-btn:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+  .radio-btn:hover { color: var(--brand-500); }
+  .radio-btn.is-active { z-index: 1; color: #fff; border-color: transparent; }
+  .radio-btn input { position: absolute; opacity: 0; pointer-events: none; }
+  .radio-btn--fatal.is-active { background: var(--bug-fatal); }
+  .radio-btn--serious.is-active { background: var(--bug-serious); }
+  .radio-btn--general.is-active { background: var(--bug-general); }
+  .radio-btn--minor.is-active { background: var(--bug-minor); }
+  .radio-btn--p1.is-active { background: var(--prio-p1); }
+  .radio-btn--p2.is-active { background: var(--prio-p2); }
+  .radio-btn--p3.is-active { background: var(--prio-p3); }
+
+  .bug-create__case { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); width: 100%; }
+  .bug-create__case-state { flex: 1; min-width: 0; font-size: var(--font-size-sm); color: var(--n-700); line-height: 1.6; }
+
+  .field.is-error .input, .field.is-error .select, .field.is-error .md-editor { border-color: var(--st-danger); }
+  .field.is-error .field__error { display: block; }
+  .field__error { display: none; margin-top: 4px; font-size: var(--font-size-xs); color: var(--st-danger); line-height: 1.4; }
 
   /* 选择关联用例弹窗：对应 CaseSelector（single 模式），左模块树 + 右用例勾选 */
   .case-selector { display: flex; gap: 12px; }
@@ -147,202 +173,299 @@
   .case-row--on { background: var(--brand-50); border-color: var(--brand-100); color: var(--brand-700); }
   .case-row__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .case-empty { padding: 48px 0; text-align: center; font-size: var(--font-size-sm); color: var(--n-400); }
+
+  /* 预览切换：编辑器内真实替换编辑区内容 */
+  .md-editor__btn.is-active { background: var(--brand-50); color: var(--brand-600); }
+  .md-editor__preview {
+    min-height: 280px; padding: 12px 14px; overflow: auto;
+    font-size: var(--font-size-base); line-height: 1.7; color: var(--n-800);
+  }
+  .md-editor__preview h1, .md-editor__preview h2, .md-editor__preview h3,
+  .md-editor__preview h4, .md-editor__preview h5, .md-editor__preview h6 {
+    margin: 10px 0 6px; font-weight: 600; line-height: 1.4;
+  }
+  .md-editor__preview h5 { font-size: var(--font-size-base); }
+  .md-editor__preview p { margin: 6px 0; }
+  .md-editor__preview blockquote {
+    margin: 8px 0; padding-left: 10px; border-left: 3px solid var(--n-200); color: var(--n-500);
+  }
+  .md-editor__preview ul, .md-editor__preview ol { margin: 6px 0; padding-left: 22px; }
+  .md-editor__preview code {
+    font-family: var(--font-mono); font-size: var(--font-size-sm);
+    background: var(--n-100); padding: 1px 4px; border-radius: var(--radius-sm);
+  }
+  .md-editor__preview a { color: var(--brand-500); }
+
+  /* 提交结果：本地会话内真实渲染的缺陷记录 */
+  .bug-created {
+    margin-top: var(--space-lg); padding: 28px; background: var(--n-0);
+    border: 1px solid var(--n-200); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  }
+  .bug-created__head { display: flex; align-items: center; gap: 10px; }
+  .bug-created__head svg { width: 22px; height: 22px; color: var(--st-success); }
+  .bug-created__title { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-900); }
+  .bug-created__id {
+    margin-left: auto; padding: 3px 10px; border-radius: 999px;
+    background: var(--brand-50); color: var(--brand-600);
+    font-size: var(--font-size-xs); font-variant-numeric: tabular-nums;
+  }
+  .bug-created__grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 24px; margin-top: 20px;
+  }
+  .bug-created__wide { grid-column: 1 / -1; }
+  .bug-created__label { font-size: var(--font-size-xs); color: var(--n-500); }
+  .bug-created__value { margin-top: 2px; font-size: var(--font-size-sm); color: var(--n-900); word-break: break-all; }
+  .bug-created__steps {
+    margin-top: 18px; padding: 12px 14px; background: var(--n-50);
+    border-radius: var(--radius-md); white-space: pre-wrap;
+    font-size: var(--font-size-sm); line-height: 1.7; color: var(--n-700);
+  }
+  .bug-created__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+  .bug-created__session {
+    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--n-200);
+    font-size: var(--font-size-xs); color: var(--n-500);
+  }
+  .bug-created__session ul { margin: 6px 0 0; padding-left: 18px; }
+  @media (max-width: 640px) { .bug-created__grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="bugs" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <div class="page-topbar">
-    <div class="breadcrumb">
-      <a href="bugs.html">缺陷管理</a>
-      <span data-icon="chevron-right"></span>
-      <span>提交缺陷</span>
+  <div class="bug-create">
+    <!-- 对齐 BugCreatePage.vue：sticky 页头，面包屑 + 右侧操作 -->
+    <div class="bug-create__header">
+      <div class="bug-create__breadcrumb">
+        <a href="bugs.html">缺陷管理</a>
+        <span data-icon="chevron-right"></span>
+        <span>提交缺陷</span>
+      </div>
+      <div class="bug-create__actions">
+        <a class="btn btn--default" href="bugs.html">取消</a>
+        <button class="btn btn--primary" id="btn-submit" type="button">提交缺陷</button>
+      </div>
     </div>
-  </div>
 
-  <div class="card-grid" style="grid-template-columns: minmax(0, 1fr) 320px; align-items:start">
-    <div>
-      <div class="card">
-        <div class="card__header"><h3 class="card__title">基本信息</h3></div>
-        <div class="card__body">
-          <div class="field">
-            <div class="field__label-row">
-              <label class="field__label" for="f-title">标题<span class="req">*</span></label>
-              <span class="field__count" id="f-title-count">17/300</span>
-            </div>
-            <div class="title-group">
+    <form class="bug-create__form" id="bug-form" novalidate>
+      <div class="bug-create__layout">
+        <!-- 主列：无分区标题、无卡片容器（详设 1.14） -->
+        <div class="bug-create__main">
+          <div class="field" id="field-title">
+            <div class="title-input-wrap" id="title-wrap">
               <input class="input title-input" id="f-title" maxlength="300"
                 placeholder="用一句话描述缺陷现象"
-                value="下单超时未释放库存，二次下单报缺货">
-              <button class="input-append" type="button" id="ai-suggest-btn" title="AI 建议"><span data-icon="sparkle"></span>AI 建议</button>
-            </div>
-            <div class="ai-suggestion" id="ai-suggestion" hidden>
-              <span class="ai-suggestion__label">AI 建议标题</span>
-              <span class="ai-suggestion__text" id="ai-suggestion-text"></span>
-              <span class="ai-suggestion__actions">
-                <button class="btn btn--link btn--sm" type="button" id="ai-suggestion-adopt">采纳</button>
-                <button class="btn btn--link btn--sm" type="button" id="ai-suggestion-dismiss">忽略</button>
-              </span>
-            </div>
-            <div class="field__error" id="f-title-error" hidden></div>
-          </div>
-
-          <div class="field" style="margin-bottom:0">
-            <label class="field__label" for="f-steps">重现步骤</label>
-            <div class="md-toolbar">
-              <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
-              <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
-              <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
-              <span class="md-toolbar__sep"></span>
-              <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
-              <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
-              <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
-              <span class="md-toolbar__sep"></span>
-              <button class="md-toolbar__btn" type="button" data-md="insert" data-token="[链接文字](https://)">链接</button>
-            </div>
-            <textarea class="textarea" id="f-steps" style="min-height:180px"
-              placeholder="重现步骤（支持 Markdown，可选）">## 重现步骤
-
-1. 测试账号进入下单页，提交一笔 5000 元以上的订单
-2. 在支付页停留 30 分钟以上后完成支付
-3. 返回订单列表查看库存占用情况
-
-## 期望结果
-
-支付成功后订单流转为「待发货」，超时占用的库存立即释放
-
-## 实际结果
-
-订单停留在「支付中」，库存仍被占用，再次下单提示缺货
-</textarea>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card__header"><h3 class="card__title">附件</h3></div>
-        <div class="card__body">
-          <input type="file" id="f-files" multiple hidden>
-          <div class="upload" id="upload-box" role="button" tabindex="0">
-            <span data-icon="upload"></span>
-            将文件拖到此处，或<em>点击选择</em>
-          </div>
-          <div class="upload-list" id="upload-list" hidden></div>
-          <div class="field__hint">单个文件不超过 10MB，创建后自动上传</div>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card__header"><h3 class="card__title">属性</h3></div>
-        <div class="card__body">
-          <div class="field">
-            <label class="field__label" for="f-type">缺陷类型<span class="req">*</span></label>
-            <select class="select" id="f-type">
-              <option value="code_error" selected>代码错误</option>
-              <option value="ui_improvement">界面优化</option>
-              <option value="design_defect">设计缺陷</option>
-              <option value="configuration">配置相关</option>
-              <option value="installation">安装部署</option>
-              <option value="security">安全相关</option>
-              <option value="performance">性能问题</option>
-              <option value="standard_spec">标准规范</option>
-              <option value="other">其他</option>
-            </select>
-            <div class="field__error" id="f-type-error" hidden></div>
-          </div>
-
-          <div class="field">
-            <label class="field__label" for="f-module">所属模块</label>
-            <select class="select" id="f-module">
-              <option value="" selected>选择所属模块（可选）</option>
-              <option value="m-order">下单流程</option>
-              <option value="m-pay">支付中心</option>
-              <option value="m-user">用户中心</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label class="field__label" for="f-severity-btn">严重等级<span class="req">*</span></label>
-            <div class="sev-select" id="f-severity" data-value="general">
-              <button class="select sev-select__btn" id="f-severity-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span class="sev-dot sev-dot--general" data-sev-dot></span>
-                <span data-sev-label>一般</span>
+                value="" aria-label="缺陷标题">
+              <button class="input-append" type="button" id="ai-suggest-btn" title="AI 建议">
+                <span data-icon="sparkle"></span>AI 建议
               </button>
-              <div class="sev-select__menu" role="listbox" hidden>
-                <button class="sev-select__opt" type="button" data-value="fatal" data-label="致命"><span class="sev-dot sev-dot--fatal"></span>致命</button>
-                <button class="sev-select__opt" type="button" data-value="serious" data-label="严重"><span class="sev-dot sev-dot--serious"></span>严重</button>
-                <button class="sev-select__opt" type="button" data-value="general" data-label="一般"><span class="sev-dot sev-dot--general"></span>一般</button>
-                <button class="sev-select__opt" type="button" data-value="minor" data-label="轻微"><span class="sev-dot sev-dot--minor"></span>轻微</button>
+            </div>
+            <div class="field__count"><span id="f-title-count">0</span>/300</div>
+            <div class="field__error" id="f-title-error">请输入缺陷标题</div>
+          </div>
+
+          <div class="field" id="field-steps">
+            <div class="md-editor">
+              <div class="md-editor__toolbar" aria-label="Markdown 工具栏">
+                <button class="md-editor__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
+                <button class="md-editor__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
+                <button class="md-editor__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
+                <span class="md-editor__sep"></span>
+                <button class="md-editor__btn" type="button" title="引用" data-md="prefix" data-token="&gt; ">引用</button>
+                <button class="md-editor__btn" type="button" title="无序列表" data-md="prefix" data-token="- ">列表</button>
+                <button class="md-editor__btn" type="button" title="有序列表" data-md="prefix" data-token="1. ">1.</button>
+                <button class="md-editor__btn" type="button" title="代码" data-md="wrap" data-token="`">&lt;/&gt;</button>
+                <span class="md-editor__sep"></span>
+                <button class="md-editor__btn" type="button" title="链接" data-md="insert" data-token="[链接文字](https://)">链接</button>
+                <span class="md-editor__spacer"></span>
+                <button class="md-editor__btn" type="button" id="md-preview-btn" title="预览" aria-label="预览" aria-pressed="false"><span data-icon="eye"></span></button>
+              </div>
+              <textarea class="md-editor__textarea" id="f-steps"
+                placeholder="重现步骤（支持 Markdown，可选）">##### 执行步骤
+
+##### 实际结果
+
+##### 期望结果</textarea>
+              <div class="md-editor__preview" id="steps-preview" hidden></div>
+            </div>
+          </div>
+
+          <div>
+            <input type="file" id="f-files" multiple hidden>
+            <div class="upload-dragger" id="upload-box" role="button" tabindex="0">
+              <span class="upload-dragger__icon" data-icon="upload"></span>
+              <div class="upload-dragger__text">将文件拖到此处，或<em>点击选择</em></div>
+            </div>
+            <ul class="upload-list" id="upload-list" hidden></ul>
+            <div class="upload-hint">单个文件不超过 10MB，创建后自动上传</div>
+          </div>
+        </div>
+
+        <!-- 侧栏：卡片容器无 header -->
+        <div class="bug-create__side">
+          <div class="side-card">
+            <div class="side-card__body">
+              <div class="field" id="field-bugType">
+                <label class="field__label" for="f-type">缺陷类型</label>
+                <select class="select" id="f-type">
+                  <option value="code_error" selected>代码错误</option>
+                  <option value="ui_improvement">界面优化</option>
+                  <option value="design_defect">设计缺陷</option>
+                  <option value="configuration">配置相关</option>
+                  <option value="installation">安装部署</option>
+                  <option value="security">安全相关</option>
+                  <option value="performance">性能问题</option>
+                  <option value="standard_spec">标准规范</option>
+                  <option value="other">其他</option>
+                </select>
+                <div class="field__error" id="f-type-error">请选择缺陷类型</div>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="f-module">所属模块</label>
+                <select class="select" id="f-module">
+                  <option value="" selected>选择所属模块（可选）</option>
+                  <option value="m-order">下单流程</option>
+                  <option value="m-pay">支付中心</option>
+                  <option value="m-user">用户中心</option>
+                </select>
+              </div>
+
+              <div class="field" id="field-severity">
+                <label class="field__label">严重等级</label>
+                <div class="radio-group" id="f-severity" role="radiogroup" aria-label="严重等级">
+                  <label class="radio-btn radio-btn--fatal"><input type="radio" name="severity" value="fatal">致命</label>
+                  <label class="radio-btn radio-btn--serious"><input type="radio" name="severity" value="serious">严重</label>
+                  <label class="radio-btn radio-btn--general is-active"><input type="radio" name="severity" value="general" checked>一般</label>
+                  <label class="radio-btn radio-btn--minor"><input type="radio" name="severity" value="minor">轻微</label>
+                </div>
+                <div class="field__error" id="f-severity-error">请选择严重等级</div>
+              </div>
+
+              <div class="field" id="field-priority">
+                <label class="field__label">优先级</label>
+                <div class="radio-group" id="f-priority" role="radiogroup" aria-label="优先级">
+                  <label class="radio-btn radio-btn--p1"><input type="radio" name="priority" value="high">高</label>
+                  <label class="radio-btn radio-btn--p2 is-active"><input type="radio" name="priority" value="medium" checked>中</label>
+                  <label class="radio-btn radio-btn--p3"><input type="radio" name="priority" value="low">低</label>
+                </div>
+                <div class="field__error" id="f-priority-error">请选择优先级</div>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="f-due">截止日期</label>
+                <input class="input" id="f-due" type="date" placeholder="选择截止日期（可选）">
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="f-keywords">关键词</label>
+                <input class="input" id="f-keywords" maxlength="255" placeholder="多个关键词用空格分隔（可选）">
               </div>
             </div>
-            <div class="field__error" id="f-severity-error" hidden></div>
           </div>
 
-          <div class="field">
-            <label class="field__label" for="f-priority">优先级<span class="req">*</span></label>
-            <select class="select" id="f-priority">
-              <option value="high">高</option>
-              <option value="medium" selected>中</option>
-              <option value="low">低</option>
-            </select>
-            <div class="field__error" id="f-priority-error" hidden></div>
-          </div>
+          <div class="side-card">
+            <div class="side-card__body">
+              <div class="field" id="field-assignee">
+                <label class="field__label" for="f-assignee">指派给</label>
+                <select class="select" id="f-assignee">
+                  <option value="" selected disabled>选择处理人</option>
+                  <option value="u-zhangming">张明</option>
+                  <option value="u-lihua">李华</option>
+                  <option value="u-zhoumin">周敏</option>
+                  <option value="u-wangfang">王芳</option>
+                  <option value="u-chenqiang">陈强</option>
+                </select>
+                <div class="field__error" id="f-assignee-error">请选择处理人</div>
+              </div>
 
-          <div class="field">
-            <label class="field__label" for="f-due">截止日期</label>
-            <input class="input" id="f-due" type="date" placeholder="选择截止日期（可选）">
-          </div>
+              <div class="field">
+                <label class="field__label">关联用例</label>
+                <div class="bug-create__case">
+                  <span class="bug-create__case-state" id="f-case-state">未关联</span>
+                  <button class="btn btn--link" id="btn-case" type="button">选择用例</button>
+                </div>
+              </div>
 
-          <div class="field" style="margin-bottom:0">
-            <label class="field__label" for="f-keywords">关键词</label>
-            <input class="input" id="f-keywords" maxlength="255" placeholder="多个关键词用空格分隔（可选）" value="库存 超时释放 二次下单">
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card__header"><h3 class="card__title">指派与关联</h3></div>
-        <div class="card__body">
-          <div class="field">
-            <label class="field__label" for="f-assignee">指派给<span class="req">*</span></label>
-            <select class="select" id="f-assignee">
-              <option value="" selected disabled>选择处理人</option>
-              <option value="u-zhangming">张明</option>
-              <option value="u-lihua">李华</option>
-              <option value="u-zhoumin">周敏</option>
-              <option value="u-wangfang">王芳</option>
-              <option value="u-chenqiang">陈强</option>
-            </select>
-            <div class="field__error" id="f-assignee-error" hidden></div>
-          </div>
-
-          <div class="field">
-            <label class="field__label">关联用例</label>
-            <div class="flex-center flex-gap-md">
-              <button class="btn btn--default" id="btn-case" type="button">选择用例</button>
-              <span class="text-xs text-light" id="f-case-hint">已选 1 个用例</span>
+              <div class="field">
+                <label class="field__label" for="f-plan">关联计划</label>
+                <select class="select" id="f-plan">
+                  <option value="" selected>选择计划（可选）</option>
+                  <option value="p-regress">V1.4.2 回归测试</option>
+                  <option value="p-iter">V1.4.3 迭代测试</option>
+                </select>
+              </div>
             </div>
           </div>
-
-          <div class="field" style="margin-bottom:0">
-            <label class="field__label" for="f-plan">关联计划</label>
-            <select class="select" id="f-plan">
-              <option value="" selected>选择计划（可选）</option>
-              <option value="p-regress">V1.4.2 回归测试</option>
-              <option value="p-iter">V1.4.3 迭代测试</option>
-            </select>
-          </div>
         </div>
       </div>
-    </div>
-  </div>
+    </form>
 
-  <div class="create-footer">
-    <a class="btn btn--default" href="bugs.html">取消</a>
-    <button class="btn btn--primary" id="btn-submit" type="button">提交缺陷</button>
+    <!-- 提交结果：本地会话内写入的缺陷记录（刷新即恢复初始状态） -->
+    <section class="bug-created" id="bug-created" hidden aria-live="polite">
+      <div class="bug-created__head">
+        <span data-icon="check-circle"></span>
+        <span class="bug-created__title">缺陷提交成功</span>
+        <span class="bug-created__id" id="created-id"></span>
+      </div>
+      <div class="bug-created__grid">
+        <div class="bug-created__wide">
+          <div class="bug-created__label">缺陷标题</div>
+          <div class="bug-created__value" id="created-title-text"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">缺陷类型</div>
+          <div class="bug-created__value" id="created-type"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">所属模块</div>
+          <div class="bug-created__value" id="created-module"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">严重等级</div>
+          <div class="bug-created__value" id="created-severity"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">优先级</div>
+          <div class="bug-created__value" id="created-priority"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">指派给</div>
+          <div class="bug-created__value" id="created-assignee"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">关联用例</div>
+          <div class="bug-created__value" id="created-case"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">关联计划</div>
+          <div class="bug-created__value" id="created-plan"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">截止日期</div>
+          <div class="bug-created__value" id="created-due"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">关键词</div>
+          <div class="bug-created__value" id="created-keywords"></div>
+        </div>
+        <div>
+          <div class="bug-created__label">附件</div>
+          <div class="bug-created__value" id="created-files"></div>
+        </div>
+      </div>
+      <div class="bug-created__steps" id="created-steps"></div>
+      <div class="bug-created__actions">
+        <a class="btn btn--primary" href="bug-detail.html">查看详情</a>
+        <a class="btn btn--default" href="bugs.html">返回缺陷列表</a>
+        <button class="btn btn--default" type="button" id="created-again">继续新建</button>
+      </div>
+      <div class="bug-created__session">
+        本次会话已提交 <span class="num" id="created-count">0</span> 条缺陷
+        <ul id="created-session-list"></ul>
+      </div>
+    </section>
   </div>
 
 </main>
@@ -457,6 +580,37 @@
   </div>
 </div>
 
+<!-- AI 建议弹窗：对齐 BugAiSuggestionDialog（静态演示） -->
+<div class="dialog-mask" id="ai-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:760px">
+    <div class="dialog__header">
+      <span class="dialog__title">AI 建议</span>
+      <button class="dialog__close" data-close="ai-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div id="ai-dialog-loading" class="text-sm text-secondary" style="padding:24px 0; display:flex; align-items:center; gap:8px;">
+        <span data-icon="sparkle"></span>AI 正在生成建议，请稍候...
+      </div>
+      <div id="ai-dialog-body" hidden>
+        <div style="font-size:var(--font-size-sm); font-weight:600; color:var(--n-700); margin-bottom:12px;">字段建议</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:12px 14px; border:1px solid var(--n-200); border-radius:var(--radius-md);">
+            <div style="min-width:0; flex:1;">
+              <div style="font-size:var(--font-size-xs); color:var(--n-500); margin-bottom:2px;">标题</div>
+              <div style="font-size:var(--font-size-sm); color:var(--n-900);" id="ai-suggest-title">支付超时后库存未释放，导致二次下单提示缺货</div>
+              <div style="margin-top:4px; font-size:var(--font-size-xs); color:var(--n-500);">理由：标题补充触发条件与结果，便于检索与去重。</div>
+            </div>
+            <button class="btn btn--default btn--sm" type="button" id="ai-adopt-title">采纳</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="ai-dialog">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
@@ -467,46 +621,50 @@
     if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {});
   }
 
-  /* ---------------- 标题字数：对应 el-input show-word-limit ---------------- */
+  /* ---------------- 标题：el-input show-word-limit + AI append ---------------- */
   var titleInput = byId('f-title');
   var titleCount = byId('f-title-count');
   var aiBtn = byId('ai-suggest-btn');
-  var aiSuggestion = byId('ai-suggestion');
-  var aiSuggestionText = byId('ai-suggestion-text');
-  // 实际页在无标题时禁用建议入口，避免空标题触发无意义请求
+  var titleWrap = byId('title-wrap');
   function syncAiButton() { aiBtn.disabled = !titleInput.value.trim(); }
-  function syncTitleCount() { titleCount.textContent = titleInput.value.length + '/300'; }
+  function syncTitleCount() { titleCount.textContent = String(titleInput.value.length); }
   titleInput.addEventListener('input', function () {
     syncTitleCount();
     syncAiButton();
-    aiSuggestion.hidden = true;
+    clearError('field-title');
   });
   syncTitleCount();
   syncAiButton();
 
-  /* ---------------- 标题 AI 建议：对应 handleRequestSuggest / BugSuggestBadge 采纳 ---------------- */
-  var SUGGESTED_TITLE = '支付超时后库存未释放，导致二次下单提示缺货';
+  /* ---------------- AI 建议弹窗：对齐 BugAiSuggestionDialog ---------------- */
+  var aiDialog = byId('ai-dialog');
+  var aiLoading = byId('ai-dialog-loading');
+  var aiBody = byId('ai-dialog-body');
   aiBtn.addEventListener('click', function () {
-    if (!titleInput.value.trim()) return;
+    if (!titleInput.value.trim()) {
+      toast('请先填写缺陷标题', 'warning');
+      return;
+    }
+    aiDialog.hidden = false;
+    aiLoading.hidden = false;
+    aiBody.hidden = true;
     aiBtn.disabled = true;
     aiBtn.setAttribute('aria-busy', 'true');
     setTimeout(function () {
       aiBtn.removeAttribute('aria-busy');
       syncAiButton();
-      aiSuggestionText.textContent = SUGGESTED_TITLE;
-      aiSuggestion.hidden = false;
-      toast('已生成标题建议', 'success');
-    }, 500);
+      aiLoading.hidden = true;
+      aiBody.hidden = false;
+      if (window.RTIcons) window.RTIcons.hydrate(aiDialog);
+    }, 450);
   });
-  byId('ai-suggestion-adopt').addEventListener('click', function () {
-    titleInput.value = aiSuggestionText.textContent;
+  byId('ai-adopt-title').addEventListener('click', function () {
+    titleInput.value = byId('ai-suggest-title').textContent;
     syncTitleCount();
     syncAiButton();
-    aiSuggestion.hidden = true;
+    clearError('field-title');
+    aiDialog.hidden = true;
     toast('已采纳标题建议', 'success');
-  });
-  byId('ai-suggestion-dismiss').addEventListener('click', function () {
-    aiSuggestion.hidden = true;
   });
 
   /* ---------------- 重现步骤：Markdown 工具栏插入 ---------------- */
@@ -537,64 +695,136 @@
     });
   });
 
-  /* ---------------- 严重等级：带色点下拉（对应 el-option 内 severity-dot） ---------------- */
-  var sev = byId('f-severity');
-  var sevBtn = byId('f-severity-btn');
-  var sevMenu = sev.querySelector('.sev-select__menu');
-  var sevLabel = sev.querySelector('[data-sev-label]');
-  var sevDot = sev.querySelector('[data-sev-dot]');
+  /* ---------------- 预览：真实切换编辑区与渲染结果 ---------------- */
+  var previewBtn = byId('md-preview-btn');
+  var stepsPreview = byId('steps-preview');
+  var previewOn = false;
 
-  sevBtn.addEventListener('click', function (e) {
-    e.stopPropagation();
-    sevMenu.hidden = !sevMenu.hidden;
-    sevBtn.setAttribute('aria-expanded', String(!sevMenu.hidden));
-  });
-  sevMenu.querySelectorAll('.sev-select__opt').forEach(function (opt) {
-    opt.addEventListener('click', function () {
-      var value = opt.getAttribute('data-value');
-      sev.setAttribute('data-value', value);
-      sevLabel.textContent = opt.getAttribute('data-label');
-      sevDot.className = 'sev-dot sev-dot--' + value;
-      sevMenu.hidden = true;
-      sevBtn.setAttribute('aria-expanded', 'false');
-      setError('f-severity', '');
-    });
-  });
-  document.addEventListener('click', function (e) {
-    if (!sev.contains(e.target)) {
-      sevMenu.hidden = true;
-      sevBtn.setAttribute('aria-expanded', 'false');
+  function appendInline(text, parent) {
+    var re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+    var last = 0;
+    var m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var token = m[0];
+      if (token.slice(0, 2) === '**') {
+        var strong = document.createElement('strong');
+        strong.textContent = token.slice(2, -2);
+        parent.appendChild(strong);
+      } else if (token.charAt(0) === '*') {
+        var em = document.createElement('em');
+        em.textContent = token.slice(1, -1);
+        parent.appendChild(em);
+      } else if (token.charAt(0) === '`') {
+        var code = document.createElement('code');
+        code.textContent = token.slice(1, -1);
+        parent.appendChild(code);
+      } else {
+        var cut = token.indexOf('](');
+        var link = document.createElement('a');
+        link.textContent = token.slice(1, cut);
+        link.setAttribute('href', token.slice(cut + 2, -1));
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener');
+        parent.appendChild(link);
+      }
+      last = re.lastIndex;
     }
-  });
+    if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+  }
 
-  /* ---------------- 附件：选择/拖拽 + 10MB 过滤（对应 el-upload） ---------------- */
+  function renderMarkdown(src, root) {
+    root.textContent = '';
+    var list = null;
+    var listTag = '';
+    function closeList() { list = null; listTag = ''; }
+    src.split('\n').forEach(function (line) {
+      var heading = /^(#{1,6})\s+(.*)$/.exec(line);
+      if (heading) {
+        closeList();
+        var h = document.createElement('h' + heading[1].length);
+        appendInline(heading[2], h);
+        root.appendChild(h);
+        return;
+      }
+      var quote = /^>\s?(.*)$/.exec(line);
+      if (quote) {
+        closeList();
+        var blockquote = document.createElement('blockquote');
+        appendInline(quote[1], blockquote);
+        root.appendChild(blockquote);
+        return;
+      }
+      var unordered = /^[-*]\s+(.*)$/.exec(line);
+      var ordered = /^\d+\.\s+(.*)$/.exec(line);
+      if (unordered || ordered) {
+        var tag = unordered ? 'ul' : 'ol';
+        if (!list || listTag !== tag) {
+          closeList();
+          list = document.createElement(tag);
+          listTag = tag;
+          root.appendChild(list);
+        }
+        var li = document.createElement('li');
+        appendInline((unordered || ordered)[1], li);
+        list.appendChild(li);
+        return;
+      }
+      closeList();
+      if (!line.trim()) return;
+      var paragraph = document.createElement('p');
+      appendInline(line, paragraph);
+      root.appendChild(paragraph);
+    });
+  }
+
+  function setPreview(on) {
+    previewOn = on;
+    if (on) renderMarkdown(steps.value, stepsPreview);
+    stepsPreview.hidden = !on;
+    steps.hidden = on;
+    previewBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    previewBtn.classList.toggle('is-active', on);
+    previewBtn.title = on ? '返回编辑' : '预览';
+    previewBtn.setAttribute('aria-label', previewBtn.title);
+  }
+  previewBtn.addEventListener('click', function () { setPreview(!previewOn); });
+
+  /* ---------------- 严重等级/优先级：el-radio-button 分段 ---------------- */
+  function bindRadioGroup(groupId, fieldId) {
+    var group = byId(groupId);
+    group.querySelectorAll('input[type="radio"]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        group.querySelectorAll('.radio-btn').forEach(function (btn) { btn.classList.remove('is-active'); });
+        input.closest('.radio-btn').classList.add('is-active');
+        clearError(fieldId);
+      });
+    });
+  }
+  bindRadioGroup('f-severity', 'field-severity');
+  bindRadioGroup('f-priority', 'field-priority');
+  function radioValue(name) {
+    var checked = document.querySelector('input[name="' + name + '"]:checked');
+    return checked ? checked.value : '';
+  }
+
+  /* ---------------- 附件：el-upload drag 近似 ---------------- */
   var fileInput = byId('f-files');
   var uploadBox = byId('upload-box');
   var uploadList = byId('upload-list');
   var MAX_SIZE = 10 * 1024 * 1024;
   var pickedFiles = [];
 
-  function formatSize(size) {
-    if (size >= 1024 * 1024) return (size / 1024 / 1024).toFixed(1) + ' MB';
-    return Math.max(1, Math.round(size / 1024)) + ' KB';
-  }
-
   function renderFiles() {
     uploadList.textContent = '';
     pickedFiles.forEach(function (f, index) {
-      var item = document.createElement('div');
-      item.className = 'upload-item';
-
+      var item = document.createElement('li');
+      item.className = 'upload-list__item';
       var name = document.createElement('span');
-      name.className = 'upload-item__name';
+      name.className = 'upload-list__name';
       name.textContent = f.name;
-
-      var size = document.createElement('span');
-      size.className = 'upload-item__size';
-      size.textContent = formatSize(f.size);
-
       var remove = document.createElement('button');
-      remove.className = 'upload-item__remove';
+      remove.className = 'upload-list__remove';
       remove.type = 'button';
       remove.setAttribute('aria-label', '移除附件');
       remove.innerHTML = '<span data-icon="x"></span>';
@@ -602,9 +832,7 @@
         pickedFiles.splice(index, 1);
         renderFiles();
       });
-
       item.appendChild(name);
-      item.appendChild(size);
       item.appendChild(remove);
       uploadList.appendChild(item);
     });
@@ -623,18 +851,22 @@
     renderFiles();
   }
 
-  uploadBox.addEventListener('click', function () { fileInput.click(); });
+  var demoFileSeq = 0;
+  function handleUpload() {
+    // 原型不依赖真实文件系统：点击即写入一条本地附件项，同时保留选择本地文件的能力
+    demoFileSeq += 1;
+    addFiles([{ name: '缺陷截图-' + demoFileSeq + '.png', size: 128 * 1024 }]);
+    fileInput.click();
+  }
+  uploadBox.addEventListener('click', handleUpload);
   uploadBox.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleUpload(); }
   });
-  uploadBox.addEventListener('dragover', function (e) {
-    e.preventDefault();
-    uploadBox.classList.add('upload--over');
-  });
-  uploadBox.addEventListener('dragleave', function () { uploadBox.classList.remove('upload--over'); });
+  uploadBox.addEventListener('dragover', function (e) { e.preventDefault(); uploadBox.classList.add('is-dragover'); });
+  uploadBox.addEventListener('dragleave', function () { uploadBox.classList.remove('is-dragover'); });
   uploadBox.addEventListener('drop', function (e) {
     e.preventDefault();
-    uploadBox.classList.remove('upload--over');
+    uploadBox.classList.remove('is-dragover');
     if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
   });
   fileInput.addEventListener('change', function () {
@@ -650,17 +882,14 @@
   var caseEmpty = byId('case-empty');
   var caseOk = byId('case-ok');
   var selectedCase = '';
+  var selectedCaseTitle = '';
 
-  function activeSection() {
-    return caseDialog.querySelector('.case-selector__doc:not([hidden])');
-  }
-
+  function activeSection() { return caseDialog.querySelector('.case-selector__doc:not([hidden])'); }
   function updateCount() {
     var n = selectedCase ? 1 : 0;
     caseCount.textContent = String(n);
     caseOk.textContent = '确定关联 (' + n + ')';
   }
-
   function refreshCases() {
     var keyword = caseKeyword.value.trim().toLowerCase();
     var priority = casePriority.value;
@@ -669,15 +898,13 @@
     if (section) {
       section.querySelectorAll('.case-row').forEach(function (row) {
         var label = row.querySelector('.case-row__title').textContent.toLowerCase();
-        var matched = (!keyword || label.indexOf(keyword) >= 0) &&
-          (!priority || row.getAttribute('data-priority') === priority);
+        var matched = (!keyword || label.indexOf(keyword) >= 0) && (!priority || row.getAttribute('data-priority') === priority);
         row.hidden = !matched;
         if (matched) visible++;
       });
     }
     caseEmpty.hidden = visible > 0;
   }
-
   function clearCaseSelection() {
     caseDialog.querySelectorAll('.case-row--on').forEach(function (row) {
       row.classList.remove('case-row--on');
@@ -685,7 +912,6 @@
     });
     selectedCase = '';
   }
-
   function selectCase(row) {
     var id = row.getAttribute('data-case-id');
     var already = selectedCase === id;
@@ -697,12 +923,9 @@
     }
     updateCount();
   }
-
   caseDialog.querySelectorAll('[data-doc]').forEach(function (item) {
     item.addEventListener('click', function () {
-      caseDialog.querySelectorAll('[data-doc]').forEach(function (i) {
-        i.classList.remove('tree__item--active');
-      });
+      caseDialog.querySelectorAll('[data-doc]').forEach(function (i) { i.classList.remove('tree__item--active'); });
       item.classList.add('tree__item--active');
       caseDialog.querySelectorAll('.case-selector__doc').forEach(function (section) {
         section.hidden = section.getAttribute('data-doc-section') !== item.getAttribute('data-doc');
@@ -710,16 +933,13 @@
       refreshCases();
     });
   });
-
   caseDialog.querySelectorAll('.case-row').forEach(function (row) {
     row.addEventListener('click', function () { selectCase(row); });
   });
-
   caseKeyword.addEventListener('input', refreshCases);
   casePriority.addEventListener('change', refreshCases);
 
   byId('btn-case').addEventListener('click', function () {
-    // 与实际页一致：弹窗常驻但打开时清空勾选与筛选
     clearCaseSelection();
     caseKeyword.value = '';
     casePriority.value = '';
@@ -727,82 +947,168 @@
     refreshCases();
     updateCount();
   });
-
   caseOk.addEventListener('click', function () {
-    if (!selectedCase) {
-      toast('请选择一个用例', 'warning');
-      return;
-    }
-    byId('f-case-hint').textContent = '已选 1 个用例';
+    if (!selectedCase) { toast('请选择一个用例', 'warning'); return; }
+    var row = caseDialog.querySelector('.case-row--on');
+    selectedCaseTitle = row ? row.querySelector('.case-row__title').textContent.trim() : '';
+    byId('f-case-state').textContent = '已关联：' + selectedCaseTitle;
     caseDialog.hidden = true;
   });
 
+  /* ---------------- 弹窗通用关闭 ---------------- */
   document.querySelectorAll('[data-close]').forEach(function (el) {
-    el.addEventListener('click', function () {
-      byId(el.getAttribute('data-close')).hidden = true;
-    });
+    el.addEventListener('click', function () { byId(el.getAttribute('data-close')).hidden = true; });
   });
   document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
-    mask.addEventListener('click', function (e) {
-      if (e.target === mask) mask.hidden = true;
-    });
+    mask.addEventListener('click', function (e) { if (e.target === mask) mask.hidden = true; });
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !caseDialog.hidden) caseDialog.hidden = true;
+    if (e.key !== 'Escape') return;
+    if (!aiDialog.hidden) { aiDialog.hidden = true; return; }
+    if (!caseDialog.hidden) { caseDialog.hidden = true; }
   });
 
-  /* ---------------- 校验与提交：文案与 useBugCreate rules 一致 ---------------- */
-  function setError(id, msg) {
-    var control = byId(id);
-    var cls = control.classList.contains('sev-select') ? 'is-error' : 'input--error';
-    control.classList.toggle(cls, Boolean(msg));
-    var box = byId(id + '-error');
-    box.textContent = msg;
-    box.hidden = !msg;
+  /* ---------------- 校验与提交：对齐 useBugCreate rules ---------------- */
+  function setFieldError(fieldId, msg) {
+    var field = byId(fieldId);
+    if (!field) return;
+    field.classList.toggle('is-error', Boolean(msg));
+    var err = field.querySelector('.field__error');
+    if (err) err.textContent = msg;
   }
+  function clearError(fieldId) { setFieldError(fieldId, ''); }
 
-  var RULES = {
-    'f-title': function (v) { return v.trim() ? '' : '请输入缺陷标题'; },
-    'f-type': function (v) { return v ? '' : '请选择缺陷类型'; },
-    'f-severity': function () { return sev.getAttribute('data-value') ? '' : '请选择严重等级'; },
-    'f-priority': function (v) { return v ? '' : '请选择优先级'; },
-    'f-assignee': function (v) { return v ? '' : '请选择处理人'; }
-  };
-
-  function valueOf(id) {
-    var el = byId(id);
-    return el.value === undefined ? '' : el.value.trim();
-  }
+  byId('f-type').addEventListener('change', function () { clearError('field-bugType'); });
+  byId('f-assignee').addEventListener('change', function () { clearError('field-assignee'); });
 
   function validate() {
     var first = '';
-    Object.keys(RULES).forEach(function (id) {
-      var msg = RULES[id](valueOf(id));
-      setError(id, msg);
-      if (msg && !first) first = id;
-    });
+    var titleMsg = titleInput.value.trim() ? '' : '请输入缺陷标题';
+    setFieldError('field-title', titleMsg);
+    if (titleMsg) first = first || 'f-title';
+
+    var typeMsg = byId('f-type').value ? '' : '请选择缺陷类型';
+    setFieldError('field-bugType', typeMsg);
+    if (typeMsg) first = first || 'f-type';
+
+    var sevMsg = radioValue('severity') ? '' : '请选择严重等级';
+    setFieldError('field-severity', sevMsg);
+    if (sevMsg) first = first || 'field-severity';
+
+    var prioMsg = radioValue('priority') ? '' : '请选择优先级';
+    setFieldError('field-priority', prioMsg);
+    if (prioMsg) first = first || 'field-priority';
+
+    var assigneeMsg = byId('f-assignee').value ? '' : '请选择处理人';
+    setFieldError('field-assignee', assigneeMsg);
+    if (assigneeMsg) first = first || 'f-assignee';
+
     return first;
   }
 
-  Object.keys(RULES).forEach(function (id) {
-    if (id === 'f-severity') return; // 色点下拉在选中时自行清错
+  /* ---------------- 提交：写入本地数据并渲染结果面板（不持久化） ---------------- */
+  var localBugs = [];
+
+  function selectedLabel(id) {
     var el = byId(id);
-    el.addEventListener(id === 'f-title' ? 'input' : 'change', function () {
-      if (byId(id + '-error').hidden) return;
-      setError(id, RULES[id](valueOf(id)));
+    if (!el || !el.value) return '—';
+    var option = el.options[el.selectedIndex];
+    return option ? option.textContent : '—';
+  }
+  function radioLabel(name) {
+    var checked = document.querySelector('input[name="' + name + '"]:checked');
+    return checked ? checked.closest('.radio-btn').textContent.trim() : '—';
+  }
+  function pad3(n) { return ('00' + n).slice(-3); }
+
+  function renderCreatedList() {
+    var list = byId('created-session-list');
+    list.textContent = '';
+    localBugs.forEach(function (bug) {
+      var li = document.createElement('li');
+      li.textContent = bug.id + ' ' + bug.title;
+      list.appendChild(li);
     });
-  });
+    byId('created-count').textContent = String(localBugs.length);
+  }
 
   byId('btn-submit').addEventListener('click', function () {
     var first = validate();
     if (first) {
       var el = byId(first);
-      var focusable = el.matches('input, select, textarea') ? el : el.querySelector('button');
-      if (focusable) focusable.focus();
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+      if (el && el.focus) el.focus();
       return;
     }
-    toast('缺陷已提交', 'success');
-    window.setTimeout(function () { window.location.href = 'bugs.html'; }, 400);
+
+    var bug = {
+      id: 'BUG-' + pad3(localBugs.length + 1),
+      title: titleInput.value.trim(),
+      type: selectedLabel('f-type'),
+      module: selectedLabel('f-module'),
+      severity: radioLabel('severity'),
+      priority: radioLabel('priority'),
+      assignee: selectedLabel('f-assignee'),
+      caseName: selectedCaseTitle || '未关联',
+      plan: selectedLabel('f-plan'),
+      due: byId('f-due').value || '—',
+      keywords: byId('f-keywords').value.trim() || '—',
+      files: pickedFiles.length ? pickedFiles.map(function (f) { return f.name; }).join('、') : '无',
+      steps: steps.value.trim() || '（未填写）'
+    };
+    localBugs.push(bug);
+
+    var values = {
+      'created-id': bug.id,
+      'created-title-text': bug.title,
+      'created-type': bug.type,
+      'created-module': bug.module,
+      'created-severity': bug.severity,
+      'created-priority': bug.priority,
+      'created-assignee': bug.assignee,
+      'created-case': bug.caseName,
+      'created-plan': bug.plan,
+      'created-due': bug.due,
+      'created-keywords': bug.keywords,
+      'created-files': bug.files,
+      'created-steps': bug.steps
+    };
+    Object.keys(values).forEach(function (id) { byId(id).textContent = values[id]; });
+
+    renderCreatedList();
+    if (window.RTIcons) window.RTIcons.hydrate(byId('bug-created'));
+    byId('bug-form').hidden = true;
+    byId('bug-created').hidden = false;
+    byId('btn-submit').hidden = true;
+    document.querySelector('.bug-create__breadcrumb > :last-child').textContent = '提交成功';
+    document.querySelector('.bug-create__actions .btn--default').textContent = '返回缺陷列表';
+    byId('bug-created').scrollIntoView({ block: 'start' });
+  });
+
+  /* ---------------- 继续新建：恢复初始 DOM 与本地数据状态 ---------------- */
+  byId('created-again').addEventListener('click', function () {
+    byId('bug-form').reset();
+    byId('bug-created').hidden = true;
+    byId('bug-form').hidden = false;
+    byId('btn-submit').hidden = false;
+    document.querySelector('.bug-create__breadcrumb > :last-child').textContent = '提交缺陷';
+    document.querySelector('.bug-create__actions .btn--default').textContent = '取消';
+
+    selectedCase = '';
+    selectedCaseTitle = '';
+    byId('f-case-state').textContent = '未关联';
+    pickedFiles = [];
+    renderFiles();
+    setPreview(false);
+    syncTitleCount();
+    syncAiButton();
+    ['f-severity', 'f-priority'].forEach(function (groupId) {
+      byId(groupId).querySelectorAll('.radio-btn').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.querySelector('input').checked);
+      });
+    });
+    ['field-title', 'field-bugType', 'field-severity', 'field-priority', 'field-assignee'].forEach(clearError);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 })();
 </script>

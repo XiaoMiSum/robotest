@@ -9,75 +9,158 @@
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
   [hidden] { display: none !important; }
-  .exec-time { font-size: var(--font-size-xs); color: var(--n-400); margin-top: 2px; }
-  .op-group { display: inline-flex; align-items: center; gap: 8px; }
-  .more-caret { color: var(--n-500); font-size: var(--font-size-xs); cursor: pointer; }
-  .more-caret:hover { color: var(--brand-500); }
-  /* 上一次执行未结束时的禁用态（对应实际页 el-button :disabled） */
-  .op-link--disabled { color: var(--n-300); cursor: not-allowed; }
-  .op-link--disabled:hover { color: var(--n-300); text-decoration: none; }
-  .muted { color: var(--n-400); }
 
-  /* 空态：与实际页 el-empty 文案一致 */
-  .empty-row td { padding: 40px 16px; text-align: center; color: var(--n-400); }
-
-  /* 开关 */
-  .switch { position: relative; width: 34px; height: 19px; border-radius: 10px; background: var(--n-200); border: none; cursor: pointer; padding: 0; transition: background .15s; vertical-align: middle; }
-  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left .15s; }
-  .switch.is-on { background: var(--brand-500); }
-  .switch.is-on::after { left: 17px; }
-
-  /* 「更多」浮动菜单（编辑 / 删除） */
-  .more-dropdown {
-    position: fixed;
-    z-index: 90;
-    min-width: 108px;
-    padding: 4px 0;
-    background: var(--n-0);
-    border: 1px solid var(--n-200);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
+  /* 页面骨架：对齐 SchedulesPage.vue .schedules-page */
+  .schedules-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .schedules-page__header {
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    padding: 14px 0; border-bottom: 1px solid var(--n-100);
   }
-  .more-dropdown__item { padding: 7px 14px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; white-space: nowrap; }
-  .more-dropdown__item:hover { background: var(--n-50); color: var(--n-900); }
-  .more-dropdown__item--danger { color: var(--st-danger); }
-  .more-dropdown__sep { margin: 4px 0; border-top: 1px solid var(--n-100); }
+  .schedules-page__title { margin: 0; font-size: 16px; font-weight: 600; color: var(--n-900); }
+  .schedules-page__header-actions { display: flex; align-items: center; gap: 8px; }
+  .schedules-page__feedback { flex-shrink: 0; border-bottom: 1px solid var(--n-100); }
+  .schedules-page__table { flex: 1; min-height: 0; overflow: hidden; }
+  .schedules-page__first-error { flex: 1; min-height: 0; display: flex; align-items: flex-start; padding: 14px 0; }
+  .schedules-page__pagination { flex-shrink: 0; border-top: 1px solid var(--n-100); }
 
-  /* 执行记录抽屉：对照实际页 el-drawer（600px、右侧弹出） */
-  .exec-mask { position: fixed; inset: 0; background: rgba(15, 15, 17, 0.45); z-index: 200; }
+  /* 表格容器撑满，模拟 el-table height="100%" */
+  .schedules-page__table .table-wrap { height: 100%; overflow: auto; }
+  .schedules-page__table .table { min-width: 100%; }
+
+  /* 操作列表头：对齐 .schedules-page__action-header（右对齐 + icon-only 列设置） */
+  .schedules-page__action-header {
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: 100%;
+  }
+
+  /* 行操作：el-button link type="primary|danger" size="small" 的原型近似 */
+  .tbl-link {
+    display: inline-flex; align-items: center; padding: 0; margin: 0; border: 0; background: none;
+    font: inherit; font-size: 12px; line-height: 1; cursor: pointer; white-space: nowrap;
+  }
+  .tbl-link + .tbl-link { margin-left: 12px; }
+  .tbl-link--primary { color: var(--brand-500); }
+  .tbl-link--primary:hover { color: var(--brand-600); }
+  .tbl-link--danger { color: var(--st-danger); }
+  .tbl-link--danger:hover { color: var(--st-danger-strong, #b91c1c); }
+  .tbl-link:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* el-switch 近似 */
+  .el-switch {
+    position: relative; display: inline-flex; width: 40px; height: 20px; border: 0; padding: 0;
+    border-radius: 10px; background: var(--n-300); cursor: pointer; vertical-align: middle;
+    transition: background .2s;
+  }
+  .el-switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; transition: left .2s;
+  }
+  .el-switch.is-on { background: var(--brand-500); }
+  .el-switch.is-on::after { left: 22px; }
+
+  /* el-tag size="small" 近似 */
+  .el-tag-sm {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 4px;
+    font-size: 12px; line-height: 1; white-space: nowrap; border: 1px solid transparent;
+  }
+  .el-tag-sm--success { color: #67c23a; background: #f0f9eb; border-color: #e1f3d8; }
+  .el-tag-sm--danger { color: #f56c6c; background: #fef0f0; border-color: #fde2e2; }
+  .el-tag-sm--warning { color: #e6a23c; background: #fdf6ec; border-color: #faecd8; }
+  .el-tag-sm--info { color: #909399; background: #f4f4f5; border-color: #e9e9eb; }
+
+  .text-muted { color: var(--n-500); }
+  .text-xs { font-size: 12px; }
+  .ml-4 { margin-left: 4px; }
+
+  /* ListLoadFeedback 近似 */
+  .list-feedback__loading { padding: 24px; color: var(--n-500); font-size: var(--font-size-sm); text-align: center; }
+  .list-feedback__error {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px;
+    line-height: normal; text-align: left;
+  }
+  .list-feedback__error-alert {
+    flex: 1 1 16rem; min-width: 0; padding: 8px 12px; border-radius: 4px;
+    background: #fef0f0; color: #f56c6c; font-size: 13px;
+  }
+  .list-feedback__error-alert strong { display: block; margin-bottom: 2px; }
+  .list-empty { padding: 40px 16px; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
+  .list-empty__title { margin: 0 0 12px; font-size: 14px; color: var(--n-500); }
+
+  /* 列显隐：TableColumnSetting icon-only 近似（el-popover trigger click） */
+  .colset { position: relative; display: inline-flex; }
+  .colset__trigger {
+    display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;
+    padding: 0; border: 0; background: none; color: var(--n-500); cursor: pointer; border-radius: 4px;
+  }
+  .colset__trigger:hover { color: var(--brand-500); background: var(--n-50); }
+  .colset__trigger svg { width: 16px; height: 16px; }
+  .colset__pop {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 120; width: 220px; padding: 12px;
+    background: #fff; border: 1px solid var(--n-200); border-radius: 4px; box-shadow: var(--shadow-lg);
+  }
+  .colset__title { margin-bottom: 8px; font-size: 13px; color: var(--n-600); }
+  .colset__list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+  .colset__item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--n-700); cursor: pointer; }
+  .colset__item.is-pinned { color: var(--n-500); cursor: default; }
+  .colset__item input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand-500); }
+  .colset__actions { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--n-200); }
+
+  /* ListPagination bare 近似 */
+  .list-pager {
+    display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 14px 20px; border-top: 1px solid var(--n-100);
+  }
+  .list-pager--bare { padding: 0; margin-top: 12px; border-top: 0; }
+  .list-pager__total { color: var(--n-500); font-size: 13px; }
+  .list-pager__controls { display: flex; align-items: center; gap: 8px; }
+  .list-pager__sizes { height: 28px; padding: 0 8px; border: 1px solid var(--n-200); border-radius: 4px; font-size: 13px; color: var(--n-700); background: #fff; }
+
+  /* 执行记录抽屉：对齐 el-drawer size="720px" */
+  .exec-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; }
   .exec-drawer {
-    position: fixed; top: 0; right: 0; bottom: 0; z-index: 210;
-    width: 600px; max-width: 92vw;
-    display: flex; flex-direction: column;
-    background: var(--n-0); border-left: 1px solid var(--n-200); box-shadow: var(--shadow-lg);
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 210; width: 720px; max-width: 92vw;
+    display: flex; flex-direction: column; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,.15);
   }
   .exec-drawer__head {
     flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px; border-bottom: 1px solid var(--n-100);
+    padding: 16px 20px; border-bottom: 1px solid var(--n-100);
   }
-  .exec-drawer__title { font-size: var(--font-size-md, 15px); font-weight: 600; color: var(--n-900); }
-  .exec-drawer__close { display: flex; padding: 3px; border: none; background: none; color: var(--n-400); cursor: pointer; border-radius: var(--radius-sm); }
-  .exec-drawer__close:hover { color: var(--n-700); background: var(--n-50); }
+  .exec-drawer__title { font-size: 16px; font-weight: 600; color: var(--n-900); }
+  .exec-drawer__close {
+    display: inline-flex; padding: 2px; border: 0; background: none; color: var(--n-400); cursor: pointer; border-radius: 4px;
+  }
+  .exec-drawer__close:hover { color: var(--n-700); }
   .exec-drawer__close svg { width: 16px; height: 16px; }
-  .exec-drawer__body { flex: 1; overflow-y: auto; }
-  .exec-drawer__body .table th,
-  .exec-drawer__body .table td { padding: 9px 10px; }
-  .exec-drawer__empty { padding: 32px 16px; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
-  .exec-drawer__pager { flex-shrink: 0; border-top: 1px solid var(--n-100); border-bottom: none; }
+  .exec-drawer__body { flex: 1; overflow-y: auto; padding: 20px; }
+  .exec-drawer__body .table th, .exec-drawer__body .table td { padding: 10px 12px; font-size: 13px; }
+  .text-danger { color: #f56c6c; }
 
-  /* 列显隐：齿轮入口 + 220px 显示列浮层，pinned 列始终展示（对齐 TableColumnSetting） */
-  .colset { position: relative; display: inline-flex; }
-  .colset__pop { position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 120; width: 220px; padding: 12px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
-  .colset__title { margin-bottom: 8px; font-size: var(--font-size-sm); color: var(--n-600); }
-  .colset__list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
-  .colset__item { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
-  .colset__item.is-pinned { color: var(--n-500); cursor: default; }
-  .colset__item input { width: 15px; height: 15px; margin: 0; accent-color: var(--brand-500); }
-  .colset__actions { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--n-200); }
-
-  /* 加载失败口径（UI-PAGE-11）：顶部错误条 + 重新加载，已有数据保留 */
-  .list-load-error { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 14px; border: 1px solid var(--st-danger-border); border-radius: var(--radius-md); background: var(--st-danger-light); color: var(--st-danger-strong); font-size: var(--font-size-sm); }
-  .list-load-error__spacer { flex: 1; }
+  /* 表单弹窗：对齐 el-dialog 640px */
+  .dialog--form { width: 640px; max-width: calc(100vw - 32px); }
+  .form-row { margin-bottom: 18px; display: flex; align-items: flex-start; }
+  .form-row__label { width: 100px; flex-shrink: 0; padding-top: 6px; font-size: 14px; color: var(--n-700); text-align: right; padding-right: 12px; }
+  .form-row__label.is-required::before { content: "*"; color: #f56c6c; margin-right: 4px; }
+  .form-row__content { flex: 1; min-width: 0; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; border: 1px solid var(--n-200); border-radius: 4px; font-size: 14px; color: var(--n-800);
+    padding: 0 12px; background: #fff; box-sizing: border-box;
+  }
+  .form-input, .form-select { height: 32px; }
+  .form-textarea { padding: 8px 12px; resize: vertical; font-family: inherit; }
+  .radio-group { display: flex; align-items: center; gap: 20px; min-height: 32px; }
+  .radio-group label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--n-700); cursor: pointer; }
+  .cron-field { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .cron-validation { margin-top: 8px; font-size: 12px; color: var(--n-500); }
+  .cron-validation.is-invalid { color: #f56c6c; }
+  .cron-next { margin: 4px 0 0; padding-left: 18px; }
+  .cron-builder { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .cron-builder .form-input { width: 80px; flex: none; }
+  .scene-tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-height: 32px; }
+  .scene-tag {
+    display: inline-flex; align-items: center; gap: 4px; max-width: 200px; padding: 0 8px; height: 24px;
+    border-radius: 4px; background: #f4f4f5; color: var(--n-700); font-size: 12px;
+  }
+  .scene-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scene-tag button { border: 0; background: none; padding: 0; color: var(--n-400); cursor: pointer; font-size: 14px; line-height: 1; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -87,183 +170,193 @@
     <aside class="split__side" data-side="api"></aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">定时任务</h1>
-          <p class="page-head__desc">测试计划（场景批量执行）、接口同步与 GitLab 同步的统一周期调度</p>
-        </div>
-        <div class="page-head__actions">
-          <a class="btn btn--primary" href="api-schedule-form.html"><span data-icon="plus"></span>新建任务</a>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="toolbar">
-          <div class="toolbar__filters">
-            <select class="select" id="type-filter" style="width:140px">
-              <option value="">全部类型</option>
+      <div class="schedules-page">
+        <!-- 页头：对齐 SchedulesPage.vue .schedules-page__header -->
+        <div class="schedules-page__header">
+          <h3 class="schedules-page__title">定时任务</h3>
+          <div class="schedules-page__header-actions">
+            <!-- el-select v-model="typeFilter" placeholder="任务类型" clearable style="width:140px" -->
+            <select class="select" id="type-filter" style="width:140px" aria-label="任务类型">
+              <option value="">任务类型</option>
               <option value="scene_execute">测试计划</option>
               <option value="import_swagger">接口同步</option>
-              <option value="gitlab_sync">GitLab 同步</option>
             </select>
-            <div class="colset" id="sch-cols">
-              <button class="btn btn--default" type="button" id="sch-cols-btn" aria-label="列设置" aria-expanded="false"><span data-icon="settings"></span>列设置</button>
-              <div class="colset__pop" id="sch-cols-pop" hidden>
-                <div class="colset__title">显示列</div>
-                <div class="colset__list"></div>
-                <div class="colset__actions">
-                  <button class="btn btn--link btn--sm" type="button" data-cols-all>全选</button>
-                  <button class="btn btn--link btn--sm" type="button" data-cols-reset>恢复默认</button>
-                </div>
-              </div>
-            </div>
+            <!-- el-button type="primary" @click="openCreate" -->
+            <button class="btn btn--primary" type="button" data-open="form-dialog">新建任务</button>
           </div>
         </div>
 
-        <div class="list-load-error" id="sch-load-error" role="alert" hidden>
-          <span data-icon="alert-circle"></span>
-          <span>定时任务列表加载失败</span>
-          <span class="list-load-error__spacer"></span>
-          <button class="btn btn--link btn--sm" type="button" data-list-retry>重新加载</button>
+        <!-- 刷新失败反馈：对齐 ListLoadFeedback mode="refresh-error" -->
+        <div class="schedules-page__feedback" id="sch-refresh-error" hidden>
+          <div class="list-feedback__error" role="alert">
+            <div class="list-feedback__error-alert">
+              <strong>刷新失败，当前显示上次加载的数据</strong>
+              <span id="sch-refresh-error-msg">定时任务列表加载失败</span>
+            </div>
+            <button class="btn btn--default" type="button" data-list-retry>重新加载</button>
+          </div>
         </div>
 
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th style="min-width:180px" data-col="name">任务名称</th>
-                <th style="width:120px" data-col="type" data-label="任务类型">任务类型</th>
-                <th style="min-width:150px" data-col="target" data-label="执行目标">执行目标</th>
-                <th style="width:140px" data-col="cron" data-label="调度表达式">调度表达式</th>
-                <th style="width:90px" data-col="enabled" data-label="启用状态">启用状态</th>
-                <th style="min-width:160px" data-col="lastExecution">上次执行</th>
-                <th style="width:220px" data-col="actions">操作</th>
-              </tr>
-            </thead>
-            <tbody id="schedule-tbody">
-              <tr data-type="scene_execute" data-name="支付回归夜跑">
-                <td class="cell-main">支付回归夜跑</td>
-                <td>测试计划</td>
-                <td>全部场景</td>
-                <td><span class="mono">0 2 * * *</span></td>
-                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
-                <td>
-                  <span class="tag tag--success">成功</span>
-                  <div class="exec-time">09-22 03:00</div>
-                </td>
-                <td>
-                  <span class="op-group">
-                    <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
-                    <span class="more-caret" data-more>更多 ▾</span>
-                  </span>
-                </td>
-              </tr>
-              <tr data-type="scene_execute" data-name="核心链路冒烟">
-                <td class="cell-main">核心链路冒烟</td>
-                <td>测试计划</td>
-                <td>指定模块×3</td>
-                <td><span class="mono">0 * * * *</span></td>
-                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
-                <td>
-                  <span class="tag tag--warning">执行中</span>
-                  <div class="exec-time">09-22 15:00</div>
-                </td>
-                <td>
-                  <span class="op-group">
-                    <span class="op-link op-link--disabled" data-run-now title="上一次执行未结束，暂不可再次触发">立即执行</span>
-                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
-                    <span class="more-caret" data-more>更多 ▾</span>
-                  </span>
-                </td>
-              </tr>
-              <tr data-type="import_swagger" data-name="Swagger 文档同步">
-                <td class="cell-main">Swagger 文档同步</td>
-                <td>接口同步</td>
-                <td class="num" style="font-size:var(--font-size-xs)">https://example.com/v3/api-docs</td>
-                <td><span class="mono">0 2 * * 1</span></td>
-                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
-                <td>
-                  <span class="tag tag--danger">失败</span>
-                  <div class="exec-time">09-21 02:00</div>
-                </td>
-                <td>
-                  <span class="op-group">
-                    <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
-                    <span class="more-caret" data-more>更多 ▾</span>
-                  </span>
-                </td>
-              </tr>
-              <tr data-type="gitlab_sync" data-name="仓库同步">
-                <td class="cell-main">仓库同步</td>
-                <td>GitLab 同步</td>
-                <td class="num">order-api-tests</td>
-                <td><span class="mono">0 3 * * *</span></td>
-                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
-                <td>
-                  <span class="tag tag--success">成功</span>
-                  <div class="exec-time">09-22 03:00</div>
-                </td>
-                <td>
-                  <span class="op-group">
-                    <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
-                    <span class="more-caret" data-more>更多 ▾</span>
-                  </span>
-                </td>
-              </tr>
-              <tr data-type="scene_execute" data-name="用户中心场景巡检">
-                <td class="cell-main">用户中心场景巡检</td>
-                <td>测试计划</td>
-                <td>指定场景×2</td>
-                <td><span class="mono">0 2 * * 1-5</span></td>
-                <td style="text-align:center"><button class="switch" aria-label="启用/停用"></button></td>
-                <td><span class="muted">-</span></td>
-                <td>
-                  <span class="op-group">
-                    <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
-                    <span class="more-caret" data-more>更多 ▾</span>
-                  </span>
-                </td>
-              </tr>
-              <tr data-type="scene_execute" data-name="月末全量回归">
-                <td class="cell-main">月末全量回归</td>
-                <td>测试计划</td>
-                <td>全部场景</td>
-                <td><span class="mono">0 2 1 * *</span></td>
-                <td style="text-align:center"><button class="switch is-on" aria-label="启用/停用"></button></td>
-                <td>
-                  <span class="tag tag--neutral">已跳过</span>
-                  <div class="exec-time">09-01 02:00</div>
-                </td>
-                <td>
-                  <span class="op-group">
-                    <span class="op-link" data-run-now>立即执行</span>
-                    <span class="op-link op-link--muted" data-exec-records>执行记录</span>
-                    <span class="more-caret" data-more>更多 ▾</span>
-                  </span>
-                </td>
-              </tr>
-              <tr class="empty-row" hidden>
-                <td colspan="7">暂无定时任务，点击右上角「新建任务」创建第一个任务</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- 表格：对齐 el-table height="100%" stripe -->
+        <div class="schedules-page__table" id="sch-table-wrap">
+          <div class="table-wrap">
+            <table class="table" id="sch-table">
+              <thead>
+                <tr>
+                  <th style="min-width:180px" data-col="name">任务名称</th>
+                  <th style="width:120px" data-col="type" data-label="任务类型">任务类型</th>
+                  <th style="min-width:150px" data-col="target" data-label="执行目标">执行目标</th>
+                  <th style="width:140px" data-col="cron" data-label="调度表达式">调度表达式</th>
+                  <th style="width:90px;text-align:center" data-col="enabled" data-label="启用状态">启用状态</th>
+                  <th style="min-width:160px" data-col="lastExecution" data-label="上次执行">上次执行</th>
+                  <th style="width:220px" data-col="actions">
+                    <!-- 操作列表头：TableColumnSetting icon-only 右对齐 -->
+                    <div class="schedules-page__action-header">
+                      <span>操作</span>
+                      <div class="colset" id="sch-cols">
+                        <button class="colset__trigger" type="button" id="sch-cols-btn" aria-label="列设置" aria-expanded="false">
+                          <span data-icon="settings"></span>
+                        </button>
+                        <div class="colset__pop" id="sch-cols-pop" hidden>
+                          <div class="colset__title">显示列</div>
+                          <div class="colset__list"></div>
+                          <div class="colset__actions">
+                            <button class="btn btn--link btn--sm" type="button" data-cols-all>全选</button>
+                            <button class="btn btn--link btn--sm" type="button" data-cols-reset>恢复默认</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="schedule-tbody">
+                <tr data-type="scene_execute" data-name="支付回归夜跑">
+                  <td><button class="tbl-link tbl-link--primary" type="button" data-edit style="font-weight:500;font-size:14px">支付回归夜跑</button></td>
+                  <td>测试计划</td>
+                  <td>全部场景</td>
+                  <td>0 2 * * *</td>
+                  <td style="text-align:center"><button class="el-switch is-on" type="button" role="switch" aria-checked="true" aria-label="启用状态"></button></td>
+                  <td>
+                    <span class="el-tag-sm el-tag-sm--success">成功</span>
+                    <span class="text-muted text-xs ml-4">09-22 03:00</span>
+                  </td>
+                  <td>
+                    <button class="tbl-link tbl-link--primary" type="button" data-edit>编辑</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-run-now>立即执行</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-exec-records>执行记录</button>
+                    <button class="tbl-link tbl-link--danger" type="button" data-delete>删除</button>
+                  </td>
+                </tr>
+                <tr data-type="scene_execute" data-name="核心链路冒烟">
+                  <td><button class="tbl-link tbl-link--primary" type="button" data-edit style="font-weight:500;font-size:14px">核心链路冒烟</button></td>
+                  <td>测试计划</td>
+                  <td>指定模块×3</td>
+                  <td>0 * * * *</td>
+                  <td style="text-align:center"><button class="el-switch is-on" type="button" role="switch" aria-checked="true" aria-label="启用状态"></button></td>
+                  <td>
+                    <span class="el-tag-sm el-tag-sm--warning">执行中</span>
+                    <span class="text-muted text-xs ml-4">09-22 15:00</span>
+                  </td>
+                  <td>
+                    <button class="tbl-link tbl-link--primary" type="button" data-edit>编辑</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-run-now>立即执行</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-exec-records>执行记录</button>
+                    <button class="tbl-link tbl-link--danger" type="button" data-delete>删除</button>
+                  </td>
+                </tr>
+                <tr data-type="import_swagger" data-name="Swagger 文档同步">
+                  <td><button class="tbl-link tbl-link--primary" type="button" data-edit style="font-weight:500;font-size:14px">Swagger 文档同步</button></td>
+                  <td>接口同步</td>
+                  <td title="https://example.com/v3/api-docs" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">https://example.com/v3/api-docs</td>
+                  <td>0 2 * * 1</td>
+                  <td style="text-align:center"><button class="el-switch is-on" type="button" role="switch" aria-checked="true" aria-label="启用状态"></button></td>
+                  <td>
+                    <span class="el-tag-sm el-tag-sm--danger">失败</span>
+                    <span class="text-muted text-xs ml-4">09-21 02:00</span>
+                  </td>
+                  <td>
+                    <button class="tbl-link tbl-link--primary" type="button" data-edit>编辑</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-run-now>立即执行</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-exec-records>执行记录</button>
+                    <button class="tbl-link tbl-link--danger" type="button" data-delete>删除</button>
+                  </td>
+                </tr>
+                <tr data-type="scene_execute" data-name="用户中心场景巡检">
+                  <td><button class="tbl-link tbl-link--primary" type="button" data-edit style="font-weight:500;font-size:14px">用户中心场景巡检</button></td>
+                  <td>测试计划</td>
+                  <td>指定场景×2</td>
+                  <td>0 2 * * 1-5</td>
+                  <td style="text-align:center"><button class="el-switch" type="button" role="switch" aria-checked="false" aria-label="启用状态"></button></td>
+                  <td><span class="text-muted">-</span></td>
+                  <td>
+                    <button class="tbl-link tbl-link--primary" type="button" data-edit>编辑</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-run-now>立即执行</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-exec-records>执行记录</button>
+                    <button class="tbl-link tbl-link--danger" type="button" data-delete>删除</button>
+                  </td>
+                </tr>
+                <tr data-type="scene_execute" data-name="月末全量回归">
+                  <td><button class="tbl-link tbl-link--primary" type="button" data-edit style="font-weight:500;font-size:14px">月末全量回归</button></td>
+                  <td>测试计划</td>
+                  <td>全部场景</td>
+                  <td>0 2 1 * *</td>
+                  <td style="text-align:center"><button class="el-switch is-on" type="button" role="switch" aria-checked="true" aria-label="启用状态"></button></td>
+                  <td>
+                    <span class="el-tag-sm el-tag-sm--info">已跳过</span>
+                    <span class="text-muted text-xs ml-4">09-01 02:00</span>
+                  </td>
+                  <td>
+                    <button class="tbl-link tbl-link--primary" type="button" data-edit>编辑</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-run-now>立即执行</button>
+                    <button class="tbl-link tbl-link--primary" type="button" data-exec-records>执行记录</button>
+                    <button class="tbl-link tbl-link--danger" type="button" data-delete>删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- 空状态：对齐 ListLoadFeedback in el-table #empty -->
+          <div class="list-empty" id="sch-empty" hidden>
+            <p class="list-empty__title" id="sch-empty-title">暂无定时任务</p>
+            <button class="btn btn--primary" type="button" id="sch-empty-create" data-open="form-dialog">新建任务</button>
+            <button class="btn btn--default" type="button" id="sch-empty-reset" hidden>重置筛选</button>
+          </div>
         </div>
-        <div class="pagination">
-          <span class="pagination__total">共 <span id="total-count">5</span> 条 · 每页 20 条</span>
-          <button class="page-btn" disabled>‹</button>
-          <button class="page-btn page-btn--active">1</button>
-          <button class="page-btn">›</button>
+
+        <!-- 首次加载失败：对齐 schedules-page__first-error + ListLoadFeedback mode="error" -->
+        <div class="schedules-page__first-error" id="sch-first-error" hidden>
+          <div class="list-feedback__error" role="alert" style="width:100%">
+            <div class="list-feedback__error-alert">
+              <strong>定时任务列表加载失败</strong>
+              <span>网络异常，请稍后重试</span>
+            </div>
+            <button class="btn btn--default" type="button" data-list-retry>重新加载</button>
+          </div>
+        </div>
+
+        <!-- 分页：对齐 ListPagination bare -->
+        <div class="schedules-page__pagination" id="sch-pagination">
+          <div class="list-pager list-pager--bare" style="padding:14px 0;margin-top:0">
+            <span class="list-pager__total">共 <span id="total-count">5</span> 条 · 每页 <span id="page-size-text">20</span> 条</span>
+            <div class="list-pager__controls">
+              <select class="list-pager__sizes" id="page-size" aria-label="每页条数">
+                <option value="20" selected>20 条/页</option>
+                <option value="50">50 条/页</option>
+                <option value="100">100 条/页</option>
+              </select>
+              <button class="page-btn" type="button" id="sch-prev" disabled aria-label="上一页">‹</button>
+              <span id="sch-page-btns" style="display:inline-flex;gap:8px"></span>
+              <button class="page-btn" type="button" id="sch-next" disabled aria-label="下一页">›</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </main>
 
-<!-- 执行记录抽屉：与实际页 el-drawer 的列口径一致 -->
+<!-- 执行记录抽屉：对齐 el-drawer size="720px" -->
 <div class="exec-mask" id="exec-mask" hidden></div>
 <aside class="exec-drawer" id="exec-drawer" aria-label="执行记录" hidden>
   <div class="exec-drawer__head">
@@ -274,30 +367,156 @@
     <table class="table">
       <thead>
         <tr>
-          <th style="width:150px">触发时间</th>
-          <th style="width:72px">触发方式</th>
-          <th style="width:76px">状态</th>
-          <th style="width:72px">耗时</th>
-          <th id="exec-last-col">失败原因</th>
+          <th style="width:90px">触发方式</th>
+          <th style="width:90px">状态</th>
+          <th style="width:170px">开始时间</th>
+          <th style="width:90px">耗时</th>
+          <th style="min-width:140px">结果</th>
         </tr>
       </thead>
       <tbody id="exec-tbody"></tbody>
     </table>
-  </div>
-  <div class="pagination exec-drawer__pager">
-    <span class="pagination__total">共 <span id="exec-total">0</span> 条 · 每页 10 条</span>
-    <button class="page-btn" disabled>‹</button>
-    <button class="page-btn page-btn--active">1</button>
-    <button class="page-btn" disabled>›</button>
+    <div class="list-pager list-pager--bare">
+      <span class="list-pager__total">共 <span id="exec-total">0</span> 条 · 每页 10 条</span>
+      <div class="list-pager__controls">
+        <button class="page-btn" type="button" id="exec-prev" disabled aria-label="上一页">‹</button>
+        <span id="exec-page-btns" style="display:inline-flex;gap:8px"></span>
+        <button class="page-btn" type="button" id="exec-next" disabled aria-label="下一页">›</button>
+      </div>
+    </div>
   </div>
 </aside>
 
-<!-- 通用确认框：立即执行 / 删除（对照实际页 ElMessageBox） -->
+<!-- 新建/编辑弹窗：对齐 el-dialog width="640px" destroy-on-close -->
+<div class="dialog-mask" id="form-dialog" data-mask-close hidden>
+  <div class="dialog dialog--form" role="dialog" aria-modal="true" aria-label="定时任务表单">
+    <div class="dialog__header">
+      <span class="dialog__title" id="form-title">新建定时任务</span>
+      <button class="dialog__close" type="button" data-close="form-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="form-row">
+        <label class="form-row__label is-required">任务名称</label>
+        <div class="form-row__content"><input class="form-input" id="f-name" maxlength="100" placeholder="请输入任务名称"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-row__label">任务描述</label>
+        <div class="form-row__content"><textarea class="form-textarea" id="f-desc" rows="2" maxlength="500" placeholder="可选"></textarea></div>
+      </div>
+      <div class="form-row">
+        <label class="form-row__label is-required">任务类型</label>
+        <div class="form-row__content">
+          <div class="radio-group" role="radiogroup" aria-label="任务类型">
+            <label><input type="radio" name="taskType" value="scene_execute" checked> 测试计划</label>
+            <label><input type="radio" name="taskType" value="import_swagger"> 接口同步</label>
+          </div>
+        </div>
+      </div>
+
+      <div id="f-scene-group">
+        <div class="form-row">
+          <label class="form-row__label is-required">执行方式</label>
+          <div class="form-row__content">
+            <div class="radio-group" role="radiogroup" aria-label="执行方式">
+              <label><input type="radio" name="scope" value="all" checked> 全部</label>
+              <label><input type="radio" name="scope" value="modules"> 指定模块</label>
+              <label><input type="radio" name="scope" value="scenes"> 指定场景</label>
+            </div>
+          </div>
+        </div>
+        <div class="form-row" id="f-modules-row" hidden>
+          <label class="form-row__label is-required">选择模块</label>
+          <div class="form-row__content"><select class="form-select" id="f-module"><option value="">请选择模块</option><option value="订单中心">订单中心</option><option value="支付中心">支付中心</option><option value="用户中心">用户中心</option></select></div>
+        </div>
+        <div class="form-row" id="f-scenes-row" hidden>
+          <label class="form-row__label is-required">选择场景</label>
+          <div class="form-row__content">
+            <div class="scene-tags">
+              <span id="f-scene-tag-list"></span>
+              <button class="btn btn--default btn--sm" type="button" id="f-pick-scene">选择场景</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-row__label is-required">目标环境</label>
+          <div class="form-row__content">
+            <select class="form-select" id="f-env"><option value="">请选择执行环境</option><option>测试环境</option><option>预发环境</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" id="f-swagger-row" hidden>
+        <label class="form-row__label is-required">文档地址</label>
+        <div class="form-row__content"><input class="form-input" id="f-swagger-url" placeholder="请输入 Swagger/OpenAPI 文档 URL"></div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label is-required">调度策略</label>
+        <div class="form-row__content">
+          <div class="cron-field">
+            <!-- el-select placeholder="预设" style="width:160px" clearable -->
+            <select class="form-select" style="width:160px;flex:none" id="f-cron-preset" aria-label="预设">
+              <option value="">预设</option>
+              <option value="0 * * * *">每小时</option>
+              <option value="0 2 * * *">每天凌晨 2:00</option>
+              <option value="0 2 * * 1">每周一 2:00</option>
+              <option value="0 2 1 * *">每月 1 号 2:00</option>
+              <option value="0 2 * * 1-5">工作日 2:00</option>
+            </select>
+            <input class="form-input" id="f-cron" placeholder="Cron 表达式" style="flex:1">
+            <button class="btn btn--default" type="button" id="f-cron-validate">校验</button>
+            <button class="btn btn--default" type="button" id="f-cron-toggle-builder">构建</button>
+          </div>
+          <div class="cron-validation" id="f-cron-result" hidden></div>
+          <div class="cron-builder" id="f-cron-builder" hidden>
+            <input class="form-input" value="0" aria-label="分" placeholder="分">
+            <input class="form-input" value="2" aria-label="时" placeholder="时">
+            <input class="form-input" value="*" aria-label="日" placeholder="日">
+            <input class="form-input" value="*" aria-label="月" placeholder="月">
+            <input class="form-input" value="*" aria-label="周" placeholder="周">
+            <button class="btn btn--default" type="button" id="f-cron-apply">应用</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-row__label">启用状态</label>
+        <div class="form-row__content" style="padding-top:6px">
+          <button class="el-switch is-on" type="button" role="switch" aria-checked="true" id="f-enabled" aria-label="启用状态"></button>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="form-dialog">取消</button>
+      <button class="btn btn--primary" type="button" id="form-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 场景选择弹窗：真实多选并回填到表单 -->
+<div class="dialog-mask" id="scene-picker" data-mask-close hidden>
+  <div class="dialog" style="width:480px" role="dialog" aria-modal="true" aria-label="选择场景">
+    <div class="dialog__header">
+      <span class="dialog__title">选择场景</span>
+      <button class="dialog__close" type="button" data-close="scene-picker" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <input class="form-input" id="f-scene-search" placeholder="搜索场景名称" aria-label="搜索场景名称">
+      <div class="colset__list" id="f-scene-options" style="margin-top:10px;max-height:260px"></div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="scene-picker">取消</button>
+      <button class="btn btn--primary" type="button" id="f-scene-confirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用确认框：立即执行 / 删除（对照 ElMessageBox） -->
 <div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
-  <div class="dialog" style="width:420px">
+  <div class="dialog" style="width:420px" role="dialog" aria-modal="true" aria-label="确认">
     <div class="dialog__header">
       <span class="dialog__title" id="confirm-title">确认操作</span>
-      <span class="dialog__close" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></span>
+      <button class="dialog__close" type="button" data-close="confirm-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-700)"></p></div>
     <div class="dialog__footer">
@@ -307,45 +526,185 @@
   </div>
 </div>
 
-<div class="more-dropdown" id="more-dropdown" hidden></div>
-
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
   var byId = function (id) { return document.getElementById(id); };
   var tbody = byId('schedule-tbody');
-  var emptyRow = tbody.querySelector('.empty-row');
   var typeFilter = byId('type-filter');
   var totalCount = byId('total-count');
+  var tableWrap = byId('sch-table-wrap');
+  var emptyBox = byId('sch-empty');
+  var emptyTitle = byId('sch-empty-title');
+  var emptyCreate = byId('sch-empty-create');
+  var emptyReset = byId('sch-empty-reset');
+  var firstError = byId('sch-first-error');
+  var pagination = byId('sch-pagination');
 
+  function toast(msg, opts) {
+    if (window.RTUX && window.RTUX.toast) window.RTUX.toast(msg, opts || {});
+  }
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function nowText() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  // 状态 tag 口径：列表与执行记录抽屉共用
+  var STATUS_META = {
+    success: ['成功', 'el-tag-sm--success'],
+    failed: ['失败', 'el-tag-sm--danger'],
+    running: ['执行中', 'el-tag-sm--warning'],
+    skipped: ['已跳过', 'el-tag-sm--info']
+  };
+
+  function statusOfCell(cell) {
+    var tag = cell.querySelector('.el-tag-sm');
+    if (!tag) return { status: '', lastAt: '' };
+    var status = '';
+    Object.keys(STATUS_META).forEach(function (k) {
+      if (tag.textContent.trim() === STATUS_META[k][0]) status = k;
+    });
+    var at = cell.querySelector('.text-muted');
+    return { status: status, lastAt: at ? at.textContent.trim() : '' };
+  }
+
+  // 初始数据从静态表格读取：刷新页面即恢复 demo 初始状态，不写入任何存储
+  var tasks = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-type]')).map(function (tr, i) {
+    var cells = tr.cells;
+    var last = statusOfCell(cells[5]);
+    return {
+      id: 'task-' + (i + 1),
+      name: tr.getAttribute('data-name'),
+      type: tr.getAttribute('data-type'),
+      target: cells[2].textContent.trim(),
+      targetTitle: cells[2].getAttribute('title') || '',
+      cron: cells[3].textContent.trim(),
+      enabled: cells[4].querySelector('.el-switch').classList.contains('is-on'),
+      status: last.status,
+      lastAt: last.lastAt,
+      desc: '',
+      env: '测试环境',
+      scope: 'all',
+      module: '',
+      scenes: []
+    };
+  });
+  var nextTaskId = tasks.length + 1;
+  var pageSize = 20;
+  var pageNo = 1;
+
+  function findTask(id) {
+    for (var i = 0; i < tasks.length; i++) if (tasks[i].id === id) return tasks[i];
+    return null;
+  }
+  function typeLabel(type) { return type === 'import_swagger' ? '接口同步' : '测试计划'; }
   function dataRows() {
     return Array.prototype.slice.call(tbody.querySelectorAll('tr[data-type]'));
   }
 
-  // 类型筛选对应实际页 watch(typeFilter) 后按 taskType 重新分页，此处为静态等价
+  function rowHtml(t) {
+    var lastHtml = t.status
+      ? '<span class="el-tag-sm ' + STATUS_META[t.status][1] + '">' + STATUS_META[t.status][0] + '</span>' +
+        (t.lastAt ? '<span class="text-muted text-xs ml-4">' + esc(t.lastAt) + '</span>' : '')
+      : '<span class="text-muted">-</span>';
+    var targetAttrs = t.targetTitle
+      ? ' title="' + esc(t.targetTitle) + '" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"'
+      : '';
+    return '<tr data-type="' + esc(t.type) + '" data-name="' + esc(t.name) + '" data-id="' + esc(t.id) + '">' +
+      '<td><button class="tbl-link tbl-link--primary" type="button" data-edit style="font-weight:500;font-size:14px">' + esc(t.name) + '</button></td>' +
+      '<td>' + typeLabel(t.type) + '</td>' +
+      '<td' + targetAttrs + '>' + esc(t.target) + '</td>' +
+      '<td>' + esc(t.cron) + '</td>' +
+      '<td style="text-align:center"><button class="el-switch' + (t.enabled ? ' is-on' : '') +
+        '" type="button" role="switch" aria-checked="' + (t.enabled ? 'true' : 'false') + '" aria-label="启用状态"></button></td>' +
+      '<td>' + lastHtml + '</td>' +
+      '<td>' +
+        '<button class="tbl-link tbl-link--primary" type="button" data-edit>编辑</button>' +
+        '<button class="tbl-link tbl-link--primary" type="button" data-run-now>立即执行</button>' +
+        '<button class="tbl-link tbl-link--primary" type="button" data-exec-records>执行记录</button>' +
+        '<button class="tbl-link tbl-link--danger" type="button" data-delete>删除</button>' +
+      '</td></tr>';
+  }
+
+  function renderPagerButtons(host, totalPages, current) {
+    host.innerHTML = '';
+    for (var p = 1; p <= totalPages; p++) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'page-btn' + (p === current ? ' page-btn--active' : '');
+      b.textContent = String(p);
+      b.setAttribute('data-page', String(p));
+      host.appendChild(b);
+    }
+  }
+
+  // 类型筛选 + 分页：watch(typeFilter, pageNo, pageSize) -> 重绘当前页
   function refreshList() {
     var type = typeFilter.value;
-    var shown = 0;
-    dataRows().forEach(function (tr) {
-      var ok = !type || tr.getAttribute('data-type') === type;
-      tr.hidden = !ok;
-      if (ok) shown += 1;
-    });
-    emptyRow.hidden = shown > 0;
-    totalCount.textContent = String(shown);
-  }
-  typeFilter.addEventListener('change', refreshList);
+    var filtered = tasks.filter(function (t) { return !type || t.type === type; });
+    var totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (pageNo > totalPages) pageNo = totalPages;
+    var start = (pageNo - 1) * pageSize;
+    tbody.innerHTML = filtered.slice(start, start + pageSize).map(rowHtml).join('');
 
-  /* ---------------- 启停开关 ---------------- */
-  tbody.addEventListener('click', function (e) {
-    var sw = e.target.closest('.switch');
-    if (!sw) return;
-    sw.classList.toggle('is-on');
-    window.RTUX.toast(sw.classList.contains('is-on') ? '已启用' : '已停用', { type: 'success' });
+    totalCount.textContent = String(filtered.length);
+    byId('page-size-text').textContent = String(pageSize);
+    var prev = byId('sch-prev');
+    var next = byId('sch-next');
+    prev.disabled = pageNo <= 1;
+    next.disabled = pageNo >= totalPages;
+    renderPagerButtons(byId('sch-page-btns'), totalPages, pageNo);
+
+    var empty = filtered.length === 0;
+    tableWrap.hidden = empty;
+    pagination.hidden = empty;
+    emptyBox.hidden = !empty;
+    if (empty) {
+      emptyTitle.textContent = type ? '无匹配结果' : '暂无定时任务';
+      emptyCreate.hidden = !!type;
+      emptyReset.hidden = !type;
+    }
+  }
+  typeFilter.addEventListener('change', function () { pageNo = 1; refreshList(); });
+  emptyReset.addEventListener('click', function () { typeFilter.value = ''; pageNo = 1; refreshList(); });
+  byId('page-size').addEventListener('change', function () {
+    pageSize = parseInt(this.value, 10) || 20;
+    pageNo = 1;
+    refreshList();
+  });
+  byId('sch-prev').addEventListener('click', function () { if (pageNo > 1) { pageNo--; refreshList(); } });
+  byId('sch-next').addEventListener('click', function () {
+    var total = tasks.filter(function (t) { return !typeFilter.value || t.type === typeFilter.value; }).length;
+    if (pageNo < Math.ceil(total / pageSize)) { pageNo++; refreshList(); }
+  });
+  byId('sch-page-btns').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-page]');
+    if (!b) return;
+    pageNo = parseInt(b.getAttribute('data-page'), 10);
+    refreshList();
   });
 
-  /* ---------------- 通用确认框 ---------------- */
+  /* ---------------- 启停开关：el-switch change -> handleToggle ---------------- */
+  tbody.addEventListener('click', function (e) {
+    var sw = e.target.closest('.el-switch');
+    if (!sw) return;
+    var tr = sw.closest('tr[data-id]');
+    var t = tr && findTask(tr.getAttribute('data-id'));
+    if (!t) return;
+    t.enabled = !t.enabled;
+    refreshList();
+    toast(t.enabled ? '已启用「' + t.name + '」' : '已停用「' + t.name + '」', { type: 'success' });
+  });
+
+  /* ---------------- 通用确认框（ElMessageBox） ---------------- */
   var confirmDialog = byId('confirm-dialog');
   var confirmOk = byId('confirm-ok');
   var confirmAction = null;
@@ -354,193 +713,449 @@
     byId('confirm-title').textContent = title;
     byId('confirm-body').textContent = body;
     confirmOk.textContent = okLabel;
-    confirmOk.classList.toggle('btn--danger', !!danger);
-    confirmOk.classList.toggle('btn--primary', !danger);
+    confirmOk.className = 'btn ' + (danger ? 'btn--danger' : 'btn--primary');
     confirmAction = onOk;
     confirmDialog.hidden = false;
   }
+  function closeConfirm() { confirmDialog.hidden = true; confirmAction = null; }
 
   confirmOk.addEventListener('click', function () {
     var action = confirmAction;
-    confirmAction = null;
-    confirmDialog.hidden = true;
+    closeConfirm();
     if (action) action();
   });
 
   document.addEventListener('click', function (e) {
     var closer = e.target.closest('[data-close]');
     if (closer) byId(closer.getAttribute('data-close')).hidden = true;
-    // 「更多」是浮层，点击页面任意其它位置即收起
-    if (!e.target.closest('[data-more]') && !e.target.closest('#more-dropdown')) closeMore();
   });
   document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
-    mask.addEventListener('click', function (e) {
-      if (e.target === mask) mask.hidden = true;
-    });
+    mask.addEventListener('click', function (e) { if (e.target === mask) mask.hidden = true; });
   });
 
-  /* ---------------- 立即执行 ---------------- */
-  tbody.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-run-now]');
-    if (!btn) return;
-    var row = btn.closest('tr');
-    var name = row.getAttribute('data-name');
-    if (btn.classList.contains('op-link--disabled')) {
-      window.RTUX.toast('上一次执行未结束，请稍后再试', { type: 'warning' });
-      return;
+  /* ---------------- 新建/编辑弹窗（el-dialog） ---------------- */
+  var formDialog = byId('form-dialog');
+  var editingId = null;
+  var SEED_SCENES = ['下单主流程', '支付回调', '退款审批流转', '库存扣减并发', '优惠券叠加核销', '登录鉴权流程'];
+  var formScenes = ['下单主流程', '支付回调'];
+
+  function syncTaskTypeUI() {
+    var isSwagger = document.querySelector('input[name="taskType"]:checked').value === 'import_swagger';
+    byId('f-scene-group').hidden = isSwagger;
+    byId('f-swagger-row').hidden = !isSwagger;
+  }
+  function syncScopeUI() {
+    var v = document.querySelector('input[name="scope"]:checked').value;
+    byId('f-modules-row').hidden = v !== 'modules';
+    byId('f-scenes-row').hidden = v !== 'scenes';
+  }
+  function setSwitch(btn, on) {
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  }
+
+  function openForm(task) {
+    editingId = task ? task.id : null;
+    byId('form-title').textContent = task ? '编辑定时任务' : '新建定时任务';
+    byId('f-name').value = task ? task.name : '';
+    byId('f-desc').value = task ? (task.desc || '') : '';
+
+    var type = task ? task.type : 'scene_execute';
+    document.querySelector('input[name="taskType"][value="' + type + '"]').checked = true;
+
+    var scope = 'all';
+    if (task) {
+      if (task.target.indexOf('指定模块×') === 0) scope = 'modules';
+      else if (task.target.indexOf('指定场景×') === 0) scope = 'scenes';
     }
-    askConfirm('立即执行', '立即执行定时任务「' + name + '」？', '确定', false, function () {
-      window.RTUX.toast('已触发执行', { type: 'success' });
-    });
+    document.querySelector('input[name="scope"][value="' + scope + '"]').checked = true;
+
+    byId('f-module').value = task && task.module ? task.module : (scope === 'modules' ? '订单中心' : '');
+    formScenes = task && scope === 'scenes' && task.scenes.length ? task.scenes.slice() : ['下单主流程', '支付回调'];
+    byId('f-env').value = task ? (task.env || '测试环境') : '';
+    byId('f-swagger-url').value = task && type === 'import_swagger' ? task.target : '';
+    byId('f-cron').value = task ? task.cron : '';
+    byId('f-cron-preset').value = '';
+    byId('f-cron-result').hidden = true;
+    byId('f-cron-result').innerHTML = '';
+    byId('f-cron-builder').hidden = true;
+    byId('f-cron-toggle-builder').textContent = '构建';
+    setSwitch(byId('f-enabled'), task ? task.enabled : true);
+
+    syncTaskTypeUI();
+    syncScopeUI();
+    renderFormScenes();
+    formDialog.hidden = false;
+  }
+
+  document.querySelectorAll('[data-open="form-dialog"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openForm(null); });
+  });
+  tbody.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-edit]');
+    if (!btn) return;
+    var tr = btn.closest('tr[data-id]');
+    var t = tr && findTask(tr.getAttribute('data-id'));
+    if (t) openForm(t);
   });
 
-  /* ---------------- 执行记录抽屉 ---------------- */
-  // 状态文案/配色口径同 schedulesModel 的 execStatusLabel / execStatusType
-  var EXEC_STATUS = {
-    success: ['成功', 'tag--success'],
-    failed: ['失败', 'tag--danger'],
-    running: ['执行中', 'tag--warning'],
-    skipped: ['已跳过', 'tag--neutral'],
-  };
+  document.querySelectorAll('input[name="taskType"]').forEach(function (radio) {
+    radio.addEventListener('change', syncTaskTypeUI);
+  });
+  document.querySelectorAll('input[name="scope"]').forEach(function (radio) {
+    radio.addEventListener('change', syncScopeUI);
+  });
+
+  /* ---------------- 场景标签 + 真实场景选择弹窗 ---------------- */
+  function renderFormScenes() {
+    byId('f-scene-tag-list').innerHTML = formScenes.map(function (name) {
+      return '<span class="scene-tag"><span>' + esc(name) +
+        '</span><button type="button" aria-label="移除" data-remove="' + esc(name) + '">×</button></span>';
+    }).join('');
+  }
+  byId('f-scene-tag-list').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-remove]');
+    if (!btn) return;
+    var name = btn.getAttribute('data-remove');
+    formScenes = formScenes.filter(function (s) { return s !== name; });
+    renderFormScenes();
+  });
+
+  var scenePicker = byId('scene-picker');
+  var scenePicked = [];
+  function renderSceneOptions() {
+    var q = byId('f-scene-search').value.trim().toLowerCase();
+    var list = SEED_SCENES.filter(function (s) { return s.toLowerCase().indexOf(q) >= 0; });
+    byId('f-scene-options').innerHTML = list.length ? list.map(function (s) {
+      return '<label class="colset__item"><input type="checkbox" data-scene="' + esc(s) + '"' +
+        (scenePicked.indexOf(s) >= 0 ? ' checked' : '') + '><span>' + esc(s) + '</span></label>';
+    }).join('') : '<div class="text-muted" style="padding:8px;font-size:13px">无匹配场景</div>';
+  }
+  byId('f-pick-scene').addEventListener('click', function () {
+    scenePicked = formScenes.slice();
+    byId('f-scene-search').value = '';
+    renderSceneOptions();
+    scenePicker.hidden = false;
+  });
+  byId('f-scene-search').addEventListener('input', renderSceneOptions);
+  byId('f-scene-options').addEventListener('change', function (e) {
+    var box = e.target.closest('input[data-scene]');
+    if (!box) return;
+    var name = box.getAttribute('data-scene');
+    var i = scenePicked.indexOf(name);
+    if (box.checked && i < 0) scenePicked.push(name);
+    if (!box.checked && i >= 0) scenePicked.splice(i, 1);
+  });
+  byId('f-scene-confirm').addEventListener('click', function () {
+    formScenes = scenePicked.slice();
+    renderFormScenes();
+    scenePicker.hidden = true;
+    toast(formScenes.length ? '已选择 ' + formScenes.length + ' 个场景' : '已清空场景', { type: 'success' });
+  });
+
+  /* ---------------- Cron：真实校验 + 下次执行时间计算 ---------------- */
+  var CRON_RANGES = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
+  function parseCron(raw) {
+    var parts = raw.trim().split(/\s+/);
+    if (parts.length !== 5) return null;
+    var sets = [];
+    for (var i = 0; i < 5; i++) {
+      if (parts[i] === '*') { sets.push(null); continue; }
+      var vals = [];
+      var ok = true;
+      parts[i].split(',').forEach(function (seg) {
+        var m = seg.match(/^(\d+)(?:-(\d+))?(?:\/(\d+))?$/);
+        if (!m) { ok = false; return; }
+        var a = parseInt(m[1], 10);
+        var b = m[2] ? parseInt(m[2], 10) : a;
+        var step = m[3] ? parseInt(m[3], 10) : 1;
+        if (a < CRON_RANGES[i][0] || b > CRON_RANGES[i][1] || a > b || step < 1) { ok = false; return; }
+        for (var v = a; v <= b; v += step) vals.push(v);
+      });
+      if (!ok || !vals.length) return null;
+      sets.push(vals);
+    }
+    return sets;
+  }
+  function cronTime(d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00';
+  }
+  function cronNext(sets, count) {
+    var out = [];
+    var base = new Date();
+    base.setSeconds(0, 0);
+    for (var d = 0; d < 400 && out.length < count; d++) {
+      var day = new Date(base.getFullYear(), base.getMonth(), base.getDate() + d);
+      if (sets[3] && sets[3].indexOf(day.getMonth() + 1) < 0) continue;
+      var domHit = !sets[2] || sets[2].indexOf(day.getDate()) >= 0;
+      var dowHit = !sets[4] || sets[4].indexOf(day.getDay()) >= 0;
+      if (sets[2] && sets[4] ? !(domHit || dowHit) : !(domHit && dowHit)) continue;
+      for (var h = 0; h < 24 && out.length < count; h++) {
+        if (sets[1] && sets[1].indexOf(h) < 0) continue;
+        for (var mi = 0; mi < 60 && out.length < count; mi++) {
+          if (sets[0] && sets[0].indexOf(mi) < 0) continue;
+          var t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, mi);
+          if (t.getTime() <= base.getTime()) continue;
+          out.push(cronTime(t));
+        }
+      }
+    }
+    return out;
+  }
+  function validateCron() {
+    var raw = byId('f-cron').value.trim();
+    var res = byId('f-cron-result');
+    if (!raw) { res.hidden = true; return false; }
+    var sets = parseCron(raw);
+    res.hidden = false;
+    if (!sets) {
+      res.className = 'cron-validation is-invalid';
+      res.textContent = 'Cron 表达式无效：需为 5 段（分 时 日 月 周）';
+      return false;
+    }
+    res.className = 'cron-validation';
+    res.innerHTML = '<span>表达式有效，按「' + esc(raw) + '」调度，下次执行：</span><ul class="cron-next">' +
+      cronNext(sets, 3).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>';
+    return true;
+  }
+
+  byId('f-cron-toggle-builder').addEventListener('click', function () {
+    var b = byId('f-cron-builder');
+    b.hidden = !b.hidden;
+    this.textContent = b.hidden ? '构建' : '收起';
+  });
+  byId('f-cron-apply').addEventListener('click', function () {
+    var parts = [];
+    byId('f-cron-builder').querySelectorAll('input').forEach(function (i) { parts.push(i.value || '*'); });
+    byId('f-cron').value = parts.join(' ');
+    byId('f-cron-builder').hidden = true;
+    byId('f-cron-toggle-builder').textContent = '构建';
+    validateCron();
+  });
+  byId('f-cron-preset').addEventListener('change', function () {
+    if (this.value) { byId('f-cron').value = this.value; validateCron(); }
+  });
+  byId('f-cron-validate').addEventListener('click', validateCron);
+  byId('f-enabled').addEventListener('click', function () {
+    setSwitch(this, !this.classList.contains('is-on'));
+  });
+
+  /* ---------------- 保存：真实写入本地数组并重绘列表后关闭弹窗 ---------------- */
+  byId('form-save').addEventListener('click', function () {
+    var name = byId('f-name').value.trim();
+    if (!name) { toast('请输入任务名称', { type: 'warning' }); return; }
+    var cron = byId('f-cron').value.trim();
+    if (!cron) { toast('请输入 Cron 表达式', { type: 'warning' }); return; }
+    if (!validateCron()) { toast('保存失败：Cron 表达式无效', { type: 'danger' }); return; }
+
+    var type = document.querySelector('input[name="taskType"]:checked').value;
+    var scope = document.querySelector('input[name="scope"]:checked').value;
+    var target = '';
+    var module = '';
+    if (type === 'import_swagger') {
+      target = byId('f-swagger-url').value.trim();
+      if (!target) { toast('接口同步任务需填写文档地址', { type: 'warning' }); return; }
+    } else {
+      if (!byId('f-env').value) { toast('测试计划任务需选择目标环境', { type: 'warning' }); return; }
+      if (scope === 'modules') {
+        module = byId('f-module').value;
+        if (!module) { toast('请选择执行模块', { type: 'warning' }); return; }
+        target = '指定模块×1';
+      } else if (scope === 'scenes') {
+        if (!formScenes.length) { toast('请选择执行场景', { type: 'warning' }); return; }
+        target = '指定场景×' + formScenes.length;
+      } else {
+        target = '全部场景';
+      }
+    }
+
+    var payload = {
+      name: name,
+      type: type,
+      target: target,
+      targetTitle: type === 'import_swagger' ? target : '',
+      cron: cron,
+      enabled: byId('f-enabled').classList.contains('is-on'),
+      desc: byId('f-desc').value.trim(),
+      env: type === 'import_swagger' ? '' : byId('f-env').value,
+      scope: type === 'import_swagger' ? 'all' : scope,
+      module: module,
+      scenes: formScenes.slice()
+    };
+    var editing = editingId ? findTask(editingId) : null;
+    if (editing) {
+      var oldName = editing.name;
+      Object.keys(payload).forEach(function (k) { editing[k] = payload[k]; });
+      if (oldName !== name && EXEC_RECORDS[oldName]) {
+        EXEC_RECORDS[name] = EXEC_RECORDS[oldName];
+        delete EXEC_RECORDS[oldName];
+        if (currentExecName === oldName) currentExecName = name;
+      }
+    } else {
+      var created = { id: 'task-' + nextTaskId++, status: '', lastAt: '' };
+      Object.keys(payload).forEach(function (k) { created[k] = payload[k]; });
+      tasks.push(created);
+    }
+
+    typeFilter.value = '';
+    pageNo = 1;
+    refreshList();
+    formDialog.hidden = true;
+    toast(editing ? '已更新任务「' + name + '」' : '已创建任务「' + name + '」', { type: 'success' });
+  });
+
+  /* ---------------- 执行记录数据（本页内存，刷新即恢复） ---------------- */
   var EXEC_RECORDS = {
     '支付回归夜跑': [
-      ['2026-09-22 03:00:02', '定时', 'success', '248.6s', ''],
-      ['2026-09-21 03:00:01', '定时', 'success', '231.4s', ''],
-      ['2026-09-20 15:12:40', '手动', 'success', '196.2s', ''],
-      ['2026-09-20 03:00:03', '定时', 'failed', '42.7s', '登录接口 500：网关超时']
+      { trigger: 'scheduled', status: 'success', startedAt: '2026-09-22 03:00:02', durationMs: 248600, result: '报告: rpt-001' },
+      { trigger: 'scheduled', status: 'success', startedAt: '2026-09-21 03:00:01', durationMs: 231400, result: '报告: rpt-002' },
+      { trigger: 'manual', status: 'success', startedAt: '2026-09-20 15:12:40', durationMs: 196200, result: '报告: rpt-003' },
+      { trigger: 'scheduled', status: 'failed', startedAt: '2026-09-20 03:00:03', durationMs: 42700, error: '登录接口 500：网关超时' }
     ],
     '核心链路冒烟': [
-      ['2026-09-22 15:00:01', '定时', 'running', '', ''],
-      ['2026-09-22 14:00:01', '定时', 'success', '58.3s', ''],
-      ['2026-09-22 13:00:02', '定时', 'success', '61.0s', '']
+      { trigger: 'scheduled', status: 'running', startedAt: '2026-09-22 15:00:01', durationMs: null, result: '' },
+      { trigger: 'scheduled', status: 'success', startedAt: '2026-09-22 14:00:01', durationMs: 58300, result: '报告: rpt-011' },
+      { trigger: 'scheduled', status: 'success', startedAt: '2026-09-22 13:00:02', durationMs: 61000, result: '报告: rpt-010' }
     ],
     'Swagger 文档同步': [
-      ['2026-09-21 02:00:01', '定时', 'failed', '10.2s', '连接 api-docs 超时（10s）'],
-      ['2026-09-14 02:00:02', '定时', 'success', '3.4s', ''],
-      ['2026-09-13 10:22:15', '手动', 'success', '3.1s', '']
+      { trigger: 'scheduled', status: 'failed', startedAt: '2026-09-21 02:00:01', durationMs: 10200, error: '连接 api-docs 超时（10s）' },
+      { trigger: 'scheduled', status: 'success', startedAt: '2026-09-14 02:00:02', durationMs: 3400, result: '-' },
+      { trigger: 'manual', status: 'success', startedAt: '2026-09-13 10:22:15', durationMs: 3100, result: '-' }
     ],
     '用户中心场景巡检': [],
-    // GitLab 同步不产生测试报告，执行记录仅呈现同步结果计数
-    '仓库同步': [
-      ['2026-09-22 03:00:01', '定时', 'success', '6.8s', '新建 3 · 更新 1 · 解析失败 0'],
-      ['2026-09-21 03:00:02', '定时', 'skipped', '1.2s', '目标分支无新提交，无变更跳过'],
-      ['2026-09-20 03:00:01', '定时', 'success', '5.4s', '新建 1 · 更新 0 · 解析失败 2'],
-      ['2026-09-19 10:15:33', '手动', 'failed', '2.1s', '1000017702 GitLab 不可达或令牌无效']
-    ],
     '月末全量回归': [
-      ['2026-09-01 02:00:01', '定时', 'skipped', '', '目标环境维护中'],
-      ['2026-08-01 02:00:02', '定时', 'success', '512.8s', '']
-    ],
+      { trigger: 'scheduled', status: 'skipped', startedAt: '2026-09-01 02:00:01', durationMs: null, error: '目标环境维护中' },
+      { trigger: 'scheduled', status: 'success', startedAt: '2026-08-01 02:00:02', durationMs: 512800, result: '报告: rpt-099' }
+    ]
   };
+  function triggerTypeLabel(type) { return type === 'manual' ? '手动' : '定时'; }
+  function formatDuration(ms) {
+    if (ms == null) return '-';
+    if (ms < 1000) return ms + 'ms';
+    return (ms / 1000).toFixed(1) + 's';
+  }
+  function execResult(rec) {
+    if (rec.error) return '<span class="text-danger">' + esc(rec.error) + '</span>';
+    if (rec.result && rec.result !== '-') return esc(rec.result);
+    return '<span class="text-muted">-</span>';
+  }
+
+  /* ---------------- 执行记录抽屉 + 分页（真实翻页） ---------------- */
+  var EXEC_PAGE_SIZE = 10;
+  var execPageNo = 1;
+  var currentExecName = null;
+
+  function paintExecPage() {
+    var list = EXEC_RECORDS[currentExecName] || [];
+    var totalPages = Math.max(1, Math.ceil(list.length / EXEC_PAGE_SIZE));
+    if (execPageNo > totalPages) execPageNo = totalPages;
+    var page = list.slice((execPageNo - 1) * EXEC_PAGE_SIZE, execPageNo * EXEC_PAGE_SIZE);
+    var body = byId('exec-tbody');
+    body.innerHTML = page.length ? page.map(function (rec) {
+      var st = STATUS_META[rec.status] || [rec.status, 'el-tag-sm--info'];
+      return '<tr>' +
+        '<td>' + triggerTypeLabel(rec.trigger) + '</td>' +
+        '<td><span class="el-tag-sm ' + st[1] + '">' + st[0] + '</span></td>' +
+        '<td class="text-muted" style="font-size:13px">' + esc(rec.startedAt) + '</td>' +
+        '<td>' + formatDuration(rec.durationMs) + '</td>' +
+        '<td style="font-size:13px">' + execResult(rec) + '</td>' +
+        '</tr>';
+    }).join('') : '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--n-400)">暂无执行记录</td></tr>';
+    byId('exec-total').textContent = String(list.length);
+    byId('exec-title').textContent = '执行记录 - ' + currentExecName;
+    byId('exec-prev').disabled = execPageNo <= 1;
+    byId('exec-next').disabled = execPageNo >= totalPages;
+    renderPagerButtons(byId('exec-page-btns'), totalPages, execPageNo);
+  }
 
   function renderExecutions(name) {
-    var list = EXEC_RECORDS[name] || [];
-    var body = byId('exec-tbody');
-    body.innerHTML = '';
-    if (!list.length) {
-      body.innerHTML = '<tr><td colspan="5" class="exec-drawer__empty">暂无执行记录</td></tr>';
-    } else {
-      list.forEach(function (rec) {
-        var st = EXEC_STATUS[rec[2]] || [rec[2], 'tag--neutral'];
-        var tr = document.createElement('tr');
-        tr.innerHTML =
-          '<td class="num" style="font-size:var(--font-size-xs)">' + rec[0] + '</td>' +
-          '<td>' + rec[1] + '</td>' +
-          '<td><span class="tag ' + st[1] + '">' + st[0] + '</span></td>' +
-          '<td class="num">' + (rec[3] || '-') + '</td>' +
-          '<td style="font-size:var(--font-size-xs)">' + (rec[4] || '-') + '</td>';
-        body.appendChild(tr);
-      });
-    }
-    byId('exec-total').textContent = String(list.length);
-    byId('exec-title').textContent = '执行记录 — ' + name;
-    // GitLab 同步不产生报告，该列改为同步结果计数；其余类型仍为失败原因
-    var srcRow = Array.prototype.slice.call(tbody.querySelectorAll('tr')).find(function (tr) {
-      return tr.getAttribute('data-name') === name;
-    });
-    byId('exec-last-col').textContent = (srcRow && srcRow.getAttribute('data-type') === 'gitlab_sync') ? '同步结果' : '失败原因';
+    currentExecName = name;
+    execPageNo = 1;
+    paintExecPage();
     byId('exec-drawer').hidden = false;
     byId('exec-mask').hidden = false;
   }
-
   function closeExecDrawer() {
     byId('exec-drawer').hidden = true;
     byId('exec-mask').hidden = true;
+    currentExecName = null;
   }
   byId('exec-mask').addEventListener('click', closeExecDrawer);
   byId('exec-close').addEventListener('click', closeExecDrawer);
-
+  byId('exec-prev').addEventListener('click', function () { if (execPageNo > 1) { execPageNo--; paintExecPage(); } });
+  byId('exec-next').addEventListener('click', function () {
+    var total = (EXEC_RECORDS[currentExecName] || []).length;
+    if (execPageNo < Math.ceil(total / EXEC_PAGE_SIZE)) { execPageNo++; paintExecPage(); }
+  });
+  byId('exec-page-btns').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-page]');
+    if (!b) return;
+    execPageNo = parseInt(b.getAttribute('data-page'), 10);
+    paintExecPage();
+  });
   tbody.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-exec-records]');
     if (!btn) return;
-    renderExecutions(btn.closest('tr').getAttribute('data-name'));
+    renderExecutions(btn.closest('tr[data-id]').getAttribute('data-name'));
   });
 
-  /* ---------------- 「更多」浮动菜单：编辑 / 删除 ---------------- */
-  var moreDrop = byId('more-dropdown');
-
-  function closeMore() { moreDrop.hidden = true; }
-
+  /* ---------------- 立即执行：真实改写上次执行状态并写入执行记录 ---------------- */
   tbody.addEventListener('click', function (e) {
-    var trigger = e.target.closest('[data-more]');
-    if (!trigger) {
-      if (!e.target.closest('#more-dropdown')) closeMore();
+    var btn = e.target.closest('[data-run-now]');
+    if (!btn) return;
+    var tr = btn.closest('tr[data-id]');
+    var t = tr && findTask(tr.getAttribute('data-id'));
+    if (!t) return;
+    if (t.status === 'running') {
+      toast('上一次执行未结束，请稍后再试', { type: 'warning' });
       return;
     }
-    var row = trigger.closest('tr');
-    moreDrop.innerHTML =
-      '<div class="more-dropdown__item" data-more-act="edit">编辑</div>' +
-      '<div class="more-dropdown__sep"></div>' +
-      '<div class="more-dropdown__item more-dropdown__item--danger" data-more-act="delete">删除</div>';
-    var r = trigger.getBoundingClientRect();
-    moreDrop.hidden = false;
-    moreDrop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - moreDrop.offsetWidth - 8)) + 'px';
-    moreDrop.style.top = r.bottom + 6 + 'px';
-    moreDrop.setAttribute('data-row-name', row.getAttribute('data-name'));
-  });
-
-  moreDrop.addEventListener('click', function (e) {
-    var item = e.target.closest('[data-more-act]');
-    if (!item) return;
-    var name = moreDrop.getAttribute('data-row-name');
-    closeMore();
-    if (item.getAttribute('data-more-act') === 'edit') {
-      window.location.href = 'api-schedule-form.html';
-      return;
-    }
-    askConfirm(
-      '删除定时任务',
-      '删除定时任务「' + name + '」？删除不影响已产生的执行记录与报告。',
-      '删除',
-      true,
-      function () {
-        var row = tbody.querySelector('tr[data-name="' + name + '"]');
-        if (row) row.remove();
+    askConfirm('立即执行', '立即执行定时任务「' + t.name + '」？', '确定', false, function () {
+      t.status = 'running';
+      t.lastAt = nowText().slice(5, 16);
+      var rec = { trigger: 'manual', status: 'running', startedAt: nowText(), durationMs: null, result: '' };
+      (EXEC_RECORDS[t.name] = EXEC_RECORDS[t.name] || []).unshift(rec);
+      refreshList();
+      renderExecutions(t.name);
+      toast('已触发「' + t.name + '」', { type: 'success' });
+      window.setTimeout(function () {
+        rec.status = 'success';
+        rec.durationMs = 4200;
+        rec.result = '报告: rpt-' + Math.floor(Math.random() * 900 + 100);
+        t.status = 'success';
         refreshList();
-        window.RTUX.toast('已删除', { type: 'danger' });
-      }
-    );
+        if (!byId('exec-drawer').hidden && currentExecName === t.name) paintExecPage();
+        toast('「' + t.name + '」执行成功', { type: 'success' });
+      }, 900);
+    });
   });
 
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    closeMore();
-    confirmDialog.hidden = true;
-    closeExecDrawer();
+  /* ---------------- 删除：真实从数据集移除并重绘计数/空态 ---------------- */
+  tbody.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-delete]');
+    if (!btn) return;
+    var tr = btn.closest('tr[data-id]');
+    var t = tr && findTask(tr.getAttribute('data-id'));
+    if (!t) return;
+    askConfirm('删除定时任务', '删除定时任务「' + t.name + '」？删除不影响已产生的执行记录与报告。', '删除', true, function () {
+      tasks = tasks.filter(function (x) { return x.id !== t.id; });
+      delete EXEC_RECORDS[t.name];
+      if (currentExecName === t.name) closeExecDrawer();
+      if (editingId === t.id) formDialog.hidden = true;
+      refreshList();
+      toast('已删除「' + t.name + '」', { type: 'success' });
+    });
   });
 
-  refreshList();
-</script>
-<script>
-  // 列显隐：按 useTableColumns 口径固定操作列，其余可勾选，静态稿仅本页内生效
+  /* ---------------- 列显隐：TableColumnSetting icon-only ---------------- */
   (function () {
-    var root = document.getElementById('sch-cols');
-    var btn = document.getElementById('sch-cols-btn');
-    var pop = document.getElementById('sch-cols-pop');
-    var table = document.querySelector('.table-wrap .table');
+    var root = byId('sch-cols');
+    var btn = byId('sch-cols-btn');
+    var pop = byId('sch-cols-pop');
+    var table = byId('sch-table');
     if (!root || !btn || !pop || !table) return;
     var ths = Array.prototype.slice.call(table.querySelectorAll('thead th'));
-    var emptyRow = table.querySelector('tbody tr[id$="-empty"], tbody tr.empty-row');
     var keys = ths.map(function (th) { return th.getAttribute('data-col'); });
     var defaults = keys.slice();
     var visible = defaults.slice();
@@ -550,7 +1165,7 @@
 
     ths.forEach(function (th, i) {
       var key = keys[i];
-      var label = th.getAttribute('data-label') || th.textContent.trim() || key;
+      var label = th.getAttribute('data-label') || (key === 'name' ? '任务名称' : '操作');
       var row = document.createElement('label');
       row.className = 'colset__item' + (pinned[key] ? ' is-pinned' : '');
       row.innerHTML = '<input type="checkbox" data-key="' + key + '"' + (pinned[key] ? ' disabled' : '') + ' checked><span>' + label + '</span>';
@@ -564,11 +1179,9 @@
         th.hidden = !on;
         Array.prototype.forEach.call(rows, function (row) { if (row.cells[i]) row.cells[i].hidden = !on; });
       });
-      if (emptyRow && emptyRow.cells[0]) emptyRow.cells[0].colSpan = visible.length;
       list.querySelectorAll('input[data-key]').forEach(function (box) {
         box.checked = visible.indexOf(box.getAttribute('data-key')) >= 0;
       });
-      // 全选只在仍有可选列时可用（对齐 TableColumnSetting 的 allSelected 禁用态）
       allBtn.disabled = defaults.every(function (k) { return pinned[k] || visible.indexOf(k) >= 0; });
     }
 
@@ -581,7 +1194,7 @@
         : visible.filter(function (k) { return k !== key; });
       apply();
     });
-    pop.querySelector('[data-cols-all]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
+    allBtn.addEventListener('click', function () { visible = defaults.slice(); apply(); });
     pop.querySelector('[data-cols-reset]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -591,24 +1204,44 @@
     document.addEventListener('click', function (e) {
       if (!root.contains(e.target)) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
     });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
-    });
-    apply();
-    // 行增删后重新套用可见列，避免新建行露出已隐藏列
     new MutationObserver(apply).observe(table.tBodies[0], { childList: true });
+    apply();
   })();
 
-  // 加载失败：静态稿用工具栏刷新图标触发 UI-PAGE-11 的顶部错误条与重试
+  /* ---------------- 加载失败演示：#demo-load-error / #demo-first-error ---------------- */
   (function () {
-    var bar = document.getElementById('sch-load-error');
-    // 演示失败态：URL 追加 #demo-load-error 触发，避免在工具栏暴露真实页面没有的入口
-    if (location.hash === '#demo-load-error') bar.hidden = false;
-    bar.querySelector('[data-list-retry]').addEventListener('click', function () {
-      bar.hidden = true;
-      window.RTUX.toast('已重新加载最新数据', { type: 'success' });
+    var refreshBar = byId('sch-refresh-error');
+    if (location.hash === '#demo-load-error') refreshBar.hidden = false;
+    if (location.hash === '#demo-first-error') {
+      tableWrap.hidden = true;
+      pagination.hidden = true;
+      firstError.hidden = false;
+    }
+    document.querySelectorAll('[data-list-retry]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        refreshBar.hidden = true;
+        firstError.hidden = true;
+        tableWrap.hidden = false;
+        pagination.hidden = false;
+        refreshList();
+        toast('已重新加载最新数据', { type: 'success' });
+      });
     });
   })();
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!scenePicker.hidden) { scenePicker.hidden = true; return; }
+    if (!confirmDialog.hidden) { closeConfirm(); return; }
+    if (!byId('exec-drawer').hidden) { closeExecDrawer(); return; }
+    if (!formDialog.hidden) { formDialog.hidden = true; return; }
+    var pop = byId('sch-cols-pop');
+    var btn = byId('sch-cols-btn');
+    if (pop) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+  });
+
+  renderFormScenes();
+  refreshList();
 </script>
 </body>
 </html>

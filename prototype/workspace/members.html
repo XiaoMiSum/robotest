@@ -13,7 +13,7 @@
   /* 两张卡片左右并排：等高拉伸，表头与表尾对齐在同一水平线 */
   .members-split {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--block-gap);
   }
 
@@ -33,6 +33,123 @@
     flex: 1;
   }
 
+  /* 成员/邀请卡片表头视觉基线，与 MemberListPage.vue :deep 覆盖一致 */
+  .members-split .table th {
+    height: 44px;
+    background: var(--n-50);
+    color: var(--n-600);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+  }
+
+  .members-split .table td {
+    padding: 11px var(--space-md);
+  }
+
+  .member-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .member-cell__copy {
+    min-width: 0;
+  }
+
+  .member-cell__name,
+  .member-cell__email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .member-cell__name {
+    color: var(--n-900);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+  }
+
+  .member-cell__email {
+    margin-top: 2px;
+    color: var(--n-500);
+    font-size: var(--font-size-xs);
+  }
+
+  .role-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 1px var(--space-sm);
+    border: 1px solid var(--n-300);
+    border-radius: var(--radius-sm);
+    background: var(--n-0);
+    color: var(--n-600);
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+  }
+
+  .role-tag--admin {
+    border-color: var(--brand-100);
+    background: var(--brand-50);
+    color: var(--brand-700);
+  }
+
+  .row-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  /* el-button link type="primary"/"danger" 在原型中的对应 */
+  .btn--link-danger {
+    color: var(--st-danger);
+  }
+
+  .btn--link-danger:hover {
+    color: var(--st-danger-strong);
+    background: var(--st-danger-light);
+  }
+
+  .btn--link:disabled,
+  .btn--link[disabled] {
+    color: var(--n-400);
+    cursor: not-allowed;
+    background: transparent;
+  }
+
+  .invite-token {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--n-700);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    white-space: nowrap;
+  }
+
+  .status-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--n-600);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+  }
+
+  .status-cell__dot {
+    width: 6px;
+    height: 6px;
+    flex: 0 0 6px;
+    border-radius: var(--radius-full);
+    background: var(--n-400);
+  }
+
+  .status-cell--success .status-cell__dot { background: var(--st-success); }
+  .status-cell--danger .status-cell__dot { background: var(--st-danger); }
+  .status-cell--neutral .status-cell__dot { background: var(--n-400); }
+
   .dialog-tip {
     margin: 0 0 var(--space-md);
     color: var(--n-600);
@@ -41,12 +158,88 @@
 
   .invite-link-row {
     display: flex;
-    gap: 8px;
+    gap: 0;
   }
 
   .invite-link-row .input {
     flex: 1;
     min-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .invite-link-row .btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    margin-left: -1px;
+  }
+
+  .invite-select {
+    width: 100%;
+  }
+
+  .dialog-form .field:last-child {
+    margin-bottom: 0;
+  }
+
+  /* 邀请成员的候选用户列表：输入时真实出现，点选后真实回填 */
+  .invite-suggest {
+    margin-top: 8px;
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-sm);
+    max-height: 196px;
+    overflow: auto;
+  }
+
+  .invite-suggest__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 8px var(--space-md);
+    cursor: pointer;
+  }
+
+  .invite-suggest__item + .invite-suggest__item {
+    border-top: 1px solid var(--n-100);
+  }
+
+  .invite-suggest__item:hover {
+    background: var(--n-50);
+  }
+
+  .invite-suggest__item.is-selected {
+    background: var(--brand-50);
+  }
+
+  .invite-suggest__name {
+    color: var(--n-800);
+    font-size: var(--font-size-sm);
+  }
+
+  .invite-suggest__email {
+    margin-left: auto;
+    color: var(--n-500);
+    font-size: var(--font-size-xs);
+  }
+
+  .invite-suggest__empty,
+  .table-empty-cell {
+    padding: 18px var(--space-md);
+    color: var(--n-400);
+    font-size: var(--font-size-sm);
+    text-align: center;
+  }
+
+  .inline-error {
+    margin: 8px 0 0;
+    color: var(--st-danger);
+    font-size: var(--font-size-xs);
+  }
+
+  @media (max-width: 900px) {
+    .members-split {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 </style>
 </head>
@@ -67,7 +260,7 @@
     </div>
   </div>
 
-  <!-- 两张卡片并排展示，等高对齐 -->
+  <!-- 两张卡片并排展示，等高对齐；无邀请管理权限时成员卡片占满整行 -->
   <div class="members-split">
 
     <!-- 成员列表 -->
@@ -75,55 +268,116 @@
       <div class="card__header">
         <h3 class="card__title">成员列表<span class="card__subtitle" id="member-count">24 人</span></h3>
         <div class="toolbar__filters">
-          <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="姓名 / 邮箱" style="width:220px"></div>
-          <select class="select" style="width:160px"><option>全部角色</option><option>管理员</option><option>成员</option></select>
+          <div class="input-wrap"><span data-icon="search"></span><input class="input" id="member-search" placeholder="姓名 / 邮箱" style="width:220px"></div>
+          <select class="select" id="member-role-filter" style="width:160px"><option value="">全部角色</option><option value="admin">管理员</option><option value="member">成员</option></select>
         </div>
       </div>
       <div class="table-wrap">
         <table class="table">
           <thead><tr><th>用户</th><th>角色</th><th>加入时间</th><th>操作</th></tr></thead>
-          <tbody>
+          <tbody id="member-tbody">
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar avatar--brand">张</span>
-                <span><span class="cell-main">张明</span><span class="cell-sub">zhangming@robotest.cn</span></span></td>
-              <td><span class="tag tag--info" data-role="admin">管理员</span></td>
+              <td>
+                <div class="member-cell">
+                  <span class="avatar avatar--brand">张</span>
+                  <div class="member-cell__copy">
+                    <div class="member-cell__name">张明</div>
+                    <div class="member-cell__email">zhangming@robotest.cn</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="role-tag role-tag--admin" data-role="admin">管理员</span></td>
               <td class="num">2026-09-18 10:24</td>
-              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-exit>退出</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-role-edit>改角色</button>
+                  <button class="btn btn--link btn--link-danger" data-exit>退出</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar">李</span>
-                <span><span class="cell-main">李华</span><span class="cell-sub">lihua@robotest.cn</span></span></td>
-              <td><span class="tag tag--info" data-role="admin">管理员</span></td>
+              <td>
+                <div class="member-cell">
+                  <span class="avatar">李</span>
+                  <div class="member-cell__copy">
+                    <div class="member-cell__name">李华</div>
+                    <div class="member-cell__email">lihua@robotest.cn</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="role-tag role-tag--admin" data-role="admin">管理员</span></td>
               <td class="num">2026-09-18 10:31</td>
-              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="李华">移除</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-role-edit>改角色</button>
+                  <button class="btn btn--link btn--link-danger" data-remove="李华">移除</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar">王</span>
-                <span><span class="cell-main">王芳</span><span class="cell-sub">wangfang@robotest.cn</span></span></td>
-              <td><span class="tag tag--outline" data-role="member">成员</span></td>
+              <td>
+                <div class="member-cell">
+                  <span class="avatar">王</span>
+                  <div class="member-cell__copy">
+                    <div class="member-cell__name">王芳</div>
+                    <div class="member-cell__email">wangfang@robotest.cn</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="role-tag" data-role="member">成员</span></td>
               <td class="num">2026-09-18 14:02</td>
-              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="王芳">移除</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-role-edit>改角色</button>
+                  <button class="btn btn--link btn--link-danger" data-remove="王芳">移除</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar">陈</span>
-                <span><span class="cell-main">陈强</span><span class="cell-sub">chenqiang@robotest.cn</span></span></td>
-              <td><span class="tag tag--outline" data-role="member">成员</span></td>
+              <td>
+                <div class="member-cell">
+                  <span class="avatar">陈</span>
+                  <div class="member-cell__copy">
+                    <div class="member-cell__name">陈强</div>
+                    <div class="member-cell__email">chenqiang@robotest.cn</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="role-tag" data-role="member">成员</span></td>
               <td class="num">2026-09-19 09:15</td>
-              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="陈强">移除</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-role-edit>改角色</button>
+                  <button class="btn btn--link btn--link-danger" data-remove="陈强">移除</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="flex-center flex-gap-sm"><span class="avatar">周</span>
-                <span><span class="cell-main">周敏</span><span class="cell-sub">zhoumin@robotest.cn</span></span></td>
-              <td><span class="tag tag--outline" data-role="member">成员</span></td>
+              <td>
+                <div class="member-cell">
+                  <span class="avatar">周</span>
+                  <div class="member-cell__copy">
+                    <div class="member-cell__name">周敏</div>
+                    <div class="member-cell__email">zhoumin@robotest.cn</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="role-tag" data-role="member">成员</span></td>
               <td class="num">2026-09-20 16:44</td>
-              <td><span class="op-link" data-role-edit>改角色</span><span class="op-link op-link--danger" data-remove="周敏">移除</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-role-edit>改角色</button>
+                  <button class="btn btn--link btn--link-danger" data-remove="周敏">移除</button>
+                </div>
+              </td>
             </tr>
+            <tr id="member-empty" hidden><td colspan="4" class="table-empty-cell">暂无匹配的成员</td></tr>
           </tbody>
         </table>
       </div>
-      <div class="pagination">
+      <div class="pagination" id="member-pagination">
         <span class="pagination__total" id="member-total">共 24 人 · 每页 20 条</span>
-        <button class="page-btn page-btn--active">1</button><button class="page-btn">2</button><button class="page-btn">›</button>
+        <span id="member-page-btns"><button class="page-btn page-btn--active" data-page-nav="1">1</button><button class="page-btn" data-page-nav="2">2</button><button class="page-btn" data-page-nav="next" aria-label="下一页">›</button></span>
       </div>
     </div>
 
@@ -135,53 +389,76 @@
       <div class="table-wrap">
         <table class="table" id="invite-table">
           <thead><tr><th>邀请链接</th><th>使用次数</th><th>过期时间</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
-          <tbody>
+          <tbody id="invite-tbody">
             <tr>
-              <td class="mono">join/8f3a…c4e1</td>
+              <td><span class="invite-token">join/8f3a…c4e1</span></td>
               <td class="num">7 / 20</td>
               <td class="num">2026-09-27 10:00</td>
-              <td><span class="status status--success"><span class="dot"></span>有效</span></td>
+              <td><span class="status-cell status-cell--success"><span class="status-cell__dot"></span>有效</span></td>
               <td class="num">2026-09-18 10:30</td>
-              <td><span class="op-link" data-copy-token="8f3a9d20b74ec4e1">复制</span><span class="op-link op-link--danger" data-expire>失效</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-copy-token="8f3a9d20b74ec4e1">复制</button>
+                  <button class="btn btn--link btn--link-danger" data-expire>失效</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="mono">join/91bc…7a02</td>
+              <td><span class="invite-token">join/91bc…7a02</span></td>
               <td class="num">20 / 20</td>
               <td class="num">2026-10-15 09:00</td>
-              <td><span class="status status--neutral"><span class="dot"></span>已达上限</span></td>
+              <td><span class="status-cell status-cell--neutral"><span class="status-cell__dot"></span>已达上限</span></td>
               <td class="num">2026-09-10 11:20</td>
-              <td><span class="op-link" data-copy-token="91bc7732a05d7a02">复制</span><span class="op-link op-link--danger" data-expire>失效</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-copy-token="91bc7732a05d7a02">复制</button>
+                  <button class="btn btn--link btn--link-danger" data-expire>失效</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="mono">join/4c56…21ad</td>
+              <td><span class="invite-token">join/4c56…21ad</span></td>
               <td class="num">3 / 不限</td>
               <td class="num">永不过期</td>
-              <td><span class="status status--success"><span class="dot"></span>有效</span></td>
+              <td><span class="status-cell status-cell--success"><span class="status-cell__dot"></span>有效</span></td>
               <td class="num">2026-09-12 09:05</td>
-              <td><span class="op-link" data-copy-token="4c56e118ff3021ad">复制</span><span class="op-link op-link--danger" data-expire>失效</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" data-copy-token="4c56e118ff3021ad">复制</button>
+                  <button class="btn btn--link btn--link-danger" data-expire>失效</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="mono">join/2d7e…19f8</td>
+              <td><span class="invite-token">join/2d7e…19f8</span></td>
               <td class="num">3 / 10</td>
               <td class="num">2026-09-15 18:00</td>
-              <td><span class="status status--danger"><span class="dot"></span>已过期</span></td>
+              <td><span class="status-cell status-cell--danger"><span class="status-cell__dot"></span>已过期</span></td>
               <td class="num">2026-09-01 15:41</td>
-              <td><span class="op-link op-link--muted">复制</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" disabled>复制</button>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td class="mono">join/7b0e…55f2</td>
+              <td><span class="invite-token">join/7b0e…55f2</span></td>
               <td class="num">1 / 5</td>
               <td class="num">2026-09-30 12:00</td>
-              <td><span class="status status--neutral"><span class="dot"></span>已失效</span></td>
+              <td><span class="status-cell status-cell--neutral"><span class="status-cell__dot"></span>已失效</span></td>
               <td class="num">2026-09-08 14:12</td>
-              <td><span class="op-link op-link--muted">复制</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn--link" disabled>复制</button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div class="pagination">
-        <span class="pagination__total">共 5 条 · 每页 20 条</span>
-        <button class="page-btn page-btn--active">1</button>
+      <div class="pagination" id="invite-pagination">
+        <span class="pagination__total" id="invite-total">共 5 条 · 每页 20 条</span>
+        <span id="invite-page-btns"><button class="page-btn page-btn--active" data-invite-page-nav="1">1</button></span>
       </div>
     </div>
 
@@ -189,7 +466,7 @@
 
 </main>
 
-<!-- 邀请成员：远端搜索多选，按空间成员角色加入 -->
+<!-- 邀请成员：MemberInviteDialog.vue -->
 <div class="dialog-mask" id="invite-dialog" data-mask-close hidden>
   <div class="dialog" style="width:520px">
     <div class="dialog__header">
@@ -198,16 +475,18 @@
     </div>
     <div class="dialog__body">
       <p class="dialog-tip">新成员将使用空间成员角色加入。</p>
-      <div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="输入姓名、用户名或邮箱搜索"></div>
+      <div class="input-wrap"><span data-icon="search"></span><input class="input invite-select" id="invite-search" placeholder="输入姓名、用户名或邮箱搜索" autocomplete="off"></div>
+      <div class="invite-suggest" id="invite-suggest" hidden></div>
+      <p class="inline-error" id="invite-error" hidden></p>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-close="invite-dialog">取消</button>
-      <button class="btn btn--primary btn--sm" data-close="invite-dialog">确认邀请</button>
+      <button class="btn btn--default" data-close="invite-dialog">取消</button>
+      <button class="btn btn--primary" id="invite-ok">确认邀请</button>
     </div>
   </div>
 </div>
 
-<!-- 生成邀请链接：两项均可留空（永不过期 / 不限次数） -->
+<!-- 生成邀请链接：InvitationCreateDialog.vue -->
 <div class="dialog-mask" id="invite-create-dialog" data-mask-close hidden>
   <div class="dialog" style="width:460px">
     <div class="dialog__header">
@@ -215,25 +494,27 @@
       <button class="dialog__close" data-close="invite-create-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="dialog__body">
-      <div class="field">
-        <label class="field__label" for="invite-expire">过期时间</label>
-        <input class="input" type="datetime-local" id="invite-expire">
-        <div class="field__hint">留空表示永不过期</div>
-      </div>
-      <div class="field">
-        <label class="field__label" for="invite-max-uses">最大使用次数</label>
-        <input class="input" type="number" min="1" max="10000" placeholder="留空表示不限" id="invite-max-uses">
+      <div class="dialog-form">
+        <div class="field">
+          <label class="field__label" for="invite-expire">过期时间</label>
+          <input class="input" type="datetime-local" id="invite-expire" placeholder="留空表示永不过期">
+        </div>
+        <div class="field">
+          <label class="field__label" for="invite-max-uses">最大使用次数</label>
+          <input class="input" type="number" min="1" max="10000" placeholder="留空表示不限" id="invite-max-uses">
+        </div>
+        <p class="inline-error" id="invite-create-error" hidden></p>
       </div>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-close="invite-create-dialog">取消</button>
-      <button class="btn btn--primary btn--sm" id="invite-create-ok">生成</button>
+      <button class="btn btn--default" data-close="invite-create-dialog">取消</button>
+      <button class="btn btn--primary" id="invite-create-ok">生成</button>
     </div>
   </div>
 </div>
 
-<!-- 创建成功后展示链接（实际页不可点击遮罩关闭） -->
-<div class="dialog-mask" id="invite-link-dialog" hidden>
+<!-- 创建成功后展示链接：InvitationLinkDialog.vue；原型中遮罩/ESC 均可关闭 -->
+<div class="dialog-mask" id="invite-link-dialog" data-mask-close hidden>
   <div class="dialog" style="width:540px">
     <div class="dialog__header">
       <span class="dialog__title">邀请链接已创建</span>
@@ -243,17 +524,17 @@
       <p class="dialog-tip">请复制链接并发送给受邀成员：</p>
       <div class="invite-link-row">
         <input class="input" id="created-invite-link" readonly value="https://robotest.example.cn/join?token=a1c97d05e8f34b62">
-        <button class="btn btn--default" data-copy-link>复制</button>
+        <button class="btn btn--default" data-copy-link><span data-icon="copy"></span>复制</button>
       </div>
     </div>
     <div class="dialog__footer">
-      <button class="btn btn--primary btn--sm" data-close="invite-link-dialog">关闭</button>
+      <button class="btn btn--primary" data-close="invite-link-dialog">关闭</button>
     </div>
   </div>
 </div>
 
 <!-- 移除 / 退出 / 失效共用的二次确认 -->
-<div class="dialog-mask" id="confirm-dialog" hidden>
+<div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
   <div class="dialog" style="width:420px">
     <div class="dialog__header">
       <span class="dialog__title" id="confirm-title">确认移除</span>
@@ -261,8 +542,8 @@
     </div>
     <div class="dialog__body"><p id="confirm-body" style="margin:0;color:var(--n-600)"></p></div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-close="confirm-dialog">取消</button>
-      <button class="btn btn--danger btn--sm" id="confirm-ok">确认</button>
+      <button class="btn btn--default" data-close="confirm-dialog">取消</button>
+      <button class="btn btn--primary" id="confirm-ok">确认</button>
     </div>
   </div>
 </div>
@@ -271,20 +552,61 @@
 <script src="../assets/shell.js"></script>
 <script>
   (function () {
-    function byId(id) { return document.getElementById(id); }
+    'use strict';
 
+    function byId(id) { return document.getElementById(id); }
+    function q(sel, root) { return (root || document).querySelector(sel); }
+    function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+    function closest(el, sel) { return el && el.closest ? el.closest(sel) : null; }
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    function formatNow() {
+      var d = new Date();
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+        ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    /* ---------- 弹层：关闭按钮 / 遮罩 / ESC 都是真实隐藏 ---------- */
+    var DIALOGS = ['invite-dialog', 'invite-create-dialog', 'invite-link-dialog', 'confirm-dialog'];
     var pendingConfirm = null;
+
+    function closeDialog(id) {
+      var d = byId(id);
+      if (d) d.hidden = true;
+      if (id === 'confirm-dialog') pendingConfirm = null;
+    }
+
+    function openDialog(id) {
+      var d = byId(id);
+      if (!d) return;
+      d.hidden = false;
+      if (id === 'invite-dialog') resetInviteDialog();
+      if (id === 'invite-create-dialog') {
+        byId('invite-expire').value = '';
+        byId('invite-max-uses').value = '';
+        byId('invite-create-error').hidden = true;
+      }
+    }
+
+    function closeAllDialogs() {
+      DIALOGS.forEach(closeDialog);
+    }
 
     function askConfirm(opts, onOk) {
       byId('confirm-title').textContent = opts.title;
       byId('confirm-body').textContent = opts.body;
       byId('confirm-ok').textContent = opts.ok || '确认';
+      byId('confirm-ok').className = 'btn ' + (opts.danger ? 'btn--danger' : 'btn--primary');
       pendingConfirm = onOk || null;
       byId('confirm-dialog').hidden = false;
     }
 
+    /* ---------- 复制邀请文本 ---------- */
     function shareText(url, exhausted) {
-      // 与实际页一致：复制的是带工作空间说明的分享文案，而非裸链接
       return [
         '【RoboTest 工作空间邀请】',
         '工作空间：' + (document.body.getAttribute('data-workspace') || '当前工作空间'),
@@ -311,155 +633,500 @@
       ta.remove();
     }
 
-    function flashCopied(node) {
+    function flashText(node, text) {
       var original = node.innerHTML;
-      node.textContent = '已复制';
+      node.textContent = text;
       window.setTimeout(function () { node.innerHTML = original; }, 1600);
     }
 
+    /* ---------- 成员列表：DOM 即数据源 ---------- */
+    var memberTbody = byId('member-tbody');
+    var memberEmpty = byId('member-empty');
+    var memberSearch = byId('member-search');
+    var memberRoleFilter = byId('member-role-filter');
+    var memberPageBtns = byId('member-page-btns');
+    var memberTotal = 24;
+    var memberPage = 1;
+    // 原型仅展示两组样本行，其余名额计入总数；增删时同步扣减，保证计数与分页一致
+    var memberPhantom = 19;
+
     function roleTag(role) {
-      return '<span class="tag ' + (role === 'admin' ? 'tag--info' : 'tag--outline') +
+      return '<span class="role-tag ' + (role === 'admin' ? 'role-tag--admin' : '') +
         '" data-role="' + role + '">' + (role === 'admin' ? '管理员' : '成员') + '</span>';
     }
 
-    // 改角色为行内编辑：角色列原地变下拉，切换即提交、收起即保持原角色
+    function createMemberRow(data, page) {
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-member-row', '');
+      tr.setAttribute('data-page', String(page));
+      tr.setAttribute('data-name', data.name);
+      tr.setAttribute('data-email', data.email);
+      tr.setAttribute('data-role', data.role);
+      tr.innerHTML =
+        '<td><div class="member-cell"><span class="avatar' + (data.self ? ' avatar--brand' : '') + '">' +
+          esc(data.name.charAt(0)) + '</span><div class="member-cell__copy">' +
+          '<div class="member-cell__name">' + esc(data.name) + '</div>' +
+          '<div class="member-cell__email">' + esc(data.email) + '</div></div></div></td>' +
+        '<td>' + roleTag(data.role) + '</td>' +
+        '<td class="num">' + esc(data.joined) + '</td>' +
+        '<td><div class="row-actions"><button class="btn btn--link" data-role-edit>改角色</button>' +
+          (data.self
+            ? '<button class="btn btn--link btn--link-danger" data-exit>退出</button>'
+            : '<button class="btn btn--link btn--link-danger" data-remove="' + esc(data.name) + '">移除</button>') +
+        '</div></td>';
+      return tr;
+    }
+
+    function renderMemberTotals() {
+      byId('member-count').textContent = memberTotal + ' 人';
+      byId('member-total').textContent = '共 ' + memberTotal + ' 人 · 每页 20 条';
+    }
+
+    function renderMemberPager() {
+      var pages = Math.max(1, Math.ceil(memberTotal / 20));
+      if (memberPage > pages) memberPage = pages;
+      var html = '';
+      if (memberPage > 1) {
+        html += '<button class="page-btn" data-page-nav="prev" aria-label="上一页">‹</button>';
+      }
+      for (var i = 1; i <= pages; i++) {
+        html += '<button class="page-btn' + (i === memberPage ? ' page-btn--active' : '') +
+          '" data-page-nav="' + i + '"' + (i === memberPage ? ' aria-current="page"' : '') + '>' + i + '</button>';
+      }
+      if (memberPage < pages) {
+        html += '<button class="page-btn" data-page-nav="next" aria-label="下一页">›</button>';
+      }
+      memberPageBtns.innerHTML = html;
+    }
+
+    function ensureMemberPage(page) {
+      // 原型预置两页样本；分页增长到更后面的页时按需补行，保证切页后表格不空
+      if (page < 3 || qa('[data-member-row][data-page="' + page + '"]', memberTbody).length) return;
+      var count = Math.min(20, Math.max(0, memberTotal - (page - 1) * 20));
+      for (var i = 0; i < count; i++) {
+        memberTbody.insertBefore(createMemberRow({
+          name: '成员' + ((page - 1) * 20 + i + 1),
+          email: 'member' + ((page - 1) * 20 + i + 1) + '@robotest.cn',
+          role: 'member',
+          joined: formatNow()
+        }, page), memberEmpty);
+      }
+    }
+
+    function applyMemberView() {
+      ensureMemberPage(memberPage);
+      var kw = memberSearch.value.trim().toLowerCase();
+      var role = memberRoleFilter.value;
+      var visible = 0;
+      qa('[data-member-row]', memberTbody).forEach(function (tr) {
+        var name = tr.getAttribute('data-name') || '';
+        var email = tr.getAttribute('data-email') || '';
+        var rowRole = tr.getAttribute('data-role') || '';
+        var match = (!kw || name.toLowerCase().indexOf(kw) > -1 || email.toLowerCase().indexOf(kw) > -1) &&
+          (!role || rowRole === role);
+        var show = tr.getAttribute('data-page') === String(memberPage) && match;
+        tr.hidden = !show;
+        if (show) visible++;
+      });
+      memberEmpty.hidden = visible > 0;
+      q('td', memberEmpty).textContent = (kw || role) ? '没有匹配的成员' : '暂无成员';
+    }
+
+    // 初始 5 行登记为第 1 页；第 2 页补 4 行样本，切换页码时真实替换表格内容
+    qa('#member-tbody > tr').forEach(function (tr) {
+      if (tr.id === 'member-empty') return;
+      tr.setAttribute('data-member-row', '');
+      tr.setAttribute('data-page', '1');
+      tr.setAttribute('data-name', q('.member-cell__name', tr).textContent.trim());
+      tr.setAttribute('data-email', q('.member-cell__email', tr).textContent.trim());
+      tr.setAttribute('data-role', q('[data-role]', tr).getAttribute('data-role'));
+    });
+    [
+      { name: '赵磊', email: 'zhaolei@robotest.cn', role: 'member', joined: '2026-09-21 09:12' },
+      { name: '孙丽', email: 'sunli@robotest.cn', role: 'member', joined: '2026-09-22 11:36' },
+      { name: '吴涛', email: 'wutao@robotest.cn', role: 'admin', joined: '2026-09-23 15:08' },
+      { name: '郑爽', email: 'zhengshuang@robotest.cn', role: 'member', joined: '2026-09-24 17:20' }
+    ].forEach(function (m) {
+      memberTbody.insertBefore(createMemberRow(m, 2), memberEmpty);
+    });
+
     function startRoleEdit(trigger) {
-      var cell = trigger.closest('tr').children[1];
-      var tag = cell.querySelector('[data-role]');
-      if (!tag || cell.querySelector('select')) return;
-      var previous = tag.getAttribute('data-role');
+      var tr = closest(trigger, 'tr');
+      var cell = tr.children[1];
+      if (cell.querySelector('select')) return;
+      var previous = tr.getAttribute('data-role') || 'member';
       var select = document.createElement('select');
       select.className = 'select';
+      select.style.width = '120px';
+      select.style.height = '28px';
       select.innerHTML = '<option value="admin">管理员</option><option value="member">成员</option>';
       select.value = previous;
       cell.textContent = '';
       cell.appendChild(select);
       select.focus();
-      select.addEventListener('change', function () { cell.innerHTML = roleTag(select.value); });
-      select.addEventListener('blur', function () {
-        if (cell.contains(select)) cell.innerHTML = roleTag(previous);
+      var done = false;
+      function finish(value) {
+        if (done) return;
+        done = true;
+        tr.setAttribute('data-role', value);
+        cell.innerHTML = roleTag(value);
+        applyMemberView();
+      }
+      select.addEventListener('change', function () { finish(select.value); });
+      select.addEventListener('blur', function () { finish(select.value); });
+      select.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+          e.stopPropagation();
+          if (!done) { done = true; cell.innerHTML = roleTag(previous); }
+        }
       });
     }
 
-    var memberTotal = 24;
-    function renderMemberTotal() {
-      byId('member-count').textContent = memberTotal + ' 人';
-      byId('member-total').textContent = '共 ' + memberTotal + ' 人 · 每页 20 条';
+    /* ---------- 邀请成员：候选搜索 + 真实写入成员列表 ---------- */
+    var inviteCandidates = [
+      { name: '林晓', email: 'linxiao@robotest.cn' },
+      { name: '何静', email: 'hejing@robotest.cn' },
+      { name: '郭强', email: 'guoqiang@robotest.cn' },
+      { name: '马超', email: 'machao@robotest.cn' }
+    ];
+    var selectedCandidate = null;
+
+    function resetInviteDialog() {
+      var input = byId('invite-search');
+      input.value = '';
+      selectedCandidate = null;
+      byId('invite-suggest').hidden = true;
+      byId('invite-suggest').innerHTML = '';
+      byId('invite-error').hidden = true;
+      window.setTimeout(function () { input.focus(); }, 0);
     }
 
+    function renderInviteSuggest() {
+      var kw = byId('invite-search').value.trim().toLowerCase();
+      var box = byId('invite-suggest');
+      var list = inviteCandidates.filter(function (c) {
+        return !kw || c.name.toLowerCase().indexOf(kw) > -1 || c.email.toLowerCase().indexOf(kw) > -1;
+      });
+      if (!list.length) {
+        box.innerHTML = '<div class="invite-suggest__empty">无匹配用户，可直接输入邮箱邀请</div>';
+      } else {
+        box.innerHTML = list.map(function (c) {
+          var selected = selectedCandidate && selectedCandidate.email === c.email;
+          return '<div class="invite-suggest__item' + (selected ? ' is-selected' : '') +
+            '" data-candidate="' + esc(c.email) + '">' +
+            '<span class="avatar">' + esc(c.name.charAt(0)) + '</span>' +
+            '<span class="invite-suggest__name">' + esc(c.name) + '</span>' +
+            '<span class="invite-suggest__email">' + esc(c.email) + '</span></div>';
+        }).join('');
+      }
+      box.hidden = false;
+    }
+
+    function showInviteError(msg) {
+      var err = byId('invite-error');
+      err.textContent = msg;
+      err.hidden = false;
+    }
+
+    function submitInvite() {
+      var raw = byId('invite-search').value.trim();
+      if (!raw) { showInviteError('请输入姓名、用户名或邮箱'); return; }
+      var name, email;
+      if (selectedCandidate) {
+        name = selectedCandidate.name;
+        email = selectedCandidate.email;
+      } else {
+        email = raw;
+        name = raw.indexOf('@') > -1 ? raw.split('@')[0] : raw;
+        if (raw.indexOf('@') === -1) email = raw + '@robotest.cn';
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showInviteError('邮箱格式不正确'); return; }
+      var duplicated = qa('[data-member-row]', memberTbody).some(function (tr) {
+        return tr.getAttribute('data-email') === email;
+      });
+      if (duplicated) { showInviteError('该成员已在工作空间中'); return; }
+
+      var row = createMemberRow({ name: name, email: email, role: 'member', joined: formatNow() }, memberPage);
+      memberTbody.insertBefore(row, memberEmpty);
+      memberTotal++;
+      renderMemberTotals();
+      renderMemberPager();
+      applyMemberView();
+      closeDialog('invite-dialog');
+    }
+
+    /* ---------- 邀请链接：生成后真实写入表格 ---------- */
+    var inviteTbody = byId('invite-tbody');
+    var invitePageBtns = byId('invite-page-btns');
+    var inviteTotal = 5;
+    var invitePage = 1;
+
+    function statusCell(text, kind) {
+      return '<span class="status-cell status-cell--' + kind + '"><span class="status-cell__dot"></span>' + text + '</span>';
+    }
+
+    function createInviteRow(data, page) {
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-invite-row', '');
+      tr.setAttribute('data-page', String(page));
+      tr.setAttribute('data-status', 'valid');
+      tr.innerHTML =
+        '<td><span class="invite-token">' + esc(data.display) + '</span></td>' +
+        '<td class="num">' + esc(data.uses) + '</td>' +
+        '<td class="num">' + esc(data.expire) + '</td>' +
+        '<td>' + statusCell('有效', 'success') + '</td>' +
+        '<td class="num">' + esc(data.created) + '</td>' +
+        '<td><div class="row-actions">' +
+          '<button class="btn btn--link" data-copy-token="' + esc(data.token) + '">复制</button>' +
+          '<button class="btn btn--link btn--link-danger" data-expire>失效</button>' +
+        '</div></td>';
+      return tr;
+    }
+
+    function renderInviteTotals() {
+      byId('invite-total').textContent = '共 ' + inviteTotal + ' 条 · 每页 20 条';
+    }
+
+    function renderInvitePager() {
+      var pages = Math.max(1, Math.ceil(inviteTotal / 20));
+      if (invitePage > pages) invitePage = pages;
+      var html = '';
+      if (invitePage > 1) {
+        html += '<button class="page-btn" data-invite-page-nav="prev" aria-label="上一页">‹</button>';
+      }
+      for (var i = 1; i <= pages; i++) {
+        html += '<button class="page-btn' + (i === invitePage ? ' page-btn--active' : '') +
+          '" data-invite-page-nav="' + i + '"' + (i === invitePage ? ' aria-current="page"' : '') + '>' + i + '</button>';
+      }
+      if (invitePage < pages) {
+        html += '<button class="page-btn" data-invite-page-nav="next" aria-label="下一页">›</button>';
+      }
+      invitePageBtns.innerHTML = html;
+    }
+
+    function ensureInvitePage(page) {
+      if (page < 2 || qa('[data-invite-row][data-page="' + page + '"]', inviteTbody).length) return;
+      var count = Math.min(20, Math.max(0, inviteTotal - (page - 1) * 20));
+      for (var i = 0; i < count; i++) {
+        var token = randomToken();
+        inviteTbody.appendChild(createInviteRow({
+          token: token,
+          display: 'join/' + token.slice(0, 4) + '…' + token.slice(-4),
+          uses: '0 / 不限',
+          expire: '永不过期',
+          created: formatNow()
+        }, page));
+      }
+    }
+
+    function applyInviteView() {
+      ensureInvitePage(invitePage);
+      qa('[data-invite-row]', inviteTbody).forEach(function (tr) {
+        tr.hidden = tr.getAttribute('data-page') !== String(invitePage);
+      });
+    }
+
+    qa('#invite-tbody > tr').forEach(function (tr) {
+      tr.setAttribute('data-invite-row', '');
+      tr.setAttribute('data-page', '1');
+      var text = q('.status-cell', tr).textContent.trim();
+      tr.setAttribute('data-status', text === '有效' ? 'valid' : text);
+    });
+
+    function randomToken() {
+      var s = '';
+      for (var i = 0; i < 16; i++) s += Math.floor(Math.random() * 16).toString(16);
+      return s;
+    }
+
+    function formatExpire(value) {
+      if (!value) return '永不过期';
+      var m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      return m ? m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] : value;
+    }
+
+    function createInviteLink() {
+      var err = byId('invite-create-error');
+      var rawMax = byId('invite-max-uses').value.trim();
+      var maxUses = rawMax ? Number(rawMax) : 0;
+      if (rawMax && (!Number.isInteger(maxUses) || maxUses < 1)) {
+        err.textContent = '最大使用次数需为大于 0 的整数';
+        err.hidden = false;
+        return;
+      }
+      var token = randomToken();
+      var link = 'https://robotest.example.cn/join?token=' + token;
+      var row = createInviteRow({
+        token: token,
+        display: 'join/' + token.slice(0, 4) + '…' + token.slice(-4),
+        uses: '0 / ' + (maxUses || '不限'),
+        expire: formatExpire(byId('invite-expire').value),
+        created: formatNow()
+      }, invitePage);
+      inviteTbody.insertBefore(row, inviteTbody.firstChild);
+      inviteTotal++;
+      renderInviteTotals();
+      renderInvitePager();
+      applyInviteView();
+      byId('created-invite-link').value = link;
+      closeDialog('invite-create-dialog');
+      byId('invite-link-dialog').hidden = false;
+    }
+
+    /* ---------- 统一事件委托 ---------- */
     document.addEventListener('click', function (e) {
       var target;
 
-      if ((target = e.target.closest('[data-close]'))) {
-        byId(target.getAttribute('data-close')).hidden = true;
+      if ((target = closest(e.target, '[data-page-nav]'))) {
+        var nav = target.getAttribute('data-page-nav');
+        memberPage = nav === 'prev' ? memberPage - 1 : nav === 'next' ? memberPage + 1 : Number(nav);
+        renderMemberPager();
+        applyMemberView();
         return;
       }
 
-      if ((target = e.target.closest('[data-open]'))) {
-        byId(target.getAttribute('data-open')).hidden = false;
+      if ((target = closest(e.target, '[data-invite-page-nav]'))) {
+        var iNav = target.getAttribute('data-invite-page-nav');
+        invitePage = iNav === 'prev' ? invitePage - 1 : iNav === 'next' ? invitePage + 1 : Number(iNav);
+        renderInvitePager();
+        applyInviteView();
         return;
       }
 
-      if ((target = e.target.closest('[data-role-edit]'))) {
+      if ((target = closest(e.target, '[data-close]'))) {
+        closeDialog(target.getAttribute('data-close'));
+        return;
+      }
+
+      if ((target = closest(e.target, '[data-open]'))) {
+        openDialog(target.getAttribute('data-open'));
+        return;
+      }
+
+      if ((target = closest(e.target, '[data-candidate]'))) {
+        var email = target.getAttribute('data-candidate');
+        selectedCandidate = inviteCandidates.filter(function (c) { return c.email === email; })[0] || null;
+        if (selectedCandidate) byId('invite-search').value = selectedCandidate.email;
+        byId('invite-suggest').hidden = true;
+        byId('invite-error').hidden = true;
+        return;
+      }
+
+      if ((target = closest(e.target, '[data-role-edit]'))) {
         startRoleEdit(target);
         return;
       }
 
-      if ((target = e.target.closest('[data-remove]'))) {
-        var memberRow = target.closest('tr');
+      if ((target = closest(e.target, '[data-remove]'))) {
+        var memberRow = closest(target, 'tr');
         var memberName = target.getAttribute('data-remove');
         askConfirm(
-          { title: '确认移除', body: '确定要移除成员「' + memberName + '」吗？', ok: '确认' },
+          { title: '确认移除', body: '确定要移除成员「' + memberName + '」吗？', ok: '确认', danger: true },
           function () {
-            memberRow.style.display = 'none';
-            memberTotal -= 1;
-            renderMemberTotal();
-          },
+            memberRow.remove();
+            memberTotal--;
+            if (memberPhantom > 0) memberPhantom--;
+            renderMemberTotals();
+            renderMemberPager();
+            applyMemberView();
+          }
         );
         return;
       }
 
-      if (e.target.closest('[data-exit]')) {
-        // 退出后回空间列表，对应实际页退出成功后的路由跳转
+      if (closest(e.target, '[data-exit]')) {
         askConfirm(
           {
             title: '退出工作空间',
             body: '确定退出该工作空间？退出后将无法访问此空间的资源。',
             ok: '确认',
+            danger: true
           },
-          function () { window.location.href = 'list.html'; },
+          function () { window.location.href = 'list.html'; }
         );
         return;
       }
 
-      if ((target = e.target.closest('[data-expire]'))) {
-        var inviteRow = target.closest('tr');
+      if ((target = closest(e.target, '[data-expire]'))) {
+        var inviteRow = closest(target, 'tr');
         askConfirm(
-          { title: '确认失效', body: '确定要使该邀请链接失效吗？失效后将不可再使用。', ok: '确认' },
+          { title: '确认失效', body: '确定要使该邀请链接失效吗？失效后将不可再使用。', ok: '确认', danger: true },
           function () {
-            var status = inviteRow.querySelector('.status');
-            status.className = 'status status--neutral';
-            status.innerHTML = '<span class="dot"></span>已失效';
-            var expire = inviteRow.querySelector('[data-expire]');
+            inviteRow.setAttribute('data-status', 'expired');
+            q('.status-cell', inviteRow).outerHTML = statusCell('已失效', 'neutral');
+            var expire = q('[data-expire]', inviteRow);
             if (expire) expire.remove();
-            var copy = inviteRow.querySelector('[data-copy-token]');
+            var copy = q('[data-copy-token]', inviteRow);
             if (copy) {
               copy.removeAttribute('data-copy-token');
-              copy.classList.add('op-link--muted');
+              copy.disabled = true;
             }
-          },
+          }
         );
         return;
       }
 
-      if ((target = e.target.closest('[data-copy-token]'))) {
-        var row = target.closest('tr');
-        var exhausted = row.querySelector('.status').textContent.indexOf('已达上限') > -1;
+      if ((target = closest(e.target, '[data-copy-token]'))) {
+        var row = closest(target, 'tr');
+        var exhausted = q('.status-cell', row).textContent.indexOf('已达上限') > -1;
         copyText(shareText('https://robotest.example.cn/join?token=' + target.getAttribute('data-copy-token'), exhausted));
-        flashCopied(target);
+        flashText(target, '已复制');
         return;
       }
 
-      if ((target = e.target.closest('[data-copy-latest]'))) {
-        // 复制最新的有效链接；全部不可用时实际页会提示暂无可复制链接
-        var rows = document.querySelectorAll('#invite-table tbody tr');
-        for (var i = 0; i < rows.length; i++) {
-          var status = rows[i].querySelector('.status');
-          var rowCopy = rows[i].querySelector('[data-copy-token]');
-          if (rows[i].style.display !== 'none' && rowCopy && status.textContent.indexOf('有效') > -1) {
-            copyText(shareText('https://robotest.example.cn/join?token=' + rowCopy.getAttribute('data-copy-token'), false));
-            flashCopied(target);
-            break;
-          }
-        }
+      if ((target = closest(e.target, '[data-copy-latest]'))) {
+        var copyable = qa('#invite-table [data-invite-row]').filter(function (tr) {
+          return !tr.hidden && tr.getAttribute('data-status') === 'valid' && q('[data-copy-token]', tr);
+        });
+        if (!copyable.length) { flashText(target, '暂无可用链接'); return; }
+        copyText(shareText('https://robotest.example.cn/join?token=' +
+          q('[data-copy-token]', copyable[0]).getAttribute('data-copy-token'), false));
+        flashText(target, '已复制');
         return;
       }
 
-      if ((target = e.target.closest('[data-copy-link]'))) {
+      if ((target = closest(e.target, '[data-copy-link]'))) {
         copyText(shareText(byId('created-invite-link').value, false));
-        flashCopied(target);
+        flashText(target, '已复制');
         return;
       }
     });
 
-    byId('invite-create-ok').addEventListener('click', function () {
-      byId('invite-create-dialog').hidden = true;
-      byId('invite-link-dialog').hidden = false;
+    memberSearch.addEventListener('input', applyMemberView);
+    memberRoleFilter.addEventListener('change', applyMemberView);
+
+    byId('invite-search').addEventListener('input', function () {
+      selectedCandidate = null;
+      renderInviteSuggest();
     });
+    byId('invite-search').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitInvite(); }
+    });
+    byId('invite-ok').addEventListener('click', submitInvite);
+    byId('invite-create-ok').addEventListener('click', createInviteLink);
 
     byId('confirm-ok').addEventListener('click', function () {
-      byId('confirm-dialog').hidden = true;
       var onOk = pendingConfirm;
-      pendingConfirm = null;
+      closeDialog('confirm-dialog');
       if (onOk) onOk();
     });
 
-    // 仅邀请 / 创建两个弹窗支持点击遮罩关闭，创建成功弹窗与确认框需显式操作
-    document.querySelectorAll('[data-mask-close]').forEach(function (mask) {
+    qa('.dialog-mask').forEach(function (mask) {
       mask.addEventListener('click', function (e) {
-        if (e.target === mask) mask.hidden = true;
+        if (e.target === mask) closeDialog(mask.id);
       });
     });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' || e.key === 'Esc') closeAllDialogs();
+    });
+
+    renderMemberTotals();
+    renderMemberPager();
+    applyMemberView();
+    renderInviteTotals();
+    renderInvitePager();
+    applyInviteView();
   })();
 </script>
 </body>

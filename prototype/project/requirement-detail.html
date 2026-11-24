@@ -8,10 +8,9 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 弹层与两态显隐靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
   [hidden] { display: none !important; }
 
-  /* 页头吸顶：负偏移贴住滚动容器内容盒上缘，以分割线压底（同新建页 2.5.2） */
+  /* 页头吸顶：负偏移贴住滚动容器内容盒上缘，以分割线压底（同实现 requirement-detail__header） */
   .req-head {
     position: sticky; top: calc(-1 * var(--page-pad)); z-index: 10;
     display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
@@ -19,13 +18,13 @@
     background: var(--n-0); border-bottom: 1px solid var(--n-200);
   }
   .req-head .breadcrumb { margin-bottom: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .req-head .breadcrumb > :last-child { overflow: hidden; text-overflow: ellipsis; }
+  .req-head .breadcrumb > :last-child { overflow: hidden; text-overflow: ellipsis; color: var(--n-900); }
   .req-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 
-  /* 操作区按频次分组，组间竖线分隔（交互 06 §2.2.2） */
+  /* 操作区按频次分组，组间竖线分隔（同实现 el-divider direction=vertical） */
   .head-sep { width: 1px; height: 16px; background: var(--n-200); }
 
-  /* 「更多」触发钮为 warning plain（归档收敛入口） */
+  /* 「更多」触发钮：el-button type="warning" plain */
   .btn--warning-plain {
     background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong);
   }
@@ -33,7 +32,7 @@
     background: var(--st-warning); border-color: var(--st-warning); color: #fff;
   }
 
-  /* 「更多」下拉：原型无 el-dropdown，沿用 api-testing 的浮层菜单范式 */
+  /* 「更多」下拉：原型无 el-dropdown，沿用浮层菜单范式 */
   .more-wrap { position: relative; display: inline-block; }
   .more-menu {
     position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 96px;
@@ -45,19 +44,22 @@
     cursor: pointer; white-space: nowrap;
   }
   .more-menu__item:hover { background: var(--n-50); }
-  /* 归档是收敛操作，下拉项保持 warning 色（交互 06 §2.1.2） */
-  .more-menu__item--warning { color: var(--st-warning-strong); }
-  .more-caret { display: inline-flex; vertical-align: -2px; }
+  .more-caret { display: inline-flex; margin-left: 4px; vertical-align: -2px; }
   .more-caret svg { width: 12px; height: 12px; }
 
-  /* 标题行：查看态 编号 + 标题 + 状态徽标；编辑态标题换全宽输入框（交互 06 §2.2.2） */
+  /* 标题行：编号 + 标题/标题输入 + 状态徽标（对齐 requirement-detail__title-row） */
   .title-row {
     display: flex; align-items: center; gap: var(--space-sm);
     margin: var(--space-xl) 0 0; min-width: 0;
   }
+  .req-code {
+    flex-shrink: 0; padding: 2px var(--space-xs);
+    border: 1px solid var(--n-300); border-radius: var(--radius-sm);
+    color: var(--n-600); font-family: var(--font-mono); font-size: var(--font-size-sm);
+  }
   .req-title {
     flex: 1; min-width: 0; margin: 0;
-    font-size: var(--font-size-xl); font-weight: 650; color: var(--n-900);
+    font-size: var(--font-size-xl); font-weight: 650; color: var(--n-900); line-height: 1.4;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .title-field { position: relative; flex: 1; min-width: 0; }
@@ -67,22 +69,25 @@
     font-size: var(--font-size-xs); color: var(--n-400);
     font-variant-numeric: tabular-nums; pointer-events: none;
   }
-  /* 校验错误文案固定占位，出现/消失不推挤布局（同新建页） */
-  .title-error { min-height: 18px; margin-top: 6px; }
 
-  /* 双栏：左栏描述、右栏 360px 属性卡片，两栏共用按窗口计算的高度（交互 06 §2.2.1） */
+  /* 状态徽标：el-tag size="small" effect="light" 的原型近似；archived 用中性色覆盖 */
+  .status-tag--archived {
+    background: var(--n-50) !important; border-color: var(--n-300) !important; color: var(--n-400) !important;
+  }
+
+  /* 双栏：DOM 中属性侧栏置前，桌面端由 grid 定位到右栏；两栏共用按窗口计算的高度 */
   .detail-layout {
     display: grid; grid-template-columns: minmax(0, 1fr) 360px;
     gap: var(--space-xl); margin-top: var(--space-md);
   }
   .detail-main { min-width: 0; grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: var(--space-lg); }
-  .detail-side { min-width: 0; grid-column: 2; grid-row: 1; height: var(--panel-height, 320px); display: flex; flex-direction: column; }
+  .detail-side { min-width: 0; grid-column: 2; grid-row: 1; height: var(--detail-panel-height, 320px); display: flex; flex-direction: column; }
 
-  /* 查看态描述以中性描边成盒（同编号 chip 口径），编辑态由编辑器自带描边，外框尺寸一致 */
+  /* 描述：查看态中性描边成盒，编辑态由编辑器自带描边，两态外框尺寸一致 */
   .desc-box {
-    height: var(--panel-height, 320px); overflow: auto;
+    height: var(--detail-panel-height, 320px); overflow: auto;
     padding: var(--space-md);
-    border: 1px solid var(--n-300); border-radius: var(--radius-md);
+    border: 1px solid var(--n-300); border-radius: var(--radius-sm);
     color: var(--n-700); font-size: var(--font-size-base); line-height: 1.7;
   }
   .desc-box h2 { margin: 0 0 8px; font-size: var(--font-size-lg); font-weight: 650; color: var(--n-900); }
@@ -95,7 +100,7 @@
     background: var(--n-100); font-family: var(--font-mono); font-size: 0.92em;
   }
 
-  /* 描述编辑器：MarkdownEditor 的工具栏 + 编辑区连体结构（同新建页） */
+  /* MarkdownEditor 原型近似：工具栏 + 编辑区连体 */
   .md-toolbar {
     display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
     padding: 6px 8px; border: 1px solid var(--n-300); border-bottom: 0;
@@ -108,22 +113,23 @@
   }
   .md-toolbar__btn:hover { background: var(--n-100); color: var(--n-900); }
   .md-toolbar__sep { width: 1px; height: 14px; margin: 0 5px; background: var(--n-200); }
+  .md-toolbar__spacer { flex: 1; }
   .md-editor { border-radius: 0 0 var(--radius-md) var(--radius-md); resize: none; }
 
-  /* 属性卡片：页签行贴顶，面板内容超出在卡片内滚动（交互 06 §2.2.1） */
-  .detail-side .card__body { flex: 1; min-height: 0; overflow: auto; }
+  /* 属性卡片：页签贴顶，内容区超出在卡片内滚动 */
+  .detail-side .card__body { flex: 1; min-height: 0; overflow: auto; padding-top: 0; }
+  .detail-side .tabs { margin-bottom: var(--space-xs); }
   .detail-side .field:last-child { margin-bottom: 0; }
-  .side-count { margin-left: auto; }
 
-  /* 优先级分段控件：选中态沿用缺陷优先级色、查看态整体禁用（交互 06 §4） */
+  /* 优先级分段控件：el-radio-group radio-button 近似，选中态沿用优先级色 */
   .prio-seg .segment__item[data-prio="high"] { --prio-color: var(--priority-p1); }
   .prio-seg .segment__item[data-prio="medium"] { --prio-color: var(--priority-p2); }
   .prio-seg .segment__item[data-prio="low"] { --prio-color: var(--priority-p3); }
   .prio-seg .segment__item.is-on { background: var(--prio-color); color: #fff; box-shadow: none; }
   .prio-seg.is-disabled .segment__item { color: var(--n-300); cursor: not-allowed; }
-  .prio-seg.is-disabled .segment__item.is-on { color: var(--prio-color); opacity: .55; }
+  .prio-seg.is-disabled .segment__item.is-on { color: #fff; opacity: .55; }
 
-  /* 标签多选可回车创建：对应 el-select multiple + allow-create（同新建页） */
+  /* 标签多选可创建：el-select multiple allow-create clearable 近似 */
   .tag-input {
     display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
     min-height: 32px; padding: 4px 8px;
@@ -150,44 +156,19 @@
   .tag-input.is-disabled .tag-chip__x { display: none; }
   .tag-input.is-disabled > input { color: var(--n-400); cursor: not-allowed; }
 
-  /* 来源恒为只读行（交互 06 §2.2.2） */
   .source-value { font-size: var(--font-size-base); color: var(--n-900); }
 
-  /* 需求明细弹窗（e740dc7d / RequirementPickerDialog）：标题 + 右上角圆形关闭 + 正文独立滚动 */
-  .detail-pop-mask {
-    position: fixed; inset: 0; z-index: 80;
-    display: flex; align-items: flex-start; justify-content: center;
-    padding: 96px 24px 24px; background: rgba(0, 0, 0, 0.12);
-  }
-  .detail-pop {
-    width: min(840px, 100%); background: var(--n-0);
-    border: 1px solid var(--n-200); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
-  }
-  .detail-pop__head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px; border-bottom: 1px solid var(--n-200);
-  }
-  .detail-pop__title { font-weight: 600; color: var(--n-800); }
-  .detail-pop__close {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px; padding: 0; border: 1px solid var(--n-200); border-radius: 50%;
-    background: var(--n-0); color: var(--n-500); cursor: pointer;
-  }
-  .detail-pop__close:hover { color: var(--n-900); background: var(--n-50); }
-  .detail-pop__close svg { width: 14px; height: 14px; }
-  /* 正文上限 420px 独立滚动，页脚关闭常在（对齐 picker__detail-body） */
-  .detail-pop__body { max-height: min(420px, 55vh); overflow-y: auto; padding: 16px; }
-  .detail-pop__body h2 { margin: 0 0 8px; font-size: var(--font-size-lg); color: var(--n-900); }
-  .detail-pop__body h3 { margin: 16px 0 8px; font-size: var(--font-size-base); color: var(--n-900); }
-  .detail-pop__body p { margin: 0 0 10px; }
-  .detail-pop__body ul, .detail-pop__body ol { margin: 0 0 10px; padding-left: 22px; }
-  .detail-pop__body code {
-    padding: 1px 5px; border-radius: 4px; background: var(--n-100); font-family: var(--font-mono); font-size: 0.92em;
-  }
-  .detail-pop__foot {
-    display: flex; justify-content: flex-end; padding: 10px 16px;
-    border-top: 1px solid var(--n-200);
-  }
+  /* 变更记录 */
+  .logs-count { font-size: var(--font-size-sm); color: var(--n-400); margin-bottom: var(--space-sm); display: block; }
+  .log-head { display: flex; align-items: center; gap: var(--space-xs); margin-bottom: 4px; }
+  .log-line { color: var(--n-600); font-size: var(--font-size-sm); line-height: 1.6; }
+  .log-more { display: flex; justify-content: center; margin-top: var(--space-sm); }
+
+  /* 预览浮层：复用 dialog 样式，70% 视口宽高居中（同 MarkdownEditor 最大化口径） */
+  #preview-dialog { align-items: center; padding-top: 0; }
+  #preview-dialog .dialog { width: 70vw; max-width: 70vw; height: 70vh; display: flex; flex-direction: column; }
+  #preview-dialog .dialog__body { flex: 1; min-height: 0; padding: 16px 24px; }
+  #preview-dialog .desc-box { height: 100%; }
 
   @media (max-width: 1024px) {
     .detail-layout { grid-template-columns: 1fr; }
@@ -201,7 +182,7 @@
 
 <main class="content">
 
-  <!-- UI-BC-01：列表 → 详情两级面包屑，回退入口是唯一可点击项；操作区与面包屑同行（交互 06 §2.2.2） -->
+  <!-- UI-BC-01：列表 → 详情两级面包屑，回退入口是唯一可点击项；操作区与面包屑同行（同实现） -->
   <div class="req-head">
     <div class="breadcrumb">
       <a href="requirements.html">需求管理</a>
@@ -212,44 +193,24 @@
   </div>
 
   <div class="title-row">
-    <span class="chip" id="req-code">REQ-0103</span>
+    <span class="req-code" id="req-code">REQ-0103</span>
     <h1 class="req-title" id="req-title">订单超时未支付自动关闭</h1>
     <div class="title-field" id="title-edit" hidden>
       <input class="input" id="f-title" maxlength="300" placeholder="请输入需求标题">
       <span class="title-field__count" id="f-title-count">0/300</span>
     </div>
-    <span class="status status--warning" id="req-status"><span class="dot"></span>已变更</span>
-    <button class="btn btn--link btn--sm" type="button" id="btn-detail-pop">明细</button>
+    <span class="tag tag--sm tag--warning" id="req-status">已变更</span>
   </div>
-  <div class="field__error title-error" id="f-title-error" hidden></div>
 
+  <!-- 属性栏在 DOM 中置前：窄屏回流保持「标题 → 属性 → 描述」顺序，桌面端由 grid 定位到右栏 -->
   <div class="detail-layout" id="detail-layout">
-    <div class="detail-main">
-      <!-- 描述：查看态 Markdown 渲染、编辑态 Markdown 编辑器，两态外框尺寸一致（交互 06 §2.2.1） -->
-      <div class="desc-box" id="desc-view"></div>
-      <div id="desc-edit" hidden>
-        <div class="md-toolbar">
-          <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
-          <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
-          <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
-          <span class="md-toolbar__sep"></span>
-          <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
-          <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
-          <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
-          <span class="md-toolbar__sep"></span>
-          <button class="md-toolbar__btn" type="button" data-md="insert" data-token="[链接文字](https://)">链接</button>
-        </div>
-        <textarea class="textarea md-editor" id="f-desc" placeholder="需求描述（支持 Markdown）"></textarea>
-      </div>
-    </div>
-
     <div class="detail-side card">
       <div class="tabs">
-        <span class="tab tab--active" data-tab="attributes" role="button" tabindex="0">属性</span>
-        <span class="tab" data-tab="logs" role="button" tabindex="0">变更记录</span>
+        <span class="tab tab--active" data-tab="attributes" role="tab" aria-selected="true" tabindex="0">属性</span>
+        <span class="tab" data-tab="logs" role="tab" aria-selected="false" tabindex="-1">变更记录</span>
       </div>
 
-      <!-- 同一组表单控件贯穿两态：查看态整体禁用、点「编辑」启用（交互 06 §2.2.2） -->
+      <!-- 同款表单控件贯穿两态：查看态整体禁用、点「编辑」启用（同实现） -->
       <div class="card__body" data-pane="attributes">
         <div class="field">
           <label class="field__label" for="f-module">所属模块</label>
@@ -265,15 +226,18 @@
 
         <div class="field">
           <label class="field__label" for="f-version">版本</label>
-          <input class="input" id="f-version" maxlength="50" value="V2.4" placeholder="被测业务系统版本" disabled>
+          <div class="title-field">
+            <input class="input" id="f-version" maxlength="50" value="V2.4" placeholder="被测业务系统版本" disabled>
+            <span class="title-field__count" id="f-version-count">4/50</span>
+          </div>
         </div>
 
         <div class="field">
           <span class="field__label">优先级</span>
-          <div class="segment prio-seg is-disabled" id="f-priority">
-            <span class="segment__item is-on" data-prio="high">高</span>
-            <span class="segment__item" data-prio="medium">中</span>
-            <span class="segment__item" data-prio="low">低</span>
+          <div class="segment prio-seg is-disabled" id="f-priority" role="radiogroup" aria-label="优先级">
+            <span class="segment__item is-on" data-prio="high" role="radio" aria-checked="true" tabindex="-1">高</span>
+            <span class="segment__item" data-prio="medium" role="radio" aria-checked="false" tabindex="-1">中</span>
+            <span class="segment__item" data-prio="low" role="radio" aria-checked="false" tabindex="-1">低</span>
           </div>
         </div>
 
@@ -302,52 +266,72 @@
         </div>
       </div>
 
-      <!-- 变更记录：页签首次激活时才加载（交互 06 §2.2.2），面板初始不渲染 -->
+      <!-- 变更记录：页签首次激活时才加载（交互 06 §2.2.2） -->
       <div class="card__body" data-pane="logs" hidden>
-        <div class="flex-between mb-md">
-          <span class="text-xs muted" id="logs-count">共 4 条</span>
-        </div>
+        <span class="logs-count" id="logs-count">共 8 条</span>
         <ul class="timeline" id="logs-list">
           <li class="timeline__item">
             <span class="timeline__dot timeline__dot--warning"></span>
-            <div class="timeline__head">李华 <span class="tag tag--warning tag--sm">状态</span><span class="timeline__time">2026-11-09 18:45:21</span></div>
-            <div class="timeline__body">状态更新为「已变更」</div>
+            <div class="timeline__head">
+              <div class="log-head"><strong>李华</strong> <span class="tag tag--sm tag--outline">状态</span></div>
+              <span class="timeline__time">2026-11-09 18:45:21</span>
+            </div>
+            <div class="timeline__body"><div class="log-line">状态更新为「已变更」</div></div>
           </li>
           <li class="timeline__item">
             <span class="timeline__dot"></span>
-            <div class="timeline__head">李华 <span class="tag tag--outline tag--sm">标题</span><span class="timeline__time">2026-11-09 18:44:02</span></div>
-            <div class="timeline__body">标题：订单超时自动关闭 → 订单超时未支付自动关闭</div>
+            <div class="timeline__head">
+              <div class="log-head"><strong>李华</strong> <span class="tag tag--sm tag--outline">标题</span></div>
+              <span class="timeline__time">2026-11-09 18:44:02</span>
+            </div>
+            <div class="timeline__body"><div class="log-line">标题：订单超时自动关闭 → 订单超时未支付自动关闭</div></div>
           </li>
           <li class="timeline__item">
             <span class="timeline__dot"></span>
-            <div class="timeline__head">李华 <span class="tag tag--outline tag--sm">属性</span><span class="timeline__time">2026-11-08 10:15:47</span></div>
-            <div class="timeline__body">版本：V2.3 → V2.4</div>
+            <div class="timeline__head">
+              <div class="log-head"><strong>李华</strong> <span class="tag tag--sm tag--outline">属性</span></div>
+              <span class="timeline__time">2026-11-08 10:15:47</span>
+            </div>
+            <div class="timeline__body"><div class="log-line">版本：V2.3 → V2.4</div></div>
           </li>
           <li class="timeline__item">
             <span class="timeline__dot timeline__dot--success"></span>
-            <div class="timeline__head">张明 <span class="tag tag--success tag--sm">状态</span><span class="timeline__time">2026-11-05 16:20:13</span></div>
-            <div class="timeline__body">状态更新为「已确认」</div>
+            <div class="timeline__head">
+              <div class="log-head"><strong>张明</strong> <span class="tag tag--sm tag--outline">状态</span></div>
+              <span class="timeline__time">2026-11-05 16:20:13</span>
+            </div>
+            <div class="timeline__body"><div class="log-line">状态更新为「已确认」</div></div>
           </li>
         </ul>
+        <div class="log-more">
+          <button class="btn btn--default" type="button" id="logs-more">加载更多</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-main">
+      <!-- 描述：查看态 Markdown 渲染、编辑态 Markdown 编辑器，两态外框尺寸一致 -->
+      <div class="desc-box" id="desc-view"></div>
+      <div id="desc-edit" hidden>
+        <div class="md-toolbar">
+          <button class="md-toolbar__btn" type="button" title="粗体" data-md="wrap" data-token="**" style="font-weight:700">B</button>
+          <button class="md-toolbar__btn" type="button" title="斜体" data-md="wrap" data-token="*" style="font-style:italic">I</button>
+          <button class="md-toolbar__btn" type="button" title="标题" data-md="prefix" data-token="## ">H</button>
+          <span class="md-toolbar__sep"></span>
+          <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="&gt; ">引用</button>
+          <button class="md-toolbar__btn" type="button" data-md="prefix" data-token="- ">列表</button>
+          <button class="md-toolbar__btn" type="button" data-md="wrap" data-token="`">代码</button>
+          <span class="md-toolbar__sep"></span>
+          <button class="md-toolbar__btn" type="button" data-md="insert" data-token="[链接文字](https://)">链接</button>
+          <span class="md-toolbar__spacer"></span>
+          <button class="md-toolbar__btn" type="button" id="btn-preview" title="预览">预览</button>
+        </div>
+        <textarea class="textarea md-editor" id="f-desc" placeholder="需求描述（支持 Markdown）"></textarea>
       </div>
     </div>
   </div>
 
 </main>
-
-<!-- 需求明细弹窗（e740dc7d）：独立详情页按 RequirementPickerDialog 的明细形态演示，正文与页面正文同源 -->
-<div class="detail-pop-mask" id="detail-pop" hidden>
-  <div class="detail-pop" role="dialog" aria-modal="true" aria-labelledby="detail-pop-title">
-    <div class="detail-pop__head">
-      <span class="detail-pop__title" id="detail-pop-title">需求明细</span>
-      <button class="detail-pop__close" type="button" id="detail-pop-close" aria-label="关闭需求明细"><span data-icon="x"></span></button>
-    </div>
-    <div class="detail-pop__body" id="detail-pop-body"></div>
-    <div class="detail-pop__foot">
-      <button class="btn btn--default btn--sm" type="button" id="detail-pop-foot-close">关闭</button>
-    </div>
-  </div>
-</div>
 
 <!-- 归档 / 取消归档 / 确认保存变更 二次确认：文案同 useRequirementDetail 的 ElMessageBox -->
 <div class="dialog-mask" id="confirm-dialog" data-mask-close hidden>
@@ -364,6 +348,22 @@
   </div>
 </div>
 
+<!-- 描述编辑器「预览」最大化浮层：70% 视口宽高，遮罩 / ESC / 关闭按钮均可退出 -->
+<div class="dialog-mask" id="preview-dialog" data-mask-close hidden>
+  <div class="dialog" style="max-width:70vw" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="preview-title">需求描述预览</span>
+      <button class="dialog__close" data-close="preview-dialog" aria-label="关闭预览"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <div class="desc-box" id="preview-body"></div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="preview-dialog">关闭预览</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
@@ -374,12 +374,22 @@
     if (window.RTUX) window.RTUX.toast(msg, type ? { type: type } : {});
   }
 
+  // 键盘可达的 role=button/radio 元素复用原生 click，保证与鼠标走同一条真实 DOM 变更路径
+  function bindActivationKey(el) {
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        el.click();
+      }
+    });
+  }
+
   /* 状态徽标口径同 requirementPresentation：draft/info、confirmed/success、changed/warning、archived/中性 */
   var STATUS = {
-    draft: { label: '草稿', cls: 'status--info' },
-    confirmed: { label: '已确认', cls: 'status--success' },
-    changed: { label: '已变更', cls: 'status--warning' },
-    archived: { label: '已归档', cls: 'status--neutral' }
+    draft: { label: '草稿', cls: 'tag--info' },
+    confirmed: { label: '已确认', cls: 'tag--success' },
+    changed: { label: '已变更', cls: 'tag--warning' },
+    archived: { label: '已归档', cls: 'tag--info status-tag--archived' }
   };
 
   var status = 'changed';
@@ -415,7 +425,6 @@
       .replace(/`([^`]+)`/g, '<code>$1</code>');
   }
 
-  /** 查看态渲染只覆盖演示样本用到的子集（标题/列表/粗体/行内代码），足够还原来回切换 */
   function renderMd(src) {
     var lines = escapeHtml(src).split('\n');
     var html = '';
@@ -450,18 +459,6 @@
   var descInput = byId('f-desc');
   descInput.value = DESC_SRC;
   descView.innerHTML = renderMd(DESC_SRC);
-
-  // ==================== 需求明细弹窗（e740dc7d：标题 / 圆形关闭 / 正文独立滚动） ====================
-  var detailPop = byId('detail-pop');
-  function openDetailPop() {
-    byId('detail-pop-body').innerHTML = renderMd(descInput.value || DESC_SRC);
-    detailPop.hidden = false;
-  }
-  function closeDetailPop() { detailPop.hidden = true; }
-  byId('btn-detail-pop').addEventListener('click', openDetailPop);
-  byId('detail-pop-close').addEventListener('click', closeDetailPop);
-  byId('detail-pop-foot-close').addEventListener('click', closeDetailPop);
-  detailPop.addEventListener('click', function (e) { if (e.target === detailPop) closeDetailPop(); });
 
   // ==================== 属性表单状态 ====================
   var tags = ['超时', '订单'];
@@ -522,6 +519,7 @@
     tags = data.tags ? data.tags.split(',') : [];
     syncPriority();
     syncTitleCount();
+    syncVersionCount();
     renderTags();
   }
 
@@ -544,7 +542,10 @@
   // ==================== 优先级分段控件：再次点击当前项清空回未设置 ====================
   function syncPriority() {
     byId('f-priority').querySelectorAll('.segment__item').forEach(function (item) {
-      item.classList.toggle('is-on', item.getAttribute('data-prio') === priority);
+      var on = item.getAttribute('data-prio') === priority;
+      item.classList.toggle('is-on', on);
+      item.setAttribute('aria-checked', on ? 'true' : 'false');
+      item.tabIndex = editing ? (on ? 0 : -1) : -1;
     });
   }
 
@@ -556,42 +557,40 @@
       syncPriority();
       touch();
     });
+    bindActivationKey(item);
   });
 
-  // ==================== 标题字数与校验（规则同 useRequirementCreate） ====================
+  // ==================== 标题字数与校验 ====================
   var titleInput = byId('f-title');
-  var titleError = byId('f-title-error');
-
   function syncTitleCount() {
     byId('f-title-count').textContent = titleInput.value.length + '/300';
   }
-
+  function syncVersionCount() {
+    byId('f-version-count').textContent = byId('f-version').value.length + '/50';
+  }
   function validateTitle() {
-    var msg = titleInput.value.trim() ? '' : '请输入需求标题';
-    titleError.textContent = msg;
-    titleInput.classList.toggle('input--error', Boolean(msg));
-    return !msg;
+    return titleInput.value.trim().length > 0;
   }
 
   titleInput.addEventListener('input', function () {
     syncTitleCount();
-    if (editing && titleError.textContent) validateTitle();
     touch();
   });
-  titleInput.addEventListener('blur', function () { if (editing) validateTitle(); });
-  /* 描述与属性字段变化同样要反映到「保存」可用性 */
+  byId('f-version').addEventListener('input', function () {
+    syncVersionCount();
+    touch();
+  });
   descInput.addEventListener('input', touch);
-  ['f-module', 'f-version', 'f-owner'].forEach(function (id) {
+  ['f-module', 'f-owner'].forEach(function (id) {
     byId(id).addEventListener('change', touch);
   });
 
-  /* 标题输入框以查看态标题回填初值并重取快照，进编辑态才不会是空输入 */
   titleInput.value = byId('req-title').textContent.trim();
   syncTitleCount();
+  syncVersionCount();
   snapshot = readForm();
 
-  // ==================== 页头操作区（查看态三组 / 编辑态取消保存） ====================
-  /** 编辑态任一字段变化后立即重算「保存」可用性（对应实现的 editDirty 响应式口径） */
+  // ==================== 页头操作区（查看态 / 编辑态） ====================
   function touch() {
     if (editing) renderActions();
   }
@@ -613,12 +612,12 @@
     if (status === 'draft' || status === 'changed') {
       life += '<button class="btn btn--primary" type="button" data-act="confirm">确认</button>';
     }
-    life += '<span class="more-wrap"><button class="btn btn--warning-plain" type="button" data-more>更多 ' +
+    life += '<span class="more-wrap"><button class="btn btn--warning-plain" type="button" data-more aria-haspopup="true" aria-expanded="false">更多' +
       '<span class="more-caret" data-icon="chevron-down"></span></button>' +
       '<span class="more-menu" hidden>' +
       (status === 'archived'
         ? '<span class="more-menu__item" data-act="unarchive">取消归档</span>'
-        : '<span class="more-menu__item more-menu__item--warning" data-act="archive">归档</span>') +
+        : '<span class="more-menu__item" data-act="archive">归档</span>') +
       '</span></span>';
     parts.push(life);
 
@@ -629,11 +628,10 @@
   function renderStatus() {
     var meta = STATUS[status];
     var badge = byId('req-status');
-    badge.className = 'status ' + meta.cls;
-    badge.innerHTML = '<span class="dot"></span>' + meta.label;
+    badge.className = 'tag tag--sm ' + meta.cls;
+    badge.textContent = meta.label;
   }
 
-  /** 同款控件两态切换：查看态整体禁用、编辑态解锁（归档只读恒禁用） */
   function renderFields() {
     var enable = editing;
     ['f-module', 'f-version', 'f-owner'].forEach(function (id) {
@@ -642,16 +640,12 @@
     tagInput.disabled = !enable;
     tagBox.classList.toggle('is-disabled', !enable);
     byId('f-priority').classList.toggle('is-disabled', !enable);
+    syncPriority();
   }
 
   function renderTitleMode() {
     byId('req-title').hidden = editing;
     byId('title-edit').hidden = !editing;
-    titleError.hidden = !editing;
-    if (!editing) {
-      titleError.textContent = '';
-      titleInput.classList.remove('input--error');
-    }
   }
 
   function renderDescMode() {
@@ -674,6 +668,7 @@
     snapshot = readForm();
     editing = true;
     syncTitleCount();
+    syncVersionCount();
     renderAll();
   }
 
@@ -684,12 +679,16 @@
   }
 
   function saveAll() {
-    if (!validateTitle()) { titleInput.focus(); return; }
+    if (!validateTitle()) {
+      titleInput.focus();
+      toast('请输入需求标题', 'error');
+      return;
+    }
     if (impactChanged()) {
       askConfirm(
         '确认保存变更',
         '该需求已处于「已确认」状态，修改标题、描述或所属模块会将其流转为「已变更」。是否继续保存？',
-        '继续保存', '取消',
+        '保存并流转', '放弃修改',
         commitSave
       );
       return;
@@ -762,6 +761,9 @@
 
   function closeMenus() {
     document.querySelectorAll('.more-menu').forEach(function (menu) { menu.hidden = true; });
+    document.querySelectorAll('[data-more]').forEach(function (btn) {
+      btn.setAttribute('aria-expanded', 'false');
+    });
   }
 
   byId('head-actions').addEventListener('click', function (e) {
@@ -771,6 +773,7 @@
       var willOpen = menu.hidden;
       closeMenus();
       menu.hidden = !willOpen;
+      more.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
       return;
     }
     var act = e.target.closest('[data-act]');
@@ -794,8 +797,8 @@
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     closeMenus();
-    closeDetailPop();
     byId('confirm-dialog').hidden = true;
+    byId('preview-dialog').hidden = true;
   });
 
   // ==================== 属性 / 变更记录 页签（记录首次激活才加载） ====================
@@ -805,6 +808,8 @@
       var name = tab.getAttribute('data-tab');
       document.querySelectorAll('.tabs .tab').forEach(function (other) {
         other.classList.toggle('tab--active', other === tab);
+        other.setAttribute('aria-selected', other === tab ? 'true' : 'false');
+        other.tabIndex = other === tab ? 0 : -1;
       });
       document.querySelectorAll('[data-pane]').forEach(function (pane) {
         var on = pane.getAttribute('data-pane') === name;
@@ -813,9 +818,39 @@
       });
       void logsLoaded;
     });
+    bindActivationKey(tab);
   });
 
-  // ==================== 描述编辑器工具栏插入（同新建页） ====================
+  // ==================== 变更记录「加载更多」：本地追加 DOM 并更新总数 ====================
+  var MORE_LOGS = [
+    { who: '王芳', type: '属性', time: '2026-10-22 09:12:33', line: '优先级：中 → 高', dot: '' },
+    { who: '李华', type: '属性', time: '2026-10-20 14:05:10', line: '标签：新增「超时」', dot: '' },
+    { who: '张明', type: '状态', time: '2026-10-18 11:30:00', line: '状态更新为「已确认」', dot: ' timeline__dot--success' },
+    { who: '周敏', type: '属性', time: '2026-10-15 17:22:41', line: '负责人：王芳 → 李华', dot: '' }
+  ];
+  var logsAppended = 0;
+  function appendLogItem(item) {
+    var li = document.createElement('li');
+    li.className = 'timeline__item';
+    li.innerHTML =
+      '<span class="timeline__dot' + item.dot + '"></span>' +
+      '<div class="timeline__head">' +
+        '<div class="log-head"><strong>' + escapeHtml(item.who) + '</strong> ' +
+          '<span class="tag tag--sm tag--outline">' + escapeHtml(item.type) + '</span></div>' +
+        '<span class="timeline__time">' + escapeHtml(item.time) + '</span>' +
+      '</div>' +
+      '<div class="timeline__body"><div class="log-line">' + escapeHtml(item.line) + '</div></div>';
+    byId('logs-list').appendChild(li);
+  }
+  byId('logs-more').addEventListener('click', function () {
+    var page = MORE_LOGS.slice(logsAppended, logsAppended + 4);
+    page.forEach(appendLogItem);
+    logsAppended += page.length;
+    byId('logs-count').textContent = '共 ' + (4 + logsAppended) + ' 条';
+    if (logsAppended >= MORE_LOGS.length) byId('logs-more').hidden = true;
+  });
+
+  // ==================== 描述编辑器工具栏插入 ====================
   document.querySelectorAll('[data-md]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var mode = btn.getAttribute('data-md');
@@ -839,16 +874,23 @@
       descInput.value = next;
       descInput.focus();
       descInput.setSelectionRange(cursor, cursor);
+      touch();
     });
   });
 
-  // ==================== 两栏高度：剩余可用空间的 90%（交互 06 §2.2.1 / 2.5.2） ====================
+  // ==================== 描述预览：编辑器内容渲染进最大化浮层 ====================
+  byId('btn-preview').addEventListener('click', function () {
+    byId('preview-body').innerHTML = renderMd(descInput.value);
+    byId('preview-dialog').hidden = false;
+  });
+
+  // ==================== 两栏高度：剩余可用空间的 90% ====================
   var layout = byId('detail-layout');
 
   function fitPanels() {
     var top = layout.getBoundingClientRect().top + (window.scrollY || 0);
     var height = Math.max(320, Math.floor((window.innerHeight - top) * 0.9));
-    layout.style.setProperty('--panel-height', height + 'px');
+    layout.style.setProperty('--detail-panel-height', height + 'px');
     if (editing) descInput.style.height = height + 'px';
   }
   window.addEventListener('resize', fitPanels);

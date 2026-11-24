@@ -53,6 +53,48 @@
     font-family: var(--font-mono); font-size: 11px; color: var(--n-500);
   }
   .shell-chip { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid var(--n-200); vertical-align: -1px; margin-right: 6px; }
+  /* 按钮扩展示例：仅本页演示页面局部模式，不作为 base.css 全局约定 */
+  .btn--plain-demo { background: var(--n-0); border-color: var(--n-300); color: var(--n-700); }
+  .btn--plain-demo:hover { background: var(--brand-50); border-color: var(--brand-300); color: var(--brand-500); }
+  .btn--plain-danger-demo { background: var(--n-0); border-color: rgba(245,108,108,.35); color: var(--st-danger); }
+  .btn--plain-danger-demo:hover { background: var(--st-danger-light); border-color: rgba(245,108,108,.55); color: var(--st-danger-strong); }
+  .btn--warning-plain-demo { background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong); }
+  .btn--warning-plain-demo:hover { background: var(--st-warning); border-color: var(--st-warning); color: #fff; }
+  .btn--icon-link-demo { padding: 0 4px; min-width: 24px; height: 24px; border: none; background: transparent; color: var(--n-500); }
+  .btn--icon-link-demo:hover { color: var(--brand-500); background: transparent; }
+  .btn--link-danger-demo { color: var(--st-danger); }
+  .btn--link-danger-demo:hover { color: var(--st-danger-strong); background: transparent; }
+  .btn--icon-link-demo svg { width: 14px; height: 14px; }
+  .list-pager-demo {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 20px; border: 1px solid var(--n-200); border-radius: 8px; background: var(--n-0);
+    font-size: var(--font-size-sm); color: var(--n-500);
+  }
+  .list-pager-demo__right { display: flex; align-items: center; gap: 6px; }
+  .page-size-demo { width: auto; height: 30px; padding: 0 28px 0 8px; font-size: var(--font-size-sm); }
+
+  /* ---- 交互返工：仅本页使用的演示态样式（不写 assets/*） ---- */
+  [hidden] { display: none !important; }
+  [data-sg-toggle] { cursor: pointer; user-select: none; }
+  [data-sg-toggle]:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+  .sg-filter-host { display: inline-flex; position: relative; }
+  .sg-filter-panel {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+    min-width: 188px; padding: 8px; background: var(--n-0);
+    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+  }
+  .sg-filter-panel__title { padding: 2px 6px 8px; font-size: var(--font-size-2xs); color: var(--n-400); }
+  .sg-filter-opt { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: var(--radius-sm); font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .sg-filter-opt:hover { background: var(--n-50); }
+  .dialog__close { border: 0; background: none; padding: 4px; }
+  .btn.is-demo-active, .page-btn.is-demo-active { box-shadow: inset 0 0 0 1px currentColor; }
+  .table-wrap.sg-flash { outline: 2px solid var(--brand-300); outline-offset: 2px; border-radius: 4px; }
+  .sg-detail-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--n-200); font-size: var(--font-size-sm); }
+  .sg-detail-row:last-child { border-bottom: none; }
+  .sg-detail-row__k { width: 76px; flex-shrink: 0; color: var(--n-500); }
+  .sg-detail-row__v { color: var(--n-900); font-weight: 500; }
+  .state-block__reset { margin-top: 16px; }
 </style>
 </head>
 <body data-shell="bare">
@@ -246,26 +288,63 @@
 
   <!-- ============ 6 按钮 ============ -->
   <section class="sg-section">
-    <h2 class="sg-h2"><span class="idx">06</span>按钮体系（主 / 次 / 文字 / 危险）</h2>
-    <p class="sg-desc">主按钮实底蓝 + 白字（hover 加深）；次按钮白底描边；文字按钮透明；危险按钮与状态红同源。圆角 6px、高 32px。</p>
+    <h2 class="sg-h2"><span class="idx">06</span>按钮体系</h2>
+    <p class="sg-desc">基于 <span class="mono">prototype/assets/base.css</span> 的全局按钮类。主按钮仅用于主操作（实底 primary + 白字）；次按钮为默认描边；文字/链接按钮用于低强调操作；危险按钮仅用于破坏性操作。圆角 6px、默认高 32px，图标尺寸 15px。</p>
     <div class="demo-pad">
+      <div class="text-xs muted mb-md">基础变体（base.css 全局）</div>
       <div class="btn-row mb-lg">
-        <button class="btn btn--primary"><span data-icon="plus"></span>新建用例</button>
-        <button class="btn btn--default">导出报告</button>
-        <button class="btn btn--text">取消</button>
-        <button class="btn btn--danger"><span data-icon="trash"></span>删除</button>
-        <button class="btn btn--link">查看详情</button>
+        <button class="btn btn--primary" data-sg="create"><span data-icon="plus"></span>新建用例</button>
+        <button class="btn btn--default" data-sg="export"><span data-icon="download"></span>导出报告</button>
+        <button class="btn btn--text" data-sg="cancel">取消</button>
+        <button class="btn btn--danger" data-sg="delete"><span data-icon="trash"></span>删除</button>
+        <button class="btn btn--link" data-sg="detail">查看详情</button>
+      </div>
+      <div class="text-xs muted mb-md">尺寸与布局（点击可将上方基础变体切换为对应尺寸 / 变体）</div>
+      <div class="btn-row mb-lg">
+        <button class="btn btn--primary btn--sm" data-sg-size="sm" data-sg-variant="primary">小号主钮</button>
+        <button class="btn btn--default btn--sm" data-sg-size="sm" data-sg-variant="default">小号次钮</button>
+        <button class="btn btn--primary" data-sg-size="md" data-sg-variant="primary">默认 32px</button>
+        <button class="btn btn--primary btn--lg" data-sg-size="lg" data-sg-variant="primary">大号主钮</button>
+        <button class="btn btn--default btn--lg" data-sg-size="lg" data-sg-variant="default">大号次钮</button>
       </div>
       <div class="btn-row mb-lg">
-        <button class="btn btn--primary btn--sm">小号主钮</button>
-        <button class="btn btn--default btn--sm">小号次钮</button>
-        <button class="btn btn--primary btn--lg">大号主钮</button>
-        <button class="btn btn--default btn--lg">大号次钮</button>
+        <button class="btn btn--primary btn--sm" data-sg="quick-add"><span data-icon="plus"></span>小号图标</button>
+        <span class="sg-filter-host"><button class="btn btn--default btn--sm" data-sg="filter"><span data-icon="filter"></span>筛选</button></span>
+        <button class="btn btn--text btn--sm" data-sg="inline-edit">文字小号</button>
+        <button class="btn btn--link btn--sm" data-sg="scroll-table">链接小号</button>
       </div>
-      <div class="btn-row">
+      <div style="max-width:320px" class="mb-lg">
+        <button class="btn btn--primary btn--block" data-sg="toggle-block">块级主按钮（btn--block）</button>
+      </div>
+      <div class="text-xs muted mb-md">状态</div>
+      <div class="btn-row mb-lg">
         <button class="btn btn--primary" disabled>禁用主钮</button>
         <button class="btn btn--default" disabled>禁用次钮</button>
-        <span class="text-xs muted">hover：主钮 #409eff → #337ecc；次钮描边加深 + 浅灰底</span>
+        <button class="btn btn--text" disabled>禁用文字</button>
+        <button class="btn btn--danger" disabled>禁用危险</button>
+        <span class="text-xs muted">disabled：opacity .45 + not-allowed</span>
+      </div>
+      <div class="text-xs muted mb-md">页面局部扩展（非 base.css 全局，按页面需要在页面 &lt;style&gt; 定义）</div>
+      <div class="btn-row mb-md">
+        <button class="btn btn--default btn--sm btn--plain-demo" data-sg="variant-plain">plain 次钮</button>
+        <button class="btn btn--default btn--sm btn--plain-danger-demo" data-sg="variant-plain-danger">plain 危险</button>
+        <button class="btn btn--default btn--sm btn--warning-plain-demo" data-sg="variant-warning-plain">warning plain</button>
+        <button class="btn btn--link btn--sm btn--icon-link-demo" aria-label="编辑" data-sg="edit-first"><span data-icon="edit"></span></button>
+        <button class="btn btn--link btn--sm btn--icon-link-demo btn--link-danger-demo" aria-label="删除" data-sg="delete-first"><span data-icon="trash"></span></button>
+      </div>
+      <div class="demo-pad" style="padding:16px 20px;background:var(--n-25)">
+        <table class="sem-table">
+          <thead><tr><th>类名</th><th>用途</th><th>约定</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">btn--primary</td><td>主操作</td><td>每个操作区最多一个；实底蓝 + 白字</td></tr>
+            <tr><td class="mono">btn--default</td><td>次操作</td><td>白底描边；导出、取消、辅助动作</td></tr>
+            <tr><td class="mono">btn--text</td><td>低强调文字动作</td><td>无描边；弹窗取消、内联次动作</td></tr>
+            <tr><td class="mono">btn--link</td><td>链接式动作</td><td>行内/轻量操作；表格内也可用 <span class="mono">.op-link</span></td></tr>
+            <tr><td class="mono">btn--danger</td><td>破坏性操作</td><td>删除/不可逆动作；优先二次确认</td></tr>
+            <tr><td class="mono">btn--sm / --lg / --block</td><td>尺寸与布局</td><td>sm=26px，默认=32px，lg=38px；block 占满宽</td></tr>
+          </tbody>
+        </table>
+        <p class="text-xs muted" style="margin:12px 0 0">未定义全局 <span class="mono">btn--success / btn--warning / btn--info</span> 实底变体：状态语义通过 Tag/Alert/Status 表达。页面局部扩展（plain、warning plain、icon-link 等）须在页面作用域内定义，不进入 base.css 全局。示例来源：<span class="mono">plan-detail/review-detail</span>、<span class="mono">requirement-detail</span>、<span class="mono">admin/roles</span>。</p>
       </div>
     </div>
   </section>
@@ -273,7 +352,7 @@
   <!-- ============ 7 表单 ============ -->
   <section class="sg-section">
     <h2 class="sg-h2"><span class="idx">07</span>表单控件</h2>
-    <p class="sg-desc">聚焦态 1px 蓝描边 + 3px 淡蓝光圈；错误态红描边 + 行下红字提示。演示 base.css 的光圈取 <span class="mono">rgba(51,112,255,.14)</span>，正式实现（variables.scss EP 桥接层）为 <span class="mono">rgba(64,158,255,.1)</span>，同为极低透明度蓝光圈。</p>
+    <p class="sg-desc">控件高 32px、圆角 6px，描边 <span class="mono">--n-300</span>。聚焦态 1px 蓝描边 + 3px 淡蓝光圈；错误态红描边 + 行下红字提示；禁用态浅底灰字。演示 base.css 光圈为 <span class="mono">rgba(51,112,255,.14)</span>，正式实现（variables.scss EP 桥接层）为 <span class="mono">rgba(64,158,255,.1)</span>，同为极低透明度蓝光圈。</p>
     <div class="card-grid card-grid--2">
       <div class="card"><div class="card__body">
         <div class="form-grid">
@@ -281,12 +360,12 @@
           <div class="field"><label class="field__label">聚焦（蓝环）</label><input class="input" style="border-color:var(--brand-500);box-shadow:0 0 0 3px rgba(51,112,255,.14)" value="电商核心系统"></div>
           <div class="field"><label class="field__label">错误</label><input class="input input--error" value="admin@"><div class="field__error">邮箱格式不正确</div></div>
           <div class="field"><label class="field__label">禁用</label><input class="input" disabled value="只读内容"></div>
-          <div class="field"><label class="field__label">下拉选择</label><select class="select"><option>全部状态</option></select></div>
+          <div class="field"><label class="field__label">下拉选择</label><select class="select"><option>全部状态</option><option>通过</option><option>失败</option><option>阻塞</option><option>未执行</option></select></div>
           <div class="field"><label class="field__label">搜索框</label><div class="input-wrap"><span data-icon="search"></span><input class="input" placeholder="搜索用例标题 / 编号"></div></div>
         </div>
         <div class="flex-center flex-gap-lg">
-          <span class="text-sm muted">开关</span><span class="switch switch--on"></span><span class="switch"></span>
-          <span class="text-sm muted">勾选</span><span class="checkbox checkbox--on"></span><span class="checkbox"></span><span class="checkbox checkbox--disabled"></span>
+          <span class="text-sm muted">开关</span><span class="switch switch--on" data-sg-toggle data-sg-initial="on" title="点击切换"></span><span class="switch" data-sg-toggle data-sg-initial="off" title="点击切换"></span>
+          <span class="text-sm muted">勾选</span><span class="checkbox checkbox--on" data-sg-toggle data-sg-initial="on" title="点击切换"></span><span class="checkbox" data-sg-toggle data-sg-initial="off" title="点击切换"></span><span class="checkbox checkbox--disabled" data-sg-toggle data-sg-initial="disabled" aria-disabled="true" title="禁用态"></span>
         </div>
       </div></div>
       <div class="card"><div class="card__body">
@@ -302,6 +381,7 @@
     <h2 class="sg-h2"><span class="idx">08</span>状态标识与徽标</h2>
     <p class="sg-desc">Tag = 浅底 + 深字 + 细边；表格内用圆点 + 文案；优先级用色 + 字重；分类信息（HTTP 方法等）只用中性 chip。</p>
     <div class="demo-pad">
+      <div class="text-xs muted mb-md">Tag 变体（base.css：浅底+深字+细边，颜色+形状+文案三重编码）</div>
       <div class="flex-wrap flex-gap-sm mb-lg">
         <span class="tag tag--success"><span class="dot"></span>通过</span>
         <span class="tag tag--success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.3l2.6 2.6 5-5.4"/></svg>已完成</span>
@@ -316,6 +396,8 @@
         <span class="tag tag--info">信息提示</span>
         <span class="tag tag--solid">v1.4.2</span>
         <span class="tag tag--outline">只读</span>
+        <span class="tag tag--yellow"><span class="dot"></span>历史 yellow 档</span>
+        <span class="tag tag--success tag--sm">小号标签</span>
       </div>
       <div class="flex-wrap flex-gap-lg mb-lg">
         <span class="status status--success"><span class="dot"></span>启用</span>
@@ -325,6 +407,7 @@
         <span class="status status--warning"><span class="dot"></span>待修复</span>
         <span class="status status--neutral"><span class="dot"></span>未开始</span>
       </div>
+      <div class="text-xs muted mb-md">优先级与中性分类 chip（HTTP/模块等分类信息用中性 chip，不与状态色混淆）</div>
       <div class="flex-wrap flex-gap-md mb-lg">
         <span class="prio prio--p0">P0</span><span class="prio prio--p1">P1</span>
         <span class="prio prio--p2">P2</span><span class="prio prio--p3">P3</span>
@@ -343,9 +426,17 @@
 
   <!-- ============ 9 表格与分页 ============ -->
   <section class="sg-section">
-    <h2 class="sg-h2"><span class="idx">09</span>表格与分页</h2>
-    <p class="sg-desc">浅灰表头 + 大写小字号；行悬停极浅灰；行高宽松（13px 纵向内距）保证呼吸感。表格只隐藏纵向自绘滚动条，<b>保留横向滚动条</b>让列溢出可直接被发现（UI-SC-05）。</p>
+    <h2 class="sg-h2"><span class="idx">09</span>表格、工具栏与分页</h2>
+    <p class="sg-desc">浅灰表头 + 大写小字号；行悬停极浅灰；行高宽松（13px 纵向内距）。表格区保留横向滚动条让列溢出可发现（UI-SC-05）。工具栏使用 <span class="mono">.toolbar / .toolbar__filters / .toolbar__count</span>；分页使用 <span class="mono">.pagination / .page-btn</span>，复杂列表可用页面局部 <span class="mono">.list-pager</span> 扩展。</p>
     <div class="card">
+      <div class="toolbar">
+        <div class="toolbar__filters">
+          <div class="input-wrap"><span data-icon="search"></span><input class="input" data-sg-filter="q" placeholder="搜索用例标题 / 编号"></div>
+          <select class="select" data-sg-filter="status"><option value="">全部状态</option><option value="success">通过</option><option value="danger">失败</option><option value="blocked">阻塞</option><option value="running">进行中</option><option value="neutral">未执行</option></select>
+          <select class="select" data-sg-filter="prio"><option value="">全部优先级</option><option value="p0">P0</option><option value="p1">P1</option><option value="p2">P2</option><option value="p3">P3</option></select>
+        </div>
+        <div class="toolbar__count">共 128 条</div>
+      </div>
       <div class="table-wrap">
         <table class="table">
           <thead><tr><th>用例编号</th><th>标题</th><th>优先级</th><th>状态</th><th>更新人</th><th>更新时间</th><th>操作</th></tr></thead>
@@ -389,15 +480,28 @@
           </tbody>
         </table>
       </div>
-      <div class="pagination">
+      <div class="pagination" data-sg-pager="main">
         <span class="pagination__total">共 128 条 · 每页 20 条</span>
-        <button class="page-btn" disabled>‹</button>
-        <button class="page-btn page-btn--active">1</button>
-        <button class="page-btn">2</button>
-        <button class="page-btn">3</button>
-        <button class="page-btn">…</button>
-        <button class="page-btn">7</button>
-        <button class="page-btn">›</button>
+        <button class="page-btn" data-sg-page="prev" disabled>‹</button>
+        <button class="page-btn page-btn--active" data-sg-page="1">1</button>
+        <button class="page-btn" data-sg-page="2">2</button>
+        <button class="page-btn" data-sg-page="3">3</button>
+        <span class="page-btn" style="cursor:default" aria-hidden="true">…</span>
+        <button class="page-btn" data-sg-page="7">7</button>
+        <button class="page-btn" data-sg-page="next">›</button>
+      </div>
+    </div>
+    <div class="demo-pad mt-lg">
+      <div class="text-xs muted mb-md">ListPager 扩展模式（页面局部，如 admin/users、project/api-testing）</div>
+      <div class="list-pager-demo" data-sg-pager="list">
+        <span class="list-pager-demo__total">共 128 条</span>
+        <div class="list-pager-demo__right">
+          <select class="select page-size-demo" data-sg-pagesize><option>20 条/页</option><option>50 条/页</option></select>
+          <button class="page-btn" data-sg-page="prev" disabled>‹</button>
+          <button class="page-btn page-btn--active" data-sg-page="1">1</button>
+          <button class="page-btn" data-sg-page="2">2</button>
+          <button class="page-btn" data-sg-page="next">›</button>
+        </div>
       </div>
     </div>
   </section>
@@ -510,15 +614,15 @@
 
   <!-- ============ 12 状态分支 ============ -->
   <section class="sg-section">
-    <!-- 权限不足态随五大业务模块 RBAC 校验一并移除，不再是通用状态分支 -->
+    <!-- 权限不足态仅适用于存在权限门禁的模块；免 RBAC 业务模块不展示权限分支（见 UI 规范 UI-DS-04） -->
     <h2 class="sg-h2"><span class="idx">12</span>状态分支（空 / 加载 / 错误）</h2>
-    <p class="sg-desc">列表与详情页面按此三类状态区块套用：统一图标圆底、标题、说明与主行动按钮。</p>
+    <p class="sg-desc">数据区必须覆盖空态、加载态、错误态；权限不足态仅用于有权限门禁的模块。状态区块使用 <span class="mono">.state-block</span>，加载可配合 <span class="mono">.skeleton</span>，错误提供可恢复动作。</p>
     <div class="state-grid">
       <div class="card"><div class="state-block">
         <div class="state-block__icon"><span data-icon="folder"></span></div>
         <div class="state-block__title">暂无数据</div>
         <div class="state-block__desc">当前筛选条件下没有匹配的记录，换个关键词试试</div>
-        <div class="state-block__action"><button class="btn btn--primary"><span data-icon="plus"></span>新建第一条</button></div>
+        <div class="state-block__action"><button class="btn btn--primary" data-sg="create-first"><span data-icon="plus"></span>新建第一条</button></div>
       </div></div>
       <div class="card"><div class="state-block">
         <div class="state-block__icon"><span data-icon="loader"></span></div>
@@ -534,7 +638,7 @@
         <div class="state-block__icon state-block__icon--danger"><span data-icon="alert-circle"></span></div>
         <div class="state-block__title">加载失败</div>
         <div class="state-block__desc">网络异常或服务暂时不可用（错误码 503），请稍后重试</div>
-        <div class="state-block__action"><button class="btn btn--default"><span data-icon="refresh"></span>重新加载</button></div>
+        <div class="state-block__action"><button class="btn btn--default" data-sg="reload"><span data-icon="refresh"></span>重新加载</button></div>
       </div></div>
     </div>
   </section>
@@ -576,5 +680,537 @@
 </main>
 
 <script src="assets/icons.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function init() {
+    var $ = function (sel, root) { return (root || document).querySelector(sel); };
+    var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (window.RTIcons) window.RTIcons.hydrate(document);
+    function hydrate(root) { if (window.RTIcons) window.RTIcons.hydrate(root || document); }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    /* ================= 通用弹窗：遮罩 / 关闭按钮 / ESC / 点遮罩关闭 ================= */
+    var mask = document.createElement('div');
+    mask.className = 'dialog-mask';
+    mask.hidden = true;
+    mask.innerHTML =
+      '<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sgDlgTitle">' +
+        '<div class="dialog__header">' +
+          '<h3 class="dialog__title" id="sgDlgTitle"></h3>' +
+          '<button type="button" class="dialog__close" aria-label="关闭弹窗"><span data-icon="x"></span></button>' +
+        '</div>' +
+        '<div class="dialog__body"></div>' +
+        '<div class="dialog__footer"></div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    hydrate(mask);
+
+    var dlgTitle = $('#sgDlgTitle', mask);
+    var dlgBody = $('.dialog__body', mask);
+    var dlgFooter = $('.dialog__footer', mask);
+    var lastFocus = null;
+
+    function closeDialog() {
+      if (mask.hidden) return;
+      mask.hidden = true;
+      document.body.style.overflow = '';
+      if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+      lastFocus = null;
+    }
+
+    function openDialog(opts) {
+      lastFocus = document.activeElement;
+      dlgTitle.textContent = opts.title || '';
+      dlgBody.innerHTML = opts.bodyHtml || '';
+      hydrate(dlgBody);
+      dlgFooter.innerHTML = '';
+      var buttons = opts.buttons || [{ label: '关闭', cls: 'btn btn--default', onClick: closeDialog }];
+      buttons.forEach(function (b) {
+        var el = document.createElement('button');
+        el.type = 'button';
+        el.className = b.cls || 'btn btn--default';
+        el.textContent = b.label;
+        el.addEventListener('click', function () { if (b.onClick) b.onClick(); });
+        dlgFooter.appendChild(el);
+      });
+      mask.hidden = false;
+      document.body.style.overflow = 'hidden';
+      var firstField = $('input, select, textarea', dlgBody);
+      (firstField || $('button', dlgFooter) || $('.dialog__close', mask)).focus();
+    }
+
+    $('.dialog__close', mask).addEventListener('click', closeDialog);
+    mask.addEventListener('click', function (e) { if (e.target === mask) closeDialog(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !mask.hidden) closeDialog();
+    });
+
+    /* ================= 演示数据（纯内存，刷新恢复初始） ================= */
+    var PRIOS = [['p0', 'P0 · 最高'], ['p1', 'P1 · 高'], ['p2', 'P2 · 中'], ['p3', 'P3 · 低']];
+    var STATUSES = [['success', '通过'], ['danger', '失败'], ['blocked', '阻塞'], ['running', '进行中'], ['neutral', '未执行']];
+    var INITIAL = [
+      { id: 'TC-1024', title: '下单页优惠券叠加校验', sub: '回归 · P0 通道', prio: 'p0', status: 'success', owner: '张明', time: '2026-09-20 14:32', page: 1 },
+      { id: 'TC-1025', title: '库存不足时下单拦截', sub: '边界值', prio: 'p1', status: 'blocked', owner: '李华', time: '2026-09-20 11:08', page: 1 },
+      { id: 'TC-1026', title: '支付回调幂等性验证', sub: '接口联调', prio: 'p2', status: 'running', owner: '王芳', time: '2026-09-19 18:45', page: 1 },
+      { id: 'TC-1027', title: '历史订单导出上限', sub: '性能', prio: 'p3', status: 'neutral', owner: '张明', time: '2026-09-18 09:21', page: 1 },
+      { id: 'TC-1031', title: '登录态过期自动续期', sub: '回归 · 鉴权', prio: 'p1', status: 'success', owner: '李华', time: '2026-09-17 10:12', page: 2 },
+      { id: 'TC-1032', title: '批量导入重复行提示', sub: '边界值', prio: 'p2', status: 'danger', owner: '王芳', time: '2026-09-17 09:40', page: 2 },
+      { id: 'TC-1033', title: '移动端首页首屏加载', sub: '性能', prio: 'p3', status: 'neutral', owner: '张明', time: '2026-09-16 16:05', page: 2 },
+      { id: 'TC-1040', title: '退款金额精度校验', sub: '资金 · P0 通道', prio: 'p0', status: 'success', owner: '李华', time: '2026-09-15 14:20', page: 3 },
+      { id: 'TC-1041', title: '多币种结算汇率取值', sub: '接口联调', prio: 'p1', status: 'blocked', owner: '王芳', time: '2026-09-15 11:33', page: 3 },
+      { id: 'TC-1088', title: '历史数据迁移一致性', sub: '回归 · 数据', prio: 'p0', status: 'success', owner: '张明', time: '2026-09-10 09:00', page: 7 },
+      { id: 'TC-1089', title: '灰度开关回滚验证', sub: '发布', prio: 'p2', status: 'danger', owner: '李华', time: '2026-09-09 17:26', page: 7 }
+    ];
+
+    function copy(o) { var c = {}; for (var k in o) { if (Object.prototype.hasOwnProperty.call(o, k)) c[k] = o[k]; } return c; }
+    function statusText(s) {
+      var found = STATUSES.filter(function (p) { return p[0] === s; })[0];
+      return found ? found[1] : '未执行';
+    }
+    function prioText(p) { return p.toUpperCase(); }
+    function options(pairs, current) {
+      return pairs.map(function (p) {
+        return '<option value="' + p[0] + '"' + (p[0] === current ? ' selected' : '') + '>' + esc(p[1]) + '</option>';
+      }).join('');
+    }
+    function statusHtml(r) {
+      if (r.status === 'running') {
+        return '<span class="status status--warning"><span class="dot" style="box-shadow:0 0 0 3px var(--st-warning-light)"></span>进行中</span>';
+      }
+      return '<span class="status status--' + r.status + '"><span class="dot"></span>' + esc(statusText(r.status)) + '</span>';
+    }
+
+    var rows = INITIAL.map(copy);
+    var total = 128;
+    var currentPage = 1;
+    var listPage = 1;
+    var seq = 1090;
+    var filters = { q: '', status: '', prio: '' };
+
+    function findRow(id) {
+      for (var i = 0; i < rows.length; i++) { if (rows[i].id === id) return rows[i]; }
+      return null;
+    }
+    function visibleRows() {
+      return rows.filter(function (r) {
+        if (filters.q && (r.id + ' ' + r.title + ' ' + r.sub).toLowerCase().indexOf(filters.q.toLowerCase()) === -1) return false;
+        if (filters.status && r.status !== filters.status) return false;
+        if (filters.prio && r.prio !== filters.prio) return false;
+        return true;
+      });
+    }
+    function syncPager(kind) {
+      var scope = $('[data-sg-pager="' + kind + '"]');
+      if (!scope) return;
+      var page = kind === 'main' ? currentPage : listPage;
+      var max = kind === 'main' ? 7 : 2;
+      $$('[data-sg-page]', scope).forEach(function (b) {
+        var key = b.getAttribute('data-sg-page');
+        if (key === 'prev') { b.disabled = page <= 1; return; }
+        if (key === 'next') { b.disabled = page >= max; return; }
+        b.classList.toggle('page-btn--active', parseInt(key, 10) === page);
+      });
+    }
+    function renderTable() {
+      var tbody = $('.table tbody');
+      inlineEditing = false;
+      var list = visibleRows().filter(function (r) { return r.page === currentPage; });
+      tbody.innerHTML = list.map(function (r) {
+        return '<tr data-id="' + esc(r.id) + '" data-title="' + esc(r.title) + '">' +
+          '<td class="mono">' + esc(r.id) + '</td>' +
+          '<td class="cell-main">' + esc(r.title) + '<span class="cell-sub">' + esc(r.sub) + '</span></td>' +
+          '<td><span class="prio prio--' + r.prio + '">' + prioText(r.prio) + '</span></td>' +
+          '<td>' + statusHtml(r) + '</td>' +
+          '<td>' + esc(r.owner) + '</td>' +
+          '<td class="num">' + esc(r.time) + '</td>' +
+          '<td><span class="op-link" data-sg-row="edit">编辑</span><span class="op-link op-link--danger" data-sg-row="delete">删除</span></td>' +
+          '</tr>';
+      }).join('');
+      hydrate(tbody);
+      $('.toolbar__count').textContent = '共 ' + total + ' 条';
+      $('.pagination__total').textContent = '共 ' + total + ' 条 · 每页 20 条';
+    }
+    function removeRow(row) {
+      rows = rows.filter(function (r) { return r !== row; });
+      total = Math.max(0, total - 1);
+      renderTable();
+    }
+
+    /* ================= 新建 / 编辑 / 详情 / 删除确认弹窗 ================= */
+    function formHtml(r) {
+      return '<div class="form-grid">' +
+        '<div class="field"><label class="field__label">用例标题</label><input class="input" data-f="title" value="' + esc(r.title) + '"></div>' +
+        '<div class="field"><label class="field__label">副标题 / 分组</label><input class="input" data-f="sub" value="' + esc(r.sub) + '"></div>' +
+        '<div class="field"><label class="field__label">优先级</label><select class="select" data-f="prio">' + options(PRIOS, r.prio) + '</select></div>' +
+        '<div class="field"><label class="field__label">状态</label><select class="select" data-f="status">' + options(STATUSES, r.status) + '</select></div>' +
+        '<div class="field"><label class="field__label">更新人</label><input class="input" data-f="owner" value="' + esc(r.owner) + '"></div>' +
+        '</div>';
+    }
+    function readForm() {
+      return {
+        title: $('[data-f="title"]', dlgBody).value.trim(),
+        sub: $('[data-f="sub"]', dlgBody).value.trim(),
+        prio: $('[data-f="prio"]', dlgBody).value,
+        status: $('[data-f="status"]', dlgBody).value,
+        owner: $('[data-f="owner"]', dlgBody).value.trim()
+      };
+    }
+    function openForm(mode, row, done) {
+      var source = row || { id: 'TC-' + seq, title: '', sub: '', prio: 'p2', status: 'neutral', owner: '张明' };
+      openDialog({
+        title: (mode === 'edit' ? '编辑用例 · ' : '新建用例 · ') + source.id,
+        bodyHtml: formHtml(source),
+        buttons: [
+          { label: '取消', cls: 'btn btn--text', onClick: closeDialog },
+          { label: mode === 'edit' ? '保存' : '创建', cls: 'btn btn--primary', onClick: function () {
+            var v = readForm();
+            var titleInput = $('[data-f="title"]', dlgBody);
+            if (!v.title) { titleInput.classList.add('input--error'); titleInput.focus(); return; }
+            var saved;
+            if (mode === 'edit') {
+              row.title = v.title; row.sub = v.sub; row.prio = v.prio; row.status = v.status; row.owner = v.owner;
+              saved = row;
+            } else {
+              saved = { id: 'TC-' + (seq++), title: v.title, sub: v.sub || '手工创建', prio: v.prio, status: v.status, owner: v.owner || '张明', time: '2026-11-24 10:00', page: 1 };
+              rows.push(saved);
+              total++;
+              currentPage = 1;
+              syncPager('main');
+            }
+            renderTable();
+            closeDialog();
+            if (done) done(saved);
+          } }
+        ]
+      });
+    }
+    function openDetail(row) {
+      var r = row || rows[0];
+      if (!r) return;
+      var pairs = [
+        ['用例编号', r.id], ['标题', r.title], ['分组', r.sub],
+        ['优先级', prioText(r.prio)], ['状态', statusText(r.status)],
+        ['更新人', r.owner], ['更新时间', r.time]
+      ];
+      openDialog({
+        title: '用例详情 · ' + r.id,
+        bodyHtml: pairs.map(function (p) {
+          return '<div class="sg-detail-row"><span class="sg-detail-row__k">' + p[0] + '</span><span class="sg-detail-row__v">' + esc(p[1]) + '</span></div>';
+        }).join(''),
+        buttons: [{ label: '关闭', cls: 'btn btn--default', onClick: closeDialog }]
+      });
+    }
+    function openDeleteConfirm(row) {
+      var r = row || rows[0];
+      if (!r) return;
+      openDialog({
+        title: '删除确认',
+        bodyHtml: '<p class="text-sm" style="margin:0 0 8px">确定删除用例 <b class="mono">' + esc(r.id) + '</b> 吗？</p>' +
+          '<p class="text-xs muted" style="margin:0">该行会从演示表格中移除，刷新页面后恢复初始数据。</p>',
+        buttons: [
+          { label: '取消', cls: 'btn btn--text', onClick: closeDialog },
+          { label: '确认删除', cls: 'btn btn--danger', onClick: function () { closeDialog(); removeRow(r); } }
+        ]
+      });
+    }
+
+    /* ================= 真实导出 CSV ================= */
+    function exportCsv() {
+      var lines = [['用例编号', '标题', '分组', '优先级', '状态', '更新人', '更新时间']];
+      visibleRows().forEach(function (r) {
+        lines.push([r.id, r.title, r.sub, prioText(r.prio), statusText(r.status), r.owner, r.time]);
+      });
+      var csv = '\uFEFF' + lines.map(function (cols) {
+        return cols.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\r\n');
+      var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'RoboTest-用例报告.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    }
+
+    /* ================= 筛选下拉：真实展开 + 勾选过滤表格 ================= */
+    var filterWrap = $('.sg-filter-host');
+    var filterBtn = $('[data-sg="filter"]', filterWrap);
+    var panel = document.createElement('div');
+    panel.className = 'sg-filter-panel';
+    panel.hidden = true;
+    panel.innerHTML = '<div class="sg-filter-panel__title">按状态筛选下方演示表格</div>' +
+      [['', '全部状态']].concat(STATUSES).map(function (p) {
+        return '<div class="sg-filter-opt" data-sg-status="' + p[0] + '">' +
+          '<span class="checkbox' + (p[0] === '' ? ' checkbox--on' : '') + '"></span><span>' + esc(p[1]) + '</span></div>';
+      }).join('');
+    filterWrap.appendChild(panel);
+    function closePanel() { panel.hidden = true; filterBtn.classList.remove('is-demo-active'); }
+    filterBtn.addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      filterBtn.classList.toggle('is-demo-active', !panel.hidden);
+    });
+    document.addEventListener('click', function (e) {
+      if (!panel.hidden && !filterWrap.contains(e.target)) closePanel();
+    });
+    panel.addEventListener('click', function (e) {
+      var opt = e.target.closest('[data-sg-status]');
+      if (!opt) return;
+      var val = opt.getAttribute('data-sg-status');
+      $$('.checkbox', panel).forEach(function (c) { c.classList.remove('checkbox--on'); });
+      $('.checkbox', opt).classList.add('checkbox--on');
+      filters.status = val;
+      $('[data-sg-filter="status"]').value = val;
+      currentPage = 1;
+      syncPager('main');
+      renderTable();
+      closePanel();
+    });
+
+    /* ================= 工具栏筛选 + 分页 ================= */
+    var qInput = $('[data-sg-filter="q"]');
+    qInput.addEventListener('input', function () {
+      filters.q = qInput.value.trim();
+      currentPage = 1; syncPager('main'); renderTable();
+    });
+    $('[data-sg-filter="status"]').addEventListener('change', function (e) {
+      filters.status = e.target.value;
+      currentPage = 1; syncPager('main'); renderTable();
+    });
+    $('[data-sg-filter="prio"]').addEventListener('change', function (e) {
+      filters.prio = e.target.value;
+      currentPage = 1; syncPager('main'); renderTable();
+    });
+
+    $$('[data-sg-pager]').forEach(function (scope) {
+      var kind = scope.getAttribute('data-sg-pager');
+      $$('[data-sg-page]', scope).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var key = b.getAttribute('data-sg-page');
+          var max = kind === 'main' ? 7 : 2;
+          var page = kind === 'main' ? currentPage : listPage;
+          if (key === 'prev') page = Math.max(1, page - 1);
+          else if (key === 'next') page = Math.min(max, page + 1);
+          else page = parseInt(key, 10) || page;
+          if (kind === 'main') { currentPage = page; renderTable(); }
+          else { listPage = page; }
+          syncPager(kind);
+        });
+      });
+    });
+    $('[data-sg-pagesize]').addEventListener('change', function (e) {
+      $('.list-pager-demo__total').textContent = '共 ' + total + ' 条 · 每页 ' + e.target.value.replace(' 条/页', '') + ' 条';
+    });
+
+    /* ================= 表格行内编辑 / 删除 ================= */
+    $('.table tbody').addEventListener('click', function (e) {
+      var op = e.target.closest('[data-sg-row]');
+      if (!op) return;
+      var tr = op.closest('tr');
+      var row = findRow(tr.getAttribute('data-id'));
+      if (!row) return;
+      if (op.getAttribute('data-sg-row') === 'edit') openForm('edit', row);
+      else removeRow(row);
+    });
+
+    var inlineEditing = false;
+    function inlineEditFirst() {
+      var tr = $('.table tbody tr');
+      if (!tr || inlineEditing) return;
+      var row = findRow(tr.getAttribute('data-id'));
+      if (!row) return;
+      inlineEditing = true;
+      var cell = tr.children[1];
+      var original = row.title;
+      var sub = row.sub;
+      cell.innerHTML = '<input class="input" data-sg-inline style="height:28px;font-size:13px" value="' + esc(row.title) + '">';
+      var input = $('[data-sg-inline]', cell);
+      input.focus(); input.select();
+      var done = false;
+      function commit(save) {
+        if (done) return;
+        done = true;
+        inlineEditing = false;
+        if (save) {
+          var v = input.value.trim();
+          if (v && v !== original) { row.title = v; renderTable(); return; }
+        }
+        cell.innerHTML = esc(original) + '<span class="cell-sub">' + esc(sub) + '</span>';
+      }
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); commit(true); }
+        if (e.key === 'Escape') { e.preventDefault(); commit(false); }
+      });
+      input.addEventListener('blur', function () { commit(true); });
+    }
+
+    /* ================= 按钮演示区：尺寸 / 变体 / 动作 ================= */
+    var baseBtns = {
+      create: $('[data-sg="create"]'),
+      export: $('[data-sg="export"]'),
+      cancel: $('[data-sg="cancel"]'),
+      delete: $('[data-sg="delete"]'),
+      detail: $('[data-sg="detail"]')
+    };
+    $$('[data-sg-size]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        $$('[data-sg-size]').forEach(function (b) { b.classList.remove('is-demo-active'); });
+        btn.classList.add('is-demo-active');
+        var size = btn.getAttribute('data-sg-size');
+        var variant = btn.getAttribute('data-sg-variant') || 'primary';
+        Object.keys(baseBtns).forEach(function (k) {
+          var b = baseBtns[k];
+          b.classList.remove('btn--sm', 'btn--lg');
+          if (size !== 'md') b.classList.add('btn--' + size);
+        });
+        baseBtns.create.classList.remove('btn--primary', 'btn--default', 'btn--danger', 'btn--text', 'btn--link');
+        baseBtns.create.classList.add('btn--' + variant);
+      });
+    });
+    function bindVariant(sel, target, cls) {
+      $(sel).addEventListener('click', function () {
+        var on = target.classList.toggle(cls);
+        this.classList.toggle('is-demo-active', on);
+      });
+    }
+    bindVariant('[data-sg="variant-plain"]', baseBtns.export, 'btn--plain-demo');
+    bindVariant('[data-sg="variant-plain-danger"]', baseBtns.delete, 'btn--plain-danger-demo');
+    bindVariant('[data-sg="variant-warning-plain"]', baseBtns.cancel, 'btn--warning-plain-demo');
+    $('[data-sg="toggle-block"]').addEventListener('click', function () {
+      var on = baseBtns.export.classList.toggle('btn--block');
+      this.classList.toggle('is-demo-active', on);
+    });
+
+    function resetFormDemo() {
+      closeDialog();
+      closePanel();
+      $$('.card-grid--2 .input, .card-grid--2 .textarea').forEach(function (el) {
+        if (!el.disabled) el.value = el.defaultValue;
+      });
+      $$('.card-grid--2 .select').forEach(function (el) { el.selectedIndex = 0; });
+      $$('[data-sg-toggle]').forEach(function (el) {
+        var isSwitch = el.classList.contains('switch');
+        var wanted = el.getAttribute('data-sg-initial') === 'on';
+        el.classList.toggle(isSwitch ? 'switch--on' : 'checkbox--on', wanted);
+        el.setAttribute('aria-checked', String(wanted));
+      });
+      $$('.sg-filter-opt').forEach(function (opt, i) {
+        $('.checkbox', opt).classList.toggle('checkbox--on', i === 0);
+      });
+      qInput.value = '';
+      $('[data-sg-filter="status"]').value = '';
+      $('[data-sg-filter="prio"]').value = '';
+      filters.q = ''; filters.status = ''; filters.prio = '';
+      currentPage = 1; listPage = 1;
+      $('[data-sg-pagesize]').selectedIndex = 0;
+      $('.list-pager-demo__total').textContent = '共 ' + total + ' 条';
+      syncPager('main'); syncPager('list'); renderTable();
+    }
+    baseBtns.create.addEventListener('click', function () { openForm('create', null); });
+    baseBtns.export.addEventListener('click', exportCsv);
+    baseBtns.cancel.addEventListener('click', resetFormDemo);
+    baseBtns.delete.addEventListener('click', function () { openDeleteConfirm(null); });
+    baseBtns.detail.addEventListener('click', function () { openDetail(null); });
+    $('[data-sg="quick-add"]').addEventListener('click', function () { openForm('create', null); });
+    $('[data-sg="inline-edit"]').addEventListener('click', inlineEditFirst);
+    $('[data-sg="edit-first"]').addEventListener('click', inlineEditFirst);
+    $('[data-sg="delete-first"]').addEventListener('click', function () { if (rows.length) removeRow(rows[0]); });
+    $('[data-sg="scroll-table"]').addEventListener('click', function () {
+      var wrap = $('.table-wrap');
+      wrap.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+      wrap.classList.add('sg-flash');
+      window.setTimeout(function () { wrap.classList.remove('sg-flash'); }, 1200);
+    });
+
+    /* ================= 表单区开关 / 勾选：真实切换 ================= */
+    $$('[data-sg-toggle]').forEach(function (el) {
+      var isSwitch = el.classList.contains('switch');
+      var disabled = el.classList.contains('checkbox--disabled');
+      var onCls = isSwitch ? 'switch--on' : 'checkbox--on';
+      el.setAttribute('role', isSwitch ? 'switch' : 'checkbox');
+      el.setAttribute('tabindex', disabled ? '-1' : '0');
+      el.setAttribute('aria-checked', String(el.classList.contains(onCls)));
+      if (disabled) return;
+      function toggle() {
+        var on = el.classList.toggle(onCls);
+        el.setAttribute('aria-checked', String(on));
+      }
+      el.addEventListener('click', toggle);
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    });
+
+    /* ================= 状态分支：新建 / 重新加载真实改变卡片 DOM ================= */
+    function bindReset(block, html, rebind) {
+      var btn = $('[data-sg-reset]', block);
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        block.innerHTML = html;
+        hydrate(block);
+        if (rebind) rebind();
+      });
+    }
+    var emptyBlock = $('[data-sg="create-first"]').closest('.state-block');
+    var emptyHtml = emptyBlock.innerHTML;
+    function bindEmpty() {
+      var btn = $('[data-sg="create-first"]', emptyBlock);
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        openForm('create', null, function (saved) {
+          emptyBlock.innerHTML =
+            '<div class="state-block__icon"><span data-icon="check-circle"></span></div>' +
+            '<div class="state-block__title">已创建 1 条用例</div>' +
+            '<div class="state-block__desc">' + esc(saved.id) + ' · ' + esc(saved.title) + ' 已加入演示表格</div>' +
+            '<div class="state-block__action state-block__reset"><button class="btn btn--default" data-sg-reset>重置演示</button></div>';
+          hydrate(emptyBlock);
+          bindReset(emptyBlock, emptyHtml, bindEmpty);
+        });
+      });
+    }
+    bindEmpty();
+
+    var reloadBlock = $('[data-sg="reload"]').closest('.state-block');
+    var reloadHtml = reloadBlock.innerHTML;
+    function bindReload() {
+      var btn = $('[data-sg="reload"]', reloadBlock);
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        btn.innerHTML = '<span data-icon="loader"></span>加载中…';
+        hydrate(btn);
+        window.setTimeout(function () {
+          reloadBlock.innerHTML =
+            '<div class="state-block__icon"><span data-icon="check-circle"></span></div>' +
+            '<div class="state-block__title">加载成功</div>' +
+            '<div class="state-block__desc">演示数据已就位，共 ' + total + ' 条记录</div>' +
+            '<div class="state-block__action state-block__reset"><button class="btn btn--default" data-sg-reset>重置演示</button></div>';
+          hydrate(reloadBlock);
+          bindReset(reloadBlock, reloadHtml, bindReload);
+        }, 800);
+      });
+    }
+    bindReload();
+
+    renderTable();
+    syncPager('main');
+    syncPager('list');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>

@@ -11,23 +11,34 @@
   .debug { display: flex; flex-direction: column; height: 100%; }
   .debug__card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
-  /* 多标签条（DebugPage 头部）：页签样式复用 base.css「工作区多页签」.ws-tab（下划线式），
-     此处只做条形布局；横向滚动仅作用于页签区，历史记录、新建与导入 cURL 固定不随内容滚动 */
+  /* 多标签条（DebugPage 头部）：页签为下划线式 .debug-tab，底边线由 tabbar 提供公共基线 */
   .tabbar { display: flex; align-items: center; gap: var(--space-xs); padding: 4px 6px 0; border-bottom: 1px solid var(--n-200); }
-  /* 页签区可横向滚动但不定宽：不足时收缩为内容宽，超出时压缩；历史记录与新建固定跟随其后 */
-  .tabbar__tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; }
+  /* 页签区不定宽：不足时收缩为内容宽，超出时横向滚动；历史记录与新建固定跟随 */
+  .tabbar__tabs { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; overflow-x: auto; }
   .tabbar__tabs::-webkit-scrollbar { display: none; }
-  .tabbar__fixed { flex-shrink: 0; }
-  .ws-tab__label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* 双击页签进入重命名（实现的 el-input 内联编辑） */
+  .debug-tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; max-width: 200px; flex-shrink: 0; color: var(--n-500); font-size: var(--font-size-sm); cursor: pointer; white-space: nowrap; user-select: none; transition: color var(--transition-fast); }
+  .debug-tab:hover { color: var(--n-800); }
+  .debug-tab.is-active { color: var(--brand-600); font-weight: 600; }
+  .debug-tab.is-active::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: -1px; height: 2px; border-radius: 1px; background: var(--brand-500); }
+  .debug-tab__method { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 1px 5px; border-radius: 3px; color: #fff; font-size: 10px; font-weight: 700; font-family: var(--font-mono); letter-spacing: .5px; flex-shrink: 0; }
+  .debug-tab__label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tab-rename { width: 120px; height: 24px; padding: 0 6px; font-size: var(--font-size-xs); }
-  /* 新建：链接式图标钮（对齐实现的 el-button link，不使用虚线方块） */
-  .tabbar__add { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: none; background: transparent; border-radius: var(--radius-md); color: var(--n-400); cursor: pointer; flex-shrink: 0; }
+  /* 关闭：el-button link，图标 Close，hover 圆形浅底 */
+  .debug-tab__close { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0 3px; border: none; background: transparent; color: var(--n-400); cursor: pointer; flex-shrink: 0; font-size: 14px; line-height: 1; }
+  .debug-tab__close svg { width: 14px; height: 14px; }
+  .debug-tab__close:hover { color: var(--n-700); background: var(--n-100); border-radius: 50%; }
+  /* 新建：el-button link，禁用态 opacity .3 */
+  .tabbar__add { display: inline-flex; align-items: center; justify-content: center; padding: 2px 4px; border: none; background: transparent; color: var(--n-400); cursor: pointer; flex-shrink: 0; font-size: 14px; }
   .tabbar__add svg { width: 14px; height: 14px; }
   .tabbar__add:hover:not(:disabled) { color: var(--brand-500); }
   .tabbar__add:disabled { cursor: not-allowed; opacity: .3; }
   .tabbar__right { display: flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; margin-left: auto; padding-left: var(--space-xs); }
-  /* OPTIONS / HEAD / CONNECT 徽标色（base.css 仅内置 5 种方法色） */
+  /* 方法徽标色与实现 useDebugPage METHOD_COLORS 一致 */
+  .m-get { background: #61affe; }
+  .m-post { background: #49cc90; }
+  .m-put { background: #fca130; }
+  .m-patch { background: #50e3c2; }
+  .m-delete { background: #f93e3e; }
   .m-options { background: #0d5aa7; }
   .m-head { background: #9012fe; }
   .m-connect { background: #e8d44d; color: #333; }
@@ -50,25 +61,28 @@
   .history__item { display: flex; align-items: center; gap: var(--space-sm); padding: 6px var(--space-sm); border-radius: var(--radius-sm); }
   .history__item:hover { background: var(--n-50); }
   /* 信息列固定列宽：行数据长短不一时方法/状态码/时间与操作列保持对齐（与实现同步） */
-  .history__item .ws-tab__method { width: 56px; }
+  .history__method { display: inline-flex; align-items: center; justify-content: center; width: 56px; padding: 1px 5px; border-radius: 3px; color: #fff; font-size: 10px; font-weight: 700; font-family: var(--font-mono); letter-spacing: .5px; flex-shrink: 0; }
   .history__rename { flex: 1; min-width: 0; font-size: var(--font-size-xs); }
   .history__item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: none; background: transparent; cursor: pointer; text-align: left; font: inherit; }
   .history__item-name { font-size: var(--font-size-xs); color: var(--n-700); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .history__item-url { font-size: var(--font-size-xs); color: var(--n-400); font-family: var(--font-mono); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .history__item-time { width: 100px; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
-  .history__item-cost { width: 64px; text-align: right; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; }
-  .history__code { width: 40px; text-align: center; padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; }
+  .history__item-time { width: 100px; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; flex-shrink: 0; }
+  .history__item-cost { width: 64px; text-align: right; font-size: var(--font-size-xs); color: var(--n-400); white-space: nowrap; flex-shrink: 0; }
+  .history__code { width: 40px; text-align: center; padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 600; flex-shrink: 0; }
   .history__code--ok { color: var(--st-success-strong); background: var(--st-success-light); }
   .history__code--fail { color: var(--st-danger-strong); background: var(--st-danger-light); }
   .history__empty { margin-top: 80px; text-align: center; color: var(--n-300); font-size: var(--font-size-sm); }
+  .history__action { padding: 0 4px; height: auto; font-size: var(--font-size-xs); }
+  .history__action--danger { color: var(--st-danger); }
+  .history__action--danger:hover { color: var(--st-danger-strong); background: var(--st-danger-light); }
   /* 名称可达性：历史主列可键盘聚焦并显示聚焦环（对齐 DebugHistoryView &:focus-visible） */
   .history__item-main:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; }
   /* 截断名称的悬停全文：静态稿以固定层复刻 el-tooltip（300ms 延迟、不占 Tab 序） */
   .demo-tip { position: fixed; z-index: 300; max-width: 320px; padding: 6px 10px; border-radius: var(--radius-md); background: var(--n-800); color: #fff; font-size: var(--font-size-xs); line-height: 1.5; box-shadow: var(--shadow-lg); pointer-events: none; }
 
-  /* URL 栏 */
+  /* URL 栏（对齐 DebugRequestPanel） */
   .urlbar { display: flex; align-items: center; gap: 8px; padding: 12px 12px 4px; }
-  /* 方法下拉：带边框，不铺整块底色，仅文字随所选方法变色（浅色底上取同色系深色，保证可读性），箭头固定中性灰 */
+  .method-wrap { flex-shrink: 0; }
   .method-pick {
     width: 110px; height: 32px;
     border: 1px solid var(--n-300); border-radius: 6px;
@@ -80,17 +94,21 @@
     background-repeat: no-repeat; background-position: right 8px center; background-size: 13px;
   }
   .method-pick:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(64,158,255,.14); outline: none; }
-  .method-pick[data-m="GET"] { color: #1e6fd9; }
-  .method-pick[data-m="POST"] { color: #12915f; }
-  .method-pick[data-m="PUT"] { color: #b26a05; }
-  .method-pick[data-m="PATCH"] { color: #6f42c1; }
-  .method-pick[data-m="DELETE"] { color: #d9363e; }
+  .method-wrap[data-m="GET"] .method-pick { color: #1e6fd9; }
+  .method-wrap[data-m="POST"] .method-pick { color: #12915f; }
+  .method-wrap[data-m="PUT"] .method-pick { color: #b26a05; }
+  .method-wrap[data-m="PATCH"] .method-pick { color: #6f42c1; }
+  .method-wrap[data-m="DELETE"] .method-pick { color: #d9363e; }
   .url-input {
     flex: 1; height: 32px; padding: 0 11px;
     border: 1px solid var(--n-300); border-radius: 6px; background: var(--n-0);
     font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--n-900); outline: none;
   }
   .url-input:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(64,158,255,.14); }
+  .btn--send { height: 32px; padding: 0 20px; font-weight: 600; border-radius: 6px; flex-shrink: 0; }
+  .save-wrap { display: inline-flex; flex-shrink: 0; }
+  .btn--save { height: 32px; padding: 0 16px; font-weight: 500; border-radius: 6px; }
+  .btn--send .kbd { margin-left: 6px; background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.35); color: inherit; opacity: .85; }
 
   /* 请求参数 Tabs + 环境选择 */
   .reqtabs { display: flex; align-items: center; border-bottom: 1px solid var(--n-100); padding: 0 12px; }
@@ -135,8 +153,10 @@
   .bodytype { height: 28px; padding: 0 12px; border: none; background: none; border-radius: 4px; font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; }
   .bodytype.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
   .bodytypes-right { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
-  .bodytypes-right .select { width: 118px; height: 28px; font-size: var(--font-size-xs); }
+  .bodytypes-right .select { width: 120px; height: 28px; font-size: var(--font-size-xs); }
   .body-empty { padding: 32px 0; text-align: center; color: var(--n-300); font-size: 13px; }
+  .req-panel__body-format { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 4px; color: var(--n-400); cursor: pointer; }
+  .req-panel__body-format:hover { color: var(--n-700); background: var(--n-100); }
   .code-editor {
     margin-top: 10px; width: 100%; min-height: 150px; resize: vertical;
     padding: 12px; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6;
@@ -232,8 +252,12 @@
   .curl-textarea { width: 100%; min-height: 140px; font-family: var(--font-mono); font-size: var(--font-size-xs); }
 
   /* 保存为接口定义（SaveInterfaceDialog） */
-  .save-dialog__tip { margin: 4px 0 0; font-size: var(--font-size-xs); color: var(--n-400); line-height: 1.6; }
+  .save-dialog__tip { margin: 0 0 4px 90px; font-size: var(--font-size-xs); color: var(--n-400); line-height: 1.6; }
   .save-dialog__full { width: 100%; }
+  .radio-group { display: inline-flex; border: 1px solid var(--n-300); border-radius: var(--radius-md); overflow: hidden; }
+  .radio-btn { padding: 5px 14px; font-size: var(--font-size-xs); color: var(--n-600); background: var(--n-0); border: none; border-right: 1px solid var(--n-300); cursor: pointer; font-family: inherit; }
+  .radio-btn:last-child { border-right: none; }
+  .radio-btn--active { color: #fff; background: var(--brand-500); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -245,17 +269,29 @@
     <div class="split__main">
       <div class="debug">
         <div class="debug__card">
-          <!-- 标签条：下划线式页签（请求会话）+ 固定「历史记录」+ 新建，三者依次跟随；导入 cURL 靠右 -->
+          <!-- 标签条：下划线式页签（请求会话）+ 固定「历史记录」+ 新建，导入 cURL 靠右 -->
           <div class="tabbar">
             <div class="tabbar__tabs">
-              <div class="ws-tab" data-method="POST" data-path="${BASE_URL}/api/v1/orders"><span class="ws-tab__method m-post">POST</span><span class="ws-tab__label">创建订单</span><span class="ws-tab__close" data-close>×</span></div>
-              <div class="ws-tab is-active" data-method="GET" data-path="${BASE_URL}/api/v1/orders/{orderId}"><span class="ws-tab__method m-get">GET</span><span class="ws-tab__label">查询订单详情</span><span class="ws-tab__close" data-close>×</span></div>
-              <div class="ws-tab" data-method="PUT" data-path="${BASE_URL}/api/v1/orders/{orderId}/cancel"><span class="ws-tab__method m-put">PUT</span><span class="ws-tab__label">取消订单</span><span class="ws-tab__close" data-close>×</span></div>
+              <div class="debug-tab" data-method="POST" data-path="${BASE_URL}/api/v1/orders">
+                <span class="debug-tab__method m-post">POST</span>
+                <span class="debug-tab__label" title="创建订单">创建订单</span>
+                <button type="button" class="debug-tab__close" data-close aria-label="关闭标签"><span data-icon="x"></span></button>
+              </div>
+              <div class="debug-tab is-active" data-method="GET" data-path="${BASE_URL}/api/v1/orders/{orderId}">
+                <span class="debug-tab__method m-get">GET</span>
+                <span class="debug-tab__label" title="查询订单详情">查询订单详情</span>
+                <button type="button" class="debug-tab__close" data-close aria-label="关闭标签"><span data-icon="x"></span></button>
+              </div>
+              <div class="debug-tab" data-method="PUT" data-path="${BASE_URL}/api/v1/orders/{orderId}/cancel">
+                <span class="debug-tab__method m-put">PUT</span>
+                <span class="debug-tab__label" title="取消订单">取消订单</span>
+                <button type="button" class="debug-tab__close" data-close aria-label="关闭标签"><span data-icon="x"></span></button>
+              </div>
             </div>
-            <div class="ws-tab tabbar__fixed" data-fixed><span data-icon="clock-circle"></span><span>历史记录</span></div>
-            <button type="button" class="tabbar__add" data-icon="plus" title="新建标签（⌘T）"></button>
+            <div class="debug-tab" data-fixed data-id="__history__"><span data-icon="clock-circle"></span><span>历史记录</span></div>
+            <button type="button" class="tabbar__add" data-icon="plus" title="新建标签"></button>
             <div class="tabbar__right">
-              <button type="button" class="btn btn--link btn--sm js-open-curl"><span data-icon="download"></span>导入 cURL</button>
+              <button type="button" class="btn btn--link btn--sm js-open-curl" style="color:var(--brand-500);gap:4px"><span data-icon="download"></span><span>导入 cURL</span></button>
             </div>
           </div>
 
@@ -263,10 +299,14 @@
             <!-- ============ 请求面板 ============ -->
             <div class="debug__req">
               <div class="urlbar">
-                <select class="method-pick" data-m="GET"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option><option>CONNECT</option></select>
+                <div class="method-wrap" id="method-wrap" data-m="GET">
+                  <select class="method-pick" id="method-pick"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option><option>CONNECT</option></select>
+                </div>
                 <input class="url-input" id="url-input" value="${BASE_URL}/api/v1/orders/{orderId}" placeholder="输入请求 URL，例如 https://api.example.com/users">
-                <button class="btn btn--primary" id="btn-send" data-ux-key="mod+enter" style="height:32px;font-weight:600"><span data-icon="arrow-right"></span>发送<span class="kbd">⌘↵</span></button>
-                <button class="btn btn--default" id="btn-save" style="height:32px" disabled title="请先发送请求获取调试记录"><span data-icon="plus"></span>保存</button>
+                <button class="btn btn--primary btn--send" id="btn-send" data-ux-key="mod+enter"><span data-icon="arrow-right"></span>发送<span class="kbd">⌘↵</span></button>
+                <span class="save-wrap" id="save-wrap">
+                  <button class="btn btn--default btn--save" id="btn-save"><span data-icon="plus"></span>保存</button>
+                </span>
               </div>
               <div class="send-hint">快捷键 <span class="kbd">⌘↵</span>（Windows 为 Ctrl+Enter）发送请求</div>
 
@@ -324,7 +364,7 @@
                     </span>
                     <span class="bodytypes-right" data-body-extra="raw">
                       <select class="select" id="raw-subtype"><option>Text</option><option selected>Json</option><option>Xml</option><option>Html</option><option>JavaScript</option></select>
-                      <button type="button" class="icon-btn-sm" id="btn-format" title="格式化（修正 JSON 缩进）"><span data-icon="sparkle"></span></button>
+                      <button type="button" class="req-panel__body-format" id="btn-format" title="格式化（修正 JSON 缩进）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="width:14px;height:14px"><path d="M9.5 4.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/><path d="M16 10l1.2 3.3 3.3 1.2-3.3 1.2-1.2 3.3-1.2-3.3-3.3-1.2 3.3-1.2z"/><path d="M5 19l2 2 6-6"/></svg></button>
                     </span>
                   </div>
 
@@ -462,7 +502,7 @@
             <div class="debug__resp">
               <!-- 未执行态：与实现一致，发送前不展示任何响应数据 -->
               <div class="resp-empty" id="resp-empty">
-                <span data-icon="arrow-right"></span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="width:32px;height:32px;opacity:.4"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
                 <p>点击「发送」查看响应结果</p>
               </div>
 
@@ -474,7 +514,7 @@
                 </div>
 
                 <div class="resp-error" id="resp-error" role="alert" hidden>
-                  <span data-icon="alert-triangle"></span>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false" style="width:14px;height:14px;flex-shrink:0;margin-top:1px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
                   <span id="resp-error-text"></span>
                 </div>
 
@@ -488,8 +528,8 @@
                     <span class="resp-search" id="resp-search" hidden>
                       <input class="input" id="search-input" placeholder="搜索响应体">
                       <span class="resp-search__count" id="search-count"></span>
-                      <button type="button" class="icon-btn-sm" id="search-prev" title="上一处"><span data-icon="chevron-left" style="transform:rotate(90deg)"></span></button>
-                      <button type="button" class="icon-btn-sm" id="search-next" title="下一处"><span data-icon="chevron-right" style="transform:rotate(90deg)"></span></button>
+                      <button type="button" class="icon-btn-sm" id="search-prev" title="上一处"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="width:14px;height:14px"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>
+                      <button type="button" class="icon-btn-sm" id="search-next" title="下一处"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="width:14px;height:14px"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg></button>
                     </span>
                     <button type="button" class="icon-btn-sm" id="btn-search" title="搜索响应体 (Ctrl+F)"><span data-icon="search"></span></button>
                     <button type="button" class="icon-btn-sm" id="btn-copy" title="复制响应体"><span data-icon="copy"></span></button>
@@ -583,9 +623,9 @@
       </div>
       <div class="field">
         <label class="field__label">归属方式</label>
-        <span class="segment" id="save-mode">
-          <span class="segment__item segment__item--active" data-mode="create" role="button" tabindex="0">新建接口</span>
-          <span class="segment__item" data-mode="attach" role="button" tabindex="0">归属已有接口定义</span>
+        <span class="radio-group" id="save-mode" role="radiogroup" aria-label="归属方式">
+          <button type="button" class="radio-btn radio-btn--active" data-mode="create">新建接口</button>
+          <button type="button" class="radio-btn" data-mode="attach">归属已有接口定义</button>
         </span>
       </div>
       <div class="field" data-save-panel="create">
@@ -628,6 +668,7 @@
     </div>
     <div class="dialog__body">
       <p class="curl-tip" id="saved-text">已保存为接口定义，是否前往查看？</p>
+      <div class="history__list" id="saved-list" style="max-height:132px;overflow:auto" hidden></div>
     </div>
     <div class="dialog__footer">
       <button type="button" class="btn btn--default" id="saved-stay">留在调试</button>
@@ -703,10 +744,62 @@
     });
   });
 
-  // 表格行删除（键值表行内操作）
+  // 键值表：启用勾选、行删除、末尾空行自动补行，页签计数随真实行数据变化
+  function markEmptyRow(tr) {
+    if (tr) tr.setAttribute('data-empty-row', '');
+  }
+  document.querySelectorAll('.kv tbody tr:last-child').forEach(markEmptyRow);
+
+  function appendEmptyRow(tbody) {
+    var template = tbody.querySelector('[data-empty-row]') || tbody.lastElementChild;
+    if (!template) return;
+    var row = template.cloneNode(true);
+    row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+    var box = row.querySelector('.checkbox');
+    if (box) box.classList.add('checkbox--on');
+    tbody.appendChild(row);
+    markEmptyRow(row);
+  }
+
+  function refreshKvCounts() {
+    function count(sel) {
+      var panel = document.querySelector(sel);
+      if (!panel) return 0;
+      return Array.prototype.filter.call(panel.querySelectorAll('tbody tr'), function (tr) {
+        var key = tr.querySelector('input');
+        return key && key.value.trim();
+      }).length;
+    }
+    var params = document.querySelector('.reqtab[data-req="params"] .count');
+    var headers = document.querySelector('.reqtab[data-req="headers"] .count');
+    if (params) params.textContent = count('[data-panel="params"]');
+    if (headers) headers.textContent = count('[data-panel="headers"]');
+  }
+
   document.addEventListener('click', function (e) {
+    var box = e.target.closest ? e.target.closest('.kv .checkbox') : null;
+    if (box) {
+      box.classList.toggle('checkbox--on');
+      return;
+    }
     var del = e.target.closest ? e.target.closest('.row-del') : null;
-    if (del) del.closest('tr').remove();
+    if (!del) return;
+    var tbody = del.closest('tbody');
+    del.closest('tr').remove();
+    if (tbody && tbody.lastElementChild && !tbody.lastElementChild.hasAttribute('data-empty-row')) {
+      appendEmptyRow(tbody);
+    }
+    refreshKvCounts();
+  });
+
+  document.addEventListener('input', function (e) {
+    var input = e.target;
+    if (!input.matches || !input.matches('.kv input')) return;
+    var tr = input.closest('tr');
+    if (!tr || !tr.hasAttribute('data-empty-row') || tr !== tr.parentNode.lastElementChild) return;
+    if (!Array.prototype.some.call(tr.querySelectorAll('input'), function (i) { return i.value.trim(); })) return;
+    tr.removeAttribute('data-empty-row');
+    appendEmptyRow(tr.parentNode);
   });
 
   /* ==================== 响应面板 ==================== */
@@ -930,34 +1023,78 @@
   searchInput.addEventListener('input', function () { matchIndex = 0; renderBody(); });
 
   function stepMatch(delta) {
-    if (!matchCount) return;
+    if (!matchCount) {
+      if (!searchExpanded) toggleSearch();
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
     matchIndex = (matchIndex + delta + matchCount) % matchCount;
     renderPre();
   }
   document.getElementById('search-prev').addEventListener('click', function () { stepMatch(-1); });
   document.getElementById('search-next').addEventListener('click', function () { stepMatch(1); });
 
-  // 复制响应体：复制失败（非安全上下文等）时提示手动复制
+  // 复制：有响应时复制响应体，未发送时复制当前请求 URL；反馈包含图标与状态栏真实 DOM 变更
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
+  function markCopied(btn, ok) {
+    var label = ok ? '已复制' : '复制失败，可手动选择复制';
+    btn.setAttribute('data-icon', ok ? 'check' : 'copy');
+    btn.title = label;
+    window.RTIcons.hydrate(btn);
+    var status = document.querySelector('.resp-status');
+    var flag = status ? status.querySelector('#copy-flag') : null;
+    if (flag) flag.remove();
+    if (status && ok) {
+      flag = document.createElement('span');
+      flag.id = 'copy-flag';
+      flag.className = 'kbd';
+      flag.textContent = '已复制';
+      status.appendChild(flag);
+    }
+    window.setTimeout(function () {
+      btn.setAttribute('data-icon', 'copy');
+      btn.title = '复制响应体';
+      window.RTIcons.hydrate(btn);
+      if (flag && flag.parentNode) flag.remove();
+    }, 1400);
+  }
+
   document.getElementById('btn-copy').addEventListener('click', function () {
-    if (!respBodyText) return;
     var btn = this;
-    if (!navigator.clipboard) {
-      window.RTUX.toast('复制失败，请手动选择复制', { type: 'warning' });
+    var text = respBodyText || urlInput.value.trim();
+    if (!text) {
+      urlInput.focus();
+      window.RTUX.toast('请输入请求 URL 或先发送请求', { type: 'warning' });
       return;
     }
-    navigator.clipboard.writeText(respBodyText).then(function () {
-      btn.innerHTML = '';
-      btn.setAttribute('data-icon', 'check');
-      window.RTIcons.hydrate(btn);
-      window.RTUX.toast('已复制响应体', { type: 'success' });
-      window.setTimeout(function () {
-        btn.innerHTML = '';
-        btn.setAttribute('data-icon', 'copy');
-        window.RTIcons.hydrate(btn);
-      }, 1200);
-    }).catch(function () {
-      window.RTUX.toast('复制失败，请手动选择复制', { type: 'warning' });
-    });
+    var what = respBodyText ? '响应体' : '请求 URL';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        markCopied(btn, true);
+        window.RTUX.toast('已复制' + what, { type: 'success' });
+      }).catch(function () {
+        markCopied(btn, fallbackCopy(text));
+        window.RTUX.toast('复制失败，请手动选择复制', { type: 'warning' });
+      });
+    } else {
+      var ok = fallbackCopy(text);
+      markCopied(btn, ok);
+      window.RTUX.toast(ok ? '已复制' + what : '复制失败，请手动选择复制', { type: ok ? 'success' : 'warning' });
+    }
   });
 
   function formatSize(bytes) {
@@ -972,15 +1109,15 @@
   var tabsWrap = document.querySelector('.tabbar__tabs');
   var tabAdd = document.querySelector('.tabbar__add');
   var urlInput = document.getElementById('url-input');
-  var methodPick = document.querySelector('.method-pick');
+  var methodPick = document.getElementById('method-pick');
+  var methodWrap = document.getElementById('method-wrap');
   var btnSend = document.getElementById('btn-send');
   var btnSave = document.getElementById('btn-save');
-  var canSave = false;
 
   // 固定标签（历史记录）不带 data-method，既不计入会话标签也不切换请求状态
-  function sessionTabs() { return tabBar.querySelectorAll('.ws-tab[data-method]'); }
-  function activeSessionTab() { return tabBar.querySelector('.ws-tab.is-active[data-method]'); }
-  function historyTab() { return tabBar.querySelector('.ws-tab[data-fixed]'); }
+  function sessionTabs() { return tabBar.querySelectorAll('.debug-tab[data-method]'); }
+  function activeSessionTab() { return tabBar.querySelector('.debug-tab.is-active[data-method]'); }
+  function historyTab() { return tabBar.querySelector('.debug-tab[data-fixed]'); }
 
   function updateAddState() {
     tabAdd.disabled = sessionTabs().length >= 10; // 同时最多 10 个标签（MAX_DEBUG_TABS）
@@ -991,26 +1128,24 @@
   }
   urlInput.addEventListener('input', updateSendState);
 
-  // 方法下拉的文字色由 data-m 驱动（见 .method-pick[data-m] 规则）
   function setMethod(method) {
     methodPick.value = method;
-    methodPick.setAttribute('data-m', method);
+    methodWrap.setAttribute('data-m', method);
   }
 
-  // 方法回显到当前标签头：徽标文案与配色随方法同步（见 .m-* 规则）
   function echoMethodToTab(method) {
     var tab = activeSessionTab();
-    if (!tab) return; // 固定「历史记录」无请求状态
+    if (!tab) return;
     tab.setAttribute('data-method', method);
-    var badge = tab.querySelector('.ws-tab__method');
+    var badge = tab.querySelector('.debug-tab__method');
     if (badge) {
       badge.textContent = method;
-      badge.className = 'ws-tab__method ' + (METHOD_BADGE[method] || '');
+      badge.className = 'debug-tab__method ' + (METHOD_BADGE[method] || '');
     }
   }
 
   methodPick.addEventListener('change', function () {
-    this.setAttribute('data-m', this.value);
+    methodWrap.setAttribute('data-m', this.value);
     echoMethodToTab(this.value);
   });
 
@@ -1020,15 +1155,13 @@
   }
 
   function activateDebugTab(tab) {
-    tabBar.querySelectorAll('.ws-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+    tabBar.querySelectorAll('.debug-tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
     var method = tab.getAttribute('data-method');
     if (method === null) {
-      // 固定「历史记录」无请求状态：主内容区切到全宽历史视图（交互设计 1.7）
       setHistoryView(true);
       return;
     }
     setHistoryView(false);
-    // 各标签独立维护请求状态：切标签即切换方法与 URL
     setMethod(method);
     urlInput.value = tab.getAttribute('data-path') || '';
     updateSendState();
@@ -1036,21 +1169,20 @@
 
   function createDebugTab(name) {
     var tab = document.createElement('div');
-    tab.className = 'ws-tab';
-    tab.setAttribute('data-method', 'GET'); // 新标签默认 GET
+    tab.className = 'debug-tab';
+    tab.setAttribute('data-method', 'GET');
     tab.setAttribute('data-path', '');
-    tab.innerHTML = '<span class="ws-tab__method m-get">GET</span><span class="ws-tab__label"></span><span class="ws-tab__close" data-close>×</span>';
-    tab.querySelector('.ws-tab__label').textContent = name;
-    // 新标签追加到页签区末尾，即固定「历史记录」与新建按钮之前
+    tab.innerHTML = '<span class="debug-tab__method m-get">GET</span><span class="debug-tab__label"></span><button type="button" class="debug-tab__close" data-close aria-label="关闭标签"><span data-icon="x"></span></button>';
+    tab.querySelector('.debug-tab__label').textContent = name;
     tabsWrap.appendChild(tab);
+    window.RTIcons.hydrate(tab);
     updateAddState();
     return tab;
   }
 
-  // 双击页签内联重命名（实现的 el-input：回车或失焦提交，空名不覆盖）
   function startTabRename(tab) {
     if (!tab || tab.hasAttribute('data-fixed')) return;
-    var label = tab.querySelector('.ws-tab__label');
+    var label = tab.querySelector('.debug-tab__label');
     if (!label || tab.querySelector('.tab-rename')) return;
     var input = document.createElement('input');
     input.className = 'input tab-rename';
@@ -1088,9 +1220,8 @@
     }
   }
 
-  // 委托到整条标签条：会话页签可滚动区与固定「历史记录」都在其内
   tabBar.addEventListener('click', function (e) {
-    var tab = e.target.closest('.ws-tab');
+    var tab = e.target.closest('.debug-tab');
     if (!tab) return;
     if (e.target.closest('[data-close]')) { closeTab(tab); return; }
     if (e.target.closest('.tab-rename')) return;
@@ -1098,15 +1229,14 @@
   });
 
   tabBar.addEventListener('dblclick', function (e) {
-    var tab = e.target.closest('.ws-tab');
+    var tab = e.target.closest('.debug-tab');
     if (tab) startTabRename(tab);
   });
 
-  // 中键关闭页签（实现的 handleAuxClick）
   tabBar.addEventListener('auxclick', function (e) {
     if (e.button !== 1) return;
     e.preventDefault();
-    closeTab(e.target.closest('.ws-tab'));
+    closeTab(e.target.closest('.debug-tab'));
   });
 
   tabAdd.addEventListener('click', function () {
@@ -1200,21 +1330,13 @@
       btnSend.innerHTML = original;
       updateSendState();
 
-      var label = activeSessionTab() ? activeSessionTab().querySelector('.ws-tab__label') : null;
+      var label = activeSessionTab() ? activeSessionTab().querySelector('.debug-tab__label') : null;
       if (label && label.textContent === '新建请求') label.textContent = autoTabName(methodPick.value, url);
 
       if (failed) {
-        // 失败执行不产生调试记录，保存入口回到禁用态（canSave 依赖 debugRecordId）
-        canSave = false;
-        btnSave.disabled = true;
-        btnSave.setAttribute('title', '请先发送请求获取调试记录');
         window.RTUX.toast('请求失败：500 服务器内部错误', { type: 'danger' });
         return;
       }
-      // 保存入口依赖本次执行生成的调试记录（canSave = response.debugRecordId 存在）
-      canSave = true;
-      btnSave.disabled = false;
-      btnSave.removeAttribute('title');
       pushHistoryRecord(autoTabName(methodPick.value, ensureUrlScheme(url)), 200, next);
       window.RTUX.toast('响应 200 · ' + next + ' ms', { type: 'success' });
     }, 500);
@@ -1270,7 +1392,7 @@
       html += '<section class="history__group"><h4 class="history__group-title">' + group + '</h4>';
       items.forEach(function (r) {
         html += '<div class="history__item" data-id="' + r.id + '">'
-          + '<span class="ws-tab__method ' + (METHOD_BADGE[r.method] || '') + '">' + r.method + '</span>'
+          + '<span class="history__method ' + (METHOD_BADGE[r.method] || '') + '">' + r.method + '</span>'
           + '<span class="history__code ' + (r.code < 400 ? 'history__code--ok' : 'history__code--fail') + '">' + r.code + '</span>'
           + '<button type="button" class="history__item-main" data-restore>'
           + '<span class="history__item-name">' + escapeHtml(r.name) + '</span>'
@@ -1278,9 +1400,9 @@
           + '</button>'
           + '<span class="history__item-time">' + r.at + '</span>'
           + '<span class="history__item-cost">' + r.ms + 'ms</span>'
-          + '<span class="op-link" data-restore>恢复</span>'
-          + '<span class="op-link" data-rename>重命名</span>'
-          + '<span class="op-link op-link--danger" data-del>删除</span>'
+          + '<button type="button" class="btn btn--link btn--sm history__action" data-restore>恢复</button>'
+          + '<button type="button" class="btn btn--link btn--sm history__action" data-rename>重命名</button>'
+          + '<button type="button" class="btn btn--link btn--sm history__action history__action--danger" data-del>删除</button>'
           + '</div>';
       });
       html += '</section>';
@@ -1336,9 +1458,9 @@
     var tab = createDebugTab(rec.name);
     tab.setAttribute('data-method', rec.method);
     tab.setAttribute('data-path', rec.url);
-    var badge = tab.querySelector('.ws-tab__method');
+    var badge = tab.querySelector('.debug-tab__method');
     badge.textContent = rec.method;
-    badge.className = 'ws-tab__method ' + (METHOD_BADGE[rec.method] || '');
+    badge.className = 'debug-tab__method ' + (METHOD_BADGE[rec.method] || '');
     activateDebugTab(tab);
     RTUX.toast('已恢复到新标签', { type: 'success' });
   }
@@ -1427,7 +1549,8 @@
       rows += headerRow('', '');
       document.getElementById('headers-body').innerHTML = rows;
       window.RTIcons.hydrate(document.getElementById('headers-body'));
-      document.querySelector('.reqtab[data-req="headers"] .count').textContent = headers.length;
+      markEmptyRow(document.querySelector('#headers-body tr:last-child'));
+      refreshKvCounts();
     }
 
     // 请求体回填：存在 -d / --data 时切到 raw 编辑器
@@ -1460,6 +1583,46 @@
   var saveNameErr = document.getElementById('save-name-err');
   var saveModuleErr = document.getElementById('save-module-err');
   var saveMode = 'create';
+  var savedList = document.getElementById('saved-list');
+  var savedInterfaces = [
+    { id: 'i1', method: 'GET', path: '/api/v1/orders/{orderId}', name: '查询订单详情' },
+    { id: 'i2', method: 'POST', path: '/api/v1/orders', name: '创建订单' },
+    { id: 'i3', method: 'PUT', path: '/api/v1/orders/{orderId}/cancel', name: '取消订单' },
+    { id: 'i4', method: 'GET', path: '/api/v1/orders', name: '订单列表分页' }
+  ];
+  var savedSeq = savedInterfaces.length;
+
+  function requestPath(url) {
+    var rest = String(url || '').trim();
+    var schemeEnd = rest.indexOf('://');
+    if (schemeEnd >= 0) {
+      var pathStart = rest.indexOf('/', schemeEnd + 3);
+      rest = pathStart < 0 ? '/' : rest.slice(pathStart);
+    }
+    var query = rest.indexOf('?');
+    if (query >= 0) rest = rest.slice(0, query);
+    return rest || '/';
+  }
+
+  // 本地接口定义数组 → 归属选择器与保存结果列表共用同一份数据
+  function renderSavedInterfaces() {
+    var select = document.getElementById('save-interface');
+    select.innerHTML = savedInterfaces.map(function (it) {
+      return '<option value="' + it.id + '">' + escapeHtml(it.method + ' ' + it.path + ' — ' + it.name) + '</option>';
+    }).join('');
+  }
+
+  function renderSavedList(item) {
+    if (!item) { savedList.hidden = true; savedList.innerHTML = ''; return; }
+    savedList.hidden = false;
+    savedList.innerHTML = '<div class="history__item">'
+      + '<span class="history__method ' + (METHOD_BADGE[item.method] || '') + '">' + item.method + '</span>'
+      + '<span class="history__item-main"><span class="history__item-name">' + escapeHtml(item.name) + '</span>'
+      + '<span class="history__item-url">' + escapeHtml(item.path) + '</span></span>'
+      + '</div>';
+  }
+
+  renderSavedInterfaces();
 
   function setSaveMode(mode) {
     saveMode = mode;
@@ -1467,8 +1630,8 @@
     saveTip.textContent = mode === 'create'
       ? '以当前调试请求（方法/URL/头/参数/请求体）创建新的接口定义'
       : '以当前调试请求覆盖所选接口定义的最新版本（并发修改将被拒绝）';
-    document.querySelectorAll('#save-mode .segment__item').forEach(function (item) {
-      item.classList.toggle('segment__item--active', item.getAttribute('data-mode') === mode);
+    document.querySelectorAll('#save-mode .radio-btn').forEach(function (item) {
+      item.classList.toggle('radio-btn--active', item.getAttribute('data-mode') === mode);
     });
     document.querySelectorAll('[data-save-panel]').forEach(function (p) {
       p.hidden = p.getAttribute('data-save-panel') !== mode;
@@ -1478,12 +1641,11 @@
     saveModuleErr.hidden = true;
   }
 
-  document.querySelectorAll('#save-mode .segment__item').forEach(function (item) {
+  document.querySelectorAll('#save-mode .radio-btn').forEach(function (item) {
     item.addEventListener('click', function () { setSaveMode(item.getAttribute('data-mode')); });
   });
 
   btnSave.addEventListener('click', function () {
-    if (!canSave) return;
     saveName.value = '';
     saveModule.value = '';
     setSaveMode('create');
@@ -1501,13 +1663,41 @@
       saveModuleErr.hidden = !!saveModule.value;
       if (!saveName.value.trim() || !saveModule.value) return;
     }
-    saveDialog.hidden = true;
     var created = saveMode === 'create';
-    window.RTUX.toast(created ? '已保存为接口定义' : '已更新接口定义', { type: 'success' });
+    var saved;
+    if (created) {
+      savedSeq += 1;
+      saved = {
+        id: 'i' + savedSeq,
+        name: saveName.value.trim(),
+        method: methodPick.value,
+        path: requestPath(urlInput.value),
+        module: saveModule.value
+      };
+      savedInterfaces.unshift(saved);
+    } else {
+      var idx = -1;
+      savedInterfaces.forEach(function (it, i) { if (it.id === saveInterface.value) idx = i; });
+      if (idx < 0) return;
+      var tabLabel = activeSessionTab() ? activeSessionTab().querySelector('.debug-tab__label') : null;
+      saved = {
+        id: savedInterfaces[idx].id,
+        name: (tabLabel && tabLabel.textContent.trim()) || savedInterfaces[idx].name,
+        method: methodPick.value,
+        path: requestPath(urlInput.value),
+        module: savedInterfaces[idx].module
+      };
+      savedInterfaces[idx] = saved;
+    }
+    renderSavedInterfaces();
+    document.getElementById('save-interface').value = saved.id;
+    renderSavedList(saved);
+    saveDialog.hidden = true;
     document.getElementById('saved-text').textContent = created
       ? '已保存为接口定义，是否前往查看？'
       : '已更新接口定义，是否前往查看？';
     savedDialog.hidden = false;
+    window.RTUX.toast(created ? '已保存为接口定义' : '已更新接口定义', { type: 'success' });
   });
 
   function closeSaved() { savedDialog.hidden = true; }
@@ -1515,8 +1705,29 @@
   document.getElementById('saved-close').addEventListener('click', closeSaved);
   document.getElementById('saved-view').addEventListener('click', function () {
     closeSaved();
-    window.RTUX.toast('演示页：跳转到接口管理查看该接口定义');
+    window.location.href = 'api-testing.html';
   });
+
+  /* ==================== 弹窗关闭：遮罩 / ESC / 关闭键键盘可达 ==================== */
+  document.querySelectorAll('.dialog-mask').forEach(function (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) mask.hidden = true;
+    });
+  });
+  document.querySelectorAll('.dialog__close').forEach(function (close) {
+    close.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close.click(); }
+    });
+  });
+
+  function closeTopDialog() {
+    var order = ['savedDialog', 'saveDialog', 'curlDialog'];
+    for (var i = 0; i < order.length; i += 1) {
+      var mask = document.getElementById(order[i]);
+      if (mask && !mask.hidden) { mask.hidden = true; return true; }
+    }
+    return false;
+  }
 
   /* ==================== 快捷键（对齐 useDebugPage.onHotkey / useDebugResponse.onKeydown） ==================== */
 
@@ -1549,7 +1760,10 @@
       stepMatch(e.shiftKey ? -1 : 1);
       return;
     }
-    if (e.key === 'Escape' && searchExpanded) toggleSearch();
+    if (e.key === 'Escape') {
+      if (closeTopDialog()) return;
+      if (searchExpanded) toggleSearch();
+    }
   });
 
   updateSendState();
@@ -1599,7 +1813,7 @@
 
     function targetOf(node) {
       if (!node || !node.closest) return null;
-      return node.closest('.ws-tab__label') || node.closest('.history__item-main');
+      return node.closest('.debug-tab__label') || node.closest('.history__item-main');
     }
 
     document.addEventListener('mouseover', function (e) {

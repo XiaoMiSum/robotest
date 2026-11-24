@@ -8,394 +8,470 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 页级样式对齐 AiSettingsPage 的「常驻页头 + 左分组导航 + 右分组内容」三段结构 */
+  /* 页级样式：对齐 AiSettingsPage / Ai*Group 的布局与视觉（静态 faithful 表示） */
   [hidden] { display: none !important; }
-  /* 原型 token 无 tag--primary / 按钮选中态，按 EP primary 语义就地补齐 */
   .tag--primary { background: var(--brand-50); color: var(--brand-600); border-color: var(--brand-100); }
   .btn.is-active { background: var(--brand-50); border-color: var(--brand-300); color: var(--brand-600); }
-  /* 仅本页用到的紧凑按钮分组（时间范围/维度切换） */
   .btn-group { display: inline-flex; gap: 6px; }
 
-  .ai-shell { display: flex; flex-direction: column; gap: var(--space-lg); }
+  .ai-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
   .ai-shell__head {
-    display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg);
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
+    flex-shrink: 0; padding-bottom: var(--space-md); border-bottom: 1px solid var(--n-200);
     flex-wrap: wrap;
   }
-  .ai-shell__title-block { display: flex; align-items: baseline; gap: var(--space-md); }
-  .ai-shell__title { margin: 0; font-size: var(--font-size-xl); font-weight: 650; color: var(--n-900); }
-  .ai-shell__hint { font-size: var(--font-size-xs); color: var(--n-500); }
-  .ai-shell__globals { display: flex; align-items: center; gap: var(--space-sm); }
+  .ai-shell__title-block { display: flex; align-items: baseline; gap: var(--space-sm); min-width: 0; }
+  .ai-shell__title { margin: 0; font-size: var(--font-size-2xl); font-weight: 600; letter-spacing: -0.01em; color: var(--n-900); }
+  .ai-shell__hint { font-size: var(--font-size-sm); color: var(--st-warning); }
+  .ai-shell__globals { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
   .ai-shell__global-label { font-size: var(--font-size-sm); color: var(--n-600); }
-  .ai-shell__default-model { min-width: 220px; }
+  .ai-shell__default-model { width: 240px; }
 
-  /* 重建引导条：全宽横幅，切换分组不消失（AiSettingsPage §2.4） */
+  /* 重建引导条：全宽横幅，切换分组不消失（AiSettingsPage） */
   .ai-shell__reindex {
-    display: flex; align-items: center; gap: var(--space-md);
-    padding: 10px 14px; border: 1px solid var(--st-warning-border);
-    border-radius: var(--radius-md); background: var(--st-warning-light);
-    font-size: var(--font-size-sm); color: var(--n-800);
+    display: flex; align-items: center; gap: var(--space-md); flex-shrink: 0;
+    margin-top: var(--space-sm); padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm); color: var(--st-warning);
+    background: var(--st-warning-light); border: 1px solid var(--st-warning-border);
+    border-radius: var(--radius-md);
   }
-  .ai-shell__reindex--running { border-color: var(--brand-200); background: var(--brand-50); }
-  .ai-shell__reindex-text { flex: none; }
-  .ai-shell__reindex-progress { flex: 1; min-width: 160px; }
-  .ai-shell__reindex-phase { font-size: var(--font-size-xs); color: var(--n-500); }
+  .ai-shell__reindex--running { color: var(--n-700); background: var(--brand-50); border-color: var(--brand-200); }
+  .ai-shell__reindex-text { flex-shrink: 0; }
+  .ai-shell__reindex-progress { flex: 1; min-width: 120px; }
+  .ai-shell__reindex-phase { flex-shrink: 0; color: var(--n-500); }
 
-  /* 分组导航：当前项主色文字 + 指示条（视觉 6.2） */
-  .ai-shell__body { display: flex; align-items: stretch; gap: var(--space-lg); }
+  /* 分组导航：当前项主色文字 + 右侧指示条（AiSettingsPage） */
+  .ai-shell__body { display: flex; flex: 1; min-height: 0; padding-top: var(--space-md); }
   .ai-shell__nav {
-    width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;
-    padding: 6px; background: var(--n-0); border: 1px solid var(--n-200);
-    border-radius: var(--radius-lg); align-self: flex-start;
+    display: flex; flex-direction: column; gap: 2px; width: 150px; flex-shrink: 0; overflow-y: auto;
   }
   .ai-shell__nav-item {
-    display: flex; align-items: center; gap: var(--space-sm);
-    height: 34px; padding: 0 10px; border-radius: var(--radius-md);
-    font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer;
-    border-left: 2px solid transparent;
+    position: relative; display: block; padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-base); color: var(--shell-text); border-radius: var(--radius-md);
+    text-decoration: none; cursor: pointer; transition: background .15s, color .15s;
   }
-  .ai-shell__nav-item:hover { background: var(--n-50); color: var(--n-900); }
-  .ai-shell__nav-item.is-active {
-    background: var(--brand-50); color: var(--brand-600);
-    border-left-color: var(--brand-500); font-weight: 500;
+  .ai-shell__nav-item:hover { background: var(--shell-item-hover); color: var(--shell-text-strong); }
+  .ai-shell__nav-item--active { color: var(--brand-500); font-weight: 600; background: transparent; }
+  .ai-shell__nav-item--active::after {
+    content: ''; position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 2px; height: 16px; background: var(--brand-500); border-radius: 1px;
   }
-  .ai-shell__main { flex: 1; min-width: 0; }
-  .ai-group { display: flex; flex-direction: column; gap: var(--space-md); }
+  .ai-shell__nav-item--active:hover { background: var(--shell-item-active); color: var(--brand-500); }
+  .ai-shell__main { flex: 1; min-width: 0; overflow-y: auto; padding-left: var(--space-md); border-left: 1px solid var(--n-200); }
+  .ai-group { display: flex; flex-direction: column; gap: var(--space-md); min-height: 0; }
 
-  /* 表格内文案与语义色 */
+  /* 表格内文案与语义色（对齐 AiModelsGroup / AiPromptsGroup） */
   .muted { color: var(--n-500); }
-  .cap-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-  .test-state { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); }
-  .test-state--unknown { color: var(--n-500); }
-  .test-state--ok { color: var(--st-success-strong); }
-  .test-state--fail { color: var(--st-danger-strong); }
-  .cell-actions { display: inline-flex; gap: 10px; white-space: nowrap; }
-  .op-link { color: var(--brand-500); cursor: pointer; font-size: var(--font-size-sm); background: none; border: none; padding: 0; font-family: inherit; }
-  .op-link:hover { color: var(--brand-600); }
-  .op-link--danger { color: var(--st-danger); }
-  .op-link--danger:hover { color: var(--st-danger-strong); }
-  .op-link:disabled { color: var(--n-400); cursor: not-allowed; }
-  .table-head-actions { display: flex; justify-content: flex-end; }
+  .cap-tags { display: inline-flex; gap: var(--space-xs); flex-wrap: wrap; align-items: center; }
+  .test-state { display: inline-block; font-size: var(--font-size-sm); vertical-align: bottom; }
+  .test-state--unknown { color: var(--n-400); }
+  .test-state--ok { color: var(--st-success); }
+  .test-state--fail { color: var(--st-danger); max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .table-head-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-sm); }
+  .row-link-danger { color: var(--st-danger); }
+  .row-link-danger:hover { color: var(--st-danger-strong); }
+  .row-link-danger:disabled { color: var(--n-400); opacity: 1; cursor: not-allowed; }
 
-  /* 开关 */
+  /* 开关：视觉贴近 EP el-switch small */
   .switch {
     position: relative; width: 34px; height: 18px; border-radius: 999px;
     background: var(--n-300); cursor: pointer; transition: background var(--transition-fast);
-    display: inline-block; flex-shrink: 0;
+    display: inline-block; flex-shrink: 0; vertical-align: middle;
   }
   .switch::after {
     content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
     border-radius: 50%; background: var(--n-0); transition: transform var(--transition-fast);
+    box-shadow: var(--shadow-sm);
   }
   .switch.is-on { background: var(--brand-500); }
   .switch.is-on::after { transform: translateX(16px); }
   .switch.is-disabled { opacity: .55; cursor: not-allowed; }
 
-  /* 向量配置表单 */
-  .embed-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-md) var(--space-xl); }
-  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-  .field__label { font-size: var(--font-size-sm); color: var(--n-700); }
+  /* 向量配置表单（AiEmbeddingGroup：label-width 112px，max-width 640px，actions 两端对齐） */
+  .embed-form { max-width: 640px; display: flex; flex-direction: column; gap: 0; }
+  .field { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 0 var(--space-md); margin-bottom: 18px; min-width: 0; }
+  .field--top { align-items: flex-start; }
+  .field--top .field__label { padding-top: 6px; }
+  .field__label { font-size: var(--font-size-sm); color: var(--n-700); text-align: left; }
+  .field__control { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; flex-wrap: wrap; }
+  .field__control .input, .field__control .select { flex: 1; min-width: 0; }
   .field__hint { font-size: var(--font-size-xs); color: var(--n-500); }
-  .embed-actions {
-    grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;
-    padding-top: var(--space-md); border-top: 1px solid var(--n-100);
-  }
-  .numin { display: inline-flex; align-items: center; }
-  .numin .input { width: 120px; text-align: center; }
+  .embed-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+  .numin .input { width: 140px; flex: 0 0 auto; }
+  .operator-select { width: 240px; flex: 0 0 auto; }
 
-  /* 用量分析 */
+  /* 用量分析（AiUsageGroup） */
   .usage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
-  .usage-summary { display: flex; gap: var(--space-2xl); padding: var(--space-md) 0; }
-  .usage-summary__item { display: flex; flex-direction: column; gap: 2px; }
+  .usage-toolbar__left { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .usage-summary { display: flex; gap: var(--space-xl); flex-wrap: wrap; padding: var(--space-md); background: var(--n-50); border-radius: var(--radius-md); }
+  .usage-summary__item { display: flex; flex-direction: column; gap: 2px; min-width: 96px; }
   .usage-summary__label { font-size: var(--font-size-xs); color: var(--n-500); }
-  .usage-summary__value { font-size: var(--font-size-xl); font-weight: 700; color: var(--n-900); font-variant-numeric: tabular-nums; }
-  .usage-chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 12px 0 26px; border-bottom: 1px solid var(--n-200); position: relative; }
-  .usage-chart__col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
-  .usage-chart__bar { width: 70%; min-width: 12px; border-radius: 3px 3px 0 0; background: var(--brand-500); }
-  .usage-chart__bar--embedding { background: var(--ai-badge, #00a6a6); }
+  .usage-summary__value { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-900); font-variant-numeric: tabular-nums; }
+  .usage-chart-card { min-height: 300px; padding: var(--space-md); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
+  .usage-chart { display: flex; align-items: flex-end; gap: 10px; height: 260px; padding: 12px 0 26px; position: relative; }
+  .usage-chart__col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; cursor: pointer; }
+  .usage-chart__bar { width: 70%; max-width: 40px; min-width: 12px; border-radius: 4px 4px 0 0; background: var(--brand-500); }
   .usage-chart__label { position: absolute; bottom: -22px; font-size: var(--font-size-2xs); color: var(--n-500); white-space: nowrap; }
-  .usage-drill { margin-top: var(--space-lg); border-top: 1px solid var(--n-200); padding-top: var(--space-md); }
-  .usage-drill__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); }
-  .usage-drill__title { font-size: var(--font-size-sm); font-weight: 600; color: var(--n-800); }
+  .usage-drill { display: flex; flex-direction: column; gap: var(--space-sm); }
+  .usage-drill__head { display: flex; align-items: center; justify-content: space-between; }
+  .usage-drill__title { font-size: var(--font-size-base); font-weight: 600; color: var(--n-900); }
+  .drill-link { color: var(--brand-500); cursor: pointer; }
+  .prompt-scene { display: flex; flex-direction: column; gap: 2px; }
+  .prompt-scene__name { color: var(--n-900); }
+  .prompt-scene__key { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-400); }
+  .dialog__body .field { margin-bottom: 16px; }
+  .dialog__body .field:last-child { margin-bottom: 0; }
+  .check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--n-700); margin-right: 16px; }
+  .check input { width: 14px; height: 14px; accent-color: var(--brand-500); }
+  .dialog--lg { width: 720px; }
+
+  /* 交互增强：默认模型下拉 / 自定义日期区间（仅本页，供真实 DOM 交互使用） */
+  .model-select { position: relative; }
+  #defaultModel { cursor: pointer; }
+  #defaultModel.is-disabled { background: var(--n-50); color: var(--n-400); cursor: not-allowed; }
+  .model-select__menu {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 60; min-width: 260px;
+    padding: 4px; background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .model-select__option {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 6px 10px; font-size: var(--font-size-sm); color: var(--n-700);
+    border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .model-select__option:hover { background: var(--brand-50); color: var(--brand-600); }
+  .model-select__option.is-selected { color: var(--brand-600); font-weight: 600; }
+  .model-select__empty { padding: 8px 10px; font-size: var(--font-size-sm); color: var(--n-400); }
+  .usage-custom { display: flex; align-items: center; gap: 6px; }
+  .usage-custom .input { width: 150px; }
+  [data-metric], [data-prompt-var] { user-select: none; }
 </style>
 </head>
 <body data-shell="admin" data-active="ai-config" data-mode="admin">
 
 <main class="content content--admin">
   <div class="ai-shell">
-    <!-- 页头跨分组常驻：AI 总开关 + 默认模型 -->
+    <!-- 页头跨分组常驻：AI 总开关 + 默认模型（AiSettingsPage） -->
     <header class="ai-shell__head">
       <div class="ai-shell__title-block">
         <h1 class="ai-shell__title">AI 配置</h1>
-        <span class="ai-shell__hint">关闭后前端隐藏全部 AI 入口，进行中任务被取消；开启需已启用至少一个对话模型</span>
+        <span class="ai-shell__hint" id="readinessHint">请先添加并启用模型</span>
       </div>
       <div class="ai-shell__globals">
         <span class="ai-shell__global-label">AI 总开关</span>
         <span class="switch is-on" id="aiMaster" role="switch" aria-checked="true" tabindex="0" title="AI 总开关"></span>
         <span class="ai-shell__global-label">默认模型</span>
-        <span class="select ai-shell__default-model" id="defaultModel">DeepSeek-V3（deepseek-chat）</span>
+        <div class="model-select" id="defaultModelWrap">
+          <span class="select ai-shell__default-model" id="defaultModel" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-label="默认模型">DeepSeek-V3（deepseek-chat）</span>
+          <div class="model-select__menu" id="defaultModelMenu" role="listbox" aria-label="选择默认模型" hidden></div>
+        </div>
       </div>
     </header>
 
-    <!-- 重建引导条：维度变更后的全量重建入口 -->
+    <!-- 重建引导条：全宽横幅，切换分组不消失（AiSettingsPage） -->
     <div class="ai-shell__reindex" id="reindexBar">
       <span class="ai-shell__reindex-text" id="reindexText">向量维度已变更，需全量重建</span>
-      <div class="progress ai-shell__reindex-progress" id="reindexProgress" hidden><div class="progress__track"><div class="progress__fill progress__fill--brand" style="width:42%"></div></div></div>
+      <div class="progress ai-shell__reindex-progress" id="reindexProgress" hidden><div class="progress__track"><div class="progress__fill progress__fill--brand" id="reindexFill" style="width:42%"></div></div></div>
       <span class="ai-shell__reindex-phase" id="reindexPhase" hidden>向量化文档 42%</span>
-      <button class="btn btn--primary btn--sm" type="button" id="reindexBtn">发起重建</button>
+      <button class="btn btn--primary" type="button" id="reindexBtn">发起重建</button>
     </div>
 
     <div class="ai-shell__body">
-      <!-- 左侧分组导航 -->
+      <!-- 左侧分组导航：当前项主色文字 + 右侧指示条 -->
       <nav class="ai-shell__nav" aria-label="AI 配置分组">
-        <div class="ai-shell__nav-item is-active" data-ai-group="models">模型配置</div>
-        <div class="ai-shell__nav-item" data-ai-group="embedding">向量 API</div>
-        <div class="ai-shell__nav-item" data-ai-group="prompts">场景提示词</div>
-        <div class="ai-shell__nav-item" data-ai-group="usage">用量分析</div>
+        <a class="ai-shell__nav-item ai-shell__nav-item--active" href="#models" data-ai-group="models">模型配置</a>
+        <a class="ai-shell__nav-item" href="#embedding" data-ai-group="embedding">向量 API</a>
+        <a class="ai-shell__nav-item" href="#prompts" data-ai-group="prompts">场景提示词</a>
+        <a class="ai-shell__nav-item" href="#usage" data-ai-group="usage">用量分析</a>
       </nav>
 
       <div class="ai-shell__main">
-        <!-- ========== 分组 1 · 模型配置 ========== -->
+        <!-- ========== 分组 1 · 模型配置（AiModelsGroup） ========== -->
         <section class="ai-group" data-ai-panel="models">
-          <div class="card">
-            <div class="card__header">
-              <div class="table-head-actions"><button class="btn btn--link btn--sm" type="button" id="addModelBtn">添加模型</button></div>
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th style="min-width:120px">名称</th>
-                    <th style="width:100px">供应商</th>
-                    <th style="min-width:160px">BaseURL</th>
-                    <th style="min-width:130px">模型标识</th>
-                    <th style="min-width:110px">能力</th>
-                    <th style="width:80px">默认标记</th>
-                    <th style="width:76px">启用</th>
-                    <th style="min-width:140px">连通性</th>
-                    <th style="width:176px"></th>
-                  </tr>
-                </thead>
-                <tbody id="modelRows">
-                  <tr>
-                    <td>DeepSeek-V3</td><td>DeepSeek</td>
-                    <td class="muted" style="font-family:var(--font-mono)">https://api.deepseek.com</td>
-                    <td class="muted">deepseek-chat</td>
-                    <td><span class="cap-tags"><span class="tag tag--primary">文本</span></span></td>
-                    <td><span class="tag tag--primary">默认</span></td>
-                    <td><span class="switch is-on is-disabled" role="switch" aria-checked="true" title="默认模型不可关闭"></span></td>
-                    <td><span class="test-state test-state--ok" title="连接正常">✔ 236ms</span></td>
-                    <td>
-                      <span class="cell-actions">
-                        <button class="op-link" type="button" data-model-edit>编辑</button>
-                        <button class="op-link" type="button" data-model-test>测试</button>
-                        <button class="op-link op-link--danger" type="button" disabled>停用</button>
-                      </span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>通义千问 Plus</td><td>阿里云</td>
-                    <td class="muted" style="font-family:var(--font-mono)">https://dashscope.aliyuncs.com/compatible-mode/v1</td>
-                    <td class="muted">qwen-plus</td>
-                    <td><span class="cap-tags"><span class="tag tag--primary">文本</span><span class="tag tag--success">视觉</span></span></td>
-                    <td class="muted">—</td>
-                    <td><span class="switch is-on" role="switch" aria-checked="true" data-model-toggle></span></td>
-                    <td><span class="test-state test-state--unknown">未知</span></td>
-                    <td>
-                      <span class="cell-actions">
-                        <button class="op-link" type="button" data-model-edit>编辑</button>
-                        <button class="op-link" type="button" data-model-test>测试</button>
-                        <button class="op-link op-link--danger" type="button" data-model-delete>停用</button>
-                      </span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>GPT-4o mini</td><td>OpenAI</td>
-                    <td class="muted" style="font-family:var(--font-mono)">https://api.openai.com/v1</td>
-                    <td class="muted">gpt-4o-mini</td>
-                    <td><span class="cap-tags"><span class="tag tag--primary">文本</span><span class="tag tag--success">视觉</span></span></td>
-                    <td class="muted">—</td>
-                    <td><span class="switch" role="switch" aria-checked="false" data-model-toggle></span></td>
-                    <td><span class="test-state test-state--fail" title="鉴权失败">✘ 401 鉴权失败</span></td>
-                    <td>
-                      <span class="cell-actions">
-                        <button class="op-link" type="button" data-model-edit>编辑</button>
-                        <button class="op-link" type="button" data-model-test>测试</button>
-                        <button class="op-link op-link--danger" type="button" disabled>停用</button>
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <p class="field__hint">连通性按模型展示：未知 / ✔耗时 / ✘错误；「添加模型」入口固定在操作列表头，整表仅一个（对齐 AiModelsGroup §2.2）。</p>
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="min-width:120px">名称</th>
+                <th style="width:100px">供应商</th>
+                <th style="min-width:160px">BaseURL</th>
+                <th style="min-width:130px">模型标识</th>
+                <th style="min-width:110px">能力</th>
+                <th style="width:80px;text-align:center">默认标记</th>
+                <th style="width:76px;text-align:center">启用</th>
+                <th style="min-width:140px">连通性</th>
+                <th style="width:176px">
+                  <div class="table-head-actions">
+                    <button class="btn btn--link btn--sm" type="button" id="addModelBtn">添加模型</button>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="modelRows">
+              <tr>
+                <td>DeepSeek-V3</td><td>DeepSeek</td>
+                <td class="muted" style="font-family:var(--font-mono)">https://api.deepseek.com</td>
+                <td class="muted">deepseek-chat</td>
+                <td><span class="cap-tags"><span class="tag tag--neutral tag--sm">对话</span></span></td>
+                <td style="text-align:center"><span class="tag tag--primary tag--sm">默认</span></td>
+                <td style="text-align:center"><span class="switch is-on is-disabled" role="switch" aria-checked="true" title="默认模型不可停用"></span></td>
+                <td><span class="test-state test-state--ok" title="连接正常">✔ 236ms</span></td>
+                <td>
+                  <button class="btn btn--link btn--sm" type="button" data-model-edit>编辑</button>
+                  <button class="btn btn--link btn--sm" type="button" data-model-test>测试</button>
+                  <button class="btn btn--link btn--sm row-link-danger" type="button" disabled>停用</button>
+                </td>
+              </tr>
+              <tr>
+                <td>通义千问 Plus</td><td>阿里云</td>
+                <td class="muted" style="font-family:var(--font-mono)">https://dashscope.aliyuncs.com/compatible-mode/v1</td>
+                <td class="muted">qwen-plus</td>
+                <td><span class="cap-tags"><span class="tag tag--neutral tag--sm">对话</span><span class="tag tag--success tag--sm">视觉</span></span></td>
+                <td style="text-align:center" class="muted">—</td>
+                <td style="text-align:center"><span class="switch is-on" role="switch" aria-checked="true" data-model-toggle></span></td>
+                <td><span class="test-state test-state--unknown">未知</span></td>
+                <td>
+                  <button class="btn btn--link btn--sm" type="button" data-model-edit>编辑</button>
+                  <button class="btn btn--link btn--sm" type="button" data-model-test>测试</button>
+                  <button class="btn btn--link btn--sm row-link-danger" type="button" data-model-toggle-btn data-enabled="true">停用</button>
+                </td>
+              </tr>
+              <tr>
+                <td>GPT-4o mini</td><td>OpenAI</td>
+                <td class="muted" style="font-family:var(--font-mono)">https://api.openai.com/v1</td>
+                <td class="muted">gpt-4o-mini</td>
+                <td><span class="cap-tags"><span class="tag tag--neutral tag--sm">对话</span><span class="tag tag--success tag--sm">视觉</span></span></td>
+                <td style="text-align:center" class="muted">—</td>
+                <td style="text-align:center"><span class="switch" role="switch" aria-checked="false" data-model-toggle></span></td>
+                <td><span class="test-state test-state--fail" title="鉴权失败">✘ 401 鉴权失败</span></td>
+                <td>
+                  <button class="btn btn--link btn--sm" type="button" data-model-edit>编辑</button>
+                  <button class="btn btn--link btn--sm" type="button" data-model-test>测试</button>
+                  <button class="btn btn--link btn--sm" type="button" data-model-toggle-btn data-enabled="false">启用</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
 
-        <!-- ========== 分组 2 · 向量 API ========== -->
+        <!-- ========== 分组 2 · 向量 API（AiEmbeddingGroup） ========== -->
         <section class="ai-group" data-ai-panel="embedding" hidden>
-          <div class="card">
-            <form class="embed-form" id="embedForm">
-              <div class="field">
-                <label class="field__label" for="emb-provider">服务商</label>
-                <input class="input" id="emb-provider" value="openai" maxlength="30">
-              </div>
-              <div class="field">
-                <label class="field__label" for="emb-base">端点地址</label>
-                <input class="input" id="emb-base" value="https://api.openai.com/v1" maxlength="500">
-              </div>
-              <div class="field">
-                <label class="field__label" for="emb-key">API Key</label>
-                <input class="input" id="emb-key" type="password" value="sk-xxxxxxxxxxxxxxxx" maxlength="500">
-                <span class="field__hint">已配置（输入新值以替换）</span>
-              </div>
-              <div class="field">
-                <label class="field__label" for="emb-model">嵌入模型</label>
-                <input class="input" id="emb-model" value="text-embedding-3-small" maxlength="100">
-              </div>
-              <div class="field">
-                <label class="field__label" for="emb-dim">向量维度</label>
-                <span class="numin"><input class="input" id="emb-dim" value="1536" inputmode="numeric"></span>
+          <form class="embed-form" id="embedForm" onsubmit="return false;">
+            <div class="field">
+              <label class="field__label" for="emb-provider">服务商</label>
+              <div class="field__control"><input class="input" id="emb-provider" value="openai" maxlength="30" placeholder="如 openai / azure"></div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="emb-base">端点地址</label>
+              <div class="field__control"><input class="input" id="emb-base" value="https://api.openai.com/v1" maxlength="500" placeholder="https://api.example.com/v1"></div>
+            </div>
+            <div class="field field--top">
+              <label class="field__label" for="emb-key">API Key</label>
+              <div class="field__control"><input class="input" id="emb-key" type="password" value="" maxlength="500" placeholder="已配置（输入新值以替换）"></div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="emb-model">嵌入模型</label>
+              <div class="field__control"><input class="input" id="emb-model" value="text-embedding-3-small" maxlength="100" placeholder="如 text-embedding-3-small"></div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="emb-dim">向量维度</label>
+              <div class="field__control numin">
+                <input class="input" id="emb-dim" value="1536" inputmode="numeric">
                 <span class="field__hint" id="emb-dim-hint" hidden>需全量重建完成前维度不可变更</span>
               </div>
-              <div class="field">
-                <label class="field__label" for="emb-op">距离算子</label>
-                <span class="select" id="emb-op">余弦相似度</span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="emb-op">距离算子</label>
+              <div class="field__control">
+                <select class="select operator-select" id="emb-op">
+                  <option value="cosine" selected>cosine（余弦）</option>
+                  <option value="l2">l2（欧氏）</option>
+                  <option value="inner_product">inner_product（内积）</option>
+                </select>
               </div>
-              <div class="field">
-                <span class="field__label">启用</span>
-                <span class="switch is-on" role="switch" aria-checked="true" id="embEnabled"></span>
+            </div>
+            <div class="field">
+              <span class="field__label">启用</span>
+              <div class="field__control">
+                <span class="switch is-on" role="switch" aria-checked="true" id="embEnabled" tabindex="0"></span>
                 <span class="field__hint">未启用则 RAG 与相似检测不可用</span>
               </div>
-              <div class="field">
-                <span class="field__label">连通性</span>
-                <span class="test-state test-state--unknown" id="embTest">未知</span>
-              </div>
-              <div class="embed-actions">
-                <button class="btn btn--default" type="button" id="embTestBtn">测试连接</button>
-                <button class="btn btn--primary" type="button" id="embSaveBtn">保存</button>
-              </div>
-            </form>
-          </div>
-          <p class="field__hint">测试连接按表单当前值发起，不写回配置；空密钥沿用已保存密钥。测试连接贴左缘、保存贴右缘，同行两端对齐（交互 2.3）。</p>
-        </section>
-
-        <!-- ========== 分组 3 · 场景提示词 ========== -->
-        <section class="ai-group" data-ai-panel="prompts" hidden>
-          <div class="card">
-            <div class="card__header">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th style="min-width:180px">场景</th>
-                    <th style="min-width:240px">内容摘要</th>
-                    <th style="width:96px">来源</th>
-                    <th style="width:110px">更新人</th>
-                    <th style="width:176px">更新时间</th>
-                    <th style="width:150px">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><div><div>用例生成</div><div class="muted" style="font-family:var(--font-mono);font-size:var(--font-size-xs)">case_generate</div></div></td>
-                    <td class="muted">根据需求生成模块、脑图用例文档与测试用例…</td>
-                    <td><span class="tag">内置</span></td>
-                    <td class="muted">系统</td>
-                    <td class="muted">2026-11-18 10:24</td>
-                    <td><span class="cell-actions"><button class="op-link" type="button" data-prompt-edit>编辑</button><button class="op-link op-link--danger" type="button" disabled>恢复默认</button></span></td>
-                  </tr>
-                  <tr>
-                    <td><div><div>用例优化</div><div class="muted" style="font-family:var(--font-mono);font-size:var(--font-size-xs)">case_optimize</div></div></td>
-                    <td class="muted">对用例前置/步骤/预期给出原地更新或新增建议…</td>
-                    <td><span class="tag">内置</span></td>
-                    <td class="muted">系统</td>
-                    <td class="muted">2026-11-18 10:24</td>
-                    <td><span class="cell-actions"><button class="op-link" type="button" data-prompt-edit>编辑</button><button class="op-link op-link--danger" type="button" disabled>恢复默认</button></span></td>
-                  </tr>
-                  <tr>
-                    <td><div><div>计划排序建议</div><div class="muted" style="font-family:var(--font-mono);font-size:var(--font-size-xs)">plan_order</div></div></td>
-                    <td class="muted">按依赖与风险给出测试计划执行顺序建议…</td>
-                    <td><span class="tag tag--primary">自定义</span></td>
-                    <td class="muted">张敏</td>
-                    <td class="muted">2026-11-19 15:02</td>
-                    <td><span class="cell-actions"><button class="op-link" type="button" data-prompt-edit>编辑</button><button class="op-link op-link--danger" type="button" data-prompt-reset>恢复默认</button></span></td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
-          </div>
+            <div class="field">
+              <span class="field__label">连通性</span>
+              <div class="field__control"><span class="test-state test-state--unknown" id="embTest">未知</span></div>
+            </div>
+            <div class="embed-actions">
+              <button class="btn btn--default" type="button" id="embTestBtn">测试连接</button>
+              <span class="field__hint" id="embedSavedAt" hidden>已保存</span>
+              <button class="btn btn--primary" type="button" id="embSaveBtn">保存</button>
+            </div>
+          </form>
         </section>
 
-        <!-- ========== 分组 4 · 用量分析 ========== -->
+        <!-- ========== 分组 3 · 场景提示词（AiPromptsGroup） ========== -->
+        <section class="ai-group" data-ai-panel="prompts" hidden>
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="min-width:180px">场景</th>
+                <th style="min-width:240px">内容摘要</th>
+                <th style="width:96px;text-align:center">来源</th>
+                <th style="width:110px">更新人</th>
+                <th style="width:176px">更新时间</th>
+                <th style="width:150px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="promptRows">
+              <tr>
+                <td><div class="prompt-scene"><span class="prompt-scene__name">用例生成</span><span class="prompt-scene__key">case_generate</span></div></td>
+                <td class="muted" title="根据需求生成模块、脑图用例文档与测试用例…">根据需求生成模块、脑图用例文档与测试用例…</td>
+                <td style="text-align:center"><span class="tag tag--neutral tag--sm">内置</span></td>
+                <td class="muted">系统</td>
+                <td class="muted">2026-11-18 10:24</td>
+                <td>
+                  <button class="btn btn--link btn--sm" type="button" data-prompt-edit>编辑</button>
+                  <button class="btn btn--link btn--sm row-link-danger" type="button" disabled>恢复默认</button>
+                </td>
+              </tr>
+              <tr>
+                <td><div class="prompt-scene"><span class="prompt-scene__name">用例优化</span><span class="prompt-scene__key">case_optimize</span></div></td>
+                <td class="muted" title="对用例前置/步骤/预期给出原地更新或新增建议…">对用例前置/步骤/预期给出原地更新或新增建议…</td>
+                <td style="text-align:center"><span class="tag tag--neutral tag--sm">内置</span></td>
+                <td class="muted">系统</td>
+                <td class="muted">2026-11-18 10:24</td>
+                <td>
+                  <button class="btn btn--link btn--sm" type="button" data-prompt-edit>编辑</button>
+                  <button class="btn btn--link btn--sm row-link-danger" type="button" disabled>恢复默认</button>
+                </td>
+              </tr>
+              <tr>
+                <td><div class="prompt-scene"><span class="prompt-scene__name">计划排序建议</span><span class="prompt-scene__key">plan_order</span></div></td>
+                <td class="muted" title="按依赖与风险给出测试计划执行顺序建议…">按依赖与风险给出测试计划执行顺序建议…</td>
+                <td style="text-align:center"><span class="tag tag--primary tag--sm">自定义</span></td>
+                <td class="muted">张敏</td>
+                <td class="muted">2026-11-19 15:02</td>
+                <td>
+                  <button class="btn btn--link btn--sm" type="button" data-prompt-edit>编辑</button>
+                  <button class="btn btn--link btn--sm row-link-danger" type="button" data-prompt-reset>恢复默认</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- ========== 分组 4 · 用量分析（AiUsageGroup） ========== -->
         <section class="ai-group" data-ai-panel="usage" hidden>
-          <div class="card">
-            <div class="usage-toolbar">
+          <div class="usage-toolbar">
+            <div class="usage-toolbar__left">
               <div class="btn-group" role="group" aria-label="时间范围">
                 <button class="btn btn--default btn--sm" type="button" data-range="7">近 7 天</button>
                 <button class="btn btn--default btn--sm is-active" type="button" data-range="30">近 30 天</button>
                 <button class="btn btn--default btn--sm" type="button" data-range="custom">自定义</button>
               </div>
-              <div class="btn-group" role="group" aria-label="分组维度">
-                <button class="btn btn--default btn--sm is-active" type="button" data-group="model">按模型</button>
-                <button class="btn btn--default btn--sm" type="button" data-group="callType">按调用类型</button>
+              <div class="usage-custom" id="usageCustomRange" hidden>
+                <input class="input" type="date" id="usageStart" value="2026-11-18" aria-label="开始日期">
+                <span class="muted">至</span>
+                <input class="input" type="date" id="usageEnd" value="2026-11-24" aria-label="结束日期">
               </div>
             </div>
-            <div class="usage-summary">
-              <div class="usage-summary__item"><span class="usage-summary__label">总调用</span><span class="usage-summary__value">1,284</span></div>
-              <div class="usage-summary__item"><span class="usage-summary__label">总 Tokens</span><span class="usage-summary__value">2.4M</span></div>
-              <div class="usage-summary__item"><span class="usage-summary__label">平均耗时</span><span class="usage-summary__value">1,120 ms</span></div>
-              <div class="usage-summary__item"><span class="usage-summary__label">成功率</span><span class="usage-summary__value">98.4%</span></div>
-            </div>
-            <div class="tabs" role="tablist" aria-label="指标">
-              <span class="tab tab--active" role="tab" aria-selected="true">调用次数</span>
-              <span class="tab" role="tab" aria-selected="false">Tokens</span>
-              <span class="tab" role="tab" aria-selected="false">平均耗时</span>
-            </div>
-            <!-- 按模型分组：名称缺失时回退模型标识；向量调用无模型标识则归入「向量」并以 callType=embedding 下钻 -->
-            <div class="usage-chart" id="usageChart" aria-label="调用次数趋势">
-              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:42%"></div><span class="usage-chart__label">10-22</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:58%"></div><span class="usage-chart__label">10-25</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:36%"></div><span class="usage-chart__label">10-28</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:74%"></div><span class="usage-chart__label">10-31</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:62%"></div><span class="usage-chart__label">11-03</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar usage-chart__bar--embedding" style="height:48%"></div><span class="usage-chart__label">11-06</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:88%"></div><span class="usage-chart__label">11-09</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar usage-chart__bar--embedding" style="height:66%"></div><span class="usage-chart__label">11-12</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar" style="height:92%"></div><span class="usage-chart__label">11-15</span></div>
-              <div class="usage-chart__col"><div class="usage-chart__bar usage-chart__bar--embedding" style="height:54%"></div><span class="usage-chart__label">11-18</span></div>
-            </div>
-            <div class="usage-drill" id="usageDrill">
-              <div class="usage-drill__head">
-                <span class="usage-drill__title" id="drillTitle">下钻明细 · DeepSeek-V3</span>
-                <button class="btn btn--link btn--sm" type="button" id="drillClose">收起</button>
-              </div>
-              <table class="table">
-                <thead><tr><th style="min-width:140px">类型</th><th style="width:100px">状态</th><th style="width:110px">耗时</th><th style="width:110px">Tokens</th></tr></thead>
-                <tbody id="drillRows">
-                  <tr><td>脑图用例生成</td><td><span class="tag tag--success">成功</span></td><td class="muted">1,860 ms</td><td class="muted">6,204</td></tr>
-                  <tr><td>用例优化</td><td><span class="tag tag--success">成功</span></td><td class="muted">1,204 ms</td><td class="muted">3,816</td></tr>
-                  <tr><td>向量化（embedding）</td><td><span class="tag tag--danger">失败</span></td><td class="muted">240 ms</td><td class="muted">0</td></tr>
-                </tbody>
-              </table>
+            <div class="btn-group" role="group" aria-label="分组维度">
+              <button class="btn btn--default btn--sm" type="button" data-group="day">按天</button>
+              <button class="btn btn--default btn--sm is-active" type="button" data-group="model">按模型</button>
+              <button class="btn btn--default btn--sm" type="button" data-group="scene">按场景</button>
+              <button class="btn btn--default btn--sm" type="button" data-group="callType">按调用类型</button>
             </div>
           </div>
-          <p class="field__hint">按模型分组时名称缺失回退模型标识；向量调用无模型标识时归入「向量」，点击柱条按 callType=embedding 下钻（950923e9 / b563dafd）。</p>
+
+          <div class="usage-summary">
+            <div class="usage-summary__item"><span class="usage-summary__label">总调用</span><span class="usage-summary__value">1,284</span></div>
+            <div class="usage-summary__item"><span class="usage-summary__label">成功率</span><span class="usage-summary__value">98.4%</span></div>
+            <div class="usage-summary__item"><span class="usage-summary__label">Tokens</span><span class="usage-summary__value">2,400,000</span></div>
+            <div class="usage-summary__item"><span class="usage-summary__label">平均耗时</span><span class="usage-summary__value">1,120 ms</span></div>
+            <div class="usage-summary__item"><span class="usage-summary__label">总成本</span><span class="usage-summary__value">¥12.46</span></div>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="指标">
+            <span class="tab tab--active" role="tab" aria-selected="true" data-metric="calls">调用次数</span>
+            <span class="tab" role="tab" aria-selected="false" data-metric="tokens">Tokens</span>
+            <span class="tab" role="tab" aria-selected="false" data-metric="latency">耗时</span>
+            <span class="tab" role="tab" aria-selected="false" data-metric="cost">成本</span>
+          </div>
+
+          <div class="usage-chart-card">
+            <div class="usage-chart" id="usageChart" aria-label="用量趋势">
+              <div class="usage-chart__col" data-drill="DeepSeek-V3"><div class="usage-chart__bar" style="height:72%"></div><span class="usage-chart__label">DeepSeek-V3</span></div>
+              <div class="usage-chart__col" data-drill="通义千问 Plus"><div class="usage-chart__bar" style="height:54%"></div><span class="usage-chart__label">通义千问 Plus</span></div>
+              <div class="usage-chart__col" data-drill="GPT-4o mini"><div class="usage-chart__bar" style="height:28%"></div><span class="usage-chart__label">GPT-4o mini</span></div>
+              <div class="usage-chart__col" data-drill="向量" data-call-type="embedding"><div class="usage-chart__bar" style="height:40%"></div><span class="usage-chart__label">向量</span></div>
+            </div>
+          </div>
+
+          <div class="usage-drill" id="usageDrill">
+            <div class="usage-drill__head">
+              <span class="usage-drill__title" id="drillTitle">下钻明细 · DeepSeek-V3</span>
+              <button class="btn btn--link btn--sm" type="button" id="drillClose">收起</button>
+            </div>
+            <table class="table">
+              <thead><tr><th style="min-width:140px">类型</th><th style="width:100px">状态</th><th style="width:110px">耗时</th><th style="width:110px;text-align:right">Tokens</th></tr></thead>
+              <tbody id="drillRows">
+                <tr><td><span class="drill-link" data-task-link>脑图用例生成</span></td><td><span class="tag tag--success tag--sm">成功</span></td><td class="muted">1,860 ms</td><td class="muted" style="text-align:right">6,204</td></tr>
+                <tr><td><span class="drill-link" data-task-link>用例优化</span></td><td><span class="tag tag--success tag--sm">成功</span></td><td class="muted">1,204 ms</td><td class="muted" style="text-align:right">3,816</td></tr>
+                <tr data-drill-row="embedding"><td><span class="drill-link" data-task-link>向量化</span></td><td><span class="tag tag--danger tag--sm">失败</span></td><td class="muted">240 ms</td><td class="muted" style="text-align:right">0</td></tr>
+              </tbody>
+            </table>
+            <div class="pagination" style="justify-content:flex-end;padding:8px 0 0;border-top:none">
+              <span class="pagination__total" style="margin-right:auto">共 3 条</span>
+              <button class="page-btn" type="button" disabled>&lsaquo;</button>
+              <button class="page-btn page-btn--active" type="button">1</button>
+              <button class="page-btn" type="button" disabled>&rsaquo;</button>
+            </div>
+          </div>
         </section>
       </div>
     </div>
   </div>
 </main>
 
-<!-- 模型编辑弹窗 -->
+<!-- 模型编辑弹窗（AiModelsGroup：560px） -->
 <div class="dialog-mask" id="modelDialog" hidden>
-  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modelDialogTitle">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modelDialogTitle" style="width:560px">
     <div class="dialog__header"><span class="dialog__title" id="modelDialogTitle">添加模型</span><button class="dialog__close" type="button" data-close-dialog aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="dialog__body">
-      <div class="form-grid">
-        <div class="field"><label class="field__label" for="mf-name">名称</label><input class="input" id="mf-name" placeholder="如 DeepSeek-V3"></div>
-        <div class="field"><label class="field__label" for="mf-provider">供应商</label><input class="input" id="mf-provider" placeholder="如 DeepSeek"></div>
-        <div class="field"><label class="field__label" for="mf-base">BaseURL</label><input class="input" id="mf-base" placeholder="https://api.example.com/v1"></div>
-        <div class="field"><label class="field__label" for="mf-model">模型标识</label><input class="input" id="mf-model" placeholder="如 deepseek-chat"></div>
-      </div>
+      <div class="field__error" id="modelFormError" hidden></div>
+      <div class="field"><label class="field__label" for="mf-name">配置名称</label><div class="field__control"><input class="input" id="mf-name" placeholder="如：gpt-x 主力" maxlength="50"></div></div>
+      <div class="field"><label class="field__label" for="mf-provider">供应商</label><div class="field__control"><input class="input" id="mf-provider" placeholder="自由文本，如 openai / azure / deepseek"></div></div>
+      <div class="field"><label class="field__label" for="mf-base">端点地址</label><div class="field__control"><input class="input" id="mf-base" placeholder="https://api.example.com/v1" maxlength="500"></div></div>
+      <div class="field field--top"><label class="field__label" for="mf-key">API Key</label><div class="field__control"><input class="input" id="mf-key" type="password" placeholder="sk-…" maxlength="500"></div></div>
+      <div class="field"><label class="field__label" for="mf-model">模型标识</label><div class="field__control"><input class="input" id="mf-model" placeholder="上游模型 id，如 gpt-4o-mini" maxlength="100"></div></div>
+      <div class="field"><span class="field__label">能力标签</span><div class="field__control"><label class="check"><input type="checkbox" checked> 对话</label><label class="check"><input type="checkbox"> 视觉</label></div></div>
+      <div class="field"><label class="field__label" for="mf-priority">优先级</label><div class="field__control"><input class="input" id="mf-priority" value="100" style="width:140px;flex:0 0 auto"><span class="field__hint">数值越大越优先选用</span></div></div>
+      <div class="field"><span class="field__label">启用</span><div class="field__control"><span class="switch is-on" role="switch" aria-checked="true" id="mf-enabled"></span></div></div>
+      <div class="field"><label class="field__label" for="mf-in">输入单价</label><div class="field__control"><input class="input" id="mf-in" placeholder="未配置按 0 计费" style="width:160px;flex:0 0 auto"><span class="field__hint">元 / 百万 token，未配置按 0 计费</span></div></div>
+      <div class="field"><label class="field__label" for="mf-out">输出单价</label><div class="field__control"><input class="input" id="mf-out" placeholder="" style="width:160px;flex:0 0 auto"><span class="field__hint">元 / 百万 token</span></div></div>
     </div>
     <div class="dialog__footer"><button class="btn btn--default" type="button" data-close-dialog>取消</button><button class="btn btn--primary" type="button" id="modelSave">保存</button></div>
+  </div>
+</div>
+
+<!-- 提示词编辑弹窗（AiPromptsGroup：720px） -->
+<div class="dialog-mask" id="promptDialog" hidden>
+  <div class="dialog dialog--lg" role="dialog" aria-modal="true" aria-labelledby="promptDialogTitle">
+    <div class="dialog__header"><span class="dialog__title" id="promptDialogTitle">编辑提示词 · 用例生成</span><button class="dialog__close" type="button" data-close-prompt aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="dialog__body">
+      <div class="field__error" id="promptFormError" hidden></div>
+      <div class="field" style="grid-template-columns:1fr;gap:6px">
+        <label class="field__label" for="prompt-content">提示词内容</label>
+        <textarea class="textarea" id="prompt-content" rows="12" style="min-height:240px;font-family:var(--font-mono);font-size:var(--font-size-sm)">根据需求生成模块、脑图用例文档与测试用例…
+变量写作 {{变量名}}</textarea>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:8px">
+        <span class="field__hint">可用变量</span>
+        <span class="tag tag--neutral tag--sm" style="cursor:pointer" data-prompt-var="requirement">requirement</span>
+        <span class="tag tag--neutral tag--sm" style="cursor:pointer" data-prompt-var="context">context</span>
+        <span class="field__hint">悬浮看说明，点击插入占位</span>
+      </div>
+    </div>
+    <div class="dialog__footer"><button class="btn btn--default" type="button" data-close-prompt>取消</button><button class="btn btn--primary" type="button" id="promptSave">保存</button></div>
   </div>
 </div>
 
@@ -405,40 +481,138 @@
 <script>
 (function () {
   function byId(id) { return document.getElementById(id); }
+  function q(sel, root) { return (root || document).querySelector(sel); }
+  function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function toast(msg, kind) { if (window.RTUX) window.RTUX.toast(msg, { type: kind || 'success' }); }
+  function pad(n) { return ('0' + n).slice(-2); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function nowText() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
 
-  // 分组切换：当前项主色文字 + 指示条，仅渲染当前分组内容
-  document.querySelectorAll('.ai-shell__nav-item').forEach(function (item) {
-    item.addEventListener('click', function () {
-      document.querySelectorAll('.ai-shell__nav-item').forEach(function (x) { x.classList.remove('is-active'); });
-      item.classList.add('is-active');
-      document.querySelectorAll('[data-ai-panel]').forEach(function (panel) {
-        panel.hidden = panel.getAttribute('data-ai-panel') !== item.getAttribute('data-ai-group');
-      });
+  // 页面本地数据源：新增/编辑/切换/恢复只改这些数组并重绘 DOM，刷新即恢复初始状态
+  var CAP_STYLE = { '对话': 'tag--neutral', '视觉': 'tag--success' };
+  var models = [
+    { id: 'm1', name: 'DeepSeek-V3', provider: 'DeepSeek', base: 'https://api.deepseek.com', modelId: 'deepseek-chat', caps: ['对话'], isDefault: true, enabled: true, test: { state: 'ok', text: '✔ 236ms' }, priority: 100, inPrice: '', outPrice: '' },
+    { id: 'm2', name: '通义千问 Plus', provider: '阿里云', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', modelId: 'qwen-plus', caps: ['对话', '视觉'], isDefault: false, enabled: true, test: { state: 'unknown', text: '未知' }, priority: 90, inPrice: '', outPrice: '' },
+    { id: 'm3', name: 'GPT-4o mini', provider: 'OpenAI', base: 'https://api.openai.com/v1', modelId: 'gpt-4o-mini', caps: ['对话', '视觉'], isDefault: false, enabled: false, test: { state: 'fail', text: '✘ 401 鉴权失败', title: '鉴权失败' }, priority: 80, inPrice: '', outPrice: '' }
+  ];
+  var prompts = [
+    { key: 'case_generate', name: '用例生成', summary: '根据需求生成模块、脑图用例文档与测试用例…', source: '内置', updatedBy: '系统', updatedAt: '2026-11-18 10:24', content: '根据需求生成模块、脑图用例文档与测试用例…\n变量写作 {{变量名}}', defaultSummary: '根据需求生成模块、脑图用例文档与测试用例…', defaultContent: '根据需求生成模块、脑图用例文档与测试用例…\n变量写作 {{变量名}}' },
+    { key: 'case_optimize', name: '用例优化', summary: '对用例前置/步骤/预期给出原地更新或新增建议…', source: '内置', updatedBy: '系统', updatedAt: '2026-11-18 10:24', content: '对用例前置/步骤/预期给出原地更新或新增建议…\n变量写作 {{变量名}}', defaultSummary: '对用例前置/步骤/预期给出原地更新或新增建议…', defaultContent: '对用例前置/步骤/预期给出原地更新或新增建议…\n变量写作 {{变量名}}' },
+    { key: 'plan_order', name: '计划排序建议', summary: '按依赖与风险给出测试计划执行顺序建议…', source: '自定义', updatedBy: '张敏', updatedAt: '2026-11-19 15:02', content: '按依赖与风险给出测试计划执行顺序建议…\n变量写作 {{变量名}}', defaultSummary: '按依赖与风险给出测试计划执行顺序建议…', defaultContent: '按依赖与风险给出测试计划执行顺序建议…\n变量写作 {{变量名}}' }
+  ];
+
+  // 分组切换：真实显示/隐藏对应面板与激活态
+  qa('.ai-shell__nav-item').forEach(function (item) {
+    item.addEventListener('click', function (e) {
+      e.preventDefault();
+      var group = item.getAttribute('data-ai-group');
+      qa('.ai-shell__nav-item').forEach(function (x) { x.classList.remove('ai-shell__nav-item--active'); });
+      item.classList.add('ai-shell__nav-item--active');
+      qa('[data-ai-panel]').forEach(function (panel) { panel.hidden = panel.getAttribute('data-ai-panel') !== group; });
     });
   });
 
-  // AI 总开关：关闭后前端隐藏全部 AI 入口
+  // AI 总开关：真实禁用配置入口并更新提示
   var master = byId('aiMaster');
-  function toggleMaster(el) {
-    var on = !el.classList.contains('is-on');
-    el.classList.toggle('is-on', on);
-    el.setAttribute('aria-checked', String(on));
-    toast(on ? 'AI 已启用' : 'AI 已关闭，前端 AI 入口已隐藏', on ? 'success' : 'warning');
+  function masterOn() { return master.classList.contains('is-on'); }
+  function updateReadiness() {
+    var n = models.filter(function (m) { return m.enabled; }).length;
+    byId('readinessHint').textContent = !masterOn() ? 'AI 总开关已关闭' : (n ? '已启用 ' + n + ' 个模型' : '请先添加并启用模型');
   }
-  master.addEventListener('click', function () { toggleMaster(master); });
+  function setMaster(on) {
+    master.classList.toggle('is-on', on);
+    master.setAttribute('aria-checked', String(on));
+    var dmEl = byId('defaultModel');
+    dmEl.classList.toggle('is-disabled', !on);
+    dmEl.setAttribute('aria-disabled', String(!on));
+    ['reindexBtn', 'addModelBtn', 'embTestBtn', 'embSaveBtn'].forEach(function (id) {
+      var el = byId(id);
+      if (el) el.disabled = !on;
+    });
+    if (!on) closeDefaultMenu();
+    updateReadiness();
+  }
+  master.addEventListener('click', function () {
+    if (!masterOn()) {
+      if (!window.confirm('关闭后业务端 AI 入口将隐藏，历史任务与产物保留\n\n确认关闭 AI 能力？')) return;
+      setMaster(false);
+      toast('AI 能力已关闭', 'warning');
+      return;
+    }
+    setMaster(true);
+    toast('AI 能力已开启', 'success');
+  });
   master.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMaster(master); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); master.click(); }
   });
 
-  // 向量重建：发起 → 进行中 → 完成（终态只有 closed / aborted）
+  // 默认模型下拉：切换真实默认标记、启用状态与表头文案
+  var dm = byId('defaultModel');
+  var dmMenu = byId('defaultModelMenu');
+  function currentDefault() {
+    for (var i = 0; i < models.length; i++) { if (models[i].isDefault) return models[i]; }
+    return null;
+  }
+  function defaultLabel(m) { return m.name + '（' + m.modelId + '）'; }
+  function renderDefaultMenu() {
+    var cur = currentDefault();
+    dm.textContent = cur ? defaultLabel(cur) : '未设置';
+    var enabled = models.filter(function (m) { return m.enabled; });
+    dmMenu.innerHTML = enabled.length ? enabled.map(function (m) {
+      return '<div class="model-select__option' + (m.isDefault ? ' is-selected' : '') + '" role="option" aria-selected="' + m.isDefault + '" data-set-default="' + esc(m.id) + '">' +
+        '<span>' + esc(defaultLabel(m)) + '</span>' + (m.isDefault ? '<span>✓</span>' : '') + '</div>';
+    }).join('') : '<div class="model-select__empty">暂无可用模型</div>';
+  }
+  function closeDefaultMenu() { dmMenu.hidden = true; dm.setAttribute('aria-expanded', 'false'); }
+  function openDefaultMenu() {
+    if (!masterOn()) return;
+    renderDefaultMenu();
+    dmMenu.hidden = false;
+    dm.setAttribute('aria-expanded', 'true');
+  }
+  dm.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (dmMenu.hidden) openDefaultMenu(); else closeDefaultMenu();
+  });
+  dm.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dm.click(); }
+  });
+  dmMenu.addEventListener('click', function (e) {
+    var opt = e.target.closest('[data-set-default]');
+    if (!opt) return;
+    var id = opt.getAttribute('data-set-default');
+    var changed = false;
+    models.forEach(function (m) {
+      var next = m.id === id;
+      if (next !== m.isDefault) changed = true;
+      m.isDefault = next;
+      if (next) m.enabled = true;
+    });
+    closeDefaultMenu();
+    if (changed) { renderModels(); updateReadiness(); toast('默认模型已切换', 'success'); }
+  });
+  document.addEventListener('click', function (e) {
+    if (!dmMenu.hidden && !byId('defaultModelWrap').contains(e.target)) closeDefaultMenu();
+  });
+
+  // 重建引导条：发起 → 进行中 → 就绪，进度与文案均为真实 DOM 变化
   var reindexBtn = byId('reindexBtn');
   reindexBtn.addEventListener('click', function () {
+    if (!masterOn()) return;
     var bar = byId('reindexBar');
     bar.classList.add('ai-shell__reindex--running');
     byId('reindexText').textContent = '向量重建进行中';
     byId('reindexProgress').hidden = false;
     byId('reindexPhase').hidden = false;
+    byId('reindexPhase').textContent = '向量化文档 42%';
+    byId('reindexFill').style.width = '42%';
     reindexBtn.hidden = true;
     setTimeout(function () {
       bar.classList.remove('ai-shell__reindex--running');
@@ -446,95 +620,403 @@
       byId('reindexProgress').hidden = true;
       byId('reindexPhase').hidden = true;
       byId('emb-dim-hint').hidden = true;
-    }, 1800);
+      byId('emb-dim').disabled = false;
+      toast('向量重建完成', 'success');
+    }, 1600);
   });
 
-  // 模型表：启用切换 / 测试连通性 / 默认模型不可停用
-  document.querySelectorAll('[data-model-toggle]').forEach(function (sw) {
-    sw.addEventListener('click', function () {
-      var on = !sw.classList.contains('is-on');
-      sw.classList.toggle('is-on', on);
-      sw.setAttribute('aria-checked', String(on));
-      toast(on ? '模型已启用' : '模型已停用', 'success');
-    });
-  });
-  document.querySelectorAll('[data-model-test]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var state = btn.closest('tr').querySelector('.test-state');
-      state.className = 'test-state test-state--ok';
-      state.textContent = '✔ ' + (180 + Math.floor(Math.random() * 500)) + 'ms';
-      toast('连通性测试通过', 'success');
-    });
-  });
-
-  // 模型弹窗
-  var modelDialog = byId('modelDialog');
-  function openModelDialog(title) {
-    byId('modelDialogTitle').textContent = title;
-    modelDialog.hidden = false;
+  // 模型表：按本地数组重绘，新增/编辑/测试/启停都落回数组
+  function renderModels() {
+    var body = byId('modelRows');
+    if (!models.length) {
+      body.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">暂无模型配置，点击「添加模型」开始</td></tr>';
+    } else {
+      body.innerHTML = models.map(function (m, i) {
+        var stateTitle = m.test.state === 'ok' ? '连接正常' : (m.test.title || '');
+        var swAttr = ' role="switch" aria-checked="' + m.enabled + '"' + (m.isDefault ? ' title="默认模型不可停用"' : ' data-model-toggle');
+        var toggleBtn = m.isDefault
+          ? '<button class="btn btn--link btn--sm row-link-danger" type="button" disabled>停用</button>'
+          : '<button class="btn btn--link btn--sm row-link-danger" type="button" data-model-toggle-btn data-enabled="' + m.enabled + '">' + (m.enabled ? '停用' : '启用') + '</button>';
+        return '<tr data-model-index="' + i + '">' +
+          '<td>' + esc(m.name) + '</td><td>' + esc(m.provider) + '</td>' +
+          '<td class="muted" style="font-family:var(--font-mono)">' + esc(m.base) + '</td>' +
+          '<td class="muted">' + esc(m.modelId) + '</td>' +
+          '<td><span class="cap-tags">' + (m.caps.length ? m.caps.map(function (c) {
+            return '<span class="tag ' + (CAP_STYLE[c] || 'tag--neutral') + ' tag--sm">' + esc(c) + '</span>';
+          }).join('') : '<span class="muted">—</span>') + '</span></td>' +
+          '<td style="text-align:center">' + (m.isDefault ? '<span class="tag tag--primary tag--sm">默认</span>' : '<span class="muted">—</span>') + '</td>' +
+          '<td style="text-align:center"><span class="switch' + (m.enabled ? ' is-on' : '') + (m.isDefault ? ' is-disabled' : '') + '"' + swAttr + '></span></td>' +
+          '<td><span class="test-state test-state--' + m.test.state + '"' + (stateTitle ? ' title="' + esc(stateTitle) + '"' : '') + '>' + esc(m.test.text) + '</span></td>' +
+          '<td><button class="btn btn--link btn--sm" type="button" data-model-edit>编辑</button>' +
+          '<button class="btn btn--link btn--sm" type="button" data-model-test>测试</button>' + toggleBtn + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+    renderDefaultMenu();
   }
-  function closeModelDialog() { modelDialog.hidden = true; }
-  byId('addModelBtn').addEventListener('click', function () { openModelDialog('添加模型'); });
-  document.querySelectorAll('[data-model-edit]').forEach(function (btn) {
-    btn.addEventListener('click', function () { openModelDialog('编辑模型 · ' + btn.closest('tr').children[0].textContent); });
+  byId('modelRows').addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-model-index]');
+    if (!tr) return;
+    var m = models[Number(tr.getAttribute('data-model-index'))];
+    if (!m) return;
+    if (e.target.closest('[data-model-edit]')) { openModelDialog(Number(tr.getAttribute('data-model-index'))); return; }
+    if (e.target.closest('[data-model-test]')) {
+      if (/^https?:\/\/[^\s]+$/i.test(m.base) && m.modelId) {
+        m.test = { state: 'ok', text: '✔ ' + (180 + Math.floor(Math.random() * 500)) + 'ms' };
+      } else {
+        m.test = { state: 'fail', text: '✘ 地址或模型标识无效', title: '配置校验失败' };
+      }
+      renderModels();
+      return;
+    }
+    if (e.target.closest('[data-model-toggle-btn], [data-model-toggle]')) {
+      if (m.isDefault || !masterOn()) return;
+      m.enabled = !m.enabled;
+      renderModels();
+      updateReadiness();
+      toast(m.enabled ? '模型已启用' : '模型已停用', 'success');
+    }
   });
-  modelDialog.querySelectorAll('[data-close-dialog]').forEach(function (btn) { btn.addEventListener('click', closeModelDialog); });
-  modelDialog.addEventListener('click', function (e) { if (e.target === modelDialog) closeModelDialog(); });
-  byId('modelSave').addEventListener('click', function () { closeModelDialog(); toast('模型配置已保存', 'success'); });
+  byId('modelRows').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var sw = e.target.closest('[data-model-toggle]');
+    if (!sw) return;
+    e.preventDefault();
+    sw.click();
+  });
 
-  // 向量表单：测试连接按当前值发起，展示连通性状态；保存后维度变更提示需重建
+  // 模型弹窗：打开时回填真实行数据，保存写回数组并重绘后关闭
+  var modelDialog = byId('modelDialog');
+  var editingModelIndex = -1;
+  function closeModelDialog() { modelDialog.hidden = true; }
+  function openModelDialog(index) {
+    editingModelIndex = typeof index === 'number' ? index : -1;
+    var m = editingModelIndex < 0
+      ? { name: '', provider: '', base: '', modelId: '', caps: ['对话'], enabled: true, priority: 100, inPrice: '', outPrice: '' }
+      : models[editingModelIndex];
+    byId('modelDialogTitle').textContent = editingModelIndex < 0 ? '添加模型' : '编辑模型 · ' + m.name;
+    byId('mf-name').value = m.name;
+    byId('mf-provider').value = m.provider;
+    byId('mf-base').value = m.base;
+    byId('mf-key').value = '';
+    byId('mf-model').value = m.modelId;
+    byId('mf-priority').value = m.priority || 100;
+    byId('mf-in').value = m.inPrice || '';
+    byId('mf-out').value = m.outPrice || '';
+    var checks = qa('#modelDialog input[type="checkbox"]');
+    checks[0].checked = m.caps.indexOf('对话') >= 0;
+    checks[1].checked = m.caps.indexOf('视觉') >= 0;
+    var sw = byId('mf-enabled');
+    sw.classList.toggle('is-on', m.enabled);
+    sw.setAttribute('aria-checked', String(m.enabled));
+    byId('modelFormError').hidden = true;
+    modelDialog.hidden = false;
+    byId('mf-name').focus();
+  }
+  byId('addModelBtn').addEventListener('click', function () { if (masterOn()) openModelDialog(-1); });
+  qa('[data-close-dialog]', modelDialog).forEach(function (btn) { btn.addEventListener('click', closeModelDialog); });
+  modelDialog.addEventListener('click', function (e) { if (e.target === modelDialog) closeModelDialog(); });
+  var mfEnabled = byId('mf-enabled');
+  mfEnabled.addEventListener('click', function () {
+    var on = !mfEnabled.classList.contains('is-on');
+    mfEnabled.classList.toggle('is-on', on);
+    mfEnabled.setAttribute('aria-checked', String(on));
+  });
+  mfEnabled.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mfEnabled.click(); } });
+  byId('modelSave').addEventListener('click', function () {
+    var name = byId('mf-name').value.trim();
+    var base = byId('mf-base').value.trim();
+    var modelId = byId('mf-model').value.trim();
+    var err = byId('modelFormError');
+    if (!name || !base || !modelId) {
+      err.textContent = '请填写配置名称、端点地址和模型标识';
+      err.hidden = false;
+      return;
+    }
+    var checks = qa('#modelDialog input[type="checkbox"]');
+    var caps = [];
+    if (checks[0].checked) caps.push('对话');
+    if (checks[1].checked) caps.push('视觉');
+    var draft = {
+      name: name,
+      provider: byId('mf-provider').value.trim() || '自定义',
+      base: base,
+      modelId: modelId,
+      caps: caps,
+      priority: Number(byId('mf-priority').value) || 100,
+      inPrice: byId('mf-in').value.trim(),
+      outPrice: byId('mf-out').value.trim(),
+      enabled: mfEnabled.classList.contains('is-on')
+    };
+    var isEdit = editingModelIndex >= 0;
+    if (isEdit) {
+      var m = models[editingModelIndex];
+      Object.keys(draft).forEach(function (k) { m[k] = draft[k]; });
+      if (m.isDefault) m.enabled = true;
+    } else {
+      draft.id = 'm-' + Date.now();
+      draft.isDefault = models.length === 0;
+      draft.test = { state: 'unknown', text: '未知' };
+      models.push(draft);
+    }
+    renderModels();
+    updateReadiness();
+    closeModelDialog();
+    toast(isEdit ? '模型已更新' : '模型已添加', 'success');
+  });
+
+  // 向量表单：测试按当前表单值渲染结果；保存后落状态并触发重建引导
   byId('embTestBtn').addEventListener('click', function () {
+    var base = byId('emb-base').value.trim();
+    var model = byId('emb-model').value.trim();
     var state = byId('embTest');
-    state.className = 'test-state test-state--ok';
-    state.textContent = '✔ ' + (120 + Math.floor(Math.random() * 300)) + 'ms';
-    toast('连接测试成功', 'success');
+    if (/^https?:\/\/[^\s]+$/i.test(base) && model) {
+      state.className = 'test-state test-state--ok';
+      state.textContent = '✔ ' + (120 + Math.floor(Math.random() * 300)) + 'ms · ' + (byId('emb-dim').value.trim() || '—') + ' 维';
+    } else {
+      state.className = 'test-state test-state--fail';
+      state.textContent = '✘ 端点地址或嵌入模型无效';
+    }
   });
   byId('embSaveBtn').addEventListener('click', function () {
     byId('emb-dim-hint').hidden = false;
+    byId('emb-dim').disabled = true;
     byId('reindexText').textContent = '向量维度已变更，需全量重建';
     byId('reindexBtn').hidden = false;
-    toast('向量配置已保存，需全量重建后生效', 'warning');
+    byId('reindexProgress').hidden = true;
+    byId('reindexPhase').hidden = true;
+    byId('reindexBar').classList.remove('ai-shell__reindex--running');
+    var saved = byId('embedSavedAt');
+    saved.hidden = false;
+    saved.textContent = '已保存 · ' + nowText().slice(11);
+    toast('向量配置已保存', 'success');
   });
   var embEnabled = byId('embEnabled');
-  embEnabled.addEventListener('click', function () {
+  function toggleEmbEnabled() {
     var on = !embEnabled.classList.contains('is-on');
     embEnabled.classList.toggle('is-on', on);
     embEnabled.setAttribute('aria-checked', String(on));
-  });
+  }
+  embEnabled.addEventListener('click', toggleEmbEnabled);
+  embEnabled.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleEmbEnabled(); } });
 
-  // 场景提示词：编辑 / 恢复默认
-  document.querySelectorAll('[data-prompt-edit]').forEach(function (btn) {
-    btn.addEventListener('click', function () { toast('打开提示词编辑弹窗（对齐 AiPromptsGroup 720px 弹窗）', 'success'); });
+  // 场景提示词：保存写回摘要/来源/更新人与时间；恢复默认真的还原行
+  function renderPrompts() {
+    byId('promptRows').innerHTML = prompts.map(function (p, i) {
+      var resetBtn = p.source === '内置'
+        ? '<button class="btn btn--link btn--sm row-link-danger" type="button" disabled>恢复默认</button>'
+        : '<button class="btn btn--link btn--sm row-link-danger" type="button" data-prompt-reset>恢复默认</button>';
+      return '<tr data-prompt-index="' + i + '">' +
+        '<td><div class="prompt-scene"><span class="prompt-scene__name">' + esc(p.name) + '</span><span class="prompt-scene__key">' + esc(p.key) + '</span></div></td>' +
+        '<td class="muted" title="' + esc(p.summary) + '">' + esc(p.summary) + '</td>' +
+        '<td style="text-align:center"><span class="tag ' + (p.source === '内置' ? 'tag--neutral' : 'tag--primary') + ' tag--sm">' + esc(p.source) + '</span></td>' +
+        '<td class="muted">' + esc(p.updatedBy) + '</td>' +
+        '<td class="muted">' + esc(p.updatedAt) + '</td>' +
+        '<td><button class="btn btn--link btn--sm" type="button" data-prompt-edit>编辑</button>' + resetBtn + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+  var promptDialog = byId('promptDialog');
+  var editingPromptIndex = -1;
+  function closePromptDialog() { promptDialog.hidden = true; }
+  function openPromptDialog(index) {
+    editingPromptIndex = index;
+    var p = prompts[index];
+    byId('promptDialogTitle').textContent = '编辑提示词 · ' + p.name;
+    byId('prompt-content').value = p.content;
+    byId('promptFormError').hidden = true;
+    promptDialog.hidden = false;
+    byId('prompt-content').focus();
+  }
+  byId('promptRows').addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-prompt-index]');
+    if (!tr) return;
+    var i = Number(tr.getAttribute('data-prompt-index'));
+    if (e.target.closest('[data-prompt-edit]')) { openPromptDialog(i); return; }
+    if (e.target.closest('[data-prompt-reset]')) {
+      if (!window.confirm('恢复后自定义内容将丢失\n\n确认恢复默认提示词？')) return;
+      var p = prompts[i];
+      p.content = p.defaultContent;
+      p.summary = p.defaultSummary;
+      p.source = '内置';
+      p.updatedBy = '系统';
+      p.updatedAt = '2026-11-18 10:24';
+      renderPrompts();
+      toast('已恢复内置默认内容', 'success');
+    }
   });
-  document.querySelectorAll('[data-prompt-reset]').forEach(function (btn) {
-    btn.addEventListener('click', function () { toast('已恢复为内置默认提示词', 'success'); });
+  qa('[data-close-prompt]', promptDialog).forEach(function (btn) { btn.addEventListener('click', closePromptDialog); });
+  promptDialog.addEventListener('click', function (e) { if (e.target === promptDialog) closePromptDialog(); });
+  byId('promptSave').addEventListener('click', function () {
+    var raw = byId('prompt-content').value;
+    var trimmed = raw.trim();
+    if (!trimmed) {
+      var err = byId('promptFormError');
+      err.textContent = '提示词内容不能为空';
+      err.hidden = false;
+      return;
+    }
+    var p = prompts[editingPromptIndex];
+    p.content = raw;
+    p.summary = trimmed.replace(/\s+/g, ' ').slice(0, 30) + (trimmed.length > 30 ? '…' : '');
+    p.source = '自定义';
+    p.updatedBy = '张明';
+    p.updatedAt = nowText();
+    renderPrompts();
+    closePromptDialog();
+    toast('提示词已保存', 'success');
   });
-
-  // 用量分析：时间范围 / 分组维度切换；按调用类型时图例显示「向量」
-  document.querySelectorAll('[data-range]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('[data-range]').forEach(function (x) { x.classList.remove('is-active'); });
-      btn.classList.add('is-active');
+  qa('[data-prompt-var]', promptDialog).forEach(function (tag) {
+    tag.addEventListener('click', function () {
+      var area = byId('prompt-content');
+      var token = '{{' + tag.getAttribute('data-prompt-var') + '}}';
+      var start = area.selectionStart == null ? area.value.length : area.selectionStart;
+      var end = area.selectionEnd == null ? start : area.selectionEnd;
+      area.value = area.value.slice(0, start) + token + area.value.slice(end);
+      area.focus();
+      area.selectionStart = area.selectionEnd = start + token.length;
     });
   });
-  document.querySelectorAll('[data-group]').forEach(function (btn) {
+
+  // 用量分析：时间范围 / 分组维度 / 指标切换都重绘真实图表与汇总
+  var CHART = {
+    model: [
+      { label: 'DeepSeek-V3', v: { calls: 72, tokens: 80, latency: 55, cost: 76 } },
+      { label: '通义千问 Plus', v: { calls: 54, tokens: 48, latency: 62, cost: 48 } },
+      { label: 'GPT-4o mini', v: { calls: 28, tokens: 22, latency: 34, cost: 18 } },
+      { label: '向量', v: { calls: 40, tokens: 30, latency: 26, cost: 22 }, callType: 'embedding' }
+    ],
+    day: [
+      { label: '11-18', v: { calls: 52, tokens: 46, latency: 60, cost: 40 } },
+      { label: '11-19', v: { calls: 68, tokens: 71, latency: 48, cost: 62 } },
+      { label: '11-20', v: { calls: 45, tokens: 39, latency: 66, cost: 36 } },
+      { label: '11-21', v: { calls: 81, tokens: 84, latency: 42, cost: 78 } },
+      { label: '11-22', v: { calls: 63, tokens: 58, latency: 55, cost: 57 } },
+      { label: '11-23', v: { calls: 74, tokens: 68, latency: 50, cost: 70 } },
+      { label: '11-24', v: { calls: 58, tokens: 61, latency: 47, cost: 54 } }
+    ],
+    scene: [
+      { label: '用例生成', v: { calls: 78, tokens: 86, latency: 58, cost: 72 } },
+      { label: '用例优化', v: { calls: 62, tokens: 55, latency: 64, cost: 54 } },
+      { label: '计划排序', v: { calls: 34, tokens: 28, latency: 38, cost: 24 } },
+      { label: '缺陷分析', v: { calls: 48, tokens: 44, latency: 70, cost: 46 } },
+      { label: '向量化', v: { calls: 40, tokens: 30, latency: 26, cost: 22 }, callType: 'embedding' }
+    ],
+    callType: [
+      { label: '对话', v: { calls: 82, tokens: 88, latency: 60, cost: 80 } },
+      { label: '视觉', v: { calls: 36, tokens: 41, latency: 76, cost: 38 } },
+      { label: '嵌入', v: { calls: 40, tokens: 30, latency: 26, cost: 22 }, callType: 'embedding' },
+      { label: '其他', v: { calls: 12, tokens: 9, latency: 30, cost: 8 } }
+    ]
+  };
+  var currentRange = '30', currentGroup = 'model', currentMetric = 'calls';
+  function rangeFactor() {
+    if (currentRange === '7') return 0.24;
+    if (currentRange === 'custom') {
+      var s = byId('usageStart').value, e = byId('usageEnd').value;
+      if (!s || !e) return 1;
+      var days = Math.round((new Date(e).getTime() - new Date(s).getTime()) / 86400000) + 1;
+      return Math.max(0.05, Math.min(2, isNaN(days) ? 1 : days / 30));
+    }
+    return 1;
+  }
+  function updateSummary() {
+    var f = rangeFactor();
+    var calls = Math.round(1284 * f);
+    qa('.usage-summary__item').forEach(function (item) {
+      var label = q('.usage-summary__label', item).textContent;
+      var val = q('.usage-summary__value', item);
+      if (label === '总调用') val.textContent = calls.toLocaleString('en-US');
+      else if (label === '成功率') val.textContent = f < 0.5 ? '97.9%' : '98.4%';
+      else if (label === 'Tokens') val.textContent = Math.round(2400000 * f).toLocaleString('en-US');
+      else if (label === '平均耗时') val.textContent = Math.round(1120 * (f < 0.5 ? 0.94 : 1)).toLocaleString('en-US') + ' ms';
+      else if (label === '总成本') val.textContent = '¥' + (12.46 * f).toFixed(2);
+    });
+  }
+  function renderChart() {
+    var f = rangeFactor();
+    var set = CHART[currentGroup] || CHART.model;
+    byId('usageChart').innerHTML = set.map(function (col) {
+      var h = Math.max(4, Math.min(100, Math.round(col.v[currentMetric] * f)));
+      var drill = col.callType ? '' : ' data-drill="' + esc(col.label) + '"';
+      var ct = col.callType ? ' data-call-type="' + col.callType + '"' : '';
+      return '<div class="usage-chart__col"' + drill + ct + '>' +
+        '<div class="usage-chart__bar" style="height:' + h + '%"></div>' +
+        '<span class="usage-chart__label">' + esc(col.label) + '</span></div>';
+    }).join('');
+  }
+  function applyDrill(embedOnly, title) {
+    byId('drillTitle').textContent = title;
+    var visible = 0;
+    qa('#drillRows tr').forEach(function (row) {
+      var show = !embedOnly || row.getAttribute('data-drill-row') === 'embedding';
+      row.hidden = !show;
+      if (show) visible++;
+    });
+    q('.pagination__total').textContent = '共 ' + visible + ' 条';
+    byId('usageDrill').hidden = false;
+  }
+  qa('[data-range]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('[data-group]').forEach(function (x) { x.classList.remove('is-active'); });
+      qa('[data-range]').forEach(function (x) { x.classList.remove('is-active'); });
       btn.classList.add('is-active');
-      var byType = btn.getAttribute('data-group') === 'callType';
-      byId('drillTitle').textContent = byType ? '下钻明细 · 向量（embedding）' : '下钻明细 · DeepSeek-V3';
-      document.querySelectorAll('#drillRows tr').forEach(function (row) {
-        row.hidden = byType ? row.children[0].textContent.indexOf('向量') < 0 : false;
-      });
+      currentRange = btn.getAttribute('data-range');
+      byId('usageCustomRange').hidden = currentRange !== 'custom';
+      updateSummary();
+      renderChart();
     });
   });
-  byId('drillClose').addEventListener('click', function () {
-    var drill = byId('usageDrill');
-    drill.hidden = !drill.hidden;
+  qa('[data-group]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      qa('[data-group]').forEach(function (x) { x.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      currentGroup = btn.getAttribute('data-group');
+      var byType = currentGroup === 'callType';
+      var set = CHART[currentGroup] || CHART.model;
+      applyDrill(byType, '下钻明细 · ' + (byType ? '嵌入调用' : set[0].label));
+      renderChart();
+    });
   });
-  document.querySelectorAll('.usage-chart__col').forEach(function (col) {
-    col.addEventListener('click', function () { byId('usageDrill').hidden = false; });
+  qa('[data-metric]').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      qa('[data-metric]').forEach(function (x) { x.classList.remove('tab--active'); x.setAttribute('aria-selected', 'false'); });
+      tab.classList.add('tab--active');
+      tab.setAttribute('aria-selected', 'true');
+      currentMetric = tab.getAttribute('data-metric');
+      renderChart();
+      updateSummary();
+    });
   });
+  ['usageStart', 'usageEnd'].forEach(function (id) {
+    byId(id).addEventListener('change', function () { if (currentRange === 'custom') { updateSummary(); renderChart(); } });
+  });
+  byId('usageChart').addEventListener('click', function (e) {
+    var col = e.target.closest('.usage-chart__col');
+    if (!col) return;
+    var isEmbed = col.getAttribute('data-call-type') === 'embedding';
+    applyDrill(isEmbed, '下钻明细 · ' + (isEmbed ? '嵌入调用' : (col.getAttribute('data-drill') || 'DeepSeek-V3')));
+  });
+  byId('drillClose').addEventListener('click', function () { byId('usageDrill').hidden = true; });
+  qa('[data-task-link]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var url = '../project/ai-task-detail.html';
+      var win = window.open(url, '_blank');
+      if (!win) window.location.href = url;
+    });
+  });
+
+  // ESC 逐层关闭：下拉 → 弹窗 → 下钻面板
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    if (!dmMenu.hidden) { closeDefaultMenu(); return; }
+    if (!modelDialog.hidden) { closeModelDialog(); return; }
+    if (!promptDialog.hidden) { closePromptDialog(); return; }
+    if (!byId('usageDrill').hidden) byId('usageDrill').hidden = true;
+  });
+
+  renderModels();
+  renderPrompts();
+  renderChart();
 })();
 </script>
 </body>

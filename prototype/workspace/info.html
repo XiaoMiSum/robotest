@@ -7,7 +7,9 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-/* 实际页 KPI 卡为跳转链接（成员/项目），补链接态反馈 */
+[hidden] { display: none !important; }
+
+/* 对齐 WorkspaceInfoPage.vue：KPI 卡为 router-link，补链接态反馈 */
 .kpi--link {
   display: block;
   min-height: 128px;
@@ -20,60 +22,158 @@
   border-color: var(--brand-200);
   box-shadow: var(--shadow-card-hover);
 }
+.kpi--link:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+/* 对齐实现：el-card shadow="never" + 自定义 header/body 内边距 */
+.ws-info-card {
+  overflow: hidden;
+  box-shadow: none;
+}
+.ws-info-card .card__header {
+  padding: var(--space-lg) var(--card-pad);
+}
+.ws-info-card .card__body {
+  padding: var(--card-pad);
+}
+/* 对齐实现：el-form label-position="top" 的标签与间距 */
+.ws-info-form .field__label {
+  margin-bottom: 6px;
+  color: var(--n-500);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.ws-info-form .field {
+  margin-bottom: 20px;
+}
+.ws-info-form .input[disabled] {
+  font-family: var(--font-mono);
+  color: var(--n-500);
+}
+/* 对齐实现：show-word-limit 的静态展示 */
+.field__count {
+  margin-top: 4px;
+  color: var(--n-400);
+  font-size: var(--font-size-xs);
+  line-height: 1.2;
+  text-align: right;
+}
+/* 对齐实现：dl 元信息网格 */
+.ws-info-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin: 0;
+  padding: var(--space-xs) 0 0;
+}
+.ws-info-meta__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.ws-info-meta__label,
+.ws-info-meta__value {
+  margin: 0;
+}
+.ws-info-meta__label {
+  color: var(--n-500);
+  font-size: var(--font-size-sm);
+}
+.ws-info-meta__value {
+  color: var(--n-900);
+  font-size: var(--font-size-base);
+  font-variant-numeric: tabular-nums;
+}
+/* 对齐实现：仅 canEdit 时展示的操作区 */
+.ws-info-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin: var(--card-pad) calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad));
+  padding: 14px var(--card-pad);
+  border-top: 1px solid var(--n-100);
+}
+.ws-info-save-state {
+  color: var(--n-500);
+  font-size: var(--font-size-sm);
+}
+.ws-info-save-state.is-dirty {
+  color: var(--n-600);
+}
+.ws-info-save-state.is-saved {
+  color: var(--st-success);
+}
+@media (max-width: 768px) {
+  .ws-info-meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 </style>
 </head>
 <body data-shell="business" data-mode="workspace" data-active="info" data-workspace="质量中台">
 
 <main class="content">
 
-  <div class="page-head">
+  <header class="page-head">
     <div>
       <h1 class="page-head__title">空间信息</h1>
       <p class="page-head__desc">空间基础资料与运行统计</p>
     </div>
-  </div>
+  </header>
 
-  <div class="card-grid card-grid--2">
+  <section class="card-grid card-grid--2" aria-label="工作空间统计" style="margin-bottom:var(--block-gap)">
     <a class="card kpi kpi--link" href="members.html" aria-label="查看工作空间成员">
-      <div class="kpi__label"><span data-icon="userfilled"></span>成员</div>
+      <div class="kpi__label"><span data-icon="userfilled"></span><span>成员</span></div>
       <div class="kpi__value">24<span class="unit">人</span></div>
     </a>
     <a class="card kpi kpi--link" href="projects.html" aria-label="查看工作空间项目">
-      <div class="kpi__label"><span data-icon="folder"></span>项目</div>
+      <div class="kpi__label"><span data-icon="folder"></span><span>项目</span></div>
       <div class="kpi__value">6<span class="unit">个</span></div>
     </a>
-  </div>
+  </section>
 
-  <div class="card block-gap">
-    <div class="card__header"><h3 class="card__title">基础信息</h3></div>
+  <div class="card ws-info-card">
+    <div class="card__header"><h2 class="card__title">基础信息</h2></div>
     <div class="card__body">
-      <div class="form-grid">
-        <div class="field">
-          <label class="field__label">名称<span class="req">*</span></label>
-          <input class="input" value="质量中台" maxlength="50">
+      <form class="ws-info-form" onsubmit="return false">
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="ws-name">名称<span class="req">*</span></label>
+            <input class="input" id="ws-name" value="质量中台" maxlength="50">
+            <div class="field__error" id="ws-name-error" hidden></div>
+            <div class="field__count" id="ws-name-count">4 / 50</div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="ws-id">空间 ID</label>
+            <input class="input mono" id="ws-id" value="f47ac10b-58cc-4372-a567-0e02b2c3d479" disabled>
+          </div>
         </div>
         <div class="field">
-          <label class="field__label">空间 ID</label>
-          <input class="input mono" value="f47ac10b-58cc-4372-a567-0e02b2c3d479" disabled>
+          <label class="field__label" for="ws-desc">描述</label>
+          <textarea class="textarea" id="ws-desc" maxlength="500" rows="3">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea>
+          <div class="field__count" id="ws-desc-count">33 / 500</div>
         </div>
-      </div>
-      <div class="field">
-        <label class="field__label">描述</label>
-        <textarea class="textarea" maxlength="500" style="min-height:80px">核心业务线质量保障与用例资产沉淀，覆盖电商主链路的回归与专项测试。</textarea>
-      </div>
-      <div class="desc-list" style="margin-bottom:0">
-        <div class="desc-item">
-          <div class="desc-item__label">创建人</div>
-          <div class="desc-item__value">张明</div>
+      </form>
+
+      <dl class="ws-info-meta">
+        <div class="ws-info-meta__item">
+          <dt class="ws-info-meta__label">创建人</dt>
+          <dd class="ws-info-meta__value">张明</dd>
         </div>
-        <div class="desc-item">
-          <div class="desc-item__label">创建时间</div>
-          <div class="desc-item__value num">2026-09-18 10:24</div>
+        <div class="ws-info-meta__item">
+          <dt class="ws-info-meta__label">创建时间</dt>
+          <dd class="ws-info-meta__value">2026-09-18 10:24</dd>
         </div>
+      </dl>
+
+      <!-- 对齐实现：v-if="canEdit" 时渲染保存按钮，el-button type="primary" :loading="saving" -->
+      <div class="ws-info-actions">
+        <span class="ws-info-save-state" id="ws-save-state" hidden></span>
+        <button class="btn btn--primary" id="ws-save" type="button">保存修改</button>
       </div>
-    </div>
-    <div class="toolbar" style="border-top:1px solid var(--n-100);border-bottom:none;justify-content:flex-end">
-      <button class="btn btn--primary">保存修改</button>
     </div>
   </div>
 
@@ -81,5 +181,92 @@
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+  (function () {
+    function byId(id) { return document.getElementById(id); }
+
+    var nameInput = byId('ws-name');
+    var descInput = byId('ws-desc');
+    var nameCount = byId('ws-name-count');
+    var descCount = byId('ws-desc-count');
+    var nameError = byId('ws-name-error');
+    var saveBtn = byId('ws-save');
+    var saveState = byId('ws-save-state');
+    var resetTimer = null;
+
+    var saved = { name: nameInput.value, desc: descInput.value, at: '' };
+
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+    function nowText() {
+      var d = new Date();
+      return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function renderCounts() {
+      nameCount.textContent = nameInput.value.length + ' / 50';
+      descCount.textContent = descInput.value.length + ' / 500';
+    }
+
+    function setState(text, kind) {
+      saveState.textContent = text;
+      saveState.className = 'ws-info-save-state' + (kind ? ' is-' + kind : '');
+      saveState.hidden = !text;
+    }
+
+    // 顶栏空间标签由 shell.js 按 body 属性在载入时渲染，保存后需同步重绘
+    function syncWorkspaceName(name) {
+      document.body.setAttribute('data-workspace', name);
+      var tag = document.querySelector('.topbar__tags .shell-tag--brand');
+      if (tag) tag.textContent = name;
+    }
+
+    function handleInput() {
+      renderCounts();
+      if (nameError.hidden === false) nameError.hidden = true;
+      if (nameInput.value !== saved.name || descInput.value !== saved.desc) {
+        setState('有未保存的修改', 'dirty');
+      } else if (saved.at) {
+        setState('已保存 · ' + saved.at, 'saved');
+      } else {
+        setState('');
+      }
+    }
+
+    function save() {
+      var name = nameInput.value.trim();
+      if (!name) {
+        nameError.textContent = '请输入空间名称';
+        nameError.hidden = false;
+        nameInput.focus();
+        return;
+      }
+      if (name.length < 2 || name.length > 50) {
+        nameError.textContent = '名称长度需在 2-50 字符之间';
+        nameError.hidden = false;
+        nameInput.focus();
+        return;
+      }
+      nameError.hidden = true;
+
+      saved = { name: name, desc: descInput.value, at: nowText() };
+      nameInput.value = name;
+      renderCounts();
+      syncWorkspaceName(name);
+      setState('已保存 · ' + saved.at, 'saved');
+
+      saveBtn.textContent = '已保存';
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(function () { saveBtn.textContent = '保存修改'; }, 1500);
+    }
+
+    nameInput.addEventListener('input', handleInput);
+    descInput.addEventListener('input', handleInput);
+    nameInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
+    });
+    saveBtn.addEventListener('click', save);
+  })();
+</script>
 </body>
 </html>

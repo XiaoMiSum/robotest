@@ -8,177 +8,176 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .env-page { display: flex; flex-direction: column; gap: var(--space-md); height: 100%; }
+  .env-page { display: flex; flex-direction: column; height: 100%; }
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-lg); margin-bottom: var(--block-gap); }
+  .page-head__title { margin: 0; color: var(--n-900); font-size: var(--font-size-2xl); font-weight: 650; letter-spacing: -0.01em; }
+  .page-head__desc { margin: 4px 0 0; color: var(--n-500); font-size: var(--font-size-sm); }
   .env-body { flex: 1; display: flex; gap: var(--space-lg); min-height: 0; }
 
-  /* 左：环境列表 */
+  /* 左：环境列表（EnvironmentPage.vue） */
   .env-list { width: 300px; flex-shrink: 0; overflow: hidden; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
   .env-list__head { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
   .env-list__head .input-wrap { flex: 1; min-width: 0; }
-  .env-list__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-sm); }
+  .env-list__create { flex-shrink: 0; position: relative; }
+  .env-list__body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
+  .env-list__body::-webkit-scrollbar { display: none; }
+
   .split-btn { display: inline-flex; }
   .split-btn .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .split-btn .btn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 8px; padding-right: 8px; }
+  .split-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 158px; padding: 4px; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+  .split-menu button { display: block; width: 100%; padding: 7px 10px; border: none; background: none; border-radius: var(--radius-sm); text-align: left; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
+  .split-menu button:hover { background: var(--n-50); }
+  .split-menu button:disabled { color: var(--n-400); background: none; cursor: not-allowed; }
 
   .env-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  .env-item { border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); cursor: pointer; }
+  .env-item { border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); cursor: pointer; transition: all var(--transition-fast); }
   .env-item:hover { background: var(--n-50); }
   .env-item.is-active { border-color: var(--brand-200, #b3d8ff); background: rgba(59,130,246,.06); }
   .env-item__main { display: flex; align-items: center; gap: var(--space-sm); }
-  .env-item__name { font-size: var(--font-size-sm); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .env-item__set-default { color: var(--brand-500); font-size: var(--font-size-xs); opacity: 0; cursor: pointer; }
-  .env-item:hover .env-item__set-default { opacity: 1; }
+  .env-item__name { display: block; flex: 1; min-width: 0; overflow: hidden; font-size: var(--font-size-sm); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+  .env-item__name:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 1px; border-radius: 2px; }
+  .env-item__set-default { opacity: 0; transition: opacity var(--transition-fast); }
+  .env-item:hover .env-item__set-default, .env-item:focus-within .env-item__set-default { opacity: 1; }
   .env-item__meta { margin-top: 2px; font-size: var(--font-size-xs); color: var(--n-400); }
-  .env-item__acts { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 2px 6px; opacity: 0; font-size: var(--font-size-xs); }
-  .env-item:hover .env-item__acts { opacity: 1; }
+  .env-item__acts { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 2px 6px; opacity: 0; transition: opacity var(--transition-fast); }
+  .env-item:hover .env-item__acts, .env-item:focus-within .env-item__acts { opacity: 1; }
+  .env-item__acts .btn + .btn { margin-left: 0; }
+  .env-list__load-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: 8px var(--space-sm); border: 1px solid var(--st-danger-border, #fab6b6); border-radius: var(--radius-md); background: var(--st-danger-light, #fef0f0); color: var(--st-danger-strong, #c45656); font-size: var(--font-size-xs); }
 
-  /* 右：详情（头部与页签吸顶，滚动时上下文不丢失） */
-  .env-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
+  .env-empty { text-align: center; padding: var(--space-xl) 0; color: var(--n-400); font-size: var(--font-size-sm); }
+  .env-empty p { margin: 0 0 var(--space-sm); }
+  .env-empty--wide { padding-top: 64px; }
+  .env-item.is-hidden { display: none; }
+
+  /* 右：详情（EnvironmentDetailPanel.vue） */
+  .env-page__detail { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .env-detail { flex: 1; min-width: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); min-height: 320px; }
+  .env-detail::-webkit-scrollbar { display: none; }
   .env-detail__top { position: sticky; top: 0; z-index: 2; margin: 0 calc(0px - var(--space-lg)); padding: var(--space-md) var(--space-lg) 0; background: #fff; border-bottom: 1px solid var(--n-100); }
   .env-detail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-md); }
-  .env-detail__head-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
   .env-detail__id { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
   .env-detail__create { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
   .env-detail__create-name { width: 220px; flex-shrink: 0; }
   .env-detail__create-desc { flex: 1; min-width: 0; }
   .env-detail__name { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .env-detail__head-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+  .env-detail__hint { margin-left: var(--space-sm); font-size: var(--font-size-xs); color: var(--n-400); }
+  .env-detail__hint--block { flex-basis: 100%; margin-left: 0; margin-top: 4px; }
+
   .etabs { display: flex; align-items: center; gap: 2px; }
   .etab { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; margin-bottom: -1px; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-500); background: none; border: none; border-bottom: 2px solid transparent; border-radius: var(--radius-md) var(--radius-md) 0 0; cursor: pointer; white-space: nowrap; transition: color var(--transition-fast), background var(--transition-fast); }
   .etab:hover { color: var(--n-700); background: var(--n-50); }
   .etab.is-active { color: var(--brand-500); font-weight: 600; background: none; border-bottom-color: var(--brand-500); }
   .etab__count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--n-100); color: var(--n-500); font-size: var(--font-size-2xs); font-weight: 600; }
   .etab.is-active .etab__count { background: var(--brand-50); color: var(--brand-500); }
-  .epanel { display: none; }
-  .epanel.is-active { display: block; padding-top: var(--space-md); }
+  .epanel { display: none; padding-top: var(--space-md); }
+  .epanel.is-active { display: block; }
 
-  /* 配置区（HTTP / 数据源同构）：左右各一张白底描边卡片，靠并列盒子区分列表与表单（docs34 1.3） */
+  /* HTTP/数据源配置同构 */
   .cfg-split { display: flex; gap: var(--space-lg); align-items: flex-start; }
   .cfg-panel { width: 216px; flex-shrink: 0; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 6px; }
   .cfg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
   .cfg-list li { padding: 7px 10px; border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; }
   .cfg-list li:hover { background: var(--n-50); }
   .cfg-list li.is-active { background: var(--brand-50); border-color: var(--brand-300); color: var(--brand-600); font-weight: 600; }
-  .cfg-list .cfg-add { color: var(--brand-500); cursor: pointer; }
+  .cfg-list .cfg-add { color: var(--brand-500); }
   .cfg-list .cfg-add:hover { color: var(--brand-600); }
-  /* 窄窗口下详情列不足时保持卡片完整可读，溢出由详情列横向滚动承载（存量行为） */
   .cfg-form { flex: 1 1 auto; min-width: 340px; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: var(--space-md); }
+  .cfg-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--space-lg); }
+  .cfg-form__grid-full { grid-column: 1 / -1; }
+  .field > .input, .field > .select, .field > .textarea { max-width: none; }
 
-  /* 详情面板较宽：字段控件限宽，避免输入框被拉满 */
-  .field > .input, .field > .select, .field > .textarea { max-width: 420px; }
-  .form-actions { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--n-100); }
-  .form-actions > :last-child { margin-left: auto; }
-  /* 连接测试：结果内联显示在按钮旁 */
+  .env-detail__headers { margin-top: var(--space-md); }
+  .env-detail__section-title { margin-bottom: var(--space-sm); font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); }
+  .env-detail__actions { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--n-100); flex-wrap: wrap; }
+  .env-detail__actions-remove { margin-left: auto; }
   .conn-result { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); }
   .conn-result--ok { color: var(--st-success-strong); }
   .conn-result--fail { color: var(--st-danger-strong); }
   .conn-result--loading { color: var(--n-500); }
 
-  .switch { position: relative; width: 34px; height: 19px; border-radius: 10px; background: var(--n-200); border: none; cursor: pointer; padding: 0; transition: background .15s; vertical-align: middle; }
+  .switch { position: relative; width: 34px; height: 19px; border-radius: 10px; background: var(--n-200); border: none; cursor: pointer; padding: 0; transition: background .15s; vertical-align: middle; flex-shrink: 0; }
   .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left .15s; }
   .switch.is-on { background: var(--brand-500); }
   .switch.is-on::after { left: 17px; }
 
-  .kv { width: 100%; border-collapse: collapse; }
-  .kv th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--n-100); }
-  .kv th:first-child { border-top-left-radius: var(--radius-sm); }
-  .kv th:last-child { border-top-right-radius: var(--radius-sm); }
-  .kv td { padding: 6px 8px; border-bottom: 1px solid var(--n-100); vertical-align: middle; }
+  .kv { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .kv th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--n-400); font-weight: 500; padding: 0 6px 8px 0; border-bottom: 1px solid var(--n-100); }
+  .kv td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--n-100); vertical-align: middle; }
   .kv tbody tr:hover { background: var(--n-50); }
-  .kv tbody tr:hover .cell-input { border-color: var(--n-200); background: #fff; }
   .kv .cell-input { width: 100%; height: 28px; border: 1px solid transparent; border-radius: var(--radius-sm); padding: 0 8px; font-size: var(--font-size-xs); background: none; }
   .kv .cell-input:hover { border-color: var(--n-200); background: #fff; }
   .kv .cell-input:focus { outline: none; border-color: var(--brand-500); background: #fff; }
+  .kv__col-enable { width: 34px; text-align: center; }
+  .kv__col-op { width: 30px; text-align: center; }
+  .kv__col-op--add { width: 96px; text-align: right; }
 
-  /* 处理器平铺展开式（docs34 §1.3）：行悬浮操作，行下展开只读明细或编辑表单，样式对齐公共组件 cp-* */
-  .proc-list { display: flex; flex-direction: column; gap: 6px; }
-  .proc-item { border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #fff; }
-  .proc-item.is-open { border-color: var(--n-200); }
-  .proc-item__row { position: relative; display: flex; align-items: center; gap: var(--space-sm); padding: 9px var(--space-md); border-radius: var(--radius-md); cursor: pointer; }
-  .proc-item__row:hover, .proc-item__row:focus-within, .proc-item.is-open > .proc-item__row { background: var(--n-50); }
-  .proc-item__row:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; }
-  .proc-item__num { flex: none; width: 18px; color: var(--n-400); font-size: var(--font-size-xs); }
-  .proc-item__row .tag { flex: none; }
-  .proc-item__name { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* 行内操作悬浮展示：浮层覆盖右侧，避免窄面板下挤压名称与说明 */
-  .proc-item__ops { position: absolute; right: var(--space-md); top: 50%; transform: translateY(-50%); display: flex; gap: 10px; padding-left: var(--space-lg); background: var(--n-50); opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); }
-  .proc-item__row:hover .proc-item__ops, .proc-item__row:focus-within .proc-item__ops { opacity: 1; pointer-events: auto; }
-  .proc-item__ops .op-link { font-size: var(--font-size-xs); }
-  .proc-body { border-top: 1px solid var(--n-100); padding: var(--space-md); }
-  .proc-detail__head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
-  .proc-detail__name { margin: 0; font-size: var(--font-size-lg); color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .proc-section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
-  .proc-section + .proc-section { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--n-100); }
-  .proc-section__label { display: block; margin: 0; padding-top: 7px; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
-  .proc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-sm) var(--space-md); }
-  .proc-meta__item--wide { grid-column: 1 / -1; }
-  .proc-meta__k { display: block; margin-bottom: 3px; font-size: var(--font-size-xs); color: var(--n-400); }
-  .proc-meta__v { font-size: var(--font-size-sm); color: var(--n-700); word-break: break-all; }
-  /* 表单（编辑/新增）展开期间该行操作常显为 [取消]/[保存]（docs34 §1.3） */
-  .proc-item.is-editing .proc-item__ops { opacity: 1; pointer-events: auto; }
-  .proc-form__label { display: block; margin: var(--space-md) 0 var(--space-sm); font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
-  .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
-  .radio-seg button { border: none; background: none; height: 26px; padding: 0 12px; font-size: var(--font-size-xs); color: var(--n-500); border-radius: calc(var(--radius-md) - 2px); cursor: pointer; }
-  .radio-seg button.is-active { background: #fff; color: var(--brand-600); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
-  .proc-seg { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md); }
-  .proc-req-line { display: flex; gap: var(--space-sm); }
-  .proc-req-line .select { width: 120px; flex: none; }
-  .proc-req-line .input { flex: 1; }
+  .env-detail__syntax-tip { margin: var(--space-sm) 0 0; font-size: var(--font-size-xs); color: var(--n-400); }
+  .env-detail__syntax-tip code { font-family: var(--font-mono); background: var(--n-50); padding: 0 4px; border-radius: var(--radius-sm, 3px); }
+
+  /* 处理器面板（EnvironmentProcessorPane.vue） */
+  .env-proc-pane { display: flex; flex-direction: column; }
+  .env-proc-pane__head { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-sm); margin-bottom: var(--space-md); padding-bottom: var(--space-sm); border-bottom: 1px solid var(--n-100); }
+  .env-proc-pane__list { display: flex; flex-direction: column; gap: 6px; }
+  .env-proc-pane__item { border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #fff; }
+  .env-proc-pane__item.is-open { border-color: var(--n-200); }
+  .env-proc-pane__row { position: relative; display: flex; align-items: center; gap: var(--space-sm); padding: 9px var(--space-md); border-radius: var(--radius-md); cursor: pointer; }
+  .env-proc-pane__row:hover, .env-proc-pane__row:focus-within, .env-proc-pane__item.is-open > .env-proc-pane__row { background: var(--n-50); }
+  .env-proc-pane__row:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; }
+  .env-proc-pane__num { flex: none; width: 18px; color: var(--n-400); font-size: var(--font-size-xs); }
+  .env-proc-pane__name { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .env-proc-pane__ops { position: absolute; right: var(--space-md); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: var(--space-xs); padding-left: var(--space-lg); background: var(--n-50); opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); }
+  .env-proc-pane__row:hover .env-proc-pane__ops, .env-proc-pane__row:focus-within .env-proc-pane__ops, .env-proc-pane__item.is-editing .env-proc-pane__ops { opacity: 1; pointer-events: auto; }
+  .env-proc-pane__ops .btn + .btn { margin-left: 0; }
+  .env-proc-pane__body { border-top: 1px solid var(--n-100); padding: var(--space-md); }
+  .env-proc-pane__detail-head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
+  .env-proc-pane__detail-name { font-size: var(--font-size-lg); color: var(--n-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .env-proc-pane__section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
+  .env-proc-pane__section-label { display: block; margin: 0; padding-top: 7px; font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
+  .env-proc-pane__name-item { max-width: 360px; }
+  .env-proc-pane__form-label { display: block; margin: 0 0 var(--space-sm); font-size: var(--font-size-xs); font-weight: 600; color: var(--n-400); text-transform: uppercase; letter-spacing: .05em; }
+  .env-proc-pane__empty { padding: 36px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
+  .proc-form .field > .input, .proc-form .field > .select, .proc-form .field > .textarea { max-width: none; }
   .proc-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--n-200); margin-bottom: var(--space-md); }
   .proc-tabs button { border: none; background: none; padding: 8px 10px; font-size: var(--font-size-sm); color: var(--n-500); cursor: pointer; border-bottom: 2px solid transparent; }
   .proc-tabs button:hover { color: var(--n-700); }
   .proc-tabs button.is-active { color: var(--brand-600); border-bottom-color: var(--brand-500); font-weight: 600; }
   .proc-badge { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 8px; background: var(--brand-500); color: #fff; font-size: 10px; font-style: normal; text-align: center; margin-left: 4px; }
   .proc-badge:empty { display: none; }
-  .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
-  .proc-body-bar { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-sm); }
-  .proc-body-bar .radio-seg { flex: none; flex-wrap: wrap; }
-  .proc-body-hint { padding: var(--space-lg); text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
-  .proc-code { width: 100%; min-height: 72px; border: 1px solid var(--n-100); border-radius: var(--radius-md); background: #1e1e1e; color: #d4d4d4; font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; padding: 10px 12px; resize: vertical; }
-  .proc-ext { display: flex; flex-direction: column; gap: var(--space-sm); }
-  /* 提取器配置行：行即容器，不套外框、行间不画分割线 */
-  .proc-ext__card { display: flex; align-items: center; gap: var(--space-sm); }
-  .proc-ext__card .select { width: 132px; flex: none; }
-  .proc-ext__card .input { flex: 1; min-width: 0; }
-  .proc-args { display: flex; flex-direction: column; gap: 6px; }
-  .proc-arg { display: flex; align-items: center; gap: var(--space-sm); }
-  .proc-arg .input { flex: 1; }
+  .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
+  .radio-seg button { border: none; background: none; height: 26px; padding: 0 12px; font-size: var(--font-size-xs); color: var(--n-500); border-radius: calc(var(--radius-md) - 2px); cursor: pointer; }
+  .radio-seg button.is-active { background: #fff; color: var(--brand-600); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 
-  .pane-head { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-sm); margin-bottom: var(--space-md); padding-bottom: var(--space-sm); border-bottom: 1px solid var(--n-100); }
-  .pane-empty { padding: 36px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
-
-  .env-empty { text-align: center; padding: var(--space-lg) var(--space-sm); color: var(--n-500); font-size: var(--font-size-sm); }
-  .env-empty p { margin: 0 0 var(--space-sm); }
-  .env-empty--wide { flex: 1; padding-top: 64px; }
-  .env-item.is-hidden { display: none; }
-
-  /* [新建▾] 下拉菜单（导入环境 / 导出当前环境） */
-  .env-list__create { position: relative; }
-  .split-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 158px; padding: 4px; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
-  .split-menu button { display: block; width: 100%; padding: 7px 10px; border: none; background: none; border-radius: var(--radius-sm); text-align: left; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
-  .split-menu button:hover { background: var(--n-50); }
-  .split-menu button:disabled { color: var(--n-400); background: none; cursor: not-allowed; }
-
-  /* 变量引用语法提示 */
-  .syntax-tip { margin: var(--space-sm) 0 0; font-size: var(--font-size-xs); color: var(--n-400); }
-  .syntax-tip code { font-family: var(--font-mono); background: var(--n-50); padding: 0 4px; border-radius: var(--radius-sm); }
-
-  /* HTTP 配置内的请求头分区 */
-  .env-detail__headers { margin-top: var(--space-md); }
-  .env-detail__section-title { margin-bottom: var(--space-sm); font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); }
-
-  /* 导入环境：文件选择区与重名覆盖开关 */
-  .import-drop { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--space-lg); border: 1px dashed var(--n-300); border-radius: var(--radius-md); background: var(--n-50); color: var(--n-500); font-size: var(--font-size-sm); cursor: pointer; }
-  .import-drop:hover { border-color: var(--brand-400); color: var(--brand-600); }
-  .import-file { margin: var(--space-sm) 0 0; font-size: var(--font-size-xs); color: var(--n-500); }
-  .import-switch { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); font-size: var(--font-size-sm); color: var(--n-600); }
-  .confirm-text { margin: 0; font-size: var(--font-size-sm); color: var(--n-700); line-height: 1.7; }
-
-  /* 只读明细：键值对与代码块（对齐公共组件 cp-kv / cp-code） */
+  .proc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-sm) var(--space-md); }
+  .proc-meta__item--wide { grid-column: 1 / -1; }
+  .proc-meta__k { display: block; margin-bottom: 3px; font-size: var(--font-size-xs); color: var(--n-400); }
+  .proc-meta__v { font-size: var(--font-size-sm); color: var(--n-700); word-break: break-all; }
   .proc-detail-kv { display: flex; align-items: baseline; gap: var(--space-sm); }
   .proc-detail-kv + .proc-detail-kv { margin-top: 5px; }
   .proc-detail-kv__k { flex-shrink: 0; padding: 3px 8px; border: 1px solid var(--n-100); border-radius: var(--radius-sm); background: var(--n-50); font-family: var(--font-mono); font-size: 12px; color: var(--brand-600); }
   .proc-detail-kv__v { font-size: var(--font-size-sm); color: var(--n-600); word-break: break-all; }
   .proc-code-view { display: block; margin: 0; padding: 9px 12px; background: #1e1e1e; color: #d4d4d4; border-radius: var(--radius-md); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+
+  .btn--danger-plain { background: var(--st-danger-light, #fef0f0); border-color: var(--st-danger-border, #fab6b6); color: var(--st-danger); }
+  .btn--danger-plain:hover { background: var(--st-danger); border-color: var(--st-danger); color: #fff; }
+  .btn--link-danger { color: var(--st-danger); }
+  .btn--link-danger:hover { color: var(--st-danger-strong); background: var(--st-danger-light, #fef0f0); }
+
+  /* 弹窗 */
+  .dialog-mask { position: fixed; inset: 0; z-index: 1000; background: rgba(15,23,42,.35); display: flex; align-items: center; justify-content: center; }
+  .dialog { background: #fff; border-radius: var(--radius-lg, 8px); box-shadow: 0 20px 60px rgba(15,23,42,.2); max-width: calc(100vw - 32px); }
+  .dialog__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--n-100); }
+  .dialog__title { font-size: var(--font-size-lg); font-weight: 600; color: var(--n-800); }
+  .dialog__close { border: none; background: none; color: var(--n-400); font-size: 18px; cursor: pointer; line-height: 1; padding: 0; }
+  .dialog__close:hover { color: var(--n-700); }
+  .dialog__body { padding: 20px; }
+  .dialog__footer { display: flex; justify-content: flex-end; gap: var(--space-sm); padding: 12px 20px 20px; }
+  .import-drop { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--space-lg); border: 1px dashed var(--n-300); border-radius: var(--radius-md); background: var(--n-50); color: var(--n-500); font-size: var(--font-size-sm); cursor: pointer; }
+  .import-drop:hover { border-color: var(--brand-400); color: var(--brand-600); }
+  .import-file { margin: var(--space-sm) 0 0; font-size: var(--font-size-xs); color: var(--n-500); }
+  .import-switch { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); font-size: var(--font-size-sm); color: var(--n-600); }
+  .confirm-text { margin: 0; font-size: var(--font-size-sm); color: var(--n-700); line-height: 1.7; }
 
   [hidden] { display: none !important; }
 </style>
@@ -190,22 +189,22 @@
     <aside class="split__side" data-side="api"></aside>
 
     <div class="split__main">
-      <div class="page-head">
+      <header class="page-head">
         <div>
           <h1 class="page-head__title">环境管理</h1>
           <p class="page-head__desc">场景与接口执行的环境配置，含 HTTP 配置、变量、数据源与处理器；场景执行未指定环境时，自动使用列表中标记「默认」的环境</p>
         </div>
-      </div>
+      </header>
 
       <div class="env-page">
         <div class="env-body">
-          <!-- 左：环境列表（docs34 §1.1：搜索与 [新建▾] 位于列表首行） -->
+          <!-- 左：环境列表（EnvironmentPage.vue） -->
           <aside class="env-list">
             <div class="env-list__head">
-              <div class="input-wrap"><span data-icon="search"></span><input class="input" id="env-search" placeholder="搜索环境名称..."></div>
+              <div class="input-wrap env-list__search"><span data-icon="search"></span><input class="input" id="env-search" placeholder="搜索环境名称..."></div>
               <span class="split-btn env-list__create">
-                <button class="btn btn--primary" id="env-create"><span data-icon="plus"></span>新建</button>
-                <button class="btn btn--primary" id="env-more" aria-haspopup="menu" aria-expanded="false">▾</button>
+                <button class="btn btn--primary btn--sm" id="env-create"><span data-icon="plus"></span>新建</button>
+                <button class="btn btn--primary btn--sm" id="env-more" aria-haspopup="menu" aria-expanded="false">▾</button>
                 <span class="split-menu" id="env-menu" role="menu" hidden>
                   <button type="button" role="menuitem" id="env-import-open">导入环境</button>
                   <button type="button" role="menuitem" id="env-export">导出当前环境</button>
@@ -213,47 +212,52 @@
               </span>
             </div>
             <div class="env-list__body">
+              <div class="env-list__load-error" id="env-load-error" hidden role="alert">
+                <span>环境列表加载失败，请重试</span>
+                <button class="btn btn--link btn--sm" id="env-reload">重新加载</button>
+              </div>
+
               <ul class="env-items" id="env-items">
                 <li class="env-item is-active" data-env="测试环境" data-default="1" data-bound="1">
                   <div class="env-item__main">
-                    <span class="env-item__name">测试环境</span>
+                    <span class="env-item__name" tabindex="0">测试环境</span>
                     <span class="tag tag--warning">默认</span>
                   </div>
                   <div class="env-item__meta">2 HTTP · 4 变量 · 1 数据源 · 2 处理器</div>
                   <div class="env-item__acts">
-                    <span class="op-link op-link--muted">上移</span>
-                    <span class="op-link" data-act="down">下移</span>
-                    <span class="op-link" data-act="edit">编辑</span>
-                    <span class="op-link" data-act="copy">复制</span>
-                    <span class="op-link op-link--danger" data-act="delete">删除</span>
+                    <button type="button" class="btn btn--link btn--sm" disabled>上移</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="down">下移</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="edit">编辑</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="copy">复制</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="delete" style="color:var(--st-danger)">删除</button>
                   </div>
                 </li>
                 <li class="env-item" data-env="预发环境">
                   <div class="env-item__main">
-                    <span class="env-item__name">预发环境</span>
-                    <span class="env-item__set-default" data-act="setdefault">设为默认</span>
+                    <span class="env-item__name" tabindex="0">预发环境</span>
+                    <button type="button" class="btn btn--link btn--sm env-item__set-default" data-act="setdefault">设为默认</button>
                   </div>
                   <div class="env-item__meta">1 HTTP · 2 变量 · 0 数据源 · 1 处理器</div>
                   <div class="env-item__acts">
-                    <span class="op-link" data-act="up">上移</span>
-                    <span class="op-link" data-act="down">下移</span>
-                    <span class="op-link" data-act="edit">编辑</span>
-                    <span class="op-link" data-act="copy">复制</span>
-                    <span class="op-link op-link--danger" data-act="delete">删除</span>
+                    <button type="button" class="btn btn--link btn--sm" data-act="up">上移</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="down">下移</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="edit">编辑</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="copy">复制</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="delete" style="color:var(--st-danger)">删除</button>
                   </div>
                 </li>
                 <li class="env-item" data-env="生产环境">
                   <div class="env-item__main">
-                    <span class="env-item__name">生产环境</span>
-                    <span class="env-item__set-default" data-act="setdefault">设为默认</span>
+                    <span class="env-item__name" tabindex="0">生产环境</span>
+                    <button type="button" class="btn btn--link btn--sm env-item__set-default" data-act="setdefault">设为默认</button>
                   </div>
                   <div class="env-item__meta">1 HTTP · 1 变量 · 1 数据源 · 0 处理器</div>
                   <div class="env-item__acts">
-                    <span class="op-link" data-act="up">上移</span>
-                    <span class="op-link op-link--muted" data-act="down">下移</span>
-                    <span class="op-link" data-act="edit">编辑</span>
-                    <span class="op-link" data-act="copy">复制</span>
-                    <span class="op-link op-link--danger" data-act="delete">删除</span>
+                    <button type="button" class="btn btn--link btn--sm" data-act="up">上移</button>
+                    <button type="button" class="btn btn--link btn--sm" disabled>下移</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="edit">编辑</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="copy">复制</button>
+                    <button type="button" class="btn btn--link btn--sm" data-act="delete" style="color:var(--st-danger)">删除</button>
                   </div>
                 </li>
               </ul>
@@ -265,37 +269,38 @@
             </div>
           </aside>
 
-          <!-- 右：环境详情 -->
-          <section class="env-detail" id="env-detail-panel">
-            <div class="env-detail__top">
-              <div class="env-detail__head">
-                <div class="env-detail__id" id="env-detail-id">
-                  <span class="env-detail__name">测试环境</span>
-                  <span class="tag tag--warning">默认</span>
+          <!-- 右：环境详情（EnvironmentDetailPanel.vue） -->
+          <section class="env-page__detail">
+            <div class="env-detail" id="env-detail-panel">
+              <div class="env-detail__top">
+                <div class="env-detail__head">
+                  <div class="env-detail__id" id="env-detail-id">
+                    <span class="env-detail__name">测试环境</span>
+                    <span class="tag tag--warning">默认</span>
+                  </div>
+                  <!-- 新建态：环境基础信息 + 取消/创建 -->
+                  <div class="env-detail__create" id="env-create-head" hidden>
+                    <input class="input env-detail__create-name" id="env-create-name" maxlength="100" placeholder="环境名称（必填）">
+                    <input class="input env-detail__create-desc" id="env-create-desc" maxlength="500" placeholder="描述（可选）">
+                    <button class="switch" id="env-create-default" type="button" aria-label="设为默认"></button>
+                    <span class="env-detail__hint">设为默认</span>
+                  </div>
+                  <div class="env-detail__head-actions">
+                    <span class="tag tag--warning" id="env-dirty" style="display:none">未保存</span>
+                    <button class="btn btn--default btn--sm" id="env-cancel" hidden>取消</button>
+                    <button class="btn btn--primary btn--sm" id="env-save">保存全部</button>
+                    <button class="btn btn--primary btn--sm" id="env-create-ok" hidden>创建</button>
+                  </div>
                 </div>
-                <!-- 新建态（新建 / 复制共用，docs34 §1.4） -->
-                <div class="env-detail__create" id="env-create-head" hidden>
-                  <input class="input env-detail__create-name" id="env-create-name" maxlength="100" placeholder="环境名称（必填）">
-                  <input class="input env-detail__create-desc" id="env-create-desc" maxlength="500" placeholder="描述（可选）">
-                  <button class="switch" id="env-create-default" type="button" aria-label="设为默认"></button>
-                  <span class="field__hint">设为默认</span>
-                </div>
-                <div class="env-detail__head-actions">
-                  <span class="tag tag--warning" id="env-dirty" style="display:none">未保存</span>
-                  <button class="btn btn--default btn--sm" id="env-cancel" hidden>取消</button>
-                  <button class="btn btn--primary btn--sm" id="env-save">保存全部</button>
-                  <button class="btn btn--primary btn--sm" id="env-create-ok" hidden>创建</button>
-                </div>
-              </div>
 
-              <div class="etabs">
-                <button class="etab is-active" data-etab="http" data-badge="http">HTTP <span class="etab__count">2</span></button>
-                <button class="etab" data-etab="vars" data-badge="vars">变量 <span class="etab__count">4</span></button>
-                <button class="etab" data-etab="ds" data-badge="ds">数据源 <span class="etab__count">1</span></button>
-                <button class="etab" data-etab="pre" data-badge="pre">前置处理器 <span class="etab__count">1</span></button>
-                <button class="etab" data-etab="post" data-badge="post">后置处理器 <span class="etab__count">1</span></button>
+                <div class="etabs" role="tablist">
+                  <button type="button" class="etab is-active" data-etab="http" data-badge="http">HTTP <span class="etab__count">2</span></button>
+                  <button type="button" class="etab" data-etab="vars" data-badge="vars">变量 <span class="etab__count">4</span></button>
+                  <button type="button" class="etab" data-etab="ds" data-badge="ds">数据源 <span class="etab__count">1</span></button>
+                  <button type="button" class="etab" data-etab="pre" data-badge="pre">前置处理器 <span class="etab__count">1</span></button>
+                  <button type="button" class="etab" data-etab="post" data-badge="post">后置处理器 <span class="etab__count">1</span></button>
+                </div>
               </div>
-            </div>
 
             <!-- HTTP -->
             <div class="epanel is-active" data-epanel="http">
@@ -308,44 +313,45 @@
                   </ul>
                 </div>
                 <div class="cfg-form">
-                  <div class="form-grid">
+                  <div class="cfg-form__grid">
                     <div class="field">
                       <label class="field__label">名称<span class="req">*</span></label>
-                      <input class="input" style="width:100%" value="默认 HTTP">
+                      <input class="input" value="默认 HTTP" maxlength="100">
                     </div>
                     <div class="field">
                       <label class="field__label">引用名<span class="req">*</span></label>
-                      <input class="input" style="width:100%" value="default">
-                      <div class="field__hint">场景中通过该名引用此配置</div>
+                      <input class="input" value="default" placeholder="场景中通过该名引用此配置">
                     </div>
                     <div class="field">
                       <label class="field__label">Base URL<span class="req">*</span></label>
-                      <input class="input" id="http-base-url" style="width:100%" value="https://api-test.example.com">
+                      <input class="input" id="http-base-url" value="https://api-test.example.com" placeholder="https://api.example.com">
                     </div>
                     <div class="field">
                       <label class="field__label">设为默认</label>
-                      <button class="switch is-on"></button>
-                      <div class="field__hint">同一环境内至多一个默认</div>
+                      <div style="display:flex;align-items:center;min-height:32px">
+                        <button class="switch is-on" type="button"></button>
+                        <span class="env-detail__hint">同一环境内至多一个默认</span>
+                      </div>
                     </div>
                   </div>
 
                   <div class="env-detail__headers">
                     <div class="env-detail__section-title">请求头</div>
                     <table class="kv">
-                      <thead><tr><th style="width:34px"></th><th>Header</th><th>值</th><th style="width:52px"></th></tr></thead>
+                      <thead><tr><th class="kv__col-enable"></th><th>Header</th><th>值</th><th class="kv__col-op"></th></tr></thead>
                       <tbody data-kvauto="headers">
-                        <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Client" placeholder="Header"></td><td><input class="cell-input" value="robo-test" placeholder="值"></td><td><span class="op-link op-link--danger" data-rmrow>删除</span></td></tr>
-                        <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type" placeholder="Header"></td><td><input class="cell-input" value="application/json" placeholder="值"></td><td><span class="op-link op-link--danger" data-rmrow>删除</span></td></tr>
-                        <tr><td><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="Header"></td><td><input class="cell-input" placeholder="值"></td><td><span class="op-link op-link--danger" data-rmrow>删除</span></td></tr>
+                        <tr><td class="kv__col-enable"><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="X-Client" placeholder="Header"></td><td><input class="cell-input" value="robo-test" placeholder="值"></td><td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>
+                        <tr><td class="kv__col-enable"><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" value="Content-Type" placeholder="Header"></td><td><input class="cell-input" value="application/json" placeholder="值"></td><td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>
+                        <tr><td class="kv__col-enable"><span class="checkbox checkbox--on"></span></td><td><input class="cell-input" placeholder="Header"></td><td><input class="cell-input" placeholder="值"></td><td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>
                       </tbody>
                     </table>
                   </div>
 
-                  <div class="form-actions" data-testconn="http">
+                  <div class="env-detail__actions" data-testconn="http">
                     <button class="btn btn--default btn--sm">连接测试</button>
                     <span class="conn-result" hidden></span>
-                    <span class="field__hint" data-conn-hint hidden>创建环境后可测试连接</span>
-                    <button class="btn btn--danger btn--sm" data-cfgdel="http">删除配置</button>
+                    <span class="env-detail__hint" data-conn-hint hidden>创建环境后可测试连接</span>
+                    <button class="btn btn--danger btn--sm btn--danger-plain env-detail__actions-remove" data-cfgdel="http">删除配置</button>
                   </div>
                 </div>
               </div>
@@ -354,15 +360,15 @@
             <!-- 变量 -->
             <div class="epanel" data-epanel="vars">
               <table class="kv">
-                <thead><tr><th style="width:110px">变量名</th><th>值</th><th>说明</th><th style="width:56px"><button type="button" class="btn btn--link btn--sm" data-addrow="vars">＋ 新增</button></th></tr></thead>
+                <thead><tr><th>变量名</th><th>值</th><th>说明</th><th class="kv__col-op kv__col-op--add"><button type="button" class="btn btn--link btn--sm" data-addrow="vars">＋ 新增</button></th></tr></thead>
                 <tbody data-kvbody="vars">
-                  <tr><td><input class="cell-input" value="appKey" placeholder="变量名"></td><td><input class="cell-input" value="ec-2026" placeholder="值"></td><td><input class="cell-input" value="业务方密钥" placeholder="描述（可选）"></td><td><span class="op-link op-link--danger" data-rmrow>删除</span></td></tr>
-                  <tr><td><input class="cell-input" value="signSalt" placeholder="变量名"></td><td><input class="cell-input" value="${md5(appKey)}" placeholder="值"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td><span class="op-link op-link--danger" data-rmrow>删除</span></td></tr>
-                  <tr><td><input class="cell-input" value="timeout" placeholder="变量名"></td><td><input class="cell-input" value="3000" placeholder="值"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td><span class="op-link op-link--danger" data-rmrow>删除</span></td></tr>
-                  <tr><td><input class="cell-input" value="mockHost" placeholder="变量名"></td><td><input class="cell-input" value="https://mock.example.com" placeholder="值"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td><span class="op-link op-link--danger" data-rmrow>删除</span></td></tr>
+                  <tr><td><input class="cell-input" value="appKey" placeholder="变量名"></td><td><input class="cell-input" value="ec-2026" placeholder="值"></td><td><input class="cell-input" value="业务方密钥" placeholder="描述（可选）"></td><td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>
+                  <tr><td><input class="cell-input" value="signSalt" placeholder="变量名"></td><td><input class="cell-input" value="${md5(appKey)}" placeholder="值"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>
+                  <tr><td><input class="cell-input" value="timeout" placeholder="变量名"></td><td><input class="cell-input" value="3000" placeholder="值"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>
+                  <tr><td><input class="cell-input" value="mockHost" placeholder="变量名"></td><td><input class="cell-input" value="https://mock.example.com" placeholder="值"></td><td><input class="cell-input" placeholder="描述（可选）"></td><td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>
                 </tbody>
               </table>
-              <p class="syntax-tip">引用语法：<code>${变量名}</code>，如 <code>${BASE_URL}</code></p>
+              <p class="env-detail__syntax-tip">引用语法：<code>${变量名}</code>，如 <code>${BASE_URL}</code></p>
             </div>
 
             <!-- 数据源 -->
@@ -375,19 +381,18 @@
                   </ul>
                 </div>
                 <div class="cfg-form">
-                  <div class="form-grid">
+                  <div class="cfg-form__grid">
                     <div class="field">
                       <label class="field__label">名称<span class="req">*</span></label>
-                      <input class="input" style="width:100%" value="订单库">
+                      <input class="input" value="订单库" maxlength="100">
                     </div>
                     <div class="field">
                       <label class="field__label">引用名<span class="req">*</span></label>
-                      <input class="input" style="width:100%" value="orderDb">
-                      <div class="field__hint">场景中通过该名引用此数据源</div>
+                      <input class="input" value="orderDb" placeholder="场景中通过该名引用此数据源">
                     </div>
                     <div class="field">
                       <label class="field__label">驱动<span class="req">*</span></label>
-                      <select class="select" style="width:100%">
+                      <select class="select">
                         <option>MySQL</option>
                         <option selected>PostgreSQL</option>
                         <option>Oracle</option>
@@ -397,50 +402,56 @@
                     </div>
                     <div class="field">
                       <label class="field__label">设为默认</label>
-                      <button class="switch is-on"></button>
-                      <div class="field__hint">同一环境内至多一个默认</div>
+                      <div style="display:flex;align-items:center;min-height:32px">
+                        <button class="switch is-on" type="button"></button>
+                        <span class="env-detail__hint">同一环境内至多一个默认</span>
+                      </div>
                     </div>
-                    <div class="field" style="grid-column:1 / -1">
+                    <div class="field cfg-form__grid-full">
                       <label class="field__label" for="ds-url">URL<span class="req">*</span></label>
-                      <textarea class="textarea" id="ds-url" style="width:100%" rows="2" spellcheck="false" placeholder="jdbc:postgresql://localhost:5432/db?user=postgres&amp;password=123456">jdbc:postgresql://db.test.example.com:5432/order?user=order&amp;password=******</textarea>
-                      <div class="field__hint">用户名/密码通过 URL 设置</div>
+                      <textarea class="textarea" id="ds-url" rows="2" spellcheck="false" placeholder="jdbc:postgresql://localhost:5432/db?user=postgres&amp;password=123456">jdbc:postgresql://db.test.example.com:5432/order?user=order&amp;password=******</textarea>
+                      <div class="field__hint env-detail__hint env-detail__hint--block">用户名/密码通过 URL 设置</div>
                     </div>
                   </div>
-                  <div class="form-actions" data-testconn="ds">
+                  <div class="env-detail__actions" data-testconn="ds">
                     <button class="btn btn--default btn--sm">连接测试</button>
                     <span class="conn-result" hidden></span>
-                    <span class="field__hint" data-conn-hint hidden>创建环境后可测试连接</span>
-                    <button class="btn btn--danger btn--sm" data-cfgdel="ds">删除数据源</button>
+                    <span class="env-detail__hint" data-conn-hint hidden>创建环境后可测试连接</span>
+                    <button class="btn btn--danger btn--sm btn--danger-plain env-detail__actions-remove" data-cfgdel="ds">删除数据源</button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- 前置处理器（平铺展开式，docs34 §1.3） -->
+            <!-- 前置处理器 -->
             <div class="epanel" data-epanel="pre">
-              <div class="pane-head">
-                <button class="btn btn--link btn--sm" data-addproc="pre">＋ 添加处理器</button>
-                <button class="btn btn--link btn--sm" data-ux-feedback="仅展示启用的处理器资产；引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
+              <div class="env-proc-pane">
+                <div class="env-proc-pane__head">
+                  <button type="button" class="btn btn--link btn--sm" data-addproc="pre">＋ 添加处理器</button>
+                  <button type="button" class="btn btn--link btn--sm" data-pickproc="pre">从公共组件引入</button>
+                </div>
+                <div class="env-proc-pane__list" data-proclist="pre"></div>
+                <div class="env-proc-pane__empty" data-procempty="pre" hidden>暂无前置处理器，点击 [＋ 添加处理器] 新增</div>
               </div>
-              <div class="proc-list" data-proclist="pre"></div>
-              <div class="pane-empty" data-procempty="pre" hidden>暂无前置处理器，点击 [＋ 添加处理器] 新增</div>
             </div>
 
-            <!-- 后置处理器（平铺展开式，docs34 §1.3） -->
+            <!-- 后置处理器 -->
             <div class="epanel" data-epanel="post">
-              <div class="pane-head">
-                <button class="btn btn--link btn--sm" data-addproc="post">＋ 添加处理器</button>
-                <button class="btn btn--link btn--sm" data-ux-feedback="仅展示启用的处理器资产；引入为复制，得到独立副本，与源资产无关联">从公共组件引入</button>
+              <div class="env-proc-pane">
+                <div class="env-proc-pane__head">
+                  <button type="button" class="btn btn--link btn--sm" data-addproc="post">＋ 添加处理器</button>
+                  <button type="button" class="btn btn--link btn--sm" data-pickproc="post">从公共组件引入</button>
+                </div>
+                <div class="env-proc-pane__list" data-proclist="post"></div>
+                <div class="env-proc-pane__empty" data-procempty="post" hidden>暂无后置处理器，点击 [＋ 添加处理器] 新增</div>
               </div>
-              <div class="proc-list" data-proclist="post"></div>
-              <div class="pane-empty" data-procempty="post" hidden>暂无后置处理器，点击 [＋ 添加处理器] 新增</div>
+            </div>
+            </div>
+
+            <div class="env-empty env-empty--wide" id="env-empty-wide" hidden>
+              <p>暂无环境，点击「新建」创建第一个环境</p>
             </div>
           </section>
-
-          <!-- 列表为空时的右侧空态 -->
-          <div class="env-empty env-empty--wide" id="env-empty-wide" hidden>
-            <p>暂无环境，点击「新建」创建第一个环境</p>
-          </div>
         </div>
       </div>
     </div>
@@ -488,6 +499,7 @@
         <span data-icon="upload"></span>
         <span>拖拽或点击选择环境 JSON 文件</span>
       </div>
+      <input type="file" id="env-import-input" accept=".json,application/json" hidden>
       <p class="import-file" id="env-import-file" hidden></p>
       <div class="import-switch">
         <button class="switch" id="env-import-overwrite" type="button" aria-label="重名时覆盖"></button>
@@ -513,7 +525,31 @@
     </div>
     <div class="dialog__footer">
       <button class="btn btn--default btn--sm" data-confirm-close>取消</button>
-      <button class="btn btn--danger btn--sm" id="env-confirm-ok">确定</button>
+      <button class="btn btn--primary btn--sm" id="env-confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 从公共组件引入处理器 / 提取器：引入为复制，得到独立副本 -->
+<div class="dialog-mask" id="asset-dialog" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="asset-dialog-title" style="width:560px">
+    <div class="dialog__header">
+      <span class="dialog__title" id="asset-dialog-title">从公共组件引入</span>
+      <button class="dialog__close" type="button" data-asset-close aria-label="关闭">✕</button>
+    </div>
+    <div class="dialog__body">
+      <p class="confirm-text" style="margin-bottom:12px">仅展示启用的组件资产；引入为复制，得到独立副本，与源资产无关联。</p>
+      <div class="input-wrap" style="margin-bottom:12px"><span data-icon="search"></span><input class="input" id="asset-search" placeholder="搜索组件名称..."></div>
+      <div class="table-wrap" style="max-height:300px;overflow:auto">
+        <table class="table">
+          <thead><tr><th style="width:34px"></th><th>名称</th><th style="width:100px">类型</th><th>说明</th></tr></thead>
+          <tbody id="asset-rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--default btn--sm" data-asset-close>取消</button>
+      <button type="button" class="btn btn--primary btn--sm" id="asset-confirm">引 入</button>
     </div>
   </div>
 </div>
@@ -652,8 +688,9 @@
       } else {
         if (defTag) defTag.remove();
         if (!setLink) {
-          setLink = document.createElement('span');
-          setLink.className = 'env-item__set-default';
+          setLink = document.createElement('button');
+          setLink.type = 'button';
+          setLink.className = 'btn btn--link btn--sm env-item__set-default';
           setLink.textContent = '设为默认';
           setLink.setAttribute('data-act', 'setdefault');
           main.appendChild(setLink);
@@ -718,14 +755,31 @@
     envSearch.focus();
   });
 
+  // 环境名带 tabindex，键盘 Enter/空格与鼠标点击等价
+  envItems.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var name = e.target.closest ? e.target.closest('.env-item__name') : null;
+    if (!name || e.target !== name) return;
+    e.preventDefault();
+    name.closest('.env-item').click();
+  });
+
+  // 加载失败条的重试：真实收起错误提示
+  var envLoadError = document.getElementById('env-load-error');
+  var envReload = document.getElementById('env-reload');
+  if (envReload) envReload.addEventListener('click', function () {
+    envLoadError.hidden = true;
+    rt.toast('已重新加载环境列表', { type: 'success' });
+  });
+
   /* ---------------- 页签计数与行数保持一致 ---------------- */
   function syncEnvBadges() {
     var counts = {
       http: envVisibleCount('[data-epanel="http"] .cfg-list li:not(.cfg-add)'),
       vars: envVisibleCount('[data-kvbody="vars"] tr:not(.kv-empty)'),
       ds: envVisibleCount('[data-epanel="ds"] .cfg-list li:not(.cfg-add)'),
-      pre: envVisibleCount('[data-proclist="pre"] > .proc-item'),
-      post: envVisibleCount('[data-proclist="post"] > .proc-item'),
+      pre: envVisibleCount('[data-proclist="pre"] > .env-proc-pane__item'),
+      post: envVisibleCount('[data-proclist="post"] > .env-proc-pane__item'),
     };
     var labels = { http: 'HTTP', vars: '变量', ds: '数据源', pre: '前置处理器', post: '后置处理器' };
     Object.keys(counts).forEach(function (key) {
@@ -750,7 +804,8 @@
     tr.innerHTML = '<td><input class="cell-input" placeholder="变量名"></td>' +
       '<td><input class="cell-input" placeholder="值"></td>' +
       '<td><input class="cell-input" placeholder="描述（可选）"></td>' +
-      '<td><span class="op-link op-link--danger" data-rmrow>删除</span></td>';
+      '<td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td>';
+    if (rt && rt.icons) rt.icons(tr);
     return tr;
   }
 
@@ -842,7 +897,7 @@
     var list = procList(key);
     if (!list) return [];
     return Array.prototype.slice.call(list.children).filter(function (node) {
-      return node.classList.contains('proc-item');
+      return node.classList.contains('env-proc-pane__item');
     });
   }
 
@@ -851,11 +906,11 @@
     ['pre', 'post'].forEach(function (key) {
       var visible = procItems(key);
       visible.forEach(function (item, index) {
-        item.querySelector('.proc-item__num').textContent = String(index + 1);
-        var ops = item.querySelectorAll('.proc-item__ops .op-link');
-        if (ops.length >= 2) {
-          ops[0].classList.toggle('op-link--muted', index === 0);
-          ops[1].classList.toggle('op-link--muted', index === visible.length - 1);
+        item.querySelector('.env-proc-pane__num').textContent = String(index + 1);
+        var btns = item.querySelectorAll('.env-proc-pane__ops [data-proc-act="up"], .env-proc-pane__ops [data-proc-act="down"]');
+        if (btns.length >= 2) {
+          btns[0].disabled = index === 0;
+          btns[1].disabled = index === visible.length - 1;
         }
       });
       var empty = document.querySelector('[data-procempty="' + key + '"]');
@@ -866,11 +921,11 @@
   function procCloseOpen() {
     if (!procOpen) return;
     var item = procOpen.item;
-    var body = item.querySelector('.proc-body');
+    var body = item.querySelector('.env-proc-pane__body');
     if (body) body.remove();
     item.classList.remove('is-open');
     item.classList.remove('is-editing');
-    var row = item.querySelector('.proc-item__row');
+    var row = item.querySelector('.env-proc-pane__row');
     if (row) row.setAttribute('aria-expanded', 'false');
     procOpen = null;
   }
@@ -906,24 +961,23 @@
   function procIndexOf(item) {
     var i = 0;
     var node = item.previousElementSibling;
-    while (node) { if (node.classList.contains('proc-item')) i += 1; node = node.previousElementSibling; }
+    while (node) { if (node.classList.contains('env-proc-pane__item')) i += 1; node = node.previousElementSibling; }
     return i;
   }
 
   function procBuildRow(item) {
     var d = item._proc;
-    var old = item.querySelector('.proc-item__row');
+    var old = item.querySelector('.env-proc-pane__row');
     if (old) old.remove();
-    var row = procEl('div', 'proc-item__row');
+    var row = procEl('div', 'env-proc-pane__row');
     row.tabIndex = 0;
     row.setAttribute('role', 'button');
     row.setAttribute('aria-expanded', procOpen && procOpen.item === item ? 'true' : 'false');
-    row.appendChild(procEl('span', 'proc-item__num'));
+    row.appendChild(procEl('span', 'env-proc-pane__num'));
     row.appendChild(procTagNodes(d));
-    row.appendChild(procEl('span', 'proc-item__name', procRowName(d, procIndexOf(item))));
-    var ops = procEl('span', 'proc-item__ops');
+    row.appendChild(procEl('span', 'env-proc-pane__name', procRowName(d, procIndexOf(item))));
+    var ops = procEl('div', 'env-proc-pane__ops');
     if (item.querySelector('form.proc-form')) {
-      // 表单（编辑/新增）展开期间：悬浮操作替换为常显 [取消]/[保存]
       var cancel = procEl('button', 'btn btn--default btn--sm', '取消');
       cancel.type = 'button';
       cancel.setAttribute('data-proc-cancel', '');
@@ -934,11 +988,13 @@
       ops.appendChild(ok);
     } else {
       [['up', '上移'], ['down', '下移'], ['edit', '编辑'], ['copy', '复制']].forEach(function (pair) {
-        var op = procEl('span', 'op-link', pair[1]);
+        var op = procEl('button', 'btn btn--link btn--sm', pair[1]);
+        op.type = 'button';
         op.setAttribute('data-proc-act', pair[0]);
         ops.appendChild(op);
       });
-      var del = procEl('span', 'op-link op-link--danger', '删除');
+      var del = procEl('button', 'btn btn--link btn--sm btn--link-danger', '删除');
+      del.type = 'button';
       del.setAttribute('data-proc-act', 'del');
       ops.appendChild(del);
     }
@@ -948,7 +1004,7 @@
   }
 
   function procBuildItem(key, data) {
-    var item = procEl('div', 'proc-item');
+    var item = procEl('div', 'env-proc-pane__item');
     item.setAttribute('data-key', key);
     item._proc = data;
     procBuildRow(item);
@@ -957,7 +1013,7 @@
 
   function procSection(label, content) {
     var sec = procEl('div', 'proc-section');
-    sec.appendChild(procEl('label', 'proc-section__label', label));
+    sec.appendChild(procEl('span','env-proc-pane__section-label',label));
     sec.appendChild(content);
     return sec;
   }
@@ -1024,9 +1080,9 @@
   // 只读明细：名称与标签 + 配置 + 提取器表格（实现的明细无基本信息段落）
   function procShowDetail(item) {
     var d = item._proc;
-    var body = procEl('div', 'proc-body');
-    var head = procEl('div', 'proc-detail__head');
-    head.appendChild(procEl('span', 'proc-detail__name', procRowName(d, procIndexOf(item))));
+    var body = procEl('div', 'env-proc-pane__body');
+    var head = procEl('div', 'env-proc-pane__detail-head');
+    head.appendChild(procEl('span', 'env-proc-pane__detail-name', procRowName(d, procIndexOf(item))));
     head.appendChild(procTagNodes(d));
     body.appendChild(head);
 
@@ -1056,7 +1112,7 @@
 
     item.appendChild(body);
     item.classList.add('is-open');
-    item.querySelector('.proc-item__row').setAttribute('aria-expanded', 'true');
+    item.querySelector('.env-proc-pane__row').setAttribute('aria-expanded', 'true');
     procOpen = { item: item, mode: 'detail' };
   }
 
@@ -1066,7 +1122,7 @@
     }).join('');
     var kvTables = function (f, h1, h2, addLabel) {
       return '<div class="pane-actions"><button type="button" class="btn btn--link btn--sm" data-addkv="' + f + '">' + addLabel + '</button></div>' +
-        '<table class="kv"><thead><tr><th style="width:34px"></th><th>' + h1 + '</th><th>' + h2 + '</th><th style="width:52px"></th></tr></thead>' +
+        '<table class="kv"><thead><tr><th class="kv__col-enable"></th><th>' + h1 + '</th><th>' + h2 + '</th><th class="kv__col-op"></th></tr></thead>' +
         '<tbody data-f="' + f + '"></tbody></table>';
     };
     return [
@@ -1075,17 +1131,17 @@
       '    <input class="input" data-f="name" maxlength="100" placeholder="如：Token 预置">',
       '    <div class="field__error" data-f="name-err" hidden>请输入处理器名称</div></div>',
       '</div>',
-      '<span class="proc-form__label">配置（随类型切换）</span>',
-      '<div class="proc-seg"><span class="radio-seg" data-procseg>',
+      '<div class="env-proc-pane__form-label">配置</div>',
+      '<div style="display:flex;align-items:center;gap:var(--space-md);margin-bottom:var(--space-md)"><span class="radio-seg" data-procseg>',
       '  <button type="button" data-proc="http">HTTP</button>',
       '  <button type="button" data-proc="jdbc">JDBC</button>',
       '</span></div>',
       '<div data-sub="http">',
-      '  <div class="proc-req-line">',
+      '  <div style="display:flex;gap:var(--space-sm)">',
       '    <select class="select" data-f="method" aria-label="请求方法">' + methodOpts + '</select>',
       '    <input class="input" data-f="path" placeholder="/api/endpoint (支持 ${变量} 引用)">',
       '  </div>',
-      '  <span class="proc-tabs" data-reqtabs>',
+      '  <div class="proc-tabs" data-reqtabs>',
       '    <button type="button" data-reqtab="headers" class="is-active">请求头<i class="proc-badge" data-badge="headers"></i></button>',
       '    <button type="button" data-reqtab="query">Query 参数<i class="proc-badge" data-badge="query"></i></button>',
       '    <button type="button" data-reqtab="body">请求体<i class="proc-badge" data-badge="body"></i></button>',
@@ -1094,7 +1150,7 @@
       '  <div data-reqpane="headers">' + kvTables('headers', 'Header', '值', '+ 添加请求头') + '</div>',
       '  <div data-reqpane="query" hidden>' + kvTables('query', '参数名', '值', '+ 添加 Query') + '</div>',
       '  <div data-reqpane="body" hidden>',
-      '    <div class="proc-body-bar"><span class="radio-seg" data-bodyseg>',
+      '    <div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-sm)"><span class="radio-seg" data-bodyseg>',
       '      <button type="button" class="is-active" data-body="none">none</button>',
       '      <button type="button" data-body="urlencoded">x-www-form-urlencoded</button>',
       '      <button type="button" data-body="raw">raw</button>',
@@ -1102,31 +1158,31 @@
       '    <select class="select" data-f="rawsub" hidden style="width:130px" aria-label="raw 子类型">',
       '      <option>text</option><option selected>json</option><option>xml</option><option>html</option><option>javascript</option>',
       '    </select></div>',
-      '    <p data-bodypane="none" class="proc-body-hint">该请求不携带请求体。</p>',
+      '    <p data-bodypane="none" style="padding:var(--space-lg);text-align:center;color:var(--n-400);font-size:var(--font-size-sm)">该请求不携带请求体。</p>',
       '    <div data-bodypane="urlencoded" hidden>' + kvTables('urlencoded', 'Key', '值', '+ 添加参数') + '</div>',
-      '    <div data-bodypane="raw" hidden><textarea class="proc-code" data-f="rawtext" rows="6" spellcheck="false" placeholder="原始文本（支持变量引用）"></textarea></div>',
+      '    <div data-bodypane="raw" hidden><textarea class="proc-code-view" data-f="rawtext" style="width:100%;min-height:72px;border:1px solid var(--n-100);border-radius:var(--radius-md);background:#1e1e1e;color:#d4d4d4;font-family:var(--font-mono);font-size:var(--font-size-xs);line-height:1.6;padding:10px 12px;resize:vertical" rows="6" spellcheck="false" placeholder="原始文本（支持变量引用）"></textarea></div>',
       '  </div>',
       '  <div data-reqpane="ext" hidden>',
       '    <div class="pane-actions"><button type="button" class="btn btn--link btn--sm" data-addext="http">+ 添加提取器</button>',
-      '      <button type="button" class="btn btn--link btn--sm" data-ux-feedback="仅展示启用的提取器资产；引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button></div>',
-      '    <div class="proc-ext" data-f="ext"></div>',
+      '      <button type="button" class="btn btn--link btn--sm" data-pickext="http">从公共组件获取</button></div>',
+      '    <div class="proc-ext" data-f="ext" style="display:flex;flex-direction:column;gap:var(--space-sm)"></div>',
       '  </div>',
       '</div>',
       '<div data-sub="jdbc" hidden>',
-      '  <span class="proc-tabs" data-jdbctabs>',
+      '  <div class="proc-tabs" data-jdbctabs>',
       '    <button type="button" data-jdbctab="sql" class="is-active">SQL</button>',
       '    <button type="button" data-jdbctab="ext">提取器<i class="proc-badge" data-badge="jdbcext"></i></button>',
       '  </span>',
       '  <div data-jdbcpane="sql">',
-      '    <span class="proc-form__label">SQL 语句 (sql)</span>',
-      '    <textarea class="proc-code" data-f="sql" rows="4" spellcheck="false" placeholder="SELECT * FROM table WHERE id = ?"></textarea>',
+      '    <div class="env-proc-pane__form-label">SQL 语句 (sql)</div>',
+      '    <textarea class="proc-code-view" data-f="sql" style="width:100%;min-height:72px;border:1px solid var(--n-100);border-radius:var(--radius-md);background:#1e1e1e;color:#d4d4d4;font-family:var(--font-mono);font-size:var(--font-size-xs);line-height:1.6;padding:10px 12px;resize:vertical" rows="4" spellcheck="false" placeholder="SELECT * FROM table WHERE id = ?"></textarea>',
       '    <div class="pane-actions" style="margin-top:var(--space-sm)"><button type="button" class="btn btn--link btn--sm" data-addarg>+ 添加参数</button></div>',
-      '    <div class="proc-args" data-f="args"></div>',
+      '    <div class="proc-args" data-f="args" style="display:flex;flex-direction:column;gap:6px"></div>',
       '  </div>',
       '  <div data-jdbcpane="ext" hidden>',
       '    <div class="pane-actions"><button type="button" class="btn btn--link btn--sm" data-addext="jdbc">+ 添加提取器</button>',
-      '      <button type="button" class="btn btn--link btn--sm" data-ux-feedback="仅展示启用的提取器资产；引入为复制，得到独立副本，与源资产无关联">从公共组件获取</button></div>',
-      '    <div class="proc-ext" data-f="ext-jdbc"></div>',
+      '      <button type="button" class="btn btn--link btn--sm" data-pickext="jdbc">从公共组件获取</button></div>',
+      '    <div class="proc-ext" data-f="ext-jdbc" style="display:flex;flex-direction:column;gap:var(--space-sm)"></div>',
       '  </div>',
       '</div>'
     ].join('');
@@ -1134,10 +1190,10 @@
 
   function procKvRow(tb, k, v) {
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td><span class="checkbox checkbox--on"></span></td>' +
+    tr.innerHTML = '<td class="kv__col-enable"><span class="checkbox checkbox--on"></span></td>' +
       '<td><input class="cell-input" data-kv="k"></td>' +
       '<td><input class="cell-input" data-kv="v"></td>' +
-      '<td><span class="op-link op-link--danger" data-rmrow>删除</span></td>';
+      '<td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td>';
     tr.querySelector('[data-kv="k"]').value = k || '';
     tr.querySelector('[data-kv="v"]').value = v || '';
     tb.appendChild(tr);
@@ -1172,19 +1228,21 @@
       input.value = r ? (r[p[0]] || '') : '';
       card.appendChild(input);
     });
-    var rm = procEl('span', 'op-link op-link--danger', '删除');
+    var rm = procEl('button', 'btn btn--link btn--sm btn--link-danger', '删除');
+    rm.type='button';
     rm.setAttribute('data-rmext', '');
     card.appendChild(rm);
     return card;
   }
 
   function procArgRow(v) {
-    var row = procEl('div', 'proc-arg');
+    var row = procEl('div', 'proc-arg'); row.style.cssText="display:flex;align-items:center;gap:var(--space-sm)";
     var input = procEl('input', 'input');
     input.placeholder = '参数值，如 ${orderNo}';
     input.value = v || '';
     row.appendChild(input);
-    var rm = procEl('span', 'op-link op-link--danger', '删除');
+    var rm = procEl('button', 'btn btn--link btn--sm btn--link-danger', '删除');
+    rm.type='button';
     rm.setAttribute('data-rmarg', '');
     row.appendChild(rm);
     return row;
@@ -1394,6 +1452,11 @@
         if (envDirty) envDirty.style.display = '';
         return;
       }
+      var pickExt = t.closest('[data-pickext]');
+      if (pickExt) {
+        openAssetDialog('ext', { scope: scope, f: pickExt.getAttribute('data-pickext') === 'jdbc' ? 'ext-jdbc' : 'ext' });
+        return;
+      }
       var addExt = t.closest('[data-addext]');
       if (addExt) {
         var f = addExt.getAttribute('data-addext') === 'jdbc' ? 'ext-jdbc' : 'ext';
@@ -1424,7 +1487,7 @@
   }
 
   function procShowForm(item, mode) {
-    var body = procEl('div', 'proc-body');
+    var body = procEl('div', 'env-proc-pane__body');
     body.innerHTML = '<form class="proc-form" novalidate>' + procFormHtml() + '</form>';
     var scope = body.querySelector('form');
     procFillForm(scope, item._proc);
@@ -1442,7 +1505,7 @@
     var act = actEl.getAttribute('data-proc-act');
     if (act === 'up' || act === 'down') {
       var sibling = act === 'up' ? item.previousElementSibling : item.nextElementSibling;
-      if (!sibling || !sibling.classList.contains('proc-item') || sibling.style.display === 'none') return;
+      if (!sibling || !sibling.classList.contains('env-proc-pane__item') || sibling.style.display === 'none') return;
       if (act === 'up') item.parentNode.insertBefore(item, sibling);
       else item.parentNode.insertBefore(sibling, item);
       syncEnvBadges();
@@ -1481,7 +1544,7 @@
 
     list.addEventListener('click', function (e) {
       var act = e.target.closest ? e.target.closest('[data-proc-act]') : null;
-      var item = e.target.closest ? e.target.closest('.proc-item') : null;
+      var item = e.target.closest ? e.target.closest('.env-proc-pane__item') : null;
       if (!item) return;
       // 表单态行内 [保存]/[取消]（docs34 §1.3）
       if (e.target.closest('[data-proc-ok]') && procOpen && procOpen.item === item) {
@@ -1494,7 +1557,7 @@
         return;
       }
       if (act) { procHandleAct(key, item, act); return; }
-      if (!e.target.closest('.proc-item__row')) return;
+      if (!e.target.closest('.env-proc-pane__row')) return;
       // 表单展开中点击自身行不切换，避免误丢编辑
       if (procOpen && procOpen.item === item && procOpen.mode !== 'detail') return;
       if (procOpen && procOpen.item === item) { procCloseOpen(); return; }
@@ -1503,7 +1566,7 @@
     });
     list.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter' && e.key !== ' ') return;
-      var row = e.target.closest ? e.target.closest('.proc-item__row') : null;
+      var row = e.target.closest ? e.target.closest('.env-proc-pane__row') : null;
       if (!row || e.target !== row) return;
       e.preventDefault();
       row.click();
@@ -1557,6 +1620,8 @@
     envCreateOkBtn.hidden = false;
     envDirty.style.display = 'none';
     setEnvConnTest(false);
+    var exportBtn = document.getElementById('env-export');
+    if (exportBtn) exportBtn.disabled = true;
     envCreateName.focus();
   }
 
@@ -1569,6 +1634,8 @@
     envCancelBtn.hidden = true;
     envCreateOkBtn.hidden = true;
     setEnvConnTest(true);
+    var exportBtn = document.getElementById('env-export');
+    if (exportBtn) exportBtn.disabled = false;
     showDetailPanel(envListItems().length > 0);
   }
 
@@ -1650,16 +1717,17 @@
   function refreshMoveStates() {
     var visible = envListItems().filter(function (i) { return !i.classList.contains('is-hidden'); });
     visible.forEach(function (item, index) {
-      var up = item.querySelector('[data-act="up"]') || item.querySelector('.env-item__acts .op-link');
-      var down = item.querySelectorAll('.env-item__acts .op-link')[1];
+      var btns = item.querySelectorAll('.env-item__acts .btn');
+      var up = btns[0];
+      var down = btns[1];
       if (up) {
         var canUp = index > 0;
-        up.classList.toggle('op-link--muted', !canUp);
+        up.disabled = !canUp;
         if (canUp) up.setAttribute('data-act', 'up'); else up.removeAttribute('data-act');
       }
       if (down) {
         var canDown = index < visible.length - 1;
-        down.classList.toggle('op-link--muted', !canDown);
+        down.disabled = !canDown;
         if (canDown) down.setAttribute('data-act', 'down'); else down.removeAttribute('data-act');
       }
     });
@@ -1767,9 +1835,11 @@
     if (!e.target.closest || !e.target.closest('.env-list__create')) closeEnvMenu();
   });
 
+  var envImportInput = document.getElementById('env-import-input');
   document.getElementById('env-import-open').addEventListener('click', function () {
     closeEnvMenu();
     envImportFile.hidden = true;
+    envImportInput.value = '';
     envImport.removeAttribute('hidden');
   });
 
@@ -1777,8 +1847,11 @@
     if (e.target === envImport || e.target.hasAttribute('data-import-close')) envImport.setAttribute('hidden', '');
   });
 
-  envImportDrop.addEventListener('click', function () {
-    envImportFile.textContent = '已选择：电商核心系统-环境.json';
+  envImportDrop.addEventListener('click', function () { envImportInput.click(); });
+  envImportInput.addEventListener('change', function () {
+    var file = envImportInput.files && envImportInput.files[0];
+    if (!file) return;
+    envImportFile.textContent = '已选择：' + file.name;
     envImportFile.hidden = false;
   });
 
@@ -1854,10 +1927,66 @@
       out.textContent = '';
     }
 
+    // 每条配置持有自己的表单快照：切换时真实换内容，而非只换高亮
+    function captureCfg() {
+      if (!form) return null;
+      var snap = { fields: [], switches: [], kv: null };
+      form.querySelectorAll('input, select, textarea').forEach(function (f) { snap.fields.push(f.value); });
+      form.querySelectorAll('.switch').forEach(function (sw) { snap.switches.push(sw.classList.contains('is-on')); });
+      var kv = form.querySelector('[data-kvauto="headers"]');
+      if (kv) snap.kv = kv.innerHTML;
+      return snap;
+    }
+
+    function applyCfg(snap, blank) {
+      if (!form || (!blank && !snap)) return;
+      var i = 0;
+      form.querySelectorAll('input, select, textarea').forEach(function (f) {
+        f.value = blank ? '' : (snap.fields[i] == null ? '' : snap.fields[i]);
+        i += 1;
+      });
+      var j = 0;
+      form.querySelectorAll('.switch').forEach(function (sw) {
+        sw.classList.toggle('is-on', blank ? false : !!snap.switches[j]);
+        j += 1;
+      });
+      var kv = form.querySelector('[data-kvauto="headers"]');
+      if (kv) {
+        if (blank) { kv.innerHTML = ''; kv.appendChild(headersBlankRow()); }
+        else kv.innerHTML = snap.kv || '';
+        if (window.RTIcons) window.RTIcons.hydrate(kv);
+      }
+    }
+
+    // 初始自带的多条配置给出差异化预置，首次切换即可看到真实内容变化
+    entries().slice(1).forEach(function (li, idx) {
+      if (li._cfg) return;
+      var snap = captureCfg();
+      if (!snap) return;
+      snap.fields[0] = li.textContent;
+      if (!isDs) {
+        snap.fields[1] = 'cfg' + (idx + 1);
+        snap.fields[2] = 'https://' + (idx === 0 ? 'gateway' : 'cfg' + (idx + 1)) + '.example.com';
+        if (snap.switches.length) snap.switches[0] = false;
+        snap.kv = '<tr><td class="kv__col-enable"><span class="checkbox checkbox--on"></span></td>' +
+          '<td><input class="cell-input" placeholder="Header"></td>' +
+          '<td><input class="cell-input" placeholder="值"></td>' +
+          '<td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td></tr>';
+      } else {
+        snap.fields[1] = 'ds' + (idx + 1);
+        if (snap.switches.length) snap.switches[0] = false;
+      }
+      li._cfg = snap;
+    });
+
     function bindEntry(li) {
       li.addEventListener('click', function () {
+        var current = list.querySelector('li.is-active');
+        if (current && current !== li) current._cfg = captureCfg();
         entries().forEach(function (x) { x.classList.remove('is-active'); });
         li.classList.add('is-active');
+        if (li._cfg) applyCfg(li._cfg, false);
+        else applyCfg(null, true);
         clearConn();
       });
     }
@@ -1870,7 +1999,7 @@
       if (has) { if (empty) empty.remove(); return; }
       if (empty) return;
       empty = document.createElement('div');
-      empty.className = 'pane-empty cfg-empty';
+      empty.className = 'env-empty';
       empty.style.flex = '1 1 auto';
       empty.textContent = isDs ? '暂无数据源，点击 [＋ 新增数据源] 新建' : '暂无配置，点击 [＋ 新增配置] 新建';
       if (split) split.appendChild(empty);
@@ -1882,6 +2011,8 @@
       var empty = panel.querySelector('.cfg-empty');
       if (empty) empty.remove();
       seq += 1;
+      var current = list.querySelector('li.is-active');
+      if (current) current._cfg = captureCfg();
       var li = document.createElement('li');
       li.textContent = (isDs ? '数据源 ' : 'HTTP 配置 ') + seq;
       list.insertBefore(li, add);
@@ -1889,6 +2020,7 @@
       li.classList.add('is-active');
       bindEntry(li);
       if (form) form.hidden = false;
+      applyCfg(null, true);
       clearConn();
       markEnvDirty();
       syncEnvBadges();
@@ -1901,7 +2033,10 @@
       if (!target) return;
       target.remove();
       var rest = entries();
-      if (rest[0]) rest[0].classList.add('is-active');
+      if (rest[0]) {
+        rest[0].classList.add('is-active');
+        if (rest[0]._cfg) applyCfg(rest[0]._cfg, false);
+      }
       clearConn();
       markEnvDirty();
       syncEnvBadges();
@@ -1948,10 +2083,10 @@
 
   function headersBlankRow() {
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td><span class="checkbox checkbox--on"></span></td>' +
+    tr.innerHTML = '<td class="kv__col-enable"><span class="checkbox checkbox--on"></span></td>' +
       '<td><input class="cell-input" placeholder="Header"></td>' +
       '<td><input class="cell-input" placeholder="值"></td>' +
-      '<td><span class="op-link op-link--danger" data-rmrow>删除</span></td>';
+      '<td class="kv__col-op"><button type="button" class="btn btn--link btn--sm btn--link-danger" data-rmrow><span data-icon="trash"></span></button></td>';
     return tr;
   }
 
@@ -2001,9 +2136,137 @@
       envSaveBtn.classList.remove('is-saving');
       envSaveBtn.innerHTML = '<span class="btn__state">已保存 ✓</span>';
       envDirty.style.display = 'none';
+      // 保存把当前各页签的本地变更写回左侧环境摘要，形成可见的数据落地
+      var active = envListItems().filter(function (i) { return i.classList.contains('is-active'); })[0];
+      if (active) {
+        var meta = active.querySelector('.env-item__meta');
+        if (meta) meta.textContent = [
+          envVisibleCount('[data-epanel="http"] .cfg-list li:not(.cfg-add)') + ' HTTP',
+          envVisibleCount('[data-kvbody="vars"] tr:not(.kv-empty)') + ' 变量',
+          envVisibleCount('[data-epanel="ds"] .cfg-list li:not(.cfg-add)') + ' 数据源',
+          (envVisibleCount('[data-proclist="pre"] > .env-proc-pane__item') + envVisibleCount('[data-proclist="post"] > .env-proc-pane__item')) + ' 处理器'
+        ].join(' · ');
+      }
       rt.toast('已保存', { type: 'success' });
       window.setTimeout(function () { envSaveBtn.textContent = '保存全部'; }, 1800);
     }, 600);
+  });
+
+  /* ---------------- 公共组件引入：选择器真实插入副本（处理器 / 提取器） ---------------- */
+  var ASSET_PROCESSORS = PROC_DATA.pre.concat(PROC_DATA.post).map(function (d) {
+    return {
+      name: d.name,
+      desc: d.cfg.proc === 'jdbc' ? 'JDBC：' + d.cfg.sql : 'HTTP：' + d.cfg.method + ' ' + d.cfg.path,
+      cfg: d.cfg
+    };
+  });
+  var ASSET_EXTRACTORS = [
+    { source: 'JSON 字段', expr: '$.data.token', name: 'TOKEN', desc: '访问令牌' },
+    { source: '响应头', expr: 'X-Trace-Id', name: 'TRACE_ID', desc: '链路追踪 ID' },
+    { source: 'JSON 字段', expr: '$.data.orderId', name: 'ORDER_ID', desc: '订单编号' },
+    { source: '正则匹配', expr: 'orderNo=(\\d+)', name: 'ORDER_NO', desc: '从文本提取订单号' }
+  ];
+
+  var assetDialog = document.getElementById('asset-dialog');
+  var assetTitle = document.getElementById('asset-dialog-title');
+  var assetSearch = document.getElementById('asset-search');
+  var assetRows = document.getElementById('asset-rows');
+  var assetConfirm = document.getElementById('asset-confirm');
+  var assetMode = 'proc';
+  var assetCtx = null;
+
+  function closeAssetDialog() {
+    assetDialog.setAttribute('hidden', '');
+    assetCtx = null;
+  }
+
+  function openAssetDialog(mode, ctx) {
+    assetMode = mode;
+    assetCtx = ctx || null;
+    assetTitle.textContent = mode === 'proc' ? '从公共组件引入处理器' : '从公共组件引入提取器';
+    assetSearch.value = '';
+    renderAssetRows();
+    assetDialog.removeAttribute('hidden');
+    assetSearch.focus();
+  }
+
+  function renderAssetRows() {
+    var kw = (assetSearch.value || '').trim().toLowerCase();
+    var assets = assetMode === 'proc' ? ASSET_PROCESSORS : ASSET_EXTRACTORS;
+    assetRows.innerHTML = '';
+    assets.forEach(function (a) {
+      var text = (a.name + ' ' + (a.desc || '') + ' ' + (a.expr || '')).toLowerCase();
+      if (kw && text.indexOf(kw) < 0) return;
+      var tr = procEl('tr');
+      var td = procEl('td');
+      td.appendChild(procEl('span', 'checkbox'));
+      tr.appendChild(td);
+      tr.appendChild(procEl('td', 'cell-main', a.name));
+      tr.appendChild(procEl('td', null, assetMode === 'proc' ? (a.cfg.proc === 'jdbc' ? 'JDBC' : 'HTTP') : a.source));
+      tr.appendChild(procEl('td', null, a.desc || ''));
+      tr._asset = a;
+      assetRows.appendChild(tr);
+    });
+  }
+
+  assetSearch.addEventListener('input', renderAssetRows);
+  assetRows.addEventListener('click', function (e) {
+    var tr = e.target.closest ? e.target.closest('tr') : null;
+    if (!tr) return;
+    var box = e.target.closest ? e.target.closest('.checkbox') : tr.querySelector('.checkbox');
+    if (box) box.classList.toggle('checkbox--on');
+  });
+  assetDialog.addEventListener('click', function (e) {
+    if (e.target === assetDialog || e.target.hasAttribute('data-asset-close')) closeAssetDialog();
+  });
+
+  assetConfirm.addEventListener('click', function () {
+    var picked = [];
+    assetRows.querySelectorAll('tr').forEach(function (tr) {
+      if (tr.querySelector('.checkbox--on')) picked.push(tr._asset);
+    });
+    if (!picked.length) { rt.toast('请先勾选要引入的组件', { type: 'warning' }); return; }
+    if (assetMode === 'proc') {
+      var key = assetCtx && assetCtx.key ? assetCtx.key : 'pre';
+      picked.forEach(function (a) {
+        var node = procBuildItem(key, JSON.parse(JSON.stringify({ name: a.name, cfg: a.cfg })));
+        procList(key).appendChild(node);
+        if (rt && rt.bind) rt.bind(node);
+      });
+      syncEnvBadges();
+      markEnvDirty();
+      rt.toast('已引入 ' + picked.length + ' 个处理器副本', { type: 'success' });
+    } else {
+      var scope = assetCtx && assetCtx.scope;
+      var f = assetCtx && assetCtx.f;
+      if (scope && f) {
+        var target = scope.querySelector('[data-f="' + f + '"]');
+        if (target) {
+          picked.forEach(function (a) {
+            target.appendChild(procExtCard({ source: a.source, expr: a.expr, name: a.name, desc: a.desc }));
+          });
+          if (rt && rt.bind) rt.bind(target);
+          procUpdateBadges(scope);
+        }
+      }
+      markEnvDirty();
+      rt.toast('已引入 ' + picked.length + ' 个提取器副本', { type: 'success' });
+    }
+    closeAssetDialog();
+  });
+
+  document.querySelectorAll('[data-pickproc]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openAssetDialog('proc', { key: btn.getAttribute('data-pickproc') }); });
+  });
+
+  /* ---------------- ESC 关闭所有弹窗与下拉；刷新恢复初始 demo 数据 ---------------- */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!envDialog.hasAttribute('hidden')) envDialog.setAttribute('hidden', '');
+    if (!envImport.hasAttribute('hidden')) envImport.setAttribute('hidden', '');
+    if (!envConfirm.hasAttribute('hidden')) closeEnvConfirm();
+    if (!assetDialog.hasAttribute('hidden')) closeAssetDialog();
+    closeEnvMenu();
   });
 </script>
 </body>

@@ -7,117 +7,262 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .join-wrap {
-    min-height: 100vh; padding: 40px 24px;
+  /* 作者样式下 [hidden] 必须显式强制隐藏，否则弹层/步骤切换会残留 */
+  [hidden] { display: none !important; }
+
+  .join-page {
+    min-height: 100vh;
+    padding: 40px 24px;
     background: linear-gradient(135deg, var(--brand-50) 0%, var(--n-100) 50%, var(--n-200) 100%);
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .join-card { width: 420px; padding: 32px 24px; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); }
-  .join-step { display: flex; flex-direction: column; align-items: center; text-align: center; }
-  .join-step[hidden] { display: none; }
-  .join-icon {
-    width: 72px; height: 72px; margin-bottom: 16px;
+  .join-page__card {
+    width: 420px;
+    padding: 32px 24px;
+    background: var(--n-0);
     border-radius: var(--radius-xl);
-    background: var(--n-50); border: 1px solid var(--n-200); color: var(--n-400);
-    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--n-200);
   }
-  .join-icon svg { width: 30px; height: 30px; }
-  .join-icon--danger { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger); }
-  .join-icon--success { background: var(--st-success-light); border-color: var(--st-success-border); color: var(--st-success); }
-  .join-icon--loading svg { animation: join-spin 1.2s linear infinite; }
+  .join-page__loading,
+  .join-page__form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .join-page__loading[hidden],
+  .join-page__form[hidden] { display: none; }
+  .join-page__icon {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-md);
+  }
+  .join-page__icon svg { width: 40px; height: 40px; }
+  .join-page__icon--primary {
+    background: var(--brand-50);
+    color: var(--brand-600);
+  }
+  .join-page__icon--danger {
+    background: var(--st-danger-light);
+    color: var(--st-danger);
+  }
+  .join-page__heading {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--n-800);
+    margin: 0 0 var(--space-sm);
+  }
+  .join-page__hint {
+    color: var(--n-500);
+    margin: 0 0 var(--space-xl);
+    font-size: var(--font-size-sm);
+  }
+  .join-page__loading p {
+    color: var(--n-500);
+    margin: var(--space-md) 0 0;
+  }
+  .join-page__spinner {
+    color: var(--n-500);
+    display: inline-flex;
+  }
+  .join-page__spinner svg {
+    width: 32px;
+    height: 32px;
+    animation: join-spin 1.2s linear infinite;
+  }
   @keyframes join-spin { to { transform: rotate(360deg); } }
-  .join-heading { font-size: var(--font-size-xl); font-weight: 700; color: var(--n-900); }
-  .join-hint { margin: 8px 0 24px; font-size: var(--font-size-sm); color: var(--n-500); }
-  .join-hint--flush { margin: 0; }
-  .join-form { width: 100%; text-align: left; }
-  .join-back { margin-top: 4px; text-align: center; }
+  .join-page__el-form {
+    width: 100%;
+    text-align: left;
+  }
+  .join-page__submit { width: 100%; }
+  .join-page__back { margin-top: var(--space-md); }
+  .join-page__status {
+    display: flex;
+    justify-content: center;
+    margin: -4px 0 var(--space-xl);
+  }
+  .join-page__actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  .join-page__actions .join-page__back { margin-top: 0; }
+  .input.is-invalid { border-color: var(--st-danger); }
+  .input.is-invalid:focus { box-shadow: 0 0 0 3px var(--st-danger-light); }
+
   .pwd-wrap { position: relative; }
-  .pwd-wrap .input { padding-right: 36px; }
   .pwd-eye {
-    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-    width: 26px; height: 26px; padding: 0; border: none; border-radius: var(--radius-sm);
-    background: none; color: var(--n-400); cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--n-400);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .pwd-eye:hover, .pwd-eye.is-on { color: var(--brand-500); }
   .pwd-eye svg { width: 16px; height: 16px; }
-  .pwd-strength { display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%; }
+  .btn.is-loading { opacity: 0.72; pointer-events: none; }
+
+  /* ElMessage-like prototype feedback */
+  .join-toast-wrap {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 300;
+    pointer-events: none;
+  }
+  .join-toast {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    background: var(--n-0);
+    border: 1px solid var(--n-200);
+    box-shadow: var(--shadow-md);
+    color: var(--n-700);
+    animation: join-toast-in .2s ease;
+  }
+  .join-toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .join-toast--warning { color: var(--st-warning-strong); border-color: var(--st-warning-border); background: var(--st-warning-light); }
+  .join-toast--error { color: var(--st-danger-strong); border-color: var(--st-danger-border); background: var(--st-danger-light); }
+  .join-toast--success { color: var(--st-success-strong); border-color: var(--st-success-border); background: var(--st-success-light); }
+  @keyframes join-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Password strength bar aligned with web/src/components/common/PasswordStrengthBar.vue */
+  .pwd-strength {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    width: 100%;
+  }
   .pwd-strength[hidden] { display: none; }
-  .pwd-strength__bar { flex: 1; display: flex; gap: 4px; }
-  .pwd-strength__seg { flex: 1; height: 4px; border-radius: 999px; background: var(--n-200); transition: background-color 0.3s ease; }
-  .pwd-strength__label { font-size: var(--font-size-2xs); font-weight: 500; white-space: nowrap; }
-  .join-alert { width: 100%; text-align: left; }
+  .pwd-strength__bar {
+    flex: 1;
+    display: flex;
+    gap: 4px;
+  }
+  .pwd-strength__segment {
+    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background-color: var(--n-200);
+    transition: background-color 0.3s ease;
+  }
+  .pwd-strength__label {
+    font-size: var(--font-size-2xs);
+    font-weight: 500;
+    white-space: nowrap;
+  }
 </style>
 </head>
 <body data-shell="bare">
 
-<div class="join-wrap">
-  <div class="card join-card">
+<div class="join-toast-wrap" id="join-toasts" aria-live="polite"></div>
 
-    <!-- 步骤0: 验证邀请链接 -->
-    <div class="join-step" data-step="verifying">
-      <div class="join-icon join-icon--loading"><span data-icon="loader"></span></div>
-      <p class="join-hint join-hint--flush">正在验证邀请链接...</p>
-    </div>
+<div class="join-page">
+  <div class="join-page__card">
 
-    <!-- 链接缺失/失效/过期 -->
-    <div class="join-step" data-step="invalid" hidden>
-      <div class="join-icon join-icon--danger"><span data-icon="x-circle"></span></div>
-      <div class="join-heading">邀请链接无效</div>
-      <p class="join-hint">邀请链接已失效或不存在</p>
-      <a class="btn btn--default btn--lg" href="../auth/login.html">返回登录</a>
+    <!-- verifying: 加载中 / 无效链接（对齐 JoinPage.vue step === 'verifying'） -->
+    <div class="join-page__loading" data-step="verifying">
+      <template id="tpl-invalid">
+        <div class="join-page__icon join-page__icon--danger"><span data-icon="x-circle"></span></div>
+        <div class="join-page__heading">邀请链接无效</div>
+        <p class="join-page__hint" id="invalid-msg">邀请链接已失效或不存在</p>
+        <button class="btn btn--default" type="button" id="btn-back-login">返回登录</button>
+      </template>
+      <template id="tpl-loading">
+        <span class="join-page__spinner"><span data-icon="loader"></span></span>
+        <p>正在验证邀请链接...</p>
+      </template>
+      <div id="verifying-content"></div>
     </div>
 
     <!-- 步骤1: 输入邮箱 -->
-    <div class="join-step" data-step="email" hidden>
-      <div class="join-icon"><span data-icon="link"></span></div>
-      <div class="join-heading">加入工作空间</div>
-      <p class="join-hint">您将被加入「质量中台」工作空间</p>
-      <div class="join-form">
+    <div class="join-page__form" data-step="email" hidden>
+      <div class="join-page__icon join-page__icon--primary"><span data-icon="link"></span></div>
+      <div class="join-page__heading">加入工作空间</div>
+      <p class="join-page__hint">您将被加入「<span id="workspace-name">质量中台</span>」工作空间</p>
+
+      <form class="join-page__el-form" id="form-email" novalidate>
         <div class="field">
           <label class="field__label" for="join-email">邮箱</label>
-          <input class="input" id="join-email" type="email" placeholder="请输入邮箱" value="lihua@robotest.cn" autocomplete="off">
-          <div class="field__error" id="err-email" hidden></div>
+          <input class="input" id="join-email" type="email" placeholder="请输入邮箱" autocomplete="off">
+          <div class="field__error" id="email-error" data-error-for="join-email" hidden></div>
         </div>
-        <button class="btn btn--primary btn--lg btn--block" id="btn-next">下一步</button>
-      </div>
+        <div class="field" style="margin-bottom:0">
+          <button class="btn btn--primary btn--block join-page__submit" type="submit" id="btn-next">下一步</button>
+        </div>
+      </form>
     </div>
 
-    <!-- 步骤2a: 已有账号 → 密码验证 -->
-    <div class="join-step" data-step="password" hidden>
-      <div class="join-icon"><span data-icon="lock"></span></div>
-      <div class="join-heading">验证密码</div>
-      <p class="join-hint">检测到您已有账号，请输入密码验证</p>
-      <div class="join-form">
+    <!-- 步骤2a: 已有用户 → 输入密码 -->
+    <div class="join-page__form" data-step="password" hidden>
+      <div class="join-page__icon join-page__icon--primary"><span data-icon="lock"></span></div>
+      <div class="join-page__heading">验证密码</div>
+      <p class="join-page__hint">检测到您已有账号，请输入密码验证</p>
+
+      <form class="join-page__el-form" id="form-password" novalidate>
         <div class="field">
           <label class="field__label" for="pwd-email">邮箱</label>
           <input class="input" id="pwd-email" type="email" disabled>
         </div>
         <div class="field">
           <label class="field__label" for="pwd-pwd">密码</label>
-          <div class="pwd-wrap">
-            <input class="input" id="pwd-pwd" type="password" placeholder="8-64 字符" autocomplete="new-password">
+          <div class="input-wrap">
+            <input class="input" id="pwd-pwd" type="password" placeholder="8-64 字符" autocomplete="new-password" style="padding-left:11px;padding-right:36px">
             <button class="pwd-eye" type="button" data-eye="pwd-pwd" aria-label="显示或隐藏密码"><span data-icon="eye"></span></button>
           </div>
           <div class="pwd-strength" data-for="pwd-pwd" hidden>
             <div class="pwd-strength__bar">
-              <span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span>
+              <span class="pwd-strength__segment"></span><span class="pwd-strength__segment"></span><span class="pwd-strength__segment"></span><span class="pwd-strength__segment"></span>
             </div>
             <span class="pwd-strength__label"></span>
           </div>
-          <div class="field__error" id="err-pwd" hidden></div>
+          <div class="field__error" id="pwd-error" data-error-for="pwd-pwd" hidden></div>
         </div>
-        <button class="btn btn--primary btn--lg btn--block" id="btn-join">加入并登录</button>
-        <div class="join-back"><button class="btn btn--link" data-back>← 返回</button></div>
+        <div class="field" style="margin-bottom:0">
+          <button class="btn btn--primary btn--block join-page__submit" type="submit" id="btn-join">加入并登录</button>
+        </div>
+      </form>
+
+      <div class="join-page__back">
+        <button class="btn btn--link" type="button" data-back>← 返回</button>
       </div>
     </div>
 
-    <!-- 步骤2b: 未检测到账号 → 创建账号 -->
-    <div class="join-step" data-step="create" hidden>
-      <div class="join-icon"><span data-icon="userfilled"></span></div>
-      <div class="join-heading">创建账号</div>
-      <p class="join-hint">未检测到账号，需创建新账号加入</p>
-      <div class="join-form">
+    <!-- 步骤2b: 新用户 → 创建账号 -->
+    <div class="join-page__form" data-step="create" hidden>
+      <div class="join-page__icon join-page__icon--primary"><span data-icon="userfilled"></span></div>
+      <div class="join-page__heading">创建账号</div>
+      <p class="join-page__hint">未检测到账号，需创建新账号加入</p>
+
+      <form class="join-page__el-form" id="form-create" novalidate>
         <div class="field">
           <label class="field__label" for="create-email">邮箱</label>
           <input class="input" id="create-email" type="email" disabled>
@@ -125,31 +270,44 @@
         <div class="field">
           <label class="field__label" for="create-name">姓名</label>
           <input class="input" id="create-name" type="text" placeholder="请输入姓名" maxlength="50" autocomplete="off">
-          <div class="field__error" id="err-name" hidden></div>
+          <div class="field__error" id="name-error" data-error-for="create-name" hidden></div>
         </div>
         <div class="field">
           <label class="field__label" for="create-pwd">密码</label>
-          <div class="pwd-wrap">
-            <input class="input" id="create-pwd" type="password" placeholder="8-64 字符" autocomplete="new-password">
+          <div class="input-wrap">
+            <input class="input" id="create-pwd" type="password" placeholder="8-64 字符" autocomplete="new-password" style="padding-left:11px;padding-right:36px">
             <button class="pwd-eye" type="button" data-eye="create-pwd" aria-label="显示或隐藏密码"><span data-icon="eye"></span></button>
           </div>
           <div class="pwd-strength" data-for="create-pwd" hidden>
             <div class="pwd-strength__bar">
-              <span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span><span class="pwd-strength__seg"></span>
+              <span class="pwd-strength__segment"></span><span class="pwd-strength__segment"></span><span class="pwd-strength__segment"></span><span class="pwd-strength__segment"></span>
             </div>
             <span class="pwd-strength__label"></span>
           </div>
-          <div class="field__error" id="err-create-pwd" hidden></div>
+          <div class="field__error" id="create-pwd-error" data-error-for="create-pwd" hidden></div>
         </div>
-        <button class="btn btn--primary btn--lg btn--block" id="btn-create">创建并加入</button>
-        <div class="join-back"><button class="btn btn--link" data-back>← 返回</button></div>
+        <div class="field" style="margin-bottom:0">
+          <button class="btn btn--primary btn--block join-page__submit" type="submit" id="btn-create">创建并加入</button>
+        </div>
+      </form>
+
+      <div class="join-page__back">
+        <button class="btn btn--link" type="button" data-back>← 返回</button>
       </div>
     </div>
 
-    <!-- 加入成功（跳转前反馈） -->
-    <div class="join-step" data-step="done" hidden>
-      <div class="join-icon join-icon--success"><span data-icon="check-circle"></span></div>
-      <div class="alert alert--success join-alert"><span data-icon="check-circle"></span><div id="done-msg"></div></div>
+    <!-- 步骤3: 加入成功（真实本地状态变更；后续按钮可继续跳转） -->
+    <div class="join-page__form" data-step="success" hidden>
+      <div class="join-page__icon join-page__icon--primary"><span data-icon="check-circle"></span></div>
+      <div class="join-page__heading">加入成功</div>
+      <p class="join-page__hint">您已加入「<span id="success-workspace-name">质量中台</span>」工作空间</p>
+      <div class="join-page__status">
+        <span class="tag tag--success"><span data-icon="check-circle"></span><span id="join-status-text">已加入</span></span>
+      </div>
+      <div class="join-page__actions">
+        <button class="btn btn--primary btn--block" type="button" id="btn-enter-workspace">进入工作空间</button>
+        <button class="btn btn--default btn--block join-page__back" type="button" id="btn-back-list">返回我的空间</button>
+      </div>
     </div>
 
   </div>
@@ -159,74 +317,103 @@
 <script>
 (function () {
   var steps = document.querySelectorAll('[data-step]');
+  var verifyingContent = document.getElementById('verifying-content');
+  var tplInvalid = document.getElementById('tpl-invalid');
+  var tplLoading = document.getElementById('tpl-loading');
+
   function show(name) {
     steps.forEach(function (el) { el.hidden = el.getAttribute('data-step') !== name; });
   }
-  function setError(boxId, msg) {
-    var box = document.getElementById(boxId);
-    var input = box.parentElement.querySelector('.input');
-    box.textContent = msg || '';
-    box.hidden = !msg;
-    if (input) input.classList.toggle('input--error', !!msg);
+
+  function renderVerifying(mode, msg) {
+    verifyingContent.innerHTML = '';
+    var tpl = mode === 'invalid' ? tplInvalid : tplLoading;
+    verifyingContent.appendChild(tpl.content.cloneNode(true));
+    if (mode === 'invalid' && msg) {
+      var msgEl = verifyingContent.querySelector('#invalid-msg');
+      if (msgEl) msgEl.textContent = msg;
+    }
+    window.RTIcons && window.RTIcons.hydrate(verifyingContent);
+    if (mode === 'invalid') {
+      var back = verifyingContent.querySelector('#btn-back-login');
+      if (back) back.addEventListener('click', function () { window.location.href = '../auth/login.html'; });
+    }
   }
 
-  // 演示约定：正常打开视作携带有效 token，#invalid 用于复现链接缺失/失效/过期态
-  if (location.hash === '#invalid') { show('invalid'); return; }
-
-  show('verifying');
-  setTimeout(function () { show('email'); }, 700);
-
-  var knownAccounts = ['lihua@robotest.cn'];
-  var emailInput = document.getElementById('join-email');
-
-  function pwdError(v) {
-    if (!v) return '请输入密码';
-    if (v.length < 8 || v.length > 64) return '密码长度为 8-64 个字符';
-    return '';
+  function toast(type, text) {
+    var wrap = document.getElementById('join-toasts');
+    var el = document.createElement('div');
+    var iconMap = { warning: 'alert-triangle', error: 'x-circle', success: 'check-circle' };
+    el.className = 'join-toast join-toast--' + type;
+    el.innerHTML = '<span data-icon="' + (iconMap[type] || 'info-filled') + '"></span><span></span>';
+    el.querySelector('span:last-child').textContent = text;
+    wrap.appendChild(el);
+    window.RTIcons && window.RTIcons.hydrate(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2600);
   }
 
-  function succeed(msg) {
-    document.getElementById('done-msg').textContent = msg;
-    show('done');
-    // 与实现一致：加入成功后直接进入空间项目列表
-    setTimeout(function () { location.href = '../workspace/projects.html'; }, 900);
+  // 行内错误是真实 DOM 反馈：校验失败时写入错误节点并标记输入框，输入即清除
+  function setError(id, msg, inputId) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.hidden = !msg;
+    var input = inputId && document.getElementById(inputId);
+    if (input) input.classList.toggle('is-invalid', !!msg);
   }
 
-  document.getElementById('btn-next').addEventListener('click', function () {
-    var v = emailInput.value.trim();
-    if (!v) { setError('err-email', '请输入邮箱'); return; }
-    setError('err-email', '');
-    document.getElementById('pwd-email').value = v;
-    document.getElementById('create-email').value = v;
-    show(knownAccounts.indexOf(v.toLowerCase()) >= 0 ? 'password' : 'create');
+  function clearErrors() {
+    [
+      ['email-error', 'join-email'],
+      ['pwd-error', 'pwd-pwd'],
+      ['name-error', 'create-name'],
+      ['create-pwd-error', 'create-pwd'],
+    ].forEach(function (pair) { setError(pair[0], '', pair[1]); });
+  }
+
+  function validateEmail(value) {
+    if (!value) return '请输入邮箱';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return '邮箱格式不正确';
+    return null;
+  }
+
+  document.querySelectorAll('[data-error-for]').forEach(function (err) {
+    var input = document.getElementById(err.getAttribute('data-error-for'));
+    if (!input) return;
+    input.addEventListener('input', function () { setError(err.id, '', input.id); });
   });
 
-  document.getElementById('btn-join').addEventListener('click', function () {
-    var err = pwdError(document.getElementById('pwd-pwd').value);
-    setError('err-pwd', err);
-    if (err) return;
-    succeed('已成功加入工作空间');
-  });
+  var STRENGTH_COLORS = [
+    'var(--st-danger)',
+    'var(--st-warning)',
+    'var(--st-success-strong)',
+    'var(--st-success)'
+  ];
 
-  document.getElementById('btn-create').addEventListener('click', function () {
-    var nameOk = !!document.getElementById('create-name').value.trim();
-    setError('err-name', nameOk ? '' : '请输入姓名');
-    var err = pwdError(document.getElementById('create-pwd').value);
-    setError('err-create-pwd', err);
-    if (!nameOk || err) return;
-    succeed('欢迎加入！已自动创建账号并登录。');
-  });
+  function strengthOf(val) {
+    if (!val) return 0;
+    // 与 PasswordStrengthBar.vue 一致：长度不足 8 时按长度比例给基础强度，保证始终有视觉反馈
+    if (val.length < 8) return Math.max(1, Math.floor(val.length / 2));
+    return [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function (re) { return re.test(val); }).length;
+  }
 
-  document.querySelectorAll('[data-back]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      // 与实现一致：返回邮箱步骤时清空姓名与密码
-      ['create-name', 'pwd-pwd', 'create-pwd'].forEach(function (id) { document.getElementById(id).value = ''; });
-      ['err-name', 'err-pwd', 'err-create-pwd'].forEach(function (id) { setError(id, ''); });
-      document.querySelectorAll('.pwd-strength').forEach(function (bar) {
-        updateStrength(document.getElementById(bar.getAttribute('data-for')), bar);
-      });
-      show('email');
+  function updateStrength(input, bar) {
+    var val = input.value;
+    bar.hidden = !val;
+    if (!val) return;
+    var s = Math.max(strengthOf(val), 1);
+    bar.querySelectorAll('.pwd-strength__segment').forEach(function (seg, i) {
+      seg.style.backgroundColor = i < s ? STRENGTH_COLORS[i] : '';
     });
+    var label = s <= 1 ? '弱' : s === 2 ? '较弱' : s === 3 ? '中' : '强';
+    var lab = bar.querySelector('.pwd-strength__label');
+    lab.textContent = label;
+    lab.style.color = STRENGTH_COLORS[s - 1];
+  }
+
+  document.querySelectorAll('.pwd-strength').forEach(function (bar) {
+    var input = document.getElementById(bar.getAttribute('data-for'));
+    input.addEventListener('input', function () { updateStrength(input, bar); });
   });
 
   document.querySelectorAll('.pwd-eye').forEach(function (btn) {
@@ -238,39 +425,140 @@
     });
   });
 
-  var STRENGTH = ['var(--st-danger)', 'var(--st-warning)', 'var(--st-success-strong)', 'var(--st-success)'];
-  function strengthOf(val) {
-    if (!val) return 0;
-    // 与 PasswordStrengthBar 一致：长度不足 8 时按长度比例给基础强度，保证始终有反馈
-    if (val.length < 8) return Math.max(1, Math.floor(val.length / 2));
-    return [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function (re) { return re.test(val); }).length;
+  function validatePassword(value) {
+    if (!value) return '请输入密码';
+    if (value.length < 8 || value.length > 64) return '密码长度为 8-64 个字符';
+    return null;
   }
-  function updateStrength(input, bar) {
-    var val = input.value;
-    bar.hidden = !val;
-    if (!val) return;
-    var s = Math.max(strengthOf(val), 1);
-    bar.querySelectorAll('.pwd-strength__seg').forEach(function (seg, i) {
-      seg.style.background = i < s ? STRENGTH[i] : '';
+
+  function withSubmitting(btn, loading, fn) {
+    if (loading()) return;
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    fn(function done() {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
     });
-    var label = s <= 1 ? '弱' : s === 2 ? '较弱' : s === 3 ? '中' : '强';
-    var lab = bar.querySelector('.pwd-strength__label');
-    lab.textContent = label;
-    lab.style.color = STRENGTH[s - 1];
   }
-  document.querySelectorAll('.pwd-strength').forEach(function (bar) {
-    var input = document.getElementById(bar.getAttribute('data-for'));
-    input.addEventListener('input', function () { updateStrength(input, bar); });
+
+  var submitting = false;
+  function setSubmitting(v) { submitting = !!v; }
+  function isSubmitting() { return submitting; }
+
+  // 演示约定：正常打开视作携带有效 token，#invalid 用于复现链接缺失/失效/过期态
+  var tokenInvalid = location.hash === '#invalid';
+  show('verifying');
+  renderVerifying(tokenInvalid ? 'invalid' : 'loading', tokenInvalid ? '邀请链接已失效或不存在' : '');
+  if (!tokenInvalid) {
+    setTimeout(function () {
+      document.getElementById('workspace-name').textContent = '质量中台';
+      show('email');
+    }, 700);
+  }
+
+  var knownAccounts = ['lihua@robotest.cn'];
+  var emailInput = document.getElementById('join-email');
+
+  document.getElementById('form-email').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = emailInput.value.trim();
+    var emailErr = validateEmail(v);
+    if (emailErr) {
+      setError('email-error', emailErr, 'join-email');
+      toast('warning', emailErr);
+      emailInput.focus();
+      return;
+    }
+    setError('email-error', '', 'join-email');
+    var btn = document.getElementById('btn-next');
+    withSubmitting(btn, isSubmitting, function (done) {
+      setSubmitting(true);
+      setTimeout(function () {
+        document.getElementById('pwd-email').value = v;
+        document.getElementById('create-email').value = v;
+        show(knownAccounts.indexOf(v.toLowerCase()) >= 0 ? 'password' : 'create');
+        setSubmitting(false);
+        done();
+      }, 250);
+    });
   });
 
-  emailInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') document.getElementById('btn-next').click();
-  });
-  ['pwd-pwd', 'create-pwd'].forEach(function (id) {
-    document.getElementById(id).addEventListener('keydown', function (e) {
-      if (e.key !== 'Enter') return;
-      document.getElementById(id === 'pwd-pwd' ? 'btn-join' : 'btn-create').click();
+  document.getElementById('form-password').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var pwdInput = document.getElementById('pwd-pwd');
+    var pwdErr = validatePassword(pwdInput.value);
+    if (pwdErr) {
+      setError('pwd-error', pwdErr, 'pwd-pwd');
+      toast('warning', pwdErr);
+      pwdInput.focus();
+      return;
+    }
+    setError('pwd-error', '', 'pwd-pwd');
+    var btn = document.getElementById('btn-join');
+    withSubmitting(btn, isSubmitting, function (done) {
+      setSubmitting(true);
+      setTimeout(function () {
+        // 加入是真实本地状态变更：写入成功态与状态标签，再由用户决定跳往何处
+        document.getElementById('success-workspace-name').textContent = '质量中台';
+        document.getElementById('join-status-text').textContent = '已加入';
+        show('success');
+        setSubmitting(false);
+        done();
+      }, 350);
     });
+  });
+
+  document.getElementById('form-create').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var nameInput = document.getElementById('create-name');
+    var createPwdInput = document.getElementById('create-pwd');
+    if (!nameInput.value.trim()) {
+      setError('name-error', '请输入姓名', 'create-name');
+      toast('warning', '请输入姓名');
+      nameInput.focus();
+      return;
+    }
+    setError('name-error', '', 'create-name');
+    var pwdErr = validatePassword(createPwdInput.value);
+    if (pwdErr) {
+      setError('create-pwd-error', pwdErr, 'create-pwd');
+      toast('warning', pwdErr);
+      createPwdInput.focus();
+      return;
+    }
+    setError('create-pwd-error', '', 'create-pwd');
+    var btn = document.getElementById('btn-create');
+    withSubmitting(btn, isSubmitting, function (done) {
+      setSubmitting(true);
+      setTimeout(function () {
+        document.getElementById('success-workspace-name').textContent = '质量中台';
+        document.getElementById('join-status-text').textContent = '已创建并加入';
+        show('success');
+        setSubmitting(false);
+        done();
+      }, 350);
+    });
+  });
+
+  document.querySelectorAll('[data-back]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      clearErrors();
+      document.getElementById('create-name').value = '';
+      document.getElementById('pwd-pwd').value = '';
+      document.getElementById('create-pwd').value = '';
+      document.querySelectorAll('.pwd-strength').forEach(function (bar) {
+        updateStrength(document.getElementById(bar.getAttribute('data-for')), bar);
+      });
+      show('email');
+    });
+  });
+
+  // 成功态导航：两个按钮分别跳往项目列表与空间列表，均为真实页面跳转
+  document.getElementById('btn-enter-workspace').addEventListener('click', function () {
+    window.location.href = '../workspace/projects.html';
+  });
+  document.getElementById('btn-back-list').addEventListener('click', function () {
+    window.location.href = '../workspace/list.html';
   });
 })();
 </script>

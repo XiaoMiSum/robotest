@@ -7,102 +7,305 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
-  .page-head__desc [data-icon] svg { width: 14px; height: 14px; vertical-align: -2px; }
-  .page-head__desc .tag { margin: 0 6px; vertical-align: 1px; }
+  /* 对齐 web/src/pages/project/DashboardPage.vue */
+  .dashboard__header { margin-bottom: var(--block-gap, 24px); }
+  .dashboard__title {
+    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--n-900);
+    line-height: 1.2;
+  }
+  .dashboard__meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--n-500);
+    font-size: 13px;
+  }
+  .dashboard__project,
+  .dashboard__period {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .dashboard__project { color: var(--n-700); font-weight: 600; }
+  .dashboard__project [data-icon] svg { width: 14px; height: 14px; }
 
-  /* 快捷入口 / 项目统计：与实际工作台一致的 2×2 卡片网格 */
-  .entry-grid, .stat-grid {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  .dashboard__overview { align-items: stretch; }
+  .dashboard__overview .card { display: flex; flex-direction: column; height: 100%; }
+  .dashboard__overview .card__body { flex: 1; padding: 16px; }
+
+  .panel__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .panel__title { font-size: 13px; font-weight: 600; color: var(--n-800); margin: 0; }
+  .panel__hint { font-size: 12px; color: var(--n-400); font-weight: 400; }
+
+  .quick-grid,
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    height: 100%;
   }
 
-  .quick {
-    display: flex; align-items: center; gap: 12px; padding: 16px 18px;
-    border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0);
-    cursor: pointer; transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  .quick-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 92px;
+    height: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--n-200);
+    border-radius: var(--radius-lg);
+    background: var(--n-0);
+    color: var(--n-800);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   }
-  .quick:hover { border-color: var(--brand-300); box-shadow: var(--shadow-card-hover); }
-  .quick__ic { width: 34px; height: 34px; border-radius: 8px; background: var(--n-50); border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center; color: var(--n-600); flex-shrink: 0; }
-  .quick__ic svg { width: 17px; height: 17px; }
-  .quick__t { font-size: 13.5px; font-weight: 600; color: var(--n-900); }
-  .quick__d { font-size: 11.5px; color: var(--n-500); margin-top: 1px; }
-  .quick__arrow { margin-left: auto; display: flex; color: var(--n-400); flex-shrink: 0; }
-  .quick__arrow svg { width: 16px; height: 16px; }
-
-  .stat {
-    display: flex; align-items: center; gap: 12px; padding: 16px 18px;
-    border: 1px solid var(--n-200); border-radius: var(--radius-lg); background: var(--n-0);
-    cursor: pointer; transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  .quick-card:hover {
+    border-color: var(--brand-300);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
   }
-  .stat:hover { border-color: var(--n-300); box-shadow: var(--shadow-card-hover); }
-  .stat__ic { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--n-50); border: 1px solid var(--n-200); display: flex; align-items: center; justify-content: center; color: var(--n-600); flex-shrink: 0; }
-  .stat__ic svg { width: 20px; height: 20px; }
-  .stat__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .stat__label { font-size: 11.5px; color: var(--n-500); }
-  .stat__value { font-size: 22px; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; color: var(--n-900); }
-  .stat--warning .stat__ic { background: var(--st-warning-light); border-color: var(--st-warning-border); color: var(--st-warning-strong); }
-  .stat--warning .stat__value { color: var(--st-warning-strong); }
-  .stat--danger .stat__ic { background: var(--st-danger-light); border-color: var(--st-danger-border); color: var(--st-danger-strong); }
-  .stat--danger .stat__value { color: var(--st-danger-strong); }
+  .quick-card__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: 1px solid var(--n-200);
+    border-radius: 8px;
+    background: var(--brand-50, #f5f8ff);
+    color: var(--brand-600, #2563eb);
+  }
+  .quick-card__icon svg { width: 18px; height: 18px; }
+  .quick-card__content { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+  .quick-card__title {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .quick-card__description {
+    overflow: hidden;
+    color: var(--n-500);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .quick-card__arrow { margin-left: auto; flex-shrink: 0; color: var(--n-400); display: flex; }
+  .quick-card__arrow svg { width: 16px; height: 16px; }
 
-  /* 最近评审 / 最近计划条目 */
-  .rlist { display: flex; flex-direction: column; }
-  .rlist__item {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 11px 12px; border-bottom: 1px solid var(--n-100); border-radius: var(--radius-md);
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 92px;
+    height: 100%;
+    padding: 12px 16px;
+    background: var(--n-0);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--n-200);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--transition-base, 0.2s ease);
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+  .stat-card__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+  }
+  .stat-card__icon svg { width: 20px; height: 20px; }
+  .stat-card__info { min-width: 0; }
+  .stat-card__label { margin-bottom: 2px; color: var(--n-500); font-size: 12px; font-weight: 500; }
+  .stat-card__value { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; color: var(--n-900); }
+
+  .stat-card--primary .stat-card__icon { background: var(--brand-50, #f5f8ff); color: var(--brand-600, #2563eb); }
+  .stat-card--primary .stat-card__value { color: var(--brand-600, #2563eb); }
+  .stat-card--warning .stat-card__icon { background: var(--st-warning-light); color: var(--st-warning-strong); }
+  .stat-card--warning .stat-card__value { color: var(--st-warning-strong); }
+  .stat-card--danger .stat-card__icon { background: var(--st-danger-light); color: var(--st-danger-strong); }
+  .stat-card--danger .stat-card__value { color: var(--st-danger-strong); }
+
+  .dashboard__panels .card { display: flex; flex-direction: column; height: 320px; }
+  .dashboard__panels .card__body { flex: 1; min-height: 0; overflow-y: auto; }
+
+  .panel__list { margin: 0; padding: 0; list-style: none; }
+  .panel__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--n-100);
+    border-radius: var(--radius-md);
     transition: background-color var(--transition-fast);
+    text-decoration: none;
+    color: inherit;
   }
-  .rlist__item:last-child { border-bottom: none; }
-  .rlist__item:hover { background: var(--n-50); }
-  .rlist__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-sm); font-weight: 500; color: var(--n-800); }
-  .rlist__meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .rlist__date { font-size: var(--font-size-xs); color: var(--n-400); }
+  .panel__item:last-child { border-bottom: none; }
+  .panel__item--link { cursor: pointer; }
+  .panel__item--link:hover { background-color: var(--n-50); }
+  .panel__item-name {
+    overflow: hidden;
+    color: var(--n-800);
+    font-size: 13px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .panel__item-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .panel__item-date { color: var(--n-400); font-size: 11px; }
+  .tag--round { border-radius: 999px; }
 
-  .timeline__body .op-link { margin-right: 0; }
+  .dashboard__activity { margin-bottom: var(--block-gap, 24px); }
+  .activity-timeline { list-style: none; margin: 0; padding: 8px 0 0; }
+  .activity-timeline__item { position: relative; padding: 0 0 20px 24px; }
+  .activity-timeline__item::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 18px;
+    bottom: 0;
+    width: 1px;
+    background: var(--n-200);
+  }
+  .activity-timeline__item:last-child { padding-bottom: 0; }
+  .activity-timeline__item:last-child::before { display: none; }
+  .activity-timeline__dot {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--n-0);
+    border: 2px solid var(--n-300);
+    box-sizing: border-box;
+  }
+  .activity-timeline__timestamp { font-size: 12px; color: var(--n-400); margin-bottom: 6px; }
+  .activity-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .activity-item__content { min-width: 0; }
+  .activity-item__summary {
+    overflow: hidden;
+    color: var(--n-800);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .activity-item__meta {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    color: var(--n-400);
+    font-size: 12px;
+  }
+  .activity-item__separator { color: var(--n-300); }
+  .activity-item .btn { margin-right: 0; flex-shrink: 0; }
+
+  @media (max-width: 960px) {
+    .quick-grid, .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .quick-grid, .stats-grid { grid-template-columns: 1fr; }
+    .dashboard__period { width: 100%; }
+  }
+
+  /* shell.js 注入的顶栏元素在本页补上真实交互所需的样式 */
+  .icon-btn.is-read .dot-badge::after { display: none; }
+  .user-menu-pop {
+    position: fixed; top: 56px; right: 16px; z-index: 200;
+    min-width: 168px; padding: 6px;
+    background: var(--n-0); border: 1px solid var(--n-200);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  }
+  .user-menu-pop__item {
+    display: block; width: 100%; padding: 8px 10px;
+    border: 0; border-radius: var(--radius-sm);
+    background: transparent; color: var(--n-700);
+    font: inherit; font-size: var(--font-size-sm); text-align: left; cursor: pointer;
+  }
+  .user-menu-pop__item:hover { background: var(--n-50); color: var(--brand-500); }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content">
 
-  <!-- 页头：项目名 / 状态 / 起止时间，与实际工作台一致（无操作按钮） -->
-  <div class="page-head">
+  <!-- 页头：与 DashboardPage.vue 一致（标题、项目名、状态标签、起止时间） -->
+  <header class="dashboard__header">
     <div>
-      <h1 class="page-head__title">项目工作台</h1>
-      <p class="page-head__desc">
-        <span class="strong"><span data-icon="folder-open"></span>电商核心系统</span>
+      <h1 class="dashboard__title">项目工作台</h1>
+      <div class="dashboard__meta">
+        <span class="dashboard__project">
+          <span data-icon="folder-open"></span>
+          电商核心系统
+        </span>
         <span class="tag tag--success tag--sm">活跃</span>
-        2026-06-01 ~ 2026-12-31
-      </p>
+        <span class="dashboard__period">2026-06-01 ~ 2026-12-31</span>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <!-- 快捷入口 + 项目统计 -->
-  <div class="card-grid card-grid--2">
+  <!-- 快捷入口 + 项目统计：对应 el-row :gutter="16" 两列 el-card shadow="never" -->
+  <div class="card-grid card-grid--2 dashboard__overview">
     <div class="card">
       <div class="card__header">
-        <h3 class="card__title">快捷入口<span class="card__subtitle">快速进入常用功能</span></h3>
+        <div class="panel__header">
+          <span id="quick-entry-title" class="panel__title">快捷入口</span>
+          <span class="panel__hint">快速进入常用功能</span>
+        </div>
       </div>
       <div class="card__body">
-        <div class="entry-grid">
-          <a class="quick" href="functional-testing.html">
-            <span class="quick__ic" data-icon="edit"></span>
-            <span><span class="quick__t">编写测试用例</span><span class="quick__d" style="display:block">管理项目测试用例</span></span>
-            <span class="quick__arrow" data-icon="chevron-right"></span>
+        <div class="quick-grid">
+          <a class="quick-card" href="functional-testing.html">
+            <span class="quick-card__icon" data-icon="edit"></span>
+            <span class="quick-card__content">
+              <span class="quick-card__title">编写测试用例</span>
+              <span class="quick-card__description">管理项目测试用例</span>
+            </span>
+            <span class="quick-card__arrow" data-icon="chevron-right"></span>
           </a>
-          <a class="quick" href="plans.html">
-            <span class="quick__ic" data-icon="calendar"></span>
-            <span><span class="quick__t">新建测试计划</span><span class="quick__d" style="display:block">安排测试执行任务</span></span>
-            <span class="quick__arrow" data-icon="chevron-right"></span>
+          <a class="quick-card" href="plans.html">
+            <span class="quick-card__icon" data-icon="calendar"></span>
+            <span class="quick-card__content">
+              <span class="quick-card__title">新建测试计划</span>
+              <span class="quick-card__description">安排测试执行任务</span>
+            </span>
+            <span class="quick-card__arrow" data-icon="chevron-right"></span>
           </a>
-          <a class="quick" href="bug-create.html">
-            <span class="quick__ic" data-icon="plus"></span>
-            <span><span class="quick__t">提交缺陷</span><span class="quick__d" style="display:block">记录和跟踪问题</span></span>
-            <span class="quick__arrow" data-icon="chevron-right"></span>
+          <a class="quick-card" href="bug-create.html">
+            <span class="quick-card__icon" data-icon="plus"></span>
+            <span class="quick-card__content">
+              <span class="quick-card__title">提交缺陷</span>
+              <span class="quick-card__description">记录和跟踪问题</span>
+            </span>
+            <span class="quick-card__arrow" data-icon="chevron-right"></span>
           </a>
-          <a class="quick" href="api-testing.html">
-            <span class="quick__ic" data-icon="connection"></span>
-            <span><span class="quick__t">接口调试</span><span class="quick__d" style="display:block">快速验证接口请求</span></span>
-            <span class="quick__arrow" data-icon="chevron-right"></span>
+          <a class="quick-card" href="api-testing.html">
+            <span class="quick-card__icon" data-icon="connection"></span>
+            <span class="quick-card__content">
+              <span class="quick-card__title">接口调试</span>
+              <span class="quick-card__description">快速验证接口请求</span>
+            </span>
+            <span class="quick-card__arrow" data-icon="chevron-right"></span>
           </a>
         </div>
       </div>
@@ -110,124 +313,240 @@
 
     <div class="card">
       <div class="card__header">
-        <h3 class="card__title">项目统计<span class="card__subtitle">当前项目数据概览</span></h3>
+        <div class="panel__header">
+          <span class="panel__title">项目统计</span>
+          <span class="panel__hint">当前项目数据概览</span>
+        </div>
       </div>
       <div class="card__body">
-        <div class="stat-grid">
-          <a class="stat" href="functional-testing.html">
-            <span class="stat__ic" data-icon="document"></span>
-            <span class="stat__info">
-              <span class="stat__label">用例总数</span>
-              <span class="stat__value num">1,284</span>
-            </span>
+        <div class="stats-grid">
+          <a class="stat-card stat-card--primary" href="functional-testing.html">
+            <div class="stat-card__icon"><span data-icon="document"></span></div>
+            <div class="stat-card__info">
+              <div class="stat-card__label">用例总数</div>
+              <div class="stat-card__value num">1,284</div>
+            </div>
           </a>
-          <a class="stat stat--warning" href="reviews.html">
-            <span class="stat__ic" data-icon="check-circle"></span>
-            <span class="stat__info">
-              <span class="stat__label">进行中评审</span>
-              <span class="stat__value num">2</span>
-            </span>
+          <a class="stat-card stat-card--warning" href="reviews.html">
+            <div class="stat-card__icon"><span data-icon="check-circle"></span></div>
+            <div class="stat-card__info">
+              <div class="stat-card__label">进行中评审</div>
+              <div class="stat-card__value num">2</div>
+            </div>
           </a>
-          <a class="stat stat--warning" href="plans.html">
-            <span class="stat__ic" data-icon="calendar"></span>
-            <span class="stat__info">
-              <span class="stat__label">进行中计划</span>
-              <span class="stat__value num">3</span>
-            </span>
+          <a class="stat-card stat-card--warning" href="plans.html">
+            <div class="stat-card__icon"><span data-icon="calendar"></span></div>
+            <div class="stat-card__info">
+              <div class="stat-card__label">进行中计划</div>
+              <div class="stat-card__value num">3</div>
+            </div>
           </a>
-          <a class="stat stat--danger" href="bugs.html">
-            <span class="stat__ic" data-icon="alert-triangle"></span>
-            <span class="stat__info">
-              <span class="stat__label">未关闭缺陷</span>
-              <span class="stat__value num">18</span>
-            </span>
+          <a class="stat-card stat-card--danger" href="bugs.html">
+            <div class="stat-card__icon"><span data-icon="alert-triangle"></span></div>
+            <div class="stat-card__info">
+              <div class="stat-card__label">未关闭缺陷</div>
+              <div class="stat-card__value num">18</div>
+            </div>
           </a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 最近评审 + 最近计划 -->
-  <div class="card-grid card-grid--2 block-gap">
-    <div class="card">
-      <div class="card__header"><h3 class="card__title">最近评审</h3></div>
+  <!-- 最近评审 + 最近计划：对应 dashboard__panels，卡片固定高度 320px -->
+  <div class="card-grid card-grid--2 block-gap dashboard__panels">
+    <div class="card panel">
+      <div class="card__header"><span class="panel__title">最近评审</span></div>
       <div class="card__body">
-        <div class="rlist">
-          <a class="rlist__item" href="review-detail.html">
-            <span class="rlist__name">下单模块用例评审</span>
-            <span class="rlist__meta"><span class="tag tag--warning tag--sm">进行中</span><span class="rlist__date num">2026-09-21 14:32</span></span>
-          </a>
-          <a class="rlist__item" href="review-detail.html">
-            <span class="rlist__name">支付流程用例评审</span>
-            <span class="rlist__meta"><span class="tag tag--warning tag--sm">进行中</span><span class="rlist__date num">2026-09-21 10:05</span></span>
-          </a>
-          <a class="rlist__item" href="review-detail.html">
-            <span class="rlist__name">优惠券活动用例评审</span>
-            <span class="rlist__meta"><span class="tag tag--neutral tag--sm">待评审</span><span class="rlist__date num">2026-09-20 16:48</span></span>
-          </a>
-          <a class="rlist__item" href="review-detail.html">
-            <span class="rlist__name">核心交易回归评审</span>
-            <span class="rlist__meta"><span class="tag tag--success tag--sm">已通过</span><span class="rlist__date num">2026-09-18 16:40</span></span>
-          </a>
-          <a class="rlist__item" href="review-detail.html">
-            <span class="rlist__name">库存同步接口评审</span>
-            <span class="rlist__meta"><span class="tag tag--danger tag--sm">已驳回</span><span class="rlist__date num">2026-09-17 09:12</span></span>
-          </a>
-        </div>
+        <ul class="panel__list">
+          <li>
+            <a class="panel__item panel__item--link" href="review-detail.html">
+              <span class="panel__item-name">下单模块用例评审</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--warning tag--sm tag--round">进行中</span>
+                <span class="panel__item-date num">2026-09-21 14:32</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="review-detail.html">
+              <span class="panel__item-name">支付流程用例评审</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--warning tag--sm tag--round">进行中</span>
+                <span class="panel__item-date num">2026-09-21 10:05</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="review-detail.html">
+              <span class="panel__item-name">优惠券活动用例评审</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--neutral tag--sm tag--round">待评审</span>
+                <span class="panel__item-date num">2026-09-20 16:48</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="review-detail.html">
+              <span class="panel__item-name">核心交易回归评审</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--success tag--sm tag--round">已通过</span>
+                <span class="panel__item-date num">2026-09-18 16:40</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="review-detail.html">
+              <span class="panel__item-name">库存同步接口评审</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--danger tag--sm tag--round">已驳回</span>
+                <span class="panel__item-date num">2026-09-17 09:12</span>
+              </span>
+            </a>
+          </li>
+        </ul>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card__header"><h3 class="card__title">最近计划</h3></div>
+    <div class="card panel">
+      <div class="card__header"><span class="panel__title">最近计划</span></div>
       <div class="card__body">
-        <div class="rlist">
-          <a class="rlist__item" href="plan-detail.html">
-            <span class="rlist__name">V1.4.2 回归计划</span>
-            <span class="rlist__meta"><span class="tag tag--warning tag--sm">执行中</span><span class="rlist__date num">2026-09-21 09:00</span></span>
-          </a>
-          <a class="rlist__item" href="plan-detail.html">
-            <span class="rlist__name">冒烟接口巡检</span>
-            <span class="rlist__meta"><span class="tag tag--warning tag--sm">执行中</span><span class="rlist__date num">2026-09-21 09:00</span></span>
-          </a>
-          <a class="rlist__item" href="plan-detail.html">
-            <span class="rlist__name">移动端兼容性专项</span>
-            <span class="rlist__meta"><span class="tag tag--warning tag--sm">执行中</span><span class="rlist__date num">2026-09-20 13:30</span></span>
-          </a>
-          <a class="rlist__item" href="plan-detail.html">
-            <span class="rlist__name">大促全链路压测计划</span>
-            <span class="rlist__meta"><span class="tag tag--neutral tag--sm">未开始</span><span class="rlist__date num">2026-09-19 15:30</span></span>
-          </a>
-          <a class="rlist__item" href="plan-detail.html">
-            <span class="rlist__name">V1.4.1 回归计划</span>
-            <span class="rlist__meta"><span class="tag tag--success tag--sm">已完成</span><span class="rlist__date num">2026-09-12 18:05</span></span>
-          </a>
-        </div>
+        <ul class="panel__list">
+          <li>
+            <a class="panel__item panel__item--link" href="plan-detail.html">
+              <span class="panel__item-name">V1.4.2 回归计划</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--warning tag--sm tag--round">执行中</span>
+                <span class="panel__item-date num">2026-09-21 09:00</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="plan-detail.html">
+              <span class="panel__item-name">冒烟接口巡检</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--warning tag--sm tag--round">执行中</span>
+                <span class="panel__item-date num">2026-09-21 09:00</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="plan-detail.html">
+              <span class="panel__item-name">移动端兼容性专项</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--warning tag--sm tag--round">执行中</span>
+                <span class="panel__item-date num">2026-09-20 13:30</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="plan-detail.html">
+              <span class="panel__item-name">大促全链路压测计划</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--neutral tag--sm tag--round">未开始</span>
+                <span class="panel__item-date num">2026-09-19 15:30</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="panel__item panel__item--link" href="plan-detail.html">
+              <span class="panel__item-name">V1.4.1 回归计划</span>
+              <span class="panel__item-meta">
+                <span class="tag tag--success tag--sm tag--round">已完成</span>
+                <span class="panel__item-date num">2026-09-12 18:05</span>
+              </span>
+            </a>
+          </li>
+        </ul>
       </div>
     </div>
   </div>
 
-  <!-- 最近动态：summary + 操作人·资源 + 时间，仅可跳转的动态带「查看」 -->
-  <div class="card block-gap">
+  <!-- 最近动态：对应 el-timeline + el-button link type="primary" size="small" 查看 -->
+  <div class="card panel dashboard__activity" aria-labelledby="recent-activity-title">
     <div class="card__header">
-      <h3 class="card__title">最近动态<span class="card__subtitle">记录项目关键操作</span></h3>
+      <div class="panel__header">
+        <span id="recent-activity-title" class="panel__title">最近动态</span>
+        <span class="panel__hint">记录项目关键操作</span>
+      </div>
     </div>
     <div class="card__body">
-      <ul class="timeline">
-        <li class="timeline__item"><span class="timeline__dot timeline__dot--warning"></span>
-          <div class="timeline__head">李华 将计划「V1.4.2 回归计划」状态更新为执行中<span class="timeline__time num">2026-09-21 16:05</span></div>
-          <div class="timeline__body flex-between"><span>李华 · V1.4.2 回归计划</span><a class="op-link" href="plan-detail.html">查看</a></div></li>
-        <li class="timeline__item"><span class="timeline__dot timeline__dot--danger"></span>
-          <div class="timeline__head">张明 提交缺陷 <span class="text-danger">BUG-208</span> 支付回调重复入账<span class="timeline__time num">2026-09-21 14:32</span></div>
-          <div class="timeline__body flex-between"><span>张明 · BUG-208 支付回调重复入账</span><a class="op-link" href="bug-detail.html">查看</a></div></li>
-        <li class="timeline__item"><span class="timeline__dot"></span>
-          <div class="timeline__head">王芳 创建了评审「下单模块用例评审」<span class="timeline__time num">2026-09-21 11:20</span></div>
-          <div class="timeline__body flex-between"><span>王芳 · 下单模块用例评审</span><a class="op-link" href="reviews.html">查看</a></div></li>
-        <li class="timeline__item"><span class="timeline__dot timeline__dot--success"></span>
-          <div class="timeline__head">陈静 的计划「V1.4.1 回归计划」执行完成<span class="timeline__time num">2026-09-20 18:40</span></div>
-          <div class="timeline__body flex-between"><span>陈静 · V1.4.1 回归计划</span><a class="op-link" href="plan-detail.html">查看</a></div></li>
-        <li class="timeline__item"><span class="timeline__dot"></span>
-          <div class="timeline__head">张明 更新了项目起止时间<span class="timeline__time num">2026-09-20 09:15</span></div>
-          <div class="timeline__body flex-between"><span>张明 · 电商核心系统</span></div></li>
+      <ul class="activity-timeline">
+        <li class="activity-timeline__item">
+          <span class="activity-timeline__dot"></span>
+          <div class="activity-timeline__timestamp num">2026-09-21 16:05</div>
+          <div class="activity-item">
+            <div class="activity-item__content">
+              <div class="activity-item__summary">李华 将计划「V1.4.2 回归计划」状态更新为执行中</div>
+              <div class="activity-item__meta">
+                <span>李华</span>
+                <span class="activity-item__separator">·</span>
+                <span>V1.4.2 回归计划</span>
+              </div>
+            </div>
+            <a class="btn btn--link btn--sm" href="plan-detail.html">查看</a>
+          </div>
+        </li>
+        <li class="activity-timeline__item">
+          <span class="activity-timeline__dot"></span>
+          <div class="activity-timeline__timestamp num">2026-09-21 14:32</div>
+          <div class="activity-item">
+            <div class="activity-item__content">
+              <div class="activity-item__summary">张明 提交缺陷 BUG-208 支付回调重复入账</div>
+              <div class="activity-item__meta">
+                <span>张明</span>
+                <span class="activity-item__separator">·</span>
+                <span>BUG-208 支付回调重复入账</span>
+              </div>
+            </div>
+            <a class="btn btn--link btn--sm" href="bug-detail.html">查看</a>
+          </div>
+        </li>
+        <li class="activity-timeline__item">
+          <span class="activity-timeline__dot"></span>
+          <div class="activity-timeline__timestamp num">2026-09-21 11:20</div>
+          <div class="activity-item">
+            <div class="activity-item__content">
+              <div class="activity-item__summary">王芳 创建了评审「下单模块用例评审」</div>
+              <div class="activity-item__meta">
+                <span>王芳</span>
+                <span class="activity-item__separator">·</span>
+                <span>下单模块用例评审</span>
+              </div>
+            </div>
+            <a class="btn btn--link btn--sm" href="reviews.html">查看</a>
+          </div>
+        </li>
+        <li class="activity-timeline__item">
+          <span class="activity-timeline__dot"></span>
+          <div class="activity-timeline__timestamp num">2026-09-20 18:40</div>
+          <div class="activity-item">
+            <div class="activity-item__content">
+              <div class="activity-item__summary">陈静 的计划「V1.4.1 回归计划」执行完成</div>
+              <div class="activity-item__meta">
+                <span>陈静</span>
+                <span class="activity-item__separator">·</span>
+                <span>V1.4.1 回归计划</span>
+              </div>
+            </div>
+            <a class="btn btn--link btn--sm" href="plan-detail.html">查看</a>
+          </div>
+        </li>
+        <li class="activity-timeline__item">
+          <span class="activity-timeline__dot"></span>
+          <div class="activity-timeline__timestamp num">2026-09-20 09:15</div>
+          <div class="activity-item">
+            <div class="activity-item__content">
+              <div class="activity-item__summary">张明 更新了项目起止时间</div>
+              <div class="activity-item__meta">
+                <span>张明</span>
+                <span class="activity-item__separator">·</span>
+                <span>电商核心系统</span>
+              </div>
+            </div>
+            <!-- 无可跳转目标时不渲染查看按钮，与 activityTarget 返回 null 一致 -->
+          </div>
+        </li>
       </ul>
     </div>
   </div>
@@ -236,5 +555,81 @@
 
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
+<script>
+(function () {
+  // 顶栏由 shell.js 注入：真链接已有跳转，这里补齐 cursor:pointer 但无行为的两个元素
+  function openDemoWindow(name, title, rows, width, height) {
+    var win = window.open('', name, 'width=' + width + ',height=' + height);
+    if (!win) return;
+    var body = rows.map(function (row) {
+      return '<div class="row"><b>' + row[0] + '</b><span>' + row[1] + '</span></div>';
+    }).join('');
+    win.document.write(
+      '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>' + title + '</title>' +
+      '<style>body{margin:0;padding:20px;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#303133}' +
+      'h1{font-size:16px;margin:0 0 16px}.row{padding:12px;border:1px solid #e4e7ed;border-radius:6px;margin-bottom:10px}' +
+      '.row b{display:block;margin-bottom:2px}.row span{color:#606266;font-size:12px}' +
+      '.close{margin-top:8px;padding:7px 15px;border:1px solid #dcdfe6;border-radius:4px;background:#fff;cursor:pointer}' +
+      '</style></head><body><h1>' + title + '</h1>' + body +
+      '<button type="button" class="close" onclick="window.close()">关闭窗口</button></body></html>'
+    );
+    win.document.close();
+  }
+
+  function init() {
+    var msgBtn = Array.prototype.slice.call(document.querySelectorAll('.icon-btn'))
+      .filter(function (el) { return el.querySelector('.dot-badge'); })[0];
+    if (msgBtn) {
+      msgBtn.addEventListener('click', function () {
+        msgBtn.classList.add('is-read');
+        openDemoWindow('rt-messages', '消息中心（演示窗口）', [
+          ['计划提醒', 'V1.4.2 回归计划进入执行中 · 2 分钟前'],
+          ['缺陷提醒', 'BUG-208 支付回调重复入账已提交 · 1 小时前'],
+          ['评审提醒', '下单模块用例评审待你参与 · 昨天 14:32']
+        ], 420, 480);
+      });
+    }
+
+    var topbarUser = document.querySelector('.topbar__user');
+    var userMenu = null;
+    function hideUserMenu() {
+      if (userMenu) { userMenu.remove(); userMenu = null; }
+    }
+    if (topbarUser) {
+      topbarUser.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (userMenu) { hideUserMenu(); return; }
+        userMenu = document.createElement('div');
+        userMenu.className = 'user-menu-pop';
+        userMenu.innerHTML =
+          '<button type="button" class="user-menu-pop__item" data-user-menu="profile">个人设置</button>' +
+          '<button type="button" class="user-menu-pop__item" data-user-menu="logout">退出登录</button>';
+        document.body.appendChild(userMenu);
+        userMenu.querySelector('[data-user-menu="profile"]').addEventListener('click', function () {
+          hideUserMenu();
+          openDemoWindow('rt-profile', '个人设置（演示窗口）', [
+            ['账号', 'zhangming'], ['姓名', '张明'], ['所属空间', '质量中台']
+          ], 380, 320);
+        });
+        userMenu.querySelector('[data-user-menu="logout"]').addEventListener('click', function () {
+          location.href = '../auth/login.html';
+        });
+      });
+    }
+    document.addEventListener('click', function (e) {
+      if (userMenu && !e.target.closest('.user-menu-pop') && !e.target.closest('.topbar__user')) hideUserMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && userMenu) hideUserMenu();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>

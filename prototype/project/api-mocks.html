@@ -8,82 +8,40 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  .selected-hint { font-size: var(--font-size-sm); color: var(--n-500); }
-  .more-caret { margin-left: 10px; color: var(--brand-500); font-size: var(--font-size-xs); cursor: pointer; }
+  /* MocksPage.vue: flex column, height 100%, min-height 0; scroll owner is table body */
+  .mocks-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .mocks-page__toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0; padding: 14px 0; border-bottom: 1px solid var(--n-100); gap: 12px; }
+  .mocks-page__toolbar-left { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .mocks-page__toolbar-right { display: flex; align-items: center; gap: var(--space-sm); }
+  .mocks-page__feedback { flex-shrink: 0; border-bottom: 1px solid var(--n-100); }
+  .mocks-page__first-error { flex: 1; min-height: 0; display: flex; align-items: flex-start; padding: 14px 0; }
+  .mocks-page__table { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .mocks-page__table .table-wrap { flex: 1; min-height: 0; overflow: auto; border: none; border-radius: 0; }
+  .mocks-page__table .table thead th { position: sticky; top: 0; z-index: 2; background: var(--n-50); }
+  .mocks-page__pagination { flex-shrink: 0; border-top: 1px solid var(--n-100); }
+  .mocks-page__action-header { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-xs); width: 100%; }
+  .mocks-page__more { margin-left: 12px; vertical-align: middle; }
 
-  /* .dialog-mask 固定 display:flex，作者样式强于 UA [hidden]，须显式补显隐契约 */
-  [hidden] { display: none !important; }
+  /* ListPagination bare */
+  .list-pager { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--space-md); padding: 0; margin-top: 14px; margin-bottom: 14px; }
+  .list-pager__total { color: var(--n-500); font-size: var(--font-size-sm); }
+  .list-pager__right { display: flex; align-items: center; gap: 8px; }
+  .page-size { display: inline-flex; align-items: center; gap: 4px; color: var(--n-500); font-size: var(--font-size-sm); }
 
-  /* 面板宽度对应实际页抽屉 / 弹窗尺寸：编辑 640、调试 560 */
-  #mock-editor .dialog { width: 640px; }
-  #mock-debug .dialog { width: 560px; }
-  /* 长表单吃满可用高度、footer 留在滚动区外：base 的 60vh 滚动行程过碎 */
-  .dialog .dialog__body { padding: 20px 24px; max-height: calc(100vh - 220px); }
-  .dialog .field { margin-bottom: 16px; }
+  /* ListTitleLink */
+  .list-title-link { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--brand-600); font: inherit; font-weight: 500; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .list-title-link:hover { text-decoration: underline; }
 
-  /* 分区标题：对应抽屉内左对齐分隔线 */
-  .mock-sect { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; font-size: var(--font-size-sm); font-weight: 600; color: var(--n-700); }
-  .mock-sect::after { content: ""; flex: 1; height: 1px; background: var(--n-100); }
+  /* ListLoadFeedback */
+  .list-feedback__loading { padding: var(--space-lg); color: var(--n-500); font-size: var(--font-size-sm); }
+  .list-feedback__error { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md) 0; line-height: normal; text-align: left; }
+  .list-feedback__error .alert { flex: 1 1 16rem; min-width: 0; margin: 0; }
+  .empty-block { padding: 40px 0; text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
+  .empty-block__title { margin-bottom: 12px; }
 
-  .mock-row { display: flex; gap: 12px; align-items: flex-start; }
-  .mock-row .field { flex: 1; min-width: 0; }
-  .mock-row .mock-row__item--wide { flex: 2; }
-
-  .mock-kv { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
-  .mock-kv .input { flex: 1; min-width: 0; }
-  .mock-kv__type { width: 132px; flex: none; }
-  .mock-kv__del { flex: none; color: var(--st-danger); }
-  .mock-kv__del:hover:not(:disabled) { color: #fff; background: var(--st-danger); }
-
-  .mock-body { min-height: 150px; font-family: var(--font-mono); font-size: var(--font-size-xs); }
-  .mock-mono { font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.6; }
-
-  /* 表单开关行内提示，字号同实际页 hint */
-  .mock-switch-hint { font-size: var(--font-size-xs); color: var(--n-400); margin-left: 8px; }
-
-  /* 「更多」下拉：实际页为 el-dropdown，静态稿用浮动菜单还原两项 */
-  .mock-more {
-    position: fixed;
-    min-width: 104px;
-    padding: 4px 0;
-    background: var(--n-0);
-    border: 1px solid var(--n-200);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-    z-index: 150;
-  }
-  .mock-more__item { padding: 7px 14px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; white-space: nowrap; }
-  .mock-more__item:hover { background: var(--n-50); color: var(--n-900); }
-  .mock-more__item--danger { border-top: 1px solid var(--n-100); color: var(--st-danger); }
-  .mock-more__item--danger:hover { background: var(--st-danger-light); color: var(--st-danger-strong); }
-
-  /* 调试结果：状态 + 耗时一行，报文块等宽滚动 */
-  .mock-debug-status { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-  .mock-debug-ms { font-size: var(--font-size-sm); color: var(--n-500); }
-  .mock-pre {
-    margin: 0; padding: 12px;
-    font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5;
-    white-space: pre-wrap; word-break: break-all;
-    background: var(--n-50); border: 1px solid var(--n-200); border-radius: var(--radius-md);
-    max-height: 300px; overflow-y: auto;
-  }
-
-  /* Mock 访问地址 */
-  .mock-addr-desc { margin: 0 0 12px; font-size: var(--font-size-sm); color: var(--n-500); }
-  .mock-addr-box { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--n-50); border: 1px solid var(--n-200); border-radius: var(--radius-md); }
-  .mock-addr-url { flex: 1; font-family: var(--font-mono); font-size: var(--font-size-xs); word-break: break-all; }
-  .mock-addr-headers { margin-top: 12px; }
-  .mock-addr-headers-title { margin: 0 0 8px; font-size: var(--font-size-sm); color: var(--n-500); }
-  .mock-addr-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .mock-addr-header-key { padding: 2px 6px; font-family: var(--font-mono); font-size: var(--font-size-xs); background: var(--n-100); border-radius: var(--radius-sm); }
-  .mock-addr-header-val { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--n-500); }
-
-  /* 分页每页条数（实际页 el-pagination 的 page-sizes） */
-  .page-size { display: inline-flex; align-items: center; gap: 4px; color: var(--n-500); }
-
-  /* 列显隐：齿轮入口 + 220px 显示列浮层，pinned 列始终展示（对齐 TableColumnSetting） */
+  /* TableColumnSetting icon-only in header */
   .colset { position: relative; display: inline-flex; }
-  .colset__pop { position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 120; width: 220px; padding: 12px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
+  .colset__pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 120; width: 220px; padding: 12px; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); text-align: left; font-weight: 400; }
   .colset__title { margin-bottom: 8px; font-size: var(--font-size-sm); color: var(--n-600); }
   .colset__list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
   .colset__item { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; }
@@ -91,9 +49,80 @@
   .colset__item input { width: 15px; height: 15px; margin: 0; accent-color: var(--brand-500); }
   .colset__actions { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--n-200); }
 
-  /* 加载失败口径（UI-PAGE-11）：顶部错误条 + 重新加载，已有数据保留（MocksPage 刷新失败不清空列表） */
-  .list-load-error { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 14px; border: 1px solid var(--st-danger-border); border-radius: var(--radius-md); background: var(--st-danger-light); color: var(--st-danger-strong); font-size: var(--font-size-sm); }
-  .list-load-error__spacer { flex: 1; }
+  /* More dropdown (el-dropdown) */
+  .mock-more { position: fixed; min-width: 120px; padding: 4px 0; background: var(--n-0); border: 1px solid var(--n-200); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 150; }
+  .mock-more__item { padding: 7px 16px; font-size: var(--font-size-sm); color: var(--n-700); cursor: pointer; white-space: nowrap; }
+  .mock-more__item:hover { background: var(--n-50); color: var(--brand-500); }
+  .mock-more__item--divided { border-top: 1px solid var(--n-100); margin-top: 4px; padding-top: 11px; }
+
+  /* Drawers / dialogs */
+  [hidden] { display: none !important; }
+  .dialog-mask { position: fixed; inset: 0; background: rgba(0,0,0,.32); display: flex; align-items: center; justify-content: center; z-index: 200; }
+  .dialog { background: var(--n-0); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
+  .dialog__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--n-100); flex-shrink: 0; }
+  .dialog__title { font-size: 16px; font-weight: 600; color: var(--n-800); }
+  .dialog__close { cursor: pointer; color: var(--n-400); display: inline-flex; }
+  .dialog__close:hover { color: var(--n-700); }
+  .dialog__body { padding: 20px 24px; overflow-y: auto; flex: 1; min-height: 0; }
+  .dialog__footer { padding: 12px 20px; border-top: 1px solid var(--n-100); display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
+
+  /* Drawer layout (el-drawer) */
+  .drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.32); z-index: 200; display: flex; justify-content: flex-end; }
+  .drawer { background: var(--n-0); height: 100%; box-shadow: var(--shadow-xl); display: flex; flex-direction: column; max-width: 100vw; }
+  .drawer__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--n-100); flex-shrink: 0; }
+  .drawer__title { font-size: 16px; font-weight: 600; color: var(--n-800); }
+  .drawer__close { cursor: pointer; color: var(--n-400); display: inline-flex; }
+  .drawer__close:hover { color: var(--n-700); }
+  .drawer__body { padding: 20px 24px; overflow-y: auto; flex: 1; min-height: 0; }
+  .drawer__footer { padding: 12px 20px; border-top: 1px solid var(--n-100); display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
+
+  /* MockEditorDrawer form */
+  .mock-editor .field { margin-bottom: 16px; }
+  .mock-sect { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; font-size: var(--font-size-sm); color: var(--n-500); }
+  .mock-sect::before, .mock-sect::after { content: ""; flex: 1; height: 1px; background: var(--n-200); }
+  .mock-sect::before { flex: 0 0 12px; }
+  .mock-row { display: flex; gap: 12px; align-items: flex-start; }
+  .mock-row .field { flex: 1; min-width: 0; }
+  .mock-row .mock-row__item--wide { flex: 2; }
+  .mock-kv { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+  .mock-kv .input, .mock-kv .select { flex: 1; min-width: 0; }
+  .mock-kv__type { width: 130px; flex: none !important; }
+  .mock-kv__del { flex: none; }
+  .mock-hint { font-size: 12px; color: var(--n-400); margin-left: 8px; }
+  .mock-body-textarea { min-height: 180px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.5; }
+
+  /* MockDebugPanel */
+  .mock-debug { display: flex; flex-direction: column; gap: 12px; }
+  .mock-debug .field { margin-bottom: 0; }
+  .mock-debug__mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; }
+  .mock-debug__status { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .mock-debug__duration { font-size: 13px; color: var(--n-400); }
+  .mock-debug__pre { background: var(--n-50); border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; margin: 0; max-height: 300px; overflow-y: auto; }
+  .tag--lg { padding: 4px 10px; font-size: 13px; }
+  .is-saving { opacity: .65; pointer-events: none; }
+
+  /* MockAddressDialog */
+  .mock-address__desc { font-size: 13px; color: var(--n-500); margin: 0 0 12px; }
+  .mock-address__url-box { display: flex; align-items: center; gap: 8px; background: var(--n-50); border: 1px solid var(--n-200); border-radius: var(--radius-md); padding: 10px 12px; }
+  .mock-address__url { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; word-break: break-all; flex: 1; }
+  .mock-address__headers { margin-top: 12px; }
+  .mock-address__headers-title { font-size: 13px; color: var(--n-500); margin: 0 0 8px; }
+  .mock-address__header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .mock-address__header-key { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; background: var(--n-100); padding: 2px 6px; border-radius: 3px; }
+  .mock-address__header-val { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: var(--n-500); }
+
+  /* BatchActionBar mirrors BatchActionBar.vue */
+  .batch-action-bar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: rgba(32,35,41,.96); color: #fff; font-size: 14px; box-shadow: 0 12px 32px -10px rgba(0,0,0,.45); }
+  .batch-action-bar[hidden] { display: none !important; }
+  .batch-action-bar__count b { color: #7cc0ff; font-weight: 700; }
+  .batch-action-bar__sep { width: 1px; height: 18px; background: rgba(255,255,255,.2); }
+  .batch-action-bar__clear { background: none; border: none; padding: 0 4px; color: rgba(255,255,255,.65); cursor: pointer; font-size: 14px; }
+  .batch-action-bar__clear:hover { color: #fff; }
+  .batch-action-bar .btn { height: 28px; padding: 0 12px; font-size: 13px; }
+  .batch-action-bar .btn--default { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.22); color: #fff; }
+  .batch-action-bar .btn--default:hover { background: rgba(255,255,255,.2); }
+  .batch-action-bar .btn--danger.is-plain { background: rgba(245,108,108,.15); border-color: rgba(245,108,108,.5); color: #f89898; }
+  .batch-action-bar .btn--danger.is-plain:hover { background: rgba(245,108,108,.25); color: #fab6b6; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="api" data-workspace="质量中台" data-project="电商核心系统">
@@ -103,333 +132,390 @@
     <aside class="split__side" data-side="api"></aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">Mock 服务</h1>
-        </div>
-        <div class="page-head__actions">
-          <button class="btn btn--primary" type="button" id="mk-open"><span data-icon="plus"></span>新建 Mock</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="toolbar">
-          <div class="toolbar__filters" data-ux-filters="mocks">
-            <div class="input-wrap"><span data-icon="search"></span><input class="input" id="mk-search" placeholder="请输入名称或路径"></div>
-            <select class="select" id="mk-status-filter" style="width:120px"><option value="">状态</option><option value="on">已启用</option><option value="off">已停用</option></select>
+      <div class="mocks-page">
+        <div class="mocks-page__toolbar">
+          <div class="mocks-page__toolbar-left">
+            <div class="input-wrap" style="width:220px">
+              <span data-icon="search"></span>
+              <input class="input" id="mk-search" placeholder="请输入名称或路径">
+            </div>
+            <select class="select" id="mk-status-filter" style="width:120px">
+              <option value="">状态</option>
+              <option value="on">已启用</option>
+              <option value="off">已停用</option>
+            </select>
             <button class="btn btn--primary" type="button" id="mk-search-btn"><span data-icon="search"></span>查询</button>
             <button class="btn btn--default" type="button" id="mk-reset">重置</button>
-            <div class="colset" id="mk-cols">
-              <button class="btn btn--default" type="button" id="mk-cols-btn" aria-label="列设置" aria-expanded="false"><span data-icon="settings"></span>列设置</button>
-              <div class="colset__pop" id="mk-cols-pop" hidden>
-                <div class="colset__title">显示列</div>
-                <div class="colset__list"></div>
-                <div class="colset__actions">
-                  <button class="btn btn--link btn--sm" type="button" data-cols-all>全选</button>
-                  <button class="btn btn--link btn--sm" type="button" data-cols-reset>恢复默认</button>
-                </div>
+          </div>
+          <div class="mocks-page__toolbar-right">
+            <button class="btn btn--primary" type="button" id="mk-open"><span data-icon="plus"></span>新建 Mock</button>
+          </div>
+        </div>
+
+        <div class="mocks-page__feedback" id="mk-refresh-error" hidden>
+          <div class="list-feedback__error">
+            <div class="alert alert--danger">
+              <span data-icon="alert-circle"></span>
+              <div>
+                <div style="font-weight:600">刷新失败，当前显示上次加载的数据</div>
+                <div id="mk-refresh-error-msg" style="font-size:12px;margin-top:2px">加载 Mock 列表失败</div>
               </div>
             </div>
-            <span class="ux-restore" data-ux-restore-for="mocks" hidden>
-              <span data-icon="check"></span>已恢复上次筛选
-              <button class="ux-restore__clear" data-ux-restore-clear>清除</button>
-            </span>
+            <button class="btn btn--default" type="button" id="mk-retry">重新加载</button>
           </div>
-          <div class="toolbar__count" id="mk-count">共 36 条</div>
         </div>
 
-        <div class="list-load-error" id="mk-load-error" role="alert" hidden>
-          <span data-icon="alert-circle"></span>
-          <span>加载 Mock 列表失败</span>
-          <span class="list-load-error__spacer"></span>
-          <button class="btn btn--link btn--sm" type="button" data-list-retry>重新加载</button>
+        <div class="mocks-page__table" id="mk-table-wrap">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width:40px" data-col="selection" data-label="选择"><span class="checkbox" id="mk-check-all"></span></th>
+                  <th data-col="name" style="min-width:180px">名称</th>
+                  <th data-col="method" style="width:90px;text-align:center">方法</th>
+                  <th data-col="path" style="min-width:200px">路径</th>
+                  <th data-col="statusCode" style="width:80px;text-align:center">状态码</th>
+                  <th data-col="priority" style="width:70px;text-align:center">优先级</th>
+                  <th data-col="enabled" style="width:80px;text-align:center">启停</th>
+                  <th data-col="hitCount" style="width:90px;text-align:center">命中次数</th>
+                  <th data-col="lastHit" style="width:160px;text-align:center">最后命中</th>
+                  <th data-col="actions" style="width:280px;text-align:right">
+                    <div class="mocks-page__action-header">
+                      <span>操作</span>
+                      <div class="colset" id="mk-cols">
+                        <button class="btn btn--link btn--sm" type="button" id="mk-cols-btn" aria-label="列设置" aria-expanded="false" style="padding:0 2px"><span data-icon="settings"></span></button>
+                        <div class="colset__pop" id="mk-cols-pop" hidden>
+                          <div class="colset__title">显示列</div>
+                          <div class="colset__list"></div>
+                          <div class="colset__actions">
+                            <button class="btn btn--link btn--sm" type="button" data-cols-all>全选</button>
+                            <button class="btn btn--link btn--sm" type="button" data-cols-reset>恢复默认</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="mk-tbody">
+                <tr data-mock="1" data-desc="优先级最高，命中即返回">
+                  <td><span class="checkbox"></span></td>
+                  <td><button type="button" class="list-title-link" data-op="edit">下单成功（默认兜底）</button></td>
+                  <td style="text-align:center"><span class="tag tag--primary">POST</span></td>
+                  <td class="mono">/api/v1/orders</td>
+                  <td class="num" style="text-align:center">200</td>
+                  <td class="num" style="text-align:center">10</td>
+                  <td style="text-align:center"><span class="switch switch--on" role="switch" aria-checked="true" tabindex="0"></span></td>
+                  <td class="num" style="text-align:center">1,284</td>
+                  <td class="num" style="text-align:center">2026-09-22 13:41</td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <span class="op-link" data-op="edit">编辑</span>
+                    <span class="op-link" data-op="debug">调试</span>
+                    <span class="op-link" data-op="address">地址</span>
+                    <span class="op-link" data-op="copy">复制</span>
+                    <span class="op-link mocks-page__more" data-op="more">更多 <span data-icon="chevron-down" style="width:12px;height:12px;vertical-align:-2px"></span></span>
+                  </td>
+                </tr>
+                <tr data-mock="1" data-desc="库存扣减冲突时返回的响应">
+                  <td><span class="checkbox"></span></td>
+                  <td><button type="button" class="list-title-link" data-op="edit">库存不足</button></td>
+                  <td style="text-align:center"><span class="tag tag--primary">POST</span></td>
+                  <td class="mono">/api/v1/stock/deduct</td>
+                  <td class="num" style="text-align:center">409</td>
+                  <td class="num" style="text-align:center">8</td>
+                  <td style="text-align:center"><span class="switch switch--on" role="switch" aria-checked="true" tabindex="0"></span></td>
+                  <td class="num" style="text-align:center">326</td>
+                  <td class="num" style="text-align:center">2026-09-22 11:07</td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <span class="op-link" data-op="edit">编辑</span>
+                    <span class="op-link" data-op="debug">调试</span>
+                    <span class="op-link" data-op="address">地址</span>
+                    <span class="op-link" data-op="copy">复制</span>
+                    <span class="op-link mocks-page__more" data-op="more">更多 <span data-icon="chevron-down" style="width:12px;height:12px;vertical-align:-2px"></span></span>
+                  </td>
+                </tr>
+                <tr data-mock="1" data-desc="订单不存在时返回空 data">
+                  <td><span class="checkbox"></span></td>
+                  <td><button type="button" class="list-title-link" data-op="edit">查询订单详情 · 空数据</button></td>
+                  <td style="text-align:center"><span class="tag tag--success">GET</span></td>
+                  <td class="mono">/api/v1/orders/{id}</td>
+                  <td class="num" style="text-align:center">200</td>
+                  <td class="num" style="text-align:center">5</td>
+                  <td style="text-align:center"><span class="switch switch--on" role="switch" aria-checked="true" tabindex="0"></span></td>
+                  <td class="num" style="text-align:center">942</td>
+                  <td class="num" style="text-align:center">2026-09-21 18:22</td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <span class="op-link" data-op="edit">编辑</span>
+                    <span class="op-link" data-op="debug">调试</span>
+                    <span class="op-link" data-op="address">地址</span>
+                    <span class="op-link" data-op="copy">复制</span>
+                    <span class="op-link mocks-page__more" data-op="more">更多 <span data-icon="chevron-down" style="width:12px;height:12px;vertical-align:-2px"></span></span>
+                  </td>
+                </tr>
+                <tr data-mock="1" data-desc="模拟第三方回调延迟 3 秒到达">
+                  <td><span class="checkbox"></span></td>
+                  <td><button type="button" class="list-title-link" data-op="edit">支付回调 · 延迟 3s</button></td>
+                  <td style="text-align:center"><span class="tag tag--primary">POST</span></td>
+                  <td class="mono">/api/v1/payments/callback</td>
+                  <td class="num" style="text-align:center">200</td>
+                  <td class="num" style="text-align:center">3</td>
+                  <td style="text-align:center"><span class="switch" role="switch" aria-checked="false" tabindex="0"></span></td>
+                  <td class="num" style="text-align:center">57</td>
+                  <td class="num" style="text-align:center">2026-09-19 16:05</td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <span class="op-link" data-op="edit">编辑</span>
+                    <span class="op-link" data-op="debug">调试</span>
+                    <span class="op-link" data-op="address">地址</span>
+                    <span class="op-link" data-op="copy">复制</span>
+                    <span class="op-link mocks-page__more" data-op="more">更多 <span data-icon="chevron-down" style="width:12px;height:12px;vertical-align:-2px"></span></span>
+                  </td>
+                </tr>
+                <tr data-mock="1" data-desc="用户服务异常时的兜底 500">
+                  <td><span class="checkbox"></span></td>
+                  <td><button type="button" class="list-title-link" data-op="edit">用户中心 · 500 异常</button></td>
+                  <td style="text-align:center"><span class="tag tag--success">GET</span></td>
+                  <td class="mono">/api/v1/users/{id}</td>
+                  <td class="num" style="text-align:center">500</td>
+                  <td class="num" style="text-align:center">1</td>
+                  <td style="text-align:center"><span class="switch switch--on" role="switch" aria-checked="true" tabindex="0"></span></td>
+                  <td class="num" style="text-align:center">18</td>
+                  <td class="num" style="text-align:center">2026-09-18 09:48</td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <span class="op-link" data-op="edit">编辑</span>
+                    <span class="op-link" data-op="debug">调试</span>
+                    <span class="op-link" data-op="address">地址</span>
+                    <span class="op-link" data-op="copy">复制</span>
+                    <span class="op-link mocks-page__more" data-op="more">更多 <span data-icon="chevron-down" style="width:12px;height:12px;vertical-align:-2px"></span></span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div id="mk-empty" class="empty-block" hidden>
+              <div class="empty-block__title" id="mk-empty-title">暂无 Mock 规则</div>
+              <button class="btn btn--default" type="button" id="mk-empty-reset" hidden>重置筛选</button>
+            </div>
+            <div id="mk-first-error" class="list-feedback__error" style="padding:20px 0" hidden>
+              <div class="alert alert--danger">
+                <span data-icon="alert-circle"></span>
+                <div>
+                  <div style="font-weight:600">加载 Mock 列表失败</div>
+                  <div id="mk-first-error-msg" style="font-size:12px;margin-top:2px">加载 Mock 列表失败</div>
+                </div>
+              </div>
+              <button class="btn btn--default" type="button" id="mk-first-retry">重新加载</button>
+            </div>
+          </div>
         </div>
 
-        <div class="table-wrap" data-ux-batchbar="#batchbar-mocks">
-          <table class="table">
-            <thead>
-              <tr>
-                <th style="width:34px" data-col="selection" data-label="选择"></th>
-                <th data-col="name">名称</th>
-                <th style="width:78px" data-col="method">方法</th>
-                <th data-col="path">路径</th>
-                <th style="width:74px" data-col="statusCode">状态码</th>
-                <th style="width:64px" data-col="priority">优先级</th>
-                <th style="width:74px" data-col="enabled">启停</th>
-                <th style="width:84px" data-col="hitCount">命中次数</th>
-                <th style="width:150px" data-col="lastHit">最后命中</th>
-                <th style="width:280px" data-col="actions">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr data-mock="1" data-desc="优先级最高，命中即返回">
-                <td><span class="checkbox checkbox--on"></span></td>
-                <td class="cell-main">下单成功（默认兜底）</td>
-                <td><span class="chip">POST</span></td>
-                <td class="mono">/api/v1/orders</td>
-                <td class="num">200</td>
-                <td class="num">10</td>
-                <td style="text-align:center"><span class="switch switch--on"></span></td>
-                <td class="num">1,284</td>
-                <td class="num">2026-09-22 13:41</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link" data-op="debug">调试</span><span class="op-link" data-op="address">地址</span><span class="op-link" data-op="copy">复制</span><span class="more-caret">更多 ▾</span></td>
-              </tr>
-              <tr data-mock="1" data-desc="库存扣减冲突时返回的响应">
-                <td><span class="checkbox checkbox--on"></span></td>
-                <td class="cell-main">库存不足</td>
-                <td><span class="chip">POST</span></td>
-                <td class="mono">/api/v1/stock/deduct</td>
-                <td class="num">409</td>
-                <td class="num">8</td>
-                <td style="text-align:center"><span class="switch switch--on"></span></td>
-                <td class="num">326</td>
-                <td class="num">2026-09-22 11:07</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link" data-op="debug">调试</span><span class="op-link" data-op="address">地址</span><span class="op-link" data-op="copy">复制</span><span class="more-caret">更多 ▾</span></td>
-              </tr>
-              <tr data-mock="1" data-desc="订单不存在时返回空 data">
-                <td><span class="checkbox"></span></td>
-                <td class="cell-main">查询订单详情 · 空数据</td>
-                <td><span class="chip">GET</span></td>
-                <td class="mono">/api/v1/orders/{id}</td>
-                <td class="num">200</td>
-                <td class="num">5</td>
-                <td style="text-align:center"><span class="switch switch--on"></span></td>
-                <td class="num">942</td>
-                <td class="num">2026-09-21 18:22</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link" data-op="debug">调试</span><span class="op-link" data-op="address">地址</span><span class="op-link" data-op="copy">复制</span><span class="more-caret">更多 ▾</span></td>
-              </tr>
-              <tr data-mock="1" data-desc="模拟第三方回调延迟 3 秒到达">
-                <td><span class="checkbox"></span></td>
-                <td class="cell-main">支付回调 · 延迟 3s</td>
-                <td><span class="chip">POST</span></td>
-                <td class="mono">/api/v1/payments/callback</td>
-                <td class="num">200</td>
-                <td class="num">3</td>
-                <td style="text-align:center"><span class="switch"></span></td>
-                <td class="num">57</td>
-                <td class="num">2026-09-19 16:05</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link" data-op="debug">调试</span><span class="op-link" data-op="address">地址</span><span class="op-link" data-op="copy">复制</span><span class="more-caret">更多 ▾</span></td>
-              </tr>
-              <tr data-mock="1" data-desc="用户服务异常时的兜底 500">
-                <td><span class="checkbox"></span></td>
-                <td class="cell-main">用户中心 · 500 异常</td>
-                <td><span class="chip">GET</span></td>
-                <td class="mono">/api/v1/users/{id}</td>
-                <td class="num">500</td>
-                <td class="num">1</td>
-                <td style="text-align:center"><span class="switch switch--on"></span></td>
-                <td class="num">18</td>
-                <td class="num">2026-09-18 09:48</td>
-                <td><span class="op-link" data-op="edit">编辑</span><span class="op-link" data-op="debug">调试</span><span class="op-link" data-op="address">地址</span><span class="op-link" data-op="copy">复制</span><span class="more-caret">更多 ▾</span></td>
-              </tr>
-              <tr id="mk-empty" hidden><td colspan="10" class="muted" style="text-align:center;padding:32px 0">暂无数据</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="pagination" data-ux-pageable>
-          <span class="pagination__total" id="mk-pager-total">共 36 条</span>
-          <span class="page-size">
-            每页
-            <select class="select" style="width:auto;height:28px;padding:0 8px">
-              <option value="10">10</option>
-              <option value="20" selected>20</option>
-              <option value="50">50</option>
-            </select>
-            条
-          </span>
-          <button class="page-btn" disabled>‹</button>
-          <button class="page-btn page-btn--active">1</button>
-          <button class="page-btn">2</button>
-          <button class="page-btn">›</button>
+        <div class="mocks-page__pagination" id="mk-pagination">
+          <div class="list-pager">
+            <span class="list-pager__total" id="mk-pager-total">共 36 条 · 每页 20 条</span>
+            <div class="list-pager__right">
+              <span class="page-size">
+                每页
+                <select class="select" id="mk-page-size" style="width:auto;height:28px;padding:0 8px">
+                  <option value="20" selected>20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+                条
+              </span>
+              <button class="page-btn" data-page="prev" disabled>‹</button>
+              <button class="page-btn page-btn--active" data-page="1">1</button>
+              <button class="page-btn" data-page="2">2</button>
+              <button class="page-btn" data-page="next">›</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </main>
 
-<!-- 底部批量操作条：勾选 ≥1 行时浮出；实际页批量动作仅启停，删除走行内「更多」 -->
-<div class="ux-batchbar" id="batchbar-mocks" hidden>
-  <span class="ux-batchbar__count">已选 <b data-ux-batch-count>0</b> 项</span>
-  <span class="ux-batchbar__sep"></span>
-  <button class="btn btn--default btn--sm" id="mk-batch-on" type="button">批量启用</button>
-  <button class="btn btn--default btn--sm" id="mk-batch-off" type="button">批量停用</button>
-  <span class="ux-batchbar__sep"></span>
-  <button class="btn btn--text btn--sm" data-ux-batch-clear>清空</button>
+<div class="batch-action-bar" id="batchbar-mocks" role="region" aria-label="批量操作" hidden>
+  <span class="batch-action-bar__count">已选 <b id="mk-batch-count">0</b> 项</span>
+  <span class="batch-action-bar__sep"></span>
+  <button class="btn btn--default btn--sm" type="button" id="mk-batch-on">批量启用</button>
+  <button class="btn btn--danger btn--sm is-plain" type="button" id="mk-batch-off">批量停用</button>
+  <span class="batch-action-bar__sep"></span>
+  <button type="button" class="batch-action-bar__clear" id="mk-batch-clear">清空</button>
 </div>
 
-<!-- 「更多」下拉菜单：对应 el-dropdown 的 重置命中 / 删除 -->
 <div class="mock-more" id="mock-more" role="menu" hidden>
   <div class="mock-more__item" role="menuitem" data-more="reset-hit">重置命中</div>
-  <div class="mock-more__item mock-more__item--danger" role="menuitem" data-more="delete">删除</div>
+  <div class="mock-more__item mock-more__item--divided" role="menuitem" data-more="delete">删除</div>
 </div>
 
-<!-- 编辑面板：对应 MockEditorDrawer（宽 640px），分区为 基本信息 / 匹配条件 / 响应定义 -->
-<div class="dialog-mask" id="mock-editor" role="dialog" aria-modal="true" aria-labelledby="mk-title" hidden>
-  <div class="dialog">
-    <div class="dialog__header">
-      <span class="dialog__title" id="mk-title">新建 Mock</span>
-      <span class="dialog__close" id="mk-close" role="button" tabindex="0" title="关闭"><span data-icon="x"></span></span>
+<!-- MockEditorDrawer: el-drawer size 640px -->
+<div class="drawer-mask" id="mock-editor" role="dialog" aria-modal="true" aria-labelledby="mk-title" hidden>
+  <div class="drawer" style="width:640px">
+    <div class="drawer__header">
+      <span class="drawer__title" id="mk-title">新建 Mock</span>
+      <span class="drawer__close" id="mk-close" role="button" tabindex="0" title="关闭"><span data-icon="x"></span></span>
     </div>
+    <div class="drawer__body">
+      <form class="mock-editor" onsubmit="return false">
+        <div class="mock-sect">基本信息</div>
 
-    <div class="dialog__body">
-      <div class="mock-sect">基本信息</div>
-
-      <div class="field">
-        <label class="field__label" for="mk-name">Mock 名称<span class="req">*</span></label>
-        <input class="input" id="mk-name" maxlength="200" placeholder="如：登录成功 Mock">
-        <div class="field__error" id="mk-name-err" hidden>请输入 Mock 名称</div>
-      </div>
-
-      <div class="field">
-        <label class="field__label" for="mk-desc">描述</label>
-        <textarea class="textarea" id="mk-desc" rows="2" maxlength="500"></textarea>
-      </div>
-
-      <div class="mock-row">
         <div class="field">
-          <label class="field__label" for="mk-method">请求方法</label>
-          <select class="select" id="mk-method">
-            <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option>
-            <option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
-          </select>
+          <label class="field__label" for="mk-name">Mock 名称<span class="req">*</span></label>
+          <input class="input" id="mk-name" maxlength="200" placeholder="如：登录成功 Mock">
         </div>
-        <div class="field mock-row__item--wide">
-          <label class="field__label" for="mk-path">请求路径<span class="req">*</span></label>
-          <input class="input" id="mk-path" maxlength="500" value="/" placeholder="/api/users">
-          <div class="field__error" id="mk-path-err" hidden>请输入请求路径</div>
-        </div>
-      </div>
 
-      <div class="mock-row">
         <div class="field">
-          <span class="field__label">启用</span>
-          <span class="switch switch--on" id="mk-enabled" role="switch" aria-checked="true" tabindex="0"></span>
+          <label class="field__label" for="mk-desc">描述</label>
+          <textarea class="textarea" id="mk-desc" rows="2" maxlength="500"></textarea>
         </div>
-        <div class="field">
-          <span class="field__label">跟随 API</span>
-          <span class="switch" id="mk-follow" role="switch" aria-checked="false" tabindex="0"></span>
-          <div class="field__hint">Mock 未配置响应时使用关联接口的响应示例</div>
-        </div>
-        <div class="field" id="mk-group-item" hidden>
-          <span class="field__label">同组规则</span>
-          <span class="tag tag--warning tag--sm" id="mk-group-size">2 条</span>
-          <div class="field__hint">同路径同方法的 Mock 规则总数，优先级排序生效</div>
-        </div>
-      </div>
 
-      <div class="mock-sect">匹配条件</div>
-
-      <div id="mk-rules">
-        <div class="mock-kv">
-          <select class="select mock-kv__type" data-rule-type aria-label="匹配类型">
-            <option value="header">请求头</option><option value="param">Query 参数</option><option value="body">请求体 (JSONPath)</option>
-          </select>
-          <input class="input" data-rule-name value="" placeholder="名称 / JSONPath" maxlength="200">
-          <input class="input" data-rule-value value="" placeholder="值 / 正则" maxlength="500">
-          <button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行" disabled><span data-icon="trash"></span></button>
-        </div>
-      </div>
-      <button class="btn btn--link btn--sm" type="button" id="mk-rule-add"><span data-icon="plus"></span>添加匹配条件</button>
-
-      <div class="mock-sect">响应定义</div>
-
-      <div class="mock-row">
-        <div class="field">
-          <label class="field__label" for="mk-status">状态码</label>
-          <input class="input num" type="number" id="mk-status" value="200" min="100" max="599">
-        </div>
-        <div class="field">
-          <label class="field__label" for="mk-bodytype">响应体类型</label>
-          <select class="select" id="mk-bodytype">
-            <option value="json">JSON</option><option value="text">Text</option>
-            <option value="xml">XML</option><option value="binary">Binary</option>
-          </select>
-        </div>
-        <div class="field">
-          <label class="field__label" for="mk-delay">延迟 (ms)</label>
-          <input class="input num" type="number" id="mk-delay" value="0" min="0" max="60000">
-        </div>
-      </div>
-
-      <div class="field">
-        <span class="field__label">响应头</span>
-        <div id="mk-headers">
-          <div class="mock-kv">
-            <input class="input" data-head-key value="Content-Type" placeholder="Key" maxlength="200">
-            <input class="input" data-head-value value="application/json" placeholder="Value" maxlength="500">
-            <button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行" disabled><span data-icon="trash"></span></button>
+        <div class="mock-row">
+          <div class="field">
+            <label class="field__label" for="mk-method">请求方法</label>
+            <select class="select" id="mk-method">
+              <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option>
+              <option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
+            </select>
+          </div>
+          <div class="field mock-row__item--wide">
+            <label class="field__label" for="mk-path">请求路径<span class="req">*</span></label>
+            <input class="input" id="mk-path" maxlength="500" value="/" placeholder="/api/users">
           </div>
         </div>
-        <button class="btn btn--link btn--sm" type="button" id="mk-head-add"><span data-icon="plus"></span>添加响应头</button>
-      </div>
 
-      <div class="field">
-        <label class="field__label" for="mk-body">响应体</label>
-        <textarea class="textarea mock-body" id="mk-body" rows="8" maxlength="10000" placeholder='{"code": 200, "data": {"token": "mock-${uuid()}"}}'></textarea>
-      </div>
+        <div class="mock-row">
+          <div class="field">
+            <span class="field__label">启用</span>
+            <span class="switch switch--on" id="mk-enabled" role="switch" aria-checked="true" tabindex="0"></span>
+          </div>
+          <div class="field">
+            <span class="field__label">跟随 API</span>
+            <span class="switch" id="mk-follow" role="switch" aria-checked="false" tabindex="0"></span>
+            <span class="mock-hint">Mock 未配置响应时使用关联接口的响应示例</span>
+          </div>
+          <div class="field" id="mk-group-item" hidden>
+            <span class="field__label">同组规则</span>
+            <span class="tag tag--warning" id="mk-group-size">2 条</span>
+            <span class="mock-hint">同路径同方法的 Mock 规则总数，优先级排序生效</span>
+          </div>
+        </div>
+
+        <div class="mock-sect">匹配条件</div>
+
+        <div id="mk-rules">
+          <div class="mock-kv">
+            <select class="select mock-kv__type" data-rule-type aria-label="匹配类型">
+              <option value="header">请求头</option><option value="param">Query 参数</option><option value="body">请求体 (JSONPath)</option>
+            </select>
+            <input class="input" data-rule-name value="" placeholder="名称 / JSONPath" maxlength="200">
+            <input class="input" data-rule-value value="" placeholder="值 / 正则" maxlength="500">
+            <button type="button" class="btn btn--link mock-kv__del" data-del aria-label="删除该行" disabled style="color:var(--st-danger);padding:0 4px"><span data-icon="trash"></span></button>
+          </div>
+        </div>
+        <button class="btn btn--link" type="button" id="mk-rule-add" style="padding-left:0"><span data-icon="plus"></span> 添加匹配条件</button>
+
+        <div class="mock-sect">响应定义</div>
+
+        <div class="mock-row">
+          <div class="field">
+            <label class="field__label" for="mk-status">状态码</label>
+            <input class="input num" type="number" id="mk-status" value="200" min="100" max="599">
+          </div>
+          <div class="field">
+            <label class="field__label" for="mk-bodytype">响应体类型</label>
+            <select class="select" id="mk-bodytype">
+              <option value="json">JSON</option><option value="text">Text</option>
+              <option value="xml">XML</option><option value="binary">Binary</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label" for="mk-delay">延迟 (ms)</label>
+            <input class="input num" type="number" id="mk-delay" value="0" min="0" max="60000">
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field__label">响应头</span>
+          <div id="mk-headers">
+            <div class="mock-kv">
+              <input class="input" data-head-key value="Content-Type" placeholder="Key" maxlength="200">
+              <input class="input" data-head-value value="application/json" placeholder="Value" maxlength="500">
+              <button type="button" class="btn btn--link mock-kv__del" data-del aria-label="删除该行" style="color:var(--st-danger);padding:0 4px"><span data-icon="trash"></span></button>
+            </div>
+          </div>
+          <button class="btn btn--link" type="button" id="mk-head-add" style="padding-left:0"><span data-icon="plus"></span> 添加响应头</button>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="mk-body">响应体</label>
+          <textarea class="textarea mock-body-textarea" id="mk-body" rows="8" maxlength="10000" placeholder='{"code": 200, "data": {"token": "mock-${uuid()}"}}'></textarea>
+        </div>
+      </form>
     </div>
-
-    <div class="dialog__footer">
+    <div class="drawer__footer">
       <button class="btn btn--default" type="button" id="mk-cancel">取消</button>
       <button class="btn btn--primary" type="button" id="mk-save">保存</button>
     </div>
   </div>
 </div>
 
-<!-- 调试面板：对应 MockDebugPanel（抽屉 560px），无 footer，按钮在表单之后 -->
-<div class="dialog-mask" id="mock-debug" role="dialog" aria-modal="true" aria-labelledby="dbg-title" hidden>
-  <div class="dialog">
-    <div class="dialog__header">
-      <span class="dialog__title" id="dbg-title">Mock 调试</span>
-      <span class="dialog__close" id="dbg-close" role="button" tabindex="0" title="关闭"><span data-icon="x"></span></span>
+<!-- MockDebugPanel: el-drawer size 560px -->
+<div class="drawer-mask" id="mock-debug" role="dialog" aria-modal="true" aria-labelledby="dbg-title" hidden>
+  <div class="drawer" style="width:560px">
+    <div class="drawer__header">
+      <span class="drawer__title" id="dbg-title">Mock 调试</span>
+      <span class="drawer__close" id="dbg-close" role="button" tabindex="0" title="关闭"><span data-icon="x"></span></span>
     </div>
-    <div class="dialog__body">
-      <div class="field">
-        <label class="field__label" for="dbg-headers">请求头 (JSON 或 Header: Value 格式)</label>
-        <textarea class="textarea mock-mono" id="dbg-headers" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
-      </div>
-      <div class="field">
-        <label class="field__label" for="dbg-body">请求体 (JSON)</label>
-        <textarea class="textarea mock-mono" id="dbg-body" rows="5" placeholder='{"username": "admin", "password": "123456"}'></textarea>
-      </div>
-      <button class="btn btn--primary" type="button" id="dbg-send">发送调试请求</button>
-
-      <div id="dbg-result" hidden>
-        <div class="mock-sect">响应结果</div>
-        <div class="mock-debug-status">
-          <span class="tag tag--success" id="dbg-status">200</span>
-          <span class="mock-debug-ms" id="dbg-duration">23ms</span>
+    <div class="drawer__body">
+      <div class="mock-debug">
+        <div class="field">
+          <label class="field__label" for="dbg-headers">请求头 (JSON 或 Header: Value 格式)</label>
+          <textarea class="textarea mock-debug__mono" id="dbg-headers" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
         </div>
         <div class="field">
-          <span class="field__label">响应头</span>
-          <pre class="mock-pre" id="dbg-resp-headers"></pre>
+          <label class="field__label" for="dbg-body">请求体 (JSON)</label>
+          <textarea class="textarea mock-debug__mono" id="dbg-body" rows="5" placeholder='{"username": "admin", "password": "123456"}'></textarea>
         </div>
-        <div class="field" style="margin-bottom:0">
-          <span class="field__label">响应体</span>
-          <pre class="mock-pre" id="dbg-resp-body"></pre>
+        <div>
+          <button class="btn btn--primary" type="button" id="dbg-send">发送调试请求</button>
+        </div>
+
+        <div id="dbg-result" hidden>
+          <div class="mock-sect">响应结果</div>
+          <div class="mock-debug__status">
+            <span class="tag tag--success tag--lg" id="dbg-status">200</span>
+            <span class="mock-debug__duration" id="dbg-duration">23ms</span>
+          </div>
+          <div class="field">
+            <span class="field__label">响应头</span>
+            <pre class="mock-debug__pre" id="dbg-resp-headers"></pre>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <span class="field__label">响应体</span>
+            <pre class="mock-debug__pre" id="dbg-resp-body"></pre>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Mock 访问地址：对应 MockAddressDialog（520px），免登录地址 + 可选必需请求头 -->
+<!-- MockAddressDialog: el-dialog width 520px -->
 <div class="dialog-mask" id="mock-address" role="dialog" aria-modal="true" aria-labelledby="addr-title" hidden>
-  <div class="dialog">
+  <div class="dialog" style="width:520px">
     <div class="dialog__header">
       <span class="dialog__title" id="addr-title">Mock 访问地址</span>
       <span class="dialog__close" id="addr-close" role="button" tabindex="0" title="关闭"><span data-icon="x"></span></span>
     </div>
     <div class="dialog__body">
-      <p class="mock-addr-desc">以下地址可免登录直接访问 Mock 响应：</p>
-      <div class="mock-addr-box">
-        <span class="tag tag--success" id="addr-method">GET</span>
-        <code class="mock-addr-url" id="addr-url"></code>
-      </div>
-      <div class="mock-addr-headers" id="addr-headers" hidden>
-        <p class="mock-addr-headers-title">需要携带的请求头：</p>
-        <div id="addr-header-rows"></div>
+      <div class="mock-address">
+        <p class="mock-address__desc">以下地址可免登录直接访问 Mock 响应：</p>
+        <div class="mock-address__url-box">
+          <span class="tag tag--success" id="addr-method">GET</span>
+          <code class="mock-address__url" id="addr-url"></code>
+        </div>
+        <div class="mock-address__headers" id="addr-headers" hidden>
+          <p class="mock-address__headers-title">需要携带的请求头：</p>
+          <div id="addr-header-rows"></div>
+        </div>
       </div>
     </div>
     <div class="dialog__footer">
@@ -439,7 +525,7 @@
   </div>
 </div>
 
-<!-- 删除二次确认：文案同实际页 ElMessageBox -->
+<!-- Delete confirm -->
 <div class="dialog-mask" id="mock-confirm" role="dialog" aria-modal="true" aria-labelledby="del-title" hidden>
   <div class="dialog" style="width:420px">
     <div class="dialog__header">
@@ -458,148 +544,76 @@
 <script src="../assets/shell.js"></script>
 <script src="../assets/ux.js"></script>
 <script>
-  /* ---------------- 基础工具 ---------------- */
   function byId(id) { return document.getElementById(id); }
-
-  function esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function optionsHtml(list, selected) {
-    return list.map(function (item) {
-      var value = item[0];
-      return '<option value="' + esc(value) + '"' + (value === selected ? ' selected' : '') + '>' + esc(item[1]) + '</option>';
-    }).join('');
-  }
-
-  function hydrateIcons(scope) {
-    if (window.RTIcons) window.RTIcons.hydrate(scope);
-  }
-
-  function toast(msg, type) {
-    window.RTUX.toast(msg, { type: type || '' });
-  }
-
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function hydrateIcons(scope) { if (window.RTIcons) window.RTIcons.hydrate(scope); }
+  function toast(msg, type) { window.RTUX.toast(msg, { type: type || '' }); }
   function openDialog(el) { el.hidden = false; }
   function closeDialog(el) { el.hidden = true; }
 
-  var RULE_TYPES = [
-    ['header', '请求头'],
-    ['param', 'Query 参数'],
-    ['body', '请求体 (JSONPath)']
-  ];
+  var RULE_TYPES = [['header','请求头'],['param','Query 参数'],['body','请求体 (JSONPath)']];
   var MOCK_HOST = 'https://mock.robotest.example.com';
-  // 免登录地址仍可能要求调用方携带约定请求头，按路径声明演示数据
-  var ADDRESS_HEADERS = {
-    '/api/v1/payments/callback': [['X-Pay-Signature', 'mock-signature']]
-  };
-  // 未筛选时展示服务端总数，筛选后按命中样例行计数
+  var ADDRESS_HEADERS = { '/api/v1/payments/callback': [['X-Pay-Signature','mock-signature']] };
   var TOTAL_ROWS = 36;
 
-  /* ---------------- 列表读取与筛选 ---------------- */
-  var tbody = document.querySelector('.table tbody');
-  var tableWrap = document.querySelector('.table-wrap');
-  var countEl = byId('mk-count');
-  var pagerTotal = byId('mk-pager-total');
+  var tbody = byId('mk-tbody');
+  var checkAll = byId('mk-check-all');
+  var countEl = byId('mk-pager-total');
   var emptyRow = byId('mk-empty');
+  var emptyTitle = byId('mk-empty-title');
+  var emptyReset = byId('mk-empty-reset');
   var searchInput = byId('mk-search');
   var statusFilter = byId('mk-status-filter');
+  var tableWrap = byId('mk-table-wrap');
+  var pagination = byId('mk-pagination');
+  var refreshError = byId('mk-refresh-error');
+  var firstError = byId('mk-first-error');
 
-  function dataRows() {
-    return Array.prototype.slice.call(tbody.querySelectorAll('tr[data-mock]'));
-  }
-
-  function rowName(tr) {
-    var cell = tr.querySelector('.cell-main');
-    return cell ? cell.textContent.trim() : '';
-  }
-
-  function rowMethod(tr) {
-    var el = tr.querySelector('td:nth-child(3) .chip');
-    return el ? el.textContent.trim() : 'GET';
-  }
-
-  function rowPath(tr) {
-    var el = tr.querySelector('td:nth-child(4)');
-    return el ? el.textContent.trim() : '/';
-  }
-
-  function rowStatus(tr) {
-    var el = tr.querySelector('td:nth-child(5)');
-    var v = el ? parseInt(el.textContent, 10) : NaN;
-    return isNaN(v) ? 200 : v;
-  }
-
-  function rowEnabled(tr) {
-    var sw = tr.querySelector('.switch');
-    return !!(sw && sw.classList.contains('switch--on'));
-  }
-
-  function findConflicts() {
-    var method = rowMethodOfForm();
-    var path = byId('mk-path').value.trim();
-    if (!path) return [];
-    return dataRows().filter(function (tr) {
-      if (tr === editRow) return false;
-      if (!rowEnabled(tr)) return false;
-      return rowMethod(tr) === method && rowPath(tr) === path;
-    });
-  }
-
-  function rowMethodOfForm() {
-    return byId('mk-method').value;
-  }
-
-  // 同路径同方法的规则总数，口径同详情接口的 groupSize
-  function groupSize(tr) {
-    var method = rowMethod(tr);
-    var path = rowPath(tr);
-    return dataRows().filter(function (other) {
-      return rowMethod(other) === method && rowPath(other) === path;
-    }).length;
-  }
-
-  function currentFilter() {
-    return { kw: searchInput.value.trim().toLowerCase(), st: statusFilter.value };
-  }
-
-  function rowMatches(tr, f) {
-    if (f.st === 'on' && !rowEnabled(tr)) return false;
-    if (f.st === 'off' && rowEnabled(tr)) return false;
-    if (f.kw && (rowName(tr) + ' ' + rowPath(tr)).toLowerCase().indexOf(f.kw) === -1) return false;
+  function dataRows() { return Array.prototype.slice.call(tbody.querySelectorAll('tr[data-mock]')); }
+  function rowName(tr) { var b = tr.querySelector('.list-title-link'); return b ? b.textContent.trim() : ''; }
+  function rowMethod(tr) { var el = tr.querySelector('td:nth-child(3) .tag'); return el ? el.textContent.trim() : 'GET'; }
+  function rowPath(tr) { var el = tr.querySelector('td:nth-child(4)'); return el ? el.textContent.trim() : '/'; }
+  function rowStatus(tr) { var el = tr.querySelector('td:nth-child(5)'); var v = el ? parseInt(el.textContent,10) : NaN; return isNaN(v) ? 200 : v; }
+  function rowEnabled(tr) { var sw = tr.querySelector('.switch'); return !!(sw && sw.classList.contains('switch--on')); }
+  function groupSize(tr) { var m=rowMethod(tr), p=rowPath(tr); return dataRows().filter(function(o){ return rowMethod(o)===m && rowPath(o)===p; }).length; }
+  function currentFilter() { return { kw: searchInput.value.trim().toLowerCase(), st: statusFilter.value }; }
+  function rowMatches(tr,f) {
+    if (f.st==='on' && !rowEnabled(tr)) return false;
+    if (f.st==='off' && rowEnabled(tr)) return false;
+    if (f.kw && (rowName(tr)+' '+rowPath(tr)).toLowerCase().indexOf(f.kw)===-1) return false;
     return true;
   }
-
+  function hasFilters() { var f=currentFilter(); return !!(f.kw||f.st); }
+  function visibleRows() { return dataRows().filter(function(tr){ return !tr.hidden; }); }
+  function syncCheckAll() {
+    if (!checkAll) return;
+    var rows = visibleRows();
+    var all = rows.length > 0 && rows.every(function(tr){ return !!tr.querySelector('.checkbox--on'); });
+    checkAll.classList.toggle('checkbox--on', all);
+  }
   function refreshCounts() {
     var f = currentFilter();
     var shown = 0;
-    dataRows().forEach(function (tr) {
-      var matched = rowMatches(tr, f);
-      tr.hidden = !matched;
-      if (matched) shown += 1;
-    });
-    emptyRow.hidden = shown !== 0;
-    var filtered = !!(f.kw || f.st);
+    dataRows().forEach(function(tr){ var m=rowMatches(tr,f); tr.hidden=!m; if(m) shown++; });
+    var filtered = hasFilters();
+    emptyRow.hidden = shown !== 0 ? true : false;
+    if (shown === 0) {
+      emptyTitle.textContent = filtered ? '无匹配结果' : '暂无 Mock 规则';
+      emptyReset.hidden = !filtered;
+    }
     var total = filtered ? shown : TOTAL_ROWS;
-    var text = '共 ' + total.toLocaleString('en-US') + ' 条';
-    countEl.textContent = text;
-    pagerTotal.textContent = text;
+    countEl.textContent = '共 ' + total.toLocaleString('en-US') + ' 条 · 每页 ' + byId('mk-page-size').value + ' 条';
+    syncCheckAll();
   }
 
   byId('mk-search-btn').addEventListener('click', refreshCounts);
-  searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') refreshCounts(); });
+  searchInput.addEventListener('keydown', function(e){ if(e.key==='Enter') refreshCounts(); });
   statusFilter.addEventListener('change', refreshCounts);
-  byId('mk-reset').addEventListener('click', function () {
-    searchInput.value = '';
-    statusFilter.value = '';
-    refreshCounts();
-  });
+  byId('mk-reset').addEventListener('click', function(){ searchInput.value=''; statusFilter.value=''; refreshCounts(); });
+  emptyReset.addEventListener('click', function(){ searchInput.value=''; statusFilter.value=''; refreshCounts(); });
+  byId('mk-page-size').addEventListener('change', refreshCounts);
 
-  /* ---------------- 编辑面板（MockEditorDrawer） ---------------- */
+  // Editor drawer
   var editor = byId('mock-editor');
   var ruleBox = byId('mk-rules');
   var headBox = byId('mk-headers');
@@ -614,475 +628,321 @@
   var followInput = byId('mk-follow');
   var groupItem = byId('mk-group-item');
   var groupTag = byId('mk-group-size');
-  // 'new' | 'edit' | 'copy'：决定标题与保存回执（已创建 / 已更新）
   var editorMode = 'new';
   var editRow = null;
 
-  /* 匹配条件 / 响应头共用键值行模板，行的增删由容器事件委托，避免逐行绑定 */
-  function ruleRowHtml() {
+  function ruleRowHtml(type, name, value) {
+    type = type || 'header'; name = name || ''; value = value || '';
+    var opts = RULE_TYPES.map(function(t){ return '<option value="'+t[0]+'"'+(t[0]===type?' selected':'')+'>'+t[1]+'</option>'; }).join('');
     return '<div class="mock-kv">' +
-      '<select class="select mock-kv__type" data-rule-type aria-label="匹配类型">' + optionsHtml(RULE_TYPES, 'header') + '</select>' +
-      '<input class="input" data-rule-name value="" placeholder="名称 / JSONPath" maxlength="200">' +
-      '<input class="input" data-rule-value value="" placeholder="值 / 正则" maxlength="500">' +
-      '<button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行"><span data-icon="trash"></span></button>' +
+      '<select class="select mock-kv__type" data-rule-type aria-label="匹配类型">'+opts+'</select>' +
+      '<input class="input" data-rule-name value="'+esc(name)+'" placeholder="名称 / JSONPath" maxlength="200">' +
+      '<input class="input" data-rule-value value="'+esc(value)+'" placeholder="值 / 正则" maxlength="500">' +
+      '<button type="button" class="btn btn--link mock-kv__del" data-del aria-label="删除该行" style="color:var(--st-danger);padding:0 4px"><span data-icon="trash"></span></button>' +
       '</div>';
   }
-
   function headRowHtml(key, value) {
     return '<div class="mock-kv">' +
-      '<input class="input" data-head-key value="' + esc(key) + '" placeholder="Key" maxlength="200">' +
-      '<input class="input" data-head-value value="' + esc(value) + '" placeholder="Value" maxlength="500">' +
-      '<button type="button" class="btn btn--text btn--sm mock-kv__del" data-del aria-label="删除该行"><span data-icon="trash"></span></button>' +
+      '<input class="input" data-head-key value="'+esc(key)+'" placeholder="Key" maxlength="200">' +
+      '<input class="input" data-head-value value="'+esc(value)+'" placeholder="Value" maxlength="500">' +
+      '<button type="button" class="btn btn--link mock-kv__del" data-del aria-label="删除该行" style="color:var(--st-danger);padding:0 4px"><span data-icon="trash"></span></button>' +
       '</div>';
   }
-
-  function syncDeleteState(box) {
+  function syncDeleteState(box, min) {
+    min = min || 1;
     var rows = box.querySelectorAll('.mock-kv');
-    Array.prototype.forEach.call(rows, function (row) {
-      var del = row.querySelector('[data-del]');
-      if (del) del.disabled = rows.length <= 1;
-    });
+    Array.prototype.forEach.call(rows, function(row){ var del=row.querySelector('[data-del]'); if(del) del.disabled = rows.length <= min; });
   }
-
-  function bindKvBox(box) {
-    box.addEventListener('click', function (e) {
+  function bindKvBox(box, min) {
+    box.addEventListener('click', function(e){
       var del = e.target && e.target.closest ? e.target.closest('[data-del]') : null;
       if (!del || del.disabled) return;
       del.closest('.mock-kv').remove();
-      syncDeleteState(box);
+      syncDeleteState(box, min);
     });
   }
 
   function resetForm() {
-    nameInput.value = '';
-    descInput.value = '';
-    methodInput.value = 'GET';
-    pathInput.value = '/';
-    statusInput.value = '200';
-    byId('mk-bodytype').value = 'json';
-    delayInput.value = '0';
-    byId('mk-body').value = '';
-    enabledInput.classList.add('switch--on');
-    followInput.classList.remove('switch--on');
-    groupItem.hidden = true;
-    groupTag.textContent = '';
+    nameInput.value=''; descInput.value=''; methodInput.value='GET'; pathInput.value='/';
+    statusInput.value='200'; byId('mk-bodytype').value='json'; delayInput.value='0'; byId('mk-body').value='';
+    enabledInput.classList.add('switch--on'); enabledInput.setAttribute('aria-checked','true');
+    followInput.classList.remove('switch--on'); followInput.setAttribute('aria-checked','false');
+    groupItem.hidden = true; groupTag.textContent='';
     ruleBox.innerHTML = ruleRowHtml();
-    headBox.innerHTML = headRowHtml('Content-Type', 'application/json');
+    headBox.innerHTML = headRowHtml('Content-Type','application/json');
     hydrateIcons(editor);
-    syncDeleteState(ruleBox);
-    syncDeleteState(headBox);
-    clearError(nameInput, 'mk-name-err');
-    clearError(pathInput, 'mk-path-err');
+    syncDeleteState(ruleBox,1);
   }
 
   function openEditor(mode, row) {
-    editorMode = mode;
-    editRow = row || null;
+    editorMode = mode; editRow = row || null;
     resetForm();
-    byId('mk-title').textContent = mode === 'edit' ? '编辑 Mock' : mode === 'copy' ? '复制 Mock' : '新建 Mock';
+    byId('mk-title').textContent = mode==='edit' ? '编辑 Mock' : mode==='copy' ? '复制 Mock' : '新建 Mock';
     if (row) {
       var name = rowName(row);
-      // 复制 = 预填源规则并改名副本，由用户调整后保存
-      if (mode === 'copy') name = name + ' - 副本';
+      if (mode==='copy') name = name + ' - 副本';
       nameInput.value = name;
       descInput.value = row.getAttribute('data-desc') || '';
       methodInput.value = rowMethod(row);
       pathInput.value = rowPath(row);
       statusInput.value = String(rowStatus(row));
-      // 副本默认停用，避免与源规则地址冲突
-      enabledInput.classList.toggle('switch--on', mode === 'copy' ? false : rowEnabled(row));
-      if (mode === 'edit') {
-        var group = groupSize(row);
-        if (group > 1) {
-          groupTag.textContent = group + ' 条';
-          groupItem.hidden = false;
-        }
+      var en = mode==='copy' ? false : rowEnabled(row);
+      enabledInput.classList.toggle('switch--on', en);
+      enabledInput.setAttribute('aria-checked', en ? 'true':'false');
+      if (mode==='edit') {
+        var g = groupSize(row);
+        if (g > 1) { groupTag.textContent = g + ' 条'; groupItem.hidden = false; }
       }
     }
     openDialog(editor);
     nameInput.focus();
   }
+  function closeEditor() { closeDialog(editor); editRow = null; }
 
-  function closeEditor() {
-    closeDialog(editor);
-    editRow = null;
-  }
-
-  function clearError(input, errId) {
-    input.classList.remove('input--error');
-    var err = byId(errId);
-    if (err) err.hidden = true;
-  }
-
-  function showError(input, errId, msg) {
-    input.classList.add('input--error');
-    var err = byId(errId);
-    if (err) {
-      err.textContent = msg;
-      err.hidden = false;
-    }
-    input.focus();
-    toast(msg, 'warning');
-    return false;
-  }
-
-  byId('mk-open').addEventListener('click', function () { openEditor('new', null); });
+  byId('mk-open').addEventListener('click', function(){ openEditor('new', null); });
   byId('mk-close').addEventListener('click', closeEditor);
   byId('mk-cancel').addEventListener('click', closeEditor);
 
-  // 弹窗不支持点击遮罩关闭，与抽屉 close-on-click-modal=false 一致
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    if (!byId('mock-more').hidden) { closeMore(); return; }
-    if (!byId('mock-confirm').hidden) { closeDialog(byId('mock-confirm')); pendingDelete = null; return; }
-    if (!byId('mock-address').hidden) { closeDialog(byId('mock-address')); return; }
-    if (!byId('mock-debug').hidden) { closeDialog(byId('mock-debug')); return; }
-    if (!editor.hidden) closeEditor();
-  });
-
   function bindSwitch(el) {
-    el.addEventListener('click', function () {
+    el.addEventListener('click', function(){
       var on = !el.classList.contains('switch--on');
       el.classList.toggle('switch--on', on);
-      el.setAttribute('aria-checked', on ? 'true' : 'false');
+      el.setAttribute('aria-checked', on ? 'true':'false');
     });
   }
   bindSwitch(enabledInput);
   bindSwitch(followInput);
 
-  byId('mk-rule-add').addEventListener('click', function () {
-    ruleBox.insertAdjacentHTML('beforeend', ruleRowHtml());
-    hydrateIcons(ruleBox);
-    syncDeleteState(ruleBox);
-  });
+  byId('mk-rule-add').addEventListener('click', function(){ ruleBox.insertAdjacentHTML('beforeend', ruleRowHtml()); hydrateIcons(ruleBox); syncDeleteState(ruleBox,1); });
+  byId('mk-head-add').addEventListener('click', function(){ headBox.insertAdjacentHTML('beforeend', headRowHtml('','')); hydrateIcons(headBox); });
+  bindKvBox(ruleBox,1);
+  bindKvBox(headBox,0);
+  syncDeleteState(ruleBox,1);
 
-  byId('mk-head-add').addEventListener('click', function () {
-    headBox.insertAdjacentHTML('beforeend', headRowHtml('', ''));
-    hydrateIcons(headBox);
-    syncDeleteState(headBox);
-  });
-
-  bindKvBox(ruleBox);
-  bindKvBox(headBox);
-  syncDeleteState(ruleBox);
-  syncDeleteState(headBox);
-
-  // 校验失败红字在下一次输入时即时消除，与抽屉内逐项修正的节奏一致
-  [[nameInput, 'mk-name-err'], [pathInput, 'mk-path-err']].forEach(function (pair) {
-    pair[0].addEventListener('input', function () { clearError(pair[0], pair[1]); });
-  });
-
-  /* 新建规则按组内最大优先级 +1 自动分配，新行排到列表首行 */
   function nextPriority() {
     var max = 0;
-    dataRows().forEach(function (tr) {
-      var el = tr.querySelector('td:nth-child(6)');
-      var v = el ? parseInt(el.textContent, 10) : NaN;
-      if (!isNaN(v) && v > max) max = v;
-    });
+    dataRows().forEach(function(tr){ var el=tr.querySelector('td:nth-child(6)'); var v=el?parseInt(el.textContent,10):NaN; if(!isNaN(v)&&v>max) max=v; });
     return max + 1;
   }
-
-  /* ux.js 在首次绑定时一次性收集勾选框，动态行需自行同步批量条计数 */
-  function bindRowCheckbox(box) {
-    var bar = byId('batchbar-mocks');
-    var countElBatch = bar.querySelector('[data-ux-batch-count]');
-    box.addEventListener('click', function () {
-      box.classList.toggle('checkbox--on');
-      var n = document.querySelectorAll('.table-wrap .checkbox--on').length;
-      if (countElBatch) countElBatch.textContent = n;
-      bar.hidden = n === 0;
-    });
-  }
-
   function rowHtml(d) {
-    var ops = '<span class="op-link" data-op="edit">编辑</span>' +
-      '<span class="op-link" data-op="debug">调试</span>' +
-      '<span class="op-link" data-op="address">地址</span>' +
-      '<span class="op-link" data-op="copy">复制</span>' +
-      '<span class="more-caret">更多 ▾</span>';
-    return '<tr data-mock="1" data-desc="' + esc(d.description || '') + '">' +
+    var en = d.enabled ? ' switch--on' : '';
+    var aria = d.enabled ? 'true' : 'false';
+    return '<tr data-mock="1" data-desc="'+esc(d.description||'')+'">' +
       '<td><span class="checkbox"></span></td>' +
-      '<td class="cell-main">' + esc(d.name) + '</td>' +
-      '<td><span class="chip">' + esc(d.method) + '</span></td>' +
-      '<td class="mono">' + esc(d.path) + '</td>' +
-      '<td class="num">' + d.status + '</td>' +
-      '<td class="num">' + d.priority + '</td>' +
-      '<td style="text-align:center"><span class="switch' + (d.enabled ? ' switch--on' : '') + '"></span></td>' +
-      '<td class="num">0</td>' +
-      '<td class="num">-</td>' +
-      '<td>' + ops + '</td>' +
-      '</tr>';
+      '<td><button type="button" class="list-title-link" data-op="edit">'+esc(d.name)+'</button></td>' +
+      '<td style="text-align:center"><span class="tag '+methodTagClass(d.method)+'">'+esc(d.method)+'</span></td>' +
+      '<td class="mono">'+esc(d.path)+'</td>' +
+      '<td class="num" style="text-align:center">'+d.status+'</td>' +
+      '<td class="num" style="text-align:center">'+d.priority+'</td>' +
+      '<td style="text-align:center"><span class="switch'+en+'" role="switch" aria-checked="'+aria+'" tabindex="0"></span></td>' +
+      '<td class="num" style="text-align:center">0</td>' +
+      '<td class="num" style="text-align:center">-</td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+        '<span class="op-link" data-op="edit">编辑</span>' +
+        '<span class="op-link" data-op="debug">调试</span>' +
+        '<span class="op-link" data-op="address">地址</span>' +
+        '<span class="op-link" data-op="copy">复制</span>' +
+        '<span class="op-link mocks-page__more" data-op="more">更多 <span data-icon="chevron-down" style="width:12px;height:12px;vertical-align:-2px"></span></span>' +
+      '</td></tr>';
   }
-
+  function methodTagClass(method) {
+    var m = String(method).toUpperCase();
+    if (m==='GET') return 'tag--success';
+    if (m==='POST') return 'tag--primary';
+    if (m==='PUT'||m==='PATCH') return 'tag--warning';
+    if (m==='DELETE') return 'tag--danger';
+    return 'tag--neutral';
+  }
+  // 行复选框用事件委托，分页重绘 tbody 后无需逐行重新绑定
+  tbody.addEventListener('click', function(e){
+    var box = e.target && e.target.closest ? e.target.closest('.checkbox') : null;
+    if (!box || !box.closest('tr[data-mock]')) return;
+    box.classList.toggle('checkbox--on'); syncBatch();
+  });
   function insertRow(d) {
     tbody.insertAdjacentHTML('afterbegin', rowHtml(d));
     TOTAL_ROWS += 1;
-    bindRowCheckbox(tbody.querySelector('tr[data-mock] .checkbox'));
-    // 动态行的图标需补绑（RTIcons 幂等，重复调用安全）
-    hydrateIcons(document);
+    hydrateIcons(tbody.firstElementChild);
     refreshCounts();
   }
-
   function updateRow(tr, d) {
-    tr.setAttribute('data-desc', d.description || '');
-    tr.querySelector('.cell-main').textContent = d.name;
-    tr.querySelector('td:nth-child(3) .chip').textContent = d.method;
+    tr.setAttribute('data-desc', d.description||'');
+    var link = tr.querySelector('.list-title-link'); if(link) link.textContent = d.name;
+    var methodEl = tr.querySelector('td:nth-child(3) .tag'); if(methodEl){ methodEl.textContent=d.method; methodEl.className='tag '+methodTagClass(d.method); }
     tr.querySelector('td:nth-child(4)').textContent = d.path;
-    tr.querySelector('td:nth-child(5)').textContent = d.status;
-    var sw = tr.querySelector('.switch');
-    if (sw) sw.classList.toggle('switch--on', !!d.enabled);
+    tr.querySelector('td:nth-child(5)').textContent = String(d.status);
+    var sw = tr.querySelector('.switch'); if(sw){ sw.classList.toggle('switch--on', !!d.enabled); sw.setAttribute('aria-checked', d.enabled?'true':'false'); }
     refreshCounts();
   }
 
-  saveBtn.addEventListener('click', function () {
+  saveBtn.addEventListener('click', function(){
     if (saveBtn.classList.contains('is-saving')) return;
-
     var name = nameInput.value.trim();
-    if (!name) return showError(nameInput, 'mk-name-err', '请输入 Mock 名称');
-
+    if (!name) { toast('请输入 Mock 名称','warning'); nameInput.focus(); return; }
     var path = pathInput.value.trim();
-    if (!path) return showError(pathInput, 'mk-path-err', '请输入请求路径');
-
+    if (!path) { toast('请输入请求路径','warning'); pathInput.focus(); return; }
     var enabled = enabledInput.classList.contains('switch--on');
-    // 后端按「方法 + 路径 + 启用中的规则」拒绝重复地址（错误码 1000017202），保存前先按同一口径拦截
-    var conflicts = findConflicts();
-    if (enabled && conflicts.length) {
-      toast('Mock 地址已被占用：与「' + rowName(conflicts[0]) + '」的地址重复', 'danger');
-      pathInput.focus();
-      return;
-    }
-
-    // 越界值按输入框 min/max 钳制，口径同 el-input-number
-    var status = parseInt(statusInput.value, 10);
-    if (isNaN(status) || status < 100) status = 100;
-    if (status > 599) status = 599;
-    statusInput.value = status;
-    var delay = parseInt(delayInput.value, 10);
-    if (isNaN(delay) || delay < 0) delay = 0;
-    if (delay > 60000) delay = 60000;
-    delayInput.value = delay;
-
-    var payload = {
-      name: name,
-      description: descInput.value.trim(),
-      method: methodInput.value,
-      path: path,
-      status: status,
-      enabled: enabled
-    };
-    var editing = editorMode === 'edit' && editRow;
-
-    saveBtn.classList.add('is-saving');
-    saveBtn.textContent = '保存中…';
-    window.setTimeout(function () {
-      if (editing) {
-        updateRow(editRow, payload);
-        toast('已更新', 'success');
-      } else {
-        payload.priority = nextPriority();
-        insertRow(payload);
-        toast('已创建', 'success');
-      }
-      saveBtn.classList.remove('is-saving');
-      saveBtn.textContent = '保存';
+    var method = methodInput.value;
+    var conflicts = dataRows().filter(function(tr){
+      if (tr===editRow) return false;
+      if (!rowEnabled(tr)) return false;
+      return rowMethod(tr)===method && rowPath(tr)===path;
+    });
+    if (enabled && conflicts.length) { toast('Mock 地址已被占用：与「'+rowName(conflicts[0])+'」的地址重复','danger'); pathInput.focus(); return; }
+    var status = parseInt(statusInput.value,10); if(isNaN(status)||status<100) status=100; if(status>599) status=599; statusInput.value=status;
+    var delay = parseInt(delayInput.value,10); if(isNaN(delay)||delay<0) delay=0; if(delay>60000) delay=60000; delayInput.value=delay;
+    var payload = { name:name, description:descInput.value.trim(), method:method, path:path, status:status, enabled:enabled };
+    var editing = editorMode==='edit' && editRow;
+    saveBtn.classList.add('is-saving'); saveBtn.textContent='保存中…';
+    window.setTimeout(function(){
+      if (editing) { updateRow(editRow,payload); toast('已更新','success'); }
+      else { payload.priority = nextPriority(); insertRow(payload); toast('已创建','success'); }
+      saveBtn.classList.remove('is-saving'); saveBtn.textContent='保存';
       closeEditor();
-    }, 600);
+    }, 400);
   });
 
-  /* ---------------- 批量启停（对应 batch-toggle，仅启停不含删除） ---------------- */
+  // Batch actions
   var batchBar = byId('batchbar-mocks');
-
-  function clearSelection() {
-    Array.prototype.forEach.call(document.querySelectorAll('.table-wrap .checkbox--on'), function (box) {
-      box.classList.remove('checkbox--on');
-    });
-    var count = batchBar.querySelector('[data-ux-batch-count]');
-    if (count) count.textContent = '0';
-    batchBar.hidden = true;
+  function selectedBoxes() { return Array.prototype.slice.call(tbody.querySelectorAll('.checkbox--on')); }
+  function syncBatch() {
+    var n = selectedBoxes().length;
+    byId('mk-batch-count').textContent = String(n);
+    batchBar.hidden = n === 0;
+    syncCheckAll();
   }
-
+  checkAll.addEventListener('click', function(){
+    var rows = visibleRows();
+    var on = !checkAll.classList.contains('checkbox--on');
+    rows.forEach(function(tr){ var b = tr.querySelector('.checkbox'); if (b) b.classList.toggle('checkbox--on', on); });
+    syncBatch();
+  });
+  function clearSelection() {
+    selectedBoxes().forEach(function(b){ b.classList.remove('checkbox--on'); });
+    syncBatch();
+  }
   function batchToggle(enabled) {
-    var boxes = document.querySelectorAll('.table-wrap .checkbox--on');
-    if (!boxes.length) return;
-    Array.prototype.forEach.call(boxes, function (box) {
-      var row = box.closest('tr');
-      var sw = row && row.querySelector('.switch');
-      if (sw) sw.classList.toggle('switch--on', enabled);
-    });
+    var boxes = selectedBoxes(); if(!boxes.length) return;
+    boxes.forEach(function(box){ var tr=box.closest('tr'); var sw=tr&&tr.querySelector('.switch'); if(sw){ sw.classList.toggle('switch--on',enabled); sw.setAttribute('aria-checked',enabled?'true':'false'); } });
     var n = boxes.length;
     clearSelection();
-    toast('已' + (enabled ? '启用' : '停用') + ' ' + n + ' 条规则', 'success');
+    toast('已'+(enabled?'启用':'停用')+' '+n+' 条规则','success');
     refreshCounts();
   }
+  byId('mk-batch-on').addEventListener('click', function(){ batchToggle(true); });
+  byId('mk-batch-off').addEventListener('click', function(){ batchToggle(false); });
+  byId('mk-batch-clear').addEventListener('click', clearSelection);
 
-  byId('mk-batch-on').addEventListener('click', function () { batchToggle(true); });
-  byId('mk-batch-off').addEventListener('click', function () { batchToggle(false); });
-
-  /* ---------------- 行内操作：启停开关 / 编辑 / 调试 / 地址 / 复制 / 更多 ---------------- */
-  tableWrap.addEventListener('click', function (e) {
-    var target = e.target;
-    if (!target || !target.closest) return;
-
-    var sw = target.closest('.switch');
-    if (sw) {
-      var on = !sw.classList.contains('switch--on');
-      sw.classList.toggle('switch--on', on);
-      toast(on ? '已启用' : '已停用', 'success');
-      refreshCounts();
-      return;
-    }
-
-    var op = target.closest('.op-link');
-    if (op) {
-      var row = op.closest('tr');
-      if (!row) return;
-      var action = op.getAttribute('data-op');
-      if (action === 'edit') openEditor('edit', row);
-      else if (action === 'debug') openDebug(row);
-      else if (action === 'address') openAddress(row);
-      else if (action === 'copy') openEditor('copy', row);
-      return;
-    }
-
-    var more = target.closest('.more-caret');
-    if (more) openMore(more, more.closest('tr'));
+  // Table interactions
+  tableWrap.addEventListener('click', function(e){
+    var t = e.target; if(!t||!t.closest) return;
+    var sw = t.closest('.switch');
+    if (sw) { var on=!sw.classList.contains('switch--on'); sw.classList.toggle('switch--on',on); sw.setAttribute('aria-checked',on?'true':'false'); toast(on?'已启用':'已停用','success'); refreshCounts(); return; }
+    var op = t.closest('[data-op]');
+    if (!op) return;
+    var row = op.closest('tr'); if(!row) return;
+    var action = op.getAttribute('data-op');
+    if (action==='edit') openEditor('edit', row);
+    else if (action==='debug') openDebug(row);
+    else if (action==='address') openAddress(row);
+    else if (action==='copy') openEditor('copy', row);
+    else if (action==='more') openMore(op, row);
   });
 
-  /* ---------------- 「更多」菜单：重置命中 / 删除 ---------------- */
+  // More dropdown
   var moreMenu = byId('mock-more');
   var moreRow = null;
-
   function openMore(trigger, tr) {
-    if (!tr) return;
-    moreRow = tr;
-    moreMenu.hidden = false;
+    if(!tr) return; moreRow = tr; moreMenu.hidden = false;
     var rect = trigger.getBoundingClientRect();
     moreMenu.style.top = (rect.bottom + 4) + 'px';
     var left = rect.left;
-    if (left + moreMenu.offsetWidth > window.innerWidth - 8) {
-      left = Math.max(8, rect.right - moreMenu.offsetWidth);
-    }
+    if (left + 140 > window.innerWidth - 8) left = Math.max(8, rect.right - 140);
     moreMenu.style.left = left + 'px';
   }
-
-  function closeMore() {
-    moreMenu.hidden = true;
-    moreRow = null;
-  }
-
-  moreMenu.addEventListener('click', function (e) {
+  function closeMore() { moreMenu.hidden = true; moreRow = null; }
+  moreMenu.addEventListener('click', function(e){
     var item = e.target && e.target.closest ? e.target.closest('[data-more]') : null;
-    if (!item || !moreRow) return;
+    if(!item || !moreRow) return;
     var action = item.getAttribute('data-more');
-    var tr = moreRow;
-    closeMore();
-    if (action === 'reset-hit') resetHit(tr);
-    else if (action === 'delete') askDelete(tr);
+    var tr = moreRow; closeMore();
+    if (action==='reset-hit') resetHit(tr);
+    else if (action==='delete') askDelete(tr);
   });
-
-  // 打开后同一轮冒泡会再走到 document，须放行「更多」自身避免刚开即关
-  document.addEventListener('click', function (e) {
+  document.addEventListener('click', function(e){
     if (moreMenu.hidden) return;
-    var t = e.target;
-    if (!t || !t.closest) return;
-    if (t.closest('#mock-more') || t.closest('.more-caret')) return;
+    var t=e.target; if(!t||!t.closest) return;
+    if (t.closest('#mock-more') || t.closest('[data-op="more"]')) return;
     closeMore();
   });
 
   function resetHit(tr) {
     var hitCell = tr.querySelector('td:nth-child(8)');
     var lastCell = tr.querySelector('td:nth-child(9)');
-    if (hitCell) hitCell.textContent = '0';
-    if (lastCell) lastCell.textContent = '-';
-    toast('已重置', 'success');
+    if(hitCell) hitCell.textContent='0';
+    if(lastCell) lastCell.textContent='-';
+    toast('已重置','success');
   }
 
-  /* ---------------- 删除确认（文案同 ElMessageBox） ---------------- */
+  // Delete confirm
   var pendingDelete = null;
-
-  function askDelete(tr) {
-    pendingDelete = tr;
-    byId('del-body').textContent = '确定删除 Mock「' + rowName(tr) + '」？';
-    openDialog(byId('mock-confirm'));
-  }
-
-  function cancelDelete() {
-    pendingDelete = null;
-    closeDialog(byId('mock-confirm'));
-  }
-
+  function askDelete(tr) { pendingDelete = tr; byId('del-body').textContent = '确定删除 Mock「'+rowName(tr)+'」？'; openDialog(byId('mock-confirm')); }
+  function cancelDelete() { pendingDelete=null; closeDialog(byId('mock-confirm')); }
   byId('del-cancel').addEventListener('click', cancelDelete);
   byId('del-close').addEventListener('click', cancelDelete);
-  byId('del-ok').addEventListener('click', function () {
-    if (!pendingDelete) return;
+  byId('del-ok').addEventListener('click', function(){
+    if(!pendingDelete) return;
     var wasChecked = !!pendingDelete.querySelector('.checkbox--on');
-    pendingDelete.remove();
-    pendingDelete = null;
-    TOTAL_ROWS -= 1;
-    if (wasChecked) clearSelection();
+    pendingDelete.remove(); pendingDelete=null; TOTAL_ROWS -= 1;
+    if (wasChecked) syncBatch();
     closeDialog(byId('mock-confirm'));
     refreshCounts();
-    toast('已删除', 'success');
+    toast('已删除','success');
   });
 
-  /* ---------------- 调试面板（MockDebugPanel） ---------------- */
+  // Debug panel
   var debugDialog = byId('mock-debug');
   var debugRow = null;
   var sendBtn = byId('dbg-send');
-
   function openDebug(tr) {
     debugRow = tr;
-    byId('dbg-headers').value = '';
-    byId('dbg-body').value = '';
+    byId('dbg-headers').value=''; byId('dbg-body').value='';
     byId('dbg-result').hidden = true;
     openDialog(debugDialog);
   }
-
-  byId('dbg-close').addEventListener('click', function () { closeDialog(debugDialog); });
-
+  byId('dbg-close').addEventListener('click', function(){ closeDialog(debugDialog); });
   function renderDebugResult() {
     var status = rowStatus(debugRow);
     var ok = status < 400;
     var statusEl = byId('dbg-status');
     statusEl.textContent = String(status);
-    statusEl.className = 'tag ' + (ok ? 'tag--success' : 'tag--danger');
+    statusEl.className = 'tag tag--lg ' + (ok ? 'tag--success' : 'tag--danger');
     byId('dbg-duration').textContent = (12 + (rowName(debugRow).length * 3) % 40) + 'ms';
     byId('dbg-resp-headers').textContent = JSON.stringify({ 'Content-Type': 'application/json' }, null, 2);
-    var payload = ok
-      ? { code: 200, message: 'ok', data: { rule: rowName(debugRow), mock: true } }
-      : { code: status, message: rowName(debugRow), data: null };
+    var payload = ok ? { code:200, message:'ok', data:{ rule: rowName(debugRow), mock:true } } : { code:status, message: rowName(debugRow), data:null };
     byId('dbg-resp-body').textContent = JSON.stringify(payload, null, 2);
     byId('dbg-result').hidden = false;
   }
-
-  sendBtn.addEventListener('click', function () {
-    if (!debugRow || sendBtn.classList.contains('is-saving')) return;
-    sendBtn.classList.add('is-saving');
-    sendBtn.textContent = '发送中…';
-    window.setTimeout(function () {
-      sendBtn.classList.remove('is-saving');
-      sendBtn.textContent = '发送调试请求';
-      renderDebugResult();
-    }, 600);
+  sendBtn.addEventListener('click', function(){
+    if(!debugRow || sendBtn.classList.contains('is-saving')) return;
+    sendBtn.classList.add('is-saving'); sendBtn.textContent='发送中…';
+    window.setTimeout(function(){ sendBtn.classList.remove('is-saving'); sendBtn.textContent='发送调试请求'; renderDebugResult(); }, 400);
   });
 
-  /* ---------------- Mock 访问地址（MockAddressDialog） ---------------- */
+  // Address dialog
   var addressDialog = byId('mock-address');
   var addressUrl = '';
-
   function openAddress(tr) {
     var method = rowMethod(tr);
     var methodEl = byId('addr-method');
     methodEl.textContent = method;
-    methodEl.className = 'tag' + (method === 'GET' ? ' tag--success' : '');
+    methodEl.className = 'tag ' + (method==='GET' ? 'tag--success' : 'tag--primary');
     addressUrl = MOCK_HOST + rowPath(tr);
     byId('addr-url').textContent = addressUrl;
     var headers = ADDRESS_HEADERS[rowPath(tr)] || [];
     if (headers.length) {
-      byId('addr-header-rows').innerHTML = headers.map(function (h) {
-        return '<div class="mock-addr-header-row"><code class="mock-addr-header-key">' + esc(h[0]) + '</code>' +
-          '<code class="mock-addr-header-val">' + esc(h[1]) + '</code></div>';
+      byId('addr-header-rows').innerHTML = headers.map(function(h){
+        return '<div class="mock-addr-header-row mock-address__header-row"><code class="mock-address__header-key">'+esc(h[0])+'</code><code class="mock-address__header-val">'+esc(h[1])+'</code></div>';
       }).join('');
       byId('addr-headers').hidden = false;
     } else {
@@ -1090,101 +950,137 @@
     }
     openDialog(addressDialog);
   }
-
-  byId('addr-close').addEventListener('click', function () { closeDialog(addressDialog); });
-  byId('addr-cancel').addEventListener('click', function () { closeDialog(addressDialog); });
-  byId('addr-copy').addEventListener('click', function () {
-    if (!addressUrl) return;
+  byId('addr-close').addEventListener('click', function(){ closeDialog(addressDialog); });
+  byId('addr-cancel').addEventListener('click', function(){ closeDialog(addressDialog); });
+  byId('addr-copy').addEventListener('click', function(){
+    if(!addressUrl) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(addressUrl).then(
-        function () { toast('已复制到剪贴板', 'success'); },
-        function () { toast('复制失败，请手动复制', 'danger'); }
-      );
-    } else {
-      toast('复制失败，请手动复制', 'danger');
-    }
+      navigator.clipboard.writeText(addressUrl).then(function(){ toast('已复制到剪贴板','success'); }, function(){ toast('复制失败，请手动复制','danger'); });
+    } else { toast('复制失败，请手动复制','danger'); }
   });
 
-  refreshCounts();
-</script>
-<script>
-  // 列显隐：按 useTableColumns 口径固定选择与操作列，其余可勾选，静态稿仅本页内生效
-  (function () {
-    var root = document.getElementById('mk-cols');
-    var btn = document.getElementById('mk-cols-btn');
-    var pop = document.getElementById('mk-cols-pop');
-    var table = document.querySelector('.table-wrap .table');
-    if (!root || !btn || !pop || !table) return;
+  // 点遮罩关闭：仅当点击落在遮罩本身而非内部抽屉/对话框时关闭
+  function bindMaskClose(mask, onClose) {
+    if (!mask) return;
+    mask.addEventListener('click', function(e){ if (e.target === mask) onClose(); });
+  }
+  bindMaskClose(editor, closeEditor);
+  bindMaskClose(byId('mock-debug'), function(){ closeDialog(byId('mock-debug')); });
+  bindMaskClose(byId('mock-address'), function(){ closeDialog(byId('mock-address')); });
+  bindMaskClose(byId('mock-confirm'), cancelDelete);
+
+  // Escape handling
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+    if (!moreMenu.hidden) { closeMore(); return; }
+    if (!byId('mock-confirm').hidden) { cancelDelete(); return; }
+    if (!addressDialog.hidden) { closeDialog(addressDialog); return; }
+    if (!debugDialog.hidden) { closeDialog(debugDialog); return; }
+    if (!editor.hidden) { closeEditor(); return; }
+    var colPop = byId('mk-cols-pop'); if (colPop && !colPop.hidden) { colPop.hidden=true; byId('mk-cols-btn').setAttribute('aria-expanded','false'); }
+  });
+
+  // Column settings
+  (function(){
+    var root = byId('mk-cols');
+    var btn = byId('mk-cols-btn');
+    var pop = byId('mk-cols-pop');
+    var table = document.querySelector('.mocks-page__table .table');
+    if (!root||!btn||!pop||!table) return;
     var ths = Array.prototype.slice.call(table.querySelectorAll('thead th'));
-    var emptyRow = table.querySelector('tbody tr[id$="-empty"], tbody tr.empty-row');
-    var keys = ths.map(function (th) { return th.getAttribute('data-col'); });
+    var keys = ths.map(function(th){ return th.getAttribute('data-col'); });
     var defaults = keys.slice();
     var visible = defaults.slice();
-    var pinned = { selection: true, actions: true };
+    var pinned = { selection:true, actions:true };
     var list = pop.querySelector('.colset__list');
     var allBtn = pop.querySelector('[data-cols-all]');
-
-    ths.forEach(function (th, i) {
-      var key = keys[i];
-      var label = th.getAttribute('data-label') || th.textContent.trim() || key;
-      var row = document.createElement('label');
-      row.className = 'colset__item' + (pinned[key] ? ' is-pinned' : '');
-      row.innerHTML = '<input type="checkbox" data-key="' + key + '"' + (pinned[key] ? ' disabled' : '') + ' checked><span>' + label + '</span>';
+    ths.forEach(function(th,i){
+      var key=keys[i]; var label=th.getAttribute('data-label') || th.textContent.trim().replace(/\s+/g,' ') || key;
+      var row=document.createElement('label');
+      row.className='colset__item' + (pinned[key] ? ' is-pinned' : '');
+      row.innerHTML='<input type="checkbox" data-key="'+key+'"'+(pinned[key]?' disabled':'')+' checked><span>'+esc(label)+'</span>';
       list.appendChild(row);
     });
-
     function apply() {
       var rows = table.querySelectorAll('tbody tr');
-      ths.forEach(function (th, i) {
+      ths.forEach(function(th,i){
         var on = visible.indexOf(keys[i]) >= 0;
         th.hidden = !on;
-        Array.prototype.forEach.call(rows, function (row) { if (row.cells[i]) row.cells[i].hidden = !on; });
+        Array.prototype.forEach.call(rows, function(r){ if(r.cells[i]) r.cells[i].hidden = !on; });
       });
-      if (emptyRow && emptyRow.cells[0]) emptyRow.cells[0].colSpan = visible.length;
-      list.querySelectorAll('input[data-key]').forEach(function (box) {
-        box.checked = visible.indexOf(box.getAttribute('data-key')) >= 0;
-      });
-      // 全选只在仍有可选列时可用（对齐 TableColumnSetting 的 allSelected 禁用态）
-      allBtn.disabled = defaults.every(function (k) { return pinned[k] || visible.indexOf(k) >= 0; });
+      list.querySelectorAll('input[data-key]').forEach(function(box){ box.checked = visible.indexOf(box.getAttribute('data-key')) >= 0; });
+      allBtn.disabled = defaults.every(function(k){ return pinned[k] || visible.indexOf(k) >= 0; });
     }
-
-    list.addEventListener('change', function (e) {
-      var box = e.target.closest('input[data-key]');
-      if (!box || box.disabled) return;
-      var key = box.getAttribute('data-key');
-      visible = box.checked
-        ? defaults.filter(function (k) { return k === key || visible.indexOf(k) >= 0; })
-        : visible.filter(function (k) { return k !== key; });
+    list.addEventListener('change', function(e){
+      var box=e.target.closest('input[data-key]'); if(!box||box.disabled) return;
+      var key=box.getAttribute('data-key');
+      visible = box.checked ? defaults.filter(function(k){ return k===key || visible.indexOf(k)>=0; }) : visible.filter(function(k){ return k!==key; });
       apply();
     });
-    pop.querySelector('[data-cols-all]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
-    pop.querySelector('[data-cols-reset]').addEventListener('click', function () { visible = defaults.slice(); apply(); });
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      pop.hidden = !pop.hidden;
-      btn.setAttribute('aria-expanded', String(!pop.hidden));
-    });
-    document.addEventListener('click', function (e) {
-      if (!root.contains(e.target)) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
-    });
+    allBtn.addEventListener('click', function(){ visible=defaults.slice(); apply(); });
+    pop.querySelector('[data-cols-reset]').addEventListener('click', function(){ visible=defaults.slice(); apply(); });
+    btn.addEventListener('click', function(e){ e.stopPropagation(); pop.hidden=!pop.hidden; btn.setAttribute('aria-expanded', String(!pop.hidden)); });
+    document.addEventListener('click', function(e){ if(!root.contains(e.target)){ pop.hidden=true; btn.setAttribute('aria-expanded','false'); } });
+    new MutationObserver(apply).observe(table.tBodies[0], { childList:true });
     apply();
-    // 行增删后重新套用可见列，避免新建行露出已隐藏列
-    new MutationObserver(apply).observe(table.tBodies[0], { childList: true });
   })();
 
-  // 加载失败：静态稿用工具栏刷新图标触发 UI-PAGE-11 的顶部错误条与重试
-  (function () {
-    var bar = document.getElementById('mk-load-error');
-    // 演示失败态：URL 追加 #demo-load-error 触发，避免在工具栏暴露真实页面没有的入口
-    if (location.hash === '#demo-load-error') bar.hidden = false;
-    bar.querySelector('[data-list-retry]').addEventListener('click', function () {
-      bar.hidden = true;
-      window.RTUX.toast('已重新加载最新数据', { type: 'success' });
+  // 分页：本地两页数据，切换时真实替换表格行并更新激活态/翻页按钮状态
+  (function(){
+    var pager = document.querySelector('.list-pager__right');
+    if (!pager || !checkAll) return;
+    var btns = Array.prototype.slice.call(pager.querySelectorAll('.page-btn'));
+    if (!btns.length) return;
+    var page = 1;
+    var buckets = { 1: tbody.innerHTML };
+    var page2Data = [
+      { name:'登录成功 · Token 返回', description:'登录成功返回 access token', method:'POST', path:'/api/v1/auth/login', status:200, priority:9, enabled:true },
+      { name:'短信验证码 · 频率限制', description:'同手机号 60 秒内重复发送', method:'POST', path:'/api/v1/auth/sms-code', status:429, priority:7, enabled:true },
+      { name:'购物车 · 空数据', description:'用户购物车为空', method:'GET', path:'/api/v1/cart', status:200, priority:4, enabled:true },
+      { name:'地址新增 · 参数校验失败', description:'缺少必填收货人', method:'POST', path:'/api/v1/addresses', status:400, priority:6, enabled:false },
+      { name:'优惠券核销 · 已使用', description:'重复使用同一优惠券', method:'POST', path:'/api/v1/coupons/redeem', status:409, priority:2, enabled:true }
+    ];
+    buckets[2] = page2Data.map(rowHtml).join('');
+    function paint() {
+      btns.forEach(function(b){
+        var p = b.getAttribute('data-page');
+        b.classList.toggle('page-btn--active', p === String(page));
+        b.disabled = (p === 'prev' && page === 1) || (p === 'next' && page === 2);
+      });
+    }
+    function go(n) {
+      if (n < 1 || n > 2 || n === page) return;
+      clearSelection();
+      buckets[page] = tbody.innerHTML;
+      page = n;
+      tbody.innerHTML = buckets[page];
+      hydrateIcons(tbody);
+      checkAll.classList.remove('checkbox--on');
+      refreshCounts();
+      paint();
+    }
+    pager.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('.page-btn') : null;
+      if (!b || b.disabled) return;
+      var p = b.getAttribute('data-page');
+      if (p === 'prev') go(page - 1);
+      else if (p === 'next') go(page + 1);
+      else go(parseInt(p, 10));
     });
+    paint();
   })();
+
+  // Refresh error demo: #demo-load-error
+  (function(){
+    if (location.hash === '#demo-load-error') { refreshError.hidden = false; }
+    if (location.hash === '#demo-first-error') {
+      tableWrap.hidden = true; pagination.hidden = true; firstError.hidden = false;
+    }
+    byId('mk-retry').addEventListener('click', function(){ refreshError.hidden = true; toast('已重新加载最新数据','success'); });
+    byId('mk-first-retry').addEventListener('click', function(){ firstError.hidden = true; tableWrap.hidden = false; pagination.hidden = false; toast('已重新加载最新数据','success'); });
+  })();
+
+  refreshCounts();
 </script>
 </body>
 </html>

@@ -23,13 +23,26 @@
   .cp-list { width: 340px; flex-shrink: 0; overflow: hidden; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: var(--space-sm); display: flex; flex-direction: column; gap: var(--space-sm); }
   .cp-list__head { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
   .cp-list__head .input-wrap { flex: 1; min-width: 0; }
-  .cp-list__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-sm); }
+  #cp-list-content { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
+  #cp-list-scroll-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  /* 列表类型页签：对齐 ComponentPage 的 el-segmented size="small" */
+  .cp-list__tabs { flex-shrink: 0; width: 100%; display: flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; }
+  .cp-list__tabs button { flex: 1; height: 28px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--n-500); cursor: pointer; white-space: nowrap; transition: color .15s, background .15s; }
+  .cp-list__tabs button:hover { color: var(--n-700); }
+  .cp-list__tabs button.is-active { background: #fff; color: var(--n-800); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+  .cp-list__skeleton { padding: var(--space-sm); display: flex; flex-direction: column; gap: 10px; }
+  .cp-list__skeleton-row { height: 14px; border-radius: 4px; background: linear-gradient(90deg, var(--n-100) 25%, var(--n-50) 37%, var(--n-100) 63%); background-size: 400% 100%; animation: cp-skel 1.2s ease infinite; }
+  @keyframes cp-skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  .cp-list__state { flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: var(--space-sm); min-height: 24px; font-size: var(--font-size-xs); color: var(--n-400); }
 
   .radio-seg { display: inline-flex; gap: 2px; background: var(--n-50); border: 1px solid var(--n-100); border-radius: var(--radius-md); padding: 2px; width: 100%; }
   .radio-seg button { flex: 1; height: 26px; border: none; background: none; border-radius: var(--radius-sm); font-size: var(--font-size-2xs); color: var(--n-500); cursor: pointer; white-space: nowrap; }
   .radio-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; }
 
-  .cp-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .cp-items { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .cp-items::-webkit-scrollbar { display: none; }
   .cp-item { border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); cursor: pointer; }
   .cp-item:hover { background: var(--n-50); }
   .cp-item.is-active { border-color: #b3d8ff; background: rgba(59,130,246,.06); }
@@ -48,15 +61,19 @@
   .cp-item__main .tag { flex: none; }
   .cp-empty { text-align: center; padding: var(--space-lg) var(--space-sm); color: var(--n-500); font-size: var(--font-size-sm); }
   .cp-empty p { margin: 0 0 var(--space-sm); }
+  .cp-list > #cp-list-content > .cp-empty,
+  .cp-list > .cp-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cp-empty--wide { padding-top: 72px; }
 
   /* 右：详情 / 编辑（头部吸顶，分区标签左置两栏对齐） */
-  .cp-detail { flex: 1; min-width: 0; overflow-y: auto; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
+  .cp-detail { flex: 1; min-width: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; background: #fff; border: 1px solid var(--n-100); border-radius: var(--radius-lg); padding: 0 var(--space-lg) var(--space-lg); }
+  .cp-detail::-webkit-scrollbar { display: none; }
   .cp-detail__header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin: 0 calc(0px - var(--space-lg)) var(--space-lg); padding: var(--space-md) var(--space-lg); background: #fff; border-bottom: 1px solid var(--n-100); }
   .cp-detail__id { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
   .cp-detail__name { margin: 0; font-size: var(--font-size-lg); color: var(--n-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cp-detail__header-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+  .cp-detail__header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   /* 启用勾选：头部内联启停入口，勾选=启用、取消=禁用 */
-  .cp-enable { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; user-select: none; }
+  .cp-enable { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: var(--font-size-sm); color: var(--n-600); cursor: pointer; user-select: none; white-space: nowrap; }
   .cp-enable input { margin: 0; }
 
   .cp-detail__section { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); align-items: start; }
@@ -88,10 +105,11 @@
   .cp-badge { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 8px; background: var(--brand-500); color: #fff; font-size: 10px; font-style: normal; text-align: center; margin-left: 4px; }
   .cp-badge:empty { display: none; }
   .cp-body-bar { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-sm); }
-  /* 请求体类型按钮组：宽度随选项自适应、按内容撑开按钮，与右侧 raw 子类型/格式化同排（对齐实现侧 req-panel__body-types）；空间不足时换行而非溢出 */
-  .cp-body-bar .radio-seg { width: auto; max-width: 100%; flex: none; flex-wrap: wrap; }
-  .cp-body-bar .radio-seg button { flex: none; height: 28px; padding: 0 12px; font-size: var(--font-size-xs); transition: color .15s, background .15s; }
+  /* 请求体类型：对齐 RequestConfigEditor .req-config-editor__body-types */
+  .cp-body-bar .radio-seg { width: fit-content; max-width: 100%; flex: none; flex-wrap: wrap; gap: 2px; background: var(--n-50); border: none; border-radius: 6px; padding: 2px; }
+  .cp-body-bar .radio-seg button { flex: none; height: 28px; padding: 0 12px; border: none; background: none; border-radius: 4px; font-size: 12px; color: var(--n-500); cursor: pointer; white-space: nowrap; transition: all .15s; }
   .cp-body-bar .radio-seg button:hover:not(.is-active) { color: var(--n-700); }
+  .cp-body-bar .radio-seg button.is-active { background: var(--brand-500); color: #fff; font-weight: 500; box-shadow: none; }
   .cp-body-hint { padding: var(--space-lg); text-align: center; color: var(--n-400); font-size: var(--font-size-sm); }
   .cell-check { width: 14px; height: 14px; accent-color: var(--brand-500); }
   .pane-actions { display: flex; justify-content: flex-end; gap: var(--space-md); margin-bottom: var(--space-sm); }
@@ -133,64 +151,85 @@
 
       <div class="cp-page">
         <div class="cp-body">
-          <!-- 左：组件列表（docs44 §2.1：搜索与 [新建组件] 位于列表首行） -->
+          <!-- 左：组件列表（对齐 ComponentPage：搜索与新建位于列表首行，其下为类型页签） -->
           <aside class="cp-list">
             <div class="cp-list__head">
               <div class="input-wrap"><span data-icon="search"></span><input class="input" id="cp-search" placeholder="搜索组件名称..."></div>
               <button class="btn btn--primary" id="cp-add"><span data-icon="plus"></span>新建组件</button>
             </div>
-            <div class="cp-list__body">
-              <span class="radio-seg" data-cptabs>
-                <button class="is-active" data-cptab="all">全部</button>
-                <button data-cptab="preprocessor">前置</button>
-                <button data-cptab="postprocessor">后置</button>
-                <button data-cptab="validator">验证器</button>
-                <button data-cptab="extractor">提取器</button>
-              </span>
 
+            <div class="cp-list__tabs" data-cptabs role="tablist" aria-label="组件类型">
+              <button class="is-active" data-cptab="all" role="tab">全部</button>
+              <button data-cptab="preprocessor" role="tab">前置</button>
+              <button data-cptab="postprocessor" role="tab">后置</button>
+              <button data-cptab="validator" role="tab">验证器</button>
+              <button data-cptab="extractor" role="tab">提取器</button>
+            </div>
+
+            <div class="cp-empty" id="cp-load-error-full" hidden>
+              <p>组件列表加载失败</p>
+              <button class="btn btn--default btn--sm" type="button" data-list-retry-full>重试</button>
+            </div>
+
+            <div class="cp-list__skeleton" id="cp-skeleton" hidden aria-hidden="true">
+              <div class="cp-list__skeleton-row" style="width:92%"></div>
+              <div class="cp-list__skeleton-row" style="width:78%"></div>
+              <div class="cp-list__skeleton-row" style="width:86%"></div>
+              <div class="cp-list__skeleton-row" style="width:70%"></div>
+              <div class="cp-list__skeleton-row" style="width:84%"></div>
+              <div class="cp-list__skeleton-row" style="width:74%"></div>
+            </div>
+
+            <div id="cp-list-content">
               <div class="cp-list__load-error" id="cp-load-error" role="alert" hidden>
                 <span>组件列表加载失败，请重试</span>
                 <button class="btn btn--link btn--sm" type="button" data-list-retry>重新加载</button>
               </div>
 
-              <ul class="cp-items" id="cp-items">
-                <li class="cp-item is-active" data-cp="token">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">Token 预置</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--success cp-item__state">已启用</span></div>
-                  <div class="cp-item__meta">前置处理器 · 从环境变量获取 Token 并注入请求头</div>
-                </li>
-                <li class="cp-item" data-cp="login">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">登录态校验</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
-                  <div class="cp-item__meta">验证器 · 校验登录态，失效时中断后续步骤</div>
-                </li>
-                <li class="cp-item" data-cp="cursor">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">分页游标提取</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
-                  <div class="cp-item__meta">提取器 · 提取下一页游标供循环步骤使用</div>
-                </li>
-                <li class="cp-item" data-cp="order">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">提取订单号</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
-                  <div class="cp-item__meta">提取器 · 从响应体提取订单号供造数步骤引用</div>
-                </li>
-                <li class="cp-item" data-cp="track">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">提取物流单号</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
-                  <div class="cp-item__meta">提取器 · 从响应头提取物流轨迹号到变量 trackNo</div>
-                </li>
-                <li class="cp-item is-disabled" data-cp="cleanup">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">清理测试数据</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--outline cp-item__state">已停用</span></div>
-                  <div class="cp-item__meta">后置处理器 · 执行结束按订单号清理造数记录</div>
-                </li>
-                <li class="cp-item" data-cp="report">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">上报执行结果</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
-                  <div class="cp-item__meta">后置处理器 · 执行结束将结果按表单上报到报表服务</div>
-                </li>
-                <li class="cp-item" data-cp="errcode">
-                  <div class="cp-item__main"><span class="cp-item__name" tabindex="0">统一错误码断言</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
-                  <div class="cp-item__meta">验证器 · 响应体需包含标准错误码字段</div>
-                </li>
-              </ul>
-
               <div class="cp-empty" id="cp-empty" hidden>
                 <p id="cp-empty-text">无匹配结果</p>
                 <button class="btn btn--default btn--sm" id="cp-clear-search">清除筛选</button>
+              </div>
+
+              <div id="cp-list-scroll-wrap">
+                <div class="cp-list__state" id="cp-prev-state" aria-live="polite"></div>
+
+                <ul class="cp-items" id="cp-items">
+                  <li class="cp-item is-active" data-cp="token">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">Token 预置</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                    <div class="cp-item__meta">前置处理器 · 从环境变量获取 Token 并注入请求头</div>
+                  </li>
+                  <li class="cp-item" data-cp="login">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">登录态校验</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                    <div class="cp-item__meta">验证器 · 校验登录态，失效时中断后续步骤</div>
+                  </li>
+                  <li class="cp-item" data-cp="cursor">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">分页游标提取</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                    <div class="cp-item__meta">提取器 · 提取下一页游标供循环步骤使用</div>
+                  </li>
+                  <li class="cp-item" data-cp="order">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">提取订单号</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                    <div class="cp-item__meta">提取器 · 从响应体提取订单号供造数步骤引用</div>
+                  </li>
+                  <li class="cp-item" data-cp="track">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">提取物流单号</span><span class="tag tag--success cp-item__scope">空间</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                    <div class="cp-item__meta">提取器 · 从响应头提取物流轨迹号到变量 trackNo</div>
+                  </li>
+                  <li class="cp-item is-disabled" data-cp="cleanup">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">清理测试数据</span><span class="tag tag--outline cp-item__scope">公共</span><span class="tag tag--outline cp-item__state">已停用</span></div>
+                    <div class="cp-item__meta">后置处理器 · 执行结束按订单号清理造数记录</div>
+                  </li>
+                  <li class="cp-item" data-cp="report">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">上报执行结果</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                    <div class="cp-item__meta">后置处理器 · 执行结束将结果按表单上报到报表服务</div>
+                  </li>
+                  <li class="cp-item" data-cp="errcode">
+                    <div class="cp-item__main"><span class="cp-item__name" tabindex="0">统一错误码断言</span><span class="tag tag--info cp-item__scope">项目</span><span class="tag tag--success cp-item__state">已启用</span></div>
+                    <div class="cp-item__meta">验证器 · 响应体需包含标准错误码字段</div>
+                  </li>
+                </ul>
+
+                <div class="cp-list__state" id="cp-next-state" aria-live="polite"></div>
               </div>
             </div>
           </aside>
@@ -199,7 +238,7 @@
           <section class="cp-detail" data-cpview>
             <div class="cp-detail__header">
               <div class="cp-detail__id">
-                <span class="cp-detail__name" id="cp-name">Token 预置</span>
+                <h4 class="cp-detail__name" id="cp-name">Token 预置</h4>
                 <span class="tag tag--outline" id="cp-type">前置处理器</span>
                 <span class="tag tag--info" id="cp-scope">公共</span>
                 <label class="cp-enable"><input type="checkbox" class="cell-check" id="cp-enable"><span>启用</span></label>
@@ -244,7 +283,7 @@
           <!-- 右：新建 / 编辑（对应 ComponentPage 新建编辑面板） -->
           <section class="cp-detail" data-cpform hidden>
             <div class="cp-detail__header">
-              <div class="cp-detail__id"><span class="cp-detail__name" id="cp-form-title">新建组件</span></div>
+              <div class="cp-detail__id"><h4 class="cp-detail__name" id="cp-form-title">新建组件</h4></div>
               <div class="cp-detail__header-actions">
                 <button class="btn btn--default btn--sm" id="cp-cancel">取消</button>
                 <button class="btn btn--primary btn--sm" id="cp-save">保存</button>
@@ -273,8 +312,8 @@
                   <option value="workspace">空间</option>
                   <option value="project">项目</option>
                 </select>
-                <div class="field__hint">编辑态不可修改作用域</div>
               </div>
+              <p class="field__hint" id="cp-f-scope-hint" style="grid-column:1 / -1;margin:calc(var(--space-xs) * -1) 0 var(--space-md);font-size:var(--font-size-xs);color:var(--n-400)">编辑态不可修改作用域</p>
               <div class="field" style="grid-column:1 / -1">
                 <label class="field__label" for="cp-f-desc">描述</label>
                 <textarea class="textarea" rows="2" id="cp-f-desc" maxlength="500" placeholder="组件用途说明"></textarea>
@@ -438,7 +477,7 @@
 
           <!-- 右：无选中组件 -->
           <section class="cp-detail" data-cpempty hidden>
-            <div class="cp-empty" style="padding-top:72px"><p>选择组件查看详情</p></div>
+            <div class="cp-empty cp-empty--wide"><p>选择组件查看详情</p></div>
           </section>
         </div>
       </div>
@@ -455,8 +494,8 @@
     </div>
     <div class="dialog__body"><p id="cp-confirm-body" style="margin:0;color:var(--n-600)"></p></div>
     <div class="dialog__footer">
-      <button class="btn btn--default btn--sm" data-confirm-cancel>取消</button>
-      <button class="btn btn--danger btn--sm" id="cp-confirm-ok">删除</button>
+      <button class="btn btn--default" data-confirm-cancel>取消</button>
+      <button class="btn btn--danger" id="cp-confirm-ok">删除</button>
     </div>
   </div>
 </div>
@@ -472,7 +511,7 @@
       <p class="selected-hint" style="margin:0 0 var(--space-sm)">仅展示启用的提取器资产；引入为复制，得到独立副本，与源资产无关联。</p>
       <div class="cp-list__head" style="margin-bottom:var(--space-sm)">
         <div class="input-wrap"><span data-icon="search"></span><input class="input" id="cp-picker-search" placeholder="搜索提取器名称..."></div>
-        <button class="btn btn--default btn--sm" id="cp-picker-do-search" type="button"><span data-icon="search"></span>搜索</button>
+        <button class="btn btn--default" id="cp-picker-do-search" type="button"><span data-icon="search"></span>搜索</button>
       </div>
       <div class="table-wrap">
         <table class="table">
@@ -484,7 +523,7 @@
     </div>
     <div class="dialog__footer">
       <button class="btn btn--default" data-picker-close>取消</button>
-      <button class="btn btn--primary" id="cp-picker-ok">引 入</button>
+      <button class="btn btn--primary" id="cp-picker-ok">引入</button>
     </div>
   </div>
 </div>
@@ -793,7 +832,7 @@
     setBadge('bd-query', kvCount(byId('f-query'), false));
     setBadge('bd-body', bodyKind === 'none' ? 0
       : (bodyKind === 'urlencoded' ? kvCount(byId('f-urlencoded'), true) : (byId('f-body').value.trim() ? 1 : 0)));
-    var n = extRows.filter(function (r) { return String(r.source || '').trim(); }).length;
+    var n = extRows.filter(function (r) { return r.on !== false && String(r.source || '').trim(); }).length;
     setBadge('bd-ext', n);
     setBadge('bd-jdbc-ext', n);
   }
@@ -865,6 +904,8 @@
         sw.type = 'button';
         sw.setAttribute('data-ext-on', String(idx));
         sw.setAttribute('aria-label', '启用');
+        sw.setAttribute('aria-pressed', r.on === false ? 'false' : 'true');
+        sw.title = r.on === false ? '已停用，点击启用' : '已启用，点击停用';
         var sel = el('select', 'select');
         sel.setAttribute('data-ext-field', 'source');
         sel.setAttribute('data-ext-idx', String(idx));
@@ -902,7 +943,9 @@
       li.classList.toggle('is-hidden', !show);
       if (show) visible++;
     });
-    byId('cp-empty').hidden = visible > 0;
+    var empty = visible === 0;
+    byId('cp-empty').hidden = !empty;
+    byId('cp-list-scroll-wrap').hidden = empty;
     // 与实现一致：有筛选（关键词或类型页签）→ 无匹配结果，否则 → 暂无公共组件
     byId('cp-empty-text').textContent = (kw || activeTab !== 'all') ? '无匹配结果' : '暂无公共组件';
     byId('cp-clear-search').hidden = !(kw || activeTab !== 'all');
@@ -1025,6 +1068,7 @@
     byId('cp-f-scope').value = cp ? cp.scope : 'project';
     byId('cp-f-desc').value = cp ? (cp.desc || '') : '';
     byId('cp-f-scope-field').hidden = mode === 'edit';
+    byId('cp-f-scope-hint').hidden = mode === 'edit';
     byId('cp-f-type').disabled = mode === 'edit';
     byId('cp-f-type-hint').hidden = mode !== 'edit';
     setCfgForm(cp);
@@ -1087,6 +1131,16 @@
     selectItem(li.getAttribute('data-cp'));
   });
 
+  /* 名称是可聚焦元素：回车/空格与点击等价，真正切换右侧详情 */
+  byId('cp-items').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var name = e.target.closest ? e.target.closest('.cp-item__name') : null;
+    if (!name) return;
+    e.preventDefault();
+    var li = name.closest('.cp-item');
+    if (li) selectItem(li.getAttribute('data-cp'));
+  });
+
   document.querySelector('[data-cptabs]').addEventListener('click', function (e) {
     var btn = e.target.closest ? e.target.closest('button[data-cptab]') : null;
     if (!btn) return;
@@ -1129,6 +1183,7 @@
     confirmBox.hidden = false;
   }
   confirmBox.addEventListener('click', function (e) {
+    if (e.target === confirmBox) { confirmBox.hidden = true; confirmFn = null; return; }
     if (e.target.closest('[data-confirm-cancel]')) { confirmBox.hidden = true; confirmFn = null; return; }
     if (e.target === byId('cp-confirm-ok')) {
       confirmBox.hidden = true;
@@ -1173,6 +1228,10 @@
       var td0 = el('td');
       var box = el('span', 'checkbox');
       box.setAttribute('data-picker-id', c.id);
+      box.setAttribute('role', 'checkbox');
+      box.setAttribute('tabindex', '0');
+      box.setAttribute('aria-checked', 'false');
+      box.setAttribute('aria-label', '选择 ' + c.name);
       td0.appendChild(box);
       var td1 = el('td', 'cell-main'); td1.textContent = c.name;
       var td2 = el('td'); td2.textContent = SCOPE_LABELS[c.scope];
@@ -1191,7 +1250,10 @@
       return;
     }
     var box = e.target.closest ? e.target.closest('#cp-ext-picker .checkbox') : null;
-    if (box) box.classList.toggle('checkbox--on');
+    if (box) {
+      box.classList.toggle('checkbox--on');
+      box.setAttribute('aria-checked', box.classList.contains('checkbox--on') ? 'true' : 'false');
+    }
     if (e.target.closest && e.target.closest('[data-picker-close]')) pickerBox.hidden = true;
     if (e.target === pickerBox) pickerBox.hidden = true;
   });
@@ -1213,10 +1275,27 @@
         desc: String(cfgVal(src, '提取描述') || '')
       });
       box.classList.remove('checkbox--on');
+      box.setAttribute('aria-checked', 'false');
     });
     renderExtCards();
     pickerBox.hidden = true;
     rt.toast('已引入 ' + checked.length + ' 个提取器', { type: 'success' });
+  });
+
+  /* 提取器选择行支持键盘勾选：回车/空格触发与鼠标点击相同的 DOM 变更 */
+  byId('cp-picker-rows').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var box = e.target.closest ? e.target.closest('.checkbox') : null;
+    if (!box) return;
+    e.preventDefault();
+    box.click();
+  });
+
+  /* ESC 关闭最上层弹窗：先删除确认，再提取器选择器；点遮罩关闭见各弹窗自身监听 */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!confirmBox.hidden) { confirmBox.hidden = true; confirmFn = null; }
+    else if (!pickerBox.hidden) { pickerBox.hidden = true; }
   });
 
   byId('cp-f-type').addEventListener('change', applyType);
@@ -1318,6 +1397,19 @@
       }
       return;
     }
+    var extOn = e.target.closest ? e.target.closest('[data-ext-on]') : null;
+    if (extOn) {
+      var oi = Number(extOn.getAttribute('data-ext-on'));
+      if (extRows[oi]) {
+        extRows[oi].on = extRows[oi].on === false;
+        var isOn = extRows[oi].on !== false;
+        extOn.classList.toggle('is-on', isOn);
+        extOn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+        extOn.title = isOn ? '已启用，点击停用' : '已停用，点击启用';
+        updateBadges();
+      }
+      return;
+    }
     var delExt = e.target.closest ? e.target.closest('[data-del-ext]') : null;
     if (delExt) {
       extRows.splice(Number(delExt.getAttribute('data-del-ext')), 1);
@@ -1378,6 +1470,7 @@
       Object.keys(payload).forEach(function (k) { cp[k] = payload[k]; });
       if (cp.type !== 'preprocessor' && cp.type !== 'postprocessor') cp.extractors = [];
       renderItem(cp);
+      filterList();
       rt.toast('已更新', { type: 'success' });
       selectItem(cp.id);
     } else {
@@ -1389,6 +1482,8 @@
       byId('cp-items').appendChild(li);
       renderItem(payload);
       rt.toast('已创建', { type: 'success' });
+      /* 清掉旧关键词，否则新建项会被上一次筛选隐藏，用户看不到刚保存的行 */
+      byId('cp-search').value = '';
       activeTab = 'all';
       document.querySelector('[data-cptabs]').querySelectorAll('button').forEach(function (b) {
         b.classList.toggle('is-active', b.getAttribute('data-cptab') === 'all');
@@ -1465,13 +1560,27 @@
     });
   })();
 
-  // 加载失败：静态稿用列表头部刷新图标触发顶部错误条，已有列表保留（对齐 cp-list__load-error）
+  // 加载失败演示：#demo-load-error=已有数据时顶部错误条；#demo-load-error-full=首屏失败
   (function () {
     var bar = document.getElementById('cp-load-error');
-    // 演示失败态：URL 追加 #demo-load-error 触发，避免在工具栏暴露真实页面没有的入口
+    var full = document.getElementById('cp-load-error-full');
+    var content = document.getElementById('cp-list-content');
     if (location.hash === '#demo-load-error') bar.hidden = false;
+    if (location.hash === '#demo-load-error-full') {
+      full.hidden = false;
+      content.hidden = true;
+    }
     bar.querySelector('[data-list-retry]').addEventListener('click', function () {
       bar.hidden = true;
+      filterList();
+      if (findCp(activeId)) selectItem(activeId);
+      window.RTUX.toast('已重新加载最新数据', { type: 'success' });
+    });
+    full.querySelector('[data-list-retry-full]').addEventListener('click', function () {
+      full.hidden = true;
+      content.hidden = false;
+      filterList();
+      if (findCp(activeId)) selectItem(activeId);
       window.RTUX.toast('已重新加载最新数据', { type: 'success' });
     });
   })();
