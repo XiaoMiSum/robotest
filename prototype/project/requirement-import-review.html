@@ -115,12 +115,6 @@
     display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px;
     margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--n-200);
   }
-  .proposal-review__batch {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-    margin-top: 16px; padding-top: 8px; border-top: 1px solid var(--n-200);
-  }
-  .proposal-review__batch-count { margin-left: auto; color: var(--n-500); font-size: var(--font-size-sm); }
-
   .dialog--proposal { width: 640px; }
   .dialog--reject { width: 480px; }
   .form-field { margin-bottom: 16px; }
@@ -270,19 +264,6 @@
             </article>
           </div>
 
-          <div class="proposal-review__batch">
-            <label style="display:inline-flex;align-items:center;gap:6px;font-size:var(--font-size-sm);color:var(--n-700)">
-              <input type="checkbox" id="rv-all" style="accent-color:var(--brand-500)"> 全选待处理
-            </label>
-            <button class="btn btn--primary btn--sm" type="button" id="rv-batch-adopt">批量采纳</button>
-            <button class="btn btn--default btn--sm" type="button" id="rv-batch-reject">全部驳回</button>
-            <span class="proposal-review__batch-count" id="rv-batch-count">已选 0 / 共 2</span>
-          </div>
-
-          <p class="alert alert--warning proposal-review__hint" id="rv-batch-hint" hidden>
-            <span id="rv-batch-hint-text">请先选择待处理提案</span>
-          </p>
-
           <!-- AiConfirmReceipt -->
           <div class="ai-receipt" id="rv-receipt" hidden>
             <div class="ai-receipt__head">
@@ -408,7 +389,6 @@
 
     var proposals = makeProposals();
     var activeIndex = 0;
-    var selected = {};
     var taskState = 'ready';
     var executionSeq = 1;
     var terminateReason = '';
@@ -510,10 +490,6 @@
 
       document.querySelector('.proposal-review__processed').textContent =
         '已处理 ' + (c.adopted + c.rejected) + ' / 共 ' + proposals.length;
-      var selectedCount = proposals.filter(function (p) { return p.confirmStatus === 'pending' && selected[p.key]; }).length;
-      byId('rv-batch-count').textContent = '已选 ' + selectedCount + ' / 共 ' + proposals.length;
-      byId('rv-all').checked = c.pending > 0 && selectedCount === c.pending;
-      byId('rv-all').indeterminate = selectedCount > 0 && selectedCount < c.pending;
 
       var allHandled = c.pending === 0 && taskState !== 'aborted';
       byId('rv-handled').hidden = !allHandled;
@@ -540,11 +516,6 @@
       }).join('');
     }
 
-    function showBatchHint(msg) {
-      byId('rv-batch-hint-text').textContent = msg || '请先选择待处理提案';
-      byId('rv-batch-hint').hidden = false;
-    }
-    function hideBatchHint() { byId('rv-batch-hint').hidden = true; }
     function showEditError(msg) {
       byId('edit-error').textContent = msg;
       byId('edit-error').hidden = false;
@@ -602,7 +573,6 @@
       taskState = 'aborted';
       terminateReason = '用户主动终止任务（原型演示）';
       byId('rv-receipt').hidden = true;
-      hideBatchHint();
       render();
     }
 
@@ -612,9 +582,7 @@
       executionSeq += 1;
       proposals = makeProposals();
       activeIndex = 0;
-      selected = {};
       byId('rv-receipt').hidden = true;
-      hideBatchHint();
       render();
     }
 
@@ -623,11 +591,6 @@
     });
     byId('rv-next').addEventListener('click', function () {
       if (activeIndex < proposals.length - 1) { activeIndex++; render(); }
-    });
-    byId('rv-all').addEventListener('change', function (e) {
-      proposals.forEach(function (p) { if (p.confirmStatus === 'pending') selected[p.key] = e.target.checked; });
-      hideBatchHint();
-      render();
     });
     byId('rv-abort').addEventListener('click', abortTask);
     byId('rv-reexecute').addEventListener('click', reexecuteTask);
@@ -647,8 +610,6 @@
       if (item.confirmStatus !== 'pending') return;
       if (action === 'adopt') {
         item.confirmStatus = 'adopted';
-        selected[item.key] = false;
-        hideBatchHint();
         showReceipt([{ title: item.title, status: item.confirmStatus }]);
         moveToNextPending();
         render();
@@ -682,7 +643,6 @@
       var priority = byId('edit-priority').value;
       item.fields = [{ label: '优先级', value: priority }];
       item.confirmStatus = 'adopted_edited';
-      selected[item.key] = false;
       closeDialog('edit-dialog');
       showReceipt([{ title: item.title, status: item.confirmStatus }]);
       moveToNextPending();
@@ -693,39 +653,8 @@
       var item = findByKey(rejectingKey) || proposals[activeIndex];
       item.confirmStatus = 'rejected';
       item.note = byId('reject-note').value.trim();
-      selected[item.key] = false;
       closeDialog('reject-dialog');
       showReceipt([{ title: item.title, status: 'rejected' }]);
-      moveToNextPending();
-      render();
-    });
-
-    byId('rv-batch-adopt').addEventListener('click', function () {
-      var targets = proposals.filter(function (p) { return p.confirmStatus === 'pending' && selected[p.key]; });
-      if (!targets.length) { showBatchHint('请先选择待处理提案，可使用「全选待处理」'); return; }
-      var results = [];
-      targets.forEach(function (p) {
-        p.confirmStatus = 'adopted';
-        selected[p.key] = false;
-        results.push({ title: p.title, status: p.confirmStatus });
-      });
-      hideBatchHint();
-      showReceipt(results);
-      moveToNextPending();
-      render();
-    });
-
-    byId('rv-batch-reject').addEventListener('click', function () {
-      var targets = proposals.filter(function (p) { return p.confirmStatus === 'pending'; });
-      if (!targets.length) { showBatchHint('没有待处理的提案可驳回'); return; }
-      var results = [];
-      targets.forEach(function (p) {
-        p.confirmStatus = 'rejected';
-        selected[p.key] = false;
-        results.push({ title: p.title, status: p.confirmStatus });
-      });
-      hideBatchHint();
-      showReceipt(results);
       moveToNextPending();
       render();
     });
