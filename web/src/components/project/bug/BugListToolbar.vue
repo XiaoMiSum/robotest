@@ -140,7 +140,7 @@ const emit = defineEmits<{
           </el-form-item>
           <div class="bug-toolbar__filter-actions">
             <el-button @click="emit('reset')">重置</el-button>
-            <el-button type="primary" native-type="submit">查询</el-button>
+            <el-button native-type="submit">查询</el-button>
           </div>
         </el-form>
       </el-popover>

@@ -250,9 +250,8 @@ async function submitEdit(payload: TestReviewUpdatePayload) {
           />
         </el-select>
         <el-space :size="8"
-          ><el-button type="primary" @click="handleSearch"
-            ><el-icon><Search /></el-icon>查询</el-button
-          ><el-button @click="handleReset">重置</el-button></el-space
+          ><el-button @click="handleSearch"
+            ><el-icon><Search /></el-icon>查询</el-button><el-button @click="handleReset">重置</el-button></el-space
         >
         <span class="review-list__count">共 {{ total }} 场评审</span>
       </template>

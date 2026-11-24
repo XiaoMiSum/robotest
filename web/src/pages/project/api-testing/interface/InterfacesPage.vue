@@ -302,7 +302,7 @@ defineExpose({ openCreate, openImport })
           <el-option value="enabled" label="启用" />
           <el-option value="disabled" label="停用" />
         </el-select>
-        <el-button type="primary" data-test="interface-search-btn" @click="handleSearch">
+        <el-button data-test="interface-search-btn" @click="handleSearch">
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button data-test="interface-reset-btn" @click="handleReset">重置</el-button>

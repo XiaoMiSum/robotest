@@ -231,11 +231,11 @@ const emit = defineEmits<{
       </el-select>
     </template>
 
-    <!-- 执行入口（交互 10 §1.9）：只读形态为页面唯一动作，与平台一致用 link 主色；仓库不可达时置灰并提示原因 -->
+    <!-- 执行入口是该区域唯一主操作，用实心主色与保存/发布区分；仓库不可达时置灰并提示原因 -->
     <template v-if="readonlyMode">
       <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
         <span class="scene-editor__run-wrap">
-          <el-button link type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
+          <el-button type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
         </span>
       </el-tooltip>
     </template>
@@ -243,22 +243,22 @@ const emit = defineEmits<{
       <div class="scene-editor__nav-actions">
         <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
           <span class="scene-editor__run-wrap">
-            <el-button link type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
+            <el-button type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
           </span>
         </el-tooltip>
-        <el-button link @click="emit('save', 'draft')">保存</el-button>
-        <el-button link type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
+        <el-button @click="emit('save', 'draft')">保存</el-button>
+        <el-button :loading="saving" @click="emit('save', 'published')">发布</el-button>
       </div>
     </template>
     <template v-else>
       <div class="scene-editor__nav-actions">
         <el-tooltip :content="`仓库不可达，无法执行`" :disabled="!repoUnreachable" placement="bottom">
           <span class="scene-editor__run-wrap">
-            <el-button link type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
+            <el-button type="primary" :disabled="repoUnreachable" :loading="running" @click="emit('run')">{{ runLabel }}</el-button>
           </span>
         </el-tooltip>
-        <el-button link @click="emit('save', 'draft')">保存</el-button>
-        <el-button link type="primary" :loading="saving" @click="emit('save', 'published')">发布</el-button>
+        <el-button @click="emit('save', 'draft')">保存</el-button>
+        <el-button :loading="saving" @click="emit('save', 'published')">发布</el-button>
         <el-button type="danger" @click="emit('delete')">删除</el-button>
       </div>
     </template>

@@ -235,7 +235,7 @@ function openCreate(): void {
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="search">
+        <el-button @click="search">
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button @click="resetFilters">重置</el-button>

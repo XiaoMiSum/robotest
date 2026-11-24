@@ -86,7 +86,7 @@ function asRow(row: unknown): AiTaskRow {
         >
           <el-option v-for="option in statusOptions" :key="option.value" v-bind="option" />
         </el-select>
-        <el-button type="primary" @click="search">
+        <el-button @click="search">
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button @click="resetFilters">重置</el-button>

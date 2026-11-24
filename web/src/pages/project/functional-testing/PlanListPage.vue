@@ -268,9 +268,8 @@ async function submitEdit(payload: TestPlanUpdatePayload) {
           />
         </el-select>
         <el-space :size="8"
-          ><el-button type="primary" @click="handleSearch"
-            ><el-icon><Search /></el-icon>查询</el-button
-          ><el-button @click="handleReset">重置</el-button></el-space
+          ><el-button @click="handleSearch"
+            ><el-icon><Search /></el-icon>查询</el-button><el-button @click="handleReset">重置</el-button></el-space
         >
         <span class="plan-list__count">{{ planCountText(total) }}</span>
       </template>

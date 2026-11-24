@@ -171,7 +171,7 @@ onMounted(() => {
         </p>
       </div>
       <div class="user-form__actions">
-        <el-button link @click="router.push('/admin/users')">取消</el-button>
+        <el-button @click="router.push('/admin/users')">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSave">保存</el-button>
       </div>
     </div>

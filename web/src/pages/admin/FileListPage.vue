@@ -158,7 +158,7 @@ onMounted(() => {
             style="width: 220px"
             @keyup.enter="handleSearch"
           />
-          <el-button type="primary" @click="handleSearch">
+          <el-button @click="handleSearch">
             <el-icon><Search /></el-icon>查询
           </el-button>
           <el-button @click="handleReset">重置</el-button>

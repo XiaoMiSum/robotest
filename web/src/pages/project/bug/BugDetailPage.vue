@@ -210,7 +210,7 @@ watch(detail, async () => {
         <el-button v-if="isActive && !detail.confirmed" @click="handleConfirm">确认</el-button>
         <el-button v-if="isActive" @click="resolveDialogVisible = true">解决</el-button>
         <el-button v-if="isActive" @click="handleReject">拒绝</el-button>
-        <el-button v-if="isResolved || isRejected" type="info" @click="handleClose">关闭</el-button>
+        <el-button v-if="isResolved || isRejected" @click="handleClose">关闭</el-button>
         <el-button v-if="isResolved || isRejected || isClosed" @click="handleReopen">激活</el-button>
         <el-button v-if="isEditable" type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </div>
