@@ -49,7 +49,7 @@ const CI_MODE_HINT =
         <span class="gl-state__icon gl-state__icon--danger"><el-icon :size="40"><WarningFilled /></el-icon></span>
         <div class="gl-state__title">仓库配置加载失败</div>
         <p class="gl-state__desc">请检查网络后重试</p>
-        <el-button size="small" @click="load()">重试</el-button>
+        <el-button type="danger" plain size="small" @click="load()">重试</el-button>
       </div>
     </div>
 

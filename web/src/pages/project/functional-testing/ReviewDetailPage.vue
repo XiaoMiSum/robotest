@@ -151,8 +151,8 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
           v-else-if="detail && detail.status === 'rejected' && detail.initiator.id === authStore.user?.id"
           class="review-detail__actions"
         >
-          <el-button size="small" type="primary" @click="handleReopen">
-            <el-icon><RefreshLeft /></el-icon>重新发起
+          <el-button @click="handleReopen">
+            <el-icon><RefreshLeft /></el-icon>重新执行
           </el-button>
         </div>
       </div>
@@ -219,7 +219,7 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
         show-icon
         :title="reviewFailedReason || 'AI 评审执行失败'"
       >
-        <el-button size="small" type="danger" plain @click="retryAiReview">再次执行</el-button>
+        <el-button type="danger" plain size="small" @click="retryAiReview">重试</el-button>
       </el-alert>
       <el-alert
         v-else-if="reviewLoadError"
@@ -228,7 +228,7 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
         show-icon
         :title="reviewLoadError"
       >
-        <el-button size="small" plain @click="refreshAiReview">重试</el-button>
+        <el-button type="danger" plain size="small" @click="refreshAiReview">重试</el-button>
         <el-button size="small" plain @click="closeAiReviewPanel">关闭</el-button>
       </el-alert>
       <AiReviewPanel

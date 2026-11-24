@@ -329,9 +329,10 @@ function onReceiptRetry(item: ConfirmItemResult): void {
       </el-select>
       <el-button
         v-if="retryable"
+        :disabled="confirming"
         link
         type="primary"
-        :disabled="confirming"
+        size="small"
         @click="emit('retry')"
       >
         重新执行

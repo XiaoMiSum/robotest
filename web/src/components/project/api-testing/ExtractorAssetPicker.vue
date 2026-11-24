@@ -21,7 +21,7 @@
     </div>
     <el-alert v-if="error" type="error" :title="error" show-icon :closable="false">
       <template #default>
-        <el-button link type="primary" @click="emit('search')">重试</el-button>
+        <el-button type="danger" plain size="small" @click="emit('search')">重试</el-button>
       </template>
     </el-alert>
     <el-table

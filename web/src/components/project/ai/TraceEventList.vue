@@ -93,7 +93,7 @@ async function copy(section: unknown): Promise<void> {
         {{ expanded ? '收起轨迹 ▴' : '展开轨迹 ▾' }}
       </el-button>
       <template v-if="expanded">
-        <el-button link :disabled="loading" @click="void load(false)">刷新</el-button>
+        <el-button :disabled="loading" size="small" @click="void load(false)">刷新</el-button>
         <span class="trace-events__count">共 {{ events.length }} 条</span>
       </template>
     </div>
@@ -108,7 +108,7 @@ async function copy(section: unknown): Promise<void> {
         class="trace-events__error"
       >
         <template #default>
-          <el-button size="small" type="danger" plain :disabled="loading" @click="void load(false)">
+          <el-button :disabled="loading" type="danger" plain size="small" @click="void load(false)">
             重试
           </el-button>
         </template>

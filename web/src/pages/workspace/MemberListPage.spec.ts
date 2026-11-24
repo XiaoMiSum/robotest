@@ -68,7 +68,7 @@ describe('MemberListPage demo structure', () => {
   it('双卡片提供统一空态与失败可重试引导', () => {
     expect(memberPanelSource).toContain('<template #empty>')
     expect(memberPanelSource).toContain('成员列表加载失败')
-    expect(memberPanelSource).toContain('重新加载')
+    expect(memberPanelSource).toContain('刷新')
     expect(memberPanelSource).toContain('点击右上角「邀请成员」邀请加入')
     expect(memberPanelSource).toContain('loadError: boolean')
     expect(memberPanelSource).not.toContain('empty-text=')

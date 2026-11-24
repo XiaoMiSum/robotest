@@ -69,7 +69,7 @@ const {
       class="detail-error"
     >
       <template #default>
-        <el-button size="small" type="danger" plain @click="load">重试</el-button>
+        <el-button type="danger" plain size="small" @click="load">重试</el-button>
       </template>
     </el-alert>
 
@@ -113,8 +113,9 @@ const {
               v-if="canReExecute"
               link
               type="primary"
+              size="small"
               @click="handleReExecute"
-            >再次执行</el-button>
+            >重新执行</el-button>
           </div>
         </header>
 

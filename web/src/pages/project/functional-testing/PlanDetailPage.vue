@@ -240,7 +240,7 @@ const orderEmptyReason = computed(() =>
         show-icon
         :title="orderFailedReason || '执行顺序建议生成失败'"
       >
-        <el-button size="small" type="danger" plain @click="retryOrderAssist">再次执行</el-button>
+        <el-button type="danger" plain size="small" @click="retryOrderAssist">重试</el-button>
       </el-alert>
       <el-alert
         v-else-if="orderLoadError"
@@ -249,7 +249,7 @@ const orderEmptyReason = computed(() =>
         show-icon
         :title="orderLoadError"
       >
-        <el-button size="small" plain @click="refreshOrderAssist">重试</el-button>
+        <el-button type="danger" plain size="small" @click="refreshOrderAssist">重试</el-button>
         <el-button size="small" plain @click="closeOrderAssistPanel">关闭</el-button>
       </el-alert>
       <PlanOrderPanel

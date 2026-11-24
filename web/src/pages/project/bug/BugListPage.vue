@@ -121,7 +121,7 @@ function createBug() {
           show-icon
           :closable="false"
         />
-        <el-button :loading="loading" @click="loadBugs">重新加载</el-button>
+        <el-button :loading="loading" size="small" @click="loadBugs">刷新</el-button>
       </div>
       <div v-loading="loading" class="bug-page__content">
         <BugListTable

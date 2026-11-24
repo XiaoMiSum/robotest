@@ -184,7 +184,7 @@ onMounted(async () => {
     <!-- 设置加载失败（UI-PAGE-11：页面捕获 + 重试） -->
     <div v-if="store.settingsError" class="ai-shell__error">
       <span>{{ store.settingsError }}</span>
-      <el-button @click="store.loadSettings()">重试</el-button>
+      <el-button type="danger" plain size="small" @click="store.loadSettings()">重试</el-button>
     </div>
 
     <!-- 重建引导条：全宽横幅，切换分组不消失 -->
@@ -204,7 +204,7 @@ onMounted(async () => {
       </template>
       <template v-else-if="store.reindexError">
         <span class="ai-shell__reindex-text">向量重建失败：{{ store.reindexError }}</span>
-        <el-button type="primary" @click="handleStartReindex">重试</el-button>
+        <el-button type="danger" plain size="small" @click="handleStartReindex">重试</el-button>
       </template>
       <template v-else>
         <span class="ai-shell__reindex-text">向量维度已变更，需全量重建</span>

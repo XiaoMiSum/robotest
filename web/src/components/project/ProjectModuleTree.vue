@@ -101,13 +101,13 @@ defineExpose({ reload: load, getTree: () => treeData.value })
 
     <div v-if="loadError && treeData.length === 0" class="module-tree__load-error" role="alert">
       <span>模块树加载失败</span>
-      <el-button link type="primary" size="small" @click="load()">重试</el-button>
+      <el-button type="danger" plain size="small" @click="load()">重试</el-button>
     </div>
 
     <template v-else>
       <div v-if="loadError" class="module-tree__load-bar" role="alert">
         <span>模块树加载失败，请重试</span>
-        <el-button link type="primary" size="small" @click="load()">重新加载</el-button>
+        <el-button size="small" @click="load()">刷新</el-button>
       </div>
 
       <el-tree

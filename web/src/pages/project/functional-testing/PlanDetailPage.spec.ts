@@ -32,7 +32,7 @@ describe('PlanDetailPage 操作按钮状态显隐', () => {
     expect(pageSource).toContain('v-if="orderRunning"')
     expect(pageSource).toContain('AI 正在生成执行顺序建议')
     expect(pageSource).toContain('v-else-if="orderFailed"')
-    expect(pageSource).toContain('再次执行')
+    expect(pageSource).toContain('重试')
     expect(pageSource).toContain('v-else-if="orderLoadError"')
     expect(pageSource).toContain('<PlanOrderPanel')
     expect(pageSource).toContain(':can-adopt="canOperateActive"')

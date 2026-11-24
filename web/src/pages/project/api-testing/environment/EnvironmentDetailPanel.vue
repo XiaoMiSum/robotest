@@ -70,7 +70,7 @@ const tabs = computed(() => [
   <div v-loading="loading" class="env-detail">
     <div v-if="loadError" class="env-detail__empty">
       <p>环境详情加载失败</p>
-      <el-button @click="load">重试</el-button>
+      <el-button type="danger" plain size="small" @click="load">重试</el-button>
     </div>
 
     <template v-else-if="detail">

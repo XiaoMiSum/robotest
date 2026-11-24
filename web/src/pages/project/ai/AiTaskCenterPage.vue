@@ -58,7 +58,7 @@ function asRow(row: unknown): AiTaskRow {
         <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程与采纳结果</p>
       </div>
       <div class="page-head__actions">
-        <el-button @click="refresh">
+        <el-button size="small" @click="refresh">
           <el-icon><Refresh /></el-icon>刷新
         </el-button>
       </div>
@@ -109,7 +109,7 @@ function asRow(row: unknown): AiTaskRow {
         class="list-error"
       >
         <template #default>
-          <el-button size="small" type="danger" plain @click="retry">重试</el-button>
+          <el-button type="danger" plain size="small" @click="retry">重试</el-button>
         </template>
       </el-alert>
 
@@ -183,8 +183,9 @@ function asRow(row: unknown): AiTaskRow {
                 v-if="asRow(row).canReExecute"
                 link
                 type="primary"
+                size="small"
                 @click="handleReExecute(asRow(row))"
-              >再次执行</el-button>
+              >重新执行</el-button>
             </template>
           </el-table-column>
           <template #empty>

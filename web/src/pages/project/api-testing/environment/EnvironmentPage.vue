@@ -100,7 +100,7 @@ async function submitEditDialog() {
         <div class="env-list__body">
           <div v-if="loadError && sortedList.length === 0" class="env-empty">
             <p>环境列表加载失败</p>
-            <el-button size="small" @click="loadList()">重试</el-button>
+            <el-button type="danger" plain size="small" @click="loadList()">重试</el-button>
           </div>
 
           <el-skeleton v-else-if="listLoading && sortedList.length === 0" :rows="5" animated />
@@ -113,7 +113,7 @@ async function submitEditDialog() {
           <template v-else>
             <div v-if="loadError" class="env-list__load-error" role="alert">
               <span>环境列表加载失败，请重试</span>
-              <el-button link type="primary" size="small" @click="loadList()">重新加载</el-button>
+              <el-button size="small" @click="loadList()">刷新</el-button>
             </div>
 
             <ul class="env-items">

@@ -141,9 +141,10 @@ function close(): void {
         <div class="ai-generation__head-actions">
           <el-button
             v-if="retryable"
+            :disabled="confirming"
             link
             type="primary"
-            :disabled="confirming"
+            size="small"
             @click="emit('retry')"
           >
             重新执行
@@ -169,7 +170,7 @@ function close(): void {
         :title="failedReason || '用例生成失败'"
         class="ai-generation__alert"
       >
-        <el-button size="small" type="danger" plain @click="emit('retry')">再次执行</el-button>
+        <el-button type="danger" plain size="small" @click="emit('retry')">重试</el-button>
       </el-alert>
       <el-alert
         v-else-if="loadError"
@@ -179,7 +180,7 @@ function close(): void {
         :title="loadError"
         class="ai-generation__alert"
       >
-        <el-button size="small" plain @click="emit('refresh')">重试</el-button>
+        <el-button type="danger" plain size="small" @click="emit('refresh')">重试</el-button>
       </el-alert>
       <el-alert
         v-if="sourceStale && !running"

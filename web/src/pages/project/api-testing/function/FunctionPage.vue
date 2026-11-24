@@ -86,7 +86,7 @@ function clearParamErrors(): void {
 
           <div v-if="loadError && !builtinGroups.length && !customList.length" class="fn-empty">
             <p>函数列表加载失败</p>
-            <el-button size="small" @click="loadAll()">重试</el-button>
+            <el-button type="danger" plain size="small" @click="loadAll()">重试</el-button>
           </div>
 
           <el-skeleton
@@ -99,7 +99,7 @@ function clearParamErrors(): void {
           <template v-else>
             <div v-if="loadError" class="fn-list__load-error" role="alert">
               <span>函数列表加载失败，请重试</span>
-              <el-button link type="primary" size="small" @click="loadAll()">重新加载</el-button>
+              <el-button size="small" @click="loadAll()">刷新</el-button>
             </div>
 
             <div v-if="displayItems.length === 0" class="fn-empty">

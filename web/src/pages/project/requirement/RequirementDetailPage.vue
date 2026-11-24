@@ -217,7 +217,7 @@ function goBack(): void {
           class="requirement-detail__error"
         >
           <template #default>
-            <el-button size="small" type="danger" plain @click="retry">重试</el-button>
+            <el-button type="danger" plain size="small" @click="retry">重试</el-button>
           </template>
         </el-alert>
 

@@ -13,7 +13,7 @@ const emit = defineEmits<{ retry: []; reset: []; create: [] }>()
   <div v-if="mode === 'loading'" class="list-feedback__loading" role="status">{{ title }}</div>
   <div v-else-if="mode === 'error' || mode === 'refresh-error'" class="list-feedback__error">
     <el-alert :title="title" :description="description" type="error" show-icon :closable="false" />
-    <el-button :loading="retrying" @click="emit('retry')">重新加载</el-button>
+    <el-button :loading="retrying" size="small" @click="emit('retry')">刷新</el-button>
   </div>
   <el-empty v-else :description="title" :image-size="72">
     <el-button v-if="mode === 'filtered'" @click="emit('reset')">重置筛选</el-button>

@@ -65,7 +65,7 @@ onBeforeUnmount(unmount)
     <el-card shadow="never" class="interface-editor__card">
       <div v-if="detailError" class="interface-editor__load-error" role="alert">
         <span>{{ detailError }}</span>
-        <el-button link type="primary" @click="retryDetail">重试</el-button>
+        <el-button type="danger" plain size="small" @click="retryDetail">重试</el-button>
       </div>
       <div class="interface-editor__request-line">
         <el-select v-model="form.protocol" style="width: 96px" data-test="editor-protocol-select">
@@ -112,7 +112,7 @@ onBeforeUnmount(unmount)
               </div>
               <div v-if="moduleError" class="interface-editor__load-error" role="alert">
                 <span>{{ moduleError }}</span>
-                <el-button link type="primary" @click="retryModules">重试</el-button>
+                <el-button type="danger" plain size="small" @click="retryModules">重试</el-button>
               </div>
               <div class="interface-editor__field-row interface-editor__field-row--top">
                 <span class="interface-editor__field-label">描述</span>

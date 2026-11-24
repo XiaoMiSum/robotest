@@ -192,7 +192,7 @@ function formatMetaTime(value: string): string {
     <div ref="listRef" class="history__list" @scroll="handleListScroll">
       <div v-if="error" class="history__error" role="alert">
         <span>{{ error }}</span>
-        <el-button link type="primary" @click="retry">重试</el-button>
+        <el-button type="danger" plain size="small" @click="retry">重试</el-button>
       </div>
 
       <section v-for="group in groupedRecords" :key="group.label" class="history__group">

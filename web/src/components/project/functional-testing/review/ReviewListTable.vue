@@ -129,9 +129,9 @@ const brandAvatarStyle = {
             v-if="row.review.status === 'rejected'"
             link
             type="primary"
+            size="small"
             @click="emit('reopen', row.review)"
-            >重新发起</el-button
-          >
+            >重新执行</el-button>
           <el-button link type="danger" @click="emit('delete', row.review)">删除</el-button>
         </el-space>
       </template>

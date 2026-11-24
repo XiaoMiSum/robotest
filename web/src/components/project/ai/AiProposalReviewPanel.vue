@@ -183,7 +183,7 @@ function moduleNameOf(moduleId: string): string {
             class="proposal-review__alert"
           >
             <template #default>
-              <el-button link type="primary" @click="loadContent(row)">重试</el-button>
+              <el-button type="danger" plain size="small" @click="loadContent(row)">重试</el-button>
             </template>
           </el-alert>
           <p v-if="row.note" class="proposal-review__note">驳回原因：{{ row.note }}</p>

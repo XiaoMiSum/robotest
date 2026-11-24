@@ -155,7 +155,7 @@ async function handleImport() {
       </el-form-item>
       <el-alert v-if="interfaceError" type="error" :title="interfaceError" show-icon :closable="false">
         <template #default>
-          <el-button link type="primary" @click="retry">重试</el-button>
+          <el-button type="danger" plain size="small" @click="retry">重试</el-button>
         </template>
       </el-alert>
     </el-form>

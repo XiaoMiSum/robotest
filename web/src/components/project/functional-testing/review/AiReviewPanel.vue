@@ -138,9 +138,10 @@ function onReceiptRetry(item: ConfirmItemResult): void {
       </div>
       <el-button
         v-if="retryable"
+        :disabled="confirming"
         link
         type="primary"
-        :disabled="confirming"
+        size="small"
         @click="emit('retry')"
       >重新执行</el-button>
       <el-button link @click="emit('close')">关闭</el-button>

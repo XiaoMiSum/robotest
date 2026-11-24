@@ -77,7 +77,7 @@ function backToList(): void {
       class="import-review__error"
     >
       <template #default>
-        <el-button size="small" type="danger" plain @click="load">重试</el-button>
+        <el-button type="danger" plain size="small" @click="load">重试</el-button>
       </template>
     </el-alert>
 
@@ -107,7 +107,7 @@ function backToList(): void {
           </div>
           <div class="import-review__actions">
             <el-button v-if="canAbort" link type="warning" @click="handleAbort">终止</el-button>
-            <el-button v-if="canReExecute" link type="primary" @click="handleReExecute">再次执行</el-button>
+            <el-button v-if="canReExecute" link type="primary" size="small" @click="handleReExecute">重新执行</el-button>
             <el-button link @click="backToList">返回需求列表</el-button>
           </div>
         </header>

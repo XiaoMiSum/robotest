@@ -305,7 +305,7 @@ watch(
     </header>
     <div v-if="environmentError" class="step-inline__environment-error" role="alert">
       <span>{{ environmentError }}</span>
-      <el-button link type="primary" @click="retryEnvironmentOptions">重试</el-button>
+      <el-button type="danger" plain size="small" @click="retryEnvironmentOptions">重试</el-button>
     </div>
 
     <div class="step-inline__body">

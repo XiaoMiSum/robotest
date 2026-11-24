@@ -203,7 +203,7 @@ async function runTest(model: AiModel) {
     <!-- 列表错误（UI-PAGE-11：页面捕获 + 重试） -->
     <div v-if="store.modelsError" class="model-group__error">
       <span>{{ store.modelsError }}</span>
-      <el-button @click="store.loadModels()">重试</el-button>
+      <el-button type="danger" plain size="small" @click="store.loadModels()">重试</el-button>
     </div>
 
     <!-- 空态：引导添加第一个模型（交互 2.2） -->

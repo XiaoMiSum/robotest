@@ -54,7 +54,7 @@ describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
     expect(source).toContain('关闭弹窗后任务仍在后台运行')
     expect(source).not.toContain('后台运行，关闭')
     expect(source).toContain('v-else-if="assistFailed"')
-    expect(source).toContain('再次执行')
+    expect(source).toContain('重试')
     expect(source).toContain('v-else-if="assistLoadError"')
     expect(source).toContain('<AssistComparePanel')
     expect(source).toContain(':can-adopt="canAdoptAssist"')

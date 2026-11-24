@@ -136,7 +136,7 @@ onMounted(async () => {
     <!-- 列表错误（UI-PAGE-11：页面捕获 + 重试） -->
     <div v-if="store.promptsError" class="prompt-group__error">
       <span>{{ store.promptsError }}</span>
-      <el-button @click="load">重试</el-button>
+      <el-button type="danger" plain size="small" @click="load">重试</el-button>
     </div>
 
     <el-empty
@@ -208,7 +208,7 @@ onMounted(async () => {
 
       <div v-if="detailError" class="prompt-group__detail-error">
         <span>{{ detailError }}</span>
-        <el-button @click="current && loadDetail(current.scene)">重试</el-button>
+        <el-button type="danger" plain size="small" @click="current && loadDetail(current.scene)">重试</el-button>
       </div>
 
       <el-form

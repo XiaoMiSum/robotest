@@ -240,7 +240,7 @@ const handleLayoutCommand = (command: unknown) => {
   <div ref="mindmapContainerRef" v-loading="loading" class="mindmap-container">
     <div v-if="loadError" class="mindmap-load-error" role="alert">
       <el-empty description="脑图加载失败">
-        <el-button type="primary" @click="initMinder()">重试</el-button>
+        <el-button type="danger" plain size="small" @click="initMinder()">重试</el-button>
       </el-empty>
     </div>
 
@@ -485,7 +485,7 @@ const handleLayoutCommand = (command: unknown) => {
         show-icon
         :title="assistFailedReason || '建议生成失败'"
       >
-        <el-button size="small" type="danger" plain @click="retryAssist">再次执行</el-button>
+        <el-button type="danger" plain size="small" @click="retryAssist">重试</el-button>
       </el-alert>
       <el-alert
         v-else-if="assistLoadError"
@@ -494,7 +494,7 @@ const handleLayoutCommand = (command: unknown) => {
         show-icon
         :title="assistLoadError"
       >
-        <el-button size="small" plain @click="refreshAssist">重试</el-button>
+        <el-button type="danger" plain size="small" @click="refreshAssist">重试</el-button>
         <el-button size="small" plain @click="closeAssistPanel">关闭</el-button>
       </el-alert>
       <AssistComparePanel

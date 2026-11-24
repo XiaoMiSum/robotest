@@ -116,7 +116,7 @@ const emptyDescription = computed(() =>
 
     <div v-if="loadError && members.length" class="member-list-card__load-error" role="alert">
       <span>成员列表加载失败，请重试</span>
-      <el-button link type="primary" @click="emit('retry')">重新加载</el-button>
+      <el-button size="small" @click="emit('retry')">刷新</el-button>
     </div>
     <div class="member-list-card__body">
       <el-table
@@ -215,7 +215,7 @@ const emptyDescription = computed(() =>
         </el-table-column>
         <template #empty>
           <el-empty v-if="loadError" description="成员列表加载失败">
-            <el-button type="primary" @click="emit('retry')">重新加载</el-button>
+            <el-button size="small" @click="emit('retry')">刷新</el-button>
           </el-empty>
           <el-empty
             v-else-if="hasMemberFilter"

@@ -32,7 +32,7 @@ const emit = defineEmits<{
       <div class="shp-head">执行历史</div>
       <div v-if="error" class="shp-error" role="alert">
         <span>{{ error }}</span>
-        <el-button link type="primary" @click="emit('load')">重试</el-button>
+        <el-button type="danger" plain size="small" @click="emit('load')">重试</el-button>
       </div>
       <div v-for="h in history" :key="h.id" class="shp-row">
         <span class="shp-status" :class="`is-${h.status}`">{{ h.status }}</span>

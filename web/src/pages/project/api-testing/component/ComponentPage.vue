@@ -118,7 +118,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
 
         <div v-if="loadError && list.length === 0" class="cp-empty">
           <p>组件列表加载失败</p>
-          <el-button size="small" @click="loadList()">重试</el-button>
+          <el-button type="danger" plain size="small" @click="loadList()">重试</el-button>
         </div>
 
         <el-skeleton v-else-if="listLoading && list.length === 0" :rows="6" animated class="cp-list__skeleton" />
@@ -126,7 +126,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
         <template v-else>
           <div v-if="loadError" class="cp-list__load-error" role="alert">
             <span>组件列表加载失败，请重试</span>
-            <el-button link type="primary" size="small" @click="loadList()">重新加载</el-button>
+            <el-button size="small" @click="loadList()">刷新</el-button>
           </div>
 
           <div v-if="list.length === 0" class="cp-empty">
@@ -139,7 +139,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
               <template v-if="loadingPrev">加载中…</template>
               <template v-else-if="prevError">
                 <span>加载上一页失败</span>
-                <el-button size="small" @click="loadPrev">重试</el-button>
+                <el-button type="danger" plain size="small" @click="loadPrev">重试</el-button>
               </template>
             </div>
 
@@ -174,7 +174,7 @@ watch([list, listLoading, loadingMore, loadingPrev], async () => {
               <template v-if="loadingMore">加载中…</template>
               <template v-else-if="moreError">
                 <span>加载下一页失败</span>
-                <el-button size="small" @click="loadMore">重试</el-button>
+                <el-button type="danger" plain size="small" @click="loadMore">重试</el-button>
               </template>
             </div>
           </template>

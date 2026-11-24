@@ -36,9 +36,10 @@ const hasFailures = (items: ConfirmItemResult[]): boolean => items.some((item) =
         </span>
         <el-button
           v-if="!item.success"
-          link
-          type="primary"
           :loading="confirming"
+          type="danger"
+          plain
+          size="small"
           @click="emit('retry', item)"
         >重试</el-button>
       </li>

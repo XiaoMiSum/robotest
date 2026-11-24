@@ -31,14 +31,14 @@ const {
         <h1 class="dashboard__title">数据概览</h1>
         <p class="dashboard__desc">{{ subtitle }}</p>
       </div>
-      <el-button :loading="loading" @click="refresh">
+      <el-button :loading="loading" size="small" @click="refresh">
         <el-icon><Refresh /></el-icon>刷新
       </el-button>
     </div>
 
     <div v-if="dashboardError" class="dashboard__error" role="alert">
       <span>{{ dashboardError }}</span>
-      <el-button link type="primary" @click="retry">重试</el-button>
+      <el-button type="danger" plain size="small" @click="retry">重试</el-button>
     </div>
 
     <div class="dashboard__kpis">
@@ -166,7 +166,7 @@ const {
       </header>
       <div v-if="workspaceError" class="dashboard__error" role="alert">
         <span>{{ workspaceError }}</span>
-        <el-button link type="primary" @click="retry">重试</el-button>
+        <el-button type="danger" plain size="small" @click="retry">重试</el-button>
       </div>
       <el-table
         v-if="!workspaceError || workspaceList.length"

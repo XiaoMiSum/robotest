@@ -272,7 +272,7 @@ async function handleSubmit() {
           </el-select>
           <div v-if="moduleError" class="save-dialog__load-error" role="alert">
             <span>{{ moduleError }}</span>
-            <el-button link type="primary" @click="retryModules">重试</el-button>
+            <el-button type="danger" plain size="small" @click="retryModules">重试</el-button>
           </div>
         </el-form-item>
       </template>
@@ -295,7 +295,7 @@ async function handleSubmit() {
           </el-select>
           <div v-if="interfaceError" class="save-dialog__load-error" role="alert">
             <span>{{ interfaceError }}</span>
-            <el-button link type="primary" @click="retryInterfaces">重试</el-button>
+            <el-button type="danger" plain size="small" @click="retryInterfaces">重试</el-button>
           </div>
         </el-form-item>
       </template>

@@ -98,7 +98,7 @@ function confirm(): void {
       class="picker__error"
     >
       <template #default>
-        <el-button size="small" type="danger" plain @click="picker.retry">重试</el-button>
+        <el-button type="danger" plain size="small" @click="picker.retry">重试</el-button>
       </template>
     </el-alert>
 

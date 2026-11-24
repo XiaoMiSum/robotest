@@ -55,7 +55,7 @@ function handleSizeChange(pageSize: number): void {
       role="alert"
     >
       <span>邀请链接加载失败，请重试</span>
-      <el-button link type="primary" @click="emit('retry')">重新加载</el-button>
+      <el-button size="small" @click="emit('retry')">刷新</el-button>
     </div>
     <div class="invitation-list-card__body">
       <el-table
@@ -136,7 +136,7 @@ function handleSizeChange(pageSize: number): void {
         </el-table-column>
         <template #empty>
           <el-empty v-if="loadError" description="邀请链接加载失败">
-            <el-button type="primary" @click="emit('retry')">重新加载</el-button>
+            <el-button size="small" @click="emit('retry')">刷新</el-button>
           </el-empty>
           <el-empty v-else description="暂无邀请链接，点击右上角「生成链接」创建第一个邀请" />
         </template>

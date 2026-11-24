@@ -374,7 +374,7 @@ function openTask(row: AiUsageTask) {
       <!-- 列表错误（UI-PAGE-11：页面捕获 + 重试） -->
       <div v-if="store.usageError" class="usage-group__error">
         <span>{{ store.usageError }}</span>
-        <el-button @click="retryUsage">重试</el-button>
+        <el-button type="danger" plain size="small" @click="retryUsage">重试</el-button>
       </div>
 
       <!-- 自定义范围未选全：提示选择起止日期 -->
@@ -400,7 +400,7 @@ function openTask(row: AiUsageTask) {
 
       <div v-if="drillError" class="usage-group__error">
         <span>{{ drillError }}</span>
-        <el-button @click="loadDrill">重试</el-button>
+        <el-button type="danger" plain size="small" @click="loadDrill">重试</el-button>
       </div>
 
       <el-table

@@ -139,7 +139,7 @@ const {
           <div v-loading="variablesLoading" class="step-editor__list-section">
             <div v-if="variablesError" class="step-editor__load-error" role="alert">
               <span>{{ variablesError }}</span>
-              <el-button link type="primary" @click="retryStepVariables">重试</el-button>
+              <el-button type="danger" plain size="small" @click="retryStepVariables">重试</el-button>
             </div>
             <table v-if="stepVariables.length" class="step-editor__kv-table">
               <thead>
@@ -191,7 +191,7 @@ const {
           </el-select>
           <div v-if="interfaceError" class="step-editor__load-error" role="alert">
             <span>{{ interfaceError }}</span>
-            <el-button link type="primary" @click="retryInterfaces">重试</el-button>
+            <el-button type="danger" plain size="small" @click="retryInterfaces">重试</el-button>
           </div>
         </el-form-item>
         <el-form-item label="同步模式">
