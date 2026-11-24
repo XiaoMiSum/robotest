@@ -72,7 +72,17 @@ const wrappers: ReturnType<typeof mount>[] = []
 function render() {
   const wrapper = mount(PlanListPage, {
     global: {
-      stubs: { PlanCreateDialog: true, PlanEditDialog: true, ListPagination: true, Plus: true, Search: true },
+      stubs: {
+        PlanCreateDialog: true,
+        PlanEditDialog: true,
+        ListPagination: true,
+        Plus: true,
+        Search: true,
+        TableColumnSetting: {
+          props: { iconOnly: { type: Boolean, default: false } },
+          template: '<button class="col-setting" :data-icon-only="String(iconOnly)" aria-label="列设置" />',
+        },
+      },
       directives: { loading: () => {} },
     },
   })
@@ -112,6 +122,16 @@ afterEach(() => {
 })
 
 describe('计划列表样板', () => {
+  it('列设置入口置于操作列表头右侧，工具栏不再展示列设置', async () => {
+    const wrapper = render()
+    await flushPromises()
+
+    const settings = wrapper.findAll('.col-setting')
+    expect(settings).toHaveLength(1)
+    expect(settings[0].attributes('data-icon-only')).toBe('true')
+    expect(wrapper.find('.plan-table__action-header .col-setting').exists()).toBe(true)
+  })
+
   it('首次失败可重试，普通空态可以新建计划', async () => {
     mocks.fetch.mockRejectedValueOnce(new Error('网络中断'))
     const wrapper = render()

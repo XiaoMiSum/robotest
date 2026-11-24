@@ -254,13 +254,6 @@ async function submitEdit(payload: TestReviewUpdatePayload) {
             ><el-icon><Search /></el-icon>查询</el-button
           ><el-button @click="handleReset">重置</el-button></el-space
         >
-        <TableColumnSetting
-          :columns="REVIEW_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
         <span class="review-list__count">共 {{ total }} 场评审</span>
       </template>
       <template v-if="hasLoaded && loadError" #feedback>
@@ -281,6 +274,16 @@ async function submitEdit(payload: TestReviewUpdatePayload) {
         @reopen="handleReopen"
         @delete="handleDelete"
       >
+        <template #column-setting>
+          <TableColumnSetting
+            icon-only
+            :columns="REVIEW_COLUMNS"
+            :visible-keys="visibleKeys"
+            @change="(key, visible) => setVisible(key, visible)"
+            @select-all="selectAll"
+            @reset="reset"
+          />
+        </template>
         <template #empty>
           <ListLoadFeedback
             v-if="loading || !hasLoaded || !loadError"

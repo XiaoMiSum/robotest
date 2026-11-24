@@ -94,6 +94,12 @@ const rows = computed(() =>
       >
     </el-table-column>
     <el-table-column label="操作" width="280" fixed="right">
+      <template #header>
+        <div class="plan-table__action-header">
+          <span>操作</span>
+          <slot name="column-setting" />
+        </div>
+      </template>
       <template #default="{ row }">
         <el-space :size="8">
           <el-button link type="primary" @click="emit('open', row.plan.id)">{{
@@ -174,5 +180,12 @@ const rows = computed(() =>
 }
 .plan-table__rate--muted {
   color: var(--color-neutral-600);
+}
+.plan-table__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  width: 100%;
 }
 </style>

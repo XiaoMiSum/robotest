@@ -229,13 +229,6 @@ onMounted(async () => {
         @keyup.enter="handleFilter"
         @clear="handleFilter"
       />
-      <TableColumnSetting
-        :columns="REPORT_COLUMNS"
-        :visible-keys="visibleKeys"
-        @change="(key, visible) => setVisible(key, visible)"
-        @select-all="selectAll"
-        @reset="reset"
-      />
     </div>
 
     <div v-if="hasLoaded && loadError" class="reports-page__feedback">
@@ -295,6 +288,19 @@ onMounted(async () => {
           <template #default="{ row }">{{ formatDateTime((row as ApiReportPageItem).createdAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
+          <template #header>
+            <div class="reports-page__action-header">
+              <span>操作</span>
+              <TableColumnSetting
+                icon-only
+                :columns="REPORT_COLUMNS"
+                :visible-keys="visibleKeys"
+                @change="(key, visible) => setVisible(key, visible)"
+                @select-all="selectAll"
+                @reset="reset"
+              />
+            </div>
+          </template>
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleView(row as ApiReportPageItem)">查看</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row as ApiReportPageItem)">删除</el-button>
@@ -380,5 +386,12 @@ onMounted(async () => {
 
 .text-red-500 {
   color: var(--color-danger);
+}
+.reports-page__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  width: 100%;
 }
 </style>

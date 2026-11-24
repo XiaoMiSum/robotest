@@ -169,6 +169,15 @@ describe('ScenariosPage GitLab 来源与源状态展示', () => {
     mocks.ElMessageBox.confirm.mockResolvedValue(undefined)
   })
 
+  it('列设置入口置于操作列表头右侧，工具栏不再展示列设置', async () => {
+    const wrapper = await mountPage([makeScene({ id: 'scene-setting', name: '列设置场景' })])
+
+    const settings = wrapper.findAll('button[aria-label="列设置"]')
+    expect(settings).toHaveLength(1)
+    expect(wrapper.find('.scenarios-page__action-header button[aria-label="列设置"]').exists()).toBe(true)
+    expect(wrapper.find('.scenarios-page__toolbar button[aria-label="列设置"]').exists()).toBe(false)
+  })
+
   it('GitLab 导入场景展示来源徽标，平台原生场景不展示；点击徽标跳集成页导入页签', async () => {
     const wrapper = await mountPage([
       makeScene({ id: 'scene-gl', name: '流水线查询订单', sourceType: 'gitlab' }),

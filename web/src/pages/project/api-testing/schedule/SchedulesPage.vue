@@ -112,13 +112,6 @@ function handlePageSizeChange() {
         <el-select v-model="typeFilter" placeholder="任务类型" clearable style="width: 140px">
           <el-option v-for="opt in SCHEDULE_TASK_TYPES" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
-        <TableColumnSetting
-          :columns="SCHEDULE_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
         <el-button type="primary" @click="openCreate">新建任务</el-button>
       </div>
     </div>
@@ -168,6 +161,19 @@ function handlePageSizeChange() {
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right">
+          <template #header>
+            <div class="schedules-page__action-header">
+              <span>操作</span>
+              <TableColumnSetting
+                icon-only
+                :columns="SCHEDULE_COLUMNS"
+                :visible-keys="visibleKeys"
+                @change="(key, visible) => setVisible(key, visible)"
+                @select-all="selectAll"
+                @reset="reset"
+              />
+            </div>
+          </template>
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row as ApiSchedulePageItem)">编辑</el-button>
             <el-button link type="primary" size="small" @click="handleExecuteNow(row as ApiSchedulePageItem)">立即执行</el-button>
@@ -468,5 +474,12 @@ function handlePageSizeChange() {
   gap: 8px;
   margin-top: 8px;
   flex-wrap: wrap;
+}
+.schedules-page__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  width: 100%;
 }
 </style>

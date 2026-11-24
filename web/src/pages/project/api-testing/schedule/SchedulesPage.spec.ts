@@ -16,4 +16,11 @@ describe('SchedulesPage 列表交互与反馈', () => {
     expect(pageSource).toContain('ListTitleLink')
     expect(pageSource).toContain('@open="openEdit')
   })
+
+  it('列设置入口置于操作列表头右侧，工具栏不再展示列设置', () => {
+    expect(pageSource).toContain('class="schedules-page__action-header"')
+    expect(pageSource).toContain('justify-content: flex-end')
+    expect(pageSource).toContain('icon-only')
+    expect(pageSource.match(/<TableColumnSetting/g)).toHaveLength(1)
+  })
 })

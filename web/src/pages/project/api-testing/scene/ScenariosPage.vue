@@ -362,13 +362,6 @@ onActivated(async () => {
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button @click="handleReset">重置</el-button>
-        <TableColumnSetting
-          :columns="SCENARIO_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
         <div class="scenarios-page__spacer" />
       </div>
     </el-card>
@@ -479,6 +472,19 @@ onActivated(async () => {
                 <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
               </el-table-column>
               <el-table-column label="操作" width="180" fixed="right">
+                <template #header>
+                  <div class="scenarios-page__action-header">
+                    <span>操作</span>
+                    <TableColumnSetting
+                      icon-only
+                      :columns="SCENARIO_COLUMNS"
+                      :visible-keys="visibleKeys"
+                      @change="(key, visible) => setVisible(key, visible)"
+                      @select-all="selectAll"
+                      @reset="reset"
+                    />
+                  </div>
+                </template>
                 <template #default="{ row }">
                   <el-button link size="small" type="primary" @click="openDetail(row as ApiScenePageItem)">编辑</el-button>
                   <el-dropdown trigger="click" class="scenarios-page__more" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
@@ -778,5 +784,12 @@ onActivated(async () => {
 
 .text-neutral-400 {
   color: var(--color-neutral-400);
+}
+.scenarios-page__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  width: 100%;
 }
 </style>

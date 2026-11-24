@@ -29,3 +29,12 @@ describe('InterfacesPage 列表样板对齐', () => {
     expect(pageSource).toContain('mode="refresh-error"')
   })
 })
+
+describe('InterfacesPage 列设置入口', () => {
+  it('列设置入口置于操作列表头右侧，工具栏不再展示列设置', () => {
+    expect(pageSource).toContain('class="interfaces-page__action-header"')
+    expect(pageSource).toContain('justify-content: flex-end')
+    expect(pageSource).toContain('icon-only')
+    expect(pageSource.match(/<TableColumnSetting/g)).toHaveLength(1)
+  })
+})

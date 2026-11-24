@@ -40,7 +40,22 @@ const editPayload = {
 }
 const wrappers: ReturnType<typeof mount>[] = []
 function render() {
-  const wrapper = mount(ReviewListPage, { global: { stubs: { ReviewCreateDialog: true, ReviewEditDialog: true, ListPagination: true, Plus: true, Search: true }, directives: { loading: () => {} } } })
+  const wrapper = mount(ReviewListPage, {
+    global: {
+      stubs: {
+        ReviewCreateDialog: true,
+        ReviewEditDialog: true,
+        ListPagination: true,
+        Plus: true,
+        Search: true,
+        TableColumnSetting: {
+          props: { iconOnly: { type: Boolean, default: false } },
+          template: '<button class="col-setting" :data-icon-only="String(iconOnly)" aria-label="列设置" />',
+        },
+      },
+      directives: { loading: () => {} },
+    },
+  })
   wrappers.push(wrapper)
   return wrapper
 }
@@ -74,6 +89,16 @@ beforeEach(() => {
 afterEach(() => { wrappers.splice(0).forEach((wrapper) => wrapper.unmount()) })
 
 describe('评审列表样板', () => {
+  it('列设置入口置于操作列表头右侧，工具栏不再展示列设置', async () => {
+    const wrapper = render()
+    await flushPromises()
+
+    const settings = wrapper.findAll('.col-setting')
+    expect(settings).toHaveLength(1)
+    expect(settings[0].attributes('data-icon-only')).toBe('true')
+    expect(wrapper.find('.review-table__action-header .col-setting').exists()).toBe(true)
+  })
+
   it('首次加载不闪空态，失败可重试，恢复后空态可以发起评审', async () => {
     const request = deferred()
     mocks.fetch.mockReturnValueOnce(request.promise)

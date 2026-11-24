@@ -306,13 +306,6 @@ defineExpose({ openCreate, openImport })
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button data-test="interface-reset-btn" @click="handleReset">重置</el-button>
-        <TableColumnSetting
-          :columns="INTERFACE_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
         <div class="interfaces-page__spacer" />
       </div>
     </el-card>
@@ -390,6 +383,19 @@ defineExpose({ openCreate, openImport })
               <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
             </el-table-column>
             <el-table-column label="操作" width="190" fixed="right">
+              <template #header>
+                <div class="interfaces-page__action-header">
+                  <span>操作</span>
+                  <TableColumnSetting
+                    icon-only
+                    :columns="INTERFACE_COLUMNS"
+                    :visible-keys="visibleKeys"
+                    @change="(key, visible) => setVisible(key, visible)"
+                    @select-all="selectAll"
+                    @reset="reset"
+                  />
+                </div>
+              </template>
               <template #default="{ row }">
                 <el-button link size="small" type="primary" :data-test="'interface-debug-' + row.id" @click="debugFromRow(row as ApiInterfaceItem)">调试</el-button>
                 <el-button link size="small" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">编辑</el-button>
@@ -584,4 +590,11 @@ defineExpose({ openCreate, openImport })
   }
 }
 
+.interfaces-page__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  width: 100%;
+}
 </style>

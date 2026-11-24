@@ -272,13 +272,6 @@ async function submitEdit(payload: TestPlanUpdatePayload) {
             ><el-icon><Search /></el-icon>查询</el-button
           ><el-button @click="handleReset">重置</el-button></el-space
         >
-        <TableColumnSetting
-          :columns="PLAN_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
         <span class="plan-list__count">{{ planCountText(total) }}</span>
       </template>
       <template v-if="hasLoaded && loadError" #feedback>
@@ -302,6 +295,16 @@ async function submitEdit(payload: TestPlanUpdatePayload) {
         @resume="handleResume"
         @delete="handleDelete"
       >
+        <template #column-setting>
+          <TableColumnSetting
+            icon-only
+            :columns="PLAN_COLUMNS"
+            :visible-keys="visibleKeys"
+            @change="(key, visible) => setVisible(key, visible)"
+            @select-all="selectAll"
+            @reset="reset"
+          />
+        </template>
         <template #empty>
           <ListLoadFeedback
             v-if="loading || !hasLoaded || !loadError"

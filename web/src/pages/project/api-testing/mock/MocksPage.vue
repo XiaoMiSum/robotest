@@ -277,13 +277,6 @@ function formatHitTime(val: string | null): string {
           <el-icon><Search /></el-icon>查询
         </el-button>
         <el-button @click="handleReset">重置</el-button>
-        <TableColumnSetting
-          :columns="MOCK_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
       </div>
       <div class="mocks-page__toolbar-right">
         <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
@@ -343,6 +336,19 @@ function formatHitTime(val: string | null): string {
           </template>
         </el-table-column>
         <el-table-column label="操作" width="280" fixed="right" align="center">
+          <template #header>
+            <div class="mocks-page__action-header">
+              <span>操作</span>
+              <TableColumnSetting
+                icon-only
+                :columns="MOCK_COLUMNS"
+                :visible-keys="visibleKeys"
+                @change="(key, visible) => setVisible(key, visible)"
+                @select-all="selectAll"
+                @reset="reset"
+              />
+            </div>
+          </template>
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEditor((row as ApiMockItem).id)">编辑</el-button>
             <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
@@ -474,5 +480,12 @@ function formatHitTime(val: string | null): string {
 .mocks-page__pagination {
   flex-shrink: 0;
   border-top: 1px solid var(--color-neutral-100);
+}
+.mocks-page__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  width: 100%;
 }
 </style>
