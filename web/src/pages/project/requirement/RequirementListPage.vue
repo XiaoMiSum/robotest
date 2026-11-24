@@ -2,7 +2,9 @@
 import { computed, ref } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
+import { fetchAiTasks } from '@/services/ai'
 import {
   canConfirmRequirement,
   type RequirementRow,
@@ -73,6 +75,26 @@ const cardBodyStyle: CSSProperties = {
 /** 导入经任务框架执行，AI 总开关关闭或未配模型时入口隐藏（总册 4.5） */
 const importDialogVisible = ref(false)
 const canImport = computed(() => canCreate.value && aiAvailable.value)
+const canViewLatestImport = computed(() => aiAvailable.value)
+const latestImportLoading = ref(false)
+
+async function openLatestImport(): Promise<void> {
+  if (latestImportLoading.value) return
+  latestImportLoading.value = true
+  try {
+    const result = await fetchAiTasks({ type: 'requirement_import', pageNo: 1, pageSize: 1 })
+    const latest = result.list[0]
+    if (!latest) {
+      ElMessage.info('暂无导入记录')
+      return
+    }
+    await router.push(`/workspace/projects/requirements/import-review/${latest.taskId}`)
+  } catch {
+    ElMessage.error('获取最近一次导入记录失败，请稍后重试')
+  } finally {
+    latestImportLoading.value = false
+  }
+}
 
 const statusOptions = [
   { value: 'draft', label: '草稿' },
@@ -113,6 +135,11 @@ function openCreate(): void {
         <p class="page-head__desc">沉淀项目需求，驱动用例设计</p>
       </div>
       <div class="page-head__actions">
+        <el-button
+          v-if="canViewLatestImport"
+          :loading="latestImportLoading"
+          @click="openLatestImport"
+        >最近一次导入</el-button>
         <el-button v-if="canImport" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>导入需求
         </el-button>
@@ -213,13 +240,6 @@ function openCreate(): void {
         </el-button>
         <el-button @click="resetFilters">重置</el-button>
         <el-badge v-if="filterCount > 0" :value="filterCount" class="requirement-list__badge" />
-        <TableColumnSetting
-          :columns="REQUIREMENT_COLUMNS"
-          :visible-keys="visibleKeys"
-          @change="(key, visible) => setVisible(key, visible)"
-          @select-all="selectAll"
-          @reset="reset"
-        />
         <span class="requirement-list__count">共 {{ total }} 条</span>
       </div>
 
@@ -277,8 +297,21 @@ function openCreate(): void {
         <el-table-column v-if="visibleKeys.includes('updatedAt')" label="更新时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
-        <!-- 操作列常驻，归档 / 取消归档按行状态切换（SRS 1.2 行操作） -->
-        <el-table-column v-if="canConfirm || canEdit" label="操作" width="200" align="right" fixed="right">
+        <!-- 操作列常驻：列设置不受行权限影响；无权限时仅保留列设置入口（交互 07 §2.1.2） -->
+        <el-table-column label="操作" min-width="200" align="right" fixed="right">
+          <template #header>
+            <div class="requirement-list__action-header">
+              <span>操作</span>
+              <TableColumnSetting
+                icon-only
+                :columns="REQUIREMENT_COLUMNS"
+                :visible-keys="visibleKeys"
+                @change="(key, visible) => setVisible(key, visible)"
+                @select-all="selectAll"
+                @reset="reset"
+              />
+            </div>
+          </template>
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
             <el-button
@@ -447,6 +480,14 @@ function openCreate(): void {
   .el-button + & {
     margin-left: 12px;
   }
+}
+
+.requirement-list__action-header {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
 }
 
 // archived 徽标取中性色（视觉设计 4.1），经组件 CSS 变量覆盖（UI-DS-09）
