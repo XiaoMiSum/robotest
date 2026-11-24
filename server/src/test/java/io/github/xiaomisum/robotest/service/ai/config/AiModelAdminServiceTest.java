@@ -228,6 +228,22 @@ class AiModelAdminServiceTest {
     }
 
     @Test
+    void update_scopesWriteToTargetModelId() {
+        when(modelMapper.selectById(MODEL_ID)).thenReturn(storedModel(MODEL_ID));
+        AiModelUpdateReqDTO req = new AiModelUpdateReqDTO();
+        req.setName("gpt-y");
+
+        service.update(MODEL_ID, req, loginUser, request);
+
+        ArgumentCaptor<Wrapper<AiModelConfig>> captor = wrapperCaptor();
+        verify(modelMapper).update(isNull(), captor.capture());
+        LambdaUpdateWrapperX<?> wrapper = (LambdaUpdateWrapperX<?>) captor.getValue();
+        String sql = wrapper.getSqlSegment();
+        assertTrue(sql.matches("(?s).*\\bid\\s*=\\s*#\\{.*"), sql);
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(MODEL_ID));
+    }
+
+    @Test
     void test_success_persistsLastTest() {
         when(modelMapper.selectById(MODEL_ID)).thenReturn(storedModel(MODEL_ID));
         when(modelClient.chat(any())).thenReturn(new AiChatReply("ok", 10, 2));

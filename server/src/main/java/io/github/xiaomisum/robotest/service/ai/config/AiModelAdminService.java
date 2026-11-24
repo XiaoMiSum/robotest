@@ -134,6 +134,7 @@ public class AiModelAdminService {
         }
 
         LambdaUpdateWrapper<AiModelConfig> wrapper = new LambdaUpdateWrapperX<AiModelConfig>()
+                .eq(AiModelConfig::getId, modelId)
                 .set(req.getName() != null, AiModelConfig::getName, req.getName())
                 .set(req.getProvider() != null, AiModelConfig::getProvider, req.getProvider())
                 .set(req.getBaseUrl() != null, AiModelConfig::getBaseUrl, req.getBaseUrl())
