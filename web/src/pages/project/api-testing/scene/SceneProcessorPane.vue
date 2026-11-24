@@ -313,7 +313,7 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
   }
 }
 
-// 右侧空态：与步骤页签同构——居中图标 + 文案；不设外边距使其与左侧列表等高，白底实线框、不设背景色
+// 右侧空态：居中图标 + 文案；边框由外层 proc-right 承担，此处不再描边以避免双层边框
 .scene-editor__right-empty {
   flex: 1;
   display: flex;
@@ -325,8 +325,6 @@ const emptyDesc = props.type === 'pre' ? '暂无前置处理器' : '暂无后置
   color: var(--color-neutral-400);
   font-size: var(--font-size-sm);
   text-align: center;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-md);
 
   p {
     margin: 0;

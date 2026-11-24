@@ -168,6 +168,8 @@
   .steps-divider:hover i, .proc-divider:hover i { background: var(--brand-400); }
 
   .steps-right, .proc-right { flex: 1; min-width: 0; display: flex; flex-direction: column; border-left: none; overflow-y: auto; }
+  /* 处理器右栏白底实线框只由外层容器承担，空态内容不再叠加边框 */
+  .proc-right { border: 1px solid var(--n-200); border-radius: var(--radius-md); background: var(--n-0); }
 
   /* 右侧内联编辑器 */
   .inline { display: flex; flex-direction: column; gap: var(--space-sm); padding: 10px 14px 14px; }
