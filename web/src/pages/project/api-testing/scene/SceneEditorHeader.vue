@@ -276,13 +276,13 @@ const emit = defineEmits<{
 </template>
 
 <style scoped lang="scss">
-// 顶部导航：按内容排布、允许换行；自身不设下内边距，与页签条的距离交给外层 gap 控制（交互 10 §1.1）
+// 顶部导航：按内容排布、允许换行；顶部内距与快速调试页 URL 表单一致（12px），避免表单贴住标签头
 .scene-editor__nav {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-sm);
-  padding-bottom: 0;
+  padding: var(--space-md) 0 0;
 }
 
 // 只读形态：外观（白底 / 描边 / 圆角 / 阴影）由外层单卡承担，此处只保留内距 10/16

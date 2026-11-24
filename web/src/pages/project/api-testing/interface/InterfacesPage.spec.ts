@@ -10,6 +10,14 @@ describe('InterfacesPage 列表表格高度', () => {
   })
 })
 
+describe('InterfacesPage 搜索栏容器', () => {
+  it('搜索栏不设卡片容器，仅保留工具条且不被压缩', () => {
+    expect(pageSource).not.toContain('interfaces-page__search-card')
+    expect(pageSource).toContain('<div class="interfaces-page__toolbar">')
+    expect(pageSource).toContain('flex-shrink: 0')
+  })
+})
+
 describe('InterfaceWorkspace 标签头形态', () => {
   it('直接沿用快速调试页标签头结构，不再用 el-tabs 覆盖样式', () => {
     expect(workspaceSource).not.toContain('<el-tabs')

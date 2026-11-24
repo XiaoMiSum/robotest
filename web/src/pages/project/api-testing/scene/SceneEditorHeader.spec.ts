@@ -3,6 +3,12 @@ import headerSource from './SceneEditorHeader.vue?raw'
 import typeSource from '../../../../types/project/api-testing/scene.ts?raw'
 
 // 执行入口文案（需求 F1.3 / 交互 26 §2、10 §1.9）：CI 与平台统一为「运行」
+describe('SceneEditorHeader 表单顶部间距', () => {
+  it('顶部内距与快速调试页表单一致为 12px', () => {
+    expect(headerSource).toContain('padding: var(--space-md) 0 0')
+  })
+})
+
 describe('SceneEditorHeader 执行入口文案', () => {
   it('按钮文案固定为「运行」且三处入口（只读/创建/编辑）共用同一常量', () => {
     expect(headerSource).toContain("const runLabel = '▶ 运行'")

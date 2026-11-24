@@ -61,119 +61,118 @@ onBeforeUnmount(unmount)
 </script>
 
 <template>
+  <!-- 不设卡片容器：与快速调试页一样由页面本身承担布局，避免与标签头叠加出多层描边 -->
   <div v-loading="loading" class="interface-editor">
-    <el-card shadow="never" class="interface-editor__card">
-      <div v-if="detailError" class="interface-editor__load-error" role="alert">
-        <span>{{ detailError }}</span>
-        <el-button type="danger" plain size="small" @click="retryDetail">重试</el-button>
+    <div v-if="detailError" class="interface-editor__load-error" role="alert">
+      <span>{{ detailError }}</span>
+      <el-button type="danger" plain size="small" @click="retryDetail">重试</el-button>
+    </div>
+    <div class="interface-editor__request-line">
+      <el-select v-model="form.protocol" style="width: 96px" data-test="editor-protocol-select">
+        <el-option v-for="opt in PROTOCOL_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+      </el-select>
+      <el-select v-model="form.method" style="width: 130px" data-test="editor-method-select">
+        <el-option v-for="method in METHOD_OPTIONS" :key="method" :value="method" :label="method" />
+      </el-select>
+      <el-input
+        v-model="form.path"
+        placeholder="/api/resource"
+        style="flex: 1"
+        data-test="editor-path-input"
+        @blur="handlePathBlur"
+      />
+      <el-input v-model="form.name" placeholder="接口名称" style="width: 240px" data-test="editor-name-input" />
+      <el-button
+        type="primary"
+        :loading="saving"
+        data-test="editor-save-btn"
+        class="interface-editor__save"
+        @click="save"
+      >
+        保存
+      </el-button>
+    </div>
+
+    <div ref="containerRef" class="interface-editor__split">
+      <div class="interface-editor__request" :style="{ '--req-h': requestHeight + '%' }">
+        <el-tabs v-model="activeTab" class="interface-editor__tabs">
+          <el-tab-pane name="basic" label="基本信息">
+            <div class="interface-editor__field-row">
+              <span class="interface-editor__field-label">所属模块</span>
+              <el-cascader
+                v-model="form.moduleId"
+                :options="moduleOptions"
+                :props="{ checkStrictly: true, emitPath: false, value: 'value', label: 'label' }"
+                placeholder="选择所属模块"
+                clearable
+                style="width: 100%"
+                :loading="moduleLoading"
+                data-test="editor-module-cascader"
+              />
+            </div>
+            <div v-if="moduleError" class="interface-editor__load-error" role="alert">
+              <span>{{ moduleError }}</span>
+              <el-button type="danger" plain size="small" @click="retryModules">重试</el-button>
+            </div>
+            <div class="interface-editor__field-row interface-editor__field-row--top">
+              <span class="interface-editor__field-label">描述</span>
+              <el-input v-model="form.description" type="textarea" :rows="3" data-test="editor-description-input" />
+            </div>
+          </el-tab-pane>
+
+          <el-tab-pane name="headers">
+            <template #label>
+              <span class="interface-editor__tab-label">
+                请求头
+                <span v-if="activeHeaderCount" class="interface-editor__badge">{{ activeHeaderCount }}</span>
+              </span>
+            </template>
+            <KeyValueTable v-model:entries="form.headers" placeholder-key="Header" />
+          </el-tab-pane>
+
+          <el-tab-pane name="query">
+            <template #label>
+              <span class="interface-editor__tab-label">
+                Query 参数
+                <span v-if="activeParamCount" class="interface-editor__badge">{{ activeParamCount }}</span>
+              </span>
+            </template>
+            <KeyValueTable v-model:entries="form.params" placeholder-key="参数名" />
+          </el-tab-pane>
+
+          <el-tab-pane name="body">
+            <template #label>
+              <span class="interface-editor__tab-label">
+                请求体
+                <span v-if="form.bodyType !== 'none'" class="interface-editor__badge">1</span>
+              </span>
+            </template>
+            <InterfaceEditorBody v-model="form" />
+          </el-tab-pane>
+
+          <el-tab-pane name="auth" label="认证">
+            <InterfaceEditorAuth :form="form" />
+          </el-tab-pane>
+
+          <ValidatorsExtractorsPanes
+            :validators="paneValidators"
+            :extractors="paneExtractors"
+            @update:validators="handleValidatorsUpdate"
+            @update:extractors="handleExtractorsUpdate"
+            @add-validator="addValidator"
+            @add-extractor="addExtractor"
+            @import-validators="openAssetPicker('validator')"
+            @import-extractors="openAssetPicker('extractor')"
+          />
+        </el-tabs>
       </div>
-      <div class="interface-editor__request-line">
-        <el-select v-model="form.protocol" style="width: 96px" data-test="editor-protocol-select">
-          <el-option v-for="opt in PROTOCOL_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
-        </el-select>
-        <el-select v-model="form.method" style="width: 130px" data-test="editor-method-select">
-          <el-option v-for="method in METHOD_OPTIONS" :key="method" :value="method" :label="method" />
-        </el-select>
-        <el-input
-          v-model="form.path"
-          placeholder="/api/resource"
-          style="flex: 1"
-          data-test="editor-path-input"
-          @blur="handlePathBlur"
-        />
-        <el-input v-model="form.name" placeholder="接口名称" style="width: 240px" data-test="editor-name-input" />
-        <el-button
-          type="primary"
-          :loading="saving"
-          data-test="editor-save-btn"
-          class="interface-editor__save"
-          @click="save"
-        >
-          保存
-        </el-button>
+
+      <div class="interface-editor__divider" @mousedown="onDividerMouseDown">
+        <div class="interface-editor__divider-line" />
       </div>
 
-      <div ref="containerRef" class="interface-editor__split">
-        <div class="interface-editor__request" :style="{ '--req-h': requestHeight + '%' }">
-          <el-tabs v-model="activeTab" class="interface-editor__tabs">
-            <el-tab-pane name="basic" label="基本信息">
-              <div class="interface-editor__field-row">
-                <span class="interface-editor__field-label">所属模块</span>
-                <el-cascader
-                  v-model="form.moduleId"
-                  :options="moduleOptions"
-                  :props="{ checkStrictly: true, emitPath: false, value: 'value', label: 'label' }"
-                  placeholder="选择所属模块"
-                  clearable
-                  style="width: 100%"
-                  :loading="moduleLoading"
-                  data-test="editor-module-cascader"
-                />
-              </div>
-              <div v-if="moduleError" class="interface-editor__load-error" role="alert">
-                <span>{{ moduleError }}</span>
-                <el-button type="danger" plain size="small" @click="retryModules">重试</el-button>
-              </div>
-              <div class="interface-editor__field-row interface-editor__field-row--top">
-                <span class="interface-editor__field-label">描述</span>
-                <el-input v-model="form.description" type="textarea" :rows="3" data-test="editor-description-input" />
-              </div>
-            </el-tab-pane>
-
-            <el-tab-pane name="headers">
-              <template #label>
-                <span class="interface-editor__tab-label">
-                  请求头
-                  <span v-if="activeHeaderCount" class="interface-editor__badge">{{ activeHeaderCount }}</span>
-                </span>
-              </template>
-              <KeyValueTable v-model:entries="form.headers" placeholder-key="Header" />
-            </el-tab-pane>
-
-            <el-tab-pane name="query">
-              <template #label>
-                <span class="interface-editor__tab-label">
-                  Query 参数
-                  <span v-if="activeParamCount" class="interface-editor__badge">{{ activeParamCount }}</span>
-                </span>
-              </template>
-              <KeyValueTable v-model:entries="form.params" placeholder-key="参数名" />
-            </el-tab-pane>
-
-            <el-tab-pane name="body">
-              <template #label>
-                <span class="interface-editor__tab-label">
-                  请求体
-                  <span v-if="form.bodyType !== 'none'" class="interface-editor__badge">1</span>
-                </span>
-              </template>
-              <InterfaceEditorBody v-model="form" />
-            </el-tab-pane>
-
-            <el-tab-pane name="auth" label="认证">
-              <InterfaceEditorAuth :form="form" />
-            </el-tab-pane>
-
-            <ValidatorsExtractorsPanes
-              :validators="paneValidators"
-              :extractors="paneExtractors"
-              @update:validators="handleValidatorsUpdate"
-              @update:extractors="handleExtractorsUpdate"
-              @add-validator="addValidator"
-              @add-extractor="addExtractor"
-              @import-validators="openAssetPicker('validator')"
-              @import-extractors="openAssetPicker('extractor')"
-            />
-          </el-tabs>
-        </div>
-
-        <div class="interface-editor__divider" @mousedown="onDividerMouseDown">
-          <div class="interface-editor__divider-line" />
-        </div>
-
-        <InterfaceEditorResponse v-model="form" />
-      </div>
-    </el-card>
+      <InterfaceEditorResponse v-model="form" />
+    </div>
 
     <ExtractorAssetPicker
       v-model="assetPickerVisible"
@@ -193,11 +192,14 @@ onBeforeUnmount(unmount)
 </template>
 
 <style scoped lang="scss">
+// 卡片容器已移除：内距与伸缩约束移到页面根，避免与标签头叠加出第二层描边
 .interface-editor {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   height: 100%;
+  min-height: 0;
+  padding: var(--space-md);
 }
 
 .interface-editor__load-error {
@@ -266,21 +268,6 @@ onBeforeUnmount(unmount)
   color: var(--color-neutral-600);
   font-size: var(--font-size-sm);
   line-height: 32px;
-}
-
-.interface-editor__card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-
-  :deep(.el-card__body) {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    padding: var(--space-md);
-    gap: var(--space-md);
-  }
 }
 
 .interface-editor__split {

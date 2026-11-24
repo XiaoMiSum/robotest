@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import pageSource from './ScenariosPage.vue?raw'
 import { nextTick, createCommentVNode, defineComponent, h, KeepAlive, ref } from 'vue'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus, { ElSelect } from 'element-plus'
@@ -321,5 +322,13 @@ describe('ScenariosPage 列表样板对齐', () => {
     const wrapper = await mountPage([makeScene({ id: 'scene-gl', name: '流水线查询订单', sourceType: 'gitlab' })])
     expect(wrapper.find('.list-title-link').exists()).toBe(true)
     expect(wrapper.find('.scenarios-page__source-badge').exists()).toBe(true)
+  })
+})
+
+describe('ScenariosPage 搜索栏容器', () => {
+  it('搜索栏不设卡片容器，仅保留工具条且不被压缩', () => {
+    expect(pageSource).not.toContain('scenarios-page__search-card')
+    expect(pageSource).toContain('<div class="scenarios-page__toolbar">')
+    expect(pageSource).toContain('flex-shrink: 0')
   })
 })

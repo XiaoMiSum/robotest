@@ -282,33 +282,32 @@ defineExpose({ openCreate, openImport })
 
 <template>
   <div class="interfaces-page">
-    <el-card shadow="never" class="interfaces-page__search-card">
-      <div class="interfaces-page__toolbar">
-        <el-segmented
-          v-model="viewFilter"
-          :options="VIEW_OPTIONS"
-          data-test="interface-view-switch"
-        />
-        <el-input
-          v-model="searchText"
-          placeholder="搜索名称 / 路径"
-          clearable
-          style="width: 240px"
-          data-test="interface-search-input"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        />
-        <el-select v-model="statusFilter" clearable placeholder="状态" style="width: 120px" data-test="interface-status-filter">
-          <el-option value="enabled" label="启用" />
-          <el-option value="disabled" label="停用" />
-        </el-select>
-        <el-button data-test="interface-search-btn" @click="handleSearch">
-          <el-icon><Search /></el-icon>查询
-        </el-button>
-        <el-button data-test="interface-reset-btn" @click="handleReset">重置</el-button>
-        <div class="interfaces-page__spacer" />
-      </div>
-    </el-card>
+    <!-- 搜索栏不设卡片容器：与快速调试页一样直接铺在工作区内容区，避免多层描边叠加 -->
+    <div class="interfaces-page__toolbar">
+      <el-segmented
+        v-model="viewFilter"
+        :options="VIEW_OPTIONS"
+        data-test="interface-view-switch"
+      />
+      <el-input
+        v-model="searchText"
+        placeholder="搜索名称 / 路径"
+        clearable
+        style="width: 240px"
+        data-test="interface-search-input"
+        @keyup.enter="handleSearch"
+        @clear="handleSearch"
+      />
+      <el-select v-model="statusFilter" clearable placeholder="状态" style="width: 120px" data-test="interface-status-filter">
+        <el-option value="enabled" label="启用" />
+        <el-option value="disabled" label="停用" />
+      </el-select>
+      <el-button data-test="interface-search-btn" @click="handleSearch">
+        <el-icon><Search /></el-icon>查询
+      </el-button>
+      <el-button data-test="interface-reset-btn" @click="handleReset">重置</el-button>
+      <div class="interfaces-page__spacer" />
+    </div>
 
     <div class="interfaces-page__body">
       <el-card shadow="never" class="interfaces-page__module-card">
@@ -474,14 +473,11 @@ defineExpose({ openCreate, openImport })
   height: 100%;
 }
 
-.interfaces-page__search-card {
-  flex-shrink: 0;
-}
-
 .interfaces-page__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .interfaces-page__spacer {

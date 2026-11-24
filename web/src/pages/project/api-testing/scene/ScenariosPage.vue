@@ -335,36 +335,35 @@ onActivated(async () => {
 
 <template>
   <div class="scenarios-page">
-    <el-card shadow="never" class="scenarios-page__search-card">
-      <div class="scenarios-page__toolbar">
-        <el-segmented
-          v-model="viewFilter"
-          :options="VIEW_OPTIONS"
-        />
-        <el-input
-          v-model="searchText"
-          placeholder="搜索场景名称"
-          clearable
-          style="width: 240px"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        />
-        <el-select v-model="lastStatusFilter" clearable placeholder="执行状态" style="width: 130px">
-          <el-option v-for="opt in LAST_STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
-        </el-select>
-        <el-select v-model="publishStatusFilter" clearable placeholder="发布状态" style="width: 130px">
-          <el-option v-for="opt in PUBLISH_STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
-        </el-select>
-        <el-select v-model="sourceFilter" clearable placeholder="来源" style="width: 130px">
-          <el-option v-for="opt in SOURCE_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
-        </el-select>
-        <el-button @click="handleSearch">
-          <el-icon><Search /></el-icon>查询
-        </el-button>
-        <el-button @click="handleReset">重置</el-button>
-        <div class="scenarios-page__spacer" />
-      </div>
-    </el-card>
+    <!-- 搜索栏不设卡片容器：与快速调试页一样直接铺在工作区内容区，避免多层描边叠加 -->
+    <div class="scenarios-page__toolbar">
+      <el-segmented
+        v-model="viewFilter"
+        :options="VIEW_OPTIONS"
+      />
+      <el-input
+        v-model="searchText"
+        placeholder="搜索场景名称"
+        clearable
+        style="width: 240px"
+        @keyup.enter="handleSearch"
+        @clear="handleSearch"
+      />
+      <el-select v-model="lastStatusFilter" clearable placeholder="执行状态" style="width: 130px">
+        <el-option v-for="opt in LAST_STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+      </el-select>
+      <el-select v-model="publishStatusFilter" clearable placeholder="发布状态" style="width: 130px">
+        <el-option v-for="opt in PUBLISH_STATUS_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+      </el-select>
+      <el-select v-model="sourceFilter" clearable placeholder="来源" style="width: 130px">
+        <el-option v-for="opt in SOURCE_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.label" />
+      </el-select>
+      <el-button @click="handleSearch">
+        <el-icon><Search /></el-icon>查询
+      </el-button>
+      <el-button @click="handleReset">重置</el-button>
+      <div class="scenarios-page__spacer" />
+    </div>
 
     <div class="scenarios-page__body">
       <el-card shadow="never" class="scenarios-page__module-card">
@@ -561,14 +560,11 @@ onActivated(async () => {
   height: 100%;
 }
 
-.scenarios-page__search-card {
-  flex-shrink: 0;
-}
-
 .scenarios-page__toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .scenarios-page__spacer {

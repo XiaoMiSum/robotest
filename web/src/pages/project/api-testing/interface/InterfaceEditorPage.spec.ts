@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest'
 import pageSource from './InterfaceEditorPage.vue?raw'
 import composableSource from '../../../../composables/project/api-testing/interface/useInterfaceEditor.ts?raw'
 
+describe('InterfaceEditorPage 容器形态', () => {
+  it('新增/编辑页不设卡片容器，内距与伸缩约束由页面根承担', () => {
+    expect(pageSource).not.toContain('interface-editor__card')
+    expect(pageSource).not.toContain('<el-card')
+    expect(pageSource).toContain('padding: var(--space-md)')
+    expect(pageSource).toContain('min-height: 0')
+  })
+})
+
 describe('InterfaceEditorPage 依赖列表错误边界', () => {
   it('详情、模块树和公共组件列表均有后端消息、竞态保护与重试', () => {
     expect(composableSource).toContain('detailRequestId')
