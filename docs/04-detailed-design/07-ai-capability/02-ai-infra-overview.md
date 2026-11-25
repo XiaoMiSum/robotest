@@ -310,6 +310,8 @@ CREATE UNIQUE INDEX uk_ai_task_trace_event ON ai_task_trace_event (execution_id,
 
 > **`ai_decision` 事件的 `detail` 扩展键**：`rawRequest` 为请求摘要（`model` 模型标识、`promptScene` 场景、`context` 业务上下文摘要含任务类型 / 来源引用 / 用户反馈、`tools` 工具声明名称清单），不含 system 提示词全文、模型 options 与密钥；`rawResponse` 为完整模型响应（`content` 正文全文、`toolCalls` 工具调用原文数组含 `id/name/arguments`、`finishReason` 结束原因、`usage` token 用量）。两键仅 `ai_decision` 事件写入，其余事件沿用既有摘要字段；字段按原样完整保存、不截断，密钥 / Token 禁止进入任一键。
 
+> **输出修复重试留痕**：修复重试的每次模型调用按既有 `ai_decision` 事件记录（不新增 `event_type`、不改表结构），`summary` 标注「输出校验失败，自动修复重试（第 n/2 次）」；`detail` 在 `rawRequest` / `rawResponse` 之外另含 `repairAttempt`（第几次）与 `validationError`（脱敏后的校验错误摘要）。前端沿用既有 AI 决策事件展示（请求摘要 / 完整响应折叠下钻），不新增状态分支。
+
 #### 2.6.4 提案表（ai_task_proposal）
 
 | 字段 | 类型 | 约束 | 说明 |
@@ -943,6 +945,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 - **生命周期**：执行 `running →（waiting_confirmation）→ succeeded / aborted`；任务 `running → proposals_ready → closed`，用户中止 / 预算耗尽 / 执行错误 / 总开关关闭时任务置 `aborted`；默认采纳型只读产出（缺陷建议）执行完成即按提交人写采纳记录并 `closed`，轨迹记录「建议已默认采纳」；其余无待采纳提案的只读产出执行完成即 `closed`；心跳超时清扫器按 `task_timeout_seconds` 扫描 `status + heartbeat_at` 索引（2.6.2），超时置 `aborted`（`terminate_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待执行完成，超时返回执行中状态；等待不改变异步语义。
 - **失败与自动重试**：模型调用失败先按 `task_max_retries` 自动短重试（同 `model_id`），耗尽后执行终止；用户再次执行走 3.6.4（新执行实例）。重试由 Spring AI 内建重试策略执行，最大尝试次数按 `task_max_retries` 注入，平台不自实现 HTTP 重试循环。
+- **输出修复重试（固定 2 次）**：仅走 `AgentExecutionRunner` 的目标型任务触发（`assistant_parse`、`vector_reindex` 除外）。类型适配器对产出做结构化校验（JSON 解析、必需字段 / 结构、来源引用），校验失败时由执行核以本次执行同一 `model_id` 发起修复调用——请求携带任务目标与产出约束、原始 `content`、脱敏后的校验错误，要求重新产出合规结构化结果；修复调用按 4.2 调用层与 4.3 用量记账执行，每次计 1 步并计入 token / 成本，与预算护栏共用同一硬闸门。校验通过则继续生成提案；连续 2 次修复仍失败则执行终止（`terminate_code = 1000018129`，`terminate_msg` 按 4.5 记录最后一次校验错误），不产出提案。调用失败短重试与输出修复重试独立计数、互不占用次数，重试期间模型不漂移。修复过程按 2.6.3 的 `ai_decision` 事件留轨迹；修复成功仍产出待采纳提案，不绕过采纳平面。
 - **失败原因记录**：执行终止时 `ai_task_execution.terminate_msg` 与 `ai_task.terminate_msg` 写入脱敏后的底层真实失败原因（见 4.5），错误码 `terminate_code` 保持稳定；不得仅以 `1000018117` 等通用文案代替真实原因。
 - **总开关联动**：开关关闭 → 新提交拒绝（1000018101）；存量 `running / waiting_confirmation` 执行批量终止置 `aborted`（原因「AI 总开关关闭」）；任务、提案与轨迹数据保留可查。
 - **审计**：提交、终止、再次执行、采纳、驳回全部记审计（含任务 ID、执行 ID、提案键、操作人）；轨迹只增不改。
@@ -1054,6 +1057,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 | 1000018126 | 400 | 执行预算参数非法（超类型默认上限或取值越界） |
 | 1000018127 | 409 | 执行已结束，不可终止（预算耗尽终止原因亦用此码） |
 | 1000018128 | 409 | 用户中止（终止原因专用码：abort 端点执行与任务的 terminate_code） |
+| 1000018129 | 500 | AI 输出校验失败且修复重试耗尽（终止原因专用码） |
 
 失败类错误码（1000018105 / 1000018107 / 1000018117）仅标识失败类别，响应 `msg` 与落盘原因按 4.5「失败原因口径」记录脱敏后的底层真实原因。
 
@@ -1070,7 +1074,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 | `server/.../controller/ai/AiTaskController` | 任务资源路由（任务 / 执行 / 轨迹 / 提案） |
 | `server/.../service/ai/config/*`、`service/ai/task/*`、`service/ai/rag/*` | 配置、Agent 执行核（循环 · 工具注册表 · 预算护栏 · 轨迹 · 提案采纳）、向量索引服务 |
 | `server/.../service/ai/task/type/*TypeAdapter` | 各 `type` 的类型适配器（input 校验、工具白名单与预算默认、提案结构、落库承接，分册实现） |
-| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018101–1000018124 及各分册号段 |
+| `server/.../framework/common/ErrorCodeConstants` | 登记 1000018101–1000018129 及各分册号段 |
 | `server/pom.xml` | 引入 Spring AI 2.0.x（BOM + openai 模块）：模型 / 向量 HTTP 调用全量由框架执行（WP-4.6），替代自实现调用 |
 | `web/src/pages/admin/AiSettingsPage.vue`、`web/src/pages/project/AiTaskCenterPage.vue`、`AiTaskDetailPage.vue` 及组件 | 管理端配置中心、任务中心与任务详情页 |
 | `web/src/stores/aiAdmin.ts`、`aiTask.ts`、`web/src/services/ai.ts`、`web/src/types/ai.ts` | 状态、API 与类型 |
@@ -1097,7 +1101,7 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：单例配置唯一性、密钥不回显与替换语义、默认模型引用校验、执行状态机与预算超限终止、心跳超时清扫、工具白名单越权拒绝、轨迹只增与游标增量、同步等待超时转异步、提案确认逐项事务与幂等冲突、总开关关闭批量终止、用量聚合口径（空区间补 0）、向量限权过滤（跨工作空间不可检索）、维度变更重建流程；
+- 后端：单例配置唯一性、密钥不回显与替换语义、默认模型引用校验、执行状态机与预算超限终止、心跳超时清扫、工具白名单越权拒绝、轨迹只增与游标增量、同步等待超时转异步、提案确认逐项事务与幂等冲突、总开关关闭批量终止、用量聚合口径（空区间补 0）、向量限权过滤（跨工作空间不可检索）、维度变更重建流程、输出修复重试（校验失败修复成功 / 2 次耗尽终止、修复计入步数与用量、轨迹字段完整、`assistant_parse` 与 `vector_reindex` 不触发）；
 - 前端：配置表单校验与密钥占位、任务与轨迹轮询启停、业务面板提案审核操作与任务详情只读回看、用量图表与下钻、`available = false` 各降级分支。
 
 ---
@@ -1167,3 +1171,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-24 | 4.5 新增「失败原因口径」：任务终止原因、连通性测试摘要、助手错误事件与服务端日志统一记录脱敏后的底层真实原因（提取 / 脱敏 / 截断 / 日志），2.3 / 2.4 / 3.3 / 3.4 / 4.2 / 6 引用 |
 | V1.0 | 2026-11-25 | `bug_draft_suggest` 改为默认采纳：3.6.1 承接与 2.6.4 状态回显、3.6.3 聚合统计、4.2 生命周期同步采纳记录口径 |
 | V1.0 | 2026-11-25 | 预算护栏移除时长维度：2.6.2 预算快照、3.6.1 默认预算、3.6.2 报文示例与 4.2 预算 / 调用层口径同步为步数 / token / 成本，流式首 token 超时定为 600s |
+| V1.0 | 2026-11-25 | 新增输出修复重试：2.6.3 登记 `ai_decision` 修复留痕扩展键、4.2 定义固定 2 次修复调用与耗尽终止口径、6 登记 1000018129、7 补测试要点 |

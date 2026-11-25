@@ -181,10 +181,14 @@ public class ReviewCaseReviewTypeAdapter extends AbstractOrdinaryTaskTypeAdapter
         return Constants.AiProposalKind.REVIEW_SUGGESTION;
     }
 
-    /** 评审来源引用是高频格式偏移点，全量丢弃时允许执行核回喂一次模型自愈 */
+    /** 评审来源引用是高频格式偏移点，修复重试时由执行核回喂该类型专属约束 */
     @Override
-    public boolean supportsOutputRepair() {
-        return true;
+    public String outputRepairHint() {
+        return """
+                - sourceRefs.id 必须逐字复制「来源需求白名单」中的 UUID，禁止填需求编号或标题；
+                - sourceRefs 只输出 id 与 quote，type / title / code 由系统补全；
+                - 每条关联规划用例必须输出一条建议。
+                """;
     }
 
     private static UUID requireReviewId(Map<String, Object> input) {

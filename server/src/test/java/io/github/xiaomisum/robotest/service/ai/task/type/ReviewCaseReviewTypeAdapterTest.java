@@ -74,7 +74,8 @@ class ReviewCaseReviewTypeAdapterTest {
         assertTrue(adapter.systemPrompt().contains("来源需求白名单"));
         assertTrue(adapter.systemPrompt().contains("逐字复制 UUID"));
         assertTrue(adapter.systemPrompt().contains("禁止把需求编号"));
-        assertTrue(adapter.supportsOutputRepair());
+        assertTrue(adapter.outputRepairHint().contains("sourceRefs.id"));
+        assertTrue(adapter.outputRepairHint().contains("逐字复制"));
         assertTrue(adapter.toolCodes().isEmpty());
         AiPromptScenes.PromptScene scene = AiPromptScenes.get(adapter.type());
         assertNotNull(scene);

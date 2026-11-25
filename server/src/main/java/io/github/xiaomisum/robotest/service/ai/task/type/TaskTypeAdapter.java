@@ -32,11 +32,11 @@ public interface TaskTypeAdapter {
     }
 
     /**
-     * 结构化输出全量解析失败时是否允许一次回喂自愈（预算内，仅该类型开启）；
-     * 默认关闭，避免通用执行核改变其他任务类型的失败语义。
+     * 输出修复重试时附加的类型专属约束（详设 4.2）：缺省为空，仅对存在高频格式偏移的类型覆写；
+     * 通用修正指令由执行核统一给出，避免任务形态分支进入执行核。
      */
-    default boolean supportsOutputRepair() {
-        return false;
+    default String outputRepairHint() {
+        return "";
     }
 
     /**

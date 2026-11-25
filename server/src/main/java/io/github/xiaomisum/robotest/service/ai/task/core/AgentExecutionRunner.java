@@ -53,6 +53,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
     /** 提示词场景 = 任务类型（用量按场景归因，与 ai_prompt_template.scene 同口径） */
     private static final int RESULT_ABBREV = 4000;
     private static final int DEFAULT_MAX_STEPS = 40;
+    private static final int OUTPUT_REPAIR_ATTEMPTS = 2;
 
     @Resource
     private AgentToolRegistry toolRegistry;
@@ -123,35 +124,39 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), "模型无有效输出");
         }
         String output = finalOutput;
-        ServiceException parseError;
+        ServiceException validationError;
         try {
             return buildResult(preparation, output);
         } catch (ServiceException e) {
-            parseError = e;
+            validationError = e;
         }
-        if (!adapter.supportsOutputRepair()) {
-            recordOutputParseFailure(control, parseError, output);
-            throw parseError;
-        }
-        AiChatReply repairReply;
-        try {
-            repairReply = callForRepair(request, declarations, control, output, parseError, task, ctx);
-        } catch (ServiceException repairCallError) {
-            // 自愈调用失败保留原始解析错误，避免用网络错误掩盖真正的输出缺陷
-            recordOutputParseFailure(control, parseError, output);
-            throw parseError;
-        }
-        String repaired = repairReply.content();
-        if (ModelOutputSupport.trimToNull(repaired) != null) {
+        for (int attempt = 1; attempt <= OUTPUT_REPAIR_ATTEMPTS; attempt++) {
+            AiChatReply repairedReply;
             try {
-                return buildResult(preparation, repaired);
-            } catch (ServiceException repairError) {
-                recordOutputParseFailure(control, repairError, repaired);
-                throw repairError;
+                repairedReply = callForRepair(request, declarations, control, output, validationError,
+                        task, ctx, adapter, attempt);
+            } catch (ServiceException repairCallError) {
+                // 修复调用失败保留原始校验错误，避免用传输错误掩盖真正的产出缺陷
+                recordOutputParseFailure(control, validationError, output);
+                throw validationError;
+            }
+            String candidate = repairedReply.content();
+            if (ModelOutputSupport.trimToNull(candidate) == null) {
+                validationError = ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
+                        "输出修复重试第 " + attempt + " 次无有效输出");
+                output = candidate;
+                continue;
+            }
+            try {
+                return buildResult(preparation, candidate);
+            } catch (ServiceException e) {
+                validationError = e;
+                output = candidate;
             }
         }
-        recordOutputParseFailure(control, parseError, output);
-        throw parseError;
+        recordOutputParseFailure(control, validationError, output);
+        throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_OUTPUT_REPAIR_EXHAUSTED.code(),
+                ModelOutputSupport.nvl(validationError.getMessage()));
     }
 
     private static ExecutionResult buildResult(AgentExecutionPreparation preparation, String output) {
@@ -185,18 +190,21 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         return raw;
     }
 
-    /** 全量解析失败后的一次性回喂：复用系统提示词，附加错误上下文要求模型自愈重出 JSON。 */
+    /** 输出修复重试：复用系统提示词，附加产出约束、原始输出与脱敏校验错误，要求模型重出 JSON。 */
     private AiChatReply callForRepair(AiChatRequest request, List<ToolDeclaration> declarations,
-            ExecutionControl control, String output, ServiceException parseError, AiTask task, ExecutionContext ctx) {
+            ExecutionControl control, String output, ServiceException validationError, AiTask task,
+            ExecutionContext ctx, TaskTypeAdapter adapter, int attempt) {
+        String hint = ModelOutputSupport.trimToNull(adapter.outputRepairHint());
         String instruction = """
                 上一次输出未能通过应用层校验：%s
-                请严格按系统提示词重新输出完整 JSON（只输出 JSON）：
-                - sourceRefs.id 必须逐字复制「来源需求白名单」中的 UUID，禁止填需求编号或标题；
-                - sourceRefs 只输出 id 与 quote，type / title / code 由系统补全；
-                - 每条关联规划用例必须输出一条建议。
+                请严格按系统提示词重新输出完整 JSON（只输出 JSON），并确保所有必需字段与来源引用均满足约束。
+                类型专属约束：
+                %s
                 上一次原始输出：
                 %s
-                """.formatted(ModelOutputSupport.nvl(parseError.getMessage()),
+                """.formatted(
+                ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(validationError.getMessage()), 500),
+                hint == null ? "（无）" : hint,
                 ModelOutputSupport.abbreviate(output, RESULT_ABBREV));
         AiChatRequest repairRequest = new AiChatRequest(request.taskId(), request.executionId(),
                 request.projectId(), request.userId(), request.promptScene(), request.model(),
@@ -205,13 +213,15 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         control.beforeCall();
         AiChatReply reply = modelClient.chatWithToolDeclarations(repairRequest, declarations, List.of(), false);
         control.afterModelCall(reply.tokensIn(), reply.tokensOut(),
-                AiModelClient.calculateCost(request.model(), reply.tokensIn(), reply.tokensOut()));
+                AiModelClient.calculateCost(repairRequest.model(), reply.tokensIn(), reply.tokensOut()));
         Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("errorCode", parseError.getCode());
-        detail.put("errorMessage", ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(parseError.getMessage()), 500));
+        detail.put("repairAttempt", attempt);
+        detail.put("validationError",
+                ModelOutputSupport.abbreviate(ModelOutputSupport.nvl(validationError.getMessage()), 500));
         detail.put("rawRequest", rawRequest(repairRequest, declarations, task, ctx));
         detail.put("rawResponse", reply.rawResponse());
-        control.recordTrace(Constants.AiTraceEventType.AI_DECISION, "模型输出解析失败后自愈重试", detail);
+        control.recordTrace(Constants.AiTraceEventType.AI_DECISION,
+                "输出校验失败，自动修复重试（第 " + attempt + "/" + OUTPUT_REPAIR_ATTEMPTS + " 次）", detail);
         return reply;
     }
 

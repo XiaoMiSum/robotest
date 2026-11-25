@@ -252,6 +252,7 @@ public class ErrorCodeConstants {
     public static final ErrorCode AI_EXECUTION_BUDGET_INVALID = ErrorCode.of(1000018126, "执行预算参数非法");
     public static final ErrorCode AI_EXECUTION_FINISHED = ErrorCode.of(1000018127, "执行已结束，不可终止");
     public static final ErrorCode AI_TASK_ABORTED_BY_USER = ErrorCode.of(1000018128, "用户中止");
+    public static final ErrorCode AI_OUTPUT_REPAIR_EXHAUSTED = ErrorCode.of(1000018129, "AI 输出校验失败且修复重试耗尽：{}");
 
     // ========== 智能助手 1000018251-1000018264（助手详设 6，号段至 1000018279；253/254/256/257 已注销不复用） ==========
     public static final ErrorCode ASSISTANT_CONVERSATION_NOT_FOUND = ErrorCode.of(1000018251, "会话不存在或非本人会话");
