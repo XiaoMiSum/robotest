@@ -291,8 +291,8 @@ class RequirementAdoptServiceImplTest {
     }
 
     private AiTask importTask(List<Map<String, Object>> artifacts) {
-        return importTask(artifacts,
-                Map.of("detectedVersion", "V3.0", "versionEvidence", "文档版本为 V3.0"));
+        return importTask(artifacts, Map.of("documentMeta", Map.of(
+                "detectedVersion", "V3.0", "versionEvidence", "文档版本为 V3.0")));
     }
 
     private RequirementSplitRecord importRecord() {
@@ -326,6 +326,20 @@ class RequirementAdoptServiceImplTest {
         ArgumentCaptor<Wrapper<RequirementSplitRecord>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
         verify(splitRecordMapper).update(isNull(), wrapperCaptor.capture());
         assertTrue(wrapperContains(wrapperCaptor.getValue(), "adopted"));
+    }
+
+    @Test
+    void adopt_flatResultMeta_stillFallsBackToTopLevelVersion() {
+        AiTask task = importTask(List.of(artifact("item-1", "建议一", null, "high")),
+                Map.of("detectedVersion", "V2.0"));
+        when(splitRecordMapper.selectByAiTaskId(TASK_ID)).thenReturn(List.of(importRecord()));
+        stubAllocator();
+
+        service.adopt(ctx(task, artifact("item-1", "建议一", null, "high"), "adopted", null, null));
+
+        ArgumentCaptor<Requirement> captor = ArgumentCaptor.forClass(Requirement.class);
+        verify(codeAllocator).insertWithCodeAllocation(eq(PROJECT_ID), captor.capture());
+        assertEquals("V2.0", captor.getValue().getSystemVersion());
     }
 
     @Test

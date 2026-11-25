@@ -641,15 +641,15 @@ public class AiTaskServiceImpl implements AiTaskService {
         return adoption != null ? adoption.getAction() : proposal.getConfirmStatus();
     }
 
-    /** result_meta 顶层文档级元数据（3.6.3 documentMeta，导入识别版本），无为 null */
+    /** result_meta 文档级元数据（3.6.3 documentMeta，导入识别版本），无为 null */
     private AiTaskRespDTO.DocumentMeta documentMetaOf(AiTask task) {
         Map<String, Object> meta = task.getResultMeta();
         if (meta == null) {
             return null;
         }
         AiTaskRespDTO.DocumentMeta documentMeta = new AiTaskRespDTO.DocumentMeta();
-        documentMeta.setDetectedVersion(asString(meta.get("detectedVersion")));
-        documentMeta.setVersionEvidence(asString(meta.get("versionEvidence")));
+        documentMeta.setDetectedVersion(asString(ResultMetaReader.read(meta, "detectedVersion")));
+        documentMeta.setVersionEvidence(asString(ResultMetaReader.read(meta, "versionEvidence")));
         return documentMeta;
     }
 

@@ -10,6 +10,7 @@ import io.github.xiaomisum.robotest.repository.requirement.RequirementSplitRecor
 import io.github.xiaomisum.robotest.repository.tcase.ProjectModuleMapper;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptContext;
 import io.github.xiaomisum.robotest.service.ai.task.AdoptOutcome;
+import io.github.xiaomisum.robotest.service.ai.task.ResultMetaReader;
 import io.github.xiaomisum.robotest.service.ai.vector.VectorIndexService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
@@ -236,7 +237,7 @@ public class RequirementAdoptServiceImpl implements RequirementAdoptService {
         if (meta == null) {
             return null;
         }
-        String version = asString(meta.get("detectedVersion"));
+        String version = asString(ResultMetaReader.read(meta, "detectedVersion"));
         if (version == null) {
             return null;
         }

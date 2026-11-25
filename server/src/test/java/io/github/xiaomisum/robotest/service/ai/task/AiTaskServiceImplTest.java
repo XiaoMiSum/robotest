@@ -399,6 +399,23 @@ class AiTaskServiceImplTest {
     }
 
     @Test
+    void detail_resultMetaNestedDocumentMeta_returnsDetectedVersion() {
+        AiTask importTask = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        importTask.setResultMeta(Map.of("documentMeta", Map.of(
+                "detectedVersion", "V3.0", "versionEvidence", "文档版本为 V3.0")));
+        when(taskMapper.selectById(TASK_ID)).thenReturn(importTask);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
+        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
+
+        AiTaskRespDTO resp = service.getDetail(TASK_ID, loginUser);
+
+        assertNotNull(resp.getDocumentMeta());
+        assertEquals("V3.0", resp.getDocumentMeta().getDetectedVersion());
+        assertEquals("文档版本为 V3.0", resp.getDocumentMeta().getVersionEvidence());
+    }
+
+    @Test
     void detail_closed_rejectedProposalReturnsNote() {
         AiTask closed = task(Constants.AiTaskFlowStatus.CLOSED);
         closed.setTitle("登录用例生成");
