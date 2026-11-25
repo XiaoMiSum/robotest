@@ -4,6 +4,7 @@ import { Operation as OperationIcon } from '@element-plus/icons-vue'
 import type { AiProposalConfirmTarget, AiTaskDocumentMeta, AiTaskProposalSummary } from '@/types'
 import AiConfirmReceipt from '@/components/project/ai/AiConfirmReceipt.vue'
 import ProposalCompareView from '@/components/project/ai/ProposalCompareView.vue'
+import ProposalDescriptionView from '@/components/project/ai/ProposalDescriptionView.vue'
 import { useAiProposalReview, type ProposalRow } from '@/composables/project/ai/useAiProposalReview'
 import type { ProposalRankItem } from '@/composables/project/ai/reviewProfiles'
 import {
@@ -380,12 +381,11 @@ async function submitReject(): Promise<void> {
             class="proposal-review__alert"
           />
 
-          <p
+          <ProposalDescriptionView
             v-if="row.parsed.description || row.content.description"
             class="proposal-review__desc-text"
-          >
-            {{ row.parsed.description || row.content.description }}
-          </p>
+            :content="row.parsed.description || row.content.description"
+          />
 
           <ProposalCompareView :items="row.parsed.compare" />
 
@@ -428,7 +428,7 @@ async function submitReject(): Promise<void> {
           v-if="row.confirmStatus === 'pending' && (canEdit || canReject)"
           class="proposal-review__card-actions"
         >
-          <el-button :loading="confirming" link type="primary" size="small" @click="adopt(row)">
+          <el-button :loading="confirming" link type="primary" @click="adopt(row)">
             采纳
           </el-button>
           <el-button link type="primary" :loading="confirming" @click="openEdit(row)">

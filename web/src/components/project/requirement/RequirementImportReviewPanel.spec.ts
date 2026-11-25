@@ -29,6 +29,18 @@ vi.mock('element-plus', async (importOriginal) => {
   }
 })
 
+// Markdown 渲染由 MarkdownView 既有单测覆盖，此处只断言描述原文透传
+vi.mock('@/components/common/MarkdownView.vue', async () => {
+  const { h } = await import('vue')
+  return {
+    default: {
+      name: 'MarkdownView',
+      props: { content: { type: String, required: true } },
+      setup: (props: { content: string }) => () => h('div', { class: 'md-stub' }, props.content),
+    },
+  }
+})
+
 import RequirementImportReviewPanel from './RequirementImportReviewPanel.vue'
 
 function proposal(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposalSummary {
@@ -192,7 +204,18 @@ describe('RequirementImportReviewPanel', () => {
     expect(wrapper.text()).toContain('单模块文档整篇保留')
     expect(wrapper.text()).toContain('模块：需求管理')
     expect(wrapper.text()).toContain('新增模块')
-    expect(wrapper.text()).toContain('文档原文全文')
+    expect(wrapper.find('.md-stub').text()).toContain('文档原文全文')
+  })
+
+  it('审核卡片三个操作按钮统一默认尺寸', async () => {
+    const wrapper = mountPanel('requirement_import', [
+      proposal({ kind: 'requirement_suggestion', title: '登录需求' }),
+    ])
+    await flushPromises()
+
+    const actions = wrapper.findAll('.proposal-review__card-actions button')
+    expect(actions).toHaveLength(3)
+    expect(actions.some((button) => button.classes().some((name) => name.includes('small')))).toBe(false)
   })
 
   it('只读任务卡片不渲染采纳与驳回操作', async () => {

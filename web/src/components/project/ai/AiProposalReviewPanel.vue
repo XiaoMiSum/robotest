@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import type { AiTaskDocumentMeta, AiTaskProposalSummary } from '@/types'
 import ProposalCompareView from '@/components/project/ai/ProposalCompareView.vue'
+import ProposalDescriptionView from '@/components/project/ai/ProposalDescriptionView.vue'
 import { useAiProposalReview } from '@/composables/project/ai/useAiProposalReview'
 import {
   importVersionEvidence,
@@ -208,12 +209,11 @@ function moduleNameOf(moduleId: string): string {
             class="proposal-review__empty-detail"
           >暂无明细</p>
 
-          <p
+          <ProposalDescriptionView
             v-if="row.parsed.description || row.content.description"
             class="proposal-review__desc-text"
-          >
-            {{ row.parsed.description || row.content.description }}
-          </p>
+            :content="row.parsed.description || row.content.description"
+          />
 
           <ProposalCompareView :items="row.parsed.compare" />
 

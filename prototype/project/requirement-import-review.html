@@ -102,6 +102,11 @@
   .proposal-review__desc-text {
     margin: 8px 0; color: var(--n-700); font-size: var(--font-size-sm); line-height: 1.6;
   }
+  .proposal-review__desc-text h2 { margin: 0 0 8px; font-size: var(--font-size-base); font-weight: 650; color: var(--n-900); }
+  .proposal-review__desc-text h3 { margin: 12px 0 6px; font-size: var(--font-size-sm); font-weight: 650; color: var(--n-900); }
+  .proposal-review__desc-text p { margin: 0 0 8px; }
+  .proposal-review__desc-text ul, .proposal-review__desc-text ol { margin: 0 0 8px; padding-left: 22px; }
+  .proposal-review__desc-text li { margin-bottom: 4px; }
   .proposal-review__note { margin: 0 0 8px; color: var(--st-danger); font-size: var(--font-size-sm); }
   .proposal-review__alert { margin-bottom: 8px; }
   .proposal-review__fields { margin: 0 0 8px; }
@@ -249,7 +254,7 @@
                 </span>
                 <span class="proposal-review__meta" id="rv-source">来源：全文</span>
 
-                <p class="proposal-review__desc-text" id="rv-desc">描述为文档原文全文：需求列表、需求详情与编辑、需求导入与拆解、数据需求等章节整体保留，不按 US-RM 编号拆分。</p>
+                <div class="proposal-review__desc-text" id="rv-desc"></div>
 
                 <dl class="proposal-review__fields" id="rv-fields">
                   <div class="proposal-review__field"><dt>优先级</dt><dd>high</dd></div>
@@ -375,7 +380,7 @@
         {
           key: 'p1', kind: '需求建议', title: '软件测试平台——需求管理', confirmStatus: 'pending', note: '',
           moduleName: '需求管理', newModule: true, sourceRef: '全文',
-          description: '描述为文档原文全文：需求列表、需求详情与编辑、需求导入与拆解、数据需求等章节整体保留，不按 US-RM 编号拆分。',
+          description: '## 需求范围\n\n需求列表、需求详情与编辑、需求导入与拆解、数据需求等章节整体保留。\n\n- 不按 US-RM 编号拆分\n- 描述保留文档原文结构',
           fields: [{ label: '优先级', value: 'high' }]
         },
         {
@@ -399,6 +404,37 @@
     function byId(id) { return document.getElementById(id); }
     function esc(text) {
       return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function inlineMd(text) {
+      return text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+    }
+    function renderMd(src) {
+      var lines = esc(src == null ? '' : src).split('\n');
+      var html = '';
+      var listTag = '';
+      function closeList() {
+        if (listTag) { html += '</' + listTag + '>'; listTag = ''; }
+      }
+      lines.forEach(function (line) {
+        var m;
+        if ((m = line.match(/^(#{1,2})\s+(.*)$/))) {
+          closeList();
+          html += m[1].length === 1 ? '<h2>' + inlineMd(m[2]) + '</h2>' : '<h3>' + inlineMd(m[2]) + '</h3>';
+        } else if ((m = line.match(/^-\s+(.*)$/))) {
+          if (listTag !== 'ul') { closeList(); html += '<ul>'; listTag = 'ul'; }
+          html += '<li>' + inlineMd(m[1]) + '</li>';
+        } else if ((m = line.match(/^\d+\.\s+(.*)$/))) {
+          if (listTag !== 'ol') { closeList(); html += '<ol>'; listTag = 'ol'; }
+          html += '<li>' + inlineMd(m[1]) + '</li>';
+        } else if (line.trim() === '') {
+          closeList();
+        } else {
+          closeList();
+          html += '<p>' + inlineMd(line) + '</p>';
+        }
+      });
+      closeList();
+      return html;
     }
     function findByKey(key) {
       for (var i = 0; i < proposals.length; i++) {
@@ -482,7 +518,7 @@
       byId('rv-module').innerHTML = '模块：' + esc(item.moduleName) +
         (item.newModule ? ' <span class="tag tag--warning tag--sm" style="margin-left:4px">新增模块</span>' : '');
       byId('rv-source').textContent = '来源：' + item.sourceRef;
-      byId('rv-desc').textContent = item.description;
+      byId('rv-desc').innerHTML = renderMd(item.description);
       byId('rv-fields').innerHTML = item.fields.map(function (f) {
         return '<div class="proposal-review__field"><dt>' + esc(f.label) + '</dt><dd>' + esc(f.value) + '</dd></div>';
       }).join('');

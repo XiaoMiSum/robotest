@@ -33,6 +33,18 @@ vi.mock('element-plus', async (importOriginal) => {
   }
 })
 
+// Markdown 渲染由 MarkdownView 既有单测覆盖，此处只断言描述原文透传
+vi.mock('@/components/common/MarkdownView.vue', async () => {
+  const { h } = await import('vue')
+  return {
+    default: {
+      name: 'MarkdownView',
+      props: { content: { type: String, required: true } },
+      setup: (props: { content: string }) => () => h('div', { class: 'md-stub' }, props.content),
+    },
+  }
+})
+
 import AiProposalReviewPanel from './AiProposalReviewPanel.vue'
 
 function proposal(overrides: Partial<AiTaskProposalSummary> = {}): AiTaskProposalSummary {
@@ -133,7 +145,7 @@ describe('AiProposalReviewPanel readonly', () => {
     await retry!.trigger('click')
     await flushPromises()
     expect(wrapper.text()).not.toContain('网络异常')
-    expect(wrapper.text()).toContain('需求描述')
+    expect(wrapper.find('.md-stub').text()).toContain('需求描述')
     expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(2)
   })
 

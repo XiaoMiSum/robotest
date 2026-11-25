@@ -94,6 +94,11 @@
   .proposal-review__item-body { min-height: 72px; }
   .proposal-review__note { margin: 0 0 8px; color: var(--st-danger); font-size: var(--font-size-sm); }
   .proposal-review__desc-text { margin: 8px 0; color: var(--n-700); font-size: var(--font-size-sm); line-height: 1.6; }
+  .proposal-review__desc-text h2 { margin: 0 0 8px; font-size: var(--font-size-base); font-weight: 650; color: var(--n-900); }
+  .proposal-review__desc-text h3 { margin: 12px 0 6px; font-size: var(--font-size-sm); font-weight: 650; color: var(--n-900); }
+  .proposal-review__desc-text p { margin: 0 0 8px; }
+  .proposal-review__desc-text ul, .proposal-review__desc-text ol { margin: 0 0 8px; padding-left: 22px; }
+  .proposal-review__desc-text li { margin-bottom: 4px; }
   .proposal-review__fields { margin: 0 0 8px; }
   .proposal-review__field { display: flex; gap: 8px; padding: 4px 0; font-size: var(--font-size-sm); }
   .proposal-review__field dt { flex: 0 0 96px; color: var(--n-500); }
@@ -231,7 +236,7 @@
               </div>
               <div class="proposal-review__item-body">
                 <p class="proposal-review__note" id="dt-proposal-note" hidden></p>
-                <p class="proposal-review__desc-text" id="dt-proposal-desc" hidden></p>
+                <div class="proposal-review__desc-text" id="dt-proposal-desc" hidden></div>
                 <div id="dt-proposal-compare"></div>
                 <dl class="proposal-review__fields" id="dt-proposal-fields"></dl>
                 <div class="proposal-review__sources" id="dt-proposal-sources" hidden></div>
@@ -276,6 +281,37 @@
   function esc(text) {
     return String(text == null ? '' : text)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function inlineMd(text) {
+    return text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  }
+  function renderMd(src) {
+    var lines = esc(src).split('\n');
+    var html = '';
+    var listTag = '';
+    function closeList() {
+      if (listTag) { html += '</' + listTag + '>'; listTag = ''; }
+    }
+    lines.forEach(function (line) {
+      var m;
+      if ((m = line.match(/^(#{1,2})\s+(.*)$/))) {
+        closeList();
+        html += m[1].length === 1 ? '<h2>' + inlineMd(m[2]) + '</h2>' : '<h3>' + inlineMd(m[2]) + '</h3>';
+      } else if ((m = line.match(/^-\s+(.*)$/))) {
+        if (listTag !== 'ul') { closeList(); html += '<ul>'; listTag = 'ul'; }
+        html += '<li>' + inlineMd(m[1]) + '</li>';
+      } else if ((m = line.match(/^\d+\.\s+(.*)$/))) {
+        if (listTag !== 'ol') { closeList(); html += '<ol>'; listTag = 'ol'; }
+        html += '<li>' + inlineMd(m[1]) + '</li>';
+      } else if (line.trim() === '') {
+        closeList();
+      } else {
+        closeList();
+        html += '<p>' + inlineMd(line) + '</p>';
+      }
+    });
+    closeList();
+    return html;
   }
   function fmtTime(iso) {
     if (!iso) return '—';
@@ -362,7 +398,7 @@
         { seq: 5, eventType: 'status_change', summary: 'running → proposals_ready', createdAt: '2026-11-20T10:12:23Z' }
       ],
       proposals: [
-        { key: 'p1', kind: 'requirement_suggestion', title: '优惠券叠加规则', confirmStatus: 'pending', note: '', description: '同一订单仅可使用一张优惠券，叠加规则写入需求描述。', fields: [{ label: '模块 ID', value: 'mod-coupon' }, { label: '优先级', value: '高' }], sourceRefs: [{ title: '优惠券规则.docx', quote: '同一订单仅可使用一张优惠券' }] },
+        { key: 'p1', kind: 'requirement_suggestion', title: '优惠券叠加规则', confirmStatus: 'pending', note: '', description: '## 叠加限制\n\n同一订单仅可使用一张优惠券，叠加规则写入需求描述。\n\n- 同订单多张券时仅生效一张\n- 记录叠加拒绝原因', fields: [{ label: '模块 ID', value: 'mod-coupon' }, { label: '优先级', value: '高' }], sourceRefs: [{ title: '优惠券规则.docx', quote: '同一订单仅可使用一张优惠券' }] },
         { key: 'p2', kind: 'requirement_suggestion', title: '优惠券有效期说明', confirmStatus: 'pending', note: '', description: '补充优惠券有效期、时区与过期提示说明。', fields: [{ label: '优先级', value: '中' }], sourceRefs: [] }
       ]
     },
@@ -586,7 +622,7 @@
     note.textContent = item.note ? ('驳回原因：' + item.note) : '';
     var desc = byId('dt-proposal-desc');
     desc.hidden = !item.description;
-    desc.textContent = item.description || '';
+    desc.innerHTML = renderMd(item.description || '');
     byId('dt-proposal-compare').innerHTML = renderCompare(item.compare);
     var fields = item.fields || [];
     var fieldsEl = byId('dt-proposal-fields');
