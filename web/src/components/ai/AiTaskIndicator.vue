@@ -16,6 +16,9 @@ const aiTaskStore = useAiTaskStore()
 
 const visible = computed(() => navStore.isProjectMode)
 
+// 任务详情是任务中心的下钻页，共用入口激活态（交互 07 §1）
+const active = computed(() => route.path.startsWith('/workspace/projects/ai/tasks'))
+
 // 计数轮询随显隐启停（交互 07 §5）：workspace 模式时不空转请求
 watch(
   visible,
@@ -44,7 +47,12 @@ function openTaskCenter(): void {
 </script>
 
 <template>
-  <div v-if="visible" class="top-nav__icon-btn" @click="openTaskCenter">
+  <div
+    v-if="visible"
+    class="top-nav__icon-btn"
+    :class="{ 'top-nav__icon-btn--active': active }"
+    @click="openTaskCenter"
+  >
     <el-badge :value="aiTaskStore.runningCount" :hidden="aiTaskStore.runningCount === 0">
       <el-icon><List /></el-icon>
     </el-badge>

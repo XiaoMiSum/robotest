@@ -90,6 +90,19 @@ describe('components/ai/AiTaskIndicator（顶栏进行中任务指示器，交�
     expect(router.currentRoute.value.path).toBe('/workspace/projects/ai/tasks')
   })
 
+  it('任务中心与详情页显示选中态，其他项目页不选中', async () => {
+    const root = await mountIndicator('/workspace/projects/ai/tasks')
+    expect(root.find('.top-nav__icon-btn--active').exists()).toBe(true)
+
+    await router.push('/workspace/projects/ai/tasks/t1')
+    await flushPromises()
+    expect(root.find('.top-nav__icon-btn--active').exists()).toBe(true)
+
+    await router.push('/workspace/projects/dashboard')
+    await flushPromises()
+    expect(root.find('.top-nav__icon-btn--active').exists()).toBe(false)
+  })
+
   it('计数按 15 秒间隔轮询，卸载后停止', async () => {
     await mountIndicator()
     expect(mocks.fetchAiRunningCount).toHaveBeenCalledTimes(1)

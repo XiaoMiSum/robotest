@@ -122,14 +122,28 @@
     return html ? '<div class="topbar__tags">' + html + '</div>' : '';
   }
 
+  // 详情/表单页归属其列表菜单项：页面文件名 → 应高亮的侧栏目标（顶栏激活态同样复用）
+  const SIDE_ACTIVE_ALIAS = {
+    'api-schedule-form.html': 'api-schedules.html',
+    'ai-task-detail.html': 'ai-task-center.html',
+  };
+
   /* ---------- 右侧入口（消息中心无对应演示页，与真实应用一致保持不可跳转） ---------- */
   function rightIconsHtml() {
     let html = '<div class="topbar__icons">';
     html += '<a class="icon-btn" href="' + href('my-workspaces') + '">' + icon('folder-open') + '<span>我的空间</span></a>';
     if (mode === 'project') {
       html += '<a class="icon-btn icon-btn--active" href="' + href('my-projects') + '">' + icon('folder') + '<span>我的项目</span></a>';
-      // 项目页顶栏 AI 任务角标：对应真实应用「顶部 AI 任务指示器」入口（16c7ae93）
-      html += '<a class="icon-btn" href="' + href('ai-task-center') + '">' + icon('sparkle') + '<span>AI 任务</span></a>';
+      // 项目页顶栏 AI 任务角标：任务中心与详情页共用激活态，别名映射见 SIDE_ACTIVE_ALIAS
+      const aiTaskActive = href('ai-task-center').endsWith('/' + currentFile());
+      html +=
+        '<a class="icon-btn' +
+        (aiTaskActive ? ' icon-btn--active' : '') +
+        '" href="' +
+        href('ai-task-center') +
+        '">' +
+        icon('sparkle') +
+        '<span>AI 任务</span></a>';
     }
     if (mode === 'workspace' || mode === 'project') {
       html += '<a class="icon-btn" href="' + href('workspace-manage') + '">' + icon('settings') + '<span>空间管理</span></a>';
@@ -236,12 +250,6 @@
       { key: 'api-functions', label: '函数管理', icon: 'layers' },
       { key: 'api-components', label: '公共组件', icon: 'box' },
     ],
-  };
-
-  // 详情/表单页归属其列表菜单项：页面文件名 → 应高亮的侧栏目标
-  const SIDE_ACTIVE_ALIAS = {
-    'api-schedule-form.html': 'api-schedules.html',
-    'ai-task-detail.html': 'ai-task-center.html',
   };
 
   function currentFile() {
