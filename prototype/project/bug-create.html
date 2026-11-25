@@ -63,9 +63,21 @@
   .title-input-wrap .input-append:hover { color: var(--st-success-strong); }
   .title-input-wrap .input-append:disabled { color: var(--n-400); cursor: not-allowed; }
   .title-input-wrap .input-append[aria-busy="true"] { color: var(--n-500); cursor: wait; }
+  .title-input-wrap .input-append[aria-busy="true"] [data-icon="sparkle"] svg { animation: bug-create-ai-spin 1s linear infinite; }
+  @keyframes bug-create-ai-spin { to { transform: rotate(360deg); } }
   .title-input-wrap.is-noai .title-input { border-radius: var(--radius-md); }
   .title-input-wrap.is-noai .input-append { display: none; }
   .field__count { margin-top: 4px; text-align: right; font-size: var(--font-size-xs); color: var(--n-400); font-variant-numeric: tabular-nums; }
+
+  /* 标题下疑似重复提示：一行短 ID 链接，新标签页打开缺陷详情 */
+  .title-duplicate {
+    display: flex; align-items: flex-start; gap: 6px; margin-top: 6px;
+    font-size: var(--font-size-sm); line-height: 1.6; color: var(--st-warning-strong);
+  }
+  .title-duplicate [data-icon] { flex-shrink: 0; margin-top: 2px; }
+  .title-duplicate svg { width: 14px; height: 14px; }
+  .title-duplicate a { color: var(--brand-500); text-decoration: none; font-variant-numeric: tabular-nums; }
+  .title-duplicate a:hover { color: var(--brand-600); text-decoration: underline; }
 
   /* MarkdownEditor 静态近似：vditor 工具栏 + 内容区 */
   .md-editor {
@@ -260,6 +272,10 @@
               <button class="input-append" type="button" id="ai-suggest-btn" title="AI 建议">
                 <span data-icon="sparkle"></span>AI 建议
               </button>
+            </div>
+            <div id="title-duplicate" class="title-duplicate" hidden>
+              <span data-icon="alert-triangle"></span>
+              <span>疑似重复：<span id="title-duplicate-links"></span></span>
             </div>
             <div class="field__count"><span id="f-title-count">0</span>/300</div>
             <div class="field__error" id="f-title-error">请输入缺陷标题</div>
@@ -588,14 +604,13 @@
       <button class="dialog__close" data-close="ai-dialog" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="dialog__body">
-      <div id="ai-dialog-loading" class="text-sm text-secondary" style="padding:24px 0; display:flex; align-items:center; gap:8px;">
-        <span data-icon="sparkle"></span>AI 正在生成建议，请稍候...
+      <div id="ai-dialog-loading" class="text-sm text-secondary" style="padding:24px 0;">
+        AI 正在生成建议，请稍候...
       </div>
       <div id="ai-dialog-body" hidden>
         <div id="ai-dialog-applied" class="text-sm" style="padding:10px 12px; border-radius:var(--radius-md); background:var(--color-success-bg, var(--n-50)); color:var(--color-success, var(--n-700)); margin-bottom:12px;" hidden>已默认采纳并自动填入表单</div>
         <div style="font-size:var(--font-size-sm); font-weight:600; color:var(--n-700); margin-bottom:12px;">原填写值与 AI 产物值对照</div>
         <div id="ai-dialog-compare" style="display:flex; flex-direction:column; gap:8px;"></div>
-        <div id="ai-dialog-duplicate" class="text-sm text-secondary" style="padding:10px 12px; border:1px solid var(--n-200); border-radius:var(--radius-md); margin-top:12px;" hidden>疑似重复缺陷：登录按钮无反应（相似度 87%）</div>
       </div>
     </div>
     <div class="dialog__footer">
@@ -633,6 +648,8 @@
   var aiDialog = byId('ai-dialog');
   var aiLoading = byId('ai-dialog-loading');
   var aiBody = byId('ai-dialog-body');
+  var titleDuplicate = byId('title-duplicate');
+  var titleDuplicateLinks = byId('title-duplicate-links');
   var aiApplied = false;
   var aiSnapshot = null;
   var aiSuggestion = null;
@@ -667,7 +684,11 @@
       severity: 'serious',
       priority: 'high',
       module: 'm-pay',
-      keywords: '支付超时 库存 回滚'
+      keywords: '支付超时 库存 回滚',
+      duplicates: [
+        { shortId: '#A1B2C3', title: '登录按钮无反应', url: 'bug-detail.html' },
+        { shortId: '#D4E5F6', title: '登录后跳转空白页', url: 'bug-detail.html' }
+      ]
     };
   }
   function setRadio(groupId, value) {
@@ -723,7 +744,22 @@
       box.appendChild(item);
     });
     byId('ai-dialog-applied').hidden = false;
-    byId('ai-dialog-duplicate').hidden = false;
+    renderDuplicateHint(value.duplicates);
+  }
+  function renderDuplicateHint(duplicates) {
+    titleDuplicateLinks.textContent = '';
+    (duplicates || []).forEach(function (item, index) {
+      if (index > 0) titleDuplicateLinks.appendChild(document.createTextNode('、'));
+      var link = document.createElement('a');
+      link.href = item.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = item.title;
+      link.textContent = item.shortId;
+      titleDuplicateLinks.appendChild(link);
+    });
+    titleDuplicate.hidden = !duplicates || duplicates.length === 0;
+    if (window.RTIcons) window.RTIcons.hydrate(titleDuplicate);
   }
   aiBtn.addEventListener('click', function () {
     if (!titleInput.value.trim()) {
@@ -741,7 +777,8 @@
     aiLoading.hidden = false;
     aiBody.hidden = true;
     byId('ai-dialog-applied').hidden = true;
-    byId('ai-dialog-duplicate').hidden = true;
+    titleDuplicate.hidden = true;
+    titleDuplicateLinks.textContent = '';
     aiBtn.disabled = true;
     aiBtn.setAttribute('aria-busy', 'true');
     setTimeout(function () {
