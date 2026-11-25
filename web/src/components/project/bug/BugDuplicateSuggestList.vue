@@ -1,117 +1,69 @@
 <script setup lang="ts">
+import { Warning } from '@element-plus/icons-vue'
 import { formatShortId } from '@/utils/format'
-import { BUG_STATUS_LABEL } from '@/composables/project/bug/bugStatus'
-import type { BugDuplicateSuggestItem, BugStatus } from '@/types'
+import type { BugDuplicateSuggestItem } from '@/types'
 
 defineProps<{ items: BugDuplicateSuggestItem[] }>()
 
-/** 相似度百分比仅作排序信号，阈值不对外承诺（详设 3.4） */
-function similarityText(value: number): string {
-  return `${Math.round(value * 100)}%`
+/** 短 ID 链接只负责跳转，重复判定仍由用户在详情页复核 */
+function openBugDetail(bugId: string): void {
+  window.open(`/workspace/projects/bugs/${bugId}`, '_blank', 'noopener')
 }
-
-function statusLabel(status: BugStatus): string {
-  return BUG_STATUS_LABEL[status] ?? status
-}
-
 </script>
 
 <template>
-  <div v-if="items.length > 0" class="dup-suggest">
-    <div class="dup-suggest__heading">疑似重复缺陷</div>
-    <ul class="dup-suggest__list">
-      <li v-for="item in items" :key="item.bugId" class="dup-suggest__item">
-        <div class="dup-suggest__row">
-          <router-link :to="`/workspace/projects/bugs/${item.bugId}`">
+  <div v-if="items.length > 0" class="dup-hint">
+    <el-icon class="dup-hint__icon"><Warning /></el-icon>
+    <span class="dup-hint__label">疑似重复：</span>
+    <span class="dup-hint__links">
+      <template v-for="(item, index) in items" :key="item.bugId">
+        <span v-if="index > 0" class="dup-hint__separator">、</span>
+        <el-tooltip :content="item.title" placement="top">
+          <el-button link type="primary" class="dup-hint__link" @click="openBugDetail(item.bugId)">
             {{ formatShortId(item.bugId) }}
-          </router-link>
-          <span class="dup-suggest__bug-title">{{ item.title }}</span>
-          <el-tag size="small" effect="plain">{{ statusLabel(item.status) }}</el-tag>
-          <el-tooltip content="相似度仅作排序信号，不对外承诺阈值" placement="top">
-            <span
-              class="dup-suggest__similarity"
-              :class="{ 'dup-suggest__similarity--high': item.similarity >= 0.8 }"
-            >
-              <el-icon v-if="item.similarity >= 0.8"><Warning /></el-icon>
-              相似度 {{ similarityText(item.similarity) }}
-            </span>
-          </el-tooltip>
-        </div>
-        <p class="dup-suggest__basis">{{ item.basis }}</p>
-      </li>
-    </ul>
-    <p class="dup-suggest__hint">仅作建议，请确认后再提交；确认为重复时走既有「重复缺陷」解决方案</p>
+          </el-button>
+        </el-tooltip>
+      </template>
+    </span>
   </div>
 </template>
 
 <style scoped lang="scss">
-.dup-suggest__heading {
-  margin-bottom: var(--space-xs);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--color-neutral-600);
-}
-
-.dup-suggest__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.dup-suggest__item {
-  padding: var(--space-sm);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-md);
-}
-
-.dup-suggest__row {
+.dup-hint {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-
-  a {
-    color: var(--color-primary-500);
-    text-decoration: none;
-  }
-}
-
-.dup-suggest__bug-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-neutral-700);
-}
-
-.dup-suggest__similarity {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  color: var(--color-neutral-500);
+  flex-wrap: wrap;
+  gap: var(--space-xs);
   font-size: var(--font-size-sm);
+  color: var(--color-warning-strong);
+  line-height: 1.6;
+}
+
+.dup-hint__icon {
   flex-shrink: 0;
 }
 
-.dup-suggest__similarity--high {
-  color: var(--color-warning-strong);
-}
-
-.dup-suggest__basis {
-  margin: var(--space-xs) 0 0;
-  color: var(--color-neutral-400);
-  font-size: var(--font-size-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dup-hint__label {
   white-space: nowrap;
 }
 
-.dup-suggest__hint {
-  margin: var(--space-sm) 0 0;
+.dup-hint__links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dup-hint__separator {
   color: var(--color-neutral-400);
-  font-size: var(--font-size-xs);
+}
+
+.dup-hint__link {
+  height: auto;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  vertical-align: baseline;
 }
 </style>

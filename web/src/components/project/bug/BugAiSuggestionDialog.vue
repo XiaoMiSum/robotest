@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { MagicStick } from '@element-plus/icons-vue'
-import BugDuplicateSuggestList from './BugDuplicateSuggestList.vue'
-import type { BugDraftSuggestFields, BugDuplicateSuggestItem, BugSuggestionField } from '@/types'
+import type { BugDraftSuggestFields, BugSuggestionField } from '@/types'
 
 interface SuggestionRow {
   key: string
@@ -20,7 +18,6 @@ const props = defineProps<{
   reproStepsSuggestion: BugSuggestionField<string> | null
   suggestions: BugDraftSuggestFields
   originalValues: Record<string, string>
-  duplicates: BugDuplicateSuggestItem[]
 }>()
 
 const emit = defineEmits<{
@@ -69,14 +66,13 @@ const rows = computed<SuggestionRow[]>(() => {
   return list
 })
 
-const hasContent = computed(() => rows.value.length > 0 || props.duplicates.length > 0)
+const hasContent = computed(() => rows.value.length > 0)
 </script>
 
 <template>
   <el-dialog v-model="visible" title="AI 建议" width="760px" destroy-on-close>
     <div v-if="loading" class="bug-ai-suggest__loading">
-      <el-icon class="is-loading"><MagicStick /></el-icon>
-      <span>AI 正在生成建议，请稍候...</span>
+      AI 正在生成建议，请稍候...
     </div>
 
     <el-alert
@@ -114,11 +110,6 @@ const hasContent = computed(() => rows.value.length > 0 || props.duplicates.leng
             </article>
           </div>
         </section>
-
-        <section v-if="duplicates.length > 0" class="bug-ai-suggest__section">
-          <div class="bug-ai-suggest__section-title">疑似重复缺陷</div>
-          <BugDuplicateSuggestList :items="duplicates" />
-        </section>
       </div>
     </template>
 
@@ -130,9 +121,6 @@ const hasContent = computed(() => rows.value.length > 0 || props.duplicates.leng
 
 <style scoped lang="scss">
 .bug-ai-suggest__loading {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
   color: var(--color-neutral-600);
   padding: var(--space-lg) 0;
 }

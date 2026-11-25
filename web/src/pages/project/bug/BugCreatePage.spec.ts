@@ -9,8 +9,14 @@ describe('BugCreatePage AI 建议弹窗（交互 2.2）', () => {
     expect(pageSource).toContain(':repro-steps-suggestion="reproStepsSuggestion"')
     expect(pageSource).toContain(':suggestions="suggestions"')
     expect(pageSource).toContain(':original-values="originalValues"')
-    expect(pageSource).toContain(':duplicates="duplicates"')
     expect(pageSource).not.toContain('@adopt="handleAdoptSuggestion"')
+  })
+
+  it('任务执行中仅旋转按钮图标，疑似重复在标题下提示且不在弹窗内展示', () => {
+    expect(pageSource).toContain('<BugDuplicateSuggestList v-if="suggestHasResult" :items="duplicates" />')
+    expect(pageSource).toContain(":class=\"{ 'is-suggesting': suggestLoading }\"")
+    expect(pageSource.match(/:loading="suggestLoading"/g)).toHaveLength(1)
+    expect(pageSource).toContain('bug-create-ai-spin')
   })
 
   it('任务完成后覆盖回填表单，枚举写 key、模块写 id、关联用例写节点 id', () => {
