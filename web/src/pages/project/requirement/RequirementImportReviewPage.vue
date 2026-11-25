@@ -106,9 +106,9 @@ function backToList(): void {
             </p>
           </div>
           <div class="import-review__actions">
-            <el-button v-if="canAbort" link type="danger" size="small" @click="handleAbort">终止</el-button>
-            <el-button v-if="canReExecute" link type="primary" size="small" @click="handleReExecute">重新执行</el-button>
-            <router-link :to="REQUIREMENT_LIST_ROUTE">返回需求列表</router-link>
+            <el-button v-if="canAbort" link type="danger" @click="handleAbort">终止</el-button>
+            <el-button v-if="canReExecute" link type="primary" @click="handleReExecute">重新执行</el-button>
+            <el-button link type="primary" @click="backToList">返回需求列表</el-button>
           </div>
         </header>
 
@@ -168,8 +168,7 @@ function backToList(): void {
 }
 
 .el-result__extra a,
-.el-empty__bottom a,
-.import-review__actions a {
+.el-empty__bottom a {
   color: var(--color-primary-500);
   text-decoration: none;
 }
