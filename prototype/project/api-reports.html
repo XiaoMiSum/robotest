@@ -10,19 +10,15 @@
 <style>
   [hidden] { display: none !important; }
 
-  /* 页头 + 单卡片（工具栏 / 表格 / 分页一体）：表体区滚动，工具栏与分页条固定 */
-  .split__main { display: flex; flex-direction: column; overflow: hidden; }
-  .page-head { flex-shrink: 0; }
-  .reports-page { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  /* 对齐 ReportsPage.vue：页面壳承接高度，表体区滚动，工具栏/分页条分隔线 */
+  .reports-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
   .reports-page__toolbar {
-    display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
-    flex-wrap: wrap; flex-shrink: 0; padding: 14px 20px; border-bottom: 1px solid var(--n-100);
+    display: flex; align-items: center; gap: var(--space-sm); flex-wrap: nowrap; flex-shrink: 0;
+    padding: 14px 0; border-bottom: 1px solid var(--n-100);
   }
-  .reports-page__filters { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
-  .reports-page__count { font-size: var(--font-size-xs); color: var(--n-500); }
   .reports-page__feedback { flex-shrink: 0; border-bottom: 1px solid var(--n-100); }
   .reports-page__body { flex: 1; min-height: 0; overflow: auto; }
-  .reports-page__footer { flex-shrink: 0; padding: 14px 20px; border-top: 1px solid var(--n-100); }
+  .reports-page__footer { flex-shrink: 0; border-top: 1px solid var(--n-100); }
 
   /* 刷新失败反馈：对齐 ListLoadFeedback mode="refresh-error" */
   .list-feedback__error {
@@ -72,7 +68,8 @@
 
   /* 分页：对齐 ListPagination bare（左文案 + 右 sizes/prev/pager/next） */
   .list-pager {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 14px 0;
   }
   .list-pager__total { color: var(--n-500); font-size: var(--font-size-sm); }
   .list-pager__right { display: flex; align-items: center; gap: 8px; }
@@ -119,39 +116,35 @@
       <div class="page-head">
         <div>
           <h1 class="page-head__title">测试报告</h1>
-          <p class="page-head__desc">接口测试执行结果的统一归档与回顾</p>
         </div>
       </div>
 
       <div class="card reports-page" id="rp-page">
         <div class="reports-page__toolbar">
-          <div class="reports-page__filters">
-            <select class="select" id="rp-status" style="width:110px" aria-label="状态筛选">
-              <option value="">全部状态</option>
-              <option value="success">通过</option>
-              <option value="failed">失败</option>
-              <option value="partial">部分通过</option>
-            </select>
-            <div class="input-wrap rp-date-wrap" style="width:220px" aria-label="日期范围">
-              <span data-icon="calendar"></span>
-              <input class="input" id="rp-date" placeholder="开始日期 至 结束日期" readonly aria-expanded="false">
-              <div class="rp-date-pop" id="rp-date-pop" hidden>
-                <div class="rp-date-pop__title">选择日期范围</div>
-                <label class="rp-date-pop__row">开始 <input class="input" type="date" id="rp-date-from"></label>
-                <label class="rp-date-pop__row">结束 <input class="input" type="date" id="rp-date-to"></label>
-                <div class="rp-date-pop__err" id="rp-date-err" hidden>开始日期不能晚于结束日期</div>
-                <div class="rp-date-pop__actions">
-                  <button class="btn btn--link btn--sm" type="button" id="rp-date-clear">清空</button>
-                  <button class="btn btn--primary btn--sm" type="button" id="rp-date-apply">确定</button>
-                </div>
+          <select class="select" id="rp-status" style="width:110px" aria-label="状态筛选">
+            <option value="">全部状态</option>
+            <option value="success">通过</option>
+            <option value="failed">失败</option>
+            <option value="partial">部分通过</option>
+          </select>
+          <div class="input-wrap rp-date-wrap" style="width:220px" aria-label="日期范围">
+            <span data-icon="calendar"></span>
+            <input class="input" id="rp-date" placeholder="开始日期 至 结束日期" readonly aria-expanded="false">
+            <div class="rp-date-pop" id="rp-date-pop" hidden>
+              <div class="rp-date-pop__title">选择日期范围</div>
+              <label class="rp-date-pop__row">开始 <input class="input" type="date" id="rp-date-from"></label>
+              <label class="rp-date-pop__row">结束 <input class="input" type="date" id="rp-date-to"></label>
+              <div class="rp-date-pop__err" id="rp-date-err" hidden>开始日期不能晚于结束日期</div>
+              <div class="rp-date-pop__actions">
+                <button class="btn btn--link btn--sm" type="button" id="rp-date-clear">清空</button>
+                <button class="btn btn--primary btn--sm" type="button" id="rp-date-apply">确定</button>
               </div>
             </div>
-            <div class="input-wrap" style="width:200px">
-              <span data-icon="search"></span>
-              <input class="input" id="rp-kw" placeholder="报告名称" aria-label="报告名称">
-            </div>
           </div>
-          <div class="reports-page__count" id="rp-count">共 46 份报告</div>
+          <div class="input-wrap" style="width:200px">
+            <span data-icon="search"></span>
+            <input class="input" id="rp-kw" placeholder="报告名称" aria-label="报告名称">
+          </div>
         </div>
 
         <div class="reports-page__feedback" id="rp-feedback" hidden>
@@ -272,7 +265,7 @@
         <div class="reports-page__footer">
           <div class="list-pager" id="rp-pager">
             <div class="list-pager__left">
-              <span class="list-pager__total" id="rp-total">共 46 份报告 · 每页 20 条</span>
+              <span class="list-pager__total" id="rp-total">共 46 条 · 每页 20 条</span>
             </div>
             <div class="list-pager__right">
               <select class="select page-size" id="rp-page-size" aria-label="每页条数">
@@ -475,8 +468,7 @@
         (hasFilters() ? '无匹配结果' : '暂无测试报告') + '</td></tr>';
       var emptyRow = $('rp-empty');
       emptyRow.hidden = items.length > 0;
-      $('rp-count').textContent = '共 ' + filtered.length + ' 份报告';
-      totalEl.textContent = '共 ' + filtered.length + ' 份报告 · 每页 ' + pageSize + ' 条';
+      totalEl.textContent = '共 ' + filtered.length + ' 条 · 每页 ' + pageSize + ' 条';
       renderPager(pages);
       syncBatch();
       syncCheckAll();

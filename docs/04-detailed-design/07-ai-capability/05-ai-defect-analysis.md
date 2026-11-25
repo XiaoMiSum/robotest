@@ -29,8 +29,8 @@
 
 本分册**不新增表**：
 
-- 新建缺陷建议通过通用 AI 任务资源执行：`ai_task / ai_task_execution / ai_task_trace_event / ai_task_proposal`（`type = bug_draft_suggest`，`kind = bug_draft_suggestion`）；
-- 建议提案为只读建议（`confirmStatus = not_applicable`），用户在提交缺陷页采纳时仅写入当前表单，不调用提案确认落库，不写入缺陷业务数据；
+- 新建缺陷建议通过通用 AI 任务资源执行：`ai_task / ai_task_execution / ai_task_trace_event / ai_task_proposal / ai_task_adoption`（`type = bug_draft_suggest`，`kind = bug_draft_suggestion`）；
+- 建议提案保留只读语义（提案行 `confirm_status = not_applicable`），执行成功后按任务提交人默认写入一条 `adopted` 采纳记录，详情按采纳记录回显 `adopted`；采纳只写 AI 任务域表，不调用人工提案确认接口，不写入缺陷业务数据；
 - 重复缺陷检测读 `ai_vector_index`（`entity_type = bug`，DDL 见总册 2.10），结果随建议提案内容返回，不单独落库。
 
 ---
@@ -65,8 +65,8 @@
 | steps | string | 否 | 已填写的重现步骤（未改动默认模板时前端不传） |
 | moduleId | string | 否 | 已选择的所属模块（须属于当前项目） |
 
-- **任务语义**：`type = bug_draft_suggest`，提交后创建即启动执行；`waitSeconds` 允许短等待快路径，等待期内到达 `proposals_ready` 时响应直接携带提案摘要，否则返回运行中状态由前端轮询任务详情。
-- **提案**（`kind = bug_draft_suggestion`，单条，`confirmStatus = not_applicable`）：
+- **任务语义**：`type = bug_draft_suggest`，提交后创建即启动执行；`waitSeconds` 允许短等待快路径，等待期内到达 `closed` 时响应直接携带提案摘要，否则返回运行中状态由前端轮询任务详情。
+- **提案**（`kind = bug_draft_suggestion`，单条，提案行 `confirm_status = not_applicable`，详情按默认采纳记录回显 `adopted`）：
 
 ```json
 {
@@ -89,14 +89,14 @@
       { "bugId": "…", "title": "登录按钮无反应", "status": "active", "similarity": 0.87, "basis": "命中原文分块：登录页点击登录按钮后无任何响应…" }
     ]
   },
-  "confirmStatus": "not_applicable"
+  "confirmStatus": "adopted"
 }
 ```
 
 - **校验规则**：`title` 必填且 ≤300（否则 1000018115）；`moduleId` 非空时须属于当前项目；任务类型、输入、模型、预算校验沿用总册 3.6.2。建议任务为纯文本调用，不随附截图。
 - **上下文装配**：可用模块取当前项目模块清单（`id|名称`）；固定选项取缺陷类型 / 严重等级 / 优先级取值域（常量枚举）；候选用例先按标题向量检索项目内用例文档（top 8）再展开为用例节点清单（`id|标题`，≤30，按文档序截断），向量能力未就绪时无用例候选（不报错、不产出 `relatedCase`）。
 - **重复缺陷检测**：同一任务执行内检索当前项目的 `entity_type = bug` 向量（先业务归属过滤再相似检索，总册 4.3），最多 5 条；先按相似度排序，再按缺陷去重并跳过已删除缺陷；`basis` 为命中原文分块（截断至 200 字符）。相似度仅作排序，阈值不对外承诺。向量能力未就绪或请求失败时 `duplicates` 为空且不作提示，字段建议照常返回。用户确认为重复时，走既有「重复缺陷」解决方案提交（须指定原始缺陷）。
-- **清洗与采纳**：枚举值非法剔除，模块 id 不属当前项目、用例 id 非本项目用例节点剔除，`relatedCase` 至多一条。建议值在审核弹窗中展示，用户点击采纳后立即写入表单，**用户填写值与建议不一致时以用户值为准**；采纳不调用 `/api/ai/tasks/{taskId}/proposals/confirm`，不写入缺陷业务数据。
+- **清洗与采纳**：枚举值非法剔除，模块 id 不属当前项目、用例 id 非本项目用例节点剔除，`relatedCase` 至多一条。执行成功后按任务提交人默认写入 `adopted` 采纳记录（`adopted_ref` 指向新建缺陷表单），前端将有效建议覆盖写入表单并在弹窗展示原填写值与建议值对照；采纳不调用 `/api/ai/tasks/{taskId}/proposals/confirm`，不写入缺陷业务数据。
 
 ---
 
@@ -105,11 +105,11 @@
 ### 4.1 数据边界与实时性
 
 - 建议与重复检索的范围限于当前项目，检索先做业务归属过滤；
-- **建议与重复检测结果仅作参考，不写入业务数据**。
+- **建议与重复检测结果写入 AI 任务域提案与采纳记录，不写入缺陷业务数据**。
 
 ### 4.2 入口与作用域
 
-- 新建缺陷建议（含重复缺陷检测）走通用 AI Task 任务资源：`type = bug_draft_suggest`，产出单条只读建议提案（`bug_draft_suggestion`），重复检测在任务执行中完成并写入提案 content；
+- 新建缺陷建议（含重复缺陷检测）走通用 AI Task 任务资源：`type = bug_draft_suggest`，产出单条默认采纳的只读建议提案（`bug_draft_suggestion`），重复检测在任务执行中完成并写入提案 content；
 - 免 RBAC 权限码校验（仅保留项目成员校验与任务可见性）；作用域一律取请求头 `X-Active-Project`，不从请求体信任项目范围。
 
 ---
@@ -127,17 +127,17 @@
 
 ```
 新建缺陷表单（既有 BugCreatePage 扩展）
-├── 「AI 建议」入口按钮（标题输入框 append，点击开启审核弹窗并发起 AI 任务）
-└── BugAiSuggestionDialog（AI 建议审核弹窗）
+├── 「AI 建议」入口按钮（标题输入框 append，点击发起 AI 任务并开启结果弹窗）
+└── BugAiSuggestionDialog（AI 建议结果弹窗）
     ├── 任务状态区（提交中 / 运行中 / 失败 / 终止）
-    ├── 字段建议项（优化后标题 / 重现步骤 / 类型 / 等级 / 优先级 / 模块 / 关联用例 / 关键词，展示建议值与理由，点击采纳立即写入表单）
+    ├── 字段建议项（优化后标题 / 重现步骤 / 类型 / 等级 / 优先级 / 模块 / 关联用例 / 关键词，任务完成后覆盖写入表单，展示原填写值与建议值对照）
     └── DuplicateSuggestList（疑似重复缺陷列表：短 ID / 标题 / 状态 / 相似依据，点击跳转；无命中不渲染）
 ```
 
 ### 5.3 状态管理与状态分支
 
-- 新建表单建议与重复检测结果存提交缺陷页本地状态，弹窗关闭不强制清空已获取结果，提交或离开页面后释放；
-- 状态分支：提交中 / 运行中（弹窗展示加载态）、建议就绪（展示提案）、无命中（不渲染列表）、向量未就绪（`duplicates` 为空、静默）、任务失败 / 终止或请求错误（弹窗内提示可重试，关闭后再次点击重新获取）、AI 未启用（入口隐藏）。
+- 新建表单建议与重复检测结果存提交缺陷页本地状态，同一页面仅发起一次任务，关闭弹窗后再次打开仅回显上次结果，不重复请求；提交或离开页面后释放。
+- 状态分支：提交中 / 运行中（弹窗展示加载态）、建议就绪（覆盖回填表单并展示原值与建议值对照）、无命中（不渲染列表）、向量未就绪（`duplicates` 为空、静默）、任务失败 / 终止或请求错误（弹窗内提示可重试，关闭后再次点击重新获取）、AI 未启用（入口隐藏）。
 
 ---
 
@@ -155,7 +155,7 @@
 
 | 文件 | 说明 |
 | ---- | ---- |
-| `server/.../service/ai/task/type/BugDraftSuggestTypeAdapter.java` | 新增 `bug_draft_suggest` 任务类型：输入校验、上下文装配、重复检索、提示词、输出清洗与单条只读提案 |
+| `server/.../service/ai/task/type/BugDraftSuggestTypeAdapter.java` | 新增 `bug_draft_suggest` 任务类型：输入校验、上下文装配、重复检索、提示词、输出清洗、单条只读提案与默认采纳标记 |
 | `server/.../framework/common/Constants.java` | 新增 `AiTaskType.BUG_DRAFT_SUGGEST` 与 `AiProposalKind.BUG_DRAFT_SUGGESTION` |
 | `server/.../service/ai/task/AiTaskTitleResolver.java` | 补充 `bug_draft_suggest` 任务标题类型描述 |
 | `server/.../controller/project/BugAnalysisController.java` | 移除建议 SSE 路由；若无剩余路由则删除控制器 |
@@ -163,18 +163,18 @@
 | `server/.../service/domain/bug/BugAnalysisService + Impl` | 复用或收敛为重复检索支撑，避免 suggest-only 悬空接口 |
 | `server/.../service/ai/config/AiPromptScenes.java` | 登记 `bug_draft_suggest` 任务场景变量，提示词由 TypeAdapter 单轨提供 |
 | `server/.../framework/common/ErrorCodeConstants.java` | 注销 `BUG_ANALYSIS_SUGGEST_INPUT_INVALID`（1000018287） |
-| `web/src/composables/project/bug/useBugCreateSuggest.ts` | 改为提交 AI 任务、等待/轮询、读取提案并暴露采纳动作 |
-| `web/src/pages/project/bug/BugCreatePage.vue` | 新建页扩展（AI 建议入口、审核弹窗挂载、采纳写入表单） |
-| `web/src/components/project/bug/BugAiSuggestionDialog.vue` | AI 建议审核弹窗（任务状态、字段建议、疑似重复缺陷、逐项采纳） |
+| `web/src/composables/project/bug/useBugCreateSuggest.ts` | 改为提交 AI 任务、等待/轮询、读取提案并在完成后回调覆盖回填表单；同一页面保留上次结果 |
+| `web/src/pages/project/bug/BugCreatePage.vue` | 新建页扩展（AI 建议入口、结果弹窗挂载、默认采纳回填表单） |
+| `web/src/components/project/bug/BugAiSuggestionDialog.vue` | AI 建议结果弹窗（任务状态、原值与建议值对照、疑似重复缺陷，无逐项采纳） |
 | `web/src/services/project/bug.ts`、`web/src/types/project/bugAnalysis.ts`、`web/src/types/ai.ts` | 移除旧 SSE 建议接口，补充任务提案内容类型 |
 
-- **数据库**：无新增表、无迁移（向量读既有 `ai_vector_index`）。
+- **数据库**：无新增表、无迁移；默认采纳复用既有 `ai_task_adoption`，向量读既有 `ai_vector_index`。
 - **OpenAPI**：移除 `/api/project/bugs/analysis/suggest`；AI 任务接口沿用既有 `/api/ai/tasks` 契约。
 
 **测试要点（C8 ≥ 70%）**
 
-- 后端：`bug_draft_suggest` 输入校验（1000018115 / 项目上下文）、TypeAdapter 提示词与输出清洗、重复检索的项目内过滤 / 去重 / 跳过已删除 / 向量未就绪降级、提案为单条 `not_applicable`、旧 suggest 路由/DTO/错误码清理无残留；
-- 前端：提交任务快路径与轮询分支、任务失败/终止提示、审核弹窗展示、建议项逐项采纳立即写入、疑似重复缺陷列表渲染与跳转、无命中与向量未就绪静默。
+- 后端：`bug_draft_suggest` 输入校验（1000018115 / 项目上下文）、TypeAdapter 提示词与输出清洗、重复检索的项目内过滤 / 去重 / 跳过已删除 / 向量未就绪降级、单条只读提案与按提交人默认采纳记录、旧 suggest 路由/DTO/错误码清理无残留；
+- 前端：提交任务快路径与轮询分支、任务失败/终止提示、完成后覆盖回填表单、原值与建议值对照展示、同页面重开仅回显、疑似重复缺陷列表渲染与跳转、无命中与向量未就绪静默。
 
 ---
 
@@ -201,3 +201,4 @@
 | V1.0 | 2026-11-23 | 重复缺陷检测并入新建缺陷建议：删除独立检测路由 3.6，建议 `done` 事件新增 `duplicates` 字段；前端改为建议区内列表展示，注销 1000018284，向量未就绪静默降级 |
 | V1.0 | 2026-11-23 | 新建缺陷 AI 建议改为审核弹窗：点击开启弹窗审核 AI 产物，采纳后立即写入表单，前端组件结构同步调整 |
 | V1.0 | 2026-11-23 | 新建缺陷 AI 建议接入通用 AI 任务资源：新增 `bug_draft_suggest` 任务与 `bug_draft_suggestion` 只读提案，移除独立建议 SSE 接口与 1000018287 |
+| V1.0 | 2026-11-25 | 新建缺陷建议改为默认采纳：执行成功后按提交人写 `adopted` 采纳记录，详情回显 `adopted`，前端覆盖回填表单并展示原值与建议值对照，同页面重开仅回显上次结果 |

@@ -105,7 +105,7 @@ flowchart LR
 | `AiTaskExecutor` → `AgentExecutionRunner` | CAS 状态机改新状态机（执行 `running / waiting_confirmation / succeeded / aborted`，任务 `running / proposals_ready / closed / aborted`）；进度上报改轨迹事件；模型选型（`requiredCapability`）迁至类型适配器声明并复用 `AiSettingsReader` |
 | `AiTaskSweeper` | 扫描 `status + heartbeat_at`（执行表），超时置 `aborted`（1000018117）；总开关关闭 `failActive` → `abortActive` |
 | `ArtifactAdopter` → `ProposalAdopter`（SPI 更名） | `AdoptContext` 产物字段改提案（`proposalKey`）、回写 `ai_task_adoption.adopted_ref`；14 个承接实现逐一对齐 |
-| 8 个旧 Handler → TypeAdapter | `PlanOrder / CaseComplete / CasePriority / RequirementImport / VectorReindex` 逐个改造（`CoverageAnalysis / ImpactAnalysis` 已随追溯矩阵下线删除，不占位）：去 `context.report` 进度上报、产出改提案行；`AssistantParse` 最小适配为 TypeAdapter（执行语义仍为对话式解析，不进 Agent 循环，助手链路重构归 05 计划）；新建缺陷建议通过 `bug_draft_suggest` 任务接入通用 AI 任务资源，产出只读建议提案（见缺陷分析详设 3.4） |
+| 8 个旧 Handler → TypeAdapter | `PlanOrder / CaseComplete / CasePriority / RequirementImport / VectorReindex` 逐个改造（`CoverageAnalysis / ImpactAnalysis` 已随追溯矩阵下线删除，不占位）：去 `context.report` 进度上报、产出改提案行；`AssistantParse` 最小适配为 TypeAdapter（执行语义仍为对话式解析，不进 Agent 循环，助手链路重构归 05 计划）；新建缺陷建议通过 `bug_draft_suggest` 任务接入通用 AI 任务资源，产出默认采纳的只读建议提案（见缺陷分析详设 3.4） |
 | `Constants` | `AiTaskStatus` 五态 → 新任务 / 执行双状态机；`AiArtifactKind` → `AiProposalKind`（**kind 取值保持不变**，避免提示词与提案结构连锁变更）；`AiArtifactAction` → `AiProposalAction`（取值不变） |
 | `ErrorCodeConstants` | 112 / 113 文案改提案；登记空号 1000018125（执行不存在）/ 126（预算非法）/ 127（执行已终止 / 预算耗尽）；111 语义扩展至执行态 |
 | `RequirementServiceImpl` 等跨层点 | 删除对 `AiTaskMapper` 的直读，导入进行中判定改经任务服务新状态口径；`ImpactAnalysisTaskPublisher` 依赖新提交入口 |
@@ -309,3 +309,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-11-21 | 移除趋势摘要与存量批量分类：2.1 死代码盘点、2.3.2 Handler 清单与 2.4 / 2.7 前端清单删除对应类型和审核组件，跨域消费方改引重复扫描，缺陷分析详设引用由 3.5 顺延为 3.4 |
 | V1.0 | 2026-11-21 | 移除存量重复扫描任务：2.3.2 Handler 清单去 `BugDuplicateScan`、2.4 组件清单去 `BugDuplicateReviewPanel`、跨域消费方去 `useBugDuplicateScan` / `useBugDuplicateReview` |
 | V1.0 | 2026-11-23 | 迁移历史记录保留原貌；任务列表与详情的审核功能已下线，提案处置统一在业务面板完成，现行口径以需求 / 概要 / 详设 / 交互各分册为准 |
+| V1.0 | 2026-11-25 | 2.3.2 `bug_draft_suggest` 产出口径改为默认采纳的只读建议提案，与缺陷分析详设 3.4 同步 |

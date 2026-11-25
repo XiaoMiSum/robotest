@@ -17,7 +17,6 @@ import MockDebugPanel from './MockDebugPanel.vue'
 import MockAddressDialog from './MockAddressDialog.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
-import ListWorkspace from '@/components/common/ListWorkspace.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
@@ -250,58 +249,52 @@ function formatHitTime(val: string | null): string {
 </script>
 
 <template>
-  <main class="mocks-page">
-    <header class="page-head">
-      <div>
-        <h1 class="page-head__title">Mock 服务</h1>
-        <p class="page-head__desc">为接口配置模拟响应，解除前后端联调依赖</p>
+  <div v-loading="loading" class="mocks-page">
+    <div class="mocks-page__toolbar">
+      <div class="mocks-page__toolbar-left">
+        <el-input
+          v-model="searchDraft"
+          clearable
+          placeholder="请输入名称或路径"
+          style="width: 220px"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-select
+          v-model="enabledFilter"
+          clearable
+          placeholder="状态"
+          style="width: 120px"
+          @change="handleSearch"
+        >
+          <el-option label="已启用" :value="true" />
+          <el-option label="已停用" :value="false" />
+        </el-select>
+        <el-button @click="handleSearch">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button @click="handleReset">重置</el-button>
       </div>
-      <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
-        <el-icon><Plus /></el-icon>
-        新建 Mock
-      </el-button>
-    </header>
+      <div class="mocks-page__toolbar-right">
+        <el-button type="primary" @click="openEditor(undefined, props.interfaceId)">
+          <el-icon><Plus /></el-icon>
+          新建 Mock
+        </el-button>
+      </div>
+    </div>
 
-    <ListWorkspace label="Mock 规则列表" :loading="loading">
-      <template #toolbar>
-        <div class="mocks-page__filters">
-          <el-input
-            v-model="searchDraft"
-            clearable
-            placeholder="请输入名称或路径"
-            style="width: 220px"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-          <el-select
-            v-model="enabledFilter"
-            clearable
-            placeholder="状态"
-            style="width: 120px"
-            @change="handleSearch"
-          >
-            <el-option label="已启用" :value="true" />
-            <el-option label="已停用" :value="false" />
-          </el-select>
-          <el-button @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
-          </el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </div>
-        <span class="mocks-page__count">共 {{ total }} 条</span>
-      </template>
-      <template v-if="hasLoaded && loadError" #feedback>
-        <ListLoadFeedback
-          mode="refresh-error"
-          title="刷新失败，当前显示上次加载的数据"
-          :description="loadError"
-          :retrying="loading"
-          @retry="retry"
-        />
-      </template>
+    <div v-if="hasLoaded && loadError" class="mocks-page__feedback">
+      <ListLoadFeedback
+        mode="refresh-error"
+        title="刷新失败，当前显示上次加载的数据"
+        :description="loadError"
+        :retrying="loading"
+        @retry="retry"
+      />
+    </div>
 
     <!-- 表体区是页面内唯一滚动拥有者：表头固定，数据超出固定高度时表体内滚动（UI-SC-02 / UI-SC-05） -->
     <div v-if="hasLoaded || !loadError" class="mocks-page__table">
@@ -389,16 +382,17 @@ function formatHitTime(val: string | null): string {
       <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="retry" />
     </div>
 
-      <template v-if="hasLoaded || !loadError" #pagination>
-        <ListPagination
-          v-model:page-no="pageNo"
-          v-model:page-size="pageSize"
-          :total="total"
-          @page-change="({ pageNo: page }) => handlePageChange(page)"
-          @size-change="({ pageSize: size }) => handleSizeChange(size)"
-        />
-      </template>
-    </ListWorkspace>
+    <!-- 页面壳已提供左右内边距，分页用 bare 模式与工具栏对齐同一左基线 -->
+    <div v-if="hasLoaded || !loadError" class="mocks-page__pagination">
+      <ListPagination
+        v-model:page-no="pageNo"
+        v-model:page-size="pageSize"
+        :total="total"
+        bare
+        @page-change="({ pageNo: page }) => handlePageChange(page)"
+        @size-change="({ pageSize: size }) => handleSizeChange(size)"
+      />
+    </div>
 
     <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
       <el-button size="small" @click="handleBatchToggle(true)">批量启用</el-button>
@@ -422,7 +416,7 @@ function formatHitTime(val: string | null): string {
       v-model="addressVisible"
       :data="addressData"
     />
-  </main>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -434,41 +428,32 @@ function formatHitTime(val: string | null): string {
   min-height: 0;
 }
 
-.page-head {
+/* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
+.mocks-page__toolbar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   flex-shrink: 0;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  margin-bottom: var(--block-gap);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
-.page-head__title {
-  margin: 0;
-  color: var(--color-neutral-900);
-  font-size: var(--font-size-2xl);
-  font-weight: 650;
-}
-
-.page-head__desc {
-  margin: var(--space-xs) 0 0;
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
-}
-
-.mocks-page__filters {
+.mocks-page__toolbar-left {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
-.mocks-page__count {
-  margin-left: auto;
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
+.mocks-page__toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.mocks-page__feedback {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .mocks-page__first-error {
@@ -482,7 +467,6 @@ function formatHitTime(val: string | null): string {
 /* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
 .mocks-page__table {
   flex: 1;
-  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -493,6 +477,10 @@ function formatHitTime(val: string | null): string {
   vertical-align: middle;
 }
 
+.mocks-page__pagination {
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-neutral-100);
+}
 .mocks-page__action-header {
   display: flex;
   align-items: center;

@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import ScenePickerDialog from '@/components/project/api-testing/scene/ScenePickerDialog.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
-import ListWorkspace from '@/components/common/ListWorkspace.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
@@ -106,31 +105,26 @@ function handlePageSizeChange() {
 </script>
 
 <template>
-  <main class="schedules-page">
-    <header class="page-head">
-      <div>
-        <h1 class="page-head__title">定时任务</h1>
-        <p class="page-head__desc">测试计划、接口同步与 GitLab 同步的统一周期调度</p>
-      </div>
-      <el-button type="primary" @click="openCreate">新建任务</el-button>
-    </header>
-
-    <ListWorkspace label="定时任务列表" :loading="loading">
-      <template #toolbar>
+  <div v-loading="loading" class="schedules-page">
+    <div class="schedules-page__header">
+      <h3 class="schedules-page__title">定时任务</h3>
+      <div class="schedules-page__header-actions">
         <el-select v-model="typeFilter" placeholder="任务类型" clearable style="width: 140px">
           <el-option v-for="opt in SCHEDULE_TASK_TYPES" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
-        <span class="schedules-page__count">共 {{ total }} 条</span>
-      </template>
-      <template v-if="hasLoaded && loadError" #feedback>
-        <ListLoadFeedback
-          mode="refresh-error"
-          title="刷新失败，当前显示上次加载的数据"
-          :description="loadError"
-          :retrying="loading"
-          @retry="loadPage"
-        />
-      </template>
+        <el-button type="primary" @click="openCreate">新建任务</el-button>
+      </div>
+    </div>
+
+    <div v-if="hasLoaded && loadError" class="schedules-page__feedback">
+      <ListLoadFeedback
+        mode="refresh-error"
+        title="刷新失败，当前显示上次加载的数据"
+        :description="loadError"
+        :retrying="loading"
+        @retry="loadPage"
+      />
+    </div>
 
     <div v-if="hasLoaded || !loadError" class="schedules-page__table">
       <el-table :data="rows" height="100%" stripe>
@@ -206,16 +200,16 @@ function handlePageSizeChange() {
       <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="loadPage" />
     </div>
 
-      <template v-if="hasLoaded || !loadError" #pagination>
-        <ListPagination
-          v-model:page-no="pageNo"
-          v-model:page-size="pageSize"
-          :total="total"
-          @change="loadPage"
-          @size-change="handlePageSizeChange"
-        />
-      </template>
-    </ListWorkspace>
+    <div v-if="hasLoaded || !loadError" class="schedules-page__pagination">
+      <ListPagination
+        v-model:page-no="pageNo"
+        v-model:page-size="pageSize"
+        :total="total"
+        bare
+        @change="loadPage"
+        @size-change="handlePageSizeChange"
+      />
+    </div>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog
@@ -369,7 +363,7 @@ function handlePageSizeChange() {
         />
       </div>
     </el-drawer>
-  </main>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -380,39 +374,34 @@ function handlePageSizeChange() {
   min-height: 0;
 }
 
-.page-head {
+.schedules-page__header {
   display: flex;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-lg);
-  margin-bottom: var(--block-gap);
+  flex-shrink: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
-.page-head__title {
+.schedules-page__title {
   margin: 0;
-  color: var(--color-neutral-900);
-  font-size: var(--font-size-2xl);
-  font-weight: 650;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.page-head__desc {
-  margin: var(--space-xs) 0 0;
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
+.schedules-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
-.schedules-page__count {
-  margin-left: auto;
-  color: var(--color-neutral-600);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
+.schedules-page__feedback {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .schedules-page__table {
   flex: 1;
-  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -423,6 +412,11 @@ function handlePageSizeChange() {
   display: flex;
   align-items: flex-start;
   padding: 14px 0;
+}
+
+.schedules-page__pagination {
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-neutral-100);
 }
 
 .text-muted {

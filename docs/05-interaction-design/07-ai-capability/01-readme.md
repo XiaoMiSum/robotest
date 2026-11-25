@@ -3,7 +3,7 @@
 | 文档 | 版本 | 日期 | 状态 |
 | ---- | ---- | ---- | ---- |
 | [02-ai-admin-ui](02-ai-admin-ui.md)（分册：AI 配置中心，管理端）   | V1.0 | 2026-10-03 | 起草中 |
-| [03-ai-task-ui](03-ai-task-ui.md)（分册：AI 任务中心与任务详情）   | V1.0 | 2026-11-25 | 起草中 |
+| [03-ai-task-ui](03-ai-task-ui.md)（分册：AI 任务中心与任务详情）   | V1.0 | 2026-11-23 | 起草中 |
 | [05-ai-assistant-ui](05-ai-assistant-ui.md)（分册：智能助手）   | V1.0 | 2026-10-03 | 起草中 |
 | [06-defect-analysis-ui](06-defect-analysis-ui.md)（分册：AI 缺陷分析）   | V1.0 | 2026-10-03 | 起草中 |
 | [07-assisted-features-ui](07-assisted-features-ui.md)（分册：辅助功能） | V1.0 | 2026-10-03 | 起草中 |

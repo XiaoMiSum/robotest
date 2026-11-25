@@ -8,24 +8,22 @@
 <link rel="stylesheet" href="../assets/base.css">
 <link rel="stylesheet" href="../assets/ux.css">
 <style>
-  /* 页头 + 单卡片（工具栏 / 表格 / 分页一体）：表体区滚动，工具栏与分页条固定 */
-  .split__main { display: flex; flex-direction: column; overflow: hidden; }
-  .page-head { flex-shrink: 0; }
-  .mocks-page { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-  .mocks-page__toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0; padding: 14px 20px; border-bottom: 1px solid var(--n-100); gap: var(--space-md); }
-  .mocks-page__filters { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
-  .mocks-page__count { font-size: var(--font-size-xs); color: var(--n-500); }
+  /* MocksPage.vue: flex column, height 100%, min-height 0; scroll owner is table body */
+  .mocks-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .mocks-page__toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0; padding: 14px 0; border-bottom: 1px solid var(--n-100); gap: 12px; }
+  .mocks-page__toolbar-left { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+  .mocks-page__toolbar-right { display: flex; align-items: center; gap: var(--space-sm); }
   .mocks-page__feedback { flex-shrink: 0; border-bottom: 1px solid var(--n-100); }
-  .mocks-page__first-error { flex: 1; min-height: 0; display: flex; align-items: flex-start; padding: 14px 20px; }
+  .mocks-page__first-error { flex: 1; min-height: 0; display: flex; align-items: flex-start; padding: 14px 0; }
   .mocks-page__table { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
   .mocks-page__table .table-wrap { flex: 1; min-height: 0; overflow: auto; border: none; border-radius: 0; }
   .mocks-page__table .table thead th { position: sticky; top: 0; z-index: 2; background: var(--n-50); }
-  .mocks-page__pagination { flex-shrink: 0; padding: 14px 20px; border-top: 1px solid var(--n-100); }
+  .mocks-page__pagination { flex-shrink: 0; border-top: 1px solid var(--n-100); }
   .mocks-page__action-header { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-xs); width: 100%; }
   .mocks-page__more { margin-left: 12px; vertical-align: middle; }
 
-  /* 分页条：卡片内留白由 mocks-page__pagination 提供 */
-  .list-pager { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--space-md); padding: 0; }
+  /* ListPagination bare */
+  .list-pager { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--space-md); padding: 0; margin-top: 14px; margin-bottom: 14px; }
   .list-pager__total { color: var(--n-500); font-size: var(--font-size-sm); }
   .list-pager__right { display: flex; align-items: center; gap: 8px; }
   .page-size { display: inline-flex; align-items: center; gap: 4px; color: var(--n-500); font-size: var(--font-size-sm); }
@@ -134,19 +132,9 @@
     <aside class="split__side" data-side="api"></aside>
 
     <div class="split__main">
-      <div class="page-head">
-        <div>
-          <h1 class="page-head__title">Mock 服务</h1>
-          <p class="page-head__desc">为接口配置模拟响应，解除前后端联调依赖</p>
-        </div>
-        <div class="page-head__actions">
-          <button class="btn btn--primary" type="button" id="mk-open"><span data-icon="plus"></span>新建 Mock</button>
-        </div>
-      </div>
-
-      <div class="card mocks-page">
+      <div class="mocks-page">
         <div class="mocks-page__toolbar">
-          <div class="mocks-page__filters">
+          <div class="mocks-page__toolbar-left">
             <div class="input-wrap" style="width:220px">
               <span data-icon="search"></span>
               <input class="input" id="mk-search" placeholder="请输入名称或路径">
@@ -159,7 +147,9 @@
             <button class="btn btn--primary" type="button" id="mk-search-btn"><span data-icon="search"></span>查询</button>
             <button class="btn btn--default" type="button" id="mk-reset">重置</button>
           </div>
-          <div class="mocks-page__count" id="mk-count">共 36 条</div>
+          <div class="mocks-page__toolbar-right">
+            <button class="btn btn--primary" type="button" id="mk-open"><span data-icon="plus"></span>新建 Mock</button>
+          </div>
         </div>
 
         <div class="mocks-page__feedback" id="mk-refresh-error" hidden>
@@ -612,7 +602,6 @@
       emptyReset.hidden = !filtered;
     }
     var total = filtered ? shown : TOTAL_ROWS;
-    byId('mk-count').textContent = '共 ' + total.toLocaleString('en-US') + ' 条';
     countEl.textContent = '共 ' + total.toLocaleString('en-US') + ' 条 · 每页 ' + byId('mk-page-size').value + ' 条';
     syncCheckAll();
   }
