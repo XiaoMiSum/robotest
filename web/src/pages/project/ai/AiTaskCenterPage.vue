@@ -275,6 +275,7 @@ function onRowAction(key: string, row: unknown): void {
 
 .ai-task-center__table {
   flex: 1;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }

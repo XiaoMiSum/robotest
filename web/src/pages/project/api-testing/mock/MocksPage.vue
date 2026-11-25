@@ -482,6 +482,7 @@ function formatHitTime(val: string | null): string {
 /* 表体容器：flex:1 承接剩余高度并允许收缩（min-height:0），表格外层不再叠加 overflow 滚动（UI-SC-02 / UI-SC-06） */
 .mocks-page__table {
   flex: 1;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }

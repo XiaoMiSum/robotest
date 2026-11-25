@@ -398,6 +398,7 @@ onMounted(async () => {
 /* UI-SC-01/06：表体区承接剩余高度并裁剪，el-table 100% 高度内滚动 */
 .reports-page__body {
   flex: 1;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }

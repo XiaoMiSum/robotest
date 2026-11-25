@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive, ref } from 'vue'
 import AiTaskCenterPage from './AiTaskCenterPage.vue'
+import pageSource from './AiTaskCenterPage.vue?raw'
 import RowActions from '@/components/common/RowActions.vue'
 import type { AiTaskRow } from '@/composables/project/ai/useAiTaskCenter'
 import { useAiTaskCenter } from '@/composables/project/ai/useAiTaskCenter'
@@ -75,6 +76,7 @@ describe('AiTaskCenterPage 行操作', () => {
     expect(wrapper.find('.list-workspace__toolbar').exists()).toBe(true)
     expect(wrapper.find('.ai-task-center__count').text()).toBe('共 1 条')
     expect(wrapper.find('.ai-task-center__table').exists()).toBe(true)
+    expect(pageSource).toMatch(/\.ai-task-center__table \{[^}]*height: 100%;/s)
     expect(wrapper.find('.el-table').attributes('style')).toContain('height: 100%')
     wrapper.unmount()
   })
