@@ -195,7 +195,6 @@
           <div class="trace-events">
             <div class="trace-events__head">
               <button class="btn btn--link" type="button" id="dt-trace-toggle">展开轨迹 ▾</button>
-              <button class="btn btn--text btn--sm" type="button" id="dt-trace-refresh" hidden>刷新</button>
               <span class="trace-events__count" id="dt-trace-count" hidden></span>
             </div>
             <div class="trace-events__body" id="dt-trace-body" hidden>
@@ -502,7 +501,6 @@
     var events = allEvents.slice(0, tracePage * TRACE_PAGE_SIZE);
     byId('dt-trace-count').textContent = '共 ' + allEvents.length + ' 条（已显示 ' + events.length + ' 条）';
     byId('dt-trace-count').hidden = !traceExpanded;
-    byId('dt-trace-refresh').hidden = !traceExpanded;
     byId('dt-trace-body').hidden = !traceExpanded;
     byId('dt-trace-toggle').textContent = traceExpanded ? '收起轨迹 ▴' : '展开轨迹 ▾';
     if (!traceExpanded) return;
@@ -710,16 +708,6 @@
     if (e.target.closest('#dt-trace-toggle')) {
       traceExpanded = !traceExpanded;
       renderTrace(scenes[currentScene]);
-      return;
-    }
-    if (e.target.closest('#dt-trace-refresh')) {
-      var refreshScene = scenes[currentScene];
-      refreshScene.trace.push({
-        seq: nextTraceSeq(refreshScene), eventType: 'tool_result',
-        summary: '增量同步完成，拉取到最新轨迹事件', createdAt: new Date().toISOString()
-      });
-      tracePage = Math.ceil(refreshScene.trace.length / TRACE_PAGE_SIZE);
-      renderTrace(refreshScene);
       return;
     }
     if (e.target.closest('#dt-trace-load-more')) {
