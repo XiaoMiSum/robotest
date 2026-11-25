@@ -18,8 +18,10 @@
                      ├── Requirement ─── RequirementChangeLog / RequirementSplitRecord
                      ├── AiTask ─┬─ AiTaskExecution ─┬─ AiTaskTraceEvent
                      │           │                   └─ AiTaskProposal ── AiTaskAdoption
-                     │           └─ AiTaskTool（白名单）/ AiUsageLog（挂执行）
+                     │           ├─ AiTaskTool（白名单）/ AiUsageLog（挂执行）
+                     │           └─ UiActionLog（AI 执行动作轨迹）
                      ├── VectorIndexEntry（向量索引条目）
+                     ├── FtEnvironment（功能测试环境）
                      ├── TestPlan ─── PlanModuleSnapshot
                      │                PlanNodeSnapshot
                      │                PlanExecutionRecord
@@ -49,10 +51,10 @@
 | Project              | 名称、描述、状态、所属工作空间                     |
 | TestCaseModule       | 模块树节点（目录/文档）                        |
 | TestCaseNode         | 脑图节点（用例/普通），树形结构                    |
-| TestPlan             | 计划基本信息                              |
+| TestPlan             | 计划基本信息（执行环境关联功能测试环境）             |
 | PlanModuleSnapshot   | 计划-模块快照                             |
 | PlanNodeSnapshot     | 计划-节点快照，冗余最后执行结果                    |
-| PlanExecutionRecord  | 执行记录                                |
+| PlanExecutionRecord  | 执行记录（含来源维度：人工 / AI，结果值含跳过）        |
 | TestReview           | 评审基本信息（发起人、参与者）                     |
 | ReviewModuleSnapshot | 评审-模块快照                             |
 | ReviewNodeSnapshot   | 评审-节点快照，冗余最后评审标记                    |
@@ -87,6 +89,8 @@
 | AiAssistantConversation | 助手会话（按登录用户归属 + 上下文快照）           |
 | AiAssistantMessage   | 助手消息（正文、来源引用与工具调用载荷）               |
 | VectorIndexEntry     | 向量索引条目（业务归属、分块向量，RAG 检索载体）         |
+| FtEnvironment        | 功能测试环境（入口 URL、账号、数据状态、操作提示、预置动作、执行参数） |
+| UiActionLog          | AI 执行动作轨迹（阶段、序号、动作与参数、失败原因、截图引用与 token 消耗） |
 
 ### 1.3 数据隔离与生命周期
 
@@ -135,6 +139,8 @@
 * **AI 能力**：AI Task 任务资源（任务 · 执行 · 轨迹 · 提案）、助手会话与意图预览执行；概要设计见 `docs/02-high-level-design/07-ai-capability/02-hld-ai-capability.md`。
 * **测试评审**：发起、快照树、模块快照树、评审记录、同步、调整用例。
 * **测试计划**：创建、快照树、模块快照树、执行记录、同步、调整用例。
+* **功能测试环境**：环境条目维护、掩码展示与保存、预置动作与执行参数配置；概要设计见 `docs/02-high-level-design/03-function-testing/03-hld-ai-ui-testing.md`。
+* **AI 执行**：批次发起（模型 / 用例范围 / 环境 / 批次参数）、进度查询、取消、批次汇总与轨迹查询；概要设计见 `docs/02-high-level-design/03-function-testing/03-hld-ai-ui-testing.md`。
 * **缺陷管理**：CRUD、状态流转。
 * **接口测试**：调试执行与调试记录、接口定义与导入、Mock 规则与命中统计、测试场景与执行、执行状态、报告与分享、定时任务与执行记录、环境与数据源、公共组件；报告分享访问为免登录公开入口。概要设计见 `docs/02-high-level-design/05-api-testing/02-hld-api-overview.md` 第 5 节。
 
@@ -160,3 +166,4 @@
 | V1.0 | 2026-10-17 | 追溯矩阵需求整体取消：实体关系图与数据对象表移除 TraceEdge / TraceCoverageResult，业务端需求管理与 AI 能力接口概要移除追溯查询与矩阵 / 覆盖 / 影响能力 |
 | V1.0 | 2026-11-18 | 数据与接口概要同步业务模块免 RBAC 权限码校验：AI 工具注册项移除权限点，AI 业务调用改按成员归属校验 |
 | V1.0 | 2026-11-22 | 智能助手移除变更类能力：助手消息数据对象说明改为正文、来源引用与工具调用载荷，不再登记意图预览与执行回执 |
+| V1.0 | 2026-11-25 | 补入 AI 执行的数据对象（功能测试环境、动作轨迹）与接口概要 |
