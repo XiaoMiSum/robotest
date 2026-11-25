@@ -592,17 +592,10 @@
         <span data-icon="sparkle"></span>AI 正在生成建议，请稍候...
       </div>
       <div id="ai-dialog-body" hidden>
-        <div style="font-size:var(--font-size-sm); font-weight:600; color:var(--n-700); margin-bottom:12px;">字段建议</div>
-        <div style="display:flex; flex-direction:column; gap:10px;">
-          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:12px 14px; border:1px solid var(--n-200); border-radius:var(--radius-md);">
-            <div style="min-width:0; flex:1;">
-              <div style="font-size:var(--font-size-xs); color:var(--n-500); margin-bottom:2px;">标题</div>
-              <div style="font-size:var(--font-size-sm); color:var(--n-900);" id="ai-suggest-title">支付超时后库存未释放，导致二次下单提示缺货</div>
-              <div style="margin-top:4px; font-size:var(--font-size-xs); color:var(--n-500);">理由：标题补充触发条件与结果，便于检索与去重。</div>
-            </div>
-            <button class="btn btn--default btn--sm" type="button" id="ai-adopt-title">采纳</button>
-          </div>
-        </div>
+        <div id="ai-dialog-applied" class="text-sm" style="padding:10px 12px; border-radius:var(--radius-md); background:var(--color-success-bg, var(--n-50)); color:var(--color-success, var(--n-700)); margin-bottom:12px;" hidden>已默认采纳并自动填入表单</div>
+        <div style="font-size:var(--font-size-sm); font-weight:600; color:var(--n-700); margin-bottom:12px;">原填写值与 AI 产物值对照</div>
+        <div id="ai-dialog-compare" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <div id="ai-dialog-duplicate" class="text-sm text-secondary" style="padding:10px 12px; border:1px solid var(--n-200); border-radius:var(--radius-md); margin-top:12px;" hidden>疑似重复缺陷：登录按钮无反应（相似度 87%）</div>
       </div>
     </div>
     <div class="dialog__footer">
@@ -636,35 +629,133 @@
   syncTitleCount();
   syncAiButton();
 
-  /* ---------------- AI 建议弹窗：对齐 BugAiSuggestionDialog ---------------- */
+  /* ---------------- AI 建议弹窗：点击即发起，完成默认采纳并回填 ---------------- */
   var aiDialog = byId('ai-dialog');
   var aiLoading = byId('ai-dialog-loading');
   var aiBody = byId('ai-dialog-body');
+  var aiApplied = false;
+  var aiSnapshot = null;
+  var aiSuggestion = null;
+
+  function labelOfRadio(groupId, value) {
+    var input = byId(groupId).querySelector('input[value="' + value + '"]');
+    return input && input.parentElement ? input.parentElement.textContent.trim() : '';
+  }
+  function labelOfSelect(id, value) {
+    var select = byId(id);
+    for (var i = 0; i < select.options.length; i++) {
+      if (select.options[i].value === value) return select.options[i].textContent;
+    }
+    return value;
+  }
+  function captureSnapshot() {
+    return {
+      title: titleInput.value,
+      steps: byId('f-steps').value,
+      bugType: labelOfSelect('f-type', byId('f-type').value),
+      severity: labelOfRadio('f-severity', byId('f-severity').querySelector('input:checked').value),
+      priority: labelOfRadio('f-priority', byId('f-priority').querySelector('input:checked').value),
+      module: labelOfSelect('f-module', byId('f-module').value),
+      keywords: byId('f-keywords').value
+    };
+  }
+  function suggestionValues() {
+    return {
+      title: '支付超时后库存未释放，导致二次下单提示缺货',
+      steps: '##### 执行步骤\n1. 打开订单页并点击支付\n2. 等待支付超时\n##### 实际结果\n库存未释放，二次下单提示缺货\n##### 期望结果\n支付超时后自动回滚库存',
+      bugType: 'configuration',
+      severity: 'serious',
+      priority: 'high',
+      module: 'm-pay',
+      keywords: '支付超时 库存 回滚'
+    };
+  }
+  function setRadio(groupId, value) {
+    var inputs = byId(groupId).querySelectorAll('input[type="radio"]');
+    for (var i = 0; i < inputs.length; i++) {
+      inputs[i].checked = inputs[i].value === value;
+      inputs[i].parentElement.classList.toggle('is-active', inputs[i].checked);
+    }
+  }
+  function applySuggestion(value) {
+    titleInput.value = value.title;
+    byId('f-steps').value = value.steps;
+    byId('f-type').value = value.bugType;
+    byId('f-module').value = value.module;
+    byId('f-keywords').value = value.keywords;
+    setRadio('f-severity', value.severity);
+    setRadio('f-priority', value.priority);
+    syncTitleCount();
+    syncAiButton();
+    ['field-title', 'field-steps', 'field-bugType', 'field-severity', 'field-priority'].forEach(clearError);
+  }
+  function renderCompare(snapshot, value) {
+    var box = byId('ai-dialog-compare');
+    box.textContent = '';
+    var rows = [
+      ['标题', snapshot.title, value.title, '补充触发条件与结果'],
+      ['重现步骤', snapshot.steps || '（未填写）', value.steps, '补齐实际与期望结果'],
+      ['缺陷类型', snapshot.bugType, labelOfSelect('f-type', value.bugType), '按资源异常归类'],
+      ['严重等级', snapshot.severity, labelOfRadio('f-severity', value.severity), '影响主链路'],
+      ['优先级', snapshot.priority, labelOfRadio('f-priority', value.priority), '需优先修复'],
+      ['所属模块', snapshot.module, labelOfSelect('f-module', value.module), '命中支付中心'],
+      ['关键词', snapshot.keywords || '（未填写）', value.keywords, '提取特征词']
+    ];
+    var head = document.createElement('div');
+    head.style.cssText = 'display:grid;grid-template-columns:80px 1fr 1fr;gap:8px;padding:0 12px 4px;font-size:var(--font-size-xs);color:var(--n-500);';
+    head.textContent = '字段 / 原填写值 / AI 产物值（已填入）';
+    box.appendChild(head);
+    rows.forEach(function (row) {
+      var item = document.createElement('div');
+      item.style.cssText = 'display:grid;grid-template-columns:80px 1fr 1fr;gap:8px;padding:10px 12px;border:1px solid var(--n-200);border-radius:var(--radius-md);font-size:var(--font-size-sm);';
+      var label = document.createElement('span');
+      label.style.color = 'var(--n-500)';
+      label.textContent = row[0];
+      var original = document.createElement('span');
+      original.style.color = 'var(--n-500)';
+      original.textContent = row[1];
+      var suggested = document.createElement('span');
+      suggested.style.color = 'var(--n-900)';
+      suggested.textContent = row[2] + '（' + row[3] + '）';
+      item.appendChild(label);
+      item.appendChild(original);
+      item.appendChild(suggested);
+      box.appendChild(item);
+    });
+    byId('ai-dialog-applied').hidden = false;
+    byId('ai-dialog-duplicate').hidden = false;
+  }
   aiBtn.addEventListener('click', function () {
     if (!titleInput.value.trim()) {
       toast('请先填写缺陷标题', 'warning');
       return;
     }
     aiDialog.hidden = false;
+    if (aiApplied) {
+      aiLoading.hidden = true;
+      aiBody.hidden = false;
+      renderCompare(aiSnapshot, aiSuggestion);
+      return;
+    }
+    aiSnapshot = captureSnapshot();
     aiLoading.hidden = false;
     aiBody.hidden = true;
+    byId('ai-dialog-applied').hidden = true;
+    byId('ai-dialog-duplicate').hidden = true;
     aiBtn.disabled = true;
     aiBtn.setAttribute('aria-busy', 'true');
     setTimeout(function () {
       aiBtn.removeAttribute('aria-busy');
       syncAiButton();
+      aiSuggestion = suggestionValues();
+      applySuggestion(aiSuggestion);
+      aiApplied = true;
       aiLoading.hidden = true;
       aiBody.hidden = false;
+      renderCompare(aiSnapshot, aiSuggestion);
       if (window.RTIcons) window.RTIcons.hydrate(aiDialog);
+      toast('建议已默认采纳并填入表单', 'success');
     }, 450);
-  });
-  byId('ai-adopt-title').addEventListener('click', function () {
-    titleInput.value = byId('ai-suggest-title').textContent;
-    syncTitleCount();
-    syncAiButton();
-    clearError('field-title');
-    aiDialog.hidden = true;
-    toast('已采纳标题建议', 'success');
   });
 
   /* ---------------- 重现步骤：Markdown 工具栏插入 ---------------- */
