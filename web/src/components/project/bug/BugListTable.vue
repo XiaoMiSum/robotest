@@ -103,7 +103,7 @@ const statusIcons: Record<BugStatus, string> = {
               /></el-icon>
               {{ BUG_STATUS_LABEL[row.status as BugStatus] }}
             </el-tag>
-            <span v-if="row.confirmed" class="bug-table__confirmed">已确认</span>
+            <el-tag v-if="row.confirmed" type="success" size="small" effect="light">已确认</el-tag>
           </div>
         </template>
       </el-table-column>
@@ -241,8 +241,7 @@ const statusIcons: Record<BugStatus, string> = {
   font-size: var(--font-size-xs);
 }
 .bug-table__secondary,
-.bug-table__time,
-.bug-table__confirmed {
+.bug-table__time {
   color: var(--color-neutral-600);
   font-size: var(--font-size-sm);
 }

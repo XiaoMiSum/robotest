@@ -145,7 +145,7 @@
     cursor: pointer;
   }
   .bug-table__title:hover { text-decoration: underline; }
-  .bug-table__secondary, .bug-table__time, .bug-table__confirmed {
+  .bug-table__secondary, .bug-table__time {
     color: var(--n-600);
     font-size: var(--font-size-sm);
   }
@@ -544,7 +544,7 @@
                 <td data-col="type">代码错误</td>
                 <td data-col="severity"><span class="tag tag--danger"><span class="bug-table__dot"></span>致命</span></td>
                 <td data-col="priority"><span class="tag tag--warning">高</span></td>
-                <td data-col="status"><div class="bug-table__status"><span class="tag tag--warning"><span class="bug-table__status-icon" data-icon="alert-triangle"></span>激活</span><span class="bug-table__confirmed">已确认</span></div></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--warning"><span class="bug-table__status-icon" data-icon="alert-triangle"></span>激活</span><span class="tag tag--success">已确认</span></div></td>
                 <td data-col="reporter"><span class="bug-table__secondary">李华</span></td>
                 <td data-col="assignee">张明</td>
                 <td data-col="resolver"><span class="bug-table__secondary">-</span></td>
@@ -624,7 +624,7 @@
                 <td data-col="type">安全相关</td>
                 <td data-col="severity"><span class="tag tag--danger"><span class="bug-table__dot"></span>致命</span></td>
                 <td data-col="priority"><span class="tag tag--warning">高</span></td>
-                <td data-col="status"><div class="bug-table__status"><span class="tag tag--success"><span class="bug-table__status-icon" data-icon="check-circle"></span>已修复</span><span class="bug-table__confirmed">已确认</span></div></td>
+                <td data-col="status"><div class="bug-table__status"><span class="tag tag--success"><span class="bug-table__status-icon" data-icon="check-circle"></span>已修复</span><span class="tag tag--success">已确认</span></div></td>
                 <td data-col="reporter"><span class="bug-table__secondary">李华</span></td>
                 <td data-col="assignee">张明</td>
                 <td data-col="resolver"><span class="bug-table__secondary">张明</span></td>
@@ -1057,7 +1057,7 @@
   function renderStatus(tr) {
     var status = tr.dataset.status;
     var html = '<div class="bug-table__status"><span class="tag ' + STATUS_TAG[status] + '"><span class="bug-table__status-icon" data-icon="' + STATUS_ICON[status] + '"></span>' + STATUS_LABEL[status] + '</span>';
-    if (tr.dataset.confirmed === 'true') html += '<span class="bug-table__confirmed">已确认</span>';
+    if (tr.dataset.confirmed === 'true') html += '<span class="tag tag--success">已确认</span>';
     html += '</div>';
     var cell = tr.querySelector('[data-col="status"]');
     cell.innerHTML = html;
