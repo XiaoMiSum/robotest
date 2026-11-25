@@ -40,6 +40,14 @@ public interface TaskTypeAdapter {
         return false;
     }
 
+    /**
+     * 只读建议是否在提案落库后按提交人默认写采纳记录；仅业务面板回填表单的类型开启，
+     * 避免通用执行核改变其余类型的「必经人工采纳」口径。
+     */
+    default boolean autoAdoptProposals() {
+        return false;
+    }
+
     /** 任务类型（总册 3.6.1 全量枚举，注册表内唯一） */
     String type();
 

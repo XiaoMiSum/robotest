@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -85,7 +86,7 @@ class TaskExecutionDispatcherTest {
 
         verify(agentExecutionRunner).execute(any(), any());
         verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()),
-                eq(List.of(proposal)), eq(Map.of("ok", true)), any());
+                eq(List.of(proposal)), eq(Map.of("ok", true)), any(), eq(false));
         verify(executionLifecycle, never()).terminate(any(), any(), anyInt(), anyString(), any());
     }
 
@@ -101,7 +102,19 @@ class TaskExecutionDispatcherTest {
         verify(deterministic).execute(any(), any());
         verify(agentExecutionRunner, never()).execute(any(), any());
         verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()),
-                anyList(), eq(Map.of("rebuilt", true)), any());
+                anyList(), eq(Map.of("rebuilt", true)), any(), eq(false));
+    }
+
+    @Test
+    void dispatch_autoAdoptAdapter_passesFlagToLifecycle() {
+        when(adapterRegistry.get(TYPE)).thenReturn(new StubAdapter(null, true));
+        when(agentExecutionRunner.execute(any(), any()))
+                .thenReturn(new TaskExecutionStrategy.ExecutionResult(List.of(), null));
+
+        dispatcher.dispatch(context);
+
+        verify(executionLifecycle).succeed(eq(task.getId()), eq(execution.getId()),
+                anyList(), any(), any(), eq(true));
     }
 
     @Test
@@ -114,7 +127,7 @@ class TaskExecutionDispatcherTest {
 
         verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
                 eq(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code()), anyString(), any());
-        verify(executionLifecycle, never()).succeed(any(), any(), anyList(), any(), any());
+        verify(executionLifecycle, never()).succeed(any(), any(), anyList(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -142,7 +155,7 @@ class TaskExecutionDispatcherTest {
 
         dispatcher.dispatch(context);
 
-        verify(executionLifecycle, never()).succeed(any(), any(), anyList(), any(), any());
+        verify(executionLifecycle, never()).succeed(any(), any(), anyList(), any(), any(), anyBoolean());
         verify(executionLifecycle).terminate(eq(task.getId()), eq(execution.getId()),
                 eq(ErrorCodeConstants.AI_EXECUTION_FINISHED.code()), eq("预算耗尽"),
                 argThat(usage -> usage.steps() == 1 && usage.tokensIn() == 7
@@ -157,7 +170,7 @@ class TaskExecutionDispatcherTest {
         dispatcher.dispatch(context);
 
         verify(agentExecutionRunner, never()).execute(any(), any());
-        verify(executionLifecycle, never()).succeed(any(), any(), anyList(), any(), any());
+        verify(executionLifecycle, never()).succeed(any(), any(), anyList(), any(), any(), anyBoolean());
         verify(executionLifecycle, never()).terminate(any(), any(), anyInt(), anyString(), any());
     }
 
@@ -174,9 +187,20 @@ class TaskExecutionDispatcherTest {
 
     private static final class StubAdapter implements TaskTypeAdapter {
         private final TaskExecutionStrategy strategy;
+        private final boolean autoAdopt;
 
         private StubAdapter(TaskExecutionStrategy strategy) {
+            this(strategy, false);
+        }
+
+        private StubAdapter(TaskExecutionStrategy strategy, boolean autoAdopt) {
             this.strategy = strategy;
+            this.autoAdopt = autoAdopt;
+        }
+
+        @Override
+        public boolean autoAdoptProposals() {
+            return autoAdopt;
         }
 
         @Override

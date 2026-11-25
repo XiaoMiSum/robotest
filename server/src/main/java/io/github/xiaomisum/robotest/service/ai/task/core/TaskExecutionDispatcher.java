@@ -67,7 +67,7 @@ public class TaskExecutionDispatcher {
             // 收尾检查：终态竞争必查；步数按已走口径（恰满上限的正常完成不得被误杀为预算耗尽）
             control.ensureFinishing();
             executionLifecycle.succeed(task.getId(), execution.getId(), result.proposals(),
-                    result.resultMeta(), control.usage());
+                    result.resultMeta(), control.usage(), adapter.autoAdoptProposals());
         } catch (ExecutionControl.InactiveExecutionException ignored) {
             // 终态竞争或旧执行轮次已由赢家收尾，不重复累计用量。
         } catch (ExecutionControl.BudgetExceededException e) {

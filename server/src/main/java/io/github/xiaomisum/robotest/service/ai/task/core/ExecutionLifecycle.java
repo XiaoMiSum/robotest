@@ -2,8 +2,10 @@ package io.github.xiaomisum.robotest.service.ai.task.core;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskProposal;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskAdoptionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskProposalMapper;
@@ -39,6 +41,8 @@ public class ExecutionLifecycle {
     @Resource
     private AiTaskProposalMapper proposalMapper;
     @Resource
+    private AiTaskAdoptionMapper adoptionMapper;
+    @Resource
     private TraceRecorder traceRecorder;
 
     public record Usage(int steps, int tokensIn, int tokensOut, BigDecimal cost, int durationMs) {
@@ -57,7 +61,7 @@ public class ExecutionLifecycle {
 
     @Transactional(rollbackFor = Exception.class)
     public boolean succeed(UUID taskId, UUID executionId, List<ProposalDraft> drafts,
-            Map<String, Object> resultMeta, Usage usage) {
+            Map<String, Object> resultMeta, Usage usage, boolean autoAdopt) {
         LockedRun run = lockCurrent(taskId, executionId);
         if (run == null || !isActive(run.execution().getStatus())) {
             return false;
@@ -88,6 +92,29 @@ public class ExecutionLifecycle {
                     "提案产出: " + draft.title(),
                     Map.of("proposalKey", ModelOutputSupport.nvl(draft.proposalKey()),
                             "kind", ModelOutputSupport.nvl(draft.kind())));
+        }
+        if (autoAdopt) {
+            int adopted = 0;
+            for (ProposalDraft draft : safeDrafts) {
+                if (!Constants.AiProposalConfirmStatus.NOT_APPLICABLE.equals(draft.confirmStatus())) {
+                    continue;
+                }
+                AiTaskAdoption adoption = new AiTaskAdoption();
+                adoption.setProjectId(run.task().getProjectId());
+                adoption.setTaskId(taskId);
+                adoption.setExecutionId(executionId);
+                adoption.setProposalKey(draft.proposalKey());
+                adoption.setAction(Constants.AiProposalAction.ADOPTED);
+                adoption.setOperatorId(run.task().getSubmittedBy());
+                adoption.setAdoptedRef(Map.of("target", "bug_create_form"));
+                adoptionMapper.insert(adoption);
+                adopted++;
+            }
+            if (adopted > 0) {
+                traceRecorder.record(executionId, Constants.AiTraceEventType.PROPOSAL_EMITTED,
+                        "建议已默认采纳（" + adopted + " 项）",
+                        Map.of("action", Constants.AiProposalAction.ADOPTED));
+            }
         }
         boolean hasPending = safeDrafts.stream().anyMatch(draft ->
                 Constants.AiProposalConfirmStatus.PENDING.equals(draft.confirmStatus()));

@@ -40,7 +40,8 @@ import static io.github.xiaomisum.robotest.service.ai.task.handler.ModelOutputSu
 
 /**
  * 新建缺陷 AI 建议任务适配器（缺陷分析详设 3.4）：通用 AI 任务资源产出单条只读建议提案，
- * 重复缺陷检测在 prepare 阶段同步完成并写入提案 content；前端采纳仅写入表单，不调用提案确认落库。
+ * 重复缺陷检测在 prepare 阶段同步完成并写入提案 content；执行成功后默认写采纳记录，
+ * 前端据此覆盖回填表单，不调用提案确认落库、不写缺陷业务数据。
  */
 @Component
 public class BugDraftSuggestTypeAdapter extends AbstractOrdinaryTaskTypeAdapter {
@@ -79,6 +80,11 @@ public class BugDraftSuggestTypeAdapter extends AbstractOrdinaryTaskTypeAdapter 
     @Override
     public String type() {
         return TYPE;
+    }
+
+    @Override
+    public boolean autoAdoptProposals() {
+        return true;
     }
 
     @Override

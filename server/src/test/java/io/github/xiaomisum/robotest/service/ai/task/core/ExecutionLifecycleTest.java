@@ -2,8 +2,10 @@ package io.github.xiaomisum.robotest.service.ai.task.core;
 
 import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
+import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskExecution;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskProposal;
+import io.github.xiaomisum.robotest.repository.ai.AiTaskAdoptionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskExecutionMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskMapper;
 import io.github.xiaomisum.robotest.repository.ai.AiTaskProposalMapper;
@@ -41,6 +43,8 @@ class ExecutionLifecycleTest {
 
     private static final UUID TASK_ID = UUID.randomUUID();
     private static final UUID EXECUTION_ID = UUID.randomUUID();
+    private static final UUID PROJECT_ID = UUID.randomUUID();
+    private static final UUID SUBMITTER_ID = UUID.randomUUID();
 
     @Mock
     private AiTaskMapper taskMapper;
@@ -48,6 +52,8 @@ class ExecutionLifecycleTest {
     private AiTaskExecutionMapper executionMapper;
     @Mock
     private AiTaskProposalMapper proposalMapper;
+    @Mock
+    private AiTaskAdoptionMapper adoptionMapper;
     @Mock
     private TraceRecorder traceRecorder;
 
@@ -61,6 +67,8 @@ class ExecutionLifecycleTest {
     void setUp() {
         task = new AiTask();
         task.setId(TASK_ID);
+        task.setProjectId(PROJECT_ID);
+        task.setSubmittedBy(SUBMITTER_ID);
         task.setStatus(Constants.AiTaskFlowStatus.RUNNING);
         execution = new AiTaskExecution();
         execution.setId(EXECUTION_ID);
@@ -86,7 +94,7 @@ class ExecutionLifecycleTest {
 
         assertThrows(DuplicateKeyException.class, () -> lifecycle.succeed(TASK_ID, EXECUTION_ID,
                 List.of(new ProposalDraft("p1", "kind", null, "title", Map.of())), Map.of("ok", true),
-                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), false));
 
         verify(taskMapper, never()).markFlowStatus(any(), anyString());
     }
@@ -99,7 +107,7 @@ class ExecutionLifecycleTest {
 
         assertFalse(lifecycle.succeed(TASK_ID, EXECUTION_ID,
                 List.of(new ProposalDraft("p1", "kind", null, "title", Map.of())), null,
-                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), false));
 
         verify(taskMapper, never()).accumulateTokens(any(), anyInt(), anyInt());
         verify(proposalMapper, never()).insert(any(AiTaskProposal.class));
@@ -117,12 +125,54 @@ class ExecutionLifecycleTest {
         assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID,
                 List.of(new ProposalDraft("summary", "summary", null, "title", Map.of(),
                         Constants.AiProposalConfirmStatus.NOT_APPLICABLE)), null,
-                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), false));
 
         ArgumentCaptor<AiTaskProposal> captor = ArgumentCaptor.forClass(AiTaskProposal.class);
         verify(proposalMapper).insert(captor.capture());
         assertTrue(Constants.AiProposalConfirmStatus.NOT_APPLICABLE.equals(captor.getValue().getConfirmStatus()));
         verify(taskMapper).markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED);
+    }
+
+    @Test
+    void succeed_autoAdoptReadOnlyProposal_writesAdoptionBySubmitterAndClosesTask() {
+        lockCurrent(execution);
+        when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
+                .thenReturn(true);
+        when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
+        when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED)).thenReturn(true);
+
+        assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID,
+                List.of(new ProposalDraft("bug-draft-1", "bug_draft_suggestion", null, "title", Map.of(),
+                        Constants.AiProposalConfirmStatus.NOT_APPLICABLE)), null,
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), true));
+
+        ArgumentCaptor<AiTaskAdoption> captor = ArgumentCaptor.forClass(AiTaskAdoption.class);
+        verify(adoptionMapper).insert(captor.capture());
+        assertEquals(PROJECT_ID, captor.getValue().getProjectId());
+        assertEquals(TASK_ID, captor.getValue().getTaskId());
+        assertEquals(EXECUTION_ID, captor.getValue().getExecutionId());
+        assertEquals("bug-draft-1", captor.getValue().getProposalKey());
+        assertEquals(Constants.AiProposalAction.ADOPTED, captor.getValue().getAction());
+        assertEquals(SUBMITTER_ID, captor.getValue().getOperatorId());
+        verify(traceRecorder).record(EXECUTION_ID, Constants.AiTraceEventType.PROPOSAL_EMITTED,
+                "建议已默认采纳（1 项）", Map.of("action", Constants.AiProposalAction.ADOPTED));
+        verify(taskMapper).markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.CLOSED);
+    }
+
+    @Test
+    void succeed_autoAdoptWithPendingProposal_doesNotAdoptPending() {
+        lockCurrent(execution);
+        when(executionMapper.succeed(eq(EXECUTION_ID), anyInt(), anyInt(), anyInt(), any(), anyInt()))
+                .thenReturn(true);
+        when(taskMapper.accumulateTokens(TASK_ID, 12, 8)).thenReturn(true);
+        when(taskMapper.markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY)).thenReturn(true);
+
+        assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID,
+                List.of(new ProposalDraft("pending", "kind", null, "title", Map.of())), null,
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), true));
+
+        verify(adoptionMapper, never()).insert(any(AiTaskAdoption.class));
+        verify(taskMapper).markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY);
     }
 
     @Test
@@ -137,7 +187,7 @@ class ExecutionLifecycleTest {
                         new ProposalDraft("readonly", "summary", null, "readonly", Map.of(),
                                 Constants.AiProposalConfirmStatus.NOT_APPLICABLE),
                         new ProposalDraft("pending", "kind", null, "pending", Map.of())), null,
-                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), false));
 
         verify(taskMapper).markFlowStatus(TASK_ID, Constants.AiTaskFlowStatus.PROPOSALS_READY);
     }
@@ -153,7 +203,7 @@ class ExecutionLifecycleTest {
         assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID, List.of(
                         new ProposalDraft("child", "kind", "root-1", "子提案标题", Map.of()),
                         new ProposalDraft("root-1", "kind", null, "根提案标题", Map.of())), null,
-                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), false));
 
         ArgumentCaptor<AiTaskProposal> captor = ArgumentCaptor.forClass(AiTaskProposal.class);
         verify(proposalMapper, times(2)).insert(captor.capture());
@@ -172,7 +222,7 @@ class ExecutionLifecycleTest {
 
         assertTrue(lifecycle.succeed(TASK_ID, EXECUTION_ID,
                 List.of(new ProposalDraft("p1", "kind", null, longTitle, Map.of())), null,
-                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000)));
+                new ExecutionLifecycle.Usage(4, 12, 8, new BigDecimal("0.25"), 3000), false));
 
         ArgumentCaptor<AiTaskProposal> captor = ArgumentCaptor.forClass(AiTaskProposal.class);
         verify(proposalMapper).insert(captor.capture());
