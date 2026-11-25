@@ -22,7 +22,6 @@ const {
   retry,
   search,
   resetFilters,
-  refresh,
   changePage,
   changePageSize,
   handleAbort,
@@ -68,11 +67,6 @@ function onRowAction(key: string, row: unknown): void {
       <div>
         <h1 class="page-head__title">AI 任务中心</h1>
         <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程与采纳结果</p>
-      </div>
-      <div class="page-head__actions">
-        <el-button size="small" @click="refresh">
-          <el-icon><Refresh /></el-icon>刷新
-        </el-button>
       </div>
     </header>
 
@@ -133,79 +127,80 @@ function onRowAction(key: string, row: unknown): void {
       />
 
       <el-card v-else shadow="never" class="ai-task-center__card">
-        <el-table v-loading="loading" :data="rows" row-key="taskId">
-          <el-table-column label="任务名" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">
-              <router-link :to="`/workspace/projects/ai/tasks/${row.taskId}`">
-                {{ row.name }}
-              </router-link>
-            </template>
-          </el-table-column>
-          <el-table-column label="类型" width="110">
-            <template #default="{ row }">{{ row.typeMeta.domain }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <!-- 已终止悬浮终止原因（交互 2.1.2），标签同时带文字不单靠颜色表意 -->
-              <el-tooltip
-                v-if="row.status === 'aborted' && row.terminateText"
-                :content="row.terminateText"
-                placement="top"
-              >
-                <el-tag :type="row.statusMeta.tagType" size="small" effect="light">
+        <div class="ai-task-center__table">
+          <el-table v-loading="loading" :data="rows" row-key="taskId" height="100%">
+            <el-table-column label="任务名" min-width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <router-link :to="`/workspace/projects/ai/tasks/${row.taskId}`">
+                  {{ row.name }}
+                </router-link>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="110">
+              <template #default="{ row }">{{ row.typeMeta.domain }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <!-- 已终止悬浮终止原因（交互 2.1.2），标签同时带文字不单靠颜色表意 -->
+                <el-tooltip
+                  v-if="row.status === 'aborted' && row.terminateText"
+                  :content="row.terminateText"
+                  placement="top"
+                >
+                  <el-tag :type="row.statusMeta.tagType" size="small" effect="light">
+                    {{ row.statusMeta.label }}
+                  </el-tag>
+                </el-tooltip>
+                <el-tag v-else :type="row.statusMeta.tagType" size="small" effect="light">
                   {{ row.statusMeta.label }}
                 </el-tag>
-              </el-tooltip>
-              <el-tag v-else :type="row.statusMeta.tagType" size="small" effect="light">
-                {{ row.statusMeta.label }}
-              </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="执行摘要" min-width="200">
+              <template #default="{ row }">
+                <!-- 执行中：步数进度条 + 步数与最近动作；其余态给摘要文案（交互 2.1.2） -->
+                <div v-if="row.summary.stepPercent !== null" class="task-summary">
+                  <el-progress
+                    :percentage="row.summary.stepPercent"
+                    :stroke-width="8"
+                    :show-text="false"
+                    class="task-summary__bar"
+                  />
+                  <span class="task-summary__text">{{ row.summary.text }}</span>
+                </div>
+                <span v-else class="task-summary__muted">{{ row.summary.text }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="发起人" width="110" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.submitterText }}</template>
+            </el-table-column>
+            <el-table-column label="发起时间" width="170">
+              <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="220" fixed="right">
+              <template #default="{ row }">
+                <RowActions :actions="actionsOf(row)" @action="(key) => onRowAction(key, row)" />
+              </template>
+            </el-table-column>
+            <template #empty>
+              <el-empty
+                v-if="filters.type || filters.status"
+                description="无匹配结果"
+                :image-size="80"
+              >
+                <el-button @click="resetFilters">重置筛选</el-button>
+              </el-empty>
+              <el-empty v-else description="暂无 AI 任务" :image-size="80">
+                <router-link to="/workspace/projects/functional-testing?tab=requirements">
+                  去需求列表发起 AI 任务
+                </router-link>
+              </el-empty>
             </template>
-          </el-table-column>
-          <el-table-column label="执行摘要" min-width="200">
-            <template #default="{ row }">
-              <!-- 执行中：步数进度条 + 步数与最近动作；其余态给摘要文案（交互 2.1.2） -->
-              <div v-if="row.summary.stepPercent !== null" class="task-summary">
-                <el-progress
-                  :percentage="row.summary.stepPercent"
-                  :stroke-width="8"
-                  :show-text="false"
-                  class="task-summary__bar"
-                />
-                <span class="task-summary__text">{{ row.summary.text }}</span>
-              </div>
-              <span v-else class="task-summary__muted">{{ row.summary.text }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="发起人" width="110" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.submitterText }}</template>
-          </el-table-column>
-          <el-table-column label="发起时间" width="170">
-            <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="220" fixed="right">
-            <template #default="{ row }">
-              <RowActions :actions="actionsOf(row)" @action="(key) => onRowAction(key, row)" />
-            </template>
-          </el-table-column>
-          <template #empty>
-            <el-empty
-              v-if="filters.type || filters.status"
-              description="无匹配结果"
-              :image-size="80"
-            >
-              <el-button @click="resetFilters">重置筛选</el-button>
-            </el-empty>
-            <el-empty v-else description="暂无 AI 任务" :image-size="80">
-              <router-link to="/workspace/projects/functional-testing?tab=requirements">
-                去需求列表发起 AI 任务
-              </router-link>
-            </el-empty>
-          </template>
-        </el-table>
+          </el-table>
+        </div>
 
         <!-- store 分页状态为只读 computed，细分事件直连原 handler（切条数已由组件先置页码为 1） -->
         <ListPagination
-          bare
           :page-no="pageNo"
           :page-size="pageSize"
           :total="total"
@@ -219,8 +214,16 @@ function onRowAction(key: string, row: unknown): void {
 </template>
 
 <style scoped lang="scss">
+.ai-task-center {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .page-head {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-lg);
@@ -241,14 +244,9 @@ function onRowAction(key: string, row: unknown): void {
   font-size: var(--font-size-sm);
 }
 
-.page-head__actions {
-  display: flex;
-  gap: var(--space-sm);
-  flex-shrink: 0;
-}
-
 .filter-bar {
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm);
@@ -256,10 +254,12 @@ function onRowAction(key: string, row: unknown): void {
 }
 
 .list-error {
+  flex-shrink: 0;
   margin-bottom: var(--space-md);
 }
 
 .list-skeleton {
+  flex-shrink: 0;
   padding: var(--space-md);
   background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
@@ -267,12 +267,29 @@ function onRowAction(key: string, row: unknown): void {
 }
 
 .ai-task-center__card {
-  margin-bottom: var(--space-md);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  --el-card-padding: 0;
+
+  :deep(.el-card__body) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
 
   a {
     color: var(--color-primary-500);
     text-decoration: none;
   }
+}
+
+.ai-task-center__table {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .task-summary {

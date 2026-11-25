@@ -46,7 +46,6 @@ function render(rows: AiTaskRow[]) {
     retry: vi.fn(),
     search: vi.fn(),
     resetFilters: vi.fn(),
-    refresh: vi.fn(),
     changePage: vi.fn(),
     changePageSize: vi.fn(),
     handleAbort: mocks.abort,
@@ -66,6 +65,17 @@ function render(rows: AiTaskRow[]) {
 }
 
 describe('AiTaskCenterPage 行操作', () => {
+  it('无刷新按钮，表格固定高度由表体内部滚动', async () => {
+    const wrapper = render([makeRow()])
+    await flushPromises()
+
+    expect(wrapper.find('.page-head__actions').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('刷新')
+    expect(wrapper.find('.ai-task-center__table').exists()).toBe(true)
+    expect(wrapper.find('.el-table').attributes('style')).toContain('height: 100%')
+    wrapper.unmount()
+  })
+
   it('操作列全部收敛为 link 小按钮，并按状态显隐动作', async () => {
     const wrapper = render([
       makeRow(),
