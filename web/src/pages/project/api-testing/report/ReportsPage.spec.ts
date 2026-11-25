@@ -16,6 +16,7 @@ describe('ReportsPage 列表交互与反馈', () => {
     expect(pageSource).toContain('class="reports-page__body"')
     expect(pageSource).toContain('height="100%"')
     expect(pageSource).toContain('flex: 1;')
+    expect(pageSource).toMatch(/\.reports-page__body \{[^}]*height: 100%;/s)
     expect(pageSource).toContain('min-height: 0;')
     expect(pageSource).toContain('overflow: hidden;')
   })

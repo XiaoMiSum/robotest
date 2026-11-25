@@ -30,6 +30,7 @@ describe('MocksPage 列表交互与反馈', () => {
     expect(pageSource).toContain('ListTitleLink')
     expect(pageSource).toContain('class="mocks-page__table"')
     expect(pageSource).toContain('height="100%"')
+    expect(pageSource).toMatch(/\.mocks-page__table \{[^}]*height: 100%;/s)
     expect(pageSource).toContain('min-height: 0')
   })
 
