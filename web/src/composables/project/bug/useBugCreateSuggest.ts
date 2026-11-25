@@ -71,11 +71,12 @@ function normalizeContent(content: Record<string, unknown>): BugDraftSuggestCont
 
 /**
  * 新建缺陷 AI 建议（详设 3.4）：提交 bug_draft_suggest 任务，等待/轮询提案结果；
- * 采纳仅写入当前表单，不调用提案确认落库。
+ * 任务完成后由页面覆盖回填表单，已取得结果时重开只回显，不重复发起任务。
  */
 export function useBugCreateSuggest() {
   const loading = ref(false)
   const error = ref('')
+  const hasResult = ref(false)
   const taskId = ref('')
   const taskStatus = ref<AiTaskStatus | ''>('')
   const titleSuggestion = ref<BugSuggestionField<string> | null>(null)
@@ -94,6 +95,7 @@ export function useBugCreateSuggest() {
   }
 
   function reset(): void {
+    hasResult.value = false
     titleSuggestion.value = null
     reproStepsSuggestion.value = null
     suggestions.value = {}
@@ -107,6 +109,7 @@ export function useBugCreateSuggest() {
     suggestions.value = content.suggestions ?? {}
     relatedCase.value = content.suggestions?.relatedCase ?? null
     duplicates.value = content.duplicates ?? []
+    hasResult.value = true
   }
 
   async function loadProposal(detail: AiTaskDetail, token: number): Promise<void> {
@@ -175,6 +178,7 @@ export function useBugCreateSuggest() {
   return {
     loading,
     error,
+    hasResult,
     taskId,
     taskStatus,
     titleSuggestion,

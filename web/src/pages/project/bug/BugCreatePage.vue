@@ -7,7 +7,7 @@ import CaseSelector from '@/components/project/functional-testing/case/CaseSelec
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugAiSuggestionDialog from '@/components/project/bug/BugAiSuggestionDialog.vue'
 import { fetchAiStatus } from '@/services/ai'
-import type { BugPriority, BugSeverity } from '@/types'
+import type { BugPriority, BugSeverity, ProjectModule } from '@/types'
 
 const {
   formRef,
@@ -43,15 +43,56 @@ void fetchAiStatus()
   })
 
 const suggestDialogVisible = ref(false)
+const originalValues = ref<Record<string, string>>({})
 const {
   loading: suggestLoading,
   error: suggestError,
+  hasResult: suggestHasResult,
   titleSuggestion,
   reproStepsSuggestion,
   suggestions,
+  relatedCase,
   duplicates,
   requestSuggestion,
 } = useBugCreateSuggest()
+
+function moduleName(id: string, nodes: ProjectModule[]): string {
+  for (const node of nodes) {
+    if (node.id === id) return node.name
+    const nested = moduleName(id, node.children ?? [])
+    if (nested) return nested
+  }
+  return ''
+}
+
+function captureOriginalValues(): Record<string, string> {
+  return {
+    title: form.title,
+    reproSteps: normalizedReproSteps.value || '（未填写）',
+    bugType: BUG_TYPE_LABEL[form.bugType],
+    severity: severityLabel[form.severity],
+    priority: priorityLabel[form.priority],
+    moduleId: form.moduleId ? moduleName(form.moduleId, moduleTree.value) || form.moduleId : '（未选择）',
+    keywords: form.keywords || '（未填写）',
+    relatedCase: selectedCaseTitle.value || '未关联',
+  }
+}
+
+/** 默认采纳只覆盖产物提供的字段，不改动用户已填但未被建议的字段 */
+function applySuggestionToForm(): void {
+  if (typeof titleSuggestion.value?.value === 'string') form.title = titleSuggestion.value.value
+  if (typeof reproStepsSuggestion.value?.value === 'string') form.reproSteps = reproStepsSuggestion.value.value
+  if (suggestions.value.bugType) form.bugType = suggestions.value.bugType.value
+  if (suggestions.value.severity) form.severity = suggestions.value.severity.value
+  if (suggestions.value.priority) form.priority = suggestions.value.priority.value
+  if (typeof suggestions.value.moduleId?.value === 'string') form.moduleId = suggestions.value.moduleId.value
+  if (suggestions.value.keywords?.value.length) form.keywords = suggestions.value.keywords.value.join(' ')
+  if (relatedCase.value) {
+    form.relatedCaseId = relatedCase.value.value
+    selectedCaseTitle.value = relatedCase.value.caseTitle || '已选 1 个用例'
+  }
+  ElMessage.success('建议已默认采纳并填入表单')
+}
 
 async function handleRequestSuggest(): Promise<void> {
   if (!form.title.trim()) {
@@ -59,11 +100,14 @@ async function handleRequestSuggest(): Promise<void> {
     return
   }
   suggestDialogVisible.value = true
+  if (suggestLoading.value || suggestHasResult.value) return
+  originalValues.value = captureOriginalValues()
   await requestSuggestion({
     title: form.title.trim(),
     steps: normalizedReproSteps.value || undefined,
     moduleId: form.moduleId || undefined,
   })
+  if (!suggestError.value && suggestHasResult.value) applySuggestionToForm()
 }
 
 /** 选中态色系令牌：严重等级取缺陷等级色（视觉规范 4.3），与列表/详情标签同源 */
@@ -97,20 +141,6 @@ function priorityButtonStyle(value: BugPriority): Record<string, string> {
   }
 }
 
-function handleAdoptSuggestion(payload: { key: string; value: string | string[]; caseTitle?: string }): void {
-  const { key, value, caseTitle } = payload
-  if (key === 'title' && typeof value === 'string') form.title = value
-  else if (key === 'reproSteps' && typeof value === 'string') form.reproSteps = value
-  else if (key === 'bugType' && typeof value === 'string') form.bugType = value as typeof form.bugType
-  else if (key === 'severity' && typeof value === 'string') form.severity = value as typeof form.severity
-  else if (key === 'priority' && typeof value === 'string') form.priority = value as typeof form.priority
-  else if (key === 'moduleId' && typeof value === 'string') form.moduleId = value
-  else if (key === 'keywords' && Array.isArray(value)) form.keywords = value.join(' ')
-  else if (key === 'relatedCase' && typeof value === 'string') {
-    form.relatedCaseId = value
-    if (caseTitle) selectedCaseTitle.value = caseTitle
-  }
-}
 </script>
 
 <template>
@@ -256,8 +286,8 @@ function handleAdoptSuggestion(payload: { key: string; value: string | string[];
       :title-suggestion="titleSuggestion"
       :repro-steps-suggestion="reproStepsSuggestion"
       :suggestions="suggestions"
+      :original-values="originalValues"
       :duplicates="duplicates"
-      @adopt="handleAdoptSuggestion"
     />
   </div>
 </template>

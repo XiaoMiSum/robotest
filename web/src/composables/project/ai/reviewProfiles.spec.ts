@@ -208,6 +208,27 @@ describe('reviewProfiles', () => {
       }
     })
 
+    it('缺陷建议只读展示结构化建议', () => {
+      const profile = reviewProfile('bug_draft_suggest')
+      expect(isReadonlyProfile(profile)).toBe(true)
+      expect(profile.title).toBe('新建缺陷建议结果')
+      const parsed = profile.parse({
+        title: { value: '优化标题', reason: '现象明确' },
+        reproSteps: { value: '步骤', reason: '三段结构' },
+        suggestions: {
+          bugType: { value: 'code_error', reason: '功能失效' },
+          severity: { value: 'serious', reason: '主链路' },
+          keywords: { value: ['登录', '无响应'], reason: '检索词' },
+        },
+        duplicates: [{ bugId: 'b1' }],
+      }, '兜底')
+      expect(parsed.fields).toContainEqual({ label: '优化后标题', value: '优化标题' })
+      expect(parsed.fields).toContainEqual({ label: '重现步骤', value: '步骤' })
+      expect(parsed.fields).toContainEqual({ label: '缺陷类型', value: 'code_error' })
+      expect(parsed.fields).toContainEqual({ label: '关键词', value: '登录、无响应' })
+      expect(parsed.fields).toContainEqual({ label: '疑似重复缺陷', value: '1 项' })
+    })
+
     it('未登记任务类型沿用通用审核能力', () => {
       const profile = reviewProfile('future_task')
       expect(profile.title).toBe('提案审核')

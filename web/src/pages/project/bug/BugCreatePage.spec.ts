@@ -2,25 +2,34 @@ import { describe, expect, it } from 'vitest'
 import pageSource from './BugCreatePage.vue?raw'
 
 describe('BugCreatePage AI 建议弹窗（交互 2.2）', () => {
-  it('通过 AI 建议弹窗审核建议并挂载任务建议状态', () => {
+  it('结果弹窗展示原值与产物对照，不再逐项采纳', () => {
     expect(pageSource).toContain('<BugAiSuggestionDialog')
     expect(pageSource).toContain('v-model="suggestDialogVisible"')
     expect(pageSource).toContain(':title-suggestion="titleSuggestion"')
     expect(pageSource).toContain(':repro-steps-suggestion="reproStepsSuggestion"')
     expect(pageSource).toContain(':suggestions="suggestions"')
+    expect(pageSource).toContain(':original-values="originalValues"')
     expect(pageSource).toContain(':duplicates="duplicates"')
-    expect(pageSource).toContain('@adopt="handleAdoptSuggestion"')
+    expect(pageSource).not.toContain('@adopt="handleAdoptSuggestion"')
   })
 
-  it('采纳写入值不变：枚举写 key、模块写 id、关联用例写节点 id', () => {
-    expect(pageSource).toContain("if (key === 'title' && typeof value === 'string') form.title = value")
-    expect(pageSource).toContain("else if (key === 'reproSteps' && typeof value === 'string') form.reproSteps = value")
-    expect(pageSource).toContain("else if (key === 'bugType' && typeof value === 'string') form.bugType = value as typeof form.bugType")
-    expect(pageSource).toContain("else if (key === 'severity' && typeof value === 'string') form.severity = value as typeof form.severity")
-    expect(pageSource).toContain("else if (key === 'priority' && typeof value === 'string') form.priority = value as typeof form.priority")
-    expect(pageSource).toContain("else if (key === 'moduleId' && typeof value === 'string') form.moduleId = value")
-    expect(pageSource).toContain("else if (key === 'relatedCase' && typeof value === 'string') {")
-    expect(pageSource).toContain('form.relatedCaseId = value')
+  it('任务完成后覆盖回填表单，枚举写 key、模块写 id、关联用例写节点 id', () => {
+    expect(pageSource).toContain("if (typeof titleSuggestion.value?.value === 'string') form.title = titleSuggestion.value.value")
+    expect(pageSource).toContain("if (typeof reproStepsSuggestion.value?.value === 'string') form.reproSteps = reproStepsSuggestion.value.value")
+    expect(pageSource).toContain('if (suggestions.value.bugType) form.bugType = suggestions.value.bugType.value')
+    expect(pageSource).toContain('if (suggestions.value.severity) form.severity = suggestions.value.severity.value')
+    expect(pageSource).toContain('if (suggestions.value.priority) form.priority = suggestions.value.priority.value')
+    expect(pageSource).toContain("if (typeof suggestions.value.moduleId?.value === 'string') form.moduleId = suggestions.value.moduleId.value")
+    expect(pageSource).toContain("if (suggestions.value.keywords?.value.length) form.keywords = suggestions.value.keywords.value.join(' ')")
+    expect(pageSource).toContain('if (relatedCase.value) {')
+    expect(pageSource).toContain('form.relatedCaseId = relatedCase.value.value')
+  })
+
+  it('同一页面重开只回显，不重复发起任务', () => {
+    expect(pageSource).toContain('if (suggestLoading.value || suggestHasResult.value) return')
+    expect(pageSource).toContain('originalValues.value = captureOriginalValues()')
+    expect(pageSource).toContain("reproSteps: normalizedReproSteps.value || '（未填写）'")
+    expect(pageSource).toContain('if (!suggestError.value && suggestHasResult.value) applySuggestionToForm()')
   })
 
   it('AI 建议通过通用任务链路请求，不再使用独立 suggest 接口', () => {

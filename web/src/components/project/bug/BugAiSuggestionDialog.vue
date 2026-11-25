@@ -9,7 +9,7 @@ interface SuggestionRow {
   label: string
   suggestion: BugSuggestionField<string | string[]> | null
   displayValue: string
-  adoptValue: string | string[]
+  original: string
 }
 
 const props = defineProps<{
@@ -19,12 +19,12 @@ const props = defineProps<{
   titleSuggestion: BugSuggestionField<string> | null
   reproStepsSuggestion: BugSuggestionField<string> | null
   suggestions: BugDraftSuggestFields
+  originalValues: Record<string, string>
   duplicates: BugDuplicateSuggestItem[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  adopt: [payload: { key: string; value: string | string[]; caseTitle?: string }]
 }>()
 
 const visible = computed({
@@ -34,23 +34,13 @@ const visible = computed({
 
 const rows = computed<SuggestionRow[]>(() => {
   const list: SuggestionRow[] = []
-  if (props.titleSuggestion?.value) {
-    list.push({
-      key: 'title',
-      label: '标题',
-      suggestion: props.titleSuggestion,
-      displayValue: props.titleSuggestion.value,
-      adoptValue: props.titleSuggestion.value,
-    })
+  const push = (key: string, label: string, suggestion: BugSuggestionField<string | string[]> | null, value: string) => {
+    if (!suggestion || !value) return
+    list.push({ key, label, suggestion, displayValue: value, original: props.originalValues[key] || '—' })
   }
+  if (props.titleSuggestion?.value) push('title', '标题', props.titleSuggestion, props.titleSuggestion.value)
   if (props.reproStepsSuggestion?.value) {
-    list.push({
-      key: 'reproSteps',
-      label: '重现步骤',
-      suggestion: props.reproStepsSuggestion,
-      displayValue: props.reproStepsSuggestion.value,
-      adoptValue: props.reproStepsSuggestion.value,
-    })
+    push('reproSteps', '重现步骤', props.reproStepsSuggestion, props.reproStepsSuggestion.value)
   }
   const mapping: Array<[keyof BugDraftSuggestFields, string]> = [
     ['bugType', '缺陷类型'],
@@ -64,22 +54,16 @@ const rows = computed<SuggestionRow[]>(() => {
     const suggestion = props.suggestions[key]
     if (!suggestion || !('value' in suggestion) || suggestion.value == null || suggestion.value === '') continue
     if (key === 'keywords' && Array.isArray(suggestion.value)) {
-      list.push({ key, label, suggestion: suggestion as BugSuggestionField<string[]>, displayValue: suggestion.value.join('、'), adoptValue: suggestion.value })
+      push(key, label, suggestion as BugSuggestionField<string[]>, suggestion.value.join('、'))
       continue
     }
-    if (key === 'relatedCase' && typeof suggestion === 'object' && 'caseTitle' in suggestion) {
-      const related = suggestion as { value: string; caseTitle: string; reason: string }
-      list.push({
-        key,
-        label,
-        suggestion: related as BugSuggestionField<string>,
-        displayValue: related.caseTitle || related.value,
-        adoptValue: related.value,
-      })
+    if (key === 'relatedCase' && 'caseTitle' in suggestion) {
+      const related = suggestion as BugSuggestionField<string> & { caseTitle: string }
+      push(key, label, related, related.caseTitle || related.value)
       continue
     }
     if (typeof suggestion.value === 'string') {
-      list.push({ key, label, suggestion: suggestion as BugSuggestionField<string>, displayValue: suggestion.value, adoptValue: suggestion.value })
+      push(key, label, suggestion as BugSuggestionField<string>, suggestion.value)
     }
   }
   return list
@@ -107,27 +91,26 @@ const hasContent = computed(() => rows.value.length > 0 || props.duplicates.leng
       <el-empty v-if="!hasContent" description="暂无可用建议" :image-size="72" />
 
       <div v-else class="bug-ai-suggest__body">
+        <el-alert type="success" title="建议已默认采纳并自动填入表单" :closable="false" show-icon />
+
         <section v-if="rows.length > 0" class="bug-ai-suggest__section">
-          <div class="bug-ai-suggest__section-title">字段建议</div>
+          <div class="bug-ai-suggest__section-title">原填写值与 AI 产物值对照</div>
           <div class="bug-ai-suggest__list">
             <article v-for="row in rows" :key="row.key" class="bug-ai-suggest__item">
-              <div class="bug-ai-suggest__item-main">
+              <div class="bug-ai-suggest__row">
                 <div class="bug-ai-suggest__item-label">{{ row.label }}</div>
-                <div class="bug-ai-suggest__item-value">{{ row.displayValue }}</div>
-                <div v-if="row.suggestion?.reason" class="bug-ai-suggest__item-reason">
-                  理由：{{ row.suggestion.reason }}
+                <div>
+                  <div class="bug-ai-suggest__item-label">原填写值</div>
+                  <div class="bug-ai-suggest__item-value">{{ row.original }}</div>
+                </div>
+                <div>
+                  <div class="bug-ai-suggest__item-label">AI 产物值（已填入）</div>
+                  <div class="bug-ai-suggest__item-value">{{ row.displayValue }}</div>
                 </div>
               </div>
-              <el-button
-                link
-                type="primary"
-                size="small"
-                @click="emit('adopt', {
-                  key: row.key,
-                  value: row.adoptValue,
-                  caseTitle: row.key === 'relatedCase' ? row.displayValue : undefined,
-                })"
-              >采纳</el-button>
+              <div v-if="row.suggestion?.reason" class="bug-ai-suggest__item-reason">
+                理由：{{ row.suggestion.reason }}
+              </div>
             </article>
           </div>
         </section>
@@ -174,24 +157,20 @@ const hasContent = computed(() => rows.value.length > 0 || props.duplicates.leng
 }
 
 .bug-ai-suggest__item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
 }
 
-.bug-ai-suggest__item-main {
-  min-width: 0;
-  flex: 1;
+.bug-ai-suggest__row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm);
 }
 
 .bug-ai-suggest__item-label {
   font-size: var(--font-size-xs);
   color: var(--color-neutral-500);
-  margin-bottom: 2px;
 }
 
 .bug-ai-suggest__item-value {

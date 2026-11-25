@@ -56,7 +56,25 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     expect(suggest.titleSuggestion.value?.value).toBe('优化后标题')
     expect(suggest.relatedCase.value?.caseTitle).toBe('登录-正常登录')
     expect(suggest.duplicates.value.map((item) => item.bugId)).toEqual(['b2', 'b1'])
+    expect(suggest.hasResult.value).toBe(true)
     expect(suggest.error.value).toBe('')
+  })
+
+  it('closed 任务直接加载提案并按默认采纳对待', async () => {
+    mocks.submitAiTask.mockResolvedValue({ taskId: 'task-closed', status: 'closed' })
+    mocks.fetchAiTask.mockResolvedValue({
+      taskId: 'task-closed',
+      status: 'closed',
+      proposals: [{ key: 'bug-draft-1', kind: 'bug_draft_suggestion', confirmStatus: 'adopted' }],
+    })
+    mocks.fetchAiProposal.mockResolvedValue({ content: { title: { value: '已采纳标题', reason: '优化' } } })
+
+    const suggest = useBugCreateSuggest()
+    await suggest.requestSuggestion({ title: 't' })
+
+    expect(mocks.fetchAiProposal).toHaveBeenCalledWith('task-closed', 'bug-draft-1')
+    expect(suggest.hasResult.value).toBe(true)
+    expect(suggest.titleSuggestion.value?.value).toBe('已采纳标题')
   })
 
   it('polling: running 后轮询到 proposals_ready', async () => {
@@ -97,6 +115,7 @@ describe('composables/project/bug/useBugCreateSuggest', () => {
     await suggest.requestSuggestion({ title: 't' })
 
     expect(suggest.error.value).toContain('用户中止')
+    expect(suggest.hasResult.value).toBe(false)
     expect(suggest.suggestions.value).toEqual({})
     expect(suggest.duplicates.value).toEqual([])
   })

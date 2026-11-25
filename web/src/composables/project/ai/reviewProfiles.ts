@@ -92,6 +92,20 @@ function readStrings(raw: unknown): string[] {
   return raw.filter((item): item is string => typeof item === 'string')
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function suggestionText(source: Record<string, unknown>, key: string): string {
+  const field = source[key]
+  if (!isRecord(field) || !('value' in field)) return ''
+  const value = field.value
+  if (Array.isArray(value)) return readStrings(value).join('、')
+  if (value == null) return '—'
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return ''
+}
+
 function joinValues(values: string[]): string {
   return values.length > 0 ? values.join('、') : '—'
 }
@@ -315,6 +329,35 @@ const mindmapCaseGenerationProfile: ProposalReviewProfile = {
   },
 }
 
+/** 新建缺陷建议在提交缺陷页默认回填，任务详情仅只读展示结构化建议（缺陷分析详设 3.4） */
+const bugDraftSuggestProfile: ProposalReviewProfile = {
+  ...readonlyProfile('bug_draft_suggest', '新建缺陷建议结果'),
+  parse(content, fallbackTitle) {
+    const parsed = emptyParsed(fallbackTitle)
+    const title = suggestionText(content, 'title')
+    const reproSteps = suggestionText(content, 'reproSteps')
+    if (title) parsed.fields.push({ label: '优化后标题', value: title })
+    if (reproSteps) parsed.fields.push({ label: '重现步骤', value: reproSteps })
+    const suggestions = isRecord(content.suggestions) ? content.suggestions : {}
+    const mapping: Array<[string, string]> = [
+      ['bugType', '缺陷类型'],
+      ['severity', '严重等级'],
+      ['priority', '优先级'],
+      ['moduleId', '所属模块'],
+      ['keywords', '关键词'],
+      ['relatedCase', '关联用例'],
+    ]
+    for (const [key, label] of mapping) {
+      const value = suggestionText(suggestions, key)
+      if (value) parsed.fields.push({ label, value })
+    }
+    if (Array.isArray(content.duplicates) && content.duplicates.length > 0) {
+      parsed.fields.push({ label: '疑似重复缺陷', value: `${content.duplicates.length} 项` })
+    }
+    return parsed
+  },
+}
+
 const REGISTRY: Record<string, ProposalReviewProfile> = {
   // 需求导入审核只开放逐条动作，批量入口在 profile 层关闭
   requirement_import: { ...requirementProfile('requirement_import', '导入结果审核', true), allowBatch: false },
@@ -323,6 +366,7 @@ const REGISTRY: Record<string, ProposalReviewProfile> = {
   mindmap_case_generation: mindmapCaseGenerationProfile,
   plan_order: planOrderProfile,
   review_case_review: reviewCaseReviewProfile,
+  bug_draft_suggest: bugDraftSuggestProfile,
   assistant_parse: readonlyProfile('assistant_parse', '助手解析结果'),
   vector_reindex: readonlyProfile('vector_reindex', '向量索引重建结果'),
 }
