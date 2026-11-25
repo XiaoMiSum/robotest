@@ -84,11 +84,53 @@
     100% { background-position: 0 50%; }
   }
 
+  /* 任务中心：高度链落到表体，滚动拥有者下沉，页面不再出现纵向滚动条（UI-SC-01/02/05/06） */
+  .split__main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .page-head,
+  .filter-bar,
+  .list-error,
+  .list-skeleton {
+    flex-shrink: 0;
+  }
+
+  #atc-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .ai-task-center__card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
     background: #fff;
     border: 1px solid var(--n-200);
     border-radius: var(--radius-md);
     overflow: hidden;
+  }
+
+  .ai-task-center__card .table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .ai-task-center__card .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--n-50, #fff);
+  }
+
+  .ai-task-center__card .pager {
+    flex-shrink: 0;
   }
 
   .task-summary {
@@ -208,9 +250,6 @@
           <h1 class="page-head__title">AI 任务中心</h1>
           <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程与采纳结果</p>
         </div>
-        <div class="page-head__actions">
-          <button class="btn btn--default" type="button" id="atc-refresh"><span data-icon="refresh"></span>刷新</button>
-        </div>
       </header>
 
       <!-- AI 未启用 / 未配置模型：整页降级提示（交互 2.1.3） -->
@@ -241,7 +280,6 @@
           </select>
           <button class="btn btn--primary" type="button" id="atc-search"><span data-icon="search"></span>查询</button>
           <button class="btn btn--default" type="button" id="atc-reset">重置</button>
-          <span class="task-summary__muted" id="atc-updated-at" style="margin-left:auto">最近刷新：--:--:--</span>
         </div>
 
         <!-- 列表错误：提示条 + 重试，不展示空态以免误导（UI-PAGE-11） -->
@@ -469,13 +507,7 @@
     });
   }
 
-  function stamp() {
-    var d = new Date();
-    function pad(n) { return n < 10 ? '0' + n : String(n); }
-    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  }
-
-  // 刷新/重试：真实切换骨架屏与列表卡片，并重绘当前筛选结果，刷新后恢复初始 demo 数据
+  // 重试：真实切换骨架屏与列表卡片，并重绘当前筛选结果，恢复初始 demo 数据
   var reloadTimer = null;
   function reloadList(message, done) {
     var skeleton = byId('atc-skeleton');
@@ -488,7 +520,6 @@
       render();
       skeleton.hidden = true;
       card.hidden = false;
-      byId('atc-updated-at').textContent = '最近刷新：' + stamp();
       if (done) done();
       if (message) window.RTUX.toast(message, { type: 'success' });
     }, 600);
@@ -521,9 +552,6 @@
   byId('atc-search').addEventListener('click', search);
   byId('atc-reset').addEventListener('click', reset);
   byId('atc-empty-reset').addEventListener('click', reset);
-  byId('atc-refresh').addEventListener('click', function () {
-    reloadList('列表已刷新');
-  });
   byId('atc-retry').addEventListener('click', function () {
     var retry = byId('atc-retry');
     retry.disabled = true;
@@ -617,7 +645,6 @@
   if (location.hash === '#demo-load-error') byId('atc-error').hidden = false;
 
   render();
-  byId('atc-updated-at').textContent = '最近刷新：' + stamp();
 })();
 </script>
 </body>
