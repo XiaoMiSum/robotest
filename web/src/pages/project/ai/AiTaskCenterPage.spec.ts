@@ -70,7 +70,10 @@ describe('AiTaskCenterPage 行操作', () => {
     await flushPromises()
 
     expect(wrapper.find('.page-head__actions').exists()).toBe(false)
+    expect(wrapper.find('.page-head__desc').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('刷新')
+    expect(wrapper.find('.list-workspace__toolbar').exists()).toBe(true)
+    expect(wrapper.find('.ai-task-center__count').text()).toBe('共 1 条')
     expect(wrapper.find('.ai-task-center__table').exists()).toBe(true)
     expect(wrapper.find('.el-table').attributes('style')).toContain('height: 100%')
     wrapper.unmount()

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListWorkspace from '@/components/common/ListWorkspace.vue'
 import RowActions from '@/components/common/RowActions.vue'
 import { formatDateTime } from '@/utils/format'
 import { aiTaskTypeOptions } from '@/composables/project/ai/taskPresentation'
@@ -79,32 +80,6 @@ function onRowAction(key: string, row: unknown): void {
     />
 
     <template v-else>
-      <div class="filter-bar">
-        <el-select
-          v-model="filters.type"
-          clearable
-          filterable
-          placeholder="任务类型"
-          style="width: 220px"
-          @change="search"
-        >
-          <el-option v-for="option in typeOptions" :key="option.value" v-bind="option" />
-        </el-select>
-        <el-select
-          v-model="filters.status"
-          clearable
-          placeholder="任务状态"
-          style="width: 150px"
-          @change="search"
-        >
-          <el-option v-for="option in statusOptions" :key="option.value" v-bind="option" />
-        </el-select>
-        <el-button @click="search">
-          <el-icon><Search /></el-icon>查询
-        </el-button>
-        <el-button @click="resetFilters">重置</el-button>
-      </div>
-
       <!-- 列表错误：提示条 + 重试，不展示空态以免误导（UI-PAGE-11） -->
       <el-alert
         v-if="loadError"
@@ -126,7 +101,34 @@ function onRowAction(key: string, row: unknown): void {
         class="list-skeleton"
       />
 
-      <el-card v-else shadow="never" class="ai-task-center__card">
+      <ListWorkspace v-else label="AI 任务列表" :loading="loading" class="ai-task-center__card">
+        <template #toolbar>
+          <el-select
+            v-model="filters.type"
+            clearable
+            filterable
+            placeholder="任务类型"
+            style="width: 220px"
+            @change="search"
+          >
+            <el-option v-for="option in typeOptions" :key="option.value" v-bind="option" />
+          </el-select>
+          <el-select
+            v-model="filters.status"
+            clearable
+            placeholder="任务状态"
+            style="width: 150px"
+            @change="search"
+          >
+            <el-option v-for="option in statusOptions" :key="option.value" v-bind="option" />
+          </el-select>
+          <el-button @click="search">
+            <el-icon><Search /></el-icon>查询
+          </el-button>
+          <el-button @click="resetFilters">重置</el-button>
+          <span class="ai-task-center__count">共 {{ total }} 条</span>
+        </template>
+
         <div class="ai-task-center__table">
           <el-table v-loading="loading" :data="rows" row-key="taskId" height="100%">
             <el-table-column label="任务名" min-width="200" show-overflow-tooltip>
@@ -200,15 +202,17 @@ function onRowAction(key: string, row: unknown): void {
         </div>
 
         <!-- store 分页状态为只读 computed，细分事件直连原 handler（切条数已由组件先置页码为 1） -->
-        <ListPagination
-          :page-no="pageNo"
-          :page-size="pageSize"
-          :total="total"
-          :page-sizes="pageSizes"
-          @page-change="({ pageNo: page }) => changePage(page)"
-          @size-change="({ pageSize: size }) => changePageSize(size)"
-        />
-      </el-card>
+        <template #pagination>
+          <ListPagination
+            :page-no="pageNo"
+            :page-size="pageSize"
+            :total="total"
+            :page-sizes="pageSizes"
+            @page-change="({ pageNo: page }) => changePage(page)"
+            @size-change="({ pageSize: size }) => changePageSize(size)"
+          />
+        </template>
+      </ListWorkspace>
     </template>
   </main>
 </template>
@@ -223,6 +227,7 @@ function onRowAction(key: string, row: unknown): void {
 
 .page-head {
   display: flex;
+  flex-wrap: wrap;
   flex-shrink: 0;
   align-items: flex-start;
   justify-content: space-between;
@@ -235,22 +240,19 @@ function onRowAction(key: string, row: unknown): void {
   color: var(--color-neutral-900);
   font-size: var(--font-size-2xl);
   font-weight: 650;
-  letter-spacing: -0.01em;
 }
 
 .page-head__desc {
   margin: var(--space-xs) 0 0;
-  color: var(--color-neutral-500);
+  color: var(--color-neutral-600);
   font-size: var(--font-size-sm);
 }
 
-.filter-bar {
-  display: flex;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+.ai-task-center__count {
+  margin-left: auto;
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
 }
 
 .list-error {
@@ -266,24 +268,9 @@ function onRowAction(key: string, row: unknown): void {
   border-radius: var(--radius-md);
 }
 
-.ai-task-center__card {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  --el-card-padding: 0;
-
-  :deep(.el-card__body) {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  a {
-    color: var(--color-primary-500);
-    text-decoration: none;
-  }
+.ai-task-center__card a {
+  color: var(--color-primary-500);
+  text-decoration: none;
 }
 
 .ai-task-center__table {
