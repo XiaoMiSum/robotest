@@ -46,7 +46,7 @@ public class AiTaskExecution extends BaseUuidDO<AiTaskExecution> {
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> plan;
 
-    /** 预算快照 {maxSteps, maxDurationSeconds, maxTokens, maxCost}，按类型默认签发，只可下调 */
+    /** 预算快照 {maxSteps, maxTokens, maxCost}，按类型默认签发，只可下调 */
     @TableField(typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> budget;
 

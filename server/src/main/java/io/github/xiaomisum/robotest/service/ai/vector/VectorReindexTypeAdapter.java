@@ -26,7 +26,6 @@ public class VectorReindexTypeAdapter implements TaskTypeAdapter {
     /** 首版预算（总册 3.6.1）：steps 按 embedding 批次与索引替换动作计，不按实体逐条计 */
     private static final Map<String, Object> REINDEX_BUDGET = Map.of(
             "maxSteps", 500,
-            "maxDurationSeconds", 3600,
             "maxTokens", 10000000,
             "maxCost", 20);
 

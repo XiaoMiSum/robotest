@@ -107,7 +107,7 @@ class ExecutionControlTest {
      */
     @Test
     void stepBudget_atCapAllowsCompletion_butNextGateBlocks() {
-        execution.setBudget(Map.of("maxSteps", 2, "maxDurationSeconds", 600, "maxTokens", 10000));
+        execution.setBudget(Map.of("maxSteps", 2, "maxTokens", 10000));
         ExecutionControl realControl = new ExecutionControl(execution, new BudgetGuard(), executionMapper,
                 traceRecorder, executionLifecycle);
         when(executionLifecycle.isCurrentActive(execution.getTaskId(), execution.getId())).thenReturn(true);

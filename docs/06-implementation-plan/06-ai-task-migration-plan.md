@@ -90,7 +90,7 @@ flowchart LR
 | ---- | ---- |
 | `service/ai/task/core/AgentExecutionRunner` | 通用 Agent 循环驱动：计划快照入轨迹、白名单内工具调用（参数校验 → 作用域归属校验 → 执行 → 结果回喂）、预算闸门、心跳 |
 | `service/ai/task/core/TraceRecorder` | 轨迹事件写入（`plan / ai_decision / tool_call / tool_result / proposal_emitted / status_change`），只增不改 |
-| `service/ai/task/core/BudgetGuard` | 预算签发（类型默认 + 请求下调）与四维（步数 / 时长 / token / 成本）超限判定 |
+| `service/ai/task/core/BudgetGuard` | 预算签发（类型默认 + 请求下调）与三维（步数 / token / 成本）超限判定 |
 | `service/ai/task/type/TaskTypeAdapter` + `TaskTypeAdapterRegistry` | 新 SPI：input 校验、工具白名单与预算默认、提案结构、承接器注册（替代 `TaskHandler`） |
 | `service/ai/task/type/*TypeAdapter`（11 个） | 各 type 改造落地（详见 2.3.2） |
 | `model/entity/ai/AiTaskExecution` `AiTaskTraceEvent` `AiTaskProposal` `AiTaskAdoption` `AiTaskTool` + 各 Mapper | 新五表数据访问 |
@@ -310,3 +310,4 @@ grep -rn "ai_artifact_confirm\|retry_of_task_id" server/src/main/resources    # 
 | V1.0 | 2026-11-21 | 移除存量重复扫描任务：2.3.2 Handler 清单去 `BugDuplicateScan`、2.4 组件清单去 `BugDuplicateReviewPanel`、跨域消费方去 `useBugDuplicateScan` / `useBugDuplicateReview` |
 | V1.0 | 2026-11-23 | 迁移历史记录保留原貌；任务列表与详情的审核功能已下线，提案处置统一在业务面板完成，现行口径以需求 / 概要 / 详设 / 交互各分册为准 |
 | V1.0 | 2026-11-25 | 2.3.2 `bug_draft_suggest` 产出口径改为默认采纳的只读建议提案，与缺陷分析详设 3.4 同步 |
+| V1.0 | 2026-11-25 | 2.3.1 预算护栏登记同步为三维（步数 / token / 成本）；时长只记录与展示，首 token 超时基数 600s |

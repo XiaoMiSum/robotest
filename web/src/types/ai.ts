@@ -52,7 +52,6 @@ export interface AiTaskTerminateReason {
 /** 预算快照（总册 2.6.2）：类型默认 + 请求下调，执行期不可调高 */
 export interface AiTaskBudget {
   maxSteps?: number | null
-  maxDurationSeconds?: number | null
   maxTokens?: number | null
   maxCost?: number | null
 }

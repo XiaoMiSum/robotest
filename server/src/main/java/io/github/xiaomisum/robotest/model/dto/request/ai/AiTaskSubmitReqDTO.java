@@ -19,7 +19,7 @@ public class AiTaskSubmitReqDTO {
     private Map<String, Object> input;
 
     /**
-     * 预算覆盖 {maxSteps, maxDurationSeconds, maxTokens, maxCost}：仅可逐维低于类型默认值，
+     * 预算覆盖 {maxSteps, maxTokens, maxCost}：仅可逐维低于类型默认值，
      * 未知维度 / 超上限 / 非正数为 1000018126（校验在 BudgetGuard 签发时执行）。
      */
     private Map<String, Object> budget;

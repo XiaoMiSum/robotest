@@ -54,11 +54,11 @@ public class AiModelClient {
     /** 单次生成请求超时：仅连通性测试等阻塞式 call 路径使用；流式路径改由首 token / 空闲超时兜底 */
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
     /** 流式护栏（详设 4.2）：首 token 等待上限与相邻 chunk 空闲上限，内置常量不开放配置 */
-    private static final Duration FIRST_TOKEN_TIMEOUT = Duration.ofSeconds(60);
+    private static final Duration FIRST_TOKEN_TIMEOUT = Duration.ofSeconds(600);
     private static final Duration IDLE_TIMEOUT = Duration.ofSeconds(30);
-    /** 长流期间心跳刷新间隔：与 IDLE_TIMEOUT 对齐，防止任务总预算 / 心跳清扫误杀长流 */
+    /** 长流期间心跳刷新间隔：与 IDLE_TIMEOUT 对齐，防止心跳清扫误杀长流 */
     private static final Duration STREAM_HEARTBEAT_INTERVAL = Duration.ofSeconds(30);
-    /** 流式底层读取超时上限：远大于任务总预算，避免框架默认 60s 掐断长流；实际终止由 Reactor 护栏负责 */
+    /** 流式底层读取超时上限：远大于首 token 护栏，避免框架默认 60s 掐断长流；实际终止由 Reactor 护栏负责 */
     private static final Duration STREAM_UNDERLYING_TIMEOUT = Duration.ofHours(24);
     private static final int ERROR_MSG_MAX_LENGTH = 500;
     /** 密钥缺失 / 解密失败是配置类原因，不能用模型调用的通用文案替代（详设总册 4.5） */
@@ -207,7 +207,7 @@ public class AiModelClient {
     /**
      * 流式调用聚合（详设 4.2）：以首 token / 空闲双层超时订阅响应流，逐段累积文本与账单，
      * 工具调用取末帧完整列表（Spring AI 内部按 choice 累积，逐帧拼接会重复）。onDelta 逐段推送，
-     * onTick 按固定间隔刷新任务心跳，使任务总预算在单次长流期间持续生效。
+     * onTick 按固定间隔刷新任务心跳，防止长流期间被心跳清扫误杀。
      */
     private AiChatReply streamAndAggregate(ChatModel model, Prompt prompt, Runnable onTick) {
         return streamAndAggregate(model, prompt, onTick, text -> { });
@@ -331,7 +331,7 @@ public class AiModelClient {
                 .build();
     }
 
-    /** 流式构建：底层读取超时改为远大于任务总预算的值，实际终止由首 token / 空闲护栏接管（详设 4.2） */
+    /** 流式构建：底层读取超时改为远大于首 token 护栏的值，实际终止由首 token / 空闲护栏接管（详设 4.2） */
     ChatModel buildStreamChatModel(AiChatRequest request, String apiKey) {
         return OpenAiChatModel.builder()
                 .options(buildStreamOptionsWithDeclarations(request.model(), apiKey,
@@ -377,7 +377,7 @@ public class AiModelClient {
     }
 
     /**
-     * 流式选项：底层读取超时放到远大于任务总预算的值（Spring AI builder 缺省 60s 会掐断长流），
+     * 流式选项：底层读取超时放到远大于首 token 护栏的值（Spring AI builder 缺省 60s 会掐断长流），
      * 真正的首 token / 空闲终止交由 Reactor 护栏（详设 4.2）。
      */
     private static OpenAiChatOptions buildStreamOptionsWithDeclarations(AiModelConfig model, String apiKey,

@@ -88,14 +88,12 @@ class StandardTaskTypeAdaptersTest {
 
         TaskTypeAdapter assistant = registry.get("assistant_parse");
         assertEquals(5, assistant.defaultBudget().get("maxSteps"));
-        assertEquals(600, assistant.defaultBudget().get("maxDurationSeconds"));
         assertEquals(200000, assistant.defaultBudget().get("maxTokens"));
         assertEquals(5, assistant.defaultBudget().get("maxCost"));
         assertTrue(assistant.toolCodes().isEmpty());
 
         TaskTypeAdapter vector = registry.get("vector_reindex");
         assertEquals(500, vector.defaultBudget().get("maxSteps"));
-        assertEquals(3600, vector.defaultBudget().get("maxDurationSeconds"));
         assertEquals(10000000, vector.defaultBudget().get("maxTokens"));
         assertEquals(20, vector.defaultBudget().get("maxCost"));
         assertTrue(vector.toolCodes().isEmpty());

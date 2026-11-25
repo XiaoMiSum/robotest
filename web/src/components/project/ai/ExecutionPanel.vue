@@ -44,11 +44,6 @@ const durationText = computed(() => {
   return `${Math.round(durationMs / 1000)}s`
 })
 
-const maxDurationText = computed(() => {
-  const maxSeconds = props.execution?.budget?.maxDurationSeconds
-  return maxSeconds && maxSeconds > 0 ? `${maxSeconds}s` : '—'
-})
-
 const tokensText = computed(() => {
   const consumed = props.execution?.consumed
   if (!consumed) return '—'
@@ -77,7 +72,7 @@ const costText = computed(() => {
       >{{ executionBadge.label }}</el-tag>
       <span v-if="seqText" class="execution-panel__seq">{{ seqText }}</span>
       <span class="execution-panel__metrics">
-        步数 {{ stepsText }} · 时长 {{ durationText }}/{{ maxDurationText }} ·
+        步数 {{ stepsText }} · 时长 {{ durationText }} ·
         tokens {{ tokensText }} · 成本 {{ costText }}
       </span>
     </div>

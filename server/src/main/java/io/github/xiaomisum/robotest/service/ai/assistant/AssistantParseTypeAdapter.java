@@ -31,7 +31,6 @@ public class AssistantParseTypeAdapter implements TaskTypeAdapter {
     /** 助手首版预算（总册 3.6.1）：steps 与单消息 5 跳上限一致 */
     private static final Map<String, Object> ASSISTANT_BUDGET = Map.of(
             "maxSteps", 5,
-            "maxDurationSeconds", 600,
             "maxTokens", 200000,
             "maxCost", 5);
 

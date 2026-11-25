@@ -239,7 +239,7 @@ CREATE INDEX idx_ai_task_status ON ai_task (status, updated_at);
 | prompt_scene | varchar(50) | NULL | 实际使用的提示词场景（关联 `ai_prompt_template.scene`），用量按场景归因 |
 | model_id | uuid | NULL | 执行期解析的模型（关联 `ai_model_config` 稳定 ID）；**再次执行按最新默认模型重新解析**，不沿用上次执行的模型 |
 | plan | jsonb | NULL | AI 在执行开始产出的计划步骤快照（可见思考产物，不作为应用层执行依据） |
-| budget | jsonb | NOT NULL | 预算快照 `{maxSteps, maxDurationSeconds, maxTokens, maxCost}`，按任务类型默认值签发，只可下调 |
+| budget | jsonb | NOT NULL | 预算快照 `{maxSteps, maxTokens, maxCost}`，按任务类型默认值签发，只可下调 |
 | steps | int | NOT NULL, DEFAULT 0 | 已执行步数（每次工具调用或决策计一步） |
 | tokens_in / tokens_out | int | NOT NULL, DEFAULT 0 | 执行级 token 汇总 |
 | cost | numeric(14,6) | NOT NULL, DEFAULT 0 | 执行级成本汇总 |
@@ -763,11 +763,11 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | assistant_parse | 助手解析 | 会话标题（`messageId` → `AiAssistantMessage.conversationId` → `AiAssistantConversation.title`） |
 | vector_reindex | 向量索引重建 | 索引范围（`scope.entityTypes` 映射为「需求 / 用例 / 缺陷」，缺省「全量」） |
 
-每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxDurationSeconds / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
+每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxTokens / maxCost`）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的五类）的首版默认预算统一为 `{maxSteps: 40, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的五类）的首版默认预算统一为 `{maxSteps: 40, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
 
-`assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxDurationSeconds: 600, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxDurationSeconds: 3600, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
+`assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 
 #### 3.6.2 提交任务（创建即启动执行）
 
@@ -793,7 +793,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   "type": "requirement_import",
   "title": "",
   "status": "running",
-  "budget": { "maxSteps": 40, "maxDurationSeconds": 600, "maxTokens": 200000, "maxCost": 5 },
+  "budget": { "maxSteps": 40, "maxTokens": 200000, "maxCost": 5 },
   "tokensIn": 0,
   "tokensOut": 0,
   "terminateReason": null,
@@ -831,7 +831,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
     "seq": 1,
     "status": "succeeded",
     "steps": 23,
-    "budget": { "maxSteps": 40, "maxDurationSeconds": 600, "maxTokens": 200000, "maxCost": 5 },
+    "budget": { "maxSteps": 40, "maxTokens": 200000, "maxCost": 5 },
     "consumed": { "durationMs": 94000, "tokensIn": 1200, "tokensOut": 3400, "cost": 0.21 },
     "plan": { "steps": ["解析文档", "识别需求条目", "生成提案"] },
     "terminateReason": null
@@ -935,11 +935,11 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 - **执行入口与策略分派**：八个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
 - **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清与回答仍按分册 04 处理，不转为通用提案确认、不经人工确认落库；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
-- **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享时长 / 成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
-- **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。chat 类调用（任务执行核、助手、缺陷建议）经 Spring AI `stream()` 流式读取并聚合响应，平台仅在响应流上编排首 token 超时与空闲超时（内置常量、不开放配置；超时按 1000018117 终止），不接管传输层；向量 embedding 与模型连通性测试仍走阻塞式 `call()`。流式调用沿用任务总时长预算（`maxDurationSeconds`）与心跳超时清扫口径（4.2），不改变其判定。
+- **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
+- **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。chat 类调用（任务执行核、助手、缺陷建议）经 Spring AI `stream()` 流式读取并聚合响应，平台仅在响应流上编排首 token 超时与空闲超时（首 token 600s、空闲 30s，内置常量、不开放配置；超时按 1000018117 终止），不接管传输层；向量 embedding 与模型连通性测试仍走阻塞式 `call()`。流式调用沿用心跳超时清扫口径（4.2），不改变其判定。
 - **模型选型（能力 + 优先级）**：执行启动期按「任务必需能力」解析模型并回写执行行 `model_id`（维持启动时解析、执行不漂移），执行期以执行行 `model_id` 按同一规则复验；必需能力由类型适配器从任务输入派生——`requirement_import` 图片文件、`assistant_parse` 消息附图为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。再次执行（3.6.4）不将上次执行 `model_id` 作为指定模型，按同一规则从当前默认模型重新解析；单次执行内的自动短重试（同 `model_id`，见「失败与自动重试」）不受影响。
 - **类型适配**：`type → 类型适配器`（每个适配器注册：input 校验器、工具白名单与预算默认值、提案结构定义、落库承接器）；执行核是通用 Agent 循环——AI 自主规划步骤（`plan` 事件入轨迹）、在白名单内选择并调用工具（参数校验 → 作用域鉴权 → [确认型工具触发人工闸门] → 执行 → 结果回喂）、失败自行决定重试 / 改道 / 终止；应用层不在循环内预设业务流程。执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
-- **预算护栏**：执行启动时按「类型默认值 + 请求下调」签发预算快照（2.6.2）；步数 / 时长 / token / 成本任一超限即终止执行与任务（`terminate_code = 1000018127`）；预算不可在执行中调高。
+- **预算护栏**：执行启动时按「类型默认值 + 请求下调」签发预算快照（2.6.2）；步数 / token / 成本任一超限即终止执行与任务（`terminate_code = 1000018127`）；预算不可在执行中调高。
 - **生命周期**：执行 `running →（waiting_confirmation）→ succeeded / aborted`；任务 `running → proposals_ready → closed`，用户中止 / 预算耗尽 / 执行错误 / 总开关关闭时任务置 `aborted`；默认采纳型只读产出（缺陷建议）执行完成即按提交人写采纳记录并 `closed`，轨迹记录「建议已默认采纳」；其余无待采纳提案的只读产出执行完成即 `closed`；心跳超时清扫器按 `task_timeout_seconds` 扫描 `status + heartbeat_at` 索引（2.6.2），超时置 `aborted`（`terminate_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待执行完成，超时返回执行中状态；等待不改变异步语义。
 - **失败与自动重试**：模型调用失败先按 `task_max_retries` 自动短重试（同 `model_id`），耗尽后执行终止；用户再次执行走 3.6.4（新执行实例）。重试由 Spring AI 内建重试策略执行，最大尝试次数按 `task_max_retries` 注入，平台不自实现 HTTP 重试循环。
@@ -1166,3 +1166,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-23 | 5.2 轨迹组件模型响应展示细化：`content` 先按 JSON 解析（含 Markdown 代码围栏剥离）为可折叠节点，失败保留原文，复制内容与展示一致；存储与接口不变 |
 | V1.0 | 2026-11-24 | 4.5 新增「失败原因口径」：任务终止原因、连通性测试摘要、助手错误事件与服务端日志统一记录脱敏后的底层真实原因（提取 / 脱敏 / 截断 / 日志），2.3 / 2.4 / 3.3 / 3.4 / 4.2 / 6 引用 |
 | V1.0 | 2026-11-25 | `bug_draft_suggest` 改为默认采纳：3.6.1 承接与 2.6.4 状态回显、3.6.3 聚合统计、4.2 生命周期同步采纳记录口径 |
+| V1.0 | 2026-11-25 | 预算护栏移除时长维度：2.6.2 预算快照、3.6.1 默认预算、3.6.2 报文示例与 4.2 预算 / 调用层口径同步为步数 / token / 成本，流式首 token 超时定为 600s |

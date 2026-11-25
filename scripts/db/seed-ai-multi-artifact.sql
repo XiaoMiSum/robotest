@@ -74,7 +74,7 @@ INSERT INTO ai_task_execution (
     '7e57001f-0000-4000-8000-000000000002',
     'case_optimize',
     '{"steps":["解析用例上下文","生成优化建议"]}'::jsonb,
-    '{"maxSteps":40,"maxDurationSeconds":600,"maxTokens":200000,"maxCost":5}'::jsonb,
+    '{"maxSteps":40,"maxTokens":200000,"maxCost":5}'::jsonb,
     5, 1800, 4200, 0.28, 96000, CURRENT_TIMESTAMP
 );
 

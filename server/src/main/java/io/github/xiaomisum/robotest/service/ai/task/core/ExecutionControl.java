@@ -131,17 +131,13 @@ public final class ExecutionControl {
 
     private void ensureWithinBudget(int budgetedSteps) {
         if (budgetGuard.exceeded(budget(), BudgetGuard.Consumed.of(
-                budgetedSteps, elapsedSeconds(), tokensIn, tokensOut, cost))) {
+                budgetedSteps, tokensIn, tokensOut, cost))) {
             throw new BudgetExceededException();
         }
     }
 
     private Map<String, Object> budget() {
         return execution.getBudget() == null ? Map.of() : execution.getBudget();
-    }
-
-    private long elapsedSeconds() {
-        return (System.currentTimeMillis() - startedAtMs) / 1000;
     }
 
     private static int value(Integer number) {

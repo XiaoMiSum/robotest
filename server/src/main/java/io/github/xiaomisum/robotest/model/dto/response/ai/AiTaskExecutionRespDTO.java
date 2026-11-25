@@ -24,7 +24,7 @@ public class AiTaskExecutionRespDTO {
     /** 已执行步数 */
     private Integer steps;
 
-    /** 预算快照 {maxSteps, maxDurationSeconds, maxTokens, maxCost} */
+    /** 预算快照 {maxSteps, maxTokens, maxCost} */
     private Map<String, Object> budget;
 
     /** 执行消耗 */

@@ -330,7 +330,7 @@
       submitter: '李华',
       createdAt: '2026-11-20T09:42:00Z',
       execution: {
-        seq: 2, status: 'running', steps: 3, budget: { maxSteps: 5, maxDurationSeconds: 600, maxTokens: 20000, maxCost: 2 },
+        seq: 2, status: 'running', steps: 3, budget: { maxSteps: 5, maxTokens: 20000, maxCost: 2 },
         consumed: { durationMs: 52000, tokensIn: 3200, tokensOut: 1400, cost: 0.42 }, terminateReason: null
       },
       plan: ['读取脑图节点', '分析幂等边界', '生成节点优化建议', '写入提案清单', '等待人工确认'],
@@ -350,7 +350,7 @@
       submitter: '陈晓',
       createdAt: '2026-11-20T10:12:00Z',
       execution: {
-        seq: 1, status: 'succeeded', steps: 8, budget: { maxSteps: 8, maxDurationSeconds: 600, maxTokens: 20000, maxCost: 2 },
+        seq: 1, status: 'succeeded', steps: 8, budget: { maxSteps: 8, maxTokens: 20000, maxCost: 2 },
         consumed: { durationMs: 83000, tokensIn: 8200, tokensOut: 3100, cost: 0.93 }, terminateReason: null
       },
       plan: ['解析需求文档', '抽取候选需求', '生成需求建议', '等待人工确认'],
@@ -374,7 +374,7 @@
       submitter: '周敏',
       createdAt: '2026-11-18T10:15:00Z',
       execution: {
-        seq: 1, status: 'aborted', steps: 2, budget: { maxSteps: 6, maxDurationSeconds: 1200, maxTokens: 0, maxCost: 0 },
+        seq: 1, status: 'aborted', steps: 2, budget: { maxSteps: 6, maxTokens: 0, maxCost: 0 },
         consumed: { durationMs: 98000, tokensIn: 0, tokensOut: 0, cost: 0 }, terminateReason: { code: 1000018210, msg: '用户手动终止' }
       },
       plan: ['扫描向量集合', '重建商品索引', '校验索引版本', '切换读别名'],
@@ -393,7 +393,7 @@
       submitter: '陈晓',
       createdAt: '2026-11-18T14:33:00Z',
       execution: {
-        seq: 1, status: 'succeeded', steps: 8, budget: { maxSteps: 8, maxDurationSeconds: 600, maxTokens: 20000, maxCost: 2 },
+        seq: 1, status: 'succeeded', steps: 8, budget: { maxSteps: 8, maxTokens: 20000, maxCost: 2 },
         consumed: { durationMs: 91000, tokensIn: 7600, tokensOut: 2800, cost: 0.88 }, terminateReason: null
       },
       plan: ['解析需求文档', '抽取候选需求', '生成需求建议', '写入采纳结果'],
@@ -453,8 +453,6 @@
     var stepText = maxSteps ? steps + '/' + maxSteps + ' 步' : steps + ' 步';
     var durationMs = execution.consumed ? execution.consumed.durationMs : null;
     var durationText = durationMs == null ? '—' : Math.round(durationMs / 1000) + 's';
-    var maxSeconds = execution.budget && execution.budget.maxDurationSeconds;
-    var maxDurationText = maxSeconds ? maxSeconds + 's' : '—';
     var consumed = execution.consumed || {};
     var used = (consumed.tokensIn || 0) + (consumed.tokensOut || 0);
     var maxTokens = execution.budget && execution.budget.maxTokens;
@@ -462,7 +460,7 @@
     var cost = consumed.cost;
     var maxCost = execution.budget ? execution.budget.maxCost : null;
     var costText = cost == null ? '—' : (maxCost != null ? cost + '/' + maxCost : String(cost));
-    return '步数 ' + stepText + ' · 时长 ' + durationText + '/' + maxDurationText + ' · tokens ' + tokensText + ' · 成本 ' + costText;
+    return '步数 ' + stepText + ' · 时长 ' + durationText + ' · tokens ' + tokensText + ' · 成本 ' + costText;
   }
 
   function planState(index, execution) {

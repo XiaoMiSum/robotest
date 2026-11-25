@@ -17,7 +17,6 @@ public interface TaskTypeAdapter {
 
     Map<String, Object> STANDARD_BUDGET = Map.of(
             "maxSteps", 40,
-            "maxDurationSeconds", 600,
             "maxTokens", 200000,
             "maxCost", 5);
 
@@ -96,7 +95,7 @@ public interface TaskTypeAdapter {
     /** 该类型的工具白名单签发依据（tool_code 清单；与 ai_task_tool 启用行取交集后交模型声明） */
     List<String> toolCodes();
 
-    /** 预算默认值 {maxSteps, maxDurationSeconds, maxTokens, maxCost}，签发时仅可下调（1000018126） */
+    /** 预算默认值 {maxSteps, maxTokens, maxCost}，签发时仅可下调（1000018126） */
     Map<String, Object> defaultBudget();
 
     /** 系统提示词（唯一登记点，提示词单轨化，S4 落地后删除 Handler.defaultPrompt 回落链） */

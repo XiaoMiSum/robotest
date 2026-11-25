@@ -1966,7 +1966,7 @@ COMMENT ON COLUMN ai_task_execution.started_by IS '执行发起人';
 COMMENT ON COLUMN ai_task_execution.prompt_scene IS '实际使用的提示词场景，用量按场景归因';
 COMMENT ON COLUMN ai_task_execution.model_id IS '执行期解析的模型，再次执行复用同模型';
 COMMENT ON COLUMN ai_task_execution.plan IS 'AI 执行开始产出的计划步骤快照（可见思考产物，不作为执行依据）';
-COMMENT ON COLUMN ai_task_execution.budget IS '预算快照 {maxSteps,maxDurationSeconds,maxTokens,maxCost}，按类型默认签发，只可下调';
+COMMENT ON COLUMN ai_task_execution.budget IS '预算快照 {maxSteps,maxTokens,maxCost}，按类型默认签发，只可下调';
 COMMENT ON COLUMN ai_task_execution.steps IS '已执行步数（每次工具调用或决策计一步）';
 COMMENT ON COLUMN ai_task_execution.tokens_in IS '执行级入向 token 汇总';
 COMMENT ON COLUMN ai_task_execution.tokens_out IS '执行级出向 token 汇总';

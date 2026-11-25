@@ -62,7 +62,6 @@ class AssistantParseTypeAdapterTest {
 
         Map<String, Object> budget = adapter.defaultBudget();
         assertEquals(5, budget.get("maxSteps"));
-        assertEquals(600, budget.get("maxDurationSeconds"));
         assertEquals(200000, budget.get("maxTokens"));
         assertEquals(5, budget.get("maxCost"));
 

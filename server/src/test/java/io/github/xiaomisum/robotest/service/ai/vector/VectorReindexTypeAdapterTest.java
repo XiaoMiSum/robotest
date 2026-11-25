@@ -39,7 +39,6 @@ class VectorReindexTypeAdapterTest {
 
         Map<String, Object> budget = adapter.defaultBudget();
         assertEquals(500, budget.get("maxSteps"));
-        assertEquals(3600, budget.get("maxDurationSeconds"));
         assertEquals(10000000, budget.get("maxTokens"));
         assertEquals(20, budget.get("maxCost"));
 

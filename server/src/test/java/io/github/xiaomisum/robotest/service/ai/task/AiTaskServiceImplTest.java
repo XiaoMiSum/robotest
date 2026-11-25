@@ -88,7 +88,7 @@ class AiTaskServiceImplTest {
     private static final UUID NEW_MODEL_ID = UUID.randomUUID();
     private static final String TYPE = "requirement_import";
     private static final Map<String, Object> BUDGET = Map.of(
-            "maxSteps", 40, "maxDurationSeconds", 600, "maxTokens", 200000, "maxCost", 5);
+            "maxSteps", 40, "maxTokens", 200000, "maxCost", 5);
 
     @Mock
     private AiTaskMapper taskMapper;
