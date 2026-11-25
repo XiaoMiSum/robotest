@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import ListPagination from '@/components/common/ListPagination.vue'
+import RowActions from '@/components/common/RowActions.vue'
 import { formatDateTime } from '@/utils/format'
 import { aiTaskTypeOptions } from '@/composables/project/ai/taskPresentation'
 import type { AiTaskRow } from '@/composables/project/ai/useAiTaskCenter'
@@ -27,6 +29,7 @@ const {
   handleReExecute,
 } = useAiTaskCenter()
 
+const router = useRouter()
 const typeOptions = aiTaskTypeOptions()
 
 /** 状态筛选四态（交互 2.1.2，取值与总册 2.6.1 一致） */
@@ -40,6 +43,22 @@ const statusOptions = [
 /** el-table 插槽行是宽松类型，此处收窄为行视图模型（no-unsafe 后端未知键本就不读取） */
 function asRow(row: unknown): AiTaskRow {
   return row as AiTaskRow
+}
+
+function actionsOf(row: unknown) {
+  const task = asRow(row)
+  return [
+    { key: 'detail', label: '详情', form: 'PLsm' as const },
+    { key: 'abort', label: '终止', form: 'DGsm' as const, visible: task.canAbort },
+    { key: 'reExecute', label: '重新执行', form: 'PLsm' as const, visible: task.canReExecute },
+  ]
+}
+
+function onRowAction(key: string, row: unknown): void {
+  const task = asRow(row)
+  if (key === 'detail') void router.push(`/workspace/projects/ai/tasks/${task.taskId}`)
+  else if (key === 'abort') void handleAbort(task)
+  else if (key === 'reExecute') void handleReExecute(task)
 }
 </script>
 
@@ -165,21 +184,7 @@ function asRow(row: unknown): AiTaskRow {
           </el-table-column>
           <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
-              <router-link :to="`/workspace/projects/ai/tasks/${asRow(row).taskId}`">详情</router-link>
-              <el-button
-                v-if="asRow(row).canAbort"
-                link
-                type="danger"
-                size="small"
-                @click="handleAbort(asRow(row))"
-              >终止</el-button>
-              <el-button
-                v-if="asRow(row).canReExecute"
-                link
-                type="primary"
-                size="small"
-                @click="handleReExecute(asRow(row))"
-              >重新执行</el-button>
+              <RowActions :actions="actionsOf(row)" @action="(key) => onRowAction(key, row)" />
             </template>
           </el-table-column>
           <template #empty>
