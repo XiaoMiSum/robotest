@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest'
 import pageSource from './MocksPage.vue?raw'
 
 describe('MocksPage 列表交互与反馈', () => {
+  it('页头 + 单卡片布局：新建为主按钮、工具栏计数与分页总数齐全', () => {
+    expect(pageSource).toContain('<header class="page-head">')
+    expect(pageSource).toContain('class="page-head__desc"')
+    expect(pageSource).toContain('新建 Mock')
+    expect(pageSource).toContain('<ListWorkspace label="Mock 规则列表"')
+    expect(pageSource).toContain('class="mocks-page__count"')
+    expect(pageSource).toContain('共 {{ total }} 条')
+    expect(pageSource).toContain('#pagination')
+    expect(pageSource).not.toContain('bare')
+  })
+
   it('加载、筛选和分页请求具备失效保护并支持首屏/刷新失败恢复', () => {
     expect(pageSource).toContain('listRequestId')
     expect(pageSource).toContain("errorMessage(err, '加载 Mock 列表失败')")

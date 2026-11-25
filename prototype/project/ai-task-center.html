@@ -11,42 +11,6 @@
   /* 弹层与空态行靠 hidden 开关，作者样式的 display 会盖过 UA [hidden] */
   [hidden] { display: none !important; }
 
-  .page-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-lg);
-    margin-bottom: var(--space-xl);
-  }
-
-  .page-head__title {
-    margin: 0;
-    color: var(--n-900);
-    font-size: 22px;
-    font-weight: 650;
-    letter-spacing: -0.01em;
-  }
-
-  .page-head__desc {
-    margin: 6px 0 0;
-    color: var(--n-500);
-    font-size: var(--font-size-sm);
-  }
-
-  .page-head__actions {
-    display: flex;
-    gap: var(--space-sm);
-    flex-shrink: 0;
-  }
-
-  .filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-md);
-  }
-
   .list-error {
     display: flex;
     align-items: center;
@@ -84,11 +48,49 @@
     100% { background-position: 0 50%; }
   }
 
-  .ai-task-center__card {
-    background: #fff;
-    border: 1px solid var(--n-200);
-    border-radius: var(--radius-md);
+  /* 任务中心：高度链落到表体，滚动拥有者下沉，页面不再出现纵向滚动条（UI-SC-01/02/05/06） */
+  .split__main {
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+  }
+
+  .page-head,
+  .list-error,
+  .list-skeleton {
+    flex-shrink: 0;
+  }
+
+  #atc-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .ai-task-center__card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ai-task-center__card .table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .ai-task-center__card .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--n-50, #fff);
+  }
+
+  .ai-task-center__card .pager {
+    flex-shrink: 0;
   }
 
   .task-summary {
@@ -208,9 +210,6 @@
           <h1 class="page-head__title">AI 任务中心</h1>
           <p class="page-head__desc">项目内 AI 任务的统一入口，跟踪执行过程与采纳结果</p>
         </div>
-        <div class="page-head__actions">
-          <button class="btn btn--default" type="button" id="atc-refresh"><span data-icon="refresh"></span>刷新</button>
-        </div>
       </header>
 
       <!-- AI 未启用 / 未配置模型：整页降级提示（交互 2.1.3） -->
@@ -221,29 +220,6 @@
       </section>
 
       <div id="atc-main">
-        <div class="filter-bar">
-          <select class="select" id="atc-type" style="width:220px" aria-label="任务类型">
-            <option value="">任务类型</option>
-            <option value="requirement_import">需求导入（需求）</option>
-            <option value="case_optimize">用例优化（辅助）</option>
-            <option value="mindmap_case_generation">脑图用例生成（辅助）</option>
-            <option value="plan_order">计划排序（辅助）</option>
-            <option value="review_case_review">AI 评审（辅助）</option>
-            <option value="assistant_parse">助手解析（助手）</option>
-            <option value="vector_reindex">向量索引重建（底座）</option>
-          </select>
-          <select class="select" id="atc-status" style="width:150px" aria-label="任务状态">
-            <option value="">任务状态</option>
-            <option value="running">执行中</option>
-            <option value="proposals_ready">待采纳</option>
-            <option value="closed">已结束</option>
-            <option value="aborted">已终止</option>
-          </select>
-          <button class="btn btn--primary" type="button" id="atc-search"><span data-icon="search"></span>查询</button>
-          <button class="btn btn--default" type="button" id="atc-reset">重置</button>
-          <span class="task-summary__muted" id="atc-updated-at" style="margin-left:auto">最近刷新：--:--:--</span>
-        </div>
-
         <!-- 列表错误：提示条 + 重试，不展示空态以免误导（UI-PAGE-11） -->
         <div class="list-error" id="atc-error" hidden role="alert">
           <span class="list-error__msg" id="atc-error-msg">加载任务列表失败</span>
@@ -260,7 +236,32 @@
           <div class="skeleton-row"></div>
         </div>
 
-        <div class="ai-task-center__card" id="atc-card">
+        <div class="card ai-task-center__card" id="atc-card">
+          <div class="toolbar">
+            <div class="toolbar__filters">
+              <select class="select" id="atc-type" style="width:220px" aria-label="任务类型">
+                <option value="">任务类型</option>
+                <option value="requirement_import">需求导入（需求）</option>
+                <option value="case_optimize">用例优化（辅助）</option>
+                <option value="mindmap_case_generation">脑图用例生成（辅助）</option>
+                <option value="plan_order">计划排序（辅助）</option>
+                <option value="review_case_review">AI 评审（辅助）</option>
+                <option value="assistant_parse">助手解析（助手）</option>
+                <option value="vector_reindex">向量索引重建（底座）</option>
+              </select>
+              <select class="select" id="atc-status" style="width:150px" aria-label="任务状态">
+                <option value="">任务状态</option>
+                <option value="running">执行中</option>
+                <option value="proposals_ready">待采纳</option>
+                <option value="closed">已结束</option>
+                <option value="aborted">已终止</option>
+              </select>
+              <button class="btn btn--primary" type="button" id="atc-search"><span data-icon="search"></span>查询</button>
+              <button class="btn btn--default" type="button" id="atc-reset">重置</button>
+            </div>
+            <div class="toolbar__count" id="atc-count">共 7 条</div>
+          </div>
+
           <div class="table-wrap">
             <table class="table" id="atc-table">
               <thead>
@@ -452,6 +453,7 @@
     });
 
     var filtered = Boolean(applied.type || applied.status);
+    byId('atc-count').textContent = '共 ' + total + ' 条';
     byId('atc-pager-total').textContent = '共 ' + total + ' 条 · 每页 ' + applied.pageSize + ' 条';
 
     emptyFilter.hidden = !filtered || shown !== 0;
@@ -469,13 +471,7 @@
     });
   }
 
-  function stamp() {
-    var d = new Date();
-    function pad(n) { return n < 10 ? '0' + n : String(n); }
-    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  }
-
-  // 刷新/重试：真实切换骨架屏与列表卡片，并重绘当前筛选结果，刷新后恢复初始 demo 数据
+  // 重试：真实切换骨架屏与列表卡片，并重绘当前筛选结果，恢复初始 demo 数据
   var reloadTimer = null;
   function reloadList(message, done) {
     var skeleton = byId('atc-skeleton');
@@ -488,7 +484,6 @@
       render();
       skeleton.hidden = true;
       card.hidden = false;
-      byId('atc-updated-at').textContent = '最近刷新：' + stamp();
       if (done) done();
       if (message) window.RTUX.toast(message, { type: 'success' });
     }, 600);
@@ -521,9 +516,6 @@
   byId('atc-search').addEventListener('click', search);
   byId('atc-reset').addEventListener('click', reset);
   byId('atc-empty-reset').addEventListener('click', reset);
-  byId('atc-refresh').addEventListener('click', function () {
-    reloadList('列表已刷新');
-  });
   byId('atc-retry').addEventListener('click', function () {
     var retry = byId('atc-retry');
     retry.disabled = true;
@@ -617,7 +609,6 @@
   if (location.hash === '#demo-load-error') byId('atc-error').hidden = false;
 
   render();
-  byId('atc-updated-at').textContent = '最近刷新：' + stamp();
 })();
 </script>
 </body>

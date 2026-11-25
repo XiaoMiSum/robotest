@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest'
 import pageSource from './SchedulesPage.vue?raw'
 
 describe('SchedulesPage 列表交互与反馈', () => {
+  it('页头 + 单卡片布局：新建为主按钮、工具栏计数与分页总数齐全', () => {
+    expect(pageSource).toContain('<header class="page-head">')
+    expect(pageSource).toContain('class="page-head__desc"')
+    expect(pageSource).toContain('>新建任务</el-button>')
+    expect(pageSource).toContain('<ListWorkspace label="定时任务列表"')
+    expect(pageSource).toContain('class="schedules-page__count"')
+    expect(pageSource).toContain('共 {{ total }} 条')
+    expect(pageSource).toContain('#pagination')
+    expect(pageSource.match(/\bbare\b/g)).toHaveLength(1)
+  })
+
   it('表格区固定高度并支持加载/刷新失败恢复', () => {
     expect(pageSource).toContain('class="schedules-page__table"')
     expect(pageSource).toContain('height="100%"')

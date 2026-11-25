@@ -10,6 +10,7 @@ import {
 import { formatDateTime } from '@/utils/format'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
+import ListWorkspace from '@/components/common/ListWorkspace.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
@@ -206,40 +207,50 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-loading="loading" class="reports-page">
-    <div class="reports-page__toolbar">
-      <el-select v-model="statusFilter" style="width: 110px" @change="handleFilter">
-        <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-      </el-select>
-      <el-date-picker
-        v-model="dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        value-format="YYYY-MM-DDT00:00:00"
-        style="width: 220px"
-        @change="handleFilter"
-      />
-      <el-input
-        v-model="searchText"
-        placeholder="报告名称"
-        clearable
-        style="width: 200px"
-        @keyup.enter="handleFilter"
-        @clear="handleFilter"
-      />
-    </div>
+  <main class="reports-page">
+    <header class="page-head">
+      <div>
+        <h1 class="page-head__title">测试报告</h1>
+        <p class="page-head__desc">接口测试执行结果的统一归档与回顾</p>
+      </div>
+    </header>
 
-    <div v-if="hasLoaded && loadError" class="reports-page__feedback">
-      <ListLoadFeedback
-        mode="refresh-error"
-        title="刷新失败，当前显示上次加载的数据"
-        :description="loadError"
-        :retrying="loading"
-        @retry="loadPage"
-      />
-    </div>
+    <ListWorkspace label="测试报告列表" :loading="loading">
+      <template #toolbar>
+        <div class="reports-page__filters">
+          <el-select v-model="statusFilter" style="width: 110px" @change="handleFilter">
+            <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DDT00:00:00"
+            style="width: 220px"
+            @change="handleFilter"
+          />
+          <el-input
+            v-model="searchText"
+            placeholder="报告名称"
+            clearable
+            style="width: 200px"
+            @keyup.enter="handleFilter"
+            @clear="handleFilter"
+          />
+        </div>
+        <span class="reports-page__count">共 {{ total }} 份报告</span>
+      </template>
+      <template v-if="hasLoaded && loadError" #feedback>
+        <ListLoadFeedback
+          mode="refresh-error"
+          title="刷新失败，当前显示上次加载的数据"
+          :description="loadError"
+          :retrying="loading"
+          @retry="loadPage"
+        />
+      </template>
 
     <!-- 表体区是页面内唯一滚动拥有者：表格固定高度、表头固定，超出时表体内滚动（UI-SC-02 / UI-SC-05 / UI-SC-06） -->
     <div v-if="hasLoaded || !loadError" class="reports-page__body">
@@ -323,21 +334,20 @@ onMounted(async () => {
       <ListLoadFeedback mode="error" :title="emptyTitle" :description="loadError" :retrying="loading" @retry="loadPage" />
     </div>
 
-    <!-- 页面壳已提供左右内边距，分页用 bare 模式与工具栏对齐同一左基线 -->
-    <div v-if="hasLoaded || !loadError" class="reports-page__footer">
-      <ListPagination
-        v-model:page-no="pageNo"
-        v-model:page-size="pageSize"
-        :total="total"
-        bare
-        @change="loadPage"
-      />
-    </div>
+      <template v-if="hasLoaded || !loadError" #pagination>
+        <ListPagination
+          v-model:page-no="pageNo"
+          v-model:page-size="pageSize"
+          :total="total"
+          @change="loadPage"
+        />
+      </template>
+    </ListWorkspace>
 
     <BatchActionBar :count="selectedIds.length" @clear="tableRef?.clearSelection()">
       <el-button data-test="batch-delete-btn" type="danger" @click="handleBatchDelete">批量删除</el-button>
     </BatchActionBar>
-  </div>
+  </main>
 </template>
 
 <style scoped lang="scss">
@@ -348,16 +358,48 @@ onMounted(async () => {
   min-height: 0;
 }
 
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--block-gap);
+}
+
+.page-head__title {
+  margin: 0;
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-2xl);
+  font-weight: 650;
+}
+
+.page-head__desc {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+}
+
+.reports-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.reports-page__count {
+  margin-left: auto;
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
 /* UI-SC-01/06：表体区承接剩余高度并裁剪，el-table 100% 高度内滚动 */
 .reports-page__body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-.reports-page__feedback {
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--color-neutral-100);
 }
 
 .reports-page__first-error {
@@ -366,22 +408,6 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   padding: 14px 0;
-}
-
-/* UI-SC-10：工具栏与分页条各自留白并以分割线与表格分隔；左右 0 与表格贴合 */
-.reports-page__toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-neutral-100);
-}
-
-.reports-page__footer {
-  flex-shrink: 0;
-  border-top: 1px solid var(--color-neutral-100);
 }
 
 .text-red-500 {
