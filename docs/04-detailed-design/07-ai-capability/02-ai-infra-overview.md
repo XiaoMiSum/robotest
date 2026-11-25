@@ -149,7 +149,7 @@ CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((tr
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
-| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`case_optimize`），与任务 `type` 对应 |
+| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`case_optimize`、`ui_execution_decision`），与任务 `type` 对应 |
 | name | varchar(100) | NOT NULL | 场景名称（展示用） |
 | content | text | NOT NULL | 模板正文，支持 `{{variable}}` 占位 |
 | variables | jsonb | NOT NULL, DEFAULT '[]' | 可用变量清单 `[{ name, desc, required }]`，保存时校验占位与清单一致 |
@@ -748,9 +748,12 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | review_case_review | 辅助 | `reviewId` | `review_suggestion` | 评审标记写回采纳服务 |
+| ui_execution | 功能测试（AI 执行） | `planId`、`caseIds`、`environmentId`、`modelId?`、`stepActionLimit?` | 无（判定结果不属生成物 / 提案；判定写 `test_plan_execution_record`，轨迹写 `ui_action_log`） | AI 执行服务（功能测试分册 09） |
 | bug_draft_suggest | 缺陷 | `title`、`steps?`、`moduleId?` | `bug_draft_suggestion` | 只读建议提案并默认采纳：按提交人写采纳记录，前端覆盖回填新建缺陷表单，不写缺陷业务数据、不调用人工提案确认 |
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
+
+**AI 执行任务权限口径**：`ui_execution` 批次的发起、取消与轨迹查询沿用项目 / 空间成员归属与项目角色校验，不新增 RBAC 权限码；任务提交与取消复用 3.6 通用资源，输入校验、执行与预算细则见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md`。
 
 **任务标题生成规则（单一事实源）**：提交创建时按「<类型描述> - <来源标题>」生成并写入 `ai_task.title`；类型描述复用任务类型中文名，来源标题按类型从输入指向的来源对象解析（校验阶段已加载来源时直接复用，不重复查询）。来源缺失或解析失败时只保留类型描述；标题整体超长截断至 200 字符（末位以 `…` 标记），与列宽一致。执行成功产出提案不再改写任务标题。
 
@@ -761,13 +764,14 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 脑图用例生成 | 需求标题（`requirementId` → `Requirement.title`） |
 | plan_order | 计划排序 | 计划名称（`planId` → `TestPlan.name`） |
 | review_case_review | AI 评审 | 评审标题（`reviewId` → `TestReview.title`） |
+| ui_execution | AI 执行 | 执行计划名称（`planId` → `TestPlan.name`） |
 | bug_draft_suggest | 缺陷建议 | 缺陷标题（`input.title`，截断后作为来源标题） |
 | assistant_parse | 助手解析 | 会话标题（`messageId` → `AiAssistantMessage.conversationId` → `AiAssistantConversation.title`） |
 | vector_reindex | 向量索引重建 | 索引范围（`scope.entityTypes` 映射为「需求 / 用例 / 缺陷」，缺省「全量」） |
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxTokens / maxCost`）与**输出格式约束**（是否启用 JSON 对象模式，见 4.2）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex` 外的五类）的首版默认预算统一为 `{maxSteps: 40, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手与向量重建策略。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex / ui_execution` 外的五类）的首版默认预算统一为 `{maxSteps: 40, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手、向量重建与 AI 执行策略（`ui_execution` 的预算与步级动作上限见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 4.6）。
 
 `assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 
@@ -927,7 +931,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.8 权限口径
 
-AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部免 RBAC 权限码校验（登录即可），不设权限点；仅保留任务 / 会话归属可见性（3.6.3、分册 04 4.4）与项目 / 空间成员归属隔离等非 RBAC 控制。
+AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部免 RBAC 权限码校验（登录即可），不设权限点；仅保留任务 / 会话归属可见性（3.6.3、分册 04 4.4）与项目 / 空间成员归属隔离等非 RBAC 控制。AI 执行批次（`ui_execution`）发起、取消与轨迹查询同样沿用成员归属与项目角色校验，不新增 RBAC 权限码。
 
 ---
 
@@ -941,8 +945,8 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 
 ### 4.2 Agent 执行核与护栏
 
-- **执行入口与策略分派**：八个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行。三条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
-- **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；三类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清与回答仍按分册 04 处理，不转为通用提案确认、不经人工确认落库；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
+- **执行入口与策略分派**：九个 type 共用任务与执行资源，由执行入口按类型适配器注册的策略分派，不在 Agent 循环中硬编码任务类型。目标型 AI 任务使用 `AgentExecutionRunner`；`assistant_parse` 委托助手既有 `AssistantToolLoop`，保留消息落库、流式事件与助手确认接口，不再套一层 Agent 循环；`vector_reindex` 使用确定性执行器完成重嵌与索引替换，不由模型决定是否执行；`ui_execution` 使用 AI 执行任务处理器（决策、判定与落库在服务端，执行端只执行动作，见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 4.2）。四条路径均使用平台既有异步能力，不保留旧 `TaskHandler` 引擎或兼容双轨。
+- **共享执行生命周期**：分派入口统一承接事务提交后的单次启动；各类执行策略共享心跳、预算检查、中止检查、轨迹记录和终态提交机制。终态竞争必须条件写，失败不得继续写提案或重复累计用量；执行成功、提案及任务状态更新须保持事务一致性。助手的澄清与回答仍按分册 04 处理，不转为通用提案确认、不经人工确认落库；向量重建无待采纳提案，成功后任务直接 `closed`。助手调用明细继续遵循 4.3 的独立归因口径。
 - **助手与向量策略口径**：`vector_reindex` 豁免 chat 模型选型，仅要求向量能力可用（`embeddingReady`，4.5）；执行期仍受共享成本 / 中止护栏约束，steps 按 embedding 批次与索引替换动作计。`assistant_parse` 的共享 steps 按模型跳计，查询工具执行不额外计步；单消息 5 跳硬上限（分册 04 §4.1）与预算护栏**先到者终止**——预算耗尽走任务中止口径，5 跳用尽仍按助手正常终止。终态竞争失败后到达的迟到模型调用仍写独立 `ai_usage_log`（4.3），但不再改写任务 / 执行汇总与消息终态。
 - **调用层（技术口径）**：模型 chat、向量 embedding 与连通性测试调用统一经 Spring AI 2.0.x 执行（传输、序列化、响应解析与内建重试）；平台代码不自实现 HTTP 调用，仅保留门面——按行配置解析、密钥解密、逐次用量记账与 10 位错误码映射。chat 类调用（任务执行核、助手、缺陷建议）经 Spring AI `stream()` 流式读取并聚合响应，平台仅在响应流上编排首 token 超时与空闲超时（首 token 600s、空闲 30s，内置常量、不开放配置；超时按 1000018117 终止），不接管传输层；向量 embedding 与模型连通性测试仍走阻塞式 `call()`。流式调用沿用心跳超时清扫口径（4.2），不改变其判定。
 - **JSON 对象模式**：终态产出必须是 JSON 对象的任务由类型适配器声明启用（首版仅 `requirement_import`），执行核在每次模型调用的请求上透传该标记（含输出修复重试）；平台经 Spring AI `OpenAiChatOptions.responseFormat(JSON_OBJECT)` 下传 `response_format`，由模型侧保证正文为合法 JSON，禁止解释文字与 Markdown 代码围栏。工具声明与多模态媒体随同一请求正常携带，不因该模式改变工具循环与用量记账；其他任务类型保持默认文本模式。模型不支持该模式时按 4.5 记录真实失败原因，输出校验与固定 2 次修复重试口径不变（见「输出修复重试」）。
@@ -1184,3 +1188,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-26 | 4.2 登记 `requirement_import` 原文引用回填：模型只输出 `@full` / `@blocks:Bn`，块切分与公共前言由后端确定性查表，避免长文档回显截断 |
 | V1.0 | 2026-11-26 | 3.6.3 详情支持指定 `executionId` 并下发 `executions` 列表，提案详情与 3.6.5 确认按 `executionId` 定位，旧执行提案可继续审核 |
 | V1.0 | 2026-11-26 | 3.6.3 `/latest` 增 `planId` 查询参数：按任务输入 `planId` 匹配 `plan_order` 最近任务，供测试计划详情回显进度 / 提案 / 审核结果，可见范围沿用项目内成员共享口径 |
+| V1.0 | 2026-11-25 | 登记 AI 执行任务类型 `ui_execution`（3.6.1）与场景示例 `ui_execution_decision`（2.5）：判定写执行记录、轨迹写动作日志，批次发起沿用成员归属校验、不新增 RBAC 权限码 |

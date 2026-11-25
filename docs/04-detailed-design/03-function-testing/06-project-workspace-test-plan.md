@@ -21,7 +21,7 @@
     "id": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e01",
     "name": "V1.4.2 回归测试",
     "status": "in_progress",
-    "environment": "staging",
+    "environment": { "environmentId": "0b1f6c2e-1a34-4f5b-9c7d-2e8a0b1c3d4e", "environmentName": "staging" },
     "startTime": "2026-09-20T00:00:00",
     "endTime": "2026-09-24T00:00:00",
     "executor": { "id": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e10", "name": "张明" },
@@ -38,6 +38,7 @@
   ```
 
 - **进度字段口径**：`totalAssociated` 为关联 case 快照数，`passed` 为通过数；`progressPercent` =（总数 − 未执行数）/ 总数 × 100，`passRate` = 通过数 / 总数 × 100，均为 0–100 的百分数，后端四舍五入保留两位。后端按本页计划 ID 批量查询关联用例快照聚合计算，避免逐行 N+1。前端进度列取整显示百分比，通过率列保留一位小数，未开始（new）行通过率固定显示 `—`。`requirementCount` 为本页计划批量回填的关联需求数量，需求已删除时不计数。
+- **执行环境**：`environment` 返回 `{ environmentId, environmentName }`，环境已删除或关联不上时 `environmentName=null`。
 - **状态取值**：`new`（未开始）/ `in_progress`（执行中）/ `completed`（已完成）/ `blocked`（已阻塞）/ `closed`（已关闭），展示文案映射见 `docs/05-interaction-design/03-function-testing/06-workspace-ui-test-plan.md` 1.1。
 - **前端调用**：计划列表页的查询、筛选与分页均走本接口（`status`、`keyword`、`pageNo`、`pageSize` 由页面维护）。
 
@@ -54,7 +55,7 @@
   "executorId": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e10",
   "startTime": "2026-08-01T00:00:00Z",
   "endTime": "2026-08-10T00:00:00Z",
-  "environment": "staging",
+  "environmentId": "0b1f6c2e-1a34-4f5b-9c7d-2e8a0b1c3d4e",
   "requirementIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e30"],
   "selectedNodes": [
     { "documentId": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e20", "caseIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e21", "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e22"] }
@@ -62,7 +63,7 @@
   }
   ```
 
-- **校验**：`name` 非空；`requirementIds` 与 `selectedNodes` 均可为空（`selectedNodes` 保留供 AI 助手创建链路使用）；每个 `caseIds` 非空。前端创建表单另做校验：名称必填（输入框限 100 字）、至少关联一个需求，未满足时拦截并提示；所选需求无用例时允许创建空计划。
+- **校验**：`name` 非空；`requirementIds` 与 `selectedNodes` 均可为空（`selectedNodes` 保留供 AI 助手创建链路使用）；每个 `caseIds` 非空；`environmentId` 可空，传值须属于当前项目（否则错误码 1000011037，“执行环境不存在或不属于当前项目”，见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 3.11）。前端创建表单另做校验：名称必填（输入框限 100 字）、至少关联一个需求，未满足时拦截并提示；执行环境下拉数据取环境管理列表（`GET /api/project/ft-environments`），无环境时提示先建并给跳转；所选需求无用例时允许创建空计划。
 - **处理**：校验 `requirementIds` 均属于当前项目，否则返回 1000018001；按 `ft_case_node.requirement_id` 解析所选需求的关联用例（仅 `type='case'` 节点），按节点 `documentId → caseIds` 分组后与显式 `selectedNodes` 合并去重；生成模块和节点快照（完整拷贝用例属性），按最终 `caseIds` 标记 `is_associated`，初始化 `last_result='untested'`，状态置 new；持久化 `requirement_ids`；记录项目活动 `PLAN_CREATED`。
 - **响应**：201，返回计划详情（结构同 1.3）。
 - **前端**：创建成功后关闭弹窗并跳转至该计划详情页 `/workspace/projects/plans/:id`。
@@ -70,7 +71,7 @@
 ### 1.3 获取计划详情
 
 - **路径**：`GET /api/project/plans/:id`
-- **响应**：`{ "id", "name", "description", "status", "environment", "startTime", "endTime", "executor": { "id", "name" }, "requirementIds", "requirements": [{ "id", "code", "title" }], "createdAt" }`；`requirements` 按创建时所选顺序返回，需求已删除时跳过；`requirementIds` 为创建 / 最近一次编辑保存的关联需求原始 ID 列表（含已删除需求），供编辑表单判定关联需求是否变化。
+- **响应**：`{ "id", "name", "description", "status", "environment": { "environmentId", "environmentName" }, "startTime", "endTime", "executor": { "id", "name" }, "requirementIds", "requirements": [{ "id", "code", "title" }], "createdAt" }`；`environmentName` 由 `environmentId` 关联环境取名，关联不上（环境已删除）时为 `null`；`requirements` 按创建时所选顺序返回，需求已删除时跳过；`requirementIds` 为创建 / 最近一次编辑保存的关联需求原始 ID 列表（含已删除需求），供编辑表单判定关联需求是否变化。
 - **前端**：详情页首屏与进度、快照模块树并行加载（见 1.4、1.8）；标记执行结果后仅重拉详情与进度，避免整页重载导致脑图丢失选中态。
 
 ### 1.4 获取计划进度
@@ -84,19 +85,20 @@
   "passed": 3,
   "failed": 1,
   "blocked": 1,
+  "skipped": 0,
   "untested": 5,
   "progressPercent": 50.0
   }
   ```
 
-- **口径**：`totalAssociated` 为已关联 case 快照数；`last_result` 为 `pass` 计入 `passed`、`fail` 计入 `failed`、`block` 计入 `blocked`，空值或 `untested` 计入 `untested`（历史脏数据值 `blocked` 亦计入 `blocked`）；`progressPercent` =（总数 − 未执行数）/ 总数 × 100，保留两位。
-- **前端**：详情页页头进度条与「通过 / 失败 / 阻塞 / 待执行 / 共 N」统计取自本接口；标记执行结果后刷新，刷新失败不打断标记操作。
+- **口径**：`totalAssociated` 为已关联 case 快照数；`last_result` 为 `pass` 计入 `passed`、`fail` 计入 `failed`、`block` 计入 `blocked`、`skipped` 计入 `skipped`（仅 AI 执行可写，见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 3.9），空值或 `untested` 计入 `untested`（历史脏数据值 `blocked` 亦计入 `blocked`）；`skipped` 计入已执行但**不计入 `passed`**，`progressPercent` =（总数 − 未执行数）/ 总数 × 100，保留两位。
+- **前端**：详情页页头进度条与「通过 / 失败 / 阻塞 / 跳过 / 待执行 / 共 N」统计取自本接口；标记执行结果后刷新，刷新失败不打断标记操作。
 
 ### 1.5 获取计划快照树
 
 - **路径**：`GET /api/project/plans/:id/modules`
 - **参数**：`documentId`（可选，按文档过滤）
-- **响应**：裁剪后的节点树数组，数组元素为嵌套的根节点对象，字段为 `id`、`originalNodeId`、`parentId`、`title`、`type`、`priority`、`isAssociated`、`lastResult`、`lastExecutorId`、`lastExecutedAt`、`sortOrder`、`children`；节点为完整拷贝属性，其中 `isAssociated` 标识是否为规划用例，`lastResult` 取 `pass`/`fail`/`block`/`untested` 或 `null`；`sortOrder` 为计划内执行顺序，采纳 / 人工调整后的值为稳定排序，同步与差量调整不覆盖，前端据此渲染用例序号并定位「下一个待执行用例」。
+- **响应**：裁剪后的节点树数组，数组元素为嵌套的根节点对象，字段为 `id`、`originalNodeId`、`parentId`、`title`、`type`、`priority`、`isAssociated`、`lastResult`、`lastExecutorId`、`lastExecutedAt`、`sortOrder`、`children`；节点为完整拷贝属性，其中 `isAssociated` 标识是否为规划用例，`lastResult` 取 `pass`/`fail`/`block`/`skipped`/`untested` 或 `null`（`skipped` 仅 AI 执行可写）；`sortOrder` 为计划内执行顺序，采纳 / 人工调整后的值为稳定排序，同步与差量调整不覆盖，前端据此渲染用例序号并定位「下一个待执行用例」。
 - **前端**：详情页脑图始终传入当前选中文档的 `documentId` 加载单文档快照；不传时后端返回多文档多根，前端只取首个根节点，页面不使用该形态。
 
 ### 1.6 提交执行记录
@@ -113,8 +115,8 @@
   }
   ```
 
-- **校验**：仅 `is_associated=true` 且 `type='case'` 的节点可标记（否则返回错误码 1000011016，“只有关联的用例节点可标记执行结果”）；`result` 取值限 `pass` / `fail` / `block` / `untested`（untested 即重置回待执行）；除计划状态为 blocked（返回错误码 1000011025，“计划已阻塞，请先恢复后再操作”）外不校验计划状态；待开始（new）计划首次标记后自动转入 in_progress（已取代单独的“开始执行”操作），并记录项目活动 `PLAN_STARTED`。`note` 为可选备注，当前前端标记入口不提交备注。脑图不设顶部工具栏与右键菜单，标记入口仅由用例节点悬浮窗（水平并排、透明背景、`link` 类型按钮，仅点击 case 节点展示）提供；接口侧对非 case 节点拦截并提示“仅关联用例节点可标记执行结果”，结果以徽标形式回显在节点右侧（待执行不渲染徽标）。
-- **处理**：新增 ft_plan_execution_record，更新快照节点的 last_result、last_executor_id、last_executed_at；成功后前端刷新页头进度与详情。
+- **校验**：仅 `is_associated=true` 且 `type='case'` 的节点可标记（否则返回错误码 1000011016，“只有关联的用例节点可标记执行结果”）；`result` 取值限 `pass` / `fail` / `block` / `untested`（untested 即重置回待执行），手动来源拒绝 `skipped`（错误码 1000011039，“跳过仅由 AI 执行产生”，`skipped` 仅 AI 执行可写，见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 3.9）；除计划状态为 blocked（返回错误码 1000011025，“计划已阻塞，请先恢复后再操作”）外不校验计划状态；待开始（new）计划首次标记后自动转入 in_progress（已取代单独的“开始执行”操作），并记录项目活动 `PLAN_STARTED`。`note` 为可选备注，当前前端标记入口不提交备注。脑图不设顶部工具栏与右键菜单，标记入口仅由用例节点悬浮窗（水平并排、透明背景、`link` 类型按钮，仅点击 case 节点展示）提供；接口侧对非 case 节点拦截并提示“仅关联用例节点可标记执行结果”，结果以徽标形式回显在节点右侧（待执行不渲染徽标）。
+- **处理**：新增 ft_plan_execution_record，更新快照节点的 last_result、last_executor_id、last_executed_at；记录的 `source` 人工标记为 `manual`、AI 回写为 `ai`（取值 `manual` / `ai`，见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 2.2）；成功后前端刷新页头进度与详情。
 
 ### 1.7 同步最新用例
 
@@ -185,14 +187,14 @@
     "executorId": "6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e10",
     "startTime": "2026-09-20T00:00:00",
     "endTime": "2026-09-24T00:00:00",
-    "environment": "staging",
+    "environmentId": "0b1f6c2e-1a34-4f5b-9c7d-2e8a0b1c3d4e",
     "requirementIds": ["6f1a2c3e-8b41-4d2a-9c66-1a2b3c4d5e30"],
     "replan": true
   }
   ```
 
 - **`replan`**：可选布尔值，默认 false。仅当提交的 `requirementIds` 与当前关联不同且用户确认重新规划时为 true；为 false 时既不重新解析用例，也不改动任何快照。
-- **校验**：`name` 非空且不超过 100 字；`executorId` 为当前工作空间成员；`requirementIds` 均属于当前项目，否则返回 1000018001。
+- **校验**：`name` 非空且不超过 100 字；`executorId` 为当前工作空间成员；`requirementIds` 均属于当前项目，否则返回 1000018001；`environmentId` 传值须属于当前项目，否则返回 1000011037（“执行环境不存在或不属于当前项目”）。
 - **处理**：部分更新（C11），只回写实际传入的字段。`replan=true` 时事务内仅回写基础信息与关联需求，提交后经自身代理触发 `@Async` 异步任务：按最新 `requirement_ids` 调用 `resolvePlannedCases` 重新解析用例，复用 1.10 的快照差量逻辑更新快照并回写 `snapshot_synced_at`（保留既有执行记录）；任务失败仅记日志，不回写状态字段。
 - **响应**：200，结构同 1.3。
 - **前端**：列表页 [编辑] 回显详情 → 提交时对比新旧 `requirementIds`，变化则提示「检测到关联需求发生变化，是否重新规划测试用例？」→ 确认后带 `replan=true` 提交，提示「已保存，正在后台重新规划测试用例」并关闭弹窗，不轮询、不自动刷新列表，用户自行刷新查看结果；选择否仅保存并提示「已保存」。
@@ -233,8 +235,8 @@
 | ---- | -------- | ---------------------------- |
 | 筛选   | 关键字回车/清空即查询；状态下拉选择后点[查询]；[重置] | 重置清空条件并回到首页，其余查询在触发时刷新列表 |
 | 分页   | 点击页码     | 按当前筛选条件加载对应页（每页 20 条，仅切换页码，不提供每页条数切换） |
-| 新建计划 | 点击页头[+ 新建计划] | 弹出创建表单：名称（必填）、描述、负责人（成员下拉）、开始/结束时间、执行环境、关联需求（需求选取器，多选且至少一个需求，仅列已确认需求），提交成功后跳转详情页 |
-| 编辑 | 点击[编辑]（new/in_progress） | 弹出回显当前名称 / 描述 / 负责人 / 起止时间 / 环境 / 关联需求的编辑表单；提交时若关联需求变化则提示是否重新规划 → 保存后关闭弹窗并提示，用户自行刷新列表 |
+| 新建计划 | 点击页头[+ 新建计划] | 弹出创建表单：名称（必填）、描述、负责人（成员下拉）、开始/结束时间、执行环境（环境下拉，数据取环境管理列表，无环境时提示先建并给跳转）、关联需求（需求选取器，多选且至少一个需求，仅列已确认需求），提交成功后跳转详情页 |
+| 编辑 | 点击[编辑]（new/in_progress） | 弹出回显当前名称 / 描述 / 负责人 / 起止时间 / 环境（环境下拉，取环境管理列表）/ 关联需求的编辑表单；提交时若关联需求变化则提示是否重新规划 → 保存后关闭弹窗并提示，用户自行刷新列表 |
 | 进入执行 | 点击[进入执行]（执行中）或计划名称链接 | 跳转至计划详情页                     |
 | 查看详情 | 点击[查看详情]（其余状态）   | 跳转至计划详情页                     |
 | 完成 | 点击[完成]（未开始/执行中） | 二次确认 → 调用 1.11，状态置 completed，列表刷新 |
@@ -257,7 +259,7 @@
 │ 测试计划 › 功能测试计划  需求[REQ-01] [执行中] [━━━] 通过 3 失败 1 …   │
 │ ┌─────────────┬──────────────────────────────────────────────────┐ │
 │ │ 快照文档 只读 │  快照脑图（只读，禁用画布编辑）                   │ │
-│ │ ▾ 测试目录   │  节点右侧徽标回显 ✓通过 / ✕失败 / ⚠阻塞           │ │
+│ │ ▾ 测试目录   │  节点右侧徽标回显 ✓通过 / ✕失败 / ⚠阻塞 / 跳过     │ │
 │ │   📄 文档 A  │  点击 case 节点展开悬浮窗：                       │ │
 │ │   📄 文档 B  │  [通过][失败][阻塞][待执行][移除用例]              │ │
 │ │             │  （水平并排 · 透明背景 · link 按钮）                │ │
@@ -265,7 +267,7 @@
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-页头收拢为单条无边框横条：左侧面包屑「测试计划 › 计划名」（元素本身只承担定位与回退），点击「测试计划」返回功能测试页并激活测试计划子模块（`?tab=plans`）；右侧为同行独立容器，依次承载关联需求标签、状态标签、进度条与分色统计（通过绿 / 失败红 / 阻塞深红 / 待执行默认 / 共 N）、操作按钮组，统计与按钮组以竖线分隔。当前页名称由面包屑末段承担，不设独立标题卡片；超宽时页头单行横向滚动不换行。活跃态（new/in_progress）展示 [调整用例][同步用例][阻塞][完成执行]，已阻塞仅展示 [恢复]，已完成/已关闭无操作按钮；按钮仅按计划状态显隐，不按权限码过滤。删除计划仍由后端校验计划负责人（非负责人返回错误码 1000002001）。左侧快照文档树卡片带固定 header「快照文档 / 只读」，与评审明细一致，仅树体在卡片内纵向滚动。
+页头收拢为单条无边框横条：左侧面包屑「测试计划 › 计划名」（元素本身只承担定位与回退），点击「测试计划」返回功能测试页并激活测试计划子模块（`?tab=plans`）；右侧为同行独立容器，依次承载关联需求标签、状态标签、进度条与分色统计（通过绿 / 失败红 / 阻塞深红 / 跳过 / 待执行默认 / 共 N，`skipped` 仅由 AI 执行产生）、操作按钮组，统计与按钮组以竖线分隔。当前页名称由面包屑末段承担，不设独立标题卡片；超宽时页头单行横向滚动不换行。活跃态（new/in_progress）展示 [调整用例][同步用例][阻塞][完成执行]，已阻塞仅展示 [恢复]，已完成/已关闭无操作按钮；按钮仅按计划状态显隐，不按权限码过滤。删除计划仍由后端校验计划负责人（非负责人返回错误码 1000002001）。左侧快照文档树卡片带固定 header「快照文档 / 只读」，与评审明细一致，仅树体在卡片内纵向滚动。
 
 详情页使用独立的计划脑图组件（`PlanMindMap`，只读画布），快照树数据以嵌套根节点对象形式返回，节点右侧显示执行结果徽标；左侧为只读快照文档树（目录点击仅展开/收起），未选中文档时右侧展示“请在左侧选择一个文档”，快照树为空时展示“暂无快照文档”。
 
@@ -307,7 +309,8 @@
 | `POST /api/project/plans/:id/block` | 阻塞计划 | 项目成员 → 状态校验（1000011020） |
 | `POST /api/project/plans/:id/resume` | 恢复计划 | 项目成员 → 状态校验（1000011024） |
 | `DELETE /api/project/plans/:id` | 删除计划 | 项目成员 → 计划负责人（1000002001） |
-| 其余计划接口（列表、详情、快照、进度、规划用例、提交执行记录） | 读与执行标记 | 项目成员校验，按资源归属与状态校验 |
+| `POST /api/project/plans` / `PUT /api/project/plans/{id}` | 创建 / 编辑计划 | 项目成员 → 环境归属校验（1000011037）、关联需求归属校验（1000018001） |
+| 其余计划接口（列表、详情、快照、进度、规划用例、提交执行记录） | 读与执行标记 | 项目成员校验，按资源归属与状态校验；手动来源拒绝 `skipped`（1000011039） |
 
 ### 3.3 实施说明
 
@@ -322,7 +325,7 @@
 
 **数据库迁移说明（C5 / C9）**
 
-本节不涉及表结构、索引或权限点变更；计划状态与负责人校验均在既有 `ft_plan` 字段上完成，无新增列与索引。
+本节不涉及表结构或索引变更：`ft_plan.environment` 由自由文本改为存 `ft_environment.id`（无 DDL），执行记录来源列与结果枚举扩展见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 2.2；计划状态与负责人校验均在既有 `ft_plan` 字段上完成，无新增列与索引。
 
 **测试要点（C8 ≥ 70%）**
 
@@ -364,3 +367,4 @@
 | V1.0 | 2026-11-20 | 创建 / 重规划计划的用例反查口径由 `ft_case_requirement` 改为 `ft_case_node.requirement_id` |
 | V1.0 | 2026-11-21 | 1.5 / 1.7：`sortOrder` 明确为稳定执行顺序（同步 / 差量调整不覆盖、补入节点按原序补位），供前端序号展示与「下一个待执行用例」引导使用 |
 | V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |
+| V1.0 | 2026-11-25 | 执行环境改为环境引用（1.1–1.3、1.15）、进度与结果新增 `skipped`（1.4–1.6、2.2）、执行记录来源维度与手动拒绝跳过、创建表单环境下拉，保留关联需求语义 |
