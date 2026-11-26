@@ -8,7 +8,7 @@
 
 ## 1. 概述
 
-AI 任务中心是项目内全部 AI 任务的统一入口，任务统一经 `POST /api/ai/tasks` 提交、`GET /api/ai/tasks/{id}` 查询，执行过程经轨迹接口（`GET /api/ai/tasks/{id}/executions/{executionId}/events`）与实时通道呈现；任务详情展示执行过程、计划步骤、轨迹，并提供提案产物与审核结果的只读查看，不提供任何审核操作。提案的采纳、编辑后采纳与驳回统一在各业务面板完成：需求导入在需求管理页的导入结果审核区（见 `docs/05-interaction-design/03-function-testing/07-requirement-ui.md`），AI 评审在评审详情页 AI 评审面板（见 `docs/05-interaction-design/03-function-testing/05-workspace-ui-test-review.md`），用例优化与脑图生成用例在脑图面板（见 `docs/05-interaction-design/07-ai-capability/07-assisted-features-ui.md`）。业务面板支持按 `executionId` 切换执行批次，查看并审核任一执行的提案，旧执行提案不因再次执行而不可达。执行编排归 AI、写库编排归应用层的双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`。
+AI 任务中心是项目内全部 AI 任务的统一入口，任务统一经 `POST /api/ai/tasks` 提交、`GET /api/ai/tasks/{id}` 查询，执行过程经轨迹接口（`GET /api/ai/tasks/{id}/executions/{executionId}/events`）与实时通道呈现；任务详情展示执行过程、计划步骤、轨迹，并提供提案产物与审核结果的只读查看，不提供任何审核操作。提案的采纳、编辑后采纳与驳回统一在各业务面板完成：需求导入在需求管理页的导入结果审核区（见 `docs/05-interaction-design/03-function-testing/07-requirement-ui.md`），AI 评审在评审详情页 AI 评审面板（见 `docs/05-interaction-design/03-function-testing/05-workspace-ui-test-review.md`），用例优化与脑图生成用例在脑图面板（见 `docs/05-interaction-design/07-ai-capability/07-assisted-features-ui.md`）。执行编排归 AI、写库编排归应用层的双平面机制见 `docs/02-high-level-design/07-ai-capability/03-hld-ai-task.md`。
 
 **路由**：任务中心 `/workspace/projects/ai/tasks`；任务详情 `/workspace/projects/ai/tasks/:taskId`（任务中心的子路由）
 
@@ -89,7 +89,7 @@ AI 未启用或未配置模型时，任务入口与本页内容按总册 4.5 隐
 | 决策详情展开 | 点击「AI 决策」事件行展开详情区，分「请求摘要 / 模型响应」两段，复用折叠 JSON 展示与复制；数据来自 `detail.rawRequest` / `detail.rawResponse`，不另发请求；字段缺失或为空展示「暂无原始数据」空态 |
 | 模型响应 content | 先尝试解析为 JSON（含剥离 Markdown 代码围栏后重试）：成功按结构化节点折叠展示，失败保留原文字符串；只处理顶层 `content`，存储仍为原文、不截断；复制按钮复制展示内容，所见即所得 |
 | 操作 | `running` 可终止（二次确认）；`aborted` 可再次执行（产生新执行实例与新提案）；`proposals_ready` / `closed` 均可查看提案产物与审核结果，但不渲染采纳 / 驳回 / 编辑后采纳等审核动作，提案处置入口在对应业务面板。`case_optimize` / `mindmap_case_generation` / `review_case_review` 三类任务仅 `aborted` 态显示「再次执行」，`running` / `proposals_ready` / `closed` 不显示 |
-| 提案与结果 | 有提案时渲染只读审核面板（见 2.3），展示提案产物、确认状态、驳回原因与采纳结果；支持上一个/下一个切换，不提供审核操作；同一任务多次执行时可切换执行批次只读回看，审核动作在业务面板按指定执行完成；`aborted` 且无提案时不渲染 |
+| 提案与结果 | 有提案时渲染只读审核面板（见 2.3），展示提案产物、确认状态、驳回原因与采纳结果；支持上一个/下一个切换，不提供审核操作；`aborted` 且无提案时不渲染 |
 
 ### 2.3 提案与审核结果只读查看（AiProposalReviewPanel 只读模式，页内渲染）
 
@@ -201,4 +201,3 @@ sequenceDiagram
 | V1.0 | 2026-11-25 | 2.1 任务中心移除页头「刷新」按钮与「最近刷新」时间戳；列表区改为占满内容区剩余高度、表体内部滚动，页面不再出现纵向滚动条 |
 | V1.0 | 2026-11-25 | 2.2 执行区时长改为只展示实际耗时，不再显示时长预算上限（预算护栏移除时长维度） |
 | V1.0 | 2026-11-25 | 2.3 提案描述按 Markdown 只读渲染，与需求导入审核区共用同一展示组件 |
-| V1.0 | 2026-11-26 | 概述与 2.2 补执行批次口径：任务详情按 `executionId` 只读回看，旧执行提案由业务面板按指定执行继续审核 |
