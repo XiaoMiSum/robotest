@@ -6,6 +6,7 @@ import type {
   RequirementDetail,
   RequirementListItem,
   RequirementPageQuery,
+  RequirementSplitRecordItem,
   RequirementSplitSubmit,
   RequirementUpdatePayload,
 } from '@/types'
@@ -62,4 +63,11 @@ export function fetchRequirementChangeLogs(
   params: { pageNo?: number; pageSize?: number } = {},
 ): Promise<PageResult<RequirementChangeLog>> {
   return get(`/project/requirements/${id}/change-logs`, { ...params })
+}
+
+/** 导入历史（详设 3.10）：拆解记录按创建时间倒序，联查任务态与最新执行产出 */
+export function fetchRequirementSplitRecords(
+  params: { pageNo?: number; pageSize?: number } = {},
+): Promise<PageResult<RequirementSplitRecordItem>> {
+  return get('/project/requirements/split-records', { ...params })
 }

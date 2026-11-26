@@ -78,6 +78,32 @@ export interface RequirementSplitSubmit {
   status: string
 }
 
+/** 拆解记录最近一次执行摘要（导入历史页） */
+export interface RequirementSplitLatestExecution {
+  executionId: string | null
+  seq: number | null
+  status: string | null
+}
+
+/** 拆解记录列表项（详设 3.10，导入历史页数据源） */
+export interface RequirementSplitRecordItem {
+  id: string
+  sourceType: string
+  sourceFileId: string | null
+  sourceFileName: string | null
+  aiTaskId: string | null
+  taskTitle: string | null
+  taskStatus: string | null
+  latestExecution: RequirementSplitLatestExecution | null
+  proposalCount: number | null
+  adoptedCount: number | null
+  /** 拆解记录自身状态 pending / adopted / rejected */
+  status: string
+  adoptResult: Record<string, unknown> | null
+  submittedBy: string | null
+  createdAt: string
+}
+
 /** 业务端 AI 可用性（详设 3.2，GET /ai/status） */
 export interface AiStatus {
   enabled: boolean

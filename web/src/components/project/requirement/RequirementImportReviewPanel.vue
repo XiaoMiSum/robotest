@@ -17,6 +17,8 @@ const props = defineProps<{
   taskId: string
   taskType: string
   proposals: AiTaskProposalSummary[]
+  /** 目标执行：切换批次后提案详情与确认均按该执行定位 */
+  executionId?: string | null
   /** 导入任务的文档级识别版本与依据（详设 3.6.3），其余任务为 null */
   documentMeta?: AiTaskDocumentMeta | null
 }>()
@@ -59,6 +61,7 @@ const {
     emit('confirmed')
   },
   () => props.taskType,
+  () => props.executionId,
 )
 
 init()
@@ -80,7 +83,7 @@ async function preloadVisible(): Promise<void> {
 void preloadVisible()
 
 watch(
-  () => props.proposals,
+  () => [props.executionId, props.proposals] as const,
   () => {
     syncRows()
     void preloadVisible()

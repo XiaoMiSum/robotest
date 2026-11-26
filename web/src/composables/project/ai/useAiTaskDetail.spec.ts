@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import type { AiTaskDetail } from '@/types'
+import { useAiTaskStore } from '@/stores/aiTask'
 
 const mocks = vi.hoisted(() => ({
   fetchAiTask: vi.fn(),
@@ -391,6 +392,78 @@ describe('useAiTaskDetail', () => {
       mocks.reExecuteAiTask.mockRejectedValueOnce(new Error('任务不存在'))
       await s.handleReExecute()
       expect(mocks.ElMessage.error).toHaveBeenCalledWith('任务不存在')
+    })
+  })
+
+  describe('执行批次切换', () => {
+    function makeOldExecutionDetail(): AiTaskDetail {
+      return makeDetail({
+        latestExecution: {
+          ...makeDetail().latestExecution!,
+          executionId: 'e0',
+          seq: 1,
+        },
+        proposals: [
+          {
+            key: 'old-a1',
+            kind: 'requirement_suggestion',
+            title: '首次执行提案',
+            parentKey: null,
+            confirmStatus: 'pending',
+            note: null,
+          },
+        ],
+        executions: [
+          {
+            executionId: 'e1', seq: 2, status: 'succeeded', createdAt: '2026-11-26T14:20:00Z',
+            steps: 4, budget: { maxSteps: 4 }, consumed: null, plan: DONE_PLAN, terminateReason: null,
+          },
+          {
+            executionId: 'e0', seq: 1, status: 'succeeded', createdAt: '2026-11-25T09:10:00Z',
+            steps: 4, budget: { maxSteps: 4 }, consumed: null, plan: DONE_PLAN, terminateReason: null,
+          },
+        ],
+      })
+    }
+
+    it('按 executionId 读取旧执行详情，轮询缓存不得覆盖回看态', async () => {
+      const oldDetail = makeOldExecutionDetail()
+      mocks.fetchAiTask.mockResolvedValueOnce(makeDetail()).mockResolvedValueOnce(oldDetail)
+      const s = mountDetail()
+      await vi.waitFor(() => expect(s.loading.value).toBe(false))
+
+      await s.switchExecution('e0')
+      expect(mocks.fetchAiTask).toHaveBeenLastCalledWith('t1', { executionId: 'e0' })
+      expect(s.selectedExecutionId.value).toBe('e0')
+      expect(s.executions.value).toHaveLength(2)
+      expect(s.proposals.value[0].key).toBe('old-a1')
+
+      useAiTaskStore().cacheDetail(makeDetail())
+      await nextTick()
+      expect(s.detail.value?.proposals?.[0].key).toBe('old-a1')
+    })
+
+    it('刷新保留当前执行批次，load 回到最新执行', async () => {
+      mocks.fetchAiTask.mockResolvedValue(makeOldExecutionDetail())
+      const s = mountDetail()
+      await vi.waitFor(() => expect(s.loading.value).toBe(false))
+      await s.switchExecution('e0')
+
+      await s.reload()
+      expect(mocks.fetchAiTask).toHaveBeenLastCalledWith('t1', { executionId: 'e0' })
+      await s.load()
+      expect(mocks.fetchAiTask).toHaveBeenLastCalledWith('t1', undefined)
+      expect(s.selectedExecutionId.value).toBeNull()
+    })
+
+    it('终止始终针对最新执行，避免回看旧批次时终止错对象', async () => {
+      mocks.fetchAiTask.mockResolvedValue(makeOldExecutionDetail())
+      const s = mountDetail()
+      await vi.waitFor(() => expect(s.loading.value).toBe(false))
+      await s.switchExecution('e0')
+
+      await s.handleAbort()
+      expect(mocks.abortAiExecution).toHaveBeenCalledWith('t1', 'e1')
     })
   })
 })

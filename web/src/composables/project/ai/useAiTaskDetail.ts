@@ -45,6 +45,8 @@ export function useAiTaskDetail() {
   const loadError = ref('')
   const notFound = ref(false)
   const detail = ref<AiTaskDetail | null>(null)
+  /** 业务面板按执行批次下钻时非空；此时详情 / 提案均为该执行，不再被最新执行轮询覆盖 */
+  const selectedExecutionId = ref<string | null>(null)
 
   const submitterText = ref('—')
   const aiAvailable = ref(true)
@@ -78,19 +80,23 @@ export function useAiTaskDetail() {
     }
   }
 
-  async function load(): Promise<void> {
+  async function fetchDetail(executionId: string | null): Promise<void> {
     // 已有缓存先展示旧值，仅首载走骨架屏
     loading.value = detail.value === null
     loadError.value = ''
     notFound.value = false
     try {
-      const task = await fetchAiTask(taskId)
+      const task = await fetchAiTask(taskId, executionId ? { executionId } : undefined)
       detail.value = task
-      aiTaskStore.cacheDetail(task)
-      void loadMemberName(task.submittedBy)
-      if (!shouldStopTaskDetailPolling(task.status)) {
-        aiTaskStore.startPolling(taskId)
+      selectedExecutionId.value = executionId
+      // 最新执行详情才进 store 缓存，旧执行回看不得污染任务中心的最近态
+      if (!executionId) {
+        aiTaskStore.cacheDetail(task)
+        if (!shouldStopTaskDetailPolling(task.status)) {
+          aiTaskStore.startPolling(taskId)
+        }
       }
+      void loadMemberName(task.submittedBy)
     } catch (err) {
       if (errorCode(err) === TASK_NOT_FOUND) {
         notFound.value = true
@@ -102,11 +108,27 @@ export function useAiTaskDetail() {
     }
   }
 
+  function load(): Promise<void> {
+    return fetchDetail(null)
+  }
+
+  /** 刷新当前查看的执行：审核确认后保留批次上下文，避免跳回最新执行 */
+  function reload(): Promise<void> {
+    return fetchDetail(selectedExecutionId.value)
+  }
+
+  /** 切换执行批次：按目标执行重新读取任务详情与提案清单，停止最新执行轮询 */
+  function switchExecution(executionId: string): Promise<void> {
+    if (!executionId || executionId === selectedExecutionId.value) return Promise.resolve()
+    aiTaskStore.stopPolling()
+    return fetchDetail(executionId)
+  }
+
   /** 轮询写入 store 缓存，详情页订阅缓存刷新展示值 */
   watch(
     () => aiTaskStore.detail,
     (cached) => {
-      if (cached && cached.taskId === taskId) {
+      if (!selectedExecutionId.value && cached && cached.taskId === taskId) {
         detail.value = cached
       }
     },
@@ -114,7 +136,7 @@ export function useAiTaskDetail() {
 
   /** 终止执行（详设 3.6.4）：仅 running / waiting_confirmation 可终止，成功后停止轮询 */
   async function handleAbort(): Promise<void> {
-    const executionId = detail.value?.latestExecution?.executionId
+    const executionId = executions.value[0]?.executionId ?? detail.value?.latestExecution?.executionId
     if (!executionId) return
     try {
       await ElMessageBox.confirm('终止后本任务停止执行，不产生任何落库数据，可再次执行。', '确认终止执行', {
@@ -162,6 +184,8 @@ export function useAiTaskDetail() {
   const typeMeta = computed(() => aiTaskTypeMeta(detail.value?.type ?? ''))
   const name = computed(() => (detail.value ? aiTaskName(detail.value) : ''))
   const execution = computed(() => detail.value?.latestExecution ?? null)
+  /** 执行批次列表（seq 倒序），供审核页切换旧执行 */
+  const executions = computed(() => detail.value?.executions ?? [])
   const executionStatusMeta = computed(() =>
     execution.value ? aiExecutionStatusMeta(execution.value.status) : null,
   )
@@ -228,6 +252,8 @@ export function useAiTaskDetail() {
     typeMeta,
     name,
     execution,
+    executions,
+    selectedExecutionId,
     executionStatusMeta,
     planSteps,
     proposals,
@@ -239,6 +265,8 @@ export function useAiTaskDetail() {
     canReExecute,
     isRunning,
     load,
+    reload,
+    switchExecution,
     handleAbort,
     handleReExecute,
     backToCenter,

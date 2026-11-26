@@ -81,6 +81,9 @@ export interface AiTaskExecutionItem {
   consumed: AiTaskConsumed | null
   plan: AiTaskPlanSnapshot | null
   terminateReason: AiTaskTerminateReason | null
+  /** 执行批次列表标注（详情接口下发） */
+  createdAt?: string | null
+  proposalCount?: number | null
 }
 
 /** 文档级识别元数据（详设 3.6.3 documentMeta）：导入任务识别版本与依据引语 */
@@ -134,8 +137,15 @@ export interface AiTaskDetail extends AiTaskItem {
   /** result_meta 原始值（确认面板预填数据源） */
   resultMeta: Record<string, unknown> | null
   documentMeta: AiTaskDocumentMeta | null
-  /** 最新一次执行的提案清单摘要，非完成态为 null */
+  /** 当前执行（缺省最新）的提案清单摘要，非完成态为 null */
   proposals: AiTaskProposalSummary[] | null
+  /** 全部执行摘要（seq 倒序），供业务面板切换执行批次；列表 / 提交响应为 null */
+  executions?: AiTaskExecutionItem[] | null
+}
+
+/** 任务详情按执行查看参数（缺省最新执行） */
+export interface AiTaskDetailQuery {
+  executionId?: string
 }
 
 /** AI 决策请求摘要（detail.rawRequest，仅业务上下文与工具名，不含密钥） */
@@ -217,6 +227,8 @@ export interface AiProposalConfirmTarget {
 
 export interface AiProposalConfirmPayload {
   items: AiProposalConfirmItem[]
+  /** 目标执行：审核旧执行时携带，采纳记录归属该执行；缺省按最新执行 */
+  executionId?: string
   target?: AiProposalConfirmTarget
 }
 

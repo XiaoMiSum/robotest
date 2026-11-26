@@ -500,4 +500,57 @@ describe('useAiProposalReview', () => {
       })
     })
   })
+
+  describe('执行批次隔离', () => {
+    it('指定执行时提案详情与确认都携带 executionId', async () => {
+      mocks.fetchAiProposal.mockResolvedValue({ content: { title: '旧执行提案' } })
+      const s = useAiProposalReview(
+        't1',
+        () => [summary()],
+        () => true,
+        vi.fn(),
+        'requirement_import',
+        () => 'e0',
+      )
+      s.init()
+      s.select('a1')
+      await vi.waitFor(() =>
+        expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'a1', 'e0'),
+      )
+      await s.handleAdopt(s.rows.value[0])
+      expect(mocks.confirmAiProposals).toHaveBeenCalledWith('t1', {
+        items: [{ key: 'a1', action: 'adopted' }],
+        executionId: 'e0',
+        target: undefined,
+      })
+    })
+
+    it('切换执行清空内容缓存与残留选择，同键提案重新拉取详情', async () => {
+      let executionId = 'e0'
+      mocks.fetchAiProposal.mockResolvedValue({ content: { title: '旧执行提案' } })
+      const s = useAiProposalReview(
+        't1',
+        () => [summary()],
+        () => true,
+        vi.fn(),
+        'requirement_import',
+        () => executionId,
+      )
+      s.init()
+      s.select('a1')
+      s.toggle('a1', true)
+      await vi.waitFor(() => expect(s.rows.value[0].contentLoaded).toBe(true))
+
+      executionId = 'e1'
+      s.syncRows()
+      expect(s.selectedKeys.value).toEqual([])
+      expect(s.rows.value[0].contentLoaded).toBe(false)
+
+      s.select('a1')
+      await vi.waitFor(() =>
+        expect(mocks.fetchAiProposal).toHaveBeenCalledWith('t1', 'a1', 'e1'),
+      )
+      expect(mocks.fetchAiProposal).toHaveBeenCalledTimes(2)
+    })
+  })
 })

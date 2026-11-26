@@ -4,6 +4,7 @@ import type {
   AiProposalConfirmReceipt,
   AiStatus,
   AiTaskDetail,
+  AiTaskDetailQuery,
   AiTaskEventsQuery,
   AiTaskEventsResult,
   AiTaskItem,
@@ -38,9 +39,9 @@ export function fetchAiRunningCount(): Promise<{ count: number }> {
   return get('/ai/tasks/running-count')
 }
 
-/** 任务详情（详设 3.6.3）：最新执行 + 提案清单摘要 + documentMeta */
-export function fetchAiTask(taskId: string): Promise<AiTaskDetail> {
-  return get(`/ai/tasks/${taskId}`)
+/** 任务详情（详设 3.6.3）：指定执行（缺省最新）+ 全部执行摘要 + 提案清单 + documentMeta */
+export function fetchAiTask(taskId: string, params: AiTaskDetailQuery = {}): Promise<AiTaskDetail> {
+  return get(`/ai/tasks/${taskId}`, Object.keys(params).length > 0 ? { ...params } : undefined)
 }
 
 /** 按文档 / 节点查询最近一次任务（详设 3.6.3）：无匹配时 data 为 null，省略 nodeId 按文档匹配 */
@@ -51,12 +52,14 @@ export function fetchLatestAiTask(
   return get(`/ai/tasks/${type}/latest`, { ...params })
 }
 
-/** 提案详情（详设 3.6.3）：完整内容，键在最新一次执行的提案中定位 */
+/** 提案详情（详设 3.6.3）：完整内容，键在指定执行的提案中定位（缺省最新一次执行） */
 export function fetchAiProposal(
   taskId: string,
   proposalKey: string,
+  executionId?: string,
 ): Promise<AiTaskProposalPayload> {
-  return get(`/ai/tasks/${taskId}/proposals/${encodeURIComponent(proposalKey)}`)
+  return get(`/ai/tasks/${taskId}/proposals/${encodeURIComponent(proposalKey)}`,
+    executionId ? { executionId } : {})
 }
 
 /** 轨迹查询（详设 3.6.4）：afterSeq 游标增量，默认 200 上限 500 */

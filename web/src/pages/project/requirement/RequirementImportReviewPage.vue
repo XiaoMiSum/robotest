@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { formatDateTime } from '@/utils/format'
 import RequirementImportReviewPanel from '@/components/project/requirement/RequirementImportReviewPanel.vue'
 import ExecutionPanel from '@/components/project/ai/ExecutionPanel.vue'
 import { useAiTaskDetail } from '@/composables/project/ai/useAiTaskDetail'
+import { aiExecutionStatusMeta } from '@/composables/project/ai/taskPresentation'
 
 const REQUIREMENT_LIST_ROUTE = '/workspace/projects/functional-testing?tab=requirements'
+const REQUIREMENT_HISTORY_ROUTE = '/workspace/projects/requirements/import-history'
 
 const router = useRouter()
 const {
@@ -18,27 +21,53 @@ const {
   typeMeta,
   name,
   execution,
+  executions,
+  selectedExecutionId,
+  switchExecution,
   proposals,
   adoptionResult,
   terminateText,
   canAbort,
   canReExecute,
-  load,
+  reload,
   handleAbort,
   handleReExecute,
 } = useAiTaskDetail()
 
 const documentMeta = computed(() => detail.value?.documentMeta ?? null)
-const showReviewPanel = computed(
-  () => detail.value?.status === 'proposals_ready' && proposals.value.length > 0,
-)
+/** 旧执行回看时任务可能已是 closed，审核区按「当前执行有提案」判定而非任务态 */
+const showReviewPanel = computed(() => proposals.value.length > 0)
 const showRunningPlaceholder = computed(() => detail.value?.status === 'running')
 const showEmptyProposals = computed(
-  () => detail.value?.status === 'proposals_ready' && proposals.value.length === 0,
+  () => !showReviewPanel.value && !showRunningPlaceholder.value,
 )
+const emptyProposalsText = computed(() => {
+  if (detail.value?.status === 'aborted') return '任务已终止，未生成可审核的导入建议'
+  if (selectedExecutionId.value) return '该执行批次未生成可审核的导入建议'
+  return '任务已完成，但没有需要审核的导入建议'
+})
+const showExecutionSwitcher = computed(() => executions.value.length > 1)
+const selectedExecution = computed(
+  () => selectedExecutionId.value ?? executions.value[0]?.executionId ?? '',
+)
+
+function executionLabel(item: (typeof executions.value)[number], index: number): string {
+  const seq = item.seq == null ? '—' : item.seq
+  const time = item.createdAt ? ` · ${formatDateTime(item.createdAt)}` : ''
+  const latest = index === 0 ? '（最新）' : ''
+  return `第 ${seq} 次执行${time} · ${aiExecutionStatusMeta(item.status).label}${latest}`
+}
+
+function onExecutionChange(value: unknown): void {
+  if (typeof value === 'string' && value) void switchExecution(value)
+}
 
 function backToList(): void {
   void router.push(REQUIREMENT_LIST_ROUTE)
+}
+
+function backToHistory(): void {
+  void router.push(REQUIREMENT_HISTORY_ROUTE)
 }
 </script>
 
@@ -77,7 +106,7 @@ function backToList(): void {
       class="import-review__error"
     >
       <template #default>
-        <el-button type="danger" plain size="small" @click="load">重试</el-button>
+        <el-button type="danger" plain size="small" @click="reload">重试</el-button>
       </template>
     </el-alert>
 
@@ -108,6 +137,7 @@ function backToList(): void {
           <div class="import-review__actions">
             <el-button v-if="canAbort" link type="danger" @click="handleAbort">终止</el-button>
             <el-button v-if="canReExecute" link type="primary" @click="handleReExecute">重新执行</el-button>
+            <el-button link type="primary" @click="backToHistory">返回导入历史</el-button>
             <el-button link type="primary" @click="backToList">返回需求列表</el-button>
           </div>
         </header>
@@ -118,6 +148,24 @@ function backToList(): void {
             :task-status="detail.status"
             :terminate-text="terminateText"
           />
+          <div v-if="showExecutionSwitcher" class="import-review__execution-switch">
+            <span class="import-review__execution-label">执行批次</span>
+            <el-select
+              :model-value="selectedExecution"
+              placeholder="选择执行批次"
+              @change="onExecutionChange"
+            >
+              <el-option
+                v-for="(item, index) in executions"
+                :key="item.executionId"
+                :value="item.executionId"
+                :label="executionLabel(item, index)"
+              />
+            </el-select>
+            <span class="import-review__execution-hint">
+              {{ selectedExecutionId ? '当前查看旧执行的提案，可继续审核，采纳记录按该执行独立保存' : '当前为最新执行的提案，可逐条审核' }}
+            </span>
+          </div>
         </section>
 
         <RequirementImportReviewPanel
@@ -125,8 +173,9 @@ function backToList(): void {
           :task-id="detail.taskId"
           task-type="requirement_import"
           :proposals="proposals"
+          :execution-id="selectedExecutionId"
           :document-meta="documentMeta"
-          @confirmed="load"
+          @confirmed="reload"
           @leave="backToList"
         />
 
@@ -138,7 +187,7 @@ function backToList(): void {
 
         <el-empty
           v-else-if="showEmptyProposals"
-          description="任务已完成，但没有需要审核的导入建议"
+          :description="emptyProposalsText"
           :image-size="80"
         >
           <router-link :to="REQUIREMENT_LIST_ROUTE">返回需求列表</router-link>
@@ -216,5 +265,21 @@ function backToList(): void {
 
 .import-review__section {
   margin-bottom: var(--block-gap);
+}
+
+.import-review__execution-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-neutral-200);
+}
+
+.import-review__execution-label,
+.import-review__execution-hint {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
 }
 </style>

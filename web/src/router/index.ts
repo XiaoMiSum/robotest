@@ -304,6 +304,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '导入结果审核', mode: 'project' },
       },
       {
+        // 不入菜单：需求列表「导入历史」下钻（交互 06 §2.6）；须先于 :requirementId 注册
+        path: 'workspace/projects/requirements/import-history',
+        name: 'RequirementImportHistory',
+        component: () => import('@/pages/project/requirement/RequirementImportHistoryPage.vue'),
+        meta: { title: '导入历史', mode: 'project' },
+      },
+      {
         path: 'workspace/projects/requirements/:requirementId',
         name: 'RequirementDetail',
         component: () => import('@/pages/project/requirement/RequirementDetailPage.vue'),

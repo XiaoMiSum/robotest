@@ -6,22 +6,13 @@ import RequirementListPage from './RequirementListPage.vue'
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
-  fetchAiTasks: vi.fn(),
-  messageInfo: vi.fn(),
-  messageError: vi.fn(),
   useRequirementList: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
-vi.mock('@/services/ai', () => ({ fetchAiTasks: mocks.fetchAiTasks }))
 vi.mock('@/composables/project/requirement/useRequirementList', () => ({
   useRequirementList: mocks.useRequirementList,
 }))
-vi.mock('element-plus', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('element-plus')>()),
-  ElMessage: { info: mocks.messageInfo, error: mocks.messageError },
-}))
-
 function makeListState(overrides: Record<string, unknown> = {}) {
   return {
     loading: ref(false),
@@ -99,7 +90,6 @@ describe('RequirementListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.useRequirementList.mockReturnValue(makeListState())
-    mocks.fetchAiTasks.mockResolvedValue({ list: [], total: 0 })
   })
 
   afterEach(() => {
@@ -125,55 +115,24 @@ describe('RequirementListPage', () => {
     expect(wrapper.find('.requirement-list__action-header .col-setting').exists()).toBe(true)
   })
 
-  it('最近一次导入查询到记录后跳转审核页', async () => {
-    mocks.fetchAiTasks.mockResolvedValue({
-      list: [{ taskId: 'task-1', type: 'requirement_import' }],
-      total: 1,
-    })
+  it('导入历史入口直接进入历史页，不再查询最近一次任务', async () => {
     const wrapper = render()
     await flushPromises()
 
-    const btn = wrapper.findAll('button').find((b) => b.text().includes('最近一次导入'))
+    const btn = wrapper.findAll('button').find((b) => b.text().includes('导入历史'))
     expect(btn).toBeDefined()
     await btn!.trigger('click')
     await flushPromises()
 
-    expect(mocks.fetchAiTasks).toHaveBeenCalledWith({ type: 'requirement_import', pageNo: 1, pageSize: 1 })
-    expect(mocks.push).toHaveBeenCalledWith('/workspace/projects/requirements/import-review/task-1')
+    expect(mocks.push).toHaveBeenCalledWith('/workspace/projects/requirements/import-history')
   })
 
-  it('最近一次导入无记录时提示', async () => {
-    mocks.fetchAiTasks.mockResolvedValue({ list: [], total: 0 })
-    const wrapper = render()
-    await flushPromises()
-
-    const btn = wrapper.findAll('button').find((b) => b.text().includes('最近一次导入'))
-    await btn!.trigger('click')
-    await flushPromises()
-
-    expect(mocks.messageInfo).toHaveBeenCalledWith('暂无导入记录')
-    expect(mocks.push).not.toHaveBeenCalled()
-  })
-
-  it('最近一次导入查询失败时提示错误', async () => {
-    mocks.fetchAiTasks.mockRejectedValue(new Error('boom'))
-    const wrapper = render()
-    await flushPromises()
-
-    const btn = wrapper.findAll('button').find((b) => b.text().includes('最近一次导入'))
-    await btn!.trigger('click')
-    await flushPromises()
-
-    expect(mocks.messageError).toHaveBeenCalledWith('获取最近一次导入记录失败，请稍后重试')
-    expect(mocks.push).not.toHaveBeenCalled()
-  })
-
-  it('AI 不可用时隐藏最近一次导入与导入需求入口', async () => {
+  it('AI 不可用时隐藏导入历史与导入需求入口', async () => {
     mocks.useRequirementList.mockReturnValue(makeListState({ aiAvailable: ref(false) }))
     const wrapper = render()
     await flushPromises()
 
-    expect(wrapper.text()).not.toContain('最近一次导入')
+    expect(wrapper.text()).not.toContain('导入历史')
     expect(wrapper.text()).not.toContain('导入需求')
   })
 })

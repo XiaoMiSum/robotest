@@ -2,9 +2,7 @@
 import { computed, ref } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
-import { fetchAiTasks } from '@/services/ai'
 import {
   canConfirmRequirement,
   type RequirementRow,
@@ -75,25 +73,10 @@ const cardBodyStyle: CSSProperties = {
 /** 导入经任务框架执行，AI 总开关关闭或未配模型时入口隐藏（总册 4.5） */
 const importDialogVisible = ref(false)
 const canImport = computed(() => canCreate.value && aiAvailable.value)
-const canViewLatestImport = computed(() => aiAvailable.value)
-const latestImportLoading = ref(false)
+const canViewImportHistory = computed(() => aiAvailable.value)
 
-async function openLatestImport(): Promise<void> {
-  if (latestImportLoading.value) return
-  latestImportLoading.value = true
-  try {
-    const result = await fetchAiTasks({ type: 'requirement_import', pageNo: 1, pageSize: 1 })
-    const latest = result.list[0]
-    if (!latest) {
-      ElMessage.info('暂无导入记录')
-      return
-    }
-    await router.push(`/workspace/projects/requirements/import-review/${latest.taskId}`)
-  } catch {
-    ElMessage.error('获取最近一次导入记录失败，请稍后重试')
-  } finally {
-    latestImportLoading.value = false
-  }
+function openImportHistory(): void {
+  void router.push('/workspace/projects/requirements/import-history')
 }
 
 const statusOptions = [
@@ -135,11 +118,7 @@ function openCreate(): void {
         <p class="page-head__desc">沉淀项目需求，驱动用例设计</p>
       </div>
       <div class="page-head__actions">
-        <el-button
-          v-if="canViewLatestImport"
-          :loading="latestImportLoading"
-          @click="openLatestImport"
-        >最近一次导入</el-button>
+        <el-button v-if="canViewImportHistory" @click="openImportHistory">导入历史</el-button>
         <el-button v-if="canImport" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>导入需求
         </el-button>

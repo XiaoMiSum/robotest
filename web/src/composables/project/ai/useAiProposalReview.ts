@@ -96,12 +96,21 @@ export function useAiProposalReview(
   canConfirm: () => boolean,
   onConfirmed: () => void,
   taskType?: string | (() => string),
+  /** 目标执行：审核旧执行时提案详情与确认均按该执行定位 */
+  executionId?: string | (() => string | null | undefined),
 ) {
   const profile = computed(() =>
     reviewProfile(typeof taskType === 'function' ? taskType() : (taskType ?? '')),
   )
 
+  function currentExecutionId(): string | undefined {
+    const value = typeof executionId === 'function' ? executionId() : executionId
+    return value || undefined
+  }
+
   const rows = ref<ProposalRow[]>([])
+  /** 内容缓存按执行隔离：不同执行的提案键可能重复，切换时必须重读内容 */
+  const contentExecutionId = ref<string | null>(null)
   const selectedKeys = ref<string[]>([])
   const activeKey = ref('')
   const loadingContent = ref(false)
@@ -150,8 +159,10 @@ export function useAiProposalReview(
 
   function syncRows(): void {
     const incoming = proposals()
+    const current = currentExecutionId() ?? null
+    const executionChanged = contentExecutionId.value !== current
     rows.value = incoming.map((proposal) => {
-      const existing = rows.value.find((row) => row.key === proposal.key)
+      const existing = executionChanged ? undefined : rows.value.find((row) => row.key === proposal.key)
       return {
         ...proposal,
         kindLabel: aiProposalKindLabel(proposal.kind),
@@ -163,13 +174,16 @@ export function useAiProposalReview(
         contentError: existing?.contentError ?? '',
       }
     })
-    // 已确认项移出选择集，避免残留选择态
-    selectedKeys.value = selectedKeys.value.filter((key) =>
-      rows.value.some((row) => row.key === key && row.confirmStatus === 'pending'),
-    )
+    // 已确认项与跨执行残留选择一并清除，避免把旧执行的选择带到新批次
+    selectedKeys.value = executionChanged
+      ? []
+      : selectedKeys.value.filter((key) =>
+          rows.value.some((row) => row.key === key && row.confirmStatus === 'pending'),
+        )
     if (!rows.value.some((row) => row.key === activeKey.value)) {
       activeKey.value = rows.value[0]?.key ?? ''
     }
+    contentExecutionId.value = current
   }
 
   // ==================== 内容加载 ====================
@@ -178,7 +192,10 @@ export function useAiProposalReview(
     loadingContent.value = true
     row.contentError = ''
     try {
-      const payload = await fetchAiProposal(taskId, row.key)
+      const execution = currentExecutionId()
+      const payload = await (execution
+        ? fetchAiProposal(taskId, row.key, execution)
+        : fetchAiProposal(taskId, row.key))
       const raw = payload.content ?? {}
       row.rawContent = raw
       row.parsed = profile.value.parse(raw, row.title || '')
@@ -247,7 +264,12 @@ export function useAiProposalReview(
       const results: AiProposalConfirmResult[] = []
       for (let start = 0; start < items.length; start += CONFIRM_MAX_ITEMS) {
         const chunk = items.slice(start, start + CONFIRM_MAX_ITEMS)
-        const resp = await confirmAiProposals(taskId, { items: chunk, target })
+        const execution = currentExecutionId()
+        const resp = await confirmAiProposals(taskId, {
+          items: chunk,
+          ...(execution ? { executionId: execution } : {}),
+          target,
+        })
         results.push(...resp.results)
       }
       receipt.value = renderReceipt(results, items)
