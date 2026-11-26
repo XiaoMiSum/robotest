@@ -379,7 +379,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 
 ### 4.5 导入拆解的采纳落库
 
-任务提案 `content` 口径（产物单一事实源）：`title`、`description`、`moduleId`（已有模块 id 或 null）、`moduleName`（模块名称，必填）、`newModule`（布尔，是否新增模块）、`priority`。`newModule = false` 时 `moduleId` 须命中项目现有模块；`newModule = true` 时 `moduleId` 为 null、`moduleName` 为建议新建的模块名。AI 拆分仅以模块为边界：单模块文档产出一条建议且 `description` 为原文全文，多模块文档每个模块一条建议且描述为对应原文片段，不按功能点、用户故事编号或章节小节细分。
+任务提案 `content` 口径（产物单一事实源）：`title`、`description`、`moduleId`（已有模块 id 或 null）、`moduleName`（模块名称，必填）、`newModule`（布尔，是否新增模块）、`priority`。`newModule = false` 时 `moduleId` 须命中项目现有模块；`newModule = true` 时 `moduleId` 为 null、`moduleName` 为建议新建的模块名。拆分条数由 AI 判断各章节归属同一需求还是多个需求：同一业务功能域产出一条建议且 `description` 为原文全文，多个业务功能域按域各产出一条且描述为对应原文片段；层级标题可作判断线索，不按功能点、用户故事编号或更细粒度机械拆分。模型只输出 `@full` 或 `@blocks:Bn` 原文引用，后端在提案落库前按引用回填逐字原文；未被任何建议认领的块作为公共前言拼接到每条 `description` 前。
 
 1. 任务提案逐条确认（`POST /api/ai/tasks/{taskId}/proposals/confirm`，`action = adopted / adopted_edited / rejected`）；
 2. `adopted / adopted_edited` 时由本模块 `RequirementAdoptService` 承接落库：
@@ -494,6 +494,45 @@ CREATE TABLE requirement_split_record ( ... );
 CREATE INDEX idx_requirement_split_project / _task ...;
 ```
 
+**场景提示词增量 SQL（存量库）**
+
+`requirement_import` 的内置默认提示词以 `RequirementImportTypeAdapter.DEFAULT_PROMPT` 为唯一事实源，执行期优先使用 `ai_prompt_template` 中的自定义覆盖行。存量库若存有旧提示词，须执行以下语句同步为新口径，否则旧提示词会继续盖住内置默认；无覆盖行时无需执行。
+
+```sql
+UPDATE ai_prompt_template
+   SET content = $$你是严谨的需求分析助手。只输出一个 JSON 对象，禁止输出任何解释、分析、思考过程或 Markdown 代码块标记（含 ```json / ```）。
+将给定需求文档解析为需求建议，并识别被测业务系统版本。
+
+需求数量由你判断：先通读文档，判断各章节应归属同一个需求还是多个需求；只有当你判断它们同属一个业务功能域时才产出一条，覆盖多个业务功能域时按功能域各产出一条。层级标题可作为判断线索，但不得按功能点、用户故事编号或更细粒度机械拆分。
+
+description 只输出原文引用，禁止输出正文：
+1. 整篇同属一条时输出 "@full"；
+2. 多需求时每条输出 "@blocks:B2,B5,B6"，按文档顺序列出该需求覆盖的块编号；
+3. 未被任何需求认领的块由系统作为公共前言拼接到每条描述前，无需在各条中重复；
+4. 图片附件来源（文档内容为空）时 description 输出从图片读取的正文，不受引用约束。
+
+每条建议给出标题、模块名称 moduleName、新增模块标记 newModule 与优先级，不得臆造原文没有的业务规则：
+1. 标题取所覆盖功能域的名称；
+2. moduleName 必填且不超过 100 字符。原文明确属于「可用模块」中的某个模块时，moduleId 填该模块 id、newModule 为 false、moduleName 填该模块名称；没有匹配的现有模块时，moduleId 为 null、newModule 为 true、moduleName 填建议新建的模块名；
+3. 优先级只允许 high / medium / low；
+4. documentMeta.detectedVersion 为从文档识别的被测业务系统版本（如 V2.3），versionEvidence 为识别依据的原文引语，识别不到时对应值为 null，不得臆造。
+
+文档文件名：{{documentName}}
+文档内容（[Bn] 为系统添加的块编号，仅用于引用，不属于原文）：
+{{documentText}}
+可用模块（id|名称）：
+{{moduleOptions}}
+
+输出结构（JSON 对象，artifacts 数组即产物清单）：
+{"documentMeta":{"detectedVersion":null,"versionEvidence":null},"artifacts":[{"content":{"title":"…","description":"@blocks:B5","moduleId":null,"moduleName":"…","newModule":true,"priority":"medium"}}]}
+$$,
+       version = version + 1,
+       updated_at = CURRENT_TIMESTAMP
+ WHERE scene = 'requirement_import'
+   AND is_deleted = FALSE
+   AND source = 'custom';
+```
+
 - UUID 主键使用框架默认策略；无物理外键；单表索引数 4 / 1 / 2，均 ≤ 5（C9）。
 - **存量接口对齐**：若既有 `/api/project/requirements*` 接口与本文档不一致（字段、路径、错误码），以本文档为目标态迁移，差异清单在实现时随迁移说明提交。
 
@@ -533,3 +572,4 @@ CREATE INDEX idx_requirement_split_project / _task ...;
 | V1.0 | 2026-11-23 | 导入结果审核从任务详情迁至需求管理业务页：5.1 新增 `RequirementImportReviewPage` 路由、5.2 新增页面与面板组件，5.3 导入流程与测试要点同步；AI 任务详情仅回看 |
 | V1.0 | 2026-11-24 | 4.5 定义拆分产物 `moduleName` / `newModule` 口径与单模块整篇保留规则：采纳时复用或新建模块并关联需求，5.2 / 5.3 审核区同步展示模块名称与新增模块标记 |
 | V1.0 | 2026-11-24 | 5.2 / 5.3 审核区收敛为逐条采纳：不提供全选与批量采纳、全部驳回操作 |
+| V1.0 | 2026-11-26 | 4.5 / 7 需求拆解改由 AI 判断章节归属同一需求还是多个需求：`description` 由模型输出 `@full` / `@blocks:Bn` 引用、后端回填原文并前置公共前言；登记存量库提示词增量 SQL |
