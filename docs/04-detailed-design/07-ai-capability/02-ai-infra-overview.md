@@ -814,10 +814,10 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 响应列表项：`{ taskId, type, title, status, latestExecution: { executionId, seq, status, steps, budget }, submittedBy, tokensIn, tokensOut, createdAt, terminateReason }`；`title` 为空串（存量任务）时前端按类型名兜底展示。
 - **进行中计数**：`GET /api/ai/tasks/running-count`——顶栏指示器轮询专用，统计 `status = running`（含执行挂起）的任务数，过滤口径与列表一致（按项目头过滤，不按提交人过滤）。
   - 响应：`{ "count": 2 }`。
-- **按文档 / 节点 / 评审查询最近任务**：`GET /api/ai/tasks/{type}/latest`
-  - 参数：`documentId` / `reviewId`、`nodeId`（可选）；`reviewId` 用于 `review_case_review`（按任务输入的 `reviewId` 匹配），`documentId` 用于其他类型——传 `nodeId` 时按任务输入中的 `documentId` 与 `nodeIds` 匹配（节点级任务），省略 `nodeId` 时仅按 `documentId` 匹配（文档级任务）；返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
+- **按文档 / 节点 / 评审 / 计划查询最近任务**：`GET /api/ai/tasks/{type}/latest`
+  - 参数：`documentId` / `reviewId` / `planId`、`nodeId`（可选）；`reviewId` 用于 `review_case_review`（按任务输入的 `reviewId` 匹配），`planId` 用于 `plan_order`（按任务输入的 `planId` 匹配，轮次随任务输入回显），`documentId` 用于其他类型——传 `nodeId` 时按任务输入中的 `documentId` 与 `nodeIds` 匹配（节点级任务），省略 `nodeId` 时仅按 `documentId` 匹配（文档级任务）；返回 `created_at` 最新的一条任务详情（结构同 3.6.3 详情）。
   - 可见范围：当前项目内任意成员提交的任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
-  - 用途：用例节点「AI 优化」按节点、脑图「AI覆盖雷达」按当前文档、评审详情页「AI 评审」按评审 id 复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
+  - 用途：用例节点「AI 优化」按节点、脑图「AI覆盖雷达」按当前文档、评审详情页「AI 评审」按评审 id、测试计划详情「执行顺序建议」按计划 id 复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
 - **详情**：`GET /api/ai/tasks/{taskId}`
   - 可选参数 `executionId`：指定时 `latestExecution` 与 `proposals` 改为对应执行的摘要与提案清单；未指定时取 `seq` 最大的最新执行。响应始终附 `executions` 列表（全部执行摘要，按 `seq` 倒序），供业务面板切换执行批次。
   - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 创建时生成、执行不改写（见 3.6.1）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在本清单内，可指定 `executionId` 读取任一执行的提案清单与详情并审核，轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
@@ -1183,3 +1183,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-26 | 3.6.1 / 4.2 新增类型适配器声明的 JSON 对象模式：终态产出须为 JSON 对象的任务经 Spring AI `response_format=json_object` 约束模型正文，首版仅 `requirement_import` 启用，修复重试同样透传 |
 | V1.0 | 2026-11-26 | 4.2 登记 `requirement_import` 原文引用回填：模型只输出 `@full` / `@blocks:Bn`，块切分与公共前言由后端确定性查表，避免长文档回显截断 |
 | V1.0 | 2026-11-26 | 3.6.3 详情支持指定 `executionId` 并下发 `executions` 列表，提案详情与 3.6.5 确认按 `executionId` 定位，旧执行提案可继续审核 |
+| V1.0 | 2026-11-26 | 3.6.3 `/latest` 增 `planId` 查询参数：按任务输入 `planId` 匹配 `plan_order` 最近任务，供测试计划详情回显进度 / 提案 / 审核结果，可见范围沿用项目内成员共享口径 |

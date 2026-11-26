@@ -71,7 +71,7 @@
 ### 3.3 任务复用
 
 - **路径**：`GET /api/ai/tasks/{type}/latest`
-- 扩展参数 `reviewId`（可选）：传 `reviewId` 时按任务输入中的 `reviewId` 匹配本类型任务，返回 `created_at` 最新的一条（结构同总册 3.6.3 详情）；`documentId` / `nodeId` 仍按原口径用于其他任务类型。
+- 扩展参数 `reviewId`（可选）：传 `reviewId` 时按任务输入中的 `reviewId` 匹配本类型任务，返回 `created_at` 最新的一条（结构同总册 3.6.3 详情）；`documentId` / `nodeId` / `planId` 仍按原口径用于其他任务类型。
 - 可见范围：当前项目内任意成员提交的 `review_case_review` 任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
 - 前端命中后按任务状态回显进度、提案或终止原因，不再弹出确认，不重复发起。
 
@@ -251,3 +251,4 @@ AiReviewPanel（AI 评审面板，评审详情页内呈现）
 | V1.0 | 2026-11-23 | 任务标题改提交创建时生成：按总册 3.6.1 取评审标题拼接「AI 评审 - 评审标题」，执行不再回填 |
 | V1.0 | 2026-11-23 | 任务详情页改只读展示策略：不渲染通用审核区与采纳 / 编辑后采纳 / 驳回动作，处置统一由评审详情页 AI 评审面板承担 |
 | V1.0 | 2026-11-23 | 5.2 处置动作收敛为右对齐 link 的驳回（危险色）与采纳（成功色），移除编辑后采纳 |
+| V1.0 | 2026-11-26 | 3.3 说明 `/latest` 的 `documentId` / `nodeId` / `planId` 参数按原口径供其他任务类型使用 |

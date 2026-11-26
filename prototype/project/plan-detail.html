@@ -186,6 +186,18 @@
   .order-diff__item--changed { background: var(--brand-50); color: var(--brand-600); }
   .order-diff__idx { color: var(--n-400); min-width: 14px; }
   #order-footer { justify-content: flex-end; gap: var(--space-xs); padding-top: var(--space-sm); border-top: 1px solid var(--n-200); }
+  /* 原型演示：任务复用状态切换（仅原型可见，实际页面由 /latest 查询决定） */
+  .order-demo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-sm); padding: 6px 10px; border: 1px dashed var(--n-200); border-radius: 4px; background: var(--n-50); font-size: var(--font-size-xs); color: var(--n-500); }
+  .order-demo label { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+  /* 任务状态与审核结果回显（交互 2.2 / 2.6） */
+  .order-audit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: var(--space-sm); padding: var(--space-xs) var(--space-sm); border: 1px solid var(--n-200); border-radius: 4px; background: var(--n-50); font-size: var(--font-size-sm); color: var(--n-600); }
+  .order-audit__label { font-weight: 600; color: var(--n-700); }
+  .order-audit__reason { color: var(--n-500); }
+  .order-badge--adopted { color: var(--st-success-strong); background: var(--st-success-light); border-color: #b3e19d; }
+  .order-badge--rejected { color: var(--st-danger-strong); background: var(--st-danger-light); border-color: #fab6b6; }
+  .order-abort { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-md) 0; font-size: var(--font-size-sm); color: var(--n-700); }
+  .order-abort__icon { display: inline-flex; color: var(--st-danger-strong); }
+  .order-abort__icon svg { width: 20px; height: 20px; }
 
   /* 执行顺序建议的行拖拽：原生 HTML5 drag，拖动后重排并重算序号/对照 */
   .order-row[draggable="true"] { cursor: grab; }
@@ -319,7 +331,7 @@
   </div>
 </div>
 
-<!-- 执行顺序建议：进行中展示进度，完成后切为排序面板（交互 2.2 / 2.3） -->
+<!-- 执行顺序建议：按任务状态回显进度 / 提案 / 审核结果，并提供重新执行（交互 2.2 / 2.6） -->
   <div class="dialog-mask" id="order-dialog" data-mask-close hidden>
     <div class="dialog dialog--order" role="dialog" aria-modal="true" aria-labelledby="order-title">
       <div class="dialog__header">
@@ -327,6 +339,19 @@
         <button class="dialog__close" id="order-close" aria-label="关闭"><span data-icon="x"></span></button>
       </div>
       <div class="dialog__body">
+        <div class="order-demo" id="order-demo">
+          <span>原型演示：</span>
+          <label><input type="radio" name="order-demo-state" value="new"> 无任务</label>
+          <label><input type="radio" name="order-demo-state" value="running"> 复用·运行中</label>
+          <label><input type="radio" name="order-demo-state" value="proposals" checked> 复用·待采纳</label>
+          <label><input type="radio" name="order-demo-state" value="closed"> 复用·已结束</label>
+          <label><input type="radio" name="order-demo-state" value="aborted"> 复用·已终止</label>
+        </div>
+        <div class="order-audit" id="order-audit" hidden></div>
+        <div class="order-abort" id="order-abort" hidden>
+          <span class="order-abort__icon" data-icon="alert-triangle"></span>
+          <span>任务已终止：预算耗尽（1000018117）</span>
+        </div>
         <div class="order-state" id="order-running">
           <span class="spin" data-icon="loader"></span>
           <div class="order-state__text">
@@ -338,6 +363,7 @@
         <div id="order-result" hidden></div>
       </div>
       <div class="dialog__footer" id="order-footer" hidden>
+        <button class="btn btn--text btn--sm" id="order-rerun" hidden>重新执行</button>
         <button class="btn btn--primary btn--sm" id="order-adopt">应用建议</button>
         <button class="btn btn--default btn--sm" id="order-cancel">放弃</button>
       </div>
@@ -956,27 +982,98 @@
     }
   });
 
+  function currentOrderDemoState() {
+    var el = document.querySelector('input[name="order-demo-state"]:checked');
+    return el ? el.value : 'new';
+  }
+
+  function renderOrderAudit(closed) {
+    byId('order-audit').innerHTML =
+      '<span class="order-audit__label">任务状态</span>' +
+      '<span class="order-badge ' + (closed ? 'order-badge--adopted' : 'order-badge--pending') + '">' + (closed ? '已结束' : '待采纳') + '</span>' +
+      '<span class="order-audit__label" style="margin-left:8px">审核结果</span>' +
+      '<span class="order-badge order-badge--adopted">已采纳 2</span>' +
+      '<span class="order-badge order-badge--pending">待采纳 1</span>' +
+      '<span class="order-badge order-badge--rejected">已驳回 1</span>' +
+      '<span class="order-audit__reason">驳回原因：本期不回归</span>';
+  }
+
+  function showOrderByState(state) {
+    var audit = byId('order-audit');
+    var abort = byId('order-abort');
+    var running = byId('order-running');
+    var result = byId('order-result');
+    var footer = byId('order-footer');
+    var rerun = byId('order-rerun');
+    var adopt = byId('order-adopt');
+    var cancel = byId('order-cancel');
+    if (orderTimer) { clearTimeout(orderTimer); orderTimer = null; }
+    audit.hidden = true; abort.hidden = true; running.hidden = true;
+    result.hidden = true; footer.hidden = true; rerun.hidden = true;
+    adopt.hidden = false; cancel.hidden = false;
+    if (state === 'new') {
+      running.hidden = false;
+      orderTimer = setTimeout(showOrderResult, 900);
+      return;
+    }
+    if (state === 'running') {
+      running.hidden = false;
+      return;
+    }
+    if (state === 'aborted') {
+      abort.hidden = false;
+      if (window.RTIcons) window.RTIcons.hydrate(abort);
+      footer.hidden = false;
+      rerun.hidden = false;
+      rerun.textContent = '再次执行';
+      adopt.hidden = true; cancel.hidden = true;
+      return;
+    }
+    renderOrderAudit(state === 'closed');
+    audit.hidden = false;
+    renderOrderRows();
+    result.hidden = false;
+    footer.hidden = false;
+    rerun.hidden = false;
+    rerun.textContent = '重新执行';
+    if (state === 'closed') adopt.hidden = true;
+  }
+
   function showOrderResult() {
+    var state = currentOrderDemoState();
+    if (state !== 'new') { showOrderByState(state); return; }
     byId('order-running').hidden = true;
     byId('order-result').hidden = false;
     byId('order-footer').hidden = false;
   }
   function closeOrderDialog() {
     byId('order-dialog').hidden = true;
+    byId('order-audit').hidden = true;
+    byId('order-abort').hidden = true;
     byId('order-running').hidden = false;
     byId('order-result').hidden = true;
     byId('order-footer').hidden = true;
+    byId('order-rerun').hidden = true;
+    byId('order-adopt').hidden = false;
+    byId('order-cancel').hidden = false;
     if (orderTimer) { clearTimeout(orderTimer); orderTimer = null; }
   }
   byId('act-order').addEventListener('click', function () {
     if (byId('act-order').disabled) return;
     byId('order-dialog').hidden = false;
-    renderOrderRows();
-    // 生成中不预置结果：与实际页 running 态一致，完成后才切到排序面板
-    byId('order-running').hidden = false;
-    byId('order-result').hidden = true;
-    byId('order-footer').hidden = true;
-    orderTimer = setTimeout(showOrderResult, 900);
+    showOrderByState(currentOrderDemoState());
+  });
+  document.querySelectorAll('input[name="order-demo-state"]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      if (!byId('order-dialog').hidden) showOrderByState(currentOrderDemoState());
+    });
+  });
+  byId('order-rerun').addEventListener('click', function () {
+    var state = currentOrderDemoState();
+    toast(state === 'aborted' ? '已沿用原任务新建执行实例（原型演示）' : '已按原计划与轮次新建任务，原任务只读保留（原型演示）');
+    document.querySelector('input[name="order-demo-state"][value="proposals"]').checked = true;
+    showOrderByState('running');
+    orderTimer = setTimeout(function () { showOrderByState('proposals'); }, 900);
   });
   byId('act-next').addEventListener('click', function (e) {
     e.stopPropagation();
