@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatDateTime } from '@/utils/format'
+import { useAssistantEntrance } from '@/composables/ai/useAssistantEntrance'
+import RequirementImportDialog from '@/components/project/requirement/RequirementImportDialog.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import {
@@ -21,9 +24,19 @@ const {
   pageSize,
   showSkeleton,
   showError,
+  showRefreshError,
   load,
   changePage,
 } = useRequirementImportHistory()
+
+const { visible: aiAvailable, refresh: refreshAiStatus } = useAssistantEntrance()
+void refreshAiStatus()
+
+const importDialogVisible = ref(false)
+
+function openImport(): void {
+  importDialogVisible.value = true
+}
 
 /** el-table 插槽行是宽松类型，此处收窄为历史行视图（no-unsafe 后端未知键本就不读取） */
 function asRow(row: unknown): RequirementImportHistoryRow {
@@ -47,40 +60,53 @@ function goBackToList(): void {
 
 <template>
   <main class="import-history">
-    <nav class="import-history__breadcrumb" aria-label="面包屑">
-      <router-link :to="REQUIREMENT_LIST_ROUTE">需求列表</router-link>
-      <span aria-hidden="true">›</span>
-      <span>导入历史</span>
-    </nav>
-
     <header class="import-history__head">
       <div>
         <h1 class="import-history__title">导入历史</h1>
         <p class="import-history__desc">按时间倒序查看项目内历次需求导入任务，点击任务查看执行状态并审核提案</p>
       </div>
       <div class="import-history__actions">
-        <el-button @click="goBackToList">导入需求</el-button>
-        <el-button link type="primary" @click="goBackToList">返回需求列表</el-button>
+        <el-button v-if="aiAvailable" @click="openImport">
+          <el-icon><Upload /></el-icon>导入需求
+        </el-button>
+        <el-button @click="goBackToList">返回需求列表</el-button>
       </div>
     </header>
 
-    <ListLoadFeedback
+    <el-alert
       v-if="showError"
-      mode="error"
+      type="error"
       title="加载导入历史失败"
       :description="loadError"
-      @retry="load"
-    />
+      show-icon
+      :closable="false"
+      class="import-history__error"
+    >
+      <template #default>
+        <span>{{ loadError }}</span>
+        <el-button type="danger" plain size="small" :loading="loading" @click="load">重试</el-button>
+      </template>
+    </el-alert>
 
     <el-skeleton v-else-if="showSkeleton" :rows="8" animated />
 
     <template v-else>
+      <div v-if="showRefreshError" class="import-history__refresh-error">
+        <ListLoadFeedback
+          mode="refresh-error"
+          title="刷新失败，当前显示上次加载的数据"
+          :description="loadError"
+          :retrying="loading"
+          @retry="load"
+        />
+      </div>
+
       <ListLoadFeedback
-        v-if="hasLoaded && rows.length === 0 && !loading"
+        v-if="hasLoaded && rows.length === 0 && !loading && !showRefreshError"
         mode="empty"
         title="暂无导入记录"
         create-label="导入需求"
-        @create="goBackToList"
+        @create="openImport"
       />
 
       <el-card v-else shadow="never">
@@ -128,26 +154,20 @@ function goBackToList(): void {
         />
       </el-card>
     </template>
+
+    <RequirementImportDialog v-model="importDialogVisible" />
   </main>
 </template>
 
 <style scoped lang="scss">
-.import-history {
-  padding: var(--space-md);
+.import-history__error {
+  flex-shrink: 0;
+  margin-bottom: var(--space-md);
 }
 
-.import-history__breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
+.import-history__refresh-error {
+  flex-shrink: 0;
   margin-bottom: var(--space-md);
-  color: var(--color-neutral-500);
-  font-size: var(--font-size-sm);
-
-  a {
-    color: var(--color-primary-500);
-    text-decoration: none;
-  }
 }
 
 .import-history__head {

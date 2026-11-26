@@ -104,6 +104,18 @@ describe('useRequirementImportHistory', () => {
     expect(s.rows.value).toHaveLength(1)
   })
 
+  it('已有数据刷新失败只暴露刷新错误，保留上次列表', async () => {
+    const s = mountHistory()
+    await vi.waitFor(() => expect(s.hasLoaded.value).toBe(true))
+    const previousRows = s.rows.value
+
+    mocks.fetchRequirementSplitRecords.mockRejectedValueOnce(new Error('刷新失败'))
+    await s.load()
+    await vi.waitFor(() => expect(s.showRefreshError.value).toBe(true))
+    expect(s.showError.value).toBe(false)
+    expect(s.rows.value).toBe(previousRows)
+  })
+
   it('分页切换按新页码与条数重新加载', async () => {
     const s = mountHistory()
     await vi.waitFor(() => expect(s.hasLoaded.value).toBe(true))

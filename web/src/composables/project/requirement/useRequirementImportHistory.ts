@@ -41,7 +41,8 @@ export function useRequirementImportHistory() {
   let requestId = 0
 
   const showSkeleton = computed(() => !hasLoaded.value && !loadError.value && loading.value)
-  const showError = computed(() => loadError.value.length > 0 && !loading.value)
+  const showError = computed(() => loadError.value.length > 0 && !hasLoaded.value && !loading.value)
+  const showRefreshError = computed(() => loadError.value.length > 0 && hasLoaded.value && !loading.value)
 
   async function loadMembers(): Promise<void> {
     try {
@@ -99,6 +100,7 @@ export function useRequirementImportHistory() {
     pageSize,
     showSkeleton,
     showError,
+    showRefreshError,
     load,
     changePage,
   }
