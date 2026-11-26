@@ -225,7 +225,7 @@
     return html + '</aside>';
   }
 
-  /* ---------- project 页左侧导航（页面只留 data-side 占位；only 标记仅特定页展示的入口） ---------- */
+  /* ---------- project 页左侧导航（页面只留 data-side 占位） ---------- */
   const SIDES = {
     // 顺序与标签同实际 useFunctionalTesting.menuItems：需求列表为侧栏首位子项（链路上游 需求→用例→缺陷，交互 07 §1）
     ft: [
@@ -245,8 +245,8 @@
       { key: 'api-schedules', label: '定时任务', icon: 'timer' },
       { group: '项目设置' },
       { key: 'api-environments', label: '环境管理', icon: 'compass' },
-      // GitLab 集成尚为设计稿（index.html 标注未实现），仅该设计稿页展示入口，其余接口页保持原视觉基准
-      { key: 'api-gitlab', label: 'GitLab 集成', icon: 'connection', only: 'gitlab' },
+      // 项目设置分组入口对项目成员常驻可见（交互 26 §1），不按页面裁剪
+      { key: 'api-gitlab', label: 'GitLab 集成', icon: 'connection' },
       { key: 'api-functions', label: '函数管理', icon: 'layers' },
       { key: 'api-components', label: '公共组件', icon: 'box' },
     ],
@@ -258,12 +258,9 @@
     return SIDE_ACTIVE_ALIAS[name] || name;
   }
 
-  function sideItemHtml(it, include, current) {
+  function sideItemHtml(it, current) {
     if (it.group) {
       return '<div class="side__group-title">' + it.group + '</div>';
-    }
-    if (it.only && include.indexOf(it.only) === -1) {
-      return '';
     }
     const isCurrent = href(it.key).endsWith('/' + current);
     return (
@@ -283,13 +280,9 @@
     document.querySelectorAll('.split__side[data-side]').forEach(function (el) {
       const def = SIDES[el.getAttribute('data-side')];
       if (!def) return;
-      const include = (el.getAttribute('data-side-include') || '')
-        .split(',')
-        .map(function (s) { return s.trim(); })
-        .filter(Boolean);
       const current = currentFile();
       el.innerHTML = def
-        .map(function (it) { return sideItemHtml(it, include, current); })
+        .map(function (it) { return sideItemHtml(it, current); })
         .join('');
     });
 
