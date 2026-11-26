@@ -59,6 +59,15 @@
   }
   .execution-panel__terminate { margin: 8px 0 0; color: var(--st-danger); font-size: var(--font-size-sm); }
 
+  /* ExecutionSwitcher：同一任务多次执行时按 seq 切换批次，旧执行提案可继续审核 */
+  .exec-switch {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--n-100);
+  }
+  .exec-switch__label { color: var(--n-500); font-size: var(--font-size-sm); }
+  .exec-switch__select { min-width: 300px; }
+  .exec-switch__hint { color: var(--n-500); font-size: var(--font-size-xs); }
+
   /* Proposal review */
   .proposal-review {
     padding: 16px; background: var(--n-0);
@@ -185,6 +194,7 @@
             <button class="btn btn--link btn--warning" type="button" id="rv-abort" hidden>终止</button>
             <!-- canReExecute: task aborted 时显示 -->
             <button class="btn btn--link" type="button" id="rv-reexecute" hidden>再次执行</button>
+            <button class="btn btn--link" type="button" onclick="location.href='requirement-import-history.html'">返回导入历史</button>
             <button class="btn btn--link" type="button" onclick="location.href='requirements.html'">返回需求列表</button>
           </div>
         </header>
@@ -200,6 +210,16 @@
             </div>
             <!-- terminateText 存在时显示 -->
             <p class="execution-panel__terminate" id="rv-terminate" hidden>终止原因：—</p>
+
+            <!-- 多次执行时显示执行批次切换；切换后按 executionId 加载该执行的提案 -->
+            <div class="exec-switch">
+              <span class="exec-switch__label">执行批次</span>
+              <select class="form-select exec-switch__select" id="rv-execution-select" aria-label="执行批次">
+                <option value="2">第 2 次执行 · 2026-11-26 14:20 · 待采纳（最新）</option>
+                <option value="1">第 1 次执行 · 2026-11-25 09:10 · 已完成</option>
+              </select>
+              <span class="exec-switch__hint" id="rv-exec-hint">当前为最新执行的提案，可逐条审核</span>
+            </div>
           </section>
         </section>
 
@@ -616,9 +636,18 @@
       taskState = 'ready';
       terminateReason = '';
       executionSeq += 1;
+      var select = byId('rv-execution-select');
+      var oldLatest = select.querySelector('option');
+      if (oldLatest) oldLatest.textContent = oldLatest.textContent.replace('（最新）', '');
+      var opt = document.createElement('option');
+      opt.value = String(executionSeq);
+      opt.textContent = '第 ' + executionSeq + ' 次执行 · 刚刚 · 待采纳（最新）';
+      select.insertBefore(opt, select.firstChild);
+      select.value = String(executionSeq);
       proposals = makeProposals();
       activeIndex = 0;
       byId('rv-receipt').hidden = true;
+      byId('rv-exec-hint').textContent = '当前为最新执行的提案，可逐条审核';
       render();
     }
 
@@ -631,6 +660,24 @@
     byId('rv-abort').addEventListener('click', abortTask);
     byId('rv-reexecute').addEventListener('click', reexecuteTask);
     byId('rv-aborted-reexecute').addEventListener('click', reexecuteTask);
+
+    /* 执行批次切换：按 executionId 加载该执行的提案（原型用两套静态数据演示旧执行提案可达） */
+    byId('rv-execution-select').addEventListener('change', function () {
+      var seq = Number(this.value);
+      executionSeq = seq;
+      proposals = makeProposals();
+      if (seq === 1) {
+        proposals[0].title = '软件测试平台——需求管理（首次执行）';
+        proposals[0].description = '首次执行产出的需求建议，描述为文档原文全文；旧执行提案可在此继续审核。';
+        proposals[1].title = '订单超时自动取消（首次执行）';
+      }
+      activeIndex = 0;
+      byId('rv-receipt').hidden = true;
+      byId('rv-exec-hint').textContent = seq === 2
+        ? '当前为最新执行的提案，可逐条审核'
+        : '当前查看旧执行的提案，可继续审核，采纳记录按该执行独立保存';
+      render();
+    });
 
     document.addEventListener('click', function (e) {
       var close = e.target.closest('[data-close]');

@@ -83,8 +83,8 @@
   }
   @keyframes table-mask-spin { to { transform: rotate(360deg); } }
 
-  /* 「最近一次导入」按钮 loading：对应 el-button 的 :loading，查询期间禁用防重复点击 */
-  #btn-latest-import:disabled { opacity: .72; cursor: not-allowed; }
+  /* 「导入历史」按钮 loading：对应 el-button 的 :loading，进入期间禁用防重复点击 */
+  #btn-import-history:disabled { opacity: .72; cursor: not-allowed; }
   .btn-loading-spinner {
     display: inline-block; width: 13px; height: 13px; vertical-align: -2px; margin-right: 6px;
     border: 2px solid var(--n-200); border-top-color: var(--brand-500); border-radius: 50%;
@@ -167,7 +167,7 @@
           <p class="page-head__desc">沉淀项目需求，驱动用例设计</p>
         </div>
         <div class="page-head__actions">
-          <button class="btn btn--default" type="button" id="btn-latest-import">最近一次导入</button>
+          <button class="btn btn--default" type="button" id="btn-import-history">导入历史</button>
           <button class="btn btn--default" type="button" data-open="import-dialog"><span data-icon="upload"></span>导入需求</button>
           <a class="btn btn--primary" href="requirement-create.html"><span data-icon="plus"></span>新建需求</a>
         </div>
@@ -585,30 +585,22 @@
     if (id === 'confirm-dialog') pendingConfirm = null;
   }
 
-  /* 最近一次导入：对应 openLatestImport —— 查最近一条 requirement_import AI 任务，
-     命中跳导入结果审核页，空/失败仅提示并停留当前页，不展示记录详情弹窗。
-     #latest-import-empty / #latest-import-error 为反馈演示入口，默认走跳转。 */
-  var latestImportBtn = byId('btn-latest-import');
-  var latestImportBusy = false;
-  latestImportBtn.addEventListener('click', function () {
-    if (latestImportBusy) return;
-    latestImportBusy = true;
-    var original = latestImportBtn.innerHTML;
-    latestImportBtn.disabled = true;
-    latestImportBtn.innerHTML = '<span class="btn-loading-spinner"></span>查询中…';
-    var hash = location.hash;
+  /* 导入历史：对应 openImportHistory —— 直接进入导入历史页，按任务下钻进入审核页；
+     空 / 加载 / 错误状态在历史页内演示，本页只保留进入期间的按钮 loading。 */
+  var historyBtn = byId('btn-import-history');
+  var historyBusy = false;
+  historyBtn.addEventListener('click', function () {
+    if (historyBusy) return;
+    historyBusy = true;
+    var original = historyBtn.innerHTML;
+    historyBtn.disabled = true;
+    historyBtn.innerHTML = '<span class="btn-loading-spinner"></span>进入中…';
     window.setTimeout(function () {
-      latestImportBtn.disabled = false;
-      latestImportBtn.innerHTML = original;
-      latestImportBusy = false;
-      if (hash === '#latest-import-empty') {
-        toast('暂无导入记录');
-      } else if (hash === '#latest-import-error') {
-        toast('获取最近一次导入记录失败，请稍后重试', { type: 'danger' });
-      } else {
-        window.location.href = 'requirement-import-review.html';
-      }
-    }, 450);
+      historyBtn.disabled = false;
+      historyBtn.innerHTML = original;
+      historyBusy = false;
+      window.location.href = 'requirement-import-history.html';
+    }, 300);
   });
   byId('list-error-retry').addEventListener('click', function () {
     byId('list-error').hidden = true;
