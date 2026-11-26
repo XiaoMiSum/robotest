@@ -11,11 +11,13 @@ import io.github.xiaomisum.robotest.service.domain.file.FileResourceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -58,16 +60,57 @@ class RequirementImportTypeAdapterTest {
     }
 
     @Test
-    void defaultPrompt_singleModuleKeepsWholeDocumentAndEmitsModuleFields() {
+    void defaultPrompt_delegatesSplitDecisionToModelAndUsesSourceReferences() {
         RequirementImportTypeAdapter adapter = new RequirementImportTypeAdapter();
         String prompt = adapter.defaultPrompt();
-        assertTrue(prompt.contains("只产出一条建议"));
-        assertTrue(prompt.contains("与文档原文全文完全一致"));
+        assertTrue(prompt.contains("需求数量由你判断"));
+        assertTrue(prompt.contains("@blocks:B2,B5,B6"));
+        assertTrue(prompt.contains("公共前言"));
+        assertFalse(prompt.contains("与文档原文全文完全一致"));
+        assertFalse(prompt.contains("拆分规则（模块是唯一边界）"));
         assertTrue(prompt.contains("moduleName"));
         assertTrue(prompt.contains("newModule"));
         assertTrue(prompt.contains("只输出一个 JSON 对象"));
         assertTrue(prompt.contains("禁止输出任何解释、分析、思考过程"));
         assertTrue(adapter.jsonMode());
         assertTrue(adapter.outputRepairHint().contains("只输出一个 JSON 对象"));
+        assertTrue(adapter.outputRepairHint().contains("@full"));
+    }
+
+    @Test
+    void prepare_textBuildsBlockMarkersAndFillsDescriptionsFromSource() {
+        UUID fileId = UUID.randomUUID();
+        String document = "公共前言\n# 1.1.1 测试用例管理\n用例正文\n# 1.1.2 测试评审管理\n评审正文";
+        FileResourceMapper fileMapper = mock(FileResourceMapper.class);
+        FileResourceService fileService = mock(FileResourceService.class);
+        ProjectModuleMapper moduleMapper = mock(ProjectModuleMapper.class);
+        RequirementImportTypeAdapter adapter = new RequirementImportTypeAdapter();
+        ReflectionTestUtils.setField(adapter, "fileResourceMapper", fileMapper);
+        ReflectionTestUtils.setField(adapter, "fileResourceService", fileService);
+        ReflectionTestUtils.setField(adapter, "projectModuleMapper", moduleMapper);
+        FileResource row = new FileResource();
+        row.setFileName("prd.md");
+        when(fileMapper.selectById(fileId)).thenReturn(row);
+        when(fileService.readBytes(fileId)).thenReturn(new FileContent(document.getBytes(StandardCharsets.UTF_8),
+                "text/markdown", "prd.md"));
+        when(moduleMapper.listByProjectId(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+
+        AgentExecutionPreparation prepared = adapter.prepare(Map.of("fileId", fileId.toString()), UUID.randomUUID());
+        String marked = prepared.promptVariables().get("documentText");
+        assertTrue(marked.contains("[B1]\n公共前言"));
+        assertTrue(marked.contains("[B2]\n# 1.1.1 测试用例管理"));
+        assertFalse(prepared.inputSnapshot().contains("用例正文"));
+
+        String output = """
+                {"artifacts":[
+                  {"content":{"title":"用例","description":"@blocks:B2"}},
+                  {"content":{"title":"评审","description":"@blocks:B3"}}
+                ]}""";
+        List<?> drafts = prepared.proposalParser().apply(output);
+        assertEquals(2, drafts.size());
+        Map<?, ?> first = ((ProposalDraft) drafts.get(0)).content();
+        Map<?, ?> second = ((ProposalDraft) drafts.get(1)).content();
+        assertEquals("公共前言\n# 1.1.1 测试用例管理\n用例正文\n", first.get("description"));
+        assertEquals("公共前言\n# 1.1.2 测试评审管理\n评审正文", second.get("description"));
     }
 }

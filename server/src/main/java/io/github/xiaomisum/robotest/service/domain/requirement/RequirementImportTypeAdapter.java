@@ -41,7 +41,7 @@ import java.util.zip.ZipInputStream;
 /**
  * 需求导入任务处理器（详设 3.8 / 4.5）：读取来源文件 → 按类型取正文（md 直读 / docx 抽取 /
  * 图片经 media 多模态直传）→ 渲染提示词 → 调模型 → 产物为 documentMeta + requirement_suggestion 列表。
- * 拆分以模块为唯一边界（单模块整篇保留、多模块按模块拆分），产物带模块名称与新增模块标记。
+ * 拆分条数由 AI 判断，产物带模块名称与新增模块标记；模型只输出原文引用，由后端回填逐字原文并前置公共前言。
  * 文档级版本识别（detectedVersion + 识别依据引语）随本处理器交付，识别不到为 null（3.8）。
  */
 @Component
@@ -58,27 +58,29 @@ public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapte
     private static final String DEFAULT_PROMPT = """
             你是严谨的需求分析助手。只输出一个 JSON 对象，禁止输出任何解释、分析、思考过程或 Markdown 代码块标记（含 ```json / ```）。
             将给定需求文档解析为需求建议，并识别被测业务系统版本。
-            拆分规则（模块是唯一边界）：
-            1. 先判断文档整体是否只归属一个模块：若是，只产出一条建议，标题取文档标题，description 与文档原文全文完全一致，
-               不得改写、摘要，也不得按功能点 / 用户故事编号 / 章节小节拆分；
-            2. 仅当文档明确覆盖多个模块时，按模块各产出一条建议，description 为该模块对应的原文片段，
-               不得按功能点、用户故事编号或章节小节细分；
-            3. 每条建议给出标题、模块名称 moduleName、新增模块标记 newModule 与优先级，不得臆造原文没有的业务规则；
-            4. moduleName 必填且不超过 100 字符。原文明确属于「可用模块」中的某个模块时，moduleId 填该模块 id、
-               newModule 为 false、moduleName 填该模块名称；没有匹配的现有模块时，moduleId 为 null、
-               newModule 为 true、moduleName 填建议新建的模块名；
-            5. 优先级只允许 high / medium / low；
-            6. documentMeta.detectedVersion 为从文档识别的被测业务系统版本（如 V2.3），versionEvidence 为识别依据的原文引语，
-               识别不到时对应值为 null，不得臆造；
-            7. 图片附件随消息直接发送（多模态），此时文档内容为空，正文从图片中读取。
-            输出结构（JSON 对象，artifacts 数组即产物清单）：
-            {"documentMeta":{"detectedVersion":null,"versionEvidence":null},"artifacts":[{"content":{"title":"…","description":"…","moduleId":null,"moduleName":"…","newModule":true,"priority":"medium"}}]}
+
+            需求数量由你判断：先通读文档，判断各章节应归属同一个需求还是多个需求；只有当你判断它们同属一个业务功能域时才产出一条，覆盖多个业务功能域时按功能域各产出一条。层级标题可作为判断线索，但不得按功能点、用户故事编号或更细粒度机械拆分。
+
+            description 只输出原文引用，禁止输出正文：
+            1. 整篇同属一条时输出 "@full"；
+            2. 多需求时每条输出 "@blocks:B2,B5,B6"，按文档顺序列出该需求覆盖的块编号；
+            3. 未被任何需求认领的块由系统作为公共前言拼接到每条描述前，无需在各条中重复；
+            4. 图片附件来源（文档内容为空）时 description 输出从图片读取的正文，不受引用约束。
+
+            每条建议给出标题、模块名称 moduleName、新增模块标记 newModule 与优先级，不得臆造原文没有的业务规则：
+            1. 标题取所覆盖功能域的名称；
+            2. moduleName 必填且不超过 100 字符。原文明确属于「可用模块」中的某个模块时，moduleId 填该模块 id、newModule 为 false、moduleName 填该模块名称；没有匹配的现有模块时，moduleId 为 null、newModule 为 true、moduleName 填建议新建的模块名；
+            3. 优先级只允许 high / medium / low；
+            4. documentMeta.detectedVersion 为从文档识别的被测业务系统版本（如 V2.3），versionEvidence 为识别依据的原文引语，识别不到时对应值为 null，不得臆造。
 
             文档文件名：{{documentName}}
-            文档内容：
+            文档内容（[Bn] 为系统添加的块编号，仅用于引用，不属于原文）：
             {{documentText}}
             可用模块（id|名称）：
             {{moduleOptions}}
+
+            输出结构（JSON 对象，artifacts 数组即产物清单）：
+            {"documentMeta":{"detectedVersion":null,"versionEvidence":null},"artifacts":[{"content":{"title":"…","description":"@blocks:B5","moduleId":null,"moduleName":"…","newModule":true,"priority":"medium"}}]}
             """;
 
     @Resource
@@ -105,7 +107,8 @@ public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapte
 
     @Override
     public String outputRepairHint() {
-        return "只输出一个 JSON 对象，不得输出解释、分析、思考过程或 Markdown 代码块标记（含 ```json / ```）。";
+        return "只输出一个 JSON 对象，不得输出解释、分析、思考过程或 Markdown 代码块标记（含 ```json / ```）；"
+                + "由你判断产出一条还是多条建议，description 只输出 @full 或 @blocks:B2,B5 原文引用，禁止回显正文。";
     }
 
     @Override
@@ -162,15 +165,16 @@ public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapte
             throw ServiceExceptionUtil.get(ErrorCodeConstants.REQUIREMENT_IMPORT_EMPTY);
         }
         List<ProjectModule> modules = projectModuleMapper.listByProjectId(projectId);
+        List<String> blocks = RequirementSuggestionParser.splitDocumentBlocks(documentText);
         Map<String, String> variables = Map.of(
                 "documentName", nvl(file.fileName()),
-                "documentText", documentText,
+                "documentText", RequirementSuggestionParser.markBlocks(blocks),
                 "moduleOptions", RequirementSuggestionParser.moduleOptions(modules));
         String snapshot = "fileId=" + fileId + "\nfileName=" + nvl(file.fileName())
-                + "\ndocumentText=" + documentText;
+                + "\ncharCount=" + documentText.length();
         return new AgentExecutionPreparation(variables, snapshot, media,
                 output -> RequirementSuggestionParser.sanitizeArtifacts(
-                                RequirementSuggestionParser.parseJsonObject(output), modules).stream()
+                                RequirementSuggestionParser.parseJsonObject(output), modules, blocks).stream()
                         .map(item -> new ProposalDraft(String.valueOf(item.get("key")),
                                 String.valueOf(item.get("kind")), null, String.valueOf(item.get("title")),
                                 castMap(item.get("content"))))

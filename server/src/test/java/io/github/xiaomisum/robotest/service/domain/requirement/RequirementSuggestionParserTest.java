@@ -4,6 +4,7 @@ import io.github.xiaomisum.robotest.framework.common.ErrorCodeConstants;
 import org.junit.jupiter.api.Test;
 import xyz.migoo.framework.common.exception.ServiceException;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,5 +57,73 @@ class RequirementSuggestionParserTest {
 
         assertEquals(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(), exception.getCode());
         assertTrue(exception.getMessage().contains("模型输出无法解析为 JSON"));
+    }
+
+    @Test
+    void splitDocumentBlocks_markedTextReferencesBlocksAndConcatenationRestoresOriginal() {
+        String document = "公共前言\n# 1.1.1 测试用例管理\n用例正文\n# 1.1.2 测试评审管理\n评审正文";
+
+        List<String> blocks = RequirementSuggestionParser.splitDocumentBlocks(document);
+
+        assertEquals(3, blocks.size());
+        assertEquals(document, String.join("", blocks));
+        assertTrue(RequirementSuggestionParser.markBlocks(blocks).contains("[B2]\n# 1.1.1 测试用例管理"));
+    }
+
+    @Test
+    void sanitizeArtifacts_fullReference_fillsEntireDocument() {
+        String document = "# 需求\n正文";
+        List<String> blocks = RequirementSuggestionParser.splitDocumentBlocks(document);
+        Map<String, Object> parsed = RequirementSuggestionParser.parseJsonObject(
+                "{\"artifacts\":[{\"content\":{\"title\":\"需求\",\"description\":\"@full\"}}]}");
+
+        Map<?, ?> content = (Map<?, ?>) RequirementSuggestionParser.sanitizeArtifacts(parsed, List.of(), blocks)
+                .get(0).get("content");
+
+        assertEquals(document, content.get("description"));
+    }
+
+    @Test
+    void sanitizeArtifacts_multipleReferences_prependsUnclaimedPreambleToEach() {
+        String document = "公共前言\n# 1.1.1 测试用例管理\n用例正文\n# 1.1.2 测试评审管理\n评审正文";
+        List<String> blocks = RequirementSuggestionParser.splitDocumentBlocks(document);
+        String output = """
+                {"artifacts":[
+                  {"content":{"title":"用例","description":"@blocks:B2"}},
+                  {"content":{"title":"评审","description":"@blocks:B3"}}
+                ]}""";
+
+        List<Map<String, Object>> artifacts = RequirementSuggestionParser.sanitizeArtifacts(
+                RequirementSuggestionParser.parseJsonObject(output), List.of(), blocks);
+        Map<?, ?> first = (Map<?, ?>) artifacts.get(0).get("content");
+        Map<?, ?> second = (Map<?, ?>) artifacts.get(1).get("content");
+
+        assertEquals("公共前言\n# 1.1.1 测试用例管理\n用例正文\n", first.get("description"));
+        assertEquals("公共前言\n# 1.1.2 测试评审管理\n评审正文", second.get("description"));
+    }
+
+    @Test
+    void sanitizeArtifacts_allReferencesInvalid_fallsBackToFullDocument() {
+        String document = "# 需求\n正文";
+        List<String> blocks = RequirementSuggestionParser.splitDocumentBlocks(document);
+        Map<String, Object> parsed = RequirementSuggestionParser.parseJsonObject(
+                "{\"artifacts\":[{\"content\":{\"title\":\"一\",\"description\":\"@blocks:B99\"}},"
+                        + "{\"content\":{\"title\":\"二\",\"description\":\"模型回显的正文\"}}]}");
+
+        List<Map<String, Object>> artifacts = RequirementSuggestionParser.sanitizeArtifacts(parsed, List.of(), blocks);
+
+        assertEquals(document, ((Map<?, ?>) artifacts.get(0).get("content")).get("description"));
+        assertEquals(document, ((Map<?, ?>) artifacts.get(1).get("content")).get("description"));
+    }
+
+    @Test
+    void sanitizeArtifacts_withoutSourceBlocks_keepsModelDescription() {
+        Map<String, Object> parsed = RequirementSuggestionParser.parseJsonObject(
+                "{\"artifacts\":[{\"content\":{\"title\":\"图片需求\",\"description\":\"图片正文\"}}]}");
+
+        Map<?, ?> content = (Map<?, ?>) RequirementSuggestionParser.sanitizeArtifacts(parsed, List.of())
+                .get(0).get("content");
+
+        assertEquals("图片正文", content.get("description"));
     }
 }

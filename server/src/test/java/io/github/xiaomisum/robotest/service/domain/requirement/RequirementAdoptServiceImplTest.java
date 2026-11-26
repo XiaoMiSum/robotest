@@ -161,6 +161,7 @@ class RequirementAdoptServiceImplTest {
         assertEquals("confirmed", saved.getStatus());
         assertEquals("import", saved.getSource());
         assertEquals("建议一", saved.getTitle());
+        assertEquals("拆分出的描述", saved.getDescription());
         assertEquals(MODULE_ID, saved.getModuleId());
         assertEquals("high", saved.getPriority());
         assertEquals("V3.0", saved.getSystemVersion()); // documentMeta.detectedVersion 回退（4.5）
