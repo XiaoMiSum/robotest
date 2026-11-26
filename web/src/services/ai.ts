@@ -44,7 +44,7 @@ export function fetchAiTask(taskId: string, params: AiTaskDetailQuery = {}): Pro
   return get(`/ai/tasks/${taskId}`, Object.keys(params).length > 0 ? { ...params } : undefined)
 }
 
-/** 按文档 / 节点查询最近一次任务（详设 3.6.3）：无匹配时 data 为 null，省略 nodeId 按文档匹配 */
+/** 按文档 / 节点 / 评审 / 计划查询最近一次任务（详设 3.6.3）：无匹配时 data 为 null，按类型择一匹配 */
 export function fetchLatestAiTask(
   type: AiTaskType,
   params: AiTaskLatestQuery,

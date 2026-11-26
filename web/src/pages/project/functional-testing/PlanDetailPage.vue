@@ -52,6 +52,9 @@ const {
   failedReason: orderFailedReason,
   progressText: orderProgressText,
   loadError: orderLoadError,
+  taskStatus: orderTaskStatus,
+  proposalAudit: orderAudit,
+  retryable: orderRetryable,
   launch: launchOrderAssist,
   retry: retryOrderAssist,
   refresh: refreshOrderAssist,
@@ -70,6 +73,9 @@ const {
 const orderEmptyReason = computed(() =>
   (progress.value?.totalAssociated ?? 0) === 0 ? '计划关联用例为空，无法推荐执行顺序' : '',
 )
+
+/** closed 任务只读回看：隐藏应用建议，仅保留重新执行与关闭（交互 2.6） */
+const orderReadOnly = computed(() => orderTaskStatus.value === 'closed')
 </script>
 
 <template>
@@ -246,7 +252,9 @@ const orderEmptyReason = computed(() =>
         show-icon
         :title="orderFailedReason || '执行顺序建议生成失败'"
       >
-        <el-button type="danger" plain size="small" @click="retryOrderAssist">重试</el-button>
+        <el-button type="danger" plain size="small" @click="retryOrderAssist">
+          {{ orderTaskStatus === 'aborted' ? '再次执行' : '重试' }}
+        </el-button>
       </el-alert>
       <el-alert
         v-else-if="orderLoadError"
@@ -264,7 +272,12 @@ const orderEmptyReason = computed(() =>
         :can-adopt="canOperateActive"
         :confirming="orderConfirming"
         :loading="orderLoading"
+        :task-status="orderTaskStatus"
+        :audit="orderAudit"
+        :re-executable="orderRetryable"
+        :read-only="orderReadOnly"
         @adopt-edited="applyOrderAssist"
+        @re-execute="retryOrderAssist"
         @close="onOrderPanelClose"
       />
     </el-dialog>

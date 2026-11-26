@@ -44,6 +44,15 @@ describe('PlanDetailPage 操作按钮状态显隐', () => {
     expect(pageSource).toContain('@closed="closeOrderAssistPanel"')
   })
 
+  it('排序面板回显最近任务状态与审核结果，并按只读态控制重新执行', () => {
+    expect(pageSource).toContain(':task-status="orderTaskStatus"')
+    expect(pageSource).toContain(':audit="orderAudit"')
+    expect(pageSource).toContain(':re-executable="orderRetryable"')
+    expect(pageSource).toContain(':read-only="orderReadOnly"')
+    expect(pageSource).toContain('@re-execute="retryOrderAssist"')
+    expect(pageSource).toContain("orderTaskStatus.value === 'closed'")
+  })
+
   it('应用建议后刷新计划详情与脑图', () => {
     expect(pageSource).toContain('mindMapRef.value?.reload()')
     expect(pageSource).toContain('void load()')

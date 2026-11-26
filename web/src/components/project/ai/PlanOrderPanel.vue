@@ -2,8 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { Operation as OperationIcon } from '@element-plus/icons-vue'
 import { isPlanOrderSuggestion } from '@/composables/project/ai/assistPresentation'
-import type { AssistRow } from '@/composables/project/ai/useAssistTask'
-import type { AiPlanOrderItem } from '@/types'
+import type { AssistProposalAudit, AssistRow } from '@/composables/project/ai/useAssistTask'
+import type { AiPlanOrderItem, AiTaskStatus } from '@/types'
 
 const props = withDefaults(
   defineProps<{
@@ -12,13 +12,22 @@ const props = withDefaults(
     canAdopt: boolean
     confirming: boolean
     loading?: boolean
+    /** 复用任务的状态与审核统计（交互 2.6） */
+    taskStatus?: AiTaskStatus
+    audit?: AssistProposalAudit
+    /** proposals_ready / closed 提供「重新执行」 */
+    reExecutable?: boolean
+    /** closed 态只读回看：隐藏「应用建议」 */
+    readOnly?: boolean
   }>(),
-  { loading: false },
+  { loading: false, reExecutable: false, readOnly: false, taskStatus: undefined, audit: undefined },
 )
 
 const emit = defineEmits<{
   /** 应用建议：按当前（含人工拖拽调整后）顺序提交 adopted_edited */
   adoptEdited: [key: string, content: Record<string, unknown>]
+  /** 重新执行：由入口按任务状态分叉（交互 2.6） */
+  reExecute: []
   /** 放弃：关闭面板，不产生任何变更 */
   close: []
 }>()
@@ -70,6 +79,20 @@ const diffRows = computed(() => {
 })
 const changedCount = computed(() => diffRows.value.filter((row) => row.changed).length)
 
+const taskStatusLabel = computed(() => {
+  const labels: Partial<Record<AiTaskStatus, string>> = {
+    running: '执行中',
+    aborted: '已终止',
+    proposals_ready: '待采纳',
+    closed: '已结束',
+  }
+  return props.taskStatus ? (labels[props.taskStatus] ?? props.taskStatus) : ''
+})
+const auditVisible = computed(() => {
+  const audit = props.audit
+  return !!audit && (audit.adopted + audit.pending + audit.rejected > 0 || audit.notes.length > 0)
+})
+
 const applyDisabledReason = computed(() => {
   if (props.rows.length === 0) return '暂无可处理的建议'
   if (!props.canAdopt) return '当前计划状态不可执行'
@@ -120,6 +143,9 @@ function apply(): void {
   <section class="plan-order" aria-label="执行顺序建议面板">
     <header class="plan-order__head">
       <h3>执行顺序建议</h3>
+      <el-tag v-if="taskStatusLabel" size="small" type="info" effect="plain">
+        {{ taskStatusLabel }}
+      </el-tag>
       <el-tag v-if="activeRow" size="small" :type="activeRow.confirmTagType">
         {{ activeRow.confirmLabel }}
       </el-tag>
@@ -127,6 +153,14 @@ function apply(): void {
         已人工调整
       </el-tag>
     </header>
+
+    <div v-if="auditVisible" class="plan-order__audit">
+      <span>
+        审核结果：已采纳 {{ audit?.adopted ?? 0 }} / 待采纳 {{ audit?.pending ?? 0 }} / 已驳回
+        {{ audit?.rejected ?? 0 }}
+      </span>
+      <span v-if="audit?.notes.length">驳回原因：{{ audit?.notes.join('；') }}</span>
+    </div>
 
     <div v-if="loading && !activeReady" class="plan-order__placeholder">
       <el-skeleton :rows="3" animated />
@@ -203,6 +237,16 @@ function apply(): void {
 
     <footer class="plan-order__foot">
       <el-button
+        v-if="reExecutable"
+        link
+        type="primary"
+        size="small"
+        @click="emit('reExecute')"
+      >
+        重新执行
+      </el-button>
+      <el-button
+        v-if="!readOnly"
         type="primary"
         size="small"
         :disabled="!canApply"
@@ -234,6 +278,18 @@ function apply(): void {
     font-size: var(--font-size-base);
     font-weight: 600;
   }
+}
+
+.plan-order__audit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
 }
 
 .plan-order__placeholder {

@@ -191,11 +191,12 @@ export interface AiTaskPageQuery {
   pageSize?: number
 }
 
-/** 按文档 / 节点 / 评审查询最近一次任务的参数（详设 3.6.3 / AI 评审 3.3）：按传入的定位字段匹配 */
+/** 按文档 / 节点 / 评审 / 计划查询最近一次任务的参数（详设 3.6.3）：按传入的定位字段匹配 */
 export interface AiTaskLatestQuery {
   documentId?: string
   nodeId?: string
   reviewId?: string
+  planId?: string
 }
 
 /** 轨迹查询参数（afterSeq 游标，默认 0；pageSize 默认 200 上限 500） */

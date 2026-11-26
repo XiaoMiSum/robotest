@@ -39,6 +39,14 @@ export interface AssistRow {
   suggestion: AiAssistSuggestion | null
 }
 
+/** 面板头部只读回显的审核统计（交互 2.6） */
+export interface AssistProposalAudit {
+  adopted: number
+  pending: number
+  rejected: number
+  notes: string[]
+}
+
 export interface AssistTaskOptions {
   /** 落库目标：补全 / 级别推荐带 documentId，顺序建议带 planId 与 round；取值用 getter 以拿到最新上下文 */
   target?: () => AiProposalConfirmTarget | undefined
@@ -153,6 +161,20 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
   )
 
   const processed = computed(() => aiProposalProcessed(rows.value))
+  const proposalAudit = computed<AssistProposalAudit>(() => {
+    const proposals = task.value?.proposals ?? []
+    return {
+      adopted: proposals.filter(
+        (item) => item.confirmStatus === 'adopted' || item.confirmStatus === 'adopted_edited',
+      ).length,
+      pending: proposals.filter((item) => item.confirmStatus === 'pending').length,
+      rejected: proposals.filter((item) => item.confirmStatus === 'rejected').length,
+      notes: proposals
+        .filter((item) => item.confirmStatus === 'rejected' && item.note)
+        .map((item) => item.note as string),
+    }
+  })
+  const taskStatus = computed(() => task.value?.status)
   // 无任务时按未进入终态的进行中口径占位（新模型已无 pending 态）
   const statusMeta = computed(() => aiTaskStatusMeta(task.value?.status ?? 'running'))
   const isRunning = computed(
@@ -353,6 +375,8 @@ export function useAssistTask(kind: AiAssistTaskType, options: AssistTaskOptions
     receipt,
     rows,
     processed,
+    proposalAudit,
+    taskStatus,
     statusMeta,
     isRunning,
     isSucceeded,

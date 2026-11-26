@@ -4,7 +4,7 @@ import { nextTick } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import PlanOrderPanel from './PlanOrderPanel.vue'
-import type { AssistRow } from '@/composables/project/ai/useAssistTask'
+import type { AssistProposalAudit, AssistRow } from '@/composables/project/ai/useAssistTask'
 import type { AiPlanOrderItem, AiPlanOrderSuggestion } from '@/types'
 
 const DEFAULT_ITEMS: AiPlanOrderItem[] = [
@@ -169,5 +169,34 @@ describe('PlanOrderPanel', () => {
 
     await nextTick()
     expect(wrapper.emitted('adoptEdited')).toBeUndefined()
+  })
+
+  it('回显复用任务状态与审核统计、驳回原因', () => {
+    const audit: AssistProposalAudit = {
+      adopted: 2,
+      pending: 1,
+      rejected: 1,
+      notes: ['本期不回归'],
+    }
+    const wrapper = mountPanel({ taskStatus: 'proposals_ready', audit })
+
+    expect(wrapper.text()).toContain('待采纳')
+    expect(wrapper.find('.plan-order__audit').text()).toContain(
+      '审核结果：已采纳 2 / 待采纳 1 / 已驳回 1',
+    )
+    expect(wrapper.find('.plan-order__audit').text()).toContain('驳回原因：本期不回归')
+  })
+
+  it('重新执行按入口分叉发事件，closed 只读隐藏应用建议', async () => {
+    const wrapper = mountPanel({
+      taskStatus: 'closed',
+      reExecutable: true,
+      readOnly: true,
+    })
+
+    expect(wrapper.text()).toContain('已结束')
+    expect(wrapper.findAll('button').some((item) => item.text().includes('应用建议'))).toBe(false)
+    await actionButton(wrapper, '重新执行').trigger('click')
+    expect(wrapper.emitted('reExecute')).toHaveLength(1)
   })
 })
