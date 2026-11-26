@@ -3,6 +3,7 @@ package io.github.xiaomisum.robotest.model.dto.response.ai;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,6 +36,12 @@ public class AiTaskExecutionRespDTO {
 
     /** 执行级终止原因（aborted 时携带） */
     private AiTerminateReasonRespDTO terminateReason;
+
+    /** 执行创建时间（详情执行批次列表标注，其余场景可为 null） */
+    private LocalDateTime createdAt;
+
+    /** 该执行产出的提案数（详情执行批次列表标注，其余场景可为 null） */
+    private Integer proposalCount;
 
     @Data
     public static class Consumed {

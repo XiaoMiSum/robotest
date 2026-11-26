@@ -12,6 +12,7 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskEventsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskProposalRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskSplitSummaryRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTask;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
@@ -446,6 +447,35 @@ class AiTaskServiceImplTest {
     }
 
     @Test
+    void detail_specifyingExecution_returnsThatExecutionAndAllExecutions() {
+        AiTaskExecution older = execution(PREV_EXEC_ID, 1);
+        AiTaskExecution latest = execution(EXEC_ID, 2);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectById(PREV_EXEC_ID)).thenReturn(older);
+        when(executionMapper.selectListByTaskId(TASK_ID)).thenReturn(List.of(latest, older));
+        when(proposalMapper.selectByExecution(PREV_EXEC_ID)).thenReturn(List.of(proposal("old-1", "pending")));
+        when(adoptionMapper.selectByExecution(PREV_EXEC_ID)).thenReturn(List.of());
+
+        AiTaskRespDTO resp = service.getDetail(TASK_ID, PREV_EXEC_ID, loginUser);
+
+        assertEquals(PREV_EXEC_ID, resp.getLatestExecution().getExecutionId());
+        assertEquals(1, resp.getProposals().size());
+        assertEquals("old-1", resp.getProposals().get(0).getKey());
+        assertEquals(2, resp.getExecutions().size());
+        assertEquals(2, resp.getExecutions().get(0).getSeq());
+    }
+
+    @Test
+    void detail_executionNotBelongingToTask_throws125() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectById(OTHER_ID)).thenReturn(null);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.getDetail(TASK_ID, OTHER_ID, loginUser));
+        assertEquals(ErrorCodeConstants.AI_EXECUTION_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
     void getLatestByNode_returnsLatestDetail() {
         AiTask latest = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
         latest.setTitle("用例优化");
@@ -529,6 +559,22 @@ class AiTaskServiceImplTest {
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.getProposal(TASK_ID, "nope", loginUser));
         assertEquals(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
+    void getProposal_specifyingOldExecution_readsOldContent() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectById(PREV_EXEC_ID)).thenReturn(execution(PREV_EXEC_ID, 1));
+        AiTaskProposal oldProposal = proposal("p1", "pending");
+        oldProposal.setExecutionId(PREV_EXEC_ID);
+        when(proposalMapper.selectByExecutionAndKey(PREV_EXEC_ID, "p1")).thenReturn(oldProposal);
+        when(adoptionMapper.selectByExecutionAndKey(PREV_EXEC_ID, "p1")).thenReturn(null);
+
+        AiTaskProposalRespDTO resp = service.getProposal(TASK_ID, "p1", PREV_EXEC_ID, loginUser);
+
+        assertNotNull(resp.getContent());
+        assertEquals("pending", resp.getConfirmStatus());
+        verify(proposalMapper, never()).selectByExecutionAndKey(eq(EXEC_ID), anyString());
     }
 
     // ---------- 3.6.4 轨迹、终止与再次执行 ----------
@@ -895,6 +941,44 @@ class AiTaskServiceImplTest {
     }
 
     @Test
+    void confirm_oldExecution_adoptionBelongsToOldExecutionAndDoesNotCloseTask() {
+        AiTaskExecution latest = execution("succeeded");
+        AiTaskExecution older = execution(PREV_EXEC_ID, 1);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(latest);
+        when(executionMapper.selectById(PREV_EXEC_ID)).thenReturn(older);
+        AiTaskProposal oldProposal = proposal("p1", "pending");
+        oldProposal.setExecutionId(PREV_EXEC_ID);
+        when(proposalMapper.selectByExecution(PREV_EXEC_ID)).thenReturn(List.of(oldProposal));
+        when(adoptionMapper.selectByExecutionAndKey(PREV_EXEC_ID, "p1")).thenReturn(null);
+        ProposalAdopter adopter = mock(ProposalAdopter.class);
+        when(adopterRegistry.get(TYPE)).thenReturn(adopter);
+        when(adopter.adopt(any())).thenReturn(null);
+        AiTaskConfirmReqDTO req = confirmReq("p1", "rejected");
+        req.setExecutionId(PREV_EXEC_ID);
+
+        AiTaskConfirmRespDTO resp = service.confirm(TASK_ID, req, loginUser);
+
+        assertTrue(resp.getResults().get(0).getSuccess());
+        ArgumentCaptor<AiTaskAdoption> captor = ArgumentCaptor.forClass(AiTaskAdoption.class);
+        verify(adoptionMapper).insert(captor.capture());
+        assertEquals(PREV_EXEC_ID, captor.getValue().getExecutionId());
+        verify(taskMapper, never()).markFlowStatus(eq(TASK_ID), anyString());
+    }
+
+    @Test
+    void confirm_executionNotBelongingToTask_throws125() {
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task(Constants.AiTaskFlowStatus.PROPOSALS_READY));
+        when(executionMapper.selectById(OTHER_ID)).thenReturn(null);
+        AiTaskConfirmReqDTO req = confirmReq("p1", "adopted");
+        req.setExecutionId(OTHER_ID);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.confirm(TASK_ID, req, loginUser));
+        assertEquals(ErrorCodeConstants.AI_EXECUTION_NOT_FOUND.code(), exception.getCode());
+    }
+
+    @Test
     void confirm_invalidAction_failsItemWith115() {
         stubProposalsReadyWith(proposal("p1", "pending"));
 
@@ -917,7 +1001,32 @@ class AiTaskServiceImplTest {
         assertTrue(!service.isTaskRunning(null));
     }
 
+    @Test
+    void listSplitSummaries_returnsTaskStatusAndLatestExecutionCounts() {
+        when(taskMapper.selectBatchIds(List.of(TASK_ID))).thenReturn(List.of(task(Constants.AiTaskFlowStatus.CLOSED)));
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.countByExecution(EXEC_ID)).thenReturn(3L);
+        when(adoptionMapper.countAdoptedByExecution(EXEC_ID)).thenReturn(1L);
+
+        List<AiTaskSplitSummaryRespDTO> summaries = service.listSplitSummaries(List.of(TASK_ID));
+
+        assertEquals(1, summaries.size());
+        assertEquals(Constants.AiTaskFlowStatus.CLOSED, summaries.get(0).getStatus());
+        assertEquals(USER_ID, summaries.get(0).getSubmittedBy());
+        assertEquals(EXEC_ID, summaries.get(0).getLatestExecution().getExecutionId());
+        assertEquals(3, summaries.get(0).getProposalCount());
+        assertEquals(1, summaries.get(0).getAdoptedCount());
+        assertTrue(service.listSplitSummaries(List.of()).isEmpty());
+    }
+
     // ---------- 夹具 ----------
+
+    private static AiTaskExecution execution(UUID id, int seq) {
+        AiTaskExecution execution = execution("succeeded");
+        execution.setId(id);
+        execution.setSeq(seq);
+        return execution;
+    }
 
     private static AiModelConfig model() {
         return model(MODEL_ID);

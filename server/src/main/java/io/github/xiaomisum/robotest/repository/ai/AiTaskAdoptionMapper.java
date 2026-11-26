@@ -1,5 +1,6 @@
 package io.github.xiaomisum.robotest.repository.ai;
 
+import io.github.xiaomisum.robotest.framework.common.Constants;
 import io.github.xiaomisum.robotest.model.entity.ai.AiTaskAdoption;
 import xyz.migoo.framework.mybatis.core.BaseMapperX;
 import xyz.migoo.framework.mybatis.core.LambdaQueryWrapperX;
@@ -22,6 +23,14 @@ public interface AiTaskAdoptionMapper extends BaseMapperX<AiTaskAdoption> {
         return selectList(new LambdaQueryWrapperX<AiTaskAdoption>()
                 .eq(AiTaskAdoption::getExecutionId, executionId)
                 .orderByAsc(AiTaskAdoption::getCreatedAt));
+    }
+
+    /** 指定执行的已采纳数（含编辑后采纳；驳回不计入，导入历史产出概览） */
+    default long countAdoptedByExecution(UUID executionId) {
+        return selectCount(new LambdaQueryWrapperX<AiTaskAdoption>()
+                .eq(AiTaskAdoption::getExecutionId, executionId)
+                .in(AiTaskAdoption::getAction, Constants.AiProposalAction.ADOPTED,
+                        Constants.AiProposalAction.ADOPTED_EDITED));
     }
 
     /** 指定执行的采纳记录数（与待采纳提案数比对，判定是否全部处置完毕） */

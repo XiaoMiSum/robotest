@@ -25,6 +25,12 @@ public interface AiTaskProposalMapper extends BaseMapperX<AiTaskProposal> {
                 .last("LIMIT 1"));
     }
 
+    /** 指定执行的提案总数（执行批次列表摘要 / 导入历史产出概览） */
+    default long countByExecution(UUID executionId) {
+        return selectCount(new LambdaQueryWrapperX<AiTaskProposal>()
+                .eq(AiTaskProposal::getExecutionId, executionId));
+    }
+
     /** 待采纳提案数（confirm_status = pending；全部处置完毕后任务转 closed 的判定依据） */
     default long countPendingByExecution(UUID executionId) {
         return selectCount(new LambdaQueryWrapperX<AiTaskProposal>()

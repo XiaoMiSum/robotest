@@ -49,6 +49,13 @@ public interface AiTaskExecutionMapper extends BaseMapperX<AiTaskExecution> {
                 .last("LIMIT 1"));
     }
 
+    /** 同任务全部执行（详情执行批次列表，seq 倒序；uk_ai_task_execution(task_id, seq) 支撑） */
+    default List<AiTaskExecution> selectListByTaskId(UUID taskId) {
+        return selectList(new LambdaQueryWrapperX<AiTaskExecution>()
+                .eq(AiTaskExecution::getTaskId, taskId)
+                .orderByDesc(AiTaskExecution::getSeq));
+    }
+
     /** task 行加锁后调用，锁定最新执行并校验本轮执行身份。 */
     default AiTaskExecution selectLatestByTaskIdForUpdate(UUID taskId) {
         return selectOne(new LambdaQueryWrapperX<AiTaskExecution>()

@@ -6,6 +6,7 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCre
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskSplitSummaryRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.file.FileResourceRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
@@ -569,11 +570,41 @@ public class RequirementServiceImpl implements RequirementService {
         if (page.getList().isEmpty()) {
             return new PageResult<>(List.of(), page.getTotal());
         }
+        Map<UUID, AiTaskSplitSummaryRespDTO> taskSummaries = aiTaskService.listSplitSummaries(
+                page.getList().stream().map(RequirementSplitRecord::getAiTaskId)
+                        .filter(Objects::nonNull).distinct().collect(Collectors.toList()))
+                .stream().collect(Collectors.toMap(AiTaskSplitSummaryRespDTO::getTaskId,
+                        summary -> summary, (first, second) -> first));
+        List<UUID> fileIds = page.getList().stream().map(RequirementSplitRecord::getSourceFileId)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        Map<UUID, String> fileNames = fileIds.isEmpty() ? Map.of()
+                : fileResourceMapper.selectBatchIds(fileIds).stream()
+                        .collect(Collectors.toMap(FileResource::getId, FileResource::getFileName,
+                                (first, second) -> first));
         List<RequirementSplitRecordRespDTO> list = page.getList().stream().map(record -> {
             RequirementSplitRecordRespDTO dto = new RequirementSplitRecordRespDTO();
             dto.setId(record.getId());
             dto.setSourceType(record.getSourceType());
+            dto.setSourceFileId(record.getSourceFileId());
+            dto.setSourceFileName(record.getSourceFileId() == null
+                    ? null : fileNames.get(record.getSourceFileId()));
             dto.setAiTaskId(record.getAiTaskId());
+            AiTaskSplitSummaryRespDTO task = taskSummaries.get(record.getAiTaskId());
+            if (task != null) {
+                dto.setTaskTitle(task.getTitle());
+                dto.setTaskStatus(task.getStatus());
+                dto.setSubmittedBy(task.getSubmittedBy());
+                dto.setProposalCount(task.getProposalCount());
+                dto.setAdoptedCount(task.getAdoptedCount());
+                if (task.getLatestExecution() != null) {
+                    RequirementSplitRecordRespDTO.LatestExecution latest =
+                            new RequirementSplitRecordRespDTO.LatestExecution();
+                    latest.setExecutionId(task.getLatestExecution().getExecutionId());
+                    latest.setSeq(task.getLatestExecution().getSeq());
+                    latest.setStatus(task.getLatestExecution().getStatus());
+                    dto.setLatestExecution(latest);
+                }
+            }
             dto.setStatus(record.getStatus());
             dto.setAdoptResult(record.getAdoptResult());
             dto.setCreatedAt(record.getCreatedAt());

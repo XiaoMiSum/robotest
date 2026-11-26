@@ -5,6 +5,7 @@ import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementCre
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementPageReqDTO;
 import io.github.xiaomisum.robotest.model.dto.request.requirement.RequirementUpdateReqDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskSplitSummaryRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.file.FileResourceRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementChangeLogRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.requirement.RequirementDetailRespDTO;
@@ -571,12 +572,57 @@ class RequirementServiceImplTest {
         record.setStatus("adopted");
         when(splitRecordMapper.findPage(any(), eq(PROJECT_ID), any(), any()))
                 .thenReturn(new PageResult<>(List.of(record), 1L));
+        lenient().when(aiTaskService.listSplitSummaries(any())).thenReturn(List.of());
 
         PageResult<RequirementSplitRecordRespDTO> result = service.getSplitRecords(PROJECT_ID, null, null,
                 new PageParam());
 
         assertEquals("document", result.getList().get(0).getSourceType());
         assertEquals("adopted", result.getList().get(0).getStatus());
+    }
+
+    @Test
+    void getSplitRecords_enrichesTaskAndFileFields() {
+        RequirementSplitRecord record = new RequirementSplitRecord();
+        record.setId(RECORD_ID);
+        record.setSourceType("document");
+        record.setSourceFileId(FILE_ID);
+        record.setAiTaskId(TASK_ID);
+        record.setStatus("pending");
+        when(splitRecordMapper.findPage(any(), eq(PROJECT_ID), any(), any()))
+                .thenReturn(new PageResult<>(List.of(record), 1L));
+        FileResource file = new FileResource();
+        file.setId(FILE_ID);
+        file.setFileName("需求说明.docx");
+        when(fileResourceMapper.selectBatchIds(List.of(FILE_ID))).thenReturn(List.of(file));
+        AiTaskSplitSummaryRespDTO summary = new AiTaskSplitSummaryRespDTO();
+        summary.setTaskId(TASK_ID);
+        summary.setTitle("导入需求说明");
+        summary.setStatus("proposals_ready");
+        summary.setSubmittedBy(OWNER_ID);
+        summary.setProposalCount(5);
+        summary.setAdoptedCount(2);
+        AiTaskSplitSummaryRespDTO.LatestExecution latest = new AiTaskSplitSummaryRespDTO.LatestExecution();
+        latest.setExecutionId(UUID.randomUUID());
+        latest.setSeq(2);
+        latest.setStatus("succeeded");
+        summary.setLatestExecution(latest);
+        when(aiTaskService.listSplitSummaries(List.of(TASK_ID))).thenReturn(List.of(summary));
+
+        PageResult<RequirementSplitRecordRespDTO> result = service.getSplitRecords(PROJECT_ID, null, null,
+                new PageParam());
+
+        RequirementSplitRecordRespDTO dto = result.getList().get(0);
+        assertEquals(FILE_ID, dto.getSourceFileId());
+        assertEquals("需求说明.docx", dto.getSourceFileName());
+        assertEquals("导入需求说明", dto.getTaskTitle());
+        assertEquals("proposals_ready", dto.getTaskStatus());
+        assertEquals(OWNER_ID, dto.getSubmittedBy());
+        assertEquals(5, dto.getProposalCount());
+        assertEquals(2, dto.getAdoptedCount());
+        assertEquals(latest.getExecutionId(), dto.getLatestExecution().getExecutionId());
+        assertEquals(2, dto.getLatestExecution().getSeq());
+        assertEquals("succeeded", dto.getLatestExecution().getStatus());
     }
 
     // ---------- 拆解记录辅助（导入路径共用） ----------

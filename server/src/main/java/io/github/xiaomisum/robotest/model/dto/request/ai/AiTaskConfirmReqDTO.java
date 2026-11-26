@@ -18,6 +18,12 @@ public class AiTaskConfirmReqDTO {
     @Size(max = 200, message = "单次最多确认 200 项")
     private List<ConfirmItemReqDTO> items;
 
+    /**
+     * 目标执行：业务面板切换执行批次后携带，采纳记录归属该执行；缺省按最新执行定位。
+     * 旧执行的采纳不改变任务状态（避免影响仍有待审提案的最新执行）。
+     */
+    private UUID executionId;
+
     /** 落库目标位置提示，项目经 X-Active-Project 头传递 */
     private TargetReqDTO target;
 

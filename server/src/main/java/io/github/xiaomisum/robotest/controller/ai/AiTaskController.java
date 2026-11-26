@@ -75,18 +75,20 @@ public class AiTaskController {
                 loginUser.getActiveProjectId(), loginUser.getId(), loginUser));
     }
 
-    /** 3.6.3 详情（最新执行 + 提案清单摘要 + documentMeta） */
+    /** 3.6.3 详情（指定执行缺省最新 + 全部执行摘要 + 提案清单摘要 + documentMeta） */
     @GetMapping("/{taskId}")
     public Result<AiTaskRespDTO> getDetail(@AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID taskId) {
-        return Result.ok(aiTaskService.getDetail(taskId, loginUser));
+            @PathVariable UUID taskId,
+            @RequestParam(value = "executionId", required = false) UUID executionId) {
+        return Result.ok(aiTaskService.getDetail(taskId, executionId, loginUser));
     }
 
-    /** 3.6.3 提案详情（完整内容，键在最新一次执行的提案中定位） */
+    /** 3.6.3 提案详情（完整内容，键在指定执行的提案中定位，缺省最新一次执行） */
     @GetMapping("/{taskId}/proposals/{proposalKey}")
     public Result<AiTaskProposalRespDTO> getProposal(@AuthenticationPrincipal LoginUser loginUser,
-            @PathVariable UUID taskId, @PathVariable String proposalKey) {
-        return Result.ok(aiTaskService.getProposal(taskId, proposalKey, loginUser));
+            @PathVariable UUID taskId, @PathVariable String proposalKey,
+            @RequestParam(value = "executionId", required = false) UUID executionId) {
+        return Result.ok(aiTaskService.getProposal(taskId, proposalKey, executionId, loginUser));
     }
 
     /** 3.6.4 轨迹查询（afterSeq 游标增量，默认 200 上限 500） */

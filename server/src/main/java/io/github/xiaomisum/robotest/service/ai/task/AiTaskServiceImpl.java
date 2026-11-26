@@ -15,6 +15,7 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskExecutionRespDTO
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskProposalRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskProposalSummaryRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskSplitSummaryRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskTraceEventRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTerminateReasonRespDTO;
 import io.github.xiaomisum.robotest.model.entity.ai.AiModelConfig;
@@ -53,6 +54,7 @@ import xyz.migoo.framework.security.core.annotation.AuditLog;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -200,7 +202,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         if (waitSeconds > 0) {
             AiTask finished = await(task.getId(), waitSeconds);
             if (finished != null) {
-                return buildDetailResp(finished, loginUser);
+                return buildDetailResp(finished, null, loginUser);
             }
         }
         return buildSubmitResp(task, execution);
@@ -289,8 +291,12 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     @Override
-    public AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser) {
-        return buildDetailResp(requireVisible(taskId, loginUser), loginUser);
+    public AiTaskRespDTO getDetail(UUID taskId, UUID executionId, LoginUser loginUser) {
+        AiTask task = requireVisible(taskId, loginUser);
+        if (executionId != null) {
+            requireExecution(taskId, executionId);
+        }
+        return buildDetailResp(task, executionId, loginUser);
     }
 
     @Override
@@ -302,13 +308,13 @@ public class AiTaskServiceImpl implements AiTaskService {
         } else {
             task = taskMapper.selectLatestByNode(type, documentId, nodeId, activeProjectId, userId);
         }
-        return task == null ? null : buildDetailResp(task, loginUser);
+        return task == null ? null : buildDetailResp(task, null, loginUser);
     }
 
     @Override
-    public AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, LoginUser loginUser) {
+    public AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, UUID executionId, LoginUser loginUser) {
         AiTask task = requireVisible(taskId, loginUser);
-        AiTaskProposal proposal = locateProposal(task, proposalKey);
+        AiTaskProposal proposal = locateProposal(task, executionId, proposalKey);
         AiTaskProposalRespDTO resp = new AiTaskProposalRespDTO();
         resp.setKey(proposal.getProposalKey());
         resp.setKind(proposal.getKind());
@@ -348,7 +354,7 @@ public class AiTaskServiceImpl implements AiTaskService {
                 ErrorCodeConstants.AI_TASK_ABORTED_BY_USER.code(), ABORT_MSG)) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_EXECUTION_FINISHED);
         }
-        return buildDetailResp(taskMapper.selectById(taskId), loginUser);
+        return buildDetailResp(taskMapper.selectById(taskId), null, loginUser);
     }
 
     @Override
@@ -440,10 +446,12 @@ public class AiTaskServiceImpl implements AiTaskService {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_TASK_STATE_INVALID);
         }
         AiTaskExecution latest = executionMapper.selectLatestByTaskId(taskId);
-        if (latest == null) {
+        AiTaskExecution target = reqDTO.getExecutionId() == null
+                ? latest : requireExecution(taskId, reqDTO.getExecutionId());
+        if (target == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND);
         }
-        List<AiTaskProposal> proposals = proposalMapper.selectByExecution(latest.getId());
+        List<AiTaskProposal> proposals = proposalMapper.selectByExecution(target.getId());
         Set<String> allKeys = proposals.stream()
                 .map(AiTaskProposal::getProposalKey)
                 .collect(Collectors.toSet());
@@ -452,10 +460,13 @@ public class AiTaskServiceImpl implements AiTaskService {
         UUID operatorId = loginUser.getId();
         List<ItemResult> results = new ArrayList<>();
         for (AiTaskConfirmReqDTO.ConfirmItemReqDTO item : reqDTO.getItems()) {
-            results.add(confirmItem(task, latest.getId(), proposals, allKeys, item,
+            results.add(confirmItem(task, target.getId(), proposals, allKeys, item,
                     reqDTO.getTarget(), projectId, operatorId, loginUser));
         }
-        markClosedIfAllDisposed(taskId, latest.getId(), proposals);
+        // 旧执行处置完毕不关单：最新执行可能仍有待审提案，关单会让其审核入口被误隐藏
+        if (target.getId().equals(latest == null ? null : latest.getId())) {
+            markClosedIfAllDisposed(taskId, target.getId(), proposals);
+        }
         AiTaskConfirmRespDTO resp = new AiTaskConfirmRespDTO();
         resp.setResults(results);
         return resp;
@@ -546,6 +557,37 @@ public class AiTaskServiceImpl implements AiTaskService {
         return task != null && Constants.AiTaskFlowStatus.RUNNING.equals(task.getStatus());
     }
 
+    @Override
+    public List<AiTaskSplitSummaryRespDTO> listSplitSummaries(Collection<UUID> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            return List.of();
+        }
+        List<AiTaskSplitSummaryRespDTO> summaries = new ArrayList<>();
+        for (AiTask task : taskMapper.selectBatchIds(taskIds)) {
+            AiTaskSplitSummaryRespDTO summary = new AiTaskSplitSummaryRespDTO();
+            summary.setTaskId(task.getId());
+            summary.setTitle(task.getTitle());
+            summary.setStatus(task.getStatus());
+            summary.setSubmittedBy(task.getSubmittedBy());
+            AiTaskExecution latest = executionMapper.selectLatestByTaskId(task.getId());
+            if (latest == null) {
+                summary.setProposalCount(0);
+                summary.setAdoptedCount(0);
+            } else {
+                AiTaskSplitSummaryRespDTO.LatestExecution latestResp =
+                        new AiTaskSplitSummaryRespDTO.LatestExecution();
+                latestResp.setExecutionId(latest.getId());
+                latestResp.setSeq(latest.getSeq());
+                latestResp.setStatus(latest.getStatus());
+                summary.setLatestExecution(latestResp);
+                summary.setProposalCount((int) proposalMapper.countByExecution(latest.getId()));
+                summary.setAdoptedCount((int) adoptionMapper.countAdoptedByExecution(latest.getId()));
+            }
+            summaries.add(summary);
+        }
+        return summaries;
+    }
+
     // ---------- 组装 ----------
 
     /** 提交 / 再次执行响应（3.6.2）：executionId + 本次签发预算，其余场景字段为 null */
@@ -566,17 +608,25 @@ public class AiTaskServiceImpl implements AiTaskService {
         return resp;
     }
 
-    /** 详情（3.6.3）：最新一次执行 + 提案清单摘要（最新一次执行）+ documentMeta */
-    private AiTaskRespDTO buildDetailResp(AiTask task, LoginUser loginUser) {
+    /** 详情（3.6.3）：指定执行（缺省最新）+ 全部执行摘要 + 当前执行提案清单 + documentMeta */
+    private AiTaskRespDTO buildDetailResp(AiTask task, UUID executionId, LoginUser loginUser) {
         AiTaskRespDTO resp = new AiTaskRespDTO();
         fillTaskBase(resp, task);
-        AiTaskExecution latest = executionMapper.selectLatestByTaskId(task.getId());
-        resp.setLatestExecution(toExecutionResp(latest));
+        List<AiTaskExecution> executions = executionMapper.selectListByTaskId(task.getId());
+        resp.setExecutions(executions.stream().map(execution -> {
+            AiTaskExecutionRespDTO item = toExecutionResp(execution);
+            item.setProposalCount((int) proposalMapper.countByExecution(execution.getId()));
+            return item;
+        }).collect(Collectors.toList()));
+        AiTaskExecution current = executionId == null
+                ? executionMapper.selectLatestByTaskId(task.getId())
+                : requireExecution(task.getId(), executionId);
+        resp.setLatestExecution(toExecutionResp(current));
         resp.setResultMeta(task.getResultMeta());
         resp.setDocumentMeta(documentMetaOf(task));
-        if (latest != null && (Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(task.getStatus())
+        if (current != null && (Constants.AiTaskFlowStatus.PROPOSALS_READY.equals(task.getStatus())
                 || Constants.AiTaskFlowStatus.CLOSED.equals(task.getStatus()))) {
-            resp.setProposals(proposalSummaries(task.getId(), latest.getId()));
+            resp.setProposals(proposalSummaries(task.getId(), current.getId()));
         }
         return resp;
     }
@@ -605,6 +655,7 @@ public class AiTaskServiceImpl implements AiTaskService {
         resp.setBudget(execution.getBudget());
         resp.setPlan(execution.getPlan());
         resp.setTerminateReason(terminateReason(execution.getTerminateCode(), execution.getTerminateMsg()));
+        resp.setCreatedAt(execution.getCreatedAt());
         AiTaskExecutionRespDTO.Consumed consumed = new AiTaskExecutionRespDTO.Consumed();
         consumed.setDurationMs(execution.getDurationMs());
         consumed.setTokensIn(execution.getTokensIn());
@@ -695,11 +746,17 @@ public class AiTaskServiceImpl implements AiTaskService {
         return execution;
     }
 
-    /** 提案定位（3.6.3 / 3.6.5）：最新一次执行内按键查找，缺失按 1000018112 */
-    private AiTaskProposal locateProposal(AiTask task, String proposalKey) {
-        AiTaskExecution latest = executionMapper.selectLatestByTaskId(task.getId());
-        AiTaskProposal proposal = latest == null || proposalKey == null ? null
-                : proposalMapper.selectByExecutionAndKey(latest.getId(), proposalKey);
+    /** 提案定位（3.6.3 / 3.6.5）：指定执行优先，缺省最新一次执行；缺失按 1000018112 */
+    private AiTaskProposal locateProposal(AiTask task, UUID executionId, String proposalKey) {
+        UUID targetId;
+        if (executionId != null) {
+            targetId = requireExecution(task.getId(), executionId).getId();
+        } else {
+            AiTaskExecution latest = executionMapper.selectLatestByTaskId(task.getId());
+            targetId = latest == null ? null : latest.getId();
+        }
+        AiTaskProposal proposal = targetId == null || proposalKey == null ? null
+                : proposalMapper.selectByExecutionAndKey(targetId, proposalKey);
         if (proposal == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_PROPOSAL_NOT_FOUND);
         }

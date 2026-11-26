@@ -51,8 +51,11 @@ public class AiTaskRespDTO {
     /** result_meta 解析出的文档级识别结果（3.6.3 documentMeta），无为 null */
     private DocumentMeta documentMeta;
 
-    /** 详情 / 同步等待完成：最新一次执行的提案清单摘要（3.6.3），其余为 null */
+    /** 详情 / 同步等待完成：当前执行的提案清单摘要（3.6.3），其余为 null */
     private List<AiTaskProposalSummaryRespDTO> proposals;
+
+    /** 详情：全部执行摘要（seq 倒序），供业务面板切换执行批次；列表与提交响应为 null */
+    private List<AiTaskExecutionRespDTO> executions;
 
     @Data
     public static class DocumentMeta {

@@ -10,8 +10,11 @@ import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskCountRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskEventsRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskProposalRespDTO;
 import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskRespDTO;
+import io.github.xiaomisum.robotest.model.dto.response.ai.AiTaskSplitSummaryRespDTO;
 import xyz.migoo.framework.common.pojo.PageResult;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,14 +46,27 @@ public interface AiTaskService {
     AiTaskCountRespDTO countActive(UUID activeProjectId);
 
     /** 3.6.3 详情：最新一次执行 + 提案清单摘要（最新一次执行）+ documentMeta */
-    AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser);
+    default AiTaskRespDTO getDetail(UUID taskId, LoginUser loginUser) {
+        return getDetail(taskId, null, loginUser);
+    }
+
+    /**
+     * 3.6.3 详情（指定执行）：executionId 非空时 latestExecution / proposals 切为该执行，
+     * executions 始终下发全部执行摘要（seq 倒序）；非空且不属于该任务按 1000018125。
+     */
+    AiTaskRespDTO getDetail(UUID taskId, UUID executionId, LoginUser loginUser);
 
     /** 3.6.3 按文档 / 节点 / 评审查询最近一次任务（reviewId 仅用于 AI 评审类型），无匹配返回 null */
     AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, String reviewId,
             UUID activeProjectId, UUID userId, LoginUser loginUser);
 
     /** 3.6.3 提案详情：完整内容（业务面板与只读回看共用），键在最新一次执行的提案中定位 */
-    AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, LoginUser loginUser);
+    default AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, LoginUser loginUser) {
+        return getProposal(taskId, proposalKey, null, loginUser);
+    }
+
+    /** 3.6.3 提案详情（指定执行）：executionId 非空时按该执行定位旧提案（归属不符按 1000018125） */
+    AiTaskProposalRespDTO getProposal(UUID taskId, String proposalKey, UUID executionId, LoginUser loginUser);
 
     /** 3.6.4 轨迹查询：afterSeq 游标增量（默认 200 条，上限 500），nextSeq 供续拉 */
     AiTaskEventsRespDTO getEvents(UUID taskId, UUID executionId, Integer afterSeq, Integer pageSize,
@@ -70,4 +86,10 @@ public interface AiTaskService {
      * 供需求导入等域改经任务服务判定，禁止直读 ai_task（迁移计划层 A）。
      */
     boolean isTaskRunning(UUID taskId);
+
+    /**
+     * 拆解记录列表联查的任务摘要（详设 3.10）：含任务态、提交人、最新执行与产出统计。
+     * 业务域经此只读入口取 AI 任务数据，禁止直读 ai_task / 执行 / 提案表。
+     */
+    List<AiTaskSplitSummaryRespDTO> listSplitSummaries(Collection<UUID> taskIds);
 }
