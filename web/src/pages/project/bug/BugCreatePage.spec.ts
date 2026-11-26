@@ -12,14 +12,20 @@ describe('BugCreatePage AI 建议弹窗（交互 2.2）', () => {
     expect(pageSource).not.toContain('@adopt="handleAdoptSuggestion"')
   })
 
-  it('任务执行中仅旋转按钮图标，疑似重复在标题下提示且不在弹窗内展示', () => {
+  it('AI 建议为仅图标按钮且无加载/禁用态，疑似重复在标题下提示且不在弹窗内展示', () => {
     expect(pageSource).toContain('<BugDuplicateSuggestList')
     expect(pageSource).toContain('class="bug-create__duplicate"')
     expect(pageSource).toContain(':items="duplicates"')
     expect(pageSource).toContain('.bug-create__duplicate {\n  margin-top: var(--space-xs);')
-    expect(pageSource).toContain(":class=\"{ 'is-suggesting': suggestLoading }\"")
+    expect(pageSource).toContain("import aiIcon from '@/assets/icon/ai.svg'")
+    expect(pageSource).toContain('title="AI 建议"')
+    expect(pageSource).toContain('aria-label="AI 建议"')
+    expect(pageSource).toContain('<img :src="aiIcon" alt="" class="bug-create__ai-icon" />')
+    expect(pageSource).not.toContain("'is-suggesting': suggestLoading")
+    expect(pageSource).not.toContain(':disabled="!form.title.trim()"')
+    expect(pageSource).not.toContain('bug-create-ai-spin')
+    expect(pageSource).toContain('bug-create-ai-glow')
     expect(pageSource.match(/:loading="suggestLoading"/g)).toHaveLength(1)
-    expect(pageSource).toContain('bug-create-ai-spin')
   })
 
   it('任务完成后覆盖回填表单，枚举写 key、模块写 id、关联用例写节点 id', () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Link, MagicStick } from '@element-plus/icons-vue'
+import { Link } from '@element-plus/icons-vue'
+import aiIcon from '@/assets/icon/ai.svg'
 
 const props = withDefaults(defineProps<{
   visible: boolean
@@ -44,9 +45,15 @@ function onLinkRequirement(): void {
     >
       <template v-if="aiEntryVisible">
         <el-tooltip :content="aiGateReason || '对选中用例发起 AI 优化'" placement="bottom">
-          <el-button text class="case-node-popover__item case-node-popover__item--ai" :disabled="!canLaunchAi" @click="onAiOptimize">
-            <el-icon><MagicStick /></el-icon>
-            <span>AI 优化</span>
+          <el-button
+            text
+            class="case-node-popover__item case-node-popover__item--ai"
+            title="AI 优化"
+            aria-label="AI 优化"
+            :disabled="!canLaunchAi"
+            @click="onAiOptimize"
+          >
+            <img :src="aiIcon" alt="" class="case-node-popover__ai-icon" />
           </el-button>
         </el-tooltip>
       </template>
@@ -82,6 +89,11 @@ function onLinkRequirement(): void {
   animation: case-node-ai-pulse 1.6s ease-in-out infinite;
 
   &.is-disabled { animation: none; }
+}
+
+.case-node-popover__ai-icon {
+  width: 15px;
+  height: 15px;
 }
 
 .case-node-popover__item--link {

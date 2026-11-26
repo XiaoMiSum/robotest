@@ -12,6 +12,7 @@ import SnapshotModuleTree from '@/components/project/functional-testing/review/S
 import CaseSelector from '@/components/project/functional-testing/case/CaseSelector.vue'
 import AiReviewPanel from '@/components/project/functional-testing/review/AiReviewPanel.vue'
 import { useReviewTask } from '@/composables/project/ai/useReviewTask'
+import aiIcon from '@/assets/icon/ai.svg'
 
 const route = useRoute()
 const reviewId = route.params.reviewId as string
@@ -117,8 +118,15 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
         </div>
         <!-- 活跃态操作组：调整/同步/驳回/完成，终态收起（交互设计 07 §1.2） -->
         <div v-if="detail && isActiveReview(detail.status)" class="review-detail__actions">
-          <el-button v-if="reviewEntryVisible" size="small" plain @click="openAiReview">
-            <el-icon><MagicStick /></el-icon>AI 评审
+          <el-button
+            v-if="reviewEntryVisible"
+            size="small"
+            plain
+            title="AI 评审"
+            aria-label="AI 评审"
+            @click="openAiReview"
+          >
+            <img :src="aiIcon" alt="" class="ai-icon" />
           </el-button>
           <el-button size="small" plain @click="openCaseSelector">
             <el-icon><EditPen /></el-icon>调整用例
@@ -346,6 +354,11 @@ const statusText = computed(() => reviewStatusLabel(detail.value?.status ?? ''))
 
   :deep(.el-button .el-icon) {
     margin-right: 4px;
+  }
+
+  .ai-icon {
+    width: 14px;
+    height: 14px;
   }
 }
 

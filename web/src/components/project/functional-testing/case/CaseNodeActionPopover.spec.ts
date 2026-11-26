@@ -36,15 +36,15 @@ describe('CaseNodeActionPopover', () => {
     expect(popover).not.toBeNull()
     expect(popover.style.left).toBe('120px')
     expect(popover.style.top).toBe('240px')
-    expect(items().map((item) => item.textContent?.trim())).toEqual([
-      'AI 优化',
-      '关联需求',
-    ])
+    expect(items()[0].getAttribute('aria-label')).toBe('AI 优化')
+    expect(items()[0].querySelector('img')).not.toBeNull()
+    expect(items()[1].textContent?.trim()).toBe('关联需求')
   })
 
   it('AI 未启用时仅展示关联需求', () => {
     mountPopover({ aiEntryVisible: false })
-    expect(items().map((item) => item.textContent?.trim())).toEqual(['关联需求'])
+    expect(items()).toHaveLength(1)
+    expect(items()[0].textContent?.trim()).toBe('关联需求')
   })
 
   it('按门槛置灰 AI 入口，关联需求入口始终可用', () => {
@@ -74,7 +74,8 @@ describe('CaseNodeActionPopover', () => {
 
 describe('CaseNodeActionPopover · 透明背景按钮', () => {
   it('悬浮窗不渲染卡片底色与阴影，入口使用文字按钮', () => {
-    expect(popoverSource).toContain('<el-button text class="case-node-popover__item case-node-popover__item--ai"')
+    expect(popoverSource).toContain('class="case-node-popover__item case-node-popover__item--ai"')
+    expect(popoverSource).toContain('aria-label="AI 优化"')
     expect(popoverSource).not.toContain('background: var(--el-bg-color)')
     expect(popoverSource).not.toContain('box-shadow: var(--el-box-shadow-light)')
   })

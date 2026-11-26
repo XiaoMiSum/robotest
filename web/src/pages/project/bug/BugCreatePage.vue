@@ -8,6 +8,7 @@ import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import BugAiSuggestionDialog from '@/components/project/bug/BugAiSuggestionDialog.vue'
 import BugDuplicateSuggestList from '@/components/project/bug/BugDuplicateSuggestList.vue'
 import { fetchAiStatus } from '@/services/ai'
+import aiIcon from '@/assets/icon/ai.svg'
 import type { BugPriority, BugSeverity, ProjectModule } from '@/types'
 
 const {
@@ -176,11 +177,11 @@ function priorityButtonStyle(value: BugPriority): Record<string, string> {
                 <el-button
                   v-if="aiAvailable"
                   class="bug-create__ai-append"
-                  :class="{ 'is-suggesting': suggestLoading }"
-                  :disabled="!form.title.trim()"
+                  title="AI 建议"
+                  aria-label="AI 建议"
                   @click="handleRequestSuggest"
                 >
-                  <el-icon><MagicStick /></el-icon>AI 建议
+                  <img :src="aiIcon" alt="" class="bug-create__ai-icon" />
                 </el-button>
               </template>
             </el-input>
@@ -425,39 +426,31 @@ function priorityButtonStyle(value: BugPriority): Record<string, string> {
   border-bottom-right-radius: var(--radius-md);
 }
 
-// 按钮与输入栏一体化：透明底、成功绿表达「可采纳的建议」，禁用态灰显
+// 按钮与输入栏一体化：透明底、成功绿表达「可采纳的建议」
 .bug-create__form :deep(.bug-create__ai-append) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
   height: 100%;
   margin: 0;
+  padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
   color: var(--color-success);
-
-  &.is-disabled,
-  &:disabled {
-    background: transparent;
-    color: var(--color-neutral-400);
-  }
+  animation: bug-create-ai-glow 2s ease-in-out infinite;
 
   // 悬停维持与输入栏一体，不做 EP 默认底色
-  &:hover:not(:disabled):not(.is-disabled) {
+  &:hover {
     background: transparent;
     color: var(--color-success);
   }
 
-  // 填入标题后（可操作态）：呼吸光晕 + 魔棒微晃引导点击；禁用与执行中停用
-  &:not(:disabled):not(.is-disabled):not(.is-suggesting) {
-    animation: bug-create-ai-glow 2s ease-in-out infinite;
-
-    .el-icon {
-      animation: bug-create-ai-wiggle 2s ease-in-out infinite;
-    }
-  }
-
-  // 任务执行中只让按钮自身魔棒旋转，不引入额外 spinner
-  &.is-suggesting .el-icon {
-    animation: bug-create-ai-spin 1s linear infinite;
+  .bug-create__ai-icon {
+    width: 16px;
+    height: 16px;
+    animation: bug-create-ai-wiggle 2s ease-in-out infinite;
   }
 }
 
@@ -484,12 +477,6 @@ function priorityButtonStyle(value: BugPriority): Record<string, string> {
 
   75% {
     transform: rotate(10deg);
-  }
-}
-
-@keyframes bug-create-ai-spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 

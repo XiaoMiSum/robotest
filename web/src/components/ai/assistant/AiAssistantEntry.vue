@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MagicStick } from '@element-plus/icons-vue'
+import aiIcon from '@/assets/icon/ai.svg'
 import ComposerInput from './ComposerInput.vue'
 import MessageTimeline from './MessageTimeline.vue'
 import PanelHeader from './PanelHeader.vue'
@@ -256,10 +256,11 @@ onBeforeUnmount(() => {
       class="ai-entry__ball"
       :class="{ 'ai-entry__ball--active': store.open }"
       aria-label="智能助手"
+      title="智能助手"
       :aria-expanded="store.open"
       @click="store.togglePanel()"
     >
-      <el-icon :size="22"><MagicStick /></el-icon>
+      <img :src="aiIcon" alt="" class="ai-entry__ball-icon" />
     </button>
 
     <section
@@ -359,6 +360,11 @@ onBeforeUnmount(() => {
     border-color: var(--color-primary-500);
     color: var(--color-neutral-0);
   }
+}
+
+.ai-entry__ball-icon {
+  width: 22px;
+  height: 22px;
 }
 
 .ai-entry__card {

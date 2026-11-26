@@ -194,6 +194,8 @@ describe('components/ai/assistant/AiAssistantEntry', () => {
     const wrapper = await mountEntry()
     const ball = wrapper.get('.ai-entry__ball')
     expect(ball.attributes('aria-expanded')).toBe('false')
+    expect(ball.attributes('title')).toBe('智能助手')
+    expect(ball.find('img').exists()).toBe(true)
 
     await ball.trigger('click')
     await flushPromises()

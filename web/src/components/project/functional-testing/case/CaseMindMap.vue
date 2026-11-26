@@ -20,6 +20,7 @@ import AssistComparePanel from '@/components/project/ai/AssistComparePanel.vue'
 import AiCaseGenerationPanel from '@/components/project/functional-testing/case/AiCaseGenerationPanel.vue'
 import RequirementPickerDialog from '@/components/common/RequirementPickerDialog.vue'
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import aiIcon from '@/assets/icon/ai.svg'
 
 const props = defineProps<{ docId: string }>()
 
@@ -383,8 +384,14 @@ const handleLayoutCommand = (command: unknown) => {
       <!-- AI覆盖雷达入口常驻工具条最右，全屏与非全屏共用同一按钮（详设 5.1） -->
       <div v-if="caseGenEntryVisible" class="toolbar-ai-entry">
         <el-tooltip :content="caseGenGateReason || '扫描需求测试用例覆盖率并补齐缺漏'" placement="bottom">
-          <el-button text :disabled="Boolean(caseGenGateReason)" @click="openCaseGeneration">
-            <el-icon><MagicStick /></el-icon><span>AI覆盖雷达</span>
+          <el-button
+            text
+            title="AI覆盖雷达"
+            aria-label="AI覆盖雷达"
+            :disabled="Boolean(caseGenGateReason)"
+            @click="openCaseGeneration"
+          >
+            <img :src="aiIcon" alt="" class="ai-icon" />
           </el-button>
         </el-tooltip>
       </div>
@@ -639,6 +646,11 @@ $priorities: p0, p1, p2, p3;
   margin-left: auto;
   display: flex;
   align-items: center;
+
+  .ai-icon {
+    width: 15px;
+    height: 15px;
+  }
 }
 
 .toolbar-caret { margin-left: 2px; font-size: 10px; }

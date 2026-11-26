@@ -48,6 +48,14 @@ describe('CaseMindMap · AI 辅助入口（详设 5.1 / 交互 2.3）', () => {
     expect(source).toContain(':can-launch-ai="canLaunchAssist"')
   })
 
+  it('AI覆盖雷达为仅图标按钮，功能名由 title 与 aria-label 承担', () => {
+    expect(source).toContain("import aiIcon from '@/assets/icon/ai.svg'")
+    expect(source).toContain('title="AI覆盖雷达"')
+    expect(source).toContain('aria-label="AI覆盖雷达"')
+    expect(source).toContain('<img :src="aiIcon" alt="" class="ai-icon" />')
+    expect(source).not.toContain('<span>AI覆盖雷达</span>')
+  })
+
   it('发起后在对话框内覆盖进行中 / 终止 / 加载失败 / 对照面板四态', () => {
     expect(source).toContain('v-if="assistRunning"')
     expect(source).toContain('AI 正在生成建议')

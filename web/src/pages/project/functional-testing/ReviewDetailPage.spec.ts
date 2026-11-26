@@ -46,7 +46,8 @@ describe('ReviewDetailPage AI 评审', () => {
 
     expect(actions).toContain('v-if="reviewEntryVisible"')
     expect(actions).toContain('openAiReview')
-    expect(actions).toContain('<MagicStick />')
+    expect(actions).toContain('aria-label="AI 评审"')
+    expect(actions).toContain('<img :src="aiIcon" alt="" class="ai-icon" />')
     expect(actions.indexOf('AI 评审')).toBeLessThan(actions.indexOf('调整用例'))
   })
 
