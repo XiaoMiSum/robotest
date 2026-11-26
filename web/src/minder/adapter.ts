@@ -32,7 +32,6 @@ export interface PlanExecutionCase {
   snapshotNodeId: string
   originalNodeId: string | null
   title: string
-  documentId: string | null
   lastResult: ExecutionResult | null
   order: number
 }
@@ -45,7 +44,6 @@ export function buildPlanExecutionOrder(roots: TestPlanSnapshotNode[]): PlanExec
         snapshotNodeId: node.id,
         originalNodeId: node.originalNodeId,
         title: node.title,
-        documentId: null,
         lastResult: node.lastResult,
         order: cases.length + 1,
       })

@@ -18,6 +18,7 @@ import type {
   SnapshotModule,
   TestPlanDetail,
   TestPlanProgress,
+  TestPlanSnapshotNode,
 } from '@/types'
 import { buildPlanExecutionOrder, planExecutionOrderMap, type PlanExecutionCase } from '@/minder/adapter'
 
@@ -34,6 +35,15 @@ function firstDocument(nodes: SnapshotModule[]): SnapshotModule | null {
 
 function findDoc(nodes: SnapshotModule[], id: string): boolean {
   return nodes.some((n) => n.id === id || findDoc(n.children ?? [], id))
+}
+
+function allDocuments(nodes: SnapshotModule[]): string[] {
+  const ids: string[] = []
+  for (const node of nodes) {
+    if (node.type === 'document') ids.push(node.id)
+    ids.push(...allDocuments(node.children ?? []))
+  }
+  return ids
 }
 
 // ==================== Types ====================
@@ -61,6 +71,10 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
   const moduleTree = ref<SnapshotModule[]>([])
   const selectedDocId = ref('')
 
+  // 快照节点 id 到快照文档 id 的映射：规划用例接口返回的是原始文档 id，不能用于快照查询
+  const docIdByCase = new Map<string, string>()
+  const loadedDocIds = new Set<string>()
+
   const canAdjustCases = computed(
     () => detail.value?.status === 'new' || detail.value?.status === 'in_progress',
   )
@@ -79,40 +93,55 @@ export function usePlanDetail(options: UsePlanDetailOptions) {
   )
 
   async function loadExecutionOrder(): Promise<void> {
+    // 调整或同步用例后文档集合会变，映射缓存随全量快照一起重建
+    docIdByCase.clear()
+    loadedDocIds.clear()
     try {
-      // 全量快照给出跨文档的稳定顺序，规划用例给出用例所属文档，两者合流供序号与引导共用
-      const [allNodes, planned] = await Promise.all([
-        getPlanSnapshotTree(planId),
-        getPlanPlannedCases(planId),
-      ])
-      const docByCase = new Map<string, string>()
-      for (const doc of planned) {
-        for (const caseId of doc.caseIds) docByCase.set(caseId, doc.documentId)
-      }
-      executionCases.value = buildPlanExecutionOrder(allNodes).map((item) => ({
-        ...item,
-        documentId: item.originalNodeId ? docByCase.get(item.originalNodeId) ?? null : null,
-      }))
+      executionCases.value = buildPlanExecutionOrder(await getPlanSnapshotTree(planId))
     } catch {
       // 引导依赖额外读取，失败时保留已有序号，不阻断详情页加载
     }
   }
 
-  function focusNextCase(): void {
+  async function ensureCaseDocument(snapshotNodeId: string): Promise<string | undefined> {
+    for (const docId of allDocuments(moduleTree.value)) {
+      if (loadedDocIds.has(docId)) continue
+      try {
+        const tree = await getPlanSnapshotTree(planId, docId)
+        const collect = (nodes: TestPlanSnapshotNode[]): void => {
+          for (const node of nodes) {
+            docIdByCase.set(node.id, docId)
+            collect(node.children ?? [])
+          }
+        }
+        collect(tree)
+        loadedDocIds.add(docId)
+        const found = docIdByCase.get(snapshotNodeId)
+        if (found) return found
+      } catch {
+        // 单个文档读取失败时继续找其余文档，避免一次失败让引导整体不可用
+      }
+    }
+    return docIdByCase.get(snapshotNodeId)
+  }
+
+  async function focusNextCase(): Promise<void> {
     const next = nextPendingCase.value
     if (!next) return
-    if (next.documentId && next.documentId !== selectedDocId.value) {
-      selectedDocId.value = next.documentId
+    let docId = docIdByCase.get(next.snapshotNodeId)
+    if (!docId) docId = await ensureCaseDocument(next.snapshotNodeId)
+    if (docId && docId !== selectedDocId.value) {
+      selectedDocId.value = docId
     }
-    // 跨文档时节点尚未渲染，focusCase 会暂存 id 待重载后定位
+    // 当前画布已有目标节点时直接定位；跨文档时由 PlanMindMap 暂存 id，重载后再定位
     mindMapRef.value?.focusCase(next.snapshotNodeId)
   }
 
-  function handleMarked(payload: { snapshotNodeId: string; result: ExecutionResult }): void {
+  async function handleMarked(payload: { snapshotNodeId: string; result: ExecutionResult }): Promise<void> {
     const target = executionCases.value.find((item) => item.snapshotNodeId === payload.snapshotNodeId)
     if (target) target.lastResult = payload.result
     void refreshProgress()
-    focusNextCase()
+    await focusNextCase()
   }
 
   // ==================== Load ====================

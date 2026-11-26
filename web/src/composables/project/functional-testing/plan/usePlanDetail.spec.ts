@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   getPlanDetail: vi.fn<() => Promise<TestPlanDetail>>(),
   getPlanProgress: vi.fn<() => Promise<TestPlanProgress>>(),
   getPlanModuleTree: vi.fn<() => Promise<SnapshotModule[]>>(),
-  getPlanSnapshotTree: vi.fn<() => Promise<TestPlanSnapshotNode[]>>(),
+  getPlanSnapshotTree: vi.fn<(id: string, documentId?: string) => Promise<TestPlanSnapshotNode[]>>(),
   getPlanPlannedCases: vi.fn<() => Promise<PlannedCases[]>>(),
   updatePlanCases: vi.fn<() => Promise<void>>(),
   completePlan: vi.fn<() => Promise<void>>(),
@@ -535,60 +535,90 @@ describe('usePlanDetail', () => {
       children: [],
     })
 
-    const planned = [
-      { documentId: 'doc-1', caseIds: ['c1'] },
-      { documentId: 'doc-2', caseIds: ['c2', 'c3'] },
-    ] as PlannedCases[]
-
-    it('按全量快照现序生成序号并映射用例所属文档', async () => {
-      setupMocks({ snapshotTree: [snap('s1', 'c1'), snap('s2', 'c2')], plannedCases: planned })
+    it('按全量快照现序生成序号，不依赖规划用例的原始文档 ID', async () => {
+      setupMocks({ snapshotTree: [snap('s1', 'c1'), snap('s2', 'c2')] })
       const s = init()
       await vi.dynamicImportSettled()
       expect(s.executionOrder.value).toEqual(new Map([['s1', 1], ['s2', 2]]))
-      expect(s.nextPendingCase.value).toMatchObject({ snapshotNodeId: 's1', documentId: 'doc-1', order: 1 })
+      expect(s.nextPendingCase.value).toMatchObject({ snapshotNodeId: 's1', order: 1 })
+      expect(mocks.getPlanPlannedCases).not.toHaveBeenCalled()
     })
 
-    it('标记后自动前移到下一个待执行用例', async () => {
+    it('同文档目标直接在当前画布定位，不切换文档', async () => {
+      const nodes = [snap('s1', 'c1')]
       setupMocks({
-        snapshotTree: [snap('s1', 'c1', 'pass'), snap('s2', 'c2'), snap('s3', 'c3')],
-        plannedCases: planned,
+        tree: [makeModule('snap-doc-1', '文档1', 'document')],
+        snapshotTree: nodes,
+      })
+      mocks.getPlanSnapshotTree.mockImplementation(async (_planId, documentId) => {
+        if (!documentId) return nodes
+        return documentId === 'snap-doc-1' ? nodes : []
+      })
+      const s = init()
+      await vi.dynamicImportSettled()
+      const focusCase = vi.fn()
+      s.mindMapRef.value = { reload: vi.fn(), focusCase } as never
+      await s.focusNextCase()
+      expect(s.selectedDocId.value).toBe('snap-doc-1')
+      expect(focusCase).toHaveBeenCalledWith('s1')
+      expect(mocks.getPlanSnapshotTree).toHaveBeenCalledWith('plan-1', 'snap-doc-1')
+    })
+
+    it('标记后自动前移到下一个待执行用例并直接定位', async () => {
+      const nodes = [snap('s1', 'c1', 'pass'), snap('s2', 'c2'), snap('s3', 'c3')]
+      setupMocks({
+        tree: [makeModule('snap-doc-1', '文档1', 'document')],
+        snapshotTree: nodes,
+      })
+      mocks.getPlanSnapshotTree.mockImplementation(async (_planId, documentId) => {
+        if (!documentId) return nodes
+        return documentId === 'snap-doc-1' ? nodes : []
       })
       const s = init()
       await vi.dynamicImportSettled()
       const focusCase = vi.fn()
       s.mindMapRef.value = { reload: vi.fn(), focusCase } as never
       expect(s.nextPendingCase.value?.snapshotNodeId).toBe('s2')
-      s.handleMarked({ snapshotNodeId: 's2', result: 'fail' })
+      await s.handleMarked({ snapshotNodeId: 's2', result: 'fail' })
       expect(s.nextPendingCase.value?.snapshotNodeId).toBe('s3')
       expect(focusCase).toHaveBeenCalledWith('s3')
+      expect(s.selectedDocId.value).toBe('snap-doc-1')
     })
 
-    it('目标在其他文档时先切换文档再定位', async () => {
+    it('目标在其他文档时切换到快照文档 ID 再定位', async () => {
+      const nodes = [snap('s1', 'c1', 'pass'), snap('s2', 'c2')]
       setupMocks({
-        tree: [makeModule('doc-1', '文档1', 'document')],
-        snapshotTree: [snap('s1', 'c1', 'pass'), snap('s2', 'c2')],
-        plannedCases: planned,
+        tree: [
+          makeModule('snap-doc-1', '文档1', 'document'),
+          makeModule('snap-doc-2', '文档2', 'document'),
+        ],
+        snapshotTree: nodes,
+      })
+      mocks.getPlanSnapshotTree.mockImplementation(async (_planId, documentId) => {
+        if (!documentId) return nodes
+        if (documentId === 'snap-doc-1') return [nodes[0]]
+        if (documentId === 'snap-doc-2') return [nodes[1]]
+        return []
       })
       const s = init()
       await vi.dynamicImportSettled()
       const focusCase = vi.fn()
       s.mindMapRef.value = { reload: vi.fn(), focusCase } as never
-      expect(s.selectedDocId.value).toBe('doc-1')
-      s.focusNextCase()
-      expect(s.selectedDocId.value).toBe('doc-2')
+      expect(s.selectedDocId.value).toBe('snap-doc-1')
+      await s.focusNextCase()
+      expect(s.selectedDocId.value).toBe('snap-doc-2')
       expect(focusCase).toHaveBeenCalledWith('s2')
     })
 
     it('全部执行后无下一个用例', async () => {
       setupMocks({
         snapshotTree: [snap('s1', 'c1', 'pass'), snap('s2', 'c2', 'untested')],
-        plannedCases: planned,
       })
       const s = init()
       await vi.dynamicImportSettled()
       const focusCase = vi.fn()
       s.mindMapRef.value = { reload: vi.fn(), focusCase } as never
-      s.handleMarked({ snapshotNodeId: 's2', result: 'pass' })
+      await s.handleMarked({ snapshotNodeId: 's2', result: 'pass' })
       expect(s.nextPendingCase.value).toBeNull()
       expect(focusCase).not.toHaveBeenCalled()
     })
