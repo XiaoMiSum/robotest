@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useGitLabRepo } from '@/composables/project/api-testing/gitlab/useGitLabRepo'
+import MoreDropdown from '@/components/common/MoreDropdown.vue'
 import GitLabImportPane from './GitLabImportPane.vue'
 
 const {
@@ -104,16 +105,18 @@ const CI_MODE_HINT =
         </button>
 
         <!-- 删除不与保存平级：移入 [⋯] 更多菜单（交互稿 27 §1） -->
-        <el-dropdown v-if="!creating" trigger="click" @command="handleDelete">
-          <el-button class="gl-more" circle size="small" title="更多操作">
-            <el-icon><MoreFilled /></el-icon>
-          </el-button>
+        <MoreDropdown v-if="!creating" trigger="click" @command="handleDelete">
+          <template #trigger>
+            <el-button class="gl-more" circle size="small" title="更多操作">
+              <el-icon><MoreFilled /></el-icon>
+            </el-button>
+          </template>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="delete" class="gl-danger-item">删除配置</el-dropdown-item>
             </el-dropdown-menu>
           </template>
-        </el-dropdown>
+        </MoreDropdown>
       </div>
 
       <el-alert

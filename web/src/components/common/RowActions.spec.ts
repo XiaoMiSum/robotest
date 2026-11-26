@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import RowActions from './RowActions.vue'
+
+beforeEach(() => {
+  vi.useFakeTimers()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('RowActions', () => {
   it('最多内联三个动作，其余进入更多下拉', async () => {
@@ -22,9 +31,36 @@ describe('RowActions', () => {
     expect(wrapper.find('.row-actions__more').exists()).toBe(true)
 
     await wrapper.get('.row-actions__more').trigger('click')
+    vi.runAllTimers()
+    await nextTick()
     const texts = wrapper.findAll('.el-dropdown-menu button').map((button) => button.text())
     expect(texts).toContain('恢复')
     expect(texts).toContain('删除')
+  })
+
+  it('点击空白处收起更多下拉，恢复默认内联按钮', async () => {
+    const wrapper = mount(RowActions, {
+      props: {
+        actions: [
+          { key: 'open', label: '查看' },
+          { key: 'edit', label: '编辑' },
+          { key: 'complete', label: '完成' },
+          { key: 'resume', label: '恢复' },
+        ],
+      },
+    })
+
+    await wrapper.get('.row-actions__more').trigger('click')
+    vi.runAllTimers()
+    await nextTick()
+    expect(wrapper.get('.more-dropdown__trigger').attributes('aria-expanded')).toBe('true')
+
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    vi.runAllTimers()
+    await nextTick()
+
+    expect(wrapper.get('.more-dropdown__trigger').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.findAll('.row-actions > .el-button')).toHaveLength(3)
   })
 
   it('隐藏动作不渲染且点击转发动作键', async () => {

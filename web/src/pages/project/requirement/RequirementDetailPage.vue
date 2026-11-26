@@ -4,6 +4,7 @@ import type { TabPaneName } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
+import MoreDropdown from '@/components/common/MoreDropdown.vue'
 import type { RequirementPriority } from '@/types'
 import {
   requirementChangeLines,
@@ -186,17 +187,19 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
               :loading="saving"
               @click="handleConfirm"
             >确认</el-button>
-            <el-dropdown v-if="canArchive || canUnarchive" @command="handleLifecycleCommand">
-              <el-button link size="small">
-                更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-              </el-button>
+            <MoreDropdown v-if="canArchive || canUnarchive" @command="handleLifecycleCommand">
+              <template #trigger>
+                <el-button link size="small">
+                  更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+              </template>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canArchive" command="archive">归档</el-dropdown-item>
                   <el-dropdown-item v-if="canUnarchive" command="unarchive">取消归档</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
-            </el-dropdown>
+            </MoreDropdown>
           </template>
         </div>
       </div>

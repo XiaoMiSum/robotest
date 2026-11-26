@@ -15,6 +15,7 @@ import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import MoreDropdown from '@/components/common/MoreDropdown.vue'
 import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
 
 const SCENARIO_COLUMNS: TableColumnMeta[] = [
@@ -486,8 +487,10 @@ onActivated(async () => {
                 </template>
                 <template #default="{ row }">
                   <el-button link size="small" type="primary" @click="openDetail(row as ApiScenePageItem)">编辑</el-button>
-                  <el-dropdown trigger="click" class="scenarios-page__more" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
-                    <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+                  <MoreDropdown trigger="click" class="scenarios-page__more" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
+                    <template #trigger>
+                      <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+                    </template>
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="execute">执行</el-dropdown-item>
@@ -495,7 +498,7 @@ onActivated(async () => {
                         <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
-                  </el-dropdown>
+                  </MoreDropdown>
                 </template>
               </el-table-column>
               <template #empty>

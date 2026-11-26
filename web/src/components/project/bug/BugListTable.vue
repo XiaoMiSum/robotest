@@ -8,6 +8,7 @@ import type {
   BugType,
 } from '@/types'
 import { formatShortDateTime, formatShortId } from '@/utils/format'
+import MoreDropdown from '@/components/common/MoreDropdown.vue'
 import {
   BUG_PRIORITY_LABEL,
   BUG_PRIORITY_TAG_TYPE,
@@ -178,10 +179,12 @@ const statusIcons: Record<BugStatus, string> = {
               size="small"
               @click="emit('status', row as BugListItem, 'active', '缺陷已激活')"
               >激活</el-button>
-            <el-dropdown @command="(command: string) => emit('more', command, row as BugListItem)">
-              <el-button link type="primary" size="small" :aria-label="`${row.title}的更多操作`"
-                >更多<el-icon><ArrowDown /></el-icon
-              ></el-button>
+            <MoreDropdown @command="(command: string) => emit('more', command, row as BugListItem)">
+              <template #trigger>
+                <el-button link type="primary" size="small" :aria-label="`${row.title}的更多操作`"
+                  >更多<el-icon><ArrowDown /></el-icon
+                ></el-button>
+              </template>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item
@@ -200,7 +203,7 @@ const statusIcons: Record<BugStatus, string> = {
                   <el-dropdown-item command="copy">复制</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
-            </el-dropdown>
+            </MoreDropdown>
           </el-space>
         </template>
       </el-table-column>

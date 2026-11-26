@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
+import MoreDropdown from './MoreDropdown.vue'
 
 export interface RowAction {
   key: string
@@ -42,10 +43,12 @@ function formAttrs(form: RowAction['form']): Record<string, string | boolean> {
       :loading="action.loading"
       @click="emit('action', action.key)"
     >{{ action.label }}</el-button>
-    <el-dropdown v-if="overflow.length" :teleported="false" trigger="click">
-      <el-button link size="small" class="row-actions__more">
-        更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-      </el-button>
+    <MoreDropdown v-if="overflow.length" trigger="click" :teleported="false">
+      <template #trigger>
+        <el-button link size="small" class="row-actions__more">
+          更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-button>
+      </template>
       <template #dropdown>
         <el-dropdown-menu>
           <el-dropdown-item v-for="action in overflow" :key="action.key" :disabled="action.disabled">
@@ -58,7 +61,7 @@ function formAttrs(form: RowAction['form']): Record<string, string | boolean> {
           </el-dropdown-item>
         </el-dropdown-menu>
       </template>
-    </el-dropdown>
+    </MoreDropdown>
   </div>
 </template>
 

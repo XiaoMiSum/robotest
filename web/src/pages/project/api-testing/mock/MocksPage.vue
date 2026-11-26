@@ -18,6 +18,7 @@ import MockAddressDialog from './MockAddressDialog.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListWorkspace from '@/components/common/ListWorkspace.vue'
+import MoreDropdown from '@/components/common/MoreDropdown.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
@@ -361,15 +362,17 @@ function formatHitTime(val: string | null): string {
             <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
             <el-button link type="primary" size="small" @click="handleShowAddress(row as ApiMockItem)">地址</el-button>
             <el-button link type="primary" size="small" @click="handleDuplicate(row as ApiMockItem)">复制</el-button>
-            <el-dropdown trigger="click" class="mocks-page__more">
-              <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+            <MoreDropdown trigger="click" class="mocks-page__more">
+              <template #trigger>
+                <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              </template>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="handleResetHit(row as ApiMockItem)">重置命中</el-dropdown-item>
                   <el-dropdown-item divided @click="handleDelete(row as ApiMockItem)">删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
-            </el-dropdown>
+            </MoreDropdown>
           </template>
         </el-table-column>
         <template #empty>

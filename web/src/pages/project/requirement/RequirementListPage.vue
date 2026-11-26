@@ -12,6 +12,7 @@ import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
+import MoreDropdown from '@/components/common/MoreDropdown.vue'
 import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
@@ -300,13 +301,15 @@ function openCreate(): void {
               size="small"
               @click="handleConfirm(asRow(row))"
             >确认</el-button>
-            <el-dropdown
+            <MoreDropdown
               v-if="canEdit || (canConfirm && row.status !== 'archived')"
               trigger="click"
               class="requirement-list__more"
               @command="(command: string) => handleRowCommand(command, row)"
             >
-              <el-button link type="primary" size="small">更多<el-icon><ArrowDown /></el-icon></el-button>
+              <template #trigger>
+                <el-button link type="primary" size="small">更多<el-icon><ArrowDown /></el-icon></el-button>
+              </template>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canEdit" command="edit">编辑</el-dropdown-item>
@@ -320,7 +323,7 @@ function openCreate(): void {
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
-            </el-dropdown>
+            </MoreDropdown>
           </template>
         </el-table-column>
         <template #empty>
