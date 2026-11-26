@@ -34,6 +34,8 @@ export function useFunctionalTesting() {
    * computed 随路由 query 重算，避免一次性 ref 解析在刷新瞬间落在错误子项
    */
   const activeMenu = computed<string>(() => {
+    // 导入历史由本壳层承载但不属于菜单子项，侧栏持续高亮需求列表
+    if (route.name === 'RequirementImportHistory') return 'requirements'
     const requested = String(route.query.tab ?? '')
     if (visibleItems.value.some((m) => m.key === requested)) return requested
     return 'cases'
@@ -50,7 +52,8 @@ export function useFunctionalTesting() {
         return
       }
     }
-    router.replace({ query: { ...route.query, tab: key } })
+    // 历史页无 tab，必须切回壳层主路由，否则只改 query 会停留在历史页
+    router.replace({ name: 'FunctionalTesting', query: { ...route.query, tab: key } })
   }
 
   return {

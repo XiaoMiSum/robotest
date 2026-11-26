@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useFunctionalTesting } from '@/composables/project/functional-testing/useFunctionalTesting'
 import RequirementListPage from '@/pages/project/requirement/RequirementListPage.vue'
+import RequirementImportHistoryPage from '@/pages/project/requirement/RequirementImportHistoryPage.vue'
 import TestCasePage from '@/pages/project/functional-testing/TestCasePage.vue'
 import ReviewListPage from '@/pages/project/functional-testing/ReviewListPage.vue'
 import PlanListPage from '@/pages/project/functional-testing/PlanListPage.vue'
 
+const route = useRoute()
 const { activeMenu, menuRef, testCaseRef, visibleItems, handleMenuSelect } = useFunctionalTesting()
+const showImportHistory = computed(() => route.name === 'RequirementImportHistory')
 </script>
 
 <template>
@@ -25,7 +30,8 @@ const { activeMenu, menuRef, testCaseRef, visibleItems, handleMenuSelect } = use
     </aside>
 
     <main class="func-testing__main">
-      <RequirementListPage v-if="activeMenu === 'requirements'" />
+      <RequirementImportHistoryPage v-if="showImportHistory" />
+      <RequirementListPage v-else-if="activeMenu === 'requirements'" />
       <TestCasePage v-else-if="activeMenu === 'cases'" ref="testCaseRef" />
       <ReviewListPage v-else-if="activeMenu === 'reviews'" />
       <PlanListPage v-else-if="activeMenu === 'plans'" />

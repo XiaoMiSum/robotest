@@ -48,6 +48,12 @@ describe('useFunctionalTesting', () => {
       const { activeMenu } = useFunctionalTesting()
       expect(activeMenu.value).toBe('cases')
     })
+
+    it('导入历史路由下侧栏仍高亮需求列表', () => {
+      mocks.useRoute.mockReturnValue({ name: 'RequirementImportHistory', query: {} } as never)
+      const { activeMenu } = useFunctionalTesting()
+      expect(activeMenu.value).toBe('requirements')
+    })
   })
 
   describe('handleMenuSelect', () => {
@@ -64,7 +70,7 @@ describe('useFunctionalTesting', () => {
       mocks.useRouter.mockReturnValue({ replace } as never)
       const { handleMenuSelect } = useFunctionalTesting()
       await handleMenuSelect('reviews')
-      expect(replace).toHaveBeenCalledWith({ query: { tab: 'reviews' } })
+      expect(replace).toHaveBeenCalledWith({ name: 'FunctionalTesting', query: { tab: 'reviews' } })
     })
 
     it('从 cases 切换时如果 testCaseRef 确认离开失败则取消切换', async () => {
@@ -83,7 +89,7 @@ describe('useFunctionalTesting', () => {
       const { testCaseRef, handleMenuSelect } = useFunctionalTesting()
       testCaseRef.value = { confirmLeave: vi.fn(async () => true) } as never
       await handleMenuSelect('reviews')
-      expect(replace).toHaveBeenCalledWith({ query: { tab: 'reviews' } })
+      expect(replace).toHaveBeenCalledWith({ name: 'FunctionalTesting', query: { tab: 'reviews' } })
     })
 
     it('非 cases 页面切换时不需要确认', async () => {
@@ -92,7 +98,7 @@ describe('useFunctionalTesting', () => {
       mocks.useRouter.mockReturnValue({ replace } as never)
       const { handleMenuSelect } = useFunctionalTesting()
       await handleMenuSelect('plans')
-      expect(replace).toHaveBeenCalledWith({ query: { tab: 'plans' } })
+      expect(replace).toHaveBeenCalledWith({ name: 'FunctionalTesting', query: { tab: 'plans' } })
     })
 
     it('切换到需求列表时写入 requirements tab 并保留既有查询参数', async () => {
@@ -102,7 +108,16 @@ describe('useFunctionalTesting', () => {
       const { testCaseRef, handleMenuSelect } = useFunctionalTesting()
       testCaseRef.value = { confirmLeave: vi.fn(async () => true) } as never
       await handleMenuSelect('requirements')
-      expect(replace).toHaveBeenCalledWith({ query: { tab: 'requirements', foo: 'bar' } })
+      expect(replace).toHaveBeenCalledWith({ name: 'FunctionalTesting', query: { tab: 'requirements', foo: 'bar' } })
+    })
+
+    it('从导入历史切换菜单时切回功能测试主路由', async () => {
+      mocks.useRoute.mockReturnValue({ name: 'RequirementImportHistory', query: {} } as never)
+      const replace = vi.fn()
+      mocks.useRouter.mockReturnValue({ replace } as never)
+      const { handleMenuSelect } = useFunctionalTesting()
+      await handleMenuSelect('plans')
+      expect(replace).toHaveBeenCalledWith({ name: 'FunctionalTesting', query: { tab: 'plans' } })
     })
   })
 })
