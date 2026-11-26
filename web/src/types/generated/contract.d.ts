@@ -4868,8 +4868,8 @@ export interface components {
             hasWorkspace?: boolean;
             permissionCodes?: string[];
             permissions?: string[];
-            accountNonLocked?: boolean;
             accountNonExpired?: boolean;
+            accountNonLocked?: boolean;
             credentialsNonExpired?: boolean;
         };
         ResultLoginResultLoginUser: {
@@ -4922,6 +4922,10 @@ export interface components {
                 [key: string]: unknown;
             };
             terminateReason?: components["schemas"]["AiTerminateReasonRespDTO"];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int32 */
+            proposalCount?: number;
         };
         AiTaskProposalSummaryRespDTO: {
             key?: string;
@@ -4957,6 +4961,7 @@ export interface components {
             };
             documentMeta?: components["schemas"]["DocumentMeta"];
             proposals?: components["schemas"]["AiTaskProposalSummaryRespDTO"][];
+            executions?: components["schemas"]["AiTaskExecutionRespDTO"][];
         };
         AiTerminateReasonRespDTO: {
             /** Format: int32 */
@@ -4984,6 +4989,8 @@ export interface components {
         };
         AiTaskConfirmReqDTO: {
             items: components["schemas"]["ConfirmItemReqDTO"][];
+            /** Format: uuid */
+            executionId?: string;
             target?: components["schemas"]["TargetReqDTO"];
         };
         ConfirmItemReqDTO: {
@@ -5650,6 +5657,13 @@ export interface components {
             data?: components["schemas"]["PageResultRequirementChangeLogRespDTO"];
             msg?: string;
         };
+        LatestExecution: {
+            /** Format: uuid */
+            executionId?: string;
+            /** Format: int32 */
+            seq?: number;
+            status?: string;
+        };
         PageResultRequirementSplitRecordRespDTO: {
             list?: components["schemas"]["RequirementSplitRecordRespDTO"][];
             /** Format: int64 */
@@ -5660,11 +5674,23 @@ export interface components {
             id?: string;
             sourceType?: string;
             /** Format: uuid */
+            sourceFileId?: string;
+            sourceFileName?: string;
+            /** Format: uuid */
             aiTaskId?: string;
+            taskTitle?: string;
+            taskStatus?: string;
+            latestExecution?: components["schemas"]["LatestExecution"];
+            /** Format: int32 */
+            proposalCount?: number;
+            /** Format: int32 */
+            adoptedCount?: number;
             status?: string;
             adoptResult?: {
                 [key: string]: unknown;
             };
+            /** Format: uuid */
+            submittedBy?: string;
             /** Format: date-time */
             createdAt?: string;
         };
@@ -6419,28 +6445,6 @@ export interface components {
             code?: number;
             data?: components["schemas"]["BugAttachmentRespDTO"][];
             msg?: string;
-        };
-        Series: {
-            key?: string;
-            label?: string;
-            created?: number[];
-            closed?: number[];
-            active?: number[];
-        };
-        DistItem: {
-            key?: string;
-            /** Format: int64 */
-            count?: number;
-        };
-        FixDuration: {
-            /** Format: double */
-            avgHours?: number;
-            /** Format: double */
-            p50Hours?: number;
-            /** Format: double */
-            p90Hours?: number;
-            /** Format: int32 */
-            sample?: number;
         };
         ApiScenePageItemRespDTO: {
             /** Format: uuid */
@@ -13156,7 +13160,9 @@ export interface operations {
     };
     getDetail_2: {
         parameters: {
-            query?: never;
+            query?: {
+                executionId?: string;
+            };
             header?: never;
             path: {
                 taskId: string;
@@ -13178,7 +13184,9 @@ export interface operations {
     };
     getProposal: {
         parameters: {
-            query?: never;
+            query?: {
+                executionId?: string;
+            };
             header?: never;
             path: {
                 taskId: string;

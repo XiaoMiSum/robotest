@@ -9061,6 +9061,15 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "executionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -9099,6 +9108,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "executionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -14354,10 +14372,10 @@
               "type": "string"
             }
           },
-          "accountNonLocked": {
+          "accountNonExpired": {
             "type": "boolean"
           },
-          "accountNonExpired": {
+          "accountNonLocked": {
             "type": "boolean"
           },
           "credentialsNonExpired": {
@@ -14501,6 +14519,14 @@
           },
           "terminateReason": {
             "$ref": "#/components/schemas/AiTerminateReasonRespDTO"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "proposalCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -14585,6 +14611,12 @@
             "items": {
               "$ref": "#/components/schemas/AiTaskProposalSummaryRespDTO"
             }
+          },
+          "executions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiTaskExecutionRespDTO"
+            }
           }
         }
       },
@@ -14656,6 +14688,10 @@
             },
             "maxItems": 200,
             "minItems": 0
+          },
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
           },
           "target": {
             "$ref": "#/components/schemas/TargetReqDTO"
@@ -16495,6 +16531,22 @@
           }
         }
       },
+      "LatestExecution": {
+        "type": "object",
+        "properties": {
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
       "PageResultRequirementSplitRecordRespDTO": {
         "type": "object",
         "properties": {
@@ -16520,9 +16572,33 @@
           "sourceType": {
             "type": "string"
           },
+          "sourceFileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceFileName": {
+            "type": "string"
+          },
           "aiTaskId": {
             "type": "string",
             "format": "uuid"
+          },
+          "taskTitle": {
+            "type": "string"
+          },
+          "taskStatus": {
+            "type": "string"
+          },
+          "latestExecution": {
+            "$ref": "#/components/schemas/LatestExecution"
+          },
+          "proposalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "adoptedCount": {
+            "type": "integer",
+            "format": "int32"
           },
           "status": {
             "type": "string"
@@ -16530,6 +16606,10 @@
           "adoptResult": {
             "type": "object",
             "additionalProperties": {}
+          },
+          "submittedBy": {
+            "type": "string",
+            "format": "uuid"
           },
           "createdAt": {
             "type": "string",
@@ -18422,71 +18502,6 @@
           },
           "msg": {
             "type": "string"
-          }
-        }
-      },
-      "Series": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "label": {
-            "type": "string"
-          },
-          "created": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          "closed": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          "active": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        }
-      },
-      "DistItem": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "count": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
-      },
-      "FixDuration": {
-        "type": "object",
-        "properties": {
-          "avgHours": {
-            "type": "number",
-            "format": "double"
-          },
-          "p50Hours": {
-            "type": "number",
-            "format": "double"
-          },
-          "p90Hours": {
-            "type": "number",
-            "format": "double"
-          },
-          "sample": {
-            "type": "integer",
-            "format": "int32"
           }
         }
       },
