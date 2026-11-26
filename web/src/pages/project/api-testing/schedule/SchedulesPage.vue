@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Plus } from '@element-plus/icons-vue'
 import ScenePickerDialog from '@/components/project/api-testing/scene/ScenePickerDialog.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListWorkspace from '@/components/common/ListWorkspace.vue'
@@ -112,7 +113,7 @@ function handlePageSizeChange() {
         <h1 class="page-head__title">定时任务</h1>
         <p class="page-head__desc">测试计划、接口同步与 GitLab 同步的统一周期调度</p>
       </div>
-      <el-button type="primary" @click="openCreate">新建任务</el-button>
+      <el-button type="primary" @click="openCreate"><el-icon><Plus /></el-icon>新建任务</el-button>
     </header>
 
     <ListWorkspace label="定时任务列表" :loading="loading">
@@ -194,6 +195,7 @@ function handlePageSizeChange() {
             :title="emptyTitle"
             :description="loadError"
             :create-label="!hasFilters && !loadError ? '新建任务' : undefined"
+            :create-icon="!hasFilters && !loadError ? Plus : undefined"
             @retry="loadPage"
             @reset="clearFilters"
             @create="openCreate"

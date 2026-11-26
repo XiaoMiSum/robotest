@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
+
 defineProps<{
   mode: 'loading' | 'error' | 'refresh-error' | 'empty' | 'filtered'
   title: string
   description?: string
   createLabel?: string
+  createIcon?: Component
   retrying?: boolean
 }>()
 const emit = defineEmits<{ retry: []; reset: []; create: [] }>()
@@ -17,9 +20,9 @@ const emit = defineEmits<{ retry: []; reset: []; create: [] }>()
   </div>
   <el-empty v-else :description="title" :image-size="72">
     <el-button v-if="mode === 'filtered'" @click="emit('reset')">重置筛选</el-button>
-    <el-button v-else-if="createLabel" type="primary" @click="emit('create')">{{
-      createLabel
-    }}</el-button>
+    <el-button v-else-if="createLabel" type="primary" @click="emit('create')">
+      <el-icon v-if="createIcon"><component :is="createIcon" /></el-icon>{{ createLabel }}
+    </el-button>
   </el-empty>
 </template>
 

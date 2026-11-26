@@ -5,7 +5,7 @@ describe('SchedulesPage 列表交互与反馈', () => {
   it('页头 + 单卡片布局：新建为主按钮、工具栏计数与分页总数齐全', () => {
     expect(pageSource).toContain('<header class="page-head">')
     expect(pageSource).toContain('class="page-head__desc"')
-    expect(pageSource).toContain('>新建任务</el-button>')
+    expect(pageSource).toContain('<el-icon><Plus /></el-icon>新建任务</el-button>')
     expect(pageSource).toContain('<ListWorkspace label="定时任务列表"')
     expect(pageSource).toContain('class="schedules-page__count"')
     expect(pageSource).toContain('共 {{ total }} 条')
@@ -27,6 +27,10 @@ describe('SchedulesPage 列表交互与反馈', () => {
   it('任务名称支持键盘聚焦查看全文', () => {
     expect(pageSource).toContain('ListTitleLink')
     expect(pageSource).toContain('@open="openEdit')
+  })
+
+  it('空态创建按钮展示 Plus 图标', () => {
+    expect(pageSource).toContain(':create-icon="!hasFilters && !loadError ? Plus : undefined"')
   })
 
   it('列设置入口置于操作列表头右侧，工具栏不再展示列设置', () => {
