@@ -5,6 +5,7 @@ import { usePlanDetail } from '@/composables/project/functional-testing/plan/use
 import { usePlanOrderAssist } from '@/composables/project/ai/usePlanOrderAssist'
 import PlanOrderPanel from '@/components/project/ai/PlanOrderPanel.vue'
 import { planStatusMeta, planStatusLabel } from '@/components/project/functional-testing/plan/planListPresentation'
+import aiIcon from '@/assets/icon/ai.svg'
 
 const route = useRoute()
 const planId = route.params.planId as string
@@ -141,8 +142,15 @@ const orderEmptyReason = computed(() =>
             placement="top"
           >
             <span>
-              <el-button size="small" plain :disabled="!!orderEmptyReason" @click="launchOrderAssist">
-                <el-icon><Sort /></el-icon>执行顺序建议
+              <el-button
+                size="small"
+                plain
+                title="执行顺序建议"
+                aria-label="执行顺序建议"
+                :disabled="!!orderEmptyReason"
+                @click="launchOrderAssist"
+              >
+                <img :src="aiIcon" alt="" class="ai-icon" />
               </el-button>
             </span>
           </el-tooltip>
@@ -359,6 +367,11 @@ const orderEmptyReason = computed(() =>
 
   :deep(.el-button .el-icon) {
     margin-right: 4px;
+  }
+
+  .ai-icon {
+    width: 14px;
+    height: 14px;
   }
 }
 

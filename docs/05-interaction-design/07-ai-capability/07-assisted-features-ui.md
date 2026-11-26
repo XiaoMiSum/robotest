@@ -20,10 +20,10 @@
 └── 「AI覆盖雷达」→ 查当前文档最近任务 → 命中回显 / 未命中选需求（单选）→ AI 生成面板（mindmap_case_generation）
 
 测试计划详情
-└── 「执行顺序建议」（plan_order）
+└── （AI 图标按钮，title / aria-label 为「执行顺序建议」，plan_order）
 ```
 
-「AI 优化」与「AI覆盖雷达」入口按钮仅显示统一 AI 图标，功能名由悬浮提示与 `aria-label` 承担。
+「AI 优化」「AI覆盖雷达」与「执行顺序建议」入口按钮仅显示统一 AI 图标，功能名由悬浮提示与 `aria-label` 承担。
 
 用例优化与执行顺序建议各自使用对应的任务与面板：用例优化从悬浮窗发起后悬浮窗收起，面板仍以对话框呈现；隐藏 / 置灰规则按 2.3 的状态分支生效（`docs/05-interaction-design/03-function-testing/04-workspace-ui-test-case.md` 1.2 定义悬浮窗的展开与关闭）。
 

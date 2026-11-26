@@ -20,7 +20,11 @@ describe('PlanDetailPage 操作按钮状态显隐', () => {
   })
 
   it('执行顺序建议入口按活跃态 + AI 可用性显隐，空计划置灰并说明原因', () => {
-    expect(pageSource).toContain('执行顺序建议')
+    expect(pageSource).toContain("import aiIcon from '@/assets/icon/ai.svg'")
+    expect(pageSource).toContain('title="执行顺序建议"')
+    expect(pageSource).toContain('aria-label="执行顺序建议"')
+    expect(pageSource).toContain('<img :src="aiIcon" alt="" class="ai-icon" />')
+    expect(pageSource).not.toContain('<el-icon><Sort /></el-icon>执行顺序建议')
     expect(pageSource).toContain('v-if="orderEntryVisible && canOperateActive"')
     expect(pageSource).toContain(':disabled="!!orderEmptyReason"')
     expect(pageSource).toContain('计划关联用例为空')
