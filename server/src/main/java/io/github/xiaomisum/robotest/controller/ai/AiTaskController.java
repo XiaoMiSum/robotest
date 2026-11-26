@@ -64,14 +64,15 @@ public class AiTaskController {
         return Result.ok(aiTaskService.countActive(loginUser.getActiveProjectId()));
     }
 
-    /** 3.6.3 按文档 / 节点 / 评审查询最近一次任务（按类型择一匹配；无匹配 data 为 null） */
+    /** 3.6.3 按文档 / 节点 / 评审 / 计划查询最近一次任务（按类型择一匹配；无匹配 data 为 null） */
     @GetMapping("/{type}/latest")
     public Result<AiTaskRespDTO> getLatestByNode(@AuthenticationPrincipal LoginUser loginUser,
             @PathVariable String type,
             @RequestParam(value = "documentId", required = false) String documentId,
             @RequestParam(value = "nodeId", required = false) String nodeId,
-            @RequestParam(value = "reviewId", required = false) String reviewId) {
-        return Result.ok(aiTaskService.getLatestByNode(type, documentId, nodeId, reviewId,
+            @RequestParam(value = "reviewId", required = false) String reviewId,
+            @RequestParam(value = "planId", required = false) String planId) {
+        return Result.ok(aiTaskService.getLatestByNode(type, documentId, nodeId, reviewId, planId,
                 loginUser.getActiveProjectId(), loginUser.getId(), loginUser));
     }
 

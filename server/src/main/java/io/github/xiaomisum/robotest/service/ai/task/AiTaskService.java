@@ -56,8 +56,8 @@ public interface AiTaskService {
      */
     AiTaskRespDTO getDetail(UUID taskId, UUID executionId, LoginUser loginUser);
 
-    /** 3.6.3 按文档 / 节点 / 评审查询最近一次任务（reviewId 仅用于 AI 评审类型），无匹配返回 null */
-    AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, String reviewId,
+    /** 3.6.3 按文档 / 节点 / 评审 / 计划查询最近一次任务（reviewId 仅用于 AI 评审、planId 仅用于执行顺序建议），无匹配返回 null */
+    AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, String reviewId, String planId,
             UUID activeProjectId, UUID userId, LoginUser loginUser);
 
     /** 3.6.3 提案详情：完整内容（业务面板与只读回看共用），键在最新一次执行的提案中定位 */

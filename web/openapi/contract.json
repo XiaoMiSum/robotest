@@ -9030,6 +9030,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "planId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

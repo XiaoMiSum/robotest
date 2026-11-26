@@ -13138,6 +13138,7 @@ export interface operations {
                 documentId?: string;
                 nodeId?: string;
                 reviewId?: string;
+                planId?: string;
             };
             header?: never;
             path: {

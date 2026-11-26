@@ -92,6 +92,24 @@ public interface AiTaskMapper extends BaseMapperX<AiTask> {
     }
 
     /**
+     * 按计划查询最近一次执行顺序建议任务（详设 3.6.3）：可见范围与按文档查询一致。
+     */
+    default AiTask selectLatestByPlanId(String type, String planId, UUID projectId, UUID userId) {
+        LambdaQueryWrapperX<AiTask> wrapper = new LambdaQueryWrapperX<AiTask>()
+                .eq(AiTask::getType, type)
+                .orderByDesc(AiTask::getCreatedAt);
+        wrapper.apply("input->>'planId' = {0}", planId);
+        if (projectId == null) {
+            wrapper.eq(AiTask::getSubmittedBy, userId);
+        } else {
+            wrapper.and(w -> w.eq(AiTask::getProjectId, projectId)
+                    .or(personal -> personal.isNull(AiTask::getProjectId).eq(AiTask::getSubmittedBy, userId)));
+        }
+        wrapper.last("LIMIT 1");
+        return selectOne(wrapper);
+    }
+
+    /**
      * 进行中任务计数（详设 3.6.3 顶栏指示器）：status = running（含执行挂起），过滤口径与列表一致。
      */
     default long countActive(UUID projectId) {

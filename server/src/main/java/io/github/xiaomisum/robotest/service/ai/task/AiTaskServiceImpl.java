@@ -300,11 +300,13 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     @Override
-    public AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, String reviewId,
+    public AiTaskRespDTO getLatestByNode(String type, String documentId, String nodeId, String reviewId, String planId,
             UUID activeProjectId, UUID userId, LoginUser loginUser) {
         AiTask task;
         if (Constants.AiTaskType.REVIEW_CASE_REVIEW.equals(type) && reviewId != null && !reviewId.isBlank()) {
             task = taskMapper.selectLatestByReviewId(type, reviewId, activeProjectId, userId);
+        } else if (Constants.AiTaskType.PLAN_ORDER.equals(type) && planId != null && !planId.isBlank()) {
+            task = taskMapper.selectLatestByPlanId(type, planId, activeProjectId, userId);
         } else {
             task = taskMapper.selectLatestByNode(type, documentId, nodeId, activeProjectId, userId);
         }

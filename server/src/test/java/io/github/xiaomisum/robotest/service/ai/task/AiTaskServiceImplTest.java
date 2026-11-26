@@ -484,7 +484,7 @@ class AiTaskServiceImplTest {
         when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
         when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
 
-        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", "node-1", null, PROJECT_ID, USER_ID, loginUser);
+        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", "node-1", null, null, PROJECT_ID, USER_ID, loginUser);
 
         assertNotNull(resp);
         assertEquals(TASK_ID, resp.getTaskId());
@@ -496,7 +496,7 @@ class AiTaskServiceImplTest {
     void getLatestByNode_returnsNullWhenAbsent() {
         when(taskMapper.selectLatestByNode(TYPE, "doc-1", "node-1", PROJECT_ID, USER_ID)).thenReturn(null);
 
-        assertNull(service.getLatestByNode(TYPE, "doc-1", "node-1", null, PROJECT_ID, USER_ID, loginUser));
+        assertNull(service.getLatestByNode(TYPE, "doc-1", "node-1", null, null, PROJECT_ID, USER_ID, loginUser));
     }
 
     @Test
@@ -508,7 +508,7 @@ class AiTaskServiceImplTest {
         when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
         when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
 
-        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", null, null, PROJECT_ID, USER_ID, loginUser);
+        AiTaskRespDTO resp = service.getLatestByNode(TYPE, "doc-1", null, null, null, PROJECT_ID, USER_ID, loginUser);
 
         assertNotNull(resp);
         assertEquals(TASK_ID, resp.getTaskId());
@@ -527,12 +527,53 @@ class AiTaskServiceImplTest {
         when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
 
         AiTaskRespDTO resp = service.getLatestByNode(Constants.AiTaskType.REVIEW_CASE_REVIEW, null, null,
-                reviewId, PROJECT_ID, USER_ID, loginUser);
+                reviewId, null, PROJECT_ID, USER_ID, loginUser);
 
         assertNotNull(resp);
         assertEquals(TASK_ID, resp.getTaskId());
         assertEquals("AI 评审", resp.getTitle());
         verify(taskMapper, never()).selectLatestByNode(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getLatestByPlanId_usesPlanLookupForPlanOrderType() {
+        AiTask latest = task(Constants.AiTaskFlowStatus.PROPOSALS_READY);
+        latest.setTitle("执行顺序建议");
+        String planId = UUID.randomUUID().toString();
+        when(taskMapper.selectLatestByPlanId(Constants.AiTaskType.PLAN_ORDER, planId,
+                PROJECT_ID, USER_ID)).thenReturn(latest);
+        when(executionMapper.selectLatestByTaskId(TASK_ID)).thenReturn(execution("succeeded"));
+        when(proposalMapper.selectByExecution(EXEC_ID)).thenReturn(List.of(proposal("p1", "pending")));
+        when(adoptionMapper.selectByExecution(EXEC_ID)).thenReturn(List.of());
+
+        AiTaskRespDTO resp = service.getLatestByNode(Constants.AiTaskType.PLAN_ORDER, null, null,
+                null, planId, PROJECT_ID, USER_ID, loginUser);
+
+        assertNotNull(resp);
+        assertEquals(TASK_ID, resp.getTaskId());
+        assertEquals("执行顺序建议", resp.getTitle());
+        assertEquals(1, resp.getProposals().size());
+        verify(taskMapper, never()).selectLatestByNode(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getLatestByPlanId_returnsNullWhenAbsent() {
+        String planId = UUID.randomUUID().toString();
+        when(taskMapper.selectLatestByPlanId(Constants.AiTaskType.PLAN_ORDER, planId,
+                PROJECT_ID, USER_ID)).thenReturn(null);
+
+        assertNull(service.getLatestByNode(Constants.AiTaskType.PLAN_ORDER, null, null,
+                null, planId, PROJECT_ID, USER_ID, loginUser));
+    }
+
+    @Test
+    void getLatestByPlanId_ignoredForNonPlanOrderType() {
+        String planId = UUID.randomUUID().toString();
+        when(taskMapper.selectLatestByNode(TYPE, null, null, PROJECT_ID, USER_ID)).thenReturn(null);
+
+        assertNull(service.getLatestByNode(TYPE, null, null, null, planId,
+                PROJECT_ID, USER_ID, loginUser));
+        verify(taskMapper, never()).selectLatestByPlanId(any(), any(), any(), any());
     }
 
     @Test
