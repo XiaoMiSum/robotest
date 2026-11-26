@@ -107,6 +107,7 @@ COMMENT ON TABLE ft_preset_actions IS '项目级默认预置动作（单行聚�
 | id | uuid | PK | 框架默认策略 |
 | project_id | uuid | NOT NULL | 归属项目（隔离过滤） |
 | task_id | uuid | NOT NULL | `ai_task.id`（批次） |
+| execution_id | uuid | NOT NULL | `ai_task_execution.id`，与执行实例 / 重试对账；按批次独立匿名 |
 | plan_id | uuid | NOT NULL | 计划 |
 | snapshot_node_id | uuid | NOT NULL | 用例快照节点 |
 | phase | varchar(20) | NOT NULL | `precondition` / `step_N`（N 从 1 起）/ `verify` / `decompose` |
@@ -117,16 +118,17 @@ COMMENT ON TABLE ft_preset_actions IS '项目级默认预置动作（单行聚�
 | params | jsonb | NULL | 占位符原文；evaluate 即 JS 源码逐字留痕 |
 | reason_code | varchar(30) | NULL | 失败原因码（枚举见 Runner 分册 3.2.4） |
 | observation_digest | text | NULL | 观察摘要（元素树与语义摘要的压缩留痕） |
-| screenshot_ref | varchar(200) | NULL | 文件域引用，截图本体在对象存储 |
-| tokens_in / tokens_out | int | NULL | 该动作所在步的模型调用消耗 |
+| screenshot_ref | varchar(500) | NULL | `file_resource.object_key` 或 UUID 引用，截图本体在对象存储 |
+| tokens_in / tokens_out | int | NULL | 该动作所在步的模型调用消耗；明细口径，不与任务级汇总对账 |
 
-**索引**（2 个，C9）：`idx_ui_action_log_task (task_id)`、`idx_ui_action_log_case (snapshot_node_id, seq)`。
+**索引**（3 个，C9）：`idx_ui_action_log_project_task (project_id, task_id, seq)`（隔离过滤 + 批次排序，区分度高的列在左）、`idx_ui_action_log_execution (execution_id, seq)`（按执行分页 / 对账）、`idx_ui_action_log_case (snapshot_node_id, seq)`（按用例过滤）。`plan_id` 为归属字段、非高频过滤条件，不单独建索引。
 
 ```sql
 CREATE TABLE ui_action_log (
     id                 uuid PRIMARY KEY,
     project_id         uuid NOT NULL,
     task_id            uuid NOT NULL,
+    execution_id       uuid NOT NULL,
     plan_id            uuid NOT NULL,
     snapshot_node_id   uuid NOT NULL,
     phase              varchar(20) NOT NULL,
@@ -137,16 +139,18 @@ CREATE TABLE ui_action_log (
     params             jsonb NULL,
     reason_code        varchar(30) NULL,
     observation_digest text NULL,
-    screenshot_ref     varchar(200) NULL,
+    screenshot_ref     varchar(500) NULL,
     tokens_in          int NULL,
     tokens_out         int NULL,
     created_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted         boolean NOT NULL DEFAULT FALSE
 );
-CREATE INDEX idx_ui_action_log_task ON ui_action_log (task_id);
+CREATE INDEX idx_ui_action_log_project_task ON ui_action_log (project_id, task_id, seq);
+CREATE INDEX idx_ui_action_log_execution ON ui_action_log (execution_id, seq);
 CREATE INDEX idx_ui_action_log_case ON ui_action_log (snapshot_node_id, seq);
-COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步骤归档，追加式）';
+COMMENT ON TABLE ui_action_log IS 'AI 执行动作明细（唯一事实源，按批次/执行/用例/步骤归档，追加式）';
+COMMENT ON COLUMN ui_action_log.tokens_in IS '动作级用量明细，不参与 ai_task / ai_task_execution 汇总对账';
 ```
 
 ### 2.2 既有表改造
@@ -156,7 +160,7 @@ COMMENT ON TABLE ui_action_log IS 'AI 执行动作轨迹（按批次/用例/步�
 | ft_plan_execution_record | 新增来源维度 | `ALTER TABLE ft_plan_execution_record ADD COLUMN source varchar(10) NOT NULL DEFAULT 'manual';`（既有行自动为 `manual`，**无需回填脚本**——已确认无存量 AI 数据） |
 | ft_plan_execution_record | 结果枚举扩展 | `result` 既有 `VARCHAR(20)`，直接接受 `skipped`，**无 DDL**；仅更新列注释为「pass/fail/block/untested/skipped」 |
 | ft_plan_node_snapshot | 最后结果扩展 | `last_result` 同为 `VARCHAR(20)`，接受 `skipped`，无 DDL；列注释同步 |
-| ft_plan | 执行环境语义 | `environment varchar(200)` **无 DDL**：语义从自由文本改为存 `ft_environment.id`（UUID 字符串）；展示时关联取名称，关联不上（环境已删）时展示「已删除环境」。已确认**无存量自由文本数据需转换**，不做回填 |
+| ft_plan | 执行环境列类型 | `ALTER TABLE ft_plan ALTER COLUMN environment TYPE uuid USING NULL::uuid;`——列类型由 `varchar(200)` 改为 `uuid`，存 `ft_environment.id`；本期不考虑存量自由文本转换，旧值统一置空、不回填；展示时关联取名称，关联不上（环境已删）时展示「已删除环境」 |
 
 ### 2.3 执行端实例表（ai_runner_instance）
 
@@ -322,7 +326,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 - **input 校验**（按 `ui_execution` 分发，AI 底座 3.6.2 的 type→input 校验点）：`planId` 必填且存在属于当前项目（1000011010 复用）；`caseIds` 空数组 = 计划关联全部用例，非空时须为本计划关联的快照节点（否则 1000011036）；`environmentId` 必填且属于当前项目（1000011037）；`modelId` 入参保留，实际执行仍按当前链路解析系统默认模型；`stepActionLimit ∈ [1, 200]`，缺省 50（1000011038）；动作数与时长置于 `input` 交由 UI 执行策略单独计数与熔断，不进入 AI Task 通用预算快照。
 - **重复发起**：提交时服务端按 `planId` 查同计划进行中批次，存在则直接拒绝（1000011043），不创建任务；precheck 的 `progress.runningTaskId` 仅作前端提前呈现。
-- **处理**：发起即冻结当前计划用例快照——服务端按 `ft_plan_node_snapshot` 的 `case / precondition / step / expected` 节点组装用例正文（未同步的脑图修改不进本次执行），模块锚点取 `ft_plan_module_snapshot` 的 `parent_id` 树路径，环境内容取环境快照、步级上限入参，一并写入 `ai_task.input`；`type=ui_execution`、`prompt_scene=ui_execution_decision`；任务创建即启动执行（`status=running`，执行实例 `running`），提交即返回。
+- **处理**：发起即冻结当前计划用例快照——服务端从 `ft_plan_node_snapshot` 按 `case / precondition / step / expected` 节点提取**结构化用例数据**（节点 ID、type、title、parent_id、sort_order，不经既有 120 字符截断），模块锚点取 `ft_plan_module_snapshot` 的 `parent_id` 树路径，环境内容取环境快照、步级上限入参，一并写入 `ai_task.input`；正文在每次模型调用前由处理器按冻结结构拼装为 markdown（见 4.2）、不预先落库（未同步的脑图修改不进本次执行）。`type=ui_execution`；执行行 `promptScene` 按 AI Task 现有规则记 `ui_execution`，两个模型场景 `ui_execution_decision` / `ui_execution_verdict` 由处理器调用 `AiModelClient` 时直接传入并用于用量归因。任务创建即启动执行（`status=running`，执行实例 `running`），提交即返回。
 - **响应**：AI 底座 3.6.2 同构（`taskId` / `executionId` / `status` / ...）。
 - **进度 / 终止**：复用现有 REST——任务详情 `GET /api/ai/tasks/{taskId}`（2s 轮询取终态）、执行轨迹 `GET /api/ai/tasks/{taskId}/executions/{executionId}/events?afterSeq=`（游标轮询取进度）与终止 `POST /api/ai/tasks/{taskId}/executions/{executionId}/abort`（AI 底座 3.6.3/3.6.4）；不新增 SSE / WS 端点、不改 DTO 与契约，UI 执行不消费轨迹的 WebSocket 推送；进度经 `status_change` 事件承载，`detail.kind=ui_progress`，含用例序号 / 标题、步骤 x/y、动作数 / 上限、四值计数与 `status`，`summary` 为「第 N/M 条用例 · 步骤 x/y · 已 a 动作」（概设 4.1）；分母取自冻结快照；轮询失败保留上次值并自动续拉，≤2s 可见；无步骤用例的拆解结果写入 `status_change` 事件 `detail.kind=ui_decompose`，不新增事件类型、不回写用例；终止在当前 `action.result` 返回后退出循环并按 4.2 落存，已写入判定不回滚。
 
@@ -338,14 +342,14 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 ### 3.10 轨迹查询
 
 - **路径**：`GET /api/ai/tasks/{taskId}/action-logs`（仅校验当前用户是否为当前项目成员及 AI Task 任务归属可见性，不新增 RBAC 权限码）
-- **参数**：`snapshotNodeId`（可选，按用例过滤）、`pageNo`、`pageSize`（默认 100，轨迹为追加流，按 `seq` 升序）。
+- **参数**：`executionId`（缺省为最新执行，指定时按 `execution_id` 过滤）、`snapshotNodeId`（可选，按用例过滤）、`pageNo`、`pageSize`（默认 100，轨迹为追加流，按 `seq` 升序）。
 - **响应**：
 
 ```json
 {
   "list": [
     {
-      "id": "…", "phase": "step_2", "seq": 5, "kind": "action_failed",
+      "id": "…", "executionId": "…", "phase": "step_2", "seq": 5, "kind": "action_failed",
       "action": "click", "targetRef": "e12",
       "params": null, "reasonCode": "covered",
       "observationDigest": "「新建」被遮罩层覆盖",
@@ -357,7 +361,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 }
 ```
 
-- **口径**：`params` 中密码为占位符原文、`evaluate` 为 JS 源码逐字（概设 4.7 护栏 1）；批次汇总（pass/fail/blocked/skipped 计数）取自任务 `result`，不另设接口。本端点为 UI 执行动作明细视图；通用执行轨迹事件以 AI 底座 3.6.4 的 `GET /api/ai/tasks/{taskId}/executions/{executionId}/events` 为单一事实源，两者按 `taskId` / `executionId` 关联。
+- **口径**：`params` 中密码为占位符原文、`evaluate` 为 JS 源码逐字（概设 4.7 护栏 1）；批次汇总（pass/fail/blocked/skipped 计数）取自任务 `result`，不另设接口。`ui_action_log` 为 UI 执行动作明细的**唯一事实源**（含 `execution_id`，与执行实例 / 重试对账）；通用执行轨迹 `GET /api/ai/tasks/{taskId}/executions/{executionId}/events` 在 UI 执行批次中仅承载进度与状态摘要（`ui_progress` / `ui_decompose` / `status_change`），不重复落动作明细；两者按 `taskId` / `executionId` 关联。动作明细的 token 仅作展示，不与任务 / 执行级汇总对账。
 
 ### 3.11 错误码（10 位，号段 1000011031–1000011060，登记 `docs/04-detailed-design/02-project-module.md` 6.3）
 
@@ -382,7 +386,8 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 ### 4.1 通道服务（服务端侧）
 
 - 服务端监听 Runner 连接（协议与帧见 Runner 分册 3，此处只写服务侧动作）：
-  - `register`：校验 `ownerToken`（桌面版登录会话签发，验签后置 `owner_id`）或 `sharedKey`（CLI 注册密钥，`owner_id` 置空），按 `runner_id` upsert 执行端实例（2.3）并回 `register.ack`；**注册为部署级行为，不校验工作空间上下文**；失败断开；
+  - **握手鉴权**：Runner 在 WS 握手阶段经 `Authorization` 头提交 `ownerToken`（桌面版登录会话签发，验签后置 `owner_id`）或 `sharedKey`（CLI 注册密钥，`owner_id` 置空）；服务端在建立会话前完成验签并按凭据类型交叉校验 `mode`（ownerToken ↔ desktop-hosted、sharedKey ↔ cli），失败直接拒绝握手、不创建连接面（沿用实时协议详设 3.2「握手即鉴权、不得先建连后补鉴权」；Runner 为部署级非浏览器客户端，不走 Ticket 与工作空间上下文）；
+  - `register`：首帧仅声明 `mode` / `protocolVersion`（可选 `runnerId` 用于重连），按 `runner_id` upsert 执行端实例（2.3）并回 `register.ack`；**注册为部署级行为，不校验工作空间上下文**；帧内不再承载凭据；
   - **执行端分派规则**（批次 `session.start` 前选择实例，按序取第一个满足项）：
     1. 任一在线 `cli` 共享实例（**共享优先**，按 `last_heartbeat_at` 最新优先，V1 单实例即固定命中）；
     2. 提交人本人的 `desktop-hosted` 在线实例（专属兜底——无在线共享实例时本机执行）；
@@ -391,18 +396,18 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
   - `session.start` 组装：签发批次令牌 `batchToken`（单批次有效，帧字段见 Runner 分册 3.2.1）；**凭据解密**——服务端用框架加密工具解密 `accounts.password`，构造 `账号别名 → 明文` 映射明文经 WSS 下发（已裁决口径），帧不落日志、异常堆栈不携带凭据；`originWhitelist` = 所选环境 `entry_urls` 全部 origin 并集；`execParams` 取环境配置；
   - **归属校验**：分派仅向目标实例的连接发送 `session.start`；`desktop-hosted` 实例绑定 `owner_id`，服务端只分派该用户批次（Runner 侧二次校验 `OWNER_MISMATCH` 兜底）；`cli` 实例接受任意用户批次；同一实例同一时刻仅一个进行中批次（`busy` 派生态防并发）；
   - `action.execute` 分发前完成**白名单与枚举二次校验**（15 执行原语，`done` 为服务端语义原语不下发，Runner 分册 4.1）、`budgetSeq` 分配与预算计数（**计数在服务端**，Runner 不决策预算）；
-  - `action.result`：成功 → 轨迹落 `action`；失败 → 轨迹落 `action_failed` + 原因码，交步进决策循环决定重试/换路/止损；
+  - `action.result`：成功 → `ui_action_log` 落 `action`；失败 → 落 `action_failed` + 原因码，交步进决策循环决定重试/换路/止损；通用轨迹仅记进度 / 状态摘要事件；
   - 心跳 60s 缺失 → 实例置 `offline` 摘除出分派池；会话中失活按 4.2 失败 / 终止落存口径写过程补充记录。
 
 ### 4.2 批次执行主循环（步进式）
 
-实现形态：新 UI 执行任务处理器挂入 AI Task 类型适配器注册策略（AI 底座 4.2、2.6.5；不保留旧 `TaskHandler` 引擎或兼容双轨），任务状态、超时与失活清扫复用既有机制，进度按 3.8 的 REST 事件口径上报，单任务内驱动：
+实现形态：新建**独立步进式执行策略**，与通用 Agent 工具循环并列注册（AI 底座 4.2、2.6.5；**不复用 `AgentExecutionRunner` 的 tool-loop**、不恢复旧 `TaskHandler` 引擎或兼容双轨）；仅任务状态、预算护栏、轨迹、取消与失活清扫复用 AI Task 双平面既有机制，进度按 3.8 的 REST 事件口径上报，单任务内驱动：
 
-1. **组装冻结**：发起即冻结当前计划用例快照——从 `ft_plan_node_snapshot` 按 `case / precondition / step / expected` 节点组装用例正文（未同步修改不进本次执行），模块锚点取 `ft_plan_module_snapshot` 的 `parent_id` 路径（未关联模块则为空），环境内容与步级上限入参一并写入 `ai_task.input`。
+1. **冻结结构化上下文**：发起即从 `ft_plan_node_snapshot` 按 `case / precondition / step / expected` 节点提取结构化用例数据（节点 ID、type、title、parent_id、sort_order，不截断），模块锚点取 `ft_plan_module_snapshot` 的 `parent_id` 路径（未关联模块则为空），环境内容与步级上限入参一并写入 `ai_task.input`；未同步修改不进本次执行。正文不预先落库，在每次模型调用前由本策略按冻结结构拼装为 markdown。
 2. **预置动作**：按 3.6 优先级解析 → 下发 `initial_actions.execute` → 失败即批次 blocked（`error_msg` 写明第几步与原因码，不烧 AI 预算）。
 3. **用例级循环**（`sort_order`）：前置阶段 → 逐步动作循环 → 验证阶段 → 判定回写 → 止损检查（连续 3 条 blocked 停批，`phase` 标注原因）。
-4. **动作循环**：组包（冻结上下文 + 当前步骤 + 轨迹历史 + 最新观察，含 80% 收敛注入与同动作 3 败头铁注入）→ 单次模型调用（`AiModelClient` 门面，场景 `ui_execution_decision`）→ 解析模型输出为「下一动作」或「步骤完成」→ 下发 → 等 `action.result` → 预算/取消检查（每动作一次，`budgetSeq` 对账）→ 写一条 `status_change` 进度事件（`detail.kind=ui_progress`，见 3.8）。无步骤用例在拆解完成时写 `detail.kind=ui_decompose` 事件，步骤分母取自拆解结果但不回写用例。
-5. **验证阶段**：`observe(reason=verify)` 取证（强制截图）→ 组包判定场景（`ui_execution_verdict`，多模态单图）→ 四值输出 → 证据与结论写执行记录 `note`（无证据不落库）。
+4. **动作循环**：组包（从 `ai_task.input` 读结构化用例数据拼 markdown 正文 + 当前步骤 + 轨迹历史 + 最新观察，含 80% 收敛注入与同动作 3 败头铁注入）→ 单次模型调用（`AiModelClient` 门面，处理器直接传场景 `ui_execution_decision`）→ 解析模型输出为「下一动作」或「步骤完成」→ 下发 → 等 `action.result` → 预算/取消检查（每动作一次，`budgetSeq` 对账）→ 写一条 `status_change` 进度事件（`detail.kind=ui_progress`，见 3.8）；动作明细写 `ui_action_log`（唯一事实源，见 2.1.3、3.10）。无步骤用例在拆解完成时写 `detail.kind=ui_decompose` 事件，步骤分母取自拆解结果但不回写用例。
+5. **验证阶段**：`observe(reason=verify)` 取证（强制截图）→ 组包判定场景（处理器直接传 `ui_execution_verdict`，多模态单图）→ 四值输出 → 证据与结论写执行记录 `note`（无证据不落库）；判定明细写 `ui_action_log`。
 6. **回写**：复用既有 `submitExecutionRecord` 内部链路，`result` 取 pass/fail/block/skipped、`source='ai'`、`executor_id`=批次提交人；同步快照 `last_result`；进度统计经既有聚合自动生效（skipped 分支见 3.9）。
 7. **批次收尾**：`result` 写 `{counts:{pass,fail,blocked,skipped}, caseResults:[…]}`；失败 / 终止按下方落存口径写过程补充记录，已写判定不回滚。
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` 置于中止 → 主循环在当前 `action.result` 返回后退出 → 下发 `session.end` → 任务置 `aborted`，已写判定与轨迹保留。
@@ -437,7 +442,8 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 - 注册两场景：`ui_execution_decision`（动作纪律：只发原语、evaluate 最后手段、模块锚点优先、引用定位、收敛注入）、`ui_execution_verdict`（判定纪律：证实才通过、证据不足 blocked、四值枚举输出）；场景登记入 `ai_prompt_template.scene`（AI 底座 2.5 联动）。
 - 模型解析：`input.modelId` 作为入参保留，当前执行链路忽略该值、按系统默认模型解析；失败重试复用同一模型（AI 底座任务口径）。
-- 用量记账：每步调用按场景归因写 `ai_usage_log`（`prompt_scene` 分别为两场景，任务级 `prompt_scene` 记 decision）。
+- 场景传参：两场景由 `ui_execution` 处理器在 `AiModelClient` 调用时直接传入（执行行的 `promptScene` 按 AI Task 现有规则记任务 `type=ui_execution`，不写场景值）。
+- 用量记账：每步调用按场景归因写 `ai_usage_log`（`prompt_scene` 分别为两场景）；`ui_action_log.tokens_in/out` 为动作级明细展示，不与任务 / 执行级汇总对账。
 
 ### 4.6 预算与止损实现
 
@@ -543,15 +549,16 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 1. 新增 `ft_environment`、`ft_preset_actions`、`ui_action_log`、`ai_runner_instance`（2.1、2.3，含索引）；
 2. `ft_plan_execution_record` 加 `source` 列（2.2）；
-3. 更新 `schema.sql` 两处列注释（`result`、`last_result`）与新增表；
-4. **无数据回填**（已确认无存量自由文本环境与 AI 数据）；
-5. 回滚：`DROP` 新表 + `DROP COLUMN source`（新功能未上线即回滚，无业务数据损失）；`environment` 语义回滚仅涉及读写口径，列未变。
+3. `ft_plan.environment` 列类型由 `varchar(200)` 改为 `uuid`（2.2，存量值统一置空）；
+4. 更新 `schema.sql` 两处列注释（`result`、`last_result`）与新增表；
+5. **无数据回填**（本期不考虑存量自由文本环境与 AI 数据）；
+6. 回滚：`DROP` 新表 + `DROP COLUMN source` + `environment` 列类型回滚为 `varchar(200)`（新功能未上线即回滚，无业务数据损失）。
 
 ### 6.3 错误码与契约
 
 - `ErrorCodeConstants` 登记 1000011031–1000011043（3.11），号段 1000011031–1000011060 已同步 `docs/04-detailed-design/02-project-module.md` 6.3 号段表。
 - OpenAPI：新接口（3.1–3.8、3.10）与改造接口（3.9）均补注解与模型，`pnpm run contract:gen` 重新生成基线；前端类型由基线生成。
-- 任务类型 `ui_execution` 与两提示词场景登记 AI 底座详设（单一事实源联动）；本类型判定不生成提案，失败 / 终止时若存在阶段性产物按 AI Task 提案区保留为待采纳态。
+- 任务类型 `ui_execution` 与两提示词场景登记 AI 底座详设（单一事实源联动）；场景由处理器在模型调用时传入，执行行 `promptScene` 沿用任务类型；本类型判定不生成提案，失败 / 终止时若存在阶段性产物按 AI Task 提案区保留为待采纳态。
 
 ### 6.4 依赖与组件
 
@@ -576,3 +583,4 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 | V1.0 | 2026-10-14 | 明确执行端下线触发：主动退出（登出 / 关闭 / 进程退出）与超时未连接（断连或 60s 心跳缺失清扫）两类（2.3） |
 | V1.0 | 2026-11-25 | 同步至功能测试现行口径：全篇免 RBAC 权限码、按成员归属与项目角色校验；失败 / 取消按 AI Task 双平面落存（过程补充记录、已写数据不回滚、阶段性产物保留为待采纳态，判定不属提案）；通道协议以 Runner 详设为单一事实源 |
 | V1.0 | 2026-11-26 | 冻结源改为计划用例快照（未同步修改不进执行）；进度改为 REST 详情 + 轨迹 `afterSeq` 游标轮询（`status_change` / `ui_progress`），无步骤拆解经 `ui_decompose` 事件留痕；总时长 4h 由策略单独熔断；服务端拒绝重复发起（1000011043）；过程补充记录仅 UI 执行批次；权限仅校验项目成员；`modelId` 入参保留、实际按系统默认解析 |
+| V1.0 | 2026-11-26 | 冻结数据明确为写入 `ai_task.input` 的结构化用例节点（正文在模型调用前拼装）；执行循环改为独立步进式策略、不复用通用 Agent tool-loop；执行行 `promptScene` 沿用 `ui_execution`，两场景在模型调用时传入；`ui_action_log` 补 `execution_id` 与索引并确立为动作明细唯一事实源；Runner 凭据前移 WS 握手校验、`register` 退化为身份声明；`ft_plan.environment` 列类型改 UUID、本期不回填 |

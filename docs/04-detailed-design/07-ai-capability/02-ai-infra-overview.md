@@ -149,7 +149,7 @@ CREATE UNIQUE INDEX uk_ai_embedding_config_singleton ON ai_embedding_config ((tr
 
 | 字段 | 类型 | 约束 | 说明 |
 | ---- | ---- | ---- | ---- |
-| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`case_optimize`、`ui_execution_decision`），与任务 `type` 对应 |
+| scene | varchar(50) | NOT NULL, UNIQUE | 场景编码（如 `requirement_import`、`case_optimize`、`ui_execution_decision`）；一般与任务 `type` 对应，`ui_execution` 的两个场景 `ui_execution_decision` / `ui_execution_verdict` 由处理器在模型调用时直接传入，执行行 `promptScene` 仍记任务类型 |
 | name | varchar(100) | NOT NULL | 场景名称（展示用） |
 | content | text | NOT NULL | 模板正文，支持 `{{variable}}` 占位 |
 | variables | jsonb | NOT NULL, DEFAULT '[]' | 可用变量清单 `[{ name, desc, required }]`，保存时校验占位与清单一致 |
@@ -748,7 +748,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | review_case_review | 辅助 | `reviewId` | `review_suggestion` | 评审标记写回采纳服务 |
-| ui_execution | 功能测试（AI 执行） | `planId`、`caseIds`、`environmentId`、`modelId?`、`stepActionLimit?` | 无（判定结果不属生成物 / 提案；判定写 `test_plan_execution_record`，轨迹写 `ui_action_log`） | AI 执行服务（功能测试分册 09） |
+| ui_execution | 功能测试（AI 执行） | `planId`、`caseIds`、`environmentId`、`modelId?`、`stepActionLimit?`（冻结的结构化用例数据写入 `ai_task.input`） | 无（判定结果不属生成物 / 提案；判定写执行记录，动作明细写 `ui_action_log`） | AI 执行服务（功能测试分册 09） |
 | bug_draft_suggest | 缺陷 | `title`、`steps?`、`moduleId?` | `bug_draft_suggestion` | 只读建议提案并默认采纳：按提交人写采纳记录，前端覆盖回填新建缺陷表单，不写缺陷业务数据、不调用人工提案确认 |
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
@@ -866,7 +866,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
 - **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 按最新默认模型重新解析（选型规则见 4.2），不沿用上次执行的模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
-- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。UI 执行（`ui_execution`）不消费 WebSocket 推送，仅以本端点的 `afterSeq` 游标轮询取进度（`status_change` 事件的 `detail.kind=ui_progress` / `ui_decompose`）与过程审计。轨迹只增不改，是执行过程审计与回放的唯一事实源。`ai_decision` 事件的 `detail.rawRequest` / `detail.rawResponse` 随本接口原样下发，供前端展开查看；沿用任务归属可见性，不新增权限码；完整响应可能较大，前端按折叠方式渲染，不进入日志与审计详情。
+- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。UI 执行（`ui_execution`）不消费 WebSocket 推送，需新增前端轮询逻辑，以本端点的 `afterSeq` 游标轮询取进度（`status_change` 事件的 `detail.kind=ui_progress` / `ui_decompose`）与状态摘要。轨迹只增不改，是通用执行过程审计与回放的事实源；**UI 执行的动作明细事实源为 `ui_action_log`**（功能测试分册 09 2.1.3 / 3.10），本端点在 UI 批次中不重复落动作明细。`ai_decision` 事件的 `detail.rawRequest` / `detail.rawResponse` 随本接口原样下发，供前端展开查看；沿用任务归属可见性，不新增权限码；完整响应可能较大，前端按折叠方式渲染，不进入日志与审计详情。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
 
@@ -952,7 +952,7 @@ AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部�
 - **JSON 对象模式**：终态产出必须是 JSON 对象的任务由类型适配器声明启用（首版仅 `requirement_import`），执行核在每次模型调用的请求上透传该标记（含输出修复重试）；平台经 Spring AI `OpenAiChatOptions.responseFormat(JSON_OBJECT)` 下传 `response_format`，由模型侧保证正文为合法 JSON，禁止解释文字与 Markdown 代码围栏。工具声明与多模态媒体随同一请求正常携带，不因该模式改变工具循环与用量记账；其他任务类型保持默认文本模式。模型不支持该模式时按 4.5 记录真实失败原因，输出校验与固定 2 次修复重试口径不变（见「输出修复重试」）。
 - **原文引用回填（`requirement_import`）**：长文档不得要求模型回显正文，否则 JSON 输出会被截断。类型适配器在 `prepare()` 阶段按 Markdown 标题行把原文切成带编号的块（`[Bn]`，仅为寻址、不是需求边界；各块按序拼接严格等于原文），提示词只注入标记版；模型产出几条需求及每条覆盖哪些块均由模型判断，`description` 只输出 `@full` 或 `@blocks:B2,B5` 引用。解析器在提案落库前一次性查表替换为逐字原文：未被任何建议认领的块按原文顺序作为公共前言拼接到每条描述前；非法 / 缺失引用回退整篇原文，保证零数据丢失；图片来源（无文本）保留模型正文。该替换是确定性查表，不做语义解析，不改变提案 / 采纳结构与前端 Markdown 只读渲染口径。
 - **模型选型（能力 + 优先级）**：执行启动期按「任务必需能力」解析模型并回写执行行 `model_id`（维持启动时解析、执行不漂移），执行期以执行行 `model_id` 按同一规则复验；必需能力由类型适配器从任务输入派生——`requirement_import` 图片文件、`assistant_parse` 消息附图为 `vision`，其余为空。解析规则：任务指定模型（启用且满足能力）→ 默认模型（启用且满足能力）→ 必需 `vision` 时在启用且含 `vision` 的模型中按 `priority` 升序取首 → 无候选 1000018124；纯文本调用无候选仍为 1000018118。再次执行（3.6.4）不将上次执行 `model_id` 作为指定模型，按同一规则从当前默认模型重新解析；单次执行内的自动短重试（同 `model_id`，见「失败与自动重试」）不受影响。
-- **类型适配**：`type → 类型适配器`（每个适配器注册：input 校验器、工具白名单与预算默认值、提案结构定义、落库承接器）；执行核是通用 Agent 循环——AI 自主规划步骤（`plan` 事件入轨迹）、在白名单内选择并调用工具（参数校验 → 作用域鉴权 → [确认型工具触发人工闸门] → 执行 → 结果回喂）、失败自行决定重试 / 改道 / 终止；应用层不在循环内预设业务流程。执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
+- **类型适配**：`type → 类型适配器`（每个适配器注册：input 校验器、工具白名单与预算默认值、提案结构定义、落库承接器）；通用执行核是 Agent 循环——AI 自主规划步骤（`plan` 事件入轨迹）、在白名单内选择并调用工具（参数校验 → 作用域鉴权 → [确认型工具触发人工闸门] → 执行 → 结果回喂）、失败自行决定重试 / 改道 / 终止；应用层不在循环内预设业务流程。**`ui_execution` 为例外：注册独立步进式执行策略（每动作一次模型调用、步骤由冻结上下文锚定），不复用通用 Agent tool-loop，仅共享状态机、预算护栏、轨迹、取消与失活清扫**。执行在平台既有异步执行能力上运行，不引入新的外部中间件依赖。
 - **预算护栏**：执行启动时按「类型默认值 + 请求下调」签发预算快照（2.6.2）；步数 / token / 成本任一超限即终止执行与任务（`terminate_code = 1000018127`）；预算不可在执行中调高。
 - **生命周期**：执行 `running →（waiting_confirmation）→ succeeded / aborted`；任务 `running → proposals_ready → closed`，用户中止 / 预算耗尽 / 执行错误 / 总开关关闭时任务置 `aborted`；默认采纳型只读产出（缺陷建议）执行完成即按提交人写采纳记录并 `closed`，轨迹记录「建议已默认采纳」；其余无待采纳提案的只读产出执行完成即 `closed`；心跳超时清扫器按 `task_timeout_seconds` 扫描 `status + heartbeat_at` 索引（2.6.2），超时置 `aborted`（`terminate_code = 1000018117`）。
 - **同步等待**：`waitSeconds > 0` 时提交线程等待执行完成，超时返回执行中状态；等待不改变异步语义。
@@ -1190,3 +1190,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-26 | 3.6.3 `/latest` 增 `planId` 查询参数：按任务输入 `planId` 匹配 `plan_order` 最近任务，供测试计划详情回显进度 / 提案 / 审核结果，可见范围沿用项目内成员共享口径 |
 | V1.0 | 2026-11-25 | 登记 AI 执行任务类型 `ui_execution`（3.6.1）与场景示例 `ui_execution_decision`（2.5）：判定写执行记录、轨迹写动作日志，批次发起沿用成员归属校验、不新增 RBAC 权限码 |
 | V1.0 | 2026-11-26 | 3.6.4 明确 UI 执行不消费 WebSocket 推送、仅以轨迹 `afterSeq` 游标轮询取进度事件（`ui_progress` / `ui_decompose`） |
+| V1.0 | 2026-11-26 | 登记 UI 执行独立步进式策略例外（4.2）；明确动作明细事实源为 `ui_action_log`、通用轨迹仅承载摘要（3.6.4）；场景提示词在模型调用时传入、执行行 `promptScene` 沿用任务类型（2.5、3.6.1） |

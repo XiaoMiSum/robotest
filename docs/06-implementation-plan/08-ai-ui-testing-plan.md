@@ -98,7 +98,7 @@ flowchart TD
 
 #### 2.4.1 数据层与迁移
 
-- 四张新表（`ft_environment`、`ft_preset_actions`、`ui_action_log`、`ai_runner_instance`）DDL 见合并册 2.1 / 2.3；`test_plan_execution_record` 补 `source` 列（默认 `manual`，无回填）；
+- 四张新表（`ft_environment`、`ft_preset_actions`、`ui_action_log`、`ai_runner_instance`）DDL 见合并册 2.1 / 2.3；`ft_plan_execution_record` 补 `source` 列（默认 `manual`，无回填）；`ft_plan.environment` 列类型由 `varchar(200)` 改 `uuid`（存量置空、本期不回填）；
 - 符合 C5（公共四字段、UUID 框架默认策略、无物理外键）与 C9（索引每表 ≤5）；`ai_runner_instance` 为部署级注册表、不做工作空间过滤（合并册 2.3 归属口径）；
 - 迁移以 `schema.sql` 初始化基线为口径（合并册 6.2），迁移说明随首个涉及数据库的提交交付。
 
@@ -111,7 +111,7 @@ flowchart TD
 
 #### 2.4.3 通道服务与执行端注册
 
-- 服务端监听 `wss://{server}/ws/runner`，长连接注册态：首帧 `register`（`desktop-hosted`+`ownerToken` / `cli`+`sharedKey`）upsert 注册表并回 `register.ack`，注册为部署级行为不校验工作空间上下文；
+- 服务端监听 `wss://{server}/ws/runner`，长连接注册态：握手阶段经 `Authorization` 头校验 `ownerToken`（`desktop-hosted`）或 `sharedKey`（`cli`），拒绝则不建连；首帧 `register` 仅声明 `mode` / `protocolVersion`，upsert 注册表并回 `register.ack`，注册为部署级行为不校验工作空间上下文；
 - 分派规则三级：在线 `cli` 共享（心跳最新优先）→ 提交人本人在线 `desktop-hosted` → 皆无报 1000011042；同一实例同一时刻仅一个进行中批次；
 - 发起前置校验（后端强制）：提交时校验「存在在线共享或本人专属实例」，precheck 提供同规则只读快照（`runner{available,preferred,count}`）；
 - 心跳 60s 缺失置 `offline` 摘除出分派池；凭据解密、白名单与原语枚举二次校验、`budgetSeq` 预算计数全部服务端完成（合并册 4.1）。
@@ -126,15 +126,15 @@ flowchart TD
 #### 2.4.5 AI 执行任务链
 
 - `ui_execution` 以 AI Task 类型适配器（`TypeAdapter`）接入双平面架构的任务平面（超时 / 失活清扫复用；进度经 `status_change` 事件 + REST 游标轮询呈现，不新增 SSE / WS 端点，AI 底座详设）；执行编排归 AI、写库编排归应用层，执行判定直接写执行记录；
-- 主循环：发起即冻结当前计划用例快照（`ft_plan_node_snapshot` 的 `case / precondition / step / expected` 节点，未同步修改不进执行）→ 预置动作直跑（失败即 blocked，不烧预算）→ 用例级循环（前置 / 动作 / 验证 / 判定 / 止损）→ 判定回写执行记录（来源 `source=ai`，skip 语义）；
-- 步进决策：组包（冻结上下文 + 轨迹历史 + 最新观察 + 收敛注入）→ 模型调用（`ui_execution_decision` / `ui_execution_verdict` 两场景）→ 解析为动作或步骤完成；每动作写 `status_change` / `detail.kind=ui_progress`，无步骤用例拆解写 `detail.kind=ui_decompose`，均不新增事件类型；`input.modelId` 入参保留、实际按系统默认模型解析；
+- 主循环：新建独立步进式执行策略（不复用通用 Agent tool-loop，仅复用双平面底座）；发起即冻结结构化用例数据（`ft_plan_node_snapshot` 的 `case / precondition / step / expected` 节点 ID / type / title / parent_id / sort_order，写入 `ai_task.input`，正文在模型调用前拼装，未同步修改不进执行）→ 预置动作直跑（失败即 blocked，不烧预算）→ 用例级循环（前置 / 动作 / 验证 / 判定 / 止损）→ 判定回写执行记录（来源 `source=ai`，skip 语义）；
+- 步进决策：组包（读冻结结构拼 markdown 正文 + 轨迹历史 + 最新观察 + 收敛注入）→ 模型调用（处理器直接传 `ui_execution_decision` / `ui_execution_verdict` 两场景，执行行 `promptScene` 沿用 `ui_execution`）→ 解析为动作或步骤完成；每动作写 `status_change` / `detail.kind=ui_progress`，无步骤用例拆解写 `detail.kind=ui_decompose`，均不新增事件类型；动作明细写 `ui_action_log`（唯一事实源，按 `execution_id` 对账），通用轨迹只记摘要；`input.modelId` 入参保留、实际按系统默认模型解析；
 - 预算三级熔断（步级上限 / 批次时长 4h / 连续失败停批）计数在服务端，动作数与时长置于 `input` 由 UI 执行策略单独计数、不占 AI Task 通用预算维度；错误码 1000011031–1000011043（合并册 3.11）；
 - 失败 / 中止：动作失败由步进决策重试、换路或止损，不视为任务错误；用户中止、预算熔断或会话失活仅对 UI 执行批次写过程补充记录（中断阶段、已处理用例、已写判定清单、token 消耗、中断原因），已写数据不回滚、中断前产出的阶段性提案保留待采纳——其他 AI 能力维持总册口径；执行判定不属待确认生成物 / 提案，直接生效并可人工改判；V1 批次不做完成 / 停批通知，状态在页面可见。
 
 #### 2.4.6 轨迹与计划联动
 
 - 轨迹追加式落 `ui_action_log`（action / action_failed / verdict / note），分页查询供执行详情；批次结束只读；
-- 计划改造：`environment` 列改存 `ft_environment.id` 并联表展示 `environmentName`（关联不上显示「已删除环境」）、五态统计（新增 skipped）、手动标记仍四态（服务端双保险拒绝 skip）。
+- 计划改造：`environment` 列类型改 `uuid`、存 `ft_environment.id` 并联表展示 `environmentName`（关联不上显示「已删除环境」）、五态统计（新增 skipped）、手动标记仍四态（服务端双保险拒绝 skip）。
 
 #### 2.4.7 前端双形态与桌面版
 
@@ -177,13 +177,13 @@ flowchart TD
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 | WP-0.1 | 过会项与目录立项（Playwright、Electron，`runner/` `desktop/`） | P0 | 全 | 概设 7、合并册 6.4、架构文档 | — | 依赖决议落地并登记 2.5；`runner/` `desktop/` 骨架与独立构建链就绪 |
 | WP-0.2 | 联调环境准备（LLM 端点 + Playwright 浏览器） | P0 | 后端 | AI 底座详设环境章节 | — | 模型连通性测试通过；执行端宿主机可拉起浏览器 |
-| WP-1.1 | 数据层迁移（四新表 + `source` 补列） | P1 | 后端 | 合并册 2.1–2.3、6.2 | WP-0.2 | 迁移执行成功，C5 / C9 达标，无回填 |
+| WP-1.1 | 数据层迁移（四新表 + `source` 补列 + `environment` 列类型改 UUID） | P1 | 后端 | 合并册 2.1–2.3、6.2 | WP-0.2 | 迁移执行成功，C5 / C9 达标，无回填 |
 | WP-2.1 | 测试环境管理后端（CRUD / 掩码 / 默认环境 / 预置动作两级） | P2 | 后端 | 合并册 3.1–3.6、4.3–4.5 | WP-1.1 | OpenAPI 暴露，仅校验当前用户是否为当前项目成员（不新增 RBAC 权限码、不校验项目角色），错误码合规，C11 部分更新 |
 | WP-2.2 | 测试环境管理前端（环境页、预置动作编辑器、复制环境） | P2 | 前端 | 交互分册 2.1–2.2 | WP-2.1 | 状态分支齐全，C1 无 `any`，复制环境密码全留空 |
-| WP-3.1 | 通道服务与执行端注册（WSS、注册表、分派、前置校验） | P3 | 后端 | 合并册 2.3、3.7、4.1，Runner 详设 3.1–3.2 | WP-1.1 | 注册 / 心跳 / 摘除走通；三级分派与归属校验生效；precheck `runner` 快照与提交校验一致 |
+| WP-3.1 | 通道服务与执行端注册（WSS 握手鉴权、注册表、分派、前置校验） | P3 | 后端 | 合并册 2.3、3.7、4.1，Runner 详设 3.1–3.2 | WP-1.1 | 握手阶段凭据校验（首帧不含凭据）/ 心跳 / 摘除走通；三级分派与归属校验生效；precheck `runner` 快照与提交校验一致 |
 | WP-4.1 | 执行端核心与 CLI 壳（协议、15 原语、观察、脱敏日志） | P4 | Runner | Runner 详设 3–6 | WP-3.1 | 对 dev 服务端完成注册 → 会话 → 原语执行 → 观察回传全链；日志脱敏验证通过 |
 | WP-5.1 | `ui_execution` 任务接入（类型、precheck、发起校验、中止） | P5 | 后端 | 合并册 3.7–3.8、4.1 前置校验段，AI 底座详设 | WP-3.1 | 任务创建校验链完整（总开关 → 项目成员校验 → 模型 → 环境 → 执行端可用性 → 同计划重复发起拒绝 1000011043，不新增 RBAC 权限码、不校验项目角色）；中止 / 失败落存口径生效 |
-| WP-5.2 | 批次执行主循环与步进决策 | P5 | 后端 | 合并册 4.2–4.6，两提示词场景 | WP-5.1、WP-2.1、WP-4.1 | 计划快照冻结（未同步修改不进执行）、预置动作兜底、预算三级熔断（含 4h）、`ui_progress` / `ui_decompose` 事件留痕、判定回写 `source=ai` 与 skip 语义全部走通 |
+| WP-5.2 | 独立步进式主循环与决策策略 | P5 | 后端 | 合并册 4.2–4.6，两提示词场景 | WP-5.1、WP-2.1、WP-4.1 | 结构化数据冻结（未同步修改不进执行、模型调用前拼正文）、预置动作兜底、预算三级熔断（含 4h）、`ui_progress` / `ui_decompose` 事件留痕、动作明细写 `ui_action_log`、判定回写 `source=ai` 与 skip 语义全部走通 |
 | WP-5.3 | 轨迹接口与计划联动改造（action-logs、五态、环境列） | P5 | 后端 | 合并册 3.9–3.10，测试计划详设改造章节 | WP-5.2 | 轨迹分页查询、五态统计与 `environmentName` 展示口径生效，手动标记双保险拒绝 skip |
 | WP-6.1 | 前端发起与批次呈现（弹窗、批次条、执行详情、计划页联动） | P6 | 前端 | 交互分册 2.3–2.6、3–5 | WP-5.1、WP-5.3 | `no_runner` 等分支齐全，REST 轮询进度（含轮询失败保留值）与中止走通，C1 无 `any` |
 | WP-7.1 | 桌面版壳与执行端托管（`desktop/`、ownerToken、执行端面板、形态判别） | P7 | 全 | 合并册 5.3、6.4，交互分册 2.7，Runner 详设 5 | WP-6.1、WP-4.1 | 一套代码双形态渲染正确；登录即注册专属实例、登出 / 超时下线；执行端面板四态与脱敏日志达标 |
@@ -244,3 +244,4 @@ flowchart TD
 | V1.0 | 2026-10-14 | 初始版本：总体实施策略、九阶段依赖、11 个工作包与三批交付建议；登记 Playwright / Electron 过会项 |
 | V1.0 | 2026-11-25 | 同步 AI UI 执行开发方案与计划，按 08 编号落地（04 编号已由 AI vision 能力计划占用）；权限统一为沿用既有成员归属与项目角色校验、不新增 RBAC 权限码；失败 / 中止口径对齐双平面 / 提案术语，明确判定不属生成物与 V1 批次不做完成 / 停批通知 |
 | V1.0 | 2026-11-26 | 冻结源改为计划用例快照；进度改 REST 轮询 + 轨迹事件；总时长 4h；服务端拒绝重复发起（1000011043）；拆解留痕；过程补充记录仅 UI 执行批次；权限仅校验项目成员 |
+| V1.0 | 2026-11-26 | 明确结构化冻结（模型调用前拼正文）、独立步进式策略、动作明细以 `ui_action_log` 为事实源、Runner 凭据走握手鉴权；修正表名 `ft_plan_execution_record` 与 `environment` 列类型改 UUID（不回填） |

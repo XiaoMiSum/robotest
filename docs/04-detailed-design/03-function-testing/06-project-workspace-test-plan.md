@@ -325,7 +325,7 @@
 
 **数据库迁移说明（C5 / C9）**
 
-本节不涉及表结构或索引变更：`ft_plan.environment` 由自由文本改为存 `ft_environment.id`（无 DDL），执行记录来源列与结果枚举扩展见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 2.2；计划状态与负责人校验均在既有 `ft_plan` 字段上完成，无新增列与索引。
+本节只涉及一处列类型变更：`ft_plan.environment` 由 `varchar(200)` 改为 `uuid`、存 `ft_environment.id`（DDL 见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 2.2，存量值统一置空、本期不回填）；执行记录来源列与结果枚举扩展见同文档 2.2；计划状态与负责人校验均在既有 `ft_plan` 字段上完成，无新增索引。
 
 **测试要点（C8 ≥ 70%）**
 
@@ -368,3 +368,4 @@
 | V1.0 | 2026-11-21 | 1.5 / 1.7：`sortOrder` 明确为稳定执行顺序（同步 / 差量调整不覆盖、补入节点按原序补位），供前端序号展示与「下一个待执行用例」引导使用 |
 | V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |
 | V1.0 | 2026-11-25 | 执行环境改为环境引用（1.1–1.3、1.15）、进度与结果新增 `skipped`（1.4–1.6、2.2）、执行记录来源维度与手动拒绝跳过、创建表单环境下拉，保留关联需求语义 |
+| V1.0 | 2026-11-26 | 数据库迁移说明同步 `ft_plan.environment` 列类型由 `varchar(200)` 改 `uuid`（存量置空、本期不回填） |
