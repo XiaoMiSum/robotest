@@ -346,8 +346,7 @@
   .user-form__saved-actions .el-btn { text-decoration: none; }
   .user-form__pwd-done { margin-left: 8px; font-size: var(--font-size-xs); color: var(--st-success-strong); }
 
-  /* shell.js 注入的顶栏元素在本页补上真实交互所需的样式 */
-  .icon-btn.is-read .dot-badge::after { display: none; }
+  /* shell.js 注入的用户区在本页补上真实交互所需的样式 */
   .user-menu-pop {
     position: fixed; top: 56px; right: 16px; z-index: 200;
     min-width: 168px; padding: 6px;
@@ -811,19 +810,6 @@
       '<button type="button" class="close" onclick="window.close()">关闭窗口</button></body></html>'
     );
     win.document.close();
-  }
-
-  var msgBtn = Array.prototype.slice.call(document.querySelectorAll('.icon-btn'))
-    .filter(function (el) { return el.querySelector('.dot-badge'); })[0];
-  if (msgBtn) {
-    msgBtn.addEventListener('click', function () {
-      msgBtn.classList.add('is-read');
-      openDemoWindow('rt-messages', '消息中心（演示窗口）', [
-        ['系统通知', '李华的用户资料已更新 · 2 分钟前'],
-        ['权限变更', '你的空间管理员角色已生效 · 昨天 18:20'],
-        ['测试提醒', '定时任务「核心链路冒烟」执行完成 · 3 天前']
-      ], 420, 480);
-    });
   }
 
   var topbarUser = document.querySelector('.topbar__user');

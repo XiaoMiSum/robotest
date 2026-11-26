@@ -145,13 +145,6 @@ function handleUserCommand(cmd: string) {
         <!-- 顶栏 AI 任务指示器（交互 07 §1）：项目模式显隐，进行中任务数角标 -->
         <AiTaskIndicator />
 
-        <div class="top-nav__icon-btn">
-          <el-badge :is-dot="true">
-            <el-icon><Bell /></el-icon>
-          </el-badge>
-          <span>消息中心</span>
-        </div>
-
         <el-divider direction="vertical" />
 
         <el-dropdown trigger="click" @command="handleUserCommand">

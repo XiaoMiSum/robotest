@@ -128,7 +128,7 @@
     'ai-task-detail.html': 'ai-task-center.html',
   };
 
-  /* ---------- 右侧入口（消息中心无对应演示页，与真实应用一致保持不可跳转） ---------- */
+  /* ---------- 右侧入口 ---------- */
   function rightIconsHtml() {
     let html = '<div class="topbar__icons">';
     html += '<a class="icon-btn" href="' + href('my-workspaces') + '">' + icon('folder-open') + '<span>我的空间</span></a>';
@@ -157,7 +157,6 @@
       '">' +
       icon('monitor') +
       '<span>系统管理</span></a>';
-    html += '<div class="icon-btn"><span class="dot-badge">' + icon('bell') + '</span><span>消息中心</span></div>';
     html += '<span class="shell-divider"></span>';
     html +=
       '<div class="topbar__user"><span class="avatar avatar--brand">张</span>' +

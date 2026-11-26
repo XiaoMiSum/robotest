@@ -340,8 +340,7 @@
   .req-created__session ul { margin: 6px 0 0; padding-left: 18px; }
   @media (max-width: 640px) { .req-created__grid { grid-template-columns: 1fr; } }
 
-  /* shell.js 注入的顶栏占位元素在本页补上真实交互所需的样式 */
-  .icon-btn.is-read .dot-badge::after { display: none; }
+  /* shell.js 注入的用户区在本页补上真实交互所需的样式 */
   .user-menu-pop {
     position: fixed; top: 56px; right: 16px; z-index: 200;
     min-width: 168px; padding: 6px;
@@ -872,19 +871,6 @@
   }
 
   function initShell() {
-    var msgBtn = Array.prototype.slice.call(document.querySelectorAll('.icon-btn'))
-      .filter(function (el) { return el.querySelector('.dot-badge'); })[0];
-    if (msgBtn) {
-      msgBtn.addEventListener('click', function () {
-        msgBtn.classList.add('is-read');
-        openDemoWindow('rt-messages', '消息中心（演示窗口）', [
-          ['需求提醒', 'REQ-0103 订单超时未支付自动关闭已变更 · 2 分钟前'],
-          ['缺陷提醒', 'BUG-208 支付回调重复入账已提交 · 1 小时前'],
-          ['评审提醒', '下单模块用例评审待你参与 · 昨天 14:32']
-        ], 420, 480);
-      });
-    }
-
     var topbarUser = document.querySelector('.topbar__user');
     var userMenu = null;
     function hideUserMenu() {

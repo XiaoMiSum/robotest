@@ -279,7 +279,7 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 AdminLayout（上下两段：顶栏 + 主体；主体 = 侧栏 + 悬浮白卡内容区）
 ├── Topbar
 │   ├── Logo「RoboTest」+ 模式标签「系统管理」
-│   ├── 模式入口：我的空间（仅有活跃空间时显示）/ 系统管理（当前，激活态，需 hasSystemPermission）/ 消息中心
+│   ├── 模式入口：我的空间（仅有活跃空间时显示）/ 系统管理（当前，激活态，需 hasSystemPermission）
 │   └── UserDropdown（头像 + 显示名）
 │       ├── 修改密码 → ChangePasswordDialog（web/src/components/common/）
 │       └── 退出登录 → authStore.logout() 后跳 /login
@@ -469,3 +469,4 @@ CREATE INDEX idx_ws_workspace_created_by ON ws_workspace (created_by);
 | V1.0 | 2026-11-11 | 预置角色权限改为可编辑（默认锁定、前端勾选解锁），移除错误码 1000002004 |
 | V1.0 | 2026-11-11 | AdminLayout 顶栏「系统管理」激活按钮按 `hasSystemPermission` 显隐 |
 | V1.0 | 2026-11-24 | 项目原型目录由 `web/demos` 迁移为根目录 `prototype/`，并同步引用 |
+| V1.0 | 2026-11-26 | 2.7.1 AdminLayout 顶栏模式入口移除消息中心 |

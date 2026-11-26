@@ -202,22 +202,6 @@ a:hover {
   font-weight: 500;
 }
 
-.icon-btn .dot-badge {
-  position: relative;
-}
-
-.icon-btn .dot-badge::after {
-  content: '';
-  position: absolute;
-  top: -1px;
-  right: -1px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--st-danger);
-  border: 1.5px solid var(--shell-bg);
-}
-
 .shell-divider {
   width: 1px;
   height: 20px;

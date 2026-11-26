@@ -423,8 +423,7 @@
 
   .dialog-form .field:last-child { margin-bottom: 0; }
 
-  /* shell.js 注入的顶栏元素在本页补上真实交互所需的样式 */
-  .icon-btn.is-read .dot-badge::after { display: none; }
+  /* shell.js 注入的用户区在本页补上真实交互所需的样式 */
   .user-menu-pop {
     position: fixed; top: 56px; right: 16px; z-index: 200;
     min-width: 168px; padding: 6px;
@@ -985,7 +984,7 @@
     render();
   });
 
-  /* shell.js 注入的顶栏占位元素：消息中心开真实新窗口，用户区开可关闭菜单 */
+  /* shell.js 注入的顶栏占位元素：用户区开可关闭菜单 */
   function openDemoWindow(name, title, rows, width, height) {
     var win = window.open('', name, 'width=' + width + ',height=' + height);
     if (!win) return;
@@ -1005,19 +1004,6 @@
   }
 
   function initShell() {
-    var msgBtn = Array.prototype.slice.call(document.querySelectorAll('.icon-btn'))
-      .filter(function (el) { return el.querySelector('.dot-badge'); })[0];
-    if (msgBtn) {
-      msgBtn.addEventListener('click', function () {
-        msgBtn.classList.add('is-read');
-        openDemoWindow('rt-messages', '消息中心（演示窗口）', [
-          ['空间提醒', '质量中台：V1.4.2 回归计划进入执行中 · 2 分钟前'],
-          ['评审提醒', '供应链测试组：入库模块用例评审待你参与 · 昨天 14:32'],
-          ['系统提醒', '工作空间创建权限已开通，可在列表页新建空间 · 昨天 09:10']
-        ], 420, 480);
-      });
-    }
-
     var topbarUser = document.querySelector('.topbar__user');
     var userMenu = null;
     function hideUserMenu() {
