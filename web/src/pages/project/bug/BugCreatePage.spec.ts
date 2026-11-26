@@ -13,7 +13,10 @@ describe('BugCreatePage AI 建议弹窗（交互 2.2）', () => {
   })
 
   it('任务执行中仅旋转按钮图标，疑似重复在标题下提示且不在弹窗内展示', () => {
-    expect(pageSource).toContain('<BugDuplicateSuggestList v-if="suggestHasResult" :items="duplicates" />')
+    expect(pageSource).toContain('<BugDuplicateSuggestList')
+    expect(pageSource).toContain('class="bug-create__duplicate"')
+    expect(pageSource).toContain(':items="duplicates"')
+    expect(pageSource).toContain('.bug-create__duplicate {\n  margin-top: var(--space-xs);')
     expect(pageSource).toContain(":class=\"{ 'is-suggesting': suggestLoading }\"")
     expect(pageSource.match(/:loading="suggestLoading"/g)).toHaveLength(1)
     expect(pageSource).toContain('bug-create-ai-spin')

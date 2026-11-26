@@ -184,8 +184,12 @@ function priorityButtonStyle(value: BugPriority): Record<string, string> {
                 </el-button>
               </template>
             </el-input>
+            <BugDuplicateSuggestList
+              v-if="suggestHasResult"
+              class="bug-create__duplicate"
+              :items="duplicates"
+            />
           </el-form-item>
-          <BugDuplicateSuggestList v-if="suggestHasResult" :items="duplicates" />
           <el-form-item class="bug-create__repro">
             <MarkdownEditor v-model="form.reproSteps" placeholder="重现步骤（支持 Markdown，可选）" maximizable />
           </el-form-item>
@@ -341,6 +345,10 @@ function priorityButtonStyle(value: BugPriority): Record<string, string> {
 
 .bug-create__form {
   margin-top: var(--space-md);
+}
+
+.bug-create__duplicate {
+  margin-top: var(--space-xs);
 }
 
 .bug-create__layout {

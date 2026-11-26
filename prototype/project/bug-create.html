@@ -71,7 +71,7 @@
 
   /* 标题下疑似重复提示：一行短 ID 链接，新标签页打开缺陷详情 */
   .title-duplicate {
-    display: flex; align-items: flex-start; gap: 6px; margin-top: 6px;
+    display: flex; align-items: flex-start; gap: 6px; margin-top: var(--space-xs);
     font-size: var(--font-size-sm); line-height: 1.6; color: var(--st-warning-strong);
   }
   .title-duplicate [data-icon] { flex-shrink: 0; margin-top: 2px; }
@@ -273,11 +273,11 @@
                 <span data-icon="sparkle"></span>AI 建议
               </button>
             </div>
+            <div class="field__count"><span id="f-title-count">0</span>/300</div>
             <div id="title-duplicate" class="title-duplicate" hidden>
               <span data-icon="alert-triangle"></span>
               <span>疑似重复：<span id="title-duplicate-links"></span></span>
             </div>
-            <div class="field__count"><span id="f-title-count">0</span>/300</div>
             <div class="field__error" id="f-title-error">请输入缺陷标题</div>
           </div>
 
