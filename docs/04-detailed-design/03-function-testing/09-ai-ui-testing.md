@@ -209,7 +209,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 3.1 环境列表
 
-- **路径**：`GET /api/project/ft-environments`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）
+- **路径**：`GET /api/project/ft-environments`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）
 - **响应**：
 
 ```json
@@ -234,13 +234,13 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 3.2 环境详情
 
-- **路径**：`GET /api/project/ft-environments/:id`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）
+- **路径**：`GET /api/project/ft-environments/:id`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）
 - **响应**：`{ "id", "name", "description", "isDefault", "entryUrls": [{"name","url"}], "accounts": [{"username","alias","role","note","passwordSet": true}], "dataState", "tips", "initialActions": [...], "execParams": {"viewport": {...}, "actionTimeoutMs": 10000, "allowEvaluate": true}, "createdAt", "updatedAt" }`
 - **口径**：**密码永不出现在任何响应**——账号只回 `passwordSet` 布尔（掩码展示由前端据此渲染 ●●●●●）；`initialActions` 为环境级原值（空数组即未覆盖，不合并项目级）。
 
 ### 3.3 创建环境
 
-- **路径**：`POST /api/project/ft-environments`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）
+- **路径**：`POST /api/project/ft-environments`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）
 - **请求体**：
 
 ```json
@@ -262,24 +262,24 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 3.4 更新环境
 
-- **路径**：`PUT /api/project/ft-environments/:id`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）
+- **路径**：`PUT /api/project/ft-environments/:id`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）
 - **口径**：部分更新（C11）——未传字段不改；`accounts` 中 `password` 未传（`passwordSet=true` 的既有账号）保持原密文，**传空字符串视为非法**（1000011034）；`isDefault=true` 时同项目互斥置 false。
 - **删除保护**：无（环境删除不影响已发起批次——批次持冻结快照；见 4.2 取消与失败口径）。
 
 ### 3.5 删除与设默认
 
-- **删除**：`DELETE /api/project/ft-environments/:id`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）——逻辑删除；**被计划引用不阻止删除**（计划侧展示降级为「已删除环境」，概设 3.3 改动清单 #1 口径）；正在执行中的批次不受影响。
-- **设默认**：`PUT /api/project/ft-environments/:id/default`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）——项目内单默认互斥更新。
+- **删除**：`DELETE /api/project/ft-environments/:id`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）——逻辑删除；**被计划引用不阻止删除**（计划侧展示降级为「已删除环境」，概设 3.3 改动清单 #1 口径）；正在执行中的批次不受影响。
+- **设默认**：`PUT /api/project/ft-environments/:id/default`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）——项目内单默认互斥更新。
 
 ### 3.6 项目级预置动作
 
-- **查询**：`GET /api/project/ft-preset-actions`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）→ `{ "steps": [...], "updatedAt" }`（无行返回空数组）。
-- **保存**：`PUT /api/project/ft-preset-actions`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码）——全量覆盖式，`steps` 结构校验（4.4，失败 1000011033）。
+- **查询**：`GET /api/project/ft-preset-actions`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）→ `{ "steps": [...], "updatedAt" }`（无行返回空数组）。
+- **保存**：`PUT /api/project/ft-preset-actions`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码）——全量覆盖式，`steps` 结构校验（4.4，失败 1000011033）。
 - **解析优先级**（服务端在 `session.start` 组装时执行）：环境级 `initial_actions` 非空 → 环境级；否则项目级 `steps`；两级皆空 → 不下发 `initial_actions.execute`，登录由 AI 自主决策（概设 4.9 三档兜底）。
 
 ### 3.7 发起前置信息
 
-- **路径**：`GET /api/project/plans/:id/ai-exec/precheck`（沿用既有成员归属与项目角色校验，不新增 RBAC 权限码；计划须属于当前项目）
+- **路径**：`GET /api/project/plans/:id/ai-exec/precheck`（仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码；计划须属于当前项目）
 - **响应**：
 
 ```json
@@ -298,12 +298,12 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 }
 ```
 
-- **校验顺序**（`runnable=false` 时给 `blockReason`）：AI 总开关与模型可用性（沿总册，复用 `GET /api/ai/status` 口径）→ 计划状态（blocked/completed/closed → `plan_not_allowed`，1000011035）→ 同计划存在进行中批次（`runningTaskId` 非空 → `duplicate_running`，前端提示不拦截，沿总册重复发起提示口径）→ 成员归属与项目角色校验（不新增 RBAC 权限码）。
+- **校验顺序**（`runnable=false` 时给 `blockReason`）：AI 总开关与模型可用性（沿总册，复用 `GET /api/ai/status` 口径）→ 计划状态（blocked/completed/closed → `plan_not_allowed`，1000011035）→ 同计划存在进行中批次（`runningTaskId` 非空 → `duplicate_running`，提交时服务端拒绝，1000011043）→ 当前用户项目成员校验（不新增 RBAC 权限码、不校验项目角色）。
 - **说明**：`boundEnvironment*` 为计划绑定环境回显（3.9 改造）；未绑定或环境已删则为 null，发起弹窗默认选项目默认环境。`runner` 为执行端可用性快照（与 4.1 发起前置校验同规则）：`available=false` 时 `blockReason` 增加 `no_runner`（提示「无可用执行端，启动桌面版或联系运维部署」，桌面版拉起本机托管实例或运维部署共享实例后可消除）；`preferred` 为按分派规则将命中的实例模式（`cli` 共享优先 / `desktop-hosted` 专属兜底），供前端提示「将由共享执行端执行 / 将在本机执行（桌面版）」。
 
 ### 3.8 发起批次（提交任务）
 
-- **路径**：`POST /api/ai/tasks`（复用 AI Task 统一任务资源；沿用既有成员归属与项目角色校验，不新增 RBAC 权限码；计划须属于当前项目）
+- **路径**：`POST /api/ai/tasks`（复用 AI Task 统一任务资源；仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码；计划须属于当前项目）
 - **请求体**：
 
 ```json
@@ -320,10 +320,11 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 }
 ```
 
-- **input 校验**（按 `ui_execution` 分发，AI 底座 3.6.2 的 type→input 校验点）：`planId` 必填且存在属于当前项目（1000011010 复用）；`caseIds` 空数组 = 计划关联全部用例，非空时须为本计划关联的快照节点（否则 1000011036）；`environmentId` 必填且属于当前项目（1000011037）；`modelId` 缺省取系统默认；`stepActionLimit ∈ [1, 200]`，缺省 50（1000011038）。
-- **处理**：组装冻结执行上下文（用例正文读脑图实时内容、模块锚点按「用例节点 → 所属文档 → 文档关联模块」解析、环境内容取环境快照、预算入参）写入 `ai_task.input`；`type=ui_execution`、`prompt_scene=ui_execution_decision`；任务创建即启动执行（`status=running`，执行实例 `running`），提交即返回。
+- **input 校验**（按 `ui_execution` 分发，AI 底座 3.6.2 的 type→input 校验点）：`planId` 必填且存在属于当前项目（1000011010 复用）；`caseIds` 空数组 = 计划关联全部用例，非空时须为本计划关联的快照节点（否则 1000011036）；`environmentId` 必填且属于当前项目（1000011037）；`modelId` 入参保留，实际执行仍按当前链路解析系统默认模型；`stepActionLimit ∈ [1, 200]`，缺省 50（1000011038）；动作数与时长置于 `input` 交由 UI 执行策略单独计数与熔断，不进入 AI Task 通用预算快照。
+- **重复发起**：提交时服务端按 `planId` 查同计划进行中批次，存在则直接拒绝（1000011043），不创建任务；precheck 的 `progress.runningTaskId` 仅作前端提前呈现。
+- **处理**：发起即冻结当前计划用例快照——服务端按 `ft_plan_node_snapshot` 的 `case / precondition / step / expected` 节点组装用例正文（未同步的脑图修改不进本次执行），模块锚点取 `ft_plan_module_snapshot` 的 `parent_id` 树路径，环境内容取环境快照、步级上限入参，一并写入 `ai_task.input`；`type=ui_execution`、`prompt_scene=ui_execution_decision`；任务创建即启动执行（`status=running`，执行实例 `running`），提交即返回。
 - **响应**：AI 底座 3.6.2 同构（`taskId` / `executionId` / `status` / ...）。
-- **进度 / 终止**：复用 AI Task 任务详情 `GET /api/ai/tasks/{taskId}`、执行轨迹 `GET /api/ai/tasks/{taskId}/executions/{executionId}/events`（WebSocket 推送 + 游标轮询兜底）与终止 `POST /api/ai/tasks/{taskId}/executions/{executionId}/abort`（AI 底座 3.6.3/3.6.4），不另设任务通道；进度 `phase` 语义为「第 N/M 条用例 · 步骤 x/y · 已 a 动作」（概设 4.1）；终止在当前 `action.result` 返回后退出循环并按 4.2 落存，已写入判定不回滚。
+- **进度 / 终止**：复用现有 REST——任务详情 `GET /api/ai/tasks/{taskId}`（2s 轮询取终态）、执行轨迹 `GET /api/ai/tasks/{taskId}/executions/{executionId}/events?afterSeq=`（游标轮询取进度）与终止 `POST /api/ai/tasks/{taskId}/executions/{executionId}/abort`（AI 底座 3.6.3/3.6.4）；不新增 SSE / WS 端点、不改 DTO 与契约，UI 执行不消费轨迹的 WebSocket 推送；进度经 `status_change` 事件承载，`detail.kind=ui_progress`，含用例序号 / 标题、步骤 x/y、动作数 / 上限、四值计数与 `status`，`summary` 为「第 N/M 条用例 · 步骤 x/y · 已 a 动作」（概设 4.1）；分母取自冻结快照；轮询失败保留上次值并自动续拉，≤2s 可见；无步骤用例的拆解结果写入 `status_change` 事件 `detail.kind=ui_decompose`，不新增事件类型、不回写用例；终止在当前 `action.result` 返回后退出循环并按 4.2 落存，已写入判定不回滚。
 
 ### 3.9 计划接口改造（既有接口变更点）
 
@@ -336,7 +337,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 3.10 轨迹查询
 
-- **路径**：`GET /api/ai/tasks/{taskId}/action-logs`（沿用既有成员归属与项目角色校验及 AI Task 任务归属可见性，不新增 RBAC 权限码）
+- **路径**：`GET /api/ai/tasks/{taskId}/action-logs`（仅校验当前用户是否为当前项目成员及 AI Task 任务归属可见性，不新增 RBAC 权限码）
 - **参数**：`snapshotNodeId`（可选，按用例过滤）、`pageNo`、`pageSize`（默认 100，轨迹为追加流，按 `seq` 升序）。
 - **响应**：
 
@@ -374,6 +375,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 | 1000011040 | 环境不存在 | 3.2/3.4/3.5 |
 | 1000011041 | 条目被预置动作引用，不能删除 | 4.4 / 5.1 |
 | 1000011042 | 无可用执行端 | 4.1 |
+| 1000011043 | 同计划已有进行中批次，禁止重复发起 | 3.7、3.8 |
 
 ## 4. 业务逻辑设计
 
@@ -394,18 +396,18 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 4.2 批次执行主循环（步进式）
 
-实现形态：新 UI 执行任务处理器挂入 AI Task 类型适配器注册策略（AI 底座 4.2、2.6.5；不保留旧 `TaskHandler` 引擎或兼容双轨），进度上报、轨迹推送、超时与失活清扫全复用，单任务内驱动：
+实现形态：新 UI 执行任务处理器挂入 AI Task 类型适配器注册策略（AI 底座 4.2、2.6.5；不保留旧 `TaskHandler` 引擎或兼容双轨），任务状态、超时与失活清扫复用既有机制，进度按 3.8 的 REST 事件口径上报，单任务内驱动：
 
-1. **组装冻结**：逐条目标用例读脑图实时内容 → 冻结上下文写 `ai_task.input`（中途编辑不漂移）；解析模块锚点（文档未关联模块则为空）。
+1. **组装冻结**：发起即冻结当前计划用例快照——从 `ft_plan_node_snapshot` 按 `case / precondition / step / expected` 节点组装用例正文（未同步修改不进本次执行），模块锚点取 `ft_plan_module_snapshot` 的 `parent_id` 路径（未关联模块则为空），环境内容与步级上限入参一并写入 `ai_task.input`。
 2. **预置动作**：按 3.6 优先级解析 → 下发 `initial_actions.execute` → 失败即批次 blocked（`error_msg` 写明第几步与原因码，不烧 AI 预算）。
 3. **用例级循环**（`sort_order`）：前置阶段 → 逐步动作循环 → 验证阶段 → 判定回写 → 止损检查（连续 3 条 blocked 停批，`phase` 标注原因）。
-4. **动作循环**：组包（冻结上下文 + 当前步骤 + 轨迹历史 + 最新观察，含 80% 收敛注入与同动作 3 败头铁注入）→ 单次模型调用（`AiModelClient` 门面，场景 `ui_execution_decision`）→ 解析模型输出为「下一动作」或「步骤完成」→ 下发 → 等 `action.result` → 预算/取消检查（每动作一次，`budgetSeq` 对账）。
+4. **动作循环**：组包（冻结上下文 + 当前步骤 + 轨迹历史 + 最新观察，含 80% 收敛注入与同动作 3 败头铁注入）→ 单次模型调用（`AiModelClient` 门面，场景 `ui_execution_decision`）→ 解析模型输出为「下一动作」或「步骤完成」→ 下发 → 等 `action.result` → 预算/取消检查（每动作一次，`budgetSeq` 对账）→ 写一条 `status_change` 进度事件（`detail.kind=ui_progress`，见 3.8）。无步骤用例在拆解完成时写 `detail.kind=ui_decompose` 事件，步骤分母取自拆解结果但不回写用例。
 5. **验证阶段**：`observe(reason=verify)` 取证（强制截图）→ 组包判定场景（`ui_execution_verdict`，多模态单图）→ 四值输出 → 证据与结论写执行记录 `note`（无证据不落库）。
 6. **回写**：复用既有 `submitExecutionRecord` 内部链路，`result` 取 pass/fail/block/skipped、`source='ai'`、`executor_id`=批次提交人；同步快照 `last_result`；进度统计经既有聚合自动生效（skipped 分支见 3.9）。
 7. **批次收尾**：`result` 写 `{counts:{pass,fail,blocked,skipped}, caseResults:[…]}`；失败 / 终止按下方落存口径写过程补充记录，已写判定不回滚。
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` 置于中止 → 主循环在当前 `action.result` 返回后退出 → 下发 `session.end` → 任务置 `aborted`，已写判定与轨迹保留。
-- **总时长 2h**：任务处理器 `enforce`，超时同失败落存口径。
-- **失败 / 终止落存**（沿用 AI Task 双平面口径，见 `docs/01-requirements/07-ai-capability/02-srs-ai-capability.md` 1.5）：任务失败、用户终止、预算耗尽或会话失活时由执行中转入已终止（`aborted`），写过程补充记录——中断阶段、已处理用例、已产出产物 / 提案数量与清单、已写记录清单、token 消耗与中断原因——可在任务详情回看；已写入的执行记录、轨迹与快照状态不回滚、不清理；中断前已产出的阶段性产物保留为待采纳态提案（如本批次产生提案，按 AI Task 提案区回看与采纳），不建立新的正式业务数据写入、不绕过采纳入口。执行判定直接写入执行记录，不属 AI 生成物 / 提案，不适用待采纳；已采纳产出不受后续执行失败影响。V1 不做批次完成 / 停批通知，状态在页面可见。
+- **总时长 4h**：UI 执行处理器单独计时与熔断（不占 AI Task 通用预算维度），超时同失败落存口径。
+- **失败 / 终止落存**（仅 UI 执行批次口径）：任务失败、用户终止、预算耗尽或会话失活时由执行中转入已终止（`aborted`），写过程补充记录——中断阶段、已处理用例、已产出产物 / 提案数量与清单、已写记录清单、token 消耗与中断原因——可在任务详情回看；已写入的执行记录、轨迹与快照状态不回滚、不清理；中断前已产出的阶段性产物保留为待采纳态提案（如本批次产生提案，按 AI Task 提案区回看与采纳），不建立新的正式业务数据写入、不绕过采纳入口。执行判定直接写入执行记录，不属 AI 生成物 / 提案，不适用待采纳；已采纳产出不受后续执行失败影响。V1 不做批次完成 / 停批通知，状态在页面可见。
 
 ### 4.3 判定与改判
 
@@ -434,7 +436,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 ### 4.5 提示词场景与模型
 
 - 注册两场景：`ui_execution_decision`（动作纪律：只发原语、evaluate 最后手段、模块锚点优先、引用定位、收敛注入）、`ui_execution_verdict`（判定纪律：证实才通过、证据不足 blocked、四值枚举输出）；场景登记入 `ai_prompt_template.scene`（AI 底座 2.5 联动）。
-- 模型解析：`input.modelId` 缺省取系统默认模型；失败重试复用同模型（AI 底座任务口径）。
+- 模型解析：`input.modelId` 作为入参保留，当前执行链路忽略该值、按系统默认模型解析；失败重试复用同一模型（AI 底座任务口径）。
 - 用量记账：每步调用按场景归因写 `ai_usage_log`（`prompt_scene` 分别为两场景，任务级 `prompt_scene` 记 decision）。
 
 ### 4.6 预算与止损实现
@@ -443,7 +445,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 | ---- | --- |
 | 步级动作上限 | 决策循环内计数，达上限 → 步 blocked → 用例 blocked；80% 时组包注入收敛提示 |
 | 同动作 3 败 | 轨迹内滑动窗口计数，达阈值注入头铁提示 |
-| 批次 2h | 类型适配器预算 `maxDurationSeconds` = 2h，执行处理器 enforce |
+| 批次 4h | UI 执行处理器单独计时与熔断，不进入 AI Task 通用预算快照 |
 | 连续 3 条 blocked | 用例级循环检查，停批并 `error_msg` 标注 |
 | 取消 / 失活 | 见 4.2；失活清扫对进度上报活跃任务不误杀（沿用既有机制） |
 
@@ -451,7 +453,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 5.1 功能测试环境管理页
 
-**路由**：`/workspace/projects/functional-testing?tab=ft-environments`（挂功能测试页子菜单「测试环境」，沿用既有成员归属与项目角色校验，不新增 RBAC 权限码；菜单项按成员归属与业务状态呈现，不按权限码显隐）。**双端均可用**：环境管理属配置能力而非执行入口，桌面版与 Web 版一致渲染。
+**路由**：`/workspace/projects/functional-testing?tab=ft-environments`（挂功能测试页子菜单「测试环境」，仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码；菜单项按成员归属与业务状态呈现，不按权限码显隐）。**双端均可用**：环境管理属配置能力而非执行入口，桌面版与 Web 版一致渲染。
 
 **结构**（ASCII 示意）：
 
@@ -477,7 +479,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 | **复制** | 选中源环境 → [复制所选环境]：读既有详情填充**新建表单**（name 清空必填、`isDefault` 重置否、entryUrls/dataState/tips/initialActions/execParams 带入、accounts 带入用户名/别名/角色/备注**密码全部留空**、id 类字段不带）→ 用户改名补密码后**走既有创建接口**（纯前端行为，无专用复制接口） |
 | 预置动作编辑 | 见 5.2 |
 | 删除 | 二次确认；执行中批次不受影响，被引用条目删除由服务端 1000011041 拦截并提示 |
-| 空态/加载/错误 | 列表 loading、空态「暂无环境，点击[新建]」、操作失败消息提示；表单按成员归属与项目角色开放维护，不满足维护条件时只读（不按权限码显隐） |
+| 空态/加载/错误 | 列表 loading、空态「暂无环境，点击[新建]」、操作失败消息提示；表单按当前用户是否为当前项目成员开放维护，非成员只读（不按权限码显隐、不校验项目角色） |
 
 ### 5.2 预置动作编辑器（方案 ② 表单化步骤编辑器）
 
@@ -494,7 +496,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 **客户端形态判别**：平台为双形态——桌面版（Electron 壳包裹现有 `web/` 前端）与 Web 版，同一前端代码按运行环境判别形态（`renderer` 进程存在 Electron 全局桥即桌面版）。**[🤖 AI 执行] 按钮与本弹窗双端一致渲染**；批次进度条与执行详情（5.4）同样双端可见。发起的强制约束在服务端：**执行端可用性由 `POST /api/ai/tasks` 提交时后端校验**（4.1 发起前置校验，无在线共享或本人专属实例则拒绝 1000011042），前端显隐与禁用只是呈现策略、非安全边界；precheck（3.7）的 `runner` 快照供前端提前禁用按钮与提示，`no_runner` 分支双端行为一致。
 
-**入口**：计划详情页操作组新增 [🤖 AI 执行]（活跃态 new/in_progress 显示；沿用既有成员归属与项目角色校验，不新增 RBAC 权限码，入口按成员归属与业务状态呈现、不按权限码显隐；前置状态由 3.7 `runnable/blockReason` 决定，总开关关闭时按钮禁用并提示沿总册）。
+**入口**：计划详情页操作组新增 [🤖 AI 执行]（活跃态 new/in_progress 显示；仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码，入口按成员归属与业务状态呈现、不按权限码显隐；前置状态由 3.7 `runnable/blockReason` 决定，总开关关闭时按钮禁用并提示沿总册）。
 
 **弹窗结构**：
 
@@ -511,12 +513,12 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 - 用例范围不勾选 = 全部（提交 `caseIds:[]`）；勾选态按 `precheck.cases` 树形展示（按文档分组）。
 - 执行端提示：按 `precheck.runner.preferred` 一行灰字（`cli` →「将由共享执行端执行」/ `desktop-hosted` →「将在本机执行（桌面版）」）；`available=false`（`no_runner`）时红色提示条「无可用执行端」+ [重试]，[开始执行] 禁用（双端同规则）。
-- 提交成功 → 关弹窗 → 页头出现进行中批次条（进度通道，见 5.4）；`blockReason=duplicate_running` 时提示「该计划已有进行中的批次」仍允许查看进行中批次；`plan_not_allowed` 时入口不出现。
+- 提交成功 → 关弹窗 → 页头出现进行中批次条（进度通道，见 5.4）；`blockReason=duplicate_running` 时提示「该计划已有进行中的批次」并禁用发起、可跳进行中批次，绕开预检提交亦由服务端以 1000011043 拒绝；`plan_not_allowed` 时入口不出现。
 - 加载失败/提交失败消息提示；`runnable=false` 原因文案映射。
 
 ### 5.4 执行中呈现与执行详情（双端一致）
 
-- **执行中**：复用 AI Task 既有进度通道（AI 底座 3.6，WebSocket 推送 + 游标轮询兜底）显示「3/12 · 当前用例 · 步骤 2/5 · 已 15 动作」，[取消] 走既有执行终止接口（3.6.4，二次确认）；批次条随任务状态流转（进行中 running / 已完成 closed / 已终止 aborted）。取消入口与发起一致，沿用既有成员归属与项目角色校验，不新增 RBAC 权限码，按成员归属与业务状态呈现、不按权限码显隐；批次条与取消按钮双端一致渲染。
+- **执行中**：复用现有 AI Task REST 接口呈现进度——任务详情 2s 轮询取终态、轨迹 `afterSeq` 游标轮询取 `status_change` / `detail.kind=ui_progress` 事件，显示「3/12 · 当前用例 · 步骤 2/5 · 已 15 动作」（≤2s 可见，无「SSE 断连」状态；轮询失败保留上次值并自动续拉）；[取消] 走既有执行终止接口（3.6.4，二次确认）；批次条随任务状态流转（进行中 running / 已完成 closed / 已终止 aborted）。取消入口与发起一致，仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码、不校验项目角色，按成员归属与业务状态呈现、不按权限码显隐；批次条与取消按钮双端一致渲染。
 - **执行详情**：复用任务详情页，`ui_execution` 类型渲染：
   - **轨迹列表**（按用例 → 阶段分组的时间线）：`kind=action` 行显示「动作 + 目标 + 摘要」，`action_failed` 红色标原因码中文映射，`verdict` 行显示四值徽标与证据文字，`note` 行灰字；截图引用渲染缩略图点开大图；`evaluate` 的 `params` 源码等宽展示逐字可查；密码位置显示占位符原文。
   - **批次汇总**：pass/fail/blocked/skipped 四色计数。
@@ -535,7 +537,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 6.1 权限与迁移说明
 
-环境与项目级预置动作的查询 / 维护，以及 AI 执行前置查询、发起、进度、轨迹与终止，均沿用既有成员归属与项目角色校验，不新增 RBAC 权限码；服务端按活动工作空间与项目上下文（C4）确认资源归属，任务详情与轨迹沿用 AI Task 任务归属可见性（AI 底座 3.6.3）。前端功能测试侧栏「测试环境」入口、创建 / 保存 / 删除表单与计划详情 [🤖 AI 执行] 入口按成员归属与业务状态呈现，不按权限码显隐。迁移只涉及 6.2 的表结构、列注释与执行环境语义调整，不涉及权限点登记或菜单权限迁移。
+环境与项目级预置动作的查询 / 维护，以及 AI 执行前置查询、发起、进度、轨迹与终止，均仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码、不校验项目角色；服务端按活动工作空间与项目上下文（C4）确认资源归属，任务详情与轨迹沿用 AI Task 任务归属可见性（AI 底座 3.6.3）。前端功能测试侧栏「测试环境」入口、创建 / 保存 / 删除表单与计划详情 [🤖 AI 执行] 入口按成员归属与业务状态呈现，不按权限码显隐。迁移只涉及 6.2 的表结构、列注释与执行环境语义调整，不涉及权限点登记或菜单权限迁移。
 
 ### 6.2 数据库变更清单
 
@@ -547,7 +549,7 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 
 ### 6.3 错误码与契约
 
-- `ErrorCodeConstants` 登记 1000011031–1000011042（3.11），号段 1000011031–1000011060 已同步 `docs/04-detailed-design/02-project-module.md` 6.3 号段表。
+- `ErrorCodeConstants` 登记 1000011031–1000011043（3.11），号段 1000011031–1000011060 已同步 `docs/04-detailed-design/02-project-module.md` 6.3 号段表。
 - OpenAPI：新接口（3.1–3.8、3.10）与改造接口（3.9）均补注解与模型，`pnpm run contract:gen` 重新生成基线；前端类型由基线生成。
 - 任务类型 `ui_execution` 与两提示词场景登记 AI 底座详设（单一事实源联动）；本类型判定不生成提案，失败 / 终止时若存在阶段性产物按 AI Task 提案区保留为待采纳态。
 
@@ -573,3 +575,4 @@ COMMENT ON COLUMN ai_runner_instance.owner_id IS 'desktop-hosted 绑定用户；
 | V1.0 | 2026-10-14 | 执行端实例表去掉 `workspace_id`：注册表为部署级、不做工作空间隔离，可分派范围仅由 `owner_id` 决定；明确注册时机为登录即注册（desktop-hosted）/ 启动即注册（cli）（2.3、2.4、4.1） |
 | V1.0 | 2026-10-14 | 明确执行端下线触发：主动退出（登出 / 关闭 / 进程退出）与超时未连接（断连或 60s 心跳缺失清扫）两类（2.3） |
 | V1.0 | 2026-11-25 | 同步至功能测试现行口径：全篇免 RBAC 权限码、按成员归属与项目角色校验；失败 / 取消按 AI Task 双平面落存（过程补充记录、已写数据不回滚、阶段性产物保留为待采纳态，判定不属提案）；通道协议以 Runner 详设为单一事实源 |
+| V1.0 | 2026-11-26 | 冻结源改为计划用例快照（未同步修改不进执行）；进度改为 REST 详情 + 轨迹 `afterSeq` 游标轮询（`status_change` / `ui_progress`），无步骤拆解经 `ui_decompose` 事件留痕；总时长 4h 由策略单独熔断；服务端拒绝重复发起（1000011043）；过程补充记录仅 UI 执行批次；权限仅校验项目成员；`modelId` 入参保留、实际按系统默认解析 |

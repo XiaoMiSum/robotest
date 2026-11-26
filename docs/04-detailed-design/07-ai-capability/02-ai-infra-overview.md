@@ -866,7 +866,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
 - **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 按最新默认模型重新解析（选型规则见 4.2），不沿用上次执行的模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
-- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。轨迹只增不改，是执行过程审计与回放的唯一事实源。`ai_decision` 事件的 `detail.rawRequest` / `detail.rawResponse` 随本接口原样下发，供前端展开查看；沿用任务归属可见性，不新增权限码；完整响应可能较大，前端按折叠方式渲染，不进入日志与审计详情。
+- **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。UI 执行（`ui_execution`）不消费 WebSocket 推送，仅以本端点的 `afterSeq` 游标轮询取进度（`status_change` 事件的 `detail.kind=ui_progress` / `ui_decompose`）与过程审计。轨迹只增不改，是执行过程审计与回放的唯一事实源。`ai_decision` 事件的 `detail.rawRequest` / `detail.rawResponse` 随本接口原样下发，供前端展开查看；沿用任务归属可见性，不新增权限码；完整响应可能较大，前端按折叠方式渲染，不进入日志与审计详情。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
 
@@ -1189,3 +1189,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-26 | 3.6.3 详情支持指定 `executionId` 并下发 `executions` 列表，提案详情与 3.6.5 确认按 `executionId` 定位，旧执行提案可继续审核 |
 | V1.0 | 2026-11-26 | 3.6.3 `/latest` 增 `planId` 查询参数：按任务输入 `planId` 匹配 `plan_order` 最近任务，供测试计划详情回显进度 / 提案 / 审核结果，可见范围沿用项目内成员共享口径 |
 | V1.0 | 2026-11-25 | 登记 AI 执行任务类型 `ui_execution`（3.6.1）与场景示例 `ui_execution_decision`（2.5）：判定写执行记录、轨迹写动作日志，批次发起沿用成员归属校验、不新增 RBAC 权限码 |
+| V1.0 | 2026-11-26 | 3.6.4 明确 UI 执行不消费 WebSocket 推送、仅以轨迹 `afterSeq` 游标轮询取进度事件（`ui_progress` / `ui_decompose`） |
