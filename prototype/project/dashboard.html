@@ -7,6 +7,17 @@
 <link rel="stylesheet" href="../assets/tokens.css">
 <link rel="stylesheet" href="../assets/base.css">
 <style>
+  /* 智能助手悬浮球（挂应用壳层，交互 05 §1）：统一 AI 图标 */
+  .ai-entry-ball {
+    position: fixed; right: 24px; bottom: 24px; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px; padding: 0;
+    border: 1px solid var(--n-200); border-radius: 50%;
+    background: var(--n-0); box-shadow: var(--shadow-float); cursor: pointer;
+  }
+  .ai-entry-ball svg { width: 22px; height: 22px; }
+  .ai-entry-ball:hover { background: var(--n-50); border-color: var(--n-300); }
+
   /* 对齐 web/src/pages/project/DashboardPage.vue */
   .dashboard__header { margin-bottom: var(--block-gap, 24px); }
   .dashboard__title {
@@ -631,5 +642,7 @@
   }
 })();
 </script>
+
+<button class="ai-entry-ball" type="button" aria-label="智能助手" title="智能助手"><span data-icon="ai" aria-hidden="true"></span></button>
 </body>
 </html>
