@@ -11,12 +11,6 @@
   [hidden] { display: none !important; }
 
   .history { padding: 0; }
-  .history__breadcrumb {
-    display: flex; align-items: center; gap: 6px; margin-bottom: 16px;
-    font-size: var(--font-size-sm); color: var(--n-500);
-  }
-  .history__breadcrumb a { color: var(--brand-500); text-decoration: none; font-weight: 500; }
-  .history__breadcrumb a:hover { color: var(--brand-600); }
 
   .page-head__actions { display: flex; gap: 8px; align-items: center; }
 
@@ -58,6 +52,28 @@
     animation: history-spin 0.7s linear infinite;
   }
   @keyframes history-spin { to { transform: rotate(360deg); } }
+
+  /* 导入对话框：历史页页头「导入需求」直接发起，字段与预校验口径同 RequirementImportDialog */
+  .upload {
+    border: 1.5px dashed var(--n-300); border-radius: var(--radius-lg);
+    padding: 26px; text-align: center; color: var(--n-500); font-size: 13px;
+    background: var(--n-25); cursor: pointer; transition: border-color var(--transition-fast);
+  }
+  .upload:hover, .upload--over { border-color: var(--brand-400); color: var(--brand-600); }
+  .upload svg { width: 34px; height: 34px; display: block; margin: 0 auto 8px; color: var(--n-400); }
+  .upload em { font-style: normal; color: var(--brand-500); }
+  .upload-hint { margin-top: 10px; font-size: var(--font-size-xs); color: var(--n-500); line-height: 1.5; }
+  .upload-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .upload-item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+    border: 1px solid var(--n-200); border-radius: var(--radius-md);
+    background: var(--n-50); font-size: var(--font-size-xs); color: var(--n-700);
+  }
+  .upload-item__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .upload-item__size { color: var(--n-400); font-variant-numeric: tabular-nums; }
+  .upload-item__remove { display: flex; padding: 2px; border: 0; background: none; color: var(--n-400); cursor: pointer; }
+  .import-error { margin-top: var(--space-md); }
+  .import-error [data-icon] { display: inline-flex; }
 </style>
 </head>
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
@@ -68,19 +84,13 @@
 
     <div class="split__main">
       <div class="history">
-        <nav class="history__breadcrumb" aria-label="面包屑">
-          <a href="requirements.html">需求列表</a>
-          <span aria-hidden="true">›</span>
-          <span>导入历史</span>
-        </nav>
-
         <div class="page-head">
           <div>
             <h1 class="page-head__title">导入历史</h1>
             <p class="page-head__desc">按时间倒序查看项目内历次需求导入任务，点击任务查看执行状态并审核提案</p>
           </div>
           <div class="page-head__actions">
-            <a class="btn btn--default" href="requirements.html"><span data-icon="upload"></span>导入需求</a>
+            <button class="btn btn--default" type="button" id="history-import"><span data-icon="upload"></span>导入需求</button>
             <a class="btn btn--default" href="requirements.html">返回需求列表</a>
           </div>
         </div>
@@ -168,6 +178,31 @@
   </div>
 </main>
 
+<div class="dialog-mask" id="import-dialog" data-mask-close hidden>
+  <div class="dialog" style="width:480px" role="dialog" aria-modal="true" aria-labelledby="import-title">
+    <div class="dialog__header">
+      <span class="dialog__title" id="import-title">导入需求</span>
+      <button class="dialog__close" data-close="import-dialog" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <div class="dialog__body">
+      <input type="file" id="imp-file" accept=".md,.docx,.png,.jpg,.jpeg,.gif,.webp,.bmp" hidden>
+      <div class="upload" id="imp-drop" role="button" tabindex="0">
+        <span data-icon="upload"></span>
+        将文件拖到此处，或<em>点击选择</em>
+      </div>
+      <div class="upload-hint">支持 Markdown（.md）、Word（.docx）与图片，单文件不超过 20MB；提交后可在导入历史页跟踪进度并审核导入结果</div>
+      <div class="upload-list" id="imp-list" hidden></div>
+      <div class="alert alert--danger import-error" id="imp-error" hidden>
+        <span data-icon="alert-circle"></span><span id="imp-error-text"></span>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--default" type="button" data-close="import-dialog">取消</button>
+      <button class="btn btn--primary" type="button" id="imp-submit" disabled>开始导入</button>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/icons.js"></script>
 <script src="../assets/shell.js"></script>
 <script>
@@ -196,6 +231,41 @@
         window.location.href = 'requirement-import-review.html';
       });
     });
+
+    var importDialog = byId('import-dialog');
+    function resetImport() {
+      byId('imp-file').value = '';
+      byId('imp-list').hidden = true;
+      byId('imp-list').innerHTML = '';
+      byId('imp-error').hidden = true;
+      byId('imp-submit').disabled = true;
+    }
+    function closeImport() {
+      importDialog.hidden = true;
+      resetImport();
+    }
+    byId('history-import').addEventListener('click', function () {
+      resetImport();
+      importDialog.hidden = false;
+    });
+    Array.prototype.forEach.call(importDialog.querySelectorAll('[data-close]'), function (btn) {
+      btn.addEventListener('click', closeImport);
+    });
+    importDialog.addEventListener('click', function (e) {
+      if (e.target === importDialog) closeImport();
+    });
+    byId('imp-drop').addEventListener('click', function () { byId('imp-file').click(); });
+    byId('imp-file').addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var list = byId('imp-list');
+      list.innerHTML = '<div class="upload-item"><span class="upload-item__name"></span><span class="upload-item__size"></span></div>';
+      list.querySelector('.upload-item__name').textContent = file.name;
+      list.querySelector('.upload-item__size').textContent = Math.max(1, Math.round(file.size / 1024)) + ' KB';
+      list.hidden = false;
+      byId('imp-submit').disabled = false;
+    });
+    byId('imp-submit').addEventListener('click', closeImport);
   })();
 </script>
 </body>
