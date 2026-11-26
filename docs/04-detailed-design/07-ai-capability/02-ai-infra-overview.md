@@ -819,7 +819,8 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
   - 可见范围：当前项目内任意成员提交的任务（`project_id = X-Active-Project`），以及当前用户自己的个人任务（`project_id IS NULL`）；无匹配时 `data` 为 `null`。
   - 用途：用例节点「AI 优化」按节点、脑图「AI覆盖雷达」按当前文档、评审详情页「AI 评审」按评审 id 复用最近一次任务，避免重复发起；仅取最近一次，不回放更早历史。
 - **详情**：`GET /api/ai/tasks/{taskId}`
-  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 创建时生成、执行不改写（见 3.6.1）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在清单内，经提案详情与轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
+  - 可选参数 `executionId`：指定时 `latestExecution` 与 `proposals` 改为对应执行的摘要与提案清单；未指定时取 `seq` 最大的最新执行。响应始终附 `executions` 列表（全部执行摘要，按 `seq` 倒序），供业务面板切换执行批次。
+  - 当前执行的状态、步数、预算消耗与计划步骤摘要（`plan`）随详情下发；`title` 创建时生成、执行不改写（见 3.6.1）；`status = proposals_ready / closed` 时附**最新一次执行**的提案清单摘要（再次执行后旧执行提案不在本清单内，可指定 `executionId` 读取任一执行的提案清单与详情并审核，轨迹仍可回看），`confirmStatus` 已采纳 / 已驳回时附采纳记录 `note`（驳回原因）供 `closed` 态只读回看；`result_meta` 顶层含文档级元数据的任务（如 `requirement_import`）同时附 `documentMeta`，供确认面板预填（见需求管理详设 3.8）；其余任务与非完成态该字段为 `null`，列表项不下发：
 
 ```json
 {
@@ -838,6 +839,10 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
     "plan": { "steps": ["解析文档", "识别需求条目", "生成提案"] },
     "terminateReason": null
   },
+  "executions": [
+    { "executionId": "…", "seq": 2, "status": "succeeded", "proposalCount": 3, "createdAt": "…" },
+    { "executionId": "…", "seq": 1, "status": "succeeded", "proposalCount": 3, "createdAt": "…" }
+  ],
   "tokensIn": 1200,
   "tokensOut": 3400,
   "terminateReason": null,
@@ -851,7 +856,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 
 - 任务级采纳结果由前端按 `proposals[].confirmStatus` 聚合派生，仅统计 `adopted / adopted_edited / rejected`（`pending` 与无采纳记录的 `not_applicable` 不参与；缺陷建议的默认采纳记录按 `adopted` 参与统计）：全部采纳 → 已采纳，全部驳回 → 已驳回，混合 → 部分采纳；不新增后端字段。任务详情有提案时展示只读审核面板：复用 `AiProposalReviewPanel` 的信息展示结构（头部、导航、产物明细、compare、来源引用、警示），仅禁用审核动作；`closed` 展示聚合结果与确认状态，`proposals_ready` 展示待采纳状态与产物明细。切换时按需调用提案详情端点（`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}`）取完整 `content`，已加载内容缓存复用。
-- **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（业务面板审核与任务详情只读查看共用，内容结构由各分册定义）；键在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4）。业务面板按自身提案清单定位当前项，切换时按 `proposalKey` 调用该端点获取当前产物完整信息；任务详情只读区首次展开时按需调用，详情下发时仍只给清单摘要，不做全量拉取。
+- **提案详情**：`GET /api/ai/tasks/{taskId}/proposals/{proposalKey}` → 单个提案的完整内容（业务面板审核与任务详情只读查看共用，内容结构由各分册定义）；支持可选参数 `executionId`，未指定时在最新一次执行的提案中定位（键按执行命名空间，见 2.6.4），指定时按对应执行定位；旧执行提案据此仍可读取完整内容。业务面板按自身提案清单定位当前项，切换时按 `proposalKey` 与 `executionId` 调用该端点获取当前产物完整信息；任务详情只读区首次展开时按需调用，详情下发时仍只给清单摘要，不做全量拉取。
 
 #### 3.6.4 执行管理与轨迹
 
@@ -866,6 +871,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ```json
 {
+  "executionId": "…",
   "items": [
     { "key": "module-1", "action": "adopted" },
     { "key": "case-3", "action": "adopted_edited", "content": { "priority": "high" } },
@@ -888,7 +894,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 ```
 
 - **校验与事务**：
-  - 任务须 `proposals_ready`（否则 1000018111）、提案存在（1000018112，按**最新一次执行**的提案定位）、未确认过（1000018113，`uk_ai_task_adoption (execution_id, proposal_key)` 兜底）；
+  - 任务须 `proposals_ready`（否则 1000018111）、提案存在（1000018112，按请求 `executionId` 对应执行的提案定位，未指定时按**最新一次执行**）、未确认过（1000018113，`uk_ai_task_adoption (execution_id, proposal_key)` 兜底）；旧执行提案在任务处于 `proposals_ready` 时可审核，采纳记录归属其自身 `execution_id`，不覆盖新执行提案；
   - **逐项事务**：每项「`ai_task_adoption` 采纳记录 + 业务落库」在同一事务，失败仅该项回滚，其余项继续（部分失败，成功项保留）；
   - 落库由 3.6.1 的承接服务执行；采纳写 `adopted_ref`，驳回写 `note`；全部提案处置完毕后任务转 `closed`；每次动作记审计。
 
@@ -1176,3 +1182,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-25 | 新增输出修复重试：2.6.3 登记 `ai_decision` 修复留痕扩展键、4.2 定义固定 2 次修复调用与耗尽终止口径、6 登记 1000018129、7 补测试要点 |
 | V1.0 | 2026-11-26 | 3.6.1 / 4.2 新增类型适配器声明的 JSON 对象模式：终态产出须为 JSON 对象的任务经 Spring AI `response_format=json_object` 约束模型正文，首版仅 `requirement_import` 启用，修复重试同样透传 |
 | V1.0 | 2026-11-26 | 4.2 登记 `requirement_import` 原文引用回填：模型只输出 `@full` / `@blocks:Bn`，块切分与公共前言由后端确定性查表，避免长文档回显截断 |
+| V1.0 | 2026-11-26 | 3.6.3 详情支持指定 `executionId` 并下发 `executions` 列表，提案详情与 3.6.5 确认按 `executionId` 定位，旧执行提案可继续审核 |

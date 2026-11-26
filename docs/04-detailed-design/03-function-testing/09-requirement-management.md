@@ -331,18 +331,25 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
   "id": "…",
   "sourceType": "document",
   "sourceFileId": "…",
+  "sourceFileName": "prd.md",
   "aiTaskId": "…",
+  "taskTitle": "需求文档拆解",
+  "taskStatus": "proposals_ready",
+  "latestExecution": { "executionId": "…", "seq": 2, "status": "succeeded" },
+  "proposalCount": 3,
+  "adoptedCount": 1,
   "status": "adopted",
   "adoptResult": {
     "adopted": [{ "proposalKey": "item-1", "requirementId": "…" }],
     "rejected": ["item-3"],
     "operatorId": "…"
   },
+  "submittedBy": "…",
   "createdAt": "2026-10-02T09:00:00Z"
 }
 ```
 
-- **校验规则**：建议明细（标题、描述、模块、原文定位）经 `aiTaskId` 下钻任务提案读取，本接口不复制内容。
+- **校验规则**：建议明细（标题、描述、模块、原文定位）经 `aiTaskId` 下钻任务提案读取，本接口不复制内容；`taskTitle` / `taskStatus` / `latestExecution` / `submittedBy` 由 `aiTaskId` 联查 `ai_task` 与最新 `ai_task_execution` 得到，`proposalCount` / `adoptedCount` 按最新执行的提案与采纳记录统计；`status` 为拆解记录自身状态，与任务态 `taskStatus` 并存。本接口作为导入历史页数据源，按 `created_at` 倒序返回。
 
 ---
 
@@ -406,6 +413,7 @@ CREATE INDEX idx_requirement_split_task ON requirement_split_record (ai_task_id)
 ├── /workspace/projects/functional-testing?tab=requirements  → FunctionalTestingPage（功能测试壳层，侧栏首位「需求列表」子项）
 │   └── RequirementListPage（需求列表，常驻展示）
 ├── /workspace/projects/requirements/create                  → RequirementCreatePage（新建需求，过程页不入菜单）
+├── /workspace/projects/requirements/import-history          → RequirementImportHistoryPage（导入历史，过程页不入菜单）
 ├── /workspace/projects/requirements/import-review/:taskId   → RequirementImportReviewPage（导入结果审核，过程页不入菜单）
 └── /workspace/projects/requirements/:requirementId          → RequirementDetailPage（需求详情，过程页不入菜单）
 
@@ -419,11 +427,18 @@ FunctionalTestingPage（功能测试壳层：侧栏子项 = 需求列表 / 测�
 └── RequirementListPage（见下）
 
 RequirementListPage
-├── ListToolbar（新建需求、导入需求）
+├── ListToolbar（导入历史、新建需求、导入需求）
 ├── RequirementFilterBar（状态/模块/负责人/版本筛选 + keyword，角标显示条件数，查询/重置）
 └── RequirementTable
     ├── 行操作：详情 / 确认（draft|changed 可用）/ 更多（编辑、归档、取消归档；操作列右对齐）
     └── 分页（20/50/100）
+
+RequirementImportHistoryPage（导入历史，过程页不入菜单）
+├── HistoryHeader（面包屑「需求管理 › 导入历史」、返回需求列表）
+└── HistoryTable（数据源 GET /api/project/requirements/split-records，按创建时间倒序）
+    ├── 列：导入时间、源文件、任务状态、发起人、产出概览（建议数 / 已采纳数）
+    ├── 行操作：查看明细 → /workspace/projects/requirements/import-review/:taskId
+    └── 分页（20/50/100，返回保留页码）
 
 RequirementDetailPage
 ├── DetailHeader（面包屑与操作区同行吸顶：查看态按频次分组「编辑 │ 确认 / 更多（归档、取消归档）」，编辑态「取消 / 保存」；编号、标题、状态徽标）
@@ -434,6 +449,7 @@ RequirementDetailPage
 
 RequirementImportReviewPage（导入结果审核，需求管理业务页）
 ├── ImportReviewHeader（面包屑「需求列表 › 导入结果审核」、任务状态、终止原因、再次执行）
+├── ExecutionSwitcher（同一任务多次执行时按 seq 倒序切换执行批次，标注执行时间与状态；切换后按 executionId 读取提案清单与详情）
 └── RequirementImportReviewPanel（版本预填/可修改/可清空、逐条展示模块名称与新增模块标记、逐条采纳、修改后采纳可改模块归属、驳回附反馈、逐项回执；不提供全选与批量操作）
 ```
 
@@ -441,6 +457,7 @@ RequirementImportReviewPage（导入结果审核，需求管理业务页）
 
 - Pinia store `requirement`：列表分页与筛选条件、详情缓存、导入任务引用；`aiTask` store 提供任务执行与轨迹订阅，任务完成回调刷新列表与拆解记录。
 - 导入流程：文件选择（类型/大小前端预校验）→ 提交返回 `taskId` → 跳转需求管理导入结果审核页（`/workspace/projects/requirements/import-review/:taskId`）→ 任务状态轮询 → 审核区（预填 AI 识别的版本，可修改或清空）逐条查看模块名称与新增模块标记、逐条采纳（修改后采纳可改模块归属）→ 刷新需求列表。AI 任务详情可只读查看提案产物与审核结果，不提供审核动作。
+- 导入历史流程：需求列表「导入历史」→ 导入历史页（`GET /api/project/requirements/split-records` 按创建时间倒序）→ 点击条目进入对应 `taskId` 的导入结果审核页 → 多次执行时经 `ExecutionSwitcher` 选择任一 `executionId`，按该执行加载提案清单与详情、提交审核；旧执行的提案与采纳记录保留，版本预填输入在切换时保留。
 - 全部状态分支：列表空态（引导新建/导入）、归档只读降级、业务状态不满足时隐藏入口、关键词 1 秒防抖自动查询、任务终止后再次执行入口。
 
 ---
@@ -573,3 +590,4 @@ $$,
 | V1.0 | 2026-11-24 | 4.5 定义拆分产物 `moduleName` / `newModule` 口径与单模块整篇保留规则：采纳时复用或新建模块并关联需求，5.2 / 5.3 审核区同步展示模块名称与新增模块标记 |
 | V1.0 | 2026-11-24 | 5.2 / 5.3 审核区收敛为逐条采纳：不提供全选与批量采纳、全部驳回操作 |
 | V1.0 | 2026-11-26 | 4.5 / 7 需求拆解改由 AI 判断章节归属同一需求还是多个需求：`description` 由模型输出 `@full` / `@blocks:Bn` 引用、后端回填原文并前置公共前言；登记存量库提示词增量 SQL |
+| V1.0 | 2026-11-26 | 3.10 拆解记录接口扩展任务态 / 发起人 / 提案统计字段作为导入历史数据源；5.1 / 5.2 / 5.3 新增导入历史页与执行批次切换，旧执行提案可在审核页继续审核 |
