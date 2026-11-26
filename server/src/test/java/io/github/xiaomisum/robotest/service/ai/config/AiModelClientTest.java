@@ -25,6 +25,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -103,6 +104,15 @@ class AiModelClientTest {
         assertEquals("sk-test", options.getApiKey());
         assertEquals(2, options.getMaxRetries());
         assertEquals(Duration.ofSeconds(120), options.getTimeout());
+    }
+
+    @Test
+    void buildOptions_jsonMode_setsJsonObjectResponseFormat() {
+        OpenAiChatOptions json = AiModelClient.buildOptions(model, "sk-test", 2, List.of(), true);
+        OpenAiChatOptions plain = AiModelClient.buildOptions(model, "sk-test", 2);
+
+        assertEquals(OpenAiChatModel.ResponseFormat.Type.JSON_OBJECT, json.getResponseFormat().getType());
+        assertNull(plain.getResponseFormat());
     }
 
     @Test
@@ -394,7 +404,7 @@ class AiModelClientTest {
     @Test
     void buildStreamOptions_underlyingTimeoutFarAboveBlockingPath() {
         var options = ReflectionTestUtils.invokeMethod(client, "buildStreamOptionsWithDeclarations",
-                model, "sk-test", 2, List.of());
+                model, "sk-test", 2, List.of(), false);
 
         Duration timeout = ((OpenAiChatOptions) options).getTimeout();
         assertNotNull(timeout);
@@ -526,7 +536,7 @@ class AiModelClientTest {
 
     private AiChatRequest requestWithTick(Runnable onTick) {
         return new AiChatRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "test",
-                model, "你是测试助手", "生成用例", List.of(), onTick);
+                model, "你是测试助手", "生成用例", List.of(), onTick, false);
     }
 
     private static ChatResponse chunk(String text) {

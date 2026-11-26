@@ -59,10 +59,15 @@ class RequirementImportTypeAdapterTest {
 
     @Test
     void defaultPrompt_singleModuleKeepsWholeDocumentAndEmitsModuleFields() {
-        String prompt = new RequirementImportTypeAdapter().defaultPrompt();
+        RequirementImportTypeAdapter adapter = new RequirementImportTypeAdapter();
+        String prompt = adapter.defaultPrompt();
         assertTrue(prompt.contains("只产出一条建议"));
         assertTrue(prompt.contains("与文档原文全文完全一致"));
         assertTrue(prompt.contains("moduleName"));
         assertTrue(prompt.contains("newModule"));
+        assertTrue(prompt.contains("只输出一个 JSON 对象"));
+        assertTrue(prompt.contains("禁止输出任何解释、分析、思考过程"));
+        assertTrue(adapter.jsonMode());
+        assertTrue(adapter.outputRepairHint().contains("只输出一个 JSON 对象"));
     }
 }

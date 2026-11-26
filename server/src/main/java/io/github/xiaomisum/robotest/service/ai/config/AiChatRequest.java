@@ -9,20 +9,22 @@ import java.util.UUID;
  * 单次模型调用请求（系统提示词可为空；media 为多模态随行媒体列表，纯文本调用为空列表）。
  * executionId 为所属执行（详设 2.8 用量归因），任务型调用传入、助手交互等无任务调用为 null。
  * onTick 为长流期间的心跳回调（详设 4.2），任务型调用注入以刷新执行心跳，其余调用为 no-op。
+ * jsonMode 由类型适配器声明（详设 4.2），终态产出须为 JSON 对象的任务启用，修复重试同样透传。
  */
 public record AiChatRequest(UUID taskId, UUID executionId, UUID projectId, UUID userId, String promptScene,
                             AiModelConfig model, String systemPrompt, String userPrompt, List<AiChatMedia> media,
-                            Runnable onTick) {
+                            Runnable onTick, boolean jsonMode) {
 
     public AiChatRequest {
         media = media == null ? List.of() : List.copyOf(media);
         onTick = onTick == null ? () -> { } : onTick;
     }
 
-    /** 完整构造器（含心跳回调） */
+    /** 完整构造器（含心跳回调）；默认文本模式 */
     public AiChatRequest(UUID taskId, UUID executionId, UUID projectId, UUID userId, String promptScene,
                          AiModelConfig model, String systemPrompt, String userPrompt, List<AiChatMedia> media) {
-        this(taskId, executionId, projectId, userId, promptScene, model, systemPrompt, userPrompt, media, () -> { });
+        this(taskId, executionId, projectId, userId, promptScene, model, systemPrompt, userPrompt, media, () -> { },
+                false);
     }
 
     /** 任务执行调用（带 execution 归因，执行核使用） */
@@ -47,7 +49,7 @@ public record AiChatRequest(UUID taskId, UUID executionId, UUID projectId, UUID 
     public AiChatRequest(UUID taskId, UUID projectId, UUID userId, String promptScene,
                          AiModelConfig model, String systemPrompt, String userPrompt, List<AiChatMedia> media,
                          Runnable onTick) {
-        this(taskId, null, projectId, userId, promptScene, model, systemPrompt, userPrompt, media, onTick);
+        this(taskId, null, projectId, userId, promptScene, model, systemPrompt, userPrompt, media, onTick, false);
     }
 
     /** 单媒体便捷构造（需求导入等单图场景） */

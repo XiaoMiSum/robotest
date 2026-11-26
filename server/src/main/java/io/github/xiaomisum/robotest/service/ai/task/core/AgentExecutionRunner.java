@@ -209,7 +209,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
         AiChatRequest repairRequest = new AiChatRequest(request.taskId(), request.executionId(),
                 request.projectId(), request.userId(), request.promptScene(), request.model(),
                 request.systemPrompt(), request.userPrompt() + "\n\n【输出修正要求】\n" + instruction,
-                request.media(), request.onTick());
+                request.media(), request.onTick(), request.jsonMode());
         control.beforeCall();
         AiChatReply reply = modelClient.chatWithToolDeclarations(repairRequest, declarations, List.of(), false);
         control.afterModelCall(reply.tokensIn(), reply.tokensOut(),
@@ -308,7 +308,7 @@ public class AgentExecutionRunner implements TaskExecutionStrategy {
                         ? "" : "\n用户反馈:\n" + ctx.feedback());
         return new AiChatRequest(task.getId(), ctx.execution().getId(), ctx.projectId(), task.getSubmittedBy(),
                 task.getType(), ctx.model(), resolvedPrompt, userPrompt, preparation.media(),
-                control::heartbeatDuringStream);
+                control::heartbeatDuringStream, adapter.jsonMode());
     }
 
     private static Message assistantTurn(AiChatReply reply) {

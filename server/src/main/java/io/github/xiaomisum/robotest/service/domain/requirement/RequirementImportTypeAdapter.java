@@ -55,9 +55,8 @@ public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapte
     private static final int DETECTED_VERSION_MAX_LENGTH = 50;
     private static final int VERSION_EVIDENCE_MAX_LENGTH = 500;
 
-    private static final String SYSTEM_PROMPT = "你是严谨的需求分析助手，只输出 JSON，不输出解释或代码块标记以外的任何文字。";
-
     private static final String DEFAULT_PROMPT = """
+            你是严谨的需求分析助手。只输出一个 JSON 对象，禁止输出任何解释、分析、思考过程或 Markdown 代码块标记（含 ```json / ```）。
             将给定需求文档解析为需求建议，并识别被测业务系统版本。
             拆分规则（模块是唯一边界）：
             1. 先判断文档整体是否只归属一个模块：若是，只产出一条建议，标题取文档标题，description 与文档原文全文完全一致，
@@ -97,6 +96,16 @@ public class RequirementImportTypeAdapter extends AbstractOrdinaryTaskTypeAdapte
     @Override
     public String defaultPrompt() {
         return DEFAULT_PROMPT;
+    }
+
+    @Override
+    public boolean jsonMode() {
+        return true;
+    }
+
+    @Override
+    public String outputRepairHint() {
+        return "只输出一个 JSON 对象，不得输出解释、分析、思考过程或 Markdown 代码块标记（含 ```json / ```）。";
     }
 
     @Override

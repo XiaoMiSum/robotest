@@ -26,17 +26,23 @@ public final class RequirementSuggestionParser {
     private RequirementSuggestionParser() {
     }
 
-    /** 解析模型输出为 JSON 对象；不可解析按模型调用失败（1000018117）落任务失败态 */
+    /** 解析模型输出为 JSON 对象；容忍前言 / 后记包裹的 JSON 代码块，仍不可解析按 1000018117 落任务失败态 */
     public static Map<String, Object> parseJsonObject(String content) {
         String text = stripCodeFence(content);
-        Map<String, Object> parsed;
-        try {
-            parsed = JsonUtils.parseObject(text, Map.class);
-        } catch (Exception e) {
+        Map<String, Object> parsed = parseOrNull(text);
+        if (parsed == null) {
+            for (String candidate : extractJsonObjects(text)) {
+                parsed = parseOrNull(candidate);
+                if (parsed != null) {
+                    break;
+                }
+            }
+        }
+        if (parsed == null) {
             throw ServiceExceptionUtil.get(ErrorCodeConstants.AI_MODEL_CALL_FAILED.code(),
                     "模型输出无法解析为 JSON");
         }
-        return parsed == null ? Map.of() : parsed;
+        return parsed;
     }
 
     /** 取出 artifacts 并清洗；缺失或非数组按空产物返回（与拆分详情回读同口径） */
@@ -113,6 +119,57 @@ public final class RequirementSuggestionParser {
 
     public static String asString(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> parseOrNull(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            Object parsed = JsonUtils.parseObject(text, Map.class);
+            return parsed == null ? new LinkedHashMap<>() : (Map<String, Object>) parsed;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 从混杂文本中按花括号配平提取全部完整对象候选；字符串内的括号与转义不参与配平 */
+    private static List<String> extractJsonObjects(String text) {
+        List<String> candidates = new ArrayList<>();
+        if (text == null) {
+            return candidates;
+        }
+        for (int start = text.indexOf('{'); start >= 0; start = text.indexOf('{', start + 1)) {
+            int depth = 0;
+            boolean inString = false;
+            boolean escaped = false;
+            for (int i = start; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (inString) {
+                    if (escaped) {
+                        escaped = false;
+                    } else if (c == '\\') {
+                        escaped = true;
+                    } else if (c == '"') {
+                        inString = false;
+                    }
+                    continue;
+                }
+                if (c == '"') {
+                    inString = true;
+                } else if (c == '{') {
+                    depth++;
+                } else if (c == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        candidates.add(text.substring(start, i + 1));
+                        break;
+                    }
+                }
+            }
+        }
+        return candidates;
     }
 
     private static String stripCodeFence(String text) {

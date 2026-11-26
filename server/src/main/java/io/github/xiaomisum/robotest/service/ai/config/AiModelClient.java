@@ -327,7 +327,7 @@ public class AiModelClient {
             List<ToolDeclaration> declarations) {
         return OpenAiChatModel.builder()
                 .options(buildOptionsWithDeclarations(request.model(), apiKey,
-                        settingsReader.settings().taskMaxRetries(), declarations))
+                        settingsReader.settings().taskMaxRetries(), declarations, request.jsonMode()))
                 .build();
     }
 
@@ -335,7 +335,7 @@ public class AiModelClient {
     ChatModel buildStreamChatModel(AiChatRequest request, String apiKey) {
         return OpenAiChatModel.builder()
                 .options(buildStreamOptionsWithDeclarations(request.model(), apiKey,
-                        settingsReader.settings().taskMaxRetries(), List.of()))
+                        settingsReader.settings().taskMaxRetries(), List.of(), request.jsonMode()))
                 .build();
     }
 
@@ -352,28 +352,33 @@ public class AiModelClient {
             List<ToolDeclaration> declarations) {
         return OpenAiChatModel.builder()
                 .options(buildStreamOptionsWithDeclarations(request.model(), apiKey,
-                        settingsReader.settings().taskMaxRetries(), declarations))
+                        settingsReader.settings().taskMaxRetries(), declarations, request.jsonMode()))
                 .build();
     }
 
     /** 程序式构建调用选项：baseUrl / 密钥 / 模型名逐行取值，重试次数承接 task_max_retries（4.2） */
     static OpenAiChatOptions buildOptions(AiModelConfig model, String apiKey, int maxRetries) {
-        return buildOptions(model, apiKey, maxRetries, List.of());
+        return buildOptions(model, apiKey, maxRetries, List.of(), false);
     }
 
     /** 工具定义非空时以声明型回调随请求携带（详设 4.1：服务端固化清单，执行权不交框架） */
     static OpenAiChatOptions buildOptions(AiModelConfig model, String apiKey, int maxRetries,
             List<AssistantToolDefinition> toolDefinitions) {
+        return buildOptions(model, apiKey, maxRetries, toolDefinitions, false);
+    }
+
+    static OpenAiChatOptions buildOptions(AiModelConfig model, String apiKey, int maxRetries,
+            List<AssistantToolDefinition> toolDefinitions, boolean jsonMode) {
         List<ToolDeclaration> declarations = toolDefinitions == null ? List.of()
                 : toolDefinitions.stream()
                         .map(item -> new ToolDeclaration(item.name(), item.description(), item.paramsSchema()))
                         .toList();
-        return buildOptionsWithDeclarations(model, apiKey, maxRetries, declarations);
+        return buildOptionsWithDeclarations(model, apiKey, maxRetries, declarations, jsonMode);
     }
 
     private static OpenAiChatOptions buildOptionsWithDeclarations(AiModelConfig model, String apiKey, int maxRetries,
-            List<ToolDeclaration> declarations) {
-        return buildOptionsInternal(model, apiKey, maxRetries, declarations, REQUEST_TIMEOUT);
+            List<ToolDeclaration> declarations, boolean jsonMode) {
+        return buildOptionsInternal(model, apiKey, maxRetries, declarations, REQUEST_TIMEOUT, jsonMode);
     }
 
     /**
@@ -381,12 +386,12 @@ public class AiModelClient {
      * 真正的首 token / 空闲终止交由 Reactor 护栏（详设 4.2）。
      */
     private static OpenAiChatOptions buildStreamOptionsWithDeclarations(AiModelConfig model, String apiKey,
-            int maxRetries, List<ToolDeclaration> declarations) {
-        return buildOptionsInternal(model, apiKey, maxRetries, declarations, STREAM_UNDERLYING_TIMEOUT);
+            int maxRetries, List<ToolDeclaration> declarations, boolean jsonMode) {
+        return buildOptionsInternal(model, apiKey, maxRetries, declarations, STREAM_UNDERLYING_TIMEOUT, jsonMode);
     }
 
     private static OpenAiChatOptions buildOptionsInternal(AiModelConfig model, String apiKey, int maxRetries,
-            List<ToolDeclaration> declarations, Duration timeout) {
+            List<ToolDeclaration> declarations, Duration timeout, boolean jsonMode) {
         var builder = OpenAiChatOptions.builder()
                 .baseUrl(model.getBaseUrl())
                 .apiKey(apiKey)
@@ -397,6 +402,11 @@ public class AiModelClient {
         }
         if (declarations != null && !declarations.isEmpty()) {
             builder.toolCallbacks(declarationCallbacks(declarations));
+        }
+        if (jsonMode) {
+            builder.responseFormat(OpenAiChatModel.ResponseFormat.builder()
+                    .type(OpenAiChatModel.ResponseFormat.Type.JSON_OBJECT)
+                    .build());
         }
         return builder.build();
     }

@@ -40,6 +40,14 @@ public interface TaskTypeAdapter {
     }
 
     /**
+     * 终态产出是否必须为 JSON 对象（详设 4.2）：开启后执行核在每次模型调用的 request 上透传，
+     * 门面层经 Spring AI response_format=json_object 下传；缺省为文本模式，仅结构化任务覆写。
+     */
+    default boolean jsonMode() {
+        return false;
+    }
+
+    /**
      * 只读建议是否在提案落库后按提交人默认写采纳记录；仅业务面板回填表单的类型开启，
      * 避免通用执行核改变其余类型的「必经人工采纳」口径。
      */
