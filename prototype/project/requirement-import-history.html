@@ -11,17 +11,34 @@
   [hidden] { display: none !important; }
 
   .history { padding: 0; }
-  .history__breadcrumb {
-    display: flex; align-items: center; gap: 6px; margin-bottom: 16px;
-    font-size: var(--font-size-sm); color: var(--n-500);
-  }
-  .history__breadcrumb a { color: var(--brand-500); text-decoration: none; font-weight: 500; }
-  .history__breadcrumb a:hover { color: var(--brand-600); }
 
-  /* 表格容器贴边：内边距归零、不呈现悬浮卡片（无阴影无圆角） */
+  /* 页头面包屑：对齐评审明细页 .detail-head 口径，面包屑与操作同行、图标分隔符 */
+  .detail-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    flex-wrap: nowrap; overflow-x: auto; margin-bottom: 16px;
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .detail-head::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  .detail-breadcrumb {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap;
+    font-size: var(--font-size-sm); color: var(--n-600);
+  }
+  .detail-breadcrumb a { color: var(--brand-500); font-weight: 500; text-decoration: none; }
+  .detail-breadcrumb a:hover { color: var(--brand-600); }
+  .detail-breadcrumb [data-icon] svg { width: 13px; height: 13px; color: var(--n-400); }
+  .detail-breadcrumb > :last-child { color: var(--n-900); }
+
+  /* 表格容器贴边：内边距归零、不呈现悬浮卡片（无阴影无圆角），与需求列表表格一致 */
   #history-card { padding: 0; box-shadow: none; border-radius: 0; }
 
-  .page-head__actions { display: flex; gap: 8px; align-items: center; }
+  /* 每页条数切换：与需求列表共享分页样式（20 / 50 / 100） */
+  .page-size {
+    width: auto; height: 26px; padding: 0 24px 0 8px;
+    font-size: var(--font-size-sm);
+    background-position: right 6px center;
+  }
+
+  .page-head__actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 
   /* 任务态徽标：与需求列表 tag 口径一致（进行中 info / 待采纳 warning / 已完成 success / 已终止 danger） */
   .task-tag {
@@ -89,16 +106,11 @@
 
 <main class="content content--flush">
   <div class="history">
-    <nav class="history__breadcrumb" aria-label="面包屑">
-      <a href="requirements.html">需求列表</a>
-      <span aria-hidden="true">›</span>
-      <span>导入历史</span>
-    </nav>
-
-    <div class="page-head">
-      <div>
-        <h1 class="page-head__title">导入历史</h1>
-        <p class="page-head__desc">按时间倒序查看项目内历次需求导入任务，点击任务查看执行状态并审核提案</p>
+    <div class="detail-head">
+      <div class="detail-breadcrumb" aria-label="面包屑">
+        <a href="requirements.html">需求管理</a>
+        <span data-icon="chevron-right" aria-hidden="true"></span>
+        <span>导入历史</span>
       </div>
       <div class="page-head__actions">
         <button class="btn btn--default" type="button" id="history-import"><span data-icon="upload"></span>导入需求</button>
@@ -114,14 +126,22 @@
     <div class="card" id="history-card">
       <div class="table-wrap" id="history-table-wrap">
         <table class="table" id="history-table">
+          <colgroup>
+            <col style="width:170px">
+            <col style="min-width:260px">
+            <col style="width:110px">
+            <col style="width:100px">
+            <col style="width:150px">
+            <col style="width:110px">
+          </colgroup>
           <thead>
             <tr>
-              <th style="width:160px">导入时间</th>
+              <th>导入时间</th>
               <th>源文件</th>
-              <th style="width:110px">任务状态</th>
-              <th style="width:90px">发起人</th>
-              <th style="width:150px">产出概览</th>
-              <th style="width:100px" class="ops-cell">操作</th>
+              <th>任务状态</th>
+              <th>发起人</th>
+              <th>产出概览</th>
+              <th style="text-align:right">操作</th>
             </tr>
           </thead>
           <tbody id="history-body">
@@ -163,13 +183,16 @@
           <span class="table-mask__spinner"></span>加载中…
         </div>
       </div>
-      <div class="toolbar toolbar--footer">
-        <span>共 4 条 · 每页 20 条</span>
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-          <button class="btn btn--sm btn--default" type="button" disabled>‹</button>
-          <button class="btn btn--sm btn--primary" type="button">1</button>
-          <button class="btn btn--sm btn--default" type="button" disabled>›</button>
-        </div>
+      <div class="pagination">
+        <span class="pagination__total">共 4 条 · 每页 20 条</span>
+        <select class="select page-size" aria-label="每页条数">
+          <option value="20">20 条/页</option>
+          <option value="50">50 条/页</option>
+          <option value="100">100 条/页</option>
+        </select>
+        <button class="page-btn" type="button" disabled>‹</button>
+        <span><button class="page-btn page-btn--active" type="button">1</button></span>
+        <button class="page-btn" type="button" disabled>›</button>
       </div>
     </div>
 
