@@ -15,7 +15,7 @@ import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
-import MoreDropdown from '@/components/common/MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from '@/components/common/MoreDropdown.vue'
 import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
 
 const SCENARIO_COLUMNS: TableColumnMeta[] = [
@@ -31,6 +31,12 @@ const SCENARIO_COLUMNS: TableColumnMeta[] = [
   { key: 'updatedAt', label: '更新时间' },
   { key: 'actions', label: '操作', pinned: true },
 ]
+const SCENARIO_MORE_ACTIONS: MoreAction[] = [
+  { key: 'execute', label: '执行' },
+  { key: 'copy', label: '复制' },
+  { key: 'delete', label: '删除', tone: 'danger', divided: true },
+]
+
 const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
   pageKey: 'scenario-list',
   columns: SCENARIO_COLUMNS,
@@ -487,16 +493,13 @@ onActivated(async () => {
                 </template>
                 <template #default="{ row }">
                   <el-button link size="small" type="primary" @click="openDetail(row as ApiScenePageItem)">编辑</el-button>
-                  <MoreDropdown trigger="click" class="scenarios-page__more" @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)">
+                  <MoreDropdown
+                    class="scenarios-page__more"
+                    :actions="SCENARIO_MORE_ACTIONS"
+                    @command="(cmd: string) => handleRowCommand(cmd, row as ApiScenePageItem)"
+                  >
                     <template #trigger>
                       <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-                    </template>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item command="execute">执行</el-dropdown-item>
-                        <el-dropdown-item command="copy">复制</el-dropdown-item>
-                        <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                      </el-dropdown-menu>
                     </template>
                   </MoreDropdown>
                 </template>

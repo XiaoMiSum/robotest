@@ -8,7 +8,7 @@ import type {
   BugType,
 } from '@/types'
 import { formatShortDateTime, formatShortId } from '@/utils/format'
-import MoreDropdown from '@/components/common/MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from '@/components/common/MoreDropdown.vue'
 import {
   BUG_PRIORITY_LABEL,
   BUG_PRIORITY_TAG_TYPE,
@@ -33,6 +33,18 @@ const statusIcons: Record<BugStatus, string> = {
   resolved: 'CircleCheck',
   rejected: 'CircleClose',
   closed: 'Lock',
+}
+
+function moreActionsOf(row: unknown): MoreAction[] {
+  const bug = row as BugListItem
+  const actions: MoreAction[] = []
+  if (bug.status === 'active' && !bug.confirmed) actions.push({ key: 'confirm', label: '确认' })
+  if (bug.status === 'resolved' || bug.status === 'rejected') {
+    actions.push({ key: 'reopen', label: '激活' })
+  }
+  if (bug.status !== 'closed') actions.push({ key: 'assign', label: '指派' })
+  actions.push({ key: 'copy', label: '复制' })
+  return actions
 }
 </script>
 
@@ -179,29 +191,14 @@ const statusIcons: Record<BugStatus, string> = {
               size="small"
               @click="emit('status', row as BugListItem, 'active', '缺陷已激活')"
               >激活</el-button>
-            <MoreDropdown @command="(command: string) => emit('more', command, row as BugListItem)">
+            <MoreDropdown
+              :actions="moreActionsOf(row)"
+              @command="(command: string) => emit('more', command, row as BugListItem)"
+            >
               <template #trigger>
                 <el-button link type="primary" size="small" :aria-label="`${row.title}的更多操作`"
                   >更多<el-icon><ArrowDown /></el-icon
                 ></el-button>
-              </template>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item
-                    v-if="row.status === 'active' && !row.confirmed"
-                    command="confirm"
-                    >确认</el-dropdown-item
-                  >
-                  <el-dropdown-item
-                    v-if="row.status === 'resolved' || row.status === 'rejected'"
-                    command="reopen"
-                    >激活</el-dropdown-item
-                  >
-                  <el-dropdown-item v-if="row.status !== 'closed'" command="assign"
-                    >指派</el-dropdown-item
-                  >
-                  <el-dropdown-item command="copy">复制</el-dropdown-item>
-                </el-dropdown-menu>
               </template>
             </MoreDropdown>
           </el-space>

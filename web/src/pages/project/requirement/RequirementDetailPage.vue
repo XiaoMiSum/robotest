@@ -4,7 +4,7 @@ import type { TabPaneName } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import MarkdownEditor from '@/components/common/MarkdownEditor.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
-import MoreDropdown from '@/components/common/MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from '@/components/common/MoreDropdown.vue'
 import type { RequirementPriority } from '@/types'
 import {
   requirementChangeLines,
@@ -81,6 +81,13 @@ const hasLifecycleGroup = computed(
 const showDividerBeforeLifecycle = computed(() => hasLifecycleGroup.value && hasEditGroup.value)
 
 /** 「更多」下拉：归档 / 取消归档共用二次确认入口 */
+const lifecycleActions = computed<MoreAction[]>(() => {
+  const actions: MoreAction[] = []
+  if (canArchive.value) actions.push({ key: 'archive', label: '归档', tone: 'warning' })
+  if (canUnarchive.value) actions.push({ key: 'unarchive', label: '取消归档' })
+  return actions
+})
+
 function handleLifecycleCommand(command: string | number | object): void {
   if (command === 'archive') void handleArchive()
   if (command === 'unarchive') void handleUnarchive()
@@ -187,17 +194,15 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
               :loading="saving"
               @click="handleConfirm"
             >确认</el-button>
-            <MoreDropdown v-if="canArchive || canUnarchive" @command="handleLifecycleCommand">
+            <MoreDropdown
+              v-if="lifecycleActions.length"
+              :actions="lifecycleActions"
+              @command="handleLifecycleCommand"
+            >
               <template #trigger>
                 <el-button link size="small">
                   更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
                 </el-button>
-              </template>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="canArchive" command="archive">归档</el-dropdown-item>
-                  <el-dropdown-item v-if="canUnarchive" command="unarchive">取消归档</el-dropdown-item>
-                </el-dropdown-menu>
               </template>
             </MoreDropdown>
           </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useGitLabRepo } from '@/composables/project/api-testing/gitlab/useGitLabRepo'
-import MoreDropdown from '@/components/common/MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from '@/components/common/MoreDropdown.vue'
 import GitLabImportPane from './GitLabImportPane.vue'
 
 const {
@@ -26,6 +26,8 @@ const {
   runConnectionTest,
   handleDelete,
 } = useGitLabRepo()
+
+const GITLAB_MORE_ACTIONS: MoreAction[] = [{ key: 'delete', label: '删除配置', tone: 'danger' }]
 
 const PLATFORM_MODE_HINT =
   '平台执行：完整解析步骤与 YAML 并合并环境，导入后场景在平台内可编辑、可直接执行；无需改造仓库 CI。'
@@ -105,16 +107,11 @@ const CI_MODE_HINT =
         </button>
 
         <!-- 删除不与保存平级：移入 [⋯] 更多菜单（交互稿 27 §1） -->
-        <MoreDropdown v-if="!creating" trigger="click" @command="handleDelete">
+        <MoreDropdown v-if="!creating" :actions="GITLAB_MORE_ACTIONS" @command="handleDelete">
           <template #trigger>
             <el-button class="gl-more" circle size="small" title="更多操作">
               <el-icon><MoreFilled /></el-icon>
             </el-button>
-          </template>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="delete" class="gl-danger-item">删除配置</el-dropdown-item>
-            </el-dropdown-menu>
           </template>
         </MoreDropdown>
       </div>
@@ -401,15 +398,6 @@ const CI_MODE_HINT =
   font-size: 11px;
   font-weight: 500;
   line-height: 18px;
-}
-
-.gl-danger-item {
-  color: var(--color-danger-strong);
-
-  &:hover {
-    background: var(--color-danger-light);
-    color: var(--color-danger-strong);
-  }
 }
 
 /* 连通性徽标：失败转告警色，点击展开错误详情 */

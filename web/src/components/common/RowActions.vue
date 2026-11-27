@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
-import MoreDropdown from './MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from './MoreDropdown.vue'
 
 export interface RowAction {
   key: string
@@ -25,6 +25,14 @@ const emit = defineEmits<{ action: [key: string] }>()
 const shown = computed(() => props.actions.filter((action) => action.visible !== false))
 const inline = computed(() => shown.value.slice(0, props.max))
 const overflow = computed(() => shown.value.slice(props.max))
+const moreActions = computed<MoreAction[]>(() =>
+  overflow.value.map((action) => ({
+    key: action.key,
+    label: action.label,
+    disabled: action.disabled,
+    tone: action.form === 'DGsm' ? 'danger' : 'default',
+  })),
+)
 
 function formAttrs(form: RowAction['form']): Record<string, string | boolean> {
   if (form === 'DLsm') return { link: true, size: 'small' }
@@ -43,23 +51,11 @@ function formAttrs(form: RowAction['form']): Record<string, string | boolean> {
       :loading="action.loading"
       @click="emit('action', action.key)"
     >{{ action.label }}</el-button>
-    <MoreDropdown v-if="overflow.length" trigger="click" :teleported="false">
+    <MoreDropdown v-if="moreActions.length" :actions="moreActions" @command="emit('action', $event)">
       <template #trigger>
         <el-button link size="small" class="row-actions__more">
           更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
         </el-button>
-      </template>
-      <template #dropdown>
-        <el-dropdown-menu>
-          <el-dropdown-item v-for="action in overflow" :key="action.key" :disabled="action.disabled">
-            <el-button
-              link
-              size="small"
-              :type="action.form === 'DGsm' ? 'danger' : action.form === 'PLsm' ? 'primary' : undefined"
-              @click.stop="emit('action', action.key)"
-            >{{ action.label }}</el-button>
-          </el-dropdown-item>
-        </el-dropdown-menu>
       </template>
     </MoreDropdown>
   </div>

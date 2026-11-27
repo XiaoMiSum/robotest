@@ -9,6 +9,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  document.querySelectorAll('.el-popper').forEach((el) => el.remove())
   vi.useRealTimers()
 })
 
@@ -33,7 +34,10 @@ describe('RowActions', () => {
     await wrapper.get('.row-actions__more').trigger('click')
     vi.runAllTimers()
     await nextTick()
-    const texts = wrapper.findAll('.el-dropdown-menu button').map((button) => button.text())
+    const texts = Array.from(
+      document.body.querySelectorAll('.el-dropdown-menu__item'),
+      (item) => item.textContent?.trim(),
+    )
     expect(texts).toContain('恢复')
     expect(texts).toContain('删除')
   })

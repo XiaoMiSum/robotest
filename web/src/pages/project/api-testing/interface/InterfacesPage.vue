@@ -14,7 +14,7 @@ import {
   updateInterfaceStatus,
 } from '@/services/project/api-testing/interface'
 import { useApiTestingUiStore } from '@/stores/apiTestingUi'
-import MoreDropdown from '@/components/common/MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from '@/components/common/MoreDropdown.vue'
 import { formatDateTime } from '@/utils/format'
 import {
   buildInterfaceListQuery,
@@ -43,6 +43,11 @@ const INTERFACE_COLUMNS: TableColumnMeta[] = [
   { key: 'updatedAt', label: '更新时间' },
   { key: 'actions', label: '操作', pinned: true },
 ]
+const INTERFACE_MORE_ACTIONS: MoreAction[] = [
+  { key: 'copy', label: '复制' },
+  { key: 'delete', label: '删除', tone: 'danger', divided: true },
+]
+
 const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
   pageKey: 'interface-list',
   columns: INTERFACE_COLUMNS,
@@ -399,15 +404,13 @@ defineExpose({ openCreate, openImport })
               <template #default="{ row }">
                 <el-button link size="small" type="primary" :data-test="'interface-debug-' + row.id" @click="debugFromRow(row as ApiInterfaceItem)">调试</el-button>
                 <el-button link size="small" @click="openEditor(row as Pick<ApiInterfaceItem, 'id'>)">编辑</el-button>
-                <MoreDropdown trigger="click" class="interfaces-page__more" @command="(cmd: string) => cmd === 'copy' ? handleCopy(row as ApiInterfaceItem) : handleDelete(row as ApiInterfaceItem)">
+                <MoreDropdown
+                  class="interfaces-page__more"
+                  :actions="INTERFACE_MORE_ACTIONS"
+                  @command="(cmd: string) => cmd === 'copy' ? handleCopy(row as ApiInterfaceItem) : handleDelete(row as ApiInterfaceItem)"
+                >
                   <template #trigger>
                     <el-button link size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-                  </template>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="copy">复制</el-dropdown-item>
-                      <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                    </el-dropdown-menu>
                   </template>
                 </MoreDropdown>
               </template>

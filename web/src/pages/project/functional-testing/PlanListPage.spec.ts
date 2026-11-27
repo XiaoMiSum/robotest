@@ -94,6 +94,20 @@ function button(wrapper: ReturnType<typeof mount>, text: string) {
   if (!found) throw new Error(`找不到按钮 ${text}`)
   return found
 }
+async function openMore(wrapper: ReturnType<typeof mount>, index = 0) {
+  const triggers = wrapper.findAll('.row-actions__more')
+  const trigger = triggers[index]
+  if (!trigger) throw new Error(`找不到第 ${index + 1} 个更多按钮`)
+  await trigger.trigger('click')
+  await flushPromises()
+}
+function menuItem(text: string) {
+  const found = Array.from(document.querySelectorAll('.el-dropdown-menu__item')).find(
+    (item) => item.textContent?.trim() === text,
+  )
+  if (!found) throw new Error(`找不到菜单项 ${text}`)
+  return found as HTMLElement
+}
 async function page(wrapper: ReturnType<typeof mount>, pageNo: number) {
   const pager = wrapper.getComponent(ListPagination)
   pager.vm.$emit('update:page-no', pageNo)
@@ -119,6 +133,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
+  document.querySelectorAll('.el-popper').forEach((el) => el.remove())
 })
 
 describe('计划列表样板', () => {
@@ -222,7 +237,12 @@ describe('计划列表样板', () => {
     const labels = wrapper.findAll('.plan-table button').map((item) => item.text())
     expect(labels.includes('完成')).toBe(complete)
     expect(labels.includes('恢复')).toBe(resume)
-    expect(labels).toContain('删除')
+    if (!labels.includes('删除')) {
+      await openMore(wrapper)
+      expect(
+        Array.from(document.querySelectorAll('.el-dropdown-menu__item'), (item) => item.textContent?.trim()),
+      ).toContain('删除')
+    }
   })
 
   it('完成、恢复和删除经确认后调用正确服务并刷新，取消不提交', async () => {
@@ -241,10 +261,12 @@ describe('计划列表样板', () => {
     await flushPromises()
     expect(mocks.resume).toHaveBeenCalledWith('p2')
     mocks.confirm.mockRejectedValueOnce('cancel')
-    await button(wrapper, '删除').trigger('click')
+    await openMore(wrapper)
+    menuItem('删除').click()
     await flushPromises()
     expect(mocks.delete).not.toHaveBeenCalled()
-    await button(wrapper, '删除').trigger('click')
+    await openMore(wrapper)
+    menuItem('删除').click()
     await flushPromises()
     expect(mocks.delete).toHaveBeenCalledWith('p1')
     expect(mocks.fetch).toHaveBeenCalledTimes(4)

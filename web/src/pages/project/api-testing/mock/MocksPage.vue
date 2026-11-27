@@ -18,7 +18,7 @@ import MockAddressDialog from './MockAddressDialog.vue'
 import BatchActionBar from '@/components/common/BatchActionBar.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import ListWorkspace from '@/components/common/ListWorkspace.vue'
-import MoreDropdown from '@/components/common/MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from '@/components/common/MoreDropdown.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
@@ -36,6 +36,11 @@ const MOCK_COLUMNS: TableColumnMeta[] = [
   { key: 'lastHit', label: '最后命中' },
   { key: 'actions', label: '操作', pinned: true },
 ]
+const MOCK_MORE_ACTIONS: MoreAction[] = [
+  { key: 'reset-hit', label: '重置命中' },
+  { key: 'delete', label: '删除', tone: 'danger', divided: true },
+]
+
 const { visibleKeys, setVisible, selectAll, reset } = useTableColumns({
   pageKey: 'mock-list',
   columns: MOCK_COLUMNS,
@@ -210,6 +215,12 @@ async function handleResetHit(row: ApiMockItem) {
   ElMessage.success('已重置')
 }
 
+function handleMoreCommand(command: string, row: unknown): void {
+  const target = row as ApiMockItem
+  if (command === 'reset-hit') void handleResetHit(target)
+  if (command === 'delete') void handleDelete(target)
+}
+
 async function handleShowAddress(row: ApiMockItem) {
   const addr = await fetchMockAddress(row.id)
   addressData.value = { mockUrl: addr.mockUrl, method: addr.method, name: row.name, headers: addr.headers }
@@ -362,15 +373,13 @@ function formatHitTime(val: string | null): string {
             <el-button link type="primary" size="small" @click="openDebug((row as ApiMockItem).id)">调试</el-button>
             <el-button link type="primary" size="small" @click="handleShowAddress(row as ApiMockItem)">地址</el-button>
             <el-button link type="primary" size="small" @click="handleDuplicate(row as ApiMockItem)">复制</el-button>
-            <MoreDropdown trigger="click" class="mocks-page__more">
+            <MoreDropdown
+              class="mocks-page__more"
+              :actions="MOCK_MORE_ACTIONS"
+              @command="(command: string) => handleMoreCommand(command, row)"
+            >
               <template #trigger>
                 <el-button link type="primary" size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-              </template>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleResetHit(row as ApiMockItem)">重置命中</el-dropdown-item>
-                  <el-dropdown-item divided @click="handleDelete(row as ApiMockItem)">删除</el-dropdown-item>
-                </el-dropdown-menu>
               </template>
             </MoreDropdown>
           </template>

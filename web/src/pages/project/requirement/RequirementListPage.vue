@@ -12,7 +12,7 @@ import ListPagination from '@/components/common/ListPagination.vue'
 import ListTitleLink from '@/components/common/ListTitleLink.vue'
 import ListLoadFeedback from '@/components/common/ListLoadFeedback.vue'
 import TableColumnSetting from '@/components/common/TableColumnSetting.vue'
-import MoreDropdown from '@/components/common/MoreDropdown.vue'
+import MoreDropdown, { type MoreAction } from '@/components/common/MoreDropdown.vue'
 import { useTableColumns, type TableColumnMeta } from '@/composables/common/useTableColumns'
 import { useRequirementList } from '@/composables/project/requirement/useRequirementList'
 
@@ -102,6 +102,19 @@ function handleRowCommand(command: string, row: unknown): void {
 /** el-table 插槽行是宽松类型，此处收窄为行视图模型（no-unsafe 后端未知键本就不读取） */
 function asRow(row: unknown): RequirementRow {
   return row as RequirementRow
+}
+
+function moreActionsOf(row: unknown): MoreAction[] {
+  const target = asRow(row)
+  const actions: MoreAction[] = []
+  if (canEdit.value) actions.push({ key: 'edit', label: '编辑' })
+  if (canConfirm.value && target.status !== 'archived') {
+    actions.push({ key: 'archive', label: '归档', tone: 'warning' })
+  }
+  if (canEdit.value && target.status === 'archived') {
+    actions.push({ key: 'unarchive', label: '取消归档' })
+  }
+  return actions
 }
 
 // ==================== 新建入口 ====================
@@ -302,26 +315,13 @@ function openCreate(): void {
               @click="handleConfirm(asRow(row))"
             >确认</el-button>
             <MoreDropdown
-              v-if="canEdit || (canConfirm && row.status !== 'archived')"
-              trigger="click"
+              v-if="moreActionsOf(row).length"
               class="requirement-list__more"
+              :actions="moreActionsOf(row)"
               @command="(command: string) => handleRowCommand(command, row)"
             >
               <template #trigger>
                 <el-button link type="primary" size="small">更多<el-icon><ArrowDown /></el-icon></el-button>
-              </template>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="canEdit" command="edit">编辑</el-dropdown-item>
-                  <el-dropdown-item
-                    v-if="canConfirm && row.status !== 'archived'"
-                    command="archive"
-                    style="color: var(--el-color-warning)"
-                  >归档</el-dropdown-item>
-                  <el-dropdown-item v-if="canEdit && row.status === 'archived'" command="unarchive">
-                    取消归档
-                  </el-dropdown-item>
-                </el-dropdown-menu>
               </template>
             </MoreDropdown>
           </template>
