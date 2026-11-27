@@ -1,7 +1,7 @@
 # 软件测试平台——项目工作区详细设计说明书总览
 
 **文档版本**：V1.0
-**日期**：2026-09-23
+**日期**：2026-11-27
 **状态**：已发布
 
 ---
@@ -84,37 +84,37 @@
 
 | 字段                 | 类型                           | 约束                                      | 说明      |
 | ------------------ | ---------------------------- | --------------------------------------- | ------- |
-| id                 | binary(16)                  | PK                                     | 快照模块ID  |
-| plan_id            | binary(16)                  | NOT NULL                               | 关联计划    |
-| original_module_id | binary(16)                  | NULL                                   | 原始模块ID  |
-| parent_id          | binary(16)                  | NULL                                   | 父快照模块ID |
+| id                 | uuid                         | PK                                     | 快照模块ID  |
+| plan_id            | uuid                         | NOT NULL                               | 关联计划    |
+| original_module_id | uuid                         | NULL                                   | 原始模块ID  |
+| parent_id          | uuid                         | NULL                                   | 父快照模块ID |
 | name               | varchar(100)                 | NOT NULL                                | 名称      |
-| type               | enum('directory','document') | NOT NULL                                | 类型      |
+| type               | varchar(20)                  | NOT NULL                                | 类型（`directory` / `document`） |
 | sort_order         | int                          | NOT NULL, DEFAULT 0                     | 排序      |
-| is_deleted         | tinyint(1)                   | NOT NULL, DEFAULT 0                     | 是否已删除   |
-| created_at         | datetime                     | NOT NULL, DEFAULT CURRENT_TIMESTAMP     | 创建时间    |
-| updated_at         | datetime                     | NOT NULL, ON UPDATE CURRENT_TIMESTAMP   | 更新时间    |
+| is_deleted         | boolean                      | NOT NULL, DEFAULT FALSE                 | 是否已删除   |
+| created_at         | timestamp                    | NOT NULL, DEFAULT CURRENT_TIMESTAMP     | 创建时间    |
+| updated_at         | timestamp                    | NOT NULL, DEFAULT CURRENT_TIMESTAMP     | 更新时间    |
 
 #### 2.1.6 计划节点快照表（ft_plan_node_snapshot）
 
 | 字段                   | 类型                                                     | 约束                                    | 说明          |
 | -------------------- | ------------------------------------------------------ | ------------------------------------- | ----------- |
-| id                   | binary(16)                                             | PK                                     | 快照节点ID      |
-| plan_id              | binary(16)                                             | NOT NULL                               | 关联计划        |
-| original_node_id     | binary(16)                                             | NULL                                   | 原始节点ID      |
-| document_snapshot_id | binary(16)                                             | NOT NULL                               | 所属文档快照模块    |
-| parent_id            | binary(16)                                             | NULL                                   | 父快照节点ID     |
+| id                   | uuid                                                   | PK                                     | 快照节点ID      |
+| plan_id              | uuid                                                   | NOT NULL                               | 关联计划        |
+| original_node_id     | uuid                                                   | NULL                                   | 原始节点ID      |
+| document_snapshot_id | uuid                                                   | NOT NULL                               | 所属文档快照模块    |
+| parent_id            | uuid                                                   | NULL                                   | 父快照节点ID     |
 | title                | varchar(200)                                           | NOT NULL                              | 标题          |
-| type                 | enum('case','normal','precondition','step','expected') | NOT NULL                              | 类型          |
+| type                 | varchar(20)                                            | NOT NULL                              | 类型（`case` / `normal` / `precondition` / `step` / `expected`，AI 执行按此提取结构化数据，见 `09-ai-ui-testing.md`） |
 | priority             | varchar(2)                                             | NULL                                  | 优先级编码（完整拷贝） |
-| is_associated        | tinyint(1)                                             | NOT NULL, DEFAULT 0                   | 是否为关联节点     |
-| is_deleted           | tinyint(1)                                             | NOT NULL, DEFAULT 0                   | 是否已删除       |
-| last_result          | enum('pass','fail','block','untested','skipped')       | DEFAULT 'untested'                    | 最后执行结果（`skipped` 仅 AI 执行可写，见 `09-ai-ui-testing.md`） |
-| last_executor_id     | binary(16)                                             | NULL                                   | 最后执行人       |
-| last_executed_at     | datetime                                               | NULL                                  | 最后执行时间      |
+| is_associated        | boolean                                                | NOT NULL, DEFAULT FALSE                | 是否为关联节点     |
+| is_deleted           | boolean                                                | NOT NULL, DEFAULT FALSE                | 是否已删除       |
+| last_result          | varchar(20)                                            | DEFAULT 'untested'                    | 最后执行结果（`pass` / `fail` / `block` / `untested` / `skipped`；`skipped` 仅 AI 执行可写） |
+| last_executor_id     | uuid                                                   | NULL                                   | 最后执行人       |
+| last_executed_at     | timestamp                                              | NULL                                  | 最后执行时间      |
 | sort_order           | int                                                    | NOT NULL, DEFAULT 0                   | 排序          |
-| created_at           | datetime                                               | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 创建时间        |
-| updated_at           | datetime                                               | NOT NULL, ON UPDATE CURRENT_TIMESTAMP | 更新时间        |
+| created_at           | timestamp                                              | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 创建时间        |
+| updated_at           | timestamp                                              | NOT NULL, DEFAULT CURRENT_TIMESTAMP   | 更新时间        |
 
 #### 2.1.7 计划执行记录表（ft_plan_execution_record）
 
@@ -124,7 +124,7 @@
 | plan_id          | binary(16)                                             | NOT NULL                               | 计划ID   |
 | snapshot_node_id | binary(16)                                             | NOT NULL                               | 快照节点ID |
 | executor_id      | binary(16)                                             | NOT NULL                               | 执行人    |
-| result           | enum('pass','fail','block','untested','skipped')       | NOT NULL                              | 执行结果（`skipped` 仅 AI 执行可写，见 `09-ai-ui-testing.md` 3.9） |
+| result           | varchar(20)                                            | NOT NULL                              | 执行结果（`pass` / `fail` / `block` / `untested` / `skipped`；`skipped` 仅 AI 执行可写，见 `09-ai-ui-testing.md` 3.9） |
 | source           | varchar(10)                                            | NOT NULL, DEFAULT 'manual'            | 结果来源（manual/ai） |
 | note             | text                                                   | NULL                                   | 备注     |
 | executed_at      | datetime                                               | NOT NULL, DEFAULT CURRENT_TIMESTAMP    | 执行时间   |
@@ -296,7 +296,7 @@
 
 #### 2.1.15 AI 执行与功能测试环境表
 
-功能测试环境、项目级默认预置动作与 AI 执行动作轨迹三张表（`ft_environment`、`ft_preset_actions`、`ui_action_log`）为 AI 执行功能新增，DDL、索引与生命周期统一定义于 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 2.1，此处不重复描述。
+功能测试环境、项目级默认预置动作、AI 执行动作轨迹与执行端实例注册表四张表（`ft_environment`、`ft_preset_actions`、`ui_action_log`、`ai_runner_instance`）为 AI 执行功能新增，DDL、索引与生命周期统一定义于 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 2.1 / 2.3，此处不重复描述。
 
 ---
 
@@ -482,4 +482,5 @@ AI 执行与功能测试环境管理错误码（1000011031–1000011060 号段�
 | V1.0 | 2026-11-18 | 移除重规划状态机制对应的错误码 1000011028 |
 | V1.0 | 2026-11-20 | 2.1.2 `ft_case_node` 字段清单补 `requirement_id` 及对应索引（用例关联需求改为节点字段存储） |
 | V1.0 | 2026-11-25 | 2.1 执行环境与结果口径（环境存 `ft_environment.id`、结果新增 `skipped` 与 `source`）、2.1.15 新表指针、2.4 免 RBAC 覆盖环境与 AI 执行、2.5.1/2.6 测试环境子模块、3 错误码号段指针、分册-章节对照表 |
+| V1.0 | 2026-11-27 | 2.1.5 / 2.1.6 快照表字段类型对齐 PostgreSQL（uuid / boolean / timestamp / varchar），明确节点 type 为结构化冻结类型；2.1.7 结果列改 varchar(20)；2.1.15 补 `ai_runner_instance` 指针 |
 | V1.0 | 2026-11-26 | 2.5 总体布局顶栏入口移除消息中心 |

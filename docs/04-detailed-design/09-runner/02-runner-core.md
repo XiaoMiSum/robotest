@@ -1,7 +1,7 @@
 # 软件测试平台——Runner 核心与通道协议
 
 **文档版本**：V1.0  
-**日期**：2026-10-14  
+**日期**：2026-11-27  
 **状态**：起草中
 
 ---
@@ -15,7 +15,8 @@
 ### 1.2 范围与对应设计
 
 - 对应概设 `docs/02-high-level-design/03-function-testing/03-hld-ai-ui-testing.md` 第 2.1（总体架构与两条通道）、4.4（观察采集）、4.5（动作原语）、4.7（三层重试与执行 JS 护栏）、4.8（会话与凭据）、4.9（预置动作）节。
-- 职责切分：**决策、判定、预算计数、落库全部在服务端**（服务侧分册）；本文只覆盖 Runner 侧的执行、观察、上报与本地护栏。Runner 不决策、不判定、不持有模型凭据、不持有长期密钥。
+- 职责切分：**决策、判定、预算计数、落库全部在服务端**（服务侧分册）；本文只覆盖 Runner 侧的执行、观察、上报与本地护栏。Runner 不决策、不判定、不持有模型凭据与业务长期密钥。
+- **密钥边界**：Runner 仅持有「实例注册凭据」——`desktop-hosted` 为短时一次性 `ownerToken`，`cli` 为部署级 `sharedKey`。两者都不是业务密钥：不授予任何业务数据访问权，仅用于证明实例身份；`sharedKey` 可 90 天轮换、可即时吊销，泄露不影响业务数据（仅需吊销并重新部署）。业务凭据（环境账号密码）不在 Runner 持久化，按用例短时授予、内存持有、即时清零（见 3.2.1、4.4）。
 - 对应需求 `docs/01-requirements/03-function-testing/03-srs-ai-ui-testing.md` 的 2.3（系统边界）、3.4（动作原语）、3.5（观察与证据）、3.8（凭据安全）。
 
 ### 1.3 定义与缩写
@@ -36,11 +37,11 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | 本地状态 | 存放 | 生命周期 |
 | ---- | ---- | ---- |
 | 会话状态 | 内存 | `session.start` 创建 → `session.end` 或断线超时销毁 |
-| 凭据映射 | 内存（明文） | `session.start` 下发后持有，**批次结束立即清零**；不落盘、不写日志、不进任何回传 |
+| 凭据映射 | 内存（明文） | 收到 `credential.grant` 后持有，**用例切换 / 批次结束 / 令牌到期立即清零**；不落盘、不写日志、不进任何回传 |
 | ref 映射表 | 内存 | 每次观察重建，stale 时失效 |
 | 执行参数 | 内存 | 由 `session.start` 载荷下发（来源为所选环境 `exec_params`），Runner 不自行读库 |
 
-**配置文件**（`runner.config`，进程级、与批次无关）仅含：服务端通道地址、Runner 注册标识、`sharedKey`（仅 `cli` 模式）、日志级别、headless 开关、本地缓存目录（截图临时文件，批次结束清理）。**不含任何业务数据、不含模型凭据。** `desktop-hosted` 模式不读本文件的凭据项，`ownerToken` 由桌面版壳在拉起时以受控通道注入（不落配置文件）。
+**配置文件**（`runner.config`，进程级、与批次无关）仅含：服务端通道地址、Runner 注册标识、`sharedKey`（仅 `cli` 模式，部署级注册密钥、非业务密钥）、日志级别、headless 开关、网络出口代理（可选）、本地缓存目录（截图临时文件，批次结束清理）。**不含任何业务数据、不含模型凭据、不含环境账号密码。** `desktop-hosted` 模式不读本文件的凭据项，`ownerToken` 由桌面版壳在拉起时以受控通道注入（不落配置文件）。
 
 ## 3. 接口详细设计（通道协议，单一事实源）
 
@@ -48,12 +49,14 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 
 - **方向**：Runner 出站连接 `wss://{server}/ws/runner`（服务端不反向寻址 Runner，此为多实例可扩展的架构前提，概设 2.1）。连接为**长连接注册态**：握手完成即注册为执行端实例，空闲时保活，被分派批次时进入会话态。
 - **握手鉴权（连接建立前）**：Runner 在 WS 握手请求经 `Authorization` 头提交凭据，服务端在建连前完成验签；Runner 为部署级非浏览器客户端，不走 Ticket、不携带工作空间 / 项目上下文，沿用平台「握手即鉴权、不得先建连后补鉴权」的不变式（见 `docs/04-detailed-design/03-realtime-websocket.md` 3.2）：
-  - `ownerToken`（桌面版登录会话签发的短时执行端注册令牌，由壳以受控通道注入）：验签通过后实例登记为**用户绑定实例**（`owner_id` = 令牌所属用户）；
-  - `sharedKey`（CLI 注册密钥，`runner.config` 配置）：校验通过后登记为**共享实例**（`owner_id = NULL`）。
+  - `ownerToken`：桌面版登录会话签发，载荷 `{ sub: 用户标识, aud: "runner", mode: "desktop-hosted", jti, iat, exp }`；**受众固定为 `runner`**（不可用于业务 API），**TTL 10 分钟**，`jti` 一次性消费（重连需壳重新签发），支持按用户 / 按会话撤销（登出即撤销未消费令牌）；验签通过后实例登记为**用户绑定实例**（`owner_id` = 令牌所属用户）；
+  - `sharedKey`：CLI 部署级注册密钥，≥256 bit 随机、`runner.config` 配置、**90 天轮换**、可即时吊销（吊销后新握手全部失败，已建连接在下一次心跳被拒并断开）；校验通过后登记为**共享实例**（`owner_id = NULL`）。共享实例建议叠加 mTLS 或网络层准入（部署选项）。
   - 服务端按凭据类型交叉校验首帧声明的 `mode`（ownerToken ↔ `desktop-hosted`、sharedKey ↔ `cli`）；不一致或验签失败直接拒绝握手，不创建连接面、不回 `error` 帧（凭据校验发生在建连前，无已建立会话可写）。
+  - **审计**：握手成功 / 失败、令牌消费、`sharedKey` 吊销均记部署级审计日志（不含令牌原文）。
 - **首帧身份声明**：握手成功后 Runner→服务端首帧仍为 `register`，载荷 `{ mode, protocolVersion, runnerId? }`（`runnerId` 仅重连复用时带），按 `runner_id` upsert 实例并回 `register.ack`；**帧内不再承载任何凭据**。
-- **批次分派**：批次开始时由**服务端**按分派规则选择在线实例（规则见服务侧分册），被选中实例收到 `session.start`（内含 `batchToken`，Runner 校验其为本批次签发即接受）；**desktop-hosted 实例只接受 `owner_id` = 本人所属用户的批次**，收到他人批次以 `error(code=OWNER_MISMATCH)` 拒收；cli 共享实例接受任意用户批次。
-- **心跳**：Runner 每 15s 发 `heartbeat`（空闲时仅 `runnerId` 与状态，会话中含当前用例/步骤/动作序号，供服务端分派判断、进度展示与失活判定）；服务端 60s 未收到心跳判定实例失活并从分派池摘除，会话中失活按任务失败落存口径处理（总册 1.5）。
+- **批次分派**：批次开始时由**服务端**按分派规则选择在线且空闲实例（规则见服务侧分册），被选中实例收到 `session.start`（内含 `batchToken`，Runner 校验其为本批次签发即接受）；**desktop-hosted 实例只接受 `owner_id` = 本人所属用户的批次**，收到他人批次以 `error(code=OWNER_MISMATCH)` 拒收；cli 共享实例接受任意用户批次，但**批次间使用隔离浏览器上下文**、不保留页面 / Cookie / 凭据 / 本地存储。
+- **租约**：`session.start` 携带 `leaseTtlSec`（默认 120s），Runner 在会话期间通过心跳续租；服务端租约到期未续租即回收实例并终止批次（V1 不自动重派）。
+- **心跳**：Runner 每 15s 发 `heartbeat`（空闲时仅 `runnerId` 与状态，会话中含当前用例/步骤/动作序号，供服务端分派判断、进度展示、租约续期与失活判定）；服务端 60s 未收到心跳判定实例失活并从分派池摘除、释放租约，会话中失活按任务失败落存口径处理（总册 1.5）。
 - **重连**：断线后 Runner 以指数退避（1s 起、上限 30s）重新发起带凭据的握手，握手成功后以原 `runnerId` 重新 `register`（会话中断时以任务失败落存口径处理，不跨连接续跑批次）。
 - **帧格式**：文本帧 JSON，`{ "type": string, "payload": object, "ts": ISO-8601 UTC }`；二进制数据（截图）不经本通道，走文件域上传后以 `screenshot_ref` 引用。
 
@@ -64,9 +67,10 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | 帧 | 载荷要点 | 说明 |
 | ---- | ---- | ---- |
 | `register.ack` | `runnerId`、`owner`（`owner_id` 或 null 摘要）、`protocolVersion` | 注册确认（首帧身份声明的回应；鉴权已在握手阶段完成） |
-| `session.start` | `batchToken`（批次签发）、`context`（冻结的用例正文 / 模块锚点 / 环境内容）、`originWhitelist`（入口 URL origin 并集）、`credentials`（账号别名 → 明文密码映射，服务端解密后下发）、`execParams`（viewport / 动作超时 / allow_evaluate）、`budgetSeq` | 批次开始；Runner 校验 `batchToken` 与归属后回 `session.ready`。**凭据明文仅存在于本帧内存处理过程，不落日志** |
+| `session.start` | `batchToken`（批次签发）、`leaseTtlSec`（租约时长）、`caseCount`（本批次用例数）、`originWhitelist`（入口 URL origin 并集）、`execParams`（viewport / 动作超时 / `allowEvaluate` / `readOnly`）、`uploadGrant`（截图上传的批次级授权：预签名地址或一次性上传令牌）、`budgetSeq` | 批次开始；**不携带用例正文**（正文只在服务端组包使用，Runner 不需要）、**不携带任何账号凭据**；Runner 校验 `batchToken` 与归属后回 `session.ready` |
+| `credential.grant` | `caseId`、`expiresAt`（≤10 分钟）、`credentials`（当前用例引用账号的 `别名 → 明文密码` 映射） | 按用例最小化授予凭据；用例切换或到期由 Runner 清零，服务端同步记授权 / 使用 / 撤销审计。**帧内容不落日志、不进异常堆栈** |
 | `initial_actions.execute` | `steps`（解析后的确定性原语序列，服务端已按当前环境解析引用与白名单）、`presetSource`（`project` / `environment`） | 预置动作直跑，不经模型 |
-| `action.execute` | `action`（16 原语枚举）、`params`（ref / 文本 / 占位符原文 / JS 源码 / 键名 / 秒数…）、`budgetSeq`（服务端预算序号，回传时原样带回供对账） | 单动作下发；一个 `action.execute` 对应一次预算计数 |
+| `action.execute` | `action`（15 执行原语枚举）、`params`（ref / 文本 / 占位符原文 / JS 源码 / 键名 / 秒数…）、`budgetSeq`（服务端预算序号，回传时原样带回供对账） | 单动作下发；一个 `action.execute` 对应一次预算计数 |
 | `observe` | `reason`（`stale` / `verify` / `manual`） | 主动请求观察（stale 重观察、验证阶段取证） |
 | `session.end` | `reason`（`done` / `cancelled` / `timeout`） | 批次结束；Runner 清凭据、关会话、回 `session.closed` |
 
@@ -76,7 +80,7 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | ---- | ---- | ---- |
 | `register` | `mode`（`desktop-hosted` / `cli`）、`protocolVersion`、`runnerId?`（重连复用） | 握手成功后的首帧身份声明，凭据不进帧载荷 |
 | `session.ready` | `resolved`（解析后的入口/账号摘要，不含密码） | 会话就绪（凭据与白名单校验通过） |
-| `initial_actions.result` | `ok`、`failedStep`（序号）、`reasonCode`、`observation` | 预置动作结果；`ok=false` → 服务端将批次置 blocked（不烧 AI 预算，概设 4.9） |
+| `initial_actions.result` | `ok`、`failedStep`（序号）、`reasonCode`、`observation` | 预置动作结果；`ok=false` → 服务端将批次置 `aborted`（`abort_meta.reason=preset_failed`，不烧 AI 预算，概设 4.9） |
 | `action.result` | `budgetSeq`、`ok`、`observation`（成功时）、`reasonCode`（失败时）、`stale`（ref 是否失效）、`screenshotRef?` | 单动作结果；失败时 `observation` 为**带原因码的失败观察**（元素表 + 语义摘要） |
 | `observe.result` | `observation`、`screenshotRef?` | 观察回传 |
 | `trajectory.hint` | `kind`（`credential_leak` 等）、`masked` | 发现疑似明文密码等需要脱敏留痕的事件（概设 4.8 脱敏兜底的 Runner 侧上报） |
@@ -92,18 +96,24 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
   "url": "https://app.example.com/orders",
   "title": "订单管理",
   "semantic": { "pageType": "list", "toasts": ["保存成功"], "dialogs": [] },
+  "tabs": [
+    { "handle": "t1", "url": "https://app.example.com/orders", "title": "订单管理", "active": true },
+    { "handle": "t2", "url": "https://app.example.com/help", "title": "帮助中心", "active": false }
+  ],
   "elements": [
     { "ref": "e1", "depth": 0, "text": "销售管理 / 订单管理", "role": "heading" },
     { "ref": "e12", "depth": 2, "text": "新建", "role": "button", "name": "新建", "interactable": true }
   ],
   "truncated": false,
-  "screenshotRef": "file://…"
+  "screenshotRef": "ai-ui/2026/11/27/xxxx.png"
 }
 ```
 
 - `elements` 为**按帧合并、iframe 拼接**后的扁平有序数组（`depth` 表达层级缩进），跨域 frame 内元素直接带 `ref` 混入，服务端与模型无感知（概设 4.4）。
+- `tabs` 为当前浏览器上下文的全部标签页（`handle` 为会话内稳定句柄），AI 以 `handle` 切换 / 关闭标签，不使用序号猜测。
+- **敏感值**：密码类字段的 `value` 一律不进入 `elements`、截图文本与轨迹；其余输入值按字段类型脱敏后提供（概设 4.4）。
 - `truncated=true` 时服务端组包必须注入截断提示。
-- `screenshotRef` 为文件域引用，帧内不传二进制。
+- `screenshotRef` 为文件域对象 key（非 URL、非 `file://`），帧内不传二进制；上传须携带 `session.start` 下发的 `uploadGrant` 授权，服务端校验授权与批次归属后落库。
 
 #### 3.2.4 失败原因码枚举（单一事实源）
 
@@ -114,22 +124,23 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | `no_response` | 点击后无预期变化 | 重试或换路 |
 | `not_found` | ref 对应元素已不存在 | 重观察 |
 | `timeout` | 动作超时 | 重试或止损 |
-| `evaluate_error` | JS 执行报错 | 换路或判 blocked |
-| `whitelist_violation` | 导航目标不在 origin 白名单 | 拒收，服务端按越界处理 |
+| `evaluate_error` | JS 执行报错 | 换路或判阻塞 |
+| `whitelist_violation` | 导航目标不在 origin 白名单 | 阻断并结束会话，服务端按越界处理 |
 | `allowlist_violation` | 原语不在白名单 | 拒收（协议级防御） |
 | `allow_evaluate_disabled` | 环境开关关闭仍下发 evaluate | 拒收 |
+| `readonly_violation` | 只读模式下识别到破坏性动作 | 阻断并结束会话，服务端判阻塞 |
 | `budget_seq_mismatch` | 预算序号对账失败 | 服务端以本地预算为准并记录异常 |
 
 > 原因码表只在此登记；服务端的重试、换路、止损决策逻辑见服务侧分册，Runner 不做任何决策。
 
 ## 4. 业务逻辑设计
 
-### 4.1 动作执行语义（16 原语）
+### 4.1 动作执行语义（15 个执行原语）
 
 | 原语 | Runner 执行语义 | 本地护栏（双侧校验中的 Runner 侧） |
 | ---- | ---- | ---- |
-| `navigate` | 打开 URL | 目标 origin 必须在 `originWhitelist`，否则 `whitelist_violation` |
-| `back` / `switch_tab` / `close_tab` | 浏览器历史 / 标签切换与关闭 | 标签数为 1 时 `close_tab` 回失败（不崩会话） |
+| `navigate` | 打开 URL | 目标 origin 必须在 `originWhitelist`，否则 `whitelist_violation` 并结束会话 |
+| `back` / `switch_tab` / `close_tab` | 浏览器历史 / 标签切换与关闭 | 标签数为 1 时 `close_tab` 回失败（不崩会话）；`switch_tab` 以 `handle` 定位 |
 | `click` | 按 ref 点击（先机械等待可点） | ref stale → `not_found` |
 | `fill` | 按 ref 填充；**参数中密码位置为占位符，Runner 用内存凭据映射本地替换后注入**，回传与留痕均为占位符原文 | 替换后明文不回传、不落日志 |
 | `press` | 按键（Enter/Tab/Esc…） | 键名白名单 |
@@ -139,8 +150,8 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | `wait` | 等待 ≤10s（服务端已校验，Runner 二次校验） | >10s 拒收 |
 | `screenshot` | 截图上传文件域，回 `screenshotRef` | — |
 | `dialog` | accept / dismiss 原生弹窗 | 无弹窗时回 `no_response` |
-| `evaluate` | 主 frame 执行 JS，结果序列化截断（≤64KB）回传 | **四道本地校验**：`allow_evaluate` 开关 → origin 白名单 → 源码逐字进轨迹回传（不可关闭）→ 仅接受服务端下发（Runner 无任何人机输入入口） |
-| `done` | **不存在于 Runner**——`done` 由服务端消费模型输出后转为 `session.end`，Runner 侧不实现该原语 | 协议清单中 16 原语对 Runner 而言为 15 执行 + 1 服务端语义，见下方说明 |
+| `evaluate` | 主 frame 执行 JS，结果序列化截断（≤64KB）回传 | **四道本地校验**：`allowEvaluate` 开关（**默认关闭，环境级显式开启**）→ origin 白名单 → 源码逐字进轨迹回传（不可关闭）→ 仅接受服务端下发（Runner 无任何人机输入入口）；开关关闭时拒收并回 `allow_evaluate_disabled` |
+| `done` | **不存在于 Runner**——`done` 由服务端消费模型输出后转为 `session.end`，Runner 侧不实现该原语 | 概设清单共 16 项，对 Runner 而言为 15 执行 + 1 服务端语义，见下方说明 |
 
 > **`done` 口径**：概设 4.5 的第 16 原语「提交判定」是**模型与服务端之间的控制原语**（循环出口），不产生下发帧；通道协议的 `action.execute.action` 枚举因此为 15 个执行原语。该拆分不改变动作白名单语义——白名单校验发生在服务端组包前，Runner 二次校验的是其可执行的 15 个。
 
@@ -152,36 +163,45 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 
 ### 4.3 观察采集流水线
 
-1. **采集**：CDP 直采 DOM 快照 + 无障碍树 + JS 求值结果；逐 frame 采集后按 frame 树序合并，跨域 frame 同样纳入（iframe 拼接，概设 4.4）。
-2. **裁剪**：剔除 `script`/`style`/`hidden`；**遮挡过滤**（被上层完全遮挡、点不到的元素不进快照）；属性白名单仅保留可访问名 / role / placeholder / value 等少量字段，不做全量属性 dump。
+1. **采集**：CDP 直采 DOM 快照 + 无障碍树 + JS 求值结果；逐 frame 采集后按 frame 树序合并，跨域 frame 同样纳入（iframe 拼接，概设 4.4）；同时采集标签页列表（`handle` / `url` / `title` / `active`）。
+2. **裁剪**：剔除 `script`/`style`/`hidden`；**遮挡过滤**（被上层完全遮挡、点不到的元素不进快照）；属性白名单仅保留可访问名 / role / placeholder / value 等少量字段，不做全量属性 dump；**密码类字段的 `value` 一律剔除**，其余输入值按字段类型脱敏。
 3. **语义摘要**：标题、URL、页面类型、toast、原生/自定义弹窗——Runner 侧规则提取（不走模型）。
 4. **ref 分配**：交互元素分配临时引用 `eN`；**页面未变 ref 保持有效，真实 DOM 变化（子树增删改）即整体重建映射并标 stale**，服务端收到 `stale=true` 后组织重观察。
 5. **截断**：元素数 >1000 或体积 >128KB 时按可见区域截断，`truncated=true`，截断规则文本由服务端注入提示词。
-6. **截图**：验证阶段由 `observe(reason=verify)` 触发，另支持 `grounded` 模式（ref 画框标注后上传）；截图走文件域上传通道。
+6. **截图**：验证阶段由 `observe(reason=verify)` 触发，另支持 `grounded` 模式（ref 画框标注后上传）；截图按 1280px 长边、300KB 上限压缩后经文件域上传，携带 `uploadGrant` 授权，回传对象 key。
 
-> 定位纪律：AI 决策只用 ref，Runner 执行也只接受 ref（预置动作通道除外，见 4.5）；**不提供 CSS / 文本语义定位兜底**（概设 4.4）。
+> 定位纪律：AI 决策只用 ref，Runner 执行也只接受 ref（预置动作通道除外，见 4.6）；**不提供 CSS / 文本语义定位兜底**（概设 4.4）。
 
-### 4.4 会话与登录
+### 4.4 导航与网络出口拦截（全帧）
 
-* 批次内复用同一浏览器上下文（真实连续会话，概设 4.8）；`session.start` 创建、`session.end` 销毁并清凭据。
-* 登录两类路径：**预置动作固化执行**（4.5）或 **AI 自主决策**（经 `action.execute` 下发 navigate/fill/click）；Runner 对两者一视同仁，仅凭据替换逻辑相同。
-* 换账号由用例前置条件触发（服务端决策后可能下发新的 `fill` 凭据或重建会话帧——**会话不换、账号换登录**，换账号动作即一次普通登录流程）。
+* **全帧导航拦截**：Runner 监听主 frame 与所有子 frame 的导航事件（含 `frameNavigated`、`requestWillBeSent` 的 document 类型、表单提交、`window.open` 新标签），目标 origin 不在 `originWhitelist` 即阻断并结束会话（`whitelist_violation`），不限于 `navigate` 动作。
+* **新标签 / 弹窗**：`window.open` 与 `target=_blank` 产生的新标签页先做 origin 校验，越界即关闭并阻断；合规新标签进入 `tabs` 列表供 AI 通过 `handle` 切换。
+* **下载拦截**：所有下载请求一律拦截（V1 不支持文件下载，依赖下载的用例按阻塞处理），不写本地磁盘。
+* **网络出口 allowlist**：浏览器上下文配置出口代理，按 `originWhitelist` 做域名级放行；白名单外请求直接失败（`net::ERR_BLOCKED_BY_CLIENT` 语义），避免被测页面外联任意地址。共享实例的网络出口由部署方统一配置。
 
-### 4.5 预置动作执行（确定性通道）
+### 4.5 会话与登录
 
-* `initial_actions.execute` 的 `steps` 由**服务端**完成两级继承解析（环境级 → 项目级，概设 4.9）与引用解析（entryName → 当前环境 URL、accountAlias → 当前环境凭据）后下发，Runner 收到的是**已解析、已过白名单校验**的确定性序列。
+* 批次内复用同一浏览器上下文（真实连续会话，概设 4.8）；`session.start` 创建、`session.end` 销毁并清凭据；**批次间使用隔离上下文**，不保留页面、Cookie、本地存储与凭据。
+* 登录两类路径：**预置动作固化执行**（4.6）或 **AI 自主决策**（经 `action.execute` 下发 navigate/fill/click）；Runner 对两者一视同仁，仅凭据替换逻辑相同。
+* 换账号由用例前置条件触发：服务端下发新的 `credential.grant`（仅该用例引用的账号），Runner 用新映射替换内存凭据并清零旧映射；**会话不换、账号换登录**，换账号动作即一次普通登录流程。
+
+### 4.6 预置动作执行（确定性通道）
+
+* `initial_actions.execute` 的 `steps` 由**服务端**完成三态解析（环境 `override` → 本环境序列；`disabled` → 不下发；`inherit` → 项目级序列，概设 4.9）与引用解析（entryName → 当前环境 URL、accountAlias → 当前环境凭据）后下发，Runner 收到的是**已解析、已过白名单校验**的确定性序列。
 * Runner 直跑、不经模型、**不接受 evaluate**（下发含 evaluate 即以 `allowlist_violation` 拒收）；允许 `ref_hint` 定位（与 AI 决策通道的 ref 纪律不冲突，概设 4.9）。
-* 定位解析顺序（`ref_hint`）：可见文本精确匹配 → placeholder 匹配 → 简易选择器（限定 `data-testid` / `name` / `id` 属性）；多命中或零命中 → `failedStep` + `not_found`，服务端将批次置 blocked 并写明第几步。
+* 定位解析顺序（`ref_hint`）：可见文本精确匹配 → placeholder 匹配 → 简易选择器（限定 `data-testid` / `name` / `id` 属性）；多命中或零命中 → `failedStep` + `not_found`，服务端将批次置 `aborted`（`abort_meta.reason=preset_failed`）并写明第几步。
 * 该通道的每次执行也逐帧回传 `initial_actions.result`（成功步的观察摘要进轨迹留痕，`kind=action`、阶段为 `precondition`）。
 
-### 4.6 护栏汇总（Runner 侧落地）
+### 4.7 护栏汇总（Runner 侧落地）
 
 | 护栏 | 落地 |
 | ---- | ---- |
-| origin 白名单 | `navigate` 与 `evaluate` 双处校验（`session.start` 载荷即白名单） |
-| 动作 allowlist | `action.execute` 枚举校验，清单外拒收 |
-| 凭据占位符 | 明文只进内存替换、不回传不落日志；`trajectory.hint(credential_leak)` 兜底上报 |
-| 执行 JS | 开关校验 + 逐字回传 + 纪律（服务端提示词承担，Runner 侧只保证可审计） |
+| origin 白名单 | `navigate`、`evaluate` 与**全帧导航 / 新标签 / 表单提交 / 下载**统一校验（`session.start` 载荷即白名单，见 4.4） |
+| 网络出口 | 出口代理按 `originWhitelist` 域名级放行，白名单外请求直接失败（见 4.4） |
+| 动作 allowlist | `action.execute` 枚举校验（15 执行原语），清单外拒收 |
+| 凭据最小化 | 按用例 `credential.grant` 授予、内存持有、用例切换 / 到期 / 批次结束清零；明文只进内存替换、不回传不落日志；`trajectory.hint(credential_leak)` 兜底上报 |
+| 执行 JS | `allowEvaluate` 默认关闭、环境级显式开启；开关校验 + 逐字回传 + 纪律（服务端提示词承担，Runner 侧只保证可审计） |
+| 截图上传 | 须携带 `uploadGrant` 授权，服务端校验授权与批次归属后落库 |
 | 资源 | 浏览器进程崩溃 / OOM → `error(code=BROWSER_CRASHED)`；截图临时文件批次结束清理；单批次时长与内存上限由服务端 `session.end` 强制 |
 
 ## 5. 前端设计（裁剪与 CLI 壳）
@@ -224,8 +244,11 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | 帧与字段 | 3.2 | 服务侧分册「通道服务」章节 |
 | 失败原因码 | 3.2.4 | 服务侧分册决策重试逻辑 |
 | 观察结构 | 3.2.3 | 服务侧组包与轨迹落库 |
-| 凭据明文下发 | 3.2.1 `session.start` | 服务侧分册凭据解密与下发、日志脱敏 |
-| 预置动作解析 | 4.5 | 服务侧两级继承与引用解析 |
+| 凭据按用例下发 | 3.2.1 `credential.grant` | 服务侧分册凭据最小化授予与审计、日志脱敏 |
+| 租约与续期 | 3.1、3.2.1 `session.start` | 服务侧分册实例容量与租约回收 |
+| 全帧导航 / 出口拦截 | 4.4 | 服务侧分册导航越界处理 |
+| 截图上传授权 | 3.2.3、4.7 | 服务侧分册文件域上传校验 |
+| 预置动作解析 | 4.6 | 服务侧三态解析与引用解析 |
 
 ## 修改记录
 
@@ -236,3 +259,4 @@ Runner **不使用数据库**（无 DB 实体，此为裁剪说明）；仅持�
 | V1.0 | 2026-10-14 | 托管实例下线触发明确为登出 / 关闭桌面版（主动退出）与超时未连接（心跳清扫）两类（5） |
 | V1.0 | 2026-11-25 | 同步当前分支文档口径（双平面架构、提案 / 待采纳术语），执行端通道协议与职责边界不变 |
 | V1.0 | 2026-11-26 | 凭据鉴权前移 WS 握手阶段（`Authorization` 头），`register` 首帧退化为身份声明、不再承载 ownerToken / sharedKey；重连重新握手并复用 `runnerId` |
+| V1.0 | 2026-11-27 | 收敛安全与通道口径：`ownerToken` 补受众 / TTL / 一次性消费 / 撤销，`sharedKey` 明确为部署级注册密钥（可轮换可吊销）并消除“不持有长期密钥”歧义；`session.start` 移除用例正文与凭据、新增 `credential.grant` 按用例最小化授予；观察补 `tabs[]` 与密码值剔除、`screenshotRef` 统一为对象 key 并补上传授权；新增全帧导航 / 新标签 / 下载拦截与网络出口 allowlist（4.4）；`evaluate` 改为默认关闭、环境级显式开启；补租约与续期、只读模式原因码；预置动作改三态解析、失败口径改 `aborted` |

@@ -1,7 +1,7 @@
 # 软件测试平台——项目仓库框架与技术架构设计
 
 **文档版本**：V1.1
-**日期**：2026-09-24
+**日期**：2026-11-27
 **状态**：已发布
 
 ---
@@ -125,7 +125,7 @@ docs/00-spec/30-quality-delivery/04-deployment-runbook.md
 | 分离部署 | 前端静态资源与后端服务独立发布 |
 | 合并部署 | 前端静态资源随后端制品发布 |
 
-数据库迁移必须版本化、可追踪并提供恢复方案。当前全量初始化脚本不能代替生产迁移流程。
+数据库迁移必须版本化、可追踪并提供恢复方案：全量初始化脚本 `schema.sql` 与 `server/src/main/resources/db/migration/` 下的版本化脚本双交付、同一目标状态；基线版本、已有环境升级路径与 CI 迁移测试见 `docs/00-spec/20-contracts/02-database.md` §5，发布流程见 `docs/00-spec/30-quality-delivery/04-deployment-runbook.md` §10。全量初始化脚本不能代替生产迁移流程。
 
 ## 6. 实时通信架构
 
@@ -194,6 +194,7 @@ docs/00-spec/20-contracts/03-realtime-protocol.md
 | ---- | ---- | ---- |
 | V1.0 | 2026-10-10 | 技术选型补 Markdown 编辑器：前端统一采用 Vditor（所见即所得），替换 md-editor-v3 |
 | V1.0 | 2026-11-25 | 仓库树登记顶层 `runner/` 执行端与 `desktop/` 桌面版壳，技术选型补 Playwright、Electron + electron-builder（均为过会项） |
+| V1.0 | 2026-11-27 | §5 数据库迁移口径对齐数据库规范 §5「全量基线 + 版本化迁移」双交付，补基线版本 / 升级路径 / CI 迁移测试引用 |
 
 ---
 

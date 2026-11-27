@@ -1,7 +1,7 @@
 # 软件测试平台——AI 能力详细设计总览
 
 **文档版本**：V1.0
-**日期**：2026-10-02
+**日期**：2026-11-27
 **状态**：起草中
 
 ---
@@ -748,12 +748,12 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 | mindmap_case_generation | 辅助 | `documentId`、`requirementId` | `mindmap_case_suggestion` | 脑图面板采纳（后端只记录状态） |
 | plan_order | 辅助 | `planId`、`round?` | `order_suggestion` | 计划排序采纳 |
 | review_case_review | 辅助 | `reviewId` | `review_suggestion` | 评审标记写回采纳服务 |
-| ui_execution | 功能测试（AI 执行） | `planId`、`caseIds`、`environmentId`、`modelId?`、`stepActionLimit?`（冻结的结构化用例数据写入 `ai_task.input`） | 无（判定结果不属生成物 / 提案；判定写执行记录，动作明细写 `ui_action_log`） | AI 执行服务（功能测试分册 09） |
+| ui_execution | 功能测试（AI 执行） | `planId`、`caseIds`、`environmentId`（必填）、`modelId?`、`stepActionLimit?`、`batchActionLimit?`、`batchTokenLimit?`、`batchCostLimit?`（冻结的结构化用例数据写入 `ai_task.input`） | 无（判定结果不属生成物 / 提案；判定写执行记录，动作明细写 `ui_action_log`，终止原因写 `abort_meta`） | AI 执行服务（功能测试分册 09） |
 | bug_draft_suggest | 缺陷 | `title`、`steps?`、`moduleId?` | `bug_draft_suggestion` | 只读建议提案并默认采纳：按提交人写采纳记录，前端覆盖回填新建缺陷表单，不写缺陷业务数据、不调用人工提案确认 |
 | assistant_parse | 助手 | `messageId`（对话式工具调用循环，不走 Agent 循环，见分册 04 §4.1） | `intent_preview / answer` | 助手执行接口（分册 04） |
 | vector_reindex | 底座（系统） | `scope?`（`entityTypes` 数组：`requirement / testcase / bug`，缺省全量） | 无 | 向量索引重建 |
 
-**AI 执行任务权限口径**：`ui_execution` 批次的发起、取消与轨迹查询沿用项目 / 空间成员归属与项目角色校验，不新增 RBAC 权限码；任务提交与取消复用 3.6 通用资源，输入校验、执行与预算细则见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md`。
+**AI 执行任务权限口径**：`ui_execution` 批次的发起、取消与轨迹查询仅校验当前用户是否为当前项目成员，不新增 RBAC 权限码、不校验项目角色；**已接受风险**：项目内只读成员亦可编辑环境与发起执行，后续引入只读 / 访客角色时须拆分「查看 / 编辑环境 / 发起执行」三档能力。任务提交与取消复用 3.6 通用资源，输入校验、执行与预算细则见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md`。
 
 **任务标题生成规则（单一事实源）**：提交创建时按「<类型描述> - <来源标题>」生成并写入 `ai_task.title`；类型描述复用任务类型中文名，来源标题按类型从输入指向的来源对象解析（校验阶段已加载来源时直接复用，不重复查询）。来源缺失或解析失败时只保留类型描述；标题整体超长截断至 200 字符（末位以 `…` 标记），与列宽一致。执行成功产出提案不再改写任务标题。
 
@@ -771,7 +771,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 每个任务类型在 2.6.5 工具注册表登记**工具白名单**（该类型可用工具集合，执行期 AI 只能调用白名单内工具）；**预算默认值**（`maxSteps / maxTokens / maxCost`）与**输出格式约束**（是否启用 JSON 对象模式，见 4.2）由对应类型适配器声明（`service/ai/task/type/*TypeAdapter`，2.6.5 表无预算列），提交时仅可下调（3.6.2）。
 
-普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex / ui_execution` 外的五类）的首版默认预算统一为 `{maxSteps: 40, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手、向量重建与 AI 执行策略（`ui_execution` 的预算与步级动作上限见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 4.6）。
+普通目标型任务（上述枚举中除 `assistant_parse / vector_reindex / ui_execution` 外的五类）的首版默认预算统一为 `{maxSteps: 40, maxTokens: 200000, maxCost: 5}`；成本沿用 4.3 的计价单位，请求仅可下调。该默认值不适用于助手、向量重建与 AI 执行策略：`ui_execution` 的适配器声明专用预算 profile（`maxSteps` 按批次动作上限与用例数推导，`maxTokens` / `maxCost` 不低于批次上限），由 `BudgetGuard` 正常签发，步级 / 批次动作数 / token / 成本 / 时长同时生效、先到者终止（见 `docs/04-detailed-design/03-function-testing/09-ai-ui-testing.md` 4.6）。
 
 `assistant_parse` 与 `vector_reindex` 的首版默认预算由各自类型适配器单独声明：`assistant_parse` 为 `{maxSteps: 5, maxTokens: 200000, maxCost: 5}`（steps 与单消息 5 跳上限一致，分册 04 §4.1）；`vector_reindex` 为 `{maxSteps: 500, maxTokens: 10000000, maxCost: 20}`（steps 按 embedding 批次与索引替换动作计，不按实体逐条计）。两者同样仅可下调，首版值按实际用量另行调优。
 
@@ -867,6 +867,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 - **终止**：`POST /api/ai/tasks/{taskId}/executions/{executionId}/abort` —— 仅 `running / waiting_confirmation` 的执行可终止（否则 1000018127）；执行置 `aborted`、任务置 `aborted`（终止原因「用户中止」）；终止不产生任何提案与落库数据。
 - **再次执行**：`POST /api/ai/tasks/{taskId}/executions` —— 任务处于 `aborted`（终止后重跑）或 `proposals_ready`（附反馈重新生成）时可发起；创建新执行实例，`retry_of_execution_id` 指向原执行、`model_id` 按最新默认模型重新解析（选型规则见 4.2），不沿用上次执行的模型；同任务同时至多一个进行中执行；新执行产生新提案（`execution_id` 指向新执行，同名键与原提案并存不冲突，见 2.6.4），原提案与采纳记录保留。
 - **轨迹查询**：`GET /api/ai/tasks/{taskId}/executions/{executionId}/events`——参数 `afterSeq`（游标，默认 0）、`pageSize`（默认 200，上限 500）；响应 `{ items: [ { seq, eventType, summary, detail, createdAt } ], nextSeq }`。轨迹同时经既有 WebSocket 通道按执行订阅实时推送；前端未接通时以游标轮询兜底。UI 执行（`ui_execution`）不消费 WebSocket 推送，需新增前端轮询逻辑，以本端点的 `afterSeq` 游标轮询取进度（`status_change` 事件的 `detail.kind=ui_progress` / `ui_decompose`）与状态摘要。轨迹只增不改，是通用执行过程审计与回放的事实源；**UI 执行的动作明细事实源为 `ui_action_log`**（功能测试分册 09 2.1.3 / 3.10），本端点在 UI 批次中不重复落动作明细。`ai_decision` 事件的 `detail.rawRequest` / `detail.rawResponse` 随本接口原样下发，供前端展开查看；沿用任务归属可见性，不新增权限码；完整响应可能较大，前端按折叠方式渲染，不进入日志与审计详情。
+  - **UI 执行动作明细查询**：`GET /api/ai/tasks/{taskId}/action-logs`（免 RBAC 权限码校验，仅校验项目成员与任务归属）——参数 `executionId?`、`snapshotNodeId?`、`pageNo`、`pageSize`（默认 100），按 `(caseSort, seq)` 升序返回 `ui_action_log` 分页结果；仅 `ui_execution` 类型任务消费，字段结构与错误码见功能测试分册 09 3.10。本端点在 AI 能力总览登记路径与职责，不重复定义报文。
 
 #### 3.6.5 提案确认（采纳 / 驳回）
 
@@ -931,7 +932,7 @@ CREATE INDEX idx_ai_vector_index_embedding ON ai_vector_index USING hnsw (embedd
 
 ### 3.8 权限口径
 
-AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部免 RBAC 权限码校验（登录即可），不设权限点；仅保留任务 / 会话归属可见性（3.6.3、分册 04 4.4）与项目 / 空间成员归属隔离等非 RBAC 控制。AI 执行批次（`ui_execution`）发起、取消与轨迹查询同样沿用成员归属与项目角色校验，不新增 RBAC 权限码。
+AI 能力域（配置、任务、助手、缺陷分析、辅助功能）全部免 RBAC 权限码校验（登录即可），不设权限点；仅保留任务 / 会话归属可见性（3.6.3、分册 04 4.4）与项目 / 空间成员归属隔离等非 RBAC 控制。AI 执行批次（`ui_execution`）发起、取消与轨迹查询同样仅校验当前用户是否为当前项目成员、不校验项目角色，已接受「只读成员亦可编辑环境与发起执行」风险，详见 3.6.1。
 
 ---
 
@@ -1191,3 +1192,4 @@ ALTER TABLE ai_usage_log ADD COLUMN cost numeric(14,6) NOT NULL DEFAULT 0;
 | V1.0 | 2026-11-25 | 登记 AI 执行任务类型 `ui_execution`（3.6.1）与场景示例 `ui_execution_decision`（2.5）：判定写执行记录、轨迹写动作日志，批次发起沿用成员归属校验、不新增 RBAC 权限码 |
 | V1.0 | 2026-11-26 | 3.6.4 明确 UI 执行不消费 WebSocket 推送、仅以轨迹 `afterSeq` 游标轮询取进度事件（`ui_progress` / `ui_decompose`） |
 | V1.0 | 2026-11-26 | 登记 UI 执行独立步进式策略例外（4.2）；明确动作明细事实源为 `ui_action_log`、通用轨迹仅承载摘要（3.6.4）；场景提示词在模型调用时传入、执行行 `promptScene` 沿用任务类型（2.5、3.6.1） |
+| V1.0 | 2026-11-27 | `ui_execution` 输入补批次上限、环境改为必填、`modelId` 生效；权限口径改为仅项目成员并登记已接受风险（3.6.1、3.8）；预算改专用 profile + 多维度先到者终止（3.6.1）；3.6.4 登记 `GET /api/ai/tasks/{taskId}/action-logs` 路径与职责 |
