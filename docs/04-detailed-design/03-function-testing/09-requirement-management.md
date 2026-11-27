@@ -435,7 +435,7 @@ RequirementListPage
 
 RequirementImportHistoryPage（导入历史，独立过程页，不嵌入 FunctionalTestingPage 壳层）
 ├── HistoryHeader（面包屑「需求管理 › 导入历史」、导入需求打开 RequirementImportDialog、返回需求列表）
-└── HistoryTable（卡片内边距归零贴边，数据源 GET /api/project/requirements/split-records，按创建时间倒序）
+└── HistoryTable（卡片内边距归零贴边，`el-table` 固定 height、表头固定且仅表体内滚动，数据源 GET /api/project/requirements/split-records，按创建时间倒序）
     ├── 列：导入时间、源文件、任务状态、发起人、产出概览（建议数 / 已采纳数）
     ├── 行操作：查看明细 → /workspace/projects/requirements/import-review/:taskId
     └── 分页（20/50/100，返回保留页码）
@@ -592,4 +592,4 @@ $$,
 | V1.0 | 2026-11-26 | 4.5 / 7 需求拆解改由 AI 判断章节归属同一需求还是多个需求：`description` 由模型输出 `@full` / `@blocks:Bn` 引用、后端回填原文并前置公共前言；登记存量库提示词增量 SQL |
 | V1.0 | 2026-11-26 | 3.10 拆解记录接口扩展任务态 / 发起人 / 提案统计字段作为导入历史数据源；5.1 / 5.2 / 5.3 新增导入历史页与执行批次切换，旧执行提案可在审核页继续审核 |
 | V1.0 | 2026-11-26 | 5.1 / 5.2 导入历史页改由 FunctionalTestingPage 壳层承载并高亮需求列表、不展示面包屑；页头补「导入需求」直接打开 RequirementImportDialog，「返回需求列表」改默认按钮 |
-| V1.0 | 2026-11-27 | 5.1 / 5.2 导入历史页回退为独立过程页：不嵌入功能测试壳层双栏父容器、恢复面包屑，保留页面级 `.content` 容器；历史表格卡片内边距归零贴边 |
+| V1.0 | 2026-11-27 | 5.1 / 5.2 导入历史页回退为独立过程页：不嵌入功能测试壳层双栏父容器、恢复面包屑，保留页面级 `.content` 容器；历史表格卡片内边距归零贴边、`el-table` 固定高度且仅表体内滚动 |
