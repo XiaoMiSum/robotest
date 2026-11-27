@@ -11,6 +11,15 @@
   [hidden] { display: none !important; }
 
   .history { padding: 0; }
+  .history__breadcrumb {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 16px;
+    font-size: var(--font-size-sm); color: var(--n-500);
+  }
+  .history__breadcrumb a { color: var(--brand-500); text-decoration: none; font-weight: 500; }
+  .history__breadcrumb a:hover { color: var(--brand-600); }
+
+  /* 表格容器贴边：内边距归零、不呈现悬浮卡片（无阴影无圆角） */
+  #history-card { padding: 0; box-shadow: none; border-radius: 0; }
 
   .page-head__actions { display: flex; gap: 8px; align-items: center; }
 
@@ -79,99 +88,99 @@
 <body data-shell="business" data-mode="project" data-active="ft" data-workspace="质量中台" data-project="电商核心系统">
 
 <main class="content content--flush">
-  <div class="split">
-    <aside class="split__side" data-side="ft"></aside>
+  <div class="history">
+    <nav class="history__breadcrumb" aria-label="面包屑">
+      <a href="requirements.html">需求列表</a>
+      <span aria-hidden="true">›</span>
+      <span>导入历史</span>
+    </nav>
 
-    <div class="split__main">
-      <div class="history">
-        <div class="page-head">
-          <div>
-            <h1 class="page-head__title">导入历史</h1>
-            <p class="page-head__desc">按时间倒序查看项目内历次需求导入任务，点击任务查看执行状态并审核提案</p>
-          </div>
-          <div class="page-head__actions">
-            <button class="btn btn--default" type="button" id="history-import"><span data-icon="upload"></span>导入需求</button>
-            <a class="btn btn--default" href="requirements.html">返回需求列表</a>
-          </div>
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">导入历史</h1>
+        <p class="page-head__desc">按时间倒序查看项目内历次需求导入任务，点击任务查看执行状态并审核提案</p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn btn--default" type="button" id="history-import"><span data-icon="upload"></span>导入需求</button>
+        <a class="btn btn--default" href="requirements.html">返回需求列表</a>
+      </div>
+    </div>
+
+    <div class="list-error" id="history-error" hidden>
+      <span class="list-error__body" id="history-error-text">加载导入历史失败</span>
+      <button class="btn btn--sm btn--danger-plain" type="button" id="history-error-retry">重试</button>
+    </div>
+
+    <div class="card" id="history-card">
+      <div class="table-wrap" id="history-table-wrap">
+        <table class="table" id="history-table">
+          <thead>
+            <tr>
+              <th style="width:160px">导入时间</th>
+              <th>源文件</th>
+              <th style="width:110px">任务状态</th>
+              <th style="width:90px">发起人</th>
+              <th style="width:150px">产出概览</th>
+              <th style="width:100px" class="ops-cell">操作</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr>
+              <td>2026-11-26 14:20</td>
+              <td title="03-srs-requirement-management.md">03-srs-requirement-management.md</td>
+              <td><span class="task-tag task-tag--warning">待采纳</span></td>
+              <td>张三</td>
+              <td>3 条建议 · 1 已采纳</td>
+              <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
+            </tr>
+            <tr>
+              <td>2026-11-25 09:10</td>
+              <td title="prd-v2.docx">prd-v2.docx</td>
+              <td><span class="task-tag task-tag--success">已完成</span></td>
+              <td>李四</td>
+              <td>5 条建议 · 5 已采纳</td>
+              <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
+            </tr>
+            <tr>
+              <td>2026-11-24 16:30</td>
+              <td title="spec.pdf">spec.pdf</td>
+              <td><span class="task-tag task-tag--danger">已终止</span></td>
+              <td>张三</td>
+              <td>—</td>
+              <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
+            </tr>
+            <tr>
+              <td>2026-11-23 11:05</td>
+              <td title="登录需求.md">登录需求.md</td>
+              <td><span class="task-tag task-tag--info">进行中</span></td>
+              <td>王五</td>
+              <td>解析中</td>
+              <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="table-mask" id="history-loading" hidden>
+          <span class="table-mask__spinner"></span>加载中…
         </div>
-
-        <div class="list-error" id="history-error" hidden>
-          <span class="list-error__body" id="history-error-text">加载导入历史失败</span>
-          <button class="btn btn--sm btn--danger-plain" type="button" id="history-error-retry">重试</button>
+      </div>
+      <div class="toolbar toolbar--footer">
+        <span>共 4 条 · 每页 20 条</span>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <button class="btn btn--sm btn--default" type="button" disabled>‹</button>
+          <button class="btn btn--sm btn--primary" type="button">1</button>
+          <button class="btn btn--sm btn--default" type="button" disabled>›</button>
         </div>
+      </div>
+    </div>
 
-        <div class="card" id="history-card">
-          <div class="table-wrap" id="history-table-wrap">
-            <table class="table" id="history-table">
-              <thead>
-                <tr>
-                  <th style="width:160px">导入时间</th>
-                  <th>源文件</th>
-                  <th style="width:110px">任务状态</th>
-                  <th style="width:90px">发起人</th>
-                  <th style="width:150px">产出概览</th>
-                  <th style="width:100px" class="ops-cell">操作</th>
-                </tr>
-              </thead>
-              <tbody id="history-body">
-                <tr>
-                  <td>2026-11-26 14:20</td>
-                  <td title="03-srs-requirement-management.md">03-srs-requirement-management.md</td>
-                  <td><span class="task-tag task-tag--warning">待采纳</span></td>
-                  <td>张三</td>
-                  <td>3 条建议 · 1 已采纳</td>
-                  <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
-                </tr>
-                <tr>
-                  <td>2026-11-25 09:10</td>
-                  <td title="prd-v2.docx">prd-v2.docx</td>
-                  <td><span class="task-tag task-tag--success">已完成</span></td>
-                  <td>李四</td>
-                  <td>5 条建议 · 5 已采纳</td>
-                  <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
-                </tr>
-                <tr>
-                  <td>2026-11-24 16:30</td>
-                  <td title="spec.pdf">spec.pdf</td>
-                  <td><span class="task-tag task-tag--danger">已终止</span></td>
-                  <td>张三</td>
-                  <td>—</td>
-                  <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
-                </tr>
-                <tr>
-                  <td>2026-11-23 11:05</td>
-                  <td title="登录需求.md">登录需求.md</td>
-                  <td><span class="task-tag task-tag--info">进行中</span></td>
-                  <td>王五</td>
-                  <td>解析中</td>
-                  <td class="ops-cell"><button class="op-link" type="button" data-detail>查看明细</button></td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="table-mask" id="history-loading" hidden>
-              <span class="table-mask__spinner"></span>加载中…
-            </div>
-          </div>
-          <div class="toolbar toolbar--footer">
-            <span>共 4 条 · 每页 20 条</span>
-            <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-              <button class="btn btn--sm btn--default" type="button" disabled>‹</button>
-              <button class="btn btn--sm btn--primary" type="button">1</button>
-              <button class="btn btn--sm btn--default" type="button" disabled>›</button>
-            </div>
-          </div>
-        </div>
+    <div class="history__skeleton" id="history-skeleton" hidden>正在加载导入历史…</div>
 
-        <div class="history__skeleton" id="history-skeleton" hidden>正在加载导入历史…</div>
-
-        <div class="history__empty" id="history-empty" hidden>
-          <div class="state-block">
-            <p class="state-block__title">暂无导入记录</p>
-            <p class="state-block__desc">导入需求文档后，可在此按任务回看执行状态与审核提案。</p>
-            <div class="state-block__action">
-              <a class="btn btn--primary" href="requirements.html">导入需求</a>
-            </div>
-          </div>
+    <div class="history__empty" id="history-empty" hidden>
+      <div class="state-block">
+        <p class="state-block__title">暂无导入记录</p>
+        <p class="state-block__desc">导入需求文档后，可在此按任务回看执行状态与审核提案。</p>
+        <div class="state-block__action">
+          <a class="btn btn--primary" href="requirements.html">导入需求</a>
         </div>
       </div>
     </div>

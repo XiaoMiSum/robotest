@@ -67,6 +67,9 @@
     padding-top: var(--space-sm); border-top: 1px solid var(--n-200);
   }
 
+  /* 表格容器贴平主内容区：无阴影、无圆角，不呈现悬浮卡片 */
+  #rp-table-card { box-shadow: none; border-radius: 0; }
+
   /* 刷新遮罩只盖表体：表头由 JS 实测高度让开，工具栏与分页条保持可见可交互（加载反馈口径文档 §4） */
   .table-wrap { position: relative; }
   /* b77ae075：保留横向滚动条，列溢出时可直接被发现（只隐藏纵向自绘条） */
@@ -178,7 +181,7 @@
         <button class="btn btn--sm btn--danger-plain" type="button" id="list-error-retry">重试</button>
       </div>
 
-      <div class="card">
+      <div class="card" id="rp-table-card">
         <div class="toolbar">
           <div class="toolbar__filters">
             <select class="select" id="f-status" style="width:150px" title="状态（实际为多选 el-select）">
