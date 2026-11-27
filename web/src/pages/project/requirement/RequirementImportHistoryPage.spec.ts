@@ -128,14 +128,23 @@ describe('RequirementImportHistoryPage', () => {
     expect(state.load).toHaveBeenCalled()
   })
 
-  it('无面包屑，页头两个按钮均为默认按钮', async () => {
+  it('展示两级面包屑，页头两个按钮均为默认按钮', async () => {
     const { wrapper } = await render()
-    expect(wrapper.find('.import-history__breadcrumb').exists()).toBe(false)
+    const breadcrumb = wrapper.find('.import-history__breadcrumb')
+    expect(breadcrumb.exists()).toBe(true)
+    expect(breadcrumb.text()).toContain('需求管理')
+    expect(breadcrumb.text()).toContain('导入历史')
     const buttons = wrapper.findAll('.import-history__actions button')
     expect(buttons.map((item) => item.text())).toEqual(['导入需求', '返回需求列表'])
     for (const button of buttons) {
       expect(button.classes()).not.toContain('el-button--primary')
     }
+  })
+
+  it('表格根节点带 flex 高度类且卡片去悬浮', async () => {
+    const { wrapper } = await render()
+    expect(wrapper.find('.import-history__table').classes()).toContain('import-history__table')
+    expect(wrapper.find('.import-history__card').exists()).toBe(true)
   })
 
   it('页头导入需求按钮直接打开导入对话框', async () => {

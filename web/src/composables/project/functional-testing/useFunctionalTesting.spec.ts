@@ -48,12 +48,6 @@ describe('useFunctionalTesting', () => {
       const { activeMenu } = useFunctionalTesting()
       expect(activeMenu.value).toBe('cases')
     })
-
-    it('导入历史路由下侧栏仍高亮需求列表', () => {
-      mocks.useRoute.mockReturnValue({ name: 'RequirementImportHistory', query: {} } as never)
-      const { activeMenu } = useFunctionalTesting()
-      expect(activeMenu.value).toBe('requirements')
-    })
   })
 
   describe('handleMenuSelect', () => {
@@ -111,13 +105,5 @@ describe('useFunctionalTesting', () => {
       expect(replace).toHaveBeenCalledWith({ name: 'FunctionalTesting', query: { tab: 'requirements', foo: 'bar' } })
     })
 
-    it('从导入历史切换菜单时切回功能测试主路由', async () => {
-      mocks.useRoute.mockReturnValue({ name: 'RequirementImportHistory', query: {} } as never)
-      const replace = vi.fn()
-      mocks.useRouter.mockReturnValue({ replace } as never)
-      const { handleMenuSelect } = useFunctionalTesting()
-      await handleMenuSelect('plans')
-      expect(replace).toHaveBeenCalledWith({ name: 'FunctionalTesting', query: { tab: 'plans' } })
-    })
   })
 })
